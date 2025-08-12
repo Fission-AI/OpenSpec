@@ -12,27 +12,31 @@ openspec view [change-name]
 
 ### Viewing a Specific Change
 
+@behavior view-specific-change
 WHEN a user runs `openspec view [change-name]`
 THEN display a tree-structured summary containing:
 - Change name with status (active/archived/abandoned)
 - Brief "why" statement from proposal
 - Impact summary (count of new/modified specs)
-- Behavioral changes extracted from specs
-  - First 3-4 WHEN/THEN patterns per spec
+- Behavioral changes extracted from specs using @behavior markers
+  - First 3-4 behavior descriptions per spec
   - Total behavior count if more than shown
   - Clear indication of NEW vs MODIFIED specs
 - Reference to tasks.md and design.md if present
 
+@behavior show-limited-behaviors
 WHEN the change has many behavioral specifications
 THEN show only the first 3-4 behaviors per spec
 AND display count of remaining behaviors
 
-WHEN specs contain WHEN/THEN patterns
-THEN extract and display them in readable format
-AND use arrow notation (→) for clarity
+@behavior extract-behavior-markers
+WHEN specs contain @behavior markers
+THEN extract the behavior identifier and description
+AND display them in a readable tree format
 
 ### Listing All Changes
 
+@behavior list-all-changes
 WHEN a user runs `openspec view` without a change name
 THEN display a list of all available changes showing:
 - Change name
@@ -42,12 +46,16 @@ THEN display a list of all available changes showing:
 
 ### Error Handling
 
+@behavior handle-missing-change
 WHEN a specified change doesn't exist
 THEN display an error message and list available changes
 
-WHEN spec files don't contain WHEN/THEN patterns
+@behavior handle-missing-markers
+WHEN spec files don't contain @behavior markers
 THEN show spec name with description if available
+AND indicate that behaviors could not be extracted
 
+@behavior handle-missing-files
 WHEN change files are missing or malformed
 THEN display available information and skip missing sections
 
@@ -63,15 +71,15 @@ add-authentication (active)
 └─ Behavioral Changes:
 
 📝 user-auth (NEW - 12 behaviors)
-   ├─ WHEN user registers with valid email → THEN create account and send confirmation
-   ├─ WHEN user logs in with correct credentials → THEN return JWT token
-   ├─ WHEN user logs out → THEN invalidate token and clear session
+   ├─ user-register: User registration with email validation
+   ├─ user-login: JWT-based authentication
+   ├─ user-logout: Session invalidation
    └─ ... 9 more behaviors
 
 📝 api-core (MODIFIED - 3 new behaviors)
-   ├─ WHEN request has valid JWT → THEN allow through middleware
-   ├─ WHEN request has expired JWT → THEN return 401 unauthorized
-   └─ WHEN request missing auth header → THEN return 401 for protected routes
+   ├─ validate-jwt: Check JWT token in middleware
+   ├─ handle-expired-token: Return 401 for expired tokens
+   └─ require-auth: Enforce authentication on protected routes
 
 📝 user-profile (NEW - 5 behaviors)
    └─ ... 5 behaviors defined
@@ -89,11 +97,11 @@ add-view-command (active)
 ├─ Impact: 1 new spec
 └─ Behavioral Changes:
 
-📝 cli-view (NEW - 4 behaviors)
-   ├─ WHEN user runs view with change name → THEN display behavioral summary
-   ├─ WHEN user runs view without argument → THEN list all changes
-   ├─ WHEN change doesn't exist → THEN show error and available changes
-   └─ ... 1 more behavior
+📝 cli-view (NEW - 7 behaviors)
+   ├─ view-specific-change: Display change summary with behaviors
+   ├─ list-all-changes: Show all available changes
+   ├─ handle-missing-change: Error handling for invalid changes
+   └─ ... 4 more behaviors
 
 Tasks: 27 defined (see tasks.md)
 Design: Architecture decisions available (see design.md)

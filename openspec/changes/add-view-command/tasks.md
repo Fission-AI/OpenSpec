@@ -9,17 +9,17 @@
 
 ## 2. Behavioral Extraction
 - [ ] 2.1 Create BehaviorExtractor class
-- [ ] 2.2 Implement regex for WHEN/THEN pattern matching
-- [ ] 2.3 Extract behaviors from spec.md files
+- [ ] 2.2 Parse @behavior markers and their identifiers
+- [ ] 2.3 Extract behavior descriptions following markers
 - [ ] 2.4 Count total behaviors per spec
-- [ ] 2.5 Format behaviors with arrow notation
+- [ ] 2.5 Format behaviors as "identifier: description"
 
 ## 3. Spec Analysis
 - [ ] 3.1 Scan changes/[change-name]/specs/ directory structure
 - [ ] 3.2 Identify capability folders and spec.md files
 - [ ] 3.3 Compare with openspec/specs/ to classify as NEW or MODIFIED
 - [ ] 3.4 Group behaviors by spec for display
-- [ ] 3.5 Handle specs without WHEN/THEN patterns gracefully
+- [ ] 3.5 Handle specs without @behavior markers gracefully
 
 ## 4. Display Renderer
 - [ ] 4.1 Create ChangeRenderer for terminal output

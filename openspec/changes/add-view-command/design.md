@@ -3,7 +3,7 @@
 ## Architecture Decisions
 
 ### Focus on Behavioral Specifications
-The view command will prioritize showing the behavioral changes (WHEN/THEN patterns) from specs, as these define what the system will actually do differently. Instead of trying to display all content, we focus on what matters most: the requirements and behaviors being added or modified.
+The view command will prioritize showing behavioral changes identified by @behavior markers in specs, as these define what the system will actually do differently. Instead of trying to display all content, we focus on what matters most: the requirements and behaviors being added or modified.
 
 ### Display Components
 
@@ -18,8 +18,8 @@ The view will show a concise summary with behavioral focus:
    - Total number of behavioral changes
 
 3. **Behavioral Changes**
-   - Extracted WHEN/THEN patterns from specs
-   - First few behaviors shown for context
+   - Extracted from @behavior markers in specs
+   - First few behavior identifiers and descriptions shown
    - Count indicator for additional behaviors
    - Grouped by spec (new vs modified)
 
@@ -32,7 +32,7 @@ The view will show a concise summary with behavioral focus:
 
 2. **Behavioral Extraction**
    - Parse spec.md files in changes/[name]/specs/
-   - Extract WHEN/THEN patterns using regex
+   - Extract @behavior markers and their identifiers
    - Count total behaviors per spec
    - Identify new vs modified specs by comparing with openspec/specs/
 
@@ -63,8 +63,8 @@ The view will show a concise summary with behavioral focus:
    - Handles missing files gracefully
 
 2. **BehaviorExtractor**
-   - Parses spec.md files for WHEN/THEN patterns
-   - Uses regex: `WHEN .+ THEN .+`
+   - Parses spec.md files for @behavior markers
+   - Extracts behavior identifier and description
    - Counts and categorizes behaviors
    - Compares with existing specs for new/modified classification
 
@@ -76,12 +76,14 @@ The view will show a concise summary with behavioral focus:
 ### Pattern Matching
 
 ```javascript
-// Extract WHEN/THEN patterns
-const behaviorPattern = /WHEN\s+(.+?)\s+THEN\s+(.+?)(?=\n|$)/gi;
+// Extract @behavior markers and identifiers
+const behaviorPattern = /@behavior\s+([\w-]+)/g;
 
-// Extract brief descriptions
-const whenPattern = /WHEN\s+(.+?)\s+(?=THEN|→)/;
-const thenPattern = /(?:THEN|→)\s+(.+?)(?=\n|$)/;
+// Extract the description from the following WHEN clause
+const extractDescription = (content, markerIndex) => {
+  const whenMatch = content.slice(markerIndex).match(/WHEN\s+(.+?)(?=THEN|\n\n|$)/s);
+  return whenMatch ? whenMatch[1].trim() : null;
+};
 ```
 
 ### Error Handling
@@ -89,7 +91,7 @@ const thenPattern = /(?:THEN|→)\s+(.+?)(?=\n|$)/;
 1. **Missing Files**
    - Show what's available
    - Skip missing sections gracefully
-   - Don't fail on malformed patterns
+   - Handle specs without @behavior markers
 
 2. **Large Spec Files**
    - Show first few behaviors
@@ -105,15 +107,15 @@ add-authentication (active)
 └─ Behavioral Changes:
 
 📝 user-auth (NEW - 12 behaviors)
-   ├─ WHEN user registers with valid email → THEN create account and send confirmation
-   ├─ WHEN user logs in with correct credentials → THEN return JWT token
-   ├─ WHEN user logs out → THEN invalidate token and clear session
+   ├─ user-register: User registration with email validation
+   ├─ user-login: JWT-based authentication
+   ├─ user-logout: Session invalidation
    └─ ... 9 more behaviors
 
 📝 api-core (MODIFIED - 3 new behaviors)
-   ├─ WHEN request has valid JWT → THEN allow through middleware
-   ├─ WHEN request has expired JWT → THEN return 401 unauthorized
-   └─ WHEN request missing auth header → THEN return 401 for protected routes
+   ├─ validate-jwt: Check JWT token in middleware
+   ├─ handle-expired-token: Return 401 for expired tokens
+   └─ require-auth: Enforce authentication on protected routes
 
 📝 user-profile (NEW - 5 behaviors)
    └─ ... 5 behaviors defined
