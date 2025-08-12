@@ -2,28 +2,31 @@
 
 ## 1. Core Parsing
 - [ ] 1.1 Create ChangeParser class for reading change files
-- [ ] 1.2 Implement proposal.md parser
-- [ ] 1.3 Implement tasks.md parser with checkbox counting
-- [ ] 1.4 Add design.md parser (optional file)
+- [ ] 1.2 Extract brief "why" statement from proposal.md
+- [ ] 1.3 Count total tasks in tasks.md (if present)
+- [ ] 1.4 Note presence of design.md (optional file)
 - [ ] 1.5 Create change discovery logic
 
-## 2. Progress Tracking
-- [ ] 2.1 Count task checkboxes (completed vs total)
-- [ ] 2.2 Calculate completion percentage
-- [ ] 2.3 Group tasks by section headers if present
+## 2. Behavioral Extraction
+- [ ] 2.1 Create BehaviorExtractor class
+- [ ] 2.2 Implement regex for WHEN/THEN pattern matching
+- [ ] 2.3 Extract behaviors from spec.md files
+- [ ] 2.4 Count total behaviors per spec
+- [ ] 2.5 Format behaviors with arrow notation
 
 ## 3. Spec Analysis
-- [ ] 3.1 Scan changes/[change-name]/specs/ directory for spec files
-- [ ] 3.2 Parse spec.md files from each capability folder
-- [ ] 3.3 Compare with existing specs in openspec/specs/ to determine new vs modified
-- [ ] 3.4 Extract spec purpose/description from parsed content
-- [ ] 3.5 Build list of spec changes for display
+- [ ] 3.1 Scan changes/[change-name]/specs/ directory structure
+- [ ] 3.2 Identify capability folders and spec.md files
+- [ ] 3.3 Compare with openspec/specs/ to classify as NEW or MODIFIED
+- [ ] 3.4 Group behaviors by spec for display
+- [ ] 3.5 Handle specs without WHEN/THEN patterns gracefully
 
 ## 4. Display Renderer
 - [ ] 4.1 Create ChangeRenderer for terminal output
-- [ ] 4.2 Implement box drawing and formatting
-- [ ] 4.3 Add progress bar visualization
-- [ ] 4.4 Handle Unicode vs ASCII fallback
+- [ ] 4.2 Implement tree structure display
+- [ ] 4.3 Show first 3-4 behaviors per spec
+- [ ] 4.4 Add "... X more behaviors" indicator
+- [ ] 4.5 Handle Unicode emoji and fallback
 
 ## 5. CLI Integration
 - [ ] 5.1 Add view command to CLI router

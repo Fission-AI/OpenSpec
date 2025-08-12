@@ -1,7 +1,7 @@
 # CLI View Command Specification
 
 ## Purpose
-Display comprehensive information about OpenSpec changes in a unified, easy-to-read format.
+Display a concise summary of OpenSpec changes with focus on behavioral specifications (WHEN/THEN patterns) that define what the system will do differently.
 
 ## Command Structure
 ```bash
@@ -13,13 +13,23 @@ openspec view [change-name]
 ### Viewing a Specific Change
 
 WHEN a user runs `openspec view [change-name]`
-THEN display a formatted view containing:
-- Change name with timestamps (created, last updated)
-- Progress bar showing task completion percentage
-- Proposal content (why, what, impact)
-- Task list grouped by sections with completion status
-- Design decisions (if design.md exists)
-- List of new and modified specs
+THEN display a tree-structured summary containing:
+- Change name with status (active/archived/abandoned)
+- Brief "why" statement from proposal
+- Impact summary (count of new/modified specs)
+- Behavioral changes extracted from specs
+  - First 3-4 WHEN/THEN patterns per spec
+  - Total behavior count if more than shown
+  - Clear indication of NEW vs MODIFIED specs
+- Reference to tasks.md and design.md if present
+
+WHEN the change has many behavioral specifications
+THEN show only the first 3-4 behaviors per spec
+AND display count of remaining behaviors
+
+WHEN specs contain WHEN/THEN patterns
+THEN extract and display them in readable format
+AND use arrow notation (→) for clarity
 
 ### Listing All Changes
 
@@ -27,68 +37,66 @@ WHEN a user runs `openspec view` without a change name
 THEN display a list of all available changes showing:
 - Change name
 - Directory location (changes/, archive/, abandoned/)
-- Progress percentage (for active changes)
-- Brief description from proposal
+- Brief "why" statement
+- Count of specs affected
 
 ### Error Handling
 
 WHEN a specified change doesn't exist
 THEN display an error message and list available changes
 
+WHEN spec files don't contain WHEN/THEN patterns
+THEN show spec name with description if available
+
 WHEN change files are missing or malformed
 THEN display available information and skip missing sections
 
-WHEN terminal doesn't support Unicode
-THEN fall back to ASCII characters for box drawing
-
 ## Example Output
 
-### Viewing a Change
+### Viewing a Change with Behavioral Focus
 ```bash
 $ openspec view add-authentication
 
-┌─────────────────────────────────────────────────────────┐
-│ add-authentication                                       │
-│ Created: 5 days ago | Updated: 2 hours ago             │
-│ Progress: ████████████░░░░░ 70% (14/20 tasks)          │
-├─────────────────────────────────────────────────────────┤
-│ PROPOSAL                                                │
-│                                                         │
-│ Why: Need user authentication for secure access         │
-│                                                         │
-│ What:                                                   │
-│ • Add JWT-based authentication                         │
-│ • Create user registration flow                        │
-│ • Implement login/logout endpoints                     │
-│                                                         │
-│ Impact:                                                 │
-│ • New spec: user-auth                                  │
-│ • Modified: api-core                                   │
-│ • Code: src/auth/*, src/middleware/*                   │
-├─────────────────────────────────────────────────────────┤
-│ TASKS                                                   │
-│                                                         │
-│ Backend (8/10):                                        │
-│ ✅ Create user model                                    │
-│ ✅ Add password hashing                                 │
-│ ✅ Implement JWT generation                             │
-│ ⬜ Add refresh token logic                              │
-│ ⬜ Create auth middleware                               │
-│                                                         │
-│ Frontend (6/10):                                       │
-│ ✅ Create login form                                    │
-│ ✅ Add registration page                                │
-│ ⬜ Implement token storage                              │
-│ ⬜ Add auth context                                     │
-├─────────────────────────────────────────────────────────┤
-│ SPEC CHANGES                                           │
-│                                                         │
-│ New capabilities:                                      │
-│ • user-auth: Authentication and authorization          │
-│                                                         │
-│ Modified capabilities:                                 │
-│ • api-core: Added auth middleware to request pipeline  │
-└─────────────────────────────────────────────────────────┘
+add-authentication (active)
+├─ Why: User authentication needed for secure access
+├─ Impact: 2 new specs, 1 modified
+└─ Behavioral Changes:
+
+📝 user-auth (NEW - 12 behaviors)
+   ├─ WHEN user registers with valid email → THEN create account and send confirmation
+   ├─ WHEN user logs in with correct credentials → THEN return JWT token
+   ├─ WHEN user logs out → THEN invalidate token and clear session
+   └─ ... 9 more behaviors
+
+📝 api-core (MODIFIED - 3 new behaviors)
+   ├─ WHEN request has valid JWT → THEN allow through middleware
+   ├─ WHEN request has expired JWT → THEN return 401 unauthorized
+   └─ WHEN request missing auth header → THEN return 401 for protected routes
+
+📝 user-profile (NEW - 5 behaviors)
+   └─ ... 5 behaviors defined
+
+Tasks: 20 defined (see tasks.md)
+Design: Architecture decisions available (see design.md)
+```
+
+### Viewing a Simpler Change
+```bash
+$ openspec view add-view-command
+
+add-view-command (active)
+├─ Why: Need unified display of change information
+├─ Impact: 1 new spec
+└─ Behavioral Changes:
+
+📝 cli-view (NEW - 4 behaviors)
+   ├─ WHEN user runs view with change name → THEN display behavioral summary
+   ├─ WHEN user runs view without argument → THEN list all changes
+   ├─ WHEN change doesn't exist → THEN show error and available changes
+   └─ ... 1 more behavior
+
+Tasks: 27 defined (see tasks.md)
+Design: Architecture decisions available (see design.md)
 ```
 
 ### Listing All Changes
@@ -98,16 +106,14 @@ $ openspec view
 Available changes:
 
 ACTIVE (openspec/changes/)
-• add-authentication    - 70% complete - Add JWT-based authentication
-• add-view-command      - 20% complete - Add view command for rich display
-• refactor-parsers      - 60% complete - Improve parser performance
+• add-authentication - User authentication needed for secure access (3 specs)
+• add-view-command - Need unified display of change information (1 spec)
+• refactor-parsers - Improve parser performance (2 specs modified)
 
 ARCHIVED (openspec/changes/archive/)
-• 2025-01-11-add-init-command     - Initialize OpenSpec structure
-• 2025-01-09-fix-path-traversal   - Security patch for file access
-• 2025-01-08-update-dependencies  - Update to latest packages
+• 2025-01-11-add-init-command - Initialize OpenSpec structure (2 specs)
+• 2025-01-09-fix-path-traversal - Security patch for file access (1 spec)
 
 ABANDONED (openspec/changes/abandoned/)
-• add-status-command     - Superseded by view command
-• add-websocket-support  - Out of scope for current phase
+• add-status-command - Superseded by view command (1 spec)
 ```

@@ -2,140 +2,129 @@
 
 ## Architecture Decisions
 
-### Single Unified View
-The view command will provide a single, comprehensive display of a change that aggregates all relevant information in one place.
+### Focus on Behavioral Specifications
+The view command will prioritize showing the behavioral changes (WHEN/THEN patterns) from specs, as these define what the system will actually do differently. Instead of trying to display all content, we focus on what matters most: the requirements and behaviors being added or modified.
 
 ### Display Components
 
-The view will show the following sections in order:
+The view will show a concise summary with behavioral focus:
 
 1. **Header**
-   - Change name
-   - Creation date and last update
-   - Overall progress percentage
+   - Change name and status (active/archived/abandoned)
+   - Brief "why" from proposal
 
-2. **Proposal Section**
-   - Why: Problem statement
-   - What: List of changes
-   - Impact: Affected specs and code
+2. **Impact Summary**
+   - Count of new/modified specs
+   - Total number of behavioral changes
 
-3. **Progress Section**
-   - Task completion visualization
-   - Completed vs total tasks count
-   - Task groups if present
-
-4. **Design Section** (if design.md exists)
-   - Key architectural decisions
-   - Technical approach summary
-
-5. **Spec Changes**
-   - List of new specs added
-   - List of modified specs
-   - Brief description of changes
+3. **Behavioral Changes**
+   - Extracted WHEN/THEN patterns from specs
+   - First few behaviors shown for context
+   - Count indicator for additional behaviors
+   - Grouped by spec (new vs modified)
 
 ### Data Collection
 
 1. **Change Discovery**
    - Accept change name as argument
    - If no argument, list available changes
-   - Look in `openspec/changes/`, `archive/`, and `abandoned/` directories
+   - Scan `openspec/changes/`, `archive/`, and `abandoned/` directories
 
-2. **File Parsing**
-   - Parse proposal.md for metadata
-   - Parse tasks.md for progress calculation
-   - Parse design.md if present
-   - Scan specs/ directory for changed specifications
+2. **Behavioral Extraction**
+   - Parse spec.md files in changes/[name]/specs/
+   - Extract WHEN/THEN patterns using regex
+   - Count total behaviors per spec
+   - Identify new vs modified specs by comparing with openspec/specs/
 
-3. **Progress Calculation**
-   - Count `[x]` vs `[ ]` checkboxes in tasks.md
-   - Calculate percentage completion
-   - Group by headers if present
+3. **Proposal Parsing**
+   - Extract brief "why" statement (first sentence/paragraph)
+   - Count tasks if tasks.md exists
+   - Note presence of design.md
 
-### Display Format
+### Display Strategy
 
-1. **Terminal Output**
-   - Use box drawing characters for structure
-   - Color coding for different sections
-   - Progress bar visualization
-   - Clear visual hierarchy
+1. **Concise Summary**
+   - Show just enough to understand the change
+   - Point to files for full details
+   - Focus on behavioral requirements
 
-2. **Graceful Degradation**
-   - Fall back to ASCII if Unicode not supported
-   - Handle missing files gracefully
-   - Show available information even if some files are missing
+2. **Progressive Detail**
+   - Show first 3-4 behaviors per spec
+   - Indicate total count if more exist
+   - Collapse modified specs to just count by default
 
 ## Technical Implementation
 
 ### Core Components
 
 1. **ChangeParser**
-   - Reads and parses change files
-   - Extracts structured data from markdown
+   - Reads change directory structure
+   - Extracts brief proposal summary
    - Handles missing files gracefully
 
-2. **ProgressCalculator**
-   - Counts task checkboxes
-   - Calculates completion percentage
-   - Groups tasks by sections
+2. **BehaviorExtractor**
+   - Parses spec.md files for WHEN/THEN patterns
+   - Uses regex: `WHEN .+ THEN .+`
+   - Counts and categorizes behaviors
+   - Compares with existing specs for new/modified classification
 
 3. **ChangeRenderer**
-   - Formats output for terminal display
-   - Manages visual hierarchy
-   - Handles terminal capabilities
+   - Formats compact terminal output
+   - Uses tree structure for clarity
+   - Emphasizes behavioral changes
+
+### Pattern Matching
+
+```javascript
+// Extract WHEN/THEN patterns
+const behaviorPattern = /WHEN\s+(.+?)\s+THEN\s+(.+?)(?=\n|$)/gi;
+
+// Extract brief descriptions
+const whenPattern = /WHEN\s+(.+?)\s+(?=THEN|→)/;
+const thenPattern = /(?:THEN|→)\s+(.+?)(?=\n|$)/;
+```
 
 ### Error Handling
 
-1. **Missing Change**
-   - Show helpful error if change doesn't exist
-   - List available changes
+1. **Missing Files**
+   - Show what's available
+   - Skip missing sections gracefully
+   - Don't fail on malformed patterns
 
-2. **Malformed Files**
-   - Continue with partial information
-   - Show warnings for problematic sections
+2. **Large Spec Files**
+   - Show first few behaviors
+   - Provide count of remaining
+   - Don't attempt to show all
 
 ## Example Output
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│ add-authentication                                       │
-│ Created: 5 days ago | Updated: 2 hours ago             │
-│ Progress: ████████████░░░░░ 70% (14/20 tasks)          │
-├─────────────────────────────────────────────────────────┤
-│ PROPOSAL                                                │
-│                                                         │
-│ Why: Need user authentication for secure access         │
-│                                                         │
-│ What:                                                   │
-│ • Add JWT-based authentication                         │
-│ • Create user registration flow                        │
-│ • Implement login/logout endpoints                     │
-│                                                         │
-│ Impact:                                                 │
-│ • New spec: user-auth                                  │
-│ • Modified: api-core                                   │
-│ • Code: src/auth/*, src/middleware/*                   │
-├─────────────────────────────────────────────────────────┤
-│ TASKS                                                   │
-│                                                         │
-│ Backend (8/10):                                        │
-│ ✅ Create user model                                    │
-│ ✅ Add password hashing                                 │
-│ ✅ Implement JWT generation                             │
-│ ⬜ Add refresh token logic                              │
-│ ⬜ Create auth middleware                               │
-│                                                         │
-│ Frontend (6/10):                                       │
-│ ✅ Create login form                                    │
-│ ✅ Add registration page                                │
-│ ⬜ Implement token storage                              │
-│ ⬜ Add auth context                                     │
-├─────────────────────────────────────────────────────────┤
-│ SPEC CHANGES                                           │
-│                                                         │
-│ New capabilities:                                      │
-│ • user-auth: Authentication and authorization          │
-│                                                         │
-│ Modified capabilities:                                 │
-│ • api-core: Added auth middleware to request pipeline  │
-└─────────────────────────────────────────────────────────┘
+add-authentication (active)
+├─ Why: User authentication needed for secure access
+├─ Impact: 2 new specs, 1 modified
+└─ Behavioral Changes:
+
+📝 user-auth (NEW - 12 behaviors)
+   ├─ WHEN user registers with valid email → THEN create account and send confirmation
+   ├─ WHEN user logs in with correct credentials → THEN return JWT token
+   ├─ WHEN user logs out → THEN invalidate token and clear session
+   └─ ... 9 more behaviors
+
+📝 api-core (MODIFIED - 3 new behaviors)
+   ├─ WHEN request has valid JWT → THEN allow through middleware
+   ├─ WHEN request has expired JWT → THEN return 401 unauthorized
+   └─ WHEN request missing auth header → THEN return 401 for protected routes
+
+📝 user-profile (NEW - 5 behaviors)
+   └─ ... 5 behaviors defined
+
+Tasks: 20 defined (see tasks.md)
+Design: Architecture decisions available (see design.md)
 ```
+
+## Benefits of This Approach
+
+1. **Immediate Understanding**: Developers see what the system will do differently
+2. **Concise Display**: Fits in a terminal window without scrolling
+3. **Actionable Information**: Points to files for deeper investigation
+4. **Requirements Focus**: Emphasizes behaviors over implementation details
