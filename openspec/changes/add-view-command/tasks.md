@@ -13,9 +13,11 @@
 - [ ] 2.3 Group tasks by section headers if present
 
 ## 3. Spec Analysis
-- [ ] 3.1 Identify new specs in specs/ directory
-- [ ] 3.2 Identify modified specs
-- [ ] 3.3 Extract spec descriptions
+- [ ] 3.1 Scan changes/[change-name]/specs/ directory for spec files
+- [ ] 3.2 Parse spec.md files from each capability folder
+- [ ] 3.3 Compare with existing specs in openspec/specs/ to determine new vs modified
+- [ ] 3.4 Extract spec purpose/description from parsed content
+- [ ] 3.5 Build list of spec changes for display
 
 ## 4. Display Renderer
 - [ ] 4.1 Create ChangeRenderer for terminal output
