@@ -7,25 +7,25 @@
 - [ ] 1.4 Note presence of design.md (optional file)
 - [ ] 1.5 Create change discovery logic
 
-## 2. Behavioral Extraction
-- [ ] 2.1 Create BehaviorExtractor class
-- [ ] 2.2 Parse @behavior markers and their identifiers
-- [ ] 2.3 Extract behavior descriptions following markers
-- [ ] 2.4 Count total behaviors per spec
-- [ ] 2.5 Format behaviors as "identifier: description"
+## 2. Requirement Extraction
+- [ ] 2.1 Create RequirementExtractor class
+- [ ] 2.2 Parse @requirement markers and their identifiers
+- [ ] 2.3 Extract requirement descriptions following markers
+- [ ] 2.4 Count total requirements per spec
+- [ ] 2.5 Format requirements as "identifier: description"
 
 ## 3. Spec Analysis
 - [ ] 3.1 Scan changes/[change-name]/specs/ directory structure
 - [ ] 3.2 Identify capability folders and spec.md files
 - [ ] 3.3 Compare with openspec/specs/ to classify as NEW or MODIFIED
-- [ ] 3.4 Group behaviors by spec for display
-- [ ] 3.5 Handle specs without @behavior markers gracefully
+- [ ] 3.4 Group requirements by spec for display
+- [ ] 3.5 Handle specs without @requirement markers gracefully
 
 ## 4. Display Renderer
 - [ ] 4.1 Create ChangeRenderer for terminal output
 - [ ] 4.2 Implement tree structure display
-- [ ] 4.3 Show first 3-4 behaviors per spec
-- [ ] 4.4 Add "... X more behaviors" indicator
+- [ ] 4.3 Show first 3-4 requirements per spec
+- [ ] 4.4 Add "... X more requirements" indicator
 - [ ] 4.5 Handle Unicode emoji and fallback
 
 ## 5. CLI Integration
