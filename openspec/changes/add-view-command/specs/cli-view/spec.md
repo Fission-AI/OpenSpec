@@ -1,208 +1,113 @@
 # CLI View Command Specification
 
 ## Purpose
-Display comprehensive information about OpenSpec changes with rich formatting, progress tracking, and impact analysis.
+Display comprehensive information about OpenSpec changes in a unified, easy-to-read format.
 
 ## Command Structure
 ```bash
-openspec view [change-name] [options]
+openspec view [change-name]
 ```
-
-## Options
-- `--detailed, -d` - Show complete change information including all sections
-- `--diff` - Display spec changes in diff format
-- `--format <type>` - Output format: terminal (default), json, ai
-- `--interactive, -i` - Launch interactive viewer with navigation
-- `--compare <change>` - Compare two changes side-by-side
-- `--timeline` - Show temporal view of all changes
-- `--related` - Display dependency graph for the change
-- `--list, -l` - List all available changes with status
 
 ## Behavior
 
-### Default View (Summary Mode)
+### Viewing a Specific Change
 
 WHEN a user runs `openspec view [change-name]`
-THEN display:
-- Change title and current status (ACTIVE/ARCHIVED/ABANDONED)
-- Creation and last update timestamps
-- Progress bar with completion percentage and task count
-- Team breakdown if tasks are grouped
-- Impact summary (affected specs, breaking changes)
-- Recent activity (last 3 completed tasks)
+THEN display a formatted view containing:
+- Change name with timestamps (created, last updated)
+- Progress bar showing task completion percentage
+- Proposal content (why, what, impact)
+- Task list grouped by sections with completion status
+- Design decisions (if design.md exists)
+- List of new and modified specs
 
-WHEN no change name is provided
-THEN display a list of all changes grouped by status
+### Listing All Changes
 
-WHEN run from within a change directory
-THEN automatically view that change
-
-### Detailed View
-
-WHEN a user runs `openspec view [change-name] --detailed`
-THEN display:
-- Everything from summary mode
-- Complete proposal content (why, what, impact)
-- Full task list with completion checkboxes
-- Design decisions if design.md exists
-- Complete list of spec changes
-- Related changes and dependencies
-
-### Diff Mode
-
-WHEN a user runs `openspec view [change-name] --diff`
-THEN display:
-- Side-by-side comparison of current vs future specs
-- Added capabilities marked with +
-- Removed capabilities marked with -
-- Modified capabilities with inline diffs
-- Summary of behavioral changes
-
-### Output Formats
-
-WHEN a user runs `openspec view [change-name] --format=json`
-THEN output structured JSON containing:
-- All change metadata
-- Parsed task completion data
-- Spec change analysis
-- Impact assessment
-
-WHEN a user runs `openspec view [change-name] --format=ai`
-THEN output optimized text for AI consumption:
-- Consolidated change context
-- Clear task boundaries
-- Pre-computed impact analysis
-- Relevant specs included inline
-
-### Interactive Mode
-
-WHEN a user runs `openspec view --interactive`
-THEN launch interactive viewer with:
-- List of all changes navigable with arrow keys
-- Enter to expand/collapse sections
-- Tab to switch between changes
-- / to search within current view
-- q to quit
-- t to toggle task completion (if permissions allow)
-- a to archive completed change
-
-### Comparison Mode
-
-WHEN a user runs `openspec view --compare change1 change2`
-THEN display side-by-side:
-- Proposal differences
-- Task list comparison
-- Overlapping vs unique spec changes
-- Timeline comparison
-
-### Timeline View
-
-WHEN a user runs `openspec view --timeline`
-THEN display chronological view showing:
-- Changes over time with visual timeline
-- Deployment dates for archived changes
-- Current progress for active changes
-- Abandonment reasons for abandoned changes
-- Velocity trends
-
-### List Mode
-
-WHEN a user runs `openspec view --list`
-THEN display table with:
+WHEN a user runs `openspec view` without a change name
+THEN display a list of all available changes showing:
 - Change name
-- Status (with color coding)
-- Progress percentage
-- Last update
-- Primary affected capability
+- Directory location (changes/, archive/, abandoned/)
+- Progress percentage (for active changes)
+- Brief description from proposal
 
-## Error Handling
+### Error Handling
 
 WHEN a specified change doesn't exist
-THEN display error message and suggest similar change names
+THEN display an error message and list available changes
 
-WHEN change files are malformed or missing
-THEN display available information with warnings for missing sections
+WHEN change files are missing or malformed
+THEN display available information and skip missing sections
 
-WHEN terminal doesn't support Unicode/colors
-THEN fall back to ASCII characters and no colors
+WHEN terminal doesn't support Unicode
+THEN fall back to ASCII characters for box drawing
 
-## Performance
+## Example Output
 
-WHEN viewing large changes (>100 tasks)
-THEN paginate task list and provide navigation
-
-WHEN repeatedly viewing same change within 60 seconds
-THEN use cached parsed data for faster display
-
-WHEN viewing multiple changes in sequence
-THEN preload next likely change in background
-
-## Examples
-
-### View active change with progress
+### Viewing a Change
 ```bash
 $ openspec view add-authentication
 
 ┌─────────────────────────────────────────────────────────┐
-│ CHANGE: add-authentication                  [ACTIVE]     │
-│ Created: 5 days ago | Last updated: 2 hours ago         │
+│ add-authentication                                       │
+│ Created: 5 days ago | Updated: 2 hours ago             │
+│ Progress: ████████████░░░░░ 70% (14/20 tasks)          │
 ├─────────────────────────────────────────────────────────┤
-│ PROGRESS: ████████████░░░░░ 70% (14/20 tasks)          │
-│ Teams: Backend (8/10), Frontend (6/10)                  │
+│ PROPOSAL                                                │
+│                                                         │
+│ Why: Need user authentication for secure access         │
+│                                                         │
+│ What:                                                   │
+│ • Add JWT-based authentication                         │
+│ • Create user registration flow                        │
+│ • Implement login/logout endpoints                     │
+│                                                         │
+│ Impact:                                                 │
+│ • New spec: user-auth                                  │
+│ • Modified: api-core                                   │
+│ • Code: src/auth/*, src/middleware/*                   │
 ├─────────────────────────────────────────────────────────┤
-│ IMPACT:                                                 │
-│   Specs: user-auth (new), api-core (modified)          │
-│   Breaking: No breaking changes                         │
-│   Systems: 3 services affected                          │
+│ TASKS                                                   │
+│                                                         │
+│ Backend (8/10):                                        │
+│ ✅ Create user model                                    │
+│ ✅ Add password hashing                                 │
+│ ✅ Implement JWT generation                             │
+│ ⬜ Add refresh token logic                              │
+│ ⬜ Create auth middleware                               │
+│                                                         │
+│ Frontend (6/10):                                       │
+│ ✅ Create login form                                    │
+│ ✅ Add registration page                                │
+│ ⬜ Implement token storage                              │
+│ ⬜ Add auth context                                     │
 ├─────────────────────────────────────────────────────────┤
-│ RECENT:                                                 │
-│   ✅ Implement JWT token generation (2 hours ago)       │
-│   ✅ Add password hashing logic (5 hours ago)          │
-│   ✅ Create user model schema (1 day ago)              │
+│ SPEC CHANGES                                           │
+│                                                         │
+│ New capabilities:                                      │
+│ • user-auth: Authentication and authorization          │
+│                                                         │
+│ Modified capabilities:                                 │
+│ • api-core: Added auth middleware to request pipeline  │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### View with diff format
+### Listing All Changes
 ```bash
-$ openspec view add-authentication --diff
+$ openspec view
 
-SPEC CHANGES for add-authentication:
+Available changes:
 
-📝 user-auth (NEW CAPABILITY)
-  + POST /auth/register
-  + POST /auth/login  
-  + POST /auth/logout
-  + GET /auth/profile
+ACTIVE (openspec/changes/)
+• add-authentication    - 70% complete - Add JWT-based authentication
+• add-view-command      - 20% complete - Add view command for rich display
+• refactor-parsers      - 60% complete - Improve parser performance
 
-📝 api-core (MODIFIED)
-  ~ Added authentication middleware
-  ~ Modified request pipeline
-  
-  Before:                          After:
-  │ 1. Parse request              │ 1. Parse request
-  │ 2. Validate                   │ 2. Authenticate ← NEW
-  │ 3. Process                    │ 3. Validate
-  │ 4. Respond                    │ 4. Process
-                                   │ 5. Respond
-```
+ARCHIVED (openspec/changes/archive/)
+• 2025-01-11-add-init-command     - Initialize OpenSpec structure
+• 2025-01-09-fix-path-traversal   - Security patch for file access
+• 2025-01-08-update-dependencies  - Update to latest packages
 
-### Interactive mode navigation
-```bash
-$ openspec view -i
-
-OpenSpec Changes (↑↓ navigate, ↵ expand, / search, q quit)
-
-ACTIVE (3)
-→ add-authentication      ████████████░░░░ 70%  Backend, Frontend
-  add-view-command        ███░░░░░░░░░░░░░ 20%  CLI
-  refactor-parsers        █████████░░░░░░░ 60%  Core
-
-ARCHIVED (15)
-  2025-01-11 add-init-command       ✅ Deployed 3 days ago
-  2025-01-09 fix-path-traversal     ✅ Security patch
-  2025-01-08 update-dependencies    ✅ Routine maintenance
-  
-ABANDONED (2)
-  add-status-command                 ❌ Superseded by view command
-  add-websocket-support              ❌ Out of scope
+ABANDONED (openspec/changes/abandoned/)
+• add-status-command     - Superseded by view command
+• add-websocket-support  - Out of scope for current phase
 ```

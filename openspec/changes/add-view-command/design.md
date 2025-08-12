@@ -2,153 +2,140 @@
 
 ## Architecture Decisions
 
-### Display Modes
-The view command will support three primary display modes:
+### Single Unified View
+The view command will provide a single, comprehensive display of a change that aggregates all relevant information in one place.
 
-1. **Summary Mode** (default)
-   - Progress bar with task completion percentage
-   - Key metadata (status, dates, teams involved)
-   - Impact summary (affected specs, breaking changes)
-   - Most recent activity
+### Display Components
 
-2. **Detailed Mode** (`--detailed` or `-d`)
-   - Full proposal content
-   - Complete task list with completion status
-   - Design decisions if present
-   - Spec changes with before/after comparison
-   - Related changes and dependencies
+The view will show the following sections in order:
 
-3. **Diff Mode** (`--diff`)
-   - Side-by-side spec comparisons
-   - Highlighted additions, modifications, deletions
-   - Line-by-line changes for modified specs
-   - Summary of behavioral changes
+1. **Header**
+   - Change name
+   - Creation date and last update
+   - Overall progress percentage
 
-### Output Formats
+2. **Proposal Section**
+   - Why: Problem statement
+   - What: List of changes
+   - Impact: Affected specs and code
 
-1. **Terminal** (default)
-   - Rich formatting with colors and Unicode symbols
-   - Progress bars and visual separators
-   - Responsive to terminal width
-   - Fallback to ASCII for limited terminals
+3. **Progress Section**
+   - Task completion visualization
+   - Completed vs total tasks count
+   - Task groups if present
 
-2. **JSON** (`--format=json`)
-   - Structured data for programmatic consumption
-   - Complete change information
-   - Machine-readable progress metrics
-   - Suitable for CI/CD integration
+4. **Design Section** (if design.md exists)
+   - Key architectural decisions
+   - Technical approach summary
 
-3. **AI** (`--format=ai`)
-   - Optimized for LLM context windows
-   - Consolidated relevant information
-   - Clear task boundaries
-   - Impact analysis pre-computed
+5. **Spec Changes**
+   - List of new specs added
+   - List of modified specs
+   - Brief description of changes
 
-### Data Collection Strategy
+### Data Collection
 
 1. **Change Discovery**
-   - Scan `openspec/changes/` for active changes
-   - Check `archive/` and `abandoned/` directories
-   - Build change registry with metadata
+   - Accept change name as argument
+   - If no argument, list available changes
+   - Look in `openspec/changes/`, `archive/`, and `abandoned/` directories
 
-2. **Progress Calculation**
-   - Parse tasks.md for checkbox patterns
-   - Count completed vs total tasks
-   - Group by team/category if formatted with headers
-   - Calculate velocity based on timestamps
+2. **File Parsing**
+   - Parse proposal.md for metadata
+   - Parse tasks.md for progress calculation
+   - Parse design.md if present
+   - Scan specs/ directory for changed specifications
 
-3. **Spec Analysis**
-   - Compare current specs with future state in changes/*/specs/
-   - Identify new, modified, and deleted capabilities
-   - Extract behavioral changes from WHEN/THEN patterns
-   - Detect breaking changes through pattern analysis
+3. **Progress Calculation**
+   - Count `[x]` vs `[ ]` checkboxes in tasks.md
+   - Calculate percentage completion
+   - Group by headers if present
 
-### Performance Considerations
+### Display Format
 
-1. **Caching**
-   - Cache parsed change data for 60 seconds
-   - Invalidate on file modifications
-   - Lazy load detailed information
+1. **Terminal Output**
+   - Use box drawing characters for structure
+   - Color coding for different sections
+   - Progress bar visualization
+   - Clear visual hierarchy
 
-2. **Streaming**
-   - Stream output for large changes
-   - Progressive rendering in interactive mode
-   - Pagination for long task lists
-
-### User Experience
-
-1. **Smart Defaults**
-   - If no change name provided, show list of all changes
-   - If in a change directory, view that change
-   - Intelligent sorting (active first, then by date)
-
-2. **Interactive Mode** (`--interactive` or `-i`)
-   - Navigate with arrow keys
-   - Expand/collapse sections with Enter
-   - Quick actions with hotkeys (a=archive, t=toggle task)
-   - Search within change with /
-
-3. **Comparison Features**
-   - `--compare [change1] [change2]` for side-by-side
-   - `--timeline` for temporal view
-   - `--related` to show dependency graph
+2. **Graceful Degradation**
+   - Fall back to ASCII if Unicode not supported
+   - Handle missing files gracefully
+   - Show available information even if some files are missing
 
 ## Technical Implementation
 
 ### Core Components
 
 1. **ChangeParser**
-   - Parses proposal.md, tasks.md, design.md
-   - Extracts structured data
-   - Handles various markdown formats
+   - Reads and parses change files
+   - Extracts structured data from markdown
+   - Handles missing files gracefully
 
-2. **SpecAnalyzer**
-   - Compares current and future specs
-   - Generates diff information
-   - Identifies breaking changes
+2. **ProgressCalculator**
+   - Counts task checkboxes
+   - Calculates completion percentage
+   - Groups tasks by sections
 
-3. **ProgressTracker**
-   - Calculates completion percentages
-   - Estimates completion dates
-   - Tracks velocity metrics
-
-4. **Renderer**
-   - Formats output for different modes
+3. **ChangeRenderer**
+   - Formats output for terminal display
+   - Manages visual hierarchy
    - Handles terminal capabilities
-   - Manages interactive display
 
 ### Error Handling
 
-1. **Graceful Degradation**
-   - If files missing, show what's available
-   - Handle malformed markdown gracefully
-   - Provide helpful error messages
+1. **Missing Change**
+   - Show helpful error if change doesn't exist
+   - List available changes
 
-2. **Validation**
-   - Verify change exists before displaying
-   - Check file permissions
-   - Validate output format selection
+2. **Malformed Files**
+   - Continue with partial information
+   - Show warnings for problematic sections
 
-## Security Considerations
+## Example Output
 
-- Read-only operations only
-- No execution of arbitrary code
-- Path traversal prevention
-- Safe markdown rendering
-
-## Future Extensibility
-
-1. **Plugin System**
-   - Custom renderers for organization needs
-   - Additional analysis modules
-   - Integration with external tools
-
-2. **Web Interface**
-   - HTML export option
-   - Browser-based interactive view
-   - Shareable change reports
-
-3. **Metrics Collection**
-   - Historical velocity tracking
-   - Team performance analytics
-   - Change complexity scoring
+```
+┌─────────────────────────────────────────────────────────┐
+│ add-authentication                                       │
+│ Created: 5 days ago | Updated: 2 hours ago             │
+│ Progress: ████████████░░░░░ 70% (14/20 tasks)          │
+├─────────────────────────────────────────────────────────┤
+│ PROPOSAL                                                │
+│                                                         │
+│ Why: Need user authentication for secure access         │
+│                                                         │
+│ What:                                                   │
+│ • Add JWT-based authentication                         │
+│ • Create user registration flow                        │
+│ • Implement login/logout endpoints                     │
+│                                                         │
+│ Impact:                                                 │
+│ • New spec: user-auth                                  │
+│ • Modified: api-core                                   │
+│ • Code: src/auth/*, src/middleware/*                   │
+├─────────────────────────────────────────────────────────┤
+│ TASKS                                                   │
+│                                                         │
+│ Backend (8/10):                                        │
+│ ✅ Create user model                                    │
+│ ✅ Add password hashing                                 │
+│ ✅ Implement JWT generation                             │
+│ ⬜ Add refresh token logic                              │
+│ ⬜ Create auth middleware                               │
+│                                                         │
+│ Frontend (6/10):                                       │
+│ ✅ Create login form                                    │
+│ ✅ Add registration page                                │
+│ ⬜ Implement token storage                              │
+│ ⬜ Add auth context                                     │
+├─────────────────────────────────────────────────────────┤
+│ SPEC CHANGES                                           │
+│                                                         │
+│ New capabilities:                                      │
+│ • user-auth: Authentication and authorization          │
+│                                                         │
+│ Modified capabilities:                                 │
+│ • api-core: Added auth middleware to request pipeline  │
+└─────────────────────────────────────────────────────────┘
+```
