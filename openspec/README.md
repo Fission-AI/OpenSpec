@@ -207,6 +207,39 @@ const valid = await bcrypt.compare(password, user.hashedPassword);
 
 **Key Distinction**: Specs capture intent, constraints, and decisions that aren't obvious from code.
 
+## Writing Specs with @requirement Markers
+
+### Using @requirement Markers
+
+When writing specs, use @requirement markers to identify and track individual requirements:
+
+```markdown
+## Behavior
+
+@requirement user-login
+WHEN user logs in with valid credentials
+THEN return JWT token with user data
+
+@requirement password-validation
+WHEN password is less than 8 characters
+THEN reject with validation error
+AND return specific error message
+```
+
+### Marker Rules
+
+1. **Placement**: Put @requirement on the line immediately before WHEN
+2. **Format**: Use kebab-case identifiers (e.g., `user-login`, `password-reset`)
+3. **Uniqueness**: Each marker must be unique within the spec
+4. **Brevity**: Keep identifiers 2-4 words for clarity
+
+### Why Use Markers
+
+- **Tooling**: Enables automated requirement extraction and counting
+- **Referencing**: Clear way to reference specific requirements in discussions
+- **Tracking**: Makes it easy to track requirement changes over time
+- **Clarity**: Improves spec readability and organization
+
 ## Common Scenarios
 
 ### New Feature Request

@@ -10,6 +10,7 @@ As a developer using OpenSpec, I want to update the OpenSpec instructions in my 
 
 The update command SHALL update OpenSpec instruction files to the latest templates.
 
+@requirement update-command-execution
 WHEN a user runs `openspec update` THEN the command SHALL:
 - Check if the `openspec` directory exists
 - Replace `openspec/README.md` with the latest template (complete replacement)
@@ -23,6 +24,7 @@ WHEN a user runs `openspec update` THEN the command SHALL:
 The command SHALL require:
 - An existing `openspec` directory (created by `openspec init`)
 
+@requirement update-no-directory
 IF the `openspec` directory does not exist THEN:
 - Display error: "No OpenSpec directory found. Run 'openspec init' first."
 - Exit with code 1
@@ -38,9 +40,11 @@ The update command SHALL:
 ## Edge Cases
 
 ### File Permissions
+@requirement update-file-permissions
 IF file write fails THEN let the error bubble up naturally with file path.
 
 ### Missing CLAUDE.md
+@requirement update-missing-claude-md
 IF CLAUDE.md doesn't exist THEN create it with the template content.
 
 ### Custom Directory Name

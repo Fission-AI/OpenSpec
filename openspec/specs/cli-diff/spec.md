@@ -14,12 +14,14 @@ openspec diff [change-name]
 
 ### Without Arguments
 
+@requirement diff-no-arguments
 WHEN running `openspec diff` without arguments
 THEN list all available changes in the `changes/` directory (excluding archive)
 AND prompt user to select a change
 
 ### With Change Name
 
+@requirement diff-with-change
 WHEN running `openspec diff <change-name>`
 THEN compare all spec files in `changes/<change-name>/specs/` with corresponding files in `specs/`
 
@@ -32,6 +34,7 @@ FOR each spec file in the change:
 
 ### Display Format
 
+@requirement diff-format
 The diff SHALL use standard unified diff format:
 - Lines prefixed with `-` for removed content
 - Lines prefixed with `+` for added content
@@ -40,6 +43,7 @@ The diff SHALL use standard unified diff format:
 
 ### Color Support
 
+@requirement diff-colors
 WHEN terminal supports colors:
 - Removed lines displayed in red
 - Added lines displayed in green
@@ -48,8 +52,11 @@ WHEN terminal supports colors:
 
 ### Error Handling
 
+@requirement diff-change-not-found
 WHEN specified change doesn't exist THEN display error "Change '<name>' not found"
+@requirement diff-no-specs
 WHEN no specs directory in change THEN display "No spec changes found for '<name>'"
+@requirement diff-no-changes-dir
 WHEN changes directory doesn't exist THEN display "No OpenSpec changes directory found"
 
 ## Examples

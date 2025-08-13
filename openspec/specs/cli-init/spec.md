@@ -8,6 +8,7 @@ The `openspec init` command SHALL create a complete OpenSpec directory structure
 
 ### Progress Indicators
 
+@requirement init-progress-display
 WHEN executing initialization steps
 THEN validate environment silently in background (no output unless error)
 AND display progress with ora spinners:
@@ -18,6 +19,7 @@ AND display progress with ora spinners:
 
 ### Directory Creation
 
+@requirement init-directory-structure
 WHEN `openspec init` is executed
 THEN create the following directory structure:
 ```
@@ -37,6 +39,7 @@ The command SHALL generate:
 
 ### AI Tool Configuration
 
+@requirement init-tool-selection
 WHEN run interactively
 THEN prompt user to select AI tools to configure:
 - Claude Code (updates/creates CLAUDE.md with OpenSpec markers)
@@ -45,9 +48,11 @@ THEN prompt user to select AI tools to configure:
 
 ### AI Tool Configuration Details
 
+@requirement claude-code-config
 WHEN Claude Code is selected
 THEN create or update `CLAUDE.md` in the project root directory (not inside openspec/)
 
+@requirement claude-md-create
 WHEN CLAUDE.md does not exist
 THEN create new file with OpenSpec content wrapped in markers:
 ```markdown
@@ -62,6 +67,7 @@ See @openspec/README.md for detailed conventions and guidelines.
 <!-- OPENSPEC:END -->
 ```
 
+@requirement claude-md-update
 WHEN CLAUDE.md already exists
 THEN preserve all existing content
 AND insert OpenSpec content at the beginning of the file using markers
@@ -80,6 +86,7 @@ WHY use markers:
 
 ### Interactive Mode
 
+@requirement interactive-prompt
 WHEN run
 THEN prompt user with: "Which AI tool do you use?"
 AND show single-select menu with available tools:
@@ -95,16 +102,19 @@ User navigation:
 
 ### Safety Checks
 
+@requirement init-already-exists
 WHEN `openspec/` directory already exists
 THEN display error with ora fail indicator:
 "✖ Error: OpenSpec seems to already be initialized. Use 'openspec update' to update the structure."
 
+@requirement init-permissions-check
 WHEN checking initialization feasibility
 THEN verify write permissions in the target directory silently
 AND only display error if permissions are insufficient
 
 ### Success Output
 
+@requirement init-success-output
 WHEN initialization completes successfully
 THEN display actionable prompts for AI-driven workflow:
 ```

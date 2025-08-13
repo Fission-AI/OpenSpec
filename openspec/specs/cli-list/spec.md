@@ -8,6 +8,7 @@ The `openspec list` command SHALL provide developers with a quick overview of al
 
 ### Command Execution
 
+@requirement list-scan-changes
 WHEN `openspec list` is executed
 THEN scan the `openspec/changes/` directory for change directories
 AND exclude the `archive/` subdirectory from results
@@ -15,6 +16,7 @@ AND parse each change's `tasks.md` file to count task completion
 
 ### Task Counting
 
+@requirement list-task-counting
 WHEN parsing a `tasks.md` file
 THEN count tasks matching these patterns:
 - Completed: Lines containing `- [x]`
@@ -23,6 +25,7 @@ AND calculate total tasks as the sum of completed and incomplete
 
 ### Output Format
 
+@requirement list-display-format
 WHEN displaying the list
 THEN show a table with columns:
 - Change name (directory name)
@@ -42,14 +45,17 @@ Changes:
 
 ### Empty State
 
+@requirement list-empty-state
 WHEN no active changes exist (only archive/ or empty changes/)
 THEN display: "No active changes found."
 
 ### Error Handling
 
+@requirement list-no-tasks-file
 IF a change directory has no `tasks.md` file
 THEN display the change with "No tasks" status
 
+@requirement list-no-directory
 IF `openspec/changes/` directory doesn't exist
 THEN display error: "No OpenSpec changes directory found. Run 'openspec init' first."
 AND exit with code 1

@@ -14,10 +14,12 @@ Options:
 ## Behavior
 
 ### Change Selection
+@requirement archive-interactive-selection
 WHEN no change-name is provided
 THEN display interactive list of available changes (excluding archive/)
 AND allow user to select one
 
+@requirement archive-direct-selection
 WHEN change-name is provided
 THEN use that change directly
 AND validate it exists
@@ -25,11 +27,13 @@ AND validate it exists
 ### Task Completion Check
 The command SHALL scan the change's tasks.md file for incomplete tasks (marked with `- [ ]`)
 
+@requirement archive-incomplete-tasks
 WHEN incomplete tasks are found
 THEN display all incomplete tasks to the user
 AND prompt for confirmation to continue
 AND default to "No" for safety
 
+@requirement archive-complete-tasks
 WHEN all tasks are complete OR no tasks.md exists
 THEN proceed with archiving without prompting
 
@@ -41,16 +45,19 @@ The archive operation SHALL:
 4. Update main specs from the change's future state specs (see Spec Update Process below)
 5. Move the entire change directory to the archive location
 
+@requirement archive-target-exists
 WHEN target archive already exists
 THEN fail with error message
 AND do not overwrite existing archive
 
+@requirement archive-success
 WHEN move succeeds
 THEN display success message with archived name and list of updated specs
 
 ### Spec Update Process
 Before moving the change to archive, the command SHALL update main specs to reflect the deployed reality:
 
+@requirement archive-spec-update
 WHEN the change contains specs in `changes/[name]/specs/`
 THEN:
 1. Analyze which specs will be affected by comparing with existing specs
@@ -62,6 +69,7 @@ THEN:
    - Overwrite existing spec files (specs represent current reality, change specs are the new reality)
    - Track which specs were updated for the success message
 
+@requirement archive-no-specs
 WHEN no specs exist in the change
 THEN skip the spec update step
 AND proceed with archiving
@@ -87,6 +95,7 @@ The spec update confirmation SHALL:
 - Default to "No" for safety (require explicit "y" or "yes")
 - Skip confirmation when `--yes` or `-y` flag is provided
 
+@requirement archive-confirmation-declined
 WHEN user declines the confirmation
 THEN abort the entire archive operation
 AND display message: "Archive cancelled. No changes were made."
