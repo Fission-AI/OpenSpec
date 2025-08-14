@@ -336,4 +336,417 @@ describe('ArchiveCommand', () => {
       await expect(fs.access(changeDir)).resolves.not.toThrow();
     });
   });
+
+  describe('delta processing', () => {
+    it('should apply delta changes when archiving', async () => {
+      const changeName = 'delta-feature';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'test-capability');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+      
+      // Create existing spec in main specs
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'test-capability');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const existingSpec = `# Test Capability
+
+### Requirement: Original Feature
+
+This is the original feature.
+
+### Requirement: To Be Modified
+
+This will be modified.
+
+### Requirement: To Be Removed
+
+This will be removed.`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), existingSpec);
+      
+      // Create delta spec in change
+      const deltaSpec = `# Test Capability - Changes
+
+## ADDED
+
+### Requirement: New Feature
+
+This is a new feature.
+
+## MODIFIED
+
+### Requirement: To Be Modified
+
+This has been modified with new content.
+
+## REMOVED
+
+### Requirement: To Be Removed
+
+This requirement is being removed.`;
+      
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaSpec);
+      
+      // Execute archive
+      await archiveCommand.execute(changeName, { yes: true });
+      
+      // Read the updated spec
+      const updatedSpec = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      
+      // Verify changes were applied
+      expect(updatedSpec).toContain('### Requirement: Original Feature');
+      expect(updatedSpec).toContain('### Requirement: New Feature');
+      expect(updatedSpec).toContain('This has been modified with new content');
+      expect(updatedSpec).not.toContain('### Requirement: To Be Removed');
+      
+      // Verify stats were displayed
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('+ 1 added'));
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('~ 1 modified'));
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('- 1 removed'));
+    });
+
+    it('should handle RENAMED requirements in delta specs', async () => {
+      const changeName = 'rename-feature';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'test-capability');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+      
+      // Create existing spec
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'test-capability');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const existingSpec = `# Test Capability
+
+### Requirement: Old Name
+
+This requirement will be renamed.`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), existingSpec);
+      
+      // Create delta spec with RENAMED
+      const deltaSpec = `# Test Capability - Changes
+
+## RENAMED
+
+### FROM: Requirement: Old Name
+### TO: Requirement: New Name
+
+This requirement has been renamed.`;
+      
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaSpec);
+      
+      // Execute archive
+      await archiveCommand.execute(changeName, { yes: true });
+      
+      // Read updated spec
+      const updatedSpec = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      
+      // Verify rename was applied
+      expect(updatedSpec).not.toContain('### Requirement: Old Name');
+      expect(updatedSpec).toContain('### Requirement: New Name');
+      
+      // Verify stats
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('→ 1 renamed'));
+    });
+
+    it('should normalize headers with trim() for matching', async () => {
+      const changeName = 'normalize-feature';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'test-capability');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+      
+      // Create existing spec with extra whitespace
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'test-capability');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const existingSpec = `# Test Capability
+
+### Requirement: Feature With Spaces   
+
+This has trailing spaces in header.`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), existingSpec);
+      
+      // Create delta spec without extra whitespace
+      const deltaSpec = `# Test Capability - Changes
+
+## MODIFIED
+
+### Requirement: Feature With Spaces
+
+This header is normalized for matching.`;
+      
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaSpec);
+      
+      // Execute archive - should match despite whitespace differences
+      await archiveCommand.execute(changeName, { yes: true });
+      
+      // Read updated spec
+      const updatedSpec = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      
+      // Verify modification was applied
+      expect(updatedSpec).toContain('This header is normalized for matching');
+    });
+
+    it('should validate MODIFIED requirements exist', async () => {
+      const changeName = 'invalid-modified';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'test-capability');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+      
+      // Create empty existing spec
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'test-capability');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), '# Test Capability\n');
+      
+      // Create delta spec with MODIFIED for non-existent requirement
+      const deltaSpec = `# Test Capability - Changes
+
+## MODIFIED
+
+### Requirement: Non-Existent
+
+This requirement doesn't exist in the main spec.`;
+      
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaSpec);
+      
+      // Execute archive - should fail validation
+      await expect(
+        archiveCommand.execute(changeName, { yes: true })
+      ).rejects.toThrow('MODIFIED requirement not found: "Requirement: Non-Existent"');
+    });
+
+    it('should validate ADDED requirements do not already exist', async () => {
+      const changeName = 'invalid-added';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'test-capability');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+      
+      // Create existing spec with a requirement
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'test-capability');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const existingSpec = `# Test Capability
+
+### Requirement: Existing Feature
+
+This already exists.`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), existingSpec);
+      
+      // Create delta spec trying to ADD existing requirement
+      const deltaSpec = `# Test Capability - Changes
+
+## ADDED
+
+### Requirement: Existing Feature
+
+Trying to add an existing requirement.`;
+      
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaSpec);
+      
+      // Execute archive - should fail validation
+      await expect(
+        archiveCommand.execute(changeName, { yes: true })
+      ).rejects.toThrow('ADDED requirement already exists: "Requirement: Existing Feature"');
+    });
+
+    it('should validate RENAMED FROM requirement exists', async () => {
+      const changeName = 'invalid-rename-from';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'test-capability');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+      
+      // Create empty existing spec
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'test-capability');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), '# Test Capability\n');
+      
+      // Create delta spec with RENAMED for non-existent requirement
+      const deltaSpec = `# Test Capability - Changes
+
+## RENAMED
+
+### FROM: Requirement: Non-Existent
+### TO: Requirement: New Name
+
+Trying to rename a non-existent requirement.`;
+      
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaSpec);
+      
+      // Execute archive - should fail validation
+      await expect(
+        archiveCommand.execute(changeName, { yes: true })
+      ).rejects.toThrow('RENAMED FROM requirement not found: "Requirement: Non-Existent"');
+    });
+
+    it('should validate RENAMED TO requirement does not exist', async () => {
+      const changeName = 'invalid-rename-to';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'test-capability');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+      
+      // Create existing spec with two requirements
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'test-capability');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const existingSpec = `# Test Capability
+
+### Requirement: Old Name
+
+This will be renamed.
+
+### Requirement: Existing Target
+
+This already exists.`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), existingSpec);
+      
+      // Create delta spec trying to rename to existing requirement
+      const deltaSpec = `# Test Capability - Changes
+
+## RENAMED
+
+### FROM: Requirement: Old Name
+### TO: Requirement: Existing Target
+
+Trying to rename to an existing requirement.`;
+      
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaSpec);
+      
+      // Execute archive - should fail validation
+      await expect(
+        archiveCommand.execute(changeName, { yes: true })
+      ).rejects.toThrow('RENAMED TO requirement already exists: "Requirement: Existing Target"');
+    });
+
+    it('should apply changes in correct order: RENAMED → REMOVED → MODIFIED → ADDED', async () => {
+      const changeName = 'order-test';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'test-capability');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+      
+      // Create existing spec
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'test-capability');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const existingSpec = `# Test Capability
+
+### Requirement: To Rename
+
+Will be renamed.
+
+### Requirement: To Remove
+
+Will be removed.
+
+### Requirement: To Modify
+
+Will be modified.`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), existingSpec);
+      
+      // Create delta spec with all operations
+      const deltaSpec = `# Test Capability - Changes
+
+## ADDED
+
+### Requirement: New Addition
+
+Added requirement.
+
+## MODIFIED
+
+### Requirement: To Modify
+
+Modified content.
+
+## REMOVED
+
+### Requirement: To Remove
+
+Removed.
+
+## RENAMED
+
+### FROM: Requirement: To Rename
+### TO: Requirement: Renamed
+
+Renamed requirement.`;
+      
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaSpec);
+      
+      // Execute archive
+      await archiveCommand.execute(changeName, { yes: true });
+      
+      // Read updated spec
+      const updatedSpec = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      
+      // Verify all operations were applied
+      expect(updatedSpec).not.toContain('### Requirement: To Rename');
+      expect(updatedSpec).toContain('### Requirement: Renamed');
+      expect(updatedSpec).not.toContain('### Requirement: To Remove');
+      expect(updatedSpec).toContain('Modified content');
+      expect(updatedSpec).toContain('### Requirement: New Addition');
+    });
+
+    it('should handle backward compatibility with non-delta specs', async () => {
+      const changeName = 'non-delta-feature';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'test-capability');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+      
+      // Create non-delta spec (full replacement)
+      const fullSpec = `# Test Capability
+
+### Requirement: Complete Replacement
+
+This is a complete spec replacement, not a delta.`;
+      
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), fullSpec);
+      
+      // Execute archive
+      await archiveCommand.execute(changeName, { yes: true });
+      
+      // Read the spec from main specs
+      const mainSpecPath = path.join(tempDir, 'openspec', 'specs', 'test-capability', 'spec.md');
+      const copiedSpec = await fs.readFile(mainSpecPath, 'utf-8');
+      
+      // Verify entire spec was copied
+      expect(copiedSpec).toBe(fullSpec);
+      
+      // Verify no delta stats were displayed
+      expect(console.log).not.toHaveBeenCalledWith(expect.stringContaining('+ '));
+      expect(console.log).not.toHaveBeenCalledWith(expect.stringContaining('~ '));
+      expect(console.log).not.toHaveBeenCalledWith(expect.stringContaining('- '));
+    });
+
+    it('should validate that renamed requirements are not also in ADDED', async () => {
+      const changeName = 'invalid-rename-added';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'test-capability');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+      
+      // Create existing spec
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'test-capability');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const existingSpec = `# Test Capability
+
+### Requirement: Old Name
+
+This will be renamed.`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), existingSpec);
+      
+      // Create delta spec with conflicting RENAMED and ADDED
+      const deltaSpec = `# Test Capability - Changes
+
+## ADDED
+
+### Requirement: New Name
+
+This is added.
+
+## RENAMED
+
+### FROM: Requirement: Old Name
+### TO: Requirement: New Name
+
+This is renamed to the same name.`;
+      
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaSpec);
+      
+      // Execute archive - should fail validation
+      await expect(
+        archiveCommand.execute(changeName, { yes: true })
+      ).rejects.toThrow('RENAMED requirement also in ADDED section: "Requirement: New Name"');
+    });
+  });
 });

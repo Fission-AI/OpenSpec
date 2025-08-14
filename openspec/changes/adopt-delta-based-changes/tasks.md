@@ -17,20 +17,20 @@
 - [ ] 2.6 Add tests for side-by-side view formatting
 
 ## 3. Update Archive Command
-- [ ] 3.1 Update cli-archive spec with delta processing behavior
-- [ ] 3.2 Implement normalized header matching (trim whitespace)
-- [ ] 3.3 Parse delta sections (ADDED/MODIFIED/REMOVED/RENAMED)
-- [ ] 3.4 Apply changes in order: RENAMED → REMOVED → MODIFIED → ADDED
-- [ ] 3.5 Validate delta operations:
-  - [ ] 3.5.1 MODIFIED/REMOVED requirements exist
-  - [ ] 3.5.2 ADDED requirements don't already exist
-  - [ ] 3.5.3 RENAMED FROM headers exist, TO headers don't
-  - [ ] 3.5.4 No duplicate headers within specs
-  - [ ] 3.5.5 Renamed requirements aren't also in ADDED
-- [ ] 3.6 Display operation counts (+ 2 added, ~ 3 modified, etc.)
-- [ ] 3.7 Add tests for header normalization
-- [ ] 3.8 Add tests for applying deltas in correct order
-- [ ] 3.9 Add tests for validation edge cases
+- [x] 3.1 Update cli-archive spec with delta processing behavior
+- [x] 3.2 Implement normalized header matching (trim whitespace)
+- [x] 3.3 Parse delta sections (ADDED/MODIFIED/REMOVED/RENAMED)
+- [x] 3.4 Apply changes in order: RENAMED → REMOVED → MODIFIED → ADDED
+- [x] 3.5 Validate delta operations:
+  - [x] 3.5.1 MODIFIED/REMOVED requirements exist
+  - [x] 3.5.2 ADDED requirements don't already exist
+  - [x] 3.5.3 RENAMED FROM headers exist, TO headers don't
+  - [x] 3.5.4 No duplicate headers within specs
+  - [x] 3.5.5 Renamed requirements aren't also in ADDED
+- [x] 3.6 Display operation counts (+ 2 added, ~ 3 modified, etc.)
+- [x] 3.7 Add tests for header normalization
+- [x] 3.8 Add tests for applying deltas in correct order
+- [x] 3.9 Add tests for validation edge cases
 
 ## Notes
 - Archive command is critical path - must work reliably

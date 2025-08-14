@@ -9,6 +9,24 @@ interface SpecUpdate {
   exists: boolean;
 }
 
+interface DeltaSection {
+  type: 'ADDED' | 'MODIFIED' | 'REMOVED' | 'RENAMED';
+  requirements: Map<string, string>; // header -> content
+}
+
+interface RenamedRequirement {
+  from: string;
+  to: string;
+  content: string;
+}
+
+interface DeltaStats {
+  added: number;
+  modified: number;
+  removed: number;
+  renamed: number;
+}
+
 export class ArchiveCommand {
   async execute(changeName?: string, options: { yes?: boolean; skipSpecs?: boolean } = {}): Promise<void> {
     const targetPath = '.';
@@ -219,13 +237,357 @@ export class ArchiveCommand {
     const targetDir = path.dirname(update.target);
     await fs.mkdir(targetDir, { recursive: true });
 
-    // Copy spec file
-    const content = await fs.readFile(update.source, 'utf-8');
-    await fs.writeFile(update.target, content);
+    // Read source content
+    const sourceContent = await fs.readFile(update.source, 'utf-8');
+
+    // Check if this is a delta spec
+    if (this.isDeltaSpec(sourceContent)) {
+      // Read existing spec if it exists
+      let existingContent = '';
+      if (update.exists) {
+        try {
+          existingContent = await fs.readFile(update.target, 'utf-8');
+        } catch {
+          // Target doesn't exist yet, treat as empty
+          existingContent = '';
+        }
+      }
+
+      // Apply delta changes
+      const { content: updatedContent, stats } = this.applyDeltaChanges(existingContent, sourceContent);
+      
+      // Display stats
+      const relativePath = path.relative('.', update.target);
+      this.displayDeltaStats(relativePath, stats);
+
+      // Write updated content
+      await fs.writeFile(update.target, updatedContent);
+    } else {
+      // Not a delta spec, copy entire file (backward compatibility)
+      await fs.writeFile(update.target, sourceContent);
+    }
   }
 
   private getArchiveDate(): string {
     // Returns date in YYYY-MM-DD format
     return new Date().toISOString().split('T')[0];
+  }
+
+  private normalizeHeader(header: string): string {
+    return header.trim();
+  }
+
+  private isDeltaSpec(content: string): boolean {
+    return content.includes('## ADDED') || 
+           content.includes('## MODIFIED') || 
+           content.includes('## REMOVED') || 
+           content.includes('## RENAMED');
+  }
+
+  private parseDeltaSections(content: string): {
+    added: DeltaSection;
+    modified: DeltaSection;
+    removed: DeltaSection;
+    renamed: RenamedRequirement[];
+  } {
+    const sections = {
+      added: { type: 'ADDED' as const, requirements: new Map<string, string>() },
+      modified: { type: 'MODIFIED' as const, requirements: new Map<string, string>() },
+      removed: { type: 'REMOVED' as const, requirements: new Map<string, string>() },
+      renamed: [] as RenamedRequirement[]
+    };
+
+    const lines = content.split('\n');
+    let currentSection: 'ADDED' | 'MODIFIED' | 'REMOVED' | 'RENAMED' | null = null;
+    let currentRequirement: string | null = null;
+    let requirementContent: string[] = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      // Check for section headers
+      if (line === '## ADDED' || line === '## ADDED Requirements') {
+        this.saveCurrentRequirement(currentSection, currentRequirement, requirementContent, sections);
+        currentSection = 'ADDED';
+        currentRequirement = null;
+        requirementContent = [];
+      } else if (line === '## MODIFIED' || line === '## MODIFIED Requirements') {
+        this.saveCurrentRequirement(currentSection, currentRequirement, requirementContent, sections);
+        currentSection = 'MODIFIED';
+        currentRequirement = null;
+        requirementContent = [];
+      } else if (line === '## REMOVED' || line === '## REMOVED Requirements') {
+        this.saveCurrentRequirement(currentSection, currentRequirement, requirementContent, sections);
+        currentSection = 'REMOVED';
+        currentRequirement = null;
+        requirementContent = [];
+      } else if (line === '## RENAMED' || line === '## RENAMED Requirements') {
+        this.saveCurrentRequirement(currentSection, currentRequirement, requirementContent, sections);
+        currentSection = 'RENAMED';
+        currentRequirement = null;
+        requirementContent = [];
+      } else if (currentSection === 'RENAMED' && line.startsWith('### FROM:')) {
+        // Handle FROM: header in RENAMED section
+        this.saveCurrentRequirement(currentSection, currentRequirement, requirementContent, sections);
+        const fromMatch = line.match(/^### FROM:\s*(.+)/);
+        if (fromMatch) {
+          currentRequirement = fromMatch[1];
+          requirementContent = [];
+        }
+      } else if (currentSection === 'RENAMED' && line.startsWith('### TO:')) {
+        // Handle TO: header in RENAMED section
+        const toMatch = line.match(/^### TO:\s*(.+)/);
+        if (toMatch && currentRequirement) {
+          const fromHeader = currentRequirement;
+          const toHeader = toMatch[1];
+          // Collect content from after TO: line
+          let contentLines = [];
+          let idx = i + 1;
+          while (idx < lines.length && !lines[idx].startsWith('### ') && !lines[idx].startsWith('## ')) {
+            contentLines.push(lines[idx]);
+            idx++;
+          }
+          sections.renamed.push({
+            from: this.normalizeHeader(fromHeader),
+            to: this.normalizeHeader(toHeader),
+            content: contentLines.join('\n').trim()
+          });
+          currentRequirement = null;
+          requirementContent = [];
+          // Skip the content lines we just processed
+          i = idx - 1;
+        }
+      } else if (currentSection && line.startsWith('### ')) {
+        // New requirement header (for non-RENAMED sections)
+        this.saveCurrentRequirement(currentSection, currentRequirement, requirementContent, sections);
+        currentRequirement = line.substring(4); // Remove '### '
+        requirementContent = [line];
+      } else if (currentRequirement !== null && currentSection !== 'RENAMED') {
+        // Accumulate requirement content
+        requirementContent.push(line);
+      }
+    }
+
+    // Save any remaining requirement
+    this.saveCurrentRequirement(currentSection, currentRequirement, requirementContent, sections);
+
+    return sections;
+  }
+
+  private saveCurrentRequirement(
+    section: 'ADDED' | 'MODIFIED' | 'REMOVED' | 'RENAMED' | null,
+    header: string | null,
+    content: string[],
+    sections: ReturnType<typeof this.parseDeltaSections>
+  ): void {
+    if (!section || !header || section === 'RENAMED') return;
+
+    const normalizedHeader = this.normalizeHeader(header);
+    const fullContent = content.join('\n').trim();
+
+    if (section === 'ADDED') {
+      sections.added.requirements.set(normalizedHeader, fullContent);
+    } else if (section === 'MODIFIED') {
+      sections.modified.requirements.set(normalizedHeader, fullContent);
+    } else if (section === 'REMOVED') {
+      sections.removed.requirements.set(normalizedHeader, fullContent);
+    }
+  }
+
+  private parseExistingSpec(content: string): Map<string, string> {
+    const requirements = new Map<string, string>();
+    const lines = content.split('\n');
+    let currentRequirement: string | null = null;
+    let requirementContent: string[] = [];
+
+    for (const line of lines) {
+      if (line.startsWith('### ')) {
+        // Save previous requirement if exists
+        if (currentRequirement) {
+          requirements.set(this.normalizeHeader(currentRequirement), requirementContent.join('\n'));
+        }
+        // Start new requirement - extract the full header after ###
+        currentRequirement = line.substring(4); // Remove '### '
+        requirementContent = [line];
+      } else if (currentRequirement) {
+        requirementContent.push(line);
+      }
+    }
+
+    // Save last requirement
+    if (currentRequirement) {
+      requirements.set(this.normalizeHeader(currentRequirement), requirementContent.join('\n'));
+    }
+
+    return requirements;
+  }
+
+  private validateDeltaOperations(
+    deltaSections: ReturnType<typeof this.parseDeltaSections>,
+    existingRequirements: Map<string, string>
+  ): string[] {
+    const errors: string[] = [];
+
+    // Validate MODIFIED requirements exist
+    for (const header of deltaSections.modified.requirements.keys()) {
+      if (!existingRequirements.has(header)) {
+        errors.push(`MODIFIED requirement not found: "${header}"`);
+      }
+    }
+
+    // Validate REMOVED requirements exist
+    for (const header of deltaSections.removed.requirements.keys()) {
+      if (!existingRequirements.has(header)) {
+        errors.push(`REMOVED requirement not found: "${header}"`);
+      }
+    }
+
+    // Validate ADDED requirements don't already exist
+    for (const header of deltaSections.added.requirements.keys()) {
+      if (existingRequirements.has(header)) {
+        errors.push(`ADDED requirement already exists: "${header}"`);
+      }
+    }
+
+    // Validate RENAMED operations
+    for (const rename of deltaSections.renamed) {
+      if (!existingRequirements.has(rename.from)) {
+        errors.push(`RENAMED FROM requirement not found: "${rename.from}"`);
+      }
+      if (existingRequirements.has(rename.to)) {
+        errors.push(`RENAMED TO requirement already exists: "${rename.to}"`);
+      }
+      // Check if renamed requirement is also in ADDED
+      if (deltaSections.added.requirements.has(rename.to)) {
+        errors.push(`RENAMED requirement also in ADDED section: "${rename.to}"`);
+      }
+    }
+
+    // Check for duplicate headers in resulting spec
+    const resultingHeaders = new Set<string>();
+    
+    // Add existing headers (minus removed and renamed-from)
+    for (const header of existingRequirements.keys()) {
+      let isRemoved = deltaSections.removed.requirements.has(header);
+      let isRenamedFrom = deltaSections.renamed.some(r => r.from === header);
+      if (!isRemoved && !isRenamedFrom) {
+        if (resultingHeaders.has(header)) {
+          errors.push(`Duplicate header would result: "${header}"`);
+        }
+        resultingHeaders.add(header);
+      }
+    }
+
+    // Add new headers (added and renamed-to)
+    for (const header of deltaSections.added.requirements.keys()) {
+      if (resultingHeaders.has(header)) {
+        errors.push(`Duplicate header would result from ADDED: "${header}"`);
+      }
+      resultingHeaders.add(header);
+    }
+
+    for (const rename of deltaSections.renamed) {
+      if (resultingHeaders.has(rename.to)) {
+        errors.push(`Duplicate header would result from RENAMED: "${rename.to}"`);
+      }
+      resultingHeaders.add(rename.to);
+    }
+
+    return errors;
+  }
+
+  private applyDeltaChanges(
+    existingContent: string,
+    deltaContent: string
+  ): { content: string; stats: DeltaStats } {
+    const deltaSections = this.parseDeltaSections(deltaContent);
+    const existingRequirements = this.parseExistingSpec(existingContent);
+
+    // Validate operations
+    const errors = this.validateDeltaOperations(deltaSections, existingRequirements);
+    if (errors.length > 0) {
+      throw new Error(`Delta validation failed:\n${errors.join('\n')}`);
+    }
+
+    // Apply changes in order: RENAMED → REMOVED → MODIFIED → ADDED
+    const updatedRequirements = new Map(existingRequirements);
+
+    // Apply RENAMED
+    for (const rename of deltaSections.renamed) {
+      const existingContent = updatedRequirements.get(rename.from);
+      updatedRequirements.delete(rename.from);
+      // If there's content provided in the rename section, use it. Otherwise preserve the existing content
+      const newContent = rename.content || existingContent || '';
+      // Format the renamed requirement properly
+      const formattedContent = newContent.startsWith('### ') ? newContent : 
+        `### ${rename.to}\n\n${newContent}`.trim();
+      updatedRequirements.set(rename.to, formattedContent);
+    }
+
+    // Apply REMOVED
+    for (const header of deltaSections.removed.requirements.keys()) {
+      updatedRequirements.delete(header);
+    }
+
+    // Apply MODIFIED
+    for (const [header, content] of deltaSections.modified.requirements) {
+      updatedRequirements.set(header, content);
+    }
+
+    // Apply ADDED
+    for (const [header, content] of deltaSections.added.requirements) {
+      updatedRequirements.set(header, content);
+    }
+
+    // Reconstruct the spec content
+    const specLines: string[] = [];
+    
+    // Add title if exists in original
+    const titleMatch = existingContent.match(/^#\s+.+$/m);
+    if (titleMatch) {
+      specLines.push(titleMatch[0]);
+      specLines.push('');
+    }
+
+    // Add other non-requirement content from beginning
+    const lines = existingContent.split('\n');
+    let inRequirement = false;
+    for (const line of lines) {
+      if (line.startsWith('### ')) {
+        inRequirement = true;
+        break;
+      }
+      if (!line.startsWith('# ')) {
+        specLines.push(line);
+      }
+    }
+
+    // Add requirements
+    for (const [header, content] of updatedRequirements) {
+      if (specLines.length > 0 && specLines[specLines.length - 1] !== '') {
+        specLines.push('');
+      }
+      specLines.push(content);
+    }
+
+    const stats: DeltaStats = {
+      added: deltaSections.added.requirements.size,
+      modified: deltaSections.modified.requirements.size,
+      removed: deltaSections.removed.requirements.size,
+      renamed: deltaSections.renamed.length
+    };
+
+    return {
+      content: specLines.join('\n'),
+      stats
+    };
+  }
+
+  private displayDeltaStats(specPath: string, stats: DeltaStats): void {
+    console.log(`Applying changes to ${specPath}:`);
+    if (stats.added > 0) console.log(`  + ${stats.added} added`);
+    if (stats.modified > 0) console.log(`  ~ ${stats.modified} modified`);
+    if (stats.removed > 0) console.log(`  - ${stats.removed} removed`);
+    if (stats.renamed > 0) console.log(`  → ${stats.renamed} renamed`);
   }
 }
