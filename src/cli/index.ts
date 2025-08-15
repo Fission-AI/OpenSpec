@@ -7,6 +7,7 @@ import { UpdateCommand } from '../core/update.js';
 import { DiffCommand } from '../core/diff.js';
 import { ListCommand } from '../core/list.js';
 import { ArchiveCommand } from '../core/archive.js';
+import { SpecCommand } from '../commands/spec.js';
 
 const program = new Command();
 
@@ -107,5 +108,8 @@ program
       process.exit(1);
     }
   });
+
+const specCommand = new SpecCommand();
+specCommand.register(program);
 
 program.parse();

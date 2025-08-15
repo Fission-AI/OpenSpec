@@ -18,15 +18,17 @@ export class MarkdownParser {
 
   parseSpec(name: string): Spec {
     const sections = this.parseSections();
-    const overview = this.findSection(sections, 'Overview')?.content || '';
-    const requirementsSection = this.findSection(sections, 'Requirements');
+    const overview = this.findSection(sections, 'Overview')?.content || 
+                    this.findSection(sections, 'Purpose')?.content || '';
+    const requirementsSection = this.findSection(sections, 'Requirements') || 
+                               this.findSection(sections, 'Behavior');
     
     if (!overview) {
-      throw new Error('Spec must have an Overview section');
+      throw new Error('Spec must have an Overview or Purpose section');
     }
     
     if (!requirementsSection) {
-      throw new Error('Spec must have a Requirements section');
+      throw new Error('Spec must have a Requirements or Behavior section');
     }
 
     const requirements = this.parseRequirements(requirementsSection);
@@ -140,7 +142,9 @@ export class MarkdownParser {
     const requirements: Requirement[] = [];
     
     for (const child of section.children) {
-      const text = child.title;
+      // Extract the first line of content as the requirement text
+      const contentLines = child.content.split('\n').filter(line => line.trim());
+      const text = contentLines.length > 0 ? contentLines[0] : child.title;
       const scenarios = this.parseScenarios(child);
       
       requirements.push({
