@@ -72,26 +72,76 @@ The archive operation SHALL follow a structured process to safely move changes t
 
 ### Requirement: Spec Update Process
 
-Before moving the change to archive, the command SHALL update main specs to reflect the deployed reality.
+Before moving the change to archive, the command SHALL apply delta changes to main specs to reflect the deployed reality.
 
 #### Scenario: Updating specs from change
 
 - **WHEN** the change contains specs in `changes/[name]/specs/`
 - **THEN** execute these steps:
   1. Analyze which specs will be affected by comparing with existing specs
-  2. Display a summary of spec updates to the user (see Confirmation Behavior below)
-  3. Prompt for confirmation unless `--yes` flag is provided
-  4. If confirmed, for each capability spec in the change directory:
-     - Copy the spec from `changes/[name]/specs/[capability]/spec.md` to `openspec/specs/[capability]/spec.md`
+  2. For each spec file, detect if it uses delta format (contains ADDED/MODIFIED/REMOVED/RENAMED sections)
+  3. Display a summary of spec updates to the user (see Confirmation Behavior below)
+  4. Prompt for confirmation unless `--yes` flag is provided
+  5. If confirmed, for each capability spec in the change directory:
+     - If spec uses delta format, apply delta changes as defined in openspec-conventions
+     - If spec does not use delta format, copy entire spec file (backward compatibility)
      - Create the target directory structure if it doesn't exist
-     - Overwrite existing spec files (specs represent current reality, change specs are the new reality)
      - Track which specs were updated for the success message
+
+#### Scenario: Applying delta changes
+
+- **WHEN** archiving a change with delta-based specs
+- **THEN** parse and apply delta changes following these steps:
+  1. Parse delta sections (ADDED/MODIFIED/REMOVED/RENAMED) from the change spec
+  2. Normalize headers using trim() for matching
+  3. Validate all operations before applying (see validation scenarios)
+  4. Apply changes in order: RENAMED → REMOVED → MODIFIED → ADDED
+  5. Write the updated spec to the main specs directory
+
+#### Scenario: Validating delta changes
+
+- **WHEN** processing delta changes
+- **THEN** perform these validations:
+  - MODIFIED requirements: verify they exist in the current spec
+  - REMOVED requirements: verify they exist in the current spec
+  - ADDED requirements: verify they don't already exist
+  - RENAMED requirements: verify FROM exists and TO doesn't exist
+  - No duplicate headers within the resulting spec
+  - Renamed requirements aren't also in ADDED section
+- **AND** if validation fails, show specific errors and abort
+
+#### Scenario: Conflict detection
+
+- **WHEN** applying deltas would create duplicate requirement headers
+- **THEN** abort with error message showing the conflict
+- **AND** suggest manual resolution
 
 #### Scenario: No specs in change
 
 - **WHEN** no specs exist in the change
 - **THEN** skip the spec update step
 - **AND** proceed with archiving
+
+### Requirement: Display Output
+
+The command SHALL provide clear feedback about delta operations.
+
+#### Scenario: Showing delta application
+
+- **WHEN** applying delta changes
+- **THEN** display for each spec:
+  - Number of requirements added
+  - Number of requirements modified
+  - Number of requirements removed
+  - Number of requirements renamed
+- **AND** use standard output symbols (+ ~ - →) as defined in openspec-conventions:
+  ```
+  Applying changes to specs/user-auth/spec.md:
+    + 2 added
+    ~ 3 modified
+    - 1 removed
+    → 1 renamed
+  ```
 
 ### Requirement: Confirmation Behavior
 
