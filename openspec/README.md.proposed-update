@@ -1,0 +1,96 @@
+# OpenSpec Instructions
+
+Instructions for AI coding assistants using OpenSpec for spec-driven development.
+
+## Three-Stage Workflow (Different Sessions)
+
+**IMPORTANT: Each stage happens in a SEPARATE session with explicit user approval between stages.**
+
+### Stage 1: Creating Changes (Proposal Only)
+**This stage creates the proposal ONLY - no implementation.**
+
+Create proposal when you need to:
+- Add features or functionality
+- Make breaking changes (API, schema)
+- Change architecture or patterns  
+- Optimize performance (changes behavior)
+- Update security patterns
+
+Skip proposal for:
+- Bug fixes (restore intended behavior)
+- Typos, formatting, comments
+- Dependency updates (non-breaking)
+- Configuration changes
+- Tests for existing behavior
+
+**STOP after creating proposal files (proposal.md, design.md, tasks.md, specs/).**
+**DO NOT implement unless user explicitly says "implement it" or "proceed with implementation".**
+
+### Stage 2: Implementing Changes (Separate Session)
+**Only start this stage when user explicitly requests implementation.**
+
+1. **Read proposal.md** - Understand what's being built
+2. **Read design.md** (if exists) - Review technical decisions
+3. **Read tasks.md** - Get implementation checklist
+4. **Implement tasks sequentially** - Complete in order
+5. **Mark complete immediately** - Update `- [x]` after each task
+
+**Never assume you should implement just because a proposal exists.**
+
+### Stage 3: Archiving Changes (After Deployment)
+**This happens in a separate session after the change is deployed to production.**
+
+After deployment, create separate PR to:
+- Move `changes/[name]/` → `changes/archive/YYYY-MM-DD-[name]/`
+- Update `specs/` if capabilities changed
+- Use `openspec archive [change] --skip-specs` for tooling-only changes
+
+## Before Creating ANY Change
+
+**STOP: You MUST run these commands before creating any change proposal:**
+1. `openspec list` - Check all active changes for conflicts
+2. `openspec list --specs` - Check existing specs to avoid duplicates
+3. Only proceed if no conflicts or duplicates found
+
+**Context Gathering Requirement:**
+When asked to create a change proposal, ALWAYS start by:
+1. Showing current changes: `openspec list`
+2. Showing current specs: `openspec list --specs`  
+3. Explaining why the new change doesn't conflict with existing work
+4. Using `openspec show [item]` to examine any related specs or changes
+
+**Session Boundaries:**
+- Creating proposal = One session (STOP after proposal files)
+- Implementation = Separate session (ONLY when explicitly requested)
+- Archiving = Separate session (after deployment)
+
+**Mandatory Checklist for Proposals:**
+- [ ] Ran `openspec list` to see active changes
+- [ ] Ran `openspec list --specs` to check existing specs
+- [ ] Searched for related functionality that might already exist
+- [ ] Verified no conflicts or duplicates found
+- [ ] Used proper OpenSpec CLI tools (not manual directory browsing)
+- [ ] Created proposal files ONLY (no implementation)
+- [ ] Waiting for explicit user approval before implementing
+
+## Before Any Task
+
+**Context Checklist:**
+- [ ] Read relevant specs in `specs/[capability]/spec.md`
+- [ ] Check pending changes in `changes/` for conflicts
+- [ ] Read `openspec/project.md` for conventions
+- [ ] Run `openspec list` to see active changes
+- [ ] Run `openspec list --specs` to see existing capabilities
+
+**Before Creating Specs:**
+- Always check if capability already exists
+- Prefer modifying existing specs over creating duplicates
+- Use `openspec show [spec]` to review current state
+
+## Common Mistakes to Avoid
+
+1. **Creating AND implementing in one session** - Always wait for explicit approval
+2. **Skipping OpenSpec CLI tools** - Always use `openspec list` and `openspec show`
+3. **Manual directory browsing** - Use the CLI tools instead
+4. **Assuming implementation is wanted** - User must explicitly request it
+5. **Creating duplicate specs** - Always check existing specs first
