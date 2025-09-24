@@ -14,3 +14,7 @@
 
 ## 4. Verification
 - [x] 4.1 Add tests verifying slash command files are created and updated correctly.
+
+## 5. OpenCode Integration
+- [x] 5.1 Generate `.opencode/commands/{openspec-proposal,openspec-apply,openspec-archive}.md` during `openspec init` using shared templates.
+- [x] 5.2 Update existing `.opencode/commands/*` files during `openspec update`.

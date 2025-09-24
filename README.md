@@ -83,13 +83,14 @@ These tools have built-in OpenSpec commands. Select the OpenSpec integration whe
 |------|----------|
 | **Claude Code** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` |
 | **Cursor** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` |
+| **OpenCode** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` |
 
 #### AGENTS.md Compatible
 These tools automatically read workflow instructions from `openspec/AGENTS.md`. Ask them to follow the OpenSpec workflow if they need a reminder. Learn more about the [AGENTS.md convention](https://agents.md/).
 
 | Tools |
 |-------|
-| Codex • Amp • Jules • OpenCode • Gemini CLI • GitHub Copilot • Others |
+| Codex • Amp • Jules • Gemini CLI • GitHub Copilot • Others |
 
 ### Install & Initialize
 

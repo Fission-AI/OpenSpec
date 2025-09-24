@@ -1,6 +1,7 @@
 import { SlashCommandConfigurator } from './base.js';
 import { ClaudeSlashCommandConfigurator } from './claude.js';
 import { CursorSlashCommandConfigurator } from './cursor.js';
+import { OpenCodeSlashCommandConfigurator } from './opencode.js';
 
 export class SlashCommandRegistry {
   private static configurators: Map<string, SlashCommandConfigurator> = new Map();
@@ -8,9 +9,11 @@ export class SlashCommandRegistry {
   static {
     const claude = new ClaudeSlashCommandConfigurator();
     const cursor = new CursorSlashCommandConfigurator();
+    const opencode = new OpenCodeSlashCommandConfigurator();
 
     this.configurators.set(claude.toolId, claude);
     this.configurators.set(cursor.toolId, cursor);
+    this.configurators.set(opencode.toolId, opencode);
   }
 
   static register(configurator: SlashCommandConfigurator): void {

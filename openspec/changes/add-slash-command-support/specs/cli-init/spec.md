@@ -13,3 +13,9 @@ The init command SHALL generate slash command files for supported editors using 
 - **THEN** create `.cursor/commands/openspec-proposal.md`, `.cursor/commands/openspec-apply.md`, and `.cursor/commands/openspec-archive.md`
 - **AND** populate each file from shared templates so command text matches other tools
 - **AND** each template includes instructions for the relevant OpenSpec workflow stage
+
+#### Scenario: Generating slash commands for OpenCode
+- **WHEN** the user selects OpenCode during initialization
+- **THEN** create `.opencode/commands/openspec-proposal.md`, `.opencode/commands/openspec-apply.md`, and `.opencode/commands/openspec-archive.md`
+- **AND** populate each file from shared templates so command text matches other tools
+- **AND** each template includes instructions for the relevant OpenSpec workflow stage

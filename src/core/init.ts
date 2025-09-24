@@ -439,7 +439,14 @@ export class InitCommand {
   }
 
   private async configureAITools(projectPath: string, openspecDir: string, toolIds: string[]): Promise<void> {
-    for (const toolId of toolIds) {
+    const resolvedToolIds = new Set(toolIds);
+
+    if (resolvedToolIds.has('opencode')) {
+      // OpenCode relies on the shared AGENTS.md instructions alongside slash commands
+      resolvedToolIds.add('agents');
+    }
+
+    for (const toolId of resolvedToolIds) {
       const configurator = ToolRegistry.get(toolId);
       if (configurator && configurator.isAvailable) {
         await configurator.configure(projectPath, openspecDir);

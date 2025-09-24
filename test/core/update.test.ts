@@ -138,6 +138,37 @@ Old body
     consoleSpy.mockRestore();
   });
 
+  it('should refresh existing OpenCode slash command files', async () => {
+    const openCodePath = path.join(testDir, '.opencode/commands/openspec-apply.md');
+    await fs.mkdir(path.dirname(openCodePath), { recursive: true });
+    const initialContent = `---
+name: /openspec-apply
+id: openspec-apply
+category: OpenSpec
+description: Old description
+---
+<!-- OPENSPEC:START -->
+Old body
+<!-- OPENSPEC:END -->`;
+    await fs.writeFile(openCodePath, initialContent);
+
+    const consoleSpy = vi.spyOn(console, 'log');
+
+    await updateCommand.execute(testDir);
+
+    const updated = await fs.readFile(openCodePath, 'utf-8');
+    expect(updated).toContain('id: openspec-apply');
+    expect(updated).toContain('Work through tasks sequentially');
+    expect(updated).not.toContain('Old body');
+
+    const [logMessage] = consoleSpy.mock.calls[0];
+    expect(logMessage).toContain('Updated OpenSpec instructions (openspec/AGENTS.md');
+    expect(logMessage).toContain('AGENTS.md (created)');
+    expect(logMessage).toContain('Updated slash commands: .opencode/commands/openspec-apply.md');
+
+    consoleSpy.mockRestore();
+  });
+
   it('should handle no AI tool files present', async () => {
     // Execute update command with no AI tool files
     const consoleSpy = vi.spyOn(console, 'log');
