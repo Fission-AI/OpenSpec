@@ -169,6 +169,25 @@ Some general description of changes without specific deltas`;
       
       expect(change.deltas).toHaveLength(0);
     });
+
+    it('parses change documents saved with CRLF line endings', () => {
+      const crlfContent = [
+        '# CRLF Change',
+        '',
+        '## Why',
+        'Reasons on Windows editors should parse like POSIX environments.',
+        '',
+        '## What Changes',
+        '- **alpha:** Add cross-platform parsing coverage',
+      ].join('\r\n');
+
+      const parser = new MarkdownParser(crlfContent);
+      const change = parser.parseChange('crlf-change');
+
+      expect(change.why).toContain('Windows editors should parse');
+      expect(change.deltas).toHaveLength(1);
+      expect(change.deltas[0].spec).toBe('alpha');
+    });
   });
 
   describe('section parsing', () => {

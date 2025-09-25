@@ -12,8 +12,13 @@ export class MarkdownParser {
   private currentLine: number;
 
   constructor(content: string) {
-    this.lines = content.split('\n');
+    const normalized = MarkdownParser.normalizeContent(content);
+    this.lines = normalized.split('\n');
     this.currentLine = 0;
+  }
+
+  protected static normalizeContent(content: string): string {
+    return content.replace(/\r\n?/g, '\n');
   }
 
   parseSpec(name: string): Spec {

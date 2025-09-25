@@ -150,7 +150,7 @@ export class ChangeParser extends MarkdownParser {
 
   private parseRenames(content: string): Array<{ from: string; to: string }> {
     const renames: Array<{ from: string; to: string }> = [];
-    const lines = content.split('\n');
+    const lines = ChangeParser.normalizeContent(content).split('\n');
     
     let currentRename: { from?: string; to?: string } = {};
     
@@ -177,7 +177,8 @@ export class ChangeParser extends MarkdownParser {
   }
 
   private parseSectionsFromContent(content: string): Section[] {
-    const lines = content.split('\n');
+    const normalizedContent = ChangeParser.normalizeContent(content);
+    const lines = normalizedContent.split('\n');
     const sections: Section[] = [];
     const stack: Section[] = [];
     

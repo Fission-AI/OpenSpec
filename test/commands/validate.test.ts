@@ -117,6 +117,46 @@ Given A\nWhen B\nThen C`;
       process.chdir(originalCwd);
     }
   });
+
+  it('accepts change proposals saved with CRLF line endings', async () => {
+    const changeId = 'crlf-change';
+    const toCrlf = (segments: string[]) => segments.join('\n').replace(/\n/g, '\r\n');
+
+    const crlfContent = toCrlf([
+      '# CRLF Proposal',
+      '',
+      '## Why',
+      'This change verifies validation works with Windows line endings.',
+      '',
+      '## What Changes',
+      '- **alpha:** Ensure validation passes on CRLF files',
+    ]);
+
+    await fs.mkdir(path.join(changesDir, changeId), { recursive: true });
+    await fs.writeFile(path.join(changesDir, changeId, 'proposal.md'), crlfContent, 'utf-8');
+
+    const deltaContent = toCrlf([
+      '## ADDED Requirements',
+      '### Requirement: Parser SHALL accept CRLF change proposals',
+      'The parser SHALL accept CRLF change proposals without manual edits.',
+      '',
+      '#### Scenario: Validate CRLF change',
+      '- **WHEN** a developer runs openspec validate on the proposal',
+      '- **THEN** validation succeeds without section errors',
+    ]);
+
+    const deltaDir = path.join(changesDir, changeId, 'specs', 'alpha');
+    await fs.mkdir(deltaDir, { recursive: true });
+    await fs.writeFile(path.join(deltaDir, 'spec.md'), deltaContent, 'utf-8');
+
+    const originalCwd = process.cwd();
+    try {
+      process.chdir(testDir);
+      expect(() => execSync(`node ${bin} validate ${changeId}`, { encoding: 'utf-8' })).not.toThrow();
+    } finally {
+      process.chdir(originalCwd);
+    }
+  });
 });
 
 

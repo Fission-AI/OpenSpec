@@ -22,7 +22,8 @@ const REQUIREMENT_HEADER_REGEX = /^###\s*Requirement:\s*(.+)\s*$/;
  * Extracts the Requirements section from a spec file and parses requirement blocks.
  */
 export function extractRequirementsSection(content: string): RequirementsSectionParts {
-  const lines = content.split('\n');
+  const normalized = normalizeLineEndings(content);
+  const lines = normalized.split('\n');
   const reqHeaderIndex = lines.findIndex(l => /^##\s+Requirements\s*$/i.test(l));
 
   if (reqHeaderIndex === -1) {
@@ -102,11 +103,16 @@ export interface DeltaPlan {
   renamed: Array<{ from: string; to: string }>;
 }
 
+function normalizeLineEndings(content: string): string {
+  return content.replace(/\r\n?/g, '\n');
+}
+
 /**
  * Parse a delta-formatted spec change file content into a DeltaPlan with raw blocks.
  */
 export function parseDeltaSpec(content: string): DeltaPlan {
-  const sections = splitTopLevelSections(content);
+  const normalized = normalizeLineEndings(content);
+  const sections = splitTopLevelSections(normalized);
   const added = parseRequirementBlocksFromSection(sections['ADDED Requirements'] || '');
   const modified = parseRequirementBlocksFromSection(sections['MODIFIED Requirements'] || '');
   const removedNames = parseRemovedNames(sections['REMOVED Requirements'] || '');
@@ -136,7 +142,7 @@ function splitTopLevelSections(content: string): Record<string, string> {
 
 function parseRequirementBlocksFromSection(sectionBody: string): RequirementBlock[] {
   if (!sectionBody) return [];
-  const lines = sectionBody.split('\n');
+  const lines = normalizeLineEndings(sectionBody).split('\n');
   const blocks: RequirementBlock[] = [];
   let i = 0;
   while (i < lines.length) {
@@ -161,7 +167,7 @@ function parseRequirementBlocksFromSection(sectionBody: string): RequirementBloc
 function parseRemovedNames(sectionBody: string): string[] {
   if (!sectionBody) return [];
   const names: string[] = [];
-  const lines = sectionBody.split('\n');
+  const lines = normalizeLineEndings(sectionBody).split('\n');
   for (const line of lines) {
     const m = line.match(REQUIREMENT_HEADER_REGEX);
     if (m) {
@@ -180,7 +186,7 @@ function parseRemovedNames(sectionBody: string): string[] {
 function parseRenamedPairs(sectionBody: string): Array<{ from: string; to: string }> {
   if (!sectionBody) return [];
   const pairs: Array<{ from: string; to: string }> = [];
-  const lines = sectionBody.split('\n');
+  const lines = normalizeLineEndings(sectionBody).split('\n');
   let current: { from?: string; to?: string } = {};
   for (const line of lines) {
     const fromMatch = line.match(/^\s*-?\s*FROM:\s*`?###\s*Requirement:\s*(.+?)`?\s*$/);
