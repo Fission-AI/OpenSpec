@@ -11,7 +11,12 @@ const FRONTMATTER: Record<SlashCommandId, string> = {
   proposal: `---
 agent: build
 description: Scaffold a new OpenSpec change and validate strictly.
----`,
+---
+The user has requested the following change proposal. Use the openspec instructions to create their change proposal.
+<UserRequest>
+  $ARGUMENTS
+</UserRequest>
+`,
   apply: `---
 agent: build
 description: Implement an approved OpenSpec change and keep tasks in sync.
