@@ -9,7 +9,7 @@ const FILE_PATHS: Record<SlashCommandId, string> = {
 
 const FRONTMATTER: Record<SlashCommandId, string> = {
   proposal: `---
-agent: plan
+agent: build
 description: Scaffold a new OpenSpec change and validate strictly.
 ---`,
   apply: `---
