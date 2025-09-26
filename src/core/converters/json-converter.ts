@@ -43,7 +43,8 @@ export class JsonConverter {
   }
 
   private extractNameFromPath(filePath: string): string {
-    const parts = filePath.split('/');
+    const normalizedPath = filePath.replaceAll('\\', '/');
+    const parts = normalizedPath.split('/');
     
     for (let i = parts.length - 1; i >= 0; i--) {
       if (parts[i] === 'specs' || parts[i] === 'changes') {
@@ -53,7 +54,8 @@ export class JsonConverter {
       }
     }
     
-    const fileName = parts[parts.length - 1];
-    return fileName.replace('.md', '');
+    const fileName = parts[parts.length - 1] ?? '';
+    const dotIndex = fileName.lastIndexOf('.');
+    return dotIndex > 0 ? fileName.slice(0, dotIndex) : fileName;
   }
 }

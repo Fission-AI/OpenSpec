@@ -1,7 +1,15 @@
 #!/usr/bin/env node
 
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { existsSync, rmSync } from 'fs';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+
+const runTsc = (args = []) => {
+  const tscPath = require.resolve('typescript/bin/tsc');
+  execFileSync(process.execPath, [tscPath, ...args], { stdio: 'inherit' });
+};
 
 console.log('🔨 Building OpenSpec...\n');
 
@@ -14,8 +22,8 @@ if (existsSync('dist')) {
 // Run TypeScript compiler (use local version explicitly)
 console.log('Compiling TypeScript...');
 try {
-  execSync('./node_modules/.bin/tsc -v', { stdio: 'inherit' });
-  execSync('./node_modules/.bin/tsc', { stdio: 'inherit' });
+  runTsc(['--version']);
+  runTsc();
   console.log('\n✅ Build completed successfully!');
 } catch (error) {
   console.error('\n❌ Build failed!');

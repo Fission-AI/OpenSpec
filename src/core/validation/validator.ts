@@ -331,7 +331,8 @@ export class Validator {
   }
 
   private extractNameFromPath(filePath: string): string {
-    const parts = filePath.split('/');
+    const normalizedPath = filePath.replaceAll('\\', '/');
+    const parts = normalizedPath.split('/');
     
     // Look for the directory name after 'specs' or 'changes'
     for (let i = parts.length - 1; i >= 0; i--) {
@@ -343,8 +344,9 @@ export class Validator {
     }
     
     // Fallback to filename without extension if not in expected structure
-    const fileName = parts[parts.length - 1];
-    return fileName.replace('.md', '');
+    const fileName = parts[parts.length - 1] ?? '';
+    const dotIndex = fileName.lastIndexOf('.');
+    return dotIndex > 0 ? fileName.slice(0, dotIndex) : fileName;
   }
 
   private createReport(issues: ValidationIssue[]): ValidationReport {

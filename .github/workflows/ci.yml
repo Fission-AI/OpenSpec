@@ -16,9 +16,19 @@ concurrency:
 
 jobs:
   test:
-    name: Test
-    runs-on: ubuntu-latest
-    
+    name: Test (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            label: linux-bash
+          - os: macos-latest
+            label: macos-bash
+          - os: windows-latest
+            label: windows-pwsh
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -36,6 +46,10 @@ jobs:
           node-version: '20'
           cache: 'pnpm'
 
+      - name: Print environment diagnostics
+        run: |
+          node -p "JSON.stringify({ platform: process.platform, arch: process.arch, shell: process.env.SHELL || process.env.ComSpec || '' })"
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -46,6 +60,7 @@ jobs:
         run: pnpm test
 
       - name: Upload test coverage
+        if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report

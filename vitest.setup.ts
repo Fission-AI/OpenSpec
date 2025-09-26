@@ -1,21 +1,6 @@
-import { execSync } from 'child_process';
-import { existsSync } from 'fs';
-import path from 'path';
+import { ensureCliBuilt } from './test/helpers/run-cli.js';
 
-// Run once before all tests
+// Ensure the CLI bundle exists before tests execute
 export async function setup() {
-  const distPath = path.join(process.cwd(), 'dist', 'cli', 'index.js');
-  
-  if (!existsSync(distPath)) {
-    console.log('Building project before tests...');
-    try {
-      execSync('pnpm run build', { 
-        stdio: 'inherit',
-        cwd: process.cwd()
-      });
-    } catch (error) {
-      console.error('Failed to build project:', error);
-      process.exit(1);
-    }
-  }
+  await ensureCliBuilt();
 }
