@@ -1,5 +1,11 @@
 # @fission-ai/openspec
 
+## 0.8.0
+
+### Minor Changes
+
+- c29b06d: Add Windsurf support.
+
 ## 0.7.0
 
 ### Minor Changes
