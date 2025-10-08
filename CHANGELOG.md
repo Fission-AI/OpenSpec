@@ -1,5 +1,11 @@
 # @fission-ai/openspec
 
+## 0.9.0
+
+### Minor Changes
+
+- efbbf3b: Add support for Codex and GitHub Copilot slash commands with YAML frontmatter and $ARGUMENTS
+
 ## Unreleased
 
 ### Minor Changes
