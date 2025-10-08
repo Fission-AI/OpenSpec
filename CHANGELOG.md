@@ -1,5 +1,11 @@
 # @fission-ai/openspec
 
+## 0.8.1
+
+### Patch Changes
+
+- d070d08: Fix CLI version mismatch and add a release guard that validates the packed tarball prints the same version as package.json via `openspec --version`.
+
 ## 0.8.0
 
 ### Minor Changes
