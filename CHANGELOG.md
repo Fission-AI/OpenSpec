@@ -1,5 +1,11 @@
 # @fission-ai/openspec
 
+## 0.9.1
+
+### Patch Changes
+
+- 8210970: Fix OpenSpec not working on Windows when Codex integration is selected. This release includes fixes for cross-platform path handling and normalization to ensure OpenSpec works correctly on Windows systems.
+
 ## 0.9.0
 
 ### Minor Changes
