@@ -106,9 +106,9 @@ export class UpdateCommand {
     }
 
     if (updatedSlashFiles.length > 0) {
-      summaryParts.push(
-        `Updated slash commands: ${updatedSlashFiles.join(', ')}`
-      );
+      // Normalize to forward slashes for cross-platform log consistency
+      const normalized = updatedSlashFiles.map((p) => p.replace(/\\/g, '/'));
+      summaryParts.push(`Updated slash commands: ${normalized.join(', ')}`);
     }
 
     const failedItems = [
