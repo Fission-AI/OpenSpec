@@ -1,4 +1,3 @@
-import path from 'path';
 import { FileSystemUtils } from '../../../utils/file-system.js';
 import { TemplateManager, SlashCommandId } from '../../templates/index.js';
 import { OPENSPEC_MARKERS } from '../../config.js';
@@ -28,7 +27,7 @@ export abstract class SlashCommandConfigurator {
 
     for (const target of this.getTargets()) {
       const body = TemplateManager.getSlashCommandBody(target.id).trim();
-      const filePath = path.join(projectPath, target.path);
+      const filePath = FileSystemUtils.joinPath(projectPath, target.path);
 
       if (await FileSystemUtils.fileExists(filePath)) {
         await this.updateBody(filePath, body);
@@ -53,7 +52,7 @@ export abstract class SlashCommandConfigurator {
     const updated: string[] = [];
 
     for (const target of this.getTargets()) {
-      const filePath = path.join(projectPath, target.path);
+      const filePath = FileSystemUtils.joinPath(projectPath, target.path);
       if (await FileSystemUtils.fileExists(filePath)) {
         const body = TemplateManager.getSlashCommandBody(target.id).trim();
         await this.updateBody(filePath, body);
@@ -71,7 +70,7 @@ export abstract class SlashCommandConfigurator {
   // to redirect to tool-specific locations (e.g., global directories).
   resolveAbsolutePath(projectPath: string, id: SlashCommandId): string {
     const rel = this.getRelativePath(id);
-    return path.join(projectPath, rel);
+    return FileSystemUtils.joinPath(projectPath, rel);
   }
 
   protected async updateBody(filePath: string, body: string): Promise<void> {

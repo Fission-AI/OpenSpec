@@ -42,6 +42,30 @@ function findMarkerIndex(
 }
 
 export class FileSystemUtils {
+  private static isWindowsBasePath(basePath: string): boolean {
+    return /^[A-Za-z]:[\\/]/.test(basePath) || basePath.startsWith('\\');
+  }
+
+  private static normalizeSegments(segments: string[]): string[] {
+    return segments
+      .flatMap((segment) => segment.split(/[\\/]+/u))
+      .filter((part) => part.length > 0);
+  }
+
+  static joinPath(basePath: string, ...segments: string[]): string {
+    const normalizedSegments = this.normalizeSegments(segments);
+
+    if (this.isWindowsBasePath(basePath)) {
+      return normalizedSegments.length
+        ? path.win32.join(basePath, ...normalizedSegments)
+        : path.win32.normalize(basePath);
+    }
+
+    return normalizedSegments.length
+      ? path.join(basePath, ...normalizedSegments)
+      : path.join(basePath);
+  }
+
   static async createDirectory(dirPath: string): Promise<void> {
     await fs.mkdir(dirPath, { recursive: true });
   }

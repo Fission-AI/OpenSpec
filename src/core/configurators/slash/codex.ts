@@ -49,8 +49,8 @@ $ARGUMENTS`,
   private getGlobalPromptsDir(): string {
     const home = (process.env.CODEX_HOME && process.env.CODEX_HOME.trim())
       ? process.env.CODEX_HOME.trim()
-      : path.join(os.homedir(), ".codex");
-    return path.join(home, "prompts");
+      : FileSystemUtils.joinPath(os.homedir(), ".codex");
+    return FileSystemUtils.joinPath(home, "prompts");
   }
 
   // Codex discovers prompts globally. Generate directly in the global directory
@@ -60,7 +60,10 @@ $ARGUMENTS`,
     for (const target of this.getTargets()) {
       const body = TemplateManager.getSlashCommandBody(target.id).trim();
       const promptsDir = this.getGlobalPromptsDir();
-      const filePath = path.join(promptsDir, path.basename(target.path));
+      const filePath = FileSystemUtils.joinPath(
+        promptsDir,
+        path.basename(target.path)
+      );
 
       await FileSystemUtils.createDirectory(path.dirname(filePath));
 
@@ -83,7 +86,10 @@ $ARGUMENTS`,
     const updated: string[] = [];
     for (const target of this.getTargets()) {
       const promptsDir = this.getGlobalPromptsDir();
-      const filePath = path.join(promptsDir, path.basename(target.path));
+      const filePath = FileSystemUtils.joinPath(
+        promptsDir,
+        path.basename(target.path)
+      );
       if (await FileSystemUtils.fileExists(filePath)) {
         const body = TemplateManager.getSlashCommandBody(target.id).trim();
         await this.updateFullFile(filePath, target.id, body);
@@ -115,6 +121,6 @@ $ARGUMENTS`,
   resolveAbsolutePath(_projectPath: string, id: SlashCommandId): string {
     const promptsDir = this.getGlobalPromptsDir();
     const fileName = path.basename(FILE_PATHS[id]);
-    return path.join(promptsDir, fileName);
+    return FileSystemUtils.joinPath(promptsDir, fileName);
   }
 }

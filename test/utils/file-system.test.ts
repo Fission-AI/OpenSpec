@@ -160,4 +160,52 @@ describe('FileSystemUtils', () => {
       expect(hasPermission).toBe(true);
     });
   });
+
+  describe('joinPath', () => {
+    it('should join POSIX-style paths', () => {
+      const result = FileSystemUtils.joinPath(
+        '/tmp/project',
+        '.claude/commands/openspec/proposal.md'
+      );
+      expect(result).toBe('/tmp/project/.claude/commands/openspec/proposal.md');
+    });
+
+    it('should join Linux home directory paths', () => {
+      const result = FileSystemUtils.joinPath(
+        '/home/dev/workspace/openspec',
+        '.cursor/commands/install.md'
+      );
+      expect(result).toBe('/home/dev/workspace/openspec/.cursor/commands/install.md');
+    });
+
+    it('should join Windows drive-letter paths with backslashes', () => {
+      const result = FileSystemUtils.joinPath(
+        'C:\\Users\\dev\\project',
+        '.claude/commands/openspec/proposal.md'
+      );
+      expect(result).toBe(
+        'C:\\Users\\dev\\project\\.claude\\commands\\openspec\\proposal.md'
+      );
+    });
+
+    it('should join Windows paths that use forward slashes', () => {
+      const result = FileSystemUtils.joinPath(
+        'D:/workspace/app',
+        '.cursor/commands/openspec-apply.md'
+      );
+      expect(result).toBe(
+        'D:\\workspace\\app\\.cursor\\commands\\openspec-apply.md'
+      );
+    });
+
+    it('should join UNC-style Windows paths', () => {
+      const result = FileSystemUtils.joinPath(
+        '\\server\\share\\repo',
+        '.windsurf/workflows/openspec-archive.md'
+      );
+      expect(result).toBe(
+        '\\server\\share\\repo\\.windsurf\\workflows\\openspec-archive.md'
+      );
+    });
+  });
 });
