@@ -56,14 +56,17 @@ export class FileSystemUtils {
     const normalizedSegments = this.normalizeSegments(segments);
 
     if (this.isWindowsBasePath(basePath)) {
+      const normalizedBasePath = path.win32.normalize(basePath);
       return normalizedSegments.length
-        ? path.win32.join(basePath, ...normalizedSegments)
-        : path.win32.normalize(basePath);
+        ? path.win32.join(normalizedBasePath, ...normalizedSegments)
+        : normalizedBasePath;
     }
 
+    const posixBasePath = basePath.replace(/\\/g, '/');
+
     return normalizedSegments.length
-      ? path.join(basePath, ...normalizedSegments)
-      : path.join(basePath);
+      ? path.posix.join(posixBasePath, ...normalizedSegments)
+      : path.posix.normalize(posixBasePath);
   }
 
   static async createDirectory(dirPath: string): Promise<void> {
