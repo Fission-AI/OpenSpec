@@ -1,5 +1,11 @@
 # @fission-ai/openspec
 
+## 0.9.2
+
+### Patch Changes
+
+- 2ae0484: Fix cross-platform path handling issues. This release includes fixes for joinPath behavior and slash command path resolution to ensure OpenSpec works correctly across all platforms.
+
 ## 0.9.1
 
 ### Patch Changes
