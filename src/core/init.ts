@@ -220,6 +220,16 @@ const toolSelectionWizard = createPrompt<string[], ToolWizardConfig>(
         }
 
         if (isEnterKey(key)) {
+          const current = config.choices[cursor];
+          if (
+            current &&
+            current.selectable &&
+            !selectedSet.has(current.value)
+          ) {
+            const next = new Set(selected);
+            next.add(current.value);
+            updateSelected(next);
+          }
           setStep('review');
           setError(null);
           return;
@@ -298,7 +308,7 @@ const toolSelectionWizard = createPrompt<string[], ToolWizardConfig>(
       lines.push(PALETTE.white(config.baseMessage));
       lines.push(
         PALETTE.midGray(
-          'Use ↑/↓ to move · Space to toggle · Enter to review selections.'
+          'Use ↑/↓ to move · Space to toggle · Enter selects highlighted tool and reviews.'
         )
       );
       lines.push('');
