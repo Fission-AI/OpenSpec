@@ -570,6 +570,54 @@ describe('InitCommand', () => {
       );
       expect(githubCopilotChoice.configured).toBe(true);
     });
+
+    it('should create Amazon Q Developer prompt files with templates', async () => {
+      queueSelections('amazon-q', DONE);
+
+      await initCommand.execute(testDir);
+
+      const proposalPath = path.join(
+        testDir,
+        '.amazonq/prompts/openspec-proposal.md'
+      );
+      const applyPath = path.join(
+        testDir,
+        '.amazonq/prompts/openspec-apply.md'
+      );
+      const archivePath = path.join(
+        testDir,
+        '.amazonq/prompts/openspec-archive.md'
+      );
+
+      expect(await fileExists(proposalPath)).toBe(true);
+      expect(await fileExists(applyPath)).toBe(true);
+      expect(await fileExists(archivePath)).toBe(true);
+
+      const proposalContent = await fs.readFile(proposalPath, 'utf-8');
+      expect(proposalContent).toContain('---');
+      expect(proposalContent).toContain('description: Scaffold a new OpenSpec change and validate strictly.');
+      expect(proposalContent).toContain('$ARGUMENTS');
+      expect(proposalContent).toContain('<!-- OPENSPEC:START -->');
+      expect(proposalContent).toContain('**Guardrails**');
+
+      const applyContent = await fs.readFile(applyPath, 'utf-8');
+      expect(applyContent).toContain('---');
+      expect(applyContent).toContain('description: Implement an approved OpenSpec change and keep tasks in sync.');
+      expect(applyContent).toContain('$ARGUMENTS');
+      expect(applyContent).toContain('<!-- OPENSPEC:START -->');
+    });
+
+    it('should mark Amazon Q Developer as already configured during extend mode', async () => {
+      queueSelections('amazon-q', DONE, 'amazon-q', DONE);
+      await initCommand.execute(testDir);
+      await initCommand.execute(testDir);
+
+      const secondRunArgs = mockPrompt.mock.calls[1][0];
+      const amazonQChoice = secondRunArgs.choices.find(
+        (choice: any) => choice.value === 'amazon-q'
+      );
+      expect(amazonQChoice.configured).toBe(true);
+    });
   });
 
   describe('error handling', () => {
