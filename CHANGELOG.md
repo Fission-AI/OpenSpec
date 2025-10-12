@@ -1,5 +1,11 @@
 # @fission-ai/openspec
 
+## 0.10.0
+
+### Minor Changes
+
+- d7e0ce8: Improve init wizard Enter key behavior to allow proceeding through prompts more naturally
+
 ## 0.9.2
 
 ### Patch Changes
