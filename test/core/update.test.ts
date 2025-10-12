@@ -377,6 +377,72 @@ Old body
     await expect(FileSystemUtils.fileExists(ghArchive)).resolves.toBe(false);
   });
 
+  it('should refresh existing Amazon Q Developer prompts', async () => {
+    const aqPath = path.join(
+      testDir,
+      '.amazonq/prompts/openspec-apply.md'
+    );
+    await fs.mkdir(path.dirname(aqPath), { recursive: true });
+    const initialContent = `---
+description: Implement an approved OpenSpec change and keep tasks in sync.
+---
+
+The user wants to apply the following change. Use the openspec instructions to implement the approved change.
+
+<ChangeId>
+  $ARGUMENTS
+</ChangeId>
+<!-- OPENSPEC:START -->
+Old body
+<!-- OPENSPEC:END -->`;
+    await fs.writeFile(aqPath, initialContent);
+
+    const consoleSpy = vi.spyOn(console, 'log');
+
+    await updateCommand.execute(testDir);
+
+    const updatedContent = await fs.readFile(aqPath, 'utf-8');
+    expect(updatedContent).toContain('**Guardrails**');
+    expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
+    expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
+    expect(updatedContent).not.toContain('Old body');
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('.amazonq/prompts/openspec-apply.md')
+    );
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should not create missing Amazon Q Developer prompts on update', async () => {
+    const aqApply = path.join(
+      testDir,
+      '.amazonq/prompts/openspec-apply.md'
+    );
+
+    // Only create apply; leave proposal and archive missing
+    await fs.mkdir(path.dirname(aqApply), { recursive: true });
+    await fs.writeFile(
+      aqApply,
+      '---\ndescription: Old\n---\n\nThe user wants to apply the following change.\n\n<ChangeId>\n  $ARGUMENTS\n</ChangeId>\n<!-- OPENSPEC:START -->\nOld\n<!-- OPENSPEC:END -->'
+    );
+
+    await updateCommand.execute(testDir);
+
+    const aqProposal = path.join(
+      testDir,
+      '.amazonq/prompts/openspec-proposal.md'
+    );
+    const aqArchive = path.join(
+      testDir,
+      '.amazonq/prompts/openspec-archive.md'
+    );
+
+    // Confirm they weren't created by update
+    await expect(FileSystemUtils.fileExists(aqProposal)).resolves.toBe(false);
+    await expect(FileSystemUtils.fileExists(aqArchive)).resolves.toBe(false);
+  });
+
   it('should preserve Windsurf content outside markers during update', async () => {
     const wsPath = path.join(
       testDir,

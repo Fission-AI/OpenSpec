@@ -6,6 +6,7 @@ import { KiloCodeSlashCommandConfigurator } from './kilocode.js';
 import { OpenCodeSlashCommandConfigurator } from './opencode.js';
 import { CodexSlashCommandConfigurator } from './codex.js';
 import { GitHubCopilotSlashCommandConfigurator } from './github-copilot.js';
+import { AmazonQSlashCommandConfigurator } from './amazon-q.js';
 
 export class SlashCommandRegistry {
   private static configurators: Map<string, SlashCommandConfigurator> = new Map();
@@ -18,6 +19,7 @@ export class SlashCommandRegistry {
     const opencode = new OpenCodeSlashCommandConfigurator();
     const codex = new CodexSlashCommandConfigurator();
     const githubCopilot = new GitHubCopilotSlashCommandConfigurator();
+    const amazonQ = new AmazonQSlashCommandConfigurator();
 
     this.configurators.set(claude.toolId, claude);
     this.configurators.set(cursor.toolId, cursor);
@@ -26,6 +28,7 @@ export class SlashCommandRegistry {
     this.configurators.set(opencode.toolId, opencode);
     this.configurators.set(codex.toolId, codex);
     this.configurators.set(githubCopilot.toolId, githubCopilot);
+    this.configurators.set(amazonQ.toolId, amazonQ);
   }
 
   static register(configurator: SlashCommandConfigurator): void {
