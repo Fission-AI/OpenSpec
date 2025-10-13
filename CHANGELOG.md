@@ -1,5 +1,11 @@
 # @fission-ai/openspec
 
+## 0.11.0
+
+### Minor Changes
+
+- 312e1d6: Add Amazon Q Developer CLI integration. OpenSpec now supports Amazon Q Developer with automatic prompt generation in `.amazonq/prompts/` directory, allowing you to use OpenSpec slash commands with Amazon Q's @-syntax.
+
 ## 0.10.0
 
 ### Minor Changes
