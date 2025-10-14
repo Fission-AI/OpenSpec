@@ -84,7 +84,11 @@ describe('openspec CLI e2e basics', () => {
       const emptyProjectDir = path.join(projectDir, '..', 'empty-project');
       await fs.mkdir(emptyProjectDir, { recursive: true });
 
-      const result = await runCLI(['init', '--tools', 'all'], { cwd: emptyProjectDir });
+      const codexHome = path.join(emptyProjectDir, '.codex');
+      const result = await runCLI(['init', '--tools', 'all'], {
+        cwd: emptyProjectDir,
+        env: { CODEX_HOME: codexHome },
+      });
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('Tool summary:');
 

@@ -377,6 +377,76 @@ Old body
     await expect(FileSystemUtils.fileExists(ghArchive)).resolves.toBe(false);
   });
 
+  it('should refresh existing Factory slash commands', async () => {
+    const factoryPath = path.join(
+      testDir,
+      '.factory/commands/openspec-proposal.md'
+    );
+    await fs.mkdir(path.dirname(factoryPath), { recursive: true });
+    const initialContent = `---
+description: Scaffold a new OpenSpec change and validate strictly.
+argument-hint: request or feature description
+---
+
+<!-- OPENSPEC:START -->
+Old body
+<!-- OPENSPEC:END -->`;
+    await fs.writeFile(factoryPath, initialContent);
+
+    const consoleSpy = vi.spyOn(console, 'log');
+
+    await updateCommand.execute(testDir);
+
+    const updated = await fs.readFile(factoryPath, 'utf-8');
+    expect(updated).toContain('description: Scaffold a new OpenSpec change and validate strictly.');
+    expect(updated).toContain('argument-hint: request or feature description');
+    expect(
+      /<!-- OPENSPEC:START -->([\s\S]*?)<!-- OPENSPEC:END -->/u.exec(updated)?.[1]
+    ).toContain('$ARGUMENTS');
+    expect(updated).toContain('**Guardrails**');
+    expect(updated).not.toContain('Old body');
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('.factory/commands/openspec-proposal.md')
+    );
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should not create missing Factory slash command files on update', async () => {
+    const factoryApply = path.join(
+      testDir,
+      '.factory/commands/openspec-apply.md'
+    );
+
+    await fs.mkdir(path.dirname(factoryApply), { recursive: true });
+    await fs.writeFile(
+      factoryApply,
+      `---
+description: Old
+argument-hint: old
+---
+
+<!-- OPENSPEC:START -->
+Old body
+<!-- OPENSPEC:END -->`
+    );
+
+    await updateCommand.execute(testDir);
+
+    const factoryProposal = path.join(
+      testDir,
+      '.factory/commands/openspec-proposal.md'
+    );
+    const factoryArchive = path.join(
+      testDir,
+      '.factory/commands/openspec-archive.md'
+    );
+
+    await expect(FileSystemUtils.fileExists(factoryProposal)).resolves.toBe(false);
+    await expect(FileSystemUtils.fileExists(factoryArchive)).resolves.toBe(false);
+  });
+
   it('should refresh existing Amazon Q Developer prompts', async () => {
     const aqPath = path.join(
       testDir,

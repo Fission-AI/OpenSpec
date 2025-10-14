@@ -26,7 +26,7 @@ export abstract class SlashCommandConfigurator {
     const createdOrUpdated: string[] = [];
 
     for (const target of this.getTargets()) {
-      const body = TemplateManager.getSlashCommandBody(target.id).trim();
+      const body = this.getBody(target.id);
       const filePath = FileSystemUtils.joinPath(projectPath, target.path);
 
       if (await FileSystemUtils.fileExists(filePath)) {
@@ -54,7 +54,7 @@ export abstract class SlashCommandConfigurator {
     for (const target of this.getTargets()) {
       const filePath = FileSystemUtils.joinPath(projectPath, target.path);
       if (await FileSystemUtils.fileExists(filePath)) {
-        const body = TemplateManager.getSlashCommandBody(target.id).trim();
+        const body = this.getBody(target.id);
         await this.updateBody(filePath, body);
         updated.push(target.path);
       }
@@ -65,6 +65,10 @@ export abstract class SlashCommandConfigurator {
 
   protected abstract getRelativePath(id: SlashCommandId): string;
   protected abstract getFrontmatter(id: SlashCommandId): string | undefined;
+
+  protected getBody(id: SlashCommandId): string {
+    return TemplateManager.getSlashCommandBody(id).trim();
+  }
 
   // Resolve absolute path for a given slash command target. Subclasses may override
   // to redirect to tool-specific locations (e.g., global directories).

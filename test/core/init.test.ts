@@ -316,6 +316,59 @@ describe('InitCommand', () => {
       expect(archiveContent).toContain('openspec list --specs');
     });
 
+    it('should create Factory slash command files with templates', async () => {
+      queueSelections('factory', DONE);
+
+      await initCommand.execute(testDir);
+
+      const factoryProposal = path.join(
+        testDir,
+        '.factory/commands/openspec-proposal.md'
+      );
+      const factoryApply = path.join(
+        testDir,
+        '.factory/commands/openspec-apply.md'
+      );
+      const factoryArchive = path.join(
+        testDir,
+        '.factory/commands/openspec-archive.md'
+      );
+
+      expect(await fileExists(factoryProposal)).toBe(true);
+      expect(await fileExists(factoryApply)).toBe(true);
+      expect(await fileExists(factoryArchive)).toBe(true);
+
+      const proposalContent = await fs.readFile(factoryProposal, 'utf-8');
+      expect(proposalContent).toContain('description: Scaffold a new OpenSpec change and validate strictly.');
+      expect(proposalContent).toContain('argument-hint: request or feature description');
+      expect(proposalContent).toContain('<!-- OPENSPEC:START -->');
+      expect(
+        /<!-- OPENSPEC:START -->([\s\S]*?)<!-- OPENSPEC:END -->/u.exec(
+          proposalContent
+        )?.[1]
+      ).toContain('$ARGUMENTS');
+
+      const applyContent = await fs.readFile(factoryApply, 'utf-8');
+      expect(applyContent).toContain('description: Implement an approved OpenSpec change and keep tasks in sync.');
+      expect(applyContent).toContain('argument-hint: change-id');
+      expect(applyContent).toContain('Work through tasks sequentially');
+      expect(
+        /<!-- OPENSPEC:START -->([\s\S]*?)<!-- OPENSPEC:END -->/u.exec(
+          applyContent
+        )?.[1]
+      ).toContain('$ARGUMENTS');
+
+      const archiveContent = await fs.readFile(factoryArchive, 'utf-8');
+      expect(archiveContent).toContain('description: Archive a deployed OpenSpec change and update specs.');
+      expect(archiveContent).toContain('argument-hint: change-id');
+      expect(archiveContent).toContain('openspec archive <id> --yes');
+      expect(
+        /<!-- OPENSPEC:START -->([\s\S]*?)<!-- OPENSPEC:END -->/u.exec(
+          archiveContent
+        )?.[1]
+      ).toContain('$ARGUMENTS');
+    });
+
     it('should create Codex prompts with templates and placeholders', async () => {
       queueSelections('codex', DONE);
 
@@ -557,6 +610,18 @@ describe('InitCommand', () => {
         (choice: any) => choice.value === 'codex'
       );
       expect(codexChoice.configured).toBe(true);
+    });
+
+    it('should mark Factory Droid as already configured during extend mode', async () => {
+      queueSelections('factory', DONE, 'factory', DONE);
+      await initCommand.execute(testDir);
+      await initCommand.execute(testDir);
+
+      const secondRunArgs = mockPrompt.mock.calls[1][0];
+      const factoryChoice = secondRunArgs.choices.find(
+        (choice: any) => choice.value === 'factory'
+      );
+      expect(factoryChoice.configured).toBe(true);
     });
 
     it('should mark GitHub Copilot as already configured during extend mode', async () => {

@@ -7,6 +7,7 @@ import { OpenCodeSlashCommandConfigurator } from './opencode.js';
 import { CodexSlashCommandConfigurator } from './codex.js';
 import { GitHubCopilotSlashCommandConfigurator } from './github-copilot.js';
 import { AmazonQSlashCommandConfigurator } from './amazon-q.js';
+import { FactorySlashCommandConfigurator } from './factory.js';
 
 export class SlashCommandRegistry {
   private static configurators: Map<string, SlashCommandConfigurator> = new Map();
@@ -20,6 +21,7 @@ export class SlashCommandRegistry {
     const codex = new CodexSlashCommandConfigurator();
     const githubCopilot = new GitHubCopilotSlashCommandConfigurator();
     const amazonQ = new AmazonQSlashCommandConfigurator();
+    const factory = new FactorySlashCommandConfigurator();
 
     this.configurators.set(claude.toolId, claude);
     this.configurators.set(cursor.toolId, cursor);
@@ -29,6 +31,7 @@ export class SlashCommandRegistry {
     this.configurators.set(codex.toolId, codex);
     this.configurators.set(githubCopilot.toolId, githubCopilot);
     this.configurators.set(amazonQ.toolId, amazonQ);
+    this.configurators.set(factory.toolId, factory);
   }
 
   static register(configurator: SlashCommandConfigurator): void {

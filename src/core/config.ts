@@ -19,6 +19,7 @@ export interface AIToolOption {
 export const AI_TOOLS: AIToolOption[] = [
   { name: 'Claude Code', value: 'claude', available: true, successLabel: 'Claude Code' },
   { name: 'Cursor', value: 'cursor', available: true, successLabel: 'Cursor' },
+  { name: 'Factory Droid', value: 'factory', available: true, successLabel: 'Factory Droid' },
   { name: 'OpenCode', value: 'opencode', available: true, successLabel: 'OpenCode' },
   { name: 'Kilo Code', value: 'kilocode', available: true, successLabel: 'Kilo Code' },
   { name: 'Windsurf', value: 'windsurf', available: true, successLabel: 'Windsurf' },
