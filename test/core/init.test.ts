@@ -620,6 +620,98 @@ describe('InitCommand', () => {
     });
   });
 
+  describe('non-interactive mode', () => {
+    it('should select all available tools with --tools all option', async () => {
+      const nonInteractiveCommand = new InitCommand({ tools: 'all' });
+
+      await nonInteractiveCommand.execute(testDir);
+
+      // Should create configurations for all available tools
+      const claudePath = path.join(testDir, 'CLAUDE.md');
+      const cursorProposal = path.join(
+        testDir,
+        '.cursor/commands/openspec-proposal.md'
+      );
+      const windsurfProposal = path.join(
+        testDir,
+        '.windsurf/workflows/openspec-proposal.md'
+      );
+
+      expect(await fileExists(claudePath)).toBe(true);
+      expect(await fileExists(cursorProposal)).toBe(true);
+      expect(await fileExists(windsurfProposal)).toBe(true);
+    });
+
+    it('should select specific tools with --tools option', async () => {
+      const nonInteractiveCommand = new InitCommand({ tools: 'claude,cursor' });
+
+      await nonInteractiveCommand.execute(testDir);
+
+      const claudePath = path.join(testDir, 'CLAUDE.md');
+      const cursorProposal = path.join(
+        testDir,
+        '.cursor/commands/openspec-proposal.md'
+      );
+      const windsurfProposal = path.join(
+        testDir,
+        '.windsurf/workflows/openspec-proposal.md'
+      );
+
+      expect(await fileExists(claudePath)).toBe(true);
+      expect(await fileExists(cursorProposal)).toBe(true);
+      expect(await fileExists(windsurfProposal)).toBe(false); // Not selected
+    });
+
+    it('should skip tool configuration with --tools none option', async () => {
+      const nonInteractiveCommand = new InitCommand({ tools: 'none' });
+
+      await nonInteractiveCommand.execute(testDir);
+
+      const claudePath = path.join(testDir, 'CLAUDE.md');
+      const cursorProposal = path.join(
+        testDir,
+        '.cursor/commands/openspec-proposal.md'
+      );
+
+      // Should still create AGENTS.md but no tool-specific files
+      const rootAgentsPath = path.join(testDir, 'AGENTS.md');
+      expect(await fileExists(rootAgentsPath)).toBe(true);
+      expect(await fileExists(claudePath)).toBe(false);
+      expect(await fileExists(cursorProposal)).toBe(false);
+    });
+
+    it('should throw error for invalid tool names', async () => {
+      const nonInteractiveCommand = new InitCommand({ tools: 'invalid-tool' });
+
+      await expect(nonInteractiveCommand.execute(testDir)).rejects.toThrow(
+        /Invalid tool\(s\): invalid-tool\. Available values: /
+      );
+    });
+
+    it('should handle comma-separated tool names with spaces', async () => {
+      const nonInteractiveCommand = new InitCommand({ tools: 'claude, cursor' });
+
+      await nonInteractiveCommand.execute(testDir);
+
+      const claudePath = path.join(testDir, 'CLAUDE.md');
+      const cursorProposal = path.join(
+        testDir,
+        '.cursor/commands/openspec-proposal.md'
+      );
+
+      expect(await fileExists(claudePath)).toBe(true);
+      expect(await fileExists(cursorProposal)).toBe(true);
+    });
+
+    it('should reject combining reserved keywords with explicit tool ids', async () => {
+      const nonInteractiveCommand = new InitCommand({ tools: 'all,claude' });
+
+      await expect(nonInteractiveCommand.execute(testDir)).rejects.toThrow(
+        /Cannot combine reserved values "all" or "none" with specific tool IDs/
+      );
+    });
+  });
+
   describe('error handling', () => {
     it('should provide helpful error for insufficient permissions', async () => {
       // This is tricky to test cross-platform, but we can test the error message

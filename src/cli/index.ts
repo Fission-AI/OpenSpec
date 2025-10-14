@@ -4,6 +4,7 @@ import ora from 'ora';
 import path from 'path';
 import { promises as fs } from 'fs';
 import { InitCommand } from '../core/init.js';
+import { AI_TOOLS } from '../core/config.js';
 import { UpdateCommand } from '../core/update.js';
 import { ListCommand } from '../core/list.js';
 import { ArchiveCommand } from '../core/archive.js';
@@ -33,10 +34,14 @@ program.hook('preAction', (thisCommand) => {
   }
 });
 
+const availableToolIds = AI_TOOLS.filter((tool) => tool.available).map((tool) => tool.value);
+const toolsOptionDescription = `Configure AI tools non-interactively. Use "all", "none", or a comma-separated list of: ${availableToolIds.join(', ')}`;
+
 program
   .command('init [path]')
   .description('Initialize OpenSpec in your project')
-  .action(async (targetPath = '.') => {
+  .option('--tools <tools>', toolsOptionDescription)
+  .action(async (targetPath = '.', options?: { tools?: string }) => {
     try {
       // Validate that the path is a valid directory
       const resolvedPath = path.resolve(targetPath);
@@ -57,7 +62,9 @@ program
         }
       }
       
-      const initCommand = new InitCommand();
+      const initCommand = new InitCommand({
+        tools: options?.tools,
+      });
       await initCommand.execute(targetPath);
     } catch (error) {
       console.log(); // Empty line for spacing

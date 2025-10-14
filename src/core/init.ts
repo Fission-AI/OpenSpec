@@ -369,13 +369,16 @@ const toolSelectionWizard = createPrompt<string[], ToolWizardConfig>(
 
 type InitCommandOptions = {
   prompt?: ToolSelectionPrompt;
+  tools?: string;
 };
 
 export class InitCommand {
   private readonly prompt: ToolSelectionPrompt;
+  private readonly toolsArg?: string;
 
   constructor(options: InitCommandOptions = {}) {
     this.prompt = options.prompt ?? ((config) => toolSelectionWizard(config));
+    this.toolsArg = options.tools;
   }
 
   async execute(targetPath: string): Promise<void> {
@@ -470,11 +473,84 @@ export class InitCommand {
     existingTools: Record<string, boolean>,
     extendMode: boolean
   ): Promise<OpenSpecConfig> {
-    const selectedTools = await this.promptForAITools(
-      existingTools,
-      extendMode
-    );
+    const selectedTools = await this.getSelectedTools(existingTools, extendMode);
     return { aiTools: selectedTools };
+  }
+
+  private async getSelectedTools(
+    existingTools: Record<string, boolean>,
+    extendMode: boolean
+  ): Promise<string[]> {
+    const nonInteractiveSelection = this.resolveToolsArg();
+    if (nonInteractiveSelection !== null) {
+      return nonInteractiveSelection;
+    }
+
+    // Fall back to interactive mode
+    return this.promptForAITools(existingTools, extendMode);
+  }
+
+  private resolveToolsArg(): string[] | null {
+    if (typeof this.toolsArg === 'undefined') {
+      return null;
+    }
+
+    const raw = this.toolsArg.trim();
+    if (raw.length === 0) {
+      throw new Error(
+        'The --tools option requires a value. Use "all", "none", or a comma-separated list of tool IDs.'
+      );
+    }
+
+    const availableTools = AI_TOOLS.filter((tool) => tool.available);
+    const availableValues = availableTools.map((tool) => tool.value);
+    const availableSet = new Set(availableValues);
+    const availableList = ['all', 'none', ...availableValues].join(', ');
+
+    const lowerRaw = raw.toLowerCase();
+    if (lowerRaw === 'all') {
+      return availableValues;
+    }
+
+    if (lowerRaw === 'none') {
+      return [];
+    }
+
+    const tokens = raw
+      .split(',')
+      .map((token) => token.trim())
+      .filter((token) => token.length > 0);
+
+    if (tokens.length === 0) {
+      throw new Error(
+        'The --tools option requires at least one tool ID when not using "all" or "none".'
+      );
+    }
+
+    const normalizedTokens = tokens.map((token) => token.toLowerCase());
+
+    if (normalizedTokens.some((token) => token === 'all' || token === 'none')) {
+      throw new Error('Cannot combine reserved values "all" or "none" with specific tool IDs.');
+    }
+
+    const invalidTokens = tokens.filter(
+      (_token, index) => !availableSet.has(normalizedTokens[index])
+    );
+
+    if (invalidTokens.length > 0) {
+      throw new Error(
+        `Invalid tool(s): ${invalidTokens.join(', ')}. Available values: ${availableList}`
+      );
+    }
+
+    const deduped: string[] = [];
+    for (const token of normalizedTokens) {
+      if (!deduped.includes(token)) {
+        deduped.push(token);
+      }
+    }
+
+    return deduped;
   }
 
   private async promptForAITools(
