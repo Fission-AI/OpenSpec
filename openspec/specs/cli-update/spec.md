@@ -32,18 +32,14 @@ The update command SHALL handle file updates in a predictable and safe manner.
 - **AND** if a root-level stub exists, update the managed block content so it keeps directing teammates to `@/openspec/AGENTS.md`
 
 ### Requirement: Tool-Agnostic Updates
-The update command SHALL handle file updates in a predictable and safe manner while respecting team tool choices.
+The update command SHALL refresh OpenSpec-managed files in a predictable manner while respecting each team's chosen tooling.
 
 #### Scenario: Updating files
-
 - **WHEN** updating files
 - **THEN** completely replace `openspec/AGENTS.md` with the latest template
-- **AND** update the root-level `AGENTS.md` using the OpenSpec markers only when that file already exists, keeping the stub content that links to `@/openspec/AGENTS.md`
-- **AND** update only the OpenSpec-managed blocks in **existing** AI tool files using markers
-- **AND** use the default directory name `openspec`
-- **AND** be idempotent (repeated runs have no additional effect)
-- **AND** respect team members' AI tool choices by not creating additional tool files beyond the root `AGENTS.md`
-- **AND** do not create new root-level stub files when none are present
+- **AND** create or refresh the root-level `AGENTS.md` stub using the managed marker block, even if the file was previously absent
+- **AND** update only the OpenSpec-managed sections inside existing AI tool files, leaving user-authored content untouched
+- **AND** avoid creating new native-tool configuration files (slash commands, CLAUDE.md, etc.) unless they already exist
 
 ### Requirement: Core Files Always Updated
 The update command SHALL always update the core OpenSpec files and display an ASCII-safe success message.

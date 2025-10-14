@@ -42,21 +42,17 @@ The command SHALL generate required template files with appropriate content for 
 - **AND** generate `project.md` with project context template
 
 ### Requirement: AI Tool Configuration
-The command SHALL configure AI coding assistants with OpenSpec instructions using a marker system.
+The command SHALL configure AI coding assistants with OpenSpec instructions using a grouped selection experience so teams can enable native integrations while always provisioning guidance for other assistants.
+
 #### Scenario: Prompting for AI tool selection
 - **WHEN** run interactively
-- **THEN** prompt the user with "Which AI tools do you use?" using a multi-select menu
-- **AND** list every available tool with a checkbox:
-  - Claude Code (creates or refreshes CLAUDE.md and slash commands)
-  - Cursor (creates or refreshes `.cursor/commands/*` slash commands)
-  - OpenCode (creates or refreshes `.opencode/command/openspec-*.md` slash commands)
-  - Windsurf (creates or refreshes `.windsurf/workflows/openspec-*.md` workflows)
-  - Kilo Code (creates or refreshes `.kilocode/workflows/openspec-*.md` workflows)
-  - Codex (creates or refreshes global prompts at `~/.codex/prompts/openspec-*.md`)
-  - AGENTS.md standard (creates or refreshes AGENTS.md with OpenSpec markers)
-- **AND** show "(already configured)" beside tools whose managed files exist so users understand selections will refresh content
-- **AND** treat disabled tools as "coming soon" and keep them unselectable
-- **AND** allow confirming with Enter after selecting one or more tools
+- **THEN** present a multi-select wizard that separates options into two headings:
+  - **Natively supported providers** shows each available first-party integration (Claude Code, Cursor, OpenCode, …) with checkboxes
+  - **Other tools** explains that the root-level `AGENTS.md` stub is always generated for AGENTS-compatible assistants and cannot be deselected
+- **AND** mark already configured native tools with "(already configured)" to signal that choosing them will refresh managed content
+- **AND** keep disabled or unavailable providers labelled as "coming soon" so users know they cannot opt in yet
+- **AND** allow confirming the selection even when no native provider is chosen because the root stub remains enabled by default
+- **AND** change the base prompt copy in extend mode to "Which natively supported AI tools would you like to add or refresh?"
 
 ### Requirement: AI Tool Configuration Details
 
@@ -142,11 +138,12 @@ The command SHALL use consistent exit codes to indicate different failure modes.
 - **AND** personalize the "Next steps" header using the names of the selected tools, defaulting to a generic label when none remain
 
 ### Requirement: Exit Code Adjustments
-`openspec init` SHALL treat extend mode with no selected tools as a guarded error.
+`openspec init` SHALL treat extend mode without new native tool selections as a successful refresh.
 
-#### Scenario: Preventing empty extend runs
-- **WHEN** OpenSpec is already initialized and the user selects no additional tools
-- **THEN** exit with code 1 after showing the existing-initialization guidance message
+#### Scenario: Allowing empty extend runs
+- **WHEN** OpenSpec is already initialized and the user selects no additional natively supported tools
+- **THEN** complete successfully while refreshing the root `AGENTS.md` stub
+- **AND** exit with code 0
 
 ### Requirement: Slash Command Configuration
 The init command SHALL generate slash command files for supported editors using shared templates.
@@ -220,6 +217,16 @@ The command SHALL support non-interactive operation through command-line options
 #### Scenario: Help text lists available tool IDs
 - **WHEN** displaying CLI help for `openspec init`
 - **THEN** show the `--tools` option description with the valid values derived from the AI tool registry
+
+### Requirement: Root instruction stub
+`openspec init` SHALL always scaffold the root-level `AGENTS.md` hand-off so every teammate finds the primary OpenSpec instructions.
+
+#### Scenario: Creating root `AGENTS.md`
+- **GIVEN** the project may or may not already contain an `AGENTS.md` file
+- **WHEN** initialization completes in fresh or extend mode
+- **THEN** create or refresh `AGENTS.md` at the repository root using the managed marker block from `TemplateManager.getAgentsStandardTemplate()`
+- **AND** preserve any existing content outside the managed markers while replacing the stub text inside them
+- **AND** create the stub regardless of which native AI tools are selected
 
 ## Why
 
