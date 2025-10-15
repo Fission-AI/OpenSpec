@@ -145,6 +145,8 @@ openspec init
 **After setup:**
 - Primary AI tools can trigger `/openspec` workflows without additional configuration
 - Run `openspec list` to verify the setup and view any active changes
+- If your coding assistant doesn't surface the new slash commands right away, restart it. Slash commands are loaded at startup,
+  so a fresh launch ensures they appear.
 
 ### Create Your First Change
 
