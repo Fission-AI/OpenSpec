@@ -90,6 +90,7 @@ These tools have built-in OpenSpec commands. Select the OpenSpec integration whe
 
 | Tool | Commands |
 |------|----------|
+| **Auggie (Augment CLI)** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.augment/commands/`) |
 | **Claude Code** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` |
 | **Cursor** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` |
 | **Factory Droid** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.factory/commands/`) |

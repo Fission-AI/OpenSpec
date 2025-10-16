@@ -17,6 +17,7 @@ export interface AIToolOption {
 }
 
 export const AI_TOOLS: AIToolOption[] = [
+  { name: 'Auggie (Augment CLI)', value: 'auggie', available: true, successLabel: 'Auggie' },
   { name: 'Claude Code', value: 'claude', available: true, successLabel: 'Claude Code' },
   { name: 'Cursor', value: 'cursor', available: true, successLabel: 'Cursor' },
   { name: 'Factory Droid', value: 'factory', available: true, successLabel: 'Factory Droid' },
