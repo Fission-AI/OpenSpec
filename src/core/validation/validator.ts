@@ -375,16 +375,30 @@ export class Validator {
 
   private extractRequirementText(blockRaw: string): string | undefined {
     const lines = blockRaw.split('\n');
-    // Skip header
+    // Skip header line (index 0)
     let i = 1;
-    const bodyLines: string[] = [];
+
+    // Find the first substantial text line, skipping metadata and blank lines
     for (; i < lines.length; i++) {
       const line = lines[i];
-      if (/^####\s+/.test(line)) break; // scenarios start
-      bodyLines.push(line);
+
+      // Stop at scenario headers
+      if (/^####\s+/.test(line)) break;
+
+      const trimmed = line.trim();
+
+      // Skip blank lines
+      if (trimmed.length === 0) continue;
+
+      // Skip metadata lines (lines starting with ** like **ID**, **Priority**, etc.)
+      if (/^\*\*[^*]+\*\*:/.test(trimmed)) continue;
+
+      // Found first non-metadata, non-blank line - this is the requirement text
+      return trimmed;
     }
-    const text = bodyLines.join('\n').split('\n').map(l => l.trim()).find(l => l.length > 0);
-    return text;
+
+    // No requirement text found
+    return undefined;
   }
 
   private containsShallOrMust(text: string): boolean {

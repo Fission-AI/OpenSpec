@@ -187,7 +187,7 @@ program
   .option('-y, --yes', 'Skip confirmation prompts')
   .option('--skip-specs', 'Skip spec update operations (useful for infrastructure, tooling, or doc-only changes)')
   .option('--no-validate', 'Skip validation (not recommended, requires confirmation)')
-  .action(async (changeName?: string, options?: { yes?: boolean; skipSpecs?: boolean; noValidate?: boolean }) => {
+  .action(async (changeName?: string, options?: { yes?: boolean; skipSpecs?: boolean; noValidate?: boolean; validate?: boolean }) => {
     try {
       const archiveCommand = new ArchiveCommand();
       await archiveCommand.execute(changeName, options);

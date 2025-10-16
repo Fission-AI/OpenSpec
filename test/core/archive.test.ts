@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ArchiveCommand } from '../../src/core/archive.js';
+import { Validator } from '../../src/core/validation/validator.js';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
@@ -213,6 +214,46 @@ Then expected result happens`;
       const archives = await fs.readdir(archiveDir);
       expect(archives.length).toBe(1);
       expect(archives[0]).toMatch(new RegExp(`\\d{4}-\\d{2}-\\d{2}-${changeName}`));
+    });
+
+    it('should skip validation when commander sets validate to false (--no-validate)', async () => {
+      const changeName = 'skip-validation-flag';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'unstable-capability');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      const deltaSpec = `# Unstable Capability
+
+## ADDED Requirements
+
+### Requirement: Logging Feature
+**ID**: REQ-LOG-001
+
+The system will log all events.
+
+#### Scenario: Event recorded
+- **WHEN** an event occurs
+- **THEN** it is captured`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaSpec);
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1\n');
+
+      const deltaSpy = vi.spyOn(Validator.prototype, 'validateChangeDeltaSpecs');
+      const specContentSpy = vi.spyOn(Validator.prototype, 'validateSpecContent');
+
+      try {
+        await archiveCommand.execute(changeName, { yes: true, skipSpecs: true, validate: false });
+
+        expect(deltaSpy).not.toHaveBeenCalled();
+        expect(specContentSpy).not.toHaveBeenCalled();
+
+        const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+        const archives = await fs.readdir(archiveDir);
+        expect(archives.length).toBe(1);
+        expect(archives[0]).toMatch(new RegExp(`\\d{4}-\\d{2}-\\d{2}-${changeName}`));
+      } finally {
+        deltaSpy.mockRestore();
+        specContentSpy.mockRestore();
+      }
     });
 
     it('should proceed with archive when user declines spec updates', async () => {
