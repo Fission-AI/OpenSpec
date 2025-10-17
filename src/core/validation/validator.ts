@@ -114,6 +114,8 @@ export class Validator {
     const issues: ValidationIssue[] = [];
     const specsDir = path.join(changeDir, 'specs');
     let totalDeltas = 0;
+    const missingHeaderSpecs: string[] = [];
+    const emptySectionSpecs: Array<{ path: string; sections: string[] }> = [];
 
     try {
       const entries = await fs.readdir(specsDir, { withFileTypes: true });
@@ -130,6 +132,17 @@ export class Validator {
 
         const plan = parseDeltaSpec(content);
         const entryPath = `${specName}/spec.md`;
+        const sectionNames: string[] = [];
+        if (plan.sectionPresence.added) sectionNames.push('## ADDED Requirements');
+        if (plan.sectionPresence.modified) sectionNames.push('## MODIFIED Requirements');
+        if (plan.sectionPresence.removed) sectionNames.push('## REMOVED Requirements');
+        if (plan.sectionPresence.renamed) sectionNames.push('## RENAMED Requirements');
+        const hasSections = sectionNames.length > 0;
+        const hasEntries = plan.added.length + plan.modified.length + plan.removed.length + plan.renamed.length > 0;
+        if (!hasEntries) {
+          if (hasSections) emptySectionSpecs.push({ path: entryPath, sections: sectionNames });
+          else missingHeaderSpecs.push(entryPath);
+        }
 
         const addedNames = new Set<string>();
         const modifiedNames = new Set<string>();
@@ -234,6 +247,21 @@ export class Validator {
       }
     } catch {
       // If no specs dir, treat as no deltas
+    }
+
+    for (const { path: specPath, sections } of emptySectionSpecs) {
+      issues.push({
+        level: 'ERROR',
+        path: specPath,
+        message: `Delta sections ${this.formatSectionList(sections)} were found, but no requirement entries parsed. Ensure each section includes at least one "### Requirement:" block (REMOVED may use bullet list syntax).`,
+      });
+    }
+    for (const path of missingHeaderSpecs) {
+      issues.push({
+        level: 'ERROR',
+        path,
+        message: 'No delta sections found. Add headers such as "## ADDED Requirements" or move non-delta notes outside specs/.',
+      });
     }
 
     if (totalDeltas === 0) {
@@ -408,5 +436,13 @@ export class Validator {
   private countScenarios(blockRaw: string): number {
     const matches = blockRaw.match(/^####\s+/gm);
     return matches ? matches.length : 0;
+  }
+
+  private formatSectionList(sections: string[]): string {
+    if (sections.length === 0) return '';
+    if (sections.length === 1) return sections[0];
+    const head = sections.slice(0, -1);
+    const last = sections[sections.length - 1];
+    return `${head.join(', ')} and ${last}`;
   }
 }
