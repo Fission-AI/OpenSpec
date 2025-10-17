@@ -9,6 +9,7 @@ import { GitHubCopilotSlashCommandConfigurator } from './github-copilot.js';
 import { AmazonQSlashCommandConfigurator } from './amazon-q.js';
 import { FactorySlashCommandConfigurator } from './factory.js';
 import { AuggieSlashCommandConfigurator } from './auggie.js';
+import { CrushSlashCommandConfigurator } from './crush.js';
 
 export class SlashCommandRegistry {
   private static configurators: Map<string, SlashCommandConfigurator> = new Map();
@@ -24,6 +25,7 @@ export class SlashCommandRegistry {
     const amazonQ = new AmazonQSlashCommandConfigurator();
     const factory = new FactorySlashCommandConfigurator();
     const auggie = new AuggieSlashCommandConfigurator();
+    const crush = new CrushSlashCommandConfigurator();
 
     this.configurators.set(claude.toolId, claude);
     this.configurators.set(cursor.toolId, cursor);
@@ -35,6 +37,7 @@ export class SlashCommandRegistry {
     this.configurators.set(amazonQ.toolId, amazonQ);
     this.configurators.set(factory.toolId, factory);
     this.configurators.set(auggie.toolId, auggie);
+    this.configurators.set(crush.toolId, crush);
   }
 
   static register(configurator: SlashCommandConfigurator): void {
