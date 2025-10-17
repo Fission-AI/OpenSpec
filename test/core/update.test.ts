@@ -513,6 +513,67 @@ Old body
     await expect(FileSystemUtils.fileExists(aqArchive)).resolves.toBe(false);
   });
 
+  it('should refresh existing Auggie slash command files', async () => {
+    const auggiePath = path.join(
+      testDir,
+      '.augment/commands/openspec-apply.md'
+    );
+    await fs.mkdir(path.dirname(auggiePath), { recursive: true });
+    const initialContent = `---
+description: Implement an approved OpenSpec change and keep tasks in sync.
+argument-hint: change-id
+---
+<!-- OPENSPEC:START -->
+Old body
+<!-- OPENSPEC:END -->`;
+    await fs.writeFile(auggiePath, initialContent);
+
+    const consoleSpy = vi.spyOn(console, 'log');
+
+    await updateCommand.execute(testDir);
+
+    const updatedContent = await fs.readFile(auggiePath, 'utf-8');
+    expect(updatedContent).toContain('**Guardrails**');
+    expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
+    expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
+    expect(updatedContent).not.toContain('Old body');
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('.augment/commands/openspec-apply.md')
+    );
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should not create missing Auggie slash command files on update', async () => {
+    const auggieApply = path.join(
+      testDir,
+      '.augment/commands/openspec-apply.md'
+    );
+
+    // Only create apply; leave proposal and archive missing
+    await fs.mkdir(path.dirname(auggieApply), { recursive: true });
+    await fs.writeFile(
+      auggieApply,
+      '---\ndescription: Old\nargument-hint: old\n---\n<!-- OPENSPEC:START -->\nOld\n<!-- OPENSPEC:END -->'
+    );
+
+    await updateCommand.execute(testDir);
+
+    const auggieProposal = path.join(
+      testDir,
+      '.augment/commands/openspec-proposal.md'
+    );
+    const auggieArchive = path.join(
+      testDir,
+      '.augment/commands/openspec-archive.md'
+    );
+
+    // Confirm they weren't created by update
+    await expect(FileSystemUtils.fileExists(auggieProposal)).resolves.toBe(false);
+    await expect(FileSystemUtils.fileExists(auggieArchive)).resolves.toBe(false);
+  });
+
   it('should preserve Windsurf content outside markers during update', async () => {
     const wsPath = path.join(
       testDir,
