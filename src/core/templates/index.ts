@@ -1,6 +1,7 @@
 import { agentsTemplate } from './agents-template.js';
 import { projectTemplate, ProjectContext } from './project-template.js';
 import { claudeTemplate } from './claude-template.js';
+import { clineTemplate } from './cline-template.js';
 import { agentsRootStubTemplate } from './agents-root-stub.js';
 import { getSlashCommandBody, SlashCommandId } from './slash-command-templates.js';
 
@@ -25,6 +26,10 @@ export class TemplateManager {
 
   static getClaudeTemplate(): string {
     return claudeTemplate;
+  }
+
+  static getClineTemplate(): string {
+    return clineTemplate;
   }
 
   static getAgentsStandardTemplate(): string {

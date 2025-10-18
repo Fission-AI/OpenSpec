@@ -9,6 +9,7 @@ import { GitHubCopilotSlashCommandConfigurator } from './github-copilot.js';
 import { AmazonQSlashCommandConfigurator } from './amazon-q.js';
 import { FactorySlashCommandConfigurator } from './factory.js';
 import { AuggieSlashCommandConfigurator } from './auggie.js';
+import { ClineSlashCommandConfigurator } from './cline.js';
 import { CrushSlashCommandConfigurator } from './crush.js';
 
 export class SlashCommandRegistry {
@@ -25,6 +26,7 @@ export class SlashCommandRegistry {
     const amazonQ = new AmazonQSlashCommandConfigurator();
     const factory = new FactorySlashCommandConfigurator();
     const auggie = new AuggieSlashCommandConfigurator();
+    const cline = new ClineSlashCommandConfigurator();
     const crush = new CrushSlashCommandConfigurator();
 
     this.configurators.set(claude.toolId, claude);
@@ -37,6 +39,7 @@ export class SlashCommandRegistry {
     this.configurators.set(amazonQ.toolId, amazonQ);
     this.configurators.set(factory.toolId, factory);
     this.configurators.set(auggie.toolId, auggie);
+    this.configurators.set(cline.toolId, cline);
     this.configurators.set(crush.toolId, crush);
   }
 
