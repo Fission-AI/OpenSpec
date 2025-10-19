@@ -456,5 +456,34 @@ The system SHALL implement this feature.
       expect(report.valid).toBe(true);
       expect(report.summary.errors).toBe(0);
     });
+
+    it('should treat delta headers case-insensitively', async () => {
+      const changeDir = path.join(testDir, 'test-change-mixed-case');
+      const specsDir = path.join(changeDir, 'specs', 'test-spec');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      const deltaSpec = `# Test Spec
+
+## Added Requirements
+
+### Requirement: Mixed Case Handling
+The system MUST support mixed case delta headers.
+
+#### Scenario: Case insensitive parsing
+**Given** a delta file with mixed case headers
+**When** validation runs
+**Then** the delta is detected`;
+
+      const specPath = path.join(specsDir, 'spec.md');
+      await fs.writeFile(specPath, deltaSpec);
+
+      const validator = new Validator(true);
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(true);
+      expect(report.summary.errors).toBe(0);
+      expect(report.summary.warnings).toBe(0);
+      expect(report.summary.info).toBe(0);
+    });
   });
 });

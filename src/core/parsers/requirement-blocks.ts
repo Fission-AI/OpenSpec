@@ -101,6 +101,12 @@ export interface DeltaPlan {
   modified: RequirementBlock[];
   removed: string[]; // requirement names
   renamed: Array<{ from: string; to: string }>;
+  sectionPresence: {
+    added: boolean;
+    modified: boolean;
+    removed: boolean;
+    renamed: boolean;
+  };
 }
 
 function normalizeLineEndings(content: string): string {
@@ -113,11 +119,26 @@ function normalizeLineEndings(content: string): string {
 export function parseDeltaSpec(content: string): DeltaPlan {
   const normalized = normalizeLineEndings(content);
   const sections = splitTopLevelSections(normalized);
-  const added = parseRequirementBlocksFromSection(sections['ADDED Requirements'] || '');
-  const modified = parseRequirementBlocksFromSection(sections['MODIFIED Requirements'] || '');
-  const removedNames = parseRemovedNames(sections['REMOVED Requirements'] || '');
-  const renamedPairs = parseRenamedPairs(sections['RENAMED Requirements'] || '');
-  return { added, modified, removed: removedNames, renamed: renamedPairs };
+  const addedLookup = getSectionCaseInsensitive(sections, 'ADDED Requirements');
+  const modifiedLookup = getSectionCaseInsensitive(sections, 'MODIFIED Requirements');
+  const removedLookup = getSectionCaseInsensitive(sections, 'REMOVED Requirements');
+  const renamedLookup = getSectionCaseInsensitive(sections, 'RENAMED Requirements');
+  const added = parseRequirementBlocksFromSection(addedLookup.body);
+  const modified = parseRequirementBlocksFromSection(modifiedLookup.body);
+  const removedNames = parseRemovedNames(removedLookup.body);
+  const renamedPairs = parseRenamedPairs(renamedLookup.body);
+  return {
+    added,
+    modified,
+    removed: removedNames,
+    renamed: renamedPairs,
+    sectionPresence: {
+      added: addedLookup.found,
+      modified: modifiedLookup.found,
+      removed: removedLookup.found,
+      renamed: renamedLookup.found,
+    },
+  };
 }
 
 function splitTopLevelSections(content: string): Record<string, string> {
@@ -138,6 +159,14 @@ function splitTopLevelSections(content: string): Record<string, string> {
     result[current.title] = body;
   }
   return result;
+}
+
+function getSectionCaseInsensitive(sections: Record<string, string>, desired: string): { body: string; found: boolean } {
+  const target = desired.toLowerCase();
+  for (const [title, body] of Object.entries(sections)) {
+    if (title.toLowerCase() === target) return { body, found: true };
+  }
+  return { body: '', found: false };
 }
 
 function parseRequirementBlocksFromSection(sectionBody: string): RequirementBlock[] {
@@ -203,5 +232,3 @@ function parseRenamedPairs(sectionBody: string): Array<{ from: string; to: strin
   }
   return pairs;
 }
-
-
