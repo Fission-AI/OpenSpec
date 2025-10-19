@@ -306,10 +306,10 @@ Then result`;
 
       const specPath = path.join(testDir, 'spec.md');
       await fs.writeFile(specPath, specContent);
-      
+
       const validator = new Validator(true); // strict mode
       const report = await validator.validateSpec(specPath);
-      
+
       expect(report.valid).toBe(false); // Should fail due to brief overview warning
     });
 
@@ -330,12 +330,131 @@ Then result`;
 
       const specPath = path.join(testDir, 'spec.md');
       await fs.writeFile(specPath, specContent);
-      
+
       const validator = new Validator(false); // non-strict mode
       const report = await validator.validateSpec(specPath);
-      
+
       expect(report.valid).toBe(true); // Should pass despite warnings
       expect(report.summary.warnings).toBeGreaterThan(0);
+    });
+  });
+
+  describe('validateChangeDeltaSpecs with metadata', () => {
+    it('should validate requirement with metadata before SHALL/MUST text', async () => {
+      const changeDir = path.join(testDir, 'test-change');
+      const specsDir = path.join(changeDir, 'specs', 'test-spec');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      const deltaSpec = `# Test Spec
+
+## ADDED Requirements
+
+### Requirement: Circuit Breaker State Management SHALL be implemented
+**ID**: REQ-CB-001
+**Priority**: P1 (High)
+
+The system MUST implement a circuit breaker with three states.
+
+#### Scenario: Normal operation
+**Given** the circuit breaker is in CLOSED state
+**When** a request is made
+**Then** the request is executed normally`;
+
+      const specPath = path.join(specsDir, 'spec.md');
+      await fs.writeFile(specPath, deltaSpec);
+
+      const validator = new Validator(true);
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(true);
+      expect(report.summary.errors).toBe(0);
+    });
+
+    it('should validate requirement with SHALL in text but not in header', async () => {
+      const changeDir = path.join(testDir, 'test-change-2');
+      const specsDir = path.join(changeDir, 'specs', 'test-spec');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      const deltaSpec = `# Test Spec
+
+## ADDED Requirements
+
+### Requirement: Error Handling
+**ID**: REQ-ERR-001
+**Priority**: P2
+
+The system SHALL handle all errors gracefully.
+
+#### Scenario: Error occurs
+**Given** an error condition
+**When** an error occurs
+**Then** the error is logged and user is notified`;
+
+      const specPath = path.join(specsDir, 'spec.md');
+      await fs.writeFile(specPath, deltaSpec);
+
+      const validator = new Validator(true);
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(true);
+      expect(report.summary.errors).toBe(0);
+    });
+
+    it('should fail when requirement text lacks SHALL/MUST', async () => {
+      const changeDir = path.join(testDir, 'test-change-3');
+      const specsDir = path.join(changeDir, 'specs', 'test-spec');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      const deltaSpec = `# Test Spec
+
+## ADDED Requirements
+
+### Requirement: Logging Feature
+**ID**: REQ-LOG-001
+
+The system will log all events.
+
+#### Scenario: Event occurs
+**Given** an event
+**When** it occurs
+**Then** it is logged`;
+
+      const specPath = path.join(specsDir, 'spec.md');
+      await fs.writeFile(specPath, deltaSpec);
+
+      const validator = new Validator(true);
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(false);
+      expect(report.summary.errors).toBeGreaterThan(0);
+      expect(report.issues.some(i => i.message.includes('must contain SHALL or MUST'))).toBe(true);
+    });
+
+    it('should handle requirements without metadata fields', async () => {
+      const changeDir = path.join(testDir, 'test-change-4');
+      const specsDir = path.join(changeDir, 'specs', 'test-spec');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      const deltaSpec = `# Test Spec
+
+## ADDED Requirements
+
+### Requirement: Simple Feature
+The system SHALL implement this feature.
+
+#### Scenario: Basic usage
+**Given** a condition
+**When** an action occurs
+**Then** a result happens`;
+
+      const specPath = path.join(specsDir, 'spec.md');
+      await fs.writeFile(specPath, deltaSpec);
+
+      const validator = new Validator(true);
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(true);
+      expect(report.summary.errors).toBe(0);
     });
   });
 });

@@ -19,7 +19,10 @@ interface SpecUpdate {
 }
 
 export class ArchiveCommand {
-  async execute(changeName?: string, options: { yes?: boolean; skipSpecs?: boolean; noValidate?: boolean } = {}): Promise<void> {
+  async execute(
+    changeName?: string,
+    options: { yes?: boolean; skipSpecs?: boolean; noValidate?: boolean; validate?: boolean } = {}
+  ): Promise<void> {
     const targetPath = '.';
     const changesDir = path.join(targetPath, 'openspec', 'changes');
     const archiveDir = path.join(changesDir, 'archive');
@@ -54,8 +57,10 @@ export class ArchiveCommand {
       throw new Error(`Change '${changeName}' not found.`);
     }
 
+    const skipValidation = options.validate === false || options.noValidate === true;
+
     // Validate specs and change before archiving
-    if (!options.noValidate) {
+    if (!skipValidation) {
       const validator = new Validator();
       let hasValidationErrors = false;
 
@@ -201,7 +206,7 @@ export class ArchiveCommand {
           let totals = { added: 0, modified: 0, removed: 0, renamed: 0 };
           for (const p of prepared) {
             const specName = path.basename(path.dirname(p.update.target));
-            if (!options.noValidate) {
+            if (!skipValidation) {
               const report = await new Validator().validateSpecContent(specName, p.rebuilt);
               if (!report.valid) {
                 console.log(chalk.red(`\nValidation errors in rebuilt spec for ${specName} (will not write changes):`));

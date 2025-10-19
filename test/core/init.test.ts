@@ -683,6 +683,60 @@ describe('InitCommand', () => {
       );
       expect(amazonQChoice.configured).toBe(true);
     });
+
+    it('should create Auggie slash command files with templates', async () => {
+      queueSelections('auggie', DONE);
+
+      await initCommand.execute(testDir);
+
+      const auggieProposal = path.join(
+        testDir,
+        '.augment/commands/openspec-proposal.md'
+      );
+      const auggieApply = path.join(
+        testDir,
+        '.augment/commands/openspec-apply.md'
+      );
+      const auggieArchive = path.join(
+        testDir,
+        '.augment/commands/openspec-archive.md'
+      );
+
+      expect(await fileExists(auggieProposal)).toBe(true);
+      expect(await fileExists(auggieApply)).toBe(true);
+      expect(await fileExists(auggieArchive)).toBe(true);
+
+      const proposalContent = await fs.readFile(auggieProposal, 'utf-8');
+      expect(proposalContent).toContain('---');
+      expect(proposalContent).toContain('description: Scaffold a new OpenSpec change and validate strictly.');
+      expect(proposalContent).toContain('argument-hint: feature description or request');
+      expect(proposalContent).toContain('<!-- OPENSPEC:START -->');
+      expect(proposalContent).toContain('**Guardrails**');
+
+      const applyContent = await fs.readFile(auggieApply, 'utf-8');
+      expect(applyContent).toContain('---');
+      expect(applyContent).toContain('description: Implement an approved OpenSpec change and keep tasks in sync.');
+      expect(applyContent).toContain('argument-hint: change-id');
+      expect(applyContent).toContain('Work through tasks sequentially');
+
+      const archiveContent = await fs.readFile(auggieArchive, 'utf-8');
+      expect(archiveContent).toContain('---');
+      expect(archiveContent).toContain('description: Archive a deployed OpenSpec change and update specs.');
+      expect(archiveContent).toContain('argument-hint: change-id');
+      expect(archiveContent).toContain('openspec archive <id> --yes');
+    });
+
+    it('should mark Auggie as already configured during extend mode', async () => {
+      queueSelections('auggie', DONE, 'auggie', DONE);
+      await initCommand.execute(testDir);
+      await initCommand.execute(testDir);
+
+      const secondRunArgs = mockPrompt.mock.calls[1][0];
+      const auggieChoice = secondRunArgs.choices.find(
+        (choice: any) => choice.value === 'auggie'
+      );
+      expect(auggieChoice.configured).toBe(true);
+    });
   });
 
   describe('non-interactive mode', () => {
