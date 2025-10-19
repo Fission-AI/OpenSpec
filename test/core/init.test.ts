@@ -737,6 +737,66 @@ describe('InitCommand', () => {
       );
       expect(auggieChoice.configured).toBe(true);
     });
+
+    it('should create Crush slash command files with templates', async () => {
+      queueSelections('crush', DONE);
+
+      await initCommand.execute(testDir);
+
+      const crushProposal = path.join(
+        testDir,
+        '.crush/commands/openspec/proposal.md'
+      );
+      const crushApply = path.join(
+        testDir,
+        '.crush/commands/openspec/apply.md'
+      );
+      const crushArchive = path.join(
+        testDir,
+        '.crush/commands/openspec/archive.md'
+      );
+
+      expect(await fileExists(crushProposal)).toBe(true);
+      expect(await fileExists(crushApply)).toBe(true);
+      expect(await fileExists(crushArchive)).toBe(true);
+
+      const proposalContent = await fs.readFile(crushProposal, 'utf-8');
+      expect(proposalContent).toContain('---');
+      expect(proposalContent).toContain('name: OpenSpec: Proposal');
+      expect(proposalContent).toContain('description: Scaffold a new OpenSpec change and validate strictly.');
+      expect(proposalContent).toContain('category: OpenSpec');
+      expect(proposalContent).toContain('tags: [openspec, change]');
+      expect(proposalContent).toContain('<!-- OPENSPEC:START -->');
+      expect(proposalContent).toContain('**Guardrails**');
+
+      const applyContent = await fs.readFile(crushApply, 'utf-8');
+      expect(applyContent).toContain('---');
+      expect(applyContent).toContain('name: OpenSpec: Apply');
+      expect(applyContent).toContain('description: Implement an approved OpenSpec change and keep tasks in sync.');
+      expect(applyContent).toContain('category: OpenSpec');
+      expect(applyContent).toContain('tags: [openspec, apply]');
+      expect(applyContent).toContain('Work through tasks sequentially');
+
+      const archiveContent = await fs.readFile(crushArchive, 'utf-8');
+      expect(archiveContent).toContain('---');
+      expect(archiveContent).toContain('name: OpenSpec: Archive');
+      expect(archiveContent).toContain('description: Archive a deployed OpenSpec change and update specs.');
+      expect(archiveContent).toContain('category: OpenSpec');
+      expect(archiveContent).toContain('tags: [openspec, archive]');
+      expect(archiveContent).toContain('openspec archive <id> --yes');
+    });
+
+    it('should mark Crush as already configured during extend mode', async () => {
+      queueSelections('crush', DONE, 'crush', DONE);
+      await initCommand.execute(testDir);
+      await initCommand.execute(testDir);
+
+      const secondRunArgs = mockPrompt.mock.calls[1][0];
+      const crushChoice = secondRunArgs.choices.find(
+        (choice: any) => choice.value === 'crush'
+      );
+      expect(crushChoice.configured).toBe(true);
+    });
   });
 
   describe('non-interactive mode', () => {
