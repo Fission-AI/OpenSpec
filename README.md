@@ -91,6 +91,7 @@ These tools have built-in OpenSpec commands. Select the OpenSpec integration whe
 | Tool | Commands |
 |------|----------|
 | **Claude Code** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` |
+| **CodeBuddy** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` (`.codebuddy/commands/`) |
 | **Cursor** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` |
 | **Factory Droid** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.factory/commands/`) |
 | **OpenCode** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` |
@@ -100,6 +101,7 @@ These tools have built-in OpenSpec commands. Select the OpenSpec integration whe
 | **GitHub Copilot** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.github/prompts/`) |
 | **Amazon Q Developer** | `@openspec-proposal`, `@openspec-apply`, `@openspec-archive` (`.amazonq/prompts/`) |
 | **Auggie (Augment CLI)** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.augment/commands/`) |
+
 
 Kilo Code discovers team workflows automatically. Save the generated files under `.kilocode/workflows/` and trigger them from the command palette with `/openspec-proposal.md`, `/openspec-apply.md`, or `/openspec-archive.md`.
 
@@ -139,7 +141,7 @@ openspec init
 ```
 
 **What happens during initialization:**
-- You'll be prompted to pick any natively supported AI tools (Claude Code, Cursor, OpenCode, etc.); other assistants always rely on the shared `AGENTS.md` stub
+- You'll be prompted to pick any natively supported AI tools (Claude Code, CodeBuddy, Cursor, OpenCode, etc.); other assistants always rely on the shared `AGENTS.md` stub
 - OpenSpec automatically configures slash commands for the tools you choose and always writes a managed `AGENTS.md` hand-off at the project root
 - A new `openspec/` directory structure is created in your project
 
@@ -147,7 +149,7 @@ openspec init
 - Primary AI tools can trigger `/openspec` workflows without additional configuration
 - Run `openspec list` to verify the setup and view any active changes
 - If your coding assistant doesn't surface the new slash commands right away, restart it. Slash commands are loaded at startup,
-  so a fresh launch ensures they appear.
+  so a fresh launch ensures they appear
 
 ### Create Your First Change
 
@@ -214,7 +216,7 @@ Or run the command yourself in terminal:
 $ openspec archive add-profile-filters --yes  # Archive the completed change without prompts
 ```
 
-**Note:** Tools with native slash commands (Claude Code, Cursor, Codex) can use the shortcuts shown. All other tools work with natural language requests to "create an OpenSpec proposal", "apply the OpenSpec change", or "archive the change".
+**Note:** Tools with native slash commands (Claude Code, CodeBuddy, Cursor, Codex) can use the shortcuts shown. All other tools work with natural language requests to "create an OpenSpec proposal", "apply the OpenSpec change", or "archive the change".
 
 ## Command Reference
 
@@ -326,7 +328,7 @@ Without specs, AI coding assistants generate code from vague prompts, often miss
 1. **Initialize OpenSpec** – Run `openspec init` in your repo.
 2. **Start with new features** – Ask your AI to capture upcoming work as change proposals.
 3. **Grow incrementally** – Each change archives into living specs that document your system.
-4. **Stay flexible** – Different teammates can use Claude Code, Cursor, or any AGENTS.md-compatible tool while sharing the same specs.
+4. **Stay flexible** – Different teammates can use Claude Code, CodeBuddy, Cursor, or any AGENTS.md-compatible tool while sharing the same specs.
 
 Run `openspec update` whenever someone switches tools so your agents pick up the latest instructions and slash-command bindings.
 
