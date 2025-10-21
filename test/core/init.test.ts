@@ -136,6 +136,39 @@ describe('InitCommand', () => {
       expect(updatedContent).toContain('Custom instructions here');
     });
 
+    it('should create CLINE.md when Cline is selected', async () => {
+      queueSelections('cline', DONE);
+
+      await initCommand.execute(testDir);
+
+      const clinePath = path.join(testDir, 'CLINE.md');
+      expect(await fileExists(clinePath)).toBe(true);
+
+      const content = await fs.readFile(clinePath, 'utf-8');
+      expect(content).toContain('<!-- OPENSPEC:START -->');
+      expect(content).toContain("@/openspec/AGENTS.md");
+      expect(content).toContain('openspec update');
+      expect(content).toContain('<!-- OPENSPEC:END -->');
+    });
+
+    it('should update existing CLINE.md with markers', async () => {
+      queueSelections('cline', DONE);
+
+      const clinePath = path.join(testDir, 'CLINE.md');
+      const existingContent =
+        '# My Cline Rules\nCustom Cline instructions here';
+      await fs.writeFile(clinePath, existingContent);
+
+      await initCommand.execute(testDir);
+
+      const updatedContent = await fs.readFile(clinePath, 'utf-8');
+      expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
+      expect(updatedContent).toContain("@/openspec/AGENTS.md");
+      expect(updatedContent).toContain('openspec update');
+      expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
+      expect(updatedContent).toContain('Custom Cline instructions here');
+    });
+
     it('should create Windsurf workflows when Windsurf is selected', async () => {
       queueSelections('windsurf', DONE);
 
@@ -314,6 +347,45 @@ describe('InitCommand', () => {
         'description: Archive a deployed OpenSpec change and update specs.'
       );
       expect(archiveContent).toContain('openspec list --specs');
+    });
+
+    it('should create Cline rule files with templates', async () => {
+      queueSelections('cline', DONE);
+
+      await initCommand.execute(testDir);
+
+      const clineProposal = path.join(
+        testDir,
+        '.clinerules/openspec-proposal.md'
+      );
+      const clineApply = path.join(
+        testDir,
+        '.clinerules/openspec-apply.md'
+      );
+      const clineArchive = path.join(
+        testDir,
+        '.clinerules/openspec-archive.md'
+      );
+
+      expect(await fileExists(clineProposal)).toBe(true);
+      expect(await fileExists(clineApply)).toBe(true);
+      expect(await fileExists(clineArchive)).toBe(true);
+
+      const proposalContent = await fs.readFile(clineProposal, 'utf-8');
+      expect(proposalContent).toContain('# OpenSpec: Proposal');
+      expect(proposalContent).toContain('Scaffold a new OpenSpec change and validate strictly.');
+      expect(proposalContent).toContain('<!-- OPENSPEC:START -->');
+      expect(proposalContent).toContain('**Guardrails**');
+
+      const applyContent = await fs.readFile(clineApply, 'utf-8');
+      expect(applyContent).toContain('# OpenSpec: Apply');
+      expect(applyContent).toContain('Implement an approved OpenSpec change and keep tasks in sync.');
+      expect(applyContent).toContain('Work through tasks sequentially');
+
+      const archiveContent = await fs.readFile(clineArchive, 'utf-8');
+      expect(archiveContent).toContain('# OpenSpec: Archive');
+      expect(archiveContent).toContain('Archive a deployed OpenSpec change and update specs.');
+      expect(archiveContent).toContain('openspec archive <id>');
     });
 
     it('should create Factory slash command files with templates', async () => {

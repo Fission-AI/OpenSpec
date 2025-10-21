@@ -126,6 +126,95 @@ Old slash content
     expect(fileExists).toBe(false);
   });
 
+  it('should update only existing CLINE.md file', async () => {
+    // Create CLINE.md file with initial content
+    const clinePath = path.join(testDir, 'CLINE.md');
+    const initialContent = `# Cline Rules
+
+Some existing Cline rules here.
+
+<!-- OPENSPEC:START -->
+Old OpenSpec content
+<!-- OPENSPEC:END -->
+
+More rules after.`;
+    await fs.writeFile(clinePath, initialContent);
+
+    const consoleSpy = vi.spyOn(console, 'log');
+
+    // Execute update command
+    await updateCommand.execute(testDir);
+
+    // Check that CLINE.md was updated
+    const updatedContent = await fs.readFile(clinePath, 'utf-8');
+    expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
+    expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
+    expect(updatedContent).toContain("@/openspec/AGENTS.md");
+    expect(updatedContent).toContain('openspec update');
+    expect(updatedContent).toContain('Some existing Cline rules here');
+    expect(updatedContent).toContain('More rules after');
+
+    // Check console output
+    const [logMessage] = consoleSpy.mock.calls[0];
+    expect(logMessage).toContain(
+      'Updated OpenSpec instructions (openspec/AGENTS.md'
+    );
+    expect(logMessage).toContain('AGENTS.md (created)');
+    expect(logMessage).toContain('Updated AI tool files: CLINE.md');
+    consoleSpy.mockRestore();
+  });
+
+  it('should not create CLINE.md if it does not exist', async () => {
+    // Ensure CLINE.md does not exist
+    const clinePath = path.join(testDir, 'CLINE.md');
+
+    // Execute update command
+    await updateCommand.execute(testDir);
+
+    // Check that CLINE.md was not created
+    const fileExists = await FileSystemUtils.fileExists(clinePath);
+    expect(fileExists).toBe(false);
+  });
+
+  it('should refresh existing Cline rule files', async () => {
+    const proposalPath = path.join(
+      testDir,
+      '.clinerules/openspec-proposal.md'
+    );
+    await fs.mkdir(path.dirname(proposalPath), { recursive: true });
+    const initialContent = `# OpenSpec: Proposal
+
+Scaffold a new OpenSpec change and validate strictly.
+
+<!-- OPENSPEC:START -->
+Old slash content
+<!-- OPENSPEC:END -->`;
+    await fs.writeFile(proposalPath, initialContent);
+
+    const consoleSpy = vi.spyOn(console, 'log');
+
+    await updateCommand.execute(testDir);
+
+    const updated = await fs.readFile(proposalPath, 'utf-8');
+    expect(updated).toContain('# OpenSpec: Proposal');
+    expect(updated).toContain('**Guardrails**');
+    expect(updated).toContain(
+      'Validate with `openspec validate <id> --strict`'
+    );
+    expect(updated).not.toContain('Old slash content');
+
+    const [logMessage] = consoleSpy.mock.calls[0];
+    expect(logMessage).toContain(
+      'Updated OpenSpec instructions (openspec/AGENTS.md'
+    );
+    expect(logMessage).toContain('AGENTS.md (created)');
+    expect(logMessage).toContain(
+      'Updated slash commands: .clinerules/openspec-proposal.md'
+    );
+
+    consoleSpy.mockRestore();
+  });
+
   it('should refresh existing Cursor slash command files', async () => {
     const cursorPath = path.join(testDir, '.cursor/commands/openspec-apply.md');
     await fs.mkdir(path.dirname(cursorPath), { recursive: true });
