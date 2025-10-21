@@ -1,5 +1,6 @@
 import { SlashCommandConfigurator } from './base.js';
 import { ClaudeSlashCommandConfigurator } from './claude.js';
+import { CodeBuddySlashCommandConfigurator } from './codebuddy.js';
 import { CursorSlashCommandConfigurator } from './cursor.js';
 import { WindsurfSlashCommandConfigurator } from './windsurf.js';
 import { KiloCodeSlashCommandConfigurator } from './kilocode.js';
@@ -17,6 +18,7 @@ export class SlashCommandRegistry {
 
   static {
     const claude = new ClaudeSlashCommandConfigurator();
+    const codeBuddy = new CodeBuddySlashCommandConfigurator();
     const cursor = new CursorSlashCommandConfigurator();
     const windsurf = new WindsurfSlashCommandConfigurator();
     const kilocode = new KiloCodeSlashCommandConfigurator();
@@ -30,6 +32,7 @@ export class SlashCommandRegistry {
     const crush = new CrushSlashCommandConfigurator();
 
     this.configurators.set(claude.toolId, claude);
+    this.configurators.set(codeBuddy.toolId, codeBuddy);
     this.configurators.set(cursor.toolId, cursor);
     this.configurators.set(windsurf.toolId, windsurf);
     this.configurators.set(kilocode.toolId, kilocode);

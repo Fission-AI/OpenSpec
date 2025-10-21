@@ -810,6 +810,61 @@ describe('InitCommand', () => {
       expect(auggieChoice.configured).toBe(true);
     });
 
+    it('should create CodeBuddy slash command files with templates', async () => {
+      queueSelections('codebuddy', DONE);
+
+      await initCommand.execute(testDir);
+
+      const codeBuddyProposal = path.join(
+        testDir,
+        '.codebuddy/commands/openspec/proposal.md'
+      );
+      const codeBuddyApply = path.join(
+        testDir,
+        '.codebuddy/commands/openspec/apply.md'
+      );
+      const codeBuddyArchive = path.join(
+        testDir,
+        '.codebuddy/commands/openspec/archive.md'
+      );
+
+      expect(await fileExists(codeBuddyProposal)).toBe(true);
+      expect(await fileExists(codeBuddyApply)).toBe(true);
+      expect(await fileExists(codeBuddyArchive)).toBe(true);
+
+      const proposalContent = await fs.readFile(codeBuddyProposal, 'utf-8');
+      expect(proposalContent).toContain('---');
+      expect(proposalContent).toContain('name: OpenSpec: Proposal');
+      expect(proposalContent).toContain('description: Scaffold a new OpenSpec change and validate strictly.');
+      expect(proposalContent).toContain('category: OpenSpec');
+      expect(proposalContent).toContain('<!-- OPENSPEC:START -->');
+      expect(proposalContent).toContain('**Guardrails**');
+
+      const applyContent = await fs.readFile(codeBuddyApply, 'utf-8');
+      expect(applyContent).toContain('---');
+      expect(applyContent).toContain('name: OpenSpec: Apply');
+      expect(applyContent).toContain('description: Implement an approved OpenSpec change and keep tasks in sync.');
+      expect(applyContent).toContain('Work through tasks sequentially');
+
+      const archiveContent = await fs.readFile(codeBuddyArchive, 'utf-8');
+      expect(archiveContent).toContain('---');
+      expect(archiveContent).toContain('name: OpenSpec: Archive');
+      expect(archiveContent).toContain('description: Archive a deployed OpenSpec change and update specs.');
+      expect(archiveContent).toContain('openspec archive <id> --yes');
+    });
+
+    it('should mark CodeBuddy as already configured during extend mode', async () => {
+      queueSelections('codebuddy', DONE, 'codebuddy', DONE);
+      await initCommand.execute(testDir);
+      await initCommand.execute(testDir);
+
+      const secondRunArgs = mockPrompt.mock.calls[1][0];
+      const codeBuddyChoice = secondRunArgs.choices.find(
+        (choice: any) => choice.value === 'codebuddy'
+      );
+      expect(codeBuddyChoice.configured).toBe(true);
+    });
+
     it('should create Crush slash command files with templates', async () => {
       queueSelections('crush', DONE);
 
