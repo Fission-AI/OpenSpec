@@ -865,6 +865,39 @@ describe('InitCommand', () => {
       expect(codeBuddyChoice.configured).toBe(true);
     });
 
+    it('should create CODEBUDDY.md when CodeBuddy is selected', async () => {
+      queueSelections('codebuddy', DONE);
+
+      await initCommand.execute(testDir);
+
+      const codeBuddyPath = path.join(testDir, 'CODEBUDDY.md');
+      expect(await fileExists(codeBuddyPath)).toBe(true);
+
+      const content = await fs.readFile(codeBuddyPath, 'utf-8');
+      expect(content).toContain('<!-- OPENSPEC:START -->');
+      expect(content).toContain("@/openspec/AGENTS.md");
+      expect(content).toContain('openspec update');
+      expect(content).toContain('<!-- OPENSPEC:END -->');
+    });
+
+    it('should update existing CODEBUDDY.md with markers', async () => {
+      queueSelections('codebuddy', DONE);
+
+      const codeBuddyPath = path.join(testDir, 'CODEBUDDY.md');
+      const existingContent =
+        '# My CodeBuddy Instructions\nCustom instructions here';
+      await fs.writeFile(codeBuddyPath, existingContent);
+
+      await initCommand.execute(testDir);
+
+      const updatedContent = await fs.readFile(codeBuddyPath, 'utf-8');
+      expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
+      expect(updatedContent).toContain("@/openspec/AGENTS.md");
+      expect(updatedContent).toContain('openspec update');
+      expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
+      expect(updatedContent).toContain('Custom instructions here');
+    });
+
     it('should create Crush slash command files with templates', async () => {
       queueSelections('crush', DONE);
 

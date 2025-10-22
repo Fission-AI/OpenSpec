@@ -49,9 +49,7 @@ _Outcome:_ We prevent data loss immediately while we work on a richer merge stor
    - On conflict, write conflict markers inside the change delta (similar to Git) and require the author to hand-edit before re-running validation.
 2. **Enrich validator messages.**
    - `openspec validate` should flag unresolved conflict markers or fingerprint mismatches so errors appear early in the workflow.
-3. **Improve diff tooling.**
-   - Extend `openspec diff` to compare change deltas against the live spec and highlight pending merges.
-4. **Optional:** Offer a `--rewrite-scenarios` helper that merges bullet lists of scenarios to reduce manual editing noise.
+3. **Optional:** Offer a `--rewrite-scenarios` helper that merges bullet lists of scenarios to reduce manual editing noise.
 
 _Outcome:_ Contributors can safely reconcile their work with the latest spec before archiving, restoring true parallel development.
 

@@ -11,8 +11,6 @@ The update command SHALL refresh existing slash command files for configured too
 - **AND** ensure templates include instructions for the relevant workflow stage
 - **AND** ensure the archive command includes `$ARGUMENTS` placeholder in frontmatter for accepting change ID arguments
 
-## ADDED Requirements
-
 ### Requirement: Archive Command Argument Support
 The archive slash command template SHALL support optional change ID arguments for tools that support `$ARGUMENTS` placeholder.
 

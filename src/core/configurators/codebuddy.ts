@@ -6,7 +6,7 @@ import { OPENSPEC_MARKERS } from '../config.js';
 
 export class CodeBuddyConfigurator implements ToolConfigurator {
   name = 'CodeBuddy';
-  configFileName = 'CodeBuddy.md';
+  configFileName = 'CODEBUDDY.md';
   isAvailable = true;
 
   async configure(projectPath: string, openspecDir: string): Promise<void> {

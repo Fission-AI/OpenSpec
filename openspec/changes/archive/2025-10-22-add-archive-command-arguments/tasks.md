@@ -13,9 +13,3 @@
 ## 3. Update Documentation
 - [x] 3.1 Update AGENTS.md archive examples to show argument usage
 - [x] 3.2 Document that OpenCode now supports `/openspec:archive <change-id>`
-
-## 4. Validation and Testing
-- [ ] 4.1 Run `openspec update` to regenerate OpenCode slash commands
-- [ ] 4.2 Manually test with OpenCode using `/openspec:archive <change-id>`
-- [ ] 4.3 Test backward compatibility (archive command without arguments)
-- [ ] 4.4 Run `openspec validate --strict` to ensure no issues
