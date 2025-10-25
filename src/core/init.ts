@@ -428,9 +428,11 @@ export class InitCommand {
     } else {
       ora({ stream: process.stdout }).info(
         PALETTE.midGray(
-          'ℹ OpenSpec already initialized. Skipping base scaffolding.'
+          'ℹ OpenSpec already initialized. Checking for missing files...'
         )
       );
+      await this.createDirectoryStructure(openspecPath);
+      await this.ensureTemplateFiles(openspecPath, config);
     }
 
     // Step 2: Configure AI tools
@@ -720,6 +722,21 @@ export class InitCommand {
     openspecPath: string,
     config: OpenSpecConfig
   ): Promise<void> {
+    await this.writeTemplateFiles(openspecPath, config, false);
+  }
+
+  private async ensureTemplateFiles(
+    openspecPath: string,
+    config: OpenSpecConfig
+  ): Promise<void> {
+    await this.writeTemplateFiles(openspecPath, config, true);
+  }
+
+  private async writeTemplateFiles(
+    openspecPath: string,
+    config: OpenSpecConfig,
+    skipExisting: boolean
+  ): Promise<void> {
     const context: ProjectContext = {
       // Could be enhanced with prompts for project details
     };
@@ -728,6 +745,12 @@ export class InitCommand {
 
     for (const template of templates) {
       const filePath = path.join(openspecPath, template.path);
+
+      // Skip if file exists and we're in skipExisting mode
+      if (skipExisting && (await FileSystemUtils.fileExists(filePath))) {
+        continue;
+      }
+
       const content =
         typeof template.content === 'function'
           ? template.content(context)
