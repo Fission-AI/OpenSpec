@@ -21,6 +21,7 @@ export const AI_TOOLS: AIToolOption[] = [
   { name: 'Claude Code', value: 'claude', available: true, successLabel: 'Claude Code' },
   { name: 'Cline', value: 'cline', available: true, successLabel: 'Cline' },
   { name: 'CodeBuddy Code (CLI)', value: 'codebuddy', available: true, successLabel: 'CodeBuddy Code' },
+  { name: 'Costrict', value: 'costrict', available: true, successLabel: 'Costrict' },
   { name: 'Crush', value: 'crush', available: true, successLabel: 'Crush' },
   { name: 'Cursor', value: 'cursor', available: true, successLabel: 'Cursor' },
   { name: 'Factory Droid', value: 'factory', available: true, successLabel: 'Factory Droid' },

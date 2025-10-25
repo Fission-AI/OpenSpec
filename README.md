@@ -92,6 +92,7 @@ These tools have built-in OpenSpec commands. Select the OpenSpec integration whe
 |------|----------|
 | **Claude Code** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` |
 | **CodeBuddy Code (CLI)** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` (`.codebuddy/commands/`) — see [docs](https://www.codebuddy.ai/cli) |
+| **Costrict** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.cospec/openspec/commands/`) — see [docs](https://costrict.ai)|
 | **Cursor** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` |
 | **Cline** | Rules in `.clinerules/` directory (`.clinerules/openspec-*.md`) |
 | **Crush** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.crush/commands/openspec/`) |
