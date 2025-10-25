@@ -28,7 +28,7 @@ export class ChangeCommand {
    */
   async show(changeName?: string, options?: { json?: boolean; requirementsOnly?: boolean; deltasOnly?: boolean; noInteractive?: boolean }): Promise<void> {
     const changesPath = path.join(process.cwd(), 'openspec', 'changes');
-    
+
     if (!changeName) {
       const canPrompt = isInteractive(options?.noInteractive);
       const changes = await this.getActiveChanges(changesPath);
@@ -49,25 +49,25 @@ export class ChangeCommand {
         return;
       }
     }
-    
+
     const proposalPath = path.join(changesPath, changeName, 'proposal.md');
-    
+
     try {
       await fs.access(proposalPath);
     } catch {
       throw new Error(`Change "${changeName}" not found at ${proposalPath}`);
     }
-    
+
     if (options?.json) {
       const jsonOutput = await this.converter.convertChangeToJson(proposalPath);
-      
+
       if (options.requirementsOnly) {
         console.error('Flag --requirements-only is deprecated; use --deltas-only instead.');
       }
 
       const parsed: Change = JSON.parse(jsonOutput);
       const contentForTitle = await fs.readFile(proposalPath, 'utf-8');
-      const title = this.extractTitle(contentForTitle);
+      const title = this.extractTitle(contentForTitle, changeName);
       const id = parsed.name;
       const deltas = parsed.deltas || [];
 
@@ -124,7 +124,7 @@ export class ChangeCommand {
             
             return {
               id: changeName,
-              title: this.extractTitle(content),
+              title: this.extractTitle(content, changeName),
               deltaCount: change.deltas.length,
               taskStatus,
             };
@@ -159,7 +159,7 @@ export class ChangeCommand {
         const tasksPath = path.join(changesPath, changeName, 'tasks.md');
         try {
           const content = await fs.readFile(proposalPath, 'utf-8');
-          const title = this.extractTitle(content);
+          const title = this.extractTitle(content, changeName);
           let taskStatusText = '';
           try {
             const tasksContent = await fs.readFile(tasksPath, 'utf-8');
@@ -258,9 +258,9 @@ export class ChangeCommand {
     }
   }
 
-  private extractTitle(content: string): string {
-    const match = content.match(/^#\s+(?:Change:\s+)?(.+)$/m);
-    return match ? match[1].trim() : 'Untitled Change';
+  private extractTitle(content: string, changeName: string): string {
+    const match = content.match(/^#\s+(?:Change:\s+)?(.+)$/im);
+    return match ? match[1].trim() : changeName;
   }
 
   private countTasks(content: string): { total: number; completed: number } {
