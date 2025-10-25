@@ -1051,6 +1051,87 @@ describe('InitCommand', () => {
     });
   });
 
+  describe('already configured detection', () => {
+    it('should NOT show tools as already configured in fresh project with existing CLAUDE.md', async () => {
+      // Simulate user having their own CLAUDE.md before running openspec init
+      const claudePath = path.join(testDir, 'CLAUDE.md');
+      await fs.writeFile(claudePath, '# My Custom Claude Instructions\n');
+
+      queueSelections('claude', DONE);
+
+      await initCommand.execute(testDir);
+
+      // In the first run (non-interactive mode via queueSelections),
+      // the prompt is called with configured: false for claude
+      const firstCallArgs = mockPrompt.mock.calls[0][0];
+      const claudeChoice = firstCallArgs.choices.find(
+        (choice: any) => choice.value === 'claude'
+      );
+
+      expect(claudeChoice.configured).toBe(false);
+    });
+
+    it('should NOT show tools as already configured in fresh project with existing slash commands', async () => {
+      // Simulate user having their own custom slash commands
+      const customCommandDir = path.join(testDir, '.claude/commands/custom');
+      await fs.mkdir(customCommandDir, { recursive: true });
+      await fs.writeFile(
+        path.join(customCommandDir, 'mycommand.md'),
+        '# My Custom Command\n'
+      );
+
+      queueSelections('claude', DONE);
+
+      await initCommand.execute(testDir);
+
+      const firstCallArgs = mockPrompt.mock.calls[0][0];
+      const claudeChoice = firstCallArgs.choices.find(
+        (choice: any) => choice.value === 'claude'
+      );
+
+      expect(claudeChoice.configured).toBe(false);
+    });
+
+    it('should show tools as already configured in extend mode', async () => {
+      // First initialization
+      queueSelections('claude', DONE);
+      await initCommand.execute(testDir);
+
+      // Second initialization (extend mode)
+      queueSelections('cursor', DONE);
+      await initCommand.execute(testDir);
+
+      const secondCallArgs = mockPrompt.mock.calls[1][0];
+      const claudeChoice = secondCallArgs.choices.find(
+        (choice: any) => choice.value === 'claude'
+      );
+
+      expect(claudeChoice.configured).toBe(true);
+    });
+
+    it('should NOT show already configured for Codex in fresh init even with global prompts', async () => {
+      // Create global Codex prompts (simulating previous installation)
+      const codexPromptsDir = path.join(testDir, '.codex/prompts');
+      await fs.mkdir(codexPromptsDir, { recursive: true });
+      await fs.writeFile(
+        path.join(codexPromptsDir, 'openspec-proposal.md'),
+        '# Existing prompt\n'
+      );
+
+      queueSelections('claude', DONE);
+
+      await initCommand.execute(testDir);
+
+      const firstCallArgs = mockPrompt.mock.calls[0][0];
+      const codexChoice = firstCallArgs.choices.find(
+        (choice: any) => choice.value === 'codex'
+      );
+
+      // In fresh init, even global tools should not show as configured
+      expect(codexChoice.configured).toBe(false);
+    });
+  });
+
   describe('error handling', () => {
     it('should provide helpful error for insufficient permissions', async () => {
       // This is tricky to test cross-platform, but we can test the error message
