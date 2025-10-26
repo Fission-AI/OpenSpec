@@ -153,16 +153,16 @@ openspec init
 - If your coding assistant doesn't surface the new slash commands right away, restart it. Slash commands are loaded at startup,
   so a fresh launch ensures they appear
 
-### Fill out project details such as tech stack and conventions [OPTIONAL] ###
+### Optional: Populate Project Context
 
-After  `openspec init` completes, you’ll also receive a suggested prompt to help populate your project context, as shown below
+After `openspec init` completes, you'll receive a suggested prompt to help populate your project context:
 
-```
+```text
 Populate your project context:
 "Please read openspec/project.md and help me fill it out with details about my project, tech stack, and conventions"
 ```
 
-This is a good place to define any overall conventions, standards, patterns, or other guidelines that should be followed.
+Use `openspec/project.md` to define project-level conventions, standards, architectural patterns, and other guidelines that should be followed across all changes.
 
 ### Create Your First Change
 
