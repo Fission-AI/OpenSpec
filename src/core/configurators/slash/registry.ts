@@ -2,6 +2,8 @@ import { SlashCommandConfigurator } from './base.js';
 import { ClaudeSlashCommandConfigurator } from './claude.js';
 import { CodeBuddySlashCommandConfigurator } from './codebuddy.js';
 import { CursorSlashCommandConfigurator } from './cursor.js';
+import { GeminiSlashCommandConfigurator } from './gemini.js';
+import { QwenSlashCommandConfigurator } from './qwen.js';
 import { WindsurfSlashCommandConfigurator } from './windsurf.js';
 import { KiloCodeSlashCommandConfigurator } from './kilocode.js';
 import { OpenCodeSlashCommandConfigurator } from './opencode.js';
@@ -20,6 +22,8 @@ export class SlashCommandRegistry {
     const claude = new ClaudeSlashCommandConfigurator();
     const codeBuddy = new CodeBuddySlashCommandConfigurator();
     const cursor = new CursorSlashCommandConfigurator();
+    const gemini = new GeminiSlashCommandConfigurator();
+    const qwen = new QwenSlashCommandConfigurator();
     const windsurf = new WindsurfSlashCommandConfigurator();
     const kilocode = new KiloCodeSlashCommandConfigurator();
     const opencode = new OpenCodeSlashCommandConfigurator();
@@ -34,6 +38,8 @@ export class SlashCommandRegistry {
     this.configurators.set(claude.toolId, claude);
     this.configurators.set(codeBuddy.toolId, codeBuddy);
     this.configurators.set(cursor.toolId, cursor);
+    this.configurators.set(gemini.toolId, gemini);
+    this.configurators.set(qwen.toolId, qwen);
     this.configurators.set(windsurf.toolId, windsurf);
     this.configurators.set(kilocode.toolId, kilocode);
     this.configurators.set(opencode.toolId, opencode);
