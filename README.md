@@ -153,6 +153,17 @@ openspec init
 - If your coding assistant doesn't surface the new slash commands right away, restart it. Slash commands are loaded at startup,
   so a fresh launch ensures they appear
 
+### Fill out project details such as tech stack and conventions [OPTIONAL] ###
+
+After  `openspec init` completes, you’ll also receive a suggested prompt to help populate your project context, as shown below
+
+```
+Populate your project context:
+"Please read openspec/project.md and help me fill it out with details about my project, tech stack, and conventions"
+```
+
+This is a good place to define any overall conventions, standards, patterns, or other guidelines that should be followed.
+
 ### Create Your First Change
 
 Here's a real example showing the complete OpenSpec workflow. This works with any AI tool. Those with native slash commands will recognize the shortcuts automatically.
