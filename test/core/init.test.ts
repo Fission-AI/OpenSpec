@@ -903,6 +903,18 @@ describe('InitCommand', () => {
       expect(codeBuddyChoice.configured).toBe(true);
     });
 
+    it('should mark Trae as already configured during extend mode', async () => {
+      queueSelections('trae', DONE, 'trae', DONE);
+      await initCommand.execute(testDir);
+      await initCommand.execute(testDir);
+
+      const secondRunArgs = mockPrompt.mock.calls[1][0];
+      const traeChoice = secondRunArgs.choices.find(
+        (choice: any) => choice.value === 'trae'
+      );
+      expect(traeChoice.configured).toBe(true);
+    });
+
     it('should create CODEBUDDY.md when CodeBuddy is selected', async () => {
       queueSelections('codebuddy', DONE);
 
@@ -1241,3 +1253,5 @@ async function directoryExists(dirPath: string): Promise<boolean> {
     return false;
   }
 }
+
+

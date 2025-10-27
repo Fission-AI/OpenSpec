@@ -150,3 +150,12 @@ CLAUDE.md
 
 # Pnpm
 .pnpm-store/
+
+.trae/
+.qoder/
+chinese_translation_checklist.md
+test-results.txt
+translation_checklist_V2.md
+translation_checklist.md
+.trae/rules/project_rules.md
+
