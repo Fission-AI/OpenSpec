@@ -103,6 +103,7 @@ AI编码助手功能强大，但当需求存在于聊天历史中时却不可预
 | **GitHub Copilot** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.github/prompts/`) |
 | **Amazon Q Developer** | `@openspec-proposal`, `@openspec-apply`, `@openspec-archive` (`.amazonq/prompts/`) |
 | **Auggie (Augment CLI)** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.augment/commands/`) |
+| **Qwen Code** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.qwen/commands/`) |
 
 
 Kilo Code自动发现团队工作流程。将生成的文件保存在`.kilocode/workflows/`下，并从命令面板中使用`/openspec-proposal.md`、`/openspec-apply.md`或`/openspec-archive.md`触发它们。
