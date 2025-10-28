@@ -33,7 +33,15 @@ export class QwenConfigurator implements ToolConfigurator {
    * @param {string} openspecDir - The path to the openspec directory
    * @returns {Promise<void>} A promise that resolves when configuration is complete
    */
-  async configure(projectPath: string, openspecDir: string): Promise<void> {
+  /**
+   * Configures the Qwen Code integration by creating or updating the QWEN.md file
+   * with OpenSpec instructions and markers.
+   * 
+   * @param {string} projectPath - The path to the project root
+   * @param {string} _openspecDir - The path to the openspec directory (unused)
+   * @returns {Promise<void>} A promise that resolves when configuration is complete
+   */
+  async configure(projectPath: string, _openspecDir: string): Promise<void> {
     const filePath = path.join(projectPath, this.configFileName);
     const content = TemplateManager.getAgentsStandardTemplate();
     
@@ -45,4 +53,3 @@ export class QwenConfigurator implements ToolConfigurator {
     );
   }
 }
-// Ensure the file ends with a newline character
