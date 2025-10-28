@@ -49,7 +49,7 @@ OpenSpec通过两种主要方式支持AI工具：
 基于对spec-kit架构的分析，spec-kit通常通过以下方式支持Qwen Code：
 
 ### 2.1 文件结构
-```
+```markdown
 .qwen/
 ├── commands/
 │   ├── openspec-proposal.md
