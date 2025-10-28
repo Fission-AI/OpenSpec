@@ -5,6 +5,7 @@ import { CodeBuddyConfigurator } from './codebuddy.js';
 import { CostrictConfigurator } from './costrict.js';
 import { QoderConfigurator } from './qoder.js';
 import { AgentsStandardConfigurator } from './agents.js';
+import { QwenConfigurator } from './qwen.js';
 
 export class ToolRegistry {
   private static tools: Map<string, ToolConfigurator> = new Map();
@@ -16,6 +17,7 @@ export class ToolRegistry {
     const costrictConfigurator = new CostrictConfigurator();
     const qoderConfigurator = new QoderConfigurator();
     const agentsConfigurator = new AgentsStandardConfigurator();
+    const qwenConfigurator = new QwenConfigurator();
     // Register with the ID that matches the checkbox value
     this.tools.set('claude', claudeConfigurator);
     this.tools.set('cline', clineConfigurator);
@@ -23,6 +25,7 @@ export class ToolRegistry {
     this.tools.set('costrict', costrictConfigurator);
     this.tools.set('qoder', qoderConfigurator);
     this.tools.set('agents', agentsConfigurator);
+    this.tools.set('qwen', qwenConfigurator);
   }
 
   static register(tool: ToolConfigurator): void {
