@@ -3,6 +3,7 @@ import { ClaudeConfigurator } from './claude.js';
 import { ClineConfigurator } from './cline.js';
 import { CodeBuddyConfigurator } from './codebuddy.js';
 import { AgentsStandardConfigurator } from './agents.js';
+import { QwenConfigurator } from './qwen.js';
 
 export class ToolRegistry {
   private static tools: Map<string, ToolConfigurator> = new Map();
@@ -12,11 +13,13 @@ export class ToolRegistry {
     const clineConfigurator = new ClineConfigurator();
     const codeBuddyConfigurator = new CodeBuddyConfigurator();
     const agentsConfigurator = new AgentsStandardConfigurator();
+    const qwenConfigurator = new QwenConfigurator();
     // Register with the ID that matches the checkbox value
     this.tools.set('claude', claudeConfigurator);
     this.tools.set('cline', clineConfigurator);
     this.tools.set('codebuddy', codeBuddyConfigurator);
     this.tools.set('agents', agentsConfigurator);
+    this.tools.set('qwen', qwenConfigurator);
   }
 
   static register(tool: ToolConfigurator): void {

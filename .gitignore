@@ -150,3 +150,7 @@ CLAUDE.md
 
 # Pnpm
 .pnpm-store/
+
+# Personal notes and temporary files
+README_CN.md
+supportQwen.md
