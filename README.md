@@ -96,6 +96,7 @@ These tools have built-in OpenSpec commands. Select the OpenSpec integration whe
 | **Cline** | Rules in `.clinerules/` directory (`.clinerules/openspec-*.md`) |
 | **Crush** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.crush/commands/openspec/`) |
 | **Factory Droid** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.factory/commands/`) |
+| **Gemini CLI** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` (`.gemini/commands/openspec/`) |
 | **OpenCode** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` |
 | **Kilo Code** | `/openspec-proposal.md`, `/openspec-apply.md`, `/openspec-archive.md` (`.kilocode/workflows/`) |
 | **Windsurf** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.windsurf/workflows/`) |
@@ -112,7 +113,7 @@ These tools automatically read workflow instructions from `openspec/AGENTS.md`. 
 
 | Tools |
 |-------|
-| Amp • Jules • Gemini CLI • Others |
+| Amp • Jules • Others |
 
 ### Install & Initialize
 
