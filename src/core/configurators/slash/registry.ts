@@ -12,6 +12,7 @@ import { FactorySlashCommandConfigurator } from './factory.js';
 import { AuggieSlashCommandConfigurator } from './auggie.js';
 import { ClineSlashCommandConfigurator } from './cline.js';
 import { CrushSlashCommandConfigurator } from './crush.js';
+import { CostrictSlashCommandConfigurator } from './costrict.js';
 
 export class SlashCommandRegistry {
   private static configurators: Map<string, SlashCommandConfigurator> = new Map();
@@ -30,6 +31,7 @@ export class SlashCommandRegistry {
     const auggie = new AuggieSlashCommandConfigurator();
     const cline = new ClineSlashCommandConfigurator();
     const crush = new CrushSlashCommandConfigurator();
+    const costrict = new CostrictSlashCommandConfigurator();
 
     this.configurators.set(claude.toolId, claude);
     this.configurators.set(codeBuddy.toolId, codeBuddy);
@@ -44,6 +46,7 @@ export class SlashCommandRegistry {
     this.configurators.set(auggie.toolId, auggie);
     this.configurators.set(cline.toolId, cline);
     this.configurators.set(crush.toolId, crush);
+    this.configurators.set(costrict.toolId, costrict);
   }
 
   static register(configurator: SlashCommandConfigurator): void {
