@@ -1050,6 +1050,61 @@ describe('InitCommand', () => {
       expect(costrictChoice.configured).toBe(true);
     });
 
+    it('should create Qoder slash command files with templates', async () => {
+      queueSelections('qoder', DONE);
+
+      await initCommand.execute(testDir);
+
+      const qoderProposal = path.join(
+        testDir,
+        '.qoder/commands/openspec/proposal.md'
+      );
+      const qoderApply = path.join(
+        testDir,
+        '.qoder/commands/openspec/apply.md'
+      );
+      const qoderArchive = path.join(
+        testDir,
+        '.qoder/commands/openspec/archive.md'
+      );
+
+      expect(await fileExists(qoderProposal)).toBe(true);
+      expect(await fileExists(qoderApply)).toBe(true);
+      expect(await fileExists(qoderArchive)).toBe(true);
+
+      const proposalContent = await fs.readFile(qoderProposal, 'utf-8');
+      expect(proposalContent).toContain('---');
+      expect(proposalContent).toContain('name: OpenSpec: Proposal');
+      expect(proposalContent).toContain('description: Scaffold a new OpenSpec change and validate strictly.');
+      expect(proposalContent).toContain('category: OpenSpec');
+      expect(proposalContent).toContain('<!-- OPENSPEC:START -->');
+      expect(proposalContent).toContain('**Guardrails**');
+
+      const applyContent = await fs.readFile(qoderApply, 'utf-8');
+      expect(applyContent).toContain('---');
+      expect(applyContent).toContain('name: OpenSpec: Apply');
+      expect(applyContent).toContain('description: Implement an approved OpenSpec change and keep tasks in sync.');
+      expect(applyContent).toContain('Work through tasks sequentially');
+
+      const archiveContent = await fs.readFile(qoderArchive, 'utf-8');
+      expect(archiveContent).toContain('---');
+      expect(archiveContent).toContain('name: OpenSpec: Archive');
+      expect(archiveContent).toContain('description: Archive a deployed OpenSpec change and update specs.');
+      expect(archiveContent).toContain('openspec archive <id> --yes');
+    });
+
+    it('should mark Qoder as already configured during extend mode', async () => {
+      queueSelections('qoder', DONE, 'qoder', DONE);
+      await initCommand.execute(testDir);
+      await initCommand.execute(testDir);
+
+      const secondRunArgs = mockPrompt.mock.calls[1][0];
+      const qoderChoice = secondRunArgs.choices.find(
+        (choice: any) => choice.value === 'qoder'
+      );
+      expect(qoderChoice.configured).toBe(true);
+    });
+
     it('should create COSTRICT.md when CoStrict is selected', async () => {
       queueSelections('costrict', DONE);
 
@@ -1059,6 +1114,21 @@ describe('InitCommand', () => {
       expect(await fileExists(costrictPath)).toBe(true);
 
       const content = await fs.readFile(costrictPath, 'utf-8');
+      expect(content).toContain('<!-- OPENSPEC:START -->');
+      expect(content).toContain("@/openspec/AGENTS.md");
+      expect(content).toContain('openspec update');
+      expect(content).toContain('<!-- OPENSPEC:END -->');
+    });
+
+    it('should create QODER.md when Qoder is selected', async () => {
+      queueSelections('qoder', DONE);
+
+      await initCommand.execute(testDir);
+
+      const qoderPath = path.join(testDir, 'QODER.md');
+      expect(await fileExists(qoderPath)).toBe(true);
+
+      const content = await fs.readFile(qoderPath, 'utf-8');
       expect(content).toContain('<!-- OPENSPEC:START -->');
       expect(content).toContain("@/openspec/AGENTS.md");
       expect(content).toContain('openspec update');
@@ -1076,6 +1146,22 @@ describe('InitCommand', () => {
       await initCommand.execute(testDir);
 
       const updatedContent = await fs.readFile(costrictPath, 'utf-8');
+      expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
+      expect(updatedContent).toContain('# My CoStrict Instructions');
+      expect(updatedContent).toContain('Custom instructions here');
+    });
+
+    it('should update existing QODER.md with markers', async () => {
+      queueSelections('qoder', DONE);
+
+      const qoderPath = path.join(testDir, 'QODER.md');
+      const existingContent =
+        '# My Qoder Instructions\nCustom instructions here';
+      await fs.writeFile(qoderPath, existingContent);
+
+      await initCommand.execute(testDir);
+
+      const updatedContent = await fs.readFile(qoderPath, 'utf-8');
       expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
       expect(updatedContent).toContain("@/openspec/AGENTS.md");
       expect(updatedContent).toContain('openspec update');
