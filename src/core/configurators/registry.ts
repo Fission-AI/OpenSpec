@@ -2,6 +2,7 @@ import { ToolConfigurator } from './base.js';
 import { ClaudeConfigurator } from './claude.js';
 import { ClineConfigurator } from './cline.js';
 import { CodeBuddyConfigurator } from './codebuddy.js';
+import { CostrictConfigurator } from './costrict.js';
 import { AgentsStandardConfigurator } from './agents.js';
 
 export class ToolRegistry {
@@ -11,11 +12,13 @@ export class ToolRegistry {
     const claudeConfigurator = new ClaudeConfigurator();
     const clineConfigurator = new ClineConfigurator();
     const codeBuddyConfigurator = new CodeBuddyConfigurator();
+    const costrictConfigurator = new CostrictConfigurator();
     const agentsConfigurator = new AgentsStandardConfigurator();
     // Register with the ID that matches the checkbox value
     this.tools.set('claude', claudeConfigurator);
     this.tools.set('cline', clineConfigurator);
     this.tools.set('codebuddy', codeBuddyConfigurator);
+    this.tools.set('costrict', costrictConfigurator);
     this.tools.set('agents', agentsConfigurator);
   }
 
