@@ -860,6 +860,47 @@ Old body
     consoleSpy.mockRestore();
   });
 
+  it('should refresh existing Qoder slash command files', async () => {
+    const qoderPath = path.join(
+      testDir,
+      '.qoder/commands/openspec/proposal.md'
+    );
+    await fs.mkdir(path.dirname(qoderPath), { recursive: true });
+    const initialContent = `---
+name: OpenSpec: Proposal
+description: Old description
+category: OpenSpec
+tags: [openspec, change]
+---
+<!-- OPENSPEC:START -->
+Old slash content
+<!-- OPENSPEC:END -->`;
+    await fs.writeFile(qoderPath, initialContent);
+
+    const consoleSpy = vi.spyOn(console, 'log');
+
+    await updateCommand.execute(testDir);
+
+    const updated = await fs.readFile(qoderPath, 'utf-8');
+    expect(updated).toContain('name: OpenSpec: Proposal');
+    expect(updated).toContain('**Guardrails**');
+    expect(updated).toContain(
+      'Validate with `openspec validate <id> --strict`'
+    );
+    expect(updated).not.toContain('Old slash content');
+
+    const [logMessage] = consoleSpy.mock.calls[0];
+    expect(logMessage).toContain(
+      'Updated OpenSpec instructions (openspec/AGENTS.md'
+    );
+    expect(logMessage).toContain('AGENTS.md (created)');
+    expect(logMessage).toContain(
+      'Updated slash commands: .qoder/commands/openspec/proposal.md'
+    );
+
+    consoleSpy.mockRestore();
+  });
+
   it('should not create missing CoStrict slash command files on update', async () => {
     const costrictApply = path.join(
       testDir,
@@ -893,6 +934,43 @@ Old
     // Confirm they weren't created by update
     await expect(FileSystemUtils.fileExists(costrictProposal)).resolves.toBe(false);
     await expect(FileSystemUtils.fileExists(costrictArchive)).resolves.toBe(false);
+  });
+
+  it('should not create missing Qoder slash command files on update', async () => {
+    const qoderApply = path.join(
+      testDir,
+      '.qoder/commands/openspec/apply.md'
+    );
+
+    // Only create apply; leave proposal and archive missing
+    await fs.mkdir(path.dirname(qoderApply), { recursive: true });
+    await fs.writeFile(
+      qoderApply,
+      `---
+name: OpenSpec: Apply
+description: Old description
+category: OpenSpec
+tags: [openspec, apply]
+---
+<!-- OPENSPEC:START -->
+Old body
+<!-- OPENSPEC:END -->`
+    );
+
+    await updateCommand.execute(testDir);
+
+    const qoderProposal = path.join(
+      testDir,
+      '.qoder/commands/openspec/proposal.md'
+    );
+    const qoderArchive = path.join(
+      testDir,
+      '.qoder/commands/openspec/archive.md'
+    );
+
+    // Confirm they weren't created by update
+    await expect(FileSystemUtils.fileExists(qoderProposal)).resolves.toBe(false);
+    await expect(FileSystemUtils.fileExists(qoderArchive)).resolves.toBe(false);
   });
 
   it('should update only existing COSTRICT.md file', async () => {
