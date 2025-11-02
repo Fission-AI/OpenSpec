@@ -349,6 +349,54 @@ describe('InitCommand', () => {
       expect(archiveContent).toContain('openspec list --specs');
     });
 
+    it('should create Qwen configuration and slash command files with templates', async () => {
+      queueSelections('qwen', DONE);
+
+      await initCommand.execute(testDir);
+
+      const qwenConfigPath = path.join(testDir, 'QWEN.md');
+      const proposalPath = path.join(
+        testDir,
+        '.qwen/commands/openspec-proposal.md'
+      );
+      const applyPath = path.join(
+        testDir,
+        '.qwen/commands/openspec-apply.md'
+      );
+      const archivePath = path.join(
+        testDir,
+        '.qwen/commands/openspec-archive.md'
+      );
+
+      expect(await fileExists(qwenConfigPath)).toBe(true);
+      expect(await fileExists(proposalPath)).toBe(true);
+      expect(await fileExists(applyPath)).toBe(true);
+      expect(await fileExists(archivePath)).toBe(true);
+
+      const qwenConfigContent = await fs.readFile(qwenConfigPath, 'utf-8');
+      expect(qwenConfigContent).toContain('<!-- OPENSPEC:START -->');
+      expect(qwenConfigContent).toContain("@/openspec/AGENTS.md");
+      expect(qwenConfigContent).toContain('<!-- OPENSPEC:END -->');
+
+      const proposalContent = await fs.readFile(proposalPath, 'utf-8');
+      expect(proposalContent).toContain('name: /openspec-proposal');
+      expect(proposalContent).toContain('category: OpenSpec');
+      expect(proposalContent).toContain('description: Scaffold a new OpenSpec change and validate strictly.');
+      expect(proposalContent).toContain('<!-- OPENSPEC:START -->');
+
+      const applyContent = await fs.readFile(applyPath, 'utf-8');
+      expect(applyContent).toContain('name: /openspec-apply');
+      expect(applyContent).toContain('category: OpenSpec');
+      expect(applyContent).toContain('description: Implement an approved OpenSpec change and keep tasks in sync.');
+      expect(applyContent).toContain('Work through tasks sequentially');
+
+      const archiveContent = await fs.readFile(archivePath, 'utf-8');
+      expect(archiveContent).toContain('name: /openspec-archive');
+      expect(archiveContent).toContain('category: OpenSpec');
+      expect(archiveContent).toContain('description: Archive a deployed OpenSpec change and update specs.');
+      expect(archiveContent).toContain('openspec archive <id>');
+    });
+
     it('should create Cline rule files with templates', async () => {
       queueSelections('cline', DONE);
 
