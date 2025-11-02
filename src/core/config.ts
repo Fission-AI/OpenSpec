@@ -25,6 +25,7 @@ export const AI_TOOLS: AIToolOption[] = [
   { name: 'Crush', value: 'crush', available: true, successLabel: 'Crush' },
   { name: 'Cursor', value: 'cursor', available: true, successLabel: 'Cursor' },
   { name: 'Factory Droid', value: 'factory', available: true, successLabel: 'Factory Droid' },
+  { name: 'Gemini CLI', value: 'gemini', available: true, successLabel: 'Gemini CLI' },
   { name: 'OpenCode', value: 'opencode', available: true, successLabel: 'OpenCode' },
   { name: 'Kilo Code', value: 'kilocode', available: true, successLabel: 'Kilo Code' },
   { name: 'Qoder (CLI)', value: 'qoder', available: true, successLabel: 'Qoder' },
