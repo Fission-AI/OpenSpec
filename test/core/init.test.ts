@@ -397,6 +397,23 @@ describe('InitCommand', () => {
       expect(archiveContent).toContain('openspec archive <id>');
     });
 
+    it('should update existing QWEN.md with markers', async () => {
+      queueSelections('qwen', DONE);
+
+      const qwenPath = path.join(testDir, 'QWEN.md');
+      const existingContent = '# My Qwen Instructions\nCustom instructions here';
+      await fs.writeFile(qwenPath, existingContent);
+
+      await initCommand.execute(testDir);
+
+      const updatedContent = await fs.readFile(qwenPath, 'utf-8');
+      expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
+      expect(updatedContent).toContain("@/openspec/AGENTS.md");
+      expect(updatedContent).toContain('openspec update');
+      expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
+      expect(updatedContent).toContain('Custom instructions here');
+    });
+
     it('should create Cline rule files with templates', async () => {
       queueSelections('cline', DONE);
 
@@ -734,6 +751,18 @@ describe('InitCommand', () => {
         (choice: any) => choice.value === 'claude'
       );
       expect(claudeChoice.configured).toBe(true);
+    });
+
+    it('should mark Qwen as already configured during extend mode', async () => {
+      queueSelections('qwen', DONE, 'qwen', DONE);
+      await initCommand.execute(testDir);
+      await initCommand.execute(testDir);
+
+      const secondRunArgs = mockPrompt.mock.calls[1][0];
+      const qwenChoice = secondRunArgs.choices.find(
+        (choice: any) => choice.value === 'qwen'
+      );
+      expect(qwenChoice.configured).toBe(true);
     });
 
     it('should preselect Kilo Code when workflows already exist', async () => {
