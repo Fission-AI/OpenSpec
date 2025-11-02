@@ -22,7 +22,12 @@ The user has requested the following change proposal. Use the openspec instructi
   apply: `---
 agent: build
 description: Implement an approved OpenSpec change and keep tasks in sync.
----`,
+---
+The user has requested to implement the following change proposal. Find the change proposal and follow the instructions below. If you're not sure or if ambiguous, ask for clarification from the user.
+<UserRequest>
+  $ARGUMENTS
+</UserRequest>
+`,
   archive: `---
 agent: build
 description: Archive a deployed OpenSpec change and update specs.
