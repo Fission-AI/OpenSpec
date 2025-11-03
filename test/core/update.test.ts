@@ -73,6 +73,41 @@ More content after.`;
     consoleSpy.mockRestore();
   });
 
+  it('should update only existing QWEN.md file', async () => {
+    const qwenPath = path.join(testDir, 'QWEN.md');
+    const initialContent = `# Qwen Instructions
+
+Some existing content.
+
+<!-- OPENSPEC:START -->
+Old OpenSpec content
+<!-- OPENSPEC:END -->
+
+More notes here.`;
+    await fs.writeFile(qwenPath, initialContent);
+
+    const consoleSpy = vi.spyOn(console, 'log');
+
+    await updateCommand.execute(testDir);
+
+    const updatedContent = await fs.readFile(qwenPath, 'utf-8');
+    expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
+    expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
+    expect(updatedContent).toContain("@/openspec/AGENTS.md");
+    expect(updatedContent).toContain('openspec update');
+    expect(updatedContent).toContain('Some existing content.');
+    expect(updatedContent).toContain('More notes here.');
+
+    const [logMessage] = consoleSpy.mock.calls[0];
+    expect(logMessage).toContain(
+      'Updated OpenSpec instructions (openspec/AGENTS.md'
+    );
+    expect(logMessage).toContain('AGENTS.md (created)');
+    expect(logMessage).toContain('Updated AI tool files: QWEN.md');
+
+    consoleSpy.mockRestore();
+  });
+
   it('should refresh existing Claude slash command files', async () => {
     const proposalPath = path.join(
       testDir,
@@ -114,6 +149,87 @@ Old slash content
     consoleSpy.mockRestore();
   });
 
+  it('should refresh existing Qwen slash command files', async () => {
+    const applyPath = path.join(
+      testDir,
+      '.qwen/commands/openspec-apply.md'
+    );
+    await fs.mkdir(path.dirname(applyPath), { recursive: true });
+    const initialContent = `---
+name: /openspec-apply
+id: openspec-apply
+category: OpenSpec
+description: Old description
+---
+
+<!-- OPENSPEC:START -->
+Old body
+<!-- OPENSPEC:END -->`;
+    await fs.writeFile(applyPath, initialContent);
+
+    const consoleSpy = vi.spyOn(console, 'log');
+
+    await updateCommand.execute(testDir);
+
+    const updated = await fs.readFile(applyPath, 'utf-8');
+    expect(updated).toContain('name: /openspec-apply');
+    expect(updated).toContain('category: OpenSpec');
+    expect(updated).toContain('<!-- OPENSPEC:START -->');
+    expect(updated).toContain('Work through tasks sequentially');
+    expect(updated).not.toContain('Old body');
+
+    const [logMessage] = consoleSpy.mock.calls[0];
+    expect(logMessage).toContain(
+      'Updated OpenSpec instructions (openspec/AGENTS.md'
+    );
+    expect(logMessage).toContain('AGENTS.md (created)');
+    expect(logMessage).toContain(
+      'Updated slash commands: .qwen/commands/openspec-apply.md'
+    );
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should not create missing Qwen slash command files on update', async () => {
+    const applyPath = path.join(
+      testDir,
+      '.qwen/commands/openspec-apply.md'
+    );
+
+    await fs.mkdir(path.dirname(applyPath), { recursive: true });
+    await fs.writeFile(
+      applyPath,
+      `---
+name: /openspec-apply
+id: openspec-apply
+category: OpenSpec
+description: Old description
+---
+
+<!-- OPENSPEC:START -->
+Old content
+<!-- OPENSPEC:END -->`
+    );
+
+    await updateCommand.execute(testDir);
+
+    const updatedApply = await fs.readFile(applyPath, 'utf-8');
+    expect(updatedApply).toContain('Work through tasks sequentially');
+    expect(updatedApply).not.toContain('Old content');
+
+    const proposalPath = path.join(
+      testDir,
+      '.qwen/commands/openspec-proposal.md'
+    );
+    const archivePath = path.join(
+      testDir,
+      '.qwen/commands/openspec-archive.md'
+    );
+
+    await expect(FileSystemUtils.fileExists(proposalPath)).resolves.toBe(false);
+    await expect(FileSystemUtils.fileExists(archivePath)).resolves.toBe(false);
+  });
+
   it('should not create CLAUDE.md if it does not exist', async () => {
     // Ensure CLAUDE.md does not exist
     const claudePath = path.join(testDir, 'CLAUDE.md');
@@ -124,6 +240,12 @@ Old slash content
     // Check that CLAUDE.md was not created
     const fileExists = await FileSystemUtils.fileExists(claudePath);
     expect(fileExists).toBe(false);
+  });
+
+  it('should not create QWEN.md if it does not exist', async () => {
+    const qwenPath = path.join(testDir, 'QWEN.md');
+    await updateCommand.execute(testDir);
+    await expect(FileSystemUtils.fileExists(qwenPath)).resolves.toBe(false);
   });
 
   it('should update only existing CLINE.md file', async () => {
