@@ -716,6 +716,17 @@ export class InitCommand {
     for (const dir of directories) {
       await FileSystemUtils.createDirectory(dir);
     }
+
+    // Create .gitkeep files in empty directories to ensure Git tracks them
+    const emptyDirectories = [
+      path.join(openspecPath, 'specs', '.gitkeep'),
+      path.join(openspecPath, 'changes', '.gitkeep'),
+      path.join(openspecPath, 'changes', 'archive', '.gitkeep'),
+    ];
+
+    for (const gitkeepPath of emptyDirectories) {
+      await FileSystemUtils.writeFile(gitkeepPath, '');
+    }
   }
 
   private async generateFiles(
