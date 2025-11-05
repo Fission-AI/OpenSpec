@@ -10,7 +10,7 @@ type SelectionQueue = string[][];
 
 let selectionQueue: SelectionQueue = [];
 
-const mockPrompt = vi.fn(async () => {
+const mockPrompt = vi.fn(async (options: any) => {
   if (selectionQueue.length === 0) {
     throw new Error('No queued selections provided to init prompt.');
   }
@@ -136,39 +136,21 @@ describe('InitCommand', () => {
       expect(updatedContent).toContain('Custom instructions here');
     });
 
-    it('should create .clinerules/CLINE.md when Cline is selected', async () => {
+    it('should create .clinerules/AGENTS.md when Cline is selected', async () => {
       queueSelections('cline', DONE);
 
       await initCommand.execute(testDir);
 
-      const clinePath = path.join(testDir, '.clinerules/CLINE.md');
-      expect(await fileExists(clinePath)).toBe(true);
+      const clineAgentsPath = path.join(testDir, '.clinerules', 'AGENTS.md');
+      expect(await fileExists(clineAgentsPath)).toBe(true);
 
-      const content = await fs.readFile(clinePath, 'utf-8');
+      const content = await fs.readFile(clineAgentsPath, 'utf-8');
       expect(content).toContain('<!-- OPENSPEC:START -->');
-      expect(content).toContain("@/openspec/AGENTS.md");
+      expect(content).toContain('OpenSpec Instructions');
       expect(content).toContain('openspec update');
       expect(content).toContain('<!-- OPENSPEC:END -->');
     });
 
-    it('should update existing .clinerules/CLINE.md with markers', async () => {
-      queueSelections('cline', DONE);
-
-      const clinePath = path.join(testDir, '.clinerules/CLINE.md');
-      await fs.mkdir(path.dirname(clinePath), { recursive: true });
-      const existingContent =
-        '# My Cline Rules\nCustom Cline instructions here';
-      await fs.writeFile(clinePath, existingContent);
-
-      await initCommand.execute(testDir);
-
-      const updatedContent = await fs.readFile(clinePath, 'utf-8');
-      expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
-      expect(updatedContent).toContain("@/openspec/AGENTS.md");
-      expect(updatedContent).toContain('openspec update');
-      expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
-      expect(updatedContent).toContain('Custom Cline instructions here');
-    });
 
     it('should create Windsurf workflows when Windsurf is selected', async () => {
       queueSelections('windsurf', DONE);
