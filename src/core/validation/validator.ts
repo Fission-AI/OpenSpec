@@ -115,7 +115,7 @@ export class Validator {
     const specsDir = path.join(changeDir, 'specs');
     let totalDeltas = 0;
     const missingHeaderSpecs: string[] = [];
-    const emptySectionSpecs: Array<{ path: string; sections: string[] }> = [];
+    const emptySectionSpecs: Array<{ path: string; sections: string[]; content: string; diagnostics?: any }> = [];
 
     try {
       const entries = await fs.readdir(specsDir, { withFileTypes: true });
@@ -130,7 +130,7 @@ export class Validator {
           continue;
         }
 
-        const plan = parseDeltaSpec(content);
+        const plan = parseDeltaSpec(content, true);
         const entryPath = `${specName}/spec.md`;
         const sectionNames: string[] = [];
         if (plan.sectionPresence.added) sectionNames.push('## ADDED Requirements');
@@ -140,7 +140,7 @@ export class Validator {
         const hasSections = sectionNames.length > 0;
         const hasEntries = plan.added.length + plan.modified.length + plan.removed.length + plan.renamed.length > 0;
         if (!hasEntries) {
-          if (hasSections) emptySectionSpecs.push({ path: entryPath, sections: sectionNames });
+          if (hasSections) emptySectionSpecs.push({ path: entryPath, sections: sectionNames, content, diagnostics: plan.diagnostics });
           else missingHeaderSpecs.push(entryPath);
         }
 
@@ -249,11 +249,32 @@ export class Validator {
       // If no specs dir, treat as no deltas
     }
 
-    for (const { path: specPath, sections } of emptySectionSpecs) {
+    for (const { path: specPath, sections, content, diagnostics } of emptySectionSpecs) {
+      let message = `Delta sections ${this.formatSectionList(sections)} were found, but no requirement entries parsed. Ensure each section includes at least one "### Requirement:" block (REMOVED may use bullet list syntax).`;
+
+      // Add diagnostic information
+      const sectionPreview = this.extractSectionPreview(content, sections);
+      if (sectionPreview) {
+        message += `\n\nFirst few lines from sections:\n${sectionPreview}`;
+      }
+
+      // Add parse diagnostics if available
+      if (diagnostics) {
+        const allDiagnostics = [...(diagnostics.added || []), ...(diagnostics.modified || []), ...(diagnostics.removed || []), ...(diagnostics.renamed || [])];
+        if (allDiagnostics.length > 0) {
+          message += `\n\nParsing issues detected:`;
+          for (const diag of allDiagnostics.slice(0, 3)) {
+            message += `\n  Line ${diag.lineNumber}: ${JSON.stringify(diag.line)} - ${diag.reason}`;
+          }
+        }
+      }
+
+      message += `\n\nExpected format: "### Requirement: Description"\nSuggestion: Run 'openspec show ${specPath.split('/')[0]} --json --deltas-only' to debug parsing.`;
+
       issues.push({
         level: 'ERROR',
         path: specPath,
-        message: `Delta sections ${this.formatSectionList(sections)} were found, but no requirement entries parsed. Ensure each section includes at least one "### Requirement:" block (REMOVED may use bullet list syntax).`,
+        message,
       });
     }
     for (const path of missingHeaderSpecs) {
@@ -361,7 +382,7 @@ export class Validator {
   private extractNameFromPath(filePath: string): string {
     const normalizedPath = filePath.replaceAll('\\', '/');
     const parts = normalizedPath.split('/');
-    
+
     // Look for the directory name after 'specs' or 'changes'
     for (let i = parts.length - 1; i >= 0; i--) {
       if (parts[i] === 'specs' || parts[i] === 'changes') {
@@ -370,11 +391,32 @@ export class Validator {
         }
       }
     }
-    
+
     // Fallback to filename without extension if not in expected structure
     const fileName = parts[parts.length - 1] ?? '';
     const dotIndex = fileName.lastIndexOf('.');
     return dotIndex > 0 ? fileName.slice(0, dotIndex) : fileName;
+  }
+
+  private extractSectionPreview(content: string, sectionNames: string[]): string {
+    const lines = content.split(/\r?\n/);
+    const previews: string[] = [];
+
+    for (const sectionName of sectionNames) {
+      const sectionIndex = lines.findIndex(line => line.trim() === sectionName);
+      if (sectionIndex !== -1) {
+        // Get up to 5 lines after the section header
+        const sectionLines = lines.slice(sectionIndex + 1, sectionIndex + 6)
+          .filter(line => line.trim().length > 0) // Skip empty lines
+          .map(line => `  ${line}`);
+
+        if (sectionLines.length > 0) {
+          previews.push(`${sectionName}:\n${sectionLines.join('\n')}`);
+        }
+      }
+    }
+
+    return previews.join('\n\n');
   }
 
   private createReport(issues: ValidationIssue[]): ValidationReport {
