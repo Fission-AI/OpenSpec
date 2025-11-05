@@ -400,7 +400,7 @@ The system SHALL handle all errors gracefully.
       expect(report.summary.errors).toBe(0);
     });
 
-    it('should fail when requirement text lacks SHALL/MUST', async () => {
+    it('should warn when requirement text lacks SHALL/MUST', async () => {
       const changeDir = path.join(testDir, 'test-change-3');
       const specsDir = path.join(changeDir, 'specs', 'test-spec');
       await fs.mkdir(specsDir, { recursive: true });
@@ -422,12 +422,74 @@ The system will log all events.
       const specPath = path.join(specsDir, 'spec.md');
       await fs.writeFile(specPath, deltaSpec);
 
-      const validator = new Validator(true);
+      const validator = new Validator(false); // non-strict mode
       const report = await validator.validateChangeDeltaSpecs(changeDir);
 
+      // Should pass with warning
+      expect(report.valid).toBe(true);
+      expect(report.summary.warnings).toBeGreaterThan(0);
+      expect(report.issues.some(i => i.level === 'WARNING' && i.message.includes('should contain SHALL or MUST'))).toBe(true);
+    });
+
+    it('should fail in strict mode when requirement lacks SHALL/MUST', async () => {
+      const changeDir = path.join(testDir, 'test-change-3-strict');
+      const specsDir = path.join(changeDir, 'specs', 'test-spec');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      const deltaSpec = `# Test Spec
+
+## ADDED Requirements
+
+### Requirement: Logging Feature
+**ID**: REQ-LOG-001
+
+The system will log all events.
+
+#### Scenario: Event occurs
+**Given** an event
+**When** it occurs
+**Then** it is logged`;
+
+      const specPath = path.join(specsDir, 'spec.md');
+      await fs.writeFile(specPath, deltaSpec);
+
+      const validator = new Validator(true); // strict mode
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      // Should fail because strict mode treats warnings as errors
       expect(report.valid).toBe(false);
-      expect(report.summary.errors).toBeGreaterThan(0);
-      expect(report.issues.some(i => i.message.includes('must contain SHALL or MUST'))).toBe(true);
+      expect(report.issues.some(i => i.level === 'WARNING' && i.message.includes('should contain SHALL or MUST'))).toBe(true);
+    });
+
+    it('should validate non-English requirement text with warning', async () => {
+      const changeDir = path.join(testDir, 'test-change-chinese');
+      const specsDir = path.join(changeDir, 'specs', 'test-spec');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      const deltaSpec = `# Test Spec
+
+## ADDED Requirements
+
+### Requirement: 日志功能
+**ID**: REQ-LOG-001
+
+系统必须记录所有事件。
+
+#### Scenario: 事件发生
+**Given** 有一个事件
+**When** 事件发生
+**Then** 事件被记录`;
+
+      const specPath = path.join(specsDir, 'spec.md');
+      await fs.writeFile(specPath, deltaSpec);
+
+      const validator = new Validator(false);
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      // Should pass with warning (no SHALL/MUST in Chinese text)
+      expect(report.valid).toBe(true);
+      expect(report.summary.warnings).toBeGreaterThan(0);
+      expect(report.issues.some(i => i.level === 'WARNING' && i.message.includes('should contain SHALL or MUST'))).toBe(true);
     });
 
     it('should handle requirements without metadata fields', async () => {
