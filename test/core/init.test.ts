@@ -136,12 +136,12 @@ describe('InitCommand', () => {
       expect(updatedContent).toContain('Custom instructions here');
     });
 
-    it('should create CLINE.md when Cline is selected', async () => {
+    it('should create .clinerules/CLINE.md when Cline is selected', async () => {
       queueSelections('cline', DONE);
 
       await initCommand.execute(testDir);
 
-      const clinePath = path.join(testDir, 'CLINE.md');
+      const clinePath = path.join(testDir, '.clinerules/CLINE.md');
       expect(await fileExists(clinePath)).toBe(true);
 
       const content = await fs.readFile(clinePath, 'utf-8');
@@ -151,10 +151,11 @@ describe('InitCommand', () => {
       expect(content).toContain('<!-- OPENSPEC:END -->');
     });
 
-    it('should update existing CLINE.md with markers', async () => {
+    it('should update existing .clinerules/CLINE.md with markers', async () => {
       queueSelections('cline', DONE);
 
-      const clinePath = path.join(testDir, 'CLINE.md');
+      const clinePath = path.join(testDir, '.clinerules/CLINE.md');
+      await fs.mkdir(path.dirname(clinePath), { recursive: true });
       const existingContent =
         '# My Cline Rules\nCustom Cline instructions here';
       await fs.writeFile(clinePath, existingContent);

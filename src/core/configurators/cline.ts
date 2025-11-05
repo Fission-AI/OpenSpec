@@ -6,13 +6,13 @@ import { OPENSPEC_MARKERS } from '../config.js';
 
 export class ClineConfigurator implements ToolConfigurator {
   name = 'Cline';
-  configFileName = 'CLINE.md';
+  configFileName = '.clinerules/CLINE.md';
   isAvailable = true;
 
   async configure(projectPath: string, openspecDir: string): Promise<void> {
     const filePath = path.join(projectPath, this.configFileName);
     const content = TemplateManager.getClineTemplate();
-    
+
     await FileSystemUtils.updateFileWithMarkers(
       filePath,
       content,
