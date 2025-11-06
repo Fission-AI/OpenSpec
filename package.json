@@ -44,8 +44,6 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "preinstall": "echo Installing dependencies...",
-    "postinstall": "pnpm run build",
     "prepublishOnly": "pnpm run build",
     "check:pack-version": "node scripts/pack-version-check.mjs",
     "release": "pnpm run release:ci",

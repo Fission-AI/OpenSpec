@@ -1,0 +1,1 @@
+{"version":3,"file":"json-converter.d.ts","sourceRoot":"","sources":["../../../src/core/converters/json-converter.ts"],"names":[],"mappings":"AAMA,qBAAa,aAAa;IACxB,iBAAiB,CAAC,QAAQ,EAAE,MAAM,GAAG,MAAM;IAkBrC,mBAAmB,CAAC,QAAQ,EAAE,MAAM,GAAG,OAAO,CAAC,MAAM,CAAC;IAmB5D,OAAO,CAAC,mBAAmB;CAgB5B"}
