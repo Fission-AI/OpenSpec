@@ -189,7 +189,7 @@ describe('CompletionCommand', () => {
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         "Error: Shell 'powershell' is not supported yet. Currently supported: zsh"
       );
-      process.exitCode = 1;
+      expect(process.exitCode).toBe(1);
     });
   });
 
