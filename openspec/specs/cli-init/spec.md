@@ -91,6 +91,12 @@ This project uses OpenSpec to manage AI assistant workflows.
 <!-- OPENSPEC:END -->
 ```
 
+#### Scenario: Configuring RooCode
+
+- **WHEN** RooCode is selected
+- **THEN** create or update `ROOCODE.md` in the project root directory (not inside `openspec/`)
+- **AND** populate the managed block with a short stub that points teammates to `@/openspec/AGENTS.md`
+
 ### Requirement: Interactive Mode
 The command SHALL provide an interactive menu for AI tool selection with clear navigation instructions.
 #### Scenario: Displaying interactive menu
@@ -229,6 +235,14 @@ The init command SHALL generate slash command files for supported editors using 
 - **AND** populate each file with YAML frontmatter containing a `description` field that summarizes the workflow stage
 - **AND** include `$ARGUMENTS` placeholder to capture user input
 - **AND** wrap the shared template body with OpenSpec markers so `openspec update` can refresh the content
+- **AND** each template includes instructions for the relevant OpenSpec workflow stage
+
+#### Scenario: Generating slash commands for RooCode
+- **WHEN** the user selects RooCode during initialization
+- **THEN** create `.roo/commands/openspec-proposal.md`, `.roo/commands/openspec-apply.md`, and `.roo/commands/openspec-archive.md`
+- **AND** populate each file from shared templates so command text matches other tools
+- **AND** include simple Markdown headings (e.g., `# OpenSpec: Proposal`) without YAML frontmatter
+- **AND** wrap the generated content in OpenSpec managed markers where applicable so `openspec update` can safely refresh the commands
 - **AND** each template includes instructions for the relevant OpenSpec workflow stage
 
 ### Requirement: Non-Interactive Mode

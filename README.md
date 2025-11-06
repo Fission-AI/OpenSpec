@@ -96,6 +96,7 @@ These tools have built-in OpenSpec commands. Select the OpenSpec integration whe
 | **Cursor** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` |
 | **Cline** | Rules in `.clinerules/` directory (`.clinerules/openspec-*.md`) |
 | **Crush** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.crush/commands/openspec/`) |
+| **RooCode** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.roo/commands/`) |
 | **Factory Droid** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.factory/commands/`) |
 | **OpenCode** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` |
 | **Kilo Code** | `/openspec-proposal.md`, `/openspec-apply.md`, `/openspec-archive.md` (`.kilocode/workflows/`) |
@@ -232,7 +233,7 @@ Or run the command yourself in terminal:
 $ openspec archive add-profile-filters --yes  # Archive the completed change without prompts
 ```
 
-**Note:** Tools with native slash commands (Claude Code, CodeBuddy, Cursor, Codex, Qoder) can use the shortcuts shown. All other tools work with natural language requests to "create an OpenSpec proposal", "apply the OpenSpec change", or "archive the change".
+**Note:** Tools with native slash commands (Claude Code, CodeBuddy, Cursor, Codex, Qoder, RooCode) can use the shortcuts shown. All other tools work with natural language requests to "create an OpenSpec proposal", "apply the OpenSpec change", or "archive the change".
 
 ## Command Reference
 
