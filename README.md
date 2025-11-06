@@ -92,17 +92,20 @@ These tools have built-in OpenSpec commands. Select the OpenSpec integration whe
 |------|----------|
 | **Claude Code** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` |
 | **CodeBuddy Code (CLI)** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` (`.codebuddy/commands/`) — see [docs](https://www.codebuddy.ai/cli) |
+| **CoStrict** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.cospec/openspec/commands/`) — see [docs](https://costrict.ai)|
 | **Cursor** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` |
 | **Cline** | Rules in `.clinerules/` directory (`.clinerules/openspec-*.md`) |
 | **Crush** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.crush/commands/openspec/`) |
 | **Factory Droid** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.factory/commands/`) |
 | **OpenCode** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` |
 | **Kilo Code** | `/openspec-proposal.md`, `/openspec-apply.md`, `/openspec-archive.md` (`.kilocode/workflows/`) |
+| **Qoder (CLI)** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` (`.qoder/commands/openspec/`) — see [docs](https://qoder.com/cli) |
 | **Windsurf** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.windsurf/workflows/`) |
 | **Codex** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (global: `~/.codex/prompts`, auto-installed) |
 | **GitHub Copilot** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.github/prompts/`) |
 | **Amazon Q Developer** | `@openspec-proposal`, `@openspec-apply`, `@openspec-archive` (`.amazonq/prompts/`) |
 | **Auggie (Augment CLI)** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.augment/commands/`) |
+| **Qwen Code** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.qwen/commands/`) |
 
 
 Kilo Code discovers team workflows automatically. Save the generated files under `.kilocode/workflows/` and trigger them from the command palette with `/openspec-proposal.md`, `/openspec-apply.md`, or `/openspec-archive.md`.
@@ -143,7 +146,7 @@ openspec init
 ```
 
 **What happens during initialization:**
-- You'll be prompted to pick any natively supported AI tools (Claude Code, CodeBuddy, Cursor, OpenCode, etc.); other assistants always rely on the shared `AGENTS.md` stub
+- You'll be prompted to pick any natively supported AI tools (Claude Code, CodeBuddy, Cursor, OpenCode, Qoder,etc.); other assistants always rely on the shared `AGENTS.md` stub
 - OpenSpec automatically configures slash commands for the tools you choose and always writes a managed `AGENTS.md` hand-off at the project root
 - A new `openspec/` directory structure is created in your project
 
@@ -152,6 +155,17 @@ openspec init
 - Run `openspec list` to verify the setup and view any active changes
 - If your coding assistant doesn't surface the new slash commands right away, restart it. Slash commands are loaded at startup,
   so a fresh launch ensures they appear
+
+### Optional: Populate Project Context
+
+After `openspec init` completes, you'll receive a suggested prompt to help populate your project context:
+
+```text
+Populate your project context:
+"Please read openspec/project.md and help me fill it out with details about my project, tech stack, and conventions"
+```
+
+Use `openspec/project.md` to define project-level conventions, standards, architectural patterns, and other guidelines that should be followed across all changes.
 
 ### Create Your First Change
 
@@ -218,7 +232,7 @@ Or run the command yourself in terminal:
 $ openspec archive add-profile-filters --yes  # Archive the completed change without prompts
 ```
 
-**Note:** Tools with native slash commands (Claude Code, CodeBuddy, Cursor, Codex) can use the shortcuts shown. All other tools work with natural language requests to "create an OpenSpec proposal", "apply the OpenSpec change", or "archive the change".
+**Note:** Tools with native slash commands (Claude Code, CodeBuddy, Cursor, Codex, Qoder) can use the shortcuts shown. All other tools work with natural language requests to "create an OpenSpec proposal", "apply the OpenSpec change", or "archive the change".
 
 ## Command Reference
 

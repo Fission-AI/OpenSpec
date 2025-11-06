@@ -349,6 +349,71 @@ describe('InitCommand', () => {
       expect(archiveContent).toContain('openspec list --specs');
     });
 
+    it('should create Qwen configuration and slash command files with templates', async () => {
+      queueSelections('qwen', DONE);
+
+      await initCommand.execute(testDir);
+
+      const qwenConfigPath = path.join(testDir, 'QWEN.md');
+      const proposalPath = path.join(
+        testDir,
+        '.qwen/commands/openspec-proposal.md'
+      );
+      const applyPath = path.join(
+        testDir,
+        '.qwen/commands/openspec-apply.md'
+      );
+      const archivePath = path.join(
+        testDir,
+        '.qwen/commands/openspec-archive.md'
+      );
+
+      expect(await fileExists(qwenConfigPath)).toBe(true);
+      expect(await fileExists(proposalPath)).toBe(true);
+      expect(await fileExists(applyPath)).toBe(true);
+      expect(await fileExists(archivePath)).toBe(true);
+
+      const qwenConfigContent = await fs.readFile(qwenConfigPath, 'utf-8');
+      expect(qwenConfigContent).toContain('<!-- OPENSPEC:START -->');
+      expect(qwenConfigContent).toContain("@/openspec/AGENTS.md");
+      expect(qwenConfigContent).toContain('<!-- OPENSPEC:END -->');
+
+      const proposalContent = await fs.readFile(proposalPath, 'utf-8');
+      expect(proposalContent).toContain('name: /openspec-proposal');
+      expect(proposalContent).toContain('category: OpenSpec');
+      expect(proposalContent).toContain('description: Scaffold a new OpenSpec change and validate strictly.');
+      expect(proposalContent).toContain('<!-- OPENSPEC:START -->');
+
+      const applyContent = await fs.readFile(applyPath, 'utf-8');
+      expect(applyContent).toContain('name: /openspec-apply');
+      expect(applyContent).toContain('category: OpenSpec');
+      expect(applyContent).toContain('description: Implement an approved OpenSpec change and keep tasks in sync.');
+      expect(applyContent).toContain('Work through tasks sequentially');
+
+      const archiveContent = await fs.readFile(archivePath, 'utf-8');
+      expect(archiveContent).toContain('name: /openspec-archive');
+      expect(archiveContent).toContain('category: OpenSpec');
+      expect(archiveContent).toContain('description: Archive a deployed OpenSpec change and update specs.');
+      expect(archiveContent).toContain('openspec archive <id>');
+    });
+
+    it('should update existing QWEN.md with markers', async () => {
+      queueSelections('qwen', DONE);
+
+      const qwenPath = path.join(testDir, 'QWEN.md');
+      const existingContent = '# My Qwen Instructions\nCustom instructions here';
+      await fs.writeFile(qwenPath, existingContent);
+
+      await initCommand.execute(testDir);
+
+      const updatedContent = await fs.readFile(qwenPath, 'utf-8');
+      expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
+      expect(updatedContent).toContain("@/openspec/AGENTS.md");
+      expect(updatedContent).toContain('openspec update');
+      expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
+      expect(updatedContent).toContain('Custom instructions here');
+    });
+
     it('should create Cline rule files with templates', async () => {
       queueSelections('cline', DONE);
 
@@ -688,6 +753,18 @@ describe('InitCommand', () => {
       expect(claudeChoice.configured).toBe(true);
     });
 
+    it('should mark Qwen as already configured during extend mode', async () => {
+      queueSelections('qwen', DONE, 'qwen', DONE);
+      await initCommand.execute(testDir);
+      await initCommand.execute(testDir);
+
+      const secondRunArgs = mockPrompt.mock.calls[1][0];
+      const qwenChoice = secondRunArgs.choices.find(
+        (choice: any) => choice.value === 'qwen'
+      );
+      expect(qwenChoice.configured).toBe(true);
+    });
+
     it('should preselect Kilo Code when workflows already exist', async () => {
       queueSelections('kilocode', DONE, 'kilocode', DONE);
       await initCommand.execute(testDir);
@@ -994,6 +1071,179 @@ describe('InitCommand', () => {
         (choice: any) => choice.value === 'crush'
       );
       expect(crushChoice.configured).toBe(true);
+    });
+
+    it('should create CoStrict slash command files with templates', async () => {
+      queueSelections('costrict', DONE);
+
+      await initCommand.execute(testDir);
+
+      const costrictProposal = path.join(
+        testDir,
+        '.cospec/openspec/commands/openspec-proposal.md'
+      );
+      const costrictApply = path.join(
+        testDir,
+        '.cospec/openspec/commands/openspec-apply.md'
+      );
+      const costrictArchive = path.join(
+        testDir,
+        '.cospec/openspec/commands/openspec-archive.md'
+      );
+
+      expect(await fileExists(costrictProposal)).toBe(true);
+      expect(await fileExists(costrictApply)).toBe(true);
+      expect(await fileExists(costrictArchive)).toBe(true);
+
+      const proposalContent = await fs.readFile(costrictProposal, 'utf-8');
+      expect(proposalContent).toContain('---');
+      expect(proposalContent).toContain('description: "Scaffold a new OpenSpec change and validate strictly."');
+      expect(proposalContent).toContain('argument-hint: feature description or request');
+      expect(proposalContent).toContain('<!-- OPENSPEC:START -->');
+      expect(proposalContent).toContain('**Guardrails**');
+
+      const applyContent = await fs.readFile(costrictApply, 'utf-8');
+      expect(applyContent).toContain('---');
+      expect(applyContent).toContain('description: "Implement an approved OpenSpec change and keep tasks in sync."');
+      expect(applyContent).toContain('argument-hint: change-id');
+      expect(applyContent).toContain('Work through tasks sequentially');
+
+      const archiveContent = await fs.readFile(costrictArchive, 'utf-8');
+      expect(archiveContent).toContain('---');
+      expect(archiveContent).toContain('description: "Archive a deployed OpenSpec change and update specs."');
+      expect(archiveContent).toContain('argument-hint: change-id');
+      expect(archiveContent).toContain('openspec archive <id> --yes');
+    });
+
+    it('should mark CoStrict as already configured during extend mode', async () => {
+      queueSelections('costrict', DONE, 'costrict', DONE);
+      await initCommand.execute(testDir);
+      await initCommand.execute(testDir);
+
+      const secondRunArgs = mockPrompt.mock.calls[1][0];
+      const costrictChoice = secondRunArgs.choices.find(
+        (choice: any) => choice.value === 'costrict'
+      );
+      expect(costrictChoice.configured).toBe(true);
+    });
+
+    it('should create Qoder slash command files with templates', async () => {
+      queueSelections('qoder', DONE);
+
+      await initCommand.execute(testDir);
+
+      const qoderProposal = path.join(
+        testDir,
+        '.qoder/commands/openspec/proposal.md'
+      );
+      const qoderApply = path.join(
+        testDir,
+        '.qoder/commands/openspec/apply.md'
+      );
+      const qoderArchive = path.join(
+        testDir,
+        '.qoder/commands/openspec/archive.md'
+      );
+
+      expect(await fileExists(qoderProposal)).toBe(true);
+      expect(await fileExists(qoderApply)).toBe(true);
+      expect(await fileExists(qoderArchive)).toBe(true);
+
+      const proposalContent = await fs.readFile(qoderProposal, 'utf-8');
+      expect(proposalContent).toContain('---');
+      expect(proposalContent).toContain('name: OpenSpec: Proposal');
+      expect(proposalContent).toContain('description: Scaffold a new OpenSpec change and validate strictly.');
+      expect(proposalContent).toContain('category: OpenSpec');
+      expect(proposalContent).toContain('<!-- OPENSPEC:START -->');
+      expect(proposalContent).toContain('**Guardrails**');
+
+      const applyContent = await fs.readFile(qoderApply, 'utf-8');
+      expect(applyContent).toContain('---');
+      expect(applyContent).toContain('name: OpenSpec: Apply');
+      expect(applyContent).toContain('description: Implement an approved OpenSpec change and keep tasks in sync.');
+      expect(applyContent).toContain('Work through tasks sequentially');
+
+      const archiveContent = await fs.readFile(qoderArchive, 'utf-8');
+      expect(archiveContent).toContain('---');
+      expect(archiveContent).toContain('name: OpenSpec: Archive');
+      expect(archiveContent).toContain('description: Archive a deployed OpenSpec change and update specs.');
+      expect(archiveContent).toContain('openspec archive <id> --yes');
+    });
+
+    it('should mark Qoder as already configured during extend mode', async () => {
+      queueSelections('qoder', DONE, 'qoder', DONE);
+      await initCommand.execute(testDir);
+      await initCommand.execute(testDir);
+
+      const secondRunArgs = mockPrompt.mock.calls[1][0];
+      const qoderChoice = secondRunArgs.choices.find(
+        (choice: any) => choice.value === 'qoder'
+      );
+      expect(qoderChoice.configured).toBe(true);
+    });
+
+    it('should create COSTRICT.md when CoStrict is selected', async () => {
+      queueSelections('costrict', DONE);
+
+      await initCommand.execute(testDir);
+
+      const costrictPath = path.join(testDir, 'COSTRICT.md');
+      expect(await fileExists(costrictPath)).toBe(true);
+
+      const content = await fs.readFile(costrictPath, 'utf-8');
+      expect(content).toContain('<!-- OPENSPEC:START -->');
+      expect(content).toContain("@/openspec/AGENTS.md");
+      expect(content).toContain('openspec update');
+      expect(content).toContain('<!-- OPENSPEC:END -->');
+    });
+
+    it('should create QODER.md when Qoder is selected', async () => {
+      queueSelections('qoder', DONE);
+
+      await initCommand.execute(testDir);
+
+      const qoderPath = path.join(testDir, 'QODER.md');
+      expect(await fileExists(qoderPath)).toBe(true);
+
+      const content = await fs.readFile(qoderPath, 'utf-8');
+      expect(content).toContain('<!-- OPENSPEC:START -->');
+      expect(content).toContain("@/openspec/AGENTS.md");
+      expect(content).toContain('openspec update');
+      expect(content).toContain('<!-- OPENSPEC:END -->');
+    });
+
+    it('should update existing COSTRICT.md with markers', async () => {
+      queueSelections('costrict', DONE);
+
+      const costrictPath = path.join(testDir, 'COSTRICT.md');
+      const existingContent =
+        '# My CoStrict Instructions\nCustom instructions here';
+      await fs.writeFile(costrictPath, existingContent);
+
+      await initCommand.execute(testDir);
+
+      const updatedContent = await fs.readFile(costrictPath, 'utf-8');
+      expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
+      expect(updatedContent).toContain('# My CoStrict Instructions');
+      expect(updatedContent).toContain('Custom instructions here');
+    });
+
+    it('should update existing QODER.md with markers', async () => {
+      queueSelections('qoder', DONE);
+
+      const qoderPath = path.join(testDir, 'QODER.md');
+      const existingContent =
+        '# My Qoder Instructions\nCustom instructions here';
+      await fs.writeFile(qoderPath, existingContent);
+
+      await initCommand.execute(testDir);
+
+      const updatedContent = await fs.readFile(qoderPath, 'utf-8');
+      expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
+      expect(updatedContent).toContain("@/openspec/AGENTS.md");
+      expect(updatedContent).toContain('openspec update');
+      expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
+      expect(updatedContent).toContain('Custom instructions here');
     });
   });
 

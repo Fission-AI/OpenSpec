@@ -73,6 +73,41 @@ More content after.`;
     consoleSpy.mockRestore();
   });
 
+  it('should update only existing QWEN.md file', async () => {
+    const qwenPath = path.join(testDir, 'QWEN.md');
+    const initialContent = `# Qwen Instructions
+
+Some existing content.
+
+<!-- OPENSPEC:START -->
+Old OpenSpec content
+<!-- OPENSPEC:END -->
+
+More notes here.`;
+    await fs.writeFile(qwenPath, initialContent);
+
+    const consoleSpy = vi.spyOn(console, 'log');
+
+    await updateCommand.execute(testDir);
+
+    const updatedContent = await fs.readFile(qwenPath, 'utf-8');
+    expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
+    expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
+    expect(updatedContent).toContain("@/openspec/AGENTS.md");
+    expect(updatedContent).toContain('openspec update');
+    expect(updatedContent).toContain('Some existing content.');
+    expect(updatedContent).toContain('More notes here.');
+
+    const [logMessage] = consoleSpy.mock.calls[0];
+    expect(logMessage).toContain(
+      'Updated OpenSpec instructions (openspec/AGENTS.md'
+    );
+    expect(logMessage).toContain('AGENTS.md (created)');
+    expect(logMessage).toContain('Updated AI tool files: QWEN.md');
+
+    consoleSpy.mockRestore();
+  });
+
   it('should refresh existing Claude slash command files', async () => {
     const proposalPath = path.join(
       testDir,
@@ -114,6 +149,87 @@ Old slash content
     consoleSpy.mockRestore();
   });
 
+  it('should refresh existing Qwen slash command files', async () => {
+    const applyPath = path.join(
+      testDir,
+      '.qwen/commands/openspec-apply.md'
+    );
+    await fs.mkdir(path.dirname(applyPath), { recursive: true });
+    const initialContent = `---
+name: /openspec-apply
+id: openspec-apply
+category: OpenSpec
+description: Old description
+---
+
+<!-- OPENSPEC:START -->
+Old body
+<!-- OPENSPEC:END -->`;
+    await fs.writeFile(applyPath, initialContent);
+
+    const consoleSpy = vi.spyOn(console, 'log');
+
+    await updateCommand.execute(testDir);
+
+    const updated = await fs.readFile(applyPath, 'utf-8');
+    expect(updated).toContain('name: /openspec-apply');
+    expect(updated).toContain('category: OpenSpec');
+    expect(updated).toContain('<!-- OPENSPEC:START -->');
+    expect(updated).toContain('Work through tasks sequentially');
+    expect(updated).not.toContain('Old body');
+
+    const [logMessage] = consoleSpy.mock.calls[0];
+    expect(logMessage).toContain(
+      'Updated OpenSpec instructions (openspec/AGENTS.md'
+    );
+    expect(logMessage).toContain('AGENTS.md (created)');
+    expect(logMessage).toContain(
+      'Updated slash commands: .qwen/commands/openspec-apply.md'
+    );
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should not create missing Qwen slash command files on update', async () => {
+    const applyPath = path.join(
+      testDir,
+      '.qwen/commands/openspec-apply.md'
+    );
+
+    await fs.mkdir(path.dirname(applyPath), { recursive: true });
+    await fs.writeFile(
+      applyPath,
+      `---
+name: /openspec-apply
+id: openspec-apply
+category: OpenSpec
+description: Old description
+---
+
+<!-- OPENSPEC:START -->
+Old content
+<!-- OPENSPEC:END -->`
+    );
+
+    await updateCommand.execute(testDir);
+
+    const updatedApply = await fs.readFile(applyPath, 'utf-8');
+    expect(updatedApply).toContain('Work through tasks sequentially');
+    expect(updatedApply).not.toContain('Old content');
+
+    const proposalPath = path.join(
+      testDir,
+      '.qwen/commands/openspec-proposal.md'
+    );
+    const archivePath = path.join(
+      testDir,
+      '.qwen/commands/openspec-archive.md'
+    );
+
+    await expect(FileSystemUtils.fileExists(proposalPath)).resolves.toBe(false);
+    await expect(FileSystemUtils.fileExists(archivePath)).resolves.toBe(false);
+  });
+
   it('should not create CLAUDE.md if it does not exist', async () => {
     // Ensure CLAUDE.md does not exist
     const claudePath = path.join(testDir, 'CLAUDE.md');
@@ -124,6 +240,12 @@ Old slash content
     // Check that CLAUDE.md was not created
     const fileExists = await FileSystemUtils.fileExists(claudePath);
     expect(fileExists).toBe(false);
+  });
+
+  it('should not create QWEN.md if it does not exist', async () => {
+    const qwenPath = path.join(testDir, 'QWEN.md');
+    await updateCommand.execute(testDir);
+    await expect(FileSystemUtils.fileExists(qwenPath)).resolves.toBe(false);
   });
 
   it('should update only existing CLINE.md file', async () => {
@@ -817,6 +939,266 @@ Old body
     // Confirm they weren't created by update
     await expect(FileSystemUtils.fileExists(crushProposal)).resolves.toBe(false);
     await expect(FileSystemUtils.fileExists(crushArchive)).resolves.toBe(false);
+  });
+
+  it('should refresh existing CoStrict slash command files', async () => {
+    const costrictPath = path.join(
+      testDir,
+      '.cospec/openspec/commands/openspec-proposal.md'
+    );
+    await fs.mkdir(path.dirname(costrictPath), { recursive: true });
+    const initialContent = `---
+description: "Old description"
+argument-hint: old-hint
+---
+<!-- OPENSPEC:START -->
+Old body
+<!-- OPENSPEC:END -->`;
+    await fs.writeFile(costrictPath, initialContent);
+
+    const consoleSpy = vi.spyOn(console, 'log');
+
+    await updateCommand.execute(testDir);
+
+    const updated = await fs.readFile(costrictPath, 'utf-8');
+    // For slash commands, only the content between OpenSpec markers is updated
+    expect(updated).toContain('description: "Old description"');
+    expect(updated).toContain('argument-hint: old-hint');
+    expect(updated).toContain('**Guardrails**');
+    expect(updated).toContain(
+      'Validate with `openspec validate <id> --strict`'
+    );
+    expect(updated).not.toContain('Old body');
+
+    const [logMessage] = consoleSpy.mock.calls[0];
+    expect(logMessage).toContain(
+      'Updated OpenSpec instructions (openspec/AGENTS.md'
+    );
+    expect(logMessage).toContain('AGENTS.md (created)');
+    expect(logMessage).toContain(
+      'Updated slash commands: .cospec/openspec/commands/openspec-proposal.md'
+    );
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should refresh existing Qoder slash command files', async () => {
+    const qoderPath = path.join(
+      testDir,
+      '.qoder/commands/openspec/proposal.md'
+    );
+    await fs.mkdir(path.dirname(qoderPath), { recursive: true });
+    const initialContent = `---
+name: OpenSpec: Proposal
+description: Old description
+category: OpenSpec
+tags: [openspec, change]
+---
+<!-- OPENSPEC:START -->
+Old slash content
+<!-- OPENSPEC:END -->`;
+    await fs.writeFile(qoderPath, initialContent);
+
+    const consoleSpy = vi.spyOn(console, 'log');
+
+    await updateCommand.execute(testDir);
+
+    const updated = await fs.readFile(qoderPath, 'utf-8');
+    expect(updated).toContain('name: OpenSpec: Proposal');
+    expect(updated).toContain('**Guardrails**');
+    expect(updated).toContain(
+      'Validate with `openspec validate <id> --strict`'
+    );
+    expect(updated).not.toContain('Old slash content');
+
+    const [logMessage] = consoleSpy.mock.calls[0];
+    expect(logMessage).toContain(
+      'Updated OpenSpec instructions (openspec/AGENTS.md'
+    );
+    expect(logMessage).toContain('AGENTS.md (created)');
+    expect(logMessage).toContain(
+      'Updated slash commands: .qoder/commands/openspec/proposal.md'
+    );
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should not create missing CoStrict slash command files on update', async () => {
+    const costrictApply = path.join(
+      testDir,
+      '.cospec/openspec/commands/openspec-apply.md'
+    );
+
+    // Only create apply; leave proposal and archive missing
+    await fs.mkdir(path.dirname(costrictApply), { recursive: true });
+    await fs.writeFile(
+      costrictApply,
+      `---
+description: "Old"
+argument-hint: old
+---
+<!-- OPENSPEC:START -->
+Old
+<!-- OPENSPEC:END -->`
+    );
+
+    await updateCommand.execute(testDir);
+
+    const costrictProposal = path.join(
+      testDir,
+      '.cospec/openspec/commands/openspec-proposal.md'
+    );
+    const costrictArchive = path.join(
+      testDir,
+      '.cospec/openspec/commands/openspec-archive.md'
+    );
+
+    // Confirm they weren't created by update
+    await expect(FileSystemUtils.fileExists(costrictProposal)).resolves.toBe(false);
+    await expect(FileSystemUtils.fileExists(costrictArchive)).resolves.toBe(false);
+  });
+
+  it('should not create missing Qoder slash command files on update', async () => {
+    const qoderApply = path.join(
+      testDir,
+      '.qoder/commands/openspec/apply.md'
+    );
+
+    // Only create apply; leave proposal and archive missing
+    await fs.mkdir(path.dirname(qoderApply), { recursive: true });
+    await fs.writeFile(
+      qoderApply,
+      `---
+name: OpenSpec: Apply
+description: Old description
+category: OpenSpec
+tags: [openspec, apply]
+---
+<!-- OPENSPEC:START -->
+Old body
+<!-- OPENSPEC:END -->`
+    );
+
+    await updateCommand.execute(testDir);
+
+    const qoderProposal = path.join(
+      testDir,
+      '.qoder/commands/openspec/proposal.md'
+    );
+    const qoderArchive = path.join(
+      testDir,
+      '.qoder/commands/openspec/archive.md'
+    );
+
+    // Confirm they weren't created by update
+    await expect(FileSystemUtils.fileExists(qoderProposal)).resolves.toBe(false);
+    await expect(FileSystemUtils.fileExists(qoderArchive)).resolves.toBe(false);
+  });
+
+  it('should update only existing COSTRICT.md file', async () => {
+    // Create COSTRICT.md file with initial content
+    const costrictPath = path.join(testDir, 'COSTRICT.md');
+    const initialContent = `# CoStrict Instructions
+
+Some existing CoStrict instructions here.
+
+<!-- OPENSPEC:START -->
+Old OpenSpec content
+<!-- OPENSPEC:END -->
+
+More instructions after.`;
+    await fs.writeFile(costrictPath, initialContent);
+
+    const consoleSpy = vi.spyOn(console, 'log');
+
+    // Execute update command
+    await updateCommand.execute(testDir);
+
+    // Check that COSTRICT.md was updated
+    const updatedContent = await fs.readFile(costrictPath, 'utf-8');
+    expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
+    expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
+    expect(updatedContent).toContain("@/openspec/AGENTS.md");
+    expect(updatedContent).toContain('openspec update');
+    expect(updatedContent).toContain('Some existing CoStrict instructions here');
+    expect(updatedContent).toContain('More instructions after');
+
+    // Check console output
+    const [logMessage] = consoleSpy.mock.calls[0];
+    expect(logMessage).toContain(
+      'Updated OpenSpec instructions (openspec/AGENTS.md'
+    );
+    expect(logMessage).toContain('AGENTS.md (created)');
+    expect(logMessage).toContain('Updated AI tool files: COSTRICT.md');
+    consoleSpy.mockRestore();
+  });
+
+  it('should not create COSTRICT.md if it does not exist', async () => {
+    // Ensure COSTRICT.md does not exist
+    const costrictPath = path.join(testDir, 'COSTRICT.md');
+
+    // Execute update command
+    await updateCommand.execute(testDir);
+
+    // Check that COSTRICT.md was not created
+    const fileExists = await FileSystemUtils.fileExists(costrictPath);
+    expect(fileExists).toBe(false);
+  });
+
+  it('should preserve CoStrict content outside markers during update', async () => {
+    const costrictPath = path.join(
+      testDir,
+      '.cospec/openspec/commands/openspec-proposal.md'
+    );
+    await fs.mkdir(path.dirname(costrictPath), { recursive: true });
+    const initialContent = `## Custom Intro Title\nSome intro text\n<!-- OPENSPEC:START -->\nOld body\n<!-- OPENSPEC:END -->\n\nFooter stays`;
+    await fs.writeFile(costrictPath, initialContent);
+
+    await updateCommand.execute(testDir);
+
+    const updated = await fs.readFile(costrictPath, 'utf-8');
+    expect(updated).toContain('## Custom Intro Title');
+    expect(updated).toContain('Footer stays');
+    expect(updated).not.toContain('Old body');
+    expect(updated).toContain('Validate with `openspec validate <id> --strict`');
+  });
+
+  it('should handle configurator errors gracefully for CoStrict', async () => {
+    // Create COSTRICT.md file but make it read-only to cause an error
+    const costrictPath = path.join(testDir, 'COSTRICT.md');
+    await fs.writeFile(
+      costrictPath,
+      '<!-- OPENSPEC:START -->\nOld\n<!-- OPENSPEC:END -->'
+    );
+
+    const consoleSpy = vi.spyOn(console, 'log');
+    const errorSpy = vi.spyOn(console, 'error');
+    const originalWriteFile = FileSystemUtils.writeFile.bind(FileSystemUtils);
+    const writeSpy = vi
+      .spyOn(FileSystemUtils, 'writeFile')
+      .mockImplementation(async (filePath, content) => {
+        if (filePath.endsWith('COSTRICT.md')) {
+          throw new Error('EACCES: permission denied, open');
+        }
+
+        return originalWriteFile(filePath, content);
+      });
+
+    // Execute update command - should not throw
+    await updateCommand.execute(testDir);
+
+    // Should report the failure
+    expect(errorSpy).toHaveBeenCalled();
+    const [logMessage] = consoleSpy.mock.calls[0];
+    expect(logMessage).toContain(
+      'Updated OpenSpec instructions (openspec/AGENTS.md'
+    );
+    expect(logMessage).toContain('AGENTS.md (created)');
+    expect(logMessage).toContain('Failed to update: COSTRICT.md');
+
+    consoleSpy.mockRestore();
+    errorSpy.mockRestore();
+    writeSpy.mockRestore();
   });
 
   it('should preserve Windsurf content outside markers during update', async () => {
