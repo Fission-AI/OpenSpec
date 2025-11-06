@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
+import { FileSystemUtils } from '../../../utils/file-system.js';
 
 /**
  * Installation result information
@@ -10,6 +11,7 @@ export interface InstallationResult {
   installedPath?: string;
   backupPath?: string;
   isOhMyZsh: boolean;
+  zshrcConfigured?: boolean;
   message: string;
   instructions?: string[];
 }
@@ -20,6 +22,14 @@ export interface InstallationResult {
  */
 export class ZshInstaller {
   private readonly homeDir: string;
+
+  /**
+   * Markers for .zshrc configuration management
+   */
+  private readonly ZSHRC_MARKERS = {
+    start: '# OPENSPEC:START',
+    end: '# OPENSPEC:END',
+  };
 
   constructor(homeDir: string = os.homedir()) {
     this.homeDir = homeDir;
@@ -52,7 +62,7 @@ export class ZshInstaller {
     if (isOhMyZsh) {
       // Oh My Zsh custom completions directory
       return {
-        path: path.join(this.homeDir, '.oh-my-zsh', 'completions', '_openspec'),
+        path: path.join(this.homeDir, '.oh-my-zsh', 'custom', 'completions', '_openspec'),
         isOhMyZsh: true,
       };
     } else {
@@ -85,6 +95,138 @@ export class ZshInstaller {
   }
 
   /**
+   * Get the path to .zshrc file
+   *
+   * @returns Path to .zshrc
+   */
+  private getZshrcPath(): string {
+    return path.join(this.homeDir, '.zshrc');
+  }
+
+  /**
+   * Generate .zshrc configuration content
+   *
+   * @param completionsDir - Directory containing completion scripts
+   * @returns Configuration content
+   */
+  private generateZshrcConfig(completionsDir: string): string {
+    return [
+      '# OpenSpec shell completions configuration',
+      `fpath=(${completionsDir} $fpath)`,
+      'autoload -Uz compinit',
+      'compinit',
+    ].join('\n');
+  }
+
+  /**
+   * Configure .zshrc to enable completions
+   * Only applies to standard Zsh (not Oh My Zsh)
+   *
+   * @param completionsDir - Directory containing completion scripts
+   * @returns true if configured successfully, false otherwise
+   */
+  async configureZshrc(completionsDir: string): Promise<boolean> {
+    // Check if auto-configuration is disabled
+    if (process.env.OPENSPEC_NO_AUTO_CONFIG === '1') {
+      return false;
+    }
+
+    try {
+      const zshrcPath = this.getZshrcPath();
+      const config = this.generateZshrcConfig(completionsDir);
+
+      // Check write permissions
+      const canWrite = await FileSystemUtils.canWriteFile(zshrcPath);
+      if (!canWrite) {
+        return false;
+      }
+
+      // Use marker-based update
+      await FileSystemUtils.updateFileWithMarkers(
+        zshrcPath,
+        config,
+        this.ZSHRC_MARKERS.start,
+        this.ZSHRC_MARKERS.end
+      );
+
+      return true;
+    } catch {
+      // Fail gracefully - don't break installation
+      return false;
+    }
+  }
+
+  /**
+   * Check if .zshrc has OpenSpec configuration markers
+   *
+   * @returns true if .zshrc exists and has markers
+   */
+  private async hasZshrcConfig(): Promise<boolean> {
+    try {
+      const zshrcPath = this.getZshrcPath();
+      const content = await fs.readFile(zshrcPath, 'utf-8');
+      return content.includes(this.ZSHRC_MARKERS.start) && content.includes(this.ZSHRC_MARKERS.end);
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Remove .zshrc configuration
+   * Used during uninstallation
+   *
+   * @returns true if removed successfully, false otherwise
+   */
+  async removeZshrcConfig(): Promise<boolean> {
+    try {
+      const zshrcPath = this.getZshrcPath();
+
+      // Check if file exists
+      try {
+        await fs.access(zshrcPath);
+      } catch {
+        // File doesn't exist, nothing to remove
+        return true;
+      }
+
+      // Read file content
+      const content = await fs.readFile(zshrcPath, 'utf-8');
+
+      // Check if markers exist
+      if (!content.includes(this.ZSHRC_MARKERS.start) || !content.includes(this.ZSHRC_MARKERS.end)) {
+        // Markers don't exist, nothing to remove
+        return true;
+      }
+
+      // Remove content between markers (including markers)
+      const lines = content.split('\n');
+      const startIndex = lines.findIndex((line) => line.trim() === this.ZSHRC_MARKERS.start);
+      const endIndex = lines.findIndex((line) => line.trim() === this.ZSHRC_MARKERS.end);
+
+      if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) {
+        // Invalid marker placement
+        return false;
+      }
+
+      // Remove lines between markers (inclusive)
+      lines.splice(startIndex, endIndex - startIndex + 1);
+
+      // Remove trailing empty lines at the start if the markers were at the top
+      while (lines.length > 0 && lines[0].trim() === '') {
+        lines.shift();
+      }
+
+      // Write back
+      await fs.writeFile(zshrcPath, lines.join('\n'), 'utf-8');
+
+      return true;
+    } catch {
+      // Fail gracefully
+      return false;
+    }
+  }
+
+  /**
    * Install the completion script
    *
    * @param completionScript - The completion script content to install
@@ -104,17 +246,26 @@ export class ZshInstaller {
       // Write the completion script
       await fs.writeFile(targetPath, completionScript, 'utf-8');
 
-      // Generate instructions
-      const instructions = this.generateInstructions(isOhMyZsh, targetPath);
+      // Auto-configure .zshrc for standard Zsh users
+      let zshrcConfigured = false;
+      if (!isOhMyZsh) {
+        zshrcConfigured = await this.configureZshrc(targetDir);
+      }
+
+      // Generate instructions (only if .zshrc wasn't auto-configured)
+      const instructions = zshrcConfigured ? undefined : this.generateInstructions(isOhMyZsh, targetPath);
 
       return {
         success: true,
         installedPath: targetPath,
         backupPath,
         isOhMyZsh,
+        zshrcConfigured,
         message: isOhMyZsh
           ? 'Completion script installed successfully for Oh My Zsh'
-          : 'Completion script installed successfully for Zsh',
+          : zshrcConfigured
+            ? 'Completion script installed and .zshrc configured successfully'
+            : 'Completion script installed successfully for Zsh',
         instructions,
       };
     } catch (error) {
@@ -170,21 +321,47 @@ export class ZshInstaller {
    */
   async uninstall(): Promise<{ success: boolean; message: string }> {
     try {
-      const { path: targetPath } = await this.getInstallationPath();
+      const { path: targetPath, isOhMyZsh } = await this.getInstallationPath();
 
+      // Try to remove completion script
+      let scriptRemoved = false;
       try {
         await fs.access(targetPath);
         await fs.unlink(targetPath);
-        return {
-          success: true,
-          message: `Completion script removed from ${targetPath}`,
-        };
+        scriptRemoved = true;
       } catch {
+        // Script not installed
+      }
+
+      // Try to remove .zshrc configuration (only for standard Zsh)
+      let zshrcWasPresent = false;
+      let zshrcCleaned = false;
+      if (!isOhMyZsh) {
+        zshrcWasPresent = await this.hasZshrcConfig();
+        if (zshrcWasPresent) {
+          zshrcCleaned = await this.removeZshrcConfig();
+        }
+      }
+
+      if (!scriptRemoved && !zshrcWasPresent) {
         return {
           success: false,
           message: 'Completion script is not installed',
         };
       }
+
+      const messages: string[] = [];
+      if (scriptRemoved) {
+        messages.push(`Completion script removed from ${targetPath}`);
+      }
+      if (zshrcCleaned && !isOhMyZsh) {
+        messages.push('Removed OpenSpec configuration from ~/.zshrc');
+      }
+
+      return {
+        success: true,
+        message: messages.join('. '),
+      };
     } catch (error) {
       return {
         success: false,

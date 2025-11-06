@@ -83,41 +83,91 @@ export class ZshGenerator implements CompletionGenerator {
   }
 
   /**
+   * Generate a single completion function
+   *
+   * @param functionName - Name of the completion function
+   * @param varName - Name of the local array variable
+   * @param varLabel - Label for the completion items
+   * @param commandLines - Command line(s) to populate the array
+   * @param comment - Optional comment describing the function
+   */
+  private generateCompletionFunction(
+    functionName: string,
+    varName: string,
+    varLabel: string,
+    commandLines: string[],
+    comment?: string
+  ): string[] {
+    const lines: string[] = [];
+
+    if (comment) {
+      lines.push(comment);
+    }
+
+    lines.push(`${functionName}() {`);
+    lines.push(`  local -a ${varName}`);
+
+    if (commandLines.length === 1) {
+      lines.push(`  ${commandLines[0]}`);
+    } else {
+      lines.push(`  ${varName}=(`);
+      for (let i = 0; i < commandLines.length; i++) {
+        const suffix = i < commandLines.length - 1 ? ' \\' : '';
+        lines.push(`    ${commandLines[i]}${suffix}`);
+      }
+      lines.push('  )');
+    }
+
+    lines.push(`  _describe "${varLabel}" ${varName}`);
+    lines.push('}');
+    lines.push('');
+
+    return lines;
+  }
+
+  /**
    * Generate dynamic completion helper functions for change and spec IDs
    */
   private generateDynamicCompletionHelpers(): string[] {
     const lines: string[] = [];
 
-    // Helper function for completing change IDs
     lines.push('# Dynamic completion helpers');
-    lines.push('_openspec_complete_changes() {');
-    lines.push('  local -a changes');
-    lines.push('  # Use openspec list to get available changes');
-    lines.push('  changes=(${(f)"$(openspec list --changes 2>/dev/null | tail -n +2 | awk \'{print $1":"$2}\')"})');
-    lines.push('  _describe "change" changes');
-    lines.push('}');
-    lines.push('');
+
+    // Helper function for completing change IDs
+    lines.push(
+      ...this.generateCompletionFunction(
+        '_openspec_complete_changes',
+        'changes',
+        'change',
+        ['changes=(${(f)"$(openspec list --changes 2>/dev/null | tail -n +2 | awk \'{print $1":"$2}\')"})'],
+        '# Use openspec list to get available changes'
+      )
+    );
 
     // Helper function for completing spec IDs
-    lines.push('_openspec_complete_specs() {');
-    lines.push('  local -a specs');
-    lines.push('  # Use openspec list to get available specs');
-    lines.push('  specs=(${(f)"$(openspec list --specs 2>/dev/null | tail -n +2 | awk \'{print $1":"$2}\')"})');
-    lines.push('  _describe "spec" specs');
-    lines.push('}');
-    lines.push('');
+    lines.push(
+      ...this.generateCompletionFunction(
+        '_openspec_complete_specs',
+        'specs',
+        'spec',
+        ['specs=(${(f)"$(openspec list --specs 2>/dev/null | tail -n +2 | awk \'{print $1":"$2}\')"})'],
+        '# Use openspec list to get available specs'
+      )
+    );
 
     // Helper function for completing both changes and specs
-    lines.push('_openspec_complete_items() {');
-    lines.push('  local -a items');
-    lines.push('  # Get both changes and specs');
-    lines.push('  items=(');
-    lines.push('    ${(f)"$(openspec list --changes 2>/dev/null | tail -n +2 | awk \'{print $1":"$2}\')"} \\');
-    lines.push('    ${(f)"$(openspec list --specs 2>/dev/null | tail -n +2 | awk \'{print $1":"$2}\')"}');
-    lines.push('  )');
-    lines.push('  _describe "item" items');
-    lines.push('}');
-    lines.push('');
+    lines.push(
+      ...this.generateCompletionFunction(
+        '_openspec_complete_items',
+        'items',
+        'item',
+        [
+          '${(f)"$(openspec list --changes 2>/dev/null | tail -n +2 | awk \'{print $1":"$2}\')"}',
+          '${(f)"$(openspec list --specs 2>/dev/null | tail -n +2 | awk \'{print $1":"$2}\')"}',
+        ],
+        '# Get both changes and specs'
+      )
+    );
 
     return lines;
   }
@@ -266,10 +316,8 @@ export class ZshGenerator implements CompletionGenerator {
       }
     }
 
-    // Close the quote
-    if (!flag.short) {
-      parts.push("'");
-    }
+    // Close the quote (needed for both short and long forms)
+    parts.push("'");
 
     return parts.join('');
   }

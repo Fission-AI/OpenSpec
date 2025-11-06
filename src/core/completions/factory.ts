@@ -19,6 +19,8 @@ export type { InstallationResult };
  * This design makes it easy to add support for additional shells
  */
 export class CompletionFactory {
+  private static readonly SUPPORTED_SHELLS: SupportedShell[] = ['zsh'];
+
   /**
    * Create a completion generator for the specified shell
    *
@@ -58,7 +60,7 @@ export class CompletionFactory {
    * @returns true if the shell is supported
    */
   static isSupported(shell: string): shell is SupportedShell {
-    return shell === 'zsh';
+    return this.SUPPORTED_SHELLS.includes(shell as SupportedShell);
   }
 
   /**
@@ -67,6 +69,6 @@ export class CompletionFactory {
    * @returns Array of supported shell names
    */
   static getSupportedShells(): SupportedShell[] {
-    return ['zsh'];
+    return [...this.SUPPORTED_SHELLS];
   }
 }

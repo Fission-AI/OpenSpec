@@ -88,6 +88,9 @@ async function installCompletions(shell) {
       if (result.isOhMyZsh) {
         console.log(`✓ Shell completions installed`);
         console.log(`  Restart shell: exec zsh`);
+      } else if (result.zshrcConfigured) {
+        console.log(`✓ Shell completions installed and configured`);
+        console.log(`  Restart shell: exec zsh`);
       } else {
         console.log(`✓ Shell completions installed to ~/.zsh/completions/`);
         console.log(`  Add to ~/.zshrc: fpath=(~/.zsh/completions $fpath)`);

@@ -21,34 +21,46 @@ interface UninstallOptions {
  */
 export class CompletionCommand {
   /**
+   * Resolve shell parameter or exit with error
+   *
+   * @param shell - The shell parameter (may be undefined)
+   * @param operationName - Name of the operation (for error messages)
+   * @returns Resolved shell or null if should exit
+   */
+  private resolveShellOrExit(shell: string | undefined, operationName: string): SupportedShell | null {
+    const normalizedShell = this.normalizeShell(shell);
+
+    if (!normalizedShell) {
+      const detected = detectShell();
+      if (detected && CompletionFactory.isSupported(detected)) {
+        return detected;
+      }
+
+      // No shell specified and cannot auto-detect
+      console.error('Error: Could not auto-detect shell. Please specify shell explicitly.');
+      console.error(`Usage: openspec completion ${operationName} [shell]`);
+      console.error(`Currently supported: ${CompletionFactory.getSupportedShells().join(', ')}`);
+      process.exitCode = 1;
+      return null;
+    }
+
+    if (!CompletionFactory.isSupported(normalizedShell)) {
+      console.error(`Error: Shell '${normalizedShell}' is not supported yet. Currently supported: ${CompletionFactory.getSupportedShells().join(', ')}`);
+      process.exitCode = 1;
+      return null;
+    }
+
+    return normalizedShell;
+  }
+
+  /**
    * Generate completion script and output to stdout
    *
    * @param options - Options for generation (shell type)
    */
   async generate(options: GenerateOptions = {}): Promise<void> {
-    const shell = this.normalizeShell(options.shell);
-
-    if (!shell) {
-      const detected = detectShell();
-      if (detected && CompletionFactory.isSupported(detected)) {
-        // Use detected shell
-        await this.generateForShell(detected);
-        return;
-      }
-
-      // No shell specified and cannot auto-detect
-      console.error('Error: Could not auto-detect shell. Please specify shell explicitly.');
-      console.error('Usage: openspec completion generate <shell>');
-      console.error(`Currently supported: ${CompletionFactory.getSupportedShells().join(', ')}`);
-      process.exitCode = 1;
-      return;
-    }
-
-    if (!CompletionFactory.isSupported(shell)) {
-      console.error(`Error: Shell '${shell}' is not supported yet. Currently supported: ${CompletionFactory.getSupportedShells().join(', ')}`);
-      process.exitCode = 1;
-      return;
-    }
+    const shell = this.resolveShellOrExit(options.shell, 'generate');
+    if (!shell) return;
 
     await this.generateForShell(shell);
   }
@@ -59,29 +71,8 @@ export class CompletionCommand {
    * @param options - Options for installation (shell type, verbose output)
    */
   async install(options: InstallOptions = {}): Promise<void> {
-    const shell = this.normalizeShell(options.shell);
-
-    if (!shell) {
-      const detected = detectShell();
-      if (detected && CompletionFactory.isSupported(detected)) {
-        // Use detected shell
-        await this.installForShell(detected, options.verbose || false);
-        return;
-      }
-
-      // No shell specified and cannot auto-detect
-      console.error('Error: Could not auto-detect shell. Please specify shell explicitly.');
-      console.error('Usage: openspec completion install [shell]');
-      console.error(`Currently supported: ${CompletionFactory.getSupportedShells().join(', ')}`);
-      process.exitCode = 1;
-      return;
-    }
-
-    if (!CompletionFactory.isSupported(shell)) {
-      console.error(`Error: Shell '${shell}' is not supported yet. Currently supported: ${CompletionFactory.getSupportedShells().join(', ')}`);
-      process.exitCode = 1;
-      return;
-    }
+    const shell = this.resolveShellOrExit(options.shell, 'install');
+    if (!shell) return;
 
     await this.installForShell(shell, options.verbose || false);
   }
@@ -92,29 +83,8 @@ export class CompletionCommand {
    * @param options - Options for uninstallation (shell type)
    */
   async uninstall(options: UninstallOptions = {}): Promise<void> {
-    const shell = this.normalizeShell(options.shell);
-
-    if (!shell) {
-      const detected = detectShell();
-      if (detected && CompletionFactory.isSupported(detected)) {
-        // Use detected shell
-        await this.uninstallForShell(detected);
-        return;
-      }
-
-      // No shell specified and cannot auto-detect
-      console.error('Error: Could not auto-detect shell. Please specify shell explicitly.');
-      console.error('Usage: openspec completion uninstall [shell]');
-      console.error(`Currently supported: ${CompletionFactory.getSupportedShells().join(', ')}`);
-      process.exitCode = 1;
-      return;
-    }
-
-    if (!CompletionFactory.isSupported(shell)) {
-      console.error(`Error: Shell '${shell}' is not supported yet. Currently supported: ${CompletionFactory.getSupportedShells().join(', ')}`);
-      process.exitCode = 1;
-      return;
-    }
+    const shell = this.resolveShellOrExit(options.shell, 'uninstall');
+    if (!shell) return;
 
     await this.uninstallForShell(shell);
   }
@@ -154,14 +124,20 @@ export class CompletionCommand {
           if (result.backupPath) {
             console.log(`  Backup created: ${result.backupPath}`);
           }
+          if (result.zshrcConfigured) {
+            console.log(`  ~/.zshrc configured automatically`);
+          }
         }
 
-        // Print instructions
+        // Print instructions (only shown if .zshrc wasn't auto-configured)
         if (result.instructions && result.instructions.length > 0) {
           console.log('');
           for (const instruction of result.instructions) {
             console.log(instruction);
           }
+        } else if (result.zshrcConfigured) {
+          console.log('');
+          console.log('Restart your shell or run: exec zsh');
         }
       } else {
         console.error(`✗ ${result.message}`);

@@ -1,4 +1,32 @@
-import { CommandDefinition } from './types.js';
+import { CommandDefinition, FlagDefinition } from './types.js';
+
+/**
+ * Common flags used across multiple commands
+ */
+const COMMON_FLAGS = {
+  json: {
+    name: 'json',
+    description: 'Output as JSON',
+  } as FlagDefinition,
+  jsonValidation: {
+    name: 'json',
+    description: 'Output validation results as JSON',
+  } as FlagDefinition,
+  strict: {
+    name: 'strict',
+    description: 'Enable strict validation mode',
+  } as FlagDefinition,
+  noInteractive: {
+    name: 'no-interactive',
+    description: 'Disable interactive prompts',
+  } as FlagDefinition,
+  type: {
+    name: 'type',
+    description: 'Specify item type when ambiguous',
+    takesValue: true,
+    values: ['change', 'spec'],
+  } as FlagDefinition,
+} as const;
 
 /**
  * Registry of all OpenSpec CLI commands with their flags and metadata.
@@ -62,29 +90,15 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         name: 'specs',
         description: 'Validate all specs',
       },
-      {
-        name: 'type',
-        description: 'Specify item type when ambiguous',
-        takesValue: true,
-        values: ['change', 'spec'],
-      },
-      {
-        name: 'strict',
-        description: 'Enable strict validation mode',
-      },
-      {
-        name: 'json',
-        description: 'Output validation results as JSON',
-      },
+      COMMON_FLAGS.type,
+      COMMON_FLAGS.strict,
+      COMMON_FLAGS.jsonValidation,
       {
         name: 'concurrency',
         description: 'Max concurrent validations (defaults to env OPENSPEC_CONCURRENCY or 6)',
         takesValue: true,
       },
-      {
-        name: 'no-interactive',
-        description: 'Disable interactive prompts',
-      },
+      COMMON_FLAGS.noInteractive,
     ],
   },
   {
@@ -93,20 +107,9 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     acceptsPositional: true,
     positionalType: 'change-or-spec-id',
     flags: [
-      {
-        name: 'json',
-        description: 'Output as JSON',
-      },
-      {
-        name: 'type',
-        description: 'Specify item type when ambiguous',
-        takesValue: true,
-        values: ['change', 'spec'],
-      },
-      {
-        name: 'no-interactive',
-        description: 'Disable interactive prompts',
-      },
+      COMMON_FLAGS.json,
+      COMMON_FLAGS.type,
+      COMMON_FLAGS.noInteractive,
       {
         name: 'deltas-only',
         description: 'Show only deltas (JSON only, change-specific)',
@@ -163,10 +166,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         acceptsPositional: true,
         positionalType: 'change-id',
         flags: [
-          {
-            name: 'json',
-            description: 'Output as JSON',
-          },
+          COMMON_FLAGS.json,
           {
             name: 'deltas-only',
             description: 'Show only deltas (JSON only)',
@@ -175,20 +175,14 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             name: 'requirements-only',
             description: 'Alias for --deltas-only (deprecated)',
           },
-          {
-            name: 'no-interactive',
-            description: 'Disable interactive prompts',
-          },
+          COMMON_FLAGS.noInteractive,
         ],
       },
       {
         name: 'list',
         description: 'List all active changes (deprecated)',
         flags: [
-          {
-            name: 'json',
-            description: 'Output as JSON',
-          },
+          COMMON_FLAGS.json,
           {
             name: 'long',
             description: 'Show id and title with counts',
@@ -201,18 +195,9 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         acceptsPositional: true,
         positionalType: 'change-id',
         flags: [
-          {
-            name: 'strict',
-            description: 'Enable strict validation mode',
-          },
-          {
-            name: 'json',
-            description: 'Output validation report as JSON',
-          },
-          {
-            name: 'no-interactive',
-            description: 'Disable interactive prompts',
-          },
+          COMMON_FLAGS.strict,
+          COMMON_FLAGS.jsonValidation,
+          COMMON_FLAGS.noInteractive,
         ],
       },
     ],
@@ -228,10 +213,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         acceptsPositional: true,
         positionalType: 'spec-id',
         flags: [
-          {
-            name: 'json',
-            description: 'Output as JSON',
-          },
+          COMMON_FLAGS.json,
           {
             name: 'requirements',
             description: 'Show only requirements, exclude scenarios (JSON only)',
@@ -246,20 +228,14 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             description: 'Show specific requirement by ID (JSON only)',
             takesValue: true,
           },
-          {
-            name: 'no-interactive',
-            description: 'Disable interactive prompts',
-          },
+          COMMON_FLAGS.noInteractive,
         ],
       },
       {
         name: 'list',
         description: 'List all specifications',
         flags: [
-          {
-            name: 'json',
-            description: 'Output as JSON',
-          },
+          COMMON_FLAGS.json,
           {
             name: 'long',
             description: 'Show id and title with counts',
@@ -272,18 +248,9 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         acceptsPositional: true,
         positionalType: 'spec-id',
         flags: [
-          {
-            name: 'strict',
-            description: 'Enable strict validation mode',
-          },
-          {
-            name: 'json',
-            description: 'Output validation report as JSON',
-          },
-          {
-            name: 'no-interactive',
-            description: 'Disable interactive prompts',
-          },
+          COMMON_FLAGS.strict,
+          COMMON_FLAGS.jsonValidation,
+          COMMON_FLAGS.noInteractive,
         ],
       },
     ],

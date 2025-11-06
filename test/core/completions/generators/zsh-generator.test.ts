@@ -126,7 +126,7 @@ describe('ZshGenerator', () => {
 
       const script = generator.generate(commands);
 
-      expect(script).toContain("'(-r --requirement)'{-r,--requirement}'");
+      expect(script).toContain("'(-r --requirement)'{-r,--requirement}'[Show specific requirement]:value:'");
       expect(script).toContain('[Show specific requirement]');
     });
 

@@ -55,7 +55,7 @@ describe('ZshInstaller', () => {
       const result = await installer.getInstallationPath();
 
       expect(result.isOhMyZsh).toBe(true);
-      expect(result.path).toBe(path.join(testHomeDir, '.oh-my-zsh', 'completions', '_openspec'));
+      expect(result.path).toBe(path.join(testHomeDir, '.oh-my-zsh', 'custom', 'completions', '_openspec'));
     });
 
     it('should return standard Zsh path when Oh My Zsh is not installed', async () => {
@@ -110,7 +110,7 @@ describe('ZshInstaller', () => {
 
       expect(result.success).toBe(true);
       expect(result.isOhMyZsh).toBe(true);
-      expect(result.installedPath).toBe(path.join(ohMyZshPath, 'completions', '_openspec'));
+      expect(result.installedPath).toBe(path.join(ohMyZshPath, 'custom', 'completions', '_openspec'));
       expect(result.message).toContain('Oh My Zsh');
 
       // Verify file was created with correct content
@@ -173,13 +173,23 @@ describe('ZshInstaller', () => {
       expect(result.instructions!.join(' ')).toContain('automatically');
     });
 
-    it('should include fpath instructions for standard Zsh', async () => {
+    it('should include fpath instructions for standard Zsh when auto-config is disabled', async () => {
+      const originalEnv = process.env.OPENSPEC_NO_AUTO_CONFIG;
+      process.env.OPENSPEC_NO_AUTO_CONFIG = '1';
+
       const result = await installer.install(testScript);
 
       expect(result.instructions).toBeDefined();
       expect(result.instructions!.join('\n')).toContain('fpath');
       expect(result.instructions!.join('\n')).toContain('.zshrc');
       expect(result.instructions!.join('\n')).toContain('compinit');
+
+      // Restore env
+      if (originalEnv === undefined) {
+        delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      } else {
+        process.env.OPENSPEC_NO_AUTO_CONFIG = originalEnv;
+      }
     });
 
     it('should handle installation errors gracefully', async () => {
@@ -215,7 +225,8 @@ describe('ZshInstaller', () => {
       expect(afterUninstall).toBe(false);
     });
 
-    it('should return failure when script is not installed', async () => {
+    it('should return failure when script and .zshrc config are not installed', async () => {
+      // Don't create .zshrc or completion script - nothing to remove
       const result = await installer.uninstall();
 
       expect(result.success).toBe(false);
@@ -231,7 +242,7 @@ describe('ZshInstaller', () => {
       const result = await installer.uninstall();
 
       expect(result.success).toBe(true);
-      expect(result.message).toContain(path.join('.oh-my-zsh', 'completions', '_openspec'));
+      expect(result.message).toContain(path.join('.oh-my-zsh', 'custom', 'completions', '_openspec'));
     });
   });
 
@@ -306,6 +317,350 @@ describe('ZshInstaller', () => {
     it('should use os.homedir() by default', () => {
       const defaultInstaller = new ZshInstaller();
       expect(defaultInstaller).toBeDefined();
+    });
+  });
+
+  describe('configureZshrc', () => {
+    const completionsDir = '/test/.zsh/completions';
+
+    it('should create .zshrc with markers and config when file does not exist', async () => {
+      const result = await installer.configureZshrc(completionsDir);
+
+      expect(result).toBe(true);
+
+      const zshrcPath = path.join(testHomeDir, '.zshrc');
+      const content = await fs.readFile(zshrcPath, 'utf-8');
+
+      expect(content).toContain('# OPENSPEC:START');
+      expect(content).toContain('# OPENSPEC:END');
+      expect(content).toContain('# OpenSpec shell completions configuration');
+      expect(content).toContain(`fpath=(${completionsDir} $fpath)`);
+      expect(content).toContain('autoload -Uz compinit');
+      expect(content).toContain('compinit');
+    });
+
+    it('should prepend markers and config when .zshrc exists without markers', async () => {
+      const zshrcPath = path.join(testHomeDir, '.zshrc');
+      await fs.writeFile(zshrcPath, '# My custom zsh config\nalias ll="ls -la"\n');
+
+      const result = await installer.configureZshrc(completionsDir);
+
+      expect(result).toBe(true);
+
+      const content = await fs.readFile(zshrcPath, 'utf-8');
+
+      expect(content).toContain('# OPENSPEC:START');
+      expect(content).toContain('# OPENSPEC:END');
+      expect(content).toContain('# My custom zsh config');
+      expect(content).toContain('alias ll="ls -la"');
+
+      // Config should be before existing content
+      const configIndex = content.indexOf('# OPENSPEC:START');
+      const aliasIndex = content.indexOf('alias ll');
+      expect(configIndex).toBeLessThan(aliasIndex);
+    });
+
+    it('should update config between markers when .zshrc has existing markers', async () => {
+      const zshrcPath = path.join(testHomeDir, '.zshrc');
+      const initialContent = [
+        '# OPENSPEC:START',
+        '# Old config',
+        'fpath=(/old/path $fpath)',
+        '# OPENSPEC:END',
+        '',
+        '# My custom config',
+      ].join('\n');
+
+      await fs.writeFile(zshrcPath, initialContent);
+
+      const result = await installer.configureZshrc(completionsDir);
+
+      expect(result).toBe(true);
+
+      const content = await fs.readFile(zshrcPath, 'utf-8');
+
+      expect(content).toContain('# OPENSPEC:START');
+      expect(content).toContain('# OPENSPEC:END');
+      expect(content).toContain(`fpath=(${completionsDir} $fpath)`);
+      expect(content).not.toContain('# Old config');
+      expect(content).not.toContain('/old/path');
+      expect(content).toContain('# My custom config');
+    });
+
+    it('should preserve user content outside markers', async () => {
+      const zshrcPath = path.join(testHomeDir, '.zshrc');
+      const userContent = [
+        '# My zsh config',
+        'export PATH="/custom/path:$PATH"',
+        '',
+        '# OPENSPEC:START',
+        '# Old OpenSpec config',
+        '# OPENSPEC:END',
+        '',
+        'alias ls="ls -G"',
+      ].join('\n');
+
+      await fs.writeFile(zshrcPath, userContent);
+
+      const result = await installer.configureZshrc(completionsDir);
+
+      expect(result).toBe(true);
+
+      const content = await fs.readFile(zshrcPath, 'utf-8');
+
+      expect(content).toContain('# My zsh config');
+      expect(content).toContain('export PATH="/custom/path:$PATH"');
+      expect(content).toContain('alias ls="ls -G"');
+      expect(content).toContain(`fpath=(${completionsDir} $fpath)`);
+      expect(content).not.toContain('# Old OpenSpec config');
+    });
+
+    it('should return false when OPENSPEC_NO_AUTO_CONFIG is set', async () => {
+      const originalEnv = process.env.OPENSPEC_NO_AUTO_CONFIG;
+      process.env.OPENSPEC_NO_AUTO_CONFIG = '1';
+
+      const result = await installer.configureZshrc(completionsDir);
+
+      expect(result).toBe(false);
+
+      const zshrcPath = path.join(testHomeDir, '.zshrc');
+      const exists = await fs.access(zshrcPath).then(() => true).catch(() => false);
+      expect(exists).toBe(false);
+
+      // Restore env
+      if (originalEnv === undefined) {
+        delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      } else {
+        process.env.OPENSPEC_NO_AUTO_CONFIG = originalEnv;
+      }
+    });
+
+    it('should handle write permission errors gracefully', async () => {
+      // Create installer with path that can't be written
+      const invalidInstaller = new ZshInstaller('/root/invalid/path');
+
+      const result = await invalidInstaller.configureZshrc(completionsDir);
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('removeZshrcConfig', () => {
+    it('should return true when .zshrc does not exist', async () => {
+      const result = await installer.removeZshrcConfig();
+      expect(result).toBe(true);
+    });
+
+    it('should return true when .zshrc exists but has no markers', async () => {
+      const zshrcPath = path.join(testHomeDir, '.zshrc');
+      await fs.writeFile(zshrcPath, '# My custom config\nalias ll="ls -la"\n');
+
+      const result = await installer.removeZshrcConfig();
+
+      expect(result).toBe(true);
+
+      // Content should be unchanged
+      const content = await fs.readFile(zshrcPath, 'utf-8');
+      expect(content).toBe('# My custom config\nalias ll="ls -la"\n');
+    });
+
+    it('should remove markers and config when present', async () => {
+      const zshrcPath = path.join(testHomeDir, '.zshrc');
+      const content = [
+        '# My config',
+        '',
+        '# OPENSPEC:START',
+        '# OpenSpec shell completions configuration',
+        'fpath=(~/.zsh/completions $fpath)',
+        'autoload -Uz compinit',
+        'compinit',
+        '# OPENSPEC:END',
+        '',
+        'alias ll="ls -la"',
+      ].join('\n');
+
+      await fs.writeFile(zshrcPath, content);
+
+      const result = await installer.removeZshrcConfig();
+
+      expect(result).toBe(true);
+
+      const newContent = await fs.readFile(zshrcPath, 'utf-8');
+
+      expect(newContent).not.toContain('# OPENSPEC:START');
+      expect(newContent).not.toContain('# OPENSPEC:END');
+      expect(newContent).not.toContain('OpenSpec shell completions');
+      expect(newContent).toContain('# My config');
+      expect(newContent).toContain('alias ll="ls -la"');
+    });
+
+    it('should remove leading empty lines when markers were at top', async () => {
+      const zshrcPath = path.join(testHomeDir, '.zshrc');
+      const content = [
+        '# OPENSPEC:START',
+        '# OpenSpec config',
+        '# OPENSPEC:END',
+        '',
+        '# User config below',
+      ].join('\n');
+
+      await fs.writeFile(zshrcPath, content);
+
+      const result = await installer.removeZshrcConfig();
+
+      expect(result).toBe(true);
+
+      const newContent = await fs.readFile(zshrcPath, 'utf-8');
+
+      // Should not start with empty lines
+      expect(newContent).toBe('# User config below');
+    });
+
+    it('should handle invalid marker placement gracefully', async () => {
+      const zshrcPath = path.join(testHomeDir, '.zshrc');
+
+      // End marker before start marker
+      await fs.writeFile(zshrcPath, '# OPENSPEC:END\n# OPENSPEC:START\n');
+
+      const result = await installer.removeZshrcConfig();
+
+      expect(result).toBe(false);
+    });
+
+    it('should return true when only one marker is present', async () => {
+      const zshrcPath = path.join(testHomeDir, '.zshrc');
+      await fs.writeFile(zshrcPath, '# OPENSPEC:START\nsome config\n');
+
+      const result = await installer.removeZshrcConfig();
+
+      // Should return true (markers don't exist as a pair)
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('install with .zshrc auto-configuration', () => {
+    const testScript = '#compdef openspec\n_openspec() {}\n';
+
+    it('should auto-configure .zshrc for standard Zsh', async () => {
+      const result = await installer.install(testScript);
+
+      expect(result.success).toBe(true);
+      expect(result.zshrcConfigured).toBe(true);
+
+      // Verify .zshrc was created
+      const zshrcPath = path.join(testHomeDir, '.zshrc');
+      const content = await fs.readFile(zshrcPath, 'utf-8');
+
+      expect(content).toContain('# OPENSPEC:START');
+      expect(content).toContain('fpath=');
+      expect(content).toContain('compinit');
+    });
+
+    it('should not configure .zshrc for Oh My Zsh users', async () => {
+      const ohMyZshPath = path.join(testHomeDir, '.oh-my-zsh');
+      await fs.mkdir(ohMyZshPath, { recursive: true });
+
+      const result = await installer.install(testScript);
+
+      expect(result.success).toBe(true);
+      expect(result.isOhMyZsh).toBe(true);
+      expect(result.zshrcConfigured).toBe(false);
+
+      // Verify .zshrc was not created
+      const zshrcPath = path.join(testHomeDir, '.zshrc');
+      const exists = await fs.access(zshrcPath).then(() => true).catch(() => false);
+      expect(exists).toBe(false);
+    });
+
+    it('should not include manual instructions when .zshrc was auto-configured', async () => {
+      const result = await installer.install(testScript);
+
+      expect(result.success).toBe(true);
+      expect(result.zshrcConfigured).toBe(true);
+      expect(result.instructions).toBeUndefined();
+    });
+
+    it('should include instructions when .zshrc auto-config fails', async () => {
+      const originalEnv = process.env.OPENSPEC_NO_AUTO_CONFIG;
+      process.env.OPENSPEC_NO_AUTO_CONFIG = '1';
+
+      const result = await installer.install(testScript);
+
+      expect(result.success).toBe(true);
+      expect(result.zshrcConfigured).toBe(false);
+      expect(result.instructions).toBeDefined();
+      expect(result.instructions!.join('\n')).toContain('fpath');
+
+      // Restore env
+      if (originalEnv === undefined) {
+        delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      } else {
+        process.env.OPENSPEC_NO_AUTO_CONFIG = originalEnv;
+      }
+    });
+
+    it('should update success message when .zshrc is configured', async () => {
+      const result = await installer.install(testScript);
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('.zshrc configured');
+    });
+  });
+
+  describe('uninstall with .zshrc cleanup', () => {
+    const testScript = '#compdef openspec\n_openspec() {}\n';
+
+    it('should remove .zshrc config when uninstalling', async () => {
+      // Install first (which creates .zshrc config)
+      await installer.install(testScript);
+
+      // Verify .zshrc was configured
+      const zshrcPath = path.join(testHomeDir, '.zshrc');
+      let content = await fs.readFile(zshrcPath, 'utf-8');
+      expect(content).toContain('# OPENSPEC:START');
+
+      // Uninstall
+      const result = await installer.uninstall();
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('Removed OpenSpec configuration from ~/.zshrc');
+
+      // Verify .zshrc config was removed
+      content = await fs.readFile(zshrcPath, 'utf-8');
+      expect(content).not.toContain('# OPENSPEC:START');
+    });
+
+    it('should not remove .zshrc config for Oh My Zsh users', async () => {
+      const ohMyZshPath = path.join(testHomeDir, '.oh-my-zsh');
+      await fs.mkdir(ohMyZshPath, { recursive: true });
+
+      await installer.install(testScript);
+
+      const result = await installer.uninstall();
+
+      expect(result.success).toBe(true);
+      expect(result.message).not.toContain('.zshrc');
+    });
+
+    it('should succeed even if only .zshrc config is removed', async () => {
+      // Manually create .zshrc config without installing completion script
+      const zshrcPath = path.join(testHomeDir, '.zshrc');
+      await fs.writeFile(zshrcPath, '# OPENSPEC:START\nconfig\n# OPENSPEC:END\n');
+
+      const result = await installer.uninstall();
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('Removed OpenSpec configuration from ~/.zshrc');
+    });
+
+    it('should include both messages when removing script and .zshrc', async () => {
+      await installer.install(testScript);
+
+      const result = await installer.uninstall();
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('Completion script removed');
+      expect(result.message).toContain('Removed OpenSpec configuration from ~/.zshrc');
     });
   });
 });
