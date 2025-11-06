@@ -32,7 +32,7 @@
   "files": [
     "dist",
     "bin",
-    "scripts",
+    "scripts/postinstall.js",
     "!dist/**/*.test.js",
     "!dist/**/__tests__",
     "!dist/**/*.map"
