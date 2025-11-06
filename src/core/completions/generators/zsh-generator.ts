@@ -76,7 +76,7 @@ export class ZshGenerator implements CompletionGenerator {
     script.push(...this.generateDynamicCompletionHelpers());
 
     // Register the completion function
-    script.push('_openspec "$@"');
+    script.push('compdef _openspec openspec');
     script.push('');
 
     return script.join('\n');
