@@ -1,0 +1,1 @@
+{"version":3,"file":"project-template.d.ts","sourceRoot":"","sources":["../../../src/core/templates/project-template.ts"],"names":[],"mappings":"AAAA,MAAM,WAAW,cAAc;IAC7B,WAAW,CAAC,EAAE,MAAM,CAAC;IACrB,WAAW,CAAC,EAAE,MAAM,CAAC;IACrB,SAAS,CAAC,EAAE,MAAM,EAAE,CAAC;IACrB,WAAW,CAAC,EAAE,MAAM,CAAC;CACtB;AAED,eAAO,MAAM,eAAe,GAAI,UAAS,cAAmB,WA8B3D,CAAC"}
