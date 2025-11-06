@@ -343,6 +343,35 @@ describe('InitCommand', () => {
       expect(archiveContent).toContain('openspec archive <id>');
     });
 
+    it('should update existing Gemini CLI TOML files with refreshed content', async () => {
+      queueSelections('gemini', DONE);
+
+      await initCommand.execute(testDir);
+
+      const geminiProposal = path.join(
+        testDir,
+        '.gemini/commands/openspec/proposal.toml'
+      );
+
+      // Modify the file to simulate user customization
+      const originalContent = await fs.readFile(geminiProposal, 'utf-8');
+      const modifiedContent = originalContent.replace(
+        '<!-- OPENSPEC:START -->',
+        '<!-- OPENSPEC:START -->\nCustom instruction added by user\n'
+      );
+      await fs.writeFile(geminiProposal, modifiedContent);
+
+      // Run init again to test update/refresh path
+      queueSelections('gemini', DONE);
+      await initCommand.execute(testDir);
+
+      const updatedContent = await fs.readFile(geminiProposal, 'utf-8');
+      expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
+      expect(updatedContent).toContain('**Guardrails**');
+      expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
+      expect(updatedContent).not.toContain('Custom instruction added by user');
+    });
+
     it('should create OpenCode slash command files with templates', async () => {
       queueSelections('opencode', DONE);
 
