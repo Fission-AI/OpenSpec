@@ -51,7 +51,7 @@ export class ZshGenerator implements CompletionGenerator {
     script.push('      _describe "openspec command" commands');
     script.push('      ;;');
     script.push('    args)');
-    script.push('      case $line[1] in');
+    script.push('      case $words[1] in');
 
     // Generate completion for each command
     for (const cmd of commands) {
@@ -132,42 +132,43 @@ export class ZshGenerator implements CompletionGenerator {
     const lines: string[] = [];
 
     lines.push('# Dynamic completion helpers');
+    lines.push('');
 
     // Helper function for completing change IDs
-    lines.push(
-      ...this.generateCompletionFunction(
-        '_openspec_complete_changes',
-        'changes',
-        'change',
-        ['changes=(${(f)"$(openspec list --changes 2>/dev/null | tail -n +2 | awk \'{print $1":"$2}\')"})'],
-        '# Use openspec list to get available changes'
-      )
-    );
+    lines.push('# Use openspec __complete to get available changes');
+    lines.push('_openspec_complete_changes() {');
+    lines.push('  local -a changes');
+    lines.push('  while IFS=$\'\\t\' read -r id desc; do');
+    lines.push('    changes+=("$id:$desc")');
+    lines.push('  done < <(openspec __complete changes 2>/dev/null)');
+    lines.push('  _describe "change" changes');
+    lines.push('}');
+    lines.push('');
 
     // Helper function for completing spec IDs
-    lines.push(
-      ...this.generateCompletionFunction(
-        '_openspec_complete_specs',
-        'specs',
-        'spec',
-        ['specs=(${(f)"$(openspec list --specs 2>/dev/null | tail -n +2 | awk \'{print $1":"$2}\')"})'],
-        '# Use openspec list to get available specs'
-      )
-    );
+    lines.push('# Use openspec __complete to get available specs');
+    lines.push('_openspec_complete_specs() {');
+    lines.push('  local -a specs');
+    lines.push('  while IFS=$\'\\t\' read -r id desc; do');
+    lines.push('    specs+=("$id:$desc")');
+    lines.push('  done < <(openspec __complete specs 2>/dev/null)');
+    lines.push('  _describe "spec" specs');
+    lines.push('}');
+    lines.push('');
 
     // Helper function for completing both changes and specs
-    lines.push(
-      ...this.generateCompletionFunction(
-        '_openspec_complete_items',
-        'items',
-        'item',
-        [
-          '${(f)"$(openspec list --changes 2>/dev/null | tail -n +2 | awk \'{print $1":"$2}\')"}',
-          '${(f)"$(openspec list --specs 2>/dev/null | tail -n +2 | awk \'{print $1":"$2}\')"}',
-        ],
-        '# Get both changes and specs'
-      )
-    );
+    lines.push('# Get both changes and specs');
+    lines.push('_openspec_complete_items() {');
+    lines.push('  local -a items');
+    lines.push('  while IFS=$\'\\t\' read -r id desc; do');
+    lines.push('    items+=("$id:$desc")');
+    lines.push('  done < <(openspec __complete changes 2>/dev/null)');
+    lines.push('  while IFS=$\'\\t\' read -r id desc; do');
+    lines.push('    items+=("$id:$desc")');
+    lines.push('  done < <(openspec __complete specs 2>/dev/null)');
+    lines.push('  _describe "item" items');
+    lines.push('}');
+    lines.push('');
 
     return lines;
   }
@@ -211,7 +212,7 @@ export class ZshGenerator implements CompletionGenerator {
       lines.push('      _describe "subcommand" subcommands');
       lines.push('      ;;');
       lines.push('    args)');
-      lines.push('      case $line[1] in');
+      lines.push('      case $words[1] in');
 
       for (const subcmd of cmd.subcommands) {
         lines.push(`        ${subcmd.name})`);

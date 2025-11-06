@@ -1,7 +1,10 @@
 import ora from 'ora';
+import { confirm } from '@inquirer/prompts';
 import { CompletionFactory } from '../core/completions/factory.js';
 import { COMMAND_REGISTRY } from '../core/completions/command-registry.js';
 import { detectShell, SupportedShell } from '../utils/shell-detection.js';
+import { CompletionProvider } from '../core/completions/completion-provider.js';
+import { getArchivedChangeIds } from '../utils/item-discovery.js';
 
 interface GenerateOptions {
   shell?: string;
@@ -14,12 +17,22 @@ interface InstallOptions {
 
 interface UninstallOptions {
   shell?: string;
+  yes?: boolean;
+}
+
+interface CompleteOptions {
+  type: string;
 }
 
 /**
  * Command for managing shell completions for OpenSpec CLI
  */
 export class CompletionCommand {
+  private completionProvider: CompletionProvider;
+
+  constructor() {
+    this.completionProvider = new CompletionProvider();
+  }
   /**
    * Resolve shell parameter or exit with error
    *
@@ -80,13 +93,13 @@ export class CompletionCommand {
   /**
    * Uninstall completion script from the installation location
    *
-   * @param options - Options for uninstallation (shell type)
+   * @param options - Options for uninstallation (shell type, yes flag)
    */
   async uninstall(options: UninstallOptions = {}): Promise<void> {
     const shell = this.resolveShellOrExit(options.shell, 'uninstall');
     if (!shell) return;
 
-    await this.uninstallForShell(shell);
+    await this.uninstallForShell(shell, options.yes || false);
   }
 
   /**
@@ -153,8 +166,21 @@ export class CompletionCommand {
   /**
    * Uninstall completion script for a specific shell
    */
-  private async uninstallForShell(shell: SupportedShell): Promise<void> {
+  private async uninstallForShell(shell: SupportedShell, skipConfirmation: boolean): Promise<void> {
     const installer = CompletionFactory.createInstaller(shell);
+
+    // Prompt for confirmation unless --yes flag is provided
+    if (!skipConfirmation) {
+      const confirmed = await confirm({
+        message: 'Remove OpenSpec configuration from ~/.zshrc?',
+        default: false,
+      });
+
+      if (!confirmed) {
+        console.log('Uninstall cancelled.');
+        return;
+      }
+    }
 
     const spinner = ora(`Uninstalling ${shell} completion script...`).start();
 
@@ -172,6 +198,49 @@ export class CompletionCommand {
     } catch (error) {
       spinner.stop();
       console.error(`✗ Failed to uninstall completion script: ${error instanceof Error ? error.message : String(error)}`);
+      process.exitCode = 1;
+    }
+  }
+
+  /**
+   * Output machine-readable completion data for shell consumption
+   * Format: tab-separated "id\tdescription" per line
+   *
+   * @param options - Options specifying completion type
+   */
+  async complete(options: CompleteOptions): Promise<void> {
+    const type = options.type.toLowerCase();
+
+    try {
+      switch (type) {
+        case 'changes': {
+          const changeIds = await this.completionProvider.getChangeIds();
+          for (const id of changeIds) {
+            console.log(`${id}\tactive change`);
+          }
+          break;
+        }
+        case 'specs': {
+          const specIds = await this.completionProvider.getSpecIds();
+          for (const id of specIds) {
+            console.log(`${id}\tspecification`);
+          }
+          break;
+        }
+        case 'archived-changes': {
+          const archivedIds = await getArchivedChangeIds();
+          for (const id of archivedIds) {
+            console.log(`${id}\tarchived change`);
+          }
+          break;
+        }
+        default:
+          // Invalid type - silently exit with no output for graceful shell completion failure
+          process.exitCode = 1;
+          break;
+      }
+    } catch {
+      // Silently fail for graceful shell completion experience
       process.exitCode = 1;
     }
   }

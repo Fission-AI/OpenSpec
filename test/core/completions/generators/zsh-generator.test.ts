@@ -340,7 +340,7 @@ describe('ZshGenerator', () => {
       expect(script).toContain("'*: :_openspec_complete_specs'");
     });
 
-    it('should generate script that ends with main function call', () => {
+    it('should generate script that ends with compdef registration', () => {
       const commands: CommandDefinition[] = [
         {
           name: 'init',
@@ -351,7 +351,7 @@ describe('ZshGenerator', () => {
 
       const script = generator.generate(commands);
 
-      expect(script.trim().endsWith('_openspec "$@"')).toBe(true);
+      expect(script.trim().endsWith('compdef _openspec openspec')).toBe(true);
     });
 
     it('should handle empty command list', () => {

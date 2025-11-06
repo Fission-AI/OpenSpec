@@ -288,14 +288,29 @@ completionCmd
 completionCmd
   .command('uninstall [shell]')
   .description('Uninstall completion script for a shell')
-  .action(async (shell?: string) => {
+  .option('-y, --yes', 'Skip confirmation prompts')
+  .action(async (shell?: string, options?: { yes?: boolean }) => {
     try {
       const completionCommand = new CompletionCommand();
-      await completionCommand.uninstall({ shell });
+      await completionCommand.uninstall({ shell, yes: options?.yes });
     } catch (error) {
       console.log();
       ora().fail(`Error: ${(error as Error).message}`);
       process.exit(1);
+    }
+  });
+
+// Hidden command for machine-readable completion data
+program
+  .command('__complete <type>', { hidden: true })
+  .description('Output completion data in machine-readable format (internal use)')
+  .action(async (type: string) => {
+    try {
+      const completionCommand = new CompletionCommand();
+      await completionCommand.complete({ type });
+    } catch (error) {
+      // Silently fail for graceful shell completion experience
+      process.exitCode = 1;
     }
   });
 

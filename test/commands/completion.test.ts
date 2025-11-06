@@ -154,7 +154,7 @@ describe('CompletionCommand', () => {
 
   describe('uninstall subcommand', () => {
     it('should uninstall Zsh completion script', async () => {
-      await command.uninstall({ shell: 'zsh' });
+      await command.uninstall({ shell: 'zsh', yes: true });
 
       expect(consoleLogSpy).toHaveBeenCalledWith(
         expect.stringContaining('Completion script removed')
@@ -165,7 +165,7 @@ describe('CompletionCommand', () => {
     it('should auto-detect Zsh shell when no shell specified', async () => {
       vi.mocked(shellDetection.detectShell).mockReturnValue('zsh');
 
-      await command.uninstall({});
+      await command.uninstall({ yes: true });
 
       expect(consoleLogSpy).toHaveBeenCalledWith(
         expect.stringContaining('Completion script removed')
@@ -175,7 +175,7 @@ describe('CompletionCommand', () => {
     it('should show error when shell cannot be auto-detected', async () => {
       vi.mocked(shellDetection.detectShell).mockReturnValue(undefined);
 
-      await command.uninstall({});
+      await command.uninstall({ yes: true });
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         'Error: Could not auto-detect shell. Please specify shell explicitly.'
@@ -184,7 +184,7 @@ describe('CompletionCommand', () => {
     });
 
     it('should show error for unsupported shell', async () => {
-      await command.uninstall({ shell: 'powershell' });
+      await command.uninstall({ shell: 'powershell', yes: true });
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         "Error: Shell 'powershell' is not supported yet. Currently supported: zsh"
@@ -235,7 +235,7 @@ describe('CompletionCommand', () => {
       } as any));
 
       const cmd = new CompletionCommand();
-      await cmd.uninstall({ shell: 'zsh' });
+      await cmd.uninstall({ shell: 'zsh', yes: true });
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining('Completion script is not installed')

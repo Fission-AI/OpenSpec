@@ -38,9 +38,15 @@ export class ZshInstaller {
   /**
    * Check if Oh My Zsh is installed
    *
-   * @returns true if Oh My Zsh directory exists
+   * @returns true if Oh My Zsh is detected via $ZSH env var or directory exists
    */
   async isOhMyZshInstalled(): Promise<boolean> {
+    // First check for $ZSH environment variable (standard OMZ setup)
+    if (process.env.ZSH) {
+      return true;
+    }
+
+    // Fall back to checking for ~/.oh-my-zsh directory
     const ohMyZshPath = path.join(this.homeDir, '.oh-my-zsh');
 
     try {
@@ -253,7 +259,15 @@ export class ZshInstaller {
       }
 
       // Generate instructions (only if .zshrc wasn't auto-configured)
-      const instructions = zshrcConfigured ? undefined : this.generateInstructions(isOhMyZsh, targetPath);
+      let instructions = zshrcConfigured ? undefined : this.generateInstructions(isOhMyZsh, targetPath);
+
+      // Add fpath guidance for Oh My Zsh installations
+      if (isOhMyZsh) {
+        const fpathGuidance = this.generateOhMyZshFpathGuidance(targetDir);
+        if (fpathGuidance) {
+          instructions = instructions ? [...instructions, '', ...fpathGuidance] : fpathGuidance;
+        }
+      }
 
       return {
         success: true,
@@ -275,6 +289,22 @@ export class ZshInstaller {
         message: `Failed to install completion script: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
+  }
+
+  /**
+   * Generate Oh My Zsh fpath verification guidance
+   *
+   * @param completionsDir - Custom completions directory path
+   * @returns Array of guidance strings, or undefined if not needed
+   */
+  private generateOhMyZshFpathGuidance(completionsDir: string): string[] | undefined {
+    return [
+      'Note: Oh My Zsh typically auto-loads completions from custom/completions.',
+      `Verify that ${completionsDir} is in your fpath by running:`,
+      '  echo $fpath | grep "custom/completions"',
+      '',
+      'If not found, completions may not work. Restart your shell to ensure changes take effect.',
+    ];
   }
 
   /**
