@@ -32,6 +32,7 @@
   "files": [
     "dist",
     "bin",
+    "scripts",
     "!dist/**/*.test.js",
     "!dist/**/__tests__",
     "!dist/**/*.map"
@@ -44,8 +45,10 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
+    "test:postinstall": "node scripts/postinstall.js",
     "prepare": "pnpm run build",
     "prepublishOnly": "pnpm run build",
+    "postinstall": "node scripts/postinstall.js",
     "check:pack-version": "node scripts/pack-version-check.mjs",
     "release": "pnpm run release:ci",
     "release:ci": "pnpm run check:pack-version && pnpm exec changeset publish",

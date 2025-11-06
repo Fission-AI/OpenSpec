@@ -13,6 +13,7 @@ import { registerSpecCommand } from '../commands/spec.js';
 import { ChangeCommand } from '../commands/change.js';
 import { ValidateCommand } from '../commands/validate.js';
 import { ShowCommand } from '../commands/show.js';
+import { CompletionCommand } from '../commands/completion.js';
 
 const program = new Command();
 const require = createRequire(import.meta.url);
@@ -243,6 +244,54 @@ program
     try {
       const showCommand = new ShowCommand();
       await showCommand.execute(itemName, options ?? {});
+    } catch (error) {
+      console.log();
+      ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+// Completion command with subcommands
+const completionCmd = program
+  .command('completion')
+  .description('Manage shell completions for OpenSpec CLI');
+
+completionCmd
+  .command('generate [shell]')
+  .description('Generate completion script for a shell (outputs to stdout)')
+  .action(async (shell?: string) => {
+    try {
+      const completionCommand = new CompletionCommand();
+      await completionCommand.generate({ shell });
+    } catch (error) {
+      console.log();
+      ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+completionCmd
+  .command('install [shell]')
+  .description('Install completion script for a shell')
+  .option('--verbose', 'Show detailed installation output')
+  .action(async (shell?: string, options?: { verbose?: boolean }) => {
+    try {
+      const completionCommand = new CompletionCommand();
+      await completionCommand.install({ shell, verbose: options?.verbose });
+    } catch (error) {
+      console.log();
+      ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+completionCmd
+  .command('uninstall [shell]')
+  .description('Uninstall completion script for a shell')
+  .action(async (shell?: string) => {
+    try {
+      const completionCommand = new CompletionCommand();
+      await completionCommand.uninstall({ shell });
     } catch (error) {
       console.log();
       ora().fail(`Error: ${(error as Error).message}`);
