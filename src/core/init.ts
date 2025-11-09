@@ -371,15 +371,18 @@ const toolSelectionWizard = createPrompt<string[], ToolWizardConfig>(
 type InitCommandOptions = {
   prompt?: ToolSelectionPrompt;
   tools?: string;
+  language?: 'en' | 'zh';
 };
 
 export class InitCommand {
   private readonly prompt: ToolSelectionPrompt;
   private readonly toolsArg?: string;
+  private readonly language: 'en' | 'zh';
 
   constructor(options: InitCommandOptions = {}) {
     this.prompt = options.prompt ?? ((config) => toolSelectionWizard(config));
     this.toolsArg = options.tools;
+    this.language = options.language ?? 'en';
   }
 
   async execute(targetPath: string): Promise<void> {
@@ -417,18 +420,18 @@ export class InitCommand {
     // Step 1: Create directory structure
     if (!extendMode) {
       const structureSpinner = this.startSpinner(
-        'Creating OpenSpec structure...'
+        this.language === 'zh' ? '创建OpenSpec结构...' : 'Creating OpenSpec structure...'
       );
       await this.createDirectoryStructure(openspecPath);
       await this.generateFiles(openspecPath, config);
       structureSpinner.stopAndPersist({
         symbol: PALETTE.white('▌'),
-        text: PALETTE.white('OpenSpec structure created'),
+        text: PALETTE.white(this.language === 'zh' ? 'OpenSpec结构已创建' : 'OpenSpec structure created'),
       });
     } else {
       ora({ stream: process.stdout }).info(
         PALETTE.midGray(
-          'ℹ OpenSpec already initialized. Checking for missing files...'
+          this.language === 'zh' ? 'ℹ OpenSpec已初始化。正在检查缺失的文件...' : 'ℹ OpenSpec already initialized. Checking for missing files...'
         )
       );
       await this.createDirectoryStructure(openspecPath);
@@ -436,7 +439,7 @@ export class InitCommand {
     }
 
     // Step 2: Configure AI tools
-    const toolSpinner = this.startSpinner('Configuring AI tools...');
+    const toolSpinner = this.startSpinner(this.language === 'zh' ? '配置AI工具...' : 'Configuring AI tools...');
     const rootStubStatus = await this.configureAITools(
       projectPath,
       openspecDir,
@@ -444,7 +447,7 @@ export class InitCommand {
     );
     toolSpinner.stopAndPersist({
       symbol: PALETTE.white('▌'),
-      text: PALETTE.white('AI tools configured'),
+      text: PALETTE.white(this.language === 'zh' ? 'AI工具已配置' : 'AI tools configured'),
     });
 
     // Success message
@@ -741,7 +744,7 @@ export class InitCommand {
       // Could be enhanced with prompts for project details
     };
 
-    const templates = TemplateManager.getTemplates(context);
+    const templates = TemplateManager.getTemplates(context, this.language);
 
     for (const template of templates) {
       const filePath = path.join(openspecPath, template.path);

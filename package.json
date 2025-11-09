@@ -57,7 +57,7 @@
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.7",
-    "@types/node": "^24.2.0",
+    "@types/node": "^24.10.0",
     "@vitest/ui": "^3.2.4",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
