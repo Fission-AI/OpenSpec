@@ -1248,6 +1248,108 @@ describe('InitCommand', () => {
   });
 
   describe('non-interactive mode', () => {
+    it('should create config.json with language setting when --language is provided', async () => {
+      const command = new InitCommand({ tools: 'none', language: 'zh-CN' });
+      await command.execute(testDir);
+
+      const configPath = path.join(testDir, 'openspec', 'config.json');
+      expect(await fileExists(configPath)).toBe(true);
+
+      const configContent = await fs.readFile(configPath, 'utf-8');
+      const config = JSON.parse(configContent);
+      expect(config.language).toBe('zh-CN');
+    });
+
+    it('should use Chinese templates when language is zh-CN', async () => {
+      const command = new InitCommand({ tools: 'none', language: 'zh-CN' });
+      await command.execute(testDir);
+
+      const projectPath = path.join(testDir, 'openspec', 'project.md');
+      expect(await fileExists(projectPath)).toBe(true);
+
+      const projectContent = await fs.readFile(projectPath, 'utf-8');
+      expect(projectContent).toContain('项目');
+      expect(projectContent).toContain('技术栈');
+
+      // Verify AGENTS.md is also in Chinese
+      const agentsPath = path.join(testDir, 'openspec', 'AGENTS.md');
+      expect(await fileExists(agentsPath)).toBe(true);
+      const agentsContent = await fs.readFile(agentsPath, 'utf-8');
+      expect(agentsContent).toContain('OpenSpec 说明');
+      expect(agentsContent).toContain('快速检查清单');
+      expect(agentsContent).toContain('三阶段工作流');
+    });
+
+    it('should default to en-US when no language is specified', async () => {
+      const command = new InitCommand({ tools: 'none' });
+      await command.execute(testDir);
+
+      const configPath = path.join(testDir, 'openspec', 'config.json');
+      if (await fileExists(configPath)) {
+        const configContent = await fs.readFile(configPath, 'utf-8');
+        const config = JSON.parse(configContent);
+        expect(config.language).toBe('en-US');
+      }
+
+      const projectPath = path.join(testDir, 'openspec', 'project.md');
+      const projectContent = await fs.readFile(projectPath, 'utf-8');
+      expect(projectContent).toContain('Project Context');
+    });
+
+    it('should read existing language config in extend mode', async () => {
+      // First init with Chinese
+      const firstCommand = new InitCommand({ tools: 'none', language: 'zh-CN' });
+      await firstCommand.execute(testDir);
+
+      // Second init in extend mode should use existing language
+      queueSelections(DONE);
+      await initCommand.execute(testDir);
+
+      const projectPath = path.join(testDir, 'openspec', 'project.md');
+      const projectContent = await fs.readFile(projectPath, 'utf-8');
+      // Should still be Chinese (though file might not be regenerated in extend mode)
+      const configPath = path.join(testDir, 'openspec', 'config.json');
+      const configContent = await fs.readFile(configPath, 'utf-8');
+      const config = JSON.parse(configContent);
+      expect(config.language).toBe('zh-CN');
+    });
+
+    it('should use French templates when language is fr-FR', async () => {
+      const command = new InitCommand({ tools: 'none', language: 'fr-FR' });
+      await command.execute(testDir);
+
+      const projectPath = path.join(testDir, 'openspec', 'project.md');
+      expect(await fileExists(projectPath)).toBe(true);
+
+      const projectContent = await fs.readFile(projectPath, 'utf-8');
+      expect(projectContent).toContain('Contexte');
+      expect(projectContent).toContain('Pile Technologique');
+    });
+
+    it('should use Japanese templates when language is ja-JP', async () => {
+      const command = new InitCommand({ tools: 'none', language: 'ja-JP' });
+      await command.execute(testDir);
+
+      const projectPath = path.join(testDir, 'openspec', 'project.md');
+      expect(await fileExists(projectPath)).toBe(true);
+
+      const projectContent = await fs.readFile(projectPath, 'utf-8');
+      expect(projectContent).toContain('コンテキスト');
+      expect(projectContent).toContain('技術スタック');
+    });
+
+    it('should use Arabic templates when language is ar-SA', async () => {
+      const command = new InitCommand({ tools: 'none', language: 'ar-SA' });
+      await command.execute(testDir);
+
+      const projectPath = path.join(testDir, 'openspec', 'project.md');
+      expect(await fileExists(projectPath)).toBe(true);
+
+      const projectContent = await fs.readFile(projectPath, 'utf-8');
+      expect(projectContent).toContain('سياق');
+      expect(projectContent).toContain('المكدس التقني');
+    });
+
     it('should select all available tools with --tools all option', async () => {
       const nonInteractiveCommand = new InitCommand({ tools: 'all' });
 

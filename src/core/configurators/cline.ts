@@ -9,9 +9,9 @@ export class ClineConfigurator implements ToolConfigurator {
   configFileName = 'CLINE.md';
   isAvailable = true;
 
-  async configure(projectPath: string, openspecDir: string): Promise<void> {
+  async configure(projectPath: string, openspecDir: string, language: string = 'en-US'): Promise<void> {
     const filePath = path.join(projectPath, this.configFileName);
-    const content = TemplateManager.getClineTemplate();
+    const content = TemplateManager.getClineTemplate(language);
     
     await FileSystemUtils.updateFileWithMarkers(
       filePath,
