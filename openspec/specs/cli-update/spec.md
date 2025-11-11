@@ -117,6 +117,12 @@ The update command SHALL refresh existing slash command files for configured too
 - **AND** update only the OpenSpec-managed block between markers
 - **AND** ensure templates include instructions for the relevant workflow stage
 
+#### Scenario: Updating slash commands for Gemini CLI
+- **WHEN** `.gemini/commands/openspec/` contains `proposal.toml`, `apply.toml`, and `archive.toml`
+- **THEN** refresh the body of each file using the shared proposal/apply/archive templates
+- **AND** replace only the content between `<!-- OPENSPEC:START -->` and `<!-- OPENSPEC:END -->` markers inside the `prompt = """` block so the TOML framing (`description`, `prompt`) stays intact
+- **AND** skip creating any missing `.toml` files during update; only pre-existing Gemini commands are refreshed
+
 #### Scenario: Missing slash command file
 - **WHEN** a tool lacks a slash command file
 - **THEN** do not create a new file during update
