@@ -231,6 +231,13 @@ The init command SHALL generate slash command files for supported editors using 
 - **AND** wrap the shared template body with OpenSpec markers so `openspec update` can refresh the content
 - **AND** each template includes instructions for the relevant OpenSpec workflow stage
 
+#### Scenario: Generating slash commands for Gemini CLI
+- **WHEN** the user selects Gemini CLI during initialization
+- **THEN** create `.gemini/commands/openspec/proposal.toml`, `.gemini/commands/openspec/apply.toml`, and `.gemini/commands/openspec/archive.toml`
+- **AND** populate each file as TOML that sets a stage-specific `description = "<summary>"` and a multi-line `prompt = """` block with the shared OpenSpec template
+- **AND** wrap the OpenSpec managed markers (`<!-- OPENSPEC:START -->` / `<!-- OPENSPEC:END -->`) inside the `prompt` value so `openspec update` can safely refresh the body between markers without touching the TOML framing
+- **AND** ensure the slash-command copy matches the existing proposal/apply/archive templates used by other tools
+
 ### Requirement: Non-Interactive Mode
 The command SHALL support non-interactive operation through command-line options for automation and CI/CD use cases.
 
