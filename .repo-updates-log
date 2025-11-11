@@ -1,0 +1,13 @@
+## Repository Updates Log
+
+### 2025-10-29 - Gemini CLI Support PR Created
+
+**PR #256**: feat: Add Gemini CLI support with TOML-based slash commands
+- Status: Open, awaiting review from @TabishB
+- Branch: `feature/add-gemini-cli-support` (commit 1ec30f6)
+- Forked to: https://github.com/snoai/OpenSpec
+- PR URL: https://github.com/Fission-AI/OpenSpec/pull/256
+- Changes: Added `GeminiSlashCommandConfigurator` with TOML-based slash commands (`/openspec:proposal`, `/openspec:apply`, `/openspec:archive`)
+- Testing: All 244 tests passing, build successful
+- Changeset: Added minor version bump
+- Closes: #248
