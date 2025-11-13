@@ -2,9 +2,9 @@ import { SlashCommandConfigurator } from './base.js';
 import { SlashCommandId } from '../../templates/index.js';
 
 const FILE_PATHS: Record<SlashCommandId, string> = {
-  proposal: '.clinerules/openspec-proposal.md',
-  apply: '.clinerules/openspec-apply.md',
-  archive: '.clinerules/openspec-archive.md'
+  proposal: '.clinerules/workflows/openspec-proposal.md',
+  apply: '.clinerules/workflows/openspec-apply.md',
+  archive: '.clinerules/workflows/openspec-archive.md'
 };
 
 export class ClineSlashCommandConfigurator extends SlashCommandConfigurator {

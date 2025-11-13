@@ -298,10 +298,10 @@ More rules after.`;
     expect(fileExists).toBe(false);
   });
 
-  it('should refresh existing Cline rule files', async () => {
+  it('should refresh existing Cline workflow files', async () => {
     const proposalPath = path.join(
       testDir,
-      '.clinerules/openspec-proposal.md'
+      '.clinerules/workflows/openspec-proposal.md'
     );
     await fs.mkdir(path.dirname(proposalPath), { recursive: true });
     const initialContent = `# OpenSpec: Proposal
@@ -331,7 +331,7 @@ Old slash content
     );
     expect(logMessage).toContain('AGENTS.md (created)');
     expect(logMessage).toContain(
-      'Updated slash commands: .clinerules/openspec-proposal.md'
+      'Updated slash commands: .clinerules/workflows/openspec-proposal.md'
     );
 
     consoleSpy.mockRestore();
