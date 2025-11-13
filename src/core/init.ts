@@ -400,6 +400,11 @@ export class InitCommand {
 
     this.renderBanner(extendMode);
 
+    // Read existing config before language selection to detect language changes
+    const existingConfigBeforeLanguageChange = extendMode 
+      ? await this.readConfigFile(openspecPath)
+      : null;
+
     // Get language configuration first (before AI tool selection)
     const selectedLanguage = await this.getSelectedLanguage(openspecPath, extendMode);
     
@@ -447,7 +452,7 @@ export class InitCommand {
         )
       );
       await this.createDirectoryStructure(openspecPath);
-      await this.ensureTemplateFiles(openspecPath, config);
+      await this.ensureTemplateFiles(openspecPath, config, existingConfigBeforeLanguageChange);
     }
 
     // Step 2: Configure AI tools
@@ -505,27 +510,23 @@ export class InitCommand {
     openspecPath: string,
     extendMode: boolean
   ): Promise<string> {
-    // Try to read existing config first
-    if (extendMode) {
-      const existingConfig = await this.readConfigFile(openspecPath);
-      if (existingConfig?.language) {
-        // In extend mode, use existing language unless explicitly changed
-        const nonInteractiveLanguage = this.resolveLanguageArg();
-        if (nonInteractiveLanguage !== null) {
-          return nonInteractiveLanguage;
-        }
-        return existingConfig.language;
-      }
-    }
-
-    // Non-interactive mode
+    // Non-interactive mode - check for --language flag first
     const nonInteractiveLanguage = this.resolveLanguageArg();
     if (nonInteractiveLanguage !== null) {
       return nonInteractiveLanguage;
     }
 
-    // Interactive mode - prompt for language
-    return this.promptForLanguage();
+    // Try to read existing config for default value
+    let defaultLanguage = DEFAULT_LANGUAGE;
+    if (extendMode) {
+      const existingConfig = await this.readConfigFile(openspecPath);
+      if (existingConfig?.language) {
+        defaultLanguage = existingConfig.language;
+      }
+    }
+
+    // Interactive mode - prompt for language with default
+    return this.promptForLanguage(defaultLanguage);
   }
 
   private resolveLanguageArg(): string | null {
@@ -555,7 +556,7 @@ export class InitCommand {
     return language.code;
   }
 
-  private async promptForLanguage(): Promise<string> {
+  private async promptForLanguage(defaultLanguage: string = DEFAULT_LANGUAGE): Promise<string> {
     const { select } = await import('@inquirer/prompts');
     
     const language = await select({
@@ -564,18 +565,23 @@ export class InitCommand {
         name: `${lang.nativeName} (${lang.code})`,
         value: lang.code,
       })),
-      default: DEFAULT_LANGUAGE,
+      default: defaultLanguage,
     });
 
     return language;
   }
 
-  private async readConfigFile(openspecPath: string): Promise<{ language?: string } | null> {
+  private async readConfigFile(
+    openspecPath: string
+  ): Promise<Partial<OpenSpecConfig> | null> {
     const configPath = path.join(openspecPath, CONFIG_FILE_NAME);
-    return await FileSystemUtils.readJsonFile<{ language?: string }>(configPath);
+    return await FileSystemUtils.readJsonFile<Partial<OpenSpecConfig>>(configPath);
   }
 
-  private async saveConfigFile(openspecPath: string, config: { language?: string }): Promise<void> {
+  private async saveConfigFile(
+    openspecPath: string,
+    config: Partial<OpenSpecConfig>
+  ): Promise<void> {
     const configPath = path.join(openspecPath, CONFIG_FILE_NAME);
     const existingConfig = await this.readConfigFile(openspecPath) || {};
     const mergedConfig = { ...existingConfig, ...config };
@@ -829,9 +835,19 @@ export class InitCommand {
 
   private async ensureTemplateFiles(
     openspecPath: string,
-    config: OpenSpecConfig
+    config: OpenSpecConfig,
+    previousConfig: Partial<OpenSpecConfig> | null = null
   ): Promise<void> {
-    await this.writeTemplateFiles(openspecPath, config, true);
+    // Check if language has changed - if so, regenerate templates
+    // Use previousConfig if provided (read before language was saved), otherwise read from file
+    const existingConfig =
+      previousConfig || (await this.readConfigFile(openspecPath));
+    const languageChanged = existingConfig?.language && 
+                            existingConfig.language !== config.language;
+    
+    // If language changed, force regeneration (skipExisting = false)
+    // Otherwise, skip existing files to preserve user modifications
+    await this.writeTemplateFiles(openspecPath, config, !languageChanged);
   }
 
   private async writeTemplateFiles(
@@ -1074,3 +1090,4 @@ export class InitCommand {
     }).start();
   }
 }
+
