@@ -1254,55 +1254,6 @@ More instructions after.`;
     consoleSpy.mockRestore();
   });
 
-  it('should update only existing ROOCODE.md file', async () => {
-    // Create ROOCODE.md file with initial content
-    const roocodePath = path.join(testDir, 'ROOCODE.md');
-    const initialContent = `# RooCode Instructions
-
-Some existing RooCode instructions here.
-
-<!-- OPENSPEC:START -->
-Old OpenSpec content
-<!-- OPENSPEC:END -->
-
-More instructions after.`;
-    await fs.writeFile(roocodePath, initialContent);
-
-    const consoleSpy = vi.spyOn(console, 'log');
-
-    // Execute update command
-    await updateCommand.execute(testDir);
-
-    // Check that ROOCODE.md was updated
-    const updatedContent = await fs.readFile(roocodePath, 'utf-8');
-    expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
-    expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
-    expect(updatedContent).toContain("@/openspec/AGENTS.md");
-    expect(updatedContent).toContain('openspec update');
-    expect(updatedContent).toContain('Some existing RooCode instructions here');
-    expect(updatedContent).toContain('More instructions after');
-
-    // Check console output
-    const [logMessage] = consoleSpy.mock.calls[0];
-    expect(logMessage).toContain(
-      'Updated OpenSpec instructions (openspec/AGENTS.md'
-    );
-    expect(logMessage).toContain('AGENTS.md (created)');
-    expect(logMessage).toContain('Updated AI tool files: ROOCODE.md');
-    consoleSpy.mockRestore();
-  });
-
-  it('should not create ROOCODE.md if it does not exist', async () => {
-    // Ensure ROOCODE.md does not exist
-    const roocodePath = path.join(testDir, 'ROOCODE.md');
-
-    // Execute update command
-    await updateCommand.execute(testDir);
-
-    // Check that ROOCODE.md was not created
-    const fileExists = await FileSystemUtils.fileExists(roocodePath);
-    expect(fileExists).toBe(false);
-  });
 
   it('should not create COSTRICT.md if it does not exist', async () => {
     // Ensure COSTRICT.md does not exist
@@ -1609,44 +1560,6 @@ Old content
 
     // Restore permissions for cleanup
     await fs.chmod(claudePath, 0o644);
-    consoleSpy.mockRestore();
-    errorSpy.mockRestore();
-    writeSpy.mockRestore();
-  });
-
-  it('should handle configurator errors gracefully for RooCode', async () => {
-    // Create ROOCODE.md file but simulate write error to cause a failure
-    const roocodePath = path.join(testDir, 'ROOCODE.md');
-    await fs.writeFile(
-      roocodePath,
-      '<!-- OPENSPEC:START -->\nOld\n<!-- OPENSPEC:END -->'
-    );
-
-    const consoleSpy = vi.spyOn(console, 'log');
-    const errorSpy = vi.spyOn(console, 'error');
-    const originalWriteFile = FileSystemUtils.writeFile.bind(FileSystemUtils);
-    const writeSpy = vi
-      .spyOn(FileSystemUtils, 'writeFile')
-      .mockImplementation(async (filePath, content) => {
-        if (filePath.endsWith('ROOCODE.md')) {
-          throw new Error('EACCES: permission denied, open');
-        }
-
-        return originalWriteFile(filePath, content);
-      });
-
-    // Execute update command - should not throw
-    await updateCommand.execute(testDir);
-
-    // Should report the failure
-    expect(errorSpy).toHaveBeenCalled();
-    const [logMessage] = consoleSpy.mock.calls[0];
-    expect(logMessage).toContain(
-      'Updated OpenSpec instructions (openspec/AGENTS.md'
-    );
-    expect(logMessage).toContain('AGENTS.md (created)');
-    expect(logMessage).toContain('Failed to update: ROOCODE.md');
-
     consoleSpy.mockRestore();
     errorSpy.mockRestore();
     writeSpy.mockRestore();

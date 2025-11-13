@@ -1325,39 +1325,6 @@ describe('InitCommand', () => {
       expect(content).toContain('openspec update');
       expect(content).toContain('<!-- OPENSPEC:END -->');
     });
-
-    it('should create ROOCODE.md when RooCode is selected', async () => {
-      queueSelections('roocode', DONE);
-
-      await initCommand.execute(testDir);
-
-      const roocodePath = path.join(testDir, 'ROOCODE.md');
-      expect(await fileExists(roocodePath)).toBe(true);
-
-      const content = await fs.readFile(roocodePath, 'utf-8');
-      expect(content).toContain('<!-- OPENSPEC:START -->');
-      expect(content).toContain("@/openspec/AGENTS.md");
-      expect(content).toContain('openspec update');
-      expect(content).toContain('<!-- OPENSPEC:END -->');
-    });
-
-    it('should update existing ROOCODE.md with markers', async () => {
-      queueSelections('roocode', DONE);
-
-      const roocodePath = path.join(testDir, 'ROOCODE.md');
-      const existingContent =
-        '# My RooCode Instructions\nCustom instructions here';
-      await fs.writeFile(roocodePath, existingContent);
-
-      await initCommand.execute(testDir);
-
-      const updatedContent = await fs.readFile(roocodePath, 'utf-8');
-      expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
-      expect(updatedContent).toContain("@/openspec/AGENTS.md");
-      expect(updatedContent).toContain('openspec update');
-      expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
-      expect(updatedContent).toContain('Custom instructions here');
-    });
     it('should update existing COSTRICT.md with markers', async () => {
       queueSelections('costrict', DONE);
 
