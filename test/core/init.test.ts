@@ -481,22 +481,22 @@ describe('InitCommand', () => {
       expect(updatedContent).toContain('Custom instructions here');
     });
 
-    it('should create Cline rule files with templates', async () => {
+    it('should create Cline workflow files with templates', async () => {
       queueSelections('cline', DONE);
 
       await initCommand.execute(testDir);
 
       const clineProposal = path.join(
         testDir,
-        '.clinerules/openspec-proposal.md'
+        '.clinerules/workflows/openspec-proposal.md'
       );
       const clineApply = path.join(
         testDir,
-        '.clinerules/openspec-apply.md'
+        '.clinerules/workflows/openspec-apply.md'
       );
       const clineArchive = path.join(
         testDir,
-        '.clinerules/openspec-archive.md'
+        '.clinerules/workflows/openspec-archive.md'
       );
 
       expect(await fileExists(clineProposal)).toBe(true);
