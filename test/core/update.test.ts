@@ -298,10 +298,10 @@ More rules after.`;
     expect(fileExists).toBe(false);
   });
 
-  it('should refresh existing Cline rule files', async () => {
+  it('should refresh existing Cline workflow files', async () => {
     const proposalPath = path.join(
       testDir,
-      '.clinerules/openspec-proposal.md'
+      '.clinerules/workflows/openspec-proposal.md'
     );
     await fs.mkdir(path.dirname(proposalPath), { recursive: true });
     const initialContent = `# OpenSpec: Proposal
@@ -331,7 +331,7 @@ Old slash content
     );
     expect(logMessage).toContain('AGENTS.md (created)');
     expect(logMessage).toContain(
-      'Updated slash commands: .clinerules/openspec-proposal.md'
+      'Updated slash commands: .clinerules/workflows/openspec-proposal.md'
     );
 
     consoleSpy.mockRestore();
@@ -586,6 +586,54 @@ Old body
     // Confirm they weren't created by update
     await expect(FileSystemUtils.fileExists(ghProposal)).resolves.toBe(false);
     await expect(FileSystemUtils.fileExists(ghArchive)).resolves.toBe(false);
+  });
+
+  it('should refresh existing Gemini CLI TOML files without creating new ones', async () => {
+    const geminiProposal = path.join(
+      testDir,
+      '.gemini/commands/openspec/proposal.toml'
+    );
+    await fs.mkdir(path.dirname(geminiProposal), { recursive: true });
+    const initialContent = `description = "Scaffold a new OpenSpec change and validate strictly."
+
+prompt = """
+<!-- OPENSPEC:START -->
+Old Gemini body
+<!-- OPENSPEC:END -->
+"""
+`;
+    await fs.writeFile(geminiProposal, initialContent);
+
+    const consoleSpy = vi.spyOn(console, 'log');
+
+    await updateCommand.execute(testDir);
+
+    const updated = await fs.readFile(geminiProposal, 'utf-8');
+    expect(updated).toContain('description = "Scaffold a new OpenSpec change and validate strictly."');
+    expect(updated).toContain('prompt = """');
+    expect(updated).toContain('<!-- OPENSPEC:START -->');
+    expect(updated).toContain('**Guardrails**');
+    expect(updated).toContain('<!-- OPENSPEC:END -->');
+    expect(updated).not.toContain('Old Gemini body');
+
+    const geminiApply = path.join(
+      testDir,
+      '.gemini/commands/openspec/apply.toml'
+    );
+    const geminiArchive = path.join(
+      testDir,
+      '.gemini/commands/openspec/archive.toml'
+    );
+
+    await expect(FileSystemUtils.fileExists(geminiApply)).resolves.toBe(false);
+    await expect(FileSystemUtils.fileExists(geminiArchive)).resolves.toBe(false);
+
+    const [logMessage] = consoleSpy.mock.calls[0];
+    expect(logMessage).toContain(
+      'Updated slash commands: .gemini/commands/openspec/proposal.toml'
+    );
+
+    consoleSpy.mockRestore();
   });
 
   it('should refresh existing Factory slash commands', async () => {

@@ -94,9 +94,10 @@ These tools have built-in OpenSpec commands. Select the OpenSpec integration whe
 | **CodeBuddy Code (CLI)** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` (`.codebuddy/commands/`) — see [docs](https://www.codebuddy.ai/cli) |
 | **CoStrict** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.cospec/openspec/commands/`) — see [docs](https://costrict.ai)|
 | **Cursor** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` |
-| **Cline** | Rules in `.clinerules/` directory (`.clinerules/openspec-*.md`) |
+| **Cline** | Workflows in `.clinerules/workflows/` directory (`.clinerules/workflows/openspec-*.md`) |
 | **Crush** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.crush/commands/openspec/`) |
 | **Factory Droid** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.factory/commands/`) |
+| **Gemini CLI** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` (`.gemini/commands/openspec/`) |
 | **OpenCode** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` |
 | **Kilo Code** | `/openspec-proposal.md`, `/openspec-apply.md`, `/openspec-archive.md` (`.kilocode/workflows/`) |
 | **Qoder (CLI)** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` (`.qoder/commands/openspec/`) — see [docs](https://qoder.com/cli) |
@@ -115,7 +116,7 @@ These tools automatically read workflow instructions from `openspec/AGENTS.md`. 
 
 | Tools |
 |-------|
-| Amp • Jules • Gemini CLI • Others |
+| Amp • Jules • Others |
 
 ### Install & Initialize
 
