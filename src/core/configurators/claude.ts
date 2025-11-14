@@ -9,9 +9,9 @@ export class ClaudeConfigurator implements ToolConfigurator {
   configFileName = 'CLAUDE.md';
   isAvailable = true;
 
-  async configure(projectPath: string, openspecDir: string): Promise<void> {
+  async configure(projectPath: string, openspecDir: string, language: string = 'en-US'): Promise<void> {
     const filePath = path.join(projectPath, this.configFileName);
-    const content = TemplateManager.getClaudeTemplate();
+    const content = TemplateManager.getClaudeTemplate(language);
     
     await FileSystemUtils.updateFileWithMarkers(
       filePath,

@@ -1,9 +1,9 @@
 import path from 'path';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { OPENSPEC_DIR_NAME } from './config.js';
+import { OPENSPEC_DIR_NAME, CONFIG_FILE_NAME, DEFAULT_LANGUAGE } from './config.js';
 import { ToolRegistry } from './configurators/registry.js';
 import { SlashCommandRegistry } from './configurators/slash/registry.js';
-import { agentsTemplate } from './templates/agents-template.js';
+import { TemplateManager } from './templates/index.js';
 
 export class UpdateCommand {
   async execute(projectPath: string): Promise<void> {
@@ -16,10 +16,21 @@ export class UpdateCommand {
       throw new Error(`No OpenSpec directory found. Run 'openspec init' first.`);
     }
 
-    // 2. Update AGENTS.md (full replacement)
-    const agentsPath = path.join(openspecPath, 'AGENTS.md');
+    // 2. Read language configuration
+    const configPath = path.join(openspecPath, CONFIG_FILE_NAME);
+    const config = await FileSystemUtils.readJsonFile<{ language?: string }>(configPath);
+    const language = config?.language || DEFAULT_LANGUAGE;
 
-    await FileSystemUtils.writeFile(agentsPath, agentsTemplate);
+    // 3. Update AGENTS.md (full replacement)
+    const agentsPath = path.join(openspecPath, 'AGENTS.md');
+    const templates = TemplateManager.getTemplates({}, language);
+    const agentsTemplate = templates.find(t => t.path === 'AGENTS.md');
+    if (agentsTemplate) {
+      const content = typeof agentsTemplate.content === 'function' 
+        ? agentsTemplate.content({}) 
+        : agentsTemplate.content;
+      await FileSystemUtils.writeFile(agentsPath, content);
+    }
 
     // 3. Update existing AI tool configuration files only
     const configurators = ToolRegistry.getAll();
@@ -50,7 +61,7 @@ export class UpdateCommand {
           );
         }
 
-        await configurator.configure(resolvedProjectPath, openspecPath);
+        await configurator.configure(resolvedProjectPath, openspecPath, language);
         updatedFiles.push(configurator.configFileName);
 
         if (!fileExists) {
@@ -74,7 +85,8 @@ export class UpdateCommand {
       try {
         const updated = await slashConfigurator.updateExisting(
           resolvedProjectPath,
-          openspecPath
+          openspecPath,
+          language
         );
         updatedSlashFiles.push(...updated);
       } catch (error) {

@@ -7,7 +7,26 @@ export const OPENSPEC_MARKERS = {
 
 export interface OpenSpecConfig {
   aiTools: string[];
+  language?: string;
 }
+
+export interface LanguageOption {
+  code: string;
+  name: string;
+  nativeName: string;
+}
+
+export const SUPPORTED_LANGUAGES: LanguageOption[] = [
+  { code: 'en-US', name: 'English', nativeName: 'English' },
+  { code: 'zh-CN', name: 'Chinese', nativeName: '中文' },
+  { code: 'fr-FR', name: 'French', nativeName: 'Français' },
+  { code: 'ja-JP', name: 'Japanese', nativeName: '日本語' },
+  { code: 'ar-SA', name: 'Arabic', nativeName: 'العربية' },
+];
+
+export const DEFAULT_LANGUAGE = 'en-US';
+
+export const CONFIG_FILE_NAME = 'config.json';
 
 export interface AIToolOption {
   name: string;

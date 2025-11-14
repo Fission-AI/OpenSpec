@@ -33,9 +33,9 @@ export class QwenConfigurator implements ToolConfigurator {
    * @param {string} _openspecDir - The path to the openspec directory (unused)
    * @returns {Promise<void>} A promise that resolves when configuration is complete
    */
-  async configure(projectPath: string, _openspecDir: string): Promise<void> {
+  async configure(projectPath: string, _openspecDir: string, language: string = 'en-US'): Promise<void> {
     const filePath = path.join(projectPath, this.configFileName);
-    const content = TemplateManager.getAgentsStandardTemplate();
+    const content = TemplateManager.getAgentsStandardTemplate(language);
     
     await FileSystemUtils.updateFileWithMarkers(
       filePath,
