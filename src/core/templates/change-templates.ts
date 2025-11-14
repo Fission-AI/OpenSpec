@@ -153,21 +153,6 @@ export class ChangeTemplateManager {
   }
 
   /**
-   * Renders a template with the given context (synchronous version for simple cases)
-   * @param type Template type
-   * @param context Variables to replace
-   * @returns Rendered template content
-   */
-  static render(type: ChangeTemplateType, context: TemplateContext = {}): string {
-    const content = defaultTemplates[type];
-    return replaceVariables(content, {
-      changeId: context.changeId || '',
-      date: context.date || new Date().toISOString().split('T')[0],
-      capability: context.capability || '',
-    });
-  }
-
-  /**
    * Gets the default template content for a given type
    * @param type Template type
    * @returns Default template content

@@ -185,9 +185,9 @@ The system SHALL be modified.
     });
   });
 
-  describe('render', () => {
-    it('should render template with variables synchronously', () => {
-      const content = ChangeTemplateManager.render('proposal', {
+  describe('loadTemplate with default templates', () => {
+    it('should render template with variables synchronously', async () => {
+      const content = await ChangeTemplateManager.loadTemplate(openspecDir, 'proposal', {
         changeId: 'add-feature',
         date: '2025-11-14',
       });
@@ -198,15 +198,15 @@ The system SHALL be modified.
       expect(content).not.toContain('{{date}}');
     });
 
-    it('should use current date when date is not provided', () => {
-      const content = ChangeTemplateManager.render('proposal');
+    it('should use current date when date is not provided', async () => {
+      const content = await ChangeTemplateManager.loadTemplate(openspecDir, 'proposal');
       const today = new Date().toISOString().split('T')[0];
       
       expect(content).toContain(today);
     });
 
-    it('should handle empty context', () => {
-      const content = ChangeTemplateManager.render('tasks');
+    it('should handle empty context', async () => {
+      const content = await ChangeTemplateManager.loadTemplate(openspecDir, 'tasks');
       
       expect(content).toBeTruthy();
       expect(typeof content).toBe('string');
