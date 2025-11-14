@@ -126,6 +126,10 @@ export class FileSystemUtils {
     return await fs.readFile(filePath, 'utf-8');
   }
 
+  static async deleteFile(filePath: string): Promise<void> {
+    await fs.unlink(filePath);
+  }
+
   static async updateFileWithMarkers(
     filePath: string,
     content: string,
