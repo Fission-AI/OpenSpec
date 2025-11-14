@@ -42,9 +42,10 @@ Skip proposal for:
 
 **Workflow**
 1. Review \`openspec/project.md\`, \`openspec list\`, and \`openspec list --specs\` to understand current context.
-2. Choose a unique verb-led \`change-id\` and scaffold \`proposal.md\`, \`tasks.md\`, optional \`design.md\`, and spec deltas under \`openspec/changes/<id>/\`.
-3. Draft spec deltas using \`## ADDED|MODIFIED|REMOVED Requirements\` with at least one \`#### Scenario:\` per requirement.
-4. Run \`openspec validate <id> --strict\` and resolve any issues before sharing the proposal.
+2. Check for custom templates: If \`openspec/templates/\` directory exists, use those templates when creating files (see Custom Templates section below).
+3. Choose a unique verb-led \`change-id\` and scaffold \`proposal.md\`, \`tasks.md\`, optional \`design.md\`, and spec deltas under \`openspec/changes/<id>/\`.
+4. Draft spec deltas using \`## ADDED|MODIFIED|REMOVED Requirements\` with at least one \`#### Scenario:\` per requirement.
+5. Run \`openspec validate <id> --strict\` and resolve any issues before sharing the proposal.
 
 ### Stage 2: Implementing Changes
 Track these steps as TODOs and complete them one by one.
@@ -153,6 +154,31 @@ New request?
 ├─ Architecture change? → Create proposal
 └─ Unclear? → Create proposal (safer)
 \`\`\`
+
+### Custom Templates
+
+Projects can customize change file templates by creating \`openspec/templates/\` directory. To generate default templates, run:
+
+\`\`\`bash
+openspec init --templates
+\`\`\`
+
+This creates template files that you can edit:
+- \`proposal.md.template\`
+- \`tasks.md.template\`
+- \`design.md.template\`
+- \`spec.md.template\`
+
+When creating change files, the system will:
+
+- **Check for templates**: Before creating files, check if \`openspec/templates/\` exists
+- **Use custom templates**: If template files exist, use them instead of defaults
+- **Variable replacement**: Replace placeholders in templates:
+  - \`{{changeId}}\` → actual change-id (e.g., \`add-user-auth\`)
+  - \`{{date}}\` → current date in ISO format (e.g., \`2025-11-14\`)
+  - \`{{capability}}\` → capability name (only in spec.md, e.g., \`user-auth\`)
+- **Fallback**: If template file doesn't exist, use the default structure shown below
+- **Spec template validation**: Custom \`spec.md.template\` must include required tags (\`## ADDED Requirements\`, \`### Requirement:\`, \`#### Scenario:\`) or it will fall back to default
 
 ### Proposal Structure
 
