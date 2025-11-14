@@ -82,7 +82,7 @@ out
 .nuxt
 
 # Build output
-dist/
+# dist/ - Commented out to allow git installation from GitHub
 
 # Gatsby files
 .cache/

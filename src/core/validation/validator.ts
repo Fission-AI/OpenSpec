@@ -163,7 +163,7 @@ export class Validator {
           if (!requirementText) {
             issues.push({ level: 'ERROR', path: entryPath, message: `ADDED "${block.name}" is missing requirement text` });
           } else if (!this.containsShallOrMust(requirementText)) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `ADDED "${block.name}" must contain SHALL or MUST` });
+            issues.push({ level: 'WARNING', path: entryPath, message: `ADDED "${block.name}" should contain SHALL or MUST keyword (RFC 2119 best practice for English specs)` });
           }
           const scenarioCount = this.countScenarios(block.raw);
           if (scenarioCount < 1) {
@@ -184,7 +184,7 @@ export class Validator {
           if (!requirementText) {
             issues.push({ level: 'ERROR', path: entryPath, message: `MODIFIED "${block.name}" is missing requirement text` });
           } else if (!this.containsShallOrMust(requirementText)) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `MODIFIED "${block.name}" must contain SHALL or MUST` });
+            issues.push({ level: 'WARNING', path: entryPath, message: `MODIFIED "${block.name}" should contain SHALL or MUST keyword (RFC 2119 best practice for English specs)` });
           }
           const scenarioCount = this.countScenarios(block.raw);
           if (scenarioCount < 1) {
