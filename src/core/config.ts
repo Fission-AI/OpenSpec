@@ -20,6 +20,7 @@ export const AI_TOOLS: AIToolOption[] = [
   { name: 'Auggie (Augment CLI)', value: 'auggie', available: true, successLabel: 'Auggie' },
   { name: 'Claude Code', value: 'claude', available: true, successLabel: 'Claude Code' },
   { name: 'Cline', value: 'cline', available: true, successLabel: 'Cline' },
+  { name: 'RooCode', value: 'roocode', available: true, successLabel: 'RooCode' },
   { name: 'CodeBuddy Code (CLI)', value: 'codebuddy', available: true, successLabel: 'CodeBuddy Code' },
   { name: 'CoStrict', value: 'costrict', available: true, successLabel: 'CoStrict' },
   { name: 'Crush', value: 'crush', available: true, successLabel: 'Crush' },

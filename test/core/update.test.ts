@@ -1071,6 +1071,79 @@ Old slash content
     consoleSpy.mockRestore();
   });
 
+  it('should refresh existing RooCode slash command files', async () => {
+    const rooPath = path.join(
+      testDir,
+      '.roo/commands/openspec-proposal.md'
+    );
+    await fs.mkdir(path.dirname(rooPath), { recursive: true });
+    const initialContent = `# OpenSpec: Proposal
+
+Old description
+
+<!-- OPENSPEC:START -->
+Old body
+<!-- OPENSPEC:END -->`;
+    await fs.writeFile(rooPath, initialContent);
+
+    const consoleSpy = vi.spyOn(console, 'log');
+
+    await updateCommand.execute(testDir);
+
+    const updated = await fs.readFile(rooPath, 'utf-8');
+    // For RooCode, the header is Markdown, preserve it and update only managed block
+    expect(updated).toContain('# OpenSpec: Proposal');
+    expect(updated).toContain('**Guardrails**');
+    expect(updated).toContain(
+      'Validate with `openspec validate <id> --strict`'
+    );
+    expect(updated).not.toContain('Old body');
+
+    const [logMessage] = consoleSpy.mock.calls[0];
+    expect(logMessage).toContain(
+      'Updated OpenSpec instructions (openspec/AGENTS.md'
+    );
+    expect(logMessage).toContain('AGENTS.md (created)');
+    expect(logMessage).toContain(
+      'Updated slash commands: .roo/commands/openspec-proposal.md'
+    );
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should not create missing RooCode slash command files on update', async () => {
+    const rooApply = path.join(
+      testDir,
+      '.roo/commands/openspec-apply.md'
+    );
+
+    // Only create apply; leave proposal and archive missing
+    await fs.mkdir(path.dirname(rooApply), { recursive: true });
+    await fs.writeFile(
+      rooApply,
+      `# OpenSpec: Apply
+
+<!-- OPENSPEC:START -->
+Old body
+<!-- OPENSPEC:END -->`
+    );
+
+    await updateCommand.execute(testDir);
+
+    const rooProposal = path.join(
+      testDir,
+      '.roo/commands/openspec-proposal.md'
+    );
+    const rooArchive = path.join(
+      testDir,
+      '.roo/commands/openspec-archive.md'
+    );
+
+    // Confirm they weren't created by update
+    await expect(FileSystemUtils.fileExists(rooProposal)).resolves.toBe(false);
+    await expect(FileSystemUtils.fileExists(rooArchive)).resolves.toBe(false);
+  });
+
   it('should not create missing CoStrict slash command files on update', async () => {
     const costrictApply = path.join(
       testDir,
@@ -1180,6 +1253,7 @@ More instructions after.`;
     expect(logMessage).toContain('Updated AI tool files: COSTRICT.md');
     consoleSpy.mockRestore();
   });
+
 
   it('should not create COSTRICT.md if it does not exist', async () => {
     // Ensure COSTRICT.md does not exist

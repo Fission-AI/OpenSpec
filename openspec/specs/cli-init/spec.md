@@ -238,6 +238,14 @@ The init command SHALL generate slash command files for supported editors using 
 - **AND** wrap the OpenSpec managed markers (`<!-- OPENSPEC:START -->` / `<!-- OPENSPEC:END -->`) inside the `prompt` value so `openspec update` can safely refresh the body between markers without touching the TOML framing
 - **AND** ensure the slash-command copy matches the existing proposal/apply/archive templates used by other tools
 
+#### Scenario: Generating slash commands for RooCode
+- **WHEN** the user selects RooCode during initialization
+- **THEN** create `.roo/commands/openspec-proposal.md`, `.roo/commands/openspec-apply.md`, and `.roo/commands/openspec-archive.md`
+- **AND** populate each file from shared templates so command text matches other tools
+- **AND** include simple Markdown headings (e.g., `# OpenSpec: Proposal`) without YAML frontmatter
+- **AND** wrap the generated content in OpenSpec managed markers where applicable so `openspec update` can safely refresh the commands
+- **AND** each template includes instructions for the relevant OpenSpec workflow stage
+
 ### Requirement: Non-Interactive Mode
 The command SHALL support non-interactive operation through command-line options for automation and CI/CD use cases.
 

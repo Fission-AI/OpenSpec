@@ -1194,6 +1194,53 @@ describe('InitCommand', () => {
       expect(costrictChoice.configured).toBe(true);
     });
 
+    it('should create RooCode slash command files with templates', async () => {
+      queueSelections('roocode', DONE);
+
+      await initCommand.execute(testDir);
+
+      const rooProposal = path.join(
+        testDir,
+        '.roo/commands/openspec-proposal.md'
+      );
+      const rooApply = path.join(
+        testDir,
+        '.roo/commands/openspec-apply.md'
+      );
+      const rooArchive = path.join(
+        testDir,
+        '.roo/commands/openspec-archive.md'
+      );
+
+      expect(await fileExists(rooProposal)).toBe(true);
+      expect(await fileExists(rooApply)).toBe(true);
+      expect(await fileExists(rooArchive)).toBe(true);
+
+      const proposalContent = await fs.readFile(rooProposal, 'utf-8');
+      expect(proposalContent).toContain('# OpenSpec: Proposal');
+      expect(proposalContent).toContain('**Guardrails**');
+
+      const applyContent = await fs.readFile(rooApply, 'utf-8');
+      expect(applyContent).toContain('# OpenSpec: Apply');
+      expect(applyContent).toContain('Work through tasks sequentially');
+
+      const archiveContent = await fs.readFile(rooArchive, 'utf-8');
+      expect(archiveContent).toContain('# OpenSpec: Archive');
+      expect(archiveContent).toContain('openspec archive <id> --yes');
+    });
+
+    it('should mark RooCode as already configured during extend mode', async () => {
+      queueSelections('roocode', DONE, 'roocode', DONE);
+      await initCommand.execute(testDir);
+      await initCommand.execute(testDir);
+
+      const secondRunArgs = mockPrompt.mock.calls[1][0];
+      const rooChoice = secondRunArgs.choices.find(
+        (choice: any) => choice.value === 'roocode'
+      );
+      expect(rooChoice.configured).toBe(true);
+    });
+
     it('should create Qoder slash command files with templates', async () => {
       queueSelections('qoder', DONE);
 
@@ -1278,7 +1325,6 @@ describe('InitCommand', () => {
       expect(content).toContain('openspec update');
       expect(content).toContain('<!-- OPENSPEC:END -->');
     });
-
     it('should update existing COSTRICT.md with markers', async () => {
       queueSelections('costrict', DONE);
 
