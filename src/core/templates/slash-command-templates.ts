@@ -23,7 +23,7 @@ const proposalSteps = `**Steps**
    - If exists: Read the template file and replace variables (\`{{changeId}}\` → actual change-id, \`{{date}}\` → current date in YYYY-MM-DD format)
    - If not exists: Use the default structure from \`openspec/AGENTS.md\` (see "Proposal Structure" section)
 6. Map the change into concrete capabilities or requirements, breaking multi-scope efforts into distinct spec deltas with clear relationships and sequencing.
-7. Create spec deltas in \`changes/<id>/specs/<capability>/spec.md\` (one folder per capability):
+7. Create spec deltas in \`openspec/changes/<id>/specs/<capability>/spec.md\` (one folder per capability):
    - **CRITICAL**: Check if \`openspec/templates/spec.md.template\` exists
    - If exists: Read the template file and replace variables (\`{{changeId}}\` → actual change-id, \`{{date}}\` → current date in YYYY-MM-DD format, \`{{capability}}\` → capability name)
    - If not exists: Use \`## ADDED|MODIFIED|REMOVED Requirements\` format with at least one \`#### Scenario:\` per requirement
@@ -41,7 +41,7 @@ const proposalReferences = `**Reference**
 
 const applySteps = `**Steps**
 Track these steps as TODOs and complete them one by one.
-1. Read \`changes/<id>/proposal.md\`, \`design.md\` (if present), and \`tasks.md\` to confirm scope and acceptance criteria.
+1. Read \`openspec/changes/<id>/proposal.md\`, \`design.md\` (if present), and \`tasks.md\` to confirm scope and acceptance criteria.
 2. Work through tasks sequentially, keeping edits minimal and focused on the requested change.
 3. Confirm completion before updating statuses—make sure every item in \`tasks.md\` is finished.
 4. Update the checklist after all work is done so each task is marked \`- [x]\` and reflects reality.
@@ -58,7 +58,7 @@ const archiveSteps = `**Steps**
    - If you still cannot identify a single change ID, stop and tell the user you cannot archive anything yet.
 2. Validate the change ID by running \`openspec list\` (or \`openspec show <id>\`) and stop if the change is missing, already archived, or otherwise not ready to archive.
 3. Run \`openspec archive <id> --yes\` so the CLI moves the change and applies spec updates without prompts (use \`--skip-specs\` only for tooling-only work).
-4. Review the command output to confirm the target specs were updated and the change landed in \`changes/archive/\`.
+4. Review the command output to confirm the target specs were updated and the change landed in \`openspec/changes/archive/\`.
 5. Validate with \`openspec validate --strict\` and inspect with \`openspec show <id>\` if anything looks off.`;
 
 const archiveReferences = `**Reference**

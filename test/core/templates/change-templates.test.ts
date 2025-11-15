@@ -301,7 +301,7 @@ The system SHALL be modified.
       }
     });
 
-    it('should not overwrite existing templates', async () => {
+    it('should write all templates even when some already exist', async () => {
       const templatesDir = path.join(openspecDir, 'templates');
       await fs.mkdir(templatesDir, { recursive: true });
       const customContent = 'Custom template content';
@@ -309,10 +309,14 @@ The system SHALL be modified.
       
       await ChangeTemplateManager.writeDefaultTemplates(openspecDir);
       
-      // Should still have custom content (writeFile overwrites, but we're testing the method behavior)
+      // writeDefaultTemplates uses fs.writeFile which overwrites existing files
+      // This test verifies that the method writes all template types correctly
       const content = await fs.readFile(path.join(templatesDir, 'proposal.md.template'), 'utf-8');
-      // Note: writeFile will overwrite, so this test verifies the method writes all templates
       expect(content).toBeTruthy();
+      // Verify it was overwritten with default content (not the custom content)
+      expect(content).toContain('## Why');
+      expect(content).toContain('## What Changes');
+      expect(content).not.toBe(customContent);
     });
 
     it('should create nested templates directory if needed', async () => {
