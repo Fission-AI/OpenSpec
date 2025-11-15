@@ -48,3 +48,4 @@ export class TemplateManager {
 
 export { ProjectContext } from './project-template.js';
 export type { SlashCommandId } from './slash-command-templates.js';
+export { ChangeTemplateManager, type ChangeTemplateType, type TemplateContext } from './change-templates.js';

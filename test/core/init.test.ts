@@ -1558,6 +1558,106 @@ describe('InitCommand', () => {
         /Insufficient permissions/
       );
     });
+
+    describe('change templates generation', () => {
+      it('should not generate templates by default', async () => {
+        queueSelections('claude', DONE);
+
+        await initCommand.execute(testDir);
+
+        const templatesDir = path.join(testDir, 'openspec', 'templates');
+        const exists = await directoryExists(templatesDir);
+        expect(exists).toBe(false);
+      });
+
+      it('should generate templates when --templates flag is provided', async () => {
+        queueSelections('claude', DONE);
+        const templatesCommand = new InitCommand({
+          prompt: mockPrompt,
+          templates: true,
+        });
+
+        await templatesCommand.execute(testDir);
+
+        const templatesDir = path.join(testDir, 'openspec', 'templates');
+        expect(await directoryExists(templatesDir)).toBe(true);
+
+        const templateFiles = [
+          'proposal.md.template',
+          'tasks.md.template',
+          'design.md.template',
+          'spec.md.template',
+        ];
+
+        for (const file of templateFiles) {
+          const filePath = path.join(templatesDir, file);
+          expect(await fileExists(filePath)).toBe(true);
+          const content = await fs.readFile(filePath, 'utf-8');
+          expect(content).toBeTruthy();
+        }
+      });
+
+      it('should skip template generation if templates already exist', async () => {
+        queueSelections('claude', DONE);
+        const templatesDir = path.join(testDir, 'openspec', 'templates');
+        await fs.mkdir(templatesDir, { recursive: true });
+        await fs.writeFile(
+          path.join(templatesDir, 'proposal.md.template'),
+          'existing template'
+        );
+
+        const templatesCommand = new InitCommand({
+          prompt: mockPrompt,
+          templates: true,
+        });
+
+        await templatesCommand.execute(testDir);
+
+        // Should skip generation and show info message
+        const content = await fs.readFile(
+          path.join(templatesDir, 'proposal.md.template'),
+          'utf-8'
+        );
+        expect(content).toBe('existing template');
+      });
+
+      it('should not generate templates when flag is not provided', async () => {
+        const nonTemplatesCommand = new InitCommand({
+          prompt: mockPrompt,
+          tools: 'claude',
+        });
+        queueSelections('claude', DONE);
+
+        await nonTemplatesCommand.execute(testDir);
+
+        const templatesDir = path.join(testDir, 'openspec', 'templates');
+        const exists = await directoryExists(templatesDir);
+        expect(exists).toBe(false);
+      });
+
+      it('should generate valid spec template with required tags', async () => {
+        queueSelections('claude', DONE);
+        const templatesCommand = new InitCommand({
+          prompt: mockPrompt,
+          templates: true,
+        });
+
+        await templatesCommand.execute(testDir);
+
+        const specTemplatePath = path.join(
+          testDir,
+          'openspec',
+          'templates',
+          'spec.md.template'
+        );
+        const content = await fs.readFile(specTemplatePath, 'utf-8');
+
+        // Verify required tags for archive to work
+        expect(content).toMatch(/^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements/m);
+        expect(content).toContain('### Requirement:');
+        expect(content).toContain('#### Scenario:');
+      });
+    });
   });
 });
 

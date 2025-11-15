@@ -9,21 +9,39 @@ const proposalGuardrails = `${baseGuardrails}\n- Identify any vague or ambiguous
 
 const proposalSteps = `**Steps**
 1. Review \`openspec/project.md\`, run \`openspec list\` and \`openspec list --specs\`, and inspect related code or docs (e.g., via \`rg\`/\`ls\`) to ground the proposal in current behaviour; note any gaps that require clarification.
-2. Choose a unique verb-led \`change-id\` and scaffold \`proposal.md\`, \`tasks.md\`, and \`design.md\` (when needed) under \`openspec/changes/<id>/\`.
-3. Map the change into concrete capabilities or requirements, breaking multi-scope efforts into distinct spec deltas with clear relationships and sequencing.
-4. Capture architectural reasoning in \`design.md\` when the solution spans multiple systems, introduces new patterns, or demands trade-off discussion before committing to specs.
-5. Draft spec deltas in \`changes/<id>/specs/<capability>/spec.md\` (one folder per capability) using \`## ADDED|MODIFIED|REMOVED Requirements\` with at least one \`#### Scenario:\` per requirement and cross-reference related capabilities when relevant.
-6. Draft \`tasks.md\` as an ordered list of small, verifiable work items that deliver user-visible progress, include validation (tests, tooling), and highlight dependencies or parallelizable work.
-7. Validate with \`openspec validate <id> --strict\` and resolve every issue before sharing the proposal.`;
+2. Choose a unique verb-led \`change-id\` and create the change directory \`openspec/changes/<id>/\`.
+3. Create \`proposal.md\` in \`openspec/changes/<id>/\`:
+   - **CRITICAL**: Check if \`openspec/templates/proposal.md.template\` exists
+   - If exists: Read the template file and replace variables (\`{{changeId}}\` → actual change-id, \`{{date}}\` → current date in YYYY-MM-DD format)
+   - If not exists: Use the default structure from \`openspec/AGENTS.md\` (see "Proposal Structure" section)
+4. Create \`tasks.md\` in \`openspec/changes/<id>/\`:
+   - **CRITICAL**: Check if \`openspec/templates/tasks.md.template\` exists
+   - If exists: Read the template file and replace variables (\`{{changeId}}\` → actual change-id, \`{{date}}\` → current date in YYYY-MM-DD format)
+   - If not exists: Use the default structure from \`openspec/AGENTS.md\` (see "Proposal Structure" section)
+5. Create \`design.md\` in \`openspec/changes/<id>/\` (only when needed—see criteria in \`openspec/AGENTS.md\`):
+   - **CRITICAL**: Check if \`openspec/templates/design.md.template\` exists
+   - If exists: Read the template file and replace variables (\`{{changeId}}\` → actual change-id, \`{{date}}\` → current date in YYYY-MM-DD format)
+   - If not exists: Use the default structure from \`openspec/AGENTS.md\` (see "Proposal Structure" section)
+6. Map the change into concrete capabilities or requirements, breaking multi-scope efforts into distinct spec deltas with clear relationships and sequencing.
+7. Create spec deltas in \`openspec/changes/<id>/specs/<capability>/spec.md\` (one folder per capability):
+   - **CRITICAL**: Check if \`openspec/templates/spec.md.template\` exists
+   - If exists: Read the template file and replace variables (\`{{changeId}}\` → actual change-id, \`{{date}}\` → current date in YYYY-MM-DD format, \`{{capability}}\` → capability name)
+   - If not exists: Use \`## ADDED|MODIFIED|REMOVED Requirements\` format with at least one \`#### Scenario:\` per requirement
+   - Cross-reference related capabilities when relevant
+8. Validate with \`openspec validate <id> --strict\` and resolve every issue before sharing the proposal.`;
 
 const proposalReferences = `**Reference**
+- **Template Processing**: For each file type (proposal, tasks, design, spec), always check \`openspec/templates/<type>.md.template\` first. If the template exists, read it and replace all variables before writing the file. Template variables:
+  - \`{{changeId}}\` → the actual change-id (e.g., \`add-user-auth\`)
+  - \`{{date}}\` → current date in YYYY-MM-DD format (e.g., \`2025-11-14\`)
+  - \`{{capability}}\` → capability name (only used in spec.md, e.g., \`user-auth\`)
 - Use \`openspec show <id> --json --deltas-only\` or \`openspec show <spec> --type spec\` to inspect details when validation fails.
 - Search existing requirements with \`rg -n "Requirement:|Scenario:" openspec/specs\` before writing new ones.
 - Explore the codebase with \`rg <keyword>\`, \`ls\`, or direct file reads so proposals align with current implementation realities.`;
 
 const applySteps = `**Steps**
 Track these steps as TODOs and complete them one by one.
-1. Read \`changes/<id>/proposal.md\`, \`design.md\` (if present), and \`tasks.md\` to confirm scope and acceptance criteria.
+1. Read \`openspec/changes/<id>/proposal.md\`, \`design.md\` (if present), and \`tasks.md\` to confirm scope and acceptance criteria.
 2. Work through tasks sequentially, keeping edits minimal and focused on the requested change.
 3. Confirm completion before updating statuses—make sure every item in \`tasks.md\` is finished.
 4. Update the checklist after all work is done so each task is marked \`- [x]\` and reflects reality.
@@ -40,7 +58,7 @@ const archiveSteps = `**Steps**
    - If you still cannot identify a single change ID, stop and tell the user you cannot archive anything yet.
 2. Validate the change ID by running \`openspec list\` (or \`openspec show <id>\`) and stop if the change is missing, already archived, or otherwise not ready to archive.
 3. Run \`openspec archive <id> --yes\` so the CLI moves the change and applies spec updates without prompts (use \`--skip-specs\` only for tooling-only work).
-4. Review the command output to confirm the target specs were updated and the change landed in \`changes/archive/\`.
+4. Review the command output to confirm the target specs were updated and the change landed in \`openspec/changes/archive/\`.
 5. Validate with \`openspec validate --strict\` and inspect with \`openspec show <id>\` if anything looks off.`;
 
 const archiveReferences = `**Reference**

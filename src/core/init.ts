@@ -13,7 +13,7 @@ import {
 import chalk from 'chalk';
 import ora from 'ora';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { TemplateManager, ProjectContext } from './templates/index.js';
+import { TemplateManager, ProjectContext, ChangeTemplateManager } from './templates/index.js';
 import { ToolRegistry } from './configurators/registry.js';
 import { SlashCommandRegistry } from './configurators/slash/registry.js';
 import {
@@ -371,15 +371,18 @@ const toolSelectionWizard = createPrompt<string[], ToolWizardConfig>(
 type InitCommandOptions = {
   prompt?: ToolSelectionPrompt;
   tools?: string;
+  templates?: boolean;
 };
 
 export class InitCommand {
   private readonly prompt: ToolSelectionPrompt;
   private readonly toolsArg?: string;
+  private readonly generateTemplates?: boolean;
 
   constructor(options: InitCommandOptions = {}) {
     this.prompt = options.prompt ?? ((config) => toolSelectionWizard(config));
     this.toolsArg = options.tools;
+    this.generateTemplates = options.templates;
   }
 
   async execute(targetPath: string): Promise<void> {
@@ -434,6 +437,9 @@ export class InitCommand {
       await this.createDirectoryStructure(openspecPath);
       await this.ensureTemplateFiles(openspecPath, config);
     }
+
+    // Step 1.5: Optionally generate change templates
+    await this.maybeGenerateChangeTemplates(openspecPath);
 
     // Step 2: Configure AI tools
     const toolSpinner = this.startSpinner('Configuring AI tools...');
@@ -716,6 +722,27 @@ export class InitCommand {
     for (const dir of directories) {
       await FileSystemUtils.createDirectory(dir);
     }
+  }
+
+  private async maybeGenerateChangeTemplates(openspecPath: string): Promise<void> {
+    // Only generate if explicitly requested via --templates flag
+    if (!this.generateTemplates) {
+      return;
+    }
+
+    // Skip if templates already exist
+    const hasTemplates = await ChangeTemplateManager.hasCustomTemplates(openspecPath);
+    if (hasTemplates) {
+      ora({ stream: process.stdout }).info(
+        PALETTE.midGray('ℹ Templates directory already exists, skipping template generation.')
+      );
+      return;
+    }
+
+    await ChangeTemplateManager.writeDefaultTemplates(openspecPath);
+    ora({ stream: process.stdout }).succeed(
+      PALETTE.white('Change templates generated in openspec/templates/')
+    );
   }
 
   private async generateFiles(
