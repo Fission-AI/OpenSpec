@@ -15,8 +15,7 @@ const proposalSteps = `**Steps**
 4. Capture architectural reasoning in \`design.md\` when the solution spans multiple systems, introduces new patterns, or demands trade-off discussion before committing to specs.
 5. Draft spec deltas in \`changes/<id>/specs/<capability>/spec.md\` (one folder per capability) using \`## ADDED|MODIFIED|REMOVED Requirements\` with at least one \`#### Scenario:\` per requirement and cross-reference related capabilities when relevant.
 6. Draft \`tasks.md\` as an ordered list of small, verifiable work items that deliver user-visible progress, include validation (tests, tooling), and highlight dependencies or parallelizable work.
-7. Validate with \`openspec validate <id> --strict\` and resolve every issue before sharing the proposal.
-Remember: This is a design phase. Do not write any implementation code.`;
+7. Validate with \`openspec validate <id> --strict\` and resolve every issue before sharing the proposal.`;
 
 const proposalReferences = `**Reference**
 - Use \`openspec show <id> --json --deltas-only\` or \`openspec show <spec> --type spec\` to inspect details when validation fails.
@@ -25,7 +24,7 @@ const proposalReferences = `**Reference**
 
 const applySteps = `**Steps**
 Track these steps as TODOs and complete them one by one.
-1. Read \`openspec/project.md\` to understand project conventions, then read \`changes/<id>/proposal.md\`, \`design.md\` (if present), and \`tasks.md\` to confirm scope and acceptance criteria.
+1. Read \`changes/<id>/proposal.md\`, \`design.md\` (if present), and \`tasks.md\` to confirm scope and acceptance criteria.
 2. Work through tasks sequentially, keeping edits minimal and focused on the requested change.
 3. Confirm completion before updating statuses—make sure every item in \`tasks.md\` is finished.
 4. Update the checklist after all work is done so each task is marked \`- [x]\` and reflects reality.
