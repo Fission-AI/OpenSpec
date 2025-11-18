@@ -17,6 +17,7 @@ import { CrushSlashCommandConfigurator } from './crush.js';
 import { CostrictSlashCommandConfigurator } from './costrict.js';
 import { QwenSlashCommandConfigurator } from './qwen.js';
 import { IflowSlashCommandConfigurator } from './iflow.js';
+import { RooCodeSlashCommandConfigurator } from './roocode.js';
 
 export class SlashCommandRegistry {
   private static configurators: Map<string, SlashCommandConfigurator> = new Map();
@@ -40,6 +41,7 @@ export class SlashCommandRegistry {
     const costrict = new CostrictSlashCommandConfigurator();
     const qwen = new QwenSlashCommandConfigurator();
     const iflow = new IflowSlashCommandConfigurator();
+    const roocode = new RooCodeSlashCommandConfigurator();
 
     this.configurators.set(claude.toolId, claude);
     this.configurators.set(codeBuddy.toolId, codeBuddy);
@@ -59,6 +61,7 @@ export class SlashCommandRegistry {
     this.configurators.set(costrict.toolId, costrict);
     this.configurators.set(qwen.toolId, qwen);
     this.configurators.set(iflow.toolId, iflow);
+    this.configurators.set(roocode.toolId, roocode);
   }
 
   static register(configurator: SlashCommandConfigurator): void {
