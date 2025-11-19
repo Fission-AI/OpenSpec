@@ -32,6 +32,7 @@ const proposalSteps = `**Steps**
 8. Validate with \`openspec validate <id> --strict\` and resolve every issue before sharing the proposal.`;
 
 
+
 const proposalReferences = `**Reference**
 - **Template Processing**: For each file type (proposal, tasks, design, spec), always check \`openspec/templates/<type>.md.template\` first. If the template exists, read it and replace all variables before writing the file. Template variables:
   - \`{{changeId}}\` → the actual change-id (e.g., \`add-user-auth\`)

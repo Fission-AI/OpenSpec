@@ -1,10 +1,10 @@
-import { TomlSlashCommandConfigurator } from './toml-base.js';
+import { SlashCommandConfigurator } from './base.js';
 import { SlashCommandId } from '../../templates/index.js';
 
 const FILE_PATHS: Record<SlashCommandId, string> = {
-  proposal: '.gemini/commands/openspec/proposal.toml',
-  apply: '.gemini/commands/openspec/apply.toml',
-  archive: '.gemini/commands/openspec/archive.toml'
+  proposal: '.agent/workflows/openspec-proposal.md',
+  apply: '.agent/workflows/openspec-apply.md',
+  archive: '.agent/workflows/openspec-archive.md'
 };
 
 const DESCRIPTIONS: Record<SlashCommandId, string> = {
@@ -13,15 +13,16 @@ const DESCRIPTIONS: Record<SlashCommandId, string> = {
   archive: 'Archive a deployed OpenSpec change and update specs.'
 };
 
-export class GeminiSlashCommandConfigurator extends TomlSlashCommandConfigurator {
-  readonly toolId = 'gemini';
+export class AntigravitySlashCommandConfigurator extends SlashCommandConfigurator {
+  readonly toolId = 'antigravity';
   readonly isAvailable = true;
 
   protected getRelativePath(id: SlashCommandId): string {
     return FILE_PATHS[id];
   }
 
-  protected getDescription(id: SlashCommandId): string {
-    return DESCRIPTIONS[id];
+  protected getFrontmatter(id: SlashCommandId): string | undefined {
+    const description = DESCRIPTIONS[id];
+    return `---\ndescription: ${description}\n---`;
   }
 }

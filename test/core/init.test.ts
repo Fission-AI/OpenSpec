@@ -50,7 +50,7 @@ describe('InitCommand', () => {
     process.env.CODEX_HOME = path.join(testDir, '.codex');
 
     // Mock console.log to suppress output during tests
-    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'log').mockImplementation(() => { });
   });
 
   afterEach(async () => {
@@ -211,6 +211,50 @@ describe('InitCommand', () => {
       expect(archiveContent).toContain('auto_execution_mode: 3');
       expect(archiveContent).toContain('<!-- OPENSPEC:START -->');
       expect(archiveContent).toContain('Run `openspec archive <id> --yes`');
+    });
+
+    it('should create Antigravity workflows when Antigravity is selected', async () => {
+      queueSelections('antigravity', DONE);
+
+      await initCommand.execute(testDir);
+
+      const agProposal = path.join(
+        testDir,
+        '.agent/workflows/openspec-proposal.md'
+      );
+      const agApply = path.join(
+        testDir,
+        '.agent/workflows/openspec-apply.md'
+      );
+      const agArchive = path.join(
+        testDir,
+        '.agent/workflows/openspec-archive.md'
+      );
+
+      expect(await fileExists(agProposal)).toBe(true);
+      expect(await fileExists(agApply)).toBe(true);
+      expect(await fileExists(agArchive)).toBe(true);
+
+      const proposalContent = await fs.readFile(agProposal, 'utf-8');
+      expect(proposalContent).toContain('---');
+      expect(proposalContent).toContain('description: Scaffold a new OpenSpec change and validate strictly.');
+      expect(proposalContent).toContain('<!-- OPENSPEC:START -->');
+      expect(proposalContent).toContain('**Guardrails**');
+      expect(proposalContent).not.toContain('auto_execution_mode');
+
+      const applyContent = await fs.readFile(agApply, 'utf-8');
+      expect(applyContent).toContain('---');
+      expect(applyContent).toContain('description: Implement an approved OpenSpec change and keep tasks in sync.');
+      expect(applyContent).toContain('<!-- OPENSPEC:START -->');
+      expect(applyContent).toContain('Work through tasks sequentially');
+      expect(applyContent).not.toContain('auto_execution_mode');
+
+      const archiveContent = await fs.readFile(agArchive, 'utf-8');
+      expect(archiveContent).toContain('---');
+      expect(archiveContent).toContain('description: Archive a deployed OpenSpec change and update specs.');
+      expect(archiveContent).toContain('<!-- OPENSPEC:START -->');
+      expect(archiveContent).toContain('Run `openspec archive <id> --yes`');
+      expect(archiveContent).not.toContain('auto_execution_mode');
     });
 
     it('should always create AGENTS.md in project root', async () => {
@@ -424,15 +468,15 @@ describe('InitCommand', () => {
       const qwenConfigPath = path.join(testDir, 'QWEN.md');
       const proposalPath = path.join(
         testDir,
-        '.qwen/commands/openspec-proposal.md'
+        '.qwen/commands/openspec-proposal.toml'
       );
       const applyPath = path.join(
         testDir,
-        '.qwen/commands/openspec-apply.md'
+        '.qwen/commands/openspec-apply.toml'
       );
       const archivePath = path.join(
         testDir,
-        '.qwen/commands/openspec-archive.md'
+        '.qwen/commands/openspec-archive.toml'
       );
 
       expect(await fileExists(qwenConfigPath)).toBe(true);
@@ -446,21 +490,16 @@ describe('InitCommand', () => {
       expect(qwenConfigContent).toContain('<!-- OPENSPEC:END -->');
 
       const proposalContent = await fs.readFile(proposalPath, 'utf-8');
-      expect(proposalContent).toContain('name: /openspec-proposal');
-      expect(proposalContent).toContain('category: OpenSpec');
-      expect(proposalContent).toContain('description: Scaffold a new OpenSpec change and validate strictly.');
+      expect(proposalContent).toContain('description = "Scaffold a new OpenSpec change and validate strictly."');
+      expect(proposalContent).toContain('prompt = """');
       expect(proposalContent).toContain('<!-- OPENSPEC:START -->');
 
       const applyContent = await fs.readFile(applyPath, 'utf-8');
-      expect(applyContent).toContain('name: /openspec-apply');
-      expect(applyContent).toContain('category: OpenSpec');
-      expect(applyContent).toContain('description: Implement an approved OpenSpec change and keep tasks in sync.');
+      expect(applyContent).toContain('description = "Implement an approved OpenSpec change and keep tasks in sync."');
       expect(applyContent).toContain('Work through tasks sequentially');
 
       const archiveContent = await fs.readFile(archivePath, 'utf-8');
-      expect(archiveContent).toContain('name: /openspec-archive');
-      expect(archiveContent).toContain('category: OpenSpec');
-      expect(archiveContent).toContain('description: Archive a deployed OpenSpec change and update specs.');
+      expect(archiveContent).toContain('description = "Archive a deployed OpenSpec change and update specs."');
       expect(archiveContent).toContain('openspec archive <id>');
     });
 
@@ -852,6 +891,18 @@ describe('InitCommand', () => {
         (choice: any) => choice.value === 'windsurf'
       );
       expect(wsChoice.configured).toBe(true);
+    });
+
+    it('should mark Antigravity as already configured during extend mode', async () => {
+      queueSelections('antigravity', DONE, 'antigravity', DONE);
+      await initCommand.execute(testDir);
+      await initCommand.execute(testDir);
+
+      const secondRunArgs = mockPrompt.mock.calls[1][0];
+      const antigravityChoice = secondRunArgs.choices.find(
+        (choice: any) => choice.value === 'antigravity'
+      );
+      expect(antigravityChoice.configured).toBe(true);
     });
 
     it('should mark Codex as already configured during extend mode', async () => {
