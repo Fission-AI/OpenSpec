@@ -50,7 +50,7 @@ describe('InitCommand', () => {
     process.env.CODEX_HOME = path.join(testDir, '.codex');
 
     // Mock console.log to suppress output during tests
-    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'log').mockImplementation(() => { });
   });
 
   afterEach(async () => {
@@ -424,15 +424,15 @@ describe('InitCommand', () => {
       const qwenConfigPath = path.join(testDir, 'QWEN.md');
       const proposalPath = path.join(
         testDir,
-        '.qwen/commands/openspec-proposal.md'
+        '.qwen/commands/openspec-proposal.toml'
       );
       const applyPath = path.join(
         testDir,
-        '.qwen/commands/openspec-apply.md'
+        '.qwen/commands/openspec-apply.toml'
       );
       const archivePath = path.join(
         testDir,
-        '.qwen/commands/openspec-archive.md'
+        '.qwen/commands/openspec-archive.toml'
       );
 
       expect(await fileExists(qwenConfigPath)).toBe(true);
@@ -446,21 +446,16 @@ describe('InitCommand', () => {
       expect(qwenConfigContent).toContain('<!-- OPENSPEC:END -->');
 
       const proposalContent = await fs.readFile(proposalPath, 'utf-8');
-      expect(proposalContent).toContain('name: /openspec-proposal');
-      expect(proposalContent).toContain('category: OpenSpec');
-      expect(proposalContent).toContain('description: Scaffold a new OpenSpec change and validate strictly.');
+      expect(proposalContent).toContain('description = "Scaffold a new OpenSpec change and validate strictly."');
+      expect(proposalContent).toContain('prompt = """');
       expect(proposalContent).toContain('<!-- OPENSPEC:START -->');
 
       const applyContent = await fs.readFile(applyPath, 'utf-8');
-      expect(applyContent).toContain('name: /openspec-apply');
-      expect(applyContent).toContain('category: OpenSpec');
-      expect(applyContent).toContain('description: Implement an approved OpenSpec change and keep tasks in sync.');
+      expect(applyContent).toContain('description = "Implement an approved OpenSpec change and keep tasks in sync."');
       expect(applyContent).toContain('Work through tasks sequentially');
 
       const archiveContent = await fs.readFile(archivePath, 'utf-8');
-      expect(archiveContent).toContain('name: /openspec-archive');
-      expect(archiveContent).toContain('category: OpenSpec');
-      expect(archiveContent).toContain('description: Archive a deployed OpenSpec change and update specs.');
+      expect(archiveContent).toContain('description = "Archive a deployed OpenSpec change and update specs."');
       expect(archiveContent).toContain('openspec archive <id>');
     });
 

@@ -152,19 +152,17 @@ Old slash content
   it('should refresh existing Qwen slash command files', async () => {
     const applyPath = path.join(
       testDir,
-      '.qwen/commands/openspec-apply.md'
+      '.qwen/commands/openspec-apply.toml'
     );
     await fs.mkdir(path.dirname(applyPath), { recursive: true });
-    const initialContent = `---
-name: /openspec-apply
-id: openspec-apply
-category: OpenSpec
-description: Old description
----
+    const initialContent = `description = "Implement an approved OpenSpec change and keep tasks in sync."
 
+prompt = """
 <!-- OPENSPEC:START -->
 Old body
-<!-- OPENSPEC:END -->`;
+<!-- OPENSPEC:END -->
+"""
+`;
     await fs.writeFile(applyPath, initialContent);
 
     const consoleSpy = vi.spyOn(console, 'log');
@@ -172,8 +170,8 @@ Old body
     await updateCommand.execute(testDir);
 
     const updated = await fs.readFile(applyPath, 'utf-8');
-    expect(updated).toContain('name: /openspec-apply');
-    expect(updated).toContain('category: OpenSpec');
+    expect(updated).toContain('description = "Implement an approved OpenSpec change and keep tasks in sync."');
+    expect(updated).toContain('prompt = """');
     expect(updated).toContain('<!-- OPENSPEC:START -->');
     expect(updated).toContain('Work through tasks sequentially');
     expect(updated).not.toContain('Old body');
@@ -184,7 +182,7 @@ Old body
     );
     expect(logMessage).toContain('AGENTS.md (created)');
     expect(logMessage).toContain(
-      'Updated slash commands: .qwen/commands/openspec-apply.md'
+      'Updated slash commands: .qwen/commands/openspec-apply.toml'
     );
 
     consoleSpy.mockRestore();
@@ -193,22 +191,20 @@ Old body
   it('should not create missing Qwen slash command files on update', async () => {
     const applyPath = path.join(
       testDir,
-      '.qwen/commands/openspec-apply.md'
+      '.qwen/commands/openspec-apply.toml'
     );
 
     await fs.mkdir(path.dirname(applyPath), { recursive: true });
     await fs.writeFile(
       applyPath,
-      `---
-name: /openspec-apply
-id: openspec-apply
-category: OpenSpec
-description: Old description
----
+      `description = "Old description"
 
+prompt = """
 <!-- OPENSPEC:START -->
 Old content
-<!-- OPENSPEC:END -->`
+<!-- OPENSPEC:END -->
+"""
+`
     );
 
     await updateCommand.execute(testDir);
@@ -219,11 +215,11 @@ Old content
 
     const proposalPath = path.join(
       testDir,
-      '.qwen/commands/openspec-proposal.md'
+      '.qwen/commands/openspec-proposal.toml'
     );
     const archivePath = path.join(
       testDir,
-      '.qwen/commands/openspec-archive.md'
+      '.qwen/commands/openspec-archive.toml'
     );
 
     await expect(FileSystemUtils.fileExists(proposalPath)).resolves.toBe(false);
