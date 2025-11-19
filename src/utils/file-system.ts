@@ -184,4 +184,22 @@ export class FileSystemUtils {
       return false;
     }
   }
+
+  static async readJsonFile<T = any>(filePath: string): Promise<T | null> {
+    try {
+      if (!await this.fileExists(filePath)) {
+        return null;
+      }
+      const content = await this.readFile(filePath);
+      return JSON.parse(content) as T;
+    } catch (error: any) {
+      console.debug(`Unable to read JSON file at ${filePath}: ${error.message}`);
+      return null;
+    }
+  }
+
+  static async writeJsonFile(filePath: string, data: any): Promise<void> {
+    const content = JSON.stringify(data, null, 2) + '\n';
+    await this.writeFile(filePath, content);
+  }
 }

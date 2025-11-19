@@ -22,6 +22,10 @@ import {
   OPENSPEC_DIR_NAME,
   AIToolOption,
   OPENSPEC_MARKERS,
+  SUPPORTED_LANGUAGES,
+  DEFAULT_LANGUAGE,
+  CONFIG_FILE_NAME,
+  LanguageOption,
 } from './config.js';
 import { PALETTE } from './styles/palette.js';
 
@@ -371,15 +375,18 @@ const toolSelectionWizard = createPrompt<string[], ToolWizardConfig>(
 type InitCommandOptions = {
   prompt?: ToolSelectionPrompt;
   tools?: string;
+  language?: string;
 };
 
 export class InitCommand {
   private readonly prompt: ToolSelectionPrompt;
   private readonly toolsArg?: string;
+  private readonly languageArg?: string;
 
   constructor(options: InitCommandOptions = {}) {
     this.prompt = options.prompt ?? ((config) => toolSelectionWizard(config));
     this.toolsArg = options.tools;
+    this.languageArg = options.language;
   }
 
   async execute(targetPath: string): Promise<void> {
@@ -393,8 +400,21 @@ export class InitCommand {
 
     this.renderBanner(extendMode);
 
+    // Read existing config before language selection to detect language changes
+    const existingConfigBeforeLanguageChange = extendMode 
+      ? await this.readConfigFile(openspecPath)
+      : null;
+
+    // Get language configuration first (before AI tool selection)
+    const selectedLanguage = await this.getSelectedLanguage(openspecPath, extendMode);
+    
+    // Save language configuration
+    if (selectedLanguage) {
+      await this.saveConfigFile(openspecPath, { language: selectedLanguage });
+    }
+
     // Get configuration (after validation to avoid prompts if validation fails)
-    const config = await this.getConfiguration(existingToolStates, extendMode);
+    const config = await this.getConfiguration(existingToolStates, extendMode, openspecPath);
 
     const availableTools = AI_TOOLS.filter((tool) => tool.available);
     const selectedIds = new Set(config.aiTools);
@@ -432,15 +452,17 @@ export class InitCommand {
         )
       );
       await this.createDirectoryStructure(openspecPath);
-      await this.ensureTemplateFiles(openspecPath, config);
+      await this.ensureTemplateFiles(openspecPath, config, existingConfigBeforeLanguageChange);
     }
 
     // Step 2: Configure AI tools
     const toolSpinner = this.startSpinner('Configuring AI tools...');
+    const language = config.language || DEFAULT_LANGUAGE;
     const rootStubStatus = await this.configureAITools(
       projectPath,
       openspecDir,
-      config.aiTools
+      config.aiTools,
+      language
     );
     toolSpinner.stopAndPersist({
       symbol: PALETTE.white('▌'),
@@ -474,10 +496,96 @@ export class InitCommand {
 
   private async getConfiguration(
     existingTools: Record<string, boolean>,
-    extendMode: boolean
+    extendMode: boolean,
+    openspecPath: string
   ): Promise<OpenSpecConfig> {
+    // Language is already selected and saved, read it from config
+    const config = await this.readConfigFile(openspecPath);
+    const selectedLanguage = config?.language || DEFAULT_LANGUAGE;
     const selectedTools = await this.getSelectedTools(existingTools, extendMode);
-    return { aiTools: selectedTools };
+    return { aiTools: selectedTools, language: selectedLanguage };
+  }
+
+  private async getSelectedLanguage(
+    openspecPath: string,
+    extendMode: boolean
+  ): Promise<string> {
+    // Non-interactive mode - check for --language flag first
+    const nonInteractiveLanguage = this.resolveLanguageArg();
+    if (nonInteractiveLanguage !== null) {
+      return nonInteractiveLanguage;
+    }
+
+    // Try to read existing config for default value
+    let defaultLanguage = DEFAULT_LANGUAGE;
+    if (extendMode) {
+      const existingConfig = await this.readConfigFile(openspecPath);
+      if (existingConfig?.language) {
+        defaultLanguage = existingConfig.language;
+      }
+    }
+
+    // Interactive mode - prompt for language with default
+    return this.promptForLanguage(defaultLanguage);
+  }
+
+  private resolveLanguageArg(): string | null {
+    if (typeof this.languageArg === 'undefined') {
+      return null;
+    }
+
+    const raw = this.languageArg.trim();
+    if (raw.length === 0) {
+      throw new Error(
+        `The --language option requires a value. Supported languages: ${SUPPORTED_LANGUAGES.map(l => l.code).join(', ')}`
+      );
+    }
+
+    const normalized = raw.toLowerCase();
+    const language = SUPPORTED_LANGUAGES.find(
+      (lang) => lang.code.toLowerCase() === normalized
+    );
+
+    if (!language) {
+      const availableCodes = SUPPORTED_LANGUAGES.map((l) => l.code).join(', ');
+      throw new Error(
+        `Invalid language code: ${raw}. Supported languages: ${availableCodes}`
+      );
+    }
+
+    return language.code;
+  }
+
+  private async promptForLanguage(defaultLanguage: string = DEFAULT_LANGUAGE): Promise<string> {
+    const { select } = await import('@inquirer/prompts');
+    
+    const language = await select({
+      message: 'Select your preferred language:',
+      choices: SUPPORTED_LANGUAGES.map((lang) => ({
+        name: `${lang.nativeName} (${lang.code})`,
+        value: lang.code,
+      })),
+      default: defaultLanguage,
+    });
+
+    return language;
+  }
+
+  private async readConfigFile(
+    openspecPath: string
+  ): Promise<Partial<OpenSpecConfig> | null> {
+    const configPath = path.join(openspecPath, CONFIG_FILE_NAME);
+    return await FileSystemUtils.readJsonFile<Partial<OpenSpecConfig>>(configPath);
+  }
+
+  private async saveConfigFile(
+    openspecPath: string,
+    config: Partial<OpenSpecConfig>
+  ): Promise<void> {
+    const configPath = path.join(openspecPath, CONFIG_FILE_NAME);
+    const existingConfig = await this.readConfigFile(openspecPath) || {};
+    const mergedConfig = { ...existingConfig, ...config };
+    await FileSystemUtils.writeJsonFile(configPath, mergedConfig);
   }
 
   private async getSelectedTools(
@@ -727,9 +835,19 @@ export class InitCommand {
 
   private async ensureTemplateFiles(
     openspecPath: string,
-    config: OpenSpecConfig
+    config: OpenSpecConfig,
+    previousConfig: Partial<OpenSpecConfig> | null = null
   ): Promise<void> {
-    await this.writeTemplateFiles(openspecPath, config, true);
+    // Check if language has changed - if so, regenerate templates
+    // Use previousConfig if provided (read before language was saved), otherwise read from file
+    const existingConfig =
+      previousConfig || (await this.readConfigFile(openspecPath));
+    const languageChanged = existingConfig?.language && 
+                            existingConfig.language !== config.language;
+    
+    // If language changed, force regeneration (skipExisting = false)
+    // Otherwise, skip existing files to preserve user modifications
+    await this.writeTemplateFiles(openspecPath, config, !languageChanged);
   }
 
   private async writeTemplateFiles(
@@ -741,7 +859,8 @@ export class InitCommand {
       // Could be enhanced with prompts for project details
     };
 
-    const templates = TemplateManager.getTemplates(context);
+    const language = config.language || DEFAULT_LANGUAGE;
+    const templates = TemplateManager.getTemplates(context, language);
 
     for (const template of templates) {
       const filePath = path.join(openspecPath, template.path);
@@ -763,22 +882,24 @@ export class InitCommand {
   private async configureAITools(
     projectPath: string,
     openspecDir: string,
-    toolIds: string[]
+    toolIds: string[],
+    language: string = DEFAULT_LANGUAGE
   ): Promise<RootStubStatus> {
     const rootStubStatus = await this.configureRootAgentsStub(
       projectPath,
-      openspecDir
+      openspecDir,
+      language
     );
 
     for (const toolId of toolIds) {
       const configurator = ToolRegistry.get(toolId);
       if (configurator && configurator.isAvailable) {
-        await configurator.configure(projectPath, openspecDir);
+        await configurator.configure(projectPath, openspecDir, language);
       }
 
       const slashConfigurator = SlashCommandRegistry.get(toolId);
       if (slashConfigurator && slashConfigurator.isAvailable) {
-        await slashConfigurator.generateAll(projectPath, openspecDir);
+        await slashConfigurator.generateAll(projectPath, openspecDir, language);
       }
     }
 
@@ -787,7 +908,8 @@ export class InitCommand {
 
   private async configureRootAgentsStub(
     projectPath: string,
-    openspecDir: string
+    openspecDir: string,
+    language: string = DEFAULT_LANGUAGE
   ): Promise<RootStubStatus> {
     const configurator = ToolRegistry.get('agents');
     if (!configurator || !configurator.isAvailable) {
@@ -797,7 +919,7 @@ export class InitCommand {
     const stubPath = path.join(projectPath, configurator.configFileName);
     const existed = await FileSystemUtils.fileExists(stubPath);
 
-    await configurator.configure(projectPath, openspecDir);
+    await configurator.configure(projectPath, openspecDir, language);
 
     return existed ? 'updated' : 'created';
   }
@@ -968,3 +1090,4 @@ export class InitCommand {
     }).start();
   }
 }
+

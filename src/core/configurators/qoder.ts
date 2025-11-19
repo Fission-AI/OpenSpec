@@ -33,13 +33,13 @@ export class QoderConfigurator implements ToolConfigurator {
    * @param {string} openspecDir - Path to openspec directory (unused but required by interface)
    * @returns {Promise<void>} Resolves when configuration is complete
    */
-  async configure(projectPath: string, openspecDir: string): Promise<void> {
+  async configure(projectPath: string, openspecDir: string, language: string = 'en-US'): Promise<void> {
     // Construct full path to QODER.md at project root
     const filePath = path.join(projectPath, this.configFileName);
     
     // Get Claude-compatible instruction template
     // This ensures Qoder receives the same high-quality OpenSpec instructions
-    const content = TemplateManager.getClaudeTemplate();
+    const content = TemplateManager.getClaudeTemplate(language);
     
     // Write or update file with managed content between markers
     // This allows future updates to refresh instructions automatically

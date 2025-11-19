@@ -22,11 +22,11 @@ export abstract class SlashCommandConfigurator {
     }));
   }
 
-  async generateAll(projectPath: string, _openspecDir: string): Promise<string[]> {
+  async generateAll(projectPath: string, _openspecDir: string, language: string = 'en-US'): Promise<string[]> {
     const createdOrUpdated: string[] = [];
 
     for (const target of this.getTargets()) {
-      const body = this.getBody(target.id);
+      const body = this.getBody(target.id, language);
       const filePath = FileSystemUtils.joinPath(projectPath, target.path);
 
       if (await FileSystemUtils.fileExists(filePath)) {
@@ -48,13 +48,13 @@ export abstract class SlashCommandConfigurator {
     return createdOrUpdated;
   }
 
-  async updateExisting(projectPath: string, _openspecDir: string): Promise<string[]> {
+  async updateExisting(projectPath: string, _openspecDir: string, language: string = 'en-US'): Promise<string[]> {
     const updated: string[] = [];
 
     for (const target of this.getTargets()) {
       const filePath = FileSystemUtils.joinPath(projectPath, target.path);
       if (await FileSystemUtils.fileExists(filePath)) {
-        const body = this.getBody(target.id);
+        const body = this.getBody(target.id, language);
         await this.updateBody(filePath, body);
         updated.push(target.path);
       }
@@ -66,8 +66,8 @@ export abstract class SlashCommandConfigurator {
   protected abstract getRelativePath(id: SlashCommandId): string;
   protected abstract getFrontmatter(id: SlashCommandId): string | undefined;
 
-  protected getBody(id: SlashCommandId): string {
-    return TemplateManager.getSlashCommandBody(id).trim();
+  protected getBody(id: SlashCommandId, language: string = 'en-US'): string {
+    return TemplateManager.getSlashCommandBody(id, language).trim();
   }
 
   // Resolve absolute path for a given slash command target. Subclasses may override
