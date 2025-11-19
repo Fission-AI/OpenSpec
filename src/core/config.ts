@@ -30,6 +30,7 @@ export const AI_TOOLS: AIToolOption[] = [
   { name: 'OpenCode', value: 'opencode', available: true, successLabel: 'OpenCode' },
   { name: 'Kilo Code', value: 'kilocode', available: true, successLabel: 'Kilo Code' },
   { name: 'Qoder (CLI)', value: 'qoder', available: true, successLabel: 'Qoder' },
+  { name: 'Antigravity', value: 'antigravity', available: true, successLabel: 'Antigravity' },
   { name: 'Windsurf', value: 'windsurf', available: true, successLabel: 'Windsurf' },
   { name: 'Codex', value: 'codex', available: true, successLabel: 'Codex' },
   { name: 'GitHub Copilot', value: 'github-copilot', available: true, successLabel: 'GitHub Copilot' },

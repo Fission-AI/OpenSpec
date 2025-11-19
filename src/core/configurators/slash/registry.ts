@@ -17,6 +17,7 @@ import { CrushSlashCommandConfigurator } from './crush.js';
 import { CostrictSlashCommandConfigurator } from './costrict.js';
 import { QwenSlashCommandConfigurator } from './qwen.js';
 import { RooCodeSlashCommandConfigurator } from './roocode.js';
+import { AntigravitySlashCommandConfigurator } from './antigravity.js';
 
 export class SlashCommandRegistry {
   private static configurators: Map<string, SlashCommandConfigurator> = new Map();
@@ -40,6 +41,7 @@ export class SlashCommandRegistry {
     const costrict = new CostrictSlashCommandConfigurator();
     const qwen = new QwenSlashCommandConfigurator();
     const roocode = new RooCodeSlashCommandConfigurator();
+    const antigravity = new AntigravitySlashCommandConfigurator();
 
     this.configurators.set(claude.toolId, claude);
     this.configurators.set(codeBuddy.toolId, codeBuddy);
@@ -59,6 +61,7 @@ export class SlashCommandRegistry {
     this.configurators.set(costrict.toolId, costrict);
     this.configurators.set(qwen.toolId, qwen);
     this.configurators.set(roocode.toolId, roocode);
+    this.configurators.set(antigravity.toolId, antigravity);
   }
 
   static register(configurator: SlashCommandConfigurator): void {

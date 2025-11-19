@@ -1,5 +1,11 @@
 # @fission-ai/openspec
 
+## Unreleased
+
+### Minor Changes
+
+- Add Antigravity slash command support so `openspec init` can generate `.agent/workflows/openspec-*.md` files with description-only frontmatter and `openspec update` refreshes existing workflows alongside Windsurf.
+
 ## 0.15.0
 
 ### Minor Changes
