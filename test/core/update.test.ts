@@ -1099,6 +1099,47 @@ Old slash content
     consoleSpy.mockRestore();
   });
 
+  it('should refresh existing iFlow slash command files', async () => {
+    const iflowPath = path.join(
+      testDir,
+      '.iflow/commands/openspec-proposal.md'
+    );
+    await fs.mkdir(path.dirname(iflowPath), { recursive: true });
+    const initialContent = `---
+name: /openspec-proposal
+description: Old description
+category: OpenSpec
+tags: [openspec, change]
+---
+<!-- OPENSPEC:START -->
+Old slash content
+<!-- OPENSPEC:END -->`;
+    await fs.writeFile(iflowPath, initialContent);
+
+    const consoleSpy = vi.spyOn(console, 'log');
+
+    await updateCommand.execute(testDir);
+
+    const updated = await fs.readFile(iflowPath, 'utf-8');
+    expect(updated).toContain('name: /openspec-proposal');
+    expect(updated).toContain('**Guardrails**');
+    expect(updated).toContain(
+      'Validate with `openspec validate <id> --strict`'
+    );
+    expect(updated).not.toContain('Old slash content');
+
+    const [logMessage] = consoleSpy.mock.calls[0];
+    expect(logMessage).toContain(
+      'Updated OpenSpec instructions (openspec/AGENTS.md'
+    );
+    expect(logMessage).toContain('AGENTS.md (created)');
+    expect(logMessage).toContain(
+      'Updated slash commands: .iflow/commands/openspec-proposal.md'
+    );
+
+    consoleSpy.mockRestore();
+  });
+
   it('should refresh existing RooCode slash command files', async () => {
     const rooPath = path.join(
       testDir,
@@ -1242,6 +1283,43 @@ Old body
     // Confirm they weren't created by update
     await expect(FileSystemUtils.fileExists(qoderProposal)).resolves.toBe(false);
     await expect(FileSystemUtils.fileExists(qoderArchive)).resolves.toBe(false);
+  });
+
+  it('should not create missing iFlow slash command files on update', async () => {
+    const iflowApply = path.join(
+      testDir,
+      '.iflow/commands/openspec-apply.md'
+    );
+
+    // Only create apply; leave proposal and archive missing
+    await fs.mkdir(path.dirname(iflowApply), { recursive: true });
+    await fs.writeFile(
+      iflowApply,
+      `---
+name: /openspec-apply
+description: Old description
+category: OpenSpec
+tags: [openspec, apply]
+---
+<!-- OPENSPEC:START -->
+Old body
+<!-- OPENSPEC:END -->`
+    );
+
+    await updateCommand.execute(testDir);
+
+    const iflowProposal = path.join(
+      testDir,
+      '.iflow/commands/openspec-proposal.md'
+    );
+    const iflowArchive = path.join(
+      testDir,
+      '.iflow/commands/openspec-archive.md'
+    );
+
+    // Confirm they weren't created by update
+    await expect(FileSystemUtils.fileExists(iflowProposal)).resolves.toBe(false);
+    await expect(FileSystemUtils.fileExists(iflowArchive)).resolves.toBe(false);
   });
 
   it('should update only existing COSTRICT.md file', async () => {

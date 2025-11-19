@@ -1347,6 +1347,61 @@ describe('InitCommand', () => {
       expect(qoderChoice.configured).toBe(true);
     });
 
+    it('should create IFlow slash command files with templates', async () => {
+      queueSelections('iflow', DONE);
+
+      await initCommand.execute(testDir);
+
+      const iflowProposal = path.join(
+        testDir,
+        '.iflow/commands/openspec-proposal.md'
+      );
+      const iflowApply = path.join(
+        testDir,
+        '.iflow/commands/openspec-apply.md'
+      );
+      const iflowArchive = path.join(
+        testDir,
+        '.iflow/commands/openspec-archive.md'
+      );
+
+      expect(await fileExists(iflowProposal)).toBe(true);
+      expect(await fileExists(iflowApply)).toBe(true);
+      expect(await fileExists(iflowArchive)).toBe(true);
+
+      const proposalContent = await fs.readFile(iflowProposal, 'utf-8');
+      expect(proposalContent).toContain('---');
+      expect(proposalContent).toContain('name: /openspec-proposal');
+      expect(proposalContent).toContain('description: Scaffold a new OpenSpec change and validate strictly.');
+      expect(proposalContent).toContain('category: OpenSpec');
+      expect(proposalContent).toContain('<!-- OPENSPEC:START -->');
+      expect(proposalContent).toContain('**Guardrails**');
+
+      const applyContent = await fs.readFile(iflowApply, 'utf-8');
+      expect(applyContent).toContain('---');
+      expect(applyContent).toContain('name: /openspec-apply');
+      expect(applyContent).toContain('description: Implement an approved OpenSpec change and keep tasks in sync.');
+      expect(applyContent).toContain('Work through tasks sequentially');
+
+      const archiveContent = await fs.readFile(iflowArchive, 'utf-8');
+      expect(archiveContent).toContain('---');
+      expect(archiveContent).toContain('name: /openspec-archive');
+      expect(archiveContent).toContain('description: Archive a deployed OpenSpec change and update specs.');
+      expect(archiveContent).toContain('openspec archive <id> --yes');
+    });
+
+    it('should mark iFlow as already configured during extend mode', async () => {
+      queueSelections('iflow', DONE, 'iflow', DONE);
+      await initCommand.execute(testDir);
+      await initCommand.execute(testDir);
+
+      const secondRunArgs = mockPrompt.mock.calls[1][0];
+      const iflowChoice = secondRunArgs.choices.find(
+        (choice: any) => choice.value === 'iflow'
+      );
+      expect(iflowChoice.configured).toBe(true);
+    });
+
     it('should create COSTRICT.md when CoStrict is selected', async () => {
       queueSelections('costrict', DONE);
 
@@ -1376,6 +1431,22 @@ describe('InitCommand', () => {
       expect(content).toContain('openspec update');
       expect(content).toContain('<!-- OPENSPEC:END -->');
     });
+
+    it('should create IFLOW.md when iFlow is selected', async () => {
+      queueSelections('iflow', DONE);
+
+      await initCommand.execute(testDir);
+
+      const iflowPath = path.join(testDir, 'IFLOW.md');
+      expect(await fileExists(iflowPath)).toBe(true);
+
+      const content = await fs.readFile(iflowPath, 'utf-8');
+      expect(content).toContain('<!-- OPENSPEC:START -->');
+      expect(content).toContain("@/openspec/AGENTS.md");
+      expect(content).toContain('openspec update');
+      expect(content).toContain('<!-- OPENSPEC:END -->');
+    });
+
     it('should update existing COSTRICT.md with markers', async () => {
       queueSelections('costrict', DONE);
 
@@ -1409,6 +1480,25 @@ describe('InitCommand', () => {
       expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
       expect(updatedContent).toContain('Custom instructions here');
     });
+
+    it('should update existing IFLOW.md with markers', async () => {
+      queueSelections('iflow', DONE);
+  
+      const iflowPath = path.join(testDir, 'IFLOW.md');
+      const existingContent =
+        '# My iFlow Instructions\nCustom instructions here';
+      await fs.writeFile(iflowPath, existingContent);
+  
+      await initCommand.execute(testDir);
+  
+      const updatedContent = await fs.readFile(iflowPath, 'utf-8');
+      expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
+      expect(updatedContent).toContain("@/openspec/AGENTS.md");
+      expect(updatedContent).toContain('openspec update');
+      expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
+      expect(updatedContent).toContain('Custom instructions here');
+    });
+  
   });
 
   describe('non-interactive mode', () => {
