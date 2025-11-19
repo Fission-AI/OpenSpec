@@ -16,6 +16,7 @@ import { ClineSlashCommandConfigurator } from './cline.js';
 import { CrushSlashCommandConfigurator } from './crush.js';
 import { CostrictSlashCommandConfigurator } from './costrict.js';
 import { QwenSlashCommandConfigurator } from './qwen.js';
+import { IflowSlashCommandConfigurator } from './iflow.js';
 import { RooCodeSlashCommandConfigurator } from './roocode.js';
 import { AntigravitySlashCommandConfigurator } from './antigravity.js';
 
@@ -40,6 +41,7 @@ export class SlashCommandRegistry {
     const crush = new CrushSlashCommandConfigurator();
     const costrict = new CostrictSlashCommandConfigurator();
     const qwen = new QwenSlashCommandConfigurator();
+    const iflow = new IflowSlashCommandConfigurator();
     const roocode = new RooCodeSlashCommandConfigurator();
     const antigravity = new AntigravitySlashCommandConfigurator();
 
@@ -60,6 +62,7 @@ export class SlashCommandRegistry {
     this.configurators.set(crush.toolId, crush);
     this.configurators.set(costrict.toolId, costrict);
     this.configurators.set(qwen.toolId, qwen);
+    this.configurators.set(iflow.toolId, iflow);
     this.configurators.set(roocode.toolId, roocode);
     this.configurators.set(antigravity.toolId, antigravity);
   }
