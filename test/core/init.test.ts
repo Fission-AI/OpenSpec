@@ -213,6 +213,50 @@ describe('InitCommand', () => {
       expect(archiveContent).toContain('Run `openspec archive <id> --yes`');
     });
 
+    it('should create Antigravity workflows when Antigravity is selected', async () => {
+      queueSelections('antigravity', DONE);
+
+      await initCommand.execute(testDir);
+
+      const agProposal = path.join(
+        testDir,
+        '.agent/workflows/openspec-proposal.md'
+      );
+      const agApply = path.join(
+        testDir,
+        '.agent/workflows/openspec-apply.md'
+      );
+      const agArchive = path.join(
+        testDir,
+        '.agent/workflows/openspec-archive.md'
+      );
+
+      expect(await fileExists(agProposal)).toBe(true);
+      expect(await fileExists(agApply)).toBe(true);
+      expect(await fileExists(agArchive)).toBe(true);
+
+      const proposalContent = await fs.readFile(agProposal, 'utf-8');
+      expect(proposalContent).toContain('---');
+      expect(proposalContent).toContain('description: Scaffold a new OpenSpec change and validate strictly.');
+      expect(proposalContent).toContain('<!-- OPENSPEC:START -->');
+      expect(proposalContent).toContain('**Guardrails**');
+      expect(proposalContent).not.toContain('auto_execution_mode');
+
+      const applyContent = await fs.readFile(agApply, 'utf-8');
+      expect(applyContent).toContain('---');
+      expect(applyContent).toContain('description: Implement an approved OpenSpec change and keep tasks in sync.');
+      expect(applyContent).toContain('<!-- OPENSPEC:START -->');
+      expect(applyContent).toContain('Work through tasks sequentially');
+      expect(applyContent).not.toContain('auto_execution_mode');
+
+      const archiveContent = await fs.readFile(agArchive, 'utf-8');
+      expect(archiveContent).toContain('---');
+      expect(archiveContent).toContain('description: Archive a deployed OpenSpec change and update specs.');
+      expect(archiveContent).toContain('<!-- OPENSPEC:START -->');
+      expect(archiveContent).toContain('Run `openspec archive <id> --yes`');
+      expect(archiveContent).not.toContain('auto_execution_mode');
+    });
+
     it('should always create AGENTS.md in project root', async () => {
       queueSelections(DONE);
 
@@ -847,6 +891,18 @@ describe('InitCommand', () => {
         (choice: any) => choice.value === 'windsurf'
       );
       expect(wsChoice.configured).toBe(true);
+    });
+
+    it('should mark Antigravity as already configured during extend mode', async () => {
+      queueSelections('antigravity', DONE, 'antigravity', DONE);
+      await initCommand.execute(testDir);
+      await initCommand.execute(testDir);
+
+      const secondRunArgs = mockPrompt.mock.calls[1][0];
+      const antigravityChoice = secondRunArgs.choices.find(
+        (choice: any) => choice.value === 'antigravity'
+      );
+      expect(antigravityChoice.configured).toBe(true);
     });
 
     it('should mark Codex as already configured during extend mode', async () => {

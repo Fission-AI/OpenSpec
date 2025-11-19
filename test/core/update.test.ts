@@ -463,6 +463,38 @@ Old body
     consoleSpy.mockRestore();
   });
 
+  it('should refresh existing Antigravity workflows', async () => {
+    const agPath = path.join(
+      testDir,
+      '.agent/workflows/openspec-apply.md'
+    );
+    await fs.mkdir(path.dirname(agPath), { recursive: true });
+    const initialContent = `---
+description: Implement an approved OpenSpec change and keep tasks in sync.
+---
+
+<!-- OPENSPEC:START -->
+Old body
+<!-- OPENSPEC:END -->`;
+    await fs.writeFile(agPath, initialContent);
+
+    const consoleSpy = vi.spyOn(console, 'log');
+
+    await updateCommand.execute(testDir);
+
+    const updated = await fs.readFile(agPath, 'utf-8');
+    expect(updated).toContain('Work through tasks sequentially');
+    expect(updated).not.toContain('Old body');
+    expect(updated).toContain('description: Implement an approved OpenSpec change and keep tasks in sync.');
+    expect(updated).not.toContain('auto_execution_mode: 3');
+
+    const [logMessage] = consoleSpy.mock.calls[0];
+    expect(logMessage).toContain(
+      'Updated slash commands: .agent/workflows/openspec-apply.md'
+    );
+    consoleSpy.mockRestore();
+  });
+
   it('should refresh existing Codex prompts', async () => {
     const codexPath = path.join(
       testDir,
