@@ -9,11 +9,11 @@ The CLI SHALL expose an `openspec scaffold <change-id>` command that validates t
 - **AND** exit with code 0 after successful scaffolding
 
 ### Requirement: Change Directory Structure
-The scaffold command SHALL create the standard change workspace with proposal, tasks, optional design, and `specs/` directories laid out according to OpenSpec conventions.
+The scaffold command SHALL create the standard change workspace (if it does not already exist) with proposal, tasks, optional design, and `specs/` directories laid out according to OpenSpec conventions.
 
 #### Scenario: Generating change workspace
 - **WHEN** scaffolding a new change with id `add-user-notifications`
-- **THEN** create `openspec/changes/add-user-notifications/`
+- **THEN** create `openspec/changes/add-user-notifications/` if it does not exist
 - **AND** copy the default template bundle (proposal, tasks, design placeholders) into that directory in a single operation
 - **AND** create an empty `openspec/changes/add-user-notifications/specs/` directory ready for capability-specific deltas that will be authored later
 
@@ -27,10 +27,10 @@ The scaffold command SHALL populate generated Markdown files with OpenSpec-compl
 - **AND** annotate optional sections (like `design.md`) with inline TODO comments so users understand when to keep or delete them
 - **AND** include a short reminder inside `specs/README.md` (or similar) instructing authors to add deltas once they know the affected capability
 
-### Requirement: Directory Collision Handling
-The scaffold command SHALL prevent accidental overwrites by refusing to run when a change directory already exists.
+### Requirement: Idempotent Execution
+The scaffold command SHALL be safe to rerun, preserving user edits while filling in any missing managed sections.
 
-#### Scenario: Existing change-id
-- **WHEN** the command is executed for a `change-id` whose directory already exists
-- **THEN** emit an error stating the change has already been scaffolded
-- **AND** exit without modifying any files
+#### Scenario: Rerunning scaffold on existing change
+- **WHEN** the command is executed again for an existing change directory containing user-edited files
+- **THEN** leave existing content untouched except for managed placeholder regions or missing files that need creation
+- **AND** update the filesystem summary to highlight which files were skipped, created, or refreshed
