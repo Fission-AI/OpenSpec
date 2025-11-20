@@ -663,6 +663,53 @@ Old Gemini body
 
     consoleSpy.mockRestore();
   });
+  
+  it('should refresh existing IFLOW slash commands', async () => {
+    const iflowProposal = path.join(
+      testDir,
+      '.iflow/commands/openspec-proposal.md'
+    );
+    await fs.mkdir(path.dirname(iflowProposal), { recursive: true });
+    const initialContent = `description: Scaffold a new OpenSpec change and validate strictly."
+
+prompt = """
+<!-- OPENSPEC:START -->
+Old IFlow body
+<!-- OPENSPEC:END -->
+"""
+`;
+    await fs.writeFile(iflowProposal, initialContent);
+
+    const consoleSpy = vi.spyOn(console, 'log');
+
+    await updateCommand.execute(testDir);
+
+    const updated = await fs.readFile(iflowProposal, 'utf-8');
+    expect(updated).toContain('description: Scaffold a new OpenSpec change and validate strictly.');
+    expect(updated).toContain('<!-- OPENSPEC:START -->');
+    expect(updated).toContain('**Guardrails**');
+    expect(updated).toContain('<!-- OPENSPEC:END -->');
+    expect(updated).not.toContain('Old IFlow body');
+
+    const iflowApply = path.join(
+      testDir,
+      '.iflow/commands/openspec-apply.md'
+    );
+    const iflowArchive = path.join(
+      testDir,
+      '.iflow/commands/openspec-archive.md'
+    );
+
+    await expect(FileSystemUtils.fileExists(iflowApply)).resolves.toBe(false);
+    await expect(FileSystemUtils.fileExists(iflowArchive)).resolves.toBe(false);
+
+    const [logMessage] = consoleSpy.mock.calls[0];
+    expect(logMessage).toContain(
+      'Updated slash commands: .iflow/commands/openspec-proposal.md'
+    );
+
+    consoleSpy.mockRestore();
+  });
 
   it('should refresh existing Factory slash commands', async () => {
     const factoryPath = path.join(

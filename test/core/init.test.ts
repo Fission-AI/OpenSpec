@@ -416,6 +416,59 @@ describe('InitCommand', () => {
       expect(updatedContent).not.toContain('Custom instruction added by user');
     });
 
+    it('should create IFlow CLI slash command files with templates', async () => {
+      queueSelections('iflow', DONE);
+      await initCommand.execute(testDir);
+
+      const iflowProposal = path.join(
+        testDir,
+        '.iflow/commands/openspec-proposal.md'
+      );
+      const iflowApply = path.join(
+        testDir,
+        '.iflow/commands/openspec-apply.md'
+      );
+      const iflowArchive = path.join(
+        testDir,
+        '.iflow/commands/openspec-archive.md'
+      );
+
+      expect(await fileExists(iflowProposal)).toBe(true);
+      expect(await fileExists(iflowApply)).toBe(true);
+      expect(await fileExists(iflowArchive)).toBe(true);
+
+      const proposalContent = await fs.readFile(iflowProposal, 'utf-8');
+      expect(proposalContent).toContain('description: Scaffold a new OpenSpec change and validate strictly.');
+      expect(proposalContent).toContain('<!-- OPENSPEC:START -->');
+      expect(proposalContent).toContain('**Guardrails**');
+      expect(proposalContent).toContain('<!-- OPENSPEC:END -->');
+
+      const applyContent = await fs.readFile(iflowApply, 'utf-8');
+      expect(applyContent).toContain('description: Implement an approved OpenSpec change and keep tasks in sync.');
+      expect(applyContent).toContain('Work through tasks sequentially');
+
+      const archiveContent = await fs.readFile(iflowArchive, 'utf-8');
+      expect(archiveContent).toContain('description: Archive a deployed OpenSpec change and update specs.');
+      expect(archiveContent).toContain('openspec archive <id>');
+    });
+
+    it('should update existing IFLOW.md with markers', async () => {
+      queueSelections('iflow', DONE);
+
+      const iflowPath = path.join(testDir, 'IFLOW.md');
+      const existingContent = '# My IFLOW Instructions\nCustom instructions here';
+      await fs.writeFile(iflowPath, existingContent);
+
+      await initCommand.execute(testDir);
+
+      const updatedContent = await fs.readFile(iflowPath, 'utf-8');
+      expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
+      expect(updatedContent).toContain("@/openspec/AGENTS.md");
+      expect(updatedContent).toContain('openspec update');
+      expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
+      expect(updatedContent).toContain('Custom instructions here');
+    });
+
     it('should create OpenCode slash command files with templates', async () => {
       queueSelections('opencode', DONE);
 
