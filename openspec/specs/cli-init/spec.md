@@ -246,6 +246,14 @@ The init command SHALL generate slash command files for supported editors using 
 - **AND** wrap the generated content in OpenSpec managed markers where applicable so `openspec update` can safely refresh the commands
 - **AND** each template includes instructions for the relevant OpenSpec workflow stage
 
+#### Scenario: Generating slash commands for iFlow
+- **WHEN** the user selects iFlow during initialization
+- **THEN** create `.iflow/commands/openspec-proposal.md`, `.iflow/commands/openspec-apply.md`, and `.iflow/commands/openspec-archive.md`
+- **AND** populate each file from shared templates so command text matches other tools
+- **AND** include simple Markdown headings (e.g., `# OpenSpec: Proposal`) without YAML frontmatter
+- **AND** wrap the generated content in OpenSpec managed markers where applicable so `openspec update` can safely refresh the commands
+- **AND** each template includes instructions for the relevant OpenSpec workflow stage
+
 ### Requirement: Non-Interactive Mode
 The command SHALL support non-interactive operation through command-line options for automation and CI/CD use cases.
 
