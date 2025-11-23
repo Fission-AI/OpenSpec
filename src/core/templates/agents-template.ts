@@ -100,7 +100,11 @@ openspec archive <change-id> [--yes|-y]   # Archive after deployment (add --yes 
 
 # Project management
 openspec init [path]           # Initialize OpenSpec
+openspec init --workspace      # Initialize multi-repo workspace
 openspec update [path]         # Update instruction files
+
+# Workspace commands
+openspec validate --workspace  # Validate workspace and cross-repo conventions
 
 # Interactive mode
 openspec show                  # Prompts for selection
@@ -139,6 +143,70 @@ openspec/
 │   │           └── spec.md # ADDED/MODIFIED/REMOVED
 │   └── archive/            # Completed changes
 \`\`\`
+
+## Multi-Repository Workspaces
+
+For projects spanning multiple repositories (e.g., backend + mobile), OpenSpec supports workspace mode.
+
+### When to Use Workspaces
+- Separate repos that share specifications (backend/frontend)
+- Monorepo with independent packages
+- Any multi-repo project needing coordinated specs
+
+### Workspace Structure
+\`\`\`
+project-root/
+├── openspec/
+│   ├── workspace.yaml      # Workspace configuration
+│   ├── AGENTS.md
+│   ├── project.md
+│   ├── specs/              # Shared capability specs
+│   └── changes/            # Cross-repo changes
+├── backend/                # Child repo (gitignored)
+└── frontend/               # Child repo (gitignored)
+\`\`\`
+
+### workspace.yaml Format
+\`\`\`yaml
+name: my-project
+repos:
+  - name: backend
+    path: ./backend
+    role: api
+  - name: frontend
+    path: ./frontend
+    role: client
+conventions:
+  crossRepoChanges:
+    requireImpactSection: true
+    requireImplementationOrder: false
+\`\`\`
+
+### Cross-Repo Change Proposals
+When creating changes affecting multiple repos, include an Impact section:
+
+\`\`\`markdown
+## Impact
+- Affected repos:
+  - backend: api/endpoints/, models/
+  - frontend: services/api.ts, screens/
+- Implementation order: backend first, then frontend
+\`\`\`
+
+### Workspace Commands
+\`\`\`bash
+openspec init --workspace      # Initialize workspace with repo discovery
+openspec validate --workspace  # Validate cross-repo conventions
+\`\`\`
+
+### Key Principle: Capability-Centric Organization
+Specs are organized by **capability**, not by repo:
+- ✅ \`specs/user-auth/\` - capability that spans repos
+- ✅ \`specs/task-management/\` - another capability
+- ❌ \`specs/backend/\` - don't organize by repo
+- ❌ \`specs/api/\` - too technical, use capability names
+
+Cross-repo coordination belongs in \`proposal.md\` (Impact section) and \`tasks.md\` (grouped by repo), not in spec organization.
 
 ## Creating Change Proposals
 

@@ -41,7 +41,8 @@ program
   .command('init [path]')
   .description('Initialize OpenSpec in your project')
   .option('--tools <tools>', toolsOptionDescription)
-  .action(async (targetPath = '.', options?: { tools?: string }) => {
+  .option('--workspace', 'Initialize as a multi-repo workspace with workspace.yaml')
+  .action(async (targetPath = '.', options?: { tools?: string; workspace?: boolean }) => {
     try {
       // Validate that the path is a valid directory
       const resolvedPath = path.resolve(targetPath);
@@ -64,6 +65,7 @@ program
       
       const initCommand = new InitCommand({
         tools: options?.tools,
+        workspace: options?.workspace,
       });
       await initCommand.execute(targetPath);
     } catch (error) {
@@ -207,12 +209,13 @@ program
   .option('--all', 'Validate all changes and specs')
   .option('--changes', 'Validate all changes')
   .option('--specs', 'Validate all specs')
+  .option('--workspace', 'Validate all repos in workspace and cross-repo conventions')
   .option('--type <type>', 'Specify item type when ambiguous: change|spec')
   .option('--strict', 'Enable strict validation mode')
   .option('--json', 'Output validation results as JSON')
   .option('--concurrency <n>', 'Max concurrent validations (defaults to env OPENSPEC_CONCURRENCY or 6)')
   .option('--no-interactive', 'Disable interactive prompts')
-  .action(async (itemName?: string, options?: { all?: boolean; changes?: boolean; specs?: boolean; type?: string; strict?: boolean; json?: boolean; noInteractive?: boolean; concurrency?: string }) => {
+  .action(async (itemName?: string, options?: { all?: boolean; changes?: boolean; specs?: boolean; workspace?: boolean; type?: string; strict?: boolean; json?: boolean; noInteractive?: boolean; concurrency?: string }) => {
     try {
       const validateCommand = new ValidateCommand();
       await validateCommand.execute(itemName, options);

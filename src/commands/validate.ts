@@ -5,6 +5,8 @@ import { Validator } from '../core/validation/validator.js';
 import { isInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds, getSpecIds } from '../utils/item-discovery.js';
 import { nearestMatches } from '../utils/match.js';
+import { WorkspaceManager } from '../core/workspace.js';
+import { validateWorkspaceChanges } from '../core/validation/workspace-rules.js';
 
 type ItemType = 'change' | 'spec';
 
@@ -12,6 +14,7 @@ interface ExecuteOptions {
   all?: boolean;
   changes?: boolean;
   specs?: boolean;
+  workspace?: boolean;
   type?: string;
   strict?: boolean;
   json?: boolean;
@@ -31,7 +34,13 @@ export class ValidateCommand {
   async execute(itemName: string | undefined, options: ExecuteOptions = {}): Promise<void> {
     const interactive = isInteractive(options.noInteractive);
 
-    // Handle bulk flags first
+    // Handle workspace validation first (takes precedence)
+    if (options.workspace) {
+      await this.runWorkspaceValidation({ strict: !!options.strict, json: !!options.json });
+      return;
+    }
+
+    // Handle bulk flags
     if (options.all || options.changes || options.specs) {
       await this.runBulkValidation({
         changes: !!options.all || !!options.changes,
@@ -178,6 +187,76 @@ export class ValidateCommand {
     }
     console.error('Next steps:');
     bullets.forEach(b => console.error(`  ${b}`));
+  }
+
+  private async runWorkspaceValidation(opts: { strict: boolean; json: boolean }): Promise<void> {
+    const spinner = !opts.json ? ora('Validating workspace...').start() : undefined;
+    const start = Date.now();
+    const root = process.cwd();
+
+    // Check if workspace.yaml exists
+    if (!await WorkspaceManager.exists(root)) {
+      spinner?.stop();
+      console.error('No workspace.yaml found in openspec/ directory.');
+      console.error('Run "openspec init --workspace" to create one.');
+      process.exitCode = 1;
+      return;
+    }
+
+    // Load workspace
+    let workspace;
+    try {
+      workspace = await WorkspaceManager.load(root);
+      if (!workspace) {
+        spinner?.stop();
+        console.error('Failed to load workspace.yaml');
+        process.exitCode = 1;
+        return;
+      }
+    } catch (error) {
+      spinner?.stop();
+      console.error('Failed to load workspace.yaml:');
+      console.error(`  ✗ ${(error as Error).message}`);
+      process.exitCode = 1;
+      return;
+    }
+
+    if (spinner) spinner.text = 'Validating cross-repo changes...';
+
+    // Validate cross-repo change conventions
+    const report = await validateWorkspaceChanges(workspace);
+    const durationMs = Date.now() - start;
+
+    spinner?.stop();
+
+    if (opts.json) {
+      const out = {
+        workspace: {
+          name: workspace.name,
+          repos: workspace.repos.map((r: { name: string }) => r.name),
+          valid: report.valid,
+          issues: report.issues,
+          durationMs,
+        },
+        summary: report.summary,
+        version: '1.0',
+      };
+      console.log(JSON.stringify(out, null, 2));
+    } else {
+      if (report.valid) {
+        console.log(`✓ Workspace '${workspace.name}' is valid`);
+        console.log(`  Repos: ${workspace.repos.map((r: { name: string }) => r.name).join(', ')}`);
+      } else {
+        console.error(`✗ Workspace '${workspace.name}' has issues`);
+        for (const issue of report.issues) {
+          const prefix = issue.level === 'ERROR' ? '✗' : issue.level === 'WARNING' ? '⚠' : 'ℹ';
+          console.error(`  ${prefix} [${issue.level}] ${issue.message}`);
+        }
+      }
+      console.log(`Validated in ${durationMs}ms`);
+    }
+
+    process.exitCode = report.valid ? 0 : 1;
   }
 
   private async runBulkValidation(scope: { changes: boolean; specs: boolean }, opts: { strict: boolean; json: boolean; concurrency?: string }): Promise<void> {
