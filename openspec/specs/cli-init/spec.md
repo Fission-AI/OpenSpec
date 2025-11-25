@@ -73,7 +73,7 @@ The command SHALL properly configure selected AI tools with OpenSpec-specific in
 #### Scenario: Configuring Cline
 
 - **WHEN** Cline is selected
-- **THEN** create or update `CLINE.md` in the project root directory (not inside openspec/)
+- **THEN** create or update `.clinerules/openspec-rules.md` (following Cline's convention for rules files)
 - **AND** populate the managed block with a short stub that points teammates to `@/openspec/AGENTS.md`
 
 #### Scenario: Creating new CLAUDE.md
@@ -174,7 +174,7 @@ The init command SHALL generate slash command files for supported editors using 
 
 #### Scenario: Generating slash commands for Cline
 - **WHEN** the user selects Cline during initialization
-- **THEN** create `.clinerules/openspec-proposal.md`, `.clinerules/openspec-apply.md`, and `.clinerules/openspec-archive.md`
+- **THEN** create `.clinerules/workflows/openspec-proposal.md`, `.clinerules/workflows/openspec-apply.md`, and `.clinerules/workflows/openspec-archive.md`
 - **AND** populate each file from shared templates so command text matches other tools
 - **AND** include Cline-specific Markdown heading frontmatter
 - **AND** each template includes instructions for the relevant OpenSpec workflow stage

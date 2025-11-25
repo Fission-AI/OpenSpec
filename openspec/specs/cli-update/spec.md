@@ -63,10 +63,15 @@ The update command SHALL refresh existing slash command files for configured too
 - **AND** ensure templates include instructions for the relevant workflow stage
 
 #### Scenario: Updating slash commands for Cline
-- **WHEN** `.clinerules/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
+- **WHEN** `.clinerules/workflows/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
 - **THEN** refresh each file using shared templates
 - **AND** include Cline-specific Markdown heading frontmatter
 - **AND** ensure templates include instructions for the relevant workflow stage
+
+#### Scenario: Updating Cline rules file
+- **WHEN** `.clinerules/openspec-rules.md` exists
+- **THEN** refresh the managed block to point teammates to `@/openspec/AGENTS.md`
+- **AND** preserve any content outside the managed markers
 
 #### Scenario: Updating slash commands for Crush
 - **WHEN** `.crush/commands/` contains `openspec/proposal.md`, `openspec/apply.md`, and `openspec/archive.md`
