@@ -248,9 +248,10 @@ Old content
     await expect(FileSystemUtils.fileExists(qwenPath)).resolves.toBe(false);
   });
 
-  it('should update only existing CLINE.md file', async () => {
-    // Create CLINE.md file with initial content
-    const clinePath = path.join(testDir, 'CLINE.md');
+  it('should update only existing .clinerules/openspec-rules.md file', async () => {
+    // Create .clinerules/openspec-rules.md file with initial content
+    const clineRulesPath = path.join(testDir, '.clinerules', 'openspec-rules.md');
+    await fs.mkdir(path.dirname(clineRulesPath), { recursive: true });
     const initialContent = `# Cline Rules
 
 Some existing Cline rules here.
@@ -260,15 +261,15 @@ Old OpenSpec content
 <!-- OPENSPEC:END -->
 
 More rules after.`;
-    await fs.writeFile(clinePath, initialContent);
+    await fs.writeFile(clineRulesPath, initialContent);
 
     const consoleSpy = vi.spyOn(console, 'log');
 
     // Execute update command
     await updateCommand.execute(testDir);
 
-    // Check that CLINE.md was updated
-    const updatedContent = await fs.readFile(clinePath, 'utf-8');
+    // Check that .clinerules/openspec-rules.md was updated
+    const updatedContent = await fs.readFile(clineRulesPath, 'utf-8');
     expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
     expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
     expect(updatedContent).toContain("@/openspec/AGENTS.md");
@@ -282,19 +283,19 @@ More rules after.`;
       'Updated OpenSpec instructions (openspec/AGENTS.md'
     );
     expect(logMessage).toContain('AGENTS.md (created)');
-    expect(logMessage).toContain('Updated AI tool files: CLINE.md');
+    expect(logMessage).toContain('Updated AI tool files: .clinerules/openspec-rules.md');
     consoleSpy.mockRestore();
   });
 
-  it('should not create CLINE.md if it does not exist', async () => {
-    // Ensure CLINE.md does not exist
-    const clinePath = path.join(testDir, 'CLINE.md');
+  it('should not create .clinerules/openspec-rules.md if it does not exist', async () => {
+    // Ensure .clinerules/openspec-rules.md does not exist
+    const clineRulesPath = path.join(testDir, '.clinerules', 'openspec-rules.md');
 
     // Execute update command
     await updateCommand.execute(testDir);
 
-    // Check that CLINE.md was not created
-    const fileExists = await FileSystemUtils.fileExists(clinePath);
+    // Check that .clinerules/openspec-rules.md was not created
+    const fileExists = await FileSystemUtils.fileExists(clineRulesPath);
     expect(fileExists).toBe(false);
   });
 

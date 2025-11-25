@@ -136,15 +136,15 @@ describe('InitCommand', () => {
       expect(updatedContent).toContain('Custom instructions here');
     });
 
-    it('should create .clinerules/AGENTS.md when Cline is selected', async () => {
+    it('should create .clinerules/openspec-rules.md when Cline is selected', async () => {
       queueSelections('cline', DONE);
 
       await initCommand.execute(testDir);
 
-      const clineAgentsPath = path.join(testDir, '.clinerules', 'AGENTS.md');
-      expect(await fileExists(clineAgentsPath)).toBe(true);
+      const clineRulesPath = path.join(testDir, '.clinerules', 'openspec-rules.md');
+      expect(await fileExists(clineRulesPath)).toBe(true);
 
-      const content = await fs.readFile(clineAgentsPath, 'utf-8');
+      const content = await fs.readFile(clineRulesPath, 'utf-8');
       expect(content).toContain('<!-- OPENSPEC:START -->');
       expect(content).toContain('OpenSpec Instructions');
       expect(content).toContain('openspec update');
