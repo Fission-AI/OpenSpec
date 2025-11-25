@@ -492,21 +492,21 @@ describe('InitCommand', () => {
       expect(await fileExists(openCodeArchive)).toBe(true);
 
       const proposalContent = await fs.readFile(openCodeProposal, 'utf-8');
-      expect(proposalContent).toContain('agent: build');
+      expect(proposalContent).not.toContain('agent:');
       expect(proposalContent).toContain(
         'description: Scaffold a new OpenSpec change and validate strictly.'
       );
       expect(proposalContent).toContain('<!-- OPENSPEC:START -->');
 
       const applyContent = await fs.readFile(openCodeApply, 'utf-8');
-      expect(applyContent).toContain('agent: build');
+      expect(applyContent).not.toContain('agent:');
       expect(applyContent).toContain(
         'description: Implement an approved OpenSpec change and keep tasks in sync.'
       );
       expect(applyContent).toContain('Work through tasks sequentially');
 
       const archiveContent = await fs.readFile(openCodeArchive, 'utf-8');
-      expect(archiveContent).toContain('agent: build');
+      expect(archiveContent).not.toContain('agent:');
       expect(archiveContent).toContain(
         'description: Archive a deployed OpenSpec change and update specs.'
       );
