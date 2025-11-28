@@ -1,0 +1,1 @@
+{"version":3,"file":"claude.d.ts","sourceRoot":"","sources":["../../../src/core/configurators/claude.ts"],"names":[],"mappings":"AACA,OAAO,EAAE,gBAAgB,EAAE,MAAM,WAAW,CAAC;AAK7C,qBAAa,kBAAmB,YAAW,gBAAgB;IACzD,IAAI,SAAiB;IACrB,cAAc,SAAe;IAC7B,WAAW,UAAQ;IAEb,SAAS,CAAC,WAAW,EAAE,MAAM,EAAE,WAAW,EAAE,MAAM,GAAG,OAAO,CAAC,IAAI,CAAC;CAWzE"}
