@@ -161,5 +161,160 @@ Regular text that should be ignored
       expect(logOutput.some(line => line.includes('partial') && line.includes('1/3 tasks'))).toBe(true);
       expect(logOutput.some(line => line.includes('no-tasks') && line.includes('No tasks'))).toBe(true);
     });
+
+    it('should output JSON for changes when --json flag is used', async () => {
+      const changesDir = path.join(tempDir, 'openspec', 'changes');
+      
+      // Create test changes
+      await fs.mkdir(path.join(changesDir, 'change-a'), { recursive: true });
+      await fs.writeFile(
+        path.join(changesDir, 'change-a', 'tasks.md'),
+        '- [x] Task 1\n- [ ] Task 2\n- [ ] Task 3\n'
+      );
+
+      await fs.mkdir(path.join(changesDir, 'change-b'), { recursive: true });
+      await fs.writeFile(
+        path.join(changesDir, 'change-b', 'tasks.md'),
+        '- [x] Done\n- [x] Also done\n'
+      );
+
+      const listCommand = new ListCommand();
+      await listCommand.execute(tempDir, 'changes', true);
+
+      // Should output valid JSON array
+      expect(logOutput.length).toBe(1);
+      const output = logOutput[0];
+      
+      // Parse as JSON
+      const parsed = JSON.parse(output);
+      expect(Array.isArray(parsed)).toBe(true);
+      expect(parsed).toHaveLength(2);
+      
+      // Check structure and values
+      expect(parsed[0]).toEqual({
+        name: 'change-a',
+        completedTasks: 1,
+        totalTasks: 3
+      });
+      
+      expect(parsed[1]).toEqual({
+        name: 'change-b',
+        completedTasks: 2,
+        totalTasks: 2
+      });
+    });
+
+    it('should output empty array for empty changes with --json', async () => {
+      const changesDir = path.join(tempDir, 'openspec', 'changes');
+      await fs.mkdir(changesDir, { recursive: true });
+
+      const listCommand = new ListCommand();
+      await listCommand.execute(tempDir, 'changes', true);
+
+      expect(logOutput.length).toBe(1);
+      const parsed = JSON.parse(logOutput[0]);
+      expect(parsed).toEqual([]);
+    });
+
+    it('should output JSON for specs when --json flag is used', async () => {
+      const specsDir = path.join(tempDir, 'openspec', 'specs');
+      
+      // Create test specs
+      await fs.mkdir(path.join(specsDir, 'spec-alpha'), { recursive: true });
+      await fs.writeFile(
+        path.join(specsDir, 'spec-alpha', 'spec.md'),
+        `# Spec Alpha
+
+## Purpose
+This spec defines alpha functionality.
+
+## Requirements
+
+### Requirement: First
+The system SHALL do something.
+
+#### Scenario: Test one
+- **WHEN** something happens
+- **THEN** result occurs
+
+### Requirement: Second
+The system SHALL do another thing.
+
+#### Scenario: Test two
+- **WHEN** another thing happens
+- **THEN** another result occurs
+`
+      );
+
+      await fs.mkdir(path.join(specsDir, 'spec-beta'), { recursive: true });
+      await fs.writeFile(
+        path.join(specsDir, 'spec-beta', 'spec.md'),
+        `# Spec Beta
+
+## Purpose
+This spec defines beta functionality.
+
+## Requirements
+
+### Requirement: Only One
+The system SHALL handle this.
+
+#### Scenario: Test
+- **WHEN** something happens
+- **THEN** result occurs
+`
+      );
+
+      const listCommand = new ListCommand();
+      await listCommand.execute(tempDir, 'specs', true);
+
+      expect(logOutput.length).toBe(1);
+      const parsed = JSON.parse(logOutput[0]);
+      expect(Array.isArray(parsed)).toBe(true);
+      expect(parsed).toHaveLength(2);
+      
+      expect(parsed[0]).toEqual({
+        id: 'spec-alpha',
+        requirementCount: 2
+      });
+      
+      expect(parsed[1]).toEqual({
+        id: 'spec-beta',
+        requirementCount: 1
+      });
+    });
+
+    it('should output empty array for empty specs with --json', async () => {
+      const specsDir = path.join(tempDir, 'openspec', 'specs');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      const listCommand = new ListCommand();
+      await listCommand.execute(tempDir, 'specs', true);
+
+      expect(logOutput.length).toBe(1);
+      const parsed = JSON.parse(logOutput[0]);
+      expect(parsed).toEqual([]);
+    });
+
+    it('should maintain alphabetical sort in JSON output', async () => {
+      const changesDir = path.join(tempDir, 'openspec', 'changes');
+      
+      await fs.mkdir(path.join(changesDir, 'zebra'), { recursive: true });
+      await fs.writeFile(path.join(changesDir, 'zebra', 'tasks.md'), '- [x] Task\n');
+      
+      await fs.mkdir(path.join(changesDir, 'alpha'), { recursive: true });
+      await fs.writeFile(path.join(changesDir, 'alpha', 'tasks.md'), '- [x] Task\n');
+      
+      await fs.mkdir(path.join(changesDir, 'middle'), { recursive: true });
+      await fs.writeFile(path.join(changesDir, 'middle', 'tasks.md'), '- [x] Task\n');
+
+      const listCommand = new ListCommand();
+      await listCommand.execute(tempDir, 'changes', true);
+
+      const parsed = JSON.parse(logOutput[0]);
+      expect(parsed[0].name).toBe('alpha');
+      expect(parsed[1].name).toBe('middle');
+      expect(parsed[2].name).toBe('zebra');
+    });
   });
 });
