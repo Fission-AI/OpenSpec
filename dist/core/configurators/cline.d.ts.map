@@ -1,0 +1,1 @@
+{"version":3,"file":"cline.d.ts","sourceRoot":"","sources":["../../../src/core/configurators/cline.ts"],"names":[],"mappings":"AACA,OAAO,EAAE,gBAAgB,EAAE,MAAM,WAAW,CAAC;AAK7C,qBAAa,iBAAkB,YAAW,gBAAgB;IACxD,IAAI,SAAW;IACf,cAAc,SAAc;IAC5B,WAAW,UAAQ;IAEb,SAAS,CAAC,WAAW,EAAE,MAAM,EAAE,WAAW,EAAE,MAAM,GAAG,OAAO,CAAC,IAAI,CAAC;CAWzE"}

@@ -79,6 +79,32 @@ describe('InitCommand', () => {
       ).toBe(true);
     });
 
+    it('should create .gitkeep files in empty directories', async () => {
+      queueSelections('claude', DONE);
+
+      await initCommand.execute(testDir);
+
+      const openspecPath = path.join(testDir, 'openspec');
+      expect(await fileExists(path.join(openspecPath, 'specs', '.gitkeep'))).toBe(true);
+      expect(await fileExists(path.join(openspecPath, 'changes', '.gitkeep'))).toBe(true);
+      expect(await fileExists(path.join(openspecPath, 'changes', 'archive', '.gitkeep'))).toBe(true);
+    });
+
+    it('should create empty .gitkeep files', async () => {
+      queueSelections('claude', DONE);
+
+      await initCommand.execute(testDir);
+
+      const openspecPath = path.join(testDir, 'openspec');
+      const specsGitkeep = await fs.readFile(path.join(openspecPath, 'specs', '.gitkeep'), 'utf-8');
+      const changesGitkeep = await fs.readFile(path.join(openspecPath, 'changes', '.gitkeep'), 'utf-8');
+      const archiveGitkeep = await fs.readFile(path.join(openspecPath, 'changes', 'archive', '.gitkeep'), 'utf-8');
+
+      expect(specsGitkeep).toBe('');
+      expect(changesGitkeep).toBe('');
+      expect(archiveGitkeep).toBe('');
+    });
+
     it('should create AGENTS.md and project.md', async () => {
       queueSelections('claude', DONE);
 
