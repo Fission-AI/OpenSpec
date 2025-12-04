@@ -112,6 +112,7 @@ These tools have built-in OpenSpec commands. Select the OpenSpec integration whe
 | **Qwen Code** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.qwen/commands/`) |
 | **RooCode** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.roo/commands/`) |
 | **Windsurf** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.windsurf/workflows/`) |
+| **Neovate Code** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` (`..neovate/commands/openspec/`) — see [docs](https://neovateai.dev/en) |
 
 Kilo Code discovers team workflows automatically. Save the generated files under `.kilocode/workflows/` and trigger them from the command palette with `/openspec-proposal.md`, `/openspec-apply.md`, or `/openspec-archive.md`.
 
