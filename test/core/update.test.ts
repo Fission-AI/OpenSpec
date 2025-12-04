@@ -1360,6 +1360,80 @@ More instructions after.`;
     expect(updated).toContain('Validate with `openspec validate <id> --strict`');
   });
 
+  it('should refresh existing Neovate slash command files', async () => {
+    const neovatePath = path.join(
+      testDir,
+      '.neovate/commands/openspec/proposal.md'
+    );
+    await fs.mkdir(path.dirname(neovatePath), { recursive: true });
+    const initialContent = `---
+name: Proposal
+description: Old description
+---
+<!-- OPENSPEC:START -->
+Old slash content
+<!-- OPENSPEC:END -->`;
+    await fs.writeFile(neovatePath, initialContent);
+
+    const consoleSpy = vi.spyOn(console, 'log');
+
+    await updateCommand.execute(testDir);
+
+    const updated = await fs.readFile(neovatePath, 'utf-8');
+    expect(updated).toContain('name: Proposal');
+    expect(updated).toContain('**Guardrails**');
+    expect(updated).toContain(
+      'Validate with `openspec validate <id> --strict`'
+    );
+    expect(updated).not.toContain('Old slash content');
+
+    const [logMessage] = consoleSpy.mock.calls[0];
+    expect(logMessage).toContain(
+      'Updated OpenSpec instructions (openspec/AGENTS.md'
+    );
+    expect(logMessage).toContain('AGENTS.md (created)');
+    expect(logMessage).toContain(
+      'Updated slash commands: .neovate/commands/openspec/proposal.md'
+    );
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should not create missing Neovate slash command files on update', async () => {
+    const neovateApply = path.join(
+      testDir,
+      '.neovate/commands/openspec/apply.md'
+    );
+
+    // Only create apply; leave proposal and archive missing
+    await fs.mkdir(path.dirname(neovateApply), { recursive: true });
+    await fs.writeFile(
+      neovateApply,
+      `---
+name: Apply
+description: Old description
+---
+<!-- OPENSPEC:START -->
+Old body
+<!-- OPENSPEC:END -->`
+    );
+
+    await updateCommand.execute(testDir);
+
+    const neovateProposal = path.join(
+      testDir,
+      '.neovate/commands/openspec/proposal.md'
+    );
+    const neovateArchive = path.join(
+      testDir,
+      '.neovate/commands/openspec/archive.md'
+    );
+
+    // Confirm they weren't created by update
+    await expect(FileSystemUtils.fileExists(neovateProposal)).resolves.toBe(false);
+    await expect(FileSystemUtils.fileExists(neovateArchive)).resolves.toBe(false);
+  });
+
   it('should handle configurator errors gracefully for CoStrict', async () => {
     // Create COSTRICT.md file but make it read-only to cause an error
     const costrictPath = path.join(testDir, 'COSTRICT.md');

@@ -1400,6 +1400,60 @@ describe('InitCommand', () => {
       expect(qoderChoice.configured).toBe(true);
     });
 
+    it('should create Neovate slash command files with templates', async () => {
+      queueSelections('neovate', DONE);
+
+      await initCommand.execute(testDir);
+
+      const neovateProposal = path.join(
+        testDir,
+        '.neovate/commands/openspec/proposal.md'
+      );
+      const neovateApply = path.join(
+        testDir,
+        '.neovate/commands/openspec/apply.md'
+      );
+      const neovateArchive = path.join(
+        testDir,
+        '.neovate/commands/openspec/archive.md'
+      );
+
+      expect(await fileExists(neovateProposal)).toBe(true);
+      expect(await fileExists(neovateApply)).toBe(true);
+      expect(await fileExists(neovateArchive)).toBe(true);
+
+      const proposalContent = await fs.readFile(neovateProposal, 'utf-8');
+      expect(proposalContent).toContain('---');
+      expect(proposalContent).toContain('name: Proposal');
+      expect(proposalContent).toContain('description: Scaffold a new OpenSpec change and validate strictly.');
+      expect(proposalContent).toContain('<!-- OPENSPEC:START -->');
+      expect(proposalContent).toContain('**Guardrails**');
+
+      const applyContent = await fs.readFile(neovateApply, 'utf-8');
+      expect(applyContent).toContain('---');
+      expect(applyContent).toContain('name: Apply');
+      expect(applyContent).toContain('description: Implement an approved OpenSpec change and keep tasks in sync.');
+      expect(applyContent).toContain('Work through tasks sequentially');
+
+      const archiveContent = await fs.readFile(neovateArchive, 'utf-8');
+      expect(archiveContent).toContain('---');
+      expect(archiveContent).toContain('name: Archive');
+      expect(archiveContent).toContain('description: Archive a deployed OpenSpec change and update specs.');
+      expect(archiveContent).toContain('openspec archive <id> --yes');
+    });
+
+    it('should mark Neovate as already configured during extend mode', async () => {
+      queueSelections('neovate', DONE, 'neovate', DONE);
+      await initCommand.execute(testDir);
+      await initCommand.execute(testDir);
+
+      const secondRunArgs = mockPrompt.mock.calls[1][0];
+      const neovateChoice = secondRunArgs.choices.find(
+        (choice: any) => choice.value === 'neovate'
+      );
+      expect(neovateChoice.configured).toBe(true);
+    });
+
     it('should create COSTRICT.md when CoStrict is selected', async () => {
       queueSelections('costrict', DONE);
 
