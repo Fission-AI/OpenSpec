@@ -174,7 +174,7 @@ export class FileSystemUtils {
         }
         return await this.ensureWritePermissions(parentDir);
       }
-      
+
       const testFile = path.join(dirPath, '.openspec-test-' + Date.now());
       await fs.writeFile(testFile, '');
       await fs.unlink(testFile);
@@ -182,6 +182,39 @@ export class FileSystemUtils {
     } catch (error: any) {
       console.debug(`Insufficient permissions to write to ${dirPath}: ${error.message}`);
       return false;
+    }
+  }
+
+  static stripManagedBlock(content: string, startMarker: string, endMarker: string): string {
+    // Escape special regex characters in markers
+    const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const escapedStart = escapeRegex(startMarker);
+    const escapedEnd = escapeRegex(endMarker);
+
+    // Match everything from start marker to end marker (inclusive), including newlines
+    // The pattern handles optional leading/trailing whitespace and newlines around markers
+    const pattern = new RegExp(
+      `[ \\t]*${escapedStart}[\\s\\S]*?${escapedEnd}[ \\t]*\\n?`,
+      'g'
+    );
+
+    return content.replace(pattern, '').trim();
+  }
+
+  static async deleteFile(filePath: string): Promise<void> {
+    await fs.unlink(filePath);
+  }
+
+  static async deleteDirectory(dirPath: string): Promise<void> {
+    await fs.rm(dirPath, { recursive: true, force: true });
+  }
+
+  static async isDirectoryEmpty(dirPath: string): Promise<boolean> {
+    try {
+      const entries = await fs.readdir(dirPath);
+      return entries.length === 0;
+    } catch {
+      return true;
     }
   }
 }

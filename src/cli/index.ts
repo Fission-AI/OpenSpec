@@ -9,6 +9,7 @@ import { UpdateCommand } from '../core/update.js';
 import { ListCommand } from '../core/list.js';
 import { ArchiveCommand } from '../core/archive.js';
 import { ViewCommand } from '../core/view.js';
+import { UninstallCommand } from '../core/uninstall.js';
 import { registerSpecCommand } from '../commands/spec.js';
 import { ChangeCommand } from '../commands/change.js';
 import { ValidateCommand } from '../commands/validate.js';
@@ -81,6 +82,23 @@ program
       const resolvedPath = path.resolve(targetPath);
       const updateCommand = new UpdateCommand();
       await updateCommand.execute(resolvedPath);
+    } catch (error) {
+      console.log(); // Empty line for spacing
+      ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('uninstall [path]')
+  .description('Remove OpenSpec from your project')
+  .option('-y, --yes', 'Skip confirmation prompts')
+  .action(async (targetPath = '.', options?: { yes?: boolean }) => {
+    try {
+      const uninstallCommand = new UninstallCommand({
+        yes: options?.yes,
+      });
+      await uninstallCommand.execute(targetPath);
     } catch (error) {
       console.log(); // Empty line for spacing
       ora().fail(`Error: ${(error as Error).message}`);
