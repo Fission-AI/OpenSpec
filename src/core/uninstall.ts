@@ -62,9 +62,9 @@ export class UninstallCommand {
     // Display results
     this.displayResults(result);
 
-    // Exit with error code if there were any failures
+    // Throw if there were any failures, let CLI handle exit code
     if (result.errors.length > 0) {
-      process.exit(1);
+      throw new Error(`Uninstall completed with ${result.errors.length} error(s)`);
     }
   }
 
