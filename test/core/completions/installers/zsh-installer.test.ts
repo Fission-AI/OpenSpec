@@ -161,7 +161,7 @@ describe('ZshInstaller', () => {
       expect(newContent).toBe(testScript);
     });
 
-    it('should include instructions in result for Oh My Zsh', async () => {
+    it('should include fpath verification guidance for Oh My Zsh', async () => {
       const ohMyZshPath = path.join(testHomeDir, '.oh-my-zsh');
       await fs.mkdir(ohMyZshPath, { recursive: true });
 
@@ -169,8 +169,9 @@ describe('ZshInstaller', () => {
 
       expect(result.instructions).toBeDefined();
       expect(result.instructions!.length).toBeGreaterThan(0);
-      expect(result.instructions!.join(' ')).toContain('exec zsh');
-      expect(result.instructions!.join(' ')).toContain('automatically');
+      // Should include guidance about verifying fpath for Oh My Zsh
+      expect(result.instructions!.join(' ')).toContain('fpath');
+      expect(result.instructions!.join(' ')).toContain('custom/completions');
     });
 
     it('should include fpath instructions for standard Zsh when auto-config is disabled', async () => {
@@ -200,6 +201,71 @@ describe('ZshInstaller', () => {
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('Failed to install');
+    });
+
+    it('should detect already-installed completion with identical content', async () => {
+      // First installation
+      const firstResult = await installer.install(testScript);
+      expect(firstResult.success).toBe(true);
+
+      // Second installation with same script
+      const secondResult = await installer.install(testScript);
+
+      expect(secondResult.success).toBe(true);
+      expect(secondResult.message).toContain('already installed');
+      expect(secondResult.message).toContain('up to date');
+      expect(secondResult.backupPath).toBeUndefined();
+      expect(secondResult.instructions).toBeDefined();
+      expect(secondResult.instructions!.join(' ')).toContain('already installed');
+    });
+
+    it('should update completion when content differs', async () => {
+      // First installation
+      const firstScript = '#compdef openspec\n_openspec() {\n  echo "version 1"\n}\n';
+      const firstResult = await installer.install(firstScript);
+      expect(firstResult.success).toBe(true);
+
+      // Second installation with different script
+      const secondScript = '#compdef openspec\n_openspec() {\n  echo "version 2"\n}\n';
+      const secondResult = await installer.install(secondScript);
+
+      expect(secondResult.success).toBe(true);
+      expect(secondResult.message).toContain('updated successfully');
+      expect(secondResult.message).toContain('backed up');
+      expect(secondResult.backupPath).toBeDefined();
+
+      // Verify new content was written
+      const content = await fs.readFile(secondResult.installedPath!, 'utf-8');
+      expect(content).toBe(secondScript);
+
+      // Verify backup has old content
+      const backupContent = await fs.readFile(secondResult.backupPath!, 'utf-8');
+      expect(backupContent).toBe(firstScript);
+    });
+
+    it('should handle paths with spaces in .zshrc config', async () => {
+      // Create a test home directory with spaces
+      const testHomeDirWithSpaces = path.join(os.tmpdir(), `openspec zsh test ${randomUUID()}`);
+      await fs.mkdir(testHomeDirWithSpaces, { recursive: true });
+      const installerWithSpaces = new ZshInstaller(testHomeDirWithSpaces);
+
+      try {
+        const result = await installerWithSpaces.install(testScript);
+        expect(result.success).toBe(true);
+
+        // Check if .zshrc was created (when auto-config is enabled)
+        const zshrcPath = path.join(testHomeDirWithSpaces, '.zshrc');
+        try {
+          const zshrcContent = await fs.readFile(zshrcPath, 'utf-8');
+          // Verify the path is quoted in fpath
+          expect(zshrcContent).toContain(`fpath=("${path.dirname(result.installedPath!)}" $fpath)`);
+        } catch {
+          // .zshrc might not exist if auto-config was disabled
+        }
+      } finally {
+        // Clean up
+        await fs.rm(testHomeDirWithSpaces, { recursive: true, force: true });
+      }
     });
   });
 
@@ -334,7 +400,7 @@ describe('ZshInstaller', () => {
       expect(content).toContain('# OPENSPEC:START');
       expect(content).toContain('# OPENSPEC:END');
       expect(content).toContain('# OpenSpec shell completions configuration');
-      expect(content).toContain(`fpath=(${completionsDir} $fpath)`);
+      expect(content).toContain(`fpath=("${completionsDir}" $fpath)`);
       expect(content).toContain('autoload -Uz compinit');
       expect(content).toContain('compinit');
     });
@@ -381,7 +447,7 @@ describe('ZshInstaller', () => {
 
       expect(content).toContain('# OPENSPEC:START');
       expect(content).toContain('# OPENSPEC:END');
-      expect(content).toContain(`fpath=(${completionsDir} $fpath)`);
+      expect(content).toContain(`fpath=("${completionsDir}" $fpath)`);
       expect(content).not.toContain('# Old config');
       expect(content).not.toContain('/old/path');
       expect(content).toContain('# My custom config');
@@ -411,7 +477,7 @@ describe('ZshInstaller', () => {
       expect(content).toContain('# My zsh config');
       expect(content).toContain('export PATH="/custom/path:$PATH"');
       expect(content).toContain('alias ls="ls -G"');
-      expect(content).toContain(`fpath=(${completionsDir} $fpath)`);
+      expect(content).toContain(`fpath=("${completionsDir}" $fpath)`);
       expect(content).not.toContain('# Old OpenSpec config');
     });
 
@@ -556,7 +622,7 @@ describe('ZshInstaller', () => {
       expect(content).toContain('compinit');
     });
 
-    it('should not configure .zshrc for Oh My Zsh users', async () => {
+    it('should configure .zshrc for Oh My Zsh when fpath is missing', async () => {
       const ohMyZshPath = path.join(testHomeDir, '.oh-my-zsh');
       await fs.mkdir(ohMyZshPath, { recursive: true });
 
@@ -564,12 +630,19 @@ describe('ZshInstaller', () => {
 
       expect(result.success).toBe(true);
       expect(result.isOhMyZsh).toBe(true);
-      expect(result.zshrcConfigured).toBe(false);
+      // Should configure .zshrc if fpath doesn't already include the directory
+      expect(result.zshrcConfigured).toBe(true);
 
-      // Verify .zshrc was not created
+      // Verify .zshrc was created with fpath configuration
       const zshrcPath = path.join(testHomeDir, '.zshrc');
       const exists = await fs.access(zshrcPath).then(() => true).catch(() => false);
-      expect(exists).toBe(false);
+      expect(exists).toBe(true);
+
+      if (exists) {
+        const content = await fs.readFile(zshrcPath, 'utf-8');
+        expect(content).toContain('fpath=');
+        expect(content).toContain('custom/completions');
+      }
     });
 
     it('should not include manual instructions when .zshrc was auto-configured', async () => {

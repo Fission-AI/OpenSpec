@@ -54,7 +54,8 @@ async function distExists() {
 async function detectShell() {
   try {
     const { detectShell } = await import('../dist/utils/shell-detection.js');
-    return detectShell();
+    const result = detectShell();
+    return result.shell;
   } catch (error) {
     // Fail silently if detection module doesn't exist
     return undefined;

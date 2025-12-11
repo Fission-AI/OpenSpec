@@ -45,7 +45,9 @@ describe('shell-detection', () => {
   describe('detectShell', () => {
     it('should detect zsh from SHELL environment variable', () => {
       process.env.SHELL = '/bin/zsh';
-      expect(detectShell()).toBe('zsh');
+      const result = detectShell();
+      expect(result.shell).toBe('zsh');
+      expect(result.detected).toBe('zsh');
     });
 
     it('should detect zsh from various zsh paths', () => {
@@ -58,13 +60,17 @@ describe('shell-detection', () => {
 
       for (const path of zshPaths) {
         process.env.SHELL = path;
-        expect(detectShell()).toBe('zsh');
+        const result = detectShell();
+        expect(result.shell).toBe('zsh');
+        expect(result.detected).toBe('zsh');
       }
     });
 
     it('should detect bash from SHELL environment variable', () => {
       process.env.SHELL = '/bin/bash';
-      expect(detectShell()).toBe('bash');
+      const result = detectShell();
+      expect(result.shell).toBe('bash');
+      expect(result.detected).toBe('bash');
     });
 
     it('should detect bash from various bash paths', () => {
@@ -77,13 +83,17 @@ describe('shell-detection', () => {
 
       for (const path of bashPaths) {
         process.env.SHELL = path;
-        expect(detectShell()).toBe('bash');
+        const result = detectShell();
+        expect(result.shell).toBe('bash');
+        expect(result.detected).toBe('bash');
       }
     });
 
     it('should detect fish from SHELL environment variable', () => {
       process.env.SHELL = '/usr/bin/fish';
-      expect(detectShell()).toBe('fish');
+      const result = detectShell();
+      expect(result.shell).toBe('fish');
+      expect(result.detected).toBe('fish');
     });
 
     it('should detect fish from various fish paths', () => {
@@ -96,24 +106,31 @@ describe('shell-detection', () => {
 
       for (const path of fishPaths) {
         process.env.SHELL = path;
-        expect(detectShell()).toBe('fish');
+        const result = detectShell();
+        expect(result.shell).toBe('fish');
+        expect(result.detected).toBe('fish');
       }
     });
 
     it('should be case-insensitive when detecting shell', () => {
       process.env.SHELL = '/BIN/ZSH';
-      expect(detectShell()).toBe('zsh');
+      let result = detectShell();
+      expect(result.shell).toBe('zsh');
 
       process.env.SHELL = '/USR/BIN/BASH';
-      expect(detectShell()).toBe('bash');
+      result = detectShell();
+      expect(result.shell).toBe('bash');
 
       process.env.SHELL = '/USR/BIN/FISH';
-      expect(detectShell()).toBe('fish');
+      result = detectShell();
+      expect(result.shell).toBe('fish');
     });
 
     it('should detect PowerShell from PSModulePath environment variable', () => {
       process.env.PSModulePath = 'C:\\Program Files\\PowerShell\\Modules';
-      expect(detectShell()).toBe('powershell');
+      const result = detectShell();
+      expect(result.shell).toBe('powershell');
+      expect(result.detected).toBe('powershell');
     });
 
     it('should detect PowerShell on Windows platform with PSModulePath', () => {
@@ -121,31 +138,41 @@ describe('shell-detection', () => {
         value: 'win32',
       });
       process.env.PSModulePath = 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\Modules';
-      expect(detectShell()).toBe('powershell');
+      const result = detectShell();
+      expect(result.shell).toBe('powershell');
+      expect(result.detected).toBe('powershell');
     });
 
-    it('should return undefined for unsupported shell', () => {
+    it('should return detected name for unsupported shell', () => {
       process.env.SHELL = '/bin/tcsh';
-      expect(detectShell()).toBeUndefined();
+      const result = detectShell();
+      expect(result.shell).toBeUndefined();
+      expect(result.detected).toBe('tcsh');
     });
 
     it('should return undefined when SHELL is not set and not on Windows', () => {
       Object.defineProperty(process, 'platform', {
         value: 'linux',
       });
-      expect(detectShell()).toBeUndefined();
+      const result = detectShell();
+      expect(result.shell).toBeUndefined();
+      expect(result.detected).toBeUndefined();
     });
 
-    it('should return undefined for cmd.exe on Windows', () => {
+    it('should return detected name for cmd.exe on Windows', () => {
       Object.defineProperty(process, 'platform', {
         value: 'win32',
       });
       process.env.COMSPEC = 'C:\\Windows\\System32\\cmd.exe';
-      expect(detectShell()).toBeUndefined();
+      const result = detectShell();
+      expect(result.shell).toBeUndefined();
+      expect(result.detected).toBe('cmd.exe');
     });
 
     it('should return undefined when no shell information is available', () => {
-      expect(detectShell()).toBeUndefined();
+      const result = detectShell();
+      expect(result.shell).toBeUndefined();
+      expect(result.detected).toBeUndefined();
     });
   });
 

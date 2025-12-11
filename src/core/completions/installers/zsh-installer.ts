@@ -118,7 +118,7 @@ export class ZshInstaller {
   private generateZshrcConfig(completionsDir: string): string {
     return [
       '# OpenSpec shell completions configuration',
-      `fpath=(${completionsDir} $fpath)`,
+      `fpath=("${completionsDir}" $fpath)`,
       'autoload -Uz compinit',
       'compinit',
     ].join('\n');
@@ -156,8 +156,9 @@ export class ZshInstaller {
       );
 
       return true;
-    } catch {
+    } catch (error: any) {
       // Fail gracefully - don't break installation
+      console.debug(`Unable to configure .zshrc for completions: ${error.message}`);
       return false;
     }
   }
@@ -174,6 +175,27 @@ export class ZshInstaller {
       return content.includes(this.ZSHRC_MARKERS.start) && content.includes(this.ZSHRC_MARKERS.end);
     } catch {
       return false;
+    }
+  }
+
+  /**
+   * Check if fpath configuration is needed for a given directory
+   * Used to verify if Oh My Zsh (or other) completions directory is already in fpath
+   *
+   * @param completionsDir - Directory to check for in fpath
+   * @returns true if configuration is needed, false if directory is already referenced
+   */
+  private async needsFpathConfig(completionsDir: string): Promise<boolean> {
+    try {
+      const zshrcPath = this.getZshrcPath();
+      const content = await fs.readFile(zshrcPath, 'utf-8');
+
+      // Check if fpath already includes this directory
+      return !content.includes(completionsDir);
+    } catch (error) {
+      // If we can't read .zshrc, assume config is needed
+      console.debug(`Unable to read .zshrc to check fpath config: ${error instanceof Error ? error.message : String(error)}`);
+      return true;
     }
   }
 
@@ -226,8 +248,9 @@ export class ZshInstaller {
       await fs.writeFile(zshrcPath, lines.join('\n'), 'utf-8');
 
       return true;
-    } catch {
+    } catch (error: any) {
       // Fail gracefully
+      console.debug(`Unable to remove .zshrc configuration: ${error.message}`);
       return false;
     }
   }
@@ -242,19 +265,51 @@ export class ZshInstaller {
     try {
       const { path: targetPath, isOhMyZsh } = await this.getInstallationPath();
 
+      // Check if already installed with same content
+      let isUpdate = false;
+      try {
+        const existingContent = await fs.readFile(targetPath, 'utf-8');
+        if (existingContent === completionScript) {
+          // Already installed and up to date
+          return {
+            success: true,
+            installedPath: targetPath,
+            isOhMyZsh,
+            message: 'Completion script is already installed (up to date)',
+            instructions: [
+              'The completion script is already installed and up to date.',
+              'If completions are not working, try: exec zsh',
+            ],
+          };
+        }
+        // File exists but content is different - this is an update
+        isUpdate = true;
+      } catch (error: any) {
+        // File doesn't exist or can't be read, proceed with installation
+        console.debug(`Unable to read existing completion file at ${targetPath}: ${error.message}`);
+      }
+
       // Ensure the directory exists
       const targetDir = path.dirname(targetPath);
       await fs.mkdir(targetDir, { recursive: true });
 
-      // Backup existing file if present
-      const backupPath = await this.backupExistingFile(targetPath);
+      // Backup existing file if updating
+      const backupPath = isUpdate ? await this.backupExistingFile(targetPath) : undefined;
 
       // Write the completion script
       await fs.writeFile(targetPath, completionScript, 'utf-8');
 
-      // Auto-configure .zshrc for standard Zsh users
+      // Auto-configure .zshrc
       let zshrcConfigured = false;
-      if (!isOhMyZsh) {
+      if (isOhMyZsh) {
+        // For Oh My Zsh, verify that custom/completions is in fpath
+        // If not, add it to .zshrc
+        const needsConfig = await this.needsFpathConfig(targetDir);
+        if (needsConfig) {
+          zshrcConfigured = await this.configureZshrc(targetDir);
+        }
+      } else {
+        // Standard Zsh always needs .zshrc configuration
         zshrcConfigured = await this.configureZshrc(targetDir);
       }
 
@@ -269,17 +324,27 @@ export class ZshInstaller {
         }
       }
 
+      // Determine appropriate message based on update status
+      let message: string;
+      if (isUpdate) {
+        message = backupPath
+          ? 'Completion script updated successfully (previous version backed up)'
+          : 'Completion script updated successfully';
+      } else {
+        message = isOhMyZsh
+          ? 'Completion script installed successfully for Oh My Zsh'
+          : zshrcConfigured
+            ? 'Completion script installed and .zshrc configured successfully'
+            : 'Completion script installed successfully for Zsh';
+      }
+
       return {
         success: true,
         installedPath: targetPath,
         backupPath,
         isOhMyZsh,
         zshrcConfigured,
-        message: isOhMyZsh
-          ? 'Completion script installed successfully for Oh My Zsh'
-          : zshrcConfigured
-            ? 'Completion script installed and .zshrc configured successfully'
-            : 'Completion script installed successfully for Zsh',
+        message,
         instructions,
       };
     } catch (error) {

@@ -57,7 +57,7 @@ describe('CompletionCommand', () => {
     });
 
     it('should auto-detect Zsh shell when no shell specified', async () => {
-      vi.mocked(shellDetection.detectShell).mockReturnValue('zsh');
+      vi.mocked(shellDetection.detectShell).mockReturnValue({ shell: 'zsh', detected: 'zsh' });
 
       await command.generate({});
 
@@ -67,7 +67,7 @@ describe('CompletionCommand', () => {
     });
 
     it('should show error when shell cannot be auto-detected', async () => {
-      vi.mocked(shellDetection.detectShell).mockReturnValue(undefined);
+      vi.mocked(shellDetection.detectShell).mockReturnValue({ shell: undefined, detected: undefined });
 
       await command.generate({});
 
@@ -114,7 +114,7 @@ describe('CompletionCommand', () => {
     });
 
     it('should auto-detect Zsh shell when no shell specified', async () => {
-      vi.mocked(shellDetection.detectShell).mockReturnValue('zsh');
+      vi.mocked(shellDetection.detectShell).mockReturnValue({ shell: 'zsh', detected: 'zsh' });
 
       await command.install({});
 
@@ -124,7 +124,7 @@ describe('CompletionCommand', () => {
     });
 
     it('should show error when shell cannot be auto-detected', async () => {
-      vi.mocked(shellDetection.detectShell).mockReturnValue(undefined);
+      vi.mocked(shellDetection.detectShell).mockReturnValue({ shell: undefined, detected: undefined });
 
       await command.install({});
 
@@ -163,7 +163,7 @@ describe('CompletionCommand', () => {
     });
 
     it('should auto-detect Zsh shell when no shell specified', async () => {
-      vi.mocked(shellDetection.detectShell).mockReturnValue('zsh');
+      vi.mocked(shellDetection.detectShell).mockReturnValue({ shell: 'zsh', detected: 'zsh' });
 
       await command.uninstall({ yes: true });
 
@@ -173,7 +173,7 @@ describe('CompletionCommand', () => {
     });
 
     it('should show error when shell cannot be auto-detected', async () => {
-      vi.mocked(shellDetection.detectShell).mockReturnValue(undefined);
+      vi.mocked(shellDetection.detectShell).mockReturnValue({ shell: undefined, detected: undefined });
 
       await command.uninstall({ yes: true });
 
@@ -245,19 +245,19 @@ describe('CompletionCommand', () => {
   });
 
   describe('shell detection integration', () => {
-    it('should fallback to error when detected shell is unsupported', async () => {
-      vi.mocked(shellDetection.detectShell).mockReturnValue('bash');
+    it('should show appropriate error when detected shell is unsupported', async () => {
+      vi.mocked(shellDetection.detectShell).mockReturnValue({ shell: undefined, detected: 'bash' });
 
       await command.generate({});
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Could not auto-detect shell')
+        "Error: Shell 'bash' is not supported yet. Currently supported: zsh"
       );
       expect(process.exitCode).toBe(1);
     });
 
     it('should respect explicit shell parameter over auto-detection', async () => {
-      vi.mocked(shellDetection.detectShell).mockReturnValue('bash');
+      vi.mocked(shellDetection.detectShell).mockReturnValue({ shell: undefined, detected: 'bash' });
 
       await command.generate({ shell: 'zsh' });
 

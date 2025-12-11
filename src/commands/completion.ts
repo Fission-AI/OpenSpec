@@ -44,9 +44,17 @@ export class CompletionCommand {
     const normalizedShell = this.normalizeShell(shell);
 
     if (!normalizedShell) {
-      const detected = detectShell();
-      if (detected && CompletionFactory.isSupported(detected)) {
-        return detected;
+      const detectionResult = detectShell();
+
+      if (detectionResult.shell && CompletionFactory.isSupported(detectionResult.shell)) {
+        return detectionResult.shell;
+      }
+
+      // Shell was detected but not supported
+      if (detectionResult.detected && !detectionResult.shell) {
+        console.error(`Error: Shell '${detectionResult.detected}' is not supported yet. Currently supported: ${CompletionFactory.getSupportedShells().join(', ')}`);
+        process.exitCode = 1;
+        return null;
       }
 
       // No shell specified and cannot auto-detect
