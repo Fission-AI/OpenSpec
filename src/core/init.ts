@@ -862,6 +862,22 @@ export class InitCommand {
       )
     );
 
+    // Show restart instruction if any tools were configured
+    if (created.length > 0 || refreshed.length > 0) {
+      console.log();
+      console.log(PALETTE.white('Important: Restart your IDE'));
+      console.log(
+        PALETTE.midGray(
+          'Slash commands are loaded at startup. Please restart your coding assistant'
+        )
+      );
+      console.log(
+        PALETTE.midGray(
+          'to ensure the new /openspec commands appear in your command palette.'
+        )
+      );
+    }
+
     // Get the selected tool name(s) for display
     const toolName = this.formatToolNames(selectedTools);
 
