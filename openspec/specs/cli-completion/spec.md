@@ -1,7 +1,7 @@
 # cli-completion Specification
 
 ## Purpose
-TBD - created by archiving change add-shell-completions. Update Purpose after archive.
+Provide shell completion scripts for the OpenSpec CLI, enabling tab-completion for commands, flags, and dynamic values (change IDs, spec IDs) in supported shells. Currently supports Zsh with architecture designed for future shell expansion.
 ## Requirements
 ### Requirement: Native Shell Behavior Integration
 
@@ -30,7 +30,7 @@ The completion command SHALL follow a subcommand pattern for generating and mana
 
 - **WHEN** user executes `openspec completion --help`
 - **THEN** display available subcommands:
-  - `zsh` - Generate Zsh completion script
+  - `generate [shell]` - Generate completion script for a shell (outputs to stdout)
   - `install [shell]` - Install completion for Zsh (auto-detects or requires explicit shell)
   - `uninstall [shell]` - Remove completion for Zsh (auto-detects or requires explicit shell)
 
@@ -57,7 +57,7 @@ The completion command SHALL generate Zsh completion scripts on demand.
 
 #### Scenario: Generating Zsh completion
 
-- **WHEN** user executes `openspec completion zsh`
+- **WHEN** user executes `openspec completion generate zsh`
 - **THEN** output a complete Zsh completion script to stdout
 - **AND** include completions for all commands: init, list, show, validate, archive, view, update, change, spec, completion
 - **AND** include all command-specific flags and options
@@ -140,9 +140,11 @@ The completion command SHALL remove installed completion scripts and configurati
 #### Scenario: Uninstalling Oh My Zsh completion
 
 - **WHEN** user executes `openspec completion uninstall zsh`
-- **THEN** remove `~/.oh-my-zsh/custom/completions/_openspec` if Oh My Zsh is detected
+- **THEN** prompt for confirmation before proceeding (unless `--yes` flag provided)
+- **AND** if user declines, cancel uninstall and display "Uninstall cancelled."
+- **AND** if user confirms, remove `~/.oh-my-zsh/custom/completions/_openspec` if Oh My Zsh is detected
 - **AND** remove `~/.zsh/completions/_openspec` if standard Zsh setup is detected
-- **AND** optionally remove fpath modifications from `~/.zshrc` (with confirmation)
+- **AND** remove fpath modifications from `~/.zshrc`
 - **AND** display success message
 
 #### Scenario: Auto-detecting Zsh for uninstallation
@@ -154,8 +156,8 @@ The completion command SHALL remove installed completion scripts and configurati
 #### Scenario: Not installed
 
 - **WHEN** attempting to uninstall completion that isn't installed
-- **THEN** display message indicating completion is not installed
-- **AND** exit with code 0
+- **THEN** display error message indicating completion is not installed
+- **AND** exit with code 1
 
 ### Requirement: Architecture Patterns
 
@@ -227,7 +229,8 @@ The completion command SHALL provide clear error messages for common failure sce
 #### Scenario: Shell not detected
 
 - **WHEN** `openspec completion install` cannot detect current shell or detects non-Zsh shell
-- **THEN** display error: "Could not detect Zsh. Please specify explicitly: openspec completion install zsh"
+- **THEN** display error: "Could not auto-detect shell. Please specify shell explicitly."
+- **AND** display usage hint: "Usage: openspec completion <operation> [shell]"
 - **AND** exit with code 1
 
 ### Requirement: Output Format
@@ -238,7 +241,7 @@ The completion command SHALL provide machine-parseable and human-readable output
 
 - **WHEN** generating completion script to stdout
 - **THEN** output only the completion script content (no extra messages)
-- **AND** allow redirection to files: `openspec completion zsh > /path/to/_openspec`
+- **AND** allow redirection to files: `openspec completion generate zsh > /path/to/_openspec`
 
 #### Scenario: Installation success output
 
