@@ -14,6 +14,17 @@ import { ChangeCommand } from '../commands/change.js';
 import { ValidateCommand } from '../commands/validate.js';
 import { ShowCommand } from '../commands/show.js';
 import { CompletionCommand } from '../commands/completion.js';
+import {
+  runStatus,
+  runPhaseAdvance,
+  runChangeCreate,
+  runChangeList,
+  runChangeSwitch,
+  runTaskComplete,
+  runTaskStart,
+  runTaskNext,
+  runTaskAdd,
+} from '../commands/workflow/index.js';
 
 const program = new Command();
 const require = createRequire(import.meta.url);
@@ -311,6 +322,152 @@ program
     } catch (error) {
       // Silently fail for graceful shell completion experience
       process.exitCode = 1;
+    }
+  });
+
+// =============================================================================
+// Workflow Engine PoC Commands (openspec wf ...)
+// =============================================================================
+
+const wfCmd = program
+  .command('wf')
+  .description('[PoC] Workflow engine commands');
+
+// openspec wf status
+wfCmd
+  .command('status')
+  .description('Show current workflow state')
+  .option('--json', 'Output as JSON')
+  .action(async (options?: { json?: boolean }) => {
+    try {
+      await runStatus(options);
+    } catch (error) {
+      console.log();
+      ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+// openspec wf phase advance
+const wfPhaseCmd = wfCmd
+  .command('phase')
+  .description('Manage workflow phases');
+
+wfPhaseCmd
+  .command('advance')
+  .description('Advance to the next phase')
+  .option('--to <phase>', 'Target phase (plan|implement|done)')
+  .action(async (options?: { to?: string }) => {
+    try {
+      await runPhaseAdvance(options);
+    } catch (error) {
+      console.log();
+      ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+// openspec wf change create/list/switch
+const wfChangeCmd = wfCmd
+  .command('change')
+  .description('Manage workflow changes');
+
+wfChangeCmd
+  .command('create <title>')
+  .description('Create a new workflow change')
+  .action(async (title: string) => {
+    try {
+      await runChangeCreate(title);
+    } catch (error) {
+      console.log();
+      ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+wfChangeCmd
+  .command('list')
+  .description('List workflow changes')
+  .option('--json', 'Output as JSON')
+  .action(async (options?: { json?: boolean }) => {
+    try {
+      await runChangeList(options);
+    } catch (error) {
+      console.log();
+      ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+wfChangeCmd
+  .command('switch <change-id>')
+  .description('Switch active change')
+  .action(async (changeId: string) => {
+    try {
+      await runChangeSwitch(changeId);
+    } catch (error) {
+      console.log();
+      ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+// openspec wf task complete/start/next/add
+const wfTaskCmd = wfCmd
+  .command('task')
+  .description('Manage workflow tasks');
+
+wfTaskCmd
+  .command('complete <task-id>')
+  .description('Mark a task as complete')
+  .action(async (taskId: string) => {
+    try {
+      await runTaskComplete(taskId);
+    } catch (error) {
+      console.log();
+      ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+wfTaskCmd
+  .command('start <task-id>')
+  .description('Mark a task as in_progress')
+  .action(async (taskId: string) => {
+    try {
+      await runTaskStart(taskId);
+    } catch (error) {
+      console.log();
+      ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+wfTaskCmd
+  .command('next')
+  .description('Show the next task to work on')
+  .option('--json', 'Output as JSON')
+  .action(async (options?: { json?: boolean }) => {
+    try {
+      await runTaskNext(options);
+    } catch (error) {
+      console.log();
+      ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+wfTaskCmd
+  .command('add <task-id> <title>')
+  .description('Add a new task')
+  .option('-a, --ac <criteria...>', 'Acceptance criteria')
+  .action(async (taskId: string, title: string, options?: { ac?: string[] }) => {
+    try {
+      await runTaskAdd(taskId, title, options?.ac || []);
+    } catch (error) {
+      console.log();
+      ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
     }
   });
 
