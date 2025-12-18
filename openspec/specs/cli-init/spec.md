@@ -70,6 +70,7 @@ The command SHALL properly configure selected AI tools with OpenSpec-specific in
 - **THEN** create or update `CODEBUDDY.md` in the project root directory (not inside openspec/)
 - **AND** populate the managed block with a short stub that points teammates to `@/openspec/AGENTS.md`
 
+
 #### Scenario: Configuring Cline
 
 - **WHEN** Cline is selected
@@ -201,6 +202,12 @@ The init command SHALL generate slash command files for supported editors using 
 #### Scenario: Generating slash commands for Cursor
 - **WHEN** the user selects Cursor during initialization
 - **THEN** create `.cursor/commands/openspec-proposal.md`, `.cursor/commands/openspec-apply.md`, and `.cursor/commands/openspec-archive.md`
+- **AND** populate each file from shared templates so command text matches other tools
+- **AND** each template includes instructions for the relevant OpenSpec workflow stage
+
+#### Scenario: Generating slash commands for Continue
+- **WHEN** the user selects Continue during initialization
+- **THEN** create `.continue/prompts/openspec-proposal.prompt`, `.continue/prompts/openspec-apply.prompt`, and `.continue/prompts/openspec-archive.prompt`
 - **AND** populate each file from shared templates so command text matches other tools
 - **AND** each template includes instructions for the relevant OpenSpec workflow stage
 
