@@ -1,0 +1,8 @@
+- [x] Create `gemini-extension.json` in the project root @file:gemini-extension.json
+- [x] Create `GEMINI.md` in the project root with OpenSpec context @file:GEMINI.md
+- [x] Extract slash command prompts to a shared location for unified usage across agents
+- [x] Configure `GEMINI.md` to auto-generate slash commands from shared prompts
+- [x] Document CLI installation prerequisites in `GEMINI.md` and shared prompts
+- [x] Add maintenance instructions to `GEMINI.md` for syncing slash commands from `prompts.ts`
+- [x] Update `README.md` with Gemini CLI Extension installation and benefits
+- [x] Verify the extension can be linked locally using `gemini extensions link .` (Manual verification)
