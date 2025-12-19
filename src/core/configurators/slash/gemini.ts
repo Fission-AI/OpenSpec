@@ -4,12 +4,14 @@ import { SlashCommandId } from '../../templates/index.js';
 const FILE_PATHS: Record<SlashCommandId, string> = {
   proposal: '.gemini/commands/openspec/proposal.toml',
   apply: '.gemini/commands/openspec/apply.toml',
+  refine: '.gemini/commands/openspec/refine.toml',
   archive: '.gemini/commands/openspec/archive.toml'
 };
 
 const DESCRIPTIONS: Record<SlashCommandId, string> = {
   proposal: 'Scaffold a new OpenSpec change and validate strictly.',
   apply: 'Implement an approved OpenSpec change and keep tasks in sync.',
+  refine: 'Refine an approved OpenSpec change without editing code.',
   archive: 'Archive a deployed OpenSpec change and update specs.'
 };
 

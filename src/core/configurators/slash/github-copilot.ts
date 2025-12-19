@@ -4,6 +4,7 @@ import { SlashCommandId } from '../../templates/index.js';
 const FILE_PATHS: Record<SlashCommandId, string> = {
   proposal: '.github/prompts/openspec-proposal.prompt.md',
   apply: '.github/prompts/openspec-apply.prompt.md',
+  refine: '.github/prompts/openspec-refine.prompt.md',
   archive: '.github/prompts/openspec-archive.prompt.md'
 };
 
@@ -15,6 +16,11 @@ description: Scaffold a new OpenSpec change and validate strictly.
 $ARGUMENTS`,
   apply: `---
 description: Implement an approved OpenSpec change and keep tasks in sync.
+---
+
+$ARGUMENTS`,
+  refine: `---
+description: Refine an approved OpenSpec change without editing code.
 ---
 
 $ARGUMENTS`,

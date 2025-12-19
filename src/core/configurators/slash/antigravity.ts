@@ -4,12 +4,14 @@ import { SlashCommandId } from '../../templates/index.js';
 const FILE_PATHS: Record<SlashCommandId, string> = {
   proposal: '.agent/workflows/openspec-proposal.md',
   apply: '.agent/workflows/openspec-apply.md',
+  refine: '.agent/workflows/openspec-refine.md',
   archive: '.agent/workflows/openspec-archive.md'
 };
 
 const DESCRIPTIONS: Record<SlashCommandId, string> = {
   proposal: 'Scaffold a new OpenSpec change and validate strictly.',
   apply: 'Implement an approved OpenSpec change and keep tasks in sync.',
+  refine: 'Refine an approved OpenSpec change without editing code.',
   archive: 'Archive a deployed OpenSpec change and update specs.'
 };
 

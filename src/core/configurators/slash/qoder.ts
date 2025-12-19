@@ -12,6 +12,9 @@ const FILE_PATHS: Record<SlashCommandId, string> = {
   
   // Implement approved changes with task tracking
   apply: '.qoder/commands/openspec/apply.md',
+
+  // Refine approved changes without editing code
+  refine: '.qoder/commands/openspec/refine.md',
   
   // Archive completed changes and update specs
   archive: '.qoder/commands/openspec/archive.md'
@@ -35,6 +38,12 @@ description: Implement an approved OpenSpec change and keep tasks in sync.
 category: OpenSpec
 tags: [openspec, apply]
 ---`,
+  refine: `---
+name: OpenSpec: Refine
+description: Refine an approved OpenSpec change without editing code.
+category: OpenSpec
+tags: [openspec, refine]
+---`,
   archive: `---
 name: OpenSpec: Archive
 description: Archive a deployed OpenSpec change and update specs.
@@ -47,7 +56,7 @@ tags: [openspec, archive]
  * Qoder Slash Command Configurator
  * 
  * Manages OpenSpec slash commands for Qoder AI assistant.
- * Creates three workflow commands: proposal, apply, and archive.
+ * Creates four workflow commands: proposal, apply, refine, and archive.
  * Uses colon-separated command format (/openspec:proposal).
  * 
  * @extends {SlashCommandConfigurator}
@@ -62,7 +71,7 @@ export class QoderSlashCommandConfigurator extends SlashCommandConfigurator {
   /**
    * Get relative file path for a slash command
    * 
-   * @param {SlashCommandId} id - Command identifier (proposal, apply, or archive)
+   * @param {SlashCommandId} id - Command identifier (proposal, apply, refine, or archive)
    * @returns {string} Relative path from project root to command file
    */
   protected getRelativePath(id: SlashCommandId): string {
@@ -75,7 +84,7 @@ export class QoderSlashCommandConfigurator extends SlashCommandConfigurator {
    * Frontmatter defines how the command appears in Qoder's UI,
    * including display name, description, and categorization.
    * 
-   * @param {SlashCommandId} id - Command identifier (proposal, apply, or archive)
+   * @param {SlashCommandId} id - Command identifier (proposal, apply, refine, or archive)
    * @returns {string} YAML frontmatter block with command metadata
    */
   protected getFrontmatter(id: SlashCommandId): string {

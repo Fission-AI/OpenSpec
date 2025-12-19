@@ -56,6 +56,14 @@ Track these steps as TODOs and complete them one by one.
 6. **Update checklist** - After all work is done, set every task to \`- [x]\` so the list reflects reality
 7. **Approval gate** - Do not start implementation until the proposal is reviewed and approved
 
+### Stage 2.5: Refining Changes
+Refine proposal artifacts only when the user requests adjustments after apply feedback; otherwise skip this stage.
+1. **Adjust proposal artifacts** - Update only \`proposal.md\`, \`tasks.md\`, \`design.md\` (if needed), and spec deltas under \`changes/<id>/specs/\`
+2. **No code edits** - Do not change production code during refine
+3. **Scope check** - If the request expands beyond the approved change, stop and create a new change proposal
+4. **Validate** - Run \`openspec validate <id> --strict\` after updates
+5. **Re-approval gate** - Require explicit approval before running apply again
+
 ### Stage 3: Archiving Changes
 After deployment, create separate PR to:
 - Move \`changes/[name]/\` → \`changes/archive/YYYY-MM-DD-[name]/\`

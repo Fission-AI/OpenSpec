@@ -4,6 +4,7 @@ import { SlashCommandId } from '../../templates/index.js';
 const NEW_FILE_PATHS: Record<SlashCommandId, string> = {
   proposal: '.roo/commands/openspec-proposal.md',
   apply: '.roo/commands/openspec-apply.md',
+  refine: '.roo/commands/openspec-refine.md',
   archive: '.roo/commands/openspec-archive.md'
 };
 
@@ -19,6 +20,7 @@ export class RooCodeSlashCommandConfigurator extends SlashCommandConfigurator {
     const descriptions: Record<SlashCommandId, string> = {
       proposal: 'Scaffold a new OpenSpec change and validate strictly.',
       apply: 'Implement an approved OpenSpec change and keep tasks in sync.',
+      refine: 'Refine an approved OpenSpec change without editing code.',
       archive: 'Archive a deployed OpenSpec change and update specs.'
     };
     const description = descriptions[id];

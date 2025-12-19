@@ -15,12 +15,14 @@ import { SlashCommandId } from '../../templates/index.js';
 const FILE_PATHS: Record<SlashCommandId, string> = {
   proposal: '.qwen/commands/openspec-proposal.toml',
   apply: '.qwen/commands/openspec-apply.toml',
+  refine: '.qwen/commands/openspec-refine.toml',
   archive: '.qwen/commands/openspec-archive.toml'
 };
 
 const DESCRIPTIONS: Record<SlashCommandId, string> = {
   proposal: 'Scaffold a new OpenSpec change and validate strictly.',
   apply: 'Implement an approved OpenSpec change and keep tasks in sync.',
+  refine: 'Refine an approved OpenSpec change without editing code.',
   archive: 'Archive a deployed OpenSpec change and update specs.'
 };
 
@@ -31,6 +33,7 @@ const DESCRIPTIONS: Record<SlashCommandId, string> = {
  * The slash commands include:
  * - /openspec-proposal: Create an OpenSpec change proposal
  * - /openspec-apply: Apply an approved OpenSpec change
+ * - /openspec-refine: Refine an approved OpenSpec change without editing code
  * - /openspec-archive: Archive a deployed OpenSpec change
  */
 export class QwenSlashCommandConfigurator extends TomlSlashCommandConfigurator {

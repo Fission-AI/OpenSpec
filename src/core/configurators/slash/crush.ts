@@ -4,6 +4,7 @@ import { SlashCommandId } from '../../templates/index.js';
 const FILE_PATHS: Record<SlashCommandId, string> = {
   proposal: '.crush/commands/openspec/proposal.md',
   apply: '.crush/commands/openspec/apply.md',
+  refine: '.crush/commands/openspec/refine.md',
   archive: '.crush/commands/openspec/archive.md'
 };
 
@@ -19,6 +20,12 @@ name: OpenSpec: Apply
 description: Implement an approved OpenSpec change and keep tasks in sync.
 category: OpenSpec
 tags: [openspec, apply]
+---`,
+  refine: `---
+name: OpenSpec: Refine
+description: Refine an approved OpenSpec change without editing code.
+category: OpenSpec
+tags: [openspec, refine]
 ---`,
   archive: `---
 name: OpenSpec: Archive

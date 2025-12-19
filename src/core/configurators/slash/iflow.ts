@@ -4,6 +4,7 @@ import { SlashCommandId } from '../../templates/index.js';
 const FILE_PATHS: Record<SlashCommandId, string> = {
   proposal: '.iflow/commands/openspec-proposal.md',
   apply: '.iflow/commands/openspec-apply.md',
+  refine: '.iflow/commands/openspec-refine.md',
   archive: '.iflow/commands/openspec-archive.md'
 };
 
@@ -19,6 +20,12 @@ name: /openspec-apply
 id: openspec-apply
 category: OpenSpec
 description: Implement an approved OpenSpec change and keep tasks in sync.
+---`,
+  refine: `---
+name: /openspec-refine
+id: openspec-refine
+category: OpenSpec
+description: Refine an approved OpenSpec change without editing code.
 ---`,
   archive: `---
 name: /openspec-archive

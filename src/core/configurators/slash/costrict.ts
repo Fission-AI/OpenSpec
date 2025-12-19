@@ -4,6 +4,7 @@ import { SlashCommandId } from '../../templates/index.js';
 const FILE_PATHS = {
   proposal: '.cospec/openspec/commands/openspec-proposal.md',
   apply: '.cospec/openspec/commands/openspec-apply.md',
+  refine: '.cospec/openspec/commands/openspec-refine.md',
   archive: '.cospec/openspec/commands/openspec-archive.md',
 } as const satisfies Record<SlashCommandId, string>;
 
@@ -15,6 +16,10 @@ argument-hint: feature description or request
   apply: `---
 description: "Implement an approved OpenSpec change and keep tasks in sync."
 argument-hint: change-id
+---`,
+  refine: `---
+description: "Refine an approved OpenSpec change without editing code."
+argument-hint: change-id and refinement notes
 ---`,
   archive: `---
 description: "Archive a deployed OpenSpec change and update specs."

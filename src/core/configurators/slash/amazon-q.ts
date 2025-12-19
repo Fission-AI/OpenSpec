@@ -4,6 +4,7 @@ import { SlashCommandId } from '../../templates/index.js';
 const FILE_PATHS: Record<SlashCommandId, string> = {
   proposal: '.amazonq/prompts/openspec-proposal.md',
   apply: '.amazonq/prompts/openspec-apply.md',
+  refine: '.amazonq/prompts/openspec-refine.md',
   archive: '.amazonq/prompts/openspec-archive.md'
 };
 
@@ -26,6 +27,15 @@ The user wants to apply the following change. Use the openspec instructions to i
 <ChangeId>
   $ARGUMENTS
 </ChangeId>`,
+  refine: `---
+description: Refine an approved OpenSpec change without editing code.
+---
+
+The user wants to refine an OpenSpec change. Use the change ID and adjustment request below to update proposal details and spec deltas without editing code.
+
+<UserRequest>
+  $ARGUMENTS
+</UserRequest>`,
   archive: `---
 description: Archive a deployed OpenSpec change and update specs.
 ---

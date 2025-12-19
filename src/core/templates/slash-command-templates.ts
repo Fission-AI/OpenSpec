@@ -1,4 +1,4 @@
-export type SlashCommandId = 'proposal' | 'apply' | 'archive';
+export type SlashCommandId = 'proposal' | 'apply' | 'refine' | 'archive';
 
 const baseGuardrails = `**Guardrails**
 - Favor straightforward, minimal implementations first and add complexity only when it is requested or clearly required.
@@ -34,6 +34,25 @@ Track these steps as TODOs and complete them one by one.
 const applyReferences = `**Reference**
 - Use \`openspec show <id> --json --deltas-only\` if you need additional context from the proposal while implementing.`;
 
+const refineGuardrails = `${baseGuardrails}\n- Do not edit production code during refine. Only update \`openspec/changes/<id>/\` files (proposal, tasks, design, and spec deltas).\n- Use the user's refinement request to drive the updates; ask clarifying questions if the requested adjustments are unclear.\n- If the request expands beyond the approved change scope, stop and recommend creating a new change proposal instead of refining.`;
+
+const refineSteps = `**Steps**
+1. Determine the change ID to refine:
+   - If this prompt includes a change ID (for example inside a \`<ChangeId>\` block), use that value after trimming whitespace.
+   - If the user provided a \`/openspec-refine <change-id> <adjustments>\` style input, parse the change ID and keep the remaining text as refinement instructions.
+   - If the conversation references a change loosely, run \`openspec list\` to surface likely IDs, share the candidates, and confirm the intended change.
+   - Otherwise, run \`openspec list\` and ask the user to confirm the change ID before proceeding.
+2. Capture the refinement request from the prompt or user message; if the desired adjustments are missing or ambiguous, ask clarifying questions before editing.
+3. Read \`changes/<id>/proposal.md\`, \`design.md\` (if present), \`tasks.md\`, and the spec deltas under \`changes/<id>/specs/\` to confirm scope and acceptance criteria.
+4. Update only the proposal, design, and spec delta files to reflect the requested adjustments (no code edits). Adjust technical decisions in \`design.md\` when needed.
+5. If a spec delta changes, ensure requirements include \`#### Scenario:\` entries. If the requested behavior does not fit existing spec deltas, create additional spec delta files as needed.
+6. Add or roll back tasks so the checklist matches the updated implementation plan.
+7. Run \`openspec validate <id> --strict\` and fix any issues before reporting back.
+8. State clearly that no code changes were made, summarize the refined proposal, and stop to request explicit re-approval before any apply work continues.`;
+
+const refineReferences = `**Reference**
+- Use \`openspec show <id> --json --deltas-only\` to inspect the current change deltas before editing.`;
+
 const archiveSteps = `**Steps**
 1. Determine the change ID to archive:
    - If this prompt already includes a specific change ID (for example inside a \`<ChangeId>\` block populated by slash-command arguments), use that value after trimming whitespace.
@@ -52,6 +71,7 @@ const archiveReferences = `**Reference**
 export const slashCommandBodies: Record<SlashCommandId, string> = {
   proposal: [proposalGuardrails, proposalSteps, proposalReferences].join('\n\n'),
   apply: [baseGuardrails, applySteps, applyReferences].join('\n\n'),
+  refine: [refineGuardrails, refineSteps, refineReferences].join('\n\n'),
   archive: [baseGuardrails, archiveSteps, archiveReferences].join('\n\n')
 };
 

@@ -9,6 +9,7 @@ import { OPENSPEC_MARKERS } from "../../config.js";
 const FILE_PATHS: Record<SlashCommandId, string> = {
   proposal: ".codex/prompts/openspec-proposal.md",
   apply: ".codex/prompts/openspec-apply.md",
+  refine: ".codex/prompts/openspec-refine.md",
   archive: ".codex/prompts/openspec-archive.md",
 };
 
@@ -33,6 +34,12 @@ $ARGUMENTS`,
       apply: `---
 description: Implement an approved OpenSpec change and keep tasks in sync.
 argument-hint: change-id
+---
+
+$ARGUMENTS`,
+      refine: `---
+description: Refine an approved OpenSpec change without editing code.
+argument-hint: change-id and refinement notes
 ---
 
 $ARGUMENTS`,
