@@ -4,6 +4,7 @@ import { COMMAND_REGISTRY } from '../core/completions/command-registry.js';
 import { detectShell, SupportedShell } from '../utils/shell-detection.js';
 import { CompletionProvider } from '../core/completions/completion-provider.js';
 import { getArchivedChangeIds } from '../utils/item-discovery.js';
+import { commandName } from '../utils/command-name.js';
 
 interface GenerateOptions {
   shell?: string;
@@ -58,7 +59,7 @@ export class CompletionCommand {
 
       // No shell specified and cannot auto-detect
       console.error('Error: Could not auto-detect shell. Please specify shell explicitly.');
-      console.error(`Usage: openspec completion ${operationName} [shell]`);
+      console.error(`Usage: ${commandName} completion ${operationName} [shell]`);
       console.error(`Currently supported: ${CompletionFactory.getSupportedShells().join(', ')}`);
       process.exitCode = 1;
       return null;
@@ -114,7 +115,7 @@ export class CompletionCommand {
    */
   private async generateForShell(shell: SupportedShell): Promise<void> {
     const generator = CompletionFactory.createGenerator(shell);
-    const script = generator.generate(COMMAND_REGISTRY);
+    const script = generator.generate(COMMAND_REGISTRY, commandName);
     console.log(script);
   }
 
@@ -125,11 +126,11 @@ export class CompletionCommand {
     const generator = CompletionFactory.createGenerator(shell);
     const installer = CompletionFactory.createInstaller(shell);
 
-    const spinner = ora(`Installing ${shell} completion script...`).start();
+    const spinner = ora(`Installing ${shell} completion script for ${commandName}...`).start();
 
     try {
       // Generate the completion script
-      const script = generator.generate(COMMAND_REGISTRY);
+      const script = generator.generate(COMMAND_REGISTRY, commandName);
 
       // Install it
       const result = await installer.install(script);
@@ -180,7 +181,7 @@ export class CompletionCommand {
     if (!skipConfirmation) {
       const { confirm } = await import('@inquirer/prompts');
       const confirmed = await confirm({
-        message: 'Remove OpenSpec configuration from ~/.zshrc?',
+        message: `Remove ${commandName} configuration from ~/.zshrc?`,
         default: false,
       });
 

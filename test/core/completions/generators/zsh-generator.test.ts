@@ -32,7 +32,7 @@ describe('ZshGenerator', () => {
       const script = generator.generate(commands);
 
       expect(script).toContain('#compdef openspec');
-      expect(script).toContain('# Zsh completion script for OpenSpec CLI');
+      expect(script).toContain('# Zsh completion script for openspec CLI');
       expect(script).toContain('_openspec() {');
     });
 

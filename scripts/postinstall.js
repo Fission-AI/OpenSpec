@@ -72,7 +72,7 @@ async function installCompletions(shell) {
 
     // Check if shell is supported
     if (!CompletionFactory.isSupported(shell)) {
-      console.log(`\nTip: Run 'openspec completion install' for shell completions`);
+      console.log(`\nTip: Run 'openspec completion install' or 'plx completion install' for shell completions`);
       return;
     }
 
@@ -99,11 +99,11 @@ async function installCompletions(shell) {
       }
     } else {
       // Installation failed, show tip for manual install
-      console.log(`\nTip: Run 'openspec completion install' for shell completions`);
+      console.log(`\nTip: Run 'openspec completion install' or 'plx completion install' for shell completions`);
     }
   } catch (error) {
     // Fail gracefully - show tip for manual install
-    console.log(`\nTip: Run 'openspec completion install' for shell completions`);
+    console.log(`\nTip: Run 'openspec completion install' or 'plx completion install' for shell completions`);
   }
 }
 
@@ -127,7 +127,7 @@ async function main() {
     // Detect shell
     const shell = await detectShell();
     if (!shell) {
-      console.log(`\nTip: Run 'openspec completion install' for shell completions`);
+      console.log(`\nTip: Run 'openspec completion install' or 'plx completion install' for shell completions`);
       return;
     }
 
@@ -136,7 +136,7 @@ async function main() {
   } catch (error) {
     // Fail gracefully - never break npm install
     // Show tip for manual install
-    console.log(`\nTip: Run 'openspec completion install' for shell completions`);
+    console.log(`\nTip: Run 'openspec completion install' or 'plx completion install' for shell completions`);
   }
 }
 

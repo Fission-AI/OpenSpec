@@ -1,8 +1,8 @@
 import { CompletionGenerator, CommandDefinition, FlagDefinition } from '../types.js';
 
 /**
- * Generates Zsh completion scripts for the OpenSpec CLI.
- * Follows Zsh completion system conventions using the _openspec function.
+ * Generates Zsh completion scripts for the OpenSpec/OpenSplx CLI.
+ * Follows Zsh completion system conventions.
  */
 export class ZshGenerator implements CompletionGenerator {
   readonly shell = 'zsh' as const;
@@ -11,20 +11,21 @@ export class ZshGenerator implements CompletionGenerator {
    * Generate a Zsh completion script
    *
    * @param commands - Command definitions to generate completions for
+   * @param commandName - The CLI command name (defaults to 'openspec')
    * @returns Zsh completion script as a string
    */
-  generate(commands: CommandDefinition[]): string {
+  generate(commands: CommandDefinition[], commandName: string = 'openspec'): string {
     const script: string[] = [];
 
     // Header comment
-    script.push('#compdef openspec');
+    script.push(`#compdef ${commandName}`);
     script.push('');
-    script.push('# Zsh completion script for OpenSpec CLI');
+    script.push(`# Zsh completion script for ${commandName} CLI`);
     script.push('# Auto-generated - do not edit manually');
     script.push('');
 
     // Main completion function
-    script.push('_openspec() {');
+    script.push(`_${commandName}() {`);
     script.push('  local context state line');
     script.push('  typeset -A opt_args');
     script.push('');
@@ -48,7 +49,7 @@ export class ZshGenerator implements CompletionGenerator {
     // Command dispatch logic
     script.push('  case $state in');
     script.push('    command)');
-    script.push('      _describe "openspec command" commands');
+    script.push(`      _describe "${commandName} command" commands`);
     script.push('      ;;');
     script.push('    args)');
     script.push('      case $words[1] in');
@@ -56,7 +57,7 @@ export class ZshGenerator implements CompletionGenerator {
     // Generate completion for each command
     for (const cmd of commands) {
       script.push(`        ${cmd.name})`);
-      script.push(`          _openspec_${this.sanitizeFunctionName(cmd.name)}`);
+      script.push(`          _${commandName}_${this.sanitizeFunctionName(cmd.name)}`);
       script.push('          ;;');
     }
 
@@ -68,15 +69,15 @@ export class ZshGenerator implements CompletionGenerator {
 
     // Generate individual command completion functions
     for (const cmd of commands) {
-      script.push(...this.generateCommandFunction(cmd));
+      script.push(...this.generateCommandFunction(cmd, commandName));
       script.push('');
     }
 
     // Add dynamic completion helper functions
-    script.push(...this.generateDynamicCompletionHelpers());
+    script.push(...this.generateDynamicCompletionHelpers(commandName));
 
     // Register the completion function
-    script.push('compdef _openspec openspec');
+    script.push(`compdef _${commandName} ${commandName}`);
     script.push('');
 
     return script.join('\n');
@@ -128,44 +129,44 @@ export class ZshGenerator implements CompletionGenerator {
   /**
    * Generate dynamic completion helper functions for change and spec IDs
    */
-  private generateDynamicCompletionHelpers(): string[] {
+  private generateDynamicCompletionHelpers(commandName: string): string[] {
     const lines: string[] = [];
 
     lines.push('# Dynamic completion helpers');
     lines.push('');
 
     // Helper function for completing change IDs
-    lines.push('# Use openspec __complete to get available changes');
-    lines.push('_openspec_complete_changes() {');
+    lines.push(`# Use ${commandName} __complete to get available changes`);
+    lines.push(`_${commandName}_complete_changes() {`);
     lines.push('  local -a changes');
     lines.push('  while IFS=$\'\\t\' read -r id desc; do');
     lines.push('    changes+=("$id:$desc")');
-    lines.push('  done < <(openspec __complete changes 2>/dev/null)');
+    lines.push(`  done < <(${commandName} __complete changes 2>/dev/null)`);
     lines.push('  _describe "change" changes');
     lines.push('}');
     lines.push('');
 
     // Helper function for completing spec IDs
-    lines.push('# Use openspec __complete to get available specs');
-    lines.push('_openspec_complete_specs() {');
+    lines.push(`# Use ${commandName} __complete to get available specs`);
+    lines.push(`_${commandName}_complete_specs() {`);
     lines.push('  local -a specs');
     lines.push('  while IFS=$\'\\t\' read -r id desc; do');
     lines.push('    specs+=("$id:$desc")');
-    lines.push('  done < <(openspec __complete specs 2>/dev/null)');
+    lines.push(`  done < <(${commandName} __complete specs 2>/dev/null)`);
     lines.push('  _describe "spec" specs');
     lines.push('}');
     lines.push('');
 
     // Helper function for completing both changes and specs
     lines.push('# Get both changes and specs');
-    lines.push('_openspec_complete_items() {');
+    lines.push(`_${commandName}_complete_items() {`);
     lines.push('  local -a items');
     lines.push('  while IFS=$\'\\t\' read -r id desc; do');
     lines.push('    items+=("$id:$desc")');
-    lines.push('  done < <(openspec __complete changes 2>/dev/null)');
+    lines.push(`  done < <(${commandName} __complete changes 2>/dev/null)`);
     lines.push('  while IFS=$\'\\t\' read -r id desc; do');
     lines.push('    items+=("$id:$desc")');
-    lines.push('  done < <(openspec __complete specs 2>/dev/null)');
+    lines.push(`  done < <(${commandName} __complete specs 2>/dev/null)`);
     lines.push('  _describe "item" items');
     lines.push('}');
     lines.push('');
@@ -176,8 +177,8 @@ export class ZshGenerator implements CompletionGenerator {
   /**
    * Generate completion function for a specific command
    */
-  private generateCommandFunction(cmd: CommandDefinition): string[] {
-    const funcName = `_openspec_${this.sanitizeFunctionName(cmd.name)}`;
+  private generateCommandFunction(cmd: CommandDefinition, commandName: string): string[] {
+    const funcName = `_${commandName}_${this.sanitizeFunctionName(cmd.name)}`;
     const lines: string[] = [];
 
     lines.push(`${funcName}() {`);
@@ -216,7 +217,7 @@ export class ZshGenerator implements CompletionGenerator {
 
       for (const subcmd of cmd.subcommands) {
         lines.push(`        ${subcmd.name})`);
-        lines.push(`          _openspec_${this.sanitizeFunctionName(cmd.name)}_${this.sanitizeFunctionName(subcmd.name)}`);
+        lines.push(`          _${commandName}_${this.sanitizeFunctionName(cmd.name)}_${this.sanitizeFunctionName(subcmd.name)}`);
         lines.push('          ;;');
       }
 
@@ -234,7 +235,7 @@ export class ZshGenerator implements CompletionGenerator {
 
       // Add positional argument completion
       if (cmd.acceptsPositional) {
-        const positionalSpec = this.generatePositionalSpec(cmd.positionalType);
+        const positionalSpec = this.generatePositionalSpec(cmd.positionalType, commandName);
         lines.push('    ' + positionalSpec);
       } else {
         // Remove trailing backslash from last flag
@@ -250,7 +251,7 @@ export class ZshGenerator implements CompletionGenerator {
     if (cmd.subcommands) {
       for (const subcmd of cmd.subcommands) {
         lines.push('');
-        lines.push(...this.generateSubcommandFunction(cmd.name, subcmd));
+        lines.push(...this.generateSubcommandFunction(cmd.name, subcmd, commandName));
       }
     }
 
@@ -260,8 +261,8 @@ export class ZshGenerator implements CompletionGenerator {
   /**
    * Generate completion function for a subcommand
    */
-  private generateSubcommandFunction(parentName: string, subcmd: CommandDefinition): string[] {
-    const funcName = `_openspec_${this.sanitizeFunctionName(parentName)}_${this.sanitizeFunctionName(subcmd.name)}`;
+  private generateSubcommandFunction(parentName: string, subcmd: CommandDefinition, commandName: string): string[] {
+    const funcName = `_${commandName}_${this.sanitizeFunctionName(parentName)}_${this.sanitizeFunctionName(subcmd.name)}`;
     const lines: string[] = [];
 
     lines.push(`${funcName}() {`);
@@ -274,7 +275,7 @@ export class ZshGenerator implements CompletionGenerator {
 
     // Add positional argument completion
     if (subcmd.acceptsPositional) {
-      const positionalSpec = this.generatePositionalSpec(subcmd.positionalType);
+      const positionalSpec = this.generatePositionalSpec(subcmd.positionalType, commandName);
       lines.push('    ' + positionalSpec);
     } else {
       // Remove trailing backslash from last flag
@@ -326,14 +327,14 @@ export class ZshGenerator implements CompletionGenerator {
   /**
    * Generate positional argument specification
    */
-  private generatePositionalSpec(positionalType?: string): string {
+  private generatePositionalSpec(positionalType?: string, commandName: string = 'openspec'): string {
     switch (positionalType) {
       case 'change-id':
-        return "'*: :_openspec_complete_changes'";
+        return `'*: :_${commandName}_complete_changes'`;
       case 'spec-id':
-        return "'*: :_openspec_complete_specs'";
+        return `'*: :_${commandName}_complete_specs'`;
       case 'change-or-spec-id':
-        return "'*: :_openspec_complete_items'";
+        return `'*: :_${commandName}_complete_items'`;
       case 'path':
         return "'*:path:_files'";
       case 'shell':

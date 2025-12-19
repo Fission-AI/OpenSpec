@@ -84,7 +84,8 @@ export interface CompletionGenerator {
    * Generate the completion script content
    *
    * @param commands - Command definitions to generate completions for
+   * @param commandName - The CLI command name (e.g., 'openspec' or 'plx')
    * @returns The shell-specific completion script as a string
    */
-  generate(commands: CommandDefinition[]): string;
+  generate(commands: CommandDefinition[], commandName?: string): string;
 }

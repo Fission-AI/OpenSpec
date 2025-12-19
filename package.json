@@ -27,7 +27,8 @@
     }
   },
   "bin": {
-    "openspec": "./bin/openspec.js"
+    "openspec": "./bin/openspec.js",
+    "plx": "./bin/plx.js"
   },
   "files": [
     "dist",
