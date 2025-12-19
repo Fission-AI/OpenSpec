@@ -15,12 +15,15 @@ import { ValidateCommand } from '../commands/validate.js';
 import { ShowCommand } from '../commands/show.js';
 import { CompletionCommand } from '../commands/completion.js';
 
+// Import command name detection utility
+import { commandName } from '../utils/command-name.js';
+
 const program = new Command();
 const require = createRequire(import.meta.url);
 const { version } = require('../../package.json');
 
 program
-  .name('openspec')
+  .name(commandName)
   .description('AI-native system for spec-driven development')
   .version(version);
 

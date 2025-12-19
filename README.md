@@ -1,26 +1,51 @@
 <p align="center">
-  <a href="https://github.com/Fission-AI/OpenSpec">
+  <a href="https://github.com/appyboypov/OpenSplx">
     <picture>
-      <source srcset="assets/openspec_pixel_dark.svg" media="(prefers-color-scheme: dark)">
-      <source srcset="assets/openspec_pixel_light.svg" media="(prefers-color-scheme: light)">
-      <img src="assets/openspec_pixel_light.svg" alt="OpenSpec logo" height="64">
+      <source srcset="assets/opensplx_pixel_dark.svg" media="(prefers-color-scheme: dark)">
+      <source srcset="assets/opensplx_pixel_light.svg" media="(prefers-color-scheme: light)">
+      <img src="assets/opensplx_pixel_light.svg" alt="OpenSplx logo" height="64">
     </picture>
   </a>
-  
+
 </p>
 <p align="center">Spec-driven development for AI coding assistants.</p>
 <p align="center">
-  <a href="https://github.com/Fission-AI/OpenSpec/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Fission-AI/OpenSpec/actions/workflows/ci.yml/badge.svg" /></a>
-  <a href="https://www.npmjs.com/package/@fission-ai/openspec"><img alt="npm version" src="https://img.shields.io/npm/v/@fission-ai/openspec?style=flat-square" /></a>
+  <a href="https://github.com/Fission-AI/OpenSpec"><img alt="Fork of OpenSpec" src="https://img.shields.io/badge/Fork%20of-OpenSpec-blue?style=flat-square" /></a>
   <a href="https://nodejs.org/"><img alt="node version" src="https://img.shields.io/node/v/@fission-ai/openspec?style=flat-square" /></a>
   <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" /></a>
-  <a href="https://conventionalcommits.org"><img alt="Conventional Commits" src="https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg?style=flat-square" /></a>
-  <a href="https://discord.gg/YctCnvvshC"><img alt="Discord" src="https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?logo=discord&logoColor=white&style=flat-square" /></a>
 </p>
 
 <p align="center">
-  <img src="assets/openspec_dashboard.png" alt="OpenSpec dashboard preview" width="90%">
+  <img src="assets/openspec_dashboard.png" alt="OpenSplx dashboard preview" width="90%">
 </p>
+
+# OpenSplx
+
+> **Fork Notice:** OpenSplx is a community fork of [OpenSpec](https://github.com/Fission-AI/OpenSpec).
+> It adds the `plx` command alias and extended features while maintaining full compatibility
+> with the original OpenSpec workflow.
+
+## What's Different in OpenSplx
+
+| Feature | OpenSpec | OpenSplx |
+|---------|----------|----------|
+| Command | `openspec` | `openspec` + `plx` alias |
+| Install | `npm i -g @fission-ai/openspec` | Clone & `npm link` (local) |
+
+### Quick Start (OpenSplx)
+
+```bash
+git clone https://github.com/appyboypov/OpenSplx.git
+cd OpenSplx
+pnpm install && pnpm build
+npm link
+plx --version  # or openspec --version
+```
+
+---
+
+<details>
+<summary><strong>Original OpenSpec Documentation</strong> (click to expand)</summary>
 
 <p align="center">
   Follow <a href="https://x.com/0xTab">@0xTab on X</a> for updates · Join the <a href="https://discord.gg/YctCnvvshC">OpenSpec Discord</a> for help and questions.
@@ -379,3 +404,5 @@ Run `openspec update` whenever someone switches tools so your agents pick up the
 ## License
 
 MIT
+
+</details>
