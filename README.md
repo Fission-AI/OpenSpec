@@ -60,7 +60,7 @@ See the full comparison in [How OpenSpec Compares](#how-openspec-compares).
          ▼
 ┌────────────────────┐
 │ Review & Align     │
-│ (edit specs/tasks) │◀──── feedback loop ──────┐
+│ (edit specs/tasks) │◀───── refine loop ──────┐
 └────────┬───────────┘                          │
          │ approved plan                        │
          ▼                                      │
@@ -78,7 +78,8 @@ See the full comparison in [How OpenSpec Compares](#how-openspec-compares).
 1. Draft a change proposal that captures the spec updates you want.
 2. Review the proposal with your AI assistant until everyone agrees.
 3. Implement tasks that reference the agreed specs.
-4. Archive the change to merge the approved updates back into the source-of-truth specs.
+4. If apply feedback requires changes, refine proposal artifacts and re-approve before continuing.
+5. Archive the change to merge the approved updates back into the source-of-truth specs.
 ```
 
 ## Getting Started
@@ -90,30 +91,30 @@ See the full comparison in [How OpenSpec Compares](#how-openspec-compares).
 
 These tools have built-in OpenSpec commands. Select the OpenSpec integration when prompted.
 
-| Tool | Commands |
-|------|----------|
-| **Amazon Q Developer** | `@openspec-proposal`, `@openspec-apply`, `@openspec-archive` (`.amazonq/prompts/`) |
-| **Antigravity** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.agent/workflows/`) |
-| **Auggie (Augment CLI)** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.augment/commands/`) |
-| **Claude Code** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` |
-| **Cline** | Workflows in `.clinerules/workflows/` directory (`.clinerules/workflows/openspec-*.md`) |
-| **CodeBuddy Code (CLI)** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` (`.codebuddy/commands/`) — see [docs](https://www.codebuddy.ai/cli) |
-| **Codex** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (global: `~/.codex/prompts`, auto-installed) |
-| **CoStrict** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.cospec/openspec/commands/`) — see [docs](https://costrict.ai)|
-| **Crush** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.crush/commands/openspec/`) |
-| **Cursor** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` |
-| **Factory Droid** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.factory/commands/`) |
-| **Gemini CLI** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` (`.gemini/commands/openspec/`) |
-| **GitHub Copilot** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.github/prompts/`) |
-| **iFlow (iflow-cli)** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.iflow/commands/`) |
-| **Kilo Code** | `/openspec-proposal.md`, `/openspec-apply.md`, `/openspec-archive.md` (`.kilocode/workflows/`) |
-| **OpenCode** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` |
-| **Qoder (CLI)** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` (`.qoder/commands/openspec/`) — see [docs](https://qoder.com/cli) |
-| **Qwen Code** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.qwen/commands/`) |
-| **RooCode** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.roo/commands/`) |
-| **Windsurf** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.windsurf/workflows/`) |
+| Tool                     | Commands                                                                                                                                             |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Amazon Q Developer**   | `@openspec-proposal`, `@openspec-apply`, `@openspec-refine`, `@openspec-archive` (`.amazonq/prompts/`)                                               |
+| **Antigravity**          | `/openspec-proposal`, `/openspec-apply`, `/openspec-refine`, `/openspec-archive` (`.agent/workflows/`)                                               |
+| **Auggie (Augment CLI)** | `/openspec-proposal`, `/openspec-apply`, `/openspec-refine`, `/openspec-archive` (`.augment/commands/`)                                              |
+| **Claude Code**          | `/openspec:proposal`, `/openspec:apply`, `/openspec:refine`, `/openspec:archive`                                                                     |
+| **Cline**                | Workflows in `.clinerules/workflows/` directory (`.clinerules/workflows/openspec-*.md`, includes refine)                                             |
+| **CodeBuddy Code (CLI)** | `/openspec:proposal`, `/openspec:apply`, `/openspec:refine`, `/openspec:archive` (`.codebuddy/commands/`) — see [docs](https://www.codebuddy.ai/cli) |
+| **Codex**                | `/openspec-proposal`, `/openspec-apply`, `/openspec-refine`, `/openspec-archive` (global: `~/.codex/prompts`, auto-installed)                        |
+| **CoStrict**             | `/openspec-proposal`, `/openspec-apply`, `/openspec-refine`, `/openspec-archive` (`.cospec/openspec/commands/`) — see [docs](https://costrict.ai)    |
+| **Crush**                | `/openspec-proposal`, `/openspec-apply`, `/openspec-refine`, `/openspec-archive` (`.crush/commands/openspec/`)                                       |
+| **Cursor**               | `/openspec-proposal`, `/openspec-apply`, `/openspec-refine`, `/openspec-archive`                                                                     |
+| **Factory Droid**        | `/openspec-proposal`, `/openspec-apply`, `/openspec-refine`, `/openspec-archive` (`.factory/commands/`)                                              |
+| **Gemini CLI**           | `/openspec:proposal`, `/openspec:apply`, `/openspec:refine`, `/openspec:archive` (`.gemini/commands/openspec/`)                                      |
+| **GitHub Copilot**       | `/openspec-proposal`, `/openspec-apply`, `/openspec-refine`, `/openspec-archive` (`.github/prompts/`)                                                |
+| **iFlow (iflow-cli)**    | `/openspec-proposal`, `/openspec-apply`, `/openspec-refine`, `/openspec-archive` (`.iflow/commands/`)                                                |
+| **Kilo Code**            | `/openspec-proposal.md`, `/openspec-apply.md`, `/openspec-refine.md`, `/openspec-archive.md` (`.kilocode/workflows/`)                                |
+| **OpenCode**             | `/openspec-proposal`, `/openspec-apply`, `/openspec-refine`, `/openspec-archive`                                                                     |
+| **Qoder (CLI)**          | `/openspec:proposal`, `/openspec:apply`, `/openspec:refine`, `/openspec:archive` (`.qoder/commands/openspec/`) — see [docs](https://qoder.com/cli)   |
+| **Qwen Code**            | `/openspec-proposal`, `/openspec-apply`, `/openspec-refine`, `/openspec-archive` (`.qwen/commands/`)                                                 |
+| **RooCode**              | `/openspec-proposal`, `/openspec-apply`, `/openspec-refine`, `/openspec-archive` (`.roo/commands/`)                                                  |
+| **Windsurf**             | `/openspec-proposal`, `/openspec-apply`, `/openspec-refine`, `/openspec-archive` (`.windsurf/workflows/`)                                            |
 
-Kilo Code discovers team workflows automatically. Save the generated files under `.kilocode/workflows/` and trigger them from the command palette with `/openspec-proposal.md`, `/openspec-apply.md`, or `/openspec-archive.md`.
+Kilo Code discovers team workflows automatically. Save the generated files under `.kilocode/workflows/` and trigger them from the command palette with `/openspec-proposal.md`, `/openspec-apply.md`, `/openspec-refine.md`, or `/openspec-archive.md`.
 
 </details>
 
@@ -122,8 +123,8 @@ Kilo Code discovers team workflows automatically. Save the generated files under
 
 These tools automatically read workflow instructions from `openspec/AGENTS.md`. Ask them to follow the OpenSpec workflow if they need a reminder. Learn more about the [AGENTS.md convention](https://agents.md/).
 
-| Tools |
-|-------|
+| Tools                |
+| -------------------- |
 | Amp • Jules • Others |
 
 </details>
@@ -202,13 +203,14 @@ $ openspec validate add-profile-filters     # Validate spec formatting
 $ openspec show add-profile-filters         # Review proposal, tasks, and spec delta
 ```
 
-#### 3. Refine the Specs
-Iterate on the specifications until they match your needs:
+#### 3. Refine the Proposal (Optional)
+Iterate on the proposal artifacts if apply feedback requires changes:
 
 ```text
 You: Can you add acceptance criteria for the role and team filters?
+     (Shortcut for tools with slash commands: /openspec:refine add-profile-filters Add acceptance criteria for role and team filters)
 
-AI:  I'll update the spec delta with scenarios for role and team filters.
+AI:  I'll update the proposal artifacts with scenarios for role and team filters.
      *Edits openspec/changes/add-profile-filters/specs/profile/spec.md and tasks.md.*
 ```
 
@@ -243,7 +245,7 @@ Or run the command yourself in terminal:
 $ openspec archive add-profile-filters --yes  # Archive the completed change without prompts
 ```
 
-**Note:** Tools with native slash commands (Claude Code, CodeBuddy, Cursor, Codex, Qoder, RooCode) can use the shortcuts shown. All other tools work with natural language requests to "create an OpenSpec proposal", "apply the OpenSpec change", or "archive the change".
+**Note:** Tools with native slash commands (Claude Code, CodeBuddy, Cursor, Codex, Qoder, RooCode) can use the shortcuts shown. All other tools work with natural language requests to "create an OpenSpec proposal", "refine the OpenSpec change", "apply the OpenSpec change", or "archive the change".
 
 ## Command Reference
 
