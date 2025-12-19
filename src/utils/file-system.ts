@@ -1,4 +1,4 @@
-import { promises as fs } from 'fs';
+import { promises as fs, constants as fsConstants } from 'fs';
 import path from 'path';
 
 function isMarkerOnOwnLine(content: string, markerIndex: number, markerLength: number): boolean {
@@ -93,10 +93,24 @@ export class FileSystemUtils {
         return true;
       }
 
-      return (stats.mode & 0o222) !== 0;
+      // On Windows, stats.mode doesn't reliably indicate write permissions.
+      // Use fs.access with W_OK to check actual write permissions cross-platform.
+      try {
+        await fs.access(filePath, fsConstants.W_OK);
+        return true;
+      } catch {
+        return false;
+      }
     } catch (error: any) {
       if (error.code === 'ENOENT') {
-        return true;
+        // File doesn't exist; check if we can write to the parent directory
+        const parentDir = path.dirname(filePath);
+        try {
+          await fs.access(parentDir, fsConstants.W_OK);
+          return true;
+        } catch {
+          return false;
+        }
       }
 
       console.debug(`Unable to determine write permissions for ${filePath}: ${error.message}`);
