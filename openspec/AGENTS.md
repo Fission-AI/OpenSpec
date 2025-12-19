@@ -52,9 +52,40 @@ Track these steps as TODOs and complete them one by one.
 2. **Read design.md** (if exists) - Review technical decisions
 3. **Read tasks.md** - Get implementation checklist
 4. **Implement tasks sequentially** - Complete in order
-5. **Confirm completion** - Ensure every item in `tasks.md` is finished before updating statuses
-6. **Update checklist** - After all work is done, set every task to `- [x]` so the list reflects reality
-7. **Approval gate** - Do not start implementation until the proposal is reviewed and approved
+5. **Add tests for new code** - Every new TypeScript file requires corresponding tests (see Testing Requirements below)
+6. **Confirm completion** - Ensure every item in `tasks.md` is finished before updating statuses
+7. **Update checklist** - After all work is done, set every task to `- [x]` so the list reflects reality
+8. **Approval gate** - Do not start implementation until the proposal is reviewed and approved
+
+### Testing Requirements
+All changes that add or modify TypeScript code MUST include corresponding tests:
+
+1. **Test file location** - Mirror the source structure under `test/`:
+   - `src/mcp/utils/path-resolver.ts` → `test/mcp/utils/path-resolver.test.ts`
+   - `src/commands/foo.ts` → `test/commands/foo.test.ts`
+
+2. **Test coverage expectations**:
+   - Unit tests for all exported functions
+   - Edge cases and error conditions
+   - Integration tests for cross-module behavior when applicable
+
+3. **Test patterns** - Follow existing conventions:
+   - Use `vitest` (describe, it, expect, vi for mocks)
+   - Use temporary directories for filesystem tests
+   - Clean up resources in `afterEach` hooks
+   - Handle platform differences (e.g., symlink resolution on macOS)
+
+4. **Running tests**:
+   ```bash
+   pnpm test                    # Run all tests
+   pnpm test test/mcp/          # Run tests for a specific module
+   pnpm test:coverage           # Run with coverage report
+   ```
+
+5. **Pre-archive verification** - Before archiving a change, ensure:
+   - All new code has tests
+   - `pnpm test` passes
+   - No regressions in existing tests
 
 ### Stage 3: Archiving Changes
 After deployment, create separate PR to:

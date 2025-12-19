@@ -1,7 +1,7 @@
 ## 1. Setup and Dependencies
 
-- [ ] 1.1 Add `@modelcontextprotocol/sdk` and `zod` dependencies to package.json
-- [ ] 1.2 Create `src/mcp/` directory structure with index.ts, server.ts, and subdirectories
+- [x] 1.1 Add `@modelcontextprotocol/sdk` and `zod` dependencies to package.json
+- [x] 1.2 Create `src/mcp/` directory structure with index.ts, server.ts, and subdirectories
 
 ## 2. Core Infrastructure
 
