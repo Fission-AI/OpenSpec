@@ -70,10 +70,11 @@ describe('global-config', () => {
       }
     });
 
-    it('should use APPDATA on Windows', () => {
+    it('should use APPDATA on Windows when XDG_CONFIG_HOME is not set', () => {
       // This test only makes sense conceptually - we can't change os.platform()
       // But we can verify the APPDATA logic by checking the code path
       if (os.platform() === 'win32') {
+        delete process.env.XDG_CONFIG_HOME;
         const appData = process.env.APPDATA;
         if (appData) {
           const result = getGlobalConfigDir();

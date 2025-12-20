@@ -18,10 +18,17 @@ const DEFAULT_CONFIG: GlobalConfig = {
 /**
  * Gets the global configuration directory path following XDG Base Directory Specification.
  *
- * - Unix/macOS: $XDG_CONFIG_HOME/openspec/ or ~/.config/openspec/
- * - Windows: %APPDATA%/openspec/
+ * - All platforms: $XDG_CONFIG_HOME/openspec/ if XDG_CONFIG_HOME is set
+ * - Unix/macOS fallback: ~/.config/openspec/
+ * - Windows fallback: %APPDATA%/openspec/
  */
 export function getGlobalConfigDir(): string {
+  // XDG_CONFIG_HOME takes precedence on all platforms when explicitly set
+  const xdgConfigHome = process.env.XDG_CONFIG_HOME;
+  if (xdgConfigHome) {
+    return path.join(xdgConfigHome, GLOBAL_CONFIG_DIR_NAME);
+  }
+
   const platform = os.platform();
 
   if (platform === 'win32') {
@@ -34,12 +41,7 @@ export function getGlobalConfigDir(): string {
     return path.join(os.homedir(), 'AppData', 'Roaming', GLOBAL_CONFIG_DIR_NAME);
   }
 
-  // Unix/macOS: use XDG_CONFIG_HOME or fallback to ~/.config
-  const xdgConfigHome = process.env.XDG_CONFIG_HOME;
-  if (xdgConfigHome) {
-    return path.join(xdgConfigHome, GLOBAL_CONFIG_DIR_NAME);
-  }
-
+  // Unix/macOS fallback: ~/.config
   return path.join(os.homedir(), '.config', GLOBAL_CONFIG_DIR_NAME);
 }
 
