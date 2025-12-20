@@ -11,11 +11,11 @@
 
 ## 3. MCP Resources
 
-- [ ] 3.1 Implement instructions resource (`openspec://instructions`)
-- [ ] 3.2 Implement project resource (`openspec://project`)
-- [ ] 3.3 Implement specs list and individual spec resources
-- [ ] 3.4 Implement changes list and individual change resources
-- [ ] 3.5 Implement archive resource
+- [x] 3.1 Implement instructions resource (`openspec://instructions`)
+- [x] 3.2 Implement project resource (`openspec://project`)
+- [x] 3.3 Implement specs list and individual spec resources
+- [x] 3.4 Implement changes list and individual change resources
+- [x] 3.5 Implement archive resource
 
 ## 4. MCP Tools
 
@@ -34,9 +34,9 @@
 
 ## 6. CLI Integration
 
-- [ ] 6.1 Create `src/commands/mcp.ts` Commander.js subcommand
-- [ ] 6.2 Register mcp command in `src/cli/index.ts`
-- [ ] 6.3 Add --debug flag for stderr logging
+- [x] 6.1 Create `src/commands/mcp.ts` Commander.js subcommand
+- [x] 6.2 Register mcp command in `src/cli/index.ts`
+- [x] 6.3 Add --debug flag for stderr logging
 
 ## 7. Testing and Documentation
 

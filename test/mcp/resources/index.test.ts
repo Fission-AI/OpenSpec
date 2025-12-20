@@ -9,24 +9,9 @@ describe('MCP Resources', () => {
       expect(typeof registerAllResources).toBe('function');
     });
 
-    it('should accept McpServer and PathConfig parameters', () => {
-      const mockServer = {} as McpServer;
-      const mockPathConfig: PathConfig = {
-        specsRoot: '/test/project',
-        projectRoot: '/test/project',
-        isAutoProjectRoot: false,
-      };
-
-      // Should not throw - currently a stub
-      expect(() => {
-        registerAllResources(mockServer, mockPathConfig);
-      }).not.toThrow();
-    });
-
-    it('should be a no-op stub pending Task 3 implementation', () => {
+    it('should register all resource types', () => {
       const mockServer = {
-        resource: vi.fn(),
-        resourceTemplate: vi.fn(),
+        registerResource: vi.fn(),
       } as unknown as McpServer;
 
       const mockPathConfig: PathConfig = {
@@ -37,8 +22,24 @@ describe('MCP Resources', () => {
 
       registerAllResources(mockServer, mockPathConfig);
 
-      // Currently a stub - no resources registered yet
-      expect(mockServer.resource).not.toHaveBeenCalled();
+      // Should register: instructions, project, specs-list, spec, changes-list, change, change-proposal, change-tasks, change-design, archive
+      expect(mockServer.registerResource).toHaveBeenCalledTimes(10);
+    });
+
+    it('should accept McpServer and PathConfig parameters', () => {
+      const mockServer = {
+        registerResource: vi.fn(),
+      } as unknown as McpServer;
+
+      const mockPathConfig: PathConfig = {
+        specsRoot: '/test/project',
+        projectRoot: '/test/project',
+        isAutoProjectRoot: false,
+      };
+
+      expect(() => {
+        registerAllResources(mockServer, mockPathConfig);
+      }).not.toThrow();
     });
   });
 });

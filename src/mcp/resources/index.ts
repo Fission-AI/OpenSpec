@@ -11,18 +11,22 @@
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { PathConfig } from '../utils/path-resolver.js';
+import { registerInstructionsResource } from './instructions.js';
+import { registerProjectResource } from './project.js';
+import { registerSpecsResources } from './specs.js';
+import { registerChangesResources } from './changes.js';
+import { registerArchiveResource } from './archive.js';
 
 /**
  * Register all OpenSpec resources with the MCP server.
  */
 export function registerAllResources(
-  _server: McpServer,
-  _pathConfig: PathConfig
+  server: McpServer,
+  pathConfig: PathConfig
 ): void {
-  // TODO (Task 3): Implement resource registrations
-  // registerInstructionsResource(server, pathConfig);
-  // registerProjectResource(server, pathConfig);
-  // registerSpecsResources(server, pathConfig);
-  // registerChangesResources(server, pathConfig);
-  // registerArchiveResource(server, pathConfig);
+  registerInstructionsResource(server, pathConfig);
+  registerProjectResource(server, pathConfig);
+  registerSpecsResources(server, pathConfig);
+  registerChangesResources(server, pathConfig);
+  registerArchiveResource(server, pathConfig);
 }
