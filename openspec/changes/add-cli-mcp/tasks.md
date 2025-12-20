@@ -19,12 +19,12 @@
 
 ## 4. MCP Tools
 
-- [ ] 4.1 Implement init tool (maps to `openspec init`)
-- [ ] 4.2 Implement list tool (maps to `openspec list`)
-- [ ] 4.3 Implement show tool (maps to `openspec show`)
-- [ ] 4.4 Implement validate tool (maps to `openspec validate`)
-- [ ] 4.5 Implement archive tool (maps to `openspec archive`)
-- [ ] 4.6 Implement update_project_context tool (new)
+- [x] 4.1 Implement init tool (maps to `openspec init`)
+- [x] 4.2 Implement list tool (maps to `openspec list`)
+- [x] 4.3 Implement show tool (maps to `openspec show`)
+- [x] 4.4 Implement validate tool (maps to `openspec validate`)
+- [x] 4.5 Implement archive tool (maps to `openspec archive`)
+- [x] 4.6 Implement update_project_context tool (new)
 
 ## 5. MCP Prompts
 

@@ -21,9 +21,9 @@ interface SpecUpdate {
 export class ArchiveCommand {
   async execute(
     changeName?: string,
-    options: { yes?: boolean; skipSpecs?: boolean; noValidate?: boolean; validate?: boolean } = {}
+    options: { yes?: boolean; skipSpecs?: boolean; noValidate?: boolean; validate?: boolean; targetPath?: string } = {}
   ): Promise<void> {
-    const targetPath = '.';
+    const targetPath = options.targetPath ?? '.';
     const changesDir = path.join(targetPath, 'openspec', 'changes');
     const archiveDir = path.join(changesDir, 'archive');
     const mainSpecsDir = path.join(targetPath, 'openspec', 'specs');

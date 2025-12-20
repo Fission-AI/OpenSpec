@@ -12,19 +12,24 @@
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { PathConfig } from '../utils/path-resolver.js';
+import { registerInitTool } from './init.js';
+import { registerListTool } from './list.js';
+import { registerShowTool } from './show.js';
+import { registerValidateTool } from './validate.js';
+import { registerArchiveTool } from './archive.js';
+import { registerProjectContextTool } from './project-context.js';
 
 /**
  * Register all OpenSpec tools with the MCP server.
  */
 export function registerAllTools(
-  _server: McpServer,
-  _pathConfig: PathConfig
+  server: McpServer,
+  pathConfig: PathConfig
 ): void {
-  // TODO (Task 4): Implement tool registrations
-  // registerInitTool(server, pathConfig);
-  // registerListTool(server, pathConfig);
-  // registerShowTool(server, pathConfig);
-  // registerValidateTool(server, pathConfig);
-  // registerArchiveTool(server, pathConfig);
-  // registerProjectTool(server, pathConfig);
+  registerInitTool(server, pathConfig);
+  registerListTool(server, pathConfig);
+  registerShowTool(server, pathConfig);
+  registerValidateTool(server, pathConfig);
+  registerArchiveTool(server, pathConfig);
+  registerProjectContextTool(server, pathConfig);
 }

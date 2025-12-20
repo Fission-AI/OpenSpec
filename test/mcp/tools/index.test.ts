@@ -9,23 +9,9 @@ describe('MCP Tools', () => {
       expect(typeof registerAllTools).toBe('function');
     });
 
-    it('should accept McpServer and PathConfig parameters', () => {
-      const mockServer = {} as McpServer;
-      const mockPathConfig: PathConfig = {
-        specsRoot: '/test/project',
-        projectRoot: '/test/project',
-        isAutoProjectRoot: false,
-      };
-
-      // Should not throw - currently a stub
-      expect(() => {
-        registerAllTools(mockServer, mockPathConfig);
-      }).not.toThrow();
-    });
-
-    it('should be a no-op stub pending Task 4 implementation', () => {
+    it('should register all 6 tools with the MCP server', () => {
       const mockServer = {
-        tool: vi.fn(),
+        registerTool: vi.fn(),
       } as unknown as McpServer;
 
       const mockPathConfig: PathConfig = {
@@ -36,8 +22,36 @@ describe('MCP Tools', () => {
 
       registerAllTools(mockServer, mockPathConfig);
 
-      // Currently a stub - no tools registered yet
-      expect(mockServer.tool).not.toHaveBeenCalled();
+      // Should register 6 tools: init, list, show, validate, archive, update_project_context
+      expect(mockServer.registerTool).toHaveBeenCalledTimes(6);
+
+      // Verify tool names
+      const toolNames = (mockServer.registerTool as ReturnType<typeof vi.fn>).mock.calls.map(
+        (call: any[]) => call[0]
+      );
+      expect(toolNames).toContain('init');
+      expect(toolNames).toContain('list');
+      expect(toolNames).toContain('show');
+      expect(toolNames).toContain('validate');
+      expect(toolNames).toContain('archive');
+      expect(toolNames).toContain('update_project_context');
+    });
+
+    it('should pass pathConfig to each tool registration', () => {
+      const mockServer = {
+        registerTool: vi.fn(),
+      } as unknown as McpServer;
+
+      const mockPathConfig: PathConfig = {
+        specsRoot: '/custom/path',
+        projectRoot: '/custom/path',
+        isAutoProjectRoot: true,
+      };
+
+      registerAllTools(mockServer, mockPathConfig);
+
+      // Each tool registration receives the server and pathConfig
+      expect(mockServer.registerTool).toHaveBeenCalledTimes(6);
     });
   });
 });

@@ -17,6 +17,7 @@ interface ExecuteOptions {
   json?: boolean;
   noInteractive?: boolean;
   concurrency?: string;
+  targetPath?: string;
 }
 
 interface BulkItemResult {
@@ -31,19 +32,21 @@ export class ValidateCommand {
   async execute(itemName: string | undefined, options: ExecuteOptions = {}): Promise<void> {
     const interactive = isInteractive(options.noInteractive);
 
+    const targetPath = options.targetPath ?? process.cwd();
+    
     // Handle bulk flags first
     if (options.all || options.changes || options.specs) {
       await this.runBulkValidation({
         changes: !!options.all || !!options.changes,
         specs: !!options.all || !!options.specs,
-      }, { strict: !!options.strict, json: !!options.json, concurrency: options.concurrency });
+      }, { strict: !!options.strict, json: !!options.json, concurrency: options.concurrency, targetPath });
       return;
     }
 
     // No item and no flags
     if (!itemName) {
       if (interactive) {
-        await this.runInteractiveSelector({ strict: !!options.strict, json: !!options.json, concurrency: options.concurrency });
+        await this.runInteractiveSelector({ strict: !!options.strict, json: !!options.json, concurrency: options.concurrency, targetPath });
         return;
       }
       this.printNonInteractiveHint();
@@ -53,7 +56,7 @@ export class ValidateCommand {
 
     // Direct item validation with type detection or override
     const typeOverride = this.normalizeType(options.type);
-    await this.validateDirectItem(itemName, { typeOverride, strict: !!options.strict, json: !!options.json });
+    await this.validateDirectItem(itemName, { typeOverride, strict: !!options.strict, json: !!options.json, targetPath });
   }
 
   private normalizeType(value?: string): ItemType | undefined {
@@ -63,7 +66,7 @@ export class ValidateCommand {
     return undefined;
   }
 
-  private async runInteractiveSelector(opts: { strict: boolean; json: boolean; concurrency?: string }): Promise<void> {
+  private async runInteractiveSelector(opts: { strict: boolean; json: boolean; concurrency?: string; targetPath: string }): Promise<void> {
     const choice = await select({
       message: 'What would you like to validate?',
       choices: [
@@ -89,7 +92,7 @@ export class ValidateCommand {
       return;
     }
     const picked = await select<{ type: ItemType; id: string }>({ message: 'Pick an item', choices: items });
-    await this.validateByType(picked.type, picked.id, opts);
+    await this.validateByType(picked.type, picked.id, { strict: opts.strict, json: opts.json, targetPath: opts.targetPath });
   }
 
   private printNonInteractiveHint(): void {
@@ -101,7 +104,7 @@ export class ValidateCommand {
     console.error('Or run in an interactive terminal.');
   }
 
-  private async validateDirectItem(itemName: string, opts: { typeOverride?: ItemType; strict: boolean; json: boolean }): Promise<void> {
+  private async validateDirectItem(itemName: string, opts: { typeOverride?: ItemType; strict: boolean; json: boolean; targetPath: string }): Promise<void> {
     const [changes, specs] = await Promise.all([getActiveChangeIds(), getSpecIds()]);
     const isChange = changes.includes(itemName);
     const isSpec = specs.includes(itemName);
@@ -123,13 +126,13 @@ export class ValidateCommand {
       return;
     }
 
-    await this.validateByType(type, itemName, opts);
+    await this.validateByType(type, itemName, { strict: opts.strict, json: opts.json, targetPath: opts.targetPath });
   }
 
-  private async validateByType(type: ItemType, id: string, opts: { strict: boolean; json: boolean }): Promise<void> {
+  private async validateByType(type: ItemType, id: string, opts: { strict: boolean; json: boolean; targetPath: string }): Promise<void> {
     const validator = new Validator(opts.strict);
     if (type === 'change') {
-      const changeDir = path.join(process.cwd(), 'openspec', 'changes', id);
+      const changeDir = path.join(opts.targetPath, 'openspec', 'changes', id);
       const start = Date.now();
       const report = await validator.validateChangeDeltaSpecs(changeDir);
       const durationMs = Date.now() - start;
@@ -138,7 +141,7 @@ export class ValidateCommand {
       process.exitCode = report.valid ? 0 : 1;
       return;
     }
-    const file = path.join(process.cwd(), 'openspec', 'specs', id, 'spec.md');
+    const file = path.join(opts.targetPath, 'openspec', 'specs', id, 'spec.md');
     const start = Date.now();
     const report = await validator.validateSpec(file);
     const durationMs = Date.now() - start;
@@ -180,7 +183,7 @@ export class ValidateCommand {
     bullets.forEach(b => console.error(`  ${b}`));
   }
 
-  private async runBulkValidation(scope: { changes: boolean; specs: boolean }, opts: { strict: boolean; json: boolean; concurrency?: string }): Promise<void> {
+  private async runBulkValidation(scope: { changes: boolean; specs: boolean }, opts: { strict: boolean; json: boolean; concurrency?: string; targetPath: string }): Promise<void> {
     const spinner = !opts.json ? ora('Validating...').start() : undefined;
     const [changeIds, specIds] = await Promise.all([
       scope.changes ? getActiveChangeIds() : Promise.resolve<string[]>([]),
@@ -196,7 +199,7 @@ export class ValidateCommand {
     for (const id of changeIds) {
       queue.push(async () => {
         const start = Date.now();
-        const changeDir = path.join(process.cwd(), 'openspec', 'changes', id);
+        const changeDir = path.join(opts.targetPath, 'openspec', 'changes', id);
         const report = await validator.validateChangeDeltaSpecs(changeDir);
         const durationMs = Date.now() - start;
         return { id, type: 'change' as const, valid: report.valid, issues: report.issues, durationMs };
@@ -205,7 +208,7 @@ export class ValidateCommand {
     for (const id of specIds) {
       queue.push(async () => {
         const start = Date.now();
-        const file = path.join(process.cwd(), 'openspec', 'specs', id, 'spec.md');
+        const file = path.join(opts.targetPath, 'openspec', 'specs', id, 'spec.md');
         const report = await validator.validateSpec(file);
         const durationMs = Date.now() - start;
         return { id, type: 'spec' as const, valid: report.valid, issues: report.issues, durationMs };

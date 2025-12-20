@@ -17,6 +17,7 @@ interface ShowOptions {
   scenarios?: boolean; // --no-scenarios sets this to false (JSON only)
   requirement?: string; // JSON only
   noInteractive?: boolean;
+  targetPath?: string;
 }
 
 function parseSpecFromFile(specPath: string, specId: string): Spec {
@@ -66,9 +67,10 @@ function printSpecTextRaw(specPath: string): void {
 }
 
 export class SpecCommand {
-  private SPECS_DIR = 'openspec/specs';
-
   async show(specId?: string, options: ShowOptions = {}): Promise<void> {
+    const targetPath = options.targetPath ?? process.cwd();
+    const specsDir = join(targetPath, 'openspec', 'specs');
+    
     if (!specId) {
       const canPrompt = isInteractive(options?.noInteractive);
       const specIds = await getSpecIds();
@@ -82,9 +84,10 @@ export class SpecCommand {
       }
     }
 
-    const specPath = join(this.SPECS_DIR, specId, 'spec.md');
+    const specPath = join(specsDir, specId, 'spec.md');
     if (!existsSync(specPath)) {
-      throw new Error(`Spec '${specId}' not found at openspec/specs/${specId}/spec.md`);
+      const relativePath = join('openspec', 'specs', specId, 'spec.md');
+      throw new Error(`Spec '${specId}' not found at ${relativePath}`);
     }
 
     if (options.json) {
