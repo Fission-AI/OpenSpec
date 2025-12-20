@@ -28,9 +28,9 @@
 
 ## 5. MCP Prompts
 
-- [ ] 5.1 Implement openspec-propose prompt
-- [ ] 5.2 Implement openspec-apply prompt
-- [ ] 5.3 Implement openspec-archive prompt
+- [x] 5.1 Implement openspec-propose prompt
+- [x] 5.2 Implement openspec-apply prompt
+- [x] 5.3 Implement openspec-archive prompt
 
 ## 6. CLI Integration
 

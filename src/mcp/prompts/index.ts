@@ -9,16 +9,18 @@
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { PathConfig } from '../utils/path-resolver.js';
+import { registerProposePrompt } from './propose-prompt.js';
+import { registerApplyPrompt } from './apply-prompt.js';
+import { registerArchivePrompt } from './archive-prompt.js';
 
 /**
  * Register all OpenSpec prompts with the MCP server.
  */
 export function registerAllPrompts(
-  _server: McpServer,
-  _pathConfig: PathConfig
+  server: McpServer,
+  pathConfig: PathConfig
 ): void {
-  // TODO (Task 5): Implement prompt registrations
-  // registerProposePrompt(server, pathConfig);
-  // registerApplyPrompt(server, pathConfig);
-  // registerArchivePrompt(server, pathConfig);
+  registerProposePrompt(server, pathConfig);
+  registerApplyPrompt(server, pathConfig);
+  registerArchivePrompt(server, pathConfig);
 }
