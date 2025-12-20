@@ -14,6 +14,7 @@ import { ChangeCommand } from '../commands/change.js';
 import { ValidateCommand } from '../commands/validate.js';
 import { ShowCommand } from '../commands/show.js';
 import { CompletionCommand } from '../commands/completion.js';
+import { createMcpCommand } from '../commands/mcp.js';
 
 const program = new Command();
 const require = createRequire(import.meta.url);
@@ -200,6 +201,8 @@ program
   });
 
 registerSpecCommand(program);
+
+program.addCommand(createMcpCommand());
 
 // Top-level validate command
 program

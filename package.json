@@ -41,6 +41,7 @@
     "build": "node build.js",
     "dev": "tsc --watch",
     "dev:cli": "pnpm build && node bin/openspec.js",
+    "dev:mcp": "node bin/openspec.js mcp",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
