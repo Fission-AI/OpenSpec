@@ -5,9 +5,9 @@
 
 ## 2. Core Infrastructure
 
-- [ ] 2.1 Implement path resolver utility (`src/mcp/utils/path-resolver.ts`) with OPENSPEC_ROOT support
-- [ ] 2.2 Implement context loader utility (`src/mcp/utils/context-loader.ts`)
-- [ ] 2.3 Implement MCP server initialization and transport (`src/mcp/server.ts`)
+- [x] 2.1 Implement path resolver utility (`src/mcp/utils/path-resolver.ts`) with OPENSPEC_ROOT support
+- [x] 2.2 Implement context loader utility (`src/mcp/utils/context-loader.ts`)
+- [x] 2.3 Implement MCP server initialization and transport (`src/mcp/server.ts`)
 
 ## 3. MCP Resources
 

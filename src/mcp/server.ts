@@ -8,6 +8,10 @@
 import { createRequire } from 'module';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { resolveOpenSpecPaths } from './utils/path-resolver.js';
+import { registerAllResources } from './resources/index.js';
+import { registerAllTools } from './tools/index.js';
+import { registerAllPrompts } from './prompts/index.js';
 
 const require = createRequire(import.meta.url);
 const { version } = require('../../package.json');
@@ -25,15 +29,20 @@ export interface McpServerOptions {
  * and prompts (propose, apply, archive workflows).
  */
 export async function startMcpServer(options: McpServerOptions): Promise<void> {
+  const pathConfig = resolveOpenSpecPaths();
+
+  if (options.debug) {
+    console.error('[openspec-mcp] Path configuration:', JSON.stringify(pathConfig, null, 2));
+  }
+
   const server = new McpServer({
     name: 'openspec',
     version,
   });
 
-  // TODO (Task 2): Register resources, tools, and prompts
-  // registerAllResources(server, pathConfig);
-  // registerAllTools(server, pathConfig);
-  // registerAllPrompts(server, pathConfig);
+  registerAllResources(server, pathConfig);
+  registerAllTools(server, pathConfig);
+  registerAllPrompts(server, pathConfig);
 
   const transport = new StdioServerTransport();
 
