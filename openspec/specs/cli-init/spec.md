@@ -302,6 +302,14 @@ The command SHALL support non-interactive operation through command-line options
 - **AND** preserve any existing content outside the managed markers while replacing the stub text inside them
 - **AND** create the stub regardless of which native AI tools are selected
 
+### Requirement: Slash Command Safety
+All generated slash command templates SHALL include safety guardrails.
+
+#### Scenario: CLI Availability Check
+- **WHEN** generating slash commands for any tool
+- **THEN** the template SHALL include an instruction to verify the `openspec` CLI is installed and available in the environment
+- **AND** guide the user to install it via `npm install -g @fission-ai/openspec` if missing
+
 ## Why
 
 Manual creation of OpenSpec structure is error-prone and creates adoption friction. A standardized init command ensures:
