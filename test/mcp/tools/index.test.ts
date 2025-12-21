@@ -9,7 +9,7 @@ describe('MCP Tools', () => {
       expect(typeof registerAllTools).toBe('function');
     });
 
-    it('should register all 6 tools with the MCP server', () => {
+    it('should register all 7 tools with the MCP server', () => {
       const mockServer = {
         registerTool: vi.fn(),
       } as unknown as McpServer;
@@ -22,8 +22,8 @@ describe('MCP Tools', () => {
 
       registerAllTools(mockServer, mockPathConfig);
 
-      // Should register 6 tools: init, list, show, validate, archive, update_project_context
-      expect(mockServer.registerTool).toHaveBeenCalledTimes(6);
+      // Should register 7 tools: init, list, show, validate, archive, update_project_context, edit
+      expect(mockServer.registerTool).toHaveBeenCalledTimes(7);
 
       // Verify tool names
       const toolNames = (mockServer.registerTool as ReturnType<typeof vi.fn>).mock.calls.map(
@@ -35,6 +35,7 @@ describe('MCP Tools', () => {
       expect(toolNames).toContain('validate');
       expect(toolNames).toContain('archive');
       expect(toolNames).toContain('update_project_context');
+      expect(toolNames).toContain('edit');
     });
 
     it('should pass pathConfig to each tool registration', () => {
@@ -51,7 +52,7 @@ describe('MCP Tools', () => {
       registerAllTools(mockServer, mockPathConfig);
 
       // Each tool registration receives the server and pathConfig
-      expect(mockServer.registerTool).toHaveBeenCalledTimes(6);
+      expect(mockServer.registerTool).toHaveBeenCalledTimes(7);
     });
   });
 });

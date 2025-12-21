@@ -43,7 +43,7 @@ describe('changes resources', () => {
   it('should register all change resources', () => {
     registerChangesResources(mockServer, createPathConfig());
 
-    expect(registerResourceSpy).toHaveBeenCalledTimes(5);
+    expect(registerResourceSpy).toHaveBeenCalledTimes(7);
 
     // Check changes list
     expect(registerResourceSpy.mock.calls[0][0]).toBe('changes-list');
@@ -64,6 +64,14 @@ describe('changes resources', () => {
     // Check design
     expect(registerResourceSpy.mock.calls[4][0]).toBe('change-design');
     expect(registerResourceSpy.mock.calls[4][1]).toBeInstanceOf(ResourceTemplate);
+
+    // Check spec deltas list
+    expect(registerResourceSpy.mock.calls[5][0]).toBe('change-specs-list');
+    expect(registerResourceSpy.mock.calls[5][1]).toBeInstanceOf(ResourceTemplate);
+
+    // Check individual spec delta
+    expect(registerResourceSpy.mock.calls[6][0]).toBe('change-spec-delta');
+    expect(registerResourceSpy.mock.calls[6][1]).toBeInstanceOf(ResourceTemplate);
   });
 
   describe('changes list resource', () => {
@@ -232,6 +240,87 @@ describe('changes resources', () => {
 
       expect(result.contents).toHaveLength(1);
       expect(result.contents[0].text).toBe('Not found');
+    });
+  });
+
+  describe('spec deltas list resource', () => {
+    it('should return markdown list when spec deltas exist', async () => {
+      const changeId = 'add-feature';
+      const changePath = path.join(changesDir, changeId, 'specs');
+      await fs.mkdir(path.join(changePath, 'user-auth'), { recursive: true });
+      await fs.mkdir(path.join(changePath, 'notifications'), { recursive: true });
+
+      registerChangesResources(mockServer, createPathConfig());
+
+      const handler = registerResourceSpy.mock.calls[5][3];
+      const mockUri = { href: `openspec://changes/${changeId}/specs` };
+      const result = await handler(mockUri, { changeId });
+
+      expect(result.contents).toHaveLength(1);
+      expect(result.contents[0].text).toContain('# Spec Deltas for add-feature');
+      expect(result.contents[0].text).toContain(
+        '[user-auth](openspec://changes/add-feature/specs/user-auth)'
+      );
+      expect(result.contents[0].text).toContain(
+        '[notifications](openspec://changes/add-feature/specs/notifications)'
+      );
+    });
+
+    it('should return empty message when no spec deltas exist', async () => {
+      const changeId = 'add-feature';
+      await fs.mkdir(path.join(changesDir, changeId), { recursive: true });
+
+      registerChangesResources(mockServer, createPathConfig());
+
+      const handler = registerResourceSpy.mock.calls[5][3];
+      const mockUri = { href: `openspec://changes/${changeId}/specs` };
+      const result = await handler(mockUri, { changeId });
+
+      expect(result.contents).toHaveLength(1);
+      expect(result.contents[0].text).toContain('No spec deltas defined.');
+    });
+
+    it('should handle missing specs directory gracefully', async () => {
+      registerChangesResources(mockServer, createPathConfig());
+
+      const handler = registerResourceSpy.mock.calls[5][3];
+      const mockUri = { href: 'openspec://changes/nonexistent/specs' };
+      const result = await handler(mockUri, { changeId: 'nonexistent' });
+
+      expect(result.contents).toHaveLength(1);
+      expect(result.contents[0].text).toContain('No spec deltas defined.');
+    });
+  });
+
+  describe('individual spec delta resource', () => {
+    it('should return spec delta content', async () => {
+      const changeId = 'add-feature';
+      const capability = 'user-auth';
+      const specPath = path.join(changesDir, changeId, 'specs', capability);
+      await fs.mkdir(specPath, { recursive: true });
+
+      const specContent = '## ADDED Requirements\n\n### Requirement: OAuth Login';
+      await fs.writeFile(path.join(specPath, 'spec.md'), specContent);
+
+      registerChangesResources(mockServer, createPathConfig());
+
+      const handler = registerResourceSpy.mock.calls[6][3];
+      const mockUri = { href: `openspec://changes/${changeId}/specs/${capability}` };
+      const result = await handler(mockUri, { changeId, capability });
+
+      expect(result.contents).toHaveLength(1);
+      expect(result.contents[0].text).toBe(specContent);
+    });
+
+    it('should return not found message when spec delta does not exist', async () => {
+      registerChangesResources(mockServer, createPathConfig());
+
+      const handler = registerResourceSpy.mock.calls[6][3];
+      const mockUri = { href: 'openspec://changes/test/specs/missing' };
+      const result = await handler(mockUri, { changeId: 'test', capability: 'missing' });
+
+      expect(result.contents).toHaveLength(1);
+      expect(result.contents[0].text).toContain('Spec delta for missing not found.');
     });
   });
 });

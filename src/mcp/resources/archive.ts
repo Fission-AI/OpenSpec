@@ -6,9 +6,8 @@
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import * as fs from 'fs/promises';
-import * as path from 'path';
 import type { PathConfig } from '../utils/path-resolver.js';
-import { getOpenSpecDir } from '../utils/path-resolver.js';
+import { getArchiveDir } from '../utils/path-resolver.js';
 
 /**
  * Register the archive resource (openspec://archive).
@@ -28,7 +27,7 @@ export function registerArchiveResource(
       mimeType: 'text/markdown',
     },
     async (uri) => {
-      const archiveDir = path.join(getOpenSpecDir(pathConfig), 'changes', 'archive');
+      const archiveDir = getArchiveDir(pathConfig);
 
       let archived: string[] = [];
       try {

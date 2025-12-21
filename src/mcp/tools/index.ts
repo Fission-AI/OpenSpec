@@ -8,6 +8,7 @@
  * - validate: Validate changes and specs
  * - archive: Archive completed change
  * - update_project_context: Update project.md
+ * - edit: Create/update change proposal resources
  */
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -18,6 +19,7 @@ import { registerShowTool } from './show.js';
 import { registerValidateTool } from './validate.js';
 import { registerArchiveTool } from './archive.js';
 import { registerProjectContextTool } from './project-context.js';
+import { registerEditTool } from './edit.js';
 
 /**
  * Register all OpenSpec tools with the MCP server.
@@ -32,4 +34,5 @@ export function registerAllTools(
   registerValidateTool(server, pathConfig);
   registerArchiveTool(server, pathConfig);
   registerProjectContextTool(server, pathConfig);
+  registerEditTool(server, pathConfig);
 }

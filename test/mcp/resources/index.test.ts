@@ -22,8 +22,8 @@ describe('MCP Resources', () => {
 
       registerAllResources(mockServer, mockPathConfig);
 
-      // Should register: instructions, project, specs-list, spec, changes-list, change, change-proposal, change-tasks, change-design, archive
-      expect(mockServer.registerResource).toHaveBeenCalledTimes(10);
+      // Should register: instructions, project, specs-list, spec, changes-list, change, change-proposal, change-tasks, change-design, change-specs-list, change-spec-delta, archive
+      expect(mockServer.registerResource).toHaveBeenCalledTimes(12);
     });
 
     it('should accept McpServer and PathConfig parameters', () => {

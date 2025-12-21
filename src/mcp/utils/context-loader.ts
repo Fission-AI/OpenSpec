@@ -6,8 +6,7 @@
  */
 
 import * as fs from 'fs/promises';
-import * as path from 'path';
-import { getOpenSpecDir, type PathConfig } from './path-resolver.js';
+import { getAgentsPath, getProjectPath, type PathConfig } from './path-resolver.js';
 import { TemplateManager } from '../../core/templates/index.js';
 
 /**
@@ -17,10 +16,10 @@ import { TemplateManager } from '../../core/templates/index.js';
  * @returns The AGENTS.md content, or a default template if not found
  */
 export async function loadAgentsMarkdown(pathConfig: PathConfig): Promise<string> {
-  const agentsPath = path.join(getOpenSpecDir(pathConfig), 'AGENTS.md');
+  const agentsFilePath = getAgentsPath(pathConfig);
 
   try {
-    return await fs.readFile(agentsPath, 'utf-8');
+    return await fs.readFile(agentsFilePath, 'utf-8');
   } catch {
     return getDefaultAgentsTemplate();
   }
@@ -33,10 +32,10 @@ export async function loadAgentsMarkdown(pathConfig: PathConfig): Promise<string
  * @returns The project.md content, or a default template if not found
  */
 export async function loadProjectMarkdown(pathConfig: PathConfig): Promise<string> {
-  const projectPath = path.join(getOpenSpecDir(pathConfig), 'project.md');
+  const projectFilePath = getProjectPath(pathConfig);
 
   try {
-    return await fs.readFile(projectPath, 'utf-8');
+    return await fs.readFile(projectFilePath, 'utf-8');
   } catch {
     return getDefaultProjectTemplate();
   }

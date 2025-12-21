@@ -151,3 +151,77 @@ export function getChangePath(config: PathConfig, changeId: string): string {
 export function getSpecPath(config: PathConfig, capability: string): string {
   return path.join(getOpenSpecDir(config), 'specs', capability, 'spec.md');
 }
+
+/**
+ * Get the specs directory path.
+ */
+export function getSpecsDir(config: PathConfig): string {
+  return path.join(getOpenSpecDir(config), 'specs');
+}
+
+/**
+ * Get the archive directory path.
+ */
+export function getArchiveDir(config: PathConfig): string {
+  return path.join(getOpenSpecDir(config), 'changes', 'archive');
+}
+
+/**
+ * Get the changes directory path.
+ */
+export function getChangesDir(config: PathConfig): string {
+  return path.join(getOpenSpecDir(config), 'changes');
+}
+
+/**
+ * Get the AGENTS.md file path.
+ */
+export function getAgentsPath(config: PathConfig): string {
+  return path.join(getOpenSpecDir(config), 'AGENTS.md');
+}
+
+/**
+ * Get the project.md file path.
+ */
+export function getProjectPath(config: PathConfig): string {
+  return path.join(getOpenSpecDir(config), 'project.md');
+}
+
+/**
+ * Get the proposal.md file path for a change.
+ */
+export function getChangeProposalPath(config: PathConfig, changeId: string): string {
+  return path.join(getChangePath(config, changeId), 'proposal.md');
+}
+
+/**
+ * Get the tasks.md file path for a change.
+ */
+export function getChangeTasksPath(config: PathConfig, changeId: string): string {
+  return path.join(getChangePath(config, changeId), 'tasks.md');
+}
+
+/**
+ * Get the design.md file path for a change.
+ */
+export function getChangeDesignPath(config: PathConfig, changeId: string): string {
+  return path.join(getChangePath(config, changeId), 'design.md');
+}
+
+/**
+ * Get the specs directory path within a change.
+ */
+export function getChangeSpecsDir(config: PathConfig, changeId: string): string {
+  return path.join(getChangePath(config, changeId), 'specs');
+}
+
+/**
+ * Get the spec delta file path for a capability within a change.
+ */
+export function getChangeSpecDeltaPath(
+  config: PathConfig,
+  changeId: string,
+  capability: string
+): string {
+  return path.join(getChangeSpecsDir(config, changeId), capability, 'spec.md');
+}

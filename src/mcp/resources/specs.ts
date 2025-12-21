@@ -7,9 +7,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import * as fs from 'fs/promises';
-import * as path from 'path';
 import type { PathConfig } from '../utils/path-resolver.js';
-import { getOpenSpecDir, getSpecPath } from '../utils/path-resolver.js';
+import { getSpecsDir, getSpecPath } from '../utils/path-resolver.js';
 
 /**
  * Register specs resources:
@@ -30,7 +29,7 @@ export function registerSpecsResources(
       mimeType: 'text/markdown',
     },
     async (uri) => {
-      const specsDir = path.join(getOpenSpecDir(pathConfig), 'specs');
+      const specsDir = getSpecsDir(pathConfig);
 
       let specs: string[] = [];
       try {

@@ -29,6 +29,8 @@ translate them to MCP equivalents as specified below.
 | openspec/specs/&lt;capability&gt;/spec.md | openspec://specs/{capability} |
 | openspec/specs (directory) | openspec://specs |
 | openspec/changes (directory) | openspec://changes |
+| changes/&lt;id&gt;/specs (directory) | openspec://changes/{id}/specs |
+| changes/&lt;id&gt;/specs/&lt;capability&gt;/spec.md | openspec://changes/{id}/specs/{capability} |
 </resource_mappings>
 
 <tool_mappings>
@@ -43,6 +45,10 @@ translate them to MCP equivalents as specified below.
 | openspec archive &lt;id&gt; --yes | archive tool with name=&lt;id&gt;, updateSpecs=true, dryRun=false |
 | openspec archive &lt;id&gt; --skip-specs | archive tool with name=&lt;id&gt;, updateSpecs=false, dryRun=false |
 | openspec update | update_project_context tool |
+| Write proposal.md | edit tool with changeId, resourceType='proposal', content |
+| Write tasks.md | edit tool with changeId, resourceType='tasks', content |
+| Write design.md | edit tool with changeId, resourceType='design', content |
+| Write spec delta | edit tool with changeId, resourceType='spec', capability, content |
 </tool_mappings>
 
 <file_exploration>

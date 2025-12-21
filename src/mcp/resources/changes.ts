@@ -7,14 +7,23 @@
  * - openspec://changes/{changeId}/proposal - Proposal document
  * - openspec://changes/{changeId}/tasks - Tasks checklist
  * - openspec://changes/{changeId}/design - Design document
+ * - openspec://changes/{changeId}/specs - List of spec deltas
+ * - openspec://changes/{changeId}/specs/{capability} - Individual spec delta
  */
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import * as fs from 'fs/promises';
-import * as path from 'path';
 import type { PathConfig } from '../utils/path-resolver.js';
-import { getOpenSpecDir, getChangePath } from '../utils/path-resolver.js';
+import {
+  getChangesDir,
+  getChangePath,
+  getChangeProposalPath,
+  getChangeTasksPath,
+  getChangeDesignPath,
+  getChangeSpecsDir,
+  getChangeSpecDeltaPath,
+} from '../utils/path-resolver.js';
 
 /**
  * Register changes resources.
@@ -33,7 +42,7 @@ export function registerChangesResources(
       mimeType: 'text/markdown',
     },
     async (uri) => {
-      const changesDir = path.join(getOpenSpecDir(pathConfig), 'changes');
+      const changesDir = getChangesDir(pathConfig);
 
       let changes: string[] = [];
       try {
@@ -76,12 +85,10 @@ export function registerChangesResources(
       mimeType: 'text/markdown',
     },
     async (uri, { changeId }) => {
-      const changePath = getChangePath(pathConfig, changeId as string);
-
       const [proposal, tasks, design] = await Promise.all([
-        readFileIfExists(path.join(changePath, 'proposal.md')),
-        readFileIfExists(path.join(changePath, 'tasks.md')),
-        readFileIfExists(path.join(changePath, 'design.md')),
+        readFileIfExists(getChangeProposalPath(pathConfig, changeId as string)),
+        readFileIfExists(getChangeTasksPath(pathConfig, changeId as string)),
+        readFileIfExists(getChangeDesignPath(pathConfig, changeId as string)),
       ]);
 
       const contents = [];
@@ -132,7 +139,7 @@ export function registerChangesResources(
     },
     async (uri, { changeId }) => {
       const content = await readFileIfExists(
-        path.join(getChangePath(pathConfig, changeId as string), 'proposal.md')
+        getChangeProposalPath(pathConfig, changeId as string)
       );
       return {
         contents: [
@@ -158,7 +165,7 @@ export function registerChangesResources(
     },
     async (uri, { changeId }) => {
       const content = await readFileIfExists(
-        path.join(getChangePath(pathConfig, changeId as string), 'tasks.md')
+        getChangeTasksPath(pathConfig, changeId as string)
       );
       return {
         contents: [
@@ -184,7 +191,7 @@ export function registerChangesResources(
     },
     async (uri, { changeId }) => {
       const content = await readFileIfExists(
-        path.join(getChangePath(pathConfig, changeId as string), 'design.md')
+        getChangeDesignPath(pathConfig, changeId as string)
       );
       return {
         contents: [
@@ -192,6 +199,83 @@ export function registerChangesResources(
             uri: uri.href,
             mimeType: 'text/markdown',
             text: content || 'Not found',
+          },
+        ],
+      };
+    }
+  );
+
+  // Spec deltas list for a change
+  server.registerResource(
+    'change-specs-list',
+    new ResourceTemplate('openspec://changes/{changeId}/specs', {
+      list: undefined,
+    }),
+    {
+      title: 'Change Spec Deltas',
+      description: 'List of spec deltas in a change proposal',
+      mimeType: 'text/markdown',
+    },
+    async (uri, { changeId }) => {
+      const specsDir = getChangeSpecsDir(pathConfig, changeId as string);
+
+      let capabilities: string[] = [];
+      try {
+        const entries = await fs.readdir(specsDir, { withFileTypes: true });
+        capabilities = entries
+          .filter((e) => e.isDirectory())
+          .map((e) => e.name);
+      } catch {
+        // Directory doesn't exist, return empty list
+      }
+
+      const content =
+        capabilities.length > 0
+          ? `# Spec Deltas for ${changeId}\n\n${capabilities
+              .map(
+                (c) =>
+                  `- [${c}](openspec://changes/${changeId}/specs/${c})`
+              )
+              .join('\n')}`
+          : `# Spec Deltas for ${changeId}\n\nNo spec deltas defined.`;
+
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            mimeType: 'text/markdown',
+            text: content,
+          },
+        ],
+      };
+    }
+  );
+
+  // Individual spec delta for a change
+  server.registerResource(
+    'change-spec-delta',
+    new ResourceTemplate('openspec://changes/{changeId}/specs/{capability}', {
+      list: undefined,
+    }),
+    {
+      title: 'Spec Delta',
+      description: 'Spec delta document for a specific capability',
+      mimeType: 'text/markdown',
+    },
+    async (uri, { changeId, capability }) => {
+      const specPath = getChangeSpecDeltaPath(
+        pathConfig,
+        changeId as string,
+        capability as string
+      );
+
+      const content = await readFileIfExists(specPath);
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            mimeType: 'text/markdown',
+            text: content || `Spec delta for ${capability} not found.`,
           },
         ],
       };

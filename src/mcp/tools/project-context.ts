@@ -10,7 +10,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { PathConfig } from '../utils/path-resolver.js';
-import { getOpenSpecDir } from '../utils/path-resolver.js';
+import { getOpenSpecDir, getProjectPath } from '../utils/path-resolver.js';
 
 const BaseInputSchema = z.object({
   content: z.string().optional().describe('Full content to write to project.md'),
@@ -37,13 +37,13 @@ export function registerProjectContextTool(
     async (input) => {
       const parsed = InputSchema.parse(input);
       const openspecDir = getOpenSpecDir(pathConfig);
-      const projectPath = path.join(openspecDir, 'project.md');
+      const projectFilePath = getProjectPath(pathConfig);
 
       try {
         if (parsed.content) {
           // Write full content
           await fs.mkdir(openspecDir, { recursive: true });
-          await fs.writeFile(projectPath, parsed.content, 'utf-8');
+          await fs.writeFile(projectFilePath, parsed.content, 'utf-8');
 
           return {
             content: [
@@ -52,7 +52,7 @@ export function registerProjectContextTool(
                 text: JSON.stringify({
                   success: true,
                   message: 'Project context updated successfully',
-                  path: projectPath,
+                  path: projectFilePath,
                 }),
               },
             ],
@@ -61,7 +61,7 @@ export function registerProjectContextTool(
           // Update specific sections
           let currentContent = '';
           try {
-            currentContent = await fs.readFile(projectPath, 'utf-8');
+            currentContent = await fs.readFile(projectFilePath, 'utf-8');
           } catch {
             // File doesn't exist, start with empty content
             currentContent = '';
@@ -89,7 +89,7 @@ export function registerProjectContextTool(
           }
 
           await fs.mkdir(openspecDir, { recursive: true });
-          await fs.writeFile(projectPath, updatedContent, 'utf-8');
+          await fs.writeFile(projectFilePath, updatedContent, 'utf-8');
 
           return {
             content: [
@@ -98,7 +98,7 @@ export function registerProjectContextTool(
                 text: JSON.stringify({
                   success: true,
                   message: 'Project context sections updated successfully',
-                  path: projectPath,
+                  path: projectFilePath,
                   updatedSections: Object.keys(parsed.sections),
                 }),
               },
