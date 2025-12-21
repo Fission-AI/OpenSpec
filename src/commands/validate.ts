@@ -1,4 +1,3 @@
-import { select } from '@inquirer/prompts';
 import ora from 'ora';
 import path from 'path';
 import { Validator } from '../core/validation/validator.js';
@@ -29,7 +28,7 @@ interface BulkItemResult {
 
 export class ValidateCommand {
   async execute(itemName: string | undefined, options: ExecuteOptions = {}): Promise<void> {
-    const interactive = isInteractive(options.noInteractive);
+    const interactive = isInteractive(options);
 
     // Handle bulk flags first
     if (options.all || options.changes || options.specs) {
@@ -64,6 +63,7 @@ export class ValidateCommand {
   }
 
   private async runInteractiveSelector(opts: { strict: boolean; json: boolean; concurrency?: string }): Promise<void> {
+    const { select } = await import('@inquirer/prompts');
     const choice = await select({
       message: 'What would you like to validate?',
       choices: [
@@ -212,6 +212,28 @@ export class ValidateCommand {
       });
     }
 
+    if (queue.length === 0) {
+      spinner?.stop();
+
+      const summary = {
+        totals: { items: 0, passed: 0, failed: 0 },
+        byType: {
+          ...(scope.changes ? { change: { items: 0, passed: 0, failed: 0 } } : {}),
+          ...(scope.specs ? { spec: { items: 0, passed: 0, failed: 0 } } : {}),
+        },
+      } as const;
+
+      if (opts.json) {
+        const out = { items: [] as BulkItemResult[], summary, version: '1.0' };
+        console.log(JSON.stringify(out, null, 2));
+      } else {
+        console.log('No items found to validate.');
+      }
+
+      process.exitCode = 0;
+      return;
+    }
+
     const results: BulkItemResult[] = [];
     let index = 0;
     let running = 0;
@@ -301,5 +323,3 @@ function getPlannedType(index: number, changeIds: string[], specIds: string[]): 
   if (specIndex >= 0 && specIndex < specIds.length) return 'spec';
   return undefined;
 }
-
-
