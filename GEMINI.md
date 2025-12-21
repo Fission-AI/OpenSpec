@@ -4,23 +4,38 @@ OpenSpec is an AI-native system for spec-driven development. It helps developers
 
 ## Prerequisites
 
-To use this extension effectively, ensure the OpenSpec CLI is installed globally on your system:
-
-```bash
-npm install -g @fission-ai/openspec
-```
+This extension requires the OpenSpec CLI.
 
 **Auto-Initialization Instruction**:
 When the user starts a session or tries to use OpenSpec:
-1.  **Check for CLI**: Run `openspec --version`. If missing, guide the user to install it via `npm install -g @fission-ai/openspec`.
+1.  **Check for CLI**: Run `openspec --version`.
+    -   If found, use `openspec` for all commands.
+    -   If missing, **automatically attempt to install it globally** by running:
+        ```bash
+        npm install -g "@fission-ai/openspec"
+        ```
+    -   If the installation fails or the user cancels the tool call, fall back to:
+        ```bash
+        npx "@fission-ai/openspec"
+        ```
+        or
+        ```bash
+        pnpm dlx "@fission-ai/openspec"
+        ```
 2.  **Check for Slash Commands**: Verify if `.gemini/commands/openspec/` exists and contains `proposal.toml`, `apply.toml`, and `archive.toml`.
-    -   If these files are missing, you **MUST automatically generate them** using the logic defined in the "Maintenance: Slash Command Synchronization" section below.
+    -   If missing, **automatically generate them** using the logic defined in the "Maintenance: Slash Command Synchronization" section below.
     -   Inform the user: "OpenSpec slash commands have been generated. You may need to restart the CLI to see them."
+3.  **Check for Project Initialization**: Verify if the `openspec/` directory exists in the project root.
+    -   If missing, automatically run `openspec init` to scaffold the project structure.
+4.  **Populate Project Context**:
+    -   **Trigger**: When `openspec init` completes and suggests "Populate your project context", you MUST perform this immediately.
+    -   **Action**: Read `openspec/project.md`, analyze project config (`package.json`, etc.), and fill in the details. **Do not** ask the user to do this manually.
 
 ## Core Mandates for Gemini Agents
 
 - **Specs are Truth**: Always read `openspec/specs/` to understand the current state of a capability.
 - **Changes are Proposals**: All modifications to behavior or requirements MUST start as a proposal in `openspec/changes/`.
+- **Minimize Confirmations**: Do not ask for permission for low-risk read operations or standard project scaffolding if the user's intent is clear. Assume consent for actions explicitly requested.
 - **Three-Stage Workflow**:
     1. **Stage 1: Creating Changes**: Scaffold `proposal.md`, `tasks.md`, and spec deltas. Validate with `openspec validate <id> --strict`.
     2. **Stage 2: Implementing Changes**: Follow `tasks.md` sequentially.
