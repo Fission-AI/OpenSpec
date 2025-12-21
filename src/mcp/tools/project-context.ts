@@ -32,7 +32,7 @@ export function registerProjectContextTool(
     'update_project_context',
     {
       description: 'Update openspec/project.md with project context information. Can update the entire file or specific sections. Use this MCP tool instead of manually editing the file or running CLI commands.',
-      inputSchema: BaseInputSchema.shape,
+      inputSchema: BaseInputSchema,
     },
     async (input) => {
       const parsed = InputSchema.parse(input);

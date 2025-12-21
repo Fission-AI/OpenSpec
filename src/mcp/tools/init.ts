@@ -20,7 +20,7 @@ export function registerInitTool(
     'init',
     {
       description: 'Initialize OpenSpec in a project directory. Creates openspec/ directory structure. Note: AI tool integrations are not configured via this MCP tool. Use this MCP tool instead of running `openspec init` CLI command.',
-      inputSchema: InputSchema.shape,
+      inputSchema: InputSchema,
     },
     async (input) => {
       InputSchema.parse(input);

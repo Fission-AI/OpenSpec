@@ -27,7 +27,7 @@ export function registerValidateTool(
     'validate',
     {
       description: 'Validate changes and specifications. Returns JSON validation report with issues and status. Use this MCP tool instead of running `openspec validate` CLI command.',
-      inputSchema: InputSchema.shape,
+      inputSchema: InputSchema,
     },
     async (input) => {
       const parsed = InputSchema.parse(input);

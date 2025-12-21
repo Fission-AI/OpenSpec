@@ -25,7 +25,7 @@ export function registerShowTool(
     'show',
     {
       description: 'Show details of a change or specification. Returns JSON with item content and metadata. Use this MCP tool instead of running `openspec show` CLI command.',
-      inputSchema: InputSchema.shape,
+      inputSchema: InputSchema,
     },
     async (input) => {
       const parsed = InputSchema.parse(input);

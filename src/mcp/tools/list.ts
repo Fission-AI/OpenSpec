@@ -21,8 +21,8 @@ export function registerListTool(
   server.registerTool(
     'list',
     {
-      description: 'List active changes or specifications. Returns JSON array of items with their status. Use this MCP tool instead of running `openspec list` CLI command.',
-      inputSchema: InputSchema.shape,
+      description: 'bar List active changes or specifications. Returns JSON array of items with their status. Use this MCP tool instead of running `openspec list` CLI command.',
+      inputSchema: InputSchema,
     },
     async (input) => {
       const parsed = InputSchema.parse(input);

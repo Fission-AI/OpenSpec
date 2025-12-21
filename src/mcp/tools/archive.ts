@@ -24,7 +24,7 @@ export function registerArchiveTool(
     'archive',
     {
       description: 'Archive a completed change. Moves the change to archive directory and optionally updates specs. Use this MCP tool instead of running `openspec archive` CLI command.',
-      inputSchema: InputSchema.shape,
+      inputSchema: InputSchema,
     },
     async (input) => {
       const parsed = InputSchema.parse(input);

@@ -76,7 +76,7 @@ export function registerEditTool(
     {
       description:
         'Create or update change proposal resources. Use this tool to write proposal.md, tasks.md, design.md, or spec deltas when creating or modifying a change proposal.',
-      inputSchema: BaseInputSchema.shape,
+      inputSchema: BaseInputSchema,
     },
     async (input) => {
       const parsed = InputSchema.parse(input);
