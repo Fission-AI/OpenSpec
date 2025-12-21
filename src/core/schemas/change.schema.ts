@@ -1,10 +1,10 @@
 import { z } from 'zod';
 import { RequirementSchema } from './base.schema.js';
-import { 
+import {
   MIN_WHY_SECTION_LENGTH,
   MAX_WHY_SECTION_LENGTH,
   MAX_DELTAS_PER_CHANGE,
-  VALIDATION_MESSAGES 
+  VALIDATION_MESSAGES
 } from '../validation/constants.js';
 
 export const DeltaOperationType = z.enum(['ADDED', 'MODIFIED', 'REMOVED', 'RENAMED']);
@@ -21,6 +21,12 @@ export const DeltaSchema = z.object({
   }).optional(),
 });
 
+export const TrackedIssueSchema = z.object({
+  tracker: z.string().min(1),
+  id: z.string().min(1),
+  url: z.string().url(),
+});
+
 export const ChangeSchema = z.object({
   name: z.string().min(1, VALIDATION_MESSAGES.CHANGE_NAME_EMPTY),
   why: z.string()
@@ -30,6 +36,7 @@ export const ChangeSchema = z.object({
   deltas: z.array(DeltaSchema)
     .min(1, VALIDATION_MESSAGES.CHANGE_NO_DELTAS)
     .max(MAX_DELTAS_PER_CHANGE, VALIDATION_MESSAGES.CHANGE_TOO_MANY_DELTAS),
+  trackedIssues: z.array(TrackedIssueSchema).optional(),
   metadata: z.object({
     version: z.string().default('1.0.0'),
     format: z.literal('openspec-change'),
@@ -39,4 +46,5 @@ export const ChangeSchema = z.object({
 
 export type DeltaOperation = z.infer<typeof DeltaOperationType>;
 export type Delta = z.infer<typeof DeltaSchema>;
+export type TrackedIssue = z.infer<typeof TrackedIssueSchema>;
 export type Change = z.infer<typeof ChangeSchema>;

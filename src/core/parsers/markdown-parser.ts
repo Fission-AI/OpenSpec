@@ -1,4 +1,4 @@
-import { Spec, Change, Requirement, Scenario, Delta, DeltaOperation } from '../schemas/index.js';
+import { Spec, Change, Requirement, Scenario, Delta, DeltaOperation, TrackedIssue } from '../schemas/index.js';
 
 export interface Section {
   level: number;
@@ -7,18 +7,115 @@ export interface Section {
   children: Section[];
 }
 
+export interface Frontmatter {
+  trackedIssues?: TrackedIssue[];
+  raw?: Record<string, unknown>;
+}
+
+export interface FrontmatterResult {
+  frontmatter: Frontmatter | null;
+  content: string;
+}
+
 export class MarkdownParser {
   private lines: string[];
   private currentLine: number;
+  private frontmatter: Frontmatter | null = null;
 
   constructor(content: string) {
     const normalized = MarkdownParser.normalizeContent(content);
-    this.lines = normalized.split('\n');
+    const { frontmatter, content: bodyContent } = MarkdownParser.extractFrontmatter(normalized);
+    this.frontmatter = frontmatter;
+    this.lines = bodyContent.split('\n');
     this.currentLine = 0;
   }
 
   protected static normalizeContent(content: string): string {
     return content.replace(/\r\n?/g, '\n');
+  }
+
+  static extractFrontmatter(content: string): FrontmatterResult {
+    const lines = content.split('\n');
+
+    if (lines.length === 0 || lines[0].trim() !== '---') {
+      return { frontmatter: null, content };
+    }
+
+    let endIndex = -1;
+    for (let i = 1; i < lines.length; i++) {
+      if (lines[i].trim() === '---') {
+        endIndex = i;
+        break;
+      }
+    }
+
+    if (endIndex === -1) {
+      return { frontmatter: null, content };
+    }
+
+    const yamlLines = lines.slice(1, endIndex);
+    const remainingContent = lines.slice(endIndex + 1).join('\n');
+
+    const frontmatter = MarkdownParser.parseSimpleYaml(yamlLines);
+
+    return { frontmatter, content: remainingContent };
+  }
+
+  private static parseSimpleYaml(lines: string[]): Frontmatter {
+    const result: Frontmatter = { raw: {} };
+    const trackedIssues: TrackedIssue[] = [];
+
+    let inTrackedIssues = false;
+    let currentIssue: Partial<TrackedIssue> | null = null;
+
+    for (const line of lines) {
+      if (line.trim() === '' || line.trim().startsWith('#')) continue;
+
+      const topLevelMatch = line.match(/^(\w[\w-]*)\s*:/);
+      if (topLevelMatch && !line.startsWith(' ') && !line.startsWith('\t')) {
+        if (topLevelMatch[1] === 'tracked-issues') {
+          inTrackedIssues = true;
+          continue;
+        } else {
+          inTrackedIssues = false;
+          currentIssue = null;
+        }
+      }
+
+      if (inTrackedIssues) {
+        if (line.match(/^\s+-\s+\w/)) {
+          if (currentIssue && currentIssue.tracker && currentIssue.id && currentIssue.url) {
+            trackedIssues.push(currentIssue as TrackedIssue);
+          }
+          currentIssue = {};
+          const inlineMatch = line.match(/^\s+-\s+(\w+)\s*:\s*(.+)$/);
+          if (inlineMatch) {
+            const key = inlineMatch[1] as keyof TrackedIssue;
+            currentIssue[key] = inlineMatch[2].trim().replace(/^["']|["']$/g, '');
+          }
+        } else if (currentIssue) {
+          const propMatch = line.match(/^\s+(\w+)\s*:\s*(.+)$/);
+          if (propMatch) {
+            const key = propMatch[1] as keyof TrackedIssue;
+            currentIssue[key] = propMatch[2].trim().replace(/^["']|["']$/g, '');
+          }
+        }
+      }
+    }
+
+    if (currentIssue && currentIssue.tracker && currentIssue.id && currentIssue.url) {
+      trackedIssues.push(currentIssue as TrackedIssue);
+    }
+
+    if (trackedIssues.length > 0) {
+      result.trackedIssues = trackedIssues;
+    }
+
+    return result;
+  }
+
+  getFrontmatter(): Frontmatter | null {
+    return this.frontmatter;
   }
 
   parseSpec(name: string): Spec {

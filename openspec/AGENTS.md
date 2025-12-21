@@ -86,6 +86,43 @@ After deployment, create separate PR to:
   - Change: `openspec show <change-id> --json --deltas-only`
 - Full-text search (use ripgrep): `rg -n "Requirement:|Scenario:" openspec/specs`
 
+## External Issue Tracking
+
+Proposals may reference external issues (Linear, GitHub, Jira, etc.). When detected, track and update them throughout the workflow.
+
+### Detection
+
+When user input contains issue references:
+1. Confirm with user: "I detected [issue]. Track and post progress updates?"
+2. If confirmed, fetch issue metadata using available tools
+3. Store in proposal.md frontmatter:
+
+```yaml
+---
+tracked-issues:
+  - tracker: linear
+    id: SM-123
+    url: https://linear.app/team/issue/SM-123
+---
+```
+
+Only store immutable references (tracker, id, url). Fetch current details from the API when needed.
+
+### Updates
+
+Post progress to tracked issues at these points:
+- **Proposal created**: Comment linking to the change
+- **Section completed**: Comment with progress (batch per section, not per checkbox)
+- **Archive complete**: Final summary comment
+
+### User Confirmation
+
+Before any external update, present a summary and wait for confirmation. Never auto-post.
+
+### Tool Usage
+
+Use available tools to interact with issue trackers. If no tools available for a tracker, note the issue URL for manual updates.
+
 ## Quick Start
 
 ### CLI Commands

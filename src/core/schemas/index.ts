@@ -13,8 +13,10 @@ export {
 export {
   DeltaOperationType,
   DeltaSchema,
+  TrackedIssueSchema,
   ChangeSchema,
   type DeltaOperation,
   type Delta,
+  type TrackedIssue,
   type Change,
 } from './change.schema.js';

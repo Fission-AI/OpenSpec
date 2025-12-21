@@ -21,30 +21,35 @@ export class ChangeParser extends MarkdownParser {
     const sections = this.parseSections();
     const why = this.findSection(sections, 'Why')?.content || '';
     const whatChanges = this.findSection(sections, 'What Changes')?.content || '';
-    
+
     if (!why) {
       throw new Error('Change must have a Why section');
     }
-    
+
     if (!whatChanges) {
       throw new Error('Change must have a What Changes section');
     }
 
     // Parse deltas from the What Changes section (simple format)
     const simpleDeltas = this.parseDeltas(whatChanges);
-    
+
     // Check if there are spec files with delta format
     const specsDir = path.join(this.changeDir, 'specs');
     const deltaDeltas = await this.parseDeltaSpecs(specsDir);
-    
+
     // Combine both types of deltas, preferring delta format if available
     const deltas = deltaDeltas.length > 0 ? deltaDeltas : simpleDeltas;
+
+    // Get tracked issues from frontmatter
+    const frontmatter = this.getFrontmatter();
+    const trackedIssues = frontmatter?.trackedIssues;
 
     return {
       name,
       why: why.trim(),
       whatChanges: whatChanges.trim(),
       deltas,
+      ...(trackedIssues && trackedIssues.length > 0 ? { trackedIssues } : {}),
       metadata: {
         version: '1.0.0',
         format: 'openspec-change',

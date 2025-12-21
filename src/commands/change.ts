@@ -3,7 +3,7 @@ import path from 'path';
 import { JsonConverter } from '../core/converters/json-converter.js';
 import { Validator } from '../core/validation/validator.js';
 import { ChangeParser } from '../core/parsers/change-parser.js';
-import { Change } from '../core/schemas/index.js';
+import { Change, TrackedIssue } from '../core/schemas/index.js';
 import { isInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds } from '../utils/item-discovery.js';
 
@@ -11,6 +11,14 @@ import { getActiveChangeIds } from '../utils/item-discovery.js';
 const ARCHIVE_DIR = 'archive';
 const TASK_PATTERN = /^[-*]\s+\[[\sx]\]/i;
 const COMPLETED_TASK_PATTERN = /^[-*]\s+\[x\]/i;
+
+interface ChangeListItem {
+  id: string;
+  title: string;
+  deltaCount: number;
+  taskStatus: { total: number; completed: number };
+  trackedIssues?: TrackedIssue[];
+}
 
 export class ChangeCommand {
   private converter: JsonConverter;
@@ -70,19 +78,20 @@ export class ChangeCommand {
       const title = this.extractTitle(contentForTitle, changeName);
       const id = parsed.name;
       const deltas = parsed.deltas || [];
+      const trackedIssues = parsed.trackedIssues;
 
-      if (options.requirementsOnly || options.deltasOnly) {
-        const output = { id, title, deltaCount: deltas.length, deltas };
-        console.log(JSON.stringify(output, null, 2));
-      } else {
-        const output = {
-          id,
-          title,
-          deltaCount: deltas.length,
-          deltas,
-        };
-        console.log(JSON.stringify(output, null, 2));
+      const output: Record<string, unknown> = {
+        id,
+        title,
+        deltaCount: deltas.length,
+        deltas,
+      };
+
+      if (trackedIssues && trackedIssues.length > 0) {
+        output.trackedIssues = trackedIssues;
       }
+
+      console.log(JSON.stringify(output, null, 2));
     } else {
       const content = await fs.readFile(proposalPath, 'utf-8');
       console.log(content);
@@ -122,12 +131,18 @@ export class ChangeCommand {
               }
             }
             
-            return {
+            const result: ChangeListItem = {
               id: changeName,
               title: this.extractTitle(content, changeName),
               deltaCount: change.deltas.length,
               taskStatus,
             };
+
+            if (change.trackedIssues && change.trackedIssues.length > 0) {
+              result.trackedIssues = change.trackedIssues;
+            }
+
+            return result;
           } catch (error) {
             return {
               id: changeName,
@@ -174,7 +189,10 @@ export class ChangeCommand {
           const parser = new ChangeParser(await fs.readFile(proposalPath, 'utf-8'), changeDir);
           const change = await parser.parseChangeWithDeltas(changeName);
           const deltaCountText = ` [deltas ${change.deltas.length}]`;
-          console.log(`${changeName}: ${title}${deltaCountText}${taskStatusText}`);
+          const issueText = change.trackedIssues && change.trackedIssues.length > 0
+            ? ` (${change.trackedIssues[0].id})`
+            : '';
+          console.log(`${changeName}${issueText}: ${title}${deltaCountText}${taskStatusText}`);
         } catch {
           console.log(`${changeName}: (unable to read)`);
         }

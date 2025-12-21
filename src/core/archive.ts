@@ -10,6 +10,8 @@ import {
   normalizeRequirementName,
   type RequirementBlock,
 } from './parsers/requirement-blocks.js';
+import { MarkdownParser } from './parsers/markdown-parser.js';
+import type { TrackedIssue } from './schemas/index.js';
 
 interface SpecUpdate {
   source: string;
@@ -251,10 +253,28 @@ export class ArchiveCommand {
     // Create archive directory if needed
     await fs.mkdir(archiveDir, { recursive: true });
 
+    // Get tracked issues before moving the change
+    let trackedIssues: TrackedIssue[] = [];
+    try {
+      const proposalPath = path.join(changeDir, 'proposal.md');
+      const proposalContent = await fs.readFile(proposalPath, 'utf-8');
+      const parser = new MarkdownParser(proposalContent);
+      const frontmatter = parser.getFrontmatter();
+      if (frontmatter?.trackedIssues) {
+        trackedIssues = frontmatter.trackedIssues;
+      }
+    } catch {
+      // proposal.md might not exist or be unreadable
+    }
+
     // Move change to archive
     await fs.rename(changeDir, archivePath);
-    
-    console.log(`Change '${changeName}' archived as '${archiveName}'.`);
+
+    // Display archive success with tracked issues if present
+    const issueDisplay = trackedIssues.length > 0
+      ? ` (${trackedIssues.map(i => i.id).join(', ')})`
+      : '';
+    console.log(`Change '${changeName}'${issueDisplay} archived as '${archiveName}'.`);
   }
 
   private async selectChange(changesDir: string): Promise<string | null> {
