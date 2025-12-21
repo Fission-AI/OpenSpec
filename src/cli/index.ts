@@ -3,7 +3,6 @@ import { createRequire } from 'module';
 import ora from 'ora';
 import path from 'path';
 import { promises as fs } from 'fs';
-import { InitCommand } from '../core/init.js';
 import { AI_TOOLS } from '../core/config.js';
 import { UpdateCommand } from '../core/update.js';
 import { ListCommand } from '../core/list.js';
@@ -30,7 +29,7 @@ program.option('--no-color', 'Disable color output');
 // Apply global flags before any command runs
 program.hook('preAction', (thisCommand) => {
   const opts = thisCommand.opts();
-  if (opts.noColor) {
+  if (opts.color === false) {
     process.env.NO_COLOR = '1';
   }
 });
@@ -63,6 +62,7 @@ program
         }
       }
       
+      const { InitCommand } = await import('../core/init.js');
       const initCommand = new InitCommand({
         tools: options?.tools,
       });

@@ -1,4 +1,3 @@
-import { select } from '@inquirer/prompts';
 import path from 'path';
 import { isInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds, getSpecIds } from '../utils/item-discovery.js';
@@ -13,11 +12,12 @@ const SPEC_FLAG_KEYS = new Set(['requirements', 'scenarios', 'requirement']);
 
 export class ShowCommand {
   async execute(itemName?: string, options: { json?: boolean; type?: string; noInteractive?: boolean; [k: string]: any } = {}): Promise<void> {
-    const interactive = isInteractive(options.noInteractive);
+    const interactive = isInteractive(options);
     const typeOverride = this.normalizeType(options.type);
 
     if (!itemName) {
       if (interactive) {
+        const { select } = await import('@inquirer/prompts');
         const type = await select<ItemType>({
           message: 'What would you like to show?',
           choices: [
@@ -44,6 +44,7 @@ export class ShowCommand {
   }
 
   private async runInteractiveByType(type: ItemType, options: { json?: boolean; noInteractive?: boolean; [k: string]: any }): Promise<void> {
+    const { select } = await import('@inquirer/prompts');
     if (type === 'change') {
       const changes = await getActiveChangeIds();
       if (changes.length === 0) {
@@ -135,5 +136,3 @@ export class ShowCommand {
     return false;
   }
 }
-
-

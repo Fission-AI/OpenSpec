@@ -1,5 +1,4 @@
 import ora from 'ora';
-import { confirm } from '@inquirer/prompts';
 import { CompletionFactory } from '../core/completions/factory.js';
 import { COMMAND_REGISTRY } from '../core/completions/command-registry.js';
 import { detectShell, SupportedShell } from '../utils/shell-detection.js';
@@ -179,6 +178,7 @@ export class CompletionCommand {
 
     // Prompt for confirmation unless --yes flag is provided
     if (!skipConfirmation) {
+      const { confirm } = await import('@inquirer/prompts');
       const confirmed = await confirm({
         message: 'Remove OpenSpec configuration from ~/.zshrc?',
         default: false,
