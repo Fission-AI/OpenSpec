@@ -1,6 +1,5 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { select } from '@inquirer/prompts';
 import { JsonConverter } from '../core/converters/json-converter.js';
 import { Validator } from '../core/validation/validator.js';
 import { ChangeParser } from '../core/parsers/change-parser.js';
@@ -30,9 +29,10 @@ export class ChangeCommand {
     const changesPath = path.join(process.cwd(), 'openspec', 'changes');
 
     if (!changeName) {
-      const canPrompt = isInteractive(options?.noInteractive);
+      const canPrompt = isInteractive(options);
       const changes = await this.getActiveChanges(changesPath);
       if (canPrompt && changes.length > 0) {
+        const { select } = await import('@inquirer/prompts');
         const selected = await select({
           message: 'Select a change to show',
           choices: changes.map(id => ({ name: id, value: id })),
@@ -186,9 +186,10 @@ export class ChangeCommand {
     const changesPath = path.join(process.cwd(), 'openspec', 'changes');
     
     if (!changeName) {
-      const canPrompt = isInteractive(options?.noInteractive);
+      const canPrompt = isInteractive(options);
       const changes = await getActiveChangeIds();
       if (canPrompt && changes.length > 0) {
+        const { select } = await import('@inquirer/prompts');
         const selected = await select({
           message: 'Select a change to validate',
           choices: changes.map(id => ({ name: id, value: id })),
