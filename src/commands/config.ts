@@ -2,7 +2,6 @@ import { Command } from 'commander';
 import { confirm } from '@inquirer/prompts';
 import { spawn } from 'node:child_process';
 import * as fs from 'node:fs';
-import * as os from 'node:os';
 import {
   getGlobalConfigPath,
   getGlobalConfig,
@@ -179,14 +178,11 @@ export function registerConfigCommand(program: Command): void {
       }
 
       // Spawn editor and wait for it to close
-      // On Windows, we need to handle paths with spaces by quoting them
-      const isWindows = os.platform() === 'win32';
-      const quotedPath = isWindows ? `"${configPath}"` : `'${configPath}'`;
-      const command = `${editor} ${quotedPath}`;
-
-      const child = spawn(command, [], {
+      // Avoid shell parsing to correctly handle paths with spaces in both
+      // the editor path and config path
+      const child = spawn(editor, [configPath], {
         stdio: 'inherit',
-        shell: true,
+        shell: false,
       });
 
       await new Promise<void>((resolve, reject) => {
