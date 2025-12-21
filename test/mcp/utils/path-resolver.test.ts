@@ -8,6 +8,16 @@ import {
   getOpenSpecDir,
   getChangePath,
   getSpecPath,
+  getSpecsDir,
+  getArchiveDir,
+  getChangesDir,
+  getAgentsPath,
+  getProjectPath,
+  getChangeProposalPath,
+  getChangeTasksPath,
+  getChangeDesignPath,
+  getChangeSpecsDir,
+  getChangeSpecDeltaPath,
   type PathConfig,
 } from '../../../src/mcp/utils/path-resolver.js';
 
@@ -177,6 +187,182 @@ describe('path-resolver', () => {
 
       expect(result).toBe(
         '/home/user/project/openspec/specs/user-auth/spec.md'
+      );
+    });
+  });
+
+  describe('getSpecsDir', () => {
+    it('should return specs directory path', () => {
+      const config: PathConfig = {
+        specsRoot: '/home/user/project',
+        projectRoot: '/home/user/project',
+        isAutoProjectRoot: false,
+      };
+
+      const result = getSpecsDir(config);
+
+      expect(result).toBe('/home/user/project/openspec/specs');
+    });
+
+    it('should work with auto project root mode', () => {
+      const config: PathConfig = {
+        specsRoot: '/home/user/.openspec/code/myapp',
+        projectRoot: '/home/user/code/myapp',
+        isAutoProjectRoot: true,
+      };
+
+      const result = getSpecsDir(config);
+
+      expect(result).toBe('/home/user/.openspec/code/myapp/openspec/specs');
+    });
+  });
+
+  describe('getArchiveDir', () => {
+    it('should return archive directory path', () => {
+      const config: PathConfig = {
+        specsRoot: '/home/user/project',
+        projectRoot: '/home/user/project',
+        isAutoProjectRoot: false,
+      };
+
+      const result = getArchiveDir(config);
+
+      expect(result).toBe('/home/user/project/openspec/changes/archive');
+    });
+  });
+
+  describe('getChangesDir', () => {
+    it('should return changes directory path', () => {
+      const config: PathConfig = {
+        specsRoot: '/home/user/project',
+        projectRoot: '/home/user/project',
+        isAutoProjectRoot: false,
+      };
+
+      const result = getChangesDir(config);
+
+      expect(result).toBe('/home/user/project/openspec/changes');
+    });
+  });
+
+  describe('getAgentsPath', () => {
+    it('should return AGENTS.md file path', () => {
+      const config: PathConfig = {
+        specsRoot: '/home/user/project',
+        projectRoot: '/home/user/project',
+        isAutoProjectRoot: false,
+      };
+
+      const result = getAgentsPath(config);
+
+      expect(result).toBe('/home/user/project/openspec/AGENTS.md');
+    });
+  });
+
+  describe('getProjectPath', () => {
+    it('should return project.md file path', () => {
+      const config: PathConfig = {
+        specsRoot: '/home/user/project',
+        projectRoot: '/home/user/project',
+        isAutoProjectRoot: false,
+      };
+
+      const result = getProjectPath(config);
+
+      expect(result).toBe('/home/user/project/openspec/project.md');
+    });
+  });
+
+  describe('getChangeProposalPath', () => {
+    it('should return proposal.md path for a change', () => {
+      const config: PathConfig = {
+        specsRoot: '/home/user/project',
+        projectRoot: '/home/user/project',
+        isAutoProjectRoot: false,
+      };
+
+      const result = getChangeProposalPath(config, 'add-feature');
+
+      expect(result).toBe(
+        '/home/user/project/openspec/changes/add-feature/proposal.md'
+      );
+    });
+  });
+
+  describe('getChangeTasksPath', () => {
+    it('should return tasks.md path for a change', () => {
+      const config: PathConfig = {
+        specsRoot: '/home/user/project',
+        projectRoot: '/home/user/project',
+        isAutoProjectRoot: false,
+      };
+
+      const result = getChangeTasksPath(config, 'add-feature');
+
+      expect(result).toBe(
+        '/home/user/project/openspec/changes/add-feature/tasks.md'
+      );
+    });
+  });
+
+  describe('getChangeDesignPath', () => {
+    it('should return design.md path for a change', () => {
+      const config: PathConfig = {
+        specsRoot: '/home/user/project',
+        projectRoot: '/home/user/project',
+        isAutoProjectRoot: false,
+      };
+
+      const result = getChangeDesignPath(config, 'add-feature');
+
+      expect(result).toBe(
+        '/home/user/project/openspec/changes/add-feature/design.md'
+      );
+    });
+  });
+
+  describe('getChangeSpecsDir', () => {
+    it('should return specs directory path within a change', () => {
+      const config: PathConfig = {
+        specsRoot: '/home/user/project',
+        projectRoot: '/home/user/project',
+        isAutoProjectRoot: false,
+      };
+
+      const result = getChangeSpecsDir(config, 'add-feature');
+
+      expect(result).toBe(
+        '/home/user/project/openspec/changes/add-feature/specs'
+      );
+    });
+  });
+
+  describe('getChangeSpecDeltaPath', () => {
+    it('should return spec delta path for a capability within a change', () => {
+      const config: PathConfig = {
+        specsRoot: '/home/user/project',
+        projectRoot: '/home/user/project',
+        isAutoProjectRoot: false,
+      };
+
+      const result = getChangeSpecDeltaPath(config, 'add-feature', 'auth');
+
+      expect(result).toBe(
+        '/home/user/project/openspec/changes/add-feature/specs/auth/spec.md'
+      );
+    });
+
+    it('should handle nested capability names', () => {
+      const config: PathConfig = {
+        specsRoot: '/home/user/project',
+        projectRoot: '/home/user/project',
+        isAutoProjectRoot: false,
+      };
+
+      const result = getChangeSpecDeltaPath(config, 'add-feature', 'user-management');
+
+      expect(result).toBe(
+        '/home/user/project/openspec/changes/add-feature/specs/user-management/spec.md'
       );
     });
   });

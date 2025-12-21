@@ -253,7 +253,106 @@ openspec view               # Interactive dashboard of specs and changes
 openspec show <change>      # Display change details (proposal, tasks, spec updates)
 openspec validate <change>  # Check spec formatting and structure
 openspec archive <change> [--yes|-y]   # Move a completed change into archive/ (non-interactive with --yes)
+openspec mcp [--debug]     # Start MCP server for AI agent integration
 ```
+
+## MCP Server Integration
+
+OpenSpec provides an MCP (Model Context Protocol) server that enables AI coding assistants to access OpenSpec resources, tools, and prompts programmatically.
+
+### Starting the MCP Server
+
+Start the MCP server with:
+
+```bash
+openspec mcp
+```
+
+Use the `--debug` flag to enable debug logging to stderr:
+
+```bash
+openspec mcp --debug
+```
+
+The server runs on stdio and communicates via the MCP protocol.
+
+### MCP Client Configuration
+
+#### MCP.json
+
+Add OpenSpec to your using standard `mcp.json` from your favorite AI coding assistant:
+
+```json
+{
+  "mcpServers": {
+    "openspec": {
+      "command": "openspec",
+      "args": ["mcp"],
+      "env": {
+        "OPENSPEC_ROOT": "/path/to/your/openspec/root",
+        "OPENSPEC_AUTO_PROJECT_ROOT": "true"
+      }
+    }
+  }
+}
+```
+
+### Environment Variables
+
+The MCP server supports the following environment variables for configuring spec storage:
+
+- **`OPENSPEC_ROOT`**: Centralized root directory for OpenSpec specs. When set, all specs are stored under this directory instead of in each project.
+- **`OPENSPEC_AUTO_PROJECT_ROOT`**: When set to `"true"`, organizes specs under `OPENSPEC_ROOT` by project path. For example, if `OPENSPEC_ROOT=/home/user/.openspec` and your project is at `/home/user/code/myapp`, specs will be stored at `/home/user/.openspec/code/myapp/openspec/`.
+
+**Examples:**
+
+```bash
+# Default: specs stored in project directory
+openspec mcp
+
+# Specs at: ./openspec/
+# Fixed root: all specs in one location
+OPENSPEC_ROOT=/home/user/.openspec openspec mcp
+
+# Specs at: /home/user/.openspec/code/myapp/openspec/
+# Auto project root: organized by project path
+OPENSPEC_ROOT=/home/user/.openspec OPENSPEC_AUTO_PROJECT_ROOT=true openspec mcp
+```
+
+### MCP Resources
+
+The server exposes the following resources:
+
+- `openspec://instructions` - OpenSpec workflow instructions (AGENTS.md)
+- `openspec://project` - Project context (project.md)
+- `openspec://specs` - List of all specifications
+- `openspec://specs/{capability}` - Individual spec content
+- `openspec://changes` - List of active changes
+- `openspec://changes/{changeId}` - Change details (proposal, tasks, design)
+- `openspec://changes/{changeId}/proposal` - Proposal document
+- `openspec://changes/{changeId}/tasks` - Tasks checklist
+- `openspec://changes/{changeId}/design` - Design document
+- `openspec://archive` - List of archived changes
+
+### MCP Tools
+
+The server exposes the following tools:
+
+- `init` - Initialize OpenSpec in a project
+- `list` - List changes or specs
+- `show` - Show change or spec details
+- `validate` - Validate changes and specs
+- `archive` - Archive a completed change
+- `update_project_context` - Update project.md with project details
+- `edit` - Edit OpenSpec files
+
+### MCP Prompts
+
+The server exposes the following prompts:
+
+- `openspec-propose` - Guided workflow for creating change proposals
+- `openspec-apply` - Guided workflow for implementing changes
+- `openspec-archive` - Guided workflow for archiving completed changes
 
 ## Example: How AI Creates OpenSpec Files
 

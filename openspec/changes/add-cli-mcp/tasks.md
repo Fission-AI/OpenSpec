@@ -40,7 +40,7 @@
 
 ## 7. Testing and Documentation
 
-- [ ] 7.1 Add unit tests for path resolver
-- [ ] 7.2 Add integration tests for MCP server
-- [ ] 7.3 Update README with MCP configuration examples
+- [x] 7.1 Add unit tests for path resolver
+- [x] 7.2 Add integration tests for MCP server
+- [x] 7.3 Update README with MCP configuration examples
 
