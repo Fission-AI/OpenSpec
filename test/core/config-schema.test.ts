@@ -243,15 +243,80 @@ describe('config-schema', () => {
       expect(result.success).toBe(true);
     });
 
+    it('should accept unknown fields with various types', () => {
+      const result = validateConfig({
+        featureFlags: {},
+        futureStringField: 'value',
+        futureNumberField: 123,
+        futureObjectField: { nested: 'data' },
+      });
+      expect(result.success).toBe(true);
+    });
+
     it('should reject non-boolean values in featureFlags', () => {
       const result = validateConfig({ featureFlags: { test: 'string' } });
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
     });
 
+    it('should include path in error message for invalid featureFlags', () => {
+      const result = validateConfig({ featureFlags: { someFlag: 'notABoolean' } });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('featureFlags');
+    });
+
     it('should reject non-object featureFlags', () => {
       const result = validateConfig({ featureFlags: 'string' });
       expect(result.success).toBe(false);
+    });
+
+    it('should reject number values in featureFlags', () => {
+      const result = validateConfig({ featureFlags: { flag: 123 } });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('config set simulation', () => {
+    // These tests simulate the full config set flow: coerce value → set nested → validate
+
+    it('should accept setting unknown top-level key (forward compatibility)', () => {
+      const config: Record<string, unknown> = { featureFlags: {} };
+      const value = coerceValue('123');
+      setNestedValue(config, 'someFutureKey', value);
+
+      const result = validateConfig(config);
+      expect(result.success).toBe(true);
+      expect(config.someFutureKey).toBe(123);
+    });
+
+    it('should reject setting non-boolean to featureFlags', () => {
+      const config: Record<string, unknown> = { featureFlags: {} };
+      const value = coerceValue('notABoolean'); // stays as string
+      setNestedValue(config, 'featureFlags.someFlag', value);
+
+      const result = validateConfig(config);
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('featureFlags');
+    });
+
+    it('should accept setting boolean to featureFlags', () => {
+      const config: Record<string, unknown> = { featureFlags: {} };
+      const value = coerceValue('true'); // coerces to boolean
+      setNestedValue(config, 'featureFlags.newFlag', value);
+
+      const result = validateConfig(config);
+      expect(result.success).toBe(true);
+      expect((config.featureFlags as Record<string, unknown>).newFlag).toBe(true);
+    });
+
+    it('should create featureFlags object when setting nested flag', () => {
+      const config: Record<string, unknown> = {};
+      const value = coerceValue('false');
+      setNestedValue(config, 'featureFlags.experimental', value);
+
+      const result = validateConfig(config);
+      expect(result.success).toBe(true);
+      expect((config.featureFlags as Record<string, unknown>).experimental).toBe(false);
     });
   });
 
