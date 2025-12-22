@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const projectRoot = path.resolve(__dirname, '..', '..');
-const cliEntry = path.join(projectRoot, 'dist', 'cli', 'index.js');
+const cliEntry = path.join(projectRoot, 'dist', 'cli', 'index.mjs');
 
 let buildPromise: Promise<void> | undefined;
 
@@ -96,9 +96,9 @@ export async function runCLI(args: string[] = [], options: RunCLIOptions = {}): 
 
     const timeout = options.timeoutMs
       ? setTimeout(() => {
-          timedOut = true;
-          child.kill('SIGKILL');
-        }, options.timeoutMs)
+        timedOut = true;
+        child.kill('SIGKILL');
+      }, options.timeoutMs)
       : undefined;
 
     child.stdout?.setEncoding('utf-8');
