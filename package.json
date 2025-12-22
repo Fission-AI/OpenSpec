@@ -60,6 +60,7 @@
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.7",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^24.2.0",
     "@vitest/ui": "^3.2.4",
     "typescript": "^5.9.3",
@@ -70,6 +71,7 @@
     "@inquirer/prompts": "^7.8.0",
     "chalk": "^5.5.0",
     "commander": "^14.0.0",
+    "js-yaml": "^4.1.1",
     "ora": "^8.2.0",
     "zod": "^4.0.17"
   }

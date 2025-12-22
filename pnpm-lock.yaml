@@ -20,6 +20,9 @@ importers:
       commander:
         specifier: ^14.0.0
         version: 14.0.0
+      js-yaml:
+        specifier: ^4.1.1
+        version: 4.1.1
       ora:
         specifier: ^8.2.0
         version: 8.2.0
@@ -30,6 +33,9 @@ importers:
       '@changesets/cli':
         specifier: ^2.27.7
         version: 2.29.6(@types/node@24.2.0)
+      '@types/js-yaml':
+        specifier: ^4.0.9
+        version: 4.0.9
       '@types/node':
         specifier: ^24.2.0
         version: 24.2.0
@@ -527,6 +533,9 @@ packages:
   '@types/estree@1.0.8':
     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
 
+  '@types/js-yaml@4.0.9':
+    resolution: {integrity: sha512-k4MGaQl5TGo/iipqb2UDG2UwjXziSWkh0uysQelTlJpX1qGlpUZYm8PnO4DxG1qBomtJUdYJ6qR6xdIah10JLg==}
+
   '@types/node@12.20.55':
     resolution: {integrity: sha512-J8xLz7q2OFulZ2cyGTLE1TbbZcjpno7FaN6zdJNrgAdrJ+DZzh/uFR6YrTb4C+nXakvud8Q4+rbhoIWlYQbUFQ==}
 
@@ -589,6 +598,9 @@ packages:
 
   argparse@1.0.10:
     resolution: {integrity: sha512-o5Roy6tNG4SL/FOkCAN6RzjiakZS25RLYFrcMttJqbdd8BWrnA+fGz57iN5Pb06pvBGvl5gQ0B48dJlslXvoTg==}
+
+  argparse@2.0.1:
+    resolution: {integrity: sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q==}
 
   array-union@2.1.0:
     resolution: {integrity: sha512-HGyxoOTYUyCM6stUe6EJgnd4EoewAI7zMdfqO+kGjnlZmBDz/cR5pf8r/cR4Wq60sL/p0IkcjUEEPwS3GFrIyw==}
@@ -834,6 +846,10 @@ packages:
 
   js-yaml@3.14.1:
     resolution: {integrity: sha512-okMH7OXXJ7YrN9Ok3/SXrnu4iX9yOk+25nqX4imS2npuvTYDmo/QEZoqwZkYaIDk3jVvBOTOIEgEhaLOynBS9g==}
+    hasBin: true
+
+  js-yaml@4.1.1:
+    resolution: {integrity: sha512-qQKT4zQxXl8lLwBtHMWwaTcGfFOZviOJet3Oy/xmGk2gZH677CJM9EvtfdSkgWcATZhj/55JZ0rmy3myCT5lsA==}
     hasBin: true
 
   jsonfile@4.0.0:
@@ -1672,6 +1688,8 @@ snapshots:
 
   '@types/estree@1.0.8': {}
 
+  '@types/js-yaml@4.0.9': {}
+
   '@types/node@12.20.55': {}
 
   '@types/node@24.2.0':
@@ -1748,6 +1766,8 @@ snapshots:
   argparse@1.0.10:
     dependencies:
       sprintf-js: 1.0.3
+
+  argparse@2.0.1: {}
 
   array-union@2.1.0: {}
 
@@ -1974,6 +1994,10 @@ snapshots:
     dependencies:
       argparse: 1.0.10
       esprima: 4.0.1
+
+  js-yaml@4.1.1:
+    dependencies:
+      argparse: 2.0.1
 
   jsonfile@4.0.0:
     optionalDependencies:
