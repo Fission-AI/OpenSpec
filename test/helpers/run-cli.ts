@@ -68,7 +68,7 @@ export async function ensureCliBuilt() {
   await buildPromise;
 
   if (!existsSync(cliEntry)) {
-    throw new Error('CLI entry point missing after build. Expected dist/cli/index.js');
+    throw new Error('CLI entry point missing after build. Expected dist/cli/index.mjs');
   }
 }
 
