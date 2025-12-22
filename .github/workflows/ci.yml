@@ -148,7 +148,7 @@ jobs:
             echo "Error: dist directory not found after build"
             exit 1
           fi
-          if [ ! -f "dist/cli/index.js" ]; then
+          if [ ! -f "dist/cli/index.cjs" ]; then
             echo "Error: CLI entry point not found"
             exit 1
           fi
