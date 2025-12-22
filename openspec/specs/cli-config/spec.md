@@ -179,11 +179,18 @@ The config command SHALL use camelCase keys matching the JSON structure.
 
 ### Requirement: Schema Validation
 
-The config command SHALL validate configuration writes against the config schema using zod, while allowing unknown fields for forward compatibility.
+The config command SHALL validate configuration writes against the config schema using zod, while rejecting unknown keys for `config set` unless explicitly overridden.
 
-#### Scenario: Unknown key accepted
+#### Scenario: Unknown key rejected by default
 
 - **WHEN** user executes `openspec config set someFutureKey 123`
+- **THEN** display a descriptive error message indicating the key is invalid
+- **AND** do not modify the config file
+- **AND** exit with code 1
+
+#### Scenario: Unknown key accepted with override
+
+- **WHEN** user executes `openspec config set someFutureKey 123 --allow-unknown`
 - **THEN** the value is saved successfully
 - **AND** exit with code 0
 
@@ -208,4 +215,3 @@ The config command SHALL reserve the `--scope` flag for future extensibility.
 - **WHEN** user executes `openspec config --scope project <subcommand>`
 - **THEN** display error message: "Project-local config is not yet implemented"
 - **AND** exit with code 1
-

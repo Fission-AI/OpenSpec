@@ -14,6 +14,7 @@ import {
   deleteNestedValue,
   coerceValue,
   formatValueYaml,
+  validateConfigKeyPath,
   validateConfig,
   DEFAULT_CONFIG,
 } from '../core/config-schema.js';
@@ -84,7 +85,19 @@ export function registerConfigCommand(program: Command): void {
     .command('set <key> <value>')
     .description('Set a value (auto-coerce types)')
     .option('--string', 'Force value to be stored as string')
-    .action((key: string, value: string, options: { string?: boolean }) => {
+    .option('--allow-unknown', 'Allow setting unknown keys')
+    .action((key: string, value: string, options: { string?: boolean; allowUnknown?: boolean }) => {
+      const allowUnknown = Boolean(options.allowUnknown);
+      const keyValidation = validateConfigKeyPath(key);
+      if (!keyValidation.valid && !allowUnknown) {
+        const reason = keyValidation.reason ? ` ${keyValidation.reason}.` : '';
+        console.error(`Error: Invalid configuration key "${key}".${reason}`);
+        console.error('Use "openspec config list" to see available keys.');
+        console.error('Pass --allow-unknown to bypass this check.');
+        process.exitCode = 1;
+        return;
+      }
+
       const config = getGlobalConfig() as Record<string, unknown>;
       const coercedValue = coerceValue(value, options.string || false);
 
@@ -195,5 +208,26 @@ export function registerConfigCommand(program: Command): void {
         });
         child.on('error', reject);
       });
+
+      try {
+        const rawConfig = fs.readFileSync(configPath, 'utf-8');
+        const parsedConfig = JSON.parse(rawConfig);
+        const validation = validateConfig(parsedConfig);
+
+        if (!validation.success) {
+          console.error(`Error: Invalid configuration - ${validation.error}`);
+          process.exitCode = 1;
+        }
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+          console.error(`Error: Config file not found at ${configPath}`);
+        } else if (error instanceof SyntaxError) {
+          console.error(`Error: Invalid JSON in ${configPath}`);
+          console.error(error.message);
+        } else {
+          console.error(`Error: Unable to validate configuration - ${error instanceof Error ? error.message : String(error)}`);
+        }
+        process.exitCode = 1;
+      }
     });
 }

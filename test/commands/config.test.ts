@@ -133,6 +133,7 @@ describe('config command shell completion registry', () => {
     const flagNames = setCmd?.flags?.map((f) => f.name) ?? [];
 
     expect(flagNames).toContain('string');
+    expect(flagNames).toContain('allow-unknown');
   });
 
   it('should have --all and -y flags on reset subcommand', async () => {
@@ -153,5 +154,22 @@ describe('config command shell completion registry', () => {
     const flagNames = configCmd?.flags?.map((f) => f.name) ?? [];
 
     expect(flagNames).toContain('scope');
+  });
+});
+
+describe('config key validation', () => {
+  it('rejects unknown top-level keys', async () => {
+    const { validateConfigKeyPath } = await import('../../src/core/config-schema.js');
+    expect(validateConfigKeyPath('unknownKey').valid).toBe(false);
+  });
+
+  it('allows feature flag keys', async () => {
+    const { validateConfigKeyPath } = await import('../../src/core/config-schema.js');
+    expect(validateConfigKeyPath('featureFlags.someFlag').valid).toBe(true);
+  });
+
+  it('rejects deeply nested feature flag keys', async () => {
+    const { validateConfigKeyPath } = await import('../../src/core/config-schema.js');
+    expect(validateConfigKeyPath('featureFlags.someFlag.extra').valid).toBe(false);
   });
 });

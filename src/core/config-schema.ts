@@ -22,6 +22,38 @@ export const DEFAULT_CONFIG: GlobalConfigType = {
   featureFlags: {},
 };
 
+const KNOWN_TOP_LEVEL_KEYS = new Set(Object.keys(DEFAULT_CONFIG));
+
+/**
+ * Validate a config key path for CLI set operations.
+ * Unknown top-level keys are rejected unless explicitly allowed by the caller.
+ */
+export function validateConfigKeyPath(path: string): { valid: boolean; reason?: string } {
+  const rawKeys = path.split('.');
+
+  if (rawKeys.length === 0 || rawKeys.some((key) => key.trim() === '')) {
+    return { valid: false, reason: 'Key path must not be empty' };
+  }
+
+  const rootKey = rawKeys[0];
+  if (!KNOWN_TOP_LEVEL_KEYS.has(rootKey)) {
+    return { valid: false, reason: `Unknown top-level key "${rootKey}"` };
+  }
+
+  if (rootKey === 'featureFlags') {
+    if (rawKeys.length > 2) {
+      return { valid: false, reason: 'featureFlags values are booleans and do not support nested keys' };
+    }
+    return { valid: true };
+  }
+
+  if (rawKeys.length > 1) {
+    return { valid: false, reason: `"${rootKey}" does not support nested keys` };
+  }
+
+  return { valid: true };
+}
+
 /**
  * Get a nested value from an object using dot notation.
  *

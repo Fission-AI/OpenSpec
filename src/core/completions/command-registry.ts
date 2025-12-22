@@ -327,6 +327,10 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             name: 'string',
             description: 'Force value to be stored as string',
           },
+          {
+            name: 'allow-unknown',
+            description: 'Allow setting unknown keys',
+          },
         ],
       },
       {
