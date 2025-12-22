@@ -1,5 +1,4 @@
 import { Command } from 'commander';
-import { confirm } from '@inquirer/prompts';
 import { spawn } from 'node:child_process';
 import * as fs from 'node:fs';
 import {
@@ -153,6 +152,7 @@ export function registerConfigCommand(program: Command): void {
       }
 
       if (!options.yes) {
+        const { confirm } = await import('@inquirer/prompts');
         const confirmed = await confirm({
           message: 'Reset all configuration to defaults?',
           default: false,

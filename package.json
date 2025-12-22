@@ -38,6 +38,7 @@
     "!dist/**/*.map"
   ],
   "scripts": {
+    "lint": "eslint src/",
     "build": "node build.js",
     "dev": "tsc --watch",
     "dev:cli": "pnpm build && node bin/openspec.js",
@@ -62,7 +63,9 @@
     "@changesets/cli": "^2.27.7",
     "@types/node": "^24.2.0",
     "@vitest/ui": "^3.2.4",
+    "eslint": "^9.39.2",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.50.1",
     "vitest": "^3.2.4"
   },
   "dependencies": {

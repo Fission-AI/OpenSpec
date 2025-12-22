@@ -142,6 +142,9 @@ jobs:
       - name: Type check
         run: pnpm exec tsc --noEmit
 
+      - name: Lint
+        run: pnpm lint
+
       - name: Check for build artifacts
         run: |
           if [ ! -d "dist" ]; then
