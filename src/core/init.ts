@@ -1,4 +1,5 @@
 import path from 'path';
+import { promises as fs } from 'fs';
 import {
   createPrompt,
   isBackspaceKey,
@@ -10,6 +11,7 @@ import {
   usePagination,
   useState,
 } from '@inquirer/core';
+import { input, checkbox } from '@inquirer/prompts';
 import chalk from 'chalk';
 import ora from 'ora';
 import { FileSystemUtils } from '../utils/file-system.js';
@@ -24,6 +26,7 @@ import {
   OPENSPEC_MARKERS,
 } from './config.js';
 import { PALETTE } from './styles/palette.js';
+import { WorkspaceManager, WORKSPACE_FILE_NAME } from './workspace.js';
 
 const PROGRESS_SPINNER = {
   interval: 80,
@@ -371,18 +374,25 @@ const toolSelectionWizard = createPrompt<string[], ToolWizardConfig>(
 type InitCommandOptions = {
   prompt?: ToolSelectionPrompt;
   tools?: string;
+  workspace?: boolean;
 };
 
 export class InitCommand {
   private readonly prompt: ToolSelectionPrompt;
   private readonly toolsArg?: string;
+  private readonly workspaceMode: boolean;
 
   constructor(options: InitCommandOptions = {}) {
     this.prompt = options.prompt ?? ((config) => toolSelectionWizard(config));
     this.toolsArg = options.tools;
+    this.workspaceMode = options.workspace ?? false;
   }
 
   async execute(targetPath: string): Promise<void> {
+    if (this.workspaceMode) {
+      return this.executeWorkspace(targetPath);
+    }
+
     const projectPath = path.resolve(targetPath);
     const openspecDir = OPENSPEC_DIR_NAME;
     const openspecPath = path.join(projectPath, openspecDir);
@@ -982,5 +992,117 @@ export class InitCommand {
       color: 'gray',
       spinner: PROGRESS_SPINNER,
     }).start();
+  }
+
+  /**
+   * Execute workspace initialization mode
+   */
+  private async executeWorkspace(targetPath: string): Promise<void> {
+    const projectPath = path.resolve(targetPath);
+    const openspecPath = path.join(projectPath, OPENSPEC_DIR_NAME);
+
+    console.log();
+    console.log(PALETTE.white('═══════════════════════════════════════'));
+    console.log(PALETTE.white('       OpenSpec Workspace Setup'));
+    console.log(PALETTE.white('═══════════════════════════════════════'));
+    console.log();
+
+    // Check if workspace already exists
+    const workspaceExists = await WorkspaceManager.exists(projectPath);
+    if (workspaceExists) {
+      const workspace = await WorkspaceManager.load(projectPath);
+      if (workspace) {
+        console.log(PALETTE.midGray(`ℹ Workspace '${workspace.name}' already configured with ${workspace.repos.length} repos`));
+        console.log(PALETTE.midGray('  Run without --workspace to update AI tools configuration.'));
+        return;
+      }
+    }
+
+    // Discover potential repositories
+    const spinner = this.startSpinner('Discovering repositories...');
+    const discoveredRepos = await WorkspaceManager.discoverRepos(projectPath);
+    spinner.stop();
+
+    if (discoveredRepos.length === 0) {
+      console.log(PALETTE.yellow('⚠ No repositories found in this directory.'));
+      console.log(PALETTE.midGray('  A workspace needs child directories containing .git, package.json, or similar.'));
+      return;
+    }
+
+    console.log(PALETTE.white(`Found ${discoveredRepos.length} potential repositories:`));
+    discoveredRepos.forEach(repo => console.log(PALETTE.midGray(`  • ${repo}`)));
+    console.log();
+
+    // Prompt for workspace name
+    const workspaceName = await input({
+      message: 'Workspace name:',
+      default: path.basename(projectPath),
+    });
+
+    // Prompt for repo selection
+    const selectedRepos = await checkbox({
+      message: 'Select repositories to include:',
+      choices: discoveredRepos.map(repo => ({
+        name: repo,
+        value: repo,
+        checked: true,
+      })),
+    });
+
+    if (selectedRepos.length === 0) {
+      console.log(PALETTE.yellow('⚠ No repositories selected. Aborting workspace setup.'));
+      return;
+    }
+
+    // Create openspec structure
+    const structureSpinner = this.startSpinner('Creating workspace structure...');
+    await this.createDirectoryStructure(openspecPath);
+
+    // Generate workspace.yaml
+    const workspaceYaml = WorkspaceManager.generateWorkspaceYaml(
+      workspaceName,
+      selectedRepos.map(name => ({ name, path: `./${name}` }))
+    );
+    await fs.writeFile(
+      path.join(openspecPath, WORKSPACE_FILE_NAME),
+      workspaceYaml,
+      'utf-8'
+    );
+
+    structureSpinner.stopAndPersist({
+      symbol: PALETTE.white('▌'),
+      text: PALETTE.white('Workspace structure created'),
+    });
+
+    // Generate standard files with workspace context
+    const config: OpenSpecConfig = { aiTools: [] };
+    await this.generateFiles(openspecPath, config);
+
+    // Load the workspace to get the agents section
+    const workspace = await WorkspaceManager.load(projectPath);
+    if (workspace) {
+      // Append workspace section to AGENTS.md
+      const agentsPath = path.join(openspecPath, 'AGENTS.md');
+      const agentsContent = await fs.readFile(agentsPath, 'utf-8');
+      const workspaceSection = WorkspaceManager.getWorkspaceAgentsSection(workspace);
+      await fs.writeFile(agentsPath, agentsContent + workspaceSection, 'utf-8');
+    }
+
+    // Success message
+    console.log();
+    console.log(PALETTE.white('═══════════════════════════════════════'));
+    console.log(PALETTE.white('       Workspace Initialized!'));
+    console.log(PALETTE.white('═══════════════════════════════════════'));
+    console.log();
+    console.log(PALETTE.midGray('Created:'));
+    console.log(PALETTE.midGray(`  • ${OPENSPEC_DIR_NAME}/${WORKSPACE_FILE_NAME}`));
+    console.log(PALETTE.midGray(`  • ${OPENSPEC_DIR_NAME}/AGENTS.md (with workspace guidance)`));
+    console.log(PALETTE.midGray(`  • ${OPENSPEC_DIR_NAME}/project.md`));
+    console.log();
+    console.log(PALETTE.white('Next steps:'));
+    console.log(PALETTE.midGray('  1. Edit project.md with your project conventions'));
+    console.log(PALETTE.midGray('  2. Create your first spec in openspec/specs/'));
+    console.log(PALETTE.midGray('  3. Run openspec validate --workspace to check configuration'));
+    console.log();
   }
 }

@@ -18,3 +18,12 @@ export {
   type Delta,
   type Change,
 } from './change.schema.js';
+
+export {
+  WorkspaceRepoSchema,
+  WorkspaceConventionsSchema,
+  WorkspaceConfigSchema,
+  type WorkspaceRepo,
+  type WorkspaceConventions,
+  type WorkspaceConfig,
+} from './workspace.schema.js';
