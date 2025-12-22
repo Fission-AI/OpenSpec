@@ -7,6 +7,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  id-token: write # Required for npm OIDC trusted publishing
 
 concurrency:
   group: release-${{ github.ref }}
@@ -27,11 +28,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24' # Node 24 includes npm 11.5.1+ required for OIDC
           cache: 'pnpm'
           registry-url: 'https://registry.npmjs.org'
-          scope: '@fission-ai'
-          always-auth: true
 
       - run: pnpm install --frozen-lockfile
 
@@ -46,5 +45,4 @@ jobs:
           publish: pnpm run release:ci
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # npm authentication handled via OIDC trusted publishing (no token needed)
