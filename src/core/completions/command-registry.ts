@@ -288,4 +288,77 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
       },
     ],
   },
+  {
+    name: 'config',
+    description: 'View and modify global OpenSpec configuration',
+    flags: [
+      {
+        name: 'scope',
+        description: 'Config scope (only "global" supported currently)',
+        takesValue: true,
+        values: ['global'],
+      },
+    ],
+    subcommands: [
+      {
+        name: 'path',
+        description: 'Show config file location',
+        flags: [],
+      },
+      {
+        name: 'list',
+        description: 'Show all current settings',
+        flags: [
+          COMMON_FLAGS.json,
+        ],
+      },
+      {
+        name: 'get',
+        description: 'Get a specific value (raw, scriptable)',
+        acceptsPositional: true,
+        flags: [],
+      },
+      {
+        name: 'set',
+        description: 'Set a value (auto-coerce types)',
+        acceptsPositional: true,
+        flags: [
+          {
+            name: 'string',
+            description: 'Force value to be stored as string',
+          },
+          {
+            name: 'allow-unknown',
+            description: 'Allow setting unknown keys',
+          },
+        ],
+      },
+      {
+        name: 'unset',
+        description: 'Remove a key (revert to default)',
+        acceptsPositional: true,
+        flags: [],
+      },
+      {
+        name: 'reset',
+        description: 'Reset configuration to defaults',
+        flags: [
+          {
+            name: 'all',
+            description: 'Reset all configuration (required)',
+          },
+          {
+            name: 'yes',
+            short: 'y',
+            description: 'Skip confirmation prompts',
+          },
+        ],
+      },
+      {
+        name: 'edit',
+        description: 'Open config in $EDITOR',
+        flags: [],
+      },
+    ],
+  },
 ];

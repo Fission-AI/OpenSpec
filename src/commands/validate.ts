@@ -1,7 +1,7 @@
 import ora from 'ora';
 import path from 'path';
 import { Validator } from '../core/validation/validator.js';
-import { isInteractive } from '../utils/interactive.js';
+import { isInteractive, resolveNoInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds, getSpecIds } from '../utils/item-discovery.js';
 import { nearestMatches } from '../utils/match.js';
 
@@ -15,6 +15,7 @@ interface ExecuteOptions {
   strict?: boolean;
   json?: boolean;
   noInteractive?: boolean;
+  interactive?: boolean; // Commander sets this to false when --no-interactive is used
   concurrency?: string;
   targetPath?: string;
 }
@@ -38,7 +39,7 @@ export class ValidateCommand {
       await this.runBulkValidation({
         changes: !!options.all || !!options.changes,
         specs: !!options.all || !!options.specs,
-      }, { strict: !!options.strict, json: !!options.json, concurrency: options.concurrency, targetPath });
+      }, { strict: !!options.strict, json: !!options.json, concurrency: options.concurrency, targetPath, noInteractive: resolveNoInteractive(options) });
       return;
     }
 
@@ -183,8 +184,8 @@ export class ValidateCommand {
     bullets.forEach(b => console.error(`  ${b}`));
   }
 
-  private async runBulkValidation(scope: { changes: boolean; specs: boolean }, opts: { strict: boolean; json: boolean; concurrency?: string; targetPath: string }): Promise<void> {
-    const spinner = !opts.json ? ora('Validating...').start() : undefined;
+  private async runBulkValidation(scope: { changes: boolean; specs: boolean }, opts: { strict: boolean; json: boolean; concurrency?: string; targetPath: string; noInteractive?: boolean }): Promise<void> {
+    const spinner = !opts.json && !opts.noInteractive ? ora('Validating...').start() : undefined;
     const [changeIds, specIds] = await Promise.all([
       scope.changes ? getActiveChangeIds() : Promise.resolve<string[]>([]),
       scope.specs ? getSpecIds() : Promise.resolve<string[]>([]),
