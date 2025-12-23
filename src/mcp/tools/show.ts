@@ -34,10 +34,6 @@ export function registerShowTool(
         // Capture JSON output
         const originalLog = console.log;
         let jsonOutput = '';
-        console.log = (...args: any[]) => {
-          jsonOutput += args.map(String).join(' ') + '\n';
-          originalLog(...args);
-        };
 
         // Determine type and show item
         let itemType = parsed.type;
@@ -48,29 +44,42 @@ export function registerShowTool(
           
           // Try change first
           try {
+            console.log = (...args: any[]) => {
+              jsonOutput += args.map(String).join(' ') + '\n';
+              // Don't call originalLog - would corrupt MCP stdio stream
+            };
             await changeCmd.show(parsed.itemName, { json: true, targetPath: pathConfig.specsRoot, noInteractive: true });
             itemType = 'change';
           } catch {
             // Not a change, try spec
+            jsonOutput = ''; // Reset for spec attempt
             try {
               await specCmd.show(parsed.itemName, { json: true, targetPath: pathConfig.specsRoot });
               itemType = 'spec';
             } catch {
+              console.log = originalLog;
               throw new Error(`Item '${parsed.itemName}' not found as change or spec`);
             }
           }
+          console.log = originalLog;
         } else {
           // Type specified, use appropriate command
-          if (itemType === 'change') {
-            const changeCmd = new ChangeCommand();
-            await changeCmd.show(parsed.itemName, { json: parsed.json, targetPath: pathConfig.specsRoot, noInteractive: true });
-          } else {
-            const specCmd = new SpecCommand();
-            await specCmd.show(parsed.itemName, { json: parsed.json, targetPath: pathConfig.specsRoot });
+          console.log = (...args: any[]) => {
+            jsonOutput += args.map(String).join(' ') + '\n';
+            // Don't call originalLog - would corrupt MCP stdio stream
+          };
+          try {
+            if (itemType === 'change') {
+              const changeCmd = new ChangeCommand();
+              await changeCmd.show(parsed.itemName, { json: parsed.json, targetPath: pathConfig.specsRoot, noInteractive: true });
+            } else {
+              const specCmd = new SpecCommand();
+              await specCmd.show(parsed.itemName, { json: parsed.json, targetPath: pathConfig.specsRoot });
+            }
+          } finally {
+            console.log = originalLog;
           }
         }
-
-        console.log = originalLog;
 
         // Parse the JSON output
         let result;

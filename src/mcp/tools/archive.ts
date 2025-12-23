@@ -45,15 +45,17 @@ export function registerArchiveTool(
           originalError(...args);
         };
 
-        await archiveCommand.execute(parsed.changeName, {
-          yes: true,
-          skipSpecs: parsed.skipSpecs,
-          noValidate: parsed.noValidate,
-          targetPath: pathConfig.specsRoot,
-        });
-
-        console.log = originalLog;
-        console.error = originalError;
+        try {
+          await archiveCommand.execute(parsed.changeName, {
+            yes: true,
+            skipSpecs: parsed.skipSpecs,
+            noValidate: parsed.noValidate,
+            targetPath: pathConfig.specsRoot,
+          });
+        } finally {
+          console.log = originalLog;
+          console.error = originalError;
+        }
 
         return {
           content: [

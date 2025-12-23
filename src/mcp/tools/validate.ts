@@ -48,20 +48,22 @@ export function registerValidateTool(
           originalError(...args);
         };
 
-        const validateCommand = new ValidateCommand();
-        await validateCommand.execute(parsed.itemName, {
-          type: parsed.type,
-          all: parsed.all,
-          changes: parsed.changes,
-          specs: parsed.specs,
-          strict: parsed.strict,
-          json: true,
-          noInteractive: true,
-          targetPath: pathConfig.specsRoot,
-        });
-
-        console.log = originalLog;
-        console.error = originalError;
+        try {
+          const validateCommand = new ValidateCommand();
+          await validateCommand.execute(parsed.itemName, {
+            type: parsed.type,
+            all: parsed.all,
+            changes: parsed.changes,
+            specs: parsed.specs,
+            strict: parsed.strict,
+            json: true,
+            noInteractive: true,
+            targetPath: pathConfig.specsRoot,
+          });
+        } finally {
+          console.log = originalLog;
+          console.error = originalError;
+        }
 
         // Parse the JSON output
         let result;

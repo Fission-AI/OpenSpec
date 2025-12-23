@@ -36,6 +36,29 @@ const InputSchema = BaseInputSchema.refine(
 
 type ResourceType = z.infer<typeof ResourceTypeEnum>;
 
+function getSuggestedNextActions(resourceType: ResourceType, resourceUri: string): string[] {
+  switch (resourceType) {
+    case 'proposal':
+      return [
+        `Create tasks using edit tool with resourceType='tasks'`,
+        `Create spec deltas using edit tool with resourceType='spec'`,
+        `Validate with the validate tool`,
+      ];
+    case 'tasks':
+      return [
+        `Create spec deltas using edit tool with resourceType='spec'`,
+        `Validate with the validate tool`,
+      ];
+    case 'spec':
+      return [
+        `Read the resource at ${resourceUri} to verify`,
+        `Validate with the validate tool`,
+      ];
+    case 'design':
+      return [`Validate with the validate tool`];
+  }
+}
+
 function getResourcePath(
   pathConfig: PathConfig,
   changeId: string,
@@ -102,27 +125,10 @@ export function registerEditTool(
                 message: `${resourceType} resource created/updated successfully`,
                 changeId,
                 resourceType,
-                capability: capability || undefined,
+                capability,
                 path: filePath,
                 resourceUri,
-                suggestedNextActions:
-                  resourceType === 'proposal'
-                    ? [
-                        `Create tasks using edit tool with resourceType='tasks'`,
-                        `Create spec deltas using edit tool with resourceType='spec'`,
-                        `Validate with the validate tool`,
-                      ]
-                    : resourceType === 'tasks'
-                      ? [
-                          `Create spec deltas using edit tool with resourceType='spec'`,
-                          `Validate with the validate tool`,
-                        ]
-                      : resourceType === 'spec'
-                        ? [
-                            `Read the resource at ${resourceUri} to verify`,
-                            `Validate with the validate tool`,
-                          ]
-                        : [`Validate with the validate tool`],
+                suggestedNextActions: getSuggestedNextActions(resourceType, resourceUri),
               }),
             },
           ],
@@ -137,7 +143,7 @@ export function registerEditTool(
                 error: error instanceof Error ? error.message : String(error),
                 changeId,
                 resourceType,
-                capability: capability || undefined,
+                capability,
               }),
             },
           ],

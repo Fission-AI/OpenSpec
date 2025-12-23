@@ -105,19 +105,6 @@ export function registerProjectContextTool(
             ],
           };
         }
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({
-                success: false,
-                error: 'Either content or sections must be provided',
-              }),
-            },
-          ],
-          isError: true,
-        };
       } catch (error) {
         return {
           content: [
