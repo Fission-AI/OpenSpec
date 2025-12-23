@@ -1,10 +1,10 @@
 ## 1. Type Definitions
-- [ ] 1.1 Create `src/core/artifact-graph/types.ts` with Artifact, ArtifactState, and result interfaces
-- [ ] 1.2 Define Schema type for YAML structure validation
+- [ ] 1.1 Create `src/core/artifact-graph/types.ts` with Zod schemas (`ArtifactSchema`, `SchemaYamlSchema`) and inferred types via `z.infer<>`
+- [ ] 1.2 Define `ArtifactState` and `ArtifactGraphResult` interfaces for runtime state
 
 ## 2. Schema Parser
-- [ ] 2.1 Create `src/core/artifact-graph/schema.ts` with YAML loading
-- [ ] 2.2 Implement schema validation (required fields, valid references)
+- [ ] 2.1 Create `src/core/artifact-graph/schema.ts` with YAML loading and Zod validation via `.safeParse()`
+- [ ] 2.2 Implement dependency reference validation (ensure `requires` references valid artifact IDs)
 - [ ] 2.3 Add cycle detection during schema load
 
 ## 3. Artifact Graph Core

@@ -59,17 +59,52 @@ Represent `ArtifactState` as immutable Sets (completed, inProgress, failed).
 - State derived fresh each query, no mutation needed
 - Clear separation between graph structure and runtime state
 
+### Decision: Zod for Schema Validation
+Use Zod for validating YAML schema structure and deriving TypeScript types.
+
+**Rationale:**
+- Already a project dependency (v4.0.17) used in `src/core/schemas/`
+- Type inference via `z.infer<>` - single source of truth for types
+- Runtime validation with detailed error messages
+- Consistent with existing project patterns (`base.schema.ts`, `config-schema.ts`)
+
+**Alternatives considered:**
+- Manual validation: More code, error-prone, no type inference
+- JSON Schema: Would require additional dependency, less TypeScript integration
+- io-ts: Not already in project, steeper learning curve
+
 ## Data Structures
 
-```typescript
-interface Artifact {
-  id: string;
-  generates: string;        // e.g., "proposal.md" or "specs/*.md"
-  description: string;
-  template: string;         // path to template file
-  requires: string[];       // artifact IDs this depends on
-}
+**Zod Schemas (source of truth):**
 
+```typescript
+import { z } from 'zod';
+
+// Artifact definition schema
+export const ArtifactSchema = z.object({
+  id: z.string().min(1, 'Artifact ID is required'),
+  generates: z.string().min(1),      // e.g., "proposal.md" or "specs/*.md"
+  description: z.string(),
+  template: z.string(),              // path to template file
+  requires: z.array(z.string()).default([]),
+});
+
+// Full schema YAML structure
+export const SchemaYamlSchema = z.object({
+  name: z.string().min(1, 'Schema name is required'),
+  version: z.number().int().positive(),
+  description: z.string().optional(),
+  artifacts: z.array(ArtifactSchema).min(1, 'At least one artifact required'),
+});
+
+// Derived TypeScript types
+export type Artifact = z.infer<typeof ArtifactSchema>;
+export type SchemaYaml = z.infer<typeof SchemaYamlSchema>;
+```
+
+**Runtime State (not Zod - internal only):**
+
+```typescript
 interface ArtifactState {
   completed: Set<string>;
   inProgress: Set<string>;
