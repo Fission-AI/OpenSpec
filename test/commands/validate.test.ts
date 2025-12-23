@@ -130,4 +130,18 @@ describe('top-level validate command', () => {
     const result = await runCLI(['validate', changeId], { cwd: testDir });
     expect(result.exitCode).toBe(0);
   });
+
+  it('respects --no-interactive flag passed via CLI', async () => {
+    // This test ensures Commander.js --no-interactive flag is correctly parsed
+    // and passed to the validate command. The flag sets options.interactive = false
+    // (not options.noInteractive = true) due to Commander.js convention.
+    const result = await runCLI(['validate', '--specs', '--no-interactive'], {
+      cwd: testDir,
+      // Don't set OPEN_SPEC_INTERACTIVE to ensure we're testing the flag itself
+      env: { ...process.env, OPEN_SPEC_INTERACTIVE: undefined },
+    });
+    expect(result.exitCode).toBe(0);
+    // Should complete without hanging and without prompts
+    expect(result.stderr).not.toContain('What would you like to validate?');
+  });
 });
