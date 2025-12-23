@@ -95,11 +95,13 @@ program
   .description('List items (changes by default). Use --specs to list specs.')
   .option('--specs', 'List specs instead of changes')
   .option('--changes', 'List changes explicitly (default)')
-  .action(async (options?: { specs?: boolean; changes?: boolean }) => {
+  .option('--archived', 'Show only archived changes')
+  .option('--all', 'Show both active and archived changes')
+  .action(async (options?: { specs?: boolean; changes?: boolean; archived?: boolean; all?: boolean }) => {
     try {
       const listCommand = new ListCommand();
       const mode: 'changes' | 'specs' = options?.specs ? 'specs' : 'changes';
-      await listCommand.execute('.', mode);
+      await listCommand.execute('.', mode, { archived: options?.archived, all: options?.all });
     } catch (error) {
       console.log(); // Empty line for spacing
       ora().fail(`Error: ${(error as Error).message}`);
