@@ -15,6 +15,7 @@ interface ExecuteOptions {
   strict?: boolean;
   json?: boolean;
   noInteractive?: boolean;
+  interactive?: boolean; // Commander sets this to false when --no-interactive is used
   concurrency?: string;
 }
 
@@ -35,7 +36,7 @@ export class ValidateCommand {
       await this.runBulkValidation({
         changes: !!options.all || !!options.changes,
         specs: !!options.all || !!options.specs,
-      }, { strict: !!options.strict, json: !!options.json, concurrency: options.concurrency });
+      }, { strict: !!options.strict, json: !!options.json, concurrency: options.concurrency, noInteractive: options.noInteractive === true || options.interactive === false });
       return;
     }
 
@@ -180,8 +181,8 @@ export class ValidateCommand {
     bullets.forEach(b => console.error(`  ${b}`));
   }
 
-  private async runBulkValidation(scope: { changes: boolean; specs: boolean }, opts: { strict: boolean; json: boolean; concurrency?: string }): Promise<void> {
-    const spinner = !opts.json ? ora('Validating...').start() : undefined;
+  private async runBulkValidation(scope: { changes: boolean; specs: boolean }, opts: { strict: boolean; json: boolean; concurrency?: string; noInteractive?: boolean }): Promise<void> {
+    const spinner = !opts.json && !opts.noInteractive ? ora('Validating...').start() : undefined;
     const [changeIds, specIds] = await Promise.all([
       scope.changes ? getActiveChangeIds() : Promise.resolve<string[]>([]),
       scope.specs ? getSpecIds() : Promise.resolve<string[]>([]),
