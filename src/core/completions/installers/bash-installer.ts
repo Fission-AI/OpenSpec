@@ -212,6 +212,9 @@ export class BashInstaller {
     try {
       const targetPath = await this.getInstallationPath();
 
+      // Check for bash-completion package
+      const hasBashCompletion = await this.isBashCompletionInstalled();
+
       // Check if already installed with same content
       let isUpdate = false;
       try {
@@ -251,6 +254,21 @@ export class BashInstaller {
       // Generate instructions if .bashrc wasn't auto-configured
       const instructions = bashrcConfigured ? undefined : this.generateInstructions(targetPath);
 
+      // Collect warnings
+      const warnings: string[] = [];
+      if (!hasBashCompletion) {
+        warnings.push(
+          '⚠️  Warning: bash-completion package not detected',
+          '',
+          'The completion script requires bash-completion to function.',
+          'Install it with:',
+          '  brew install bash-completion@2',
+          '',
+          'Then add to your ~/.bash_profile:',
+          '  [[ -r "/opt/homebrew/etc/profile.d/bash_completion.sh" ]] && . "/opt/homebrew/etc/profile.d/bash_completion.sh"'
+        );
+      }
+
       // Determine appropriate message
       let message: string;
       if (isUpdate) {
@@ -270,6 +288,7 @@ export class BashInstaller {
         bashrcConfigured,
         message,
         instructions,
+        warnings: warnings.length > 0 ? warnings : undefined,
       };
     } catch (error) {
       return {
@@ -307,9 +326,11 @@ export class BashInstaller {
   /**
    * Uninstall the completion script
    *
+   * @param options - Optional uninstall options
+   * @param options.yes - Skip confirmation prompt (handled by command layer)
    * @returns Uninstallation result
    */
-  async uninstall(): Promise<{ success: boolean; message: string }> {
+  async uninstall(options?: { yes?: boolean }): Promise<{ success: boolean; message: string }> {
     try {
       const targetPath = await this.getInstallationPath();
 

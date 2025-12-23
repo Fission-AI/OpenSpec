@@ -18,6 +18,7 @@ export interface InstallationResult {
   backupPath?: string;
   message: string;
   instructions?: string[];
+  warnings?: string[];
   // Shell-specific optional fields
   isOhMyZsh?: boolean;
   zshrcConfigured?: boolean;

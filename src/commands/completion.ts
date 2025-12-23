@@ -150,6 +150,14 @@ export class CompletionCommand {
           }
         }
 
+        // Display warnings if present
+        if (result.warnings && result.warnings.length > 0) {
+          console.log('');
+          for (const warning of result.warnings) {
+            console.log(warning);
+          }
+        }
+
         // Print instructions (only shown if .zshrc wasn't auto-configured)
         if (result.instructions && result.instructions.length > 0) {
           console.log('');
