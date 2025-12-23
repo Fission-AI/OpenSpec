@@ -1,4 +1,4 @@
-type InteractiveOptions = {
+export type InteractiveOptions = {
   /**
    * Explicit "disable prompts" flag passed by internal callers.
    */
@@ -9,7 +9,12 @@ type InteractiveOptions = {
   interactive?: boolean;
 };
 
-function resolveNoInteractive(value?: boolean | InteractiveOptions): boolean {
+/**
+ * Resolves whether non-interactive mode is requested.
+ * Handles both explicit `noInteractive: true` and Commander.js style `interactive: false`.
+ * Use this helper instead of manually checking options.noInteractive to avoid bugs.
+ */
+export function resolveNoInteractive(value?: boolean | InteractiveOptions): boolean {
   if (typeof value === 'boolean') return value;
   return value?.noInteractive === true || value?.interactive === false;
 }
