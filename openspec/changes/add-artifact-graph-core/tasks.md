@@ -25,15 +25,25 @@
 - [ ] 5.2 Implement `isComplete(graph, state)` - check if all artifacts done
 - [ ] 5.3 Implement `getBlocked(graph, state)` - find artifacts with unmet dependencies
 
-## 6. Integration
-- [ ] 6.1 Create `src/core/artifact-graph/index.ts` with public exports
-- [ ] 6.2 Add example schema YAML for testing
+## 6. Schema Resolution
+- [ ] 6.1 Create `src/core/artifact-graph/resolver.ts` with schema resolution logic
+- [ ] 6.2 Implement `resolveSchema(name)` - global (`~/.config/openspec/schemas/`) → built-in fallback
+- [ ] 6.3 Use existing `getGlobalConfigDir()` from `src/core/global-config.ts`
 
-## 7. Testing
-- [ ] 7.1 Test: Parse schema YAML returns correct artifact graph
-- [ ] 7.2 Test: Compute build order returns correct topological ordering
-- [ ] 7.3 Test: Empty directory shows only root artifacts as ready
-- [ ] 7.4 Test: Directory with proposal.md shows specs as ready
-- [ ] 7.5 Test: Glob pattern specs/*.md detected as complete when files exist
-- [ ] 7.6 Test: All artifacts present returns isComplete() true
-- [ ] 7.7 Test: Cycle in schema throws clear error
+## 7. Built-in Schemas
+- [ ] 7.1 Create `src/core/artifact-graph/schemas/spec-driven.yaml` (default schema from POC)
+- [ ] 7.2 Create `src/core/artifact-graph/schemas/tdd.yaml` (alternative schema)
+
+## 8. Integration
+- [ ] 8.1 Create `src/core/artifact-graph/index.ts` with public exports
+
+## 9. Testing
+- [ ] 9.1 Test: Parse schema YAML returns correct artifact graph
+- [ ] 9.2 Test: Compute build order returns correct topological ordering
+- [ ] 9.3 Test: Empty directory shows only root artifacts as ready
+- [ ] 9.4 Test: Directory with proposal.md shows specs as ready
+- [ ] 9.5 Test: Glob pattern specs/*.md detected as complete when files exist
+- [ ] 9.6 Test: All artifacts present returns isComplete() true
+- [ ] 9.7 Test: Cycle in schema throws clear error
+- [ ] 9.8 Test: Schema resolution finds global override before built-in
+- [ ] 9.9 Test: Schema resolution falls back to built-in when no global

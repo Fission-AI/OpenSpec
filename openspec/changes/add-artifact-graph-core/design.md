@@ -73,6 +73,23 @@ Use Zod for validating YAML schema structure and deriving TypeScript types.
 - JSON Schema: Would require additional dependency, less TypeScript integration
 - io-ts: Not already in project, steeper learning curve
 
+### Decision: Two-Level Schema Resolution
+Schemas resolve from global user config, falling back to package built-ins.
+
+**Resolution order:**
+1. `~/.config/openspec/schemas/<name>.yaml` - Global user override
+2. `<package>/schemas/<name>.yaml` - Built-in defaults
+
+**Rationale:**
+- Follows common CLI patterns (ESLint, Prettier, Git, npm)
+- Built-ins baked into package, never auto-copied
+- Users customize by creating files in global config dir
+- Simple - no project-level overrides (can add later if needed)
+
+**Alternatives considered:**
+- Project-level overrides: Added complexity, not needed initially
+- Auto-copy to user space: Creates drift, harder to update defaults
+
 ## Data Structures
 
 **Zod Schemas (source of truth):**
@@ -124,10 +141,13 @@ interface ArtifactGraphResult {
 ```
 src/core/artifact-graph/
 ├── index.ts           # Public exports
-├── types.ts           # Type definitions
+├── types.ts           # Zod schemas and type definitions
 ├── graph.ts           # ArtifactGraph class
 ├── state.ts           # State detection logic
-└── schema.ts          # YAML schema parser
+├── resolver.ts        # Schema resolution (global → built-in)
+└── schemas/           # Built-in schema definitions
+    ├── spec-driven.yaml   # Default: proposal → specs → design → tasks
+    └── tdd.yaml           # Alternative: tests → implementation → docs
 ```
 
 ## Risks / Trade-offs
@@ -140,5 +160,4 @@ src/core/artifact-graph/
 
 ## Open Questions
 
-- Should we support custom file existence predicates for advanced scenarios?
 - What's the appropriate error format for cycle detection?
