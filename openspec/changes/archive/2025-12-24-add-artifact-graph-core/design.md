@@ -51,13 +51,16 @@ Support glob patterns like `specs/*.md` in artifact `generates` field.
 - Common pattern for spec directories with multiple files
 - Uses standard glob syntax
 
-### Decision: Immutable State Sets
-Represent `ArtifactState` as immutable Sets (completed, inProgress, failed).
+### Decision: Immutable Completed Set
+Represent completion state as an immutable Set of completed artifact IDs.
 
 **Rationale:**
 - Functional style, easier to reason about
 - State derived fresh each query, no mutation needed
 - Clear separation between graph structure and runtime state
+- Filesystem can only detect binary existence (complete vs not complete)
+
+**Note:** `inProgress` and `failed` states are deferred to future slices. They would require external state tracking (e.g., a status file) since file existence alone cannot distinguish these states.
 
 ### Decision: Zod for Schema Validation
 Use Zod for validating YAML schema structure and deriving TypeScript types.
@@ -74,21 +77,46 @@ Use Zod for validating YAML schema structure and deriving TypeScript types.
 - io-ts: Not already in project, steeper learning curve
 
 ### Decision: Two-Level Schema Resolution
-Schemas resolve from global user config, falling back to package built-ins.
+Schemas resolve from global user data directory, falling back to package built-ins.
 
 **Resolution order:**
-1. `~/.config/openspec/schemas/<name>.yaml` - Global user override
+1. `${XDG_DATA_HOME:-~/.local/share}/openspec/schemas/<name>.yaml` - Global user override
 2. `<package>/schemas/<name>.yaml` - Built-in defaults
 
 **Rationale:**
-- Follows common CLI patterns (ESLint, Prettier, Git, npm)
+- Follows XDG Base Directory Specification (schemas are data, not config)
+- Mirrors existing `getGlobalConfigDir()` pattern in `src/core/global-paths.ts`
 - Built-ins baked into package, never auto-copied
-- Users customize by creating files in global config dir
+- Users customize by creating files in global data dir
 - Simple - no project-level overrides (can add later if needed)
+
+**XDG compliance:**
+- Uses `XDG_DATA_HOME` env var when set (all platforms)
+- Unix/macOS fallback: `~/.local/share/openspec/`
+- Windows fallback: `%LOCALAPPDATA%/openspec/`
 
 **Alternatives considered:**
 - Project-level overrides: Added complexity, not needed initially
 - Auto-copy to user space: Creates drift, harder to update defaults
+- Config directory (`XDG_CONFIG_HOME`): Schemas are workflow definitions (data), not user preferences (config)
+
+### Decision: Template Field Parsed But Not Resolved
+The `template` field is required in schema YAML for completeness, but template resolution is deferred to Slice 3.
+
+**Rationale:**
+- Slice 1 focuses on "What's Ready?" - dependency and completion queries only
+- Template paths are validated syntactically (non-empty string) but not resolved
+- Keeps Slice 1 focused and independently testable
+
+### Decision: Cycle Error Format
+Cycle errors list all artifact IDs in the cycle for easy debugging.
+
+**Format:** `"Cyclic dependency detected: A → B → C → A"`
+
+**Rationale:**
+- Shows the full cycle path, not just that a cycle exists
+- Actionable - developer can see exactly which artifacts to fix
+- Consistent with Kahn's algorithm which naturally identifies cycle participants
 
 ## Data Structures
 
@@ -122,16 +150,18 @@ export type SchemaYaml = z.infer<typeof SchemaYamlSchema>;
 **Runtime State (not Zod - internal only):**
 
 ```typescript
-interface ArtifactState {
-  completed: Set<string>;
-  inProgress: Set<string>;
-  failed: Set<string>;
+// Slice 1: Simple completion tracking via filesystem
+type CompletedSet = Set<string>;
+
+// Return type for blocked query
+interface BlockedArtifacts {
+  [artifactId: string]: string[];  // artifact → list of unmet dependencies
 }
 
 interface ArtifactGraphResult {
   completed: string[];
   ready: string[];
-  blocked: string[];
+  blocked: BlockedArtifacts;
   buildOrder: string[];
 }
 ```
@@ -145,10 +175,14 @@ src/core/artifact-graph/
 ├── graph.ts           # ArtifactGraph class
 ├── state.ts           # State detection logic
 ├── resolver.ts        # Schema resolution (global → built-in)
-└── schemas/           # Built-in schema definitions
+└── schemas/           # Built-in schema definitions (package level)
     ├── spec-driven.yaml   # Default: proposal → specs → design → tasks
     └── tdd.yaml           # Alternative: tests → implementation → docs
 ```
+
+**Schema Resolution Paths:**
+- Global user override: `${XDG_DATA_HOME:-~/.local/share}/openspec/schemas/<name>.yaml`
+- Package built-in: `src/core/artifact-graph/schemas/<name>.yaml` (bundled with package)
 
 ## Risks / Trade-offs
 
@@ -160,4 +194,4 @@ src/core/artifact-graph/
 
 ## Open Questions
 
-- What's the appropriate error format for cycle detection?
+None - all questions resolved in Decisions section.

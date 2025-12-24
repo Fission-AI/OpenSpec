@@ -1,5 +1,8 @@
-## ADDED Requirements
+# artifact-graph Specification
 
+## Purpose
+TBD - created by archiving change add-artifact-graph-core. Update Purpose after archive.
+## Requirements
 ### Requirement: Schema Loading
 The system SHALL load artifact graph definitions from YAML schema files.
 
@@ -13,7 +16,15 @@ The system SHALL load artifact graph definitions from YAML schema files.
 
 #### Scenario: Cyclic dependencies detected
 - **WHEN** a schema contains cyclic artifact dependencies
-- **THEN** the system throws an error identifying the cycle
+- **THEN** the system throws an error listing the artifact IDs in the cycle
+
+#### Scenario: Invalid dependency reference
+- **WHEN** an artifact's `requires` array references a non-existent artifact ID
+- **THEN** the system throws an error identifying the invalid reference
+
+#### Scenario: Duplicate artifact IDs rejected
+- **WHEN** a schema contains multiple artifacts with the same ID
+- **THEN** the system throws an error identifying the duplicate
 
 ### Requirement: Build Order Calculation
 The system SHALL compute a valid topological build order for artifacts.
@@ -49,6 +60,10 @@ The system SHALL detect artifact completion state by scanning the filesystem.
 - **WHEN** an artifact generates "specs/*.md" and the specs/ directory is empty or missing
 - **THEN** the artifact is not marked as completed
 
+#### Scenario: Missing change directory
+- **WHEN** the change directory does not exist
+- **THEN** all artifacts are marked as not completed (empty state)
+
 ### Requirement: Ready Artifact Query
 The system SHALL identify which artifacts are ready to be created based on dependency completion.
 
@@ -76,12 +91,17 @@ The system SHALL determine when all artifacts in a graph are complete.
 - **THEN** isComplete() returns false
 
 ### Requirement: Blocked Query
-The system SHALL identify which artifacts are blocked and what they're waiting for.
+The system SHALL identify which artifacts are blocked and return all their unmet dependencies.
 
 #### Scenario: Artifact blocked by single dependency
 - **WHEN** artifact B requires artifact A and A is not complete
-- **THEN** getBlocked() returns B with A as the blocking dependency
+- **THEN** getBlocked() returns `{ B: ['A'] }`
 
 #### Scenario: Artifact blocked by multiple dependencies
 - **WHEN** artifact C requires A and B, and only A is complete
-- **THEN** getBlocked() returns C with B as the blocking dependency
+- **THEN** getBlocked() returns `{ C: ['B'] }`
+
+#### Scenario: Artifact blocked by all dependencies
+- **WHEN** artifact C requires A and B, and neither is complete
+- **THEN** getBlocked() returns `{ C: ['A', 'B'] }`
+
