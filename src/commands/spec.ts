@@ -16,6 +16,7 @@ interface ShowOptions {
   scenarios?: boolean; // --no-scenarios sets this to false (JSON only)
   requirement?: string; // JSON only
   noInteractive?: boolean;
+  targetPath?: string;
 }
 
 function parseSpecFromFile(specPath: string, specId: string): Spec {
@@ -65,12 +66,13 @@ function printSpecTextRaw(specPath: string): void {
 }
 
 export class SpecCommand {
-  private SPECS_DIR = 'openspec/specs';
-
   async show(specId?: string, options: ShowOptions = {}): Promise<void> {
+    const targetPath = options.targetPath ?? process.cwd();
+    const specsDir = join(targetPath, 'openspec', 'specs');
+    
     if (!specId) {
       const canPrompt = isInteractive(options);
-      const specIds = await getSpecIds();
+      const specIds = await getSpecIds(targetPath);
       if (canPrompt && specIds.length > 0) {
         const { select } = await import('@inquirer/prompts');
         specId = await select({
@@ -82,9 +84,10 @@ export class SpecCommand {
       }
     }
 
-    const specPath = join(this.SPECS_DIR, specId, 'spec.md');
+    const specPath = join(specsDir, specId, 'spec.md');
     if (!existsSync(specPath)) {
-      throw new Error(`Spec '${specId}' not found at openspec/specs/${specId}/spec.md`);
+      const relativePath = join('openspec', 'specs', specId, 'spec.md');
+      throw new Error(`Spec '${specId}' not found at ${relativePath}`);
     }
 
     if (options.json) {
@@ -141,17 +144,19 @@ export function registerSpecCommand(rootProgram: typeof program) {
     .description('List all available specifications')
     .option('--json', 'Output as JSON')
     .option('--long', 'Show id and title with counts')
-    .action((options: { json?: boolean; long?: boolean }) => {
+    .action((options: { json?: boolean; long?: boolean; targetPath?: string }) => {
       try {
-        if (!existsSync(SPECS_DIR)) {
+        const targetPath = options.targetPath ?? process.cwd();
+        const specsDir = join(targetPath, 'openspec', 'specs');
+        if (!existsSync(specsDir)) {
           console.log('No items found');
           return;
         }
 
-        const specs = readdirSync(SPECS_DIR, { withFileTypes: true })
+        const specs = readdirSync(specsDir, { withFileTypes: true })
           .filter(dirent => dirent.isDirectory())
           .map(dirent => {
-            const specPath = join(SPECS_DIR, dirent.name, 'spec.md');
+            const specPath = join(specsDir, dirent.name, 'spec.md');
             if (existsSync(specPath)) {
               try {
                 const spec = parseSpecFromFile(specPath, dirent.name);
@@ -201,11 +206,14 @@ export function registerSpecCommand(rootProgram: typeof program) {
     .option('--strict', 'Enable strict validation mode')
     .option('--json', 'Output validation report as JSON')
     .option('--no-interactive', 'Disable interactive prompts')
-    .action(async (specId: string | undefined, options: { strict?: boolean; json?: boolean; noInteractive?: boolean }) => {
+    .action(async (specId: string | undefined, options: { strict?: boolean; json?: boolean; noInteractive?: boolean; targetPath?: string }) => {
       try {
+        const targetPath = options.targetPath ?? process.cwd();
+        const specsDir = join(targetPath, 'openspec', 'specs');
+        
         if (!specId) {
           const canPrompt = isInteractive(options);
-          const specIds = await getSpecIds();
+          const specIds = await getSpecIds(targetPath);
           if (canPrompt && specIds.length > 0) {
             const { select } = await import('@inquirer/prompts');
             specId = await select({
@@ -217,10 +225,10 @@ export function registerSpecCommand(rootProgram: typeof program) {
           }
         }
 
-        const specPath = join(SPECS_DIR, specId, 'spec.md');
+        const specPath = join(specsDir, specId, 'spec.md');
         
         if (!existsSync(specPath)) {
-          throw new Error(`Spec '${specId}' not found at openspec/specs/${specId}/spec.md`);
+          throw new Error(`Spec '${specId}' not found at ${join('openspec', 'specs', specId, 'spec.md')}`);
         }
 
         const validator = new Validator(options.strict);

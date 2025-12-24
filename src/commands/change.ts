@@ -25,8 +25,9 @@ export class ChangeCommand {
    * - JSON mode: minimal object with deltas; --deltas-only returns same object with filtered deltas
    *   Note: --requirements-only is deprecated alias for --deltas-only
    */
-  async show(changeName?: string, options?: { json?: boolean; requirementsOnly?: boolean; deltasOnly?: boolean; noInteractive?: boolean }): Promise<void> {
-    const changesPath = path.join(process.cwd(), 'openspec', 'changes');
+  async show(changeName?: string, options?: { json?: boolean; requirementsOnly?: boolean; deltasOnly?: boolean; noInteractive?: boolean; targetPath?: string }): Promise<void> {
+    const targetPath = options?.targetPath ?? process.cwd();
+    const changesPath = path.join(targetPath, 'openspec', 'changes');
 
     if (!changeName) {
       const canPrompt = isInteractive(options);
@@ -94,8 +95,9 @@ export class ChangeCommand {
    * - Text default: IDs only; --long prints minimal details (title, counts)
    * - JSON: array of { id, title, deltaCount, taskStatus }, sorted by id
    */
-  async list(options?: { json?: boolean; long?: boolean }): Promise<void> {
-    const changesPath = path.join(process.cwd(), 'openspec', 'changes');
+  async list(options?: { json?: boolean; long?: boolean; targetPath?: string }): Promise<void> {
+    const targetPath = options?.targetPath ?? process.cwd();
+    const changesPath = path.join(targetPath, 'openspec', 'changes');
     
     const changes = await this.getActiveChanges(changesPath);
     
@@ -182,12 +184,13 @@ export class ChangeCommand {
     }
   }
 
-  async validate(changeName?: string, options?: { strict?: boolean; json?: boolean; noInteractive?: boolean }): Promise<void> {
-    const changesPath = path.join(process.cwd(), 'openspec', 'changes');
+  async validate(changeName?: string, options?: { strict?: boolean; json?: boolean; noInteractive?: boolean; targetPath?: string }): Promise<void> {
+    const targetPath = options?.targetPath ?? process.cwd();
+    const changesPath = path.join(targetPath, 'openspec', 'changes');
     
     if (!changeName) {
       const canPrompt = isInteractive(options);
-      const changes = await getActiveChangeIds();
+      const changes = await getActiveChangeIds(targetPath);
       if (canPrompt && changes.length > 0) {
         const { select } = await import('@inquirer/prompts');
         const selected = await select({

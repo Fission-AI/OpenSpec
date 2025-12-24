@@ -13,6 +13,7 @@ import { ChangeCommand } from '../commands/change.js';
 import { ValidateCommand } from '../commands/validate.js';
 import { ShowCommand } from '../commands/show.js';
 import { CompletionCommand } from '../commands/completion.js';
+import { createMcpCommand } from '../commands/mcp.js';
 import { registerConfigCommand } from '../commands/config.js';
 
 const program = new Command();
@@ -202,6 +203,8 @@ program
 
 registerSpecCommand(program);
 registerConfigCommand(program);
+
+program.addCommand(createMcpCommand());
 
 // Top-level validate command
 program
