@@ -1,9 +1,23 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { parse as parseYaml } from 'yaml';
 import { getGlobalDataDir } from '../global-config.js';
 import { BUILTIN_SCHEMAS } from './builtin-schemas.js';
+import { parseSchema, SchemaValidationError } from './schema.js';
 import type { SchemaYaml } from './types.js';
+
+/**
+ * Error thrown when loading a global schema override fails.
+ */
+export class SchemaLoadError extends Error {
+  constructor(
+    message: string,
+    public readonly schemaPath: string,
+    public readonly cause?: Error
+  ) {
+    super(message);
+    this.name = 'SchemaLoadError';
+  }
+}
 
 /**
  * Resolves a schema name to a SchemaYaml object.
@@ -19,14 +33,43 @@ import type { SchemaYaml } from './types.js';
 export function resolveSchema(name: string): SchemaYaml {
   // Normalize name (remove .yaml extension if provided)
   const normalizedName = name.replace(/\.ya?ml$/, '');
+  const builtinNames = Object.keys(BUILTIN_SCHEMAS).join(', ');
 
   // 1. Check global user override (returns path if found)
   const globalPath = getGlobalSchemaPath(normalizedName);
   if (globalPath) {
-    // User override found - load and parse it
-    // Note: This is a raw load, not fully validated. Caller should validate if needed.
-    const content = fs.readFileSync(globalPath, 'utf-8');
-    return parseYaml(content) as SchemaYaml;
+    // User override found - load and validate through the same pipeline as other schemas
+    let content: string;
+    try {
+      content = fs.readFileSync(globalPath, 'utf-8');
+    } catch (err) {
+      const ioError = err instanceof Error ? err : new Error(String(err));
+      throw new SchemaLoadError(
+        `Failed to read global schema override at '${globalPath}': ${ioError.message}`,
+        globalPath,
+        ioError
+      );
+    }
+
+    try {
+      return parseSchema(content);
+    } catch (err) {
+      if (err instanceof SchemaValidationError) {
+        // Re-wrap validation errors to include the file path for context
+        throw new SchemaLoadError(
+          `Invalid global schema override at '${globalPath}': ${err.message}`,
+          globalPath,
+          err
+        );
+      }
+      // Handle unexpected parse errors (e.g., YAML syntax errors)
+      const parseError = err instanceof Error ? err : new Error(String(err));
+      throw new SchemaLoadError(
+        `Failed to parse global schema override at '${globalPath}': ${parseError.message}`,
+        globalPath,
+        parseError
+      );
+    }
   }
 
   // 2. Check built-in schemas
@@ -36,7 +79,7 @@ export function resolveSchema(name: string): SchemaYaml {
   }
 
   throw new Error(
-    `Schema '${normalizedName}' not found. Available built-in schemas: ${Object.keys(BUILTIN_SCHEMAS).join(', ')}`
+    `Schema '${normalizedName}' not found. Checked global overrides and built-in schemas. Available built-ins: ${builtinNames}`
   );
 }
 
