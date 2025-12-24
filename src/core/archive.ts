@@ -1,6 +1,5 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { FileSystemUtils } from '../utils/file-system.js';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
 import { Validator } from './validation/validator.js';
 import chalk from 'chalk';
@@ -447,15 +446,26 @@ export class ArchiveCommand {
 
     // Load or create base target content
     let targetContent: string;
+    let isNewSpec = false;
     try {
       targetContent = await fs.readFile(update.target, 'utf-8');
     } catch {
-      // Target spec does not exist; only ADDED operations are permitted
-      if (plan.modified.length > 0 || plan.removed.length > 0 || plan.renamed.length > 0) {
+      // Target spec does not exist; MODIFIED and RENAMED are not allowed for new specs
+      // REMOVED will be ignored with a warning since there's nothing to remove
+      if (plan.modified.length > 0 || plan.renamed.length > 0) {
         throw new Error(
-          `${specName}: target spec does not exist; only ADDED requirements are allowed for new specs.`
+          `${specName}: target spec does not exist; only ADDED requirements are allowed for new specs. MODIFIED and RENAMED operations require an existing spec.`
         );
       }
+      // Warn about REMOVED requirements being ignored for new specs
+      if (plan.removed.length > 0) {
+        console.log(
+          chalk.yellow(
+            `⚠️  Warning: ${specName} - ${plan.removed.length} REMOVED requirement(s) ignored for new spec (nothing to remove).`
+          )
+        );
+      }
+      isNewSpec = true;
       targetContent = this.buildSpecSkeleton(specName, changeName);
     }
 
@@ -498,9 +508,15 @@ export class ArchiveCommand {
     for (const name of plan.removed) {
       const key = normalizeRequirementName(name);
       if (!nameToBlock.has(key)) {
-        throw new Error(
-          `${specName} REMOVED failed for header "### Requirement: ${name}" - not found`
-        );
+        // For new specs, REMOVED requirements are already warned about and ignored
+        // For existing specs, missing requirements are an error
+        if (!isNewSpec) {
+          throw new Error(
+            `${specName} REMOVED failed for header "### Requirement: ${name}" - not found`
+          );
+        }
+        // Skip removal for new specs (already warned above)
+        continue;
       }
       nameToBlock.delete(key);
     }
