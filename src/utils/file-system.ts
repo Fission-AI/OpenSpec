@@ -42,6 +42,14 @@ function findMarkerIndex(
 }
 
 export class FileSystemUtils {
+  /**
+   * Converts a path to use forward slashes (POSIX style).
+   * Essential for cross-platform compatibility with glob libraries like fast-glob.
+   */
+  static toPosixPath(p: string): string {
+    return p.replace(/\\/g, '/');
+  }
+
   private static isWindowsBasePath(basePath: string): boolean {
     return /^[A-Za-z]:[\\/]/.test(basePath) || basePath.startsWith('\\');
   }
