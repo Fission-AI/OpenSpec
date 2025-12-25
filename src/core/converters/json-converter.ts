@@ -3,6 +3,7 @@ import path from 'path';
 import { MarkdownParser } from '../parsers/markdown-parser.js';
 import { ChangeParser } from '../parsers/change-parser.js';
 import { Spec, Change } from '../schemas/index.js';
+import { FileSystemUtils } from '../../utils/file-system.js';
 
 export class JsonConverter {
   convertSpecToJson(filePath: string): string {
@@ -43,7 +44,7 @@ export class JsonConverter {
   }
 
   private extractNameFromPath(filePath: string): string {
-    const normalizedPath = filePath.replaceAll('\\', '/');
+    const normalizedPath = FileSystemUtils.toPosixPath(filePath);
     const parts = normalizedPath.split('/');
     
     for (let i = parts.length - 1; i >= 0; i--) {
