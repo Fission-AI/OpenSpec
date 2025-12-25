@@ -211,17 +211,23 @@ ChangeState {
 
 User interface layer. **All commands are deterministic** - require explicit `--change` parameter.
 
-| Command | Function |
-|---------|----------|
-| `status --change <id>` | Show change progress |
-| `next --change <id>` | Show artifacts ready to create |
-| `instructions <artifact> --change <id>` | Get enriched instructions for artifact |
-| `list` | List all changes |
-| `new <name>` | Create change |
-| `init` | Initialize structure |
-| `templates --change <id>` | Show resolved template paths |
+| Command | Function | Status |
+|---------|----------|--------|
+| `status --change <id>` | Show change progress (artifact graph) | **NEW** |
+| `next --change <id>` | Show artifacts ready to create | **NEW** |
+| `instructions <artifact> --change <id>` | Get enriched instructions for artifact | **NEW** |
+| `list` | List all changes | EXISTS (`openspec change list`) |
+| `new <name>` | Create change | **NEW** (uses `createChange()`) |
+| `init` | Initialize structure | EXISTS (`openspec init`) |
+| `templates --change <id>` | Show resolved template paths | **NEW** |
 
 **Note:** Commands that operate on a change require `--change`. Missing parameter → error with list of available changes. Agent infers the change from conversation and passes it explicitly.
+
+**Existing CLI commands** (not part of this slice):
+- `openspec change list` / `openspec change show <id>` / `openspec change validate <id>`
+- `openspec list --changes` / `openspec list --specs`
+- `openspec view` (dashboard)
+- `openspec init` / `openspec archive <change>`
 
 ---
 
@@ -453,10 +459,23 @@ Structured as **vertical slices** - each slice is independently testable.
 
 ### Slice 4: "CLI + Integration"
 
-**Delivers:** Full command interface
+**Delivers:** New artifact graph commands (builds on existing CLI)
+
+**New commands:**
+- `status --change <id>` - Show artifact completion state
+- `next --change <id>` - Show ready-to-create artifacts
+- `instructions <artifact> --change <id>` - Get enriched template
+- `templates --change <id>` - Show resolved paths
+- `new <name>` - Create change (wrapper for `createChange()`)
+
+**Already exists (not in scope):**
+- `openspec change list/show/validate` - change management
+- `openspec list --changes/--specs` - listing
+- `openspec view` - dashboard
+- `openspec init` - initialization
 
 **Testable behaviors:**
-- Each command produces expected output
+- Each new command produces expected output
 - Commands compose correctly (status → next → instructions flow)
 - Error handling for missing changes, invalid artifacts, etc.
 
@@ -551,11 +570,19 @@ artifacts:
 
 | Layer | Component | Responsibility | Status |
 |-------|-----------|----------------|--------|
-| Core | ArtifactGraph | Pure dependency logic + XDG schema resolution | ✅ Slice 1 |
-| Utils | change-utils | Change creation + name validation | Slice 2 |
-| Core | InstructionLoader | Template resolution + enrichment | Slice 3 |
-| Presentation | CLI | Thin command wrapper | Slice 4 |
+| Core | ArtifactGraph | Pure dependency logic + XDG schema resolution | ✅ Slice 1 COMPLETE |
+| Utils | change-utils | Change creation + name validation only | Slice 2 (new functionality only) |
+| Core | InstructionLoader | Template resolution + enrichment | Slice 3 (all new) |
+| Presentation | CLI | New artifact graph commands | Slice 4 (new commands only) |
 | Integration | Claude Commands | AI assistant glue | Slice 4 |
+
+**What already exists (not in this proposal):**
+- `getActiveChangeIds()` in `src/utils/item-discovery.ts` - list changes
+- `ChangeCommand.list/show/validate()` in `src/commands/change.ts`
+- `ListCommand.execute()` in `src/core/list.ts`
+- `ViewCommand.execute()` in `src/core/view.ts` - dashboard
+- `src/core/init.ts` - initialization
+- `src/core/archive.ts` - archiving
 
 **Key Principles:**
 - **Filesystem IS the database** - stateless, version-control friendly
