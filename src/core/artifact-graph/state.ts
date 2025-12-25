@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import fg from 'fast-glob';
 import type { CompletedSet } from './types.js';
 import type { ArtifactGraph } from './graph.js';
+import { FileSystemUtils } from '../../utils/file-system.js';
 
 /**
  * Detects which artifacts are completed by checking file existence in the change directory.
@@ -54,8 +55,10 @@ function isGlobPattern(pattern: string): boolean {
 
 /**
  * Checks if a glob pattern has any matches.
+ * Normalizes Windows backslashes to forward slashes for cross-platform glob compatibility.
  */
 function hasGlobMatches(pattern: string): boolean {
-  const matches = fg.sync(pattern, { onlyFiles: true });
+  const normalizedPattern = FileSystemUtils.toPosixPath(pattern);
+  const matches = fg.sync(normalizedPattern, { onlyFiles: true });
   return matches.length > 0;
 }
