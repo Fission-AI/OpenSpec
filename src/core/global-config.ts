@@ -5,6 +5,7 @@ import * as os from 'node:os';
 // Constants
 export const GLOBAL_CONFIG_DIR_NAME = 'openspec';
 export const GLOBAL_CONFIG_FILE_NAME = 'config.json';
+export const GLOBAL_DATA_DIR_NAME = 'openspec';
 
 // TypeScript interfaces
 export interface GlobalConfig {
@@ -43,6 +44,37 @@ export function getGlobalConfigDir(): string {
 
   // Unix/macOS fallback: ~/.config
   return path.join(os.homedir(), '.config', GLOBAL_CONFIG_DIR_NAME);
+}
+
+/**
+ * Gets the global data directory path following XDG Base Directory Specification.
+ * Used for user data like schema overrides.
+ *
+ * - All platforms: $XDG_DATA_HOME/openspec/ if XDG_DATA_HOME is set
+ * - Unix/macOS fallback: ~/.local/share/openspec/
+ * - Windows fallback: %LOCALAPPDATA%/openspec/
+ */
+export function getGlobalDataDir(): string {
+  // XDG_DATA_HOME takes precedence on all platforms when explicitly set
+  const xdgDataHome = process.env.XDG_DATA_HOME;
+  if (xdgDataHome) {
+    return path.join(xdgDataHome, GLOBAL_DATA_DIR_NAME);
+  }
+
+  const platform = os.platform();
+
+  if (platform === 'win32') {
+    // Windows: use %LOCALAPPDATA%
+    const localAppData = process.env.LOCALAPPDATA;
+    if (localAppData) {
+      return path.join(localAppData, GLOBAL_DATA_DIR_NAME);
+    }
+    // Fallback for Windows if LOCALAPPDATA is not set
+    return path.join(os.homedir(), 'AppData', 'Local', GLOBAL_DATA_DIR_NAME);
+  }
+
+  // Unix/macOS fallback: ~/.local/share
+  return path.join(os.homedir(), '.local', 'share', GLOBAL_DATA_DIR_NAME);
 }
 
 /**

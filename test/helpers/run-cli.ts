@@ -90,6 +90,9 @@ export async function runCLI(args: string[] = [], options: RunCLIOptions = {}): 
       windowsHide: true,
     });
 
+    // Prevent child process from keeping the event loop alive
+    child.unref();
+
     let stdout = '';
     let stderr = '';
     let timedOut = false;
@@ -113,11 +116,19 @@ export async function runCLI(args: string[] = [], options: RunCLIOptions = {}): 
 
     child.on('error', (error) => {
       if (timeout) clearTimeout(timeout);
+      // Explicitly destroy streams to prevent hanging handles
+      child.stdout?.destroy();
+      child.stderr?.destroy();
+      child.stdin?.destroy();
       reject(error);
     });
 
     child.on('close', (code, signal) => {
       if (timeout) clearTimeout(timeout);
+      // Explicitly destroy streams to prevent hanging handles
+      child.stdout?.destroy();
+      child.stderr?.destroy();
+      child.stdin?.destroy();
       resolve({
         exitCode: code,
         signal,
