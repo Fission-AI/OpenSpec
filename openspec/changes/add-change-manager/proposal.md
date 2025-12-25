@@ -1,58 +1,45 @@
 ## Why
 
-Change management logic is currently duplicated across multiple CLI commands:
-- `ListCommand` (`src/core/list.ts`) scans `openspec/changes/`, excludes `archive/`
-- `ChangeCommand` (`src/commands/change.ts`) has `getActiveChanges()` doing the same
-- Path resolution and existence checks are inline `fs.access()` / `path.join()` calls
-- No centralized place for change CRUD operations
+There's no programmatic way to create a new change directory. Users must manually:
+1. Create `openspec/changes/<name>/` directory
+2. Create a `proposal.md` file
+3. Hope they got the naming right
 
-This makes the code harder to maintain and prevents reuse by the artifact-graph system (Slices 3/4).
+This is error-prone and blocks automation (e.g., Claude commands, scripts).
 
-**This proposal:**
-1. **Extracts** existing change logic into a reusable `ChangeManager` module
-2. **Adds** new functionality: `createChange()` and kebab-case name validation
-3. **Refactors** CLI commands to use the new module (thin wrappers)
+**This proposal adds:**
+1. `createChange(name, description?)` - Create change directories programmatically
+2. `validateChangeName(name)` - Enforce kebab-case naming conventions
 
 ## What Changes
 
-### New Module: `ChangeManager` (`src/core/change-manager/`)
+### New Utilities
 
-A core module consolidating all change directory operations:
+| Function | Description |
+|----------|-------------|
+| `createChange(name, description?)` | Creates `openspec/changes/<name>/` with README.md |
+| `validateChangeName(name)` | Returns `{ valid: boolean; error?: string }` |
 
-| Method | Source | Description |
-|--------|--------|-------------|
-| `listChanges()` | **Extract** | From `ListCommand` + `ChangeCommand.getActiveChanges()` |
-| `changeExists(name)` | **Extract** | From inline `fs.access()` checks |
-| `getChangePath(name)` | **Extract** | From inline `path.join()` logic |
-| `isInitialized()` | **Extract** | From `ListCommand` directory check |
-| `createChange(name, desc?)` | **NEW** | Create change directory + README |
-| `validateName(name)` | **NEW** | Enforce kebab-case naming |
+### Name Validation Rules
 
-### Refactored Commands (thin wrappers)
+Pattern: `^[a-z][a-z0-9]*(-[a-z0-9]+)*$`
 
-| Command | Before | After |
-|---------|--------|-------|
-| `ListCommand.execute()` | Inline fs scanning | Calls `changeManager.listChanges()` |
-| `ChangeCommand.list()` | Inline `getActiveChanges()` | Calls `changeManager.listChanges()` |
-| `ChangeCommand.show()` | Inline path building | Calls `changeManager.getChangePath()` |
-| `ChangeCommand.validate()` | Inline path building | Calls `changeManager.getChangePath()` |
+| Valid | Invalid |
+|-------|---------|
+| `add-auth` | `Add-Auth` (uppercase) |
+| `refactor-db` | `add auth` (spaces) |
+| `add-feature-2` | `add_auth` (underscores) |
+| `refactor` | `-add-auth` (leading hyphen) |
 
-### Key Design Decisions
+### Location
 
-- **Single source of truth** - All change operations go through ChangeManager
-- **CLI becomes thin** - Commands handle formatting/interaction only
-- **Testable core** - ChangeManager is pure, no CLI coupling
-- **Reusable** - artifact-graph Slices 3/4 can import and use it
+New file: `src/utils/change-utils.ts`
+
+Simple utility functions - no class, no abstraction layer.
 
 ## Impact
 
-- **Affected specs**: None (internal refactor + new capability)
-- **New spec**: `change-manager` - Consolidated change operations
-- **Affected code**:
-  - New: `src/core/change-manager/index.ts` - Main module
-  - New: `src/core/change-manager/change-manager.ts` - Class implementation
-  - New: `src/core/change-manager/validation.ts` - Name validation
-  - Refactor: `src/core/list.ts` - Use ChangeManager
-  - Refactor: `src/commands/change.ts` - Use ChangeManager
-- **Dependencies**: Used by `artifact-graph` for Slices 3/4
-- **Breaking changes**: None (CLI interface unchanged)
+- **Affected specs**: None
+- **Affected code**: None (new utilities only)
+- **New files**: `src/utils/change-utils.ts`
+- **Breaking changes**: None
