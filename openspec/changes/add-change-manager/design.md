@@ -31,8 +31,7 @@ export function validateChangeName(name: string): { valid: boolean; error?: stri
 
 export async function createChange(
   projectRoot: string,
-  name: string,
-  description?: string
+  name: string
 ): Promise<void>
 ```
 
@@ -57,21 +56,6 @@ Invalid: `Add-Auth`, `add auth`, `add_auth`, `-add-auth`, `add-auth-`, `add--aut
 - Filesystem-safe (no special characters)
 - URL-safe (for future web UI)
 - Consistent with existing change naming in repo
-
-### Decision 3: README.md for Change Metadata
-
-**Choice**: `createChange()` generates a `README.md` with name and optional description.
-
-```markdown
-# add-auth
-
-Add user authentication system
-```
-
-**Why**:
-- Human-readable in GitHub/GitLab UI
-- Minimal overhead
-- Matches existing manual change creation patterns
 
 ## File Changes
 

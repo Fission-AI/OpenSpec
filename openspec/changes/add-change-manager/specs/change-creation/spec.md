@@ -3,15 +3,9 @@
 ### Requirement: Change Creation
 The system SHALL provide a function to create new change directories programmatically.
 
-#### Scenario: Create change with name only
+#### Scenario: Create change
 - **WHEN** `createChange(projectRoot, 'add-auth')` is called
 - **THEN** the system creates `openspec/changes/add-auth/` directory
-- **AND** creates a `README.md` file with the change name as title
-
-#### Scenario: Create change with description
-- **WHEN** `createChange(projectRoot, 'add-auth', 'Add user authentication')` is called
-- **THEN** the system creates `openspec/changes/add-auth/` directory
-- **AND** creates a `README.md` file with the change name and description
 
 #### Scenario: Duplicate change rejected
 - **WHEN** `createChange(projectRoot, 'add-auth')` is called and `openspec/changes/add-auth/` already exists

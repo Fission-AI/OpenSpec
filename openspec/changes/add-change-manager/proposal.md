@@ -8,7 +8,7 @@ There's no programmatic way to create a new change directory. Users must manuall
 This is error-prone and blocks automation (e.g., Claude commands, scripts).
 
 **This proposal adds:**
-1. `createChange(name, description?)` - Create change directories programmatically
+1. `createChange(projectRoot, name)` - Create change directories programmatically
 2. `validateChangeName(name)` - Enforce kebab-case naming conventions
 
 ## What Changes
@@ -17,7 +17,7 @@ This is error-prone and blocks automation (e.g., Claude commands, scripts).
 
 | Function | Description |
 |----------|-------------|
-| `createChange(name, description?)` | Creates `openspec/changes/<name>/` with README.md |
+| `createChange(projectRoot, name)` | Creates `openspec/changes/<name>/` directory |
 | `validateChangeName(name)` | Returns `{ valid: boolean; error?: string }` |
 
 ### Name Validation Rules
