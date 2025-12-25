@@ -1,7 +1,7 @@
 # change-creation Specification
 
 ## Purpose
-TBD - created by archiving change add-change-manager. Update Purpose after archive.
+Provide programmatic utilities for creating and validating OpenSpec change directories.
 ## Requirements
 ### Requirement: Change Creation
 The system SHALL provide a function to create new change directories programmatically.
