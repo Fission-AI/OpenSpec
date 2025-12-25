@@ -150,15 +150,13 @@ type SchemaYaml = z.infer<typeof SchemaYamlSchema>;
 
 ---
 
-### 2. ChangeManager (Slice 2)
+### 2. Change Utilities (Slice 2)
 
-Multi-change orchestration layer. **CLI is fully deterministic** - no "active change" tracking.
+Simple utility functions for programmatic change creation. No class, no abstraction layer.
 
 | Responsibility | Approach |
 |----------------|----------|
-| CRUD changes | Create dirs under `openspec/changes/<name>/` |
-| List changes | Scan `openspec/changes/` (excluding `archive/`) |
-| Path resolution | Resolve change directory paths |
+| Create changes | Create dirs under `openspec/changes/<name>/` with README |
 | Name validation | Enforce kebab-case naming |
 
 **Key Paths:**
@@ -167,14 +165,11 @@ Multi-change orchestration layer. **CLI is fully deterministic** - no "active ch
 openspec/changes/<name>/   → Change instances with artifacts (project-level)
 ```
 
-**Key Methods:**
-- `isInitialized()` - Check for `openspec/changes/` existence
-- `listChanges()` - List all changes (excluding archive)
-- `createChange(name, description)` - Create new change directory + README
-- `getChangePath(name)` - Get path to a change directory
-- `changeExists(name)` - Check if change exists
+**Key Functions** (`src/utils/change-utils.ts`):
+- `createChange(projectRoot, name, description?)` - Create new change directory + README
+- `validateChangeName(name)` - Validate kebab-case naming, returns `{ valid, error? }`
 
-**Note:** Schema resolution is handled by `artifact-graph` module (Slice 1). Template resolution is handled by `InstructionLoader` (Slice 3). ChangeManager focuses solely on change directory management.
+**Note:** Existing CLI commands (`ListCommand`, `ChangeCommand`) already handle listing, path resolution, and existence checks. No need to extract that logic - it works fine as-is.
 
 ---
 
@@ -269,9 +264,10 @@ This works for ANY artifact in ANY schema - no new slash commands needed when sc
 ┌─────────────────────────────────────────────────────────────┐
 │                    ORCHESTRATION LAYER                       │
 │  ┌────────────────────┐        ┌──────────────────────────┐ │
-│  │ InstructionLoader  │───────▶│    ChangeManager         │ │
-│  │    (Slice 3)       │ uses   │      (Slice 2)           │ │
-│  └─────────┬──────────┘        └──────────────────────────┘ │
+│  │ InstructionLoader  │        │  change-utils (Slice 2)  │ │
+│  │    (Slice 3)       │        │  createChange()          │ │
+│  └─────────┬──────────┘        │  validateChangeName()    │ │
+│            │                   └──────────────────────────┘ │
 └────────────┼────────────────────────────────────────────────┘
              │ uses
              ▼
@@ -426,21 +422,21 @@ Structured as **vertical slices** - each slice is independently testable.
 
 ---
 
-### Slice 2: "Multi-Change Management"
+### Slice 2: "Change Creation Utilities"
 
-**Delivers:** CRUD for changes, path resolution, name validation
+**Delivers:** Utility functions for programmatic change creation
 
 **Scope:**
-- `createChange(name, description?)` → creates directory + README
-- `listChanges()` → returns directory names (excluding `archive/`)
-- `getChangePath(name)` → returns absolute path
-- `changeExists(name)` → checks directory existence
-- `isInitialized()` → checks `openspec/changes/` existence
-- Name validation → kebab-case pattern enforcement
+- `createChange(projectRoot, name, description?)` → creates directory + README
+- `validateChangeName(name)` → kebab-case pattern enforcement
 
-**Not in scope (uses existing or deferred):**
-- Schema resolution → reuse `artifact-graph.resolveSchema()`
-- Template resolution → Slice 3
+**Not in scope (already exists in CLI commands):**
+- `listChanges()` → exists in `ListCommand` and `ChangeCommand.getActiveChanges()`
+- `getChangePath()` → simple `path.join()` inline
+- `changeExists()` → simple `fs.access()` inline
+- `isInitialized()` → simple directory check inline
+
+**Why simplified:** Extracting existing CLI logic into a class would require similar refactoring of `SpecCommand` for consistency. The existing code works fine (~15 lines each). Only truly new functionality is `createChange()` + name validation.
 
 ---
 
@@ -556,7 +552,7 @@ artifacts:
 | Layer | Component | Responsibility | Status |
 |-------|-----------|----------------|--------|
 | Core | ArtifactGraph | Pure dependency logic + XDG schema resolution | ✅ Slice 1 |
-| Core | ChangeManager | Multi-change CRUD + path resolution | Slice 2 |
+| Utils | change-utils | Change creation + name validation | Slice 2 |
 | Core | InstructionLoader | Template resolution + enrichment | Slice 3 |
 | Presentation | CLI | Thin command wrapper | Slice 4 |
 | Integration | Claude Commands | AI assistant glue | Slice 4 |
