@@ -73,7 +73,9 @@
     "@inquirer/prompts": "^7.8.0",
     "chalk": "^5.5.0",
     "commander": "^14.0.0",
+    "fast-glob": "^3.3.3",
     "ora": "^8.2.0",
+    "yaml": "^2.8.2",
     "zod": "^4.0.17"
   }
 }
