@@ -18,7 +18,11 @@ export { ArtifactGraph } from './graph.js';
 export { detectCompleted } from './state.js';
 
 // Schema resolution
-export { resolveSchema, listSchemas } from './resolver.js';
-
-// Built-in schemas
-export { BUILTIN_SCHEMAS, SPEC_DRIVEN_SCHEMA, TDD_SCHEMA } from './builtin-schemas.js';
+export {
+  resolveSchema,
+  listSchemas,
+  getSchemaDir,
+  getPackageSchemasDir,
+  getUserSchemasDir,
+  SchemaLoadError,
+} from './resolver.js';
