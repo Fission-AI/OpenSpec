@@ -3,7 +3,7 @@
 ### Requirement: Schema Loading
 The system SHALL load artifact graph definitions from YAML schema files within schema directories.
 
-#### Scenario: Valid schema loaded from directory
+#### Scenario: Valid schema loaded
 - **WHEN** a schema directory contains a valid `schema.yaml` file
 - **THEN** the system returns an ArtifactGraph with all artifacts and dependencies
 
