@@ -22,7 +22,7 @@ This system is **not** a workflow engine. It's an **artifact tracker with depend
 | Term | Definition | Example |
 |------|------------|---------|
 | **Change** | A unit of work being planned (feature, refactor, migration) | `openspec/changes/add-auth/` |
-| **Schema** | An artifact graph definition (what artifacts exist, their dependencies) | `schemas/spec-driven.yaml` |
+| **Schema** | An artifact graph definition (what artifacts exist, their dependencies) | `spec-driven.yaml` |
 | **Artifact** | A node in the graph (a document to create) | `proposal`, `design`, `specs` |
 | **Template** | Instructions/guidance for creating an artifact | `templates/proposal.md` |
 
@@ -47,25 +47,39 @@ Schemas can vary across multiple dimensions:
 | Language | `en`, `zh`, `es` |
 | Custom | `team-alpha`, `experimental` |
 
-### Template Inheritance (2 Levels Max)
+### Schema Resolution (XDG Standard)
+
+Schemas follow the XDG Base Directory Specification with a 2-level resolution:
 
 ```
-.openspec/
-├── templates/                 # Shared (Level 1)
-│   ├── proposal.md
-│   ├── design.md
-│   └── specs.md
-│
-└── schemas/
-    └── tdd/
-        ├── schema.yaml
-        └── templates/         # Overrides (Level 2)
-            └── tests.md       # TDD-specific
+1. ${XDG_DATA_HOME}/openspec/schemas/<name>.yaml   # Global user override
+2. <package>/schemas/<name>.yaml                    # Built-in defaults
+```
+
+**Platform-specific paths:**
+- Unix/macOS: `~/.local/share/openspec/schemas/`
+- Windows: `%LOCALAPPDATA%/openspec/schemas/`
+- All platforms: `$XDG_DATA_HOME/openspec/schemas/` (when set)
+
+**Why XDG?**
+- Schemas are workflow definitions (data), not user preferences (config)
+- Built-ins baked into package, never auto-copied
+- Users customize by creating files in global data dir
+- Consistent with modern CLI tooling standards
+
+### Template Inheritance (2 Levels Max)
+
+Templates also use 2-level resolution (to be implemented in Slice 3):
+
+```
+1. ${XDG_DATA_HOME}/openspec/schemas/<schema>/templates/<artifact>.md  # Schema-specific
+2. ${XDG_DATA_HOME}/openspec/templates/<artifact>.md                   # Shared
+3. <package>/templates/<artifact>.md                                    # Built-in fallback
 ```
 
 **Rules:**
-- Shared templates are the default
-- Schema-specific templates override OR add new
+- Schema-specific templates override shared templates
+- Shared templates override package built-ins
 - A CLI command shows resolved paths (no guessing)
 - No inheritance between schemas (copy if you need to diverge)
 - Max 2 levels - no deeper inheritance chains
@@ -90,83 +104,82 @@ The system answers:
 
 ## Core Components
 
-### 1. ArtifactGraph
+### 1. ArtifactGraph (Slice 1 - COMPLETE)
 
-The dependency graph engine.
+The dependency graph engine with XDG-compliant schema resolution.
 
 | Responsibility | Approach |
 |----------------|----------|
 | Model artifacts as a DAG | Artifact with `requires: string[]` |
-| Track completion state | Sets for `completed`, `in_progress`, `failed` |
+| Track completion state | `Set<string>` for completed artifacts |
 | Calculate build order | Kahn's algorithm (topological sort) |
 | Find ready artifacts | Check if all dependencies are in `completed` set |
+| Resolve schemas | XDG global → package built-ins |
 
-**Key Data Structures:**
+**Key Data Structures (Zod-validated):**
 
-```
-Artifact {
-  id: string
-  generates: string        // e.g., "proposal.md" or "specs/*.md"
-  description: string
-  instruction: string      // path to template
-  requires: string[]       // artifact IDs this depends on
-}
+```typescript
+// Zod schemas define types + validation
+const ArtifactSchema = z.object({
+  id: z.string().min(1),
+  generates: z.string().min(1),      // e.g., "proposal.md" or "specs/*.md"
+  description: z.string(),
+  template: z.string(),              // path to template file
+  requires: z.array(z.string()).default([]),
+});
 
-ArtifactState {
-  completed: Set<string>
-  inProgress: Set<string>
-  failed: Set<string>
-}
+const SchemaYamlSchema = z.object({
+  name: z.string().min(1),
+  version: z.number().int().positive(),
+  description: z.string().optional(),
+  artifacts: z.array(ArtifactSchema).min(1),
+});
 
-ArtifactGraph {
-  artifacts: Map<string, Artifact>
-}
+// Derived types
+type Artifact = z.infer<typeof ArtifactSchema>;
+type SchemaYaml = z.infer<typeof SchemaYamlSchema>;
 ```
 
 **Key Methods:**
-- `fromYaml(path)` - Load artifact definitions from YAML
-- `getNextArtifacts(state)` - Find artifacts ready to create
-- `getBuildOrder()` - Topological sort of all artifacts
-- `isComplete(state)` - Check if all artifacts done
+- `resolveSchema(name)` - Load schema with XDG fallback
+- `ArtifactGraph.fromSchema(schema)` - Build graph from schema
+- `detectState(graph, changeDir)` - Scan filesystem for completion
+- `getNextArtifacts(graph, completed)` - Find artifacts ready to create
+- `getBuildOrder(graph)` - Topological sort of all artifacts
+- `getBlocked(graph, completed)` - Artifacts with unmet dependencies
 
 ---
 
-### 2. ChangeManager
+### 2. Change Utilities (Slice 2)
 
-Multi-change orchestration layer. **CLI is fully deterministic** - no "active change" tracking.
+Simple utility functions for programmatic change creation. No class, no abstraction layer.
 
 | Responsibility | Approach |
 |----------------|----------|
-| CRUD changes | Create dirs under `openspec/changes/<name>/` |
-| Template fallback | Schema-specific → Shared (2 levels max) |
+| Create changes | Create dirs under `openspec/changes/<name>/` with README |
+| Name validation | Enforce kebab-case naming |
 
 **Key Paths:**
 
 ```
-.openspec/schemas/         → Schema definitions (artifact graphs)
-.openspec/templates/       → Shared instruction templates
-openspec/changes/<name>/   → Change instances with artifacts
+openspec/changes/<name>/   → Change instances with artifacts (project-level)
 ```
 
-**Key Methods:**
-- `isInitialized()` - Check for `.openspec/` existence
-- `listChanges()` - List all changes in `openspec/changes/`
-- `createChange(name, description)` - Create new change directory
-- `getChangePath(name)` - Get path to a change directory
-- `getSchemaPath(schemaName?)` - Find schema with fallback
-- `getTemplatePath(artifactId, schemaName?)` - Find template (schema → shared)
+**Key Functions** (`src/utils/change-utils.ts`):
+- `createChange(projectRoot, name, description?)` - Create new change directory + README
+- `validateChangeName(name)` - Validate kebab-case naming, returns `{ valid, error? }`
 
-**Note:** No `getActiveChange()`, `setActiveChange()`, or `resolveChange()` - the agent infers which change from conversation context and passes it explicitly to CLI commands.
+**Note:** Existing CLI commands (`ListCommand`, `ChangeCommand`) already handle listing, path resolution, and existence checks. No need to extract that logic - it works fine as-is.
 
 ---
 
-### 3. InstructionLoader
+### 3. InstructionLoader (Slice 3)
 
-State detection and instruction enrichment.
+Template resolution and instruction enrichment.
 
 | Responsibility | Approach |
 |----------------|----------|
-| Detect artifact completion | Scan filesystem, support glob patterns |
+| Resolve templates | XDG 2-level fallback (schema-specific → shared → built-in) |
 | Build dynamic context | Gather dependency status, change info |
 | Enrich templates | Inject context into base templates |
 | Generate status reports | Formatted markdown with progress |
@@ -178,7 +191,7 @@ ChangeState {
   changeName: string
   changeDir: string
   graph: ArtifactGraph
-  state: ArtifactState
+  completed: Set<string>
 
   // Methods
   getNextSteps(): string[]
@@ -188,27 +201,33 @@ ChangeState {
 ```
 
 **Key Functions:**
+- `getTemplatePath(artifactId, schemaName?)` - Resolve with 2-level fallback
 - `getEnrichedInstructions(artifactId, projectRoot, changeName?)` - Main entry point
 - `getChangeStatus(projectRoot, changeName?)` - Formatted status report
-- `resolveTemplatePath(artifactId, schemaName?)` - 2-level fallback
 
 ---
 
-### 4. CLI
+### 4. CLI (Slice 4)
 
 User interface layer. **All commands are deterministic** - require explicit `--change` parameter.
 
-| Command | Function |
-|---------|----------|
-| `status --change <id>` | Show change progress |
-| `next --change <id>` | Show artifacts ready to create |
-| `instructions <artifact> --change <id>` | Get enriched instructions for artifact |
-| `list` | List all changes |
-| `new <name>` | Create change |
-| `init` | Initialize structure |
-| `templates --change <id>` | Show resolved template paths |
+| Command | Function | Status |
+|---------|----------|--------|
+| `status --change <id>` | Show change progress (artifact graph) | **NEW** |
+| `next --change <id>` | Show artifacts ready to create | **NEW** |
+| `instructions <artifact> --change <id>` | Get enriched instructions for artifact | **NEW** |
+| `list` | List all changes | EXISTS (`openspec change list`) |
+| `new <name>` | Create change | **NEW** (uses `createChange()`) |
+| `init` | Initialize structure | EXISTS (`openspec init`) |
+| `templates --change <id>` | Show resolved template paths | **NEW** |
 
 **Note:** Commands that operate on a change require `--change`. Missing parameter → error with list of available changes. Agent infers the change from conversation and passes it explicitly.
+
+**Existing CLI commands** (not part of this slice):
+- `openspec change list` / `openspec change show <id>` / `openspec change validate <id>`
+- `openspec list --changes` / `openspec list --specs`
+- `openspec view` (dashboard)
+- `openspec init` / `openspec archive <change>`
 
 ---
 
@@ -251,19 +270,19 @@ This works for ANY artifact in ANY schema - no new slash commands needed when sc
 ┌─────────────────────────────────────────────────────────────┐
 │                    ORCHESTRATION LAYER                       │
 │  ┌────────────────────┐        ┌──────────────────────────┐ │
-│  │ InstructionLoader  │───────▶│    ChangeManager         │ │
-│  │                    │ uses   │                          │ │
-│  └─────────┬──────────┘        └──────────────────────────┘ │
+│  │ InstructionLoader  │        │  change-utils (Slice 2)  │ │
+│  │    (Slice 3)       │        │  createChange()          │ │
+│  └─────────┬──────────┘        │  validateChangeName()    │ │
+│            │                   └──────────────────────────┘ │
 └────────────┼────────────────────────────────────────────────┘
              │ uses
              ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                      CORE LAYER                              │
 │  ┌──────────────────────────────────────────────────────┐   │
-│  │               ArtifactGraph                          │   │
+│  │               ArtifactGraph (Slice 1)                │   │
 │  │                                                      │   │
-│  │  Artifact ←────── ArtifactState                      │   │
-│  │  (data)           (runtime state)                    │   │
+│  │  Schema Resolution (XDG) ──→ Graph ──→ State Detection│   │
 │  └──────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
              ▲
@@ -272,9 +291,10 @@ This works for ANY artifact in ANY schema - no new slash commands needed when sc
 ┌─────────────────────────────────────────────────────────────┐
 │                   PERSISTENCE LAYER                          │
 │  ┌──────────────────┐   ┌────────────────────────────────┐  │
-│  │  YAML Config     │   │  Filesystem Artifacts          │  │
-│  │  - config.yaml   │   │  - proposal.md, design.md      │  │
-│  │  - schema.yaml   │   │  - specs/*.md, tasks.md        │  │
+│  │  XDG Schemas     │   │  Project Artifacts             │  │
+│  │  ~/.local/share/ │   │  openspec/changes/<name>/      │  │
+│  │  openspec/       │   │  - proposal.md, design.md      │  │
+│  │  schemas/        │   │  - specs/*.md, tasks.md        │  │
 │  └──────────────────┘   └────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -310,17 +330,29 @@ This separation means:
 - Agent handles all "smartness"
 - No config.yaml tracking of "active change"
 
-### 3. Two-Level Template Fallback
+### 3. XDG-Compliant Schema Resolution
 
 ```
-schema-specific/templates/proposal.md
+${XDG_DATA_HOME}/openspec/schemas/<name>.yaml   # User override
     ↓ (not found)
-.openspec/templates/proposal.md (shared)
+<package>/schemas/<name>.yaml                    # Built-in
+    ↓ (not found)
+Error (schema not found)
+```
+
+### 4. Two-Level Template Fallback (Slice 3)
+
+```
+${XDG_DATA_HOME}/openspec/schemas/<schema>/templates/<artifact>.md  # Schema-specific
+    ↓ (not found)
+${XDG_DATA_HOME}/openspec/templates/<artifact>.md                   # Shared
+    ↓ (not found)
+<package>/templates/<artifact>.md                                    # Built-in
     ↓ (not found)
 Error (no silent fallback to avoid confusion)
 ```
 
-### 4. Glob Pattern Support
+### 5. Glob Pattern Support
 
 `specs/*.md` allows multiple files to satisfy a single artifact:
 
@@ -333,7 +365,7 @@ if (artifact.generates.includes("*")) {
 }
 ```
 
-### 5. Stateless State Detection
+### 6. Stateless State Detection
 
 Every command re-scans the filesystem. No cached state to corrupt.
 
@@ -376,39 +408,41 @@ Structured as **vertical slices** - each slice is independently testable.
 
 ---
 
-### Slice 1: "What's Ready?" (Core Query)
+### Slice 1: "What's Ready?" (Core Query) ✅ COMPLETE
 
-**Combines:** Types + Graph + State Detection
+**Delivers:** Types + Graph + State Detection + Schema Resolution
 
-```
-Input:  schema YAML path + change directory
-Output: {
-  completed: ['proposal'],
-  ready: ['specs'],
-  blocked: ['design', 'tasks'],
-  buildOrder: ['proposal', 'specs', 'design', 'tasks']
-}
-```
+**Implementation:** `src/core/artifact-graph/`
+- `types.ts` - Zod schemas and derived TypeScript types
+- `schema.ts` - YAML parsing with Zod validation
+- `graph.ts` - ArtifactGraph class with topological sort
+- `state.ts` - Filesystem-based state detection
+- `resolver.ts` - XDG-compliant schema resolution
+- `builtin-schemas.ts` - Package-bundled default schemas
 
-**Testable behaviors:**
-- Parse schema YAML → returns correct artifact graph
-- Compute build order (topological sort) → correct ordering
-- Empty directory → only root artifacts (no dependencies) are ready
-- Directory with `proposal.md` → `specs` becomes ready
-- Directory with `specs/foo.md` → glob pattern detected as complete
-- All artifacts present → `isComplete()` returns true
+**Key decisions made:**
+- Zod for schema validation (consistent with project)
+- XDG for global schema overrides
+- `Set<string>` for completion state (immutable, functional)
+- `inProgress` and `failed` states deferred (require external tracking)
 
 ---
 
-### Slice 2: "Multi-Change Management"
+### Slice 2: "Change Creation Utilities"
 
-**Delivers:** CRUD for changes, path resolution
+**Delivers:** Utility functions for programmatic change creation
 
-**Testable behaviors:**
-- `createChange('add-auth')` → creates directory + README
-- `listChanges()` → returns directory names
-- `getChangePath('add-auth')` → returns correct path
-- Missing change → clear error message
+**Scope:**
+- `createChange(projectRoot, name, description?)` → creates directory + README
+- `validateChangeName(name)` → kebab-case pattern enforcement
+
+**Not in scope (already exists in CLI commands):**
+- `listChanges()` → exists in `ListCommand` and `ChangeCommand.getActiveChanges()`
+- `getChangePath()` → simple `path.join()` inline
+- `changeExists()` → simple `fs.access()` inline
+- `isInitialized()` → simple directory check inline
+
+**Why simplified:** Extracting existing CLI logic into a class would require similar refactoring of `SpecCommand` for consistency. The existing code works fine (~15 lines each). Only truly new functionality is `createChange()` + name validation.
 
 ---
 
@@ -417,7 +451,7 @@ Output: {
 **Delivers:** Template resolution + context injection
 
 **Testable behaviors:**
-- Template fallback: schema-specific → shared → error
+- Template fallback: schema-specific → shared → built-in → error
 - Context injection: completed deps show ✓, missing show ✗
 - Output path shown correctly based on change directory
 
@@ -425,10 +459,23 @@ Output: {
 
 ### Slice 4: "CLI + Integration"
 
-**Delivers:** Full command interface
+**Delivers:** New artifact graph commands (builds on existing CLI)
+
+**New commands:**
+- `status --change <id>` - Show artifact completion state
+- `next --change <id>` - Show ready-to-create artifacts
+- `instructions <artifact> --change <id>` - Get enriched template
+- `templates --change <id>` - Show resolved paths
+- `new <name>` - Create change (wrapper for `createChange()`)
+
+**Already exists (not in scope):**
+- `openspec change list/show/validate` - change management
+- `openspec list --changes/--specs` - listing
+- `openspec view` - dashboard
+- `openspec init` - initialization
 
 **Testable behaviors:**
-- Each command produces expected output
+- Each new command produces expected output
 - Commands compose correctly (status → next → instructions flow)
 - Error handling for missing changes, invalid artifacts, etc.
 
@@ -437,32 +484,38 @@ Output: {
 ## Directory Structure
 
 ```
-.openspec/
-├── schemas/                       # Schema definitions
+# Global (XDG paths - user overrides)
+~/.local/share/openspec/           # Unix/macOS ($XDG_DATA_HOME/openspec/)
+%LOCALAPPDATA%/openspec/           # Windows
+├── schemas/                       # Schema overrides
+│   └── custom-workflow.yaml       # User-defined schema
+└── templates/                     # Template overrides (Slice 3)
+    └── proposal.md                # Custom proposal template
+
+# Package (built-in defaults)
+<package>/
+├── schemas/                       # Built-in schema definitions
 │   ├── spec-driven.yaml           # Default: proposal → specs → design → tasks
-│   ├── spec-driven-v2.yaml        # Version 2
-│   ├── tdd.yaml                   # TDD: tests → implementation → docs
-│   └── tdd/
-│       └── templates/             # TDD-specific template overrides
-│           └── tests.md
-│
-└── templates/                     # Shared instruction templates
+│   └── tdd.yaml                   # TDD: tests → implementation → docs
+└── templates/                     # Built-in templates (Slice 3)
     ├── proposal.md
     ├── design.md
     ├── specs.md
     └── tasks.md
 
+# Project (change instances)
 openspec/
 └── changes/                       # Change instances
     ├── add-auth/
-    │   ├── README.md
+    │   ├── README.md              # Auto-generated on creation
     │   ├── proposal.md            # Created artifacts
     │   ├── design.md
     │   └── specs/
     │       └── *.md
-    │
-    └── refactor-db/
-        └── ...
+    ├── refactor-db/
+    │   └── ...
+    └── archive/                   # Completed changes
+        └── 2025-01-01-add-auth/
 
 .claude/
 ├── settings.local.json            # Permissions
@@ -475,7 +528,8 @@ openspec/
 ## Schema YAML Format
 
 ```yaml
-# .openspec/schemas/spec-driven.yaml
+# Built-in: <package>/schemas/spec-driven.yaml
+# Or user override: ~/.local/share/openspec/schemas/spec-driven.yaml
 name: spec-driven
 version: 1
 description: Specification-driven development
@@ -484,7 +538,7 @@ artifacts:
   - id: proposal
     generates: "proposal.md"
     description: "Create project proposal document"
-    template: "proposal.md"          # resolves via 2-level fallback
+    template: "proposal.md"          # resolves via 2-level fallback (Slice 3)
     requires: []
 
   - id: specs
@@ -514,17 +568,26 @@ artifacts:
 
 ## Summary
 
-| Layer | Component | Responsibility |
-|-------|-----------|----------------|
-| Core | ArtifactGraph | Pure dependency logic (no I/O) |
-| Core | ChangeManager | Multi-change orchestration |
-| Core | InstructionLoader | State detection + enrichment |
-| Presentation | CLI | Thin command wrapper |
-| Integration | Claude Commands | AI assistant glue |
+| Layer | Component | Responsibility | Status |
+|-------|-----------|----------------|--------|
+| Core | ArtifactGraph | Pure dependency logic + XDG schema resolution | ✅ Slice 1 COMPLETE |
+| Utils | change-utils | Change creation + name validation only | Slice 2 (new functionality only) |
+| Core | InstructionLoader | Template resolution + enrichment | Slice 3 (all new) |
+| Presentation | CLI | New artifact graph commands | Slice 4 (new commands only) |
+| Integration | Claude Commands | AI assistant glue | Slice 4 |
+
+**What already exists (not in this proposal):**
+- `getActiveChangeIds()` in `src/utils/item-discovery.ts` - list changes
+- `ChangeCommand.list/show/validate()` in `src/commands/change.ts`
+- `ListCommand.execute()` in `src/core/list.ts`
+- `ViewCommand.execute()` in `src/core/view.ts` - dashboard
+- `src/core/init.ts` - initialization
+- `src/core/archive.ts` - archiving
 
 **Key Principles:**
 - **Filesystem IS the database** - stateless, version-control friendly
 - **Dependencies are enablers** - show what's possible, don't force order
 - **Deterministic CLI, inferring agent** - CLI requires explicit `--change`, agent infers from context
-- **2-level template inheritance** - shared + override, no deeper
+- **XDG-compliant paths** - schemas and templates use standard user data directories
+- **2-level inheritance** - user override → package built-in (no deeper)
 - **Schemas are versioned** - support variations by philosophy, version, language
