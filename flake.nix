@@ -27,6 +27,8 @@
             pkgs.makeWrapper
           ];
 
+          # When pnpm-lock.yaml changes, update hash by running:
+          # nix build 2>&1 | grep 'got:' | awk '{print $2}'
           pnpmDeps = pkgs.fetchPnpmDeps {
             inherit (finalAttrs) pname version src;
             hash = "sha256-vAlqVFaBN7KMlyP4HKbsMkaYrA5Yf2l5a+PLCZ6KOzs=";
