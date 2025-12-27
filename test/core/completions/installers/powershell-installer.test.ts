@@ -310,17 +310,17 @@ describe('PowerShellInstaller', () => {
       expect(content).toContain('# My config');
     });
 
-    it('should remove leading empty lines after removal', async () => {
+    it('should remove trailing empty lines after removal', async () => {
       const profilePath = installer.getProfilePath();
       await fs.mkdir(path.dirname(profilePath), { recursive: true });
 
       const initialContent = [
+        '# User config',
         '# OPENSPEC:START',
         '# Config',
         '# OPENSPEC:END',
         '',
         '',
-        '# User config',
       ].join('\n');
 
       await fs.writeFile(profilePath, initialContent);
@@ -329,7 +329,7 @@ describe('PowerShellInstaller', () => {
 
       expect(result).toBe(true);
       const content = await fs.readFile(profilePath, 'utf-8');
-      expect(content.startsWith('# User config')).toBe(true);
+      expect(content).toBe('# User config');
     });
 
     it('should preserve user content outside markers', async () => {

@@ -444,4 +444,89 @@ describe('PowerShellGenerator', () => {
 			expect(script).toContain('[0]');
 		});
 	});
+
+	describe('security - command injection prevention', () => {
+		it('should escape $() subexpressions in descriptions', () => {
+			const commands: CommandDefinition[] = [
+				{
+					name: 'test',
+					description: 'Test command $(Get-Process)',
+					flags: [],
+				},
+			];
+
+			const script = generator.generate(commands);
+
+			// Should contain escaped version (backtick before $)
+			expect(script).toContain('`$');
+			// Should have backtick before $( to escape it
+			expect(script).toMatch(/`\$\(Get-Process\)/);
+		});
+
+		it('should escape backticks in descriptions', () => {
+			const commands: CommandDefinition[] = [
+				{
+					name: 'test',
+					description: 'Test with `n newline escape',
+					flags: [],
+				},
+			];
+
+			const script = generator.generate(commands);
+
+			// Should escape backticks (PowerShell escape character)
+			expect(script).toContain('``');
+		});
+
+		it('should escape dollar signs in descriptions', () => {
+			const commands: CommandDefinition[] = [
+				{
+					name: 'test',
+					description: 'Test with $env:PATH variable',
+					flags: [],
+				},
+			];
+
+			const script = generator.generate(commands);
+
+			// Should escape dollar signs
+			expect(script).toContain('`$');
+		});
+
+		it('should escape double quotes in descriptions', () => {
+			const commands: CommandDefinition[] = [
+				{
+					name: 'test',
+					description: 'Test with "quotes"',
+					flags: [],
+				},
+			];
+
+			const script = generator.generate(commands);
+
+			// Should escape double quotes (PowerShell string delimiter)
+			expect(script).toContain('""');
+		});
+
+		it('should handle multiple PowerShell metacharacters together', () => {
+			const commands: CommandDefinition[] = [
+				{
+					name: 'test',
+					description: 'Dangerous: $(Remove-Item -Force) `n $env:HOME "quoted"',
+					flags: [],
+				},
+			];
+
+			const script = generator.generate(commands);
+
+			// Should contain escaped versions of dangerous patterns
+			expect(script).toContain('`$');  // Escaped dollar signs
+			expect(script).toContain('``');  // Escaped backticks
+			expect(script).toContain('""');  // Escaped double quotes
+
+			// The escaped patterns should be present (backtick before $ and n)
+			expect(script).toMatch(/`\$\(/);  // `$( instead of $(
+			expect(script).toMatch(/``n/);     // ``n instead of `n
+		});
+	});
 });

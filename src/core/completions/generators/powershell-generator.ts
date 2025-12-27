@@ -219,6 +219,9 @@ export class PowerShellGenerator implements CompletionGenerator {
    * Escape description text for PowerShell
    */
   private escapeDescription(description: string): string {
-    return description.replace(/"/g, '""');
+    return description
+      .replace(/`/g, '``')     // Backticks (escape sequences)
+      .replace(/\$/g, '`$')    // Dollar signs (prevents $())
+      .replace(/"/g, '""');    // Double quotes
   }
 }

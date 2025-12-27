@@ -417,4 +417,109 @@ describe('BashGenerator', () => {
       expect(script).toContain('view)');
     });
   });
+
+  describe('security - command injection prevention', () => {
+    it('should escape command names with shell metacharacters', () => {
+      const commands: CommandDefinition[] = [
+        {
+          name: 'test',
+          description: 'Test command',
+          flags: [],
+        },
+      ];
+
+      const script = generator.generate(commands);
+
+      // Normal command name should be in the script
+      expect(script).toContain('test');
+    });
+
+    it('should escape dollar signs in command names', () => {
+      // This tests that if a command name somehow contained $, it would be escaped
+      // In practice, command names are validated, but the escaping provides defense in depth
+      const maliciousName = 'test$var';
+      const commands: CommandDefinition[] = [
+        {
+          name: maliciousName,
+          description: 'Test',
+          flags: [],
+        },
+      ];
+
+      const script = generator.generate(commands);
+
+      // Should escape the dollar sign
+      expect(script).toContain('test\\$var');
+    });
+
+    it('should escape backticks in command names', () => {
+      const maliciousName = 'test`cmd`';
+      const commands: CommandDefinition[] = [
+        {
+          name: maliciousName,
+          description: 'Test',
+          flags: [],
+        },
+      ];
+
+      const script = generator.generate(commands);
+
+      // Should escape backticks
+      expect(script).toContain('\\`');
+    });
+
+    it('should escape double quotes in command names', () => {
+      const maliciousName = 'test"quoted"';
+      const commands: CommandDefinition[] = [
+        {
+          name: maliciousName,
+          description: 'Test',
+          flags: [],
+        },
+      ];
+
+      const script = generator.generate(commands);
+
+      // Should escape double quotes
+      expect(script).toContain('\\"');
+    });
+
+    it('should escape backslashes in command names', () => {
+      const maliciousName = 'test\\path';
+      const commands: CommandDefinition[] = [
+        {
+          name: maliciousName,
+          description: 'Test',
+          flags: [],
+        },
+      ];
+
+      const script = generator.generate(commands);
+
+      // Should escape backslashes
+      expect(script).toContain('\\\\');
+    });
+
+    it('should escape subcommand names with shell metacharacters', () => {
+      const commands: CommandDefinition[] = [
+        {
+          name: 'parent',
+          description: 'Parent command',
+          flags: [],
+          subcommands: [
+            {
+              name: 'sub$cmd',
+              description: 'Subcommand with metacharacter',
+              flags: [],
+            },
+          ],
+        },
+      ];
+
+      const script = generator.generate(commands);
+
+      // Should escape metacharacters in subcommand names
+      expect(script).toContain('sub\\$cmd');
+    });
+  });
 });

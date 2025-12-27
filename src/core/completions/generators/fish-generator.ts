@@ -225,6 +225,10 @@ export class FishGenerator implements CompletionGenerator {
    * Escape description text for Fish
    */
   private escapeDescription(description: string): string {
-    return description.replace(/'/g, "\\'");
+    return description
+      .replace(/\\/g, '\\\\')  // Backslashes first
+      .replace(/'/g, "\\'")    // Single quotes
+      .replace(/\$/g, '\\$')   // Dollar signs (prevents $())
+      .replace(/`/g, '\\`');   // Backticks
   }
 }

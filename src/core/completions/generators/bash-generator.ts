@@ -24,7 +24,21 @@ export class BashGenerator implements CompletionGenerator {
     // Main completion function
     script.push('_openspec_completion() {');
     script.push('  local cur prev words cword');
-    script.push('  _init_completion || return');
+    script.push('');
+    script.push('  # Use _init_completion if available (from bash-completion package)');
+    script.push('  # Otherwise, fall back to manual initialization');
+    script.push('  if declare -F _init_completion >/dev/null 2>&1; then');
+    script.push('    _init_completion || return');
+    script.push('  else');
+    script.push('    # Manual fallback when bash-completion is not installed');
+    script.push('    COMPREPLY=()');
+    script.push('    _get_comp_words_by_ref -n : cur prev words cword 2>/dev/null || {');
+    script.push('      cur="${COMP_WORDS[COMP_CWORD]}"');
+    script.push('      prev="${COMP_WORDS[COMP_CWORD-1]}"');
+    script.push('      words=("${COMP_WORDS[@]}")');
+    script.push('      cword=$COMP_CWORD');
+    script.push('    }');
+    script.push('  fi');
     script.push('');
     script.push('  local cmd="${words[1]}"');
     script.push('  local subcmd="${words[2]}"');
@@ -33,7 +47,7 @@ export class BashGenerator implements CompletionGenerator {
     // Top-level commands
     script.push('  # Top-level commands');
     script.push('  if [[ $cword -eq 1 ]]; then');
-    script.push('    local commands="' + commands.map(c => c.name).join(' ') + '"');
+    script.push('    local commands="' + commands.map(c => this.escapeCommandName(c.name)).join(' ') + '"');
     script.push('    COMPREPLY=($(compgen -W "$commands" -- "$cur"))');
     script.push('    return 0');
     script.push('  fi');
@@ -74,7 +88,7 @@ export class BashGenerator implements CompletionGenerator {
     // Handle subcommands
     if (cmd.subcommands && cmd.subcommands.length > 0) {
       lines.push(`${indent}if [[ $cword -eq 2 ]]; then`);
-      lines.push(`${indent}  local subcommands="` + cmd.subcommands.map(s => s.name).join(' ') + '"');
+      lines.push(`${indent}  local subcommands="` + cmd.subcommands.map(s => this.escapeCommandName(s.name)).join(' ') + '"');
       lines.push(`${indent}  COMPREPLY=($(compgen -W "$subcommands" -- "$cur"))`);
       lines.push(`${indent}  return 0`);
       lines.push(`${indent}fi`);
@@ -188,5 +202,13 @@ export class BashGenerator implements CompletionGenerator {
     lines.push('');
 
     return lines;
+  }
+
+  /**
+   * Escape command/subcommand names for safe use in Bash scripts
+   */
+  private escapeCommandName(name: string): string {
+    // Escape shell metacharacters to prevent command injection
+    return name.replace(/["\$`\\]/g, '\\$&');
   }
 }

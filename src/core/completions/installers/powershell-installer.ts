@@ -170,8 +170,8 @@ export class PowerShellInstaller {
       lines.splice(startIndex, endIndex - startIndex + 1);
 
       // Remove trailing empty lines
-      while (lines.length > 0 && lines[0].trim() === '') {
-        lines.shift();
+      while (lines.length > 0 && lines[lines.length - 1].trim() === '') {
+        lines.pop();
       }
 
       // Write back
