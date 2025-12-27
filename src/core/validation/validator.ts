@@ -5,12 +5,13 @@ import { SpecSchema, ChangeSchema, Spec, Change } from '../schemas/index.js';
 import { MarkdownParser } from '../parsers/markdown-parser.js';
 import { ChangeParser } from '../parsers/change-parser.js';
 import { ValidationReport, ValidationIssue, ValidationLevel } from './types.js';
-import { 
+import {
   MIN_PURPOSE_LENGTH,
   MAX_REQUIREMENT_TEXT_LENGTH,
-  VALIDATION_MESSAGES 
+  VALIDATION_MESSAGES
 } from './constants.js';
 import { parseDeltaSpec, normalizeRequirementName } from '../parsers/requirement-blocks.js';
+import { FileSystemUtils } from '../../utils/file-system.js';
 
 export class Validator {
   private strictMode: boolean;
@@ -359,7 +360,7 @@ export class Validator {
   }
 
   private extractNameFromPath(filePath: string): string {
-    const normalizedPath = filePath.replaceAll('\\', '/');
+    const normalizedPath = FileSystemUtils.toPosixPath(filePath);
     const parts = normalizedPath.split('/');
     
     // Look for the directory name after 'specs' or 'changes'
