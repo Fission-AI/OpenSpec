@@ -26,3 +26,17 @@ export {
   getUserSchemasDir,
   SchemaLoadError,
 } from './resolver.js';
+
+// Instruction loading
+export {
+  loadTemplate,
+  loadChangeContext,
+  generateInstructions,
+  formatChangeStatus,
+  TemplateLoadError,
+  type ChangeContext,
+  type ArtifactInstructions,
+  type DependencyStatus,
+  type ArtifactStatus,
+  type ChangeStatus,
+} from './instruction-loader.js';
