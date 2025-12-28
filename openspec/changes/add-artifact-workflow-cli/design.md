@@ -28,7 +28,7 @@ Commands are top-level for maximum fluidity:
 openspec status --change <id>
 openspec next --change <id>
 openspec instructions <artifact> --change <id>
-openspec templates --change <id>
+openspec templates [--schema <name>]
 openspec new change <name>
 ```
 

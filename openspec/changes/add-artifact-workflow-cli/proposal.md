@@ -13,7 +13,7 @@ This proposal adds CLI commands that expose the artifact workflow functionality 
 - **NEW**: `openspec status --change <id>` shows artifact completion state
 - **NEW**: `openspec next --change <id>` shows artifacts ready to create
 - **NEW**: `openspec instructions <artifact> --change <id>` outputs enriched template
-- **NEW**: `openspec templates --change <id>` shows resolved template paths
+- **NEW**: `openspec templates [--schema <name>]` shows resolved template paths
 - **NEW**: `openspec new change <name>` creates a new change directory
 
 All commands are top-level for fluid UX. They integrate with existing core modules:

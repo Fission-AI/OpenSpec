@@ -74,14 +74,18 @@ The system SHALL output enriched instructions for creating an artifact.
 - **THEN** the system displays instructions with a warning about missing dependencies
 
 ### Requirement: Templates Command
-The system SHALL show resolved template paths for all artifacts.
+The system SHALL show resolved template paths for all artifacts in a schema.
 
-#### Scenario: List template paths
-- **WHEN** user runs `openspec templates --change <id>`
-- **THEN** the system displays each artifact with its resolved template path
+#### Scenario: List template paths with default schema
+- **WHEN** user runs `openspec templates`
+- **THEN** the system displays each artifact with its resolved template path using the default schema
+
+#### Scenario: List template paths with custom schema
+- **WHEN** user runs `openspec templates --schema tdd`
+- **THEN** the system displays template paths for the specified schema
 
 #### Scenario: Templates JSON output
-- **WHEN** user runs `openspec templates --change <id> --json`
+- **WHEN** user runs `openspec templates --json`
 - **THEN** the system outputs JSON mapping artifact IDs to template paths
 
 #### Scenario: Template resolution source
