@@ -1,0 +1,27 @@
+name: tdd
+version: 1
+description: Test-driven development workflow - tests → implementation → docs
+artifacts:
+  - id: spec
+    generates: spec.md
+    description: Feature specification defining requirements
+    template: spec.md
+    requires: []
+  - id: tests
+    generates: "tests/*.test.ts"
+    description: Test files written before implementation
+    template: test.md
+    requires:
+      - spec
+  - id: implementation
+    generates: "src/*.ts"
+    description: Implementation code to pass the tests
+    template: implementation.md
+    requires:
+      - tests
+  - id: docs
+    generates: "docs/*.md"
+    description: Documentation for the implemented feature
+    template: docs.md
+    requires:
+      - implementation

@@ -4,10 +4,10 @@
 TBD - created by archiving change add-artifact-graph-core. Update Purpose after archive.
 ## Requirements
 ### Requirement: Schema Loading
-The system SHALL load artifact graph definitions from YAML schema files.
+The system SHALL load artifact graph definitions from YAML schema files within schema directories.
 
 #### Scenario: Valid schema loaded
-- **WHEN** a valid schema YAML file is provided
+- **WHEN** a schema directory contains a valid `schema.yaml` file
 - **THEN** the system returns an ArtifactGraph with all artifacts and dependencies
 
 #### Scenario: Invalid schema rejected
@@ -25,6 +25,10 @@ The system SHALL load artifact graph definitions from YAML schema files.
 #### Scenario: Duplicate artifact IDs rejected
 - **WHEN** a schema contains multiple artifacts with the same ID
 - **THEN** the system throws an error identifying the duplicate
+
+#### Scenario: Schema directory not found
+- **WHEN** resolving a schema name that has no corresponding directory
+- **THEN** the system throws an error listing available schemas
 
 ### Requirement: Build Order Calculation
 The system SHALL compute a valid topological build order for artifacts.
@@ -104,4 +108,23 @@ The system SHALL identify which artifacts are blocked and return all their unmet
 #### Scenario: Artifact blocked by all dependencies
 - **WHEN** artifact C requires A and B, and neither is complete
 - **THEN** getBlocked() returns `{ C: ['A', 'B'] }`
+
+### Requirement: Schema Directory Structure
+The system SHALL support self-contained schema directories with co-located templates.
+
+#### Scenario: Schema with templates
+- **WHEN** a schema directory contains `schema.yaml` and `templates/` subdirectory
+- **THEN** artifacts can reference templates relative to the schema's templates directory
+
+#### Scenario: User schema override
+- **WHEN** a schema directory exists at `${XDG_DATA_HOME}/openspec/schemas/<name>/`
+- **THEN** the system uses that directory instead of the built-in
+
+#### Scenario: Built-in schema fallback
+- **WHEN** no user override exists for a schema
+- **THEN** the system uses the package built-in schema directory
+
+#### Scenario: List available schemas
+- **WHEN** listing schemas
+- **THEN** the system returns schema names from both user and package directories
 

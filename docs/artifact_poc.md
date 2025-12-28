@@ -52,8 +52,8 @@ Schemas can vary across multiple dimensions:
 Schemas follow the XDG Base Directory Specification with a 2-level resolution:
 
 ```
-1. ${XDG_DATA_HOME}/openspec/schemas/<name>.yaml   # Global user override
-2. <package>/schemas/<name>.yaml                    # Built-in defaults
+1. ${XDG_DATA_HOME}/openspec/schemas/<name>/schema.yaml   # Global user override
+2. <package>/schemas/<name>/schema.yaml                    # Built-in defaults
 ```
 
 **Platform-specific paths:**
@@ -69,25 +69,23 @@ Schemas follow the XDG Base Directory Specification with a 2-level resolution:
 
 ### Template Inheritance (2 Levels Max)
 
-Templates also use 2-level resolution (to be implemented in Slice 3):
+Templates are co-located with schemas in a `templates/` subdirectory:
 
 ```
-1. ${XDG_DATA_HOME}/openspec/schemas/<schema>/templates/<artifact>.md  # Schema-specific
-2. ${XDG_DATA_HOME}/openspec/templates/<artifact>.md                   # Shared
-3. <package>/templates/<artifact>.md                                    # Built-in fallback
+1. ${XDG_DATA_HOME}/openspec/schemas/<schema>/templates/<artifact>.md  # User override
+2. <package>/schemas/<schema>/templates/<artifact>.md                   # Built-in
 ```
 
 **Rules:**
-- Schema-specific templates override shared templates
-- Shared templates override package built-ins
+- User overrides take precedence over package built-ins
 - A CLI command shows resolved paths (no guessing)
 - No inheritance between schemas (copy if you need to diverge)
-- Max 2 levels - no deeper inheritance chains
+- Templates are always co-located with their schema
 
 **Why this matters:**
 - Avoids "where does this come from?" debugging
 - No implicit magic that works until it doesn't
-- Clear boundaries between shared and specific
+- Schema + templates form a cohesive unit
 
 ---
 
@@ -333,21 +331,19 @@ This separation means:
 ### 3. XDG-Compliant Schema Resolution
 
 ```
-${XDG_DATA_HOME}/openspec/schemas/<name>.yaml   # User override
+${XDG_DATA_HOME}/openspec/schemas/<name>/schema.yaml   # User override
     ↓ (not found)
-<package>/schemas/<name>.yaml                    # Built-in
+<package>/schemas/<name>/schema.yaml                    # Built-in
     ↓ (not found)
 Error (schema not found)
 ```
 
-### 4. Two-Level Template Fallback (Slice 3)
+### 4. Two-Level Template Fallback
 
 ```
-${XDG_DATA_HOME}/openspec/schemas/<schema>/templates/<artifact>.md  # Schema-specific
+${XDG_DATA_HOME}/openspec/schemas/<schema>/templates/<artifact>.md  # User override
     ↓ (not found)
-${XDG_DATA_HOME}/openspec/templates/<artifact>.md                   # Shared
-    ↓ (not found)
-<package>/templates/<artifact>.md                                    # Built-in
+<package>/schemas/<schema>/templates/<artifact>.md                   # Built-in
     ↓ (not found)
 Error (no silent fallback to avoid confusion)
 ```
@@ -487,21 +483,29 @@ Structured as **vertical slices** - each slice is independently testable.
 # Global (XDG paths - user overrides)
 ~/.local/share/openspec/           # Unix/macOS ($XDG_DATA_HOME/openspec/)
 %LOCALAPPDATA%/openspec/           # Windows
-├── schemas/                       # Schema overrides
-│   └── custom-workflow.yaml       # User-defined schema
-└── templates/                     # Template overrides (Slice 3)
-    └── proposal.md                # Custom proposal template
+└── schemas/                       # Schema overrides
+    └── custom-workflow/           # User-defined schema directory
+        ├── schema.yaml            # Schema definition
+        └── templates/             # Co-located templates
+            └── proposal.md
 
 # Package (built-in defaults)
 <package>/
-├── schemas/                       # Built-in schema definitions
-│   ├── spec-driven.yaml           # Default: proposal → specs → design → tasks
-│   └── tdd.yaml                   # TDD: tests → implementation → docs
-└── templates/                     # Built-in templates (Slice 3)
-    ├── proposal.md
-    ├── design.md
-    ├── specs.md
-    └── tasks.md
+└── schemas/                       # Built-in schema definitions
+    ├── spec-driven/               # Default: proposal → specs → design → tasks
+    │   ├── schema.yaml
+    │   └── templates/
+    │       ├── proposal.md
+    │       ├── design.md
+    │       ├── spec.md
+    │       └── tasks.md
+    └── tdd/                       # TDD: tests → implementation → docs
+        ├── schema.yaml
+        └── templates/
+            ├── test.md
+            ├── implementation.md
+            ├── spec.md
+            └── docs.md
 
 # Project (change instances)
 openspec/
@@ -528,8 +532,8 @@ openspec/
 ## Schema YAML Format
 
 ```yaml
-# Built-in: <package>/schemas/spec-driven.yaml
-# Or user override: ~/.local/share/openspec/schemas/spec-driven.yaml
+# Built-in: <package>/schemas/spec-driven/schema.yaml
+# Or user override: ~/.local/share/openspec/schemas/spec-driven/schema.yaml
 name: spec-driven
 version: 1
 description: Specification-driven development
@@ -538,7 +542,7 @@ artifacts:
   - id: proposal
     generates: "proposal.md"
     description: "Create project proposal document"
-    template: "proposal.md"          # resolves via 2-level fallback (Slice 3)
+    template: "proposal.md"          # resolves from co-located templates/ directory
     requires: []
 
   - id: specs

@@ -1,12 +1,12 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { getGlobalDataDir } from '../global-config.js';
-import { BUILTIN_SCHEMAS } from './builtin-schemas.js';
 import { parseSchema, SchemaValidationError } from './schema.js';
 import type { SchemaYaml } from './types.js';
 
 /**
- * Error thrown when loading a global schema override fails.
+ * Error thrown when loading a schema fails.
  */
 export class SchemaLoadError extends Error {
   constructor(
@@ -20,11 +20,56 @@ export class SchemaLoadError extends Error {
 }
 
 /**
+ * Gets the package's built-in schemas directory path.
+ * Uses import.meta.url to resolve relative to the current module.
+ */
+export function getPackageSchemasDir(): string {
+  const currentFile = fileURLToPath(import.meta.url);
+  // Navigate from dist/core/artifact-graph/ to package root's schemas/
+  return path.join(path.dirname(currentFile), '..', '..', '..', 'schemas');
+}
+
+/**
+ * Gets the user's schema override directory path.
+ */
+export function getUserSchemasDir(): string {
+  return path.join(getGlobalDataDir(), 'schemas');
+}
+
+/**
+ * Resolves a schema name to its directory path.
+ *
+ * Resolution order:
+ * 1. User override: ${XDG_DATA_HOME}/openspec/schemas/<name>/schema.yaml
+ * 2. Package built-in: <package>/schemas/<name>/schema.yaml
+ *
+ * @param name - Schema name (e.g., "spec-driven")
+ * @returns The path to the schema directory, or null if not found
+ */
+export function getSchemaDir(name: string): string | null {
+  // 1. Check user override directory
+  const userDir = path.join(getUserSchemasDir(), name);
+  const userSchemaPath = path.join(userDir, 'schema.yaml');
+  if (fs.existsSync(userSchemaPath)) {
+    return userDir;
+  }
+
+  // 2. Check package built-in directory
+  const packageDir = path.join(getPackageSchemasDir(), name);
+  const packageSchemaPath = path.join(packageDir, 'schema.yaml');
+  if (fs.existsSync(packageSchemaPath)) {
+    return packageDir;
+  }
+
+  return null;
+}
+
+/**
  * Resolves a schema name to a SchemaYaml object.
  *
  * Resolution order:
- * 1. Global user override: ${XDG_DATA_HOME}/openspec/schemas/<name>.yaml
- * 2. Built-in schema
+ * 1. User override: ${XDG_DATA_HOME}/openspec/schemas/<name>/schema.yaml
+ * 2. Package built-in: <package>/schemas/<name>/schema.yaml
  *
  * @param name - Schema name (e.g., "spec-driven")
  * @returns The resolved schema object
@@ -33,86 +78,78 @@ export class SchemaLoadError extends Error {
 export function resolveSchema(name: string): SchemaYaml {
   // Normalize name (remove .yaml extension if provided)
   const normalizedName = name.replace(/\.ya?ml$/, '');
-  const builtinNames = Object.keys(BUILTIN_SCHEMAS).join(', ');
 
-  // 1. Check global user override (returns path if found)
-  const globalPath = getGlobalSchemaPath(normalizedName);
-  if (globalPath) {
-    // User override found - load and validate through the same pipeline as other schemas
-    let content: string;
-    try {
-      content = fs.readFileSync(globalPath, 'utf-8');
-    } catch (err) {
-      const ioError = err instanceof Error ? err : new Error(String(err));
+  const schemaDir = getSchemaDir(normalizedName);
+  if (!schemaDir) {
+    const availableSchemas = listSchemas();
+    throw new Error(
+      `Schema '${normalizedName}' not found. Available schemas: ${availableSchemas.join(', ')}`
+    );
+  }
+
+  const schemaPath = path.join(schemaDir, 'schema.yaml');
+
+  // Load and parse the schema
+  let content: string;
+  try {
+    content = fs.readFileSync(schemaPath, 'utf-8');
+  } catch (err) {
+    const ioError = err instanceof Error ? err : new Error(String(err));
+    throw new SchemaLoadError(
+      `Failed to read schema at '${schemaPath}': ${ioError.message}`,
+      schemaPath,
+      ioError
+    );
+  }
+
+  try {
+    return parseSchema(content);
+  } catch (err) {
+    if (err instanceof SchemaValidationError) {
       throw new SchemaLoadError(
-        `Failed to read global schema override at '${globalPath}': ${ioError.message}`,
-        globalPath,
-        ioError
+        `Invalid schema at '${schemaPath}': ${err.message}`,
+        schemaPath,
+        err
       );
     }
-
-    try {
-      return parseSchema(content);
-    } catch (err) {
-      if (err instanceof SchemaValidationError) {
-        // Re-wrap validation errors to include the file path for context
-        throw new SchemaLoadError(
-          `Invalid global schema override at '${globalPath}': ${err.message}`,
-          globalPath,
-          err
-        );
-      }
-      // Handle unexpected parse errors (e.g., YAML syntax errors)
-      const parseError = err instanceof Error ? err : new Error(String(err));
-      throw new SchemaLoadError(
-        `Failed to parse global schema override at '${globalPath}': ${parseError.message}`,
-        globalPath,
-        parseError
-      );
-    }
+    const parseError = err instanceof Error ? err : new Error(String(err));
+    throw new SchemaLoadError(
+      `Failed to parse schema at '${schemaPath}': ${parseError.message}`,
+      schemaPath,
+      parseError
+    );
   }
-
-  // 2. Check built-in schemas
-  const builtin = BUILTIN_SCHEMAS[normalizedName];
-  if (builtin) {
-    return builtin;
-  }
-
-  throw new Error(
-    `Schema '${normalizedName}' not found. Checked global overrides and built-in schemas. Available built-ins: ${builtinNames}`
-  );
-}
-
-/**
- * Gets the path to a global user override schema, if it exists.
- */
-function getGlobalSchemaPath(name: string): string | null {
-  const globalDir = path.join(getGlobalDataDir(), 'schemas');
-
-  // Check both .yaml and .yml extensions
-  for (const ext of ['.yaml', '.yml']) {
-    const schemaPath = path.join(globalDir, `${name}${ext}`);
-    if (fs.existsSync(schemaPath)) {
-      return schemaPath;
-    }
-  }
-
-  return null;
 }
 
 /**
  * Lists all available schema names.
- * Combines built-in and user override schemas.
+ * Combines user override and package built-in schemas.
  */
 export function listSchemas(): string[] {
-  const schemas = new Set<string>(Object.keys(BUILTIN_SCHEMAS));
+  const schemas = new Set<string>();
 
-  // Add user override schemas
-  const globalDir = path.join(getGlobalDataDir(), 'schemas');
-  if (fs.existsSync(globalDir)) {
-    for (const file of fs.readdirSync(globalDir)) {
-      if (file.endsWith('.yaml') || file.endsWith('.yml')) {
-        schemas.add(file.replace(/\.ya?ml$/, ''));
+  // Add package built-in schemas
+  const packageDir = getPackageSchemasDir();
+  if (fs.existsSync(packageDir)) {
+    for (const entry of fs.readdirSync(packageDir, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        const schemaPath = path.join(packageDir, entry.name, 'schema.yaml');
+        if (fs.existsSync(schemaPath)) {
+          schemas.add(entry.name);
+        }
+      }
+    }
+  }
+
+  // Add user override schemas (may override package schemas)
+  const userDir = getUserSchemasDir();
+  if (fs.existsSync(userDir)) {
+    for (const entry of fs.readdirSync(userDir, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        const schemaPath = path.join(userDir, entry.name, 'schema.yaml');
+        if (fs.existsSync(schemaPath)) {
+          schemas.add(entry.name);
+        }
       }
     }
   }
