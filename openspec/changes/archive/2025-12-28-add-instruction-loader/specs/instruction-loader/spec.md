@@ -3,7 +3,7 @@
 ## Purpose
 Load templates from schema directories and enrich them with change-specific context for guiding artifact creation.
 
-## Requirements
+## ADDED Requirements
 
 ### Requirement: Template Loading
 The system SHALL load templates from schema directories.
