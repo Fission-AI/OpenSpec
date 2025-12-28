@@ -7,7 +7,7 @@ import { MarkdownParser } from './parsers/markdown-parser.js';
 export class ViewCommand {
   async execute(targetPath: string = '.'): Promise<void> {
     const openspecDir = path.join(targetPath, 'openspec');
-    
+
     if (!fs.existsSync(openspecDir)) {
       console.error(chalk.red('No openspec directory found'));
       process.exit(1);
@@ -18,10 +18,11 @@ export class ViewCommand {
 
     // Get changes and specs data
     const changesData = await this.getChangesData(openspecDir);
+    const archivedData = await this.getArchivedChangesData(openspecDir);
     const specsData = await this.getSpecsData(openspecDir);
 
     // Display summary metrics
-    this.displaySummary(changesData, specsData);
+    this.displaySummary(changesData, specsData, archivedData);
 
     // Display active changes
     if (changesData.active.length > 0) {
@@ -29,10 +30,10 @@ export class ViewCommand {
       console.log('─'.repeat(60));
       changesData.active.forEach(change => {
         const progressBar = this.createProgressBar(change.progress.completed, change.progress.total);
-        const percentage = change.progress.total > 0 
+        const percentage = change.progress.total > 0
           ? Math.round((change.progress.completed / change.progress.total) * 100)
           : 0;
-        
+
         console.log(
           `  ${chalk.yellow('◉')} ${chalk.bold(change.name.padEnd(30))} ${progressBar} ${chalk.dim(`${percentage}%`)}`
         );
@@ -48,14 +49,23 @@ export class ViewCommand {
       });
     }
 
+    // Display archived changes
+    if (archivedData.length > 0) {
+      console.log(chalk.bold.gray('\nArchived Changes'));
+      console.log('─'.repeat(60));
+      archivedData.forEach(change => {
+        console.log(`  ${chalk.gray('◦')} ${chalk.gray(change.name)}`);
+      });
+    }
+
     // Display specifications
     if (specsData.length > 0) {
       console.log(chalk.bold.blue('\nSpecifications'));
       console.log('─'.repeat(60));
-      
+
       // Sort specs by requirement count (descending)
       specsData.sort((a, b) => b.requirementCount - a.requirementCount);
-      
+
       specsData.forEach(spec => {
         const reqLabel = spec.requirementCount === 1 ? 'requirement' : 'requirements';
         console.log(
@@ -111,18 +121,18 @@ export class ViewCommand {
 
   private async getSpecsData(openspecDir: string): Promise<Array<{ name: string; requirementCount: number }>> {
     const specsDir = path.join(openspecDir, 'specs');
-    
+
     if (!fs.existsSync(specsDir)) {
       return [];
     }
 
     const specs: Array<{ name: string; requirementCount: number }> = [];
     const entries = fs.readdirSync(specsDir, { withFileTypes: true });
-    
+
     for (const entry of entries) {
       if (entry.isDirectory()) {
         const specFile = path.join(specsDir, entry.name, 'spec.md');
-        
+
         if (fs.existsSync(specFile)) {
           try {
             const content = fs.readFileSync(specFile, 'utf-8');
@@ -141,23 +151,44 @@ export class ViewCommand {
     return specs;
   }
 
+  private async getArchivedChangesData(openspecDir: string): Promise<Array<{ name: string }>> {
+    const archiveDir = path.join(openspecDir, 'changes', 'archive');
+
+    if (!fs.existsSync(archiveDir)) {
+      return [];
+    }
+
+    const archived: Array<{ name: string }> = [];
+    const entries = fs.readdirSync(archiveDir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        archived.push({ name: entry.name });
+      }
+    }
+
+    archived.sort((a, b) => a.name.localeCompare(b.name));
+    return archived;
+  }
+
   private displaySummary(
     changesData: { active: any[]; completed: any[] },
-    specsData: any[]
+    specsData: any[],
+    archivedData: Array<{ name: string }> = []
   ): void {
     const totalChanges = changesData.active.length + changesData.completed.length;
     const totalSpecs = specsData.length;
     const totalRequirements = specsData.reduce((sum, spec) => sum + spec.requirementCount, 0);
-    
+
     // Calculate total task progress
     let totalTasks = 0;
     let completedTasks = 0;
-    
+
     changesData.active.forEach(change => {
       totalTasks += change.progress.total;
       completedTasks += change.progress.completed;
     });
-    
+
     changesData.completed.forEach(() => {
       // Completed changes count as 100% done (we don't know exact task count)
       // This is a simplification
@@ -167,7 +198,8 @@ export class ViewCommand {
     console.log(`  ${chalk.cyan('●')} Specifications: ${chalk.bold(totalSpecs)} specs, ${chalk.bold(totalRequirements)} requirements`);
     console.log(`  ${chalk.yellow('●')} Active Changes: ${chalk.bold(changesData.active.length)} in progress`);
     console.log(`  ${chalk.green('●')} Completed Changes: ${chalk.bold(changesData.completed.length)}`);
-    
+    console.log(`  ${chalk.gray('●')} Archived Changes: ${chalk.bold(archivedData.length)}`);
+
     if (totalTasks > 0) {
       const overallProgress = Math.round((completedTasks / totalTasks) * 100);
       console.log(`  ${chalk.magenta('●')} Task Progress: ${chalk.bold(`${completedTasks}/${totalTasks}`)} (${overallProgress}% complete)`);
