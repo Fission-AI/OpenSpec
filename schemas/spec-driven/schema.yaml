@@ -1,0 +1,28 @@
+name: spec-driven
+version: 1
+description: Default OpenSpec workflow - proposal → specs → design → tasks
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Initial proposal document outlining the change
+    template: proposal.md
+    requires: []
+  - id: specs
+    generates: "specs/*.md"
+    description: Detailed specifications for the change
+    template: spec.md
+    requires:
+      - proposal
+  - id: design
+    generates: design.md
+    description: Technical design document with implementation details
+    template: design.md
+    requires:
+      - proposal
+  - id: tasks
+    generates: tasks.md
+    description: Implementation tasks derived from specs and design
+    template: tasks.md
+    requires:
+      - specs
+      - design
