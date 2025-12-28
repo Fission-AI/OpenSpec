@@ -25,7 +25,7 @@ All commands are top-level for fluid UX. They integrate with existing core modul
 
 ## Impact
 
-- Affected specs: NEW `cli-workflow` capability
+- Affected specs: NEW `cli-artifact-workflow` capability
 - Affected code:
   - `src/cli/index.ts` - register new commands
   - `src/commands/artifact-workflow.ts` - new command implementations

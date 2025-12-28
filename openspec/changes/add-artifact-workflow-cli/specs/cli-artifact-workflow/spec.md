@@ -1,4 +1,4 @@
-# cli-workflow Specification
+# cli-artifact-workflow Specification
 
 ## Purpose
 CLI commands for artifact workflow operations, exposing the artifact graph and instruction loader functionality to users and agents. Commands are top-level for fluid UX and implemented in isolation for easy removal.
