@@ -215,7 +215,7 @@ describe('instruction-loader', () => {
       expect(proposal?.outputPath).toBe('proposal.md');
 
       const specs = status.artifacts.find(a => a.id === 'specs');
-      expect(specs?.outputPath).toBe('specs/*.md');
+      expect(specs?.outputPath).toBe('specs/**/*.md');
     });
 
     it('should report isComplete true when all done', () => {
