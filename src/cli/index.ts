@@ -14,6 +14,7 @@ import { ValidateCommand } from '../commands/validate.js';
 import { ShowCommand } from '../commands/show.js';
 import { CompletionCommand } from '../commands/completion.js';
 import { registerConfigCommand } from '../commands/config.js';
+import { registerArtifactWorkflowCommands } from '../commands/artifact-workflow.js';
 
 const program = new Command();
 const require = createRequire(import.meta.url);
@@ -315,5 +316,8 @@ program
       process.exitCode = 1;
     }
   });
+
+// Register artifact workflow commands (experimental)
+registerArtifactWorkflowCommands(program);
 
 program.parse();
