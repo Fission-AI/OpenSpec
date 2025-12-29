@@ -65,6 +65,17 @@ describe('artifact-workflow CLI commands', () => {
   }
 
   describe('status command', () => {
+    it('shows status for scaffolded change without proposal.md', async () => {
+      // Create empty change directory (no proposal.md)
+      const changeDir = path.join(changesDir, 'scaffolded-change');
+      await fs.mkdir(changeDir, { recursive: true });
+
+      const result = await runCLI(['status', '--change', 'scaffolded-change'], { cwd: tempDir });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('scaffolded-change');
+      expect(result.stdout).toContain('0/4 artifacts complete');
+    });
+
     it('shows status for a change with proposal only', async () => {
       // createTestChange always creates proposal.md, so this has 1 artifact complete
       await createTestChange('minimal-change');
@@ -156,6 +167,17 @@ describe('artifact-workflow CLI commands', () => {
   });
 
   describe('next command', () => {
+    it('shows proposal as next for scaffolded change', async () => {
+      // Create empty change directory (no proposal.md)
+      const changeDir = path.join(changesDir, 'scaffolded-change');
+      await fs.mkdir(changeDir, { recursive: true });
+
+      const result = await runCLI(['next', '--change', 'scaffolded-change'], { cwd: tempDir });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Artifacts ready to create');
+      expect(result.stdout).toContain('proposal');
+    });
+
     it('shows design and specs as next when proposal exists', async () => {
       // createTestChange always creates proposal.md, so design and specs are ready
       await createTestChange('minimal-change');
@@ -207,6 +229,20 @@ describe('artifact-workflow CLI commands', () => {
   });
 
   describe('instructions command', () => {
+    it('shows instructions for proposal on scaffolded change', async () => {
+      // Create empty change directory (no proposal.md)
+      const changeDir = path.join(changesDir, 'scaffolded-change');
+      await fs.mkdir(changeDir, { recursive: true });
+
+      const result = await runCLI(['instructions', 'proposal', '--change', 'scaffolded-change'], {
+        cwd: tempDir,
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Artifact: proposal');
+      expect(result.stdout).toContain('proposal.md');
+      expect(result.stdout).toContain('Template:');
+    });
+
     it('shows instructions for design artifact', async () => {
       await createTestChange('instr-change');
 

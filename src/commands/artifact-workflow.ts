@@ -13,6 +13,7 @@ import type { Command } from 'commander';
 import ora from 'ora';
 import chalk from 'chalk';
 import path from 'path';
+import * as fs from 'fs';
 import {
   loadChangeContext,
   formatChangeStatus,
@@ -24,7 +25,6 @@ import {
   type ChangeStatus,
   type ArtifactInstructions,
 } from '../core/artifact-graph/index.js';
-import { getActiveChangeIds } from '../utils/item-discovery.js';
 import { createChange, validateChangeName } from '../utils/change-utils.js';
 
 const DEFAULT_SCHEMA = 'spec-driven';
@@ -70,30 +70,49 @@ function getStatusIndicator(status: 'done' | 'ready' | 'blocked'): string {
 
 /**
  * Validates that a change exists and returns available changes if not.
+ * Checks directory existence directly to support scaffolded changes (without proposal.md).
  */
 async function validateChangeExists(
   changeName: string | undefined,
   projectRoot: string
 ): Promise<string> {
-  const activeChanges = await getActiveChangeIds(projectRoot);
+  const changesPath = path.join(projectRoot, 'openspec', 'changes');
+
+  // Get all change directories (not just those with proposal.md)
+  const getAvailableChanges = async (): Promise<string[]> => {
+    try {
+      const entries = await fs.promises.readdir(changesPath, { withFileTypes: true });
+      return entries
+        .filter((e) => e.isDirectory() && e.name !== 'archive' && !e.name.startsWith('.'))
+        .map((e) => e.name);
+    } catch {
+      return [];
+    }
+  };
 
   if (!changeName) {
-    if (activeChanges.length === 0) {
-      throw new Error('No active changes found. Create one with: openspec new change <name>');
+    const available = await getAvailableChanges();
+    if (available.length === 0) {
+      throw new Error('No changes found. Create one with: openspec new change <name>');
     }
     throw new Error(
-      `Missing required option --change. Available changes:\n  ${activeChanges.join('\n  ')}`
+      `Missing required option --change. Available changes:\n  ${available.join('\n  ')}`
     );
   }
 
-  if (!activeChanges.includes(changeName)) {
-    if (activeChanges.length === 0) {
+  // Check directory existence directly
+  const changePath = path.join(changesPath, changeName);
+  const exists = fs.existsSync(changePath) && fs.statSync(changePath).isDirectory();
+
+  if (!exists) {
+    const available = await getAvailableChanges();
+    if (available.length === 0) {
       throw new Error(
-        `Change '${changeName}' not found. No active changes exist. Create one with: openspec new change <name>`
+        `Change '${changeName}' not found. No changes exist. Create one with: openspec new change <name>`
       );
     }
     throw new Error(
-      `Change '${changeName}' not found. Available changes:\n  ${activeChanges.join('\n  ')}`
+      `Change '${changeName}' not found. Available changes:\n  ${available.join('\n  ')}`
     );
   }
 
