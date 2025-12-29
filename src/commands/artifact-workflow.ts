@@ -100,6 +100,12 @@ async function validateChangeExists(
     );
   }
 
+  // Validate change name format to prevent path traversal
+  const nameValidation = validateChangeName(changeName);
+  if (!nameValidation.valid) {
+    throw new Error(`Invalid change name '${changeName}': ${nameValidation.error}`);
+  }
+
   // Check directory existence directly
   const changePath = path.join(changesPath, changeName);
   const exists = fs.existsSync(changePath) && fs.statSync(changePath).isDirectory();

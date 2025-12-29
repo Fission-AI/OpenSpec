@@ -164,6 +164,27 @@ describe('artifact-workflow CLI commands', () => {
       const output = getOutput(result);
       expect(output).toContain("Schema 'unknown' not found");
     });
+
+    it('rejects path traversal in change name', async () => {
+      const result = await runCLI(['status', '--change', '../foo'], { cwd: tempDir });
+      expect(result.exitCode).toBe(1);
+      const output = getOutput(result);
+      expect(output).toContain('Invalid change name');
+    });
+
+    it('rejects absolute path in change name', async () => {
+      const result = await runCLI(['status', '--change', '/etc/passwd'], { cwd: tempDir });
+      expect(result.exitCode).toBe(1);
+      const output = getOutput(result);
+      expect(output).toContain('Invalid change name');
+    });
+
+    it('rejects slashes in change name', async () => {
+      const result = await runCLI(['status', '--change', 'foo/bar'], { cwd: tempDir });
+      expect(result.exitCode).toBe(1);
+      const output = getOutput(result);
+      expect(output).toContain('Invalid change name');
+    });
   });
 
   describe('next command', () => {
