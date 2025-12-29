@@ -257,6 +257,68 @@ describe('InitCommand', () => {
       expect(archiveContent).not.toContain('auto_execution_mode');
     });
 
+    it('should create Amp skills when Amp is selected', async () => {
+      queueSelections('amp', DONE);
+
+      await initCommand.execute(testDir);
+
+      const ampProposal = path.join(
+        testDir,
+        '.agents/skills/openspec-proposal/SKILL.md'
+      );
+      const ampApply = path.join(
+        testDir,
+        '.agents/skills/openspec-apply/SKILL.md'
+      );
+      const ampArchive = path.join(
+        testDir,
+        '.agents/skills/openspec-archive/SKILL.md'
+      );
+
+      expect(await fileExists(ampProposal)).toBe(true);
+      expect(await fileExists(ampApply)).toBe(true);
+      expect(await fileExists(ampArchive)).toBe(true);
+
+      const proposalContent = await fs.readFile(ampProposal, 'utf-8');
+      expect(proposalContent).toContain('---');
+      expect(proposalContent).toContain('name: openspec-proposal');
+      expect(proposalContent).toContain('description: Creates structured OpenSpec change proposals');
+      expect(proposalContent).toContain('<!-- OPENSPEC:START -->');
+      expect(proposalContent).toContain('<!-- OPENSPEC:END -->');
+      expect(proposalContent).toContain('# Create OpenSpec Proposal');
+      expect(proposalContent).toContain('## Critical constraint');
+      // Verify frontmatter appears before markers
+      expect(proposalContent.indexOf('name: openspec-proposal')).toBeLessThan(
+        proposalContent.indexOf('<!-- OPENSPEC:START -->')
+      );
+
+      const applyContent = await fs.readFile(ampApply, 'utf-8');
+      expect(applyContent).toContain('---');
+      expect(applyContent).toContain('name: openspec-apply');
+      expect(applyContent).toContain('description: Implements approved OpenSpec changes');
+      expect(applyContent).toContain('<!-- OPENSPEC:START -->');
+      expect(applyContent).toContain('<!-- OPENSPEC:END -->');
+      expect(applyContent).toContain('# Apply OpenSpec Change');
+      expect(applyContent).toContain('## Execution checklist');
+      // Verify frontmatter appears before markers
+      expect(applyContent.indexOf('name: openspec-apply')).toBeLessThan(
+        applyContent.indexOf('<!-- OPENSPEC:START -->')
+      );
+
+      const archiveContent = await fs.readFile(ampArchive, 'utf-8');
+      expect(archiveContent).toContain('---');
+      expect(archiveContent).toContain('name: openspec-archive');
+      expect(archiveContent).toContain('description: Archives deployed OpenSpec changes');
+      expect(archiveContent).toContain('<!-- OPENSPEC:START -->');
+      expect(archiveContent).toContain('<!-- OPENSPEC:END -->');
+      expect(archiveContent).toContain('# Archive OpenSpec Change');
+      expect(archiveContent).toContain('openspec archive <id> --yes');
+      // Verify frontmatter appears before markers
+      expect(archiveContent.indexOf('name: openspec-archive')).toBeLessThan(
+        archiveContent.indexOf('<!-- OPENSPEC:START -->')
+      );
+    });
+
     it('should always create AGENTS.md in project root', async () => {
       queueSelections(DONE);
 
