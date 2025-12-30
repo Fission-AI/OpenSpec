@@ -103,7 +103,7 @@ These tools have built-in OpenSpec commands. Select the OpenSpec integration whe
 | **Crush** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.crush/commands/openspec/`) |
 | **Cursor** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` |
 | **Factory Droid** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.factory/commands/`) |
-| **Gemini CLI** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` (`.gemini/commands/openspec/`) |
+| **Gemini CLI** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` (Native Extension available) |
 | **GitHub Copilot** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.github/prompts/`) |
 | **iFlow (iflow-cli)** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.iflow/commands/`) |
 | **Kilo Code** | `/openspec-proposal.md`, `/openspec-apply.md`, `/openspec-archive.md` (`.kilocode/workflows/`) |
@@ -127,6 +127,22 @@ These tools automatically read workflow instructions from `openspec/AGENTS.md`. 
 | Amp • Jules • Others |
 
 </details>
+
+### Gemini CLI Extension (Native)
+
+OpenSpec is available as a native extension for the [Gemini CLI](https://geminicli.com). This provides deep contextual awareness and native slash commands without manual configuration.
+
+**Install the extension:**
+```bash
+gemini extensions install https://github.com/Fission-AI/OpenSpec
+```
+
+**Benefits:**
+- **Zero Configuration**: Automatically sets up `/openspec` slash commands.
+- **Native Context**: Gemini becomes "OpenSpec-aware" instantly.
+- **Auto-Maintenance**: The agent can self-repair its command definitions from the source of truth.
+
+*Note: You still need the [OpenSpec CLI](#step-1-install-the-cli-globally) installed globally for the agent to perform operations.*
 
 ### Install & Initialize
 
