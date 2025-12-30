@@ -6,6 +6,7 @@ export const ArtifactSchema = z.object({
   generates: z.string().min(1, { error: 'generates field is required' }),
   description: z.string(),
   template: z.string().min(1, { error: 'template field is required' }),
+  instruction: z.string().optional(),
   requires: z.array(z.string()).default([]),
 });
 

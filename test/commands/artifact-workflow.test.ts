@@ -259,9 +259,9 @@ describe('artifact-workflow CLI commands', () => {
         cwd: tempDir,
       });
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('Artifact: proposal');
+      expect(result.stdout).toContain('<artifact id="proposal"');
       expect(result.stdout).toContain('proposal.md');
-      expect(result.stdout).toContain('Template:');
+      expect(result.stdout).toContain('<template>');
     });
 
     it('shows instructions for design artifact', async () => {
@@ -271,9 +271,9 @@ describe('artifact-workflow CLI commands', () => {
         cwd: tempDir,
       });
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('Artifact: design');
+      expect(result.stdout).toContain('<artifact id="design"');
       expect(result.stdout).toContain('design.md');
-      expect(result.stdout).toContain('Template:');
+      expect(result.stdout).toContain('<template>');
     });
 
     it('shows blocked warning for artifact with unmet dependencies', async () => {
@@ -284,8 +284,8 @@ describe('artifact-workflow CLI commands', () => {
         cwd: tempDir,
       });
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('Warning: This artifact has unmet dependencies');
-      expect(result.stdout).toContain('[missing]');
+      expect(result.stdout).toContain('<warning>');
+      expect(result.stdout).toContain('status="missing"');
     });
 
     it('outputs JSON for instructions', async () => {
