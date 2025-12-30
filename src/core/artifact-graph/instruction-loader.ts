@@ -44,26 +44,34 @@ export interface ArtifactInstructions {
   artifactId: string;
   /** Schema name */
   schemaName: string;
+  /** Full path to change directory */
+  changeDir: string;
   /** Output path pattern (e.g., "proposal.md") */
   outputPath: string;
   /** Artifact description */
   description: string;
-  /** Template content */
+  /** Guidance on how to create this artifact (from schema instruction field) */
+  instruction: string | undefined;
+  /** Template content (structure to follow) */
   template: string;
-  /** Dependencies with completion status */
-  dependencies: DependencyStatus[];
+  /** Dependencies with completion status and paths */
+  dependencies: DependencyInfo[];
   /** Artifacts that become available after completing this one */
   unlocks: string[];
 }
 
 /**
- * Dependency status information.
+ * Dependency information including path and description.
  */
-export interface DependencyStatus {
+export interface DependencyInfo {
   /** Artifact ID */
   id: string;
   /** Whether the dependency is completed */
   done: boolean;
+  /** Relative output path of the dependency (e.g., "proposal.md") */
+  path: string;
+  /** Description of the dependency artifact */
+  description: string;
 }
 
 /**
@@ -176,15 +184,17 @@ export function generateInstructions(
   }
 
   const template = loadTemplate(context.schemaName, artifact.template);
-  const dependencies = getDependencyStatus(artifact, context.completed);
+  const dependencies = getDependencyInfo(artifact, context.graph, context.completed);
   const unlocks = getUnlockedArtifacts(context.graph, artifactId);
 
   return {
     changeName: context.changeName,
     artifactId: artifact.id,
     schemaName: context.schemaName,
+    changeDir: context.changeDir,
     outputPath: artifact.generates,
     description: artifact.description,
+    instruction: artifact.instruction,
     template,
     dependencies,
     unlocks,
@@ -192,16 +202,22 @@ export function generateInstructions(
 }
 
 /**
- * Gets dependency status for an artifact.
+ * Gets dependency info including paths and descriptions.
  */
-function getDependencyStatus(
+function getDependencyInfo(
   artifact: Artifact,
+  graph: ArtifactGraph,
   completed: CompletedSet
-): DependencyStatus[] {
-  return artifact.requires.map(id => ({
-    id,
-    done: completed.has(id),
-  }));
+): DependencyInfo[] {
+  return artifact.requires.map(id => {
+    const depArtifact = graph.getArtifact(id);
+    return {
+      id,
+      done: completed.has(id),
+      path: depArtifact?.generates ?? id,
+      description: depArtifact?.description ?? '',
+    };
+  });
 }
 
 /**

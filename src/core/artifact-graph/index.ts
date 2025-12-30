@@ -36,7 +36,7 @@ export {
   TemplateLoadError,
   type ChangeContext,
   type ArtifactInstructions,
-  type DependencyStatus,
+  type DependencyInfo,
   type ArtifactStatus,
   type ChangeStatus,
 } from './instruction-loader.js';
