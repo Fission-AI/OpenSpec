@@ -26,6 +26,8 @@ import {
   type ArtifactInstructions,
 } from '../core/artifact-graph/index.js';
 import { createChange, validateChangeName } from '../utils/change-utils.js';
+import { getNewChangeSkillTemplate, getContinueChangeSkillTemplate } from '../core/templates/skill-templates.js';
+import { FileSystemUtils } from '../utils/file-system.js';
 
 const DEFAULT_SCHEMA = 'spec-driven';
 
@@ -446,6 +448,83 @@ async function newChangeCommand(name: string | undefined, options: NewChangeOpti
 }
 
 // -----------------------------------------------------------------------------
+// Artifact Experimental Setup Command
+// -----------------------------------------------------------------------------
+
+/**
+ * Generates Agent Skills for the experimental artifact workflow.
+ * Creates .claude/skills/ directory with SKILL.md files following Agent Skills spec.
+ */
+async function artifactExperimentalSetupCommand(): Promise<void> {
+  const spinner = ora('Setting up experimental artifact workflow skills...').start();
+
+  try {
+    const projectRoot = process.cwd();
+    const skillsDir = path.join(projectRoot, '.claude', 'skills');
+
+    // Get skill templates
+    const newChangeSkill = getNewChangeSkillTemplate();
+    const continueChangeSkill = getContinueChangeSkillTemplate();
+
+    // Create skill directories and SKILL.md files
+    const skills = [
+      { template: newChangeSkill, dirName: 'openspec-new-change' },
+      { template: continueChangeSkill, dirName: 'openspec-continue-change' },
+    ];
+
+    const createdFiles: string[] = [];
+
+    for (const { template, dirName } of skills) {
+      const skillDir = path.join(skillsDir, dirName);
+      const skillFile = path.join(skillDir, 'SKILL.md');
+
+      // Generate SKILL.md content with YAML frontmatter
+      const skillContent = `---
+name: ${template.name}
+description: ${template.description}
+---
+
+${template.instructions}
+`;
+
+      // Write the skill file
+      await FileSystemUtils.writeFile(skillFile, skillContent);
+      createdFiles.push(path.relative(projectRoot, skillFile));
+    }
+
+    spinner.succeed('Experimental artifact workflow setup complete!');
+
+    // Print success message
+    console.log();
+    console.log(chalk.bold('🧪 Experimental Artifact Workflow Skills Created'));
+    console.log();
+    for (const file of createdFiles) {
+      console.log(chalk.green('  ✓ ' + file));
+    }
+    console.log();
+    console.log(chalk.bold('📖 Usage:'));
+    console.log();
+    console.log('  Skills work automatically in compatible editors:');
+    console.log('  • ' + chalk.cyan('Claude Code') + ' - Auto-detected, ready to use');
+    console.log('  • ' + chalk.cyan('Cursor') + ' - Enable in Settings → Rules → Import Settings');
+    console.log('  • ' + chalk.cyan('Windsurf') + ' - Auto-imports from .claude directory');
+    console.log();
+    console.log('  Ask Claude naturally:');
+    console.log('  • "I want to start a new OpenSpec change to add <feature>"');
+    console.log('  • "Continue working on this change"');
+    console.log();
+    console.log('  Claude will automatically use the appropriate skill.');
+    console.log();
+    console.log(chalk.yellow('💡 This is an experimental feature.'));
+    console.log('   Feedback welcome at: https://github.com/anthropics/openspec/issues');
+    console.log();
+  } catch (error) {
+    spinner.fail('Failed to setup experimental artifact workflow');
+    throw error;
+  }
+}
+
+// -----------------------------------------------------------------------------
 // Command Registration
 // -----------------------------------------------------------------------------
 
@@ -531,6 +610,20 @@ export function registerArtifactWorkflowCommands(program: Command): void {
     .action(async (name: string, options: NewChangeOptions) => {
       try {
         await newChangeCommand(name, options);
+      } catch (error) {
+        console.log();
+        ora().fail(`Error: ${(error as Error).message}`);
+        process.exit(1);
+      }
+    });
+
+  // Artifact experimental setup command
+  program
+    .command('artifact-experimental-setup')
+    .description('[Experimental] Setup Agent Skills for the experimental artifact workflow')
+    .action(async () => {
+      try {
+        await artifactExperimentalSetupCommand();
       } catch (error) {
         console.log();
         ora().fail(`Error: ${(error as Error).message}`);
