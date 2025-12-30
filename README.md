@@ -144,6 +144,21 @@ Verify installation:
 openspec --version
 ```
 
+<details>
+<summary><strong>Alternative: Install with Nix</strong> (click to expand)</summary>
+
+If you use [Nix](https://nixos.org/), you can run OpenSpec directly without global installation:
+
+```bash
+# Run directly from the repository
+nix run github:Fission-AI/OpenSpec -- --version
+
+# Or enter a development shell
+nix develop github:Fission-AI/OpenSpec
+```
+
+</details>
+
 #### Step 2: Initialize OpenSpec in your project
 
 Navigate to your project directory:
@@ -375,6 +390,8 @@ Run `openspec update` whenever someone switches tools so your agents pick up the
 - Test: `pnpm test`
 - Develop CLI locally: `pnpm run dev` or `pnpm run dev:cli`
 - Conventional commits (one-line): `type(scope): subject`
+
+**Nix users:** Run `nix develop` to enter a development shell with Node.js and pnpm pre-configured.
 
 ## License
 
