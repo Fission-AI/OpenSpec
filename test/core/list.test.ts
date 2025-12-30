@@ -115,19 +115,19 @@ Regular text that should be ignored
       expect(logOutput.some(line => line.includes('no-tasks') && line.includes('No tasks'))).toBe(true);
     });
 
-    it('should sort changes alphabetically', async () => {
+    it('should sort changes alphabetically when sort=name', async () => {
       const changesDir = path.join(tempDir, 'openspec', 'changes');
       await fs.mkdir(path.join(changesDir, 'zebra'), { recursive: true });
       await fs.mkdir(path.join(changesDir, 'alpha'), { recursive: true });
       await fs.mkdir(path.join(changesDir, 'middle'), { recursive: true });
 
       const listCommand = new ListCommand();
-      await listCommand.execute(tempDir);
+      await listCommand.execute(tempDir, 'changes', { sort: 'name' });
 
-      const changeLines = logOutput.filter(line => 
+      const changeLines = logOutput.filter(line =>
         line.includes('alpha') || line.includes('middle') || line.includes('zebra')
       );
-      
+
       expect(changeLines[0]).toContain('alpha');
       expect(changeLines[1]).toContain('middle');
       expect(changeLines[2]).toContain('zebra');

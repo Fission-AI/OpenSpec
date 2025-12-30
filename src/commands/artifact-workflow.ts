@@ -312,38 +312,93 @@ async function instructionsCommand(
 }
 
 function printInstructionsText(instructions: ArtifactInstructions, isBlocked: boolean): void {
+  const {
+    artifactId,
+    changeName,
+    schemaName,
+    changeDir,
+    outputPath,
+    description,
+    instruction,
+    template,
+    dependencies,
+    unlocks,
+  } = instructions;
+
+  // Opening tag
+  console.log(`<artifact id="${artifactId}" change="${changeName}" schema="${schemaName}">`);
+  console.log();
+
+  // Warning for blocked artifacts
   if (isBlocked) {
-    console.log(chalk.yellow('Warning: This artifact has unmet dependencies.'));
+    const missing = dependencies.filter((d) => !d.done).map((d) => d.id);
+    console.log('<warning>');
+    console.log('This artifact has unmet dependencies. Complete them first or proceed with caution.');
+    console.log(`Missing: ${missing.join(', ')}`);
+    console.log('</warning>');
     console.log();
   }
 
-  console.log(`Artifact: ${instructions.artifactId}`);
-  console.log(`Output: ${instructions.outputPath}`);
-  console.log(`Description: ${instructions.description}`);
+  // Task directive
+  console.log('<task>');
+  console.log(`Create the ${artifactId} artifact for change "${changeName}".`);
+  console.log(description);
+  console.log('</task>');
   console.log();
 
-  console.log('Dependencies:');
-  if (instructions.dependencies.length === 0) {
-    console.log('  (none)');
-  } else {
-    for (const dep of instructions.dependencies) {
-      const status = dep.done ? chalk.green('[done]') : chalk.red('[missing]');
-      console.log(`  ${status} ${dep.id}`);
+  // Context (dependencies)
+  if (dependencies.length > 0) {
+    console.log('<context>');
+    console.log('Read these files for context before creating this artifact:');
+    console.log();
+    for (const dep of dependencies) {
+      const status = dep.done ? 'done' : 'missing';
+      const fullPath = path.join(changeDir, dep.path);
+      console.log(`<dependency id="${dep.id}" status="${status}">`);
+      console.log(`  <path>${fullPath}</path>`);
+      console.log(`  <description>${dep.description}</description>`);
+      console.log('</dependency>');
     }
-  }
-  console.log();
-
-  if (instructions.unlocks.length > 0) {
-    console.log('Unlocks:');
-    for (const unlocked of instructions.unlocks) {
-      console.log(`  ${unlocked}`);
-    }
+    console.log('</context>');
     console.log();
   }
 
-  console.log('Template:');
-  console.log('─'.repeat(40));
-  console.log(instructions.template);
+  // Output location
+  console.log('<output>');
+  console.log(`Write to: ${path.join(changeDir, outputPath)}`);
+  console.log('</output>');
+  console.log();
+
+  // Instruction (guidance)
+  if (instruction) {
+    console.log('<instruction>');
+    console.log(instruction.trim());
+    console.log('</instruction>');
+    console.log();
+  }
+
+  // Template
+  console.log('<template>');
+  console.log(template.trim());
+  console.log('</template>');
+  console.log();
+
+  // Success criteria placeholder
+  console.log('<success_criteria>');
+  console.log('<!-- To be defined in schema validation rules -->');
+  console.log('</success_criteria>');
+  console.log();
+
+  // Unlocks
+  if (unlocks.length > 0) {
+    console.log('<unlocks>');
+    console.log(`Completing this artifact enables: ${unlocks.join(', ')}`);
+    console.log('</unlocks>');
+    console.log();
+  }
+
+  // Closing tag
+  console.log('</artifact>');
 }
 
 // -----------------------------------------------------------------------------
