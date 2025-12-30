@@ -495,6 +495,84 @@ Old body
     consoleSpy.mockRestore();
   });
 
+  it('should refresh existing Amp skills', async () => {
+    const ampPath = path.join(
+      testDir,
+      '.agents/skills/openspec-apply/SKILL.md'
+    );
+    await fs.mkdir(path.dirname(ampPath), { recursive: true });
+    const initialContent = `---
+name: openspec-apply
+description: Implement an approved OpenSpec change and keep tasks in sync.
+---
+
+<!-- OPENSPEC:START -->
+Old body
+<!-- OPENSPEC:END -->`;
+    await fs.writeFile(ampPath, initialContent);
+
+    const consoleSpy = vi.spyOn(console, 'log');
+
+    await updateCommand.execute(testDir);
+
+    const updated = await fs.readFile(ampPath, 'utf-8');
+    expect(updated).toContain('# Apply OpenSpec Change');
+    expect(updated).toContain('## Execution checklist');
+    expect(updated).not.toContain('Old body');
+    expect(updated).toContain('name: openspec-apply');
+    // Frontmatter is preserved by update, so original description remains
+    expect(updated).toContain('description: Implement an approved OpenSpec change');
+    // Verify markers remain after update
+    expect(updated).toContain('<!-- OPENSPEC:START -->');
+    expect(updated).toContain('<!-- OPENSPEC:END -->');
+    // Verify frontmatter appears before markers
+    expect(updated.indexOf('name: openspec-apply')).toBeLessThan(
+      updated.indexOf('<!-- OPENSPEC:START -->')
+    );
+
+    const [logMessage] = consoleSpy.mock.calls[0];
+    expect(logMessage).toContain(
+      'Updated slash commands: .agents/skills/openspec-apply/SKILL.md'
+    );
+    consoleSpy.mockRestore();
+  });
+
+  it('should not create missing Amp skills on update', async () => {
+    const ampApply = path.join(
+      testDir,
+      '.agents/skills/openspec-apply/SKILL.md'
+    );
+
+    // Only create apply; leave proposal and archive missing
+    await fs.mkdir(path.dirname(ampApply), { recursive: true });
+    await fs.writeFile(
+      ampApply,
+      `---
+name: openspec-apply
+description: Implement an approved OpenSpec change and keep tasks in sync.
+---
+
+<!-- OPENSPEC:START -->
+Old
+<!-- OPENSPEC:END -->`
+    );
+
+    await updateCommand.execute(testDir);
+
+    const ampProposal = path.join(
+      testDir,
+      '.agents/skills/openspec-proposal/SKILL.md'
+    );
+    const ampArchive = path.join(
+      testDir,
+      '.agents/skills/openspec-archive/SKILL.md'
+    );
+
+    // Confirm they weren't created by update
+    await expect(FileSystemUtils.fileExists(ampProposal)).resolves.toBe(false);
+    await expect(FileSystemUtils.fileExists(ampArchive)).resolves.toBe(false);
+  });
+
   it('should refresh existing Codex prompts', async () => {
     const codexPath = path.join(
       testDir,
