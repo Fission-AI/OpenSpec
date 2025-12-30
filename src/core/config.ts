@@ -24,6 +24,7 @@ export const AI_TOOLS: AIToolOption[] = [
   { name: 'Cline', value: 'cline', available: true, successLabel: 'Cline' },
   { name: 'Codex', value: 'codex', available: true, successLabel: 'Codex' },
   { name: 'CodeBuddy Code (CLI)', value: 'codebuddy', available: true, successLabel: 'CodeBuddy Code' },
+  { name: 'Continue', value: 'continue', available: true, successLabel: 'Continue (VS Code / JetBrains / Cli)' },
   { name: 'CoStrict', value: 'costrict', available: true, successLabel: 'CoStrict' },
   { name: 'Crush', value: 'crush', available: true, successLabel: 'Crush' },
   { name: 'Cursor', value: 'cursor', available: true, successLabel: 'Cursor' },
