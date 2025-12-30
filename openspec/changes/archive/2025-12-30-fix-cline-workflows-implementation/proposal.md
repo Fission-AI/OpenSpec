@@ -8,6 +8,6 @@ The Cline implementation was architecturally incorrect. According to Cline's off
 - **BREAKING**: Existing Cline users will need to re-run `openspec init` to get the corrected workflow files
 
 ## Impact
-- Affected specs: cli-init (corrected Cline workflow paths)
+- Affected specs: cli-init, cli-update (corrected Cline workflow paths)
 - Affected code: `src/core/configurators/slash/cline.ts`, test files, README.md
 - Modified files: `.clinerules/workflows/openspec-*.md` (moved from `.clinerules/openspec-*.md`)
