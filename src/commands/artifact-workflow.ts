@@ -571,7 +571,7 @@ ${template.instructions}
     console.log('  Claude will automatically use the appropriate skill.');
     console.log();
     console.log(chalk.yellow('💡 This is an experimental feature.'));
-    console.log('   Feedback welcome at: https://github.com/anthropics/openspec/issues');
+    console.log('   Feedback welcome at: https://github.com/Fission-AI/OpenSpec/issues');
     console.log();
   } catch (error) {
     spinner.fail('Failed to setup experimental artifact workflow');

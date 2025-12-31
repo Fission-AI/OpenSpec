@@ -133,7 +133,7 @@ openspec artifact-experimental-setup
 #   Claude will automatically use the appropriate skill.
 #
 # 💡 This is an experimental feature. Feedback welcome at:
-#    https://github.com/your-org/openspec/issues
+#    https://github.com/Fission-AI/OpenSpec/issues
 ```
 
 **Implementation Notes:**
