@@ -2,19 +2,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
 import { FileSystemUtils } from '../../../utils/file-system.js';
-
-/**
- * Installation result information
- */
-export interface InstallationResult {
-  success: boolean;
-  installedPath?: string;
-  backupPath?: string;
-  isOhMyZsh: boolean;
-  zshrcConfigured?: boolean;
-  message: string;
-  instructions?: string[];
-}
+import { InstallationResult } from '../factory.js';
 
 /**
  * Installer for Zsh completion scripts.
