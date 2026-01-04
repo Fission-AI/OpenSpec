@@ -244,7 +244,7 @@ compdef _openspec openspec
       case 'path':
         return "'*:path:_files'";
       case 'shell':
-        return "'*:shell:(zsh)'";
+        return "'*:shell:(zsh bash fish powershell)'";
       default:
         return "'*: :_default'";
     }
