@@ -1,7 +1,7 @@
 # cli-completion Specification
 
 ## Purpose
-Provide shell completion scripts for the OpenSpec CLI, enabling tab-completion for commands, flags, and dynamic values (change IDs, spec IDs) in supported shells. Currently supports Zsh with architecture designed for future shell expansion.
+Provide shell completion scripts for the OpenSpec CLI, enabling tab-completion for commands, flags, and dynamic values (change IDs, spec IDs) across multiple shells. Supports Zsh, Bash, Fish, and PowerShell.
 ## Requirements
 ### Requirement: Native Shell Behavior Integration
 
@@ -342,8 +342,8 @@ The completion command SHALL provide clear error messages for common failure sce
 
 #### Scenario: Unsupported shell
 
-- **WHEN** user requests completion for unsupported shell (bash, fish, powershell, etc.)
-- **THEN** display error message: "Shell '<name>' is not supported yet. Currently supported: zsh"
+- **WHEN** user requests completion for unsupported shell (e.g., ksh, csh, tcsh)
+- **THEN** display error message: "Shell '<name>' is not supported yet. Currently supported: zsh, bash, fish, powershell"
 - **AND** exit with code 1
 
 #### Scenario: Permission errors during installation
@@ -361,7 +361,7 @@ The completion command SHALL provide clear error messages for common failure sce
 
 #### Scenario: Shell not detected
 
-- **WHEN** `openspec completion install` cannot detect current shell or detects non-Zsh shell
+- **WHEN** `openspec completion install` cannot detect current shell
 - **THEN** display error: "Could not auto-detect shell. Please specify shell explicitly."
 - **AND** display usage hint: "Usage: openspec completion <operation> [shell]"
 - **AND** exit with code 1
