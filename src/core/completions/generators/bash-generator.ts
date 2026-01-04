@@ -1,4 +1,5 @@
 import { CompletionGenerator, CommandDefinition, FlagDefinition } from '../types.js';
+import { BASH_DYNAMIC_HELPERS } from '../templates/bash-templates.js';
 
 /**
  * Generates Bash completion scripts for the OpenSpec CLI.
@@ -14,69 +15,64 @@ export class BashGenerator implements CompletionGenerator {
    * @returns Bash completion script as a string
    */
   generate(commands: CommandDefinition[]): string {
-    const script: string[] = [];
+    // Build command list for top-level completions
+    const commandList = commands.map(c => this.escapeCommandName(c.name)).join(' ');
 
-    // Header comment
-    script.push('# Bash completion script for OpenSpec CLI');
-    script.push('# Auto-generated - do not edit manually');
-    script.push('');
-
-    // Main completion function
-    script.push('_openspec_completion() {');
-    script.push('  local cur prev words cword');
-    script.push('');
-    script.push('  # Use _init_completion if available (from bash-completion package)');
-    script.push('  # Otherwise, fall back to manual initialization');
-    script.push('  if declare -F _init_completion >/dev/null 2>&1; then');
-    script.push('    _init_completion || return');
-    script.push('  else');
-    script.push('    # Manual fallback when bash-completion is not installed');
-    script.push('    COMPREPLY=()');
-    script.push('    _get_comp_words_by_ref -n : cur prev words cword 2>/dev/null || {');
-    script.push('      cur="${COMP_WORDS[COMP_CWORD]}"');
-    script.push('      prev="${COMP_WORDS[COMP_CWORD-1]}"');
-    script.push('      words=("${COMP_WORDS[@]}")');
-    script.push('      cword=$COMP_CWORD');
-    script.push('    }');
-    script.push('  fi');
-    script.push('');
-    script.push('  local cmd="${words[1]}"');
-    script.push('  local subcmd="${words[2]}"');
-    script.push('');
-
-    // Top-level commands
-    script.push('  # Top-level commands');
-    script.push('  if [[ $cword -eq 1 ]]; then');
-    script.push('    local commands="' + commands.map(c => this.escapeCommandName(c.name)).join(' ') + '"');
-    script.push('    COMPREPLY=($(compgen -W "$commands" -- "$cur"))');
-    script.push('    return 0');
-    script.push('  fi');
-    script.push('');
-
-    // Command-specific completion
-    script.push('  # Command-specific completion');
-    script.push('  case "$cmd" in');
-
+    // Build command cases using push() for loop clarity
+    const caseLines: string[] = [];
     for (const cmd of commands) {
-      script.push(`    ${cmd.name})`);
-      script.push(...this.generateCommandCase(cmd, '      '));
-      script.push('      ;;');
+      caseLines.push(`    ${cmd.name})`);
+      caseLines.push(...this.generateCommandCase(cmd, '      '));
+      caseLines.push('      ;;');
     }
+    const commandCases = caseLines.join('\n');
 
-    script.push('  esac');
-    script.push('');
-    script.push('  return 0');
-    script.push('}');
-    script.push('');
+    // Dynamic completion helpers from template
+    const helpers = BASH_DYNAMIC_HELPERS;
 
-    // Helper functions for dynamic completions
-    script.push(...this.generateDynamicCompletionHelpers());
+    // Assemble final script with template literal
+    return `# Bash completion script for OpenSpec CLI
+# Auto-generated - do not edit manually
 
-    // Register the completion function
-    script.push('complete -F _openspec_completion openspec');
-    script.push('');
+_openspec_completion() {
+  local cur prev words cword
 
-    return script.join('\n');
+  # Use _init_completion if available (from bash-completion package)
+  # Otherwise, fall back to manual initialization
+  if declare -F _init_completion >/dev/null 2>&1; then
+    _init_completion || return
+  else
+    # Manual fallback when bash-completion is not installed
+    COMPREPLY=()
+    _get_comp_words_by_ref -n : cur prev words cword 2>/dev/null || {
+      cur="\${COMP_WORDS[COMP_CWORD]}"
+      prev="\${COMP_WORDS[COMP_CWORD-1]}"
+      words=("\${COMP_WORDS[@]}")
+      cword=$COMP_CWORD
+    }
+  fi
+
+  local cmd="\${words[1]}"
+  local subcmd="\${words[2]}"
+
+  # Top-level commands
+  if [[ $cword -eq 1 ]]; then
+    local commands="${commandList}"
+    COMPREPLY=($(compgen -W "$commands" -- "$cur"))
+    return 0
+  fi
+
+  # Command-specific completion
+  case "$cmd" in
+${commandCases}
+  esac
+
+  return 0
+}
+
+${helpers}
+complete -F _openspec_completion openspec
+`;
   }
 
   /**
@@ -168,41 +164,6 @@ export class BashGenerator implements CompletionGenerator {
     return lines;
   }
 
-  /**
-   * Generate dynamic completion helper functions
-   */
-  private generateDynamicCompletionHelpers(): string[] {
-    const lines: string[] = [];
-
-    lines.push('# Dynamic completion helpers');
-    lines.push('');
-
-    // Helper for completing change IDs
-    lines.push('_openspec_complete_changes() {');
-    lines.push('  local changes');
-    lines.push('  changes=$(openspec __complete changes 2>/dev/null | cut -f1)');
-    lines.push('  COMPREPLY=($(compgen -W "$changes" -- "$cur"))');
-    lines.push('}');
-    lines.push('');
-
-    // Helper for completing spec IDs
-    lines.push('_openspec_complete_specs() {');
-    lines.push('  local specs');
-    lines.push('  specs=$(openspec __complete specs 2>/dev/null | cut -f1)');
-    lines.push('  COMPREPLY=($(compgen -W "$specs" -- "$cur"))');
-    lines.push('}');
-    lines.push('');
-
-    // Helper for completing both changes and specs
-    lines.push('_openspec_complete_items() {');
-    lines.push('  local items');
-    lines.push('  items=$(openspec __complete changes 2>/dev/null | cut -f1; openspec __complete specs 2>/dev/null | cut -f1)');
-    lines.push('  COMPREPLY=($(compgen -W "$items" -- "$cur"))');
-    lines.push('}');
-    lines.push('');
-
-    return lines;
-  }
 
   /**
    * Escape command/subcommand names for safe use in Bash scripts

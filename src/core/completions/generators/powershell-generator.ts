@@ -1,4 +1,5 @@
 import { CompletionGenerator, CommandDefinition, FlagDefinition } from '../types.js';
+import { POWERSHELL_DYNAMIC_HELPERS } from '../templates/powershell-templates.js';
 
 /**
  * Generates PowerShell completion scripts for the OpenSpec CLI.
@@ -14,59 +15,56 @@ export class PowerShellGenerator implements CompletionGenerator {
    * @returns PowerShell completion script as a string
    */
   generate(commands: CommandDefinition[]): string {
-    const script: string[] = [];
-
-    // Header comment
-    script.push('# PowerShell completion script for OpenSpec CLI');
-    script.push('# Auto-generated - do not edit manually');
-    script.push('');
-
-    // Helper functions for dynamic completions
-    script.push(...this.generateDynamicCompletionHelpers());
-
-    // Main completion scriptblock
-    script.push('$openspecCompleter = {');
-    script.push('    param($wordToComplete, $commandAst, $cursorPosition)');
-    script.push('');
-    script.push('    $tokens = $commandAst.ToString() -split "\\s+"');
-    script.push('    $commandCount = ($tokens | Measure-Object).Count');
-    script.push('');
-
-    // Top-level command completion
-    script.push('    # Top-level commands');
-    script.push('    if ($commandCount -eq 1 -or ($commandCount -eq 2 -and $wordToComplete)) {');
-    script.push('        $commands = @(');
+    // Build top-level commands using push() for loop clarity
+    const commandLines: string[] = [];
     for (const cmd of commands) {
-      script.push(`            @{Name="${cmd.name}"; Description="${this.escapeDescription(cmd.description)}"},`);
+      commandLines.push(`            @{Name="${cmd.name}"; Description="${this.escapeDescription(cmd.description)}"},`);
     }
-    script.push('        )');
-    script.push('        $commands | Where-Object { $_.Name -like "$wordToComplete*" } | ForEach-Object {');
-    script.push('            [System.Management.Automation.CompletionResult]::new($_.Name, $_.Name, "ParameterValue", $_.Description)');
-    script.push('        }');
-    script.push('        return');
-    script.push('    }');
-    script.push('');
+    const topLevelCommands = commandLines.join('\n');
 
-    // Command-specific completions
-    script.push('    $command = $tokens[1]');
-    script.push('');
-    script.push('    switch ($command) {');
-
+    // Build command cases using push() for loop clarity
+    const commandCaseLines: string[] = [];
     for (const cmd of commands) {
-      script.push(`        "${cmd.name}" {`);
-      script.push(...this.generateCommandCase(cmd, '            '));
-      script.push('        }');
+      commandCaseLines.push(`        "${cmd.name}" {`);
+      commandCaseLines.push(...this.generateCommandCase(cmd, '            '));
+      commandCaseLines.push('        }');
+    }
+    const commandCases = commandCaseLines.join('\n');
+
+    // Dynamic completion helpers from template
+    const helpers = POWERSHELL_DYNAMIC_HELPERS;
+
+    // Assemble final script with template literal
+    return `# PowerShell completion script for OpenSpec CLI
+# Auto-generated - do not edit manually
+
+${helpers}
+$openspecCompleter = {
+    param($wordToComplete, $commandAst, $cursorPosition)
+
+    $tokens = $commandAst.ToString() -split "\\s+"
+    $commandCount = ($tokens | Measure-Object).Count
+
+    # Top-level commands
+    if ($commandCount -eq 1 -or ($commandCount -eq 2 -and $wordToComplete)) {
+        $commands = @(
+${topLevelCommands}
+        )
+        $commands | Where-Object { $_.Name -like "$wordToComplete*" } | ForEach-Object {
+            [System.Management.Automation.CompletionResult]::new($_.Name, $_.Name, "ParameterValue", $_.Description)
+        }
+        return
     }
 
-    script.push('    }');
-    script.push('}');
-    script.push('');
+    $command = $tokens[1]
 
-    // Register the completer
-    script.push('Register-ArgumentCompleter -CommandName openspec -ScriptBlock $openspecCompleter');
-    script.push('');
+    switch ($command) {
+${commandCases}
+    }
+}
 
-    return script.join('\n');
+Register-ArgumentCompleter -CommandName openspec -ScriptBlock $openspecCompleter
+`;
   }
 
   /**
@@ -177,40 +175,6 @@ export class PowerShellGenerator implements CompletionGenerator {
         // PowerShell handles file path completion automatically
         break;
     }
-
-    return lines;
-  }
-
-  /**
-   * Generate dynamic completion helper functions
-   */
-  private generateDynamicCompletionHelpers(): string[] {
-    const lines: string[] = [];
-
-    lines.push('# Dynamic completion helpers');
-    lines.push('');
-
-    // Helper for change IDs
-    lines.push('function Get-OpenSpecChanges {');
-    lines.push('    $output = openspec __complete changes 2>$null');
-    lines.push('    if ($output) {');
-    lines.push('        $output | ForEach-Object {');
-    lines.push('            ($_ -split "\\t")[0]');
-    lines.push('        }');
-    lines.push('    }');
-    lines.push('}');
-    lines.push('');
-
-    // Helper for spec IDs
-    lines.push('function Get-OpenSpecSpecs {');
-    lines.push('    $output = openspec __complete specs 2>$null');
-    lines.push('    if ($output) {');
-    lines.push('        $output | ForEach-Object {');
-    lines.push('            ($_ -split "\\t")[0]');
-    lines.push('        }');
-    lines.push('    }');
-    lines.push('}');
-    lines.push('');
 
     return lines;
   }

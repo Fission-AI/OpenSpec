@@ -1,4 +1,5 @@
 import { CompletionGenerator, CommandDefinition, FlagDefinition } from '../types.js';
+import { FISH_STATIC_HELPERS, FISH_DYNAMIC_HELPERS } from '../templates/fish-templates.js';
 
 /**
  * Generates Fish completion scripts for the OpenSpec CLI.
@@ -14,52 +15,39 @@ export class FishGenerator implements CompletionGenerator {
    * @returns Fish completion script as a string
    */
   generate(commands: CommandDefinition[]): string {
-    const script: string[] = [];
-
-    // Header comment
-    script.push('# Fish completion script for OpenSpec CLI');
-    script.push('# Auto-generated - do not edit manually');
-    script.push('');
-
-    // Helper functions for checking conditions
-    script.push('# Helper function to check if a subcommand is present');
-    script.push('function __fish_openspec_using_subcommand');
-    script.push('    set -l cmd (commandline -opc)');
-    script.push('    set -e cmd[1]');
-    script.push('    for i in $argv');
-    script.push('        if contains -- $i $cmd');
-    script.push('            return 0');
-    script.push('        end');
-    script.push('    end');
-    script.push('    return 1');
-    script.push('end');
-    script.push('');
-
-    script.push('function __fish_openspec_no_subcommand');
-    script.push('    set -l cmd (commandline -opc)');
-    script.push('    test (count $cmd) -eq 1');
-    script.push('end');
-    script.push('');
-
-    // Dynamic completion helpers
-    script.push(...this.generateDynamicCompletionHelpers());
-
-    // Top-level commands
+    // Build top-level commands using push() for loop clarity
+    const topLevelLines: string[] = [];
     for (const cmd of commands) {
-      script.push(`# ${cmd.name} command`);
-      script.push(
+      topLevelLines.push(`# ${cmd.name} command`);
+      topLevelLines.push(
         `complete -c openspec -n '__fish_openspec_no_subcommand' -a '${cmd.name}' -d '${this.escapeDescription(cmd.description)}'`
       );
     }
-    script.push('');
+    const topLevelCommands = topLevelLines.join('\n');
 
-    // Command-specific completions
+    // Build command-specific completions using push() for loop clarity
+    const commandCompletionLines: string[] = [];
     for (const cmd of commands) {
-      script.push(...this.generateCommandCompletions(cmd));
-      script.push('');
+      commandCompletionLines.push(...this.generateCommandCompletions(cmd));
+      commandCompletionLines.push('');
     }
+    const commandCompletions = commandCompletionLines.join('\n');
 
-    return script.join('\n');
+    // Static helper functions from template
+    const helperFunctions = FISH_STATIC_HELPERS;
+
+    // Dynamic completion helpers from template
+    const dynamicHelpers = FISH_DYNAMIC_HELPERS;
+
+    // Assemble final script with template literal
+    return `# Fish completion script for OpenSpec CLI
+# Auto-generated - do not edit manually
+
+${helperFunctions}
+${dynamicHelpers}
+${topLevelCommands}
+
+${commandCompletions}`;
   }
 
   /**
@@ -186,40 +174,6 @@ export class FishGenerator implements CompletionGenerator {
     return lines;
   }
 
-  /**
-   * Generate dynamic completion helper functions
-   */
-  private generateDynamicCompletionHelpers(): string[] {
-    const lines: string[] = [];
-
-    lines.push('# Dynamic completion helpers');
-    lines.push('');
-
-    // Helper for change IDs
-    lines.push('function __fish_openspec_changes');
-    lines.push('    openspec __complete changes 2>/dev/null | while read -l id desc');
-    lines.push('        echo "$id\\t$desc"');
-    lines.push('    end');
-    lines.push('end');
-    lines.push('');
-
-    // Helper for spec IDs
-    lines.push('function __fish_openspec_specs');
-    lines.push('    openspec __complete specs 2>/dev/null | while read -l id desc');
-    lines.push('        echo "$id\\t$desc"');
-    lines.push('    end');
-    lines.push('end');
-    lines.push('');
-
-    // Helper for both changes and specs
-    lines.push('function __fish_openspec_items');
-    lines.push('    __fish_openspec_changes');
-    lines.push('    __fish_openspec_specs');
-    lines.push('end');
-    lines.push('');
-
-    return lines;
-  }
 
   /**
    * Escape description text for Fish
