@@ -47,7 +47,7 @@ The goal is to allow users to test the new artifact-driven workflow system along
 - [x] Remove `.claude/commands/awf/` directory
 
 **CLI Commands:**
-The underlying CLI commands (`openspec status`, `openspec next`, `openspec instructions`, etc.) remain unchanged. Only the slash command names change.
+The underlying CLI commands (`openspec status`, `openspec instructions`, etc.) remain unchanged. Only the slash command names change.
 
 ---
 
@@ -342,7 +342,7 @@ The experimental release is ready when:
    - Consider: Add `--schema tdd` option or prompt
 
 2. **Namespace in CLI** - Should experimental CLI commands be namespaced?
-   - Current: `openspec status`, `openspec next` (no namespace)
+   - Current: `openspec status`, `openspec instructions` (no namespace)
    - Alternative: `openspec opsx status` (explicit experimental namespace)
    - Recommendation: Keep current, less typing for users
 
@@ -913,7 +913,7 @@ Pause if you hit blockers or need clarification.
 2. ~~Design decisions~~ (Done - all 3 blockers resolved)
 3. ~~Design apply skill~~ (Done - documented above)
 4. ~~Implement proposal template change (Decision 1 - capability discovery)~~ (Done)
-5. Remove `openspec next` command (Decision 2a)
+5. ~~Remove `openspec next` command (Decision 2a)~~ (Done)
 6. ~~Add `openspec instructions apply` CLI command~~ (Done)
 7. ~~Create `openspec-apply-change` skill~~ (Done)
 8. Conduct E2E testing with updated workflow

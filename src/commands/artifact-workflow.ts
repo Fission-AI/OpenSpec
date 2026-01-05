@@ -234,57 +234,6 @@ function printStatusText(status: ChangeStatus): void {
 }
 
 // -----------------------------------------------------------------------------
-// Next Command
-// -----------------------------------------------------------------------------
-
-interface NextOptions {
-  change?: string;
-  schema?: string;
-  json?: boolean;
-}
-
-async function nextCommand(options: NextOptions): Promise<void> {
-  const spinner = ora('Finding next artifacts...').start();
-
-  try {
-    const projectRoot = process.cwd();
-    const changeName = await validateChangeExists(options.change, projectRoot);
-    const schemaName = validateSchemaExists(options.schema ?? DEFAULT_SCHEMA);
-
-    const context = loadChangeContext(projectRoot, changeName, schemaName);
-    const ready = context.graph.getNextArtifacts(context.completed);
-    const isComplete = context.graph.isComplete(context.completed);
-
-    spinner.stop();
-
-    if (options.json) {
-      console.log(JSON.stringify(ready, null, 2));
-      return;
-    }
-
-    if (isComplete) {
-      console.log(chalk.green('All artifacts are complete!'));
-      return;
-    }
-
-    if (ready.length === 0) {
-      console.log('No artifacts are ready. All remaining artifacts are blocked.');
-      console.log('Run `openspec status --change ' + changeName + '` to see blocked dependencies.');
-      return;
-    }
-
-    console.log('Artifacts ready to create:');
-    for (const artifactId of ready) {
-      const color = getStatusColor('ready');
-      console.log(color(`  ${artifactId}`));
-    }
-  } catch (error) {
-    spinner.stop();
-    throw error;
-  }
-}
-
-// -----------------------------------------------------------------------------
 // Instructions Command
 // -----------------------------------------------------------------------------
 
@@ -823,23 +772,6 @@ export function registerArtifactWorkflowCommands(program: Command): void {
     .action(async (options: StatusOptions) => {
       try {
         await statusCommand(options);
-      } catch (error) {
-        console.log();
-        ora().fail(`Error: ${(error as Error).message}`);
-        process.exit(1);
-      }
-    });
-
-  // Next command
-  program
-    .command('next')
-    .description('[Experimental] Show artifacts ready to be created')
-    .option('--change <id>', 'Change name to check')
-    .option('--schema <name>', `Schema to use (default: ${DEFAULT_SCHEMA})`)
-    .option('--json', 'Output as JSON array of ready artifact IDs')
-    .action(async (options: NextOptions) => {
-      try {
-        await nextCommand(options);
       } catch (error) {
         console.log();
         ora().fail(`Error: ${(error as Error).message}`);

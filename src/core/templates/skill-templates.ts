@@ -47,22 +47,16 @@ export function getNewChangeSkillTemplate(): SkillTemplate {
    \`\`\`bash
    openspec status --change "<name>"
    \`\`\`
-   This shows which artifacts need to be created.
+   This shows which artifacts need to be created and which are ready (dependencies satisfied).
 
-4. **Show what's ready to create**
-   \`\`\`bash
-   openspec next --change "<name>"
-   \`\`\`
-   This shows which artifacts can be created now (dependencies satisfied).
-
-5. **Get instructions for the first artifact**
+4. **Get instructions for the first artifact**
    The first artifact is always \`proposal\` (no dependencies).
    \`\`\`bash
    openspec instructions proposal --change "<name>"
    \`\`\`
    This outputs the template and context for creating the proposal.
 
-6. **STOP and wait for user direction**
+5. **STOP and wait for user direction**
 
 **Output**
 
@@ -125,9 +119,8 @@ export function getContinueChangeSkillTemplate(): SkillTemplate {
 
    ---
 
-   **If artifacts are ready to create**:
-   - Run \`openspec next --change "<name>"\` to get ready artifacts
-   - Pick the FIRST ready artifact
+   **If artifacts are ready to create** (status shows artifacts with \`status: "ready"\`):
+   - Pick the FIRST artifact with \`status: "ready"\` from the status output
    - Get its instructions:
      \`\`\`bash
      openspec instructions <artifact-id> --change "<name>" --json
