@@ -9,11 +9,11 @@
 ## Capabilities
 
 ### New Capabilities
-<!-- Capabilities being introduced (will create new specs/<name>/spec.md) -->
+<!-- Capabilities being introduced. Replace <name> with kebab-case identifier (e.g., user-auth, data-export, api-rate-limiting). Each creates specs/<name>/spec.md -->
 - `<name>`: <brief description of what this capability covers>
 
 ### Modified Capabilities
-<!-- Existing capabilities being changed (will update existing specs) -->
+<!-- Existing capabilities being changed. Use the existing spec name from openspec/specs/ -->
 - `<existing-name>`: <what's changing>
 
 ## Impact
