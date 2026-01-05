@@ -163,8 +163,13 @@ After each invocation, show:
 
 When filling in templates:
 
-- **proposal.md**: Ask user about the change if not clear. Fill in Why, What Changes, Impact.
-- **specs/*.md**: Create detailed specifications based on the proposal. Use the spec template format.
+- **proposal.md**: Ask user about the change if not clear. Fill in Why, What Changes, Capabilities, Impact.
+  - **IMPORTANT**: The Capabilities section is critical. Before filling it in:
+    - Check \`openspec/specs/\` for existing capabilities
+    - List new capabilities with kebab-case names (e.g., \`user-auth\`, \`data-export\`)
+    - List modified capabilities that need spec updates
+  - Each capability listed will need a corresponding spec file in the next phase.
+- **specs/*.md**: Create one spec per capability listed in the proposal. Use \`specs/<capability-name>/spec.md\` path.
 - **design.md**: Document technical decisions, architecture, and implementation approach.
 - **tasks.md**: Break down implementation into checkboxed tasks based on specs and design.
 

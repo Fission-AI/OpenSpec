@@ -12,9 +12,14 @@ artifacts:
       Sections:
       - **Why**: 1-2 sentences on the problem or opportunity. What problem does this solve? Why now?
       - **What Changes**: Bullet list of changes. Be specific about new capabilities, modifications, or removals. Mark breaking changes with **BREAKING**.
-      - **Impact**: Two parts:
-        - Affected specs: List capabilities that will have spec deltas
-        - Affected code: Key files, APIs, dependencies, or systems
+      - **Capabilities**: Identify which specs will be created or modified:
+        - **New Capabilities**: List capabilities being introduced. Each becomes a new `specs/<name>/spec.md`. Use kebab-case names (e.g., `user-auth`, `data-export`).
+        - **Modified Capabilities**: List existing capabilities being changed. Check `openspec/specs/` for existing spec names.
+      - **Impact**: Affected code, APIs, dependencies, or systems.
+
+      IMPORTANT: The Capabilities section is critical. It creates the contract between
+      proposal and specs phases. Research existing specs before filling this in.
+      Each capability listed here will need a corresponding spec file.
 
       Keep it concise (1-2 pages). Focus on the "why" not the "how" -
       implementation details belong in design.md.

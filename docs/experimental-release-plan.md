@@ -912,7 +912,7 @@ Pause if you hit blockers or need clarification.
 1. ~~Review this plan and confirm scope~~ (Done - blockers identified)
 2. ~~Design decisions~~ (Done - all 3 blockers resolved)
 3. ~~Design apply skill~~ (Done - documented above)
-4. Implement proposal template change (Decision 1 - capability discovery)
+4. ~~Implement proposal template change (Decision 1 - capability discovery)~~ (Done)
 5. Remove `openspec next` command (Decision 2a)
 6. ~~Add `openspec instructions apply` CLI command~~ (Done)
 7. ~~Create `openspec-apply-change` skill~~ (Done)
