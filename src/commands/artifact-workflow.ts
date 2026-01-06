@@ -26,6 +26,38 @@ import {
   type ArtifactInstructions,
 } from '../core/artifact-graph/index.js';
 import { createChange, validateChangeName } from '../utils/change-utils.js';
+import { getNewChangeSkillTemplate, getContinueChangeSkillTemplate, getApplyChangeSkillTemplate } from '../core/templates/skill-templates.js';
+import { FileSystemUtils } from '../utils/file-system.js';
+
+// -----------------------------------------------------------------------------
+// Types for Apply Instructions
+// -----------------------------------------------------------------------------
+
+interface TaskItem {
+  id: string;
+  description: string;
+  done: boolean;
+}
+
+interface ApplyInstructions {
+  changeName: string;
+  changeDir: string;
+  contextFiles: {
+    proposal?: string;
+    specs: string;
+    design?: string;
+    tasks: string;
+  };
+  progress: {
+    total: number;
+    complete: number;
+    remaining: number;
+  };
+  tasks: TaskItem[];
+  state: 'blocked' | 'all_done' | 'ready';
+  missingArtifacts?: string[];
+  instruction: string;
+}
 
 const DEFAULT_SCHEMA = 'spec-driven';
 
@@ -202,57 +234,6 @@ function printStatusText(status: ChangeStatus): void {
 }
 
 // -----------------------------------------------------------------------------
-// Next Command
-// -----------------------------------------------------------------------------
-
-interface NextOptions {
-  change?: string;
-  schema?: string;
-  json?: boolean;
-}
-
-async function nextCommand(options: NextOptions): Promise<void> {
-  const spinner = ora('Finding next artifacts...').start();
-
-  try {
-    const projectRoot = process.cwd();
-    const changeName = await validateChangeExists(options.change, projectRoot);
-    const schemaName = validateSchemaExists(options.schema ?? DEFAULT_SCHEMA);
-
-    const context = loadChangeContext(projectRoot, changeName, schemaName);
-    const ready = context.graph.getNextArtifacts(context.completed);
-    const isComplete = context.graph.isComplete(context.completed);
-
-    spinner.stop();
-
-    if (options.json) {
-      console.log(JSON.stringify(ready, null, 2));
-      return;
-    }
-
-    if (isComplete) {
-      console.log(chalk.green('All artifacts are complete!'));
-      return;
-    }
-
-    if (ready.length === 0) {
-      console.log('No artifacts are ready. All remaining artifacts are blocked.');
-      console.log('Run `openspec status --change ' + changeName + '` to see blocked dependencies.');
-      return;
-    }
-
-    console.log('Artifacts ready to create:');
-    for (const artifactId of ready) {
-      const color = getStatusColor('ready');
-      console.log(color(`  ${artifactId}`));
-    }
-  } catch (error) {
-    spinner.stop();
-    throw error;
-  }
-}
-
-// -----------------------------------------------------------------------------
 // Instructions Command
 // -----------------------------------------------------------------------------
 
@@ -402,6 +383,198 @@ function printInstructionsText(instructions: ArtifactInstructions, isBlocked: bo
 }
 
 // -----------------------------------------------------------------------------
+// Apply Instructions Command
+// -----------------------------------------------------------------------------
+
+interface ApplyInstructionsOptions {
+  change?: string;
+  schema?: string;
+  json?: boolean;
+}
+
+/**
+ * Parses tasks.md content and extracts task items with their completion status.
+ */
+function parseTasksFile(content: string): TaskItem[] {
+  const tasks: TaskItem[] = [];
+  const lines = content.split('\n');
+  let taskIndex = 0;
+
+  for (const line of lines) {
+    // Match checkbox patterns: - [ ] or - [x] or - [X]
+    const checkboxMatch = line.match(/^[-*]\s*\[([ xX])\]\s*(.+)$/);
+    if (checkboxMatch) {
+      taskIndex++;
+      const done = checkboxMatch[1].toLowerCase() === 'x';
+      const description = checkboxMatch[2].trim();
+      tasks.push({
+        id: `${taskIndex}`,
+        description,
+        done,
+      });
+    }
+  }
+
+  return tasks;
+}
+
+/**
+ * Generates apply instructions for implementing tasks from a change.
+ */
+async function generateApplyInstructions(
+  projectRoot: string,
+  changeName: string,
+  schemaName: string
+): Promise<ApplyInstructions> {
+  const context = loadChangeContext(projectRoot, changeName, schemaName);
+  const changeDir = path.join(projectRoot, 'openspec', 'changes', changeName);
+
+  // Check if required artifacts exist (tasks.md is the minimum requirement)
+  const tasksPath = path.join(changeDir, 'tasks.md');
+  const proposalPath = path.join(changeDir, 'proposal.md');
+  const designPath = path.join(changeDir, 'design.md');
+  const specsPath = path.join(changeDir, 'specs');
+
+  const hasProposal = fs.existsSync(proposalPath);
+  const hasDesign = fs.existsSync(designPath);
+  const hasTasks = fs.existsSync(tasksPath);
+  const hasSpecs = fs.existsSync(specsPath);
+
+  // Determine state and missing artifacts
+  const missingArtifacts: string[] = [];
+  if (!hasTasks) {
+    // Check what's missing to create tasks (design is optional)
+    if (!hasProposal) missingArtifacts.push('proposal');
+    if (!hasSpecs) missingArtifacts.push('specs');
+    if (missingArtifacts.length === 0) missingArtifacts.push('tasks');
+  }
+
+  // Build context files object
+  const contextFiles: ApplyInstructions['contextFiles'] = {
+    specs: path.join(changeDir, 'specs/**/*.md'),
+    tasks: tasksPath,
+  };
+  if (hasProposal) contextFiles.proposal = proposalPath;
+  if (hasDesign) contextFiles.design = designPath;
+
+  // Parse tasks if file exists
+  let tasks: TaskItem[] = [];
+  if (hasTasks) {
+    const tasksContent = await fs.promises.readFile(tasksPath, 'utf-8');
+    tasks = parseTasksFile(tasksContent);
+  }
+
+  // Calculate progress
+  const total = tasks.length;
+  const complete = tasks.filter((t) => t.done).length;
+  const remaining = total - complete;
+
+  // Determine state
+  let state: ApplyInstructions['state'];
+  let instruction: string;
+
+  if (!hasTasks || missingArtifacts.length > 0) {
+    state = 'blocked';
+    instruction = `Cannot apply this change yet. Missing artifacts: ${missingArtifacts.join(', ')}.\nUse the openspec-continue-change skill to create the missing artifacts first.`;
+  } else if (remaining === 0 && total > 0) {
+    state = 'all_done';
+    instruction = 'All tasks are complete! This change is ready to be archived.\nConsider running tests and reviewing the changes before archiving.';
+  } else if (total === 0) {
+    state = 'blocked';
+    instruction = 'The tasks.md file exists but contains no tasks.\nAdd tasks to tasks.md or regenerate it with openspec-continue-change.';
+  } else {
+    state = 'ready';
+    instruction = 'Read context files, work through pending tasks, mark complete as you go.\nPause if you hit blockers or need clarification.';
+  }
+
+  return {
+    changeName,
+    changeDir,
+    contextFiles,
+    progress: { total, complete, remaining },
+    tasks,
+    state,
+    missingArtifacts: missingArtifacts.length > 0 ? missingArtifacts : undefined,
+    instruction,
+  };
+}
+
+async function applyInstructionsCommand(options: ApplyInstructionsOptions): Promise<void> {
+  const spinner = ora('Generating apply instructions...').start();
+
+  try {
+    const projectRoot = process.cwd();
+    const changeName = await validateChangeExists(options.change, projectRoot);
+    const schemaName = validateSchemaExists(options.schema ?? DEFAULT_SCHEMA);
+
+    const instructions = await generateApplyInstructions(projectRoot, changeName, schemaName);
+
+    spinner.stop();
+
+    if (options.json) {
+      console.log(JSON.stringify(instructions, null, 2));
+      return;
+    }
+
+    printApplyInstructionsText(instructions);
+  } catch (error) {
+    spinner.stop();
+    throw error;
+  }
+}
+
+function printApplyInstructionsText(instructions: ApplyInstructions): void {
+  const { changeName, contextFiles, progress, tasks, state, missingArtifacts, instruction } = instructions;
+
+  console.log(`## Apply: ${changeName}`);
+  console.log();
+
+  // Warning for blocked state
+  if (state === 'blocked' && missingArtifacts) {
+    console.log('### ⚠️ Blocked');
+    console.log();
+    console.log(`Missing artifacts: ${missingArtifacts.join(', ')}`);
+    console.log('Use the openspec-continue-change skill to create these first.');
+    console.log();
+  }
+
+  // Context files
+  console.log('### Context Files');
+  if (contextFiles.proposal) {
+    console.log(`- proposal: ${contextFiles.proposal}`);
+  }
+  console.log(`- specs: ${contextFiles.specs}`);
+  if (contextFiles.design) {
+    console.log(`- design: ${contextFiles.design}`);
+  }
+  console.log(`- tasks: ${contextFiles.tasks}`);
+  console.log();
+
+  // Progress
+  console.log('### Progress');
+  if (state === 'all_done') {
+    console.log(`${progress.complete}/${progress.total} complete ✓`);
+  } else {
+    console.log(`${progress.complete}/${progress.total} complete`);
+  }
+  console.log();
+
+  // Tasks
+  if (tasks.length > 0) {
+    console.log('### Tasks');
+    for (const task of tasks) {
+      const checkbox = task.done ? '[x]' : '[ ]';
+      console.log(`- ${checkbox} ${task.description}`);
+    }
+    console.log();
+  }
+
+  // Instruction
+  console.log('### Instruction');
+  console.log(instruction);
+}
+
+// -----------------------------------------------------------------------------
 // Templates Command
 // -----------------------------------------------------------------------------
 
@@ -501,6 +674,85 @@ async function newChangeCommand(name: string | undefined, options: NewChangeOpti
 }
 
 // -----------------------------------------------------------------------------
+// Artifact Experimental Setup Command
+// -----------------------------------------------------------------------------
+
+/**
+ * Generates Agent Skills for the experimental artifact workflow.
+ * Creates .claude/skills/ directory with SKILL.md files following Agent Skills spec.
+ */
+async function artifactExperimentalSetupCommand(): Promise<void> {
+  const spinner = ora('Setting up experimental artifact workflow skills...').start();
+
+  try {
+    const projectRoot = process.cwd();
+    const skillsDir = path.join(projectRoot, '.claude', 'skills');
+
+    // Get skill templates
+    const newChangeSkill = getNewChangeSkillTemplate();
+    const continueChangeSkill = getContinueChangeSkillTemplate();
+    const applyChangeSkill = getApplyChangeSkillTemplate();
+
+    // Create skill directories and SKILL.md files
+    const skills = [
+      { template: newChangeSkill, dirName: 'openspec-new-change' },
+      { template: continueChangeSkill, dirName: 'openspec-continue-change' },
+      { template: applyChangeSkill, dirName: 'openspec-apply-change' },
+    ];
+
+    const createdFiles: string[] = [];
+
+    for (const { template, dirName } of skills) {
+      const skillDir = path.join(skillsDir, dirName);
+      const skillFile = path.join(skillDir, 'SKILL.md');
+
+      // Generate SKILL.md content with YAML frontmatter
+      const skillContent = `---
+name: ${template.name}
+description: ${template.description}
+---
+
+${template.instructions}
+`;
+
+      // Write the skill file
+      await FileSystemUtils.writeFile(skillFile, skillContent);
+      createdFiles.push(path.relative(projectRoot, skillFile));
+    }
+
+    spinner.succeed('Experimental artifact workflow setup complete!');
+
+    // Print success message
+    console.log();
+    console.log(chalk.bold('🧪 Experimental Artifact Workflow Skills Created'));
+    console.log();
+    for (const file of createdFiles) {
+      console.log(chalk.green('  ✓ ' + file));
+    }
+    console.log();
+    console.log(chalk.bold('📖 Usage:'));
+    console.log();
+    console.log('  Skills work automatically in compatible editors:');
+    console.log('  • ' + chalk.cyan('Claude Code') + ' - Auto-detected, ready to use');
+    console.log('  • ' + chalk.cyan('Cursor') + ' - Enable in Settings → Rules → Import Settings');
+    console.log('  • ' + chalk.cyan('Windsurf') + ' - Auto-imports from .claude directory');
+    console.log();
+    console.log('  Ask Claude naturally:');
+    console.log('  • "I want to start a new OpenSpec change to add <feature>"');
+    console.log('  • "Continue working on this change"');
+    console.log();
+    console.log('  Claude will automatically use the appropriate skill.');
+    console.log();
+    console.log(chalk.yellow('💡 This is an experimental feature.'));
+    console.log('   Feedback welcome at: https://github.com/Fission-AI/OpenSpec/issues');
+    console.log();
+  } catch (error) {
+    spinner.fail('Failed to setup experimental artifact workflow');
+    throw error;
+  }
+}
+
+// -----------------------------------------------------------------------------
 // Command Registration
 // -----------------------------------------------------------------------------
 
@@ -526,33 +778,21 @@ export function registerArtifactWorkflowCommands(program: Command): void {
       }
     });
 
-  // Next command
-  program
-    .command('next')
-    .description('[Experimental] Show artifacts ready to be created')
-    .option('--change <id>', 'Change name to check')
-    .option('--schema <name>', `Schema to use (default: ${DEFAULT_SCHEMA})`)
-    .option('--json', 'Output as JSON array of ready artifact IDs')
-    .action(async (options: NextOptions) => {
-      try {
-        await nextCommand(options);
-      } catch (error) {
-        console.log();
-        ora().fail(`Error: ${(error as Error).message}`);
-        process.exit(1);
-      }
-    });
-
   // Instructions command
   program
     .command('instructions [artifact]')
-    .description('[Experimental] Output enriched instructions for creating an artifact')
+    .description('[Experimental] Output enriched instructions for creating an artifact or applying tasks')
     .option('--change <id>', 'Change name')
     .option('--schema <name>', `Schema to use (default: ${DEFAULT_SCHEMA})`)
     .option('--json', 'Output as JSON')
     .action(async (artifactId: string | undefined, options: InstructionsOptions) => {
       try {
-        await instructionsCommand(artifactId, options);
+        // Special case: "apply" is not an artifact, but a command to get apply instructions
+        if (artifactId === 'apply') {
+          await applyInstructionsCommand(options);
+        } else {
+          await instructionsCommand(artifactId, options);
+        }
       } catch (error) {
         console.log();
         ora().fail(`Error: ${(error as Error).message}`);
@@ -586,6 +826,20 @@ export function registerArtifactWorkflowCommands(program: Command): void {
     .action(async (name: string, options: NewChangeOptions) => {
       try {
         await newChangeCommand(name, options);
+      } catch (error) {
+        console.log();
+        ora().fail(`Error: ${(error as Error).message}`);
+        process.exit(1);
+      }
+    });
+
+  // Artifact experimental setup command
+  program
+    .command('artifact-experimental-setup')
+    .description('[Experimental] Setup Agent Skills for the experimental artifact workflow')
+    .action(async () => {
+      try {
+        await artifactExperimentalSetupCommand();
       } catch (error) {
         console.log();
         ora().fail(`Error: ${(error as Error).message}`);
