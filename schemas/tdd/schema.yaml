@@ -204,3 +204,10 @@ artifacts:
       Reference the spec for requirements, implementation for details.
     requires:
       - implementation
+
+apply:
+  requires: [tests]
+  tracks: null
+  instruction: |
+    Run tests to see failures. Implement minimal code to pass each test.
+    Refactor while keeping tests green.
