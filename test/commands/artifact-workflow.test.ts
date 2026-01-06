@@ -457,6 +457,98 @@ describe('artifact-workflow CLI commands', () => {
       expect(json.schemaName).toBe('spec-driven');
       expect(json.state).toBe('ready');
     });
+
+    it('fallback: requires all artifacts when schema has no apply block', async () => {
+      // Create a minimal schema without an apply block in user schemas dir
+      const userDataDir = path.join(tempDir, 'user-data');
+      const noApplySchemaDir = path.join(userDataDir, 'openspec', 'schemas', 'no-apply');
+      const templatesDir = path.join(noApplySchemaDir, 'templates');
+      await fs.mkdir(templatesDir, { recursive: true });
+
+      // Minimal schema with 2 artifacts, no apply block
+      const schemaContent = `
+name: no-apply
+version: 1
+description: Test schema without apply block
+artifacts:
+  - id: first
+    generates: first.md
+    description: First artifact
+    template: first.md
+    requires: []
+  - id: second
+    generates: second.md
+    description: Second artifact
+    template: second.md
+    requires: [first]
+`;
+      await fs.writeFile(path.join(noApplySchemaDir, 'schema.yaml'), schemaContent);
+      await fs.writeFile(path.join(templatesDir, 'first.md'), '# First\n');
+      await fs.writeFile(path.join(templatesDir, 'second.md'), '# Second\n');
+
+      // Create a change with only the first artifact (missing second)
+      const changeDir = path.join(changesDir, 'no-apply-test');
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'first.md'), '# First artifact content');
+
+      // Run with XDG_DATA_HOME pointing to our temp user data dir
+      const result = await runCLI(
+        ['instructions', 'apply', '--change', 'no-apply-test', '--schema', 'no-apply', '--json'],
+        {
+          cwd: tempDir,
+          env: { XDG_DATA_HOME: userDataDir },
+        }
+      );
+      expect(result.exitCode).toBe(0);
+
+      const json = JSON.parse(result.stdout);
+      // Without apply block, fallback requires ALL artifacts - second is missing
+      expect(json.schemaName).toBe('no-apply');
+      expect(json.state).toBe('blocked');
+      expect(json.missingArtifacts).toContain('second');
+    });
+
+    it('fallback: ready when all artifacts exist for schema without apply block', async () => {
+      // Create a minimal schema without an apply block
+      const userDataDir = path.join(tempDir, 'user-data-2');
+      const noApplySchemaDir = path.join(userDataDir, 'openspec', 'schemas', 'no-apply-full');
+      const templatesDir = path.join(noApplySchemaDir, 'templates');
+      await fs.mkdir(templatesDir, { recursive: true });
+
+      const schemaContent = `
+name: no-apply-full
+version: 1
+description: Test schema without apply block
+artifacts:
+  - id: only
+    generates: only.md
+    description: Only artifact
+    template: only.md
+    requires: []
+`;
+      await fs.writeFile(path.join(noApplySchemaDir, 'schema.yaml'), schemaContent);
+      await fs.writeFile(path.join(templatesDir, 'only.md'), '# Only\n');
+
+      // Create a change with the artifact present
+      const changeDir = path.join(changesDir, 'no-apply-full-test');
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'only.md'), '# Content');
+
+      const result = await runCLI(
+        ['instructions', 'apply', '--change', 'no-apply-full-test', '--schema', 'no-apply-full', '--json'],
+        {
+          cwd: tempDir,
+          env: { XDG_DATA_HOME: userDataDir },
+        }
+      );
+      expect(result.exitCode).toBe(0);
+
+      const json = JSON.parse(result.stdout);
+      // All artifacts exist, should be ready with default instruction
+      expect(json.schemaName).toBe('no-apply-full');
+      expect(json.state).toBe('ready');
+      expect(json.instruction).toContain('All required artifacts complete');
+    });
   });
 
   describe('help text', () => {
