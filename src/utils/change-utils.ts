@@ -1,5 +1,16 @@
 import path from 'path';
 import { FileSystemUtils } from './file-system.js';
+import { writeChangeMetadata, validateSchemaName } from './change-metadata.js';
+
+const DEFAULT_SCHEMA = 'spec-driven';
+
+/**
+ * Options for creating a change.
+ */
+export interface CreateChangeOptions {
+  /** The workflow schema to use (default: 'spec-driven') */
+  schema?: string;
+}
 
 /**
  * Result of validating a change name.
@@ -68,26 +79,37 @@ export function validateChangeName(name: string): ValidationResult {
 }
 
 /**
- * Creates a new change directory.
+ * Creates a new change directory with metadata file.
  *
  * @param projectRoot - The root directory of the project (where `openspec/` lives)
  * @param name - The change name (must be valid kebab-case)
+ * @param options - Optional settings for the change
  * @throws Error if the change name is invalid
+ * @throws Error if the schema name is invalid
  * @throws Error if the change directory already exists
  *
  * @example
- * // Creates openspec/changes/add-auth/
+ * // Creates openspec/changes/add-auth/ with default schema
  * await createChange('/path/to/project', 'add-auth')
+ *
+ * @example
+ * // Creates openspec/changes/add-auth/ with TDD schema
+ * await createChange('/path/to/project', 'add-auth', { schema: 'tdd' })
  */
 export async function createChange(
   projectRoot: string,
-  name: string
+  name: string,
+  options: CreateChangeOptions = {}
 ): Promise<void> {
   // Validate the name first
   const validation = validateChangeName(name);
   if (!validation.valid) {
     throw new Error(validation.error);
   }
+
+  // Determine schema (validate if provided)
+  const schemaName = options.schema ?? DEFAULT_SCHEMA;
+  validateSchemaName(schemaName);
 
   // Build the change directory path
   const changeDir = path.join(projectRoot, 'openspec', 'changes', name);
@@ -99,4 +121,11 @@ export async function createChange(
 
   // Create the directory (including parent directories if needed)
   await FileSystemUtils.createDirectory(changeDir);
+
+  // Write metadata file with schema and creation date
+  const today = new Date().toISOString().split('T')[0];
+  writeChangeMetadata(changeDir, {
+    schema: schemaName,
+    created: today,
+  });
 }

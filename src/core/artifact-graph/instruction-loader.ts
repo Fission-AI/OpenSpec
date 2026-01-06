@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { getSchemaDir, resolveSchema } from './resolver.js';
 import { ArtifactGraph } from './graph.js';
 import { detectCompleted } from './state.js';
+import { resolveSchemaForChange } from '../../utils/change-metadata.js';
 import type { Artifact, CompletedSet } from './types.js';
 
 /**
@@ -142,25 +143,34 @@ export function loadTemplate(schemaName: string, templatePath: string): string {
 /**
  * Loads change context combining graph and completion state.
  *
+ * Schema resolution order:
+ * 1. Explicit schemaName parameter (if provided)
+ * 2. Schema from .openspec.yaml metadata (if exists in change directory)
+ * 3. Default 'spec-driven'
+ *
  * @param projectRoot - Project root directory
  * @param changeName - Change name
- * @param schemaName - Optional schema name (defaults to "spec-driven")
+ * @param schemaName - Optional schema name override. If not provided, auto-detected from metadata.
  * @returns Change context with graph, completed set, and metadata
  */
 export function loadChangeContext(
   projectRoot: string,
   changeName: string,
-  schemaName: string = 'spec-driven'
+  schemaName?: string
 ): ChangeContext {
-  const schema = resolveSchema(schemaName);
-  const graph = ArtifactGraph.fromSchema(schema);
   const changeDir = path.join(projectRoot, 'openspec', 'changes', changeName);
+
+  // Resolve schema: explicit > metadata > default
+  const resolvedSchemaName = resolveSchemaForChange(changeDir, schemaName);
+
+  const schema = resolveSchema(resolvedSchemaName);
+  const graph = ArtifactGraph.fromSchema(schema);
   const completed = detectCompleted(graph, changeDir);
 
   return {
     graph,
     completed,
-    schemaName,
+    schemaName: resolvedSchemaName,
     changeName,
     changeDir,
   };

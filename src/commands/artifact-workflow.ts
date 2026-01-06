@@ -187,9 +187,14 @@ async function statusCommand(options: StatusOptions): Promise<void> {
   try {
     const projectRoot = process.cwd();
     const changeName = await validateChangeExists(options.change, projectRoot);
-    const schemaName = validateSchemaExists(options.schema ?? DEFAULT_SCHEMA);
 
-    const context = loadChangeContext(projectRoot, changeName, schemaName);
+    // Validate schema if explicitly provided
+    if (options.schema) {
+      validateSchemaExists(options.schema);
+    }
+
+    // loadChangeContext will auto-detect schema from metadata if not provided
+    const context = loadChangeContext(projectRoot, changeName, options.schema);
     const status = formatChangeStatus(context);
 
     spinner.stop();
@@ -252,26 +257,30 @@ async function instructionsCommand(
   try {
     const projectRoot = process.cwd();
     const changeName = await validateChangeExists(options.change, projectRoot);
-    const schemaName = validateSchemaExists(options.schema ?? DEFAULT_SCHEMA);
+
+    // Validate schema if explicitly provided
+    if (options.schema) {
+      validateSchemaExists(options.schema);
+    }
+
+    // loadChangeContext will auto-detect schema from metadata if not provided
+    const context = loadChangeContext(projectRoot, changeName, options.schema);
 
     if (!artifactId) {
       spinner.stop();
-      const schema = resolveSchema(schemaName);
-      const graph = ArtifactGraph.fromSchema(schema);
-      const validIds = graph.getAllArtifacts().map((a) => a.id);
+      const validIds = context.graph.getAllArtifacts().map((a) => a.id);
       throw new Error(
         `Missing required argument <artifact>. Valid artifacts:\n  ${validIds.join('\n  ')}`
       );
     }
 
-    const context = loadChangeContext(projectRoot, changeName, schemaName);
     const artifact = context.graph.getArtifact(artifactId);
 
     if (!artifact) {
       spinner.stop();
       const validIds = context.graph.getAllArtifacts().map((a) => a.id);
       throw new Error(
-        `Artifact '${artifactId}' not found in schema '${schemaName}'. Valid artifacts:\n  ${validIds.join('\n  ')}`
+        `Artifact '${artifactId}' not found in schema '${context.schemaName}'. Valid artifacts:\n  ${validIds.join('\n  ')}`
       );
     }
 
@@ -424,8 +433,9 @@ function parseTasksFile(content: string): TaskItem[] {
 async function generateApplyInstructions(
   projectRoot: string,
   changeName: string,
-  schemaName: string
+  schemaName?: string
 ): Promise<ApplyInstructions> {
+  // loadChangeContext will auto-detect schema from metadata if not provided
   const context = loadChangeContext(projectRoot, changeName, schemaName);
   const changeDir = path.join(projectRoot, 'openspec', 'changes', changeName);
 
@@ -505,9 +515,14 @@ async function applyInstructionsCommand(options: ApplyInstructionsOptions): Prom
   try {
     const projectRoot = process.cwd();
     const changeName = await validateChangeExists(options.change, projectRoot);
-    const schemaName = validateSchemaExists(options.schema ?? DEFAULT_SCHEMA);
 
-    const instructions = await generateApplyInstructions(projectRoot, changeName, schemaName);
+    // Validate schema if explicitly provided
+    if (options.schema) {
+      validateSchemaExists(options.schema);
+    }
+
+    // generateApplyInstructions uses loadChangeContext which auto-detects schema
+    const instructions = await generateApplyInstructions(projectRoot, changeName, options.schema);
 
     spinner.stop();
 
@@ -640,6 +655,7 @@ async function templatesCommand(options: TemplatesOptions): Promise<void> {
 
 interface NewChangeOptions {
   description?: string;
+  schema?: string;
 }
 
 async function newChangeCommand(name: string | undefined, options: NewChangeOptions): Promise<void> {
@@ -652,11 +668,17 @@ async function newChangeCommand(name: string | undefined, options: NewChangeOpti
     throw new Error(validation.error);
   }
 
-  const spinner = ora(`Creating change '${name}'...`).start();
+  // Validate schema if provided
+  if (options.schema) {
+    validateSchemaExists(options.schema);
+  }
+
+  const schemaDisplay = options.schema ? ` with schema '${options.schema}'` : '';
+  const spinner = ora(`Creating change '${name}'${schemaDisplay}...`).start();
 
   try {
     const projectRoot = process.cwd();
-    await createChange(projectRoot, name);
+    await createChange(projectRoot, name, { schema: options.schema });
 
     // If description provided, create README.md with description
     if (options.description) {
@@ -666,7 +688,8 @@ async function newChangeCommand(name: string | undefined, options: NewChangeOpti
       await fs.writeFile(readmePath, `# ${name}\n\n${options.description}\n`, 'utf-8');
     }
 
-    spinner.succeed(`Created change '${name}' at openspec/changes/${name}/`);
+    const schemaUsed = options.schema ?? DEFAULT_SCHEMA;
+    spinner.succeed(`Created change '${name}' at openspec/changes/${name}/ (schema: ${schemaUsed})`);
   } catch (error) {
     spinner.fail(`Failed to create change '${name}'`);
     throw error;
@@ -811,7 +834,7 @@ export function registerArtifactWorkflowCommands(program: Command): void {
     .command('status')
     .description('[Experimental] Display artifact completion status for a change')
     .option('--change <id>', 'Change name to show status for')
-    .option('--schema <name>', `Schema to use (default: ${DEFAULT_SCHEMA})`)
+    .option('--schema <name>', 'Schema override (auto-detected from .openspec.yaml)')
     .option('--json', 'Output as JSON')
     .action(async (options: StatusOptions) => {
       try {
@@ -828,7 +851,7 @@ export function registerArtifactWorkflowCommands(program: Command): void {
     .command('instructions [artifact]')
     .description('[Experimental] Output enriched instructions for creating an artifact or applying tasks')
     .option('--change <id>', 'Change name')
-    .option('--schema <name>', `Schema to use (default: ${DEFAULT_SCHEMA})`)
+    .option('--schema <name>', 'Schema override (auto-detected from .openspec.yaml)')
     .option('--json', 'Output as JSON')
     .action(async (artifactId: string | undefined, options: InstructionsOptions) => {
       try {
@@ -868,6 +891,7 @@ export function registerArtifactWorkflowCommands(program: Command): void {
     .command('change <name>')
     .description('[Experimental] Create a new change directory')
     .option('--description <text>', 'Description to add to README.md')
+    .option('--schema <name>', `Workflow schema to use (default: ${DEFAULT_SCHEMA})`)
     .action(async (name: string, options: NewChangeOptions) => {
       try {
         await newChangeCommand(name, options);
