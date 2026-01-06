@@ -99,6 +99,8 @@ export interface ChangeStatus {
   schemaName: string;
   /** Whether all artifacts are complete */
   isComplete: boolean;
+  /** Artifact IDs required before apply phase (from schema's apply.requires) */
+  applyRequires: string[];
   /** Status of each artifact */
   artifacts: ArtifactStatus[];
 }
@@ -252,6 +254,10 @@ function getUnlockedArtifacts(graph: ArtifactGraph, artifactId: string): string[
  * @returns Formatted change status
  */
 export function formatChangeStatus(context: ChangeContext): ChangeStatus {
+  // Load schema to get apply phase configuration
+  const schema = resolveSchema(context.schemaName);
+  const applyRequires = schema.apply?.requires ?? schema.artifacts.map(a => a.id);
+
   const artifacts = context.graph.getAllArtifacts();
   const ready = new Set(context.graph.getNextArtifacts(context.completed));
   const blocked = context.graph.getBlocked(context.completed);
@@ -290,6 +296,7 @@ export function formatChangeStatus(context: ChangeContext): ChangeStatus {
     changeName: context.changeName,
     schemaName: context.schemaName,
     isComplete: context.graph.isComplete(context.completed),
+    applyRequires,
     artifacts: artifactStatuses,
   };
 }
