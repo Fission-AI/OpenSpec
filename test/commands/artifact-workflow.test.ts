@@ -187,68 +187,6 @@ describe('artifact-workflow CLI commands', () => {
     });
   });
 
-  describe('next command', () => {
-    it('shows proposal as next for scaffolded change', async () => {
-      // Create empty change directory (no proposal.md)
-      const changeDir = path.join(changesDir, 'scaffolded-change');
-      await fs.mkdir(changeDir, { recursive: true });
-
-      const result = await runCLI(['next', '--change', 'scaffolded-change'], { cwd: tempDir });
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('Artifacts ready to create');
-      expect(result.stdout).toContain('proposal');
-    });
-
-    it('shows design and specs as next when proposal exists', async () => {
-      // createTestChange always creates proposal.md, so design and specs are ready
-      await createTestChange('minimal-change');
-
-      const result = await runCLI(['next', '--change', 'minimal-change'], { cwd: tempDir });
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('Artifacts ready to create');
-      expect(result.stdout).toContain('design');
-      expect(result.stdout).toContain('specs');
-    });
-
-    it('shows tasks as next after proposal, design, and specs', async () => {
-      await createTestChange('after-specs', ['proposal', 'design', 'specs']);
-
-      const result = await runCLI(['next', '--change', 'after-specs'], { cwd: tempDir });
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('tasks');
-    });
-
-    it('shows complete message when all done', async () => {
-      await createTestChange('complete-change', ['proposal', 'design', 'specs', 'tasks']);
-
-      const result = await runCLI(['next', '--change', 'complete-change'], { cwd: tempDir });
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('All artifacts are complete!');
-    });
-
-    it('outputs JSON array of ready artifacts', async () => {
-      await createTestChange('json-next', ['proposal']);
-
-      const result = await runCLI(['next', '--change', 'json-next', '--json'], { cwd: tempDir });
-      expect(result.exitCode).toBe(0);
-
-      const json = JSON.parse(result.stdout);
-      expect(Array.isArray(json)).toBe(true);
-      expect(json).toContain('design');
-      expect(json).toContain('specs');
-    });
-
-    it('errors when --change is missing and lists available changes', async () => {
-      await createTestChange('some-change');
-
-      const result = await runCLI(['next'], { cwd: tempDir });
-      expect(result.exitCode).toBe(1);
-      const output = getOutput(result);
-      expect(output).toContain('Missing required option --change');
-      expect(output).toContain('some-change');
-    });
-  });
-
   describe('instructions command', () => {
     it('shows instructions for proposal on scaffolded change', async () => {
       // Create empty change directory (no proposal.md)
@@ -413,12 +351,6 @@ describe('artifact-workflow CLI commands', () => {
   describe('help text', () => {
     it('marks status command as experimental in help', async () => {
       const result = await runCLI(['status', '--help']);
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('[Experimental]');
-    });
-
-    it('marks next command as experimental in help', async () => {
-      const result = await runCLI(['next', '--help']);
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('[Experimental]');
     });

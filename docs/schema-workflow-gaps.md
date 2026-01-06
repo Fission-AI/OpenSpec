@@ -210,9 +210,7 @@ openspec new change add-auth --schema tdd
 # Auto-reads schema from change.yaml — no --schema needed
 openspec status --change add-auth
 # Output: "Change: add-auth (schema: tdd)"
-
-openspec next --change add-auth
-# Knows to use TDD artifacts
+# Shows which artifacts are ready/blocked/done
 
 # Explicit override still works (with informational message)
 openspec status --change add-auth --schema spec-driven

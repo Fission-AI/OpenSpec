@@ -46,35 +46,6 @@ The system SHALL display artifact completion status for a change, including scaf
 - **AND** directory `openspec/changes/unknown-id/` does not exist
 - **THEN** the system displays an error listing all available change directories
 
-### Requirement: Next Command
-
-The system SHALL show which artifacts are ready to be created, including for scaffolded changes.
-
-#### Scenario: Show ready artifacts
-
-- **WHEN** user runs `openspec next --change <id>`
-- **THEN** the system lists artifacts whose dependencies are all satisfied
-
-#### Scenario: No artifacts ready
-
-- **WHEN** all artifacts are either completed or blocked
-- **THEN** the system indicates no artifacts are ready (with explanation)
-
-#### Scenario: All artifacts complete
-
-- **WHEN** all artifacts in the change are completed
-- **THEN** the system indicates the change is complete
-
-#### Scenario: Next JSON output
-
-- **WHEN** user runs `openspec next --change <id> --json`
-- **THEN** the system outputs JSON array of ready artifact IDs
-
-#### Scenario: Next on scaffolded change
-
-- **WHEN** user runs `openspec next --change <id>` on a change with no artifacts
-- **THEN** system shows root artifacts (e.g., "proposal") as ready to create
-
 ### Requirement: Instructions Command
 
 The system SHALL output enriched instructions for creating an artifact, including for scaffolded changes.
@@ -187,4 +158,12 @@ The system SHALL implement artifact workflow commands in isolation for easy remo
 #### Scenario: Help text marking
 - **WHEN** user runs `--help` on any artifact workflow command
 - **THEN** help text indicates the command is experimental
+
+## REMOVED Requirements
+
+### Requirement: Next Command
+
+**Reason**: Redundant with Status Command - `openspec status` already shows which artifacts are ready (status: "ready") vs blocked vs done.
+
+**Migration**: Use `openspec status --change <id> --json` and filter artifacts with `status: "ready"` to find artifacts that can be created next.
 
