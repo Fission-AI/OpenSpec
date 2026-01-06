@@ -37,40 +37,54 @@ export function getNewChangeSkillTemplate(): SkillTemplate {
 
    **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
 
-2. **Create the change directory**
-   \`\`\`bash
-   openspec new change "<name>"
-   \`\`\`
-   This creates a scaffolded change at \`openspec/changes/<name>/\`.
+2. **Select a workflow schema**
 
-3. **Show the artifact status**
+   Run \`openspec schemas --json\` to get available schemas with descriptions.
+
+   Use the **AskUserQuestion tool** to let the user choose a workflow:
+   - Present each schema with its description
+   - Mark \`spec-driven\` as "(default)" if it's available
+   - Example options: "spec-driven - proposal → specs → design → tasks (default)", "tdd - tests → implementation → docs"
+
+   If user doesn't have a preference, default to \`spec-driven\`.
+
+3. **Create the change directory**
+   \`\`\`bash
+   openspec new change "<name>" --schema "<selected-schema>"
+   \`\`\`
+   This creates a scaffolded change at \`openspec/changes/<name>/\` with the selected schema.
+
+4. **Show the artifact status**
    \`\`\`bash
    openspec status --change "<name>"
    \`\`\`
    This shows which artifacts need to be created and which are ready (dependencies satisfied).
 
-4. **Get instructions for the first artifact**
-   The first artifact is always \`proposal\` (no dependencies).
+5. **Get instructions for the first artifact**
+   The first artifact depends on the schema (e.g., \`proposal\` for spec-driven, \`spec\` for tdd).
+   Check the status output to find the first artifact with status "ready".
    \`\`\`bash
-   openspec instructions proposal --change "<name>"
+   openspec instructions <first-artifact-id> --change "<name>"
    \`\`\`
-   This outputs the template and context for creating the proposal.
+   This outputs the template and context for creating the first artifact.
 
-5. **STOP and wait for user direction**
+6. **STOP and wait for user direction**
 
 **Output**
 
 After completing the steps, summarize:
 - Change name and location
-- Current status (0/4 artifacts complete)
-- The template for the proposal artifact
-- Prompt: "Ready to create the proposal? Just describe what this change is about and I'll draft the proposal, or ask me to continue."
+- Selected schema/workflow and its artifact sequence
+- Current status (0/N artifacts complete)
+- The template for the first artifact
+- Prompt: "Ready to create the first artifact? Just describe what this change is about and I'll draft it, or ask me to continue."
 
 **Guardrails**
 - Do NOT create any artifacts yet - just show the instructions
-- Do NOT advance beyond showing the proposal template
+- Do NOT advance beyond showing the first artifact template
 - If the name is invalid (not kebab-case), ask for a valid name
-- If a change with that name already exists, suggest continuing that change instead`
+- If a change with that name already exists, suggest continuing that change instead
+- Always pass --schema to preserve the user's workflow choice`
   };
 }
 
@@ -94,6 +108,7 @@ export function getContinueChangeSkillTemplate(): SkillTemplate {
 
    Present the top 3-4 most recently modified changes as options, showing:
    - Change name
+   - Schema (from \`schema\` field if present, otherwise "spec-driven")
    - Status (e.g., "0/5 tasks", "complete", "no tasks")
    - How recently it was modified (from \`lastModified\` field)
 
@@ -105,7 +120,10 @@ export function getContinueChangeSkillTemplate(): SkillTemplate {
    \`\`\`bash
    openspec status --change "<name>" --json
    \`\`\`
-   Parse the JSON to understand current state.
+   Parse the JSON to understand current state. The response includes:
+   - \`schemaName\`: The workflow schema being used (e.g., "spec-driven", "tdd")
+   - \`artifacts\`: Array of artifacts with their status ("done", "ready", "blocked")
+   - \`isComplete\`: Boolean indicating if all artifacts are complete
 
 3. **Act based on status**:
 
@@ -113,7 +131,7 @@ export function getContinueChangeSkillTemplate(): SkillTemplate {
 
    **If all artifacts are complete (\`isComplete: true\`)**:
    - Congratulate the user
-   - Show final status
+   - Show final status including the schema used
    - Suggest: "All artifacts created! You can now implement this change or archive it."
    - STOP
 
@@ -148,30 +166,39 @@ export function getContinueChangeSkillTemplate(): SkillTemplate {
 
 After each invocation, show:
 - Which artifact was created
+- Schema workflow being used
 - Current progress (N/M complete)
 - What artifacts are now unlocked
 - Prompt: "Want to continue? Just ask me to continue or tell me what to do next."
 
 **Artifact Creation Guidelines**
 
-When filling in templates:
+The artifact types and their purpose depend on the schema. Use the \`instruction\` field from the instructions output to understand what to create.
 
+Common artifact patterns:
+
+**spec-driven schema** (proposal → specs → design → tasks):
 - **proposal.md**: Ask user about the change if not clear. Fill in Why, What Changes, Capabilities, Impact.
-  - **IMPORTANT**: The Capabilities section is critical. Before filling it in:
-    - Check \`openspec/specs/\` for existing capabilities
-    - List new capabilities with kebab-case names (e.g., \`user-auth\`, \`data-export\`)
-    - List modified capabilities that need spec updates
-  - Each capability listed will need a corresponding spec file in the next phase.
-- **specs/*.md**: Create one spec per capability listed in the proposal. Use \`specs/<capability-name>/spec.md\` path.
+  - The Capabilities section is critical - each capability listed will need a spec file.
+- **specs/*.md**: Create one spec per capability listed in the proposal.
 - **design.md**: Document technical decisions, architecture, and implementation approach.
-- **tasks.md**: Break down implementation into checkboxed tasks based on specs and design.
+- **tasks.md**: Break down implementation into checkboxed tasks.
+
+**tdd schema** (spec → tests → implementation → docs):
+- **spec.md**: Feature specification defining what to build.
+- **tests/*.test.ts**: Write tests BEFORE implementation (TDD red phase).
+- **src/*.ts**: Implement to make tests pass (TDD green phase).
+- **docs/*.md**: Document the implemented feature.
+
+For other schemas, follow the \`instruction\` field from the CLI output.
 
 **Guardrails**
 - Create ONE artifact per invocation
 - Always read dependency artifacts before creating a new one
 - Never skip artifacts or create out of order
 - If context is unclear, ask the user before creating
-- Verify the artifact file exists after writing before marking progress`
+- Verify the artifact file exists after writing before marking progress
+- Use the schema's artifact sequence, don't assume specific artifact names`
   };
 }
 
@@ -193,19 +220,28 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
 
    Run \`openspec list --json\` to get available changes. Use the **AskUserQuestion tool** to let the user select.
 
-   Show changes that have tasks.md (implementation-ready).
+   Show changes that are implementation-ready (have tasks artifact).
+   Include the schema used for each change if available.
    Mark changes with incomplete tasks as "(In Progress)".
 
    **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
 
-2. **Get apply instructions**
+2. **Check status to understand the schema**
+   \`\`\`bash
+   openspec status --change "<name>" --json
+   \`\`\`
+   Parse the JSON to understand:
+   - \`schemaName\`: The workflow being used (e.g., "spec-driven", "tdd")
+   - Which artifact contains the tasks (typically "tasks" for spec-driven, check status for others)
+
+3. **Get apply instructions**
 
    \`\`\`bash
    openspec instructions apply --change "<name>" --json
    \`\`\`
 
    This returns:
-   - Context file paths (proposal, specs, design, tasks)
+   - Context file paths (varies by schema - could be proposal/specs/design/tasks or spec/tests/implementation/docs)
    - Progress (total, complete, remaining)
    - Task list with status
    - Dynamic instruction based on current state
@@ -215,28 +251,29 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
    - If \`state: "all_done"\`: congratulate, suggest archive
    - Otherwise: proceed to implementation
 
-3. **Read context files**
+4. **Read context files**
 
-   Read the files listed in \`contextFiles\`:
-   - \`proposal\` - why and what
-   - \`specs\` - requirements and scenarios (use glob pattern to find all)
-   - \`design\` - technical approach (if exists)
-   - \`tasks\` - the implementation checklist
+   Read the files listed in \`contextFiles\` from the apply instructions output.
+   The files depend on the schema being used:
+   - **spec-driven**: proposal, specs, design, tasks
+   - **tdd**: spec, tests, implementation, docs
+   - Other schemas: follow the contextFiles from CLI output
 
-4. **Show current progress**
+5. **Show current progress**
 
    Display:
+   - Schema being used
    - Progress: "N/M tasks complete"
    - Remaining tasks overview
    - Dynamic instruction from CLI
 
-5. **Implement tasks (loop until done or blocked)**
+6. **Implement tasks (loop until done or blocked)**
 
    For each pending task:
    - Show which task is being worked on
    - Make the code changes required
    - Keep changes minimal and focused
-   - Mark task complete in tasks.md: \`- [ ]\` → \`- [x]\`
+   - Mark task complete in the tasks file: \`- [ ]\` → \`- [x]\`
    - Continue to next task
 
    **Pause if:**
@@ -245,7 +282,7 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
    - Error or blocker encountered → report and wait for guidance
    - User interrupts
 
-6. **On completion or pause, show status**
+7. **On completion or pause, show status**
 
    Display:
    - Tasks completed this session
@@ -256,7 +293,7 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
 **Output During Implementation**
 
 \`\`\`
-## Implementing: <change-name>
+## Implementing: <change-name> (schema: <schema-name>)
 
 Working on task 3/7: <task description>
 [...implementation happening...]
@@ -273,6 +310,7 @@ Working on task 4/7: <task description>
 ## Implementation Complete
 
 **Change:** <change-name>
+**Schema:** <schema-name>
 **Progress:** 7/7 tasks complete ✓
 
 ### Completed This Session
@@ -289,6 +327,7 @@ All tasks complete! Ready to archive this change.
 ## Implementation Paused
 
 **Change:** <change-name>
+**Schema:** <schema-name>
 **Progress:** 4/7 tasks complete
 
 ### Issue Encountered
@@ -304,18 +343,19 @@ What would you like to do?
 
 **Guardrails**
 - Keep going through tasks until done or blocked
-- Always read context before starting (specs, design)
+- Always read context files before starting (from the apply instructions output)
 - If task is ambiguous, pause and ask before implementing
 - If implementation reveals issues, pause and suggest artifact updates
 - Keep code changes minimal and scoped to each task
 - Update task checkbox immediately after completing each task
 - Pause on errors, blockers, or unclear requirements - don't guess
+- Use contextFiles from CLI output, don't assume specific file names
 
 **Fluid Workflow Integration**
 
 This skill supports the "actions on a change" model:
 
-- **Can be invoked anytime**: Before all artifacts are done (if tasks.md exists), after partial implementation, interleaved with other actions
+- **Can be invoked anytime**: Before all artifacts are done (if tasks exist), after partial implementation, interleaved with other actions
 - **Allows artifact updates**: If implementation reveals design issues, suggest updating artifacts - not phase-locked, work fluidly`
   };
 }
@@ -356,40 +396,53 @@ export function getOpsxNewCommandTemplate(): CommandTemplate {
 
    **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
 
-2. **Create the change directory**
-   \`\`\`bash
-   openspec new change "<name>"
-   \`\`\`
-   This creates a scaffolded change at \`openspec/changes/<name>/\`.
+2. **Select a workflow schema**
 
-3. **Show the artifact status**
+   Run \`openspec schemas --json\` to get available schemas with descriptions.
+
+   Use the **AskUserQuestion tool** to let the user choose a workflow:
+   - Present each schema with its description
+   - Mark \`spec-driven\` as "(default)" if it's available
+   - Example options: "spec-driven - proposal → specs → design → tasks (default)", "tdd - tests → implementation → docs"
+
+   If user doesn't have a preference, default to \`spec-driven\`.
+
+3. **Create the change directory**
+   \`\`\`bash
+   openspec new change "<name>" --schema "<selected-schema>"
+   \`\`\`
+   This creates a scaffolded change at \`openspec/changes/<name>/\` with the selected schema.
+
+4. **Show the artifact status**
    \`\`\`bash
    openspec status --change "<name>"
    \`\`\`
    This shows which artifacts need to be created and which are ready (dependencies satisfied).
 
-4. **Get instructions for the first artifact**
-   The first artifact is always \`proposal\` (no dependencies).
+5. **Get instructions for the first artifact**
+   The first artifact depends on the schema. Check the status output to find the first artifact with status "ready".
    \`\`\`bash
-   openspec instructions proposal --change "<name>"
+   openspec instructions <first-artifact-id> --change "<name>"
    \`\`\`
-   This outputs the template and context for creating the proposal.
+   This outputs the template and context for creating the first artifact.
 
-5. **STOP and wait for user direction**
+6. **STOP and wait for user direction**
 
 **Output**
 
 After completing the steps, summarize:
 - Change name and location
-- Current status (0/4 artifacts complete)
-- The template for the proposal artifact
-- Prompt: "Ready to create the proposal? Run \`/opsx:continue\` or just describe what this change is about and I'll draft the proposal."
+- Selected schema/workflow and its artifact sequence
+- Current status (0/N artifacts complete)
+- The template for the first artifact
+- Prompt: "Ready to create the first artifact? Run \`/opsx:continue\` or just describe what this change is about and I'll draft it."
 
 **Guardrails**
 - Do NOT create any artifacts yet - just show the instructions
-- Do NOT advance beyond showing the proposal template
+- Do NOT advance beyond showing the first artifact template
 - If the name is invalid (not kebab-case), ask for a valid name
-- If a change with that name already exists, suggest using \`/opsx:continue\` instead`
+- If a change with that name already exists, suggest using \`/opsx:continue\` instead
+- Always pass --schema to preserve the user's workflow choice`
   };
 }
 
@@ -414,6 +467,7 @@ export function getOpsxContinueCommandTemplate(): CommandTemplate {
 
    Present the top 3-4 most recently modified changes as options, showing:
    - Change name
+   - Schema (from \`schema\` field if present, otherwise "spec-driven")
    - Status (e.g., "0/5 tasks", "complete", "no tasks")
    - How recently it was modified (from \`lastModified\` field)
 
@@ -425,7 +479,10 @@ export function getOpsxContinueCommandTemplate(): CommandTemplate {
    \`\`\`bash
    openspec status --change "<name>" --json
    \`\`\`
-   Parse the JSON to understand current state.
+   Parse the JSON to understand current state. The response includes:
+   - \`schemaName\`: The workflow schema being used (e.g., "spec-driven", "tdd")
+   - \`artifacts\`: Array of artifacts with their status ("done", "ready", "blocked")
+   - \`isComplete\`: Boolean indicating if all artifacts are complete
 
 3. **Act based on status**:
 
@@ -433,7 +490,7 @@ export function getOpsxContinueCommandTemplate(): CommandTemplate {
 
    **If all artifacts are complete (\`isComplete: true\`)**:
    - Congratulate the user
-   - Show final status
+   - Show final status including the schema used
    - Suggest: "All artifacts created! You can now implement this change or archive it."
    - STOP
 
@@ -468,30 +525,39 @@ export function getOpsxContinueCommandTemplate(): CommandTemplate {
 
 After each invocation, show:
 - Which artifact was created
+- Schema workflow being used
 - Current progress (N/M complete)
 - What artifacts are now unlocked
 - Prompt: "Run \`/opsx:continue\` to create the next artifact"
 
 **Artifact Creation Guidelines**
 
-When filling in templates:
+The artifact types and their purpose depend on the schema. Use the \`instruction\` field from the instructions output to understand what to create.
 
+Common artifact patterns:
+
+**spec-driven schema** (proposal → specs → design → tasks):
 - **proposal.md**: Ask user about the change if not clear. Fill in Why, What Changes, Capabilities, Impact.
-  - **IMPORTANT**: The Capabilities section is critical. Before filling it in:
-    - Check \`openspec/specs/\` for existing capabilities
-    - List new capabilities with kebab-case names (e.g., \`user-auth\`, \`data-export\`)
-    - List modified capabilities that need spec updates
-  - Each capability listed will need a corresponding spec file in the next phase.
-- **specs/*.md**: Create one spec per capability listed in the proposal. Use \`specs/<capability-name>/spec.md\` path.
+  - The Capabilities section is critical - each capability listed will need a spec file.
+- **specs/*.md**: Create one spec per capability listed in the proposal.
 - **design.md**: Document technical decisions, architecture, and implementation approach.
-- **tasks.md**: Break down implementation into checkboxed tasks based on specs and design.
+- **tasks.md**: Break down implementation into checkboxed tasks.
+
+**tdd schema** (spec → tests → implementation → docs):
+- **spec.md**: Feature specification defining what to build.
+- **tests/*.test.ts**: Write tests BEFORE implementation (TDD red phase).
+- **src/*.ts**: Implement to make tests pass (TDD green phase).
+- **docs/*.md**: Document the implemented feature.
+
+For other schemas, follow the \`instruction\` field from the CLI output.
 
 **Guardrails**
 - Create ONE artifact per invocation
 - Always read dependency artifacts before creating a new one
 - Never skip artifacts or create out of order
 - If context is unclear, ask the user before creating
-- Verify the artifact file exists after writing before marking progress`
+- Verify the artifact file exists after writing before marking progress
+- Use the schema's artifact sequence, don't assume specific artifact names`
   };
 }
 
@@ -514,19 +580,28 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
 
    Run \`openspec list --json\` to get available changes. Use the **AskUserQuestion tool** to let the user select.
 
-   Show changes that have tasks.md (implementation-ready).
+   Show changes that are implementation-ready (have tasks artifact).
+   Include the schema used for each change if available.
    Mark changes with incomplete tasks as "(In Progress)".
 
    **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
 
-2. **Get apply instructions**
+2. **Check status to understand the schema**
+   \`\`\`bash
+   openspec status --change "<name>" --json
+   \`\`\`
+   Parse the JSON to understand:
+   - \`schemaName\`: The workflow being used (e.g., "spec-driven", "tdd")
+   - Which artifact contains the tasks (typically "tasks" for spec-driven, check status for others)
+
+3. **Get apply instructions**
 
    \`\`\`bash
    openspec instructions apply --change "<name>" --json
    \`\`\`
 
    This returns:
-   - Context file paths (proposal, specs, design, tasks)
+   - Context file paths (varies by schema)
    - Progress (total, complete, remaining)
    - Task list with status
    - Dynamic instruction based on current state
@@ -536,28 +611,29 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
    - If \`state: "all_done"\`: congratulate, suggest archive
    - Otherwise: proceed to implementation
 
-3. **Read context files**
+4. **Read context files**
 
-   Read the files listed in \`contextFiles\`:
-   - \`proposal\` - why and what
-   - \`specs\` - requirements and scenarios (use glob pattern to find all)
-   - \`design\` - technical approach (if exists)
-   - \`tasks\` - the implementation checklist
+   Read the files listed in \`contextFiles\` from the apply instructions output.
+   The files depend on the schema being used:
+   - **spec-driven**: proposal, specs, design, tasks
+   - **tdd**: spec, tests, implementation, docs
+   - Other schemas: follow the contextFiles from CLI output
 
-4. **Show current progress**
+5. **Show current progress**
 
    Display:
+   - Schema being used
    - Progress: "N/M tasks complete"
    - Remaining tasks overview
    - Dynamic instruction from CLI
 
-5. **Implement tasks (loop until done or blocked)**
+6. **Implement tasks (loop until done or blocked)**
 
    For each pending task:
    - Show which task is being worked on
    - Make the code changes required
    - Keep changes minimal and focused
-   - Mark task complete in tasks.md: \`- [ ]\` → \`- [x]\`
+   - Mark task complete in the tasks file: \`- [ ]\` → \`- [x]\`
    - Continue to next task
 
    **Pause if:**
@@ -566,7 +642,7 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
    - Error or blocker encountered → report and wait for guidance
    - User interrupts
 
-6. **On completion or pause, show status**
+7. **On completion or pause, show status**
 
    Display:
    - Tasks completed this session
@@ -577,7 +653,7 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
 **Output During Implementation**
 
 \`\`\`
-## Implementing: <change-name>
+## Implementing: <change-name> (schema: <schema-name>)
 
 Working on task 3/7: <task description>
 [...implementation happening...]
@@ -594,6 +670,7 @@ Working on task 4/7: <task description>
 ## Implementation Complete
 
 **Change:** <change-name>
+**Schema:** <schema-name>
 **Progress:** 7/7 tasks complete ✓
 
 ### Completed This Session
@@ -610,6 +687,7 @@ All tasks complete! Ready to archive this change.
 ## Implementation Paused
 
 **Change:** <change-name>
+**Schema:** <schema-name>
 **Progress:** 4/7 tasks complete
 
 ### Issue Encountered
@@ -625,18 +703,19 @@ What would you like to do?
 
 **Guardrails**
 - Keep going through tasks until done or blocked
-- Always read context before starting (specs, design)
+- Always read context files before starting (from the apply instructions output)
 - If task is ambiguous, pause and ask before implementing
 - If implementation reveals issues, pause and suggest artifact updates
 - Keep code changes minimal and scoped to each task
 - Update task checkbox immediately after completing each task
 - Pause on errors, blockers, or unclear requirements - don't guess
+- Use contextFiles from CLI output, don't assume specific file names
 
 **Fluid Workflow Integration**
 
 This skill supports the "actions on a change" model:
 
-- **Can be invoked anytime**: Before all artifacts are done (if tasks.md exists), after partial implementation, interleaved with other actions
+- **Can be invoked anytime**: Before all artifacts are done (if tasks exist), after partial implementation, interleaved with other actions
 - **Allows artifact updates**: If implementation reveals design issues, suggest updating artifacts - not phase-locked, work fluidly`
   };
 }
