@@ -427,22 +427,61 @@ function parseTasksFile(content: string): TaskItem[] {
 
 /**
  * Checks if an artifact output exists in the change directory.
- * Supports glob patterns (e.g., "specs/**\/*.md") by checking if the directory exists.
+ * Supports glob patterns (e.g., "specs/*.md") by verifying at least one matching file exists.
  */
 function artifactOutputExists(changeDir: string, generates: string): boolean {
-  const fullPath = path.join(changeDir, generates);
+  // Normalize the generates path to use platform-specific separators
+  const normalizedGenerates = generates.split('/').join(path.sep);
+  const fullPath = path.join(changeDir, normalizedGenerates);
 
-  // If it's a glob pattern (contains ** or *), check if the parent directory exists
+  // If it's a glob pattern (contains ** or *), check for matching files
   if (generates.includes('*')) {
     // Extract the directory part before the glob pattern
-    const parts = generates.split('/');
+    const parts = normalizedGenerates.split(path.sep);
     const dirParts: string[] = [];
+    let patternPart = '';
     for (const part of parts) {
-      if (part.includes('*')) break;
+      if (part.includes('*')) {
+        patternPart = part;
+        break;
+      }
       dirParts.push(part);
     }
     const dirPath = path.join(changeDir, ...dirParts);
-    return fs.existsSync(dirPath);
+
+    // Check if directory exists
+    if (!fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) {
+      return false;
+    }
+
+    // Extract expected extension from pattern (e.g., "*.md" -> ".md")
+    const extMatch = patternPart.match(/\*(\.[a-zA-Z0-9]+)$/);
+    const expectedExt = extMatch ? extMatch[1] : null;
+
+    // Recursively check for matching files
+    const hasMatchingFiles = (dir: string): boolean => {
+      try {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+          if (entry.isDirectory()) {
+            // For ** patterns, recurse into subdirectories
+            if (generates.includes('**') && hasMatchingFiles(path.join(dir, entry.name))) {
+              return true;
+            }
+          } else if (entry.isFile()) {
+            // Check if file matches expected extension (or any file if no extension specified)
+            if (!expectedExt || entry.name.endsWith(expectedExt)) {
+              return true;
+            }
+          }
+        }
+      } catch {
+        return false;
+      }
+      return false;
+    };
+
+    return hasMatchingFiles(dirPath);
   }
 
   return fs.existsSync(fullPath);
@@ -485,20 +524,17 @@ async function generateApplyInstructions(
   const contextFiles: Record<string, string> = {};
   for (const artifact of schema.artifacts) {
     if (artifactOutputExists(changeDir, artifact.generates)) {
-      // Use glob pattern for specs-like artifacts, full path for others
-      if (artifact.generates.includes('*')) {
-        contextFiles[artifact.id] = path.join(changeDir, artifact.generates);
-      } else {
-        contextFiles[artifact.id] = path.join(changeDir, artifact.generates);
-      }
+      contextFiles[artifact.id] = path.join(changeDir, artifact.generates);
     }
   }
 
   // Parse tasks if tracking file exists
   let tasks: TaskItem[] = [];
+  let tracksFileExists = false;
   if (tracksFile) {
     const tracksPath = path.join(changeDir, tracksFile);
-    if (fs.existsSync(tracksPath)) {
+    tracksFileExists = fs.existsSync(tracksPath);
+    if (tracksFileExists) {
       const tasksContent = await fs.promises.readFile(tracksPath, 'utf-8');
       tasks = parseTasksFile(tasksContent);
     }
@@ -516,13 +552,19 @@ async function generateApplyInstructions(
   if (missingArtifacts.length > 0) {
     state = 'blocked';
     instruction = `Cannot apply this change yet. Missing artifacts: ${missingArtifacts.join(', ')}.\nUse the openspec-continue-change skill to create the missing artifacts first.`;
-  } else if (tracksFile && remaining === 0 && total > 0) {
-    state = 'all_done';
-    instruction = 'All tasks are complete! This change is ready to be archived.\nConsider running tests and reviewing the changes before archiving.';
-  } else if (tracksFile && total === 0) {
+  } else if (tracksFile && !tracksFileExists) {
+    // Tracking file configured but doesn't exist yet
+    const tracksFilename = path.basename(tracksFile);
+    state = 'blocked';
+    instruction = `The ${tracksFilename} file is missing and must be created.\nUse openspec-continue-change to generate the tracking file.`;
+  } else if (tracksFile && tracksFileExists && total === 0) {
+    // Tracking file exists but contains no tasks
     const tracksFilename = path.basename(tracksFile);
     state = 'blocked';
     instruction = `The ${tracksFilename} file exists but contains no tasks.\nAdd tasks to ${tracksFilename} or regenerate it with openspec-continue-change.`;
+  } else if (tracksFile && remaining === 0 && total > 0) {
+    state = 'all_done';
+    instruction = 'All tasks are complete! This change is ready to be archived.\nConsider running tests and reviewing the changes before archiving.';
   } else if (!tracksFile) {
     // No tracking file (e.g., TDD schema) - ready to apply
     state = 'ready';

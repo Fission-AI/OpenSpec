@@ -442,19 +442,19 @@ describe('artifact-workflow CLI commands', () => {
       expect(result.stdout).toContain('Run tests to see failures');
     });
 
-    it('fallback: requires all artifacts when schema has no apply block', async () => {
-      // This test would require a custom schema without apply block
-      // For now, we test that the existing schemas work correctly
-      await createTestChange('fallback-test', ['proposal', 'design', 'specs', 'tasks']);
+    it('spec-driven schema uses apply block configuration', async () => {
+      // Verify that spec-driven schema uses its apply block (requires: [tasks])
+      await createTestChange('apply-config-test', ['proposal', 'design', 'specs', 'tasks']);
 
       const result = await runCLI(
-        ['instructions', 'apply', '--change', 'fallback-test', '--json'],
+        ['instructions', 'apply', '--change', 'apply-config-test', '--json'],
         { cwd: tempDir }
       );
       expect(result.exitCode).toBe(0);
 
       const json = JSON.parse(result.stdout);
-      // spec-driven schema has apply block, so should use it
+      // spec-driven schema has apply block with requires: [tasks], so should be ready
+      expect(json.schemaName).toBe('spec-driven');
       expect(json.state).toBe('ready');
     });
   });

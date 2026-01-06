@@ -13,7 +13,7 @@ export const ArtifactSchema = z.object({
 // Apply phase configuration for schema-aware apply instructions
 export const ApplyPhaseSchema = z.object({
   // Artifact IDs that must exist before apply is available
-  requires: z.array(z.string()).min(1, { message: 'At least one required artifact' }),
+  requires: z.array(z.string()).min(1, { error: 'At least one required artifact' }),
   // Path to file with checkboxes for progress (relative to change dir), or null if no tracking
   tracks: z.string().nullable().optional(),
   // Custom guidance for the apply phase
