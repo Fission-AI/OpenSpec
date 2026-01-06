@@ -156,3 +156,71 @@ export function listSchemas(): string[] {
 
   return Array.from(schemas).sort();
 }
+
+/**
+ * Schema info with metadata (name, description, artifacts).
+ */
+export interface SchemaInfo {
+  name: string;
+  description: string;
+  artifacts: string[];
+  source: 'package' | 'user';
+}
+
+/**
+ * Lists all available schemas with their descriptions and artifact lists.
+ * Useful for agent skills to present schema selection to users.
+ */
+export function listSchemasWithInfo(): SchemaInfo[] {
+  const schemas: SchemaInfo[] = [];
+  const seenNames = new Set<string>();
+
+  // Add user override schemas first (they take precedence)
+  const userDir = getUserSchemasDir();
+  if (fs.existsSync(userDir)) {
+    for (const entry of fs.readdirSync(userDir, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        const schemaPath = path.join(userDir, entry.name, 'schema.yaml');
+        if (fs.existsSync(schemaPath)) {
+          try {
+            const schema = parseSchema(fs.readFileSync(schemaPath, 'utf-8'));
+            schemas.push({
+              name: entry.name,
+              description: schema.description || '',
+              artifacts: schema.artifacts.map((a) => a.id),
+              source: 'user',
+            });
+            seenNames.add(entry.name);
+          } catch {
+            // Skip invalid schemas
+          }
+        }
+      }
+    }
+  }
+
+  // Add package built-in schemas (if not overridden)
+  const packageDir = getPackageSchemasDir();
+  if (fs.existsSync(packageDir)) {
+    for (const entry of fs.readdirSync(packageDir, { withFileTypes: true })) {
+      if (entry.isDirectory() && !seenNames.has(entry.name)) {
+        const schemaPath = path.join(packageDir, entry.name, 'schema.yaml');
+        if (fs.existsSync(schemaPath)) {
+          try {
+            const schema = parseSchema(fs.readFileSync(schemaPath, 'utf-8'));
+            schemas.push({
+              name: entry.name,
+              description: schema.description || '',
+              artifacts: schema.artifacts.map((a) => a.id),
+              source: 'package',
+            });
+          } catch {
+            // Skip invalid schemas
+          }
+        }
+      }
+    }
+  }
+
+  return schemas.sort((a, b) => a.name.localeCompare(b.name));
+}

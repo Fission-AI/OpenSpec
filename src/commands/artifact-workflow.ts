@@ -19,11 +19,13 @@ import {
   formatChangeStatus,
   generateInstructions,
   listSchemas,
+  listSchemasWithInfo,
   getSchemaDir,
   resolveSchema,
   ArtifactGraph,
   type ChangeStatus,
   type ArtifactInstructions,
+  type SchemaInfo,
 } from '../core/artifact-graph/index.js';
 import { createChange, validateChangeName } from '../utils/change-utils.js';
 import { getNewChangeSkillTemplate, getContinueChangeSkillTemplate, getApplyChangeSkillTemplate, getOpsxNewCommandTemplate, getOpsxContinueCommandTemplate, getOpsxApplyCommandTemplate } from '../core/templates/skill-templates.js';
@@ -856,6 +858,34 @@ ${template.content}
 }
 
 // -----------------------------------------------------------------------------
+// Schemas Command
+// -----------------------------------------------------------------------------
+
+interface SchemasOptions {
+  json?: boolean;
+}
+
+async function schemasCommand(options: SchemasOptions): Promise<void> {
+  const schemas = listSchemasWithInfo();
+
+  if (options.json) {
+    console.log(JSON.stringify(schemas, null, 2));
+    return;
+  }
+
+  console.log('Available schemas:');
+  console.log();
+
+  for (const schema of schemas) {
+    const sourceLabel = schema.source === 'user' ? chalk.dim(' (user override)') : '';
+    console.log(`  ${chalk.bold(schema.name)}${sourceLabel}`);
+    console.log(`    ${schema.description}`);
+    console.log(`    Artifacts: ${schema.artifacts.join(' → ')}`);
+    console.log();
+  }
+}
+
+// -----------------------------------------------------------------------------
 // Command Registration
 // -----------------------------------------------------------------------------
 
@@ -912,6 +942,21 @@ export function registerArtifactWorkflowCommands(program: Command): void {
     .action(async (options: TemplatesOptions) => {
       try {
         await templatesCommand(options);
+      } catch (error) {
+        console.log();
+        ora().fail(`Error: ${(error as Error).message}`);
+        process.exit(1);
+      }
+    });
+
+  // Schemas command
+  program
+    .command('schemas')
+    .description('[Experimental] List available workflow schemas with descriptions')
+    .option('--json', 'Output as JSON (for agent use)')
+    .action(async (options: SchemasOptions) => {
+      try {
+        await schemasCommand(options);
       } catch (error) {
         console.log();
         ora().fail(`Error: ${(error as Error).message}`);
