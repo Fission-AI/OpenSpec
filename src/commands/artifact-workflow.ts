@@ -26,7 +26,7 @@ import {
   type ArtifactInstructions,
 } from '../core/artifact-graph/index.js';
 import { createChange, validateChangeName } from '../utils/change-utils.js';
-import { getNewChangeSkillTemplate, getContinueChangeSkillTemplate, getApplyChangeSkillTemplate } from '../core/templates/skill-templates.js';
+import { getNewChangeSkillTemplate, getContinueChangeSkillTemplate, getApplyChangeSkillTemplate, getOpsxNewCommandTemplate, getOpsxContinueCommandTemplate, getOpsxApplyCommandTemplate } from '../core/templates/skill-templates.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 
 // -----------------------------------------------------------------------------
@@ -678,20 +678,27 @@ async function newChangeCommand(name: string | undefined, options: NewChangeOpti
 // -----------------------------------------------------------------------------
 
 /**
- * Generates Agent Skills for the experimental artifact workflow.
+ * Generates Agent Skills and slash commands for the experimental artifact workflow.
  * Creates .claude/skills/ directory with SKILL.md files following Agent Skills spec.
+ * Creates .claude/commands/opsx/ directory with slash command files.
  */
 async function artifactExperimentalSetupCommand(): Promise<void> {
-  const spinner = ora('Setting up experimental artifact workflow skills...').start();
+  const spinner = ora('Setting up experimental artifact workflow...').start();
 
   try {
     const projectRoot = process.cwd();
     const skillsDir = path.join(projectRoot, '.claude', 'skills');
+    const commandsDir = path.join(projectRoot, '.claude', 'commands', 'opsx');
 
     // Get skill templates
     const newChangeSkill = getNewChangeSkillTemplate();
     const continueChangeSkill = getContinueChangeSkillTemplate();
     const applyChangeSkill = getApplyChangeSkillTemplate();
+
+    // Get command templates
+    const newCommand = getOpsxNewCommandTemplate();
+    const continueCommand = getOpsxContinueCommandTemplate();
+    const applyCommand = getOpsxApplyCommandTemplate();
 
     // Create skill directories and SKILL.md files
     const skills = [
@@ -700,7 +707,7 @@ async function artifactExperimentalSetupCommand(): Promise<void> {
       { template: applyChangeSkill, dirName: 'openspec-apply-change' },
     ];
 
-    const createdFiles: string[] = [];
+    const createdSkillFiles: string[] = [];
 
     for (const { template, dirName } of skills) {
       const skillDir = path.join(skillsDir, dirName);
@@ -717,31 +724,69 @@ ${template.instructions}
 
       // Write the skill file
       await FileSystemUtils.writeFile(skillFile, skillContent);
-      createdFiles.push(path.relative(projectRoot, skillFile));
+      createdSkillFiles.push(path.relative(projectRoot, skillFile));
+    }
+
+    // Create slash command files
+    const commands = [
+      { template: newCommand, fileName: 'new.md' },
+      { template: continueCommand, fileName: 'continue.md' },
+      { template: applyCommand, fileName: 'apply.md' },
+    ];
+
+    const createdCommandFiles: string[] = [];
+
+    for (const { template, fileName } of commands) {
+      const commandFile = path.join(commandsDir, fileName);
+
+      // Generate command content with YAML frontmatter
+      const commandContent = `---
+name: ${template.name}
+description: ${template.description}
+category: ${template.category}
+tags: [${template.tags.join(', ')}]
+---
+
+${template.content}
+`;
+
+      // Write the command file
+      await FileSystemUtils.writeFile(commandFile, commandContent);
+      createdCommandFiles.push(path.relative(projectRoot, commandFile));
     }
 
     spinner.succeed('Experimental artifact workflow setup complete!');
 
     // Print success message
     console.log();
-    console.log(chalk.bold('🧪 Experimental Artifact Workflow Skills Created'));
+    console.log(chalk.bold('🧪 Experimental Artifact Workflow Setup Complete'));
     console.log();
-    for (const file of createdFiles) {
+    console.log(chalk.bold('Skills Created:'));
+    for (const file of createdSkillFiles) {
+      console.log(chalk.green('  ✓ ' + file));
+    }
+    console.log();
+    console.log(chalk.bold('Slash Commands Created:'));
+    for (const file of createdCommandFiles) {
       console.log(chalk.green('  ✓ ' + file));
     }
     console.log();
     console.log(chalk.bold('📖 Usage:'));
     console.log();
-    console.log('  Skills work automatically in compatible editors:');
-    console.log('  • ' + chalk.cyan('Claude Code') + ' - Auto-detected, ready to use');
-    console.log('  • ' + chalk.cyan('Cursor') + ' - Enable in Settings → Rules → Import Settings');
-    console.log('  • ' + chalk.cyan('Windsurf') + ' - Auto-imports from .claude directory');
+    console.log('  ' + chalk.cyan('Skills') + ' work automatically in compatible editors:');
+    console.log('  • Claude Code - Auto-detected, ready to use');
+    console.log('  • Cursor - Enable in Settings → Rules → Import Settings');
+    console.log('  • Windsurf - Auto-imports from .claude directory');
     console.log();
     console.log('  Ask Claude naturally:');
     console.log('  • "I want to start a new OpenSpec change to add <feature>"');
     console.log('  • "Continue working on this change"');
+    console.log('  • "Implement the tasks for this change"');
     console.log();
-    console.log('  Claude will automatically use the appropriate skill.');
+    console.log('  ' + chalk.cyan('Slash Commands') + ' for explicit invocation:');
+    console.log('  • /opsx:new - Start a new change');
+    console.log('  • /opsx:continue - Create the next artifact');
+    console.log('  • /opsx:apply - Implement tasks');
     console.log();
     console.log(chalk.yellow('💡 This is an experimental feature.'));
     console.log('   Feedback welcome at: https://github.com/Fission-AI/OpenSpec/issues');
