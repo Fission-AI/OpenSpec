@@ -86,6 +86,42 @@ describe('instruction-loader', () => {
 
       expect(context.completed.size).toBe(0);
     });
+
+    it('should auto-detect schema from .openspec.yaml metadata', () => {
+      // Create change directory with metadata file
+      const changeDir = path.join(tempDir, 'openspec', 'changes', 'my-change');
+      fs.mkdirSync(changeDir, { recursive: true });
+      fs.writeFileSync(path.join(changeDir, '.openspec.yaml'), 'schema: tdd\ncreated: "2025-01-05"\n');
+
+      // Load without explicit schema - should detect from metadata
+      const context = loadChangeContext(tempDir, 'my-change');
+
+      expect(context.schemaName).toBe('tdd');
+      expect(context.graph.getName()).toBe('tdd');
+    });
+
+    it('should use explicit schema over metadata schema', () => {
+      // Create change directory with metadata file using tdd
+      const changeDir = path.join(tempDir, 'openspec', 'changes', 'my-change');
+      fs.mkdirSync(changeDir, { recursive: true });
+      fs.writeFileSync(path.join(changeDir, '.openspec.yaml'), 'schema: tdd\n');
+
+      // Load with explicit schema - should override metadata
+      const context = loadChangeContext(tempDir, 'my-change', 'spec-driven');
+
+      expect(context.schemaName).toBe('spec-driven');
+      expect(context.graph.getName()).toBe('spec-driven');
+    });
+
+    it('should fall back to default when no metadata and no explicit schema', () => {
+      // Create change directory without metadata file
+      const changeDir = path.join(tempDir, 'openspec', 'changes', 'my-change');
+      fs.mkdirSync(changeDir, { recursive: true });
+
+      const context = loadChangeContext(tempDir, 'my-change');
+
+      expect(context.schemaName).toBe('spec-driven');
+    });
   });
 
   describe('generateInstructions', () => {

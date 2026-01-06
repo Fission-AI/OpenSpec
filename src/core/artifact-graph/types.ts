@@ -22,6 +22,24 @@ export const SchemaYamlSchema = z.object({
 export type Artifact = z.infer<typeof ArtifactSchema>;
 export type SchemaYaml = z.infer<typeof SchemaYamlSchema>;
 
+// Per-change metadata schema
+// Note: schema field is validated at parse time against available schemas
+// using a lazy import to avoid circular dependencies
+export const ChangeMetadataSchema = z.object({
+  // Required: which workflow schema this change uses
+  schema: z.string().min(1, { message: 'schema is required' }),
+
+  // Optional: creation timestamp (ISO date string)
+  created: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, {
+      message: 'created must be YYYY-MM-DD format',
+    })
+    .optional(),
+});
+
+export type ChangeMetadata = z.infer<typeof ChangeMetadataSchema>;
+
 // Runtime state types (not Zod - internal only)
 
 // Slice 1: Simple completion tracking via filesystem
