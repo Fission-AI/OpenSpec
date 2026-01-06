@@ -42,12 +42,8 @@ interface TaskItem {
 interface ApplyInstructions {
   changeName: string;
   changeDir: string;
-  contextFiles: {
-    proposal?: string;
-    specs: string;
-    design?: string;
-    tasks: string;
-  };
+  schemaName: string;
+  contextFiles: Record<string, string>;
   progress: {
     total: number;
     complete: number;
@@ -428,7 +424,32 @@ function parseTasksFile(content: string): TaskItem[] {
 }
 
 /**
+ * Checks if an artifact output exists in the change directory.
+ * Supports glob patterns (e.g., "specs/**\/*.md") by checking if the directory exists.
+ */
+function artifactOutputExists(changeDir: string, generates: string): boolean {
+  const fullPath = path.join(changeDir, generates);
+
+  // If it's a glob pattern (contains ** or *), check if the parent directory exists
+  if (generates.includes('*')) {
+    // Extract the directory part before the glob pattern
+    const parts = generates.split('/');
+    const dirParts: string[] = [];
+    for (const part of parts) {
+      if (part.includes('*')) break;
+      dirParts.push(part);
+    }
+    const dirPath = path.join(changeDir, ...dirParts);
+    return fs.existsSync(dirPath);
+  }
+
+  return fs.existsSync(fullPath);
+}
+
+/**
  * Generates apply instructions for implementing tasks from a change.
+ * Schema-aware: reads apply phase configuration from schema to determine
+ * required artifacts, tracking file, and instruction.
  */
 async function generateApplyInstructions(
   projectRoot: string,
@@ -439,39 +460,46 @@ async function generateApplyInstructions(
   const context = loadChangeContext(projectRoot, changeName, schemaName);
   const changeDir = path.join(projectRoot, 'openspec', 'changes', changeName);
 
-  // Check if required artifacts exist (tasks.md is the minimum requirement)
-  const tasksPath = path.join(changeDir, 'tasks.md');
-  const proposalPath = path.join(changeDir, 'proposal.md');
-  const designPath = path.join(changeDir, 'design.md');
-  const specsPath = path.join(changeDir, 'specs');
+  // Get the full schema to access the apply phase configuration
+  const schema = resolveSchema(context.schemaName);
+  const applyConfig = schema.apply;
 
-  const hasProposal = fs.existsSync(proposalPath);
-  const hasDesign = fs.existsSync(designPath);
-  const hasTasks = fs.existsSync(tasksPath);
-  const hasSpecs = fs.existsSync(specsPath);
+  // Determine required artifacts and tracking file from schema
+  // Fallback: if no apply block, require all artifacts
+  const requiredArtifactIds = applyConfig?.requires ?? schema.artifacts.map((a) => a.id);
+  const tracksFile = applyConfig?.tracks ?? null;
+  const schemaInstruction = applyConfig?.instruction ?? null;
 
-  // Determine state and missing artifacts
+  // Check which required artifacts are missing
   const missingArtifacts: string[] = [];
-  if (!hasTasks) {
-    // Check what's missing to create tasks (design is optional)
-    if (!hasProposal) missingArtifacts.push('proposal');
-    if (!hasSpecs) missingArtifacts.push('specs');
-    if (missingArtifacts.length === 0) missingArtifacts.push('tasks');
+  for (const artifactId of requiredArtifactIds) {
+    const artifact = schema.artifacts.find((a) => a.id === artifactId);
+    if (artifact && !artifactOutputExists(changeDir, artifact.generates)) {
+      missingArtifacts.push(artifactId);
+    }
   }
 
-  // Build context files object
-  const contextFiles: ApplyInstructions['contextFiles'] = {
-    specs: path.join(changeDir, 'specs/**/*.md'),
-    tasks: tasksPath,
-  };
-  if (hasProposal) contextFiles.proposal = proposalPath;
-  if (hasDesign) contextFiles.design = designPath;
+  // Build context files from all existing artifacts in schema
+  const contextFiles: Record<string, string> = {};
+  for (const artifact of schema.artifacts) {
+    if (artifactOutputExists(changeDir, artifact.generates)) {
+      // Use glob pattern for specs-like artifacts, full path for others
+      if (artifact.generates.includes('*')) {
+        contextFiles[artifact.id] = path.join(changeDir, artifact.generates);
+      } else {
+        contextFiles[artifact.id] = path.join(changeDir, artifact.generates);
+      }
+    }
+  }
 
-  // Parse tasks if file exists
+  // Parse tasks if tracking file exists
   let tasks: TaskItem[] = [];
-  if (hasTasks) {
-    const tasksContent = await fs.promises.readFile(tasksPath, 'utf-8');
-    tasks = parseTasksFile(tasksContent);
+  if (tracksFile) {
+    const tracksPath = path.join(changeDir, tracksFile);
+    if (fs.existsSync(tracksPath)) {
+      const tasksContent = await fs.promises.readFile(tracksPath, 'utf-8');
+      tasks = parseTasksFile(tasksContent);
+    }
   }
 
   // Calculate progress
@@ -479,27 +507,33 @@ async function generateApplyInstructions(
   const complete = tasks.filter((t) => t.done).length;
   const remaining = total - complete;
 
-  // Determine state
+  // Determine state and instruction
   let state: ApplyInstructions['state'];
   let instruction: string;
 
-  if (!hasTasks || missingArtifacts.length > 0) {
+  if (missingArtifacts.length > 0) {
     state = 'blocked';
     instruction = `Cannot apply this change yet. Missing artifacts: ${missingArtifacts.join(', ')}.\nUse the openspec-continue-change skill to create the missing artifacts first.`;
-  } else if (remaining === 0 && total > 0) {
+  } else if (tracksFile && remaining === 0 && total > 0) {
     state = 'all_done';
     instruction = 'All tasks are complete! This change is ready to be archived.\nConsider running tests and reviewing the changes before archiving.';
-  } else if (total === 0) {
+  } else if (tracksFile && total === 0) {
+    const tracksFilename = path.basename(tracksFile);
     state = 'blocked';
-    instruction = 'The tasks.md file exists but contains no tasks.\nAdd tasks to tasks.md or regenerate it with openspec-continue-change.';
+    instruction = `The ${tracksFilename} file exists but contains no tasks.\nAdd tasks to ${tracksFilename} or regenerate it with openspec-continue-change.`;
+  } else if (!tracksFile) {
+    // No tracking file (e.g., TDD schema) - ready to apply
+    state = 'ready';
+    instruction = schemaInstruction?.trim() ?? 'All required artifacts complete. Proceed with implementation.';
   } else {
     state = 'ready';
-    instruction = 'Read context files, work through pending tasks, mark complete as you go.\nPause if you hit blockers or need clarification.';
+    instruction = schemaInstruction?.trim() ?? 'Read context files, work through pending tasks, mark complete as you go.\nPause if you hit blockers or need clarification.';
   }
 
   return {
     changeName,
     changeDir,
+    schemaName: context.schemaName,
     contextFiles,
     progress: { total, complete, remaining },
     tasks,
@@ -539,9 +573,10 @@ async function applyInstructionsCommand(options: ApplyInstructionsOptions): Prom
 }
 
 function printApplyInstructionsText(instructions: ApplyInstructions): void {
-  const { changeName, contextFiles, progress, tasks, state, missingArtifacts, instruction } = instructions;
+  const { changeName, schemaName, contextFiles, progress, tasks, state, missingArtifacts, instruction } = instructions;
 
   console.log(`## Apply: ${changeName}`);
+  console.log(`Schema: ${schemaName}`);
   console.log();
 
   // Warning for blocked state
@@ -553,26 +588,26 @@ function printApplyInstructionsText(instructions: ApplyInstructions): void {
     console.log();
   }
 
-  // Context files
-  console.log('### Context Files');
-  if (contextFiles.proposal) {
-    console.log(`- proposal: ${contextFiles.proposal}`);
+  // Context files (dynamically from schema)
+  const contextFileEntries = Object.entries(contextFiles);
+  if (contextFileEntries.length > 0) {
+    console.log('### Context Files');
+    for (const [artifactId, filePath] of contextFileEntries) {
+      console.log(`- ${artifactId}: ${filePath}`);
+    }
+    console.log();
   }
-  console.log(`- specs: ${contextFiles.specs}`);
-  if (contextFiles.design) {
-    console.log(`- design: ${contextFiles.design}`);
-  }
-  console.log(`- tasks: ${contextFiles.tasks}`);
-  console.log();
 
-  // Progress
-  console.log('### Progress');
-  if (state === 'all_done') {
-    console.log(`${progress.complete}/${progress.total} complete ✓`);
-  } else {
-    console.log(`${progress.complete}/${progress.total} complete`);
+  // Progress (only show if we have tracking)
+  if (progress.total > 0 || tasks.length > 0) {
+    console.log('### Progress');
+    if (state === 'all_done') {
+      console.log(`${progress.complete}/${progress.total} complete ✓`);
+    } else {
+      console.log(`${progress.complete}/${progress.total} complete`);
+    }
+    console.log();
   }
-  console.log();
 
   // Tasks
   if (tasks.length > 0) {

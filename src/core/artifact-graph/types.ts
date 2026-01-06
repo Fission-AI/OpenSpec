@@ -10,16 +10,29 @@ export const ArtifactSchema = z.object({
   requires: z.array(z.string()).default([]),
 });
 
+// Apply phase configuration for schema-aware apply instructions
+export const ApplyPhaseSchema = z.object({
+  // Artifact IDs that must exist before apply is available
+  requires: z.array(z.string()).min(1, { message: 'At least one required artifact' }),
+  // Path to file with checkboxes for progress (relative to change dir), or null if no tracking
+  tracks: z.string().nullable().optional(),
+  // Custom guidance for the apply phase
+  instruction: z.string().optional(),
+});
+
 // Full schema YAML structure
 export const SchemaYamlSchema = z.object({
   name: z.string().min(1, { error: 'Schema name is required' }),
   version: z.number().int().positive({ error: 'Version must be a positive integer' }),
   description: z.string().optional(),
   artifacts: z.array(ArtifactSchema).min(1, { error: 'At least one artifact required' }),
+  // Optional apply phase configuration (for schema-aware apply instructions)
+  apply: ApplyPhaseSchema.optional(),
 });
 
 // Derived TypeScript types
 export type Artifact = z.infer<typeof ArtifactSchema>;
+export type ApplyPhase = z.infer<typeof ApplyPhaseSchema>;
 export type SchemaYaml = z.infer<typeof SchemaYamlSchema>;
 
 // Per-change metadata schema
