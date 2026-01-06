@@ -348,6 +348,209 @@ describe('artifact-workflow CLI commands', () => {
     });
   });
 
+  describe('instructions apply command', () => {
+    it('shows apply instructions for spec-driven schema with tasks', async () => {
+      await createTestChange('apply-change', ['proposal', 'design', 'specs', 'tasks']);
+
+      const result = await runCLI(['instructions', 'apply', '--change', 'apply-change'], {
+        cwd: tempDir,
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('## Apply: apply-change');
+      expect(result.stdout).toContain('Schema: spec-driven');
+      expect(result.stdout).toContain('### Context Files');
+      expect(result.stdout).toContain('### Instruction');
+    });
+
+    it('shows blocked state when required artifacts are missing', async () => {
+      // Only create proposal - missing tasks (required by spec-driven apply block)
+      await createTestChange('blocked-apply', ['proposal']);
+
+      const result = await runCLI(['instructions', 'apply', '--change', 'blocked-apply'], {
+        cwd: tempDir,
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Blocked');
+      expect(result.stdout).toContain('Missing artifacts: tasks');
+    });
+
+    it('outputs JSON for apply instructions', async () => {
+      await createTestChange('json-apply', ['proposal', 'design', 'specs', 'tasks']);
+
+      const result = await runCLI(
+        ['instructions', 'apply', '--change', 'json-apply', '--json'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).toBe(0);
+
+      const json = JSON.parse(result.stdout);
+      expect(json.changeName).toBe('json-apply');
+      expect(json.schemaName).toBe('spec-driven');
+      expect(json.state).toBe('ready');
+      expect(json.contextFiles).toBeDefined();
+      expect(typeof json.contextFiles).toBe('object');
+    });
+
+    it('shows schema instruction from apply block', async () => {
+      await createTestChange('instr-apply', ['proposal', 'design', 'specs', 'tasks']);
+
+      const result = await runCLI(['instructions', 'apply', '--change', 'instr-apply'], {
+        cwd: tempDir,
+      });
+      expect(result.exitCode).toBe(0);
+      // Should show the instruction from spec-driven schema apply block
+      expect(result.stdout).toContain('work through pending tasks');
+    });
+
+    it('shows all_done state when all tasks are complete', async () => {
+      const changeDir = await createTestChange('done-apply', [
+        'proposal',
+        'design',
+        'specs',
+        'tasks',
+      ]);
+      // Overwrite tasks with all completed
+      await fs.writeFile(
+        path.join(changeDir, 'tasks.md'),
+        '## Tasks\n- [x] Task 1\n- [x] Task 2'
+      );
+
+      const result = await runCLI(['instructions', 'apply', '--change', 'done-apply'], {
+        cwd: tempDir,
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('complete ✓');
+      expect(result.stdout).toContain('ready to be archived');
+    });
+
+    it('uses tdd schema apply configuration', async () => {
+      // Create a TDD-style change with spec and tests
+      const changeDir = path.join(changesDir, 'tdd-apply');
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'spec.md'), '## Feature\nTest spec.');
+      const testsDir = path.join(changeDir, 'tests');
+      await fs.mkdir(testsDir, { recursive: true });
+      await fs.writeFile(path.join(testsDir, 'test.test.ts'), 'test("works", () => {})');
+
+      const result = await runCLI(
+        ['instructions', 'apply', '--change', 'tdd-apply', '--schema', 'tdd'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Schema: tdd');
+      // TDD schema has no task tracking, so should show schema instruction
+      expect(result.stdout).toContain('Run tests to see failures');
+    });
+
+    it('spec-driven schema uses apply block configuration', async () => {
+      // Verify that spec-driven schema uses its apply block (requires: [tasks])
+      await createTestChange('apply-config-test', ['proposal', 'design', 'specs', 'tasks']);
+
+      const result = await runCLI(
+        ['instructions', 'apply', '--change', 'apply-config-test', '--json'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).toBe(0);
+
+      const json = JSON.parse(result.stdout);
+      // spec-driven schema has apply block with requires: [tasks], so should be ready
+      expect(json.schemaName).toBe('spec-driven');
+      expect(json.state).toBe('ready');
+    });
+
+    it('fallback: requires all artifacts when schema has no apply block', async () => {
+      // Create a minimal schema without an apply block in user schemas dir
+      const userDataDir = path.join(tempDir, 'user-data');
+      const noApplySchemaDir = path.join(userDataDir, 'openspec', 'schemas', 'no-apply');
+      const templatesDir = path.join(noApplySchemaDir, 'templates');
+      await fs.mkdir(templatesDir, { recursive: true });
+
+      // Minimal schema with 2 artifacts, no apply block
+      const schemaContent = `
+name: no-apply
+version: 1
+description: Test schema without apply block
+artifacts:
+  - id: first
+    generates: first.md
+    description: First artifact
+    template: first.md
+    requires: []
+  - id: second
+    generates: second.md
+    description: Second artifact
+    template: second.md
+    requires: [first]
+`;
+      await fs.writeFile(path.join(noApplySchemaDir, 'schema.yaml'), schemaContent);
+      await fs.writeFile(path.join(templatesDir, 'first.md'), '# First\n');
+      await fs.writeFile(path.join(templatesDir, 'second.md'), '# Second\n');
+
+      // Create a change with only the first artifact (missing second)
+      const changeDir = path.join(changesDir, 'no-apply-test');
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'first.md'), '# First artifact content');
+
+      // Run with XDG_DATA_HOME pointing to our temp user data dir
+      const result = await runCLI(
+        ['instructions', 'apply', '--change', 'no-apply-test', '--schema', 'no-apply', '--json'],
+        {
+          cwd: tempDir,
+          env: { XDG_DATA_HOME: userDataDir },
+        }
+      );
+      expect(result.exitCode).toBe(0);
+
+      const json = JSON.parse(result.stdout);
+      // Without apply block, fallback requires ALL artifacts - second is missing
+      expect(json.schemaName).toBe('no-apply');
+      expect(json.state).toBe('blocked');
+      expect(json.missingArtifacts).toContain('second');
+    });
+
+    it('fallback: ready when all artifacts exist for schema without apply block', async () => {
+      // Create a minimal schema without an apply block
+      const userDataDir = path.join(tempDir, 'user-data-2');
+      const noApplySchemaDir = path.join(userDataDir, 'openspec', 'schemas', 'no-apply-full');
+      const templatesDir = path.join(noApplySchemaDir, 'templates');
+      await fs.mkdir(templatesDir, { recursive: true });
+
+      const schemaContent = `
+name: no-apply-full
+version: 1
+description: Test schema without apply block
+artifacts:
+  - id: only
+    generates: only.md
+    description: Only artifact
+    template: only.md
+    requires: []
+`;
+      await fs.writeFile(path.join(noApplySchemaDir, 'schema.yaml'), schemaContent);
+      await fs.writeFile(path.join(templatesDir, 'only.md'), '# Only\n');
+
+      // Create a change with the artifact present
+      const changeDir = path.join(changesDir, 'no-apply-full-test');
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'only.md'), '# Content');
+
+      const result = await runCLI(
+        ['instructions', 'apply', '--change', 'no-apply-full-test', '--schema', 'no-apply-full', '--json'],
+        {
+          cwd: tempDir,
+          env: { XDG_DATA_HOME: userDataDir },
+        }
+      );
+      expect(result.exitCode).toBe(0);
+
+      const json = JSON.parse(result.stdout);
+      // All artifacts exist, should be ready with default instruction
+      expect(json.schemaName).toBe('no-apply-full');
+      expect(json.state).toBe('ready');
+      expect(json.instruction).toContain('All required artifacts complete');
+    });
+  });
+
   describe('help text', () => {
     it('marks status command as experimental in help', async () => {
       const result = await runCLI(['status', '--help']);
