@@ -52,6 +52,11 @@ The update command SHALL always update the core OpenSpec files and display an AS
 ### Requirement: Slash Command Updates
 The update command SHALL refresh existing slash command files for configured tools without creating new ones, and ensure the OpenCode archive command accepts change ID arguments.
 
+#### Scenario: Updating slash commands for Antigravity
+- **WHEN** `.agent/workflows/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
+- **THEN** refresh the OpenSpec-managed portion of each file so the workflow copy matches other tools while preserving the existing single-field `description` frontmatter
+- **AND** skip creating any missing workflow files during update, mirroring the behavior for Windsurf and other IDEs
+
 #### Scenario: Updating slash commands for Claude Code
 - **WHEN** `.claude/commands/openspec/` contains `proposal.md`, `apply.md`, and `archive.md`
 - **THEN** refresh each file using shared templates
@@ -63,7 +68,7 @@ The update command SHALL refresh existing slash command files for configured too
 - **AND** ensure templates include instructions for the relevant workflow stage
 
 #### Scenario: Updating slash commands for Cline
-- **WHEN** `.clinerules/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
+- **WHEN** `.clinerules/workflows/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
 - **THEN** refresh each file using shared templates
 - **AND** include Cline-specific Markdown heading frontmatter
 - **AND** ensure templates include instructions for the relevant workflow stage

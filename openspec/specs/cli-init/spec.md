@@ -172,6 +172,12 @@ The command SHALL use consistent exit codes to indicate different failure modes.
 ### Requirement: Slash Command Configuration
 The init command SHALL generate slash command files for supported editors using shared templates.
 
+#### Scenario: Generating slash commands for Antigravity
+- **WHEN** the user selects Antigravity during initialization
+- **THEN** create `.agent/workflows/openspec-proposal.md`, `.agent/workflows/openspec-apply.md`, and `.agent/workflows/openspec-archive.md`
+- **AND** ensure each file begins with YAML frontmatter that contains only a `description: <stage summary>` field followed by the shared OpenSpec workflow instructions wrapped in managed markers
+- **AND** populate the workflow body with the same proposal/apply/archive guidance used for other tools so Antigravity behaves like Windsurf while pointing to the `.agent/workflows/` directory
+
 #### Scenario: Generating slash commands for Claude Code
 - **WHEN** the user selects Claude Code during initialization
 - **THEN** create `.claude/commands/openspec/proposal.md`, `.claude/commands/openspec/apply.md`, and `.claude/commands/openspec/archive.md`
@@ -186,7 +192,7 @@ The init command SHALL generate slash command files for supported editors using 
 
 #### Scenario: Generating slash commands for Cline
 - **WHEN** the user selects Cline during initialization
-- **THEN** create `.clinerules/openspec-proposal.md`, `.clinerules/openspec-apply.md`, and `.clinerules/openspec-archive.md`
+- **THEN** create `.clinerules/workflows/openspec-proposal.md`, `.clinerules/workflows/openspec-apply.md`, and `.clinerules/workflows/openspec-archive.md`
 - **AND** populate each file from shared templates so command text matches other tools
 - **AND** include Cline-specific Markdown heading frontmatter
 - **AND** each template includes instructions for the relevant OpenSpec workflow stage

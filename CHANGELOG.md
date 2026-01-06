@@ -1,5 +1,21 @@
 # @fission-ai/openspec
 
+## 0.17.2
+
+### Patch Changes
+
+- 455c65f: Fix `--no-interactive` flag in validate command to properly disable spinner, preventing hangs in pre-commit hooks and CI environments
+
+## 0.17.1
+
+### Patch Changes
+
+- a2757e7: Fix pre-commit hook hang issue in config command by using dynamic import for @inquirer/prompts
+
+  The config command was causing pre-commit hooks to hang indefinitely due to stdin event listeners being registered at module load time. This fix converts the static import to a dynamic import that only loads inquirer when the `config reset` command is actually used interactively.
+
+  Also adds ESLint with a rule to prevent static @inquirer imports, avoiding future regressions.
+
 ## 0.17.0
 
 ### Minor Changes
