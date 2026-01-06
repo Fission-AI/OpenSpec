@@ -106,7 +106,9 @@ Each skill is a directory with a `SKILL.md` file:
 .claude/skills/
 ├── openspec-new-change/
 │   └── SKILL.md          # name, description, instructions
-└── openspec-continue-change/
+├── openspec-continue-change/
+│   └── SKILL.md          # name, description, instructions
+└── openspec-apply-change/
     └── SKILL.md          # name, description, instructions
 ```
 
@@ -115,25 +117,27 @@ Each skill is a directory with a `SKILL.md` file:
 openspec artifact-experimental-setup
 
 # Output:
-# 🧪 Experimental Artifact Workflow Setup
+# 🧪 Experimental Artifact Workflow Skills Created
 #
-# Created .claude/skills/openspec-new-change/SKILL.md
-# Created .claude/skills/openspec-continue-change/SKILL.md
+#   ✓ .claude/skills/openspec-new-change/SKILL.md
+#   ✓ .claude/skills/openspec-continue-change/SKILL.md
+#   ✓ .claude/skills/openspec-apply-change/SKILL.md
 #
-# ✅ Skills are now available in:
-#   - Claude Code (auto-detected)
-#   - Cursor (enable in Settings → Rules → Import Settings)
-#   - Windsurf (auto-imported from .claude directory)
+# 📖 Usage:
 #
-# 📖 To use:
+#   Skills work automatically in compatible editors:
+#   • Claude Code - Auto-detected, ready to use
+#   • Cursor - Enable in Settings → Rules → Import Settings
+#   • Windsurf - Auto-imports from .claude directory
+#
 #   Ask Claude naturally:
 #   • "I want to start a new OpenSpec change to add <feature>"
 #   • "Continue working on this change"
 #
 #   Claude will automatically use the appropriate skill.
 #
-# 💡 This is an experimental feature. Feedback welcome at:
-#    https://github.com/Fission-AI/OpenSpec/issues
+# 💡 This is an experimental feature.
+#    Feedback welcome at: https://github.com/Fission-AI/OpenSpec/issues
 ```
 
 **Implementation Notes:**
@@ -200,22 +204,23 @@ Use a real OpenSpec feature as the test case (dog-fooding).
 1. Run `openspec artifact-experimental-setup` to create skills
 2. Verify `.claude/skills/openspec-new-change/SKILL.md` created
 3. Verify `.claude/skills/openspec-continue-change/SKILL.md` created
-4. Ask Claude: "I want to start a new OpenSpec change to add feature X"
-5. Verify Claude invokes the `openspec-new-change` skill
-6. Verify change directory created at `openspec/changes/add-feature-x/`
-7. Verify proposal template shown
-8. Ask Claude: "Continue working on this change"
-9. Verify Claude invokes the `openspec-continue-change` skill
-10. Verify `proposal.md` created with content
-11. Ask Claude: "Continue" (create specs)
-12. Verify `specs/*.md` created
-13. Ask Claude: "Continue" (create design)
-14. Verify `design.md` created
-15. Ask Claude: "Continue" (create tasks)
-16. Verify `tasks.md` created
-17. Verify status shows 4/4 complete
-18. Implement the feature based on tasks
-19. Run `/openspec:archive` to archive the change
+4. Verify `.claude/skills/openspec-apply-change/SKILL.md` created
+5. Ask Claude: "I want to start a new OpenSpec change to add feature X"
+6. Verify Claude invokes the `openspec-new-change` skill
+7. Verify change directory created at `openspec/changes/add-feature-x/`
+8. Verify proposal template shown
+9. Ask Claude: "Continue working on this change"
+10. Verify Claude invokes the `openspec-continue-change` skill
+11. Verify `proposal.md` created with content
+12. Ask Claude: "Continue" (create specs)
+13. Verify `specs/*.md` created
+14. Ask Claude: "Continue" (create design)
+15. Verify `design.md` created
+16. Ask Claude: "Continue" (create tasks)
+17. Verify `tasks.md` created
+18. Verify status shows 4/4 complete
+19. Implement the feature based on tasks
+20. Run `/openspec:archive` to archive the change
 
 **Validation Checklist:**
 - [ ] `openspec artifact-experimental-setup` creates correct directory structure
@@ -324,7 +329,7 @@ The following are explicitly NOT part of this experimental release:
 
 The experimental release is ready when:
 
-1. `openspec-new-change` and `openspec-continue-change` skills work end-to-end
+1. `openspec-new-change`, `openspec-continue-change`, and `openspec-apply-change` skills work end-to-end
 2. `openspec artifact-experimental-setup` creates skills in `.claude/skills/`
 3. Skills work in Claude Code and are compatible with Cursor/Windsurf
 4. At least one complete workflow has been tested manually

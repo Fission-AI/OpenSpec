@@ -443,10 +443,9 @@ async function generateApplyInstructions(
   // Determine state and missing artifacts
   const missingArtifacts: string[] = [];
   if (!hasTasks) {
-    // Check what's missing to create tasks
+    // Check what's missing to create tasks (design is optional)
     if (!hasProposal) missingArtifacts.push('proposal');
     if (!hasSpecs) missingArtifacts.push('specs');
-    if (!hasDesign) missingArtifacts.push('design');
     if (missingArtifacts.length === 0) missingArtifacts.push('tasks');
   }
 
