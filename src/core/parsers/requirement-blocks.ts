@@ -58,7 +58,7 @@ export function extractRequirementsSection(content: string): RequirementsSection
   let preambleLines: string[] = [];
 
   // Collect preamble lines until first requirement header
-  while (cursor < sectionBodyLines.length && !/^###\s+Requirement:/.test(sectionBodyLines[cursor])) {
+  while (cursor < sectionBodyLines.length && !/^###\s*Requirement:/.test(sectionBodyLines[cursor])) {
     preambleLines.push(sectionBodyLines[cursor]);
     cursor++;
   }
@@ -76,7 +76,7 @@ export function extractRequirementsSection(content: string): RequirementsSection
     cursor++;
     // Gather lines until next requirement header or end of section
     const bodyLines: string[] = [headerLineCandidate];
-    while (cursor < sectionBodyLines.length && !/^###\s+Requirement:/.test(sectionBodyLines[cursor]) && !/^##\s+/.test(sectionBodyLines[cursor])) {
+    while (cursor < sectionBodyLines.length && !/^###\s*Requirement:/.test(sectionBodyLines[cursor]) && !/^##\s+/.test(sectionBodyLines[cursor])) {
       bodyLines.push(sectionBodyLines[cursor]);
       cursor++;
     }
@@ -96,6 +96,12 @@ export function extractRequirementsSection(content: string): RequirementsSection
   };
 }
 
+export interface ParseDiagnostic {
+  lineNumber: number;
+  line: string;
+  reason: string;
+}
+
 export interface DeltaPlan {
   added: RequirementBlock[];
   modified: RequirementBlock[];
@@ -107,6 +113,12 @@ export interface DeltaPlan {
     removed: boolean;
     renamed: boolean;
   };
+  diagnostics?: {
+    added: ParseDiagnostic[];
+    modified: ParseDiagnostic[];
+    removed: ParseDiagnostic[];
+    renamed: ParseDiagnostic[];
+  };
 }
 
 function normalizeLineEndings(content: string): string {
@@ -116,17 +128,26 @@ function normalizeLineEndings(content: string): string {
 /**
  * Parse a delta-formatted spec change file content into a DeltaPlan with raw blocks.
  */
-export function parseDeltaSpec(content: string): DeltaPlan {
+export function parseDeltaSpec(content: string, collectDiagnostics = false): DeltaPlan {
   const normalized = normalizeLineEndings(content);
   const sections = splitTopLevelSections(normalized);
   const addedLookup = getSectionCaseInsensitive(sections, 'ADDED Requirements');
   const modifiedLookup = getSectionCaseInsensitive(sections, 'MODIFIED Requirements');
   const removedLookup = getSectionCaseInsensitive(sections, 'REMOVED Requirements');
   const renamedLookup = getSectionCaseInsensitive(sections, 'RENAMED Requirements');
-  const added = parseRequirementBlocksFromSection(addedLookup.body);
-  const modified = parseRequirementBlocksFromSection(modifiedLookup.body);
+
+  const diagnostics = collectDiagnostics ? {
+    added: [] as ParseDiagnostic[],
+    modified: [] as ParseDiagnostic[],
+    removed: [] as ParseDiagnostic[],
+    renamed: [] as ParseDiagnostic[],
+  } : undefined;
+
+  const added = parseRequirementBlocksFromSection(addedLookup.body, diagnostics?.added);
+  const modified = parseRequirementBlocksFromSection(modifiedLookup.body, diagnostics?.modified);
   const removedNames = parseRemovedNames(removedLookup.body);
   const renamedPairs = parseRenamedPairs(renamedLookup.body);
+
   return {
     added,
     modified,
@@ -138,6 +159,7 @@ export function parseDeltaSpec(content: string): DeltaPlan {
       removed: removedLookup.found,
       renamed: renamedLookup.found,
     },
+    diagnostics,
   };
 }
 
@@ -169,14 +191,24 @@ function getSectionCaseInsensitive(sections: Record<string, string>, desired: st
   return { body: '', found: false };
 }
 
-function parseRequirementBlocksFromSection(sectionBody: string): RequirementBlock[] {
+function parseRequirementBlocksFromSection(sectionBody: string, diagnostics?: ParseDiagnostic[]): RequirementBlock[] {
   if (!sectionBody) return [];
   const lines = normalizeLineEndings(sectionBody).split('\n');
   const blocks: RequirementBlock[] = [];
   let i = 0;
   while (i < lines.length) {
     // Seek next requirement header
-    while (i < lines.length && !/^###\s+Requirement:/.test(lines[i])) i++;
+    while (i < lines.length && !/^###\s*Requirement:/.test(lines[i])) {
+      // Collect diagnostic for near-misses: lines starting with ### but not matching pattern
+      if (diagnostics && lines[i].trim().startsWith('###') && !lines[i].trim().startsWith('####')) {
+        diagnostics.push({
+          lineNumber: i + 1,
+          line: lines[i],
+          reason: 'Line starts with ### but does not match requirement header pattern (### Requirement: ...)'
+        });
+      }
+      i++;
+    }
     if (i >= lines.length) break;
     const headerLine = lines[i];
     const m = headerLine.match(REQUIREMENT_HEADER_REGEX);
@@ -184,7 +216,7 @@ function parseRequirementBlocksFromSection(sectionBody: string): RequirementBloc
     const name = normalizeRequirementName(m[1]);
     const buf: string[] = [headerLine];
     i++;
-    while (i < lines.length && !/^###\s+Requirement:/.test(lines[i]) && !/^##\s+/.test(lines[i])) {
+    while (i < lines.length && !/^###\s*Requirement:/.test(lines[i]) && !/^##\s+/.test(lines[i])) {
       buf.push(lines[i]);
       i++;
     }
