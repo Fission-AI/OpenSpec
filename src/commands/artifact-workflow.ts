@@ -28,7 +28,7 @@ import {
   type SchemaInfo,
 } from '../core/artifact-graph/index.js';
 import { createChange, validateChangeName } from '../utils/change-utils.js';
-import { getNewChangeSkillTemplate, getContinueChangeSkillTemplate, getApplyChangeSkillTemplate, getFfChangeSkillTemplate, getSyncSpecsSkillTemplate, getOpsxNewCommandTemplate, getOpsxContinueCommandTemplate, getOpsxApplyCommandTemplate, getOpsxFfCommandTemplate, getOpsxSyncCommandTemplate } from '../core/templates/skill-templates.js';
+import { getNewChangeSkillTemplate, getContinueChangeSkillTemplate, getApplyChangeSkillTemplate, getFfChangeSkillTemplate, getSyncSpecsSkillTemplate, getArchiveChangeSkillTemplate, getOpsxNewCommandTemplate, getOpsxContinueCommandTemplate, getOpsxApplyCommandTemplate, getOpsxFfCommandTemplate, getOpsxSyncCommandTemplate, getOpsxArchiveCommandTemplate } from '../core/templates/skill-templates.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 
 // -----------------------------------------------------------------------------
@@ -798,6 +798,7 @@ async function artifactExperimentalSetupCommand(): Promise<void> {
     const applyChangeSkill = getApplyChangeSkillTemplate();
     const ffChangeSkill = getFfChangeSkillTemplate();
     const syncSpecsSkill = getSyncSpecsSkillTemplate();
+    const archiveChangeSkill = getArchiveChangeSkillTemplate();
 
     // Get command templates
     const newCommand = getOpsxNewCommandTemplate();
@@ -805,6 +806,7 @@ async function artifactExperimentalSetupCommand(): Promise<void> {
     const applyCommand = getOpsxApplyCommandTemplate();
     const ffCommand = getOpsxFfCommandTemplate();
     const syncCommand = getOpsxSyncCommandTemplate();
+    const archiveCommand = getOpsxArchiveCommandTemplate();
 
     // Create skill directories and SKILL.md files
     const skills = [
@@ -813,6 +815,7 @@ async function artifactExperimentalSetupCommand(): Promise<void> {
       { template: applyChangeSkill, dirName: 'openspec-apply-change' },
       { template: ffChangeSkill, dirName: 'openspec-ff-change' },
       { template: syncSpecsSkill, dirName: 'openspec-sync-specs' },
+      { template: archiveChangeSkill, dirName: 'openspec-archive-change' },
     ];
 
     const createdSkillFiles: string[] = [];
@@ -842,6 +845,7 @@ ${template.instructions}
       { template: applyCommand, fileName: 'apply.md' },
       { template: ffCommand, fileName: 'ff.md' },
       { template: syncCommand, fileName: 'sync.md' },
+      { template: archiveCommand, fileName: 'archive.md' },
     ];
 
     const createdCommandFiles: string[] = [];
@@ -899,6 +903,7 @@ ${template.content}
     console.log('  • /opsx:apply - Implement tasks');
     console.log('  • /opsx:ff - Fast-forward: create all artifacts at once');
     console.log('  • /opsx:sync - Sync delta specs to main specs');
+    console.log('  • /opsx:archive - Archive a completed change');
     console.log();
     console.log(chalk.yellow('💡 This is an experimental feature.'));
     console.log('   Feedback welcome at: https://github.com/Fission-AI/OpenSpec/issues');
