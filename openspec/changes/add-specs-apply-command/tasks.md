@@ -7,19 +7,14 @@
   - Keep `ArchiveCommand` importing from the new module
   - Ensure all validation logic is preserved
 
-- [x] ~~Create `openspec specs apply` CLI command~~ → Changed to agent-driven approach
-  - Removed CLI command - skill is now agent-driven
-  - Agent reads delta specs and directly edits main specs
-  - Allows intelligent merging (add scenarios without copying entire requirements)
-
 ### Skill Template
 
-- [x] Add `getSpecsApplySkillTemplate()` function in `src/core/templates/skill-templates.ts`
-  - Skill name: `openspec-specs-apply`
-  - Description: Apply delta specs to main specs
+- [x] Add `getSyncSpecsSkillTemplate()` function in `src/core/templates/skill-templates.ts`
+  - Skill name: `openspec-sync-specs`
+  - Description: Sync delta specs to main specs
   - **Agent-driven**: Instructions for agent to read deltas and edit main specs directly
 
-- [x] Add `/opsx:specs` slash command template in `skill-templates.ts`
+- [x] Add `/opsx:sync` slash command template in `skill-templates.ts`
   - Mirror the skill template for slash command format
   - **Agent-driven**: No CLI command, agent does the merge
 

@@ -1,21 +1,21 @@
 ## ADDED Requirements
 
-### Requirement: Specs Apply Skill
-The system SHALL provide an `/opsx:specs` skill that applies delta specs from a change to the main specs.
+### Requirement: Specs Sync Skill
+The system SHALL provide an `/opsx:sync` skill that syncs delta specs from a change to the main specs.
 
-#### Scenario: Apply delta specs to main specs
-- **WHEN** agent executes `/opsx:specs` with a change name
+#### Scenario: Sync delta specs to main specs
+- **WHEN** agent executes `/opsx:sync` with a change name
 - **THEN** the agent reads delta specs from `openspec/changes/<name>/specs/`
 - **AND** reads corresponding main specs from `openspec/specs/`
 - **AND** reconciles main specs to match what the deltas describe
 
 #### Scenario: Idempotent operation
-- **WHEN** agent executes `/opsx:specs` multiple times on the same change
+- **WHEN** agent executes `/opsx:sync` multiple times on the same change
 - **THEN** the result is the same as running it once
 - **AND** no duplicate requirements are created
 
 #### Scenario: Change selection prompt
-- **WHEN** agent executes `/opsx:specs` without specifying a change
+- **WHEN** agent executes `/opsx:sync` without specifying a change
 - **THEN** the agent prompts user to select from available changes
 - **AND** shows changes that have delta specs
 
@@ -52,9 +52,9 @@ The agent SHALL reconcile main specs with delta specs using the delta operation 
 - **THEN** create new main spec file at `openspec/specs/<capability>/spec.md`
 
 ### Requirement: Skill Output
-The skill SHALL provide clear feedback on what was applied.
+The skill SHALL provide clear feedback on what was synced.
 
-#### Scenario: Show applied changes
+#### Scenario: Show synced changes
 - **WHEN** reconciliation completes successfully
 - **THEN** display summary of changes per capability:
   - Number of requirements added
