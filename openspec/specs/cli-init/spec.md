@@ -73,7 +73,7 @@ The command SHALL properly configure selected AI tools with OpenSpec-specific in
 #### Scenario: Configuring Cline
 
 - **WHEN** Cline is selected
-- **THEN** create or update `CLINE.md` in the project root directory (not inside openspec/)
+- **THEN** create or update `.clinerules/openspec-rules.md` (following Cline's convention for rules files)
 - **AND** populate the managed block with a short stub that points teammates to `@/openspec/AGENTS.md`
 
 #### Scenario: Configuring iFlow CLI
