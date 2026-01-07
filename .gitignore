@@ -148,3 +148,7 @@ CLAUDE.md
 
 # Pnpm
 .pnpm-store/
+
+# Nix
+result
+.direnv/
