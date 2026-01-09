@@ -30,9 +30,11 @@ export class BashInstaller {
    */
   async isBashCompletionInstalled(): Promise<boolean> {
     const paths = [
-      '/usr/share/bash-completion',
-      '/usr/local/share/bash-completion',
-      '/etc/bash_completion.d',
+      '/usr/share/bash-completion',              // Linux system-wide
+      '/usr/local/share/bash-completion',        // Homebrew Intel (main)
+      '/opt/homebrew/etc/bash_completion.d',     // Homebrew Apple Silicon
+      '/usr/local/etc/bash_completion.d',        // Homebrew Intel (alt path)
+      '/etc/bash_completion.d',                   // Legacy fallback
     ];
 
     for (const p of paths) {
