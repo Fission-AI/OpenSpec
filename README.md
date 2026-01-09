@@ -27,7 +27,7 @@
 </p>
 
 <p align="center">
-  <sub>🧪 <strong>New:</strong> Try the <a href="docs/experimental-workflow.md">Experimental Workflow (OPSX)</a> — step-by-step artifact creation for Claude Code</sub>
+  <sub>🧪 <strong>New:</strong> <a href="docs/experimental-workflow.md">Experimental Workflow (OPSX)</a> — fluid, iterative changes. No phases, just actions.</sub>
 </p>
 
 # OpenSpec
@@ -375,20 +375,26 @@ Run `openspec update` whenever someone switches tools so your agents pick up the
 ## Experimental Features
 
 <details>
-<summary><strong>🧪 OPSX: Artifact-Driven Workflow</strong> (Claude Code only)</summary>
+<summary><strong>🧪 OPSX: Fluid, Iterative Workflow</strong> (Claude Code only)</summary>
 
-A new way to build changes step-by-step:
+**The problem:** Linear phases (plan → implement → archive) fight against how work actually happens. You implement, realize the design is wrong, need to update it, continue.
+
+**OPSX approach:** No phases, just actions. Create artifacts, implement tasks, update as you learn — in any order.
 
 ```
-proposal → specs → design → tasks → implementation → archive
+You can always go back:
+
+  proposal ──→ specs ──→ design ──→ tasks ──→ implement
+     ▲           ▲          ▲                    │
+     └───────────┴──────────┴────────────────────┘
 ```
 
 | Command | What it does |
 |---------|--------------|
 | `/opsx:new` | Start a new change |
-| `/opsx:continue` | Create the next artifact |
-| `/opsx:ff` | Fast-forward (all artifacts at once) |
-| `/opsx:apply` | Implement the tasks |
+| `/opsx:continue` | Create the next artifact (based on what's ready) |
+| `/opsx:ff` | Fast-forward (all planning artifacts at once) |
+| `/opsx:apply` | Implement tasks, updating artifacts as needed |
 | `/opsx:archive` | Archive when done |
 
 **Setup:** `openspec artifact-experimental-setup`

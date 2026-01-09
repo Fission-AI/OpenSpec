@@ -6,13 +6,28 @@
 
 ## What Is It?
 
-OPSX is a new way to work with OpenSpec changes. Instead of one big proposal, you build **artifacts** step-by-step:
+OPSX is a **fluid, iterative workflow** for OpenSpec changes. No more rigid phases — just actions you can take anytime.
+
+**The problem with linear workflows:**
+You're "in planning phase", then "in implementation phase", then "done". But real work doesn't work that way. You implement something, realize your design was wrong, need to update specs, continue implementing. Linear phases fight against how work actually happens.
+
+**OPSX approach:**
+- **Actions, not phases** — create, implement, update, archive — do any of them anytime
+- **Dependencies are enablers** — they show what's possible, not what's required next
+- **Update as you learn** — halfway through implementation? Go back and fix the design. That's normal.
 
 ```
-proposal → specs → design → tasks → implementation → archive
-```
+You can always go back:
 
-Each artifact has dependencies. Can't write tasks until you have specs. Can't implement until you have tasks. The system tracks what's ready and what's blocked.
+     ┌────────────────────────────────────┐
+     │                                    │
+     ▼                                    │
+  proposal ──→ specs ──→ design ──→ tasks ──→ implement
+     ▲           ▲          ▲               │
+     │           │          │               │
+     └───────────┴──────────┴───────────────┘
+              update as you learn
+```
 
 ## Setup
 
@@ -31,9 +46,9 @@ This creates skills in `.claude/skills/` that Claude Code auto-detects.
 | Command | What it does |
 |---------|--------------|
 | `/opsx:new` | Start a new change |
-| `/opsx:continue` | Create the next artifact |
-| `/opsx:ff` | Fast-forward (create all artifacts at once) |
-| `/opsx:apply` | Implement the tasks |
+| `/opsx:continue` | Create the next artifact (based on what's ready) |
+| `/opsx:ff` | Fast-forward — create all planning artifacts at once |
+| `/opsx:apply` | Implement tasks, updating artifacts as needed |
 | `/opsx:sync` | Sync delta specs to main specs |
 | `/opsx:archive` | Archive when done |
 
@@ -45,25 +60,24 @@ This creates skills in `.claude/skills/` that Claude Code auto-detects.
 ```
 You'll be asked what you want to build and which workflow schema to use.
 
-### Build artifacts step-by-step
+### Create artifacts
 ```
 /opsx:continue
 ```
-Creates one artifact at a time. Good for reviewing each step.
+Shows what's ready to create based on dependencies, then creates one artifact. Use repeatedly to build up your change incrementally.
 
-### Or fast-forward
 ```
 /opsx:ff add-dark-mode
 ```
-Creates all artifacts in one go. Good when you know what you want.
+Creates all planning artifacts at once. Use when you have a clear picture of what you're building.
 
-### Implement
+### Implement (the fluid part)
 ```
 /opsx:apply
 ```
-Works through tasks, checking them off as you go.
+Works through tasks, checking them off as you go. **Key difference:** if you discover issues during implementation, you can update your specs, design, or tasks — then continue. No phase gates.
 
-### Sync specs and archive
+### Finish up
 ```
 /opsx:sync      # Update main specs with your delta specs
 /opsx:archive   # Move to archive when done
@@ -71,18 +85,14 @@ Works through tasks, checking them off as you go.
 
 ## What's Different?
 
-**Standard workflow** (`/openspec:proposal`):
-- One big proposal document
-- Linear phases: plan → implement → archive
-- All-or-nothing artifact creation
+| | Standard (`/openspec:proposal`) | Experimental (`/opsx:*`) |
+|---|---|---|
+| **Structure** | One big proposal document | Discrete artifacts with dependencies |
+| **Workflow** | Linear phases: plan → implement → archive | Fluid actions — do anything anytime |
+| **Iteration** | Awkward to go back | Update artifacts as you learn |
+| **Customization** | Fixed structure | Schema-driven (define your own artifacts) |
 
-**Experimental workflow** (`/opsx:*`):
-- Discrete artifacts with dependencies
-- Fluid actions (not phases) - update artifacts anytime
-- Step-by-step or fast-forward
-- Schema-driven (can customize the workflow)
-
-The key insight: work isn't linear. You implement, realize the design is wrong, update it, continue. OPSX supports this.
+**The key insight:** work isn't linear. OPSX stops pretending it is.
 
 ## Schemas
 
@@ -95,13 +105,13 @@ Run `openspec schemas` to see available schemas.
 
 ## Tips
 
-- Use `/opsx:ff` when you have a clear idea, `/opsx:continue` when exploring
+- `/opsx:ff` when you know what you want, `/opsx:continue` when exploring
+- During `/opsx:apply`, if something's wrong — fix the artifact, then continue
 - Tasks track progress via checkboxes in `tasks.md`
-- Delta specs (in `specs/`) get synced to main specs with `/opsx:sync`
-- If you get stuck, the status command shows what's blocked: `openspec status --change "name"`
+- Check status anytime: `openspec status --change "name"`
 
 ## Feedback
 
-This is rough. That's intentional - we're learning what works.
+This is rough. That's intentional — we're learning what works.
 
 Found a bug? Have ideas? Join us on [Discord](https://discord.gg/BYjPaKbqMt) or open an issue on [GitHub](https://github.com/Fission-AI/openspec/issues).
