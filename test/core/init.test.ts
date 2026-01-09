@@ -1122,7 +1122,7 @@ describe('InitCommand', () => {
       expect(proposalContent).toContain('---');
       expect(proposalContent).toContain('name: OpenSpec: Proposal');
       expect(proposalContent).toContain('description: "Scaffold a new OpenSpec change and validate strictly."');
-      expect(proposalContent).toContain('cargument-hint: "[feature description or request]"');
+      expect(proposalContent).toContain('argument-hint: "[feature description or request]"');
       expect(proposalContent).toContain('<!-- OPENSPEC:START -->');
       expect(proposalContent).toContain('**Guardrails**');
 
