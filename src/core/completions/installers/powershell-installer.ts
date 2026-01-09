@@ -46,6 +46,30 @@ export class PowerShellInstaller {
   }
 
   /**
+   * Get all PowerShell profile paths to configure.
+   * On Windows, returns both PowerShell Core and Windows PowerShell 5.1 paths.
+   * On Unix, returns PowerShell Core path only.
+   */
+  private getAllProfilePaths(): string[] {
+    // If PROFILE env var is set, use only that path
+    if (process.env.PROFILE) {
+      return [process.env.PROFILE];
+    }
+
+    if (process.platform === 'win32') {
+      return [
+        // PowerShell Core 6+ (cross-platform)
+        path.join(this.homeDir, 'Documents', 'PowerShell', 'Microsoft.PowerShell_profile.ps1'),
+        // Windows PowerShell 5.1 (Windows-only)
+        path.join(this.homeDir, 'Documents', 'WindowsPowerShell', 'Microsoft.PowerShell_profile.ps1'),
+      ];
+    } else {
+      // Unix systems: PowerShell Core only
+      return [path.join(this.homeDir, '.config', 'powershell', 'Microsoft.PowerShell_profile.ps1')];
+    }
+  }
+
+  /**
    * Get the installation path for the completion script
    *
    * @returns Installation path
@@ -98,35 +122,47 @@ export class PowerShellInstaller {
    * @returns true if configured successfully, false otherwise
    */
   async configureProfile(scriptPath: string): Promise<boolean> {
-    // Check if auto-configuration is disabled
-    if (process.env.OPENSPEC_NO_AUTO_CONFIG === '1') {
-      return false;
-    }
+    const profilePaths = this.getAllProfilePaths();
+    let anyConfigured = false;
 
-    try {
-      const profilePath = this.getProfilePath();
-      const config = this.generateProfileConfig(scriptPath);
+    for (const profilePath of profilePaths) {
+      try {
+        // Create profile file if it doesn't exist
+        const profileDir = path.dirname(profilePath);
+        await fs.mkdir(profileDir, { recursive: true });
 
-      // Check write permissions
-      const canWrite = await FileSystemUtils.canWriteFile(profilePath);
-      if (!canWrite) {
-        return false;
+        let profileContent = '';
+        try {
+          profileContent = await fs.readFile(profilePath, 'utf-8');
+        } catch {
+          // Profile doesn't exist yet, that's fine
+        }
+
+        // Check if already configured
+        const scriptLine = `. "${scriptPath}"`;
+        if (profileContent.includes(scriptLine)) {
+          continue; // Already configured, skip
+        }
+
+        // Add OpenSpec completion configuration with markers
+        const openspecBlock = [
+          '',
+          '# OPENSPEC:START - OpenSpec completion (managed block, do not edit manually)',
+          scriptLine,
+          '# OPENSPEC:END',
+          '',
+        ].join('\n');
+
+        const newContent = profileContent + openspecBlock;
+        await fs.writeFile(profilePath, newContent, 'utf-8');
+        anyConfigured = true;
+      } catch (error) {
+        // Continue to next profile if this one fails
+        console.warn(`Warning: Could not configure ${profilePath}: ${error}`);
       }
-
-      // Use marker-based update
-      await FileSystemUtils.updateFileWithMarkers(
-        profilePath,
-        config,
-        this.PROFILE_MARKERS.start,
-        this.PROFILE_MARKERS.end
-      );
-
-      return true;
-    } catch (error: any) {
-      // Fail gracefully - don't break installation
-      console.debug(`Unable to configure PowerShell profile for completions: ${error.message}`);
-      return false;
     }
+
+    return anyConfigured;
   }
 
   /**
@@ -136,53 +172,49 @@ export class PowerShellInstaller {
    * @returns true if removed successfully, false otherwise
    */
   async removeProfileConfig(): Promise<boolean> {
-    try {
-      const profilePath = this.getProfilePath();
+    const profilePaths = this.getAllProfilePaths();
+    let anyRemoved = false;
 
-      // Check if file exists
+    for (const profilePath of profilePaths) {
       try {
-        await fs.access(profilePath);
-      } catch {
-        // File doesn't exist, nothing to remove
-        return true;
+        // Read profile content
+        let profileContent: string;
+        try {
+          profileContent = await fs.readFile(profilePath, 'utf-8');
+        } catch {
+          continue; // Profile doesn't exist, nothing to remove
+        }
+
+        // Remove OPENSPEC:START -> OPENSPEC:END block
+        const startMarker = '# OPENSPEC:START';
+        const endMarker = '# OPENSPEC:END';
+        const startIndex = profileContent.indexOf(startMarker);
+
+        if (startIndex === -1) {
+          continue; // No OpenSpec block found
+        }
+
+        const endIndex = profileContent.indexOf(endMarker, startIndex);
+        if (endIndex === -1) {
+          console.warn(`Warning: Found start marker but no end marker in ${profilePath}`);
+          continue;
+        }
+
+        // Remove the block (including markers and surrounding newlines)
+        const beforeBlock = profileContent.substring(0, startIndex);
+        const afterBlock = profileContent.substring(endIndex + endMarker.length);
+
+        // Clean up extra newlines
+        const newContent = (beforeBlock.trimEnd() + '\n' + afterBlock.trimStart()).trim() + '\n';
+
+        await fs.writeFile(profilePath, newContent, 'utf-8');
+        anyRemoved = true;
+      } catch (error) {
+        console.warn(`Warning: Could not clean ${profilePath}: ${error}`);
       }
-
-      // Read file content
-      const content = await fs.readFile(profilePath, 'utf-8');
-
-      // Check if markers exist
-      if (!content.includes(this.PROFILE_MARKERS.start) || !content.includes(this.PROFILE_MARKERS.end)) {
-        // Markers don't exist, nothing to remove
-        return true;
-      }
-
-      // Remove content between markers (including markers)
-      const lines = content.split('\n');
-      const startIndex = lines.findIndex((line) => line.trim() === this.PROFILE_MARKERS.start);
-      const endIndex = lines.findIndex((line) => line.trim() === this.PROFILE_MARKERS.end);
-
-      if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) {
-        // Invalid marker placement
-        return false;
-      }
-
-      // Remove lines between markers (inclusive)
-      lines.splice(startIndex, endIndex - startIndex + 1);
-
-      // Remove trailing empty lines
-      while (lines.length > 0 && lines[lines.length - 1].trim() === '') {
-        lines.pop();
-      }
-
-      // Write back
-      await fs.writeFile(profilePath, lines.join('\n'), 'utf-8');
-
-      return true;
-    } catch (error: any) {
-      // Fail gracefully
-      console.debug(`Unable to remove PowerShell profile configuration: ${error.message}`);
-      return false;
     }
+
+    return anyRemoved;
   }
 
   /**
