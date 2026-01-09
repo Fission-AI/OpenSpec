@@ -6,17 +6,60 @@ import { ChangeParser } from '../core/parsers/change-parser.js';
 import { Change } from '../core/schemas/index.js';
 import { isInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds } from '../utils/item-discovery.js';
+import { resolveOpenSpecDir } from '../core/path-resolver.js';
 
 // Constants for better maintainability
 const ARCHIVE_DIR = 'archive';
 const TASK_PATTERN = /^[-*]\s+\[[\sx]\]/i;
 const COMPLETED_TASK_PATTERN = /^[-*]\s+\[x\]/i;
 
+export interface ChangeJsonOutput {
+    id: string;
+    title: string;
+    deltaCount: number;
+    deltas: any[];
+}
+
 export class ChangeCommand {
   private converter: JsonConverter;
 
   constructor() {
     this.converter = new JsonConverter();
+  }
+
+  async getChangeMarkdown(changeName: string): Promise<string> {
+    const changesPath = path.join(await resolveOpenSpecDir(process.cwd()), 'changes');
+    const proposalPath = path.join(changesPath, changeName, 'proposal.md');
+    try {
+        return await fs.readFile(proposalPath, 'utf-8');
+    } catch {
+        throw new Error(`Change "${changeName}" not found at ${proposalPath}`);
+    }
+  }
+
+  async getChangeJson(changeName: string): Promise<ChangeJsonOutput> {
+    const changesPath = path.join(await resolveOpenSpecDir(process.cwd()), 'changes');
+    const proposalPath = path.join(changesPath, changeName, 'proposal.md');
+
+    try {
+      await fs.access(proposalPath);
+    } catch {
+      throw new Error(`Change "${changeName}" not found at ${proposalPath}`);
+    }
+
+    const jsonOutput = await this.converter.convertChangeToJson(proposalPath);
+    const parsed: Change = JSON.parse(jsonOutput);
+    const contentForTitle = await fs.readFile(proposalPath, 'utf-8');
+    const title = this.extractTitle(contentForTitle, changeName);
+    const id = parsed.name;
+    const deltas = parsed.deltas || [];
+
+    return {
+        id,
+        title,
+        deltaCount: deltas.length,
+        deltas,
+    };
   }
 
   /**
@@ -26,7 +69,7 @@ export class ChangeCommand {
    *   Note: --requirements-only is deprecated alias for --deltas-only
    */
   async show(changeName?: string, options?: { json?: boolean; requirementsOnly?: boolean; deltasOnly?: boolean; noInteractive?: boolean }): Promise<void> {
-    const changesPath = path.join(process.cwd(), 'openspec', 'changes');
+    const changesPath = path.join(await resolveOpenSpecDir(process.cwd()), 'changes');
 
     if (!changeName) {
       const canPrompt = isInteractive(options);
@@ -50,41 +93,14 @@ export class ChangeCommand {
       }
     }
 
-    const proposalPath = path.join(changesPath, changeName, 'proposal.md');
-
-    try {
-      await fs.access(proposalPath);
-    } catch {
-      throw new Error(`Change "${changeName}" not found at ${proposalPath}`);
-    }
-
     if (options?.json) {
-      const jsonOutput = await this.converter.convertChangeToJson(proposalPath);
-
       if (options.requirementsOnly) {
         console.error('Flag --requirements-only is deprecated; use --deltas-only instead.');
       }
-
-      const parsed: Change = JSON.parse(jsonOutput);
-      const contentForTitle = await fs.readFile(proposalPath, 'utf-8');
-      const title = this.extractTitle(contentForTitle, changeName);
-      const id = parsed.name;
-      const deltas = parsed.deltas || [];
-
-      if (options.requirementsOnly || options.deltasOnly) {
-        const output = { id, title, deltaCount: deltas.length, deltas };
-        console.log(JSON.stringify(output, null, 2));
-      } else {
-        const output = {
-          id,
-          title,
-          deltaCount: deltas.length,
-          deltas,
-        };
-        console.log(JSON.stringify(output, null, 2));
-      }
+      const output = await this.getChangeJson(changeName);
+      console.log(JSON.stringify(output, null, 2));
     } else {
-      const content = await fs.readFile(proposalPath, 'utf-8');
+      const content = await this.getChangeMarkdown(changeName);
       console.log(content);
     }
   }
@@ -95,7 +111,7 @@ export class ChangeCommand {
    * - JSON: array of { id, title, deltaCount, taskStatus }, sorted by id
    */
   async list(options?: { json?: boolean; long?: boolean }): Promise<void> {
-    const changesPath = path.join(process.cwd(), 'openspec', 'changes');
+    const changesPath = path.join(await resolveOpenSpecDir(process.cwd()), 'changes');
     
     const changes = await this.getActiveChanges(changesPath);
     
@@ -183,7 +199,7 @@ export class ChangeCommand {
   }
 
   async validate(changeName?: string, options?: { strict?: boolean; json?: boolean; noInteractive?: boolean }): Promise<void> {
-    const changesPath = path.join(process.cwd(), 'openspec', 'changes');
+    const changesPath = path.join(await resolveOpenSpecDir(process.cwd()), 'changes');
     
     if (!changeName) {
       const canPrompt = isInteractive(options);

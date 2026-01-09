@@ -10,6 +10,7 @@ import {
   usePagination,
   useState,
 } from '@inquirer/core';
+import { confirm } from '@inquirer/prompts';
 import chalk from 'chalk';
 import ora from 'ora';
 import { FileSystemUtils } from '../utils/file-system.js';
@@ -20,6 +21,8 @@ import {
   OpenSpecConfig,
   AI_TOOLS,
   OPENSPEC_DIR_NAME,
+  DEFAULT_OPENSPEC_DIR_NAME,
+  LEGACY_OPENSPEC_DIR_NAME,
   AIToolOption,
   OPENSPEC_MARKERS,
 } from './config.js';
@@ -384,8 +387,39 @@ export class InitCommand {
 
   async execute(targetPath: string): Promise<void> {
     const projectPath = path.resolve(targetPath);
-    const openspecDir = OPENSPEC_DIR_NAME;
-    const openspecPath = path.join(projectPath, openspecDir);
+    
+    // Check for legacy directory
+    const legacyPath = path.join(projectPath, LEGACY_OPENSPEC_DIR_NAME);
+    const defaultPath = path.join(projectPath, DEFAULT_OPENSPEC_DIR_NAME);
+    
+    let openspecPath = defaultPath;
+    let openspecDir = DEFAULT_OPENSPEC_DIR_NAME;
+
+    const hasLegacy = await FileSystemUtils.directoryExists(legacyPath);
+    const hasDefault = await FileSystemUtils.directoryExists(defaultPath);
+
+    if (hasLegacy && !hasDefault) {
+        // Prompt migration
+        const shouldMigrate = await confirm({
+            message: `Detected legacy '${LEGACY_OPENSPEC_DIR_NAME}/' directory. Would you like to migrate it to '${DEFAULT_OPENSPEC_DIR_NAME}/'?`,
+            default: true
+        });
+        
+        if (shouldMigrate) {
+            const spinner = this.startSpinner('Migrating directory...');
+            await FileSystemUtils.rename(legacyPath, defaultPath);
+            spinner.stopAndPersist({
+                symbol: PALETTE.white('✔'),
+                text: PALETTE.white(`Migrated to ${DEFAULT_OPENSPEC_DIR_NAME}/`),
+            });
+        } else {
+            openspecPath = legacyPath;
+            openspecDir = LEGACY_OPENSPEC_DIR_NAME;
+        }
+    } else if (hasLegacy) {
+         openspecPath = legacyPath;
+         openspecDir = LEGACY_OPENSPEC_DIR_NAME;
+    }
 
     // Validation happens silently in the background
     const extendMode = await this.validate(projectPath, openspecPath);

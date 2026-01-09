@@ -81,6 +81,10 @@ export class FileSystemUtils {
     await fs.mkdir(dirPath, { recursive: true });
   }
 
+  static async rename(oldPath: string, newPath: string): Promise<void> {
+    await fs.rename(oldPath, newPath);
+  }
+
   static async fileExists(filePath: string): Promise<boolean> {
     try {
       await fs.access(filePath);

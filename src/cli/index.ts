@@ -15,6 +15,7 @@ import { ShowCommand } from '../commands/show.js';
 import { CompletionCommand } from '../commands/completion.js';
 import { registerConfigCommand } from '../commands/config.js';
 import { registerArtifactWorkflowCommands } from '../commands/artifact-workflow.js';
+import { ServeCommand } from '../commands/serve.js';
 
 const program = new Command();
 const require = createRequire(import.meta.url);
@@ -87,6 +88,21 @@ program
     } catch (error) {
       console.log(); // Empty line for spacing
       ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('serve')
+  .description('Start the OpenSpec MCP server (stdio)')
+  .action(async () => {
+    try {
+      const serveCommand = new ServeCommand();
+      await serveCommand.execute();
+    } catch (error) {
+      // Use console.error for MCP server errors to avoid contaminating stdout if possible,
+      // though fastmcp might handle this.
+      console.error(`Error: ${(error as Error).message}`);
       process.exit(1);
     }
   });

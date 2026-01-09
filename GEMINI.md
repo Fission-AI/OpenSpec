@@ -2,6 +2,26 @@
 
 OpenSpec is an AI-native system for spec-driven development. It helps developers and AI agents maintain a shared understanding of project requirements and technical designs through a structured workflow.
 
+This extension provides native integration via the Model Context Protocol (MCP).
+
+## MCP Capabilities
+
+### Tools
+- `openspec_list_changes`: List active change proposals.
+- `openspec_list_specs`: List current specifications.
+- `openspec_show_change`: Show details of a change (JSON/Markdown).
+- `openspec_validate_change`: Validate a change proposal against schema rules.
+
+### Resources
+- `openspec://changes/{name}/proposal`: Access the proposal.md content.
+- `openspec://changes/{name}/tasks`: Access the tasks.md content.
+- `openspec://specs/{id}`: Access the spec.md content for a capability.
+
+### Prompts
+- `openspec_proposal`: Context and steps for scaffolding a new change.
+- `openspec_apply`: Instructions for implementing an approved change.
+- `openspec_archive`: Workflow for archiving a completed change.
+
 ## Prerequisites
 
 This extension requires the OpenSpec CLI.

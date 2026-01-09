@@ -1,6 +1,6 @@
 import path from 'path';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { OPENSPEC_DIR_NAME } from './config.js';
+import { resolveOpenSpecDir } from './path-resolver.js';
 import { ToolRegistry } from './configurators/registry.js';
 import { SlashCommandRegistry } from './configurators/slash/registry.js';
 import { agentsTemplate } from './templates/agents-template.js';
@@ -8,8 +8,7 @@ import { agentsTemplate } from './templates/agents-template.js';
 export class UpdateCommand {
   async execute(projectPath: string): Promise<void> {
     const resolvedProjectPath = path.resolve(projectPath);
-    const openspecDirName = OPENSPEC_DIR_NAME;
-    const openspecPath = path.join(resolvedProjectPath, openspecDirName);
+    const openspecPath = await resolveOpenSpecDir(resolvedProjectPath);
 
     // 1. Check openspec directory exists
     if (!await FileSystemUtils.directoryExists(openspecPath)) {
@@ -88,7 +87,8 @@ export class UpdateCommand {
     }
 
     const summaryParts: string[] = [];
-    const instructionFiles: string[] = ['openspec/AGENTS.md'];
+    const openspecDirName = path.basename(openspecPath);
+    const instructionFiles: string[] = [`${openspecDirName}/AGENTS.md`];
 
     if (updatedFiles.includes('AGENTS.md')) {
       instructionFiles.push(

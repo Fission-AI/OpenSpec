@@ -145,6 +145,9 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Check extension version sync
+        run: node scripts/check-extension-version.mjs
+
       - name: Check for build artifacts
         run: |
           if [ ! -d "dist" ]; then
