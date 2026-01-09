@@ -377,15 +377,16 @@ Run `openspec update` whenever someone switches tools so your agents pick up the
 <details>
 <summary><strong>🧪 OPSX: Fluid, Iterative Workflow</strong> (Claude Code only)</summary>
 
-**Why we built this:**
-- Standard workflow instructions are hardcoded — hard to improve or customize
-- We needed granular, testable artifacts with their own instructions
-- We wanted to experiment with different workflows without code changes
+**Why this exists:**
+- Standard workflow is locked down — you can't tweak instructions or customize
+- When AI output is bad, you can't improve the prompts yourself
+- Same workflow for everyone, no way to match how your team works
 
 **What's different:**
-- **Schema-driven** — workflows defined in YAML, templates in Markdown (edit instantly, no rebuild)
-- **Granular artifacts** — each has its own instructions, dependencies, and templates
-- **Fluid iteration** — no phase gates, update any artifact anytime
+- **Hackable** — edit templates and schemas yourself, test immediately, no rebuild
+- **Granular** — each artifact has its own instructions, test and tweak individually
+- **Customizable** — define your own workflows, artifacts, and dependencies
+- **Fluid** — no phase gates, update any artifact anytime
 
 ```
 You can always go back:

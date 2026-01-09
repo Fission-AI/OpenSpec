@@ -8,39 +8,40 @@
 
 OPSX is a **fluid, iterative workflow** for OpenSpec changes. No more rigid phases — just actions you can take anytime.
 
-## Why We Built This
+## Why This Exists
 
-The standard OpenSpec workflow works, but it's **hard to improve**:
+The standard OpenSpec workflow works, but it's **locked down**:
 
-- **Instructions are hardcoded** — buried in TypeScript strings, changing them requires code changes and a release
-- **All-or-nothing** — one big command creates everything, hard to test individual pieces
-- **Fixed structure** — same workflow for everyone, no way to customize for your team's needs
-- **Opaque failures** — when something goes wrong, hard to know which part of the instructions failed
+- **Instructions are hardcoded** — buried in TypeScript, you can't change them
+- **All-or-nothing** — one big command creates everything, can't test individual pieces
+- **Fixed structure** — same workflow for everyone, no customization
+- **Black box** — when AI output is bad, you can't tweak the prompts
 
-We needed a system where we could:
+**OPSX opens it up.** Now anyone can:
 
-1. **Experiment with instructions** — try different prompts, see what works better
+1. **Experiment with instructions** — edit a template, see if the AI does better
 2. **Test granularly** — validate each artifact's instructions independently
-3. **Customize workflows** — let teams define their own artifacts and dependencies
-4. **Iterate quickly** — change a template, test it immediately, no rebuild needed
-
-**OPSX makes the instruction system itself hackable:**
+3. **Customize workflows** — define your own artifacts and dependencies
+4. **Iterate quickly** — change a template, test immediately, no rebuild
 
 ```
 Standard workflow:                    OPSX:
 ┌────────────────────────┐           ┌────────────────────────┐
-│  Hardcoded TypeScript  │           │  schema.yaml           │◄── Edit this
-│  strings               │           │  templates/*.md        │◄── Or this
+│  Hardcoded in package  │           │  schema.yaml           │◄── You edit this
+│  (can't change)        │           │  templates/*.md        │◄── Or this
 │        ↓               │           │        ↓               │
-│  Rebuild package       │           │  Instant effect        │
+│  Wait for new release  │           │  Instant effect        │
 │        ↓               │           │        ↓               │
-│  Release new version   │           │  Test immediately      │
-│        ↓               │           │                        │
-│  Users upgrade         │           │  No release needed     │
+│  Hope it's better      │           │  Test it yourself      │
 └────────────────────────┘           └────────────────────────┘
 ```
 
-This matters because **we're still learning what works**. Different instruction styles, different artifact structures, different dependency graphs — we need to be able to try things quickly. OPSX is the foundation for that experimentation.
+**This is for everyone:**
+- **Teams** — create workflows that match how you actually work
+- **Power users** — tweak prompts to get better AI outputs for your codebase
+- **OpenSpec contributors** — experiment with new approaches without releases
+
+We're all still learning what works best. OPSX lets us learn together.
 
 ## The User Experience
 
