@@ -128,6 +128,31 @@ describe('createChange', () => {
       const stats = await fs.stat(changeDir);
       expect(stats.isDirectory()).toBe(true);
     });
+
+    it('should create .openspec.yaml metadata file with default schema', async () => {
+      await createChange(testDir, 'add-auth');
+
+      const metaPath = path.join(testDir, 'openspec', 'changes', 'add-auth', '.openspec.yaml');
+      const content = await fs.readFile(metaPath, 'utf-8');
+      expect(content).toContain('schema: spec-driven');
+      expect(content).toMatch(/created: \d{4}-\d{2}-\d{2}/);
+    });
+
+    it('should create .openspec.yaml with custom schema', async () => {
+      await createChange(testDir, 'add-auth', { schema: 'tdd' });
+
+      const metaPath = path.join(testDir, 'openspec', 'changes', 'add-auth', '.openspec.yaml');
+      const content = await fs.readFile(metaPath, 'utf-8');
+      expect(content).toContain('schema: tdd');
+    });
+  });
+
+  describe('schema validation', () => {
+    it('should throw error for unknown schema', async () => {
+      await expect(createChange(testDir, 'add-auth', { schema: 'unknown-schema' })).rejects.toThrow(
+        /Unknown schema/
+      );
+    });
   });
 
   describe('duplicate change throws error', () => {

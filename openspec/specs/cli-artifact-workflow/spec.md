@@ -27,6 +27,13 @@ The system SHALL display artifact completion status for a change, including scaf
 - **WHEN** user runs `openspec status --change <id> --json`
 - **THEN** the system outputs JSON with changeName, schemaName, isComplete, and artifacts array
 
+#### Scenario: Status JSON includes apply requirements
+
+- **WHEN** user runs `openspec status --change <id> --json`
+- **THEN** the system outputs JSON with:
+  - `changeName`, `schemaName`, `isComplete`, `artifacts` array
+  - `applyRequires`: array of artifact IDs needed for apply phase
+
 #### Scenario: Status on scaffolded change
 
 - **WHEN** user runs `openspec status --change <id>` on a change with no artifacts
@@ -45,35 +52,6 @@ The system SHALL display artifact completion status for a change, including scaf
 - **WHEN** user runs `openspec status --change unknown-id`
 - **AND** directory `openspec/changes/unknown-id/` does not exist
 - **THEN** the system displays an error listing all available change directories
-
-### Requirement: Next Command
-
-The system SHALL show which artifacts are ready to be created, including for scaffolded changes.
-
-#### Scenario: Show ready artifacts
-
-- **WHEN** user runs `openspec next --change <id>`
-- **THEN** the system lists artifacts whose dependencies are all satisfied
-
-#### Scenario: No artifacts ready
-
-- **WHEN** all artifacts are either completed or blocked
-- **THEN** the system indicates no artifacts are ready (with explanation)
-
-#### Scenario: All artifacts complete
-
-- **WHEN** all artifacts in the change are completed
-- **THEN** the system indicates the change is complete
-
-#### Scenario: Next JSON output
-
-- **WHEN** user runs `openspec next --change <id> --json`
-- **THEN** the system outputs JSON array of ready artifact IDs
-
-#### Scenario: Next on scaffolded change
-
-- **WHEN** user runs `openspec next --change <id>` on a change with no artifacts
-- **THEN** system shows root artifacts (e.g., "proposal") as ready to create
 
 ### Requirement: Instructions Command
 
@@ -187,4 +165,58 @@ The system SHALL implement artifact workflow commands in isolation for easy remo
 #### Scenario: Help text marking
 - **WHEN** user runs `--help` on any artifact workflow command
 - **THEN** help text indicates the command is experimental
+
+### Requirement: Schema Apply Block
+
+The system SHALL support an `apply` block in schema definitions that controls when and how implementation begins.
+
+#### Scenario: Schema with apply block
+
+- **WHEN** a schema defines an `apply` block
+- **THEN** the system uses `apply.requires` to determine which artifacts must exist before apply
+- **AND** uses `apply.tracks` to identify the file for progress tracking (or null if none)
+- **AND** uses `apply.instruction` for guidance shown to the agent
+
+#### Scenario: Schema without apply block
+
+- **WHEN** a schema has no `apply` block
+- **THEN** the system requires all artifacts to exist before apply is available
+- **AND** uses default instruction: "All artifacts complete. Proceed with implementation."
+
+### Requirement: Apply Instructions Command
+
+The system SHALL generate schema-aware apply instructions via `openspec instructions apply`.
+
+#### Scenario: Generate apply instructions
+
+- **WHEN** user runs `openspec instructions apply --change <id>`
+- **AND** all required artifacts (per schema's `apply.requires`) exist
+- **THEN** the system outputs:
+  - Context files from all existing artifacts
+  - Schema-specific instruction text
+  - Progress tracking file path (if `apply.tracks` is set)
+
+#### Scenario: Apply blocked by missing artifacts
+
+- **WHEN** user runs `openspec instructions apply --change <id>`
+- **AND** required artifacts are missing
+- **THEN** the system indicates apply is blocked
+- **AND** lists which artifacts must be created first
+
+#### Scenario: Apply instructions JSON output
+
+- **WHEN** user runs `openspec instructions apply --change <id> --json`
+- **THEN** the system outputs JSON with:
+  - `contextFiles`: array of paths to existing artifacts
+  - `instruction`: the apply instruction text
+  - `tracks`: path to progress file or null
+  - `applyRequires`: list of required artifact IDs
+
+## REMOVED Requirements
+
+### Requirement: Next Command
+
+**Reason**: Redundant with Status Command - `openspec status` already shows which artifacts are ready (status: "ready") vs blocked vs done.
+
+**Migration**: Use `openspec status --change <id> --json` and filter artifacts with `status: "ready"` to find artifacts that can be created next.
 
