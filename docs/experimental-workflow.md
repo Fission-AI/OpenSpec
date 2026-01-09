@@ -120,6 +120,92 @@ Works through tasks, checking them off as you go. **Key difference:** if you dis
 /opsx:archive   # Move to archive when done
 ```
 
+## When to Update vs. Start Fresh
+
+OPSX lets you update artifacts anytime. But when does "update as you learn" become "this is different work"?
+
+### What a Proposal Captures
+
+A proposal defines three things:
+1. **Intent** — What problem are you solving?
+2. **Scope** — What's in/out of bounds?
+3. **Approach** — How will you solve it?
+
+The question is: which changed, and by how much?
+
+### Update the Existing Change When:
+
+**Same intent, refined execution**
+- You discover edge cases you didn't consider
+- The approach needs tweaking but the goal is unchanged
+- Implementation reveals the design was slightly off
+
+**Scope narrows**
+- You realize full scope is too big, want to ship MVP first
+- "Add dark mode" → "Add dark mode toggle (system preference in v2)"
+
+**Learning-driven corrections**
+- Codebase isn't structured how you thought
+- A dependency doesn't work as expected
+- "Use CSS variables" → "Use Tailwind's dark: prefix instead"
+
+### Start a New Change When:
+
+**Intent fundamentally changed**
+- The problem itself is different now
+- "Add dark mode" → "Add comprehensive theme system with custom colors, fonts, spacing"
+
+**Scope exploded**
+- Change grew so much it's essentially different work
+- Original proposal would be unrecognizable after updates
+- "Fix login bug" → "Rewrite auth system"
+
+**Original is completable**
+- The original change can be marked "done"
+- New work stands alone, not a refinement
+- Complete "Add dark mode MVP" → Archive → New change "Enhance dark mode"
+
+### The Heuristics
+
+```
+                        ┌─────────────────────────────────────┐
+                        │     Is this the same work?          │
+                        └──────────────┬──────────────────────┘
+                                       │
+                    ┌──────────────────┼──────────────────┐
+                    │                  │                  │
+                    ▼                  ▼                  ▼
+             Same intent?      >50% overlap?      Can original
+             Same problem?     Same scope?        be "done" without
+                    │                  │          these changes?
+                    │                  │                  │
+          ┌────────┴────────┐  ┌──────┴──────┐   ┌───────┴───────┐
+          │                 │  │             │   │               │
+         YES               NO YES           NO  NO              YES
+          │                 │  │             │   │               │
+          ▼                 ▼  ▼             ▼   ▼               ▼
+       UPDATE            NEW  UPDATE       NEW  UPDATE          NEW
+```
+
+| Test | Update | New Change |
+|------|--------|------------|
+| **Identity** | "Same thing, refined" | "Different work" |
+| **Scope overlap** | >50% overlaps | <50% overlaps |
+| **Completion** | Can't be "done" without changes | Can finish original, new work stands alone |
+| **Story** | Update chain tells coherent story | Patches would confuse more than clarify |
+
+### The Principle
+
+> **Update preserves context. New change provides clarity.**
+>
+> Choose update when the history of your thinking is valuable.
+> Choose new when starting fresh would be clearer than patching.
+
+Think of it like git branches:
+- Keep committing while working on the same feature
+- Start a new branch when it's genuinely new work
+- Sometimes merge a partial feature and start fresh for phase 2
+
 ## What's Different?
 
 | | Standard (`/openspec:proposal`) | Experimental (`/opsx:*`) |
