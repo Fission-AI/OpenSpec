@@ -144,8 +144,27 @@ export class CompletionCommand {
           if (result.backupPath) {
             console.log(`  Backup created: ${result.backupPath}`);
           }
-          if (result.zshrcConfigured) {
-            console.log(`  ~/.zshrc configured automatically`);
+
+          // Check if any shell config was updated
+          const configWasUpdated = result.zshrcConfigured || result.bashrcConfigured || result.profileConfigured;
+
+          if (configWasUpdated) {
+            const configPaths: Record<string, string> = {
+              zsh: '~/.zshrc',
+              bash: '~/.bashrc',
+              fish: '~/.config/fish/config.fish',
+              powershell: '$PROFILE',
+            };
+            const configPath = configPaths[shell] || 'config file';
+            console.log(`  ${configPath} configured automatically`);
+          }
+        }
+
+        // Display warnings if present
+        if (result.warnings && result.warnings.length > 0) {
+          console.log('');
+          for (const warning of result.warnings) {
+            console.log(warning);
           }
         }
 
@@ -155,9 +174,24 @@ export class CompletionCommand {
           for (const instruction of result.instructions) {
             console.log(instruction);
           }
-        } else if (result.zshrcConfigured) {
-          console.log('');
-          console.log('Restart your shell or run: exec zsh');
+        } else {
+          // Check if any shell config was updated (InstallationResult has: zshrcConfigured, bashrcConfigured, profileConfigured)
+          const configWasUpdated = result.zshrcConfigured || result.bashrcConfigured || result.profileConfigured;
+
+          if (configWasUpdated) {
+            console.log('');
+
+            // Shell-specific reload instructions
+            const reloadCommands: Record<string, string> = {
+              zsh: 'exec zsh',
+              bash: 'exec bash',
+              fish: 'exec fish',
+              powershell: '. $PROFILE',
+            };
+            const reloadCmd = reloadCommands[shell] || `restart your ${shell} shell`;
+
+            console.log(`Restart your shell or run: ${reloadCmd}`);
+          }
         }
       } else {
         console.error(`✗ ${result.message}`);
@@ -179,8 +213,18 @@ export class CompletionCommand {
     // Prompt for confirmation unless --yes flag is provided
     if (!skipConfirmation) {
       const { confirm } = await import('@inquirer/prompts');
+
+      // Get shell-specific config file path
+      const configPaths: Record<string, string> = {
+        zsh: '~/.zshrc',
+        bash: '~/.bashrc',
+        fish: 'Fish configuration',  // Fish doesn't modify profile, just removes script file
+        powershell: '$PROFILE',
+      };
+      const configPath = configPaths[shell] || `${shell} configuration`;
+
       const confirmed = await confirm({
-        message: 'Remove OpenSpec configuration from ~/.zshrc?',
+        message: `Remove OpenSpec configuration from ${configPath}?`,
         default: false,
       });
 

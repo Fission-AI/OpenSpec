@@ -1,8 +1,7 @@
-# cli-completion Specification
+# cli-completion Spec Delta
 
-## Purpose
-Provide shell completion scripts for the OpenSpec CLI, enabling tab-completion for commands, flags, and dynamic values (change IDs, spec IDs) across multiple shells. Supports Zsh, Bash, Fish, and PowerShell.
-## Requirements
+## MODIFIED Requirements
+
 ### Requirement: Native Shell Behavior Integration
 
 The completion system SHALL respect and integrate with each supported shell's native completion patterns and user interaction model.
@@ -45,18 +44,6 @@ The completion system SHALL respect and integrate with each supported shell's na
 - **THEN** do NOT attempt to customize completion trigger behavior
 - **AND** do NOT override shell-specific navigation patterns
 - **AND** ensure completions feel native to experienced users of that shell
-
-### Requirement: Command Structure
-
-The completion command SHALL follow a subcommand pattern for generating and managing completion scripts.
-
-#### Scenario: Available subcommands
-
-- **WHEN** user executes `openspec completion --help`
-- **THEN** display available subcommands:
-  - `generate [shell]` - Generate completion script for a shell (outputs to stdout)
-  - `install [shell]` - Install completion for Zsh (auto-detects or requires explicit shell)
-  - `uninstall [shell]` - Remove completion for Zsh (auto-detects or requires explicit shell)
 
 ### Requirement: Shell Detection
 
@@ -132,38 +119,6 @@ The completion command SHALL generate completion scripts for all supported shell
 - **AND** implement scriptblock that handles command context
 - **AND** support dynamic completion for change and spec IDs via `openspec __complete`
 - **AND** return `[System.Management.Automation.CompletionResult]` objects
-
-### Requirement: Dynamic Completions
-
-The completion system SHALL provide context-aware dynamic completions for project-specific values.
-
-#### Scenario: Completing change IDs
-
-- **WHEN** completing arguments for commands that accept change names (show, validate, archive)
-- **THEN** discover active changes from `openspec/changes/` directory
-- **AND** exclude archived changes in `openspec/changes/archive/`
-- **AND** return change IDs as completion suggestions
-- **AND** only provide suggestions when inside an OpenSpec-enabled project
-
-#### Scenario: Completing spec IDs
-
-- **WHEN** completing arguments for commands that accept spec names (show, validate)
-- **THEN** discover specs from `openspec/specs/` directory
-- **AND** return spec IDs as completion suggestions
-- **AND** only provide suggestions when inside an OpenSpec-enabled project
-
-#### Scenario: Completion caching
-
-- **WHEN** dynamic completions are requested
-- **THEN** cache discovered change and spec IDs for 2 seconds
-- **AND** reuse cached values for subsequent requests within cache window
-- **AND** automatically refresh cache after expiration
-
-#### Scenario: Project detection
-
-- **WHEN** user requests completions outside an OpenSpec project
-- **THEN** skip dynamic change/spec ID completions
-- **AND** only suggest static commands and flags
 
 ### Requirement: Installation Automation
 
@@ -336,64 +291,6 @@ The completion implementation SHALL follow clean architecture principles with Ty
 - **AND** implement `detectShell()` function in `src/utils/shell-detection.ts`
 - **AND** return detected shell or throw error with supported shells list
 
-### Requirement: Error Handling
-
-The completion command SHALL provide clear error messages for common failure scenarios.
-
-#### Scenario: Unsupported shell
-
-- **WHEN** user requests completion for unsupported shell (e.g., ksh, csh, tcsh)
-- **THEN** display error message: "Shell '<name>' is not supported yet. Currently supported: zsh, bash, fish, powershell"
-- **AND** exit with code 1
-
-#### Scenario: Permission errors during installation
-
-- **WHEN** installation fails due to file permission issues
-- **THEN** display clear error message indicating permission problem
-- **AND** suggest using appropriate permissions or alternative installation method
-- **AND** exit with code 1
-
-#### Scenario: Missing shell configuration directory
-
-- **WHEN** expected shell configuration directory doesn't exist
-- **THEN** create the directory automatically (with user notification)
-- **AND** proceed with installation
-
-#### Scenario: Shell not detected
-
-- **WHEN** `openspec completion install` cannot detect current shell
-- **THEN** display error: "Could not auto-detect shell. Please specify shell explicitly."
-- **AND** display usage hint: "Usage: openspec completion <operation> [shell]"
-- **AND** exit with code 1
-
-### Requirement: Output Format
-
-The completion command SHALL provide machine-parseable and human-readable output.
-
-#### Scenario: Script generation output
-
-- **WHEN** generating completion script to stdout
-- **THEN** output only the completion script content (no extra messages)
-- **AND** allow redirection to files: `openspec completion generate zsh > /path/to/_openspec`
-
-#### Scenario: Installation success output
-
-- **WHEN** installation completes successfully
-- **THEN** display formatted success message with:
-  - Checkmark indicator
-  - Installation location
-  - Next steps (shell reload instructions)
-- **AND** use colors when terminal supports it (unless `--no-color` is set)
-
-#### Scenario: Verbose installation output
-
-- **WHEN** user provides `--verbose` flag during installation
-- **THEN** display detailed steps:
-  - Shell detection result
-  - Target file paths
-  - Configuration modifications
-  - File creation confirmations
-
 ### Requirement: Testing Support
 
 The completion implementation SHALL be testable with unit and integration tests for all supported shells.
@@ -429,4 +326,3 @@ The completion implementation SHALL be testable with unit and integration tests 
 - **THEN** verify all shells support the same commands and flags
 - **AND** verify dynamic completions work consistently across shells
 - **AND** ensure error messages are consistent across shells
-
