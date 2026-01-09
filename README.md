@@ -27,7 +27,7 @@
 </p>
 
 <p align="center">
-  <sub>🧪 <strong>New:</strong> <a href="docs/experimental-workflow.md">Experimental Workflow (OPSX)</a> — fluid, iterative changes. No phases, just actions.</sub>
+  <sub>🧪 <strong>New:</strong> <a href="docs/experimental-workflow.md">Experimental Workflow (OPSX)</a> — schema-driven, hackable, fluid. Iterate on workflows without code changes.</sub>
 </p>
 
 # OpenSpec
@@ -377,9 +377,15 @@ Run `openspec update` whenever someone switches tools so your agents pick up the
 <details>
 <summary><strong>🧪 OPSX: Fluid, Iterative Workflow</strong> (Claude Code only)</summary>
 
-**The problem:** Linear phases (plan → implement → archive) fight against how work actually happens. You implement, realize the design is wrong, need to update it, continue.
+**Why we built this:**
+- Standard workflow instructions are hardcoded — hard to improve or customize
+- We needed granular, testable artifacts with their own instructions
+- We wanted to experiment with different workflows without code changes
 
-**OPSX approach:** No phases, just actions. Create artifacts, implement tasks, update as you learn — in any order.
+**What's different:**
+- **Schema-driven** — workflows defined in YAML, templates in Markdown (edit instantly, no rebuild)
+- **Granular artifacts** — each has its own instructions, dependencies, and templates
+- **Fluid iteration** — no phase gates, update any artifact anytime
 
 ```
 You can always go back:

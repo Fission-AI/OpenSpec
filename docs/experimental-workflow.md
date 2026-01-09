@@ -8,6 +8,42 @@
 
 OPSX is a **fluid, iterative workflow** for OpenSpec changes. No more rigid phases — just actions you can take anytime.
 
+## Why We Built This
+
+The standard OpenSpec workflow works, but it's **hard to improve**:
+
+- **Instructions are hardcoded** — buried in TypeScript strings, changing them requires code changes and a release
+- **All-or-nothing** — one big command creates everything, hard to test individual pieces
+- **Fixed structure** — same workflow for everyone, no way to customize for your team's needs
+- **Opaque failures** — when something goes wrong, hard to know which part of the instructions failed
+
+We needed a system where we could:
+
+1. **Experiment with instructions** — try different prompts, see what works better
+2. **Test granularly** — validate each artifact's instructions independently
+3. **Customize workflows** — let teams define their own artifacts and dependencies
+4. **Iterate quickly** — change a template, test it immediately, no rebuild needed
+
+**OPSX makes the instruction system itself hackable:**
+
+```
+Standard workflow:                    OPSX:
+┌────────────────────────┐           ┌────────────────────────┐
+│  Hardcoded TypeScript  │           │  schema.yaml           │◄── Edit this
+│  strings               │           │  templates/*.md        │◄── Or this
+│        ↓               │           │        ↓               │
+│  Rebuild package       │           │  Instant effect        │
+│        ↓               │           │        ↓               │
+│  Release new version   │           │  Test immediately      │
+│        ↓               │           │                        │
+│  Users upgrade         │           │  No release needed     │
+└────────────────────────┘           └────────────────────────┘
+```
+
+This matters because **we're still learning what works**. Different instruction styles, different artifact structures, different dependency graphs — we need to be able to try things quickly. OPSX is the foundation for that experimentation.
+
+## The User Experience
+
 **The problem with linear workflows:**
 You're "in planning phase", then "in implementation phase", then "done". But real work doesn't work that way. You implement something, realize your design was wrong, need to update specs, continue implementing. Linear phases fight against how work actually happens.
 
