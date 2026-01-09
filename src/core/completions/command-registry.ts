@@ -284,7 +284,13 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         description: 'Uninstall completion script for a shell',
         acceptsPositional: true,
         positionalType: 'shell',
-        flags: [],
+        flags: [
+          {
+            name: 'yes',
+            short: 'y',
+            description: 'Skip confirmation prompts',
+          },
+        ],
       },
     ],
   },
