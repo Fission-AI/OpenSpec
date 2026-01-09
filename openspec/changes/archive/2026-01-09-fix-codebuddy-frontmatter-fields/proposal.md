@@ -5,7 +5,6 @@ CodeBuddy slash command configurator currently uses inconsistent frontmatter fie
 ## What Changes
 
 - Replace `category` and `tags` fields with `argument-hint` field in CodeBuddy frontmatter
-- Remove incorrect `name` field (not used by CodeBuddy)
 - Add missing frontmatter fields to the `proposal` command
 - Use correct square bracket format for `argument-hint` parameters (e.g., `[change-id]`)
 - Ensure consistency with CodeBuddy's official documentation
