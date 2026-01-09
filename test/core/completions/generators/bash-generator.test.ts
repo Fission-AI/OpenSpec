@@ -34,7 +34,7 @@ describe('BashGenerator', () => {
       expect(script).toContain('# Bash completion script for OpenSpec CLI');
       expect(script).toContain('_openspec_completion() {');
       expect(script).toContain('local cur prev words cword');
-      expect(script).toContain('_init_completion || return');
+      expect(script).toContain('_init_completion -n : || return');
     });
 
     it('should include all commands in the command list', () => {

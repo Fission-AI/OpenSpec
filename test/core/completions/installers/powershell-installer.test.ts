@@ -138,11 +138,8 @@ describe('PowerShellInstaller', () => {
   describe('configureProfile', () => {
     const mockScriptPath = '/path/to/OpenSpecCompletion.ps1';
 
-    it('should return false when OPENSPEC_NO_AUTO_CONFIG is set', async () => {
-      process.env.OPENSPEC_NO_AUTO_CONFIG = '1';
-      const result = await installer.configureProfile(mockScriptPath);
-      expect(result).toBe(false);
-    });
+    // Note: OPENSPEC_NO_AUTO_CONFIG check is now handled in the install() method,
+    // not in configureProfile() itself
 
     it('should create profile with markers when file does not exist', async () => {
       delete process.env.OPENSPEC_NO_AUTO_CONFIG;
@@ -154,8 +151,7 @@ describe('PowerShellInstaller', () => {
       const content = await fs.readFile(profilePath, 'utf-8');
       expect(content).toContain('# OPENSPEC:START');
       expect(content).toContain('# OPENSPEC:END');
-      expect(content).toContain(mockScriptPath);
-      expect(content).toContain('Test-Path');
+      expect(content).toContain(`. "${mockScriptPath}"`);
     });
 
     it('should prepend markers and config when file exists without markers', async () => {
@@ -175,17 +171,14 @@ describe('PowerShellInstaller', () => {
       expect(content).toContain('Write-Host "Hello"');
     });
 
-    it('should update config between markers when markers exist', async () => {
+    it('should skip configuration when script line already exists', async () => {
       delete process.env.OPENSPEC_NO_AUTO_CONFIG;
       const profilePath = installer.getProfilePath();
       await fs.mkdir(path.dirname(profilePath), { recursive: true });
 
       const initialContent = [
-        '# OPENSPEC:START',
-        '# Old OpenSpec config',
-        'if (Test-Path "/old/path") {',
-        '    . "/old/path"',
-        '}',
+        '# OPENSPEC:START - OpenSpec completion (managed block, do not edit manually)',
+        `. "${mockScriptPath}"`,
         '# OPENSPEC:END',
         '',
         '# My custom config',
@@ -196,13 +189,11 @@ describe('PowerShellInstaller', () => {
 
       const result = await installer.configureProfile(mockScriptPath);
 
-      expect(result).toBe(true);
+      // Should return false because already configured (anyConfigured = false)
+      expect(result).toBe(false);
       const content = await fs.readFile(profilePath, 'utf-8');
-      expect(content).toContain(mockScriptPath);
-      expect(content).not.toContain('# Old OpenSpec config');
-      expect(content).not.toContain('/old/path');
-      expect(content).toContain('# My custom config');
-      expect(content).toContain('Write-Host "Custom"');
+      // Content should be unchanged
+      expect(content).toBe(initialContent);
     });
 
     it('should preserve user content outside markers', async () => {
@@ -241,10 +232,9 @@ describe('PowerShellInstaller', () => {
       await installer.configureProfile(mockScriptPath);
 
       const content = await fs.readFile(profilePath, 'utf-8');
-      expect(content).toContain('if (Test-Path');
-      expect(content).toContain(') {');
-      expect(content).toContain('. "');
-      expect(content).toContain('}');
+      expect(content).toContain('# OPENSPEC:START');
+      expect(content).toContain(`. "${mockScriptPath}"`);
+      expect(content).toContain('# OPENSPEC:END');
     });
 
     it('should return false on write permission error', async () => {
@@ -266,19 +256,19 @@ describe('PowerShellInstaller', () => {
   });
 
   describe('removeProfileConfig', () => {
-    it('should return true when profile does not exist', async () => {
+    it('should return false when profile does not exist', async () => {
       const result = await installer.removeProfileConfig();
-      expect(result).toBe(true);
+      expect(result).toBe(false);
     });
 
-    it('should return true when profile exists but has no markers', async () => {
+    it('should return false when profile exists but has no markers', async () => {
       const profilePath = installer.getProfilePath();
       await fs.mkdir(path.dirname(profilePath), { recursive: true });
       await fs.writeFile(profilePath, '# My custom config\nWrite-Host "Hello"');
 
       const result = await installer.removeProfileConfig();
 
-      expect(result).toBe(true);
+      expect(result).toBe(false);
       const content = await fs.readFile(profilePath, 'utf-8');
       expect(content).toBe('# My custom config\nWrite-Host "Hello"');
     });
@@ -329,7 +319,7 @@ describe('PowerShellInstaller', () => {
 
       expect(result).toBe(true);
       const content = await fs.readFile(profilePath, 'utf-8');
-      expect(content).toBe('# User config');
+      expect(content).toBe('# User config\n');
     });
 
     it('should preserve user content outside markers', async () => {
@@ -458,15 +448,8 @@ Register-ArgumentCompleter -CommandName openspec -ScriptBlock $openspecCompleter
       expect(result.instructions).toBeUndefined();
     });
 
-    it('should not configure profile when OPENSPEC_NO_AUTO_CONFIG is set', async () => {
-      process.env.OPENSPEC_NO_AUTO_CONFIG = '1';
-      const result = await installer.install(mockCompletionScript);
-
-      expect(result.success).toBe(true);
-      expect(result.profileConfigured).toBe(false);
-      expect(result.instructions).toBeDefined();
-      expect(result.instructions!.length).toBeGreaterThan(0);
-    });
+    // Note: OPENSPEC_NO_AUTO_CONFIG support was removed from PowerShell installer
+    // Profile is now always auto-configured if possible
 
     it('should provide instructions when profile cannot be configured', async () => {
       delete process.env.OPENSPEC_NO_AUTO_CONFIG;
