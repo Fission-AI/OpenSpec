@@ -94,6 +94,298 @@ Works through tasks, checking them off as you go. **Key difference:** if you dis
 
 **The key insight:** work isn't linear. OPSX stops pretending it is.
 
+## Architecture Deep Dive
+
+This section explains how OPSX works under the hood and how it compares to the standard workflow.
+
+### Philosophy: Phases vs Actions
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         STANDARD WORKFLOW                                    │
+│                    (Phase-Locked, All-or-Nothing)                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   ┌──────────────┐      ┌──────────────┐      ┌──────────────┐             │
+│   │   PLANNING   │ ───► │ IMPLEMENTING │ ───► │   ARCHIVING  │             │
+│   │    PHASE     │      │    PHASE     │      │    PHASE     │             │
+│   └──────────────┘      └──────────────┘      └──────────────┘             │
+│         │                     │                     │                       │
+│         ▼                     ▼                     ▼                       │
+│   /openspec:proposal   /openspec:apply      /openspec:archive              │
+│                                                                             │
+│   • Creates ALL artifacts at once                                          │
+│   • Can't go back to update specs during implementation                    │
+│   • Phase gates enforce linear progression                                  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            OPSX WORKFLOW                                     │
+│                      (Fluid Actions, Iterative)                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│              ┌────────────────────────────────────────────┐                 │
+│              │           ACTIONS (not phases)             │                 │
+│              │                                            │                 │
+│              │   new ◄──► continue ◄──► apply ◄──► sync   │                 │
+│              │    │          │           │          │     │                 │
+│              │    └──────────┴───────────┴──────────┘     │                 │
+│              │              any order                     │                 │
+│              └────────────────────────────────────────────┘                 │
+│                                                                             │
+│   • Create artifacts one at a time OR fast-forward                         │
+│   • Update specs/design/tasks during implementation                        │
+│   • Dependencies enable progress, phases don't exist                       │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Component Architecture
+
+**Standard workflow** uses hardcoded templates in TypeScript:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      STANDARD WORKFLOW COMPONENTS                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   Hardcoded Templates (TypeScript strings)                                  │
+│                    │                                                        │
+│                    ▼                                                        │
+│   Configurators (18+ classes, one per editor)                               │
+│                    │                                                        │
+│                    ▼                                                        │
+│   Generated Command Files (.claude/commands/openspec/*.md)                  │
+│                                                                             │
+│   • Fixed structure, no artifact awareness                                  │
+│   • Change requires code modification + rebuild                             │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**OPSX** uses external schemas and a dependency graph engine:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         OPSX COMPONENTS                                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   Schema Definitions (YAML)                                                 │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │  name: spec-driven                                                  │   │
+│   │  artifacts:                                                         │   │
+│   │    - id: proposal                                                   │   │
+│   │      generates: proposal.md                                         │   │
+│   │      requires: []              ◄── Dependencies                     │   │
+│   │    - id: specs                                                      │   │
+│   │      generates: specs/**/*.md  ◄── Glob patterns                    │   │
+│   │      requires: [proposal]      ◄── Enables after proposal           │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
+│                    │                                                        │
+│                    ▼                                                        │
+│   Artifact Graph Engine                                                     │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │  • Topological sort (dependency ordering)                           │   │
+│   │  • State detection (filesystem existence)                           │   │
+│   │  • Rich instruction generation (templates + context)                │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
+│                    │                                                        │
+│                    ▼                                                        │
+│   Skill Files (.claude/skills/openspec-*/SKILL.md)                          │
+│                                                                             │
+│   • Cross-editor compatible (Claude Code, Cursor, Windsurf)                 │
+│   • Skills query CLI for structured data                                    │
+│   • Fully customizable via schema files                                     │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Dependency Graph Model
+
+Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, not gates:
+
+```
+                              proposal
+                             (root node)
+                                  │
+                    ┌─────────────┴─────────────┐
+                    │                           │
+                    ▼                           ▼
+                 specs                       design
+              (requires:                  (requires:
+               proposal)                   proposal)
+                    │                           │
+                    └─────────────┬─────────────┘
+                                  │
+                                  ▼
+                               tasks
+                           (requires:
+                           specs, design)
+                                  │
+                                  ▼
+                          ┌──────────────┐
+                          │ APPLY PHASE  │
+                          │ (requires:   │
+                          │  tasks)      │
+                          └──────────────┘
+```
+
+**State transitions:**
+
+```
+   BLOCKED ────────────────► READY ────────────────► DONE
+      │                        │                       │
+   Missing                  All deps               File exists
+   dependencies             are DONE               on filesystem
+```
+
+### Information Flow
+
+**Standard workflow** — agent receives static instructions:
+
+```
+  User: "/openspec:proposal"
+           │
+           ▼
+  ┌─────────────────────────────────────────┐
+  │  Static instructions:                   │
+  │  • Create proposal.md                   │
+  │  • Create tasks.md                      │
+  │  • Create design.md                     │
+  │  • Create specs/*.md                    │
+  │                                         │
+  │  No awareness of what exists or         │
+  │  dependencies between artifacts         │
+  └─────────────────────────────────────────┘
+           │
+           ▼
+  Agent creates ALL artifacts in one go
+```
+
+**OPSX** — agent queries for rich context:
+
+```
+  User: "/opsx:continue"
+           │
+           ▼
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  Step 1: Query current state                                             │
+  │  ┌────────────────────────────────────────────────────────────────────┐  │
+  │  │  $ openspec status --change "add-auth" --json                      │  │
+  │  │                                                                    │  │
+  │  │  {                                                                 │  │
+  │  │    "artifacts": [                                                  │  │
+  │  │      {"id": "proposal", "status": "done"},                         │  │
+  │  │      {"id": "specs", "status": "ready"},      ◄── First ready      │  │
+  │  │      {"id": "design", "status": "ready"},                          │  │
+  │  │      {"id": "tasks", "status": "blocked", "missingDeps": ["specs"]}│  │
+  │  │    ]                                                               │  │
+  │  │  }                                                                 │  │
+  │  └────────────────────────────────────────────────────────────────────┘  │
+  │                                                                          │
+  │  Step 2: Get rich instructions for ready artifact                        │
+  │  ┌────────────────────────────────────────────────────────────────────┐  │
+  │  │  $ openspec instructions specs --change "add-auth" --json          │  │
+  │  │                                                                    │  │
+  │  │  {                                                                 │  │
+  │  │    "template": "# Specification\n\n## ADDED Requirements...",      │  │
+  │  │    "dependencies": [{"id": "proposal", "path": "...", "done": true}│  │
+  │  │    "unlocks": ["tasks"]                                            │  │
+  │  │  }                                                                 │  │
+  │  └────────────────────────────────────────────────────────────────────┘  │
+  │                                                                          │
+  │  Step 3: Read dependencies → Create ONE artifact → Show what's unlocked  │
+  └──────────────────────────────────────────────────────────────────────────┘
+```
+
+### Iteration Model
+
+**Standard workflow** — awkward to iterate:
+
+```
+  ┌─────────┐     ┌─────────┐     ┌─────────┐
+  │/proposal│ ──► │ /apply  │ ──► │/archive │
+  └─────────┘     └─────────┘     └─────────┘
+       │               │
+       │               ├── "Wait, the design is wrong"
+       │               │
+       │               ├── Options:
+       │               │   • Edit files manually (breaks context)
+       │               │   • Abandon and start over
+       │               │   • Push through and fix later
+       │               │
+       │               └── No official "go back" mechanism
+       │
+       └── Creates ALL artifacts at once
+```
+
+**OPSX** — natural iteration:
+
+```
+  /opsx:new ───► /opsx:continue ───► /opsx:apply ───► /opsx:archive
+      │                │                  │
+      │                │                  ├── "The design is wrong"
+      │                │                  │
+      │                │                  ▼
+      │                │            Just edit design.md
+      │                │            and continue!
+      │                │                  │
+      │                │                  ▼
+      │                │         /opsx:apply picks up
+      │                │         where you left off
+      │                │
+      │                └── Creates ONE artifact, shows what's unlocked
+      │
+      └── Scaffolds change, waits for direction
+```
+
+### Custom Schemas
+
+Create your own workflow by adding a schema to `~/.local/share/openspec/schemas/`:
+
+```
+~/.local/share/openspec/schemas/research-first/
+├── schema.yaml
+└── templates/
+    ├── research.md
+    ├── proposal.md
+    └── tasks.md
+
+schema.yaml:
+┌─────────────────────────────────────────────────────────────────┐
+│  name: research-first                                           │
+│  artifacts:                                                     │
+│    - id: research        # Added before proposal                │
+│      generates: research.md                                     │
+│      requires: []                                               │
+│                                                                 │
+│    - id: proposal                                               │
+│      generates: proposal.md                                     │
+│      requires: [research]  # Now depends on research            │
+│                                                                 │
+│    - id: tasks                                                  │
+│      generates: tasks.md                                        │
+│      requires: [proposal]                                       │
+└─────────────────────────────────────────────────────────────────┘
+
+Dependency Graph:
+
+   research ──► proposal ──► tasks
+```
+
+### Summary
+
+| Aspect | Standard | OPSX |
+|--------|----------|------|
+| **Templates** | Hardcoded TypeScript | External YAML + Markdown |
+| **Dependencies** | None (all at once) | DAG with topological sort |
+| **State** | Phase-based mental model | Filesystem existence |
+| **Customization** | Edit source, rebuild | Create schema.yaml |
+| **Iteration** | Phase-locked | Fluid, edit anything |
+| **Editor Support** | 18+ configurator classes | Single skills directory |
+
 ## Schemas
 
 Schemas define what artifacts exist and their dependencies. Currently available:
