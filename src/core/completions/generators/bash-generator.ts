@@ -44,12 +44,10 @@ _openspec_completion() {
   else
     # Manual fallback when bash-completion is not installed
     COMPREPLY=()
-    _get_comp_words_by_ref -n : cur prev words cword 2>/dev/null || {
-      cur="\${COMP_WORDS[COMP_CWORD]}"
-      prev="\${COMP_WORDS[COMP_CWORD-1]}"
-      words=("\${COMP_WORDS[@]}")
-      cword=$COMP_CWORD
-    }
+    cur="\${COMP_WORDS[COMP_CWORD]}"
+    prev="\${COMP_WORDS[COMP_CWORD-1]}"
+    words=("\${COMP_WORDS[@]}")
+    cword=$COMP_CWORD
   fi
 
   local cmd="\${words[1]}"
