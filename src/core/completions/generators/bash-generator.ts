@@ -38,9 +38,11 @@ _openspec_completion() {
   local cur prev words cword
 
   # Use _init_completion if available (from bash-completion package)
+  # The -n : option prevents colons from being treated as word separators
+  # (important for spec/change IDs that may contain colons)
   # Otherwise, fall back to manual initialization
   if declare -F _init_completion >/dev/null 2>&1; then
-    _init_completion || return
+    _init_completion -n : || return
   else
     # Manual fallback when bash-completion is not installed
     COMPREPLY=()
