@@ -310,7 +310,7 @@ describe('FishGenerator', () => {
       expect(script).toContain('function __fish_openspec_changes');
       expect(script).toContain('openspec __complete changes 2>/dev/null');
       expect(script).toContain('while read -l id desc');
-      expect(script).toContain('echo');
+      expect(script).toContain('printf');
     });
 
     it('should generate dynamic completion helper for specs', () => {
