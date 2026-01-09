@@ -1121,21 +1121,21 @@ describe('InitCommand', () => {
       const proposalContent = await fs.readFile(codeBuddyProposal, 'utf-8');
       expect(proposalContent).toContain('---');
       expect(proposalContent).toContain('name: OpenSpec: Proposal');
-      expect(proposalContent).toContain('description: Scaffold a new OpenSpec change and validate strictly.');
-      expect(proposalContent).toContain('category: OpenSpec');
+      expect(proposalContent).toContain('description: "Scaffold a new OpenSpec change and validate strictly."');
+      expect(proposalContent).toContain('cargument-hint: "[feature description or request]"');
       expect(proposalContent).toContain('<!-- OPENSPEC:START -->');
       expect(proposalContent).toContain('**Guardrails**');
 
       const applyContent = await fs.readFile(codeBuddyApply, 'utf-8');
       expect(applyContent).toContain('---');
       expect(applyContent).toContain('name: OpenSpec: Apply');
-      expect(applyContent).toContain('description: Implement an approved OpenSpec change and keep tasks in sync.');
+      expect(applyContent).toContain('description: "Implement an approved OpenSpec change and keep tasks in sync."');
       expect(applyContent).toContain('Work through tasks sequentially');
 
       const archiveContent = await fs.readFile(codeBuddyArchive, 'utf-8');
       expect(archiveContent).toContain('---');
       expect(archiveContent).toContain('name: OpenSpec: Archive');
-      expect(archiveContent).toContain('description: Archive a deployed OpenSpec change and update specs.');
+      expect(archiveContent).toContain('description: "Archive a deployed OpenSpec change and update specs."');
       expect(archiveContent).toContain('openspec archive <id> --yes');
     });
 
