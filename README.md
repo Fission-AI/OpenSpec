@@ -26,6 +26,10 @@
   Follow <a href="https://x.com/0xTab">@0xTab on X</a> for updates · Join the <a href="https://discord.gg/YctCnvvshC">OpenSpec Discord</a> for help and questions.
 </p>
 
+<p align="center">
+  <sub>🧪 <strong>New:</strong> Try the <a href="docs/experimental-workflow.md">Experimental Workflow (OPSX)</a> — step-by-step artifact creation for Claude Code</sub>
+</p>
+
 # OpenSpec
 
 OpenSpec aligns humans and AI coding assistants with spec-driven development so you agree on what to build before any code is written. **No API keys required.**
@@ -367,6 +371,31 @@ Run `openspec update` whenever someone switches tools so your agents pick up the
    ```
 2. **Refresh agent instructions**
    - Run `openspec update` inside each project to regenerate AI guidance and ensure the latest slash commands are active.
+
+## Experimental Features
+
+<details>
+<summary><strong>🧪 OPSX: Artifact-Driven Workflow</strong> (Claude Code only)</summary>
+
+A new way to build changes step-by-step:
+
+```
+proposal → specs → design → tasks → implementation → archive
+```
+
+| Command | What it does |
+|---------|--------------|
+| `/opsx:new` | Start a new change |
+| `/opsx:continue` | Create the next artifact |
+| `/opsx:ff` | Fast-forward (all artifacts at once) |
+| `/opsx:apply` | Implement the tasks |
+| `/opsx:archive` | Archive when done |
+
+**Setup:** `openspec artifact-experimental-setup`
+
+[Full documentation →](docs/experimental-workflow.md)
+
+</details>
 
 ## Contributing
 
