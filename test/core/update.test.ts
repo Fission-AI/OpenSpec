@@ -368,6 +368,80 @@ Old body
     consoleSpy.mockRestore();
   });
 
+  it('should refresh existing Continue prompt files', async () => {
+    const continuePath = path.join(
+      testDir,
+      '.continue/prompts/openspec-apply.prompt'
+    );
+    await fs.mkdir(path.dirname(continuePath), { recursive: true });
+    const initialContent = `---
+name: openspec-apply
+description: Old description
+invokable: true
+---
+<!-- OPENSPEC:START -->
+Old body
+<!-- OPENSPEC:END -->`;
+    await fs.writeFile(continuePath, initialContent);
+
+    const consoleSpy = vi.spyOn(console, 'log');
+
+    await updateCommand.execute(testDir);
+
+    const updated = await fs.readFile(continuePath, 'utf-8');
+    expect(updated).toContain('name: openspec-apply');
+    expect(updated).toContain('invokable: true');
+    expect(updated).toContain('Work through tasks sequentially');
+    expect(updated).not.toContain('Old body');
+
+    const [logMessage] = consoleSpy.mock.calls[0];
+    expect(logMessage).toContain(
+      'Updated OpenSpec instructions (openspec/AGENTS.md'
+    );
+    expect(logMessage).toContain('AGENTS.md (created)');
+    expect(logMessage).toContain(
+      'Updated slash commands: .continue/prompts/openspec-apply.prompt'
+    );
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should not create missing Continue prompt files on update', async () => {
+    const continueApply = path.join(
+      testDir,
+      '.continue/prompts/openspec-apply.prompt'
+    );
+
+    // Only create apply; leave proposal and archive missing
+    await fs.mkdir(path.dirname(continueApply), { recursive: true });
+    await fs.writeFile(
+      continueApply,
+      `---
+name: openspec-apply
+description: Old description
+invokable: true
+---
+<!-- OPENSPEC:START -->
+Old body
+<!-- OPENSPEC:END -->`
+    );
+
+    await updateCommand.execute(testDir);
+
+    const continueProposal = path.join(
+      testDir,
+      '.continue/prompts/openspec-proposal.prompt'
+    );
+    const continueArchive = path.join(
+      testDir,
+      '.continue/prompts/openspec-archive.prompt'
+    );
+
+    // Confirm they weren't created by update
+    await expect(FileSystemUtils.fileExists(continueProposal)).resolves.toBe(false);
+    await expect(FileSystemUtils.fileExists(continueArchive)).resolves.toBe(false);
+  });
+
   it('should refresh existing OpenCode slash command files', async () => {
     const openCodePath = path.join(
       testDir,

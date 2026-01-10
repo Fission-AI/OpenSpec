@@ -1151,6 +1151,61 @@ describe('InitCommand', () => {
       expect(codeBuddyChoice.configured).toBe(true);
     });
 
+    it('should create Continue slash command files with templates', async () => {
+      queueSelections('continue', DONE);
+
+      await initCommand.execute(testDir);
+
+      const continueProposal = path.join(
+        testDir,
+        '.continue/prompts/openspec-proposal.prompt'
+      );
+      const continueApply = path.join(
+        testDir,
+        '.continue/prompts/openspec-apply.prompt'
+      );
+      const continueArchive = path.join(
+        testDir,
+        '.continue/prompts/openspec-archive.prompt'
+      );
+
+      expect(await fileExists(continueProposal)).toBe(true);
+      expect(await fileExists(continueApply)).toBe(true);
+      expect(await fileExists(continueArchive)).toBe(true);
+
+      const proposalContent = await fs.readFile(continueProposal, 'utf-8');
+      expect(proposalContent).toContain('---');
+      expect(proposalContent).toContain('name: openspec-proposal');
+      expect(proposalContent).toContain('invokable: true');
+      expect(proposalContent).toContain('<!-- OPENSPEC:START -->');
+
+      const applyContent = await fs.readFile(continueApply, 'utf-8');
+      expect(applyContent).toContain('---');
+      expect(applyContent).toContain('name: openspec-apply');
+      expect(applyContent).toContain('description: Implement an approved OpenSpec change and keep tasks in sync.');
+      expect(applyContent).toContain('invokable: true');
+      expect(applyContent).toContain('Work through tasks sequentially');
+
+      const archiveContent = await fs.readFile(continueArchive, 'utf-8');
+      expect(archiveContent).toContain('---');
+      expect(archiveContent).toContain('name: openspec-archive');
+      expect(archiveContent).toContain('description: Archive a deployed OpenSpec change and update specs.');
+      expect(archiveContent).toContain('invokable: true');
+      expect(archiveContent).toContain('openspec archive <id> --yes');
+    });
+
+    it('should mark Continue as already configured during extend mode', async () => {
+      queueSelections('continue', DONE, 'continue', DONE);
+      await initCommand.execute(testDir);
+      await initCommand.execute(testDir);
+
+      const secondRunArgs = mockPrompt.mock.calls[1][0];
+      const continueChoice = secondRunArgs.choices.find(
+        (choice: any) => choice.value === 'continue'
+      );
+      expect(continueChoice.configured).toBe(true);
+    });
+
     it('should create CODEBUDDY.md when CodeBuddy is selected', async () => {
       queueSelections('codebuddy', DONE);
 
