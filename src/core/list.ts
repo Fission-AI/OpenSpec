@@ -4,6 +4,9 @@ import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progre
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { MarkdownParser } from './parsers/markdown-parser.js';
+import { ChangeParser } from './parsers/change-parser.js';
+import { formatSpaceline, type ChangeData, type SpacelineStats } from '../utils/spaceline-formatter.js';
+import { getGitDiffStatsForPath } from '../utils/git-stats.js';
 
 interface ChangeInfo {
   name: string;
@@ -15,6 +18,7 @@ interface ChangeInfo {
 interface ListOptions {
   sort?: 'recent' | 'name';
   json?: boolean;
+  spaceline?: boolean;
 }
 
 /**
@@ -75,8 +79,99 @@ function formatRelativeTime(date: Date): string {
 }
 
 export class ListCommand {
+  /**
+   * Extract title from proposal.md content.
+   */
+  private extractTitle(content: string, changeName: string): string {
+    const match = content.match(/^#\s+(?:Change:\s+)?(.+)$/im);
+    return match ? match[1].trim() : changeName;
+  }
+
+  /**
+   * Execute spaceline output mode.
+   */
+  private async executeSpaceline(targetPath: string, sort: 'recent' | 'name'): Promise<void> {
+    const changesDir = path.join(targetPath, 'openspec', 'changes');
+
+    // Check if changes directory exists
+    try {
+      await fs.access(changesDir);
+    } catch {
+      throw new Error("No OpenSpec changes directory found. Run 'openspec init' first.");
+    }
+
+    // Get all directories in changes (excluding archive)
+    const entries = await fs.readdir(changesDir, { withFileTypes: true });
+    const changeDirs = entries
+      .filter(entry => entry.isDirectory() && entry.name !== 'archive')
+      .map(entry => entry.name);
+
+    if (changeDirs.length === 0) {
+      console.log('No active changes found.');
+      return;
+    }
+
+    // Collect spaceline data for each change
+    const changesData: Array<{ changeData: ChangeData; stats: SpacelineStats; lastModified: Date }> = [];
+
+    for (const changeDir of changeDirs) {
+      const progress = await getTaskProgressForChange(changesDir, changeDir);
+      const changePath = path.join(changesDir, changeDir);
+      const proposalPath = path.join(changePath, 'proposal.md');
+
+      let deltaCount = 0;
+      let title = changeDir;
+
+      try {
+        const proposalContent = await fs.readFile(proposalPath, 'utf-8');
+        title = this.extractTitle(proposalContent, changeDir);
+        const parser = new ChangeParser(proposalContent, changePath);
+        const change = await parser.parseChangeWithDeltas(changeDir);
+        deltaCount = change.deltas.length;
+      } catch {
+        // Unable to read proposal or parse deltas
+      }
+
+      const changeData: ChangeData = {
+        id: changeDir,
+        title,
+        completedTasks: progress.completed,
+        totalTasks: progress.total,
+        deltaCount,
+      };
+
+      const git = getGitDiffStatsForPath(changePath);
+      const stats: SpacelineStats = {
+        git,
+        openItems: progress.total - progress.completed, // Simple approximation
+      };
+
+      const lastModified = await getLastModified(changePath);
+      changesData.push({ changeData, stats, lastModified });
+    }
+
+    // Sort by preference (spaceline uses alphabetical by default for readability)
+    const sorted = sort === 'name'
+      ? changesData.sort((a, b) => a.changeData.id.localeCompare(b.changeData.id))
+      : changesData.sort((a, b) => a.changeData.id.localeCompare(b.changeData.id));
+
+    // Display results
+    for (const { changeData, stats } of sorted) {
+      const lines = formatSpaceline(changeData, stats);
+      for (const line of lines) {
+        console.log(line);
+      }
+      console.log(); // Empty line between changes
+    }
+  }
+
   async execute(targetPath: string = '.', mode: 'changes' | 'specs' = 'changes', options: ListOptions = {}): Promise<void> {
-    const { sort = 'recent', json = false } = options;
+    const { sort = 'recent', json = false, spaceline = false } = options;
+
+    // Spaceline mode (only for changes)
+    if (mode === 'changes' && spaceline) {
+      return this.executeSpaceline(targetPath, sort);
+    }
 
     if (mode === 'changes') {
       const changesDir = path.join(targetPath, 'openspec', 'changes');
