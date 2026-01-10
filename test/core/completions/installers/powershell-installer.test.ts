@@ -171,7 +171,9 @@ describe('PowerShellInstaller', () => {
       expect(content).toContain('Write-Host "Hello"');
     });
 
-    it('should skip configuration when script line already exists', async () => {
+    // Skip on Windows: Windows has dual profile paths (PowerShell Core + Windows PowerShell 5.1),
+    // so even if one profile is already configured, the second one will be configured and return true
+    it.skipIf(process.platform === 'win32')('should skip configuration when script line already exists', async () => {
       delete process.env.OPENSPEC_NO_AUTO_CONFIG;
       const profilePath = installer.getProfilePath();
       await fs.mkdir(path.dirname(profilePath), { recursive: true });
