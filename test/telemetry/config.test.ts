@@ -14,20 +14,25 @@ import {
 describe('telemetry/config', () => {
   let tempDir: string;
   let originalHome: string | undefined;
+  let originalUserProfile: string | undefined;
 
   beforeEach(() => {
     // Create temp directory for tests
     tempDir = path.join(os.tmpdir(), `openspec-telemetry-test-${Date.now()}`);
     fs.mkdirSync(tempDir, { recursive: true });
 
-    // Mock HOME to point to temp dir
+    // Mock HOME/USERPROFILE to point to temp dir
+    // On POSIX, os.homedir() uses HOME; on Windows it uses USERPROFILE
     originalHome = process.env.HOME;
+    originalUserProfile = process.env.USERPROFILE;
     process.env.HOME = tempDir;
+    process.env.USERPROFILE = tempDir;
   });
 
   afterEach(() => {
-    // Restore HOME
+    // Restore HOME/USERPROFILE
     process.env.HOME = originalHome;
+    process.env.USERPROFILE = originalUserProfile;
 
     // Clean up temp directory
     fs.rmSync(tempDir, { recursive: true, force: true });
