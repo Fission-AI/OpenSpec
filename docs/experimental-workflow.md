@@ -82,6 +82,7 @@ This creates skills in `.claude/skills/` that Claude Code auto-detects.
 
 | Command | What it does |
 |---------|--------------|
+| `/opsx:explore` | Think through ideas, investigate problems, clarify requirements |
 | `/opsx:new` | Start a new change |
 | `/opsx:continue` | Create the next artifact (based on what's ready) |
 | `/opsx:ff` | Fast-forward — create all planning artifacts at once |
@@ -90,6 +91,12 @@ This creates skills in `.claude/skills/` that Claude Code auto-detects.
 | `/opsx:archive` | Archive when done |
 
 ## Usage
+
+### Explore an idea
+```
+/opsx:explore
+```
+Think through ideas, investigate problems, compare options. No structure required - just a thinking partner. When insights crystallize, transition to `/opsx:new` or `/opsx:ff`.
 
 ### Start a new change
 ```
@@ -520,6 +527,7 @@ Run `openspec schemas` to see available schemas.
 
 ## Tips
 
+- Use `/opsx:explore` to think through an idea before committing to a change
 - `/opsx:ff` when you know what you want, `/opsx:continue` when exploring
 - During `/opsx:apply`, if something's wrong — fix the artifact, then continue
 - Tasks track progress via checkboxes in `tasks.md`
