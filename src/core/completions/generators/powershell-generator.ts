@@ -74,6 +74,29 @@ Register-ArgumentCompleter -CommandName openspec -ScriptBlock $openspecCompleter
     const lines: string[] = [];
 
     if (cmd.subcommands && cmd.subcommands.length > 0) {
+      // First, check if user is typing a flag for the parent command
+      if (cmd.flags.length > 0) {
+        lines.push(`${indent}if ($wordToComplete -like "-*") {`);
+        lines.push(`${indent}    $flags = @(`);
+        for (const flag of cmd.flags) {
+          const longFlag = `--${flag.name}`;
+          const shortFlag = flag.short ? `-${flag.short}` : undefined;
+          if (shortFlag) {
+            lines.push(`${indent}        @{Name="${longFlag}"; Description="${this.escapeDescription(flag.description)}"},`);
+            lines.push(`${indent}        @{Name="${shortFlag}"; Description="${this.escapeDescription(flag.description)}"},`);
+          } else {
+            lines.push(`${indent}        @{Name="${longFlag}"; Description="${this.escapeDescription(flag.description)}"},`);
+          }
+        }
+        lines.push(`${indent}    )`);
+        lines.push(`${indent}    $flags | Where-Object { $_.Name -like "$wordToComplete*" } | ForEach-Object {`);
+        lines.push(`${indent}        [System.Management.Automation.CompletionResult]::new($_.Name, $_.Name, "ParameterName", $_.Description)`);
+        lines.push(`${indent}    }`);
+        lines.push(`${indent}    return`);
+        lines.push(`${indent}}`);
+        lines.push('');
+      }
+
       // Handle subcommands
       lines.push(`${indent}if ($commandCount -eq 2 -or ($commandCount -eq 3 -and $wordToComplete)) {`);
       lines.push(`${indent}    $subcommands = @(`);
