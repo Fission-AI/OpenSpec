@@ -139,12 +139,11 @@ describe('BashInstaller', () => {
     });
 
     it('should handle installation errors gracefully', async () => {
-      // Create installer with non-existent/invalid home directory
-      // Use a path that will fail on both Unix and Windows
-      const invalidPath = process.platform === 'win32'
-        ? 'Z:\\nonexistent\\invalid\\path'  // Non-existent drive letter on Windows
-        : '/root/invalid/nonexistent/path';  // Permission-denied path on Unix
-      const invalidInstaller = new BashInstaller(invalidPath);
+      // Create a temporary file and use its path as homeDir
+      // This guarantees ENOTDIR when trying to create subdirectories (cross-platform)
+      const blockingFile = path.join(testHomeDir, 'blocking-file');
+      await fs.writeFile(blockingFile, 'blocking content');
+      const invalidInstaller = new BashInstaller(blockingFile);
 
       const result = await invalidInstaller.install(testScript);
 
@@ -377,12 +376,11 @@ describe('BashInstaller', () => {
     });
 
     it('should handle write permission errors gracefully', async () => {
-      // Create installer with path that can't be written
-      // Use a path that will fail on both Unix and Windows
-      const invalidPath = process.platform === 'win32'
-        ? 'Z:\\nonexistent\\invalid\\path'  // Non-existent drive letter on Windows
-        : '/root/invalid/path';  // Permission-denied path on Unix
-      const invalidInstaller = new BashInstaller(invalidPath);
+      // Create a temporary file and use its path as homeDir
+      // This guarantees ENOTDIR when trying to write .bashrc (cross-platform)
+      const blockingFile = path.join(testHomeDir, 'blocking-file');
+      await fs.writeFile(blockingFile, 'blocking content');
+      const invalidInstaller = new BashInstaller(blockingFile);
 
       const result = await invalidInstaller.configureBashrc(completionsDir);
 
