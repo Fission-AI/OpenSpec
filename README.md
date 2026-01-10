@@ -410,6 +410,15 @@ You can always go back:
 
 </details>
 
+<details>
+<summary><strong>Telemetry</strong> – OpenSpec collects anonymous usage stats (opt-out: <code>OPENSPEC_TELEMETRY=0</code>)</summary>
+
+We collect only command names and version to understand usage patterns. No arguments, paths, content, or PII. Automatically disabled in CI.
+
+**Opt-out:** `export OPENSPEC_TELEMETRY=0` or `export DO_NOT_TRACK=1`
+
+</details>
+
 ## Contributing
 
 - Install dependencies: `pnpm install`

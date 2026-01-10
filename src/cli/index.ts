@@ -15,10 +15,31 @@ import { ShowCommand } from '../commands/show.js';
 import { CompletionCommand } from '../commands/completion.js';
 import { registerConfigCommand } from '../commands/config.js';
 import { registerArtifactWorkflowCommands } from '../commands/artifact-workflow.js';
+import { maybeShowTelemetryNotice, trackCommand, shutdown } from '../telemetry/index.js';
 
 const program = new Command();
 const require = createRequire(import.meta.url);
 const { version } = require('../../package.json');
+
+/**
+ * Get the full command path for nested commands.
+ * For example: 'change show' -> 'change:show'
+ */
+function getCommandPath(command: Command): string {
+  const names: string[] = [];
+  let current: Command | null = command;
+
+  while (current) {
+    const name = current.name();
+    // Skip the root 'openspec' command
+    if (name && name !== 'openspec') {
+      names.unshift(name);
+    }
+    current = current.parent;
+  }
+
+  return names.join(':') || 'openspec';
+}
 
 program
   .name('openspec')
@@ -28,12 +49,24 @@ program
 // Global options
 program.option('--no-color', 'Disable color output');
 
-// Apply global flags before any command runs
-program.hook('preAction', (thisCommand) => {
+// Apply global flags and telemetry before any command runs
+program.hook('preAction', async (thisCommand) => {
   const opts = thisCommand.opts();
   if (opts.color === false) {
     process.env.NO_COLOR = '1';
   }
+
+  // Show first-run telemetry notice (if not seen)
+  await maybeShowTelemetryNotice();
+
+  // Track command execution
+  const commandPath = getCommandPath(thisCommand);
+  await trackCommand(commandPath, version);
+});
+
+// Shutdown telemetry after command completes
+program.hook('postAction', async () => {
+  await shutdown();
 });
 
 const availableToolIds = AI_TOOLS.filter((tool) => tool.available).map((tool) => tool.value);
