@@ -410,6 +410,42 @@ You can always go back:
 
 </details>
 
+## Telemetry
+
+OpenSpec collects anonymous usage statistics to help us understand how the tool is being used and improve the product. We respect your privacy and are transparent about what we collect.
+
+**What we collect:**
+- Command names (e.g., `init`, `list`, `archive`)
+- OpenSpec version number
+
+**What we do NOT collect:**
+- Command arguments or file paths
+- Project names or spec content
+- Error messages or stack traces
+- IP addresses (explicitly disabled)
+- Any personally identifiable information
+
+**Opt-out:**
+
+Disable telemetry by setting an environment variable:
+
+```bash
+# Add to your shell profile (.bashrc, .zshrc, etc.)
+export OPENSPEC_TELEMETRY=0
+
+# Or use the DO_NOT_TRACK standard
+export DO_NOT_TRACK=1
+```
+
+Telemetry is automatically disabled in CI environments (`CI=true`).
+
+**First-run notice:**
+
+On first use, OpenSpec displays a one-line notice:
+```
+Note: OpenSpec collects anonymous usage stats. Opt out: OPENSPEC_TELEMETRY=0
+```
+
 ## Contributing
 
 - Install dependencies: `pnpm install`
