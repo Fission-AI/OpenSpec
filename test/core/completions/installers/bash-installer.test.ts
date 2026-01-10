@@ -139,8 +139,11 @@ describe('BashInstaller', () => {
     });
 
     it('should handle installation errors gracefully', async () => {
-      // Create installer with non-existent/invalid home directory
-      const invalidInstaller = new BashInstaller('/root/invalid/nonexistent/path');
+      // Create a temporary file and use its path as homeDir
+      // This guarantees ENOTDIR when trying to create subdirectories (cross-platform)
+      const blockingFile = path.join(testHomeDir, 'blocking-file');
+      await fs.writeFile(blockingFile, 'blocking content');
+      const invalidInstaller = new BashInstaller(blockingFile);
 
       const result = await invalidInstaller.install(testScript);
 
@@ -373,8 +376,11 @@ describe('BashInstaller', () => {
     });
 
     it('should handle write permission errors gracefully', async () => {
-      // Create installer with path that can't be written
-      const invalidInstaller = new BashInstaller('/root/invalid/path');
+      // Create a temporary file and use its path as homeDir
+      // This guarantees ENOTDIR when trying to write .bashrc (cross-platform)
+      const blockingFile = path.join(testHomeDir, 'blocking-file');
+      await fs.writeFile(blockingFile, 'blocking content');
+      const invalidInstaller = new BashInstaller(blockingFile);
 
       const result = await invalidInstaller.configureBashrc(completionsDir);
 

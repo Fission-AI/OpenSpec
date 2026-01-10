@@ -192,7 +192,9 @@ complete -c openspec -a 'validate' -d 'Validate specs'
       await fs.rm(spacedHomeDir, { recursive: true, force: true });
     });
 
-    it('should return failure on permission error', async () => {
+    // Skip on Windows: fs.chmod() on directories doesn't restrict write access on Windows
+    // Windows uses ACLs which Node.js chmod doesn't control
+    it.skipIf(process.platform === 'win32')('should return failure on permission error', async () => {
       // Create a read-only directory to simulate permission error
       const restrictedDir = path.join(testHomeDir, '.config', 'fish', 'completions');
       await fs.mkdir(restrictedDir, { recursive: true });
@@ -284,7 +286,9 @@ complete -c openspec -a 'init'
       expect(result.message).toBe('Completion script uninstalled successfully');
     });
 
-    it('should return failure on permission error', async () => {
+    // Skip on Windows: fs.chmod() on directories doesn't restrict write access on Windows
+    // Windows uses ACLs which Node.js chmod doesn't control
+    it.skipIf(process.platform === 'win32')('should return failure on permission error', async () => {
       await installer.install(mockCompletionScript);
       const targetPath = path.join(testHomeDir, '.config', 'fish', 'completions', 'openspec.fish');
       const parentDir = path.dirname(targetPath);
