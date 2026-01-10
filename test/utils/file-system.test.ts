@@ -301,4 +301,124 @@ describe('FileSystemUtils', () => {
       );
     });
   });
+
+  describe('deleteFile', () => {
+    it('should delete an existing file', async () => {
+      const filePath = path.join(testDir, 'to-delete.txt');
+      await fs.writeFile(filePath, 'content to delete');
+
+      expect(await FileSystemUtils.fileExists(filePath)).toBe(true);
+
+      await FileSystemUtils.deleteFile(filePath);
+
+      expect(await FileSystemUtils.fileExists(filePath)).toBe(false);
+    });
+
+    it('should throw error for non-existent file', async () => {
+      const filePath = path.join(testDir, 'non-existent.txt');
+
+      await expect(FileSystemUtils.deleteFile(filePath)).rejects.toThrow();
+    });
+
+    it('should delete file with special characters in name', async () => {
+      const filePath = path.join(testDir, 'file with spaces & special-chars.txt');
+      await fs.writeFile(filePath, 'special content');
+
+      await FileSystemUtils.deleteFile(filePath);
+
+      expect(await FileSystemUtils.fileExists(filePath)).toBe(false);
+    });
+  });
+
+  describe('deleteDirectory', () => {
+    it('should delete an empty directory', async () => {
+      const dirPath = path.join(testDir, 'empty-dir');
+      await fs.mkdir(dirPath);
+
+      expect(await FileSystemUtils.directoryExists(dirPath)).toBe(true);
+
+      await FileSystemUtils.deleteDirectory(dirPath);
+
+      expect(await FileSystemUtils.directoryExists(dirPath)).toBe(false);
+    });
+
+    it('should delete directory with files', async () => {
+      const dirPath = path.join(testDir, 'dir-with-files');
+      await fs.mkdir(dirPath);
+      await fs.writeFile(path.join(dirPath, 'file1.txt'), 'content1');
+      await fs.writeFile(path.join(dirPath, 'file2.txt'), 'content2');
+
+      await FileSystemUtils.deleteDirectory(dirPath);
+
+      expect(await FileSystemUtils.directoryExists(dirPath)).toBe(false);
+    });
+
+    it('should delete directory with nested subdirectories', async () => {
+      const dirPath = path.join(testDir, 'dir-with-subdirs');
+      const subDir1 = path.join(dirPath, 'sub1');
+      const subDir2 = path.join(subDir1, 'sub2');
+
+      await fs.mkdir(subDir2, { recursive: true });
+      await fs.writeFile(path.join(subDir2, 'nested.txt'), 'nested content');
+
+      await FileSystemUtils.deleteDirectory(dirPath);
+
+      expect(await FileSystemUtils.directoryExists(dirPath)).toBe(false);
+    });
+
+    it('should not throw for non-existent directory', async () => {
+      const dirPath = path.join(testDir, 'non-existent-dir');
+
+      await expect(FileSystemUtils.deleteDirectory(dirPath)).resolves.not.toThrow();
+    });
+  });
+
+  describe('isDirectoryEmpty', () => {
+    it('should return true for empty directory', async () => {
+      const dirPath = path.join(testDir, 'empty-check-dir');
+      await fs.mkdir(dirPath);
+
+      const isEmpty = await FileSystemUtils.isDirectoryEmpty(dirPath);
+
+      expect(isEmpty).toBe(true);
+    });
+
+    it('should return false for directory with files', async () => {
+      const dirPath = path.join(testDir, 'dir-with-file');
+      await fs.mkdir(dirPath);
+      await fs.writeFile(path.join(dirPath, 'file.txt'), 'content');
+
+      const isEmpty = await FileSystemUtils.isDirectoryEmpty(dirPath);
+
+      expect(isEmpty).toBe(false);
+    });
+
+    it('should return false for directory with subdirectories', async () => {
+      const dirPath = path.join(testDir, 'dir-with-subdir');
+      await fs.mkdir(dirPath);
+      await fs.mkdir(path.join(dirPath, 'subdir'));
+
+      const isEmpty = await FileSystemUtils.isDirectoryEmpty(dirPath);
+
+      expect(isEmpty).toBe(false);
+    });
+
+    it('should return true for non-existent directory', async () => {
+      const dirPath = path.join(testDir, 'non-existent-for-empty-check');
+
+      const isEmpty = await FileSystemUtils.isDirectoryEmpty(dirPath);
+
+      expect(isEmpty).toBe(true);
+    });
+
+    it('should return false for directory with hidden files', async () => {
+      const dirPath = path.join(testDir, 'dir-with-hidden');
+      await fs.mkdir(dirPath);
+      await fs.writeFile(path.join(dirPath, '.hidden-file'), 'hidden content');
+
+      const isEmpty = await FileSystemUtils.isDirectoryEmpty(dirPath);
+
+      expect(isEmpty).toBe(false);
+    });
+  });
 });

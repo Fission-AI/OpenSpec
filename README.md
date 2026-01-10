@@ -248,12 +248,22 @@ $ openspec archive add-profile-filters --yes  # Archive the completed change wit
 ## Command Reference
 
 ```bash
-openspec list               # View active change folders
-openspec view               # Interactive dashboard of specs and changes
-openspec show <change>      # Display change details (proposal, tasks, spec updates)
-openspec validate <change>  # Check spec formatting and structure
+openspec list                          # View active change folders
+openspec view                          # Interactive dashboard of specs and changes
+openspec show <change>                 # Display change details (proposal, tasks, spec updates)
+openspec validate <change>             # Check spec formatting and structure
 openspec archive <change> [--yes|-y]   # Move a completed change into archive/ (non-interactive with --yes)
+openspec uninstall [path] [--yes|-y]   # Remove OpenSpec from your project (non-interactive with --yes)
 ```
+
+The `uninstall` command cleanly removes OpenSpec from your project by:
+- Deleting the `openspec/` directory and all its contents
+- Removing OpenSpec-managed blocks from AI tool configuration files (CLAUDE.md, AGENTS.md, etc.)
+- Deleting slash command directories (`.claude/commands/openspec`, `.cursor/commands`, etc.)
+- Cleaning up empty parent directories after removing slash commands
+- Preserving any custom content you've added outside OpenSpec markers
+
+**Note:** The uninstall process is destructive. Make sure to commit any important changes to version control before uninstalling.
 
 ## Example: How AI Creates OpenSpec Files
 
@@ -367,6 +377,76 @@ Run `openspec update` whenever someone switches tools so your agents pick up the
    ```
 2. **Refresh agent instructions**
    - Run `openspec update` inside each project to regenerate AI guidance and ensure the latest slash commands are active.
+
+## Uninstalling OpenSpec
+
+If you need to remove OpenSpec from a project, use the `uninstall` command:
+
+### Interactive Uninstallation (Recommended)
+
+```bash
+cd /path/to/your/project
+openspec uninstall
+```
+
+This will:
+1. Show you a summary of what will be removed
+2. Ask for confirmation before proceeding
+3. Remove the `openspec/` directory
+4. Clean OpenSpec-managed content from configuration files
+5. Delete slash command directories
+6. Remove empty parent directories
+
+### Non-Interactive Uninstallation
+
+For automation or CI/CD pipelines, use the `--yes` flag:
+
+```bash
+openspec uninstall --yes
+```
+
+### What Gets Removed
+
+- **`openspec/` directory**: All specs, changes, proposals, and project context
+- **Config files**: OpenSpec-managed blocks in `CLAUDE.md`, `AGENTS.md`, `CLINE.md`, etc.
+- **Slash commands**: Tool-specific directories like `.claude/commands/openspec/`, `.cursor/commands/`, `.github/prompts/`, etc.
+- **Empty directories**: Parent directories that become empty after cleanup (e.g., `.claude/commands/`, `.claude/`)
+
+### What Gets Preserved
+
+- **Custom content**: Any text you've added to config files outside OpenSpec markers (`<!-- OPENSPEC:START -->` / `<!-- OPENSPEC:END -->`)
+- **Other slash commands**: Non-OpenSpec commands in tool directories
+- **Version control**: Your `.git` directory and history remain untouched
+
+### Before Uninstalling
+
+⚠️ **Important**: The uninstall process is destructive and cannot be undone. We recommend:
+
+1. **Commit your work**: Make sure all OpenSpec specs and changes are committed to version control
+2. **Archive completed changes**: Run `openspec archive <change>` for any completed work
+3. **Review the summary**: Check the preview before confirming deletion
+
+### Example
+
+```bash
+$ openspec uninstall
+
+The following will be removed:
+
+▌ Directory:
+  - /Users/dev/project/openspec
+
+▌ Config files (OpenSpec blocks will be removed):
+  - CLAUDE.md
+  - AGENTS.md
+
+▌ Slash commands:
+  - .claude/commands/openspec
+
+Are you sure you want to continue? (y/N) y
+
+✔ OpenSpec uninstalled successfully!
+```
 
 ## Contributing
 
