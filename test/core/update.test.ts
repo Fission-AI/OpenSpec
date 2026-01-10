@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { UpdateCommand } from '../../src/core/update.js'; 
+import { UpdateCommand } from '../../src/core/update.js';
 import { FileSystemUtils } from '../../src/utils/file-system.js';
 import { ToolRegistry } from '../../src/core/configurators/registry.js';
 import path from 'path';
@@ -374,8 +374,10 @@ Old body
       '.continue/prompts/openspec-apply.prompt'
     );
     await fs.mkdir(path.dirname(continuePath), { recursive: true });
-    const initialContent = `name: openspec-apply
+    const initialContent = `---
+name: openspec-apply
 description: Old description
+invokable: true
 ---
 <!-- OPENSPEC:START -->
 Old body
@@ -388,6 +390,7 @@ Old body
 
     const updated = await fs.readFile(continuePath, 'utf-8');
     expect(updated).toContain('name: openspec-apply');
+    expect(updated).toContain('invokable: true');
     expect(updated).toContain('Work through tasks sequentially');
     expect(updated).not.toContain('Old body');
 
@@ -413,8 +416,10 @@ Old body
     await fs.mkdir(path.dirname(continueApply), { recursive: true });
     await fs.writeFile(
       continueApply,
-      `name: openspec-apply
+      `---
+name: openspec-apply
 description: Old description
+invokable: true
 ---
 <!-- OPENSPEC:START -->
 Old body

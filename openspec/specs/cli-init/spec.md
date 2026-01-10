@@ -70,7 +70,6 @@ The command SHALL properly configure selected AI tools with OpenSpec-specific in
 - **THEN** create or update `CODEBUDDY.md` in the project root directory (not inside openspec/)
 - **AND** populate the managed block with a short stub that points teammates to `@/openspec/AGENTS.md`
 
-
 #### Scenario: Configuring Cline
 
 - **WHEN** Cline is selected

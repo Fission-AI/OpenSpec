@@ -1174,20 +1174,23 @@ describe('InitCommand', () => {
       expect(await fileExists(continueArchive)).toBe(true);
 
       const proposalContent = await fs.readFile(continueProposal, 'utf-8');
-      expect(proposalContent).toContain('name: openspec-proposal');
       expect(proposalContent).toContain('---');
+      expect(proposalContent).toContain('name: openspec-proposal');
+      expect(proposalContent).toContain('invokable: true');
       expect(proposalContent).toContain('<!-- OPENSPEC:START -->');
 
       const applyContent = await fs.readFile(continueApply, 'utf-8');
+      expect(applyContent).toContain('---');
       expect(applyContent).toContain('name: openspec-apply');
       expect(applyContent).toContain('description: Implement an approved OpenSpec change and keep tasks in sync.');
-      expect(applyContent).toContain('---');
+      expect(applyContent).toContain('invokable: true');
       expect(applyContent).toContain('Work through tasks sequentially');
 
       const archiveContent = await fs.readFile(continueArchive, 'utf-8');
+      expect(archiveContent).toContain('---');
       expect(archiveContent).toContain('name: openspec-archive');
       expect(archiveContent).toContain('description: Archive a deployed OpenSpec change and update specs.');
-      expect(archiveContent).toContain('---');
+      expect(archiveContent).toContain('invokable: true');
       expect(archiveContent).toContain('openspec archive <id> --yes');
     });
 
@@ -1202,7 +1205,6 @@ describe('InitCommand', () => {
       );
       expect(continueChoice.configured).toBe(true);
     });
-
 
     it('should create CODEBUDDY.md when CodeBuddy is selected', async () => {
       queueSelections('codebuddy', DONE);
