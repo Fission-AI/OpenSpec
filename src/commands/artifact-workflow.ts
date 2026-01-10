@@ -28,7 +28,7 @@ import {
   type SchemaInfo,
 } from '../core/artifact-graph/index.js';
 import { createChange, validateChangeName } from '../utils/change-utils.js';
-import { getNewChangeSkillTemplate, getContinueChangeSkillTemplate, getApplyChangeSkillTemplate, getFfChangeSkillTemplate, getSyncSpecsSkillTemplate, getArchiveChangeSkillTemplate, getOpsxNewCommandTemplate, getOpsxContinueCommandTemplate, getOpsxApplyCommandTemplate, getOpsxFfCommandTemplate, getOpsxSyncCommandTemplate, getOpsxArchiveCommandTemplate } from '../core/templates/skill-templates.js';
+import { getExploreSkillTemplate, getNewChangeSkillTemplate, getContinueChangeSkillTemplate, getApplyChangeSkillTemplate, getFfChangeSkillTemplate, getSyncSpecsSkillTemplate, getArchiveChangeSkillTemplate, getOpsxExploreCommandTemplate, getOpsxNewCommandTemplate, getOpsxContinueCommandTemplate, getOpsxApplyCommandTemplate, getOpsxFfCommandTemplate, getOpsxSyncCommandTemplate, getOpsxArchiveCommandTemplate } from '../core/templates/skill-templates.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 
 // -----------------------------------------------------------------------------
@@ -793,6 +793,7 @@ async function artifactExperimentalSetupCommand(): Promise<void> {
     const commandsDir = path.join(projectRoot, '.claude', 'commands', 'opsx');
 
     // Get skill templates
+    const exploreSkill = getExploreSkillTemplate();
     const newChangeSkill = getNewChangeSkillTemplate();
     const continueChangeSkill = getContinueChangeSkillTemplate();
     const applyChangeSkill = getApplyChangeSkillTemplate();
@@ -801,6 +802,7 @@ async function artifactExperimentalSetupCommand(): Promise<void> {
     const archiveChangeSkill = getArchiveChangeSkillTemplate();
 
     // Get command templates
+    const exploreCommand = getOpsxExploreCommandTemplate();
     const newCommand = getOpsxNewCommandTemplate();
     const continueCommand = getOpsxContinueCommandTemplate();
     const applyCommand = getOpsxApplyCommandTemplate();
@@ -810,6 +812,7 @@ async function artifactExperimentalSetupCommand(): Promise<void> {
 
     // Create skill directories and SKILL.md files
     const skills = [
+      { template: exploreSkill, dirName: 'openspec-explore' },
       { template: newChangeSkill, dirName: 'openspec-new-change' },
       { template: continueChangeSkill, dirName: 'openspec-continue-change' },
       { template: applyChangeSkill, dirName: 'openspec-apply-change' },
@@ -840,6 +843,7 @@ ${template.instructions}
 
     // Create slash command files
     const commands = [
+      { template: exploreCommand, fileName: 'explore.md' },
       { template: newCommand, fileName: 'new.md' },
       { template: continueCommand, fileName: 'continue.md' },
       { template: applyCommand, fileName: 'apply.md' },
@@ -898,6 +902,7 @@ ${template.content}
     console.log('  • "Implement the tasks for this change"');
     console.log();
     console.log('  ' + chalk.cyan('Slash Commands') + ' for explicit invocation:');
+    console.log('  • /opsx:explore - Think through ideas, investigate problems');
     console.log('  • /opsx:new - Start a new change');
     console.log('  • /opsx:continue - Create the next artifact');
     console.log('  • /opsx:apply - Implement tasks');
