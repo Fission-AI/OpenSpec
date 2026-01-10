@@ -140,7 +140,11 @@ describe('BashInstaller', () => {
 
     it('should handle installation errors gracefully', async () => {
       // Create installer with non-existent/invalid home directory
-      const invalidInstaller = new BashInstaller('/root/invalid/nonexistent/path');
+      // Use a path that will fail on both Unix and Windows
+      const invalidPath = process.platform === 'win32'
+        ? 'Z:\\nonexistent\\invalid\\path'  // Non-existent drive letter on Windows
+        : '/root/invalid/nonexistent/path';  // Permission-denied path on Unix
+      const invalidInstaller = new BashInstaller(invalidPath);
 
       const result = await invalidInstaller.install(testScript);
 
@@ -374,7 +378,11 @@ describe('BashInstaller', () => {
 
     it('should handle write permission errors gracefully', async () => {
       // Create installer with path that can't be written
-      const invalidInstaller = new BashInstaller('/root/invalid/path');
+      // Use a path that will fail on both Unix and Windows
+      const invalidPath = process.platform === 'win32'
+        ? 'Z:\\nonexistent\\invalid\\path'  // Non-existent drive letter on Windows
+        : '/root/invalid/path';  // Permission-denied path on Unix
+      const invalidInstaller = new BashInstaller(invalidPath);
 
       const result = await invalidInstaller.configureBashrc(completionsDir);
 
