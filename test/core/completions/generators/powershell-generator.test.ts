@@ -224,6 +224,50 @@ describe('PowerShellGenerator', () => {
 			expect(script).toContain('List changes');
 		});
 
+		it('should offer parent flags when command has both flags and subcommands', () => {
+			const commands: CommandDefinition[] = [
+				{
+					name: 'config',
+					description: 'Manage configuration',
+					flags: [
+						{
+							name: 'scope',
+							short: 's',
+							description: 'Configuration scope',
+						},
+						{
+							name: 'json',
+							description: 'Output as JSON',
+						},
+					],
+					subcommands: [
+						{
+							name: 'set',
+							description: 'Set a config value',
+							flags: [],
+						},
+						{
+							name: 'get',
+							description: 'Get a config value',
+							flags: [],
+						},
+					],
+				},
+			];
+
+			const script = generator.generate(commands);
+
+			// Should check for flag prefix before offering subcommands
+			expect(script).toContain('if ($wordToComplete -like "-*")');
+			// Should include parent command flags
+			expect(script).toContain('-s');
+			expect(script).toContain('--scope');
+			expect(script).toContain('--json');
+			// Should also include subcommands
+			expect(script).toContain('"set"');
+			expect(script).toContain('"get"');
+		});
+
 		it('should handle positional arguments for change-id', () => {
 			const commands: CommandDefinition[] = [
 				{

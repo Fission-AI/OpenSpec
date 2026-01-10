@@ -83,6 +83,22 @@ complete -F _openspec_completion openspec
 
     // Handle subcommands
     if (cmd.subcommands && cmd.subcommands.length > 0) {
+      // First, check if user is typing a flag for the parent command
+      if (cmd.flags.length > 0) {
+        lines.push(`${indent}if [[ "$cur" == -* ]]; then`);
+        const flags = cmd.flags.map(f => {
+          const parts: string[] = [];
+          if (f.short) parts.push(`-${f.short}`);
+          parts.push(`--${f.name}`);
+          return parts.join(' ');
+        }).join(' ');
+        lines.push(`${indent}  local flags="${flags}"`);
+        lines.push(`${indent}  COMPREPLY=($(compgen -W "$flags" -- "$cur"))`);
+        lines.push(`${indent}  return 0`);
+        lines.push(`${indent}fi`);
+        lines.push('');
+      }
+
       lines.push(`${indent}if [[ $cword -eq 2 ]]; then`);
       lines.push(`${indent}  local subcommands="` + cmd.subcommands.map(s => this.escapeCommandName(s.name)).join(' ') + '"');
       lines.push(`${indent}  COMPREPLY=($(compgen -W "$subcommands" -- "$cur"))`);
