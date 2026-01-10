@@ -50,7 +50,10 @@ program
 program.option('--no-color', 'Disable color output');
 
 // Apply global flags and telemetry before any command runs
-program.hook('preAction', async (thisCommand) => {
+// Note: preAction receives (thisCommand, actionCommand) where:
+// - thisCommand: the command where hook was added (root program)
+// - actionCommand: the command actually being executed (subcommand)
+program.hook('preAction', async (thisCommand, actionCommand) => {
   const opts = thisCommand.opts();
   if (opts.color === false) {
     process.env.NO_COLOR = '1';
@@ -59,8 +62,8 @@ program.hook('preAction', async (thisCommand) => {
   // Show first-run telemetry notice (if not seen)
   await maybeShowTelemetryNotice();
 
-  // Track command execution
-  const commandPath = getCommandPath(thisCommand);
+  // Track command execution (use actionCommand to get the actual subcommand)
+  const commandPath = getCommandPath(actionCommand);
   await trackCommand(commandPath, version);
 });
 
