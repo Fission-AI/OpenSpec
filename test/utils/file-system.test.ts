@@ -196,7 +196,9 @@ describe('FileSystemUtils', () => {
       expect(canWrite).toBe(true);
     });
 
-    it('should return false for non-existent file in read-only directory', async () => {
+    // Skip on Windows: fs.chmod() on directories doesn't restrict write access on Windows
+    // Windows uses ACLs which Node.js chmod doesn't control
+    it.skipIf(process.platform === 'win32')('should return false for non-existent file in read-only directory', async () => {
       const readOnlyDir = path.join(testDir, 'readonly-dir');
       await fs.mkdir(readOnlyDir);
       await fs.chmod(readOnlyDir, 0o555); // Read-only + execute

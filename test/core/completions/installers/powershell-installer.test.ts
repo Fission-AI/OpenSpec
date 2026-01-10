@@ -237,7 +237,9 @@ describe('PowerShellInstaller', () => {
       expect(content).toContain('# OPENSPEC:END');
     });
 
-    it('should return false on write permission error', async () => {
+    // Skip on Windows: fs.chmod() doesn't reliably restrict write access on Windows
+    // (admin users can bypass read-only attribute, and CI runners often have elevated privileges)
+    it.skipIf(process.platform === 'win32')('should return false on write permission error', async () => {
       delete process.env.OPENSPEC_NO_AUTO_CONFIG;
       const profilePath = installer.getProfilePath();
       await fs.mkdir(path.dirname(profilePath), { recursive: true });
@@ -451,7 +453,9 @@ Register-ArgumentCompleter -CommandName openspec -ScriptBlock $openspecCompleter
     // Note: OPENSPEC_NO_AUTO_CONFIG support was removed from PowerShell installer
     // Profile is now always auto-configured if possible
 
-    it('should provide instructions when profile cannot be configured', async () => {
+    // Skip on Windows: fs.chmod() doesn't reliably restrict write access on Windows
+    // (admin users can bypass read-only attribute, and CI runners often have elevated privileges)
+    it.skipIf(process.platform === 'win32')('should provide instructions when profile cannot be configured', async () => {
       delete process.env.OPENSPEC_NO_AUTO_CONFIG;
       // Make profile directory read-only to prevent configuration
       const profilePath = installer.getProfilePath();
@@ -496,7 +500,9 @@ Register-ArgumentCompleter -CommandName openspec -ScriptBlock $openspecCompleter
       await fs.rm(spacedHomeDir, { recursive: true, force: true });
     });
 
-    it('should return failure on permission error', async () => {
+    // Skip on Windows: fs.chmod() on directories doesn't restrict write access on Windows
+    // Windows uses ACLs which Node.js chmod doesn't control
+    it.skipIf(process.platform === 'win32')('should return failure on permission error', async () => {
       const targetPath = installer.getInstallationPath();
       const targetDir = path.dirname(targetPath);
       await fs.mkdir(targetDir, { recursive: true });
@@ -614,7 +620,9 @@ Register-ArgumentCompleter -CommandName openspec -ScriptBlock $openspecCompleter
       expect(profileContentAfter).not.toContain('# OPENSPEC:START');
     });
 
-    it('should return failure on permission error', async () => {
+    // Skip on Windows: fs.chmod() on directories doesn't restrict write access on Windows
+    // Windows uses ACLs which Node.js chmod doesn't control
+    it.skipIf(process.platform === 'win32')('should return failure on permission error', async () => {
       delete process.env.OPENSPEC_NO_AUTO_CONFIG;
       await installer.install(mockCompletionScript);
       const targetPath = installer.getInstallationPath();
