@@ -1,0 +1,137 @@
+name: Polish Release Notes
+
+# Triggers when changesets creates a release
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  polish:
+    # Only run on the main repo, not forks
+    if: github.repository == 'Fission-AI/OpenSpec'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get current release body
+        id: get-release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "${{ github.event.release.tag_name }}" --json body -q '.body' > current-notes.md
+          echo "Fetched release notes for ${{ github.event.release.tag_name }}"
+
+      - name: Transform release notes with Claude
+        uses: anthropics/claude-code-action@v1
+        id: claude
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          direct_prompt: |
+            Transform the changelog in `current-notes.md` into release notes for OpenSpec ${{ github.event.release.tag_name }}.
+
+            ## Voice
+
+            OpenSpec is a developer tool. Write like you're talking to a peer:
+            - Direct and practical, not marketing copy
+            - Focus on what changed and why it matters
+            - Skip the hype, keep it real
+
+            ## Output
+
+            Create two files:
+
+            ### 1. `release-title.txt`
+
+            A short title in this format:
+            ```
+            ${{ github.event.release.tag_name }} - [1-4 words describing the release]
+            ```
+
+            Examples:
+            - `v0.18.0 - OPSX Experimental Workflow`
+            - `v0.16.0 - Antigravity, iFlow Support`
+            - `v0.15.0 - Gemini CLI, RooCode`
+
+            Rules for title:
+            - Lead with the most notable addition
+            - 1-4 words after the dash, no fluff
+            - If multiple features, comma-separate the top 2
+            - For bugfix-only releases, use something like `v0.17.2 - Pre-commit Hook Fix`
+
+            ### 2. `polished-notes.md`
+
+            ```markdown
+            ## What's New in ${{ github.event.release.tag_name }}
+
+            [One sentence: what's the theme of this release?]
+
+            ### New
+
+            - **Feature name** - What it does and why you'd use it
+
+            ### Improved
+
+            - **Area** - What got better
+
+            ### Fixed
+
+            - What was broken, now works
+            ```
+
+            Omit empty sections.
+
+            ## Rules
+
+            1. Write for developers using OpenSpec with AI coding assistants
+            2. Remove commit hashes (like `eb152eb:`), PR numbers, and changesets wrappers (`### Minor Changes`)
+            3. Lead with what users can do, not implementation details
+            4. One to two sentences per item, max
+            5. Use **bold** for feature/area names
+            6. Skip internal changes (CI, refactors, tests) unless they affect users
+            7. If the input is already well-formatted, just clean up structure and remove noise
+
+            ## Example
+
+            Before:
+            ```
+            ### Minor Changes
+            - 8dfd824: Add OPSX experimental workflow commands and enhanced artifact system
+              **New Commands:**
+              - `/opsx:ff` - Fast-forward through artifact creation
+            ```
+
+            After (polished-notes.md):
+            ```
+            ### New
+
+            - **Fast-forward mode** - Generate all planning artifacts at once with `/opsx:ff`. Useful when you already know what you're building.
+            ```
+
+            After (release-title.txt):
+            ```
+            v0.18.0 - OPSX Experimental Workflow
+            ```
+
+            Write both files. No other output.
+
+      - name: Update release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+
+          if [ -f "polished-notes.md" ] && [ -f "release-title.txt" ]; then
+            TITLE=$(cat release-title.txt)
+            gh release edit "$TAG" --title "$TITLE" --notes-file polished-notes.md
+            echo "Updated: $TITLE"
+          elif [ -f "polished-notes.md" ]; then
+            gh release edit "$TAG" --notes-file polished-notes.md
+            echo "Updated notes (title unchanged)"
+          else
+            echo "No changes generated, keeping original"
+          fi
