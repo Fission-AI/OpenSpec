@@ -354,6 +354,7 @@ Old body
     const updated = await fs.readFile(cursorPath, 'utf-8');
     expect(updated).toContain('id: openspec-apply');
     expect(updated).toContain('Work through tasks sequentially');
+    expect(updated).toContain('Linear MCP');
     expect(updated).not.toContain('Old body');
 
     const [logMessage] = consoleSpy.mock.calls[0];
