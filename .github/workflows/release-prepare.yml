@@ -34,6 +34,15 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # Generate GitHub App token to allow version PR to trigger CI workflows
+      # (GITHUB_TOKEN cannot trigger workflows by design)
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       # Opens/updates the Version Packages PR; publishes when the Version PR merges
       - name: Create/Update Version PR
         id: changesets
@@ -45,7 +54,7 @@ jobs:
           # so package.json already contains the bumped version.
           publish: pnpm run release:ci
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           # npm authentication handled via OIDC trusted publishing (no token needed)
 
       # Auto-merge the version PR when CI passes (reduces release to effectively 1 PR)
@@ -53,4 +62,4 @@ jobs:
         if: steps.changesets.outputs.pullRequestNumber
         run: gh pr merge ${{ steps.changesets.outputs.pullRequestNumber }} --auto --squash
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
