@@ -36,6 +36,7 @@ jobs:
 
       # Opens/updates the Version Packages PR; publishes when the Version PR merges
       - name: Create/Update Version PR
+        id: changesets
         uses: changesets/action@v1
         with:
           title: 'chore(release): version packages'
@@ -46,3 +47,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # npm authentication handled via OIDC trusted publishing (no token needed)
+
+      # Auto-merge the version PR when CI passes (reduces release to effectively 1 PR)
+      - name: Enable auto-merge for Version PR
+        if: steps.changesets.outputs.pullRequestNumber
+        run: gh pr merge ${{ steps.changesets.outputs.pullRequestNumber }} --auto --squash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
