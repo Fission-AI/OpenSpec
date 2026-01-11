@@ -18,9 +18,20 @@ jobs:
     if: github.repository == 'Fission-AI/OpenSpec'
     runs-on: ubuntu-latest
     steps:
+      # Generate GitHub App token first - used for checkout and changesets
+      # This allows git operations to trigger CI workflows on the version PR
+      # (GITHUB_TOKEN cannot trigger workflows by design)
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
 
       - uses: pnpm/action-setup@v4
         with:
@@ -34,15 +45,6 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # Generate GitHub App token to allow version PR to trigger CI workflows
-      # (GITHUB_TOKEN cannot trigger workflows by design)
-      - name: Generate GitHub App Token
-        id: app-token
-        uses: actions/create-github-app-token@v2
-        with:
-          app-id: ${{ vars.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-
       # Opens/updates the Version Packages PR; publishes when the Version PR merges
       - name: Create/Update Version PR
         id: changesets
@@ -50,8 +52,6 @@ jobs:
         with:
           title: 'chore(release): version packages'
           createGithubReleases: true
-          # Use github-api to attribute commits to the GitHub App, enabling CI triggers
-          commitMode: github-api
           # Use CI-specific release script: relies on version PR having been merged
           # so package.json already contains the bumped version.
           publish: pnpm run release:ci
