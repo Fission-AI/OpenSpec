@@ -6,6 +6,8 @@ import { Validator } from '../core/validation/validator.js';
 import type { Spec } from '../core/schemas/index.js';
 import { isInteractive } from '../utils/interactive.js';
 import { getSpecIds } from '../utils/item-discovery.js';
+import { resolveOpenSpecDir } from '../core/path-resolver.js';
+import fs from 'fs';
 
 const SPECS_DIR = 'openspec/specs';
 
@@ -55,17 +57,34 @@ function filterSpec(spec: Spec, options: ShowOptions): Spec {
   };
 }
 
-/**
- * Print the raw markdown content for a spec file without any formatting.
- * Raw-first behavior ensures text mode is a passthrough for deterministic output.
- */
-function printSpecTextRaw(specPath: string): void {
-  const content = readFileSync(specPath, 'utf-8');
-  console.log(content);
-}
-
 export class SpecCommand {
-  private SPECS_DIR = 'openspec/specs';
+  async getSpecMarkdown(specId: string): Promise<string> {
+    const openspecPath = await resolveOpenSpecDir(process.cwd());
+    const specPath = join(openspecPath, 'specs', specId, 'spec.md');
+    if (!existsSync(specPath)) {
+        throw new Error(`Spec '${specId}' not found at ${specPath}`);
+    }
+    return readFileSync(specPath, 'utf-8');
+  }
+
+  async getSpecJson(specId: string, options: ShowOptions = {}): Promise<any> {
+    const openspecPath = await resolveOpenSpecDir(process.cwd());
+    const specPath = join(openspecPath, 'specs', specId, 'spec.md');
+    if (!existsSync(specPath)) {
+        throw new Error(`Spec '${specId}' not found at ${specPath}`);
+    }
+
+    const parsed = parseSpecFromFile(specPath, specId);
+    const filtered = filterSpec(parsed, options);
+    return {
+      id: specId,
+      title: parsed.name,
+      overview: parsed.overview,
+      requirementCount: filtered.requirements.length,
+      requirements: filtered.requirements,
+      metadata: parsed.metadata ?? { version: '1.0.0', format: 'openspec' as const },
+    };
+  }
 
   async show(specId?: string, options: ShowOptions = {}): Promise<void> {
     if (!specId) {
@@ -82,29 +101,16 @@ export class SpecCommand {
       }
     }
 
-    const specPath = join(this.SPECS_DIR, specId, 'spec.md');
-    if (!existsSync(specPath)) {
-      throw new Error(`Spec '${specId}' not found at openspec/specs/${specId}/spec.md`);
-    }
-
     if (options.json) {
       if (options.requirements && options.requirement) {
         throw new Error('Options --requirements and --requirement cannot be used together');
       }
-      const parsed = parseSpecFromFile(specPath, specId);
-      const filtered = filterSpec(parsed, options);
-      const output = {
-        id: specId,
-        title: parsed.name,
-        overview: parsed.overview,
-        requirementCount: filtered.requirements.length,
-        requirements: filtered.requirements,
-        metadata: parsed.metadata ?? { version: '1.0.0', format: 'openspec' as const },
-      };
+      const output = await this.getSpecJson(specId, options);
       console.log(JSON.stringify(output, null, 2));
       return;
     }
-    printSpecTextRaw(specPath);
+    const content = await this.getSpecMarkdown(specId);
+    console.log(content);
   }
 }
 
@@ -141,17 +147,20 @@ export function registerSpecCommand(rootProgram: typeof program) {
     .description('List all available specifications')
     .option('--json', 'Output as JSON')
     .option('--long', 'Show id and title with counts')
-    .action((options: { json?: boolean; long?: boolean }) => {
+    .action(async (options: { json?: boolean; long?: boolean }) => {
       try {
-        if (!existsSync(SPECS_DIR)) {
+        const openspecPath = await resolveOpenSpecDir(process.cwd());
+        const specsDir = join(openspecPath, 'specs');
+        
+        if (!existsSync(specsDir)) {
           console.log('No items found');
           return;
         }
 
-        const specs = readdirSync(SPECS_DIR, { withFileTypes: true })
+        const specs = readdirSync(specsDir, { withFileTypes: true })
           .filter(dirent => dirent.isDirectory())
           .map(dirent => {
-            const specPath = join(SPECS_DIR, dirent.name, 'spec.md');
+            const specPath = join(specsDir, dirent.name, 'spec.md');
             if (existsSync(specPath)) {
               try {
                 const spec = parseSpecFromFile(specPath, dirent.name);
@@ -217,10 +226,11 @@ export function registerSpecCommand(rootProgram: typeof program) {
           }
         }
 
-        const specPath = join(SPECS_DIR, specId, 'spec.md');
+        const openspecPath = await resolveOpenSpecDir(process.cwd());
+        const specPath = join(openspecPath, 'specs', specId, 'spec.md');
         
         if (!existsSync(specPath)) {
-          throw new Error(`Spec '${specId}' not found at openspec/specs/${specId}/spec.md`);
+          throw new Error(`Spec '${specId}' not found at ${specPath}`);
         }
 
         const validator = new Validator(options.strict);

@@ -16,6 +16,7 @@ The command SHALL create the complete OpenSpec directory structure in a hidden d
     └── archive/
 ```
 
+## ADDED Requirements
 ### Requirement: Legacy Migration
 The `init` command SHALL detect legacy `openspec/` directories and offer to migrate them to `.openspec/`.
 

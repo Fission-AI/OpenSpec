@@ -2,6 +2,8 @@ import { FastMCP } from 'fastmcp';
 import { z } from 'zod';
 import { listChanges, listSpecs } from '../core/list.js';
 import { ChangeCommand } from '../commands/change.js';
+import { SpecCommand } from '../commands/spec.js';
+import { ArchiveCommand } from '../core/archive.js';
 import { Validator } from '../core/validation/validator.js';
 import { resolveOpenSpecDir } from '../core/path-resolver.js';
 import path from 'path';
@@ -73,6 +75,31 @@ export function registerTools(server: FastMCP) {
     });
 
     server.addTool({
+        name: "openspec_show_spec",
+        description: "Show details of a specification.",
+        parameters: z.object({
+            id: z.string().describe("ID of the spec"),
+            format: z.enum(['json', 'markdown']).optional().default('json')
+        }),
+        execute: async (args) => {
+            try {
+                const cmd = new SpecCommand();
+                if (args.format === 'markdown') {
+                    const content = await cmd.getSpecMarkdown(args.id);
+                    return { content: [{ type: "text", text: content }] };
+                }
+                const data = await cmd.getSpecJson(args.id);
+                return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+            } catch (error: any) {
+                return {
+                    isError: true,
+                    content: [{ type: "text", text: `Error showing spec: ${error.message}` }]
+                };
+            }
+        }
+    });
+
+    server.addTool({
         name: "openspec_validate_change",
         description: "Validate a change proposal.",
         parameters: z.object({
@@ -92,6 +119,36 @@ export function registerTools(server: FastMCP) {
                 return {
                     isError: true,
                     content: [{ type: "text", text: `Error validating change: ${error.message}` }]
+                };
+            }
+        }
+    });
+
+    server.addTool({
+        name: "openspec_archive_change",
+        description: "Archive a completed change and update main specs.",
+        parameters: z.object({
+            name: z.string().describe("Name of the change"),
+            skipSpecs: z.boolean().optional().default(false),
+            noValidate: z.boolean().optional().default(false),
+        }),
+        execute: async (args) => {
+            try {
+                const cmd = new ArchiveCommand();
+                // ArchiveCommand.execute logs to console and might use prompts if yes is not true.
+                // We'll use yes: true to avoid interactive prompts in MCP.
+                await cmd.execute(args.name, { 
+                    yes: true, 
+                    skipSpecs: args.skipSpecs, 
+                    noValidate: args.noValidate 
+                });
+                return {
+                    content: [{ type: "text", text: `Change '${args.name}' archived successfully.` }]
+                };
+            } catch (error: any) {
+                return {
+                    isError: true,
+                    content: [{ type: "text", text: `Error archiving change: ${error.message}` }]
                 };
             }
         }
