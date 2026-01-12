@@ -1,31 +1,18 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
-import { Validator } from './validation/validator.js';
 import chalk from 'chalk';
-import {
-  findSpecUpdates,
-  buildUpdatedSpec,
-  writeUpdatedSpec,
-  type SpecUpdate,
-} from './specs-apply.js';
+import { runArchive, ArchiveResult } from './archive-logic.js';
+import { findSpecUpdates } from './specs-apply.js';
+import { resolveOpenSpecDir } from './path-resolver.js';
 
 export class ArchiveCommand {
   async execute(
     changeName?: string,
     options: { yes?: boolean; skipSpecs?: boolean; noValidate?: boolean; validate?: boolean } = {}
   ): Promise<void> {
-    const targetPath = '.';
-    const changesDir = path.join(targetPath, 'openspec', 'changes');
-    const archiveDir = path.join(changesDir, 'archive');
-    const mainSpecsDir = path.join(targetPath, 'openspec', 'specs');
-
-    // Check if changes directory exists
-    try {
-      await fs.access(changesDir);
-    } catch {
-      throw new Error("No OpenSpec changes directory found. Run 'openspec init' first.");
-    }
+    const openspecPath = await resolveOpenSpecDir('.');
+    const changesDir = path.join(openspecPath, 'changes');
 
     // Get change name interactively if not provided
     if (!changeName) {
@@ -37,86 +24,9 @@ export class ArchiveCommand {
       changeName = selectedChange;
     }
 
-    const changeDir = path.join(changesDir, changeName);
-
-    // Verify change exists
-    try {
-      const stat = await fs.stat(changeDir);
-      if (!stat.isDirectory()) {
-        throw new Error(`Change '${changeName}' not found.`);
-      }
-    } catch {
-      throw new Error(`Change '${changeName}' not found.`);
-    }
-
     const skipValidation = options.validate === false || options.noValidate === true;
-
-    // Validate specs and change before archiving
-    if (!skipValidation) {
-      const validator = new Validator();
-      let hasValidationErrors = false;
-
-      // Validate proposal.md (non-blocking unless strict mode desired in future)
-      const changeFile = path.join(changeDir, 'proposal.md');
-      try {
-        await fs.access(changeFile);
-        const changeReport = await validator.validateChange(changeFile);
-        // Proposal validation is informative only (do not block archive)
-        if (!changeReport.valid) {
-          console.log(chalk.yellow(`\nProposal warnings in proposal.md (non-blocking):`));
-          for (const issue of changeReport.issues) {
-            const symbol = issue.level === 'ERROR' ? '⚠' : (issue.level === 'WARNING' ? '⚠' : 'ℹ');
-            console.log(chalk.yellow(`  ${symbol} ${issue.message}`));
-          }
-        }
-      } catch {
-        // Change file doesn't exist, skip validation
-      }
-
-      // Validate delta-formatted spec files under the change directory if present
-      const changeSpecsDir = path.join(changeDir, 'specs');
-      let hasDeltaSpecs = false;
-      try {
-        const candidates = await fs.readdir(changeSpecsDir, { withFileTypes: true });
-        for (const c of candidates) {
-          if (c.isDirectory()) {
-            try {
-              const candidatePath = path.join(changeSpecsDir, c.name, 'spec.md');
-              await fs.access(candidatePath);
-              const content = await fs.readFile(candidatePath, 'utf-8');
-              if (/^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements/m.test(content)) {
-                hasDeltaSpecs = true;
-                break;
-              }
-            } catch {}
-          }
-        }
-      } catch {}
-      if (hasDeltaSpecs) {
-        const deltaReport = await validator.validateChangeDeltaSpecs(changeDir);
-        if (!deltaReport.valid) {
-          hasValidationErrors = true;
-          console.log(chalk.red(`\nValidation errors in change delta specs:`));
-          for (const issue of deltaReport.issues) {
-            if (issue.level === 'ERROR') {
-              console.log(chalk.red(`  ✗ ${issue.message}`));
-            } else if (issue.level === 'WARNING') {
-              console.log(chalk.yellow(`  ⚠ ${issue.message}`));
-            }
-          }
-        }
-      }
-
-      if (hasValidationErrors) {
-        console.log(chalk.red('\nValidation failed. Please fix the errors before archiving.'));
-        console.log(chalk.yellow('To skip validation (not recommended), use --no-validate flag.'));
-        return;
-      }
-    } else {
-      // Log warning when validation is skipped
-      const timestamp = new Date().toISOString();
-      
-      if (!options.yes) {
+    
+    if (skipValidation && !options.yes) {
         const { confirm } = await import('@inquirer/prompts');
         const proceed = await confirm({
           message: chalk.yellow('⚠️  WARNING: Skipping validation may archive invalid specs. Continue? (y/N)'),
@@ -126,22 +36,11 @@ export class ArchiveCommand {
           console.log('Archive cancelled.');
           return;
         }
-      } else {
-        console.log(chalk.yellow(`\n⚠️  WARNING: Skipping validation may archive invalid specs.`));
-      }
-      
-      console.log(chalk.yellow(`[${timestamp}] Validation skipped for change: ${changeName}`));
-      console.log(chalk.yellow(`Affected files: ${changeDir}`));
     }
 
-    // Show progress and check for incomplete tasks
     const progress = await getTaskProgressForChange(changesDir, changeName);
-    const status = formatTaskStatus(progress);
-    console.log(`Task status: ${status}`);
-
     const incompleteTasks = Math.max(progress.total - progress.completed, 0);
-    if (incompleteTasks > 0) {
-      if (!options.yes) {
+    if (incompleteTasks > 0 && !options.yes) {
         const { confirm } = await import('@inquirer/prompts');
         const proceed = await confirm({
           message: `Warning: ${incompleteTasks} incomplete task(s) found. Continue?`,
@@ -151,103 +50,77 @@ export class ArchiveCommand {
           console.log('Archive cancelled.');
           return;
         }
-      } else {
-        console.log(`Warning: ${incompleteTasks} incomplete task(s) found. Continuing due to --yes flag.`);
-      }
     }
 
-    // Handle spec updates unless skipSpecs flag is set
-    if (options.skipSpecs) {
-      console.log('Skipping spec updates (--skip-specs flag provided).');
-    } else {
-      // Find specs to update
-      const specUpdates = await findSpecUpdates(changeDir, mainSpecsDir);
-      
-      if (specUpdates.length > 0) {
-        console.log('\nSpecs to update:');
-        for (const update of specUpdates) {
-          const status = update.exists ? 'update' : 'create';
-          const capability = path.basename(path.dirname(update.target));
-          console.log(`  ${capability}: ${status}`);
-        }
-
-        let shouldUpdateSpecs = true;
-        if (!options.yes) {
-          const { confirm } = await import('@inquirer/prompts');
-          shouldUpdateSpecs = await confirm({
-            message: 'Proceed with spec updates?',
-            default: true
-          });
-          if (!shouldUpdateSpecs) {
-            console.log('Skipping spec updates. Proceeding with archive.');
-          }
-        }
-
-        if (shouldUpdateSpecs) {
-          // Prepare all updates first (validation pass, no writes)
-          const prepared: Array<{ update: SpecUpdate; rebuilt: string; counts: { added: number; modified: number; removed: number; renamed: number } }> = [];
-          try {
-            for (const update of specUpdates) {
-              const built = await buildUpdatedSpec(update, changeName!);
-              prepared.push({ update, rebuilt: built.rebuilt, counts: built.counts });
+    // Check for spec updates and ask for confirmation
+    let runOptions = { ...options, throwOnValidationError: true };
+    if (!options.yes && !options.skipSpecs) {
+        const changeDir = path.join(changesDir, changeName);
+        const mainSpecsDir = path.join(openspecPath, 'specs');
+        const updates = await findSpecUpdates(changeDir, mainSpecsDir);
+        
+        if (updates.length > 0) {
+            const { confirm } = await import('@inquirer/prompts');
+            const applyUpdates = await confirm({
+                message: `Found ${updates.length} spec update(s). Apply them?`,
+                default: true
+            });
+            
+            if (!applyUpdates) {
+                runOptions.skipSpecs = true;
             }
-          } catch (err: any) {
-            console.log(String(err.message || err));
-            console.log('Aborted. No files were changed.');
-            return;
-          }
-
-          // All validations passed; pre-validate rebuilt full spec and then write files and display counts
-          let totals = { added: 0, modified: 0, removed: 0, renamed: 0 };
-          for (const p of prepared) {
-            const specName = path.basename(path.dirname(p.update.target));
-            if (!skipValidation) {
-              const report = await new Validator().validateSpecContent(specName, p.rebuilt);
-              if (!report.valid) {
-                console.log(chalk.red(`\nValidation errors in rebuilt spec for ${specName} (will not write changes):`));
-                for (const issue of report.issues) {
-                  if (issue.level === 'ERROR') console.log(chalk.red(`  ✗ ${issue.message}`));
-                  else if (issue.level === 'WARNING') console.log(chalk.yellow(`  ⚠ ${issue.message}`));
-                }
-                console.log('Aborted. No files were changed.');
-                return;
-              }
-            }
-            await writeUpdatedSpec(p.update, p.rebuilt, p.counts);
-            totals.added += p.counts.added;
-            totals.modified += p.counts.modified;
-            totals.removed += p.counts.removed;
-            totals.renamed += p.counts.renamed;
-          }
-          console.log(
-            `Totals: + ${totals.added}, ~ ${totals.modified}, - ${totals.removed}, → ${totals.renamed}`
-          );
-          console.log('Specs updated successfully.');
         }
-      }
     }
 
-    // Create archive directory with date prefix
-    const archiveName = `${this.getArchiveDate()}-${changeName}`;
-    const archivePath = path.join(archiveDir, archiveName);
-
-    // Check if archive already exists
+    let result: ArchiveResult;
     try {
-      await fs.access(archivePath);
-      throw new Error(`Archive '${archiveName}' already exists.`);
+      result = await runArchive(changeName, runOptions);
     } catch (error: any) {
-      if (error.code !== 'ENOENT') {
-        throw error;
+      if (error.name === 'ValidationError' && error.report) {
+        console.log(chalk.red(`\nValidation failed for '${changeName}':`));
+        for (const issue of error.report.issues) {
+          if (issue.level === 'ERROR') {
+            console.log(chalk.red(`  ✗ ${issue.message}`));
+          } else if (issue.level === 'WARNING') {
+            console.log(chalk.yellow(`  ⚠ ${issue.message}`));
+          }
+        }
+      } else {
+        console.log(error.message || error);
       }
+      console.log('Aborted. No files were changed.');
+      return;
     }
 
-    // Create archive directory if needed
-    await fs.mkdir(archiveDir, { recursive: true });
+    if (result.alreadyExists) {
+      throw new Error(`Archive '${result.archiveName}' already exists.`);
+    }
 
-    // Move change to archive
-    await fs.rename(changeDir, archivePath);
+    if (result.validationReport && !result.validationReport.valid) {
+        console.log(chalk.red(`\nValidation failed for '${changeName}':`));
+        for (const issue of result.validationReport.issues) {
+            if (issue.level === 'ERROR') {
+                console.log(chalk.red(`  ✗ ${issue.message}`));
+            } else if (issue.level === 'WARNING') {
+                console.log(chalk.yellow(`  ⚠ ${issue.message}`));
+            }
+        }
+        return;
+    }
+
+    console.log(`Task status: ${formatTaskStatus(result.taskStatus)}`);
     
-    console.log(`Change '${changeName}' archived as '${archiveName}'.`);
+    if (result.specUpdates.length > 0) {
+        console.log('\nSpecs updated:');
+        for (const update of result.specUpdates) {
+            console.log(`  ${update.capability}: ${update.status}`);
+        }
+        console.log(
+            `Totals: + ${result.totals.added}, ~ ${result.totals.modified}, - ${result.totals.removed}, → ${result.totals.renamed}`
+        );
+    }
+
+    console.log(`Change '${changeName}' archived as '${result.archiveName}'.`);
   }
 
   private async selectChange(changesDir: string): Promise<string | null> {
@@ -293,10 +166,5 @@ export class ArchiveCommand {
       // User cancelled (Ctrl+C)
       return null;
     }
-  }
-
-  private getArchiveDate(): string {
-    // Returns date in YYYY-MM-DD format
-    return new Date().toISOString().split('T')[0];
   }
 }
