@@ -2,6 +2,10 @@ import { FastMCP } from 'fastmcp';
 import { registerTools } from './tools.js';
 import { registerResources } from './resources.js';
 import { registerPrompts } from './prompts.js';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const pkg = require('../../package.json');
 
 export class OpenSpecMCPServer {
   private server: FastMCP;
@@ -9,14 +13,14 @@ export class OpenSpecMCPServer {
   constructor() {
     this.server = new FastMCP({
       name: "OpenSpec",
-      version: "0.18.0", // Todo: sync with package.json
+      version: pkg.version,
     });
   }
 
   async start() {
-    await registerTools(this.server);
-    await registerResources(this.server);
-    await registerPrompts(this.server);
+    registerTools(this.server);
+    registerResources(this.server);
+    registerPrompts(this.server);
     
     await this.server.start({
         transportType: 'stdio',

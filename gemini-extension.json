@@ -3,7 +3,7 @@
   "version": "0.18.0",
   "contextFileName": "GEMINI.md",
   "mcpServers": {
-    "default": {
+    "openspec": {
       "command": "node",
       "args": [
         "bin/openspec.js",

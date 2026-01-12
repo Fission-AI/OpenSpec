@@ -159,6 +159,9 @@ jobs:
             exit 1
           fi
 
+      - name: Verify MCP server help
+        run: node bin/openspec.js serve --help
+
   validate-changesets:
     name: Validate Changesets
     runs-on: ubuntu-latest

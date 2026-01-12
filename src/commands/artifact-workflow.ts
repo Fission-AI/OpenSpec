@@ -27,7 +27,8 @@ import {
   type ArtifactInstructions,
   type SchemaInfo,
 } from '../core/artifact-graph/index.js';
-import { createChange, validateChangeName } from '../utils/change-utils.js';
+import { runCreateChange } from '../core/change-logic.js';
+import { validateChangeName } from '../utils/change-utils.js';
 import { getNewChangeSkillTemplate, getContinueChangeSkillTemplate, getApplyChangeSkillTemplate, getFfChangeSkillTemplate, getSyncSpecsSkillTemplate, getArchiveChangeSkillTemplate, getOpsxNewCommandTemplate, getOpsxContinueCommandTemplate, getOpsxApplyCommandTemplate, getOpsxFfCommandTemplate, getOpsxSyncCommandTemplate, getOpsxArchiveCommandTemplate } from '../core/templates/skill-templates.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 
@@ -757,18 +758,16 @@ async function newChangeCommand(name: string | undefined, options: NewChangeOpti
 
   try {
     const projectRoot = process.cwd();
-    await createChange(projectRoot, name, { schema: options.schema });
+    const result = await runCreateChange(projectRoot, name, { schema: options.schema });
 
     // If description provided, create README.md with description
     if (options.description) {
       const { promises: fs } = await import('fs');
-      const changeDir = path.join(projectRoot, 'openspec', 'changes', name);
-      const readmePath = path.join(changeDir, 'README.md');
+      const readmePath = path.join(result.changeDir, 'README.md');
       await fs.writeFile(readmePath, `# ${name}\n\n${options.description}\n`, 'utf-8');
     }
 
-    const schemaUsed = options.schema ?? DEFAULT_SCHEMA;
-    spinner.succeed(`Created change '${name}' at openspec/changes/${name}/ (schema: ${schemaUsed})`);
+    spinner.succeed(`Created change '${name}' at openspec/changes/${name}/ (schema: ${result.schema})`);
   } catch (error) {
     spinner.fail(`Failed to create change '${name}'`);
     throw error;

@@ -6,9 +6,96 @@ import { SpecCommand } from '../commands/spec.js';
 import { ArchiveCommand } from '../core/archive.js';
 import { Validator } from '../core/validation/validator.js';
 import { resolveOpenSpecDir } from '../core/path-resolver.js';
+import { runInit } from '../core/init-logic.js';
+import { runUpdate } from '../core/update-logic.js';
+import { runArchive } from '../core/archive-logic.js';
+import { runCreateChange } from '../core/change-logic.js';
+import { getViewData } from '../core/view-logic.js';
 import path from 'path';
 
 export function registerTools(server: FastMCP) {
+    server.addTool({
+        name: "openspec_init",
+        description: "Initialize OpenSpec in the current project.",
+        parameters: z.object({
+            tools: z.array(z.string()).optional().describe("AI tools to configure"),
+            shouldMigrate: z.boolean().optional().default(true).describe("Whether to auto-migrate legacy openspec/ directory")
+        }),
+        execute: async (args) => {
+            try {
+                const result = await runInit(process.cwd(), args);
+                return {
+                    content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
+                };
+            } catch (error: any) {
+                return {
+                    isError: true,
+                    content: [{ type: "text", text: `Error initializing: ${error.message}` }]
+                };
+            }
+        }
+    });
+
+    server.addTool({
+        name: "openspec_update",
+        description: "Update OpenSpec instruction files and slash commands.",
+        parameters: z.object({}),
+        execute: async () => {
+            try {
+                const result = await runUpdate(process.cwd());
+                return {
+                    content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
+                };
+            } catch (error: any) {
+                return {
+                    isError: true,
+                    content: [{ type: "text", text: `Error updating: ${error.message}` }]
+                };
+            }
+        }
+    });
+
+    server.addTool({
+        name: "openspec_view",
+        description: "Get dashboard data for specs and changes.",
+        parameters: z.object({}),
+        execute: async () => {
+            try {
+                const data = await getViewData(process.cwd());
+                return {
+                    content: [{ type: "text", text: JSON.stringify(data, null, 2) }]
+                };
+            } catch (error: any) {
+                return {
+                    isError: true,
+                    content: [{ type: "text", text: `Error getting view data: ${error.message}` }]
+                };
+            }
+        }
+    });
+
+    server.addTool({
+        name: "openspec_create_change",
+        description: "Scaffold a new OpenSpec change directory.",
+        parameters: z.object({
+            name: z.string().describe("Kebab-case name of the change"),
+            schema: z.string().optional().default("spec-driven").describe("Workflow schema to use")
+        }),
+        execute: async (args) => {
+            try {
+                const result = await runCreateChange(process.cwd(), args.name, { schema: args.schema });
+                return {
+                    content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
+                };
+            } catch (error: any) {
+                return {
+                    isError: true,
+                    content: [{ type: "text", text: `Error creating change: ${error.message}` }]
+                };
+            }
+        }
+    });
+
     server.addTool({
         name: "openspec_list_changes",
         description: "List active OpenSpec changes.",
@@ -134,16 +221,12 @@ export function registerTools(server: FastMCP) {
         }),
         execute: async (args) => {
             try {
-                const cmd = new ArchiveCommand();
-                // ArchiveCommand.execute logs to console and might use prompts if yes is not true.
-                // We'll use yes: true to avoid interactive prompts in MCP.
-                await cmd.execute(args.name, { 
-                    yes: true, 
+                const result = await runArchive(args.name, { 
                     skipSpecs: args.skipSpecs, 
                     noValidate: args.noValidate 
                 });
                 return {
-                    content: [{ type: "text", text: `Change '${args.name}' archived successfully.` }]
+                    content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
                 };
             } catch (error: any) {
                 return {

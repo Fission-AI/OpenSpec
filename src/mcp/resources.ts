@@ -4,10 +4,11 @@ import path from 'path';
 import fs from 'fs/promises';
 
 export function registerResources(server: FastMCP) {
-    server.addResource({
+    server.addResourceTemplate({
         uriTemplate: "openspec://changes/{name}/proposal",
         name: "Change Proposal",
         description: "The proposal.md file for a change",
+        arguments: [{ name: "name", description: "Name of the change", required: true }],
         // @ts-ignore
         load: async (variables: any) => {
             const openspecPath = await resolveOpenSpecDir(process.cwd());
@@ -19,10 +20,11 @@ export function registerResources(server: FastMCP) {
         }
     });
 
-    server.addResource({
+    server.addResourceTemplate({
         uriTemplate: "openspec://changes/{name}/tasks",
         name: "Change Tasks",
         description: "The tasks.md file for a change",
+        arguments: [{ name: "name", description: "Name of the change", required: true }],
         // @ts-ignore
         load: async (variables: any) => {
             const openspecPath = await resolveOpenSpecDir(process.cwd());
@@ -34,10 +36,11 @@ export function registerResources(server: FastMCP) {
         }
     });
 
-    server.addResource({
+    server.addResourceTemplate({
         uriTemplate: "openspec://specs/{id}",
         name: "Specification",
         description: "The spec.md file for a capability",
+        arguments: [{ name: "id", description: "ID of the spec", required: true }],
         // @ts-ignore
         load: async (variables: any) => {
             const openspecPath = await resolveOpenSpecDir(process.cwd());

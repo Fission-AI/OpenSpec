@@ -5,6 +5,18 @@ import {
     ARCHIVE_STEPS, ARCHIVE_REFERENCES
 } from '../core/templates/prompts.js';
 
+function toMcpInstructions(text: string): string {
+    return text
+        .replace(/openspec list --specs/g, 'openspec_list_specs')
+        .replace(/openspec list/g, 'openspec_list_changes')
+        .replace(/openspec show ([^ ]+) --type spec/g, 'openspec_show_spec(id: "$1")')
+        .replace(/openspec show ([^ ]+) --json --deltas-only/g, 'openspec_show_change(name: "$1")')
+        .replace(/openspec show ([^ ]+)/g, 'openspec_show_change(name: "$1")')
+        .replace(/openspec validate ([^ ]+) --strict/g, 'openspec_validate_change(name: "$1", strict: true)')
+        .replace(/openspec validate --strict/g, 'openspec_validate_change(strict: true)')
+        .replace(/openspec archive ([^ ]+) --yes/g, 'openspec_archive_change(name: "$1")');
+}
+
 export function registerPrompts(server: FastMCP) {
     server.addPrompt({
         name: "openspec_proposal",
@@ -14,7 +26,7 @@ export function registerPrompts(server: FastMCP) {
                 role: "user",
                 content: {
                     type: "text",
-                    text: `${PROPOSAL_GUARDRAILS}\n\n${PROPOSAL_STEPS}\n\n${PROPOSAL_REFERENCES}`
+                    text: toMcpInstructions(`${PROPOSAL_GUARDRAILS}\n\n${PROPOSAL_STEPS}\n\n${PROPOSAL_REFERENCES}`)
                 }
             }]
         })
@@ -28,7 +40,7 @@ export function registerPrompts(server: FastMCP) {
                 role: "user",
                 content: {
                     type: "text",
-                    text: `${BASE_GUARDRAILS}\n\n${APPLY_STEPS}\n\n${APPLY_REFERENCES}`
+                    text: toMcpInstructions(`${BASE_GUARDRAILS}\n\n${APPLY_STEPS}\n\n${APPLY_REFERENCES}`)
                 }
             }]
         })
@@ -42,7 +54,7 @@ export function registerPrompts(server: FastMCP) {
                 role: "user",
                 content: {
                     type: "text",
-                    text: `${BASE_GUARDRAILS}\n\n${ARCHIVE_STEPS}\n\n${ARCHIVE_REFERENCES}`
+                    text: toMcpInstructions(`${BASE_GUARDRAILS}\n\n${ARCHIVE_STEPS}\n\n${ARCHIVE_REFERENCES}`)
                 }
             }]
         })

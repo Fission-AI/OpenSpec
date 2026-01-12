@@ -2,15 +2,21 @@
 
 OpenSpec is an AI-native system for spec-driven development. It helps developers and AI agents maintain a shared understanding of project requirements and technical designs through a structured workflow.
 
-This extension provides native integration via the Model Context Protocol (MCP).
+This extension provides native integration via the Model Context Protocol (MCP), enabling a **zero-install workflow** where agents can manage OpenSpec without requiring the global `openspec` npm package.
 
 ## MCP Capabilities
 
 ### Tools
+- `openspec_init`: Initialize or extend OpenSpec in the current project.
+- `openspec_update`: Refresh instruction files and slash commands.
+- `openspec_view`: Get dashboard data for specs and changes.
+- `openspec_create_change`: Scaffold a new OpenSpec change directory.
 - `openspec_list_changes`: List active change proposals.
 - `openspec_list_specs`: List current specifications.
 - `openspec_show_change`: Show details of a change (JSON/Markdown).
+- `openspec_show_spec`: Show details of a specification (JSON/Markdown).
 - `openspec_validate_change`: Validate a change proposal against schema rules.
+- `openspec_archive_change`: Archive a completed change and update main specs.
 
 ### Resources
 - `openspec://changes/{name}/proposal`: Access the proposal.md content.
@@ -22,9 +28,17 @@ This extension provides native integration via the Model Context Protocol (MCP).
 - `openspec_apply`: Instructions for implementing an approved change.
 - `openspec_archive`: Workflow for archiving a completed change.
 
+## Zero-Install Usage
+
+If you have this extension added to your Gemini CLI, you can start using OpenSpec immediately in any directory by asking:
+
+> "Initialize OpenSpec in this project"
+
+The agent will use `openspec_init` to scaffold the necessary files. No local or global installation of `@fission-ai/openspec` is required for AI-driven workflows.
+
 ## Prerequisites
 
-This extension requires the OpenSpec CLI.
+This extension requires the Gemini CLI. The OpenSpec MCP server is bundled with the extension.
 
 **Auto-Initialization Instruction**:
 When the user starts a session or tries to use OpenSpec:

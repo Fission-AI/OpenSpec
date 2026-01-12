@@ -140,6 +140,14 @@ openspec/
 │   └── archive/            # Completed changes
 \`\`\`
 
+## Integration Modes
+
+### Command Line (CLI)
+Standard OpenSpec commands like \`openspec list\`, \`openspec validate\`, etc. require the \`@fission-ai/openspec\` package to be installed.
+
+### Model Context Protocol (MCP)
+If your environment supports MCP (e.g. Claude Code, Gemini CLI with OpenSpec extension), you can use native tools like \`openspec_list_changes\` instead of CLI commands. This enables a zero-install workflow.
+
 ## Creating Change Proposals
 
 ### Decision Tree

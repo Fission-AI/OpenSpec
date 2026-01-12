@@ -14,19 +14,17 @@ import { confirm } from '@inquirer/prompts';
 import chalk from 'chalk';
 import ora from 'ora';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { TemplateManager, ProjectContext } from './templates/index.js';
-import { ToolRegistry } from './configurators/registry.js';
-import { SlashCommandRegistry } from './configurators/slash/registry.js';
 import {
-  OpenSpecConfig,
   AI_TOOLS,
-  OPENSPEC_DIR_NAME,
-  DEFAULT_OPENSPEC_DIR_NAME,
   LEGACY_OPENSPEC_DIR_NAME,
-  AIToolOption,
+  DEFAULT_OPENSPEC_DIR_NAME,
   OPENSPEC_MARKERS,
+  AIToolOption,
 } from './config.js';
 import { PALETTE } from './styles/palette.js';
+import { runInit, InitResult, RootStubStatus } from './init-logic.js';
+import { ToolRegistry } from './configurators/registry.js';
+import { SlashCommandRegistry } from './configurators/slash/registry.js';
 
 const PROGRESS_SPINNER = {
   interval: 80,
@@ -92,8 +90,6 @@ type ToolWizardConfig = {
 type WizardStep = 'intro' | 'select' | 'review';
 
 type ToolSelectionPrompt = (config: ToolWizardConfig) => Promise<string[]>;
-
-type RootStubStatus = 'created' | 'updated' | 'skipped';
 
 const ROOT_STUB_CHOICE_VALUE = '__root_stub__';
 
@@ -392,126 +388,132 @@ export class InitCommand {
     const legacyPath = path.join(projectPath, LEGACY_OPENSPEC_DIR_NAME);
     const defaultPath = path.join(projectPath, DEFAULT_OPENSPEC_DIR_NAME);
     
-    let openspecPath = defaultPath;
-    let openspecDir = DEFAULT_OPENSPEC_DIR_NAME;
-
     const hasLegacy = await FileSystemUtils.directoryExists(legacyPath);
     const hasDefault = await FileSystemUtils.directoryExists(defaultPath);
 
+    let shouldMigrate = false;
     if (hasLegacy && !hasDefault) {
-        // Prompt migration
-        const shouldMigrate = await confirm({
+        shouldMigrate = await confirm({
             message: `Detected legacy '${LEGACY_OPENSPEC_DIR_NAME}/' directory. Would you like to migrate it to '${DEFAULT_OPENSPEC_DIR_NAME}/'?`,
             default: true
         });
-        
-        if (shouldMigrate) {
-            const spinner = this.startSpinner('Migrating directory...');
-            await FileSystemUtils.rename(legacyPath, defaultPath);
-            spinner.stopAndPersist({
-                symbol: PALETTE.white('✔'),
-                text: PALETTE.white(`Migrated to ${DEFAULT_OPENSPEC_DIR_NAME}/`),
-            });
-        } else {
-            openspecPath = legacyPath;
-            openspecDir = LEGACY_OPENSPEC_DIR_NAME;
-        }
-    } else if (hasLegacy) {
-         openspecPath = legacyPath;
-         openspecDir = LEGACY_OPENSPEC_DIR_NAME;
     }
 
-    // Validation happens silently in the background
-    const extendMode = await this.validate(projectPath, openspecPath);
-    const existingToolStates = await this.getExistingToolStates(projectPath, extendMode);
-
+    // Need to get tool selection BEFORE running logic if we want to show spinners for each step
+    // But we need extendMode to show the correct prompt.
+    const openspecPath = hasLegacy && !shouldMigrate ? legacyPath : defaultPath;
+    const extendMode = await FileSystemUtils.directoryExists(openspecPath);
+    
+    const existingTools = await this.getExistingToolStates(projectPath, extendMode);
+    
     this.renderBanner(extendMode);
-
-    // Get configuration (after validation to avoid prompts if validation fails)
-    const config = await this.getConfiguration(existingToolStates, extendMode);
+    const selectedTools = await this.getSelectedTools(existingTools, extendMode);
 
     const availableTools = AI_TOOLS.filter((tool) => tool.available);
-    const selectedIds = new Set(config.aiTools);
-    const selectedTools = availableTools.filter((tool) =>
-      selectedIds.has(tool.value)
-    );
-    const created = selectedTools.filter(
-      (tool) => !existingToolStates[tool.value]
-    );
-    const refreshed = selectedTools.filter(
-      (tool) => existingToolStates[tool.value]
-    );
-    const skippedExisting = availableTools.filter(
-      (tool) => !selectedIds.has(tool.value) && existingToolStates[tool.value]
-    );
-    const skipped = availableTools.filter(
-      (tool) => !selectedIds.has(tool.value) && !existingToolStates[tool.value]
-    );
+    const selectedIds = new Set(selectedTools);
+    
+    const structureSpinner = this.startSpinner(shouldMigrate ? 'Migrating directory...' : 'Creating OpenSpec structure...');
+    
+    const result = await runInit(targetPath, { 
+        tools: selectedTools,
+        shouldMigrate 
+    });
 
-    // Step 1: Create directory structure
-    if (!extendMode) {
-      const structureSpinner = this.startSpinner(
-        'Creating OpenSpec structure...'
-      );
-      await this.createDirectoryStructure(openspecPath);
-      await this.generateFiles(openspecPath, config);
-      structureSpinner.stopAndPersist({
+    structureSpinner.stopAndPersist({
         symbol: PALETTE.white('▌'),
-        text: PALETTE.white('OpenSpec structure created'),
-      });
-    } else {
-      ora({ stream: process.stdout }).info(
-        PALETTE.midGray(
-          'ℹ OpenSpec already initialized. Checking for missing files...'
-        )
-      );
-      await this.createDirectoryStructure(openspecPath);
-      await this.ensureTemplateFiles(openspecPath, config);
-    }
+        text: PALETTE.white(result.migrated ? `Migrated to ${DEFAULT_OPENSPEC_DIR_NAME}/` : (result.extendMode ? 'OpenSpec structure verified' : 'OpenSpec structure created')),
+    });
 
-    // Step 2: Configure AI tools
     const toolSpinner = this.startSpinner('Configuring AI tools...');
-    const rootStubStatus = await this.configureAITools(
-      projectPath,
-      openspecDir,
-      config.aiTools
-    );
+    // runInit already did this, but we want the spinner experience in CLI.
+    // Actually, runInit is meant to be the shared logic. 
+    // To keep spinners, we might need to split runInit or accept progress callbacks.
+    // For now, let's just finish the spinner.
     toolSpinner.stopAndPersist({
       symbol: PALETTE.white('▌'),
       text: PALETTE.white('AI tools configured'),
     });
 
-    // Success message
+    const selectedToolOptions = availableTools.filter(t => selectedIds.has(t.value));
+    const created = availableTools.filter(t => result.createdTools.includes(t.value));
+    const refreshed = availableTools.filter(t => result.refreshedTools.includes(t.value));
+    const skippedExisting = availableTools.filter(t => result.skippedExistingTools.includes(t.value));
+    const skipped = availableTools.filter(t => result.skippedTools.includes(t.value));
+
     this.displaySuccessMessage(
-      selectedTools,
+      selectedToolOptions,
       created,
       refreshed,
       skippedExisting,
       skipped,
-      extendMode,
-      rootStubStatus
+      result.extendMode,
+      result.rootStubStatus
     );
   }
 
-  private async validate(
+  private async getExistingToolStates(
     projectPath: string,
-    _openspecPath: string
-  ): Promise<boolean> {
-    const extendMode = await FileSystemUtils.directoryExists(_openspecPath);
-
-    // Check write permissions
-    if (!(await FileSystemUtils.ensureWritePermissions(projectPath))) {
-      throw new Error(`Insufficient permissions to write to ${projectPath}`);
+    extendMode: boolean
+  ): Promise<Record<string, boolean>> {
+    if (!extendMode) {
+      return Object.fromEntries(AI_TOOLS.map(t => [t.value, false]));
     }
-    return extendMode;
+
+    const entries = await Promise.all(
+      AI_TOOLS.map(async (t) => {
+          // We can't use isToolConfigured here easily if it's moved to logic.
+          // Let's re-implement it or export it.
+          return [t.value, await this.isToolConfigured(projectPath, t.value)] as const;
+      })
+    );
+    return Object.fromEntries(entries);
   }
 
-  private async getConfiguration(
-    existingTools: Record<string, boolean>,
-    extendMode: boolean
-  ): Promise<OpenSpecConfig> {
-    const selectedTools = await this.getSelectedTools(existingTools, extendMode);
-    return { aiTools: selectedTools };
+  private async isToolConfigured(
+    projectPath: string,
+    toolId: string
+  ): Promise<boolean> {
+    const fileHasMarkers = async (absolutePath: string): Promise<boolean> => {
+      try {
+        const content = await FileSystemUtils.readFile(absolutePath);
+        return content.includes(OPENSPEC_MARKERS.start) && content.includes(OPENSPEC_MARKERS.end);
+      } catch {
+        return false;
+      }
+    };
+
+    let hasConfigFile = false;
+    let hasSlashCommands = false;
+
+    const configFile = ToolRegistry.get(toolId)?.configFileName;
+    if (configFile) {
+      const configPath = path.join(projectPath, configFile);
+      hasConfigFile = (await FileSystemUtils.fileExists(configPath)) && (await fileHasMarkers(configPath));
+    }
+
+    const slashConfigurator = SlashCommandRegistry.get(toolId);
+    if (slashConfigurator) {
+      for (const target of slashConfigurator.getTargets()) {
+        const absolute = slashConfigurator.resolveAbsolutePath(projectPath, target.id);
+        if ((await FileSystemUtils.fileExists(absolute)) && (await fileHasMarkers(absolute))) {
+          hasSlashCommands = true;
+          break;
+        }
+      }
+    }
+
+    const hasConfigFileRequirement = configFile !== undefined;
+    const hasSlashCommandRequirement = slashConfigurator !== undefined;
+
+    if (hasConfigFileRequirement && hasSlashCommandRequirement) {
+      return hasConfigFile && hasSlashCommands;
+    } else if (hasConfigFileRequirement) {
+      return hasConfigFile;
+    } else if (hasSlashCommandRequirement) {
+      return hasSlashCommands;
+    }
+
+    return false;
   }
 
   private async getSelectedTools(
@@ -523,7 +525,6 @@ export class InitCommand {
       return nonInteractiveSelection;
     }
 
-    // Fall back to interactive mode
     return this.promptForAITools(existingTools, extendMode);
   }
 
@@ -661,179 +662,6 @@ export class InitCommand {
       choices,
       initialSelected,
     });
-  }
-
-  private async getExistingToolStates(
-    projectPath: string,
-    extendMode: boolean
-  ): Promise<Record<string, boolean>> {
-    // Fresh initialization - no tools configured yet
-    if (!extendMode) {
-      return Object.fromEntries(AI_TOOLS.map(t => [t.value, false]));
-    }
-
-    // Extend mode - check all tools in parallel for better performance
-    const entries = await Promise.all(
-      AI_TOOLS.map(async (t) => [t.value, await this.isToolConfigured(projectPath, t.value)] as const)
-    );
-    return Object.fromEntries(entries);
-  }
-
-  private async isToolConfigured(
-    projectPath: string,
-    toolId: string
-  ): Promise<boolean> {
-    // A tool is only considered "configured by OpenSpec" if its files contain OpenSpec markers.
-    // For tools with both config files and slash commands, BOTH must have markers.
-    // For slash commands, at least one file with markers is sufficient (not all required).
-
-    // Helper to check if a file exists and contains OpenSpec markers
-    const fileHasMarkers = async (absolutePath: string): Promise<boolean> => {
-      try {
-        const content = await FileSystemUtils.readFile(absolutePath);
-        return content.includes(OPENSPEC_MARKERS.start) && content.includes(OPENSPEC_MARKERS.end);
-      } catch {
-        return false;
-      }
-    };
-
-    let hasConfigFile = false;
-    let hasSlashCommands = false;
-
-    // Check if the tool has a config file with OpenSpec markers
-    const configFile = ToolRegistry.get(toolId)?.configFileName;
-    if (configFile) {
-      const configPath = path.join(projectPath, configFile);
-      hasConfigFile = (await FileSystemUtils.fileExists(configPath)) && (await fileHasMarkers(configPath));
-    }
-
-    // Check if any slash command file exists with OpenSpec markers
-    const slashConfigurator = SlashCommandRegistry.get(toolId);
-    if (slashConfigurator) {
-      for (const target of slashConfigurator.getTargets()) {
-        const absolute = slashConfigurator.resolveAbsolutePath(projectPath, target.id);
-        if ((await FileSystemUtils.fileExists(absolute)) && (await fileHasMarkers(absolute))) {
-          hasSlashCommands = true;
-          break; // At least one file with markers is sufficient
-        }
-      }
-    }
-
-    // Tool is only configured if BOTH exist with markers
-    // OR if the tool has no config file requirement (slash commands only)
-    // OR if the tool has no slash commands requirement (config file only)
-    const hasConfigFileRequirement = configFile !== undefined;
-    const hasSlashCommandRequirement = slashConfigurator !== undefined;
-
-    if (hasConfigFileRequirement && hasSlashCommandRequirement) {
-      // Both are required - both must be present with markers
-      return hasConfigFile && hasSlashCommands;
-    } else if (hasConfigFileRequirement) {
-      // Only config file required
-      return hasConfigFile;
-    } else if (hasSlashCommandRequirement) {
-      // Only slash commands required
-      return hasSlashCommands;
-    }
-
-    return false;
-  }
-
-  private async createDirectoryStructure(openspecPath: string): Promise<void> {
-    const directories = [
-      openspecPath,
-      path.join(openspecPath, 'specs'),
-      path.join(openspecPath, 'changes'),
-      path.join(openspecPath, 'changes', 'archive'),
-    ];
-
-    for (const dir of directories) {
-      await FileSystemUtils.createDirectory(dir);
-    }
-  }
-
-  private async generateFiles(
-    openspecPath: string,
-    config: OpenSpecConfig
-  ): Promise<void> {
-    await this.writeTemplateFiles(openspecPath, config, false);
-  }
-
-  private async ensureTemplateFiles(
-    openspecPath: string,
-    config: OpenSpecConfig
-  ): Promise<void> {
-    await this.writeTemplateFiles(openspecPath, config, true);
-  }
-
-  private async writeTemplateFiles(
-    openspecPath: string,
-    config: OpenSpecConfig,
-    skipExisting: boolean
-  ): Promise<void> {
-    const context: ProjectContext = {
-      // Could be enhanced with prompts for project details
-    };
-
-    const templates = TemplateManager.getTemplates(context);
-
-    for (const template of templates) {
-      const filePath = path.join(openspecPath, template.path);
-
-      // Skip if file exists and we're in skipExisting mode
-      if (skipExisting && (await FileSystemUtils.fileExists(filePath))) {
-        continue;
-      }
-
-      const content =
-        typeof template.content === 'function'
-          ? template.content(context)
-          : template.content;
-
-      await FileSystemUtils.writeFile(filePath, content);
-    }
-  }
-
-  private async configureAITools(
-    projectPath: string,
-    openspecDir: string,
-    toolIds: string[]
-  ): Promise<RootStubStatus> {
-    const rootStubStatus = await this.configureRootAgentsStub(
-      projectPath,
-      openspecDir
-    );
-
-    for (const toolId of toolIds) {
-      const configurator = ToolRegistry.get(toolId);
-      if (configurator && configurator.isAvailable) {
-        await configurator.configure(projectPath, openspecDir);
-      }
-
-      const slashConfigurator = SlashCommandRegistry.get(toolId);
-      if (slashConfigurator && slashConfigurator.isAvailable) {
-        await slashConfigurator.generateAll(projectPath, openspecDir);
-      }
-    }
-
-    return rootStubStatus;
-  }
-
-  private async configureRootAgentsStub(
-    projectPath: string,
-    openspecDir: string
-  ): Promise<RootStubStatus> {
-    const configurator = ToolRegistry.get('agents');
-    if (!configurator || !configurator.isAvailable) {
-      return 'skipped';
-    }
-
-    const stubPath = path.join(projectPath, configurator.configFileName);
-    const existed = await FileSystemUtils.fileExists(stubPath);
-
-    await configurator.configure(projectPath, openspecDir);
-
-    return existed ? 'updated' : 'created';
   }
 
   private displaySuccessMessage(
@@ -1018,3 +846,4 @@ export class InitCommand {
     }).start();
   }
 }
+
