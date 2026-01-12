@@ -66,7 +66,7 @@ describe('InitCommand', () => {
 
       await initCommand.execute(testDir);
 
-      const openspecPath = path.join(testDir, 'openspec');
+      const openspecPath = path.join(testDir, '.openspec');
       expect(await directoryExists(openspecPath)).toBe(true);
       expect(await directoryExists(path.join(openspecPath, 'specs'))).toBe(
         true
@@ -84,7 +84,7 @@ describe('InitCommand', () => {
 
       await initCommand.execute(testDir);
 
-      const openspecPath = path.join(testDir, 'openspec');
+      const openspecPath = path.join(testDir, '.openspec');
       expect(await fileExists(path.join(openspecPath, 'AGENTS.md'))).toBe(true);
       expect(await fileExists(path.join(openspecPath, 'project.md'))).toBe(
         true
@@ -807,7 +807,7 @@ describe('InitCommand', () => {
       await testFileRecreationInExtendMode(
         testDir,
         initCommand,
-        'openspec/AGENTS.md',
+        '.openspec/AGENTS.md',
         'OpenSpec Instructions'
       );
     });
@@ -816,7 +816,7 @@ describe('InitCommand', () => {
       await testFileRecreationInExtendMode(
         testDir,
         initCommand,
-        'openspec/project.md',
+        '.openspec/project.md',
         'Project Context'
       );
     });
@@ -827,7 +827,7 @@ describe('InitCommand', () => {
       // First init
       await initCommand.execute(testDir);
 
-      const agentsPath = path.join(testDir, 'openspec', 'AGENTS.md');
+      const agentsPath = path.join(testDir, '.openspec', 'AGENTS.md');
       const customContent = '# My Custom AGENTS Content\nDo not overwrite this!';
 
       // Modify the file with custom content
@@ -847,7 +847,7 @@ describe('InitCommand', () => {
       const newDir = path.join(testDir, 'new-project');
       await initCommand.execute(newDir);
 
-      const openspecPath = path.join(newDir, 'openspec');
+      const openspecPath = path.join(newDir, '.openspec');
       expect(await directoryExists(openspecPath)).toBe(true);
     });
 
