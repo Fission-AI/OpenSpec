@@ -211,6 +211,12 @@ The init command SHALL generate slash command files for supported editors using 
 - **AND** populate each file from shared templates so command text matches other tools
 - **AND** each template includes instructions for the relevant OpenSpec workflow stage
 
+#### Scenario: Generating slash commands for Continue
+- **WHEN** the user selects Continue during initialization
+- **THEN** create `.continue/prompts/openspec-proposal.prompt`, `.continue/prompts/openspec-apply.prompt`, and `.continue/prompts/openspec-archive.prompt`
+- **AND** populate each file from shared templates so command text matches other tools
+- **AND** each template includes instructions for the relevant OpenSpec workflow stage
+
 #### Scenario: Generating slash commands for Factory Droid
 - **WHEN** the user selects Factory Droid during initialization
 - **THEN** create `.factory/commands/openspec-proposal.md`, `.factory/commands/openspec-apply.md`, and `.factory/commands/openspec-archive.md`
