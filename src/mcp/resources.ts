@@ -9,7 +9,7 @@ export function registerResources(server: FastMCP) {
         name: "Change Proposal",
         description: "The proposal.md file for a change",
         arguments: [{ name: "name", description: "Name of the change", required: true }],
-        // @ts-ignore
+        // @ts-expect-error - variables type mismatch in fastmcp
         load: async (variables: any) => {
             const openspecPath = await resolveOpenSpecDir(process.cwd());
             const filePath = path.join(openspecPath, 'changes', variables.name, 'proposal.md');
@@ -25,7 +25,7 @@ export function registerResources(server: FastMCP) {
         name: "Change Tasks",
         description: "The tasks.md file for a change",
         arguments: [{ name: "name", description: "Name of the change", required: true }],
-        // @ts-ignore
+        // @ts-expect-error - variables type mismatch in fastmcp
         load: async (variables: any) => {
             const openspecPath = await resolveOpenSpecDir(process.cwd());
             const filePath = path.join(openspecPath, 'changes', variables.name, 'tasks.md');
@@ -41,7 +41,7 @@ export function registerResources(server: FastMCP) {
         name: "Specification",
         description: "The spec.md file for a capability",
         arguments: [{ name: "id", description: "ID of the spec", required: true }],
-        // @ts-ignore
+        // @ts-expect-error - variables type mismatch in fastmcp
         load: async (variables: any) => {
             const openspecPath = await resolveOpenSpecDir(process.cwd());
             const filePath = path.join(openspecPath, 'specs', variables.id, 'spec.md');
