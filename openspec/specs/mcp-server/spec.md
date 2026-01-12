@@ -70,16 +70,25 @@ The MCP server SHALL provide prompts that prioritize MCP tools while maintaining
 - **AND** the instructions MAY provide the CLI equivalent for reference.
 
 ### Requirement: Test Coverage
-The MCP server SHALL have dedicated unit and integration tests.
+The MCP server implementation SHALL have unit and integration tests.
 
-#### Scenario: Tool Testing
-- **WHEN** running tests
-- **THEN** verify that all exposed tools perform their intended core logic invocations.
+#### Scenario: Testing Tool Definitions
+- **WHEN** the test suite runs
+- **THEN** it SHALL verify that all exposed tools have correct names, descriptions, and schemas.
 
-#### Scenario: Resource Testing
-- **WHEN** running tests
-- **THEN** verify that resources are correctly listed and readable.
+#### Scenario: Testing Resource Resolution
+- **WHEN** the test suite runs
+- **THEN** it SHALL verify that `openspec://` URIs are correctly parsed and resolved to file paths.
 
-#### Scenario: Prompt Testing
-- **WHEN** running tests
-- **THEN** verify that prompts are correctly exposed and populated.
+#### Scenario: Testing Prompt Content
+- **WHEN** the test suite runs
+- **THEN** it SHALL verify that prompts can be retrieved and contain expected placeholders.
+
+### Requirement: Testability of Core Logic
+The core logic used by the MCP server SHALL be testable independently of the CLI or MCP transport layer.
+
+#### Scenario: Unit Testing Core Functions
+- **WHEN** a core function (e.g., `runCreateChange`, `runListChanges`) is tested
+- **THEN** it SHALL be possible to invoke it without mocking CLI-specific objects (like `process` or `console` capture).
+- **AND** it SHALL return structured data rather than writing to stdout.
+
