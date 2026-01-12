@@ -11,23 +11,40 @@ import { randomUUID } from 'crypto';
 describe('runUpdate', () => {
   let testDir: string;
   let updateCommand: UpdateCommand;
+  let prevCodexHome: string | undefined;
 
   beforeEach(async () => {
     testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
     await fs.mkdir(testDir, { recursive: true });
+
+    // Create openspec directory
+    const openspecDir = path.join(testDir, 'openspec');
+    await fs.mkdir(openspecDir, { recursive: true });
+
     updateCommand = new UpdateCommand();
+
+    // Route Codex global directory into the test sandbox
+    prevCodexHome = process.env.CODEX_HOME;
+    process.env.CODEX_HOME = path.join(testDir, '.codex');
   });
 
   afterEach(async () => {
     await fs.rm(testDir, { recursive: true, force: true });
+    if (prevCodexHome === undefined) delete process.env.CODEX_HOME;
+    else process.env.CODEX_HOME = prevCodexHome;
     vi.restoreAllMocks();
   });
 
   it('should fail if OpenSpec is not initialized', async () => {
+    // Remove openspec directory from beforeEach
+    await fs.rm(path.join(testDir, 'openspec'), { recursive: true, force: true });
     await expect(runUpdate(testDir)).rejects.toThrow(/No OpenSpec directory found/);
   });
 
   it('should update AGENTS.md', async () => {
+    // Remove openspec directory from beforeEach
+    await fs.rm(path.join(testDir, 'openspec'), { recursive: true, force: true });
+    
     const openspecPath = path.join(testDir, '.openspec');
     await fs.mkdir(openspecPath, { recursive: true });
     
