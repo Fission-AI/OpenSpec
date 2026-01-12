@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { listChanges, listSpecs } from '../core/list.js';
 import { ChangeCommand } from '../commands/change.js';
 import { SpecCommand } from '../commands/spec.js';
-import { ArchiveCommand } from '../core/archive.js';
 import { Validator } from '../core/validation/validator.js';
 import { resolveOpenSpecDir } from '../core/path-resolver.js';
 import { runInit } from '../core/init-logic.js';
@@ -11,6 +10,9 @@ import { runUpdate } from '../core/update-logic.js';
 import { runArchive } from '../core/archive-logic.js';
 import { runCreateChange } from '../core/change-logic.js';
 import { getViewData } from '../core/view-logic.js';
+import { runBulkValidation } from '../core/validation-logic.js';
+import { getConfigPath, getConfigList, getConfigValue, setConfigValue, unsetConfigValue, resetConfig } from '../core/config-logic.js';
+import { getArtifactStatus, getArtifactInstructions, getApplyInstructions, getTemplatePaths, getAvailableSchemas } from '../core/artifact-logic.js';
 import path from 'path';
 
 export function registerTools(server: FastMCP) {
@@ -210,6 +212,30 @@ export function registerTools(server: FastMCP) {
             }
         }
     });
+    
+    server.addTool({
+        name: "openspec_validate_all",
+        description: "Bulk validate changes and/or specs.",
+        parameters: z.object({
+            changes: z.boolean().optional().default(true).describe("Validate changes"),
+            specs: z.boolean().optional().default(true).describe("Validate specs"),
+            strict: z.boolean().optional().default(false).describe("Enable strict validation"),
+            concurrency: z.string().optional().describe("Concurrency limit")
+        }),
+        execute: async (args) => {
+            try {
+                const result = await runBulkValidation({ changes: args.changes, specs: args.specs }, { strict: args.strict, concurrency: args.concurrency });
+                return {
+                    content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
+                };
+            } catch (error: any) {
+                return {
+                    isError: true,
+                    content: [{ type: "text", text: `Error running validation: ${error.message}` }]
+                };
+            }
+        }
+    });
 
     server.addTool({
         name: "openspec_archive_change",
@@ -232,6 +258,158 @@ export function registerTools(server: FastMCP) {
                 return {
                     isError: true,
                     content: [{ type: "text", text: `Error archiving change: ${error.message}` }]
+                };
+            }
+        }
+    });
+
+    // Config Tools
+    server.addTool({
+        name: "openspec_config_get",
+        description: "Get a configuration value.",
+        parameters: z.object({
+            key: z.string().describe("Configuration key (dot notation)")
+        }),
+        execute: async (args) => {
+            try {
+                const value = getConfigValue(args.key);
+                return {
+                    content: [{ type: "text", text: JSON.stringify(value) }]
+                };
+            } catch (error: any) {
+                return {
+                    isError: true,
+                    content: [{ type: "text", text: `Error getting config: ${error.message}` }]
+                };
+            }
+        }
+    });
+
+    server.addTool({
+        name: "openspec_config_set",
+        description: "Set a configuration value.",
+        parameters: z.object({
+            key: z.string().describe("Configuration key (dot notation)"),
+            value: z.string().describe("Value to set"),
+            forceString: z.boolean().optional().describe("Force value to be stored as string"),
+            allowUnknown: z.boolean().optional().describe("Allow setting unknown keys")
+        }),
+        execute: async (args) => {
+            try {
+                const result = setConfigValue(args.key, args.value, { forceString: args.forceString, allowUnknown: args.allowUnknown });
+                return {
+                    content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
+                };
+            } catch (error: any) {
+                return {
+                    isError: true,
+                    content: [{ type: "text", text: `Error setting config: ${error.message}` }]
+                };
+            }
+        }
+    });
+    
+    server.addTool({
+        name: "openspec_config_list",
+        description: "List all configuration values.",
+        parameters: z.object({}),
+        execute: async () => {
+            try {
+                const config = getConfigList();
+                return {
+                    content: [{ type: "text", text: JSON.stringify(config, null, 2) }]
+                };
+            } catch (error: any) {
+                return {
+                    isError: true,
+                    content: [{ type: "text", text: `Error listing config: ${error.message}` }]
+                };
+            }
+        }
+    });
+
+    // Artifact Workflow Tools
+    server.addTool({
+        name: "openspec_artifact_status",
+        description: "Get status of artifacts in a change.",
+        parameters: z.object({
+            changeName: z.string().describe("Name of the change"),
+            schemaName: z.string().optional().describe("Schema override")
+        }),
+        execute: async (args) => {
+            try {
+                const status = await getArtifactStatus(process.cwd(), args.changeName, args.schemaName);
+                return {
+                    content: [{ type: "text", text: JSON.stringify(status, null, 2) }]
+                };
+            } catch (error: any) {
+                return {
+                    isError: true,
+                    content: [{ type: "text", text: `Error getting status: ${error.message}` }]
+                };
+            }
+        }
+    });
+
+    server.addTool({
+        name: "openspec_artifact_instructions",
+        description: "Get instructions for creating an artifact.",
+        parameters: z.object({
+            artifactId: z.string().describe("ID of the artifact"),
+            changeName: z.string().describe("Name of the change"),
+            schemaName: z.string().optional().describe("Schema override")
+        }),
+        execute: async (args) => {
+            try {
+                const instructions = await getArtifactInstructions(process.cwd(), args.artifactId, args.changeName, args.schemaName);
+                return {
+                    content: [{ type: "text", text: JSON.stringify(instructions, null, 2) }]
+                };
+            } catch (error: any) {
+                return {
+                    isError: true,
+                    content: [{ type: "text", text: `Error getting instructions: ${error.message}` }]
+                };
+            }
+        }
+    });
+
+    server.addTool({
+        name: "openspec_apply_instructions",
+        description: "Get instructions for applying tasks.",
+        parameters: z.object({
+            changeName: z.string().describe("Name of the change"),
+            schemaName: z.string().optional().describe("Schema override")
+        }),
+        execute: async (args) => {
+            try {
+                const instructions = await getApplyInstructions(process.cwd(), args.changeName, args.schemaName);
+                return {
+                    content: [{ type: "text", text: JSON.stringify(instructions, null, 2) }]
+                };
+            } catch (error: any) {
+                return {
+                    isError: true,
+                    content: [{ type: "text", text: `Error getting apply instructions: ${error.message}` }]
+                };
+            }
+        }
+    });
+
+    server.addTool({
+        name: "openspec_list_schemas",
+        description: "List available workflow schemas.",
+        parameters: z.object({}),
+        execute: async () => {
+            try {
+                const schemas = getAvailableSchemas();
+                return {
+                    content: [{ type: "text", text: JSON.stringify(schemas, null, 2) }]
+                };
+            } catch (error: any) {
+                return {
+                    isError: true,
+                    content: [{ type: "text", text: `Error listing schemas: ${error.message}` }]
                 };
             }
         }
