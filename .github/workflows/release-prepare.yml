@@ -40,6 +40,7 @@ jobs:
         with:
           title: 'chore(release): version packages'
           createGithubReleases: true
+          version: pnpm run ci:version
           # Use CI-specific release script: relies on version PR having been merged
           # so package.json already contains the bumped version.
           publish: pnpm run release:ci
