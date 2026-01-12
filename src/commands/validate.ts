@@ -4,6 +4,7 @@ import { Validator } from '../core/validation/validator.js';
 import { isInteractive, resolveNoInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds, getSpecIds } from '../utils/item-discovery.js';
 import { nearestMatches } from '../utils/match.js';
+import chalk from 'chalk';
 
 type ItemType = 'change' | 'spec';
 
@@ -155,6 +156,14 @@ export class ValidateCommand {
     }
     if (report.valid) {
       console.log(`${type === 'change' ? 'Change' : 'Specification'} '${id}' is valid`);
+      // Suggest next steps for valid changes
+      if (type === 'change') {
+        console.log();
+        console.log(chalk.bold('Next steps:'));
+        console.log(`  ${chalk.white('openspec show')} ${chalk.cyan(id)}           ${chalk.gray('# Inspect change details')}`);
+        console.log(`  ${chalk.white('openspec archive')} ${chalk.cyan(id)}        ${chalk.gray('# Archive when tasks are complete')}`);
+        console.log();
+      }
     } else {
       console.error(`${type === 'change' ? 'Change' : 'Specification'} '${id}' has issues`);
       for (const issue of report.issues) {

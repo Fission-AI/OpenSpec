@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { getViewData, DashboardData } from './view-logic.js';
+import { getViewData, DashboardData } from '../core/view-logic.js';
 
 export class ViewCommand {
   async execute(targetPath: string = '.'): Promise<void> {

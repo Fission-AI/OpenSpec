@@ -2,9 +2,9 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
 import chalk from 'chalk';
-import { runArchive, ArchiveResult } from './archive-logic.js';
-import { findSpecUpdates } from './specs-apply.js';
-import { resolveOpenSpecDir } from './path-resolver.js';
+import { runArchive, ArchiveResult } from '../core/archive-logic.js';
+import { findSpecUpdates } from '../core/specs-apply.js';
+import { resolveOpenSpecDir } from '../core/path-resolver.js';
 
 export class ArchiveCommand {
   async execute(

@@ -20,11 +20,11 @@ import {
   DEFAULT_OPENSPEC_DIR_NAME,
   OPENSPEC_MARKERS,
   AIToolOption,
-} from './config.js';
-import { PALETTE } from './styles/palette.js';
-import { runInit, InitResult, RootStubStatus } from './init-logic.js';
-import { ToolRegistry } from './configurators/registry.js';
-import { SlashCommandRegistry } from './configurators/slash/registry.js';
+} from '../core/config.js';
+import { PALETTE } from '../core/styles/palette.js';
+import { runInit, InitResult, RootStubStatus } from '../core/init-logic.js';
+import { ToolRegistry } from '../core/configurators/registry.js';
+import { SlashCommandRegistry } from '../core/configurators/slash/registry.js';
 
 const PROGRESS_SPINNER = {
   interval: 80,
@@ -65,7 +65,7 @@ const isSelectableChoice = (
   choice: ToolWizardChoice
 ): choice is Extract<ToolWizardChoice, { selectable: true }> => choice.selectable;
 
-type ToolWizardChoice =
+type ToolWizardChoice = 
   | {
       kind: 'heading' | 'info';
       value: string;
@@ -626,7 +626,7 @@ export class InitCommand {
         selectable: true,
       })),
       ...(availableTools.length
-        ? ([
+        ? ([ 
             {
               kind: 'info' as const,
               value: LIST_SPACER_VALUE,
@@ -765,9 +765,7 @@ export class InitCommand {
         '   "I want to add [YOUR FEATURE HERE]. Please create an'
       )
     );
-    console.log(
-      PALETTE.lightGray('    OpenSpec change proposal for this feature"\n')
-    );
+    console.log(PALETTE.lightGray('    OpenSpec change proposal for this feature"\n'));
     console.log(PALETTE.white('3. Learn the OpenSpec workflow:'));
     console.log(
       PALETTE.lightGray(
@@ -806,7 +804,7 @@ export class InitCommand {
     const base = names.slice(0, -1).map((name) => PALETTE.white(name));
     const last = PALETTE.white(names[names.length - 1]);
 
-    return `${base.join(PALETTE.midGray(', '))}${
+    return `${base.join(PALETTE.midGray(', '))}${ 
       base.length ? PALETTE.midGray(', and ') : ''
     }${last}`;
   }
@@ -846,4 +844,3 @@ export class InitCommand {
     }).start();
   }
 }
-

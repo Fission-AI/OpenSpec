@@ -1,6 +1,6 @@
 import path from 'path';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { runUpdate, UpdateResult } from './update-logic.js';
+import { runUpdate, UpdateResult } from '../core/update-logic.js';
 
 export class UpdateCommand {
   async execute(projectPath: string): Promise<void> {

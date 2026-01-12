@@ -4,10 +4,10 @@ import ora from 'ora';
 import path from 'path';
 import { promises as fs } from 'fs';
 import { AI_TOOLS } from '../core/config.js';
-import { UpdateCommand } from '../core/update.js';
-import { ListCommand } from '../core/list.js';
-import { ArchiveCommand } from '../core/archive.js';
-import { ViewCommand } from '../core/view.js';
+import { UpdateCommand } from '../commands/update.js';
+import { ListCommand } from '../commands/list.js';
+import { ArchiveCommand } from '../commands/archive.js';
+import { ViewCommand } from '../commands/view.js';
 import { registerSpecCommand } from '../commands/spec.js';
 import { ChangeCommand } from '../commands/change.js';
 import { ValidateCommand } from '../commands/validate.js';
@@ -65,7 +65,7 @@ program
         }
       }
       
-      const { InitCommand } = await import('../core/init.js');
+      const { InitCommand } = await import('../commands/init.js');
       const initCommand = new InitCommand({
         tools: options?.tools,
       });
@@ -261,7 +261,6 @@ program
   .option('--no-scenarios', 'JSON only: Exclude scenario content')
   .option('-r, --requirement <id>', 'JSON only: Show specific requirement by ID (1-based)')
   // allow unknown options to pass-through to underlying command implementation
-  .allowUnknownOption(true)
   .action(async (itemName?: string, options?: { json?: boolean; type?: string; noInteractive?: boolean; [k: string]: any }) => {
     try {
       const showCommand = new ShowCommand();
