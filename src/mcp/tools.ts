@@ -1,17 +1,17 @@
 import { FastMCP } from 'fastmcp';
 import { z } from 'zod';
 import { listChanges, listSpecs } from '../core/list.js';
-import { SpecCommand } from '../commands/spec.js';
 import { Validator } from '../core/validation/validator.js';
 import { resolveOpenSpecDir } from '../core/path-resolver.js';
 import { runInit } from '../core/init-logic.js';
 import { runUpdate } from '../core/update-logic.js';
 import { runArchive } from '../core/archive-logic.js';
 import { runCreateChange, getChangeMarkdown, getChangeJson } from '../core/change-logic.js';
+import { getSpecMarkdown, getSpecJson } from '../core/spec-logic.js';
 import { getViewData } from '../core/view-logic.js';
 import { runBulkValidation } from '../core/validation-logic.js';
-import { getConfigList, getConfigValue, setConfigValue, unsetConfigValue, resetConfig } from '../core/config-logic.js';
-import { getArtifactStatus, getArtifactInstructions, getApplyInstructions, getTemplatePaths, getAvailableSchemas } from '../core/artifact-logic.js';
+import { getConfigValue, setConfigValue, getConfigList } from '../core/config-logic.js';
+import { getArtifactStatus, getArtifactInstructions, getApplyInstructions, getAvailableSchemas } from '../core/artifact-logic.js';
 import path from 'path';
 
 export function registerTools(server: FastMCP) {
@@ -170,12 +170,11 @@ export function registerTools(server: FastMCP) {
         }),
         execute: async (args) => {
             try {
-                const cmd = new SpecCommand();
                 if (args.format === 'markdown') {
-                    const content = await cmd.getSpecMarkdown(args.id);
+                    const content = await getSpecMarkdown(process.cwd(), args.id);
                     return { content: [{ type: "text", text: content }] };
                 }
-                const data = await cmd.getSpecJson(args.id);
+                const data = await getSpecJson(process.cwd(), args.id);
                 return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
             } catch (error: any) {
                 return {

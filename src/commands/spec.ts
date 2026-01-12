@@ -1,95 +1,30 @@
 import { program } from 'commander';
-import { existsSync, readdirSync, readFileSync } from 'fs';
-import { join } from 'path';
-import { MarkdownParser } from '../core/parsers/markdown-parser.js';
 import { Validator } from '../core/validation/validator.js';
-import type { Spec } from '../core/schemas/index.js';
 import { isInteractive } from '../utils/interactive.js';
-import { getSpecIds } from '../utils/item-discovery.js';
 import { resolveOpenSpecDir } from '../core/path-resolver.js';
-import fs from 'fs';
-
-const SPECS_DIR = 'openspec/specs';
-
-interface ShowOptions {
-  json?: boolean;
-  // JSON-only filters (raw-first text has no filters)
-  requirements?: boolean;
-  scenarios?: boolean; // --no-scenarios sets this to false (JSON only)
-  requirement?: string; // JSON only
-  noInteractive?: boolean;
-}
-
-function parseSpecFromFile(specPath: string, specId: string): Spec {
-  const content = readFileSync(specPath, 'utf-8');
-  const parser = new MarkdownParser(content);
-  return parser.parseSpec(specId);
-}
-
-function validateRequirementIndex(spec: Spec, requirementOpt?: string): number | undefined {
-  if (!requirementOpt) return undefined;
-  const index = Number.parseInt(requirementOpt, 10);
-  if (!Number.isInteger(index) || index < 1 || index > spec.requirements.length) {
-    throw new Error(`Requirement ${requirementOpt} not found`);
-  }
-  return index - 1; // convert to 0-based
-}
-
-function filterSpec(spec: Spec, options: ShowOptions): Spec {
-  const requirementIndex = validateRequirementIndex(spec, options.requirement);
-  const includeScenarios = options.scenarios !== false && !options.requirements;
-
-  const filteredRequirements = (requirementIndex !== undefined
-    ? [spec.requirements[requirementIndex]]
-    : spec.requirements
-  ).map(req => ({
-    text: req.text,
-    scenarios: includeScenarios ? req.scenarios : [],
-  }));
-
-  const metadata = spec.metadata ?? { version: '1.0.0', format: 'openspec' as const };
-
-  return {
-    name: spec.name,
-    overview: spec.overview,
-    requirements: filteredRequirements,
-    metadata,
-  };
-}
+import { FileSystemUtils } from '../utils/file-system.js';
+import path from 'path';
+import { 
+    getSpecMarkdown, 
+    getSpecJson, 
+    getSpecIds, 
+    getSpecDetails, 
+    ShowOptions 
+} from '../core/spec-logic.js';
 
 export class SpecCommand {
   async getSpecMarkdown(specId: string): Promise<string> {
-    const openspecPath = await resolveOpenSpecDir(process.cwd());
-    const specPath = join(openspecPath, 'specs', specId, 'spec.md');
-    if (!existsSync(specPath)) {
-        throw new Error(`Spec '${specId}' not found at ${specPath}`);
-    }
-    return readFileSync(specPath, 'utf-8');
+      return getSpecMarkdown(process.cwd(), specId);
   }
 
   async getSpecJson(specId: string, options: ShowOptions = {}): Promise<any> {
-    const openspecPath = await resolveOpenSpecDir(process.cwd());
-    const specPath = join(openspecPath, 'specs', specId, 'spec.md');
-    if (!existsSync(specPath)) {
-        throw new Error(`Spec '${specId}' not found at ${specPath}`);
-    }
-
-    const parsed = parseSpecFromFile(specPath, specId);
-    const filtered = filterSpec(parsed, options);
-    return {
-      id: specId,
-      title: parsed.name,
-      overview: parsed.overview,
-      requirementCount: filtered.requirements.length,
-      requirements: filtered.requirements,
-      metadata: parsed.metadata ?? { version: '1.0.0', format: 'openspec' as const },
-    };
+      return getSpecJson(process.cwd(), specId, options);
   }
 
   async show(specId?: string, options: ShowOptions = {}): Promise<void> {
     if (!specId) {
       const canPrompt = isInteractive(options);
-      const specIds = await getSpecIds();
+      const specIds = await getSpecIds(process.cwd());
       if (canPrompt && specIds.length > 0) {
         const { select } = await import('@inquirer/prompts');
         specId = await select({
@@ -149,54 +84,30 @@ export function registerSpecCommand(rootProgram: typeof program) {
     .option('--long', 'Show id and title with counts')
     .action(async (options: { json?: boolean; long?: boolean }) => {
       try {
-        const openspecPath = await resolveOpenSpecDir(process.cwd());
-        const specsDir = join(openspecPath, 'specs');
+        const ids = await getSpecIds(process.cwd());
         
-        if (!existsSync(specsDir)) {
-          console.log('No items found');
-          return;
-        }
-
-        const specs = readdirSync(specsDir, { withFileTypes: true })
-          .filter(dirent => dirent.isDirectory())
-          .map(dirent => {
-            const specPath = join(specsDir, dirent.name, 'spec.md');
-            if (existsSync(specPath)) {
-              try {
-                const spec = parseSpecFromFile(specPath, dirent.name);
-                
-                return {
-                  id: dirent.name,
-                  title: spec.name,
-                  requirementCount: spec.requirements.length
-                };
-              } catch {
-                return {
-                  id: dirent.name,
-                  title: dirent.name,
-                  requirementCount: 0
-                };
-              }
-            }
-            return null;
-          })
-          .filter((spec): spec is { id: string; title: string; requirementCount: number } => spec !== null)
-          .sort((a, b) => a.id.localeCompare(b.id));
-
-        if (options.json) {
-          console.log(JSON.stringify(specs, null, 2));
-        } else {
-          if (specs.length === 0) {
+        if (ids.length === 0) {
             console.log('No items found');
             return;
-          }
+        }
+
+        if (options.json) {
+            const specs = await Promise.all(ids.map(id => getSpecDetails(process.cwd(), id)));
+            console.log(JSON.stringify(specs, null, 2));
+        } else {
           if (!options.long) {
-            specs.forEach(spec => console.log(spec.id));
+            ids.forEach(id => console.log(id));
             return;
           }
-          specs.forEach(spec => {
-            console.log(`${spec.id}: ${spec.title} [requirements ${spec.requirementCount}]`);
-          });
+          
+          for (const id of ids) {
+              try {
+                  const spec = await getSpecDetails(process.cwd(), id);
+                  console.log(`${spec.id}: ${spec.title} [requirements ${spec.requirementCount}]`);
+              } catch {
+                  console.log(`${id}: (unable to read)`);
+              }
+          }
         }
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -214,7 +125,7 @@ export function registerSpecCommand(rootProgram: typeof program) {
       try {
         if (!specId) {
           const canPrompt = isInteractive(options);
-          const specIds = await getSpecIds();
+          const specIds = await getSpecIds(process.cwd());
           if (canPrompt && specIds.length > 0) {
             const { select } = await import('@inquirer/prompts');
             specId = await select({
@@ -227,9 +138,9 @@ export function registerSpecCommand(rootProgram: typeof program) {
         }
 
         const openspecPath = await resolveOpenSpecDir(process.cwd());
-        const specPath = join(openspecPath, 'specs', specId, 'spec.md');
+        const specPath = path.join(openspecPath, 'specs', specId, 'spec.md');
         
-        if (!existsSync(specPath)) {
+        if (!(await FileSystemUtils.fileExists(specPath))) {
           throw new Error(`Spec '${specId}' not found at ${specPath}`);
         }
 
