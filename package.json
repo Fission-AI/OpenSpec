@@ -54,13 +54,13 @@
     "check:pack-version": "node scripts/pack-version-check.mjs",
     "release": "pnpm run release:ci",
     "release:ci": "pnpm run check:pack-version && pnpm exec changeset publish",
-    "release:local": "pnpm exec changeset version && pnpm run check:pack-version && pnpm exec changeset publish",
     "changeset": "changeset"
   },
   "engines": {
     "node": ">=20.19.0"
   },
   "devDependencies": {
+    "@changesets/changelog-github": "^0.5.2",
     "@changesets/cli": "^2.27.7",
     "@types/node": "^24.2.0",
     "@vitest/ui": "^3.2.4",
