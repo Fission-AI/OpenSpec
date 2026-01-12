@@ -69,3 +69,17 @@ The MCP server SHALL provide prompts that prioritize MCP tools while maintaining
 - **THEN** the instructions SHALL explicitly list MCP tool calls as the primary action (e.g., "Use openspec_list_changes to view state")
 - **AND** the instructions MAY provide the CLI equivalent for reference.
 
+### Requirement: Test Coverage
+The MCP server SHALL have dedicated unit and integration tests.
+
+#### Scenario: Tool Testing
+- **WHEN** running tests
+- **THEN** verify that all exposed tools perform their intended core logic invocations.
+
+#### Scenario: Resource Testing
+- **WHEN** running tests
+- **THEN** verify that resources are correctly listed and readable.
+
+#### Scenario: Prompt Testing
+- **WHEN** running tests
+- **THEN** verify that prompts are correctly exposed and populated.
