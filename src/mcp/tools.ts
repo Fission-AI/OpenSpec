@@ -1,17 +1,16 @@
 import { FastMCP } from 'fastmcp';
 import { z } from 'zod';
 import { listChanges, listSpecs } from '../core/list.js';
-import { ChangeCommand } from '../commands/change.js';
 import { SpecCommand } from '../commands/spec.js';
 import { Validator } from '../core/validation/validator.js';
 import { resolveOpenSpecDir } from '../core/path-resolver.js';
 import { runInit } from '../core/init-logic.js';
 import { runUpdate } from '../core/update-logic.js';
 import { runArchive } from '../core/archive-logic.js';
-import { runCreateChange } from '../core/change-logic.js';
+import { runCreateChange, getChangeMarkdown, getChangeJson } from '../core/change-logic.js';
 import { getViewData } from '../core/view-logic.js';
 import { runBulkValidation } from '../core/validation-logic.js';
-import { getConfigPath, getConfigList, getConfigValue, setConfigValue, unsetConfigValue, resetConfig } from '../core/config-logic.js';
+import { getConfigList, getConfigValue, setConfigValue, unsetConfigValue, resetConfig } from '../core/config-logic.js';
 import { getArtifactStatus, getArtifactInstructions, getApplyInstructions, getTemplatePaths, getAvailableSchemas } from '../core/artifact-logic.js';
 import path from 'path';
 
@@ -147,12 +146,11 @@ export function registerTools(server: FastMCP) {
         }),
         execute: async (args) => {
             try {
-                const cmd = new ChangeCommand();
                 if (args.format === 'markdown') {
-                    const content = await cmd.getChangeMarkdown(args.name);
+                    const content = await getChangeMarkdown(process.cwd(), args.name);
                     return { content: [{ type: "text", text: content }] };
                 }
-                const data = await cmd.getChangeJson(args.name);
+                const data = await getChangeJson(process.cwd(), args.name);
                 return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
             } catch (error: any) {
                 return {
