@@ -81,7 +81,28 @@ See the full comparison in [How OpenSpec Compares](#how-openspec-compares).
 4. Archive the change to merge the approved updates back into the source-of-truth specs.
 ```
 
-## Getting Started
+## Integration Modes
+
+OpenSpec supports two primary integration modes for AI agents:
+
+1.  **Native MCP (Recommended)**: Use OpenSpec as an MCP server (e.g., via the Gemini CLI extension). This enables a **zero-install workflow** where agents can manage OpenSpec without requiring the npm package to be installed in the environment. Add it to your MCP host (like Claude Desktop) using this snippet:
+
+    ```json
+    {
+      "mcpServers": {
+        "openspec": {
+          "command": "npx",
+          "args": ["-y", "@fission-ai/openspec@latest", "serve"]
+        }
+      }
+    }
+    ```
+
+2.  **CLI Wrapper**: Agents call the `openspec` command-line tool directly. This requires the `@fission-ai/openspec` package to be installed globally or locally.
+
+---
+
+## 🚀 Quick Start
 
 ### Supported AI Tools
 
