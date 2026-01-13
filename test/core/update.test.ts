@@ -133,7 +133,7 @@ Old slash content
     expect(updated).toContain('name: OpenSpec: Proposal');
     expect(updated).toContain('**Guardrails**');
     expect(updated).toContain(
-      'Validate with `openspec validate <id> --strict`'
+      'Validate with `openspec validate <id> --strict --no-interactive`'
     );
     expect(updated).not.toContain('Old slash content');
 
@@ -317,7 +317,7 @@ Old slash content
     expect(updated).toContain('# OpenSpec: Proposal');
     expect(updated).toContain('**Guardrails**');
     expect(updated).toContain(
-      'Validate with `openspec validate <id> --strict`'
+      'Validate with `openspec validate <id> --strict --no-interactive`'
     );
     expect(updated).not.toContain('Old slash content');
 
@@ -1007,7 +1007,7 @@ Old slash content
     expect(updated).toContain('name: OpenSpec: Proposal');
     expect(updated).toContain('**Guardrails**');
     expect(updated).toContain(
-      'Validate with `openspec validate <id> --strict`'
+      'Validate with `openspec validate <id> --strict --no-interactive`'
     );
     expect(updated).not.toContain('Old slash content');
 
@@ -1085,7 +1085,7 @@ Old slash content
     expect(updated).toContain('name: OpenSpec: Proposal');
     expect(updated).toContain('**Guardrails**');
     expect(updated).toContain(
-      'Validate with `openspec validate <id> --strict`'
+      'Validate with `openspec validate <id> --strict --no-interactive`'
     );
     expect(updated).not.toContain('Old slash content');
 
@@ -1163,7 +1163,7 @@ Old body
     expect(updated).toContain('argument-hint: old-hint');
     expect(updated).toContain('**Guardrails**');
     expect(updated).toContain(
-      'Validate with `openspec validate <id> --strict`'
+      'Validate with `openspec validate <id> --strict --no-interactive`'
     );
     expect(updated).not.toContain('Old body');
 
@@ -1204,7 +1204,7 @@ Old slash content
     expect(updated).toContain('name: OpenSpec: Proposal');
     expect(updated).toContain('**Guardrails**');
     expect(updated).toContain(
-      'Validate with `openspec validate <id> --strict`'
+      'Validate with `openspec validate <id> --strict --no-interactive`'
     );
     expect(updated).not.toContain('Old slash content');
 
@@ -1244,7 +1244,7 @@ Old body
     expect(updated).toContain('# OpenSpec: Proposal');
     expect(updated).toContain('**Guardrails**');
     expect(updated).toContain(
-      'Validate with `openspec validate <id> --strict`'
+      'Validate with `openspec validate <id> --strict --no-interactive`'
     );
     expect(updated).not.toContain('Old body');
 
@@ -1431,7 +1431,7 @@ More instructions after.`;
     expect(updated).toContain('## Custom Intro Title');
     expect(updated).toContain('Footer stays');
     expect(updated).not.toContain('Old body');
-    expect(updated).toContain('Validate with `openspec validate <id> --strict`');
+    expect(updated).toContain('Validate with `openspec validate <id> --strict --no-interactive`');
   });
 
   it('should handle configurator errors gracefully for CoStrict', async () => {
@@ -1487,7 +1487,7 @@ More instructions after.`;
     expect(updated).toContain('## Custom Intro Title');
     expect(updated).toContain('Footer stays');
     expect(updated).not.toContain('Old body');
-    expect(updated).toContain('Validate with `openspec validate <id> --strict`');
+    expect(updated).toContain('Validate with `openspec validate <id> --strict --no-interactive`');
   });
 
   it('should not create missing Windsurf workflows on update', async () => {
