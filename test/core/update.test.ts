@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { UpdateCommand } from '../../src/core/update.js';
+import { runUpdate } from '../../src/core/update-logic.js';
+import { UpdateCommand } from '../../src/commands/update.js';
 import { FileSystemUtils } from '../../src/utils/file-system.js';
 import { ToolRegistry } from '../../src/core/configurators/registry.js';
 import path from 'path';
@@ -7,13 +8,12 @@ import fs from 'fs/promises';
 import os from 'os';
 import { randomUUID } from 'crypto';
 
-describe('UpdateCommand', () => {
+describe('runUpdate', () => {
   let testDir: string;
   let updateCommand: UpdateCommand;
   let prevCodexHome: string | undefined;
 
   beforeEach(async () => {
-    // Create a temporary test directory
     testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
     await fs.mkdir(testDir, { recursive: true });
 
@@ -29,48 +29,30 @@ describe('UpdateCommand', () => {
   });
 
   afterEach(async () => {
-    // Clean up test directory
     await fs.rm(testDir, { recursive: true, force: true });
     if (prevCodexHome === undefined) delete process.env.CODEX_HOME;
     else process.env.CODEX_HOME = prevCodexHome;
+    vi.restoreAllMocks();
   });
 
-  it('should update only existing CLAUDE.md file', async () => {
-    // Create CLAUDE.md file with initial content
-    const claudePath = path.join(testDir, 'CLAUDE.md');
-    const initialContent = `# Project Instructions
+  it('should fail if OpenSpec is not initialized', async () => {
+    // Remove openspec directory from beforeEach
+    await fs.rm(path.join(testDir, 'openspec'), { recursive: true, force: true });
+    await expect(runUpdate(testDir)).rejects.toThrow(/No OpenSpec directory found/);
+  });
 
-Some existing content here.
-
-<!-- OPENSPEC:START -->
-Old OpenSpec content
-<!-- OPENSPEC:END -->
-
-More content after.`;
-    await fs.writeFile(claudePath, initialContent);
-
-    const consoleSpy = vi.spyOn(console, 'log');
-
-    // Execute update command
-    await updateCommand.execute(testDir);
-
-    // Check that CLAUDE.md was updated
-    const updatedContent = await fs.readFile(claudePath, 'utf-8');
-    expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
-    expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
-    expect(updatedContent).toContain("@/openspec/AGENTS.md");
-    expect(updatedContent).toContain('openspec update');
-    expect(updatedContent).toContain('Some existing content here');
-    expect(updatedContent).toContain('More content after');
-
-    // Check console output
-    const [logMessage] = consoleSpy.mock.calls[0];
-    expect(logMessage).toContain(
-      'Updated OpenSpec instructions (openspec/AGENTS.md'
-    );
-    expect(logMessage).toContain('AGENTS.md (created)');
-    expect(logMessage).toContain('Updated AI tool files: CLAUDE.md');
-    consoleSpy.mockRestore();
+  it('should update AGENTS.md', async () => {
+    // Remove openspec directory from beforeEach
+    await fs.rm(path.join(testDir, 'openspec'), { recursive: true, force: true });
+    
+    const openspecPath = path.join(testDir, '.openspec');
+    await fs.mkdir(openspecPath, { recursive: true });
+    
+    const result = await runUpdate(testDir);
+    
+    expect(result.updatedFiles).toContain('AGENTS.md');
+    const agentsContent = await fs.readFile(path.join(openspecPath, 'AGENTS.md'), 'utf-8');
+    expect(agentsContent).toContain('# OpenSpec Instructions');
   });
 
   it('should update only existing QWEN.md file', async () => {

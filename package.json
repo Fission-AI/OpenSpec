@@ -52,8 +52,11 @@
     "prepublishOnly": "pnpm run build",
     "postinstall": "node scripts/postinstall.js",
     "check:pack-version": "node scripts/pack-version-check.mjs",
+    "sync-extension-version": "node scripts/sync-extension-version.mjs",
+    "ci:version": "changeset version && pnpm run sync-extension-version",
     "release": "pnpm run release:ci",
     "release:ci": "pnpm run check:pack-version && pnpm exec changeset publish",
+    "release:local": "pnpm run ci:version && pnpm run check:pack-version && pnpm exec changeset publish",
     "changeset": "changeset"
   },
   "engines": {
@@ -75,6 +78,7 @@
     "chalk": "^5.5.0",
     "commander": "^14.0.0",
     "fast-glob": "^3.3.3",
+    "fastmcp": "^3.26.8",
     "ora": "^8.2.0",
     "posthog-node": "^5.20.0",
     "yaml": "^2.8.2",

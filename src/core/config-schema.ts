@@ -213,12 +213,16 @@ export function formatValueYaml(value: unknown, indent: number = 0): string {
  * Validate a configuration object against the schema.
  *
  * @param config - The configuration to validate
- * @returns Validation result with success status and optional error message
+ * @returns Validation result with success status, optional error message, and parsed data
  */
-export function validateConfig(config: unknown): { success: boolean; error?: string } {
+export function validateConfig(config: unknown): {
+  success: boolean;
+  error?: string;
+  data?: GlobalConfigType;
+} {
   try {
-    GlobalConfigSchema.parse(config);
-    return { success: true };
+    const data = GlobalConfigSchema.parse(config);
+    return { success: true, data };
   } catch (error) {
     if (error instanceof z.ZodError) {
       const zodError = error as z.ZodError;

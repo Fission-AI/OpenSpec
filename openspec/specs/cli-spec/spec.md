@@ -85,3 +85,11 @@ The spec validate command SHALL support interactive selection when no spec-id is
 - **AND** print the existing error message for missing spec-id
 - **AND** set non-zero exit code
 
+### Requirement: Serve Command
+The system SHALL provide a `serve` command to start the Model Context Protocol (MCP) server.
+
+#### Scenario: Start MCP Server
+- **WHEN** executing `openspec serve`
+- **THEN** start the MCP server using stdio transport
+- **AND** keep the process alive to handle requests
+

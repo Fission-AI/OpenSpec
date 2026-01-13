@@ -7,7 +7,6 @@
 
 import { promises as fs } from 'fs';
 import path from 'path';
-import chalk from 'chalk';
 import {
   extractRequirementsSection,
   parseDeltaSpec,
@@ -44,6 +43,7 @@ export interface SpecsApplyOutput {
     renamed: number;
   };
   noChanges: boolean;
+  ignoredRemovals: Array<{ specName: string; count: number }>;
 }
 
 // -----------------------------------------------------------------------------
@@ -101,7 +101,7 @@ export async function findSpecUpdates(changeDir: string, mainSpecsDir: string): 
 export async function buildUpdatedSpec(
   update: SpecUpdate,
   changeName: string
-): Promise<{ rebuilt: string; counts: { added: number; modified: number; removed: number; renamed: number } }> {
+): Promise<{ rebuilt: string; counts: { added: number; modified: number; removed: number; renamed: number }; ignoredRemovals: number }> {
   // Read change spec content (delta-format expected)
   const changeContent = await fs.readFile(update.source, 'utf-8');
 
@@ -201,24 +201,18 @@ export async function buildUpdatedSpec(
   // Load or create base target content
   let targetContent: string;
   let isNewSpec = false;
+  let ignoredRemovals = 0;
   try {
     targetContent = await fs.readFile(update.target, 'utf-8');
   } catch {
     // Target spec does not exist; MODIFIED and RENAMED are not allowed for new specs
-    // REMOVED will be ignored with a warning since there's nothing to remove
+    // REMOVED will be ignored since there's nothing to remove
     if (plan.modified.length > 0 || plan.renamed.length > 0) {
       throw new Error(
         `${specName}: target spec does not exist; only ADDED requirements are allowed for new specs. MODIFIED and RENAMED operations require an existing spec.`
       );
     }
-    // Warn about REMOVED requirements being ignored for new specs
-    if (plan.removed.length > 0) {
-      console.log(
-        chalk.yellow(
-          `⚠️  Warning: ${specName} - ${plan.removed.length} REMOVED requirement(s) ignored for new spec (nothing to remove).`
-        )
-      );
-    }
+    ignoredRemovals = plan.removed.length;
     isNewSpec = true;
     targetContent = buildSpecSkeleton(specName, changeName);
   }
@@ -258,7 +252,6 @@ export async function buildUpdatedSpec(
   for (const name of plan.removed) {
     const key = normalizeRequirementName(name);
     if (!nameToBlock.has(key)) {
-      // For new specs, REMOVED requirements are already warned about and ignored
       // For existing specs, missing requirements are an error
       if (!isNewSpec) {
         throw new Error(`${specName} REMOVED failed for header "### Requirement: ${name}" - not found`);
@@ -293,8 +286,6 @@ export async function buildUpdatedSpec(
     }
     nameToBlock.set(key, add);
   }
-
-  // Duplicates within resulting map are implicitly prevented by key uniqueness.
 
   // Recompose requirements section preserving original ordering where possible
   const keptOrder: RequirementBlock[] = [];
@@ -333,6 +324,7 @@ export async function buildUpdatedSpec(
       removed: plan.removed.length,
       renamed: plan.renamed.length,
     },
+    ignoredRemovals
   };
 }
 
@@ -341,20 +333,12 @@ export async function buildUpdatedSpec(
  */
 export async function writeUpdatedSpec(
   update: SpecUpdate,
-  rebuilt: string,
-  counts: { added: number; modified: number; removed: number; renamed: number }
+  rebuilt: string
 ): Promise<void> {
   // Create target directory if needed
   const targetDir = path.dirname(update.target);
   await fs.mkdir(targetDir, { recursive: true });
   await fs.writeFile(update.target, rebuilt);
-
-  const specName = path.basename(path.dirname(update.target));
-  console.log(`Applying changes to openspec/specs/${specName}/spec.md:`);
-  if (counts.added) console.log(`  + ${counts.added} added`);
-  if (counts.modified) console.log(`  ~ ${counts.modified} modified`);
-  if (counts.removed) console.log(`  - ${counts.removed} removed`);
-  if (counts.renamed) console.log(`  → ${counts.renamed} renamed`);
 }
 
 /**
@@ -367,11 +351,6 @@ export function buildSpecSkeleton(specFolderName: string, changeName: string): s
 
 /**
  * Apply all delta specs from a change to main specs.
- *
- * @param projectRoot - The project root directory
- * @param changeName - The name of the change to apply
- * @param options - Options for the operation
- * @returns Result of the operation with counts
  */
 export async function applySpecs(
   projectRoot: string,
@@ -379,7 +358,6 @@ export async function applySpecs(
   options: {
     dryRun?: boolean;
     skipValidation?: boolean;
-    silent?: boolean;
   } = {}
 ): Promise<SpecsApplyOutput> {
   const changeDir = path.join(projectRoot, 'openspec', 'changes', changeName);
@@ -404,6 +382,7 @@ export async function applySpecs(
       capabilities: [],
       totals: { added: 0, modified: 0, removed: 0, renamed: 0 },
       noChanges: true,
+      ignoredRemovals: []
     };
   }
 
@@ -412,11 +391,12 @@ export async function applySpecs(
     update: SpecUpdate;
     rebuilt: string;
     counts: { added: number; modified: number; removed: number; renamed: number };
+    ignoredRemovals: number;
   }> = [];
 
   for (const update of specUpdates) {
     const built = await buildUpdatedSpec(update, changeName);
-    prepared.push({ update, rebuilt: built.rebuilt, counts: built.counts });
+    prepared.push({ update, rebuilt: built.rebuilt, counts: built.counts, ignoredRemovals: built.ignoredRemovals });
   }
 
   // Validate rebuilt specs unless validation is skipped
@@ -438,29 +418,13 @@ export async function applySpecs(
   // Build results
   const capabilities: ApplyResult[] = [];
   const totals = { added: 0, modified: 0, removed: 0, renamed: 0 };
+  const ignoredRemovals: Array<{ specName: string; count: number }> = [];
 
   for (const p of prepared) {
     const capability = path.basename(path.dirname(p.update.target));
 
     if (!options.dryRun) {
-      // Write the updated spec
-      const targetDir = path.dirname(p.update.target);
-      await fs.mkdir(targetDir, { recursive: true });
-      await fs.writeFile(p.update.target, p.rebuilt);
-
-      if (!options.silent) {
-        console.log(`Applying changes to openspec/specs/${capability}/spec.md:`);
-        if (p.counts.added) console.log(`  + ${p.counts.added} added`);
-        if (p.counts.modified) console.log(`  ~ ${p.counts.modified} modified`);
-        if (p.counts.removed) console.log(`  - ${p.counts.removed} removed`);
-        if (p.counts.renamed) console.log(`  → ${p.counts.renamed} renamed`);
-      }
-    } else if (!options.silent) {
-      console.log(`Would apply changes to openspec/specs/${capability}/spec.md:`);
-      if (p.counts.added) console.log(`  + ${p.counts.added} added`);
-      if (p.counts.modified) console.log(`  ~ ${p.counts.modified} modified`);
-      if (p.counts.removed) console.log(`  - ${p.counts.removed} removed`);
-      if (p.counts.renamed) console.log(`  → ${p.counts.renamed} renamed`);
+      await writeUpdatedSpec(p.update, p.rebuilt);
     }
 
     capabilities.push({
@@ -472,6 +436,9 @@ export async function applySpecs(
     totals.modified += p.counts.modified;
     totals.removed += p.counts.removed;
     totals.renamed += p.counts.renamed;
+    if (p.ignoredRemovals > 0) {
+        ignoredRemovals.push({ specName: capability, count: p.ignoredRemovals });
+    }
   }
 
   return {
@@ -479,5 +446,6 @@ export async function applySpecs(
     capabilities,
     totals,
     noChanges: false,
+    ignoredRemovals
   };
 }

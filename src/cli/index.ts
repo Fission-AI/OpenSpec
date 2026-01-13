@@ -4,10 +4,10 @@ import ora from 'ora';
 import path from 'path';
 import { promises as fs } from 'fs';
 import { AI_TOOLS } from '../core/config.js';
-import { UpdateCommand } from '../core/update.js';
-import { ListCommand } from '../core/list.js';
-import { ArchiveCommand } from '../core/archive.js';
-import { ViewCommand } from '../core/view.js';
+import { UpdateCommand } from '../commands/update.js';
+import { ListCommand } from '../commands/list.js';
+import { ArchiveCommand } from '../commands/archive.js';
+import { ViewCommand } from '../commands/view.js';
 import { registerSpecCommand } from '../commands/spec.js';
 import { ChangeCommand } from '../commands/change.js';
 import { ValidateCommand } from '../commands/validate.js';
@@ -15,6 +15,7 @@ import { ShowCommand } from '../commands/show.js';
 import { CompletionCommand } from '../commands/completion.js';
 import { registerConfigCommand } from '../commands/config.js';
 import { registerArtifactWorkflowCommands } from '../commands/artifact-workflow.js';
+import { ServeCommand } from '../commands/serve.js';
 import { maybeShowTelemetryNotice, trackCommand, shutdown } from '../telemetry/index.js';
 
 const program = new Command();
@@ -100,7 +101,7 @@ program
         }
       }
       
-      const { InitCommand } = await import('../core/init.js');
+      const { InitCommand } = await import('../commands/init.js');
       const initCommand = new InitCommand({
         tools: options?.tools,
       });
@@ -123,6 +124,21 @@ program
     } catch (error) {
       console.log(); // Empty line for spacing
       ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('serve')
+  .description('Start the OpenSpec MCP server (stdio)')
+  .action(async () => {
+    try {
+      const serveCommand = new ServeCommand();
+      await serveCommand.execute();
+    } catch (error) {
+      // Use console.error for MCP server errors to avoid contaminating stdout if possible,
+      // though fastmcp might handle this.
+      console.error(`Error: ${(error as Error).message}`);
       process.exit(1);
     }
   });
@@ -281,7 +297,6 @@ program
   .option('--no-scenarios', 'JSON only: Exclude scenario content')
   .option('-r, --requirement <id>', 'JSON only: Show specific requirement by ID (1-based)')
   // allow unknown options to pass-through to underlying command implementation
-  .allowUnknownOption(true)
   .action(async (itemName?: string, options?: { json?: boolean; type?: string; noInteractive?: boolean; [k: string]: any }) => {
     try {
       const showCommand = new ShowCommand();

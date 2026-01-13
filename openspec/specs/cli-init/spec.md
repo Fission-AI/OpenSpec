@@ -19,13 +19,13 @@ The command SHALL display progress indicators during initialization to provide c
   - Then success: "✔ AI tools configured"
 
 ### Requirement: Directory Creation
-The command SHALL create the complete OpenSpec directory structure with all required directories and files.
+The command SHALL create the complete OpenSpec directory structure in a hidden directory `.openspec/` to reduce clutter.
 
 #### Scenario: Creating OpenSpec structure
 - **WHEN** `openspec init` is executed
 - **THEN** create the following directory structure:
 ```
-openspec/
+.openspec/
 ├── project.md
 ├── AGENTS.md
 ├── specs/
@@ -314,6 +314,25 @@ The command SHALL support non-interactive operation through command-line options
 - **THEN** create or refresh `AGENTS.md` at the repository root using the managed marker block from `TemplateManager.getAgentsStandardTemplate()`
 - **AND** preserve any existing content outside the managed markers while replacing the stub text inside them
 - **AND** create the stub regardless of which native AI tools are selected
+
+### Requirement: Slash Command Safety
+All generated slash command templates SHALL include safety guardrails.
+
+#### Scenario: CLI Availability Check
+- **WHEN** generating slash commands for any tool
+- **THEN** the template SHALL include an instruction to verify the `openspec` CLI is installed and available in the environment
+- **AND** guide the user to install it via `npm install -g @fission-ai/openspec` if missing
+
+### Requirement: Legacy Migration
+The `init` command SHALL detect legacy `openspec/` directories and offer to migrate them to `.openspec/`.
+
+#### Scenario: Migrating legacy directory
+- **GIVEN** a project with an existing `openspec/` directory
+- **AND** no `.openspec/` directory exists
+- **WHEN** executing `openspec init`
+- **THEN** prompt the user: "Detected legacy 'openspec/' directory. Would you like to migrate it to '.openspec/'?"
+- **AND** if confirmed, rename the directory
+- **AND** update all managed AI instructions to point to the new location
 
 ## Why
 

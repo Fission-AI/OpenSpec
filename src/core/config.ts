@@ -1,4 +1,6 @@
-export const OPENSPEC_DIR_NAME = 'openspec';
+export const DEFAULT_OPENSPEC_DIR_NAME = '.openspec';
+export const LEGACY_OPENSPEC_DIR_NAME = 'openspec';
+export const OPENSPEC_DIR_NAME = DEFAULT_OPENSPEC_DIR_NAME;
 
 export const OPENSPEC_MARKERS = {
   start: '<!-- OPENSPEC:START -->',

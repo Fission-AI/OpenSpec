@@ -1,24 +1,19 @@
-import { promises as fs } from 'fs';
 import path from 'path';
-import { JsonConverter } from '../core/converters/json-converter.js';
-import { Validator } from '../core/validation/validator.js';
-import { ChangeParser } from '../core/parsers/change-parser.js';
-import { Change } from '../core/schemas/index.js';
 import { isInteractive } from '../utils/interactive.js';
-import { getActiveChangeIds } from '../utils/item-discovery.js';
+import { resolveOpenSpecDir } from '../core/path-resolver.js';
+import { 
+    getActiveChanges, 
+    getChangeMarkdown, 
+    getChangeJson, 
+    validateChange,
+    getChangeDetails,
+    ChangeJsonOutput
+} from '../core/change-logic.js';
 
-// Constants for better maintainability
-const ARCHIVE_DIR = 'archive';
-const TASK_PATTERN = /^[-*]\s+\[[\sx]\]/i;
-const COMPLETED_TASK_PATTERN = /^[-*]\s+\[x\]/i;
+export { ChangeJsonOutput };
 
 export class ChangeCommand {
-  private converter: JsonConverter;
-
-  constructor() {
-    this.converter = new JsonConverter();
-  }
-
+  
   /**
    * Show a change proposal.
    * - Text mode: raw markdown passthrough (no filters)
@@ -26,11 +21,10 @@ export class ChangeCommand {
    *   Note: --requirements-only is deprecated alias for --deltas-only
    */
   async show(changeName?: string, options?: { json?: boolean; requirementsOnly?: boolean; deltasOnly?: boolean; noInteractive?: boolean }): Promise<void> {
-    const changesPath = path.join(process.cwd(), 'openspec', 'changes');
-
+    
     if (!changeName) {
       const canPrompt = isInteractive(options);
-      const changes = await this.getActiveChanges(changesPath);
+      const changes = await getActiveChanges(process.cwd());
       if (canPrompt && changes.length > 0) {
         const { select } = await import('@inquirer/prompts');
         const selected = await select({
@@ -50,41 +44,14 @@ export class ChangeCommand {
       }
     }
 
-    const proposalPath = path.join(changesPath, changeName, 'proposal.md');
-
-    try {
-      await fs.access(proposalPath);
-    } catch {
-      throw new Error(`Change "${changeName}" not found at ${proposalPath}`);
-    }
-
     if (options?.json) {
-      const jsonOutput = await this.converter.convertChangeToJson(proposalPath);
-
       if (options.requirementsOnly) {
         console.error('Flag --requirements-only is deprecated; use --deltas-only instead.');
       }
-
-      const parsed: Change = JSON.parse(jsonOutput);
-      const contentForTitle = await fs.readFile(proposalPath, 'utf-8');
-      const title = this.extractTitle(contentForTitle, changeName);
-      const id = parsed.name;
-      const deltas = parsed.deltas || [];
-
-      if (options.requirementsOnly || options.deltasOnly) {
-        const output = { id, title, deltaCount: deltas.length, deltas };
-        console.log(JSON.stringify(output, null, 2));
-      } else {
-        const output = {
-          id,
-          title,
-          deltaCount: deltas.length,
-          deltas,
-        };
-        console.log(JSON.stringify(output, null, 2));
-      }
+      const output = await getChangeJson(process.cwd(), changeName);
+      console.log(JSON.stringify(output, null, 2));
     } else {
-      const content = await fs.readFile(proposalPath, 'utf-8');
+      const content = await getChangeMarkdown(process.cwd(), changeName);
       console.log(content);
     }
   }
@@ -95,47 +62,12 @@ export class ChangeCommand {
    * - JSON: array of { id, title, deltaCount, taskStatus }, sorted by id
    */
   async list(options?: { json?: boolean; long?: boolean }): Promise<void> {
-    const changesPath = path.join(process.cwd(), 'openspec', 'changes');
-    
-    const changes = await this.getActiveChanges(changesPath);
+    const changes = await getActiveChanges(process.cwd());
     
     if (options?.json) {
       const changeDetails = await Promise.all(
         changes.map(async (changeName) => {
-          const proposalPath = path.join(changesPath, changeName, 'proposal.md');
-          const tasksPath = path.join(changesPath, changeName, 'tasks.md');
-          
-          try {
-            const content = await fs.readFile(proposalPath, 'utf-8');
-            const changeDir = path.join(changesPath, changeName);
-            const parser = new ChangeParser(content, changeDir);
-            const change = await parser.parseChangeWithDeltas(changeName);
-            
-            let taskStatus = { total: 0, completed: 0 };
-            try {
-              const tasksContent = await fs.readFile(tasksPath, 'utf-8');
-              taskStatus = this.countTasks(tasksContent);
-            } catch (error) {
-              // Tasks file may not exist, which is okay
-              if (process.env.DEBUG) {
-                console.error(`Failed to read tasks file at ${tasksPath}:`, error);
-              }
-            }
-            
-            return {
-              id: changeName,
-              title: this.extractTitle(content, changeName),
-              deltaCount: change.deltas.length,
-              taskStatus,
-            };
-          } catch (error) {
-            return {
-              id: changeName,
-              title: 'Unknown',
-              deltaCount: 0,
-              taskStatus: { total: 0, completed: 0 },
-            };
-          }
+            return await getChangeDetails(process.cwd(), changeName);
         })
       );
       
@@ -154,27 +86,13 @@ export class ChangeCommand {
       }
 
       // Long format: id: title and minimal counts
+      // const changesPath = path.join(await resolveOpenSpecDir(process.cwd()), 'changes'); // unused now
       for (const changeName of sorted) {
-        const proposalPath = path.join(changesPath, changeName, 'proposal.md');
-        const tasksPath = path.join(changesPath, changeName, 'tasks.md');
         try {
-          const content = await fs.readFile(proposalPath, 'utf-8');
-          const title = this.extractTitle(content, changeName);
-          let taskStatusText = '';
-          try {
-            const tasksContent = await fs.readFile(tasksPath, 'utf-8');
-            const { total, completed } = this.countTasks(tasksContent);
-            taskStatusText = ` [tasks ${completed}/${total}]`;
-          } catch (error) {
-            if (process.env.DEBUG) {
-              console.error(`Failed to read tasks file at ${tasksPath}:`, error);
-            }
-          }
-          const changeDir = path.join(changesPath, changeName);
-          const parser = new ChangeParser(await fs.readFile(proposalPath, 'utf-8'), changeDir);
-          const change = await parser.parseChangeWithDeltas(changeName);
-          const deltaCountText = ` [deltas ${change.deltas.length}]`;
-          console.log(`${changeName}: ${title}${deltaCountText}${taskStatusText}`);
+             const details = await getChangeDetails(process.cwd(), changeName);
+             const taskStatusText = ` [tasks ${details.taskStatus.completed}/${details.taskStatus.total}]`;
+             const deltaCountText = ` [deltas ${details.deltaCount}]`;
+             console.log(`${details.id}: ${details.title}${deltaCountText}${taskStatusText}`);
         } catch {
           console.log(`${changeName}: (unable to read)`);
         }
@@ -183,11 +101,10 @@ export class ChangeCommand {
   }
 
   async validate(changeName?: string, options?: { strict?: boolean; json?: boolean; noInteractive?: boolean }): Promise<void> {
-    const changesPath = path.join(process.cwd(), 'openspec', 'changes');
     
     if (!changeName) {
       const canPrompt = isInteractive(options);
-      const changes = await getActiveChangeIds();
+      const changes = await getActiveChanges(process.cwd());
       if (canPrompt && changes.length > 0) {
         const { select } = await import('@inquirer/prompts');
         const selected = await select({
@@ -207,16 +124,7 @@ export class ChangeCommand {
       }
     }
     
-    const changeDir = path.join(changesPath, changeName);
-    
-    try {
-      await fs.access(changeDir);
-    } catch {
-      throw new Error(`Change "${changeName}" not found at ${changeDir}`);
-    }
-    
-    const validator = new Validator(options?.strict || false);
-    const report = await validator.validateChangeDeltaSpecs(changeDir);
+    const report = await validateChange(process.cwd(), changeName, options?.strict);
     
     if (options?.json) {
       console.log(JSON.stringify(report, null, 2));
@@ -237,48 +145,6 @@ export class ChangeCommand {
         }
       }
     }
-  }
-
-  private async getActiveChanges(changesPath: string): Promise<string[]> {
-    try {
-      const entries = await fs.readdir(changesPath, { withFileTypes: true });
-      const result: string[] = [];
-      for (const entry of entries) {
-        if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === ARCHIVE_DIR) continue;
-        const proposalPath = path.join(changesPath, entry.name, 'proposal.md');
-        try {
-          await fs.access(proposalPath);
-          result.push(entry.name);
-        } catch {
-          // skip directories without proposal.md
-        }
-      }
-      return result.sort();
-    } catch {
-      return [];
-    }
-  }
-
-  private extractTitle(content: string, changeName: string): string {
-    const match = content.match(/^#\s+(?:Change:\s+)?(.+)$/im);
-    return match ? match[1].trim() : changeName;
-  }
-
-  private countTasks(content: string): { total: number; completed: number } {
-    const lines = content.split('\n');
-    let total = 0;
-    let completed = 0;
-    
-    for (const line of lines) {
-      if (line.match(TASK_PATTERN)) {
-        total++;
-        if (line.match(COMPLETED_TASK_PATTERN)) {
-          completed++;
-        }
-      }
-    }
-    
-    return { total, completed };
   }
 
   private printNextSteps(): void {

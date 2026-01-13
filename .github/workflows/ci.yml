@@ -145,6 +145,9 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Check extension version sync
+        run: node scripts/check-extension-version.mjs
+
       - name: Check for build artifacts
         run: |
           if [ ! -d "dist" ]; then
@@ -155,6 +158,9 @@ jobs:
             echo "Error: CLI entry point not found"
             exit 1
           fi
+
+      - name: Verify MCP server help
+        run: node bin/openspec.js serve --help
 
   validate-changesets:
     name: Validate Changesets
