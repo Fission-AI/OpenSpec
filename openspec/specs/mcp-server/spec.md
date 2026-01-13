@@ -92,3 +92,11 @@ The core logic used by the MCP server SHALL be testable independently of the CLI
 - **THEN** it SHALL be possible to invoke it without mocking CLI-specific objects (like `process` or `console` capture).
 - **AND** it SHALL return structured data rather than writing to stdout.
 
+### Requirement: Secure Resource Resolution
+The server SHALL validate all inputs used to construct file paths for resources to prevent unauthorized access.
+
+#### Scenario: Path Traversal Prevention
+- **WHEN** a client requests a resource with a path parameter containing `..` or path separators
+- **THEN** the server SHALL reject the request
+- **AND** return an error indicating invalid input.
+

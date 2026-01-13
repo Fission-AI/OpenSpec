@@ -1,6 +1,7 @@
 import path from 'path';
 import { Validator } from './validation/validator.js';
 import { getActiveChangeIds, getSpecIds } from '../utils/item-discovery.js';
+import { resolveOpenSpecDir } from './path-resolver.js';
 
 type ItemType = 'change' | 'spec';
 
@@ -28,11 +29,13 @@ export interface BulkValidationResult {
 
 export async function runBulkValidation(
   scope: { changes: boolean; specs: boolean },
-  opts: { strict: boolean; concurrency?: string }
+  opts: { strict: boolean; concurrency?: string; projectRoot?: string }
 ): Promise<BulkValidationResult> {
-  const [changeIds, specIds] = await Promise.all([
-    scope.changes ? getActiveChangeIds() : Promise.resolve<string[]>([]),
-    scope.specs ? getSpecIds() : Promise.resolve<string[]>([]),
+  const projectRoot = opts.projectRoot || process.cwd();
+  const [changeIds, specIds, openspecPath] = await Promise.all([
+    scope.changes ? getActiveChangeIds(projectRoot) : Promise.resolve<string[]>([]),
+    scope.specs ? getSpecIds(projectRoot) : Promise.resolve<string[]>([]),
+    resolveOpenSpecDir(projectRoot),
   ]);
 
   const DEFAULT_CONCURRENCY = 6;
@@ -43,7 +46,7 @@ export async function runBulkValidation(
   for (const id of changeIds) {
     queue.push(async () => {
       const start = Date.now();
-      const changeDir = path.join(process.cwd(), 'openspec', 'changes', id);
+      const changeDir = path.join(openspecPath, 'changes', id);
       const report = await validator.validateChangeDeltaSpecs(changeDir);
       const durationMs = Date.now() - start;
       return { id, type: 'change' as const, valid: report.valid, issues: report.issues, durationMs };
@@ -52,7 +55,7 @@ export async function runBulkValidation(
   for (const id of specIds) {
     queue.push(async () => {
       const start = Date.now();
-      const file = path.join(process.cwd(), 'openspec', 'specs', id, 'spec.md');
+      const file = path.join(openspecPath, 'specs', id, 'spec.md');
       const report = await validator.validateSpec(file);
       const durationMs = Date.now() - start;
       return { id, type: 'spec' as const, valid: report.valid, issues: report.issues, durationMs };

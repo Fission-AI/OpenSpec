@@ -47,7 +47,7 @@ Key outcomes:
 ## How OpenSpec compares (at a glance)
 
 - **Lightweight**: simple workflow, no API keys, minimal setup.
-- **Brownfield-first**: works great beyond 0→1. OpenSpec separates the source of truth from proposals: `openspec/specs/` (current truth) and `openspec/changes/` (proposed updates). This keeps diffs explicit and manageable across features.
+- **Brownfield-first**: works great beyond 0→1. OpenSpec separates the source of truth from proposals: `.openspec/specs/` (current truth) and `.openspec/changes/` (proposed updates). This keeps diffs explicit and manageable across features.
 - **Change tracking**: proposals, tasks, and spec deltas live together; archiving merges the approved updates back into specs.
 - **Compared to spec-kit & Kiro**: those shine for brand-new features (0→1). OpenSpec also excels when modifying existing behavior (1→n), especially when updates span multiple specs.
 
@@ -168,8 +168,6 @@ gemini extensions install https://github.com/Fission-AI/OpenSpec
 - **Native Context**: Gemini becomes "OpenSpec-aware" instantly.
 - **Auto-Maintenance**: The agent can self-repair its command definitions from the source of truth.
 
-*Note: You still need the [OpenSpec CLI](#step-1-install-the-cli-globally) installed globally for the agent to perform operations.*
-
 ### Install & Initialize
 
 #### Prerequisites
@@ -201,7 +199,7 @@ openspec init
 **What happens during initialization:**
 - You'll be prompted to pick any natively supported AI tools (Claude Code, CodeBuddy, Cursor, OpenCode, Qoder,etc.); other assistants always rely on the shared `AGENTS.md` stub
 - OpenSpec automatically configures slash commands for the tools you choose and always writes a managed `AGENTS.md` hand-off at the project root
-- A new `openspec/` directory structure is created in your project
+- A new `.openspec/` directory structure is created in your project (with backward compatibility for legacy `openspec/` folders)
 
 **After setup:**
 - Primary AI tools can trigger `/openspec` workflows without additional configuration
@@ -215,10 +213,10 @@ After `openspec init` completes, you'll receive a suggested prompt to help popul
 
 ```text
 Populate your project context:
-"Please read openspec/project.md and help me fill it out with details about my project, tech stack, and conventions"
+"Please read .openspec/project.md and help me fill it out with details about my project, tech stack, and conventions"
 ```
 
-Use `openspec/project.md` to define project-level conventions, standards, architectural patterns, and other guidelines that should be followed across all changes.
+Use `.openspec/project.md` to define project-level conventions, standards, architectural patterns, and other guidelines that should be followed across all changes.
 
 ### Create Your First Change
 
@@ -232,7 +230,7 @@ You: Create an OpenSpec change proposal for adding profile search filters by rol
      (Shortcut for tools with slash commands: /openspec:proposal Add profile search filters)
 
 AI:  I'll create an OpenSpec change proposal for profile filters.
-     *Scaffolds openspec/changes/add-profile-filters/ with proposal.md, tasks.md, spec deltas.*
+     *Scaffolds .openspec/changes/add-profile-filters/ with proposal.md, tasks.md, spec deltas.*
 ```
 
 #### 2. Verify & Review
@@ -251,7 +249,7 @@ Iterate on the specifications until they match your needs:
 You: Can you add acceptance criteria for the role and team filters?
 
 AI:  I'll update the spec delta with scenarios for role and team filters.
-     *Edits openspec/changes/add-profile-filters/specs/profile/spec.md and tasks.md.*
+     *Edits .openspec/changes/add-profile-filters/specs/profile/spec.md and tasks.md.*
 ```
 
 #### 4. Implement the Change
@@ -262,7 +260,7 @@ You: The specs look good. Let's implement this change.
      (Shortcut for tools with slash commands: /openspec:apply add-profile-filters)
 
 AI:  I'll work through the tasks in the add-profile-filters change.
-     *Implements tasks from openspec/changes/add-profile-filters/tasks.md*
+     *Implements tasks from .openspec/changes/add-profile-filters/tasks.md*
      *Marks tasks complete: Task 1.1 ✓, Task 1.2 ✓, Task 2.1 ✓...*
 ```
 
@@ -302,7 +300,7 @@ openspec archive <change> [--yes|-y]   # Move a completed change into archive/ (
 When you ask your AI assistant to "add two-factor authentication", it creates:
 
 ```
-openspec/
+.openspec/
 ├── specs/
 │   └── auth/
 │       └── spec.md           # Current auth spec (if exists)
@@ -316,7 +314,7 @@ openspec/
                 └── spec.md   # Delta showing additions
 ```
 
-### AI-Generated Spec (created in `openspec/specs/auth/spec.md`):
+### AI-Generated Spec (created in `.openspec/specs/auth/spec.md`):
 
 ```markdown
 # Auth Specification
@@ -333,7 +331,7 @@ The system SHALL issue a JWT on successful login.
 - THEN a JWT is returned
 ```
 
-### AI-Generated Change Delta (created in `openspec/changes/add-2fa/specs/auth/spec.md`):
+### AI-Generated Change Delta (created in `.openspec/changes/add-2fa/specs/auth/spec.md`):
 
 ```markdown
 # Delta for Auth
@@ -347,7 +345,7 @@ The system MUST require a second factor during login.
 - THEN an OTP challenge is required
 ```
 
-### AI-Generated Tasks (created in `openspec/changes/add-2fa/tasks.md`):
+### AI-Generated Tasks (created in `.openspec/changes/add-2fa/tasks.md`):
 
 ```markdown
 ## 1. Database Setup
@@ -384,10 +382,10 @@ Deltas are "patches" that show how specs change:
 ## How OpenSpec Compares
 
 ### vs. spec-kit
-OpenSpec’s two-folder model (`openspec/specs/` for the current truth, `openspec/changes/` for proposed updates) keeps state and diffs separate. This scales when you modify existing features or touch multiple specs. spec-kit is strong for greenfield/0→1 but provides less structure for cross-spec updates and evolving features.
+OpenSpec’s two-folder model (`.openspec/specs/` for the current truth, `.openspec/changes/` for proposed updates) keeps state and diffs separate. This scales when you modify existing features or touch multiple specs. spec-kit is strong for greenfield/0→1 but provides less structure for cross-spec updates and evolving features.
 
 ### vs. Kiro.dev
-OpenSpec groups every change for a feature in one folder (`openspec/changes/feature-name/`), making it easy to track related specs, tasks, and designs together. Kiro spreads updates across multiple spec folders, which can make feature tracking harder.
+OpenSpec groups every change for a feature in one folder (`.openspec/changes/feature-name/`), making it easy to track related specs, tasks, and designs together. Kiro spreads updates across multiple spec folders, which can make feature tracking harder.
 
 ### vs. No Specs
 Without specs, AI coding assistants generate code from vague prompts, often missing requirements or adding unwanted features. OpenSpec brings predictability by agreeing on the desired behavior before any code is written.

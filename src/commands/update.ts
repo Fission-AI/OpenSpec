@@ -32,7 +32,9 @@ export class UpdateCommand {
       `Updated OpenSpec instructions (${instructionFiles.join(', ')})`
     );
 
-    const aiToolFiles = updatedFiles.filter((file) => file !== 'AGENTS.md');
+    const aiToolFiles = updatedFiles.filter(
+      (file) => file !== 'AGENTS.md' && !file.endsWith('/AGENTS.md')
+    );
     if (aiToolFiles.length > 0) {
       summaryParts.push(`Updated AI tool files: ${aiToolFiles.join(', ')}`);
     }

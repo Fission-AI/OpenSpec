@@ -24,19 +24,27 @@ export async function runUpdate(projectPath: string): Promise<UpdateResult> {
     throw new Error(`No OpenSpec directory found. Run 'openspec init' first.`);
   }
 
-  // 2. Update AGENTS.md (full replacement)
-  const agentsPath = path.join(openspecPath, 'AGENTS.md');
-  await FileSystemUtils.writeFile(agentsPath, agentsTemplate);
-
-  // 3. Update existing AI tool configuration files only
-  const configurators = ToolRegistry.getAll();
-  const slashConfigurators = SlashCommandRegistry.getAll();
   const updatedFiles: string[] = [];
   const createdFiles: string[] = [];
   const failedFiles: string[] = [];
   const updatedSlashFiles: string[] = [];
   const failedSlashTools: string[] = [];
   const errorDetails: Record<string, string> = {};
+
+  // 2. Update internal AGENTS.md (full replacement)
+  const internalAgentsPath = path.join(openspecPath, 'AGENTS.md');
+  const internalAgentsName = path.join(path.basename(openspecPath), 'AGENTS.md');
+  try {
+    await FileSystemUtils.writeFile(internalAgentsPath, agentsTemplate);
+    updatedFiles.push(internalAgentsName);
+  } catch (error: any) {
+    failedFiles.push(internalAgentsName);
+    errorDetails[internalAgentsName] = error.message;
+  }
+
+  // 3. Update existing AI tool configuration files only
+  const configurators = ToolRegistry.getAll();
+  const slashConfigurators = SlashCommandRegistry.getAll();
 
   for (const configurator of configurators) {
     const configFilePath = path.join(
@@ -59,7 +67,11 @@ export async function runUpdate(projectPath: string): Promise<UpdateResult> {
       }
 
       await configurator.configure(resolvedProjectPath, openspecPath);
-      updatedFiles.push(configurator.configFileName);
+      
+      // Don't double-add if it was already added by the internal agents step (unlikely but safe)
+      if (!updatedFiles.includes(configurator.configFileName)) {
+        updatedFiles.push(configurator.configFileName);
+      }
 
       if (!fileExists) {
         createdFiles.push(configurator.configFileName);

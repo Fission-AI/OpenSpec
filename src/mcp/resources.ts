@@ -3,6 +3,17 @@ import { resolveOpenSpecDir } from '../core/path-resolver.js';
 import path from 'path';
 import fs from 'fs/promises';
 
+function assertSafePathSegment(value: unknown, label: string): string {
+    if (typeof value !== 'string' || value.length === 0) {
+        throw new Error(`Invalid ${label}`);
+    }
+    // Disallow traversal and path separators (both posix + win)
+    if (value === '.' || value === '..' || value.includes('..') || /[\\/]/u.test(value)) {
+        throw new Error(`Invalid ${label}`);
+    }
+    return value;
+}
+
 export function registerResources(server: FastMCP) {
     server.addResourceTemplate({
         uriTemplate: "openspec://changes/{name}/proposal",
@@ -12,10 +23,17 @@ export function registerResources(server: FastMCP) {
         // @ts-expect-error - variables type mismatch in fastmcp
         load: async (variables: any) => {
             const openspecPath = await resolveOpenSpecDir(process.cwd());
-            const filePath = path.join(openspecPath, 'changes', variables.name, 'proposal.md');
+            const name = assertSafePathSegment(variables?.name, 'change name');
+            const filePath = path.join(openspecPath, 'changes', name, 'proposal.md');
+            
+            // Final safety check: ensure resolved path is within openspecPath
+            if (!path.resolve(filePath).startsWith(path.resolve(openspecPath))) {
+                throw new Error("Unauthorized path access");
+            }
+
             const text = await fs.readFile(filePath, 'utf-8');
             return {
-                content: [{ uri: `openspec://changes/${variables.name}/proposal`, text }]
+                content: [{ uri: `openspec://changes/${name}/proposal`, text }]
             };
         }
     });
@@ -28,10 +46,17 @@ export function registerResources(server: FastMCP) {
         // @ts-expect-error - variables type mismatch in fastmcp
         load: async (variables: any) => {
             const openspecPath = await resolveOpenSpecDir(process.cwd());
-            const filePath = path.join(openspecPath, 'changes', variables.name, 'tasks.md');
+            const name = assertSafePathSegment(variables?.name, 'change name');
+            const filePath = path.join(openspecPath, 'changes', name, 'tasks.md');
+
+            // Final safety check: ensure resolved path is within openspecPath
+            if (!path.resolve(filePath).startsWith(path.resolve(openspecPath))) {
+                throw new Error("Unauthorized path access");
+            }
+
             const text = await fs.readFile(filePath, 'utf-8');
             return {
-                content: [{ uri: `openspec://changes/${variables.name}/tasks`, text }]
+                content: [{ uri: `openspec://changes/${name}/tasks`, text }]
             };
         }
     });
@@ -44,10 +69,17 @@ export function registerResources(server: FastMCP) {
         // @ts-expect-error - variables type mismatch in fastmcp
         load: async (variables: any) => {
             const openspecPath = await resolveOpenSpecDir(process.cwd());
-            const filePath = path.join(openspecPath, 'specs', variables.id, 'spec.md');
+            const id = assertSafePathSegment(variables?.id, 'spec id');
+            const filePath = path.join(openspecPath, 'specs', id, 'spec.md');
+
+            // Final safety check: ensure resolved path is within openspecPath
+            if (!path.resolve(filePath).startsWith(path.resolve(openspecPath))) {
+                throw new Error("Unauthorized path access");
+            }
+
             const text = await fs.readFile(filePath, 'utf-8');
             return {
-                content: [{ uri: `openspec://specs/${variables.id}`, text }]
+                content: [{ uri: `openspec://specs/${id}`, text }]
             };
         }
     });

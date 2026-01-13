@@ -14,6 +14,7 @@ import {
   type SchemaInfo,
 } from './artifact-graph/index.js';
 import { validateChangeName } from '../utils/change-utils.js';
+import { resolveOpenSpecDir } from './path-resolver.js';
 
 const DEFAULT_SCHEMA = 'spec-driven';
 
@@ -25,7 +26,8 @@ export async function validateChangeExists(
   changeName: string | undefined,
   projectRoot: string
 ): Promise<string> {
-  const changesPath = path.join(projectRoot, 'openspec', 'changes');
+  const openspecPath = await resolveOpenSpecDir(projectRoot);
+  const changesPath = path.join(openspecPath, 'changes');
 
   const getAvailableChanges = async (): Promise<string[]> => {
     try {
@@ -248,7 +250,8 @@ export async function getApplyInstructions(
   }
 
   const context = loadChangeContext(projectRoot, name, schemaName);
-  const changeDir = path.join(projectRoot, 'openspec', 'changes', name);
+  const openspecPath = await resolveOpenSpecDir(projectRoot);
+  const changeDir = path.join(openspecPath, 'changes', name);
 
   const schema = resolveSchema(context.schemaName);
   const applyConfig = schema.apply;

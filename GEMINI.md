@@ -44,31 +44,24 @@ This extension requires the Gemini CLI. The OpenSpec MCP server is bundled with 
 When the user starts a session or tries to use OpenSpec:
 1.  **Check for CLI**: Run `openspec --version`.
     -   If found, use `openspec` for all commands.
-    -   If missing, **automatically attempt to install it globally** by running:
-        ```bash
-        npm install -g "@fission-ai/openspec"
-        ```
-    -   If the installation fails or the user cancels the tool call, fall back to:
+    -   If missing, prefer using the bundled MCP server tools or fall back to `npx` (or `pnpm dlx`):
         ```bash
         npx "@fission-ai/openspec"
         ```
-        or
-        ```bash
-        pnpm dlx "@fission-ai/openspec"
-        ```
+    -   Inform the user if a global installation is recommended for performance, but do not perform it automatically.
 2.  **Check for Slash Commands**: Verify if `.gemini/commands/openspec/` exists and contains `proposal.toml`, `apply.toml`, and `archive.toml`.
     -   If missing, **automatically generate them** using the logic defined in the "Maintenance: Slash Command Synchronization" section below.
     -   Inform the user: "OpenSpec slash commands have been generated. You may need to restart the CLI to see them."
-3.  **Check for Project Initialization**: Verify if the `openspec/` directory exists in the project root.
+3.  **Check for Project Initialization**: Verify if the `.openspec/` directory exists in the project root (or legacy `openspec/`).
     -   If missing, automatically run `openspec init` to scaffold the project structure.
 4.  **Populate Project Context**:
     -   **Trigger**: When `openspec init` completes and suggests "Populate your project context", you MUST perform this immediately.
-    -   **Action**: Read `openspec/project.md`, analyze project config (`package.json`, etc.), and fill in the details. **Do not** ask the user to do this manually.
+    -   **Action**: Read `.openspec/project.md`, analyze project config (`package.json`, etc.), and fill in the details. **Do not** ask the user to do this manually.
 
 ## Core Mandates for Gemini Agents
 
-- **Specs are Truth**: Always read `openspec/specs/` to understand the current state of a capability.
-- **Changes are Proposals**: All modifications to behavior or requirements MUST start as a proposal in `openspec/changes/`.
+- **Specs are Truth**: Always read `.openspec/specs/` to understand the current state of a capability.
+- **Changes are Proposals**: All modifications to behavior or requirements MUST start as a proposal in `.openspec/changes/`.
 - **Minimize Confirmations**: Do not ask for permission for low-risk read operations or standard project scaffolding if the user's intent is clear. Assume consent for actions explicitly requested.
 - **Three-Stage Workflow**:
     1. **Stage 1: Creating Changes**: Scaffold `proposal.md`, `tasks.md`, and spec deltas. Validate with `openspec validate <id> --strict`.
@@ -88,9 +81,9 @@ When working in an OpenSpec-enabled project, you can use these commands:
 
 ## Directory Structure
 
-- `openspec/project.md`: Project-specific conventions and tech stack.
-- `openspec/specs/`: Current requirements and scenarios (the "truth").
-- `openspec/changes/`: Pending proposals and implementation tasks.
+- `.openspec/project.md`: Project-specific conventions and tech stack.
+- `.openspec/specs/`: Current requirements and scenarios (the "truth").
+- `.openspec/changes/`: Pending proposals and implementation tasks.
 
 ## Writing Specs
 
@@ -102,7 +95,7 @@ Requirements must be normative (SHALL/MUST). Every requirement MUST have at leas
 - **THEN** expected result
 ```
 
-For more detailed instructions, refer to `openspec/AGENTS.md`.
+For more detailed instructions, refer to `.openspec/AGENTS.md`.
 
 ## Maintenance: Slash Command Synchronization
 

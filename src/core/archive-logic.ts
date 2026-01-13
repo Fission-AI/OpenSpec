@@ -30,10 +30,10 @@ export class ValidationError extends Error {
 
 export async function runArchive(
   changeName: string,
-  options: { skipSpecs?: boolean; noValidate?: boolean; validate?: boolean; throwOnValidationError?: boolean } = {}
+  options: { skipSpecs?: boolean; noValidate?: boolean; validate?: boolean; throwOnValidationError?: boolean; projectRoot?: string } = {}
 ): Promise<ArchiveResult> {
-  const targetPath = '.';
-  const openspecPath = await resolveOpenSpecDir(targetPath);
+  const projectRoot = options.projectRoot || '.';
+  const openspecPath = await resolveOpenSpecDir(projectRoot);
   const changesDir = path.join(openspecPath, 'changes');
   const archiveDir = path.join(changesDir, 'archive');
   const mainSpecsDir = path.join(openspecPath, 'specs');

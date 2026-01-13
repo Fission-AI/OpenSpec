@@ -221,7 +221,7 @@ export function registerTools(server: FastMCP) {
         }),
         execute: async (args) => {
             try {
-                const result = await runBulkValidation({ changes: args.changes, specs: args.specs }, { strict: args.strict, concurrency: args.concurrency });
+                const result = await runBulkValidation({ changes: args.changes, specs: args.specs }, { strict: args.strict, concurrency: args.concurrency, projectRoot: process.cwd() });
                 return {
                     content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
                 };
@@ -246,7 +246,8 @@ export function registerTools(server: FastMCP) {
             try {
                 const result = await runArchive(args.name, { 
                     skipSpecs: args.skipSpecs, 
-                    noValidate: args.noValidate 
+                    noValidate: args.noValidate,
+                    projectRoot: process.cwd()
                 });
                 return {
                     content: [{ type: "text", text: JSON.stringify(result, null, 2) }]

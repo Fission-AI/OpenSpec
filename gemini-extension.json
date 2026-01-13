@@ -1,6 +1,6 @@
 {
   "name": "openspec",
-  "version": "0.18.0",
+  "version": "0.19.0",
   "contextFileName": "GEMINI.md",
   "mcpServers": {
     "openspec": {
