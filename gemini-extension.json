@@ -6,7 +6,7 @@
     "openspec": {
       "command": "node",
       "args": [
-        "dist/mcp/index.js"
+        "${extensionPath}/dist/mcp/index.js"
       ]
     }
   }
