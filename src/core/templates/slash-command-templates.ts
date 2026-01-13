@@ -15,7 +15,7 @@ const proposalSteps = `**Steps**
 4. Capture architectural reasoning in \`design.md\` when the solution spans multiple systems, introduces new patterns, or demands trade-off discussion before committing to specs.
 5. Draft spec deltas in \`changes/<id>/specs/<capability>/spec.md\` (one folder per capability) using \`## ADDED|MODIFIED|REMOVED Requirements\` with at least one \`#### Scenario:\` per requirement and cross-reference related capabilities when relevant.
 6. Draft \`tasks.md\` as an ordered list of small, verifiable work items that deliver user-visible progress, include validation (tests, tooling), and highlight dependencies or parallelizable work.
-7. Validate with \`openspec validate <id> --strict\` and resolve every issue before sharing the proposal.`;
+7. Validate with \`openspec validate <id> --strict --no-interactive\` and resolve every issue before sharing the proposal.`;
 
 
 const proposalReferences = `**Reference**
@@ -43,7 +43,7 @@ const archiveSteps = `**Steps**
 2. Validate the change ID by running \`openspec list\` (or \`openspec show <id>\`) and stop if the change is missing, already archived, or otherwise not ready to archive.
 3. Run \`openspec archive <id> --yes\` so the CLI moves the change and applies spec updates without prompts (use \`--skip-specs\` only for tooling-only work).
 4. Review the command output to confirm the target specs were updated and the change landed in \`changes/archive/\`.
-5. Validate with \`openspec validate --strict\` and inspect with \`openspec show <id>\` if anything looks off.`;
+5. Validate with \`openspec validate --strict --no-interactive\` and inspect with \`openspec show <id>\` if anything looks off.`;
 
 const archiveReferences = `**Reference**
 - Use \`openspec list\` to confirm change IDs before archiving.
