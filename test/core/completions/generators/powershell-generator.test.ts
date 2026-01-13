@@ -1,6 +1,6 @@
-import {describe, it, expect, beforeEach} from 'vitest';
-import {PowerShellGenerator} from '../../../../src/core/completions/generators/powershell-generator.js';
-import {CommandDefinition} from '../../../../src/core/completions/types.js';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { PowerShellGenerator } from '../../../../src/core/completions/generators/powershell-generator.js';
+import { CommandDefinition } from '../../../../src/core/completions/types.js';
 
 describe('PowerShellGenerator', () => {
 	let generator: PowerShellGenerator;
@@ -442,6 +442,34 @@ describe('PowerShellGenerator', () => {
 			expect(script).toContain('--strict');
 			expect(script).toContain('--json');
 			expect(script).toContain('Get-OpenSpecSpecs');
+		});
+
+		it('should not emit trailing commas in @() arrays', () => {
+			const commands: CommandDefinition[] = [
+				{
+					name: 'config',
+					description: 'Manage configuration',
+					flags: [
+						{
+							name: 'scope',
+							short: 's',
+							description: 'Configuration scope',
+						},
+					],
+					subcommands: [
+						{
+							name: 'get',
+							description: 'Get a config value',
+							flags: [],
+						},
+					],
+				},
+			];
+
+			const script = generator.generate(commands);
+
+			// PowerShell array literals (@(...)) can't have a trailing comma on the last element.
+			expect(script).not.toMatch(/\},\s*\r?\n\s*\)/);
 		});
 
 		it('should handle empty command list', () => {
