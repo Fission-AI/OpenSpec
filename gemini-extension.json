@@ -6,8 +6,7 @@
     "openspec": {
       "command": "node",
       "args": [
-        "bin/openspec.js",
-        "serve"
+        "dist/mcp/index.js"
       ]
     }
   }
