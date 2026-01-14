@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+import { execSync, execFileSync } from 'child_process';
 import { createRequire } from 'module';
 import os from 'os';
 
@@ -6,10 +6,12 @@ const require = createRequire(import.meta.url);
 
 /**
  * Check if gh CLI is installed and available in PATH
+ * Uses platform-appropriate command: 'where' on Windows, 'which' on Unix/macOS
  */
 function isGhInstalled(): boolean {
   try {
-    execSync('which gh', { stdio: 'pipe' });
+    const command = process.platform === 'win32' ? 'where gh' : 'which gh';
+    execSync(command, { stdio: 'pipe' });
     return true;
   } catch {
     return false;
@@ -118,11 +120,24 @@ function displayFormattedFeedback(title: string, body: string): void {
 
 /**
  * Submit feedback via gh CLI
+ * Uses execFileSync to prevent shell injection vulnerabilities
  */
 function submitViaGhCli(title: string, body: string): void {
   try {
-    const result = execSync(
-      `gh issue create --repo Fission-AI/OpenSpec --title "${title.replace(/"/g, '\\"')}" --body "${body.replace(/"/g, '\\"')}" --label feedback`,
+    const result = execFileSync(
+      'gh',
+      [
+        'issue',
+        'create',
+        '--repo',
+        'Fission-AI/OpenSpec',
+        '--title',
+        title,
+        '--body',
+        body,
+        '--label',
+        'feedback',
+      ],
       { encoding: 'utf-8', stdio: 'pipe' }
     );
 
@@ -159,7 +174,7 @@ function handleFallback(title: string, body: string, reason: 'missing' | 'unauth
   console.log(manualUrl);
 
   if (reason === 'unauthenticated') {
-    console.log('\nTo auto-submit in future: gh auth login');
+    console.log('\nTo auto-submit in the future: gh auth login');
   }
 
   // Exit with success code (fallback is successful)
@@ -171,25 +186,23 @@ function handleFallback(title: string, body: string, reason: 'missing' | 'unauth
  */
 export class FeedbackCommand {
   async execute(message: string, options?: { body?: string }): Promise<void> {
+    // Format title and body once for all code paths
+    const title = formatTitle(message);
+    const body = formatBody(options?.body);
+
     // Check if gh CLI is installed
     if (!isGhInstalled()) {
-      const title = formatTitle(message);
-      const body = formatBody(options?.body);
       handleFallback(title, body, 'missing');
       return;
     }
 
     // Check if gh CLI is authenticated
     if (!isGhAuthenticated()) {
-      const title = formatTitle(message);
-      const body = formatBody(options?.body);
       handleFallback(title, body, 'unauthenticated');
       return;
     }
 
     // Submit via gh CLI
-    const title = formatTitle(message);
-    const body = formatBody(options?.body);
     submitViaGhCli(title, body);
   }
 }

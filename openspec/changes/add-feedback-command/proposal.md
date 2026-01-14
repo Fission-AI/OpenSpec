@@ -7,6 +7,7 @@ Users and agents need a simple way to submit feedback about OpenSpec directly fr
 - Add `openspec feedback <message>` CLI command
 - Leverage `gh` CLI for GitHub authentication and issue creation
 - Add `/feedback` skill for agent-assisted feedback with context enrichment
+- Ensure cross-platform compatibility (macOS, Linux, Windows)
 
 ## Impact
 

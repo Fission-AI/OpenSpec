@@ -1,11 +1,12 @@
 ## 1. Feedback Command
 
 - [x] 1.1 Create `src/commands/feedback.ts` with command implementation
-- [x] 1.2 Check `gh` CLI availability with `which gh` or equivalent
+- [x] 1.2 Check `gh` CLI availability using platform-appropriate command (`which` on Unix/macOS, `where` on Windows)
 - [x] 1.3 Check GitHub auth status with `gh auth status`
-- [x] 1.4 Execute `gh issue create` with formatted title and body
+- [x] 1.4 Execute `gh issue create` with formatted title and body using `execFileSync` to prevent shell injection
 - [x] 1.5 Display issue URL returned by `gh` CLI
 - [x] 1.6 Register `feedback <message>` command in `src/cli/index.ts`
+- [x] 1.7 Ensure cross-platform compatibility (macOS, Linux, Windows)
 
 ## 2. Shell Completions
 
@@ -25,3 +26,5 @@
 - [x] 4.2 Add integration test for full feedback flow with mocked `gh` CLI
 - [x] 4.3 Test error handling for missing `gh` CLI
 - [x] 4.4 Test error handling for unauthenticated `gh` session
+- [x] 4.5 Test cross-platform `gh` CLI detection (verify `which` on Unix, `where` on Windows)
+- [x] 4.6 Test platform metadata includes correct value for Windows (win32)

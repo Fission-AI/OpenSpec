@@ -2,7 +2,7 @@
 
 ### Requirement: Feedback command
 
-The system SHALL provide an `openspec feedback` command that creates a GitHub Issue in the openspec repository using the `gh` CLI.
+The system SHALL provide an `openspec feedback` command that creates a GitHub Issue in the openspec repository using the `gh` CLI. The system SHALL use `execFileSync` with argument arrays to prevent shell injection vulnerabilities.
 
 #### Scenario: Simple feedback submission
 
@@ -11,6 +11,13 @@ The system SHALL provide an `openspec feedback` command that creates a GitHub Is
 - **AND** the issue is created in the openspec repository
 - **AND** the issue has the `feedback` label
 - **AND** the system displays the created issue URL
+
+#### Scenario: Safe command execution
+
+- **WHEN** submitting feedback via `gh` CLI
+- **THEN** the system uses `execFileSync` with separate arguments array
+- **AND** user input is NOT passed through a shell
+- **AND** shell metacharacters (quotes, backticks, $(), etc.) are treated as literal text
 
 #### Scenario: Feedback with body
 
@@ -21,7 +28,7 @@ The system SHALL provide an `openspec feedback` command that creates a GitHub Is
 
 ### Requirement: GitHub CLI dependency
 
-The system SHALL use `gh` CLI for automatic feedback submission when available, and provide a manual submission fallback when `gh` is not installed or not authenticated.
+The system SHALL use `gh` CLI for automatic feedback submission when available, and provide a manual submission fallback when `gh` is not installed or not authenticated. The system SHALL use platform-appropriate commands to detect `gh` CLI availability.
 
 #### Scenario: Missing gh CLI with fallback
 
@@ -37,6 +44,18 @@ The system SHALL use `gh` CLI for automatic feedback submission when available, 
 - **AND** displays pre-filled GitHub issue URL for manual submission
 - **AND** exits with zero code (successful fallback)
 
+#### Scenario: Cross-platform gh CLI detection on Unix
+
+- **WHEN** system is running on macOS or Linux (platform is 'darwin' or 'linux')
+- **AND** checking if `gh` CLI is installed
+- **THEN** the system executes `which gh` command
+
+#### Scenario: Cross-platform gh CLI detection on Windows
+
+- **WHEN** system is running on Windows (platform is 'win32')
+- **AND** checking if `gh` CLI is installed
+- **THEN** the system executes `where gh` command
+
 #### Scenario: Unauthenticated gh CLI with fallback
 
 - **WHEN** user runs `openspec feedback "message"`
@@ -44,7 +63,7 @@ The system SHALL use `gh` CLI for automatic feedback submission when available, 
 - **THEN** the system displays warning: "GitHub authentication required. Manual submission required."
 - **AND** outputs structured feedback content (same format as missing gh CLI scenario)
 - **AND** displays pre-filled GitHub issue URL for manual submission
-- **AND** displays authentication instructions: "To auto-submit in future: gh auth login"
+- **AND** displays authentication instructions: "To auto-submit in the future: gh auth login"
 - **AND** exits with zero code (successful fallback)
 
 #### Scenario: Authenticated gh CLI
@@ -65,6 +84,12 @@ The system SHALL include relevant metadata in the GitHub Issue body.
   - Platform (darwin, linux, win32)
   - Submission timestamp
   - Separator line: "---\nSubmitted via OpenSpec CLI"
+
+#### Scenario: Windows platform metadata
+
+- **WHEN** creating a GitHub Issue for feedback on Windows
+- **THEN** the issue body includes "Platform: win32"
+- **AND** all platform detection uses Node.js `os.platform()` API
 
 #### Scenario: No sensitive metadata
 
