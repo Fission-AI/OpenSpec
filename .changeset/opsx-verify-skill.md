@@ -2,13 +2,12 @@
 "@fission-ai/openspec": minor
 ---
 
-New features:
-- Add `/opsx:verify` skill for validating change implementations against specifications
+### New Features
 
-Bug fixes:
-- Cap vitest worker parallelism to prevent process storms
-- Fix agent workflow validation commands with --no-interactive flag
-- Fix PowerShell generator trailing comma issues
+- **`/opsx:verify` command** — Validate that change implementations match their specifications
 
-Documentation:
-- Add MAINTAINERS.md with core maintainers and advisors
+### Bug Fixes
+
+- Fixed vitest process storms by capping worker parallelism
+- Fixed agent workflows to use non-interactive mode for validation commands
+- Fixed PowerShell completions generator to remove trailing commas
