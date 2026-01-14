@@ -36,6 +36,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_args: "--allowedTools Write,Read"
           prompt: |
             Transform the changelog in `current-notes.md` into release notes for OpenSpec ${{ inputs.tag_name }}.
 
