@@ -1,5 +1,19 @@
 # @fission-ai/openspec
 
+## 0.20.0
+
+### Minor Changes
+
+- [#502](https://github.com/Fission-AI/OpenSpec/pull/502) [`9db74aa`](https://github.com/Fission-AI/OpenSpec/commit/9db74aa5ac6547efadaed795217cfa17444f2004) Thanks [@TabishB](https://github.com/TabishB)! - ### New Features
+
+  - **`/opsx:verify` command** — Validate that change implementations match their specifications
+
+  ### Bug Fixes
+
+  - Fixed vitest process storms by capping worker parallelism
+  - Fixed agent workflows to use non-interactive mode for validation commands
+  - Fixed PowerShell completions generator to remove trailing commas
+
 ## 0.19.0
 
 ### Minor Changes
