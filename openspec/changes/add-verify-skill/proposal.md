@@ -12,9 +12,12 @@ A user requested: "Can we get a :verify that will ensure that the implementation
 
 ## What Changes
 
-- Add new `/opsx:verify` slash command skill
+- Add `getVerifyChangeSkillTemplate()` function to `skill-templates.ts`
+- Add `getOpsxVerifyCommandTemplate()` function to `skill-templates.ts`
+- Integrate verify skill into `artifactExperimentalSetupCommand` in `artifact-workflow.ts`
+- Add verify to the skills and commands arrays in the setup command
+- Update help text to include `/opsx:verify` in the list of available commands
 - Create `opsx-verify-skill` capability spec
-- Create `SKILL.md` file at `.claude/skills/openspec-verify-change/`
 
 ## Verification Dimensions
 
@@ -36,5 +39,10 @@ Produces a prioritized report with:
 ## Impact
 
 - Affected specs: New `opsx-verify-skill` spec
-- Affected code: New skill file at `.claude/skills/openspec-verify-change/SKILL.md`
+- Affected code:
+  - `src/core/templates/skill-templates.ts` - Added 2 new template functions
+  - `src/commands/artifact-workflow.ts` - Integrated verify into experimental setup
+- Generated artifacts: When users run `openspec artifact-experimental-setup`:
+  - Creates `.claude/skills/openspec-verify-change/SKILL.md`
+  - Creates `.claude/commands/opsx/verify.md`
 - Related skills: Works alongside `/opsx:apply` and before `/opsx:archive`

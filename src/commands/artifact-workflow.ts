@@ -28,7 +28,7 @@ import {
   type SchemaInfo,
 } from '../core/artifact-graph/index.js';
 import { createChange, validateChangeName } from '../utils/change-utils.js';
-import { getExploreSkillTemplate, getNewChangeSkillTemplate, getContinueChangeSkillTemplate, getApplyChangeSkillTemplate, getFfChangeSkillTemplate, getSyncSpecsSkillTemplate, getArchiveChangeSkillTemplate, getOpsxExploreCommandTemplate, getOpsxNewCommandTemplate, getOpsxContinueCommandTemplate, getOpsxApplyCommandTemplate, getOpsxFfCommandTemplate, getOpsxSyncCommandTemplate, getOpsxArchiveCommandTemplate } from '../core/templates/skill-templates.js';
+import { getExploreSkillTemplate, getNewChangeSkillTemplate, getContinueChangeSkillTemplate, getApplyChangeSkillTemplate, getFfChangeSkillTemplate, getSyncSpecsSkillTemplate, getArchiveChangeSkillTemplate, getVerifyChangeSkillTemplate, getOpsxExploreCommandTemplate, getOpsxNewCommandTemplate, getOpsxContinueCommandTemplate, getOpsxApplyCommandTemplate, getOpsxFfCommandTemplate, getOpsxSyncCommandTemplate, getOpsxArchiveCommandTemplate, getOpsxVerifyCommandTemplate } from '../core/templates/skill-templates.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 
 // -----------------------------------------------------------------------------
@@ -800,6 +800,7 @@ async function artifactExperimentalSetupCommand(): Promise<void> {
     const ffChangeSkill = getFfChangeSkillTemplate();
     const syncSpecsSkill = getSyncSpecsSkillTemplate();
     const archiveChangeSkill = getArchiveChangeSkillTemplate();
+    const verifyChangeSkill = getVerifyChangeSkillTemplate();
 
     // Get command templates
     const exploreCommand = getOpsxExploreCommandTemplate();
@@ -809,6 +810,7 @@ async function artifactExperimentalSetupCommand(): Promise<void> {
     const ffCommand = getOpsxFfCommandTemplate();
     const syncCommand = getOpsxSyncCommandTemplate();
     const archiveCommand = getOpsxArchiveCommandTemplate();
+    const verifyCommand = getOpsxVerifyCommandTemplate();
 
     // Create skill directories and SKILL.md files
     const skills = [
@@ -819,6 +821,7 @@ async function artifactExperimentalSetupCommand(): Promise<void> {
       { template: ffChangeSkill, dirName: 'openspec-ff-change' },
       { template: syncSpecsSkill, dirName: 'openspec-sync-specs' },
       { template: archiveChangeSkill, dirName: 'openspec-archive-change' },
+      { template: verifyChangeSkill, dirName: 'openspec-verify-change' },
     ];
 
     const createdSkillFiles: string[] = [];
@@ -850,6 +853,7 @@ ${template.instructions}
       { template: ffCommand, fileName: 'ff.md' },
       { template: syncCommand, fileName: 'sync.md' },
       { template: archiveCommand, fileName: 'archive.md' },
+      { template: verifyCommand, fileName: 'verify.md' },
     ];
 
     const createdCommandFiles: string[] = [];
@@ -908,6 +912,7 @@ ${template.content}
     console.log('  • /opsx:apply - Implement tasks');
     console.log('  • /opsx:ff - Fast-forward: create all artifacts at once');
     console.log('  • /opsx:sync - Sync delta specs to main specs');
+    console.log('  • /opsx:verify - Verify implementation matches artifacts');
     console.log('  • /opsx:archive - Archive a completed change');
     console.log();
     console.log(chalk.yellow('💡 This is an experimental feature.'));
