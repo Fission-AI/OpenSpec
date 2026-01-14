@@ -4,7 +4,11 @@ import { getSchemaDir, resolveSchema } from './resolver.js';
 import { ArtifactGraph } from './graph.js';
 import { detectCompleted } from './state.js';
 import { resolveSchemaForChange } from '../../utils/change-metadata.js';
+import { readProjectConfig, validateConfigRules } from '../project-config.js';
 import type { Artifact, CompletedSet } from './types.js';
+
+// Session-level cache for validation warnings (avoid repeating same warnings)
+const shownWarnings = new Set<string>();
 
 /**
  * Error thrown when loading a template fails.
@@ -181,23 +185,79 @@ export function loadChangeContext(
 /**
  * Generates enriched instructions for creating an artifact.
  *
+ * Instruction injection order:
+ * 1. <context> - Project context from config (if present)
+ * 2. <rules> - Artifact-specific rules from config (if present)
+ * 3. <template> - Schema's template content
+ *
  * @param context - Change context
  * @param artifactId - Artifact ID to generate instructions for
+ * @param projectRoot - Project root directory (for reading config)
  * @returns Enriched artifact instructions
  * @throws Error if artifact not found
  */
 export function generateInstructions(
   context: ChangeContext,
-  artifactId: string
+  artifactId: string,
+  projectRoot?: string
 ): ArtifactInstructions {
   const artifact = context.graph.getArtifact(artifactId);
   if (!artifact) {
     throw new Error(`Artifact '${artifactId}' not found in schema '${context.schemaName}'`);
   }
 
-  const template = loadTemplate(context.schemaName, artifact.template);
+  const templateContent = loadTemplate(context.schemaName, artifact.template);
   const dependencies = getDependencyInfo(artifact, context.graph, context.completed);
   const unlocks = getUnlockedArtifacts(context.graph, artifactId);
+
+  // Build enriched template with project config injections
+  let enrichedTemplate = '';
+  let projectConfig = null;
+
+  // Try to read project config
+  if (projectRoot) {
+    try {
+      projectConfig = readProjectConfig(projectRoot);
+    } catch {
+      // If config read fails, continue without config
+    }
+  }
+
+  // Validate rules artifact IDs if config has rules (only once per session)
+  if (projectConfig?.rules) {
+    const validArtifactIds = new Set(context.graph.getAllArtifacts().map((a) => a.id));
+    const warnings = validateConfigRules(
+      projectConfig.rules,
+      validArtifactIds,
+      context.schemaName
+    );
+
+    // Show each unique warning only once per session
+    for (const warning of warnings) {
+      if (!shownWarnings.has(warning)) {
+        console.warn(warning);
+        shownWarnings.add(warning);
+      }
+    }
+  }
+
+  // 1. Add context (all artifacts)
+  if (projectConfig?.context) {
+    enrichedTemplate += `<context>\n${projectConfig.context}\n</context>\n\n`;
+  }
+
+  // 2. Add rules (only for matching artifact)
+  const rulesForArtifact = projectConfig?.rules?.[artifactId];
+  if (rulesForArtifact && rulesForArtifact.length > 0) {
+    enrichedTemplate += `<rules>\n`;
+    for (const rule of rulesForArtifact) {
+      enrichedTemplate += `- ${rule}\n`;
+    }
+    enrichedTemplate += `</rules>\n\n`;
+  }
+
+  // 3. Add original template
+  enrichedTemplate += `<template>\n${templateContent}\n</template>`;
 
   return {
     changeName: context.changeName,
@@ -207,7 +267,7 @@ export function generateInstructions(
     outputPath: artifact.generates,
     description: artifact.description,
     instruction: artifact.instruction,
-    template,
+    template: enrichedTemplate,
     dependencies,
     unlocks,
   };

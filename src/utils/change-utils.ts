@@ -1,6 +1,7 @@
 import path from 'path';
 import { FileSystemUtils } from './file-system.js';
 import { writeChangeMetadata, validateSchemaName } from './change-metadata.js';
+import { readProjectConfig } from '../core/project-config.js';
 
 const DEFAULT_SCHEMA = 'spec-driven';
 
@@ -107,8 +108,22 @@ export async function createChange(
     throw new Error(validation.error);
   }
 
-  // Determine schema (validate if provided)
-  const schemaName = options.schema ?? DEFAULT_SCHEMA;
+  // Determine schema: explicit option → project config → hardcoded default
+  let schemaName: string;
+  if (options.schema) {
+    schemaName = options.schema;
+  } else {
+    // Try to read from project config
+    try {
+      const config = readProjectConfig(projectRoot);
+      schemaName = config?.schema ?? DEFAULT_SCHEMA;
+    } catch {
+      // If config read fails, use default
+      schemaName = DEFAULT_SCHEMA;
+    }
+  }
+
+  // Validate the resolved schema
   validateSchemaName(schemaName);
 
   // Build the change directory path
