@@ -30,6 +30,13 @@ export function getPackageSchemasDir(): string {
 }
 
 /**
+ * Gets the project's local schemas directory path.
+ */
+export function getProjectSchemasDir(): string {
+  return path.join(process.cwd(), 'openspec', 'schemas');
+}
+
+/**
  * Gets the user's schema override directory path.
  */
 export function getUserSchemasDir(): string {
@@ -40,21 +47,29 @@ export function getUserSchemasDir(): string {
  * Resolves a schema name to its directory path.
  *
  * Resolution order:
- * 1. User override: ${XDG_DATA_HOME}/openspec/schemas/<name>/schema.yaml
- * 2. Package built-in: <package>/schemas/<name>/schema.yaml
+ * 1. Project-local: <cwd>/openspec/schemas/<name>/schema.yaml
+ * 2. User override: ${XDG_DATA_HOME}/openspec/schemas/<name>/schema.yaml
+ * 3. Package built-in: <package>/schemas/<name>/schema.yaml
  *
  * @param name - Schema name (e.g., "spec-driven")
  * @returns The path to the schema directory, or null if not found
  */
 export function getSchemaDir(name: string): string | null {
-  // 1. Check user override directory
+  // 1. Check project-local directory
+  const projectDir = path.join(getProjectSchemasDir(), name);
+  const projectSchemaPath = path.join(projectDir, 'schema.yaml');
+  if (fs.existsSync(projectSchemaPath)) {
+    return projectDir;
+  }
+
+  // 2. Check user override directory
   const userDir = path.join(getUserSchemasDir(), name);
   const userSchemaPath = path.join(userDir, 'schema.yaml');
   if (fs.existsSync(userSchemaPath)) {
     return userDir;
   }
 
-  // 2. Check package built-in directory
+  // 3. Check package built-in directory
   const packageDir = path.join(getPackageSchemasDir(), name);
   const packageSchemaPath = path.join(packageDir, 'schema.yaml');
   if (fs.existsSync(packageSchemaPath)) {
@@ -123,7 +138,7 @@ export function resolveSchema(name: string): SchemaYaml {
 
 /**
  * Lists all available schema names.
- * Combines user override and package built-in schemas.
+ * Combines project-local, user override and package built-in schemas.
  */
 export function listSchemas(): string[] {
   const schemas = new Set<string>();
@@ -154,6 +169,19 @@ export function listSchemas(): string[] {
     }
   }
 
+  // Add project-local schemas (may override both user and package schemas)
+  const projectDir = getProjectSchemasDir();
+  if (fs.existsSync(projectDir)) {
+    for (const entry of fs.readdirSync(projectDir, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        const schemaPath = path.join(projectDir, entry.name, 'schema.yaml');
+        if (fs.existsSync(schemaPath)) {
+          schemas.add(entry.name);
+        }
+      }
+    }
+  }
+
   return Array.from(schemas).sort();
 }
 
@@ -164,7 +192,7 @@ export interface SchemaInfo {
   name: string;
   description: string;
   artifacts: string[];
-  source: 'package' | 'user';
+  source: 'package' | 'user' | 'project';
 }
 
 /**
@@ -175,11 +203,35 @@ export function listSchemasWithInfo(): SchemaInfo[] {
   const schemas: SchemaInfo[] = [];
   const seenNames = new Set<string>();
 
-  // Add user override schemas first (they take precedence)
+  // Add project-local schemas first (highest precedence)
+  const projectDir = getProjectSchemasDir();
+  if (fs.existsSync(projectDir)) {
+    for (const entry of fs.readdirSync(projectDir, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        const schemaPath = path.join(projectDir, entry.name, 'schema.yaml');
+        if (fs.existsSync(schemaPath)) {
+          try {
+            const schema = parseSchema(fs.readFileSync(schemaPath, 'utf-8'));
+            schemas.push({
+              name: entry.name,
+              description: schema.description || '',
+              artifacts: schema.artifacts.map((a) => a.id),
+              source: 'project',
+            });
+            seenNames.add(entry.name);
+          } catch {
+            // Skip invalid schemas
+          }
+        }
+      }
+    }
+  }
+
+  // Add user override schemas next
   const userDir = getUserSchemasDir();
   if (fs.existsSync(userDir)) {
     for (const entry of fs.readdirSync(userDir, { withFileTypes: true })) {
-      if (entry.isDirectory()) {
+      if (entry.isDirectory() && !seenNames.has(entry.name)) {
         const schemaPath = path.join(userDir, entry.name, 'schema.yaml');
         if (fs.existsSync(schemaPath)) {
           try {

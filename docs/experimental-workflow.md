@@ -473,7 +473,7 @@ Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, no
 
 ### Custom Schemas
 
-Create your own workflow by adding a schema to `~/.local/share/openspec/schemas/`:
+Create your own workflow by adding a schema to `~/.local/share/openspec/schemas/` (or `<project>/openspec/schemas/` for project-level schemas):
 
 ```
 ~/.local/share/openspec/schemas/research-first/

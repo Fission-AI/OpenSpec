@@ -1,13 +1,15 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import {
   resolveSchema,
   listSchemas,
+  listSchemasWithInfo,
   SchemaLoadError,
   getSchemaDir,
   getPackageSchemasDir,
+  getProjectSchemasDir,
   getUserSchemasDir,
 } from '../../../src/core/artifact-graph/resolver.js';
 
@@ -42,6 +44,23 @@ describe('artifact-graph/resolver', () => {
     });
   });
 
+  describe('getProjectSchemasDir', () => {
+    it('should return openspec/schemas relative to cwd', () => {
+      const projectDir = getProjectSchemasDir();
+      expect(projectDir).toBe(path.join(process.cwd(), 'openspec', 'schemas'));
+    });
+
+    it('should return correct path when cwd changes', () => {
+      const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue('/mock/project');
+      try {
+        const projectDir = getProjectSchemasDir();
+        expect(projectDir).toBe('/mock/project/openspec/schemas');
+      } finally {
+        cwdSpy.mockRestore();
+      }
+    });
+  });
+
   describe('getSchemaDir', () => {
     it('should return null for non-existent schema', () => {
       const dir = getSchemaDir('nonexistent-schema');
@@ -66,6 +85,56 @@ describe('artifact-graph/resolver', () => {
 
       const dir = getSchemaDir('spec-driven');
       expect(dir).toBe(userSchemaDir);
+    });
+
+    it('should prefer project-local directory over user override', () => {
+      // Set up user override
+      process.env.XDG_DATA_HOME = tempDir;
+      const userSchemaDir = path.join(tempDir, 'openspec', 'schemas', 'spec-driven');
+      fs.mkdirSync(userSchemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(userSchemaDir, 'schema.yaml'),
+        'name: user-override\nversion: 1\nartifacts: []'
+      );
+
+      // Set up project-local
+      const projectSchemaDir = path.join(tempDir, 'project', 'openspec', 'schemas', 'spec-driven');
+      fs.mkdirSync(projectSchemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(projectSchemaDir, 'schema.yaml'),
+        'name: project-local\nversion: 1\nartifacts: []'
+      );
+
+      // Mock cwd to point to project directory
+      const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(path.join(tempDir, 'project'));
+      try {
+        const dir = getSchemaDir('spec-driven');
+        expect(dir).toBe(projectSchemaDir);
+      } finally {
+        cwdSpy.mockRestore();
+      }
+    });
+
+    it('should fall back to user override when project-local not found', () => {
+      process.env.XDG_DATA_HOME = tempDir;
+      const userSchemaDir = path.join(tempDir, 'openspec', 'schemas', 'my-schema');
+      fs.mkdirSync(userSchemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(userSchemaDir, 'schema.yaml'),
+        'name: user-schema\nversion: 1\nartifacts: []'
+      );
+
+      // Project-local does not have this schema
+      const projectDir = path.join(tempDir, 'project', 'openspec', 'schemas');
+      fs.mkdirSync(projectDir, { recursive: true });
+
+      const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(path.join(tempDir, 'project'));
+      try {
+        const dir = getSchemaDir('my-schema');
+        expect(dir).toBe(userSchemaDir);
+      } finally {
+        cwdSpy.mockRestore();
+      }
     });
   });
 
@@ -322,6 +391,187 @@ version: [[[invalid yaml
 
       expect(schemas).toContain('valid-schema');
       expect(schemas).not.toContain('empty-dir');
+    });
+
+    it('should include project-local schemas', () => {
+      const projectDir = path.join(tempDir, 'project', 'openspec', 'schemas', 'project-schema');
+      fs.mkdirSync(projectDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(projectDir, 'schema.yaml'),
+        'name: project-schema\nversion: 1\nartifacts: []'
+      );
+
+      const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(path.join(tempDir, 'project'));
+      try {
+        const schemas = listSchemas();
+        expect(schemas).toContain('project-schema');
+      } finally {
+        cwdSpy.mockRestore();
+      }
+    });
+
+    it('should deduplicate project-local schemas with same name as user/package schemas', () => {
+      process.env.XDG_DATA_HOME = tempDir;
+      const userSchemaDir = path.join(tempDir, 'openspec', 'schemas', 'spec-driven');
+      fs.mkdirSync(userSchemaDir, { recursive: true });
+      fs.writeFileSync(path.join(userSchemaDir, 'schema.yaml'), 'name: user\nversion: 1\nartifacts: []');
+
+      const projectSchemaDir = path.join(tempDir, 'project', 'openspec', 'schemas', 'spec-driven');
+      fs.mkdirSync(projectSchemaDir, { recursive: true });
+      fs.writeFileSync(path.join(projectSchemaDir, 'schema.yaml'), 'name: project\nversion: 1\nartifacts: []');
+
+      const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(path.join(tempDir, 'project'));
+      try {
+        const schemas = listSchemas();
+        const count = schemas.filter((s) => s === 'spec-driven').length;
+        expect(count).toBe(1);
+      } finally {
+        cwdSpy.mockRestore();
+      }
+    });
+  });
+
+  describe('listSchemasWithInfo', () => {
+    it('should return schema info with source field', () => {
+      const schemas = listSchemasWithInfo();
+
+      expect(schemas.length).toBeGreaterThan(0);
+      const specDriven = schemas.find((s) => s.name === 'spec-driven');
+      expect(specDriven).toBeDefined();
+      expect(specDriven?.source).toBe('package');
+      expect(specDriven?.description).toBeDefined();
+      expect(specDriven?.artifacts).toBeDefined();
+      expect(Array.isArray(specDriven?.artifacts)).toBe(true);
+    });
+
+    it('should mark user override schemas with source "user"', () => {
+      process.env.XDG_DATA_HOME = tempDir;
+      const userSchemaDir = path.join(tempDir, 'openspec', 'schemas', 'user-custom');
+      fs.mkdirSync(userSchemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(userSchemaDir, 'schema.yaml'),
+        `name: user-custom
+version: 1
+description: A custom user schema
+artifacts:
+  - id: artifact1
+    generates: artifact1.md
+    description: First artifact
+    template: artifact1.md
+`
+      );
+
+      const schemas = listSchemasWithInfo();
+
+      const userSchema = schemas.find((s) => s.name === 'user-custom');
+      expect(userSchema).toBeDefined();
+      expect(userSchema?.source).toBe('user');
+      expect(userSchema?.description).toBe('A custom user schema');
+      expect(userSchema?.artifacts).toContain('artifact1');
+    });
+
+    it('should mark project-local schemas with source "project"', () => {
+      const projectSchemaDir = path.join(tempDir, 'project', 'openspec', 'schemas', 'project-custom');
+      fs.mkdirSync(projectSchemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(projectSchemaDir, 'schema.yaml'),
+        `name: project-custom
+version: 1
+description: A project-local schema
+artifacts:
+  - id: task
+    generates: task.md
+    description: Task artifact
+    template: task.md
+`
+      );
+
+      const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(path.join(tempDir, 'project'));
+      try {
+        const schemas = listSchemasWithInfo();
+
+        const projectSchema = schemas.find((s) => s.name === 'project-custom');
+        expect(projectSchema).toBeDefined();
+        expect(projectSchema?.source).toBe('project');
+        expect(projectSchema?.description).toBe('A project-local schema');
+        expect(projectSchema?.artifacts).toContain('task');
+      } finally {
+        cwdSpy.mockRestore();
+      }
+    });
+
+    it('should give project-local schemas highest precedence', () => {
+      process.env.XDG_DATA_HOME = tempDir;
+
+      // Create user override for spec-driven
+      const userSchemaDir = path.join(tempDir, 'openspec', 'schemas', 'spec-driven');
+      fs.mkdirSync(userSchemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(userSchemaDir, 'schema.yaml'),
+        `name: spec-driven
+version: 1
+description: User override
+artifacts:
+  - id: user-artifact
+    generates: user.md
+    description: User artifact
+    template: user.md
+`
+      );
+
+      // Create project-local for spec-driven
+      const projectSchemaDir = path.join(tempDir, 'project', 'openspec', 'schemas', 'spec-driven');
+      fs.mkdirSync(projectSchemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(projectSchemaDir, 'schema.yaml'),
+        `name: spec-driven
+version: 1
+description: Project local
+artifacts:
+  - id: project-artifact
+    generates: project.md
+    description: Project artifact
+    template: project.md
+`
+      );
+
+      const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(path.join(tempDir, 'project'));
+      try {
+        const schemas = listSchemasWithInfo();
+
+        const specDriven = schemas.find((s) => s.name === 'spec-driven');
+        expect(specDriven).toBeDefined();
+        expect(specDriven?.source).toBe('project');
+        expect(specDriven?.description).toBe('Project local');
+      } finally {
+        cwdSpy.mockRestore();
+      }
+    });
+
+    it('should return sorted list', () => {
+      const schemas = listSchemasWithInfo();
+
+      const names = schemas.map((s) => s.name);
+      const sorted = [...names].sort();
+      expect(names).toEqual(sorted);
+    });
+
+    it('should skip invalid schemas silently', () => {
+      const projectSchemaDir = path.join(tempDir, 'project', 'openspec', 'schemas', 'invalid-schema');
+      fs.mkdirSync(projectSchemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(projectSchemaDir, 'schema.yaml'),
+        'not valid yaml: [[[invalid'
+      );
+
+      const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(path.join(tempDir, 'project'));
+      try {
+        // Should not throw
+        const schemas = listSchemasWithInfo();
+        expect(schemas.find((s) => s.name === 'invalid-schema')).toBeUndefined();
+      } finally {
+        cwdSpy.mockRestore();
+      }
     });
   });
 });
