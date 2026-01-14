@@ -428,6 +428,13 @@ We collect only command names and version to understand usage patterns. No argum
 - Develop CLI locally: `pnpm run dev` or `pnpm run dev:cli`
 - Conventional commits (one-line): `type(scope): subject`
 
+<details>
+<summary><strong>Maintainers & Advisors</strong></summary>
+
+See [MAINTAINERS.md](MAINTAINERS.md) for the list of core maintainers and advisors who help guide the project.
+
+</details>
+
 ## License
 
 MIT
