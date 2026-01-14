@@ -156,6 +156,18 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     ],
   },
   {
+    name: 'feedback',
+    description: 'Submit feedback about OpenSpec',
+    acceptsPositional: true,
+    flags: [
+      {
+        name: 'body',
+        description: 'Detailed description for the feedback',
+        takesValue: true,
+      },
+    ],
+  },
+  {
     name: 'change',
     description: 'Manage OpenSpec change proposals (deprecated)',
     flags: [],
