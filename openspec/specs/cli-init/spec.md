@@ -187,7 +187,8 @@ The init command SHALL generate slash command files for supported editors using 
 #### Scenario: Generating slash commands for CodeBuddy Code
 - **WHEN** the user selects CodeBuddy Code during initialization
 - **THEN** create `.codebuddy/commands/openspec/proposal.md`, `.codebuddy/commands/openspec/apply.md`, and `.codebuddy/commands/openspec/archive.md`
-- **AND** populate each file from shared templates so command text matches other tools
+- **AND** populate each file from shared templates that include CodeBuddy-compatible YAML frontmatter for the `description` and `argument-hint` fields
+- **AND** use square bracket format for `argument-hint` parameters (e.g., `[change-id]`)
 - **AND** each template includes instructions for the relevant OpenSpec workflow stage
 
 #### Scenario: Generating slash commands for Cline
@@ -207,6 +208,12 @@ The init command SHALL generate slash command files for supported editors using 
 #### Scenario: Generating slash commands for Cursor
 - **WHEN** the user selects Cursor during initialization
 - **THEN** create `.cursor/commands/openspec-proposal.md`, `.cursor/commands/openspec-apply.md`, and `.cursor/commands/openspec-archive.md`
+- **AND** populate each file from shared templates so command text matches other tools
+- **AND** each template includes instructions for the relevant OpenSpec workflow stage
+
+#### Scenario: Generating slash commands for Continue
+- **WHEN** the user selects Continue during initialization
+- **THEN** create `.continue/prompts/openspec-proposal.prompt`, `.continue/prompts/openspec-apply.prompt`, and `.continue/prompts/openspec-archive.prompt`
 - **AND** populate each file from shared templates so command text matches other tools
 - **AND** each template includes instructions for the relevant OpenSpec workflow stage
 

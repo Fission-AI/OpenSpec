@@ -161,6 +161,99 @@ describe('FileSystemUtils', () => {
     });
   });
 
+  describe('canWriteFile', () => {
+    it('should return true for existing writable file', async () => {
+      const filePath = path.join(testDir, 'writable.txt');
+      await fs.writeFile(filePath, 'content');
+
+      const canWrite = await FileSystemUtils.canWriteFile(filePath);
+      expect(canWrite).toBe(true);
+    });
+
+    it('should return false for existing read-only file', async () => {
+      const filePath = path.join(testDir, 'readonly.txt');
+      await fs.writeFile(filePath, 'content');
+      await fs.chmod(filePath, 0o444); // Read-only
+
+      const canWrite = await FileSystemUtils.canWriteFile(filePath);
+      expect(canWrite).toBe(false);
+
+      // Cleanup: restore permissions so afterEach can delete
+      await fs.chmod(filePath, 0o644);
+    });
+
+    it('should return true for non-existent file in writable directory', async () => {
+      const filePath = path.join(testDir, 'new-file.txt');
+
+      const canWrite = await FileSystemUtils.canWriteFile(filePath);
+      expect(canWrite).toBe(true);
+    });
+
+    it('should return true for non-existent file in non-existent nested directories', async () => {
+      const filePath = path.join(testDir, 'deep', 'nested', 'path', 'file.txt');
+
+      const canWrite = await FileSystemUtils.canWriteFile(filePath);
+      expect(canWrite).toBe(true);
+    });
+
+    // Skip on Windows: fs.chmod() on directories doesn't restrict write access on Windows
+    // Windows uses ACLs which Node.js chmod doesn't control
+    it.skipIf(process.platform === 'win32')('should return false for non-existent file in read-only directory', async () => {
+      const readOnlyDir = path.join(testDir, 'readonly-dir');
+      await fs.mkdir(readOnlyDir);
+      await fs.chmod(readOnlyDir, 0o555); // Read-only + execute
+
+      const filePath = path.join(readOnlyDir, 'file.txt');
+      const canWrite = await FileSystemUtils.canWriteFile(filePath);
+      expect(canWrite).toBe(false);
+
+      // Cleanup
+      await fs.chmod(readOnlyDir, 0o755);
+    });
+
+    it('should return true when path points to existing directory', async () => {
+      const dirPath = path.join(testDir, 'some-dir');
+      await fs.mkdir(dirPath);
+
+      const canWrite = await FileSystemUtils.canWriteFile(dirPath);
+      expect(canWrite).toBe(true);
+    });
+
+    it('should traverse multiple non-existent parent directories', async () => {
+      const filePath = path.join(testDir, 'a', 'b', 'c', 'd', 'e', 'file.txt');
+
+      const canWrite = await FileSystemUtils.canWriteFile(filePath);
+      expect(canWrite).toBe(true);
+    });
+
+    it('should return false when intermediate path component is a file', async () => {
+      // Create a file where a directory should be
+      const fileInPath = path.join(testDir, 'blocking-file.txt');
+      await fs.writeFile(fileInPath, 'content');
+
+      // Try to check a path that goes "through" this file
+      const filePath = path.join(fileInPath, 'nested', 'file.txt');
+      const canWrite = await FileSystemUtils.canWriteFile(filePath);
+      expect(canWrite).toBe(false);
+    });
+
+    it('should follow symbolic links to files', async () => {
+      const realFile = path.join(testDir, 'real-file.txt');
+      const linkFile = path.join(testDir, 'link-file.txt');
+      await fs.writeFile(realFile, 'content');
+      await fs.symlink(realFile, linkFile);
+
+      const canWrite = await FileSystemUtils.canWriteFile(linkFile);
+      expect(canWrite).toBe(true);
+    });
+
+    it('should handle platform-specific path separators', async () => {
+      const filePath = FileSystemUtils.joinPath(testDir, 'subdir', 'file.txt');
+      const canWrite = await FileSystemUtils.canWriteFile(filePath);
+      expect(canWrite).toBe(true);
+    });
+  });
+
   describe('joinPath', () => {
     it('should join POSIX-style paths', () => {
       const result = FileSystemUtils.joinPath(

@@ -50,6 +50,7 @@ The update command SHALL always update the core OpenSpec files and display an AS
 - **AND** if a root-level stub exists, refresh it so it still directs contributors to `@/openspec/AGENTS.md`
 
 ### Requirement: Slash Command Updates
+
 The update command SHALL refresh existing slash command files for configured tools without creating new ones, and ensure the OpenCode archive command accepts change ID arguments.
 
 #### Scenario: Updating slash commands for Antigravity
@@ -64,13 +65,19 @@ The update command SHALL refresh existing slash command files for configured too
 
 #### Scenario: Updating slash commands for CodeBuddy Code
 - **WHEN** `.codebuddy/commands/openspec/` contains `proposal.md`, `apply.md`, and `archive.md`
-- **THEN** refresh each file using shared templates
-- **AND** ensure templates include instructions for the relevant workflow stage
+- **THEN** refresh each file using the shared CodeBuddy templates that include YAML frontmatter for the `description` and `argument-hint` fields
+- **AND** use square bracket format for `argument-hint` parameters (e.g., `[change-id]`)
+- **AND** preserve any user customizations outside the OpenSpec managed markers
 
 #### Scenario: Updating slash commands for Cline
 - **WHEN** `.clinerules/workflows/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
 - **THEN** refresh each file using shared templates
 - **AND** include Cline-specific Markdown heading frontmatter
+- **AND** ensure templates include instructions for the relevant workflow stage
+
+#### Scenario: Updating slash commands for Continue
+- **WHEN** `.continue/prompts/` contains `openspec-proposal.prompt`, `openspec-apply.prompt`, and `openspec-archive.prompt`
+- **THEN** refresh each file using shared templates
 - **AND** ensure templates include instructions for the relevant workflow stage
 
 #### Scenario: Updating slash commands for Crush

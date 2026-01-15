@@ -26,6 +26,10 @@
   Follow <a href="https://x.com/0xTab">@0xTab on X</a> for updates · Join the <a href="https://discord.gg/YctCnvvshC">OpenSpec Discord</a> for help and questions.
 </p>
 
+<p align="center">
+  <sub>🧪 <strong>New:</strong> <a href="docs/experimental-workflow.md">Experimental Workflow (OPSX)</a> — schema-driven, hackable, fluid. Iterate on workflows without code changes.</sub>
+</p>
+
 # OpenSpec
 
 OpenSpec aligns humans and AI coding assistants with spec-driven development so you agree on what to build before any code is written. **No API keys required.**
@@ -99,6 +103,7 @@ These tools have built-in OpenSpec commands. Select the OpenSpec integration whe
 | **Cline** | Workflows in `.clinerules/workflows/` directory (`.clinerules/workflows/openspec-*.md`) |
 | **CodeBuddy Code (CLI)** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` (`.codebuddy/commands/`) — see [docs](https://www.codebuddy.ai/cli) |
 | **Codex** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (global: `~/.codex/prompts`, auto-installed) |
+| **Continue** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.continue/prompts/`) |
 | **CoStrict** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.cospec/openspec/commands/`) — see [docs](https://costrict.ai)|
 | **Crush** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.crush/commands/openspec/`) |
 | **Cursor** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` |
@@ -403,6 +408,53 @@ Run `openspec update` whenever someone switches tools so your agents pick up the
 2. **Refresh agent instructions**
    - Run `openspec update` inside each project to regenerate AI guidance and ensure the latest slash commands are active.
 
+## Experimental Features
+
+<details>
+<summary><strong>🧪 OPSX: Fluid, Iterative Workflow</strong> (Claude Code only)</summary>
+
+**Why this exists:**
+- Standard workflow is locked down — you can't tweak instructions or customize
+- When AI output is bad, you can't improve the prompts yourself
+- Same workflow for everyone, no way to match how your team works
+
+**What's different:**
+- **Hackable** — edit templates and schemas yourself, test immediately, no rebuild
+- **Granular** — each artifact has its own instructions, test and tweak individually
+- **Customizable** — define your own workflows, artifacts, and dependencies
+- **Fluid** — no phase gates, update any artifact anytime
+
+```
+You can always go back:
+
+  proposal ──→ specs ──→ design ──→ tasks ──→ implement
+     ▲           ▲          ▲                    │
+     └───────────┴──────────┴────────────────────┘
+```
+
+| Command | What it does |
+|---------|--------------|
+| `/opsx:new` | Start a new change |
+| `/opsx:continue` | Create the next artifact (based on what's ready) |
+| `/opsx:ff` | Fast-forward (all planning artifacts at once) |
+| `/opsx:apply` | Implement tasks, updating artifacts as needed |
+| `/opsx:archive` | Archive when done |
+
+**Setup:** `openspec artifact-experimental-setup`
+
+[Full documentation →](docs/experimental-workflow.md)
+
+</details>
+
+<details>
+<summary><strong>Telemetry</strong> – OpenSpec collects anonymous usage stats (opt-out: <code>OPENSPEC_TELEMETRY=0</code>)</summary>
+
+We collect only command names and version to understand usage patterns. No arguments, paths, content, or PII. Automatically disabled in CI.
+
+**Opt-out:** `export OPENSPEC_TELEMETRY=0` or `export DO_NOT_TRACK=1`
+
+</details>
+
 ## Contributing
 
 - Install dependencies: `pnpm install`
@@ -410,6 +462,13 @@ Run `openspec update` whenever someone switches tools so your agents pick up the
 - Test: `pnpm test`
 - Develop CLI locally: `pnpm run dev` or `pnpm run dev:cli`
 - Conventional commits (one-line): `type(scope): subject`
+
+<details>
+<summary><strong>Maintainers & Advisors</strong></summary>
+
+See [MAINTAINERS.md](MAINTAINERS.md) for the list of core maintainers and advisors who help guide the project.
+
+</details>
 
 ## License
 

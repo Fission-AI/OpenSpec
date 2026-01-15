@@ -18,9 +18,20 @@ jobs:
     if: github.repository == 'Fission-AI/OpenSpec'
     runs-on: ubuntu-latest
     steps:
+      # Generate GitHub App token first - used for checkout and changesets
+      # This allows git operations to trigger CI workflows on the version PR
+      # (GITHUB_TOKEN cannot trigger workflows by design)
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
 
       - uses: pnpm/action-setup@v4
         with:
@@ -44,5 +55,5 @@ jobs:
           # so package.json already contains the bumped version.
           publish: pnpm run release:ci
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           # npm authentication handled via OIDC trusted publishing (no token needed)
