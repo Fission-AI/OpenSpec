@@ -9,6 +9,15 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 FLAKE_FILE="$PROJECT_ROOT/flake.nix"
 PACKAGE_JSON="$PROJECT_ROOT/package.json"
 
+# Detect OS and set sed in-place flag
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  # macOS (BSD sed) requires empty string argument for -i
+  SED_INPLACE=(-i '')
+else
+  # Linux (GNU sed)
+  SED_INPLACE=(-i)
+fi
+
 echo "==> Updating flake.nix..."
 
 # Extract version from package.json
@@ -18,7 +27,7 @@ echo "    Detected version: $VERSION"
 # Update version in flake.nix
 if ! grep -q "version = \"$VERSION\"" "$FLAKE_FILE"; then
   echo "    Updating version in flake.nix..."
-  sed -i "s|version = \"[^\"]*\"|version = \"$VERSION\"|" "$FLAKE_FILE"
+  sed "${SED_INPLACE[@]}" "s|version = \"[^\"]*\"|version = \"$VERSION\"|" "$FLAKE_FILE"
 else
   echo "    Version already up-to-date in flake.nix"
 fi
@@ -26,7 +35,7 @@ fi
 # Set placeholder hash to trigger error
 echo "    Setting placeholder hash..."
 PLACEHOLDER="sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-sed -i "s|hash = \"sha256-[^\"]*\"|hash = \"$PLACEHOLDER\"|" "$FLAKE_FILE"
+sed "${SED_INPLACE[@]}" "s|hash = \"sha256-[^\"]*\"|hash = \"$PLACEHOLDER\"|" "$FLAKE_FILE"
 
 # Try to build and capture the correct hash
 echo "    Building to get correct hash (this will fail)..."
@@ -45,7 +54,7 @@ fi
 echo "    Detected hash: $CORRECT_HASH"
 
 # Update flake.nix with correct hash
-sed -i "s|hash = \"$PLACEHOLDER\"|hash = \"$CORRECT_HASH\"|" "$FLAKE_FILE"
+sed "${SED_INPLACE[@]}" "s|hash = \"$PLACEHOLDER\"|hash = \"$CORRECT_HASH\"|" "$FLAKE_FILE"
 
 # Verify the build works
 echo "    Verifying build..."
