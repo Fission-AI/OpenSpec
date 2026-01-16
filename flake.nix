@@ -19,7 +19,7 @@
         {
           default = pkgs.stdenv.mkDerivation (finalAttrs: {
             pname = "openspec";
-            version = "0.18.0";
+            version = "0.20.0";
 
             src = ./.;
 
@@ -27,7 +27,7 @@
               inherit (finalAttrs) pname version src;
               pnpm = pkgs.pnpm_9;
               fetcherVersion = 3;
-              hash = "sha256-ltG+wmr2aiRmghEMGOZVYifvrY8qdLDfizLq6a8Ds0s=";
+              hash = "sha256-m/7IdY1ou9ljjYAcx3W8AyEJvIZfCBWIWxproQ/INPA=";
             };
 
             nativeBuildInputs = with pkgs; [

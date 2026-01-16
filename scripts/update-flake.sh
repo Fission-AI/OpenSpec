@@ -18,7 +18,7 @@ echo "    Detected version: $VERSION"
 # Update version in flake.nix
 if ! grep -q "version = \"$VERSION\"" "$FLAKE_FILE"; then
   echo "    Updating version in flake.nix..."
-  sed -i "s/version = \"[^\"]*\"/version = \"$VERSION\"/" "$FLAKE_FILE"
+  sed -i "s|version = \"[^\"]*\"|version = \"$VERSION\"|" "$FLAKE_FILE"
 else
   echo "    Version already up-to-date in flake.nix"
 fi
@@ -26,7 +26,7 @@ fi
 # Set placeholder hash to trigger error
 echo "    Setting placeholder hash..."
 PLACEHOLDER="sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-sed -i "s/hash = \"sha256-[^\"]*\"/hash = \"$PLACEHOLDER\"/" "$FLAKE_FILE"
+sed -i "s|hash = \"sha256-[^\"]*\"|hash = \"$PLACEHOLDER\"|" "$FLAKE_FILE"
 
 # Try to build and capture the correct hash
 echo "    Building to get correct hash (this will fail)..."
@@ -45,7 +45,7 @@ fi
 echo "    Detected hash: $CORRECT_HASH"
 
 # Update flake.nix with correct hash
-sed -i "s/hash = \"$PLACEHOLDER\"/hash = \"$CORRECT_HASH\"/" "$FLAKE_FILE"
+sed -i "s|hash = \"$PLACEHOLDER\"|hash = \"$CORRECT_HASH\"|" "$FLAKE_FILE"
 
 # Verify the build works
 echo "    Verifying build..."
