@@ -4,6 +4,7 @@ import { OPENSPEC_DIR_NAME } from './config.js';
 import { ToolRegistry } from './configurators/registry.js';
 import { SlashCommandRegistry } from './configurators/slash/registry.js';
 import { agentsTemplate } from './templates/agents-template.js';
+import { TemplateManager } from './templates/index.js';
 
 export class UpdateCommand {
   async execute(projectPath: string): Promise<void> {
@@ -20,6 +21,24 @@ export class UpdateCommand {
     const agentsPath = path.join(openspecPath, 'AGENTS.md');
 
     await FileSystemUtils.writeFile(agentsPath, agentsTemplate);
+
+    // 2b. Create missing template files (e.g., architecture.md for existing projects)
+    const templates = TemplateManager.getTemplates({});
+    const createdTemplates: string[] = [];
+    for (const template of templates) {
+      // Skip AGENTS.md (already handled above) and project.md (user content)
+      if (template.path === 'AGENTS.md' || template.path === 'project.md') {
+        continue;
+      }
+      const templatePath = path.join(openspecPath, template.path);
+      if (!await FileSystemUtils.fileExists(templatePath)) {
+        const content = typeof template.content === 'function'
+          ? template.content({})
+          : template.content;
+        await FileSystemUtils.writeFile(templatePath, content);
+        createdTemplates.push(template.path);
+      }
+    }
 
     // 3. Update existing AI tool configuration files only
     const configurators = ToolRegistry.getAll();
@@ -59,8 +78,7 @@ export class UpdateCommand {
       } catch (error) {
         failedFiles.push(configurator.configFileName);
         console.error(
-          `Failed to update ${configurator.configFileName}: ${
-            error instanceof Error ? error.message : String(error)
+          `Failed to update ${configurator.configFileName}: ${error instanceof Error ? error.message : String(error)
           }`
         );
       }
@@ -80,8 +98,7 @@ export class UpdateCommand {
       } catch (error) {
         failedSlashTools.push(slashConfigurator.toolId);
         console.error(
-          `Failed to update slash commands for ${slashConfigurator.toolId}: ${
-            error instanceof Error ? error.message : String(error)
+          `Failed to update slash commands for ${slashConfigurator.toolId}: ${error instanceof Error ? error.message : String(error)
           }`
         );
       }
@@ -105,6 +122,10 @@ export class UpdateCommand {
       summaryParts.push(`Updated AI tool files: ${aiToolFiles.join(', ')}`);
     }
 
+    if (createdTemplates.length > 0) {
+      summaryParts.push(`Created: ${createdTemplates.join(', ')}`);
+    }
+
     if (updatedSlashFiles.length > 0) {
       // Normalize to forward slashes for cross-platform log consistency
       const normalized = updatedSlashFiles.map((p) => FileSystemUtils.toPosixPath(p));
@@ -124,6 +145,12 @@ export class UpdateCommand {
 
     console.log(summaryParts.join(' | '));
 
-    // No additional notes
+    // Show tip for newly created architecture.md
+    if (createdTemplates.includes('architecture.md')) {
+      console.log();
+      console.log('Tip: Ask your AI assistant to populate the architecture document:');
+      console.log('  "Please analyze my codebase and update openspec/architecture.md');
+      console.log('   with the actual components, data flows, and integration points"');
+    }
   }
 }

@@ -66,18 +66,18 @@ const isSelectableChoice = (
 
 type ToolWizardChoice =
   | {
-      kind: 'heading' | 'info';
-      value: string;
-      label: ToolLabel;
-      selectable: false;
-    }
+    kind: 'heading' | 'info';
+    value: string;
+    label: ToolLabel;
+    selectable: false;
+  }
   | {
-      kind: 'option';
-      value: string;
-      label: ToolLabel;
-      configured: boolean;
-      selectable: true;
-    };
+    kind: 'option';
+    value: string;
+    label: ToolLabel;
+    configured: boolean;
+    selectable: true;
+  };
 
 type ToolWizardConfig = {
   extendMode: boolean;
@@ -567,8 +567,8 @@ export class InitCommand {
       : 'Which natively supported AI tools do you use?';
     const initialNativeSelection = extendMode
       ? availableTools
-          .filter((tool) => existingTools[tool.value])
-          .map((tool) => tool.value)
+        .filter((tool) => existingTools[tool.value])
+        .map((tool) => tool.value)
       : [];
 
     const initialSelected = Array.from(new Set(initialNativeSelection));
@@ -592,13 +592,13 @@ export class InitCommand {
       })),
       ...(availableTools.length
         ? ([
-            {
-              kind: 'info' as const,
-              value: LIST_SPACER_VALUE,
-              label: { primary: '' },
-              selectable: false,
-            },
-          ] as ToolWizardChoice[])
+          {
+            kind: 'info' as const,
+            value: LIST_SPACER_VALUE,
+            label: { primary: '' },
+            selectable: false,
+          },
+        ] as ToolWizardChoice[])
         : []),
       {
         kind: 'heading',
@@ -822,33 +822,33 @@ export class InitCommand {
     const summaryLines = [
       rootStubStatus === 'created'
         ? `${PALETTE.white('▌')} ${PALETTE.white(
-            'Root AGENTS.md stub created for other assistants'
-          )}`
+          'Root AGENTS.md stub created for other assistants'
+        )}`
         : null,
       rootStubStatus === 'updated'
         ? `${PALETTE.lightGray('▌')} ${PALETTE.lightGray(
-            'Root AGENTS.md stub refreshed for other assistants'
-          )}`
+          'Root AGENTS.md stub refreshed for other assistants'
+        )}`
         : null,
       created.length
         ? `${PALETTE.white('▌')} ${PALETTE.white(
-            'Created:'
-          )} ${this.formatToolNames(created)}`
+          'Created:'
+        )} ${this.formatToolNames(created)}`
         : null,
       refreshed.length
         ? `${PALETTE.lightGray('▌')} ${PALETTE.lightGray(
-            'Refreshed:'
-          )} ${this.formatToolNames(refreshed)}`
+          'Refreshed:'
+        )} ${this.formatToolNames(refreshed)}`
         : null,
       skippedExisting.length
         ? `${PALETTE.midGray('▌')} ${PALETTE.midGray(
-            'Skipped (already configured):'
-          )} ${this.formatToolNames(skippedExisting)}`
+          'Skipped (already configured):'
+        )} ${this.formatToolNames(skippedExisting)}`
         : null,
       skipped.length
         ? `${PALETTE.darkGray('▌')} ${PALETTE.darkGray(
-            'Skipped:'
-          )} ${this.formatToolNames(skipped)}`
+          'Skipped:'
+        )} ${this.formatToolNames(skipped)}`
         : null,
     ].filter((line): line is string => Boolean(line));
     for (const line of summaryLines) {
@@ -897,7 +897,18 @@ export class InitCommand {
         '    with details about my project, tech stack, and conventions"\n'
       )
     );
-    console.log(PALETTE.white('2. Create your first change proposal:'));
+    console.log(PALETTE.white('2. Document your system architecture:'));
+    console.log(
+      PALETTE.lightGray(
+        '   "Please analyze my codebase and update openspec/architecture.md'
+      )
+    );
+    console.log(
+      PALETTE.lightGray(
+        '    with the actual components, data flows, and integration points"\n'
+      )
+    );
+    console.log(PALETTE.white('3. Create your first change proposal:'));
     console.log(
       PALETTE.lightGray(
         '   "I want to add [YOUR FEATURE HERE]. Please create an'
@@ -906,7 +917,7 @@ export class InitCommand {
     console.log(
       PALETTE.lightGray('    OpenSpec change proposal for this feature"\n')
     );
-    console.log(PALETTE.white('3. Learn the OpenSpec workflow:'));
+    console.log(PALETTE.white('4. Learn the OpenSpec workflow:'));
     console.log(
       PALETTE.lightGray(
         '   "Please explain the OpenSpec workflow from openspec/AGENTS.md'
@@ -944,9 +955,8 @@ export class InitCommand {
     const base = names.slice(0, -1).map((name) => PALETTE.white(name));
     const last = PALETTE.white(names[names.length - 1]);
 
-    return `${base.join(PALETTE.midGray(', '))}${
-      base.length ? PALETTE.midGray(', and ') : ''
-    }${last}`;
+    return `${base.join(PALETTE.midGray(', '))}${base.length ? PALETTE.midGray(', and ') : ''
+      }${last}`;
   }
 
   private renderBanner(_extendMode: boolean): void {

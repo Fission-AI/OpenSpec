@@ -105,6 +105,10 @@ artifacts:
       Reference the proposal for motivation and specs for requirements.
 
       Good design docs explain the "why" behind technical decisions.
+
+      Note: Architectural decisions in design.md are automatically merged to
+      openspec/architecture.md when the change is archived. For structural changes,
+      verify architecture.md is updated after implementation.
     requires:
       - proposal
 
