@@ -61,7 +61,6 @@ export const architectureTemplate = `# System Architecture
 
 | Date | Decision | Rationale | Status |
 |------|----------|-----------|--------|
-| <!-- Decisions are appended here during archive --> |
 
 ## Constraints
 

@@ -35,7 +35,7 @@ export function hasArchitecturalImpact(designContent: string): boolean {
     /\bdata.?flow\b/i,
     /\bmodule\b/i,
     /\bmicroservice\b/i,
-    /\bAPI\b/,
+    /\bAPI\b/i,
     /\bdatabase\b/i,
     /\bschema\b/i,
     /\bpattern\b/i,
