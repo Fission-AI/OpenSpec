@@ -1,5 +1,23 @@
 # @fission-ai/openspec
 
+## 0.21.0
+
+### Minor Changes
+
+- [#516](https://github.com/Fission-AI/OpenSpec/pull/516) [`b5a8847`](https://github.com/Fission-AI/OpenSpec/commit/b5a884748be6156a7bb140b4941cfec4f20a9fc8) Thanks [@TabishB](https://github.com/TabishB)! - ### New Features
+
+  - **Feedback command** — Submit feedback directly from the CLI with `openspec feedback`, which creates GitHub Issues with automatic metadata inclusion and graceful fallback for manual submission
+  - **Nix flake support** — Install and develop openspec using Nix with the new `flake.nix`, including automated flake maintenance and CI validation
+
+  ### Bug Fixes
+
+  - **Explore mode guardrails** — Explore mode now explicitly prevents implementation, keeping the focus on thinking and discovery while still allowing artifact creation
+
+  ### Other
+
+  - Improved change inference in `opsx apply` — automatically detects the target change from conversation context or prompts when ambiguous
+  - Streamlined archive sync assessment with clearer delta spec location guidance
+
 ## 0.20.0
 
 ### Minor Changes
