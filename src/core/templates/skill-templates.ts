@@ -499,19 +499,20 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
     description: 'Implement tasks from an OpenSpec change. Use when the user wants to start implementing, continue implementation, or work through tasks.',
     instructions: `Implement tasks from an OpenSpec change.
 
-**Input**: Optionally specify a change name. If omitted, infer the intended change from the conversation; if still ambiguous, default to the most recently modified change (and clearly announce which change you're using).
+**Input**: Optionally specify a change name. If omitted, infer the intended change from the conversation; if ambiguous, prompt the user to choose (do not guess).
 
 **Steps**
 
-1. **Resolve the target change (infer → fallback)**
+1. **Resolve the target change (infer → prompt)**
 
    If the user already mentioned a change name in the conversation, use it (validate it exists via \`openspec list --json\` or \`openspec status --change "<name>" --json\`).
 
    If no change name is mentioned:
-   - Run \`openspec list --json\` to get active changes (sorted by most recently modified)
-   - Select the best default:
-     - Prefer the most recently modified change that is not blocked for apply (you can probe candidates with \`openspec instructions apply --change "<name>" --json\`)
-     - If every change is blocked, use the most recently modified change anyway and explain what's missing and how to unblock it (usually \`/opsx:continue\`)
+   - Run \`openspec list --json\` to get active changes
+   - If there is exactly ONE active change, use it
+   - Otherwise, prompt the user to choose which change to apply (do not guess)
+     - Present the top 3-4 most recently modified changes as options (include task progress if available)
+     - Mark the most recently modified as "(Recommended)" but still require user confirmation
 
    **IMPORTANT**: Do not silently pick a change. Always state: "Using change: <name>" and how to override (e.g., \`/opsx:apply <other>\` or "Use change <other>").
 
@@ -1271,19 +1272,20 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
     tags: ['workflow', 'artifacts', 'experimental'],
     content: `Implement tasks from an OpenSpec change.
 
-**Input**: Optionally specify a change name after \`/opsx:apply\` (e.g., \`/opsx:apply add-auth\`). If omitted, infer the intended change from the conversation; if still ambiguous, default to the most recently modified change (and clearly announce which change you're using).
+**Input**: Optionally specify a change name after \`/opsx:apply\` (e.g., \`/opsx:apply add-auth\`). If omitted, infer the intended change from the conversation; if ambiguous, prompt the user to choose (do not guess).
 
 **Steps**
 
-1. **Resolve the target change (infer → fallback)**
+1. **Resolve the target change (infer → prompt)**
 
    If the user already mentioned a change name in the conversation, use it (validate it exists via \`openspec list --json\` or \`openspec status --change "<name>" --json\`).
 
    If no change name is mentioned:
-   - Run \`openspec list --json\` to get active changes (sorted by most recently modified)
-   - Select the best default:
-     - Prefer the most recently modified change that is not blocked for apply (you can probe candidates with \`openspec instructions apply --change "<name>" --json\`)
-     - If every change is blocked, use the most recently modified change anyway and explain what's missing and how to unblock it (usually \`/opsx:continue\`)
+   - Run \`openspec list --json\` to get active changes
+   - If there is exactly ONE active change, use it
+   - Otherwise, prompt the user to choose which change to apply (do not guess)
+     - Present the top 3-4 most recently modified changes as options (include task progress if available)
+     - Mark the most recently modified as "(Recommended)" but still require user confirmation
 
    **IMPORTANT**: Do not silently pick a change. Always state: "Using change: <name>" and how to override (e.g., \`/opsx:apply <other>\` or "Use change <other>").
 
