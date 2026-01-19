@@ -119,7 +119,7 @@ Creates all planning artifacts at once. Use when you have a clear picture of wha
 ```
 /opsx:apply
 ```
-Works through tasks, checking them off as you go. **Key difference:** if you discover issues during implementation, you can update your specs, design, or tasks — then continue. No phase gates.
+Works through tasks, checking them off as you go. **Key difference:** if you discover issues during implementation, you can update your specs, design, or tasks — then continue. No phase gates. If you're juggling multiple changes, you can run `/opsx:apply <name>`; otherwise it should infer from the conversation and prompt you to choose if it can’t tell.
 
 ### Finish up
 ```
