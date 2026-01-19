@@ -1563,38 +1563,37 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
 
    **If no tasks file exists:** Proceed without task-related warning.
 
-4. **Check if delta specs need syncing**
+4. **Assess delta spec sync state (agentic)**
 
    Check if \`specs/\` directory exists in the change with spec files.
 
-   **If delta specs exist, perform a quick sync check:**
+   **If no delta specs exist:** Proceed without sync prompt.
+
+   **If delta specs exist, perform a sync assessment before prompting:**
 
    a. **For each delta spec** at \`openspec/changes/<name>/specs/<capability>/spec.md\`:
-      - Extract requirement names (lines matching \`### Requirement: <name>\`)
-      - Note which sections exist (ADDED, MODIFIED, REMOVED)
+      - Parse requirement blocks under \`## ADDED|MODIFIED|REMOVED|RENAMED Requirements\`
+      - Read the main spec at \`openspec/specs/<capability>/spec.md\`
+      - If the main spec is missing, mark the entire capability as **out of sync** and treat all delta requirements as changes needed
 
-   b. **Check corresponding main spec** at \`openspec/specs/<capability>/spec.md\`:
-      - If main spec doesn't exist → needs sync
-      - If main spec exists, check if ADDED requirement names appear in it
-      - If any ADDED requirements are missing from main spec → needs sync
+   b. **Evaluate each requirement:**
+      - **ADDED**: If missing in main → would add. If present but content differs → would update. If identical → already synced.
+      - **MODIFIED**: If missing → would add (or flag missing). If present but content differs → would update. If identical → already synced.
+      - **REMOVED**: If present in main → would remove. If missing → already synced.
+      - **RENAMED**: If FROM present and TO absent → would rename. If FROM absent and TO present → already synced. Otherwise → would repair.
 
-   c. **Report findings:**
+      *Compare full requirement blocks (header + scenarios) for equality, not just names.*
 
-      **If sync needed:**
-      \`\`\`
-      ⚠️ Delta specs may not be synced:
-      - specs/auth/spec.md → Main spec missing requirement "Token Refresh"
-      - specs/api/spec.md → Main spec doesn't exist yet
+   c. **Summarize across all spec deltas** (single combined report):
+      - Totals: add / modify / remove / rename needed
+      - Per capability: list requirement names under each action (keep concise; if many, show count + a few examples + “+N more”)
 
-      Would you like to sync now before archiving?
-      \`\`\`
-      - Use **AskUserQuestion tool** with options: "Sync now", "Archive without syncing"
-      - If user chooses sync, execute /opsx:sync logic (use the openspec-sync-specs skill)
+   d. **Prompt based on the assessment:**
+      - **If no changes needed**: say "Specs already in sync." Prompt options: "Archive now", "Sync anyway", "Cancel"
+      - **If changes needed**: show the summary and prompt options: "Sync now (recommended)", "Archive without syncing"
 
-      **If already synced (all requirements found):**
-      - Proceed without prompting (specs appear to be in sync)
-
-   **If no delta specs exist:** Proceed without sync-related checks.
+   - If user chooses sync, execute /opsx:sync logic (use the openspec-sync-specs skill)
+   - Proceed to archive regardless of choice
 
 5. **Perform the archive**
 
@@ -1630,7 +1629,7 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
 **Change:** <change-name>
 **Schema:** <schema-name>
 **Archived to:** openspec/changes/archive/YYYY-MM-DD-<name>/
-**Specs:** ✓ Synced to main specs (or "No delta specs" or "⚠️ Not synced")
+**Specs:** ✓ Synced to main specs (or "No delta specs" or "Sync skipped")
 
 All artifacts complete. All tasks complete.
 \`\`\`
@@ -1642,7 +1641,7 @@ All artifacts complete. All tasks complete.
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
 - Show clear summary of what happened
 - If sync is requested, use openspec-sync-specs approach (agent-driven)
-- Quick sync check: look for requirement names in delta specs, verify they exist in main specs`
+- If delta specs exist, always run the sync assessment and show the combined summary before prompting`
   };
 }
 
@@ -2003,38 +2002,37 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
 
    **If no tasks file exists:** Proceed without task-related warning.
 
-4. **Check if delta specs need syncing**
+4. **Assess delta spec sync state (agentic)**
 
    Check if \`specs/\` directory exists in the change with spec files.
 
-   **If delta specs exist, perform a quick sync check:**
+   **If no delta specs exist:** Proceed without sync prompt.
+
+   **If delta specs exist, perform a sync assessment before prompting:**
 
    a. **For each delta spec** at \`openspec/changes/<name>/specs/<capability>/spec.md\`:
-      - Extract requirement names (lines matching \`### Requirement: <name>\`)
-      - Note which sections exist (ADDED, MODIFIED, REMOVED)
+      - Parse requirement blocks under \`## ADDED|MODIFIED|REMOVED|RENAMED Requirements\`
+      - Read the main spec at \`openspec/specs/<capability>/spec.md\`
+      - If the main spec is missing, mark the entire capability as **out of sync** and treat all delta requirements as changes needed
 
-   b. **Check corresponding main spec** at \`openspec/specs/<capability>/spec.md\`:
-      - If main spec doesn't exist → needs sync
-      - If main spec exists, check if ADDED requirement names appear in it
-      - If any ADDED requirements are missing from main spec → needs sync
+   b. **Evaluate each requirement:**
+      - **ADDED**: If missing in main → would add. If present but content differs → would update. If identical → already synced.
+      - **MODIFIED**: If missing → would add (or flag missing). If present but content differs → would update. If identical → already synced.
+      - **REMOVED**: If present in main → would remove. If missing → already synced.
+      - **RENAMED**: If FROM present and TO absent → would rename. If FROM absent and TO present → already synced. Otherwise → would repair.
 
-   c. **Report findings:**
+      *Compare full requirement blocks (header + scenarios) for equality, not just names.*
 
-      **If sync needed:**
-      \`\`\`
-      ⚠️ Delta specs may not be synced:
-      - specs/auth/spec.md → Main spec missing requirement "Token Refresh"
-      - specs/api/spec.md → Main spec doesn't exist yet
+   c. **Summarize across all spec deltas** (single combined report):
+      - Totals: add / modify / remove / rename needed
+      - Per capability: list requirement names under each action (keep concise; if many, show count + a few examples + “+N more”)
 
-      Would you like to sync now before archiving?
-      \`\`\`
-      - Use **AskUserQuestion tool** with options: "Sync now", "Archive without syncing"
-      - If user chooses sync, execute \`/opsx:sync\` logic
+   d. **Prompt based on the assessment:**
+      - **If no changes needed**: say "Specs already in sync." Prompt options: "Archive now", "Sync anyway", "Cancel"
+      - **If changes needed**: show the summary and prompt options: "Sync now (recommended)", "Archive without syncing"
 
-      **If already synced (all requirements found):**
-      - Proceed without prompting (specs appear to be in sync)
-
-   **If no delta specs exist:** Proceed without sync-related checks.
+   - If user chooses sync, execute \`/opsx:sync\` logic
+   - Proceed to archive regardless of choice
 
 5. **Perform the archive**
 
@@ -2059,7 +2057,7 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
    - Change name
    - Schema that was used
    - Archive location
-   - Spec sync status (synced / not synced / no delta specs)
+   - Spec sync status (synced / sync skipped / no delta specs)
    - Note about any warnings (incomplete artifacts/tasks)
 
 **Output On Success**
@@ -2096,12 +2094,12 @@ All artifacts complete. All tasks complete.
 **Change:** <change-name>
 **Schema:** <schema-name>
 **Archived to:** openspec/changes/archive/YYYY-MM-DD-<name>/
-**Specs:** ⚠️ Not synced
+**Specs:** Sync skipped (user chose to skip)
 
 **Warnings:**
 - Archived with 2 incomplete artifacts
 - Archived with 3 incomplete tasks
-- Delta specs were not synced (user chose to skip)
+- Delta spec sync was skipped (user chose to skip)
 
 Review the archive if this was not intentional.
 \`\`\`
@@ -2129,7 +2127,8 @@ Target archive directory already exists.
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
 - Quick sync check: look for requirement names in delta specs, verify they exist in main specs
 - Show clear summary of what happened
-- If sync is requested, use /opsx:sync approach (agent-driven)`
+- If sync is requested, use /opsx:sync approach (agent-driven)
+- If delta specs exist, always run the sync assessment and show the combined summary before prompting`
   };
 }
 
