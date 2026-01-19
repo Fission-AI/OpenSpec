@@ -510,7 +510,7 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
    If no change name is mentioned:
    - Run \`openspec list --json\` to get active changes
    - If there is exactly ONE active change, use it
-   - Otherwise, prompt the user to choose which change to apply (do not guess)
+   - Otherwise, prompt the user to choose which change to apply (do not guess). Use the **AskUserQuestion tool** to let the user select.
      - Present the top 3-4 most recently modified changes as options (include task progress if available)
      - Mark the most recently modified as "(Recommended)" but still require user confirmation
 
@@ -1283,7 +1283,7 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
    If no change name is mentioned:
    - Run \`openspec list --json\` to get active changes
    - If there is exactly ONE active change, use it
-   - Otherwise, prompt the user to choose which change to apply (do not guess)
+   - Otherwise, prompt the user to choose which change to apply (do not guess). Use the **AskUserQuestion tool** to let the user select.
      - Present the top 3-4 most recently modified changes as options (include task progress if available)
      - Mark the most recently modified as "(Recommended)" but still require user confirmation
 
