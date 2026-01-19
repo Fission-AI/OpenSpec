@@ -499,19 +499,21 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
     description: 'Implement tasks from an OpenSpec change. Use when the user wants to start implementing, continue implementation, or work through tasks.',
     instructions: `Implement tasks from an OpenSpec change.
 
-**Input**: Optionally specify a change name. If omitted, MUST prompt for available changes.
+**Input**: Optionally specify a change name. If omitted, infer the intended change from the conversation; if still ambiguous, default to the most recently modified change (and clearly announce which change you're using).
 
 **Steps**
 
-1. **If no change name provided, prompt for selection**
+1. **Resolve the target change (infer → fallback)**
 
-   Run \`openspec list --json\` to get available changes. Use the **AskUserQuestion tool** to let the user select.
+   If the user already mentioned a change name in the conversation, use it (validate it exists via \`openspec list --json\` or \`openspec status --change "<name>" --json\`).
 
-   Show changes that are implementation-ready (have tasks artifact).
-   Include the schema used for each change if available.
-   Mark changes with incomplete tasks as "(In Progress)".
+   If no change name is mentioned:
+   - Run \`openspec list --json\` to get active changes (sorted by most recently modified)
+   - Select the best default:
+     - Prefer the most recently modified change that is not blocked for apply (you can probe candidates with \`openspec instructions apply --change "<name>" --json\`)
+     - If every change is blocked, use the most recently modified change anyway and explain what's missing and how to unblock it (usually \`/opsx:continue\`)
 
-   **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
+   **IMPORTANT**: Do not silently pick a change. Always state: "Using change: <name>" and how to override (e.g., \`/opsx:apply <other>\` or "Use change <other>").
 
 2. **Check status to understand the schema**
    \`\`\`bash
@@ -1154,7 +1156,7 @@ export function getOpsxContinueCommandTemplate(): CommandTemplate {
     tags: ['workflow', 'artifacts', 'experimental'],
     content: `Continue working on a change by creating the next artifact.
 
-**Input**: Optionally specify \`--change <name>\` after \`/opsx:continue\`. If omitted, MUST prompt for available changes.
+**Input**: Optionally specify a change name after \`/opsx:continue\` (e.g., \`/opsx:continue add-auth\`). If omitted, MUST prompt for available changes.
 
 **Steps**
 
@@ -1269,19 +1271,21 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
     tags: ['workflow', 'artifacts', 'experimental'],
     content: `Implement tasks from an OpenSpec change.
 
-**Input**: Optionally specify \`--change <name>\` after \`/opsx:apply\`. If omitted, MUST prompt for available changes.
+**Input**: Optionally specify a change name after \`/opsx:apply\` (e.g., \`/opsx:apply add-auth\`). If omitted, infer the intended change from the conversation; if still ambiguous, default to the most recently modified change (and clearly announce which change you're using).
 
 **Steps**
 
-1. **If no change name provided, prompt for selection**
+1. **Resolve the target change (infer → fallback)**
 
-   Run \`openspec list --json\` to get available changes. Use the **AskUserQuestion tool** to let the user select.
+   If the user already mentioned a change name in the conversation, use it (validate it exists via \`openspec list --json\` or \`openspec status --change "<name>" --json\`).
 
-   Show changes that are implementation-ready (have tasks artifact).
-   Include the schema used for each change if available.
-   Mark changes with incomplete tasks as "(In Progress)".
+   If no change name is mentioned:
+   - Run \`openspec list --json\` to get active changes (sorted by most recently modified)
+   - Select the best default:
+     - Prefer the most recently modified change that is not blocked for apply (you can probe candidates with \`openspec instructions apply --change "<name>" --json\`)
+     - If every change is blocked, use the most recently modified change anyway and explain what's missing and how to unblock it (usually \`/opsx:continue\`)
 
-   **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
+   **IMPORTANT**: Do not silently pick a change. Always state: "Using change: <name>" and how to override (e.g., \`/opsx:apply <other>\` or "Use change <other>").
 
 2. **Check status to understand the schema**
    \`\`\`bash
@@ -1659,7 +1663,7 @@ export function getOpsxSyncCommandTemplate(): CommandTemplate {
 
 This is an **agent-driven** operation - you will read delta specs and directly edit main specs to apply the changes. This allows intelligent merging (e.g., adding a scenario without copying the entire requirement).
 
-**Input**: Optionally specify \`--change <name>\` after \`/opsx:sync\`. If omitted, MUST prompt for available changes.
+**Input**: Optionally specify a change name after \`/opsx:sync\` (e.g., \`/opsx:sync add-auth\`). If omitted, MUST prompt for available changes.
 
 **Steps**
 
@@ -1964,7 +1968,7 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
     tags: ['workflow', 'archive', 'experimental'],
     content: `Archive a completed change in the experimental workflow.
 
-**Input**: Optionally specify \`--change <name>\` after \`/opsx:archive\`. If omitted, MUST prompt for available changes.
+**Input**: Optionally specify a change name after \`/opsx:archive\` (e.g., \`/opsx:archive add-auth\`). If omitted, MUST prompt for available changes.
 
 **Steps**
 
@@ -2144,7 +2148,7 @@ export function getOpsxVerifyCommandTemplate(): CommandTemplate {
     tags: ['workflow', 'verify', 'experimental'],
     content: `Verify that an implementation matches the change artifacts (specs, tasks, design).
 
-**Input**: Optionally specify \`--change <name>\` after \`/opsx:verify\`. If omitted, MUST prompt for available changes.
+**Input**: Optionally specify a change name after \`/opsx:verify\` (e.g., \`/opsx:verify add-auth\`). If omitted, MUST prompt for available changes.
 
 **Steps**
 
