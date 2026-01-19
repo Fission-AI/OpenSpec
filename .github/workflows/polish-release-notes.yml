@@ -1,14 +1,23 @@
 name: Polish Release Notes
 
-# Manual trigger after a release is published
-# The Claude Code action doesn't support 'release' event triggers directly
+# Automatically polish release notes when a release is published.
+# Also supports manual trigger as a fallback.
+#
+# Note: The Claude Code Action works with any GitHub event when using the
+# `prompt` parameter for custom automations. If release triggers stop working,
+# check https://github.com/anthropics/claude-code-action for updates.
 on:
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       tag_name:
         description: 'Release tag to polish (e.g., v0.18.0)'
         required: true
         type: string
+
+env:
+  TAG_NAME: ${{ github.event.release.tag_name || inputs.tag_name }}
 
 permissions:
   contents: write
@@ -27,8 +36,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release view "${{ inputs.tag_name }}" --json body -q '.body' > current-notes.md
-          echo "Fetched release notes for ${{ inputs.tag_name }}"
+          gh release view "${{ env.TAG_NAME }}" --json body -q '.body' > current-notes.md
+          echo "Fetched release notes for ${{ env.TAG_NAME }}"
 
       - name: Transform release notes with Claude
         uses: anthropics/claude-code-action@v1
@@ -38,7 +47,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: "--allowedTools Write,Read"
           prompt: |
-            Transform the changelog in `current-notes.md` into release notes for OpenSpec ${{ inputs.tag_name }}.
+            Transform the changelog in `current-notes.md` into release notes for OpenSpec ${{ env.TAG_NAME }}.
 
             ## Voice
 
@@ -55,7 +64,7 @@ jobs:
 
             A short title in this format:
             ```
-            ${{ inputs.tag_name }} - [1-4 words describing the release]
+            ${{ env.TAG_NAME }} - [1-4 words describing the release]
             ```
 
             Examples:
@@ -72,7 +81,7 @@ jobs:
             ### 2. `polished-notes.md`
 
             ```markdown
-            ## What's New in ${{ inputs.tag_name }}
+            ## What's New in ${{ env.TAG_NAME }}
 
             [One sentence: what's the theme of this release?]
 
@@ -129,7 +138,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="${{ inputs.tag_name }}"
+          TAG="${{ env.TAG_NAME }}"
 
           if [ -f "polished-notes.md" ] && [ -f "release-title.txt" ]; then
             TITLE=$(cat release-title.txt)
