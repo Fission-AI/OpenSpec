@@ -1563,37 +1563,20 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
 
    **If no tasks file exists:** Proceed without task-related warning.
 
-4. **Assess delta spec sync state (agentic)**
+4. **Assess delta spec sync state**
 
-   Check if \`specs/\` directory exists in the change with spec files.
+   If no \`specs/\` directory exists in the change, proceed without sync prompt.
 
-   **If no delta specs exist:** Proceed without sync prompt.
+   **If delta specs exist:**
+   - Compare each delta spec with its corresponding main spec
+   - Determine what changes would be applied (adds, modifications, removals, renames)
+   - Show a combined summary before prompting
 
-   **If delta specs exist, perform a sync assessment before prompting:**
+   **Prompt options:**
+   - If changes needed: "Sync now (recommended)", "Archive without syncing"
+   - If already synced: "Archive now", "Sync anyway", "Cancel"
 
-   a. **For each delta spec** at \`openspec/changes/<name>/specs/<capability>/spec.md\`:
-      - Parse requirement blocks under \`## ADDED|MODIFIED|REMOVED|RENAMED Requirements\`
-      - Read the main spec at \`openspec/specs/<capability>/spec.md\`
-      - If the main spec is missing, mark the entire capability as **out of sync** and treat all delta requirements as changes needed
-
-   b. **Evaluate each requirement:**
-      - **ADDED**: If missing in main → would add. If present but content differs → would update. If identical → already synced.
-      - **MODIFIED**: If missing → would add (or flag missing). If present but content differs → would update. If identical → already synced.
-      - **REMOVED**: If present in main → would remove. If missing → already synced.
-      - **RENAMED**: If FROM present and TO absent → would rename. If FROM absent and TO present → already synced. Otherwise → would repair.
-
-      *Compare full requirement blocks (header + scenarios) for equality, not just names.*
-
-   c. **Summarize across all spec deltas** (single combined report):
-      - Totals: add / modify / remove / rename needed
-      - Per capability: list requirement names under each action (keep concise; if many, show count + a few examples + “+N more”)
-
-   d. **Prompt based on the assessment:**
-      - **If no changes needed**: say "Specs already in sync." Prompt options: "Archive now", "Sync anyway", "Cancel"
-      - **If changes needed**: show the summary and prompt options: "Sync now (recommended)", "Archive without syncing"
-
-   - If user chooses sync, execute /opsx:sync logic (use the openspec-sync-specs skill)
-   - Proceed to archive regardless of choice
+   If user chooses sync, execute /opsx:sync logic (use the openspec-sync-specs skill). Proceed to archive regardless of choice.
 
 5. **Perform the archive**
 
@@ -2002,37 +1985,20 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
 
    **If no tasks file exists:** Proceed without task-related warning.
 
-4. **Assess delta spec sync state (agentic)**
+4. **Assess delta spec sync state**
 
-   Check if \`specs/\` directory exists in the change with spec files.
+   If no \`specs/\` directory exists in the change, proceed without sync prompt.
 
-   **If no delta specs exist:** Proceed without sync prompt.
+   **If delta specs exist:**
+   - Compare each delta spec with its corresponding main spec
+   - Determine what changes would be applied (adds, modifications, removals, renames)
+   - Show a combined summary before prompting
 
-   **If delta specs exist, perform a sync assessment before prompting:**
+   **Prompt options:**
+   - If changes needed: "Sync now (recommended)", "Archive without syncing"
+   - If already synced: "Archive now", "Sync anyway", "Cancel"
 
-   a. **For each delta spec** at \`openspec/changes/<name>/specs/<capability>/spec.md\`:
-      - Parse requirement blocks under \`## ADDED|MODIFIED|REMOVED|RENAMED Requirements\`
-      - Read the main spec at \`openspec/specs/<capability>/spec.md\`
-      - If the main spec is missing, mark the entire capability as **out of sync** and treat all delta requirements as changes needed
-
-   b. **Evaluate each requirement:**
-      - **ADDED**: If missing in main → would add. If present but content differs → would update. If identical → already synced.
-      - **MODIFIED**: If missing → would add (or flag missing). If present but content differs → would update. If identical → already synced.
-      - **REMOVED**: If present in main → would remove. If missing → already synced.
-      - **RENAMED**: If FROM present and TO absent → would rename. If FROM absent and TO present → already synced. Otherwise → would repair.
-
-      *Compare full requirement blocks (header + scenarios) for equality, not just names.*
-
-   c. **Summarize across all spec deltas** (single combined report):
-      - Totals: add / modify / remove / rename needed
-      - Per capability: list requirement names under each action (keep concise; if many, show count + a few examples + “+N more”)
-
-   d. **Prompt based on the assessment:**
-      - **If no changes needed**: say "Specs already in sync." Prompt options: "Archive now", "Sync anyway", "Cancel"
-      - **If changes needed**: show the summary and prompt options: "Sync now (recommended)", "Archive without syncing"
-
-   - If user chooses sync, execute \`/opsx:sync\` logic
-   - Proceed to archive regardless of choice
+   If user chooses sync, execute \`/opsx:sync\` logic. Proceed to archive regardless of choice.
 
 5. **Perform the archive**
 
@@ -2125,7 +2091,6 @@ Target archive directory already exists.
 - Use artifact graph (openspec status --json) for completion checking
 - Don't block archive on warnings - just inform and confirm
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
-- Quick sync check: look for requirement names in delta specs, verify they exist in main specs
 - Show clear summary of what happened
 - If sync is requested, use /opsx:sync approach (agent-driven)
 - If delta specs exist, always run the sync assessment and show the combined summary before prompting`
