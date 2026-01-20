@@ -1,14 +1,8 @@
 name: Polish Release Notes
 
-# Automatically polish release notes when a release is published.
-# Also supports manual trigger as a fallback.
-#
-# Note: The Claude Code Action works with any GitHub event when using the
-# `prompt` parameter for custom automations. If release triggers stop working,
-# check https://github.com/anthropics/claude-code-action for updates.
+# Uses Claude to transform raw changelog into polished release notes.
+# Triggered automatically by release-prepare after publishing, or manually.
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       tag_name:
@@ -17,7 +11,7 @@ on:
         type: string
 
 env:
-  TAG_NAME: ${{ github.event.release.tag_name || inputs.tag_name }}
+  TAG_NAME: ${{ inputs.tag_name }}
 
 permissions:
   contents: write
