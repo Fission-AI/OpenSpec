@@ -290,7 +290,12 @@ const DEFAULT_ARTIFACTS: Array<{
 export function registerSchemaCommand(program: Command): void {
   const schemaCmd = program
     .command('schema')
-    .description('Manage workflow schemas');
+    .description('Manage workflow schemas [experimental]');
+
+  // Experimental warning
+  schemaCmd.hook('preAction', () => {
+    console.error('Note: Schema commands are experimental and may change.');
+  });
 
   // schema which
   schemaCmd
