@@ -136,7 +136,7 @@ export async function createChange(
   }
 
   // Validate the resolved schema
-  validateSchemaName(schemaName);
+  validateSchemaName(schemaName, projectRoot);
 
   // Build the change directory path
   const changeDir = path.join(projectRoot, 'openspec', 'changes', name);
@@ -154,7 +154,7 @@ export async function createChange(
   writeChangeMetadata(changeDir, {
     schema: schemaName,
     created: today,
-  });
+  }, projectRoot);
 
   return { schema: schemaName };
 }
