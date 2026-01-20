@@ -5,10 +5,12 @@ import * as os from 'node:os';
 import {
   resolveSchema,
   listSchemas,
+  listSchemasWithInfo,
   SchemaLoadError,
   getSchemaDir,
   getPackageSchemasDir,
   getUserSchemasDir,
+  getProjectSchemasDir,
 } from '../../../src/core/artifact-graph/resolver.js';
 
 describe('artifact-graph/resolver', () => {
@@ -322,6 +324,338 @@ version: [[[invalid yaml
 
       expect(schemas).toContain('valid-schema');
       expect(schemas).not.toContain('empty-dir');
+    });
+  });
+
+  // =========================================================================
+  // Project-local schema tests
+  // =========================================================================
+
+  describe('getProjectSchemasDir', () => {
+    it('should return correct path', () => {
+      const projectRoot = '/path/to/project';
+      const schemasDir = getProjectSchemasDir(projectRoot);
+      expect(schemasDir).toBe(path.join('/path/to/project', 'openspec', 'schemas'));
+    });
+
+    it('should work with relative-looking paths', () => {
+      const schemasDir = getProjectSchemasDir('./my-project');
+      expect(schemasDir).toBe(path.join('my-project', 'openspec', 'schemas'));
+    });
+  });
+
+  describe('getSchemaDir with projectRoot', () => {
+    it('should return null for non-existent project schema', () => {
+      const dir = getSchemaDir('nonexistent-schema', tempDir);
+      expect(dir).toBeNull();
+    });
+
+    it('should prefer project-local schema over user override', () => {
+      // Set up user override
+      process.env.XDG_DATA_HOME = tempDir;
+      const userSchemaDir = path.join(tempDir, 'openspec', 'schemas', 'my-schema');
+      fs.mkdirSync(userSchemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(userSchemaDir, 'schema.yaml'),
+        'name: user-version\nversion: 1\nartifacts: []'
+      );
+
+      // Set up project-local schema
+      const projectRoot = path.join(tempDir, 'project');
+      const projectSchemaDir = path.join(projectRoot, 'openspec', 'schemas', 'my-schema');
+      fs.mkdirSync(projectSchemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(projectSchemaDir, 'schema.yaml'),
+        'name: project-version\nversion: 2\nartifacts: []'
+      );
+
+      const dir = getSchemaDir('my-schema', projectRoot);
+      expect(dir).toBe(projectSchemaDir);
+    });
+
+    it('should prefer project-local schema over package built-in', () => {
+      // Set up project-local schema that overrides built-in
+      const projectRoot = path.join(tempDir, 'project');
+      const projectSchemaDir = path.join(projectRoot, 'openspec', 'schemas', 'spec-driven');
+      fs.mkdirSync(projectSchemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(projectSchemaDir, 'schema.yaml'),
+        'name: project-spec-driven\nversion: 99\nartifacts: []\n'
+      );
+
+      const dir = getSchemaDir('spec-driven', projectRoot);
+      expect(dir).toBe(projectSchemaDir);
+    });
+
+    it('should fall back to user override when no project-local schema', () => {
+      // Set up user override only
+      process.env.XDG_DATA_HOME = tempDir;
+      const userSchemaDir = path.join(tempDir, 'openspec', 'schemas', 'user-only-schema');
+      fs.mkdirSync(userSchemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(userSchemaDir, 'schema.yaml'),
+        'name: user-only\nversion: 1\nartifacts: []'
+      );
+
+      const projectRoot = path.join(tempDir, 'project');
+      fs.mkdirSync(projectRoot, { recursive: true });
+
+      const dir = getSchemaDir('user-only-schema', projectRoot);
+      expect(dir).toBe(userSchemaDir);
+    });
+
+    it('should fall back to package built-in when no project or user schema', () => {
+      const projectRoot = path.join(tempDir, 'project');
+      fs.mkdirSync(projectRoot, { recursive: true });
+
+      const dir = getSchemaDir('spec-driven', projectRoot);
+      expect(dir).not.toBeNull();
+      // Should be package path, not project or user
+      expect(dir).not.toContain(projectRoot);
+    });
+
+    it('should maintain backward compatibility when projectRoot not provided', () => {
+      // Set up user override
+      process.env.XDG_DATA_HOME = tempDir;
+      const userSchemaDir = path.join(tempDir, 'openspec', 'schemas', 'my-schema');
+      fs.mkdirSync(userSchemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(userSchemaDir, 'schema.yaml'),
+        'name: user-version\nversion: 1\nartifacts: []'
+      );
+
+      // Set up project-local schema (should be ignored when projectRoot not provided)
+      const projectRoot = path.join(tempDir, 'project');
+      const projectSchemaDir = path.join(projectRoot, 'openspec', 'schemas', 'my-schema');
+      fs.mkdirSync(projectSchemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(projectSchemaDir, 'schema.yaml'),
+        'name: project-version\nversion: 2\nartifacts: []'
+      );
+
+      // Without projectRoot, should get user version
+      const dir = getSchemaDir('my-schema');
+      expect(dir).toBe(userSchemaDir);
+    });
+  });
+
+  describe('resolveSchema with projectRoot', () => {
+    it('should resolve project-local schema', () => {
+      const projectRoot = path.join(tempDir, 'project');
+      const projectSchemaDir = path.join(projectRoot, 'openspec', 'schemas', 'team-workflow');
+      fs.mkdirSync(projectSchemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(projectSchemaDir, 'schema.yaml'),
+        `name: team-workflow
+version: 1
+description: Team workflow
+artifacts:
+  - id: spec
+    generates: spec.md
+    description: Specification
+    template: spec.md
+`
+      );
+
+      const schema = resolveSchema('team-workflow', projectRoot);
+      expect(schema.name).toBe('team-workflow');
+      expect(schema.version).toBe(1);
+    });
+
+    it('should prefer project-local over user override when resolving', () => {
+      // Set up user override
+      process.env.XDG_DATA_HOME = tempDir;
+      const userSchemaDir = path.join(tempDir, 'openspec', 'schemas', 'shared-schema');
+      fs.mkdirSync(userSchemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(userSchemaDir, 'schema.yaml'),
+        `name: user-version
+version: 1
+artifacts:
+  - id: user-artifact
+    generates: user.md
+    description: User artifact
+    template: user.md
+`
+      );
+
+      // Set up project-local schema
+      const projectRoot = path.join(tempDir, 'project');
+      const projectSchemaDir = path.join(projectRoot, 'openspec', 'schemas', 'shared-schema');
+      fs.mkdirSync(projectSchemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(projectSchemaDir, 'schema.yaml'),
+        `name: project-version
+version: 2
+artifacts:
+  - id: project-artifact
+    generates: project.md
+    description: Project artifact
+    template: project.md
+`
+      );
+
+      const schema = resolveSchema('shared-schema', projectRoot);
+      expect(schema.name).toBe('project-version');
+      expect(schema.version).toBe(2);
+    });
+  });
+
+  describe('listSchemas with projectRoot', () => {
+    it('should include project-local schemas', () => {
+      const projectRoot = path.join(tempDir, 'project');
+      const projectSchemaDir = path.join(projectRoot, 'openspec', 'schemas', 'team-workflow');
+      fs.mkdirSync(projectSchemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(projectSchemaDir, 'schema.yaml'),
+        'name: team-workflow\nversion: 1\nartifacts: []'
+      );
+
+      const schemas = listSchemas(projectRoot);
+      expect(schemas).toContain('team-workflow');
+      expect(schemas).toContain('spec-driven'); // built-in still included
+    });
+
+    it('should deduplicate project-local schema that shadows user override', () => {
+      // Set up user override
+      process.env.XDG_DATA_HOME = tempDir;
+      const userSchemaDir = path.join(tempDir, 'openspec', 'schemas', 'my-schema');
+      fs.mkdirSync(userSchemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(userSchemaDir, 'schema.yaml'),
+        'name: user\nversion: 1\nartifacts: []'
+      );
+
+      // Set up project-local schema with same name
+      const projectRoot = path.join(tempDir, 'project');
+      const projectSchemaDir = path.join(projectRoot, 'openspec', 'schemas', 'my-schema');
+      fs.mkdirSync(projectSchemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(projectSchemaDir, 'schema.yaml'),
+        'name: project\nversion: 2\nartifacts: []'
+      );
+
+      const schemas = listSchemas(projectRoot);
+      const count = schemas.filter(s => s === 'my-schema').length;
+      expect(count).toBe(1);
+    });
+
+    it('should maintain backward compatibility when projectRoot not provided', () => {
+      // Set up project-local schema
+      const projectRoot = path.join(tempDir, 'project');
+      const projectSchemaDir = path.join(projectRoot, 'openspec', 'schemas', 'project-only');
+      fs.mkdirSync(projectSchemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(projectSchemaDir, 'schema.yaml'),
+        'name: project-only\nversion: 1\nartifacts: []'
+      );
+
+      // Without projectRoot, project-only schema should not appear
+      const schemas = listSchemas();
+      expect(schemas).not.toContain('project-only');
+    });
+  });
+
+  describe('listSchemasWithInfo with projectRoot', () => {
+    it('should return source: project for project-local schemas', () => {
+      const projectRoot = path.join(tempDir, 'project');
+      const projectSchemaDir = path.join(projectRoot, 'openspec', 'schemas', 'team-workflow');
+      fs.mkdirSync(projectSchemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(projectSchemaDir, 'schema.yaml'),
+        `name: team-workflow
+version: 1
+description: Team workflow
+artifacts:
+  - id: spec
+    generates: spec.md
+    description: Specification
+    template: spec.md
+`
+      );
+
+      const schemas = listSchemasWithInfo(projectRoot);
+      const teamSchema = schemas.find(s => s.name === 'team-workflow');
+      expect(teamSchema).toBeDefined();
+      expect(teamSchema!.source).toBe('project');
+    });
+
+    it('should return source: package for built-in schemas', () => {
+      const projectRoot = path.join(tempDir, 'project');
+      fs.mkdirSync(projectRoot, { recursive: true });
+
+      const schemas = listSchemasWithInfo(projectRoot);
+      const specDriven = schemas.find(s => s.name === 'spec-driven');
+      expect(specDriven).toBeDefined();
+      expect(specDriven!.source).toBe('package');
+    });
+
+    it('should return source: user for user override schemas', () => {
+      process.env.XDG_DATA_HOME = tempDir;
+      const userSchemaDir = path.join(tempDir, 'openspec', 'schemas', 'user-custom');
+      fs.mkdirSync(userSchemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(userSchemaDir, 'schema.yaml'),
+        `name: user-custom
+version: 1
+description: User custom
+artifacts:
+  - id: artifact
+    generates: artifact.md
+    description: Artifact
+    template: artifact.md
+`
+      );
+
+      const projectRoot = path.join(tempDir, 'project');
+      fs.mkdirSync(projectRoot, { recursive: true });
+
+      const schemas = listSchemasWithInfo(projectRoot);
+      const userSchema = schemas.find(s => s.name === 'user-custom');
+      expect(userSchema).toBeDefined();
+      expect(userSchema!.source).toBe('user');
+    });
+
+    it('should show project source when project-local shadows user override', () => {
+      // Set up user override
+      process.env.XDG_DATA_HOME = tempDir;
+      const userSchemaDir = path.join(tempDir, 'openspec', 'schemas', 'shared');
+      fs.mkdirSync(userSchemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(userSchemaDir, 'schema.yaml'),
+        `name: user-shared
+version: 1
+description: User shared
+artifacts:
+  - id: a
+    generates: a.md
+    description: A
+    template: a.md
+`
+      );
+
+      // Set up project-local with same name
+      const projectRoot = path.join(tempDir, 'project');
+      const projectSchemaDir = path.join(projectRoot, 'openspec', 'schemas', 'shared');
+      fs.mkdirSync(projectSchemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(projectSchemaDir, 'schema.yaml'),
+        `name: project-shared
+version: 2
+description: Project shared
+artifacts:
+  - id: b
+    generates: b.md
+    description: B
+    template: b.md
+`
+      );
+
+      const schemas = listSchemasWithInfo(projectRoot);
+      const sharedSchema = schemas.find(s => s.name === 'shared');
+      expect(sharedSchema).toBeDefined();
+      expect(sharedSchema!.source).toBe('project');
+      expect(sharedSchema!.description).toBe('Project shared'); // project version wins
     });
   });
 });

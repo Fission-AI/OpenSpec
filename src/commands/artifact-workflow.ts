@@ -28,7 +28,7 @@ import {
   type SchemaInfo,
 } from '../core/artifact-graph/index.js';
 import { createChange, validateChangeName } from '../utils/change-utils.js';
-import { getExploreSkillTemplate, getNewChangeSkillTemplate, getContinueChangeSkillTemplate, getApplyChangeSkillTemplate, getFfChangeSkillTemplate, getSyncSpecsSkillTemplate, getArchiveChangeSkillTemplate, getOpsxExploreCommandTemplate, getOpsxNewCommandTemplate, getOpsxContinueCommandTemplate, getOpsxApplyCommandTemplate, getOpsxFfCommandTemplate, getOpsxSyncCommandTemplate, getOpsxArchiveCommandTemplate } from '../core/templates/skill-templates.js';
+import { getExploreSkillTemplate, getNewChangeSkillTemplate, getContinueChangeSkillTemplate, getApplyChangeSkillTemplate, getFfChangeSkillTemplate, getSyncSpecsSkillTemplate, getArchiveChangeSkillTemplate, getVerifyChangeSkillTemplate, getOpsxExploreCommandTemplate, getOpsxNewCommandTemplate, getOpsxContinueCommandTemplate, getOpsxApplyCommandTemplate, getOpsxFfCommandTemplate, getOpsxSyncCommandTemplate, getOpsxArchiveCommandTemplate, getOpsxVerifyCommandTemplate } from '../core/templates/skill-templates.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { promptForConfig, serializeConfig, isExitPromptError } from '../core/config-prompts.js';
 import { readProjectConfig } from '../core/project-config.js';
@@ -159,11 +159,14 @@ async function validateChangeExists(
 
 /**
  * Validates that a schema exists and returns available schemas if not.
+ *
+ * @param schemaName - The schema name to validate
+ * @param projectRoot - Optional project root for project-local schema resolution
  */
-function validateSchemaExists(schemaName: string): string {
-  const schemaDir = getSchemaDir(schemaName);
+function validateSchemaExists(schemaName: string, projectRoot?: string): string {
+  const schemaDir = getSchemaDir(schemaName, projectRoot);
   if (!schemaDir) {
-    const availableSchemas = listSchemas();
+    const availableSchemas = listSchemas(projectRoot);
     throw new Error(
       `Schema '${schemaName}' not found. Available schemas:\n  ${availableSchemas.join('\n  ')}`
     );
@@ -190,7 +193,7 @@ async function statusCommand(options: StatusOptions): Promise<void> {
 
     // Validate schema if explicitly provided
     if (options.schema) {
-      validateSchemaExists(options.schema);
+      validateSchemaExists(options.schema, projectRoot);
     }
 
     // loadChangeContext will auto-detect schema from metadata if not provided
@@ -260,7 +263,7 @@ async function instructionsCommand(
 
     // Validate schema if explicitly provided
     if (options.schema) {
-      validateSchemaExists(options.schema);
+      validateSchemaExists(options.schema, projectRoot);
     }
 
     // loadChangeContext will auto-detect schema from metadata if not provided
@@ -598,7 +601,7 @@ async function applyInstructionsCommand(options: ApplyInstructionsOptions): Prom
 
     // Validate schema if explicitly provided
     if (options.schema) {
-      validateSchemaExists(options.schema);
+      validateSchemaExists(options.schema, projectRoot);
     }
 
     // generateApplyInstructions uses loadChangeContext which auto-detects schema
@@ -682,27 +685,40 @@ interface TemplatesOptions {
 interface TemplateInfo {
   artifactId: string;
   templatePath: string;
-  source: 'user' | 'package';
+  source: 'project' | 'user' | 'package';
 }
 
 async function templatesCommand(options: TemplatesOptions): Promise<void> {
   const spinner = ora('Loading templates...').start();
 
   try {
-    const schemaName = validateSchemaExists(options.schema ?? DEFAULT_SCHEMA);
-    const schema = resolveSchema(schemaName);
+    const projectRoot = process.cwd();
+    const schemaName = validateSchemaExists(options.schema ?? DEFAULT_SCHEMA, projectRoot);
+    const schema = resolveSchema(schemaName, projectRoot);
     const graph = ArtifactGraph.fromSchema(schema);
-    const schemaDir = getSchemaDir(schemaName)!;
+    const schemaDir = getSchemaDir(schemaName, projectRoot)!;
 
-    // Determine if this is a user override or package built-in
-    const { getUserSchemasDir } = await import('../core/artifact-graph/resolver.js');
+    // Determine the source (project, user, or package)
+    const {
+      getUserSchemasDir,
+      getProjectSchemasDir,
+    } = await import('../core/artifact-graph/resolver.js');
+    const projectSchemasDir = getProjectSchemasDir(projectRoot);
     const userSchemasDir = getUserSchemasDir();
-    const isUserOverride = schemaDir.startsWith(userSchemasDir);
+
+    let source: 'project' | 'user' | 'package';
+    if (schemaDir.startsWith(projectSchemasDir)) {
+      source = 'project';
+    } else if (schemaDir.startsWith(userSchemasDir)) {
+      source = 'user';
+    } else {
+      source = 'package';
+    }
 
     const templates: TemplateInfo[] = graph.getAllArtifacts().map((artifact) => ({
       artifactId: artifact.id,
       templatePath: path.join(schemaDir, 'templates', artifact.template),
-      source: isUserOverride ? 'user' : 'package',
+      source,
     }));
 
     spinner.stop();
@@ -717,7 +733,7 @@ async function templatesCommand(options: TemplatesOptions): Promise<void> {
     }
 
     console.log(`Schema: ${schemaName}`);
-    console.log(`Source: ${isUserOverride ? 'user override' : 'package built-in'}`);
+    console.log(`Source: ${source}`);
     console.log();
 
     for (const t of templates) {
@@ -749,16 +765,17 @@ async function newChangeCommand(name: string | undefined, options: NewChangeOpti
     throw new Error(validation.error);
   }
 
+  const projectRoot = process.cwd();
+
   // Validate schema if provided
   if (options.schema) {
-    validateSchemaExists(options.schema);
+    validateSchemaExists(options.schema, projectRoot);
   }
 
   const schemaDisplay = options.schema ? ` with schema '${options.schema}'` : '';
   const spinner = ora(`Creating change '${name}'${schemaDisplay}...`).start();
 
   try {
-    const projectRoot = process.cwd();
     const result = await createChange(projectRoot, name, { schema: options.schema });
 
     // If description provided, create README.md with description
@@ -801,6 +818,7 @@ async function artifactExperimentalSetupCommand(): Promise<void> {
     const ffChangeSkill = getFfChangeSkillTemplate();
     const syncSpecsSkill = getSyncSpecsSkillTemplate();
     const archiveChangeSkill = getArchiveChangeSkillTemplate();
+    const verifyChangeSkill = getVerifyChangeSkillTemplate();
 
     // Get command templates
     const exploreCommand = getOpsxExploreCommandTemplate();
@@ -810,6 +828,7 @@ async function artifactExperimentalSetupCommand(): Promise<void> {
     const ffCommand = getOpsxFfCommandTemplate();
     const syncCommand = getOpsxSyncCommandTemplate();
     const archiveCommand = getOpsxArchiveCommandTemplate();
+    const verifyCommand = getOpsxVerifyCommandTemplate();
 
     // Create skill directories and SKILL.md files
     const skills = [
@@ -820,6 +839,7 @@ async function artifactExperimentalSetupCommand(): Promise<void> {
       { template: ffChangeSkill, dirName: 'openspec-ff-change' },
       { template: syncSpecsSkill, dirName: 'openspec-sync-specs' },
       { template: archiveChangeSkill, dirName: 'openspec-archive-change' },
+      { template: verifyChangeSkill, dirName: 'openspec-verify-change' },
     ];
 
     const createdSkillFiles: string[] = [];
@@ -851,6 +871,7 @@ ${template.instructions}
       { template: ffCommand, fileName: 'ff.md' },
       { template: syncCommand, fileName: 'sync.md' },
       { template: archiveCommand, fileName: 'archive.md' },
+      { template: verifyCommand, fileName: 'verify.md' },
     ];
 
     const createdCommandFiles: string[] = [];
@@ -922,7 +943,7 @@ ${template.content}
     } else {
       // Prompt for config creation
       try {
-        const configResult = await promptForConfig();
+        const configResult = await promptForConfig(projectRoot);
 
         if (configResult.createConfig && configResult.schema) {
           // Build config object
@@ -1027,6 +1048,7 @@ ${template.content}
     console.log('  • /opsx:apply - Implement tasks');
     console.log('  • /opsx:ff - Fast-forward: create all artifacts at once');
     console.log('  • /opsx:sync - Sync delta specs to main specs');
+    console.log('  • /opsx:verify - Verify implementation matches artifacts');
     console.log('  • /opsx:archive - Archive a completed change');
     console.log();
     console.log(chalk.yellow('💡 This is an experimental feature.'));
@@ -1047,7 +1069,8 @@ interface SchemasOptions {
 }
 
 async function schemasCommand(options: SchemasOptions): Promise<void> {
-  const schemas = listSchemasWithInfo();
+  const projectRoot = process.cwd();
+  const schemas = listSchemasWithInfo(projectRoot);
 
   if (options.json) {
     console.log(JSON.stringify(schemas, null, 2));
@@ -1058,7 +1081,12 @@ async function schemasCommand(options: SchemasOptions): Promise<void> {
   console.log();
 
   for (const schema of schemas) {
-    const sourceLabel = schema.source === 'user' ? chalk.dim(' (user override)') : '';
+    let sourceLabel = '';
+    if (schema.source === 'project') {
+      sourceLabel = chalk.cyan(' (project)');
+    } else if (schema.source === 'user') {
+      sourceLabel = chalk.dim(' (user override)');
+    }
     console.log(`  ${chalk.bold(schema.name)}${sourceLabel}`);
     console.log(`    ${schema.description}`);
     console.log(`    Artifacts: ${schema.artifacts.join(' → ')}`);

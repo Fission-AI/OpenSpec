@@ -1,5 +1,37 @@
 # @fission-ai/openspec
 
+## 0.21.0
+
+### Minor Changes
+
+- [#516](https://github.com/Fission-AI/OpenSpec/pull/516) [`b5a8847`](https://github.com/Fission-AI/OpenSpec/commit/b5a884748be6156a7bb140b4941cfec4f20a9fc8) Thanks [@TabishB](https://github.com/TabishB)! - ### New Features
+
+  - **Feedback command** — Submit feedback directly from the CLI with `openspec feedback`, which creates GitHub Issues with automatic metadata inclusion and graceful fallback for manual submission
+  - **Nix flake support** — Install and develop openspec using Nix with the new `flake.nix`, including automated flake maintenance and CI validation
+
+  ### Bug Fixes
+
+  - **Explore mode guardrails** — Explore mode now explicitly prevents implementation, keeping the focus on thinking and discovery while still allowing artifact creation
+
+  ### Other
+
+  - Improved change inference in `opsx apply` — automatically detects the target change from conversation context or prompts when ambiguous
+  - Streamlined archive sync assessment with clearer delta spec location guidance
+
+## 0.20.0
+
+### Minor Changes
+
+- [#502](https://github.com/Fission-AI/OpenSpec/pull/502) [`9db74aa`](https://github.com/Fission-AI/OpenSpec/commit/9db74aa5ac6547efadaed795217cfa17444f2004) Thanks [@TabishB](https://github.com/TabishB)! - ### New Features
+
+  - **`/opsx:verify` command** — Validate that change implementations match their specifications
+
+  ### Bug Fixes
+
+  - Fixed vitest process storms by capping worker parallelism
+  - Fixed agent workflows to use non-interactive mode for validation commands
+  - Fixed PowerShell completions generator to remove trailing commas
+
 ## 0.19.0
 
 ### Minor Changes
