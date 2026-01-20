@@ -37,6 +37,8 @@ export interface ChangeContext {
   changeName: string;
   /** Path to the change directory */
   changeDir: string;
+  /** Project root directory */
+  projectRoot: string;
 }
 
 /**
@@ -114,11 +116,16 @@ export interface ChangeStatus {
  *
  * @param schemaName - Schema name (e.g., "spec-driven")
  * @param templatePath - Relative path within the templates directory (e.g., "proposal.md")
+ * @param projectRoot - Optional project root for project-local schema resolution
  * @returns The template content
  * @throws TemplateLoadError if the template cannot be loaded
  */
-export function loadTemplate(schemaName: string, templatePath: string): string {
-  const schemaDir = getSchemaDir(schemaName);
+export function loadTemplate(
+  schemaName: string,
+  templatePath: string,
+  projectRoot?: string
+): string {
+  const schemaDir = getSchemaDir(schemaName, projectRoot);
   if (!schemaDir) {
     throw new TemplateLoadError(
       `Schema '${schemaName}' not found`,
@@ -169,7 +176,7 @@ export function loadChangeContext(
   // Resolve schema: explicit > metadata > default
   const resolvedSchemaName = resolveSchemaForChange(changeDir, schemaName);
 
-  const schema = resolveSchema(resolvedSchemaName);
+  const schema = resolveSchema(resolvedSchemaName, projectRoot);
   const graph = ArtifactGraph.fromSchema(schema);
   const completed = detectCompleted(graph, changeDir);
 
@@ -179,6 +186,7 @@ export function loadChangeContext(
     schemaName: resolvedSchemaName,
     changeName,
     changeDir,
+    projectRoot,
   };
 }
 
@@ -206,7 +214,7 @@ export function generateInstructions(
     throw new Error(`Artifact '${artifactId}' not found in schema '${context.schemaName}'`);
   }
 
-  const templateContent = loadTemplate(context.schemaName, artifact.template);
+  const templateContent = loadTemplate(context.schemaName, artifact.template, context.projectRoot);
   const dependencies = getDependencyInfo(artifact, context.graph, context.completed);
   const unlocks = getUnlockedArtifacts(context.graph, artifactId);
 
@@ -214,10 +222,13 @@ export function generateInstructions(
   let enrichedTemplate = '';
   let projectConfig = null;
 
+  // Use projectRoot from context if not explicitly provided
+  const effectiveProjectRoot = projectRoot ?? context.projectRoot;
+
   // Try to read project config
-  if (projectRoot) {
+  if (effectiveProjectRoot) {
     try {
-      projectConfig = readProjectConfig(projectRoot);
+      projectConfig = readProjectConfig(effectiveProjectRoot);
     } catch {
       // If config read fails, continue without config
     }
@@ -315,7 +326,7 @@ function getUnlockedArtifacts(graph: ArtifactGraph, artifactId: string): string[
  */
 export function formatChangeStatus(context: ChangeContext): ChangeStatus {
   // Load schema to get apply phase configuration
-  const schema = resolveSchema(context.schemaName);
+  const schema = resolveSchema(context.schemaName, context.projectRoot);
   const applyRequires = schema.apply?.requires ?? schema.artifacts.map(a => a.id);
 
   const artifacts = context.graph.getAllArtifacts();
