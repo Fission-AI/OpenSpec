@@ -78,6 +78,98 @@ openspec artifact-experimental-setup
 
 This creates skills in `.claude/skills/` that Claude Code auto-detects.
 
+During setup, you'll be prompted to create a **project config** (`openspec/config.yaml`). This is optional but recommended.
+
+## Project Configuration
+
+Project config lets you set defaults and inject project-specific context into all artifacts.
+
+### Creating Config
+
+Config is created during `artifact-experimental-setup`, or manually:
+
+```yaml
+# openspec/config.yaml
+schema: spec-driven
+
+context: |
+  Tech stack: TypeScript, React, Node.js
+  API conventions: RESTful, JSON responses
+  Testing: Vitest for unit tests, Playwright for e2e
+  Style: ESLint with Prettier, strict TypeScript
+
+rules:
+  proposal:
+    - Include rollback plan
+    - Identify affected teams
+  specs:
+    - Use Given/When/Then format for scenarios
+  design:
+    - Include sequence diagrams for complex flows
+```
+
+### Config Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `schema` | string | Default schema for new changes (e.g., `spec-driven`, `tdd`) |
+| `context` | string | Project context injected into all artifact instructions |
+| `rules` | object | Per-artifact rules, keyed by artifact ID |
+
+### How It Works
+
+**Schema precedence** (highest to lowest):
+1. CLI flag (`--schema tdd`)
+2. Change metadata (`.openspec.yaml` in change directory)
+3. Project config (`openspec/config.yaml`)
+4. Default (`spec-driven`)
+
+**Context injection:**
+- Context is prepended to every artifact's instructions
+- Wrapped in `<context>...</context>` tags
+- Helps AI understand your project's conventions
+
+**Rules injection:**
+- Rules are only injected for matching artifacts
+- Wrapped in `<rules>...</rules>` tags
+- Appear after context, before the template
+
+### Artifact IDs by Schema
+
+**spec-driven** (default):
+- `proposal` — Change proposal
+- `specs` — Specifications
+- `design` — Technical design
+- `tasks` — Implementation tasks
+
+**tdd**:
+- `spec` — Feature specification
+- `tests` — Test file
+- `implementation` — Implementation code
+- `docs` — Documentation
+
+### Config Validation
+
+- Unknown artifact IDs in `rules` generate warnings
+- Schema names are validated against available schemas
+- Context has a 50KB size limit
+- Invalid YAML is reported with line numbers
+
+### Troubleshooting
+
+**"Unknown artifact ID in rules: X"**
+- Check artifact IDs match your schema (see list above)
+- Run `openspec schemas --json` to see artifact IDs for each schema
+
+**Config not being applied:**
+- Ensure file is at `openspec/config.yaml` (not `.yml`)
+- Check YAML syntax with a validator
+- Config changes take effect immediately (no restart needed)
+
+**Context too large:**
+- Context is limited to 50KB
+- Summarize or link to external docs instead
+
 ## Commands
 
 | Command | What it does |
@@ -119,7 +211,7 @@ Creates all planning artifacts at once. Use when you have a clear picture of wha
 ```
 /opsx:apply
 ```
-Works through tasks, checking them off as you go. **Key difference:** if you discover issues during implementation, you can update your specs, design, or tasks — then continue. No phase gates.
+Works through tasks, checking them off as you go. **Key difference:** if you discover issues during implementation, you can update your specs, design, or tasks — then continue. No phase gates. If you're juggling multiple changes, you can run `/opsx:apply <name>`; otherwise it should infer from the conversation and prompt you to choose if it can’t tell.
 
 ### Finish up
 ```
@@ -473,35 +565,53 @@ Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, no
 
 ### Custom Schemas
 
-Create your own workflow by adding a schema to `~/.local/share/openspec/schemas/`:
+Create custom workflows using the schema management commands:
 
+```bash
+# Create a new schema from scratch (interactive)
+openspec schema init my-workflow
+
+# Or fork an existing schema as a starting point
+openspec schema fork spec-driven my-workflow
+
+# Validate your schema structure
+openspec schema validate my-workflow
+
+# See where a schema resolves from (useful for debugging)
+openspec schema which my-workflow
 ```
-~/.local/share/openspec/schemas/research-first/
+
+Schemas are stored in `openspec/schemas/` (project-local, version controlled) or `~/.local/share/openspec/schemas/` (user global).
+
+**Schema structure:**
+```
+openspec/schemas/research-first/
 ├── schema.yaml
 └── templates/
     ├── research.md
     ├── proposal.md
     └── tasks.md
+```
 
-schema.yaml:
-┌─────────────────────────────────────────────────────────────────┐
-│  name: research-first                                           │
-│  artifacts:                                                     │
-│    - id: research        # Added before proposal                │
-│      generates: research.md                                     │
-│      requires: []                                               │
-│                                                                 │
-│    - id: proposal                                               │
-│      generates: proposal.md                                     │
-│      requires: [research]  # Now depends on research            │
-│                                                                 │
-│    - id: tasks                                                  │
-│      generates: tasks.md                                        │
-│      requires: [proposal]                                       │
-└─────────────────────────────────────────────────────────────────┘
+**Example schema.yaml:**
+```yaml
+name: research-first
+artifacts:
+  - id: research        # Added before proposal
+    generates: research.md
+    requires: []
 
-Dependency Graph:
+  - id: proposal
+    generates: proposal.md
+    requires: [research]  # Now depends on research
 
+  - id: tasks
+    generates: tasks.md
+    requires: [proposal]
+```
+
+**Dependency Graph:**
+```
    research ──► proposal ──► tasks
 ```
 
@@ -523,7 +633,22 @@ Schemas define what artifacts exist and their dependencies. Currently available:
 - **spec-driven** (default): proposal → specs → design → tasks
 - **tdd**: tests → implementation → docs
 
-Run `openspec schemas` to see available schemas.
+```bash
+# List available schemas
+openspec schemas
+
+# See all schemas with their resolution sources
+openspec schema which --all
+
+# Create a new schema interactively
+openspec schema init my-workflow
+
+# Fork an existing schema for customization
+openspec schema fork spec-driven my-workflow
+
+# Validate schema structure before use
+openspec schema validate my-workflow
+```
 
 ## Tips
 

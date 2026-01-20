@@ -1,6 +1,7 @@
 import path from 'path';
 import { FileSystemUtils } from './file-system.js';
 import { writeChangeMetadata, validateSchemaName } from './change-metadata.js';
+import { readProjectConfig } from '../core/project-config.js';
 
 const DEFAULT_SCHEMA = 'spec-driven';
 
@@ -10,6 +11,14 @@ const DEFAULT_SCHEMA = 'spec-driven';
 export interface CreateChangeOptions {
   /** The workflow schema to use (default: 'spec-driven') */
   schema?: string;
+}
+
+/**
+ * Result of creating a change.
+ */
+export interface CreateChangeResult {
+  /** The schema that was actually used (resolved from options, config, or default) */
+  schema: string;
 }
 
 /**
@@ -88,28 +97,46 @@ export function validateChangeName(name: string): ValidationResult {
  * @throws Error if the schema name is invalid
  * @throws Error if the change directory already exists
  *
+ * @returns Result containing the resolved schema name
+ *
  * @example
  * // Creates openspec/changes/add-auth/ with default schema
- * await createChange('/path/to/project', 'add-auth')
+ * const result = await createChange('/path/to/project', 'add-auth')
+ * console.log(result.schema) // 'spec-driven' or value from config
  *
  * @example
  * // Creates openspec/changes/add-auth/ with TDD schema
- * await createChange('/path/to/project', 'add-auth', { schema: 'tdd' })
+ * const result = await createChange('/path/to/project', 'add-auth', { schema: 'tdd' })
+ * console.log(result.schema) // 'tdd'
  */
 export async function createChange(
   projectRoot: string,
   name: string,
   options: CreateChangeOptions = {}
-): Promise<void> {
+): Promise<CreateChangeResult> {
   // Validate the name first
   const validation = validateChangeName(name);
   if (!validation.valid) {
     throw new Error(validation.error);
   }
 
-  // Determine schema (validate if provided)
-  const schemaName = options.schema ?? DEFAULT_SCHEMA;
-  validateSchemaName(schemaName);
+  // Determine schema: explicit option → project config → hardcoded default
+  let schemaName: string;
+  if (options.schema) {
+    schemaName = options.schema;
+  } else {
+    // Try to read from project config
+    try {
+      const config = readProjectConfig(projectRoot);
+      schemaName = config?.schema ?? DEFAULT_SCHEMA;
+    } catch {
+      // If config read fails, use default
+      schemaName = DEFAULT_SCHEMA;
+    }
+  }
+
+  // Validate the resolved schema
+  validateSchemaName(schemaName, projectRoot);
 
   // Build the change directory path
   const changeDir = path.join(projectRoot, 'openspec', 'changes', name);
@@ -127,5 +154,7 @@ export async function createChange(
   writeChangeMetadata(changeDir, {
     schema: schemaName,
     created: today,
-  });
+  }, projectRoot);
+
+  return { schema: schemaName };
 }

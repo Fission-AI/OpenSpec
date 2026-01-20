@@ -30,6 +30,8 @@ import {
 import { createChange, validateChangeName } from '../utils/change-utils.js';
 import { getExploreSkillTemplate, getNewChangeSkillTemplate, getContinueChangeSkillTemplate, getApplyChangeSkillTemplate, getFfChangeSkillTemplate, getSyncSpecsSkillTemplate, getArchiveChangeSkillTemplate, getVerifyChangeSkillTemplate, getOpsxExploreCommandTemplate, getOpsxNewCommandTemplate, getOpsxContinueCommandTemplate, getOpsxApplyCommandTemplate, getOpsxFfCommandTemplate, getOpsxSyncCommandTemplate, getOpsxArchiveCommandTemplate, getOpsxVerifyCommandTemplate } from '../core/templates/skill-templates.js';
 import { FileSystemUtils } from '../utils/file-system.js';
+import { promptForConfig, serializeConfig, isExitPromptError } from '../core/config-prompts.js';
+import { readProjectConfig } from '../core/project-config.js';
 
 // -----------------------------------------------------------------------------
 // Types for Apply Instructions
@@ -157,11 +159,14 @@ async function validateChangeExists(
 
 /**
  * Validates that a schema exists and returns available schemas if not.
+ *
+ * @param schemaName - The schema name to validate
+ * @param projectRoot - Optional project root for project-local schema resolution
  */
-function validateSchemaExists(schemaName: string): string {
-  const schemaDir = getSchemaDir(schemaName);
+function validateSchemaExists(schemaName: string, projectRoot?: string): string {
+  const schemaDir = getSchemaDir(schemaName, projectRoot);
   if (!schemaDir) {
-    const availableSchemas = listSchemas();
+    const availableSchemas = listSchemas(projectRoot);
     throw new Error(
       `Schema '${schemaName}' not found. Available schemas:\n  ${availableSchemas.join('\n  ')}`
     );
@@ -188,7 +193,7 @@ async function statusCommand(options: StatusOptions): Promise<void> {
 
     // Validate schema if explicitly provided
     if (options.schema) {
-      validateSchemaExists(options.schema);
+      validateSchemaExists(options.schema, projectRoot);
     }
 
     // loadChangeContext will auto-detect schema from metadata if not provided
@@ -258,7 +263,7 @@ async function instructionsCommand(
 
     // Validate schema if explicitly provided
     if (options.schema) {
-      validateSchemaExists(options.schema);
+      validateSchemaExists(options.schema, projectRoot);
     }
 
     // loadChangeContext will auto-detect schema from metadata if not provided
@@ -282,7 +287,7 @@ async function instructionsCommand(
       );
     }
 
-    const instructions = generateInstructions(context, artifactId);
+    const instructions = generateInstructions(context, artifactId, projectRoot);
     const isBlocked = instructions.dependencies.some((d) => !d.done);
 
     spinner.stop();
@@ -596,7 +601,7 @@ async function applyInstructionsCommand(options: ApplyInstructionsOptions): Prom
 
     // Validate schema if explicitly provided
     if (options.schema) {
-      validateSchemaExists(options.schema);
+      validateSchemaExists(options.schema, projectRoot);
     }
 
     // generateApplyInstructions uses loadChangeContext which auto-detects schema
@@ -680,27 +685,40 @@ interface TemplatesOptions {
 interface TemplateInfo {
   artifactId: string;
   templatePath: string;
-  source: 'user' | 'package';
+  source: 'project' | 'user' | 'package';
 }
 
 async function templatesCommand(options: TemplatesOptions): Promise<void> {
   const spinner = ora('Loading templates...').start();
 
   try {
-    const schemaName = validateSchemaExists(options.schema ?? DEFAULT_SCHEMA);
-    const schema = resolveSchema(schemaName);
+    const projectRoot = process.cwd();
+    const schemaName = validateSchemaExists(options.schema ?? DEFAULT_SCHEMA, projectRoot);
+    const schema = resolveSchema(schemaName, projectRoot);
     const graph = ArtifactGraph.fromSchema(schema);
-    const schemaDir = getSchemaDir(schemaName)!;
+    const schemaDir = getSchemaDir(schemaName, projectRoot)!;
 
-    // Determine if this is a user override or package built-in
-    const { getUserSchemasDir } = await import('../core/artifact-graph/resolver.js');
+    // Determine the source (project, user, or package)
+    const {
+      getUserSchemasDir,
+      getProjectSchemasDir,
+    } = await import('../core/artifact-graph/resolver.js');
+    const projectSchemasDir = getProjectSchemasDir(projectRoot);
     const userSchemasDir = getUserSchemasDir();
-    const isUserOverride = schemaDir.startsWith(userSchemasDir);
+
+    let source: 'project' | 'user' | 'package';
+    if (schemaDir.startsWith(projectSchemasDir)) {
+      source = 'project';
+    } else if (schemaDir.startsWith(userSchemasDir)) {
+      source = 'user';
+    } else {
+      source = 'package';
+    }
 
     const templates: TemplateInfo[] = graph.getAllArtifacts().map((artifact) => ({
       artifactId: artifact.id,
       templatePath: path.join(schemaDir, 'templates', artifact.template),
-      source: isUserOverride ? 'user' : 'package',
+      source,
     }));
 
     spinner.stop();
@@ -715,7 +733,7 @@ async function templatesCommand(options: TemplatesOptions): Promise<void> {
     }
 
     console.log(`Schema: ${schemaName}`);
-    console.log(`Source: ${isUserOverride ? 'user override' : 'package built-in'}`);
+    console.log(`Source: ${source}`);
     console.log();
 
     for (const t of templates) {
@@ -747,17 +765,18 @@ async function newChangeCommand(name: string | undefined, options: NewChangeOpti
     throw new Error(validation.error);
   }
 
+  const projectRoot = process.cwd();
+
   // Validate schema if provided
   if (options.schema) {
-    validateSchemaExists(options.schema);
+    validateSchemaExists(options.schema, projectRoot);
   }
 
   const schemaDisplay = options.schema ? ` with schema '${options.schema}'` : '';
   const spinner = ora(`Creating change '${name}'${schemaDisplay}...`).start();
 
   try {
-    const projectRoot = process.cwd();
-    await createChange(projectRoot, name, { schema: options.schema });
+    const result = await createChange(projectRoot, name, { schema: options.schema });
 
     // If description provided, create README.md with description
     if (options.description) {
@@ -767,8 +786,7 @@ async function newChangeCommand(name: string | undefined, options: NewChangeOpti
       await fs.writeFile(readmePath, `# ${name}\n\n${options.description}\n`, 'utf-8');
     }
 
-    const schemaUsed = options.schema ?? DEFAULT_SCHEMA;
-    spinner.succeed(`Created change '${name}' at openspec/changes/${name}/ (schema: ${schemaUsed})`);
+    spinner.succeed(`Created change '${name}' at openspec/changes/${name}/ (schema: ${result.schema})`);
   } catch (error) {
     spinner.fail(`Failed to create change '${name}'`);
     throw error;
@@ -893,6 +911,124 @@ ${template.content}
       console.log(chalk.green('  ✓ ' + file));
     }
     console.log();
+
+    // Config creation section
+    console.log('━'.repeat(70));
+    console.log();
+    console.log(chalk.bold('📋 Project Configuration (Optional)'));
+    console.log();
+    console.log('Configure project defaults for OpenSpec workflows.');
+    console.log();
+
+    // Check if config already exists
+    const configPath = path.join(projectRoot, 'openspec', 'config.yaml');
+    const configYmlPath = path.join(projectRoot, 'openspec', 'config.yml');
+    const configExists = fs.existsSync(configPath) || fs.existsSync(configYmlPath);
+
+    if (configExists) {
+      // Config already exists, skip creation
+      console.log(chalk.blue('ℹ️  openspec/config.yaml already exists. Skipping config creation.'));
+      console.log();
+      console.log('   To update config, edit openspec/config.yaml manually or:');
+      console.log('   1. Delete openspec/config.yaml');
+      console.log('   2. Run openspec artifact-experimental-setup again');
+      console.log();
+    } else if (!process.stdin.isTTY) {
+      // Non-interactive mode (CI, automation, piped input)
+      console.log(chalk.blue('ℹ️  Skipping config prompts (non-interactive mode)'));
+      console.log();
+      console.log('   To create config manually, add openspec/config.yaml with:');
+      console.log(chalk.dim('   schema: spec-driven'));
+      console.log();
+    } else {
+      // Prompt for config creation
+      try {
+        const configResult = await promptForConfig(projectRoot);
+
+        if (configResult.createConfig && configResult.schema) {
+          // Build config object
+          const config = {
+            schema: configResult.schema,
+            context: configResult.context,
+            rules: configResult.rules,
+          };
+
+          // Serialize to YAML
+          const yamlContent = serializeConfig(config);
+
+          // Write config file
+          try {
+            await FileSystemUtils.writeFile(configPath, yamlContent);
+
+            console.log();
+            console.log(chalk.green('✓ Created openspec/config.yaml'));
+            console.log();
+            console.log('━'.repeat(70));
+            console.log();
+            console.log(chalk.bold('📖 Config created at: openspec/config.yaml'));
+
+            // Display summary
+            const contextLines = config.context ? config.context.split('\n').length : 0;
+            const rulesCount = config.rules ? Object.keys(config.rules).length : 0;
+
+            console.log(`   • Default schema: ${chalk.cyan(config.schema)}`);
+            if (contextLines > 0) {
+              console.log(`   • Project context: ${chalk.cyan(`Added (${contextLines} lines)`)}`);
+            }
+            if (rulesCount > 0) {
+              console.log(`   • Rules: ${chalk.cyan(`${rulesCount} artifact${rulesCount > 1 ? 's' : ''} configured`)}`);
+            }
+            console.log();
+
+            // Usage examples
+            console.log(chalk.bold('Usage:'));
+            console.log('  • New changes automatically use this schema');
+            console.log('  • Context injected into all artifact instructions');
+            console.log('  • Rules applied to matching artifacts');
+            console.log();
+
+            // Git commit suggestion
+            console.log(chalk.bold('To share with team:'));
+            console.log(chalk.dim('  git add openspec/config.yaml .claude/'));
+            console.log(chalk.dim('  git commit -m "Setup OpenSpec experimental workflow with project config"'));
+            console.log();
+          } catch (writeError) {
+            // Handle file write errors
+            console.error();
+            console.error(chalk.red('✗ Failed to write openspec/config.yaml'));
+            console.error(chalk.dim(`  ${(writeError as Error).message}`));
+            console.error();
+            console.error('Fallback: Create config manually:');
+            console.error(chalk.dim('  1. Create openspec/config.yaml'));
+            console.error(chalk.dim('  2. Copy the following content:'));
+            console.error();
+            console.error(chalk.dim(yamlContent));
+            console.error();
+          }
+        } else {
+          // User chose not to create config
+          console.log();
+          console.log(chalk.blue('ℹ️  Skipped config creation.'));
+          console.log('   You can create openspec/config.yaml manually later.');
+          console.log();
+        }
+      } catch (promptError) {
+        if (isExitPromptError(promptError)) {
+          // User cancelled (Ctrl+C)
+          console.log();
+          console.log(chalk.blue('ℹ️  Config creation cancelled'));
+          console.log('   Skills and commands already created');
+          console.log('   Run setup again to create config later');
+          console.log();
+        } else {
+          // Unexpected error
+          throw promptError;
+        }
+      }
+    }
+
+    console.log('━'.repeat(70));
+    console.log();
     console.log(chalk.bold('📖 Usage:'));
     console.log();
     console.log('  ' + chalk.cyan('Skills') + ' work automatically in compatible editors:');
@@ -933,7 +1069,8 @@ interface SchemasOptions {
 }
 
 async function schemasCommand(options: SchemasOptions): Promise<void> {
-  const schemas = listSchemasWithInfo();
+  const projectRoot = process.cwd();
+  const schemas = listSchemasWithInfo(projectRoot);
 
   if (options.json) {
     console.log(JSON.stringify(schemas, null, 2));
@@ -944,7 +1081,12 @@ async function schemasCommand(options: SchemasOptions): Promise<void> {
   console.log();
 
   for (const schema of schemas) {
-    const sourceLabel = schema.source === 'user' ? chalk.dim(' (user override)') : '';
+    let sourceLabel = '';
+    if (schema.source === 'project') {
+      sourceLabel = chalk.cyan(' (project)');
+    } else if (schema.source === 'user') {
+      sourceLabel = chalk.dim(' (user override)');
+    }
     console.log(`  ${chalk.bold(schema.name)}${sourceLabel}`);
     console.log(`    ${schema.description}`);
     console.log(`    Artifacts: ${schema.artifacts.join(' → ')}`);

@@ -1,14 +1,52 @@
 # @fission-ai/openspec
 
+## 0.22.0
+
+### Minor Changes
+
+- [#530](https://github.com/Fission-AI/OpenSpec/pull/530) [`33466b1`](https://github.com/Fission-AI/OpenSpec/commit/33466b1e2a6798bdd6d0e19149173585b0612e6f) Thanks [@TabishB](https://github.com/TabishB)! - Add project-level configuration, project-local schemas, and schema management commands
+
+  **New Features**
+
+  - **Project-level configuration** — Configure OpenSpec behavior per-project via `openspec/config.yaml`, including custom rules injection, context files, and schema resolution settings
+  - **Project-local schemas** — Define custom artifact schemas within your project's `openspec/schemas/` directory for project-specific workflows
+  - **Schema management commands** — New `openspec schema` commands (`list`, `show`, `export`, `validate`) for inspecting and managing artifact schemas (experimental)
+
+  **Bug Fixes**
+
+  - Fixed config loading to handle null `rules` field in project configuration
+
+## 0.21.0
+
+### Minor Changes
+
+- [#516](https://github.com/Fission-AI/OpenSpec/pull/516) [`b5a8847`](https://github.com/Fission-AI/OpenSpec/commit/b5a884748be6156a7bb140b4941cfec4f20a9fc8) Thanks [@TabishB](https://github.com/TabishB)! - Add feedback command and Nix flake support
+
+  **New Features**
+
+  - **Feedback command** — Submit feedback directly from the CLI with `openspec feedback`, which creates GitHub Issues with automatic metadata inclusion and graceful fallback for manual submission
+  - **Nix flake support** — Install and develop openspec using Nix with the new `flake.nix`, including automated flake maintenance and CI validation
+
+  **Bug Fixes**
+
+  - **Explore mode guardrails** — Explore mode now explicitly prevents implementation, keeping the focus on thinking and discovery while still allowing artifact creation
+
+  **Other**
+
+  - Improved change inference in `opsx apply` — automatically detects the target change from conversation context or prompts when ambiguous
+  - Streamlined archive sync assessment with clearer delta spec location guidance
+
 ## 0.20.0
 
 ### Minor Changes
 
-- [#502](https://github.com/Fission-AI/OpenSpec/pull/502) [`9db74aa`](https://github.com/Fission-AI/OpenSpec/commit/9db74aa5ac6547efadaed795217cfa17444f2004) Thanks [@TabishB](https://github.com/TabishB)! - ### New Features
+- [#502](https://github.com/Fission-AI/OpenSpec/pull/502) [`9db74aa`](https://github.com/Fission-AI/OpenSpec/commit/9db74aa5ac6547efadaed795217cfa17444f2004) Thanks [@TabishB](https://github.com/TabishB)! - Add `/opsx:verify` command and fix vitest process storms
+
+  **New Features**
 
   - **`/opsx:verify` command** — Validate that change implementations match their specifications
 
-  ### Bug Fixes
+  **Bug Fixes**
 
   - Fixed vitest process storms by capping worker parallelism
   - Fixed agent workflows to use non-interactive mode for validation commands
@@ -18,19 +56,21 @@
 
 ### Minor Changes
 
-- eb152eb: ### New Features
+- eb152eb: Add Continue IDE support, shell completions, and `/opsx:explore` command
+
+  **New Features**
 
   - **Continue IDE support** – OpenSpec now generates slash commands for [Continue](https://continue.dev/), expanding editor integration options alongside Cursor, Windsurf, Claude Code, and others
   - **Shell completions for Bash, Fish, and PowerShell** – Run `openspec completion install` to set up tab completion in your preferred shell
   - **`/opsx:explore` command** – A new thinking partner mode for exploring ideas and investigating problems before committing to changes
   - **Codebuddy slash command improvements** – Updated frontmatter format for better compatibility
 
-  ### Bug Fixes
+  **Bug Fixes**
 
   - Shell completions now correctly offer parent-level flags (like `--help`) when a command has subcommands
   - Fixed Windows compatibility issues in tests
 
-  ### Other
+  **Other**
 
   - Added optional anonymous usage statistics to help understand how OpenSpec is used. This is **opt-out** by default – set `OPENSPEC_TELEMETRY=0` or `DO_NOT_TRACK=1` to disable. Only command names and version are collected; no arguments, file paths, or content. Automatically disabled in CI environments.
 
@@ -85,13 +125,15 @@
 
 ### Minor Changes
 
-- 2e71835: ### New Features
+- 2e71835: Add `openspec config` command and Oh-my-zsh completions
+
+  **New Features**
 
   - Add `openspec config` command for managing global configuration settings
   - Implement global config directory with XDG Base Directory specification support
   - Add Oh-my-zsh shell completions support for enhanced CLI experience
 
-  ### Bug Fixes
+  **Bug Fixes**
 
   - Fix hang in pre-commit hooks by using dynamic imports
   - Respect XDG_CONFIG_HOME environment variable on all platforms
@@ -99,7 +141,7 @@
   - Align cli-completion spec with implementation
   - Remove hardcoded agent field from slash commands
 
-  ### Documentation
+  **Documentation**
 
   - Alphabetize AI tools list in README and make it collapsible
 
