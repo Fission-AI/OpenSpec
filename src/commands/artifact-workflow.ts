@@ -759,7 +759,7 @@ async function newChangeCommand(name: string | undefined, options: NewChangeOpti
 
   try {
     const projectRoot = process.cwd();
-    await createChange(projectRoot, name, { schema: options.schema });
+    const result = await createChange(projectRoot, name, { schema: options.schema });
 
     // If description provided, create README.md with description
     if (options.description) {
@@ -769,8 +769,7 @@ async function newChangeCommand(name: string | undefined, options: NewChangeOpti
       await fs.writeFile(readmePath, `# ${name}\n\n${options.description}\n`, 'utf-8');
     }
 
-    const schemaUsed = options.schema ?? DEFAULT_SCHEMA;
-    spinner.succeed(`Created change '${name}' at openspec/changes/${name}/ (schema: ${schemaUsed})`);
+    spinner.succeed(`Created change '${name}' at openspec/changes/${name}/ (schema: ${result.schema})`);
   } catch (error) {
     spinner.fail(`Failed to create change '${name}'`);
     throw error;
@@ -912,6 +911,13 @@ ${template.content}
       console.log('   To update config, edit openspec/config.yaml manually or:');
       console.log('   1. Delete openspec/config.yaml');
       console.log('   2. Run openspec artifact-experimental-setup again');
+      console.log();
+    } else if (!process.stdin.isTTY) {
+      // Non-interactive mode (CI, automation, piped input)
+      console.log(chalk.blue('ℹ️  Skipping config prompts (non-interactive mode)'));
+      console.log();
+      console.log('   To create config manually, add openspec/config.yaml with:');
+      console.log(chalk.dim('   schema: spec-driven'));
       console.log();
     } else {
       // Prompt for config creation

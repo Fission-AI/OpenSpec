@@ -256,8 +256,8 @@ export function generateInstructions(
     enrichedTemplate += `</rules>\n\n`;
   }
 
-  // 3. Add original template
-  enrichedTemplate += `<template>\n${templateContent}\n</template>`;
+  // 3. Add original template (without wrapper - CLI handles XML structure)
+  enrichedTemplate += templateContent;
 
   return {
     changeName: context.changeName,

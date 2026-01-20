@@ -225,7 +225,9 @@ context: |
         const instructions = generateInstructions(context, 'proposal', tempDir);
 
         expect(instructions.template).not.toContain('<context>');
-        expect(instructions.template).toContain('<template>');
+        // Template field should not include <template> wrapper (CLI handles that)
+        expect(instructions.template).not.toContain('<template>');
+        expect(instructions.template).toContain('## Why'); // Actual template content
       });
 
       it('should preserve multi-line context', () => {
@@ -359,13 +361,15 @@ rules:
 
         const contextIdx = instructions.template.indexOf('<context>');
         const rulesIdx = instructions.template.indexOf('<rules>');
-        const templateIdx = instructions.template.indexOf('<template>');
+        const templateContentIdx = instructions.template.indexOf('## Why');
 
         expect(contextIdx).toBeGreaterThan(-1);
         expect(rulesIdx).toBeGreaterThan(-1);
-        expect(templateIdx).toBeGreaterThan(-1);
+        expect(templateContentIdx).toBeGreaterThan(-1);
         expect(contextIdx).toBeLessThan(rulesIdx);
-        expect(rulesIdx).toBeLessThan(templateIdx);
+        expect(rulesIdx).toBeLessThan(templateContentIdx);
+        // Template field should not include <template> wrapper (CLI handles that)
+        expect(instructions.template).not.toContain('<template>');
       });
 
       it('should handle context without rules', () => {
@@ -384,7 +388,9 @@ context: Project context only
 
         expect(instructions.template).toContain('<context>');
         expect(instructions.template).not.toContain('<rules>');
-        expect(instructions.template).toContain('<template>');
+        // Template field should not include <template> wrapper (CLI handles that)
+        expect(instructions.template).not.toContain('<template>');
+        expect(instructions.template).toContain('## Why'); // Actual template content
       });
 
       it('should handle rules without context', () => {
@@ -405,7 +411,9 @@ rules:
 
         expect(instructions.template).not.toContain('<context>');
         expect(instructions.template).toContain('<rules>');
-        expect(instructions.template).toContain('<template>');
+        // Template field should not include <template> wrapper (CLI handles that)
+        expect(instructions.template).not.toContain('<template>');
+        expect(instructions.template).toContain('## Why'); // Actual template content
       });
 
       it('should work without project root parameter', () => {
@@ -413,7 +421,9 @@ rules:
         const instructions = generateInstructions(context, 'proposal'); // No projectRoot
 
         expect(instructions.template).not.toContain('<context>');
-        expect(instructions.template).toContain('<template>');
+        // Template field should not include <template> wrapper (CLI handles that)
+        expect(instructions.template).not.toContain('<template>');
+        expect(instructions.template).toContain('## Why'); // Actual template content
       });
     });
 

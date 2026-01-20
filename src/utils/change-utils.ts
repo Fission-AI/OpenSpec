@@ -14,6 +14,14 @@ export interface CreateChangeOptions {
 }
 
 /**
+ * Result of creating a change.
+ */
+export interface CreateChangeResult {
+  /** The schema that was actually used (resolved from options, config, or default) */
+  schema: string;
+}
+
+/**
  * Result of validating a change name.
  */
 export interface ValidationResult {
@@ -89,19 +97,23 @@ export function validateChangeName(name: string): ValidationResult {
  * @throws Error if the schema name is invalid
  * @throws Error if the change directory already exists
  *
+ * @returns Result containing the resolved schema name
+ *
  * @example
  * // Creates openspec/changes/add-auth/ with default schema
- * await createChange('/path/to/project', 'add-auth')
+ * const result = await createChange('/path/to/project', 'add-auth')
+ * console.log(result.schema) // 'spec-driven' or value from config
  *
  * @example
  * // Creates openspec/changes/add-auth/ with TDD schema
- * await createChange('/path/to/project', 'add-auth', { schema: 'tdd' })
+ * const result = await createChange('/path/to/project', 'add-auth', { schema: 'tdd' })
+ * console.log(result.schema) // 'tdd'
  */
 export async function createChange(
   projectRoot: string,
   name: string,
   options: CreateChangeOptions = {}
-): Promise<void> {
+): Promise<CreateChangeResult> {
   // Validate the name first
   const validation = validateChangeName(name);
   if (!validation.valid) {
@@ -143,4 +155,6 @@ export async function createChange(
     schema: schemaName,
     created: today,
   });
+
+  return { schema: schemaName };
 }
