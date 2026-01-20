@@ -576,4 +576,192 @@ artifacts:
       expect(result.stdout).toContain('[Experimental]');
     });
   });
+
+  describe('project config integration', () => {
+    describe('new change uses config schema', () => {
+      it('creates change with schema from project config', async () => {
+        // Create project config with tdd schema
+        // Note: changesDir is already at tempDir/openspec/changes (created in beforeEach)
+        await fs.writeFile(
+          path.join(tempDir, 'openspec', 'config.yaml'),
+          'schema: tdd\n'
+        );
+
+        // Create a new change without specifying schema
+        const result = await runCLI(['new', 'change', 'test-change'], { cwd: tempDir, timeoutMs: 30000 });
+        expect(result.exitCode).toBe(0);
+
+        // Verify the change was created with tdd schema
+        const metadataPath = path.join(changesDir, 'test-change', '.openspec.yaml');
+        const metadata = await fs.readFile(metadataPath, 'utf-8');
+        expect(metadata).toContain('schema: tdd');
+      }, 60000);
+
+      it('CLI schema overrides config schema', async () => {
+        // Create project config with tdd schema
+        // Note: openspec directory already exists (from changesDir creation in beforeEach)
+        await fs.writeFile(
+          path.join(tempDir, 'openspec', 'config.yaml'),
+          'schema: tdd\n'
+        );
+
+        // Create change with explicit schema
+        const result = await runCLI(
+          ['new', 'change', 'override-test', '--schema', 'spec-driven'],
+          { cwd: tempDir, timeoutMs: 30000 }
+        );
+        expect(result.exitCode).toBe(0);
+
+        // Verify the change uses the CLI-specified schema
+        const metadataPath = path.join(changesDir, 'override-test', '.openspec.yaml');
+        const metadata = await fs.readFile(metadataPath, 'utf-8');
+        expect(metadata).toContain('schema: spec-driven');
+      }, 60000);
+    });
+
+    describe('instructions command with config', () => {
+      it('injects context and rules from config into instructions', async () => {
+        // Create project config with context and rules
+        // Note: openspec directory already exists (from changesDir creation in beforeEach)
+        await fs.writeFile(
+          path.join(tempDir, 'openspec', 'config.yaml'),
+          `schema: spec-driven
+context: |
+  Tech stack: TypeScript, React
+  API style: RESTful
+rules:
+  proposal:
+    - Include rollback plan
+    - Identify affected teams
+`
+        );
+
+        // Create a test change
+        await createTestChange('config-test');
+
+        // Get instructions for proposal
+        const result = await runCLI(
+          ['instructions', 'proposal', '--change', 'config-test'],
+          { cwd: tempDir, timeoutMs: 30000 }
+        );
+        expect(result.exitCode).toBe(0);
+
+        // Verify context is injected
+        expect(result.stdout).toContain('Tech stack: TypeScript, React');
+        expect(result.stdout).toContain('API style: RESTful');
+
+        // Verify rules are injected for proposal
+        expect(result.stdout).toContain('Include rollback plan');
+        expect(result.stdout).toContain('Identify affected teams');
+      }, 60000);
+
+      it('does not inject rules for non-matching artifact', async () => {
+        // Create project config with rules only for proposal
+        // Note: openspec directory already exists (from changesDir creation in beforeEach)
+        await fs.writeFile(
+          path.join(tempDir, 'openspec', 'config.yaml'),
+          `schema: spec-driven
+rules:
+  proposal:
+    - Include rollback plan
+`
+        );
+
+        // Create a test change
+        await createTestChange('non-matching-test');
+
+        // Get instructions for design (not proposal)
+        const result = await runCLI(
+          ['instructions', 'design', '--change', 'non-matching-test'],
+          { cwd: tempDir, timeoutMs: 30000 }
+        );
+        expect(result.exitCode).toBe(0);
+
+        // Verify rules are NOT injected for design
+        expect(result.stdout).not.toContain('Include rollback plan');
+      }, 60000);
+    });
+
+    describe('backwards compatibility', () => {
+      it('existing changes work without config file', async () => {
+        // Create change without any config file
+        await createTestChange('no-config-change', ['proposal']);
+
+        // Status command should work
+        const statusResult = await runCLI(
+          ['status', '--change', 'no-config-change'],
+          { cwd: tempDir, timeoutMs: 30000 }
+        );
+        expect(statusResult.exitCode).toBe(0);
+        expect(statusResult.stdout).toContain('no-config-change');
+        expect(statusResult.stdout).toContain('spec-driven'); // Default schema
+
+        // Instructions command should work
+        const instrResult = await runCLI(
+          ['instructions', 'design', '--change', 'no-config-change'],
+          { cwd: tempDir, timeoutMs: 30000 }
+        );
+        expect(instrResult.exitCode).toBe(0);
+        expect(instrResult.stdout).toContain('<artifact');
+      }, 60000);
+
+      it('changes with metadata work without config file', async () => {
+        // Create change with explicit schema in metadata
+        const changeDir = await createTestChange('metadata-only-change');
+        await fs.writeFile(
+          path.join(changeDir, '.openspec.yaml'),
+          'schema: tdd\ncreated: "2025-01-05"\n'
+        );
+
+        // Status should use schema from metadata
+        const result = await runCLI(
+          ['status', '--change', 'metadata-only-change'],
+          { cwd: tempDir, timeoutMs: 30000 }
+        );
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain('tdd');
+      }, 60000);
+    });
+
+    describe('config changes reflected immediately', () => {
+      it('config changes are reflected without restart', async () => {
+        // Create initial config
+        // Note: openspec directory already exists (from changesDir creation in beforeEach)
+        await fs.writeFile(
+          path.join(tempDir, 'openspec', 'config.yaml'),
+          `schema: spec-driven
+context: Initial context
+`
+        );
+
+        // Create a test change
+        await createTestChange('immediate-test');
+
+        // Get instructions - should have initial context
+        const result1 = await runCLI(
+          ['instructions', 'proposal', '--change', 'immediate-test'],
+          { cwd: tempDir, timeoutMs: 30000 }
+        );
+        expect(result1.exitCode).toBe(0);
+        expect(result1.stdout).toContain('Initial context');
+
+        // Update config
+        await fs.writeFile(
+          path.join(tempDir, 'openspec', 'config.yaml'),
+          `schema: spec-driven
+context: Updated context
+`
+        );
+
+        // Get instructions again - should have updated context
+        const result2 = await runCLI(
+          ['instructions', 'proposal', '--change', 'immediate-test'],
+          { cwd: tempDir, timeoutMs: 30000 }
+        );
+        expect(result2.exitCode).toBe(0);
+        expect(result2.stdout).toContain('Updated context');
+        expect(result2.stdout).not.toContain('Initial context');
+      }, 60000);
+    });
+  });
 });

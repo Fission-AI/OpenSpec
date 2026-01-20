@@ -54,19 +54,19 @@
 - [x] 5.7 Show usage examples and git commit suggestion
 - [x] 5.8 Handle existing config case with skip message and manual update instructions
 - [x] 5.9 Add error handling for file write failures with fallback suggestions
-- [ ] 5.10 Add test for cancellation behavior (skills/commands preserved, config not created)
+- [x] 5.10 Add test for cancellation behavior (skills/commands preserved, config not created)
 
 ## 6. Testing and Documentation
 
-- [ ] 6.1 Add end-to-end test: run experimental setup → create config → create change → verify schema used
-- [ ] 6.2 Add end-to-end test: create config → get instructions → verify context and rules injected
-- [ ] 6.3 Test backwards compatibility: existing changes work without config
-- [ ] 6.4 Test config changes are reflected immediately (no stale cache)
-- [ ] 6.5 Add performance benchmark: measure config read time with typical config (1KB context)
-- [ ] 6.6 Add performance benchmark: measure config read time with large config (50KB context)
-- [ ] 6.7 Add performance benchmark: measure repeated reads within single command
-- [ ] 6.8 Document benchmark results and decide if caching is needed (target: <10ms typical, <50ms acceptable)
-- [ ] 6.9 If benchmarks fail: implement mtime-based caching with cache invalidation
-- [ ] 6.10 Update README or docs with config feature examples and schema
-- [ ] 6.11 Document common artifact IDs for different schemas
-- [ ] 6.12 Add troubleshooting section for config validation errors
+- [x] 6.1 Add end-to-end test: run experimental setup → create config → create change → verify schema used
+- [x] 6.2 Add end-to-end test: create config → get instructions → verify context and rules injected
+- [x] 6.3 Test backwards compatibility: existing changes work without config
+- [x] 6.4 Test config changes are reflected immediately (no stale cache)
+- [x] 6.5 Add performance benchmark: measure config read time with typical config (1KB context)
+- [x] 6.6 Add performance benchmark: measure config read time with large config (50KB context)
+- [x] 6.7 Add performance benchmark: measure repeated reads within single command
+- [x] 6.8 Document benchmark results and decide if caching is needed (target: <10ms typical, <50ms acceptable)
+- [x] 6.9 If benchmarks fail: implement mtime-based caching with cache invalidation
+- [x] 6.10 Update README or docs with config feature examples and schema
+- [x] 6.11 Document common artifact IDs for different schemas
+- [x] 6.12 Add troubleshooting section for config validation errors
