@@ -66,9 +66,10 @@ export interface CommandDefinition {
    * - 'change-or-spec-id': Complete with both changes and specs
    * - 'path': Complete with file paths
    * - 'shell': Complete with supported shell names
+   * - 'schema-name': Complete with available schema names
    * - undefined: No specific completion
    */
-  positionalType?: 'change-id' | 'spec-id' | 'change-or-spec-id' | 'path' | 'shell';
+  positionalType?: 'change-id' | 'spec-id' | 'change-or-spec-id' | 'path' | 'shell' | 'schema-name';
 }
 
 /**
