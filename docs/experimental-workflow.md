@@ -78,6 +78,98 @@ openspec artifact-experimental-setup
 
 This creates skills in `.claude/skills/` that Claude Code auto-detects.
 
+During setup, you'll be prompted to create a **project config** (`openspec/config.yaml`). This is optional but recommended.
+
+## Project Configuration
+
+Project config lets you set defaults and inject project-specific context into all artifacts.
+
+### Creating Config
+
+Config is created during `artifact-experimental-setup`, or manually:
+
+```yaml
+# openspec/config.yaml
+schema: spec-driven
+
+context: |
+  Tech stack: TypeScript, React, Node.js
+  API conventions: RESTful, JSON responses
+  Testing: Vitest for unit tests, Playwright for e2e
+  Style: ESLint with Prettier, strict TypeScript
+
+rules:
+  proposal:
+    - Include rollback plan
+    - Identify affected teams
+  specs:
+    - Use Given/When/Then format for scenarios
+  design:
+    - Include sequence diagrams for complex flows
+```
+
+### Config Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `schema` | string | Default schema for new changes (e.g., `spec-driven`, `tdd`) |
+| `context` | string | Project context injected into all artifact instructions |
+| `rules` | object | Per-artifact rules, keyed by artifact ID |
+
+### How It Works
+
+**Schema precedence** (highest to lowest):
+1. CLI flag (`--schema tdd`)
+2. Change metadata (`.openspec.yaml` in change directory)
+3. Project config (`openspec/config.yaml`)
+4. Default (`spec-driven`)
+
+**Context injection:**
+- Context is prepended to every artifact's instructions
+- Wrapped in `<context>...</context>` tags
+- Helps AI understand your project's conventions
+
+**Rules injection:**
+- Rules are only injected for matching artifacts
+- Wrapped in `<rules>...</rules>` tags
+- Appear after context, before the template
+
+### Artifact IDs by Schema
+
+**spec-driven** (default):
+- `proposal` — Change proposal
+- `specs` — Specifications
+- `design` — Technical design
+- `tasks` — Implementation tasks
+
+**tdd**:
+- `spec` — Feature specification
+- `tests` — Test file
+- `implementation` — Implementation code
+- `docs` — Documentation
+
+### Config Validation
+
+- Unknown artifact IDs in `rules` generate warnings
+- Schema names are validated against available schemas
+- Context has a 50KB size limit
+- Invalid YAML is reported with line numbers
+
+### Troubleshooting
+
+**"Unknown artifact ID in rules: X"**
+- Check artifact IDs match your schema (see list above)
+- Run `openspec schemas --json` to see artifact IDs for each schema
+
+**Config not being applied:**
+- Ensure file is at `openspec/config.yaml` (not `.yml`)
+- Check YAML syntax with a validator
+- Config changes take effect immediately (no restart needed)
+
+**Context too large:**
+- Context is limited to 50KB
+- Summarize or link to external docs instead
+
 ## Commands
 
 | Command | What it does |
