@@ -1,0 +1,24 @@
+schema: spec-driven
+
+context: |
+  Tech stack: TypeScript, Node.js (≥20.19.0), ESM modules
+  Package manager: pnpm
+  CLI framework: Commander.js
+
+  Cross-platform requirements:
+  - This tool runs on macOS, Linux, AND Windows
+  - Always use path.join() or path.resolve() for file paths - never hardcode slashes
+  - Never assume forward-slash path separators
+  - Tests must use path.join() for expected path values, not hardcoded strings
+  - Consider case sensitivity differences in file systems
+
+rules:
+  specs:
+    - Include scenarios for Windows path handling when dealing with file paths
+    - Requirements involving paths must specify cross-platform behavior
+  tasks:
+    - Add Windows CI verification as a task when changes involve file paths
+    - Include cross-platform testing considerations
+  design:
+    - Document any platform-specific behavior or limitations
+    - Prefer Node.js path module over string manipulation for paths
