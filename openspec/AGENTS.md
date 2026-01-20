@@ -302,6 +302,49 @@ Example for RENAMED:
 - Exact format required: `#### Scenario: Name`
 - Debug with: `openspec show [change] --json --deltas-only`
 
+**"Delta sections found, but no requirement entries parsed"**
+This error means the validator detected delta section headers (e.g., `## ADDED Requirements`) but couldn't parse any requirement blocks within them.
+
+Common causes and solutions:
+1. **Wrong requirement header format**
+   - ❌ Wrong: `### Some Header`, `### Feature: Name`, `###Header: Name`
+   - ✅ Correct: `### Requirement: Feature Name`
+   - The keyword "Requirement:" is mandatory and case-sensitive
+   - Whitespace around `###` is flexible (0+ spaces/tabs allowed)
+
+2. **Line ending issues (Windows users)**
+   - Mixed CRLF/LF line endings can cause parsing problems in some editors
+   - Ensure consistent line endings throughout the file
+   - Most modern editors handle this automatically
+
+3. **Hidden characters or encoding issues**
+   - Check for invisible Unicode characters (zero-width spaces, BOM markers)
+   - Use UTF-8 encoding without BOM
+   - View the raw file content to inspect for hidden characters
+
+4. **Debugging approach**
+   ```bash
+   # Step 1: Check if parser sees the content differently
+   openspec show [change] --json --deltas-only
+
+   # Step 2: If validation fails but show succeeds, check:
+   # - Missing scenarios (every requirement needs ≥1 scenario)
+   # - Missing SHALL/MUST keywords in requirement text
+
+   # Step 3: Check the enhanced error message details
+   # The validator will show:
+   # - First 5 lines of each problematic section
+   # - Line numbers of near-miss patterns (lines starting with ### but not matching)
+   # - Specific format expectations
+   ```
+
+5. **Enhanced diagnostics**
+   When validation fails, the error message now includes:
+   - Preview of the first few lines from each section
+   - Parse diagnostics showing which lines almost matched
+   - Expected format reminders
+   - Suggested debugging commands
+
 ### Validation Tips
 
 ```bash
