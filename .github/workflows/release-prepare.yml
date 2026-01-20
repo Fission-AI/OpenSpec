@@ -65,7 +65,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          # Get the latest release tag
-          TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName')
+          # Get version from package.json (just bumped by changesets)
+          TAG="v$(jq -r .version package.json)"
           echo "Triggering polish workflow for $TAG"
           gh workflow run polish-release-notes.yml -f tag_name="$TAG"
