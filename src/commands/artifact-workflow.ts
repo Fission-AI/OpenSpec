@@ -28,7 +28,7 @@ import {
   type SchemaInfo,
 } from '../core/artifact-graph/index.js';
 import { createChange, validateChangeName } from '../utils/change-utils.js';
-import { getExploreSkillTemplate, getNewChangeSkillTemplate, getContinueChangeSkillTemplate, getApplyChangeSkillTemplate, getFfChangeSkillTemplate, getSyncSpecsSkillTemplate, getArchiveChangeSkillTemplate, getVerifyChangeSkillTemplate, getOpsxExploreCommandTemplate, getOpsxNewCommandTemplate, getOpsxContinueCommandTemplate, getOpsxApplyCommandTemplate, getOpsxFfCommandTemplate, getOpsxSyncCommandTemplate, getOpsxArchiveCommandTemplate, getOpsxVerifyCommandTemplate } from '../core/templates/skill-templates.js';
+import { getExploreSkillTemplate, getNewChangeSkillTemplate, getContinueChangeSkillTemplate, getApplyChangeSkillTemplate, getFfChangeSkillTemplate, getSyncSpecsSkillTemplate, getArchiveChangeSkillTemplate, getBulkArchiveChangeSkillTemplate, getVerifyChangeSkillTemplate, getOpsxExploreCommandTemplate, getOpsxNewCommandTemplate, getOpsxContinueCommandTemplate, getOpsxApplyCommandTemplate, getOpsxFfCommandTemplate, getOpsxSyncCommandTemplate, getOpsxArchiveCommandTemplate, getOpsxBulkArchiveCommandTemplate, getOpsxVerifyCommandTemplate } from '../core/templates/skill-templates.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { promptForConfig, serializeConfig, isExitPromptError } from '../core/config-prompts.js';
 import { readProjectConfig } from '../core/project-config.js';
@@ -818,6 +818,7 @@ async function artifactExperimentalSetupCommand(): Promise<void> {
     const ffChangeSkill = getFfChangeSkillTemplate();
     const syncSpecsSkill = getSyncSpecsSkillTemplate();
     const archiveChangeSkill = getArchiveChangeSkillTemplate();
+    const bulkArchiveChangeSkill = getBulkArchiveChangeSkillTemplate();
     const verifyChangeSkill = getVerifyChangeSkillTemplate();
 
     // Get command templates
@@ -828,6 +829,7 @@ async function artifactExperimentalSetupCommand(): Promise<void> {
     const ffCommand = getOpsxFfCommandTemplate();
     const syncCommand = getOpsxSyncCommandTemplate();
     const archiveCommand = getOpsxArchiveCommandTemplate();
+    const bulkArchiveCommand = getOpsxBulkArchiveCommandTemplate();
     const verifyCommand = getOpsxVerifyCommandTemplate();
 
     // Create skill directories and SKILL.md files
@@ -839,6 +841,7 @@ async function artifactExperimentalSetupCommand(): Promise<void> {
       { template: ffChangeSkill, dirName: 'openspec-ff-change' },
       { template: syncSpecsSkill, dirName: 'openspec-sync-specs' },
       { template: archiveChangeSkill, dirName: 'openspec-archive-change' },
+      { template: bulkArchiveChangeSkill, dirName: 'openspec-bulk-archive-change' },
       { template: verifyChangeSkill, dirName: 'openspec-verify-change' },
     ];
 
@@ -871,6 +874,7 @@ ${template.instructions}
       { template: ffCommand, fileName: 'ff.md' },
       { template: syncCommand, fileName: 'sync.md' },
       { template: archiveCommand, fileName: 'archive.md' },
+      { template: bulkArchiveCommand, fileName: 'bulk-archive.md' },
       { template: verifyCommand, fileName: 'verify.md' },
     ];
 
