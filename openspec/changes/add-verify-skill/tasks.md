@@ -1,28 +1,15 @@
 # Tasks: Add /opsx:verify Skill
 
-## 1. Skill Implementation
-- [ ] 1.1 Create `.claude/skills/openspec-verify-change/SKILL.md` with skill definition
+## 1. Skill Template Functions
+- [x] 1.1 Add `getVerifyChangeSkillTemplate()` to skill-templates.ts
+- [x] 1.2 Add `getOpsxVerifyCommandTemplate()` to skill-templates.ts
 
-## 2. Completeness Verification Logic
-- [ ] 2.1 Implement task completion parsing (read tasks.md, count checkboxes)
-- [ ] 2.2 Implement spec coverage detection (extract requirements, search codebase)
+## 2. Integration with artifact-experimental-setup
+- [x] 2.1 Import verify template functions in artifact-workflow.ts
+- [x] 2.2 Add verify to skills array in artifactExperimentalSetupCommand
+- [x] 2.3 Add verify to commands array in artifactExperimentalSetupCommand
+- [x] 2.4 Add verify to help text output
 
-## 3. Correctness Verification Logic
-- [ ] 3.1 Implement requirement-to-code mapping logic
-- [ ] 3.2 Implement scenario coverage assessment
-- [ ] 3.3 Implement divergence detection heuristics
-
-## 4. Coherence Verification Logic
-- [ ] 4.1 Implement design.md decision extraction
-- [ ] 4.2 Implement design adherence checking
-- [ ] 4.3 Implement project pattern consistency checking
-
-## 5. Report Generation
-- [ ] 5.1 Implement summary scorecard generation
-- [ ] 5.2 Implement issue prioritization (CRITICAL/WARNING/SUGGESTION)
-- [ ] 5.3 Implement actionable recommendation generation
-
-## 6. Integration
-- [ ] 6.1 Add opsx:verify alias registration
-- [ ] 6.2 Test skill invocation end-to-end
-- [ ] 6.3 Update documentation/help text if applicable
+## 3. Verification (Build & Test)
+- [x] 3.1 Verify TypeScript compilation succeeds
+- [x] 3.2 Verify all 8 skills are now included (was 7, now 8)

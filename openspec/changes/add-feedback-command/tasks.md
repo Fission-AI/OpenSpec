@@ -1,32 +1,30 @@
-## 1. GitHub Authentication
+## 1. Feedback Command
 
-- [ ] 1.1 Create `src/auth/github.ts` module with Device OAuth flow
-- [ ] 1.2 Implement token storage in global config (`~/.config/openspec/`)
-- [ ] 1.3 Add `getGitHubAuth()` function that returns cached token or initiates auth
-- [ ] 1.4 Add `clearGitHubAuth()` function for logout capability
+- [x] 1.1 Create `src/commands/feedback.ts` with command implementation
+- [x] 1.2 Check `gh` CLI availability using platform-appropriate command (`which` on Unix/macOS, `where` on Windows)
+- [x] 1.3 Check GitHub auth status with `gh auth status`
+- [x] 1.4 Execute `gh issue create` with formatted title and body using `execFileSync` to prevent shell injection
+- [x] 1.5 Display issue URL returned by `gh` CLI
+- [x] 1.6 Register `feedback <message>` command in `src/cli/index.ts`
+- [x] 1.7 Ensure cross-platform compatibility (macOS, Linux, Windows)
 
-## 2. Feedback Command
+## 2. Shell Completions
 
-- [ ] 2.1 Create `src/commands/feedback.ts` with command implementation
-- [ ] 2.2 Register `feedback <message>` command in CLI
-- [ ] 2.3 Implement `--body` flag for rich content (title + body)
-- [ ] 2.4 Create GitHub Issue via API with `feedback` label
-- [ ] 2.5 Display created issue URL on success
+- [x] 2.1 Add `feedback` command to command registry
+- [x] 2.2 Regenerate completion scripts for all shells
 
-## 3. Shell Completions
+## 3. Feedback Skill
 
-- [ ] 3.1 Add `feedback` command to command registry
-- [ ] 3.2 Regenerate completion scripts for all shells
+- [x] 3.1 Create feedback skill template in `skill-templates.ts`
+- [x] 3.2 Document context gathering workflow
+- [x] 3.3 Document anonymization rules
+- [x] 3.4 Document user confirmation flow
 
-## 4. Feedback Skill
+## 4. Testing
 
-- [ ] 4.1 Create feedback skill template in `skill-templates.ts`
-- [ ] 4.2 Document context gathering workflow
-- [ ] 4.3 Document anonymization rules
-- [ ] 4.4 Document user confirmation flow
-
-## 5. Testing
-
-- [ ] 5.1 Add unit tests for GitHub auth module
-- [ ] 5.2 Add unit tests for feedback command
-- [ ] 5.3 Add integration test for full feedback flow (mocked GitHub API)
+- [x] 4.1 Add unit tests for feedback command (mock `gh` subprocess calls)
+- [x] 4.2 Add integration test for full feedback flow with mocked `gh` CLI
+- [x] 4.3 Test error handling for missing `gh` CLI
+- [x] 4.4 Test error handling for unauthenticated `gh` session
+- [x] 4.5 Test cross-platform `gh` CLI detection (verify `which` on Unix, `where` on Windows)
+- [x] 4.6 Test platform metadata includes correct value for Windows (win32)

@@ -24,6 +24,8 @@ export function getExploreSkillTemplate(): SkillTemplate {
     description: 'Enter explore mode - a thinking partner for exploring ideas, investigating problems, and clarifying requirements. Use when the user wants to think through something before or during a change.',
     instructions: `Enter explore mode. Think deeply. Visualize freely. Follow the conversation wherever it goes.
 
+**IMPORTANT: Explore mode is for thinking, not implementing.** You may read files, search code, and investigate the codebase, but you must NEVER write code or implement features. If the user asks you to implement something, remind them to exit explore mode first (e.g., start a change with \`/opsx:new\` or \`/opsx:ff\`). You MAY create OpenSpec artifacts (proposals, designs, specs) if the user asks—that's capturing thinking, not implementing.
+
 **This is a stance, not a workflow.** There are no fixed steps, no required sequence, no mandatory outputs. You're a thinking partner helping the user explore.
 
 ---
@@ -31,6 +33,7 @@ export function getExploreSkillTemplate(): SkillTemplate {
 ## The Stance
 
 - **Curious, not prescriptive** - Ask questions that emerge naturally, don't follow a script
+- **Open threads, not interrogations** - Surface multiple interesting directions and let the user follow what resonates. Don't funnel them through a single path of questions.
 - **Visual** - Use ASCII diagrams liberally when they'd help clarify thinking
 - **Adaptive** - Follow interesting threads, pivot when new information emerges
 - **Patient** - Don't rush to conclusions, let the shape of the problem emerge
@@ -290,6 +293,7 @@ But this summary is optional. Sometimes the thinking IS the value.
 
 ## Guardrails
 
+- **Don't implement** - Never write code or implement features. Creating OpenSpec artifacts is fine, writing application code is not.
 - **Don't fake understanding** - If something is unclear, dig deeper
 - **Don't rush** - Discovery is thinking time, not task time
 - **Don't force structure** - Let patterns emerge naturally
@@ -385,7 +389,7 @@ export function getContinueChangeSkillTemplate(): SkillTemplate {
     description: 'Continue working on an OpenSpec change by creating the next artifact. Use when the user wants to progress their change, create the next artifact, or continue their workflow.',
     instructions: `Continue working on a change by creating the next artifact.
 
-**Input**: Optionally specify a change name. If omitted, MUST prompt for available changes.
+**Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
@@ -499,19 +503,18 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
     description: 'Implement tasks from an OpenSpec change. Use when the user wants to start implementing, continue implementation, or work through tasks.',
     instructions: `Implement tasks from an OpenSpec change.
 
-**Input**: Optionally specify a change name. If omitted, MUST prompt for available changes.
+**Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
-1. **If no change name provided, prompt for selection**
+1. **Select the change**
 
-   Run \`openspec list --json\` to get available changes. Use the **AskUserQuestion tool** to let the user select.
+   If a name is provided, use it. Otherwise:
+   - Infer from conversation context if the user mentioned a change
+   - Auto-select if only one active change exists
+   - If ambiguous, run \`openspec list --json\` to get available changes and use the **AskUserQuestion tool** to let the user select
 
-   Show changes that are implementation-ready (have tasks artifact).
-   Include the schema used for each change if available.
-   Mark changes with incomplete tasks as "(In Progress)".
-
-   **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
+   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:apply <other>\`).
 
 2. **Check status to understand the schema**
    \`\`\`bash
@@ -754,7 +757,7 @@ export function getSyncSpecsSkillTemplate(): SkillTemplate {
 
 This is an **agent-driven** operation - you will read delta specs and directly edit main specs to apply the changes. This allows intelligent merging (e.g., adding a scenario without copying the entire requirement).
 
-**Input**: Optionally specify a change name. If omitted, MUST prompt for available changes.
+**Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
@@ -904,6 +907,8 @@ export function getOpsxExploreCommandTemplate(): CommandTemplate {
     tags: ['workflow', 'explore', 'experimental', 'thinking'],
     content: `Enter explore mode. Think deeply. Visualize freely. Follow the conversation wherever it goes.
 
+**IMPORTANT: Explore mode is for thinking, not implementing.** You may read files, search code, and investigate the codebase, but you must NEVER write code or implement features. If the user asks you to implement something, remind them to exit explore mode first (e.g., start a change with \`/opsx:new\` or \`/opsx:ff\`). You MAY create OpenSpec artifacts (proposals, designs, specs) if the user asks—that's capturing thinking, not implementing.
+
 **This is a stance, not a workflow.** There are no fixed steps, no required sequence, no mandatory outputs. You're a thinking partner helping the user explore.
 
 **Input**: The argument after \`/opsx:explore\` is whatever the user wants to think about. Could be:
@@ -918,6 +923,7 @@ export function getOpsxExploreCommandTemplate(): CommandTemplate {
 ## The Stance
 
 - **Curious, not prescriptive** - Ask questions that emerge naturally, don't follow a script
+- **Open threads, not interrogations** - Surface multiple interesting directions and let the user follow what resonates. Don't funnel them through a single path of questions.
 - **Visual** - Use ASCII diagrams liberally when they'd help clarify thinking
 - **Adaptive** - Follow interesting threads, pivot when new information emerges
 - **Patient** - Don't rush to conclusions, let the shape of the problem emerge
@@ -1058,6 +1064,7 @@ When things crystallize, you might offer a summary - but it's optional. Sometime
 
 ## Guardrails
 
+- **Don't implement** - Never write code or implement features. Creating OpenSpec artifacts is fine, writing application code is not.
 - **Don't fake understanding** - If something is unclear, dig deeper
 - **Don't rush** - Discovery is thinking time, not task time
 - **Don't force structure** - Let patterns emerge naturally
@@ -1154,7 +1161,7 @@ export function getOpsxContinueCommandTemplate(): CommandTemplate {
     tags: ['workflow', 'artifacts', 'experimental'],
     content: `Continue working on a change by creating the next artifact.
 
-**Input**: Optionally specify \`--change <name>\` after \`/opsx:continue\`. If omitted, MUST prompt for available changes.
+**Input**: Optionally specify a change name after \`/opsx:continue\` (e.g., \`/opsx:continue add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
@@ -1269,19 +1276,18 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
     tags: ['workflow', 'artifacts', 'experimental'],
     content: `Implement tasks from an OpenSpec change.
 
-**Input**: Optionally specify \`--change <name>\` after \`/opsx:apply\`. If omitted, MUST prompt for available changes.
+**Input**: Optionally specify a change name (e.g., \`/opsx:apply add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
-1. **If no change name provided, prompt for selection**
+1. **Select the change**
 
-   Run \`openspec list --json\` to get available changes. Use the **AskUserQuestion tool** to let the user select.
+   If a name is provided, use it. Otherwise:
+   - Infer from conversation context if the user mentioned a change
+   - Auto-select if only one active change exists
+   - If ambiguous, run \`openspec list --json\` to get available changes and use the **AskUserQuestion tool** to let the user select
 
-   Show changes that are implementation-ready (have tasks artifact).
-   Include the schema used for each change if available.
-   Mark changes with incomplete tasks as "(In Progress)".
-
-   **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
+   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:apply <other>\`).
 
 2. **Check status to understand the schema**
    \`\`\`bash
@@ -1524,7 +1530,7 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
     description: 'Archive a completed change in the experimental workflow. Use when the user wants to finalize and archive a change after implementation is complete.',
     instructions: `Archive a completed change in the experimental workflow.
 
-**Input**: Optionally specify a change name. If omitted, MUST prompt for available changes.
+**Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
@@ -1563,38 +1569,20 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
 
    **If no tasks file exists:** Proceed without task-related warning.
 
-4. **Check if delta specs need syncing**
+4. **Assess delta spec sync state**
 
-   Check if \`specs/\` directory exists in the change with spec files.
+   Check for delta specs at \`openspec/changes/<name>/specs/\`. If none exist, proceed without sync prompt.
 
-   **If delta specs exist, perform a quick sync check:**
+   **If delta specs exist:**
+   - Compare each delta spec with its corresponding main spec at \`openspec/specs/<capability>/spec.md\`
+   - Determine what changes would be applied (adds, modifications, removals, renames)
+   - Show a combined summary before prompting
 
-   a. **For each delta spec** at \`openspec/changes/<name>/specs/<capability>/spec.md\`:
-      - Extract requirement names (lines matching \`### Requirement: <name>\`)
-      - Note which sections exist (ADDED, MODIFIED, REMOVED)
+   **Prompt options:**
+   - If changes needed: "Sync now (recommended)", "Archive without syncing"
+   - If already synced: "Archive now", "Sync anyway", "Cancel"
 
-   b. **Check corresponding main spec** at \`openspec/specs/<capability>/spec.md\`:
-      - If main spec doesn't exist → needs sync
-      - If main spec exists, check if ADDED requirement names appear in it
-      - If any ADDED requirements are missing from main spec → needs sync
-
-   c. **Report findings:**
-
-      **If sync needed:**
-      \`\`\`
-      ⚠️ Delta specs may not be synced:
-      - specs/auth/spec.md → Main spec missing requirement "Token Refresh"
-      - specs/api/spec.md → Main spec doesn't exist yet
-
-      Would you like to sync now before archiving?
-      \`\`\`
-      - Use **AskUserQuestion tool** with options: "Sync now", "Archive without syncing"
-      - If user chooses sync, execute /opsx:sync logic (use the openspec-sync-specs skill)
-
-      **If already synced (all requirements found):**
-      - Proceed without prompting (specs appear to be in sync)
-
-   **If no delta specs exist:** Proceed without sync-related checks.
+   If user chooses sync, execute /opsx:sync logic (use the openspec-sync-specs skill). Proceed to archive regardless of choice.
 
 5. **Perform the archive**
 
@@ -1630,7 +1618,7 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
 **Change:** <change-name>
 **Schema:** <schema-name>
 **Archived to:** openspec/changes/archive/YYYY-MM-DD-<name>/
-**Specs:** ✓ Synced to main specs (or "No delta specs" or "⚠️ Not synced")
+**Specs:** ✓ Synced to main specs (or "No delta specs" or "Sync skipped")
 
 All artifacts complete. All tasks complete.
 \`\`\`
@@ -1642,7 +1630,7 @@ All artifacts complete. All tasks complete.
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
 - Show clear summary of what happened
 - If sync is requested, use openspec-sync-specs approach (agent-driven)
-- Quick sync check: look for requirement names in delta specs, verify they exist in main specs`
+- If delta specs exist, always run the sync assessment and show the combined summary before prompting`
   };
 }
 
@@ -1659,7 +1647,7 @@ export function getOpsxSyncCommandTemplate(): CommandTemplate {
 
 This is an **agent-driven** operation - you will read delta specs and directly edit main specs to apply the changes. This allows intelligent merging (e.g., adding a scenario without copying the entire requirement).
 
-**Input**: Optionally specify \`--change <name>\` after \`/opsx:sync\`. If omitted, MUST prompt for available changes.
+**Input**: Optionally specify a change name after \`/opsx:sync\` (e.g., \`/opsx:sync add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
@@ -1786,6 +1774,174 @@ Main specs are now updated. The change remains active - archive when implementat
 }
 
 /**
+ * Template for openspec-verify-change skill
+ * For verifying implementation matches change artifacts before archiving
+ */
+export function getVerifyChangeSkillTemplate(): SkillTemplate {
+  return {
+    name: 'openspec-verify-change',
+    description: 'Verify implementation matches change artifacts. Use when the user wants to validate that implementation is complete, correct, and coherent before archiving.',
+    instructions: `Verify that an implementation matches the change artifacts (specs, tasks, design).
+
+**Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+
+**Steps**
+
+1. **If no change name provided, prompt for selection**
+
+   Run \`openspec list --json\` to get available changes. Use the **AskUserQuestion tool** to let the user select.
+
+   Show changes that have implementation tasks (tasks artifact exists).
+   Include the schema used for each change if available.
+   Mark changes with incomplete tasks as "(In Progress)".
+
+   **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
+
+2. **Check status to understand the schema**
+   \`\`\`bash
+   openspec status --change "<name>" --json
+   \`\`\`
+   Parse the JSON to understand:
+   - \`schemaName\`: The workflow being used (e.g., "spec-driven", "tdd")
+   - Which artifacts exist for this change
+
+3. **Get the change directory and load artifacts**
+
+   \`\`\`bash
+   openspec instructions apply --change "<name>" --json
+   \`\`\`
+
+   This returns the change directory and context files. Read all available artifacts from \`contextFiles\`.
+
+4. **Initialize verification report structure**
+
+   Create a report structure with three dimensions:
+   - **Completeness**: Track tasks and spec coverage
+   - **Correctness**: Track requirement implementation and scenario coverage
+   - **Coherence**: Track design adherence and pattern consistency
+
+   Each dimension can have CRITICAL, WARNING, or SUGGESTION issues.
+
+5. **Verify Completeness**
+
+   **Task Completion**:
+   - If tasks.md exists in contextFiles, read it
+   - Parse checkboxes: \`- [ ]\` (incomplete) vs \`- [x]\` (complete)
+   - Count complete vs total tasks
+   - If incomplete tasks exist:
+     - Add CRITICAL issue for each incomplete task
+     - Recommendation: "Complete task: <description>" or "Mark as done if already implemented"
+
+   **Spec Coverage**:
+   - If delta specs exist in \`openspec/changes/<name>/specs/\`:
+     - Extract all requirements (marked with "### Requirement:")
+     - For each requirement:
+       - Search codebase for keywords related to the requirement
+       - Assess if implementation likely exists
+     - If requirements appear unimplemented:
+       - Add CRITICAL issue: "Requirement not found: <requirement name>"
+       - Recommendation: "Implement requirement X: <description>"
+
+6. **Verify Correctness**
+
+   **Requirement Implementation Mapping**:
+   - For each requirement from delta specs:
+     - Search codebase for implementation evidence
+     - If found, note file paths and line ranges
+     - Assess if implementation matches requirement intent
+     - If divergence detected:
+       - Add WARNING: "Implementation may diverge from spec: <details>"
+       - Recommendation: "Review <file>:<lines> against requirement X"
+
+   **Scenario Coverage**:
+   - For each scenario in delta specs (marked with "#### Scenario:"):
+     - Check if conditions are handled in code
+     - Check if tests exist covering the scenario
+     - If scenario appears uncovered:
+       - Add WARNING: "Scenario not covered: <scenario name>"
+       - Recommendation: "Add test or implementation for scenario: <description>"
+
+7. **Verify Coherence**
+
+   **Design Adherence**:
+   - If design.md exists in contextFiles:
+     - Extract key decisions (look for sections like "Decision:", "Approach:", "Architecture:")
+     - Verify implementation follows those decisions
+     - If contradiction detected:
+       - Add WARNING: "Design decision not followed: <decision>"
+       - Recommendation: "Update implementation or revise design.md to match reality"
+   - If no design.md: Skip design adherence check, note "No design.md to verify against"
+
+   **Code Pattern Consistency**:
+   - Review new code for consistency with project patterns
+   - Check file naming, directory structure, coding style
+   - If significant deviations found:
+     - Add SUGGESTION: "Code pattern deviation: <details>"
+     - Recommendation: "Consider following project pattern: <example>"
+
+8. **Generate Verification Report**
+
+   **Summary Scorecard**:
+   \`\`\`
+   ## Verification Report: <change-name>
+
+   ### Summary
+   | Dimension    | Status           |
+   |--------------|------------------|
+   | Completeness | X/Y tasks, N reqs|
+   | Correctness  | M/N reqs covered |
+   | Coherence    | Followed/Issues  |
+   \`\`\`
+
+   **Issues by Priority**:
+
+   1. **CRITICAL** (Must fix before archive):
+      - Incomplete tasks
+      - Missing requirement implementations
+      - Each with specific, actionable recommendation
+
+   2. **WARNING** (Should fix):
+      - Spec/design divergences
+      - Missing scenario coverage
+      - Each with specific recommendation
+
+   3. **SUGGESTION** (Nice to fix):
+      - Pattern inconsistencies
+      - Minor improvements
+      - Each with specific recommendation
+
+   **Final Assessment**:
+   - If CRITICAL issues: "X critical issue(s) found. Fix before archiving."
+   - If only warnings: "No critical issues. Y warning(s) to consider. Ready for archive (with noted improvements)."
+   - If all clear: "All checks passed. Ready for archive."
+
+**Verification Heuristics**
+
+- **Completeness**: Focus on objective checklist items (checkboxes, requirements list)
+- **Correctness**: Use keyword search, file path analysis, reasonable inference - don't require perfect certainty
+- **Coherence**: Look for glaring inconsistencies, don't nitpick style
+- **False Positives**: When uncertain, prefer SUGGESTION over WARNING, WARNING over CRITICAL
+- **Actionability**: Every issue must have a specific recommendation with file/line references where applicable
+
+**Graceful Degradation**
+
+- If only tasks.md exists: verify task completion only, skip spec/design checks
+- If tasks + specs exist: verify completeness and correctness, skip design
+- If full artifacts: verify all three dimensions
+- Always note which checks were skipped and why
+
+**Output Format**
+
+Use clear markdown with:
+- Table for summary scorecard
+- Grouped lists for issues (CRITICAL/WARNING/SUGGESTION)
+- Code references in format: \`file.ts:123\`
+- Specific, actionable recommendations
+- No vague suggestions like "consider reviewing"`
+  };
+}
+
+/**
  * Template for /opsx:archive slash command
  */
 export function getOpsxArchiveCommandTemplate(): CommandTemplate {
@@ -1796,7 +1952,7 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
     tags: ['workflow', 'archive', 'experimental'],
     content: `Archive a completed change in the experimental workflow.
 
-**Input**: Optionally specify \`--change <name>\` after \`/opsx:archive\`. If omitted, MUST prompt for available changes.
+**Input**: Optionally specify a change name after \`/opsx:archive\` (e.g., \`/opsx:archive add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
@@ -1835,38 +1991,20 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
 
    **If no tasks file exists:** Proceed without task-related warning.
 
-4. **Check if delta specs need syncing**
+4. **Assess delta spec sync state**
 
-   Check if \`specs/\` directory exists in the change with spec files.
+   Check for delta specs at \`openspec/changes/<name>/specs/\`. If none exist, proceed without sync prompt.
 
-   **If delta specs exist, perform a quick sync check:**
+   **If delta specs exist:**
+   - Compare each delta spec with its corresponding main spec at \`openspec/specs/<capability>/spec.md\`
+   - Determine what changes would be applied (adds, modifications, removals, renames)
+   - Show a combined summary before prompting
 
-   a. **For each delta spec** at \`openspec/changes/<name>/specs/<capability>/spec.md\`:
-      - Extract requirement names (lines matching \`### Requirement: <name>\`)
-      - Note which sections exist (ADDED, MODIFIED, REMOVED)
+   **Prompt options:**
+   - If changes needed: "Sync now (recommended)", "Archive without syncing"
+   - If already synced: "Archive now", "Sync anyway", "Cancel"
 
-   b. **Check corresponding main spec** at \`openspec/specs/<capability>/spec.md\`:
-      - If main spec doesn't exist → needs sync
-      - If main spec exists, check if ADDED requirement names appear in it
-      - If any ADDED requirements are missing from main spec → needs sync
-
-   c. **Report findings:**
-
-      **If sync needed:**
-      \`\`\`
-      ⚠️ Delta specs may not be synced:
-      - specs/auth/spec.md → Main spec missing requirement "Token Refresh"
-      - specs/api/spec.md → Main spec doesn't exist yet
-
-      Would you like to sync now before archiving?
-      \`\`\`
-      - Use **AskUserQuestion tool** with options: "Sync now", "Archive without syncing"
-      - If user chooses sync, execute \`/opsx:sync\` logic
-
-      **If already synced (all requirements found):**
-      - Proceed without prompting (specs appear to be in sync)
-
-   **If no delta specs exist:** Proceed without sync-related checks.
+   If user chooses sync, execute \`/opsx:sync\` logic. Proceed to archive regardless of choice.
 
 5. **Perform the archive**
 
@@ -1891,7 +2029,7 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
    - Change name
    - Schema that was used
    - Archive location
-   - Spec sync status (synced / not synced / no delta specs)
+   - Spec sync status (synced / sync skipped / no delta specs)
    - Note about any warnings (incomplete artifacts/tasks)
 
 **Output On Success**
@@ -1928,12 +2066,12 @@ All artifacts complete. All tasks complete.
 **Change:** <change-name>
 **Schema:** <schema-name>
 **Archived to:** openspec/changes/archive/YYYY-MM-DD-<name>/
-**Specs:** ⚠️ Not synced
+**Specs:** Sync skipped (user chose to skip)
 
 **Warnings:**
 - Archived with 2 incomplete artifacts
 - Archived with 3 incomplete tasks
-- Delta specs were not synced (user chose to skip)
+- Delta spec sync was skipped (user chose to skip)
 
 Review the archive if this was not intentional.
 \`\`\`
@@ -1959,8 +2097,285 @@ Target archive directory already exists.
 - Use artifact graph (openspec status --json) for completion checking
 - Don't block archive on warnings - just inform and confirm
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
-- Quick sync check: look for requirement names in delta specs, verify they exist in main specs
 - Show clear summary of what happened
-- If sync is requested, use /opsx:sync approach (agent-driven)`
+- If sync is requested, use /opsx:sync approach (agent-driven)
+- If delta specs exist, always run the sync assessment and show the combined summary before prompting`
+  };
+}
+
+/**
+ * Template for /opsx:verify slash command
+ */
+export function getOpsxVerifyCommandTemplate(): CommandTemplate {
+  return {
+    name: 'OPSX: Verify',
+    description: 'Verify implementation matches change artifacts before archiving',
+    category: 'Workflow',
+    tags: ['workflow', 'verify', 'experimental'],
+    content: `Verify that an implementation matches the change artifacts (specs, tasks, design).
+
+**Input**: Optionally specify a change name after \`/opsx:verify\` (e.g., \`/opsx:verify add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+
+**Steps**
+
+1. **If no change name provided, prompt for selection**
+
+   Run \`openspec list --json\` to get available changes. Use the **AskUserQuestion tool** to let the user select.
+
+   Show changes that have implementation tasks (tasks artifact exists).
+   Include the schema used for each change if available.
+   Mark changes with incomplete tasks as "(In Progress)".
+
+   **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
+
+2. **Check status to understand the schema**
+   \`\`\`bash
+   openspec status --change "<name>" --json
+   \`\`\`
+   Parse the JSON to understand:
+   - \`schemaName\`: The workflow being used (e.g., "spec-driven", "tdd")
+   - Which artifacts exist for this change
+
+3. **Get the change directory and load artifacts**
+
+   \`\`\`bash
+   openspec instructions apply --change "<name>" --json
+   \`\`\`
+
+   This returns the change directory and context files. Read all available artifacts from \`contextFiles\`.
+
+4. **Initialize verification report structure**
+
+   Create a report structure with three dimensions:
+   - **Completeness**: Track tasks and spec coverage
+   - **Correctness**: Track requirement implementation and scenario coverage
+   - **Coherence**: Track design adherence and pattern consistency
+
+   Each dimension can have CRITICAL, WARNING, or SUGGESTION issues.
+
+5. **Verify Completeness**
+
+   **Task Completion**:
+   - If tasks.md exists in contextFiles, read it
+   - Parse checkboxes: \`- [ ]\` (incomplete) vs \`- [x]\` (complete)
+   - Count complete vs total tasks
+   - If incomplete tasks exist:
+     - Add CRITICAL issue for each incomplete task
+     - Recommendation: "Complete task: <description>" or "Mark as done if already implemented"
+
+   **Spec Coverage**:
+   - If delta specs exist in \`openspec/changes/<name>/specs/\`:
+     - Extract all requirements (marked with "### Requirement:")
+     - For each requirement:
+       - Search codebase for keywords related to the requirement
+       - Assess if implementation likely exists
+     - If requirements appear unimplemented:
+       - Add CRITICAL issue: "Requirement not found: <requirement name>"
+       - Recommendation: "Implement requirement X: <description>"
+
+6. **Verify Correctness**
+
+   **Requirement Implementation Mapping**:
+   - For each requirement from delta specs:
+     - Search codebase for implementation evidence
+     - If found, note file paths and line ranges
+     - Assess if implementation matches requirement intent
+     - If divergence detected:
+       - Add WARNING: "Implementation may diverge from spec: <details>"
+       - Recommendation: "Review <file>:<lines> against requirement X"
+
+   **Scenario Coverage**:
+   - For each scenario in delta specs (marked with "#### Scenario:"):
+     - Check if conditions are handled in code
+     - Check if tests exist covering the scenario
+     - If scenario appears uncovered:
+       - Add WARNING: "Scenario not covered: <scenario name>"
+       - Recommendation: "Add test or implementation for scenario: <description>"
+
+7. **Verify Coherence**
+
+   **Design Adherence**:
+   - If design.md exists in contextFiles:
+     - Extract key decisions (look for sections like "Decision:", "Approach:", "Architecture:")
+     - Verify implementation follows those decisions
+     - If contradiction detected:
+       - Add WARNING: "Design decision not followed: <decision>"
+       - Recommendation: "Update implementation or revise design.md to match reality"
+   - If no design.md: Skip design adherence check, note "No design.md to verify against"
+
+   **Code Pattern Consistency**:
+   - Review new code for consistency with project patterns
+   - Check file naming, directory structure, coding style
+   - If significant deviations found:
+     - Add SUGGESTION: "Code pattern deviation: <details>"
+     - Recommendation: "Consider following project pattern: <example>"
+
+8. **Generate Verification Report**
+
+   **Summary Scorecard**:
+   \`\`\`
+   ## Verification Report: <change-name>
+
+   ### Summary
+   | Dimension    | Status           |
+   |--------------|------------------|
+   | Completeness | X/Y tasks, N reqs|
+   | Correctness  | M/N reqs covered |
+   | Coherence    | Followed/Issues  |
+   \`\`\`
+
+   **Issues by Priority**:
+
+   1. **CRITICAL** (Must fix before archive):
+      - Incomplete tasks
+      - Missing requirement implementations
+      - Each with specific, actionable recommendation
+
+   2. **WARNING** (Should fix):
+      - Spec/design divergences
+      - Missing scenario coverage
+      - Each with specific recommendation
+
+   3. **SUGGESTION** (Nice to fix):
+      - Pattern inconsistencies
+      - Minor improvements
+      - Each with specific recommendation
+
+   **Final Assessment**:
+   - If CRITICAL issues: "X critical issue(s) found. Fix before archiving."
+   - If only warnings: "No critical issues. Y warning(s) to consider. Ready for archive (with noted improvements)."
+   - If all clear: "All checks passed. Ready for archive."
+
+**Verification Heuristics**
+
+- **Completeness**: Focus on objective checklist items (checkboxes, requirements list)
+- **Correctness**: Use keyword search, file path analysis, reasonable inference - don't require perfect certainty
+- **Coherence**: Look for glaring inconsistencies, don't nitpick style
+- **False Positives**: When uncertain, prefer SUGGESTION over WARNING, WARNING over CRITICAL
+- **Actionability**: Every issue must have a specific recommendation with file/line references where applicable
+
+**Graceful Degradation**
+
+- If only tasks.md exists: verify task completion only, skip spec/design checks
+- If tasks + specs exist: verify completeness and correctness, skip design
+- If full artifacts: verify all three dimensions
+- Always note which checks were skipped and why
+
+**Output Format**
+
+Use clear markdown with:
+- Table for summary scorecard
+- Grouped lists for issues (CRITICAL/WARNING/SUGGESTION)
+- Code references in format: \`file.ts:123\`
+- Specific, actionable recommendations
+- No vague suggestions like "consider reviewing"`
+  };
+}
+/**
+ * Template for feedback skill
+ * For collecting and submitting user feedback with context enrichment
+ */
+export function getFeedbackSkillTemplate(): SkillTemplate {
+  return {
+    name: 'feedback',
+    description: 'Collect and submit user feedback about OpenSpec with context enrichment and anonymization.',
+    instructions: `Help the user submit feedback about OpenSpec.
+
+**Goal**: Guide the user through collecting, enriching, and submitting feedback while ensuring privacy through anonymization.
+
+**Process**
+
+1. **Gather context from the conversation**
+   - Review recent conversation history for context
+   - Identify what task was being performed
+   - Note what worked well or poorly
+   - Capture specific friction points or praise
+
+2. **Draft enriched feedback**
+   - Create a clear, descriptive title (single sentence, no "Feedback:" prefix needed)
+   - Write a body that includes:
+     - What the user was trying to do
+     - What happened (good or bad)
+     - Relevant context from the conversation
+     - Any specific suggestions or requests
+
+3. **Anonymize sensitive information**
+   - Replace file paths with \`<path>\` or generic descriptions
+   - Replace API keys, tokens, secrets with \`<redacted>\`
+   - Replace company/organization names with \`<company>\`
+   - Replace personal names with \`<user>\`
+   - Replace specific URLs with \`<url>\` unless public/relevant
+   - Keep technical details that help understand the issue
+
+4. **Present draft for approval**
+   - Show the complete draft to the user
+   - Display both title and body clearly
+   - Ask for explicit approval before submitting
+   - Allow the user to request modifications
+
+5. **Submit on confirmation**
+   - Use the \`openspec feedback\` command to submit
+   - Format: \`openspec feedback "title" --body "body content"\`
+   - The command will automatically add metadata (version, platform, timestamp)
+
+**Example Draft**
+
+\`\`\`
+Title: Error handling in artifact workflow needs improvement
+
+Body:
+I was working on creating a new change and encountered an issue with
+the artifact workflow. When I tried to continue after creating the
+proposal, the system didn't clearly indicate that I needed to complete
+the specs first.
+
+Suggestion: Add clearer error messages that explain dependency chains
+in the artifact workflow. Something like "Cannot create design.md
+because specs are not complete (0/2 done)."
+
+Context: Using the spec-driven schema with <path>/my-project
+\`\`\`
+
+**Anonymization Examples**
+
+Before:
+\`\`\`
+Working on /Users/john/mycompany/auth-service/src/oauth.ts
+Failed with API key: sk_live_abc123xyz
+Working at Acme Corp
+\`\`\`
+
+After:
+\`\`\`
+Working on <path>/oauth.ts
+Failed with API key: <redacted>
+Working at <company>
+\`\`\`
+
+**Guardrails**
+
+- MUST show complete draft before submitting
+- MUST ask for explicit approval
+- MUST anonymize sensitive information
+- ALLOW user to modify draft before submitting
+- DO NOT submit without user confirmation
+- DO include relevant technical context
+- DO keep conversation-specific insights
+
+**User Confirmation Required**
+
+Always ask:
+\`\`\`
+Here's the feedback I've drafted:
+
+Title: [title]
+
+Body:
+[body]
+
+Does this look good? I can modify it if you'd like, or submit it as-is.
+\`\`\`
+
+Only proceed with submission after user confirms.`
   };
 }
