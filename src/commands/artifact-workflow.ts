@@ -30,6 +30,8 @@ import {
 import { createChange, validateChangeName } from '../utils/change-utils.js';
 import { getExploreSkillTemplate, getNewChangeSkillTemplate, getContinueChangeSkillTemplate, getApplyChangeSkillTemplate, getFfChangeSkillTemplate, getSyncSpecsSkillTemplate, getArchiveChangeSkillTemplate, getVerifyChangeSkillTemplate, getOpsxExploreCommandTemplate, getOpsxNewCommandTemplate, getOpsxContinueCommandTemplate, getOpsxApplyCommandTemplate, getOpsxFfCommandTemplate, getOpsxSyncCommandTemplate, getOpsxArchiveCommandTemplate, getOpsxVerifyCommandTemplate } from '../core/templates/skill-templates.js';
 import { FileSystemUtils } from '../utils/file-system.js';
+import { promptForConfig, serializeConfig, isExitPromptError } from '../core/config-prompts.js';
+import { readProjectConfig } from '../core/project-config.js';
 
 // -----------------------------------------------------------------------------
 // Types for Apply Instructions
@@ -282,7 +284,7 @@ async function instructionsCommand(
       );
     }
 
-    const instructions = generateInstructions(context, artifactId);
+    const instructions = generateInstructions(context, artifactId, projectRoot);
     const isBlocked = instructions.dependencies.some((d) => !d.done);
 
     spinner.stop();
@@ -757,7 +759,7 @@ async function newChangeCommand(name: string | undefined, options: NewChangeOpti
 
   try {
     const projectRoot = process.cwd();
-    await createChange(projectRoot, name, { schema: options.schema });
+    const result = await createChange(projectRoot, name, { schema: options.schema });
 
     // If description provided, create README.md with description
     if (options.description) {
@@ -767,8 +769,7 @@ async function newChangeCommand(name: string | undefined, options: NewChangeOpti
       await fs.writeFile(readmePath, `# ${name}\n\n${options.description}\n`, 'utf-8');
     }
 
-    const schemaUsed = options.schema ?? DEFAULT_SCHEMA;
-    spinner.succeed(`Created change '${name}' at openspec/changes/${name}/ (schema: ${schemaUsed})`);
+    spinner.succeed(`Created change '${name}' at openspec/changes/${name}/ (schema: ${result.schema})`);
   } catch (error) {
     spinner.fail(`Failed to create change '${name}'`);
     throw error;
@@ -892,6 +893,124 @@ ${template.content}
     for (const file of createdCommandFiles) {
       console.log(chalk.green('  ✓ ' + file));
     }
+    console.log();
+
+    // Config creation section
+    console.log('━'.repeat(70));
+    console.log();
+    console.log(chalk.bold('📋 Project Configuration (Optional)'));
+    console.log();
+    console.log('Configure project defaults for OpenSpec workflows.');
+    console.log();
+
+    // Check if config already exists
+    const configPath = path.join(projectRoot, 'openspec', 'config.yaml');
+    const configYmlPath = path.join(projectRoot, 'openspec', 'config.yml');
+    const configExists = fs.existsSync(configPath) || fs.existsSync(configYmlPath);
+
+    if (configExists) {
+      // Config already exists, skip creation
+      console.log(chalk.blue('ℹ️  openspec/config.yaml already exists. Skipping config creation.'));
+      console.log();
+      console.log('   To update config, edit openspec/config.yaml manually or:');
+      console.log('   1. Delete openspec/config.yaml');
+      console.log('   2. Run openspec artifact-experimental-setup again');
+      console.log();
+    } else if (!process.stdin.isTTY) {
+      // Non-interactive mode (CI, automation, piped input)
+      console.log(chalk.blue('ℹ️  Skipping config prompts (non-interactive mode)'));
+      console.log();
+      console.log('   To create config manually, add openspec/config.yaml with:');
+      console.log(chalk.dim('   schema: spec-driven'));
+      console.log();
+    } else {
+      // Prompt for config creation
+      try {
+        const configResult = await promptForConfig();
+
+        if (configResult.createConfig && configResult.schema) {
+          // Build config object
+          const config = {
+            schema: configResult.schema,
+            context: configResult.context,
+            rules: configResult.rules,
+          };
+
+          // Serialize to YAML
+          const yamlContent = serializeConfig(config);
+
+          // Write config file
+          try {
+            await FileSystemUtils.writeFile(configPath, yamlContent);
+
+            console.log();
+            console.log(chalk.green('✓ Created openspec/config.yaml'));
+            console.log();
+            console.log('━'.repeat(70));
+            console.log();
+            console.log(chalk.bold('📖 Config created at: openspec/config.yaml'));
+
+            // Display summary
+            const contextLines = config.context ? config.context.split('\n').length : 0;
+            const rulesCount = config.rules ? Object.keys(config.rules).length : 0;
+
+            console.log(`   • Default schema: ${chalk.cyan(config.schema)}`);
+            if (contextLines > 0) {
+              console.log(`   • Project context: ${chalk.cyan(`Added (${contextLines} lines)`)}`);
+            }
+            if (rulesCount > 0) {
+              console.log(`   • Rules: ${chalk.cyan(`${rulesCount} artifact${rulesCount > 1 ? 's' : ''} configured`)}`);
+            }
+            console.log();
+
+            // Usage examples
+            console.log(chalk.bold('Usage:'));
+            console.log('  • New changes automatically use this schema');
+            console.log('  • Context injected into all artifact instructions');
+            console.log('  • Rules applied to matching artifacts');
+            console.log();
+
+            // Git commit suggestion
+            console.log(chalk.bold('To share with team:'));
+            console.log(chalk.dim('  git add openspec/config.yaml .claude/'));
+            console.log(chalk.dim('  git commit -m "Setup OpenSpec experimental workflow with project config"'));
+            console.log();
+          } catch (writeError) {
+            // Handle file write errors
+            console.error();
+            console.error(chalk.red('✗ Failed to write openspec/config.yaml'));
+            console.error(chalk.dim(`  ${(writeError as Error).message}`));
+            console.error();
+            console.error('Fallback: Create config manually:');
+            console.error(chalk.dim('  1. Create openspec/config.yaml'));
+            console.error(chalk.dim('  2. Copy the following content:'));
+            console.error();
+            console.error(chalk.dim(yamlContent));
+            console.error();
+          }
+        } else {
+          // User chose not to create config
+          console.log();
+          console.log(chalk.blue('ℹ️  Skipped config creation.'));
+          console.log('   You can create openspec/config.yaml manually later.');
+          console.log();
+        }
+      } catch (promptError) {
+        if (isExitPromptError(promptError)) {
+          // User cancelled (Ctrl+C)
+          console.log();
+          console.log(chalk.blue('ℹ️  Config creation cancelled'));
+          console.log('   Skills and commands already created');
+          console.log('   Run setup again to create config later');
+          console.log();
+        } else {
+          // Unexpected error
+          throw promptError;
+        }
+      }
+    }
+
+    console.log('━'.repeat(70));
     console.log();
     console.log(chalk.bold('📖 Usage:'));
     console.log();

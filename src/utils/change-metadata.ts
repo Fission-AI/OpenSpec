@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import * as yaml from 'yaml';
 import { ChangeMetadataSchema, type ChangeMetadata } from '../core/artifact-graph/types.js';
 import { listSchemas } from '../core/artifact-graph/resolver.js';
+import { readProjectConfig } from '../core/project-config.js';
 
 const METADATA_FILENAME = '.openspec.yaml';
 
@@ -141,7 +142,8 @@ export function readChangeMetadata(changeDir: string): ChangeMetadata | null {
  * Resolution order:
  * 1. Explicit schema (if provided)
  * 2. Schema from .openspec.yaml metadata (if exists)
- * 3. Default 'spec-driven'
+ * 3. Schema from openspec/config.yaml (if exists)
+ * 4. Default 'spec-driven'
  *
  * @param changeDir - The path to the change directory
  * @param explicitSchema - Optional explicit schema override
@@ -163,9 +165,21 @@ export function resolveSchemaForChange(
       return metadata.schema;
     }
   } catch {
-    // If metadata read fails, fall back to default
+    // If metadata read fails, continue to next option
   }
 
-  // 3. Default
+  // 3. Try reading from project config
+  // Derive project root from changeDir (changeDir is typically projectRoot/openspec/changes/change-name)
+  const projectRoot = path.resolve(changeDir, '../../..');
+  try {
+    const config = readProjectConfig(projectRoot);
+    if (config?.schema) {
+      return config.schema;
+    }
+  } catch {
+    // If config read fails, fall back to default
+  }
+
+  // 4. Default
   return 'spec-driven';
 }
