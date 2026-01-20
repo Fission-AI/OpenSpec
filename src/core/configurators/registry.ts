@@ -7,6 +7,7 @@ import { QoderConfigurator } from './qoder.js';
 import { IflowConfigurator } from './iflow.js';
 import { AgentsStandardConfigurator } from './agents.js';
 import { QwenConfigurator } from './qwen.js';
+import { LingmaConfigurator } from './lingma.js';
 
 export class ToolRegistry {
   private static tools: Map<string, ToolConfigurator> = new Map();
@@ -20,6 +21,7 @@ export class ToolRegistry {
     const iflowConfigurator = new IflowConfigurator();
     const agentsConfigurator = new AgentsStandardConfigurator();
     const qwenConfigurator = new QwenConfigurator();
+    const lingmaConfigurator = new LingmaConfigurator();
     // Register with the ID that matches the checkbox value
     this.tools.set('claude', claudeConfigurator);
     this.tools.set('cline', clineConfigurator);
@@ -29,6 +31,7 @@ export class ToolRegistry {
     this.tools.set('iflow', iflowConfigurator);
     this.tools.set('agents', agentsConfigurator);
     this.tools.set('qwen', qwenConfigurator);
+    this.tools.set('lingma', lingmaConfigurator);
   }
 
   static register(tool: ToolConfigurator): void {

@@ -33,6 +33,7 @@ export const AI_TOOLS: AIToolOption[] = [
   { name: 'GitHub Copilot', value: 'github-copilot', available: true, successLabel: 'GitHub Copilot' },
   { name: 'iFlow', value: 'iflow', available: true, successLabel: 'iFlow' },
   { name: 'Kilo Code', value: 'kilocode', available: true, successLabel: 'Kilo Code' },
+  { name: 'Lingma', value: 'lingma', available: true, successLabel: 'Lingma' },
   { name: 'OpenCode', value: 'opencode', available: true, successLabel: 'OpenCode' },
   { name: 'Qoder (CLI)', value: 'qoder', available: true, successLabel: 'Qoder' },
   { name: 'Qwen Code', value: 'qwen', available: true, successLabel: 'Qwen Code' },
