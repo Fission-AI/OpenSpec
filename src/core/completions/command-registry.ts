@@ -379,4 +379,80 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
       },
     ],
   },
+  {
+    name: 'schema',
+    description: 'Manage workflow schemas',
+    flags: [],
+    subcommands: [
+      {
+        name: 'which',
+        description: 'Show where a schema resolves from',
+        acceptsPositional: true,
+        positionalType: 'schema-name',
+        flags: [
+          COMMON_FLAGS.json,
+          {
+            name: 'all',
+            description: 'List all schemas with their resolution sources',
+          },
+        ],
+      },
+      {
+        name: 'validate',
+        description: 'Validate a schema structure and templates',
+        acceptsPositional: true,
+        positionalType: 'schema-name',
+        flags: [
+          COMMON_FLAGS.json,
+          {
+            name: 'verbose',
+            description: 'Show detailed validation steps',
+          },
+        ],
+      },
+      {
+        name: 'fork',
+        description: 'Copy an existing schema to project for customization',
+        acceptsPositional: true,
+        positionalType: 'schema-name',
+        flags: [
+          COMMON_FLAGS.json,
+          {
+            name: 'force',
+            description: 'Overwrite existing destination',
+          },
+        ],
+      },
+      {
+        name: 'init',
+        description: 'Create a new project-local schema',
+        acceptsPositional: true,
+        flags: [
+          COMMON_FLAGS.json,
+          {
+            name: 'description',
+            description: 'Schema description',
+            takesValue: true,
+          },
+          {
+            name: 'artifacts',
+            description: 'Comma-separated artifact IDs',
+            takesValue: true,
+          },
+          {
+            name: 'default',
+            description: 'Set as project default schema',
+          },
+          {
+            name: 'no-default',
+            description: 'Do not prompt to set as default',
+          },
+          {
+            name: 'force',
+            description: 'Overwrite existing schema',
+          },
+        ],
+      },
+    ],
+  },
 ];
