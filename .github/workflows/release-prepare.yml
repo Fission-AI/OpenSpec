@@ -47,6 +47,7 @@ jobs:
 
       # Opens/updates the Version Packages PR; publishes when the Version PR merges
       - name: Create/Update Version PR
+        id: changesets
         uses: changesets/action@v1
         with:
           title: 'chore(release): version packages'
@@ -57,3 +58,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           # npm authentication handled via OIDC trusted publishing (no token needed)
+
+      # Trigger release notes polishing after a release is published
+      - name: Polish release notes
+        if: steps.changesets.outputs.published == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          # Get version from package.json (just bumped by changesets)
+          TAG="v$(jq -r .version package.json)"
+          echo "Triggering polish workflow for $TAG"
+          gh workflow run polish-release-notes.yml -f tag_name="$TAG"
