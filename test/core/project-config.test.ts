@@ -142,6 +142,30 @@ rules: ["not", "an", "object"]
         );
       });
 
+      it('should handle rules: null without aborting config parsing', () => {
+        // YAML `rules:` with no value parses to null
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+context: Valid context
+rules:
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        // Should still parse schema and context despite null rules
+        expect(config).toEqual({
+          schema: 'spec-driven',
+          context: 'Valid context',
+        });
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid 'rules' field")
+        );
+      });
+
       it('should filter out invalid rules for specific artifact', () => {
         const configDir = path.join(tempDir, 'openspec');
         fs.mkdirSync(configDir, { recursive: true });
