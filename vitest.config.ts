@@ -42,8 +42,6 @@ export default defineConfig({
     },
     testTimeout: 10000,
     hookTimeout: 10000,
-    teardownTimeout: 3000,
-    // Force exit after tests complete to prevent hanging worker processes
-    forceExit: true
+    teardownTimeout: 3000
   }
 });
