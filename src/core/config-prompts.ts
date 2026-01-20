@@ -33,10 +33,13 @@ export interface ConfigPromptResult {
  * Prompt user to create project config interactively.
  * Used by experimental setup command.
  *
+ * @param projectRoot - Optional project root for project-local schema resolution
  * @returns Config prompt result
  * @throws ExitPromptError if user cancels (Ctrl+C)
  */
-export async function promptForConfig(): Promise<ConfigPromptResult> {
+export async function promptForConfig(
+  projectRoot?: string
+): Promise<ConfigPromptResult> {
   // Dynamic imports to prevent pre-commit hook hangs (see #367)
   const { confirm, select, editor, checkbox } = await import('@inquirer/prompts');
 
@@ -51,7 +54,7 @@ export async function promptForConfig(): Promise<ConfigPromptResult> {
   }
 
   // Get available schemas
-  const schemas = listSchemasWithInfo();
+  const schemas = listSchemasWithInfo(projectRoot);
 
   if (schemas.length === 0) {
     throw new Error('No schemas found. Cannot create config.');
@@ -90,7 +93,7 @@ export async function promptForConfig(): Promise<ConfigPromptResult> {
 
   if (addRules) {
     // Load the selected schema to get artifact list
-    const schema = resolveSchema(selectedSchema);
+    const schema = resolveSchema(selectedSchema, projectRoot);
     const artifactIds = schema.artifacts.map((a) => a.id);
 
     // Let user select which artifacts to add rules for
