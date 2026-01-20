@@ -10,18 +10,18 @@ This document analyzes the complete user journey for working with schemas in Ope
 
 | Component | Status |
 |-----------|--------|
-| Schema resolution (XDG) | 2-level: user override → package built-in |
+| Schema resolution | 3-level: project → user → package (PR #522) |
 | Built-in schemas | `spec-driven`, `tdd` |
 | Artifact workflow commands | `status`, `next`, `instructions`, `templates` with `--schema` flag |
 | Change creation | `openspec new change <name>` — no schema binding |
+| Project-local schemas | ✅ Supported via `openspec/schemas/` (PR #522) |
+| Schema management CLI | ✅ `schema which`, `validate`, `fork`, `init` (PR #525) |
 
 ### What's Missing
 
 | Component | Status |
 |-----------|--------|
 | Schema bound to change | Not stored — must pass `--schema` every time |
-| Project-local schemas | Not supported — can't version control with repo |
-| Schema management CLI | None — manual path discovery required |
 | Project default schema | None — hardcoded to `spec-driven` |
 
 ---
@@ -114,13 +114,13 @@ cp -r <package-path>/schemas/spec-driven/* \
 
 ## Gap Summary
 
-| Gap | Impact | Workaround |
-|-----|--------|------------|
-| Schema not bound to change | Wrong results, forgotten context | Remember to pass `--schema` |
-| No project-local schemas | Can't share via repo | Manual XDG setup per machine |
-| No schema management CLI | Manual path hunting | Know XDG + find npm package |
-| No project default schema | Must specify every time | Always pass `--schema` |
-| No init-time schema selection | Missed setup opportunity | Manual config |
+| Gap | Impact | Status |
+|-----|--------|--------|
+| Schema not bound to change | Wrong results, forgotten context | ⏳ Pending (Phase 1) |
+| No project-local schemas | Can't share via repo | ✅ Fixed (PR #522) |
+| No schema management CLI | Manual path hunting | ✅ Fixed (PR #525) |
+| No project default schema | Must specify every time | ⏳ Pending (Phase 4) |
+| No init-time schema selection | Missed setup opportunity | ⏳ Pending (Phase 4) |
 
 ---
 
@@ -296,18 +296,17 @@ created: 2025-01-15T10:30:00Z
 
 ### Phase 2: Project-Local Schemas
 
-**Priority:** High
+**Status:** ✅ Complete (PR #522)
 **Solves:** Team sharing, version control, no XDG knowledge needed
 
-**Scope:**
-- Add `./openspec/schemas/` to resolution order (first priority)
-- `openspec schema copy <name> [new-name]` creates in project by default
-- `--global` flag for user-level XDG directory
+**Implemented:**
+- `./openspec/schemas/` added to resolution order (first priority)
+- `openspec schema fork <name> [new-name]` creates in project by default
 - Teams can commit `openspec/schemas/` to repo
 
 **Resolution order:**
 ```
-1. ./openspec/schemas/<name>/           # Project-local (NEW)
+1. ./openspec/schemas/<name>/           # Project-local
 2. ~/.local/share/openspec/schemas/<name>/  # User global
 3. <npm-package>/schemas/<name>/        # Built-in
 ```
@@ -316,18 +315,20 @@ created: 2025-01-15T10:30:00Z
 
 ### Phase 3: Schema Management CLI
 
-**Priority:** Medium
+**Status:** ✅ Complete (PR #525)
 **Solves:** Path discovery, scaffolding, debugging
 
-**Commands:**
+**Implemented Commands:**
 ```bash
-openspec schema list              # Show available schemas with sources
-openspec schema which <name>      # Show resolution path
-openspec schema copy <name> [to]  # Copy for customization
-openspec schema diff <name>       # Compare with built-in
-openspec schema reset <name>      # Remove override
-openspec schema validate <name>   # Validate schema.yaml structure
+openspec schema which [name]          # Show resolution path, --all for all schemas
+openspec schema validate [name]       # Validate schema structure and templates
+openspec schema fork <source> [name]  # Copy existing schema for customization
+openspec schema init <name>           # Create new project-local schema (interactive)
 ```
+
+**Not implemented (may add later):**
+- `schema diff` — Compare override with built-in
+- `schema reset` — Remove override, revert to built-in
 
 ---
 

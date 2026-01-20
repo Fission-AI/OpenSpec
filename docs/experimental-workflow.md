@@ -565,35 +565,53 @@ Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, no
 
 ### Custom Schemas
 
-Create your own workflow by adding a schema to `~/.local/share/openspec/schemas/`:
+Create custom workflows using the schema management commands:
 
+```bash
+# Create a new schema from scratch (interactive)
+openspec schema init my-workflow
+
+# Or fork an existing schema as a starting point
+openspec schema fork spec-driven my-workflow
+
+# Validate your schema structure
+openspec schema validate my-workflow
+
+# See where a schema resolves from (useful for debugging)
+openspec schema which my-workflow
 ```
-~/.local/share/openspec/schemas/research-first/
+
+Schemas are stored in `openspec/schemas/` (project-local, version controlled) or `~/.local/share/openspec/schemas/` (user global).
+
+**Schema structure:**
+```
+openspec/schemas/research-first/
 ├── schema.yaml
 └── templates/
     ├── research.md
     ├── proposal.md
     └── tasks.md
+```
 
-schema.yaml:
-┌─────────────────────────────────────────────────────────────────┐
-│  name: research-first                                           │
-│  artifacts:                                                     │
-│    - id: research        # Added before proposal                │
-│      generates: research.md                                     │
-│      requires: []                                               │
-│                                                                 │
-│    - id: proposal                                               │
-│      generates: proposal.md                                     │
-│      requires: [research]  # Now depends on research            │
-│                                                                 │
-│    - id: tasks                                                  │
-│      generates: tasks.md                                        │
-│      requires: [proposal]                                       │
-└─────────────────────────────────────────────────────────────────┘
+**Example schema.yaml:**
+```yaml
+name: research-first
+artifacts:
+  - id: research        # Added before proposal
+    generates: research.md
+    requires: []
 
-Dependency Graph:
+  - id: proposal
+    generates: proposal.md
+    requires: [research]  # Now depends on research
 
+  - id: tasks
+    generates: tasks.md
+    requires: [proposal]
+```
+
+**Dependency Graph:**
+```
    research ──► proposal ──► tasks
 ```
 
@@ -615,7 +633,22 @@ Schemas define what artifacts exist and their dependencies. Currently available:
 - **spec-driven** (default): proposal → specs → design → tasks
 - **tdd**: tests → implementation → docs
 
-Run `openspec schemas` to see available schemas.
+```bash
+# List available schemas
+openspec schemas
+
+# See all schemas with their resolution sources
+openspec schema which --all
+
+# Create a new schema interactively
+openspec schema init my-workflow
+
+# Fork an existing schema for customization
+openspec schema fork spec-driven my-workflow
+
+# Validate schema structure before use
+openspec schema validate my-workflow
+```
 
 ## Tips
 
