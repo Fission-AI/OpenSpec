@@ -117,8 +117,8 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
     if (raw.rules !== undefined) {
       const rulesField = z.record(z.string(), z.array(z.string()));
 
-      // First check if it's an object structure
-      if (typeof raw.rules === 'object' && !Array.isArray(raw.rules)) {
+      // First check if it's an object structure (guard against null since typeof null === 'object')
+      if (typeof raw.rules === 'object' && raw.rules !== null && !Array.isArray(raw.rules)) {
         const parsedRules: Record<string, string[]> = {};
         let hasValidRules = false;
 
