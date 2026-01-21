@@ -1,8 +1,3 @@
-<rules>
-- Document any platform-specific behavior or limitations
-- Prefer Node.js path module over string manipulation for paths
-</rules>
-
 ## Context
 
 OpenSpec currently has 18 separate template functions that generate skills and commands with duplicated content. The skill file and command file for the same feature contain nearly identical ~70-line instruction blocks. This creates maintenance burden - changes must be made in two places.

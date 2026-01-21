@@ -1,8 +1,3 @@
-<rules>
-- Add Windows CI verification as a task when changes involve file paths
-- Include cross-platform testing considerations
-</rules>
-
 ## 1. Update Command Enhancements
 
 - [ ] 1.1 Add skill generation to update command for projects without skills

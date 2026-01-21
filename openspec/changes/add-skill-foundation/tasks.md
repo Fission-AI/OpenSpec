@@ -1,8 +1,3 @@
-<rules>
-- Add Windows CI verification as a task when changes involve file paths
-- Include cross-platform testing considerations
-</rules>
-
 ## 1. SkillDefinition Pattern
 
 - [ ] 1.1 Create `SkillDefinition` interface in `src/core/templates/skill-definitions.ts`

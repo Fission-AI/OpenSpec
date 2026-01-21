@@ -1,8 +1,3 @@
-<rules>
-- Document any platform-specific behavior or limitations
-- Prefer Node.js path module over string manipulation for paths
-</rules>
-
 ## Context
 
 OpenSpec Part 1 establishes the SkillDefinition pattern for Claude Code. However, many developers use other AI code editors like Cursor, Windsurf, and Cline. Each has its own configuration format for AI instructions. We need a unified approach to generate equivalent configurations for all supported editors.

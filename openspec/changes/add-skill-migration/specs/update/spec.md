@@ -1,8 +1,3 @@
-<rules>
-- Include scenarios for Windows path handling when dealing with file paths
-- Requirements involving paths must specify cross-platform behavior
-</rules>
-
 ## MODIFIED Requirements
 
 ### Requirement: Update generates skills for projects without them

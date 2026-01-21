@@ -1,8 +1,3 @@
-<rules>
-- Add Windows CI verification as a task when changes involve file paths
-- Include cross-platform testing considerations
-</rules>
-
 ## 1. Detection Functions
 
 - [ ] 1.1 Create `detectEditorConfigs()` function to scan for .claude/, .cursor/, .windsurf/, .cline/
