@@ -1,5 +1,6 @@
 import { agentsTemplate } from './agents-template.js';
 import { projectTemplate, ProjectContext } from './project-template.js';
+import { architectureTemplate } from './architecture-template.js';
 import { claudeTemplate } from './claude-template.js';
 import { clineTemplate } from './cline-template.js';
 import { costrictTemplate } from './costrict-template.js';
@@ -21,6 +22,10 @@ export class TemplateManager {
       {
         path: 'project.md',
         content: projectTemplate(context)
+      },
+      {
+        path: 'architecture.md',
+        content: architectureTemplate
       }
     ];
   }
@@ -43,6 +48,10 @@ export class TemplateManager {
 
   static getSlashCommandBody(id: SlashCommandId): string {
     return getSlashCommandBody(id);
+  }
+
+  static getArchitectureTemplate(): string {
+    return architectureTemplate;
   }
 }
 

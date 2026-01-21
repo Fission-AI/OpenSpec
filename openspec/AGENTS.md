@@ -18,7 +18,7 @@ Instructions for AI coding assistants using OpenSpec for spec-driven development
 Create proposal when you need to:
 - Add features or functionality
 - Make breaking changes (API, schema)
-- Change architecture or patterns  
+- Change architecture or patterns
 - Optimize performance (changes behavior)
 - Update security patterns
 
@@ -125,6 +125,7 @@ openspec validate [change] --strict --no-interactive
 ```
 openspec/
 ├── project.md              # Project conventions
+├── architecture.md         # System architecture (optional, living document)
 ├── specs/                  # Current truth - what IS built
 │   └── [capability]/       # Single focused capability
 │       ├── spec.md         # Requirements and scenarios
@@ -147,7 +148,7 @@ openspec/
 ```
 New request?
 ├─ Bug fix restoring spec behavior? → Fix directly
-├─ Typo/format/comment? → Fix directly  
+├─ Typo/format/comment? → Fix directly
 ├─ New feature/capability? → Create proposal
 ├─ Breaking change? → Create proposal
 ├─ Architecture change? → Create proposal
@@ -210,6 +211,8 @@ Create `design.md` if any of the following apply; otherwise omit it:
 - New external dependency or significant data model changes
 - Security, performance, or migration complexity
 - Ambiguity that benefits from technical decisions before coding
+
+**Note:** Architectural decisions in `design.md` are automatically merged to `architecture.md` when the change is archived. Keep `design.md` focused on the specific change; the global architecture evolves through archived decisions.
 
 Minimal `design.md` skeleton:
 ```markdown
@@ -432,6 +435,63 @@ Only add complexity with:
 3. Review recent archives
 4. Ask for clarification
 
+## Architecture Documentation
+
+### Reading Architecture
+Before creating change proposals that affect system structure, read `openspec/architecture.md` to understand:
+- Current system components and relationships
+- Integration points and data flows
+- Past architectural decisions and their rationale
+
+### When to Update Architecture
+A change has **architectural impact** if it:
+- Adds or removes major components/services
+- Changes component boundaries or responsibilities
+- Adds new integration points or external dependencies
+- Modifies core data flows
+- Introduces new architectural patterns
+
+### Proposing Architectural Changes
+For architecture-impacting changes:
+1. Reference current state from `architecture.md` in `proposal.md`
+2. Document architectural decisions in `design.md`
+3. Include before/after diagrams showing the change
+4. The archive command will automatically merge decisions to `architecture.md`
+
+### Diagram Standards
+Use ASCII diagrams for maximum compatibility:
+
+```
+Component relationships:     Data flow:              Boundaries:
+┌─────────┐                  ──▶ direction           ┌──────────┐
+│ Service │                  ◀── bidirectional       │ Internal │
+└────┬────┘                                          ├──────────┤
+     │                       State transitions:      │ External │
+     ▼                       A ──[event]──▶ B        └──────────┘
+┌─────────┐
+│ Service │
+└─────────┘
+```
+
+## Post-Implementation Checklist
+
+After completing implementation and before archiving, verify:
+
+1. **Architecture currency**: If the change affected system structure, check if `architecture.md` reflects the new state:
+   - Are new components documented?
+   - Are data flows still accurate?
+   - Are integration points up to date?
+
+2. **Decision capture**: Ensure significant decisions are in `design.md` (they'll be auto-merged on archive)
+
+3. **Spec accuracy**: Verify specs match the implemented behavior
+
+**Quick check prompt:**
+```
+"Review my changes and check if openspec/architecture.md needs updating
+ to reflect any structural changes I made"
+```
+
 ## Quick Reference
 
 ### Stage Indicators
@@ -444,6 +504,7 @@ Only add complexity with:
 - `tasks.md` - Implementation steps
 - `design.md` - Technical decisions
 - `spec.md` - Requirements and behavior
+- `architecture.md` - System architecture and component relationships
 
 ### CLI Essentials
 ```bash

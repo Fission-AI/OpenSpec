@@ -9,6 +9,7 @@ import {
   writeUpdatedSpec,
   type SpecUpdate,
 } from './specs-apply.js';
+import { applyArchitecturalDecisions } from './architecture-apply.js';
 
 export class ArchiveCommand {
   async execute(
@@ -88,10 +89,10 @@ export class ArchiveCommand {
                 hasDeltaSpecs = true;
                 break;
               }
-            } catch {}
+            } catch { }
           }
         }
-      } catch {}
+      } catch { }
       if (hasDeltaSpecs) {
         const deltaReport = await validator.validateChangeDeltaSpecs(changeDir);
         if (!deltaReport.valid) {
@@ -115,7 +116,7 @@ export class ArchiveCommand {
     } else {
       // Log warning when validation is skipped
       const timestamp = new Date().toISOString();
-      
+
       if (!options.yes) {
         const { confirm } = await import('@inquirer/prompts');
         const proceed = await confirm({
@@ -129,7 +130,7 @@ export class ArchiveCommand {
       } else {
         console.log(chalk.yellow(`\n⚠️  WARNING: Skipping validation may archive invalid specs.`));
       }
-      
+
       console.log(chalk.yellow(`[${timestamp}] Validation skipped for change: ${changeName}`));
       console.log(chalk.yellow(`Affected files: ${changeDir}`));
     }
@@ -162,7 +163,7 @@ export class ArchiveCommand {
     } else {
       // Find specs to update
       const specUpdates = await findSpecUpdates(changeDir, mainSpecsDir);
-      
+
       if (specUpdates.length > 0) {
         console.log('\nSpecs to update:');
         for (const update of specUpdates) {
@@ -227,8 +228,20 @@ export class ArchiveCommand {
       }
     }
 
+    // Apply architectural decisions to architecture.md if design.md has architectural impact
+    const archiveDate = this.getArchiveDate();
+    const architectureUpdated = await applyArchitecturalDecisions(
+      targetPath,
+      changeName!,
+      changeDir,
+      archiveDate
+    );
+    if (architectureUpdated) {
+      console.log('Updated architecture.md with architectural decisions.');
+    }
+
     // Create archive directory with date prefix
-    const archiveName = `${this.getArchiveDate()}-${changeName}`;
+    const archiveName = `${archiveDate}-${changeName}`;
     const archivePath = path.join(archiveDir, archiveName);
 
     // Check if archive already exists
@@ -246,7 +259,7 @@ export class ArchiveCommand {
 
     // Move change to archive
     await fs.rename(changeDir, archivePath);
-    
+
     console.log(`Change '${changeName}' archived as '${archiveName}'.`);
   }
 
