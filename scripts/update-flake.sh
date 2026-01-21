@@ -98,13 +98,19 @@ sed "${SED_INPLACE[@]}" "s|hash = \"$PLACEHOLDER\"|hash = \"$CORRECT_HASH\"|" "$
 
 # Verify the build works
 echo -e "${BLUE}🔍 Verifying build with new hash...${NC}"
-if nix build --no-link 2>&1 | grep -q "warning: Git tree.*is dirty"; then
-  echo -e "${YELLOW}⚠️  Git tree is dirty, but build succeeded${NC}"
+BUILD_OUTPUT=$(nix build --no-link 2>&1) && BUILD_SUCCESS=true || BUILD_SUCCESS=false
+if [ "$BUILD_SUCCESS" = false ]; then
+  echo -e "${RED}❌ Build verification failed!${NC}"
   echo ""
+  echo "$BUILD_OUTPUT"
+  exit 1
+fi
+if echo "$BUILD_OUTPUT" | grep -q "warning: Git tree.*is dirty"; then
+  echo -e "${YELLOW}⚠️  Git tree is dirty, but build succeeded${NC}"
 else
   echo -e "${GREEN}✓ Build verification successful${NC}"
-  echo ""
 fi
+echo ""
 
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${GREEN}✅ flake.nix updated successfully!${NC}"
