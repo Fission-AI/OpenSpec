@@ -52,11 +52,11 @@ export class LingmaConfigurator implements ToolConfigurator {
 
     // Create trigger configuration for Lingma rules
     const lingmaRulesTrigger = `---\ntrigger: always_on\nalwaysApply: true\n---\n`;
-    let existingContent = '';
     if (await FileSystemUtils.fileExists(filePath)) {
-      existingContent = await FileSystemUtils.readFile(filePath);
-      existingContent = lingmaRulesTrigger + existingContent;
-      await FileSystemUtils.writeFile(filePath, existingContent);
+      const existingContent = await FileSystemUtils.readFile(filePath);
+      if (!existingContent.startsWith(lingmaRulesTrigger)) {
+        await FileSystemUtils.writeFile(filePath, lingmaRulesTrigger + existingContent);
+      }
     }
   }
 }
