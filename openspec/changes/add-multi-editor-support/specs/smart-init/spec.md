@@ -63,6 +63,12 @@ The system SHALL detect the current OpenSpec setup state to provide appropriate 
 - **THEN** system detects new system is already set up
 - **AND** system informs user that OpenSpec is already configured
 
+#### Scenario: Detect mixed state (both old and new artifacts)
+- **WHEN** user runs `openspec init` in a project with both `openspec/AGENTS.md` and `.claude/skills/openspec-*`
+- **THEN** system detects mixed state
+- **AND** system informs user that both old and new systems exist
+- **AND** system recommends running `openspec cleanup` to remove old artifacts
+
 ### Requirement: Init shows detection results to user
 The system SHALL display detection results before proceeding with setup.
 

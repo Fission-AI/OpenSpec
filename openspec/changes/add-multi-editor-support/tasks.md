@@ -55,13 +55,14 @@ Cross-platform requirements:
 ## 5. Testing
 
 - [ ] 5.1 Add unit tests for detectEditorConfigs()
-- [ ] 5.2 Add unit tests for detectOpenSpecState()
+- [ ] 5.2 Add unit tests for detectOpenSpecState() (including mixed state)
 - [ ] 5.3 Add unit tests for each editor adapter
 - [ ] 5.4 Add integration tests for multi-editor init
-- [ ] 5.5 Test detection on projects with various configurations
+- [ ] 5.5 Test detection on projects with various configurations (uninitialized, old, new, mixed)
 - [ ] 5.6 Test pre-selection behavior in init wizard
-- [ ] 5.7 Verify Windows CI passes (cross-platform path handling)
-- [ ] 5.8 Manual testing with actual editors (Claude Code, Cursor, etc.)
+- [ ] 5.7 Test mixed state handling (recommends cleanup)
+- [ ] 5.8 Verify Windows CI passes (cross-platform path handling)
+- [ ] 5.9 Manual testing with actual editors (Claude Code, Cursor, etc.)
 
 ## 6. Documentation
 

@@ -60,3 +60,10 @@ Cross-platform requirements:
 - [ ] 4.7 Test cleanup --yes behavior
 - [ ] 4.8 Verify Windows CI passes (cross-platform path handling)
 - [ ] 4.9 Manual testing of full migration journey (update → use → cleanup)
+
+## 5. Documentation
+
+- [ ] 5.1 Add migration guide for existing users (old system → new skills)
+- [ ] 5.2 Document cleanup command usage in README
+- [ ] 5.3 Update CLI help text for new commands
+- [ ] 5.4 Add deprecation notice for artifact-experimental-setup users

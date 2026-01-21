@@ -50,6 +50,26 @@ NOT generated for new projects:
 - **AND** system creates skills-only setup
 - **AND** all default options are applied
 
+#### Scenario: Non-interactive init in CI environment
+- **WHEN** `openspec init --yes` is run in a non-TTY environment (CI)
+- **THEN** system completes initialization without hanging for input
+- **AND** system outputs status information to stdout
+
+### Requirement: Init handles already-initialized projects gracefully
+The system SHALL detect and handle projects that already have OpenSpec configured, without duplicating or corrupting existing setup.
+
+#### Scenario: Init on project with old system
+- **WHEN** user runs `openspec init` on a project with old AGENTS.md system but no skills
+- **THEN** system detects existing OpenSpec setup
+- **AND** system informs user about the old system
+- **AND** system suggests running `openspec update` to migrate
+
+#### Scenario: Init on project with new system already in place
+- **WHEN** user runs `openspec init` on a project with `.claude/skills/openspec-*` already set up
+- **THEN** system detects new system is already configured
+- **AND** system informs user that OpenSpec is already set up
+- **AND** system suggests running `openspec update` to refresh files if needed
+
 ### Requirement: Init integrates skill generation
 The system SHALL generate skills as part of the init flow, replacing the separate `artifact-experimental-setup` command for new users.
 
