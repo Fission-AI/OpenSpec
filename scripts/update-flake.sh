@@ -34,7 +34,7 @@ VERSION=$(node -p "require('$PACKAGE_JSON').version")
 echo -e "${BLUE}📦 Detected package version:${NC} $VERSION"
 
 # Verify flake.nix uses dynamic version
-if ! grep -q "builtins.fromJSON (builtins.readFile ./package.json)).version" "$FLAKE_FILE"; then
+if ! grep -q "(builtins.fromJSON (builtins.readFile ./package.json)).version" "$FLAKE_FILE"; then
   echo -e "${YELLOW}⚠️  Warning: flake.nix doesn't use dynamic version from package.json${NC}"
   echo -e "   Expected pattern: version = (builtins.fromJSON (builtins.readFile ./package.json)).version;"
   echo ""
@@ -50,7 +50,7 @@ echo -e "${BLUE}🔧 Current pnpm-lock.yaml:${NC} $(stat -c%y "$PROJECT_ROOT/pnp
 echo ""
 
 # Get current hash from flake.nix
-CURRENT_HASH=$(grep -oP 'hash = "\Ksha256-[^"]+' "$FLAKE_FILE")
+CURRENT_HASH=$(sed -nE 's/.*hash = "(sha256-[^"]+)".*/\1/p' "$FLAKE_FILE" | head -1)
 echo -e "${BLUE}📌 Current hash:${NC} $CURRENT_HASH"
 echo ""
 
@@ -65,9 +65,9 @@ BUILD_OUTPUT=$(nix build --no-link 2>&1 || true)
 
 # Extract the correct hash from error output
 # Try multiple patterns for compatibility with different Nix versions
-CORRECT_HASH=$(echo "$BUILD_OUTPUT" | grep -oP 'got:\s+\Ksha256-[A-Za-z0-9+/=]+' | head -1)
+CORRECT_HASH=$(echo "$BUILD_OUTPUT" | sed -nE 's/.*got:[[:space:]]*(sha256-[A-Za-z0-9+/=]+).*/\1/p' | head -1)
 if [ -z "$CORRECT_HASH" ]; then
-  CORRECT_HASH=$(echo "$BUILD_OUTPUT" | grep -oP 'got:.*\K(sha256-[A-Za-z0-9+/=]+)' | head -1)
+  CORRECT_HASH=$(echo "$BUILD_OUTPUT" | sed -nE 's/.*got:.*(sha256-[A-Za-z0-9+/=]+).*/\1/p' | head -1)
 fi
 
 if [ -z "$CORRECT_HASH" ]; then
