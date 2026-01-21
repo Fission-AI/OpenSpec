@@ -1025,7 +1025,7 @@ ${template.content}
     console.log('  • /opsx:sync - Sync delta specs to main specs');
     console.log('  • /opsx:verify - Verify implementation matches artifacts');
     console.log('  • /opsx:archive - Archive a completed change');
-    console.log('  • /opsx:bulk-archive - Archive mulitple completed changes');
+    console.log('  • /opsx:bulk-archive - Archive multiple completed changes');
     console.log();
     console.log(chalk.yellow('💡 This is an experimental feature.'));
     console.log('   Feedback welcome at: https://github.com/Fission-AI/OpenSpec/issues');
