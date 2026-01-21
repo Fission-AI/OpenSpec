@@ -313,6 +313,8 @@ function printInstructionsText(instructions: ArtifactInstructions, isBlocked: bo
     outputPath,
     description,
     instruction,
+    context,
+    rules,
     template,
     dependencies,
     unlocks,
@@ -339,9 +341,29 @@ function printInstructionsText(instructions: ArtifactInstructions, isBlocked: bo
   console.log('</task>');
   console.log();
 
-  // Context (dependencies)
+  // Project context (AI constraint - do not include in output)
+  if (context) {
+    console.log('<project_context>');
+    console.log('<!-- This is background information for you. Do NOT include this in your output. -->');
+    console.log(context);
+    console.log('</project_context>');
+    console.log();
+  }
+
+  // Rules (AI constraint - do not include in output)
+  if (rules && rules.length > 0) {
+    console.log('<rules>');
+    console.log('<!-- These are constraints for you to follow. Do NOT include this in your output. -->');
+    for (const rule of rules) {
+      console.log(`- ${rule}`);
+    }
+    console.log('</rules>');
+    console.log();
+  }
+
+  // Dependencies (files to read for context)
   if (dependencies.length > 0) {
-    console.log('<context>');
+    console.log('<dependencies>');
     console.log('Read these files for context before creating this artifact:');
     console.log();
     for (const dep of dependencies) {
@@ -352,7 +374,7 @@ function printInstructionsText(instructions: ArtifactInstructions, isBlocked: bo
       console.log(`  <description>${dep.description}</description>`);
       console.log('</dependency>');
     }
-    console.log('</context>');
+    console.log('</dependencies>');
     console.log();
   }
 
@@ -372,6 +394,7 @@ function printInstructionsText(instructions: ArtifactInstructions, isBlocked: bo
 
   // Template
   console.log('<template>');
+  console.log('<!-- Use this as the structure for your output file. Fill in the sections. -->');
   console.log(template.trim());
   console.log('</template>');
   console.log();
