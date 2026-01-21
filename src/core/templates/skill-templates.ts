@@ -434,10 +434,17 @@ export function getContinueChangeSkillTemplate(): SkillTemplate {
      \`\`\`bash
      openspec instructions <artifact-id> --change "<name>" --json
      \`\`\`
-   - Parse the JSON to get template, dependencies, and what it unlocks
-   - **Create the artifact file** using the template as a starting point:
+   - Parse the JSON. The key fields are:
+     - \`context\`: Project background (constraints for you - do NOT include in output)
+     - \`rules\`: Artifact-specific rules (constraints for you - do NOT include in output)
+     - \`template\`: The structure to use for your output file
+     - \`instruction\`: Schema-specific guidance
+     - \`outputPath\`: Where to write the artifact
+     - \`dependencies\`: Completed artifacts to read for context
+   - **Create the artifact file**:
      - Read any completed dependency files for context
-     - Fill in the template based on context and user's goals
+     - Use \`template\` as the structure - fill in its sections
+     - Apply \`context\` and \`rules\` as constraints when writing - but do NOT copy them into the file
      - Write to the output path specified in instructions
    - Show what was created and what's now unlocked
    - STOP after creating ONE artifact
@@ -489,7 +496,10 @@ For other schemas, follow the \`instruction\` field from the CLI output.
 - Never skip artifacts or create out of order
 - If context is unclear, ask the user before creating
 - Verify the artifact file exists after writing before marking progress
-- Use the schema's artifact sequence, don't assume specific artifact names`
+- Use the schema's artifact sequence, don't assume specific artifact names
+- **IMPORTANT**: \`context\` and \`rules\` are constraints for YOU, not content for the file
+  - Do NOT copy \`<context>\`, \`<rules>\`, \`<project_context>\` blocks into the artifact
+  - These guide what you write, but should never appear in the output`
   };
 }
 
@@ -699,12 +709,15 @@ export function getFfChangeSkillTemplate(): SkillTemplate {
         openspec instructions <artifact-id> --change "<name>" --json
         \`\`\`
       - The instructions JSON includes:
-        - \`template\`: The template content to use
+        - \`context\`: Project background (constraints for you - do NOT include in output)
+        - \`rules\`: Artifact-specific rules (constraints for you - do NOT include in output)
+        - \`template\`: The structure to use for your output file
         - \`instruction\`: Schema-specific guidance for this artifact type
         - \`outputPath\`: Where to write the artifact
         - \`dependencies\`: Completed artifacts to read for context
       - Read any completed dependency files for context
-      - Create the artifact file following the schema's \`instruction\`
+      - Create the artifact file using \`template\` as the structure
+      - Apply \`context\` and \`rules\` as constraints - but do NOT copy them into the file
       - Show brief progress: "✓ Created <artifact-id>"
 
    b. **Continue until all \`applyRequires\` artifacts are complete**
@@ -734,7 +747,10 @@ After completing all artifacts, summarize:
 - Follow the \`instruction\` field from \`openspec instructions\` for each artifact type
 - The schema defines what each artifact should contain - follow it
 - Read dependency artifacts for context before creating new ones
-- Use the \`template\` as a starting point, filling in based on context
+- Use \`template\` as the structure for your output file - fill in its sections
+- **IMPORTANT**: \`context\` and \`rules\` are constraints for YOU, not content for the file
+  - Do NOT copy \`<context>\`, \`<rules>\`, \`<project_context>\` blocks into the artifact
+  - These guide what you write, but should never appear in the output
 
 **Guardrails**
 - Create ALL artifacts needed for implementation (as defined by schema's \`apply.requires\`)
@@ -1206,10 +1222,17 @@ export function getOpsxContinueCommandTemplate(): CommandTemplate {
      \`\`\`bash
      openspec instructions <artifact-id> --change "<name>" --json
      \`\`\`
-   - Parse the JSON to get template, dependencies, and what it unlocks
-   - **Create the artifact file** using the template as a starting point:
+   - Parse the JSON. The key fields are:
+     - \`context\`: Project background (constraints for you - do NOT include in output)
+     - \`rules\`: Artifact-specific rules (constraints for you - do NOT include in output)
+     - \`template\`: The structure to use for your output file
+     - \`instruction\`: Schema-specific guidance
+     - \`outputPath\`: Where to write the artifact
+     - \`dependencies\`: Completed artifacts to read for context
+   - **Create the artifact file**:
      - Read any completed dependency files for context
-     - Fill in the template based on context and user's goals
+     - Use \`template\` as the structure - fill in its sections
+     - Apply \`context\` and \`rules\` as constraints when writing - but do NOT copy them into the file
      - Write to the output path specified in instructions
    - Show what was created and what's now unlocked
    - STOP after creating ONE artifact
@@ -1261,7 +1284,10 @@ For other schemas, follow the \`instruction\` field from the CLI output.
 - Never skip artifacts or create out of order
 - If context is unclear, ask the user before creating
 - Verify the artifact file exists after writing before marking progress
-- Use the schema's artifact sequence, don't assume specific artifact names`
+- Use the schema's artifact sequence, don't assume specific artifact names
+- **IMPORTANT**: \`context\` and \`rules\` are constraints for YOU, not content for the file
+  - Do NOT copy \`<context>\`, \`<rules>\`, \`<project_context>\` blocks into the artifact
+  - These guide what you write, but should never appear in the output`
   };
 }
 
@@ -1474,12 +1500,15 @@ export function getOpsxFfCommandTemplate(): CommandTemplate {
         openspec instructions <artifact-id> --change "<name>" --json
         \`\`\`
       - The instructions JSON includes:
-        - \`template\`: The template content to use
+        - \`context\`: Project background (constraints for you - do NOT include in output)
+        - \`rules\`: Artifact-specific rules (constraints for you - do NOT include in output)
+        - \`template\`: The structure to use for your output file
         - \`instruction\`: Schema-specific guidance for this artifact type
         - \`outputPath\`: Where to write the artifact
         - \`dependencies\`: Completed artifacts to read for context
       - Read any completed dependency files for context
-      - Create the artifact file following the schema's \`instruction\`
+      - Create the artifact file using \`template\` as the structure
+      - Apply \`context\` and \`rules\` as constraints - but do NOT copy them into the file
       - Show brief progress: "✓ Created <artifact-id>"
 
    b. **Continue until all \`applyRequires\` artifacts are complete**

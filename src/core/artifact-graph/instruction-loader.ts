@@ -59,7 +59,11 @@ export interface ArtifactInstructions {
   description: string;
   /** Guidance on how to create this artifact (from schema instruction field) */
   instruction: string | undefined;
-  /** Template content (structure to follow) */
+  /** Project context from config (constraints/background for AI, not to be included in output) */
+  context: string | undefined;
+  /** Artifact-specific rules from config (constraints for AI, not to be included in output) */
+  rules: string[] | undefined;
+  /** Template content (structure to follow - this IS the output format) */
   template: string;
   /** Dependencies with completion status and paths */
   dependencies: DependencyInfo[];
@@ -218,14 +222,11 @@ export function generateInstructions(
   const dependencies = getDependencyInfo(artifact, context.graph, context.completed);
   const unlocks = getUnlockedArtifacts(context.graph, artifactId);
 
-  // Build enriched template with project config injections
-  let enrichedTemplate = '';
-  let projectConfig = null;
-
   // Use projectRoot from context if not explicitly provided
   const effectiveProjectRoot = projectRoot ?? context.projectRoot;
 
-  // Try to read project config
+  // Try to read project config for context and rules
+  let projectConfig = null;
   if (effectiveProjectRoot) {
     try {
       projectConfig = readProjectConfig(effectiveProjectRoot);
@@ -252,23 +253,10 @@ export function generateInstructions(
     }
   }
 
-  // 1. Add context (all artifacts)
-  if (projectConfig?.context) {
-    enrichedTemplate += `<context>\n${projectConfig.context}\n</context>\n\n`;
-  }
-
-  // 2. Add rules (only for matching artifact)
+  // Extract context and rules as separate fields (not prepended to template)
+  const configContext = projectConfig?.context?.trim() || undefined;
   const rulesForArtifact = projectConfig?.rules?.[artifactId];
-  if (rulesForArtifact && rulesForArtifact.length > 0) {
-    enrichedTemplate += `<rules>\n`;
-    for (const rule of rulesForArtifact) {
-      enrichedTemplate += `- ${rule}\n`;
-    }
-    enrichedTemplate += `</rules>\n\n`;
-  }
-
-  // 3. Add original template (without wrapper - CLI handles XML structure)
-  enrichedTemplate += templateContent;
+  const configRules = rulesForArtifact && rulesForArtifact.length > 0 ? rulesForArtifact : undefined;
 
   return {
     changeName: context.changeName,
@@ -278,7 +266,9 @@ export function generateInstructions(
     outputPath: artifact.generates,
     description: artifact.description,
     instruction: artifact.instruction,
-    template: enrichedTemplate,
+    context: configContext,
+    rules: configRules,
+    template: templateContent,
     dependencies,
     unlocks,
   };
