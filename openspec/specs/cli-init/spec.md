@@ -172,6 +172,12 @@ The command SHALL use consistent exit codes to indicate different failure modes.
 ### Requirement: Slash Command Configuration
 The init command SHALL generate slash command files for supported editors using shared templates.
 
+#### Scenario: Generating slash commands for Antigravity
+- **WHEN** the user selects Antigravity during initialization
+- **THEN** create `.agent/workflows/openspec-proposal.md`, `.agent/workflows/openspec-apply.md`, and `.agent/workflows/openspec-archive.md`
+- **AND** ensure each file begins with YAML frontmatter that contains only a `description: <stage summary>` field followed by the shared OpenSpec workflow instructions wrapped in managed markers
+- **AND** populate the workflow body with the same proposal/apply/archive guidance used for other tools so Antigravity behaves like Windsurf while pointing to the `.agent/workflows/` directory
+
 #### Scenario: Generating slash commands for Claude Code
 - **WHEN** the user selects Claude Code during initialization
 - **THEN** create `.claude/commands/openspec/proposal.md`, `.claude/commands/openspec/apply.md`, and `.claude/commands/openspec/archive.md`
@@ -181,12 +187,13 @@ The init command SHALL generate slash command files for supported editors using 
 #### Scenario: Generating slash commands for CodeBuddy Code
 - **WHEN** the user selects CodeBuddy Code during initialization
 - **THEN** create `.codebuddy/commands/openspec/proposal.md`, `.codebuddy/commands/openspec/apply.md`, and `.codebuddy/commands/openspec/archive.md`
-- **AND** populate each file from shared templates so command text matches other tools
+- **AND** populate each file from shared templates that include CodeBuddy-compatible YAML frontmatter for the `description` and `argument-hint` fields
+- **AND** use square bracket format for `argument-hint` parameters (e.g., `[change-id]`)
 - **AND** each template includes instructions for the relevant OpenSpec workflow stage
 
 #### Scenario: Generating slash commands for Cline
 - **WHEN** the user selects Cline during initialization
-- **THEN** create `.clinerules/openspec-proposal.md`, `.clinerules/openspec-apply.md`, and `.clinerules/openspec-archive.md`
+- **THEN** create `.clinerules/workflows/openspec-proposal.md`, `.clinerules/workflows/openspec-apply.md`, and `.clinerules/workflows/openspec-archive.md`
 - **AND** populate each file from shared templates so command text matches other tools
 - **AND** include Cline-specific Markdown heading frontmatter
 - **AND** each template includes instructions for the relevant OpenSpec workflow stage
@@ -201,6 +208,12 @@ The init command SHALL generate slash command files for supported editors using 
 #### Scenario: Generating slash commands for Cursor
 - **WHEN** the user selects Cursor during initialization
 - **THEN** create `.cursor/commands/openspec-proposal.md`, `.cursor/commands/openspec-apply.md`, and `.cursor/commands/openspec-archive.md`
+- **AND** populate each file from shared templates so command text matches other tools
+- **AND** each template includes instructions for the relevant OpenSpec workflow stage
+
+#### Scenario: Generating slash commands for Continue
+- **WHEN** the user selects Continue during initialization
+- **THEN** create `.continue/prompts/openspec-proposal.prompt`, `.continue/prompts/openspec-apply.prompt`, and `.continue/prompts/openspec-archive.prompt`
 - **AND** populate each file from shared templates so command text matches other tools
 - **AND** each template includes instructions for the relevant OpenSpec workflow stage
 

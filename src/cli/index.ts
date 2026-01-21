@@ -13,12 +13,35 @@ import { ChangeCommand } from '../commands/change.js';
 import { ValidateCommand } from '../commands/validate.js';
 import { ShowCommand } from '../commands/show.js';
 import { CompletionCommand } from '../commands/completion.js';
+import { FeedbackCommand } from '../commands/feedback.js';
 import { registerConfigCommand } from '../commands/config.js';
 import { registerArtifactWorkflowCommands } from '../commands/artifact-workflow.js';
+import { registerSchemaCommand } from '../commands/schema.js';
+import { maybeShowTelemetryNotice, trackCommand, shutdown } from '../telemetry/index.js';
 
 const program = new Command();
 const require = createRequire(import.meta.url);
 const { version } = require('../../package.json');
+
+/**
+ * Get the full command path for nested commands.
+ * For example: 'change show' -> 'change:show'
+ */
+function getCommandPath(command: Command): string {
+  const names: string[] = [];
+  let current: Command | null = command;
+
+  while (current) {
+    const name = current.name();
+    // Skip the root 'openspec' command
+    if (name && name !== 'openspec') {
+      names.unshift(name);
+    }
+    current = current.parent;
+  }
+
+  return names.join(':') || 'openspec';
+}
 
 program
   .name('openspec')
@@ -28,12 +51,27 @@ program
 // Global options
 program.option('--no-color', 'Disable color output');
 
-// Apply global flags before any command runs
-program.hook('preAction', (thisCommand) => {
+// Apply global flags and telemetry before any command runs
+// Note: preAction receives (thisCommand, actionCommand) where:
+// - thisCommand: the command where hook was added (root program)
+// - actionCommand: the command actually being executed (subcommand)
+program.hook('preAction', async (thisCommand, actionCommand) => {
   const opts = thisCommand.opts();
   if (opts.color === false) {
     process.env.NO_COLOR = '1';
   }
+
+  // Show first-run telemetry notice (if not seen)
+  await maybeShowTelemetryNotice();
+
+  // Track command execution (use actionCommand to get the actual subcommand)
+  const commandPath = getCommandPath(actionCommand);
+  await trackCommand(commandPath, version);
+});
+
+// Shutdown telemetry after command completes
+program.hook('postAction', async () => {
+  await shutdown();
 });
 
 const availableToolIds = AI_TOOLS.filter((tool) => tool.available).map((tool) => tool.value);
@@ -96,11 +134,14 @@ program
   .description('List items (changes by default). Use --specs to list specs.')
   .option('--specs', 'List specs instead of changes')
   .option('--changes', 'List changes explicitly (default)')
-  .action(async (options?: { specs?: boolean; changes?: boolean }) => {
+  .option('--sort <order>', 'Sort order: "recent" (default) or "name"', 'recent')
+  .option('--json', 'Output as JSON (for programmatic use)')
+  .action(async (options?: { specs?: boolean; changes?: boolean; sort?: string; json?: boolean }) => {
     try {
       const listCommand = new ListCommand();
       const mode: 'changes' | 'specs' = options?.specs ? 'specs' : 'changes';
-      await listCommand.execute('.', mode);
+      const sort = options?.sort === 'name' ? 'name' : 'recent';
+      await listCommand.execute('.', mode, { sort, json: options?.json });
     } catch (error) {
       console.log(); // Empty line for spacing
       ora().fail(`Error: ${(error as Error).message}`);
@@ -203,6 +244,7 @@ program
 
 registerSpecCommand(program);
 registerConfigCommand(program);
+registerSchemaCommand(program);
 
 // Top-level validate command
 program
@@ -247,6 +289,22 @@ program
     try {
       const showCommand = new ShowCommand();
       await showCommand.execute(itemName, options ?? {});
+    } catch (error) {
+      console.log();
+      ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+// Feedback command
+program
+  .command('feedback <message>')
+  .description('Submit feedback about OpenSpec')
+  .option('--body <text>', 'Detailed description for the feedback')
+  .action(async (message: string, options?: { body?: string }) => {
+    try {
+      const feedbackCommand = new FeedbackCommand();
+      await feedbackCommand.execute(message, options);
     } catch (error) {
       console.log();
       ora().fail(`Error: ${(error as Error).message}`);

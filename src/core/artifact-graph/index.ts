@@ -21,10 +21,12 @@ export { detectCompleted } from './state.js';
 export {
   resolveSchema,
   listSchemas,
+  listSchemasWithInfo,
   getSchemaDir,
   getPackageSchemasDir,
   getUserSchemasDir,
   SchemaLoadError,
+  type SchemaInfo,
 } from './resolver.js';
 
 // Instruction loading
@@ -36,7 +38,7 @@ export {
   TemplateLoadError,
   type ChangeContext,
   type ArtifactInstructions,
-  type DependencyStatus,
+  type DependencyInfo,
   type ArtifactStatus,
   type ChangeStatus,
 } from './instruction-loader.js';

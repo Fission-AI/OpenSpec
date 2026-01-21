@@ -16,7 +16,7 @@ const proposalSteps = `**Steps**
 5. Capture architectural reasoning in \`design.md\` when the solution spans multiple systems, introduces new patterns, or demands trade-off discussion before committing to specs.
 6. Draft spec deltas in \`changes/<id>/specs/<capability>/spec.md\` (one folder per capability) using \`## ADDED|MODIFIED|REMOVED Requirements\` with at least one \`#### Scenario:\` per requirement and cross-reference related capabilities when relevant.
 7. Draft \`tasks.md\` as an ordered list of small, verifiable work items that deliver user-visible progress, include validation (tests, tooling), and highlight dependencies or parallelizable work.
-8. Validate with \`openspec validate <id> --strict\` and resolve every issue before sharing the proposal.`;
+8. Validate with \`openspec validate <id> --strict --no-interactive\` and resolve every issue before sharing the proposal.`;
 
 
 const proposalReferences = `**Reference**
@@ -46,7 +46,7 @@ const archiveSteps = `**Steps**
 3. Run \`openspec archive <id> --yes\` so the CLI moves the change and applies spec updates without prompts (use \`--skip-specs\` only for tooling-only work).
 4. If Linear MCP is connected (confirm by listing teams), load \`openspec/linear.yml\` for \`team_id\` and \`project_id\` or prompt to select them, persist to \`openspec/linear.yml\`, update \`openspec/project.md\`, ensure each \`openspec/specs/\` capability has a matching Linear epic issue in the preferred project, and when \`proposal.md\` includes \`linear_story_id\`, update the Linear story description with the proposal content and move it to Done. After the archive completes and the merged source-of-truth specs are updated, ensure each updated spec has a single Linear issue in status \`Spec\`: if the spec front matter already includes \`linear_spec_issue_id\`, update that issue with the latest spec content; if not, search for an existing issue for the spec and create one if missing, then add \`linear_spec_issue_id\` to the spec front matter. Do this for every merged spec produced by the archive. If Linear MCP is not available, continue without Linear prompts or updates.
 5. Review the command output to confirm the target specs were updated and the change landed in \`changes/archive/\`.
-6. Validate with \`openspec validate --strict\` and inspect with \`openspec show <id>\` if anything looks off.`;
+6. Validate with \`openspec validate --strict --no-interactive\` and inspect with \`openspec show <id>\` if anything looks off.`;
 
 const archiveReferences = `**Reference**
 - Use \`openspec list\` to confirm change IDs before archiving.
