@@ -115,7 +115,7 @@ More notes here.`;
     );
     await fs.mkdir(path.dirname(proposalPath), { recursive: true });
     const initialContent = `---
-name: OpenSpec: Proposal
+name: OpenSpec - Proposal
 description: Old description
 category: OpenSpec
 tags: [openspec, change]
@@ -130,7 +130,7 @@ Old slash content
     await updateCommand.execute(testDir);
 
     const updated = await fs.readFile(proposalPath, 'utf-8');
-    expect(updated).toContain('name: OpenSpec: Proposal');
+    expect(updated).toContain('name: OpenSpec - Proposal');
     expect(updated).toContain('**Guardrails**');
     expect(updated).toContain(
       'Validate with `openspec validate <id> --strict --no-interactive`'
@@ -989,7 +989,7 @@ Old body
     );
     await fs.mkdir(path.dirname(codeBuddyPath), { recursive: true });
     const initialContent = `---
-name: OpenSpec: Proposal
+name: OpenSpec - Proposal
 description: Old description
 category: OpenSpec
 tags: [openspec, change]
@@ -1004,7 +1004,7 @@ Old slash content
     await updateCommand.execute(testDir);
 
     const updated = await fs.readFile(codeBuddyPath, 'utf-8');
-    expect(updated).toContain('name: OpenSpec: Proposal');
+    expect(updated).toContain('name: OpenSpec - Proposal');
     expect(updated).toContain('**Guardrails**');
     expect(updated).toContain(
       'Validate with `openspec validate <id> --strict --no-interactive`'
@@ -1034,7 +1034,7 @@ Old slash content
     await fs.writeFile(
       codeBuddyApply,
       `---
-name: OpenSpec: Apply
+name: OpenSpec - Apply
 description: Old description
 category: OpenSpec
 tags: [openspec, apply]
@@ -1067,7 +1067,7 @@ Old body
     );
     await fs.mkdir(path.dirname(crushPath), { recursive: true });
     const initialContent = `---
-name: OpenSpec: Proposal
+name: OpenSpec - Proposal
 description: Old description
 category: OpenSpec
 tags: [openspec, change]
@@ -1082,7 +1082,7 @@ Old slash content
     await updateCommand.execute(testDir);
 
     const updated = await fs.readFile(crushPath, 'utf-8');
-    expect(updated).toContain('name: OpenSpec: Proposal');
+    expect(updated).toContain('name: OpenSpec - Proposal');
     expect(updated).toContain('**Guardrails**');
     expect(updated).toContain(
       'Validate with `openspec validate <id> --strict --no-interactive`'
@@ -1112,7 +1112,7 @@ Old slash content
     await fs.writeFile(
       crushApply,
       `---
-name: OpenSpec: Apply
+name: OpenSpec - Apply
 description: Old description
 category: OpenSpec
 tags: [openspec, apply]
@@ -1186,7 +1186,7 @@ Old body
     );
     await fs.mkdir(path.dirname(qoderPath), { recursive: true });
     const initialContent = `---
-name: OpenSpec: Proposal
+name: OpenSpec - Proposal
 description: Old description
 category: OpenSpec
 tags: [openspec, change]
@@ -1201,7 +1201,7 @@ Old slash content
     await updateCommand.execute(testDir);
 
     const updated = await fs.readFile(qoderPath, 'utf-8');
-    expect(updated).toContain('name: OpenSpec: Proposal');
+    expect(updated).toContain('name: OpenSpec - Proposal');
     expect(updated).toContain('**Guardrails**');
     expect(updated).toContain(
       'Validate with `openspec validate <id> --strict --no-interactive`'
@@ -1339,7 +1339,7 @@ Old
     await fs.writeFile(
       qoderApply,
       `---
-name: OpenSpec: Apply
+name: OpenSpec - Apply
 description: Old description
 category: OpenSpec
 tags: [openspec, apply]
@@ -1566,7 +1566,7 @@ More instructions after.`;
     await fs.writeFile(
       proposalPath,
       `---
-name: OpenSpec: Proposal
+name: OpenSpec - Proposal
 description: Existing file
 category: OpenSpec
 tags: [openspec, change]
