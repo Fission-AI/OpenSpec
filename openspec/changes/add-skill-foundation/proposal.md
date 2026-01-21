@@ -1,17 +1,3 @@
-<context>
-Tech stack: TypeScript, Node.js (≥20.19.0), ESM modules
-Package manager: pnpm
-CLI framework: Commander.js
-
-Cross-platform requirements:
-- This tool runs on macOS, Linux, AND Windows
-- Always use path.join() or path.resolve() for file paths - never hardcode slashes
-- Never assume forward-slash path separators
-- Tests must use path.join() for expected path values, not hardcoded strings
-- Consider case sensitivity differences in file systems
-
-</context>
-
 ## Why
 
 The current OpenSpec skill generation uses 18 separate template functions that duplicate content between skills and commands. This creates maintenance burden and makes it difficult to keep instructions in sync. We need a unified `SkillDefinition` pattern where skills are the single source of truth and commands are lightweight pointers.

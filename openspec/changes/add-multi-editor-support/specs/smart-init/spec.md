@@ -1,17 +1,3 @@
-<context>
-Tech stack: TypeScript, Node.js (≥20.19.0), ESM modules
-Package manager: pnpm
-CLI framework: Commander.js
-
-Cross-platform requirements:
-- This tool runs on macOS, Linux, AND Windows
-- Always use path.join() or path.resolve() for file paths - never hardcode slashes
-- Never assume forward-slash path separators
-- Tests must use path.join() for expected path values, not hardcoded strings
-- Consider case sensitivity differences in file systems
-
-</context>
-
 <rules>
 - Include scenarios for Windows path handling when dealing with file paths
 - Requirements involving paths must specify cross-platform behavior

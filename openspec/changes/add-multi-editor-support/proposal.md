@@ -1,17 +1,3 @@
-<context>
-Tech stack: TypeScript, Node.js (≥20.19.0), ESM modules
-Package manager: pnpm
-CLI framework: Commander.js
-
-Cross-platform requirements:
-- This tool runs on macOS, Linux, AND Windows
-- Always use path.join() or path.resolve() for file paths - never hardcode slashes
-- Never assume forward-slash path separators
-- Tests must use path.join() for expected path values, not hardcoded strings
-- Consider case sensitivity differences in file systems
-
-</context>
-
 ## Why
 
 After Parts 1 and 2 establish the skills-only architecture and migration path for Claude Code users, we need to expand support to other AI code editors. Many developers use Cursor, Windsurf, or Cline alongside or instead of Claude Code. Each editor has its own configuration format, but they can all benefit from OpenSpec's structured approach.
