@@ -7,6 +7,9 @@ export async function setup() {
 
 // Global teardown to ensure clean exit
 export async function teardown() {
-  // Clear any remaining timers
-  // This helps prevent hanging handles from keeping the process alive
+  // Force exit after a short grace period if the process hasn't exited cleanly.
+  // This handles cases where child processes or open handles keep the worker alive.
+  setTimeout(() => {
+    process.exit(0);
+  }, 1000).unref();
 }

@@ -28,9 +28,9 @@ import {
   type SchemaInfo,
 } from '../core/artifact-graph/index.js';
 import { createChange, validateChangeName } from '../utils/change-utils.js';
-import { getExploreSkillTemplate, getNewChangeSkillTemplate, getContinueChangeSkillTemplate, getApplyChangeSkillTemplate, getFfChangeSkillTemplate, getSyncSpecsSkillTemplate, getArchiveChangeSkillTemplate, getVerifyChangeSkillTemplate, getOpsxExploreCommandTemplate, getOpsxNewCommandTemplate, getOpsxContinueCommandTemplate, getOpsxApplyCommandTemplate, getOpsxFfCommandTemplate, getOpsxSyncCommandTemplate, getOpsxArchiveCommandTemplate, getOpsxVerifyCommandTemplate } from '../core/templates/skill-templates.js';
+import { getExploreSkillTemplate, getNewChangeSkillTemplate, getContinueChangeSkillTemplate, getApplyChangeSkillTemplate, getFfChangeSkillTemplate, getSyncSpecsSkillTemplate, getArchiveChangeSkillTemplate, getBulkArchiveChangeSkillTemplate, getVerifyChangeSkillTemplate, getOpsxExploreCommandTemplate, getOpsxNewCommandTemplate, getOpsxContinueCommandTemplate, getOpsxApplyCommandTemplate, getOpsxFfCommandTemplate, getOpsxSyncCommandTemplate, getOpsxArchiveCommandTemplate, getOpsxBulkArchiveCommandTemplate, getOpsxVerifyCommandTemplate } from '../core/templates/skill-templates.js';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { promptForConfig, serializeConfig, isExitPromptError } from '../core/config-prompts.js';
+import { serializeConfig } from '../core/config-prompts.js';
 import { readProjectConfig } from '../core/project-config.js';
 
 // -----------------------------------------------------------------------------
@@ -818,6 +818,7 @@ async function artifactExperimentalSetupCommand(): Promise<void> {
     const ffChangeSkill = getFfChangeSkillTemplate();
     const syncSpecsSkill = getSyncSpecsSkillTemplate();
     const archiveChangeSkill = getArchiveChangeSkillTemplate();
+    const bulkArchiveChangeSkill = getBulkArchiveChangeSkillTemplate();
     const verifyChangeSkill = getVerifyChangeSkillTemplate();
 
     // Get command templates
@@ -828,6 +829,7 @@ async function artifactExperimentalSetupCommand(): Promise<void> {
     const ffCommand = getOpsxFfCommandTemplate();
     const syncCommand = getOpsxSyncCommandTemplate();
     const archiveCommand = getOpsxArchiveCommandTemplate();
+    const bulkArchiveCommand = getOpsxBulkArchiveCommandTemplate();
     const verifyCommand = getOpsxVerifyCommandTemplate();
 
     // Create skill directories and SKILL.md files
@@ -839,6 +841,7 @@ async function artifactExperimentalSetupCommand(): Promise<void> {
       { template: ffChangeSkill, dirName: 'openspec-ff-change' },
       { template: syncSpecsSkill, dirName: 'openspec-sync-specs' },
       { template: archiveChangeSkill, dirName: 'openspec-archive-change' },
+      { template: bulkArchiveChangeSkill, dirName: 'openspec-bulk-archive-change' },
       { template: verifyChangeSkill, dirName: 'openspec-verify-change' },
     ];
 
@@ -871,6 +874,7 @@ ${template.instructions}
       { template: ffCommand, fileName: 'ff.md' },
       { template: syncCommand, fileName: 'sync.md' },
       { template: archiveCommand, fileName: 'archive.md' },
+      { template: bulkArchiveCommand, fileName: 'bulk-archive.md' },
       { template: verifyCommand, fileName: 'verify.md' },
     ];
 
@@ -941,89 +945,37 @@ ${template.content}
       console.log(chalk.dim('   schema: spec-driven'));
       console.log();
     } else {
-      // Prompt for config creation
+      // Create config with default schema
+      const yamlContent = serializeConfig({ schema: DEFAULT_SCHEMA });
+
       try {
-        const configResult = await promptForConfig(projectRoot);
+        await FileSystemUtils.writeFile(configPath, yamlContent);
 
-        if (configResult.createConfig && configResult.schema) {
-          // Build config object
-          const config = {
-            schema: configResult.schema,
-            context: configResult.context,
-            rules: configResult.rules,
-          };
+        console.log();
+        console.log(chalk.green('✓ Created openspec/config.yaml'));
+        console.log();
+        console.log(`   Default schema: ${chalk.cyan(DEFAULT_SCHEMA)}`);
+        console.log();
+        console.log(chalk.dim('   Edit the file to add project context and per-artifact rules.'));
+        console.log();
 
-          // Serialize to YAML
-          const yamlContent = serializeConfig(config);
-
-          // Write config file
-          try {
-            await FileSystemUtils.writeFile(configPath, yamlContent);
-
-            console.log();
-            console.log(chalk.green('✓ Created openspec/config.yaml'));
-            console.log();
-            console.log('━'.repeat(70));
-            console.log();
-            console.log(chalk.bold('📖 Config created at: openspec/config.yaml'));
-
-            // Display summary
-            const contextLines = config.context ? config.context.split('\n').length : 0;
-            const rulesCount = config.rules ? Object.keys(config.rules).length : 0;
-
-            console.log(`   • Default schema: ${chalk.cyan(config.schema)}`);
-            if (contextLines > 0) {
-              console.log(`   • Project context: ${chalk.cyan(`Added (${contextLines} lines)`)}`);
-            }
-            if (rulesCount > 0) {
-              console.log(`   • Rules: ${chalk.cyan(`${rulesCount} artifact${rulesCount > 1 ? 's' : ''} configured`)}`);
-            }
-            console.log();
-
-            // Usage examples
-            console.log(chalk.bold('Usage:'));
-            console.log('  • New changes automatically use this schema');
-            console.log('  • Context injected into all artifact instructions');
-            console.log('  • Rules applied to matching artifacts');
-            console.log();
-
-            // Git commit suggestion
-            console.log(chalk.bold('To share with team:'));
-            console.log(chalk.dim('  git add openspec/config.yaml .claude/'));
-            console.log(chalk.dim('  git commit -m "Setup OpenSpec experimental workflow with project config"'));
-            console.log();
-          } catch (writeError) {
-            // Handle file write errors
-            console.error();
-            console.error(chalk.red('✗ Failed to write openspec/config.yaml'));
-            console.error(chalk.dim(`  ${(writeError as Error).message}`));
-            console.error();
-            console.error('Fallback: Create config manually:');
-            console.error(chalk.dim('  1. Create openspec/config.yaml'));
-            console.error(chalk.dim('  2. Copy the following content:'));
-            console.error();
-            console.error(chalk.dim(yamlContent));
-            console.error();
-          }
-        } else {
-          // User chose not to create config
-          console.log();
-          console.log(chalk.blue('ℹ️  Skipped config creation.'));
-          console.log('   You can create openspec/config.yaml manually later.');
-          console.log();
-        }
-      } catch (promptError) {
-        if (isExitPromptError(promptError)) {
-          // User cancelled (Ctrl+C)
-          console.log();
-          console.log(chalk.blue('ℹ️  Config creation cancelled'));
-          console.log('   Skills and commands already created');
-          console.log('   Run setup again to create config later');
-          console.log();
-        } else {
-          // Unexpected error
-          throw promptError;
-        }
+        // Git commit suggestion
+        console.log(chalk.bold('To share with team:'));
+        console.log(chalk.dim('  git add openspec/config.yaml .claude/'));
+        console.log(chalk.dim('  git commit -m "Setup OpenSpec experimental workflow"'));
+        console.log();
+      } catch (writeError) {
+        // Handle file write errors
+        console.error();
+        console.error(chalk.red('✗ Failed to write openspec/config.yaml'));
+        console.error(chalk.dim(`  ${(writeError as Error).message}`));
+        console.error();
+        console.error('Fallback: Create config manually:');
+        console.error(chalk.dim('  1. Create openspec/config.yaml'));
+        console.error(chalk.dim('  2. Copy the following content:'));
+        console.error();
+        console.error(chalk.dim(yamlContent));
+        console.error();
       }
     }
 
