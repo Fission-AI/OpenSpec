@@ -1,6 +1,6 @@
 # Experimental Workflow (OPSX)
 
-> **Status:** Experimental. Things might break. Feedback welcome on [Discord](https://discord.gg/BYjPaKbqMt).
+> **Status:** Experimental. Things might break. Feedback welcome on [Discord](https://discord.gg/YctCnvvshC).
 >
 > **Compatibility:** Claude Code only (for now)
 
@@ -662,4 +662,4 @@ openspec schema validate my-workflow
 
 This is rough. That's intentional — we're learning what works.
 
-Found a bug? Have ideas? Join us on [Discord](https://discord.gg/BYjPaKbqMt) or open an issue on [GitHub](https://github.com/Fission-AI/openspec/issues).
+Found a bug? Have ideas? Join us on [Discord](https://discord.gg/YctCnvvshC) or open an issue on [GitHub](https://github.com/Fission-AI/openspec/issues).
