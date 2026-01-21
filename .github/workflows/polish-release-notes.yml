@@ -3,6 +3,8 @@ name: Polish Release Notes
 # Uses Claude to transform raw changelog into polished release notes.
 # Triggered automatically by release-prepare after publishing, or manually.
 on:
+  repository_dispatch:
+    types: [polish-release-notes]
   workflow_dispatch:
     inputs:
       tag_name:
@@ -11,7 +13,8 @@ on:
         type: string
 
 env:
-  TAG_NAME: ${{ inputs.tag_name }}
+  # repository_dispatch passes tag via client_payload, workflow_dispatch via inputs
+  TAG_NAME: ${{ github.event.client_payload.tag_name || inputs.tag_name }}
 
 permissions:
   contents: write

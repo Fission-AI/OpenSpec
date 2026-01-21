@@ -198,7 +198,7 @@ describe('instruction-loader', () => {
     });
 
     describe('project config integration', () => {
-      it('should inject context for all artifacts', () => {
+      it('should return context as separate field for all artifacts', () => {
         // Create project config
         const configDir = path.join(tempDir, 'openspec');
         fs.mkdirSync(configDir, { recursive: true });
@@ -214,19 +214,19 @@ context: |
         const context = loadChangeContext(tempDir, 'my-change');
         const instructions = generateInstructions(context, 'proposal', tempDir);
 
-        expect(instructions.template).toContain('<context>');
-        expect(instructions.template).toContain('Tech stack: TypeScript, React');
-        expect(instructions.template).toContain('API style: RESTful');
-        expect(instructions.template).toContain('</context>');
+        // Context should be in separate field, not in template
+        expect(instructions.context).toContain('Tech stack: TypeScript, React');
+        expect(instructions.context).toContain('API style: RESTful');
+        expect(instructions.template).not.toContain('Tech stack');
+        expect(instructions.template).toContain('## Why'); // Actual template content
       });
 
-      it('should not inject context when config is absent', () => {
+      it('should return undefined context when config is absent', () => {
         const context = loadChangeContext(tempDir, 'my-change');
         const instructions = generateInstructions(context, 'proposal', tempDir);
 
-        expect(instructions.template).not.toContain('<context>');
-        // Template field should not include <template> wrapper (CLI handles that)
-        expect(instructions.template).not.toContain('<template>');
+        expect(instructions.context).toBeUndefined();
+        expect(instructions.rules).toBeUndefined();
         expect(instructions.template).toContain('## Why'); // Actual template content
       });
 
@@ -247,7 +247,7 @@ context: |
         const context = loadChangeContext(tempDir, 'my-change');
         const instructions = generateInstructions(context, 'proposal', tempDir);
 
-        expect(instructions.template).toContain('Line 1\nLine 2\nLine 3');
+        expect(instructions.context).toContain('Line 1\nLine 2\nLine 3');
       });
 
       it('should preserve special characters in context', () => {
@@ -265,10 +265,10 @@ context: |
         const context = loadChangeContext(tempDir, 'my-change');
         const instructions = generateInstructions(context, 'proposal', tempDir);
 
-        expect(instructions.template).toContain('Special: < > & " \' @ # $ % [ ] { }');
+        expect(instructions.context).toContain('Special: < > & " \' @ # $ % [ ] { }');
       });
 
-      it('should inject rules only for matching artifact', () => {
+      it('should return rules only for matching artifact', () => {
         // Create project config with rules
         const configDir = path.join(tempDir, 'openspec');
         fs.mkdirSync(configDir, { recursive: true });
@@ -288,21 +288,16 @@ rules:
 
         // Check proposal artifact has its rules
         const proposalInstructions = generateInstructions(context, 'proposal', tempDir);
-        expect(proposalInstructions.template).toContain('<rules>');
-        expect(proposalInstructions.template).toContain('- Include rollback plan');
-        expect(proposalInstructions.template).toContain('- Identify affected teams');
-        expect(proposalInstructions.template).not.toContain('Given/When/Then');
-        expect(proposalInstructions.template).toContain('</rules>');
+        expect(proposalInstructions.rules).toEqual(['Include rollback plan', 'Identify affected teams']);
+        expect(proposalInstructions.template).not.toContain('rollback plan');
 
         // Check specs artifact has its rules
         const specsInstructions = generateInstructions(context, 'specs', tempDir);
-        expect(specsInstructions.template).toContain('<rules>');
-        expect(specsInstructions.template).toContain('- Use Given/When/Then format');
-        expect(specsInstructions.template).not.toContain('rollback plan');
-        expect(specsInstructions.template).toContain('</rules>');
+        expect(specsInstructions.rules).toEqual(['Use Given/When/Then format']);
+        expect(specsInstructions.template).not.toContain('Given/When/Then');
       });
 
-      it('should not inject rules for non-matching artifact', () => {
+      it('should return undefined rules for non-matching artifact', () => {
         // Create project config with rules only for proposal
         const configDir = path.join(tempDir, 'openspec');
         fs.mkdirSync(configDir, { recursive: true });
@@ -317,12 +312,12 @@ rules:
 
         const context = loadChangeContext(tempDir, 'my-change');
 
-        // Check design artifact (no rules configured) has no rules section
+        // Check design artifact (no rules configured) has undefined rules
         const designInstructions = generateInstructions(context, 'design', tempDir);
-        expect(designInstructions.template).not.toContain('<rules>');
+        expect(designInstructions.rules).toBeUndefined();
       });
 
-      it('should not inject rules when empty array', () => {
+      it('should return undefined rules when empty array', () => {
         // Create project config with empty rules array
         const configDir = path.join(tempDir, 'openspec');
         fs.mkdirSync(configDir, { recursive: true });
@@ -338,11 +333,11 @@ rules:
         const context = loadChangeContext(tempDir, 'my-change');
         const instructions = generateInstructions(context, 'proposal', tempDir);
 
-        expect(instructions.template).toContain('<context>');
-        expect(instructions.template).not.toContain('<rules>');
+        expect(instructions.context).toBe('Some context');
+        expect(instructions.rules).toBeUndefined();
       });
 
-      it('should maintain correct order: context -> rules -> template', () => {
+      it('should keep context, rules, and template as separate fields', () => {
         // Create project config with both context and rules
         const configDir = path.join(tempDir, 'openspec');
         fs.mkdirSync(configDir, { recursive: true });
@@ -359,17 +354,13 @@ rules:
         const context = loadChangeContext(tempDir, 'my-change');
         const instructions = generateInstructions(context, 'proposal', tempDir);
 
-        const contextIdx = instructions.template.indexOf('<context>');
-        const rulesIdx = instructions.template.indexOf('<rules>');
-        const templateContentIdx = instructions.template.indexOf('## Why');
-
-        expect(contextIdx).toBeGreaterThan(-1);
-        expect(rulesIdx).toBeGreaterThan(-1);
-        expect(templateContentIdx).toBeGreaterThan(-1);
-        expect(contextIdx).toBeLessThan(rulesIdx);
-        expect(rulesIdx).toBeLessThan(templateContentIdx);
-        // Template field should not include <template> wrapper (CLI handles that)
-        expect(instructions.template).not.toContain('<template>');
+        // All three should be separate
+        expect(instructions.context).toBe('Project context here');
+        expect(instructions.rules).toEqual(['Rule 1']);
+        expect(instructions.template).toContain('## Why');
+        // Template should not contain context or rules
+        expect(instructions.template).not.toContain('Project context here');
+        expect(instructions.template).not.toContain('Rule 1');
       });
 
       it('should handle context without rules', () => {
@@ -386,11 +377,9 @@ context: Project context only
         const context = loadChangeContext(tempDir, 'my-change');
         const instructions = generateInstructions(context, 'proposal', tempDir);
 
-        expect(instructions.template).toContain('<context>');
-        expect(instructions.template).not.toContain('<rules>');
-        // Template field should not include <template> wrapper (CLI handles that)
-        expect(instructions.template).not.toContain('<template>');
-        expect(instructions.template).toContain('## Why'); // Actual template content
+        expect(instructions.context).toBe('Project context only');
+        expect(instructions.rules).toBeUndefined();
+        expect(instructions.template).toContain('## Why');
       });
 
       it('should handle rules without context', () => {
@@ -409,21 +398,18 @@ rules:
         const context = loadChangeContext(tempDir, 'my-change');
         const instructions = generateInstructions(context, 'proposal', tempDir);
 
-        expect(instructions.template).not.toContain('<context>');
-        expect(instructions.template).toContain('<rules>');
-        // Template field should not include <template> wrapper (CLI handles that)
-        expect(instructions.template).not.toContain('<template>');
-        expect(instructions.template).toContain('## Why'); // Actual template content
+        expect(instructions.context).toBeUndefined();
+        expect(instructions.rules).toEqual(['Rule only']);
+        expect(instructions.template).toContain('## Why');
       });
 
       it('should work without project root parameter', () => {
         const context = loadChangeContext(tempDir, 'my-change');
         const instructions = generateInstructions(context, 'proposal'); // No projectRoot
 
-        expect(instructions.template).not.toContain('<context>');
-        // Template field should not include <template> wrapper (CLI handles that)
-        expect(instructions.template).not.toContain('<template>');
-        expect(instructions.template).toContain('## Why'); // Actual template content
+        expect(instructions.context).toBeUndefined();
+        expect(instructions.rules).toBeUndefined();
+        expect(instructions.template).toContain('## Why');
       });
     });
 
