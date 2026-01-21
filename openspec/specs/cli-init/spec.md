@@ -230,6 +230,13 @@ The init command SHALL generate slash command files for supported editors using 
 - **AND** populate each file from shared templates so command text matches other tools
 - **AND** each template includes instructions for the relevant OpenSpec workflow stage
 
+#### Scenario: Generating slash commands for Pi
+- **WHEN** the user selects Pi during initialization
+- **THEN** create `.pi/prompts/openspec-proposal.md`, `.pi/prompts/openspec-apply.md`, and `.pi/prompts/openspec-archive.md`
+- **AND** populate each file with YAML frontmatter containing only a `description` field that summarizes the workflow stage
+- **AND** wrap the shared template body with OpenSpec markers so `openspec update` can refresh the content
+- **AND** each template includes instructions for the relevant OpenSpec workflow stage
+
 #### Scenario: Generating slash commands for Windsurf
 - **WHEN** the user selects Windsurf during initialization
 - **THEN** create `.windsurf/workflows/openspec-proposal.md`, `.windsurf/workflows/openspec-apply.md`, and `.windsurf/workflows/openspec-archive.md`

@@ -34,6 +34,7 @@ export const AI_TOOLS: AIToolOption[] = [
   { name: 'iFlow', value: 'iflow', available: true, successLabel: 'iFlow' },
   { name: 'Kilo Code', value: 'kilocode', available: true, successLabel: 'Kilo Code' },
   { name: 'OpenCode', value: 'opencode', available: true, successLabel: 'OpenCode' },
+  { name: 'Pi', value: 'pi', available: true, successLabel: 'Pi' },
   { name: 'Qoder (CLI)', value: 'qoder', available: true, successLabel: 'Qoder' },
   { name: 'Qwen Code', value: 'qwen', available: true, successLabel: 'Qwen Code' },
   { name: 'RooCode', value: 'roocode', available: true, successLabel: 'RooCode' },
