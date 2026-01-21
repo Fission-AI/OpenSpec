@@ -1,5 +1,17 @@
 # @fission-ai/openspec
 
+## 0.23.0
+
+### Minor Changes
+
+- [#540](https://github.com/Fission-AI/OpenSpec/pull/540) [`c4cfdc7`](https://github.com/Fission-AI/OpenSpec/commit/c4cfdc7c499daef30d8a218f5f59b8d9e5adb754) Thanks [@TabishB](https://github.com/TabishB)! - ### New Features
+
+  - **Bulk archive skill** — Archive multiple completed changes in a single operation with `/opsx:bulk-archive`. Includes batch validation, spec conflict detection, and consolidated confirmation
+
+  ### Other
+
+  - **Simplified setup** — Config creation now uses sensible defaults with helpful comments instead of interactive prompts
+
 ## 0.22.0
 
 ### Minor Changes
