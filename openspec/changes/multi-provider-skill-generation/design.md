@@ -47,7 +47,7 @@ interface AIToolOption {
 
 **Decision**: Create generic command generation with tool-specific adapters.
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                      CommandContent                              │
 │  (tool-agnostic: id, name, description, category, tags, body)   │

@@ -14,8 +14,8 @@ The `AIToolOption` interface SHALL include an optional `skillsDir` field for ski
 
 #### Scenario: Interface includes skillsDir field
 
-- **WHEN** a tool entry is defined in `AI_TOOLS`
-- **THEN** it MAY include a `skillsDir` field specifying the project-local base directory (e.g., `.claude`)
+- **WHEN** a tool entry is defined in `AI_TOOLS` that supports skill generation
+- **THEN** it SHALL include a `skillsDir` field specifying the project-local base directory (e.g., `.claude`)
 
 #### Scenario: Skills path follows Agent Skills spec
 

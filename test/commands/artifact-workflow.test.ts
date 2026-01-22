@@ -28,6 +28,13 @@ describe('artifact-workflow CLI commands', () => {
   }
 
   /**
+   * Normalizes path separators to forward slashes for cross-platform assertions.
+   */
+  function normalizePaths(str: string): string {
+    return str.replace(/\\/g, '/');
+  }
+
+  /**
    * Creates a test change with the specified artifacts completed.
    * Note: An "active" change requires at least a proposal.md file to be detected.
    * If no artifacts are specified, we create an empty proposal to make it detectable.
@@ -609,7 +616,7 @@ artifacts:
         cwd: tempDir,
       });
       expect(result.exitCode).toBe(0);
-      const output = getOutput(result);
+      const output = normalizePaths(getOutput(result));
       expect(output).toContain('Claude Code');
       expect(output).toContain('.claude/skills/');
 
@@ -624,7 +631,7 @@ artifacts:
         cwd: tempDir,
       });
       expect(result.exitCode).toBe(0);
-      const output = getOutput(result);
+      const output = normalizePaths(getOutput(result));
       expect(output).toContain('Cursor');
       expect(output).toContain('.cursor/skills/');
 
@@ -644,7 +651,7 @@ artifacts:
         cwd: tempDir,
       });
       expect(result.exitCode).toBe(0);
-      const output = getOutput(result);
+      const output = normalizePaths(getOutput(result));
       expect(output).toContain('Windsurf');
       expect(output).toContain('.windsurf/skills/');
 

@@ -4,8 +4,6 @@
 
 Define a generic command generation system that supports multiple AI tools through a Strategy/Adapter pattern, separating command content from tool-specific formatting.
 
-## Requirements
-
 ## ADDED Requirements
 
 ### Requirement: CommandContent interface
@@ -46,6 +44,12 @@ The system SHALL define a `ToolCommandAdapter` interface for per-tool formatting
 - **WHEN** formatting a command for Cursor
 - **THEN** the adapter SHALL output YAML frontmatter with `name` as `/opsx-<id>`, `id`, `category`, `description` fields
 - **AND** file path SHALL follow pattern `.cursor/commands/opsx-<id>.md`
+
+#### Scenario: Windsurf adapter formatting
+
+- **WHEN** formatting a command for Windsurf
+- **THEN** the adapter SHALL output YAML frontmatter with `name`, `description`, `category`, `tags` fields
+- **AND** file path SHALL follow pattern `.windsurf/commands/opsx/<id>.md`
 
 ### Requirement: Command generator function
 

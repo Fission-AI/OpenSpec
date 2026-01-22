@@ -1214,7 +1214,7 @@ export function registerArtifactWorkflowCommands(program: Command): void {
   program
     .command('artifact-experimental-setup')
     .description('[Experimental] Setup Agent Skills for the experimental artifact workflow')
-    .requiredOption('--tool <tool-id>', 'Target AI tool (e.g., claude, cursor, windsurf)')
+    .option('--tool <tool-id>', 'Target AI tool (e.g., claude, cursor, windsurf)')
     .action(async (options: ArtifactExperimentalSetupOptions) => {
       try {
         await artifactExperimentalSetupCommand(options);

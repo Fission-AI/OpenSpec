@@ -5,12 +5,12 @@ The `artifact-experimental-setup` command currently hardcodes skill output paths
 ## What Changes
 
 - Add `skillsDir` path configuration to the existing `AIToolOption` interface in `config.ts`
-- Add `--tool <tool-id>` flag to the `artifact-experimental-setup` command
+- Add required `--tool <tool-id>` flag to the `artifact-experimental-setup` command
 - Create a generic command generation system using Strategy/Adapter pattern:
   - `CommandContent`: tool-agnostic command data (id, name, description, body)
   - `ToolCommandAdapter`: per-tool formatting (file paths, frontmatter format)
   - `CommandGenerator`: orchestrates generation using content + adapter
-- Default to `claude` when no `--tool` flag is provided (backward compatible)
+- Require explicit tool selection (no default) for clarity
 
 ## Capabilities
 
@@ -32,5 +32,5 @@ The `artifact-experimental-setup` command currently hardcodes skill output paths
   - `src/core/command-generation/types.ts` - CommandContent, ToolCommandAdapter interfaces
   - `src/core/command-generation/generator.ts` - Generic command generator
   - `src/core/command-generation/adapters/*.ts` - Per-tool adapters
-- **Backward Compatibility**: Fully backward compatible - defaults to `claude` provider
-- **User-Facing**: New optional `--tool` flag on `artifact-experimental-setup` command
+- **Backward Compatibility**: Existing workflows unaffected - this is a new command setup feature
+- **User-Facing**: Required `--tool` flag on `artifact-experimental-setup` command for explicit tool selection
