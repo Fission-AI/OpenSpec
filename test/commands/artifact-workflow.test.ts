@@ -577,6 +577,84 @@ artifacts:
     });
   });
 
+  describe('artifact-experimental-setup command', () => {
+    it('requires --tool flag', async () => {
+      const result = await runCLI(['artifact-experimental-setup'], { cwd: tempDir });
+      expect(result.exitCode).toBe(1);
+      const output = getOutput(result);
+      expect(output).toContain('--tool');
+    });
+
+    it('errors for unknown tool', async () => {
+      const result = await runCLI(['artifact-experimental-setup', '--tool', 'unknown-tool'], {
+        cwd: tempDir,
+      });
+      expect(result.exitCode).toBe(1);
+      const output = getOutput(result);
+      expect(output).toContain("Unknown tool 'unknown-tool'");
+    });
+
+    it('errors for tool without skillsDir', async () => {
+      // Using 'cline' which doesn't have skillsDir configured
+      const result = await runCLI(['artifact-experimental-setup', '--tool', 'cline'], {
+        cwd: tempDir,
+      });
+      expect(result.exitCode).toBe(1);
+      const output = getOutput(result);
+      expect(output).toContain('does not support skill generation');
+    });
+
+    it('creates skills for Claude tool', async () => {
+      const result = await runCLI(['artifact-experimental-setup', '--tool', 'claude'], {
+        cwd: tempDir,
+      });
+      expect(result.exitCode).toBe(0);
+      const output = getOutput(result);
+      expect(output).toContain('Claude Code');
+      expect(output).toContain('.claude/skills/');
+
+      // Verify skill files were created
+      const skillFile = path.join(tempDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md');
+      const stat = await fs.stat(skillFile);
+      expect(stat.isFile()).toBe(true);
+    });
+
+    it('creates skills for Cursor tool', async () => {
+      const result = await runCLI(['artifact-experimental-setup', '--tool', 'cursor'], {
+        cwd: tempDir,
+      });
+      expect(result.exitCode).toBe(0);
+      const output = getOutput(result);
+      expect(output).toContain('Cursor');
+      expect(output).toContain('.cursor/skills/');
+
+      // Verify skill files were created
+      const skillFile = path.join(tempDir, '.cursor', 'skills', 'openspec-explore', 'SKILL.md');
+      const stat = await fs.stat(skillFile);
+      expect(stat.isFile()).toBe(true);
+
+      // Verify commands were created with Cursor format
+      const commandFile = path.join(tempDir, '.cursor', 'commands', 'opsx-explore.md');
+      const content = await fs.readFile(commandFile, 'utf-8');
+      expect(content).toContain('name: /opsx-explore');
+    });
+
+    it('creates skills for Windsurf tool', async () => {
+      const result = await runCLI(['artifact-experimental-setup', '--tool', 'windsurf'], {
+        cwd: tempDir,
+      });
+      expect(result.exitCode).toBe(0);
+      const output = getOutput(result);
+      expect(output).toContain('Windsurf');
+      expect(output).toContain('.windsurf/skills/');
+
+      // Verify skill files were created
+      const skillFile = path.join(tempDir, '.windsurf', 'skills', 'openspec-explore', 'SKILL.md');
+      const stat = await fs.stat(skillFile);
+      expect(stat.isFile()).toBe(true);
+    });
+  });
+
   describe('project config integration', () => {
     describe('new change uses config schema', () => {
       it('creates change with schema from project config', async () => {
