@@ -83,11 +83,18 @@ describe('command-generation/registry', () => {
         body: 'Body content',
       };
 
+      // Tools that don't use YAML frontmatter (markdown headers or TOML or plain)
+      const noYamlFrontmatter = ['cline', 'kilocode', 'roocode', 'gemini', 'qwen'];
+
       const adapters = CommandAdapterRegistry.getAll();
       for (const adapter of adapters) {
         const output = adapter.formatFile(content);
-        expect(output).toContain('---');
+        // All adapters should include the body content
         expect(output).toContain('Body content');
+        // Only check for YAML frontmatter for tools that use it
+        if (!noYamlFrontmatter.includes(adapter.toolId)) {
+          expect(output).toContain('---');
+        }
       }
     });
   });
