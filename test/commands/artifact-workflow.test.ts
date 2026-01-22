@@ -595,8 +595,8 @@ artifacts:
     });
 
     it('errors for tool without skillsDir', async () => {
-      // Using 'cline' which doesn't have skillsDir configured
-      const result = await runCLI(['artifact-experimental-setup', '--tool', 'cline'], {
+      // Using 'agents' which doesn't have skillsDir configured
+      const result = await runCLI(['artifact-experimental-setup', '--tool', 'agents'], {
         cwd: tempDir,
       });
       expect(result.exitCode).toBe(1);
