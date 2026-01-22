@@ -32,6 +32,12 @@ import { getExploreSkillTemplate, getNewChangeSkillTemplate, getContinueChangeSk
 import { FileSystemUtils } from '../utils/file-system.js';
 import { serializeConfig } from '../core/config-prompts.js';
 import { readProjectConfig } from '../core/project-config.js';
+import { AI_TOOLS } from '../core/config.js';
+import {
+  generateCommands,
+  CommandAdapterRegistry,
+  type CommandContent,
+} from '../core/command-generation/index.js';
 
 // -----------------------------------------------------------------------------
 // Types for Apply Instructions
@@ -820,18 +826,55 @@ async function newChangeCommand(name: string | undefined, options: NewChangeOpti
 // Artifact Experimental Setup Command
 // -----------------------------------------------------------------------------
 
+interface ArtifactExperimentalSetupOptions {
+  tool?: string;
+}
+
+/**
+ * Gets the list of tools with skillsDir configured.
+ */
+function getToolsWithSkillsDir(): string[] {
+  return AI_TOOLS.filter((t) => t.skillsDir).map((t) => t.value);
+}
+
 /**
  * Generates Agent Skills and slash commands for the experimental artifact workflow.
- * Creates .claude/skills/ directory with SKILL.md files following Agent Skills spec.
- * Creates .claude/commands/opsx/ directory with slash command files.
+ * Creates <toolDir>/skills/ directory with SKILL.md files following Agent Skills spec.
+ * Creates slash commands using tool-specific adapters.
  */
-async function artifactExperimentalSetupCommand(): Promise<void> {
-  const spinner = ora('Setting up experimental artifact workflow...').start();
+async function artifactExperimentalSetupCommand(options: ArtifactExperimentalSetupOptions): Promise<void> {
+  const projectRoot = process.cwd();
+
+  // Validate --tool flag is provided
+  if (!options.tool) {
+    const validTools = getToolsWithSkillsDir();
+    throw new Error(
+      `Missing required option --tool. Valid tools with skill generation support:\n  ${validTools.join('\n  ')}`
+    );
+  }
+
+  // Validate tool exists in AI_TOOLS
+  const tool = AI_TOOLS.find((t) => t.value === options.tool);
+  if (!tool) {
+    const validTools = AI_TOOLS.map((t) => t.value);
+    throw new Error(
+      `Unknown tool '${options.tool}'. Valid tools:\n  ${validTools.join('\n  ')}`
+    );
+  }
+
+  // Validate tool has skillsDir configured
+  if (!tool.skillsDir) {
+    const validTools = getToolsWithSkillsDir();
+    throw new Error(
+      `Tool '${options.tool}' does not support skill generation (no skillsDir configured).\nTools with skill generation support:\n  ${validTools.join('\n  ')}`
+    );
+  }
+
+  const spinner = ora(`Setting up experimental artifact workflow for ${tool.name}...`).start();
 
   try {
-    const projectRoot = process.cwd();
-    const skillsDir = path.join(projectRoot, '.claude', 'skills');
-    const commandsDir = path.join(projectRoot, '.claude', 'commands', 'opsx');
+    // Use tool-specific skillsDir
+    const skillsDir = path.join(projectRoot, tool.skillsDir, 'skills');
 
     // Get skill templates
     const exploreSkill = getExploreSkillTemplate();
@@ -843,17 +886,6 @@ async function artifactExperimentalSetupCommand(): Promise<void> {
     const archiveChangeSkill = getArchiveChangeSkillTemplate();
     const bulkArchiveChangeSkill = getBulkArchiveChangeSkillTemplate();
     const verifyChangeSkill = getVerifyChangeSkillTemplate();
-
-    // Get command templates
-    const exploreCommand = getOpsxExploreCommandTemplate();
-    const newCommand = getOpsxNewCommandTemplate();
-    const continueCommand = getOpsxContinueCommandTemplate();
-    const applyCommand = getOpsxApplyCommandTemplate();
-    const ffCommand = getOpsxFfCommandTemplate();
-    const syncCommand = getOpsxSyncCommandTemplate();
-    const archiveCommand = getOpsxArchiveCommandTemplate();
-    const bulkArchiveCommand = getOpsxBulkArchiveCommandTemplate();
-    const verifyCommand = getOpsxVerifyCommandTemplate();
 
     // Create skill directories and SKILL.md files
     const skills = [
@@ -888,56 +920,67 @@ ${template.instructions}
       createdSkillFiles.push(path.relative(projectRoot, skillFile));
     }
 
-    // Create slash command files
-    const commands = [
-      { template: exploreCommand, fileName: 'explore.md' },
-      { template: newCommand, fileName: 'new.md' },
-      { template: continueCommand, fileName: 'continue.md' },
-      { template: applyCommand, fileName: 'apply.md' },
-      { template: ffCommand, fileName: 'ff.md' },
-      { template: syncCommand, fileName: 'sync.md' },
-      { template: archiveCommand, fileName: 'archive.md' },
-      { template: bulkArchiveCommand, fileName: 'bulk-archive.md' },
-      { template: verifyCommand, fileName: 'verify.md' },
-    ];
-
+    // Generate commands using the adapter system
     const createdCommandFiles: string[] = [];
+    let commandsSkipped = false;
 
-    for (const { template, fileName } of commands) {
-      const commandFile = path.join(commandsDir, fileName);
+    const adapter = CommandAdapterRegistry.get(tool.value);
+    if (adapter) {
+      // Get command templates and convert to CommandContent
+      const commandTemplates = [
+        { template: getOpsxExploreCommandTemplate(), id: 'explore' },
+        { template: getOpsxNewCommandTemplate(), id: 'new' },
+        { template: getOpsxContinueCommandTemplate(), id: 'continue' },
+        { template: getOpsxApplyCommandTemplate(), id: 'apply' },
+        { template: getOpsxFfCommandTemplate(), id: 'ff' },
+        { template: getOpsxSyncCommandTemplate(), id: 'sync' },
+        { template: getOpsxArchiveCommandTemplate(), id: 'archive' },
+        { template: getOpsxBulkArchiveCommandTemplate(), id: 'bulk-archive' },
+        { template: getOpsxVerifyCommandTemplate(), id: 'verify' },
+      ];
 
-      // Generate command content with YAML frontmatter
-      const commandContent = `---
-name: ${template.name}
-description: ${template.description}
-category: ${template.category}
-tags: [${template.tags.join(', ')}]
----
+      const commandContents: CommandContent[] = commandTemplates.map(({ template, id }) => ({
+        id,
+        name: template.name,
+        description: template.description,
+        category: template.category,
+        tags: template.tags,
+        body: template.content,
+      }));
 
-${template.content}
-`;
+      const generatedCommands = generateCommands(commandContents, adapter);
 
-      // Write the command file
-      await FileSystemUtils.writeFile(commandFile, commandContent);
-      createdCommandFiles.push(path.relative(projectRoot, commandFile));
+      for (const cmd of generatedCommands) {
+        const commandFile = path.join(projectRoot, cmd.path);
+        await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
+        createdCommandFiles.push(cmd.path);
+      }
+    } else {
+      commandsSkipped = true;
     }
 
-    spinner.succeed('Experimental artifact workflow setup complete!');
+    spinner.succeed(`Experimental artifact workflow setup complete for ${tool.name}!`);
 
     // Print success message
     console.log();
-    console.log(chalk.bold('🧪 Experimental Artifact Workflow Setup Complete'));
+    console.log(chalk.bold(`🧪 Experimental Artifact Workflow Setup Complete for ${tool.name}`));
     console.log();
     console.log(chalk.bold('Skills Created:'));
     for (const file of createdSkillFiles) {
       console.log(chalk.green('  ✓ ' + file));
     }
     console.log();
-    console.log(chalk.bold('Slash Commands Created:'));
-    for (const file of createdCommandFiles) {
-      console.log(chalk.green('  ✓ ' + file));
+
+    if (commandsSkipped) {
+      console.log(chalk.yellow(`Command generation skipped - no adapter for ${tool.value}`));
+      console.log();
+    } else {
+      console.log(chalk.bold('Slash Commands Created:'));
+      for (const file of createdCommandFiles) {
+        console.log(chalk.green('  ✓ ' + file));
+      }
+      console.log();
     }
-    console.log();
 
     // Config creation section
     console.log('━'.repeat(70));
@@ -984,7 +1027,7 @@ ${template.content}
 
         // Git commit suggestion
         console.log(chalk.bold('To share with team:'));
-        console.log(chalk.dim('  git add openspec/config.yaml .claude/'));
+        console.log(chalk.dim(`  git add openspec/config.yaml ${tool.skillsDir}/`));
         console.log(chalk.dim('  git commit -m "Setup OpenSpec experimental workflow"'));
         console.log();
       } catch (writeError) {
@@ -1007,31 +1050,31 @@ ${template.content}
     console.log(chalk.bold('📖 Usage:'));
     console.log();
     console.log('  ' + chalk.cyan('Skills') + ' work automatically in compatible editors:');
-    console.log('  • Claude Code - Auto-detected, ready to use');
-    console.log('  • Cursor - Enable in Settings → Rules → Import Settings');
-    console.log('  • Windsurf - Auto-imports from .claude directory');
+    console.log(`  • ${tool.name} - Skills in ${tool.skillsDir}/skills/`);
     console.log();
-    console.log('  Ask Claude naturally:');
+    console.log('  Ask naturally:');
     console.log('  • "I want to start a new OpenSpec change to add <feature>"');
     console.log('  • "Continue working on this change"');
     console.log('  • "Implement the tasks for this change"');
     console.log();
-    console.log('  ' + chalk.cyan('Slash Commands') + ' for explicit invocation:');
-    console.log('  • /opsx:explore - Think through ideas, investigate problems');
-    console.log('  • /opsx:new - Start a new change');
-    console.log('  • /opsx:continue - Create the next artifact');
-    console.log('  • /opsx:apply - Implement tasks');
-    console.log('  • /opsx:ff - Fast-forward: create all artifacts at once');
-    console.log('  • /opsx:sync - Sync delta specs to main specs');
-    console.log('  • /opsx:verify - Verify implementation matches artifacts');
-    console.log('  • /opsx:archive - Archive a completed change');
-    console.log('  • /opsx:bulk-archive - Archive multiple completed changes');
-    console.log();
+    if (!commandsSkipped) {
+      console.log('  ' + chalk.cyan('Slash Commands') + ' for explicit invocation:');
+      console.log('  • /opsx:explore - Think through ideas, investigate problems');
+      console.log('  • /opsx:new - Start a new change');
+      console.log('  • /opsx:continue - Create the next artifact');
+      console.log('  • /opsx:apply - Implement tasks');
+      console.log('  • /opsx:ff - Fast-forward: create all artifacts at once');
+      console.log('  • /opsx:sync - Sync delta specs to main specs');
+      console.log('  • /opsx:verify - Verify implementation matches artifacts');
+      console.log('  • /opsx:archive - Archive a completed change');
+      console.log('  • /opsx:bulk-archive - Archive multiple completed changes');
+      console.log();
+    }
     console.log(chalk.yellow('💡 This is an experimental feature.'));
     console.log('   Feedback welcome at: https://github.com/Fission-AI/OpenSpec/issues');
     console.log();
   } catch (error) {
-    spinner.fail('Failed to setup experimental artifact workflow');
+    spinner.fail(`Failed to setup experimental artifact workflow for ${tool.name}`);
     throw error;
   }
 }
@@ -1171,9 +1214,10 @@ export function registerArtifactWorkflowCommands(program: Command): void {
   program
     .command('artifact-experimental-setup')
     .description('[Experimental] Setup Agent Skills for the experimental artifact workflow')
-    .action(async () => {
+    .option('--tool <tool-id>', 'Target AI tool (e.g., claude, cursor, windsurf)')
+    .action(async (options: ArtifactExperimentalSetupOptions) => {
       try {
-        await artifactExperimentalSetupCommand();
+        await artifactExperimentalSetupCommand(options);
       } catch (error) {
         console.log();
         ora().fail(`Error: ${(error as Error).message}`);
