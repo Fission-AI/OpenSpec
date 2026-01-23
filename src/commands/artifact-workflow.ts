@@ -834,7 +834,7 @@ interface ArtifactExperimentalSetupOptions {
 }
 
 /**
- * Names of experimental skill directories created by artifact-experimental-setup.
+ * Names of experimental skill directories created by openspec experimental.
  */
 const EXPERIMENTAL_SKILL_NAMES = [
   'openspec-explore',
@@ -1317,7 +1317,7 @@ export function registerArtifactWorkflowCommands(program: Command): void {
 
   // Artifact experimental setup command
   program
-    .command('artifact-experimental-setup')
+    .command('experimental')
     .description('[Experimental] Setup Agent Skills for the experimental artifact workflow')
     .option('--tool <tool-id>', 'Target AI tool (e.g., claude, cursor, windsurf)')
     .option('--no-interactive', 'Disable interactive prompts')
