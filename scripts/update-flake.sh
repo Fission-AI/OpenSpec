@@ -41,8 +41,8 @@ sed "${SED_INPLACE[@]}" "s|hash = \"sha256-[^\"]*\"|hash = \"$PLACEHOLDER\"|" "$
 echo "    Building to get correct hash (this will fail)..."
 BUILD_OUTPUT=$(nix build 2>&1 || true)
 
-# Extract the correct hash from error output
-CORRECT_HASH=$(echo "$BUILD_OUTPUT" | grep -oP 'got:\s+\Ksha256-[A-Za-z0-9+/=]+' | head -1)
+# Extract the correct hash from error output (portable - works on macOS and Linux)
+CORRECT_HASH=$(echo "$BUILD_OUTPUT" | grep -o 'got:[[:space:]]*sha256-[A-Za-z0-9+/=]*' | head -1 | sed 's/got:[[:space:]]*//')
 
 if [ -z "$CORRECT_HASH" ]; then
   echo "❌ Error: Could not extract hash from build output"
