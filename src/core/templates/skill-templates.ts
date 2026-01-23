@@ -12,6 +12,9 @@ export interface SkillTemplate {
   name: string;
   description: string;
   instructions: string;
+  license?: string;
+  compatibility?: string;
+  metadata?: Record<string, string>;
 }
 
 /**
@@ -300,7 +303,10 @@ But this summary is optional. Sometimes the thinking IS the value.
 - **Don't auto-capture** - Offer to save insights, don't just do it
 - **Do visualize** - A good diagram is worth many paragraphs
 - **Do explore the codebase** - Ground discussions in reality
-- **Do question assumptions** - Including the user's and your own`
+- **Do question assumptions** - Including the user's and your own`,
+    license: 'MIT',
+    compatibility: 'Requires openspec CLI.',
+    metadata: { author: 'openspec', version: '1.0' },
   };
 }
 
@@ -375,7 +381,10 @@ After completing the steps, summarize:
 - Do NOT advance beyond showing the first artifact template
 - If the name is invalid (not kebab-case), ask for a valid name
 - If a change with that name already exists, suggest continuing that change instead
-- Pass --schema if using a non-default workflow`
+- Pass --schema if using a non-default workflow`,
+    license: 'MIT',
+    compatibility: 'Requires openspec CLI.',
+    metadata: { author: 'openspec', version: '1.0' },
   };
 }
 
@@ -499,7 +508,10 @@ For other schemas, follow the \`instruction\` field from the CLI output.
 - Use the schema's artifact sequence, don't assume specific artifact names
 - **IMPORTANT**: \`context\` and \`rules\` are constraints for YOU, not content for the file
   - Do NOT copy \`<context>\`, \`<rules>\`, \`<project_context>\` blocks into the artifact
-  - These guide what you write, but should never appear in the output`
+  - These guide what you write, but should never appear in the output`,
+    license: 'MIT',
+    compatibility: 'Requires openspec CLI.',
+    metadata: { author: 'openspec', version: '1.0' },
   };
 }
 
@@ -656,7 +668,10 @@ What would you like to do?
 This skill supports the "actions on a change" model:
 
 - **Can be invoked anytime**: Before all artifacts are done (if tasks exist), after partial implementation, interleaved with other actions
-- **Allows artifact updates**: If implementation reveals design issues, suggest updating artifacts - not phase-locked, work fluidly`
+- **Allows artifact updates**: If implementation reveals design issues, suggest updating artifacts - not phase-locked, work fluidly`,
+    license: 'MIT',
+    compatibility: 'Requires openspec CLI.',
+    metadata: { author: 'openspec', version: '1.0' },
   };
 }
 
@@ -757,7 +772,10 @@ After completing all artifacts, summarize:
 - Always read dependency artifacts before creating a new one
 - If context is critically unclear, ask the user - but prefer making reasonable decisions to keep momentum
 - If a change with that name already exists, suggest continuing that change instead
-- Verify each artifact file exists after writing before proceeding to next`
+- Verify each artifact file exists after writing before proceeding to next`,
+    license: 'MIT',
+    compatibility: 'Requires openspec CLI.',
+    metadata: { author: 'openspec', version: '1.0' },
   };
 }
 
@@ -895,7 +913,10 @@ Main specs are now updated. The change remains active - archive when implementat
 - Preserve existing content not mentioned in delta
 - If something is unclear, ask for clarification
 - Show what you're changing as you go
-- The operation should be idempotent - running twice should give same result`
+- The operation should be idempotent - running twice should give same result`,
+    license: 'MIT',
+    compatibility: 'Requires openspec CLI.',
+    metadata: { author: 'openspec', version: '1.0' },
   };
 }
 
@@ -1659,7 +1680,10 @@ All artifacts complete. All tasks complete.
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
 - Show clear summary of what happened
 - If sync is requested, use openspec-sync-specs approach (agent-driven)
-- If delta specs exist, always run the sync assessment and show the combined summary before prompting`
+- If delta specs exist, always run the sync assessment and show the combined summary before prompting`,
+    license: 'MIT',
+    compatibility: 'Requires openspec CLI.',
+    metadata: { author: 'openspec', version: '1.0' },
   };
 }
 
@@ -1905,7 +1929,10 @@ No active changes found. Use \`/opsx:new\` to create a new change.
 - Track and report all outcomes (success/skip/fail)
 - Preserve .openspec.yaml when moving to archive
 - Archive directory target uses current date: YYYY-MM-DD-<name>
-- If archive target exists, fail that change but continue with others`
+- If archive target exists, fail that change but continue with others`,
+    license: 'MIT',
+    compatibility: 'Requires openspec CLI.',
+    metadata: { author: 'openspec', version: '1.0' },
   };
 }
 
@@ -2212,7 +2239,10 @@ Use clear markdown with:
 - Grouped lists for issues (CRITICAL/WARNING/SUGGESTION)
 - Code references in format: \`file.ts:123\`
 - Specific, actionable recommendations
-- No vague suggestions like "consider reviewing"`
+- No vague suggestions like "consider reviewing"`,
+    license: 'MIT',
+    compatibility: 'Requires openspec CLI.',
+    metadata: { author: 'openspec', version: '1.0' },
   };
 }
 

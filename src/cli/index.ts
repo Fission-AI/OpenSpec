@@ -15,7 +15,7 @@ import { ShowCommand } from '../commands/show.js';
 import { CompletionCommand } from '../commands/completion.js';
 import { FeedbackCommand } from '../commands/feedback.js';
 import { registerConfigCommand } from '../commands/config.js';
-import { registerArtifactWorkflowCommands } from '../commands/artifact-workflow.js';
+import { registerArtifactWorkflowCommands } from '../commands/experimental/index.js';
 import { registerSchemaCommand } from '../commands/schema.js';
 import { maybeShowTelemetryNotice, trackCommand, shutdown } from '../telemetry/index.js';
 
