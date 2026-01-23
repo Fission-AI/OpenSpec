@@ -30,6 +30,37 @@ export interface ArtifactExperimentalSetupOptions {
   selectedTools?: string[];  // For multi-select from interactive prompt
 }
 
+/**
+ * Status of experimental skill configuration for a tool.
+ */
+interface ToolExperimentalStatus {
+  /** Whether the tool has any experimental skills configured */
+  configured: boolean;
+  /** Whether all 9 experimental skills are configured */
+  fullyConfigured: boolean;
+  /** Number of skills currently configured (0-9) */
+  skillCount: number;
+}
+
+// -----------------------------------------------------------------------------
+// Constants
+// -----------------------------------------------------------------------------
+
+/**
+ * Names of experimental skill directories created by openspec experimental.
+ */
+const EXPERIMENTAL_SKILL_NAMES = [
+  'openspec-explore',
+  'openspec-new-change',
+  'openspec-continue-change',
+  'openspec-apply-change',
+  'openspec-ff-change',
+  'openspec-sync-specs',
+  'openspec-archive-change',
+  'openspec-bulk-archive-change',
+  'openspec-verify-change',
+];
+
 // -----------------------------------------------------------------------------
 // Helpers
 // -----------------------------------------------------------------------------
@@ -39,6 +70,46 @@ export interface ArtifactExperimentalSetupOptions {
  */
 export function getToolsWithSkillsDir(): string[] {
   return AI_TOOLS.filter((t) => t.skillsDir).map((t) => t.value);
+}
+
+/**
+ * Checks which experimental skill files exist for a tool.
+ */
+function getToolExperimentalStatus(projectRoot: string, toolId: string): ToolExperimentalStatus {
+  const tool = AI_TOOLS.find((t) => t.value === toolId);
+  if (!tool?.skillsDir) {
+    return { configured: false, fullyConfigured: false, skillCount: 0 };
+  }
+
+  const skillsDir = path.join(projectRoot, tool.skillsDir, 'skills');
+  let skillCount = 0;
+
+  for (const skillName of EXPERIMENTAL_SKILL_NAMES) {
+    const skillFile = path.join(skillsDir, skillName, 'SKILL.md');
+    if (fs.existsSync(skillFile)) {
+      skillCount++;
+    }
+  }
+
+  return {
+    configured: skillCount > 0,
+    fullyConfigured: skillCount === EXPERIMENTAL_SKILL_NAMES.length,
+    skillCount,
+  };
+}
+
+/**
+ * Gets the experimental status for all tools with skillsDir configured.
+ */
+function getExperimentalToolStates(projectRoot: string): Map<string, ToolExperimentalStatus> {
+  const states = new Map<string, ToolExperimentalStatus>();
+  const toolIds = AI_TOOLS.filter((t) => t.skillsDir).map((t) => t.value);
+
+  for (const toolId of toolIds) {
+    states.set(toolId, getToolExperimentalStatus(projectRoot, toolId));
+  }
+
+  return states;
 }
 
 // -----------------------------------------------------------------------------
@@ -65,13 +136,34 @@ export async function artifactExperimentalSetupCommand(options: ArtifactExperime
 
       const { searchableMultiSelect } = await import('../../prompts/searchable-multi-select.js');
 
+      // Get experimental status for all tools to show configured indicators
+      const toolStates = getExperimentalToolStates(projectRoot);
+
+      // Build choices with configured status and sort configured tools first
+      const sortedChoices = validTools
+        .map((toolId) => {
+          const tool = AI_TOOLS.find((t) => t.value === toolId);
+          const status = toolStates.get(toolId);
+          const configured = status?.configured ?? false;
+
+          return {
+            name: tool?.name || toolId,
+            value: toolId,
+            configured,
+            preSelected: configured,  // Pre-select configured tools for easy refresh
+          };
+        })
+        .sort((a, b) => {
+          // Configured tools first
+          if (a.configured && !b.configured) return -1;
+          if (!a.configured && b.configured) return 1;
+          return 0;
+        });
+
       const selectedTools = await searchableMultiSelect({
         message: `Select tools to set up (${validTools.length} available)`,
         pageSize: 15,
-        choices: validTools.map((toolId) => {
-          const tool = AI_TOOLS.find((t) => t.value === toolId);
-          return { name: tool?.name || toolId, value: toolId };
-        }),
+        choices: sortedChoices,
         validate: (selected: string[]) => selected.length > 0 || 'Select at least one tool',
       });
 
@@ -91,8 +183,11 @@ export async function artifactExperimentalSetupCommand(options: ArtifactExperime
   // Determine tools to set up
   const toolsToSetup = options.selectedTools || [options.tool!];
 
+  // Get tool states before processing to track created vs refreshed
+  const preSetupStates = getExperimentalToolStates(projectRoot);
+
   // Validate all tools before starting
-  const validatedTools: Array<{ value: string; name: string; skillsDir: string }> = [];
+  const validatedTools: Array<{ value: string; name: string; skillsDir: string; wasConfigured: boolean }> = [];
   for (const toolId of toolsToSetup) {
     const tool = AI_TOOLS.find((t) => t.value === toolId);
     if (!tool) {
@@ -109,7 +204,13 @@ export async function artifactExperimentalSetupCommand(options: ArtifactExperime
       );
     }
 
-    validatedTools.push({ value: tool.value, name: tool.name, skillsDir: tool.skillsDir });
+    const preState = preSetupStates.get(tool.value);
+    validatedTools.push({
+      value: tool.value,
+      name: tool.name,
+      skillsDir: tool.skillsDir,
+      wasConfigured: preState?.configured ?? false,
+    });
   }
 
   // Track all created files across all tools
@@ -221,138 +322,73 @@ ${template.instructions}
   // Filter to only successfully configured tools
   const successfulTools = validatedTools.filter(t => !failedTools.some(f => f.name === t.name));
 
-  // Print success message
+  // Print success summary
   console.log();
-  console.log(chalk.bold(`🧪 Experimental Artifact Workflow Setup Complete`));
-  console.log();
-  if (successfulTools.length > 0) {
-    console.log(chalk.bold(`Tools configured: ${successfulTools.map(t => t.name).join(', ')}`));
-  }
-  if (failedTools.length > 0) {
-    console.log(chalk.red(`Tools failed: ${failedTools.map(f => f.name).join(', ')}`));
-  }
+  console.log(chalk.bold('Experimental Artifact Workflow Setup Complete'));
   console.log();
 
-  console.log(chalk.bold('Skills Created:'));
-  for (const file of allCreatedSkillFiles) {
-    console.log(chalk.green('  ✓ ' + file));
+  // Tools and counts (show unique counts, not total files across all tools)
+  if (successfulTools.length > 0) {
+    // Separate newly created tools from refreshed (previously configured) tools
+    const createdTools = successfulTools.filter(t => !t.wasConfigured);
+    const refreshedTools = successfulTools.filter(t => t.wasConfigured);
+
+    if (createdTools.length > 0) {
+      console.log(`Created: ${createdTools.map(t => t.name).join(', ')}`);
+    }
+    if (refreshedTools.length > 0) {
+      console.log(`Refreshed: ${refreshedTools.map(t => t.name).join(', ')}`);
+    }
+
+    const uniqueSkillCount = skillTemplates.length;
+    const uniqueCommandCount = commandContents.length;
+    const toolDirs = [...new Set(successfulTools.map(t => t.skillsDir))].join(', ');
+    // Only count commands if any were actually created (some tools may not have adapters)
+    const hasCommands = allCreatedCommandFiles.length > 0;
+    if (hasCommands) {
+      console.log(`${uniqueSkillCount} skills and ${uniqueCommandCount} commands in ${toolDirs}/`);
+    } else {
+      console.log(`${uniqueSkillCount} skills in ${toolDirs}/`);
+    }
   }
-  console.log();
+
+  if (failedTools.length > 0) {
+    console.log(chalk.red(`Failed: ${failedTools.map(f => `${f.name} (${f.error.message})`).join(', ')}`));
+  }
 
   if (anyCommandsSkipped) {
-    console.log(chalk.yellow(`Command generation skipped for: ${toolsWithSkippedCommands.join(', ')} (no adapter)`));
-    console.log();
+    console.log(chalk.dim(`Commands skipped for: ${toolsWithSkippedCommands.join(', ')} (no adapter)`));
   }
 
-  if (allCreatedCommandFiles.length > 0) {
-    console.log(chalk.bold('Slash Commands Created:'));
-    for (const file of allCreatedCommandFiles) {
-      console.log(chalk.green('  ✓ ' + file));
-    }
-    console.log();
-  }
-
-  // Config creation section (happens once, not per-tool)
-  console.log('━'.repeat(70));
-  console.log();
-  console.log(chalk.bold('📋 Project Configuration (Optional)'));
-  console.log();
-  console.log('Configure project defaults for OpenSpec workflows.');
-  console.log();
-
-  // Check if config already exists
+  // Config creation (simplified)
   const configPath = path.join(projectRoot, 'openspec', 'config.yaml');
   const configYmlPath = path.join(projectRoot, 'openspec', 'config.yml');
   const configExists = fs.existsSync(configPath) || fs.existsSync(configYmlPath);
 
   if (configExists) {
-    // Config already exists, skip creation
-    console.log(chalk.blue('ℹ️  openspec/config.yaml already exists. Skipping config creation.'));
-    console.log();
-    console.log('   To update config, edit openspec/config.yaml manually or:');
-    console.log('   1. Delete openspec/config.yaml');
-    console.log('   2. Run openspec artifact-experimental-setup again');
-    console.log();
+    console.log(`Config: openspec/config.yaml (exists)`);
   } else if (!isInteractive(options)) {
-    // Non-interactive mode (CI, automation, piped input, or --no-interactive flag)
-    console.log(chalk.blue('ℹ️  Skipping config prompts (non-interactive mode)'));
-    console.log();
-    console.log('   To create config manually, add openspec/config.yaml with:');
-    console.log(chalk.dim('   schema: spec-driven'));
-    console.log();
+    console.log(chalk.dim(`Config: skipped (non-interactive mode)`));
   } else {
-    // Create config with default schema
     const yamlContent = serializeConfig({ schema: DEFAULT_SCHEMA });
-
     try {
       await FileSystemUtils.writeFile(configPath, yamlContent);
-
-      console.log();
-      console.log(chalk.green('✓ Created openspec/config.yaml'));
-      console.log();
-      console.log(`   Default schema: ${chalk.cyan(DEFAULT_SCHEMA)}`);
-      console.log();
-      console.log(chalk.dim('   Edit the file to add project context and per-artifact rules.'));
-      console.log();
-
-      // Git commit suggestion with all tool directories
-      const toolDirs = validatedTools.map(t => t.skillsDir + '/').join(' ');
-      console.log(chalk.bold('To share with team:'));
-      console.log(chalk.dim(`  git add openspec/config.yaml ${toolDirs}`));
-      console.log(chalk.dim('  git commit -m "Setup OpenSpec experimental workflow"'));
-      console.log();
+      console.log(`Config: openspec/config.yaml (schema: ${DEFAULT_SCHEMA})`);
     } catch (writeError) {
-      // Handle file write errors
-      console.error();
-      console.error(chalk.red('✗ Failed to write openspec/config.yaml'));
-      console.error(chalk.dim(`  ${(writeError as Error).message}`));
-      console.error();
-      console.error('Fallback: Create config manually:');
-      console.error(chalk.dim('  1. Create openspec/config.yaml'));
-      console.error(chalk.dim('  2. Copy the following content:'));
-      console.error();
-      console.error(chalk.dim(yamlContent));
-      console.error();
+      console.log(chalk.red(`Config: failed to create (${(writeError as Error).message})`));
     }
   }
 
-  console.log('━'.repeat(70));
+  // Getting started
   console.log();
-  console.log(chalk.bold('📖 Usage:'));
-  console.log();
-  console.log('  ' + chalk.cyan('Skills') + ' work automatically in compatible editors:');
-  for (const tool of validatedTools) {
-    console.log(`  • ${tool.name} - Skills in ${tool.skillsDir}/skills/`);
-  }
-  console.log();
-  console.log('  Ask naturally:');
-  console.log('  • "I want to start a new OpenSpec change to add <feature>"');
-  console.log('  • "Continue working on this change"');
-  console.log('  • "Implement the tasks for this change"');
-  console.log();
-  if (allCreatedCommandFiles.length > 0) {
-    console.log('  ' + chalk.cyan('Slash Commands') + ' for explicit invocation:');
-    console.log('  • /opsx:explore - Think through ideas, investigate problems');
-    console.log('  • /opsx:new - Start a new change');
-    console.log('  • /opsx:continue - Create the next artifact');
-    console.log('  • /opsx:apply - Implement tasks');
-    console.log('  • /opsx:ff - Fast-forward: create all artifacts at once');
-    console.log('  • /opsx:sync - Sync delta specs to main specs');
-    console.log('  • /opsx:verify - Verify implementation matches artifacts');
-    console.log('  • /opsx:archive - Archive a completed change');
-    console.log('  • /opsx:bulk-archive - Archive multiple completed changes');
-    console.log();
-  }
-  // Report any failures at the end
-  if (failedTools.length > 0) {
-    console.log(chalk.red('⚠️  Some tools failed to set up:'));
-    for (const { name, error } of failedTools) {
-      console.log(chalk.red(`  • ${name}: ${error.message}`));
-    }
-    console.log();
-  }
+  console.log(chalk.bold('Getting started:'));
+  console.log('  /opsx:new       Start a new change');
+  console.log('  /opsx:continue  Create the next artifact');
+  console.log('  /opsx:apply     Implement tasks');
 
-  console.log(chalk.yellow('💡 This is an experimental feature.'));
-  console.log('   Feedback welcome at: https://github.com/Fission-AI/OpenSpec/issues');
+  // Links
+  console.log();
+  console.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec/blob/main/docs/experimental-workflow.md')}`);
+  console.log(`Feedback:   ${chalk.cyan('https://github.com/Fission-AI/OpenSpec/issues')}`);
   console.log();
 }

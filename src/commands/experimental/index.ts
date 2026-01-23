@@ -123,7 +123,7 @@ export function registerArtifactWorkflowCommands(program: Command): void {
 
   // Artifact experimental setup command
   program
-    .command('artifact-experimental-setup')
+    .command('experimental')
     .description('[Experimental] Setup Agent Skills for the experimental artifact workflow')
     .option('--tool <tool-id>', 'Target AI tool (e.g., claude, cursor, windsurf)')
     .option('--no-interactive', 'Disable interactive prompts')
