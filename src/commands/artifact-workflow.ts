@@ -912,6 +912,7 @@ async function artifactExperimentalSetupCommand(options: ArtifactExperimentalSet
   const allCreatedCommandFiles: string[] = [];
   let anyCommandsSkipped = false;
   const toolsWithSkippedCommands: string[] = [];
+  const failedTools: Array<{ name: string; error: Error }> = [];
 
   // Get skill and command templates once (shared across all tools)
   const exploreSkill = getExploreSkillTemplate();
@@ -1002,15 +1003,29 @@ ${template.instructions}
       spinner.succeed(`Setup complete for ${tool.name}!`);
     } catch (error) {
       spinner.fail(`Failed for ${tool.name}`);
-      throw error;
+      failedTools.push({ name: tool.name, error: error as Error });
     }
   }
+
+  // If all tools failed, throw an error
+  if (failedTools.length === validatedTools.length) {
+    const errorMessages = failedTools.map(f => `  ${f.name}: ${f.error.message}`).join('\n');
+    throw new Error(`All tools failed to set up:\n${errorMessages}`);
+  }
+
+  // Filter to only successfully configured tools
+  const successfulTools = validatedTools.filter(t => !failedTools.some(f => f.name === t.name));
 
   // Print success message
   console.log();
   console.log(chalk.bold(`🧪 Experimental Artifact Workflow Setup Complete`));
   console.log();
-  console.log(chalk.bold(`Tools configured: ${validatedTools.map(t => t.name).join(', ')}`));
+  if (successfulTools.length > 0) {
+    console.log(chalk.bold(`Tools configured: ${successfulTools.map(t => t.name).join(', ')}`));
+  }
+  if (failedTools.length > 0) {
+    console.log(chalk.red(`Tools failed: ${failedTools.map(f => f.name).join(', ')}`));
+  }
   console.log();
 
   console.log(chalk.bold('Skills Created:'));
@@ -1053,8 +1068,8 @@ ${template.instructions}
     console.log('   1. Delete openspec/config.yaml');
     console.log('   2. Run openspec artifact-experimental-setup again');
     console.log();
-  } else if (!process.stdin.isTTY) {
-    // Non-interactive mode (CI, automation, piped input)
+  } else if (!isInteractive(options)) {
+    // Non-interactive mode (CI, automation, piped input, or --no-interactive flag)
     console.log(chalk.blue('ℹ️  Skipping config prompts (non-interactive mode)'));
     console.log();
     console.log('   To create config manually, add openspec/config.yaml with:');
@@ -1123,6 +1138,15 @@ ${template.instructions}
     console.log('  • /opsx:bulk-archive - Archive multiple completed changes');
     console.log();
   }
+  // Report any failures at the end
+  if (failedTools.length > 0) {
+    console.log(chalk.red('⚠️  Some tools failed to set up:'));
+    for (const { name, error } of failedTools) {
+      console.log(chalk.red(`  • ${name}: ${error.message}`));
+    }
+    console.log();
+  }
+
   console.log(chalk.yellow('💡 This is an experimental feature.'));
   console.log('   Feedback welcome at: https://github.com/Fission-AI/OpenSpec/issues');
   console.log();
