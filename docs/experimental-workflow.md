@@ -73,7 +73,7 @@ You can always go back:
 openspec init
 
 # 2. Generate the experimental skills
-openspec artifact-experimental-setup
+openspec experimental
 ```
 
 This creates skills in `.claude/skills/` that Claude Code auto-detects.
@@ -86,7 +86,7 @@ Project config lets you set defaults and inject project-specific context into al
 
 ### Creating Config
 
-Config is created during `artifact-experimental-setup`, or manually:
+Config is created during `experimental`, or manually:
 
 ```yaml
 # openspec/config.yaml

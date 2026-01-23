@@ -440,7 +440,7 @@ You can always go back:
 | `/opsx:apply` | Implement tasks, updating artifacts as needed |
 | `/opsx:archive` | Archive when done |
 
-**Setup:** `openspec artifact-experimental-setup`
+**Setup:** `openspec experimental`
 
 [Full documentation →](docs/experimental-workflow.md)
 

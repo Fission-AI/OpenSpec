@@ -4,6 +4,9 @@ interface Choice {
   name: string;
   value: string;
   description?: string;
+  configured?: boolean;
+  configuredLabel?: string;
+  preSelected?: boolean;
 }
 
 interface Config {
@@ -36,7 +39,9 @@ async function createSearchableMultiSelect(): Promise<
     const { message, choices, pageSize = 15, validate } = config;
 
     const [searchText, setSearchText] = useState('');
-    const [selectedValues, setSelectedValues] = useState<string[]>([]);
+    const [selectedValues, setSelectedValues] = useState<string[]>(
+      () => choices.filter(c => c.preSelected).map(c => c.value)
+    );
     const [cursor, setCursor] = useState(0);
     const [status, setStatus] = useState<'idle' | 'done'>('idle');
     const [error, setError] = useState<string | null>(null);
@@ -144,7 +149,7 @@ async function createSearchableMultiSelect(): Promise<
 
     // Instructions
     lines.push(
-      chalk.dim('  ↑↓ navigate • Enter add • Backspace remove • Tab confirm')
+      `  ${chalk.cyan('↑↓')} navigate • ${chalk.cyan('Enter')} add • ${chalk.cyan('Backspace')} remove • ${chalk.cyan('Tab')} confirm`
     );
 
     // List
@@ -167,7 +172,10 @@ async function createSearchableMultiSelect(): Promise<
         const icon = selected ? chalk.green('◉') : chalk.dim('○');
         const arrow = isActive ? chalk.cyan('›') : ' ';
         const name = isActive ? chalk.cyan(item.name) : item.name;
-        const suffix = selected ? chalk.dim(' (selected)') : '';
+        const isRefresh = selected && item.configured;
+        const suffix = selected
+          ? chalk.dim(isRefresh ? ' (refresh)' : ' (selected)')
+          : '';
         lines.push(`  ${arrow} ${icon} ${name}${suffix}`);
       }
 
