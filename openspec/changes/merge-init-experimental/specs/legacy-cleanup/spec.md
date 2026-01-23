@@ -33,7 +33,7 @@ The system SHALL detect legacy OpenSpec artifacts from previous init versions.
 - **WHEN** running `openspec init` on an existing project
 - **THEN** the system SHALL check for:
   - `openspec/AGENTS.md`
-  - `openspec/project.md`
+  - `openspec/project.md` (for migration messaging only, not deleted)
   - Root `AGENTS.md` with OpenSpec markers
 
 ### Requirement: Legacy cleanup confirmation
@@ -99,11 +99,33 @@ The system SHALL remove legacy slash command directories entirely.
 - **THEN** the system SHALL delete the entire directory and its contents
 - **AND** NOT delete the parent directory (e.g., `.claude/commands/` remains)
 
-#### Scenario: Removing legacy OpenSpec files
+#### Scenario: Removing legacy AGENTS.md
 
-- **WHEN** `openspec/AGENTS.md` or `openspec/project.md` exists
-- **THEN** the system SHALL delete these files
+- **WHEN** `openspec/AGENTS.md` exists
+- **THEN** the system SHALL delete the file
 - **AND** NOT delete the `openspec/` directory itself
+
+### Requirement: project.md migration hint
+
+The system SHALL preserve project.md and display a migration hint instead of deleting it.
+
+#### Scenario: project.md exists during upgrade
+
+- **WHEN** `openspec/project.md` exists during legacy cleanup
+- **THEN** the system SHALL NOT delete the file
+- **AND** the system SHALL display a migration hint in the output:
+  ```
+  Manual migration needed:
+    → openspec/project.md still exists
+      Move useful content to config.yaml's "context:" field, then delete
+  ```
+
+#### Scenario: project.md migration rationale
+
+- **GIVEN** project.md may contain user-written project documentation
+- **AND** config.yaml's context field serves the same purpose (auto-injected into artifacts)
+- **WHEN** displaying the migration hint
+- **THEN** users can migrate manually or use `/opsx:explore` to get AI assistance
 
 ### Requirement: Cleanup reporting
 
@@ -115,9 +137,16 @@ The system SHALL report what was cleaned up.
 - **THEN** the system SHALL display a summary section:
   ```
   Cleaned up legacy files:
-    ✗ Removed CLAUDE.md (replaced by skills)
-    ✗ Removed .claude/commands/openspec/ (replaced by /opsx:*)
-    ✗ Removed openspec/AGENTS.md (no longer needed)
+    ✓ Removed CLAUDE.md (replaced by skills)
+    ✓ Removed .claude/commands/openspec/ (replaced by /opsx:*)
+    ✓ Removed openspec/AGENTS.md (no longer needed)
+  ```
+- **AND IF** `openspec/project.md` exists
+- **THEN** the system SHALL display a separate migration section:
+  ```
+  Manual migration needed:
+    → openspec/project.md still exists
+      Move useful content to config.yaml's "context:" field, then delete
   ```
 
 #### Scenario: No legacy detected

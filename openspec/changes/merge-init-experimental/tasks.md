@@ -3,10 +3,11 @@
 - [ ] 1.1 Create `src/core/legacy-cleanup.ts` with detection functions for all legacy artifact types
 - [ ] 1.2 Implement `detectLegacyConfigFiles()` - check for config files with OpenSpec markers
 - [ ] 1.3 Implement `detectLegacySlashCommands()` - check for old `/openspec:*` command directories
-- [ ] 1.4 Implement `detectLegacyStructureFiles()` - check for AGENTS.md, project.md
+- [ ] 1.4 Implement `detectLegacyStructureFiles()` - check for AGENTS.md (project.md detected separately for messaging)
 - [ ] 1.5 Implement `removeMarkerBlock()` - surgically remove OpenSpec marker blocks from files
-- [ ] 1.6 Implement `cleanupLegacyArtifacts()` - orchestrate removal with proper edge case handling
-- [ ] 1.7 Add unit tests for legacy detection and cleanup functions
+- [ ] 1.6 Implement `cleanupLegacyArtifacts()` - orchestrate removal with proper edge case handling (preserves project.md)
+- [ ] 1.7 Implement migration hint output for project.md - show message directing users to migrate to config.yaml
+- [ ] 1.8 Add unit tests for legacy detection and cleanup functions
 
 ## 2. Rewrite Init Command
 

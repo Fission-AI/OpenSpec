@@ -53,8 +53,30 @@ The skill-based workflow (experimental) is the direction we're going, so we're m
 - **Config files with mixed content**: Remove only `<!-- OPENSPEC:START -->` to `<!-- OPENSPEC:END -->` block
 - **Config files that are 100% OpenSpec**: Delete file entirely (check if content outside markers is empty/whitespace)
 - **Old slash command directories** (`.claude/commands/openspec/`): Delete entire directory (ours)
-- **`openspec/AGENTS.md` and `project.md`**: Delete (ours)
+- **`openspec/AGENTS.md`**: Delete (ours)
 - **Root `AGENTS.md`**: Only remove OpenSpec marker block, preserve rest
+
+### Decision 6: Preserve project.md with migration hint
+
+**Choice**: Do NOT auto-delete `openspec/project.md`. Preserve it and show a message directing users to manually migrate content to `config.yaml`'s `context:` field.
+
+**Rationale**:
+- `project.md` may contain valuable user-written project documentation
+- The new workflow uses `config.yaml.context` for the same purpose (auto-injected into artifacts)
+- Auto-deleting would lose user content; auto-migrating is complex (needs LLM to compress)
+- Users can migrate manually or use `/opsx:explore` to get AI assistance
+
+**Migration path**:
+1. During legacy cleanup, detect `openspec/project.md` but do not delete
+2. Show in output: "openspec/project.md still exists - migrate content to config.yaml's context: field, then delete"
+3. User migrates manually or asks Claude in explore mode: "help me migrate project.md to config.yaml"
+4. User deletes project.md when ready
+
+**Why not auto-migrate?**
+- `project.md` is verbose (sections, headers, placeholders)
+- `config.yaml.context` should be concise and dense
+- LLM compression would be ideal but adds complexity and non-determinism to init
+- Manual migration lets users decide what's actually important
 
 ### Decision 4: Hidden alias for experimental
 
@@ -126,7 +148,7 @@ openspec/
 | Config files (CLAUDE.md, etc.) | File exists AND contains OpenSpec markers | Remove marker block; delete file if empty after |
 | Old slash command dirs | Directory exists at `.<tool>/commands/openspec/` | Delete entire directory |
 | openspec/AGENTS.md | File exists at `openspec/AGENTS.md` | Delete file |
-| openspec/project.md | File exists at `openspec/project.md` | Delete file |
+| openspec/project.md | File exists at `openspec/project.md` | **Preserve** - show migration hint only |
 | Root AGENTS.md | File exists at `AGENTS.md` AND contains OpenSpec markers | Remove marker block; delete file if empty after |
 
 ### Code to remove
