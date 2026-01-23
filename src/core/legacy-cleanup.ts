@@ -5,7 +5,7 @@
 
 import path from 'path';
 import { promises as fs } from 'fs';
-import { FileSystemUtils } from '../utils/file-system.js';
+import { FileSystemUtils, removeMarkerBlock as removeMarkerBlockUtil } from '../utils/file-system.js';
 import { OPENSPEC_MARKERS } from './config.js';
 
 /**
@@ -323,44 +323,14 @@ export function isOnlyOpenSpecContent(content: string): boolean {
 
 /**
  * Removes the OpenSpec marker block from file content.
+ * Only removes markers that are on their own lines (ignores inline mentions).
  * Cleans up double blank lines that may result from removal.
  *
  * @param content - File content with OpenSpec markers
  * @returns Content with marker block removed
  */
 export function removeMarkerBlock(content: string): string {
-  const startIndex = content.indexOf(OPENSPEC_MARKERS.start);
-  const endIndex = content.indexOf(OPENSPEC_MARKERS.end);
-
-  if (startIndex === -1 || endIndex === -1 || endIndex <= startIndex) {
-    return content;
-  }
-
-  // Find the start of the line containing the start marker
-  let lineStart = startIndex;
-  while (lineStart > 0 && content[lineStart - 1] !== '\n') {
-    lineStart--;
-  }
-
-  // Find the end of the line containing the end marker
-  let lineEnd = endIndex + OPENSPEC_MARKERS.end.length;
-  while (lineEnd < content.length && content[lineEnd] !== '\n') {
-    lineEnd++;
-  }
-  // Include the trailing newline if present
-  if (lineEnd < content.length && content[lineEnd] === '\n') {
-    lineEnd++;
-  }
-
-  const before = content.substring(0, lineStart);
-  const after = content.substring(lineEnd);
-
-  // Clean up double blank lines
-  let result = before + after;
-  result = result.replace(/\n{3,}/g, '\n\n');
-
-  // Trim leading/trailing whitespace but preserve content
-  return result.trim() === '' ? '' : result.trim() + '\n';
+  return removeMarkerBlockUtil(content, OPENSPEC_MARKERS.start, OPENSPEC_MARKERS.end);
 }
 
 /**

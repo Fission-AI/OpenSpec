@@ -239,7 +239,7 @@ export class FileSystemUtils {
         }
         return await this.ensureWritePermissions(parentDir);
       }
-      
+
       const testFile = path.join(dirPath, '.openspec-test-' + Date.now());
       await fs.writeFile(testFile, '');
       await fs.unlink(testFile);
@@ -249,4 +249,55 @@ export class FileSystemUtils {
       return false;
     }
   }
+}
+
+/**
+ * Removes a marker block from file content.
+ * Only removes markers that are on their own lines (ignores inline mentions).
+ * Cleans up double blank lines that may result from removal.
+ *
+ * @param content - File content with markers
+ * @param startMarker - The start marker string
+ * @param endMarker - The end marker string
+ * @returns Content with marker block removed, or original content if markers not found/invalid
+ */
+export function removeMarkerBlock(
+  content: string,
+  startMarker: string,
+  endMarker: string
+): string {
+  const startIndex = findMarkerIndex(content, startMarker);
+  const endIndex = startIndex !== -1
+    ? findMarkerIndex(content, endMarker, startIndex + startMarker.length)
+    : findMarkerIndex(content, endMarker);
+
+  if (startIndex === -1 || endIndex === -1 || endIndex <= startIndex) {
+    return content;
+  }
+
+  // Find the start of the line containing the start marker
+  let lineStart = startIndex;
+  while (lineStart > 0 && content[lineStart - 1] !== '\n') {
+    lineStart--;
+  }
+
+  // Find the end of the line containing the end marker
+  let lineEnd = endIndex + endMarker.length;
+  while (lineEnd < content.length && content[lineEnd] !== '\n') {
+    lineEnd++;
+  }
+  // Include the trailing newline if present
+  if (lineEnd < content.length && content[lineEnd] === '\n') {
+    lineEnd++;
+  }
+
+  const before = content.substring(0, lineStart);
+  const after = content.substring(lineEnd);
+
+  // Clean up double blank lines
+  let result = before + after;
+  result = result.replace(/\n{3,}/g, '\n\n');
+
+  // Trim leading/trailing whitespace but preserve content
+  return result.trim() === '' ? '' : result.trim() + '\n';
 }

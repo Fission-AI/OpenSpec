@@ -181,6 +181,23 @@ ${OPENSPEC_MARKERS.start}`;
       expect(result).toContain(OPENSPEC_MARKERS.end);
       expect(result).toContain(OPENSPEC_MARKERS.start);
     });
+
+    it('should ignore inline mentions of markers and only remove actual block', () => {
+      const content = `Intro referencing ${OPENSPEC_MARKERS.start} and ${OPENSPEC_MARKERS.end} inline.
+
+${OPENSPEC_MARKERS.start}
+Managed content here
+${OPENSPEC_MARKERS.end}
+After content`;
+      const result = removeMarkerBlock(content);
+      // Inline mentions preserved
+      expect(result).toContain('Intro referencing');
+      expect(result).toContain(OPENSPEC_MARKERS.start);
+      expect(result).toContain(OPENSPEC_MARKERS.end);
+      // Managed content removed
+      expect(result).not.toContain('Managed content here');
+      expect(result).toContain('After content');
+    });
   });
 
   describe('detectLegacyConfigFiles', () => {
