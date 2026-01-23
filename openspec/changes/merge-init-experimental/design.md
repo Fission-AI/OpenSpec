@@ -175,6 +175,19 @@ openspec/
 
 ## Open Questions
 
-1. **What happens to `openspec update`?** - Currently updates config files and AGENTS.md. Needs to be updated to refresh skills/commands instead.
+1. **What happens to `openspec update`?** - RESOLVED
 
-2. **Should we keep `openspec schemas` and other experimental subcommands?** - These are useful for the workflow. Probably keep them but remove "[Experimental]" label.
+   **Current behavior**: Updates `openspec/AGENTS.md`, config files (`CLAUDE.md`, etc.) via `ToolRegistry`, and old slash commands (`/openspec:*`) via `SlashCommandRegistry`.
+
+   **New behavior**: Rewrite to refresh skills and opsx commands instead:
+   - Detect which tools have skills installed (check for `.claude/skills/openspec-*/`, etc.)
+   - Refresh all 9 skill files per installed tool using `skill-templates.ts`
+   - Refresh all 9 opsx command files per installed tool using `command-generation/` adapters
+   - Remove imports of `ToolRegistry`, `SlashCommandRegistry`, `agentsTemplate`
+   - Update output messaging to reflect skills/commands instead of config files
+
+   **Key principle**: Same as current update - only refresh existing tools, don't add new ones.
+
+2. **Should we keep `openspec schemas` and other experimental subcommands?** - RESOLVED
+
+   **Decision**: Yes, keep them. Remove "[Experimental]" label from all subcommands (status, instructions, schemas, etc.). See task 4.3.
