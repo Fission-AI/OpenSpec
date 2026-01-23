@@ -27,7 +27,7 @@
 </p>
 
 <p align="center">
-  <sub>🧪 <strong>New:</strong> <a href="docs/experimental-workflow.md">Experimental Workflow (OPSX)</a> — schema-driven, hackable, fluid. Iterate on workflows without code changes.</sub>
+  <sub>🧪 <strong>OPSX Workflow</strong> — schema-driven, hackable, fluid. See <a href="docs/experimental-workflow.md">workflow docs</a> for details.</sub>
 </p>
 
 # OpenSpec
@@ -89,43 +89,26 @@ See the full comparison in [How OpenSpec Compares](#how-openspec-compares).
 
 ### Supported AI Tools
 
+OpenSpec generates **Agent Skills** and **/opsx:\* slash commands** for supported tools during `openspec init`.
+
 <details>
-<summary><strong>Native Slash Commands</strong> (click to expand)</summary>
+<summary><strong>Tools with Agent Skills + Slash Commands</strong> (click to expand)</summary>
 
-These tools have built-in OpenSpec commands. Select the OpenSpec integration when prompted.
+These tools support the full OpenSpec workflow with skills and commands:
 
-| Tool | Commands |
-|------|----------|
-| **Amazon Q Developer** | `@openspec-proposal`, `@openspec-apply`, `@openspec-archive` (`.amazonq/prompts/`) |
-| **Antigravity** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.agent/workflows/`) |
-| **Auggie (Augment CLI)** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.augment/commands/`) |
-| **Claude Code** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` |
-| **Cline** | Workflows in `.clinerules/workflows/` directory (`.clinerules/workflows/openspec-*.md`) |
-| **CodeBuddy Code (CLI)** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` (`.codebuddy/commands/`) — see [docs](https://www.codebuddy.ai/cli) |
-| **Codex** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (global: `~/.codex/prompts`, auto-installed) |
-| **Continue** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.continue/prompts/`) |
-| **CoStrict** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.cospec/openspec/commands/`) — see [docs](https://costrict.ai)|
-| **Crush** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.crush/commands/openspec/`) |
-| **Cursor** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` |
-| **Factory Droid** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.factory/commands/`) |
-| **Gemini CLI** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` (`.gemini/commands/openspec/`) |
-| **GitHub Copilot** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.github/prompts/`) |
-| **iFlow (iflow-cli)** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.iflow/commands/`) |
-| **Kilo Code** | `/openspec-proposal.md`, `/openspec-apply.md`, `/openspec-archive.md` (`.kilocode/workflows/`) |
-| **OpenCode** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` |
-| **Qoder** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` (`.qoder/commands/openspec/`) — see [docs](https://qoder.com) |
-| **Qwen Code** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.qwen/commands/`) |
-| **RooCode** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.roo/commands/`) |
-| **Windsurf** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.windsurf/workflows/`) |
+| Tool | Skills Location | Commands |
+|------|-----------------|----------|
+| **Claude Code** | `.claude/skills/` | `/opsx:new`, `/opsx:apply`, `/opsx:archive`, etc. |
+| **Cursor** | `.cursor/skills/` | `/opsx:*` commands via prompts |
 
-Kilo Code discovers team workflows automatically. Save the generated files under `.kilocode/workflows/` and trigger them from the command palette with `/openspec-proposal.md`, `/openspec-apply.md`, or `/openspec-archive.md`.
+Run `openspec init` and select the tools you use. Skills and commands are generated automatically.
 
 </details>
 
 <details>
 <summary><strong>AGENTS.md Compatible</strong> (click to expand)</summary>
 
-These tools automatically read workflow instructions from `openspec/AGENTS.md`. Ask them to follow the OpenSpec workflow if they need a reminder. Learn more about the [AGENTS.md convention](https://agents.md/).
+Tools that support AGENTS.md can follow OpenSpec workflows by reading `openspec/AGENTS.md`. Ask them to follow the OpenSpec workflow if they need a reminder. Learn more about the [AGENTS.md convention](https://agents.md/).
 
 | Tools |
 |-------|
@@ -197,102 +180,139 @@ openspec init
 ```
 
 **What happens during initialization:**
-- You'll be prompted to pick any natively supported AI tools (Claude Code, CodeBuddy, Cursor, OpenCode, Qoder,etc.); other assistants always rely on the shared `AGENTS.md` stub
-- OpenSpec automatically configures slash commands for the tools you choose and always writes a managed `AGENTS.md` hand-off at the project root
-- A new `openspec/` directory structure is created in your project
+- You'll see an interactive tool selector to pick AI tools (Claude Code, Cursor, etc.)
+- OpenSpec generates **Agent Skills** in tool-specific directories (e.g., `.claude/skills/`)
+- **/opsx:\* slash commands** are created for each selected tool
+- A `openspec/config.yaml` file is created for project configuration
+- The `openspec/` directory structure is created (specs, changes, archive)
 
-**After setup:**
-- Primary AI tools can trigger `/openspec` workflows without additional configuration
-- Run `openspec list` to verify the setup and view any active changes
-- If your coding assistant doesn't surface the new slash commands right away, restart it. Slash commands are loaded at startup,
-  so a fresh launch ensures they appear
+**Legacy upgrade:** If you have files from an older OpenSpec version, init will detect them and offer to clean up automatically. Use `--force` to skip the confirmation prompt.
 
-### Optional: Populate Project Context
-
-After `openspec init` completes, you'll receive a suggested prompt to help populate your project context:
-
-```text
-Populate your project context:
-"Please read openspec/project.md and help me fill it out with details about my project, tech stack, and conventions"
+**Non-interactive mode:** For CI or scripted setups:
+```bash
+openspec init --tools claude,cursor  # Specific tools
+openspec init --tools all            # All supported tools
+openspec init --tools none           # Skip tool setup
 ```
 
-Use `openspec/project.md` to define project-level conventions, standards, architectural patterns, and other guidelines that should be followed across all changes.
+**After setup:**
+- Run `/opsx:new` to start your first change
+- Run `openspec list` to verify the setup and view any active changes
+- Restart your IDE for slash commands to take effect
+
+### Optional: Configure Project Context
+
+After `openspec init`, you can customize `openspec/config.yaml` to inject project-specific context into all artifacts:
+
+```yaml
+# openspec/config.yaml
+schema: spec-driven
+
+context: |
+  Tech stack: TypeScript, React, Node.js
+  Testing: Vitest for unit tests
+  Style: ESLint with Prettier
+
+rules:
+  proposal:
+    - Include rollback plan
+  specs:
+    - Use Given/When/Then format for scenarios
+```
+
+This context is automatically included in artifact instructions, helping the AI understand your project's conventions.
 
 ### Create Your First Change
 
-Here's a real example showing the complete OpenSpec workflow. This works with any AI tool. Those with native slash commands will recognize the shortcuts automatically.
+Here's a real example showing the complete OpenSpec workflow using `/opsx:*` commands.
 
-#### 1. Draft the Proposal
-Start by asking your AI to create a change proposal:
-
+#### 1. Start a New Change
 ```text
-You: Create an OpenSpec change proposal for adding profile search filters by role and team
-     (Shortcut for tools with slash commands: /openspec:proposal Add profile search filters)
+You: /opsx:new
 
-AI:  I'll create an OpenSpec change proposal for profile filters.
-     *Scaffolds openspec/changes/add-profile-filters/ with proposal.md, tasks.md, spec deltas.*
+AI:  What do you want to build?
+You: Add profile search filters by role and team
+
+AI:  I'll create a new change for profile filters.
+     *Creates openspec/changes/add-profile-filters/ with proposal.md*
 ```
 
-#### 2. Verify & Review
-Check that the change was created correctly and review the proposal:
+#### 2. Build Out Artifacts
+Use `/opsx:continue` to create artifacts one at a time, or `/opsx:ff` to fast-forward through all planning artifacts:
 
+```text
+You: /opsx:continue
+
+AI:  Proposal is done. Ready to create: specs, design
+     Which artifact should I create?
+You: specs
+
+AI:  *Creates specs with requirements and scenarios*
+```
+
+Or fast-forward through everything:
+```text
+You: /opsx:ff add-profile-filters
+
+AI:  *Creates proposal → specs → design → tasks in sequence*
+```
+
+#### 3. Verify & Review
 ```bash
 $ openspec list                             # Confirm the change folder exists
 $ openspec validate add-profile-filters     # Validate spec formatting
 $ openspec show add-profile-filters         # Review proposal, tasks, and spec delta
 ```
 
-#### 3. Refine the Specs
-Iterate on the specifications until they match your needs:
-
-```text
-You: Can you add acceptance criteria for the role and team filters?
-
-AI:  I'll update the spec delta with scenarios for role and team filters.
-     *Edits openspec/changes/add-profile-filters/specs/profile/spec.md and tasks.md.*
-```
-
 #### 4. Implement the Change
-Once specs look good, start implementation:
-
 ```text
-You: The specs look good. Let's implement this change.
-     (Shortcut for tools with slash commands: /openspec:apply add-profile-filters)
+You: /opsx:apply
 
 AI:  I'll work through the tasks in the add-profile-filters change.
-     *Implements tasks from openspec/changes/add-profile-filters/tasks.md*
-     *Marks tasks complete: Task 1.1 ✓, Task 1.2 ✓, Task 2.1 ✓...*
+     *Implements tasks, marking them complete as it goes*
 ```
+
+**Key feature:** If you discover issues during implementation, you can update specs, design, or tasks — then continue. No phase gates.
 
 #### 5. Archive the Completed Change
-After implementation is complete, archive the change:
-
 ```text
-AI:  All tasks are complete. The implementation is ready.
-
-You: Please archive the change
-     (Shortcut for tools with slash commands: /openspec:archive add-profile-filters)
+You: /opsx:archive
 
 AI:  I'll archive the add-profile-filters change.
-    *Runs: openspec archive add-profile-filters --yes*
-     ✓ Change archived successfully. Specs updated. Ready for the next feature!
+     *Runs: openspec archive add-profile-filters --yes*
+     ✓ Change archived. Specs updated. Ready for the next feature!
 ```
 
-Or run the command yourself in terminal:
+Or run directly in terminal:
 ```bash
-$ openspec archive add-profile-filters --yes  # Archive the completed change without prompts
+$ openspec archive add-profile-filters --yes
 ```
-
-**Note:** Tools with native slash commands (Claude Code, CodeBuddy, Cursor, Codex, Qoder, RooCode) can use the shortcuts shown. All other tools work with natural language requests to "create an OpenSpec proposal", "apply the OpenSpec change", or "archive the change".
 
 ## Command Reference
 
+### Slash Commands (in your AI tool)
+
+| Command | What it does |
+|---------|--------------|
+| `/opsx:explore` | Think through ideas, investigate problems, clarify requirements |
+| `/opsx:new` | Start a new change |
+| `/opsx:continue` | Create the next artifact (based on what's ready) |
+| `/opsx:ff` | Fast-forward — create all planning artifacts at once |
+| `/opsx:apply` | Implement tasks, updating artifacts as needed |
+| `/opsx:sync` | Sync delta specs to main specs |
+| `/opsx:archive` | Archive when done |
+| `/opsx:verify` | Verify implementation matches change artifacts |
+
+### CLI Commands (in terminal)
+
 ```bash
+openspec init               # Initialize OpenSpec with skills and commands
 openspec list               # View active change folders
 openspec view               # Interactive dashboard of specs and changes
 openspec show <change>      # Display change details (proposal, tasks, spec updates)
 openspec validate <change>  # Check spec formatting and structure
-openspec archive <change> [--yes|-y]   # Move a completed change into archive/ (non-interactive with --yes)
+openspec archive <change> [--yes|-y]   # Move a completed change into archive/
+openspec update             # Refresh skills and commands for configured tools
 ```
 
 ## Example: How AI Creates OpenSpec Files
@@ -392,12 +412,12 @@ Without specs, AI coding assistants generate code from vague prompts, often miss
 
 ## Team Adoption
 
-1. **Initialize OpenSpec** – Run `openspec init` in your repo.
-2. **Start with new features** – Ask your AI to capture upcoming work as change proposals.
+1. **Initialize OpenSpec** – Run `openspec init` in your repo and select your team's tools.
+2. **Start with new features** – Use `/opsx:new` to capture upcoming work as change proposals.
 3. **Grow incrementally** – Each change archives into living specs that document your system.
-4. **Stay flexible** – Different teammates can use Claude Code, CodeBuddy, Cursor, or any AGENTS.md-compatible tool while sharing the same specs.
+4. **Stay flexible** – Different teammates can use Claude Code, Cursor, or any AGENTS.md-compatible tool while sharing the same specs.
 
-Run `openspec update` whenever someone switches tools so your agents pick up the latest instructions and slash-command bindings.
+Run `openspec update` to refresh skills and commands when upgrading OpenSpec or adding new tools.
 
 ## Updating OpenSpec
 
@@ -405,42 +425,38 @@ Run `openspec update` whenever someone switches tools so your agents pick up the
    ```bash
    npm install -g @fission-ai/openspec@latest
    ```
-2. **Refresh agent instructions**
-   - Run `openspec update` inside each project to regenerate AI guidance and ensure the latest slash commands are active.
+2. **Refresh skills and commands**
+   ```bash
+   openspec update
+   ```
+   This regenerates skills and slash commands for all configured tools.
 
-## Experimental Features
+3. **Restart your IDE** for slash commands to take effect.
+
+## Workflow Customization
 
 <details>
-<summary><strong>🧪 OPSX: Fluid, Iterative Workflow</strong> (Claude Code only)</summary>
+<summary><strong>Custom Schemas & Templates</strong></summary>
 
-**Why this exists:**
-- Standard workflow is locked down — you can't tweak instructions or customize
-- When AI output is bad, you can't improve the prompts yourself
-- Same workflow for everyone, no way to match how your team works
+OpenSpec uses a **schema-driven workflow** that you can customize:
 
-**What's different:**
+**Why customize:**
 - **Hackable** — edit templates and schemas yourself, test immediately, no rebuild
 - **Granular** — each artifact has its own instructions, test and tweak individually
 - **Customizable** — define your own workflows, artifacts, and dependencies
-- **Fluid** — no phase gates, update any artifact anytime
 
+**Built-in schemas:**
+- `spec-driven` (default): proposal → specs → design → tasks
+- `tdd`: tests → implementation → docs
+
+**Create custom schemas:**
+```bash
+openspec schema init my-workflow     # Create new schema interactively
+openspec schema fork spec-driven my-workflow  # Fork existing schema
+openspec schemas                     # List available schemas
 ```
-You can always go back:
 
-  proposal ──→ specs ──→ design ──→ tasks ──→ implement
-     ▲           ▲          ▲                    │
-     └───────────┴──────────┴────────────────────┘
-```
-
-| Command | What it does |
-|---------|--------------|
-| `/opsx:new` | Start a new change |
-| `/opsx:continue` | Create the next artifact (based on what's ready) |
-| `/opsx:ff` | Fast-forward (all planning artifacts at once) |
-| `/opsx:apply` | Implement tasks, updating artifacts as needed |
-| `/opsx:archive` | Archive when done |
-
-**Setup:** `openspec experimental`
+Schemas are stored in `openspec/schemas/` (project) or `~/.local/share/openspec/schemas/` (global).
 
 [Full documentation →](docs/experimental-workflow.md)
 
