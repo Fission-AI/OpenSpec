@@ -124,8 +124,9 @@ function getExperimentalToolStates(projectRoot: string): Map<string, ToolExperim
 export async function artifactExperimentalSetupCommand(options: ArtifactExperimentalSetupOptions): Promise<void> {
   const projectRoot = process.cwd();
 
-  // Validate --tool flag is provided or prompt interactively
-  if (!options.tool) {
+  // Validate --tool flag or selectedTools is provided, or prompt interactively
+  const hasToolsSpecified = options.tool || (options.selectedTools && options.selectedTools.length > 0);
+  if (!hasToolsSpecified) {
     const validTools = getToolsWithSkillsDir();
     const canPrompt = isInteractive(options);
 
@@ -180,8 +181,10 @@ export async function artifactExperimentalSetupCommand(options: ArtifactExperime
     }
   }
 
-  // Determine tools to set up
-  const toolsToSetup = options.selectedTools || [options.tool!];
+  // Determine tools to set up - prefer selectedTools if provided
+  const toolsToSetup = options.selectedTools && options.selectedTools.length > 0
+    ? options.selectedTools
+    : [options.tool!];
 
   // Get tool states before processing to track created vs refreshed
   const preSetupStates = getExperimentalToolStates(projectRoot);
@@ -363,10 +366,13 @@ ${template.instructions}
   // Config creation (simplified)
   const configPath = path.join(projectRoot, 'openspec', 'config.yaml');
   const configYmlPath = path.join(projectRoot, 'openspec', 'config.yml');
-  const configExists = fs.existsSync(configPath) || fs.existsSync(configYmlPath);
+  const configYamlExists = fs.existsSync(configPath);
+  const configYmlExists = fs.existsSync(configYmlPath);
+  const configExists = configYamlExists || configYmlExists;
 
   if (configExists) {
-    console.log(`Config: openspec/config.yaml (exists)`);
+    const existingConfigName = configYamlExists ? 'config.yaml' : 'config.yml';
+    console.log(`Config: openspec/${existingConfigName} (exists)`);
   } else if (!isInteractive(options)) {
     console.log(chalk.dim(`Config: skipped (non-interactive mode)`));
   } else {

@@ -50,10 +50,17 @@ export async function templatesCommand(options: TemplatesOptions): Promise<void>
     const projectSchemasDir = getProjectSchemasDir(projectRoot);
     const userSchemasDir = getUserSchemasDir();
 
+    // Determine source by checking if schemaDir is inside each base directory
+    // Using path.relative is more robust than startsWith for path comparisons
+    const isInsideDir = (child: string, parent: string): boolean => {
+      const relative = path.relative(parent, child);
+      return !relative.startsWith('..') && !path.isAbsolute(relative);
+    };
+
     let source: 'project' | 'user' | 'package';
-    if (schemaDir.startsWith(projectSchemasDir)) {
+    if (isInsideDir(schemaDir, projectSchemasDir)) {
       source = 'project';
-    } else if (schemaDir.startsWith(userSchemasDir)) {
+    } else if (isInsideDir(schemaDir, userSchemasDir)) {
       source = 'user';
     } else {
       source = 'package';
