@@ -197,6 +197,7 @@ describe('InitCommand', () => {
       expect(proposalContent).toContain('auto_execution_mode: 3');
       expect(proposalContent).toContain('<!-- OPENSPEC:START -->');
       expect(proposalContent).toContain('**Guardrails**');
+      expect(proposalContent).toContain('Linear MCP');
 
       const applyContent = await fs.readFile(wsApply, 'utf-8');
       expect(applyContent).toContain('---');

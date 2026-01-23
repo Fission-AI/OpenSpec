@@ -11,11 +11,12 @@ const proposalGuardrails = `${baseGuardrails}\n- Identify any vague or ambiguous
 const proposalSteps = `**Steps**
 1. Review \`openspec/project.md\`, run \`openspec list\` and \`openspec list --specs\`, and inspect related code or docs (e.g., via \`rg\`/\`ls\`) to ground the proposal in current behaviour; note any gaps that require clarification.
 2. Choose a unique verb-led \`change-id\` and scaffold \`proposal.md\`, \`tasks.md\`, and \`design.md\` (when needed) under \`openspec/changes/<id>/\`.
-3. Map the change into concrete capabilities or requirements, breaking multi-scope efforts into distinct spec deltas with clear relationships and sequencing.
-4. Capture architectural reasoning in \`design.md\` when the solution spans multiple systems, introduces new patterns, or demands trade-off discussion before committing to specs.
-5. Draft spec deltas in \`changes/<id>/specs/<capability>/spec.md\` (one folder per capability) using \`## ADDED|MODIFIED|REMOVED Requirements\` with at least one \`#### Scenario:\` per requirement and cross-reference related capabilities when relevant.
-6. Draft \`tasks.md\` as an ordered list of small, verifiable work items that deliver user-visible progress, include validation (tests, tooling), and highlight dependencies or parallelizable work.
-7. Validate with \`openspec validate <id> --strict --no-interactive\` and resolve every issue before sharing the proposal.`;
+3. If Linear MCP is connected (confirm by listing teams), check for \`openspec/linear.yml\`. When missing, query Linear for available teams and projects, present the list, ask the user to select their preferred team and project, then persist to \`openspec/linear.yml\` and update \`openspec/project.md\`. When present, load \`team_id\` and \`project_id\` from \`openspec/linear.yml\` and update \`openspec/project.md\`. Then ensure each \`openspec/specs/\` capability has a matching Linear epic issue in the preferred project, list top backlog stories, prompt for selection, write \`linear_story_id\` into \`proposal.md\` frontmatter, and move the story from Backlog to Todo. If Linear MCP is not available, continue without Linear prompts or updates.
+4. Map the change into concrete capabilities or requirements, breaking multi-scope efforts into distinct spec deltas with clear relationships and sequencing.
+5. Capture architectural reasoning in \`design.md\` when the solution spans multiple systems, introduces new patterns, or demands trade-off discussion before committing to specs.
+6. Draft spec deltas in \`changes/<id>/specs/<capability>/spec.md\` (one folder per capability) using \`## ADDED|MODIFIED|REMOVED Requirements\` with at least one \`#### Scenario:\` per requirement and cross-reference related capabilities when relevant.
+7. Draft \`tasks.md\` as an ordered list of small, verifiable work items that deliver user-visible progress, include validation (tests, tooling), and highlight dependencies or parallelizable work.
+8. Validate with \`openspec validate <id> --strict --no-interactive\` and resolve every issue before sharing the proposal.`;
 
 
 const proposalReferences = `**Reference**
@@ -26,10 +27,11 @@ const proposalReferences = `**Reference**
 const applySteps = `**Steps**
 Track these steps as TODOs and complete them one by one.
 1. Read \`changes/<id>/proposal.md\`, \`design.md\` (if present), and \`tasks.md\` to confirm scope and acceptance criteria.
-2. Work through tasks sequentially, keeping edits minimal and focused on the requested change.
-3. Confirm completion before updating statuses—make sure every item in \`tasks.md\` is finished.
-4. Update the checklist after all work is done so each task is marked \`- [x]\` and reflects reality.
-5. Reference \`openspec list\` or \`openspec show <item>\` when additional context is required.`;
+2. If Linear MCP is connected (confirm by listing teams), load \`openspec/linear.yml\` for \`team_id\` and \`project_id\` or prompt to select them, persist to \`openspec/linear.yml\`, update \`openspec/project.md\`, ensure each \`openspec/specs/\` capability has a matching Linear epic issue in the preferred project, and when \`proposal.md\` includes \`linear_story_id\`, update the Linear story description with the proposal content and move it to In Progress. If Linear MCP is not available, continue without Linear prompts or updates.
+3. Work through tasks sequentially, keeping edits minimal and focused on the requested change.
+4. Confirm completion before updating statuses—make sure every item in \`tasks.md\` is finished.
+5. Update the checklist after all work is done so each task is marked \`- [x]\` and reflects reality.
+6. Reference \`openspec list\` or \`openspec show <item>\` when additional context is required.`;
 
 const applyReferences = `**Reference**
 - Use \`openspec show <id> --json --deltas-only\` if you need additional context from the proposal while implementing.`;
@@ -42,8 +44,9 @@ const archiveSteps = `**Steps**
    - If you still cannot identify a single change ID, stop and tell the user you cannot archive anything yet.
 2. Validate the change ID by running \`openspec list\` (or \`openspec show <id>\`) and stop if the change is missing, already archived, or otherwise not ready to archive.
 3. Run \`openspec archive <id> --yes\` so the CLI moves the change and applies spec updates without prompts (use \`--skip-specs\` only for tooling-only work).
-4. Review the command output to confirm the target specs were updated and the change landed in \`changes/archive/\`.
-5. Validate with \`openspec validate --strict --no-interactive\` and inspect with \`openspec show <id>\` if anything looks off.`;
+4. If Linear MCP is connected (confirm by listing teams), load \`openspec/linear.yml\` for \`team_id\` and \`project_id\` or prompt to select them, persist to \`openspec/linear.yml\`, update \`openspec/project.md\`, ensure each \`openspec/specs/\` capability has a matching Linear epic issue in the preferred project, and when \`proposal.md\` includes \`linear_story_id\`, update the Linear story description with the proposal content and move it to Done. After the archive completes and the merged source-of-truth specs are updated, ensure each updated spec has a single Linear issue in status \`Spec\`: if the spec front matter already includes \`linear_spec_issue_id\`, update that issue with the latest spec content; if not, search for an existing issue for the spec and create one if missing, then add \`linear_spec_issue_id\` to the spec front matter. Do this for every merged spec produced by the archive. If Linear MCP is not available, continue without Linear prompts or updates.
+5. Review the command output to confirm the target specs were updated and the change landed in \`changes/archive/\`.
+6. Validate with \`openspec validate --strict --no-interactive\` and inspect with \`openspec show <id>\` if anything looks off.`;
 
 const archiveReferences = `**Reference**
 - Use \`openspec list\` to confirm change IDs before archiving.
