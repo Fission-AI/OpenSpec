@@ -221,6 +221,54 @@ When AI creates proposals, it should reference relevant ADRs in design.md and ta
 - Manual ADR references only → Rejected: Easy to forget, inconsistent
 - ADR validation blocks conflicting proposals → Rejected: Too rigid for v1
 
+### Decision 7: Proactive ADR Detection
+
+**What**: AI agents automatically detect when architectural decisions are embedded in user requests and create ADRs without requiring explicit user request.
+
+**Example workflow**:
+```
+User: "Create a login feature with session storage"
+
+AI analysis:
+1. "login feature" → functional spec needed (user-auth)
+2. "session storage" → architectural decision (database choice)
+3. Check: ADR for data storage exists? No → create one
+
+AI creates change:
+changes/add-login/
+├── adrs/database-strategy/
+│   ├── decision.md  # ADDED: DynamoDB for sessions
+│   └── adr.md
+└── specs/user-auth/
+    └── spec.md      # ADDED: References database-strategy ADR
+```
+
+**Detection heuristics** documented in AGENTS.md:
+- Technology selection (database, framework, library, language)
+- Infrastructure choices (hosting, deployment, CI/CD)
+- Security approaches (auth method, encryption strategy)
+- Cross-cutting patterns (logging, monitoring, error handling)
+- Data storage strategies (database type, caching)
+
+**Why**:
+- **Prevents decision burial**: Architectural decisions won't be hidden in spec implementation details
+- **Enforces single source of truth**: Database choice becomes reusable ADR, not repeated across specs
+- **Better AI behavior**: AI extracts architectural decisions automatically, user doesn't need to know ADR system
+- **Natural workflow**: User describes feature, AI structures it properly (ADR + spec)
+- **Consistency**: All projects using OpenSpec will capture architectural decisions uniformly
+
+**Alternatives considered**:
+- Require users to explicitly request ADRs → Rejected: Users won't know when ADRs are needed, decisions get buried in specs
+- Create ADRs only when user says "create an ADR" → Rejected: Misses the point of automated extraction
+- No proactive detection, rely on post-hoc refactoring → Rejected: Decisions already scattered across specs by then
+- Strict rules forcing ADRs → Rejected: Too rigid, ADRs should be optional but encouraged
+
+**Implementation approach**:
+- Add detection guidance to AGENTS.md with decision tree
+- Update instruction-loader to include ADR checking in proposal workflow
+- Add scenarios to change-creation spec about extracting decisions
+- Provide concrete examples in docs
+
 ## Risks / Trade-offs
 
 ### Risk 1: Template Complexity
@@ -250,6 +298,15 @@ When AI creates proposals, it should reference relevant ADRs in design.md and ta
 - Clear visual distinction in CLI output (icons, colors)
 - Consistent workflow reduces learning curve
 - Optional adoption - teams can use specs only if preferred
+
+### Risk 5: Over-Creating ADRs
+**Risk**: AI might create too many ADRs for decisions that don't need them
+**Mitigation**:
+- Clear heuristics in AGENTS.md for when NOT to create ADRs
+- Emphasize: ADRs are for cross-cutting/architectural decisions only
+- Examples of what should NOT be ADRs (feature-specific implementation details)
+- Human review during proposal stage can reject unnecessary ADRs
+- ADRs are optional - users can delete proposed ADRs before archiving
 
 ## Migration Plan
 

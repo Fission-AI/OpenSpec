@@ -26,6 +26,7 @@ This change adds a parallel ADR system alongside specs:
 - **Template Support**: Project-configurable templates for ADRs (and optionally specs) via `openspec/templates/` directory
 - **CLI Integration**: All existing commands (`list`, `show`, `validate`, `archive`) support ADRs
 - **AI Context Integration**: ADRs automatically included in AI agent context to influence proposals, tasks, and designs
+- **Proactive ADR Creation**: AI agents automatically detect when architectural decisions are needed and create ADRs without explicit user request
 - **Clear Separation**:
   - **Specs** = functional behavior (WHAT) - typically one capability, one spec
   - **ADRs** = architectural decisions (HOW/WITH WHAT) - **one ADR affects many specs**
@@ -90,6 +91,34 @@ This change adds a parallel ADR system alongside specs:
 
    **Context Efficiency:** 20 ADRs × ~200 tokens = ~4K tokens (vs ~20K for full ADRs)
 
+5. **Proactive ADR Detection**: AI agents automatically identify when architectural decisions are needed
+
+   **Example workflow:**
+   ```
+   User: "Create a login feature with session storage"
+
+   AI detects:
+   - "Login feature" → Functional spec needed
+   - "Session storage" → Architectural decision (database choice)
+
+   AI checks:
+   - Is there an ADR for data storage? No → Create one
+
+   AI creates change with BOTH:
+   ├── adrs/database-strategy/     # NEW ADR for database choice
+   │   ├── decision.md
+   │   └── adr.md
+   └── specs/user-auth/            # Spec references the ADR
+       └── spec.md
+   ```
+
+   **Detection heuristics** (AI creates ADR when decision involves):
+   - Technology/library selection (database, framework, auth method)
+   - Infrastructure choices (hosting, deployment, CI/CD platform)
+   - Security approaches (encryption, authentication strategy)
+   - Cross-cutting patterns (logging, monitoring, error handling)
+   - Decisions affecting multiple specs (current or future)
+
 ## Impact
 
 ### Affected Specs
@@ -98,9 +127,10 @@ This change adds a parallel ADR system alongside specs:
 - **cli-show**: Support ADR display with `--type adr`
 - **cli-validate**: Validate ADR deltas in changes
 - **cli-archive**: Apply ADR deltas to `adrs/` directory
-- **change-creation**: Document how to create ADR changes
-- **instruction-loader**: Include ADRs in AI agent context
+- **change-creation**: Document how to create ADR changes and extract architectural decisions from user requests
+- **instruction-loader**: Include ADRs in AI agent context and proactively suggest ADR creation
 - **cli-config**: Support template configuration
+- **docs-agent-instructions**: Add guidance for when and how to create ADRs proactively
 - **NEW: adr-management** - New spec for ADR-specific requirements
 
 ### Affected Code

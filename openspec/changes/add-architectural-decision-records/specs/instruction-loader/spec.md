@@ -49,3 +49,45 @@ The instruction loader SHALL include Architectural Decision Records (ADRs) when 
 - **THEN** the instruction loader MAY prioritize loading relevant ADRs
 - **AND** include related ADRs based on keywords or references
 - **AND** ensure comprehensive context for architectural consistency
+
+### Requirement: Proactive ADR Suggestion
+
+The system SHALL guide AI agents to proactively detect when architectural decisions are needed and create ADRs without explicit user request.
+
+#### Scenario: Detecting architectural decisions in user requests
+
+- **WHEN** an AI agent receives a request that implies architectural choices
+- **THEN** the agent SHALL analyze the request for architectural decisions:
+  - Technology selection (database, framework, library, language)
+  - Infrastructure choices (hosting platform, deployment strategy, CI/CD)
+  - Security approaches (authentication method, encryption strategy)
+  - Cross-cutting patterns (logging, monitoring, error handling)
+  - Data storage strategies (database type, caching approach)
+- **AND** check if relevant ADRs exist
+- **AND** create new ADRs in the same change if architectural decisions are missing
+
+#### Scenario: Extracting architectural decisions from feature requests
+
+- **WHEN** user requests a feature like "add login with session storage"
+- **THEN** the AI agent SHALL identify implicit architectural decisions:
+  - "session storage" implies database/storage choice
+- **AND** check for existing ADR covering this decision
+- **AND** if no ADR exists, create one in the same change as the spec
+- **AND** have the spec reference the ADR in its design.md
+
+#### Scenario: Single change with both ADR and spec
+
+- **WHEN** AI creates a change with both new ADR and new spec
+- **THEN** structure the change with both:
+  - `changes/[name]/adrs/[decision]/` - Architectural decision
+  - `changes/[name]/specs/[capability]/` - Functional spec
+- **AND** explain in proposal.md why both are needed
+- **AND** set up task dependencies: ADR review before spec implementation
+- **AND** ensure spec references the ADR
+
+#### Scenario: Not creating unnecessary ADRs
+
+- **WHEN** a decision is feature-specific and unlikely to affect other specs
+- **THEN** the AI agent SHALL NOT create an ADR
+- **AND** document the decision in the spec's design.md instead
+- **AND** only elevate to ADR if the decision is truly cross-cutting or architectural

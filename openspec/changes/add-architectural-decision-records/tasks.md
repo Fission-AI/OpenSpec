@@ -25,9 +25,12 @@
 
 ## 4. Documentation Updates
 - [ ] 4.1 Update `openspec/AGENTS.md` with ADR workflow instructions
-- [ ] 4.2 Add ADR examples to documentation
-- [ ] 4.3 Update `openspec/project.md` to mention ADR structure
-- [ ] 4.4 Create migration guide for teams adopting ADRs
+- [ ] 4.2 Add proactive ADR detection guidance to `AGENTS.md`
+- [ ] 4.3 Include decision tree/checklist for when to create ADRs in `AGENTS.md`
+- [ ] 4.4 Add concrete examples of ADR extraction from user requests to `AGENTS.md`
+- [ ] 4.5 Add ADR examples to documentation
+- [ ] 4.6 Update `openspec/project.md` to mention ADR structure
+- [ ] 4.7 Create migration guide for teams adopting ADRs
 
 ## 5. Specification Deltas
 - [ ] 5.1 Create delta for `openspec-conventions` spec (ADR concepts)

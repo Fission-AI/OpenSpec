@@ -52,6 +52,63 @@ Change proposals SHALL support creating and modifying Architectural Decision Rec
 - **AND** use format: "See ADR: [decision-name]"
 - **AND** explain how the ADR influences the implementation approach
 
+### Requirement: Extracting Architectural Decisions from Requests
+
+AI agents SHALL proactively identify when user requests contain architectural decisions and create ADRs automatically.
+
+#### Scenario: Identifying architectural decisions in feature requests
+
+- **WHEN** AI processes a user request for a new feature
+- **THEN** analyze the request for architectural implications:
+  - Technology choices (e.g., "session storage" implies database selection)
+  - Infrastructure needs (e.g., "real-time updates" implies WebSocket/SSE decision)
+  - Security requirements (e.g., "user authentication" implies auth method decision)
+  - Cross-cutting concerns (e.g., "track events" implies logging/analytics strategy)
+- **AND** identify decisions that should be ADRs vs spec implementation details
+
+#### Scenario: Creating ADR and spec in same change
+
+- **WHEN** AI detects an architectural decision is needed for a spec
+- **THEN** create both in the same change:
+  - ADR under `changes/[name]/adrs/[decision]/`
+  - Spec under `changes/[name]/specs/[capability]/`
+- **AND** explain in proposal.md: "This feature requires [architectural decision], so including ADR"
+- **AND** structure tasks.md with dependency: ADR review → spec implementation
+- **AND** have spec's design.md reference the ADR
+
+#### Scenario: Example - login feature with storage
+
+- **WHEN** user requests "create a login feature with session storage"
+- **THEN** AI SHALL detect:
+  - Functional requirement: login feature (spec)
+  - Architectural decision: database for sessions (ADR)
+- **AND** check: does an ADR for data storage exist?
+  - If YES: reference existing ADR in spec
+  - If NO: create new ADR in same change
+- **AND** create change containing both ADR and spec
+
+#### Scenario: Reusing existing ADRs
+
+- **WHEN** AI detects an architectural decision is needed
+- **THEN** check if a relevant ADR already exists
+- **AND** if ADR exists and applies, reference it from the spec
+- **AND** if ADR exists but needs updating, modify it in the change
+- **AND** only create new ADR if no relevant one exists
+
+#### Scenario: Determining ADR vs implementation detail
+
+- **WHEN** deciding whether a decision warrants an ADR
+- **THEN** create ADR if the decision:
+  - Affects or could affect multiple specs
+  - Involves technology/infrastructure selection
+  - Has multiple reasonable alternatives
+  - Has long-term architectural implications
+- **AND** keep as implementation detail if the decision:
+  - Only affects one capability
+  - Is purely functional/behavioral
+  - Is a standard implementation pattern
+  - Unlikely to be reused elsewhere
+
 ### Requirement: ADR Template Usage
 
 When creating new ADRs, the system SHALL support using templates to ensure consistency.
