@@ -489,9 +489,7 @@ export function formatCleanupSummary(result: CleanupResult): string {
     if (lines.length > 0) {
       lines.push('');
     }
-    lines.push('Manual migration needed:');
-    lines.push('  → openspec/project.md still exists');
-    lines.push('    Move useful content to config.yaml\'s "context:" field, then delete');
+    lines.push(formatProjectMdMigrationHint());
   }
 
   if (result.errors.length > 0) {
@@ -553,5 +551,28 @@ export function formatDetectionSummary(detection: LegacyDetectionResult): string
     lines.push('  • AGENTS.md (has OpenSpec markers)');
   }
 
+  // Include migration hint for project.md when detected
+  if (detection.hasProjectMd) {
+    const hint = formatProjectMdMigrationHint();
+    if (lines.length > 0) {
+      lines.push('');
+    }
+    lines.push(hint);
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Generates a migration hint message for project.md.
+ * This is shown when project.md exists and needs manual migration to config.yaml.
+ *
+ * @returns Formatted migration hint string for console output
+ */
+export function formatProjectMdMigrationHint(): string {
+  const lines: string[] = [];
+  lines.push('Manual migration needed:');
+  lines.push('  → openspec/project.md still exists');
+  lines.push('    Move useful content to config.yaml\'s "context:" field, then delete');
   return lines.join('\n');
 }

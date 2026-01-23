@@ -14,6 +14,7 @@ import {
   cleanupLegacyArtifacts,
   formatCleanupSummary,
   formatDetectionSummary,
+  formatProjectMdMigrationHint,
   LEGACY_CONFIG_FILES,
   LEGACY_SLASH_COMMAND_PATHS,
 } from '../../src/core/legacy-cleanup.js';
@@ -735,6 +736,78 @@ ${OPENSPEC_MARKERS.end}`);
 
       const summary = formatDetectionSummary(detection);
       expect(summary).toContain('• AGENTS.md (has OpenSpec markers)');
+    });
+
+    it('should include migration hint when project.md is detected', () => {
+      const detection = {
+        configFiles: [],
+        configFilesToDelete: [],
+        configFilesWithMixedContent: [],
+        slashCommandDirs: [],
+        slashCommandFiles: [],
+        hasOpenspecAgents: false,
+        hasProjectMd: true,
+        hasRootAgentsWithMarkers: false,
+        hasLegacyArtifacts: false,
+      };
+
+      const summary = formatDetectionSummary(detection);
+      expect(summary).toContain('Manual migration needed:');
+      expect(summary).toContain('openspec/project.md still exists');
+      expect(summary).toContain('config.yaml');
+    });
+
+    it('should include migration hint with other legacy artifacts', () => {
+      const detection = {
+        configFiles: ['CLAUDE.md'],
+        configFilesToDelete: ['CLAUDE.md'],
+        configFilesWithMixedContent: [],
+        slashCommandDirs: [],
+        slashCommandFiles: [],
+        hasOpenspecAgents: false,
+        hasProjectMd: true,
+        hasRootAgentsWithMarkers: false,
+        hasLegacyArtifacts: true,
+      };
+
+      const summary = formatDetectionSummary(detection);
+      expect(summary).toContain('Config files with OpenSpec markers:');
+      expect(summary).toContain('CLAUDE.md');
+      expect(summary).toContain('Manual migration needed:');
+      expect(summary).toContain('openspec/project.md still exists');
+    });
+
+    it('should return empty string when nothing is detected', () => {
+      const detection = {
+        configFiles: [],
+        configFilesToDelete: [],
+        configFilesWithMixedContent: [],
+        slashCommandDirs: [],
+        slashCommandFiles: [],
+        hasOpenspecAgents: false,
+        hasProjectMd: false,
+        hasRootAgentsWithMarkers: false,
+        hasLegacyArtifacts: false,
+      };
+
+      const summary = formatDetectionSummary(detection);
+      expect(summary).toBe('');
+    });
+  });
+
+  describe('formatProjectMdMigrationHint', () => {
+    it('should return migration hint message', () => {
+      const hint = formatProjectMdMigrationHint();
+      expect(hint).toContain('Manual migration needed:');
+      expect(hint).toContain('openspec/project.md still exists');
+      expect(hint).toContain('config.yaml');
+      expect(hint).toContain('context:');
+    });
+
+    it('should include actionable instructions', () => {
+      const hint = formatProjectMdMigrationHint();
+      expect(hint).toContain('Move useful content');
+      expect(hint).toContain('then delete');
     });
   });
 
