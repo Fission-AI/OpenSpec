@@ -5,6 +5,7 @@
 
 import path from 'path';
 import { promises as fs } from 'fs';
+import chalk from 'chalk';
 import { FileSystemUtils, removeMarkerBlock as removeMarkerBlockUtil } from '../utils/file-system.js';
 import { OPENSPEC_MARKERS } from './config.js';
 
@@ -70,10 +71,8 @@ export interface LegacySlashCommandPattern {
 export interface LegacyDetectionResult {
   /** Config files with OpenSpec markers detected */
   configFiles: string[];
-  /** Config files that are 100% OpenSpec content (can be deleted entirely) */
-  configFilesToDelete: string[];
-  /** Config files with mixed content (only marker block should be removed) */
-  configFilesWithMixedContent: string[];
+  /** Config files to update (remove markers only, never delete) */
+  configFilesToUpdate: string[];
   /** Legacy slash command directories found */
   slashCommandDirs: string[];
   /** Legacy slash command files found (for file-based tools) */
@@ -99,8 +98,7 @@ export async function detectLegacyArtifacts(
 ): Promise<LegacyDetectionResult> {
   const result: LegacyDetectionResult = {
     configFiles: [],
-    configFilesToDelete: [],
-    configFilesWithMixedContent: [],
+    configFilesToUpdate: [],
     slashCommandDirs: [],
     slashCommandFiles: [],
     hasOpenspecAgents: false,
@@ -112,8 +110,7 @@ export async function detectLegacyArtifacts(
   // Detect legacy config files
   const configResult = await detectLegacyConfigFiles(projectPath);
   result.configFiles = configResult.allFiles;
-  result.configFilesToDelete = configResult.filesToDelete;
-  result.configFilesWithMixedContent = configResult.filesWithMixedContent;
+  result.configFilesToUpdate = configResult.filesToUpdate;
 
   // Detect legacy slash commands
   const slashResult = await detectLegacySlashCommands(projectPath);
@@ -139,20 +136,20 @@ export async function detectLegacyArtifacts(
 
 /**
  * Detects legacy config files with OpenSpec markers.
+ * All config files with markers are candidates for update (marker removal only).
+ * Config files are NEVER deleted - they belong to the user's project root.
  *
  * @param projectPath - The root path of the project
- * @returns Object with all files found and categorized by deletion type
+ * @returns Object with all files found and files to update
  */
 export async function detectLegacyConfigFiles(
   projectPath: string
 ): Promise<{
   allFiles: string[];
-  filesToDelete: string[];
-  filesWithMixedContent: string[];
+  filesToUpdate: string[];
 }> {
   const allFiles: string[] = [];
-  const filesToDelete: string[] = [];
-  const filesWithMixedContent: string[] = [];
+  const filesToUpdate: string[] = [];
 
   for (const fileName of LEGACY_CONFIG_FILES) {
     const filePath = FileSystemUtils.joinPath(projectPath, fileName);
@@ -162,17 +159,12 @@ export async function detectLegacyConfigFiles(
 
       if (hasOpenSpecMarkers(content)) {
         allFiles.push(fileName);
-
-        if (isOnlyOpenSpecContent(content)) {
-          filesToDelete.push(fileName);
-        } else {
-          filesWithMixedContent.push(fileName);
-        }
+        filesToUpdate.push(fileName); // Always update, never delete config files
       }
     }
   }
 
-  return { allFiles, filesToDelete, filesWithMixedContent };
+  return { allFiles, filesToUpdate };
 }
 
 /**
@@ -369,38 +361,22 @@ export async function cleanupLegacyArtifacts(
     errors: [],
   };
 
-  // Delete config files that are 100% OpenSpec content
-  for (const fileName of detection.configFilesToDelete) {
-    const filePath = FileSystemUtils.joinPath(projectPath, fileName);
-    try {
-      await fs.unlink(filePath);
-      result.deletedFiles.push(fileName);
-    } catch (error: any) {
-      result.errors.push(`Failed to delete ${fileName}: ${error.message}`);
-    }
-  }
-
-  // Remove marker blocks from config files with mixed content
-  for (const fileName of detection.configFilesWithMixedContent) {
+  // Remove marker blocks from config files (NEVER delete config files)
+  // Config files like CLAUDE.md, AGENTS.md belong to the user's project root
+  for (const fileName of detection.configFilesToUpdate) {
     const filePath = FileSystemUtils.joinPath(projectPath, fileName);
     try {
       const content = await FileSystemUtils.readFile(filePath);
       const newContent = removeMarkerBlock(content);
-
-      if (newContent === '') {
-        // After removing markers, file is empty - delete it
-        await fs.unlink(filePath);
-        result.deletedFiles.push(fileName);
-      } else {
-        await FileSystemUtils.writeFile(filePath, newContent);
-        result.modifiedFiles.push(fileName);
-      }
+      // Always write the file, even if empty - never delete user config files
+      await FileSystemUtils.writeFile(filePath, newContent);
+      result.modifiedFiles.push(fileName);
     } catch (error: any) {
       result.errors.push(`Failed to modify ${fileName}: ${error.message}`);
     }
   }
 
-  // Delete legacy slash command directories
+  // Delete legacy slash command directories (these are 100% OpenSpec-managed)
   for (const dirPath of detection.slashCommandDirs) {
     const fullPath = FileSystemUtils.joinPath(projectPath, dirPath);
     try {
@@ -411,7 +387,7 @@ export async function cleanupLegacyArtifacts(
     }
   }
 
-  // Delete legacy slash command files
+  // Delete legacy slash command files (these are 100% OpenSpec-managed)
   for (const filePath of detection.slashCommandFiles) {
     const fullPath = FileSystemUtils.joinPath(projectPath, filePath);
     try {
@@ -422,7 +398,7 @@ export async function cleanupLegacyArtifacts(
     }
   }
 
-  // Delete openspec/AGENTS.md
+  // Delete openspec/AGENTS.md (this is inside openspec/, it's OpenSpec-managed)
   if (detection.hasOpenspecAgents) {
     const agentsPath = FileSystemUtils.joinPath(projectPath, 'openspec', 'AGENTS.md');
     try {
@@ -433,29 +409,9 @@ export async function cleanupLegacyArtifacts(
     }
   }
 
-  // Handle root AGENTS.md with OpenSpec markers
-  if (detection.hasRootAgentsWithMarkers) {
-    const rootAgentsPath = FileSystemUtils.joinPath(projectPath, 'AGENTS.md');
-    try {
-      const content = await FileSystemUtils.readFile(rootAgentsPath);
-
-      if (isOnlyOpenSpecContent(content)) {
-        await fs.unlink(rootAgentsPath);
-        result.deletedFiles.push('AGENTS.md');
-      } else {
-        const newContent = removeMarkerBlock(content);
-        if (newContent === '') {
-          await fs.unlink(rootAgentsPath);
-          result.deletedFiles.push('AGENTS.md');
-        } else {
-          await FileSystemUtils.writeFile(rootAgentsPath, newContent);
-          result.modifiedFiles.push('AGENTS.md');
-        }
-      }
-    } catch (error: any) {
-      result.errors.push(`Failed to handle AGENTS.md: ${error.message}`);
-    }
-  }
+  // Handle root AGENTS.md with OpenSpec markers - remove markers only, NEVER delete
+  // Note: Root AGENTS.md is handled via configFilesToUpdate above (it's in LEGACY_CONFIG_FILES)
+  // This hasRootAgentsWithMarkers flag is just for detection, cleanup happens via configFilesToUpdate
 
   return result;
 }
@@ -506,7 +462,59 @@ export function formatCleanupSummary(result: CleanupResult): string {
 }
 
 /**
+ * Build list of files to be removed with explanations.
+ * Only includes OpenSpec-managed files (slash commands, openspec/AGENTS.md).
+ * Config files like CLAUDE.md, AGENTS.md are NEVER deleted.
+ *
+ * @param detection - Detection result from detectLegacyArtifacts
+ * @returns Array of objects with path and explanation
+ */
+function buildRemovalsList(detection: LegacyDetectionResult): Array<{ path: string; explanation: string }> {
+  const removals: Array<{ path: string; explanation: string }> = [];
+
+  // Slash command directories (these are 100% OpenSpec-managed)
+  for (const dir of detection.slashCommandDirs) {
+    const toolDir = dir.split('/')[0];
+    removals.push({ path: dir + '/', explanation: `replaced by ${toolDir}/skills/` });
+  }
+
+  // Slash command files (these are 100% OpenSpec-managed)
+  for (const file of detection.slashCommandFiles) {
+    removals.push({ path: file, explanation: 'replaced by skills/' });
+  }
+
+  // openspec/AGENTS.md (inside openspec/, it's OpenSpec-managed)
+  if (detection.hasOpenspecAgents) {
+    removals.push({ path: 'openspec/AGENTS.md', explanation: 'obsolete workflow file' });
+  }
+
+  // Note: Config files (CLAUDE.md, AGENTS.md, etc.) are NEVER in the removals list
+  // They always go to the updates list where only markers are removed
+
+  return removals;
+}
+
+/**
+ * Build list of files to be updated with explanations.
+ * Includes ALL config files with markers - markers are removed, file is never deleted.
+ *
+ * @param detection - Detection result from detectLegacyArtifacts
+ * @returns Array of objects with path and explanation
+ */
+function buildUpdatesList(detection: LegacyDetectionResult): Array<{ path: string; explanation: string }> {
+  const updates: Array<{ path: string; explanation: string }> = [];
+
+  // All config files with markers get updated (markers removed, file preserved)
+  for (const file of detection.configFilesToUpdate) {
+    updates.push({ path: file, explanation: 'removing OpenSpec markers' });
+  }
+
+  return updates;
+}
+
+/**
  * Generates a detection summary message for display before cleanup.
+ * Groups files by action type: removals, updates, and manual migration.
  *
  * @param detection - Detection result from detectLegacyArtifacts
  * @returns Formatted summary string showing what was found
@@ -514,53 +522,89 @@ export function formatCleanupSummary(result: CleanupResult): string {
 export function formatDetectionSummary(detection: LegacyDetectionResult): string {
   const lines: string[] = [];
 
-  if (detection.configFiles.length > 0) {
-    lines.push('Config files with OpenSpec markers:');
-    for (const file of detection.configFiles) {
-      lines.push(`  • ${file}`);
+  const removals = buildRemovalsList(detection);
+  const updates = buildUpdatesList(detection);
+
+  // If nothing to show, return empty
+  if (removals.length === 0 && updates.length === 0 && !detection.hasProjectMd) {
+    return '';
+  }
+
+  // Header - welcoming upgrade message
+  lines.push(chalk.bold('Upgrading to the new OpenSpec'));
+  lines.push('');
+  lines.push('OpenSpec now uses agent skills, the emerging standard across coding');
+  lines.push('agents. This simplifies your setup while keeping everything working');
+  lines.push('as before.');
+  lines.push('');
+
+  // Section 1: Files to remove (no user content to preserve)
+  if (removals.length > 0) {
+    lines.push(chalk.bold('Files to remove'));
+    lines.push(chalk.dim('No user content to preserve:'));
+    for (const { path } of removals) {
+      lines.push(`  • ${path}`);
     }
   }
 
-  if (detection.slashCommandDirs.length > 0) {
-    if (lines.length > 0) lines.push('');
-    lines.push('Legacy slash command directories:');
-    for (const dir of detection.slashCommandDirs) {
-      lines.push(`  • ${dir}/`);
+  // Section 2: Files to update (markers removed, content preserved)
+  if (updates.length > 0) {
+    if (removals.length > 0) lines.push('');
+    lines.push(chalk.bold('Files to update'));
+    lines.push(chalk.dim('OpenSpec markers will be removed, your content preserved:'));
+    for (const { path } of updates) {
+      lines.push(`  • ${path}`);
     }
   }
 
-  if (detection.slashCommandFiles.length > 0) {
-    if (lines.length > 0) lines.push('');
-    lines.push('Legacy slash command files:');
-    for (const file of detection.slashCommandFiles) {
-      lines.push(`  • ${file}`);
-    }
-  }
-
-  if (detection.hasOpenspecAgents) {
-    if (lines.length > 0) lines.push('');
-    lines.push('Legacy structure files:');
-    lines.push('  • openspec/AGENTS.md');
-  }
-
-  if (detection.hasRootAgentsWithMarkers && !detection.configFiles.includes('AGENTS.md')) {
-    if (lines.length > 0 && !detection.hasOpenspecAgents) lines.push('');
-    if (!detection.hasOpenspecAgents) {
-      lines.push('Legacy structure files:');
-    }
-    lines.push('  • AGENTS.md (has OpenSpec markers)');
-  }
-
-  // Include migration hint for project.md when detected
+  // Section 3: Manual migration (project.md)
   if (detection.hasProjectMd) {
-    const hint = formatProjectMdMigrationHint();
-    if (lines.length > 0) {
-      lines.push('');
-    }
-    lines.push(hint);
+    if (removals.length > 0 || updates.length > 0) lines.push('');
+    lines.push(formatProjectMdMigrationHint());
   }
 
   return lines.join('\n');
+}
+
+/**
+ * Extract tool IDs from detected legacy artifacts.
+ * Uses LEGACY_SLASH_COMMAND_PATHS to map paths back to tool IDs.
+ *
+ * @param detection - Detection result from detectLegacyArtifacts
+ * @returns Array of tool IDs that had legacy artifacts
+ */
+export function getToolsFromLegacyArtifacts(detection: LegacyDetectionResult): string[] {
+  const tools = new Set<string>();
+
+  // Match directories to tool IDs
+  for (const dir of detection.slashCommandDirs) {
+    for (const [toolId, pattern] of Object.entries(LEGACY_SLASH_COMMAND_PATHS)) {
+      if (pattern.type === 'directory' && pattern.path === dir) {
+        tools.add(toolId);
+        break;
+      }
+    }
+  }
+
+  // Match files to tool IDs using glob patterns
+  for (const file of detection.slashCommandFiles) {
+    for (const [toolId, pattern] of Object.entries(LEGACY_SLASH_COMMAND_PATHS)) {
+      if (pattern.type === 'files' && pattern.pattern) {
+        // Convert glob pattern to regex for matching
+        // e.g., '.cursor/commands/openspec-*.md' -> /^\.cursor\/commands\/openspec-.*\.md$/
+        const regexPattern = pattern.pattern
+          .replace(/[.+^${}()|[\]\\]/g, '\\$&') // Escape regex special chars except *
+          .replace(/\*/g, '.*'); // Replace * with .*
+        const regex = new RegExp(`^${regexPattern}$`);
+        if (regex.test(file)) {
+          tools.add(toolId);
+          break;
+        }
+      }
+    }
+  }
+
+  return Array.from(tools);
 }
 
 /**
@@ -571,8 +615,15 @@ export function formatDetectionSummary(detection: LegacyDetectionResult): string
  */
 export function formatProjectMdMigrationHint(): string {
   const lines: string[] = [];
-  lines.push('Manual migration needed:');
-  lines.push('  → openspec/project.md still exists');
-  lines.push('    Move useful content to config.yaml\'s "context:" field, then delete');
+  lines.push(chalk.yellow.bold('Needs your attention'));
+  lines.push('  • openspec/project.md');
+  lines.push(chalk.dim('    We won\'t delete this file. It may contain useful project context.'));
+  lines.push('');
+  lines.push(chalk.dim('    The new openspec/config.yaml has a "context:" section for planning'));
+  lines.push(chalk.dim('    context. This is included in every OpenSpec request and works more'));
+  lines.push(chalk.dim('    reliably than the old project.md approach.'));
+  lines.push('');
+  lines.push(chalk.dim('    Review project.md, move any useful content to config.yaml\'s context'));
+  lines.push(chalk.dim('    section, then delete the file when ready.'));
   return lines.join('\n');
 }

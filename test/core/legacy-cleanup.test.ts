@@ -15,6 +15,7 @@ import {
   formatCleanupSummary,
   formatDetectionSummary,
   formatProjectMdMigrationHint,
+  getToolsFromLegacyArtifacts,
   LEGACY_CONFIG_FILES,
   LEGACY_SLASH_COMMAND_PATHS,
 } from '../../src/core/legacy-cleanup.js';
@@ -202,7 +203,7 @@ After content`;
   });
 
   describe('detectLegacyConfigFiles', () => {
-    it('should detect CLAUDE.md with OpenSpec markers', async () => {
+    it('should detect CLAUDE.md with OpenSpec markers and put in update list', async () => {
       const claudePath = path.join(testDir, 'CLAUDE.md');
       await fs.writeFile(claudePath, `${OPENSPEC_MARKERS.start}
 OpenSpec content
@@ -210,11 +211,11 @@ ${OPENSPEC_MARKERS.end}`);
 
       const result = await detectLegacyConfigFiles(testDir);
       expect(result.allFiles).toContain('CLAUDE.md');
-      expect(result.filesToDelete).toContain('CLAUDE.md');
-      expect(result.filesWithMixedContent).not.toContain('CLAUDE.md');
+      // Config files are NEVER deleted, always updated (markers removed)
+      expect(result.filesToUpdate).toContain('CLAUDE.md');
     });
 
-    it('should categorize files with mixed content correctly', async () => {
+    it('should detect files with mixed content and put in update list', async () => {
       const claudePath = path.join(testDir, 'CLAUDE.md');
       await fs.writeFile(claudePath, `User instructions here
 ${OPENSPEC_MARKERS.start}
@@ -223,8 +224,7 @@ ${OPENSPEC_MARKERS.end}`);
 
       const result = await detectLegacyConfigFiles(testDir);
       expect(result.allFiles).toContain('CLAUDE.md');
-      expect(result.filesToDelete).not.toContain('CLAUDE.md');
-      expect(result.filesWithMixedContent).toContain('CLAUDE.md');
+      expect(result.filesToUpdate).toContain('CLAUDE.md');
     });
 
     it('should not detect files without OpenSpec markers', async () => {
@@ -246,13 +246,14 @@ ${OPENSPEC_MARKERS.end}`);
       expect(result.allFiles).toContain('CLAUDE.md');
       expect(result.allFiles).toContain('CLINE.md');
       expect(result.allFiles).toContain('QODER.md');
+      // All should be in update list, none deleted
+      expect(result.filesToUpdate).toHaveLength(3);
     });
 
     it('should handle non-existent files gracefully', async () => {
       const result = await detectLegacyConfigFiles(testDir);
       expect(result.allFiles).toHaveLength(0);
-      expect(result.filesToDelete).toHaveLength(0);
-      expect(result.filesWithMixedContent).toHaveLength(0);
+      expect(result.filesToUpdate).toHaveLength(0);
     });
   });
 
@@ -434,15 +435,22 @@ ${OPENSPEC_MARKERS.end}`);
   });
 
   describe('cleanupLegacyArtifacts', () => {
-    it('should delete config files that are 100% OpenSpec content', async () => {
+    it('should remove markers from config files that have only OpenSpec content (never delete)', async () => {
       const claudePath = path.join(testDir, 'CLAUDE.md');
       await fs.writeFile(claudePath, `${OPENSPEC_MARKERS.start}\nContent\n${OPENSPEC_MARKERS.end}`);
 
       const detection = await detectLegacyArtifacts(testDir);
       const result = await cleanupLegacyArtifacts(testDir, detection);
 
-      expect(result.deletedFiles).toContain('CLAUDE.md');
-      await expect(fs.access(claudePath)).rejects.toThrow();
+      // Config files should NEVER be deleted, only have markers removed
+      expect(result.deletedFiles).not.toContain('CLAUDE.md');
+      expect(result.modifiedFiles).toContain('CLAUDE.md');
+      // File should still exist
+      await expect(fs.access(claudePath)).resolves.not.toThrow();
+      // File should be empty or have markers removed
+      const content = await fs.readFile(claudePath, 'utf-8');
+      expect(content).not.toContain(OPENSPEC_MARKERS.start);
+      expect(content).not.toContain(OPENSPEC_MARKERS.end);
     });
 
     it('should remove marker block from files with mixed content', async () => {
@@ -529,23 +537,25 @@ ${OPENSPEC_MARKERS.end}`);
       expect(content).not.toContain(OPENSPEC_MARKERS.start);
     });
 
-    it('should delete root AGENTS.md when only OpenSpec content', async () => {
+    it('should remove markers from root AGENTS.md even when only OpenSpec content (never delete)', async () => {
       const agentsPath = path.join(testDir, 'AGENTS.md');
       await fs.writeFile(agentsPath, `${OPENSPEC_MARKERS.start}\nOpenSpec content\n${OPENSPEC_MARKERS.end}`);
 
       const detection = await detectLegacyArtifacts(testDir);
       const result = await cleanupLegacyArtifacts(testDir, detection);
 
-      expect(result.deletedFiles).toContain('AGENTS.md');
-      await expect(fs.access(agentsPath)).rejects.toThrow();
+      // Root AGENTS.md should NEVER be deleted, only have markers removed
+      expect(result.deletedFiles).not.toContain('AGENTS.md');
+      expect(result.modifiedFiles).toContain('AGENTS.md');
+      // File should still exist
+      await expect(fs.access(agentsPath)).resolves.not.toThrow();
     });
 
     it('should report errors without stopping cleanup', async () => {
       // Create a valid detection result with a non-existent file to simulate error
       const detection = {
         configFiles: ['NON_EXISTENT.md'],
-        configFilesToDelete: ['NON_EXISTENT.md'],
-        configFilesWithMixedContent: [],
+        configFilesToUpdate: ['NON_EXISTENT.md'],
         slashCommandDirs: [],
         slashCommandFiles: [],
         hasOpenspecAgents: false,
@@ -614,8 +624,8 @@ ${OPENSPEC_MARKERS.end}`);
       };
 
       const summary = formatCleanupSummary(result);
-      expect(summary).toContain('Manual migration needed:');
-      expect(summary).toContain('openspec/project.md still exists');
+      expect(summary).toContain('Needs your attention');
+      expect(summary).toContain('openspec/project.md');
       expect(summary).toContain('config.yaml');
     });
 
@@ -648,11 +658,10 @@ ${OPENSPEC_MARKERS.end}`);
   });
 
   describe('formatDetectionSummary', () => {
-    it('should format config files', () => {
+    it('should include welcoming upgrade header and explanation', () => {
       const detection = {
-        configFiles: ['CLAUDE.md', 'CLINE.md'],
-        configFilesToDelete: ['CLAUDE.md'],
-        configFilesWithMixedContent: ['CLINE.md'],
+        configFiles: ['CLAUDE.md'],
+        configFilesToUpdate: ['CLAUDE.md'],
         slashCommandDirs: [],
         slashCommandFiles: [],
         hasOpenspecAgents: false,
@@ -662,16 +671,54 @@ ${OPENSPEC_MARKERS.end}`);
       };
 
       const summary = formatDetectionSummary(detection);
-      expect(summary).toContain('Config files with OpenSpec markers:');
+      expect(summary).toContain('Upgrading to the new OpenSpec');
+      expect(summary).toContain('agent skills');
+      expect(summary).toContain('keeping everything working');
+    });
+
+    it('should format config files as files to update (never remove)', () => {
+      const detection = {
+        configFiles: ['CLAUDE.md'],
+        configFilesToUpdate: ['CLAUDE.md'],
+        slashCommandDirs: [],
+        slashCommandFiles: [],
+        hasOpenspecAgents: false,
+        hasProjectMd: false,
+        hasRootAgentsWithMarkers: false,
+        hasLegacyArtifacts: true,
+      };
+
+      const summary = formatDetectionSummary(detection);
+      // Config files should be in "Files to update", not "Files to remove"
+      expect(summary).toContain('Files to update');
       expect(summary).toContain('• CLAUDE.md');
+      // Should NOT be in removals
+      expect(summary).not.toContain('No user content to preserve');
+    });
+
+    it('should format files to be updated', () => {
+      const detection = {
+        configFiles: ['CLINE.md'],
+        configFilesToUpdate: ['CLINE.md'],
+        slashCommandDirs: [],
+        slashCommandFiles: [],
+        hasOpenspecAgents: false,
+        hasProjectMd: false,
+        hasRootAgentsWithMarkers: false,
+        hasLegacyArtifacts: true,
+      };
+
+      const summary = formatDetectionSummary(detection);
+      expect(summary).toContain('Files to update');
+      expect(summary).toContain('markers will be removed');
+      expect(summary).toContain('your content preserved');
       expect(summary).toContain('• CLINE.md');
     });
 
     it('should format slash command directories', () => {
       const detection = {
         configFiles: [],
-        configFilesToDelete: [],
-        configFilesWithMixedContent: [],
+        configFilesToUpdate: [],
         slashCommandDirs: ['.claude/commands/openspec'],
         slashCommandFiles: [],
         hasOpenspecAgents: false,
@@ -681,15 +728,14 @@ ${OPENSPEC_MARKERS.end}`);
       };
 
       const summary = formatDetectionSummary(detection);
-      expect(summary).toContain('Legacy slash command directories:');
+      expect(summary).toContain('Files to remove');
       expect(summary).toContain('• .claude/commands/openspec/');
     });
 
     it('should format slash command files', () => {
       const detection = {
         configFiles: [],
-        configFilesToDelete: [],
-        configFilesWithMixedContent: [],
+        configFilesToUpdate: [],
         slashCommandDirs: [],
         slashCommandFiles: ['.cursor/commands/openspec-proposal.md'],
         hasOpenspecAgents: false,
@@ -699,15 +745,14 @@ ${OPENSPEC_MARKERS.end}`);
       };
 
       const summary = formatDetectionSummary(detection);
-      expect(summary).toContain('Legacy slash command files:');
+      expect(summary).toContain('Files to remove');
       expect(summary).toContain('• .cursor/commands/openspec-proposal.md');
     });
 
-    it('should format structure files', () => {
+    it('should format openspec/AGENTS.md', () => {
       const detection = {
         configFiles: [],
-        configFilesToDelete: [],
-        configFilesWithMixedContent: [],
+        configFilesToUpdate: [],
         slashCommandDirs: [],
         slashCommandFiles: [],
         hasOpenspecAgents: true,
@@ -717,32 +762,14 @@ ${OPENSPEC_MARKERS.end}`);
       };
 
       const summary = formatDetectionSummary(detection);
-      expect(summary).toContain('Legacy structure files:');
+      expect(summary).toContain('Files to remove');
       expect(summary).toContain('• openspec/AGENTS.md');
     });
 
-    it('should format root AGENTS.md with markers separately', () => {
+    it('should include attention section for project.md', () => {
       const detection = {
         configFiles: [],
-        configFilesToDelete: [],
-        configFilesWithMixedContent: [],
-        slashCommandDirs: [],
-        slashCommandFiles: [],
-        hasOpenspecAgents: false,
-        hasProjectMd: false,
-        hasRootAgentsWithMarkers: true,
-        hasLegacyArtifacts: true,
-      };
-
-      const summary = formatDetectionSummary(detection);
-      expect(summary).toContain('• AGENTS.md (has OpenSpec markers)');
-    });
-
-    it('should include migration hint when project.md is detected', () => {
-      const detection = {
-        configFiles: [],
-        configFilesToDelete: [],
-        configFilesWithMixedContent: [],
+        configFilesToUpdate: [],
         slashCommandDirs: [],
         slashCommandFiles: [],
         hasOpenspecAgents: false,
@@ -752,16 +779,17 @@ ${OPENSPEC_MARKERS.end}`);
       };
 
       const summary = formatDetectionSummary(detection);
-      expect(summary).toContain('Manual migration needed:');
-      expect(summary).toContain('openspec/project.md still exists');
+      expect(summary).toContain('Needs your attention');
+      expect(summary).toContain('• openspec/project.md');
+      expect(summary).toContain('won\'t delete this file');
       expect(summary).toContain('config.yaml');
+      expect(summary).toContain('"context:"');
     });
 
-    it('should include migration hint with other legacy artifacts', () => {
+    it('should include attention section with other legacy artifacts', () => {
       const detection = {
         configFiles: ['CLAUDE.md'],
-        configFilesToDelete: ['CLAUDE.md'],
-        configFilesWithMixedContent: [],
+        configFilesToUpdate: ['CLAUDE.md'],
         slashCommandDirs: [],
         slashCommandFiles: [],
         hasOpenspecAgents: false,
@@ -771,17 +799,41 @@ ${OPENSPEC_MARKERS.end}`);
       };
 
       const summary = formatDetectionSummary(detection);
-      expect(summary).toContain('Config files with OpenSpec markers:');
+      // Config files now in "Files to update", not "Files to remove"
+      expect(summary).toContain('Files to update');
       expect(summary).toContain('CLAUDE.md');
-      expect(summary).toContain('Manual migration needed:');
-      expect(summary).toContain('openspec/project.md still exists');
+      expect(summary).toContain('Needs your attention');
+      expect(summary).toContain('openspec/project.md');
+    });
+
+    it('should group both removals and updates correctly', () => {
+      const detection = {
+        configFiles: ['CLAUDE.md', 'CLINE.md'],
+        configFilesToUpdate: ['CLAUDE.md', 'CLINE.md'],
+        slashCommandDirs: ['.claude/commands/openspec'],
+        slashCommandFiles: [],
+        hasOpenspecAgents: true,
+        hasProjectMd: false,
+        hasRootAgentsWithMarkers: false,
+        hasLegacyArtifacts: true,
+      };
+
+      const summary = formatDetectionSummary(detection);
+      // Check both sections exist
+      expect(summary).toContain('Files to remove');
+      expect(summary).toContain('Files to update');
+      // Check removals (only slash commands and openspec/AGENTS.md)
+      expect(summary).toContain('• .claude/commands/openspec/');
+      expect(summary).toContain('• openspec/AGENTS.md');
+      // Check updates (all config files)
+      expect(summary).toContain('• CLAUDE.md');
+      expect(summary).toContain('• CLINE.md');
     });
 
     it('should return empty string when nothing is detected', () => {
       const detection = {
         configFiles: [],
-        configFilesToDelete: [],
-        configFilesWithMixedContent: [],
+        configFilesToUpdate: [],
         slashCommandDirs: [],
         slashCommandFiles: [],
         hasOpenspecAgents: false,
@@ -798,16 +850,23 @@ ${OPENSPEC_MARKERS.end}`);
   describe('formatProjectMdMigrationHint', () => {
     it('should return migration hint message', () => {
       const hint = formatProjectMdMigrationHint();
-      expect(hint).toContain('Manual migration needed:');
-      expect(hint).toContain('openspec/project.md still exists');
+      expect(hint).toContain('Needs your attention');
+      expect(hint).toContain('openspec/project.md');
+      expect(hint).toContain('won\'t delete this file');
       expect(hint).toContain('config.yaml');
-      expect(hint).toContain('context:');
+      expect(hint).toContain('"context:"');
     });
 
     it('should include actionable instructions', () => {
       const hint = formatProjectMdMigrationHint();
-      expect(hint).toContain('Move useful content');
-      expect(hint).toContain('then delete');
+      expect(hint).toContain('move any useful content');
+      expect(hint).toContain('delete the file when ready');
+    });
+
+    it('should explain the new context section benefits', () => {
+      const hint = formatProjectMdMigrationHint();
+      expect(hint).toContain('included in every OpenSpec request');
+      expect(hint).toContain('reliably');
     });
   });
 
@@ -853,6 +912,168 @@ ${OPENSPEC_MARKERS.end}`);
       for (const tool of expectedTools) {
         expect(LEGACY_SLASH_COMMAND_PATHS).toHaveProperty(tool);
       }
+    });
+  });
+
+  describe('getToolsFromLegacyArtifacts', () => {
+    it('should extract claude from directory-based legacy artifacts', () => {
+      const detection = {
+        configFiles: [],
+        configFilesToUpdate: [],
+        slashCommandDirs: ['.claude/commands/openspec'],
+        slashCommandFiles: [],
+        hasOpenspecAgents: false,
+        hasProjectMd: false,
+        hasRootAgentsWithMarkers: false,
+        hasLegacyArtifacts: true,
+      };
+
+      const tools = getToolsFromLegacyArtifacts(detection);
+      expect(tools).toContain('claude');
+      expect(tools).toHaveLength(1);
+    });
+
+    it('should extract cursor from file-based legacy artifacts', () => {
+      const detection = {
+        configFiles: [],
+        configFilesToUpdate: [],
+        slashCommandDirs: [],
+        slashCommandFiles: ['.cursor/commands/openspec-proposal.md'],
+        hasOpenspecAgents: false,
+        hasProjectMd: false,
+        hasRootAgentsWithMarkers: false,
+        hasLegacyArtifacts: true,
+      };
+
+      const tools = getToolsFromLegacyArtifacts(detection);
+      expect(tools).toContain('cursor');
+      expect(tools).toHaveLength(1);
+    });
+
+    it('should extract multiple tools from mixed legacy artifacts', () => {
+      const detection = {
+        configFiles: [],
+        configFilesToUpdate: [],
+        slashCommandDirs: ['.claude/commands/openspec', '.qoder/commands/openspec'],
+        slashCommandFiles: ['.cursor/commands/openspec-apply.md', '.windsurf/workflows/openspec-archive.md'],
+        hasOpenspecAgents: false,
+        hasProjectMd: false,
+        hasRootAgentsWithMarkers: false,
+        hasLegacyArtifacts: true,
+      };
+
+      const tools = getToolsFromLegacyArtifacts(detection);
+      expect(tools).toContain('claude');
+      expect(tools).toContain('qoder');
+      expect(tools).toContain('cursor');
+      expect(tools).toContain('windsurf');
+      expect(tools).toHaveLength(4);
+    });
+
+    it('should deduplicate tools when multiple files match same tool', () => {
+      const detection = {
+        configFiles: [],
+        configFilesToUpdate: [],
+        slashCommandDirs: [],
+        slashCommandFiles: [
+          '.cursor/commands/openspec-proposal.md',
+          '.cursor/commands/openspec-apply.md',
+          '.cursor/commands/openspec-archive.md',
+        ],
+        hasOpenspecAgents: false,
+        hasProjectMd: false,
+        hasRootAgentsWithMarkers: false,
+        hasLegacyArtifacts: true,
+      };
+
+      const tools = getToolsFromLegacyArtifacts(detection);
+      expect(tools).toContain('cursor');
+      expect(tools).toHaveLength(1);
+    });
+
+    it('should return empty array when no legacy artifacts', () => {
+      const detection = {
+        configFiles: [],
+        configFilesToUpdate: [],
+        slashCommandDirs: [],
+        slashCommandFiles: [],
+        hasOpenspecAgents: false,
+        hasProjectMd: false,
+        hasRootAgentsWithMarkers: false,
+        hasLegacyArtifacts: false,
+      };
+
+      const tools = getToolsFromLegacyArtifacts(detection);
+      expect(tools).toHaveLength(0);
+    });
+
+    it('should handle qwen TOML-based legacy files', () => {
+      const detection = {
+        configFiles: [],
+        configFilesToUpdate: [],
+        slashCommandDirs: [],
+        slashCommandFiles: ['.qwen/commands/openspec-proposal.toml'],
+        hasOpenspecAgents: false,
+        hasProjectMd: false,
+        hasRootAgentsWithMarkers: false,
+        hasLegacyArtifacts: true,
+      };
+
+      const tools = getToolsFromLegacyArtifacts(detection);
+      expect(tools).toContain('qwen');
+      expect(tools).toHaveLength(1);
+    });
+
+    it('should handle continue prompt files', () => {
+      const detection = {
+        configFiles: [],
+        configFilesToUpdate: [],
+        slashCommandDirs: [],
+        slashCommandFiles: ['.continue/prompts/openspec-apply.prompt'],
+        hasOpenspecAgents: false,
+        hasProjectMd: false,
+        hasRootAgentsWithMarkers: false,
+        hasLegacyArtifacts: true,
+      };
+
+      const tools = getToolsFromLegacyArtifacts(detection);
+      expect(tools).toContain('continue');
+      expect(tools).toHaveLength(1);
+    });
+
+    it('should handle github-copilot prompt files', () => {
+      const detection = {
+        configFiles: [],
+        configFilesToUpdate: [],
+        slashCommandDirs: [],
+        slashCommandFiles: ['.github/prompts/openspec-apply.prompt.md'],
+        hasOpenspecAgents: false,
+        hasProjectMd: false,
+        hasRootAgentsWithMarkers: false,
+        hasLegacyArtifacts: true,
+      };
+
+      const tools = getToolsFromLegacyArtifacts(detection);
+      expect(tools).toContain('github-copilot');
+      expect(tools).toHaveLength(1);
+    });
+
+    it('should not extract tools from config files only', () => {
+      // Config files don't indicate which tools were configured
+      // Only slash command dirs/files tell us which tools to upgrade
+      const detection = {
+        configFiles: ['CLAUDE.md'],
+        configFilesToUpdate: ['CLAUDE.md'],
+        slashCommandDirs: [],
+        slashCommandFiles: [],
+        hasOpenspecAgents: true,
+        hasProjectMd: false,
+        hasRootAgentsWithMarkers: false,
+        hasLegacyArtifacts: true,
+      };
+
+      const tools = getToolsFromLegacyArtifacts(detection);
+      expect(tools).toHaveLength(0);
     });
   });
 });

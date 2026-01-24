@@ -9,6 +9,7 @@ import path from 'path';
 import chalk from 'chalk';
 import ora from 'ora';
 import * as fs from 'fs';
+import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
 import {
   AI_TOOLS,
@@ -21,28 +22,7 @@ import { serializeConfig } from './config-prompts.js';
 import {
   generateCommands,
   CommandAdapterRegistry,
-  type CommandContent,
 } from './command-generation/index.js';
-import {
-  getExploreSkillTemplate,
-  getNewChangeSkillTemplate,
-  getContinueChangeSkillTemplate,
-  getApplyChangeSkillTemplate,
-  getFfChangeSkillTemplate,
-  getSyncSpecsSkillTemplate,
-  getArchiveChangeSkillTemplate,
-  getBulkArchiveChangeSkillTemplate,
-  getVerifyChangeSkillTemplate,
-  getOpsxExploreCommandTemplate,
-  getOpsxNewCommandTemplate,
-  getOpsxContinueCommandTemplate,
-  getOpsxApplyCommandTemplate,
-  getOpsxFfCommandTemplate,
-  getOpsxSyncCommandTemplate,
-  getOpsxArchiveCommandTemplate,
-  getOpsxBulkArchiveCommandTemplate,
-  getOpsxVerifyCommandTemplate,
-} from './templates/skill-templates.js';
 import {
   detectLegacyArtifacts,
   cleanupLegacyArtifacts,
@@ -50,6 +30,19 @@ import {
   formatDetectionSummary,
   type LegacyDetectionResult,
 } from './legacy-cleanup.js';
+import {
+  SKILL_NAMES,
+  getToolsWithSkillsDir,
+  getToolSkillStatus,
+  getToolStates,
+  getSkillTemplates,
+  getCommandContents,
+  generateSkillContent,
+  type ToolSkillStatus,
+} from './shared/index.js';
+
+const require = createRequire(import.meta.url);
+const { version: OPENSPEC_VERSION } = require('../../package.json');
 
 // -----------------------------------------------------------------------------
 // Constants
@@ -62,21 +55,6 @@ const PROGRESS_SPINNER = {
   frames: ['░░░', '▒░░', '▒▒░', '▒▒▒', '▓▒▒', '▓▓▒', '▓▓▓', '▒▓▓', '░▒▓'],
 };
 
-/**
- * Names of skill directories created by openspec init.
- */
-const SKILL_NAMES = [
-  'openspec-explore',
-  'openspec-new-change',
-  'openspec-continue-change',
-  'openspec-apply-change',
-  'openspec-ff-change',
-  'openspec-sync-specs',
-  'openspec-archive-change',
-  'openspec-bulk-archive-change',
-  'openspec-verify-change',
-];
-
 // -----------------------------------------------------------------------------
 // Types
 // -----------------------------------------------------------------------------
@@ -86,69 +64,6 @@ type InitCommandOptions = {
   force?: boolean;
   interactive?: boolean;
 };
-
-/**
- * Status of skill configuration for a tool.
- */
-interface ToolSkillStatus {
-  /** Whether the tool has any skills configured */
-  configured: boolean;
-  /** Whether all 9 skills are configured */
-  fullyConfigured: boolean;
-  /** Number of skills currently configured (0-9) */
-  skillCount: number;
-}
-
-// -----------------------------------------------------------------------------
-// Helper Functions
-// -----------------------------------------------------------------------------
-
-/**
- * Gets the list of tools with skillsDir configured.
- */
-function getToolsWithSkillsDir(): string[] {
-  return AI_TOOLS.filter((t) => t.skillsDir).map((t) => t.value);
-}
-
-/**
- * Checks which skill files exist for a tool.
- */
-function getToolSkillStatus(projectRoot: string, toolId: string): ToolSkillStatus {
-  const tool = AI_TOOLS.find((t) => t.value === toolId);
-  if (!tool?.skillsDir) {
-    return { configured: false, fullyConfigured: false, skillCount: 0 };
-  }
-
-  const skillsDir = path.join(projectRoot, tool.skillsDir, 'skills');
-  let skillCount = 0;
-
-  for (const skillName of SKILL_NAMES) {
-    const skillFile = path.join(skillsDir, skillName, 'SKILL.md');
-    if (fs.existsSync(skillFile)) {
-      skillCount++;
-    }
-  }
-
-  return {
-    configured: skillCount > 0,
-    fullyConfigured: skillCount === SKILL_NAMES.length,
-    skillCount,
-  };
-}
-
-/**
- * Gets the skill status for all tools with skillsDir configured.
- */
-function getToolStates(projectRoot: string): Map<string, ToolSkillStatus> {
-  const states = new Map<string, ToolSkillStatus>();
-  const toolIds = AI_TOOLS.filter((t) => t.skillsDir).map((t) => t.value);
-
-  for (const toolId of toolIds) {
-    states.set(toolId, getToolSkillStatus(projectRoot, toolId));
-  }
-
-  return states;
-}
 
 // -----------------------------------------------------------------------------
 // Init Command Class
@@ -242,7 +157,6 @@ export class InitCommand {
 
     // Show what was detected
     console.log();
-    console.log(chalk.yellow('Legacy OpenSpec files detected:'));
     console.log(formatDetectionSummary(detection));
     console.log();
 
@@ -509,38 +423,8 @@ export class InitCommand {
     const commandsSkipped: string[] = [];
 
     // Get skill and command templates once (shared across all tools)
-    const skillTemplates = [
-      { template: getExploreSkillTemplate(), dirName: 'openspec-explore' },
-      { template: getNewChangeSkillTemplate(), dirName: 'openspec-new-change' },
-      { template: getContinueChangeSkillTemplate(), dirName: 'openspec-continue-change' },
-      { template: getApplyChangeSkillTemplate(), dirName: 'openspec-apply-change' },
-      { template: getFfChangeSkillTemplate(), dirName: 'openspec-ff-change' },
-      { template: getSyncSpecsSkillTemplate(), dirName: 'openspec-sync-specs' },
-      { template: getArchiveChangeSkillTemplate(), dirName: 'openspec-archive-change' },
-      { template: getBulkArchiveChangeSkillTemplate(), dirName: 'openspec-bulk-archive-change' },
-      { template: getVerifyChangeSkillTemplate(), dirName: 'openspec-verify-change' },
-    ];
-
-    const commandTemplates = [
-      { template: getOpsxExploreCommandTemplate(), id: 'explore' },
-      { template: getOpsxNewCommandTemplate(), id: 'new' },
-      { template: getOpsxContinueCommandTemplate(), id: 'continue' },
-      { template: getOpsxApplyCommandTemplate(), id: 'apply' },
-      { template: getOpsxFfCommandTemplate(), id: 'ff' },
-      { template: getOpsxSyncCommandTemplate(), id: 'sync' },
-      { template: getOpsxArchiveCommandTemplate(), id: 'archive' },
-      { template: getOpsxBulkArchiveCommandTemplate(), id: 'bulk-archive' },
-      { template: getOpsxVerifyCommandTemplate(), id: 'verify' },
-    ];
-
-    const commandContents: CommandContent[] = commandTemplates.map(({ template, id }) => ({
-      id,
-      name: template.name,
-      description: template.description,
-      category: template.category,
-      tags: template.tags,
-      body: template.content,
-    }));
+    const skillTemplates = getSkillTemplates();
+    const commandContents = getCommandContents();
 
     // Process each tool
     for (const tool of tools) {
@@ -555,19 +439,8 @@ export class InitCommand {
           const skillDir = path.join(skillsDir, dirName);
           const skillFile = path.join(skillDir, 'SKILL.md');
 
-          // Generate SKILL.md content with YAML frontmatter
-          const skillContent = `---
-name: ${template.name}
-description: ${template.description}
-license: ${template.license || 'MIT'}
-compatibility: ${template.compatibility || 'Requires openspec CLI.'}
-metadata:
-  author: ${template.metadata?.author || 'openspec'}
-  version: "${template.metadata?.version || '1.0'}"
----
-
-${template.instructions}
-`;
+          // Generate SKILL.md content with YAML frontmatter including generatedBy
+          const skillContent = generateSkillContent(template, OPENSPEC_VERSION);
 
           // Write the skill file
           await FileSystemUtils.writeFile(skillFile, skillContent);
