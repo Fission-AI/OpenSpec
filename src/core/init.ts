@@ -535,9 +535,9 @@ export class InitCommand {
       const toolDirs = [...new Set(successfulTools.map((t) => t.skillsDir))].join(', ');
       const hasCommands = results.commandsSkipped.length < successfulTools.length;
       if (hasCommands) {
-        console.log(`9 skills and 9 commands in ${toolDirs}/`);
+        console.log(`${getSkillTemplates().length} skills and ${getCommandContents().length} commands in ${toolDirs}/`);
       } else {
-        console.log(`9 skills in ${toolDirs}/`);
+        console.log(`${getSkillTemplates().length} skills in ${toolDirs}/`);
       }
     }
 
