@@ -212,9 +212,12 @@ async function findLegacySlashCommandFiles(
   const foundFiles: string[] = [];
 
   // Extract directory and file pattern from glob
-  const lastSlash = pattern.lastIndexOf('/');
-  const dirPart = pattern.substring(0, lastSlash);
-  const filePart = pattern.substring(lastSlash + 1);
+  // Handle both forward and backward slashes for Windows compatibility
+  const lastForwardSlash = pattern.lastIndexOf('/');
+  const lastBackSlash = pattern.lastIndexOf('\\');
+  const lastSeparator = Math.max(lastForwardSlash, lastBackSlash);
+  const dirPart = pattern.substring(0, lastSeparator);
+  const filePart = pattern.substring(lastSeparator + 1);
 
   const dirPath = FileSystemUtils.joinPath(projectPath, dirPart);
 
@@ -236,7 +239,9 @@ async function findLegacySlashCommandFiles(
 
     for (const entry of entries) {
       if (regex.test(entry)) {
-        foundFiles.push(`${dirPart}/${entry}`);
+        // Use forward slashes for consistency in relative paths (cross-platform)
+        const normalizedDir = dirPart.replace(/\\/g, '/');
+        foundFiles.push(`${normalizedDir}/${entry}`);
       }
     }
   } catch {
@@ -474,7 +479,8 @@ function buildRemovalsList(detection: LegacyDetectionResult): Array<{ path: stri
 
   // Slash command directories (these are 100% OpenSpec-managed)
   for (const dir of detection.slashCommandDirs) {
-    const toolDir = dir.split('/')[0];
+    // Split on both forward and backward slashes for Windows compatibility
+    const toolDir = dir.split(/[\/\\]/)[0];
     removals.push({ path: dir + '/', explanation: `replaced by ${toolDir}/skills/` });
   }
 
@@ -588,6 +594,8 @@ export function getToolsFromLegacyArtifacts(detection: LegacyDetectionResult): s
 
   // Match files to tool IDs using glob patterns
   for (const file of detection.slashCommandFiles) {
+    // Normalize file path to use forward slashes for consistent matching (Windows compatibility)
+    const normalizedFile = file.replace(/\\/g, '/');
     for (const [toolId, pattern] of Object.entries(LEGACY_SLASH_COMMAND_PATHS)) {
       if (pattern.type === 'files' && pattern.pattern) {
         // Convert glob pattern to regex for matching
@@ -596,7 +604,7 @@ export function getToolsFromLegacyArtifacts(detection: LegacyDetectionResult): s
           .replace(/[.+^${}()|[\]\\]/g, '\\$&') // Escape regex special chars except *
           .replace(/\*/g, '.*'); // Replace * with .*
         const regex = new RegExp(`^${regexPattern}$`);
-        if (regex.test(file)) {
+        if (regex.test(normalizedFile)) {
           tools.add(toolId);
           break;
         }

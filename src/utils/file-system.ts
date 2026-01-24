@@ -240,9 +240,27 @@ export class FileSystemUtils {
         return await this.ensureWritePermissions(parentDir);
       }
 
-      const testFile = path.join(dirPath, '.openspec-test-' + Date.now());
+      const testFile = path.join(dirPath, '.openspec-test-' + Date.now() + '-' + Math.random().toString(36).slice(2));
       await fs.writeFile(testFile, '');
-      await fs.unlink(testFile);
+
+      // On Windows, file may be temporarily locked by antivirus or indexing services.
+      // Retry unlink with a small delay if it fails.
+      const maxRetries = 3;
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          await fs.unlink(testFile);
+          break;
+        } catch (unlinkError: any) {
+          if (attempt === maxRetries - 1) {
+            // Last attempt failed, but we successfully wrote the file, so permissions are OK
+            // Just log and continue - the temp file will be cleaned up eventually
+            console.debug(`Could not clean up test file ${testFile}: ${unlinkError.message}`);
+          } else {
+            // Wait briefly before retrying (Windows file lock release)
+            await new Promise((resolve) => setTimeout(resolve, 50));
+          }
+        }
+      }
       return true;
     } catch (error: any) {
       console.debug(`Insufficient permissions to write to ${dirPath}: ${error.message}`);
@@ -294,9 +312,9 @@ export function removeMarkerBlock(
   const before = content.substring(0, lineStart);
   const after = content.substring(lineEnd);
 
-  // Clean up double blank lines
+  // Clean up double blank lines (handle both Unix \n and Windows \r\n)
   let result = before + after;
-  result = result.replace(/\n{3,}/g, '\n\n');
+  result = result.replace(/(\r?\n){3,}/g, '\n\n');
 
   // Trim leading/trailing whitespace but preserve content
   return result.trim() === '' ? '' : result.trim() + '\n';
