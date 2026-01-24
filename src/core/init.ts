@@ -1,52 +1,83 @@
+/**
+ * Init Command
+ *
+ * Sets up OpenSpec with Agent Skills and /opsx:* slash commands.
+ * This is the unified setup command that replaces both the old init and experimental commands.
+ */
+
 import path from 'path';
 import chalk from 'chalk';
 import ora from 'ora';
+import * as fs from 'fs';
+import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { TemplateManager, ProjectContext } from './templates/index.js';
-import { ToolRegistry } from './configurators/registry.js';
-import { SlashCommandRegistry } from './configurators/slash/registry.js';
 import {
-  OpenSpecConfig,
   AI_TOOLS,
   OPENSPEC_DIR_NAME,
   AIToolOption,
-  OPENSPEC_MARKERS,
 } from './config.js';
 import { PALETTE } from './styles/palette.js';
+import { isInteractive } from '../utils/interactive.js';
+import { serializeConfig } from './config-prompts.js';
 import {
-  LETTER_MAP,
-  ROOT_STUB_CHOICE_VALUE,
-  OTHER_TOOLS_HEADING_VALUE,
-  LIST_SPACER_VALUE,
-  ToolWizardChoice,
-  ToolSelectionPrompt,
-  toolSelectionWizard,
-  parseToolLabel,
-} from './init/wizard.js';
+  generateCommands,
+  CommandAdapterRegistry,
+} from './command-generation/index.js';
+import {
+  detectLegacyArtifacts,
+  cleanupLegacyArtifacts,
+  formatCleanupSummary,
+  formatDetectionSummary,
+  type LegacyDetectionResult,
+} from './legacy-cleanup.js';
+import {
+  SKILL_NAMES,
+  getToolsWithSkillsDir,
+  getToolSkillStatus,
+  getToolStates,
+  getSkillTemplates,
+  getCommandContents,
+  generateSkillContent,
+  type ToolSkillStatus,
+} from './shared/index.js';
+
+const require = createRequire(import.meta.url);
+const { version: OPENSPEC_VERSION } = require('../../package.json');
+
+// -----------------------------------------------------------------------------
+// Constants
+// -----------------------------------------------------------------------------
+
+const DEFAULT_SCHEMA = 'spec-driven';
 
 const PROGRESS_SPINNER = {
   interval: 80,
   frames: ['░░░', '▒░░', '▒▒░', '▒▒▒', '▓▒▒', '▓▓▒', '▓▓▓', '▒▓▓', '░▒▓'],
 };
 
-type RootStubStatus = 'created' | 'updated' | 'skipped';
+// -----------------------------------------------------------------------------
+// Types
+// -----------------------------------------------------------------------------
 
 type InitCommandOptions = {
-  prompt?: ToolSelectionPrompt;
   tools?: string;
+  force?: boolean;
+  interactive?: boolean;
 };
 
-export class InitCommand {
-  private readonly prompt: ToolSelectionPrompt;
-  private readonly toolsArg?: string;
+// -----------------------------------------------------------------------------
+// Init Command Class
+// -----------------------------------------------------------------------------
 
-  // ═══════════════════════════════════════════════════════════
-  // CONSTRUCTOR & MAIN ENTRY
-  // ═══════════════════════════════════════════════════════════
+export class InitCommand {
+  private readonly toolsArg?: string;
+  private readonly force: boolean;
+  private readonly interactiveOption?: boolean;
 
   constructor(options: InitCommandOptions = {}) {
-    this.prompt = options.prompt ?? ((config) => toolSelectionWizard(config));
     this.toolsArg = options.tools;
+    this.force = options.force ?? false;
+    this.interactiveOption = options.interactive;
   }
 
   async execute(targetPath: string): Promise<void> {
@@ -56,74 +87,37 @@ export class InitCommand {
 
     // Validation happens silently in the background
     const extendMode = await this.validate(projectPath, openspecPath);
-    const existingToolStates = await this.getExistingToolStates(projectPath, extendMode);
 
-    this.renderBanner(extendMode);
+    // Check for legacy artifacts and handle cleanup
+    await this.handleLegacyCleanup(projectPath, extendMode);
 
-    // Get configuration (after validation to avoid prompts if validation fails)
-    const config = await this.getConfiguration(existingToolStates, extendMode);
-
-    const availableTools = AI_TOOLS.filter((tool) => tool.available);
-    const selectedIds = new Set(config.aiTools);
-    const selectedTools = availableTools.filter((tool) =>
-      selectedIds.has(tool.value)
-    );
-    const created = selectedTools.filter(
-      (tool) => !existingToolStates[tool.value]
-    );
-    const refreshed = selectedTools.filter(
-      (tool) => existingToolStates[tool.value]
-    );
-    const skippedExisting = availableTools.filter(
-      (tool) => !selectedIds.has(tool.value) && existingToolStates[tool.value]
-    );
-    const skipped = availableTools.filter(
-      (tool) => !selectedIds.has(tool.value) && !existingToolStates[tool.value]
-    );
-
-    // Step 1: Create directory structure
-    if (!extendMode) {
-      const structureSpinner = this.startSpinner(
-        'Creating OpenSpec structure...'
-      );
-      await this.createDirectoryStructure(openspecPath);
-      await this.generateFiles(openspecPath, config);
-      structureSpinner.stopAndPersist({
-        symbol: PALETTE.white('▌'),
-        text: PALETTE.white('OpenSpec structure created'),
-      });
-    } else {
-      ora({ stream: process.stdout }).info(
-        PALETTE.midGray(
-          'ℹ OpenSpec already initialized. Checking for missing files...'
-        )
-      );
-      await this.createDirectoryStructure(openspecPath);
-      await this.ensureTemplateFiles(openspecPath, config);
+    // Show animated welcome screen (interactive mode only)
+    const canPrompt = this.canPromptInteractively();
+    if (canPrompt) {
+      const { showWelcomeScreen } = await import('../ui/welcome-screen.js');
+      await showWelcomeScreen();
     }
 
-    // Step 2: Configure AI tools
-    const toolSpinner = this.startSpinner('Configuring AI tools...');
-    const rootStubStatus = await this.configureAITools(
-      projectPath,
-      openspecDir,
-      config.aiTools
-    );
-    toolSpinner.stopAndPersist({
-      symbol: PALETTE.white('▌'),
-      text: PALETTE.white('AI tools configured'),
-    });
+    // Get tool states before processing
+    const toolStates = getToolStates(projectPath);
 
-    // Success message
-    this.displaySuccessMessage(
-      selectedTools,
-      created,
-      refreshed,
-      skippedExisting,
-      skipped,
-      extendMode,
-      rootStubStatus
-    );
+    // Get tool selection
+    const selectedToolIds = await this.getSelectedTools(toolStates, extendMode);
+
+    // Validate selected tools
+    const validatedTools = this.validateTools(selectedToolIds, toolStates);
+
+    // Create directory structure and config
+    await this.createDirectoryStructure(openspecPath, extendMode);
+
+    // Generate skills and commands for each tool
+    const results = await this.generateSkillsAndCommands(projectPath, validatedTools);
+
+    // Create config.yaml if needed
+    const configStatus = await this.createConfig(openspecPath, extendMode);
+
+    // Display success message
+    this.displaySuccessMessage(projectPath, validatedTools, results, configStatus);
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -132,9 +126,9 @@ export class InitCommand {
 
   private async validate(
     projectPath: string,
-    _openspecPath: string
+    openspecPath: string
   ): Promise<boolean> {
-    const extendMode = await FileSystemUtils.directoryExists(_openspecPath);
+    const extendMode = await FileSystemUtils.directoryExists(openspecPath);
 
     // Check write permissions
     if (!(await FileSystemUtils.ensureWritePermissions(projectPath))) {
@@ -143,105 +137,135 @@ export class InitCommand {
     return extendMode;
   }
 
-  private async getExistingToolStates(
-    projectPath: string,
-    extendMode: boolean
-  ): Promise<Record<string, boolean>> {
-    // Fresh initialization - no tools configured yet
-    if (!extendMode) {
-      return Object.fromEntries(AI_TOOLS.map(t => [t.value, false]));
-    }
-
-    // Extend mode - check all tools in parallel for better performance
-    const entries = await Promise.all(
-      AI_TOOLS.map(async (t) => [t.value, await this.isToolConfigured(projectPath, t.value)] as const)
-    );
-    return Object.fromEntries(entries);
-  }
-
-  private async isToolConfigured(
-    projectPath: string,
-    toolId: string
-  ): Promise<boolean> {
-    // A tool is only considered "configured by OpenSpec" if its files contain OpenSpec markers.
-    // For tools with both config files and slash commands, BOTH must have markers.
-    // For slash commands, at least one file with markers is sufficient (not all required).
-
-    // Helper to check if a file exists and contains OpenSpec markers
-    const fileHasMarkers = async (absolutePath: string): Promise<boolean> => {
-      try {
-        const content = await FileSystemUtils.readFile(absolutePath);
-        return content.includes(OPENSPEC_MARKERS.start) && content.includes(OPENSPEC_MARKERS.end);
-      } catch {
-        return false;
-      }
-    };
-
-    let hasConfigFile = false;
-    let hasSlashCommands = false;
-
-    // Check if the tool has a config file with OpenSpec markers
-    const configFile = ToolRegistry.get(toolId)?.configFileName;
-    if (configFile) {
-      const configPath = path.join(projectPath, configFile);
-      hasConfigFile = (await FileSystemUtils.fileExists(configPath)) && (await fileHasMarkers(configPath));
-    }
-
-    // Check if any slash command file exists with OpenSpec markers
-    const slashConfigurator = SlashCommandRegistry.get(toolId);
-    if (slashConfigurator) {
-      for (const target of slashConfigurator.getTargets()) {
-        const absolute = slashConfigurator.resolveAbsolutePath(projectPath, target.id);
-        if ((await FileSystemUtils.fileExists(absolute)) && (await fileHasMarkers(absolute))) {
-          hasSlashCommands = true;
-          break; // At least one file with markers is sufficient
-        }
-      }
-    }
-
-    // Tool is only configured if BOTH exist with markers
-    // OR if the tool has no config file requirement (slash commands only)
-    // OR if the tool has no slash commands requirement (config file only)
-    const hasConfigFileRequirement = configFile !== undefined;
-    const hasSlashCommandRequirement = slashConfigurator !== undefined;
-
-    if (hasConfigFileRequirement && hasSlashCommandRequirement) {
-      // Both are required - both must be present with markers
-      return hasConfigFile && hasSlashCommands;
-    } else if (hasConfigFileRequirement) {
-      // Only config file required
-      return hasConfigFile;
-    } else if (hasSlashCommandRequirement) {
-      // Only slash commands required
-      return hasSlashCommands;
-    }
-
-    return false;
+  private canPromptInteractively(): boolean {
+    if (this.interactiveOption === false) return false;
+    if (this.toolsArg !== undefined) return false;
+    return isInteractive({ interactive: this.interactiveOption });
   }
 
   // ═══════════════════════════════════════════════════════════
-  // CONFIGURATION & TOOL SELECTION
+  // LEGACY CLEANUP
   // ═══════════════════════════════════════════════════════════
 
-  private async getConfiguration(
-    existingTools: Record<string, boolean>,
-    extendMode: boolean
-  ): Promise<OpenSpecConfig> {
-    const selectedTools = await this.getSelectedTools(existingTools, extendMode);
-    return { aiTools: selectedTools };
+  private async handleLegacyCleanup(projectPath: string, extendMode: boolean): Promise<void> {
+    // Detect legacy artifacts
+    const detection = await detectLegacyArtifacts(projectPath);
+
+    if (!detection.hasLegacyArtifacts) {
+      return; // No legacy artifacts found
+    }
+
+    // Show what was detected
+    console.log();
+    console.log(formatDetectionSummary(detection));
+    console.log();
+
+    const canPrompt = this.canPromptInteractively();
+
+    if (this.force) {
+      // --force flag: proceed with cleanup automatically
+      await this.performLegacyCleanup(projectPath, detection);
+      return;
+    }
+
+    if (!canPrompt) {
+      // Non-interactive mode without --force: abort
+      console.log(chalk.red('Legacy files detected in non-interactive mode.'));
+      console.log(chalk.dim('Run interactively to upgrade, or use --force to auto-cleanup.'));
+      process.exit(1);
+    }
+
+    // Interactive mode: prompt for confirmation
+    const { confirm } = await import('@inquirer/prompts');
+    const shouldCleanup = await confirm({
+      message: 'Upgrade and clean up legacy files?',
+      default: true,
+    });
+
+    if (!shouldCleanup) {
+      console.log(chalk.dim('Initialization cancelled.'));
+      console.log(chalk.dim('Run with --force to skip this prompt, or manually remove legacy files.'));
+      process.exit(0);
+    }
+
+    await this.performLegacyCleanup(projectPath, detection);
   }
+
+  private async performLegacyCleanup(projectPath: string, detection: LegacyDetectionResult): Promise<void> {
+    const spinner = ora('Cleaning up legacy files...').start();
+
+    const result = await cleanupLegacyArtifacts(projectPath, detection);
+
+    spinner.succeed('Legacy files cleaned up');
+
+    const summary = formatCleanupSummary(result);
+    if (summary) {
+      console.log();
+      console.log(summary);
+    }
+
+    console.log();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // TOOL SELECTION
+  // ═══════════════════════════════════════════════════════════
 
   private async getSelectedTools(
-    existingTools: Record<string, boolean>,
+    toolStates: Map<string, ToolSkillStatus>,
     extendMode: boolean
   ): Promise<string[]> {
+    // Check for --tools flag first
     const nonInteractiveSelection = this.resolveToolsArg();
     if (nonInteractiveSelection !== null) {
       return nonInteractiveSelection;
     }
 
-    // Fall back to interactive mode
-    return this.promptForAITools(existingTools, extendMode);
+    const validTools = getToolsWithSkillsDir();
+    const canPrompt = this.canPromptInteractively();
+
+    if (!canPrompt || validTools.length === 0) {
+      throw new Error(
+        `Missing required option --tools. Valid tools:\n  ${validTools.join('\n  ')}\n\nUse --tools all, --tools none, or --tools claude,cursor,...`
+      );
+    }
+
+    // Interactive mode: show searchable multi-select
+    const { searchableMultiSelect } = await import('../prompts/searchable-multi-select.js');
+
+    // Build choices with configured status and sort configured tools first
+    const sortedChoices = validTools
+      .map((toolId) => {
+        const tool = AI_TOOLS.find((t) => t.value === toolId);
+        const status = toolStates.get(toolId);
+        const configured = status?.configured ?? false;
+
+        return {
+          name: tool?.name || toolId,
+          value: toolId,
+          configured,
+          preSelected: configured, // Pre-select configured tools for easy refresh
+        };
+      })
+      .sort((a, b) => {
+        // Configured tools first
+        if (a.configured && !b.configured) return -1;
+        if (!a.configured && b.configured) return 1;
+        return 0;
+      });
+
+    const selectedTools = await searchableMultiSelect({
+      message: `Select tools to set up (${validTools.length} available)`,
+      pageSize: 15,
+      choices: sortedChoices,
+      validate: (selected: string[]) => selected.length > 0 || 'Select at least one tool',
+    });
+
+    if (selectedTools.length === 0) {
+      throw new Error('At least one tool must be selected');
+    }
+
+    return selectedTools;
   }
 
   private resolveToolsArg(): string[] | null {
@@ -256,14 +280,13 @@ export class InitCommand {
       );
     }
 
-    const availableTools = AI_TOOLS.filter((tool) => tool.available);
-    const availableValues = availableTools.map((tool) => tool.value);
-    const availableSet = new Set(availableValues);
-    const availableList = ['all', 'none', ...availableValues].join(', ');
+    const availableTools = getToolsWithSkillsDir();
+    const availableSet = new Set(availableTools);
+    const availableList = ['all', 'none', ...availableTools].join(', ');
 
     const lowerRaw = raw.toLowerCase();
     if (lowerRaw === 'all') {
-      return availableValues;
+      return availableTools;
     }
 
     if (lowerRaw === 'none') {
@@ -297,6 +320,7 @@ export class InitCommand {
       );
     }
 
+    // Deduplicate while preserving order
     const deduped: string[] = [];
     for (const token of normalizedTokens) {
       if (!deduped.includes(token)) {
@@ -307,84 +331,62 @@ export class InitCommand {
     return deduped;
   }
 
-  private async promptForAITools(
-    existingTools: Record<string, boolean>,
-    extendMode: boolean
-  ): Promise<string[]> {
-    const availableTools = AI_TOOLS.filter((tool) => tool.available);
+  private validateTools(
+    toolIds: string[],
+    toolStates: Map<string, ToolSkillStatus>
+  ): Array<{ value: string; name: string; skillsDir: string; wasConfigured: boolean }> {
+    const validatedTools: Array<{ value: string; name: string; skillsDir: string; wasConfigured: boolean }> = [];
 
-    const baseMessage = extendMode
-      ? 'Which natively supported AI tools would you like to add or refresh?'
-      : 'Which natively supported AI tools do you use?';
-    const initialNativeSelection = extendMode
-      ? availableTools
-          .filter((tool) => existingTools[tool.value])
-          .map((tool) => tool.value)
-      : [];
+    for (const toolId of toolIds) {
+      const tool = AI_TOOLS.find((t) => t.value === toolId);
+      if (!tool) {
+        const validToolIds = getToolsWithSkillsDir();
+        throw new Error(
+          `Unknown tool '${toolId}'. Valid tools:\n  ${validToolIds.join('\n  ')}`
+        );
+      }
 
-    const initialSelected = Array.from(new Set(initialNativeSelection));
+      if (!tool.skillsDir) {
+        const validToolsWithSkills = getToolsWithSkillsDir();
+        throw new Error(
+          `Tool '${toolId}' does not support skill generation.\nTools with skill generation support:\n  ${validToolsWithSkills.join('\n  ')}`
+        );
+      }
 
-    const choices: ToolWizardChoice[] = [
-      {
-        kind: 'heading',
-        value: '__heading-native__',
-        label: {
-          primary:
-            'Natively supported providers (✔ OpenSpec custom slash commands available)',
-        },
-        selectable: false,
-      },
-      ...availableTools.map<ToolWizardChoice>((tool) => ({
-        kind: 'option',
+      const preState = toolStates.get(tool.value);
+      validatedTools.push({
         value: tool.value,
-        label: parseToolLabel(tool.name),
-        configured: Boolean(existingTools[tool.value]),
-        selectable: true,
-      })),
-      ...(availableTools.length
-        ? ([
-            {
-              kind: 'info' as const,
-              value: LIST_SPACER_VALUE,
-              label: { primary: '' },
-              selectable: false,
-            },
-          ] as ToolWizardChoice[])
-        : []),
-      {
-        kind: 'heading',
-        value: OTHER_TOOLS_HEADING_VALUE,
-        label: {
-          primary:
-            'Other tools (use Universal AGENTS.md for Amp, VS Code, GitHub Copilot, …)',
-        },
-        selectable: false,
-      },
-      {
-        kind: 'option',
-        value: ROOT_STUB_CHOICE_VALUE,
-        label: {
-          primary: 'Universal AGENTS.md',
-          annotation: 'always available',
-        },
-        configured: extendMode,
-        selectable: true,
-      },
-    ];
+        name: tool.name,
+        skillsDir: tool.skillsDir,
+        wasConfigured: preState?.configured ?? false,
+      });
+    }
 
-    return this.prompt({
-      extendMode,
-      baseMessage,
-      choices,
-      initialSelected,
-    });
+    return validatedTools;
   }
 
   // ═══════════════════════════════════════════════════════════
-  // FILE SYSTEM OPERATIONS
+  // DIRECTORY STRUCTURE
   // ═══════════════════════════════════════════════════════════
 
-  private async createDirectoryStructure(openspecPath: string): Promise<void> {
+  private async createDirectoryStructure(openspecPath: string, extendMode: boolean): Promise<void> {
+    if (extendMode) {
+      // In extend mode, just ensure directories exist without spinner
+      const directories = [
+        openspecPath,
+        path.join(openspecPath, 'specs'),
+        path.join(openspecPath, 'changes'),
+        path.join(openspecPath, 'changes', 'archive'),
+      ];
+
+      for (const dir of directories) {
+        await FileSystemUtils.createDirectory(dir);
+      }
+      return;
+    }
+
+    const spinner = this.startSpinner('Creating OpenSpec structure...');
+
     const directories = [
       openspecPath,
       path.join(openspecPath, 'specs'),
@@ -395,94 +397,110 @@ export class InitCommand {
     for (const dir of directories) {
       await FileSystemUtils.createDirectory(dir);
     }
-  }
 
-  private async generateFiles(
-    openspecPath: string,
-    config: OpenSpecConfig
-  ): Promise<void> {
-    await this.writeTemplateFiles(openspecPath, config, false);
-  }
-
-  private async ensureTemplateFiles(
-    openspecPath: string,
-    config: OpenSpecConfig
-  ): Promise<void> {
-    await this.writeTemplateFiles(openspecPath, config, true);
-  }
-
-  private async writeTemplateFiles(
-    openspecPath: string,
-    config: OpenSpecConfig,
-    skipExisting: boolean
-  ): Promise<void> {
-    const context: ProjectContext = {
-      // Could be enhanced with prompts for project details
-    };
-
-    const templates = TemplateManager.getTemplates(context);
-
-    for (const template of templates) {
-      const filePath = path.join(openspecPath, template.path);
-
-      // Skip if file exists and we're in skipExisting mode
-      if (skipExisting && (await FileSystemUtils.fileExists(filePath))) {
-        continue;
-      }
-
-      const content =
-        typeof template.content === 'function'
-          ? template.content(context)
-          : template.content;
-
-      await FileSystemUtils.writeFile(filePath, content);
-    }
+    spinner.stopAndPersist({
+      symbol: PALETTE.white('▌'),
+      text: PALETTE.white('OpenSpec structure created'),
+    });
   }
 
   // ═══════════════════════════════════════════════════════════
-  // TOOL CONFIGURATION
+  // SKILL & COMMAND GENERATION
   // ═══════════════════════════════════════════════════════════
 
-  private async configureAITools(
+  private async generateSkillsAndCommands(
     projectPath: string,
-    openspecDir: string,
-    toolIds: string[]
-  ): Promise<RootStubStatus> {
-    const rootStubStatus = await this.configureRootAgentsStub(
-      projectPath,
-      openspecDir
-    );
+    tools: Array<{ value: string; name: string; skillsDir: string; wasConfigured: boolean }>
+  ): Promise<{
+    createdTools: typeof tools;
+    refreshedTools: typeof tools;
+    failedTools: Array<{ name: string; error: Error }>;
+    commandsSkipped: string[];
+  }> {
+    const createdTools: typeof tools = [];
+    const refreshedTools: typeof tools = [];
+    const failedTools: Array<{ name: string; error: Error }> = [];
+    const commandsSkipped: string[] = [];
 
-    for (const toolId of toolIds) {
-      const configurator = ToolRegistry.get(toolId);
-      if (configurator && configurator.isAvailable) {
-        await configurator.configure(projectPath, openspecDir);
-      }
+    // Get skill and command templates once (shared across all tools)
+    const skillTemplates = getSkillTemplates();
+    const commandContents = getCommandContents();
 
-      const slashConfigurator = SlashCommandRegistry.get(toolId);
-      if (slashConfigurator && slashConfigurator.isAvailable) {
-        await slashConfigurator.generateAll(projectPath, openspecDir);
+    // Process each tool
+    for (const tool of tools) {
+      const spinner = ora(`Setting up ${tool.name}...`).start();
+
+      try {
+        // Use tool-specific skillsDir
+        const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
+
+        // Create skill directories and SKILL.md files
+        for (const { template, dirName } of skillTemplates) {
+          const skillDir = path.join(skillsDir, dirName);
+          const skillFile = path.join(skillDir, 'SKILL.md');
+
+          // Generate SKILL.md content with YAML frontmatter including generatedBy
+          const skillContent = generateSkillContent(template, OPENSPEC_VERSION);
+
+          // Write the skill file
+          await FileSystemUtils.writeFile(skillFile, skillContent);
+        }
+
+        // Generate commands using the adapter system
+        const adapter = CommandAdapterRegistry.get(tool.value);
+        if (adapter) {
+          const generatedCommands = generateCommands(commandContents, adapter);
+
+          for (const cmd of generatedCommands) {
+            const commandFile = path.join(projectPath, cmd.path);
+            await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
+          }
+        } else {
+          commandsSkipped.push(tool.value);
+        }
+
+        spinner.succeed(`Setup complete for ${tool.name}`);
+
+        if (tool.wasConfigured) {
+          refreshedTools.push(tool);
+        } else {
+          createdTools.push(tool);
+        }
+      } catch (error) {
+        spinner.fail(`Failed for ${tool.name}`);
+        failedTools.push({ name: tool.name, error: error as Error });
       }
     }
 
-    return rootStubStatus;
+    return { createdTools, refreshedTools, failedTools, commandsSkipped };
   }
 
-  private async configureRootAgentsStub(
-    projectPath: string,
-    openspecDir: string
-  ): Promise<RootStubStatus> {
-    const configurator = ToolRegistry.get('agents');
-    if (!configurator || !configurator.isAvailable) {
+  // ═══════════════════════════════════════════════════════════
+  // CONFIG FILE
+  // ═══════════════════════════════════════════════════════════
+
+  private async createConfig(openspecPath: string, extendMode: boolean): Promise<'created' | 'exists' | 'skipped'> {
+    const configPath = path.join(openspecPath, 'config.yaml');
+    const configYmlPath = path.join(openspecPath, 'config.yml');
+    const configYamlExists = fs.existsSync(configPath);
+    const configYmlExists = fs.existsSync(configYmlPath);
+
+    if (configYamlExists || configYmlExists) {
+      return 'exists';
+    }
+
+    // In non-interactive mode without --force, skip config creation
+    if (!this.canPromptInteractively() && !this.force) {
       return 'skipped';
     }
 
-    const stubPath = path.join(projectPath, configurator.configFileName);
-    const existed = await FileSystemUtils.fileExists(stubPath);
-
-    await configurator.configure(projectPath, openspecDir);
-
-    return existed ? 'updated' : 'created';
+    try {
+      const yamlContent = serializeConfig({ schema: DEFAULT_SCHEMA });
+      await FileSystemUtils.writeFile(configPath, yamlContent);
+      return 'created';
+    } catch {
+      return 'skipped';
+    }
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -490,175 +508,81 @@ export class InitCommand {
   // ═══════════════════════════════════════════════════════════
 
   private displaySuccessMessage(
-    selectedTools: AIToolOption[],
-    created: AIToolOption[],
-    refreshed: AIToolOption[],
-    skippedExisting: AIToolOption[],
-    skipped: AIToolOption[],
-    extendMode: boolean,
-    rootStubStatus: RootStubStatus
+    projectPath: string,
+    tools: Array<{ value: string; name: string; skillsDir: string; wasConfigured: boolean }>,
+    results: {
+      createdTools: typeof tools;
+      refreshedTools: typeof tools;
+      failedTools: Array<{ name: string; error: Error }>;
+      commandsSkipped: string[];
+    },
+    configStatus: 'created' | 'exists' | 'skipped'
   ): void {
-    console.log(); // Empty line for spacing
-    const successHeadline = extendMode
-      ? 'OpenSpec tool configuration updated!'
-      : 'OpenSpec initialized successfully!';
-    ora().succeed(PALETTE.white(successHeadline));
-
     console.log();
-    console.log(PALETTE.lightGray('Tool summary:'));
-    const summaryLines = [
-      rootStubStatus === 'created'
-        ? `${PALETTE.white('▌')} ${PALETTE.white(
-            'Root AGENTS.md stub created for other assistants'
-          )}`
-        : null,
-      rootStubStatus === 'updated'
-        ? `${PALETTE.lightGray('▌')} ${PALETTE.lightGray(
-            'Root AGENTS.md stub refreshed for other assistants'
-          )}`
-        : null,
-      created.length
-        ? `${PALETTE.white('▌')} ${PALETTE.white(
-            'Created:'
-          )} ${this.formatToolNames(created)}`
-        : null,
-      refreshed.length
-        ? `${PALETTE.lightGray('▌')} ${PALETTE.lightGray(
-            'Refreshed:'
-          )} ${this.formatToolNames(refreshed)}`
-        : null,
-      skippedExisting.length
-        ? `${PALETTE.midGray('▌')} ${PALETTE.midGray(
-            'Skipped (already configured):'
-          )} ${this.formatToolNames(skippedExisting)}`
-        : null,
-      skipped.length
-        ? `${PALETTE.darkGray('▌')} ${PALETTE.darkGray(
-            'Skipped:'
-          )} ${this.formatToolNames(skipped)}`
-        : null,
-    ].filter((line): line is string => Boolean(line));
-    for (const line of summaryLines) {
-      console.log(line);
+    console.log(chalk.bold('OpenSpec Setup Complete'));
+    console.log();
+
+    // Show created vs refreshed tools
+    if (results.createdTools.length > 0) {
+      console.log(`Created: ${results.createdTools.map((t) => t.name).join(', ')}`);
+    }
+    if (results.refreshedTools.length > 0) {
+      console.log(`Refreshed: ${results.refreshedTools.map((t) => t.name).join(', ')}`);
     }
 
-    console.log();
-    console.log(
-      PALETTE.midGray(
-        'Use `openspec update` to refresh shared OpenSpec instructions in the future.'
-      )
-    );
-
-    // Show restart instruction if any tools were configured
-    if (created.length > 0 || refreshed.length > 0) {
-      console.log();
-      console.log(PALETTE.white('Important: Restart your IDE'));
-      console.log(
-        PALETTE.midGray(
-          'Slash commands are loaded at startup. Please restart your coding assistant'
-        )
-      );
-      console.log(
-        PALETTE.midGray(
-          'to ensure the new /openspec commands appear in your command palette.'
-        )
-      );
-    }
-
-    // Get the selected tool name(s) for display
-    const toolName = this.formatToolNames(selectedTools);
-
-    console.log();
-    console.log(`Next steps - Copy these prompts to ${toolName}:`);
-    console.log(
-      chalk.gray('────────────────────────────────────────────────────────────')
-    );
-    console.log(PALETTE.white('1. Populate your project context:'));
-    console.log(
-      PALETTE.lightGray(
-        '   "Please read openspec/project.md and help me fill it out'
-      )
-    );
-    console.log(
-      PALETTE.lightGray(
-        '    with details about my project, tech stack, and conventions"\n'
-      )
-    );
-    console.log(PALETTE.white('2. Create your first change proposal:'));
-    console.log(
-      PALETTE.lightGray(
-        '   "I want to add [YOUR FEATURE HERE]. Please create an'
-      )
-    );
-    console.log(
-      PALETTE.lightGray('    OpenSpec change proposal for this feature"\n')
-    );
-    console.log(PALETTE.white('3. Learn the OpenSpec workflow:'));
-    console.log(
-      PALETTE.lightGray(
-        '   "Please explain the OpenSpec workflow from openspec/AGENTS.md'
-      )
-    );
-    console.log(
-      PALETTE.lightGray('    and how I should work with you on this project"')
-    );
-    console.log(
-      PALETTE.darkGray(
-        '────────────────────────────────────────────────────────────\n'
-      )
-    );
-
-    // Codex heads-up: prompts installed globally
-    const selectedToolIds = new Set(selectedTools.map((t) => t.value));
-    if (selectedToolIds.has('codex')) {
-      console.log(PALETTE.white('Codex setup note'));
-      console.log(
-        PALETTE.midGray('Prompts installed to ~/.codex/prompts (or $CODEX_HOME/prompts).')
-      );
-      console.log();
-    }
-  }
-
-  private formatToolNames(tools: AIToolOption[]): string {
-    const names = tools
-      .map((tool) => tool.successLabel ?? tool.name)
-      .filter((name): name is string => Boolean(name));
-
-    if (names.length === 0)
-      return PALETTE.lightGray('your AGENTS.md-compatible assistant');
-    if (names.length === 1) return PALETTE.white(names[0]);
-
-    const base = names.slice(0, -1).map((name) => PALETTE.white(name));
-    const last = PALETTE.white(names[names.length - 1]);
-
-    return `${base.join(PALETTE.midGray(', '))}${
-      base.length ? PALETTE.midGray(', and ') : ''
-    }${last}`;
-  }
-
-  private renderBanner(_extendMode: boolean): void {
-    const rows = ['', '', '', '', ''];
-    for (const char of 'OPENSPEC') {
-      const glyph = LETTER_MAP[char] ?? LETTER_MAP[' '];
-      for (let i = 0; i < rows.length; i += 1) {
-        rows[i] += `${glyph[i]}  `;
+    // Show counts
+    const successfulTools = [...results.createdTools, ...results.refreshedTools];
+    if (successfulTools.length > 0) {
+      const toolDirs = [...new Set(successfulTools.map((t) => t.skillsDir))].join(', ');
+      const hasCommands = results.commandsSkipped.length < successfulTools.length;
+      if (hasCommands) {
+        console.log(`${getSkillTemplates().length} skills and ${getCommandContents().length} commands in ${toolDirs}/`);
+      } else {
+        console.log(`${getSkillTemplates().length} skills in ${toolDirs}/`);
       }
     }
 
-    const rowStyles = [
-      PALETTE.white,
-      PALETTE.lightGray,
-      PALETTE.midGray,
-      PALETTE.lightGray,
-      PALETTE.white,
-    ];
+    // Show failures
+    if (results.failedTools.length > 0) {
+      console.log(chalk.red(`Failed: ${results.failedTools.map((f) => `${f.name} (${f.error.message})`).join(', ')}`));
+    }
 
+    // Show skipped commands
+    if (results.commandsSkipped.length > 0) {
+      console.log(chalk.dim(`Commands skipped for: ${results.commandsSkipped.join(', ')} (no adapter)`));
+    }
+
+    // Config status
+    if (configStatus === 'created') {
+      console.log(`Config: openspec/config.yaml (schema: ${DEFAULT_SCHEMA})`);
+    } else if (configStatus === 'exists') {
+      // Show actual filename (config.yaml or config.yml)
+      const configYaml = path.join(projectPath, OPENSPEC_DIR_NAME, 'config.yaml');
+      const configYml = path.join(projectPath, OPENSPEC_DIR_NAME, 'config.yml');
+      const configName = fs.existsSync(configYaml) ? 'config.yaml' : fs.existsSync(configYml) ? 'config.yml' : 'config.yaml';
+      console.log(`Config: openspec/${configName} (exists)`);
+    } else {
+      console.log(chalk.dim(`Config: skipped (non-interactive mode)`));
+    }
+
+    // Getting started
     console.log();
-    rows.forEach((row, index) => {
-      console.log(rowStyles[index](row.replace(/\s+$/u, '')));
-    });
+    console.log(chalk.bold('Getting started:'));
+    console.log('  /opsx:new       Start a new change');
+    console.log('  /opsx:continue  Create the next artifact');
+    console.log('  /opsx:apply     Implement tasks');
+
+    // Links
     console.log();
-    console.log(PALETTE.white('Welcome to OpenSpec!'));
+    console.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
+    console.log(`Feedback:   ${chalk.cyan('https://github.com/Fission-AI/OpenSpec/issues')}`);
+
+    // Restart instruction if any tools were configured
+    if (results.createdTools.length > 0 || results.refreshedTools.length > 0) {
+      console.log();
+      console.log(chalk.white('Restart your IDE for slash commands to take effect.'));
+    }
+
     console.log();
   }
 

@@ -74,7 +74,9 @@ The system SHALL preserve user content when removing OpenSpec markers from confi
 #### Scenario: Config file with only OpenSpec content
 
 - **WHEN** a config file contains only OpenSpec marker block (whitespace outside is acceptable)
-- **THEN** the system SHALL delete the entire file
+- **THEN** the system SHALL remove the OpenSpec marker block
+- **AND** preserve the file (even if empty or whitespace-only)
+- **AND** NOT delete the file (config files belong to the user's project root)
 
 #### Scenario: Config file with mixed content
 
@@ -137,7 +139,7 @@ The system SHALL report what was cleaned up.
 - **THEN** the system SHALL display a summary section:
   ```
   Cleaned up legacy files:
-    ✓ Removed CLAUDE.md (replaced by skills)
+    ✓ Removed OpenSpec markers from CLAUDE.md
     ✓ Removed .claude/commands/openspec/ (replaced by /opsx:*)
     ✓ Removed openspec/AGENTS.md (no longer needed)
   ```
