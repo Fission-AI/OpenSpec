@@ -129,7 +129,8 @@ export async function detectLegacyArtifacts(
     result.slashCommandDirs.length > 0 ||
     result.slashCommandFiles.length > 0 ||
     result.hasOpenspecAgents ||
-    result.hasRootAgentsWithMarkers;
+    result.hasRootAgentsWithMarkers ||
+    result.hasProjectMd;
 
   return result;
 }
@@ -406,11 +407,13 @@ export async function cleanupLegacyArtifacts(
   // Delete openspec/AGENTS.md (this is inside openspec/, it's OpenSpec-managed)
   if (detection.hasOpenspecAgents) {
     const agentsPath = FileSystemUtils.joinPath(projectPath, 'openspec', 'AGENTS.md');
-    try {
-      await fs.unlink(agentsPath);
-      result.deletedFiles.push('openspec/AGENTS.md');
-    } catch (error: any) {
-      result.errors.push(`Failed to delete openspec/AGENTS.md: ${error.message}`);
+    if (await FileSystemUtils.fileExists(agentsPath)) {
+      try {
+        await fs.unlink(agentsPath);
+        result.deletedFiles.push('openspec/AGENTS.md');
+      } catch (error: any) {
+        result.errors.push(`Failed to delete openspec/AGENTS.md: ${error.message}`);
+      }
     }
   }
 

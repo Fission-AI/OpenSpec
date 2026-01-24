@@ -316,6 +316,10 @@ export function removeMarkerBlock(
   let result = before + after;
   result = result.replace(/(\r?\n){3,}/g, '\n\n');
 
-  // Trim leading/trailing whitespace but preserve content
-  return result.trim() === '' ? '' : result.trim() + '\n';
+  // Trim trailing whitespace but preserve leading whitespace and original newline style
+  if (result.trimEnd() === '') {
+    return '';
+  }
+  const newline = content.includes('\r\n') ? '\r\n' : '\n';
+  return result.trimEnd() + newline;
 }

@@ -259,9 +259,9 @@ AI:  *Creates proposal → specs → design → tasks in sequence*
 
 #### 3. Verify & Review
 ```bash
-$ openspec list                             # Confirm the change folder exists
-$ openspec validate add-profile-filters     # Validate spec formatting
-$ openspec show add-profile-filters         # Review proposal, tasks, and spec delta
+openspec list                             # Confirm the change folder exists
+openspec validate add-profile-filters     # Validate spec formatting
+openspec show add-profile-filters         # Review proposal, tasks, and spec delta
 ```
 
 #### 4. Implement the Change
@@ -285,7 +285,7 @@ AI:  I'll archive the add-profile-filters change.
 
 Or run directly in terminal:
 ```bash
-$ openspec archive add-profile-filters --yes
+openspec archive add-profile-filters --yes
 ```
 
 ## Command Reference

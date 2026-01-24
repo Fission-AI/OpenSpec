@@ -20,6 +20,7 @@ import {
   LEGACY_SLASH_COMMAND_PATHS,
 } from '../../src/core/legacy-cleanup.js';
 import { OPENSPEC_MARKERS } from '../../src/core/config.js';
+import { CommandAdapterRegistry } from '../../src/core/command-generation/registry.js';
 
 describe('legacy-cleanup', () => {
   let testDir: string;
@@ -409,12 +410,12 @@ ${OPENSPEC_MARKERS.end}`);
       expect(result.hasOpenspecAgents).toBe(true);
     });
 
-    it('should NOT count project.md as legacy artifact (it is preserved)', async () => {
+    it('should detect project.md for migration hint (it is preserved, not deleted)', async () => {
       await fs.writeFile(path.join(testDir, 'openspec', 'project.md'), 'content');
 
       const result = await detectLegacyArtifacts(testDir);
-      // project.md alone should not trigger hasLegacyArtifacts
-      expect(result.hasLegacyArtifacts).toBe(false);
+      // project.md triggers hasLegacyArtifacts to show migration hint
+      expect(result.hasLegacyArtifacts).toBe(true);
       expect(result.hasProjectMd).toBe(true);
     });
 
@@ -901,17 +902,16 @@ ${OPENSPEC_MARKERS.end}`);
       });
     });
 
-    it('should cover all tools from the SlashCommandRegistry', () => {
-      const expectedTools = [
-        'claude', 'codebuddy', 'qoder', 'cursor', 'windsurf', 'kilocode',
-        'opencode', 'codex', 'github-copilot', 'amazon-q', 'factory',
-        'gemini', 'auggie', 'cline', 'crush', 'costrict', 'qwen',
-        'roocode', 'antigravity', 'iflow', 'continue',
-      ];
+    it('should cover all tools from the CommandAdapterRegistry', () => {
+      const expectedTools = CommandAdapterRegistry.getAll().map(adapter => adapter.toolId);
 
+      // Verify all adapters have legacy paths
       for (const tool of expectedTools) {
         expect(LEGACY_SLASH_COMMAND_PATHS).toHaveProperty(tool);
       }
+
+      // Verify counts match
+      expect(expectedTools.length).toBe(Object.keys(LEGACY_SLASH_COMMAND_PATHS).length);
     });
   });
 
