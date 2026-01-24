@@ -239,14 +239,87 @@ export class FileSystemUtils {
         }
         return await this.ensureWritePermissions(parentDir);
       }
-      
-      const testFile = path.join(dirPath, '.openspec-test-' + Date.now());
+
+      const testFile = path.join(dirPath, '.openspec-test-' + Date.now() + '-' + Math.random().toString(36).slice(2));
       await fs.writeFile(testFile, '');
-      await fs.unlink(testFile);
+
+      // On Windows, file may be temporarily locked by antivirus or indexing services.
+      // Retry unlink with a small delay if it fails.
+      const maxRetries = 3;
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          await fs.unlink(testFile);
+          break;
+        } catch (unlinkError: any) {
+          if (attempt === maxRetries - 1) {
+            // Last attempt failed, but we successfully wrote the file, so permissions are OK
+            // Just log and continue - the temp file will be cleaned up eventually
+            console.debug(`Could not clean up test file ${testFile}: ${unlinkError.message}`);
+          } else {
+            // Wait briefly before retrying (Windows file lock release)
+            await new Promise((resolve) => setTimeout(resolve, 50));
+          }
+        }
+      }
       return true;
     } catch (error: any) {
       console.debug(`Insufficient permissions to write to ${dirPath}: ${error.message}`);
       return false;
     }
   }
+}
+
+/**
+ * Removes a marker block from file content.
+ * Only removes markers that are on their own lines (ignores inline mentions).
+ * Cleans up double blank lines that may result from removal.
+ *
+ * @param content - File content with markers
+ * @param startMarker - The start marker string
+ * @param endMarker - The end marker string
+ * @returns Content with marker block removed, or original content if markers not found/invalid
+ */
+export function removeMarkerBlock(
+  content: string,
+  startMarker: string,
+  endMarker: string
+): string {
+  const startIndex = findMarkerIndex(content, startMarker);
+  const endIndex = startIndex !== -1
+    ? findMarkerIndex(content, endMarker, startIndex + startMarker.length)
+    : findMarkerIndex(content, endMarker);
+
+  if (startIndex === -1 || endIndex === -1 || endIndex <= startIndex) {
+    return content;
+  }
+
+  // Find the start of the line containing the start marker
+  let lineStart = startIndex;
+  while (lineStart > 0 && content[lineStart - 1] !== '\n') {
+    lineStart--;
+  }
+
+  // Find the end of the line containing the end marker
+  let lineEnd = endIndex + endMarker.length;
+  while (lineEnd < content.length && content[lineEnd] !== '\n') {
+    lineEnd++;
+  }
+  // Include the trailing newline if present
+  if (lineEnd < content.length && content[lineEnd] === '\n') {
+    lineEnd++;
+  }
+
+  const before = content.substring(0, lineStart);
+  const after = content.substring(lineEnd);
+
+  // Clean up double blank lines (handle both Unix \n and Windows \r\n)
+  let result = before + after;
+  result = result.replace(/(\r?\n){3,}/g, '\n\n');
+
+  // Trim trailing whitespace but preserve leading whitespace and original newline style
+  if (result.trimEnd() === '') {
+    return '';
+  }
+  const newline = content.includes('\r\n') ? '\r\n' : '\n';
+  return result.trimEnd() + newline;
 }

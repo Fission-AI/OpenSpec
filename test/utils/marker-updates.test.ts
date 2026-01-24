@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
-import { FileSystemUtils } from '../../src/utils/file-system.js';
+import { FileSystemUtils, removeMarkerBlock } from '../../src/utils/file-system.js';
 
 describe('FileSystemUtils.updateFileWithMarkers', () => {
   let testDir: string;
@@ -282,6 +282,167 @@ ${END_MARKER}
 
       const secondResult = await fs.readFile(filePath, 'utf-8');
       expect(secondResult).toBe(firstResult);
+    });
+  });
+});
+
+describe('removeMarkerBlock', () => {
+  const START_MARKER = '<!-- OPENSPEC:START -->';
+  const END_MARKER = '<!-- OPENSPEC:END -->';
+
+  describe('basic removal', () => {
+    it('should remove marker block and preserve content before', () => {
+      const content = `User content before
+${START_MARKER}
+OpenSpec content
+${END_MARKER}`;
+      const result = removeMarkerBlock(content, START_MARKER, END_MARKER);
+      expect(result).toBe('User content before\n');
+      expect(result).not.toContain(START_MARKER);
+      expect(result).not.toContain(END_MARKER);
+    });
+
+    it('should remove marker block and preserve content after', () => {
+      const content = `${START_MARKER}
+OpenSpec content
+${END_MARKER}
+User content after`;
+      const result = removeMarkerBlock(content, START_MARKER, END_MARKER);
+      expect(result).toBe('User content after\n');
+    });
+
+    it('should remove marker block and preserve content before and after', () => {
+      const content = `User content before
+${START_MARKER}
+OpenSpec content
+${END_MARKER}
+User content after`;
+      const result = removeMarkerBlock(content, START_MARKER, END_MARKER);
+      expect(result).toContain('User content before');
+      expect(result).toContain('User content after');
+      expect(result).not.toContain(START_MARKER);
+    });
+
+    it('should return empty string when only markers remain', () => {
+      const content = `${START_MARKER}
+OpenSpec content
+${END_MARKER}`;
+      const result = removeMarkerBlock(content, START_MARKER, END_MARKER);
+      expect(result).toBe('');
+    });
+  });
+
+  describe('invalid states', () => {
+    it('should return original content when markers are missing', () => {
+      const content = 'Plain content without markers';
+      const result = removeMarkerBlock(content, START_MARKER, END_MARKER);
+      expect(result).toBe('Plain content without markers');
+    });
+
+    it('should return original content when only start marker exists', () => {
+      const content = `${START_MARKER}
+Content without end marker`;
+      const result = removeMarkerBlock(content, START_MARKER, END_MARKER);
+      expect(result).toContain(START_MARKER);
+    });
+
+    it('should return original content when only end marker exists', () => {
+      const content = `Content without start marker
+${END_MARKER}`;
+      const result = removeMarkerBlock(content, START_MARKER, END_MARKER);
+      expect(result).toContain(END_MARKER);
+    });
+
+    it('should return original content when markers are in wrong order', () => {
+      const content = `${END_MARKER}
+Content
+${START_MARKER}`;
+      const result = removeMarkerBlock(content, START_MARKER, END_MARKER);
+      expect(result).toContain(END_MARKER);
+      expect(result).toContain(START_MARKER);
+    });
+  });
+
+  describe('whitespace handling', () => {
+    it('should clean up double blank lines', () => {
+      const content = `Line 1
+
+
+${START_MARKER}
+OpenSpec content
+${END_MARKER}
+
+
+Line 2`;
+      const result = removeMarkerBlock(content, START_MARKER, END_MARKER);
+      expect(result).not.toMatch(/\n{3,}/);
+    });
+
+    it('should handle markers with whitespace on same line', () => {
+      const content = `User content
+  ${START_MARKER}
+OpenSpec content
+  ${END_MARKER}
+More content`;
+      const result = removeMarkerBlock(content, START_MARKER, END_MARKER);
+      expect(result).toContain('User content');
+      expect(result).toContain('More content');
+      expect(result).not.toContain(START_MARKER);
+    });
+  });
+
+  describe('inline marker mentions', () => {
+    it('should ignore inline mentions and only remove actual marker block', () => {
+      const content = `Intro referencing markers like ${START_MARKER} and ${END_MARKER} inside text.
+
+${START_MARKER}
+Original content
+${END_MARKER}
+`;
+      const result = removeMarkerBlock(content, START_MARKER, END_MARKER);
+      // Inline mentions should be preserved
+      expect(result).toContain('Intro referencing markers like');
+      expect(result).toContain(`${START_MARKER} and ${END_MARKER} inside text`);
+      // Original content between markers should be removed
+      expect(result).not.toContain('Original content');
+    });
+
+    it('should handle multiple inline mentions before actual block', () => {
+      const content = `The ${START_MARKER} marker starts a block.
+The ${END_MARKER} marker ends it.
+Here is the actual block:
+${START_MARKER}
+Managed content
+${END_MARKER}
+After block content`;
+      const result = removeMarkerBlock(content, START_MARKER, END_MARKER);
+      expect(result).toContain(`The ${START_MARKER} marker starts a block`);
+      expect(result).toContain(`The ${END_MARKER} marker ends it`);
+      expect(result).toContain('After block content');
+      expect(result).not.toContain('Managed content');
+    });
+  });
+
+  describe('shell markers', () => {
+    const SHELL_START = '# OPENSPEC:START';
+    const SHELL_END = '# OPENSPEC:END';
+
+    it('should work with shell-style markers', () => {
+      const content = `# User config
+export PATH="/usr/local/bin:$PATH"
+
+${SHELL_START}
+# OpenSpec managed
+alias openspec="npx openspec"
+${SHELL_END}
+
+# More user config
+export EDITOR="vim"`;
+      const result = removeMarkerBlock(content, SHELL_START, SHELL_END);
+      expect(result).toContain('export PATH');
+      expect(result).toContain('export EDITOR');
+      expect(result).not.toContain('alias openspec');
+      expect(result).not.toContain(SHELL_START);
     });
   });
 });

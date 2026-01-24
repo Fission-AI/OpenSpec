@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { UpdateCommand } from '../../src/core/update.js';
 import { FileSystemUtils } from '../../src/utils/file-system.js';
-import { ToolRegistry } from '../../src/core/configurators/registry.js';
+import { OPENSPEC_MARKERS } from '../../src/core/config.js';
 import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
@@ -10,7 +10,6 @@ import { randomUUID } from 'crypto';
 describe('UpdateCommand', () => {
   let testDir: string;
   let updateCommand: UpdateCommand;
-  let prevCodexHome: string | undefined;
 
   beforeEach(async () => {
     // Create a temporary test directory
@@ -23,1694 +22,1328 @@ describe('UpdateCommand', () => {
 
     updateCommand = new UpdateCommand();
 
-    // Route Codex global directory into the test sandbox
-    prevCodexHome = process.env.CODEX_HOME;
-    process.env.CODEX_HOME = path.join(testDir, '.codex');
+    // Clear all mocks before each test
+    vi.restoreAllMocks();
   });
 
   afterEach(async () => {
+    // Restore all mocks after each test
+    vi.restoreAllMocks();
+
     // Clean up test directory
     await fs.rm(testDir, { recursive: true, force: true });
-    if (prevCodexHome === undefined) delete process.env.CODEX_HOME;
-    else process.env.CODEX_HOME = prevCodexHome;
   });
 
-  it('should update only existing CLAUDE.md file', async () => {
-    // Create CLAUDE.md file with initial content
-    const claudePath = path.join(testDir, 'CLAUDE.md');
-    const initialContent = `# Project Instructions
-
-Some existing content here.
-
-<!-- OPENSPEC:START -->
-Old OpenSpec content
-<!-- OPENSPEC:END -->
-
-More content after.`;
-    await fs.writeFile(claudePath, initialContent);
-
-    const consoleSpy = vi.spyOn(console, 'log');
-
-    // Execute update command
-    await updateCommand.execute(testDir);
-
-    // Check that CLAUDE.md was updated
-    const updatedContent = await fs.readFile(claudePath, 'utf-8');
-    expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
-    expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
-    expect(updatedContent).toContain("@/openspec/AGENTS.md");
-    expect(updatedContent).toContain('openspec update');
-    expect(updatedContent).toContain('Some existing content here');
-    expect(updatedContent).toContain('More content after');
-
-    // Check console output
-    const [logMessage] = consoleSpy.mock.calls[0];
-    expect(logMessage).toContain(
-      'Updated OpenSpec instructions (openspec/AGENTS.md'
-    );
-    expect(logMessage).toContain('AGENTS.md (created)');
-    expect(logMessage).toContain('Updated AI tool files: CLAUDE.md');
-    consoleSpy.mockRestore();
-  });
-
-  it('should update only existing QWEN.md file', async () => {
-    const qwenPath = path.join(testDir, 'QWEN.md');
-    const initialContent = `# Qwen Instructions
-
-Some existing content.
-
-<!-- OPENSPEC:START -->
-Old OpenSpec content
-<!-- OPENSPEC:END -->
-
-More notes here.`;
-    await fs.writeFile(qwenPath, initialContent);
-
-    const consoleSpy = vi.spyOn(console, 'log');
-
-    await updateCommand.execute(testDir);
-
-    const updatedContent = await fs.readFile(qwenPath, 'utf-8');
-    expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
-    expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
-    expect(updatedContent).toContain("@/openspec/AGENTS.md");
-    expect(updatedContent).toContain('openspec update');
-    expect(updatedContent).toContain('Some existing content.');
-    expect(updatedContent).toContain('More notes here.');
-
-    const [logMessage] = consoleSpy.mock.calls[0];
-    expect(logMessage).toContain(
-      'Updated OpenSpec instructions (openspec/AGENTS.md'
-    );
-    expect(logMessage).toContain('AGENTS.md (created)');
-    expect(logMessage).toContain('Updated AI tool files: QWEN.md');
-
-    consoleSpy.mockRestore();
-  });
-
-  it('should refresh existing Claude slash command files', async () => {
-    const proposalPath = path.join(
-      testDir,
-      '.claude/commands/openspec/proposal.md'
-    );
-    await fs.mkdir(path.dirname(proposalPath), { recursive: true });
-    const initialContent = `---
-name: OpenSpec - Proposal
-description: Old description
-category: OpenSpec
-tags: [openspec, change]
----
-<!-- OPENSPEC:START -->
-Old slash content
-<!-- OPENSPEC:END -->`;
-    await fs.writeFile(proposalPath, initialContent);
-
-    const consoleSpy = vi.spyOn(console, 'log');
-
-    await updateCommand.execute(testDir);
-
-    const updated = await fs.readFile(proposalPath, 'utf-8');
-    expect(updated).toContain('name: OpenSpec - Proposal');
-    expect(updated).toContain('**Guardrails**');
-    expect(updated).toContain(
-      'Validate with `openspec validate <id> --strict --no-interactive`'
-    );
-    expect(updated).not.toContain('Old slash content');
-
-    const [logMessage] = consoleSpy.mock.calls[0];
-    expect(logMessage).toContain(
-      'Updated OpenSpec instructions (openspec/AGENTS.md'
-    );
-    expect(logMessage).toContain('AGENTS.md (created)');
-    expect(logMessage).toContain(
-      'Updated slash commands: .claude/commands/openspec/proposal.md'
-    );
-
-    consoleSpy.mockRestore();
-  });
-
-  it('should refresh existing Qwen slash command files', async () => {
-    const applyPath = path.join(
-      testDir,
-      '.qwen/commands/openspec-apply.toml'
-    );
-    await fs.mkdir(path.dirname(applyPath), { recursive: true });
-    const initialContent = `description = "Implement an approved OpenSpec change and keep tasks in sync."
-
-prompt = """
-<!-- OPENSPEC:START -->
-Old body
-<!-- OPENSPEC:END -->
-"""
-`;
-    await fs.writeFile(applyPath, initialContent);
-
-    const consoleSpy = vi.spyOn(console, 'log');
-
-    await updateCommand.execute(testDir);
-
-    const updated = await fs.readFile(applyPath, 'utf-8');
-    expect(updated).toContain('description = "Implement an approved OpenSpec change and keep tasks in sync."');
-    expect(updated).toContain('prompt = """');
-    expect(updated).toContain('<!-- OPENSPEC:START -->');
-    expect(updated).toContain('Work through tasks sequentially');
-    expect(updated).not.toContain('Old body');
-
-    const [logMessage] = consoleSpy.mock.calls[0];
-    expect(logMessage).toContain(
-      'Updated OpenSpec instructions (openspec/AGENTS.md'
-    );
-    expect(logMessage).toContain('AGENTS.md (created)');
-    expect(logMessage).toContain(
-      'Updated slash commands: .qwen/commands/openspec-apply.toml'
-    );
-
-    consoleSpy.mockRestore();
-  });
-
-  it('should not create missing Qwen slash command files on update', async () => {
-    const applyPath = path.join(
-      testDir,
-      '.qwen/commands/openspec-apply.toml'
-    );
-
-    await fs.mkdir(path.dirname(applyPath), { recursive: true });
-    await fs.writeFile(
-      applyPath,
-      `description = "Old description"
-
-prompt = """
-<!-- OPENSPEC:START -->
-Old content
-<!-- OPENSPEC:END -->
-"""
-`
-    );
-
-    await updateCommand.execute(testDir);
-
-    const updatedApply = await fs.readFile(applyPath, 'utf-8');
-    expect(updatedApply).toContain('Work through tasks sequentially');
-    expect(updatedApply).not.toContain('Old content');
-
-    const proposalPath = path.join(
-      testDir,
-      '.qwen/commands/openspec-proposal.toml'
-    );
-    const archivePath = path.join(
-      testDir,
-      '.qwen/commands/openspec-archive.toml'
-    );
-
-    await expect(FileSystemUtils.fileExists(proposalPath)).resolves.toBe(false);
-    await expect(FileSystemUtils.fileExists(archivePath)).resolves.toBe(false);
-  });
-
-  it('should not create CLAUDE.md if it does not exist', async () => {
-    // Ensure CLAUDE.md does not exist
-    const claudePath = path.join(testDir, 'CLAUDE.md');
-
-    // Execute update command
-    await updateCommand.execute(testDir);
-
-    // Check that CLAUDE.md was not created
-    const fileExists = await FileSystemUtils.fileExists(claudePath);
-    expect(fileExists).toBe(false);
-  });
-
-  it('should not create QWEN.md if it does not exist', async () => {
-    const qwenPath = path.join(testDir, 'QWEN.md');
-    await updateCommand.execute(testDir);
-    await expect(FileSystemUtils.fileExists(qwenPath)).resolves.toBe(false);
-  });
-
-  it('should update only existing CLINE.md file', async () => {
-    // Create CLINE.md file with initial content
-    const clinePath = path.join(testDir, 'CLINE.md');
-    const initialContent = `# Cline Rules
-
-Some existing Cline rules here.
-
-<!-- OPENSPEC:START -->
-Old OpenSpec content
-<!-- OPENSPEC:END -->
-
-More rules after.`;
-    await fs.writeFile(clinePath, initialContent);
-
-    const consoleSpy = vi.spyOn(console, 'log');
-
-    // Execute update command
-    await updateCommand.execute(testDir);
-
-    // Check that CLINE.md was updated
-    const updatedContent = await fs.readFile(clinePath, 'utf-8');
-    expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
-    expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
-    expect(updatedContent).toContain("@/openspec/AGENTS.md");
-    expect(updatedContent).toContain('openspec update');
-    expect(updatedContent).toContain('Some existing Cline rules here');
-    expect(updatedContent).toContain('More rules after');
-
-    // Check console output
-    const [logMessage] = consoleSpy.mock.calls[0];
-    expect(logMessage).toContain(
-      'Updated OpenSpec instructions (openspec/AGENTS.md'
-    );
-    expect(logMessage).toContain('AGENTS.md (created)');
-    expect(logMessage).toContain('Updated AI tool files: CLINE.md');
-    consoleSpy.mockRestore();
-  });
-
-  it('should not create CLINE.md if it does not exist', async () => {
-    // Ensure CLINE.md does not exist
-    const clinePath = path.join(testDir, 'CLINE.md');
-
-    // Execute update command
-    await updateCommand.execute(testDir);
-
-    // Check that CLINE.md was not created
-    const fileExists = await FileSystemUtils.fileExists(clinePath);
-    expect(fileExists).toBe(false);
-  });
-
-  it('should refresh existing Cline workflow files', async () => {
-    const proposalPath = path.join(
-      testDir,
-      '.clinerules/workflows/openspec-proposal.md'
-    );
-    await fs.mkdir(path.dirname(proposalPath), { recursive: true });
-    const initialContent = `# OpenSpec: Proposal
-
-Scaffold a new OpenSpec change and validate strictly.
-
-<!-- OPENSPEC:START -->
-Old slash content
-<!-- OPENSPEC:END -->`;
-    await fs.writeFile(proposalPath, initialContent);
-
-    const consoleSpy = vi.spyOn(console, 'log');
-
-    await updateCommand.execute(testDir);
-
-    const updated = await fs.readFile(proposalPath, 'utf-8');
-    expect(updated).toContain('# OpenSpec: Proposal');
-    expect(updated).toContain('**Guardrails**');
-    expect(updated).toContain(
-      'Validate with `openspec validate <id> --strict --no-interactive`'
-    );
-    expect(updated).not.toContain('Old slash content');
-
-    const [logMessage] = consoleSpy.mock.calls[0];
-    expect(logMessage).toContain(
-      'Updated OpenSpec instructions (openspec/AGENTS.md'
-    );
-    expect(logMessage).toContain('AGENTS.md (created)');
-    expect(logMessage).toContain(
-      'Updated slash commands: .clinerules/workflows/openspec-proposal.md'
-    );
-
-    consoleSpy.mockRestore();
-  });
-
-  it('should refresh existing Cursor slash command files', async () => {
-    const cursorPath = path.join(testDir, '.cursor/commands/openspec-apply.md');
-    await fs.mkdir(path.dirname(cursorPath), { recursive: true });
-    const initialContent = `---
-name: /openspec-apply
-id: openspec-apply
-category: OpenSpec
-description: Old description
----
-<!-- OPENSPEC:START -->
-Old body
-<!-- OPENSPEC:END -->`;
-    await fs.writeFile(cursorPath, initialContent);
-
-    const consoleSpy = vi.spyOn(console, 'log');
-
-    await updateCommand.execute(testDir);
-
-    const updated = await fs.readFile(cursorPath, 'utf-8');
-    expect(updated).toContain('id: openspec-apply');
-    expect(updated).toContain('Work through tasks sequentially');
-    expect(updated).not.toContain('Old body');
-
-    const [logMessage] = consoleSpy.mock.calls[0];
-    expect(logMessage).toContain(
-      'Updated OpenSpec instructions (openspec/AGENTS.md'
-    );
-    expect(logMessage).toContain('AGENTS.md (created)');
-    expect(logMessage).toContain(
-      'Updated slash commands: .cursor/commands/openspec-apply.md'
-    );
-
-    consoleSpy.mockRestore();
-  });
-
-  it('should refresh existing Continue prompt files', async () => {
-    const continuePath = path.join(
-      testDir,
-      '.continue/prompts/openspec-apply.prompt'
-    );
-    await fs.mkdir(path.dirname(continuePath), { recursive: true });
-    const initialContent = `---
-name: openspec-apply
-description: Old description
-invokable: true
----
-<!-- OPENSPEC:START -->
-Old body
-<!-- OPENSPEC:END -->`;
-    await fs.writeFile(continuePath, initialContent);
-
-    const consoleSpy = vi.spyOn(console, 'log');
-
-    await updateCommand.execute(testDir);
-
-    const updated = await fs.readFile(continuePath, 'utf-8');
-    expect(updated).toContain('name: openspec-apply');
-    expect(updated).toContain('invokable: true');
-    expect(updated).toContain('Work through tasks sequentially');
-    expect(updated).not.toContain('Old body');
-
-    const [logMessage] = consoleSpy.mock.calls[0];
-    expect(logMessage).toContain(
-      'Updated OpenSpec instructions (openspec/AGENTS.md'
-    );
-    expect(logMessage).toContain('AGENTS.md (created)');
-    expect(logMessage).toContain(
-      'Updated slash commands: .continue/prompts/openspec-apply.prompt'
-    );
-
-    consoleSpy.mockRestore();
-  });
-
-  it('should not create missing Continue prompt files on update', async () => {
-    const continueApply = path.join(
-      testDir,
-      '.continue/prompts/openspec-apply.prompt'
-    );
-
-    // Only create apply; leave proposal and archive missing
-    await fs.mkdir(path.dirname(continueApply), { recursive: true });
-    await fs.writeFile(
-      continueApply,
-      `---
-name: openspec-apply
-description: Old description
-invokable: true
----
-<!-- OPENSPEC:START -->
-Old body
-<!-- OPENSPEC:END -->`
-    );
-
-    await updateCommand.execute(testDir);
-
-    const continueProposal = path.join(
-      testDir,
-      '.continue/prompts/openspec-proposal.prompt'
-    );
-    const continueArchive = path.join(
-      testDir,
-      '.continue/prompts/openspec-archive.prompt'
-    );
-
-    // Confirm they weren't created by update
-    await expect(FileSystemUtils.fileExists(continueProposal)).resolves.toBe(false);
-    await expect(FileSystemUtils.fileExists(continueArchive)).resolves.toBe(false);
-  });
-
-  it('should refresh existing OpenCode slash command files', async () => {
-    const openCodePath = path.join(
-      testDir,
-      '.opencode/command/openspec-apply.md'
-    );
-    await fs.mkdir(path.dirname(openCodePath), { recursive: true });
-    const initialContent = `---
-name: /openspec-apply
-id: openspec-apply
-category: OpenSpec
-description: Old description
----
-<!-- OPENSPEC:START -->
-Old body
-<!-- OPENSPEC:END -->`;
-    await fs.writeFile(openCodePath, initialContent);
-
-    const consoleSpy = vi.spyOn(console, 'log');
-
-    await updateCommand.execute(testDir);
-
-    const updated = await fs.readFile(openCodePath, 'utf-8');
-    expect(updated).toContain('id: openspec-apply');
-    expect(updated).toContain('Work through tasks sequentially');
-    expect(updated).not.toContain('Old body');
-
-    const [logMessage] = consoleSpy.mock.calls[0];
-    expect(logMessage).toContain(
-      'Updated OpenSpec instructions (openspec/AGENTS.md'
-    );
-    expect(logMessage).toContain('AGENTS.md (created)');
-    expect(logMessage).toContain(
-      'Updated slash commands: .opencode/command/openspec-apply.md'
-    );
-
-    consoleSpy.mockRestore();
-  });
-
-  it('should refresh existing Kilo Code workflows', async () => {
-    const kilocodePath = path.join(
-      testDir,
-      '.kilocode/workflows/openspec-apply.md'
-    );
-    await fs.mkdir(path.dirname(kilocodePath), { recursive: true });
-    const initialContent = `<!-- OPENSPEC:START -->
-Old body
-<!-- OPENSPEC:END -->`;
-    await fs.writeFile(kilocodePath, initialContent);
-
-    const consoleSpy = vi.spyOn(console, 'log');
-
-    await updateCommand.execute(testDir);
-
-    const updated = await fs.readFile(kilocodePath, 'utf-8');
-    expect(updated).toContain('Work through tasks sequentially');
-    expect(updated).not.toContain('Old body');
-    expect(updated.startsWith('<!-- OPENSPEC:START -->')).toBe(true);
-
-    const [logMessage] = consoleSpy.mock.calls[0];
-    expect(logMessage).toContain(
-      'Updated slash commands: .kilocode/workflows/openspec-apply.md'
-    );
-
-    consoleSpy.mockRestore();
-  });
-
-  it('should refresh existing Windsurf workflows', async () => {
-    const wsPath = path.join(
-      testDir,
-      '.windsurf/workflows/openspec-apply.md'
-    );
-    await fs.mkdir(path.dirname(wsPath), { recursive: true });
-    const initialContent = `## OpenSpec: Apply (Windsurf)
-Intro
-<!-- OPENSPEC:START -->
-Old body
-<!-- OPENSPEC:END -->`;
-    await fs.writeFile(wsPath, initialContent);
-
-    const consoleSpy = vi.spyOn(console, 'log');
-
-    await updateCommand.execute(testDir);
-
-    const updated = await fs.readFile(wsPath, 'utf-8');
-    expect(updated).toContain('Work through tasks sequentially');
-    expect(updated).not.toContain('Old body');
-    expect(updated).toContain('## OpenSpec: Apply (Windsurf)');
-
-    const [logMessage] = consoleSpy.mock.calls[0];
-    expect(logMessage).toContain(
-      'Updated slash commands: .windsurf/workflows/openspec-apply.md'
-    );
-    consoleSpy.mockRestore();
-  });
-
-  it('should refresh existing Antigravity workflows', async () => {
-    const agPath = path.join(
-      testDir,
-      '.agent/workflows/openspec-apply.md'
-    );
-    await fs.mkdir(path.dirname(agPath), { recursive: true });
-    const initialContent = `---
-description: Implement an approved OpenSpec change and keep tasks in sync.
----
-
-<!-- OPENSPEC:START -->
-Old body
-<!-- OPENSPEC:END -->`;
-    await fs.writeFile(agPath, initialContent);
-
-    const consoleSpy = vi.spyOn(console, 'log');
-
-    await updateCommand.execute(testDir);
-
-    const updated = await fs.readFile(agPath, 'utf-8');
-    expect(updated).toContain('Work through tasks sequentially');
-    expect(updated).not.toContain('Old body');
-    expect(updated).toContain('description: Implement an approved OpenSpec change and keep tasks in sync.');
-    expect(updated).not.toContain('auto_execution_mode: 3');
-
-    const [logMessage] = consoleSpy.mock.calls[0];
-    expect(logMessage).toContain(
-      'Updated slash commands: .agent/workflows/openspec-apply.md'
-    );
-    consoleSpy.mockRestore();
-  });
-
-  it('should refresh existing Codex prompts', async () => {
-    const codexPath = path.join(
-      testDir,
-      '.codex/prompts/openspec-apply.md'
-    );
-    await fs.mkdir(path.dirname(codexPath), { recursive: true });
-    const initialContent = `---\ndescription: Old description\nargument-hint: old-hint\n---\n\n$ARGUMENTS\n<!-- OPENSPEC:START -->\nOld body\n<!-- OPENSPEC:END -->`;
-    await fs.writeFile(codexPath, initialContent);
-
-    const consoleSpy = vi.spyOn(console, 'log');
-
-    await updateCommand.execute(testDir);
-
-    const updated = await fs.readFile(codexPath, 'utf-8');
-    expect(updated).toContain('description: Implement an approved OpenSpec change and keep tasks in sync.');
-    expect(updated).toContain('argument-hint: change-id');
-    expect(updated).toContain('$ARGUMENTS');
-    expect(updated).toContain('Work through tasks sequentially');
-    expect(updated).not.toContain('Old body');
-    expect(updated).not.toContain('Old description');
-
-    const [logMessage] = consoleSpy.mock.calls[0];
-    expect(logMessage).toContain(
-      'Updated slash commands: .codex/prompts/openspec-apply.md'
-    );
-
-    consoleSpy.mockRestore();
-  });
-
-  it('should not create missing Codex prompts on update', async () => {
-    const codexApply = path.join(
-      testDir,
-      '.codex/prompts/openspec-apply.md'
-    );
-
-    // Only create apply; leave proposal and archive missing
-    await fs.mkdir(path.dirname(codexApply), { recursive: true });
-    await fs.writeFile(
-      codexApply,
-      '---\ndescription: Old\nargument-hint: old\n---\n\n$ARGUMENTS\n<!-- OPENSPEC:START -->\nOld\n<!-- OPENSPEC:END -->'
-    );
-
-    await updateCommand.execute(testDir);
-
-    const codexProposal = path.join(
-      testDir,
-      '.codex/prompts/openspec-proposal.md'
-    );
-    const codexArchive = path.join(
-      testDir,
-      '.codex/prompts/openspec-archive.md'
-    );
-
-    // Confirm they weren't created by update
-    await expect(FileSystemUtils.fileExists(codexProposal)).resolves.toBe(false);
-    await expect(FileSystemUtils.fileExists(codexArchive)).resolves.toBe(false);
-  });
-
-  it('should refresh existing GitHub Copilot prompts', async () => {
-    const ghPath = path.join(
-      testDir,
-      '.github/prompts/openspec-apply.prompt.md'
-    );
-    await fs.mkdir(path.dirname(ghPath), { recursive: true });
-    const initialContent = `---
-description: Implement an approved OpenSpec change and keep tasks in sync.
----
-
-$ARGUMENTS
-<!-- OPENSPEC:START -->
-Old body
-<!-- OPENSPEC:END -->`;
-    await fs.writeFile(ghPath, initialContent);
-
-    const consoleSpy = vi.spyOn(console, 'log');
-
-    await updateCommand.execute(testDir);
-
-    const updated = await fs.readFile(ghPath, 'utf-8');
-    expect(updated).toContain('description: Implement an approved OpenSpec change and keep tasks in sync.');
-    expect(updated).toContain('$ARGUMENTS');
-    expect(updated).toContain('Work through tasks sequentially');
-    expect(updated).not.toContain('Old body');
-
-    const [logMessage] = consoleSpy.mock.calls[0];
-    expect(logMessage).toContain(
-      'Updated slash commands: .github/prompts/openspec-apply.prompt.md'
-    );
-
-    consoleSpy.mockRestore();
-  });
-
-  it('should not create missing GitHub Copilot prompts on update', async () => {
-    const ghApply = path.join(
-      testDir,
-      '.github/prompts/openspec-apply.prompt.md'
-    );
-
-    // Only create apply; leave proposal and archive missing
-    await fs.mkdir(path.dirname(ghApply), { recursive: true });
-    await fs.writeFile(
-      ghApply,
-      '---\ndescription: Old\n---\n\n$ARGUMENTS\n<!-- OPENSPEC:START -->\nOld\n<!-- OPENSPEC:END -->'
-    );
-
-    await updateCommand.execute(testDir);
-
-    const ghProposal = path.join(
-      testDir,
-      '.github/prompts/openspec-proposal.prompt.md'
-    );
-    const ghArchive = path.join(
-      testDir,
-      '.github/prompts/openspec-archive.prompt.md'
-    );
-
-    // Confirm they weren't created by update
-    await expect(FileSystemUtils.fileExists(ghProposal)).resolves.toBe(false);
-    await expect(FileSystemUtils.fileExists(ghArchive)).resolves.toBe(false);
-  });
-
-  it('should refresh existing Gemini CLI TOML files without creating new ones', async () => {
-    const geminiProposal = path.join(
-      testDir,
-      '.gemini/commands/openspec/proposal.toml'
-    );
-    await fs.mkdir(path.dirname(geminiProposal), { recursive: true });
-    const initialContent = `description = "Scaffold a new OpenSpec change and validate strictly."
-
-prompt = """
-<!-- OPENSPEC:START -->
-Old Gemini body
-<!-- OPENSPEC:END -->
-"""
-`;
-    await fs.writeFile(geminiProposal, initialContent);
-
-    const consoleSpy = vi.spyOn(console, 'log');
-
-    await updateCommand.execute(testDir);
-
-    const updated = await fs.readFile(geminiProposal, 'utf-8');
-    expect(updated).toContain('description = "Scaffold a new OpenSpec change and validate strictly."');
-    expect(updated).toContain('prompt = """');
-    expect(updated).toContain('<!-- OPENSPEC:START -->');
-    expect(updated).toContain('**Guardrails**');
-    expect(updated).toContain('<!-- OPENSPEC:END -->');
-    expect(updated).not.toContain('Old Gemini body');
-
-    const geminiApply = path.join(
-      testDir,
-      '.gemini/commands/openspec/apply.toml'
-    );
-    const geminiArchive = path.join(
-      testDir,
-      '.gemini/commands/openspec/archive.toml'
-    );
-
-    await expect(FileSystemUtils.fileExists(geminiApply)).resolves.toBe(false);
-    await expect(FileSystemUtils.fileExists(geminiArchive)).resolves.toBe(false);
-
-    const [logMessage] = consoleSpy.mock.calls[0];
-    expect(logMessage).toContain(
-      'Updated slash commands: .gemini/commands/openspec/proposal.toml'
-    );
-
-    consoleSpy.mockRestore();
-  });
-  
-  it('should refresh existing IFLOW slash commands', async () => {
-    const iflowProposal = path.join(
-      testDir,
-      '.iflow/commands/openspec-proposal.md'
-    );
-    await fs.mkdir(path.dirname(iflowProposal), { recursive: true });
-    const initialContent = `description: Scaffold a new OpenSpec change and validate strictly."
-
-prompt = """
-<!-- OPENSPEC:START -->
-Old IFlow body
-<!-- OPENSPEC:END -->
-"""
-`;
-    await fs.writeFile(iflowProposal, initialContent);
-
-    const consoleSpy = vi.spyOn(console, 'log');
-
-    await updateCommand.execute(testDir);
-
-    const updated = await fs.readFile(iflowProposal, 'utf-8');
-    expect(updated).toContain('description: Scaffold a new OpenSpec change and validate strictly.');
-    expect(updated).toContain('<!-- OPENSPEC:START -->');
-    expect(updated).toContain('**Guardrails**');
-    expect(updated).toContain('<!-- OPENSPEC:END -->');
-    expect(updated).not.toContain('Old IFlow body');
-
-    const iflowApply = path.join(
-      testDir,
-      '.iflow/commands/openspec-apply.md'
-    );
-    const iflowArchive = path.join(
-      testDir,
-      '.iflow/commands/openspec-archive.md'
-    );
-
-    await expect(FileSystemUtils.fileExists(iflowApply)).resolves.toBe(false);
-    await expect(FileSystemUtils.fileExists(iflowArchive)).resolves.toBe(false);
-
-    const [logMessage] = consoleSpy.mock.calls[0];
-    expect(logMessage).toContain(
-      'Updated slash commands: .iflow/commands/openspec-proposal.md'
-    );
-
-    consoleSpy.mockRestore();
-  });
-
-  it('should refresh existing Factory slash commands', async () => {
-    const factoryPath = path.join(
-      testDir,
-      '.factory/commands/openspec-proposal.md'
-    );
-    await fs.mkdir(path.dirname(factoryPath), { recursive: true });
-    const initialContent = `---
-description: Scaffold a new OpenSpec change and validate strictly.
-argument-hint: request or feature description
----
-
-<!-- OPENSPEC:START -->
-Old body
-<!-- OPENSPEC:END -->`;
-    await fs.writeFile(factoryPath, initialContent);
-
-    const consoleSpy = vi.spyOn(console, 'log');
-
-    await updateCommand.execute(testDir);
-
-    const updated = await fs.readFile(factoryPath, 'utf-8');
-    expect(updated).toContain('description: Scaffold a new OpenSpec change and validate strictly.');
-    expect(updated).toContain('argument-hint: request or feature description');
-    expect(
-      /<!-- OPENSPEC:START -->([\s\S]*?)<!-- OPENSPEC:END -->/u.exec(updated)?.[1]
-    ).toContain('$ARGUMENTS');
-    expect(updated).toContain('**Guardrails**');
-    expect(updated).not.toContain('Old body');
-
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('.factory/commands/openspec-proposal.md')
-    );
-
-    consoleSpy.mockRestore();
-  });
-
-  it('should not create missing Factory slash command files on update', async () => {
-    const factoryApply = path.join(
-      testDir,
-      '.factory/commands/openspec-apply.md'
-    );
-
-    await fs.mkdir(path.dirname(factoryApply), { recursive: true });
-    await fs.writeFile(
-      factoryApply,
-      `---
-description: Old
-argument-hint: old
----
-
-<!-- OPENSPEC:START -->
-Old body
-<!-- OPENSPEC:END -->`
-    );
-
-    await updateCommand.execute(testDir);
-
-    const factoryProposal = path.join(
-      testDir,
-      '.factory/commands/openspec-proposal.md'
-    );
-    const factoryArchive = path.join(
-      testDir,
-      '.factory/commands/openspec-archive.md'
-    );
-
-    await expect(FileSystemUtils.fileExists(factoryProposal)).resolves.toBe(false);
-    await expect(FileSystemUtils.fileExists(factoryArchive)).resolves.toBe(false);
-  });
-
-  it('should refresh existing Amazon Q Developer prompts', async () => {
-    const aqPath = path.join(
-      testDir,
-      '.amazonq/prompts/openspec-apply.md'
-    );
-    await fs.mkdir(path.dirname(aqPath), { recursive: true });
-    const initialContent = `---
-description: Implement an approved OpenSpec change and keep tasks in sync.
----
-
-The user wants to apply the following change. Use the openspec instructions to implement the approved change.
-
-<ChangeId>
-  $ARGUMENTS
-</ChangeId>
-<!-- OPENSPEC:START -->
-Old body
-<!-- OPENSPEC:END -->`;
-    await fs.writeFile(aqPath, initialContent);
-
-    const consoleSpy = vi.spyOn(console, 'log');
-
-    await updateCommand.execute(testDir);
-
-    const updatedContent = await fs.readFile(aqPath, 'utf-8');
-    expect(updatedContent).toContain('**Guardrails**');
-    expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
-    expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
-    expect(updatedContent).not.toContain('Old body');
-
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('.amazonq/prompts/openspec-apply.md')
-    );
-
-    consoleSpy.mockRestore();
-  });
-
-  it('should not create missing Amazon Q Developer prompts on update', async () => {
-    const aqApply = path.join(
-      testDir,
-      '.amazonq/prompts/openspec-apply.md'
-    );
-
-    // Only create apply; leave proposal and archive missing
-    await fs.mkdir(path.dirname(aqApply), { recursive: true });
-    await fs.writeFile(
-      aqApply,
-      '---\ndescription: Old\n---\n\nThe user wants to apply the following change.\n\n<ChangeId>\n  $ARGUMENTS\n</ChangeId>\n<!-- OPENSPEC:START -->\nOld\n<!-- OPENSPEC:END -->'
-    );
-
-    await updateCommand.execute(testDir);
-
-    const aqProposal = path.join(
-      testDir,
-      '.amazonq/prompts/openspec-proposal.md'
-    );
-    const aqArchive = path.join(
-      testDir,
-      '.amazonq/prompts/openspec-archive.md'
-    );
-
-    // Confirm they weren't created by update
-    await expect(FileSystemUtils.fileExists(aqProposal)).resolves.toBe(false);
-    await expect(FileSystemUtils.fileExists(aqArchive)).resolves.toBe(false);
-  });
-
-  it('should refresh existing Auggie slash command files', async () => {
-    const auggiePath = path.join(
-      testDir,
-      '.augment/commands/openspec-apply.md'
-    );
-    await fs.mkdir(path.dirname(auggiePath), { recursive: true });
-    const initialContent = `---
-description: Implement an approved OpenSpec change and keep tasks in sync.
-argument-hint: change-id
----
-<!-- OPENSPEC:START -->
-Old body
-<!-- OPENSPEC:END -->`;
-    await fs.writeFile(auggiePath, initialContent);
-
-    const consoleSpy = vi.spyOn(console, 'log');
-
-    await updateCommand.execute(testDir);
-
-    const updatedContent = await fs.readFile(auggiePath, 'utf-8');
-    expect(updatedContent).toContain('**Guardrails**');
-    expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
-    expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
-    expect(updatedContent).not.toContain('Old body');
-
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('.augment/commands/openspec-apply.md')
-    );
-
-    consoleSpy.mockRestore();
-  });
-
-  it('should not create missing Auggie slash command files on update', async () => {
-    const auggieApply = path.join(
-      testDir,
-      '.augment/commands/openspec-apply.md'
-    );
-
-    // Only create apply; leave proposal and archive missing
-    await fs.mkdir(path.dirname(auggieApply), { recursive: true });
-    await fs.writeFile(
-      auggieApply,
-      '---\ndescription: Old\nargument-hint: old\n---\n<!-- OPENSPEC:START -->\nOld\n<!-- OPENSPEC:END -->'
-    );
-
-    await updateCommand.execute(testDir);
-
-    const auggieProposal = path.join(
-      testDir,
-      '.augment/commands/openspec-proposal.md'
-    );
-    const auggieArchive = path.join(
-      testDir,
-      '.augment/commands/openspec-archive.md'
-    );
-
-    // Confirm they weren't created by update
-    await expect(FileSystemUtils.fileExists(auggieProposal)).resolves.toBe(false);
-    await expect(FileSystemUtils.fileExists(auggieArchive)).resolves.toBe(false);
-  });
-
-  it('should refresh existing CodeBuddy slash command files', async () => {
-    const codeBuddyPath = path.join(
-      testDir,
-      '.codebuddy/commands/openspec/proposal.md'
-    );
-    await fs.mkdir(path.dirname(codeBuddyPath), { recursive: true });
-    const initialContent = `---
-name: OpenSpec - Proposal
-description: Old description
-category: OpenSpec
-tags: [openspec, change]
----
-<!-- OPENSPEC:START -->
-Old slash content
-<!-- OPENSPEC:END -->`;
-    await fs.writeFile(codeBuddyPath, initialContent);
-
-    const consoleSpy = vi.spyOn(console, 'log');
-
-    await updateCommand.execute(testDir);
-
-    const updated = await fs.readFile(codeBuddyPath, 'utf-8');
-    expect(updated).toContain('name: OpenSpec - Proposal');
-    expect(updated).toContain('**Guardrails**');
-    expect(updated).toContain(
-      'Validate with `openspec validate <id> --strict --no-interactive`'
-    );
-    expect(updated).not.toContain('Old slash content');
-
-    const [logMessage] = consoleSpy.mock.calls[0];
-    expect(logMessage).toContain(
-      'Updated OpenSpec instructions (openspec/AGENTS.md'
-    );
-    expect(logMessage).toContain('AGENTS.md (created)');
-    expect(logMessage).toContain(
-      'Updated slash commands: .codebuddy/commands/openspec/proposal.md'
-    );
-
-    consoleSpy.mockRestore();
-  });
-
-  it('should not create missing CodeBuddy slash command files on update', async () => {
-    const codeBuddyApply = path.join(
-      testDir,
-      '.codebuddy/commands/openspec/apply.md'
-    );
-
-    // Only create apply; leave proposal and archive missing
-    await fs.mkdir(path.dirname(codeBuddyApply), { recursive: true });
-    await fs.writeFile(
-      codeBuddyApply,
-      `---
-name: OpenSpec - Apply
-description: Old description
-category: OpenSpec
-tags: [openspec, apply]
----
-<!-- OPENSPEC:START -->
-Old body
-<!-- OPENSPEC:END -->`
-    );
-
-    await updateCommand.execute(testDir);
-
-    const codeBuddyProposal = path.join(
-      testDir,
-      '.codebuddy/commands/openspec/proposal.md'
-    );
-    const codeBuddyArchive = path.join(
-      testDir,
-      '.codebuddy/commands/openspec/archive.md'
-    );
-
-    // Confirm they weren't created by update
-    await expect(FileSystemUtils.fileExists(codeBuddyProposal)).resolves.toBe(false);
-    await expect(FileSystemUtils.fileExists(codeBuddyArchive)).resolves.toBe(false);
-  });
-
-  it('should refresh existing Crush slash command files', async () => {
-    const crushPath = path.join(
-      testDir,
-      '.crush/commands/openspec/proposal.md'
-    );
-    await fs.mkdir(path.dirname(crushPath), { recursive: true });
-    const initialContent = `---
-name: OpenSpec - Proposal
-description: Old description
-category: OpenSpec
-tags: [openspec, change]
----
-<!-- OPENSPEC:START -->
-Old slash content
-<!-- OPENSPEC:END -->`;
-    await fs.writeFile(crushPath, initialContent);
-
-    const consoleSpy = vi.spyOn(console, 'log');
-
-    await updateCommand.execute(testDir);
-
-    const updated = await fs.readFile(crushPath, 'utf-8');
-    expect(updated).toContain('name: OpenSpec - Proposal');
-    expect(updated).toContain('**Guardrails**');
-    expect(updated).toContain(
-      'Validate with `openspec validate <id> --strict --no-interactive`'
-    );
-    expect(updated).not.toContain('Old slash content');
-
-    const [logMessage] = consoleSpy.mock.calls[0];
-    expect(logMessage).toContain(
-      'Updated OpenSpec instructions (openspec/AGENTS.md'
-    );
-    expect(logMessage).toContain('AGENTS.md (created)');
-    expect(logMessage).toContain(
-      'Updated slash commands: .crush/commands/openspec/proposal.md'
-    );
-
-    consoleSpy.mockRestore();
-  });
-
-  it('should not create missing Crush slash command files on update', async () => {
-    const crushApply = path.join(
-      testDir,
-      '.crush/commands/openspec-apply.md'
-    );
-
-    // Only create apply; leave proposal and archive missing
-    await fs.mkdir(path.dirname(crushApply), { recursive: true });
-    await fs.writeFile(
-      crushApply,
-      `---
-name: OpenSpec - Apply
-description: Old description
-category: OpenSpec
-tags: [openspec, apply]
----
-<!-- OPENSPEC:START -->
-Old body
-<!-- OPENSPEC:END -->`
-    );
-
-    await updateCommand.execute(testDir);
-
-    const crushProposal = path.join(
-      testDir,
-      '.crush/commands/openspec-proposal.md'
-    );
-    const crushArchive = path.join(
-      testDir,
-      '.crush/commands/openspec-archive.md'
-    );
-
-    // Confirm they weren't created by update
-    await expect(FileSystemUtils.fileExists(crushProposal)).resolves.toBe(false);
-    await expect(FileSystemUtils.fileExists(crushArchive)).resolves.toBe(false);
-  });
-
-  it('should refresh existing CoStrict slash command files', async () => {
-    const costrictPath = path.join(
-      testDir,
-      '.cospec/openspec/commands/openspec-proposal.md'
-    );
-    await fs.mkdir(path.dirname(costrictPath), { recursive: true });
-    const initialContent = `---
-description: "Old description"
-argument-hint: old-hint
----
-<!-- OPENSPEC:START -->
-Old body
-<!-- OPENSPEC:END -->`;
-    await fs.writeFile(costrictPath, initialContent);
-
-    const consoleSpy = vi.spyOn(console, 'log');
-
-    await updateCommand.execute(testDir);
-
-    const updated = await fs.readFile(costrictPath, 'utf-8');
-    // For slash commands, only the content between OpenSpec markers is updated
-    expect(updated).toContain('description: "Old description"');
-    expect(updated).toContain('argument-hint: old-hint');
-    expect(updated).toContain('**Guardrails**');
-    expect(updated).toContain(
-      'Validate with `openspec validate <id> --strict --no-interactive`'
-    );
-    expect(updated).not.toContain('Old body');
-
-    const [logMessage] = consoleSpy.mock.calls[0];
-    expect(logMessage).toContain(
-      'Updated OpenSpec instructions (openspec/AGENTS.md'
-    );
-    expect(logMessage).toContain('AGENTS.md (created)');
-    expect(logMessage).toContain(
-      'Updated slash commands: .cospec/openspec/commands/openspec-proposal.md'
-    );
-
-    consoleSpy.mockRestore();
-  });
-
-  it('should refresh existing Qoder slash command files', async () => {
-    const qoderPath = path.join(
-      testDir,
-      '.qoder/commands/openspec/proposal.md'
-    );
-    await fs.mkdir(path.dirname(qoderPath), { recursive: true });
-    const initialContent = `---
-name: OpenSpec - Proposal
-description: Old description
-category: OpenSpec
-tags: [openspec, change]
----
-<!-- OPENSPEC:START -->
-Old slash content
-<!-- OPENSPEC:END -->`;
-    await fs.writeFile(qoderPath, initialContent);
-
-    const consoleSpy = vi.spyOn(console, 'log');
-
-    await updateCommand.execute(testDir);
-
-    const updated = await fs.readFile(qoderPath, 'utf-8');
-    expect(updated).toContain('name: OpenSpec - Proposal');
-    expect(updated).toContain('**Guardrails**');
-    expect(updated).toContain(
-      'Validate with `openspec validate <id> --strict --no-interactive`'
-    );
-    expect(updated).not.toContain('Old slash content');
-
-    const [logMessage] = consoleSpy.mock.calls[0];
-    expect(logMessage).toContain(
-      'Updated OpenSpec instructions (openspec/AGENTS.md'
-    );
-    expect(logMessage).toContain('AGENTS.md (created)');
-    expect(logMessage).toContain(
-      'Updated slash commands: .qoder/commands/openspec/proposal.md'
-    );
-
-    consoleSpy.mockRestore();
-  });
-
-  it('should refresh existing RooCode slash command files', async () => {
-    const rooPath = path.join(
-      testDir,
-      '.roo/commands/openspec-proposal.md'
-    );
-    await fs.mkdir(path.dirname(rooPath), { recursive: true });
-    const initialContent = `# OpenSpec: Proposal
-
-Old description
-
-<!-- OPENSPEC:START -->
-Old body
-<!-- OPENSPEC:END -->`;
-    await fs.writeFile(rooPath, initialContent);
-
-    const consoleSpy = vi.spyOn(console, 'log');
-
-    await updateCommand.execute(testDir);
-
-    const updated = await fs.readFile(rooPath, 'utf-8');
-    // For RooCode, the header is Markdown, preserve it and update only managed block
-    expect(updated).toContain('# OpenSpec: Proposal');
-    expect(updated).toContain('**Guardrails**');
-    expect(updated).toContain(
-      'Validate with `openspec validate <id> --strict --no-interactive`'
-    );
-    expect(updated).not.toContain('Old body');
-
-    const [logMessage] = consoleSpy.mock.calls[0];
-    expect(logMessage).toContain(
-      'Updated OpenSpec instructions (openspec/AGENTS.md'
-    );
-    expect(logMessage).toContain('AGENTS.md (created)');
-    expect(logMessage).toContain(
-      'Updated slash commands: .roo/commands/openspec-proposal.md'
-    );
-
-    consoleSpy.mockRestore();
-  });
-
-  it('should not create missing RooCode slash command files on update', async () => {
-    const rooApply = path.join(
-      testDir,
-      '.roo/commands/openspec-apply.md'
-    );
-
-    // Only create apply; leave proposal and archive missing
-    await fs.mkdir(path.dirname(rooApply), { recursive: true });
-    await fs.writeFile(
-      rooApply,
-      `# OpenSpec: Apply
-
-<!-- OPENSPEC:START -->
-Old body
-<!-- OPENSPEC:END -->`
-    );
-
-    await updateCommand.execute(testDir);
-
-    const rooProposal = path.join(
-      testDir,
-      '.roo/commands/openspec-proposal.md'
-    );
-    const rooArchive = path.join(
-      testDir,
-      '.roo/commands/openspec-archive.md'
-    );
-
-    // Confirm they weren't created by update
-    await expect(FileSystemUtils.fileExists(rooProposal)).resolves.toBe(false);
-    await expect(FileSystemUtils.fileExists(rooArchive)).resolves.toBe(false);
-  });
-
-  it('should not create missing CoStrict slash command files on update', async () => {
-    const costrictApply = path.join(
-      testDir,
-      '.cospec/openspec/commands/openspec-apply.md'
-    );
-
-    // Only create apply; leave proposal and archive missing
-    await fs.mkdir(path.dirname(costrictApply), { recursive: true });
-    await fs.writeFile(
-      costrictApply,
-      `---
-description: "Old"
-argument-hint: old
----
-<!-- OPENSPEC:START -->
-Old
-<!-- OPENSPEC:END -->`
-    );
-
-    await updateCommand.execute(testDir);
-
-    const costrictProposal = path.join(
-      testDir,
-      '.cospec/openspec/commands/openspec-proposal.md'
-    );
-    const costrictArchive = path.join(
-      testDir,
-      '.cospec/openspec/commands/openspec-archive.md'
-    );
-
-    // Confirm they weren't created by update
-    await expect(FileSystemUtils.fileExists(costrictProposal)).resolves.toBe(false);
-    await expect(FileSystemUtils.fileExists(costrictArchive)).resolves.toBe(false);
-  });
-
-  it('should not create missing Qoder slash command files on update', async () => {
-    const qoderApply = path.join(
-      testDir,
-      '.qoder/commands/openspec/apply.md'
-    );
-
-    // Only create apply; leave proposal and archive missing
-    await fs.mkdir(path.dirname(qoderApply), { recursive: true });
-    await fs.writeFile(
-      qoderApply,
-      `---
-name: OpenSpec - Apply
-description: Old description
-category: OpenSpec
-tags: [openspec, apply]
----
-<!-- OPENSPEC:START -->
-Old body
-<!-- OPENSPEC:END -->`
-    );
-
-    await updateCommand.execute(testDir);
-
-    const qoderProposal = path.join(
-      testDir,
-      '.qoder/commands/openspec/proposal.md'
-    );
-    const qoderArchive = path.join(
-      testDir,
-      '.qoder/commands/openspec/archive.md'
-    );
-
-    // Confirm they weren't created by update
-    await expect(FileSystemUtils.fileExists(qoderProposal)).resolves.toBe(false);
-    await expect(FileSystemUtils.fileExists(qoderArchive)).resolves.toBe(false);
-  });
-
-  it('should update only existing COSTRICT.md file', async () => {
-    // Create COSTRICT.md file with initial content
-    const costrictPath = path.join(testDir, 'COSTRICT.md');
-    const initialContent = `# CoStrict Instructions
-
-Some existing CoStrict instructions here.
-
-<!-- OPENSPEC:START -->
-Old OpenSpec content
-<!-- OPENSPEC:END -->
-
-More instructions after.`;
-    await fs.writeFile(costrictPath, initialContent);
-
-    const consoleSpy = vi.spyOn(console, 'log');
-
-    // Execute update command
-    await updateCommand.execute(testDir);
-
-    // Check that COSTRICT.md was updated
-    const updatedContent = await fs.readFile(costrictPath, 'utf-8');
-    expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
-    expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
-    expect(updatedContent).toContain("@/openspec/AGENTS.md");
-    expect(updatedContent).toContain('openspec update');
-    expect(updatedContent).toContain('Some existing CoStrict instructions here');
-    expect(updatedContent).toContain('More instructions after');
-
-    // Check console output
-    const [logMessage] = consoleSpy.mock.calls[0];
-    expect(logMessage).toContain(
-      'Updated OpenSpec instructions (openspec/AGENTS.md'
-    );
-    expect(logMessage).toContain('AGENTS.md (created)');
-    expect(logMessage).toContain('Updated AI tool files: COSTRICT.md');
-    consoleSpy.mockRestore();
-  });
-
-
-  it('should not create COSTRICT.md if it does not exist', async () => {
-    // Ensure COSTRICT.md does not exist
-    const costrictPath = path.join(testDir, 'COSTRICT.md');
-
-    // Execute update command
-    await updateCommand.execute(testDir);
-
-    // Check that COSTRICT.md was not created
-    const fileExists = await FileSystemUtils.fileExists(costrictPath);
-    expect(fileExists).toBe(false);
-  });
-
-  it('should preserve CoStrict content outside markers during update', async () => {
-    const costrictPath = path.join(
-      testDir,
-      '.cospec/openspec/commands/openspec-proposal.md'
-    );
-    await fs.mkdir(path.dirname(costrictPath), { recursive: true });
-    const initialContent = `## Custom Intro Title\nSome intro text\n<!-- OPENSPEC:START -->\nOld body\n<!-- OPENSPEC:END -->\n\nFooter stays`;
-    await fs.writeFile(costrictPath, initialContent);
-
-    await updateCommand.execute(testDir);
-
-    const updated = await fs.readFile(costrictPath, 'utf-8');
-    expect(updated).toContain('## Custom Intro Title');
-    expect(updated).toContain('Footer stays');
-    expect(updated).not.toContain('Old body');
-    expect(updated).toContain('Validate with `openspec validate <id> --strict --no-interactive`');
-  });
-
-  it('should handle configurator errors gracefully for CoStrict', async () => {
-    // Create COSTRICT.md file but make it read-only to cause an error
-    const costrictPath = path.join(testDir, 'COSTRICT.md');
-    await fs.writeFile(
-      costrictPath,
-      '<!-- OPENSPEC:START -->\nOld\n<!-- OPENSPEC:END -->'
-    );
-
-    const consoleSpy = vi.spyOn(console, 'log');
-    const errorSpy = vi.spyOn(console, 'error');
-    const originalWriteFile = FileSystemUtils.writeFile.bind(FileSystemUtils);
-    const writeSpy = vi
-      .spyOn(FileSystemUtils, 'writeFile')
-      .mockImplementation(async (filePath, content) => {
-        if (filePath.endsWith('COSTRICT.md')) {
-          throw new Error('EACCES: permission denied, open');
-        }
-
-        return originalWriteFile(filePath, content);
+  describe('basic validation', () => {
+    it('should throw error if openspec directory does not exist', async () => {
+      // Remove openspec directory
+      await fs.rm(path.join(testDir, 'openspec'), {
+        recursive: true,
+        force: true,
       });
 
-    // Execute update command - should not throw
-    await updateCommand.execute(testDir);
-
-    // Should report the failure
-    expect(errorSpy).toHaveBeenCalled();
-    const [logMessage] = consoleSpy.mock.calls[0];
-    expect(logMessage).toContain(
-      'Updated OpenSpec instructions (openspec/AGENTS.md'
-    );
-    expect(logMessage).toContain('AGENTS.md (created)');
-    expect(logMessage).toContain('Failed to update: COSTRICT.md');
-
-    consoleSpy.mockRestore();
-    errorSpy.mockRestore();
-    writeSpy.mockRestore();
-  });
-
-  it('should preserve Windsurf content outside markers during update', async () => {
-    const wsPath = path.join(
-      testDir,
-      '.windsurf/workflows/openspec-proposal.md'
-    );
-    await fs.mkdir(path.dirname(wsPath), { recursive: true });
-    const initialContent = `## Custom Intro Title\nSome intro text\n<!-- OPENSPEC:START -->\nOld body\n<!-- OPENSPEC:END -->\n\nFooter stays`;
-    await fs.writeFile(wsPath, initialContent);
-
-    await updateCommand.execute(testDir);
-
-    const updated = await fs.readFile(wsPath, 'utf-8');
-    expect(updated).toContain('## Custom Intro Title');
-    expect(updated).toContain('Footer stays');
-    expect(updated).not.toContain('Old body');
-    expect(updated).toContain('Validate with `openspec validate <id> --strict --no-interactive`');
-  });
-
-  it('should not create missing Windsurf workflows on update', async () => {
-    const wsApply = path.join(
-      testDir,
-      '.windsurf/workflows/openspec-apply.md'
-    );
-    // Only create apply; leave proposal and archive missing
-    await fs.mkdir(path.dirname(wsApply), { recursive: true });
-    await fs.writeFile(
-      wsApply,
-      '<!-- OPENSPEC:START -->\nOld\n<!-- OPENSPEC:END -->'
-    );
-
-    await updateCommand.execute(testDir);
-
-    const wsProposal = path.join(
-      testDir,
-      '.windsurf/workflows/openspec-proposal.md'
-    );
-    const wsArchive = path.join(
-      testDir,
-      '.windsurf/workflows/openspec-archive.md'
-    );
-
-    // Confirm they weren't created by update
-    await expect(FileSystemUtils.fileExists(wsProposal)).resolves.toBe(false);
-    await expect(FileSystemUtils.fileExists(wsArchive)).resolves.toBe(false);
-  });
-
-  it('should handle no AI tool files present', async () => {
-    // Execute update command with no AI tool files
-    const consoleSpy = vi.spyOn(console, 'log');
-    await updateCommand.execute(testDir);
-
-    // Should only update OpenSpec instructions
-    const [logMessage] = consoleSpy.mock.calls[0];
-    expect(logMessage).toContain(
-      'Updated OpenSpec instructions (openspec/AGENTS.md'
-    );
-    expect(logMessage).toContain('AGENTS.md (created)');
-    consoleSpy.mockRestore();
-  });
-
-  it('should update multiple AI tool files if present', async () => {
-    // TODO: When additional configurators are added (Cursor, Aider, etc.),
-    // enhance this test to create multiple AI tool files and verify
-    // that all existing files are updated in a single operation.
-    // For now, we test with just CLAUDE.md.
-    const claudePath = path.join(testDir, 'CLAUDE.md');
-    await fs.mkdir(path.dirname(claudePath), { recursive: true });
-    await fs.writeFile(
-      claudePath,
-      '<!-- OPENSPEC:START -->\nOld\n<!-- OPENSPEC:END -->'
-    );
-
-    const consoleSpy = vi.spyOn(console, 'log');
-    await updateCommand.execute(testDir);
-
-    // Should report updating with new format
-    const [logMessage] = consoleSpy.mock.calls[0];
-    expect(logMessage).toContain(
-      'Updated OpenSpec instructions (openspec/AGENTS.md'
-    );
-    expect(logMessage).toContain('AGENTS.md (created)');
-    expect(logMessage).toContain('Updated AI tool files: CLAUDE.md');
-    consoleSpy.mockRestore();
-  });
-
-  it('should skip creating missing slash commands during update', async () => {
-    const proposalPath = path.join(
-      testDir,
-      '.claude/commands/openspec/proposal.md'
-    );
-    await fs.mkdir(path.dirname(proposalPath), { recursive: true });
-    await fs.writeFile(
-      proposalPath,
-      `---
-name: OpenSpec - Proposal
-description: Existing file
-category: OpenSpec
-tags: [openspec, change]
----
-<!-- OPENSPEC:START -->
-Old content
-<!-- OPENSPEC:END -->`
-    );
-
-    await updateCommand.execute(testDir);
-
-    const applyExists = await FileSystemUtils.fileExists(
-      path.join(testDir, '.claude/commands/openspec/apply.md')
-    );
-    const archiveExists = await FileSystemUtils.fileExists(
-      path.join(testDir, '.claude/commands/openspec/archive.md')
-    );
-
-    expect(applyExists).toBe(false);
-    expect(archiveExists).toBe(false);
-  });
-
-  it('should never create new AI tool files', async () => {
-    // Get all configurators
-    const configurators = ToolRegistry.getAll();
-
-    // Execute update command
-    await updateCommand.execute(testDir);
-
-    // Check that no new AI tool files were created
-    for (const configurator of configurators) {
-      const configPath = path.join(testDir, configurator.configFileName);
-      const fileExists = await FileSystemUtils.fileExists(configPath);
-      if (configurator.configFileName === 'AGENTS.md') {
-        expect(fileExists).toBe(true);
-      } else {
-        expect(fileExists).toBe(false);
-      }
-    }
-  });
-
-  it('should update AGENTS.md in openspec directory', async () => {
-    // Execute update command
-    await updateCommand.execute(testDir);
-
-    // Check that AGENTS.md was created/updated
-    const agentsPath = path.join(testDir, 'openspec', 'AGENTS.md');
-    const fileExists = await FileSystemUtils.fileExists(agentsPath);
-    expect(fileExists).toBe(true);
-
-    const content = await fs.readFile(agentsPath, 'utf-8');
-    expect(content).toContain('# OpenSpec Instructions');
-  });
-
-  it('should create root AGENTS.md with managed block when missing', async () => {
-    await updateCommand.execute(testDir);
-
-    const rootAgentsPath = path.join(testDir, 'AGENTS.md');
-    const exists = await FileSystemUtils.fileExists(rootAgentsPath);
-    expect(exists).toBe(true);
-
-    const content = await fs.readFile(rootAgentsPath, 'utf-8');
-    expect(content).toContain('<!-- OPENSPEC:START -->');
-    expect(content).toContain("@/openspec/AGENTS.md");
-    expect(content).toContain('openspec update');
-    expect(content).toContain('<!-- OPENSPEC:END -->');
-  });
-
-  it('should refresh root AGENTS.md while preserving surrounding content', async () => {
-    const rootAgentsPath = path.join(testDir, 'AGENTS.md');
-    const original = `# Custom intro\n\n<!-- OPENSPEC:START -->\nOld content\n<!-- OPENSPEC:END -->\n\n# Footnotes`;
-    await fs.writeFile(rootAgentsPath, original);
-
-    const consoleSpy = vi.spyOn(console, 'log');
-
-    await updateCommand.execute(testDir);
-
-    const updated = await fs.readFile(rootAgentsPath, 'utf-8');
-    expect(updated).toContain('# Custom intro');
-    expect(updated).toContain('# Footnotes');
-    expect(updated).toContain("@/openspec/AGENTS.md");
-    expect(updated).toContain('openspec update');
-    expect(updated).not.toContain('Old content');
-
-    const [logMessage] = consoleSpy.mock.calls[0];
-    expect(logMessage).toContain(
-      'Updated OpenSpec instructions (openspec/AGENTS.md, AGENTS.md)'
-    );
-    expect(logMessage).not.toContain('AGENTS.md (created)');
-
-    consoleSpy.mockRestore();
-  });
-
-  it('should throw error if openspec directory does not exist', async () => {
-    // Remove openspec directory
-    await fs.rm(path.join(testDir, 'openspec'), {
-      recursive: true,
-      force: true,
+      await expect(updateCommand.execute(testDir)).rejects.toThrow(
+        "No OpenSpec directory found. Run 'openspec init' first."
+      );
     });
 
-    // Execute update command and expect error
-    await expect(updateCommand.execute(testDir)).rejects.toThrow(
-      "No OpenSpec directory found. Run 'openspec init' first."
-    );
+    it('should report no configured tools when none exist', async () => {
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('No configured tools found')
+      );
+
+      consoleSpy.mockRestore();
+    });
   });
 
-  it('should handle configurator errors gracefully', async () => {
-    // Create CLAUDE.md file but make it read-only to cause an error
-    const claudePath = path.join(testDir, 'CLAUDE.md');
-    await fs.writeFile(
-      claudePath,
-      '<!-- OPENSPEC:START -->\nOld\n<!-- OPENSPEC:END -->'
-    );
-    await fs.chmod(claudePath, 0o444); // Read-only
+  describe('skill updates', () => {
+    it('should update skill files for configured Claude tool', async () => {
+      // Set up a configured Claude tool by creating skill directories
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      const exploreSkillDir = path.join(skillsDir, 'openspec-explore');
+      await fs.mkdir(exploreSkillDir, { recursive: true });
 
-    const consoleSpy = vi.spyOn(console, 'log');
-    const errorSpy = vi.spyOn(console, 'error');
-    const originalWriteFile = FileSystemUtils.writeFile.bind(FileSystemUtils);
-    const writeSpy = vi
-      .spyOn(FileSystemUtils, 'writeFile')
-      .mockImplementation(async (filePath, content) => {
-        if (filePath.endsWith('CLAUDE.md')) {
-          throw new Error('EACCES: permission denied, open');
-        }
+      // Create an existing skill file
+      const oldSkillContent = `---
+name: openspec-explore (old)
+description: Old description
+license: MIT
+compatibility: Requires openspec CLI.
+metadata:
+  author: openspec
+  version: "0.9"
+---
 
-        return originalWriteFile(filePath, content);
+Old instructions content
+`;
+      await fs.writeFile(
+        path.join(exploreSkillDir, 'SKILL.md'),
+        oldSkillContent
+      );
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      // Check skill file was updated
+      const updatedSkill = await fs.readFile(
+        path.join(exploreSkillDir, 'SKILL.md'),
+        'utf-8'
+      );
+      expect(updatedSkill).toContain('name: openspec-explore');
+      expect(updatedSkill).not.toContain('Old instructions content');
+      expect(updatedSkill).toContain('license: MIT');
+
+      // Check console output
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Updating 1 tool(s): claude')
+      );
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should update all 9 skill files when tool is configured', async () => {
+      // Set up a configured tool with all skill directories
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      const skillNames = [
+        'openspec-explore',
+        'openspec-new-change',
+        'openspec-continue-change',
+        'openspec-apply-change',
+        'openspec-ff-change',
+        'openspec-sync-specs',
+        'openspec-archive-change',
+        'openspec-bulk-archive-change',
+        'openspec-verify-change',
+      ];
+
+      // Create at least one skill to mark tool as configured
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        'old content'
+      );
+
+      await updateCommand.execute(testDir);
+
+      // Verify all skill files were created/updated
+      for (const skillName of skillNames) {
+        const skillFile = path.join(skillsDir, skillName, 'SKILL.md');
+        const exists = await FileSystemUtils.fileExists(skillFile);
+        expect(exists).toBe(true);
+
+        const content = await fs.readFile(skillFile, 'utf-8');
+        expect(content).toContain('---');
+        expect(content).toContain('name:');
+        expect(content).toContain('description:');
+      }
+    });
+  });
+
+  describe('command updates', () => {
+    it('should update opsx commands for configured Claude tool', async () => {
+      // Set up a configured Claude tool
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        'old content'
+      );
+
+      await updateCommand.execute(testDir);
+
+      // Check opsx command files were created
+      const commandsDir = path.join(testDir, '.claude', 'commands', 'opsx');
+      const exploreCmd = path.join(commandsDir, 'explore.md');
+      const exists = await FileSystemUtils.fileExists(exploreCmd);
+      expect(exists).toBe(true);
+
+      const content = await fs.readFile(exploreCmd, 'utf-8');
+      expect(content).toContain('---');
+      expect(content).toContain('name:');
+      expect(content).toContain('description:');
+      expect(content).toContain('category:');
+      expect(content).toContain('tags:');
+    });
+
+    it('should update all 9 opsx commands when tool is configured', async () => {
+      // Set up a configured tool
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        'old content'
+      );
+
+      await updateCommand.execute(testDir);
+
+      const commandIds = [
+        'explore',
+        'new',
+        'continue',
+        'apply',
+        'ff',
+        'sync',
+        'archive',
+        'bulk-archive',
+        'verify',
+      ];
+
+      const commandsDir = path.join(testDir, '.claude', 'commands', 'opsx');
+      for (const cmdId of commandIds) {
+        const cmdFile = path.join(commandsDir, `${cmdId}.md`);
+        const exists = await FileSystemUtils.fileExists(cmdFile);
+        expect(exists).toBe(true);
+      }
+    });
+  });
+
+  describe('multi-tool support', () => {
+    it('should update multiple configured tools', async () => {
+      // Set up Claude
+      const claudeSkillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(path.join(claudeSkillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(claudeSkillsDir, 'openspec-explore', 'SKILL.md'),
+        'old'
+      );
+
+      // Set up Cursor
+      const cursorSkillsDir = path.join(testDir, '.cursor', 'skills');
+      await fs.mkdir(path.join(cursorSkillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(cursorSkillsDir, 'openspec-explore', 'SKILL.md'),
+        'old'
+      );
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      // Both tools should be updated
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Updating 2 tool(s)')
+      );
+
+      // Verify Claude skills updated
+      const claudeSkill = await fs.readFile(
+        path.join(claudeSkillsDir, 'openspec-explore', 'SKILL.md'),
+        'utf-8'
+      );
+      expect(claudeSkill).toContain('name: openspec-explore');
+
+      // Verify Cursor skills updated
+      const cursorSkill = await fs.readFile(
+        path.join(cursorSkillsDir, 'openspec-explore', 'SKILL.md'),
+        'utf-8'
+      );
+      expect(cursorSkill).toContain('name: openspec-explore');
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should update Qwen tool with correct command format', async () => {
+      // Set up Qwen
+      const qwenSkillsDir = path.join(testDir, '.qwen', 'skills');
+      await fs.mkdir(path.join(qwenSkillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(qwenSkillsDir, 'openspec-explore', 'SKILL.md'),
+        'old'
+      );
+
+      await updateCommand.execute(testDir);
+
+      // Check Qwen command format (TOML) - Qwen uses flat path structure: opsx-<id>.toml
+      const qwenCmd = path.join(
+        testDir,
+        '.qwen',
+        'commands',
+        'opsx-explore.toml'
+      );
+      const exists = await FileSystemUtils.fileExists(qwenCmd);
+      expect(exists).toBe(true);
+
+      const content = await fs.readFile(qwenCmd, 'utf-8');
+      expect(content).toContain('description =');
+      expect(content).toContain('prompt =');
+    });
+
+    it('should update Windsurf tool with correct command format', async () => {
+      // Set up Windsurf
+      const windsurfSkillsDir = path.join(testDir, '.windsurf', 'skills');
+      await fs.mkdir(path.join(windsurfSkillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(windsurfSkillsDir, 'openspec-explore', 'SKILL.md'),
+        'old'
+      );
+
+      await updateCommand.execute(testDir);
+
+      // Check Windsurf command format
+      const windsurfCmd = path.join(
+        testDir,
+        '.windsurf',
+        'commands',
+        'opsx',
+        'explore.md'
+      );
+      const exists = await FileSystemUtils.fileExists(windsurfCmd);
+      expect(exists).toBe(true);
+
+      const content = await fs.readFile(windsurfCmd, 'utf-8');
+      expect(content).toContain('---');
+      expect(content).toContain('name:');
+    });
+  });
+
+  describe('error handling', () => {
+    it('should handle tool update failures gracefully', async () => {
+      // Set up a configured tool
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        'old'
+      );
+
+      // Mock writeFile to fail for skills
+      const originalWriteFile = FileSystemUtils.writeFile.bind(FileSystemUtils);
+      const writeSpy = vi
+        .spyOn(FileSystemUtils, 'writeFile')
+        .mockImplementation(async (filePath, content) => {
+          if (filePath.includes('SKILL.md')) {
+            throw new Error('EACCES: permission denied');
+          }
+          return originalWriteFile(filePath, content);
+        });
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      // Should not throw
+      await updateCommand.execute(testDir);
+
+      // Should report failure
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Failed')
+      );
+
+      writeSpy.mockRestore();
+      consoleSpy.mockRestore();
+    });
+
+    it('should continue updating other tools when one fails', async () => {
+      // Set up Claude and Cursor
+      const claudeSkillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(path.join(claudeSkillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(claudeSkillsDir, 'openspec-explore', 'SKILL.md'),
+        'old'
+      );
+
+      const cursorSkillsDir = path.join(testDir, '.cursor', 'skills');
+      await fs.mkdir(path.join(cursorSkillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(cursorSkillsDir, 'openspec-explore', 'SKILL.md'),
+        'old'
+      );
+
+      // Mock writeFile to fail only for Claude
+      const originalWriteFile = FileSystemUtils.writeFile.bind(FileSystemUtils);
+      const writeSpy = vi
+        .spyOn(FileSystemUtils, 'writeFile')
+        .mockImplementation(async (filePath, content) => {
+          if (filePath.includes('.claude') && filePath.includes('SKILL.md')) {
+            throw new Error('EACCES: permission denied');
+          }
+          return originalWriteFile(filePath, content);
+        });
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      // Cursor should still be updated - check the actual format from ora spinner
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Updated: Cursor')
+      );
+
+      // Claude should be reported as failed
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Failed')
+      );
+
+      writeSpy.mockRestore();
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('tool detection', () => {
+    it('should detect tool as configured only when skill file exists', async () => {
+      // Create skills directory but no skill files
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(skillsDir, { recursive: true });
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      // Should report no configured tools
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('No configured tools found')
+      );
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should detect tool when any single skill exists', async () => {
+      // Create only one skill file
+      const skillDir = path.join(
+        testDir,
+        '.claude',
+        'skills',
+        'openspec-archive-change'
+      );
+      await fs.mkdir(skillDir, { recursive: true });
+      await fs.writeFile(path.join(skillDir, 'SKILL.md'), 'old');
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      // Should detect and update Claude
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Updating 1 tool(s): claude')
+      );
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('skill content validation', () => {
+    it('should generate valid YAML frontmatter in skill files', async () => {
+      // Set up a configured tool
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        'old'
+      );
+
+      await updateCommand.execute(testDir);
+
+      const skillContent = await fs.readFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        'utf-8'
+      );
+
+      // Validate frontmatter structure
+      expect(skillContent).toMatch(/^---\n/);
+      expect(skillContent).toContain('name:');
+      expect(skillContent).toContain('description:');
+      expect(skillContent).toContain('license:');
+      expect(skillContent).toContain('compatibility:');
+      expect(skillContent).toContain('metadata:');
+      expect(skillContent).toContain('author:');
+      expect(skillContent).toContain('version:');
+      expect(skillContent).toMatch(/---\n\n/);
+    });
+
+    it('should include proper instructions in skill files', async () => {
+      // Set up a configured tool
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-apply-change'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(skillsDir, 'openspec-apply-change', 'SKILL.md'),
+        'old'
+      );
+
+      await updateCommand.execute(testDir);
+
+      const skillContent = await fs.readFile(
+        path.join(skillsDir, 'openspec-apply-change', 'SKILL.md'),
+        'utf-8'
+      );
+
+      // Apply skill should contain implementation instructions
+      expect(skillContent.toLowerCase()).toContain('task');
+    });
+  });
+
+  describe('success output', () => {
+    it('should display success message with tool name', async () => {
+      // Set up a configured tool
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        'old'
+      );
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      // The success output uses "✓ Updated: <name>"
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Updated: Claude Code')
+      );
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should suggest IDE restart after update', async () => {
+      // Set up a configured tool
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        'old'
+      );
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Restart your IDE')
+      );
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('smart update detection', () => {
+    it('should show "up to date" message when skills have current version', async () => {
+      // Set up a configured tool with current version
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
+        recursive: true,
       });
 
-    // Execute update command - should not throw
-    await updateCommand.execute(testDir);
+      // Use the current package version in generatedBy
+      const { version } = await import('../../package.json');
+      await fs.writeFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        `---
+name: openspec-explore
+metadata:
+  author: openspec
+  version: "1.0"
+  generatedBy: "${version}"
+---
 
-    // Should report the failure
-    expect(errorSpy).toHaveBeenCalled();
-    const [logMessage] = consoleSpy.mock.calls[0];
-    expect(logMessage).toContain(
-      'Updated OpenSpec instructions (openspec/AGENTS.md'
-    );
-    expect(logMessage).toContain('AGENTS.md (created)');
-    expect(logMessage).toContain('Failed to update: CLAUDE.md');
+Content here
+`
+      );
 
-    // Restore permissions for cleanup
-    await fs.chmod(claudePath, 0o644);
-    consoleSpy.mockRestore();
-    errorSpy.mockRestore();
-    writeSpy.mockRestore();
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('up to date')
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('--force')
+      );
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should detect update needed when generatedBy is missing', async () => {
+      // Set up a configured tool without generatedBy
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        `---
+name: openspec-explore
+metadata:
+  author: openspec
+  version: "1.0"
+---
+
+Legacy content without generatedBy
+`
+      );
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      // Should show "unknown → version" in the update message
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('unknown')
+      );
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should detect update needed when version differs', async () => {
+      // Set up a configured tool with old version
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        `---
+name: openspec-explore
+metadata:
+  generatedBy: "0.1.0"
+---
+
+Old version content
+`
+      );
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      // Should show version transition
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('0.1.0')
+      );
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should embed generatedBy in updated skill files', async () => {
+      // Set up a configured tool without generatedBy
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        'old content without version'
+      );
+
+      await updateCommand.execute(testDir);
+
+      const updatedContent = await fs.readFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        'utf-8'
+      );
+
+      // Should contain generatedBy field
+      expect(updatedContent).toMatch(/generatedBy:\s*["']\d+\.\d+\.\d+["']/);
+    });
+  });
+
+  describe('--force flag', () => {
+    it('should update when force is true even if up to date', async () => {
+      // Set up a configured tool with current version
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+
+      const { version } = await import('../../package.json');
+      await fs.writeFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        `---
+metadata:
+  generatedBy: "${version}"
+---
+Content
+`
+      );
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      // Create update command with force option
+      const forceUpdateCommand = new UpdateCommand({ force: true });
+      await forceUpdateCommand.execute(testDir);
+
+      // Should show "Force updating" message
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Force updating')
+      );
+
+      // Should show updated message
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Updated: Claude Code')
+      );
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should not show --force hint when force is used', async () => {
+      // Set up a configured tool
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        'old content'
+      );
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      const forceUpdateCommand = new UpdateCommand({ force: true });
+      await forceUpdateCommand.execute(testDir);
+
+      // Get all console.log calls as strings
+      const allCalls = consoleSpy.mock.calls.map(call =>
+        call.map(arg => String(arg)).join(' ')
+      );
+
+      // Should not show "Use --force" since force was used
+      const hasForceHint = allCalls.some(call => call.includes('Use --force'));
+      expect(hasForceHint).toBe(false);
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should update all tools when force is used with mixed versions', async () => {
+      // Set up Claude with current version
+      const { version } = await import('../../package.json');
+      const claudeSkillDir = path.join(testDir, '.claude', 'skills', 'openspec-explore');
+      await fs.mkdir(claudeSkillDir, { recursive: true });
+      await fs.writeFile(
+        path.join(claudeSkillDir, 'SKILL.md'),
+        `---
+metadata:
+  generatedBy: "${version}"
+---
+`
+      );
+
+      // Set up Cursor with old version
+      const cursorSkillDir = path.join(testDir, '.cursor', 'skills', 'openspec-explore');
+      await fs.mkdir(cursorSkillDir, { recursive: true });
+      await fs.writeFile(
+        path.join(cursorSkillDir, 'SKILL.md'),
+        `---
+metadata:
+  generatedBy: "0.1.0"
+---
+`
+      );
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      const forceUpdateCommand = new UpdateCommand({ force: true });
+      await forceUpdateCommand.execute(testDir);
+
+      // Should show both tools being force updated
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Force updating 2 tool(s)')
+      );
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('version tracking', () => {
+    it('should show version in success message', async () => {
+      // Set up a configured tool
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        'old'
+      );
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      // Should show version in success message
+      const { version } = await import('../../package.json');
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining(`(v${version})`)
+      );
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should only update tools that need updating', async () => {
+      // Set up Claude with old version (needs update)
+      const claudeSkillDir = path.join(testDir, '.claude', 'skills', 'openspec-explore');
+      await fs.mkdir(claudeSkillDir, { recursive: true });
+      await fs.writeFile(
+        path.join(claudeSkillDir, 'SKILL.md'),
+        `---
+metadata:
+  generatedBy: "0.1.0"
+---
+`
+      );
+
+      // Set up Cursor with current version (up to date)
+      const { version } = await import('../../package.json');
+      const cursorSkillDir = path.join(testDir, '.cursor', 'skills', 'openspec-explore');
+      await fs.mkdir(cursorSkillDir, { recursive: true });
+      await fs.writeFile(
+        path.join(cursorSkillDir, 'SKILL.md'),
+        `---
+metadata:
+  generatedBy: "${version}"
+---
+`
+      );
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      // Should show only Claude being updated
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Updating 1 tool(s)')
+      );
+
+      // Should mention Cursor is already up to date
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Already up to date: cursor')
+      );
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('legacy cleanup', () => {
+    it('should detect and auto-cleanup legacy files with --force flag', async () => {
+      // Set up a configured tool
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        'old'
+      );
+
+      // Create legacy CLAUDE.md with OpenSpec markers
+      const legacyContent = `${OPENSPEC_MARKERS.start}
+# OpenSpec Instructions
+
+These instructions are for AI assistants.
+${OPENSPEC_MARKERS.end}
+`;
+      await fs.writeFile(path.join(testDir, 'CLAUDE.md'), legacyContent);
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      // Create update command with force option
+      const forceUpdateCommand = new UpdateCommand({ force: true });
+      await forceUpdateCommand.execute(testDir);
+
+      // Should show v1 upgrade message
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Upgrading to the new OpenSpec')
+      );
+
+      // Should show marker removal message (config files are never deleted, only have markers removed)
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Removed OpenSpec markers from CLAUDE.md')
+      );
+
+      // Config file should still exist (never deleted)
+      const legacyExists = await FileSystemUtils.fileExists(
+        path.join(testDir, 'CLAUDE.md')
+      );
+      expect(legacyExists).toBe(true);
+
+      // File should have markers removed
+      const content = await fs.readFile(path.join(testDir, 'CLAUDE.md'), 'utf-8');
+      expect(content).not.toContain(OPENSPEC_MARKERS.start);
+      expect(content).not.toContain(OPENSPEC_MARKERS.end);
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should warn but continue with update when legacy files found in non-interactive mode', async () => {
+      // Set up a configured tool
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        'old'
+      );
+
+      // Create legacy CLAUDE.md with OpenSpec markers
+      const legacyContent = `${OPENSPEC_MARKERS.start}
+# OpenSpec Instructions
+${OPENSPEC_MARKERS.end}
+`;
+      await fs.writeFile(path.join(testDir, 'CLAUDE.md'), legacyContent);
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      // Run without --force in non-interactive mode (CI environment)
+      await updateCommand.execute(testDir);
+
+      // Should show v1 upgrade message
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Upgrading to the new OpenSpec')
+      );
+
+      // Should show warning about --force
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Run with --force to auto-cleanup')
+      );
+
+      // Should continue with update
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Updated: Claude Code')
+      );
+
+      // Legacy file should still exist (not cleaned up)
+      const legacyExists = await FileSystemUtils.fileExists(
+        path.join(testDir, 'CLAUDE.md')
+      );
+      expect(legacyExists).toBe(true);
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should cleanup legacy slash command directories with --force', async () => {
+      // Set up a configured tool
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        'old'
+      );
+
+      // Create legacy slash command directory
+      const legacyCommandDir = path.join(testDir, '.claude', 'commands', 'openspec');
+      await fs.mkdir(legacyCommandDir, { recursive: true });
+      await fs.writeFile(
+        path.join(legacyCommandDir, 'old-command.md'),
+        'old command'
+      );
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      // Create update command with force option
+      const forceUpdateCommand = new UpdateCommand({ force: true });
+      await forceUpdateCommand.execute(testDir);
+
+      // Should show cleanup message for directory
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Removed .claude/commands/openspec/')
+      );
+
+      // Legacy directory should be deleted
+      const legacyDirExists = await FileSystemUtils.directoryExists(legacyCommandDir);
+      expect(legacyDirExists).toBe(false);
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should cleanup legacy openspec/AGENTS.md with --force', async () => {
+      // Set up a configured tool
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        'old'
+      );
+
+      // Create legacy openspec/AGENTS.md
+      await fs.writeFile(
+        path.join(testDir, 'openspec', 'AGENTS.md'),
+        '# Old AGENTS.md content'
+      );
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      // Create update command with force option
+      const forceUpdateCommand = new UpdateCommand({ force: true });
+      await forceUpdateCommand.execute(testDir);
+
+      // Should show cleanup message
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Removed openspec/AGENTS.md')
+      );
+
+      // Legacy file should be deleted
+      const legacyExists = await FileSystemUtils.fileExists(
+        path.join(testDir, 'openspec', 'AGENTS.md')
+      );
+      expect(legacyExists).toBe(false);
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should not show legacy cleanup messages when no legacy files exist', async () => {
+      // Set up a configured tool with no legacy files
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        'old'
+      );
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      // Should not show v1 upgrade message (no legacy files)
+      const calls = consoleSpy.mock.calls.map(call =>
+        call.map(arg => String(arg)).join(' ')
+      );
+      const hasLegacyMessage = calls.some(call =>
+        call.includes('Upgrading to the new OpenSpec')
+      );
+      expect(hasLegacyMessage).toBe(false);
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should remove OpenSpec marker block from mixed content files', async () => {
+      // Set up a configured tool
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        'old'
+      );
+
+      // Create CLAUDE.md with mixed content (user content + OpenSpec markers)
+      const mixedContent = `# My Project
+
+Some user-defined instructions here.
+
+${OPENSPEC_MARKERS.start}
+# OpenSpec Instructions
+
+These instructions are for AI assistants.
+${OPENSPEC_MARKERS.end}
+
+More user content after markers.
+`;
+      await fs.writeFile(path.join(testDir, 'CLAUDE.md'), mixedContent);
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      // Create update command with force option
+      const forceUpdateCommand = new UpdateCommand({ force: true });
+      await forceUpdateCommand.execute(testDir);
+
+      // Should show marker removal message
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Removed OpenSpec markers from CLAUDE.md')
+      );
+
+      // File should still exist
+      const fileExists = await FileSystemUtils.fileExists(
+        path.join(testDir, 'CLAUDE.md')
+      );
+      expect(fileExists).toBe(true);
+
+      // File should have markers removed but preserve user content
+      const updatedContent = await fs.readFile(
+        path.join(testDir, 'CLAUDE.md'),
+        'utf-8'
+      );
+      expect(updatedContent).toContain('# My Project');
+      expect(updatedContent).toContain('Some user-defined instructions here');
+      expect(updatedContent).toContain('More user content after markers');
+      expect(updatedContent).not.toContain(OPENSPEC_MARKERS.start);
+      expect(updatedContent).not.toContain(OPENSPEC_MARKERS.end);
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('legacy tool upgrade', () => {
+    it('should upgrade legacy tools to new skills with --force', async () => {
+      // Create legacy slash command directory (no skills exist yet)
+      const legacyCommandDir = path.join(testDir, '.claude', 'commands', 'openspec');
+      await fs.mkdir(legacyCommandDir, { recursive: true });
+      await fs.writeFile(
+        path.join(legacyCommandDir, 'proposal.md'),
+        'old command content'
+      );
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      // Create update command with force option
+      const forceUpdateCommand = new UpdateCommand({ force: true });
+      await forceUpdateCommand.execute(testDir);
+
+      // Should show detected tools message
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Tools detected from legacy artifacts')
+      );
+
+      // Should show Claude Code being set up
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Claude Code')
+      );
+
+      // Should show getting started message for newly configured tools
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Getting started')
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('/opsx:new')
+      );
+
+      // Skills should be created
+      const skillFile = path.join(testDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md');
+      const skillExists = await FileSystemUtils.fileExists(skillFile);
+      expect(skillExists).toBe(true);
+
+      // Legacy directory should be deleted
+      const legacyDirExists = await FileSystemUtils.directoryExists(legacyCommandDir);
+      expect(legacyDirExists).toBe(false);
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should upgrade multiple legacy tools with --force', async () => {
+      // Create legacy command directories for Claude and Cursor
+      await fs.mkdir(path.join(testDir, '.claude', 'commands', 'openspec'), { recursive: true });
+      await fs.writeFile(
+        path.join(testDir, '.claude', 'commands', 'openspec', 'proposal.md'),
+        'content'
+      );
+
+      await fs.mkdir(path.join(testDir, '.cursor', 'commands'), { recursive: true });
+      await fs.writeFile(
+        path.join(testDir, '.cursor', 'commands', 'openspec-proposal.md'),
+        'content'
+      );
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      // Create update command with force option
+      const forceUpdateCommand = new UpdateCommand({ force: true });
+      await forceUpdateCommand.execute(testDir);
+
+      // Should detect both tools
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Tools detected from legacy artifacts')
+      );
+
+      // Both tools should have skills created
+      const claudeSkillFile = path.join(testDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md');
+      const cursorSkillFile = path.join(testDir, '.cursor', 'skills', 'openspec-explore', 'SKILL.md');
+
+      expect(await FileSystemUtils.fileExists(claudeSkillFile)).toBe(true);
+      expect(await FileSystemUtils.fileExists(cursorSkillFile)).toBe(true);
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should not upgrade legacy tools already configured', async () => {
+      // Set up a configured Claude tool with skills
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), { recursive: true });
+      await fs.writeFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        'existing skill'
+      );
+
+      // Also create legacy directory (simulating partial upgrade)
+      const legacyCommandDir = path.join(testDir, '.claude', 'commands', 'openspec');
+      await fs.mkdir(legacyCommandDir, { recursive: true });
+      await fs.writeFile(
+        path.join(legacyCommandDir, 'proposal.md'),
+        'old command'
+      );
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      // Create update command with force option
+      const forceUpdateCommand = new UpdateCommand({ force: true });
+      await forceUpdateCommand.execute(testDir);
+
+      // Legacy cleanup should happen
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Removed .claude/commands/openspec/')
+      );
+
+      // Should NOT show "Tools detected from legacy artifacts" because claude is already configured
+      const calls = consoleSpy.mock.calls.map(call =>
+        call.map(arg => String(arg)).join(' ')
+      );
+      const hasDetectedMessage = calls.some(call =>
+        call.includes('Tools detected from legacy artifacts')
+      );
+      expect(hasDetectedMessage).toBe(false);
+
+      // Should update existing skills (not "Getting started" for newly configured)
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Updated: Claude Code')
+      );
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should upgrade only unconfigured legacy tools when mixed', async () => {
+      // Set up configured Claude tool with skills
+      const claudeSkillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(path.join(claudeSkillsDir, 'openspec-explore'), { recursive: true });
+      await fs.writeFile(
+        path.join(claudeSkillsDir, 'openspec-explore', 'SKILL.md'),
+        'existing skill'
+      );
+
+      // Create legacy commands for both Claude (configured) and Cursor (not configured)
+      await fs.mkdir(path.join(testDir, '.claude', 'commands', 'openspec'), { recursive: true });
+      await fs.writeFile(
+        path.join(testDir, '.claude', 'commands', 'openspec', 'proposal.md'),
+        'content'
+      );
+
+      await fs.mkdir(path.join(testDir, '.cursor', 'commands'), { recursive: true });
+      await fs.writeFile(
+        path.join(testDir, '.cursor', 'commands', 'openspec-proposal.md'),
+        'content'
+      );
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      // Create update command with force option
+      const forceUpdateCommand = new UpdateCommand({ force: true });
+      await forceUpdateCommand.execute(testDir);
+
+      // Should detect Cursor as a legacy tool to upgrade (but not Claude)
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Tools detected from legacy artifacts')
+      );
+
+      // Cursor skills should be created
+      const cursorSkillFile = path.join(testDir, '.cursor', 'skills', 'openspec-explore', 'SKILL.md');
+      expect(await FileSystemUtils.fileExists(cursorSkillFile)).toBe(true);
+
+      // Should show "Getting started" for newly configured Cursor
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Getting started')
+      );
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should not show getting started message when no new tools configured', async () => {
+      // Set up a configured tool (no legacy artifacts)
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), { recursive: true });
+      await fs.writeFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        'old skill'
+      );
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      // Should NOT show "Getting started" message
+      const calls = consoleSpy.mock.calls.map(call =>
+        call.map(arg => String(arg)).join(' ')
+      );
+      const hasGettingStarted = calls.some(call =>
+        call.includes('Getting started')
+      );
+      expect(hasGettingStarted).toBe(false);
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should create all 9 skills when upgrading legacy tools', async () => {
+      // Create legacy command directory
+      await fs.mkdir(path.join(testDir, '.claude', 'commands', 'openspec'), { recursive: true });
+      await fs.writeFile(
+        path.join(testDir, '.claude', 'commands', 'openspec', 'proposal.md'),
+        'content'
+      );
+
+      // Create update command with force option
+      const forceUpdateCommand = new UpdateCommand({ force: true });
+      await forceUpdateCommand.execute(testDir);
+
+      // Verify all 9 skill directories were created
+      const skillNames = [
+        'openspec-explore',
+        'openspec-new-change',
+        'openspec-continue-change',
+        'openspec-apply-change',
+        'openspec-ff-change',
+        'openspec-sync-specs',
+        'openspec-archive-change',
+        'openspec-bulk-archive-change',
+        'openspec-verify-change',
+      ];
+
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      for (const skillName of skillNames) {
+        const skillFile = path.join(skillsDir, skillName, 'SKILL.md');
+        const exists = await FileSystemUtils.fileExists(skillFile);
+        expect(exists).toBe(true);
+      }
+    });
+
+    it('should create commands when upgrading legacy tools', async () => {
+      // Create legacy command directory
+      await fs.mkdir(path.join(testDir, '.claude', 'commands', 'openspec'), { recursive: true });
+      await fs.writeFile(
+        path.join(testDir, '.claude', 'commands', 'openspec', 'proposal.md'),
+        'content'
+      );
+
+      // Create update command with force option
+      const forceUpdateCommand = new UpdateCommand({ force: true });
+      await forceUpdateCommand.execute(testDir);
+
+      // New opsx commands should be created
+      const commandsDir = path.join(testDir, '.claude', 'commands', 'opsx');
+      const exploreCmd = path.join(commandsDir, 'explore.md');
+      const exists = await FileSystemUtils.fileExists(exploreCmd);
+      expect(exists).toBe(true);
+    });
   });
 });

@@ -90,13 +90,13 @@ describe('openspec CLI e2e basics', () => {
         env: { CODEX_HOME: codexHome },
       });
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('Tool summary:');
+      expect(result.stdout).toContain('OpenSpec Setup Complete');
 
-      // Check that tool configurations were created
-      const claudePath = path.join(emptyProjectDir, 'CLAUDE.md');
-      const cursorProposal = path.join(emptyProjectDir, '.cursor/commands/openspec-proposal.md');
-      expect(await fileExists(claudePath)).toBe(true);
-      expect(await fileExists(cursorProposal)).toBe(true);
+      // Check that skills were created for multiple tools
+      const claudeSkillPath = path.join(emptyProjectDir, '.claude/skills/openspec-explore/SKILL.md');
+      const cursorSkillPath = path.join(emptyProjectDir, '.cursor/skills/openspec-explore/SKILL.md');
+      expect(await fileExists(claudeSkillPath)).toBe(true);
+      expect(await fileExists(cursorSkillPath)).toBe(true);
     });
 
     it('initializes with --tools list option', async () => {
@@ -106,12 +106,14 @@ describe('openspec CLI e2e basics', () => {
 
       const result = await runCLI(['init', '--tools', 'claude'], { cwd: emptyProjectDir });
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('Tool summary:');
+      expect(result.stdout).toContain('OpenSpec Setup Complete');
+      expect(result.stdout).toContain('Claude Code');
 
-      const claudePath = path.join(emptyProjectDir, 'CLAUDE.md');
-      const cursorProposal = path.join(emptyProjectDir, '.cursor/commands/openspec-proposal.md');
-      expect(await fileExists(claudePath)).toBe(true);
-      expect(await fileExists(cursorProposal)).toBe(false); // Not selected
+      // New init creates skills, not CLAUDE.md
+      const claudeSkillPath = path.join(emptyProjectDir, '.claude/skills/openspec-explore/SKILL.md');
+      const cursorSkillPath = path.join(emptyProjectDir, '.cursor/skills/openspec-explore/SKILL.md');
+      expect(await fileExists(claudeSkillPath)).toBe(true);
+      expect(await fileExists(cursorSkillPath)).toBe(false); // Not selected
     });
 
     it('initializes with --tools none option', async () => {
@@ -121,15 +123,14 @@ describe('openspec CLI e2e basics', () => {
 
       const result = await runCLI(['init', '--tools', 'none'], { cwd: emptyProjectDir });
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('Tool summary:');
+      expect(result.stdout).toContain('OpenSpec Setup Complete');
 
-      const claudePath = path.join(emptyProjectDir, 'CLAUDE.md');
-      const cursorProposal = path.join(emptyProjectDir, '.cursor/commands/openspec-proposal.md');
-      const rootAgentsPath = path.join(emptyProjectDir, 'AGENTS.md');
+      // With --tools none, no tool skills should be created
+      const claudeSkillPath = path.join(emptyProjectDir, '.claude/skills/openspec-explore/SKILL.md');
+      const cursorSkillPath = path.join(emptyProjectDir, '.cursor/skills/openspec-explore/SKILL.md');
 
-      expect(await fileExists(rootAgentsPath)).toBe(true);
-      expect(await fileExists(claudePath)).toBe(false);
-      expect(await fileExists(cursorProposal)).toBe(false);
+      expect(await fileExists(claudeSkillPath)).toBe(false);
+      expect(await fileExists(cursorSkillPath)).toBe(false);
     });
 
     it('returns error for invalid tool names', async () => {
