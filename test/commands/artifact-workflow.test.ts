@@ -559,37 +559,37 @@ artifacts:
   });
 
   describe('help text', () => {
-    it('marks status command as experimental in help', async () => {
+    it('status command help shows description', async () => {
       const result = await runCLI(['status', '--help']);
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('[Experimental]');
+      expect(result.stdout).toContain('Display artifact completion status');
     });
 
-    it('marks instructions command as experimental in help', async () => {
+    it('instructions command help shows description', async () => {
       const result = await runCLI(['instructions', '--help']);
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('[Experimental]');
+      expect(result.stdout).toContain('Output enriched instructions');
     });
 
-    it('marks templates command as experimental in help', async () => {
+    it('templates command help shows description', async () => {
       const result = await runCLI(['templates', '--help']);
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('[Experimental]');
+      expect(result.stdout).toContain('Show resolved template paths');
     });
 
-    it('marks new command as experimental in help', async () => {
+    it('new command help shows description', async () => {
       const result = await runCLI(['new', '--help']);
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('[Experimental]');
+      expect(result.stdout).toContain('Create new items');
     });
   });
 
-  describe('experimental command', () => {
-    it('requires --tool flag', async () => {
-      const result = await runCLI(['experimental'], { cwd: tempDir });
-      expect(result.exitCode).toBe(1);
+  describe('experimental command (deprecated alias for init)', () => {
+    it('shows deprecation notice', async () => {
+      const result = await runCLI(['experimental', '--tool', 'claude'], { cwd: tempDir });
+      // May succeed or fail depending on setup, but should show deprecation notice
       const output = getOutput(result);
-      expect(output).toContain('--tool');
+      expect(output).toContain('deprecated');
     });
 
     it('errors for unknown tool', async () => {
@@ -598,7 +598,7 @@ artifacts:
       });
       expect(result.exitCode).toBe(1);
       const output = getOutput(result);
-      expect(output).toContain("Unknown tool 'unknown-tool'");
+      expect(output).toContain('Invalid tool(s): unknown-tool');
     });
 
     it('errors for tool without skillsDir', async () => {
@@ -608,7 +608,7 @@ artifacts:
       });
       expect(result.exitCode).toBe(1);
       const output = getOutput(result);
-      expect(output).toContain('does not support skill generation');
+      expect(output).toContain('Invalid tool(s): agents');
     });
 
     it('creates skills for Claude tool', async () => {

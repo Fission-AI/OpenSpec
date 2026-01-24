@@ -10,3 +10,6 @@ export {
   validateSchemaName,
   ChangeMetadataError,
 } from './change-metadata.js';
+
+// File system utilities
+export { FileSystemUtils, removeMarkerBlock } from './file-system.js';
