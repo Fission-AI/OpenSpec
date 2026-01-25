@@ -1,8 +1,6 @@
-# Experimental Workflow (OPSX)
+# OPSX Workflow
 
-> **Status:** Experimental. Things might break. Feedback welcome on [Discord](https://discord.gg/YctCnvvshC).
->
-> **Compatibility:** Claude Code only (for now)
+> **Compatibility:** Claude Code only (for now). Feedback welcome on [Discord](https://discord.gg/YctCnvvshC).
 
 ## What Is It?
 
@@ -51,19 +49,9 @@ You're "in planning phase", then "in implementation phase", then "done". But rea
 **OPSX approach:**
 - **Actions, not phases** — create, implement, update, archive — do any of them anytime
 - **Dependencies are enablers** — they show what's possible, not what's required next
-- **Update as you learn** — halfway through implementation? Go back and fix the design. That's normal.
 
 ```
-You can always go back:
-
-     ┌────────────────────────────────────┐
-     │                                    │
-     ▼                                    │
   proposal ──→ specs ──→ design ──→ tasks ──→ implement
-     ▲           ▲          ▲               │
-     │           │          │               │
-     └───────────┴──────────┴───────────────┘
-              update as you learn
 ```
 
 ## Setup
@@ -179,7 +167,7 @@ rules:
 | `/opsx:continue` | Create the next artifact (based on what's ready) |
 | `/opsx:ff` | Fast-forward — create all planning artifacts at once |
 | `/opsx:apply` | Implement tasks, updating artifacts as needed |
-| `/opsx:sync` | Sync delta specs to main specs |
+| `/opsx:sync` | Sync delta specs to main (optional—archive prompts if needed) |
 | `/opsx:archive` | Archive when done |
 
 ## Usage
@@ -211,17 +199,16 @@ Creates all planning artifacts at once. Use when you have a clear picture of wha
 ```
 /opsx:apply
 ```
-Works through tasks, checking them off as you go. **Key difference:** if you discover issues during implementation, you can update your specs, design, or tasks — then continue. No phase gates. If you're juggling multiple changes, you can run `/opsx:apply <name>`; otherwise it should infer from the conversation and prompt you to choose if it can’t tell.
+Works through tasks, checking them off as you go. If you're juggling multiple changes, you can run `/opsx:apply <name>`; otherwise it should infer from the conversation and prompt you to choose if it can't tell.
 
 ### Finish up
 ```
-/opsx:sync      # Update main specs with your delta specs
-/opsx:archive   # Move to archive when done
+/opsx:archive   # Move to archive when done (prompts to sync specs if needed)
 ```
 
 ## When to Update vs. Start Fresh
 
-OPSX lets you update artifacts anytime. But when does "update as you learn" become "this is different work"?
+You can always edit your proposal or specs before implementation. But when does refining become "this is different work"?
 
 ### What a Proposal Captures
 
@@ -351,9 +338,9 @@ This section explains how OPSX works under the hood and how it compares to the s
 │              ┌────────────────────────────────────────────┐                 │
 │              │           ACTIONS (not phases)             │                 │
 │              │                                            │                 │
-│              │   new ◄──► continue ◄──► apply ◄──► sync   │                 │
-│              │    │          │           │          │     │                 │
-│              │    └──────────┴───────────┴──────────┘     │                 │
+│              │   new ◄──► continue ◄──► apply ◄──► archive │                 │
+│              │    │          │           │           │    │                 │
+│              │    └──────────┴───────────┴───────────┘    │                 │
 │              │              any order                     │                 │
 │              └────────────────────────────────────────────┘                 │
 │                                                                             │
