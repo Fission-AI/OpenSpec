@@ -1,8 +1,8 @@
 <p align="center">
   <a href="https://github.com/Fission-AI/OpenSpec">
     <picture>
-      <source srcset="assets/openspec_bg2.png">
-      <img src="assets/openspec_bg2.png" alt="OpenSpec logo">
+      <source srcset="assets/openspec_bg.png">
+      <img src="assets/openspec_bg.png" alt="OpenSpec logo">
     </picture>
   </a>
 </p>
