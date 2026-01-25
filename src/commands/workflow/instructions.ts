@@ -221,7 +221,7 @@ function parseTasksFile(content: string): TaskItem[] {
 
   for (const line of lines) {
     // Match checkbox patterns: - [ ] or - [x] or - [X]
-    const checkboxMatch = line.match(/^[-*]\s*\[([ xX])\]\s*(.+)$/);
+    const checkboxMatch = line.match(/^[-*]\s*\[([ xX])\]\s*(.+)\s*$/);
     if (checkboxMatch) {
       taskIndex++;
       const done = checkboxMatch[1].toLowerCase() === 'x';
@@ -314,7 +314,7 @@ export async function generateApplyInstructions(
   const changeDir = path.join(projectRoot, 'openspec', 'changes', changeName);
 
   // Get the full schema to access the apply phase configuration
-  const schema = resolveSchema(context.schemaName);
+  const schema = resolveSchema(context.schemaName, projectRoot);
   const applyConfig = schema.apply;
 
   // Determine required artifacts and tracking file from schema
