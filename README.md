@@ -27,7 +27,7 @@
 </p>
 
 <p align="center">
-  <sub>🧪 <strong>New:</strong> <a href="docs/experimental-workflow.md">Experimental Workflow (OPSX)</a> — schema-driven, hackable, fluid. Iterate on workflows without code changes.</sub>
+  <sub>🧪 <strong>New:</strong> <a href="docs/opsx.md">OPSX Workflow</a> — schema-driven, hackable, fluid. Iterate on workflows without code changes.</sub>
 </p>
 
 # OpenSpec
@@ -442,7 +442,7 @@ You can always go back:
 
 **Setup:** `openspec experimental`
 
-[Full documentation →](docs/experimental-workflow.md)
+[Full documentation →](docs/opsx.md)
 
 </details>
 

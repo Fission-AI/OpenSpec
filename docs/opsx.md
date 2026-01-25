@@ -1,8 +1,6 @@
-# Experimental Workflow (OPSX)
+# OPSX Workflow
 
-> **Status:** Experimental. Things might break. Feedback welcome on [Discord](https://discord.gg/YctCnvvshC).
->
-> **Compatibility:** Claude Code only (for now)
+> **Compatibility:** Claude Code only (for now). Feedback welcome on [Discord](https://discord.gg/YctCnvvshC).
 
 ## What Is It?
 

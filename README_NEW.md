@@ -27,7 +27,7 @@ Our philosophy:
 ```
 
 > [!TIP]
-> **New workflow now available!** We've rebuilt OpenSpec with a new artifact-guided workflow. Run `/opsx:onboard` to get started. → [Learn more here](#)
+> **New workflow now available!** We've rebuilt OpenSpec with a new artifact-guided workflow. Run `/opsx:onboard` to get started. → [Learn more here](docs/opsx.md)
 
 <p align="center">
   Follow <a href="https://x.com/0xTab">@0xTab on X</a> for updates · Join the <a href="https://discord.gg/YctCnvvshC">OpenSpec Discord</a> for help and questions.
@@ -86,19 +86,20 @@ openspec init
 Now tell your AI: `/opsx:new <what-you-want-to-build>`
 
 > [!NOTE]
-> Not sure if your tool is supported? [View the full list](docs/getting-started.md#supported-tools) – we support 20+ tools and growing.
+> Not sure if your tool is supported? [View the full list](docs/supported-tools.md) – we support 20+ tools and growing.
 
 > [!NOTE]
-> Also works with pnpm, yarn, bun, and nix. [See installation options](docs/cli.md#installation).
+> Also works with pnpm, yarn, bun, and nix. [See installation options](docs/installation.md).
 
 ## Docs
 
 → **[Getting Started](docs/getting-started.md)**: first steps<br>
-→ **[Workflows](docs/workflows.md)**: combo's and patterns<br>
+→ **[Workflows](docs/workflows.md)**: combos and patterns<br>
 → **[Commands](docs/commands.md)**: slash commands & skills<br>
 → **[CLI](docs/cli.md)**: terminal reference<br>
+→ **[Supported Tools](docs/supported-tools.md)**: tool integrations & install paths<br>
 → **[Concepts](docs/concepts.md)**: how it all fits<br>
-→ **[i18n](docs/i18n.md)**: multi-language support<br>
+→ **[Multi-Language](docs/multi-language.md)**: multi-language support<br>
 → **[Customization](docs/customization.md)**: make it yours
 
 

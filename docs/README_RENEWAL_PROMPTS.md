@@ -21,16 +21,16 @@ Before generating new docs, clean up the existing docs folder.
 
 ### Docs to Keep and Polish
 
-- [ ] `docs/experimental-workflow.md` — Core OPSX user documentation (consider renaming to `opsx.md`)
+- [x] `docs/opsx.md` — Core OPSX user documentation (renamed from `experimental-workflow.md`)
 
 ### User-Facing Docs to Generate/Update
 
 - [x] `docs/getting-started.md` — See prompt below
 - [x] `docs/workflows.md` — See prompt below
-- [ ] `docs/commands.md` — See prompt below
-- [ ] `docs/cli.md` — See prompt below
-- [ ] `docs/concepts.md` — See prompt below
-- [ ] `docs/i18n.md` — See prompt below
+- [x] `docs/commands.md` — See prompt below
+- [x] `docs/cli.md` — See prompt below
+- [x] `docs/concepts.md` — See prompt below
+- [x] `docs/multi-language.md` — Simplified multi-language guide
 - [x] `docs/customization.md` — Merged from schema-customization.md and project-config-demo.md
 
 ### Final Steps
@@ -139,7 +139,7 @@ You are writing documentation for OpenSpec, a spec-driven development framework 
 **Read these files for context:**
 - `README.md` (old README - has good examples of generated specs and deltas)
 - `README_NEW.md` (new product positioning)
-- `docs/experimental-workflow.md` (OPSX workflow details)
+- `docs/opsx.md` (OPSX workflow details)
 
 Write the complete documentation file now.
 ```
@@ -204,7 +204,7 @@ proposal ──→ specs ──→ design ──→ tasks ──→ implement
 - Keep sections scannable
 
 **Read these files for context:**
-- `docs/experimental-workflow.md` (full OPSX documentation)
+- `docs/opsx.md` (full OPSX documentation)
 
 Write the complete documentation file now.
 ```
@@ -424,52 +424,10 @@ Write the complete documentation file now.
 
 ---
 
-## 6. i18n (`docs/i18n.md`)
+## 6. Multi-Language (`docs/multi-language.md`)
 
-```
-You are writing documentation for OpenSpec, a spec-driven development framework for AI coding assistants.
-
-**Your task:** Write the i18n (internationalization) guide at `docs/i18n.md`.
-
-**Context about OpenSpec:**
-- OpenSpec generates instruction files that AI assistants read
-- These instructions are currently in English
-- Teams may want instructions in other languages
-- Spec content itself can be in any language (user-controlled)
-
-**Current state:**
-- OpenSpec CLI and generated files are English-only
-- No built-in translation mechanism yet
-- Community interest in multi-language support
-
-**Target audience:** International teams and contributors interested in localization.
-
-**What to cover:**
-1. Current language support status
-2. What can be localized:
-   - CLI output (future)
-   - Generated instruction files (future)
-   - Spec content (user-controlled, any language works)
-   - Templates (can be customized via schemas)
-3. Workarounds for non-English teams:
-   - Custom schemas with translated templates
-   - Writing specs in your preferred language
-   - AI assistants can respond in user's language regardless
-4. Contributing translations (if/when supported)
-5. Roadmap/plans for i18n support
-
-**Note:** This may be a shorter document if i18n support is limited. Be honest about current state while showing the path forward.
-
-**Style guidelines:**
-- Be honest about current limitations
-- Provide practical workarounds
-- Welcome community contributions
-- Keep it brief if there's not much to cover yet
-
-**Check the codebase for any existing i18n infrastructure or configuration.**
-
-Write the complete documentation file now.
-```
+**COMPLETED** — Created simplified multi-language guide based on PR #534. Covers configuring
+OpenSpec to output artifacts in different languages via the `context` field in config.yaml.
 
 ---
 
@@ -573,7 +531,7 @@ You are writing documentation for OpenSpec, a spec-driven development framework 
 - Include troubleshooting tips
 
 **Read these files for context:**
-- `docs/experimental-workflow.md` (has config and schema details)
+- `docs/opsx.md` (has config and schema details)
 
 Write the complete documentation file now.
 ```
