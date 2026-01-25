@@ -58,19 +58,3 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           # npm authentication handled via OIDC trusted publishing (no token needed)
-
-      # Trigger release notes polishing after a release is published
-      # Uses repository_dispatch instead of workflow_dispatch because:
-      # - workflow_dispatch requires actions:write permission (GitHub App doesn't have it)
-      # - repository_dispatch works with contents:write (which we already have)
-      - name: Polish release notes
-        if: steps.changesets.outputs.published == 'true'
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: |
-          # Get version from package.json (just bumped by changesets)
-          TAG="v$(jq -r .version package.json)"
-          echo "Triggering polish workflow for $TAG"
-          gh api repos/${{ github.repository }}/dispatches \
-            --method POST \
-            --input - <<< "{\"event_type\":\"polish-release-notes\",\"client_payload\":{\"tag_name\":\"$TAG\"}}"
