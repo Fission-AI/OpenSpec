@@ -228,7 +228,7 @@ When validating changes, the validator SHALL check that tasks.md exists, contain
 
 #### Scenario: No checkboxed tasks found
 
-- **WHEN** validating a tasks.md file with no items matching pattern `/^[-*]\s+\[[xX\s]\]/`
+- **WHEN** validating a tasks.md file with no items matching pattern `/^[-*]\s+\[[\sx]\]/i`
 - **THEN** report ERROR with message "tasks.md must contain at least one checkboxed task"
 - **AND** include path "tasks.md" in the issue
 
