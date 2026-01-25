@@ -4,6 +4,43 @@ This file contains prompts for AI agents to write each documentation file. Each 
 
 ---
 
+## Documentation Cleanup Checklist
+
+Before generating new docs, clean up the existing docs folder.
+
+### Docs to Delete (internal/historical)
+
+- [ ] `docs/artifact_poc.md` — Internal architecture doc, design decisions implemented
+- [ ] `docs/experimental-release-plan.md` — Project plan with completed checkboxes, release happened
+- [ ] `docs/schema-workflow-gaps.md` — Implementation tracking (Phases 1-4), belongs in GitHub issues
+
+### Docs to Merge Then Delete
+
+- [ ] `docs/schema-customization.md` → merge useful content into `docs/customization.md`, then delete
+- [ ] `docs/project-config-demo.md` → merge useful content into `docs/customization.md`, then delete
+
+### Docs to Keep and Polish
+
+- [ ] `docs/experimental-workflow.md` — Core OPSX user documentation (consider renaming to `opsx.md`)
+
+### User-Facing Docs to Generate/Update
+
+- [ ] `docs/getting-started.md` — See prompt below
+- [ ] `docs/workflows.md` — See prompt below
+- [ ] `docs/commands.md` — See prompt below
+- [ ] `docs/cli.md` — See prompt below
+- [ ] `docs/concepts.md` — See prompt below
+- [ ] `docs/i18n.md` — See prompt below
+- [ ] `docs/customization.md` — See prompt below (include content from schema-customization.md and project-config-demo.md)
+
+### Final Steps
+
+- [ ] Delete this file (`README_RENEWAL_PROMPTS.md`) after all docs are generated
+- [ ] Update `README_NEW.md` links to point to new docs
+- [ ] Rename `README_NEW.md` to `README.md` (replace old README)
+
+---
+
 ## 1. Getting Started (`docs/getting-started.md`)
 
 ```

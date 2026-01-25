@@ -86,20 +86,20 @@ openspec init
 Now tell your AI: `/opsx:new <what-you-want-to-build>`
 
 > [!NOTE]
-> Not sure if your tool is supported? [View the full list](link) – we support 20+ tools and growing.
+> Not sure if your tool is supported? [View the full list](docs/getting-started.md#supported-tools) – we support 20+ tools and growing.
 
 > [!NOTE]
-> Also works with pnpm, yarn, bun, and nix. [See installation options](link).
+> Also works with pnpm, yarn, bun, and nix. [See installation options](docs/cli.md#installation).
 
 ## Docs
 
-→ **[Getting Started](link)**: first steps<br>
-→ **[Workflows](link)**: combo's and patterns<br>
-→ **[Commands](link)**: slash commands & skills<br>
-→ **[CLI](link)**: terminal reference<br>
-→ **[Concepts](link)**: how it all fits<br>
-→ **[i18n](link)**: multi-language support<br>
-→ **[Customization](link)**: make it yours
+→ **[Getting Started](docs/getting-started.md)**: first steps<br>
+→ **[Workflows](docs/workflows.md)**: combo's and patterns<br>
+→ **[Commands](docs/commands.md)**: slash commands & skills<br>
+→ **[CLI](docs/cli.md)**: terminal reference<br>
+→ **[Concepts](docs/concepts.md)**: how it all fits<br>
+→ **[i18n](docs/i18n.md)**: multi-language support<br>
+→ **[Customization](docs/customization.md)**: make it yours
 
 
 ## Why OpenSpec?
