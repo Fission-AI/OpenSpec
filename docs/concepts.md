@@ -7,7 +7,7 @@ This guide explains the core ideas behind OpenSpec and how they fit together. Fo
 OpenSpec is built around four principles:
 
 ```
-fluid not rigid       — no phase gates, update anything anytime
+fluid not rigid       — no phase gates, work on what makes sense
 iterative not waterfall — learn as you build, refine as you go
 easy not complex      — lightweight setup, minimal ceremony
 brownfield-first      — works with existing codebases, not just greenfield
@@ -15,9 +15,9 @@ brownfield-first      — works with existing codebases, not just greenfield
 
 ### Why These Principles Matter
 
-**Fluid not rigid.** Traditional spec systems lock you into phases: first you plan, then you implement, then you're done. But real work doesn't happen that way. You implement something, realize your design was wrong, need to update specs, then continue implementing. OpenSpec lets you move freely between artifacts.
+**Fluid not rigid.** Traditional spec systems lock you into phases: first you plan, then you implement, then you're done. OpenSpec is more flexible — you can create artifacts in any order that makes sense for your work.
 
-**Iterative not waterfall.** Requirements change. Understanding deepens. What seemed like a good approach at the start might not hold up after you see the codebase. OpenSpec embraces this reality — update your artifacts as you learn.
+**Iterative not waterfall.** Requirements change. Understanding deepens. What seemed like a good approach at the start might not hold up after you see the codebase. OpenSpec embraces this reality.
 
 **Easy not complex.** Some spec frameworks require extensive setup, rigid formats, or heavyweight processes. OpenSpec stays out of your way. Initialize in seconds, start working immediately, customize only if you need to.
 
@@ -175,17 +175,12 @@ Artifacts are the documents within a change that guide the work.
 
 ```
 proposal ──────► specs ──────► design ──────► tasks ──────► implement
-    │               │             │                             │
-   why            what           how          steps              │
- + scope        changes       approach      to take             │
-                                                                │
-    ▲               ▲             ▲                             │
-    │               │             │                             │
-    └───────────────┴─────────────┴─────────────────────────────┘
-                    update as you learn
+    │               │             │              │
+   why            what           how          steps
+ + scope        changes       approach      to take
 ```
 
-Artifacts build on each other, but you can always go back. Discovered during implementation that the design won't work? Update the design. Realized the scope needs to change? Update the proposal.
+Artifacts build on each other. Each artifact provides context for the next.
 
 ### Artifact Types
 

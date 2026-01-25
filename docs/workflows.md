@@ -18,21 +18,13 @@ Traditional (phase-locked):
 
 OPSX (fluid actions):
 
-     ┌────────────────────────────────────┐
-     │                                    │
-     ▼                                    │
   proposal ──► specs ──► design ──► tasks ──► implement
-     ▲           ▲          ▲               │
-     │           │          │               │
-     └───────────┴──────────┴───────────────┘
-              update as you learn
 ```
 
 **Key principles:**
 
 - **Actions, not phases** - Commands are things you can do, not stages you're stuck in
 - **Dependencies are enablers** - They show what's possible, not what's required next
-- **Update as you learn** - Halfway through implementation? Go back and fix the design. That's expected.
 
 > **Customization:** OPSX workflows are driven by schemas that define artifact sequences. See [Customization](customization.md) for details on creating custom schemas.
 
@@ -128,40 +120,6 @@ AI:  Creating specs...
 ```
 
 **Best for:** Performance optimization, debugging, architectural decisions, unclear requirements.
-
-### Mid-Flight Correction
-
-When you discover issues during implementation:
-
-```
-/opsx:apply ──► [discover issue] ──► update artifact ──► /opsx:apply
-```
-
-**Example conversation:**
-
-```
-You: /opsx:apply
-
-AI:  Working through tasks...
-     ✓ Task 1.1: Created caching layer
-     ✓ Task 1.2: Added cache invalidation
-
-     Working on 1.3: Implement TTL...
-     I noticed the design assumes Redis, but your project uses
-     in-memory caching. Should I update the design?
-
-You: Yes, update it to use the existing cache module.
-
-AI:  Updated design.md to use CacheManager from src/cache/
-     Updated tasks.md with revised implementation steps
-     Continuing implementation...
-     ✓ Task 1.3: Implemented TTL using CacheManager
-     ...
-```
-
-**No restart needed.** Just update the artifact and continue. This is how work actually happens.
-
-**Best for:** Any implementation where you learn something that changes the plan.
 
 ### Parallel Changes
 

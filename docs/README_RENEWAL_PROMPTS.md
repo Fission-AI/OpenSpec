@@ -75,13 +75,13 @@ You are writing documentation for OpenSpec, a spec-driven development framework 
    ┌────────────────────┐
    │ Create Artifacts   │  /opsx:ff or /opsx:continue
    │ (proposal, specs,  │
-   │  design, tasks)    │◄──── iterate as needed
+   │  design, tasks)    │
    └────────┬───────────┘
             │
             ▼
    ┌────────────────────┐
    │ Implement Tasks    │  /opsx:apply
-   │ (AI writes code)   │──── can update artifacts mid-flight
+   │ (AI writes code)   │
    └────────┬───────────┘
             │
             ▼
@@ -167,7 +167,7 @@ You are writing documentation for OpenSpec, a spec-driven development framework 
 | `/opsx:new` | Start a new change |
 | `/opsx:continue` | Create the next artifact based on dependencies |
 | `/opsx:ff` | Fast-forward - create all planning artifacts at once |
-| `/opsx:apply` | Implement tasks, can update artifacts mid-implementation |
+| `/opsx:apply` | Implement tasks from tasks.md |
 | `/opsx:sync` | Sync delta specs to main specs |
 | `/opsx:verify` | Verify implementation matches artifacts |
 | `/opsx:archive` | Archive completed change |
@@ -175,9 +175,6 @@ You are writing documentation for OpenSpec, a spec-driven development framework 
 **Artifact flow:**
 ```
 proposal ──→ specs ──→ design ──→ tasks ──→ implement
-   ▲           ▲          ▲                    │
-   └───────────┴──────────┴────────────────────┘
-            update as you learn
 ```
 
 **Target audience:** Users who understand the basics and want to learn effective patterns.
@@ -352,7 +349,6 @@ You are writing documentation for OpenSpec, a spec-driven development framework 
 
 **Philosophy:**
 - Fluid not rigid (no phase gates)
-- Iterative not waterfall (update as you learn)
 - Easy not complex (lightweight setup)
 - Brownfield-first (works with existing codebases, not just 0→1)
 

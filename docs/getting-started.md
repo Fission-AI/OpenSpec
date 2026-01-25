@@ -15,13 +15,13 @@ OpenSpec helps you and your AI coding assistant agree on what to build before an
 ┌────────────────────┐
 │ Create Artifacts   │  /opsx:ff or /opsx:continue
 │ (proposal, specs,  │
-│  design, tasks)    │◄──── iterate as needed
+│  design, tasks)    │
 └────────┬───────────┘
          │
          ▼
 ┌────────────────────┐
 │ Implement Tasks    │  /opsx:apply
-│ (AI writes code)   │──── can update artifacts mid-flight
+│ (AI writes code)   │
 └────────┬───────────┘
          │
          ▼
@@ -30,8 +30,6 @@ OpenSpec helps you and your AI coding assistant agree on what to build before an
 │ Specs              │
 └────────────────────┘
 ```
-
-The key insight: work isn't linear. You can update any artifact at any time as you learn more about what you're building.
 
 ## What OpenSpec Creates
 

@@ -245,7 +245,6 @@ Implement tasks from the change. Works through the task list, writing code and c
 - Works through tasks one by one
 - Writes code, creates files, runs tests as needed
 - Marks tasks complete with checkboxes `[x]`
-- Allows mid-flight artifact updates if issues are discovered
 
 **Example:**
 ```
@@ -270,23 +269,8 @@ AI:  Implementing add-dark-mode...
      ...
 ```
 
-**Mid-flight correction:**
-```
-AI:  Working on 1.3: Implement localStorage persistence...
-
-     I notice the design assumes we're using a custom hook,
-     but there's already a useLocalStorage hook in src/hooks/.
-     Should I update the design to use the existing hook?
-
-You: Yes, update the design.
-
-AI:  Updated design.md to use existing useLocalStorage hook.
-     Continuing implementation...
-```
-
 **Tips:**
 - Can resume where you left off if interrupted
-- Update artifacts anytime if you discover issues
 - Use for parallel changes by specifying the change name
 - Completion state is tracked in `tasks.md` checkboxes
 
