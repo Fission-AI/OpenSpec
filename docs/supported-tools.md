@@ -14,23 +14,23 @@ For each tool you select, OpenSpec installs:
 | Tool | Skills Location | Commands Location |
 |------|-----------------|-------------------|
 | Amazon Q Developer | `.amazonq/skills/` | `.amazonq/prompts/` |
-| Antigravity | `.agent/skills/` | `.agent/commands/` |
+| Antigravity | `.agent/skills/` | `.agent/workflows/` |
 | Auggie (Augment CLI) | `.augment/skills/` | `.augment/commands/` |
 | Claude Code | `.claude/skills/` | `.claude/commands/opsx/` |
 | Cline | `.cline/skills/` | `.clinerules/workflows/` |
 | CodeBuddy | `.codebuddy/skills/` | `.codebuddy/commands/opsx/` |
-| Codex | `.codex/skills/` | `.codex/commands/` |
+| Codex | `.codex/skills/` | `.codex/prompts/` |
 | Continue | `.continue/skills/` | `.continue/prompts/` |
 | CoStrict | `.cospec/skills/` | `.cospec/openspec/commands/` |
-| Crush | `.crush/skills/` | `.crush/commands/` |
+| Crush | `.crush/skills/` | `.crush/commands/opsx/` |
 | Cursor | `.cursor/skills/` | `.cursor/commands/` |
 | Factory Droid | `.factory/skills/` | `.factory/commands/` |
 | Gemini CLI | `.gemini/skills/` | `.gemini/commands/opsx/` |
 | GitHub Copilot | `.github/skills/` | `.github/prompts/` |
 | iFlow | `.iflow/skills/` | `.iflow/commands/` |
 | Kilo Code | `.kilocode/skills/` | `.kilocode/workflows/` |
-| OpenCode | `.opencode/skills/` | `.opencode/prompts/` |
-| Qoder | `.qoder/skills/` | `.qoder/workflows/` |
+| OpenCode | `.opencode/skills/` | `.opencode/command/` |
+| Qoder | `.qoder/skills/` | `.qoder/commands/opsx/` |
 | Qwen Code | `.qwen/skills/` | `.qwen/commands/` |
 | RooCode | `.roo/skills/` | `.roo/commands/` |
 | Windsurf | `.windsurf/skills/` | `.windsurf/commands/opsx/` |
