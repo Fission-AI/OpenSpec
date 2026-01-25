@@ -45,7 +45,7 @@ Think through ideas, investigate problems, and clarify requirements before commi
 - Can transition to `/opsx:new` when insights crystallize
 
 **Example:**
-```
+```text
 You: /opsx:explore
 
 AI:  What would you like to explore?
@@ -366,7 +366,7 @@ Merge delta specs from a change into main specs. Performs intelligent, agent-dri
 - Does not archive the change (remains active)
 
 **Example:**
-```
+```text
 You: /opsx:sync
 
 AI:  Syncing add-dark-mode delta specs...
@@ -423,7 +423,7 @@ Archive a completed change. Finalizes the change and moves it to the archive fol
 - Preserves all artifacts for audit trail
 
 **Example:**
-```
+```text
 You: /opsx:archive
 
 AI:  Archiving add-dark-mode...
@@ -639,7 +639,7 @@ The AI tool doesn't recognize OpenSpec commands.
 
 **Solutions:**
 - Ensure OpenSpec is initialized: `openspec init`
-- Run skill generation: `openspec experimental`
+- Regenerate skills: `openspec update`
 - Check that `.claude/skills/` directory exists (for Claude Code)
 - Restart your AI tool to pick up new skills
 

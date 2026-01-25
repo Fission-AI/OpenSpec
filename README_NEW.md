@@ -25,7 +25,7 @@
 <p></p>
 Our philosophy:
 
-```
+```text
 → fluid not rigid
 → iterative not waterfall
 → easy not complex
@@ -50,7 +50,7 @@ Using OpenSpec in a team? [Email here](mailto:teams@openspec.dev) for access to 
 
 ## See it in action
 
-```
+```text
 You: /opsx:new add-dark-mode
 AI:  Created openspec/changes/add-dark-mode/
      Ready to create: proposal
@@ -105,8 +105,7 @@ Now tell your AI: `/opsx:new <what-you-want-to-build>`
 
 > [!NOTE]
 > Not sure if your tool is supported? [View the full list](docs/supported-tools.md) – we support 20+ tools and growing.
-
-> [!NOTE]
+>
 > Also works with pnpm, yarn, bun, and nix. [See installation options](docs/installation.md).
 
 ## Docs
@@ -132,7 +131,7 @@ AI coding assistants are powerful but unpredictable when requirements live only 
 
 ### How we compare
 
-**vs. [Spec Kit](https://github.com/github/spec-kit)** (GitHub) — Thorough but heavyweight. Rigid phase gates, lots of markdown, Python setup. OpenSpec is lighter and lets you iterate freely.
+**vs. [Spec Kit](https://github.com/github/spec-kit)** (GitHub) — Thorough but heavyweight. Rigid phase gates, lots of Markdown, Python setup. OpenSpec is lighter and lets you iterate freely.
 
 **vs. [Kiro](https://kiro.dev)** (AWS) — Powerful but you're locked into their IDE and limited to Claude models. OpenSpec works with the tools you already use.
 

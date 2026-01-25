@@ -8,7 +8,7 @@ Traditional workflows force you through phases: planning, then implementation, t
 
 OPSX takes a different approach:
 
-```
+```text
 Traditional (phase-locked):
 
   PLANNING ────────► IMPLEMENTING ────────► DONE
@@ -34,13 +34,13 @@ OPSX (fluid actions):
 
 When you know what you want to build and just need to execute:
 
-```
+```text
 /opsx:new ──► /opsx:ff ──► /opsx:apply ──► /opsx:verify ──► /opsx:archive
 ```
 
 **Example conversation:**
 
-```
+```text
 You: /opsx:new add-logout-button
 
 AI:  Created openspec/changes/add-logout-button/
@@ -75,13 +75,13 @@ AI:  ✓ Merged specs
 
 When requirements are unclear or you need to investigate first:
 
-```
+```text
 /opsx:explore ──► /opsx:new ──► /opsx:continue ──► ... ──► /opsx:apply
 ```
 
 **Example conversation:**
 
-```
+```text
 You: /opsx:explore
 
 AI:  What would you like to explore?
@@ -125,7 +125,7 @@ AI:  Creating specs...
 
 Work on multiple changes at once:
 
-```
+```text
 Change A: /opsx:new ──► /opsx:ff ──► /opsx:apply (in progress)
                                          │
                                     context switch
@@ -135,7 +135,7 @@ Change B: /opsx:new ──► /opsx:ff ──────► /opsx:apply
 
 **Example conversation:**
 
-```
+```text
 You: I'm working on add-dark-mode but got pulled into a bug fix
 
 You: /opsx:new fix-login-redirect
@@ -168,7 +168,7 @@ AI:  Resuming add-dark-mode...
 
 When you have multiple completed changes, use `/opsx:bulk-archive`:
 
-```
+```text
 You: /opsx:bulk-archive
 
 AI:  Found 3 completed changes:
@@ -198,7 +198,7 @@ Bulk archive detects when multiple changes touch the same specs and resolves con
 
 The recommended completion flow:
 
-```
+```text
 /opsx:apply ──► /opsx:verify ──► /opsx:sync ──► /opsx:archive
                     │                │
               validates         merges specs
@@ -209,7 +209,7 @@ The recommended completion flow:
 
 `/opsx:verify` validates implementation against your artifacts across three dimensions:
 
-```
+```text
 You: /opsx:verify
 
 AI:  Verifying add-auth...
@@ -254,7 +254,7 @@ Verify won't block archive, but it surfaces issues you might want to address fir
 
 `/opsx:sync` merges your delta specs into main specs using intelligent, agent-driven merging:
 
-```
+```text
 You: /opsx:sync
 
 AI:  Syncing add-auth delta specs to main...
@@ -293,7 +293,7 @@ AI:  Syncing add-auth delta specs to main...
 
 `/opsx:archive` completes the change and moves it to the archive:
 
-```
+```text
 You: /opsx:archive
 
 AI:  Archiving add-auth...
@@ -349,7 +349,7 @@ A common question: when is updating an existing change okay, and when should you
 - Original change can be marked "done" standalone
 - Patches would confuse more than clarify
 
-```
+```text
                      ┌─────────────────────────────────────┐
                      │     Is this the same work?          │
                      └──────────────┬──────────────────────┘
@@ -391,7 +391,7 @@ One logical unit of work per change. If you're doing "add feature X and also ref
 
 Before committing to a change, explore the problem space:
 
-```
+```text
 You: /opsx:explore
 
 AI:  What would you like to explore?
@@ -415,7 +415,7 @@ Exploration clarifies thinking before you create artifacts.
 
 Use `/opsx:sync` to merge delta specs into main specs without archiving:
 
-```
+```text
 You: /opsx:sync
 
 AI:  Synced add-auth specs to main:
@@ -431,7 +431,7 @@ AI:  Synced add-auth specs to main:
 
 Use `/opsx:verify` to check implementation matches artifacts:
 
-```
+```text
 You: /opsx:verify
 
 AI:  Verifying add-dark-mode...
@@ -449,7 +449,7 @@ Catches mismatches before you close out the change.
 
 Good names make `openspec list` useful:
 
-```
+```text
 Good:                          Avoid:
 add-dark-mode                  feature-1
 fix-login-redirect             update

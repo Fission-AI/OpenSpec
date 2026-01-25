@@ -54,7 +54,7 @@ openspec init --tools none
 
 ## What Gets Installed
 
-For each tool, OpenSpec generates 9 skill files that power the OPSX workflow:
+For each tool, OpenSpec generates 10 skill files that power the OPSX workflow:
 
 | Skill | Purpose |
 |-------|---------|
@@ -67,6 +67,7 @@ For each tool, OpenSpec generates 9 skill files that power the OPSX workflow:
 | `openspec-sync-specs` | Sync delta specs to main specs |
 | `openspec-archive-change` | Archive a completed change |
 | `openspec-bulk-archive-change` | Archive multiple changes at once |
+| `openspec-onboard` | Guided onboarding through a complete workflow cycle |
 
 These skills are invoked via slash commands like `/opsx:new`, `/opsx:apply`, etc. See [Commands](commands.md) for the full list.
 

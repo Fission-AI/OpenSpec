@@ -125,7 +125,7 @@ Use git to detect if upstream files changed since downstream was last modified. 
 
 ## Dependencies
 
-- Should be implemented after `fix-midlight-update-docs` so docs are accurate first
+- Should be implemented after `fix-midflight-update-docs` so docs are accurate first
 - Could be combined with that change if desired
 
 ## Success Criteria

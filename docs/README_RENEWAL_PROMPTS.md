@@ -43,7 +43,7 @@ Before generating new docs, clean up the existing docs folder.
 
 ## 1. Getting Started (`docs/getting-started.md`)
 
-```
+```text
 You are writing documentation for OpenSpec, a spec-driven development framework for AI coding assistants.
 
 **Your task:** Write the Getting Started guide at `docs/getting-started.md`.
@@ -148,7 +148,7 @@ Write the complete documentation file now.
 
 ## 2. Workflows (`docs/workflows.md`)
 
-```
+```text
 You are writing documentation for OpenSpec, a spec-driven development framework for AI coding assistants.
 
 **Your task:** Write the Workflows guide at `docs/workflows.md`.
@@ -210,7 +210,7 @@ Write the complete documentation file now.
 
 ## 3. Commands (`docs/commands.md`)
 
-```
+```text
 You are writing documentation for OpenSpec, a spec-driven development framework for AI coding assistants.
 
 **Your task:** Write the Commands reference at `docs/commands.md`.
@@ -276,7 +276,7 @@ Write the complete documentation file now.
 
 ## 4. CLI (`docs/cli.md`)
 
-```
+```text
 You are writing documentation for OpenSpec, a spec-driven development framework for AI coding assistants.
 
 **Your task:** Write the CLI reference at `docs/cli.md`.
@@ -340,7 +340,7 @@ Write the complete documentation file now.
 
 ## 5. Concepts (`docs/concepts.md`)
 
-```
+```text
 You are writing documentation for OpenSpec, a spec-driven development framework for AI coding assistants.
 
 **Your task:** Write the Concepts guide at `docs/concepts.md`.
@@ -429,7 +429,7 @@ OpenSpec to output artifacts in different languages via the `context` field in c
 
 ## 7. Customization (`docs/customization.md`)
 
-```
+```text
 You are writing documentation for OpenSpec, a spec-driven development framework for AI coding assistants.
 
 **Your task:** Write the Customization guide at `docs/customization.md`.
