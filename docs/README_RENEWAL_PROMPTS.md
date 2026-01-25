@@ -168,7 +168,7 @@ You are writing documentation for OpenSpec, a spec-driven development framework 
 | `/opsx:continue` | Create the next artifact based on dependencies |
 | `/opsx:ff` | Fast-forward - create all planning artifacts at once |
 | `/opsx:apply` | Implement tasks from tasks.md |
-| `/opsx:sync` | Sync delta specs to main specs |
+| `/opsx:sync` | Sync delta specs to main (optional—archive prompts if needed) |
 | `/opsx:verify` | Verify implementation matches artifacts |
 | `/opsx:archive` | Archive completed change |
 
@@ -191,7 +191,6 @@ proposal ──→ specs ──→ design ──→ tasks ──→ implement
 5. Best practices:
    - Keep changes focused
    - Use `/opsx:explore` for unclear requirements
-   - Sync specs regularly
    - Verify before archiving
 
 **Style guidelines:**

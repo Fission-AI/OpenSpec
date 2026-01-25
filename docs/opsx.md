@@ -167,7 +167,7 @@ rules:
 | `/opsx:continue` | Create the next artifact (based on what's ready) |
 | `/opsx:ff` | Fast-forward — create all planning artifacts at once |
 | `/opsx:apply` | Implement tasks, updating artifacts as needed |
-| `/opsx:sync` | Sync delta specs to main specs |
+| `/opsx:sync` | Sync delta specs to main (optional—archive prompts if needed) |
 | `/opsx:archive` | Archive when done |
 
 ## Usage
@@ -203,8 +203,7 @@ Works through tasks, checking them off as you go. If you're juggling multiple ch
 
 ### Finish up
 ```
-/opsx:sync      # Update main specs with your delta specs
-/opsx:archive   # Move to archive when done
+/opsx:archive   # Move to archive when done (prompts to sync specs if needed)
 ```
 
 ## When to Update vs. Start Fresh
@@ -339,9 +338,9 @@ This section explains how OPSX works under the hood and how it compares to the s
 │              ┌────────────────────────────────────────────┐                 │
 │              │           ACTIONS (not phases)             │                 │
 │              │                                            │                 │
-│              │   new ◄──► continue ◄──► apply ◄──► sync   │                 │
-│              │    │          │           │          │     │                 │
-│              │    └──────────┴───────────┴──────────┘     │                 │
+│              │   new ◄──► continue ◄──► apply ◄──► archive │                 │
+│              │    │          │           │           │    │                 │
+│              │    └──────────┴───────────┴───────────┘    │                 │
 │              │              any order                     │                 │
 │              └────────────────────────────────────────────┘                 │
 │                                                                             │

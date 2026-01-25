@@ -285,7 +285,7 @@ After migration, you have 9 OPSX commands instead of 3:
 | `/opsx:ff` | Fast-forward—create all planning artifacts at once |
 | `/opsx:apply` | Implement tasks from tasks.md |
 | `/opsx:verify` | Validate implementation matches specs |
-| `/opsx:sync` | Preview spec merge without archiving |
+| `/opsx:sync` | Preview spec merge (optional—archive prompts if needed) |
 | `/opsx:archive` | Finalize and archive the change |
 | `/opsx:bulk-archive` | Archive multiple changes at once |
 
@@ -335,9 +335,9 @@ OPSX uses actions, not phases:
          ┌────────────────────────────────────────┐
          │           ACTIONS (not phases)         │
          │                                        │
-         │   new ◄──► continue ◄──► apply ◄──► sync   │
-         │    │          │           │          │     │
-         │    └──────────┴───────────┴──────────┘     │
+         │     new ◄──► continue ◄──► apply ◄──► archive │
+         │      │          │           │           │   │
+         │      └──────────┴───────────┴───────────┘   │
          │              any order                     │
          └────────────────────────────────────────┘
 ```

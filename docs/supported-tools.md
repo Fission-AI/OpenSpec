@@ -64,7 +64,7 @@ For each tool, OpenSpec generates 10 skill files that power the OPSX workflow:
 | `openspec-ff-change` | Fast-forward through all planning artifacts |
 | `openspec-apply-change` | Implement tasks |
 | `openspec-verify-change` | Verify implementation completeness |
-| `openspec-sync-specs` | Sync delta specs to main specs |
+| `openspec-sync-specs` | Sync delta specs to main (optional—archive prompts if needed) |
 | `openspec-archive-change` | Archive a completed change |
 | `openspec-bulk-archive-change` | Archive multiple changes at once |
 | `openspec-onboard` | Guided onboarding through a complete workflow cycle |

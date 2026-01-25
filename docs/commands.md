@@ -346,7 +346,7 @@ AI:  Verifying add-dark-mode...
 
 ### `/opsx:sync`
 
-Merge delta specs from a change into main specs. Performs intelligent, agent-driven merging.
+**Optional command.** Merge delta specs from a change into main specs. Archive will prompt to sync if needed, so you typically don't need to run this manually.
 
 **Syntax:**
 ```
@@ -384,20 +384,20 @@ AI:  Syncing add-dark-mode delta specs...
      Change remains active. Run /opsx:archive when ready to complete.
 ```
 
-**When to sync:**
+**When to use manually:**
 
 | Scenario | Use sync? |
 |----------|-----------|
-| Preview merge before archive | Yes |
-| Long-running change, want specs current | Yes |
-| Multiple team members need latest specs | Yes |
-| Quick change, going straight to archive | Optional |
+| Long-running change, want specs in main before archiving | Yes |
+| Multiple parallel changes need the updated base specs | Yes |
+| Want to preview/review the merge separately | Yes |
+| Quick change, going straight to archive | No (archive handles it) |
 
 **Tips:**
 - Sync is intelligent, not copy-paste
 - Can add scenarios to existing requirements without duplicating
 - Change stays active after sync (not archived)
-- Archive will prompt to sync if not already done
+- Most users will never need to call this directly—archive prompts if needed
 
 ---
 

@@ -199,10 +199,10 @@ Bulk archive detects when multiple changes touch the same specs and resolves con
 The recommended completion flow:
 
 ```text
-/opsx:apply ──► /opsx:verify ──► /opsx:sync ──► /opsx:archive
-                    │                │
-              validates         merges specs
-              implementation    before archive
+/opsx:apply ──► /opsx:verify ──► /opsx:archive
+                    │                 │
+              validates          prompts to sync
+              implementation     if needed
 ```
 
 #### Verify: Check Your Work
@@ -249,45 +249,6 @@ AI:  Verifying add-auth...
 | Coherence | Design decisions reflected in code, patterns consistent |
 
 Verify won't block archive, but it surfaces issues you might want to address first.
-
-#### Sync: Merge Specs Intelligently
-
-`/opsx:sync` merges your delta specs into main specs using intelligent, agent-driven merging:
-
-```text
-You: /opsx:sync
-
-AI:  Syncing add-auth delta specs to main...
-
-     Reading delta: openspec/changes/add-auth/specs/auth/spec.md
-     Target: openspec/specs/auth/spec.md
-
-     Changes to apply:
-     ✓ ADDED: Two-Factor Authentication requirement (3 scenarios)
-     ✓ MODIFIED: Session Timeout (30min → was 60min)
-     ✓ REMOVED: Remember Me checkbox (deprecated)
-
-     Merging...
-     ✓ openspec/specs/auth/spec.md updated
-
-     Change remains active (not archived).
-```
-
-**Why sync is intelligent, not copy-paste:**
-
-- Understands ADDED/MODIFIED/REMOVED/RENAMED sections
-- Preserves existing content not mentioned in delta
-- Can add scenarios to existing requirements without duplicating
-- Handles structural changes (new sections, reordering)
-
-**When to sync:**
-
-| Scenario | Use sync? |
-|----------|-----------|
-| Before archive, want to preview merge | Yes |
-| Long-running change, want specs current | Yes |
-| Multiple team members need latest specs | Yes |
-| Quick change, going straight to archive | Optional (archive offers sync) |
 
 #### Archive: Finalize the Change
 
@@ -411,22 +372,6 @@ AI:  Let me investigate your current setup and options...
 
 Exploration clarifies thinking before you create artifacts.
 
-### Sync Specs Regularly
-
-Use `/opsx:sync` to merge delta specs into main specs without archiving:
-
-```text
-You: /opsx:sync
-
-AI:  Synced add-auth specs to main:
-     ✓ openspec/specs/auth/spec.md updated
-```
-
-**Why sync before archive?**
-- See merged result before committing
-- Review conflicts early
-- Keep main specs current during long-running changes
-
 ### Verify Before Archiving
 
 Use `/opsx:verify` to check implementation matches artifacts:
@@ -469,7 +414,7 @@ For full command details and options, see [Commands](commands.md).
 | `/opsx:ff` | Create all planning artifacts | Clear scope, ready to build |
 | `/opsx:apply` | Implement tasks | Ready to write code |
 | `/opsx:verify` | Validate implementation | Before archiving, catch mismatches |
-| `/opsx:sync` | Merge delta specs | Before archive, during long changes |
+| `/opsx:sync` | Merge delta specs | Optional—archive prompts if needed |
 | `/opsx:archive` | Complete the change | All work finished |
 | `/opsx:bulk-archive` | Archive multiple changes | Parallel work, batch completion |
 
