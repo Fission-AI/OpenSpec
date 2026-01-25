@@ -12,6 +12,10 @@ import {
 } from './constants.js';
 import { parseDeltaSpec, normalizeRequirementName } from '../parsers/requirement-blocks.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
+import { TASK_PATTERN } from '../../utils/task-progress.js';
+
+const TASK_CHECKBOX_PATTERN = TASK_PATTERN;
+const EMPTY_TASK_PATTERN = /^[-*]\s+\[[xX\s]\]\s*$/;
 
 export class Validator {
   private strictMode: boolean;
@@ -270,6 +274,63 @@ export class Validator {
     }
 
     return this.createReport(issues);
+  }
+
+  async validateTasksFile(changeDir: string): Promise<ValidationReport> {
+    const issues: ValidationIssue[] = [];
+    const tasksPath = path.join(changeDir, 'tasks.md');
+    try {
+      const content = await fs.readFile(tasksPath, 'utf-8');
+      issues.push(...this.validateTasksContent(content));
+    } catch (error) {
+      const err = error as NodeJS.ErrnoException;
+      if (err?.code === 'ENOENT') {
+        issues.push({
+          level: 'ERROR',
+          path: 'tasks.md',
+          message: 'tasks.md is required for OpenSpec changes',
+        });
+      } else {
+        const baseMessage = err instanceof Error ? err.message : 'Unknown error';
+        issues.push({
+          level: 'ERROR',
+          path: 'tasks.md',
+          message: `Unable to read tasks.md: ${baseMessage}`,
+        });
+      }
+    }
+    return this.createReport(issues);
+  }
+
+  private validateTasksContent(content: string): ValidationIssue[] {
+    const issues: ValidationIssue[] = [];
+    const lines = content.split(/\r?\n/);
+    let hasCheckbox = false;
+
+    lines.forEach((line, index) => {
+      if (TASK_CHECKBOX_PATTERN.test(line)) {
+        hasCheckbox = true;
+        if (EMPTY_TASK_PATTERN.test(line)) {
+          const lineNumber = index + 1;
+          issues.push({
+            level: 'ERROR',
+            path: `tasks.md:${lineNumber}`,
+            message: 'Empty task description',
+            line: lineNumber,
+          });
+        }
+      }
+    });
+
+    if (!hasCheckbox) {
+      issues.push({
+        level: 'ERROR',
+        path: 'tasks.md',
+        message: 'tasks.md must contain at least one checkboxed task',
+      });
+    }
+
+    return issues;
   }
 
   private convertZodErrors(error: ZodError): ValidationIssue[] {

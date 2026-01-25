@@ -288,6 +288,79 @@ We need to implement user authentication to secure the application and protect u
     });
   });
 
+  describe('validateTasksContent', () => {
+    it('accepts checkboxed tasks with dash or asterisk markers', () => {
+      const content = [
+        '- [ ] First task',
+        '* [x] Second task',
+        '* [X] Third task',
+      ].join('\n');
+
+      const validator = new Validator();
+      const issues = (validator as any).validateTasksContent(content);
+
+      expect(issues.length).toBe(0);
+    });
+
+    it('reports an error when no checkboxed tasks are found', () => {
+      const content = [
+        '- Task without checkbox',
+        '* Another task without checkbox',
+      ].join('\n');
+
+      const validator = new Validator();
+      const issues = (validator as any).validateTasksContent(content);
+
+      expect(issues.some((issue: any) => issue.message.includes('checkboxed task'))).toBe(true);
+    });
+
+    it('reports empty task descriptions with line numbers', () => {
+      const content = [
+        '- [ ]',
+        '- [ ] Valid task',
+      ].join('\n');
+
+      const validator = new Validator();
+      const issues = (validator as any).validateTasksContent(content);
+
+      expect(issues.some((issue: any) => issue.path === 'tasks.md:1')).toBe(true);
+      expect(issues.some((issue: any) => issue.message === 'Empty task description')).toBe(true);
+      expect(issues.some((issue: any) => issue.line === 1)).toBe(true);
+    });
+  });
+
+  describe('validateTasksFile', () => {
+    it('fails when tasks.md is missing', async () => {
+      const changeDir = path.join(testDir, 'missing-tasks-change');
+      await fs.mkdir(changeDir, { recursive: true });
+
+      const validator = new Validator();
+      const report = await validator.validateTasksFile(changeDir);
+
+      expect(report.valid).toBe(false);
+      expect(report.issues.some(i => i.message.includes('tasks.md is required'))).toBe(true);
+    });
+
+    it('passes when tasks.md contains checkboxed tasks', async () => {
+      const changeDir = path.join(testDir, 'valid-tasks-change');
+      await fs.mkdir(changeDir, { recursive: true });
+
+      const tasksContent = [
+        '# Tasks',
+        '',
+        '- [ ] First task',
+        '- [x] Completed task',
+      ].join('\n');
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), tasksContent, 'utf-8');
+
+      const validator = new Validator();
+      const report = await validator.validateTasksFile(changeDir);
+
+      expect(report.valid).toBe(true);
+      expect(report.summary.errors).toBe(0);
+    });
+  });
+
   describe('strict mode', () => {
     it('should fail on warnings in strict mode', async () => {
       const specContent = `# Test Spec
