@@ -11,11 +11,18 @@
   <a href="https://github.com/Fission-AI/OpenSpec/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Fission-AI/OpenSpec/actions/workflows/ci.yml/badge.svg" /></a>
   <a href="https://www.npmjs.com/package/@fission-ai/openspec"><img alt="npm version" src="https://img.shields.io/npm/v/@fission-ai/openspec?style=flat-square" /></a>
   <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" /></a>
-  <a href="https://discord.gg/YctCnvvshC"><img alt="Discord" src="https://img.shields.io/badge/Discord-Join%20us-5865F2?logo=discord&logoColor=white&style=flat-square" /></a>
+  <a href="https://discord.gg/YctCnvvshC"><img alt="Discord" src="https://img.shields.io/discord/1411657095639601154?style=flat-square&logo=discord&logoColor=white&label=Discord&suffix=%20online" /></a>
 </p>
 
-The most loved spec framework.
+<details>
+<summary><strong>The most loved spec framework.</strong></summary>
 
+[![Stars](https://img.shields.io/github/stars/Fission-AI/OpenSpec?style=flat-square&label=Stars)](https://github.com/Fission-AI/OpenSpec/stargazers)
+[![Downloads](https://img.shields.io/npm/dm/@fission-ai/openspec?style=flat-square&label=Downloads/mo)](https://www.npmjs.com/package/@fission-ai/openspec)
+[![Contributors](https://img.shields.io/github/contributors/Fission-AI/OpenSpec?style=flat-square&label=Contributors)](https://github.com/Fission-AI/OpenSpec/graphs/contributors)
+
+</details>
+<p></p>
 Our philosophy:
 
 ```
@@ -27,7 +34,9 @@ Our philosophy:
 ```
 
 > [!TIP]
-> **New workflow now available!** We've rebuilt OpenSpec with a new artifact-guided workflow. Run `/opsx:onboard` to get started. → [Learn more here](docs/opsx.md)
+> **New workflow now available!** We've rebuilt OpenSpec with a new artifact-guided workflow.
+>
+> Run `/opsx:onboard` to get started. → [Learn more here](docs/opsx.md)
 
 <p align="center">
   Follow <a href="https://x.com/0xTab">@0xTab on X</a> for updates · Join the <a href="https://discord.gg/YctCnvvshC">OpenSpec Discord</a> for help and questions.
@@ -46,7 +55,7 @@ You: /opsx:new add-dark-mode
 AI:  Created openspec/changes/add-dark-mode/
      Ready to create: proposal
 
-You: /opsx:ff
+You: /opsx:ff   # "fast-forward" - generate all planning docs
 AI:  ✓ proposal.md — why we're doing this, what's changing
      ✓ specs/       — requirements and scenarios
      ✓ design.md    — technical approach
@@ -65,6 +74,15 @@ You: /opsx:archive
 AI:  Archived to openspec/changes/archive/2025-01-23-add-dark-mode/
      Specs updated. Ready for the next feature.
 ```
+
+<details>
+<summary><strong>OpenSpec Dashboard</strong></summary>
+
+<p align="center">
+  <img src="assets/openspec_dashboard.png" alt="OpenSpec dashboard preview" width="90%">
+</p>
+
+</details>
 
 ## Quick Start
 
@@ -122,14 +140,37 @@ AI coding assistants are powerful but unpredictable when requirements live only 
 
 ## Updating OpenSpec
 
-1. **Upgrade the package**
-   ```bash
-   npm install -g @fission-ai/openspec@latest
-   ```
-2. **Refresh agent instructions**
-   - Run `openspec update` inside each project to regenerate AI guidance and ensure the latest slash commands are active.
+**Upgrade the package**
+
+```bash
+npm install -g @fission-ai/openspec@latest
+```
+
+**Refresh agent instructions**
+
+Run this inside each project to regenerate AI guidance and ensure the latest slash commands are active:
+
+```bash
+openspec update
+```
+
+## Usage Notes
+
+**Model selection**: OpenSpec works best with high-reasoning models. We recommend Opus 4.5 and GPT 5.2 for both planning and implementation.
+
+**Context hygiene**: OpenSpec benefits from a clean context window. Clear your context before starting implementation and maintain good context hygiene throughout your session.
 
 ## Contributing
+
+**Small fixes** — Bug fixes, typo corrections, and minor improvements can be submitted directly as PRs.
+
+**Larger changes** — For new features, significant refactors, or architectural changes, please submit an OpenSpec change proposal first so we can align on intent and goals before implementation begins.
+
+When writing proposals, keep the OpenSpec philosophy in mind: we serve a wide variety of users across different coding agents, models, and use cases. Changes should work well for everyone.
+
+**AI-generated code is welcome** — as long as it's been tested and verified. PRs containing AI-generated code should mention the coding agent and model used (e.g., "Generated with Claude Code using claude-opus-4-5-20251101").
+
+### Development
 
 - Install dependencies: `pnpm install`
 - Build: `pnpm run build`
