@@ -10,14 +10,14 @@ Before generating new docs, clean up the existing docs folder.
 
 ### Docs to Delete (internal/historical)
 
-- [ ] `docs/artifact_poc.md` — Internal architecture doc, design decisions implemented
-- [ ] `docs/experimental-release-plan.md` — Project plan with completed checkboxes, release happened
-- [ ] `docs/schema-workflow-gaps.md` — Implementation tracking (Phases 1-4), belongs in GitHub issues
+- [x] `docs/artifact_poc.md` — Internal architecture doc, design decisions implemented
+- [x] `docs/experimental-release-plan.md` — Project plan with completed checkboxes, release happened
+- [x] `docs/schema-workflow-gaps.md` — Implementation tracking (Phases 1-4), belongs in GitHub issues
 
 ### Docs to Merge Then Delete
 
-- [ ] `docs/schema-customization.md` → merge useful content into `docs/customization.md`, then delete
-- [ ] `docs/project-config-demo.md` → merge useful content into `docs/customization.md`, then delete
+- [x] `docs/schema-customization.md` → merge useful content into `docs/customization.md`, then delete
+- [x] `docs/project-config-demo.md` → merge useful content into `docs/customization.md`, then delete
 
 ### Docs to Keep and Polish
 
@@ -25,13 +25,13 @@ Before generating new docs, clean up the existing docs folder.
 
 ### User-Facing Docs to Generate/Update
 
-- [ ] `docs/getting-started.md` — See prompt below
-- [ ] `docs/workflows.md` — See prompt below
+- [x] `docs/getting-started.md` — See prompt below
+- [x] `docs/workflows.md` — See prompt below
 - [ ] `docs/commands.md` — See prompt below
 - [ ] `docs/cli.md` — See prompt below
 - [ ] `docs/concepts.md` — See prompt below
 - [ ] `docs/i18n.md` — See prompt below
-- [ ] `docs/customization.md` — See prompt below (include content from schema-customization.md and project-config-demo.md)
+- [x] `docs/customization.md` — Merged from schema-customization.md and project-config-demo.md
 
 ### Final Steps
 
