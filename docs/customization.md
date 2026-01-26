@@ -95,7 +95,7 @@ When OpenSpec needs a schema, it checks in this order:
 
 When project config isn't enough, create your own schema with a completely custom workflow. Custom schemas live in your project's `openspec/schemas/` directory and are version-controlled with your code.
 
-```
+```text
 your-project/
 ├── openspec/
 │   ├── config.yaml        # Project config
@@ -119,7 +119,7 @@ This copies the entire `spec-driven` schema to `openspec/schemas/my-workflow/` w
 
 **What you get:**
 
-```
+```text
 openspec/schemas/my-workflow/
 ├── schema.yaml           # Workflow definition
 └── templates/
@@ -261,7 +261,7 @@ openspec schema which --all
 
 Output shows whether it's from your project, user directory, or the package:
 
-```
+```text
 Schema: my-workflow
 Source: project
 Path: /path/to/project/openspec/schemas/my-workflow
