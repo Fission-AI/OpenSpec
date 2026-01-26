@@ -1346,7 +1346,7 @@ The change is implemented! One more step—let's archive it.
 \`\`\`
 ## Archiving
 
-When a change is complete, we archive it. This moves it from \`openspec/changes/\` to \`openspec/archive/YYYY-MM-DD--<name>/\`.
+When a change is complete, we archive it. This moves it from \`openspec/changes/\` to \`openspec/changes/archive/YYYY-MM-DD-<name>/\`.
 
 Archived changes become your project's decision history—you can always find them later to understand why something was built a certain way.
 \`\`\`
@@ -1358,7 +1358,7 @@ openspec archive "<name>"
 
 **SHOW:**
 \`\`\`
-Archived to: \`openspec/archive/YYYY-MM-DD--<name>/\`
+Archived to: \`openspec/changes/archive/YYYY-MM-DD-<name>/\`
 
 The change is now part of your project's history. The code is in your codebase, the decision record is preserved.
 \`\`\`
