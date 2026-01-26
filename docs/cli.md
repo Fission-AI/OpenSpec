@@ -745,7 +745,7 @@ spec-driven resolves from: package
 **Schema precedence:**
 
 1. Project: `openspec/schemas/<name>/`
-2. User: `~/.openspec/schemas/<name>/`
+2. User: `~/.local/share/openspec/schemas/<name>/`
 3. Package: Built-in schemas
 
 ---
