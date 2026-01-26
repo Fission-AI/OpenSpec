@@ -80,14 +80,6 @@ describe('artifact-graph/resolver', () => {
       expect(schema.artifacts.length).toBeGreaterThan(0);
     });
 
-    it('should return built-in tdd schema', () => {
-      const schema = resolveSchema('tdd');
-
-      expect(schema.name).toBe('tdd');
-      expect(schema.version).toBe(1);
-      expect(schema.artifacts.length).toBeGreaterThan(0);
-    });
-
     it('should strip .yaml extension from name', () => {
       const schema1 = resolveSchema('spec-driven');
       const schema2 = resolveSchema('spec-driven.yaml');
@@ -261,7 +253,6 @@ version: [[[invalid yaml
       } catch (e) {
         const error = e as Error;
         expect(error.message).toContain('spec-driven');
-        expect(error.message).toContain('tdd');
       }
     });
   });
@@ -271,7 +262,6 @@ version: [[[invalid yaml
       const schemas = listSchemas();
 
       expect(schemas).toContain('spec-driven');
-      expect(schemas).toContain('tdd');
     });
 
     it('should include user override schemas', () => {

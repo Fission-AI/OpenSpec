@@ -378,7 +378,7 @@ export async function generateApplyInstructions(
     state = 'all_done';
     instruction = 'All tasks are complete! This change is ready to be archived.\nConsider running tests and reviewing the changes before archiving.';
   } else if (!tracksFile) {
-    // No tracking file (e.g., TDD schema) - ready to apply
+    // No tracking file configured in schema - ready to apply
     state = 'ready';
     instruction = schemaInstruction?.trim() ?? 'All required artifacts complete. Proceed with implementation.';
   } else {

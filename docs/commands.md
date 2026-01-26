@@ -115,16 +115,6 @@ AI:  Created openspec/changes/add-dark-mode/
      Use /opsx:continue to create it, or /opsx:ff to create all artifacts.
 ```
 
-**Example with schema:**
-```
-You: /opsx:new write-tests --schema tdd
-
-AI:  Created openspec/changes/write-tests/
-     Schema: tdd
-
-     Ready to create: spec
-```
-
 **Tips:**
 - Use descriptive names: `add-feature`, `fix-bug`, `refactor-module`
 - Avoid generic names like `update`, `changes`, `wip`

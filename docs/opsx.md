@@ -100,14 +100,14 @@ rules:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `schema` | string | Default schema for new changes (e.g., `spec-driven`, `tdd`) |
+| `schema` | string | Default schema for new changes (e.g., `spec-driven`) |
 | `context` | string | Project context injected into all artifact instructions |
 | `rules` | object | Per-artifact rules, keyed by artifact ID |
 
 ### How It Works
 
 **Schema precedence** (highest to lowest):
-1. CLI flag (`--schema tdd`)
+1. CLI flag (`--schema <name>`)
 2. Change metadata (`.openspec.yaml` in change directory)
 3. Project config (`openspec/config.yaml`)
 4. Default (`spec-driven`)
@@ -129,12 +129,6 @@ rules:
 - `specs` — Specifications
 - `design` — Technical design
 - `tasks` — Implementation tasks
-
-**tdd**:
-- `spec` — Feature specification
-- `tests` — Test file
-- `implementation` — Implementation code
-- `docs` — Documentation
 
 ### Config Validation
 
@@ -618,7 +612,6 @@ artifacts:
 Schemas define what artifacts exist and their dependencies. Currently available:
 
 - **spec-driven** (default): proposal → specs → design → tasks
-- **tdd**: tests → implementation → docs
 
 ```bash
 # List available schemas

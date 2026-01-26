@@ -17,11 +17,11 @@ import { z } from 'zod';
  * - Consistent with other OpenSpec schemas
  */
 export const ProjectConfigSchema = z.object({
-  // Required: which schema to use (e.g., "spec-driven", "tdd", or project-local schema name)
+  // Required: which schema to use (e.g., "spec-driven", or project-local schema name)
   schema: z
     .string()
     .min(1)
-    .describe('The workflow schema to use (e.g., "spec-driven", "tdd")'),
+    .describe('The workflow schema to use (e.g., "spec-driven")'),
 
   // Optional: project context (injected into all artifact instructions)
   // Max size: 50KB (enforced during parsing)

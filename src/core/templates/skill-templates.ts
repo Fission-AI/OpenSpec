@@ -338,7 +338,6 @@ export function getNewChangeSkillTemplate(): SkillTemplate {
    Use the default schema (omit \`--schema\`) unless the user explicitly requests a different workflow.
 
    **Use a different schema only if the user mentions:**
-   - "tdd" or "test-driven" → use \`--schema tdd\`
    - A specific schema name → use \`--schema <name>\`
    - "show workflows" or "what workflows" → run \`openspec schemas --json\` and let them choose
 
@@ -358,7 +357,7 @@ export function getNewChangeSkillTemplate(): SkillTemplate {
    This shows which artifacts need to be created and which are ready (dependencies satisfied).
 
 5. **Get instructions for the first artifact**
-   The first artifact depends on the schema (e.g., \`proposal\` for spec-driven, \`spec\` for tdd).
+   The first artifact depends on the schema (e.g., \`proposal\` for spec-driven).
    Check the status output to find the first artifact with status "ready".
    \`\`\`bash
    openspec instructions <first-artifact-id> --change "<name>"
@@ -421,7 +420,7 @@ export function getContinueChangeSkillTemplate(): SkillTemplate {
    openspec status --change "<name>" --json
    \`\`\`
    Parse the JSON to understand current state. The response includes:
-   - \`schemaName\`: The workflow schema being used (e.g., "spec-driven", "tdd")
+   - \`schemaName\`: The workflow schema being used (e.g., "spec-driven")
    - \`artifacts\`: Array of artifacts with their status ("done", "ready", "blocked")
    - \`isComplete\`: Boolean indicating if all artifacts are complete
 
@@ -491,12 +490,6 @@ Common artifact patterns:
 - **design.md**: Document technical decisions, architecture, and implementation approach.
 - **tasks.md**: Break down implementation into checkboxed tasks.
 
-**tdd schema** (spec → tests → implementation → docs):
-- **spec.md**: Feature specification defining what to build.
-- **tests/*.test.ts**: Write tests BEFORE implementation (TDD red phase).
-- **src/*.ts**: Implement to make tests pass (TDD green phase).
-- **docs/*.md**: Document the implemented feature.
-
 For other schemas, follow the \`instruction\` field from the CLI output.
 
 **Guardrails**
@@ -543,7 +536,7 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
    openspec status --change "<name>" --json
    \`\`\`
    Parse the JSON to understand:
-   - \`schemaName\`: The workflow being used (e.g., "spec-driven", "tdd")
+   - \`schemaName\`: The workflow being used (e.g., "spec-driven")
    - Which artifact contains the tasks (typically "tasks" for spec-driven, check status for others)
 
 3. **Get apply instructions**
@@ -568,7 +561,6 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
    Read the files listed in \`contextFiles\` from the apply instructions output.
    The files depend on the schema being used:
    - **spec-driven**: proposal, specs, design, tasks
-   - **tdd**: spec, tests, implementation, docs
    - Other schemas: follow the contextFiles from CLI output
 
 5. **Show current progress**
@@ -1680,7 +1672,6 @@ export function getOpsxNewCommandTemplate(): CommandTemplate {
    Use the default schema (omit \`--schema\`) unless the user explicitly requests a different workflow.
 
    **Use a different schema only if the user mentions:**
-   - "tdd" or "test-driven" → use \`--schema tdd\`
    - A specific schema name → use \`--schema <name>\`
    - "show workflows" or "what workflows" → run \`openspec schemas --json\` and let them choose
 
@@ -1760,7 +1751,7 @@ export function getOpsxContinueCommandTemplate(): CommandTemplate {
    openspec status --change "<name>" --json
    \`\`\`
    Parse the JSON to understand current state. The response includes:
-   - \`schemaName\`: The workflow schema being used (e.g., "spec-driven", "tdd")
+   - \`schemaName\`: The workflow schema being used (e.g., "spec-driven")
    - \`artifacts\`: Array of artifacts with their status ("done", "ready", "blocked")
    - \`isComplete\`: Boolean indicating if all artifacts are complete
 
@@ -1830,12 +1821,6 @@ Common artifact patterns:
 - **design.md**: Document technical decisions, architecture, and implementation approach.
 - **tasks.md**: Break down implementation into checkboxed tasks.
 
-**tdd schema** (spec → tests → implementation → docs):
-- **spec.md**: Feature specification defining what to build.
-- **tests/*.test.ts**: Write tests BEFORE implementation (TDD red phase).
-- **src/*.ts**: Implement to make tests pass (TDD green phase).
-- **docs/*.md**: Document the implemented feature.
-
 For other schemas, follow the \`instruction\` field from the CLI output.
 
 **Guardrails**
@@ -1880,7 +1865,7 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
    openspec status --change "<name>" --json
    \`\`\`
    Parse the JSON to understand:
-   - \`schemaName\`: The workflow being used (e.g., "spec-driven", "tdd")
+   - \`schemaName\`: The workflow being used (e.g., "spec-driven")
    - Which artifact contains the tasks (typically "tasks" for spec-driven, check status for others)
 
 3. **Get apply instructions**
@@ -1905,7 +1890,6 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
    Read the files listed in \`contextFiles\` from the apply instructions output.
    The files depend on the schema being used:
    - **spec-driven**: proposal, specs, design, tasks
-   - **tdd**: spec, tests, implementation, docs
    - Other schemas: follow the contextFiles from CLI output
 
 5. **Show current progress**
@@ -2643,7 +2627,7 @@ export function getVerifyChangeSkillTemplate(): SkillTemplate {
    openspec status --change "<name>" --json
    \`\`\`
    Parse the JSON to understand:
-   - \`schemaName\`: The workflow being used (e.g., "spec-driven", "tdd")
+   - \`schemaName\`: The workflow being used (e.g., "spec-driven")
    - Which artifacts exist for this change
 
 3. **Get the change directory and load artifacts**
@@ -3238,7 +3222,7 @@ export function getOpsxVerifyCommandTemplate(): CommandTemplate {
    openspec status --change "<name>" --json
    \`\`\`
    Parse the JSON to understand:
-   - \`schemaName\`: The workflow being used (e.g., "spec-driven", "tdd")
+   - \`schemaName\`: The workflow being used (e.g., "spec-driven")
    - Which artifacts exist for this change
 
 3. **Get the change directory and load artifacts**

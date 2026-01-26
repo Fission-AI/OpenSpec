@@ -131,46 +131,6 @@ describe('artifact-graph workflow integration', () => {
     });
   });
 
-  describe('tdd workflow', () => {
-    it('should progress through complete workflow', () => {
-      const schema = resolveSchema('tdd');
-      const graph = ArtifactGraph.fromSchema(schema);
-
-      expect(graph.getName()).toBe('tdd');
-      expect(graph.getBuildOrder()).toEqual(['spec', 'tests', 'implementation', 'docs']);
-
-      // Initial state
-      let completed = detectCompleted(graph, tempDir);
-      expect(graph.getNextArtifacts(completed)).toEqual(['spec']);
-
-      // Create spec
-      fs.writeFileSync(path.join(tempDir, 'spec.md'), '# Feature Spec');
-      completed = detectCompleted(graph, tempDir);
-      expect(graph.getNextArtifacts(completed)).toEqual(['tests']);
-
-      // Create tests directory with test file
-      const testsDir = path.join(tempDir, 'tests');
-      fs.mkdirSync(testsDir, { recursive: true });
-      fs.writeFileSync(path.join(testsDir, 'feature.test.ts'), 'describe("feature", () => {});');
-      completed = detectCompleted(graph, tempDir);
-      expect(graph.getNextArtifacts(completed)).toEqual(['implementation']);
-
-      // Create src directory with implementation
-      const srcDir = path.join(tempDir, 'src');
-      fs.mkdirSync(srcDir, { recursive: true });
-      fs.writeFileSync(path.join(srcDir, 'feature.ts'), 'export function feature() {}');
-      completed = detectCompleted(graph, tempDir);
-      expect(graph.getNextArtifacts(completed)).toEqual(['docs']);
-
-      // Create docs
-      const docsDir = path.join(tempDir, 'docs');
-      fs.mkdirSync(docsDir, { recursive: true });
-      fs.writeFileSync(path.join(docsDir, 'feature.md'), '# Feature Documentation');
-      completed = detectCompleted(graph, tempDir);
-      expect(graph.isComplete(completed)).toBe(true);
-    });
-  });
-
   describe('build order consistency', () => {
     it('should return consistent build order across multiple calls', () => {
       const schema = resolveSchema('spec-driven');
