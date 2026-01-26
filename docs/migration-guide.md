@@ -452,7 +452,7 @@ rules:
 
 When determining which schema to use, OPSX checks in order:
 
-1. **CLI flag**: `--schema tdd` (highest priority)
+1. **CLI flag**: `--schema <name>` (highest priority)
 2. **Change metadata**: `.openspec.yaml` in the change directory
 3. **Project config**: `openspec/config.yaml`
 4. **Default**: `spec-driven`
@@ -462,7 +462,6 @@ When determining which schema to use, OPSX checks in order:
 | Schema | Artifacts | Best For |
 |--------|-----------|----------|
 | `spec-driven` | proposal → specs → design → tasks | Most projects |
-| `tdd` | spec → tests → implementation → docs | Test-first development |
 
 List all available schemas:
 
@@ -507,7 +506,6 @@ Restart your IDE. Skills are detected at startup.
 Check that your `rules:` keys match your schema's artifact IDs:
 
 - **spec-driven**: `proposal`, `specs`, `design`, `tasks`
-- **tdd**: `spec`, `tests`, `implementation`, `docs`
 
 Run this to see valid artifact IDs:
 

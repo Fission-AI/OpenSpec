@@ -152,13 +152,13 @@ describe('artifact-workflow CLI commands', () => {
     });
 
     it('supports --schema option', async () => {
-      await createTestChange('tdd-change');
+      await createTestChange('schema-change');
 
-      const result = await runCLI(['status', '--change', 'tdd-change', '--schema', 'tdd'], {
+      const result = await runCLI(['status', '--change', 'schema-change', '--schema', 'spec-driven'], {
         cwd: tempDir,
       });
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('tdd');
+      expect(result.stdout).toContain('spec-driven');
     });
 
     it('errors for unknown schema', async () => {
@@ -282,12 +282,12 @@ describe('artifact-workflow CLI commands', () => {
       expect(result.stdout).toContain('tasks:');
     });
 
-    it('shows template paths for custom schema', async () => {
-      const result = await runCLI(['templates', '--schema', 'tdd'], { cwd: tempDir });
+    it('shows template paths for specified schema', async () => {
+      const result = await runCLI(['templates', '--schema', 'spec-driven'], { cwd: tempDir });
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('Schema: tdd');
-      expect(result.stdout).toContain('spec:');
-      expect(result.stdout).toContain('tests:');
+      expect(result.stdout).toContain('Schema: spec-driven');
+      expect(result.stdout).toContain('proposal:');
+      expect(result.stdout).toContain('design:');
     });
 
     it('outputs JSON mapping of templates', async () => {
@@ -430,23 +430,16 @@ describe('artifact-workflow CLI commands', () => {
       expect(result.stdout).toContain('ready to be archived');
     });
 
-    it('uses tdd schema apply configuration', async () => {
-      // Create a TDD-style change with spec and tests
-      const changeDir = path.join(changesDir, 'tdd-apply');
-      await fs.mkdir(changeDir, { recursive: true });
-      await fs.writeFile(path.join(changeDir, 'spec.md'), '## Feature\nTest spec.');
-      const testsDir = path.join(changeDir, 'tests');
-      await fs.mkdir(testsDir, { recursive: true });
-      await fs.writeFile(path.join(testsDir, 'test.test.ts'), 'test("works", () => {})');
+    it('uses spec-driven schema apply configuration', async () => {
+      // Create a spec-driven style change with all artifacts
+      await createTestChange('apply-schema-test', ['proposal', 'design', 'specs', 'tasks']);
 
       const result = await runCLI(
-        ['instructions', 'apply', '--change', 'tdd-apply', '--schema', 'tdd'],
+        ['instructions', 'apply', '--change', 'apply-schema-test', '--schema', 'spec-driven'],
         { cwd: tempDir }
       );
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('Schema: tdd');
-      // TDD schema has no task tracking, so should show schema instruction
-      expect(result.stdout).toContain('Run tests to see failures');
+      expect(result.stdout).toContain('Schema: spec-driven');
     });
 
     it('spec-driven schema uses apply block configuration', async () => {
@@ -665,29 +658,29 @@ artifacts:
   describe('project config integration', () => {
     describe('new change uses config schema', () => {
       it('creates change with schema from project config', async () => {
-        // Create project config with tdd schema
+        // Create project config with spec-driven schema
         // Note: changesDir is already at tempDir/openspec/changes (created in beforeEach)
         await fs.writeFile(
           path.join(tempDir, 'openspec', 'config.yaml'),
-          'schema: tdd\n'
+          'schema: spec-driven\n'
         );
 
         // Create a new change without specifying schema
         const result = await runCLI(['new', 'change', 'test-change'], { cwd: tempDir, timeoutMs: 30000 });
         expect(result.exitCode).toBe(0);
 
-        // Verify the change was created with tdd schema
+        // Verify the change was created with spec-driven schema
         const metadataPath = path.join(changesDir, 'test-change', '.openspec.yaml');
         const metadata = await fs.readFile(metadataPath, 'utf-8');
-        expect(metadata).toContain('schema: tdd');
+        expect(metadata).toContain('schema: spec-driven');
       }, 60000);
 
       it('CLI schema overrides config schema', async () => {
-        // Create project config with tdd schema
+        // Create project config with spec-driven schema
         // Note: openspec directory already exists (from changesDir creation in beforeEach)
         await fs.writeFile(
           path.join(tempDir, 'openspec', 'config.yaml'),
-          'schema: tdd\n'
+          'schema: spec-driven\n'
         );
 
         // Create change with explicit schema
@@ -795,7 +788,7 @@ rules:
         const changeDir = await createTestChange('metadata-only-change');
         await fs.writeFile(
           path.join(changeDir, '.openspec.yaml'),
-          'schema: tdd\ncreated: "2025-01-05"\n'
+          'schema: spec-driven\ncreated: "2025-01-05"\n'
         );
 
         // Status should use schema from metadata
@@ -804,7 +797,7 @@ rules:
           { cwd: tempDir, timeoutMs: 30000 }
         );
         expect(result.exitCode).toBe(0);
-        expect(result.stdout).toContain('tdd');
+        expect(result.stdout).toContain('spec-driven');
       }, 60000);
     });
 

@@ -527,7 +527,7 @@ openspec templates [options]
 openspec templates
 
 # Show templates for custom schema
-openspec templates --schema tdd
+openspec templates --schema my-workflow
 
 # JSON for programmatic use
 openspec templates --json
@@ -576,10 +576,6 @@ Available schemas:
     The default spec-driven development workflow
     Flow: proposal → specs → design → tasks
 
-  tdd (package)
-    Test-driven development workflow
-    Flow: spec → tests → implementation → docs
-
   my-custom (project)
     Custom workflow for this project
     Flow: research → proposal → tasks
@@ -623,9 +619,9 @@ openspec schema init <name> [options]
 openspec schema init research-first
 
 # Non-interactive with specific artifacts
-openspec schema init tdd-lite \
-  --description "Lightweight TDD workflow" \
-  --artifacts "spec,tests,implementation" \
+openspec schema init rapid \
+  --description "Rapid iteration workflow" \
+  --artifacts "proposal,tasks" \
   --default
 ```
 

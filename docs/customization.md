@@ -84,7 +84,7 @@ Tech stack: TypeScript, React, Node.js, PostgreSQL
 
 When OpenSpec needs a schema, it checks in this order:
 
-1. CLI flag: `--schema tdd`
+1. CLI flag: `--schema <name>`
 2. Change metadata (`.openspec.yaml` in the change folder)
 3. Project config (`openspec/config.yaml`)
 4. Default (`spec-driven`)
@@ -140,9 +140,9 @@ For a completely fresh workflow:
 openspec schema init research-first
 
 # Non-interactive
-openspec schema init tdd-lite \
-  --description "Lightweight TDD workflow" \
-  --artifacts "spec,tests,impl" \
+openspec schema init rapid \
+  --description "Rapid iteration workflow" \
+  --artifacts "proposal,tasks" \
   --default
 ```
 
@@ -275,33 +275,35 @@ Path: /path/to/project/openspec/schemas/my-workflow
 
 ## Examples
 
-### Minimal TDD Workflow
+### Rapid Iteration Workflow
+
+A minimal workflow for quick iterations:
 
 ```yaml
-# openspec/schemas/tdd-minimal/schema.yaml
-name: tdd-minimal
+# openspec/schemas/rapid/schema.yaml
+name: rapid
 version: 1
-description: Write tests first, then implement
+description: Fast iteration with minimal overhead
 
 artifacts:
-  - id: tests
-    generates: tests.md
-    description: Test cases to implement
-    template: tests.md
+  - id: proposal
+    generates: proposal.md
+    description: Quick proposal
+    template: proposal.md
     instruction: |
-      Define test cases for this feature.
-      Each test should be a clear Given/When/Then scenario.
+      Create a brief proposal for this change.
+      Focus on what and why, skip detailed specs.
     requires: []
 
-  - id: impl
-    generates: implementation.md
-    description: Implementation notes
-    template: impl.md
-    requires: [tests]
+  - id: tasks
+    generates: tasks.md
+    description: Implementation checklist
+    template: tasks.md
+    requires: [proposal]
 
 apply:
-  requires: [impl]
-  tracks: implementation.md
+  requires: [tasks]
+  tracks: tasks.md
 ```
 
 ### Adding a Review Artifact

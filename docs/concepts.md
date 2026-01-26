@@ -420,16 +420,6 @@ proposal → specs → design → tasks → implement
 
 Best for: Most feature work where you want to agree on specs before implementation.
 
-**tdd**
-
-Test-driven development workflow:
-
-```
-spec → tests → implementation → docs
-```
-
-Best for: Teams practicing TDD who write tests before implementation.
-
 ### Custom Schemas
 
 Create custom schemas for your team's workflow:
