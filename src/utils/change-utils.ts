@@ -105,9 +105,9 @@ export function validateChangeName(name: string): ValidationResult {
  * console.log(result.schema) // 'spec-driven' or value from config
  *
  * @example
- * // Creates openspec/changes/add-auth/ with TDD schema
- * const result = await createChange('/path/to/project', 'add-auth', { schema: 'tdd' })
- * console.log(result.schema) // 'tdd'
+ * // Creates openspec/changes/add-auth/ with custom schema
+ * const result = await createChange('/path/to/project', 'add-auth', { schema: 'my-workflow' })
+ * console.log(result.schema) // 'my-workflow'
  */
 export async function createChange(
   projectRoot: string,
