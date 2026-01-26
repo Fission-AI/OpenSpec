@@ -14,6 +14,7 @@ import {
   getArchiveChangeSkillTemplate,
   getBulkArchiveChangeSkillTemplate,
   getVerifyChangeSkillTemplate,
+  getOnboardSkillTemplate,
   getOpsxExploreCommandTemplate,
   getOpsxNewCommandTemplate,
   getOpsxContinueCommandTemplate,
@@ -23,6 +24,7 @@ import {
   getOpsxArchiveCommandTemplate,
   getOpsxBulkArchiveCommandTemplate,
   getOpsxVerifyCommandTemplate,
+  getOpsxOnboardCommandTemplate,
   type SkillTemplate,
 } from '../templates/skill-templates.js';
 import type { CommandContent } from '../command-generation/index.js';
@@ -57,6 +59,7 @@ export function getSkillTemplates(): SkillTemplateEntry[] {
     { template: getArchiveChangeSkillTemplate(), dirName: 'openspec-archive-change' },
     { template: getBulkArchiveChangeSkillTemplate(), dirName: 'openspec-bulk-archive-change' },
     { template: getVerifyChangeSkillTemplate(), dirName: 'openspec-verify-change' },
+    { template: getOnboardSkillTemplate(), dirName: 'openspec-onboard' },
   ];
 }
 
@@ -74,6 +77,7 @@ export function getCommandTemplates(): CommandTemplateEntry[] {
     { template: getOpsxArchiveCommandTemplate(), id: 'archive' },
     { template: getOpsxBulkArchiveCommandTemplate(), id: 'bulk-archive' },
     { template: getOpsxVerifyCommandTemplate(), id: 'verify' },
+    { template: getOpsxOnboardCommandTemplate(), id: 'onboard' },
   ];
 }
 
