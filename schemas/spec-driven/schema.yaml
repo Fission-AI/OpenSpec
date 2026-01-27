@@ -36,7 +36,7 @@ artifacts:
 
       Create one spec file per capability listed in the proposal's Capabilities section.
       - New capabilities: use the exact kebab-case name from the proposal (specs/<capability>/spec.md).
-      - Modified capabilities: use the existing spec folder name in openspec/specs/<capability>/.
+      - Modified capabilities: use the existing spec folder name from openspec/specs/<capability>/ when creating the delta spec at specs/<capability>/spec.md.
 
       Delta operations (use ## headers):
       - **ADDED Requirements**: New capabilities
