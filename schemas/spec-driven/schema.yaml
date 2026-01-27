@@ -34,7 +34,9 @@ artifacts:
     instruction: |
       Create specification files that define WHAT the system should do.
 
-      Create one spec file per capability/feature area in specs/<name>/spec.md.
+      Create one spec file per capability listed in the proposal's Capabilities section.
+      - New capabilities: use the exact kebab-case name from the proposal (specs/<capability>/spec.md).
+      - Modified capabilities: use the existing spec folder name from openspec/specs/<capability>/ when creating the delta spec at specs/<capability>/spec.md.
 
       Delta operations (use ## headers):
       - **ADDED Requirements**: New capabilities
@@ -110,14 +112,17 @@ artifacts:
 
   - id: tasks
     generates: tasks.md
-    description: Implementation tasks derived from specs and design
+    description: Implementation checklist with trackable tasks
     template: tasks.md
     instruction: |
       Create the task list that breaks down the implementation work.
 
+      **IMPORTANT: Follow the template below exactly.** The apply phase parses
+      checkbox format to track progress. Tasks not using `- [ ]` won't be tracked.
+
       Guidelines:
       - Group related tasks under ## numbered headings
-      - Each task is a checkbox: - [ ] X.Y Task description
+      - Each task MUST be a checkbox: `- [ ] X.Y Task description`
       - Tasks should be small enough to complete in one session
       - Order tasks by dependency (what must be done first?)
 
