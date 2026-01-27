@@ -33,8 +33,8 @@ The CI system SHALL validate that the update-flake.sh script executes successful
 
 - **WHEN** the CI runs the update script validation
 - **THEN** the script SHALL execute without errors
-- **AND** the script SHALL correctly extract the version from package.json
-- **AND** the script SHALL update flake.nix with the correct version
+- **AND** the script SHALL correctly read the version from package.json
+- **AND** the script SHALL validate that flake.nix uses dynamic version from package.json
 
 #### Scenario: Update script with mock hash
 
