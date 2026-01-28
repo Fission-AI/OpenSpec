@@ -1,5 +1,19 @@
 # @fission-ai/openspec
 
+## 1.0.3
+
+### Patch Changes
+
+- [#550](https://github.com/Fission-AI/OpenSpec/pull/550) [`86d2e04`](https://github.com/Fission-AI/OpenSpec/commit/86d2e04cae76a999dbd1b4571f52fa720036be0c) Thanks [@jerome-benoit](https://github.com/jerome-benoit)! - ### Improvements
+
+  - **Nix flake maintenance** — Version now read dynamically from package.json, reducing manual sync issues
+  - **Nix build optimization** — Source filtering excludes node_modules and artifacts, improving build times
+  - **update-flake.sh script** — Detects when hash is already correct, skipping unnecessary rebuilds
+
+  ### Other
+
+  - Updated Nix CI actions to latest versions (nix-installer v21, magic-nix-cache v13)
+
 ## 1.0.2
 
 ### Patch Changes
