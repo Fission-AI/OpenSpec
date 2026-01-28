@@ -33,7 +33,7 @@ For each tool you select, OpenSpec installs:
 | Qoder | `.qoder/skills/` | `.qoder/commands/opsx/` |
 | Qwen Code | `.qwen/skills/` | `.qwen/commands/` |
 | RooCode | `.roo/skills/` | `.roo/commands/` |
-| Windsurf | `.windsurf/skills/` | `.windsurf/commands/opsx/` |
+| Windsurf | `.windsurf/skills/` | `.windsurf/workflows/` |
 
 ## Non-Interactive Setup
 
