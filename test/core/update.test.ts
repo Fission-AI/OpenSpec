@@ -301,9 +301,8 @@ Old instructions content
       const windsurfCmd = path.join(
         testDir,
         '.windsurf',
-        'commands',
-        'opsx',
-        'explore.md'
+        'workflows',
+        'opsx-explore.md'
       );
       const exists = await FileSystemUtils.fileExists(windsurfCmd);
       expect(exists).toBe(true);

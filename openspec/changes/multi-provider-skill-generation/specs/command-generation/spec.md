@@ -49,7 +49,7 @@ The system SHALL define a `ToolCommandAdapter` interface for per-tool formatting
 
 - **WHEN** formatting a command for Windsurf
 - **THEN** the adapter SHALL output YAML frontmatter with `name`, `description`, `category`, `tags` fields
-- **AND** file path SHALL follow pattern `.windsurf/commands/opsx/<id>.md`
+- **AND** file path SHALL follow pattern `.windsurf/workflows/opsx-<id>.md`
 
 ### Requirement: Command generator function
 

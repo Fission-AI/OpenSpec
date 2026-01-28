@@ -12,7 +12,7 @@ describe('InitCommand', () => {
     await fs.mkdir(testDir, { recursive: true });
 
     // Mock console.log to suppress output during tests
-    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'log').mockImplementation(() => { });
   });
 
   afterEach(async () => {
@@ -375,7 +375,7 @@ describe('InitCommand', () => {
       const initCommand = new InitCommand({ tools: 'windsurf', force: true });
       await initCommand.execute(testDir);
 
-      const cmdFile = path.join(testDir, '.windsurf', 'commands', 'opsx', 'explore.md');
+      const cmdFile = path.join(testDir, '.windsurf', 'workflows', 'opsx-explore.md');
       expect(await fileExists(cmdFile)).toBe(true);
     });
 
