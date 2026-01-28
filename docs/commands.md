@@ -569,6 +569,7 @@ Different AI tools use slightly different command syntax. Use the format that ma
 | Cursor | `/opsx-new`, `/opsx-apply` |
 | Windsurf | `/opsx-new`, `/opsx-apply` |
 | Copilot | `/opsx-new`, `/opsx-apply` |
+| Trae | `/openspec-new-change`, `/openspec-apply-change` |
 
 The functionality is identical regardless of syntax.
 
