@@ -8,6 +8,7 @@ import { UpdateCommand } from '../core/update.js';
 import { ListCommand } from '../core/list.js';
 import { ArchiveCommand } from '../core/archive.js';
 import { ViewCommand } from '../core/view.js';
+import { DashboardCommand } from '../core/dashboard.js';
 import { registerSpecCommand } from '../commands/spec.js';
 import { ChangeCommand } from '../commands/change.js';
 import { ValidateCommand } from '../commands/validate.js';
@@ -194,6 +195,21 @@ program
     try {
       const viewCommand = new ViewCommand();
       await viewCommand.execute('.');
+    } catch (error) {
+      console.log(); // Empty line for spacing
+      ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('dashboard')
+  .description('Open an interactive web dashboard for specs and changes')
+  .option('--port <port>', 'Port to run the server on', '3000')
+  .action(async (options?: { port?: string }) => {
+    try {
+      const dashboardCommand = new DashboardCommand();
+      await dashboardCommand.execute('.', { port: options?.port ? parseInt(options.port, 10) : undefined });
     } catch (error) {
       console.log(); // Empty line for spacing
       ora().fail(`Error: ${(error as Error).message}`);
