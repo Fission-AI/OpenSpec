@@ -10,6 +10,43 @@ import {
   type SpecUpdate,
 } from './specs-apply.js';
 
+/**
+ * Recursively copy a directory. Used when fs.rename fails (e.g. EPERM on Windows).
+ */
+async function copyDirRecursive(src: string, dest: string): Promise<void> {
+  await fs.mkdir(dest, { recursive: true });
+  const entries = await fs.readdir(src, { withFileTypes: true });
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    if (entry.isDirectory()) {
+      await copyDirRecursive(srcPath, destPath);
+    } else {
+      await fs.copyFile(srcPath, destPath);
+    }
+  }
+}
+
+/**
+ * Move a directory from src to dest. On Windows, fs.rename() often fails with
+ * EPERM when the directory is non-empty or another process has it open (IDE,
+ * file watcher, antivirus). Fall back to copy-then-remove when rename fails
+ * with EPERM or EXDEV.
+ */
+async function moveDirectory(src: string, dest: string): Promise<void> {
+  try {
+    await fs.rename(src, dest);
+  } catch (err: any) {
+    const code = err?.code;
+    if (code === 'EPERM' || code === 'EXDEV') {
+      await copyDirRecursive(src, dest);
+      await fs.rm(src, { recursive: true, force: true });
+    } else {
+      throw err;
+    }
+  }
+}
+
 export class ArchiveCommand {
   async execute(
     changeName?: string,
@@ -244,9 +281,9 @@ export class ArchiveCommand {
     // Create archive directory if needed
     await fs.mkdir(archiveDir, { recursive: true });
 
-    // Move change to archive
-    await fs.rename(changeDir, archivePath);
-    
+    // Move change to archive (uses copy+remove on EPERM/EXDEV, e.g. Windows)
+    await moveDirectory(changeDir, archivePath);
+
     console.log(`Change '${changeName}' archived as '${archiveName}'.`);
   }
 
