@@ -18,7 +18,7 @@ Each AI tool has:
 - Create a generic, extensible command generation system
 
 **Non-Goals:**
-- Global path installation — implemented for Codex (absolute path from adapter)
+- Global path installation for tools other than Codex (Codex uses absolute adapter paths today)
 - Multi-tool generation in single command (future enhancement)
 - Unifying with existing SlashCommandConfigurator (separate systems for now)
 

@@ -16,7 +16,8 @@ import type { CommandContent, ToolCommandAdapter } from '../types.js';
  * Respects the CODEX_HOME env var, defaulting to ~/.codex.
  */
 function getCodexHome(): string {
-  return path.resolve(process.env.CODEX_HOME || path.join(os.homedir(), '.codex'));
+  const envHome = process.env.CODEX_HOME?.trim();
+  return path.resolve(envHome ? envHome : path.join(os.homedir(), '.codex'));
 }
 
 /**

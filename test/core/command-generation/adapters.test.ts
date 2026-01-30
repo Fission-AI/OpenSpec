@@ -213,7 +213,7 @@ describe('command-generation/adapters', () => {
 
     it('should generate path ending with correct structure', () => {
       const filePath = codexAdapter.getFilePath('explore');
-      expect(filePath).toMatch(/\.codex[/\\]prompts[/\\]opsx-explore\.md$/);
+      expect(filePath).toMatch(/prompts[/\\]opsx-explore\.md$/);
     });
 
     it('should default to homedir/.codex', () => {
