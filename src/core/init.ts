@@ -452,7 +452,7 @@ export class InitCommand {
           const generatedCommands = generateCommands(commandContents, adapter);
 
           for (const cmd of generatedCommands) {
-            const commandFile = path.join(projectPath, cmd.path);
+            const commandFile = path.isAbsolute(cmd.path) ? cmd.path : path.join(projectPath, cmd.path);
             await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
           }
         } else {

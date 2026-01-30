@@ -127,7 +127,7 @@ export class UpdateCommand {
           const generatedCommands = generateCommands(commandContents, adapter);
 
           for (const cmd of generatedCommands) {
-            const commandFile = path.join(resolvedProjectPath, cmd.path);
+            const commandFile = path.isAbsolute(cmd.path) ? cmd.path : path.join(resolvedProjectPath, cmd.path);
             await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
           }
         }
@@ -376,7 +376,7 @@ export class UpdateCommand {
           const generatedCommands = generateCommands(commandContents, adapter);
 
           for (const cmd of generatedCommands) {
-            const commandFile = path.join(projectPath, cmd.path);
+            const commandFile = path.isAbsolute(cmd.path) ? cmd.path : path.join(projectPath, cmd.path);
             await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
           }
         }
