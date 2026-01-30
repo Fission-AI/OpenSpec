@@ -18,7 +18,7 @@ Each AI tool has:
 - Create a generic, extensible command generation system
 
 **Non-Goals:**
-- Global path installation (deferred to future work)
+- Global path installation for tools other than Codex (Codex uses absolute adapter paths today)
 - Multi-tool generation in single command (future enhancement)
 - Unifying with existing SlashCommandConfigurator (separate systems for now)
 
@@ -41,7 +41,7 @@ interface AIToolOption {
 **Rationale**:
 - Skills follow Agent Skills spec: `<toolDir>/skills/` - suffix is standard
 - Commands need per-tool formatting, handled by adapters (not a simple path)
-- Global paths deferred - can extend interface later
+- Global paths supported — Codex adapter returns absolute paths via os.homedir()
 
 ### 2. Strategy/Adapter pattern for command generation
 
