@@ -177,5 +177,47 @@ describe('skill-generation', () => {
 
       expect(content).toMatch(/---\n\nBody content\n$/);
     });
+
+    it('should apply transformInstructions callback when provided', () => {
+      const template = {
+        name: 'transform-test',
+        description: 'Test transform callback',
+        instructions: 'Use /opsx:new to start and /opsx:apply to implement.',
+      };
+
+      const transformer = (text: string) => text.replace(/\/opsx:/g, '/opsx-');
+      const content = generateSkillContent(template, '0.23.0', transformer);
+
+      expect(content).toContain('/opsx-new');
+      expect(content).toContain('/opsx-apply');
+      expect(content).not.toContain('/opsx:new');
+      expect(content).not.toContain('/opsx:apply');
+    });
+
+    it('should not transform instructions when callback is undefined', () => {
+      const template = {
+        name: 'no-transform-test',
+        description: 'Test without transform',
+        instructions: 'Use /opsx:new to start.',
+      };
+
+      const content = generateSkillContent(template, '0.23.0', undefined);
+
+      expect(content).toContain('/opsx:new');
+    });
+
+    it('should support custom transformInstructions logic', () => {
+      const template = {
+        name: 'custom-transform',
+        description: 'Test custom transform',
+        instructions: 'Some PLACEHOLDER text here.',
+      };
+
+      const customTransformer = (text: string) => text.replace('PLACEHOLDER', 'REPLACED');
+      const content = generateSkillContent(template, '0.23.0', customTransformer);
+
+      expect(content).toContain('Some REPLACED text here.');
+      expect(content).not.toContain('PLACEHOLDER');
+    });
   });
 });
