@@ -1,5 +1,28 @@
 # @fission-ai/openspec
 
+## 1.1.0
+
+### Minor Changes
+
+- [#625](https://github.com/Fission-AI/OpenSpec/pull/625) [`53081fb`](https://github.com/Fission-AI/OpenSpec/commit/53081fb2a26ec66d2950ae0474b9a56cbc5b5a76) Thanks [@TabishB](https://github.com/TabishB)! - ### Bug Fixes
+
+  - **Codex global path support** — Codex adapter now resolves global paths correctly, fixing workflow file generation when run outside the project directory (#622)
+  - **Archive operations on cross-device or restricted paths** — Archive now falls back to copy+remove when rename fails with EPERM or EXDEV errors, fixing failures on networked/external drives (#605)
+  - **Slash command hints in workflow messages** — Workflow completion messages now display helpful slash command hints for next steps (#603)
+  - **Windsurf workflow file path** — Updated Windsurf adapter to use the correct `workflows` directory instead of the legacy `commands` path (#610)
+
+### Patch Changes
+
+- [#550](https://github.com/Fission-AI/OpenSpec/pull/550) [`86d2e04`](https://github.com/Fission-AI/OpenSpec/commit/86d2e04cae76a999dbd1b4571f52fa720036be0c) Thanks [@jerome-benoit](https://github.com/jerome-benoit)! - ### Improvements
+
+  - **Nix flake maintenance** — Version now read dynamically from package.json, reducing manual sync issues
+  - **Nix build optimization** — Source filtering excludes node_modules and artifacts, improving build times
+  - **update-flake.sh script** — Detects when hash is already correct, skipping unnecessary rebuilds
+
+  ### Other
+
+  - Updated Nix CI actions to latest versions (nix-installer v21, magic-nix-cache v13)
+
 ## 1.0.2
 
 ### Patch Changes
