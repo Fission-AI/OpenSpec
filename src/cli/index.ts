@@ -201,6 +201,23 @@ program
     }
   });
 
+program
+  .command('dashboard')
+  .description('Start a local web-based dashboard for browsing changes, specs, and archive')
+  .option('--port <number>', 'Server port (default: 3000)')
+  .option('--no-open', 'Do not open browser automatically')
+  .action(async (options?: { port?: string; open?: boolean }) => {
+    try {
+      const { DashboardCommand } = await import('../core/dashboard/index.js');
+      const cmd = new DashboardCommand();
+      await cmd.execute('.', options);
+    } catch (error) {
+      console.log();
+      ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
 // Change command with subcommands
 const changeCmd = program
   .command('change')
