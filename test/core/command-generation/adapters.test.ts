@@ -235,7 +235,7 @@ describe('command-generation/adapters', () => {
       process.env.CODEX_HOME = '/custom/codex-home';
       try {
         const filePath = codexAdapter.getFilePath('explore');
-        expect(filePath).toBe(path.join('/custom/codex-home', 'prompts', 'opsx-explore.md'));
+        expect(filePath).toBe(path.join(path.resolve('/custom/codex-home'), 'prompts', 'opsx-explore.md'));
       } finally {
         if (original !== undefined) {
           process.env.CODEX_HOME = original;
