@@ -19,7 +19,7 @@ For each tool you select, OpenSpec installs:
 | Claude Code | `.claude/skills/` | `.claude/commands/opsx/` |
 | Cline | `.cline/skills/` | `.clinerules/workflows/` |
 | CodeBuddy | `.codebuddy/skills/` | `.codebuddy/commands/opsx/` |
-| Codex | `.codex/skills/` | `.codex/prompts/` |
+| Codex | `.codex/skills/` | `~/.codex/prompts/`* |
 | Continue | `.continue/skills/` | `.continue/prompts/` |
 | CoStrict | `.cospec/skills/` | `.cospec/openspec/commands/` |
 | Crush | `.crush/skills/` | `.crush/commands/opsx/` |
@@ -35,6 +35,8 @@ For each tool you select, OpenSpec installs:
 | RooCode | `.roo/skills/` | `.roo/commands/` |
 | Trae | `.trae/skills/` | `.trae/skills/` (via `/openspec-*`) |
 | Windsurf | `.windsurf/skills/` | `.windsurf/workflows/` |
+
+\* Codex commands are installed to the global home directory (`~/.codex/prompts/` or `$CODEX_HOME/prompts/`), not the project directory.
 
 ## Non-Interactive Setup
 
