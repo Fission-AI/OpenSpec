@@ -34,7 +34,7 @@ For each tool you select, OpenSpec installs:
 | Qwen Code | `.qwen/skills/` | `.qwen/commands/` |
 | RooCode | `.roo/skills/` | `.roo/commands/` |
 | Trae | `.trae/skills/` | `.trae/skills/` (via `/openspec-*`) |
-| Windsurf | `.windsurf/skills/` | `.windsurf/commands/opsx/` |
+| Windsurf | `.windsurf/skills/` | `.windsurf/workflows/` |
 
 ## Non-Interactive Setup
 

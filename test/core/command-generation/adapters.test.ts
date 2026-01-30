@@ -107,7 +107,7 @@ describe('command-generation/adapters', () => {
 
     it('should generate correct file path', () => {
       const filePath = windsurfAdapter.getFilePath('explore');
-      expect(filePath).toBe(path.join('.windsurf', 'commands', 'opsx', 'explore.md'));
+      expect(filePath).toBe(path.join('.windsurf', 'workflows', 'opsx-explore.md'));
     });
 
     it('should format file similar to Claude format', () => {
@@ -495,7 +495,7 @@ describe('command-generation/adapters', () => {
 
     it('Windsurf adapter uses path.join for paths', () => {
       const filePath = windsurfAdapter.getFilePath('test');
-      expect(filePath.split(path.sep)).toEqual(['.windsurf', 'commands', 'opsx', 'test.md']);
+      expect(filePath.split(path.sep)).toEqual(['.windsurf', 'workflows', 'opsx-test.md']);
     });
 
     it('All adapters use path.join for paths', () => {
