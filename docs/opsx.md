@@ -1,14 +1,16 @@
 # OPSX Workflow
 
-> **Compatibility:** Claude Code only (for now). Feedback welcome on [Discord](https://discord.gg/YctCnvvshC).
+> Feedback welcome on [Discord](https://discord.gg/YctCnvvshC).
 
 ## What Is It?
 
-OPSX is a **fluid, iterative workflow** for OpenSpec changes. No more rigid phases — just actions you can take anytime.
+OPSX is now the standard workflow for OpenSpec.
+
+It's a **fluid, iterative workflow** for OpenSpec changes. No more rigid phases — just actions you can take anytime.
 
 ## Why This Exists
 
-The standard OpenSpec workflow works, but it's **locked down**:
+The legacy OpenSpec workflow works, but it's **locked down**:
 
 - **Instructions are hardcoded** — buried in TypeScript, you can't change them
 - **All-or-nothing** — one big command creates everything, can't test individual pieces
@@ -23,7 +25,7 @@ The standard OpenSpec workflow works, but it's **locked down**:
 4. **Iterate quickly** — change a template, test immediately, no rebuild
 
 ```
-Standard workflow:                    OPSX:
+Legacy workflow:                      OPSX:
 ┌────────────────────────┐           ┌────────────────────────┐
 │  Hardcoded in package  │           │  schema.yaml           │◄── You edit this
 │  (can't change)        │           │  templates/*.md        │◄── Or this
@@ -57,14 +59,11 @@ You're "in planning phase", then "in implementation phase", then "done". But rea
 ## Setup
 
 ```bash
-# 1. Make sure you have openspec installed and initialized
+# Make sure you have openspec installed — skills are automatically generated
 openspec init
-
-# 2. Generate the experimental skills
-openspec experimental
 ```
 
-This creates skills in `.claude/skills/` that Claude Code auto-detects.
+This creates skills in `.claude/skills/` (or equivalent) that AI coding assistants auto-detect.
 
 During setup, you'll be prompted to create a **project config** (`openspec/config.yaml`). This is optional but recommended.
 
@@ -74,7 +73,7 @@ Project config lets you set defaults and inject project-specific context into al
 
 ### Creating Config
 
-Config is created during `experimental`, or manually:
+Config is created during `openspec init`, or manually:
 
 ```yaml
 # openspec/config.yaml
@@ -288,7 +287,7 @@ Think of it like git branches:
 
 ## What's Different?
 
-| | Standard (`/openspec:proposal`) | Experimental (`/opsx:*`) |
+| | Legacy (`/openspec:proposal`) | OPSX (`/opsx:*`) |
 |---|---|---|
 | **Structure** | One big proposal document | Discrete artifacts with dependencies |
 | **Workflow** | Linear phases: plan → implement → archive | Fluid actions — do anything anytime |
@@ -299,13 +298,13 @@ Think of it like git branches:
 
 ## Architecture Deep Dive
 
-This section explains how OPSX works under the hood and how it compares to the standard workflow.
+This section explains how OPSX works under the hood and how it compares to the legacy workflow.
 
 ### Philosophy: Phases vs Actions
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                         STANDARD WORKFLOW                                    │
+│                         LEGACY WORKFLOW                                      │
 │                    (Phase-Locked, All-or-Nothing)                           │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
@@ -347,11 +346,11 @@ This section explains how OPSX works under the hood and how it compares to the s
 
 ### Component Architecture
 
-**Standard workflow** uses hardcoded templates in TypeScript:
+**Legacy workflow** uses hardcoded templates in TypeScript:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                      STANDARD WORKFLOW COMPONENTS                            │
+│                      LEGACY WORKFLOW COMPONENTS                              │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │   Hardcoded Templates (TypeScript strings)                                  │
@@ -446,7 +445,7 @@ Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, no
 
 ### Information Flow
 
-**Standard workflow** — agent receives static instructions:
+**Legacy workflow** — agent receives static instructions:
 
 ```
   User: "/openspec:proposal"
@@ -505,7 +504,7 @@ Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, no
 
 ### Iteration Model
 
-**Standard workflow** — awkward to iterate:
+**Legacy workflow** — awkward to iterate:
 
 ```
   ┌─────────┐     ┌─────────┐     ┌─────────┐
@@ -598,7 +597,7 @@ artifacts:
 
 ### Summary
 
-| Aspect | Standard | OPSX |
+| Aspect | Legacy | OPSX |
 |--------|----------|------|
 | **Templates** | Hardcoded TypeScript | External YAML + Markdown |
 | **Dependencies** | None (all at once) | DAG with topological sort |
