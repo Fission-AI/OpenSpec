@@ -1,17 +1,18 @@
 ## ADDED Requirements
 
-### Requirement: Automatic Version Update
-The script SHALL automatically update the version in flake.nix to match package.json.
+### Requirement: Dynamic Version Support
+The script SHALL support flake.nix configurations that read version dynamically from package.json.
 
-#### Scenario: Version extraction from package.json
+#### Scenario: Version validation
 - **WHEN** script runs
 - **THEN** version is read from package.json using Node.js
-- **AND** version field in flake.nix is updated to match
+- **AND** script verifies flake.nix uses dynamic version pattern
+- **AND** warns if hardcoded version is detected
 
-#### Scenario: Version already up-to-date
-- **WHEN** script runs and flake.nix version already matches package.json
-- **THEN** script reports version is up-to-date
-- **AND** continues to hash update
+#### Scenario: Version display
+- **WHEN** script runs
+- **THEN** script displays current package version
+- **AND** indicates version is read dynamically by flake.nix
 
 ### Requirement: Automatic Hash Determination
 The script SHALL automatically determine and update the correct pnpm dependency hash.
@@ -29,7 +30,8 @@ The script SHALL automatically determine and update the correct pnpm dependency 
 
 #### Scenario: Hash update failure
 - **WHEN** script cannot extract hash from build output
-- **THEN** script exits with error
+- **THEN** script restores original hash to flake.nix
+- **AND** exits with error code 1
 - **AND** displays build output for debugging
 
 ### Requirement: Build Verification
@@ -55,8 +57,13 @@ The script SHALL provide clear progress information and next steps.
 
 #### Scenario: Success summary
 - **WHEN** script completes successfully
-- **THEN** summary shows updated version and hash
-- **AND** next steps are displayed (test, commit, etc.)
+- **THEN** summary shows version and hash changes
+- **AND** next steps are displayed (test, verify, commit)
+
+#### Scenario: No changes needed
+- **WHEN** hash is already up-to-date
+- **THEN** script reports no changes needed
+- **AND** exits with success code 0
 
 ### Requirement: Script Safety
 The script SHALL fail fast on errors and use safe defaults.
