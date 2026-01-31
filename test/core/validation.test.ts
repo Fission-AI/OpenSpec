@@ -485,5 +485,39 @@ The system MUST support mixed case delta headers.
       expect(report.summary.warnings).toBe(0);
       expect(report.summary.info).toBe(0);
     });
+
+    it('should pass when requirement has metadata fields before description with SHALL/MUST', async () => {
+      const changeDir = path.join(testDir, 'test-change-with-metadata');
+      const specsDir = path.join(changeDir, 'specs', 'test-spec');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      // This is the exact pattern that was failing before the metadata fix
+      // The bug: old code would check **ID** line for SHALL/MUST instead of the description
+      const deltaSpec = `# Test Spec
+
+## ADDED Requirements
+
+### Requirement: File Serving
+**ID**: REQ-FILE-001
+**Priority**: P1
+
+The system MUST serve static files from the root directory.
+
+#### Scenario: File is requested
+**Given** a static file exists
+**When** the file is requested
+**Then** the system SHALL serve the file successfully`;
+
+      const specPath = path.join(specsDir, 'spec.md');
+      await fs.writeFile(specPath, deltaSpec);
+
+      const validator = new Validator(true);
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      // This should PASS because the description (not metadata) contains MUST
+      // Before fix c782462, this would FAIL because it checked the **ID** line
+      expect(report.valid).toBe(true);
+      expect(report.summary.errors).toBe(0);
+    });
   });
 });
