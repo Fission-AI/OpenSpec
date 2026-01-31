@@ -30,7 +30,7 @@ The system SHALL define a `ToolCommandAdapter` interface for per-tool formatting
 - **WHEN** implementing a tool adapter
 - **THEN** `ToolCommandAdapter` SHALL require:
   - `toolId`: string identifier matching `AIToolOption.value`
-  - `getFilePath(commandId: string)`: returns relative file path for command
+  - `getFilePath(commandId: string)`: returns file path for command (relative from project root, or absolute for global-scoped tools like Codex)
   - `formatFile(content: CommandContent)`: returns complete file content with frontmatter
 
 #### Scenario: Claude adapter formatting

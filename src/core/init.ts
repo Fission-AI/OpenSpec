@@ -11,6 +11,7 @@ import ora from 'ora';
 import * as fs from 'fs';
 import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
+import { transformToHyphenCommands } from '../utils/command-references.js';
 import {
   AI_TOOLS,
   OPENSPEC_DIR_NAME,
@@ -440,7 +441,9 @@ export class InitCommand {
           const skillFile = path.join(skillDir, 'SKILL.md');
 
           // Generate SKILL.md content with YAML frontmatter including generatedBy
-          const skillContent = generateSkillContent(template, OPENSPEC_VERSION);
+          // Use hyphen-based command references for OpenCode
+          const transformer = tool.value === 'opencode' ? transformToHyphenCommands : undefined;
+          const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
 
           // Write the skill file
           await FileSystemUtils.writeFile(skillFile, skillContent);
@@ -452,7 +455,7 @@ export class InitCommand {
           const generatedCommands = generateCommands(commandContents, adapter);
 
           for (const cmd of generatedCommands) {
-            const commandFile = path.join(projectPath, cmd.path);
+            const commandFile = path.isAbsolute(cmd.path) ? cmd.path : path.join(projectPath, cmd.path);
             await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
           }
         } else {

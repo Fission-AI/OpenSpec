@@ -101,11 +101,17 @@ export function getCommandContents(): CommandContent[] {
  *
  * @param template - The skill template
  * @param generatedByVersion - The OpenSpec version to embed in the file
+ * @param transformInstructions - Optional callback to transform the instructions content
  */
 export function generateSkillContent(
   template: SkillTemplate,
-  generatedByVersion: string
+  generatedByVersion: string,
+  transformInstructions?: (instructions: string) => string
 ): string {
+  const instructions = transformInstructions
+    ? transformInstructions(template.instructions)
+    : template.instructions;
+
   return `---
 name: ${template.name}
 description: ${template.description}
@@ -117,6 +123,6 @@ metadata:
   generatedBy: "${generatedByVersion}"
 ---
 
-${template.instructions}
+${instructions}
 `;
 }
