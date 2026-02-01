@@ -69,8 +69,6 @@
               runHook postBuild
             '';
 
-            dontNpmPrune = true;
-
             meta = with pkgs.lib; {
               description = "AI-native system for spec-driven development";
               homepage = "https://github.com/Fission-AI/OpenSpec";
