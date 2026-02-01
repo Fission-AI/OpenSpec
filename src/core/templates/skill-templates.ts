@@ -937,23 +937,19 @@ function getOnboardInstructions(): string {
 
 ## Preflight
 
-Before starting, check if the OpenSpec CLI is installed and the project is initialized:
+Before starting, check if the OpenSpec CLI is installed:
 
 \`\`\`bash
+# Unix/macOS
 openspec --version 2>&1 || echo "CLI_NOT_INSTALLED"
-\`\`\`
-
-\`\`\`bash
-test -f openspec/config.yaml && echo "INITIALIZED" || echo "NOT_INITIALIZED"
+# Windows (PowerShell)
+# if (Get-Command openspec -ErrorAction SilentlyContinue) { openspec --version } else { echo "CLI_NOT_INSTALLED" }
 \`\`\`
 
 **If CLI not installed:**
 > OpenSpec CLI is not installed. Install it first, then come back to \`/opsx:onboard\`.
 
-**If not initialized:**
-> OpenSpec isn't set up in this project yet. Run \`openspec init\` first, then come back to \`/opsx:onboard\`.
-
-Stop here if either check fails.
+Stop here if not installed.
 
 ---
 
@@ -996,7 +992,10 @@ Scan the codebase for small improvement opportunities. Look for:
 
 Also check recent git activity:
 \`\`\`bash
+# Unix/macOS
 git log --oneline -10 2>/dev/null || echo "No git history"
+# Windows (PowerShell)
+# git log --oneline -10 2>$null; if ($LASTEXITCODE -ne 0) { echo "No git history" }
 \`\`\`
 
 ### Present Suggestions
@@ -1191,7 +1190,10 @@ For a small task like this, we might only need one spec file.
 
 **DO:** Create the spec file:
 \`\`\`bash
+# Unix/macOS
 mkdir -p openspec/changes/<name>/specs/<capability-name>
+# Windows (PowerShell)
+# New-Item -ItemType Directory -Force -Path "openspec/changes/<name>/specs/<capability-name>"
 \`\`\`
 
 Draft the spec content:
