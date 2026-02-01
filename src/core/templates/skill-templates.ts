@@ -937,16 +937,23 @@ function getOnboardInstructions(): string {
 
 ## Preflight
 
-Before starting, check if OpenSpec is initialized:
+Before starting, check if the OpenSpec CLI is installed and the project is initialized:
 
 \`\`\`bash
-openspec status --json 2>&1 || echo "NOT_INITIALIZED"
+openspec --version 2>&1 || echo "CLI_NOT_INSTALLED"
 \`\`\`
+
+\`\`\`bash
+test -f openspec/config.yaml && echo "INITIALIZED" || echo "NOT_INITIALIZED"
+\`\`\`
+
+**If CLI not installed:**
+> OpenSpec CLI is not installed. Install it first, then come back to \`/opsx:onboard\`.
 
 **If not initialized:**
 > OpenSpec isn't set up in this project yet. Run \`openspec init\` first, then come back to \`/opsx:onboard\`.
 
-Stop here if not initialized.
+Stop here if either check fails.
 
 ---
 
