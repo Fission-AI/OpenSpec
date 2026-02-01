@@ -943,7 +943,7 @@ Before starting, check if the OpenSpec CLI is installed:
 # Unix/macOS
 openspec --version 2>&1 || echo "CLI_NOT_INSTALLED"
 # Windows (PowerShell)
-# openspec --version; if ($LASTEXITCODE -ne 0) { echo "CLI_NOT_INSTALLED" }
+# if (Get-Command openspec -ErrorAction SilentlyContinue) { openspec --version } else { echo "CLI_NOT_INSTALLED" }
 \`\`\`
 
 **If CLI not installed:**
@@ -1193,7 +1193,7 @@ For a small task like this, we might only need one spec file.
 # Unix/macOS
 mkdir -p openspec/changes/<name>/specs/<capability-name>
 # Windows (PowerShell)
-# New-Item -ItemType Directory -Force -Path "openspec\\changes\\<name>\\specs\\<capability-name>"
+# New-Item -ItemType Directory -Force -Path "openspec/changes/<name>/specs/<capability-name>"
 \`\`\`
 
 Draft the spec content:
