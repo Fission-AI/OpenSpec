@@ -182,7 +182,7 @@ jobs:
   nix-flake-validate:
     name: Nix Flake Validation
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     needs: changes
     if: needs.changes.outputs.nix == 'true'
     steps:
