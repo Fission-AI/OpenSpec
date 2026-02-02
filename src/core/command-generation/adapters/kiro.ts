@@ -9,19 +9,6 @@ import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
 
 /**
- * Escapes a string value for safe YAML output.
- * Quotes the string if it contains special YAML characters.
- */
-function escapeYamlValue(value: string): string {
-  const needsQuoting = /[:\n\r#{}[\],&*!|>'"%@`]|^\s|\s$/.test(value);
-  if (needsQuoting) {
-    const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
-    return `"${escaped}"`;
-  }
-  return value;
-}
-
-/**
  * Kiro adapter for command generation.
  * File path: .kiro/steering/opsx-<id>.md
  * Frontmatter: inclusion (always), name, description
