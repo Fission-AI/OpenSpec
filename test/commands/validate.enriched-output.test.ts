@@ -18,12 +18,12 @@ describe('validate command enriched human output', () => {
     await fs.rm(testDir, { recursive: true, force: true });
   });
 
-  it('prints Next steps footer and guidance on invalid change', () => {
+  it('prints Next steps footer and guidance on invalid change', async () => {
     const changeContent = `# Test Change\n\n## Why\nThis is a sufficiently long explanation to pass the why length requirement for validation purposes.\n\n## What Changes\nThere are changes proposed, but no delta specs provided yet.`;
     const changeId = 'c-next-steps';
     const changePath = path.join(changesDir, changeId);
-    execSync(`mkdir -p ${changePath}`);
-    execSync(`bash -lc "cat > ${path.join(changePath, 'proposal.md')} <<'EOF'\n${changeContent}\nEOF"`);
+    await fs.mkdir(changePath, { recursive: true });
+    await fs.writeFile(path.join(changePath, 'proposal.md'), changeContent);
 
     const originalCwd = process.cwd();
     try {
