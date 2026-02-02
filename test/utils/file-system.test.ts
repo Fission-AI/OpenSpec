@@ -237,7 +237,8 @@ describe('FileSystemUtils', () => {
       expect(canWrite).toBe(false);
     });
 
-    it('should follow symbolic links to files', async () => {
+    // Skip on Windows: creating symlinks requires elevated privileges or Developer Mode
+    it.skipIf(process.platform === 'win32')('should follow symbolic links to files', async () => {
       const realFile = path.join(testDir, 'real-file.txt');
       const linkFile = path.join(testDir, 'link-file.txt');
       await fs.writeFile(realFile, 'content');

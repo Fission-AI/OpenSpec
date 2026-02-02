@@ -55,7 +55,7 @@ The system SHALL process credit card payments securely`;
   });
 
   describe('spec show', () => {
-    it('should display spec in text format', () => {
+    it('should display spec in text format', async () => {
       const originalCwd = process.cwd();
       try {
         process.chdir(testDir);
@@ -64,7 +64,7 @@ The system SHALL process credit card payments securely`;
         });
         
         // Raw passthrough should match spec.md content
-        const raw = execSync(`cat ${path.join(specsDir, 'auth', 'spec.md')}`, { encoding: 'utf-8' });
+        const raw = await fs.readFile(path.join(specsDir, 'auth', 'spec.md'), 'utf-8');
         expect(output.trim()).toBe(raw.trim());
       } finally {
         process.chdir(originalCwd);
