@@ -16,6 +16,7 @@ import { factoryAdapter } from '../../../src/core/command-generation/adapters/fa
 import { geminiAdapter } from '../../../src/core/command-generation/adapters/gemini.js';
 import { githubCopilotAdapter } from '../../../src/core/command-generation/adapters/github-copilot.js';
 import { iflowAdapter } from '../../../src/core/command-generation/adapters/iflow.js';
+import { kiroAdapter } from '../../../src/core/command-generation/adapters/kiro.js';
 import { kilocodeAdapter } from '../../../src/core/command-generation/adapters/kilocode.js';
 import { opencodeAdapter } from '../../../src/core/command-generation/adapters/opencode.js';
 import { qoderAdapter } from '../../../src/core/command-generation/adapters/qoder.js';
@@ -419,6 +420,39 @@ describe('command-generation/adapters', () => {
     });
   });
 
+  describe('kiroAdapter', () => {
+    it('should have correct toolId', () => {
+      expect(kiroAdapter.toolId).toBe('kiro');
+    });
+
+    it('should generate correct file path for steering files', () => {
+      const filePath = kiroAdapter.getFilePath('explore');
+      expect(filePath).toBe(path.join('.kiro', 'steering', 'opsx-explore.md'));
+    });
+
+    it('should generate correct file paths for different commands', () => {
+      expect(kiroAdapter.getFilePath('new')).toBe(path.join('.kiro', 'steering', 'opsx-new.md'));
+      expect(kiroAdapter.getFilePath('apply')).toBe(path.join('.kiro', 'steering', 'opsx-apply.md'));
+      expect(kiroAdapter.getFilePath('bulk-archive')).toBe(path.join('.kiro', 'steering', 'opsx-bulk-archive.md'));
+    });
+
+    it('should format file with inclusion frontmatter and markdown header', () => {
+      const output = kiroAdapter.formatFile(sampleContent);
+      expect(output).toContain('---\n');
+      expect(output).toContain('inclusion: always');
+      expect(output).toContain('---\n\n');
+      expect(output).toContain('# OpenSpec Explore');
+      expect(output).toContain('Enter explore mode for thinking');
+      expect(output).toContain('This is the command body.');
+    });
+
+    it('should not include tags or category in frontmatter', () => {
+      const output = kiroAdapter.formatFile(sampleContent);
+      expect(output).not.toContain('tags:');
+      expect(output).not.toContain('category:');
+    });
+  });
+
   describe('kilocodeAdapter', () => {
     it('should have correct toolId', () => {
       expect(kilocodeAdapter.toolId).toBe('kilocode');
@@ -566,7 +600,7 @@ describe('command-generation/adapters', () => {
         amazonQAdapter, antigravityAdapter, auggieAdapter, clineAdapter,
         codexAdapter, codebuddyAdapter, continueAdapter, costrictAdapter,
         crushAdapter, factoryAdapter, geminiAdapter, githubCopilotAdapter,
-        iflowAdapter, kilocodeAdapter, opencodeAdapter, qoderAdapter,
+        iflowAdapter, kiroAdapter, kilocodeAdapter, opencodeAdapter, qoderAdapter,
         qwenAdapter, roocodeAdapter
       ];
       for (const adapter of adapters) {
