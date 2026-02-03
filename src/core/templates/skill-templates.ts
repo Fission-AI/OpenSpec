@@ -937,16 +937,19 @@ function getOnboardInstructions(): string {
 
 ## Preflight
 
-Before starting, check if OpenSpec is initialized:
+Before starting, check if the OpenSpec CLI is installed:
 
 \`\`\`bash
-openspec status --json 2>&1 || echo "NOT_INITIALIZED"
+# Unix/macOS
+openspec --version 2>&1 || echo "CLI_NOT_INSTALLED"
+# Windows (PowerShell)
+# if (Get-Command openspec -ErrorAction SilentlyContinue) { openspec --version } else { echo "CLI_NOT_INSTALLED" }
 \`\`\`
 
-**If not initialized:**
-> OpenSpec isn't set up in this project yet. Run \`openspec init\` first, then come back to \`/opsx:onboard\`.
+**If CLI not installed:**
+> OpenSpec CLI is not installed. Install it first, then come back to \`/opsx:onboard\`.
 
-Stop here if not initialized.
+Stop here if not installed.
 
 ---
 
@@ -989,7 +992,10 @@ Scan the codebase for small improvement opportunities. Look for:
 
 Also check recent git activity:
 \`\`\`bash
+# Unix/macOS
 git log --oneline -10 2>/dev/null || echo "No git history"
+# Windows (PowerShell)
+# git log --oneline -10 2>$null; if ($LASTEXITCODE -ne 0) { echo "No git history" }
 \`\`\`
 
 ### Present Suggestions
@@ -1184,7 +1190,10 @@ For a small task like this, we might only need one spec file.
 
 **DO:** Create the spec file:
 \`\`\`bash
+# Unix/macOS
 mkdir -p openspec/changes/<name>/specs/<capability-name>
+# Windows (PowerShell)
+# New-Item -ItemType Directory -Force -Path "openspec/changes/<name>/specs/<capability-name>"
 \`\`\`
 
 Draft the spec content:
@@ -2155,7 +2164,7 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
    - If changes needed: "Sync now (recommended)", "Archive without syncing"
    - If already synced: "Archive now", "Sync anyway", "Cancel"
 
-   If user chooses sync, execute /opsx:sync logic (use the openspec-sync-specs skill). Proceed to archive regardless of choice.
+   If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
 
 5. **Perform the archive**
 
@@ -2832,7 +2841,7 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
    - If changes needed: "Sync now (recommended)", "Archive without syncing"
    - If already synced: "Archive now", "Sync anyway", "Cancel"
 
-   If user chooses sync, execute \`/opsx:sync\` logic. Proceed to archive regardless of choice.
+   If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
 
 5. **Perform the archive**
 
@@ -2926,7 +2935,7 @@ Target archive directory already exists.
 - Don't block archive on warnings - just inform and confirm
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
 - Show clear summary of what happened
-- If sync is requested, use /opsx:sync approach (agent-driven)
+- If sync is requested, use the Skill tool to invoke \`openspec-sync-specs\` (agent-driven)
 - If delta specs exist, always run the sync assessment and show the combined summary before prompting`
   };
 }
