@@ -18,3 +18,18 @@
 export function transformToHyphenCommands(text: string): string {
   return text.replace(/\/opsx:/g, '/opsx-');
 }
+
+/**
+ * Transforms command references to Codex prompt format.
+ * Converts `/opsx:` or `/opsx-` patterns to `/prompts:opsx-`.
+ *
+ * @param text - The text containing command references
+ * @returns Text with command references transformed to Codex format
+ *
+ * @example
+ * transformToCodexCommands('/opsx:new') // returns '/prompts:opsx-new'
+ * transformToCodexCommands('Use /opsx-apply to implement') // returns 'Use /prompts:opsx-apply to implement'
+ */
+export function transformToCodexCommands(text: string): string {
+  return text.replace(/\/opsx:/g, '/prompts:opsx-').replace(/\/opsx-/g, '/prompts:opsx-');
+}

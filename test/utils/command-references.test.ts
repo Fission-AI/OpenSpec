@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { transformToHyphenCommands } from '../../src/utils/command-references.js';
+import { transformToHyphenCommands, transformToCodexCommands } from '../../src/utils/command-references.js';
 
 describe('transformToHyphenCommands', () => {
   describe('basic transformations', () => {
@@ -79,5 +79,45 @@ Finally /opsx-apply to implement`;
         expect(transformToHyphenCommands(`/opsx:${cmd}`)).toBe(`/opsx-${cmd}`);
       });
     }
+  });
+});
+
+describe('transformToCodexCommands', () => {
+  describe('basic transformations', () => {
+    it('should transform colon command references', () => {
+      expect(transformToCodexCommands('/opsx:new')).toBe('/prompts:opsx-new');
+    });
+
+    it('should transform hyphen command references', () => {
+      expect(transformToCodexCommands('/opsx-apply')).toBe('/prompts:opsx-apply');
+    });
+
+    it('should transform multiple command references', () => {
+      const input = 'Use /opsx:new then /opsx-apply';
+      const expected = 'Use /prompts:opsx-new then /prompts:opsx-apply';
+      expect(transformToCodexCommands(input)).toBe(expected);
+    });
+
+    it('should handle backtick-quoted commands', () => {
+      const input = 'Run `/opsx:continue` to proceed';
+      const expected = 'Run `/prompts:opsx-continue` to proceed';
+      expect(transformToCodexCommands(input)).toBe(expected);
+    });
+  });
+
+  describe('edge cases', () => {
+    it('should return unchanged text with no command references', () => {
+      const input = 'This is plain text without commands';
+      expect(transformToCodexCommands(input)).toBe(input);
+    });
+
+    it('should return empty string unchanged', () => {
+      expect(transformToCodexCommands('')).toBe('');
+    });
+
+    it('should not transform similar but non-matching patterns', () => {
+      const input = '/ops:new opsx: /other:command';
+      expect(transformToCodexCommands(input)).toBe(input);
+    });
   });
 });
