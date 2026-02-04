@@ -101,7 +101,26 @@ OpenSpec auto-detects the structure and handles both correctly.
 
 ## Configuration
 
-Control spec structure behavior in `~/.config/openspec/config.json` (or `%APPDATA%/openspec/config.json` on Windows):
+Spec structure can be configured at the **project level** or **globally**. Project settings take precedence over global settings, and each field is resolved independently.
+
+**Precedence:** project config > global config > defaults
+
+### Project-level config
+
+Add `specStructure` to your project's `openspec/config.yaml`:
+
+```yaml
+schema: spec-driven
+specStructure:
+  structure: flat
+  maxDepth: 3
+  allowMixed: false
+  validatePaths: true
+```
+
+### Global config
+
+Set defaults for all projects in `~/.config/openspec/config.json` (or `%APPDATA%/openspec/config.json` on Windows):
 
 ```jsonc
 {

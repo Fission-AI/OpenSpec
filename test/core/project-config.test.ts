@@ -480,6 +480,214 @@ rules:
         ]);
       });
     });
+
+    describe('specStructure parsing', () => {
+      it('should parse valid complete specStructure', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+specStructure:
+  structure: hierarchical
+  maxDepth: 3
+  allowMixed: false
+  validatePaths: true
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config?.specStructure).toEqual({
+          structure: 'hierarchical',
+          maxDepth: 3,
+          allowMixed: false,
+          validatePaths: true,
+        });
+        expect(consoleWarnSpy).not.toHaveBeenCalled();
+      });
+
+      it('should parse partial specStructure (only some fields)', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+specStructure:
+  structure: flat
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config?.specStructure).toEqual({
+          structure: 'flat',
+        });
+        expect(consoleWarnSpy).not.toHaveBeenCalled();
+      });
+
+      it('should keep valid sub-fields and warn about invalid ones', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+specStructure:
+  structure: flat
+  maxDepth: "invalid"
+  validatePaths: false
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config?.specStructure).toEqual({
+          structure: 'flat',
+          validatePaths: false,
+        });
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid 'specStructure.maxDepth'")
+        );
+      });
+
+      it('should warn about invalid structure enum value', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+specStructure:
+  structure: nested
+  maxDepth: 3
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config?.specStructure).toEqual({
+          maxDepth: 3,
+        });
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid 'specStructure.structure'")
+        );
+      });
+
+      it('should warn about invalid boolean sub-fields', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+specStructure:
+  allowMixed: "yes"
+  validatePaths: 42
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        // No valid fields, so specStructure should not be set
+        expect(config?.specStructure).toBeUndefined();
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid 'specStructure.allowMixed'")
+        );
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid 'specStructure.validatePaths'")
+        );
+      });
+
+      it('should return undefined specStructure when field is absent', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config?.specStructure).toBeUndefined();
+        expect(consoleWarnSpy).not.toHaveBeenCalled();
+      });
+
+      it('should warn when specStructure is not an object', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+specStructure: 42
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config?.specStructure).toBeUndefined();
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid 'specStructure' field in config (must be object)")
+        );
+      });
+
+      it('should ignore unknown sub-fields without warning', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+specStructure:
+  structure: flat
+  unknownField: true
+  anotherUnknown: 42
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config?.specStructure).toEqual({
+          structure: 'flat',
+        });
+        expect(consoleWarnSpy).not.toHaveBeenCalled();
+      });
+
+      it('should handle specStructure: null without aborting config parsing', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+specStructure:
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config?.schema).toBe('spec-driven');
+        expect(config?.specStructure).toBeUndefined();
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid 'specStructure' field in config (must be object)")
+        );
+      });
+
+      it('should reject maxDepth outside valid range', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+specStructure:
+  maxDepth: 0
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config?.specStructure).toBeUndefined();
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid 'specStructure.maxDepth'")
+        );
+      });
+    });
   });
 
   describe('validateConfigRules', () => {

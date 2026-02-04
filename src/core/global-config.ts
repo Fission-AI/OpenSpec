@@ -152,7 +152,11 @@ export function saveGlobalConfig(config: GlobalConfig): void {
  * Get the spec structure configuration with defaults.
  *
  * Reads from global config and applies default values for any missing fields.
+ * Optionally accepts project-level overrides that take precedence over global config.
  *
+ * Precedence: project overrides > global config > defaults
+ *
+ * @param projectOverrides - Optional project-level overrides from openspec/config.yaml
  * @returns SpecStructureConfig with all fields populated
  *
  * @example
@@ -162,15 +166,17 @@ export function saveGlobalConfig(config: GlobalConfig): void {
  * console.log(config.maxDepth);  // 4 (default)
  * ```
  */
-export function getSpecStructureConfig(): Required<SpecStructureConfig> {
+export function getSpecStructureConfig(
+  projectOverrides?: Partial<SpecStructureConfig>
+): Required<SpecStructureConfig> {
   const globalConfig = getGlobalConfig();
 
-  const specStructure = globalConfig.specStructure || {};
+  const global = globalConfig.specStructure || {};
 
   return {
-    structure: specStructure.structure || 'auto',
-    maxDepth: specStructure.maxDepth ?? 4,
-    allowMixed: specStructure.allowMixed ?? true,
-    validatePaths: specStructure.validatePaths ?? true,
+    structure: projectOverrides?.structure || global.structure || 'auto',
+    maxDepth: projectOverrides?.maxDepth ?? global.maxDepth ?? 4,
+    allowMixed: projectOverrides?.allowMixed ?? global.allowMixed ?? true,
+    validatePaths: projectOverrides?.validatePaths ?? global.validatePaths ?? true,
   };
 }

@@ -5,6 +5,7 @@ import { isInteractive, resolveNoInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds } from '../utils/item-discovery.js';
 import { findAllSpecs, validateSpecStructure, type ValidationIssue } from '../utils/spec-discovery.js';
 import { getSpecStructureConfig } from '../core/global-config.js';
+import { readProjectConfig } from '../core/project-config.js';
 import { nearestMatches } from '../utils/match.js';
 
 type ItemType = 'change' | 'spec';
@@ -205,7 +206,8 @@ export class ValidateCommand {
     if (scope.specs && specIds.length > 0) {
       const specsDir = path.join(process.cwd(), 'openspec', 'specs');
       const discoveredSpecs = findAllSpecs(specsDir);
-      const config = getSpecStructureConfig();
+      const projectConfig = readProjectConfig(process.cwd());
+      const config = getSpecStructureConfig(projectConfig?.specStructure);
       structureIssues = validateSpecStructure(discoveredSpecs, config);
     }
 
