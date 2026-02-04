@@ -15,7 +15,7 @@ import * as path from 'path';
 /**
  * Represents a discovered spec with its metadata
  */
-export interface Spec {
+export interface DiscoveredSpec {
   /** Relative path from specs/ directory (e.g., "_global/testing" or "auth") */
   capability: string;
   /** Absolute path to the spec.md file */
@@ -89,8 +89,8 @@ export interface ValidationIssue {
  * // Returns: [{ capability: '_global/testing', path: '/project/openspec/specs/_global/testing/spec.md', depth: 2 }]
  * ```
  */
-export function findAllSpecs(baseDir: string): Spec[] {
-  const specs: Spec[] = [];
+export function findAllSpecs(baseDir: string): DiscoveredSpec[] {
+  const specs: DiscoveredSpec[] = [];
 
   /**
    * Recursive walker that traverses directory tree
@@ -237,7 +237,7 @@ export function findSpecUpdates(changeDir: string, mainSpecsDir: string): SpecUp
  * ```
  */
 export function validateSpecStructure(
-  specs: Spec[],
+  specs: DiscoveredSpec[],
   config: SpecStructureConfig
 ): ValidationIssue[] {
   const issues: ValidationIssue[] = [];

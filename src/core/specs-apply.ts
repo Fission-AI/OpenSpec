@@ -17,19 +17,14 @@ import {
 import { Validator } from './validation/validator.js';
 import {
   findSpecUpdates as findSpecUpdatesUtil,
-  type SpecUpdate as SpecUpdateUtil,
+  type SpecUpdate,
 } from '../utils/spec-discovery.js';
 
 // -----------------------------------------------------------------------------
 // Types
 // -----------------------------------------------------------------------------
 
-export interface SpecUpdate {
-  source: string;
-  target: string;
-  capability: string;
-  exists: boolean;
-}
+export type { SpecUpdate };
 
 export interface ApplyResult {
   capability: string;

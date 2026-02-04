@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { findAllSpecs, isSpecStructureHierarchical, findSpecUpdates, validateSpecStructure, type Spec } from '../../src/utils/spec-discovery.js';
+import { findAllSpecs, isSpecStructureHierarchical, findSpecUpdates, validateSpecStructure, type DiscoveredSpec } from '../../src/utils/spec-discovery.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -269,7 +269,7 @@ describe('spec-discovery', () => {
 
   describe('validateSpecStructure() - orphaned specs validation', () => {
     it('should return no issues for valid leaf-only specs', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: 'auth', path: '/specs/auth/spec.md', depth: 1 },
         { capability: path.join('_global', 'testing'), path: '/specs/_global/testing/spec.md', depth: 2 },
         { capability: path.join('packages', 'auth', 'oauth'), path: '/specs/packages/auth/oauth/spec.md', depth: 3 },
@@ -282,7 +282,7 @@ describe('spec-discovery', () => {
     });
 
     it('should detect orphaned spec at intermediate level (depth 1 parent of depth 2)', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: '_global', path: '/specs/_global/spec.md', depth: 1 },
         { capability: path.join('_global', 'testing'), path: '/specs/_global/testing/spec.md', depth: 2 },
       ];
@@ -298,7 +298,7 @@ describe('spec-discovery', () => {
     });
 
     it('should detect orphaned spec at intermediate level (depth 2 parent of depth 3)', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: path.join('packages', 'auth'), path: '/specs/packages/auth/spec.md', depth: 2 },
         { capability: path.join('packages', 'auth', 'oauth'), path: '/specs/packages/auth/oauth/spec.md', depth: 3 },
       ];
@@ -312,7 +312,7 @@ describe('spec-discovery', () => {
     });
 
     it('should detect multiple orphaned specs', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: 'platform', path: '/specs/platform/spec.md', depth: 1 },
         { capability: path.join('platform', 'services'), path: '/specs/platform/services/spec.md', depth: 2 },
         { capability: path.join('platform', 'services', 'api'), path: '/specs/platform/services/api/spec.md', depth: 3 },
@@ -328,7 +328,7 @@ describe('spec-discovery', () => {
     });
 
     it('should not flag specs with similar prefixes as orphaned', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: 'auth', path: '/specs/auth/spec.md', depth: 1 },
         { capability: 'authentication', path: '/specs/authentication/spec.md', depth: 1 },
       ];
@@ -342,7 +342,7 @@ describe('spec-discovery', () => {
 
   describe('validateSpecStructure() - depth limits validation', () => {
     it('should return no issues for specs within recommended depth', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: 'auth', path: '/specs/auth/spec.md', depth: 1 },
         { capability: path.join('_global', 'testing'), path: '/specs/_global/testing/spec.md', depth: 2 },
         { capability: path.join('packages', 'auth', 'oauth'), path: '/specs/packages/auth/oauth/spec.md', depth: 3 },
@@ -355,7 +355,7 @@ describe('spec-discovery', () => {
     });
 
     it('should return WARNING for specs at depth 4 (above recommended)', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: path.join('platform', 'services', 'api', 'rest'), path: '/specs/platform/services/api/rest/spec.md', depth: 4 },
       ];
 
@@ -369,7 +369,7 @@ describe('spec-discovery', () => {
     });
 
     it('should return ERROR for specs exceeding configured maxDepth', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: path.join('a', 'b', 'c', 'd', 'e'), path: '/specs/a/b/c/d/e/spec.md', depth: 5 },
       ];
 
@@ -383,7 +383,7 @@ describe('spec-discovery', () => {
     });
 
     it('should respect custom maxDepth configuration', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: path.join('a', 'b', 'c'), path: '/specs/a/b/c/spec.md', depth: 3 },
       ];
 
@@ -397,7 +397,7 @@ describe('spec-discovery', () => {
     });
 
     it('should cap maxDepth at hard limit of 6', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: path.join('a', 'b', 'c', 'd', 'e', 'f', 'g'), path: '/specs/a/b/c/d/e/f/g/spec.md', depth: 7 },
       ];
 
@@ -411,7 +411,7 @@ describe('spec-discovery', () => {
     });
 
     it('should handle multiple specs with different depth issues', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: path.join('a', 'b'), path: '/specs/a/b/spec.md', depth: 2 }, // OK
         { capability: path.join('c', 'd', 'e', 'f'), path: '/specs/c/d/e/f/spec.md', depth: 4 }, // WARNING
         { capability: path.join('g', 'h', 'i', 'j', 'k'), path: '/specs/g/h/i/j/k/spec.md', depth: 5 }, // ERROR
@@ -428,7 +428,7 @@ describe('spec-discovery', () => {
 
   describe('validateSpecStructure() - naming conventions validation', () => {
     it('should return no issues for valid lowercase alphanumeric names', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: 'auth', path: '/specs/auth/spec.md', depth: 1 },
         { capability: 'user-profile', path: '/specs/user-profile/spec.md', depth: 1 },
         { capability: 'api_gateway', path: '/specs/api_gateway/spec.md', depth: 1 },
@@ -442,7 +442,7 @@ describe('spec-discovery', () => {
     });
 
     it('should reject uppercase letters in capability names', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: 'Auth', path: '/specs/Auth/spec.md', depth: 1 },
       ];
 
@@ -472,7 +472,7 @@ describe('spec-discovery', () => {
     });
 
     it('should validate all segments in hierarchical capability names', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: path.join('valid', 'Invalid', 'valid'), path: '/specs/valid/Invalid/valid/spec.md', depth: 3 },
       ];
 
@@ -484,7 +484,7 @@ describe('spec-discovery', () => {
     });
 
     it('should allow underscore-prefixed names', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: '_global', path: '/specs/_global/spec.md', depth: 1 },
         { capability: path.join('_private', 'auth'), path: '/specs/_private/auth/spec.md', depth: 2 },
       ];
@@ -496,7 +496,7 @@ describe('spec-discovery', () => {
     });
 
     it('should only report naming issue once per capability', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: path.join('Bad', 'Also-Bad', 'more-bad'), path: '/specs/Bad/Also-Bad/more-bad/spec.md', depth: 3 },
       ];
 
@@ -508,7 +508,7 @@ describe('spec-discovery', () => {
     });
 
     it('should skip naming validation when validatePaths is false', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: 'InvalidName', path: '/specs/InvalidName/spec.md', depth: 1 },
       ];
 
@@ -542,7 +542,7 @@ describe('spec-discovery', () => {
     });
 
     it('should reject reserved names in hierarchical paths', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: path.join('packages', '.git', 'auth'), path: '/specs/packages/.git/auth/spec.md', depth: 3 },
       ];
 
@@ -555,7 +555,7 @@ describe('spec-discovery', () => {
     });
 
     it('should allow valid names that contain reserved substrings', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: 'git-utils', path: '/specs/git-utils/spec.md', depth: 1 }, // contains "git" but not ".git"
         { capability: 'node-server', path: '/specs/node-server/spec.md', depth: 1 }, // contains "node" but not "node_modules"
       ];
@@ -567,7 +567,7 @@ describe('spec-discovery', () => {
     });
 
     it('should list all reserved names in error message', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: '.git', path: '/specs/.git/spec.md', depth: 1 },
       ];
 
@@ -582,7 +582,7 @@ describe('spec-discovery', () => {
     });
 
     it('should only report reserved name issue once per capability', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: path.join('.git', 'node_modules'), path: '/specs/.git/node_modules/spec.md', depth: 2 },
       ];
 
@@ -594,7 +594,7 @@ describe('spec-discovery', () => {
     });
 
     it('should skip reserved name validation when validatePaths is false', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: '.git', path: '/specs/.git/spec.md', depth: 1 },
       ];
 
@@ -607,7 +607,7 @@ describe('spec-discovery', () => {
 
   describe('validateSpecStructure() - combined validation', () => {
     it('should return empty array for completely valid specs', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: 'auth', path: '/specs/auth/spec.md', depth: 1 },
         { capability: path.join('_global', 'testing'), path: '/specs/_global/testing/spec.md', depth: 2 },
         { capability: path.join('packages', 'api-gateway'), path: '/specs/packages/api-gateway/spec.md', depth: 2 },
@@ -619,7 +619,7 @@ describe('spec-discovery', () => {
     });
 
     it('should detect multiple types of validation issues', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: 'platform', path: '/specs/platform/spec.md', depth: 1 }, // Orphaned (parent of next)
         { capability: path.join('platform', 'services'), path: '/specs/platform/services/spec.md', depth: 2 },
         { capability: 'Invalid-Name', path: '/specs/Invalid-Name/spec.md', depth: 1 }, // Uppercase
@@ -641,7 +641,7 @@ describe('spec-discovery', () => {
     });
 
     it('should respect config defaults', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: path.join('a', 'b', 'c', 'd', 'e'), path: '/specs/a/b/c/d/e/spec.md', depth: 5 },
       ];
 
@@ -662,7 +662,7 @@ describe('spec-discovery', () => {
 
   describe('validateSpecStructure() - configuration settings', () => {
     it('should use default maxDepth of 4 when not specified', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: path.join('a', 'b', 'c', 'd', 'e'), path: '/specs/a/b/c/d/e/spec.md', depth: 5 },
       ];
 
@@ -674,7 +674,7 @@ describe('spec-discovery', () => {
     });
 
     it('should use default validatePaths of true when not specified', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: 'InvalidName', path: '/specs/InvalidName/spec.md', depth: 1 },
       ];
 
@@ -685,7 +685,7 @@ describe('spec-discovery', () => {
     });
 
     it('should disable naming validation when validatePaths is false', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: 'Invalid-Name', path: '/specs/Invalid-Name/spec.md', depth: 1 },
         { capability: 'auth.service', path: '/specs/auth.service/spec.md', depth: 1 },
         { capability: '.git', path: '/specs/.git/spec.md', depth: 1 },
@@ -700,7 +700,7 @@ describe('spec-discovery', () => {
     });
 
     it('should still validate depth and orphaned specs when validatePaths is false', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: 'parent', path: '/specs/parent/spec.md', depth: 1 },
         { capability: path.join('parent', 'child'), path: '/specs/parent/child/spec.md', depth: 2 },
         { capability: path.join('a', 'b', 'c', 'd', 'e'), path: '/specs/a/b/c/d/e/spec.md', depth: 5 },
@@ -715,7 +715,7 @@ describe('spec-discovery', () => {
     });
 
     it('should respect custom maxDepth value of 2', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: path.join('a', 'b'), path: '/specs/a/b/spec.md', depth: 2 }, // OK
         { capability: path.join('c', 'd', 'e'), path: '/specs/c/d/e/spec.md', depth: 3 }, // ERROR
       ];
@@ -729,7 +729,7 @@ describe('spec-discovery', () => {
     });
 
     it('should respect custom maxDepth value of 6', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: path.join('a', 'b', 'c', 'd', 'e', 'f'), path: '/specs/a/b/c/d/e/f/spec.md', depth: 6 }, // OK (at limit)
         { capability: path.join('g', 'h', 'i', 'j', 'k', 'l', 'm'), path: '/specs/g/h/i/j/k/l/m/spec.md', depth: 7 }, // ERROR
       ];
@@ -742,7 +742,7 @@ describe('spec-discovery', () => {
     });
 
     it('should handle maxDepth: 1 (flat only)', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: 'auth', path: '/specs/auth/spec.md', depth: 1 }, // OK
         { capability: path.join('_global', 'testing'), path: '/specs/_global/testing/spec.md', depth: 2 }, // ERROR
       ];
@@ -755,7 +755,7 @@ describe('spec-discovery', () => {
     });
 
     it('should show warnings for depth 4-6 when within configured maxDepth', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: path.join('a', 'b', 'c', 'd'), path: '/specs/a/b/c/d/spec.md', depth: 4 },
         { capability: path.join('e', 'f', 'g', 'h', 'i'), path: '/specs/e/f/g/h/i/spec.md', depth: 5 },
       ];
@@ -768,7 +768,7 @@ describe('spec-discovery', () => {
     });
 
     it('should combine all config options correctly', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: 'ValidName', path: '/specs/ValidName/spec.md', depth: 1 }, // Invalid if validatePaths=true
         { capability: path.join('a', 'b', 'c'), path: '/specs/a/b/c/spec.md', depth: 3 }, // OK if maxDepth>=3
       ];
@@ -783,7 +783,7 @@ describe('spec-discovery', () => {
     });
 
     it('should handle undefined config values with defaults', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: path.join('a', 'b', 'c', 'd', 'e'), path: '/specs/a/b/c/d/e/spec.md', depth: 5 },
         { capability: 'InvalidName', path: '/specs/InvalidName/spec.md', depth: 1 },
       ];
@@ -799,7 +799,7 @@ describe('spec-discovery', () => {
     });
 
     it('should handle empty config object with all defaults', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: path.join('a', 'b', 'c', 'd', 'e'), path: '/specs/a/b/c/d/e/spec.md', depth: 5 },
       ];
 
@@ -811,7 +811,7 @@ describe('spec-discovery', () => {
     });
 
     it('should treat maxDepth 10 as hard-capped at 6', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: path.join('a', 'b', 'c', 'd', 'e', 'f', 'g'), path: '/specs/a/b/c/d/e/f/g/spec.md', depth: 7 },
       ];
 
@@ -824,7 +824,7 @@ describe('spec-discovery', () => {
     });
 
     it('should validate consistently with structure: "auto" config', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: 'auth', path: '/specs/auth/spec.md', depth: 1 },
         { capability: path.join('_global', 'testing'), path: '/specs/_global/testing/spec.md', depth: 2 },
       ];
@@ -836,7 +836,7 @@ describe('spec-discovery', () => {
     });
 
     it('should validate consistently with structure: "flat" config', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: 'auth', path: '/specs/auth/spec.md', depth: 1 },
         { capability: path.join('_global', 'testing'), path: '/specs/_global/testing/spec.md', depth: 2 },
       ];
@@ -848,7 +848,7 @@ describe('spec-discovery', () => {
     });
 
     it('should validate consistently with structure: "hierarchical" config', () => {
-      const specs: Spec[] = [
+      const specs: DiscoveredSpec[] = [
         { capability: 'auth', path: '/specs/auth/spec.md', depth: 1 },
         { capability: path.join('_global', 'testing'), path: '/specs/_global/testing/spec.md', depth: 2 },
       ];
