@@ -335,7 +335,7 @@ export function validateSpecStructure(
   // Check naming conventions (if enabled)
   if (validatePaths) {
     const VALID_NAME_PATTERN = /^[a-z0-9-_]+$/;
-    const RESERVED_NAMES = ['..', '.', '.git', '.gitignore', 'node_modules', '.openspec'];
+    const RESERVED_NAMES = ['..', '.', '.git', 'node_modules', '.openspec'];
 
     for (const spec of specs) {
       const segments = spec.capability.split(path.sep);
