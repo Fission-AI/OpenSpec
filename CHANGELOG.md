@@ -12,7 +12,7 @@
   - Structure validation with configurable depth limits and naming conventions
   - 1:1 delta replication (change deltas mirror main spec structure)
   - Cross-platform path handling (Windows, macOS, Linux)
-  - Configuration via `specStructure` in global config
+  - Configuration via `specStructure` in global and project config
 
   **Updated commands:**
   - `list`, `validate`, `sync`, `archive` - all support hierarchical paths
@@ -23,8 +23,6 @@
   - [Migration Guide](docs/migration-flat-to-hierarchical.md)
   - [Troubleshooting](docs/troubleshooting-hierarchical-specs.md)
   - [Example project](examples/hierarchical-specs/)
-
-  **Performance:** Handles 1000+ specs efficiently (< 100ms)
 
 ## 1.1.1
 
