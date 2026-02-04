@@ -3,7 +3,7 @@ import * as path from 'path';
 import chalk from 'chalk';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
 import { MarkdownParser } from './parsers/markdown-parser.js';
-import { findAllSpecs } from '../utils/spec-discovery.js';
+import { findAllSpecs, isSpecStructureHierarchical } from '../utils/spec-discovery.js';
 
 export class ViewCommand {
   async execute(targetPath: string = '.'): Promise<void> {
@@ -64,11 +64,14 @@ export class ViewCommand {
       console.log(chalk.bold.blue('\nSpecifications'));
       console.log('─'.repeat(60));
 
-      // Sort specs by requirement count (descending)
-      specsData.sort((a, b) => b.requirementCount - a.requirementCount);
+      const isHierarchical = isSpecStructureHierarchical(path.join(openspecDir, 'specs'));
 
-      // Check if any spec is hierarchical
-      const isHierarchical = specsData.some(s => s.name.includes(path.sep));
+      // Sort by capability path when hierarchical, by requirement count when flat
+      if (isHierarchical) {
+        specsData.sort((a, b) => a.name.localeCompare(b.name));
+      } else {
+        specsData.sort((a, b) => b.requirementCount - a.requirementCount);
+      }
 
       if (isHierarchical) {
         this.displayHierarchicalSpecs(specsData);
@@ -228,31 +231,26 @@ export class ViewCommand {
   }
 
   /**
-   * Display specs in hierarchical structure with visual indentation
+   * Display specs in hierarchical structure with full capability paths
    */
   private displayHierarchicalSpecs(specs: Array<{ name: string; requirementCount: number }>): void {
-    interface SpecNode {
-      name: string;
-      requirementCount: number;
-      depth: number;
-      segments: string[];
-    }
+    const maxWidth = Math.max(...specs.map(s => s.name.length));
+    let lastTopLevel = '';
 
-    const nodes: SpecNode[] = specs.map(spec => ({
-      name: spec.name,
-      requirementCount: spec.requirementCount,
-      depth: spec.name.split(path.sep).length,
-      segments: spec.name.split(path.sep)
-    }));
+    for (const spec of specs) {
+      const topLevel = spec.name.split(path.sep)[0];
+      const reqLabel = spec.requirementCount === 1 ? 'requirement' : 'requirements';
 
-    for (const node of nodes) {
-      const indent = '  '.repeat(node.depth);
-      const leafName = node.segments[node.segments.length - 1];
-      const reqLabel = node.requirementCount === 1 ? 'requirement' : 'requirements';
+      // Add spacing between different top-level groups
+      if (topLevel !== lastTopLevel && lastTopLevel !== '') {
+        console.log('');
+      }
 
       console.log(
-        `  ${chalk.blue('▪')} ${indent}${chalk.bold(leafName.padEnd(30))} ${chalk.dim(`${node.requirementCount} ${reqLabel}`)}`
+        `  ${chalk.blue('▪')} ${chalk.bold(spec.name.padEnd(maxWidth))} ${chalk.dim(`${spec.requirementCount} ${reqLabel}`)}`
       );
+
+      lastTopLevel = topLevel;
     }
   }
 }

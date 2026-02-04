@@ -4,7 +4,7 @@ import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progre
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { MarkdownParser } from './parsers/markdown-parser.js';
-import { findAllSpecs } from '../utils/spec-discovery.js';
+import { findAllSpecs, isSpecStructureHierarchical } from '../utils/spec-discovery.js';
 
 interface ChangeInfo {
   name: string;
@@ -187,8 +187,7 @@ export class ListCommand {
     // Sort specs alphabetically by capability
     specs.sort((a, b) => a.capability.localeCompare(b.capability));
 
-    // Check if any spec is hierarchical (contains path separator)
-    const isHierarchical = specs.some(s => s.capability.includes(path.sep));
+    const isHierarchical = isSpecStructureHierarchical(specsDir);
 
     console.log('Specs:');
 
