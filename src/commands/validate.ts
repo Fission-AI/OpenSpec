@@ -196,16 +196,16 @@ export class ValidateCommand {
 
   private async runBulkValidation(scope: { changes: boolean; specs: boolean }, opts: { strict: boolean; json: boolean; concurrency?: string; noInteractive?: boolean }): Promise<void> {
     const spinner = !opts.json && !opts.noInteractive ? ora('Validating...').start() : undefined;
-    const [changeIds, specIds] = await Promise.all([
-      scope.changes ? getActiveChangeIds() : Promise.resolve<string[]>([]),
-      scope.specs ? getSpecCapabilities() : Promise.resolve<string[]>([]),
-    ]);
+    // Discover specs once and reuse for both capability list and structure validation
+    const specsDir = path.join(process.cwd(), 'openspec', 'specs');
+    const discoveredSpecs = scope.specs ? findAllSpecs(specsDir) : [];
+    const specIds = discoveredSpecs.map(s => s.capability).sort();
+
+    const changeIds = scope.changes ? await getActiveChangeIds() : [];
 
     // Perform spec structure validation if validating specs
     let structureIssues: ValidationIssue[] = [];
-    if (scope.specs && specIds.length > 0) {
-      const specsDir = path.join(process.cwd(), 'openspec', 'specs');
-      const discoveredSpecs = findAllSpecs(specsDir);
+    if (scope.specs && discoveredSpecs.length > 0) {
       const projectConfig = readProjectConfig(process.cwd());
       const config = getSpecStructureConfig(projectConfig?.specStructure);
       structureIssues = validateSpecStructure(discoveredSpecs, config);
