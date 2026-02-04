@@ -125,5 +125,138 @@ describe('ViewCommand', () => {
       'gamma-change'
     ]);
   });
+
+  describe('hierarchical specs', () => {
+    it('should display flat structure specs correctly', async () => {
+      const specsDir = path.join(tempDir, 'openspec', 'specs');
+
+      // Create flat structure specs
+      await fs.mkdir(path.join(specsDir, 'auth'), { recursive: true });
+      await fs.writeFile(
+        path.join(specsDir, 'auth', 'spec.md'),
+        '## Purpose\nAuth spec\n\n## Requirements\n\n### Requirement: Login\nSystem SHALL support login\n'
+      );
+
+      await fs.mkdir(path.join(specsDir, 'payments'), { recursive: true });
+      await fs.writeFile(
+        path.join(specsDir, 'payments', 'spec.md'),
+        '## Purpose\nPayments spec\n\n## Requirements\n\n### Requirement: Process\nSystem SHALL process payments\n'
+      );
+
+      const viewCommand = new ViewCommand();
+      await viewCommand.execute(tempDir);
+
+      const output = logOutput.map(stripAnsi).join('\n');
+
+      expect(output).toContain('Specifications');
+      expect(output).toContain('auth');
+      expect(output).toContain('payments');
+      expect(output).toContain('1 requirement'); // Both specs have 1 requirement
+    });
+
+    it('should display hierarchical structure specs with indentation', async () => {
+      const specsDir = path.join(tempDir, 'openspec', 'specs');
+
+      // Create hierarchical structure
+      await fs.mkdir(path.join(specsDir, '_global', 'testing'), { recursive: true });
+      await fs.writeFile(
+        path.join(specsDir, '_global', 'testing', 'spec.md'),
+        '## Purpose\nTesting spec\n\n## Requirements\n\n### Requirement: Unit tests\nSystem SHALL have unit tests\n\n### Requirement: Integration tests\nSystem SHALL have integration tests\n'
+      );
+
+      await fs.mkdir(path.join(specsDir, 'packages', 'auth'), { recursive: true });
+      await fs.writeFile(
+        path.join(specsDir, 'packages', 'auth', 'spec.md'),
+        '## Purpose\nAuth package\n\n## Requirements\n\n### Requirement: OAuth\nSystem SHALL support OAuth\n'
+      );
+
+      const viewCommand = new ViewCommand();
+      await viewCommand.execute(tempDir);
+
+      const output = logOutput.map(stripAnsi).join('\n');
+
+      expect(output).toContain('Specifications');
+      // Check for leaf names (testing, auth)
+      expect(output).toContain('testing');
+      expect(output).toContain('auth');
+      expect(output).toContain('2 requirements'); // testing has 2
+      expect(output).toContain('1 requirement'); // auth has 1
+    });
+
+    it('should sort hierarchical specs by requirement count', async () => {
+      const specsDir = path.join(tempDir, 'openspec', 'specs');
+
+      // Create specs with different requirement counts
+      await fs.mkdir(path.join(specsDir, '_global', 'testing'), { recursive: true });
+      await fs.writeFile(
+        path.join(specsDir, '_global', 'testing', 'spec.md'),
+        '## Purpose\nTesting\n\n## Requirements\n\n### Requirement: R1\nR1\n\n### Requirement: R2\nR2\n\n### Requirement: R3\nR3\n'
+      );
+
+      await fs.mkdir(path.join(specsDir, 'auth'), { recursive: true });
+      await fs.writeFile(
+        path.join(specsDir, 'auth', 'spec.md'),
+        '## Purpose\nAuth\n\n## Requirements\n\n### Requirement: R1\nR1\n'
+      );
+
+      const viewCommand = new ViewCommand();
+      await viewCommand.execute(tempDir);
+
+      const output = logOutput.map(stripAnsi).join('\n');
+      const testingIndex = output.indexOf('testing');
+      const authIndex = output.indexOf('auth');
+
+      // testing (3 reqs) should appear before auth (1 req) due to descending sort
+      expect(testingIndex).toBeGreaterThan(0);
+      expect(authIndex).toBeGreaterThan(0);
+      expect(testingIndex).toBeLessThan(authIndex);
+    });
+
+    it('should handle mixed flat and hierarchical specs', async () => {
+      const specsDir = path.join(tempDir, 'openspec', 'specs');
+
+      // Flat spec
+      await fs.mkdir(path.join(specsDir, 'auth'), { recursive: true });
+      await fs.writeFile(
+        path.join(specsDir, 'auth', 'spec.md'),
+        '## Purpose\nAuth\n\n## Requirements\n\n### Requirement: Login\nLogin\n'
+      );
+
+      // Hierarchical spec
+      await fs.mkdir(path.join(specsDir, '_global', 'testing'), { recursive: true });
+      await fs.writeFile(
+        path.join(specsDir, '_global', 'testing', 'spec.md'),
+        '## Purpose\nTesting\n\n## Requirements\n\n### Requirement: Tests\nTests\n'
+      );
+
+      const viewCommand = new ViewCommand();
+      await viewCommand.execute(tempDir);
+
+      const output = logOutput.map(stripAnsi).join('\n');
+
+      // Should display both specs
+      expect(output).toContain('Specifications');
+      expect(output).toContain('auth');
+      expect(output).toContain('testing');
+    });
+
+    it('should handle specs with no requirements', async () => {
+      const specsDir = path.join(tempDir, 'openspec', 'specs');
+
+      await fs.mkdir(path.join(specsDir, '_global', 'empty'), { recursive: true });
+      await fs.writeFile(
+        path.join(specsDir, '_global', 'empty', 'spec.md'),
+        '## Purpose\nEmpty spec\n\n## Requirements\n'
+      );
+
+      const viewCommand = new ViewCommand();
+      await viewCommand.execute(tempDir);
+
+      const output = logOutput.map(stripAnsi).join('\n');
+
+      expect(output).toContain('empty');
+      expect(output).toContain('0 requirements');
+    });
+  });
 });
 

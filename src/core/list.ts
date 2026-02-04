@@ -4,6 +4,7 @@ import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progre
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { MarkdownParser } from './parsers/markdown-parser.js';
+import { findAllSpecs } from '../utils/spec-discovery.js';
 
 interface ChangeInfo {
   name: string;
@@ -160,35 +161,95 @@ export class ListCommand {
       return;
     }
 
-    const entries = await fs.readdir(specsDir, { withFileTypes: true });
-    const specDirs = entries.filter(e => e.isDirectory()).map(e => e.name);
-    if (specDirs.length === 0) {
+    // Use spec-discovery utility to find all specs (supports hierarchical)
+    const discoveredSpecs = findAllSpecs(specsDir);
+
+    if (discoveredSpecs.length === 0) {
       console.log('No specs found.');
       return;
     }
 
-    type SpecInfo = { id: string; requirementCount: number };
+    type SpecInfo = { capability: string; requirementCount: number };
     const specs: SpecInfo[] = [];
-    for (const id of specDirs) {
-      const specPath = join(specsDir, id, 'spec.md');
+
+    for (const discoveredSpec of discoveredSpecs) {
       try {
-        const content = readFileSync(specPath, 'utf-8');
+        const content = readFileSync(discoveredSpec.path, 'utf-8');
         const parser = new MarkdownParser(content);
-        const spec = parser.parseSpec(id);
-        specs.push({ id, requirementCount: spec.requirements.length });
+        const spec = parser.parseSpec(discoveredSpec.capability);
+        specs.push({ capability: discoveredSpec.capability, requirementCount: spec.requirements.length });
       } catch {
         // If spec cannot be read or parsed, include with 0 count
-        specs.push({ id, requirementCount: 0 });
+        specs.push({ capability: discoveredSpec.capability, requirementCount: 0 });
       }
     }
 
-    specs.sort((a, b) => a.id.localeCompare(b.id));
+    // Sort specs alphabetically by capability
+    specs.sort((a, b) => a.capability.localeCompare(b.capability));
+
+    // Check if any spec is hierarchical (contains path separator)
+    const isHierarchical = specs.some(s => s.capability.includes(path.sep));
+
     console.log('Specs:');
+
+    if (isHierarchical) {
+      // Hierarchical display with indentation
+      this.displayHierarchicalSpecs(specs);
+    } else {
+      // Flat display (backward compatible)
+      this.displayFlatSpecs(specs);
+    }
+  }
+
+  /**
+   * Display specs in flat structure (backward compatible)
+   */
+  private displayFlatSpecs(specs: Array<{ capability: string; requirementCount: number }>): void {
     const padding = '  ';
-    const nameWidth = Math.max(...specs.map(s => s.id.length));
+    const nameWidth = Math.max(...specs.map(s => s.capability.length));
+
     for (const spec of specs) {
-      const padded = spec.id.padEnd(nameWidth);
+      const padded = spec.capability.padEnd(nameWidth);
       console.log(`${padding}${padded}     requirements ${spec.requirementCount}`);
+    }
+  }
+
+  /**
+   * Display specs in hierarchical structure with full paths
+   */
+  private displayHierarchicalSpecs(specs: Array<{ capability: string; requirementCount: number }>): void {
+    // Group specs by their top-level directories for better readability
+    interface SpecNode {
+      capability: string;
+      requirementCount: number;
+      segments: string[];
+    }
+
+    const nodes: SpecNode[] = specs.map(spec => ({
+      capability: spec.capability,
+      requirementCount: spec.requirementCount,
+      segments: spec.capability.split(path.sep)
+    }));
+
+    // Calculate max width for alignment using full capability paths
+    const padding = '  '; // Fixed padding for all specs
+    const maxWidth = Math.max(...nodes.map(n => n.capability.length));
+
+    let lastTopLevel = '';
+
+    for (const node of nodes) {
+      const topLevel = node.segments[0];
+
+      // Add spacing between different top-level groups
+      if (topLevel !== lastTopLevel && lastTopLevel !== '') {
+        console.log('');
+      }
+
+      // Display the spec with full capability path and uniform padding
+      const padded = node.capability.padEnd(maxWidth);
+      console.log(`${padding}${padded}     requirements ${node.requirementCount}`);
+
+      lastTopLevel = topLevel;
     }
   }
 }

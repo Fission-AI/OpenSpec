@@ -117,7 +117,8 @@ Now tell your AI: `/opsx:new <what-you-want-to-build>`
 → **[Supported Tools](docs/supported-tools.md)**: tool integrations & install paths<br>
 → **[Concepts](docs/concepts.md)**: how it all fits<br>
 → **[Multi-Language](docs/multi-language.md)**: multi-language support<br>
-→ **[Customization](docs/customization.md)**: make it yours
+→ **[Customization](docs/customization.md)**: make it yours<br>
+→ **[Organizing Specs](docs/organizing-specs.md)**: flat vs hierarchical structures
 
 
 ## Why OpenSpec?

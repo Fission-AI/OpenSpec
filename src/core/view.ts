@@ -3,6 +3,7 @@ import * as path from 'path';
 import chalk from 'chalk';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
 import { MarkdownParser } from './parsers/markdown-parser.js';
+import { findAllSpecs } from '../utils/spec-discovery.js';
 
 export class ViewCommand {
   async execute(targetPath: string = '.'): Promise<void> {
@@ -62,16 +63,18 @@ export class ViewCommand {
     if (specsData.length > 0) {
       console.log(chalk.bold.blue('\nSpecifications'));
       console.log('─'.repeat(60));
-      
+
       // Sort specs by requirement count (descending)
       specsData.sort((a, b) => b.requirementCount - a.requirementCount);
-      
-      specsData.forEach(spec => {
-        const reqLabel = spec.requirementCount === 1 ? 'requirement' : 'requirements';
-        console.log(
-          `  ${chalk.blue('▪')} ${chalk.bold(spec.name.padEnd(30))} ${chalk.dim(`${spec.requirementCount} ${reqLabel}`)}`
-        );
-      });
+
+      // Check if any spec is hierarchical
+      const isHierarchical = specsData.some(s => s.name.includes(path.sep));
+
+      if (isHierarchical) {
+        this.displayHierarchicalSpecs(specsData);
+      } else {
+        this.displayFlatSpecs(specsData);
+      }
     }
 
     console.log('\n' + '═'.repeat(60));
@@ -131,30 +134,25 @@ export class ViewCommand {
 
   private async getSpecsData(openspecDir: string): Promise<Array<{ name: string; requirementCount: number }>> {
     const specsDir = path.join(openspecDir, 'specs');
-    
+
     if (!fs.existsSync(specsDir)) {
       return [];
     }
 
+    // Use spec-discovery utility to find all specs (supports hierarchical)
+    const discoveredSpecs = findAllSpecs(specsDir);
     const specs: Array<{ name: string; requirementCount: number }> = [];
-    const entries = fs.readdirSync(specsDir, { withFileTypes: true });
-    
-    for (const entry of entries) {
-      if (entry.isDirectory()) {
-        const specFile = path.join(specsDir, entry.name, 'spec.md');
-        
-        if (fs.existsSync(specFile)) {
-          try {
-            const content = fs.readFileSync(specFile, 'utf-8');
-            const parser = new MarkdownParser(content);
-            const spec = parser.parseSpec(entry.name);
-            const requirementCount = spec.requirements.length;
-            specs.push({ name: entry.name, requirementCount });
-          } catch (error) {
-            // If spec cannot be parsed, include with 0 count
-            specs.push({ name: entry.name, requirementCount: 0 });
-          }
-        }
+
+    for (const discoveredSpec of discoveredSpecs) {
+      try {
+        const content = fs.readFileSync(discoveredSpec.path, 'utf-8');
+        const parser = new MarkdownParser(content);
+        const spec = parser.parseSpec(discoveredSpec.capability);
+        const requirementCount = spec.requirements.length;
+        specs.push({ name: discoveredSpec.capability, requirementCount });
+      } catch (error) {
+        // If spec cannot be parsed, include with 0 count
+        specs.push({ name: discoveredSpec.capability, requirementCount: 0 });
       }
     }
 
@@ -206,14 +204,55 @@ export class ViewCommand {
 
   private createProgressBar(completed: number, total: number, width: number = 20): string {
     if (total === 0) return chalk.dim('─'.repeat(width));
-    
+
     const percentage = completed / total;
     const filled = Math.round(percentage * width);
     const empty = width - filled;
-    
+
     const filledBar = chalk.green('█'.repeat(filled));
     const emptyBar = chalk.dim('░'.repeat(empty));
-    
+
     return `[${filledBar}${emptyBar}]`;
+  }
+
+  /**
+   * Display specs in flat structure (backward compatible)
+   */
+  private displayFlatSpecs(specs: Array<{ name: string; requirementCount: number }>): void {
+    specs.forEach(spec => {
+      const reqLabel = spec.requirementCount === 1 ? 'requirement' : 'requirements';
+      console.log(
+        `  ${chalk.blue('▪')} ${chalk.bold(spec.name.padEnd(30))} ${chalk.dim(`${spec.requirementCount} ${reqLabel}`)}`
+      );
+    });
+  }
+
+  /**
+   * Display specs in hierarchical structure with visual indentation
+   */
+  private displayHierarchicalSpecs(specs: Array<{ name: string; requirementCount: number }>): void {
+    interface SpecNode {
+      name: string;
+      requirementCount: number;
+      depth: number;
+      segments: string[];
+    }
+
+    const nodes: SpecNode[] = specs.map(spec => ({
+      name: spec.name,
+      requirementCount: spec.requirementCount,
+      depth: spec.name.split(path.sep).length,
+      segments: spec.name.split(path.sep)
+    }));
+
+    for (const node of nodes) {
+      const indent = '  '.repeat(node.depth);
+      const leafName = node.segments[node.segments.length - 1];
+      const reqLabel = node.requirementCount === 1 ? 'requirement' : 'requirements';
+
+      console.log(
+        `  ${chalk.blue('▪')} ${indent}${chalk.bold(leafName.padEnd(30))} ${chalk.dim(`${node.requirementCount} ${reqLabel}`)}`
+      );
+    }
   }
 }

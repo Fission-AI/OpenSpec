@@ -2,10 +2,22 @@ import ora from 'ora';
 import path from 'path';
 import { Validator } from '../core/validation/validator.js';
 import { isInteractive, resolveNoInteractive } from '../utils/interactive.js';
-import { getActiveChangeIds, getSpecIds } from '../utils/item-discovery.js';
+import { getActiveChangeIds } from '../utils/item-discovery.js';
+import { findAllSpecs, validateSpecStructure, type ValidationIssue } from '../utils/spec-discovery.js';
+import { getSpecStructureConfig } from '../core/global-config.js';
 import { nearestMatches } from '../utils/match.js';
 
 type ItemType = 'change' | 'spec';
+
+/**
+ * Get all spec capabilities using recursive spec discovery.
+ * Supports both flat and hierarchical spec structures.
+ */
+async function getSpecCapabilities(): Promise<string[]> {
+  const specsDir = path.join(process.cwd(), 'openspec', 'specs');
+  const discovered = findAllSpecs(specsDir);
+  return discovered.map(spec => spec.capability).sort();
+}
 
 interface ExecuteOptions {
   all?: boolean;
@@ -80,7 +92,7 @@ export class ValidateCommand {
     if (choice === 'specs') return this.runBulkValidation({ changes: false, specs: true }, opts);
 
     // one
-    const [changes, specs] = await Promise.all([getActiveChangeIds(), getSpecIds()]);
+    const [changes, specs] = await Promise.all([getActiveChangeIds(), getSpecCapabilities()]);
     const items: { name: string; value: { type: ItemType; id: string } }[] = [];
     items.push(...changes.map(id => ({ name: `change/${id}`, value: { type: 'change' as const, id } })));
     items.push(...specs.map(id => ({ name: `spec/${id}`, value: { type: 'spec' as const, id } })));
@@ -103,7 +115,7 @@ export class ValidateCommand {
   }
 
   private async validateDirectItem(itemName: string, opts: { typeOverride?: ItemType; strict: boolean; json: boolean }): Promise<void> {
-    const [changes, specs] = await Promise.all([getActiveChangeIds(), getSpecIds()]);
+    const [changes, specs] = await Promise.all([getActiveChangeIds(), getSpecCapabilities()]);
     const isChange = changes.includes(itemName);
     const isSpec = specs.includes(itemName);
 
@@ -185,8 +197,17 @@ export class ValidateCommand {
     const spinner = !opts.json && !opts.noInteractive ? ora('Validating...').start() : undefined;
     const [changeIds, specIds] = await Promise.all([
       scope.changes ? getActiveChangeIds() : Promise.resolve<string[]>([]),
-      scope.specs ? getSpecIds() : Promise.resolve<string[]>([]),
+      scope.specs ? getSpecCapabilities() : Promise.resolve<string[]>([]),
     ]);
+
+    // Perform spec structure validation if validating specs
+    let structureIssues: ValidationIssue[] = [];
+    if (scope.specs && specIds.length > 0) {
+      const specsDir = path.join(process.cwd(), 'openspec', 'specs');
+      const discoveredSpecs = findAllSpecs(specsDir);
+      const config = getSpecStructureConfig();
+      structureIssues = validateSpecStructure(discoveredSpecs, config);
+    }
 
     const DEFAULT_CONCURRENCY = 6;
     const maxSuggestions = 5; // used by nearestMatches
@@ -270,6 +291,23 @@ export class ValidateCommand {
     });
 
     spinner?.stop();
+
+    // Add structure validation issues to results
+    if (structureIssues.length > 0) {
+      const structureResult: BulkItemResult = {
+        id: '_structure',
+        type: 'spec',
+        valid: false,
+        issues: structureIssues.map(issue => ({
+          level: issue.level,
+          path: issue.capability || 'structure',
+          message: issue.message
+        })),
+        durationMs: 0
+      };
+      results.unshift(structureResult);
+      failed++;
+    }
 
     results.sort((a, b) => a.id.localeCompare(b.id));
     const summary = {

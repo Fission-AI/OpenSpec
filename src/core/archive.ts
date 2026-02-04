@@ -204,8 +204,8 @@ export class ArchiveCommand {
         console.log('\nSpecs to update:');
         for (const update of specUpdates) {
           const status = update.exists ? 'update' : 'create';
-          const capability = path.basename(path.dirname(update.target));
-          console.log(`  ${capability}: ${status}`);
+          // Use full capability path for hierarchical support
+          console.log(`  ${update.capability}: ${status}`);
         }
 
         let shouldUpdateSpecs = true;
@@ -237,11 +237,11 @@ export class ArchiveCommand {
           // All validations passed; pre-validate rebuilt full spec and then write files and display counts
           let totals = { added: 0, modified: 0, removed: 0, renamed: 0 };
           for (const p of prepared) {
-            const specName = path.basename(path.dirname(p.update.target));
+            // Use full capability path for hierarchical support
             if (!skipValidation) {
-              const report = await new Validator().validateSpecContent(specName, p.rebuilt);
+              const report = await new Validator().validateSpecContent(p.update.capability, p.rebuilt);
               if (!report.valid) {
-                console.log(chalk.red(`\nValidation errors in rebuilt spec for ${specName} (will not write changes):`));
+                console.log(chalk.red(`\nValidation errors in rebuilt spec for ${p.update.capability} (will not write changes):`));
                 for (const issue of report.issues) {
                   if (issue.level === 'ERROR') console.log(chalk.red(`  ✗ ${issue.message}`));
                   else if (issue.level === 'WARNING') console.log(chalk.yellow(`  ⚠ ${issue.message}`));

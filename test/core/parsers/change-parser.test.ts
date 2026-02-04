@@ -49,4 +49,130 @@ describe('ChangeParser', () => {
       expect(change.deltas[0].requirement).toBeDefined();
     });
   });
+
+  describe('hierarchical specs support', () => {
+    it('parses hierarchical delta specs at depth 2', async () => {
+      await withTempDir(async (dir) => {
+        const changeDir = dir;
+        const specsDir = path.join(changeDir, 'specs', '_global', 'testing');
+        await fs.mkdir(specsDir, { recursive: true });
+
+        const content = `# Test Change\n\n## Why\nAdd testing standards.\n\n## What Changes\n- **_global/testing:** Add test requirements`;
+        const deltaSpec = `# Testing - Changes\n\n## ADDED Requirements\n\n### Requirement: Unit tests required\nAll modules SHALL have unit tests.\n\n#### Scenario: Test coverage\nGiven a module\nWhen tests run\nThen coverage is adequate`;
+
+        await fs.writeFile(path.join(specsDir, 'spec.md'), deltaSpec, 'utf8');
+
+        const parser = new ChangeParser(content, changeDir);
+        const change = await parser.parseChangeWithDeltas('test-change');
+
+        expect(change.deltas.length).toBeGreaterThan(0);
+        expect(change.deltas[0].spec).toBe('_global/testing');
+        expect(change.deltas[0].operation).toBe('ADDED');
+        expect(change.deltas[0].requirement).toBeDefined();
+        expect(change.deltas[0].requirement?.text).toContain('unit tests');
+      });
+    });
+
+    it('parses hierarchical delta specs at depth 3', async () => {
+      await withTempDir(async (dir) => {
+        const changeDir = dir;
+        const specsDir = path.join(changeDir, 'specs', 'platform', 'services', 'api');
+        await fs.mkdir(specsDir, { recursive: true });
+
+        const content = `# Test Change\n\n## Why\nAdd API specifications.\n\n## What Changes\n- **platform/services/api:** Add REST endpoint requirements`;
+        const deltaSpec = `# API Service - Changes\n\n## ADDED Requirements\n\n### Requirement: REST endpoints\nAPI SHALL provide REST endpoints.\n\n#### Scenario: Endpoint access\nGiven an authenticated client\nWhen requesting an endpoint\nThen response is valid`;
+
+        await fs.writeFile(path.join(specsDir, 'spec.md'), deltaSpec, 'utf8');
+
+        const parser = new ChangeParser(content, changeDir);
+        const change = await parser.parseChangeWithDeltas('test-change');
+
+        expect(change.deltas.length).toBeGreaterThan(0);
+        expect(change.deltas[0].spec).toBe('platform/services/api');
+        expect(change.deltas[0].operation).toBe('ADDED');
+        expect(change.deltas[0].requirement?.text).toContain('REST endpoints');
+      });
+    });
+
+    it('parses mixed flat and hierarchical delta specs', async () => {
+      await withTempDir(async (dir) => {
+        const changeDir = dir;
+
+        // Create flat delta spec
+        const flatSpecsDir = path.join(changeDir, 'specs', 'auth');
+        await fs.mkdir(flatSpecsDir, { recursive: true });
+        const flatDeltaContent = `# Auth - Changes\n\n## ADDED Requirements\n\n### Requirement: Login\nUser SHALL be able to login.\n\n#### Scenario: Login flow\nGiven valid credentials\nWhen user logs in\nThen access is granted`;
+        await fs.writeFile(path.join(flatSpecsDir, 'spec.md'), flatDeltaContent, 'utf8');
+
+        // Create hierarchical delta spec
+        const hierarchicalSpecsDir = path.join(changeDir, 'specs', '_global', 'security');
+        await fs.mkdir(hierarchicalSpecsDir, { recursive: true });
+        const hierarchicalDeltaContent = `# Security - Changes\n\n## ADDED Requirements\n\n### Requirement: Encryption\nData SHALL be encrypted.\n\n#### Scenario: Data security\nGiven sensitive data\nWhen stored\nThen it is encrypted`;
+        await fs.writeFile(path.join(hierarchicalSpecsDir, 'spec.md'), hierarchicalDeltaContent, 'utf8');
+
+        const content = `# Test Change\n\n## Why\nAdd auth and security.\n\n## What Changes\n- **auth:** Add login\n- **_global/security:** Add encryption`;
+
+        const parser = new ChangeParser(content, changeDir);
+        const change = await parser.parseChangeWithDeltas('test-change');
+
+        expect(change.deltas.length).toBe(2);
+
+        // Should have both flat and hierarchical deltas
+        const flatDelta = change.deltas.find(d => d.spec === 'auth');
+        const hierarchicalDelta = change.deltas.find(d => d.spec === '_global/security');
+
+        expect(flatDelta).toBeDefined();
+        expect(flatDelta?.operation).toBe('ADDED');
+        expect(flatDelta?.requirement?.text).toContain('login');
+
+        expect(hierarchicalDelta).toBeDefined();
+        expect(hierarchicalDelta?.operation).toBe('ADDED');
+        expect(hierarchicalDelta?.requirement?.text).toContain('encrypted');
+      });
+    });
+
+    it('parses hierarchical delta specs with MODIFIED operations', async () => {
+      await withTempDir(async (dir) => {
+        const changeDir = dir;
+        const specsDir = path.join(changeDir, 'specs', '_global', 'monitoring');
+        await fs.mkdir(specsDir, { recursive: true });
+
+        const content = `# Test Change\n\n## Why\nUpdate monitoring.\n\n## What Changes\n- **_global/monitoring:** Update alerting requirements`;
+        const deltaSpec = `# Monitoring - Changes\n\n## MODIFIED Requirements\n\n### Requirement: Alerting\nSystem SHALL send alerts with additional context.\n\n#### Scenario: Alert delivery\nGiven an error condition\nWhen alert triggers\nThen context is included`;
+
+        await fs.writeFile(path.join(specsDir, 'spec.md'), deltaSpec, 'utf8');
+
+        const parser = new ChangeParser(content, changeDir);
+        const change = await parser.parseChangeWithDeltas('test-change');
+
+        expect(change.deltas.length).toBeGreaterThan(0);
+        expect(change.deltas[0].spec).toBe('_global/monitoring');
+        expect(change.deltas[0].operation).toBe('MODIFIED');
+        expect(change.deltas[0].requirement?.text).toContain('alerts');
+      });
+    });
+
+    it('parses hierarchical delta specs with RENAMED operations', async () => {
+      await withTempDir(async (dir) => {
+        const changeDir = dir;
+        const specsDir = path.join(changeDir, 'specs', 'platform', 'logging');
+        await fs.mkdir(specsDir, { recursive: true });
+
+        const content = `# Test Change\n\n## Why\nRename logging requirement.\n\n## What Changes\n- **platform/logging:** Rename requirement`;
+        const deltaSpec = `# Logging - Changes\n\n## RENAMED Requirements\n- FROM: \`### Requirement: Old Name\`\n- TO: \`### Requirement: New Name\``;
+
+        await fs.writeFile(path.join(specsDir, 'spec.md'), deltaSpec, 'utf8');
+
+        const parser = new ChangeParser(content, changeDir);
+        const change = await parser.parseChangeWithDeltas('test-change');
+
+        expect(change.deltas.length).toBeGreaterThan(0);
+        expect(change.deltas[0].spec).toBe('platform/logging');
+        expect(change.deltas[0].operation).toBe('RENAMED');
+        expect(change.deltas[0].rename).toBeDefined();
+        expect(change.deltas[0].rename?.from).toBe('Old Name');
+        expect(change.deltas[0].rename?.to).toBe('New Name');
+      });
+    });
+  });
 });

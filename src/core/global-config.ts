@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import type { SpecStructureConfig } from '../utils/spec-discovery.js';
 
 // Constants
 export const GLOBAL_CONFIG_DIR_NAME = 'openspec';
@@ -10,10 +11,17 @@ export const GLOBAL_DATA_DIR_NAME = 'openspec';
 // TypeScript interfaces
 export interface GlobalConfig {
   featureFlags?: Record<string, boolean>;
+  specStructure?: SpecStructureConfig;
 }
 
 const DEFAULT_CONFIG: GlobalConfig = {
-  featureFlags: {}
+  featureFlags: {},
+  specStructure: {
+    structure: 'auto',
+    maxDepth: 4,
+    allowMixed: true,
+    validatePaths: true
+  }
 };
 
 /**
@@ -133,4 +141,31 @@ export function saveGlobalConfig(config: GlobalConfig): void {
   }
 
   fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n', 'utf-8');
+}
+
+/**
+ * Get the spec structure configuration with defaults.
+ *
+ * Reads from global config and applies default values for any missing fields.
+ *
+ * @returns SpecStructureConfig with all fields populated
+ *
+ * @example
+ * ```typescript
+ * const config = getSpecStructureConfig();
+ * console.log(config.structure); // 'auto', 'flat', or 'hierarchical'
+ * console.log(config.maxDepth);  // 4 (default)
+ * ```
+ */
+export function getSpecStructureConfig(): Required<SpecStructureConfig> {
+  const globalConfig = getGlobalConfig();
+
+  const specStructure = globalConfig.specStructure || {};
+
+  return {
+    structure: specStructure.structure || 'auto',
+    maxDepth: specStructure.maxDepth ?? 4,
+    allowMixed: specStructure.allowMixed ?? true,
+    validatePaths: specStructure.validatePaths ?? true,
+  };
 }

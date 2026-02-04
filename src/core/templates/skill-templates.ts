@@ -133,8 +133,8 @@ If the user mentions a change or you detect one is relevant:
 
    | Insight Type | Where to Capture |
    |--------------|------------------|
-   | New requirement discovered | \`specs/<capability>/spec.md\` |
-   | Requirement changed | \`specs/<capability>/spec.md\` |
+   | New requirement discovered | \`specs/<capability-path>/spec.md\` |
+   | Requirement changed | \`specs/<capability-path>/spec.md\` |
    | Design decision made | \`design.md\` |
    | Scope changed | \`proposal.md\` |
    | New work identified | \`tasks.md\` |
@@ -486,11 +486,44 @@ Common artifact patterns:
 **spec-driven schema** (proposal → specs → design → tasks):
 - **proposal.md**: Ask user about the change if not clear. Fill in Why, What Changes, Capabilities, Impact.
   - The Capabilities section is critical - each capability listed will need a spec file.
-- **specs/<capability>/spec.md**: Create one spec per capability listed in the proposal's Capabilities section (use the capability name, not the change name).
+- **specs/<capability-path>/spec.md**: Create one spec per capability listed in the proposal's Capabilities section (use the capability path, not the change name).
 - **design.md**: Document technical decisions, architecture, and implementation approach.
 - **tasks.md**: Break down implementation into checkboxed tasks.
 
 For other schemas, follow the \`instruction\` field from the CLI output.
+
+**Spec Structure**
+
+OpenSpec supports both flat and hierarchical spec organization:
+
+**Flat structure** (traditional):
+\`\`\`
+openspec/specs/
+  auth/spec.md           # Capability: "auth"
+  api/spec.md            # Capability: "api"
+  database/spec.md       # Capability: "database"
+\`\`\`
+
+**Hierarchical structure** (for complex projects):
+\`\`\`
+openspec/specs/
+  _global/
+    testing/spec.md      # Capability: "_global/testing"
+    security/spec.md     # Capability: "_global/security"
+  platform/
+    services/
+      api/spec.md        # Capability: "platform/services/api"
+      auth/spec.md       # Capability: "platform/services/auth"
+\`\`\`
+
+**Delta replication**: Change deltas mirror the main spec structure 1:1:
+- Main: \`openspec/specs/_global/testing/spec.md\`
+- Delta: \`openspec/changes/<name>/specs/_global/testing/spec.md\`
+
+Use hierarchical paths when:
+- Organizing specs by domain/scope (e.g., \`_global/\`, \`frontend/\`, \`backend/\`)
+- Managing large codebases with many capabilities
+- Grouping related capabilities for better discoverability
 
 **Guardrails**
 - Create ONE artifact per invocation
@@ -809,11 +842,11 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
 3. **For each delta spec, apply changes to main specs**
 
-   For each capability with a delta spec at \`openspec/changes/<name>/specs/<capability>/spec.md\`:
+   For each capability with a delta spec at \`openspec/changes/<name>/specs/<capability-path>/spec.md\`:
 
    a. **Read the delta spec** to understand the intended changes
 
-   b. **Read the main spec** at \`openspec/specs/<capability>/spec.md\` (may not exist yet)
+   b. **Read the main spec** at \`openspec/specs/<capability-path>/spec.md\` (may not exist yet)
 
    c. **Apply changes intelligently**:
 
@@ -836,7 +869,7 @@ This is an **agent-driven** operation - you will read delta specs and directly e
       - Find the FROM requirement, rename to TO
 
    d. **Create new main spec** if capability doesn't exist yet:
-      - Create \`openspec/specs/<capability>/spec.md\`
+      - Create \`openspec/specs/<capability-path>/spec.md\`
       - Add Purpose section (can be brief, mark as TBD)
       - Add Requirements section with the ADDED requirements
 
@@ -1220,7 +1253,7 @@ Here's the spec:
 This format—WHEN/THEN/AND—makes requirements testable. You can literally read them as test cases.
 \`\`\`
 
-Save to \`openspec/changes/<name>/specs/<capability>/spec.md\`.
+Save to \`openspec/changes/<name>/specs/<capability-path>/spec.md\`.
 
 ---
 
@@ -1599,8 +1632,8 @@ If the user mentions a change or you detect one is relevant:
 
    | Insight Type | Where to Capture |
    |--------------|------------------|
-   | New requirement discovered | \`specs/<capability>/spec.md\` |
-   | Requirement changed | \`specs/<capability>/spec.md\` |
+   | New requirement discovered | \`specs/<capability-path>/spec.md\` |
+   | Requirement changed | \`specs/<capability-path>/spec.md\` |
    | Design decision made | \`design.md\` |
    | Scope changed | \`proposal.md\` |
    | New work identified | \`tasks.md\` |
@@ -1826,11 +1859,44 @@ Common artifact patterns:
 **spec-driven schema** (proposal → specs → design → tasks):
 - **proposal.md**: Ask user about the change if not clear. Fill in Why, What Changes, Capabilities, Impact.
   - The Capabilities section is critical - each capability listed will need a spec file.
-- **specs/<capability>/spec.md**: Create one spec per capability listed in the proposal's Capabilities section (use the capability name, not the change name).
+- **specs/<capability-path>/spec.md**: Create one spec per capability listed in the proposal's Capabilities section (use the capability path, not the change name).
 - **design.md**: Document technical decisions, architecture, and implementation approach.
 - **tasks.md**: Break down implementation into checkboxed tasks.
 
 For other schemas, follow the \`instruction\` field from the CLI output.
+
+**Spec Structure**
+
+OpenSpec supports both flat and hierarchical spec organization:
+
+**Flat structure** (traditional):
+\`\`\`
+openspec/specs/
+  auth/spec.md           # Capability: "auth"
+  api/spec.md            # Capability: "api"
+  database/spec.md       # Capability: "database"
+\`\`\`
+
+**Hierarchical structure** (for complex projects):
+\`\`\`
+openspec/specs/
+  _global/
+    testing/spec.md      # Capability: "_global/testing"
+    security/spec.md     # Capability: "_global/security"
+  platform/
+    services/
+      api/spec.md        # Capability: "platform/services/api"
+      auth/spec.md       # Capability: "platform/services/auth"
+\`\`\`
+
+**Delta replication**: Change deltas mirror the main spec structure 1:1:
+- Main: \`openspec/specs/_global/testing/spec.md\`
+- Delta: \`openspec/changes/<name>/specs/_global/testing/spec.md\`
+
+Use hierarchical paths when:
+- Organizing specs by domain/scope (e.g., \`_global/\`, \`frontend/\`, \`backend/\`)
+- Managing large codebases with many capabilities
+- Grouping related capabilities for better discoverability
 
 **Guardrails**
 - Create ONE artifact per invocation
@@ -2156,7 +2222,7 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
    Check for delta specs at \`openspec/changes/<name>/specs/\`. If none exist, proceed without sync prompt.
 
    **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at \`openspec/specs/<capability>/spec.md\`
+   - Compare each delta spec with its corresponding main spec at \`openspec/specs/<capability-path>/spec.md\`
    - Determine what changes would be applied (adds, modifications, removals, renames)
    - Show a combined summary before prompting
 
@@ -2507,11 +2573,11 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
 3. **For each delta spec, apply changes to main specs**
 
-   For each capability with a delta spec at \`openspec/changes/<name>/specs/<capability>/spec.md\`:
+   For each capability with a delta spec at \`openspec/changes/<name>/specs/<capability-path>/spec.md\`:
 
    a. **Read the delta spec** to understand the intended changes
 
-   b. **Read the main spec** at \`openspec/specs/<capability>/spec.md\` (may not exist yet)
+   b. **Read the main spec** at \`openspec/specs/<capability-path>/spec.md\` (may not exist yet)
 
    c. **Apply changes intelligently**:
 
@@ -2534,7 +2600,7 @@ This is an **agent-driven** operation - you will read delta specs and directly e
       - Find the FROM requirement, rename to TO
 
    d. **Create new main spec** if capability doesn't exist yet:
-      - Create \`openspec/specs/<capability>/spec.md\`
+      - Create \`openspec/specs/<capability-path>/spec.md\`
       - Add Purpose section (can be brief, mark as TBD)
       - Add Requirements section with the ADDED requirements
 
@@ -2833,7 +2899,7 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
    Check for delta specs at \`openspec/changes/<name>/specs/\`. If none exist, proceed without sync prompt.
 
    **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at \`openspec/specs/<capability>/spec.md\`
+   - Compare each delta spec with its corresponding main spec at \`openspec/specs/<capability-path>/spec.md\`
    - Determine what changes would be applied (adds, modifications, removals, renames)
    - Show a combined summary before prompting
 

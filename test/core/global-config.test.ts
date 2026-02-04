@@ -8,6 +8,7 @@ import {
   getGlobalConfigPath,
   getGlobalConfig,
   saveGlobalConfig,
+  getSpecStructureConfig,
   GLOBAL_CONFIG_DIR_NAME,
   GLOBAL_CONFIG_FILE_NAME
 } from '../../src/core/global-config.js';
@@ -100,7 +101,15 @@ describe('global-config', () => {
 
       const config = getGlobalConfig();
 
-      expect(config).toEqual({ featureFlags: {} });
+      expect(config).toEqual({
+        featureFlags: {},
+        specStructure: {
+          structure: 'auto',
+          maxDepth: 4,
+          allowMixed: true,
+          validatePaths: true
+        }
+      });
     });
 
     it('should not create directory when reading non-existent config', () => {
@@ -137,7 +146,15 @@ describe('global-config', () => {
 
       const config = getGlobalConfig();
 
-      expect(config).toEqual({ featureFlags: {} });
+      expect(config).toEqual({
+        featureFlags: {},
+        specStructure: {
+          structure: 'auto',
+          maxDepth: 4,
+          allowMixed: true,
+          validatePaths: true
+        }
+      });
     });
 
     it('should log warning for invalid JSON', () => {
@@ -251,6 +268,208 @@ describe('global-config', () => {
       const loadedConfig = getGlobalConfig();
 
       expect(loadedConfig.featureFlags).toEqual(originalConfig.featureFlags);
+    });
+  });
+
+  describe('getSpecStructureConfig', () => {
+    it('should return default values when no config file exists', () => {
+      process.env.XDG_CONFIG_HOME = tempDir;
+
+      const config = getSpecStructureConfig();
+
+      expect(config.structure).toBe('auto');
+      expect(config.maxDepth).toBe(4);
+      expect(config.allowMixed).toBe(true);
+      expect(config.validatePaths).toBe(true);
+    });
+
+    it('should return configured structure value', () => {
+      process.env.XDG_CONFIG_HOME = tempDir;
+      const configDir = path.join(tempDir, 'openspec');
+      const configPath = path.join(configDir, 'config.json');
+
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(configPath, JSON.stringify({
+        featureFlags: {},
+        specStructure: { structure: 'hierarchical' }
+      }));
+
+      const config = getSpecStructureConfig();
+
+      expect(config.structure).toBe('hierarchical');
+      expect(config.maxDepth).toBe(4); // default
+      expect(config.allowMixed).toBe(true); // default
+      expect(config.validatePaths).toBe(true); // default
+    });
+
+    it('should return configured maxDepth value', () => {
+      process.env.XDG_CONFIG_HOME = tempDir;
+      const configDir = path.join(tempDir, 'openspec');
+      const configPath = path.join(configDir, 'config.json');
+
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(configPath, JSON.stringify({
+        featureFlags: {},
+        specStructure: { maxDepth: 3 }
+      }));
+
+      const config = getSpecStructureConfig();
+
+      expect(config.maxDepth).toBe(3);
+    });
+
+    it('should return configured allowMixed value', () => {
+      process.env.XDG_CONFIG_HOME = tempDir;
+      const configDir = path.join(tempDir, 'openspec');
+      const configPath = path.join(configDir, 'config.json');
+
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(configPath, JSON.stringify({
+        featureFlags: {},
+        specStructure: { allowMixed: false }
+      }));
+
+      const config = getSpecStructureConfig();
+
+      expect(config.allowMixed).toBe(false);
+    });
+
+    it('should return configured validatePaths value', () => {
+      process.env.XDG_CONFIG_HOME = tempDir;
+      const configDir = path.join(tempDir, 'openspec');
+      const configPath = path.join(configDir, 'config.json');
+
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(configPath, JSON.stringify({
+        featureFlags: {},
+        specStructure: { validatePaths: false }
+      }));
+
+      const config = getSpecStructureConfig();
+
+      expect(config.validatePaths).toBe(false);
+    });
+
+    it('should apply defaults for missing fields', () => {
+      process.env.XDG_CONFIG_HOME = tempDir;
+      const configDir = path.join(tempDir, 'openspec');
+      const configPath = path.join(configDir, 'config.json');
+
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(configPath, JSON.stringify({
+        featureFlags: {},
+        specStructure: {
+          structure: 'flat'
+          // maxDepth, allowMixed, validatePaths omitted
+        }
+      }));
+
+      const config = getSpecStructureConfig();
+
+      expect(config.structure).toBe('flat');
+      expect(config.maxDepth).toBe(4); // default
+      expect(config.allowMixed).toBe(true); // default
+      expect(config.validatePaths).toBe(true); // default
+    });
+
+    it('should handle partial configuration', () => {
+      process.env.XDG_CONFIG_HOME = tempDir;
+      const configDir = path.join(tempDir, 'openspec');
+      const configPath = path.join(configDir, 'config.json');
+
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(configPath, JSON.stringify({
+        featureFlags: {},
+        specStructure: {
+          maxDepth: 5,
+          allowMixed: false
+        }
+      }));
+
+      const config = getSpecStructureConfig();
+
+      expect(config.structure).toBe('auto'); // default
+      expect(config.maxDepth).toBe(5);
+      expect(config.allowMixed).toBe(false);
+      expect(config.validatePaths).toBe(true); // default
+    });
+
+    it('should handle complete custom configuration', () => {
+      process.env.XDG_CONFIG_HOME = tempDir;
+      const configDir = path.join(tempDir, 'openspec');
+      const configPath = path.join(configDir, 'config.json');
+
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(configPath, JSON.stringify({
+        featureFlags: {},
+        specStructure: {
+          structure: 'hierarchical',
+          maxDepth: 6,
+          allowMixed: false,
+          validatePaths: false
+        }
+      }));
+
+      const config = getSpecStructureConfig();
+
+      expect(config.structure).toBe('hierarchical');
+      expect(config.maxDepth).toBe(6);
+      expect(config.allowMixed).toBe(false);
+      expect(config.validatePaths).toBe(false);
+    });
+
+    it('should always return a Required<SpecStructureConfig> with all fields', () => {
+      process.env.XDG_CONFIG_HOME = tempDir;
+
+      const config = getSpecStructureConfig();
+
+      // All fields should be defined (not undefined)
+      expect(config.structure).toBeDefined();
+      expect(config.maxDepth).toBeDefined();
+      expect(config.allowMixed).toBeDefined();
+      expect(config.validatePaths).toBeDefined();
+
+      // Check types
+      expect(typeof config.structure).toBe('string');
+      expect(typeof config.maxDepth).toBe('number');
+      expect(typeof config.allowMixed).toBe('boolean');
+      expect(typeof config.validatePaths).toBe('boolean');
+    });
+
+    it('should handle missing specStructure in config file', () => {
+      process.env.XDG_CONFIG_HOME = tempDir;
+      const configDir = path.join(tempDir, 'openspec');
+      const configPath = path.join(configDir, 'config.json');
+
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(configPath, JSON.stringify({
+        featureFlags: { someFlag: true }
+        // no specStructure field
+      }));
+
+      const config = getSpecStructureConfig();
+
+      expect(config.structure).toBe('auto');
+      expect(config.maxDepth).toBe(4);
+      expect(config.allowMixed).toBe(true);
+      expect(config.validatePaths).toBe(true);
+    });
+
+    it('should handle maxDepth of 0 explicitly', () => {
+      process.env.XDG_CONFIG_HOME = tempDir;
+      const configDir = path.join(tempDir, 'openspec');
+      const configPath = path.join(configDir, 'config.json');
+
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(configPath, JSON.stringify({
+        featureFlags: {},
+        specStructure: { maxDepth: 0 }
+      }));
+
+      const config = getSpecStructureConfig();
+
+      // 0 should be preserved (not replaced with default)
+      expect(config.maxDepth).toBe(0);
     });
   });
 });
