@@ -669,7 +669,7 @@ specStructure:
         );
       });
 
-      it('should reject maxDepth outside valid range', () => {
+      it('should reject maxDepth below valid range', () => {
         const configDir = path.join(tempDir, 'openspec');
         fs.mkdirSync(configDir, { recursive: true });
         fs.writeFileSync(
@@ -677,6 +677,25 @@ specStructure:
           `schema: spec-driven
 specStructure:
   maxDepth: 0
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config?.specStructure).toBeUndefined();
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid 'specStructure.maxDepth'")
+        );
+      });
+
+      it('should reject maxDepth above valid range', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+specStructure:
+  maxDepth: 11
 `
         );
 
