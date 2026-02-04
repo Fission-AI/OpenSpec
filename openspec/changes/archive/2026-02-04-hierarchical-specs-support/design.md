@@ -186,7 +186,7 @@ function getEffectiveStructure(
 
 **1. No Orphaned Specs (ERROR):**
 Prevent `spec.md` at intermediate levels:
-```
+```text
 ✗ specs/auth/spec.md           ← Has spec at intermediate level
   specs/auth/oauth/spec.md     ← Also has spec in child
 ```
@@ -211,7 +211,7 @@ Prevent `spec.md` at intermediate levels:
 **Choice:** Display specs with visual grouping by scope/namespace.
 
 **Format:**
-```
+```text
 Specifications:
   _global/
     architecture          42 requirements

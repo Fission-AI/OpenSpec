@@ -4,7 +4,7 @@ This example demonstrates how to organize OpenSpec specifications using a hierar
 
 ## Structure
 
-```
+```text
 openspec/specs/
   _global/
     testing/spec.md        - Global testing standards
@@ -50,7 +50,7 @@ When creating a change that affects hierarchical specs, the delta structure mirr
 ```
 
 Creates:
-```
+```text
 openspec/changes/add-rate-limiting/
   proposal.md
   specs/
