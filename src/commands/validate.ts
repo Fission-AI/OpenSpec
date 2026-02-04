@@ -14,7 +14,7 @@ type ItemType = 'change' | 'spec';
  * Get all spec capabilities using recursive spec discovery.
  * Supports both flat and hierarchical spec structures.
  */
-async function getSpecCapabilities(): Promise<string[]> {
+function getSpecCapabilities(): string[] {
   const specsDir = path.join(process.cwd(), 'openspec', 'specs');
   const discovered = findAllSpecs(specsDir);
   return discovered.map(spec => spec.capability).sort();
@@ -93,7 +93,7 @@ export class ValidateCommand {
     if (choice === 'specs') return this.runBulkValidation({ changes: false, specs: true }, opts);
 
     // one
-    const [changes, specs] = await Promise.all([getActiveChangeIds(), getSpecCapabilities()]);
+    const [changes, specs] = [await getActiveChangeIds(), getSpecCapabilities()];
     const items: { name: string; value: { type: ItemType; id: string } }[] = [];
     items.push(...changes.map(id => ({ name: `change/${id}`, value: { type: 'change' as const, id } })));
     items.push(...specs.map(id => ({ name: `spec/${id}`, value: { type: 'spec' as const, id } })));
@@ -118,7 +118,7 @@ export class ValidateCommand {
   private async validateDirectItem(itemName: string, opts: { typeOverride?: ItemType; strict: boolean; json: boolean }): Promise<void> {
     // Normalize path separators to native so CLI input matches discovered IDs on any platform
     const normalizedName = itemName.replace(/[/\\]/g, path.sep);
-    const [changes, specs] = await Promise.all([getActiveChangeIds(), getSpecCapabilities()]);
+    const [changes, specs] = [await getActiveChangeIds(), getSpecCapabilities()];
     const isChange = changes.includes(normalizedName);
     const isSpec = specs.includes(normalizedName);
 
