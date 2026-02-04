@@ -5,7 +5,7 @@
 `getSpecStructureConfig()` SHALL accept an optional `projectOverrides` parameter of type `Partial<SpecStructureConfig>`. When provided, project override values take precedence over global config values, which take precedence over defaults. Each field is resolved independently.
 
 The precedence chain for each field:
-```
+```text
 project override → global config → default
 ```
 

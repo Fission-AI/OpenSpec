@@ -23,7 +23,7 @@ Project-level config (`openspec/config.yaml`) already supports resilient field-b
 
 Parse each specStructure sub-field independently with Zod `safeParse()`, matching the pattern used for `rules` parsing in `readProjectConfig()`.
 
-```
+```yaml
 specStructure:
   structure: flat        ← valid, kept
   maxDepth: "very deep"  ← invalid, warned + skipped
@@ -38,7 +38,7 @@ Result: `{ structure: 'flat', validatePaths: false }` — `maxDepth` falls throu
 
 Add `projectOverrides?: Partial<SpecStructureConfig>` parameter rather than creating a new function.
 
-```
+```text
 getSpecStructureConfig(projectOverrides?)
   → project value ?? global value ?? default
 ```
