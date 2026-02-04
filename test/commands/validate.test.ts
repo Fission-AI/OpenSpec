@@ -257,26 +257,21 @@ describe('top-level validate command', () => {
       // Should still complete but report issues
       const json = JSON.parse(result.stdout.trim());
 
-      // Check if there's a structure validation item
-      const structureItem = json.items.find((item: any) => item.id === '_structure');
-      if (!structureItem) {
-        // If no structure item, the spec name might not have been discovered
-        // Check if the invalid spec is in the list
-        const invalidSpec = json.items.find((item: any) => item.id === 'Invalid-Name');
-        expect(invalidSpec).toBeUndefined(); // Should not be discovered due to invalid name
-        // The test passes if the invalid-named spec is filtered out during discovery
-        return;
-      }
-
-      expect(structureItem.valid).toBe(false);
-      expect(structureItem.issues.length).toBeGreaterThan(0);
+      // Structure issues are in a separate structureValidation field (not in items)
+      expect(json.structureValidation).toBeDefined();
+      expect(json.structureValidation.valid).toBe(false);
+      expect(json.structureValidation.issues.length).toBeGreaterThan(0);
 
       // Should have at least one naming issue (either "naming convention" or "Invalid segment")
-      const namingIssues = structureItem.issues.filter((issue: any) =>
+      const namingIssues = json.structureValidation.issues.filter((issue: any) =>
         issue.message.toLowerCase().includes('invalid segment') ||
         issue.message.toLowerCase().includes('naming')
       );
       expect(namingIssues.length).toBeGreaterThan(0);
+
+      // items should only contain real specs, not a phantom _structure entry
+      const structureItem = json.items.find((item: any) => item.id === '_structure');
+      expect(structureItem).toBeUndefined();
     });
 
     it('validates change with hierarchical delta structure', async () => {

@@ -293,22 +293,7 @@ export class ValidateCommand {
 
     spinner?.stop();
 
-    // Add structure validation issues to results
-    if (structureIssues.length > 0) {
-      const structureResult: BulkItemResult = {
-        id: '_structure',
-        type: 'spec',
-        valid: false,
-        issues: structureIssues.map(issue => ({
-          level: issue.level,
-          path: issue.capability || 'structure',
-          message: issue.message
-        })),
-        durationMs: 0
-      };
-      results.unshift(structureResult);
-      failed++;
-    }
+    const hasStructureIssues = structureIssues.length > 0;
 
     results.sort((a, b) => a.id.localeCompare(b.id));
     const summary = {
@@ -319,10 +304,29 @@ export class ValidateCommand {
       },
     } as const;
 
+    // Structure validation as a separate concern (not a phantom item)
+    const structureValidation = hasStructureIssues
+      ? {
+          valid: false,
+          issues: structureIssues.map(issue => ({
+            level: issue.level,
+            capability: issue.capability || undefined,
+            message: issue.message
+          })),
+        }
+      : { valid: true, issues: [] as { level: string; capability?: string; message: string }[] };
+
     if (opts.json) {
-      const out = { items: results, summary, version: '1.0' };
+      const out = { items: results, structureValidation, summary, version: '1.0' };
       console.log(JSON.stringify(out, null, 2));
     } else {
+      if (hasStructureIssues) {
+        console.error('Structure validation:');
+        for (const issue of structureIssues) {
+          const prefix = issue.level === 'ERROR' ? '✗' : '⚠';
+          console.error(`  ${prefix} ${issue.message}`);
+        }
+      }
       for (const res of results) {
         if (res.valid) console.log(`✓ ${res.type}/${res.id}`);
         else console.error(`✗ ${res.type}/${res.id}`);
@@ -330,7 +334,7 @@ export class ValidateCommand {
       console.log(`Totals: ${summary.totals.passed} passed, ${summary.totals.failed} failed (${summary.totals.items} items)`);
     }
 
-    process.exitCode = failed > 0 ? 1 : 0;
+    process.exitCode = (failed > 0 || hasStructureIssues) ? 1 : 0;
   }
 }
 
