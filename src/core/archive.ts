@@ -9,6 +9,7 @@ import {
   writeUpdatedSpec,
   type SpecUpdate,
 } from './specs-apply.js';
+import { findAllSpecs } from '../utils/spec-discovery.js';
 
 /**
  * Recursively copy a directory. Used when fs.rename fails (e.g. EPERM on Windows).
@@ -114,19 +115,15 @@ export class ArchiveCommand {
       const changeSpecsDir = path.join(changeDir, 'specs');
       let hasDeltaSpecs = false;
       try {
-        const candidates = await fs.readdir(changeSpecsDir, { withFileTypes: true });
-        for (const c of candidates) {
-          if (c.isDirectory()) {
-            try {
-              const candidatePath = path.join(changeSpecsDir, c.name, 'spec.md');
-              await fs.access(candidatePath);
-              const content = await fs.readFile(candidatePath, 'utf-8');
-              if (/^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements/m.test(content)) {
-                hasDeltaSpecs = true;
-                break;
-              }
-            } catch {}
-          }
+        const deltaSpecs = findAllSpecs(changeSpecsDir);
+        for (const spec of deltaSpecs) {
+          try {
+            const content = await fs.readFile(spec.path, 'utf-8');
+            if (/^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements/m.test(content)) {
+              hasDeltaSpecs = true;
+              break;
+            }
+          } catch {}
         }
       } catch {}
       if (hasDeltaSpecs) {

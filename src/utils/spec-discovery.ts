@@ -112,12 +112,15 @@ export function findAllSpecs(baseDir: string): Spec[] {
         : entry.name;
 
       if (entry.isFile() && entry.name === 'spec.md') {
+        // Skip spec.md found directly in baseDir (no valid capability)
+        if (!relativePath) {
+          continue;
+        }
         // Found a spec file - capability is the parent directory path
-        const capability = relativePath || '.';
-        const depth = capability === '.' ? 1 : capability.split(path.sep).length;
+        const depth = relativePath.split(path.sep).length;
 
         specs.push({
-          capability: capability === '.' ? entry.name.replace('/spec.md', '') : relativePath,
+          capability: relativePath,
           path: fullPath,
           depth
         });
