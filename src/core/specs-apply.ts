@@ -54,8 +54,7 @@ export interface SpecsApplyOutput {
  * Find all delta spec files that need to be applied from a change.
  * Uses spec-discovery utility to support hierarchical structures.
  */
-export async function findSpecUpdates(changeDir: string, mainSpecsDir: string): Promise<SpecUpdate[]> {
-  // Use the spec-discovery utility which handles hierarchical structures
+export function findSpecUpdates(changeDir: string, mainSpecsDir: string): SpecUpdate[] {
   return findSpecUpdatesUtil(changeDir, mainSpecsDir);
 }
 
@@ -361,7 +360,7 @@ export async function applySpecs(
   }
 
   // Find specs to update
-  const specUpdates = await findSpecUpdates(changeDir, mainSpecsDir);
+  const specUpdates = findSpecUpdates(changeDir, mainSpecsDir);
 
   if (specUpdates.length === 0) {
     return {

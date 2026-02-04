@@ -195,7 +195,7 @@ export class ArchiveCommand {
       console.log('Skipping spec updates (--skip-specs flag provided).');
     } else {
       // Find specs to update
-      const specUpdates = await findSpecUpdates(changeDir, mainSpecsDir);
+      const specUpdates = findSpecUpdates(changeDir, mainSpecsDir);
       
       if (specUpdates.length > 0) {
         console.log('\nSpecs to update:');
