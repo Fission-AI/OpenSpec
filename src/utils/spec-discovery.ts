@@ -100,6 +100,7 @@ export function findAllSpecs(baseDir: string): DiscoveredSpec[] {
 
     try {
       entries = fs.readdirSync(dir, { withFileTypes: true });
+      entries.sort((a, b) => a.name.localeCompare(b.name));
     } catch {
       // Directory doesn't exist or is not readable
       return;
