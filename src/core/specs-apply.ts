@@ -157,7 +157,7 @@ export async function buildUpdatedSpec(
   const hasAnyDelta = plan.added.length + plan.modified.length + plan.removed.length + plan.renamed.length > 0;
   if (!hasAnyDelta) {
     throw new Error(
-      `Delta parsing found no operations for ${path.basename(path.dirname(update.source))}. ` +
+      `Delta parsing found no operations for ${update.capability}. ` +
         `Provide ADDED/MODIFIED/REMOVED/RENAMED sections in change spec.`
     );
   }
