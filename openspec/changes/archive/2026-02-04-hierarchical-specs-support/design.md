@@ -356,7 +356,7 @@ When creating delta specs in changes, replicate the exact structure:
 → **Accepted:** Explicitness over cleverness. 1:1 mapping eliminates ambiguity. Most projects use depth 2-3.
 
 **Trade-off:** Auto-detection adds small overhead to every command
-→ **Accepted:** Detection is ~1ms by checking first few specs. Negligible compared to I/O. Can be overridden with config.
+→ **Accepted:** The detection adds ~1ms by checking the first few specs; this is negligible compared to I/O and can be overridden with config.
 
 ## Migration Plan
 
@@ -399,7 +399,7 @@ When creating delta specs in changes, replicate the exact structure:
    - Currently leaning toward always using `/` in docs/prompts for consistency
    - Convert to `path.sep` internally
 
-4. **Performance optimization for very large repos (1000+ specs)?**
+4. **Performance optimization for large repositories (1000+ specs)?**
    - Consider adding a cache file (`.openspec-cache`) if benchmarks show issues
    - Not implementing initially - optimize if needed
 
