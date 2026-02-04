@@ -2,7 +2,6 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
 import { readFileSync } from 'fs';
-import { join } from 'path';
 import { MarkdownParser } from './parsers/markdown-parser.js';
 import { findAllSpecs, isSpecStructureHierarchical } from '../utils/spec-discovery.js';
 

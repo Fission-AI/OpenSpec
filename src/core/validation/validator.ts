@@ -1,4 +1,4 @@
-import { z, ZodError } from 'zod';
+import { ZodError } from 'zod';
 import { readFileSync, promises as fs } from 'fs';
 import path from 'path';
 import { SpecSchema, ChangeSchema, Spec, Change } from '../schemas/index.js';
@@ -258,10 +258,10 @@ export class Validator {
         message: `Delta sections ${this.formatSectionList(sections)} were found, but no requirement entries parsed. Ensure each section includes at least one "### Requirement:" block (REMOVED may use bullet list syntax).`,
       });
     }
-    for (const path of missingHeaderSpecs) {
+    for (const specPath of missingHeaderSpecs) {
       issues.push({
         level: 'ERROR',
-        path,
+        path: specPath,
         message: 'No delta sections found. Add headers such as "## ADDED Requirements" or move non-delta notes outside specs/.',
       });
     }
