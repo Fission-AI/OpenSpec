@@ -933,7 +933,7 @@ describe('spec-discovery', () => {
       expect(depthIssues[0].message).toContain('exceeds maximum depth 6');
     });
 
-    it('should validate consistently with structure: "auto" config', () => {
+    it('should not enforce structure in auto mode with mixed specs', () => {
       const specs: DiscoveredSpec[] = [
         { capability: 'auth', path: '/specs/auth/spec.md', depth: 1 },
         { capability: path.join('_global', 'testing'), path: '/specs/_global/testing/spec.md', depth: 2 },
@@ -941,11 +941,10 @@ describe('spec-discovery', () => {
 
       const issues = validateSpecStructure(specs, { structure: 'auto', validatePaths: true, maxDepth: 4 });
 
-      // structure field shouldn't affect validation behavior
       expect(issues).toHaveLength(0);
     });
 
-    it('should validate consistently with structure: "flat" config', () => {
+    it('should reject hierarchical specs in flat mode', () => {
       const specs: DiscoveredSpec[] = [
         { capability: 'auth', path: '/specs/auth/spec.md', depth: 1 },
         { capability: path.join('_global', 'testing'), path: '/specs/_global/testing/spec.md', depth: 2 },
@@ -953,11 +952,13 @@ describe('spec-discovery', () => {
 
       const issues = validateSpecStructure(specs, { structure: 'flat', validatePaths: true, maxDepth: 4 });
 
-      // structure field shouldn't affect validation behavior
-      expect(issues).toHaveLength(0);
+      const structureIssues = issues.filter(i => i.message.includes('structure is set to "flat"'));
+      expect(structureIssues).toHaveLength(1);
+      expect(structureIssues[0].level).toBe('ERROR');
+      expect(structureIssues[0].capability).toBe(path.join('_global', 'testing'));
     });
 
-    it('should validate consistently with structure: "hierarchical" config', () => {
+    it('should reject flat specs in hierarchical mode', () => {
       const specs: DiscoveredSpec[] = [
         { capability: 'auth', path: '/specs/auth/spec.md', depth: 1 },
         { capability: path.join('_global', 'testing'), path: '/specs/_global/testing/spec.md', depth: 2 },
@@ -965,7 +966,123 @@ describe('spec-discovery', () => {
 
       const issues = validateSpecStructure(specs, { structure: 'hierarchical', validatePaths: true, maxDepth: 4 });
 
-      // structure field shouldn't affect validation behavior
+      const structureIssues = issues.filter(i => i.message.includes('structure is set to "hierarchical"'));
+      expect(structureIssues).toHaveLength(1);
+      expect(structureIssues[0].level).toBe('ERROR');
+      expect(structureIssues[0].capability).toBe('auth');
+    });
+  });
+
+  describe('validateSpecStructure() - structure mode enforcement', () => {
+    it('should accept all flat specs in flat mode', () => {
+      const specs: DiscoveredSpec[] = [
+        { capability: 'auth', path: '/specs/auth/spec.md', depth: 1 },
+        { capability: 'payments', path: '/specs/payments/spec.md', depth: 1 },
+      ];
+
+      const issues = validateSpecStructure(specs, { structure: 'flat', validatePaths: false });
+
+      expect(issues).toHaveLength(0);
+    });
+
+    it('should reject all hierarchical specs in flat mode', () => {
+      const specs: DiscoveredSpec[] = [
+        { capability: path.join('_global', 'testing'), path: '/specs/_global/testing/spec.md', depth: 2 },
+        { capability: path.join('platform', 'api'), path: '/specs/platform/api/spec.md', depth: 2 },
+      ];
+
+      const issues = validateSpecStructure(specs, { structure: 'flat', validatePaths: false });
+
+      const structureIssues = issues.filter(i => i.message.includes('structure is set to "flat"'));
+      expect(structureIssues).toHaveLength(2);
+    });
+
+    it('should accept all hierarchical specs in hierarchical mode', () => {
+      const specs: DiscoveredSpec[] = [
+        { capability: path.join('_global', 'testing'), path: '/specs/_global/testing/spec.md', depth: 2 },
+        { capability: path.join('platform', 'api'), path: '/specs/platform/api/spec.md', depth: 2 },
+      ];
+
+      const issues = validateSpecStructure(specs, { structure: 'hierarchical', validatePaths: false });
+
+      expect(issues).toHaveLength(0);
+    });
+
+    it('should reject all flat specs in hierarchical mode', () => {
+      const specs: DiscoveredSpec[] = [
+        { capability: 'auth', path: '/specs/auth/spec.md', depth: 1 },
+        { capability: 'payments', path: '/specs/payments/spec.md', depth: 1 },
+      ];
+
+      const issues = validateSpecStructure(specs, { structure: 'hierarchical', validatePaths: false });
+
+      const structureIssues = issues.filter(i => i.message.includes('structure is set to "hierarchical"'));
+      expect(structureIssues).toHaveLength(2);
+    });
+  });
+
+  describe('validateSpecStructure() - allowMixed enforcement', () => {
+    it('should error on mixed specs when allowMixed is false and structure is auto', () => {
+      const specs: DiscoveredSpec[] = [
+        { capability: 'auth', path: '/specs/auth/spec.md', depth: 1 },
+        { capability: path.join('_global', 'testing'), path: '/specs/_global/testing/spec.md', depth: 2 },
+      ];
+
+      const issues = validateSpecStructure(specs, { structure: 'auto', allowMixed: false, validatePaths: false });
+
+      const mixedIssues = issues.filter(i => i.message.includes('Mixed spec structure'));
+      expect(mixedIssues).toHaveLength(1);
+      expect(mixedIssues[0].level).toBe('ERROR');
+      expect(mixedIssues[0].message).toContain('1 flat');
+      expect(mixedIssues[0].message).toContain('1 hierarchical');
+    });
+
+    it('should pass uniform flat specs when allowMixed is false', () => {
+      const specs: DiscoveredSpec[] = [
+        { capability: 'auth', path: '/specs/auth/spec.md', depth: 1 },
+        { capability: 'payments', path: '/specs/payments/spec.md', depth: 1 },
+      ];
+
+      const issues = validateSpecStructure(specs, { structure: 'auto', allowMixed: false, validatePaths: false });
+
+      expect(issues).toHaveLength(0);
+    });
+
+    it('should pass uniform hierarchical specs when allowMixed is false', () => {
+      const specs: DiscoveredSpec[] = [
+        { capability: path.join('_global', 'testing'), path: '/specs/_global/testing/spec.md', depth: 2 },
+        { capability: path.join('platform', 'api'), path: '/specs/platform/api/spec.md', depth: 2 },
+      ];
+
+      const issues = validateSpecStructure(specs, { structure: 'auto', allowMixed: false, validatePaths: false });
+
+      expect(issues).toHaveLength(0);
+    });
+
+    it('should not check allowMixed when structure is explicit', () => {
+      const specs: DiscoveredSpec[] = [
+        { capability: 'auth', path: '/specs/auth/spec.md', depth: 1 },
+        { capability: path.join('_global', 'testing'), path: '/specs/_global/testing/spec.md', depth: 2 },
+      ];
+
+      // flat mode with allowMixed: false — should only get structure errors, not mixed errors
+      const issues = validateSpecStructure(specs, { structure: 'flat', allowMixed: false, validatePaths: false });
+
+      const mixedIssues = issues.filter(i => i.message.includes('Mixed spec structure'));
+      expect(mixedIssues).toHaveLength(0);
+
+      const structureIssues = issues.filter(i => i.message.includes('structure is set to "flat"'));
+      expect(structureIssues).toHaveLength(1);
+    });
+
+    it('should allow mixed specs when allowMixed is true (default)', () => {
+      const specs: DiscoveredSpec[] = [
+        { capability: 'auth', path: '/specs/auth/spec.md', depth: 1 },
+        { capability: path.join('_global', 'testing'), path: '/specs/_global/testing/spec.md', depth: 2 },
+      ];
+
+      const issues = validateSpecStructure(specs, { structure: 'auto', allowMixed: true, validatePaths: false });
+
       expect(issues).toHaveLength(0);
     });
   });

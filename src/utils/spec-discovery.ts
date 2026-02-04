@@ -243,8 +243,44 @@ export function validateSpecStructure(
   const issues: ValidationIssue[] = [];
 
   // Apply default config values
+  const structure = config.structure || 'auto';
+  const allowMixed = config.allowMixed ?? true;
   const maxDepth = config.maxDepth ?? 4;
   const validatePaths = config.validatePaths ?? true;
+
+  // Enforce structure mode
+  if (structure === 'flat') {
+    for (const spec of specs) {
+      if (spec.depth > 1) {
+        issues.push({
+          level: 'ERROR',
+          message: `Spec "${spec.capability}" has depth ${spec.depth} but structure is set to "flat". Flat specs must have depth 1 (e.g., "auth", not "domain/auth").`,
+          capability: spec.capability,
+        });
+      }
+    }
+  } else if (structure === 'hierarchical') {
+    for (const spec of specs) {
+      if (spec.depth === 1) {
+        issues.push({
+          level: 'ERROR',
+          message: `Spec "${spec.capability}" has depth 1 but structure is set to "hierarchical". Use nested paths (e.g., "domain/${spec.capability}").`,
+          capability: spec.capability,
+        });
+      }
+    }
+  } else if (structure === 'auto' && !allowMixed) {
+    const hasFlat = specs.some(s => s.depth === 1);
+    const hasHierarchical = specs.some(s => s.depth > 1);
+    if (hasFlat && hasHierarchical) {
+      const flatCount = specs.filter(s => s.depth === 1).length;
+      const hierarchicalCount = specs.filter(s => s.depth > 1).length;
+      issues.push({
+        level: 'ERROR',
+        message: `Mixed spec structure detected (${flatCount} flat, ${hierarchicalCount} hierarchical) but allowMixed is false. Use a consistent structure or set allowMixed: true.`,
+      });
+    }
+  }
 
   // Check for orphaned specs (spec.md at intermediate levels)
   const capabilitySet = new Set(specs.map(s => s.capability));
