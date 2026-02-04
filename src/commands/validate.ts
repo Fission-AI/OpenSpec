@@ -17,7 +17,7 @@ type ItemType = 'change' | 'spec';
 function getSpecCapabilities(): string[] {
   const specsDir = path.join(process.cwd(), 'openspec', 'specs');
   const discovered = findAllSpecs(specsDir);
-  return discovered.map(spec => spec.capability).sort();
+  return discovered.map(spec => spec.capability);
 }
 
 interface ExecuteOptions {
@@ -201,7 +201,7 @@ export class ValidateCommand {
     // Discover specs once and reuse for both capability list and structure validation
     const specsDir = path.join(process.cwd(), 'openspec', 'specs');
     const discoveredSpecs = scope.specs ? findAllSpecs(specsDir) : [];
-    const specIds = discoveredSpecs.map(s => s.capability).sort();
+    const specIds = discoveredSpecs.map(s => s.capability);
 
     const changeIds = scope.changes ? await getActiveChangeIds() : [];
 

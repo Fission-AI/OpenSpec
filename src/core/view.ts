@@ -65,9 +65,7 @@ export class ViewCommand {
       console.log('─'.repeat(60));
 
       // Sort by capability path when hierarchical, by requirement count when flat
-      if (isHierarchical) {
-        specsData.sort((a, b) => a.name.localeCompare(b.name));
-      } else {
+      if (!isHierarchical) {
         specsData.sort((a, b) => b.requirementCount - a.requirementCount);
       }
 

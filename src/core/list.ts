@@ -183,8 +183,6 @@ export class ListCommand {
       }
     }
 
-    // Sort specs alphabetically by capability
-    specs.sort((a, b) => a.capability.localeCompare(b.capability));
 
     const isHierarchical = isSpecStructureHierarchical(discoveredSpecs);
 
