@@ -18,7 +18,7 @@ const SpecStructureConfigSchema = z
     validatePaths: true,
   });
 
- /**
+/**
  * Zod schema for global OpenSpec configuration.
  * Uses passthrough() to preserve unknown fields for forward compatibility.
  */
