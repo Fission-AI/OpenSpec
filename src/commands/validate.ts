@@ -116,28 +116,30 @@ export class ValidateCommand {
   }
 
   private async validateDirectItem(itemName: string, opts: { typeOverride?: ItemType; strict: boolean; json: boolean }): Promise<void> {
+    // Normalize path separators to native so CLI input matches discovered IDs on any platform
+    const normalizedName = itemName.replace(/[/\\]/g, path.sep);
     const [changes, specs] = await Promise.all([getActiveChangeIds(), getSpecCapabilities()]);
-    const isChange = changes.includes(itemName);
-    const isSpec = specs.includes(itemName);
+    const isChange = changes.includes(normalizedName);
+    const isSpec = specs.includes(normalizedName);
 
     const type = opts.typeOverride ?? (isChange ? 'change' : isSpec ? 'spec' : undefined);
 
     if (!type) {
-      console.error(`Unknown item '${itemName}'`);
-      const suggestions = nearestMatches(itemName, [...changes, ...specs]);
+      console.error(`Unknown item '${normalizedName}'`);
+      const suggestions = nearestMatches(normalizedName, [...changes, ...specs]);
       if (suggestions.length) console.error(`Did you mean: ${suggestions.join(', ')}?`);
       process.exitCode = 1;
       return;
     }
 
     if (!opts.typeOverride && isChange && isSpec) {
-      console.error(`Ambiguous item '${itemName}' matches both a change and a spec.`);
+      console.error(`Ambiguous item '${normalizedName}' matches both a change and a spec.`);
       console.error('Pass --type change|spec, or use: openspec change validate / openspec spec validate');
       process.exitCode = 1;
       return;
     }
 
-    await this.validateByType(type, itemName, opts);
+    await this.validateByType(type, normalizedName, opts);
   }
 
   private async validateByType(type: ItemType, id: string, opts: { strict: boolean; json: boolean }): Promise<void> {
