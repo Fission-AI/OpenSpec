@@ -333,6 +333,27 @@ export function validateSpecStructure(
     }
   }
 
+  // Check path length (Windows MAX_PATH compatibility)
+  if (validatePaths) {
+    const WINDOWS_MAX_PATH = 260;
+    const MAX_CAPABILITY_LENGTH = 160; // Leaves ~100 chars for project root + openspec/specs/ + /spec.md
+    for (const spec of specs) {
+      if (spec.path.length > WINDOWS_MAX_PATH) {
+        issues.push({
+          level: 'WARNING',
+          message: `Spec "${spec.capability}" has a full path of ${spec.path.length} characters, exceeding Windows MAX_PATH (${WINDOWS_MAX_PATH}). This will cause issues on Windows.`,
+          capability: spec.capability,
+        });
+      } else if (spec.capability.length > MAX_CAPABILITY_LENGTH) {
+        issues.push({
+          level: 'WARNING',
+          message: `Spec "${spec.capability}" has a capability path of ${spec.capability.length} characters (max recommended: ${MAX_CAPABILITY_LENGTH}). Long paths may cause issues on Windows depending on project location.`,
+          capability: spec.capability,
+        });
+      }
+    }
+  }
+
   // Check naming conventions (if enabled)
   if (validatePaths) {
     const VALID_NAME_PATTERN = /^[a-z0-9-_]+$/;

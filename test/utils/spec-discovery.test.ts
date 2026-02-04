@@ -630,6 +630,80 @@ describe('spec-discovery', () => {
     });
   });
 
+  describe('validateSpecStructure() - path length validation', () => {
+    it('should warn when full path exceeds Windows MAX_PATH (260)', () => {
+      // Build a path that exceeds 260 chars total
+      const prefix = '/a-long-project-root-directory/with/many/levels/openspec/specs/';
+      const longSegments = Array.from({ length: 8 }, (_, i) => `segment-${String(i).padStart(2, '0')}-with-extra-padding`);
+      const capability = longSegments.join(path.sep);
+      const fullPath = prefix + longSegments.join('/') + '/spec.md';
+
+      expect(fullPath.length).toBeGreaterThan(260);
+
+      const specs: DiscoveredSpec[] = [
+        { capability, path: fullPath, depth: 8 },
+      ];
+
+      const issues = validateSpecStructure(specs, { validatePaths: true, maxDepth: 10 });
+      const lengthIssues = issues.filter(i => i.message.includes('characters'));
+
+      expect(lengthIssues).toHaveLength(1);
+      expect(lengthIssues[0].level).toBe('WARNING');
+      expect(lengthIssues[0].message).toContain('Windows MAX_PATH');
+    });
+
+    it('should not warn for paths under 260 characters', () => {
+      const specs: DiscoveredSpec[] = [
+        { capability: path.join('platform', 'services', 'api'), path: '/specs/platform/services/api/spec.md', depth: 3 },
+      ];
+
+      const issues = validateSpecStructure(specs, { validatePaths: true, maxDepth: 4 });
+      const lengthIssues = issues.filter(i => i.message.includes('characters'));
+
+      expect(lengthIssues).toHaveLength(0);
+    });
+
+    it('should warn when capability path exceeds 160 characters (even if full path under 260)', () => {
+      // Build a capability that exceeds 160 chars but keep full path under 260
+      const longSegments = Array.from({ length: 6 }, (_, i) => `long-segment-name-${String(i).padStart(2, '0')}-padding`);
+      const capability = longSegments.join(path.sep);
+
+      expect(capability.length).toBeGreaterThan(160);
+
+      // Short prefix keeps full path under 260
+      const fullPath = '/specs/' + longSegments.join('/') + '/spec.md';
+      expect(fullPath.length).toBeLessThan(260);
+
+      const specs: DiscoveredSpec[] = [
+        { capability, path: fullPath, depth: 6 },
+      ];
+
+      const issues = validateSpecStructure(specs, { validatePaths: true, maxDepth: 10 });
+      const lengthIssues = issues.filter(i => i.message.includes('characters'));
+
+      expect(lengthIssues).toHaveLength(1);
+      expect(lengthIssues[0].level).toBe('WARNING');
+      expect(lengthIssues[0].message).toContain('capability path');
+      expect(lengthIssues[0].message).toContain('160');
+    });
+
+    it('should skip path length check when validatePaths is false', () => {
+      const prefix = '/a-long-project-root-directory/with/many/levels/openspec/specs/';
+      const longSegments = Array.from({ length: 8 }, (_, i) => `segment-${String(i).padStart(2, '0')}-with-extra-padding`);
+      const capability = longSegments.join(path.sep);
+      const fullPath = prefix + longSegments.join('/') + '/spec.md';
+
+      const specs: DiscoveredSpec[] = [
+        { capability, path: fullPath, depth: 8 },
+      ];
+
+      const issues = validateSpecStructure(specs, { validatePaths: false, maxDepth: 10 });
+      const lengthIssues = issues.filter(i => i.message.includes('characters'));
+
+      expect(lengthIssues).toHaveLength(0);
+    });
+  });
+
   describe('validateSpecStructure() - reserved names validation', () => {
     it('should reject reserved directory names', () => {
       const reservedNames = [
