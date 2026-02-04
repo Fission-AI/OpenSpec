@@ -1179,7 +1179,7 @@ Here's a draft proposal:
 ## Capabilities
 
 ### New Capabilities
-- \`<capability-name>\`: [brief description]
+- \`<capability-path>\`: [brief description]
 
 ### Modified Capabilities
 <!-- If modifying existing behavior -->
@@ -1224,9 +1224,9 @@ For a small task like this, we might only need one spec file.
 **DO:** Create the spec file:
 \`\`\`bash
 # Unix/macOS
-mkdir -p openspec/changes/<name>/specs/<capability-name>
+mkdir -p openspec/changes/<name>/specs/<capability-path>
 # Windows (PowerShell)
-# New-Item -ItemType Directory -Force -Path "openspec/changes/<name>/specs/<capability-name>"
+# New-Item -ItemType Directory -Force -Path "openspec/changes/<name>/specs/<capability-path>"
 \`\`\`
 
 Draft the spec content:
