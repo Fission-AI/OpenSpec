@@ -337,6 +337,10 @@ export function validateSpecStructure(
   if (validatePaths) {
     const VALID_NAME_PATTERN = /^[a-z0-9-_]+$/;
     const RESERVED_NAMES = ['..', '.', '.git', 'node_modules', '.openspec'];
+    // Windows reserved device names (case-insensitive, but regex already rejects uppercase)
+    const WINDOWS_RESERVED = ['con', 'prn', 'aux', 'nul',
+      'com1', 'com2', 'com3', 'com4', 'com5', 'com6', 'com7', 'com8', 'com9',
+      'lpt1', 'lpt2', 'lpt3', 'lpt4', 'lpt5', 'lpt6', 'lpt7', 'lpt8', 'lpt9'];
 
     for (const spec of specs) {
       const segments = spec.capability.split(path.sep);
@@ -347,6 +351,16 @@ export function validateSpecStructure(
           issues.push({
             level: 'ERROR',
             message: `Reserved name "${segment}" not allowed in capability "${spec.capability}". Reserved names: ${RESERVED_NAMES.join(', ')}`,
+            capability: spec.capability,
+          });
+          break;
+        }
+
+        // Check Windows reserved device names
+        if (WINDOWS_RESERVED.includes(segment)) {
+          issues.push({
+            level: 'ERROR',
+            message: `Windows reserved name "${segment}" not allowed in capability "${spec.capability}". These names cause issues on Windows filesystems.`,
             capability: spec.capability,
           });
           break;

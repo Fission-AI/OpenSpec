@@ -691,6 +691,32 @@ describe('spec-discovery', () => {
       expect(reservedIssues[0].message).toContain('.openspec');
     });
 
+    it('should reject Windows reserved device names', () => {
+      const windowsReserved = ['con', 'prn', 'aux', 'nul', 'com1', 'lpt1'];
+
+      windowsReserved.forEach(name => {
+        const spec: DiscoveredSpec = { capability: name, path: `/specs/${name}/spec.md`, depth: 1 };
+        const issues = validateSpecStructure([spec], { validatePaths: true, maxDepth: 4 });
+        const windowsIssues = issues.filter(i => i.message.includes('Windows reserved name'));
+
+        expect(windowsIssues).toHaveLength(1);
+        expect(windowsIssues[0].level).toBe('ERROR');
+        expect(windowsIssues[0].message).toContain(name);
+      });
+    });
+
+    it('should reject Windows reserved names in hierarchical paths', () => {
+      const specs: DiscoveredSpec[] = [
+        { capability: path.join('platform', 'con'), path: '/specs/platform/con/spec.md', depth: 2 },
+      ];
+
+      const issues = validateSpecStructure(specs, { validatePaths: true, maxDepth: 4 });
+      const windowsIssues = issues.filter(i => i.message.includes('Windows reserved name'));
+
+      expect(windowsIssues).toHaveLength(1);
+      expect(windowsIssues[0].message).toContain('con');
+    });
+
     it('should only report reserved name issue once per capability', () => {
       const specs: DiscoveredSpec[] = [
         { capability: path.join('.git', 'node_modules'), path: '/specs/.git/node_modules/spec.md', depth: 2 },
