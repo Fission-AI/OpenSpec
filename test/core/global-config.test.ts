@@ -463,13 +463,13 @@ describe('global-config', () => {
       fs.mkdirSync(configDir, { recursive: true });
       fs.writeFileSync(configPath, JSON.stringify({
         featureFlags: {},
-        specStructure: { maxDepth: 0 }
+        specStructure: { maxDepth: 1 }
       }));
 
       const config = getSpecStructureConfig();
 
-      // 0 should be preserved (not replaced with default)
-      expect(config.maxDepth).toBe(0);
+      // 1 should be preserved (not replaced with default 4)
+      expect(config.maxDepth).toBe(1);
     });
 
     describe('with project overrides', () => {
