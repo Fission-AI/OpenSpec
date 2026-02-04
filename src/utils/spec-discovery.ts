@@ -138,26 +138,29 @@ export function findAllSpecs(baseDir: string): DiscoveredSpec[] {
 /**
  * Auto-detect whether spec structure is hierarchical or flat.
  *
- * Considers structure hierarchical if any spec has a path separator
- * in its capability name (indicating nested directories).
+ * Considers structure hierarchical if any spec has depth > 1
+ * (indicating nested directories).
  *
- * @param specsDir - Base specs directory to analyze
+ * Accepts either a directory path (discovers specs internally) or
+ * a pre-discovered array (avoids redundant filesystem traversal).
+ *
+ * @param specsOrDir - Base specs directory path, or pre-discovered specs array
  * @returns true if hierarchical structure detected, false if flat
  *
  * @example
  * ```typescript
- * // Flat structure (specs/auth/spec.md, specs/payments/spec.md)
- * isSpecStructureHierarchical('/project/openspec/specs') // returns false
+ * // From directory path
+ * isSpecStructureHierarchical('/project/openspec/specs') // returns true/false
  *
- * // Hierarchical structure (specs/_global/testing/spec.md)
- * isSpecStructureHierarchical('/project/openspec/specs') // returns true
+ * // From pre-discovered specs (avoids double traversal)
+ * const specs = findAllSpecs('/project/openspec/specs');
+ * isSpecStructureHierarchical(specs) // returns true/false
  * ```
  */
-export function isSpecStructureHierarchical(specsDir: string): boolean {
-  const specs = findAllSpecs(specsDir);
+export function isSpecStructureHierarchical(specsOrDir: string | DiscoveredSpec[]): boolean {
+  const specs = typeof specsOrDir === 'string' ? findAllSpecs(specsOrDir) : specsOrDir;
 
-  // If any spec has path separator in capability name, it's hierarchical
-  return specs.some(s => s.capability.includes(path.sep));
+  return specs.some(s => s.depth > 1);
 }
 
 /**

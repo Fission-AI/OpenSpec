@@ -19,7 +19,7 @@ export class ViewCommand {
 
     // Get changes and specs data
     const changesData = await this.getChangesData(openspecDir);
-    const specsData = await this.getSpecsData(openspecDir);
+    const { specs: specsData, isHierarchical } = await this.getSpecsData(openspecDir);
 
     // Display summary metrics
     this.displaySummary(changesData, specsData);
@@ -63,8 +63,6 @@ export class ViewCommand {
     if (specsData.length > 0) {
       console.log(chalk.bold.blue('\nSpecifications'));
       console.log('─'.repeat(60));
-
-      const isHierarchical = isSpecStructureHierarchical(path.join(openspecDir, 'specs'));
 
       // Sort by capability path when hierarchical, by requirement count when flat
       if (isHierarchical) {
@@ -135,15 +133,19 @@ export class ViewCommand {
     return { draft, active, completed };
   }
 
-  private async getSpecsData(openspecDir: string): Promise<Array<{ name: string; requirementCount: number }>> {
+  private async getSpecsData(openspecDir: string): Promise<{
+    specs: Array<{ name: string; requirementCount: number }>;
+    isHierarchical: boolean;
+  }> {
     const specsDir = path.join(openspecDir, 'specs');
 
     if (!fs.existsSync(specsDir)) {
-      return [];
+      return { specs: [], isHierarchical: false };
     }
 
     // Use spec-discovery utility to find all specs (supports hierarchical)
     const discoveredSpecs = findAllSpecs(specsDir);
+    const isHierarchical = isSpecStructureHierarchical(discoveredSpecs);
     const specs: Array<{ name: string; requirementCount: number }> = [];
 
     for (const discoveredSpec of discoveredSpecs) {
@@ -159,7 +161,7 @@ export class ViewCommand {
       }
     }
 
-    return specs;
+    return { specs, isHierarchical };
   }
 
   private displaySummary(
