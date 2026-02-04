@@ -133,7 +133,7 @@ export class Validator {
 
         const plan = parseDeltaSpec(content);
         // Use full capability path (e.g., "_global/testing/spec.md" instead of "testing/spec.md")
-        const entryPath = `${spec.capability}/spec.md`;
+        const entryPath = path.join(spec.capability, 'spec.md');
         const sectionNames: string[] = [];
         if (plan.sectionPresence.added) sectionNames.push('## ADDED Requirements');
         if (plan.sectionPresence.modified) sectionNames.push('## MODIFIED Requirements');

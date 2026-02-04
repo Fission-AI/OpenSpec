@@ -259,7 +259,7 @@ export function validateSpecStructure(
       if (capabilitySet.has(parentPath)) {
         issues.push({
           level: 'ERROR',
-          message: `Orphaned spec found at intermediate level "${parentPath}". Specs should only exist at leaf directories. Found both "${parentPath}/spec.md" and "${spec.capability}/spec.md".`,
+          message: `Orphaned spec found at intermediate level "${parentPath}". Specs should only exist at leaf directories. Found both "${path.join(parentPath, 'spec.md')}" and "${path.join(spec.capability, 'spec.md')}".`,
           capability: parentPath,
         });
       }

@@ -320,7 +320,7 @@ export async function writeUpdatedSpec(
   await fs.writeFile(update.target, rebuilt);
 
   // Use full capability path for hierarchical support
-  console.log(`Applying changes to openspec/specs/${update.capability}/spec.md:`);
+  console.log(`Applying changes to ${path.join('openspec', 'specs', update.capability, 'spec.md')}:`);
   if (counts.added) console.log(`  + ${counts.added} added`);
   if (counts.modified) console.log(`  ~ ${counts.modified} modified`);
   if (counts.removed) console.log(`  - ${counts.removed} removed`);
@@ -420,14 +420,14 @@ export async function applySpecs(
       await fs.writeFile(p.update.target, p.rebuilt);
 
       if (!options.silent) {
-        console.log(`Applying changes to openspec/specs/${capability}/spec.md:`);
+        console.log(`Applying changes to ${path.join('openspec', 'specs', capability, 'spec.md')}:`);
         if (p.counts.added) console.log(`  + ${p.counts.added} added`);
         if (p.counts.modified) console.log(`  ~ ${p.counts.modified} modified`);
         if (p.counts.removed) console.log(`  - ${p.counts.removed} removed`);
         if (p.counts.renamed) console.log(`  → ${p.counts.renamed} renamed`);
       }
     } else if (!options.silent) {
-      console.log(`Would apply changes to openspec/specs/${capability}/spec.md:`);
+      console.log(`Would apply changes to ${path.join('openspec', 'specs', capability, 'spec.md')}:`);
       if (p.counts.added) console.log(`  + ${p.counts.added} added`);
       if (p.counts.modified) console.log(`  ~ ${p.counts.modified} modified`);
       if (p.counts.removed) console.log(`  - ${p.counts.removed} removed`);
