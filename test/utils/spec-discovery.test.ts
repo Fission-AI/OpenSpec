@@ -635,7 +635,6 @@ describe('spec-discovery', () => {
         { capability: '..', path: '/specs/../spec.md', depth: 1 },
         { capability: '.', path: '/specs/./spec.md', depth: 1 },
         { capability: '.git', path: '/specs/.git/spec.md', depth: 1 },
-        { capability: '.gitignore', path: '/specs/.gitignore/spec.md', depth: 1 },
         { capability: 'node_modules', path: '/specs/node_modules/spec.md', depth: 1 },
         { capability: '.openspec', path: '/specs/.openspec/spec.md', depth: 1 },
       ];

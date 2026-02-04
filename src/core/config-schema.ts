@@ -3,7 +3,7 @@ import { z } from 'zod';
 /**
  * Zod schema for spec structure configuration.
  */
-const SpecStructureConfigSchema = z
+export const SpecStructureConfigSchema = z
   .object({
     structure: z.enum(['flat', 'hierarchical', 'auto']).optional().default('auto'),
     maxDepth: z.number().int().min(1).max(10).optional().default(4),
