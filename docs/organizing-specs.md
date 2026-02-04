@@ -6,7 +6,7 @@ OpenSpec supports two ways to organize your specifications: **flat** and **hiera
 
 The simplest approach - one directory per capability at the top level:
 
-```
+```text
 openspec/specs/
   auth/spec.md
   api/spec.md
@@ -24,7 +24,7 @@ openspec/specs/
 
 Organize specs by domain, scope, or subsystem using nested directories:
 
-```
+```text
 openspec/specs/
   _global/
     testing/spec.md
@@ -68,13 +68,13 @@ Capability names include the full path:
 When you create a change that updates specs, the delta structure in your change directory **mirrors the main spec structure 1:1**:
 
 **Flat example:**
-```
+```text
 Main:    openspec/specs/auth/spec.md
 Delta:   openspec/changes/add-oauth/specs/auth/spec.md
 ```
 
 **Hierarchical example:**
-```
+```text
 Main:    openspec/specs/_global/testing/spec.md
 Delta:   openspec/changes/add-e2e-tests/specs/_global/testing/spec.md
 ```
@@ -85,7 +85,7 @@ This 1:1 mapping makes it easy to understand which specs a change affects.
 
 You can mix both approaches in the same project:
 
-```
+```text
 openspec/specs/
   auth/spec.md                    # Flat (depth 1)
   payments/spec.md                # Flat (depth 1)
@@ -103,7 +103,7 @@ OpenSpec auto-detects the structure and handles both correctly.
 
 Control spec structure behavior in `~/.config/openspec/config.json` (or `%APPDATA%/openspec/config.json` on Windows):
 
-```json
+```jsonc
 {
   "specStructure": {
     "structure": "auto",          // "auto", "flat", or "hierarchical"

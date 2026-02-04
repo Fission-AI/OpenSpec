@@ -29,7 +29,7 @@ Before starting, ensure:
 Design your new structure **before** moving files. Consider:
 
 **Domain-based organization:**
-```
+```text
 _global/          # Cross-cutting concerns
 frontend/         # Frontend-specific specs
 backend/          # Backend-specific specs
@@ -37,7 +37,7 @@ infrastructure/   # Infrastructure specs
 ```
 
 **Subsystem-based organization:**
-```
+```text
 platform/
   services/
     auth/
@@ -163,7 +163,7 @@ Inform your team about the new structure:
 ## Example Migration
 
 ### Before (Flat)
-```
+```text
 openspec/specs/
   auth/spec.md
   api/spec.md
@@ -175,7 +175,7 @@ openspec/specs/
 ```
 
 ### After (Hierarchical)
-```
+```text
 openspec/specs/
   _global/
     testing/spec.md
@@ -228,7 +228,7 @@ You can migrate gradually by mixing flat and hierarchical:
 4. Eventually enforce pure hierarchical with config
 
 Example gradual migration:
-```
+```text
 openspec/specs/
   auth/spec.md                    # Still flat
   payments/spec.md                # Still flat

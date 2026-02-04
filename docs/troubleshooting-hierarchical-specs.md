@@ -28,7 +28,7 @@ openspec list --specs
 ## Validation Errors: Invalid Path Names
 
 **Problem:** `openspec validate --specs` shows errors like:
-```
+```text
 ERROR: Invalid segment "Auth" in capability "platform/Auth"
 ```
 
@@ -87,7 +87,7 @@ The `openspec list --specs` command always shows the correct format for your pla
 ## Depth Limit Exceeded
 
 **Problem:** Validation shows:
-```
+```text
 ERROR: Spec "platform/services/api/rest/v1" exceeds maximum depth 4
 ```
 
@@ -143,14 +143,14 @@ ERROR: Spec "platform/services/api/rest/v1" exceeds maximum depth 4
 ## Orphaned Specs
 
 **Problem:** Validation shows:
-```
+```text
 ERROR: Orphaned spec found at intermediate level "_global"
 ```
 
 **Cause:** A `spec.md` exists at an intermediate directory level (not a leaf).
 
 **Example of the problem:**
-```
+```text
 openspec/specs/
   _global/
     spec.md              ← This is orphaned (intermediate level)
@@ -203,7 +203,7 @@ If all specs are listed without path separators (e.g., `user-auth` instead of `b
 ## Reserved Directory Names
 
 **Problem:** Validation shows:
-```
+```text
 ERROR: Reserved name ".git" not allowed in capability
 ```
 
@@ -244,7 +244,7 @@ openspec/specs/_internal/
 ```
 
 **But delta specs are at:**
-```
+```text
 openspec/changes/my-change/specs/platform/services/api/spec.md
 openspec/changes/my-change/specs/platform/services/auth/spec.md
 ```
