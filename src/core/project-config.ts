@@ -167,7 +167,7 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
     // Parse specStructure field sub-field-by-field (resilient)
     if (raw.specStructure !== undefined) {
       if (typeof raw.specStructure === 'object' && raw.specStructure !== null && !Array.isArray(raw.specStructure)) {
-        const parsedSpecStructure: Partial<SpecStructureConfig> = {};
+        const parsedSpecStructure: SpecStructureConfig = {};
         let hasValidFields = false;
 
         // structure
@@ -215,7 +215,7 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
         }
 
         if (hasValidFields) {
-          config.specStructure = parsedSpecStructure as SpecStructureConfig;
+          config.specStructure = parsedSpecStructure;
         }
       } else {
         console.warn(`Invalid 'specStructure' field in config (must be object)`);
