@@ -76,6 +76,17 @@ describe('spec-discovery', () => {
       expect(specs).toHaveLength(0);
     });
 
+    it('should skip spec.md found directly in baseDir (no valid capability)', () => {
+      // A spec.md at the root of the specs directory has no capability name
+      fs.writeFileSync(path.join(flatFixtureDir, 'spec.md'), '# Root Spec');
+
+      const specs = findAllSpecs(flatFixtureDir);
+
+      // Should only find the 3 specs in subdirectories, not the root one
+      expect(specs).toHaveLength(3);
+      expect(specs.map(s => s.capability)).not.toContain('');
+    });
+
     it('should ignore directories without spec.md', () => {
       const dirWithoutSpec = path.join(flatFixtureDir, 'no-spec');
       fs.mkdirSync(dirWithoutSpec, { recursive: true });
@@ -174,14 +185,15 @@ describe('spec-discovery', () => {
       });
     });
 
-    it('should not find orphaned specs at intermediate levels', () => {
-      // Add an intermediate spec.md (should be ignored by design)
-      fs.writeFileSync(path.join(hierarchicalFixtureDir, '_global', 'spec.md'), '# Orphaned Spec');
+    it('should find all specs including intermediate levels (validation happens separately)', () => {
+      // Add a spec.md at an intermediate directory level
+      fs.writeFileSync(path.join(hierarchicalFixtureDir, '_global', 'spec.md'), '# Intermediate Spec');
 
       const specs = findAllSpecs(hierarchicalFixtureDir);
 
-      // Should still find the 5 leaf specs, not the orphaned one
-      expect(specs).toHaveLength(6); // Actually finds it - validation happens separately
+      // findAllSpecs discovers all spec.md files; orphan detection is done by validateSpecStructure()
+      expect(specs).toHaveLength(6);
+      expect(specs.map(s => s.capability)).toContain('_global');
     });
   });
 
@@ -264,6 +276,104 @@ describe('spec-discovery', () => {
       // Verify depth calculation uses path.sep correctly
       expect(globalSpec!.capability.split(path.sep)).toHaveLength(2);
       expect(packagesSpec!.capability.split(path.sep)).toHaveLength(2);
+    });
+  });
+
+  describe('findSpecUpdates()', () => {
+    let updatesFixtureDir: string;
+    let changeDir: string;
+    let mainSpecsDir: string;
+
+    beforeEach(() => {
+      updatesFixtureDir = path.join(fixturesDir, 'spec-updates');
+      changeDir = path.join(updatesFixtureDir, 'changes', 'my-change');
+      mainSpecsDir = path.join(updatesFixtureDir, 'specs');
+    });
+
+    afterEach(() => {
+      if (fs.existsSync(updatesFixtureDir)) {
+        fs.rmSync(updatesFixtureDir, { recursive: true, force: true });
+      }
+    });
+
+    it('should map flat delta specs to main specs', () => {
+      // Create main spec
+      fs.mkdirSync(path.join(mainSpecsDir, 'auth'), { recursive: true });
+      fs.writeFileSync(path.join(mainSpecsDir, 'auth', 'spec.md'), '# Auth');
+
+      // Create delta spec in change
+      fs.mkdirSync(path.join(changeDir, 'specs', 'auth'), { recursive: true });
+      fs.writeFileSync(path.join(changeDir, 'specs', 'auth', 'spec.md'), '# Auth Delta');
+
+      const updates = findSpecUpdates(changeDir, mainSpecsDir);
+
+      expect(updates).toHaveLength(1);
+      expect(updates[0].capability).toBe('auth');
+      expect(updates[0].exists).toBe(true);
+      expect(updates[0].source).toContain(path.join('my-change', 'specs', 'auth', 'spec.md'));
+      expect(updates[0].target).toBe(path.join(mainSpecsDir, 'auth', 'spec.md'));
+    });
+
+    it('should map hierarchical delta specs preserving path structure', () => {
+      // Create main spec
+      fs.mkdirSync(path.join(mainSpecsDir, '_global', 'testing'), { recursive: true });
+      fs.writeFileSync(path.join(mainSpecsDir, '_global', 'testing', 'spec.md'), '# Testing');
+
+      // Create delta spec in change
+      fs.mkdirSync(path.join(changeDir, 'specs', '_global', 'testing'), { recursive: true });
+      fs.writeFileSync(path.join(changeDir, 'specs', '_global', 'testing', 'spec.md'), '# Testing Delta');
+
+      const updates = findSpecUpdates(changeDir, mainSpecsDir);
+
+      expect(updates).toHaveLength(1);
+      expect(updates[0].capability).toBe(path.join('_global', 'testing'));
+      expect(updates[0].exists).toBe(true);
+    });
+
+    it('should detect new capabilities (exists=false) when main spec does not exist', () => {
+      // No main spec
+      fs.mkdirSync(mainSpecsDir, { recursive: true });
+
+      // Create delta spec for a new capability
+      fs.mkdirSync(path.join(changeDir, 'specs', 'new-feature'), { recursive: true });
+      fs.writeFileSync(path.join(changeDir, 'specs', 'new-feature', 'spec.md'), '# New Feature');
+
+      const updates = findSpecUpdates(changeDir, mainSpecsDir);
+
+      expect(updates).toHaveLength(1);
+      expect(updates[0].capability).toBe('new-feature');
+      expect(updates[0].exists).toBe(false);
+    });
+
+    it('should return empty array when change has no specs directory', () => {
+      fs.mkdirSync(changeDir, { recursive: true });
+      fs.mkdirSync(mainSpecsDir, { recursive: true });
+
+      const updates = findSpecUpdates(changeDir, mainSpecsDir);
+
+      expect(updates).toHaveLength(0);
+    });
+
+    it('should handle mixed flat and hierarchical delta specs', () => {
+      // Create main specs
+      fs.mkdirSync(path.join(mainSpecsDir, 'auth'), { recursive: true });
+      fs.writeFileSync(path.join(mainSpecsDir, 'auth', 'spec.md'), '# Auth');
+      fs.mkdirSync(path.join(mainSpecsDir, '_global', 'testing'), { recursive: true });
+      fs.writeFileSync(path.join(mainSpecsDir, '_global', 'testing', 'spec.md'), '# Testing');
+
+      // Create delta specs
+      fs.mkdirSync(path.join(changeDir, 'specs', 'auth'), { recursive: true });
+      fs.writeFileSync(path.join(changeDir, 'specs', 'auth', 'spec.md'), '# Auth Delta');
+      fs.mkdirSync(path.join(changeDir, 'specs', '_global', 'testing'), { recursive: true });
+      fs.writeFileSync(path.join(changeDir, 'specs', '_global', 'testing', 'spec.md'), '# Testing Delta');
+
+      const updates = findSpecUpdates(changeDir, mainSpecsDir);
+
+      expect(updates).toHaveLength(2);
+      const capabilities = updates.map(u => u.capability).sort();
+      expect(capabilities).toContain('auth');
+      expect(capabilities).toContain(path.join('_global', 'testing'));
+      expect(updates.every(u => u.exists)).toBe(true);
     });
   });
 
