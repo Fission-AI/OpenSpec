@@ -248,6 +248,7 @@ export function validateSpecStructure(
 
   // Check for orphaned specs (spec.md at intermediate levels)
   const capabilitySet = new Set(specs.map(s => s.capability));
+  const reportedOrphans = new Set<string>();
 
   for (const spec of specs) {
     const segments = spec.capability.split(path.sep);
@@ -256,7 +257,8 @@ export function validateSpecStructure(
     for (let i = 1; i < segments.length; i++) {
       const parentPath = segments.slice(0, i).join(path.sep);
 
-      if (capabilitySet.has(parentPath)) {
+      if (capabilitySet.has(parentPath) && !reportedOrphans.has(parentPath)) {
+        reportedOrphans.add(parentPath);
         issues.push({
           level: 'ERROR',
           message: `Orphaned spec found at intermediate level "${parentPath}". Specs should only exist at leaf directories. Found both "${path.join(parentPath, 'spec.md')}" and "${path.join(spec.capability, 'spec.md')}".`,
