@@ -309,7 +309,7 @@ export function validateSpecStructure(
 
   // Check depth limits
   const RECOMMENDED_MAX_DEPTH = 3;
-  const HARD_LIMIT_DEPTH = 6;
+  const HARD_LIMIT_DEPTH = 10;
 
   for (const spec of specs) {
     // Error if exceeds configured maxDepth (capped at hard limit)

@@ -506,18 +506,19 @@ describe('spec-discovery', () => {
       expect(depthIssues[0].message).toContain('exceeds maximum depth 2');
     });
 
-    it('should cap maxDepth at hard limit of 6', () => {
+    it('should cap maxDepth at hard limit of 10', () => {
+      const segments = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k'];
       const specs: DiscoveredSpec[] = [
-        { capability: path.join('a', 'b', 'c', 'd', 'e', 'f', 'g'), path: '/specs/a/b/c/d/e/f/g/spec.md', depth: 7 },
+        { capability: segments.join(path.sep), path: `/specs/${segments.join('/')}/spec.md`, depth: 11 },
       ];
 
-      // Even with maxDepth: 10, hard limit is 6
+      // Even with maxDepth: 10, hard limit is 10 so depth 11 is an error
       const issues = validateSpecStructure(specs, { validatePaths: true, maxDepth: 10 });
       const depthIssues = issues.filter(i => i.message.includes('exceeds maximum depth'));
 
       expect(depthIssues).toHaveLength(1);
       expect(depthIssues[0].level).toBe('ERROR');
-      expect(depthIssues[0].message).toContain('exceeds maximum depth 6');
+      expect(depthIssues[0].message).toContain('exceeds maximum depth 10');
     });
 
     it('should handle multiple specs with different depth issues', () => {
@@ -919,17 +920,16 @@ describe('spec-discovery', () => {
       expect(depthIssues[0].message).toContain('exceeds maximum depth 4');
     });
 
-    it('should treat maxDepth 10 as hard-capped at 6', () => {
+    it('should allow maxDepth 10 without capping', () => {
       const specs: DiscoveredSpec[] = [
         { capability: path.join('a', 'b', 'c', 'd', 'e', 'f', 'g'), path: '/specs/a/b/c/d/e/f/g/spec.md', depth: 7 },
       ];
 
-      // Even with maxDepth: 10, should cap at 6
+      // With maxDepth: 10, depth 7 should not be an error (only a warning if > recommended)
       const issues = validateSpecStructure(specs, { validatePaths: true, maxDepth: 10 });
-      const depthIssues = issues.filter(i => i.message.includes('exceeds maximum depth'));
+      const depthErrors = issues.filter(i => i.message.includes('exceeds maximum depth'));
 
-      expect(depthIssues).toHaveLength(1);
-      expect(depthIssues[0].message).toContain('exceeds maximum depth 6');
+      expect(depthErrors).toHaveLength(0);
     });
 
     it('should not enforce structure in auto mode with mixed specs', () => {
