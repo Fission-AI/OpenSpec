@@ -260,7 +260,10 @@ export function validateConfig(config: unknown): { success: boolean; error?: str
     return { success: true };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const messages = error.issues.map((e) => `${e.path.join('.')}: ${e.message}`);
+      const messages = error.issues.map((e) => {
+        const field = e.path.length ? e.path.join('.') : '<root>';
+        return `${field}: ${e.message}`;
+      });
       return { success: false, error: messages.join('; ') };
     }
     return { success: false, error: 'Unknown validation error' };
