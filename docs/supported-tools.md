@@ -28,6 +28,7 @@ For each tool you select, OpenSpec installs:
 | Gemini CLI | `.gemini/skills/` | `.gemini/commands/opsx/` |
 | GitHub Copilot | `.github/skills/` | `.github/prompts/` |
 | iFlow | `.iflow/skills/` | `.iflow/commands/` |
+| Lingma | `.lingma/skills/` | `.lingma/commands/` |
 | Kilo Code | `.kilocode/skills/` | `.kilocode/workflows/` |
 | OpenCode | `.opencode/skills/` | `.opencode/command/` |
 | Qoder | `.qoder/skills/` | `.qoder/commands/opsx/` |
@@ -53,7 +54,7 @@ openspec init --tools all
 openspec init --tools none
 ```
 
-**Available tool IDs:** `amazon-q`, `antigravity`, `auggie`, `claude`, `cline`, `codebuddy`, `codex`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `iflow`, `kilocode`, `opencode`, `qoder`, `qwen`, `roocode`, `trae`, `windsurf`
+**Available tool IDs:** `amazon-q`, `antigravity`, `auggie`, `claude`, `cline`, `codebuddy`, `codex`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `iflow`, `lingma`, `kilocode`, `opencode`, `qoder`, `qwen`, `roocode`, `trae`, `windsurf`
 
 ## What Gets Installed
 
