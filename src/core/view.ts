@@ -6,7 +6,7 @@ import { MarkdownParser } from './parsers/markdown-parser.js';
 
 export class ViewCommand {
   async execute(targetPath: string = '.'): Promise<void> {
-    const openspecDir = path.join(targetPath', 'lightspec');
+    const openspecDir = path.join(targetPath, 'lightspec');
     
     if (!fs.existsSync(openspecDir)) {
       console.error(chalk.red('No lightspec directory found'));
@@ -75,7 +75,7 @@ export class ViewCommand {
     }
 
     console.log('\n' + '═'.repeat(60));
-    console.log(chalk.dim(`\nUse ${chalk.white('lightspec list' --changes')} or ${chalk.white('lightspec list' --specs')} for detailed views`));
+    console.log(chalk.dim(`\nUse ${chalk.white('lightspec list --changes')} or ${chalk.white('lightspec list --specs')} for detailed views`));
   }
 
   private async getChangesData(openspecDir: string): Promise<{

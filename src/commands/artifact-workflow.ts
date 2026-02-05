@@ -834,15 +834,15 @@ async function artifactExperimentalSetupCommand(): Promise<void> {
 
     // Create skill directories and SKILL.md files
     const skills = [
-      { template: exploreSkill, dirName: 'lightspec-'explore' },
-      { template: newChangeSkill, dirName: 'lightspec-'new-change' },
-      { template: continueChangeSkill, dirName: 'lightspec-'continue-change' },
-      { template: applyChangeSkill, dirName: 'lightspec-'apply-change' },
-      { template: ffChangeSkill, dirName: 'lightspec-'ff-change' },
-      { template: syncSpecsSkill, dirName: 'lightspec-'sync-specs' },
-      { template: archiveChangeSkill, dirName: 'lightspec-'archive-change' },
-      { template: bulkArchiveChangeSkill, dirName: 'lightspec-'bulk-archive-change' },
-      { template: verifyChangeSkill, dirName: 'lightspec-'verify-change' },
+      { template: exploreSkill, dirName: 'lightspec-explore' },
+      { template: newChangeSkill, dirName: 'lightspec-new-change' },
+      { template: continueChangeSkill, dirName: 'lightspec-continue-change' },
+      { template: applyChangeSkill, dirName: 'lightspec-apply-change' },
+      { template: ffChangeSkill, dirName: 'lightspec-ff-change' },
+      { template: syncSpecsSkill, dirName: 'lightspec-sync-specs' },
+      { template: archiveChangeSkill, dirName: 'lightspec-archive-change' },
+      { template: bulkArchiveChangeSkill, dirName: 'lightspec-bulk-archive-change' },
+      { template: verifyChangeSkill, dirName: 'lightspec-verify-change' },
     ];
 
     const createdSkillFiles: string[] = [];

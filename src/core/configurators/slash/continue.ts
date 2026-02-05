@@ -17,7 +17,7 @@ const FILE_PATHS: Record<SlashCommandId, string> = {
  * Body...
  *
  * The 'invokable: true' field is required to make the prompt available as a slash command.
- * We use 'lightspec-'proposal' as the name so the command becomes /lightspec-proposal.
+ * We use 'lightspec-proposal' as the name so the command becomes /lightspec-proposal.
  */
 const FRONTMATTER: Record<SlashCommandId, string> = {
   proposal: `---

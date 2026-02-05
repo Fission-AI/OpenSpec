@@ -61,7 +61,7 @@ export class BashInstaller {
     const localCompletionDir = path.join(this.homeDir, '.local', 'share', 'bash-completion', 'completions');
 
     // For user installation, use local directory
-    return path.join(localCompletionDir', 'lightspec');
+    return path.join(localCompletionDir, 'lightspec');
   }
 
   /**

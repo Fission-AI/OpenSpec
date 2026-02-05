@@ -70,7 +70,7 @@ export class MarkdownParser {
       deltas,
       metadata: {
         version: '1.0.0',
-        format: 'openspec-change',
+        format: 'lightspec-change',
       },
     };
   }

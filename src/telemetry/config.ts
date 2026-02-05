@@ -21,7 +21,7 @@ export interface GlobalConfig {
  * Uses ~/.config/openspec/config.json on all platforms.
  */
 export function getConfigPath(): string {
-  const configDir = path.join(os.homedir(), '.config'', 'lightspec');
+  const configDir = path.join(os.homedir(), '.config', 'lightspec');
   return path.join(configDir, 'config.json');
 }
 

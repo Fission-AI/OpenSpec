@@ -20,7 +20,7 @@ export interface SkillTemplate {
  */
 export function getExploreSkillTemplate(): SkillTemplate {
   return {
-    name: 'lightspec-'explore',
+    name: 'lightspec-explore',
     description: 'Enter explore mode - a thinking partner for exploring ideas, investigating problems, and clarifying requirements. Use when the user wants to think through something before or during a change.',
     instructions: `Enter explore mode. Think deeply. Visualize freely. Follow the conversation wherever it goes.
 
@@ -310,7 +310,7 @@ But this summary is optional. Sometimes the thinking IS the value.
  */
 export function getNewChangeSkillTemplate(): SkillTemplate {
   return {
-    name: 'lightspec-'new-change',
+    name: 'lightspec-new-change',
     description: 'Start a new LightSpec change using the experimental artifact workflow. Use when the user wants to create a new feature, fix, or modification with a structured step-by-step approach.',
     instructions: `Start a new change using the experimental artifact-driven approach.
 
@@ -385,7 +385,7 @@ After completing the steps, summarize:
  */
 export function getContinueChangeSkillTemplate(): SkillTemplate {
   return {
-    name: 'lightspec-'continue-change',
+    name: 'lightspec-continue-change',
     description: 'Continue working on an LightSpec change by creating the next artifact. Use when the user wants to progress their change, create the next artifact, or continue their workflow.',
     instructions: `Continue working on a change by creating the next artifact.
 
@@ -499,7 +499,7 @@ For other schemas, follow the \`instruction\` field from the CLI output.
  */
 export function getApplyChangeSkillTemplate(): SkillTemplate {
   return {
-    name: 'lightspec-'apply-change',
+    name: 'lightspec-apply-change',
     description: 'Implement tasks from an LightSpec change. Use when the user wants to start implementing, continue implementation, or work through tasks.',
     instructions: `Implement tasks from an LightSpec change.
 
@@ -656,7 +656,7 @@ This skill supports the "actions on a change" model:
  */
 export function getFfChangeSkillTemplate(): SkillTemplate {
   return {
-    name: 'lightspec-'ff-change',
+    name: 'lightspec-ff-change',
     description: 'Fast-forward through LightSpec artifact creation. Use when the user wants to quickly create all artifacts needed for implementation without stepping through each one individually.',
     instructions: `Fast-forward through artifact creation - generate everything needed to start implementation in one go.
 
@@ -751,7 +751,7 @@ After completing all artifacts, summarize:
  */
 export function getSyncSpecsSkillTemplate(): SkillTemplate {
   return {
-    name: 'lightspec-'sync-specs',
+    name: 'lightspec-sync-specs',
     description: 'Sync delta specs from a change to main specs. Use when the user wants to update main specs with changes from a delta spec, without archiving the change.',
     instructions: `Sync delta specs from a change to main specs.
 
@@ -1526,7 +1526,7 @@ After completing all artifacts, summarize:
  */
 export function getArchiveChangeSkillTemplate(): SkillTemplate {
   return {
-    name: 'lightspec-'archive-change',
+    name: 'lightspec-archive-change',
     description: 'Archive a completed change in the experimental workflow. Use when the user wants to finalize and archive a change after implementation is complete.',
     instructions: `Archive a completed change in the experimental workflow.
 
@@ -1640,7 +1640,7 @@ All artifacts complete. All tasks complete.
  */
 export function getBulkArchiveChangeSkillTemplate(): SkillTemplate {
   return {
-    name: 'lightspec-'bulk-archive-change',
+    name: 'lightspec-bulk-archive-change',
     description: 'Archive multiple completed changes at once. Use when archiving several parallel changes.',
     instructions: `Archive multiple completed changes in a single operation.
 
@@ -2025,7 +2025,7 @@ Main specs are now updated. The change remains active - archive when implementat
  */
 export function getVerifyChangeSkillTemplate(): SkillTemplate {
   return {
-    name: 'lightspec-'verify-change',
+    name: 'lightspec-verify-change',
     description: 'Verify implementation matches change artifacts. Use when the user wants to validate that implementation is complete, correct, and coherent before archiving.',
     instructions: `Verify that an implementation matches the change artifacts (specs, tasks, design).
 
