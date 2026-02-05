@@ -32,6 +32,8 @@
 
 # LightSpec
 
+A fork of [OpenSpec](https://github.com/Fission-AI/OpenSpec) v0.23.0
+
 LightSpec aligns humans and AI coding assistants with spec-driven development so you agree on what to build before any code is written. **No API keys required.**
 
 ## Why LightSpec?
@@ -469,6 +471,15 @@ We collect only command names and version to understand usage patterns. No argum
 See [MAINTAINERS.md](MAINTAINERS.md) for the list of core maintainers and advisors who help guide the project.
 
 </details>
+
+## Agent Skills
+
+LightSpec includes 3 Claude Code skills for the core development workflow:
+- `lightspec-new` - Create a new change
+- `lightspec-apply` - Get apply instructions for implementation
+- `lightspec-archive` - Archive a completed change
+
+See [README_SKILLS.md](README_SKILLS.md) for details.
 
 ## License
 
