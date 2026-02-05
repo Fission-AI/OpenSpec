@@ -434,7 +434,7 @@ describe('BashGenerator', () => {
 
       const script = generator.generate(commands);
 
-      expect(script.trim().endsWith('complete -F _lightspec_completion openspec')).toBe(true);
+      expect(script.trim().endsWith('complete -F _lightspec_completion lightspec')).toBe(true);
     });
 
     it('should handle empty command list', () => {
@@ -444,7 +444,7 @@ describe('BashGenerator', () => {
 
       expect(script).toContain('# Bash completion script');
       expect(script).toContain('_lightspec_completion() {');
-      expect(script).toContain('complete -F _lightspec_completion openspec');
+      expect(script).toContain('complete -F _lightspec_completion lightspec');
     });
 
     it('should handle commands with no flags', () => {

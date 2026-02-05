@@ -32,7 +32,7 @@ describe('PowerShellGenerator', () => {
 			const script = generator.generate(commands);
 
 			expect(script).toContain('# PowerShell completion script for LightSpec CLI');
-			expect(script).toContain('$openspecCompleter = {');
+			expect(script).toContain('$lightspecCompleter = {');
 			expect(script).toContain('Register-ArgumentCompleter');
 		});
 
@@ -47,8 +47,8 @@ describe('PowerShellGenerator', () => {
 
 			const script = generator.generate(commands);
 
-			expect(script).toContain('Register-ArgumentCompleter -CommandName openspec');
-			expect(script).toContain('-ScriptBlock $openspecCompleter');
+			expect(script).toContain('Register-ArgumentCompleter -CommandName lightspec');
+			expect(script).toContain('-ScriptBlock $lightspecCompleter');
 		});
 
 		it('should include all commands with descriptions', () => {
@@ -478,7 +478,7 @@ describe('PowerShellGenerator', () => {
 			const script = generator.generate(commands);
 
 			expect(script).toContain('# PowerShell completion script');
-			expect(script).toContain('$openspecCompleter = {');
+			expect(script).toContain('$lightspecCompleter = {');
 			expect(script).toContain('Register-ArgumentCompleter');
 		});
 

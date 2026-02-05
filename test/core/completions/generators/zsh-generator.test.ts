@@ -31,9 +31,9 @@ describe('ZshGenerator', () => {
 
       const script = generator.generate(commands);
 
-      expect(script).toContain('#compdef openspec');
+      expect(script).toContain('#compdef lightspec');
       expect(script).toContain('# Zsh completion script for LightSpec CLI');
-      expect(script).toContain('_openspec() {');
+      expect(script).toContain('_lightspec() {');
     });
 
     it('should include all commands in the command list', () => {
@@ -351,7 +351,7 @@ describe('ZshGenerator', () => {
 
       const script = generator.generate(commands);
 
-      expect(script.trim().endsWith('compdef _lightspec openspec')).toBe(true);
+      expect(script.trim().endsWith('compdef _lightspec lightspec')).toBe(true);
     });
 
     it('should handle empty command list', () => {
@@ -359,8 +359,8 @@ describe('ZshGenerator', () => {
 
       const script = generator.generate(commands);
 
-      expect(script).toContain('#compdef openspec');
-      expect(script).toContain('_openspec() {');
+      expect(script).toContain('#compdef lightspec');
+      expect(script).toContain('_lightspec() {');
     });
 
     it('should handle commands with no flags', () => {

@@ -7,7 +7,7 @@ describe('change show (interactive behavior)', () => {
   const projectRoot = process.cwd();
   const testDir = path.join(projectRoot, 'test-change-show-tmp');
   const changesDir = path.join(testDir, 'openspec', 'changes');
-  const bin = path.join(projectRoot, 'bin', 'openspec.js');
+  const bin = path.join(projectRoot, 'bin', 'lightspec.js');
 
 
   beforeEach(async () => {

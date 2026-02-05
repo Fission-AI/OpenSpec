@@ -8,7 +8,7 @@ describe('top-level show command', () => {
   const testDir = path.join(projectRoot, 'test-show-command-tmp');
   const changesDir = path.join(testDir, 'openspec', 'changes');
   const specsDir = path.join(testDir, 'openspec', 'specs');
-  const openspecBin = path.join(projectRoot, 'bin', 'openspec.js');
+  const openspecBin = path.join(projectRoot, 'bin', 'lightspec.js');
 
 
   beforeEach(async () => {

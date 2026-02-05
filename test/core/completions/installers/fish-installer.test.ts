@@ -76,7 +76,7 @@ describe('FishInstaller', () => {
 
   describe('install', () => {
     const mockCompletionScript = `# Fish completion script for LightSpec CLI
-function __fish_openspec
+function __fish_lightspec
     echo "test"
 end
 
@@ -230,7 +230,7 @@ complete -c lightspec -a 'validate' -d 'Validate specs'
 
     it('should handle completion script with special characters', async () => {
       const specialScript = `# Fish completion script with special chars: ' " \` $ \\
-function __fish_openspec
+function __fish_lightspec
     echo "test's \\"quoted\\" text"
 end
 `;

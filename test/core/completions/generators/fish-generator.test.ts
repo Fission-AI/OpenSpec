@@ -32,7 +32,7 @@ describe('FishGenerator', () => {
       const script = generator.generate(commands);
 
       expect(script).toContain('# Fish completion script for LightSpec CLI');
-      expect(script).toContain('function __fish_openspec');
+      expect(script).toContain('function __fish_lightspec');
     });
 
     it('should generate helper functions for Fish', () => {
@@ -72,7 +72,7 @@ describe('FishGenerator', () => {
 
       const script = generator.generate(commands);
 
-      expect(script).toContain("complete -c openspec");
+      expect(script).toContain("complete -c lightspec");
       expect(script).toContain("-a 'init'");
       expect(script).toContain("'Initialize LightSpec'");
       expect(script).toContain("-a 'validate'");
@@ -409,7 +409,7 @@ describe('FishGenerator', () => {
       const script = generator.generate(commands);
 
       expect(script).toContain('# Fish completion script');
-      expect(script).toContain('function __fish_openspec');
+      expect(script).toContain('function __fish_lightspec');
     });
 
     it('should handle commands with no flags', () => {

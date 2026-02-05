@@ -55,14 +55,14 @@ describe('ZshInstaller', () => {
       const result = await installer.getInstallationPath();
 
       expect(result.isOhMyZsh).toBe(true);
-      expect(result.path).toBe(path.join(testHomeDir, '.oh-my-zsh', 'custom', 'completions', '_openspec'));
+      expect(result.path).toBe(path.join(testHomeDir, '.oh-my-zsh', 'custom', 'completions', '_lightspec'));
     });
 
     it('should return standard Zsh path when Oh My Zsh is not installed', async () => {
       const result = await installer.getInstallationPath();
 
       expect(result.isOhMyZsh).toBe(false);
-      expect(result.path).toBe(path.join(testHomeDir, '.zsh', 'completions', '_openspec'));
+      expect(result.path).toBe(path.join(testHomeDir, '.zsh', 'completions', '_lightspec'));
     });
   });
 
@@ -99,7 +99,7 @@ describe('ZshInstaller', () => {
   });
 
   describe('install', () => {
-    const testScript = '#compdef openspec\n_openspec() {\n  echo "test"\n}\n';
+    const testScript = '#compdef lightspec\n_lightspec() {\n  echo "test"\n}\n';
 
     it('should install to Oh My Zsh path when Oh My Zsh is present', async () => {
       // Create .oh-my-zsh directory
@@ -110,7 +110,7 @@ describe('ZshInstaller', () => {
 
       expect(result.success).toBe(true);
       expect(result.isOhMyZsh).toBe(true);
-      expect(result.installedPath).toBe(path.join(ohMyZshPath, 'custom', 'completions', '_openspec'));
+      expect(result.installedPath).toBe(path.join(ohMyZshPath, 'custom', 'completions', '_lightspec'));
       expect(result.message).toContain('Oh My Zsh');
 
       // Verify file was created with correct content
@@ -123,7 +123,7 @@ describe('ZshInstaller', () => {
 
       expect(result.success).toBe(true);
       expect(result.isOhMyZsh).toBe(false);
-      expect(result.installedPath).toBe(path.join(testHomeDir, '.zsh', 'completions', '_openspec'));
+      expect(result.installedPath).toBe(path.join(testHomeDir, '.zsh', 'completions', '_lightspec'));
 
       // Verify file was created
       const content = await fs.readFile(result.installedPath!, 'utf-8');
@@ -142,7 +142,7 @@ describe('ZshInstaller', () => {
     });
 
     it('should backup existing file before overwriting', async () => {
-      const targetPath = path.join(testHomeDir, '.zsh', 'completions', '_openspec');
+      const targetPath = path.join(testHomeDir, '.zsh', 'completions', '_lightspec');
       await fs.mkdir(path.dirname(targetPath), { recursive: true });
       await fs.writeFile(targetPath, 'old script');
 
@@ -225,12 +225,12 @@ describe('ZshInstaller', () => {
 
     it('should update completion when content differs', async () => {
       // First installation
-      const firstScript = '#compdef openspec\n_openspec() {\n  echo "version 1"\n}\n';
+      const firstScript = '#compdef openspec\n_lightspec() {\n  echo "version 1"\n}\n';
       const firstResult = await installer.install(firstScript);
       expect(firstResult.success).toBe(true);
 
       // Second installation with different script
-      const secondScript = '#compdef openspec\n_openspec() {\n  echo "version 2"\n}\n';
+      const secondScript = '#compdef openspec\n_lightspec() {\n  echo "version 2"\n}\n';
       const secondResult = await installer.install(secondScript);
 
       expect(secondResult.success).toBe(true);
@@ -274,7 +274,7 @@ describe('ZshInstaller', () => {
   });
 
   describe('uninstall', () => {
-    const testScript = '#compdef openspec\n_openspec() {}\n';
+    const testScript = '#compdef openspec\n_lightspec() {}\n';
 
     it('should remove installed completion script', async () => {
       // Install first
@@ -312,12 +312,12 @@ describe('ZshInstaller', () => {
       const result = await installer.uninstall();
 
       expect(result.success).toBe(true);
-      expect(result.message).toContain(path.join('.oh-my-zsh', 'custom', 'completions', '_openspec'));
+      expect(result.message).toContain(path.join('.oh-my-zsh', 'custom', 'completions', '_lightspec'));
     });
   });
 
   describe('isInstalled', () => {
-    const testScript = '#compdef openspec\n_openspec() {}\n';
+    const testScript = '#compdef openspec\n_lightspec() {}\n';
 
     it('should return false when not installed', async () => {
       const isInstalled = await installer.isInstalled();
@@ -343,7 +343,7 @@ describe('ZshInstaller', () => {
   });
 
   describe('getInstallationInfo', () => {
-    const testScript = '#compdef openspec\n_openspec() {}\n';
+    const testScript = '#compdef openspec\n_lightspec() {}\n';
 
     it('should return not installed when script does not exist', async () => {
       const info = await installer.getInstallationInfo();
@@ -360,7 +360,7 @@ describe('ZshInstaller', () => {
 
       expect(info.installed).toBe(true);
       expect(info.path).toBeDefined();
-      expect(info.path).toContain('_openspec');
+      expect(info.path).toContain('_lightspec');
       expect(info.isOhMyZsh).toBe(false);
     });
 
@@ -613,7 +613,7 @@ describe('ZshInstaller', () => {
   });
 
   describe('install with .zshrc auto-configuration', () => {
-    const testScript = '#compdef openspec\n_openspec() {}\n';
+    const testScript = '#compdef openspec\n_lightspec() {}\n';
 
     it('should auto-configure .zshrc for standard Zsh', async () => {
       const result = await installer.install(testScript);
@@ -690,7 +690,7 @@ describe('ZshInstaller', () => {
   });
 
   describe('uninstall with .zshrc cleanup', () => {
-    const testScript = '#compdef openspec\n_openspec() {}\n';
+    const testScript = '#compdef openspec\n_lightspec() {}\n';
 
     it('should remove .zshrc config when uninstalling', async () => {
       // Install first (which creates .zshrc config)

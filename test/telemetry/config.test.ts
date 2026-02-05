@@ -39,9 +39,9 @@ describe('telemetry/config', () => {
   });
 
   describe('getConfigPath', () => {
-    it('should return path to config.json in .config/openspec', () => {
+    it('should return path to config.json in .config/lightspec', () => {
       const result = getConfigPath();
-      expect(result).toBe(path.join(tempDir, '.config', 'openspec', 'config.json'));
+      expect(result).toBe(path.join(tempDir, '.config', 'lightspec', 'config.json'));
     });
   });
 
@@ -52,7 +52,7 @@ describe('telemetry/config', () => {
     });
 
     it('should load valid config from file', async () => {
-      const configDir = path.join(tempDir, '.config', 'openspec');
+      const configDir = path.join(tempDir, '.config', 'lightspec');
       const configPath = path.join(configDir, 'config.json');
 
       fs.mkdirSync(configDir, { recursive: true });
@@ -65,7 +65,7 @@ describe('telemetry/config', () => {
     });
 
     it('should return empty object for invalid JSON', async () => {
-      const configDir = path.join(tempDir, '.config', 'openspec');
+      const configDir = path.join(tempDir, '.config', 'lightspec');
       const configPath = path.join(configDir, 'config.json');
 
       fs.mkdirSync(configDir, { recursive: true });
@@ -78,7 +78,7 @@ describe('telemetry/config', () => {
 
   describe('writeConfig', () => {
     it('should create directory if it does not exist', async () => {
-      const configDir = path.join(tempDir, '.config', 'openspec');
+      const configDir = path.join(tempDir, '.config', 'lightspec');
 
       await writeConfig({ telemetry: { noticeSeen: true } });
 
@@ -86,7 +86,7 @@ describe('telemetry/config', () => {
     });
 
     it('should write config to file', async () => {
-      const configPath = path.join(tempDir, '.config', 'openspec', 'config.json');
+      const configPath = path.join(tempDir, '.config', 'lightspec', 'config.json');
 
       await writeConfig({ telemetry: { anonymousId: 'test-123' } });
 
@@ -96,7 +96,7 @@ describe('telemetry/config', () => {
     });
 
     it('should preserve existing fields when updating', async () => {
-      const configDir = path.join(tempDir, '.config', 'openspec');
+      const configDir = path.join(tempDir, '.config', 'lightspec');
       const configPath = path.join(configDir, 'config.json');
 
       // Create initial config with other fields
@@ -116,7 +116,7 @@ describe('telemetry/config', () => {
     });
 
     it('should deep merge telemetry fields', async () => {
-      const configDir = path.join(tempDir, '.config', 'openspec');
+      const configDir = path.join(tempDir, '.config', 'lightspec');
       const configPath = path.join(configDir, 'config.json');
 
       // Create initial config
@@ -142,7 +142,7 @@ describe('telemetry/config', () => {
     });
 
     it('should return telemetry section from config', async () => {
-      const configDir = path.join(tempDir, '.config', 'openspec');
+      const configDir = path.join(tempDir, '.config', 'lightspec');
       const configPath = path.join(configDir, 'config.json');
 
       fs.mkdirSync(configDir, { recursive: true });
@@ -159,14 +159,14 @@ describe('telemetry/config', () => {
     it('should create telemetry config when none exists', async () => {
       await updateTelemetryConfig({ anonymousId: 'new-id' });
 
-      const configPath = path.join(tempDir, '.config', 'openspec', 'config.json');
+      const configPath = path.join(tempDir, '.config', 'lightspec', 'config.json');
       const content = fs.readFileSync(configPath, 'utf-8');
       const parsed = JSON.parse(content);
       expect(parsed.telemetry.anonymousId).toBe('new-id');
     });
 
     it('should merge with existing telemetry config', async () => {
-      const configDir = path.join(tempDir, '.config', 'openspec');
+      const configDir = path.join(tempDir, '.config', 'lightspec');
       const configPath = path.join(configDir, 'config.json');
 
       fs.mkdirSync(configDir, { recursive: true });

@@ -7,7 +7,7 @@ describe('spec validate (interactive behavior)', () => {
   const projectRoot = process.cwd();
   const testDir = path.join(projectRoot, 'test-spec-validate-tmp');
   const specsDir = path.join(testDir, 'openspec', 'specs');
-  const bin = path.join(projectRoot, 'bin', 'openspec.js');
+  const bin = path.join(projectRoot, 'bin', 'lightspec.js');
 
 
   beforeEach(async () => {
