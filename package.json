@@ -1,21 +1,21 @@
 {
-  "name": "@fission-ai/openspec",
+  "name": "@viteinfinite/lightspec",
   "version": "0.23.0",
   "description": "AI-native system for spec-driven development",
   "keywords": [
-    "openspec",
+    "lightspec",
     "specs",
     "cli",
     "ai",
     "development"
   ],
-  "homepage": "https://github.com/Fission-AI/OpenSpec",
+  "homepage": "https://github.com/viteinfinite/lightspec",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Fission-AI/OpenSpec"
+    "url": "https://github.com/viteinfinite/lightspec"
   },
   "license": "MIT",
-  "author": "OpenSpec Contributors",
+  "author": "LightSpec Contributors",
   "type": "module",
   "publishConfig": {
     "access": "public"
@@ -27,7 +27,7 @@
     }
   },
   "bin": {
-    "openspec": "./bin/openspec.js"
+    "lightspec": "./bin/lightspec.js"
   },
   "files": [
     "dist",
@@ -42,7 +42,7 @@
     "lint": "eslint src/",
     "build": "node build.js",
     "dev": "tsc --watch",
-    "dev:cli": "pnpm build && node bin/openspec.js",
+    "dev:cli": "pnpm build && node bin/lightspec.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
