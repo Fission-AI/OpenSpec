@@ -2,7 +2,7 @@ import { CompletionGenerator, CommandDefinition, FlagDefinition } from '../types
 import { BASH_DYNAMIC_HELPERS } from '../templates/bash-templates.js';
 
 /**
- * Generates Bash completion scripts for the OpenSpec CLI.
+ * Generates Bash completion scripts for the LightSpec CLI.
  * Follows Bash completion conventions using complete builtin and COMPREPLY array.
  */
 export class BashGenerator implements CompletionGenerator {
@@ -31,7 +31,7 @@ export class BashGenerator implements CompletionGenerator {
     const helpers = BASH_DYNAMIC_HELPERS;
 
     // Assemble final script with template literal
-    return `# Bash completion script for OpenSpec CLI
+    return `# Bash completion script for LightSpec CLI
 # Auto-generated - do not edit manually
 
 _openspec_completion() {

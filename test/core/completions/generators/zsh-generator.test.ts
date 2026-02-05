@@ -24,7 +24,7 @@ describe('ZshGenerator', () => {
       const commands: CommandDefinition[] = [
         {
           name: 'init',
-          description: 'Initialize OpenSpec',
+          description: 'Initialize LightSpec',
           flags: [],
         },
       ];
@@ -32,7 +32,7 @@ describe('ZshGenerator', () => {
       const script = generator.generate(commands);
 
       expect(script).toContain('#compdef openspec');
-      expect(script).toContain('# Zsh completion script for OpenSpec CLI');
+      expect(script).toContain('# Zsh completion script for LightSpec CLI');
       expect(script).toContain('_openspec() {');
     });
 
@@ -40,7 +40,7 @@ describe('ZshGenerator', () => {
       const commands: CommandDefinition[] = [
         {
           name: 'init',
-          description: 'Initialize OpenSpec',
+          description: 'Initialize LightSpec',
           flags: [],
         },
         {
@@ -57,7 +57,7 @@ describe('ZshGenerator', () => {
 
       const script = generator.generate(commands);
 
-      expect(script).toContain("'init:Initialize OpenSpec'");
+      expect(script).toContain("'init:Initialize LightSpec'");
       expect(script).toContain("'validate:Validate specs'");
       expect(script).toContain("'show:Show a spec'");
     });
@@ -66,7 +66,7 @@ describe('ZshGenerator', () => {
       const commands: CommandDefinition[] = [
         {
           name: 'init',
-          description: 'Initialize OpenSpec',
+          description: 'Initialize LightSpec',
           flags: [],
         },
         {
@@ -256,7 +256,7 @@ describe('ZshGenerator', () => {
       const commands: CommandDefinition[] = [
         {
           name: 'init',
-          description: 'Initialize OpenSpec',
+          description: 'Initialize LightSpec',
           acceptsPositional: true,
           positionalType: 'path',
           flags: [],

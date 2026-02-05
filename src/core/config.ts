@@ -5,7 +5,7 @@ export const OPENSPEC_MARKERS = {
   end: '<!-- OPENSPEC:END -->'
 };
 
-export interface OpenSpecConfig {
+export interface LightSpecConfig {
   aiTools: string[];
 }
 

@@ -7,8 +7,8 @@ import { OPENSPEC_MARKERS } from '../config.js';
 /**
  * Qoder AI Tool Configurator
  * 
- * Configures OpenSpec integration for Qoder AI coding assistant.
- * Creates and manages QODER.md configuration file with OpenSpec instructions.
+ * Configures LightSpec integration for Qoder AI coding assistant.
+ * Creates and manages QODER.md configuration file with LightSpec instructions.
  * 
  * @implements {ToolConfigurator}
  */
@@ -25,9 +25,9 @@ export class QoderConfigurator implements ToolConfigurator {
   /**
    * Configure Qoder integration for a project
    * 
-   * Creates or updates QODER.md file with OpenSpec instructions.
+   * Creates or updates QODER.md file with LightSpec instructions.
    * Uses Claude-compatible template for instruction content.
-   * Wrapped with OpenSpec markers for future updates.
+   * Wrapped with LightSpec markers for future updates.
    * 
    * @param {string} projectPath - Absolute path to project root directory
    * @param {string} openspecDir - Path to openspec directory (unused but required by interface)
@@ -38,7 +38,7 @@ export class QoderConfigurator implements ToolConfigurator {
     const filePath = path.join(projectPath, this.configFileName);
     
     // Get Claude-compatible instruction template
-    // This ensures Qoder receives the same high-quality OpenSpec instructions
+    // This ensures Qoder receives the same high-quality LightSpec instructions
     const content = TemplateManager.getClaudeTemplate();
     
     // Write or update file with managed content between markers

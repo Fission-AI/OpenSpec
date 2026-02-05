@@ -1,4 +1,4 @@
-export const agentsRootStubTemplate = `# OpenSpec Instructions
+export const agentsRootStubTemplate = `# LightSpec Instructions
 
 These instructions are for AI assistants working in this project.
 
@@ -12,5 +12,5 @@ Use \`@/openspec/AGENTS.md\` to learn:
 - Spec format and conventions
 - Project structure and guidelines
 
-Keep this managed block so 'openspec update' can refresh the instructions.
+Keep this managed block so 'lightspec update' can refresh the instructions.
 `;

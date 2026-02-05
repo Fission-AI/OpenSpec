@@ -21,7 +21,7 @@ describe('FileSystemUtils.updateFileWithMarkers', () => {
   describe('new file creation', () => {
     it('should create new file with markers and content', async () => {
       const filePath = path.join(testDir, 'new-file.md');
-      const content = 'OpenSpec content';
+      const content = 'LightSpec content';
       
       await FileSystemUtils.updateFileWithMarkers(
         filePath,
@@ -41,7 +41,7 @@ describe('FileSystemUtils.updateFileWithMarkers', () => {
       const existingContent = '# Existing Content\nUser content here';
       await fs.writeFile(filePath, existingContent);
       
-      const newContent = 'OpenSpec content';
+      const newContent = 'LightSpec content';
       await FileSystemUtils.updateFileWithMarkers(
         filePath,
         newContent,
@@ -60,13 +60,13 @@ describe('FileSystemUtils.updateFileWithMarkers', () => {
     it('should replace content between markers', async () => {
       const filePath = path.join(testDir, 'with-markers.md');
       const beforeContent = '# Before\nSome content before';
-      const oldManagedContent = 'Old OpenSpec content';
+      const oldManagedContent = 'Old LightSpec content';
       const afterContent = '# After\nSome content after';
       
       const existingFile = `${beforeContent}\n${START_MARKER}\n${oldManagedContent}\n${END_MARKER}\n${afterContent}`;
       await fs.writeFile(filePath, existingFile);
       
-      const newContent = 'New OpenSpec content';
+      const newContent = 'New LightSpec content';
       await FileSystemUtils.updateFileWithMarkers(
         filePath,
         newContent,

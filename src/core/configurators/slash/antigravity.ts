@@ -8,9 +8,9 @@ const FILE_PATHS: Record<SlashCommandId, string> = {
 };
 
 const DESCRIPTIONS: Record<SlashCommandId, string> = {
-  proposal: 'Scaffold a new OpenSpec change and validate strictly.',
-  apply: 'Implement an approved OpenSpec change and keep tasks in sync.',
-  archive: 'Archive a deployed OpenSpec change and update specs.'
+  proposal: 'Scaffold a new LightSpec change and validate strictly.',
+  apply: 'Implement an approved LightSpec change and keep tasks in sync.',
+  archive: 'Archive a deployed LightSpec change and update specs.'
 };
 
 export class AntigravitySlashCommandConfigurator extends SlashCommandConfigurator {

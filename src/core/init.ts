@@ -17,7 +17,7 @@ import { TemplateManager, ProjectContext } from './templates/index.js';
 import { ToolRegistry } from './configurators/registry.js';
 import { SlashCommandRegistry } from './configurators/slash/registry.js';
 import {
-  OpenSpecConfig,
+  LightSpecConfig,
   AI_TOOLS,
   OPENSPEC_DIR_NAME,
   AIToolOption,
@@ -295,11 +295,11 @@ const toolSelectionWizard = createPrompt<string[], ToolWizardConfig>(
 
     if (step === 'intro') {
       const introHeadline = config.extendMode
-        ? 'Extend your OpenSpec tooling'
-        : 'Configure your OpenSpec tooling';
+        ? 'Extend your LightSpec tooling'
+        : 'Configure your LightSpec tooling';
       const introBody = config.extendMode
         ? 'We detected an existing setup. We will help you refresh or add integrations.'
-        : "Let's get your AI assistants connected so they understand OpenSpec.";
+        : "Let's get your AI assistants connected so they understand LightSpec.";
 
       lines.push(PALETTE.white(introHeadline));
       lines.push(PALETTE.midGray(introBody));
@@ -417,18 +417,18 @@ export class InitCommand {
     // Step 1: Create directory structure
     if (!extendMode) {
       const structureSpinner = this.startSpinner(
-        'Creating OpenSpec structure...'
+        'Creating LightSpec structure...'
       );
       await this.createDirectoryStructure(openspecPath);
       await this.generateFiles(openspecPath, config);
       structureSpinner.stopAndPersist({
         symbol: PALETTE.white('▌'),
-        text: PALETTE.white('OpenSpec structure created'),
+        text: PALETTE.white('LightSpec structure created'),
       });
     } else {
       ora({ stream: process.stdout }).info(
         PALETTE.midGray(
-          'ℹ OpenSpec already initialized. Checking for missing files...'
+          'ℹ LightSpec already initialized. Checking for missing files...'
         )
       );
       await this.createDirectoryStructure(openspecPath);
@@ -475,7 +475,7 @@ export class InitCommand {
   private async getConfiguration(
     existingTools: Record<string, boolean>,
     extendMode: boolean
-  ): Promise<OpenSpecConfig> {
+  ): Promise<LightSpecConfig> {
     const selectedTools = await this.getSelectedTools(existingTools, extendMode);
     return { aiTools: selectedTools };
   }
@@ -579,7 +579,7 @@ export class InitCommand {
         value: '__heading-native__',
         label: {
           primary:
-            'Natively supported providers (✔ OpenSpec custom slash commands available)',
+            'Natively supported providers (✔ LightSpec custom slash commands available)',
         },
         selectable: false,
       },
@@ -649,11 +649,11 @@ export class InitCommand {
     projectPath: string,
     toolId: string
   ): Promise<boolean> {
-    // A tool is only considered "configured by OpenSpec" if its files contain OpenSpec markers.
+    // A tool is only considered "configured by LightSpec" if its files contain LightSpec markers.
     // For tools with both config files and slash commands, BOTH must have markers.
     // For slash commands, at least one file with markers is sufficient (not all required).
 
-    // Helper to check if a file exists and contains OpenSpec markers
+    // Helper to check if a file exists and contains LightSpec markers
     const fileHasMarkers = async (absolutePath: string): Promise<boolean> => {
       try {
         const content = await FileSystemUtils.readFile(absolutePath);
@@ -666,14 +666,14 @@ export class InitCommand {
     let hasConfigFile = false;
     let hasSlashCommands = false;
 
-    // Check if the tool has a config file with OpenSpec markers
+    // Check if the tool has a config file with LightSpec markers
     const configFile = ToolRegistry.get(toolId)?.configFileName;
     if (configFile) {
       const configPath = path.join(projectPath, configFile);
       hasConfigFile = (await FileSystemUtils.fileExists(configPath)) && (await fileHasMarkers(configPath));
     }
 
-    // Check if any slash command file exists with OpenSpec markers
+    // Check if any slash command file exists with LightSpec markers
     const slashConfigurator = SlashCommandRegistry.get(toolId);
     if (slashConfigurator) {
       for (const target of slashConfigurator.getTargets()) {
@@ -720,21 +720,21 @@ export class InitCommand {
 
   private async generateFiles(
     openspecPath: string,
-    config: OpenSpecConfig
+    config: LightSpecConfig
   ): Promise<void> {
     await this.writeTemplateFiles(openspecPath, config, false);
   }
 
   private async ensureTemplateFiles(
     openspecPath: string,
-    config: OpenSpecConfig
+    config: LightSpecConfig
   ): Promise<void> {
     await this.writeTemplateFiles(openspecPath, config, true);
   }
 
   private async writeTemplateFiles(
     openspecPath: string,
-    config: OpenSpecConfig,
+    config: LightSpecConfig,
     skipExisting: boolean
   ): Promise<void> {
     const context: ProjectContext = {
@@ -813,8 +813,8 @@ export class InitCommand {
   ): void {
     console.log(); // Empty line for spacing
     const successHeadline = extendMode
-      ? 'OpenSpec tool configuration updated!'
-      : 'OpenSpec initialized successfully!';
+      ? 'LightSpec tool configuration updated!'
+      : 'LightSpec initialized successfully!';
     ora().succeed(PALETTE.white(successHeadline));
 
     console.log();
@@ -858,7 +858,7 @@ export class InitCommand {
     console.log();
     console.log(
       PALETTE.midGray(
-        'Use `openspec update` to refresh shared OpenSpec instructions in the future.'
+        'Use `openspec update` to refresh shared LightSpec instructions in the future.'
       )
     );
 
@@ -904,12 +904,12 @@ export class InitCommand {
       )
     );
     console.log(
-      PALETTE.lightGray('    OpenSpec change proposal for this feature"\n')
+      PALETTE.lightGray('    LightSpec change proposal for this feature"\n')
     );
-    console.log(PALETTE.white('3. Learn the OpenSpec workflow:'));
+    console.log(PALETTE.white('3. Learn the LightSpec workflow:'));
     console.log(
       PALETTE.lightGray(
-        '   "Please explain the OpenSpec workflow from openspec/AGENTS.md'
+        '   "Please explain the LightSpec workflow from openspec/AGENTS.md'
       )
     );
     console.log(
@@ -971,7 +971,7 @@ export class InitCommand {
       console.log(rowStyles[index](row.replace(/\s+$/u, '')));
     });
     console.log();
-    console.log(PALETTE.white('Welcome to OpenSpec!'));
+    console.log(PALETTE.white('Welcome to LightSpec!'));
     console.log();
   }
 

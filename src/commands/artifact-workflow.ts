@@ -834,15 +834,15 @@ async function artifactExperimentalSetupCommand(): Promise<void> {
 
     // Create skill directories and SKILL.md files
     const skills = [
-      { template: exploreSkill, dirName: 'openspec-explore' },
-      { template: newChangeSkill, dirName: 'openspec-new-change' },
-      { template: continueChangeSkill, dirName: 'openspec-continue-change' },
-      { template: applyChangeSkill, dirName: 'openspec-apply-change' },
-      { template: ffChangeSkill, dirName: 'openspec-ff-change' },
-      { template: syncSpecsSkill, dirName: 'openspec-sync-specs' },
-      { template: archiveChangeSkill, dirName: 'openspec-archive-change' },
-      { template: bulkArchiveChangeSkill, dirName: 'openspec-bulk-archive-change' },
-      { template: verifyChangeSkill, dirName: 'openspec-verify-change' },
+      { template: exploreSkill, dirName: 'lightspec-'explore' },
+      { template: newChangeSkill, dirName: 'lightspec-'new-change' },
+      { template: continueChangeSkill, dirName: 'lightspec-'continue-change' },
+      { template: applyChangeSkill, dirName: 'lightspec-'apply-change' },
+      { template: ffChangeSkill, dirName: 'lightspec-'ff-change' },
+      { template: syncSpecsSkill, dirName: 'lightspec-'sync-specs' },
+      { template: archiveChangeSkill, dirName: 'lightspec-'archive-change' },
+      { template: bulkArchiveChangeSkill, dirName: 'lightspec-'bulk-archive-change' },
+      { template: verifyChangeSkill, dirName: 'lightspec-'verify-change' },
     ];
 
     const createdSkillFiles: string[] = [];
@@ -921,7 +921,7 @@ ${template.content}
     console.log();
     console.log(chalk.bold('📋 Project Configuration (Optional)'));
     console.log();
-    console.log('Configure project defaults for OpenSpec workflows.');
+    console.log('Configure project defaults for LightSpec workflows.');
     console.log();
 
     // Check if config already exists
@@ -962,7 +962,7 @@ ${template.content}
         // Git commit suggestion
         console.log(chalk.bold('To share with team:'));
         console.log(chalk.dim('  git add openspec/config.yaml .claude/'));
-        console.log(chalk.dim('  git commit -m "Setup OpenSpec experimental workflow"'));
+        console.log(chalk.dim('  git commit -m "Setup LightSpec experimental workflow"'));
         console.log();
       } catch (writeError) {
         // Handle file write errors
@@ -989,7 +989,7 @@ ${template.content}
     console.log('  • Windsurf - Auto-imports from .claude directory');
     console.log();
     console.log('  Ask Claude naturally:');
-    console.log('  • "I want to start a new OpenSpec change to add <feature>"');
+    console.log('  • "I want to start a new LightSpec change to add <feature>"');
     console.log('  • "Continue working on this change"');
     console.log('  • "Implement the tasks for this change"');
     console.log();
@@ -1004,7 +1004,7 @@ ${template.content}
     console.log('  • /opsx:archive - Archive a completed change');
     console.log();
     console.log(chalk.yellow('💡 This is an experimental feature.'));
-    console.log('   Feedback welcome at: https://github.com/Fission-AI/OpenSpec/issues');
+    console.log('   Feedback welcome at: https://github.com/Fission-AI/LightSpec/issues');
     console.log();
   } catch (error) {
     spinner.fail('Failed to setup experimental artifact workflow');

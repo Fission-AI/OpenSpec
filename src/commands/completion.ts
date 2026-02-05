@@ -24,7 +24,7 @@ interface CompleteOptions {
 }
 
 /**
- * Command for managing shell completions for OpenSpec CLI
+ * Command for managing shell completions for LightSpec CLI
  */
 export class CompletionCommand {
   private completionProvider: CompletionProvider;
@@ -224,7 +224,7 @@ export class CompletionCommand {
       const configPath = configPaths[shell] || `${shell} configuration`;
 
       const confirmed = await confirm({
-        message: `Remove OpenSpec configuration from ${configPath}?`,
+        message: `Remove LightSpec configuration from ${configPath}?`,
         default: false,
       });
 

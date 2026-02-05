@@ -13,7 +13,7 @@ describe('project-config', () => {
   let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-test-config-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lightspec-'test-config-'));
     consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
 

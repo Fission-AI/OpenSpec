@@ -1,6 +1,6 @@
 /**
- * Qwen Code configurator for OpenSpec integration.
- * This class handles the configuration of Qwen Code as an AI tool within OpenSpec.
+ * Qwen Code configurator for LightSpec integration.
+ * This class handles the configuration of Qwen Code as an AI tool within LightSpec.
  * 
  * @implements {ToolConfigurator}
  */
@@ -13,7 +13,7 @@ import { OPENSPEC_MARKERS } from '../config.js';
 /**
  * QwenConfigurator class provides integration with Qwen Code
  * by creating and managing the necessary configuration files.
- * Currently configures the QWEN.md file with OpenSpec instructions.
+ * Currently configures the QWEN.md file with LightSpec instructions.
  */
 export class QwenConfigurator implements ToolConfigurator {
   /** Display name for the Qwen Code tool */
@@ -27,7 +27,7 @@ export class QwenConfigurator implements ToolConfigurator {
 
   /**
    * Configures the Qwen Code integration by creating or updating the QWEN.md file
-   * with OpenSpec instructions and markers.
+   * with LightSpec instructions and markers.
    * 
    * @param {string} projectPath - The path to the project root
    * @param {string} _openspecDir - The path to the openspec directory (unused)

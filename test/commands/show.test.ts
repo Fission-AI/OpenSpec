@@ -42,9 +42,9 @@ describe('top-level show command', () => {
       expect(err.status).not.toBe(0);
       const stderr = err.stderr.toString();
       expect(stderr).toContain('Nothing to show.');
-      expect(stderr).toContain('openspec show <item>');
-      expect(stderr).toContain('openspec change show');
-      expect(stderr).toContain('openspec spec show');
+      expect(stderr).toContain('lightspec show' <item>');
+      expect(stderr).toContain('lightspec change' show');
+      expect(stderr).toContain('lightspec spec' show');
     } finally {
       process.chdir(originalCwd);
       process.env = originalEnv;

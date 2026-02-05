@@ -75,12 +75,12 @@ describe('FishInstaller', () => {
   });
 
   describe('install', () => {
-    const mockCompletionScript = `# Fish completion script for OpenSpec CLI
+    const mockCompletionScript = `# Fish completion script for LightSpec CLI
 function __fish_openspec
     echo "test"
 end
 
-complete -c openspec -a 'init' -d 'Initialize OpenSpec'
+complete -c openspec -a 'init' -d 'Initialize LightSpec'
 `;
 
     it('should install completion script for the first time', async () => {
@@ -130,12 +130,12 @@ complete -c openspec -a 'init' -d 'Initialize OpenSpec'
       await installer.install(mockCompletionScript);
 
       // Update with different content
-      const updatedScript = `# Fish completion script for OpenSpec CLI
+      const updatedScript = `# Fish completion script for LightSpec CLI
 function __fish_openspec_new
     echo "updated"
 end
 
-complete -c openspec -a 'init' -d 'Initialize OpenSpec'
+complete -c openspec -a 'init' -d 'Initialize LightSpec'
 complete -c openspec -a 'validate' -d 'Validate specs'
 `;
 

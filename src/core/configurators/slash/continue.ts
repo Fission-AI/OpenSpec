@@ -17,22 +17,22 @@ const FILE_PATHS: Record<SlashCommandId, string> = {
  * Body...
  *
  * The 'invokable: true' field is required to make the prompt available as a slash command.
- * We use 'openspec-proposal' as the name so the command becomes /openspec-proposal.
+ * We use 'lightspec-'proposal' as the name so the command becomes /openspec-proposal.
  */
 const FRONTMATTER: Record<SlashCommandId, string> = {
   proposal: `---
 name: openspec-proposal
-description: Scaffold a new OpenSpec change and validate strictly.
+description: Scaffold a new LightSpec change and validate strictly.
 invokable: true
 ---`,
   apply: `---
 name: openspec-apply
-description: Implement an approved OpenSpec change and keep tasks in sync.
+description: Implement an approved LightSpec change and keep tasks in sync.
 invokable: true
 ---`,
   archive: `---
 name: openspec-archive
-description: Archive a deployed OpenSpec change and update specs.
+description: Archive a deployed LightSpec change and update specs.
 invokable: true
 ---`
 };

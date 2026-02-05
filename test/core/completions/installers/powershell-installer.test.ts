@@ -74,13 +74,13 @@ describe('PowerShellInstaller', () => {
       });
 
       const result = installer.getInstallationPath();
-      expect(result).toBe(path.join(testHomeDir, '.config', 'powershell', 'OpenSpecCompletion.ps1'));
+      expect(result).toBe(path.join(testHomeDir, '.config', 'powershell', 'LightSpecCompletion.ps1'));
     });
 
     it('should work with custom PROFILE environment variable', () => {
       process.env.PROFILE = path.join(testHomeDir, 'custom', 'profile.ps1');
       const result = installer.getInstallationPath();
-      expect(result).toBe(path.join(testHomeDir, 'custom', 'OpenSpecCompletion.ps1'));
+      expect(result).toBe(path.join(testHomeDir, 'custom', 'LightSpecCompletion.ps1'));
     });
 
     it('should return Windows path when on Windows platform', () => {
@@ -90,7 +90,7 @@ describe('PowerShellInstaller', () => {
       });
 
       const result = installer.getInstallationPath();
-      expect(result).toBe(path.join(testHomeDir, 'Documents', 'PowerShell', 'OpenSpecCompletion.ps1'));
+      expect(result).toBe(path.join(testHomeDir, 'Documents', 'PowerShell', 'LightSpecCompletion.ps1'));
     });
   });
 
@@ -136,7 +136,7 @@ describe('PowerShellInstaller', () => {
   });
 
   describe('configureProfile', () => {
-    const mockScriptPath = '/path/to/OpenSpecCompletion.ps1';
+    const mockScriptPath = '/path/to/LightSpecCompletion.ps1';
 
     // Note: OPENSPEC_NO_AUTO_CONFIG check is now handled in the install() method,
     // not in configureProfile() itself
@@ -179,7 +179,7 @@ describe('PowerShellInstaller', () => {
       await fs.mkdir(path.dirname(profilePath), { recursive: true });
 
       const initialContent = [
-        '# OPENSPEC:START - OpenSpec completion (managed block, do not edit manually)',
+        '# OPENSPEC:START - LightSpec completion (managed block, do not edit manually)',
         `. "${mockScriptPath}"`,
         '# OPENSPEC:END',
         '',
@@ -283,7 +283,7 @@ describe('PowerShellInstaller', () => {
 
       const initialContent = [
         '# OPENSPEC:START',
-        '# OpenSpec completions',
+        '# LightSpec completions',
         'if (Test-Path "/path") {',
         '    . "/path"',
         '}',
@@ -300,7 +300,7 @@ describe('PowerShellInstaller', () => {
       const content = await fs.readFile(profilePath, 'utf-8');
       expect(content).not.toContain('# OPENSPEC:START');
       expect(content).not.toContain('# OPENSPEC:END');
-      expect(content).not.toContain('# OpenSpec completions');
+      expect(content).not.toContain('# LightSpec completions');
       expect(content).toContain('# My config');
     });
 
@@ -333,7 +333,7 @@ describe('PowerShellInstaller', () => {
       const initialContent = [
         '# Before',
         '# OPENSPEC:START',
-        '# OpenSpec',
+        '# LightSpec',
         '# OPENSPEC:END',
         '# After',
       ].join('\n');
@@ -367,7 +367,7 @@ describe('PowerShellInstaller', () => {
   });
 
   describe('install', () => {
-    const mockCompletionScript = `# PowerShell completion script for OpenSpec
+    const mockCompletionScript = `# PowerShell completion script for LightSpec
 $openspecCompleter = {
     param($wordToComplete, $commandAst, $cursorPosition)
     # Completion logic here
@@ -381,7 +381,7 @@ Register-ArgumentCompleter -CommandName openspec -ScriptBlock $openspecCompleter
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('installed');
-      expect(result.installedPath).toContain('OpenSpecCompletion.ps1');
+      expect(result.installedPath).toContain('LightSpecCompletion.ps1');
       expect(result.backupPath).toBeUndefined();
     });
 

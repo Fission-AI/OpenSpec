@@ -24,7 +24,7 @@ export class ArchiveCommand {
     try {
       await fs.access(changesDir);
     } catch {
-      throw new Error("No OpenSpec changes directory found. Run 'openspec init' first.");
+      throw new Error("No LightSpec changes directory found. Run 'lightspec init' first.");
     }
 
     // Get change name interactively if not provided

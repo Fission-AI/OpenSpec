@@ -11,20 +11,20 @@ const FRONTMATTER: Record<SlashCommandId, string> = {
   proposal: `---
 name: /openspec-proposal
 id: openspec-proposal
-category: OpenSpec
-description: Scaffold a new OpenSpec change and validate strictly.
+category: LightSpec
+description: Scaffold a new LightSpec change and validate strictly.
 ---`,
   apply: `---
 name: /openspec-apply
 id: openspec-apply
-category: OpenSpec
-description: Implement an approved OpenSpec change and keep tasks in sync.
+category: LightSpec
+description: Implement an approved LightSpec change and keep tasks in sync.
 ---`,
   archive: `---
 name: /openspec-archive
 id: openspec-archive
-category: OpenSpec
-description: Archive a deployed OpenSpec change and update specs.
+category: LightSpec
+description: Archive a deployed LightSpec change and update specs.
 ---`
 };
 

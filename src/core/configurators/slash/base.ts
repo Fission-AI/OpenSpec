@@ -83,7 +83,7 @@ export abstract class SlashCommandConfigurator {
     const endIndex = content.indexOf(OPENSPEC_MARKERS.end);
 
     if (startIndex === -1 || endIndex === -1 || endIndex <= startIndex) {
-      throw new Error(`Missing OpenSpec markers in ${filePath}`);
+      throw new Error(`Missing LightSpec markers in ${filePath}`);
     }
 
     const before = content.slice(0, startIndex + OPENSPEC_MARKERS.start.length);

@@ -13,7 +13,7 @@ export class ViewCommand {
       process.exit(1);
     }
 
-    console.log(chalk.bold('\nOpenSpec Dashboard\n'));
+    console.log(chalk.bold('\nLightSpec Dashboard\n'));
     console.log('═'.repeat(60));
 
     // Get changes and specs data
@@ -75,7 +75,7 @@ export class ViewCommand {
     }
 
     console.log('\n' + '═'.repeat(60));
-    console.log(chalk.dim(`\nUse ${chalk.white('openspec list --changes')} or ${chalk.white('openspec list --specs')} for detailed views`));
+    console.log(chalk.dim(`\nUse ${chalk.white('lightspec list' --changes')} or ${chalk.white('lightspec list' --specs')} for detailed views`));
   }
 
   private async getChangesData(openspecDir: string): Promise<{

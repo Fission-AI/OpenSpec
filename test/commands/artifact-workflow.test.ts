@@ -9,7 +9,7 @@ describe('artifact-workflow CLI commands', () => {
   let changesDir: string;
 
   beforeEach(async () => {
-    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-artifact-workflow-'));
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lightspec-'artifact-workflow-'));
     changesDir = path.join(tempDir, 'openspec', 'changes');
     await fs.mkdir(changesDir, { recursive: true });
   });

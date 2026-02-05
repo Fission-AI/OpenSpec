@@ -2,7 +2,7 @@ import { CompletionGenerator, CommandDefinition, FlagDefinition } from '../types
 import { ZSH_DYNAMIC_HELPERS } from '../templates/zsh-templates.js';
 
 /**
- * Generates Zsh completion scripts for the OpenSpec CLI.
+ * Generates Zsh completion scripts for the LightSpec CLI.
  * Follows Zsh completion system conventions using the _openspec function.
  */
 export class ZshGenerator implements CompletionGenerator {
@@ -46,7 +46,7 @@ export class ZshGenerator implements CompletionGenerator {
     // Assemble final script with template literal
     return `#compdef openspec
 
-# Zsh completion script for OpenSpec CLI
+# Zsh completion script for LightSpec CLI
 # Auto-generated - do not edit manually
 
 _openspec() {

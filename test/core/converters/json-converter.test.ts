@@ -98,7 +98,7 @@ We need to implement user authentication to secure the application and protect u
       expect(parsed.deltas[0].spec).toBe('user-auth');
       expect(parsed.deltas[0].operation).toBe('ADDED');
       expect(parsed.metadata).toBeDefined();
-      expect(parsed.metadata.format).toBe('openspec-change');
+      expect(parsed.metadata.format).toBe('lightspec-'change');
       expect(parsed.metadata.sourcePath).toBe(changePath);
     });
 

@@ -9,21 +9,21 @@ const FILE_PATHS: Record<SlashCommandId, string> = {
 
 const FRONTMATTER: Record<SlashCommandId, string> = {
   proposal: `---
-name: OpenSpec: Proposal
-description: Scaffold a new OpenSpec change and validate strictly.
-category: OpenSpec
+name: LightSpec: Proposal
+description: Scaffold a new LightSpec change and validate strictly.
+category: LightSpec
 tags: [openspec, change]
 ---`,
   apply: `---
-name: OpenSpec: Apply
-description: Implement an approved OpenSpec change and keep tasks in sync.
-category: OpenSpec
+name: LightSpec: Apply
+description: Implement an approved LightSpec change and keep tasks in sync.
+category: LightSpec
 tags: [openspec, apply]
 ---`,
   archive: `---
-name: OpenSpec: Archive
-description: Archive a deployed OpenSpec change and update specs.
-category: OpenSpec
+name: LightSpec: Archive
+description: Archive a deployed LightSpec change and update specs.
+category: LightSpec
 tags: [openspec, archive]
 ---`
 };

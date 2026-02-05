@@ -95,10 +95,10 @@ export class ValidateCommand {
 
   private printNonInteractiveHint(): void {
     console.error('Nothing to validate. Try one of:');
-    console.error('  openspec validate --all');
-    console.error('  openspec validate --changes');
-    console.error('  openspec validate --specs');
-    console.error('  openspec validate <item-name>');
+    console.error('  lightspec validate --all');
+    console.error('  lightspec validate --changes');
+    console.error('  lightspec validate --specs');
+    console.error('  lightspec validate <item-name>');
     console.error('Or run in an interactive terminal.');
   }
 

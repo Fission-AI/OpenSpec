@@ -1,5 +1,5 @@
 /**
- * Qwen slash command configurator for OpenSpec integration.
+ * Qwen slash command configurator for LightSpec integration.
  * This class handles the generation of Qwen-specific slash command files
  * in the .qwen/commands directory structure.
  * 
@@ -19,9 +19,9 @@ const FILE_PATHS: Record<SlashCommandId, string> = {
 };
 
 const DESCRIPTIONS: Record<SlashCommandId, string> = {
-  proposal: 'Scaffold a new OpenSpec change and validate strictly.',
-  apply: 'Implement an approved OpenSpec change and keep tasks in sync.',
-  archive: 'Archive a deployed OpenSpec change and update specs.'
+  proposal: 'Scaffold a new LightSpec change and validate strictly.',
+  apply: 'Implement an approved LightSpec change and keep tasks in sync.',
+  archive: 'Archive a deployed LightSpec change and update specs.'
 };
 
 /**
@@ -29,9 +29,9 @@ const DESCRIPTIONS: Record<SlashCommandId, string> = {
  * by creating the necessary slash command files in the .qwen/commands directory.
  * 
  * The slash commands include:
- * - /openspec-proposal: Create an OpenSpec change proposal
- * - /openspec-apply: Apply an approved OpenSpec change
- * - /openspec-archive: Archive a deployed OpenSpec change
+ * - /openspec-proposal: Create an LightSpec change proposal
+ * - /openspec-apply: Apply an approved LightSpec change
+ * - /openspec-archive: Archive a deployed LightSpec change
  */
 export class QwenSlashCommandConfigurator extends TomlSlashCommandConfigurator {
   /** Unique identifier for the Qwen tool */

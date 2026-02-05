@@ -25,19 +25,19 @@ export class CodexSlashCommandConfigurator extends SlashCommandConfigurator {
     // plus $ARGUMENTS to capture all arguments as a single string.
     const frontmatter: Record<SlashCommandId, string> = {
       proposal: `---
-description: Scaffold a new OpenSpec change and validate strictly.
+description: Scaffold a new LightSpec change and validate strictly.
 argument-hint: request or feature description
 ---
 
 $ARGUMENTS`,
       apply: `---
-description: Implement an approved OpenSpec change and keep tasks in sync.
+description: Implement an approved LightSpec change and keep tasks in sync.
 argument-hint: change-id
 ---
 
 $ARGUMENTS`,
       archive: `---
-description: Archive a deployed OpenSpec change and update specs.
+description: Archive a deployed LightSpec change and update specs.
 argument-hint: change-id
 ---
 
@@ -105,7 +105,7 @@ $ARGUMENTS`,
     const startIndex = content.indexOf(OPENSPEC_MARKERS.start);
 
     if (startIndex === -1) {
-      throw new Error(`Missing OpenSpec start marker in ${filePath}`);
+      throw new Error(`Missing LightSpec start marker in ${filePath}`);
     }
 
     // Replace everything before the start marker with the new frontmatter

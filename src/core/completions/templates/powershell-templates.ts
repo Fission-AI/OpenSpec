@@ -5,7 +5,7 @@
 
 export const POWERSHELL_DYNAMIC_HELPERS = `# Dynamic completion helpers
 
-function Get-OpenSpecChanges {
+function Get-LightSpecChanges {
     $output = openspec __complete changes 2>$null
     if ($output) {
         $output | ForEach-Object {
@@ -14,7 +14,7 @@ function Get-OpenSpecChanges {
     }
 }
 
-function Get-OpenSpecSpecs {
+function Get-LightSpecSpecs {
     $output = openspec __complete specs 2>$null
     if ($output) {
         $output | ForEach-Object {
