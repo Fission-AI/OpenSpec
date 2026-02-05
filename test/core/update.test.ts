@@ -14,10 +14,10 @@ describe('UpdateCommand', () => {
 
   beforeEach(async () => {
     // Create a temporary test directory
-    testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
+    testDir = path.join(os.tmpdir(), `lightspec-test-${randomUUID()}`);
     await fs.mkdir(testDir, { recursive: true });
 
-    // Create openspec directory
+    // Create lightspec directory
     const openspecDir = path.join(testDir, 'openspec');
     await fs.mkdir(openspecDir, { recursive: true });
 
@@ -59,7 +59,7 @@ More content after.`;
     expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
     expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
     expect(updatedContent).toContain("@/openspec/AGENTS.md");
-    expect(updatedContent).toContain('openspec update');
+    expect(updatedContent).toContain('lightspec update');
     expect(updatedContent).toContain('Some existing content here');
     expect(updatedContent).toContain('More content after');
 
@@ -94,7 +94,7 @@ More notes here.`;
     expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
     expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
     expect(updatedContent).toContain("@/openspec/AGENTS.md");
-    expect(updatedContent).toContain('openspec update');
+    expect(updatedContent).toContain('lightspec update');
     expect(updatedContent).toContain('Some existing content.');
     expect(updatedContent).toContain('More notes here.');
 
@@ -118,7 +118,7 @@ More notes here.`;
 name: LightSpec: Proposal
 description: Old description
 category: LightSpec
-tags: [openspec, change]
+tags: [lightspec, change]
 ---
 <!-- OPENSPEC:START -->
 Old slash content
@@ -133,7 +133,7 @@ Old slash content
     expect(updated).toContain('name: LightSpec: Proposal');
     expect(updated).toContain('**Guardrails**');
     expect(updated).toContain(
-      'Validate with `openspec validate <id> --strict --no-interactive`'
+      'Validate with `lightspec validate <id> --strict --no-interactive`'
     );
     expect(updated).not.toContain('Old slash content');
 
@@ -152,7 +152,7 @@ Old slash content
   it('should refresh existing Qwen slash command files', async () => {
     const applyPath = path.join(
       testDir,
-      '.qwen/commands/openspec-apply.toml'
+      '.qwen/commands/lightspec-apply.toml'
     );
     await fs.mkdir(path.dirname(applyPath), { recursive: true });
     const initialContent = `description = "Implement an approved LightSpec change and keep tasks in sync."
@@ -182,7 +182,7 @@ Old body
     );
     expect(logMessage).toContain('AGENTS.md (created)');
     expect(logMessage).toContain(
-      'Updated slash commands: .qwen/commands/openspec-apply.toml'
+      'Updated slash commands: .qwen/commands/lightspec-apply.toml'
     );
 
     consoleSpy.mockRestore();
@@ -191,7 +191,7 @@ Old body
   it('should not create missing Qwen slash command files on update', async () => {
     const applyPath = path.join(
       testDir,
-      '.qwen/commands/openspec-apply.toml'
+      '.qwen/commands/lightspec-apply.toml'
     );
 
     await fs.mkdir(path.dirname(applyPath), { recursive: true });
@@ -215,11 +215,11 @@ Old content
 
     const proposalPath = path.join(
       testDir,
-      '.qwen/commands/openspec-proposal.toml'
+      '.qwen/commands/lightspec-proposal.toml'
     );
     const archivePath = path.join(
       testDir,
-      '.qwen/commands/openspec-archive.toml'
+      '.qwen/commands/lightspec-archive.toml'
     );
 
     await expect(FileSystemUtils.fileExists(proposalPath)).resolves.toBe(false);
@@ -268,7 +268,7 @@ More rules after.`;
     expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
     expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
     expect(updatedContent).toContain("@/openspec/AGENTS.md");
-    expect(updatedContent).toContain('openspec update');
+    expect(updatedContent).toContain('lightspec update');
     expect(updatedContent).toContain('Some existing Cline rules here');
     expect(updatedContent).toContain('More rules after');
 
@@ -297,7 +297,7 @@ More rules after.`;
   it('should refresh existing Cline workflow files', async () => {
     const proposalPath = path.join(
       testDir,
-      '.clinerules/workflows/openspec-proposal.md'
+      '.clinerules/workflows/lightspec-proposal.md'
     );
     await fs.mkdir(path.dirname(proposalPath), { recursive: true });
     const initialContent = `# LightSpec: Proposal
@@ -317,7 +317,7 @@ Old slash content
     expect(updated).toContain('# LightSpec: Proposal');
     expect(updated).toContain('**Guardrails**');
     expect(updated).toContain(
-      'Validate with `openspec validate <id> --strict --no-interactive`'
+      'Validate with `lightspec validate <id> --strict --no-interactive`'
     );
     expect(updated).not.toContain('Old slash content');
 
@@ -327,18 +327,18 @@ Old slash content
     );
     expect(logMessage).toContain('AGENTS.md (created)');
     expect(logMessage).toContain(
-      'Updated slash commands: .clinerules/workflows/openspec-proposal.md'
+      'Updated slash commands: .clinerules/workflows/lightspec-proposal.md'
     );
 
     consoleSpy.mockRestore();
   });
 
   it('should refresh existing Cursor slash command files', async () => {
-    const cursorPath = path.join(testDir, '.cursor/commands/openspec-apply.md');
+    const cursorPath = path.join(testDir, '.cursor/commands/lightspec-apply.md');
     await fs.mkdir(path.dirname(cursorPath), { recursive: true });
     const initialContent = `---
-name: /openspec-apply
-id: openspec-apply
+name: /lightspec-apply
+id: lightspec-apply
 category: LightSpec
 description: Old description
 ---
@@ -352,7 +352,7 @@ Old body
     await updateCommand.execute(testDir);
 
     const updated = await fs.readFile(cursorPath, 'utf-8');
-    expect(updated).toContain('id: openspec-apply');
+    expect(updated).toContain('id: lightspec-apply');
     expect(updated).toContain('Work through tasks sequentially');
     expect(updated).not.toContain('Old body');
 
@@ -362,7 +362,7 @@ Old body
     );
     expect(logMessage).toContain('AGENTS.md (created)');
     expect(logMessage).toContain(
-      'Updated slash commands: .cursor/commands/openspec-apply.md'
+      'Updated slash commands: .cursor/commands/lightspec-apply.md'
     );
 
     consoleSpy.mockRestore();
@@ -371,11 +371,11 @@ Old body
   it('should refresh existing Continue prompt files', async () => {
     const continuePath = path.join(
       testDir,
-      '.continue/prompts/openspec-apply.prompt'
+      '.continue/prompts/lightspec-apply.prompt'
     );
     await fs.mkdir(path.dirname(continuePath), { recursive: true });
     const initialContent = `---
-name: openspec-apply
+name: lightspec-apply
 description: Old description
 invokable: true
 ---
@@ -389,7 +389,7 @@ Old body
     await updateCommand.execute(testDir);
 
     const updated = await fs.readFile(continuePath, 'utf-8');
-    expect(updated).toContain('name: openspec-apply');
+    expect(updated).toContain('name: lightspec-apply');
     expect(updated).toContain('invokable: true');
     expect(updated).toContain('Work through tasks sequentially');
     expect(updated).not.toContain('Old body');
@@ -400,7 +400,7 @@ Old body
     );
     expect(logMessage).toContain('AGENTS.md (created)');
     expect(logMessage).toContain(
-      'Updated slash commands: .continue/prompts/openspec-apply.prompt'
+      'Updated slash commands: .continue/prompts/lightspec-apply.prompt'
     );
 
     consoleSpy.mockRestore();
@@ -409,7 +409,7 @@ Old body
   it('should not create missing Continue prompt files on update', async () => {
     const continueApply = path.join(
       testDir,
-      '.continue/prompts/openspec-apply.prompt'
+      '.continue/prompts/lightspec-apply.prompt'
     );
 
     // Only create apply; leave proposal and archive missing
@@ -417,7 +417,7 @@ Old body
     await fs.writeFile(
       continueApply,
       `---
-name: openspec-apply
+name: lightspec-apply
 description: Old description
 invokable: true
 ---
@@ -430,11 +430,11 @@ Old body
 
     const continueProposal = path.join(
       testDir,
-      '.continue/prompts/openspec-proposal.prompt'
+      '.continue/prompts/lightspec-proposal.prompt'
     );
     const continueArchive = path.join(
       testDir,
-      '.continue/prompts/openspec-archive.prompt'
+      '.continue/prompts/lightspec-archive.prompt'
     );
 
     // Confirm they weren't created by update
@@ -445,12 +445,12 @@ Old body
   it('should refresh existing OpenCode slash command files', async () => {
     const openCodePath = path.join(
       testDir,
-      '.opencode/command/openspec-apply.md'
+      '.opencode/command/lightspec-apply.md'
     );
     await fs.mkdir(path.dirname(openCodePath), { recursive: true });
     const initialContent = `---
-name: /openspec-apply
-id: openspec-apply
+name: /lightspec-apply
+id: lightspec-apply
 category: LightSpec
 description: Old description
 ---
@@ -464,7 +464,7 @@ Old body
     await updateCommand.execute(testDir);
 
     const updated = await fs.readFile(openCodePath, 'utf-8');
-    expect(updated).toContain('id: openspec-apply');
+    expect(updated).toContain('id: lightspec-apply');
     expect(updated).toContain('Work through tasks sequentially');
     expect(updated).not.toContain('Old body');
 
@@ -474,7 +474,7 @@ Old body
     );
     expect(logMessage).toContain('AGENTS.md (created)');
     expect(logMessage).toContain(
-      'Updated slash commands: .opencode/command/openspec-apply.md'
+      'Updated slash commands: .opencode/command/lightspec-apply.md'
     );
 
     consoleSpy.mockRestore();
@@ -483,7 +483,7 @@ Old body
   it('should refresh existing Kilo Code workflows', async () => {
     const kilocodePath = path.join(
       testDir,
-      '.kilocode/workflows/openspec-apply.md'
+      '.kilocode/workflows/lightspec-apply.md'
     );
     await fs.mkdir(path.dirname(kilocodePath), { recursive: true });
     const initialContent = `<!-- OPENSPEC:START -->
@@ -502,7 +502,7 @@ Old body
 
     const [logMessage] = consoleSpy.mock.calls[0];
     expect(logMessage).toContain(
-      'Updated slash commands: .kilocode/workflows/openspec-apply.md'
+      'Updated slash commands: .kilocode/workflows/lightspec-apply.md'
     );
 
     consoleSpy.mockRestore();
@@ -511,7 +511,7 @@ Old body
   it('should refresh existing Windsurf workflows', async () => {
     const wsPath = path.join(
       testDir,
-      '.windsurf/workflows/openspec-apply.md'
+      '.windsurf/workflows/lightspec-apply.md'
     );
     await fs.mkdir(path.dirname(wsPath), { recursive: true });
     const initialContent = `## LightSpec: Apply (Windsurf)
@@ -532,7 +532,7 @@ Old body
 
     const [logMessage] = consoleSpy.mock.calls[0];
     expect(logMessage).toContain(
-      'Updated slash commands: .windsurf/workflows/openspec-apply.md'
+      'Updated slash commands: .windsurf/workflows/lightspec-apply.md'
     );
     consoleSpy.mockRestore();
   });
@@ -540,7 +540,7 @@ Old body
   it('should refresh existing Antigravity workflows', async () => {
     const agPath = path.join(
       testDir,
-      '.agent/workflows/openspec-apply.md'
+      '.agent/workflows/lightspec-apply.md'
     );
     await fs.mkdir(path.dirname(agPath), { recursive: true });
     const initialContent = `---
@@ -564,7 +564,7 @@ Old body
 
     const [logMessage] = consoleSpy.mock.calls[0];
     expect(logMessage).toContain(
-      'Updated slash commands: .agent/workflows/openspec-apply.md'
+      'Updated slash commands: .agent/workflows/lightspec-apply.md'
     );
     consoleSpy.mockRestore();
   });
@@ -572,7 +572,7 @@ Old body
   it('should refresh existing Codex prompts', async () => {
     const codexPath = path.join(
       testDir,
-      '.codex/prompts/openspec-apply.md'
+      '.codex/prompts/lightspec-apply.md'
     );
     await fs.mkdir(path.dirname(codexPath), { recursive: true });
     const initialContent = `---\ndescription: Old description\nargument-hint: old-hint\n---\n\n$ARGUMENTS\n<!-- OPENSPEC:START -->\nOld body\n<!-- OPENSPEC:END -->`;
@@ -592,7 +592,7 @@ Old body
 
     const [logMessage] = consoleSpy.mock.calls[0];
     expect(logMessage).toContain(
-      'Updated slash commands: .codex/prompts/openspec-apply.md'
+      'Updated slash commands: .codex/prompts/lightspec-apply.md'
     );
 
     consoleSpy.mockRestore();
@@ -601,7 +601,7 @@ Old body
   it('should not create missing Codex prompts on update', async () => {
     const codexApply = path.join(
       testDir,
-      '.codex/prompts/openspec-apply.md'
+      '.codex/prompts/lightspec-apply.md'
     );
 
     // Only create apply; leave proposal and archive missing
@@ -615,11 +615,11 @@ Old body
 
     const codexProposal = path.join(
       testDir,
-      '.codex/prompts/openspec-proposal.md'
+      '.codex/prompts/lightspec-proposal.md'
     );
     const codexArchive = path.join(
       testDir,
-      '.codex/prompts/openspec-archive.md'
+      '.codex/prompts/lightspec-archive.md'
     );
 
     // Confirm they weren't created by update
@@ -630,7 +630,7 @@ Old body
   it('should refresh existing GitHub Copilot prompts', async () => {
     const ghPath = path.join(
       testDir,
-      '.github/prompts/openspec-apply.prompt.md'
+      '.github/prompts/lightspec-apply.prompt.md'
     );
     await fs.mkdir(path.dirname(ghPath), { recursive: true });
     const initialContent = `---
@@ -655,7 +655,7 @@ Old body
 
     const [logMessage] = consoleSpy.mock.calls[0];
     expect(logMessage).toContain(
-      'Updated slash commands: .github/prompts/openspec-apply.prompt.md'
+      'Updated slash commands: .github/prompts/lightspec-apply.prompt.md'
     );
 
     consoleSpy.mockRestore();
@@ -664,7 +664,7 @@ Old body
   it('should not create missing GitHub Copilot prompts on update', async () => {
     const ghApply = path.join(
       testDir,
-      '.github/prompts/openspec-apply.prompt.md'
+      '.github/prompts/lightspec-apply.prompt.md'
     );
 
     // Only create apply; leave proposal and archive missing
@@ -678,11 +678,11 @@ Old body
 
     const ghProposal = path.join(
       testDir,
-      '.github/prompts/openspec-proposal.prompt.md'
+      '.github/prompts/lightspec-proposal.prompt.md'
     );
     const ghArchive = path.join(
       testDir,
-      '.github/prompts/openspec-archive.prompt.md'
+      '.github/prompts/lightspec-archive.prompt.md'
     );
 
     // Confirm they weren't created by update
@@ -741,7 +741,7 @@ Old Gemini body
   it('should refresh existing IFLOW slash commands', async () => {
     const iflowProposal = path.join(
       testDir,
-      '.iflow/commands/openspec-proposal.md'
+      '.iflow/commands/lightspec-proposal.md'
     );
     await fs.mkdir(path.dirname(iflowProposal), { recursive: true });
     const initialContent = `description: Scaffold a new LightSpec change and validate strictly."
@@ -767,11 +767,11 @@ Old IFlow body
 
     const iflowApply = path.join(
       testDir,
-      '.iflow/commands/openspec-apply.md'
+      '.iflow/commands/lightspec-apply.md'
     );
     const iflowArchive = path.join(
       testDir,
-      '.iflow/commands/openspec-archive.md'
+      '.iflow/commands/lightspec-archive.md'
     );
 
     await expect(FileSystemUtils.fileExists(iflowApply)).resolves.toBe(false);
@@ -779,7 +779,7 @@ Old IFlow body
 
     const [logMessage] = consoleSpy.mock.calls[0];
     expect(logMessage).toContain(
-      'Updated slash commands: .iflow/commands/openspec-proposal.md'
+      'Updated slash commands: .iflow/commands/lightspec-proposal.md'
     );
 
     consoleSpy.mockRestore();
@@ -788,7 +788,7 @@ Old IFlow body
   it('should refresh existing Factory slash commands', async () => {
     const factoryPath = path.join(
       testDir,
-      '.factory/commands/openspec-proposal.md'
+      '.factory/commands/lightspec-proposal.md'
     );
     await fs.mkdir(path.dirname(factoryPath), { recursive: true });
     const initialContent = `---
@@ -815,7 +815,7 @@ Old body
     expect(updated).not.toContain('Old body');
 
     expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('.factory/commands/openspec-proposal.md')
+      expect.stringContaining('.factory/commands/lightspec-proposal.md')
     );
 
     consoleSpy.mockRestore();
@@ -824,7 +824,7 @@ Old body
   it('should not create missing Factory slash command files on update', async () => {
     const factoryApply = path.join(
       testDir,
-      '.factory/commands/openspec-apply.md'
+      '.factory/commands/lightspec-apply.md'
     );
 
     await fs.mkdir(path.dirname(factoryApply), { recursive: true });
@@ -844,11 +844,11 @@ Old body
 
     const factoryProposal = path.join(
       testDir,
-      '.factory/commands/openspec-proposal.md'
+      '.factory/commands/lightspec-proposal.md'
     );
     const factoryArchive = path.join(
       testDir,
-      '.factory/commands/openspec-archive.md'
+      '.factory/commands/lightspec-archive.md'
     );
 
     await expect(FileSystemUtils.fileExists(factoryProposal)).resolves.toBe(false);
@@ -858,14 +858,14 @@ Old body
   it('should refresh existing Amazon Q Developer prompts', async () => {
     const aqPath = path.join(
       testDir,
-      '.amazonq/prompts/openspec-apply.md'
+      '.amazonq/prompts/lightspec-apply.md'
     );
     await fs.mkdir(path.dirname(aqPath), { recursive: true });
     const initialContent = `---
 description: Implement an approved LightSpec change and keep tasks in sync.
 ---
 
-The user wants to apply the following change. Use the openspec instructions to implement the approved change.
+The user wants to apply the following change. Use the lightspec instructions to implement the approved change.
 
 <ChangeId>
   $ARGUMENTS
@@ -886,7 +886,7 @@ Old body
     expect(updatedContent).not.toContain('Old body');
 
     expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('.amazonq/prompts/openspec-apply.md')
+      expect.stringContaining('.amazonq/prompts/lightspec-apply.md')
     );
 
     consoleSpy.mockRestore();
@@ -895,7 +895,7 @@ Old body
   it('should not create missing Amazon Q Developer prompts on update', async () => {
     const aqApply = path.join(
       testDir,
-      '.amazonq/prompts/openspec-apply.md'
+      '.amazonq/prompts/lightspec-apply.md'
     );
 
     // Only create apply; leave proposal and archive missing
@@ -909,11 +909,11 @@ Old body
 
     const aqProposal = path.join(
       testDir,
-      '.amazonq/prompts/openspec-proposal.md'
+      '.amazonq/prompts/lightspec-proposal.md'
     );
     const aqArchive = path.join(
       testDir,
-      '.amazonq/prompts/openspec-archive.md'
+      '.amazonq/prompts/lightspec-archive.md'
     );
 
     // Confirm they weren't created by update
@@ -924,7 +924,7 @@ Old body
   it('should refresh existing Auggie slash command files', async () => {
     const auggiePath = path.join(
       testDir,
-      '.augment/commands/openspec-apply.md'
+      '.augment/commands/lightspec-apply.md'
     );
     await fs.mkdir(path.dirname(auggiePath), { recursive: true });
     const initialContent = `---
@@ -947,7 +947,7 @@ Old body
     expect(updatedContent).not.toContain('Old body');
 
     expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('.augment/commands/openspec-apply.md')
+      expect.stringContaining('.augment/commands/lightspec-apply.md')
     );
 
     consoleSpy.mockRestore();
@@ -956,7 +956,7 @@ Old body
   it('should not create missing Auggie slash command files on update', async () => {
     const auggieApply = path.join(
       testDir,
-      '.augment/commands/openspec-apply.md'
+      '.augment/commands/lightspec-apply.md'
     );
 
     // Only create apply; leave proposal and archive missing
@@ -970,11 +970,11 @@ Old body
 
     const auggieProposal = path.join(
       testDir,
-      '.augment/commands/openspec-proposal.md'
+      '.augment/commands/lightspec-proposal.md'
     );
     const auggieArchive = path.join(
       testDir,
-      '.augment/commands/openspec-archive.md'
+      '.augment/commands/lightspec-archive.md'
     );
 
     // Confirm they weren't created by update
@@ -992,7 +992,7 @@ Old body
 name: LightSpec: Proposal
 description: Old description
 category: LightSpec
-tags: [openspec, change]
+tags: [lightspec, change]
 ---
 <!-- OPENSPEC:START -->
 Old slash content
@@ -1007,7 +1007,7 @@ Old slash content
     expect(updated).toContain('name: LightSpec: Proposal');
     expect(updated).toContain('**Guardrails**');
     expect(updated).toContain(
-      'Validate with `openspec validate <id> --strict --no-interactive`'
+      'Validate with `lightspec validate <id> --strict --no-interactive`'
     );
     expect(updated).not.toContain('Old slash content');
 
@@ -1037,7 +1037,7 @@ Old slash content
 name: LightSpec: Apply
 description: Old description
 category: LightSpec
-tags: [openspec, apply]
+tags: [lightspec, apply]
 ---
 <!-- OPENSPEC:START -->
 Old body
@@ -1070,7 +1070,7 @@ Old body
 name: LightSpec: Proposal
 description: Old description
 category: LightSpec
-tags: [openspec, change]
+tags: [lightspec, change]
 ---
 <!-- OPENSPEC:START -->
 Old slash content
@@ -1085,7 +1085,7 @@ Old slash content
     expect(updated).toContain('name: LightSpec: Proposal');
     expect(updated).toContain('**Guardrails**');
     expect(updated).toContain(
-      'Validate with `openspec validate <id> --strict --no-interactive`'
+      'Validate with `lightspec validate <id> --strict --no-interactive`'
     );
     expect(updated).not.toContain('Old slash content');
 
@@ -1104,7 +1104,7 @@ Old slash content
   it('should not create missing Crush slash command files on update', async () => {
     const crushApply = path.join(
       testDir,
-      '.crush/commands/openspec-apply.md'
+      '.crush/commands/lightspec-apply.md'
     );
 
     // Only create apply; leave proposal and archive missing
@@ -1115,7 +1115,7 @@ Old slash content
 name: LightSpec: Apply
 description: Old description
 category: LightSpec
-tags: [openspec, apply]
+tags: [lightspec, apply]
 ---
 <!-- OPENSPEC:START -->
 Old body
@@ -1126,11 +1126,11 @@ Old body
 
     const crushProposal = path.join(
       testDir,
-      '.crush/commands/openspec-proposal.md'
+      '.crush/commands/lightspec-proposal.md'
     );
     const crushArchive = path.join(
       testDir,
-      '.crush/commands/openspec-archive.md'
+      '.crush/commands/lightspec-archive.md'
     );
 
     // Confirm they weren't created by update
@@ -1141,7 +1141,7 @@ Old body
   it('should refresh existing CoStrict slash command files', async () => {
     const costrictPath = path.join(
       testDir,
-      '.cospec/openspec/commands/openspec-proposal.md'
+      '.cospec/openspec/commands/lightspec-proposal.md'
     );
     await fs.mkdir(path.dirname(costrictPath), { recursive: true });
     const initialContent = `---
@@ -1163,7 +1163,7 @@ Old body
     expect(updated).toContain('argument-hint: old-hint');
     expect(updated).toContain('**Guardrails**');
     expect(updated).toContain(
-      'Validate with `openspec validate <id> --strict --no-interactive`'
+      'Validate with `lightspec validate <id> --strict --no-interactive`'
     );
     expect(updated).not.toContain('Old body');
 
@@ -1173,7 +1173,7 @@ Old body
     );
     expect(logMessage).toContain('AGENTS.md (created)');
     expect(logMessage).toContain(
-      'Updated slash commands: .cospec/openspec/commands/openspec-proposal.md'
+      'Updated slash commands: .cospec/openspec/commands/lightspec-proposal.md'
     );
 
     consoleSpy.mockRestore();
@@ -1189,7 +1189,7 @@ Old body
 name: LightSpec: Proposal
 description: Old description
 category: LightSpec
-tags: [openspec, change]
+tags: [lightspec, change]
 ---
 <!-- OPENSPEC:START -->
 Old slash content
@@ -1204,7 +1204,7 @@ Old slash content
     expect(updated).toContain('name: LightSpec: Proposal');
     expect(updated).toContain('**Guardrails**');
     expect(updated).toContain(
-      'Validate with `openspec validate <id> --strict --no-interactive`'
+      'Validate with `lightspec validate <id> --strict --no-interactive`'
     );
     expect(updated).not.toContain('Old slash content');
 
@@ -1223,7 +1223,7 @@ Old slash content
   it('should refresh existing RooCode slash command files', async () => {
     const rooPath = path.join(
       testDir,
-      '.roo/commands/openspec-proposal.md'
+      '.roo/commands/lightspec-proposal.md'
     );
     await fs.mkdir(path.dirname(rooPath), { recursive: true });
     const initialContent = `# LightSpec: Proposal
@@ -1244,7 +1244,7 @@ Old body
     expect(updated).toContain('# LightSpec: Proposal');
     expect(updated).toContain('**Guardrails**');
     expect(updated).toContain(
-      'Validate with `openspec validate <id> --strict --no-interactive`'
+      'Validate with `lightspec validate <id> --strict --no-interactive`'
     );
     expect(updated).not.toContain('Old body');
 
@@ -1254,7 +1254,7 @@ Old body
     );
     expect(logMessage).toContain('AGENTS.md (created)');
     expect(logMessage).toContain(
-      'Updated slash commands: .roo/commands/openspec-proposal.md'
+      'Updated slash commands: .roo/commands/lightspec-proposal.md'
     );
 
     consoleSpy.mockRestore();
@@ -1263,7 +1263,7 @@ Old body
   it('should not create missing RooCode slash command files on update', async () => {
     const rooApply = path.join(
       testDir,
-      '.roo/commands/openspec-apply.md'
+      '.roo/commands/lightspec-apply.md'
     );
 
     // Only create apply; leave proposal and archive missing
@@ -1281,11 +1281,11 @@ Old body
 
     const rooProposal = path.join(
       testDir,
-      '.roo/commands/openspec-proposal.md'
+      '.roo/commands/lightspec-proposal.md'
     );
     const rooArchive = path.join(
       testDir,
-      '.roo/commands/openspec-archive.md'
+      '.roo/commands/lightspec-archive.md'
     );
 
     // Confirm they weren't created by update
@@ -1296,7 +1296,7 @@ Old body
   it('should not create missing CoStrict slash command files on update', async () => {
     const costrictApply = path.join(
       testDir,
-      '.cospec/openspec/commands/openspec-apply.md'
+      '.cospec/openspec/commands/lightspec-apply.md'
     );
 
     // Only create apply; leave proposal and archive missing
@@ -1316,11 +1316,11 @@ Old
 
     const costrictProposal = path.join(
       testDir,
-      '.cospec/openspec/commands/openspec-proposal.md'
+      '.cospec/openspec/commands/lightspec-proposal.md'
     );
     const costrictArchive = path.join(
       testDir,
-      '.cospec/openspec/commands/openspec-archive.md'
+      '.cospec/openspec/commands/lightspec-archive.md'
     );
 
     // Confirm they weren't created by update
@@ -1342,7 +1342,7 @@ Old
 name: LightSpec: Apply
 description: Old description
 category: LightSpec
-tags: [openspec, apply]
+tags: [lightspec, apply]
 ---
 <!-- OPENSPEC:START -->
 Old body
@@ -1389,7 +1389,7 @@ More instructions after.`;
     expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
     expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
     expect(updatedContent).toContain("@/openspec/AGENTS.md");
-    expect(updatedContent).toContain('openspec update');
+    expect(updatedContent).toContain('lightspec update');
     expect(updatedContent).toContain('Some existing CoStrict instructions here');
     expect(updatedContent).toContain('More instructions after');
 
@@ -1419,7 +1419,7 @@ More instructions after.`;
   it('should preserve CoStrict content outside markers during update', async () => {
     const costrictPath = path.join(
       testDir,
-      '.cospec/openspec/commands/openspec-proposal.md'
+      '.cospec/openspec/commands/lightspec-proposal.md'
     );
     await fs.mkdir(path.dirname(costrictPath), { recursive: true });
     const initialContent = `## Custom Intro Title\nSome intro text\n<!-- OPENSPEC:START -->\nOld body\n<!-- OPENSPEC:END -->\n\nFooter stays`;
@@ -1431,7 +1431,7 @@ More instructions after.`;
     expect(updated).toContain('## Custom Intro Title');
     expect(updated).toContain('Footer stays');
     expect(updated).not.toContain('Old body');
-    expect(updated).toContain('Validate with `openspec validate <id> --strict --no-interactive`');
+    expect(updated).toContain('Validate with `lightspec validate <id> --strict --no-interactive`');
   });
 
   it('should handle configurator errors gracefully for CoStrict', async () => {
@@ -1475,7 +1475,7 @@ More instructions after.`;
   it('should preserve Windsurf content outside markers during update', async () => {
     const wsPath = path.join(
       testDir,
-      '.windsurf/workflows/openspec-proposal.md'
+      '.windsurf/workflows/lightspec-proposal.md'
     );
     await fs.mkdir(path.dirname(wsPath), { recursive: true });
     const initialContent = `## Custom Intro Title\nSome intro text\n<!-- OPENSPEC:START -->\nOld body\n<!-- OPENSPEC:END -->\n\nFooter stays`;
@@ -1487,13 +1487,13 @@ More instructions after.`;
     expect(updated).toContain('## Custom Intro Title');
     expect(updated).toContain('Footer stays');
     expect(updated).not.toContain('Old body');
-    expect(updated).toContain('Validate with `openspec validate <id> --strict --no-interactive`');
+    expect(updated).toContain('Validate with `lightspec validate <id> --strict --no-interactive`');
   });
 
   it('should not create missing Windsurf workflows on update', async () => {
     const wsApply = path.join(
       testDir,
-      '.windsurf/workflows/openspec-apply.md'
+      '.windsurf/workflows/lightspec-apply.md'
     );
     // Only create apply; leave proposal and archive missing
     await fs.mkdir(path.dirname(wsApply), { recursive: true });
@@ -1506,11 +1506,11 @@ More instructions after.`;
 
     const wsProposal = path.join(
       testDir,
-      '.windsurf/workflows/openspec-proposal.md'
+      '.windsurf/workflows/lightspec-proposal.md'
     );
     const wsArchive = path.join(
       testDir,
-      '.windsurf/workflows/openspec-archive.md'
+      '.windsurf/workflows/lightspec-archive.md'
     );
 
     // Confirm they weren't created by update
@@ -1569,7 +1569,7 @@ More instructions after.`;
 name: LightSpec: Proposal
 description: Existing file
 category: LightSpec
-tags: [openspec, change]
+tags: [lightspec, change]
 ---
 <!-- OPENSPEC:START -->
 Old content
@@ -1608,7 +1608,7 @@ Old content
     }
   });
 
-  it('should update AGENTS.md in openspec directory', async () => {
+  it('should update AGENTS.md in lightspec directory', async () => {
     // Execute update command
     await updateCommand.execute(testDir);
 
@@ -1631,7 +1631,7 @@ Old content
     const content = await fs.readFile(rootAgentsPath, 'utf-8');
     expect(content).toContain('<!-- OPENSPEC:START -->');
     expect(content).toContain("@/openspec/AGENTS.md");
-    expect(content).toContain('openspec update');
+    expect(content).toContain('lightspec update');
     expect(content).toContain('<!-- OPENSPEC:END -->');
   });
 
@@ -1648,7 +1648,7 @@ Old content
     expect(updated).toContain('# Custom intro');
     expect(updated).toContain('# Footnotes');
     expect(updated).toContain("@/openspec/AGENTS.md");
-    expect(updated).toContain('openspec update');
+    expect(updated).toContain('lightspec update');
     expect(updated).not.toContain('Old content');
 
     const [logMessage] = consoleSpy.mock.calls[0];
@@ -1660,8 +1660,8 @@ Old content
     consoleSpy.mockRestore();
   });
 
-  it('should throw error if openspec directory does not exist', async () => {
-    // Remove openspec directory
+  it('should throw error if lightspec directory does not exist', async () => {
+    // Remove lightspec directory
     await fs.rm(path.join(testDir, 'openspec'), {
       recursive: true,
       force: true,
@@ -1669,7 +1669,7 @@ Old content
 
     // Execute update command and expect error
     await expect(updateCommand.execute(testDir)).rejects.toThrow(
-      "No LightSpec directory found. Run 'openspec init' first."
+      "No LightSpec directory found. Run 'lightspec init' first."
     );
   });
 

@@ -2,9 +2,9 @@ import { SlashCommandConfigurator } from './base.js';
 import { SlashCommandId } from '../../templates/index.js';
 
 const FILE_PATHS: Record<SlashCommandId, string> = {
-  proposal: '.amazonq/prompts/openspec-proposal.md',
-  apply: '.amazonq/prompts/openspec-apply.md',
-  archive: '.amazonq/prompts/openspec-archive.md'
+  proposal: '.amazonq/prompts/lightspec-proposal.md',
+  apply: '.amazonq/prompts/lightspec-apply.md',
+  archive: '.amazonq/prompts/lightspec-archive.md'
 };
 
 const FRONTMATTER: Record<SlashCommandId, string> = {
@@ -12,7 +12,7 @@ const FRONTMATTER: Record<SlashCommandId, string> = {
 description: Scaffold a new LightSpec change and validate strictly.
 ---
 
-The user has requested the following change proposal. Use the openspec instructions to create their change proposal.
+The user has requested the following change proposal. Use the lightspec instructions to create their change proposal.
 
 <UserRequest>
   $ARGUMENTS
@@ -21,7 +21,7 @@ The user has requested the following change proposal. Use the openspec instructi
 description: Implement an approved LightSpec change and keep tasks in sync.
 ---
 
-The user wants to apply the following change. Use the openspec instructions to implement the approved change.
+The user wants to apply the following change. Use the lightspec instructions to implement the approved change.
 
 <ChangeId>
   $ARGUMENTS
@@ -30,7 +30,7 @@ The user wants to apply the following change. Use the openspec instructions to i
 description: Archive a deployed LightSpec change and update specs.
 ---
 
-The user wants to archive the following deployed change. Use the openspec instructions to archive the change and update specs.
+The user wants to archive the following deployed change. Use the lightspec instructions to archive the change and update specs.
 
 <ChangeId>
   $ARGUMENTS

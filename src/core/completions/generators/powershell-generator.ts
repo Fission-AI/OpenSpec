@@ -45,7 +45,7 @@ export class PowerShellGenerator implements CompletionGenerator {
 # Auto-generated - do not edit manually
 
 ${helpers}
-$openspecCompleter = {
+$lightspecCompleter = {
     param($wordToComplete, $commandAst, $cursorPosition)
 
     $tokens = $commandAst.ToString() -split "\\s+"
@@ -69,7 +69,7 @@ ${commandCases}
     }
 }
 
-Register-ArgumentCompleter -CommandName openspec -ScriptBlock $openspecCompleter
+Register-ArgumentCompleter -CommandName lightspec -ScriptBlock $lightspecCompleter
 `;
   }
 

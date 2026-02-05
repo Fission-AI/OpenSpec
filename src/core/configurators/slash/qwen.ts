@@ -13,9 +13,9 @@ import { SlashCommandId } from '../../templates/index.js';
  * @type {Record<SlashCommandId, string>}
  */
 const FILE_PATHS: Record<SlashCommandId, string> = {
-  proposal: '.qwen/commands/openspec-proposal.toml',
-  apply: '.qwen/commands/openspec-apply.toml',
-  archive: '.qwen/commands/openspec-archive.toml'
+  proposal: '.qwen/commands/lightspec-proposal.toml',
+  apply: '.qwen/commands/lightspec-apply.toml',
+  archive: '.qwen/commands/lightspec-archive.toml'
 };
 
 const DESCRIPTIONS: Record<SlashCommandId, string> = {
@@ -29,9 +29,9 @@ const DESCRIPTIONS: Record<SlashCommandId, string> = {
  * by creating the necessary slash command files in the .qwen/commands directory.
  * 
  * The slash commands include:
- * - /openspec-proposal: Create an LightSpec change proposal
- * - /openspec-apply: Apply an approved LightSpec change
- * - /openspec-archive: Archive a deployed LightSpec change
+ * - /lightspec-proposal: Create an LightSpec change proposal
+ * - /lightspec-apply: Apply an approved LightSpec change
+ * - /lightspec-archive: Archive a deployed LightSpec change
  */
 export class QwenSlashCommandConfigurator extends TomlSlashCommandConfigurator {
   /** Unique identifier for the Qwen tool */

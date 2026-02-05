@@ -25,7 +25,7 @@ describe('telemetry/index', () => {
 
   beforeEach(() => {
     // Create unique temp directory for each test using UUID
-    tempDir = path.join(os.tmpdir(), `openspec-telemetry-test-${randomUUID()}`);
+    tempDir = path.join(os.tmpdir(), `lightspec-telemetry-test-${randomUUID()}`);
     fs.mkdirSync(tempDir, { recursive: true });
 
     // Save original env

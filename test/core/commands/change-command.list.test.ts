@@ -12,7 +12,7 @@ describe('ChangeCommand.list', () => {
   beforeAll(async () => {
     cmd = new ChangeCommand();
     originalCwd = process.cwd();
-    tempRoot = path.join(os.tmpdir(), `openspec-change-command-list-${Date.now()}`);
+    tempRoot = path.join(os.tmpdir(), `lightspec-change-command-list-${Date.now()}`);
     const changeDir = path.join(tempRoot, 'openspec', 'changes', 'demo');
     await fs.mkdir(changeDir, { recursive: true });
     const proposal = `# Change: Demo\n\n## Why\nTest list.\n\n## What Changes\n- **auth:** Add requirement`;

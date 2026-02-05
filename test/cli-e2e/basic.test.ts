@@ -30,7 +30,7 @@ afterAll(async () => {
   await Promise.all(tempRoots.map((dir) => fs.rm(dir, { recursive: true, force: true })));
 });
 
-describe('openspec CLI e2e basics', () => {
+describe('lightspec CLI e2e basics', () => {
   it('shows help output', async () => {
     const result = await runCLI(['--help']);
     expect(result.exitCode).toBe(0);
@@ -94,7 +94,7 @@ describe('openspec CLI e2e basics', () => {
 
       // Check that tool configurations were created
       const claudePath = path.join(emptyProjectDir, 'CLAUDE.md');
-      const cursorProposal = path.join(emptyProjectDir, '.cursor/commands/openspec-proposal.md');
+      const cursorProposal = path.join(emptyProjectDir, '.cursor/commands/lightspec-proposal.md');
       expect(await fileExists(claudePath)).toBe(true);
       expect(await fileExists(cursorProposal)).toBe(true);
     });
@@ -109,7 +109,7 @@ describe('openspec CLI e2e basics', () => {
       expect(result.stdout).toContain('Tool summary:');
 
       const claudePath = path.join(emptyProjectDir, 'CLAUDE.md');
-      const cursorProposal = path.join(emptyProjectDir, '.cursor/commands/openspec-proposal.md');
+      const cursorProposal = path.join(emptyProjectDir, '.cursor/commands/lightspec-proposal.md');
       expect(await fileExists(claudePath)).toBe(true);
       expect(await fileExists(cursorProposal)).toBe(false); // Not selected
     });
@@ -124,7 +124,7 @@ describe('openspec CLI e2e basics', () => {
       expect(result.stdout).toContain('Tool summary:');
 
       const claudePath = path.join(emptyProjectDir, 'CLAUDE.md');
-      const cursorProposal = path.join(emptyProjectDir, '.cursor/commands/openspec-proposal.md');
+      const cursorProposal = path.join(emptyProjectDir, '.cursor/commands/lightspec-proposal.md');
       const rootAgentsPath = path.join(emptyProjectDir, 'AGENTS.md');
 
       expect(await fileExists(rootAgentsPath)).toBe(true);

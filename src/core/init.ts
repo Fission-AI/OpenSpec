@@ -858,7 +858,7 @@ export class InitCommand {
     console.log();
     console.log(
       PALETTE.midGray(
-        'Use `openspec update` to refresh shared LightSpec instructions in the future.'
+        'Use `lightspec update` to refresh shared LightSpec instructions in the future.'
       )
     );
 
@@ -873,7 +873,7 @@ export class InitCommand {
       );
       console.log(
         PALETTE.midGray(
-          'to ensure the new /openspec commands appear in your command palette.'
+          'to ensure the new /lightspec commands appear in your command palette.'
         )
       );
     }

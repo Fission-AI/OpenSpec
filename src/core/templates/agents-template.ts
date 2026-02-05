@@ -4,12 +4,12 @@ Instructions for AI coding assistants using LightSpec for spec-driven developmen
 
 ## TL;DR Quick Checklist
 
-- Search existing work: \`openspec spec list --long\`, \`openspec list\` (use \`rg\` only for full-text search)
+- Search existing work: \`lightspec spec list --long\`, \`lightspec list\` (use \`rg\` only for full-text search)
 - Decide scope: new capability vs modify existing capability
 - Pick a unique \`change-id\`: kebab-case, verb-led (\`add-\`, \`update-\`, \`remove-\`, \`refactor-\`)
 - Scaffold: \`proposal.md\`, \`tasks.md\`, \`design.md\` (only if needed), and delta specs per affected capability
 - Write deltas: use \`## ADDED|MODIFIED|REMOVED|RENAMED Requirements\`; include at least one \`#### Scenario:\` per requirement
-- Validate: \`openspec validate [change-id] --strict --no-interactive\` and fix issues
+- Validate: \`lightspec validate [change-id] --strict --no-interactive\` and fix issues
 - Request approval: Do not start implementation until proposal is approved
 
 ## Three-Stage Workflow
@@ -41,10 +41,10 @@ Skip proposal for:
 - Tests for existing behavior
 
 **Workflow**
-1. Review \`openspec/project.md\`, \`openspec list\`, and \`openspec list --specs\` to understand current context.
+1. Review \`openspec/project.md\`, \`lightspec list\`, and \`lightspec list --specs\` to understand current context.
 2. Choose a unique verb-led \`change-id\` and scaffold \`proposal.md\`, \`tasks.md\`, optional \`design.md\`, and spec deltas under \`openspec/changes/<id>/\`.
 3. Draft spec deltas using \`## ADDED|MODIFIED|REMOVED Requirements\` with at least one \`#### Scenario:\` per requirement.
-4. Run \`openspec validate <id> --strict --no-interactive\` and resolve any issues before sharing the proposal.
+4. Run \`lightspec validate <id> --strict --no-interactive\` and resolve any issues before sharing the proposal.
 
 ### Stage 2: Implementing Changes
 Track these steps as TODOs and complete them one by one.
@@ -60,8 +60,8 @@ Track these steps as TODOs and complete them one by one.
 After deployment, create separate PR to:
 - Move \`changes/[name]/\` → \`changes/archive/YYYY-MM-DD-[name]/\`
 - Update \`specs/\` if capabilities changed
-- Use \`openspec archive <change-id> --skip-specs --yes\` for tooling-only changes (always pass the change ID explicitly)
-- Run \`openspec validate --strict --no-interactive\` to confirm the archived change passes checks
+- Use \`lightspec archive <change-id> --skip-specs --yes\` for tooling-only changes (always pass the change ID explicitly)
+- Run \`lightspec validate --strict --no-interactive\` to confirm the archived change passes checks
 
 ## Before Any Task
 
@@ -69,21 +69,21 @@ After deployment, create separate PR to:
 - [ ] Read relevant specs in \`specs/[capability]/spec.md\`
 - [ ] Check pending changes in \`changes/\` for conflicts
 - [ ] Read \`openspec/project.md\` for conventions
-- [ ] Run \`openspec list\` to see active changes
-- [ ] Run \`openspec list --specs\` to see existing capabilities
+- [ ] Run \`lightspec list\` to see active changes
+- [ ] Run \`lightspec list --specs\` to see existing capabilities
 
 **Before Creating Specs:**
 - Always check if capability already exists
 - Prefer modifying existing specs over creating duplicates
-- Use \`openspec show [spec]\` to review current state
+- Use \`lightspec show [spec]\` to review current state
 - If request is ambiguous, ask 1–2 clarifying questions before scaffolding
 
 ### Search Guidance
-- Enumerate specs: \`openspec spec list --long\` (or \`--json\` for scripts)
-- Enumerate changes: \`openspec list\` (or \`openspec change list --json\` - deprecated but available)
+- Enumerate specs: \`lightspec spec list --long\` (or \`--json\` for scripts)
+- Enumerate changes: \`lightspec list\` (or \`lightspec change list --json\` - deprecated but available)
 - Show details:
-  - Spec: \`openspec show <spec-id> --type spec\` (use \`--json\` for filters)
-  - Change: \`openspec show <change-id> --json --deltas-only\`
+  - Spec: \`lightspec show <spec-id> --type spec\` (use \`--json\` for filters)
+  - Change: \`lightspec show <change-id> --json --deltas-only\`
 - Full-text search (use ripgrep): \`rg -n "Requirement:|Scenario:" openspec/specs\`
 
 ## Quick Start
@@ -92,23 +92,23 @@ After deployment, create separate PR to:
 
 \`\`\`bash
 # Essential commands
-openspec list                  # List active changes
-openspec list --specs          # List specifications
-openspec show [item]           # Display change or spec
-openspec validate [item]       # Validate changes or specs
-openspec archive <change-id> [--yes|-y]   # Archive after deployment (add --yes for non-interactive runs)
+lightspec list                  # List active changes
+lightspec list --specs          # List specifications
+lightspec show [item]           # Display change or spec
+lightspec validate [item]       # Validate changes or specs
+lightspec archive <change-id> [--yes|-y]   # Archive after deployment (add --yes for non-interactive runs)
 
 # Project management
-openspec init [path]           # Initialize LightSpec
-openspec update [path]         # Update instruction files
+lightspec init [path]           # Initialize LightSpec
+lightspec update [path]         # Update instruction files
 
 # Interactive mode
-openspec show                  # Prompts for selection
-openspec validate              # Bulk validation mode
+lightspec show                  # Prompts for selection
+lightspec validate              # Bulk validation mode
 
 # Debugging
-openspec show [change] --json --deltas-only
-openspec validate [change] --strict --no-interactive
+lightspec show [change] --json --deltas-only
+lightspec validate [change] --strict --no-interactive
 \`\`\`
 
 ### Command Flags
@@ -300,27 +300,27 @@ Example for RENAMED:
 
 **Silent scenario parsing failures**
 - Exact format required: \`#### Scenario: Name\`
-- Debug with: \`openspec show [change] --json --deltas-only\`
+- Debug with: \`lightspec show [change] --json --deltas-only\`
 
 ### Validation Tips
 
 \`\`\`bash
 # Always use strict mode for comprehensive checks
-openspec validate [change] --strict --no-interactive
+lightspec validate [change] --strict --no-interactive
 
 # Debug delta parsing
-openspec show [change] --json | jq '.deltas'
+lightspec show [change] --json | jq '.deltas'
 
 # Check specific requirement
-openspec show [spec] --json -r 1
+lightspec show [spec] --json -r 1
 \`\`\`
 
 ## Happy Path Script
 
 \`\`\`bash
 # 1) Explore current state
-openspec spec list --long
-openspec list
+lightspec spec list --long
+lightspec list
 # Optional full-text search:
 # rg -n "Requirement:|Scenario:" openspec/specs
 # rg -n "^#|Requirement:" openspec/changes
@@ -343,7 +343,7 @@ Users MUST provide a second factor during login.
 EOF
 
 # 4) Validate
-openspec validate $CHANGE --strict --no-interactive
+lightspec validate $CHANGE --strict --no-interactive
 \`\`\`
 
 ## Multi-Capability Example
@@ -415,7 +415,7 @@ Only add complexity with:
 ## Error Recovery
 
 ### Change Conflicts
-1. Run \`openspec list\` to see active changes
+1. Run \`lightspec list\` to see active changes
 2. Check for overlapping specs
 3. Coordinate with change owners
 4. Consider combining proposals
@@ -447,10 +447,10 @@ Only add complexity with:
 
 ### CLI Essentials
 \`\`\`bash
-openspec list              # What's in progress?
-openspec show [item]       # View details
-openspec validate --strict --no-interactive  # Is it correct?
-openspec archive <change-id> [--yes|-y]  # Mark complete (add --yes for automation)
+lightspec list              # What's in progress?
+lightspec show [item]       # View details
+lightspec validate --strict --no-interactive  # Is it correct?
+lightspec archive <change-id> [--yes|-y]  # Mark complete (add --yes for automation)
 \`\`\`
 
 Remember: Specs are truth. Changes are proposals. Keep them in sync.

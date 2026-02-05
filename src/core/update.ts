@@ -11,7 +11,7 @@ export class UpdateCommand {
     const openspecDirName = OPENSPEC_DIR_NAME;
     const openspecPath = path.join(resolvedProjectPath, openspecDirName);
 
-    // 1. Check openspec directory exists
+    // 1. Check lightspec directory exists
     if (!await FileSystemUtils.directoryExists(openspecPath)) {
       throw new Error(`No LightSpec directory found. Run 'lightspec init' first.`);
     }

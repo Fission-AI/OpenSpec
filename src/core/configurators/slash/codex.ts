@@ -7,9 +7,9 @@ import { OPENSPEC_MARKERS } from "../../config.js";
 
 // Use POSIX-style paths for consistent logging across platforms.
 const FILE_PATHS: Record<SlashCommandId, string> = {
-  proposal: ".codex/prompts/openspec-proposal.md",
-  apply: ".codex/prompts/openspec-apply.md",
-  archive: ".codex/prompts/openspec-archive.md",
+  proposal: ".codex/prompts/lightspec-proposal.md",
+  apply: ".codex/prompts/lightspec-apply.md",
+  archive: ".codex/prompts/lightspec-archive.md",
 };
 
 export class CodexSlashCommandConfigurator extends SlashCommandConfigurator {

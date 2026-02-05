@@ -23,13 +23,13 @@ end`;
 export const FISH_DYNAMIC_HELPERS = `# Dynamic completion helpers
 
 function __fish_lightspec_changes
-    openspec __complete changes 2>/dev/null | while read -l id desc
+    lightspec __complete changes 2>/dev/null | while read -l id desc
         printf '%s\\t%s\\n' "$id" "$desc"
     end
 end
 
 function __fish_lightspec_specs
-    openspec __complete specs 2>/dev/null | while read -l id desc
+    lightspec __complete specs 2>/dev/null | while read -l id desc
         printf '%s\\t%s\\n' "$id" "$desc"
     end
 end

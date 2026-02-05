@@ -39,7 +39,7 @@ describe('InitCommand', () => {
   let prevCodexHome: string | undefined;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-init-test-${Date.now()}`);
+    testDir = path.join(os.tmpdir(), `lightspec-init-test-${Date.now()}`);
     await fs.mkdir(testDir, { recursive: true });
     selectionQueue = [];
     mockPrompt.mockReset();
@@ -114,7 +114,7 @@ describe('InitCommand', () => {
       const content = await fs.readFile(claudePath, 'utf-8');
       expect(content).toContain('<!-- OPENSPEC:START -->');
       expect(content).toContain("@/openspec/AGENTS.md");
-      expect(content).toContain('openspec update');
+      expect(content).toContain('lightspec update');
       expect(content).toContain('<!-- OPENSPEC:END -->');
     });
 
@@ -131,7 +131,7 @@ describe('InitCommand', () => {
       const updatedContent = await fs.readFile(claudePath, 'utf-8');
       expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
       expect(updatedContent).toContain("@/openspec/AGENTS.md");
-      expect(updatedContent).toContain('openspec update');
+      expect(updatedContent).toContain('lightspec update');
       expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
       expect(updatedContent).toContain('Custom instructions here');
     });
@@ -147,7 +147,7 @@ describe('InitCommand', () => {
       const content = await fs.readFile(clinePath, 'utf-8');
       expect(content).toContain('<!-- OPENSPEC:START -->');
       expect(content).toContain("@/openspec/AGENTS.md");
-      expect(content).toContain('openspec update');
+      expect(content).toContain('lightspec update');
       expect(content).toContain('<!-- OPENSPEC:END -->');
     });
 
@@ -164,7 +164,7 @@ describe('InitCommand', () => {
       const updatedContent = await fs.readFile(clinePath, 'utf-8');
       expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
       expect(updatedContent).toContain("@/openspec/AGENTS.md");
-      expect(updatedContent).toContain('openspec update');
+      expect(updatedContent).toContain('lightspec update');
       expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
       expect(updatedContent).toContain('Custom Cline instructions here');
     });
@@ -176,15 +176,15 @@ describe('InitCommand', () => {
 
       const wsProposal = path.join(
         testDir,
-        '.windsurf/workflows/openspec-proposal.md'
+        '.windsurf/workflows/lightspec-proposal.md'
       );
       const wsApply = path.join(
         testDir,
-        '.windsurf/workflows/openspec-apply.md'
+        '.windsurf/workflows/lightspec-apply.md'
       );
       const wsArchive = path.join(
         testDir,
-        '.windsurf/workflows/openspec-archive.md'
+        '.windsurf/workflows/lightspec-archive.md'
       );
 
       expect(await fileExists(wsProposal)).toBe(true);
@@ -210,7 +210,7 @@ describe('InitCommand', () => {
       expect(archiveContent).toContain('description: Archive a deployed LightSpec change and update specs.');
       expect(archiveContent).toContain('auto_execution_mode: 3');
       expect(archiveContent).toContain('<!-- OPENSPEC:START -->');
-      expect(archiveContent).toContain('Run `openspec archive <id> --yes`');
+      expect(archiveContent).toContain('Run `lightspec archive <id> --yes`');
     });
 
     it('should create Antigravity workflows when Antigravity is selected', async () => {
@@ -220,15 +220,15 @@ describe('InitCommand', () => {
 
       const agProposal = path.join(
         testDir,
-        '.agent/workflows/openspec-proposal.md'
+        '.agent/workflows/lightspec-proposal.md'
       );
       const agApply = path.join(
         testDir,
-        '.agent/workflows/openspec-apply.md'
+        '.agent/workflows/lightspec-apply.md'
       );
       const agArchive = path.join(
         testDir,
-        '.agent/workflows/openspec-archive.md'
+        '.agent/workflows/lightspec-archive.md'
       );
 
       expect(await fileExists(agProposal)).toBe(true);
@@ -253,7 +253,7 @@ describe('InitCommand', () => {
       expect(archiveContent).toContain('---');
       expect(archiveContent).toContain('description: Archive a deployed LightSpec change and update specs.');
       expect(archiveContent).toContain('<!-- OPENSPEC:START -->');
-      expect(archiveContent).toContain('Run `openspec archive <id> --yes`');
+      expect(archiveContent).toContain('Run `lightspec archive <id> --yes`');
       expect(archiveContent).not.toContain('auto_execution_mode');
     });
 
@@ -268,7 +268,7 @@ describe('InitCommand', () => {
       const content = await fs.readFile(rootAgentsPath, 'utf-8');
       expect(content).toContain('<!-- OPENSPEC:START -->');
       expect(content).toContain("@/openspec/AGENTS.md");
-      expect(content).toContain('openspec update');
+      expect(content).toContain('lightspec update');
       expect(content).toContain('<!-- OPENSPEC:END -->');
 
       const claudeExists = await fileExists(path.join(testDir, 'CLAUDE.md'));
@@ -308,7 +308,7 @@ describe('InitCommand', () => {
 
       const archiveContent = await fs.readFile(claudeArchive, 'utf-8');
       expect(archiveContent).toContain('name: LightSpec: Archive');
-      expect(archiveContent).toContain('openspec archive <id>');
+      expect(archiveContent).toContain('lightspec archive <id>');
       expect(archiveContent).toContain(
         '`--skip-specs` only for tooling-only work'
       );
@@ -321,15 +321,15 @@ describe('InitCommand', () => {
 
       const cursorProposal = path.join(
         testDir,
-        '.cursor/commands/openspec-proposal.md'
+        '.cursor/commands/lightspec-proposal.md'
       );
       const cursorApply = path.join(
         testDir,
-        '.cursor/commands/openspec-apply.md'
+        '.cursor/commands/lightspec-apply.md'
       );
       const cursorArchive = path.join(
         testDir,
-        '.cursor/commands/openspec-archive.md'
+        '.cursor/commands/lightspec-archive.md'
       );
 
       expect(await fileExists(cursorProposal)).toBe(true);
@@ -337,15 +337,15 @@ describe('InitCommand', () => {
       expect(await fileExists(cursorArchive)).toBe(true);
 
       const proposalContent = await fs.readFile(cursorProposal, 'utf-8');
-      expect(proposalContent).toContain('name: /openspec-proposal');
+      expect(proposalContent).toContain('name: /lightspec-proposal');
       expect(proposalContent).toContain('<!-- OPENSPEC:END -->');
 
       const applyContent = await fs.readFile(cursorApply, 'utf-8');
-      expect(applyContent).toContain('id: openspec-apply');
+      expect(applyContent).toContain('id: lightspec-apply');
       expect(applyContent).toContain('Work through tasks sequentially');
 
       const archiveContent = await fs.readFile(cursorArchive, 'utf-8');
-      expect(archiveContent).toContain('name: /openspec-archive');
+      expect(archiveContent).toContain('name: /lightspec-archive');
       expect(archiveContent).toContain('lightspec list' --specs');
     });
 
@@ -384,7 +384,7 @@ describe('InitCommand', () => {
 
       const archiveContent = await fs.readFile(geminiArchive, 'utf-8');
       expect(archiveContent).toContain('description = "Archive a deployed LightSpec change and update specs."');
-      expect(archiveContent).toContain('openspec archive <id>');
+      expect(archiveContent).toContain('lightspec archive <id>');
     });
 
     it('should update existing Gemini CLI TOML files with refreshed content', async () => {
@@ -422,15 +422,15 @@ describe('InitCommand', () => {
 
       const iflowProposal = path.join(
         testDir,
-        '.iflow/commands/openspec-proposal.md'
+        '.iflow/commands/lightspec-proposal.md'
       );
       const iflowApply = path.join(
         testDir,
-        '.iflow/commands/openspec-apply.md'
+        '.iflow/commands/lightspec-apply.md'
       );
       const iflowArchive = path.join(
         testDir,
-        '.iflow/commands/openspec-archive.md'
+        '.iflow/commands/lightspec-archive.md'
       );
 
       expect(await fileExists(iflowProposal)).toBe(true);
@@ -449,7 +449,7 @@ describe('InitCommand', () => {
 
       const archiveContent = await fs.readFile(iflowArchive, 'utf-8');
       expect(archiveContent).toContain('description: Archive a deployed LightSpec change and update specs.');
-      expect(archiveContent).toContain('openspec archive <id>');
+      expect(archiveContent).toContain('lightspec archive <id>');
     });
 
     it('should update existing IFLOW.md with markers', async () => {
@@ -464,7 +464,7 @@ describe('InitCommand', () => {
       const updatedContent = await fs.readFile(iflowPath, 'utf-8');
       expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
       expect(updatedContent).toContain("@/openspec/AGENTS.md");
-      expect(updatedContent).toContain('openspec update');
+      expect(updatedContent).toContain('lightspec update');
       expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
       expect(updatedContent).toContain('Custom instructions here');
     });
@@ -476,15 +476,15 @@ describe('InitCommand', () => {
 
       const openCodeProposal = path.join(
         testDir,
-        '.opencode/command/openspec-proposal.md'
+        '.opencode/command/lightspec-proposal.md'
       );
       const openCodeApply = path.join(
         testDir,
-        '.opencode/command/openspec-apply.md'
+        '.opencode/command/lightspec-apply.md'
       );
       const openCodeArchive = path.join(
         testDir,
-        '.opencode/command/openspec-archive.md'
+        '.opencode/command/lightspec-archive.md'
       );
 
       expect(await fileExists(openCodeProposal)).toBe(true);
@@ -521,15 +521,15 @@ describe('InitCommand', () => {
       const qwenConfigPath = path.join(testDir, 'QWEN.md');
       const proposalPath = path.join(
         testDir,
-        '.qwen/commands/openspec-proposal.toml'
+        '.qwen/commands/lightspec-proposal.toml'
       );
       const applyPath = path.join(
         testDir,
-        '.qwen/commands/openspec-apply.toml'
+        '.qwen/commands/lightspec-apply.toml'
       );
       const archivePath = path.join(
         testDir,
-        '.qwen/commands/openspec-archive.toml'
+        '.qwen/commands/lightspec-archive.toml'
       );
 
       expect(await fileExists(qwenConfigPath)).toBe(true);
@@ -553,7 +553,7 @@ describe('InitCommand', () => {
 
       const archiveContent = await fs.readFile(archivePath, 'utf-8');
       expect(archiveContent).toContain('description = "Archive a deployed LightSpec change and update specs."');
-      expect(archiveContent).toContain('openspec archive <id>');
+      expect(archiveContent).toContain('lightspec archive <id>');
     });
 
     it('should update existing QWEN.md with markers', async () => {
@@ -568,7 +568,7 @@ describe('InitCommand', () => {
       const updatedContent = await fs.readFile(qwenPath, 'utf-8');
       expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
       expect(updatedContent).toContain("@/openspec/AGENTS.md");
-      expect(updatedContent).toContain('openspec update');
+      expect(updatedContent).toContain('lightspec update');
       expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
       expect(updatedContent).toContain('Custom instructions here');
     });
@@ -580,15 +580,15 @@ describe('InitCommand', () => {
 
       const clineProposal = path.join(
         testDir,
-        '.clinerules/workflows/openspec-proposal.md'
+        '.clinerules/workflows/lightspec-proposal.md'
       );
       const clineApply = path.join(
         testDir,
-        '.clinerules/workflows/openspec-apply.md'
+        '.clinerules/workflows/lightspec-apply.md'
       );
       const clineArchive = path.join(
         testDir,
-        '.clinerules/workflows/openspec-archive.md'
+        '.clinerules/workflows/lightspec-archive.md'
       );
 
       expect(await fileExists(clineProposal)).toBe(true);
@@ -609,7 +609,7 @@ describe('InitCommand', () => {
       const archiveContent = await fs.readFile(clineArchive, 'utf-8');
       expect(archiveContent).toContain('# LightSpec: Archive');
       expect(archiveContent).toContain('Archive a deployed LightSpec change and update specs.');
-      expect(archiveContent).toContain('openspec archive <id>');
+      expect(archiveContent).toContain('lightspec archive <id>');
     });
 
     it('should create Factory slash command files with templates', async () => {
@@ -619,15 +619,15 @@ describe('InitCommand', () => {
 
       const factoryProposal = path.join(
         testDir,
-        '.factory/commands/openspec-proposal.md'
+        '.factory/commands/lightspec-proposal.md'
       );
       const factoryApply = path.join(
         testDir,
-        '.factory/commands/openspec-apply.md'
+        '.factory/commands/lightspec-apply.md'
       );
       const factoryArchive = path.join(
         testDir,
-        '.factory/commands/openspec-archive.md'
+        '.factory/commands/lightspec-archive.md'
       );
 
       expect(await fileExists(factoryProposal)).toBe(true);
@@ -657,7 +657,7 @@ describe('InitCommand', () => {
       const archiveContent = await fs.readFile(factoryArchive, 'utf-8');
       expect(archiveContent).toContain('description: Archive a deployed LightSpec change and update specs.');
       expect(archiveContent).toContain('argument-hint: change-id');
-      expect(archiveContent).toContain('openspec archive <id> --yes');
+      expect(archiveContent).toContain('lightspec archive <id> --yes');
       expect(
         /<!-- OPENSPEC:START -->([\s\S]*?)<!-- OPENSPEC:END -->/u.exec(
           archiveContent
@@ -672,15 +672,15 @@ describe('InitCommand', () => {
 
       const proposalPath = path.join(
         testDir,
-        '.codex/prompts/openspec-proposal.md'
+        '.codex/prompts/lightspec-proposal.md'
       );
       const applyPath = path.join(
         testDir,
-        '.codex/prompts/openspec-apply.md'
+        '.codex/prompts/lightspec-apply.md'
       );
       const archivePath = path.join(
         testDir,
-        '.codex/prompts/openspec-archive.md'
+        '.codex/prompts/lightspec-archive.md'
       );
 
       expect(await fileExists(proposalPath)).toBe(true);
@@ -704,7 +704,7 @@ describe('InitCommand', () => {
       expect(archiveContent).toContain('description: Archive a deployed LightSpec change and update specs.');
       expect(archiveContent).toContain('argument-hint: change-id');
       expect(archiveContent).toContain('$ARGUMENTS');
-      expect(archiveContent).toContain('openspec archive <id> --yes');
+      expect(archiveContent).toContain('lightspec archive <id> --yes');
     });
 
     it('should create Kilo Code workflows with templates', async () => {
@@ -714,15 +714,15 @@ describe('InitCommand', () => {
 
       const proposalPath = path.join(
         testDir,
-        '.kilocode/workflows/openspec-proposal.md'
+        '.kilocode/workflows/lightspec-proposal.md'
       );
       const applyPath = path.join(
         testDir,
-        '.kilocode/workflows/openspec-apply.md'
+        '.kilocode/workflows/lightspec-apply.md'
       );
       const archivePath = path.join(
         testDir,
-        '.kilocode/workflows/openspec-archive.md'
+        '.kilocode/workflows/lightspec-archive.md'
       );
 
       expect(await fileExists(proposalPath)).toBe(true);
@@ -750,15 +750,15 @@ describe('InitCommand', () => {
 
       const proposalPath = path.join(
         testDir,
-        '.github/prompts/openspec-proposal.prompt.md'
+        '.github/prompts/lightspec-proposal.prompt.md'
       );
       const applyPath = path.join(
         testDir,
-        '.github/prompts/openspec-apply.prompt.md'
+        '.github/prompts/lightspec-apply.prompt.md'
       );
       const archivePath = path.join(
         testDir,
-        '.github/prompts/openspec-archive.prompt.md'
+        '.github/prompts/lightspec-archive.prompt.md'
       );
 
       expect(await fileExists(proposalPath)).toBe(true);
@@ -782,7 +782,7 @@ describe('InitCommand', () => {
       expect(archiveContent).toContain('---');
       expect(archiveContent).toContain('description: Archive a deployed LightSpec change and update specs.');
       expect(archiveContent).toContain('$ARGUMENTS');
-      expect(archiveContent).toContain('openspec archive <id> --yes');
+      expect(archiveContent).toContain('lightspec archive <id> --yes');
     });
 
     it('should add new tool when LightSpec already exists', async () => {
@@ -792,7 +792,7 @@ describe('InitCommand', () => {
 
       const cursorProposal = path.join(
         testDir,
-        '.cursor/commands/openspec-proposal.md'
+        '.cursor/commands/lightspec-proposal.md'
       );
       expect(await fileExists(cursorProposal)).toBe(true);
     });
@@ -1001,15 +1001,15 @@ describe('InitCommand', () => {
 
       const proposalPath = path.join(
         testDir,
-        '.amazonq/prompts/openspec-proposal.md'
+        '.amazonq/prompts/lightspec-proposal.md'
       );
       const applyPath = path.join(
         testDir,
-        '.amazonq/prompts/openspec-apply.md'
+        '.amazonq/prompts/lightspec-apply.md'
       );
       const archivePath = path.join(
         testDir,
-        '.amazonq/prompts/openspec-archive.md'
+        '.amazonq/prompts/lightspec-archive.md'
       );
 
       expect(await fileExists(proposalPath)).toBe(true);
@@ -1049,15 +1049,15 @@ describe('InitCommand', () => {
 
       const auggieProposal = path.join(
         testDir,
-        '.augment/commands/openspec-proposal.md'
+        '.augment/commands/lightspec-proposal.md'
       );
       const auggieApply = path.join(
         testDir,
-        '.augment/commands/openspec-apply.md'
+        '.augment/commands/lightspec-apply.md'
       );
       const auggieArchive = path.join(
         testDir,
-        '.augment/commands/openspec-archive.md'
+        '.augment/commands/lightspec-archive.md'
       );
 
       expect(await fileExists(auggieProposal)).toBe(true);
@@ -1081,7 +1081,7 @@ describe('InitCommand', () => {
       expect(archiveContent).toContain('---');
       expect(archiveContent).toContain('description: Archive a deployed LightSpec change and update specs.');
       expect(archiveContent).toContain('argument-hint: change-id');
-      expect(archiveContent).toContain('openspec archive <id> --yes');
+      expect(archiveContent).toContain('lightspec archive <id> --yes');
     });
 
     it('should mark Auggie as already configured during extend mode', async () => {
@@ -1136,7 +1136,7 @@ describe('InitCommand', () => {
       expect(archiveContent).toContain('---');
       expect(archiveContent).toContain('name: LightSpec: Archive');
       expect(archiveContent).toContain('description: "Archive a deployed LightSpec change and update specs."');
-      expect(archiveContent).toContain('openspec archive <id> --yes');
+      expect(archiveContent).toContain('lightspec archive <id> --yes');
     });
 
     it('should mark CodeBuddy as already configured during extend mode', async () => {
@@ -1158,15 +1158,15 @@ describe('InitCommand', () => {
 
       const continueProposal = path.join(
         testDir,
-        '.continue/prompts/openspec-proposal.prompt'
+        '.continue/prompts/lightspec-proposal.prompt'
       );
       const continueApply = path.join(
         testDir,
-        '.continue/prompts/openspec-apply.prompt'
+        '.continue/prompts/lightspec-apply.prompt'
       );
       const continueArchive = path.join(
         testDir,
-        '.continue/prompts/openspec-archive.prompt'
+        '.continue/prompts/lightspec-archive.prompt'
       );
 
       expect(await fileExists(continueProposal)).toBe(true);
@@ -1175,23 +1175,23 @@ describe('InitCommand', () => {
 
       const proposalContent = await fs.readFile(continueProposal, 'utf-8');
       expect(proposalContent).toContain('---');
-      expect(proposalContent).toContain('name: openspec-proposal');
+      expect(proposalContent).toContain('name: lightspec-proposal');
       expect(proposalContent).toContain('invokable: true');
       expect(proposalContent).toContain('<!-- OPENSPEC:START -->');
 
       const applyContent = await fs.readFile(continueApply, 'utf-8');
       expect(applyContent).toContain('---');
-      expect(applyContent).toContain('name: openspec-apply');
+      expect(applyContent).toContain('name: lightspec-apply');
       expect(applyContent).toContain('description: Implement an approved LightSpec change and keep tasks in sync.');
       expect(applyContent).toContain('invokable: true');
       expect(applyContent).toContain('Work through tasks sequentially');
 
       const archiveContent = await fs.readFile(continueArchive, 'utf-8');
       expect(archiveContent).toContain('---');
-      expect(archiveContent).toContain('name: openspec-archive');
+      expect(archiveContent).toContain('name: lightspec-archive');
       expect(archiveContent).toContain('description: Archive a deployed LightSpec change and update specs.');
       expect(archiveContent).toContain('invokable: true');
-      expect(archiveContent).toContain('openspec archive <id> --yes');
+      expect(archiveContent).toContain('lightspec archive <id> --yes');
     });
 
     it('should mark Continue as already configured during extend mode', async () => {
@@ -1217,7 +1217,7 @@ describe('InitCommand', () => {
       const content = await fs.readFile(codeBuddyPath, 'utf-8');
       expect(content).toContain('<!-- OPENSPEC:START -->');
       expect(content).toContain("@/openspec/AGENTS.md");
-      expect(content).toContain('openspec update');
+      expect(content).toContain('lightspec update');
       expect(content).toContain('<!-- OPENSPEC:END -->');
     });
 
@@ -1234,7 +1234,7 @@ describe('InitCommand', () => {
       const updatedContent = await fs.readFile(codeBuddyPath, 'utf-8');
       expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
       expect(updatedContent).toContain("@/openspec/AGENTS.md");
-      expect(updatedContent).toContain('openspec update');
+      expect(updatedContent).toContain('lightspec update');
       expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
       expect(updatedContent).toContain('Custom instructions here');
     });
@@ -1266,7 +1266,7 @@ describe('InitCommand', () => {
       expect(proposalContent).toContain('name: LightSpec: Proposal');
       expect(proposalContent).toContain('description: Scaffold a new LightSpec change and validate strictly.');
       expect(proposalContent).toContain('category: LightSpec');
-      expect(proposalContent).toContain('tags: [openspec, change]');
+      expect(proposalContent).toContain('tags: [lightspec, change]');
       expect(proposalContent).toContain('<!-- OPENSPEC:START -->');
       expect(proposalContent).toContain('**Guardrails**');
 
@@ -1275,7 +1275,7 @@ describe('InitCommand', () => {
       expect(applyContent).toContain('name: LightSpec: Apply');
       expect(applyContent).toContain('description: Implement an approved LightSpec change and keep tasks in sync.');
       expect(applyContent).toContain('category: LightSpec');
-      expect(applyContent).toContain('tags: [openspec, apply]');
+      expect(applyContent).toContain('tags: [lightspec, apply]');
       expect(applyContent).toContain('Work through tasks sequentially');
 
       const archiveContent = await fs.readFile(crushArchive, 'utf-8');
@@ -1283,8 +1283,8 @@ describe('InitCommand', () => {
       expect(archiveContent).toContain('name: LightSpec: Archive');
       expect(archiveContent).toContain('description: Archive a deployed LightSpec change and update specs.');
       expect(archiveContent).toContain('category: LightSpec');
-      expect(archiveContent).toContain('tags: [openspec, archive]');
-      expect(archiveContent).toContain('openspec archive <id> --yes');
+      expect(archiveContent).toContain('tags: [lightspec, archive]');
+      expect(archiveContent).toContain('lightspec archive <id> --yes');
     });
 
     it('should mark Crush as already configured during extend mode', async () => {
@@ -1306,15 +1306,15 @@ describe('InitCommand', () => {
 
       const costrictProposal = path.join(
         testDir,
-        '.cospec/openspec/commands/openspec-proposal.md'
+        '.cospec/openspec/commands/lightspec-proposal.md'
       );
       const costrictApply = path.join(
         testDir,
-        '.cospec/openspec/commands/openspec-apply.md'
+        '.cospec/openspec/commands/lightspec-apply.md'
       );
       const costrictArchive = path.join(
         testDir,
-        '.cospec/openspec/commands/openspec-archive.md'
+        '.cospec/openspec/commands/lightspec-archive.md'
       );
 
       expect(await fileExists(costrictProposal)).toBe(true);
@@ -1338,7 +1338,7 @@ describe('InitCommand', () => {
       expect(archiveContent).toContain('---');
       expect(archiveContent).toContain('description: "Archive a deployed LightSpec change and update specs."');
       expect(archiveContent).toContain('argument-hint: change-id');
-      expect(archiveContent).toContain('openspec archive <id> --yes');
+      expect(archiveContent).toContain('lightspec archive <id> --yes');
     });
 
     it('should mark CoStrict as already configured during extend mode', async () => {
@@ -1360,15 +1360,15 @@ describe('InitCommand', () => {
 
       const rooProposal = path.join(
         testDir,
-        '.roo/commands/openspec-proposal.md'
+        '.roo/commands/lightspec-proposal.md'
       );
       const rooApply = path.join(
         testDir,
-        '.roo/commands/openspec-apply.md'
+        '.roo/commands/lightspec-apply.md'
       );
       const rooArchive = path.join(
         testDir,
-        '.roo/commands/openspec-archive.md'
+        '.roo/commands/lightspec-archive.md'
       );
 
       expect(await fileExists(rooProposal)).toBe(true);
@@ -1385,7 +1385,7 @@ describe('InitCommand', () => {
 
       const archiveContent = await fs.readFile(rooArchive, 'utf-8');
       expect(archiveContent).toContain('# LightSpec: Archive');
-      expect(archiveContent).toContain('openspec archive <id> --yes');
+      expect(archiveContent).toContain('lightspec archive <id> --yes');
     });
 
     it('should mark RooCode as already configured during extend mode', async () => {
@@ -1440,7 +1440,7 @@ describe('InitCommand', () => {
       expect(archiveContent).toContain('---');
       expect(archiveContent).toContain('name: LightSpec: Archive');
       expect(archiveContent).toContain('description: Archive a deployed LightSpec change and update specs.');
-      expect(archiveContent).toContain('openspec archive <id> --yes');
+      expect(archiveContent).toContain('lightspec archive <id> --yes');
     });
 
     it('should mark Qoder as already configured during extend mode', async () => {
@@ -1466,7 +1466,7 @@ describe('InitCommand', () => {
       const content = await fs.readFile(costrictPath, 'utf-8');
       expect(content).toContain('<!-- OPENSPEC:START -->');
       expect(content).toContain("@/openspec/AGENTS.md");
-      expect(content).toContain('openspec update');
+      expect(content).toContain('lightspec update');
       expect(content).toContain('<!-- OPENSPEC:END -->');
     });
 
@@ -1481,7 +1481,7 @@ describe('InitCommand', () => {
       const content = await fs.readFile(qoderPath, 'utf-8');
       expect(content).toContain('<!-- OPENSPEC:START -->');
       expect(content).toContain("@/openspec/AGENTS.md");
-      expect(content).toContain('openspec update');
+      expect(content).toContain('lightspec update');
       expect(content).toContain('<!-- OPENSPEC:END -->');
     });
     it('should update existing COSTRICT.md with markers', async () => {
@@ -1513,7 +1513,7 @@ describe('InitCommand', () => {
       const updatedContent = await fs.readFile(qoderPath, 'utf-8');
       expect(updatedContent).toContain('<!-- OPENSPEC:START -->');
       expect(updatedContent).toContain("@/openspec/AGENTS.md");
-      expect(updatedContent).toContain('openspec update');
+      expect(updatedContent).toContain('lightspec update');
       expect(updatedContent).toContain('<!-- OPENSPEC:END -->');
       expect(updatedContent).toContain('Custom instructions here');
     });
@@ -1529,11 +1529,11 @@ describe('InitCommand', () => {
       const claudePath = path.join(testDir, 'CLAUDE.md');
       const cursorProposal = path.join(
         testDir,
-        '.cursor/commands/openspec-proposal.md'
+        '.cursor/commands/lightspec-proposal.md'
       );
       const windsurfProposal = path.join(
         testDir,
-        '.windsurf/workflows/openspec-proposal.md'
+        '.windsurf/workflows/lightspec-proposal.md'
       );
 
       expect(await fileExists(claudePath)).toBe(true);
@@ -1549,11 +1549,11 @@ describe('InitCommand', () => {
       const claudePath = path.join(testDir, 'CLAUDE.md');
       const cursorProposal = path.join(
         testDir,
-        '.cursor/commands/openspec-proposal.md'
+        '.cursor/commands/lightspec-proposal.md'
       );
       const windsurfProposal = path.join(
         testDir,
-        '.windsurf/workflows/openspec-proposal.md'
+        '.windsurf/workflows/lightspec-proposal.md'
       );
 
       expect(await fileExists(claudePath)).toBe(true);
@@ -1569,7 +1569,7 @@ describe('InitCommand', () => {
       const claudePath = path.join(testDir, 'CLAUDE.md');
       const cursorProposal = path.join(
         testDir,
-        '.cursor/commands/openspec-proposal.md'
+        '.cursor/commands/lightspec-proposal.md'
       );
 
       // Should still create AGENTS.md but no tool-specific files
@@ -1595,7 +1595,7 @@ describe('InitCommand', () => {
       const claudePath = path.join(testDir, 'CLAUDE.md');
       const cursorProposal = path.join(
         testDir,
-        '.cursor/commands/openspec-proposal.md'
+        '.cursor/commands/lightspec-proposal.md'
       );
 
       expect(await fileExists(claudePath)).toBe(true);
@@ -1613,7 +1613,7 @@ describe('InitCommand', () => {
 
   describe('already configured detection', () => {
     it('should NOT show tools as already configured in fresh project with existing CLAUDE.md', async () => {
-      // Simulate user having their own CLAUDE.md before running openspec init
+      // Simulate user having their own CLAUDE.md before running lightspec init
       const claudePath = path.join(testDir, 'CLAUDE.md');
       await fs.writeFile(claudePath, '# My Custom Claude Instructions\n');
 
@@ -1704,7 +1704,7 @@ describe('InitCommand', () => {
         async (filePath: any, ...args: any[]) => {
           if (
             typeof filePath === 'string' &&
-            filePath.includes('.openspec-test-')
+            filePath.includes('.lightspec-test-')
           ) {
             throw new Error('EACCES: permission denied');
           }

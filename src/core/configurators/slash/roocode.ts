@@ -2,9 +2,9 @@ import { SlashCommandConfigurator } from './base.js';
 import { SlashCommandId } from '../../templates/index.js';
 
 const NEW_FILE_PATHS: Record<SlashCommandId, string> = {
-  proposal: '.roo/commands/openspec-proposal.md',
-  apply: '.roo/commands/openspec-apply.md',
-  archive: '.roo/commands/openspec-archive.md'
+  proposal: '.roo/commands/lightspec-proposal.md',
+  apply: '.roo/commands/lightspec-apply.md',
+  archive: '.roo/commands/lightspec-archive.md'
 };
 
 export class RooCodeSlashCommandConfigurator extends SlashCommandConfigurator {

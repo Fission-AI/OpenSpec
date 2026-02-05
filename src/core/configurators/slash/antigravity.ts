@@ -2,9 +2,9 @@ import { SlashCommandConfigurator } from './base.js';
 import { SlashCommandId } from '../../templates/index.js';
 
 const FILE_PATHS: Record<SlashCommandId, string> = {
-  proposal: '.agent/workflows/openspec-proposal.md',
-  apply: '.agent/workflows/openspec-apply.md',
-  archive: '.agent/workflows/openspec-archive.md'
+  proposal: '.agent/workflows/lightspec-proposal.md',
+  apply: '.agent/workflows/lightspec-apply.md',
+  archive: '.agent/workflows/lightspec-archive.md'
 };
 
 const DESCRIPTIONS: Record<SlashCommandId, string> = {

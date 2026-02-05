@@ -32,7 +32,7 @@ describe('BashGenerator', () => {
       const script = generator.generate(commands);
 
       expect(script).toContain('# Bash completion script for LightSpec CLI');
-      expect(script).toContain('_openspec_completion() {');
+      expect(script).toContain('_lightspec_completion() {');
       expect(script).toContain('local cur prev words cword');
       expect(script).toContain('_init_completion -n : || return');
     });
@@ -262,7 +262,7 @@ describe('BashGenerator', () => {
 
       const script = generator.generate(commands);
 
-      expect(script).toContain('_openspec_complete_changes');
+      expect(script).toContain('_lightspec_complete_changes');
     });
 
     it('should handle positional arguments for spec-id', () => {
@@ -278,7 +278,7 @@ describe('BashGenerator', () => {
 
       const script = generator.generate(commands);
 
-      expect(script).toContain('_openspec_complete_specs');
+      expect(script).toContain('_lightspec_complete_specs');
     });
 
     it('should handle positional arguments for change-or-spec-id', () => {
@@ -294,7 +294,7 @@ describe('BashGenerator', () => {
 
       const script = generator.generate(commands);
 
-      expect(script).toContain('_openspec_complete_items');
+      expect(script).toContain('_lightspec_complete_items');
     });
 
     it('should handle positional arguments for shell', () => {
@@ -345,8 +345,8 @@ describe('BashGenerator', () => {
 
       const script = generator.generate(commands);
 
-      expect(script).toContain('_openspec_complete_changes() {');
-      expect(script).toContain('openspec __complete changes 2>/dev/null');
+      expect(script).toContain('_lightspec_complete_changes() {');
+      expect(script).toContain('lightspec __complete changes 2>/dev/null');
       expect(script).toContain('cut -f1');
       expect(script).toContain('COMPREPLY=');
     });
@@ -364,8 +364,8 @@ describe('BashGenerator', () => {
 
       const script = generator.generate(commands);
 
-      expect(script).toContain('_openspec_complete_specs() {');
-      expect(script).toContain('openspec __complete specs 2>/dev/null');
+      expect(script).toContain('_lightspec_complete_specs() {');
+      expect(script).toContain('lightspec __complete specs 2>/dev/null');
       expect(script).toContain('cut -f1');
     });
 
@@ -382,9 +382,9 @@ describe('BashGenerator', () => {
 
       const script = generator.generate(commands);
 
-      expect(script).toContain('_openspec_complete_items() {');
-      expect(script).toContain('openspec __complete changes 2>/dev/null');
-      expect(script).toContain('openspec __complete specs 2>/dev/null');
+      expect(script).toContain('_lightspec_complete_items() {');
+      expect(script).toContain('lightspec __complete changes 2>/dev/null');
+      expect(script).toContain('lightspec __complete specs 2>/dev/null');
     });
 
     it('should handle complex nested subcommands with flags', () => {
@@ -420,7 +420,7 @@ describe('BashGenerator', () => {
       expect(script).toContain('validate');
       expect(script).toContain('--strict');
       expect(script).toContain('--json');
-      expect(script).toContain('_openspec_complete_specs');
+      expect(script).toContain('_lightspec_complete_specs');
     });
 
     it('should generate script that ends with complete registration', () => {
@@ -434,7 +434,7 @@ describe('BashGenerator', () => {
 
       const script = generator.generate(commands);
 
-      expect(script.trim().endsWith('complete -F _openspec_completion openspec')).toBe(true);
+      expect(script.trim().endsWith('complete -F _lightspec_completion openspec')).toBe(true);
     });
 
     it('should handle empty command list', () => {
@@ -443,8 +443,8 @@ describe('BashGenerator', () => {
       const script = generator.generate(commands);
 
       expect(script).toContain('# Bash completion script');
-      expect(script).toContain('_openspec_completion() {');
-      expect(script).toContain('complete -F _openspec_completion openspec');
+      expect(script).toContain('_lightspec_completion() {');
+      expect(script).toContain('complete -F _lightspec_completion openspec');
     });
 
     it('should handle commands with no flags', () => {

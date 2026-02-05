@@ -112,7 +112,7 @@ describe('createChange', () => {
   let testDir: string;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
+    testDir = path.join(os.tmpdir(), `lightspec-test-${randomUUID()}`);
     await fs.mkdir(testDir, { recursive: true });
   });
 

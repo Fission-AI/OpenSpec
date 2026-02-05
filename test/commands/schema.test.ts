@@ -14,11 +14,11 @@ describe('schema command', () => {
     // Create unique temp directory for each test
     tempDir = path.join(
       os.tmpdir(),
-      `openspec-schema-test-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      `lightspec-schema-test-${Date.now()}-${Math.random().toString(36).slice(2)}`
     );
     fs.mkdirSync(tempDir, { recursive: true });
 
-    // Create openspec directory structure
+    // Create lightspec directory structure
     fs.mkdirSync(path.join(tempDir, 'openspec', 'schemas'), { recursive: true });
 
     // Save original cwd and env

@@ -30,7 +30,7 @@ export class QoderConfigurator implements ToolConfigurator {
    * Wrapped with LightSpec markers for future updates.
    * 
    * @param {string} projectPath - Absolute path to project root directory
-   * @param {string} openspecDir - Path to openspec directory (unused but required by interface)
+   * @param {string} openspecDir - Path to lightspec directory (unused but required by interface)
    * @returns {Promise<void>} Resolves when configuration is complete
    */
   async configure(projectPath: string, openspecDir: string): Promise<void> {

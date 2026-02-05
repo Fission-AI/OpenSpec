@@ -76,7 +76,7 @@ describe('writeChangeMetadata', () => {
   let changeDir: string;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
+    testDir = path.join(os.tmpdir(), `lightspec-test-${randomUUID()}`);
     changeDir = path.join(testDir, 'openspec', 'changes', 'test-change');
     await fs.mkdir(changeDir, { recursive: true });
   });
@@ -113,7 +113,7 @@ describe('readChangeMetadata', () => {
   let changeDir: string;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
+    testDir = path.join(os.tmpdir(), `lightspec-test-${randomUUID()}`);
     changeDir = path.join(testDir, 'openspec', 'changes', 'test-change');
     await fs.mkdir(changeDir, { recursive: true });
   });
@@ -169,7 +169,7 @@ describe('resolveSchemaForChange', () => {
   let changeDir: string;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
+    testDir = path.join(os.tmpdir(), `lightspec-test-${randomUUID()}`);
     changeDir = path.join(testDir, 'openspec', 'changes', 'test-change');
     await fs.mkdir(changeDir, { recursive: true });
   });

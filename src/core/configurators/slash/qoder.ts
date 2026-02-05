@@ -27,19 +27,19 @@ const FRONTMATTER: Record<SlashCommandId, string> = {
 name: LightSpec: Proposal
 description: Scaffold a new LightSpec change and validate strictly.
 category: LightSpec
-tags: [openspec, change]
+tags: [lightspec, change]
 ---`,
   apply: `---
 name: LightSpec: Apply
 description: Implement an approved LightSpec change and keep tasks in sync.
 category: LightSpec
-tags: [openspec, apply]
+tags: [lightspec, apply]
 ---`,
   archive: `---
 name: LightSpec: Archive
 description: Archive a deployed LightSpec change and update specs.
 category: LightSpec
-tags: [openspec, archive]
+tags: [lightspec, archive]
 ---`
 };
 
@@ -48,7 +48,7 @@ tags: [openspec, archive]
  * 
  * Manages LightSpec slash commands for Qoder AI assistant.
  * Creates three workflow commands: proposal, apply, and archive.
- * Uses colon-separated command format (/openspec:proposal).
+ * Uses colon-separated command format (/lightspec:proposal).
  * 
  * @extends {SlashCommandConfigurator}
  */

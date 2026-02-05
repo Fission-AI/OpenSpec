@@ -2,9 +2,9 @@ import { SlashCommandConfigurator } from './base.js';
 import { SlashCommandId } from '../../templates/index.js';
 
 const FILE_PATHS: Record<SlashCommandId, string> = {
-  proposal: '.windsurf/workflows/openspec-proposal.md',
-  apply: '.windsurf/workflows/openspec-apply.md',
-  archive: '.windsurf/workflows/openspec-archive.md'
+  proposal: '.windsurf/workflows/lightspec-proposal.md',
+  apply: '.windsurf/workflows/lightspec-apply.md',
+  archive: '.windsurf/workflows/lightspec-archive.md'
 };
 
 export class WindsurfSlashCommandConfigurator extends SlashCommandConfigurator {

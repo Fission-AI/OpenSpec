@@ -18,7 +18,7 @@ describe('telemetry/config', () => {
 
   beforeEach(() => {
     // Create temp directory for tests
-    tempDir = path.join(os.tmpdir(), `openspec-telemetry-test-${Date.now()}`);
+    tempDir = path.join(os.tmpdir(), `lightspec-telemetry-test-${Date.now()}`);
     fs.mkdirSync(tempDir, { recursive: true });
 
     // Mock HOME/USERPROFILE to point to temp dir

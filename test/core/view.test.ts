@@ -12,7 +12,7 @@ describe('ViewCommand', () => {
   let logOutput: string[] = [];
 
   beforeEach(async () => {
-    tempDir = path.join(os.tmpdir(), `openspec-view-test-${Date.now()}`);
+    tempDir = path.join(os.tmpdir(), `lightspec-view-test-${Date.now()}`);
     await fs.mkdir(tempDir, { recursive: true });
 
     originalLog = console.log;

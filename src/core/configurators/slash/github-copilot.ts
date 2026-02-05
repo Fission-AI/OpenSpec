@@ -2,9 +2,9 @@ import { SlashCommandConfigurator } from './base.js';
 import { SlashCommandId } from '../../templates/index.js';
 
 const FILE_PATHS: Record<SlashCommandId, string> = {
-  proposal: '.github/prompts/openspec-proposal.prompt.md',
-  apply: '.github/prompts/openspec-apply.prompt.md',
-  archive: '.github/prompts/openspec-archive.prompt.md'
+  proposal: '.github/prompts/lightspec-proposal.prompt.md',
+  apply: '.github/prompts/lightspec-apply.prompt.md',
+  archive: '.github/prompts/lightspec-archive.prompt.md'
 };
 
 const FRONTMATTER: Record<SlashCommandId, string> = {

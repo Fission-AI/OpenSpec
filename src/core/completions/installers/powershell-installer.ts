@@ -145,7 +145,7 @@ export class PowerShellInstaller {
         }
 
         // Add LightSpec completion configuration with markers
-        const openspecBlock = [
+        const lightspecBlock = [
           '',
           '# OPENSPEC:START - LightSpec completion (managed block, do not edit manually)',
           scriptLine,
@@ -153,7 +153,7 @@ export class PowerShellInstaller {
           '',
         ].join('\n');
 
-        const newContent = profileContent + openspecBlock;
+        const newContent = profileContent + lightspecBlock;
         await fs.writeFile(profilePath, newContent, 'utf-8');
         anyConfigured = true;
       } catch (error) {

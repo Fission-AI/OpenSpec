@@ -2,27 +2,27 @@ import { SlashCommandConfigurator } from './base.js';
 import { SlashCommandId } from '../../templates/index.js';
 
 const FILE_PATHS: Record<SlashCommandId, string> = {
-  proposal: '.iflow/commands/openspec-proposal.md',
-  apply: '.iflow/commands/openspec-apply.md',
-  archive: '.iflow/commands/openspec-archive.md'
+  proposal: '.iflow/commands/lightspec-proposal.md',
+  apply: '.iflow/commands/lightspec-apply.md',
+  archive: '.iflow/commands/lightspec-archive.md'
 };
 
 const FRONTMATTER: Record<SlashCommandId, string> = {
   proposal: `---
-name: /openspec-proposal
-id: openspec-proposal
+name: /lightspec-proposal
+id: lightspec-proposal
 category: LightSpec
 description: Scaffold a new LightSpec change and validate strictly.
 ---`,
   apply: `---
-name: /openspec-apply
-id: openspec-apply
+name: /lightspec-apply
+id: lightspec-apply
 category: LightSpec
 description: Implement an approved LightSpec change and keep tasks in sync.
 ---`,
   archive: `---
-name: /openspec-archive
-id: openspec-archive
+name: /lightspec-archive
+id: lightspec-archive
 category: LightSpec
 description: Archive a deployed LightSpec change and update specs.
 ---`

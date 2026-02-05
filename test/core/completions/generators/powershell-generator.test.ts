@@ -36,7 +36,7 @@ describe('PowerShellGenerator', () => {
 			expect(script).toContain('Register-ArgumentCompleter');
 		});
 
-		it('should register argument completer for openspec command', () => {
+		it('should register argument completer for lightspec command', () => {
 			const commands: CommandDefinition[] = [
 				{
 					name: 'init',
@@ -367,7 +367,7 @@ describe('PowerShellGenerator', () => {
 			const script = generator.generate(commands);
 
 			expect(script).toContain('function Get-LightSpecChanges');
-			expect(script).toContain('openspec __complete changes 2>$null');
+			expect(script).toContain('lightspec __complete changes 2>$null');
 			expect(script).toContain('-split');
 		});
 
@@ -385,7 +385,7 @@ describe('PowerShellGenerator', () => {
 			const script = generator.generate(commands);
 
 			expect(script).toContain('function Get-LightSpecSpecs');
-			expect(script).toContain('openspec __complete specs 2>$null');
+			expect(script).toContain('lightspec __complete specs 2>$null');
 		});
 
 		it('should escape double quotes in descriptions', () => {

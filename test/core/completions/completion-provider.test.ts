@@ -10,7 +10,7 @@ describe('CompletionProvider', () => {
   let provider: CompletionProvider;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
+    testDir = path.join(os.tmpdir(), `lightspec-test-${randomUUID()}`);
     await fs.mkdir(testDir, { recursive: true });
     provider = new CompletionProvider(2000, testDir);
   });

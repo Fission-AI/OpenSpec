@@ -4,16 +4,16 @@ import { FileSystemUtils } from "../../../utils/file-system.js";
 import { OPENSPEC_MARKERS } from "../../config.js";
 
 const FILE_PATHS: Record<SlashCommandId, string> = {
-  proposal: ".opencode/command/openspec-proposal.md",
-  apply: ".opencode/command/openspec-apply.md",
-  archive: ".opencode/command/openspec-archive.md",
+  proposal: ".opencode/command/lightspec-proposal.md",
+  apply: ".opencode/command/lightspec-apply.md",
+  archive: ".opencode/command/lightspec-archive.md",
 };
 
 const FRONTMATTER: Record<SlashCommandId, string> = {
   proposal: `---
 description: Scaffold a new LightSpec change and validate strictly.
 ---
-The user has requested the following change proposal. Use the openspec instructions to create their change proposal.
+The user has requested the following change proposal. Use the lightspec instructions to create their change proposal.
 <UserRequest>
   $ARGUMENTS
 </UserRequest>

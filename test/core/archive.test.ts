@@ -18,7 +18,7 @@ describe('ArchiveCommand', () => {
 
   beforeEach(async () => {
     // Create temp directory
-    tempDir = path.join(os.tmpdir(), `openspec-archive-test-${Date.now()}`);
+    tempDir = path.join(os.tmpdir(), `lightspec-archive-test-${Date.now()}`);
     await fs.mkdir(tempDir, { recursive: true });
     
     // Change to temp directory
@@ -710,13 +710,13 @@ E1 updated`);
   });
 
   describe('error handling', () => {
-    it('should throw error when openspec directory does not exist', async () => {
-      // Remove openspec directory
+    it('should throw error when lightspec directory does not exist', async () => {
+      // Remove lightspec directory
       await fs.rm(path.join(tempDir, 'openspec'), { recursive: true });
       
       await expect(
         archiveCommand.execute('any-change', { yes: true })
-      ).rejects.toThrow("No LightSpec changes directory found. Run 'openspec init' first.");
+      ).rejects.toThrow("No LightSpec changes directory found. Run 'lightspec init' first.");
     });
   });
 

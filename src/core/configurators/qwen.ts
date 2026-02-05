@@ -30,7 +30,7 @@ export class QwenConfigurator implements ToolConfigurator {
    * with LightSpec instructions and markers.
    * 
    * @param {string} projectPath - The path to the project root
-   * @param {string} _openspecDir - The path to the openspec directory (unused)
+   * @param {string} _openspecDir - The path to the lightspec directory (unused)
    * @returns {Promise<void>} A promise that resolves when configuration is complete
    */
   async configure(projectPath: string, _openspecDir: string): Promise<void> {
