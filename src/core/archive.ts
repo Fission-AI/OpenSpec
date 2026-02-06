@@ -123,7 +123,9 @@ export class ArchiveCommand {
               hasDeltaSpecs = true;
               break;
             }
-          } catch {}
+          } catch (err: any) {
+            console.log(chalk.yellow(`  ⚠ Could not read delta spec ${spec.path}: ${err?.message || err}`));
+          }
         }
       } catch {}
       if (hasDeltaSpecs) {
