@@ -830,7 +830,7 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
 2. **Find delta specs**
 
-   Look for delta spec files in \`openspec/changes/<name>/specs/*/spec.md\`.
+   Look for delta spec files in \`openspec/changes/<name>/specs/<capability-path>/spec.md\`.
 
    Each delta spec file contains sections like:
    - \`## ADDED Requirements\` - New requirements to add
@@ -2561,7 +2561,7 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
 2. **Find delta specs**
 
-   Look for delta spec files in \`openspec/changes/<name>/specs/*/spec.md\`.
+   Look for delta spec files in \`openspec/changes/<name>/specs/<capability-path>/spec.md\`.
 
    Each delta spec file contains sections like:
    - \`## ADDED Requirements\` - New requirements to add
