@@ -183,7 +183,7 @@ describe('ViewCommand', () => {
       expect(output).toContain('1 requirement'); // auth has 1
     });
 
-    it('should sort hierarchical specs by requirement count', async () => {
+    it('should display mixed flat and hierarchical specs', async () => {
       const specsDir = path.join(tempDir, 'openspec', 'specs');
 
       // Create specs with different requirement counts
