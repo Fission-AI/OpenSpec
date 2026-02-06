@@ -9,25 +9,25 @@ import type { CommandContent, ToolCommandAdapter } from '../types.js';
 
 /**
  * Lingma adapter for command generation.
- * File path: .lingma/commands/opsx-<id>.md
+ * File path: .lingma/commands/opsx/<id>.md
  * Structure: Command markdown files with YAML frontmatter
  */
 export const lingmaAdapter: ToolCommandAdapter = {
   toolId: 'lingma',
 
   getFilePath(commandId: string): string {
-    return path.join('.lingma', 'commands', `opsx-${commandId}.md`);
+    return path.join('.lingma', 'commands', 'opsx', `${commandId}.md`);
   },
 
   formatFile(content: CommandContent): string {
+    const tagsStr = content.tags.join(', ');
     return `---
-name: /opsx-${content.id}
-id: opsx-${content.id}
-category: ${content.category}
+name: ${content.name}
 description: ${content.description}
+category: ${content.category}
+tags: [${tagsStr}]
 ---
 
-${content.body}
-`;
+${content.body}`;
   },
 };

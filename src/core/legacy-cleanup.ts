@@ -33,6 +33,7 @@ export const LEGACY_SLASH_COMMAND_PATHS: Record<string, LegacySlashCommandPatter
   // Directory-based: .tooldir/commands/openspec/ or .tooldir/commands/openspec/*.md
   'claude': { type: 'directory', path: '.claude/commands/openspec' },
   'codebuddy': { type: 'directory', path: '.codebuddy/commands/openspec' },
+  'lingma': { type: 'directory', path: '.lingma/commands/opsx' },
   'qoder': { type: 'directory', path: '.qoder/commands/openspec' },
   'crush': { type: 'directory', path: '.crush/commands/openspec' },
   'gemini': { type: 'directory', path: '.gemini/commands/openspec' },
@@ -52,7 +53,6 @@ export const LEGACY_SLASH_COMMAND_PATHS: Record<string, LegacySlashCommandPatter
   'continue': { type: 'files', pattern: '.continue/prompts/openspec-*.prompt' },
   'antigravity': { type: 'files', pattern: '.agent/workflows/openspec-*.md' },
   'iflow': { type: 'files', pattern: '.iflow/commands/openspec-*.md' },
-  'lingma': { type: 'files', pattern: '.lingma/commands/openspec-*.md' },
   'qwen': { type: 'files', pattern: '.qwen/commands/openspec-*.toml' },
   'codex': { type: 'files', pattern: '.codex/prompts/openspec-*.md' },
 };

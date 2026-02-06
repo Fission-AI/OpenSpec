@@ -550,21 +550,21 @@ describe('command-generation/adapters', () => {
 
     it('should generate correct file path', () => {
       const filePath = lingmaAdapter.getFilePath('explore');
-      expect(filePath).toBe(path.join('.lingma', 'commands', 'opsx-explore.md'));
+      expect(filePath).toBe(path.join('.lingma', 'commands', 'opsx', 'explore.md'));
     });
 
     it('should generate correct file paths for different commands', () => {
-      expect(lingmaAdapter.getFilePath('new')).toBe(path.join('.lingma', 'commands', 'opsx-new.md'));
-      expect(lingmaAdapter.getFilePath('apply')).toBe(path.join('.lingma', 'commands', 'opsx-apply.md'));
+      expect(lingmaAdapter.getFilePath('new')).toBe(path.join('.lingma', 'commands', 'opsx', 'new.md'));
+      expect(lingmaAdapter.getFilePath('apply')).toBe(path.join('.lingma', 'commands', 'opsx', 'apply.md'));
     });
 
-    it('should format file with name, id, category, and description', () => {
+    it('should format file with name, description, category, and tags', () => {
       const output = lingmaAdapter.formatFile(sampleContent);
       expect(output).toContain('---\n');
-      expect(output).toContain('name: /opsx-explore');
-      expect(output).toContain('id: opsx-explore');
-      expect(output).toContain('category: Workflow');
+      expect(output).toContain('name: OpenSpec Explore');
       expect(output).toContain('description: Enter explore mode for thinking');
+      expect(output).toContain('category: Workflow');
+      expect(output).toContain('tags: [workflow, explore, experimental]');
       expect(output).toContain('---\n\n');
       expect(output).toContain('This is the command body.\n\nWith multiple lines.');
     });
