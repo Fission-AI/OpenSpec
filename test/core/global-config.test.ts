@@ -455,7 +455,7 @@ describe('global-config', () => {
       expect(config.validatePaths).toBe(true);
     });
 
-    it('should handle maxDepth of 0 explicitly', () => {
+    it('should handle maxDepth of 1 explicitly', () => {
       process.env.XDG_CONFIG_HOME = tempDir;
       const configDir = path.join(tempDir, 'openspec');
       const configPath = path.join(configDir, 'config.json');
