@@ -66,7 +66,7 @@ describe('ChangeParser', () => {
         const change = await parser.parseChangeWithDeltas('test-change');
 
         expect(change.deltas.length).toBeGreaterThan(0);
-        expect(change.deltas[0].spec).toBe('_global/testing');
+        expect(change.deltas[0].spec).toBe(path.join('_global', 'testing'));
         expect(change.deltas[0].operation).toBe('ADDED');
         expect(change.deltas[0].requirement).toBeDefined();
         expect(change.deltas[0].requirement?.text).toContain('unit tests');
@@ -88,7 +88,7 @@ describe('ChangeParser', () => {
         const change = await parser.parseChangeWithDeltas('test-change');
 
         expect(change.deltas.length).toBeGreaterThan(0);
-        expect(change.deltas[0].spec).toBe('platform/services/api');
+        expect(change.deltas[0].spec).toBe(path.join('platform', 'services', 'api'));
         expect(change.deltas[0].operation).toBe('ADDED');
         expect(change.deltas[0].requirement?.text).toContain('REST endpoints');
       });
@@ -119,7 +119,7 @@ describe('ChangeParser', () => {
 
         // Should have both flat and hierarchical deltas
         const flatDelta = change.deltas.find(d => d.spec === 'auth');
-        const hierarchicalDelta = change.deltas.find(d => d.spec === '_global/security');
+        const hierarchicalDelta = change.deltas.find(d => d.spec === path.join('_global', 'security'));
 
         expect(flatDelta).toBeDefined();
         expect(flatDelta?.operation).toBe('ADDED');
@@ -146,7 +146,7 @@ describe('ChangeParser', () => {
         const change = await parser.parseChangeWithDeltas('test-change');
 
         expect(change.deltas.length).toBeGreaterThan(0);
-        expect(change.deltas[0].spec).toBe('_global/monitoring');
+        expect(change.deltas[0].spec).toBe(path.join('_global', 'monitoring'));
         expect(change.deltas[0].operation).toBe('MODIFIED');
         expect(change.deltas[0].requirement?.text).toContain('alerts');
       });
@@ -167,7 +167,7 @@ describe('ChangeParser', () => {
         const change = await parser.parseChangeWithDeltas('test-change');
 
         expect(change.deltas.length).toBeGreaterThan(0);
-        expect(change.deltas[0].spec).toBe('platform/logging');
+        expect(change.deltas[0].spec).toBe(path.join('platform', 'logging'));
         expect(change.deltas[0].operation).toBe('RENAMED');
         expect(change.deltas[0].rename).toBeDefined();
         expect(change.deltas[0].rename?.from).toBe('Old Name');
