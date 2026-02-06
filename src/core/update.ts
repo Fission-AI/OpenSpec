@@ -129,16 +129,6 @@ export class UpdateCommand {
           await FileSystemUtils.writeFile(skillFile, skillContent);
         }
 
-        if (tool.value === 'opencode') {
-          if (canPrompt) {
-            spinner.stop();
-          }
-          await migrateOpenCodeCommands(resolvedProjectPath, canPrompt);
-          if (canPrompt) {
-            spinner.start();
-          }
-        }
-
         // Update commands
         const adapter = CommandAdapterRegistry.get(tool.value);
         if (adapter) {

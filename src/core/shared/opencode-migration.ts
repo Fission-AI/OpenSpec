@@ -29,7 +29,7 @@ export async function migrateOpenCodeCommands(
   if (remaining.length === 0 && canPrompt) {
     const { confirm } = await import('@inquirer/prompts');
     const shouldRemove = await confirm({
-      message: 'Delete empty .opencode/command directory?',
+      message: 'OpenCode commands have moved to .opencode/commands. The old .opencode/command directory is now empty and can be removed. Delete it?',
       default: true,
     });
     if (shouldRemove) {
