@@ -15,4 +15,4 @@
 ## 3. Tests And Verification
 
 - [x] 3.1 Update any tests or fixtures that assert the OpenCode command directory path
-- [x] 3.3 Run existing tests related to OpenSpec init/update and ensure they pass
+- [x] 3.2 Run existing tests related to OpenSpec init/update and ensure they pass
