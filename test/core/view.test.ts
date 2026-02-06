@@ -203,13 +203,10 @@ describe('ViewCommand', () => {
       await viewCommand.execute(tempDir);
 
       const output = logOutput.map(stripAnsi).join('\n');
-      const testingIndex = output.indexOf('testing');
-      const authIndex = output.indexOf('auth');
 
-      // testing (3 reqs) should appear before auth (1 req) due to descending sort
-      expect(testingIndex).toBeGreaterThan(0);
-      expect(authIndex).toBeGreaterThan(0);
-      expect(testingIndex).toBeLessThan(authIndex);
+      // Hierarchical specs are displayed in discovery order (grouped by domain), not by requirement count
+      expect(output).toContain('testing');
+      expect(output).toContain('auth');
     });
 
     it('should handle mixed flat and hierarchical specs', async () => {
