@@ -251,7 +251,17 @@ describe('command-generation/adapters', () => {
       expect(output).toContain('description: Enter explore mode for thinking');
       expect(output).toContain('argument-hint: command arguments');
       expect(output).toContain('---\n\n');
+      expect(output).toContain('$ARGUMENTS');
       expect(output).toContain('This is the command body.');
+    });
+
+    it('should transform command references to Codex format', () => {
+      const contentWithCommand = {
+        ...sampleContent,
+        body: 'Run /opsx:apply to implement.',
+      };
+      const output = codexAdapter.formatFile(contentWithCommand);
+      expect(output).toContain('Run /prompts:opsx-apply to implement.');
     });
   });
 
