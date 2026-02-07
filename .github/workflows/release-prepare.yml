@@ -23,7 +23,7 @@ jobs:
       # (GITHUB_TOKEN cannot trigger workflows by design)
       - name: Generate GitHub App Token
         id: app-token
-        if: ${{ vars.APP_ID != '' && secrets.APP_PRIVATE_KEY != '' }}
+        continue-on-error: true
         uses: actions/create-github-app-token@v2
         with:
           app-id: ${{ vars.APP_ID }}
