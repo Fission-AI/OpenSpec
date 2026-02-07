@@ -23,6 +23,7 @@ jobs:
       # (GITHUB_TOKEN cannot trigger workflows by design)
       - name: Generate GitHub App Token
         id: app-token
+        if: ${{ vars.APP_ID != '' && secrets.APP_PRIVATE_KEY != '' }}
         uses: actions/create-github-app-token@v2
         with:
           app-id: ${{ vars.APP_ID }}
@@ -31,7 +32,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ steps.app-token.outputs.token || github.token }}
 
       - uses: pnpm/action-setup@v4
         with:
@@ -56,14 +57,14 @@ jobs:
           # so package.json already contains the bumped version.
           publish: pnpm run release:ci
         env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
           # npm authentication handled via OIDC trusted publishing (no token needed)
 
       # Trigger release notes polishing after a release is published
       - name: Polish release notes
         if: steps.changesets.outputs.published == 'true'
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
         run: |
           # Get version from package.json (just bumped by changesets)
           TAG="v$(jq -r .version package.json)"
