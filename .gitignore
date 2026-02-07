@@ -146,7 +146,7 @@ vite.config.ts.timestamp-*
 CLAUDE.md
 .DS_Store
 
-#Trae
+# Trae
 .trae/
 
 # Pnpm
