@@ -144,4 +144,174 @@ describe('top-level validate command', () => {
     // Should complete without hanging and without prompts
     expect(result.stderr).not.toContain('What would you like to validate?');
   });
+
+  describe('hierarchical specs support', () => {
+    it('validates hierarchical specs at depth 2', async () => {
+      // Create hierarchical spec: _global/testing
+      const hierarchicalContent = [
+        '## Purpose',
+        'Testing standards for the system.',
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: System SHALL have unit tests',
+        'All modules SHALL include unit tests.',
+        '',
+        '#### Scenario: Unit test coverage',
+        '- **GIVEN** a module with business logic',
+        '- **WHEN** tests are executed',
+        '- **THEN** coverage meets minimum threshold',
+      ].join('\n');
+
+      const hierarchicalSpecDir = path.join(specsDir, '_global', 'testing');
+      await fs.mkdir(hierarchicalSpecDir, { recursive: true });
+      await fs.writeFile(path.join(hierarchicalSpecDir, 'spec.md'), hierarchicalContent, 'utf-8');
+
+      const result = await runCLI(['validate', '_global/testing'], { cwd: testDir });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('valid');
+    });
+
+    it('validates hierarchical specs at depth 3', async () => {
+      // Create deep hierarchical spec: platform/services/api
+      const deepContent = [
+        '## Purpose',
+        'API service specifications.',
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: API SHALL provide REST endpoints',
+        'The API service SHALL expose RESTful endpoints.',
+        '',
+        '#### Scenario: REST endpoint access',
+        '- **GIVEN** an authenticated client',
+        '- **WHEN** the client makes a GET request',
+        '- **THEN** the response contains valid JSON',
+      ].join('\n');
+
+      const deepSpecDir = path.join(specsDir, 'platform', 'services', 'api');
+      await fs.mkdir(deepSpecDir, { recursive: true });
+      await fs.writeFile(path.join(deepSpecDir, 'spec.md'), deepContent, 'utf-8');
+
+      const result = await runCLI(['validate', 'platform/services/api'], { cwd: testDir });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('valid');
+    });
+
+    it('validates mixed flat and hierarchical specs with --specs', async () => {
+      // Create another hierarchical spec
+      const hierarchicalContent = [
+        '## Purpose',
+        'Security standards.',
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: System SHALL encrypt data',
+        'All sensitive data SHALL be encrypted.',
+        '',
+        '#### Scenario: Data encryption',
+        '- **GIVEN** sensitive user data',
+        '- **WHEN** stored in the database',
+        '- **THEN** it is encrypted at rest',
+      ].join('\n');
+
+      const securitySpecDir = path.join(specsDir, '_global', 'security');
+      await fs.mkdir(securitySpecDir, { recursive: true });
+      await fs.writeFile(path.join(securitySpecDir, 'spec.md'), hierarchicalContent, 'utf-8');
+
+      // Validate all specs (includes flat 'alpha', 'dup' and hierarchical '_global/security')
+      const result = await runCLI(['validate', '--specs', '--json'], { cwd: testDir });
+      expect(result.exitCode).toBe(0);
+
+      const json = JSON.parse(result.stdout.trim());
+      const specIds = json.items.map((item: any) => item.id);
+
+      // Should include both flat and hierarchical specs
+      expect(specIds).toContain('alpha');
+      expect(specIds).toContain('dup');
+      expect(specIds).toContain('_global/security');
+    });
+
+    it('includes structure validation issues in bulk validation', async () => {
+      // Create a spec with invalid naming (uppercase)
+      const invalidNamingDir = path.join(specsDir, 'Invalid-Name');
+      await fs.mkdir(invalidNamingDir, { recursive: true });
+      const invalidContent = [
+        '## Purpose',
+        'This spec has an invalid name.',
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: Test SHALL work',
+        'Test requirement.',
+        '',
+        '#### Scenario: Test',
+        '- **GIVEN** a test',
+        '- **WHEN** it runs',
+        '- **THEN** it passes',
+      ].join('\n');
+      await fs.writeFile(path.join(invalidNamingDir, 'spec.md'), invalidContent, 'utf-8');
+
+      const result = await runCLI(['validate', '--specs', '--json'], { cwd: testDir });
+
+      // Should still complete but report issues
+      const json = JSON.parse(result.stdout.trim());
+
+      // Structure issues are in a separate structureValidation field (not in items)
+      expect(json.structureValidation).toBeDefined();
+      expect(json.structureValidation.valid).toBe(false);
+      expect(json.structureValidation.issues.length).toBeGreaterThan(0);
+
+      // Should have at least one naming issue (either "naming convention" or "Invalid segment")
+      const namingIssues = json.structureValidation.issues.filter((issue: any) =>
+        issue.message.toLowerCase().includes('invalid segment') ||
+        issue.message.toLowerCase().includes('naming')
+      );
+      expect(namingIssues.length).toBeGreaterThan(0);
+
+      // items should only contain real specs, not a phantom _structure entry
+      const structureItem = json.items.find((item: any) => item.id === '_structure');
+      expect(structureItem).toBeUndefined();
+    });
+
+    it('validates change with hierarchical delta structure', async () => {
+      // Test that validate command works with hierarchical change deltas
+      const changeId = 'hierarchical-delta-change';
+      const changeContent = [
+        '# Hierarchical Delta Change',
+        '',
+        '## Why',
+        'Add monitoring specifications to global standards.',
+        '',
+        '## What Changes',
+        '- **_global/monitoring:** Add new monitoring requirements',
+      ].join('\n');
+
+      await fs.mkdir(path.join(changesDir, changeId), { recursive: true });
+      await fs.writeFile(path.join(changesDir, changeId, 'proposal.md'), changeContent, 'utf-8');
+
+      // Create a hierarchical delta structure (now supported by validator)
+      const deltaContent = [
+        '# Monitoring Specification - Changes',
+        '',
+        '## ADDED Requirements',
+        '',
+        '### Requirement: System SHALL have monitoring',
+        'All services SHALL be monitored.',
+        '',
+        '#### Scenario: Monitoring enabled',
+        '- **GIVEN** a deployed service',
+        '- **WHEN** the service is running',
+        '- **THEN** metrics are collected and reported',
+      ].join('\n');
+
+      const deltaDir = path.join(changesDir, changeId, 'specs', '_global', 'monitoring');
+      await fs.mkdir(deltaDir, { recursive: true });
+      await fs.writeFile(path.join(deltaDir, 'spec.md'), deltaContent, 'utf-8');
+
+      const result = await runCLI(['validate', changeId], { cwd: testDir });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('valid');
+    });
+  });
 });

@@ -11,6 +11,21 @@ vi.mock('@inquirer/prompts', () => ({
   confirm: vi.fn()
 }));
 
+/**
+ * Archive Command Tests
+ *
+ * NOTE: Most tests use `noValidate: true` for the following reasons:
+ * 1. Performance: Validation is expensive (parsing, schema validation, etc.)
+ * 2. Focus: These tests verify archive functionality (file operations, delta application,
+ *    error handling), not validation logic. Validation has dedicated tests in validator.test.ts
+ * 3. Simplicity: Tests can use minimal spec fixtures sufficient for testing archive logic
+ *    without needing complete, valid OpenSpec documents
+ * 4. Isolation: Each test should verify one concern. Archive tests verify archiving,
+ *    not validation
+ *
+ * The validation feature itself is tested explicitly in the test at line 346:
+ * "should skip validation when commander sets validate to false (--no-validate)"
+ */
 describe('ArchiveCommand', () => {
   let tempDir: string;
   let archiveCommand: ArchiveCommand;
@@ -63,7 +78,7 @@ describe('ArchiveCommand', () => {
       await fs.writeFile(path.join(changeDir, 'tasks.md'), tasksContent);
       
       // Execute archive with --yes flag
-      await archiveCommand.execute(changeName, { yes: true });
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
       
       // Check that change was moved to archive
       const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
@@ -86,7 +101,7 @@ describe('ArchiveCommand', () => {
       await fs.writeFile(path.join(changeDir, 'tasks.md'), tasksContent);
       
       // Execute archive with --yes flag
-      await archiveCommand.execute(changeName, { yes: true });
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
       
       // Verify warning was logged
       expect(console.log).toHaveBeenCalledWith(
@@ -256,7 +271,7 @@ New feature description.
 
     it('should throw error if change does not exist', async () => {
       await expect(
-        archiveCommand.execute('non-existent-change', { yes: true })
+        archiveCommand.execute('non-existent-change', { yes: true, noValidate: true })
       ).rejects.toThrow("Change 'non-existent-change' not found.");
     });
 
@@ -272,7 +287,7 @@ New feature description.
       
       // Try to archive
       await expect(
-        archiveCommand.execute(changeName, { yes: true })
+        archiveCommand.execute(changeName, { yes: true, noValidate: true })
       ).rejects.toThrow(`Archive '${date}-${changeName}' already exists.`);
     });
 
@@ -282,7 +297,7 @@ New feature description.
       await fs.mkdir(changeDir, { recursive: true });
       
       // Execute archive without tasks.md
-      await archiveCommand.execute(changeName, { yes: true });
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
       
       // Should complete without warnings
       expect(console.log).not.toHaveBeenCalledWith(
@@ -301,7 +316,7 @@ New feature description.
       await fs.mkdir(changeDir, { recursive: true });
       
       // Execute archive without specs
-      await archiveCommand.execute(changeName, { yes: true });
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
       
       // Should complete without spec updates
       expect(console.log).not.toHaveBeenCalledWith(
@@ -715,7 +730,7 @@ E1 updated`);
       await fs.rm(path.join(tempDir, 'openspec'), { recursive: true });
       
       await expect(
-        archiveCommand.execute('any-change', { yes: true })
+        archiveCommand.execute('any-change', { yes: true, noValidate: true })
       ).rejects.toThrow("No OpenSpec changes directory found. Run 'openspec init' first.");
     });
   });
@@ -735,7 +750,7 @@ E1 updated`);
       mockSelect.mockResolvedValueOnce(change1);
       
       // Execute without change name
-      await archiveCommand.execute(undefined, { yes: true });
+      await archiveCommand.execute(undefined, { yes: true, noValidate: true });
       
       // Verify select was called with correct options (values matter, names may include progress)
       expect(mockSelect).toHaveBeenCalledWith(expect.objectContaining({
@@ -799,9 +814,170 @@ E1 updated`);
       
       // Verify archive was cancelled
       expect(console.log).toHaveBeenCalledWith('Archive cancelled.');
-      
+
       // Verify change was not archived
       await expect(fs.access(changeDir)).resolves.not.toThrow();
+    });
+
+    describe('hierarchical specs support', () => {
+      it('should apply hierarchical delta specs (depth 2)', async () => {
+        const changeName = 'hierarchical-feature';
+        const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+        const changeSpecDir = path.join(changeDir, 'specs', '_global', 'testing');
+        await fs.mkdir(changeSpecDir, { recursive: true });
+
+        // Create completed tasks
+        await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1');
+
+        // Create a hierarchical delta spec with ADDED requirement
+        const deltaSpec = `# Testing Specification - Changes
+
+## ADDED Requirements
+
+### Requirement: Unit tests
+System SHALL have unit tests`;
+
+        await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaSpec);
+
+        // Execute archive
+        await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+        // Verify hierarchical spec was created in main specs
+        const mainSpecPath = path.join(tempDir, 'openspec', 'specs', '_global', 'testing', 'spec.md');
+        await expect(fs.access(mainSpecPath)).resolves.not.toThrow();
+
+        const mainSpecContent = await fs.readFile(mainSpecPath, 'utf-8');
+        expect(mainSpecContent).toContain('Unit tests');
+        expect(mainSpecContent).toContain('System SHALL have unit tests');
+      });
+
+      it('should apply hierarchical delta specs (depth 3)', async () => {
+        const changeName = 'deep-hierarchical';
+        const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+        const changeSpecDir = path.join(changeDir, 'specs', 'platform', 'services', 'api');
+        await fs.mkdir(changeSpecDir, { recursive: true });
+
+        await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Complete');
+
+        const deltaSpec = `# API Service - Changes
+
+## ADDED Requirements
+
+### Requirement: REST endpoints
+System SHALL provide REST endpoints
+
+### Requirement: GraphQL support
+System SHALL support GraphQL`;
+
+        await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaSpec);
+
+        await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+        // Verify deep hierarchical spec was created
+        const mainSpecPath = path.join(tempDir, 'openspec', 'specs', 'platform', 'services', 'api', 'spec.md');
+        await expect(fs.access(mainSpecPath)).resolves.not.toThrow();
+
+        const mainSpecContent = await fs.readFile(mainSpecPath, 'utf-8');
+        expect(mainSpecContent).toContain('REST endpoints');
+        expect(mainSpecContent).toContain('GraphQL support');
+      });
+
+      it('should update existing hierarchical specs with MODIFIED', async () => {
+        const changeName = 'modify-hierarchical';
+
+        // Create existing hierarchical spec in main
+        const mainSpecDir = path.join(tempDir, 'openspec', 'specs', '_global', 'architecture');
+        await fs.mkdir(mainSpecDir, { recursive: true });
+
+        const existingSpec = `## Purpose
+Architecture specification
+
+## Requirements
+
+### Requirement: System design
+Original system design requirement`;
+
+        await fs.writeFile(path.join(mainSpecDir, 'spec.md'), existingSpec);
+
+        // Create change with delta
+        const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+        const changeSpecDir = path.join(changeDir, 'specs', '_global', 'architecture');
+        await fs.mkdir(changeSpecDir, { recursive: true });
+
+        await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Done');
+
+        const deltaSpec = `# Architecture - Changes
+
+## MODIFIED Requirements
+
+### Requirement: System design
+Updated system design requirement with more details`;
+
+        await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaSpec);
+
+        await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+        // Verify modification was applied
+        const mainSpecPath = path.join(mainSpecDir, 'spec.md');
+        const mainSpecContent = await fs.readFile(mainSpecPath, 'utf-8');
+        expect(mainSpecContent).toContain('Updated system design requirement with more details');
+        expect(mainSpecContent).not.toContain('Original system design requirement');
+      });
+
+      it('should handle mixed flat and hierarchical specs in same change', async () => {
+        const changeName = 'mixed-structure';
+        const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+
+        // Flat spec
+        const flatSpecDir = path.join(changeDir, 'specs', 'auth');
+        await fs.mkdir(flatSpecDir, { recursive: true });
+        await fs.writeFile(
+          path.join(flatSpecDir, 'spec.md'),
+          `# Auth - Changes\n\n## ADDED Requirements\n\n### Requirement: Login\nUser SHALL be able to login`
+        );
+
+        // Hierarchical spec
+        const hierarchicalSpecDir = path.join(changeDir, 'specs', '_global', 'logging');
+        await fs.mkdir(hierarchicalSpecDir, { recursive: true });
+        await fs.writeFile(
+          path.join(hierarchicalSpecDir, 'spec.md'),
+          `# Logging - Changes\n\n## ADDED Requirements\n\n### Requirement: Audit logs\nSystem SHALL maintain audit logs`
+        );
+
+        await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task');
+
+        await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+        // Verify both specs were created
+        await expect(fs.access(path.join(tempDir, 'openspec', 'specs', 'auth', 'spec.md'))).resolves.not.toThrow();
+        await expect(fs.access(path.join(tempDir, 'openspec', 'specs', '_global', 'logging', 'spec.md'))).resolves.not.toThrow();
+      });
+
+      it('should preserve directory structure when syncing hierarchical deltas', async () => {
+        const changeName = 'preserve-structure';
+        const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+
+        // Create nested directory structure
+        const nestedSpecDir = path.join(changeDir, 'specs', 'services', 'backend', 'database');
+        await fs.mkdir(nestedSpecDir, { recursive: true });
+
+        await fs.writeFile(
+          path.join(nestedSpecDir, 'spec.md'),
+          `# Database - Changes\n\n## ADDED Requirements\n\n### Requirement: Migrations\nSystem SHALL support migrations`
+        );
+
+        await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Done');
+
+        await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+        // Verify full directory structure was preserved
+        const mainSpecPath = path.join(tempDir, 'openspec', 'specs', 'services', 'backend', 'database', 'spec.md');
+        await expect(fs.access(mainSpecPath)).resolves.not.toThrow();
+
+        // Verify all intermediate directories exist
+        await expect(fs.access(path.join(tempDir, 'openspec', 'specs', 'services'))).resolves.not.toThrow();
+        await expect(fs.access(path.join(tempDir, 'openspec', 'specs', 'services', 'backend'))).resolves.not.toThrow();
+      });
     });
   });
 });

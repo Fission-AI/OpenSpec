@@ -2,10 +2,23 @@ import ora from 'ora';
 import path from 'path';
 import { Validator } from '../core/validation/validator.js';
 import { isInteractive, resolveNoInteractive } from '../utils/interactive.js';
-import { getActiveChangeIds, getSpecIds } from '../utils/item-discovery.js';
+import { getActiveChangeIds } from '../utils/item-discovery.js';
+import { findAllSpecs, validateSpecStructure, type ValidationIssue } from '../utils/spec-discovery.js';
+import { getSpecStructureConfig } from '../core/global-config.js';
+import { readProjectConfig } from '../core/project-config.js';
 import { nearestMatches } from '../utils/match.js';
 
 type ItemType = 'change' | 'spec';
+
+/**
+ * Get all spec capabilities using recursive spec discovery.
+ * Supports both flat and hierarchical spec structures.
+ */
+function getSpecCapabilities(): string[] {
+  const specsDir = path.join(process.cwd(), 'openspec', 'specs');
+  const discovered = findAllSpecs(specsDir);
+  return discovered.map(spec => spec.capability);
+}
 
 interface ExecuteOptions {
   all?: boolean;
@@ -80,7 +93,7 @@ export class ValidateCommand {
     if (choice === 'specs') return this.runBulkValidation({ changes: false, specs: true }, opts);
 
     // one
-    const [changes, specs] = await Promise.all([getActiveChangeIds(), getSpecIds()]);
+    const [changes, specs] = [await getActiveChangeIds(), getSpecCapabilities()];
     const items: { name: string; value: { type: ItemType; id: string } }[] = [];
     items.push(...changes.map(id => ({ name: `change/${id}`, value: { type: 'change' as const, id } })));
     items.push(...specs.map(id => ({ name: `spec/${id}`, value: { type: 'spec' as const, id } })));
@@ -103,28 +116,30 @@ export class ValidateCommand {
   }
 
   private async validateDirectItem(itemName: string, opts: { typeOverride?: ItemType; strict: boolean; json: boolean }): Promise<void> {
-    const [changes, specs] = await Promise.all([getActiveChangeIds(), getSpecIds()]);
-    const isChange = changes.includes(itemName);
-    const isSpec = specs.includes(itemName);
+    // Normalize path separators to native so CLI input matches discovered IDs on any platform
+    const normalizedName = itemName.replace(/[/\\]/g, path.sep);
+    const [changes, specs] = [await getActiveChangeIds(), getSpecCapabilities()];
+    const isChange = changes.includes(normalizedName);
+    const isSpec = specs.includes(normalizedName);
 
     const type = opts.typeOverride ?? (isChange ? 'change' : isSpec ? 'spec' : undefined);
 
     if (!type) {
-      console.error(`Unknown item '${itemName}'`);
-      const suggestions = nearestMatches(itemName, [...changes, ...specs]);
+      console.error(`Unknown item '${normalizedName}'`);
+      const suggestions = nearestMatches(normalizedName, [...changes, ...specs]);
       if (suggestions.length) console.error(`Did you mean: ${suggestions.join(', ')}?`);
       process.exitCode = 1;
       return;
     }
 
     if (!opts.typeOverride && isChange && isSpec) {
-      console.error(`Ambiguous item '${itemName}' matches both a change and a spec.`);
+      console.error(`Ambiguous item '${normalizedName}' matches both a change and a spec.`);
       console.error('Pass --type change|spec, or use: openspec change validate / openspec spec validate');
       process.exitCode = 1;
       return;
     }
 
-    await this.validateByType(type, itemName, opts);
+    await this.validateByType(type, normalizedName, opts);
   }
 
   private async validateByType(type: ItemType, id: string, opts: { strict: boolean; json: boolean }): Promise<void> {
@@ -183,13 +198,22 @@ export class ValidateCommand {
 
   private async runBulkValidation(scope: { changes: boolean; specs: boolean }, opts: { strict: boolean; json: boolean; concurrency?: string; noInteractive?: boolean }): Promise<void> {
     const spinner = !opts.json && !opts.noInteractive ? ora('Validating...').start() : undefined;
-    const [changeIds, specIds] = await Promise.all([
-      scope.changes ? getActiveChangeIds() : Promise.resolve<string[]>([]),
-      scope.specs ? getSpecIds() : Promise.resolve<string[]>([]),
-    ]);
+    // Discover specs once and reuse for both capability list and structure validation
+    const specsDir = path.join(process.cwd(), 'openspec', 'specs');
+    const discoveredSpecs = scope.specs ? findAllSpecs(specsDir) : [];
+    const specIds = discoveredSpecs.map(s => s.capability);
+
+    const changeIds = scope.changes ? await getActiveChangeIds() : [];
+
+    // Perform spec structure validation if validating specs
+    let structureIssues: ValidationIssue[] = [];
+    if (scope.specs && discoveredSpecs.length > 0) {
+      const projectConfig = readProjectConfig(process.cwd());
+      const config = getSpecStructureConfig(projectConfig?.specStructure);
+      structureIssues = validateSpecStructure(discoveredSpecs, config);
+    }
 
     const DEFAULT_CONCURRENCY = 6;
-    const maxSuggestions = 5; // used by nearestMatches
     const concurrency = normalizeConcurrency(opts.concurrency) ?? normalizeConcurrency(process.env.OPENSPEC_CONCURRENCY) ?? DEFAULT_CONCURRENCY;
     const validator = new Validator(opts.strict);
     const queue: Array<() => Promise<BulkItemResult>> = [];
@@ -271,6 +295,8 @@ export class ValidateCommand {
 
     spinner?.stop();
 
+    const hasStructureIssues = structureIssues.length > 0;
+
     results.sort((a, b) => a.id.localeCompare(b.id));
     const summary = {
       totals: { items: results.length, passed, failed },
@@ -280,10 +306,29 @@ export class ValidateCommand {
       },
     } as const;
 
+    // Structure validation as a separate concern (not a phantom item)
+    const structureValidation = hasStructureIssues
+      ? {
+          valid: false,
+          issues: structureIssues.map(issue => ({
+            level: issue.level,
+            capability: issue.capability || undefined,
+            message: issue.message
+          })),
+        }
+      : { valid: true, issues: [] as { level: string; capability?: string; message: string }[] };
+
     if (opts.json) {
-      const out = { items: results, summary, version: '1.0' };
+      const out = { items: results, structureValidation, summary, version: '1.0' };
       console.log(JSON.stringify(out, null, 2));
     } else {
+      if (hasStructureIssues) {
+        console.error('Structure validation:');
+        for (const issue of structureIssues) {
+          const prefix = issue.level === 'ERROR' ? '✗' : '⚠';
+          console.error(`  ${prefix} ${issue.message}`);
+        }
+      }
       for (const res of results) {
         if (res.valid) console.log(`✓ ${res.type}/${res.id}`);
         else console.error(`✗ ${res.type}/${res.id}`);
@@ -291,7 +336,7 @@ export class ValidateCommand {
       console.log(`Totals: ${summary.totals.passed} passed, ${summary.totals.failed} failed (${summary.totals.items} items)`);
     }
 
-    process.exitCode = failed > 0 ? 1 : 0;
+    process.exitCode = (failed > 0 || hasStructureIssues) ? 1 : 0;
   }
 }
 

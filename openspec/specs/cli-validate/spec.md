@@ -216,3 +216,127 @@ The markdown parser SHALL correctly identify sections regardless of line ending 
 - **WHEN** running `openspec validate <change-id>`
 - **THEN** validation SHALL recognize the sections and NOT raise parsing errors
 
+### Requirement: Spec structure validation reads project-level config
+
+When performing spec structure validation during bulk validation (`--all` or `--specs`), the validate command SHALL read `specStructure` from the project-level config (`openspec/config.yaml`) and pass it as overrides to `getSpecStructureConfig()`.
+
+#### Scenario: Project config specStructure overrides global for validation
+
+- **WHEN** executing `openspec validate --specs`
+- **AND** `openspec/config.yaml` contains `specStructure: { structure: 'flat' }`
+- **AND** global config has `specStructure: { structure: 'auto' }`
+- **THEN** spec structure validation SHALL use `structure: 'flat'`
+
+#### Scenario: No project config specStructure falls back to global
+
+- **WHEN** executing `openspec validate --specs`
+- **AND** `openspec/config.yaml` exists but has no `specStructure` field
+- **THEN** spec structure validation SHALL use global config values (unchanged behavior)
+
+#### Scenario: No project config file falls back to global
+
+- **WHEN** executing `openspec validate --specs`
+- **AND** no `openspec/config.yaml` exists
+- **THEN** spec structure validation SHALL use global config values (unchanged behavior)
+
+### Requirement: Project config specStructure uses resilient sub-field parsing
+
+The project config parser SHALL validate each `specStructure` sub-field independently. Invalid sub-fields are warned and skipped; valid sub-fields are kept.
+
+#### Scenario: Partial validity in specStructure
+
+- **WHEN** `openspec/config.yaml` contains:
+  ```yaml
+  specStructure:
+    structure: flat
+    maxDepth: "invalid"
+    validatePaths: false
+  ```
+- **THEN** the parser SHALL keep `structure: 'flat'` and `validatePaths: false`
+- **AND** warn about the invalid `maxDepth` value
+- **AND** `maxDepth` SHALL fall through to global config or default
+
+#### Scenario: Entirely invalid specStructure value
+
+- **WHEN** `openspec/config.yaml` contains `specStructure: 42`
+- **THEN** the parser SHALL warn that specStructure must be an object
+- **AND** specStructure SHALL be treated as undefined (fall through to global/default)
+
+#### Scenario: Valid complete specStructure
+
+- **WHEN** `openspec/config.yaml` contains:
+  ```yaml
+  specStructure:
+    structure: hierarchical
+    maxDepth: 3
+    allowMixed: false
+    validatePaths: true
+  ```
+- **THEN** all four fields SHALL be parsed and available as project overrides
+
+#### Scenario: Unknown sub-fields in specStructure
+
+- **WHEN** `openspec/config.yaml` contains `specStructure: { structure: 'flat', unknownField: true }`
+- **THEN** the parser SHALL ignore `unknownField` without warning
+- **AND** `structure: 'flat'` SHALL be parsed normally
+
+### Requirement: Spec structure validation enforces structure mode
+
+When `specStructure.structure` is set to `'flat'` or `'hierarchical'`, `validateSpecStructure()` SHALL enforce that all specs conform to the chosen mode.
+
+#### Scenario: Flat mode rejects hierarchical specs
+
+- **WHEN** config has `structure: 'flat'`
+- **AND** a spec has depth > 1 (e.g., `_global/testing`)
+- **THEN** an ERROR SHALL be emitted: spec violates flat structure constraint
+
+#### Scenario: Flat mode accepts flat specs
+
+- **WHEN** config has `structure: 'flat'`
+- **AND** all specs have depth 1 (e.g., `auth`, `payments`)
+- **THEN** no structure enforcement errors SHALL be emitted
+
+#### Scenario: Hierarchical mode rejects flat specs
+
+- **WHEN** config has `structure: 'hierarchical'`
+- **AND** a spec has depth 1 (e.g., `auth`)
+- **THEN** an ERROR SHALL be emitted: spec violates hierarchical structure constraint
+
+#### Scenario: Hierarchical mode accepts hierarchical specs
+
+- **WHEN** config has `structure: 'hierarchical'`
+- **AND** all specs have depth > 1 (e.g., `_global/testing`, `platform/api`)
+- **THEN** no structure enforcement errors SHALL be emitted
+
+#### Scenario: Auto mode does not enforce structure
+
+- **WHEN** config has `structure: 'auto'`
+- **THEN** no structure enforcement errors SHALL be emitted regardless of spec depths
+
+### Requirement: Spec structure validation enforces allowMixed
+
+When `specStructure.structure` is `'auto'` and `specStructure.allowMixed` is `false`, `validateSpecStructure()` SHALL detect mixing of flat and hierarchical specs.
+
+#### Scenario: Mixed specs rejected when allowMixed is false
+
+- **WHEN** config has `structure: 'auto'` and `allowMixed: false`
+- **AND** specs contain both flat (depth 1) and hierarchical (depth > 1) specs
+- **THEN** an ERROR SHALL be emitted indicating mixed structure is not allowed
+
+#### Scenario: Uniform flat specs pass when allowMixed is false
+
+- **WHEN** config has `structure: 'auto'` and `allowMixed: false`
+- **AND** all specs have depth 1
+- **THEN** no mixed-structure errors SHALL be emitted
+
+#### Scenario: Uniform hierarchical specs pass when allowMixed is false
+
+- **WHEN** config has `structure: 'auto'` and `allowMixed: false`
+- **AND** all specs have depth > 1
+- **THEN** no mixed-structure errors SHALL be emitted
+
+#### Scenario: allowMixed is ignored when structure is explicit
+
+- **WHEN** config has `structure: 'flat'` and `allowMixed: false`
+- **THEN** the `allowMixed` check SHALL NOT run (structure mode already enforces uniformity)
+

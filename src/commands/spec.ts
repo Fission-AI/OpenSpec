@@ -6,6 +6,7 @@ import { Validator } from '../core/validation/validator.js';
 import type { Spec } from '../core/schemas/index.js';
 import { isInteractive } from '../utils/interactive.js';
 import { getSpecIds } from '../utils/item-discovery.js';
+import { findAllSpecs } from '../utils/spec-discovery.js';
 
 const SPECS_DIR = 'openspec/specs';
 
@@ -148,30 +149,27 @@ export function registerSpecCommand(rootProgram: typeof program) {
           return;
         }
 
-        const specs = readdirSync(SPECS_DIR, { withFileTypes: true })
-          .filter(dirent => dirent.isDirectory())
-          .map(dirent => {
-            const specPath = join(SPECS_DIR, dirent.name, 'spec.md');
-            if (existsSync(specPath)) {
-              try {
-                const spec = parseSpecFromFile(specPath, dirent.name);
-                
-                return {
-                  id: dirent.name,
-                  title: spec.name,
-                  requirementCount: spec.requirements.length
-                };
-              } catch {
-                return {
-                  id: dirent.name,
-                  title: dirent.name,
-                  requirementCount: 0
-                };
-              }
+        // Use spec-discovery utility to find all specs (supports hierarchical)
+        const discoveredSpecs = findAllSpecs(SPECS_DIR);
+
+        const specs = discoveredSpecs
+          .map(discoveredSpec => {
+            try {
+              const spec = parseSpecFromFile(discoveredSpec.path, discoveredSpec.capability);
+
+              return {
+                id: discoveredSpec.capability,
+                title: spec.name,
+                requirementCount: spec.requirements.length
+              };
+            } catch {
+              return {
+                id: discoveredSpec.capability,
+                title: discoveredSpec.capability,
+                requirementCount: 0
+              };
             }
-            return null;
           })
-          .filter((spec): spec is { id: string; title: string; requirementCount: number } => spec !== null)
           .sort((a, b) => a.id.localeCompare(b.id));
 
         if (options.json) {

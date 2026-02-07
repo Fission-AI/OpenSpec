@@ -162,4 +162,199 @@ Regular text that should be ignored
       expect(logOutput.some(line => line.includes('no-tasks') && line.includes('No tasks'))).toBe(true);
     });
   });
+
+  describe('execute - specs mode (flat structure)', () => {
+    it('should handle missing specs directory', async () => {
+      const listCommand = new ListCommand();
+      await listCommand.execute(tempDir, 'specs');
+
+      expect(logOutput).toEqual(['No specs found.']);
+    });
+
+    it('should list flat structure specs', async () => {
+      const specsDir = path.join(tempDir, 'openspec', 'specs');
+
+      // Create flat structure specs
+      await fs.mkdir(path.join(specsDir, 'auth'), { recursive: true });
+      await fs.writeFile(
+        path.join(specsDir, 'auth', 'spec.md'),
+        '## Purpose\nAuth specification\n\n## Requirements\n\n### Requirement: User login\nUser SHALL be able to login\n\n### Requirement: Password reset\nUser SHALL be able to reset password\n'
+      );
+
+      await fs.mkdir(path.join(specsDir, 'payments'), { recursive: true });
+      await fs.writeFile(
+        path.join(specsDir, 'payments', 'spec.md'),
+        '## Purpose\nPayments specification\n\n## Requirements\n\n### Requirement: Process payment\nSystem SHALL process payments\n'
+      );
+
+      const listCommand = new ListCommand();
+      await listCommand.execute(tempDir, 'specs');
+
+      expect(logOutput).toContain('Specs:');
+      expect(logOutput.some(line => line.includes('auth') && line.includes('requirements 2'))).toBe(true);
+      expect(logOutput.some(line => line.includes('payments') && line.includes('requirements 1'))).toBe(true);
+    });
+
+    it('should sort flat specs alphabetically', async () => {
+      const specsDir = path.join(tempDir, 'openspec', 'specs');
+
+      await fs.mkdir(path.join(specsDir, 'zebra'), { recursive: true });
+      await fs.writeFile(path.join(specsDir, 'zebra', 'spec.md'), '# Zebra');
+
+      await fs.mkdir(path.join(specsDir, 'alpha'), { recursive: true });
+      await fs.writeFile(path.join(specsDir, 'alpha', 'spec.md'), '# Alpha');
+
+      await fs.mkdir(path.join(specsDir, 'middle'), { recursive: true });
+      await fs.writeFile(path.join(specsDir, 'middle', 'spec.md'), '# Middle');
+
+      const listCommand = new ListCommand();
+      await listCommand.execute(tempDir, 'specs');
+
+      const specLines = logOutput.filter(line =>
+        line.includes('alpha') || line.includes('middle') || line.includes('zebra')
+      );
+
+      expect(specLines[0]).toContain('alpha');
+      expect(specLines[1]).toContain('middle');
+      expect(specLines[2]).toContain('zebra');
+    });
+
+    it('should handle empty specs directory', async () => {
+      const specsDir = path.join(tempDir, 'openspec', 'specs');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      const listCommand = new ListCommand();
+      await listCommand.execute(tempDir, 'specs');
+
+      expect(logOutput).toEqual(['No specs found.']);
+    });
+
+    it('should handle specs with zero requirements', async () => {
+      const specsDir = path.join(tempDir, 'openspec', 'specs');
+
+      await fs.mkdir(path.join(specsDir, 'empty-spec'), { recursive: true });
+      await fs.writeFile(path.join(specsDir, 'empty-spec', 'spec.md'), '# Empty Spec\n\nNo requirements.');
+
+      const listCommand = new ListCommand();
+      await listCommand.execute(tempDir, 'specs');
+
+      expect(logOutput.some(line => line.includes('empty-spec') && line.includes('requirements 0'))).toBe(true);
+    });
+  });
+
+  describe('execute - specs mode (hierarchical structure)', () => {
+    it('should list hierarchical structure specs with indentation', async () => {
+      const specsDir = path.join(tempDir, 'openspec', 'specs');
+
+      // Create hierarchical structure (depth 2)
+      await fs.mkdir(path.join(specsDir, '_global', 'testing'), { recursive: true });
+      await fs.writeFile(
+        path.join(specsDir, '_global', 'testing', 'spec.md'),
+        '## Purpose\nTesting specification\n\n## Requirements\n\n### Requirement: Unit tests\nSystem SHALL have unit tests\n\n### Requirement: Integration tests\nSystem SHALL have integration tests\n'
+      );
+
+      await fs.mkdir(path.join(specsDir, '_global', 'architecture'), { recursive: true });
+      await fs.writeFile(
+        path.join(specsDir, '_global', 'architecture', 'spec.md'),
+        '## Purpose\nArchitecture specification\n\n## Requirements\n\n### Requirement: System design\nSystem SHALL have proper design\n'
+      );
+
+      await fs.mkdir(path.join(specsDir, 'packages', 'auth'), { recursive: true });
+      await fs.writeFile(
+        path.join(specsDir, 'packages', 'auth', 'spec.md'),
+        '## Purpose\nAuth package specification\n\n## Requirements\n\n### Requirement: OAuth\nSystem SHALL support OAuth\n\n### Requirement: JWT\nSystem SHALL support JWT\n\n### Requirement: Sessions\nSystem SHALL manage sessions\n'
+      );
+
+      const listCommand = new ListCommand();
+      await listCommand.execute(tempDir, 'specs');
+
+      expect(logOutput).toContain('Specs:');
+
+      // Check for hierarchical display (leaf names only)
+      expect(logOutput.some(line => line.includes('architecture') && line.includes('requirements 1'))).toBe(true);
+      expect(logOutput.some(line => line.includes('testing') && line.includes('requirements 2'))).toBe(true);
+      expect(logOutput.some(line => line.includes('auth') && line.includes('requirements 3'))).toBe(true);
+    });
+
+    it('should handle depth 3 hierarchical specs', async () => {
+      const specsDir = path.join(tempDir, 'openspec', 'specs');
+
+      await fs.mkdir(path.join(specsDir, 'platform', 'services', 'api'), { recursive: true });
+      await fs.writeFile(
+        path.join(specsDir, 'platform', 'services', 'api', 'spec.md'),
+        '## Purpose\nAPI service specification\n\n## Requirements\n\n### Requirement: REST endpoints\nSystem SHALL provide REST endpoints\n\n### Requirement: GraphQL\nSystem SHALL support GraphQL\n'
+      );
+
+      await fs.mkdir(path.join(specsDir, 'platform', 'services', 'auth'), { recursive: true });
+      await fs.writeFile(
+        path.join(specsDir, 'platform', 'services', 'auth', 'spec.md'),
+        '## Purpose\nAuth service specification\n\n## Requirements\n\n### Requirement: Authentication\nSystem SHALL authenticate users\n'
+      );
+
+      const listCommand = new ListCommand();
+      await listCommand.execute(tempDir, 'specs');
+
+      expect(logOutput.some(line => line.includes('api') && line.includes('requirements 2'))).toBe(true);
+      expect(logOutput.some(line => line.includes('auth') && line.includes('requirements 1'))).toBe(true);
+    });
+
+    it('should sort hierarchical specs alphabetically', async () => {
+      const specsDir = path.join(tempDir, 'openspec', 'specs');
+
+      await fs.mkdir(path.join(specsDir, 'zebra', 'zfeature'), { recursive: true });
+      await fs.writeFile(path.join(specsDir, 'zebra', 'zfeature', 'spec.md'), '## Purpose\nZebra feature\n\n## Requirements\n\n### Requirement: Z\nZ SHALL work\n');
+
+      await fs.mkdir(path.join(specsDir, 'alpha', 'afeature'), { recursive: true });
+      await fs.writeFile(path.join(specsDir, 'alpha', 'afeature', 'spec.md'), '## Purpose\nAlpha feature\n\n## Requirements\n\n### Requirement: A\nA SHALL work\n');
+
+      const listCommand = new ListCommand();
+      await listCommand.execute(tempDir, 'specs');
+
+      // Since capabilities are sorted as "alpha/afeature" and "zebra/zfeature",
+      // alpha should appear before zebra in output
+      const outputStr = logOutput.join('\n');
+      const alphaIdx = outputStr.indexOf('afeature');
+      const zebraIdx = outputStr.indexOf('zfeature');
+
+      expect(alphaIdx).toBeGreaterThan(0); // Should exist
+      expect(zebraIdx).toBeGreaterThan(0); // Should exist
+      expect(alphaIdx).toBeLessThan(zebraIdx); // Alpha before zebra
+    });
+
+    it('should group hierarchical specs with blank lines between top-level groups', async () => {
+      const specsDir = path.join(tempDir, 'openspec', 'specs');
+
+      // Two different top-level groups
+      await fs.mkdir(path.join(specsDir, '_global', 'testing'), { recursive: true });
+      await fs.writeFile(path.join(specsDir, '_global', 'testing', 'spec.md'), '# Testing');
+
+      await fs.mkdir(path.join(specsDir, 'packages', 'auth'), { recursive: true });
+      await fs.writeFile(path.join(specsDir, 'packages', 'auth', 'spec.md'), '# Auth');
+
+      const listCommand = new ListCommand();
+      await listCommand.execute(tempDir, 'specs');
+
+      // Should have blank line separating groups
+      expect(logOutput.some(line => line === '')).toBe(true);
+    });
+
+    it('should handle mixed flat and hierarchical specs', async () => {
+      const specsDir = path.join(tempDir, 'openspec', 'specs');
+
+      // Flat spec
+      await fs.mkdir(path.join(specsDir, 'auth'), { recursive: true });
+      await fs.writeFile(path.join(specsDir, 'auth', 'spec.md'), '## Purpose\nAuth\n\n## Requirements\n\n### Requirement: Login\nSystem SHALL support login\n');
+
+      // Hierarchical spec
+      await fs.mkdir(path.join(specsDir, '_global', 'testing'), { recursive: true });
+      await fs.writeFile(path.join(specsDir, '_global', 'testing', 'spec.md'), '## Purpose\nTesting\n\n## Requirements\n\n### Requirement: Unit tests\nSystem SHALL have unit tests\n');
+
+      const listCommand = new ListCommand();
+      await listCommand.execute(tempDir, 'specs');
+
+      // Should detect as hierarchical and display both
+      expect(logOutput.some(line => line.includes('auth'))).toBe(true);
+      expect(logOutput.some(line => line.includes('testing'))).toBe(true);
+    });
+  });
 });

@@ -9,12 +9,19 @@ artifacts:
     instruction: |
       Create the proposal document that establishes WHY this change is needed.
 
+      **Note on spec organization**: OpenSpec supports both flat and hierarchical spec structures.
+      The system auto-detects based on capability names - use simple names for flat (e.g., `user-auth`)
+      or paths with forward slashes for hierarchical (e.g., `backend/services/api`). Both work seamlessly.
+
       Sections:
       - **Why**: 1-2 sentences on the problem or opportunity. What problem does this solve? Why now?
       - **What Changes**: Bullet list of changes. Be specific about new capabilities, modifications, or removals. Mark breaking changes with **BREAKING**.
       - **Capabilities**: Identify which specs will be created or modified:
-        - **New Capabilities**: List capabilities being introduced. Each becomes a new `specs/<name>/spec.md`. Use kebab-case names (e.g., `user-auth`, `data-export`).
-        - **Modified Capabilities**: List existing capabilities whose REQUIREMENTS are changing. Only include if spec-level behavior changes (not just implementation details). Each needs a delta spec file. Check `openspec/specs/` for existing spec names. Leave empty if no requirement changes.
+        - **New Capabilities**: List capabilities being introduced. Each becomes a new `specs/<capability-path>/spec.md`.
+          - **Flat structure** (simple projects): Use kebab-case names (e.g., `user-auth`, `api-client`)
+          - **Hierarchical structure** (complex projects): Use forward slashes to organize by domain/package (e.g., `backend/services/api`, `_global/monitoring`, `frontend/components/forms`)
+          - Choose based on project complexity - flat is simpler, hierarchical scales better
+        - **Modified Capabilities**: List existing capabilities whose REQUIREMENTS are changing. Only include if spec-level behavior changes (not just implementation details). Each needs a delta spec file. Use `openspec list --specs` to see all existing capabilities with their exact names (flat or hierarchical). Leave empty if no requirement changes.
       - **Impact**: Affected code, APIs, dependencies, or systems.
 
       IMPORTANT: The Capabilities section is critical. It creates the contract between
@@ -34,9 +41,19 @@ artifacts:
     instruction: |
       Create specification files that define WHAT the system should do.
 
-      Create one spec file per capability listed in the proposal's Capabilities section.
-      - New capabilities: use the exact kebab-case name from the proposal (specs/<capability>/spec.md).
-      - Modified capabilities: use the existing spec folder name from openspec/specs/<capability>/ when creating the delta spec at specs/<capability>/spec.md.
+      Create one spec file per capability listed in the proposal's Capabilities section:
+
+      **Flat structure capabilities** (no slashes in name):
+      - Capability name: `user-auth`
+      - Delta location: `specs/user-auth/spec.md`
+      - Main location after archive: `openspec/specs/user-auth/spec.md`
+
+      **Hierarchical capabilities** (with slashes):
+      - Capability name: `backend/services/api`
+      - Delta location: `specs/backend/services/api/spec.md` (create nested directories)
+      - Main location after archive: `openspec/specs/backend/services/api/spec.md`
+
+      **For modified capabilities**: Run `openspec show <capability-path>` to read the existing spec. The delta spec must use the exact same path as the main spec (1:1 mapping).
 
       Delta operations (use ## headers):
       - **ADDED Requirements**: New capabilities
@@ -52,7 +69,7 @@ artifacts:
       - Every requirement MUST have at least one scenario.
 
       MODIFIED requirements workflow:
-      1. Locate the existing requirement in openspec/specs/<capability>/spec.md
+      1. Read the existing spec using `openspec show <capability-path>` to locate requirements
       2. Copy the ENTIRE requirement block (from `### Requirement:` through all scenarios)
       3. Paste under `## MODIFIED Requirements` and edit to reflect new behavior
       4. Ensure header text matches exactly (whitespace-insensitive)

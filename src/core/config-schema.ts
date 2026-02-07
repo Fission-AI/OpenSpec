@@ -1,6 +1,24 @@
 import { z } from 'zod';
 
 /**
+ * Zod schema for spec structure configuration.
+ */
+export const SpecStructureConfigSchema = z
+  .object({
+    structure: z.enum(['flat', 'hierarchical', 'auto']).optional().default('auto'),
+    maxDepth: z.number().int().min(1).max(10).optional().default(4),
+    allowMixed: z.boolean().optional().default(true),
+    validatePaths: z.boolean().optional().default(true),
+  })
+  .optional()
+  .default({
+    structure: 'auto',
+    maxDepth: 4,
+    allowMixed: true,
+    validatePaths: true,
+  });
+
+/**
  * Zod schema for global OpenSpec configuration.
  * Uses passthrough() to preserve unknown fields for forward compatibility.
  */
@@ -10,6 +28,7 @@ export const GlobalConfigSchema = z
       .record(z.string(), z.boolean())
       .optional()
       .default({}),
+    specStructure: SpecStructureConfigSchema,
   })
   .passthrough();
 
@@ -20,6 +39,12 @@ export type GlobalConfigType = z.infer<typeof GlobalConfigSchema>;
  */
 export const DEFAULT_CONFIG: GlobalConfigType = {
   featureFlags: {},
+  specStructure: {
+    structure: 'auto',
+    maxDepth: 4,
+    allowMixed: true,
+    validatePaths: true,
+  },
 };
 
 const KNOWN_TOP_LEVEL_KEYS = new Set(Object.keys(DEFAULT_CONFIG));
@@ -43,6 +68,20 @@ export function validateConfigKeyPath(path: string): { valid: boolean; reason?: 
   if (rootKey === 'featureFlags') {
     if (rawKeys.length > 2) {
       return { valid: false, reason: 'featureFlags values are booleans and do not support nested keys' };
+    }
+    return { valid: true };
+  }
+
+  if (rootKey === 'specStructure') {
+    if (rawKeys.length > 2) {
+      return { valid: false, reason: 'specStructure values do not support deeply nested keys' };
+    }
+    if (rawKeys.length === 2) {
+      const validSpecStructureKeys = ['structure', 'maxDepth', 'allowMixed', 'validatePaths'];
+      const nestedKey = rawKeys[1];
+      if (!validSpecStructureKeys.includes(nestedKey)) {
+        return { valid: false, reason: `Unknown specStructure key "${nestedKey}". Valid keys: ${validSpecStructureKeys.join(', ')}` };
+      }
     }
     return { valid: true };
   }
@@ -221,8 +260,10 @@ export function validateConfig(config: unknown): { success: boolean; error?: str
     return { success: true };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const zodError = error as z.ZodError;
-      const messages = zodError.issues.map((e) => `${e.path.join('.')}: ${e.message}`);
+      const messages = error.issues.map((e) => {
+        const field = e.path.length ? e.path.join('.') : '<root>';
+        return `${field}: ${e.message}`;
+      });
       return { success: false, error: messages.join('; ') };
     }
     return { success: false, error: 'Unknown validation error' };

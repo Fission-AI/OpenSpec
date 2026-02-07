@@ -1,6 +1,8 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import type { SpecStructureConfig } from '../utils/spec-discovery.js';
+import { SpecStructureConfigSchema } from './config-schema.js';
 
 // Constants
 export const GLOBAL_CONFIG_DIR_NAME = 'openspec';
@@ -10,10 +12,17 @@ export const GLOBAL_DATA_DIR_NAME = 'openspec';
 // TypeScript interfaces
 export interface GlobalConfig {
   featureFlags?: Record<string, boolean>;
+  specStructure?: SpecStructureConfig;
 }
 
 const DEFAULT_CONFIG: GlobalConfig = {
-  featureFlags: {}
+  featureFlags: {},
+  specStructure: {
+    structure: 'auto',
+    maxDepth: 4,
+    allowMixed: true,
+    validatePaths: true
+  }
 };
 
 /**
@@ -100,6 +109,12 @@ export function getGlobalConfig(): GlobalConfig {
     const content = fs.readFileSync(configPath, 'utf-8');
     const parsed = JSON.parse(content);
 
+    // Validate specStructure using the shared schema (resilient: falls back to defaults on invalid input)
+    const specResult = SpecStructureConfigSchema.safeParse(parsed.specStructure);
+    const validatedSpecStructure: SpecStructureConfig = specResult.success
+      ? specResult.data
+      : { ...DEFAULT_CONFIG.specStructure };
+
     // Merge with defaults (loaded values take precedence)
     return {
       ...DEFAULT_CONFIG,
@@ -108,7 +123,8 @@ export function getGlobalConfig(): GlobalConfig {
       featureFlags: {
         ...DEFAULT_CONFIG.featureFlags,
         ...(parsed.featureFlags || {})
-      }
+      },
+      specStructure: validatedSpecStructure
     };
   } catch (error) {
     // Log warning for parse errors, but not for missing files
@@ -133,4 +149,37 @@ export function saveGlobalConfig(config: GlobalConfig): void {
   }
 
   fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n', 'utf-8');
+}
+
+/**
+ * Get the spec structure configuration with defaults.
+ *
+ * Reads from global config and applies default values for any missing fields.
+ * Optionally accepts project-level overrides that take precedence over global config.
+ *
+ * Precedence: project overrides > global config > defaults
+ *
+ * @param projectOverrides - Optional project-level overrides from openspec/config.yaml
+ * @returns SpecStructureConfig with all fields populated
+ *
+ * @example
+ * ```typescript
+ * const config = getSpecStructureConfig();
+ * console.log(config.structure); // 'auto', 'flat', or 'hierarchical'
+ * console.log(config.maxDepth);  // 4 (default)
+ * ```
+ */
+export function getSpecStructureConfig(
+  projectOverrides?: Partial<SpecStructureConfig>
+): Required<SpecStructureConfig> {
+  const globalConfig = getGlobalConfig();
+
+  const global = globalConfig.specStructure || {};
+
+  return {
+    structure: projectOverrides?.structure || global.structure || 'auto',
+    maxDepth: projectOverrides?.maxDepth ?? global.maxDepth ?? 4,
+    allowMixed: projectOverrides?.allowMixed ?? global.allowMixed ?? true,
+    validatePaths: projectOverrides?.validatePaths ?? global.validatePaths ?? true,
+  };
 }
