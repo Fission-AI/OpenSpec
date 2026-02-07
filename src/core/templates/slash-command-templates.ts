@@ -1,4 +1,4 @@
-export type SlashCommandId = 'proposal' | 'apply' | 'archive';
+export type SlashCommandId = 'proposal' | 'apply' | 'archive' | 'context-check';
 
 const baseGuardrails = `**Guardrails**
 - Favor straightforward, minimal implementations first and add complexity only when it is requested or clearly required.
@@ -9,7 +9,7 @@ const proposalGuardrails = `${baseGuardrails}\n- Identify any vague or ambiguous
 - Do not write any code during the proposal stage. Only create design documents (proposal.md, tasks.md, design.md, and spec deltas). Implementation happens in the apply stage after approval.`;
 
 const proposalSteps = `**Steps**
-1. Review \`lightspec/project.md\`, run \`lightspec list\` and \`lightspec list --specs\`, and inspect related code or docs (e.g., via \`rg\`/\`ls\`) to ground the proposal in current behaviour; note any gaps that require clarification.
+1. Run \`lightspec list\` and \`lightspec list --specs\`, and inspect related code or docs (e.g., via \`rg\`/\`ls\`) to ground the proposal in current behaviour; note any gaps that require clarification.
 2. Choose a unique verb-led \`change-id\` and scaffold \`proposal.md\`, \`tasks.md\`, and \`design.md\` (when needed) under \`lightspec/changes/<id>/\`.
 3. Map the change into concrete capabilities or requirements, breaking multi-scope efforts into distinct spec deltas with clear relationships and sequencing.
 4. Capture architectural reasoning in \`design.md\` when the solution spans multiple systems, introduces new patterns, or demands trade-off discussion before committing to specs.
@@ -52,7 +52,8 @@ const archiveReferences = `**Reference**
 export const slashCommandBodies: Record<SlashCommandId, string> = {
   proposal: [proposalGuardrails, proposalSteps, proposalReferences].join('\n\n'),
   apply: [baseGuardrails, applySteps, applyReferences].join('\n\n'),
-  archive: [baseGuardrails, archiveSteps, archiveReferences].join('\n\n')
+  archive: [baseGuardrails, archiveSteps, archiveReferences].join('\n\n'),
+  'context-check': '' // Placeholder - actual content comes from context-check-template.ts
 };
 
 export function getSlashCommandBody(id: SlashCommandId): string {

@@ -41,7 +41,7 @@ Skip proposal for:
 - Tests for existing behavior
 
 **Workflow**
-1. Review \`lightspec/project.md\`, \`lightspec list\`, and \`lightspec list --specs\` to understand current context.
+1. Review \`lightspec list\` and \`lightspec list --specs\` to understand current context.
 2. Choose a unique verb-led \`change-id\` and scaffold \`proposal.md\`, \`tasks.md\`, optional \`design.md\`, and spec deltas under \`lightspec/changes/<id>/\`.
 3. Draft spec deltas using \`## ADDED|MODIFIED|REMOVED Requirements\` with at least one \`#### Scenario:\` per requirement.
 4. Run \`lightspec validate <id> --strict --no-interactive\` and resolve any issues before sharing the proposal.
@@ -68,7 +68,6 @@ After deployment, create separate PR to:
 **Context Checklist:**
 - [ ] Read relevant specs in \`specs/[capability]/spec.md\`
 - [ ] Check pending changes in \`changes/\` for conflicts
-- [ ] Read \`lightspec/project.md\` for conventions
 - [ ] Run \`lightspec list\` to see active changes
 - [ ] Run \`lightspec list --specs\` to see existing capabilities
 
@@ -124,7 +123,6 @@ lightspec validate [change] --strict --no-interactive
 
 \`\`\`
 lightspec/
-├── project.md              # Project conventions
 ├── specs/                  # Current truth - what IS built
 │   └── [capability]/       # Single focused capability
 │       ├── spec.md         # Requirements and scenarios
@@ -427,10 +425,9 @@ Only add complexity with:
 4. Ensure scenarios properly formatted
 
 ### Missing Context
-1. Read project.md first
-2. Check related specs
-3. Review recent archives
-4. Ask for clarification
+1. Check related specs
+2. Review recent archives
+3. Ask for clarification
 
 ## Quick Reference
 

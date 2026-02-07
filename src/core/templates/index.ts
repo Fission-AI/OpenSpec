@@ -1,9 +1,10 @@
 import { agentsTemplate } from './agents-template.js';
-import { projectTemplate, ProjectContext } from './project-template.js';
+import { ProjectContext } from './project-template.js';
 import { claudeTemplate } from './claude-template.js';
 import { clineTemplate } from './cline-template.js';
 import { costrictTemplate } from './costrict-template.js';
 import { agentsRootStubTemplate } from './agents-root-stub.js';
+import { contextCheckTemplate } from './context-check-template.js';
 import { getSlashCommandBody, SlashCommandId } from './slash-command-templates.js';
 
 export interface Template {
@@ -17,10 +18,6 @@ export class TemplateManager {
       {
         path: 'AGENTS.md',
         content: agentsTemplate
-      },
-      {
-        path: 'project.md',
-        content: projectTemplate(context)
       }
     ];
   }
@@ -42,6 +39,9 @@ export class TemplateManager {
   }
 
   static getSlashCommandBody(id: SlashCommandId): string {
+    if (id === 'context-check') {
+      return contextCheckTemplate;
+    }
     return getSlashCommandBody(id);
   }
 }
