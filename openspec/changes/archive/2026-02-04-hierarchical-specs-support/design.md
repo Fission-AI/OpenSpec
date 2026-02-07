@@ -350,7 +350,7 @@ When creating delta specs in changes, replicate the exact structure:
 → **Mitigation:** Auto-detection is transparent. `openspec list` could show mode indicator. Config makes it explicit.
 
 **Risk:** Path separator differences on Windows (`\`) vs Unix (`/`)
-→ **Mitigation:** Use `path.join()` and `path.sep` everywhere. Never hardcode `/`. Tests use platform-agnostic paths.
+→ **Mitigation:** Filesystem code must use `path.join()` and `path.sep` (never hardcode `/`). Documentation, prompts, and display output use `/` for consistency and readability. Tests use `path.join()` for platform-agnostic paths.
 
 **Trade-off:** Replicated hierarchy in deltas is verbose for deep structures
 → **Accepted:** Explicitness over cleverness. 1:1 mapping eliminates ambiguity. Most projects use depth 2-3.
