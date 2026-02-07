@@ -891,15 +891,10 @@ export class InitCommand {
     console.log(
       chalk.gray('────────────────────────────────────────────────────────────')
     );
-    console.log(PALETTE.white('1. Populate your project context:'));
+    console.log(PALETTE.white('1. Validate and populate your project context:'));
     console.log(
       PALETTE.lightGray(
-        '   "Please read lightspec/project.md and help me fill it out'
-      )
-    );
-    console.log(
-      PALETTE.lightGray(
-        '    with details about my project, tech stack, and conventions"\n'
+        '   "/lightspec:context-check"\n'
       )
     );
     console.log(PALETTE.white('2. Create your first change proposal:'));
