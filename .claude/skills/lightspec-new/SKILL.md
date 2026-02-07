@@ -1,6 +1,7 @@
 ---
 name: lightspec-new
 description: Create a new change proposal for tracking work
+disable-model-invocation: true
 ---
 
 Create a new change proposal to track development work.

@@ -1,6 +1,7 @@
 ---
 name: lightspec-apply
 description: Get instructions for implementing a change
+disable-model-invocation: true
 ---
 
 Generate enriched instructions for implementing the tasks in a change.

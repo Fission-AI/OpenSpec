@@ -1,6 +1,7 @@
 ---
 name: lightspec-archive
 description: Archive a completed change and update main specs
+disable-model-invocation: true
 ---
 
 Archive a completed change, merging delta specs into main specifications.
