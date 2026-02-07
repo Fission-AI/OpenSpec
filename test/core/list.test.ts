@@ -353,7 +353,8 @@ Regular text that should be ignored
       await listCommand.execute(tempDir, 'specs');
 
       // Should detect as hierarchical and display both
-      expect(logOutput.some(line => line.includes('auth') || line.includes('testing'))).toBe(true);
+      expect(logOutput.some(line => line.includes('auth'))).toBe(true);
+      expect(logOutput.some(line => line.includes('testing'))).toBe(true);
     });
   });
 });
