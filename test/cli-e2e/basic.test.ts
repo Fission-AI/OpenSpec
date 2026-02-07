@@ -94,7 +94,7 @@ describe('lightspec CLI e2e basics', () => {
 
       // Check that tool configurations were created
       const claudePath = path.join(emptyProjectDir, 'CLAUDE.md');
-      const cursorProposal = path.join(emptyProjectDir, '.cursor/commands/lightspec-proposal.md');
+      const cursorProposal = path.join(emptyProjectDir, '.cursor/skills/lightspec-proposal/SKILL.md');
       expect(await fileExists(claudePath)).toBe(true);
       expect(await fileExists(cursorProposal)).toBe(true);
     });
@@ -109,7 +109,7 @@ describe('lightspec CLI e2e basics', () => {
       expect(result.stdout).toContain('Tool summary:');
 
       const claudePath = path.join(emptyProjectDir, 'CLAUDE.md');
-      const cursorProposal = path.join(emptyProjectDir, '.cursor/commands/lightspec-proposal.md');
+      const cursorProposal = path.join(emptyProjectDir, '.cursor/skills/lightspec-proposal/SKILL.md');
       expect(await fileExists(claudePath)).toBe(true);
       expect(await fileExists(cursorProposal)).toBe(false); // Not selected
     });
@@ -124,7 +124,7 @@ describe('lightspec CLI e2e basics', () => {
       expect(result.stdout).toContain('Tool summary:');
 
       const claudePath = path.join(emptyProjectDir, 'CLAUDE.md');
-      const cursorProposal = path.join(emptyProjectDir, '.cursor/commands/lightspec-proposal.md');
+      const cursorProposal = path.join(emptyProjectDir, '.cursor/skills/lightspec-proposal/SKILL.md');
       const rootAgentsPath = path.join(emptyProjectDir, 'AGENTS.md');
 
       expect(await fileExists(rootAgentsPath)).toBe(true);
@@ -151,6 +151,34 @@ describe('lightspec CLI e2e basics', () => {
       const result = await runCLI(['init', '--tools', 'all,claude'], { cwd: emptyProjectDir });
       expect(result.exitCode).toBe(1);
       expect(result.stderr).toContain('Cannot combine reserved values "all" or "none" with specific tool IDs');
+    });
+
+    it('initializes skills in home location when --skills-location home is used', async () => {
+      const projectDir = await prepareFixture('tmp-init');
+      const emptyProjectDir = path.join(projectDir, '..', 'empty-project');
+      await fs.mkdir(emptyProjectDir, { recursive: true });
+
+      const codexHome = path.join(emptyProjectDir, '.codex-home');
+      const result = await runCLI(
+        ['init', '--tools', 'codex', '--skills-location', 'home'],
+        {
+          cwd: emptyProjectDir,
+          env: { CODEX_HOME: codexHome },
+        }
+      );
+      expect(result.exitCode).toBe(0);
+
+      const globalSkill = path.join(
+        codexHome,
+        'skills/lightspec-proposal/SKILL.md'
+      );
+      const projectSkill = path.join(
+        emptyProjectDir,
+        '.codex/skills/lightspec-proposal/SKILL.md'
+      );
+
+      expect(await fileExists(globalSkill)).toBe(true);
+      expect(await fileExists(projectSkill)).toBe(false);
     });
   });
 });
