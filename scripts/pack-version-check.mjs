@@ -47,13 +47,14 @@ function npmPack() {
 
 function main() {
   const pkg = JSON.parse(readFileSync(path.join(process.cwd(), 'package.json'), 'utf-8'));
+  const packageName = pkg.name;
   const expected = pkg.version;
 
   let work;
   let tgzPath;
 
   try {
-    log(`Packing @fission-ai/lightspec@${expected}...`);
+    log(`Packing ${packageName}@${expected}...`);
     const filename = npmPack();
     tgzPath = path.resolve(filename);
     log(`Created: ${tgzPath}`);
@@ -80,7 +81,10 @@ function main() {
     run('npm', ['install', tgzPath, '--silent', '--no-audit', '--no-fund'], { cwd: work, env });
 
     // Run the installed CLI via Node to avoid bin resolution/platform issues
-    const binRel = path.join('node_modules', '@fission-ai', 'lightspec', 'bin', 'lightspec.js');
+    const pkgPathParts = packageName.startsWith('@')
+      ? packageName.slice(1).split('/')
+      : [packageName];
+    const binRel = path.join('node_modules', ...pkgPathParts, 'bin', 'lightspec.js');
     const actual = run(process.execPath, [binRel, '--version'], { cwd: work }).trim();
 
     if (actual !== expected) {
