@@ -207,14 +207,14 @@ lightspec init
 
 ### Optional: Populate Project Context
 
-After `lightspec init` completes, you'll receive a suggested prompt to help populate your project context:
+After `lightspec init` completes, you'll receive a suggested command to validate and populate your project context:
 
 ```text
-Populate your project context:
-"Please read lightspec/project.md and help me fill it out with details about my project, tech stack, and conventions"
+Validate and populate your project context:
+"/lightspec:context-check"
 ```
 
-Use `lightspec/project.md` to define project-level conventions, standards, architectural patterns, and other guidelines that should be followed across all changes.
+Use the `/lightspec:context-check` skill to validate that your agent instruction file (CLAUDE.md or AGENTS.md) contains adequate project context. The skill will check for required properties like Purpose, Tech Stack, Architecture Patterns, and more. If anything is missing, it can help you explore the codebase and populate the missing information.
 
 ### Create Your First Change
 
