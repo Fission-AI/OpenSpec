@@ -21,6 +21,7 @@ import { opencodeAdapter } from '../../../src/core/command-generation/adapters/o
 import { qoderAdapter } from '../../../src/core/command-generation/adapters/qoder.js';
 import { qwenAdapter } from '../../../src/core/command-generation/adapters/qwen.js';
 import { roocodeAdapter } from '../../../src/core/command-generation/adapters/roocode.js';
+import { traeAdapter } from '../../../src/core/command-generation/adapters/trae.js';
 import { windsurfAdapter } from '../../../src/core/command-generation/adapters/windsurf.js';
 import type { CommandContent } from '../../../src/core/command-generation/types.js';
 
@@ -121,6 +122,40 @@ describe('command-generation/adapters', () => {
       expect(output).toContain('tags: [workflow, explore, experimental]');
       expect(output).toContain('---\n\n');
       expect(output).toContain('This is the command body.');
+    });
+  });
+
+  describe('traeAdapter', () => {
+    it('should have correct toolId', () => {
+      expect(traeAdapter.toolId).toBe('trae');
+    });
+
+    it('should generate correct file path', () => {
+      const filePath = traeAdapter.getFilePath('explore');
+      expect(filePath).toBe(path.join('.trae', 'commands', 'opsx', 'explore.md'));
+    });
+
+    it('should generate correct file path for different command IDs', () => {
+      expect(traeAdapter.getFilePath('new')).toBe(path.join('.trae', 'commands', 'opsx', 'new.md'));
+      expect(traeAdapter.getFilePath('bulk-archive')).toBe(path.join('.trae', 'commands', 'opsx', 'bulk-archive.md'));
+    });
+
+    it('should format file with correct YAML frontmatter', () => {
+      const output = traeAdapter.formatFile(sampleContent);
+
+      expect(output).toContain('---\n');
+      expect(output).toContain('name: OpenSpec Explore');
+      expect(output).toContain('description: Enter explore mode for thinking');
+      expect(output).toContain('category: Workflow');
+      expect(output).toContain('tags: [workflow, explore, experimental]');
+      expect(output).toContain('---\n\n');
+      expect(output).toContain('This is the command body.\n\nWith multiple lines.');
+    });
+
+    it('should handle empty tags', () => {
+      const contentNoTags: CommandContent = { ...sampleContent, tags: [] };
+      const output = traeAdapter.formatFile(contentNoTags);
+      expect(output).toContain('tags: []');
     });
   });
 
@@ -560,6 +595,11 @@ describe('command-generation/adapters', () => {
       expect(filePath.split(path.sep)).toEqual(['.windsurf', 'workflows', 'opsx-test.md']);
     });
 
+    it('Trae adapter uses path.join for paths', () => {
+      const filePath = traeAdapter.getFilePath('test');
+      expect(filePath.split(path.sep)).toEqual(['.trae', 'commands', 'opsx', 'test.md']);
+    });
+
     it('All adapters use path.join for paths', () => {
       // Verify all adapters produce valid paths
       const adapters = [
@@ -567,7 +607,7 @@ describe('command-generation/adapters', () => {
         codexAdapter, codebuddyAdapter, continueAdapter, costrictAdapter,
         crushAdapter, factoryAdapter, geminiAdapter, githubCopilotAdapter,
         iflowAdapter, kilocodeAdapter, opencodeAdapter, qoderAdapter,
-        qwenAdapter, roocodeAdapter
+        qwenAdapter, roocodeAdapter, traeAdapter
       ];
       for (const adapter of adapters) {
         const filePath = adapter.getFilePath('test');
