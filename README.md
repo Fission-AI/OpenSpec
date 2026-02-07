@@ -425,7 +425,7 @@ See [MAINTAINERS.md](MAINTAINERS.md) for the list of core maintainers and adviso
 ## Agent Skills
 
 LightSpec includes 3 Claude Code skills for the core development workflow:
-- `lightspec-new` - Create a new change
+- `lightspec-proposal` - Create a new change
 - `lightspec-apply` - Get apply instructions for implementation
 - `lightspec-archive` - Archive a completed change
 
