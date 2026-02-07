@@ -330,9 +330,11 @@ When creating delta specs in changes, replicate the exact structure:
 - `VERIFY_PROMPT` - verification references
 - `ARCHIVE_PROMPT` - sync/archive instructions
 
-**Platform considerations:**
-- Prompts should use `/` for consistency in documentation
-- Code internally converts to `path.sep` for platform compatibility
+**Platform considerations (separator strategy across layers):**
+- **Prompts/templates**: Use `/` for consistency and readability (human-facing)
+- **Internal capabilities**: Use `path.sep` (derived from `path.join` during discovery)
+- **CLI input**: Normalized via `itemName.replace(/[/\\]/g, path.sep)` — accepts both `/` and `\`
+- **Display output**: Uses capabilities as-is (platform-native separators)
 - Examples should show both flat and hierarchical patterns
 
 ## Risks / Trade-offs
