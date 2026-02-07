@@ -2,7 +2,7 @@
   "$schema": "https://unpkg.com/@changesets/config/schema.json",
   "changelog": [
     "@changesets/changelog-github",
-    { "repo": "Fission-AI/OpenSpec" }
+    { "repo": "augmenter-dev/lightspec" }
   ],
   "commit": false,
   "fixed": [],
