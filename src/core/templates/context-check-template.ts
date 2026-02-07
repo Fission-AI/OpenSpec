@@ -18,6 +18,8 @@ The agent file MUST contain these sections with meaningful, project-specific con
 5. **Important Constraints** - Technical, business, or regulatory constraints
 6. **External Dependencies** - Key external services, APIs, or systems
 
+The agent file must be under 300 lines to maintain conciseness and focus on essential context.
+
 **Validation Criteria**
 For each required property, classify as:
 - **Missing**: Section header absent or contains only placeholder text like \`[...]\`, \`[Describe...]\`, \`[Add...]\`, or \`[List...]\`
@@ -88,8 +90,27 @@ Would you like me to explore your codebase to gather this context and propose up
 \`\`\`
 
 **Important Notes**
-- Work only with the agent file currently in your context—do NOT read files from disk
+
+***When checking context:***
+
+- The check must address exclusively the agent file currently in your context—do NOT read files from disk
 - Never modify files without explicit user confirmation
 - Present all proposed content for review before writing
 - Focus on project-specific details, not generic advice
-- Keep tone helpful and educational`;
+- Keep tone helpful and educational
+
+***When writing or updating the agent file:***
+
+- Only add or update sections that are missing or sub-optimal—do NOT alter sections that are already good
+- Preserve any existing meaningful content in the file
+- Use clear, concise language with project-specific details
+- Confirm with the user before making any changes to the file
+- Focus your edits exclusively on the invariant properties of the codebase
+- Do not focus on transient details that may change frequently. For example:
+   - if the project is a web app, focus on the frameworks used and architectural patterns rather than specific UI components
+   - ignore agent skills, specific task instructions, or other details that may evolve as the project develops
+- Prefer concise bullet points instead of extensive prose
+- Keep the final document under 300 lines to ensure it remains concise and focused on essential context for AI assistants
+- After writing, summarize what was updated and confirm completion`;
+
+
