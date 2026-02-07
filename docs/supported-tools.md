@@ -26,7 +26,7 @@ For each tool you select, OpenSpec installs:
 | Cursor | `.cursor/skills/` | `.cursor/commands/` |
 | Factory Droid | `.factory/skills/` | `.factory/commands/` |
 | Gemini CLI | `.gemini/skills/` | `.gemini/commands/opsx/` |
-| GitHub Copilot | `.github/skills/` | `.github/prompts/` |
+| GitHub Copilot | `.github/skills/` | `.github/prompts/`* |
 | iFlow | `.iflow/skills/` | `.iflow/commands/` |
 | Kilo Code | `.kilocode/skills/` | `.kilocode/workflows/` |
 | OpenCode | `.opencode/skills/` | `.opencode/command/` |
@@ -37,6 +37,8 @@ For each tool you select, OpenSpec installs:
 | Windsurf | `.windsurf/skills/` | `.windsurf/workflows/` |
 
 \* Codex commands are installed to the global home directory (`~/.codex/prompts/` or `$CODEX_HOME/prompts/`), not the project directory.
+
+\* GitHub Copilot's `.github/prompts/*.prompt.md` files are recognized as custom slash commands in **IDE extensions only** (VS Code, JetBrains, Visual Studio). GitHub Copilot CLI does not currently support custom prompts from this directory — see [github/copilot-cli#618](https://github.com/github/copilot-cli/issues/618). If you use Copilot CLI, you may need to manually set up [custom agents](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-custom-agents) in `.github/agents/` as a workaround.
 
 ## Non-Interactive Setup
 
