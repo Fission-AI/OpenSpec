@@ -192,8 +192,8 @@ Prevent `spec.md` at intermediate levels:
 ```
 
 **2. Depth Limits (WARNING/ERROR):**
-- Warn at depth 4 (suggest simplification)
-- Error at depth > 6 (hard limit via config `maxDepth`)
+- Warning if depth > 3 (`RECOMMENDED_MAX_DEPTH`) but within configured `maxDepth`
+- Error if depth > configured `maxDepth` (capped at hard limit of 10)
 - Default `maxDepth: 4`, recommended 2-3
 
 **3. Naming Conventions (ERROR):**
@@ -356,7 +356,7 @@ When creating delta specs in changes, replicate the exact structure:
 → **Accepted:** Explicitness over cleverness. 1:1 mapping eliminates ambiguity. Most projects use depth 2-3.
 
 **Trade-off:** Auto-detection adds small overhead to every command
-→ **Accepted:** The detection adds ~1ms by checking the first few specs; this is negligible compared to I/O and can be overridden with config.
+→ **Accepted:** The detection performs a full recursive scan via `findAllSpecs()` and checks `depth > 1`; this is negligible compared to I/O (<10ms for 100 specs) and can be avoided by passing pre-discovered specs or overridden with config.
 
 ## Migration Plan
 
@@ -395,9 +395,9 @@ When creating delta specs in changes, replicate the exact structure:
    - Prompt only if creating first spec
    - Or always use flat and let users reorganize manually
 
-3. **Should capability names in prompts/templates use platform-specific separators?**
-   - Currently leaning toward always using `/` in docs/prompts for consistency
-   - Convert to `path.sep` internally
+3. **~~Should capability names in prompts/templates use platform-specific separators?~~**
+   - Resolved: prompts and documentation always use `/` for consistency and readability
+   - Code internally uses `path.sep` via `path.join()` for filesystem operations
 
 4. **Performance optimization for large repositories (1000+ specs)?**
    - Consider adding a cache file (`.openspec-cache`) if benchmarks show issues
