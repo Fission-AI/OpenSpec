@@ -958,15 +958,6 @@ export class InitCommand {
       )
     );
 
-    // Codex heads-up: location hints
-    const selectedToolIds = new Set(selectedTools.map((t) => t.value));
-    if (selectedToolIds.has('codex')) {
-      console.log(PALETTE.white('Codex setup note'));
-      console.log(
-        PALETTE.midGray('Skills are installed under .codex/skills in the selected location.')
-      );
-      console.log();
-    }
   }
 
   private formatToolNames(tools: AIToolOption[]): string {
