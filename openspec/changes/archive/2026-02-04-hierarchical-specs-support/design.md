@@ -146,10 +146,10 @@ function findSpecUpdates(changeDir: string, mainSpecsDir: string): SpecUpdate[] 
 
 **Detection algorithm:**
 ```typescript
-function isSpecStructureHierarchical(specsDir: string): boolean {
-  const specs = findAllSpecs(specsDir);
-  // If any spec has '/' in capability name, it's hierarchical
-  return specs.some(s => s.capability.includes(path.sep));
+function isSpecStructureHierarchical(specsOrDir: string | DiscoveredSpec[]): boolean {
+  const specs = typeof specsOrDir === 'string' ? findAllSpecs(specsOrDir) : specsOrDir;
+  // Uses depth instead of path separators — platform-independent
+  return specs.some(s => s.depth > 1);
 }
 ```
 
