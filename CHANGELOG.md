@@ -1,5 +1,13 @@
 # lightspec
 
+## 0.2.1
+
+### Patch Changes
+
+- [`2ff86f0`](https://github.com/augmenter-dev/LightSpec/commit/2ff86f0d61c8a306b2cabfde2249c1006392494e) Thanks [@viteinfinite](https://github.com/viteinfinite)! - Fix command name in the docs
+
+- [`2ff86f0`](https://github.com/augmenter-dev/LightSpec/commit/2ff86f0d61c8a306b2cabfde2249c1006392494e) Thanks [@viteinfinite](https://github.com/viteinfinite)! - Change support URL
+
 ## 0.2.0
 
 ### Minor Changes
