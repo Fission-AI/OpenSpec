@@ -1,5 +1,5 @@
 {
-  "name": "OpenSpec Development",
+  "name": "LightSpec Development",
   "image": "mcr.microsoft.com/devcontainers/typescript-node:1-20-bookworm",
 
   // Additional tools and features
