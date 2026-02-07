@@ -79,7 +79,7 @@ describe('InitCommand', () => {
       ).toBe(true);
     });
 
-    it('should create AGENTS.md and project.md', async () => {
+    it('should create AGENTS.md without project.md', async () => {
       queueSelections('claude', DONE);
 
       await initCommand.execute(testDir);
@@ -87,7 +87,7 @@ describe('InitCommand', () => {
       const lightspecPath = path.join(testDir, 'lightspec');
       expect(await fileExists(path.join(lightspecPath, 'AGENTS.md'))).toBe(true);
       expect(await fileExists(path.join(lightspecPath, 'project.md'))).toBe(
-        true
+        false
       );
 
       const agentsContent = await fs.readFile(
@@ -95,12 +95,6 @@ describe('InitCommand', () => {
         'utf-8'
       );
       expect(agentsContent).toContain('LightSpec Instructions');
-
-      const projectContent = await fs.readFile(
-        path.join(lightspecPath, 'project.md'),
-        'utf-8'
-      );
-      expect(projectContent).toContain('Project Context');
     });
 
     it('should create CLAUDE.md when Claude Code is selected', async () => {
@@ -812,13 +806,21 @@ describe('InitCommand', () => {
       );
     });
 
-    it('should recreate deleted lightspec/project.md in extend mode', async () => {
-      await testFileRecreationInExtendMode(
-        testDir,
-        initCommand,
-        'lightspec/project.md',
-        'Project Context'
-      );
+    it('should not recreate project.md in extend mode (removed feature)', async () => {
+      queueSelections('claude', DONE, DONE);
+
+      // First init
+      await initCommand.execute(testDir);
+
+      // Verify project.md is NOT created
+      const projectPath = path.join(testDir, 'lightspec', 'project.md');
+      expect(await fileExists(projectPath)).toBe(false);
+
+      // Run init again in extend mode
+      await initCommand.execute(testDir);
+
+      // Verify project.md is still NOT created
+      expect(await fileExists(projectPath)).toBe(false);
     });
 
     it('should preserve existing template files in extend mode', async () => {
