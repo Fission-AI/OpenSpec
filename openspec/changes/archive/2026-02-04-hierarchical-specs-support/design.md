@@ -77,9 +77,9 @@ function findAllSpecs(baseDir: string): Spec[] {
         : entry.name;
 
       if (entry.isFile() && entry.name === 'spec.md') {
-        const capability = relativePath || '.';
-        const depth = capability.split(path.sep).length;
-        specs.push({ capability, path: fullPath, depth });
+        if (!relativePath) continue; // skip baseDir spec.md (no capability)
+        const depth = relativePath.split(path.sep).length;
+        specs.push({ capability: relativePath, path: fullPath, depth });
       } else if (entry.isDirectory()) {
         walk(fullPath, relPath);
       }
