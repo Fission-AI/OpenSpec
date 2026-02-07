@@ -21,6 +21,7 @@ import { factoryAdapter } from './adapters/factory.js';
 import { geminiAdapter } from './adapters/gemini.js';
 import { githubCopilotAdapter } from './adapters/github-copilot.js';
 import { iflowAdapter } from './adapters/iflow.js';
+import { kiroAdapter } from './adapters/kiro.js';
 import { kilocodeAdapter } from './adapters/kilocode.js';
 import { opencodeAdapter } from './adapters/opencode.js';
 import { qoderAdapter } from './adapters/qoder.js';
@@ -51,6 +52,7 @@ export class CommandAdapterRegistry {
     CommandAdapterRegistry.register(geminiAdapter);
     CommandAdapterRegistry.register(githubCopilotAdapter);
     CommandAdapterRegistry.register(iflowAdapter);
+    CommandAdapterRegistry.register(kiroAdapter);
     CommandAdapterRegistry.register(kilocodeAdapter);
     CommandAdapterRegistry.register(opencodeAdapter);
     CommandAdapterRegistry.register(qoderAdapter);
