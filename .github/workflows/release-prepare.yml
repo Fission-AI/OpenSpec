@@ -56,8 +56,7 @@ jobs:
           publish: pnpm run release:ci
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          # Uses NPM_TOKEN fallback when OIDC trusted publishing is not effective.
+          # npm authentication handled via OIDC trusted publishing (no token needed)
 
       # Trigger release notes polishing after a release is published
       - name: Polish release notes
