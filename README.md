@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://github.com/viteinfinite/lightspec">
+  <a href="https://github.com/augmenter-dev/lightspec">
     <picture>
       <source srcset="assets/lightspec_pixel_dark.svg" media="(prefers-color-scheme: dark)">
       <source srcset="assets/lightspec_pixel_light.svg" media="(prefers-color-scheme: light)">
@@ -10,9 +10,9 @@
 </p>
 <p align="center">Spec-driven development for AI coding assistants.</p>
 <p align="center">
-  <a href="https://github.com/viteinfinite/lightspec/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/viteinfinite/lightspec/actions/workflows/ci.yml/badge.svg" /></a>
-  <a href="https://www.npmjs.com/package/@viteinfinite/lightspec"><img alt="npm version" src="https://img.shields.io/npm/v/@viteinfinite/lightspec?style=flat-square" /></a>
-  <a href="https://nodejs.org/"><img alt="node version" src="https://img.shields.io/node/v/@viteinfinite/lightspec?style=flat-square" /></a>
+  <a href="https://github.com/augmenter-dev/lightspec/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/augmenter-dev/lightspec/actions/workflows/ci.yml/badge.svg" /></a>
+  <a href="https://www.npmjs.com/package/lightspec"><img alt="npm version" src="https://img.shields.io/npm/v/lightspec?style=flat-square" /></a>
+  <a href="https://nodejs.org/"><img alt="node version" src="https://img.shields.io/node/v/lightspec?style=flat-square" /></a>
   <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" /></a>
   <a href="https://conventionalcommits.org"><img alt="Conventional Commits" src="https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg?style=flat-square" /></a>
   <a href="https://discord.gg/YctCnvvshC"><img alt="Discord" src="https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?logo=discord&logoColor=white&style=flat-square" /></a>
@@ -141,7 +141,7 @@ These tools automatically read workflow instructions from `lightspec/AGENTS.md`.
 **Option A: Using npm**
 
 ```bash
-npm install -g @viteinfinite/lightspec@latest
+npm install -g lightspec@latest
 ```
 
 Verify installation:
@@ -153,12 +153,12 @@ lightspec --version
 
 Run LightSpec directly without installation:
 ```bash
-nix run github:viteinfinite/lightspec -- init
+nix run github:augmenter-dev/lightspec -- init
 ```
 
 Or install to your profile:
 ```bash
-nix profile install github:viteinfinite/lightspec
+nix profile install github:augmenter-dev/lightspec
 ```
 
 Or add to your development environment in `flake.nix`:
@@ -166,7 +166,7 @@ Or add to your development environment in `flake.nix`:
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    lightspec.url = "github:viteinfinite/lightspec";
+    lightspec.url = "github:augmenter-dev/lightspec";
   };
 
   outputs = { nixpkgs, lightspec, ... }: {
@@ -401,7 +401,7 @@ Run `lightspec update` whenever someone switches tools so your agents pick up th
 
 1. **Upgrade the package**
    ```bash
-   npm install -g @viteinfinite/lightspec@latest
+   npm install -g lightspec@latest
    ```
 2. **Refresh agent instructions**
    - Run `lightspec update` inside each project to regenerate AI guidance and ensure the latest slash commands are active.

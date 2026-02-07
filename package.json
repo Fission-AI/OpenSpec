@@ -1,6 +1,6 @@
 {
-  "name": "@viteinfinite/lightspec",
-  "version": "0.23.0",
+  "name": "lightspec",
+  "version": "0.1.0",
   "description": "AI-native system for spec-driven development",
   "keywords": [
     "lightspec",
@@ -9,7 +9,7 @@
     "ai",
     "development"
   ],
-  "homepage": "https://github.com/viteinfinite/lightspec",
+  "homepage": "https://github.com/augmenter-dev/lightspec",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/augmenter-dev/lightspec.git"
