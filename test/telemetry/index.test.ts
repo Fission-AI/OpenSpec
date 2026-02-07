@@ -4,19 +4,7 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { randomUUID } from 'node:crypto';
 
-// Mock posthog-node before importing the module
-vi.mock('posthog-node', () => {
-  return {
-    PostHog: vi.fn().mockImplementation(() => ({
-      capture: vi.fn(),
-      shutdown: vi.fn().mockResolvedValue(undefined),
-    })),
-  };
-});
-
-// Import after mocking
 import { isTelemetryEnabled, maybeShowTelemetryNotice, shutdown, trackCommand } from '../../src/telemetry/index.js';
-import { PostHog } from 'posthog-node';
 
 describe('telemetry/index', () => {
   let tempDir: string;
@@ -98,37 +86,23 @@ describe('telemetry/index', () => {
   });
 
   describe('trackCommand', () => {
-    it('should not track when telemetry is disabled', async () => {
+    it('should do nothing when telemetry is disabled', async () => {
       process.env.LIGHTSPEC_TELEMETRY = '0';
 
-      await trackCommand('test', '1.0.0');
-
-      expect(PostHog).not.toHaveBeenCalled();
+      await expect(trackCommand('test', '1.0.0')).resolves.not.toThrow();
     });
 
-    it('should track when telemetry is enabled', async () => {
+    it('should not throw when telemetry is enabled', async () => {
       delete process.env.LIGHTSPEC_TELEMETRY;
       delete process.env.DO_NOT_TRACK;
       delete process.env.CI;
 
-      await trackCommand('test', '1.0.0');
-
-      expect(PostHog).toHaveBeenCalled();
+      await expect(trackCommand('test', '1.0.0')).resolves.not.toThrow();
     });
   });
 
   describe('shutdown', () => {
-    it('should not throw when no client exists', async () => {
-      await expect(shutdown()).resolves.not.toThrow();
-    });
-
-    it('should handle shutdown errors silently', async () => {
-      const mockPostHog = {
-        capture: vi.fn(),
-        shutdown: vi.fn().mockRejectedValue(new Error('Network error')),
-      };
-      (PostHog as any).mockImplementation(() => mockPostHog);
-
+    it('should not throw', async () => {
       await expect(shutdown()).resolves.not.toThrow();
     });
   });

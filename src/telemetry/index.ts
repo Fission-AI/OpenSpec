@@ -8,17 +8,8 @@
  * - Auto-disabled in CI environments
  * - Anonymous ID is a random UUID with no relation to the user
  */
-import { PostHog } from 'posthog-node';
 import { randomUUID } from 'crypto';
 import { getTelemetryConfig, updateTelemetryConfig } from './config.js';
-
-// PostHog API key - public key for client-side analytics
-// This is safe to embed as it only allows sending events, not reading data
-const POSTHOG_API_KEY = 'phc_Hthu8YvaIJ9QaFKyTG4TbVwkbd5ktcAFzVTKeMmoW2g';
-// Using reverse proxy to avoid ad blockers and keep traffic on our domain
-const POSTHOG_HOST = 'https://edge.lightspec.dev';
-
-let posthogClient: PostHog | null = null;
 let anonymousId: string | null = null;
 
 /**
@@ -72,45 +63,19 @@ export async function getOrCreateAnonymousId(): Promise<string> {
 }
 
 /**
- * Get the PostHog client instance.
- * Creates it on first call with CLI-optimized settings.
- */
-function getClient(): PostHog {
-  if (!posthogClient) {
-    posthogClient = new PostHog(POSTHOG_API_KEY, {
-      host: POSTHOG_HOST,
-      flushAt: 1, // Send immediately, don't batch
-      flushInterval: 0, // No timer-based flushing
-    });
-  }
-  return posthogClient;
-}
-
-/**
  * Track a command execution.
  *
  * @param commandName - The command name (e.g., 'init', 'change:apply')
  * @param version - The LightSpec version
  */
-export async function trackCommand(commandName: string, version: string): Promise<void> {
+export async function trackCommand(_commandName: string, _version: string): Promise<void> {
   if (!isTelemetryEnabled()) {
     return;
   }
 
   try {
-    const userId = await getOrCreateAnonymousId();
-    const client = getClient();
-
-    client.capture({
-      distinctId: userId,
-      event: 'command_executed',
-      properties: {
-        command: commandName,
-        version: version,
-        surface: 'cli',
-        $ip: null, // Explicitly disable IP tracking
-      },
-    });
+    // Keep anonymous ID creation for consistency with existing telemetry state.
+    await getOrCreateAnonymousId();
   } catch {
     // Silent failure - telemetry should never break CLI
   }
@@ -143,19 +108,9 @@ export async function maybeShowTelemetryNotice(): Promise<void> {
 }
 
 /**
- * Shutdown the PostHog client and flush pending events.
+ * Shutdown telemetry resources before CLI exit.
  * Call this before CLI exit.
  */
 export async function shutdown(): Promise<void> {
-  if (!posthogClient) {
-    return;
-  }
-
-  try {
-    await posthogClient.shutdown();
-  } catch {
-    // Silent failure - telemetry should never break CLI exit
-  } finally {
-    posthogClient = null;
-  }
+  return Promise.resolve();
 }
