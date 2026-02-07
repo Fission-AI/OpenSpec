@@ -4,8 +4,7 @@ import { Validator } from '../core/validation/validator.js';
 import { isInteractive, resolveNoInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds, getSpecIds } from '../utils/item-discovery.js';
 import { nearestMatches } from '../utils/match.js';
-
-type ItemType = 'change' | 'spec';
+import type { ItemType } from '../types/index.js';
 
 interface ExecuteOptions {
   all?: boolean;

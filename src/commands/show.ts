@@ -4,8 +4,7 @@ import { getActiveChangeIds, getSpecIds } from '../utils/item-discovery.js';
 import { ChangeCommand } from './change.js';
 import { SpecCommand } from './spec.js';
 import { nearestMatches } from '../utils/match.js';
-
-type ItemType = 'change' | 'spec';
+import type { ItemType } from '../types/index.js';
 
 const CHANGE_FLAG_KEYS = new Set(['deltasOnly', 'requirementsOnly']);
 const SPEC_FLAG_KEYS = new Set(['requirements', 'scenarios', 'requirement']);
