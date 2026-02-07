@@ -41,8 +41,8 @@ Skip proposal for:
 - Tests for existing behavior
 
 **Workflow**
-1. Review \`openspec/project.md\`, \`lightspec list\`, and \`lightspec list --specs\` to understand current context.
-2. Choose a unique verb-led \`change-id\` and scaffold \`proposal.md\`, \`tasks.md\`, optional \`design.md\`, and spec deltas under \`openspec/changes/<id>/\`.
+1. Review \`lightspec/project.md\`, \`lightspec list\`, and \`lightspec list --specs\` to understand current context.
+2. Choose a unique verb-led \`change-id\` and scaffold \`proposal.md\`, \`tasks.md\`, optional \`design.md\`, and spec deltas under \`lightspec/changes/<id>/\`.
 3. Draft spec deltas using \`## ADDED|MODIFIED|REMOVED Requirements\` with at least one \`#### Scenario:\` per requirement.
 4. Run \`lightspec validate <id> --strict --no-interactive\` and resolve any issues before sharing the proposal.
 
@@ -68,7 +68,7 @@ After deployment, create separate PR to:
 **Context Checklist:**
 - [ ] Read relevant specs in \`specs/[capability]/spec.md\`
 - [ ] Check pending changes in \`changes/\` for conflicts
-- [ ] Read \`openspec/project.md\` for conventions
+- [ ] Read \`lightspec/project.md\` for conventions
 - [ ] Run \`lightspec list\` to see active changes
 - [ ] Run \`lightspec list --specs\` to see existing capabilities
 
@@ -84,7 +84,7 @@ After deployment, create separate PR to:
 - Show details:
   - Spec: \`lightspec show <spec-id> --type spec\` (use \`--json\` for filters)
   - Change: \`lightspec show <change-id> --json --deltas-only\`
-- Full-text search (use ripgrep): \`rg -n "Requirement:|Scenario:" openspec/specs\`
+- Full-text search (use ripgrep): \`rg -n "Requirement:|Scenario:" lightspec/specs\`
 
 ## Quick Start
 
@@ -123,7 +123,7 @@ lightspec validate [change] --strict --no-interactive
 ## Directory Structure
 
 \`\`\`
-openspec/
+lightspec/
 ├── project.md              # Project conventions
 ├── specs/                  # Current truth - what IS built
 │   └── [capability]/       # Single focused capability
@@ -274,7 +274,7 @@ Headers matched with \`trim(header)\` - whitespace ignored.
 Common pitfall: Using MODIFIED to add a new concern without including the previous text. This causes loss of detail at archive time. If you aren’t explicitly changing the existing requirement, add a new requirement under ADDED instead.
 
 Authoring a MODIFIED requirement correctly:
-1) Locate the existing requirement in \`openspec/specs/<capability>/spec.md\`.
+1) Locate the existing requirement in \`lightspec/specs/<capability>/spec.md\`.
 2) Copy the entire requirement block (from \`### Requirement: ...\` through its scenarios).
 3) Paste it under \`## MODIFIED Requirements\` and edit to reflect the new behavior.
 4) Ensure the header text matches exactly (whitespace-insensitive) and keep at least one \`#### Scenario:\`.
@@ -322,17 +322,17 @@ lightspec show [spec] --json -r 1
 lightspec spec list --long
 lightspec list
 # Optional full-text search:
-# rg -n "Requirement:|Scenario:" openspec/specs
-# rg -n "^#|Requirement:" openspec/changes
+# rg -n "Requirement:|Scenario:" lightspec/specs
+# rg -n "^#|Requirement:" lightspec/changes
 
 # 2) Choose change id and scaffold
 CHANGE=add-two-factor-auth
-mkdir -p openspec/changes/$CHANGE/{specs/auth}
-printf "## Why\\n...\\n\\n## What Changes\\n- ...\\n\\n## Impact\\n- ...\\n" > openspec/changes/$CHANGE/proposal.md
-printf "## 1. Implementation\\n- [ ] 1.1 ...\\n" > openspec/changes/$CHANGE/tasks.md
+mkdir -p lightspec/changes/$CHANGE/{specs/auth}
+printf "## Why\\n...\\n\\n## What Changes\\n- ...\\n\\n## Impact\\n- ...\\n" > lightspec/changes/$CHANGE/proposal.md
+printf "## 1. Implementation\\n- [ ] 1.1 ...\\n" > lightspec/changes/$CHANGE/tasks.md
 
 # 3) Add deltas (example)
-cat > openspec/changes/$CHANGE/specs/auth/spec.md << 'EOF'
+cat > lightspec/changes/$CHANGE/specs/auth/spec.md << 'EOF'
 ## ADDED Requirements
 ### Requirement: Two-Factor Authentication
 Users MUST provide a second factor during login.
@@ -349,7 +349,7 @@ lightspec validate $CHANGE --strict --no-interactive
 ## Multi-Capability Example
 
 \`\`\`
-openspec/changes/add-2fa-notify/
+lightspec/changes/add-2fa-notify/
 ├── proposal.md
 ├── tasks.md
 └── specs/

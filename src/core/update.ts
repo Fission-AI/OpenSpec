@@ -1,6 +1,6 @@
 import path from 'path';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { OPENSPEC_DIR_NAME } from './config.js';
+import { LIGHTSPEC_DIR_NAME } from './config.js';
 import { ToolRegistry } from './configurators/registry.js';
 import { SlashCommandRegistry } from './configurators/slash/registry.js';
 import { agentsTemplate } from './templates/agents-template.js';
@@ -8,16 +8,16 @@ import { agentsTemplate } from './templates/agents-template.js';
 export class UpdateCommand {
   async execute(projectPath: string): Promise<void> {
     const resolvedProjectPath = path.resolve(projectPath);
-    const openspecDirName = OPENSPEC_DIR_NAME;
-    const openspecPath = path.join(resolvedProjectPath, openspecDirName);
+    const lightspecDirName = LIGHTSPEC_DIR_NAME;
+    const lightspecPath = path.join(resolvedProjectPath, lightspecDirName);
 
     // 1. Check lightspec directory exists
-    if (!await FileSystemUtils.directoryExists(openspecPath)) {
+    if (!await FileSystemUtils.directoryExists(lightspecPath)) {
       throw new Error(`No LightSpec directory found. Run 'lightspec init' first.`);
     }
 
     // 2. Update AGENTS.md (full replacement)
-    const agentsPath = path.join(openspecPath, 'AGENTS.md');
+    const agentsPath = path.join(lightspecPath, 'AGENTS.md');
 
     await FileSystemUtils.writeFile(agentsPath, agentsTemplate);
 
@@ -50,7 +50,7 @@ export class UpdateCommand {
           );
         }
 
-        await configurator.configure(resolvedProjectPath, openspecPath);
+        await configurator.configure(resolvedProjectPath, lightspecPath);
         updatedFiles.push(configurator.configFileName);
 
         if (!fileExists) {
@@ -74,7 +74,7 @@ export class UpdateCommand {
       try {
         const updated = await slashConfigurator.updateExisting(
           resolvedProjectPath,
-          openspecPath
+          lightspecPath
         );
         updatedSlashFiles.push(...updated);
       } catch (error) {
@@ -88,7 +88,7 @@ export class UpdateCommand {
     }
 
     const summaryParts: string[] = [];
-    const instructionFiles: string[] = ['openspec/AGENTS.md'];
+    const instructionFiles: string[] = ['lightspec/AGENTS.md'];
 
     if (updatedFiles.includes('AGENTS.md')) {
       instructionFiles.push(

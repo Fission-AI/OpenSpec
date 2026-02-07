@@ -15,8 +15,8 @@ export class PowerShellInstaller {
    * Markers for PowerShell profile configuration management
    */
   private readonly PROFILE_MARKERS = {
-    start: '# OPENSPEC:START',
-    end: '# OPENSPEC:END',
+    start: '# LIGHTSPEC:START',
+    end: '# LIGHTSPEC:END',
   };
 
   constructor(homeDir: string = os.homedir()) {
@@ -147,9 +147,9 @@ export class PowerShellInstaller {
         // Add LightSpec completion configuration with markers
         const lightspecBlock = [
           '',
-          '# OPENSPEC:START - LightSpec completion (managed block, do not edit manually)',
+          '# LIGHTSPEC:START - LightSpec completion (managed block, do not edit manually)',
           scriptLine,
-          '# OPENSPEC:END',
+          '# LIGHTSPEC:END',
           '',
         ].join('\n');
 
@@ -185,9 +185,9 @@ export class PowerShellInstaller {
           continue; // Profile doesn't exist, nothing to remove
         }
 
-        // Remove OPENSPEC:START -> OPENSPEC:END block
-        const startMarker = '# OPENSPEC:START';
-        const endMarker = '# OPENSPEC:END';
+        // Remove LIGHTSPEC:START -> LIGHTSPEC:END block
+        const startMarker = '# LIGHTSPEC:START';
+        const endMarker = '# LIGHTSPEC:END';
         const startIndex = profileContent.indexOf(startMarker);
 
         if (startIndex === -1) {

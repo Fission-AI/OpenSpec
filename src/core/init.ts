@@ -19,9 +19,9 @@ import { SlashCommandRegistry } from './configurators/slash/registry.js';
 import {
   LightSpecConfig,
   AI_TOOLS,
-  OPENSPEC_DIR_NAME,
+  LIGHTSPEC_DIR_NAME,
   AIToolOption,
-  OPENSPEC_MARKERS,
+  LIGHTSPEC_MARKERS,
 } from './config.js';
 import { PALETTE } from './styles/palette.js';
 
@@ -384,11 +384,11 @@ export class InitCommand {
 
   async execute(targetPath: string): Promise<void> {
     const projectPath = path.resolve(targetPath);
-    const openspecDir = OPENSPEC_DIR_NAME;
-    const openspecPath = path.join(projectPath, openspecDir);
+    const lightspecDir = LIGHTSPEC_DIR_NAME;
+    const lightspecPath = path.join(projectPath, lightspecDir);
 
     // Validation happens silently in the background
-    const extendMode = await this.validate(projectPath, openspecPath);
+    const extendMode = await this.validate(projectPath, lightspecPath);
     const existingToolStates = await this.getExistingToolStates(projectPath, extendMode);
 
     this.renderBanner(extendMode);
@@ -419,8 +419,8 @@ export class InitCommand {
       const structureSpinner = this.startSpinner(
         'Creating LightSpec structure...'
       );
-      await this.createDirectoryStructure(openspecPath);
-      await this.generateFiles(openspecPath, config);
+      await this.createDirectoryStructure(lightspecPath);
+      await this.generateFiles(lightspecPath, config);
       structureSpinner.stopAndPersist({
         symbol: PALETTE.white('▌'),
         text: PALETTE.white('LightSpec structure created'),
@@ -431,15 +431,15 @@ export class InitCommand {
           'ℹ LightSpec already initialized. Checking for missing files...'
         )
       );
-      await this.createDirectoryStructure(openspecPath);
-      await this.ensureTemplateFiles(openspecPath, config);
+      await this.createDirectoryStructure(lightspecPath);
+      await this.ensureTemplateFiles(lightspecPath, config);
     }
 
     // Step 2: Configure AI tools
     const toolSpinner = this.startSpinner('Configuring AI tools...');
     const rootStubStatus = await this.configureAITools(
       projectPath,
-      openspecDir,
+      lightspecDir,
       config.aiTools
     );
     toolSpinner.stopAndPersist({
@@ -461,9 +461,9 @@ export class InitCommand {
 
   private async validate(
     projectPath: string,
-    _openspecPath: string
+    _lightspecPath: string
   ): Promise<boolean> {
-    const extendMode = await FileSystemUtils.directoryExists(_openspecPath);
+    const extendMode = await FileSystemUtils.directoryExists(_lightspecPath);
 
     // Check write permissions
     if (!(await FileSystemUtils.ensureWritePermissions(projectPath))) {
@@ -657,7 +657,7 @@ export class InitCommand {
     const fileHasMarkers = async (absolutePath: string): Promise<boolean> => {
       try {
         const content = await FileSystemUtils.readFile(absolutePath);
-        return content.includes(OPENSPEC_MARKERS.start) && content.includes(OPENSPEC_MARKERS.end);
+        return content.includes(LIGHTSPEC_MARKERS.start) && content.includes(LIGHTSPEC_MARKERS.end);
       } catch {
         return false;
       }
@@ -705,12 +705,12 @@ export class InitCommand {
     return false;
   }
 
-  private async createDirectoryStructure(openspecPath: string): Promise<void> {
+  private async createDirectoryStructure(lightspecPath: string): Promise<void> {
     const directories = [
-      openspecPath,
-      path.join(openspecPath, 'specs'),
-      path.join(openspecPath, 'changes'),
-      path.join(openspecPath, 'changes', 'archive'),
+      lightspecPath,
+      path.join(lightspecPath, 'specs'),
+      path.join(lightspecPath, 'changes'),
+      path.join(lightspecPath, 'changes', 'archive'),
     ];
 
     for (const dir of directories) {
@@ -719,21 +719,21 @@ export class InitCommand {
   }
 
   private async generateFiles(
-    openspecPath: string,
+    lightspecPath: string,
     config: LightSpecConfig
   ): Promise<void> {
-    await this.writeTemplateFiles(openspecPath, config, false);
+    await this.writeTemplateFiles(lightspecPath, config, false);
   }
 
   private async ensureTemplateFiles(
-    openspecPath: string,
+    lightspecPath: string,
     config: LightSpecConfig
   ): Promise<void> {
-    await this.writeTemplateFiles(openspecPath, config, true);
+    await this.writeTemplateFiles(lightspecPath, config, true);
   }
 
   private async writeTemplateFiles(
-    openspecPath: string,
+    lightspecPath: string,
     config: LightSpecConfig,
     skipExisting: boolean
   ): Promise<void> {
@@ -744,7 +744,7 @@ export class InitCommand {
     const templates = TemplateManager.getTemplates(context);
 
     for (const template of templates) {
-      const filePath = path.join(openspecPath, template.path);
+      const filePath = path.join(lightspecPath, template.path);
 
       // Skip if file exists and we're in skipExisting mode
       if (skipExisting && (await FileSystemUtils.fileExists(filePath))) {
@@ -762,23 +762,23 @@ export class InitCommand {
 
   private async configureAITools(
     projectPath: string,
-    openspecDir: string,
+    lightspecDir: string,
     toolIds: string[]
   ): Promise<RootStubStatus> {
     const rootStubStatus = await this.configureRootAgentsStub(
       projectPath,
-      openspecDir
+      lightspecDir
     );
 
     for (const toolId of toolIds) {
       const configurator = ToolRegistry.get(toolId);
       if (configurator && configurator.isAvailable) {
-        await configurator.configure(projectPath, openspecDir);
+        await configurator.configure(projectPath, lightspecDir);
       }
 
       const slashConfigurator = SlashCommandRegistry.get(toolId);
       if (slashConfigurator && slashConfigurator.isAvailable) {
-        await slashConfigurator.generateAll(projectPath, openspecDir);
+        await slashConfigurator.generateAll(projectPath, lightspecDir);
       }
     }
 
@@ -787,7 +787,7 @@ export class InitCommand {
 
   private async configureRootAgentsStub(
     projectPath: string,
-    openspecDir: string
+    lightspecDir: string
   ): Promise<RootStubStatus> {
     const configurator = ToolRegistry.get('agents');
     if (!configurator || !configurator.isAvailable) {
@@ -797,7 +797,7 @@ export class InitCommand {
     const stubPath = path.join(projectPath, configurator.configFileName);
     const existed = await FileSystemUtils.fileExists(stubPath);
 
-    await configurator.configure(projectPath, openspecDir);
+    await configurator.configure(projectPath, lightspecDir);
 
     return existed ? 'updated' : 'created';
   }
@@ -889,7 +889,7 @@ export class InitCommand {
     console.log(PALETTE.white('1. Populate your project context:'));
     console.log(
       PALETTE.lightGray(
-        '   "Please read openspec/project.md and help me fill it out'
+        '   "Please read lightspec/project.md and help me fill it out'
       )
     );
     console.log(
@@ -909,7 +909,7 @@ export class InitCommand {
     console.log(PALETTE.white('3. Learn the LightSpec workflow:'));
     console.log(
       PALETTE.lightGray(
-        '   "Please explain the LightSpec workflow from openspec/AGENTS.md'
+        '   "Please explain the LightSpec workflow from lightspec/AGENTS.md'
       )
     );
     console.log(

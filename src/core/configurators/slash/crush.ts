@@ -2,9 +2,9 @@ import { SlashCommandConfigurator } from './base.js';
 import { SlashCommandId } from '../../templates/index.js';
 
 const FILE_PATHS: Record<SlashCommandId, string> = {
-  proposal: '.crush/commands/openspec/proposal.md',
-  apply: '.crush/commands/openspec/apply.md',
-  archive: '.crush/commands/openspec/archive.md'
+  proposal: '.crush/commands/lightspec/proposal.md',
+  apply: '.crush/commands/lightspec/apply.md',
+  archive: '.crush/commands/lightspec/archive.md'
 };
 
 const FRONTMATTER: Record<SlashCommandId, string> = {

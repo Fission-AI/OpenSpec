@@ -6,19 +6,19 @@
 set -e
 
 echo "======================================"
-echo "Testing OpenSpec Postinstall Script"
+echo "Testing LightSpec Postinstall Script"
 echo "======================================"
 echo ""
 
 # Save original environment
 ORIGINAL_CI="${CI:-}"
-ORIGINAL_OPENSPEC_NO_COMPLETIONS="${OPENSPEC_NO_COMPLETIONS:-}"
+ORIGINAL_LIGHTSPEC_NO_COMPLETIONS="${LIGHTSPEC_NO_COMPLETIONS:-}"
 
 # Test 1: Normal install
 echo "Test 1: Normal install (should attempt to install completions)"
 echo "--------------------------------------"
 unset CI
-unset OPENSPEC_NO_COMPLETIONS
+unset LIGHTSPEC_NO_COMPLETIONS
 node scripts/postinstall.js
 echo ""
 
@@ -31,10 +31,10 @@ echo "[No output expected - skipped due to CI]"
 echo ""
 
 # Test 3: Opt-out flag (should skip silently)
-echo "Test 3: OPENSPEC_NO_COMPLETIONS=1 (should skip silently)"
+echo "Test 3: LIGHTSPEC_NO_COMPLETIONS=1 (should skip silently)"
 echo "--------------------------------------"
 unset CI
-export OPENSPEC_NO_COMPLETIONS=1
+export LIGHTSPEC_NO_COMPLETIONS=1
 node scripts/postinstall.js
 echo "[No output expected - skipped due to opt-out]"
 echo ""
@@ -46,10 +46,10 @@ else
   unset CI
 fi
 
-if [ -n "$ORIGINAL_OPENSPEC_NO_COMPLETIONS" ]; then
-  export OPENSPEC_NO_COMPLETIONS="$ORIGINAL_OPENSPEC_NO_COMPLETIONS"
+if [ -n "$ORIGINAL_LIGHTSPEC_NO_COMPLETIONS" ]; then
+  export LIGHTSPEC_NO_COMPLETIONS="$ORIGINAL_LIGHTSPEC_NO_COMPLETIONS"
 else
-  unset OPENSPEC_NO_COMPLETIONS
+  unset LIGHTSPEC_NO_COMPLETIONS
 fi
 
 echo "======================================"

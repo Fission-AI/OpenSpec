@@ -4,17 +4,17 @@ import { SlashCommandId } from '../../templates/index.js';
 /**
  * File paths for Qoder slash commands
  * Maps each LightSpec workflow stage to its command file location
- * Commands are stored in .qoder/commands/openspec/ directory
+ * Commands are stored in .qoder/commands/lightspec/ directory
  */
 const FILE_PATHS: Record<SlashCommandId, string> = {
   // Create and validate new change proposals
-  proposal: '.qoder/commands/openspec/proposal.md',
+  proposal: '.qoder/commands/lightspec/proposal.md',
   
   // Implement approved changes with task tracking
-  apply: '.qoder/commands/openspec/apply.md',
+  apply: '.qoder/commands/lightspec/apply.md',
   
   // Archive completed changes and update specs
-  archive: '.qoder/commands/openspec/archive.md'
+  archive: '.qoder/commands/lightspec/archive.md'
 };
 
 /**

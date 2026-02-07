@@ -5,7 +5,7 @@
  *
  * This script runs automatically after npm install unless:
  * - CI=true environment variable is set
- * - OPENSPEC_NO_COMPLETIONS=1 environment variable is set
+ * - LIGHTSPEC_NO_COMPLETIONS=1 environment variable is set
  * - dist/ directory doesn't exist (dev setup scenario)
  *
  * The script never fails npm install - all errors are caught and handled gracefully.
@@ -28,8 +28,8 @@ function shouldSkipInstallation() {
   }
 
   // Skip if user opted out
-  if (process.env.OPENSPEC_NO_COMPLETIONS === '1') {
-    return { skip: true, reason: 'OPENSPEC_NO_COMPLETIONS=1 set' };
+  if (process.env.LIGHTSPEC_NO_COMPLETIONS === '1') {
+    return { skip: true, reason: 'LIGHTSPEC_NO_COMPLETIONS=1 set' };
   }
 
   return { skip: false };
@@ -72,7 +72,7 @@ async function installCompletions(shell) {
 
     // Check if shell is supported
     if (!CompletionFactory.isSupported(shell)) {
-      console.log(`\nTip: Run 'openspec completion install' for shell completions`);
+      console.log(`\nTip: Run 'lightspec completion install' for shell completions`);
       return;
     }
 
@@ -99,11 +99,11 @@ async function installCompletions(shell) {
       }
     } else {
       // Installation failed, show tip for manual install
-      console.log(`\nTip: Run 'openspec completion install' for shell completions`);
+      console.log(`\nTip: Run 'lightspec completion install' for shell completions`);
     }
   } catch (error) {
     // Fail gracefully - show tip for manual install
-    console.log(`\nTip: Run 'openspec completion install' for shell completions`);
+    console.log(`\nTip: Run 'lightspec completion install' for shell completions`);
   }
 }
 
@@ -127,7 +127,7 @@ async function main() {
     // Detect shell
     const shell = await detectShell();
     if (!shell) {
-      console.log(`\nTip: Run 'openspec completion install' for shell completions`);
+      console.log(`\nTip: Run 'lightspec completion install' for shell completions`);
       return;
     }
 
@@ -136,7 +136,7 @@ async function main() {
   } catch (error) {
     // Fail gracefully - never break npm install
     // Show tip for manual install
-    console.log(`\nTip: Run 'openspec completion install' for shell completions`);
+    console.log(`\nTip: Run 'lightspec completion install' for shell completions`);
   }
 }
 

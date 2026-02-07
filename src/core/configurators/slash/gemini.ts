@@ -2,9 +2,9 @@ import { TomlSlashCommandConfigurator } from './toml-base.js';
 import { SlashCommandId } from '../../templates/index.js';
 
 const FILE_PATHS: Record<SlashCommandId, string> = {
-  proposal: '.gemini/commands/openspec/proposal.toml',
-  apply: '.gemini/commands/openspec/apply.toml',
-  archive: '.gemini/commands/openspec/archive.toml'
+  proposal: '.gemini/commands/lightspec/proposal.toml',
+  apply: '.gemini/commands/lightspec/apply.toml',
+  archive: '.gemini/commands/lightspec/archive.toml'
 };
 
 const DESCRIPTIONS: Record<SlashCommandId, string> = {

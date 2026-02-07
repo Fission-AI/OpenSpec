@@ -1,7 +1,7 @@
 import { SlashCommandConfigurator } from "./base.js";
 import { SlashCommandId } from "../../templates/index.js";
 import { FileSystemUtils } from "../../../utils/file-system.js";
-import { OPENSPEC_MARKERS } from "../../config.js";
+import { LIGHTSPEC_MARKERS } from "../../config.js";
 
 const FILE_PATHS: Record<SlashCommandId, string> = {
   proposal: ".opencode/command/lightspec-proposal.md",
@@ -47,14 +47,14 @@ export class OpenCodeSlashCommandConfigurator extends SlashCommandConfigurator {
     return FRONTMATTER[id];
   }
 
-  async generateAll(projectPath: string, _openspecDir: string): Promise<string[]> {
-    const createdOrUpdated = await super.generateAll(projectPath, _openspecDir);
+  async generateAll(projectPath: string, _lightspecDir: string): Promise<string[]> {
+    const createdOrUpdated = await super.generateAll(projectPath, _lightspecDir);
     await this.rewriteArchiveFile(projectPath);
     return createdOrUpdated;
   }
 
-  async updateExisting(projectPath: string, _openspecDir: string): Promise<string[]> {
-    const updated = await super.updateExisting(projectPath, _openspecDir);
+  async updateExisting(projectPath: string, _lightspecDir: string): Promise<string[]> {
+    const updated = await super.updateExisting(projectPath, _lightspecDir);
     const rewroteArchive = await this.rewriteArchiveFile(projectPath);
     if (rewroteArchive && !updated.includes(FILE_PATHS.archive)) {
       updated.push(FILE_PATHS.archive);
@@ -76,7 +76,7 @@ export class OpenCodeSlashCommandConfigurator extends SlashCommandConfigurator {
       sections.push(frontmatter.trim());
     }
 
-    sections.push(`${OPENSPEC_MARKERS.start}\n${body}\n${OPENSPEC_MARKERS.end}`);
+    sections.push(`${LIGHTSPEC_MARKERS.start}\n${body}\n${LIGHTSPEC_MARKERS.end}`);
     await FileSystemUtils.writeFile(archivePath, sections.join("\n") + "\n");
     return true;
   }

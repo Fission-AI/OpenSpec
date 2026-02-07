@@ -2,7 +2,7 @@ import path from 'path';
 import { ToolConfigurator } from './base.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import { TemplateManager } from '../templates/index.js';
-import { OPENSPEC_MARKERS } from '../config.js';
+import { LIGHTSPEC_MARKERS } from '../config.js';
 
 /**
  * Qoder AI Tool Configurator
@@ -30,10 +30,10 @@ export class QoderConfigurator implements ToolConfigurator {
    * Wrapped with LightSpec markers for future updates.
    * 
    * @param {string} projectPath - Absolute path to project root directory
-   * @param {string} openspecDir - Path to lightspec directory (unused but required by interface)
+   * @param {string} lightspecDir - Path to lightspec directory (unused but required by interface)
    * @returns {Promise<void>} Resolves when configuration is complete
    */
-  async configure(projectPath: string, openspecDir: string): Promise<void> {
+  async configure(projectPath: string, lightspecDir: string): Promise<void> {
     // Construct full path to QODER.md at project root
     const filePath = path.join(projectPath, this.configFileName);
     
@@ -46,8 +46,8 @@ export class QoderConfigurator implements ToolConfigurator {
     await FileSystemUtils.updateFileWithMarkers(
       filePath,
       content,
-      OPENSPEC_MARKERS.start,
-      OPENSPEC_MARKERS.end
+      LIGHTSPEC_MARKERS.start,
+      LIGHTSPEC_MARKERS.end
     );
   }
 }

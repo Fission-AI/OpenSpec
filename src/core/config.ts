@@ -1,8 +1,8 @@
-export const OPENSPEC_DIR_NAME = 'openspec';
+export const LIGHTSPEC_DIR_NAME = 'lightspec';
 
-export const OPENSPEC_MARKERS = {
-  start: '<!-- OPENSPEC:START -->',
-  end: '<!-- OPENSPEC:END -->'
+export const LIGHTSPEC_MARKERS = {
+  start: '<!-- LIGHTSPEC:START -->',
+  end: '<!-- LIGHTSPEC:END -->'
 };
 
 export interface LightSpecConfig {

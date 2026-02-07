@@ -90,7 +90,7 @@ export function validateChangeName(name: string): ValidationResult {
 /**
  * Creates a new change directory with metadata file.
  *
- * @param projectRoot - The root directory of the project (where `openspec/` lives)
+ * @param projectRoot - The root directory of the project (where `lightspec/` lives)
  * @param name - The change name (must be valid kebab-case)
  * @param options - Optional settings for the change
  * @throws Error if the change name is invalid
@@ -100,12 +100,12 @@ export function validateChangeName(name: string): ValidationResult {
  * @returns Result containing the resolved schema name
  *
  * @example
- * // Creates openspec/changes/add-auth/ with default schema
+ * // Creates lightspec/changes/add-auth/ with default schema
  * const result = await createChange('/path/to/project', 'add-auth')
  * console.log(result.schema) // 'spec-driven' or value from config
  *
  * @example
- * // Creates openspec/changes/add-auth/ with TDD schema
+ * // Creates lightspec/changes/add-auth/ with TDD schema
  * const result = await createChange('/path/to/project', 'add-auth', { schema: 'tdd' })
  * console.log(result.schema) // 'tdd'
  */
@@ -139,7 +139,7 @@ export async function createChange(
   validateSchemaName(schemaName, projectRoot);
 
   // Build the change directory path
-  const changeDir = path.join(projectRoot, 'openspec', 'changes', name);
+  const changeDir = path.join(projectRoot, 'lightspec', 'changes', name);
 
   // Check if change already exists
   if (await FileSystemUtils.directoryExists(changeDir)) {

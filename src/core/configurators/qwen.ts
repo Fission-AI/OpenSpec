@@ -8,7 +8,7 @@ import path from 'path';
 import { ToolConfigurator } from './base.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import { TemplateManager } from '../templates/index.js';
-import { OPENSPEC_MARKERS } from '../config.js';
+import { LIGHTSPEC_MARKERS } from '../config.js';
 
 /**
  * QwenConfigurator class provides integration with Qwen Code
@@ -30,18 +30,18 @@ export class QwenConfigurator implements ToolConfigurator {
    * with LightSpec instructions and markers.
    * 
    * @param {string} projectPath - The path to the project root
-   * @param {string} _openspecDir - The path to the lightspec directory (unused)
+   * @param {string} _lightspecDir - The path to the lightspec directory (unused)
    * @returns {Promise<void>} A promise that resolves when configuration is complete
    */
-  async configure(projectPath: string, _openspecDir: string): Promise<void> {
+  async configure(projectPath: string, _lightspecDir: string): Promise<void> {
     const filePath = path.join(projectPath, this.configFileName);
     const content = TemplateManager.getAgentsStandardTemplate();
     
     await FileSystemUtils.updateFileWithMarkers(
       filePath,
       content,
-      OPENSPEC_MARKERS.start,
-      OPENSPEC_MARKERS.end
+      LIGHTSPEC_MARKERS.start,
+      LIGHTSPEC_MARKERS.end
     );
   }
 }

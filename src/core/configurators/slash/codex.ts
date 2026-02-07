@@ -3,7 +3,7 @@ import os from "os";
 import { SlashCommandConfigurator } from "./base.js";
 import { SlashCommandId, TemplateManager } from "../../templates/index.js";
 import { FileSystemUtils } from "../../../utils/file-system.js";
-import { OPENSPEC_MARKERS } from "../../config.js";
+import { LIGHTSPEC_MARKERS } from "../../config.js";
 
 // Use POSIX-style paths for consistent logging across platforms.
 const FILE_PATHS: Record<SlashCommandId, string> = {
@@ -55,7 +55,7 @@ $ARGUMENTS`,
 
   // Codex discovers prompts globally. Generate directly in the global directory
   // and wrap shared body with markers.
-  async generateAll(projectPath: string, _openspecDir: string): Promise<string[]> {
+  async generateAll(projectPath: string, _lightspecDir: string): Promise<string[]> {
     const createdOrUpdated: string[] = [];
     for (const target of this.getTargets()) {
       const body = TemplateManager.getSlashCommandBody(target.id).trim();
@@ -73,7 +73,7 @@ $ARGUMENTS`,
         const frontmatter = this.getFrontmatter(target.id);
         const sections: string[] = [];
         if (frontmatter) sections.push(frontmatter.trim());
-        sections.push(`${OPENSPEC_MARKERS.start}\n${body}\n${OPENSPEC_MARKERS.end}`);
+        sections.push(`${LIGHTSPEC_MARKERS.start}\n${body}\n${LIGHTSPEC_MARKERS.end}`);
         await FileSystemUtils.writeFile(filePath, sections.join("\n") + "\n");
       }
 
@@ -82,7 +82,7 @@ $ARGUMENTS`,
     return createdOrUpdated;
   }
 
-  async updateExisting(projectPath: string, _openspecDir: string): Promise<string[]> {
+  async updateExisting(projectPath: string, _lightspecDir: string): Promise<string[]> {
     const updated: string[] = [];
     for (const target of this.getTargets()) {
       const promptsDir = this.getGlobalPromptsDir();
@@ -102,7 +102,7 @@ $ARGUMENTS`,
   // Update both frontmatter and body in an existing file
   private async updateFullFile(filePath: string, id: SlashCommandId, body: string): Promise<void> {
     const content = await FileSystemUtils.readFile(filePath);
-    const startIndex = content.indexOf(OPENSPEC_MARKERS.start);
+    const startIndex = content.indexOf(LIGHTSPEC_MARKERS.start);
 
     if (startIndex === -1) {
       throw new Error(`Missing LightSpec start marker in ${filePath}`);
@@ -112,7 +112,7 @@ $ARGUMENTS`,
     const frontmatter = this.getFrontmatter(id);
     const sections: string[] = [];
     if (frontmatter) sections.push(frontmatter.trim());
-    sections.push(`${OPENSPEC_MARKERS.start}\n${body}\n${OPENSPEC_MARKERS.end}`);
+    sections.push(`${LIGHTSPEC_MARKERS.start}\n${body}\n${LIGHTSPEC_MARKERS.end}`);
 
     await FileSystemUtils.writeFile(filePath, sections.join("\n") + "\n");
   }

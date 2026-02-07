@@ -43,7 +43,7 @@ export class MarkdownParser {
       requirements,
       metadata: {
         version: '1.0.0',
-        format: 'openspec',
+        format: 'lightspec',
       },
     };
   }

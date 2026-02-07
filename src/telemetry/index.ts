@@ -4,7 +4,7 @@
  * Privacy-first design:
  * - Only tracks command name and version
  * - No arguments, file paths, or content
- * - Opt-out via OPENSPEC_TELEMETRY=0 or DO_NOT_TRACK=1
+ * - Opt-out via LIGHTSPEC_TELEMETRY=0 or DO_NOT_TRACK=1
  * - Auto-disabled in CI environments
  * - Anonymous ID is a random UUID with no relation to the user
  */
@@ -16,7 +16,7 @@ import { getTelemetryConfig, updateTelemetryConfig } from './config.js';
 // This is safe to embed as it only allows sending events, not reading data
 const POSTHOG_API_KEY = 'phc_Hthu8YvaIJ9QaFKyTG4TbVwkbd5ktcAFzVTKeMmoW2g';
 // Using reverse proxy to avoid ad blockers and keep traffic on our domain
-const POSTHOG_HOST = 'https://edge.openspec.dev';
+const POSTHOG_HOST = 'https://edge.lightspec.dev';
 
 let posthogClient: PostHog | null = null;
 let anonymousId: string | null = null;
@@ -25,13 +25,13 @@ let anonymousId: string | null = null;
  * Check if telemetry is enabled.
  *
  * Disabled when:
- * - OPENSPEC_TELEMETRY=0
+ * - LIGHTSPEC_TELEMETRY=0
  * - DO_NOT_TRACK=1
  * - CI=true (any CI environment)
  */
 export function isTelemetryEnabled(): boolean {
   // Check explicit opt-out
-  if (process.env.OPENSPEC_TELEMETRY === '0') {
+  if (process.env.LIGHTSPEC_TELEMETRY === '0') {
     return false;
   }
 
@@ -132,7 +132,7 @@ export async function maybeShowTelemetryNotice(): Promise<void> {
 
     // Display notice
     console.log(
-      'Note: LightSpec collects anonymous usage stats. Opt out: OPENSPEC_TELEMETRY=0'
+      'Note: LightSpec collects anonymous usage stats. Opt out: LIGHTSPEC_TELEMETRY=0'
     );
 
     // Mark as seen

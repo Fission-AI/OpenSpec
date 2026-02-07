@@ -108,7 +108,7 @@ async function validateChangeExists(
   changeName: string | undefined,
   projectRoot: string
 ): Promise<string> {
-  const changesPath = path.join(projectRoot, 'openspec', 'changes');
+  const changesPath = path.join(projectRoot, 'lightspec', 'changes');
 
   // Get all change directories (not just those with proposal.md)
   const getAvailableChanges = async (): Promise<string[]> => {
@@ -504,7 +504,7 @@ async function generateApplyInstructions(
 ): Promise<ApplyInstructions> {
   // loadChangeContext will auto-detect schema from metadata if not provided
   const context = loadChangeContext(projectRoot, changeName, schemaName);
-  const changeDir = path.join(projectRoot, 'openspec', 'changes', changeName);
+  const changeDir = path.join(projectRoot, 'lightspec', 'changes', changeName);
 
   // Get the full schema to access the apply phase configuration
   const schema = resolveSchema(context.schemaName);
@@ -781,12 +781,12 @@ async function newChangeCommand(name: string | undefined, options: NewChangeOpti
     // If description provided, create README.md with description
     if (options.description) {
       const { promises: fs } = await import('fs');
-      const changeDir = path.join(projectRoot, 'openspec', 'changes', name);
+      const changeDir = path.join(projectRoot, 'lightspec', 'changes', name);
       const readmePath = path.join(changeDir, 'README.md');
       await fs.writeFile(readmePath, `# ${name}\n\n${options.description}\n`, 'utf-8');
     }
 
-    spinner.succeed(`Created change '${name}' at openspec/changes/${name}/ (schema: ${result.schema})`);
+    spinner.succeed(`Created change '${name}' at lightspec/changes/${name}/ (schema: ${result.schema})`);
   } catch (error) {
     spinner.fail(`Failed to create change '${name}'`);
     throw error;
@@ -925,23 +925,23 @@ ${template.content}
     console.log();
 
     // Check if config already exists
-    const configPath = path.join(projectRoot, 'openspec', 'config.yaml');
-    const configYmlPath = path.join(projectRoot, 'openspec', 'config.yml');
+    const configPath = path.join(projectRoot, 'lightspec', 'config.yaml');
+    const configYmlPath = path.join(projectRoot, 'lightspec', 'config.yml');
     const configExists = fs.existsSync(configPath) || fs.existsSync(configYmlPath);
 
     if (configExists) {
       // Config already exists, skip creation
-      console.log(chalk.blue('ℹ️  openspec/config.yaml already exists. Skipping config creation.'));
+      console.log(chalk.blue('ℹ️  lightspec/config.yaml already exists. Skipping config creation.'));
       console.log();
-      console.log('   To update config, edit openspec/config.yaml manually or:');
-      console.log('   1. Delete openspec/config.yaml');
+      console.log('   To update config, edit lightspec/config.yaml manually or:');
+      console.log('   1. Delete lightspec/config.yaml');
       console.log('   2. Run lightspec artifact-experimental-setup again');
       console.log();
     } else if (!process.stdin.isTTY) {
       // Non-interactive mode (CI, automation, piped input)
       console.log(chalk.blue('ℹ️  Skipping config prompts (non-interactive mode)'));
       console.log();
-      console.log('   To create config manually, add openspec/config.yaml with:');
+      console.log('   To create config manually, add lightspec/config.yaml with:');
       console.log(chalk.dim('   schema: spec-driven'));
       console.log();
     } else {
@@ -952,7 +952,7 @@ ${template.content}
         await FileSystemUtils.writeFile(configPath, yamlContent);
 
         console.log();
-        console.log(chalk.green('✓ Created openspec/config.yaml'));
+        console.log(chalk.green('✓ Created lightspec/config.yaml'));
         console.log();
         console.log(`   Default schema: ${chalk.cyan(DEFAULT_SCHEMA)}`);
         console.log();
@@ -961,17 +961,17 @@ ${template.content}
 
         // Git commit suggestion
         console.log(chalk.bold('To share with team:'));
-        console.log(chalk.dim('  git add openspec/config.yaml .claude/'));
+        console.log(chalk.dim('  git add lightspec/config.yaml .claude/'));
         console.log(chalk.dim('  git commit -m "Setup LightSpec experimental workflow"'));
         console.log();
       } catch (writeError) {
         // Handle file write errors
         console.error();
-        console.error(chalk.red('✗ Failed to write openspec/config.yaml'));
+        console.error(chalk.red('✗ Failed to write lightspec/config.yaml'));
         console.error(chalk.dim(`  ${(writeError as Error).message}`));
         console.error();
         console.error('Fallback: Create config manually:');
-        console.error(chalk.dim('  1. Create openspec/config.yaml'));
+        console.error(chalk.dim('  1. Create lightspec/config.yaml'));
         console.error(chalk.dim('  2. Copy the following content:'));
         console.error();
         console.error(chalk.dim(yamlContent));
@@ -1060,7 +1060,7 @@ export function registerArtifactWorkflowCommands(program: Command): void {
     .command('status')
     .description('[Experimental] Display artifact completion status for a change')
     .option('--change <id>', 'Change name to show status for')
-    .option('--schema <name>', 'Schema override (auto-detected from .openspec.yaml)')
+    .option('--schema <name>', 'Schema override (auto-detected from .lightspec.yaml)')
     .option('--json', 'Output as JSON')
     .action(async (options: StatusOptions) => {
       try {
@@ -1077,7 +1077,7 @@ export function registerArtifactWorkflowCommands(program: Command): void {
     .command('instructions [artifact]')
     .description('[Experimental] Output enriched instructions for creating an artifact or applying tasks')
     .option('--change <id>', 'Change name')
-    .option('--schema <name>', 'Schema override (auto-detected from .openspec.yaml)')
+    .option('--schema <name>', 'Schema override (auto-detected from .lightspec.yaml)')
     .option('--json', 'Output as JSON')
     .action(async (artifactId: string | undefined, options: InstructionsOptions) => {
       try {

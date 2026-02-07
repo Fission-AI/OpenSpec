@@ -15,8 +15,8 @@ export class BashInstaller {
    * Markers for .bashrc configuration management
    */
   private readonly BASHRC_MARKERS = {
-    start: '# OPENSPEC:START',
-    end: '# OPENSPEC:END',
+    start: '# LIGHTSPEC:START',
+    end: '# LIGHTSPEC:END',
   };
 
   constructor(homeDir: string = os.homedir()) {
@@ -118,7 +118,7 @@ export class BashInstaller {
    */
   async configureBashrc(completionsDir: string): Promise<boolean> {
     // Check if auto-configuration is disabled
-    if (process.env.OPENSPEC_NO_AUTO_CONFIG === '1') {
+    if (process.env.LIGHTSPEC_NO_AUTO_CONFIG === '1') {
       return false;
     }
 

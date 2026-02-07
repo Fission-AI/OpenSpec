@@ -3,9 +3,9 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 
 // Constants
-export const GLOBAL_CONFIG_DIR_NAME = 'openspec';
+export const GLOBAL_CONFIG_DIR_NAME = 'lightspec';
 export const GLOBAL_CONFIG_FILE_NAME = 'config.json';
-export const GLOBAL_DATA_DIR_NAME = 'openspec';
+export const GLOBAL_DATA_DIR_NAME = 'lightspec';
 
 // TypeScript interfaces
 export interface GlobalConfig {
@@ -19,9 +19,9 @@ const DEFAULT_CONFIG: GlobalConfig = {
 /**
  * Gets the global configuration directory path following XDG Base Directory Specification.
  *
- * - All platforms: $XDG_CONFIG_HOME/openspec/ if XDG_CONFIG_HOME is set
- * - Unix/macOS fallback: ~/.config/openspec/
- * - Windows fallback: %APPDATA%/openspec/
+ * - All platforms: $XDG_CONFIG_HOME/lightspec/ if XDG_CONFIG_HOME is set
+ * - Unix/macOS fallback: ~/.config/lightspec/
+ * - Windows fallback: %APPDATA%/lightspec/
  */
 export function getGlobalConfigDir(): string {
   // XDG_CONFIG_HOME takes precedence on all platforms when explicitly set
@@ -50,9 +50,9 @@ export function getGlobalConfigDir(): string {
  * Gets the global data directory path following XDG Base Directory Specification.
  * Used for user data like schema overrides.
  *
- * - All platforms: $XDG_DATA_HOME/openspec/ if XDG_DATA_HOME is set
- * - Unix/macOS fallback: ~/.local/share/openspec/
- * - Windows fallback: %LOCALAPPDATA%/openspec/
+ * - All platforms: $XDG_DATA_HOME/lightspec/ if XDG_DATA_HOME is set
+ * - Unix/macOS fallback: ~/.local/share/lightspec/
+ * - Windows fallback: %LOCALAPPDATA%/lightspec/
  */
 export function getGlobalDataDir(): string {
   // XDG_DATA_HOME takes precedence on all platforms when explicitly set

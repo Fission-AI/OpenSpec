@@ -1,7 +1,7 @@
 import { FileSystemUtils } from '../../../utils/file-system.js';
 import { SlashCommandConfigurator } from './base.js';
 import { SlashCommandId } from '../../templates/index.js';
-import { OPENSPEC_MARKERS } from '../../config.js';
+import { LIGHTSPEC_MARKERS } from '../../config.js';
 
 export abstract class TomlSlashCommandConfigurator extends SlashCommandConfigurator {
   protected getFrontmatter(_id: SlashCommandId): string | undefined {
@@ -12,7 +12,7 @@ export abstract class TomlSlashCommandConfigurator extends SlashCommandConfigura
   protected abstract getDescription(id: SlashCommandId): string;
 
   // Override to generate TOML format with markers inside the prompt field
-  async generateAll(projectPath: string, _openspecDir: string): Promise<string[]> {
+  async generateAll(projectPath: string, _lightspecDir: string): Promise<string[]> {
     const createdOrUpdated: string[] = [];
 
     for (const target of this.getTargets()) {
@@ -40,9 +40,9 @@ export abstract class TomlSlashCommandConfigurator extends SlashCommandConfigura
     return `description = "${description}"
 
 prompt = """
-${OPENSPEC_MARKERS.start}
+${LIGHTSPEC_MARKERS.start}
 ${body}
-${OPENSPEC_MARKERS.end}
+${LIGHTSPEC_MARKERS.end}
 """
 `;
   }
@@ -50,14 +50,14 @@ ${OPENSPEC_MARKERS.end}
   // Override updateBody to handle TOML format
   protected async updateBody(filePath: string, body: string): Promise<void> {
     const content = await FileSystemUtils.readFile(filePath);
-    const startIndex = content.indexOf(OPENSPEC_MARKERS.start);
-    const endIndex = content.indexOf(OPENSPEC_MARKERS.end);
+    const startIndex = content.indexOf(LIGHTSPEC_MARKERS.start);
+    const endIndex = content.indexOf(LIGHTSPEC_MARKERS.end);
 
     if (startIndex === -1 || endIndex === -1 || endIndex <= startIndex) {
       throw new Error(`Missing LightSpec markers in ${filePath}`);
     }
 
-    const before = content.slice(0, startIndex + OPENSPEC_MARKERS.start.length);
+    const before = content.slice(0, startIndex + LIGHTSPEC_MARKERS.start.length);
     const after = content.slice(endIndex);
     const updatedContent = `${before}\n${body}\n${after}`;
 
