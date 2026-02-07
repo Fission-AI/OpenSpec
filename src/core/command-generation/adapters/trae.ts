@@ -7,6 +7,11 @@
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
 
+
+/**
+ * Escapes a string value for safe YAML output.
+ * Quotes the string if it contains special YAML characters.
+ */
 function escapeYamlValue(value: string): string {
   const needsQuoting = /[:\n\r#{}[\],&*!|>'"%@`]|^\s|\s$/.test(value);
   if (needsQuoting) {
@@ -16,6 +21,9 @@ function escapeYamlValue(value: string): string {
   return value;
 }
 
+/**
+ * Formats a tags array as a YAML array with proper escaping.
+ */
 function formatTagsArray(tags: string[]): string {
   const escapedTags = tags.map((tag) => escapeYamlValue(tag));
   return `[${escapedTags.join(', ')}]`;
