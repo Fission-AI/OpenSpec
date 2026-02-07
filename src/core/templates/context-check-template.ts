@@ -20,11 +20,11 @@ The agent file MUST contain these sections with meaningful, project-specific con
 1. **Purpose** - Project goals and objectives (what the project does and why it exists)
 2. **Domain Context** - Domain-specific knowledge AI assistants need (business rules, terminology, concepts)
 3. **Tech Stack** - Technologies and frameworks used (languages, libraries, tools)
-4. **Project Non-Obvious Conventions** - Must include ALL of these subsections:
+4. **Project Non-Obvious Conventions** - Should include these subsections if applicable:
    - Code Style (formatting rules, naming conventions)
    - Architecture Patterns (architectural decisions and patterns)
    - Testing Strategy (testing approach and requirements)
-   - Git Workflow (optional - branching strategy and commit conventions)
+   - Workflow Conventions (development workflow, branching strategy, CI/CD practices)
 5. **Important Constraints** - Technical, business, or regulatory constraints
 6. **External Dependencies** - Key external services, APIs, or systems
 
@@ -78,6 +78,8 @@ When user confirms:
 3. Preserve existing good content—only update what needs improvement
 4. Use the Edit tool to make precise updates
 5. Confirm completion and show what was updated
+6. Suggest the user review the updated agent file and complement it with any additional details they think are important. Mention that additional documentation can be added to the docs/ folder in order to keep the agent file concise and focused on essential context for AI assistants.
+
 
 **Example Validation Report**
 \`\`\`
@@ -116,9 +118,11 @@ Would you like me to explore your codebase to gather this context and propose up
 - Use clear, concise language with project-specific details
 - Confirm with the user before making any changes to the file
 - Focus your edits exclusively on the invariant properties of the codebase
-- Do not focus on transient details that may change frequently. For example:
-   - if the project is a web app, focus on the frameworks used and architectural patterns rather than specific UI components
-   - ignore agent skills, specific task instructions, or other details that may evolve as the project develops
+- Do not focus on transient details that may change frequently. For instance:
+   - Ignore component-level implementation details
+   - Ignore specific function signatures or variable names
+   - Ignore comments that are not relevant to the overall project context
+- Ignore files inside the agent folders (often named .<agent_name>)
 - Prefer concise bullet points instead of extensive prose
 - Keep the final document under 300 lines to ensure it remains concise and focused on essential context for AI assistants
 - After writing, summarize what was updated and confirm completion`;

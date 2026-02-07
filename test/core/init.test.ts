@@ -708,6 +708,45 @@ describe('InitCommand', () => {
       expect(archiveContent).toContain('lightspec archive <id> --yes');
     });
 
+    it('should create Mistral Vibe skills under .vibe', async () => {
+      queueSelections('mistral-vibe', DONE);
+
+      await initCommand.execute(testDir);
+
+      const proposalPath = path.join(
+        testDir,
+        '.vibe/skills/lightspec-proposal/SKILL.md'
+      );
+      const applyPath = path.join(
+        testDir,
+        '.vibe/skills/lightspec-apply/SKILL.md'
+      );
+      const archivePath = path.join(
+        testDir,
+        '.vibe/skills/lightspec-archive/SKILL.md'
+      );
+
+      expect(await fileExists(proposalPath)).toBe(true);
+      expect(await fileExists(applyPath)).toBe(true);
+      expect(await fileExists(archivePath)).toBe(true);
+
+      const proposalContent = await fs.readFile(proposalPath, 'utf-8');
+      expect(proposalContent).toContain('name: lightspec-proposal');
+      expect(proposalContent).toContain('description: Scaffold a new LightSpec change and validate strictly.');
+      expect(proposalContent).toContain('<!-- LIGHTSPEC:START -->');
+      expect(proposalContent).toContain('**Guardrails**');
+
+      const applyContent = await fs.readFile(applyPath, 'utf-8');
+      expect(applyContent).toContain('name: lightspec-apply');
+      expect(applyContent).toContain('description: Implement an approved LightSpec change and keep tasks in sync.');
+      expect(applyContent).toContain('Work through tasks sequentially');
+
+      const archiveContent = await fs.readFile(archivePath, 'utf-8');
+      expect(archiveContent).toContain('name: lightspec-archive');
+      expect(archiveContent).toContain('description: Archive a deployed LightSpec change and update specs.');
+      expect(archiveContent).toContain('lightspec archive <id> --yes');
+    });
+
     it('should create Kilo Code workflows with templates', async () => {
       queueSelections('kilocode', DONE);
 
@@ -977,6 +1016,18 @@ describe('InitCommand', () => {
         (choice: any) => choice.value === 'codex'
       );
       expect(codexChoice.configured).toBe(true);
+    });
+
+    it('should mark Mistral Vibe as already configured during extend mode', async () => {
+      queueSelections('mistral-vibe', DONE, 'mistral-vibe', DONE);
+      await initCommand.execute(testDir);
+      await initCommand.execute(testDir);
+
+      const secondRunArgs = mockPrompt.mock.calls[1][0];
+      const mistralVibeChoice = secondRunArgs.choices.find(
+        (choice: any) => choice.value === 'mistral-vibe'
+      );
+      expect(mistralVibeChoice.configured).toBe(true);
     });
 
     it('should mark Factory Droid as already configured during extend mode', async () => {
