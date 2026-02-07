@@ -707,8 +707,8 @@ describe('spec-discovery', () => {
   describe('validateSpecStructure() - reserved names validation', () => {
     it('should reject reserved directory names', () => {
       const reservedNames = [
-        { capability: '..', path: path.join('/specs', '..', 'spec.md'), depth: 1 },
-        { capability: '.', path: path.join('/specs', '.', 'spec.md'), depth: 1 },
+        { capability: '..', path: `${path.sep}specs${path.sep}..${path.sep}spec.md`, depth: 1 },
+        { capability: '.', path: `${path.sep}specs${path.sep}.${path.sep}spec.md`, depth: 1 },
         { capability: '.git', path: path.join('/specs', '.git', 'spec.md'), depth: 1 },
         { capability: 'node_modules', path: path.join('/specs', 'node_modules', 'spec.md'), depth: 1 },
         { capability: '.openspec', path: path.join('/specs', '.openspec', 'spec.md'), depth: 1 },
