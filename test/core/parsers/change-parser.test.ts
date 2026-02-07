@@ -5,7 +5,7 @@ import os from 'os';
 import { ChangeParser } from '../../../src/core/parsers/change-parser.js';
 
 async function withTempDir(run: (dir: string) => Promise<void>) {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'lightspec-'change-parser-'));
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'lightspec-change-parser-'));
   try {
     await run(dir);
   } finally {

@@ -57,8 +57,8 @@ describe('telemetry/index', () => {
   });
 
   describe('isTelemetryEnabled', () => {
-    it('should return false when OPENSPEC_TELEMETRY=0', () => {
-      process.env.OPENSPEC_TELEMETRY = '0';
+    it('should return false when LIGHTSPEC_TELEMETRY=0', () => {
+      process.env.LIGHTSPEC_TELEMETRY = '0';
       expect(isTelemetryEnabled()).toBe(false);
     });
 
@@ -73,14 +73,14 @@ describe('telemetry/index', () => {
     });
 
     it('should return true when no opt-out is set', () => {
-      delete process.env.OPENSPEC_TELEMETRY;
+      delete process.env.LIGHTSPEC_TELEMETRY;
       delete process.env.DO_NOT_TRACK;
       delete process.env.CI;
       expect(isTelemetryEnabled()).toBe(true);
     });
 
-    it('should prioritize OPENSPEC_TELEMETRY=0 over other settings', () => {
-      process.env.OPENSPEC_TELEMETRY = '0';
+    it('should prioritize LIGHTSPEC_TELEMETRY=0 over other settings', () => {
+      process.env.LIGHTSPEC_TELEMETRY = '0';
       delete process.env.DO_NOT_TRACK;
       delete process.env.CI;
       expect(isTelemetryEnabled()).toBe(false);
@@ -89,7 +89,7 @@ describe('telemetry/index', () => {
 
   describe('maybeShowTelemetryNotice', () => {
     it('should not show notice when telemetry is disabled', async () => {
-      process.env.OPENSPEC_TELEMETRY = '0';
+      process.env.LIGHTSPEC_TELEMETRY = '0';
 
       await maybeShowTelemetryNotice();
 
@@ -99,7 +99,7 @@ describe('telemetry/index', () => {
 
   describe('trackCommand', () => {
     it('should not track when telemetry is disabled', async () => {
-      process.env.OPENSPEC_TELEMETRY = '0';
+      process.env.LIGHTSPEC_TELEMETRY = '0';
 
       await trackCommand('test', '1.0.0');
 
@@ -107,7 +107,7 @@ describe('telemetry/index', () => {
     });
 
     it('should track when telemetry is enabled', async () => {
-      delete process.env.OPENSPEC_TELEMETRY;
+      delete process.env.LIGHTSPEC_TELEMETRY;
       delete process.env.DO_NOT_TRACK;
       delete process.env.CI;
 

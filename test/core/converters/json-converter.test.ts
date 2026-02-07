@@ -43,7 +43,7 @@ Then they are authenticated`;
       expect(parsed.requirements).toHaveLength(1);
       expect(parsed.requirements[0].scenarios).toHaveLength(1);
       expect(parsed.metadata).toBeDefined();
-      expect(parsed.metadata.format).toBe('openspec');
+      expect(parsed.metadata.format).toBe('lightspec');
       expect(parsed.metadata.sourcePath).toBe(specPath);
     });
 
@@ -98,7 +98,7 @@ We need to implement user authentication to secure the application and protect u
       expect(parsed.deltas[0].spec).toBe('user-auth');
       expect(parsed.deltas[0].operation).toBe('ADDED');
       expect(parsed.metadata).toBeDefined();
-      expect(parsed.metadata.format).toBe('lightspec-'change');
+      expect(parsed.metadata.format).toBe('lightspec-change');
       expect(parsed.metadata.sourcePath).toBe(changePath);
     });
 

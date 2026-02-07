@@ -6,8 +6,8 @@ import { execSync } from 'child_process';
 describe('spec command', () => {
   const projectRoot = process.cwd();
   const testDir = path.join(projectRoot, 'test-spec-command-tmp');
-  const specsDir = path.join(testDir, 'openspec', 'specs');
-  const openspecBin = path.join(projectRoot, 'bin', 'lightspec.js');
+  const specsDir = path.join(testDir, 'lightspec', 'specs');
+  const lightspecBin = path.join(projectRoot, 'bin', 'lightspec.js');
   
   
   beforeEach(async () => {
@@ -59,7 +59,7 @@ The system SHALL process credit card payments securely`;
       const originalCwd = process.cwd();
       try {
         process.chdir(testDir);
-        const output = execSync(`node ${openspecBin} spec show auth`, {
+        const output = execSync(`node ${lightspecBin} spec show auth`, {
           encoding: 'utf-8'
         });
         
@@ -75,7 +75,7 @@ The system SHALL process credit card payments securely`;
       const originalCwd = process.cwd();
       try {
         process.chdir(testDir);
-        const output = execSync(`node ${openspecBin} spec show auth --json`, {
+        const output = execSync(`node ${lightspecBin} spec show auth --json`, {
           encoding: 'utf-8'
         });
         
@@ -84,7 +84,7 @@ The system SHALL process credit card payments securely`;
         expect(json.title).toBe('auth');
         expect(json.overview).toContain('test specification');
         expect(json.requirements).toHaveLength(2);
-        expect(json.metadata.format).toBe('openspec');
+        expect(json.metadata.format).toBe('lightspec');
       } finally {
         process.chdir(originalCwd);
       }
@@ -94,7 +94,7 @@ The system SHALL process credit card payments securely`;
       const originalCwd = process.cwd();
       try {
         process.chdir(testDir);
-        const output = execSync(`node ${openspecBin} spec show auth --json --requirements`, {
+        const output = execSync(`node ${lightspecBin} spec show auth --json --requirements`, {
           encoding: 'utf-8'
         });
         
@@ -111,7 +111,7 @@ The system SHALL process credit card payments securely`;
       const originalCwd = process.cwd();
       try {
         process.chdir(testDir);
-        const output = execSync(`node ${openspecBin} spec show auth --json --no-scenarios`, {
+        const output = execSync(`node ${lightspecBin} spec show auth --json --no-scenarios`, {
           encoding: 'utf-8'
         });
         
@@ -127,7 +127,7 @@ The system SHALL process credit card payments securely`;
       const originalCwd = process.cwd();
       try {
         process.chdir(testDir);
-        const output = execSync(`node ${openspecBin} spec show auth --json -r 1`, {
+        const output = execSync(`node ${lightspecBin} spec show auth --json -r 1`, {
           encoding: 'utf-8'
         });
         
@@ -143,7 +143,7 @@ The system SHALL process credit card payments securely`;
       const originalCwd = process.cwd();
       try {
         process.chdir(testDir);
-        const output = execSync(`node ${openspecBin} spec show auth --json --no-scenarios`, {
+        const output = execSync(`node ${lightspecBin} spec show auth --json --no-scenarios`, {
           encoding: 'utf-8'
         });
         
@@ -161,7 +161,7 @@ The system SHALL process credit card payments securely`;
       const originalCwd = process.cwd();
       try {
         process.chdir(testDir);
-        const output = execSync(`node ${openspecBin} spec list`, {
+        const output = execSync(`node ${lightspecBin} spec list`, {
           encoding: 'utf-8'
         });
         
@@ -178,7 +178,7 @@ The system SHALL process credit card payments securely`;
       const originalCwd = process.cwd();
       try {
         process.chdir(testDir);
-        const output = execSync(`node ${openspecBin} spec list --json`, {
+        const output = execSync(`node ${lightspecBin} spec list --json`, {
           encoding: 'utf-8'
         });
         
@@ -198,7 +198,7 @@ The system SHALL process credit card payments securely`;
       const originalCwd = process.cwd();
       try {
         process.chdir(testDir);
-        const output = execSync(`node ${openspecBin} spec validate auth`, {
+        const output = execSync(`node ${lightspecBin} spec validate auth`, {
           encoding: 'utf-8'
         });
         
@@ -212,7 +212,7 @@ The system SHALL process credit card payments securely`;
       const originalCwd = process.cwd();
       try {
         process.chdir(testDir);
-        const output = execSync(`node ${openspecBin} spec validate auth --json`, {
+        const output = execSync(`node ${lightspecBin} spec validate auth --json`, {
           encoding: 'utf-8'
         });
         
@@ -231,7 +231,7 @@ The system SHALL process credit card payments securely`;
       const originalCwd = process.cwd();
       try {
         process.chdir(testDir);
-        const output = execSync(`node ${openspecBin} spec validate auth --strict --json`, {
+        const output = execSync(`node ${lightspecBin} spec validate auth --strict --json`, {
           encoding: 'utf-8'
         });
         
@@ -259,7 +259,7 @@ This section has no actual requirements`;
         // This should exit with non-zero code
         let exitCode = 0;
         try {
-          execSync(`node ${openspecBin} spec validate invalid`, {
+          execSync(`node ${lightspecBin} spec validate invalid`, {
             encoding: 'utf-8'
           });
         } catch (error: any) {
@@ -281,7 +281,7 @@ This section has no actual requirements`;
         
         let error: any;
         try {
-          execSync(`node ${openspecBin} spec show nonexistent`, {
+          execSync(`node ${lightspecBin} spec show nonexistent`, {
             encoding: 'utf-8'
           });
         } catch (e) {
@@ -301,7 +301,7 @@ This section has no actual requirements`;
       const originalCwd = process.cwd();
       try {
         process.chdir(testDir);
-        const output = execSync(`node ${openspecBin} spec list`, { encoding: 'utf-8' });
+        const output = execSync(`node ${lightspecBin} spec list`, { encoding: 'utf-8' });
         expect(output.trim()).toBe('No items found');
       } finally {
         process.chdir(originalCwd);
@@ -312,7 +312,7 @@ This section has no actual requirements`;
       const originalCwd = process.cwd();
       try {
         process.chdir(testDir);
-        const output = execSync(`node ${openspecBin} --no-color spec list --long`, { encoding: 'utf-8' });
+        const output = execSync(`node ${lightspecBin} --no-color spec list --long`, { encoding: 'utf-8' });
         // Basic ANSI escape pattern
         const hasAnsi = /\u001b\[[0-9;]*m/.test(output);
         expect(hasAnsi).toBe(false);

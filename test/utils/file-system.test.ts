@@ -258,26 +258,26 @@ describe('FileSystemUtils', () => {
     it('should join POSIX-style paths', () => {
       const result = FileSystemUtils.joinPath(
         '/tmp/project',
-        '.claude/commands/openspec/proposal.md'
+        '.claude/commands/lightspec/proposal.md'
       );
-      expect(result).toBe('/tmp/project/.claude/commands/openspec/proposal.md');
+      expect(result).toBe('/tmp/project/.claude/commands/lightspec/proposal.md');
     });
 
     it('should join Linux home directory paths', () => {
       const result = FileSystemUtils.joinPath(
-        '/home/dev/workspace/openspec',
+        '/home/dev/workspace/lightspec',
         '.cursor/commands/install.md'
       );
-      expect(result).toBe('/home/dev/workspace/openspec/.cursor/commands/install.md');
+      expect(result).toBe('/home/dev/workspace/lightspec/.cursor/commands/install.md');
     });
 
     it('should join Windows drive-letter paths with backslashes', () => {
       const result = FileSystemUtils.joinPath(
         'C:\\Users\\dev\\project',
-        '.claude/commands/openspec/proposal.md'
+        '.claude/commands/lightspec/proposal.md'
       );
       expect(result).toBe(
-        'C:\\Users\\dev\\project\\.claude\\commands\\openspec\\proposal.md'
+        'C:\\Users\\dev\\project\\.claude\\commands\\lightspec\\proposal.md'
       );
     });
 

@@ -138,24 +138,24 @@ describe('PowerShellInstaller', () => {
   describe('configureProfile', () => {
     const mockScriptPath = '/path/to/LightSpecCompletion.ps1';
 
-    // Note: OPENSPEC_NO_AUTO_CONFIG check is now handled in the install() method,
+    // Note: LIGHTSPEC_NO_AUTO_CONFIG check is now handled in the install() method,
     // not in configureProfile() itself
 
     it('should create profile with markers when file does not exist', async () => {
-      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      delete process.env.LIGHTSPEC_NO_AUTO_CONFIG;
       const profilePath = installer.getProfilePath();
 
       const result = await installer.configureProfile(mockScriptPath);
 
       expect(result).toBe(true);
       const content = await fs.readFile(profilePath, 'utf-8');
-      expect(content).toContain('# OPENSPEC:START');
-      expect(content).toContain('# OPENSPEC:END');
+      expect(content).toContain('# LIGHTSPEC:START');
+      expect(content).toContain('# LIGHTSPEC:END');
       expect(content).toContain(`. "${mockScriptPath}"`);
     });
 
     it('should prepend markers and config when file exists without markers', async () => {
-      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      delete process.env.LIGHTSPEC_NO_AUTO_CONFIG;
       const profilePath = installer.getProfilePath();
       await fs.mkdir(path.dirname(profilePath), { recursive: true });
       await fs.writeFile(profilePath, '# My custom PowerShell config\nWrite-Host "Hello"');
@@ -164,8 +164,8 @@ describe('PowerShellInstaller', () => {
 
       expect(result).toBe(true);
       const content = await fs.readFile(profilePath, 'utf-8');
-      expect(content).toContain('# OPENSPEC:START');
-      expect(content).toContain('# OPENSPEC:END');
+      expect(content).toContain('# LIGHTSPEC:START');
+      expect(content).toContain('# LIGHTSPEC:END');
       expect(content).toContain(mockScriptPath);
       expect(content).toContain('# My custom PowerShell config');
       expect(content).toContain('Write-Host "Hello"');
@@ -174,14 +174,14 @@ describe('PowerShellInstaller', () => {
     // Skip on Windows: Windows has dual profile paths (PowerShell Core + Windows PowerShell 5.1),
     // so even if one profile is already configured, the second one will be configured and return true
     it.skipIf(process.platform === 'win32')('should skip configuration when script line already exists', async () => {
-      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      delete process.env.LIGHTSPEC_NO_AUTO_CONFIG;
       const profilePath = installer.getProfilePath();
       await fs.mkdir(path.dirname(profilePath), { recursive: true });
 
       const initialContent = [
-        '# OPENSPEC:START - LightSpec completion (managed block, do not edit manually)',
+        '# LIGHTSPEC:START - LightSpec completion (managed block, do not edit manually)',
         `. "${mockScriptPath}"`,
-        '# OPENSPEC:END',
+        '# LIGHTSPEC:END',
         '',
         '# My custom config',
         'Write-Host "Custom"',
@@ -199,7 +199,7 @@ describe('PowerShellInstaller', () => {
     });
 
     it('should preserve user content outside markers', async () => {
-      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      delete process.env.LIGHTSPEC_NO_AUTO_CONFIG;
       const profilePath = installer.getProfilePath();
       await fs.mkdir(path.dirname(profilePath), { recursive: true });
 
@@ -207,9 +207,9 @@ describe('PowerShellInstaller', () => {
         '# User config before',
         'Set-Variable -Name "test" -Value "before"',
         '',
-        '# OPENSPEC:START',
+        '# LIGHTSPEC:START',
         '# Old config',
-        '# OPENSPEC:END',
+        '# LIGHTSPEC:END',
         '',
         '# User config after',
         'Set-Variable -Name "test" -Value "after"',
@@ -228,21 +228,21 @@ describe('PowerShellInstaller', () => {
     });
 
     it('should generate correct PowerShell syntax in config', async () => {
-      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      delete process.env.LIGHTSPEC_NO_AUTO_CONFIG;
       const profilePath = installer.getProfilePath();
 
       await installer.configureProfile(mockScriptPath);
 
       const content = await fs.readFile(profilePath, 'utf-8');
-      expect(content).toContain('# OPENSPEC:START');
+      expect(content).toContain('# LIGHTSPEC:START');
       expect(content).toContain(`. "${mockScriptPath}"`);
-      expect(content).toContain('# OPENSPEC:END');
+      expect(content).toContain('# LIGHTSPEC:END');
     });
 
     // Skip on Windows: fs.chmod() doesn't reliably restrict write access on Windows
     // (admin users can bypass read-only attribute, and CI runners often have elevated privileges)
     it.skipIf(process.platform === 'win32')('should return false on write permission error', async () => {
-      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      delete process.env.LIGHTSPEC_NO_AUTO_CONFIG;
       const profilePath = installer.getProfilePath();
       await fs.mkdir(path.dirname(profilePath), { recursive: true });
       await fs.writeFile(profilePath, '# Test');
@@ -282,12 +282,12 @@ describe('PowerShellInstaller', () => {
       await fs.mkdir(path.dirname(profilePath), { recursive: true });
 
       const initialContent = [
-        '# OPENSPEC:START',
+        '# LIGHTSPEC:START',
         '# LightSpec completions',
         'if (Test-Path "/path") {',
         '    . "/path"',
         '}',
-        '# OPENSPEC:END',
+        '# LIGHTSPEC:END',
         '',
         '# My config',
       ].join('\n');
@@ -298,8 +298,8 @@ describe('PowerShellInstaller', () => {
 
       expect(result).toBe(true);
       const content = await fs.readFile(profilePath, 'utf-8');
-      expect(content).not.toContain('# OPENSPEC:START');
-      expect(content).not.toContain('# OPENSPEC:END');
+      expect(content).not.toContain('# LIGHTSPEC:START');
+      expect(content).not.toContain('# LIGHTSPEC:END');
       expect(content).not.toContain('# LightSpec completions');
       expect(content).toContain('# My config');
     });
@@ -310,9 +310,9 @@ describe('PowerShellInstaller', () => {
 
       const initialContent = [
         '# User config',
-        '# OPENSPEC:START',
+        '# LIGHTSPEC:START',
         '# Config',
-        '# OPENSPEC:END',
+        '# LIGHTSPEC:END',
         '',
         '',
       ].join('\n');
@@ -332,9 +332,9 @@ describe('PowerShellInstaller', () => {
 
       const initialContent = [
         '# Before',
-        '# OPENSPEC:START',
+        '# LIGHTSPEC:START',
         '# LightSpec',
-        '# OPENSPEC:END',
+        '# LIGHTSPEC:END',
         '# After',
       ].join('\n');
 
@@ -353,9 +353,9 @@ describe('PowerShellInstaller', () => {
       await fs.mkdir(path.dirname(profilePath), { recursive: true });
 
       const initialContent = [
-        '# OPENSPEC:END',
+        '# LIGHTSPEC:END',
         '# Config',
-        '# OPENSPEC:START',
+        '# LIGHTSPEC:START',
       ].join('\n');
 
       await fs.writeFile(profilePath, initialContent);
@@ -368,15 +368,15 @@ describe('PowerShellInstaller', () => {
 
   describe('install', () => {
     const mockCompletionScript = `# PowerShell completion script for LightSpec
-$openspecCompleter = {
+$lightspecCompleter = {
     param($wordToComplete, $commandAst, $cursorPosition)
     # Completion logic here
 }
-Register-ArgumentCompleter -CommandName lightspec -ScriptBlock $openspecCompleter
+Register-ArgumentCompleter -CommandName lightspec -ScriptBlock $lightspecCompleter
 `;
 
     it('should install completion script for the first time', async () => {
-      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      delete process.env.LIGHTSPEC_NO_AUTO_CONFIG;
       const result = await installer.install(mockCompletionScript);
 
       expect(result.success).toBe(true);
@@ -386,7 +386,7 @@ Register-ArgumentCompleter -CommandName lightspec -ScriptBlock $openspecComplete
     });
 
     it('should create parent directories if they do not exist', async () => {
-      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      delete process.env.LIGHTSPEC_NO_AUTO_CONFIG;
       const result = await installer.install(mockCompletionScript);
 
       expect(result.success).toBe(true);
@@ -396,7 +396,7 @@ Register-ArgumentCompleter -CommandName lightspec -ScriptBlock $openspecComplete
     });
 
     it('should write completion script content correctly', async () => {
-      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      delete process.env.LIGHTSPEC_NO_AUTO_CONFIG;
       await installer.install(mockCompletionScript);
 
       const targetPath = installer.getInstallationPath();
@@ -405,7 +405,7 @@ Register-ArgumentCompleter -CommandName lightspec -ScriptBlock $openspecComplete
     });
 
     it('should detect when already installed with same content', async () => {
-      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      delete process.env.LIGHTSPEC_NO_AUTO_CONFIG;
       await installer.install(mockCompletionScript);
 
       const result = await installer.install(mockCompletionScript);
@@ -416,7 +416,7 @@ Register-ArgumentCompleter -CommandName lightspec -ScriptBlock $openspecComplete
     });
 
     it('should update when content is different', async () => {
-      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      delete process.env.LIGHTSPEC_NO_AUTO_CONFIG;
       await installer.install(mockCompletionScript);
 
       const updatedScript = mockCompletionScript + '\n# Updated version';
@@ -428,7 +428,7 @@ Register-ArgumentCompleter -CommandName lightspec -ScriptBlock $openspecComplete
     });
 
     it('should create backup when updating existing installation', async () => {
-      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      delete process.env.LIGHTSPEC_NO_AUTO_CONFIG;
       await installer.install(mockCompletionScript);
 
       const updatedScript = mockCompletionScript + '\n# Updated';
@@ -443,7 +443,7 @@ Register-ArgumentCompleter -CommandName lightspec -ScriptBlock $openspecComplete
     });
 
     it('should configure PowerShell profile when not disabled', async () => {
-      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      delete process.env.LIGHTSPEC_NO_AUTO_CONFIG;
       const result = await installer.install(mockCompletionScript);
 
       expect(result.success).toBe(true);
@@ -452,13 +452,13 @@ Register-ArgumentCompleter -CommandName lightspec -ScriptBlock $openspecComplete
       expect(result.instructions).toBeUndefined();
     });
 
-    // Note: OPENSPEC_NO_AUTO_CONFIG support was removed from PowerShell installer
+    // Note: LIGHTSPEC_NO_AUTO_CONFIG support was removed from PowerShell installer
     // Profile is now always auto-configured if possible
 
     // Skip on Windows: fs.chmod() doesn't reliably restrict write access on Windows
     // (admin users can bypass read-only attribute, and CI runners often have elevated privileges)
     it.skipIf(process.platform === 'win32')('should provide instructions when profile cannot be configured', async () => {
-      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      delete process.env.LIGHTSPEC_NO_AUTO_CONFIG;
       // Make profile directory read-only to prevent configuration
       const profilePath = installer.getProfilePath();
       await fs.mkdir(path.dirname(profilePath), { recursive: true });
@@ -477,7 +477,7 @@ Register-ArgumentCompleter -CommandName lightspec -ScriptBlock $openspecComplete
     });
 
     it('should include backup path in message when updating', async () => {
-      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      delete process.env.LIGHTSPEC_NO_AUTO_CONFIG;
       await installer.install(mockCompletionScript);
 
       const updatedScript = mockCompletionScript + '\n# Updated';
@@ -522,7 +522,7 @@ Register-ArgumentCompleter -CommandName lightspec -ScriptBlock $openspecComplete
     });
 
     it('should handle empty completion script', async () => {
-      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      delete process.env.LIGHTSPEC_NO_AUTO_CONFIG;
       const result = await installer.install('');
 
       expect(result.success).toBe(true);
@@ -532,7 +532,7 @@ Register-ArgumentCompleter -CommandName lightspec -ScriptBlock $openspecComplete
     });
 
     it('should handle completion script with special characters', async () => {
-      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      delete process.env.LIGHTSPEC_NO_AUTO_CONFIG;
       const specialScript = `# PowerShell with special chars: ' " \` $ @\n$test = "value"`;
 
       const result = await installer.install(specialScript);
@@ -546,12 +546,12 @@ Register-ArgumentCompleter -CommandName lightspec -ScriptBlock $openspecComplete
 
   describe('uninstall', () => {
     const mockCompletionScript = `# PowerShell completion script
-$openspecCompleter = {}
-Register-ArgumentCompleter -CommandName lightspec -ScriptBlock $openspecCompleter
+$lightspecCompleter = {}
+Register-ArgumentCompleter -CommandName lightspec -ScriptBlock $lightspecCompleter
 `;
 
     it('should successfully uninstall when completion script exists', async () => {
-      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      delete process.env.LIGHTSPEC_NO_AUTO_CONFIG;
       await installer.install(mockCompletionScript);
 
       const result = await installer.uninstall();
@@ -561,7 +561,7 @@ Register-ArgumentCompleter -CommandName lightspec -ScriptBlock $openspecComplete
     });
 
     it('should remove the completion file', async () => {
-      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      delete process.env.LIGHTSPEC_NO_AUTO_CONFIG;
       await installer.install(mockCompletionScript);
       const targetPath = installer.getInstallationPath();
 
@@ -572,15 +572,15 @@ Register-ArgumentCompleter -CommandName lightspec -ScriptBlock $openspecComplete
     });
 
     it('should remove profile configuration', async () => {
-      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      delete process.env.LIGHTSPEC_NO_AUTO_CONFIG;
       await installer.install(mockCompletionScript);
       const profilePath = installer.getProfilePath();
 
       await installer.uninstall();
 
       const content = await fs.readFile(profilePath, 'utf-8');
-      expect(content).not.toContain('# OPENSPEC:START');
-      expect(content).not.toContain('# OPENSPEC:END');
+      expect(content).not.toContain('# LIGHTSPEC:START');
+      expect(content).not.toContain('# LIGHTSPEC:END');
     });
 
     it('should return failure when completion script is not installed', async () => {
@@ -591,7 +591,7 @@ Register-ArgumentCompleter -CommandName lightspec -ScriptBlock $openspecComplete
     });
 
     it('should accept yes option parameter', async () => {
-      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      delete process.env.LIGHTSPEC_NO_AUTO_CONFIG;
       await installer.install(mockCompletionScript);
 
       const result = await installer.uninstall({ yes: true });
@@ -601,7 +601,7 @@ Register-ArgumentCompleter -CommandName lightspec -ScriptBlock $openspecComplete
     });
 
     it('should handle both script and config removal', async () => {
-      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      delete process.env.LIGHTSPEC_NO_AUTO_CONFIG;
       await installer.install(mockCompletionScript);
 
       const targetPath = installer.getInstallationPath();
@@ -611,7 +611,7 @@ Register-ArgumentCompleter -CommandName lightspec -ScriptBlock $openspecComplete
       const scriptExists = await fs.access(targetPath).then(() => true).catch(() => false);
       const profileContent = await fs.readFile(profilePath, 'utf-8');
       expect(scriptExists).toBe(true);
-      expect(profileContent).toContain('# OPENSPEC:START');
+      expect(profileContent).toContain('# LIGHTSPEC:START');
 
       await installer.uninstall();
 
@@ -619,13 +619,13 @@ Register-ArgumentCompleter -CommandName lightspec -ScriptBlock $openspecComplete
       const scriptExistsAfter = await fs.access(targetPath).then(() => true).catch(() => false);
       const profileContentAfter = await fs.readFile(profilePath, 'utf-8');
       expect(scriptExistsAfter).toBe(false);
-      expect(profileContentAfter).not.toContain('# OPENSPEC:START');
+      expect(profileContentAfter).not.toContain('# LIGHTSPEC:START');
     });
 
     // Skip on Windows: fs.chmod() on directories doesn't restrict write access on Windows
     // Windows uses ACLs which Node.js chmod doesn't control
     it.skipIf(process.platform === 'win32')('should return failure on permission error', async () => {
-      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      delete process.env.LIGHTSPEC_NO_AUTO_CONFIG;
       await installer.install(mockCompletionScript);
       const targetPath = installer.getInstallationPath();
       const parentDir = path.dirname(targetPath);

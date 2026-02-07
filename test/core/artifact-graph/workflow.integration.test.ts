@@ -24,7 +24,7 @@ describe('artifact-graph workflow integration', () => {
 
   beforeEach(() => {
     // Use a unique temp directory for each test
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lightspec-'workflow-test-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lightspec-workflow-test-'));
   });
 
   afterEach(() => {

@@ -6,8 +6,8 @@ import { FileSystemUtils } from '../../src/utils/file-system.js';
 
 describe('FileSystemUtils.updateFileWithMarkers', () => {
   let testDir: string;
-  const START_MARKER = '<!-- OPENSPEC:START -->';
-  const END_MARKER = '<!-- OPENSPEC:END -->';
+  const START_MARKER = '<!-- LIGHTSPEC:START -->';
+  const END_MARKER = '<!-- LIGHTSPEC:END -->';
 
   beforeEach(async () => {
     testDir = path.join(os.tmpdir(), `lightspec-marker-test-${Date.now()}`);

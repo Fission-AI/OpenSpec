@@ -87,7 +87,7 @@ describe('BashInstaller', () => {
     });
 
     it('should backup existing file before overwriting', async () => {
-      const targetPath = path.join(testHomeDir, '.local', 'share', 'bash-completion', 'completions', 'openspec');
+      const targetPath = path.join(testHomeDir, '.local', 'share', 'bash-completion', 'completions', 'lightspec');
       await fs.mkdir(path.dirname(targetPath), { recursive: true });
       await fs.writeFile(targetPath, 'old script');
 
@@ -115,14 +115,14 @@ describe('BashInstaller', () => {
       const bashrcPath = path.join(testHomeDir, '.bashrc');
       const content = await fs.readFile(bashrcPath, 'utf-8');
 
-      expect(content).toContain('# OPENSPEC:START');
-      expect(content).toContain('# OPENSPEC:END');
+      expect(content).toContain('# LIGHTSPEC:START');
+      expect(content).toContain('# LIGHTSPEC:END');
       expect(content).toContain('LightSpec shell completions configuration');
     });
 
     it('should include instructions when auto-config is disabled', async () => {
-      const originalEnv = process.env.OPENSPEC_NO_AUTO_CONFIG;
-      process.env.OPENSPEC_NO_AUTO_CONFIG = '1';
+      const originalEnv = process.env.LIGHTSPEC_NO_AUTO_CONFIG;
+      process.env.LIGHTSPEC_NO_AUTO_CONFIG = '1';
 
       const result = await installer.install(testScript);
 
@@ -132,9 +132,9 @@ describe('BashInstaller', () => {
 
       // Restore env
       if (originalEnv === undefined) {
-        delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+        delete process.env.LIGHTSPEC_NO_AUTO_CONFIG;
       } else {
-        process.env.OPENSPEC_NO_AUTO_CONFIG = originalEnv;
+        process.env.LIGHTSPEC_NO_AUTO_CONFIG = originalEnv;
       }
     });
 
@@ -254,8 +254,8 @@ describe('BashInstaller', () => {
 
       if (exists) {
         const content = await fs.readFile(bashrcPath, 'utf-8');
-        expect(content).not.toContain('# OPENSPEC:START');
-        expect(content).not.toContain('# OPENSPEC:END');
+        expect(content).not.toContain('# LIGHTSPEC:START');
+        expect(content).not.toContain('# LIGHTSPEC:END');
       }
     });
   });
@@ -271,8 +271,8 @@ describe('BashInstaller', () => {
       const bashrcPath = path.join(testHomeDir, '.bashrc');
       const content = await fs.readFile(bashrcPath, 'utf-8');
 
-      expect(content).toContain('# OPENSPEC:START');
-      expect(content).toContain('# OPENSPEC:END');
+      expect(content).toContain('# LIGHTSPEC:START');
+      expect(content).toContain('# LIGHTSPEC:END');
       expect(content).toContain('# LightSpec shell completions configuration');
       expect(content).toContain(completionsDir);
     });
@@ -287,13 +287,13 @@ describe('BashInstaller', () => {
 
       const content = await fs.readFile(bashrcPath, 'utf-8');
 
-      expect(content).toContain('# OPENSPEC:START');
-      expect(content).toContain('# OPENSPEC:END');
+      expect(content).toContain('# LIGHTSPEC:START');
+      expect(content).toContain('# LIGHTSPEC:END');
       expect(content).toContain('# My custom bash config');
       expect(content).toContain('alias ll="ls -la"');
 
       // Config should be before existing content
-      const configIndex = content.indexOf('# OPENSPEC:START');
+      const configIndex = content.indexOf('# LIGHTSPEC:START');
       const aliasIndex = content.indexOf('alias ll');
       expect(configIndex).toBeLessThan(aliasIndex);
     });
@@ -301,12 +301,12 @@ describe('BashInstaller', () => {
     it('should update config between markers when .bashrc has existing markers', async () => {
       const bashrcPath = path.join(testHomeDir, '.bashrc');
       const initialContent = [
-        '# OPENSPEC:START',
+        '# LIGHTSPEC:START',
         '# Old config',
         'if [ -d "/old/path" ]; then',
         '  . "/old/path"',
         'fi',
-        '# OPENSPEC:END',
+        '# LIGHTSPEC:END',
         '',
         '# My custom config',
       ].join('\n');
@@ -319,8 +319,8 @@ describe('BashInstaller', () => {
 
       const content = await fs.readFile(bashrcPath, 'utf-8');
 
-      expect(content).toContain('# OPENSPEC:START');
-      expect(content).toContain('# OPENSPEC:END');
+      expect(content).toContain('# LIGHTSPEC:START');
+      expect(content).toContain('# LIGHTSPEC:END');
       expect(content).toContain(completionsDir);
       expect(content).not.toContain('# Old config');
       expect(content).not.toContain('/old/path');
@@ -333,9 +333,9 @@ describe('BashInstaller', () => {
         '# My bash config',
         'export PATH="/custom/path:$PATH"',
         '',
-        '# OPENSPEC:START',
+        '# LIGHTSPEC:START',
         '# Old LightSpec config',
-        '# OPENSPEC:END',
+        '# LIGHTSPEC:END',
         '',
         'alias ls="ls -G"',
       ].join('\n');
@@ -355,9 +355,9 @@ describe('BashInstaller', () => {
       expect(content).not.toContain('# Old LightSpec config');
     });
 
-    it('should return false when OPENSPEC_NO_AUTO_CONFIG is set', async () => {
-      const originalEnv = process.env.OPENSPEC_NO_AUTO_CONFIG;
-      process.env.OPENSPEC_NO_AUTO_CONFIG = '1';
+    it('should return false when LIGHTSPEC_NO_AUTO_CONFIG is set', async () => {
+      const originalEnv = process.env.LIGHTSPEC_NO_AUTO_CONFIG;
+      process.env.LIGHTSPEC_NO_AUTO_CONFIG = '1';
 
       const result = await installer.configureBashrc(completionsDir);
 
@@ -369,9 +369,9 @@ describe('BashInstaller', () => {
 
       // Restore env
       if (originalEnv === undefined) {
-        delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+        delete process.env.LIGHTSPEC_NO_AUTO_CONFIG;
       } else {
-        process.env.OPENSPEC_NO_AUTO_CONFIG = originalEnv;
+        process.env.LIGHTSPEC_NO_AUTO_CONFIG = originalEnv;
       }
     });
 
@@ -412,12 +412,12 @@ describe('BashInstaller', () => {
       const content = [
         '# My config',
         '',
-        '# OPENSPEC:START',
+        '# LIGHTSPEC:START',
         '# LightSpec shell completions configuration',
         'if [ -d ~/.local/share/bash-completion/completions ]; then',
-        '  . ~/.local/share/bash-completion/completions/openspec',
+        '  . ~/.local/share/bash-completion/completions/lightspec',
         'fi',
-        '# OPENSPEC:END',
+        '# LIGHTSPEC:END',
         '',
         'alias ll="ls -la"',
       ].join('\n');
@@ -430,8 +430,8 @@ describe('BashInstaller', () => {
 
       const newContent = await fs.readFile(bashrcPath, 'utf-8');
 
-      expect(newContent).not.toContain('# OPENSPEC:START');
-      expect(newContent).not.toContain('# OPENSPEC:END');
+      expect(newContent).not.toContain('# LIGHTSPEC:START');
+      expect(newContent).not.toContain('# LIGHTSPEC:END');
       expect(newContent).not.toContain('LightSpec shell completions configuration');
       expect(newContent).toContain('# My config');
       expect(newContent).toContain('alias ll="ls -la"');
@@ -442,9 +442,9 @@ describe('BashInstaller', () => {
       const content = [
         'export PATH="/custom:$PATH"',
         '',
-        '# OPENSPEC:START',
+        '# LIGHTSPEC:START',
         '# Config',
-        '# OPENSPEC:END',
+        '# LIGHTSPEC:END',
         '',
         'alias g="git"',
       ].join('\n');
@@ -459,7 +459,7 @@ describe('BashInstaller', () => {
 
       expect(newContent).toContain('export PATH="/custom:$PATH"');
       expect(newContent).toContain('alias g="git"');
-      expect(newContent).not.toContain('# OPENSPEC:START');
+      expect(newContent).not.toContain('# LIGHTSPEC:START');
     });
 
     it('should handle permission errors gracefully', async () => {

@@ -26,8 +26,8 @@ describe('CompletionProvider', () => {
     });
 
     it('should return active change IDs', async () => {
-      // Create openspec/changes directory structure
-      const changesDir = path.join(testDir, 'openspec', 'changes');
+      // Create lightspec/changes directory structure
+      const changesDir = path.join(testDir, 'lightspec', 'changes');
       await fs.mkdir(changesDir, { recursive: true });
 
       // Create some changes
@@ -42,7 +42,7 @@ describe('CompletionProvider', () => {
     });
 
     it('should exclude archive directory', async () => {
-      const changesDir = path.join(testDir, 'openspec', 'changes');
+      const changesDir = path.join(testDir, 'lightspec', 'changes');
       await fs.mkdir(changesDir, { recursive: true });
 
       // Create active change
@@ -58,7 +58,7 @@ describe('CompletionProvider', () => {
     });
 
     it('should cache results for the TTL duration', async () => {
-      const changesDir = path.join(testDir, 'openspec', 'changes');
+      const changesDir = path.join(testDir, 'lightspec', 'changes');
       await fs.mkdir(changesDir, { recursive: true });
 
       await fs.mkdir(path.join(changesDir, 'change-1'), { recursive: true });
@@ -81,7 +81,7 @@ describe('CompletionProvider', () => {
       // Use a very short TTL for testing
       const shortTTLProvider = new CompletionProvider(50, testDir);
 
-      const changesDir = path.join(testDir, 'openspec', 'changes');
+      const changesDir = path.join(testDir, 'lightspec', 'changes');
       await fs.mkdir(changesDir, { recursive: true });
 
       await fs.mkdir(path.join(changesDir, 'change-1'), { recursive: true });
@@ -111,7 +111,7 @@ describe('CompletionProvider', () => {
     });
 
     it('should return spec IDs', async () => {
-      const specsDir = path.join(testDir, 'openspec', 'specs');
+      const specsDir = path.join(testDir, 'lightspec', 'specs');
       await fs.mkdir(specsDir, { recursive: true });
 
       // Create some specs
@@ -126,7 +126,7 @@ describe('CompletionProvider', () => {
     });
 
     it('should cache results for the TTL duration', async () => {
-      const specsDir = path.join(testDir, 'openspec', 'specs');
+      const specsDir = path.join(testDir, 'lightspec', 'specs');
       await fs.mkdir(specsDir, { recursive: true });
 
       await fs.mkdir(path.join(specsDir, 'spec-1'), { recursive: true });
@@ -148,7 +148,7 @@ describe('CompletionProvider', () => {
     it('should refresh cache after TTL expires', async () => {
       const shortTTLProvider = new CompletionProvider(50, testDir);
 
-      const specsDir = path.join(testDir, 'openspec', 'specs');
+      const specsDir = path.join(testDir, 'lightspec', 'specs');
       await fs.mkdir(specsDir, { recursive: true });
 
       await fs.mkdir(path.join(specsDir, 'spec-1'), { recursive: true });
@@ -171,8 +171,8 @@ describe('CompletionProvider', () => {
 
   describe('getAllIds', () => {
     it('should return both change and spec IDs', async () => {
-      const changesDir = path.join(testDir, 'openspec', 'changes');
-      const specsDir = path.join(testDir, 'openspec', 'specs');
+      const changesDir = path.join(testDir, 'lightspec', 'changes');
+      const specsDir = path.join(testDir, 'lightspec', 'specs');
       await fs.mkdir(changesDir, { recursive: true });
       await fs.mkdir(specsDir, { recursive: true });
 
@@ -202,7 +202,7 @@ describe('CompletionProvider', () => {
 
   describe('clearCache', () => {
     it('should clear all cached data', async () => {
-      const changesDir = path.join(testDir, 'openspec', 'changes');
+      const changesDir = path.join(testDir, 'lightspec', 'changes');
       await fs.mkdir(changesDir, { recursive: true });
 
       await fs.mkdir(path.join(changesDir, 'change-1'), { recursive: true });
@@ -234,7 +234,7 @@ describe('CompletionProvider', () => {
     });
 
     it('should report valid cache after data is fetched', async () => {
-      const changesDir = path.join(testDir, 'openspec', 'changes');
+      const changesDir = path.join(testDir, 'lightspec', 'changes');
       await fs.mkdir(changesDir, { recursive: true });
 
       await fs.mkdir(path.join(changesDir, 'change-1'), { recursive: true });
@@ -251,7 +251,7 @@ describe('CompletionProvider', () => {
     it('should report invalid cache after TTL expires', async () => {
       const shortTTLProvider = new CompletionProvider(50, testDir);
 
-      const changesDir = path.join(testDir, 'openspec', 'changes');
+      const changesDir = path.join(testDir, 'lightspec', 'changes');
       await fs.mkdir(changesDir, { recursive: true });
 
       await fs.mkdir(path.join(changesDir, 'change-1'), { recursive: true });

@@ -6,7 +6,7 @@ import { execSync } from 'child_process';
 describe('change show (interactive behavior)', () => {
   const projectRoot = process.cwd();
   const testDir = path.join(projectRoot, 'test-change-show-tmp');
-  const changesDir = path.join(testDir, 'openspec', 'changes');
+  const changesDir = path.join(testDir, 'lightspec', 'changes');
   const bin = path.join(projectRoot, 'bin', 'lightspec.js');
 
 

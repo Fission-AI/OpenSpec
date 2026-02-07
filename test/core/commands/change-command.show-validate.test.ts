@@ -14,7 +14,7 @@ describe('ChangeCommand.show/validate', () => {
     cmd = new ChangeCommand();
     originalCwd = process.cwd();
     tempRoot = path.join(os.tmpdir(), `lightspec-change-command-${Date.now()}`);
-    const changesDir = path.join(tempRoot, 'openspec', 'changes', 'sample-change');
+    const changesDir = path.join(tempRoot, 'lightspec', 'changes', 'sample-change');
     await fs.mkdir(changesDir, { recursive: true });
     const proposal = `# Change: Sample Change\n\n## Why\nConsistency in tests.\n\n## What Changes\n- **auth:** Add requirement`;
     await fs.writeFile(path.join(changesDir, 'proposal.md'), proposal, 'utf-8');

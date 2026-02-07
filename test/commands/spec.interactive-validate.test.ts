@@ -6,7 +6,7 @@ import { execSync } from 'child_process';
 describe('spec validate (interactive behavior)', () => {
   const projectRoot = process.cwd();
   const testDir = path.join(projectRoot, 'test-spec-validate-tmp');
-  const specsDir = path.join(testDir, 'openspec', 'specs');
+  const specsDir = path.join(testDir, 'lightspec', 'specs');
   const bin = path.join(projectRoot, 'bin', 'lightspec.js');
 
 

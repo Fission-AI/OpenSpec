@@ -47,7 +47,7 @@ describe('instruction-loader', () => {
     let tempDir: string;
 
     beforeEach(() => {
-      tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lightspec-'test-'));
+      tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lightspec-test-'));
     });
 
     afterEach(() => {
@@ -72,7 +72,7 @@ describe('instruction-loader', () => {
 
     it('should detect completed artifacts', () => {
       // Create change directory with proposal.md
-      const changeDir = path.join(tempDir, 'openspec', 'changes', 'my-change');
+      const changeDir = path.join(tempDir, 'lightspec', 'changes', 'my-change');
       fs.mkdirSync(changeDir, { recursive: true });
       fs.writeFileSync(path.join(changeDir, 'proposal.md'), '# Proposal');
 
@@ -87,11 +87,11 @@ describe('instruction-loader', () => {
       expect(context.completed.size).toBe(0);
     });
 
-    it('should auto-detect schema from .openspec.yaml metadata', () => {
+    it('should auto-detect schema from .lightspec.yaml metadata', () => {
       // Create change directory with metadata file
-      const changeDir = path.join(tempDir, 'openspec', 'changes', 'my-change');
+      const changeDir = path.join(tempDir, 'lightspec', 'changes', 'my-change');
       fs.mkdirSync(changeDir, { recursive: true });
-      fs.writeFileSync(path.join(changeDir, '.openspec.yaml'), 'schema: tdd\ncreated: "2025-01-05"\n');
+      fs.writeFileSync(path.join(changeDir, '.lightspec.yaml'), 'schema: tdd\ncreated: "2025-01-05"\n');
 
       // Load without explicit schema - should detect from metadata
       const context = loadChangeContext(tempDir, 'my-change');
@@ -102,9 +102,9 @@ describe('instruction-loader', () => {
 
     it('should use explicit schema over metadata schema', () => {
       // Create change directory with metadata file using tdd
-      const changeDir = path.join(tempDir, 'openspec', 'changes', 'my-change');
+      const changeDir = path.join(tempDir, 'lightspec', 'changes', 'my-change');
       fs.mkdirSync(changeDir, { recursive: true });
-      fs.writeFileSync(path.join(changeDir, '.openspec.yaml'), 'schema: tdd\n');
+      fs.writeFileSync(path.join(changeDir, '.lightspec.yaml'), 'schema: tdd\n');
 
       // Load with explicit schema - should override metadata
       const context = loadChangeContext(tempDir, 'my-change', 'spec-driven');
@@ -115,7 +115,7 @@ describe('instruction-loader', () => {
 
     it('should fall back to default when no metadata and no explicit schema', () => {
       // Create change directory without metadata file
-      const changeDir = path.join(tempDir, 'openspec', 'changes', 'my-change');
+      const changeDir = path.join(tempDir, 'lightspec', 'changes', 'my-change');
       fs.mkdirSync(changeDir, { recursive: true });
 
       const context = loadChangeContext(tempDir, 'my-change');
@@ -128,7 +128,7 @@ describe('instruction-loader', () => {
     let tempDir: string;
 
     beforeEach(() => {
-      tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lightspec-'test-'));
+      tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lightspec-test-'));
     });
 
     afterEach(() => {
@@ -163,7 +163,7 @@ describe('instruction-loader', () => {
 
     it('should mark completed dependencies as done', () => {
       // Create proposal
-      const changeDir = path.join(tempDir, 'openspec', 'changes', 'my-change');
+      const changeDir = path.join(tempDir, 'lightspec', 'changes', 'my-change');
       fs.mkdirSync(changeDir, { recursive: true });
       fs.writeFileSync(path.join(changeDir, 'proposal.md'), '# Proposal');
 
@@ -200,7 +200,7 @@ describe('instruction-loader', () => {
     describe('project config integration', () => {
       it('should inject context for all artifacts', () => {
         // Create project config
-        const configDir = path.join(tempDir, 'openspec');
+        const configDir = path.join(tempDir, 'lightspec');
         fs.mkdirSync(configDir, { recursive: true });
         fs.writeFileSync(
           path.join(configDir, 'config.yaml'),
@@ -232,7 +232,7 @@ context: |
 
       it('should preserve multi-line context', () => {
         // Create project config with multi-line context
-        const configDir = path.join(tempDir, 'openspec');
+        const configDir = path.join(tempDir, 'lightspec');
         fs.mkdirSync(configDir, { recursive: true });
         fs.writeFileSync(
           path.join(configDir, 'config.yaml'),
@@ -252,7 +252,7 @@ context: |
 
       it('should preserve special characters in context', () => {
         // Create project config with special characters
-        const configDir = path.join(tempDir, 'openspec');
+        const configDir = path.join(tempDir, 'lightspec');
         fs.mkdirSync(configDir, { recursive: true });
         fs.writeFileSync(
           path.join(configDir, 'config.yaml'),
@@ -270,7 +270,7 @@ context: |
 
       it('should inject rules only for matching artifact', () => {
         // Create project config with rules
-        const configDir = path.join(tempDir, 'openspec');
+        const configDir = path.join(tempDir, 'lightspec');
         fs.mkdirSync(configDir, { recursive: true });
         fs.writeFileSync(
           path.join(configDir, 'config.yaml'),
@@ -304,7 +304,7 @@ rules:
 
       it('should not inject rules for non-matching artifact', () => {
         // Create project config with rules only for proposal
-        const configDir = path.join(tempDir, 'openspec');
+        const configDir = path.join(tempDir, 'lightspec');
         fs.mkdirSync(configDir, { recursive: true });
         fs.writeFileSync(
           path.join(configDir, 'config.yaml'),
@@ -324,7 +324,7 @@ rules:
 
       it('should not inject rules when empty array', () => {
         // Create project config with empty rules array
-        const configDir = path.join(tempDir, 'openspec');
+        const configDir = path.join(tempDir, 'lightspec');
         fs.mkdirSync(configDir, { recursive: true });
         fs.writeFileSync(
           path.join(configDir, 'config.yaml'),
@@ -344,7 +344,7 @@ rules:
 
       it('should maintain correct order: context -> rules -> template', () => {
         // Create project config with both context and rules
-        const configDir = path.join(tempDir, 'openspec');
+        const configDir = path.join(tempDir, 'lightspec');
         fs.mkdirSync(configDir, { recursive: true });
         fs.writeFileSync(
           path.join(configDir, 'config.yaml'),
@@ -374,7 +374,7 @@ rules:
 
       it('should handle context without rules', () => {
         // Create project config with only context
-        const configDir = path.join(tempDir, 'openspec');
+        const configDir = path.join(tempDir, 'lightspec');
         fs.mkdirSync(configDir, { recursive: true });
         fs.writeFileSync(
           path.join(configDir, 'config.yaml'),
@@ -395,7 +395,7 @@ context: Project context only
 
       it('should handle rules without context', () => {
         // Create project config with only rules
-        const configDir = path.join(tempDir, 'openspec');
+        const configDir = path.join(tempDir, 'lightspec');
         fs.mkdirSync(configDir, { recursive: true });
         fs.writeFileSync(
           path.join(configDir, 'config.yaml'),
@@ -440,7 +440,7 @@ rules:
 
       it('should warn about unknown artifact IDs in rules', () => {
         // Create project config with invalid artifact ID
-        const configDir = path.join(tempDir, 'openspec');
+        const configDir = path.join(tempDir, 'lightspec');
         fs.mkdirSync(configDir, { recursive: true });
         fs.writeFileSync(
           path.join(configDir, 'config.yaml'),
@@ -463,11 +463,11 @@ rules:
 
       it('should deduplicate validation warnings within session', () => {
         // Create a fresh temp directory to avoid cache pollution
-        const freshTempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lightspec-'test-'));
+        const freshTempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lightspec-test-'));
 
         try {
           // Create project config with a uniquely named invalid artifact ID
-          const configDir = path.join(freshTempDir, 'openspec');
+          const configDir = path.join(freshTempDir, 'lightspec');
           fs.mkdirSync(configDir, { recursive: true });
           fs.writeFileSync(
             path.join(configDir, 'config.yaml'),
@@ -500,7 +500,7 @@ rules:
 
       it('should not warn for valid artifact IDs', () => {
         // Create project config with valid artifact IDs
-        const configDir = path.join(tempDir, 'openspec');
+        const configDir = path.join(tempDir, 'lightspec');
         fs.mkdirSync(configDir, { recursive: true });
         fs.writeFileSync(
           path.join(configDir, 'config.yaml'),
@@ -525,7 +525,7 @@ rules:
     let tempDir: string;
 
     beforeEach(() => {
-      tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lightspec-'test-'));
+      tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lightspec-test-'));
     });
 
     afterEach(() => {
@@ -551,7 +551,7 @@ rules:
     });
 
     it('should show completed artifacts as done', () => {
-      const changeDir = path.join(tempDir, 'openspec', 'changes', 'my-change');
+      const changeDir = path.join(tempDir, 'lightspec', 'changes', 'my-change');
       fs.mkdirSync(changeDir, { recursive: true });
       fs.writeFileSync(path.join(changeDir, 'proposal.md'), '# Proposal');
 
@@ -578,7 +578,7 @@ rules:
     });
 
     it('should report isComplete true when all done', () => {
-      const changeDir = path.join(tempDir, 'openspec', 'changes', 'my-change');
+      const changeDir = path.join(tempDir, 'lightspec', 'changes', 'my-change');
       fs.mkdirSync(changeDir, { recursive: true });
       fs.mkdirSync(path.join(changeDir, 'specs'), { recursive: true });
 

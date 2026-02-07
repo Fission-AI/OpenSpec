@@ -6,7 +6,7 @@ import { execSync } from 'child_process';
 describe('validate command enriched human output', () => {
   const projectRoot = process.cwd();
   const testDir = path.join(projectRoot, 'test-validate-enriched-tmp');
-  const changesDir = path.join(testDir, 'openspec', 'changes');
+  const changesDir = path.join(testDir, 'lightspec', 'changes');
   const bin = path.join(projectRoot, 'bin', 'lightspec.js');
 
 
