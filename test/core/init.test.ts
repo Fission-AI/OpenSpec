@@ -346,7 +346,7 @@ describe('InitCommand', () => {
 
       const archiveContent = await fs.readFile(cursorArchive, 'utf-8');
       expect(archiveContent).toContain('name: /lightspec-archive');
-      expect(archiveContent).toContain('lightspec list' --specs');
+      expect(archiveContent).toContain('lightspec list --specs');
     });
 
     it('should create Gemini CLI TOML files when selected', async () => {
@@ -510,7 +510,7 @@ describe('InitCommand', () => {
       expect(archiveContent).toContain(
         'description: Archive a deployed LightSpec change and update specs.'
       );
-      expect(archiveContent).toContain('lightspec list' --specs');
+      expect(archiveContent).toContain('lightspec list --specs');
     });
 
     it('should create Qwen configuration and slash command files with templates', async () => {
@@ -739,7 +739,7 @@ describe('InitCommand', () => {
       expect(applyContent).not.toContain('---\n');
 
       const archiveContent = await fs.readFile(archivePath, 'utf-8');
-      expect(archiveContent).toContain('lightspec list' --specs');
+      expect(archiveContent).toContain('lightspec list --specs');
       expect(archiveContent).not.toContain('---\n');
     });
 
