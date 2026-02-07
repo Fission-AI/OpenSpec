@@ -1,9 +1,7 @@
 <p align="center">
   <a href="https://github.com/augmenter-dev/lightspec">
     <picture>
-      <source srcset="assets/lightspec_pixel_dark.svg" media="(prefers-color-scheme: dark)">
-      <source srcset="assets/lightspec_pixel_light.svg" media="(prefers-color-scheme: light)">
-      <img src="assets/lightspec_pixel_light.svg" alt="LightSpec logo" height="64">
+      <img src="assets/augmenter-lightspec.svg" alt="LightSpec logo" height="64">
     </picture>
   </a>
   
@@ -19,7 +17,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/lightspec_dashboard.png" alt="LightSpec dashboard preview" width="90%">
+  <img src="assets/openspec_dashboard.png" alt="LightSpec dashboard preview" width="90%">
 </p>
 
 <p align="center">
@@ -28,7 +26,7 @@
 
 # LightSpec
 
-A fork of [LightSpec](https://github.com/Fission-AI/LightSpec) v0.23.0
+A fork of [LightSpec](https://github.com/augmenter-dev/LightSpec), focused on simplicity and skill-based agents.
 
 LightSpec aligns humans and AI coding assistants with spec-driven development so you agree on what to build before any code is written. **No API keys required.**
 
@@ -378,6 +376,9 @@ Deltas are "patches" that show how specs change:
 - Use SHALL/MUST in requirement text
 
 ## How LightSpec Compares
+
+### vs. OpenSpec
+OpenSpec has evolved into a more mature yet complex tool with a rich feature set. LightSpec focuses on simplicity and ease of adoption, especially for teams new to spec-driven development. LightSpec's minimalist approach has the additional benefit of reducing the number of skills and commands needed, and reducing the risk of involuntary skill activation from AI assistants.
 
 ### vs. spec-kit
 LightSpec’s two-folder model (`lightspec/specs/` for the current truth, `lightspec/changes/` for proposed updates) keeps state and diffs separate. This scales when you modify existing features or touch multiple specs. spec-kit is strong for greenfield/0→1 but provides less structure for cross-spec updates and evolving features.
