@@ -7,6 +7,7 @@ const FILE_PATHS: Record<SlashCommandId, string> = {
   proposal: ".opencode/command/lightspec-proposal.md",
   apply: ".opencode/command/lightspec-apply.md",
   archive: ".opencode/command/lightspec-archive.md",
+  'context-check': ".opencode/command/lightspec-context-check.md"
 };
 
 const FRONTMATTER: Record<SlashCommandId, string> = {
@@ -33,6 +34,9 @@ description: Archive a deployed LightSpec change and update specs.
   $ARGUMENTS
 </ChangeId>
 `,
+  'context-check': `---
+description: Validate project context in agent instruction files and help populate missing information.
+---`
 };
 
 export class OpenCodeSlashCommandConfigurator extends SlashCommandConfigurator {

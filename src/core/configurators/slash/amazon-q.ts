@@ -4,7 +4,8 @@ import { SlashCommandId } from '../../templates/index.js';
 const FILE_PATHS: Record<SlashCommandId, string> = {
   proposal: '.amazonq/prompts/lightspec-proposal.md',
   apply: '.amazonq/prompts/lightspec-apply.md',
-  archive: '.amazonq/prompts/lightspec-archive.md'
+  archive: '.amazonq/prompts/lightspec-archive.md',
+  'context-check': '.aws/amazonq/commands/lightspec-context-check.md'
 };
 
 const FRONTMATTER: Record<SlashCommandId, string> = {
@@ -34,7 +35,10 @@ The user wants to archive the following deployed change. Use the lightspec instr
 
 <ChangeId>
   $ARGUMENTS
-</ChangeId>`
+</ChangeId>`,
+  'context-check': `---
+description: Validate project context in agent instruction files and help populate missing information.
+---`
 };
 
 export class AmazonQSlashCommandConfigurator extends SlashCommandConfigurator {

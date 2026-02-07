@@ -15,13 +15,15 @@ import { SlashCommandId } from '../../templates/index.js';
 const FILE_PATHS: Record<SlashCommandId, string> = {
   proposal: '.qwen/commands/lightspec-proposal.toml',
   apply: '.qwen/commands/lightspec-apply.toml',
-  archive: '.qwen/commands/lightspec-archive.toml'
+  archive: '.qwen/commands/lightspec-archive.toml',
+  'context-check': '.qwen/prompts/lightspec-context-check.md'
 };
 
 const DESCRIPTIONS: Record<SlashCommandId, string> = {
   proposal: 'Scaffold a new LightSpec change and validate strictly.',
   apply: 'Implement an approved LightSpec change and keep tasks in sync.',
-  archive: 'Archive a deployed LightSpec change and update specs.'
+  archive: 'Archive a deployed LightSpec change and update specs.',
+  'context-check': 'Validate project context in agent instruction files and help populate missing information.'
 };
 
 /**

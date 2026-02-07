@@ -4,7 +4,8 @@ import { SlashCommandId } from '../../templates/index.js';
 const FILE_PATHS: Record<SlashCommandId, string> = {
   proposal: '.iflow/commands/lightspec-proposal.md',
   apply: '.iflow/commands/lightspec-apply.md',
-  archive: '.iflow/commands/lightspec-archive.md'
+  archive: '.iflow/commands/lightspec-archive.md',
+  'context-check': '.iflow/commands/lightspec-context-check.md'
 };
 
 const FRONTMATTER: Record<SlashCommandId, string> = {
@@ -25,6 +26,12 @@ name: /lightspec-archive
 id: lightspec-archive
 category: LightSpec
 description: Archive a deployed LightSpec change and update specs.
+---`,
+  'context-check': `---
+name: LightSpec: Context Check
+description: Validate project context in agent instruction files and help populate missing information.
+category: LightSpec
+tags: [lightspec, context, validation]
 ---`
 };
 

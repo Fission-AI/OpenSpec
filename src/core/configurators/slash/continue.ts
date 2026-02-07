@@ -4,7 +4,8 @@ import { SlashCommandId } from '../../templates/index.js';
 const FILE_PATHS: Record<SlashCommandId, string> = {
   proposal: '.continue/prompts/lightspec-proposal.prompt',
   apply: '.continue/prompts/lightspec-apply.prompt',
-  archive: '.continue/prompts/lightspec-archive.prompt'
+  archive: '.continue/prompts/lightspec-archive.prompt',
+  'context-check': '.continue/commands/lightspec-context-check.md'
 };
 
 /*
@@ -34,6 +35,12 @@ invokable: true
 name: lightspec-archive
 description: Archive a deployed LightSpec change and update specs.
 invokable: true
+---`,
+  'context-check': `---
+name: LightSpec: Context Check
+description: Validate project context in agent instruction files and help populate missing information.
+category: LightSpec
+tags: [lightspec, context, validation]
 ---`
 };
 

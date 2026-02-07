@@ -5,6 +5,7 @@ const FILE_PATHS = {
   proposal: '.cospec/lightspec/commands/lightspec-proposal.md',
   apply: '.cospec/lightspec/commands/lightspec-apply.md',
   archive: '.cospec/lightspec/commands/lightspec-archive.md',
+  'context-check': '.cospec/lightspec/commands/lightspec-context-check.md'
 } as const satisfies Record<SlashCommandId, string>;
 
 const FRONTMATTER = {
@@ -19,6 +20,9 @@ argument-hint: change-id
   archive: `---
 description: "Archive a deployed LightSpec change and update specs."
 argument-hint: change-id
+---`,
+  'context-check': `---
+description: "Validate project context in agent instruction files and help populate missing information."
 ---`
 } as const satisfies Record<SlashCommandId, string>;
 

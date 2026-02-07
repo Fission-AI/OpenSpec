@@ -4,13 +4,15 @@ import { SlashCommandId } from '../../templates/index.js';
 const FILE_PATHS: Record<SlashCommandId, string> = {
   proposal: '.agent/workflows/lightspec-proposal.md',
   apply: '.agent/workflows/lightspec-apply.md',
-  archive: '.agent/workflows/lightspec-archive.md'
+  archive: '.agent/workflows/lightspec-archive.md',
+  'context-check': '.antigravity/commands/lightspec-context-check.md'
 };
 
 const DESCRIPTIONS: Record<SlashCommandId, string> = {
   proposal: 'Scaffold a new LightSpec change and validate strictly.',
   apply: 'Implement an approved LightSpec change and keep tasks in sync.',
-  archive: 'Archive a deployed LightSpec change and update specs.'
+  archive: 'Archive a deployed LightSpec change and update specs.',
+  'context-check': 'Validate project context in agent instruction files and help populate missing information.'
 };
 
 export class AntigravitySlashCommandConfigurator extends SlashCommandConfigurator {

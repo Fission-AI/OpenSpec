@@ -4,7 +4,8 @@ import { SlashCommandId } from '../../templates/index.js';
 const FILE_PATHS: Record<SlashCommandId, string> = {
   proposal: '.github/prompts/lightspec-proposal.prompt.md',
   apply: '.github/prompts/lightspec-apply.prompt.md',
-  archive: '.github/prompts/lightspec-archive.prompt.md'
+  archive: '.github/prompts/lightspec-archive.prompt.md',
+  'context-check': '.github/copilot/prompts/lightspec-context-check.md'
 };
 
 const FRONTMATTER: Record<SlashCommandId, string> = {
@@ -22,7 +23,10 @@ $ARGUMENTS`,
 description: Archive a deployed LightSpec change and update specs.
 ---
 
-$ARGUMENTS`
+$ARGUMENTS`,
+  'context-check': `---
+description: Validate project context in agent instruction files and help populate missing information.
+---`
 };
 
 export class GitHubCopilotSlashCommandConfigurator extends SlashCommandConfigurator {

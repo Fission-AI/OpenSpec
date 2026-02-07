@@ -4,7 +4,8 @@ import { SlashCommandId } from '../../templates/index.js';
 const FILE_PATHS: Record<SlashCommandId, string> = {
   proposal: '.augment/commands/lightspec-proposal.md',
   apply: '.augment/commands/lightspec-apply.md',
-  archive: '.augment/commands/lightspec-archive.md'
+  archive: '.augment/commands/lightspec-archive.md',
+  'context-check': '.auggie/commands/lightspec-context-check.md'
 };
 
 const FRONTMATTER: Record<SlashCommandId, string> = {
@@ -19,6 +20,12 @@ argument-hint: change-id
   archive: `---
 description: Archive a deployed LightSpec change and update specs.
 argument-hint: change-id
+---`,
+  'context-check': `---
+name: LightSpec: Context Check
+description: Validate project context in agent instruction files and help populate missing information.
+category: LightSpec
+tags: [lightspec, context, validation]
 ---`
 };
 

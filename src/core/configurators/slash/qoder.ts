@@ -14,7 +14,8 @@ const FILE_PATHS: Record<SlashCommandId, string> = {
   apply: '.qoder/commands/lightspec/apply.md',
   
   // Archive completed changes and update specs
-  archive: '.qoder/commands/lightspec/archive.md'
+  archive: '.qoder/commands/lightspec/archive.md',
+  'context-check': '.qoder/prompts/lightspec-context-check.md'
 };
 
 /**
@@ -40,6 +41,12 @@ name: LightSpec: Archive
 description: Archive a deployed LightSpec change and update specs.
 category: LightSpec
 tags: [lightspec, archive]
+---`,
+  'context-check': `---
+name: LightSpec: Context Check
+description: Validate project context in agent instruction files and help populate missing information.
+category: LightSpec
+tags: [lightspec, context, validation]
 ---`
 };
 

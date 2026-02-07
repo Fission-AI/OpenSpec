@@ -10,6 +10,7 @@ const FILE_PATHS: Record<SlashCommandId, string> = {
   proposal: ".codex/prompts/lightspec-proposal.md",
   apply: ".codex/prompts/lightspec-apply.md",
   archive: ".codex/prompts/lightspec-archive.md",
+  "context-check": ".codex/prompts/lightspec-context-check.md",
 };
 
 export class CodexSlashCommandConfigurator extends SlashCommandConfigurator {
@@ -42,6 +43,9 @@ argument-hint: change-id
 ---
 
 $ARGUMENTS`,
+      "context-check": `---
+description: Validate project context in agent instruction files and help populate missing information.
+---`,
     };
     return frontmatter[id];
   }

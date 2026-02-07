@@ -4,7 +4,8 @@ import { SlashCommandId } from '../../templates/index.js';
 const FILE_PATHS: Record<SlashCommandId, string> = {
   proposal: '.claude/commands/lightspec/proposal.md',
   apply: '.claude/commands/lightspec/apply.md',
-  archive: '.claude/commands/lightspec/archive.md'
+  archive: '.claude/commands/lightspec/archive.md',
+  'context-check': '.claude/commands/lightspec/context-check.md'
 };
 
 const FRONTMATTER: Record<SlashCommandId, string> = {
@@ -25,6 +26,12 @@ name: LightSpec: Archive
 description: Archive a deployed LightSpec change and update specs.
 category: LightSpec
 tags: [lightspec, archive]
+---`,
+  'context-check': `---
+name: LightSpec: Context Check
+description: Validate project context in agent instruction files and help populate missing information.
+category: LightSpec
+tags: [lightspec, context, validation]
 ---`
 };
 
