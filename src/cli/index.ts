@@ -21,26 +21,6 @@ const program = new Command();
 const require = createRequire(import.meta.url);
 const { version } = require('../../package.json');
 
-/**
- * Get the full command path for nested commands.
- * For example: 'change show' -> 'change:show'
- */
-function getCommandPath(command: Command): string {
-  const names: string[] = [];
-  let current: Command | null = command;
-
-  while (current) {
-    const name = current.name();
-    // Skip the root 'lightspec' command
-    if (name && name !== 'lightspec') {
-      names.unshift(name);
-    }
-    current = current.parent;
-  }
-
-  return names.join(':') || 'lightspec';
-}
-
 program
   .name('lightspec')
   .description('AI-native system for spec-driven development')
@@ -50,10 +30,7 @@ program
 program.option('--no-color', 'Disable color output');
 
 // Apply global flags and telemetry before any command runs
-// Note: preAction receives (thisCommand, actionCommand) where:
-// - thisCommand: the command where hook was added (root program)
-// - actionCommand: the command actually being executed (subcommand)
-program.hook('preAction', async (thisCommand, actionCommand) => {
+program.hook('preAction', async (thisCommand) => {
   const opts = thisCommand.opts();
   if (opts.color === false) {
     process.env.NO_COLOR = '1';
@@ -62,9 +39,8 @@ program.hook('preAction', async (thisCommand, actionCommand) => {
   // Show first-run telemetry notice (if not seen)
   await maybeShowTelemetryNotice();
 
-  // Track command execution (use actionCommand to get the actual subcommand)
-  const commandPath = getCommandPath(actionCommand);
-  await trackCommand(commandPath, version);
+  // Track command execution
+  await trackCommand();
 });
 
 // Shutdown telemetry after command completes

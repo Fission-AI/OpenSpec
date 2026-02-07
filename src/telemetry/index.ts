@@ -65,10 +65,9 @@ export async function getOrCreateAnonymousId(): Promise<string> {
 /**
  * Track a command execution.
  *
- * @param commandName - The command name (e.g., 'init', 'change:apply')
- * @param version - The LightSpec version
+ * Telemetry is currently disabled - this function exists for future use.
  */
-export async function trackCommand(_commandName: string, _version: string): Promise<void> {
+export async function trackCommand(): Promise<void> {
   if (!isTelemetryEnabled()) {
     return;
   }

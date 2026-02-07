@@ -89,7 +89,7 @@ describe('telemetry/index', () => {
     it('should do nothing when telemetry is disabled', async () => {
       process.env.LIGHTSPEC_TELEMETRY = '0';
 
-      await expect(trackCommand('test', '1.0.0')).resolves.not.toThrow();
+      await expect(trackCommand()).resolves.not.toThrow();
     });
 
     it('should not throw when telemetry is enabled', async () => {
@@ -97,7 +97,7 @@ describe('telemetry/index', () => {
       delete process.env.DO_NOT_TRACK;
       delete process.env.CI;
 
-      await expect(trackCommand('test', '1.0.0')).resolves.not.toThrow();
+      await expect(trackCommand()).resolves.not.toThrow();
     });
   });
 
