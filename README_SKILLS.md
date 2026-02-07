@@ -54,19 +54,16 @@ All other LightSpec commands are available through the CLI:
 
 ```bash
 # Install globally
-npm install -g @viteinfinite/lightspec
+npm install -g lightspec
 
 # Or use npx
-npx @viteinfinite/lightspec <command>
+npx lightspec <command>
 
 # Available commands
 lightspec init           # Initialize LightSpec in a project
 lightspec list           # List changes and specs
 lightspec validate       # Validate changes and specs
 lightspec show           # Display a change or spec
-lightspec status         # Show artifact status
-lightspec instructions   # Get artifact instructions
-lightspec schemas        # List workflow schemas
 lightspec completion     # Manage shell completions
 ```
 

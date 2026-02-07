@@ -551,74 +551,7 @@ artifacts:
     });
   });
 
-  describe('help text', () => {
-    it('marks status command as experimental in help', async () => {
-      const result = await runCLI(['status', '--help']);
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('[Experimental]');
-    });
-
-    it('marks instructions command as experimental in help', async () => {
-      const result = await runCLI(['instructions', '--help']);
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('[Experimental]');
-    });
-
-    it('marks templates command as experimental in help', async () => {
-      const result = await runCLI(['templates', '--help']);
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('[Experimental]');
-    });
-
-    it('marks new command as experimental in help', async () => {
-      const result = await runCLI(['new', '--help']);
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('[Experimental]');
-    });
-  });
-
   describe('project config integration', () => {
-    describe('new change uses config schema', () => {
-      it('creates change with schema from project config', async () => {
-        // Create project config with tdd schema
-        // Note: changesDir is already at tempDir/lightspec/changes (created in beforeEach)
-        await fs.writeFile(
-          path.join(tempDir, 'lightspec', 'config.yaml'),
-          'schema: tdd\n'
-        );
-
-        // Create a new change without specifying schema
-        const result = await runCLI(['new', 'change', 'test-change'], { cwd: tempDir, timeoutMs: 30000 });
-        expect(result.exitCode).toBe(0);
-
-        // Verify the change was created with tdd schema
-        const metadataPath = path.join(changesDir, 'test-change', '.lightspec.yaml');
-        const metadata = await fs.readFile(metadataPath, 'utf-8');
-        expect(metadata).toContain('schema: tdd');
-      }, 60000);
-
-      it('CLI schema overrides config schema', async () => {
-        // Create project config with tdd schema
-        // Note: lightspec directory already exists (from changesDir creation in beforeEach)
-        await fs.writeFile(
-          path.join(tempDir, 'lightspec', 'config.yaml'),
-          'schema: tdd\n'
-        );
-
-        // Create change with explicit schema
-        const result = await runCLI(
-          ['new', 'change', 'override-test', '--schema', 'spec-driven'],
-          { cwd: tempDir, timeoutMs: 30000 }
-        );
-        expect(result.exitCode).toBe(0);
-
-        // Verify the change uses the CLI-specified schema
-        const metadataPath = path.join(changesDir, 'override-test', '.lightspec.yaml');
-        const metadata = await fs.readFile(metadataPath, 'utf-8');
-        expect(metadata).toContain('schema: spec-driven');
-      }, 60000);
-    });
-
     describe('instructions command with config', () => {
       it('injects context and rules from config into instructions', async () => {
         // Create project config with context and rules

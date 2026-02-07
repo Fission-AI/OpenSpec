@@ -26,10 +26,6 @@
   Follow <a href="https://x.com/0xTab">@0xTab on X</a> for updates · Join the <a href="https://discord.gg/YctCnvvshC">LightSpec Discord</a> for help and questions.
 </p>
 
-<p align="center">
-  <sub>🧪 <strong>New:</strong> <a href="docs/experimental-workflow.md">Experimental Workflow (OPSX)</a> — schema-driven, hackable, fluid. Iterate on workflows without code changes.</sub>
-</p>
-
 # LightSpec
 
 A fork of [LightSpec](https://github.com/Fission-AI/LightSpec) v0.23.0
@@ -409,53 +405,6 @@ Run `lightspec update` whenever someone switches tools so your agents pick up th
    ```
 2. **Refresh agent instructions**
    - Run `lightspec update` inside each project to regenerate AI guidance and ensure the latest slash commands are active.
-
-## Experimental Features
-
-<details>
-<summary><strong>🧪 OPSX: Fluid, Iterative Workflow</strong> (Claude Code only)</summary>
-
-**Why this exists:**
-- Standard workflow is locked down — you can't tweak instructions or customize
-- When AI output is bad, you can't improve the prompts yourself
-- Same workflow for everyone, no way to match how your team works
-
-**What's different:**
-- **Hackable** — edit templates and schemas yourself, test immediately, no rebuild
-- **Granular** — each artifact has its own instructions, test and tweak individually
-- **Customizable** — define your own workflows, artifacts, and dependencies
-- **Fluid** — no phase gates, update any artifact anytime
-
-```
-You can always go back:
-
-  proposal ──→ specs ──→ design ──→ tasks ──→ implement
-     ▲           ▲          ▲                    │
-     └───────────┴──────────┴────────────────────┘
-```
-
-| Command | What it does |
-|---------|--------------|
-| `/opsx:new` | Start a new change |
-| `/opsx:continue` | Create the next artifact (based on what's ready) |
-| `/opsx:ff` | Fast-forward (all planning artifacts at once) |
-| `/opsx:apply` | Implement tasks, updating artifacts as needed |
-| `/opsx:archive` | Archive when done |
-
-**Setup:** `lightspec artifact-experimental-setup`
-
-[Full documentation →](docs/experimental-workflow.md)
-
-</details>
-
-<details>
-<summary><strong>Telemetry</strong> – LightSpec collects anonymous usage stats (opt-out: <code>LIGHTSPEC_TELEMETRY=0</code>)</summary>
-
-We collect only command names and version to understand usage patterns. No arguments, paths, content, or PII. Automatically disabled in CI.
-
-**Opt-out:** `export LIGHTSPEC_TELEMETRY=0` or `export DO_NOT_TRACK=1`
-
-</details>
 
 ## Contributing
 

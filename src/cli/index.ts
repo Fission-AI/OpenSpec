@@ -15,8 +15,6 @@ import { ShowCommand } from '../commands/show.js';
 import { CompletionCommand } from '../commands/completion.js';
 import { FeedbackCommand } from '../commands/feedback.js';
 import { registerConfigCommand } from '../commands/config.js';
-import { registerArtifactWorkflowCommands } from '../commands/artifact-workflow.js';
-import { registerSchemaCommand } from '../commands/schema.js';
 import { maybeShowTelemetryNotice, trackCommand, shutdown } from '../telemetry/index.js';
 
 const program = new Command();
@@ -244,7 +242,6 @@ program
 
 registerSpecCommand(program);
 registerConfigCommand(program);
-registerSchemaCommand(program);
 
 // Top-level validate command
 program
@@ -374,8 +371,5 @@ program
       process.exitCode = 1;
     }
   });
-
-// Register artifact workflow commands (experimental)
-registerArtifactWorkflowCommands(program);
 
 program.parse();
