@@ -26,3 +26,5 @@ export {
   getCommandContents,
   generateSkillContent,
 } from './skill-generation.js';
+
+export { migrateOpenCodeCommands } from './opencode-migration.js';

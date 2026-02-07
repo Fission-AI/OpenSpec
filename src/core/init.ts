@@ -39,6 +39,7 @@ import {
   getSkillTemplates,
   getCommandContents,
   generateSkillContent,
+  migrateOpenCodeCommands,
   type ToolSkillStatus,
 } from './shared/index.js';
 
@@ -430,6 +431,7 @@ export class InitCommand {
     // Process each tool
     for (const tool of tools) {
       const spinner = ora(`Setting up ${tool.name}...`).start();
+      const canPrompt = this.canPromptInteractively();
 
       try {
         // Use tool-specific skillsDir
@@ -447,6 +449,16 @@ export class InitCommand {
 
           // Write the skill file
           await FileSystemUtils.writeFile(skillFile, skillContent);
+        }
+
+        if (tool.value === 'opencode') {
+          if (canPrompt) {
+            spinner.stop();
+          }
+          await migrateOpenCodeCommands(projectPath, canPrompt);
+          if (canPrompt) {
+            spinner.start();
+          }
         }
 
         // Generate commands using the adapter system

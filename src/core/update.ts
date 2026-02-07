@@ -23,6 +23,7 @@ import {
   getCommandContents,
   generateSkillContent,
   getToolsWithSkillsDir,
+  migrateOpenCodeCommands,
   type ToolVersionStatus,
 } from './shared/index.js';
 import {
@@ -61,6 +62,9 @@ export class UpdateCommand {
     if (!await FileSystemUtils.directoryExists(openspecPath)) {
       throw new Error(`No OpenSpec directory found. Run 'openspec init' first.`);
     }
+
+    // 1b. Migrate legacy OpenCode commands if present
+    await migrateOpenCodeCommands(resolvedProjectPath, isInteractive());
 
     // 2. Detect and handle legacy artifacts + upgrade legacy tools to new skills
     const newlyConfiguredTools = await this.handleLegacyCleanup(resolvedProjectPath);
@@ -109,6 +113,7 @@ export class UpdateCommand {
       if (!tool?.skillsDir) continue;
 
       const spinner = ora(`Updating ${tool.name}...`).start();
+      const canPrompt = isInteractive();
 
       try {
         const skillsDir = path.join(resolvedProjectPath, tool.skillsDir, 'skills');
@@ -131,6 +136,9 @@ export class UpdateCommand {
 
           for (const cmd of generatedCommands) {
             const commandFile = path.isAbsolute(cmd.path) ? cmd.path : path.join(resolvedProjectPath, cmd.path);
+            if (!await FileSystemUtils.fileExists(commandFile)) {
+              continue;
+            }
             await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
           }
         }

@@ -158,10 +158,13 @@ Old instructions content
         'old content'
       );
 
+      const commandsDir = path.join(testDir, '.claude', 'commands', 'opsx');
+      await fs.mkdir(commandsDir, { recursive: true });
+      await fs.writeFile(path.join(commandsDir, 'explore.md'), 'old command');
+
       await updateCommand.execute(testDir);
 
       // Check opsx command files were created
-      const commandsDir = path.join(testDir, '.claude', 'commands', 'opsx');
       const exploreCmd = path.join(commandsDir, 'explore.md');
       const exists = await FileSystemUtils.fileExists(exploreCmd);
       expect(exists).toBe(true);
@@ -185,8 +188,8 @@ Old instructions content
         'old content'
       );
 
-      await updateCommand.execute(testDir);
-
+      const commandsDir = path.join(testDir, '.claude', 'commands', 'opsx');
+      await fs.mkdir(commandsDir, { recursive: true });
       const commandIds = [
         'explore',
         'new',
@@ -198,8 +201,12 @@ Old instructions content
         'bulk-archive',
         'verify',
       ];
+      for (const cmdId of commandIds) {
+        await fs.writeFile(path.join(commandsDir, `${cmdId}.md`), 'old command');
+      }
 
-      const commandsDir = path.join(testDir, '.claude', 'commands', 'opsx');
+      await updateCommand.execute(testDir);
+
       for (const cmdId of commandIds) {
         const cmdFile = path.join(commandsDir, `${cmdId}.md`);
         const exists = await FileSystemUtils.fileExists(cmdFile);
@@ -267,6 +274,13 @@ Old instructions content
         'old'
       );
 
+      const qwenCommandsDir = path.join(testDir, '.qwen', 'commands');
+      await fs.mkdir(qwenCommandsDir, { recursive: true });
+      await fs.writeFile(
+        path.join(qwenCommandsDir, 'opsx-explore.toml'),
+        'old command'
+      );
+
       await updateCommand.execute(testDir);
 
       // Check Qwen command format (TOML) - Qwen uses flat path structure: opsx-<id>.toml
@@ -293,6 +307,13 @@ Old instructions content
       await fs.writeFile(
         path.join(windsurfSkillsDir, 'openspec-explore', 'SKILL.md'),
         'old'
+      );
+
+      const windsurfCommandsDir = path.join(testDir, '.windsurf', 'workflows');
+      await fs.mkdir(windsurfCommandsDir, { recursive: true });
+      await fs.writeFile(
+        path.join(windsurfCommandsDir, 'opsx-explore.md'),
+        'old command'
       );
 
       await updateCommand.execute(testDir);
