@@ -3,12 +3,6 @@ import { Change, Delta, DeltaOperation, Requirement } from '../schemas/index.js'
 import path from 'path';
 import { promises as fs } from 'fs';
 
-interface DeltaSection {
-  operation: DeltaOperation;
-  requirements: Requirement[];
-  renames?: Array<{ from: string; to: string }>;
-}
-
 export class ChangeParser extends MarkdownParser {
   private changeDir: string;
 

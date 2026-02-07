@@ -19,7 +19,7 @@ permissions:
 jobs:
   polish:
     # Only run on the main repo, not forks
-    if: github.repository == 'Fission-AI/OpenSpec'
+    if: github.repository == 'augmenter-dev/lightspec'
     runs-on: ubuntu-latest
 
     steps:
@@ -41,11 +41,11 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: "--allowedTools Write,Read"
           prompt: |
-            Transform the changelog in `current-notes.md` into release notes for OpenSpec ${{ env.TAG_NAME }}.
+            Transform the changelog in `current-notes.md` into release notes for LightSpec ${{ env.TAG_NAME }}.
 
             ## Voice
 
-            OpenSpec is a developer tool. Write like you're talking to a peer:
+            LightSpec is a developer tool. Write like you're talking to a peer:
             - Direct and practical, not marketing copy
             - Focus on what changed and why it matters
             - Skip the hype, keep it real
@@ -62,7 +62,7 @@ jobs:
             ```
 
             Examples:
-            - `v0.18.0 - OPSX Experimental Workflow`
+            - `v0.23.0 - Enhanced Change Management`
             - `v0.16.0 - Antigravity, iFlow Support`
             - `v0.15.0 - Gemini CLI, RooCode`
 
@@ -96,7 +96,7 @@ jobs:
 
             ## Rules
 
-            1. Write for developers using OpenSpec with AI coding assistants
+            1. Write for developers using LightSpec with AI coding assistants
             2. Remove commit hashes (like `eb152eb:`), PR numbers, and changesets wrappers (`### Minor Changes`)
             3. Lead with what users can do, not implementation details
             4. One to two sentences per item, max
@@ -109,21 +109,21 @@ jobs:
             Before:
             ```
             ### Minor Changes
-            - 8dfd824: Add OPSX experimental workflow commands and enhanced artifact system
+            - 8dfd824: Add support for archiving completed changes with metadata preservation
               **New Commands:**
-              - `/opsx:ff` - Fast-forward through artifact creation
+              - `lightspec archive` - Archive completed changes
             ```
 
             After (polished-notes.md):
             ```
             ### New
 
-            - **Fast-forward mode** - Generate all planning artifacts at once with `/opsx:ff`. Useful when you already know what you're building.
+            - **Change archiving** - Archive completed changes with `lightspec archive`. Preserves change history and metadata.
             ```
 
             After (release-title.txt):
             ```
-            v0.18.0 - OPSX Experimental Workflow
+            v0.23.0 - Enhanced Change Management
             ```
 
             Write both files. No other output.
