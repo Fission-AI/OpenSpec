@@ -1,5 +1,17 @@
 # lightspec
 
+## 0.2.0
+
+### Minor Changes
+
+- [`f7776e8`](https://github.com/augmenter-dev/LightSpec/commit/f7776e8809b9db94babb3ad39632eb22c4920b9d) Thanks [@viteinfinite](https://github.com/viteinfinite)! - ### New Features
+
+  - **Mistral Vibe support** — `lightspec init` now supports `mistral-vibe` and installs LightSpec skills under `.vibe/skills/...`.
+
+  ### Other
+
+  - Removed an obsolete Codex-only setup note from init success output.
+
 ## 0.1.1
 
 ### Patch Changes
