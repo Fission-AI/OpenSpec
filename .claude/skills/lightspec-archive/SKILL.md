@@ -57,4 +57,4 @@ Ensure:
 
 ## After Archiving
 
-The change will be moved to `openspec/changes/archive/` and main specs will be updated with the changes.
+The change will be moved to `lightspec/changes/archive/` and main specs will be updated with the changes.

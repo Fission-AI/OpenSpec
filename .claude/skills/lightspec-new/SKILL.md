@@ -12,8 +12,8 @@ Use this skill when starting a new feature, bug fix, or any tracked work.
 
 ## What This Does
 
-1. Creates a new change directory under `openspec/changes/<name>/`
-2. Creates a `.openspec.yaml` metadata file with schema info
+1. Creates a new change directory under `lightspec/changes/<name>/`
+2. Creates change metadata for tracking
 3. Optionally adds a README.md with description
 
 ## Implementation

@@ -28,7 +28,7 @@ lightspec instructions apply [options]
 ### Options
 
 - `--change <id>`: Change name (auto-detected if only one change)
-- `--schema <name>`: Schema override (auto-detected from .openspec.yaml)
+- `--schema <name>`: Schema override (auto-detected from change metadata)
 - `--json`: Output as JSON (for agents/automation)
 
 ### Example
