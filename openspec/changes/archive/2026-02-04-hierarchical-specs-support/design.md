@@ -36,7 +36,7 @@ User feedback shows teams need hierarchical organization for domain-driven desig
 **Non-Goals:**
 - Support for multiple `spec.md` files in a single capability path (one spec per leaf directory)
 - Automatic migration of existing flat structures to hierarchical
-- Mixed flat/hierarchical specs in the same project (unless explicitly configured with `allowMixed: true`)
+- Enforcing pure flat or pure hierarchical by default (mixed structures are allowed by default via `allowMixed: true`; set `allowMixed: false` to enforce a single structure mode)
 - Support for spec files named other than `spec.md`
 
 ## Decisions
@@ -388,14 +388,11 @@ When creating delta specs in changes, replicate the exact structure:
 
 ## Open Questions
 
-1. **Should we warn users when mixing flat and hierarchical specs (when `allowMixed: true`)?**
-   - Lean toward warning to encourage consistency
-   - Config could disable warnings
+1. **~~Should we warn users when mixing flat and hierarchical specs (when `allowMixed: true`)?~~**
+   - Resolved: no warnings when `allowMixed: true` (the default). Mixed structures are silently allowed. Setting `allowMixed: false` produces errors, not warnings.
 
-2. **How should `openspec new` prompt for spec structure?**
-   - Auto-detect from existing `specs/` if present
-   - Prompt only if creating first spec
-   - Or always use flat and let users reorganize manually
+2. **~~How should `openspec new` prompt for spec structure?~~**
+   - Resolved: there is no `openspec new` subcommand for individual specs. Specs are created through the change/delta workflow (`/opsx:new`) or manually. Structure is determined by directory placement.
 
 3. **~~Should capability names in prompts/templates use platform-specific separators?~~**
    - Resolved: prompts and documentation always use `/` for consistency and readability
