@@ -197,7 +197,7 @@ Prevent `spec.md` at intermediate levels:
 - Default `maxDepth: 4`, recommended 2-3
 
 **3. Naming Conventions (ERROR):**
-- Lowercase alphanumeric with hyphens/underscores: `/^[a-z0-9-_]+$/`
+- Each path segment validated individually: `/^[a-z0-9-_]+$/` (e.g., `platform/services/api` → segments `platform`, `services`, `api` each checked)
 - No reserved names: `..`, `.`, `.git`, `node_modules`
 - No leading/trailing separators
 
