@@ -1,4 +1,4 @@
-import { SlashCommandConfigurator } from './base.js';
+import { SlashCommandConfigurator, SkillInstallLocation } from './base.js';
 import { ClaudeSlashCommandConfigurator } from './claude.js';
 import { CodeBuddySlashCommandConfigurator } from './codebuddy.js';
 import { QoderSlashCommandConfigurator } from './qoder.js';
@@ -80,5 +80,11 @@ export class SlashCommandRegistry {
 
   static getAll(): SlashCommandConfigurator[] {
     return Array.from(this.configurators.values());
+  }
+
+  static setInstallLocation(location: SkillInstallLocation): void {
+    for (const configurator of this.configurators.values()) {
+      configurator.setInstallLocation(location);
+    }
   }
 }

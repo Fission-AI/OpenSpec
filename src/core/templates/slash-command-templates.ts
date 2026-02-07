@@ -1,61 +1,30 @@
 export type SlashCommandId = 'proposal' | 'apply' | 'archive' | 'context-check';
-
-const baseGuardrails = `**Guardrails**
-- Favor straightforward, minimal implementations first and add complexity only when it is requested or clearly required.
-- Keep changes tightly scoped to the requested outcome.
-- Refer to \`lightspec/AGENTS.md\` (located inside the \`lightspec/\` directory—run \`ls lightspec\` or \`lightspec update\` if you don't see it) if you need additional LightSpec conventions or clarifications.`;
-
-const proposalGuardrails = `${baseGuardrails}\n- Identify any vague or ambiguous details and ask the necessary follow-up questions before editing files.
-- Do not write any code during the proposal stage. Only create design documents (proposal.md, tasks.md, design.md, and spec deltas). Implementation happens in the apply stage after approval.`;
-
-const proposalSteps = `**Steps**
-1. Run \`lightspec list\` and \`lightspec list --specs\`, and inspect related code or docs (e.g., via \`rg\`/\`ls\`) to ground the proposal in current behaviour; note any gaps that require clarification.
-2. Choose a unique verb-led \`change-id\` and scaffold \`proposal.md\`, \`tasks.md\`, and \`design.md\` (when needed) under \`lightspec/changes/<id>/\`.
-3. Map the change into concrete capabilities or requirements, breaking multi-scope efforts into distinct spec deltas with clear relationships and sequencing.
-4. Capture architectural reasoning in \`design.md\` when the solution spans multiple systems, introduces new patterns, or demands trade-off discussion before committing to specs.
-5. Draft spec deltas in \`changes/<id>/specs/<capability>/spec.md\` (one folder per capability) using \`## ADDED|MODIFIED|REMOVED Requirements\` with at least one \`#### Scenario:\` per requirement and cross-reference related capabilities when relevant.
-6. Draft \`tasks.md\` as an ordered list of small, verifiable work items that deliver user-visible progress, include validation (tests, tooling), and highlight dependencies or parallelizable work.
-7. Validate with \`lightspec validate <id> --strict --no-interactive\` and resolve every issue before sharing the proposal.`;
-
-
-const proposalReferences = `**Reference**
-- Use \`lightspec show <id> --json --deltas-only\` or \`lightspec show <spec> --type spec\` to inspect details when validation fails.
-- Search existing requirements with \`rg -n "Requirement:|Scenario:" lightspec/specs\` before writing new ones.
-- Explore the codebase with \`rg <keyword>\`, \`ls\`, or direct file reads so proposals align with current implementation realities.`;
-
-const applySteps = `**Steps**
-Track these steps as TODOs and complete them one by one.
-1. Read \`changes/<id>/proposal.md\`, \`design.md\` (if present), and \`tasks.md\` to confirm scope and acceptance criteria.
-2. Work through tasks sequentially, keeping edits minimal and focused on the requested change.
-3. Confirm completion before updating statuses—make sure every item in \`tasks.md\` is finished.
-4. Update the checklist after all work is done so each task is marked \`- [x]\` and reflects reality.
-5. Reference \`lightspec list\` or \`lightspec show <item>\` when additional context is required.`;
-
-const applyReferences = `**Reference**
-- Use \`lightspec show <id> --json --deltas-only\` if you need additional context from the proposal while implementing.`;
-
-const archiveSteps = `**Steps**
-1. Determine the change ID to archive:
-   - If this prompt already includes a specific change ID (for example inside a \`<ChangeId>\` block populated by slash-command arguments), use that value after trimming whitespace.
-   - If the conversation references a change loosely (for example by title or summary), run \`lightspec list\` to surface likely IDs, share the relevant candidates, and confirm which one the user intends.
-   - Otherwise, review the conversation, run \`lightspec list\`, and ask the user which change to archive; wait for a confirmed change ID before proceeding.
-   - If you still cannot identify a single change ID, stop and tell the user you cannot archive anything yet.
-2. Validate the change ID by running \`lightspec list\` (or \`lightspec show <id>\`) and stop if the change is missing, already archived, or otherwise not ready to archive.
-3. Run \`lightspec archive <id> --yes\` so the CLI moves the change and applies spec updates without prompts (use \`--skip-specs\` only for tooling-only work).
-4. Review the command output to confirm the target specs were updated and the change landed in \`changes/archive/\`.
-5. Validate with \`lightspec validate --strict --no-interactive\` and inspect with \`lightspec show <id>\` if anything looks off.`;
-
-const archiveReferences = `**Reference**
-- Use \`lightspec list\` to confirm change IDs before archiving.
-- Inspect refreshed specs with \`lightspec list --specs\` and address any validation issues before handing off.`;
+import { applyTemplate, applyFrontmatter } from './apply-template.js';
+import { archiveTemplate, archiveFrontmatter } from './archive-template.js';
+import { proposalTemplate, proposalFrontmatter } from './proposal-template.js';
+import {
+  contextCheckTemplate,
+  contextCheckFrontmatter,
+} from './context-check-template.js';
 
 export const slashCommandBodies: Record<SlashCommandId, string> = {
-  proposal: [proposalGuardrails, proposalSteps, proposalReferences].join('\n\n'),
-  apply: [baseGuardrails, applySteps, applyReferences].join('\n\n'),
-  archive: [baseGuardrails, archiveSteps, archiveReferences].join('\n\n'),
-  'context-check': '' // Placeholder - actual content comes from context-check-template.ts
+  proposal: proposalTemplate,
+  apply: applyTemplate,
+  archive: archiveTemplate,
+  'context-check': contextCheckTemplate,
+};
+
+export const slashCommandFrontmatter: Record<SlashCommandId, string> = {
+  proposal: proposalFrontmatter,
+  apply: applyFrontmatter,
+  archive: archiveFrontmatter,
+  'context-check': contextCheckFrontmatter,
 };
 
 export function getSlashCommandBody(id: SlashCommandId): string {
   return slashCommandBodies[id];
+}
+
+export function getSlashCommandFrontmatter(id: SlashCommandId): string {
+  return slashCommandFrontmatter[id];
 }

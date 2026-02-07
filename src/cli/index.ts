@@ -74,12 +74,15 @@ program.hook('postAction', async () => {
 
 const availableToolIds = AI_TOOLS.filter((tool) => tool.available).map((tool) => tool.value);
 const toolsOptionDescription = `Configure AI tools non-interactively. Use "all", "none", or a comma-separated list of: ${availableToolIds.join(', ')}`;
+const skillLocationOptionDescription =
+  'Install generated skills in "project" or "home" location (defaults to interactive selection).';
 
 program
   .command('init [path]')
   .description('Initialize LightSpec in your project')
   .option('--tools <tools>', toolsOptionDescription)
-  .action(async (targetPath = '.', options?: { tools?: string }) => {
+  .option('--skills-location <location>', skillLocationOptionDescription)
+  .action(async (targetPath = '.', options?: { tools?: string; skillsLocation?: string }) => {
     try {
       // Validate that the path is a valid directory
       const resolvedPath = path.resolve(targetPath);
@@ -101,8 +104,16 @@ program
       }
       
       const { InitCommand } = await import('../core/init.js');
+      const skillLocation =
+        options?.skillsLocation === 'project' || options?.skillsLocation === 'home'
+          ? options.skillsLocation
+          : undefined;
+      if (options?.skillsLocation && !skillLocation) {
+        throw new Error('Invalid --skills-location value. Use "project" or "home".');
+      }
       const initCommand = new InitCommand({
         tools: options?.tools,
+        skillLocation,
       });
       await initCommand.execute(targetPath);
     } catch (error) {

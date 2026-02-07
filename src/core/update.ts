@@ -28,7 +28,7 @@ export class UpdateCommand {
     const createdFiles: string[] = [];
     const failedFiles: string[] = [];
     const updatedSlashFiles: string[] = [];
-    const failedSlashTools: string[] = [];
+        const failedSkillTools: string[] = [];
 
     for (const configurator of configurators) {
       const configFilePath = path.join(
@@ -78,9 +78,9 @@ export class UpdateCommand {
         );
         updatedSlashFiles.push(...updated);
       } catch (error) {
-        failedSlashTools.push(slashConfigurator.toolId);
+        failedSkillTools.push(slashConfigurator.toolId);
         console.error(
-          `Failed to update slash commands for ${slashConfigurator.toolId}: ${
+          `Failed to update skills for ${slashConfigurator.toolId}: ${
             error instanceof Error ? error.message : String(error)
           }`
         );
@@ -108,13 +108,13 @@ export class UpdateCommand {
     if (updatedSlashFiles.length > 0) {
       // Normalize to forward slashes for cross-platform log consistency
       const normalized = updatedSlashFiles.map((p) => FileSystemUtils.toPosixPath(p));
-      summaryParts.push(`Updated slash commands: ${normalized.join(', ')}`);
+      summaryParts.push(`Updated skills: ${normalized.join(', ')}`);
     }
 
     const failedItems = [
       ...failedFiles,
-      ...failedSlashTools.map(
-        (toolId) => `slash command refresh (${toolId})`
+      ...failedSkillTools.map(
+        (toolId) => `skill refresh (${toolId})`
       ),
     ];
 

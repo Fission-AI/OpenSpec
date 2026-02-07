@@ -4,8 +4,11 @@ import { claudeTemplate } from './claude-template.js';
 import { clineTemplate } from './cline-template.js';
 import { costrictTemplate } from './costrict-template.js';
 import { agentsRootStubTemplate } from './agents-root-stub.js';
-import { contextCheckTemplate } from './context-check-template.js';
-import { getSlashCommandBody, SlashCommandId } from './slash-command-templates.js';
+import {
+  getSlashCommandBody,
+  getSlashCommandFrontmatter,
+  SlashCommandId,
+} from './slash-command-templates.js';
 
 export interface Template {
   path: string;
@@ -39,10 +42,11 @@ export class TemplateManager {
   }
 
   static getSlashCommandBody(id: SlashCommandId): string {
-    if (id === 'context-check') {
-      return contextCheckTemplate;
-    }
     return getSlashCommandBody(id);
+  }
+
+  static getSlashCommandFrontmatter(id: SlashCommandId): string {
+    return getSlashCommandFrontmatter(id);
   }
 }
 

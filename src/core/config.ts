@@ -7,6 +7,7 @@ export const LIGHTSPEC_MARKERS = {
 
 export interface LightSpecConfig {
   aiTools: string[];
+  skillLocation: 'project' | 'home';
 }
 
 export interface AIToolOption {

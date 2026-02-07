@@ -10,6 +10,7 @@ import {
   usePagination,
   useState,
 } from '@inquirer/core';
+import { select } from '@inquirer/prompts';
 import chalk from 'chalk';
 import ora from 'ora';
 import { FileSystemUtils } from '../utils/file-system.js';
@@ -24,6 +25,7 @@ import {
   LIGHTSPEC_MARKERS,
 } from './config.js';
 import { PALETTE } from './styles/palette.js';
+import { SkillInstallLocation } from './configurators/slash/base.js';
 
 const PROGRESS_SPINNER = {
   interval: 80,
@@ -376,15 +378,36 @@ const toolSelectionWizard = createPrompt<string[], ToolWizardConfig>(
 type InitCommandOptions = {
   prompt?: ToolSelectionPrompt;
   tools?: string;
+  skillLocation?: SkillInstallLocation;
+  skillLocationPrompt?: () => Promise<SkillInstallLocation>;
 };
 
 export class InitCommand {
   private readonly prompt: ToolSelectionPrompt;
   private readonly toolsArg?: string;
+  private readonly skillLocationArg?: SkillInstallLocation;
+  private readonly skillLocationPrompt: () => Promise<SkillInstallLocation>;
 
   constructor(options: InitCommandOptions = {}) {
     this.prompt = options.prompt ?? ((config) => toolSelectionWizard(config));
     this.toolsArg = options.tools;
+    this.skillLocationArg = options.skillLocation;
+    this.skillLocationPrompt =
+      options.skillLocationPrompt ?? (() =>
+        select({
+          message: 'Where should LightSpec skills be installed?',
+          choices: [
+            {
+              name: 'Project folder (<agent>/skills inside this repository)',
+              value: 'project' satisfies SkillInstallLocation,
+            },
+            {
+              name: 'Home folder (global <agent>/skills in your user profile)',
+              value: 'home' satisfies SkillInstallLocation,
+            },
+          ],
+          default: 'project',
+        }));
   }
 
   async execute(targetPath: string): Promise<void> {
@@ -400,6 +423,7 @@ export class InitCommand {
 
     // Get configuration (after validation to avoid prompts if validation fails)
     const config = await this.getConfiguration(existingToolStates, extendMode);
+    SlashCommandRegistry.setInstallLocation(config.skillLocation);
 
     const availableTools = AI_TOOLS.filter((tool) => tool.available);
     const selectedIds = new Set(config.aiTools);
@@ -482,7 +506,20 @@ export class InitCommand {
     extendMode: boolean
   ): Promise<LightSpecConfig> {
     const selectedTools = await this.getSelectedTools(existingTools, extendMode);
-    return { aiTools: selectedTools };
+    const skillLocation = await this.getSkillInstallLocation();
+    return { aiTools: selectedTools, skillLocation };
+  }
+
+  private async getSkillInstallLocation(): Promise<SkillInstallLocation> {
+    if (this.skillLocationArg) {
+      return this.skillLocationArg;
+    }
+
+    if (typeof this.toolsArg !== 'undefined') {
+      return 'project';
+    }
+
+    return this.skillLocationPrompt();
   }
 
   private async getSelectedTools(
@@ -584,7 +621,7 @@ export class InitCommand {
         value: '__heading-native__',
         label: {
           primary:
-            'Natively supported providers (✔ LightSpec custom slash commands available)',
+            'Natively supported providers (✔ LightSpec skills available)',
         },
         selectable: false,
       },
@@ -655,8 +692,8 @@ export class InitCommand {
     toolId: string
   ): Promise<boolean> {
     // A tool is only considered "configured by LightSpec" if its files contain LightSpec markers.
-    // For tools with both config files and slash commands, BOTH must have markers.
-    // For slash commands, at least one file with markers is sufficient (not all required).
+    // For tools with both config files and skills, BOTH must have markers.
+    // For skills, at least one file with markers is sufficient (not all required).
 
     // Helper to check if a file exists and contains LightSpec markers
     const fileHasMarkers = async (absolutePath: string): Promise<boolean> => {
@@ -678,7 +715,7 @@ export class InitCommand {
       hasConfigFile = (await FileSystemUtils.fileExists(configPath)) && (await fileHasMarkers(configPath));
     }
 
-    // Check if any slash command file exists with LightSpec markers
+    // Check if any skill file exists with LightSpec markers
     const slashConfigurator = SlashCommandRegistry.get(toolId);
     if (slashConfigurator) {
       for (const target of slashConfigurator.getTargets()) {
@@ -694,16 +731,16 @@ export class InitCommand {
     // OR if the tool has no config file requirement (slash commands only)
     // OR if the tool has no slash commands requirement (config file only)
     const hasConfigFileRequirement = configFile !== undefined;
-    const hasSlashCommandRequirement = slashConfigurator !== undefined;
+    const hasSkillRequirement = slashConfigurator !== undefined;
 
-    if (hasConfigFileRequirement && hasSlashCommandRequirement) {
+    if (hasConfigFileRequirement && hasSkillRequirement) {
       // Both are required - both must be present with markers
       return hasConfigFile && hasSlashCommands;
     } else if (hasConfigFileRequirement) {
       // Only config file required
       return hasConfigFile;
-    } else if (hasSlashCommandRequirement) {
-      // Only slash commands required
+    } else if (hasSkillRequirement) {
+      // Only skills required
       return hasSlashCommands;
     }
 
@@ -873,12 +910,12 @@ export class InitCommand {
       console.log(PALETTE.white('Important: Restart your IDE'));
       console.log(
         PALETTE.midGray(
-          'Slash commands are loaded at startup. Please restart your coding assistant'
+          'Skills are loaded at startup. Please restart your coding assistant'
         )
       );
       console.log(
         PALETTE.midGray(
-          'to ensure the new /lightspec commands appear in your command palette.'
+          'to ensure the new LightSpec skills appear in your coding assistant.'
         )
       );
     }
@@ -887,7 +924,7 @@ export class InitCommand {
     const toolName = this.formatToolNames(selectedTools);
 
     console.log();
-    console.log(`Next steps - Copy these prompts to ${toolName}:`);
+    console.log(`Next steps - Run these skills in ${toolName}:`);
     console.log(
       chalk.gray('────────────────────────────────────────────────────────────')
     );
@@ -921,12 +958,12 @@ export class InitCommand {
       )
     );
 
-    // Codex heads-up: prompts installed globally
+    // Codex heads-up: location hints
     const selectedToolIds = new Set(selectedTools.map((t) => t.value));
     if (selectedToolIds.has('codex')) {
       console.log(PALETTE.white('Codex setup note'));
       console.log(
-        PALETTE.midGray('Prompts installed to ~/.codex/prompts (or $CODEX_HOME/prompts).')
+        PALETTE.midGray('Skills are installed under .codex/skills in the selected location.')
       );
       console.log();
     }
