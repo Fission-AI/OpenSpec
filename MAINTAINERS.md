@@ -1,6 +1,6 @@
 # Maintainers
 
-People who maintain and guide OpenSpec.
+People who maintain and guide LightSpec.
 
 ## Core Maintainers
 

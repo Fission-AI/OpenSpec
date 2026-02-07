@@ -1,20 +1,20 @@
-# OpenSpec Experimental Release Plan
+# LightSpec Experimental Release Plan
 
 This document outlines the plan to release the experimental artifact workflow system for user testing.
 
 ## Overview
 
-The goal is to allow users to test the new artifact-driven workflow system alongside the existing OpenSpec commands. This experimental system (`opsx`) provides a more granular, step-by-step approach to creating change artifacts.
+The goal is to allow users to test the new artifact-driven workflow system alongside the existing LightSpec commands. This experimental system (`opsx`) provides a more granular, step-by-step approach to creating change artifacts.
 
 ## Three Workflow Modes
 
 ### 1. Old Workflow (Current Production)
-- **Commands**: `/openspec:proposal`, `/openspec:apply`, `/openspec:archive`
+- **Commands**: `/lightspec:proposal`, `/lightspec:apply`, `/lightspec:archive`
 - **Behavior**: Hardcoded slash commands that generate all artifacts in one command
 - **Status**: Production, unchanged
 
 ### 2. New Artifact System - Batch Mode (Future)
-- **Commands**: Refactored `/openspec:proposal` using schemas
+- **Commands**: Refactored `/lightspec:proposal` using schemas
 - **Behavior**: Schema-driven but generates all artifacts at once (like legacy)
 - **Status**: Not in scope for this experimental release
 - **Note**: This is a future refactor to unify the old system with schemas
@@ -47,15 +47,15 @@ The goal is to allow users to test the new artifact-driven workflow system along
 - [x] Remove `.claude/commands/awf/` directory
 
 **CLI Commands:**
-The underlying CLI commands (`openspec status`, `openspec instructions`, etc.) remain unchanged. Only the slash command names change.
+The underlying CLI commands (`lightspec status`, `lightspec instructions`, etc.) remain unchanged. Only the slash command names change.
 
 ---
 
 ### 2. Remove WF Skill Files
 
 **Current State:**
-- `.claude/commands/wf/start.md` - References non-existent `openspec wf` commands
-- `.claude/commands/wf/continue.md` - References non-existent `openspec wf` commands
+- `.claude/commands/wf/start.md` - References non-existent `lightspec wf` commands
+- `.claude/commands/wf/continue.md` - References non-existent `lightspec wf` commands
 
 **Target State:**
 - Directory and files removed
@@ -81,9 +81,9 @@ Generate experimental workflow skills using the [Agent Skills](https://agentskil
 **Behavior:**
 1. Create `.claude/skills/` directory if it doesn't exist
 2. Generate two skills using the Agent Skills specification:
-   - `openspec-new-change/SKILL.md` - Start a new change with artifact workflow
-   - `openspec-continue-change/SKILL.md` - Continue working on a change (create next artifact)
-3. Skills are added **alongside** existing `/openspec:*` commands (not replacing)
+   - `lightspec-new-change/SKILL.md` - Start a new change with artifact workflow
+   - `lightspec-continue-change/SKILL.md` - Continue working on a change (create next artifact)
+3. Skills are added **alongside** existing `/lightspec:*` commands (not replacing)
 
 **Supported Editors:**
 - Claude Code (native support)
@@ -92,36 +92,36 @@ Generate experimental workflow skills using the [Agent Skills](https://agentskil
 - Cline, Codex, and other Agent Skills-compatible editors
 
 **Tasks:**
-- [x] Create skill template content for `openspec-new-change` (based on current opsx:new)
-- [x] Create skill template content for `openspec-continue-change` (based on current opsx:continue)
+- [x] Create skill template content for `lightspec-new-change` (based on current opsx:new)
+- [x] Create skill template content for `lightspec-continue-change` (based on current opsx:continue)
 - [x] Add temporary `artifact-experimental-setup` command to CLI
 - [x] Implement skill file generation (YAML frontmatter + markdown body)
 - [x] Add success message with usage instructions
 
-**Note:** The `artifact-experimental-setup` command is temporary and will be merged into `openspec init` once the experimental workflow is promoted to stable.
+**Note:** The `artifact-experimental-setup` command is temporary and will be merged into `lightspec init` once the experimental workflow is promoted to stable.
 
 **Skill Format:**
 Each skill is a directory with a `SKILL.md` file:
 ```
 .claude/skills/
-├── openspec-new-change/
+├── lightspec-new-change/
 │   └── SKILL.md          # name, description, instructions
-├── openspec-continue-change/
+├── lightspec-continue-change/
 │   └── SKILL.md          # name, description, instructions
-└── openspec-apply-change/
+└── lightspec-apply-change/
     └── SKILL.md          # name, description, instructions
 ```
 
 **CLI Interface:**
 ```bash
-openspec artifact-experimental-setup
+lightspec artifact-experimental-setup
 
 # Output:
 # 🧪 Experimental Artifact Workflow Skills Created
 #
-#   ✓ .claude/skills/openspec-new-change/SKILL.md
-#   ✓ .claude/skills/openspec-continue-change/SKILL.md
-#   ✓ .claude/skills/openspec-apply-change/SKILL.md
+#   ✓ .claude/skills/lightspec-new-change/SKILL.md
+#   ✓ .claude/skills/lightspec-continue-change/SKILL.md
+#   ✓ .claude/skills/lightspec-apply-change/SKILL.md
 #
 # 📖 Usage:
 #
@@ -131,13 +131,13 @@ openspec artifact-experimental-setup
 #   • Windsurf - Auto-imports from .claude directory
 #
 #   Ask Claude naturally:
-#   • "I want to start a new OpenSpec change to add <feature>"
+#   • "I want to start a new LightSpec change to add <feature>"
 #   • "Continue working on this change"
 #
 #   Claude will automatically use the appropriate skill.
 #
 # 💡 This is an experimental feature.
-#    Feedback welcome at: https://github.com/Fission-AI/OpenSpec/issues
+#    Feedback welcome at: https://github.com/Fission-AI/LightSpec/issues
 ```
 
 **Implementation Notes:**
@@ -170,7 +170,7 @@ Same flow but with updated naming:
 **Tasks:**
 - [x] Update all "awf" references to "opsx"
 - [x] Update command references in prompt text
-- [x] Verify CLI commands still work (they use `openspec`, not `awf`)
+- [x] Verify CLI commands still work (they use `lightspec`, not `awf`)
 
 ---
 
@@ -198,19 +198,19 @@ Same flow with updated naming.
 Run through a complete workflow with Claude using the new skills to create a real feature, validating the entire flow works.
 
 **Test Scenario:**
-Use a real OpenSpec feature as the test case (dog-fooding).
+Use a real LightSpec feature as the test case (dog-fooding).
 
 **Test Flow:**
-1. Run `openspec artifact-experimental-setup` to create skills
-2. Verify `.claude/skills/openspec-new-change/SKILL.md` created
-3. Verify `.claude/skills/openspec-continue-change/SKILL.md` created
-4. Verify `.claude/skills/openspec-apply-change/SKILL.md` created
-5. Ask Claude: "I want to start a new OpenSpec change to add feature X"
-6. Verify Claude invokes the `openspec-new-change` skill
-7. Verify change directory created at `openspec/changes/add-feature-x/`
+1. Run `lightspec artifact-experimental-setup` to create skills
+2. Verify `.claude/skills/lightspec-new-change/SKILL.md` created
+3. Verify `.claude/skills/lightspec-continue-change/SKILL.md` created
+4. Verify `.claude/skills/lightspec-apply-change/SKILL.md` created
+5. Ask Claude: "I want to start a new LightSpec change to add feature X"
+6. Verify Claude invokes the `lightspec-new-change` skill
+7. Verify change directory created at `lightspec/changes/add-feature-x/`
 8. Verify proposal template shown
 9. Ask Claude: "Continue working on this change"
-10. Verify Claude invokes the `openspec-continue-change` skill
+10. Verify Claude invokes the `lightspec-continue-change` skill
 11. Verify `proposal.md` created with content
 12. Ask Claude: "Continue" (create specs)
 13. Verify `specs/*.md` created
@@ -220,10 +220,10 @@ Use a real OpenSpec feature as the test case (dog-fooding).
 17. Verify `tasks.md` created
 18. Verify status shows 4/4 complete
 19. Implement the feature based on tasks
-20. Run `/openspec:archive` to archive the change
+20. Run `/lightspec:archive` to archive the change
 
 **Validation Checklist:**
-- [ ] `openspec artifact-experimental-setup` creates correct directory structure
+- [ ] `lightspec artifact-experimental-setup` creates correct directory structure
 - [ ] Skills are auto-detected in Claude Code
 - [ ] Skill descriptions trigger appropriate invocations
 - [ ] Skills create change directory and show proposal template
@@ -248,25 +248,25 @@ Use a real OpenSpec feature as the test case (dog-fooding).
 **Create user-facing documentation explaining:**
 
 1. **What is the experimental workflow?**
-   - A new way to create OpenSpec changes step-by-step using Agent Skills
+   - A new way to create LightSpec changes step-by-step using Agent Skills
    - One artifact at a time with dependency tracking
    - More interactive and iterative than the batch approach
    - Works across Claude Code, Cursor, Windsurf, and other compatible editors
 
 2. **How to set up experimental workflow**
    ```bash
-   openspec artifact-experimental-setup
+   lightspec artifact-experimental-setup
    ```
 
-   Note: This is a temporary command that will be integrated into `openspec init` once promoted to stable.
+   Note: This is a temporary command that will be integrated into `lightspec init` once promoted to stable.
 
 3. **Available skills**
-   - `openspec-new-change` - Start a new change with artifact workflow
-   - `openspec-continue-change` - Continue working (create next artifact)
+   - `lightspec-new-change` - Start a new change with artifact workflow
+   - `lightspec-continue-change` - Continue working (create next artifact)
 
 4. **How to use**
    - **Claude Code**: Skills are auto-detected, just ask Claude naturally
-     - "I want to start a new OpenSpec change to add X"
+     - "I want to start a new LightSpec change to add X"
      - "Continue working on this change"
    - **Cursor**: Enable in Settings → Rules → Import Settings
    - **Windsurf**: Auto-imports `.claude` directory
@@ -317,11 +317,11 @@ Use a real OpenSpec feature as the test case (dog-fooding).
 
 The following are explicitly NOT part of this experimental release:
 
-1. **Batch mode refactor** - Making legacy `/openspec:proposal` use schemas
+1. **Batch mode refactor** - Making legacy `/lightspec:proposal` use schemas
 2. **New schemas** - Only shipping with existing `spec-driven` and `tdd`
-3. **Schema customization UI** - No `openspec schema list` or similar
+3. **Schema customization UI** - No `lightspec schema list` or similar
 4. **Multiple editor support in CLI** - Skills work cross-editor automatically via `.claude/skills/`
-5. **Replacing existing commands** - Skills are additive, not replacing `/openspec:*` or `/opsx:*`
+5. **Replacing existing commands** - Skills are additive, not replacing `/lightspec:*` or `/opsx:*`
 
 ---
 
@@ -329,8 +329,8 @@ The following are explicitly NOT part of this experimental release:
 
 The experimental release is ready when:
 
-1. `openspec-new-change`, `openspec-continue-change`, and `openspec-apply-change` skills work end-to-end
-2. `openspec artifact-experimental-setup` creates skills in `.claude/skills/`
+1. `lightspec-new-change`, `lightspec-continue-change`, and `lightspec-apply-change` skills work end-to-end
+2. `lightspec artifact-experimental-setup` creates skills in `.claude/skills/`
 3. Skills work in Claude Code and are compatible with Cursor/Windsurf
 4. At least one complete workflow has been tested manually
 5. User documentation exists explaining how to generate and use skills
@@ -347,8 +347,8 @@ The experimental release is ready when:
    - Consider: Add `--schema tdd` option or prompt
 
 2. **Namespace in CLI** - Should experimental CLI commands be namespaced?
-   - Current: `openspec status`, `openspec instructions` (no namespace)
-   - Alternative: `openspec opsx status` (explicit experimental namespace)
+   - Current: `lightspec status`, `lightspec instructions` (no namespace)
+   - Alternative: `lightspec opsx status` (explicit experimental namespace)
    - Recommendation: Keep current, less typing for users
 
 3. **Deprecation path** - If opsx becomes the default, how do we migrate?
@@ -391,12 +391,12 @@ The experimental release is ready when:
    - **Relevance**: Core UX strength to preserve
 
 2. **Structured instructions output** ⭐ HIGH PRIORITY - KEEP
-   - `openspec instructions <artifact>` gave templates, output paths, and context in one call
+   - `lightspec instructions <artifact>` gave templates, output paths, and context in one call
    - Very helpful for understanding what to create
    - **Relevance**: Essential for agent-driven workflow
 
 3. **Simple scaffolding** ✅ WORKS WELL
-   - `openspec new change "name"` just worked - created directory structure without fuss
+   - `lightspec new change "name"` just worked - created directory structure without fuss
    - **Relevance**: Good baseline, room for improvement (see pain points)
 
 ---
@@ -419,7 +419,7 @@ The experimental release is ready when:
 3. **Repetitive --change flag** ⚠️ MEDIUM PRIORITY
    - Every command needed `--change "tic-tac-toe-game"`
    - After 10+ calls, this felt verbose
-   - **Recommendation**: `openspec use "tic-tac-toe-game"` to set context, then subsequent commands assume that change
+   - **Recommendation**: `lightspec use "tic-tac-toe-game"` to set context, then subsequent commands assume that change
    - **Relevance**: Quality of life improvement for iterative sessions
 
 4. **No validation feedback** 🔥 HIGH PRIORITY - ADD
@@ -427,13 +427,13 @@ The experimental release is ready when:
    - Questions raised:
      - How did it know the artifact was "done"? File existence?
      - What if spec format was wrong (e.g., wrong heading levels)?
-   - **Recommendation**: Add `openspec validate --change "name"` to check content quality
+   - **Recommendation**: Add `lightspec validate --change "name"` to check content quality
    - **Relevance**: Critical for user confidence and catching errors early
 
 5. **Query-heavy, action-light CLI** 🔥 HIGH PRIORITY - ENHANCE
    - Most commands retrieve info. The only "action" is `new change`
    - Artifact creation is manual Write to guessed paths
-   - **Recommendation**: `openspec create proposal --change "name"` could scaffold the file with template pre-filled, then user just edits
+   - **Recommendation**: `lightspec create proposal --change "name"` could scaffold the file with template pre-filled, then user just edits
    - **Relevance**: Directly impacts agent productivity - reduce manual file writing
 
 6. **Instructions output was verbose** ⚠️ LOW PRIORITY
@@ -454,11 +454,11 @@ The experimental release is ready when:
 
 2. **No connection to implementation** 🔥 HIGH PRIORITY - ROADMAP ITEM
    - After 4/4 artifacts complete, then what? The workflow ends at planning
-   - No `openspec apply` or guidance on how to execute the tasks
-   - User asked "would you like me to implement?" but that's outside OpenSpec's scope currently
+   - No `lightspec apply` or guidance on how to execute the tasks
+   - User asked "would you like me to implement?" but that's outside LightSpec's scope currently
    - **Recommendation**: Add implementation bridge - either:
-     - `openspec apply` command to start execution phase
-     - Clear handoff to existing `/openspec:apply` workflow
+     - `lightspec apply` command to start execution phase
+     - Clear handoff to existing `/lightspec:apply` workflow
      - Documentation on next steps after planning completes
    - **Relevance**: Critical missing piece - users expect end-to-end workflow
 
@@ -547,16 +547,16 @@ From the pain points in E2E testing, three issues are blocking the experimental 
 
 ### Decision 2: CLI Action Commands (IN PROGRESS)
 
-**Problem:** CLI is mostly query-oriented. Agents run `openspec status`, `openspec next`, `openspec instructions` but then must manually write files.
+**Problem:** CLI is mostly query-oriented. Agents run `lightspec status`, `lightspec next`, `lightspec instructions` but then must manually write files.
 
-#### Decision 2a: Remove `openspec next` command (RESOLVED)
+#### Decision 2a: Remove `lightspec next` command (RESOLVED)
 
 **Problem:** The `next` command is redundant. It only shows which artifacts are ready, but `status` already shows this information (artifacts with status "ready" vs "blocked" vs "done").
 
 **Current behavior:**
 ```bash
-openspec status --change "X"  # Shows: proposal (done), specs (ready), design (blocked), tasks (blocked)
-openspec next --change "X"    # Shows: ["specs"]  ← redundant
+lightspec status --change "X"  # Shows: proposal (done), specs (ready), design (blocked), tasks (blocked)
+lightspec next --change "X"    # Shows: ["specs"]  ← redundant
 ```
 
 **Decision:** Remove the `next` command. Agents should use `status` which provides the same info plus more context.
@@ -571,7 +571,7 @@ openspec next --change "X"    # Shows: ["specs"]  ← redundant
 **Problem:** After getting instructions, agents manually write files. Should CLI scaffold artifacts instead?
 
 **Options considered:**
-- Add `openspec create <artifact>` commands that scaffold files with templates
+- Add `lightspec create <artifact>` commands that scaffold files with templates
 - Keep current approach where agent writes files directly from instructions
 - Hybrid: CLI can scaffold, agent can also write directly
 
@@ -603,13 +603,13 @@ A change is a thing (with artifacts). Actions are verbs you perform on a change.
 
 | Action | What it does | Skill | CLI Command |
 |--------|--------------|-------|-------------|
-| `new` | Create a change (scaffold directory) | `opsx:new` | `openspec new change` |
-| `continue` | Create next artifact (dependency-aware) | `opsx:continue` | `openspec instructions` |
+| `new` | Create a change (scaffold directory) | `opsx:new` | `lightspec new change` |
+| `continue` | Create next artifact (dependency-aware) | `opsx:continue` | `lightspec instructions` |
 | `apply` | Implement tasks (execute, check off) | `opsx:apply` (NEW) | TBD |
 | `update` | Refresh/update artifacts based on learnings | `opsx:update` (NEW) | TBD |
 | `explore` | Research, ask questions, understand | `opsx:explore` (NEW) | TBD |
-| `validate` | Check artifacts are correct/complete | TBD | `openspec validate` |
-| `archive` | Finalize and move to archive | existing | `openspec archive` |
+| `validate` | Check artifacts are correct/complete | TBD | `lightspec validate` |
+| `archive` | Finalize and move to archive | existing | `lightspec archive` |
 
 **Key principles:**
 - Actions are modeled as skills (primary interface for agents)
@@ -641,11 +641,11 @@ A change is a thing (with artifacts). Actions are verbs you perform on a change.
 
 ---
 
-### Design: `openspec-apply-change` Skill
+### Design: `lightspec-apply-change` Skill
 
 #### Overview
 
-The apply skill guides agents through implementing tasks from a completed (or in-progress) change. Unlike the old `/openspec:apply` command, this skill:
+The apply skill guides agents through implementing tasks from a completed (or in-progress) change. Unlike the old `/lightspec:apply` command, this skill:
 - Is **fluid** - can be invoked anytime, not just after all artifacts are done
 - Allows **artifact updates** - if implementation reveals issues, update design/specs
 - Works **until done** - keeps going through tasks until complete or blocked
@@ -654,8 +654,8 @@ The apply skill guides agents through implementing tasks from a completed (or in
 #### Skill Metadata
 
 ```yaml
-name: openspec-apply-change
-description: Implement tasks from an OpenSpec change. Use when the user wants to start implementing, continue implementation, or work through tasks.
+name: lightspec-apply-change
+description: Implement tasks from an LightSpec change. Use when the user wants to start implementing, continue implementation, or work through tasks.
 ```
 
 #### When to Invoke
@@ -680,7 +680,7 @@ The skill should be invoked when:
 
 1. **If no change name provided, prompt for selection**
 
-   Run `openspec list --json` to get available changes. Use **AskUserQuestion** to let user select.
+   Run `lightspec list --json` to get available changes. Use **AskUserQuestion** to let user select.
 
    Show changes that have tasks.md (implementation-ready).
    Mark changes with incomplete tasks as "(In Progress)".
@@ -688,7 +688,7 @@ The skill should be invoked when:
 2. **Get apply instructions**
 
    ```bash
-   openspec instructions apply --change "<name>" --json
+   lightspec instructions apply --change "<name>" --json
    ```
 
    This returns:
@@ -698,7 +698,7 @@ The skill should be invoked when:
    - Dynamic instruction based on current state
 
    **Handle states:**
-   - If blocked (missing artifacts): show message, suggest `openspec-continue-change`
+   - If blocked (missing artifacts): show message, suggest `lightspec-continue-change`
    - If all done: congratulate, suggest archive
    - Otherwise: proceed to implementation
 
@@ -824,34 +824,34 @@ The apply skill supports the "actions on a change" model:
 **Example fluid workflow:**
 ```
 User: "Implement add-user-auth"
-→ openspec-apply-change: implements tasks 1, 2, 3, 4...
+→ lightspec-apply-change: implements tasks 1, 2, 3, 4...
 → Pauses at task 5: "Design says RS256 but library only supports HS256"
 
 User: "Let's use HS256 instead, update the design"
 → User edits design.md (or uses opsx:update in future)
 
 User: "Continue implementing"
-→ openspec-apply-change: implements tasks 5, 6, 7
+→ lightspec-apply-change: implements tasks 5, 6, 7
 → "All tasks complete! Ready to archive."
 ```
 
 #### CLI Commands Used
 
 ```bash
-openspec list --json                        # List changes for selection
-openspec status --change "<name>"           # Check artifact completion
-openspec instructions apply --change "<name>" # Get apply instructions (NEW)
+lightspec list --json                        # List changes for selection
+lightspec status --change "<name>"           # Check artifact completion
+lightspec instructions apply --change "<name>" # Get apply instructions (NEW)
 # File reads via Read tool for proposal, specs, design, tasks
 # File edits via Edit tool for checking off tasks
 ```
 
-#### New CLI Command: `openspec instructions apply`
+#### New CLI Command: `lightspec instructions apply`
 
 For consistency with artifact instructions.
 
 **Usage:**
 ```bash
-openspec instructions apply --change "<name>" [--json]
+lightspec instructions apply --change "<name>" [--json]
 ```
 
 **Output (Markdown format):**
@@ -859,10 +859,10 @@ openspec instructions apply --change "<name>" [--json]
 ## Apply: add-user-auth
 
 ### Context Files
-- proposal: openspec/changes/add-user-auth/proposal.md
-- specs: openspec/changes/add-user-auth/specs/**/*.md
-- design: openspec/changes/add-user-auth/design.md
-- tasks: openspec/changes/add-user-auth/tasks.md
+- proposal: lightspec/changes/add-user-auth/proposal.md
+- specs: lightspec/changes/add-user-auth/specs/**/*.md
+- design: lightspec/changes/add-user-auth/design.md
+- tasks: lightspec/changes/add-user-auth/tasks.md
 
 ### Progress
 2/7 complete
@@ -882,15 +882,15 @@ Pause if you hit blockers or need clarification.
 ```
 
 **Benefits of CLI command:**
-- **Consistency** - same pattern as `openspec instructions <artifact>`
+- **Consistency** - same pattern as `lightspec instructions <artifact>`
 - **Structured output** - progress, tasks, context paths in one call
 - **Clean format** - markdown is readable and compact (vs verbose XML)
 - **Extensibility** - can add more sections later if needed
 - **JSON option** - `--json` flag available for programmatic use
 
-#### Differences from Old `/openspec:apply`
+#### Differences from Old `/lightspec:apply`
 
-| Aspect | Old `/openspec:apply` | New `openspec-apply-change` |
+| Aspect | Old `/lightspec:apply` | New `lightspec-apply-change` |
 |--------|----------------------|----------------------------|
 | Invocation | After all artifacts done | Anytime (if tasks.md exists) |
 | Granularity | All tasks at once | All tasks, but pauses on issues |
@@ -902,7 +902,7 @@ Pause if you hit blockers or need clarification.
 
 #### Implementation Notes
 
-1. **Add CLI command**: Add `openspec instructions apply` to artifact-workflow.ts
+1. **Add CLI command**: Add `lightspec instructions apply` to artifact-workflow.ts
    - Parse tasks.md for progress (count done/pending)
    - Return context paths, progress, task list, simple instruction
 2. **Add to skill-templates.ts**: Create `getApplyChangeSkillTemplate()` function
@@ -918,9 +918,9 @@ Pause if you hit blockers or need clarification.
 2. ~~Design decisions~~ (Done - all 3 blockers resolved)
 3. ~~Design apply skill~~ (Done - documented above)
 4. ~~Implement proposal template change (Decision 1 - capability discovery)~~ (Done)
-5. ~~Remove `openspec next` command (Decision 2a)~~ (Done)
-6. ~~Add `openspec instructions apply` CLI command~~ (Done)
-7. ~~Create `openspec-apply-change` skill~~ (Done)
+5. ~~Remove `lightspec next` command (Decision 2a)~~ (Done)
+6. ~~Add `lightspec instructions apply` CLI command~~ (Done)
+7. ~~Create `lightspec-apply-change` skill~~ (Done)
 8. Conduct E2E testing with updated workflow
 9. Write user docs (document "actions on a change" model)
 10. Release to test users

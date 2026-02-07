@@ -1,10 +1,10 @@
-# @fission-ai/openspec
+# @fission-ai/lightspec
 
 ## 0.23.0
 
 ### Minor Changes
 
-- [#540](https://github.com/Fission-AI/OpenSpec/pull/540) [`c4cfdc7`](https://github.com/Fission-AI/OpenSpec/commit/c4cfdc7c499daef30d8a218f5f59b8d9e5adb754) Thanks [@TabishB](https://github.com/TabishB)! - ### New Features
+- [#540](https://github.com/Fission-AI/LightSpec/pull/540) [`c4cfdc7`](https://github.com/Fission-AI/LightSpec/commit/c4cfdc7c499daef30d8a218f5f59b8d9e5adb754) Thanks [@TabishB](https://github.com/TabishB)! - ### New Features
 
   - **Bulk archive skill** — Archive multiple completed changes in a single operation with `/opsx:bulk-archive`. Includes batch validation, spec conflict detection, and consolidated confirmation
 
@@ -16,13 +16,13 @@
 
 ### Minor Changes
 
-- [#530](https://github.com/Fission-AI/OpenSpec/pull/530) [`33466b1`](https://github.com/Fission-AI/OpenSpec/commit/33466b1e2a6798bdd6d0e19149173585b0612e6f) Thanks [@TabishB](https://github.com/TabishB)! - Add project-level configuration, project-local schemas, and schema management commands
+- [#530](https://github.com/Fission-AI/LightSpec/pull/530) [`33466b1`](https://github.com/Fission-AI/LightSpec/commit/33466b1e2a6798bdd6d0e19149173585b0612e6f) Thanks [@TabishB](https://github.com/TabishB)! - Add project-level configuration, project-local schemas, and schema management commands
 
   **New Features**
 
-  - **Project-level configuration** — Configure OpenSpec behavior per-project via `openspec/config.yaml`, including custom rules injection, context files, and schema resolution settings
-  - **Project-local schemas** — Define custom artifact schemas within your project's `openspec/schemas/` directory for project-specific workflows
-  - **Schema management commands** — New `openspec schema` commands (`list`, `show`, `export`, `validate`) for inspecting and managing artifact schemas (experimental)
+  - **Project-level configuration** — Configure LightSpec behavior per-project via `lightspec/config.yaml`, including custom rules injection, context files, and schema resolution settings
+  - **Project-local schemas** — Define custom artifact schemas within your project's `lightspec/schemas/` directory for project-specific workflows
+  - **Schema management commands** — New `lightspec schema` commands (`list`, `show`, `export`, `validate`) for inspecting and managing artifact schemas (experimental)
 
   **Bug Fixes**
 
@@ -32,12 +32,12 @@
 
 ### Minor Changes
 
-- [#516](https://github.com/Fission-AI/OpenSpec/pull/516) [`b5a8847`](https://github.com/Fission-AI/OpenSpec/commit/b5a884748be6156a7bb140b4941cfec4f20a9fc8) Thanks [@TabishB](https://github.com/TabishB)! - Add feedback command and Nix flake support
+- [#516](https://github.com/Fission-AI/LightSpec/pull/516) [`b5a8847`](https://github.com/Fission-AI/LightSpec/commit/b5a884748be6156a7bb140b4941cfec4f20a9fc8) Thanks [@TabishB](https://github.com/TabishB)! - Add feedback command and Nix flake support
 
   **New Features**
 
-  - **Feedback command** — Submit feedback directly from the CLI with `openspec feedback`, which creates GitHub Issues with automatic metadata inclusion and graceful fallback for manual submission
-  - **Nix flake support** — Install and develop openspec using Nix with the new `flake.nix`, including automated flake maintenance and CI validation
+  - **Feedback command** — Submit feedback directly from the CLI with `lightspec feedback`, which creates GitHub Issues with automatic metadata inclusion and graceful fallback for manual submission
+  - **Nix flake support** — Install and develop lightspec using Nix with the new `flake.nix`, including automated flake maintenance and CI validation
 
   **Bug Fixes**
 
@@ -52,7 +52,7 @@
 
 ### Minor Changes
 
-- [#502](https://github.com/Fission-AI/OpenSpec/pull/502) [`9db74aa`](https://github.com/Fission-AI/OpenSpec/commit/9db74aa5ac6547efadaed795217cfa17444f2004) Thanks [@TabishB](https://github.com/TabishB)! - Add `/opsx:verify` command and fix vitest process storms
+- [#502](https://github.com/Fission-AI/LightSpec/pull/502) [`9db74aa`](https://github.com/Fission-AI/LightSpec/commit/9db74aa5ac6547efadaed795217cfa17444f2004) Thanks [@TabishB](https://github.com/TabishB)! - Add `/opsx:verify` command and fix vitest process storms
 
   **New Features**
 
@@ -72,8 +72,8 @@
 
   **New Features**
 
-  - **Continue IDE support** – OpenSpec now generates slash commands for [Continue](https://continue.dev/), expanding editor integration options alongside Cursor, Windsurf, Claude Code, and others
-  - **Shell completions for Bash, Fish, and PowerShell** – Run `openspec completion install` to set up tab completion in your preferred shell
+  - **Continue IDE support** – LightSpec now generates slash commands for [Continue](https://continue.dev/), expanding editor integration options alongside Cursor, Windsurf, Claude Code, and others
+  - **Shell completions for Bash, Fish, and PowerShell** – Run `lightspec completion install` to set up tab completion in your preferred shell
   - **`/opsx:explore` command** – A new thinking partner mode for exploring ideas and investigating problems before committing to changes
   - **Codebuddy slash command improvements** – Updated frontmatter format for better compatibility
 
@@ -84,7 +84,7 @@
 
   **Other**
 
-  - Added optional anonymous usage statistics to help understand how OpenSpec is used. This is **opt-out** by default – set `OPENSPEC_TELEMETRY=0` or `DO_NOT_TRACK=1` to disable. Only command names and version are collected; no arguments, file paths, or content. Automatically disabled in CI environments.
+  - Added optional anonymous usage statistics to help understand how LightSpec is used. This is **opt-out** by default – set `LIGHTSPEC_TELEMETRY=0` or `DO_NOT_TRACK=1` to disable. Only command names and version are collected; no arguments, file paths, or content. Automatically disabled in CI environments.
 
 ## 0.18.0
 
@@ -102,7 +102,7 @@
 
   - Schema-aware apply instructions with inline guidance and XML output
   - Agent schema selection for experimental artifact workflow
-  - Per-change schema metadata via `.openspec.yaml` files
+  - Per-change schema metadata via `.lightspec.yaml` files
   - Agent Skills for experimental artifact workflow
   - Instruction loader for template loading and change context
   - Restructured schemas as directories with templates
@@ -137,11 +137,11 @@
 
 ### Minor Changes
 
-- 2e71835: Add `openspec config` command and Oh-my-zsh completions
+- 2e71835: Add `lightspec config` command and Oh-my-zsh completions
 
   **New Features**
 
-  - Add `openspec config` command for managing global configuration settings
+  - Add `lightspec config` command for managing global configuration settings
   - Implement global config directory with XDG Base Directory specification support
   - Add Oh-my-zsh shell completions support for enhanced CLI experience
 
@@ -174,9 +174,9 @@
 
 ### Minor Changes
 
-- Add Continue slash command support so `openspec init` can generate `.continue/prompts/openspec-*.prompt` files with MARKDOWN frontmatter and `$ARGUMENTS` placeholder, and refresh them on `openspec update`.
+- Add Continue slash command support so `lightspec init` can generate `.continue/prompts/lightspec-*.prompt` files with MARKDOWN frontmatter and `$ARGUMENTS` placeholder, and refresh them on `lightspec update`.
 
-- Add Antigravity slash command support so `openspec init` can generate `.agent/workflows/openspec-*.md` files with description-only frontmatter and `openspec update` refreshes existing workflows alongside Windsurf.
+- Add Antigravity slash command support so `lightspec init` can generate `.agent/workflows/lightspec-*.md` files with description-only frontmatter and `lightspec update` refreshes existing workflows alongside Windsurf.
 
 ## 0.15.0
 
@@ -184,7 +184,7 @@
 
 - 4758c5c: Add support for new AI tools with native slash command integration
 
-  - **Gemini CLI**: Add native TOML-based slash command support for Gemini CLI with `.gemini/commands/openspec/` integration
+  - **Gemini CLI**: Add native TOML-based slash command support for Gemini CLI with `.gemini/commands/lightspec/` integration
   - **RooCode**: Add RooCode integration with configurator, slash commands, and templates
   - **Cline**: Fix Cline to use workflows instead of rules for slash commands (`.clinerules/workflows/` paths)
   - **Documentation**: Update documentation to reflect new integrations and workflow changes
@@ -199,7 +199,7 @@
   - feat: add $ARGUMENTS support to apply slash command for dynamic variable passing
   - feat: add Qoder CLI support to configuration and documentation
   - feat: add CoStrict AI assistant support
-  - fix: recreate missing openspec template files in extend mode
+  - fix: recreate missing lightspec template files in extend mode
   - fix: prevent false 'already configured' detection for tools
   - fix: use change-id as fallback title instead of "Untitled Change"
   - docs: add guidance for populating project-level context
@@ -243,13 +243,13 @@
   This release includes two new features:
 
   - **Factory function support for slash commands**: Slash commands can now be defined as functions that return command objects, enabling dynamic command configuration
-  - **Non-interactive init options**: Added `--tools`, `--all-tools`, and `--skip-tools` CLI flags to `openspec init` for automated initialization in CI/CD pipelines while maintaining backward compatibility with interactive mode
+  - **Non-interactive init options**: Added `--tools`, `--all-tools`, and `--skip-tools` CLI flags to `lightspec init` for automated initialization in CI/CD pipelines while maintaining backward compatibility with interactive mode
 
 ## 0.11.0
 
 ### Minor Changes
 
-- 312e1d6: Add Amazon Q Developer CLI integration. OpenSpec now supports Amazon Q Developer with automatic prompt generation in `.amazonq/prompts/` directory, allowing you to use OpenSpec slash commands with Amazon Q's @-syntax.
+- 312e1d6: Add Amazon Q Developer CLI integration. LightSpec now supports Amazon Q Developer with automatic prompt generation in `.amazonq/prompts/` directory, allowing you to use LightSpec slash commands with Amazon Q's @-syntax.
 
 ## 0.10.0
 
@@ -261,13 +261,13 @@
 
 ### Patch Changes
 
-- 2ae0484: Fix cross-platform path handling issues. This release includes fixes for joinPath behavior and slash command path resolution to ensure OpenSpec works correctly across all platforms.
+- 2ae0484: Fix cross-platform path handling issues. This release includes fixes for joinPath behavior and slash command path resolution to ensure LightSpec works correctly across all platforms.
 
 ## 0.9.1
 
 ### Patch Changes
 
-- 8210970: Fix OpenSpec not working on Windows when Codex integration is selected. This release includes fixes for cross-platform path handling and normalization to ensure OpenSpec works correctly on Windows systems.
+- 8210970: Fix LightSpec not working on Windows when Codex integration is selected. This release includes fixes for cross-platform path handling and normalization to ensure LightSpec works correctly on Windows systems.
 
 ## 0.9.0
 
@@ -279,26 +279,26 @@
 
 ### Minor Changes
 
-- Add GitHub Copilot slash command support. OpenSpec now writes prompts to `.github/prompts/openspec-{proposal,apply,archive}.prompt.md` with YAML frontmatter and `$ARGUMENTS` placeholder, and refreshes them on `openspec update`.
+- Add GitHub Copilot slash command support. LightSpec now writes prompts to `.github/prompts/lightspec-{proposal,apply,archive}.prompt.md` with YAML frontmatter and `$ARGUMENTS` placeholder, and refreshes them on `lightspec update`.
 
 ## 0.8.1
 
 ### Patch Changes
 
-- d070d08: Fix CLI version mismatch and add a release guard that validates the packed tarball prints the same version as package.json via `openspec --version`.
+- d070d08: Fix CLI version mismatch and add a release guard that validates the packed tarball prints the same version as package.json via `lightspec --version`.
 
 ## 0.8.0
 
 ### Minor Changes
 
 - c29b06d: Add Windsurf support.
-- Add Codex slash command support. OpenSpec now writes prompts directly to Codex's global directory (`~/.codex/prompts` or `$CODEX_HOME/prompts`) and refreshes them on `openspec update`.
+- Add Codex slash command support. LightSpec now writes prompts directly to Codex's global directory (`~/.codex/prompts` or `$CODEX_HOME/prompts`) and refreshes them on `lightspec update`.
 
 ## 0.7.0
 
 ### Minor Changes
 
-- Add native Kilo Code workflow integration so `openspec init` and `openspec update` manage `.kilocode/workflows/openspec-*.md` files.
+- Add native Kilo Code workflow integration so `lightspec init` and `lightspec update` manage `.kilocode/workflows/lightspec-*.md` files.
 - Always scaffold the managed root `AGENTS.md` hand-off stub and regroup the AI tool prompts during init/update to keep instructions consistent.
 
 ## 0.6.0
@@ -335,7 +335,7 @@
 
 ### Minor Changes
 
-- Add OpenSpec change proposals for CLI improvements and enhanced user experience
+- Add LightSpec change proposals for CLI improvements and enhanced user experience
 - Add Opencode slash commands support for AI-driven development workflows
 
 ### Patch Changes
@@ -347,15 +347,15 @@
 
 ### Minor Changes
 
-- Enhance `openspec init` with extend mode, multi-tool selection, and an interactive `AGENTS.md` configurator.
+- Enhance `lightspec init` with extend mode, multi-tool selection, and an interactive `AGENTS.md` configurator.
 
 ## 0.2.0
 
 ### Minor Changes
 
-- ce5cead: - Add an `openspec view` dashboard that rolls up spec counts and change progress at a glance
-  - Generate and update AI slash commands alongside the renamed `openspec/AGENTS.md` instructions file
-  - Remove the deprecated `openspec diff` command and direct users to `openspec show`
+- ce5cead: - Add an `lightspec view` dashboard that rolls up spec counts and change progress at a glance
+  - Generate and update AI slash commands alongside the renamed `lightspec/AGENTS.md` instructions file
+  - Remove the deprecated `lightspec diff` command and direct users to `lightspec show`
 
 ## 0.1.0
 

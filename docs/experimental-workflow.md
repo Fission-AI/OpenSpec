@@ -6,11 +6,11 @@
 
 ## What Is It?
 
-OPSX is a **fluid, iterative workflow** for OpenSpec changes. No more rigid phases — just actions you can take anytime.
+OPSX is a **fluid, iterative workflow** for LightSpec changes. No more rigid phases — just actions you can take anytime.
 
 ## Why This Exists
 
-The standard OpenSpec workflow works, but it's **locked down**:
+The standard LightSpec workflow works, but it's **locked down**:
 
 - **Instructions are hardcoded** — buried in TypeScript, you can't change them
 - **All-or-nothing** — one big command creates everything, can't test individual pieces
@@ -39,7 +39,7 @@ Standard workflow:                    OPSX:
 **This is for everyone:**
 - **Teams** — create workflows that match how you actually work
 - **Power users** — tweak prompts to get better AI outputs for your codebase
-- **OpenSpec contributors** — experiment with new approaches without releases
+- **LightSpec contributors** — experiment with new approaches without releases
 
 We're all still learning what works best. OPSX lets us learn together.
 
@@ -69,16 +69,16 @@ You can always go back:
 ## Setup
 
 ```bash
-# 1. Make sure you have openspec installed and initialized
-openspec init
+# 1. Make sure you have lightspec installed and initialized
+lightspec init
 
 # 2. Generate the experimental skills
-openspec artifact-experimental-setup
+lightspec artifact-experimental-setup
 ```
 
 This creates skills in `.claude/skills/` that Claude Code auto-detects.
 
-During setup, you'll be prompted to create a **project config** (`openspec/config.yaml`). This is optional but recommended.
+During setup, you'll be prompted to create a **project config** (`lightspec/config.yaml`). This is optional but recommended.
 
 ## Project Configuration
 
@@ -89,7 +89,7 @@ Project config lets you set defaults and inject project-specific context into al
 Config is created during `artifact-experimental-setup`, or manually:
 
 ```yaml
-# openspec/config.yaml
+# lightspec/config.yaml
 schema: spec-driven
 
 context: |
@@ -120,8 +120,8 @@ rules:
 
 **Schema precedence** (highest to lowest):
 1. CLI flag (`--schema tdd`)
-2. Change metadata (`.openspec.yaml` in change directory)
-3. Project config (`openspec/config.yaml`)
+2. Change metadata (`.lightspec.yaml` in change directory)
+3. Project config (`lightspec/config.yaml`)
 4. Default (`spec-driven`)
 
 **Context injection:**
@@ -159,10 +159,10 @@ rules:
 
 **"Unknown artifact ID in rules: X"**
 - Check artifact IDs match your schema (see list above)
-- Run `openspec schemas --json` to see artifact IDs for each schema
+- Run `lightspec schemas --json` to see artifact IDs for each schema
 
 **Config not being applied:**
-- Ensure file is at `openspec/config.yaml` (not `.yml`)
+- Ensure file is at `lightspec/config.yaml` (not `.yml`)
 - Check YAML syntax with a validator
 - Config changes take effect immediately (no restart needed)
 
@@ -307,7 +307,7 @@ Think of it like git branches:
 
 ## What's Different?
 
-| | Standard (`/openspec:proposal`) | Experimental (`/opsx:*`) |
+| | Standard (`/lightspec:proposal`) | Experimental (`/opsx:*`) |
 |---|---|---|
 | **Structure** | One big proposal document | Discrete artifacts with dependencies |
 | **Workflow** | Linear phases: plan → implement → archive | Fluid actions — do anything anytime |
@@ -334,7 +334,7 @@ This section explains how OPSX works under the hood and how it compares to the s
 │   └──────────────┘      └──────────────┘      └──────────────┘             │
 │         │                     │                     │                       │
 │         ▼                     ▼                     ▼                       │
-│   /openspec:proposal   /openspec:apply      /openspec:archive              │
+│   /lightspec:proposal   /lightspec:apply      /lightspec:archive              │
 │                                                                             │
 │   • Creates ALL artifacts at once                                          │
 │   • Can't go back to update specs during implementation                    │
@@ -379,7 +379,7 @@ This section explains how OPSX works under the hood and how it compares to the s
 │   Configurators (18+ classes, one per editor)                               │
 │                    │                                                        │
 │                    ▼                                                        │
-│   Generated Command Files (.claude/commands/openspec/*.md)                  │
+│   Generated Command Files (.claude/commands/lightspec/*.md)                  │
 │                                                                             │
 │   • Fixed structure, no artifact awareness                                  │
 │   • Change requires code modification + rebuild                             │
@@ -415,7 +415,7 @@ This section explains how OPSX works under the hood and how it compares to the s
 │   └─────────────────────────────────────────────────────────────────────┘   │
 │                    │                                                        │
 │                    ▼                                                        │
-│   Skill Files (.claude/skills/openspec-*/SKILL.md)                          │
+│   Skill Files (.claude/skills/lightspec-*/SKILL.md)                          │
 │                                                                             │
 │   • Cross-editor compatible (Claude Code, Cursor, Windsurf)                 │
 │   • Skills query CLI for structured data                                    │
@@ -468,7 +468,7 @@ Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, no
 **Standard workflow** — agent receives static instructions:
 
 ```
-  User: "/openspec:proposal"
+  User: "/lightspec:proposal"
            │
            ▼
   ┌─────────────────────────────────────────┐
@@ -495,7 +495,7 @@ Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, no
   ┌──────────────────────────────────────────────────────────────────────────┐
   │  Step 1: Query current state                                             │
   │  ┌────────────────────────────────────────────────────────────────────┐  │
-  │  │  $ openspec status --change "add-auth" --json                      │  │
+  │  │  $ lightspec status --change "add-auth" --json                      │  │
   │  │                                                                    │  │
   │  │  {                                                                 │  │
   │  │    "artifacts": [                                                  │  │
@@ -509,7 +509,7 @@ Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, no
   │                                                                          │
   │  Step 2: Get rich instructions for ready artifact                        │
   │  ┌────────────────────────────────────────────────────────────────────┐  │
-  │  │  $ openspec instructions specs --change "add-auth" --json          │  │
+  │  │  $ lightspec instructions specs --change "add-auth" --json          │  │
   │  │                                                                    │  │
   │  │  {                                                                 │  │
   │  │    "template": "# Specification\n\n## ADDED Requirements...",      │  │
@@ -569,23 +569,23 @@ Create custom workflows using the schema management commands:
 
 ```bash
 # Create a new schema from scratch (interactive)
-openspec schema init my-workflow
+lightspec schema init my-workflow
 
 # Or fork an existing schema as a starting point
-openspec schema fork spec-driven my-workflow
+lightspec schema fork spec-driven my-workflow
 
 # Validate your schema structure
-openspec schema validate my-workflow
+lightspec schema validate my-workflow
 
 # See where a schema resolves from (useful for debugging)
-openspec schema which my-workflow
+lightspec schema which my-workflow
 ```
 
-Schemas are stored in `openspec/schemas/` (project-local, version controlled) or `~/.local/share/openspec/schemas/` (user global).
+Schemas are stored in `lightspec/schemas/` (project-local, version controlled) or `~/.local/share/lightspec/schemas/` (user global).
 
 **Schema structure:**
 ```
-openspec/schemas/research-first/
+lightspec/schemas/research-first/
 ├── schema.yaml
 └── templates/
     ├── research.md
@@ -635,19 +635,19 @@ Schemas define what artifacts exist and their dependencies. Currently available:
 
 ```bash
 # List available schemas
-openspec schemas
+lightspec schemas
 
 # See all schemas with their resolution sources
-openspec schema which --all
+lightspec schema which --all
 
 # Create a new schema interactively
-openspec schema init my-workflow
+lightspec schema init my-workflow
 
 # Fork an existing schema for customization
-openspec schema fork spec-driven my-workflow
+lightspec schema fork spec-driven my-workflow
 
 # Validate schema structure before use
-openspec schema validate my-workflow
+lightspec schema validate my-workflow
 ```
 
 ## Tips
@@ -656,10 +656,10 @@ openspec schema validate my-workflow
 - `/opsx:ff` when you know what you want, `/opsx:continue` when exploring
 - During `/opsx:apply`, if something's wrong — fix the artifact, then continue
 - Tasks track progress via checkboxes in `tasks.md`
-- Check status anytime: `openspec status --change "name"`
+- Check status anytime: `lightspec status --change "name"`
 
 ## Feedback
 
 This is rough. That's intentional — we're learning what works.
 
-Found a bug? Have ideas? Join us on [Discord](https://discord.gg/BYjPaKbqMt) or open an issue on [GitHub](https://github.com/Fission-AI/openspec/issues).
+Found a bug? Have ideas? Join us on [Discord](https://discord.gg/BYjPaKbqMt) or open an issue on [GitHub](https://github.com/Fission-AI/lightspec/issues).

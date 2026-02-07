@@ -13,8 +13,8 @@ Create a new change proposal to track development work.
 ```
 
 Creates:
-- `openspec/changes/<name>/` directory
-- `.openspec.yaml` metadata file
+- `lightspec/changes/<name>/` directory
+- `.lightspec.yaml` metadata file
 - Optional README.md with description
 
 ### lightspec-apply

@@ -1,4 +1,4 @@
-# OpenSpec Parallel Delta Remediation Plan
+# LightSpec Parallel Delta Remediation Plan
 
 ## Problem Summary
 - Active changes apply requirement-level replacements when archiving. When two changes touch the same requirement, the second archive overwrites the first and silently drops scenarios (e.g., Windsurf vs. Kilo Code slash command updates).
@@ -37,18 +37,18 @@
 3. **Surface intent in CLI output.**
    - Show which requirements are stale, when they diverged, and which change last touched them.
 4. **Document interim manual mitigation.**
-   - Update `openspec/AGENTS.md` and docs so contributors know to rerun `openspec change sync` (see Phase 1) whenever another change lands.
+   - Update `lightspec/AGENTS.md` and docs so contributors know to rerun `lightspec change sync` (see Phase 1) whenever another change lands.
 
 _Outcome:_ We prevent data loss immediately while we work on a richer merge story.
 
 ### Phase 1 – Add a Rebase Workflow (Author-Side Merge)
-1. **Introduce `openspec change sync <id>` (or `rebase`).**
+1. **Introduce `lightspec change sync <id>` (or `rebase`).**
    - Reads the stored base snapshot, the current spec, and the author’s delta.
    - Performs a 3-way merge per requirement. A naive diff3 on markdown lines is acceptable initially because we already operate on requirement-sized chunks.
    - If the merge is clean, rewrite the `MODIFIED` block with the merged text and refresh the stored fingerprint.
    - On conflict, write conflict markers inside the change delta (similar to Git) and require the author to hand-edit before re-running validation.
 2. **Enrich validator messages.**
-   - `openspec validate` should flag unresolved conflict markers or fingerprint mismatches so errors appear early in the workflow.
+   - `lightspec validate` should flag unresolved conflict markers or fingerprint mismatches so errors appear early in the workflow.
 3. **Optional:** Offer a `--rewrite-scenarios` helper that merges bullet lists of scenarios to reduce manual editing noise.
 
 _Outcome:_ Contributors can safely reconcile their work with the latest spec before archiving, restoring true parallel development.
@@ -74,9 +74,9 @@ _Outcome:_ Most concurrent updates become commutative, drastically reducing the 
    - Build an intermediate representation (IR) for requirements/scenarios/metadata.
    - Use operational transforms or CRDT-like techniques to guarantee merge associativity.
 3. **Integrate with Git directly.**
-   - Offer optional `openspec branch` scaffolding that aligns spec changes with Git branches, letting teams leverage Git’s conflict editor for the markdown IR.
+   - Offer optional `lightspec branch` scaffolding that aligns spec changes with Git branches, letting teams leverage Git’s conflict editor for the markdown IR.
 
-_Outcome:_ OpenSpec graduates from replace-based updates to a resilient, intent-preserving spec management platform.
+_Outcome:_ LightSpec graduates from replace-based updates to a resilient, intent-preserving spec management platform.
 
 ## Migration & Product Impacts
 - **Backfill metadata:** add hashes for all active changes and the current main specs during the initial rollout.
@@ -92,7 +92,7 @@ _Outcome:_ OpenSpec graduates from replace-based updates to a resilient, intent-
 - How will archived historical changes be handled? We may need a migration script to embed fingerprints retroactively so re-validation succeeds.
 
 ## Immediate Next Steps
-1. Prototype fingerprint capture during `openspec change validate` and block archive on mismatches.
-2. Ship `openspec change sync` with line-based diff3 merging and conflict markers.
+1. Prototype fingerprint capture during `lightspec change validate` and block archive on mismatches.
+2. Ship `lightspec change sync` with line-based diff3 merging and conflict markers.
 3. Update contributor docs and AI instructions to mandate running `sync` before archiving.
 4. Plan the scenario-level delta extension and migration path as a follow-up RFC.

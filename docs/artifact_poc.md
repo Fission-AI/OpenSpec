@@ -1,4 +1,4 @@
-# POC-OpenSpec-Core Analysis
+# POC-LightSpec-Core Analysis
 
 ---
 
@@ -21,7 +21,7 @@ This system is **not** a workflow engine. It's an **artifact tracker with depend
 
 | Term | Definition | Example |
 |------|------------|---------|
-| **Change** | A unit of work being planned (feature, refactor, migration) | `openspec/changes/add-auth/` |
+| **Change** | A unit of work being planned (feature, refactor, migration) | `lightspec/changes/add-auth/` |
 | **Schema** | An artifact graph definition (what artifacts exist, their dependencies) | `spec-driven.yaml` |
 | **Artifact** | A node in the graph (a document to create) | `proposal`, `design`, `specs` |
 | **Template** | Instructions/guidance for creating an artifact | `templates/proposal.md` |
@@ -52,14 +52,14 @@ Schemas can vary across multiple dimensions:
 Schemas follow the XDG Base Directory Specification with a 2-level resolution:
 
 ```
-1. ${XDG_DATA_HOME}/openspec/schemas/<name>/schema.yaml   # Global user override
+1. ${XDG_DATA_HOME}/lightspec/schemas/<name>/schema.yaml   # Global user override
 2. <package>/schemas/<name>/schema.yaml                    # Built-in defaults
 ```
 
 **Platform-specific paths:**
-- Unix/macOS: `~/.local/share/openspec/schemas/`
-- Windows: `%LOCALAPPDATA%/openspec/schemas/`
-- All platforms: `$XDG_DATA_HOME/openspec/schemas/` (when set)
+- Unix/macOS: `~/.local/share/lightspec/schemas/`
+- Windows: `%LOCALAPPDATA%/lightspec/schemas/`
+- All platforms: `$XDG_DATA_HOME/lightspec/schemas/` (when set)
 
 **Why XDG?**
 - Schemas are workflow definitions (data), not user preferences (config)
@@ -72,7 +72,7 @@ Schemas follow the XDG Base Directory Specification with a 2-level resolution:
 Templates are co-located with schemas in a `templates/` subdirectory:
 
 ```
-1. ${XDG_DATA_HOME}/openspec/schemas/<schema>/templates/<artifact>.md  # User override
+1. ${XDG_DATA_HOME}/lightspec/schemas/<schema>/templates/<artifact>.md  # User override
 2. <package>/schemas/<schema>/templates/<artifact>.md                   # Built-in
 ```
 
@@ -154,13 +154,13 @@ Simple utility functions for programmatic change creation. No class, no abstract
 
 | Responsibility | Approach |
 |----------------|----------|
-| Create changes | Create dirs under `openspec/changes/<name>/` with README |
+| Create changes | Create dirs under `lightspec/changes/<name>/` with README |
 | Name validation | Enforce kebab-case naming |
 
 **Key Paths:**
 
 ```
-openspec/changes/<name>/   → Change instances with artifacts (project-level)
+lightspec/changes/<name>/   → Change instances with artifacts (project-level)
 ```
 
 **Key Functions** (`src/utils/change-utils.ts`):
@@ -214,18 +214,18 @@ User interface layer. **All commands are deterministic** - require explicit `--c
 | `status --change <id>` | Show change progress (artifact graph) | **NEW** |
 | `next --change <id>` | Show artifacts ready to create | **NEW** |
 | `instructions <artifact> --change <id>` | Get enriched instructions for artifact | **NEW** |
-| `list` | List all changes | EXISTS (`openspec change list`) |
+| `list` | List all changes | EXISTS (`lightspec change list`) |
 | `new <name>` | Create change | **NEW** (uses `createChange()`) |
-| `init` | Initialize structure | EXISTS (`openspec init`) |
+| `init` | Initialize structure | EXISTS (`lightspec init`) |
 | `templates --change <id>` | Show resolved template paths | **NEW** |
 
 **Note:** Commands that operate on a change require `--change`. Missing parameter → error with list of available changes. Agent infers the change from conversation and passes it explicitly.
 
 **Existing CLI commands** (not part of this slice):
-- `openspec change list` / `openspec change show <id>` / `openspec change validate <id>`
-- `openspec list --changes` / `openspec list --specs`
-- `openspec view` (dashboard)
-- `openspec init` / `openspec archive <change>`
+- `lightspec change list` / `lightspec change show <id>` / `lightspec change validate <id>`
+- `lightspec list --changes` / `lightspec list --specs`
+- `lightspec view` (dashboard)
+- `lightspec init` / `lightspec archive <change>`
 
 ---
 
@@ -250,7 +250,7 @@ Integration layer for Claude Code. **Operational commands only** - artifact crea
 
 This works for ANY artifact in ANY schema - no new slash commands needed when schemas change.
 
-**Note:** Legacy commands (`/openspec-proposal`, `/openspec-apply`, `/openspec-archive`) exist in the main project for backward compatibility but are separate from this architecture.
+**Note:** Legacy commands (`/lightspec-proposal`, `/lightspec-apply`, `/lightspec-archive`) exist in the main project for backward compatibility but are separate from this architecture.
 
 ---
 
@@ -290,8 +290,8 @@ This works for ANY artifact in ANY schema - no new slash commands needed when sc
 │                   PERSISTENCE LAYER                          │
 │  ┌──────────────────┐   ┌────────────────────────────────┐  │
 │  │  XDG Schemas     │   │  Project Artifacts             │  │
-│  │  ~/.local/share/ │   │  openspec/changes/<name>/      │  │
-│  │  openspec/       │   │  - proposal.md, design.md      │  │
+│  │  ~/.local/share/ │   │  lightspec/changes/<name>/      │  │
+│  │  lightspec/       │   │  - proposal.md, design.md      │  │
 │  │  schemas/        │   │  - specs/*.md, tasks.md        │  │
 │  └──────────────────┘   └────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
@@ -317,8 +317,8 @@ if (exists(artifactPath)) {
 **CLI layer:** Always deterministic - requires explicit `--change` parameter.
 
 ```
-openspec status --change add-auth     # explicit, works
-openspec status                        # error: "No change specified"
+lightspec status --change add-auth     # explicit, works
+lightspec status                        # error: "No change specified"
 ```
 
 **Agent layer:** Infers from conversation, confirms if uncertain, passes explicit `--change`.
@@ -331,7 +331,7 @@ This separation means:
 ### 3. XDG-Compliant Schema Resolution
 
 ```
-${XDG_DATA_HOME}/openspec/schemas/<name>/schema.yaml   # User override
+${XDG_DATA_HOME}/lightspec/schemas/<name>/schema.yaml   # User override
     ↓ (not found)
 <package>/schemas/<name>/schema.yaml                    # Built-in
     ↓ (not found)
@@ -341,7 +341,7 @@ Error (schema not found)
 ### 4. Two-Level Template Fallback
 
 ```
-${XDG_DATA_HOME}/openspec/schemas/<schema>/templates/<artifact>.md  # User override
+${XDG_DATA_HOME}/lightspec/schemas/<schema>/templates/<artifact>.md  # User override
     ↓ (not found)
 <package>/schemas/<schema>/templates/<artifact>.md                   # Built-in
     ↓ (not found)
@@ -465,10 +465,10 @@ Structured as **vertical slices** - each slice is independently testable.
 - `new <name>` - Create change (wrapper for `createChange()`)
 
 **Already exists (not in scope):**
-- `openspec change list/show/validate` - change management
-- `openspec list --changes/--specs` - listing
-- `openspec view` - dashboard
-- `openspec init` - initialization
+- `lightspec change list/show/validate` - change management
+- `lightspec list --changes/--specs` - listing
+- `lightspec view` - dashboard
+- `lightspec init` - initialization
 
 **Testable behaviors:**
 - Each new command produces expected output
@@ -481,8 +481,8 @@ Structured as **vertical slices** - each slice is independently testable.
 
 ```
 # Global (XDG paths - user overrides)
-~/.local/share/openspec/           # Unix/macOS ($XDG_DATA_HOME/openspec/)
-%LOCALAPPDATA%/openspec/           # Windows
+~/.local/share/lightspec/           # Unix/macOS ($XDG_DATA_HOME/lightspec/)
+%LOCALAPPDATA%/lightspec/           # Windows
 └── schemas/                       # Schema overrides
     └── custom-workflow/           # User-defined schema directory
         ├── schema.yaml            # Schema definition
@@ -508,7 +508,7 @@ Structured as **vertical slices** - each slice is independently testable.
             └── docs.md
 
 # Project (change instances)
-openspec/
+lightspec/
 └── changes/                       # Change instances
     ├── add-auth/
     │   ├── README.md              # Auto-generated on creation
@@ -533,7 +533,7 @@ openspec/
 
 ```yaml
 # Built-in: <package>/schemas/spec-driven/schema.yaml
-# Or user override: ~/.local/share/openspec/schemas/spec-driven/schema.yaml
+# Or user override: ~/.local/share/lightspec/schemas/spec-driven/schema.yaml
 name: spec-driven
 version: 1
 description: Specification-driven development

@@ -32,7 +32,7 @@
 
 # LightSpec
 
-A fork of [OpenSpec](https://github.com/Fission-AI/OpenSpec) v0.23.0
+A fork of [LightSpec](https://github.com/Fission-AI/LightSpec) v0.23.0
 
 LightSpec aligns humans and AI coding assistants with spec-driven development so you agree on what to build before any code is written. **No API keys required.**
 
@@ -449,11 +449,11 @@ You can always go back:
 </details>
 
 <details>
-<summary><strong>Telemetry</strong> – LightSpec collects anonymous usage stats (opt-out: <code>OPENSPEC_TELEMETRY=0</code>)</summary>
+<summary><strong>Telemetry</strong> – LightSpec collects anonymous usage stats (opt-out: <code>LIGHTSPEC_TELEMETRY=0</code>)</summary>
 
 We collect only command names and version to understand usage patterns. No arguments, paths, content, or PII. Automatically disabled in CI.
 
-**Opt-out:** `export OPENSPEC_TELEMETRY=0` or `export DO_NOT_TRACK=1`
+**Opt-out:** `export LIGHTSPEC_TELEMETRY=0` or `export DO_NOT_TRACK=1`
 
 </details>
 

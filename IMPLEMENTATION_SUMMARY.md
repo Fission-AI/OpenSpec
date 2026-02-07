@@ -2,14 +2,14 @@
 
 ## Completed Tasks
 
-1. ✅ Cloned OpenSpec v0.23.0
+1. ✅ Cloned LightSpec v0.23.0
 2. ✅ Forked to viteinfinite/lightspec
 3. ✅ Updated package metadata
 4. ✅ Created 3 CLI skills:
    - `lightspec-new` - Create a new change
    - `lightspec-apply` - Get apply instructions for implementation
    - `lightspec-archive` - Archive a completed change
-5. ✅ Updated CLI name from openspec to lightspec
+5. ✅ Updated CLI name from lightspec to lightspec
 6. ✅ Built project successfully
 7. ✅ Pushed to GitHub
 8. ✅ Created documentation
