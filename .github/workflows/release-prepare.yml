@@ -35,8 +35,6 @@ jobs:
           token: ${{ steps.app-token.outputs.token || github.token }}
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - uses: actions/setup-node@v4
         with:
