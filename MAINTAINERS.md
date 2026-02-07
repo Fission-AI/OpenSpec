@@ -6,12 +6,6 @@ People who maintain and guide LightSpec.
 
 | Name | GitHub | Role |
 |------|--------|------|
-| Tabish Bidiwale | [@TabishB](https://github.com/TabishB) | Lead maintainer |
+| Simone Civetta | [@viteinfinite](https://github.com/viteinfinite) | Lead maintainer |
 
-## Advisors
-
-Advisors help shape technical direction and provide guidance to the project.
-
-| Name | GitHub | Focus |
-|------|--------|-------|
-| Hari Krishnan | [@harikrishnan83](https://github.com/harikrishnan83) | Technical direction |
+## Forked from Tabish Bidiwale | [@TabishB](https://github.com/TabishB)'s [OpenSpec].
