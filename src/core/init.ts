@@ -90,11 +90,15 @@ export class InitCommand {
     // Validation happens silently in the background
     const extendMode = await this.validate(projectPath, openspecPath);
 
+    // Migrate OpenCode commands from legacy .opencode/command/ to .opencode/commands/
+    // This must run BEFORE legacy cleanup so migrated files are properly detected
+    const canPrompt = this.canPromptInteractively();
+    await migrateOpenCodeCommands(projectPath, canPrompt);
+
     // Check for legacy artifacts and handle cleanup
     await this.handleLegacyCleanup(projectPath, extendMode);
 
     // Show animated welcome screen (interactive mode only)
-    const canPrompt = this.canPromptInteractively();
     if (canPrompt) {
       const { showWelcomeScreen } = await import('../ui/welcome-screen.js');
       await showWelcomeScreen();
@@ -449,16 +453,6 @@ export class InitCommand {
 
           // Write the skill file
           await FileSystemUtils.writeFile(skillFile, skillContent);
-        }
-
-        if (tool.value === 'opencode') {
-          if (canPrompt) {
-            spinner.stop();
-          }
-          await migrateOpenCodeCommands(projectPath, canPrompt);
-          if (canPrompt) {
-            spinner.start();
-          }
         }
 
         // Generate commands using the adapter system
