@@ -55,12 +55,25 @@ describe('migrateOpenCodeCommands', () => {
     await migrateOpenCodeCommands(tempDir, false);
 
     const migratedContent = await fs.readFile(destFile, 'utf-8');
-    expect(migratedContent).toBe('legacy content');
+    expect(migratedContent).toBe('current content');
+
+    const legacyEntries = await fs.readdir(legacyDir);
+    expect(legacyEntries).toHaveLength(0);
+  });
+
+  it('does nothing when legacy directory does not exist', async () => {
+    await migrateOpenCodeCommands(tempDir, false);
+
+    const legacyDir = path.join(tempDir, '.opencode', 'command');
+    await expect(fs.readdir(legacyDir)).rejects.toThrow();
   });
 
   it('removes empty legacy directory when confirmed', async () => {
     const legacyDir = path.join(tempDir, '.opencode', 'command');
     await fs.mkdir(legacyDir, { recursive: true });
+
+    // Ensure the migration actually changes something so cleanup prompt applies.
+    await fs.writeFile(path.join(legacyDir, 'opsx-archive.md'), 'legacy content');
 
     const { confirm } = await import('@inquirer/prompts');
     (confirm as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(true);

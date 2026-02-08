@@ -108,12 +108,13 @@ export class UpdateCommand {
     const updatedTools: string[] = [];
     const failedTools: Array<{ name: string; error: string }> = [];
 
+    const canPrompt = isInteractive();
+
     for (const toolId of toolsToUpdate) {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
       if (!tool?.skillsDir) continue;
 
       const spinner = ora(`Updating ${tool.name}...`).start();
-      const canPrompt = isInteractive();
 
       try {
         const skillsDir = path.join(resolvedProjectPath, tool.skillsDir, 'skills');

@@ -452,6 +452,7 @@ describe('command-generation/adapters', () => {
       expect(output).toContain('description: Enter explore mode for thinking');
       expect(output).toContain('---\n\n');
       expect(output).toContain('This is the command body.');
+      expect(output).not.toContain('arguments:');
     });
 
     it('should transform colon-based command references to hyphen-based', () => {
