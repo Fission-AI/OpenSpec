@@ -1,5 +1,11 @@
 # lightspec
 
+## 0.2.2
+
+### Patch Changes
+
+- [`ce7b439`](https://github.com/augmenter-dev/LightSpec/commit/ce7b43941aaaa8ca383684a4c6e5d477684f15b4) Thanks [@viteinfinite](https://github.com/viteinfinite)! - Update the docs with skills and new features
+
 ## 0.2.1
 
 ### Patch Changes
