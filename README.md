@@ -85,49 +85,29 @@ See the full comparison in [How LightSpec Compares](#how-lightspec-compares).
 
 ### Supported AI Tools
 
-<details>
-<summary><strong>Native Slash Commands</strong> (click to expand)</summary>
-
-These tools have built-in LightSpec commands. Select the LightSpec integration when prompted.
-
-| Tool | Commands |
-|------|----------|
-| **Amazon Q Developer** | `@lightspec-proposal`, `@lightspec-apply`, `@lightspec-archive` (`.amazonq/prompts/`) |
-| **Antigravity** | `/lightspec-proposal`, `/lightspec-apply`, `/lightspec-archive` (`.agent/workflows/`) |
-| **Auggie (Augment CLI)** | `/lightspec-proposal`, `/lightspec-apply`, `/lightspec-archive` (`.augment/commands/`) |
-| **Claude Code** | `/lightspec:proposal`, `/lightspec:apply`, `/lightspec:archive` |
-| **Cline** | Workflows in `.clinerules/workflows/` directory (`.clinerules/workflows/lightspec-*.md`) |
-| **CodeBuddy Code (CLI)** | `/lightspec:proposal`, `/lightspec:apply`, `/lightspec:archive` (`.codebuddy/commands/`) — see [docs](https://www.codebuddy.ai/cli) |
-| **Codex** | `/lightspec-proposal`, `/lightspec-apply`, `/lightspec-archive` (global: `~/.codex/prompts`, auto-installed) |
-| **Continue** | `/lightspec-proposal`, `/lightspec-apply`, `/lightspec-archive` (`.continue/prompts/`) |
-| **CoStrict** | `/lightspec-proposal`, `/lightspec-apply`, `/lightspec-archive` (`.cospec/lightspec/commands/`) — see [docs](https://costrict.ai)|
-| **Crush** | `/lightspec-proposal`, `/lightspec-apply`, `/lightspec-archive` (`.crush/commands/lightspec/`) |
-| **Cursor** | `/lightspec-proposal`, `/lightspec-apply`, `/lightspec-archive` |
-| **Factory Droid** | `/lightspec-proposal`, `/lightspec-apply`, `/lightspec-archive` (`.factory/commands/`) |
-| **Gemini CLI** | `/lightspec:proposal`, `/lightspec:apply`, `/lightspec:archive` (`.gemini/commands/lightspec/`) |
-| **GitHub Copilot** | `/lightspec-proposal`, `/lightspec-apply`, `/lightspec-archive` (`.github/prompts/`) |
-| **iFlow (iflow-cli)** | `/lightspec-proposal`, `/lightspec-apply`, `/lightspec-archive` (`.iflow/commands/`) |
-| **Kilo Code** | `/lightspec-proposal.md`, `/lightspec-apply.md`, `/lightspec-archive.md` (`.kilocode/workflows/`) |
-| **OpenCode** | `/lightspec-proposal`, `/lightspec-apply`, `/lightspec-archive` |
-| **Qoder (CLI)** | `/lightspec:proposal`, `/lightspec:apply`, `/lightspec:archive` (`.qoder/commands/lightspec/`) — see [docs](https://qoder.com/cli) |
-| **Qwen Code** | `/lightspec-proposal`, `/lightspec-apply`, `/lightspec-archive` (`.qwen/commands/`) |
-| **RooCode** | `/lightspec-proposal`, `/lightspec-apply`, `/lightspec-archive` (`.roo/commands/`) |
-| **Windsurf** | `/lightspec-proposal`, `/lightspec-apply`, `/lightspec-archive` (`.windsurf/workflows/`) |
-
-Kilo Code discovers team workflows automatically. Save the generated files under `.kilocode/workflows/` and trigger them from the command palette with `/lightspec-proposal.md`, `/lightspec-apply.md`, or `/lightspec-archive.md`.
-
-</details>
-
-<details>
-<summary><strong>AGENTS.md Compatible</strong> (click to expand)</summary>
-
-These tools automatically read workflow instructions from `lightspec/AGENTS.md`. Ask them to follow the LightSpec workflow if they need a reminder. Learn more about the [AGENTS.md convention](https://agents.md/).
-
-| Tools |
-|-------|
-| Amp • Jules • Others |
-
-</details>
+- Amazon Q Developer
+- Antigravity
+- Auggie (Augment CLI)
+- Claude Code
+- Cline
+- Codex
+- CodeBuddy Code (CLI)
+- Continue (VS Code / JetBrains / CLI)
+- CoStrict
+- Crush
+- Cursor
+- Factory Droid
+- Gemini CLI
+- GitHub Copilot
+- iFlow
+- Kilo Code
+- Mistral Vibe
+- OpenCode
+- Qoder (CLI)
+- Qwen Code
+- RooCode
+- Windsurf
+- Any AGENTS.md-compatible assistant (via Universal `AGENTS.md`)
 
 ### Install & Initialize
 
