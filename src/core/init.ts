@@ -433,7 +433,6 @@ export class InitCommand {
     const commandContents = getCommandContents();
 
     // Process each tool
-    const canPrompt = this.canPromptInteractively();
     for (const tool of tools) {
       const spinner = ora(`Setting up ${tool.name}...`).start();
 
