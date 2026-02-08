@@ -26,6 +26,7 @@ import { opencodeAdapter } from './adapters/opencode.js';
 import { qoderAdapter } from './adapters/qoder.js';
 import { qwenAdapter } from './adapters/qwen.js';
 import { roocodeAdapter } from './adapters/roocode.js';
+import { traeAdapter } from './adapters/trae.js';
 import { windsurfAdapter } from './adapters/windsurf.js';
 
 /**
@@ -56,6 +57,7 @@ export class CommandAdapterRegistry {
     CommandAdapterRegistry.register(qoderAdapter);
     CommandAdapterRegistry.register(qwenAdapter);
     CommandAdapterRegistry.register(roocodeAdapter);
+    CommandAdapterRegistry.register(traeAdapter);
     CommandAdapterRegistry.register(windsurfAdapter);
   }
 
