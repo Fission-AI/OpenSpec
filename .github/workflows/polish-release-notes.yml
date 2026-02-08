@@ -34,10 +34,12 @@ jobs:
           echo "Fetched release notes for ${{ env.TAG_NAME }}"
 
       - name: Transform release notes with Claude
+        if: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' || secrets.ANTHROPIC_API_KEY != '' }}
         uses: anthropics/claude-code-action@v1
         id: claude
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: "--allowedTools Write,Read"
           prompt: |
@@ -127,6 +129,11 @@ jobs:
             ```
 
             Write both files. No other output.
+
+      - name: Skip polishing (Claude auth not configured)
+        if: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN == '' && secrets.ANTHROPIC_API_KEY == '' }}
+        run: |
+          echo "Skipping AI polishing: configure CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY to enable this step."
 
       - name: Update release
         env:
