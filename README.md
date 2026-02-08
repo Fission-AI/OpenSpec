@@ -1,7 +1,7 @@
 <p align="center">
   <a href="https://github.com/augmenter-dev/lightspec">
     <picture>
-      <img src="assets/augmenter-lightspec.svg" alt="LightSpec logo" height="64">
+      <img src="assets/augmenter-lightspec.svg" alt="LightSpec logo" height="156">
     </picture>
   </a>
   
@@ -20,13 +20,9 @@
   <img src="assets/openspec_dashboard.png" alt="LightSpec dashboard preview" width="90%">
 </p>
 
-<p align="center">
-  Follow <a href="https://x.com/0xTab">@0xTab on X</a> for updates · Join the <a href="https://discord.gg/YctCnvvshC">LightSpec Discord</a> for help and questions.
-</p>
-
 # LightSpec
 
-A fork of [LightSpec](https://github.com/augmenter-dev/LightSpec), focused on simplicity and skill-based agents.
+A fork of [OpenSpec](https://github.com/Fission-AI/OpenSpec), focused on simplicity and skill-based agents.
 
 LightSpec aligns humans and AI coding assistants with spec-driven development so you agree on what to build before any code is written. **No API keys required.**
 
@@ -38,13 +34,14 @@ Key outcomes:
 - Human and AI stakeholders agree on specs before work begins.
 - Structured change folders (proposals, tasks, and spec updates) keep scope explicit and auditable.
 - Shared visibility into what's proposed, active, or archived.
-- Works with the AI tools you already use: custom slash commands where supported, context rules everywhere else.
+- Works with the AI tools you already use via [agent skills](https://agentskills.io/).
 
 ## How LightSpec compares (at a glance)
 
 - **Lightweight**: simple workflow, no API keys, minimal setup.
 - **Brownfield-first**: works great beyond 0→1. LightSpec separates the source of truth from proposals: `lightspec/specs/` (current truth) and `lightspec/changes/` (proposed updates). This keeps diffs explicit and manageable across features.
 - **Change tracking**: proposals, tasks, and spec deltas live together; archiving merges the approved updates back into specs.
+- **Compared to OpenSpec**: LightSpec is a streamlined alternative to OpenSpec, focused on simplicity and ease of adoption. It has fewer commands and a more opinionated workflow, which can reduce cognitive overhead for teams new to spec-driven development.
 - **Compared to spec-kit & Kiro**: those shine for brand-new features (0→1). LightSpec also excels when modifying existing behavior (1→n), especially when updates span multiple specs.
 
 See the full comparison in [How LightSpec Compares](#how-lightspec-compares).
