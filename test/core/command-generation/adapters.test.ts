@@ -17,6 +17,7 @@ import { geminiAdapter } from '../../../src/core/command-generation/adapters/gem
 import { githubCopilotAdapter } from '../../../src/core/command-generation/adapters/github-copilot.js';
 import { iflowAdapter } from '../../../src/core/command-generation/adapters/iflow.js';
 import { kilocodeAdapter } from '../../../src/core/command-generation/adapters/kilocode.js';
+import { lingmaAdapter } from '../../../src/core/command-generation/adapters/lingma.js';
 import { opencodeAdapter } from '../../../src/core/command-generation/adapters/opencode.js';
 import { qoderAdapter } from '../../../src/core/command-generation/adapters/qoder.js';
 import { qwenAdapter } from '../../../src/core/command-generation/adapters/qwen.js';
@@ -542,6 +543,33 @@ describe('command-generation/adapters', () => {
     });
   });
 
+  describe('lingmaAdapter', () => {
+    it('should have correct toolId', () => {
+      expect(lingmaAdapter.toolId).toBe('lingma');
+    });
+
+    it('should generate correct file path', () => {
+      const filePath = lingmaAdapter.getFilePath('explore');
+      expect(filePath).toBe(path.join('.lingma', 'commands', 'opsx', 'explore.md'));
+    });
+
+    it('should generate correct file paths for different commands', () => {
+      expect(lingmaAdapter.getFilePath('new')).toBe(path.join('.lingma', 'commands', 'opsx', 'new.md'));
+      expect(lingmaAdapter.getFilePath('apply')).toBe(path.join('.lingma', 'commands', 'opsx', 'apply.md'));
+    });
+
+    it('should format file with name, description, category, and tags', () => {
+      const output = lingmaAdapter.formatFile(sampleContent);
+      expect(output).toContain('---\n');
+      expect(output).toContain('name: OpenSpec Explore');
+      expect(output).toContain('description: Enter explore mode for thinking');
+      expect(output).toContain('category: Workflow');
+      expect(output).toContain('tags: [workflow, explore, experimental]');
+      expect(output).toContain('---\n\n');
+      expect(output).toContain('This is the command body.\n\nWith multiple lines.');
+    });
+  });
+
   describe('cross-platform path handling', () => {
     it('Claude adapter uses path.join for paths', () => {
       // path.join handles platform-specific separators
@@ -566,7 +594,7 @@ describe('command-generation/adapters', () => {
         amazonQAdapter, antigravityAdapter, auggieAdapter, clineAdapter,
         codexAdapter, codebuddyAdapter, continueAdapter, costrictAdapter,
         crushAdapter, factoryAdapter, geminiAdapter, githubCopilotAdapter,
-        iflowAdapter, kilocodeAdapter, opencodeAdapter, qoderAdapter,
+        iflowAdapter, kilocodeAdapter, lingmaAdapter, opencodeAdapter, qoderAdapter,
         qwenAdapter, roocodeAdapter
       ];
       for (const adapter of adapters) {
