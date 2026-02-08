@@ -443,7 +443,7 @@ describe('command-generation/adapters', () => {
 
     it('should generate correct file path', () => {
       const filePath = opencodeAdapter.getFilePath('explore');
-      expect(filePath).toBe(path.join('.opencode', 'command', 'opsx-explore.md'));
+      expect(filePath).toBe(path.join('.opencode', 'commands', 'opsx-explore.md'));
     });
 
     it('should format file with description frontmatter', () => {
@@ -452,6 +452,7 @@ describe('command-generation/adapters', () => {
       expect(output).toContain('description: Enter explore mode for thinking');
       expect(output).toContain('---\n\n');
       expect(output).toContain('This is the command body.');
+      expect(output).not.toContain('arguments:');
     });
 
     it('should transform colon-based command references to hyphen-based', () => {
@@ -479,6 +480,19 @@ describe('command-generation/adapters', () => {
       expect(output).toContain('/opsx-new');
       expect(output).toContain('/opsx-continue');
       expect(output).toContain('/opsx-apply');
+    });
+
+    it('should include $ARGUMENTS placeholder in archive frontmatter', () => {
+      const archiveContent: CommandContent = {
+        ...sampleContent,
+        id: 'archive',
+        name: 'OpenSpec Archive',
+        description: 'Archive a completed change',
+      };
+      const output = opencodeAdapter.formatFile(archiveContent);
+      expect(output).toContain('arguments: |');
+      expect(output).toContain('<ChangeId>');
+      expect(output).toContain('$ARGUMENTS');
     });
   });
 

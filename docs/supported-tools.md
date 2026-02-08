@@ -29,7 +29,7 @@ For each tool you select, OpenSpec installs:
 | GitHub Copilot | `.github/skills/` | `.github/prompts/`\*\* |
 | iFlow | `.iflow/skills/` | `.iflow/commands/` |
 | Kilo Code | `.kilocode/skills/` | `.kilocode/workflows/` |
-| OpenCode | `.opencode/skills/` | `.opencode/command/` |
+| OpenCode | `.opencode/skills/` | `.opencode/commands/` |
 | Qoder | `.qoder/skills/` | `.qoder/commands/opsx/` |
 | Qwen Code | `.qwen/skills/` | `.qwen/commands/` |
 | RooCode | `.roo/skills/` | `.roo/commands/` |
