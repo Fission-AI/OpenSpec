@@ -25,6 +25,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check Claude auth availability
+        id: auth-check
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -n "${CLAUDE_CODE_OAUTH_TOKEN}" ] || [ -n "${ANTHROPIC_API_KEY}" ]; then
+            echo "has_auth=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_auth=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Get current release body
         id: get-release
         env:
@@ -34,7 +46,7 @@ jobs:
           echo "Fetched release notes for ${{ env.TAG_NAME }}"
 
       - name: Transform release notes with Claude
-        if: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' || secrets.ANTHROPIC_API_KEY != '' }}
+        if: ${{ steps.auth-check.outputs.has_auth == 'true' }}
         uses: anthropics/claude-code-action@v1
         id: claude
         with:
@@ -131,7 +143,7 @@ jobs:
             Write both files. No other output.
 
       - name: Skip polishing (Claude auth not configured)
-        if: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN == '' && secrets.ANTHROPIC_API_KEY == '' }}
+        if: ${{ steps.auth-check.outputs.has_auth != 'true' }}
         run: |
           echo "Skipping AI polishing: configure CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY to enable this step."
 
