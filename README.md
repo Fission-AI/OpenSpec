@@ -171,14 +171,14 @@ lightspec init
 
 **What happens during initialization:**
 - You'll be prompted to pick any natively supported AI tools (Claude Code, CodeBuddy, Cursor, OpenCode, Qoder,etc.); other assistants always rely on the shared `AGENTS.md` stub
-- LightSpec automatically configures slash commands for the tools you choose and always writes a managed `AGENTS.md` hand-off at the project root
+- LightSpec automatically configures skills for the tools you choose and always writes a managed `AGENTS.md` hand-off at the project root
 - A new `lightspec/` directory structure is created in your project
 
 **After setup:**
 - Primary AI tools can trigger `/lightspec` workflows without additional configuration
 - Run `lightspec list` to verify the setup and view any active changes
-- If your coding assistant doesn't surface the new slash commands right away, restart it. Slash commands are loaded at startup,
-  so a fresh launch ensures they appear
+- If your coding assistant doesn't surface the new skills right away, restart it. Skills are loaded at startup, so a fresh launch ensures they appear
+- Depending on your AI tool, you'll need to invoke the lightspec skills with either slash commands (e.g. `/lightspec:proposal`) or dollar commands (e.g. `$lightspec-proposal`) to create change proposals, apply changes, or archive completed work
 
 ### Optional: Populate Project Context
 
@@ -193,7 +193,7 @@ Use the `/lightspec:context-check` skill to validate that your agent instruction
 
 ### Create Your First Change
 
-Here's a real example showing the complete LightSpec workflow. This works with any AI tool. Those with native slash commands will recognize the shortcuts automatically.
+Here's a real example showing the complete LightSpec workflow. This works with any AI tool.
 
 #### 1. Draft the Proposal
 Start by asking your AI to create a change proposal:
@@ -255,8 +255,6 @@ Or run the command yourself in terminal:
 ```bash
 $ lightspec archive add-profile-filters --yes  # Archive the completed change without prompts
 ```
-
-**Note:** Tools with native slash commands (Claude Code, CodeBuddy, Cursor, Codex, Qoder, RooCode) can use the shortcuts shown. All other tools work with natural language requests to "create an LightSpec proposal", "apply the LightSpec change", or "archive the change".
 
 ## Command Reference
 
@@ -382,7 +380,7 @@ Run `lightspec update` whenever someone switches tools so your agents pick up th
    npm install -g lightspec@latest
    ```
 2. **Refresh agent instructions**
-   - Run `lightspec update` inside each project to regenerate AI guidance and ensure the latest slash commands are active.
+   - Run `lightspec update` inside each project to regenerate AI guidance and ensure the latest skills are active.
 
 ## Contributing
 
