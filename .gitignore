@@ -156,3 +156,5 @@ opencode.json
 
 # Codex
 .codex/
+# GitHub (prompts/skills are generated, workflows managed upstream)
+.github/
