@@ -14,7 +14,7 @@ Related issues: #682 (extensible hook capability), #557 (ADR lifecycle hooks), #
 
 - Add a `hooks` section to `schema.yaml` for workflow-level lifecycle hooks (LLM instructions that run at operation boundaries)
 - Add a `hooks` section to `config.yaml` for project-level lifecycle hooks
-- Create a CLI command to resolve and return hooks for a given lifecycle point. With `--change`, resolves schema from the change's metadata. Without `--change`, resolves schema from `config.yaml`'s default `schema` field. Both modes return schema + config hooks (schema first)
+- Create a CLI command to resolve and return hooks for a given lifecycle point. With `--change`, resolves schema from the change's metadata. Without `--change`, resolves schema from the `schema` field in `config.yaml`. Both modes return schema + config hooks (schema first)
 - Update skills (archive, sync, new, apply) to query and execute hooks at their lifecycle points
 - Hooks are LLM instructions only in this iteration — no `run` field for shell execution (deferred to future iteration)
 
