@@ -2,6 +2,7 @@ import { existsSync, readFileSync, statSync } from 'fs';
 import path from 'path';
 import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
+import type { SpecStructureConfig } from '../utils/spec-discovery.js';
 
 /**
  * Zod schema for project configuration.
@@ -38,6 +39,17 @@ export const ProjectConfigSchema = z.object({
     )
     .optional()
     .describe('Per-artifact rules, keyed by artifact ID'),
+
+  // Optional: spec structure configuration (overrides global config)
+  specStructure: z
+    .object({
+      structure: z.enum(['flat', 'hierarchical', 'auto']).optional(),
+      maxDepth: z.number().int().min(1).max(10).optional(),
+      allowMixed: z.boolean().optional(),
+      validatePaths: z.boolean().optional(),
+    })
+    .optional()
+    .describe('Spec structure configuration (overrides global config)'),
 });
 
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
@@ -149,6 +161,64 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
         }
       } else {
         console.warn(`Invalid 'rules' field in config (must be object)`);
+      }
+    }
+
+    // Parse specStructure field sub-field-by-field (resilient)
+    if (raw.specStructure !== undefined) {
+      if (typeof raw.specStructure === 'object' && raw.specStructure !== null && !Array.isArray(raw.specStructure)) {
+        const parsedSpecStructure: SpecStructureConfig = {};
+        let hasValidFields = false;
+
+        // structure
+        if (raw.specStructure.structure !== undefined) {
+          const result = z.enum(['flat', 'hierarchical', 'auto']).safeParse(raw.specStructure.structure);
+          if (result.success) {
+            parsedSpecStructure.structure = result.data;
+            hasValidFields = true;
+          } else {
+            console.warn(`Invalid 'specStructure.structure' in config (must be 'flat', 'hierarchical', or 'auto')`);
+          }
+        }
+
+        // maxDepth
+        if (raw.specStructure.maxDepth !== undefined) {
+          const result = z.number().int().min(1).max(10).safeParse(raw.specStructure.maxDepth);
+          if (result.success) {
+            parsedSpecStructure.maxDepth = result.data;
+            hasValidFields = true;
+          } else {
+            console.warn(`Invalid 'specStructure.maxDepth' in config (must be integer 1-10)`);
+          }
+        }
+
+        // allowMixed
+        if (raw.specStructure.allowMixed !== undefined) {
+          const result = z.boolean().safeParse(raw.specStructure.allowMixed);
+          if (result.success) {
+            parsedSpecStructure.allowMixed = result.data;
+            hasValidFields = true;
+          } else {
+            console.warn(`Invalid 'specStructure.allowMixed' in config (must be boolean)`);
+          }
+        }
+
+        // validatePaths
+        if (raw.specStructure.validatePaths !== undefined) {
+          const result = z.boolean().safeParse(raw.specStructure.validatePaths);
+          if (result.success) {
+            parsedSpecStructure.validatePaths = result.data;
+            hasValidFields = true;
+          } else {
+            console.warn(`Invalid 'specStructure.validatePaths' in config (must be boolean)`);
+          }
+        }
+
+        if (hasValidFields) {
+          config.specStructure = parsedSpecStructure;
+        }
+      } else {
+        console.warn(`Invalid 'specStructure' field in config (must be object)`);
       }
     }
 

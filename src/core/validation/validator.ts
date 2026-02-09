@@ -1,4 +1,4 @@
-import { z, ZodError } from 'zod';
+import { ZodError } from 'zod';
 import { readFileSync, promises as fs } from 'fs';
 import path from 'path';
 import { SpecSchema, ChangeSchema, Spec, Change } from '../schemas/index.js';
@@ -12,6 +12,7 @@ import {
 } from './constants.js';
 import { parseDeltaSpec, normalizeRequirementName } from '../parsers/requirement-blocks.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
+import { findAllSpecs } from '../../utils/spec-discovery.js';
 
 export class Validator {
   private strictMode: boolean;
@@ -119,20 +120,20 @@ export class Validator {
     const emptySectionSpecs: Array<{ path: string; sections: string[] }> = [];
 
     try {
-      const entries = await fs.readdir(specsDir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (!entry.isDirectory()) continue;
-        const specName = entry.name;
-        const specFile = path.join(specsDir, specName, 'spec.md');
+      // Use recursive spec discovery to support hierarchical structures
+      const specs = findAllSpecs(specsDir);
+
+      for (const spec of specs) {
         let content: string | undefined;
         try {
-          content = await fs.readFile(specFile, 'utf-8');
+          content = await fs.readFile(spec.path, 'utf-8');
         } catch {
           continue;
         }
 
         const plan = parseDeltaSpec(content);
-        const entryPath = `${specName}/spec.md`;
+        // Use full capability path (e.g., "_global/testing/spec.md" instead of "testing/spec.md")
+        const entryPath = path.join(spec.capability, 'spec.md');
         const sectionNames: string[] = [];
         if (plan.sectionPresence.added) sectionNames.push('## ADDED Requirements');
         if (plan.sectionPresence.modified) sectionNames.push('## MODIFIED Requirements');
@@ -257,10 +258,10 @@ export class Validator {
         message: `Delta sections ${this.formatSectionList(sections)} were found, but no requirement entries parsed. Ensure each section includes at least one "### Requirement:" block (REMOVED may use bullet list syntax).`,
       });
     }
-    for (const path of missingHeaderSpecs) {
+    for (const specPath of missingHeaderSpecs) {
       issues.push({
         level: 'ERROR',
-        path,
+        path: specPath,
         message: 'No delta sections found. Add headers such as "## ADDED Requirements" or move non-delta notes outside specs/.',
       });
     }

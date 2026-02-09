@@ -3,6 +3,7 @@ import * as path from 'path';
 import chalk from 'chalk';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
 import { MarkdownParser } from './parsers/markdown-parser.js';
+import { findAllSpecs, isSpecStructureHierarchical } from '../utils/spec-discovery.js';
 
 export class ViewCommand {
   async execute(targetPath: string = '.'): Promise<void> {
@@ -18,7 +19,7 @@ export class ViewCommand {
 
     // Get changes and specs data
     const changesData = await this.getChangesData(openspecDir);
-    const specsData = await this.getSpecsData(openspecDir);
+    const { specs: specsData, isHierarchical } = await this.getSpecsData(openspecDir);
 
     // Display summary metrics
     this.displaySummary(changesData, specsData);
@@ -62,16 +63,17 @@ export class ViewCommand {
     if (specsData.length > 0) {
       console.log(chalk.bold.blue('\nSpecifications'));
       console.log('─'.repeat(60));
-      
-      // Sort specs by requirement count (descending)
-      specsData.sort((a, b) => b.requirementCount - a.requirementCount);
-      
-      specsData.forEach(spec => {
-        const reqLabel = spec.requirementCount === 1 ? 'requirement' : 'requirements';
-        console.log(
-          `  ${chalk.blue('▪')} ${chalk.bold(spec.name.padEnd(30))} ${chalk.dim(`${spec.requirementCount} ${reqLabel}`)}`
-        );
-      });
+
+      // Sort by capability path when hierarchical, by requirement count when flat
+      if (!isHierarchical) {
+        specsData.sort((a, b) => b.requirementCount - a.requirementCount);
+      }
+
+      if (isHierarchical) {
+        this.displayHierarchicalSpecs(specsData);
+      } else {
+        this.displayFlatSpecs(specsData);
+      }
     }
 
     console.log('\n' + '═'.repeat(60));
@@ -129,36 +131,35 @@ export class ViewCommand {
     return { draft, active, completed };
   }
 
-  private async getSpecsData(openspecDir: string): Promise<Array<{ name: string; requirementCount: number }>> {
+  private async getSpecsData(openspecDir: string): Promise<{
+    specs: Array<{ name: string; requirementCount: number }>;
+    isHierarchical: boolean;
+  }> {
     const specsDir = path.join(openspecDir, 'specs');
-    
+
     if (!fs.existsSync(specsDir)) {
-      return [];
+      return { specs: [], isHierarchical: false };
     }
 
+    // Use spec-discovery utility to find all specs (supports hierarchical)
+    const discoveredSpecs = findAllSpecs(specsDir);
+    const isHierarchical = isSpecStructureHierarchical(discoveredSpecs);
     const specs: Array<{ name: string; requirementCount: number }> = [];
-    const entries = fs.readdirSync(specsDir, { withFileTypes: true });
-    
-    for (const entry of entries) {
-      if (entry.isDirectory()) {
-        const specFile = path.join(specsDir, entry.name, 'spec.md');
-        
-        if (fs.existsSync(specFile)) {
-          try {
-            const content = fs.readFileSync(specFile, 'utf-8');
-            const parser = new MarkdownParser(content);
-            const spec = parser.parseSpec(entry.name);
-            const requirementCount = spec.requirements.length;
-            specs.push({ name: entry.name, requirementCount });
-          } catch (error) {
-            // If spec cannot be parsed, include with 0 count
-            specs.push({ name: entry.name, requirementCount: 0 });
-          }
-        }
+
+    for (const discoveredSpec of discoveredSpecs) {
+      try {
+        const content = fs.readFileSync(discoveredSpec.path, 'utf-8');
+        const parser = new MarkdownParser(content);
+        const spec = parser.parseSpec(discoveredSpec.capability);
+        const requirementCount = spec.requirements.length;
+        specs.push({ name: discoveredSpec.capability, requirementCount });
+      } catch (error) {
+        // If spec cannot be parsed, include with 0 count
+        specs.push({ name: discoveredSpec.capability, requirementCount: 0 });
       }
     }
 
-    return specs;
+    return { specs, isHierarchical };
   }
 
   private displaySummary(
@@ -206,14 +207,50 @@ export class ViewCommand {
 
   private createProgressBar(completed: number, total: number, width: number = 20): string {
     if (total === 0) return chalk.dim('─'.repeat(width));
-    
+
     const percentage = completed / total;
     const filled = Math.round(percentage * width);
     const empty = width - filled;
-    
+
     const filledBar = chalk.green('█'.repeat(filled));
     const emptyBar = chalk.dim('░'.repeat(empty));
-    
+
     return `[${filledBar}${emptyBar}]`;
+  }
+
+  /**
+   * Display specs in flat structure (backward compatible)
+   */
+  private displayFlatSpecs(specs: Array<{ name: string; requirementCount: number }>): void {
+    specs.forEach(spec => {
+      const reqLabel = spec.requirementCount === 1 ? 'requirement' : 'requirements';
+      console.log(
+        `  ${chalk.blue('▪')} ${chalk.bold(spec.name.padEnd(30))} ${chalk.dim(`${spec.requirementCount} ${reqLabel}`)}`
+      );
+    });
+  }
+
+  /**
+   * Display specs in hierarchical structure with full capability paths
+   */
+  private displayHierarchicalSpecs(specs: Array<{ name: string; requirementCount: number }>): void {
+    const maxWidth = Math.max(...specs.map(s => s.name.length));
+    let lastTopLevel = '';
+
+    for (const spec of specs) {
+      const topLevel = spec.name.split(path.sep)[0];
+      const reqLabel = spec.requirementCount === 1 ? 'requirement' : 'requirements';
+
+      // Add spacing between different top-level groups
+      if (topLevel !== lastTopLevel && lastTopLevel !== '') {
+        console.log('');
+      }
+
+      console.log(
+        `  ${chalk.blue('▪')} ${chalk.bold(spec.name.padEnd(maxWidth))} ${chalk.dim(`${spec.requirementCount} ${reqLabel}`)}`
+      );
+
+      lastTopLevel = topLevel;
+    }
   }
 }

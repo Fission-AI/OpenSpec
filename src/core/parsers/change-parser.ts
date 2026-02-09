@@ -1,5 +1,6 @@
 import { MarkdownParser, Section } from './markdown-parser.js';
 import { Change, Delta, DeltaOperation, Requirement } from '../schemas/index.js';
+import { findAllSpecs } from '../../utils/spec-discovery.js';
 import path from 'path';
 import { promises as fs } from 'fs';
 
@@ -54,22 +55,19 @@ export class ChangeParser extends MarkdownParser {
 
   private async parseDeltaSpecs(specsDir: string): Promise<Delta[]> {
     const deltas: Delta[] = [];
-    
+
     try {
-      const specDirs = await fs.readdir(specsDir, { withFileTypes: true });
-      
-      for (const dir of specDirs) {
-        if (!dir.isDirectory()) continue;
-        
-        const specName = dir.name;
-        const specFile = path.join(specsDir, specName, 'spec.md');
-        
+      // Use recursive spec discovery to support hierarchical structures
+      const specs = findAllSpecs(specsDir);
+
+      for (const spec of specs) {
         try {
-          const content = await fs.readFile(specFile, 'utf-8');
-          const specDeltas = this.parseSpecDeltas(specName, content);
+          const content = await fs.readFile(spec.path, 'utf-8');
+          // Use full capability path (e.g., "_global/testing" instead of just "testing")
+          const specDeltas = this.parseSpecDeltas(spec.capability, content);
           deltas.push(...specDeltas);
         } catch (error) {
-          // Spec file might not exist, which is okay
+          // Spec file might not exist or be readable, which is okay
           continue;
         }
       }
@@ -77,7 +75,7 @@ export class ChangeParser extends MarkdownParser {
       // Specs directory might not exist, which is okay
       return [];
     }
-    
+
     return deltas;
   }
 

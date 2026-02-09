@@ -1,5 +1,29 @@
 # @fission-ai/openspec
 
+## Unreleased
+
+### Minor Changes
+
+- **Hierarchical spec structures** — OpenSpec now supports organizing specifications in nested directory hierarchies (e.g., `_global/testing/`, `platform/services/api/`) alongside the traditional flat structure. Auto-detects structure, maintains full backward compatibility, and includes comprehensive migration guide.
+
+  **Features:**
+  - Recursive spec discovery with `findAllSpecs()` utility
+  - Auto-detection of flat vs. hierarchical structures
+  - Structure validation with configurable depth limits and naming conventions
+  - 1:1 delta replication (change deltas mirror main spec structure)
+  - Cross-platform path handling (Windows, macOS, Linux)
+  - Configuration via `specStructure` in global and project config
+
+  **Updated commands:**
+  - `list`, `validate`, `sync`, `archive` - all support hierarchical paths
+  - Change parser and validator use recursive discovery
+
+  **Documentation:**
+  - [Organizing Specs Guide](docs/organizing-specs.md)
+  - [Migration Guide](docs/migration-flat-to-hierarchical.md)
+  - [Troubleshooting](docs/troubleshooting-hierarchical-specs.md)
+  - [Example project](examples/hierarchical-specs/)
+
 ## 1.1.1
 
 ### Patch Changes
