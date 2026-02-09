@@ -149,3 +149,7 @@ CLAUDE.md
 # Pnpm
 .pnpm-store/
 result
+
+# Local ad-hoc tooling
+demo/
+.local-scripts/

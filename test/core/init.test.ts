@@ -112,6 +112,22 @@ describe('InitCommand', () => {
       expect(content).toContain('<!-- LIGHTSPEC:END -->');
     });
 
+    it('should create CLAUDE.md when .claude folder already exists', async () => {
+      await fs.mkdir(path.join(testDir, '.claude'), { recursive: true });
+      await fs.writeFile(path.join(testDir, '.claude', 'README.md'), 'existing');
+
+      queueSelections('claude', DONE);
+      await initCommand.execute(testDir);
+
+      const claudePath = path.join(testDir, 'CLAUDE.md');
+      expect(await fileExists(claudePath)).toBe(true);
+
+      const content = await fs.readFile(claudePath, 'utf-8');
+      expect(content).toContain('<!-- LIGHTSPEC:START -->');
+      expect(content).toContain('lightspec-proposal');
+      expect(content).toContain('<!-- LIGHTSPEC:END -->');
+    });
+
     it('should update existing CLAUDE.md with markers', async () => {
       queueSelections('claude', DONE);
 
