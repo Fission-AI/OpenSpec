@@ -107,7 +107,7 @@ describe('InitCommand', () => {
 
       const content = await fs.readFile(claudePath, 'utf-8');
       expect(content).toContain('<!-- LIGHTSPEC:START -->');
-      expect(content).toContain("@/lightspec/AGENTS.md");
+      expect(content).toContain("lightspec-proposal");
       expect(content).toContain('lightspec update');
       expect(content).toContain('<!-- LIGHTSPEC:END -->');
     });
@@ -124,7 +124,7 @@ describe('InitCommand', () => {
 
       const updatedContent = await fs.readFile(claudePath, 'utf-8');
       expect(updatedContent).toContain('<!-- LIGHTSPEC:START -->');
-      expect(updatedContent).toContain("@/lightspec/AGENTS.md");
+      expect(updatedContent).toContain("lightspec-proposal");
       expect(updatedContent).toContain('lightspec update');
       expect(updatedContent).toContain('<!-- LIGHTSPEC:END -->');
       expect(updatedContent).toContain('Custom instructions here');
@@ -140,7 +140,7 @@ describe('InitCommand', () => {
 
       const content = await fs.readFile(clinePath, 'utf-8');
       expect(content).toContain('<!-- LIGHTSPEC:START -->');
-      expect(content).toContain("@/lightspec/AGENTS.md");
+      expect(content).toContain("lightspec-proposal");
       expect(content).toContain('lightspec update');
       expect(content).toContain('<!-- LIGHTSPEC:END -->');
     });
@@ -157,7 +157,7 @@ describe('InitCommand', () => {
 
       const updatedContent = await fs.readFile(clinePath, 'utf-8');
       expect(updatedContent).toContain('<!-- LIGHTSPEC:START -->');
-      expect(updatedContent).toContain("@/lightspec/AGENTS.md");
+      expect(updatedContent).toContain("lightspec-proposal");
       expect(updatedContent).toContain('lightspec update');
       expect(updatedContent).toContain('<!-- LIGHTSPEC:END -->');
       expect(updatedContent).toContain('Custom Cline instructions here');
@@ -261,7 +261,7 @@ describe('InitCommand', () => {
 
       const content = await fs.readFile(rootAgentsPath, 'utf-8');
       expect(content).toContain('<!-- LIGHTSPEC:START -->');
-      expect(content).toContain("@/lightspec/AGENTS.md");
+      expect(content).toContain("lightspec-proposal");
       expect(content).toContain('lightspec update');
       expect(content).toContain('<!-- LIGHTSPEC:END -->');
 
@@ -480,7 +480,7 @@ describe('InitCommand', () => {
 
       const updatedContent = await fs.readFile(iflowPath, 'utf-8');
       expect(updatedContent).toContain('<!-- LIGHTSPEC:START -->');
-      expect(updatedContent).toContain("@/lightspec/AGENTS.md");
+      expect(updatedContent).toContain("lightspec-proposal");
       expect(updatedContent).toContain('lightspec update');
       expect(updatedContent).toContain('<!-- LIGHTSPEC:END -->');
       expect(updatedContent).toContain('Custom instructions here');
@@ -556,7 +556,7 @@ describe('InitCommand', () => {
 
       const qwenConfigContent = await fs.readFile(qwenConfigPath, 'utf-8');
       expect(qwenConfigContent).toContain('<!-- LIGHTSPEC:START -->');
-      expect(qwenConfigContent).toContain("@/lightspec/AGENTS.md");
+      expect(qwenConfigContent).toContain("lightspec-proposal");
       expect(qwenConfigContent).toContain('<!-- LIGHTSPEC:END -->');
 
       const proposalContent = await fs.readFile(proposalPath, 'utf-8');
@@ -586,7 +586,7 @@ describe('InitCommand', () => {
 
       const updatedContent = await fs.readFile(qwenPath, 'utf-8');
       expect(updatedContent).toContain('<!-- LIGHTSPEC:START -->');
-      expect(updatedContent).toContain("@/lightspec/AGENTS.md");
+      expect(updatedContent).toContain("lightspec-proposal");
       expect(updatedContent).toContain('lightspec update');
       expect(updatedContent).toContain('<!-- LIGHTSPEC:END -->');
       expect(updatedContent).toContain('Custom instructions here');
@@ -1272,7 +1272,7 @@ describe('InitCommand', () => {
 
       const content = await fs.readFile(codeBuddyPath, 'utf-8');
       expect(content).toContain('<!-- LIGHTSPEC:START -->');
-      expect(content).toContain("@/lightspec/AGENTS.md");
+      expect(content).toContain("lightspec-proposal");
       expect(content).toContain('lightspec update');
       expect(content).toContain('<!-- LIGHTSPEC:END -->');
     });
@@ -1289,7 +1289,7 @@ describe('InitCommand', () => {
 
       const updatedContent = await fs.readFile(codeBuddyPath, 'utf-8');
       expect(updatedContent).toContain('<!-- LIGHTSPEC:START -->');
-      expect(updatedContent).toContain("@/lightspec/AGENTS.md");
+      expect(updatedContent).toContain("lightspec-proposal");
       expect(updatedContent).toContain('lightspec update');
       expect(updatedContent).toContain('<!-- LIGHTSPEC:END -->');
       expect(updatedContent).toContain('Custom instructions here');
@@ -1514,7 +1514,7 @@ describe('InitCommand', () => {
 
       const content = await fs.readFile(costrictPath, 'utf-8');
       expect(content).toContain('<!-- LIGHTSPEC:START -->');
-      expect(content).toContain("@/lightspec/AGENTS.md");
+      expect(content).toContain("lightspec-proposal");
       expect(content).toContain('lightspec update');
       expect(content).toContain('<!-- LIGHTSPEC:END -->');
     });
@@ -1529,7 +1529,7 @@ describe('InitCommand', () => {
 
       const content = await fs.readFile(qoderPath, 'utf-8');
       expect(content).toContain('<!-- LIGHTSPEC:START -->');
-      expect(content).toContain("@/lightspec/AGENTS.md");
+      expect(content).toContain("lightspec-proposal");
       expect(content).toContain('lightspec update');
       expect(content).toContain('<!-- LIGHTSPEC:END -->');
     });
@@ -1561,7 +1561,7 @@ describe('InitCommand', () => {
 
       const updatedContent = await fs.readFile(qoderPath, 'utf-8');
       expect(updatedContent).toContain('<!-- LIGHTSPEC:START -->');
-      expect(updatedContent).toContain("@/lightspec/AGENTS.md");
+      expect(updatedContent).toContain("lightspec-proposal");
       expect(updatedContent).toContain('lightspec update');
       expect(updatedContent).toContain('<!-- LIGHTSPEC:END -->');
       expect(updatedContent).toContain('Custom instructions here');
