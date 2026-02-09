@@ -917,6 +917,66 @@ context: Updated context
         expect(output.toLowerCase()).toMatch(/missing|required|argument/);
       }, 60000);
 
+      it('should return schema hooks before config hooks', async () => {
+        // Create a custom schema with hooks
+        const userDataDir = path.join(tempDir, 'user-data-hooks');
+        const schemaDir = path.join(userDataDir, 'openspec', 'schemas', 'hooked');
+        const templatesDir = path.join(schemaDir, 'templates');
+        await fs.mkdir(templatesDir, { recursive: true });
+
+        const schemaContent = `
+name: hooked
+version: 1
+description: Schema with hooks
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Proposal
+    template: proposal.md
+    requires: []
+hooks:
+  pre-archive:
+    instruction: "Schema hook: run pre-archive validation"
+`;
+        await fs.writeFile(path.join(schemaDir, 'schema.yaml'), schemaContent);
+        await fs.writeFile(path.join(templatesDir, 'proposal.md'), '# Proposal\n');
+
+        // Create config.yaml with hooks and schema reference
+        await fs.writeFile(
+          path.join(tempDir, 'openspec', 'config.yaml'),
+          `schema: hooked
+hooks:
+  pre-archive:
+    instruction: "Config hook: notify team"
+`
+        );
+
+        // Create a change using the hooked schema
+        const changeDir = await createTestChange('hooked-change');
+        await fs.writeFile(
+          path.join(changeDir, '.openspec.yaml'),
+          'schema: hooked\n'
+        );
+
+        // Run hooks command with --change and --json
+        const result = await runCLI(
+          ['hooks', 'pre-archive', '--change', 'hooked-change', '--json'],
+          {
+            cwd: tempDir,
+            timeoutMs: 30000,
+            env: { XDG_DATA_HOME: userDataDir },
+          }
+        );
+        expect(result.exitCode).toBe(0);
+
+        const jsonData = JSON.parse(result.stdout);
+        expect(jsonData.hooks.length).toBe(2);
+        expect(jsonData.hooks[0].source).toBe('schema');
+        expect(jsonData.hooks[0].instruction).toContain('Schema hook');
+        expect(jsonData.hooks[1].source).toBe('config');
+        expect(jsonData.hooks[1].instruction).toContain('Config hook');
+      }, 60000);
+
       it('should show hooks with --change flag', async () => {
         // Create config.yaml with hooks
         await fs.writeFile(
