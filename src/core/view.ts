@@ -5,7 +5,7 @@ import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progre
 import { MarkdownParser } from './parsers/markdown-parser.js';
 
 export class ViewCommand {
-  async execute(targetPath: string = '.', options: { watch?: boolean } = {}): Promise<void> {
+  async execute(targetPath: string = '.', options: { watch?: boolean; signal?: AbortSignal } = {}): Promise<void> {
     const openspecDir = path.join(targetPath, 'openspec');
 
     if (!fs.existsSync(openspecDir)) {
@@ -27,7 +27,9 @@ export class ViewCommand {
             process.stdout.write('\x1B[2J\x1B[3J\x1B[H' + output);
           }
         } catch (error) {
-          console.error(chalk.red(`Error updating dashboard: ${(error as Error).message}`));
+          // Clear screen and show error prominently
+          const errorOutput = chalk.red(`\nError updating dashboard: ${(error as Error).message}\n`);
+          process.stdout.write('\x1B[2J\x1B[3J\x1B[H' + errorOutput);
         }
       };
 
@@ -36,14 +38,35 @@ export class ViewCommand {
 
       const interval = setInterval(update, 2000);
 
-      process.on('SIGINT', () => {
+      const cleanup = () => {
         clearInterval(interval);
-        console.log('\nExiting watch mode...');
-        process.exit(0);
-      });
+        if (!options.signal?.aborted) {
+            console.log('\nExiting watch mode...');
+            process.exit(0);
+        }
+      };
 
-      // Keep the process running
-      await new Promise(() => {});
+      // Register cleanup handler
+      process.once('SIGINT', cleanup);
+
+      // Keep the process running until aborted or SIGINT
+      if (options.signal) {
+        if (options.signal.aborted) {
+          clearInterval(interval);
+          process.removeListener('SIGINT', cleanup);
+          return;
+        }
+
+        await new Promise<void>((resolve) => {
+          options.signal!.addEventListener('abort', () => {
+            clearInterval(interval);
+            process.removeListener('SIGINT', cleanup);
+            resolve();
+          });
+        });
+      } else {
+        await new Promise(() => {});
+      }
     } else {
       const output = await this.getDashboardOutput(openspecDir);
       console.log(output);
@@ -115,8 +138,10 @@ export class ViewCommand {
       });
     }
 
-    output += '\n' + '═'.repeat(60) + '\n';
-    output += chalk.dim(`\nUse ${chalk.white('openspec list --changes')} or ${chalk.white('openspec list --specs')} for detailed views`);
+    append('');
+    append('═'.repeat(60));
+    append('');
+    append(chalk.dim(`Use ${chalk.white('openspec list --changes')} or ${chalk.white('openspec list --specs')} for detailed views`));
 
     return output;
   }
@@ -174,18 +199,18 @@ export class ViewCommand {
 
   private async getSpecsData(openspecDir: string): Promise<Array<{ name: string; requirementCount: number }>> {
     const specsDir = path.join(openspecDir, 'specs');
-    
+
     if (!fs.existsSync(specsDir)) {
       return [];
     }
 
     const specs: Array<{ name: string; requirementCount: number }> = [];
     const entries = fs.readdirSync(specsDir, { withFileTypes: true });
-    
+
     for (const entry of entries) {
       if (entry.isDirectory()) {
         const specFile = path.join(specsDir, entry.name, 'spec.md');
-        
+
         if (fs.existsSync(specFile)) {
           try {
             const content = fs.readFileSync(specFile, 'utf-8');
@@ -211,8 +236,6 @@ export class ViewCommand {
     let output = '';
     const append = (str: string) => { output += str + '\n'; };
 
-    const totalChanges =
-      changesData.draft.length + changesData.active.length + changesData.completed.length;
     const totalSpecs = specsData.length;
     const totalRequirements = specsData.reduce((sum, spec) => sum + spec.requirementCount, 0);
 
@@ -223,11 +246,6 @@ export class ViewCommand {
     changesData.active.forEach((change) => {
       totalTasks += change.progress.total;
       completedTasks += change.progress.completed;
-    });
-
-    changesData.completed.forEach(() => {
-      // Completed changes count as 100% done (we don't know exact task count)
-      // This is a simplification
     });
 
     append(chalk.bold('Summary:'));
