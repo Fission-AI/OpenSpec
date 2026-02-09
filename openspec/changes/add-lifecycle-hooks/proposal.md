@@ -24,6 +24,36 @@ Supported lifecycle points:
 - `pre-sync` / `post-sync` — syncing delta specs
 - `pre-apply` / `post-apply` — implementing tasks
 
+### Example: schema.yaml
+```yaml
+name: feature-change
+hooks:
+  post-archive:
+    instruction: |
+      Review the archived change and update the project changelog with key decisions
+  pre-apply:
+    instruction: |
+      Verify all prerequisite tasks are complete before implementation
+```
+
+### Example: config.yaml
+```yaml
+schema: spec-driven
+hooks:
+  post-new:
+    instruction: |
+      Notify the team in Slack about the new change
+  pre-sync:
+    instruction: |
+      Ensure local working directory is clean
+```
+
+### Schema vs. Config hooks
+
+- **Schema hooks**: Workflow-specific instructions that travel with the schema (e.g., "generate ADR on archive")
+- **Config hooks**: Project-specific instructions that apply across all schemas in that project (e.g., "notify team on sync")
+- **Merge strategy**: Schema hooks run first, then config hooks, allowing projects to add context-specific behavior on top of workflow defaults
+
 ## Capabilities
 
 ### New Capabilities
@@ -39,9 +69,12 @@ Supported lifecycle points:
 
 ## Impact
 
-- **Schema format**: `schema.yaml` gains optional `hooks` field — fully backward compatible (no hooks = no change)
-- **Config format**: `config.yaml` gains optional `hooks` field — fully backward compatible
+- **Schema format**: `schema.yaml` gains optional `hooks` field — fully backward-compatible (no hooks = no change)
+- **Config format**: `config.yaml` gains optional `hooks` field — fully backward-compatible
 - **CLI**: New `openspec hooks` command to resolve and retrieve hooks for a lifecycle point (with optional `--change` flag)
 - **Skills**: Archive, sync, new, and apply skills gain hook execution steps
 - **Existing schemas**: Unaffected — `hooks` is optional
 - **Tests**: New tests for hook parsing, merging, resolution, and validation
+- **Validation**: Hook keys are validated against `VALID_LIFECYCLE_POINTS` at parse time; unknown keys emit warnings
+- **Error handling**: Malformed hooks (empty instruction, non-object values) are skipped with warnings — resilient field-by-field parsing
+- **Security**: Hooks are LLM instructions only (no shell execution in this iteration), limiting the security surface
