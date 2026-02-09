@@ -1,5 +1,11 @@
 # lightspec
 
+## 0.3.0
+
+### Minor Changes
+
+- [#5](https://github.com/augmenter-dev/LightSpec/pull/5) [`5c8c61b`](https://github.com/augmenter-dev/LightSpec/commit/5c8c61be993222e61751f8a3dec7a5d0fd32c97a) Thanks [@viteinfinite](https://github.com/viteinfinite)! - Overhaul the AGENT.md and CLAUDE.md instructions; remove all references to Custom Commands, with now cease to exist
+
 ## 0.2.2
 
 ### Patch Changes

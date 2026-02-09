@@ -16,7 +16,7 @@ Follow the prompts to select version bump type and describe your changes.
 2. **Version PR** — CI opens/updates a "Version Packages" PR when changesets merge to main
 3. **Release** — Merging the Version PR triggers npm publish and GitHub Release
 
-> **Note:** Contributors only need to run `pnpm changeset`. Versioning (`changeset version`) and publishing happen automatically in CI.
+> **Note:** Contributors only need to run `pnpm changeset`. Versioning and publishing are run via the manual release workflow (`release-prepare`) or local manual release script.
 
 ## Template
 
