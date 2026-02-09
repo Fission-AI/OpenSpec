@@ -49,29 +49,27 @@ describe('ViewCommand', () => {
     const viewCommand = new ViewCommand();
     await viewCommand.execute(tempDir);
 
-    const output = logOutput.map(stripAnsi).join('\n');
+    // Combine all log output and split by newlines to handle both single-call and multi-call logging
+    const allOutput = logOutput.join('\n');
+    const lines = allOutput.split('\n').map(stripAnsi);
 
     // Draft section should contain empty and no-tasks changes
-    expect(output).toContain('Draft Changes');
-    expect(output).toContain('empty-change');
-    expect(output).toContain('no-tasks-change');
+    expect(allOutput).toContain('Draft Changes');
+    expect(allOutput).toContain('empty-change');
+    expect(allOutput).toContain('no-tasks-change');
 
     // Completed section should only contain changes with all tasks done
-    expect(output).toContain('Completed Changes');
-    expect(output).toContain('completed-change');
+    expect(allOutput).toContain('Completed Changes');
+    expect(allOutput).toContain('completed-change');
 
     // Verify empty-change and no-tasks-change are in Draft section (marked with ○)
-    const draftLines = logOutput
-      .map(stripAnsi)
-      .filter((line) => line.includes('○'));
+    const draftLines = lines.filter((line) => line.includes('○'));
     const draftNames = draftLines.map((line) => line.trim().replace('○ ', ''));
     expect(draftNames).toContain('empty-change');
     expect(draftNames).toContain('no-tasks-change');
 
     // Verify completed-change is in Completed section (marked with ✓)
-    const completedLines = logOutput
-      .map(stripAnsi)
-      .filter((line) => line.includes('✓'));
+    const completedLines = lines.filter((line) => line.includes('✓'));
     const completedNames = completedLines.map((line) => line.trim().replace('✓ ', ''));
     expect(completedNames).toContain('completed-change');
     expect(completedNames).not.toContain('empty-change');
@@ -109,9 +107,11 @@ describe('ViewCommand', () => {
     const viewCommand = new ViewCommand();
     await viewCommand.execute(tempDir);
 
-    const activeLines = logOutput
-      .map(stripAnsi)
-      .filter(line => line.includes('◉'));
+    // Combine all log output and split by newlines to handle both single-call and multi-call logging
+    const allOutput = logOutput.join('\n');
+    const lines = allOutput.split('\n').map(stripAnsi);
+
+    const activeLines = lines.filter(line => line.includes('◉'));
 
     const activeOrder = activeLines.map(line => {
       const afterBullet = line.split('◉')[1] ?? '';

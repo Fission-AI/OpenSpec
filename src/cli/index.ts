@@ -190,10 +190,11 @@ program
 program
   .command('view')
   .description('Display an interactive dashboard of specs and changes')
-  .action(async () => {
+  .option('-w, --watch', 'Watch for changes and update real-time')
+  .action(async (options?: { watch?: boolean }) => {
     try {
       const viewCommand = new ViewCommand();
-      await viewCommand.execute('.');
+      await viewCommand.execute('.', { watch: options?.watch });
     } catch (error) {
       console.log(); // Empty line for spacing
       ora().fail(`Error: ${(error as Error).message}`);

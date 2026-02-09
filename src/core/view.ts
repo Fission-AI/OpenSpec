@@ -5,37 +5,78 @@ import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progre
 import { MarkdownParser } from './parsers/markdown-parser.js';
 
 export class ViewCommand {
-  async execute(targetPath: string = '.'): Promise<void> {
+  async execute(targetPath: string = '.', options: { watch?: boolean } = {}): Promise<void> {
     const openspecDir = path.join(targetPath, 'openspec');
-    
+
     if (!fs.existsSync(openspecDir)) {
       console.error(chalk.red('No openspec directory found'));
       process.exit(1);
     }
 
-    console.log(chalk.bold('\nOpenSpec Dashboard\n'));
-    console.log('═'.repeat(60));
+    if (options.watch) {
+      let lastOutput = '';
+
+      const update = async () => {
+        try {
+          const output = await this.getDashboardOutput(openspecDir);
+
+          // Only update if content changed
+          if (output !== lastOutput) {
+            lastOutput = output;
+            // Clear screen, scrollback and move cursor to home
+            process.stdout.write('\x1B[2J\x1B[3J\x1B[H' + output);
+          }
+        } catch (error) {
+          console.error(chalk.red(`Error updating dashboard: ${(error as Error).message}`));
+        }
+      };
+
+      // Initial render
+      await update();
+
+      const interval = setInterval(update, 2000);
+
+      process.on('SIGINT', () => {
+        clearInterval(interval);
+        console.log('\nExiting watch mode...');
+        process.exit(0);
+      });
+
+      // Keep the process running
+      await new Promise(() => {});
+    } else {
+      const output = await this.getDashboardOutput(openspecDir);
+      console.log(output);
+    }
+  }
+
+  private async getDashboardOutput(openspecDir: string): Promise<string> {
+    let output = '';
+    const append = (str: string) => { output += str + '\n'; };
+
+    append(chalk.bold('\nOpenSpec Dashboard\n'));
+    append('═'.repeat(60));
 
     // Get changes and specs data
     const changesData = await this.getChangesData(openspecDir);
     const specsData = await this.getSpecsData(openspecDir);
 
     // Display summary metrics
-    this.displaySummary(changesData, specsData);
+    output += this.getSummaryOutput(changesData, specsData);
 
     // Display draft changes
     if (changesData.draft.length > 0) {
-      console.log(chalk.bold.gray('\nDraft Changes'));
-      console.log('─'.repeat(60));
+      append(chalk.bold.gray('\nDraft Changes'));
+      append('─'.repeat(60));
       changesData.draft.forEach((change) => {
-        console.log(`  ${chalk.gray('○')} ${change.name}`);
+        append(`  ${chalk.gray('○')} ${change.name}`);
       });
     }
 
     // Display active changes
     if (changesData.active.length > 0) {
-      console.log(chalk.bold.cyan('\nActive Changes'));
-      console.log('─'.repeat(60));
+      append(chalk.bold.cyan('\nActive Changes'));
+      append('─'.repeat(60));
       changesData.active.forEach((change) => {
         const progressBar = this.createProgressBar(change.progress.completed, change.progress.total);
         const percentage =
@@ -43,7 +84,7 @@ export class ViewCommand {
             ? Math.round((change.progress.completed / change.progress.total) * 100)
             : 0;
 
-        console.log(
+        append(
           `  ${chalk.yellow('◉')} ${chalk.bold(change.name.padEnd(30))} ${progressBar} ${chalk.dim(`${percentage}%`)}`
         );
       });
@@ -51,31 +92,33 @@ export class ViewCommand {
 
     // Display completed changes
     if (changesData.completed.length > 0) {
-      console.log(chalk.bold.green('\nCompleted Changes'));
-      console.log('─'.repeat(60));
+      append(chalk.bold.green('\nCompleted Changes'));
+      append('─'.repeat(60));
       changesData.completed.forEach((change) => {
-        console.log(`  ${chalk.green('✓')} ${change.name}`);
+        append(`  ${chalk.green('✓')} ${change.name}`);
       });
     }
 
     // Display specifications
     if (specsData.length > 0) {
-      console.log(chalk.bold.blue('\nSpecifications'));
-      console.log('─'.repeat(60));
-      
+      append(chalk.bold.blue('\nSpecifications'));
+      append('─'.repeat(60));
+
       // Sort specs by requirement count (descending)
       specsData.sort((a, b) => b.requirementCount - a.requirementCount);
-      
+
       specsData.forEach(spec => {
         const reqLabel = spec.requirementCount === 1 ? 'requirement' : 'requirements';
-        console.log(
+        append(
           `  ${chalk.blue('▪')} ${chalk.bold(spec.name.padEnd(30))} ${chalk.dim(`${spec.requirementCount} ${reqLabel}`)}`
         );
       });
     }
 
-    console.log('\n' + '═'.repeat(60));
-    console.log(chalk.dim(`\nUse ${chalk.white('openspec list --changes')} or ${chalk.white('openspec list --specs')} for detailed views`));
+    output += '\n' + '═'.repeat(60) + '\n';
+    output += chalk.dim(`\nUse ${chalk.white('openspec list --changes')} or ${chalk.white('openspec list --specs')} for detailed views`);
+
+    return output;
   }
 
   private async getChangesData(openspecDir: string): Promise<{
@@ -161,10 +204,13 @@ export class ViewCommand {
     return specs;
   }
 
-  private displaySummary(
+  private getSummaryOutput(
     changesData: { draft: any[]; active: any[]; completed: any[] },
     specsData: any[]
-  ): void {
+  ): string {
+    let output = '';
+    const append = (str: string) => { output += str + '\n'; };
+
     const totalChanges =
       changesData.draft.length + changesData.active.length + changesData.completed.length;
     const totalSpecs = specsData.length;
@@ -184,24 +230,26 @@ export class ViewCommand {
       // This is a simplification
     });
 
-    console.log(chalk.bold('Summary:'));
-    console.log(
+    append(chalk.bold('Summary:'));
+    append(
       `  ${chalk.cyan('●')} Specifications: ${chalk.bold(totalSpecs)} specs, ${chalk.bold(totalRequirements)} requirements`
     );
     if (changesData.draft.length > 0) {
-      console.log(`  ${chalk.gray('●')} Draft Changes: ${chalk.bold(changesData.draft.length)}`);
+      append(`  ${chalk.gray('●')} Draft Changes: ${chalk.bold(changesData.draft.length)}`);
     }
-    console.log(
+    append(
       `  ${chalk.yellow('●')} Active Changes: ${chalk.bold(changesData.active.length)} in progress`
     );
-    console.log(`  ${chalk.green('●')} Completed Changes: ${chalk.bold(changesData.completed.length)}`);
+    append(`  ${chalk.green('●')} Completed Changes: ${chalk.bold(changesData.completed.length)}`);
 
     if (totalTasks > 0) {
       const overallProgress = Math.round((completedTasks / totalTasks) * 100);
-      console.log(
+      append(
         `  ${chalk.magenta('●')} Task Progress: ${chalk.bold(`${completedTasks}/${totalTasks}`)} (${overallProgress}% complete)`
       );
     }
+
+    return output;
   }
 
   private createProgressBar(completed: number, total: number, width: number = 20): string {
