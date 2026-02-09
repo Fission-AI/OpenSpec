@@ -1,6 +1,12 @@
 ## Why
 
-OpenSpec schemas define artifact creation instructions but have no way to inject custom behavior at operation lifecycle points (archive, sync, new, apply). Users need project-specific and workflow-specific actions at these points — consolidating error logs on archive, generating ADRs, notifying external systems, updating documentation indexes — but today the only option is manual post-hoc work or hardcoding behavior into skills.
+OpenSpec schemas define artifact creation instructions but have no way to inject custom behavior at operation lifecycle points (archive, sync, new, apply). Users need project-specific and workflow-specific actions at these points, such as:
+- Consolidating error logs on archive
+- Generating ADRs
+- Notifying external systems
+- Updating documentation indexes
+
+Today the only option is manual post-hoc work or hardcoding behavior into skills.
 
 Related issues: #682 (extensible hook capability), #557 (ADR lifecycle hooks), #328 (Claude Hooks integration), #331 (auto-update project.md on archive), #369 (post-archive actions).
 
