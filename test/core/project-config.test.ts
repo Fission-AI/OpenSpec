@@ -552,7 +552,9 @@ hooks:
         expect(config).toEqual({
           schema: 'spec-driven',
         });
-        expect(consoleWarnSpy).toHaveBeenCalled();
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('instruction must be a non-empty string')
+        );
       });
 
       it('should handle hooks that is not an object', () => {
