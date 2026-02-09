@@ -153,3 +153,6 @@ result
 # OpenCode
 .opencode/
 opencode.json
+
+# GitHub (prompts/skills are generated, workflows managed upstream)
+.github/
