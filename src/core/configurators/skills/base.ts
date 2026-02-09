@@ -1,19 +1,18 @@
 import os from 'os';
 import path from 'path';
-import { promises as fs } from 'fs';
 import { FileSystemUtils } from '../../../utils/file-system.js';
-import { TemplateManager, SlashCommandId } from '../../templates/index.js';
+import { TemplateManager, AgentSkillId } from '../../templates/index.js';
 import { LIGHTSPEC_MARKERS } from '../../config.js';
 
-export interface SlashCommandTarget {
-  id: SlashCommandId;
+export interface AgentSkillTarget {
+  id: AgentSkillId;
   path: string;
   kind: 'skill';
 }
 
 export type SkillInstallLocation = 'project' | 'home';
 
-const ALL_COMMANDS: SlashCommandId[] = ['proposal', 'apply', 'archive', 'context-check'];
+const ALL_SKILL_IDS: AgentSkillId[] = ['proposal', 'apply', 'archive', 'context-check'];
 
 const TOOL_SKILL_ROOTS: Record<string, string> = {
   'amazon-q': '.amazonq',
@@ -40,43 +39,35 @@ const TOOL_SKILL_ROOTS: Record<string, string> = {
   windsurf: '.windsurf',
 };
 
-const TOOL_LEGACY_DIRS: Record<string, string[]> = {
-  'amazon-q': ['.amazonq/prompts', '.aws/amazonq/commands'],
-  antigravity: ['.antigravity/commands', '.agent/workflows'],
-  auggie: ['.augment/commands', '.auggie/commands'],
-  claude: ['.claude/commands'],
-  cline: ['.cline/commands', '.clinerules/workflows'],
-  codex: ['.codex/prompts'],
-  codebuddy: ['.codebuddy/commands'],
-  continue: ['.continue/prompts', '.continue/commands'],
-  costrict: ['.cospec/lightspec/commands'],
-  crush: ['.crush/commands'],
-  cursor: ['.cursor/commands'],
-  factory: ['.factory/commands'],
-  gemini: ['.gemini/commands'],
-  'github-copilot': ['.github/prompts', '.github/copilot/prompts'],
-  iflow: ['.iflow/commands'],
-  kilocode: ['.kilocode/commands', '.kilocode/workflows'],
-  'mistral-vibe': ['.vibe/commands', '.vibe/workflows', '.vibe/prompts'],
-  opencode: ['.opencode/command', '.opencode/commands'],
-  qoder: ['.qoder/commands', '.qoder/prompts'],
-  qwen: ['.qwen/commands', '.qwen/prompts'],
-  roocode: ['.roo/commands', '.roocode/commands'],
-  windsurf: ['.windsurf/workflows', '.windsurf/commands'],
+export const AGENT_SKILL_TOOL_IDS = Object.freeze(
+  Object.keys(TOOL_SKILL_ROOTS)
+);
+
+const TOOL_BODY_SUFFIX: Partial<Record<string, string>> = {
+  factory: '\n\n$ARGUMENTS',
 };
 
-export abstract class SlashCommandConfigurator {
-  abstract readonly toolId: string;
-  abstract readonly isAvailable: boolean;
+export class AgentSkillConfigurator {
+  readonly toolId: string;
+  readonly isAvailable: boolean;
 
   private installLocation: SkillInstallLocation = 'project';
+
+  constructor(toolId: string, isAvailable = true) {
+    this.toolId = toolId;
+    this.isAvailable = isAvailable;
+
+    if (!TOOL_SKILL_ROOTS[this.toolId]) {
+      throw new Error(`No skill root directory configured for tool '${this.toolId}'`);
+    }
+  }
 
   setInstallLocation(location: SkillInstallLocation): void {
     this.installLocation = location;
   }
 
-  getTargets(): SlashCommandTarget[] {
-    return ALL_COMMANDS.map((id) => ({
+  getTargets(): AgentSkillTarget[] {
+    return ALL_SKILL_IDS.map((id) => ({
       id,
       path: this.getRelativeSkillPath(id),
       kind: 'skill',
@@ -93,15 +84,13 @@ export abstract class SlashCommandConfigurator {
       if (await FileSystemUtils.fileExists(filePath)) {
         await this.updateBody(filePath, body);
       } else {
-        const frontmatter = TemplateManager.getSlashCommandFrontmatter(target.id).trim();
+        const frontmatter = TemplateManager.getAgentSkillFrontmatter(target.id).trim();
         const content = this.buildSkillFile(frontmatter, body);
         await FileSystemUtils.writeFile(filePath, content);
       }
 
       createdOrUpdated.push(target.path);
     }
-
-    await this.cleanupLegacyArtifacts(projectPath);
 
     return createdOrUpdated;
   }
@@ -118,16 +107,16 @@ export abstract class SlashCommandConfigurator {
       }
     }
 
-    await this.cleanupLegacyArtifacts(projectPath);
-
     return updated;
   }
 
-  protected getBody(id: SlashCommandId): string {
-    return TemplateManager.getSlashCommandBody(id).trim();
+  protected getBody(id: AgentSkillId): string {
+    const baseBody = TemplateManager.getAgentSkillBody(id).trim();
+    const suffix = TOOL_BODY_SUFFIX[this.toolId] ?? '';
+    return `${baseBody}${suffix}`;
   }
 
-  resolveAbsolutePath(projectPath: string, id: SlashCommandId): string {
+  resolveAbsolutePath(projectPath: string, id: AgentSkillId): string {
     const relativePath = this.getRelativeSkillPath(id);
     if (this.installLocation === 'project') {
       return FileSystemUtils.joinPath(projectPath, relativePath);
@@ -147,7 +136,7 @@ export abstract class SlashCommandConfigurator {
     return FileSystemUtils.joinPath(homeRoot, relativeUnderRoot);
   }
 
-  private getRelativeSkillPath(id: SlashCommandId): string {
+  private getRelativeSkillPath(id: AgentSkillId): string {
     const root = this.getToolRoot();
     const skillName = this.getSkillName(id);
     return `${root}/skills/${skillName}/SKILL.md`;
@@ -174,7 +163,7 @@ export abstract class SlashCommandConfigurator {
     return path.join(os.homedir(), trimmed);
   }
 
-  private getSkillName(id: SlashCommandId): string {
+  private getSkillName(id: AgentSkillId): string {
     return `lightspec-${id}`;
   }
 
@@ -203,61 +192,4 @@ export abstract class SlashCommandConfigurator {
     await FileSystemUtils.writeFile(filePath, updatedContent);
   }
 
-  private async cleanupLegacyArtifacts(projectPath: string): Promise<void> {
-    const legacyDirs = TOOL_LEGACY_DIRS[this.toolId] ?? [];
-    for (const legacyDir of legacyDirs) {
-      const absoluteDir =
-        this.installLocation === 'project'
-          ? FileSystemUtils.joinPath(projectPath, legacyDir)
-          : FileSystemUtils.joinPath(this.getHomeRootPath(), this.relativeToToolRoot(legacyDir));
-      await this.removeLegacyLightSpecFiles(absoluteDir);
-    }
-  }
-
-  private relativeToToolRoot(relativePath: string): string {
-    const rootPrefix = this.getToolRoot();
-    const normalized = FileSystemUtils.toPosixPath(relativePath);
-    if (normalized.startsWith(`${rootPrefix}/`)) {
-      return normalized.slice(rootPrefix.length + 1);
-    }
-    if (normalized === rootPrefix) {
-      return '';
-    }
-    return normalized.startsWith('./') ? normalized.slice(2) : normalized;
-  }
-
-  private async removeLegacyLightSpecFiles(dirPath: string): Promise<void> {
-    if (!(await FileSystemUtils.directoryExists(dirPath))) {
-      return;
-    }
-    await this.walkAndRemove(dirPath);
-  }
-
-  private async walkAndRemove(currentPath: string): Promise<void> {
-    const entries = await fs.readdir(currentPath, { withFileTypes: true });
-    for (const entry of entries) {
-      const entryPath = path.join(currentPath, entry.name);
-      if (entry.isDirectory()) {
-        await this.walkAndRemove(entryPath);
-        continue;
-      }
-      if (this.isLegacyLightSpecFile(entryPath)) {
-        await fs.unlink(entryPath);
-      }
-    }
-  }
-
-  private isLegacyLightSpecFile(filePath: string): boolean {
-    const normalized = FileSystemUtils.toPosixPath(filePath).toLowerCase();
-    return (
-      normalized.includes('/lightspec-proposal') ||
-      normalized.includes('/lightspec-apply') ||
-      normalized.includes('/lightspec-archive') ||
-      normalized.includes('/lightspec-context-check') ||
-      normalized.includes('/lightspec/proposal') ||
-      normalized.includes('/lightspec/apply') ||
-      normalized.includes('/lightspec/archive') ||
-      normalized.includes('/lightspec/context-check')
-    );
-  }
 }

@@ -269,7 +269,7 @@ describe('InitCommand', () => {
       expect(claudeExists).toBe(false);
     });
 
-    it('should create Claude slash command files with templates', async () => {
+    it('should create Claude skill files with templates', async () => {
       queueSelections('claude', DONE);
 
       await initCommand.execute(testDir);
@@ -308,7 +308,7 @@ describe('InitCommand', () => {
       );
     });
 
-    it('should remove legacy slash command files when creating skills', async () => {
+    it('should not delete legacy files when creating skills', async () => {
       queueSelections('claude', DONE);
 
       const legacyProposal = path.join(
@@ -326,10 +326,10 @@ describe('InitCommand', () => {
       );
 
       expect(await fileExists(newSkill)).toBe(true);
-      expect(await fileExists(legacyProposal)).toBe(false);
+      expect(await fileExists(legacyProposal)).toBe(true);
     });
 
-    it('should create Cursor slash command files with templates', async () => {
+    it('should create Cursor skill files with templates', async () => {
       queueSelections('cursor', DONE);
 
       await initCommand.execute(testDir);
@@ -433,7 +433,7 @@ describe('InitCommand', () => {
       expect(updatedContent).not.toContain('Custom instruction added by user');
     });
 
-    it('should create IFlow CLI slash command files with templates', async () => {
+    it('should create IFlow CLI skill files with templates', async () => {
       queueSelections('iflow', DONE);
       await initCommand.execute(testDir);
 
@@ -486,7 +486,7 @@ describe('InitCommand', () => {
       expect(updatedContent).toContain('Custom instructions here');
     });
 
-    it('should create OpenCode slash command files with templates', async () => {
+    it('should create OpenCode skill files with templates', async () => {
       queueSelections('opencode', DONE);
 
       await initCommand.execute(testDir);
@@ -530,7 +530,7 @@ describe('InitCommand', () => {
       expect(archiveContent).toContain('lightspec list --specs');
     });
 
-    it('should create Qwen configuration and slash command files with templates', async () => {
+    it('should create Qwen configuration and skill files with templates', async () => {
       queueSelections('qwen', DONE);
 
       await initCommand.execute(testDir);
@@ -631,7 +631,7 @@ describe('InitCommand', () => {
       expect(archiveContent).toContain('lightspec archive <id>');
     });
 
-    it('should create Factory slash command files with templates', async () => {
+    it('should create Factory skill files with templates', async () => {
       queueSelections('factory', DONE);
 
       await initCommand.execute(testDir);
@@ -1102,7 +1102,7 @@ describe('InitCommand', () => {
       expect(amazonQChoice.configured).toBe(true);
     });
 
-    it('should create Auggie slash command files with templates', async () => {
+    it('should create Auggie skill files with templates', async () => {
       queueSelections('auggie', DONE);
 
       await initCommand.execute(testDir);
@@ -1156,7 +1156,7 @@ describe('InitCommand', () => {
       expect(auggieChoice.configured).toBe(true);
     });
 
-    it('should create CodeBuddy slash command files with templates', async () => {
+    it('should create CodeBuddy skill files with templates', async () => {
       queueSelections('codebuddy', DONE);
 
       await initCommand.execute(testDir);
@@ -1210,7 +1210,7 @@ describe('InitCommand', () => {
       expect(codeBuddyChoice.configured).toBe(true);
     });
 
-    it('should create Continue slash command files with templates', async () => {
+    it('should create Continue skill files with templates', async () => {
       queueSelections('continue', DONE);
 
       await initCommand.execute(testDir);
@@ -1295,7 +1295,7 @@ describe('InitCommand', () => {
       expect(updatedContent).toContain('Custom instructions here');
     });
 
-    it('should create Crush slash command files with templates', async () => {
+    it('should create Crush skill files with templates', async () => {
       queueSelections('crush', DONE);
 
       await initCommand.execute(testDir);
@@ -1349,7 +1349,7 @@ describe('InitCommand', () => {
       expect(crushChoice.configured).toBe(true);
     });
 
-    it('should create CoStrict slash command files with templates', async () => {
+    it('should create CoStrict skill files with templates', async () => {
       queueSelections('costrict', DONE);
 
       await initCommand.execute(testDir);
@@ -1403,7 +1403,7 @@ describe('InitCommand', () => {
       expect(costrictChoice.configured).toBe(true);
     });
 
-    it('should create RooCode slash command files with templates', async () => {
+    it('should create RooCode skill files with templates', async () => {
       queueSelections('roocode', DONE);
 
       await initCommand.execute(testDir);
@@ -1450,7 +1450,7 @@ describe('InitCommand', () => {
       expect(rooChoice.configured).toBe(true);
     });
 
-    it('should create Qoder slash command files with templates', async () => {
+    it('should create Qoder skill files with templates', async () => {
       queueSelections('qoder', DONE);
 
       await initCommand.execute(testDir);
@@ -1680,8 +1680,8 @@ describe('InitCommand', () => {
       expect(claudeChoice.configured).toBe(false);
     });
 
-    it('should NOT show tools as already configured in fresh project with existing slash commands', async () => {
-      // Simulate user having their own custom slash commands
+    it('should NOT show tools as already configured in fresh project with existing skills', async () => {
+      // Simulate user having their own custom skills
       const customCommandDir = path.join(testDir, '.claude/commands/custom');
       await fs.mkdir(customCommandDir, { recursive: true });
       await fs.writeFile(

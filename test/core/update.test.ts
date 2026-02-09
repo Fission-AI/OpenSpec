@@ -108,7 +108,7 @@ More notes here.`;
     consoleSpy.mockRestore();
   });
 
-  it('should refresh existing Claude slash command files', async () => {
+  it('should refresh existing Claude skill files', async () => {
     const proposalPath = path.join(
       testDir,
       '.claude/skills/lightspec-proposal/SKILL.md'
@@ -121,7 +121,7 @@ category: LightSpec
 tags: [lightspec, change]
 ---
 <!-- LIGHTSPEC:START -->
-Old slash content
+Old skill content
 <!-- LIGHTSPEC:END -->`;
     await fs.writeFile(proposalPath, initialContent);
 
@@ -135,7 +135,7 @@ Old slash content
     expect(updated).toContain(
       'Validate with `lightspec validate <id> --strict --no-interactive`'
     );
-    expect(updated).not.toContain('Old slash content');
+    expect(updated).not.toContain('Old skill content');
 
     const [logMessage] = consoleSpy.mock.calls[0];
     expect(logMessage).toContain(
@@ -149,7 +149,7 @@ Old slash content
     consoleSpy.mockRestore();
   });
 
-  it('should refresh existing Qwen slash command files', async () => {
+  it('should refresh existing Qwen skill files', async () => {
     const applyPath = path.join(
       testDir,
       '.qwen/skills/lightspec-apply/SKILL.md'
@@ -188,7 +188,7 @@ Old body
     consoleSpy.mockRestore();
   });
 
-  it('should not create missing Qwen slash command files on update', async () => {
+  it('should not create missing Qwen skill files on update', async () => {
     const applyPath = path.join(
       testDir,
       '.qwen/skills/lightspec-apply/SKILL.md'
@@ -305,7 +305,7 @@ More rules after.`;
 Scaffold a new LightSpec change and validate strictly.
 
 <!-- LIGHTSPEC:START -->
-Old slash content
+Old skill content
 <!-- LIGHTSPEC:END -->`;
     await fs.writeFile(proposalPath, initialContent);
 
@@ -319,7 +319,7 @@ Old slash content
     expect(updated).toContain(
       'Validate with `lightspec validate <id> --strict --no-interactive`'
     );
-    expect(updated).not.toContain('Old slash content');
+    expect(updated).not.toContain('Old skill content');
 
     const [logMessage] = consoleSpy.mock.calls[0];
     expect(logMessage).toContain(
@@ -333,7 +333,7 @@ Old slash content
     consoleSpy.mockRestore();
   });
 
-  it('should refresh existing Cursor slash command files', async () => {
+  it('should refresh existing Cursor skill files', async () => {
     const cursorPath = path.join(testDir, '.cursor/skills/lightspec-apply/SKILL.md');
     await fs.mkdir(path.dirname(cursorPath), { recursive: true });
     const initialContent = `---
@@ -442,7 +442,7 @@ Old body
     await expect(FileSystemUtils.fileExists(continueArchive)).resolves.toBe(false);
   });
 
-  it('should refresh existing OpenCode slash command files', async () => {
+  it('should refresh existing OpenCode skill files', async () => {
     const openCodePath = path.join(
       testDir,
       '.opencode/skills/lightspec-apply/SKILL.md'
@@ -736,7 +736,7 @@ Old Gemini body
     consoleSpy.mockRestore();
   });
   
-  it('should refresh existing IFLOW slash commands', async () => {
+  it('should refresh existing IFLOW skills', async () => {
     const iflowProposal = path.join(
       testDir,
       '.iflow/skills/lightspec-proposal/SKILL.md'
@@ -783,7 +783,7 @@ Old IFlow body
     consoleSpy.mockRestore();
   });
 
-  it('should refresh existing Factory slash commands', async () => {
+  it('should refresh existing Factory skills', async () => {
     const factoryPath = path.join(
       testDir,
       '.factory/skills/lightspec-proposal/SKILL.md'
@@ -819,7 +819,7 @@ Old body
     consoleSpy.mockRestore();
   });
 
-  it('should not create missing Factory slash command files on update', async () => {
+  it('should not create missing Factory skill files on update', async () => {
     const factoryApply = path.join(
       testDir,
       '.factory/skills/lightspec-apply/SKILL.md'
@@ -919,7 +919,7 @@ Old body
     await expect(FileSystemUtils.fileExists(aqArchive)).resolves.toBe(false);
   });
 
-  it('should refresh existing Auggie slash command files', async () => {
+  it('should refresh existing Auggie skill files', async () => {
     const auggiePath = path.join(
       testDir,
       '.auggie/skills/lightspec-apply/SKILL.md'
@@ -951,7 +951,7 @@ Old body
     consoleSpy.mockRestore();
   });
 
-  it('should not create missing Auggie slash command files on update', async () => {
+  it('should not create missing Auggie skill files on update', async () => {
     const auggieApply = path.join(
       testDir,
       '.auggie/skills/lightspec-apply/SKILL.md'
@@ -980,7 +980,7 @@ Old body
     await expect(FileSystemUtils.fileExists(auggieArchive)).resolves.toBe(false);
   });
 
-  it('should refresh existing CodeBuddy slash command files', async () => {
+  it('should refresh existing CodeBuddy skill files', async () => {
     const codeBuddyPath = path.join(
       testDir,
       '.codebuddy/skills/lightspec-proposal/SKILL.md'
@@ -993,7 +993,7 @@ category: LightSpec
 tags: [lightspec, change]
 ---
 <!-- LIGHTSPEC:START -->
-Old slash content
+Old skill content
 <!-- LIGHTSPEC:END -->`;
     await fs.writeFile(codeBuddyPath, initialContent);
 
@@ -1007,7 +1007,7 @@ Old slash content
     expect(updated).toContain(
       'Validate with `lightspec validate <id> --strict --no-interactive`'
     );
-    expect(updated).not.toContain('Old slash content');
+    expect(updated).not.toContain('Old skill content');
 
     const [logMessage] = consoleSpy.mock.calls[0];
     expect(logMessage).toContain(
@@ -1021,7 +1021,7 @@ Old slash content
     consoleSpy.mockRestore();
   });
 
-  it('should not create missing CodeBuddy slash command files on update', async () => {
+  it('should not create missing CodeBuddy skill files on update', async () => {
     const codeBuddyApply = path.join(
       testDir,
       '.codebuddy/skills/lightspec-apply/SKILL.md'
@@ -1058,7 +1058,7 @@ Old body
     await expect(FileSystemUtils.fileExists(codeBuddyArchive)).resolves.toBe(false);
   });
 
-  it('should refresh existing Crush slash command files', async () => {
+  it('should refresh existing Crush skill files', async () => {
     const crushPath = path.join(
       testDir,
       '.crush/skills/lightspec-proposal/SKILL.md'
@@ -1071,7 +1071,7 @@ category: LightSpec
 tags: [lightspec, change]
 ---
 <!-- LIGHTSPEC:START -->
-Old slash content
+Old skill content
 <!-- LIGHTSPEC:END -->`;
     await fs.writeFile(crushPath, initialContent);
 
@@ -1085,7 +1085,7 @@ Old slash content
     expect(updated).toContain(
       'Validate with `lightspec validate <id> --strict --no-interactive`'
     );
-    expect(updated).not.toContain('Old slash content');
+    expect(updated).not.toContain('Old skill content');
 
     const [logMessage] = consoleSpy.mock.calls[0];
     expect(logMessage).toContain(
@@ -1099,7 +1099,7 @@ Old slash content
     consoleSpy.mockRestore();
   });
 
-  it('should not create missing Crush slash command files on update', async () => {
+  it('should not create missing Crush skill files on update', async () => {
     const crushApply = path.join(
       testDir,
       '.crush/skills/lightspec-apply/SKILL.md'
@@ -1136,7 +1136,7 @@ Old body
     await expect(FileSystemUtils.fileExists(crushArchive)).resolves.toBe(false);
   });
 
-  it('should refresh existing CoStrict slash command files', async () => {
+  it('should refresh existing CoStrict skill files', async () => {
     const costrictPath = path.join(
       testDir,
       '.cospec/lightspec/skills/lightspec-proposal/SKILL.md'
@@ -1156,7 +1156,7 @@ Old body
     await updateCommand.execute(testDir);
 
     const updated = await fs.readFile(costrictPath, 'utf-8');
-    // For slash commands, only the content between LightSpec markers is updated
+    // For skills, only the content between LightSpec markers is updated
     expect(updated).toContain('description: "Old description"');
     expect(updated).toContain('argument-hint: old-hint');
     expect(updated).toContain('**Guardrails**');
@@ -1177,7 +1177,7 @@ Old body
     consoleSpy.mockRestore();
   });
 
-  it('should refresh existing Qoder slash command files', async () => {
+  it('should refresh existing Qoder skill files', async () => {
     const qoderPath = path.join(
       testDir,
       '.qoder/skills/lightspec-proposal/SKILL.md'
@@ -1190,7 +1190,7 @@ category: LightSpec
 tags: [lightspec, change]
 ---
 <!-- LIGHTSPEC:START -->
-Old slash content
+Old skill content
 <!-- LIGHTSPEC:END -->`;
     await fs.writeFile(qoderPath, initialContent);
 
@@ -1204,7 +1204,7 @@ Old slash content
     expect(updated).toContain(
       'Validate with `lightspec validate <id> --strict --no-interactive`'
     );
-    expect(updated).not.toContain('Old slash content');
+    expect(updated).not.toContain('Old skill content');
 
     const [logMessage] = consoleSpy.mock.calls[0];
     expect(logMessage).toContain(
@@ -1218,7 +1218,7 @@ Old slash content
     consoleSpy.mockRestore();
   });
 
-  it('should refresh existing RooCode slash command files', async () => {
+  it('should refresh existing RooCode skill files', async () => {
     const rooPath = path.join(
       testDir,
       '.roocode/skills/lightspec-proposal/SKILL.md'
@@ -1258,7 +1258,7 @@ Old body
     consoleSpy.mockRestore();
   });
 
-  it('should not create missing RooCode slash command files on update', async () => {
+  it('should not create missing RooCode skill files on update', async () => {
     const rooApply = path.join(
       testDir,
       '.roocode/skills/lightspec-apply/SKILL.md'
@@ -1291,7 +1291,7 @@ Old body
     await expect(FileSystemUtils.fileExists(rooArchive)).resolves.toBe(false);
   });
 
-  it('should not create missing CoStrict slash command files on update', async () => {
+  it('should not create missing CoStrict skill files on update', async () => {
     const costrictApply = path.join(
       testDir,
       '.cospec/lightspec/skills/lightspec-apply/SKILL.md'
@@ -1326,7 +1326,7 @@ Old
     await expect(FileSystemUtils.fileExists(costrictArchive)).resolves.toBe(false);
   });
 
-  it('should not create missing Qoder slash command files on update', async () => {
+  it('should not create missing Qoder skill files on update', async () => {
     const qoderApply = path.join(
       testDir,
       '.qoder/skills/lightspec-apply/SKILL.md'
@@ -1555,7 +1555,7 @@ More instructions after.`;
     consoleSpy.mockRestore();
   });
 
-  it('should skip creating missing slash commands during update', async () => {
+  it('should skip creating missing skills during update', async () => {
     const proposalPath = path.join(
       testDir,
       '.claude/skills/lightspec-proposal/SKILL.md'

@@ -2,7 +2,7 @@ import path from 'path';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { LIGHTSPEC_DIR_NAME } from './config.js';
 import { ToolRegistry } from './configurators/registry.js';
-import { SlashCommandRegistry } from './configurators/slash/registry.js';
+import { AgentSkillRegistry } from './configurators/skills/registry.js';
 import { agentsTemplate } from './templates/agents-template.js';
 
 export class UpdateCommand {
@@ -23,12 +23,12 @@ export class UpdateCommand {
 
     // 3. Update existing AI tool configuration files only
     const configurators = ToolRegistry.getAll();
-    const slashConfigurators = SlashCommandRegistry.getAll();
+    const skillConfigurators = AgentSkillRegistry.getAll();
     const updatedFiles: string[] = [];
     const createdFiles: string[] = [];
     const failedFiles: string[] = [];
-    const updatedSlashFiles: string[] = [];
-        const failedSkillTools: string[] = [];
+    const updatedSkillFiles: string[] = [];
+    const failedSkillTools: string[] = [];
 
     for (const configurator of configurators) {
       const configFilePath = path.join(
@@ -66,21 +66,21 @@ export class UpdateCommand {
       }
     }
 
-    for (const slashConfigurator of slashConfigurators) {
-      if (!slashConfigurator.isAvailable) {
+    for (const skillConfigurator of skillConfigurators) {
+      if (!skillConfigurator.isAvailable) {
         continue;
       }
 
       try {
-        const updated = await slashConfigurator.updateExisting(
+        const updated = await skillConfigurator.updateExisting(
           resolvedProjectPath,
           lightspecPath
         );
-        updatedSlashFiles.push(...updated);
+        updatedSkillFiles.push(...updated);
       } catch (error) {
-        failedSkillTools.push(slashConfigurator.toolId);
+        failedSkillTools.push(skillConfigurator.toolId);
         console.error(
-          `Failed to update skills for ${slashConfigurator.toolId}: ${
+          `Failed to update skills for ${skillConfigurator.toolId}: ${
             error instanceof Error ? error.message : String(error)
           }`
         );
@@ -105,9 +105,9 @@ export class UpdateCommand {
       summaryParts.push(`Updated AI tool files: ${aiToolFiles.join(', ')}`);
     }
 
-    if (updatedSlashFiles.length > 0) {
+    if (updatedSkillFiles.length > 0) {
       // Normalize to forward slashes for cross-platform log consistency
-      const normalized = updatedSlashFiles.map((p) => FileSystemUtils.toPosixPath(p));
+      const normalized = updatedSkillFiles.map((p) => FileSystemUtils.toPosixPath(p));
       summaryParts.push(`Updated skills: ${normalized.join(', ')}`);
     }
 

@@ -5,10 +5,10 @@ import { clineTemplate } from './cline-template.js';
 import { costrictTemplate } from './costrict-template.js';
 import { agentsRootStubTemplate } from './agents-root-stub.js';
 import {
-  getSlashCommandBody,
-  getSlashCommandFrontmatter,
-  SlashCommandId,
-} from './slash-command-templates.js';
+  getAgentSkillBody,
+  getAgentSkillFrontmatter,
+  AgentSkillId,
+} from './agent-skill-templates.js';
 
 export interface Template {
   path: string;
@@ -41,14 +41,14 @@ export class TemplateManager {
     return agentsRootStubTemplate;
   }
 
-  static getSlashCommandBody(id: SlashCommandId): string {
-    return getSlashCommandBody(id);
+  static getAgentSkillBody(id: AgentSkillId): string {
+    return getAgentSkillBody(id);
   }
 
-  static getSlashCommandFrontmatter(id: SlashCommandId): string {
-    return getSlashCommandFrontmatter(id);
+  static getAgentSkillFrontmatter(id: AgentSkillId): string {
+    return getAgentSkillFrontmatter(id);
   }
 }
 
 export { ProjectContext } from './project-template.js';
-export type { SlashCommandId } from './slash-command-templates.js';
+export type { AgentSkillId } from './agent-skill-templates.js';

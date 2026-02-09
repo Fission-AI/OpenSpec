@@ -16,7 +16,7 @@ import ora from 'ora';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { TemplateManager, ProjectContext } from './templates/index.js';
 import { ToolRegistry } from './configurators/registry.js';
-import { SlashCommandRegistry } from './configurators/slash/registry.js';
+import { AgentSkillRegistry } from './configurators/skills/registry.js';
 import {
   LightSpecConfig,
   AI_TOOLS,
@@ -25,7 +25,7 @@ import {
   LIGHTSPEC_MARKERS,
 } from './config.js';
 import { PALETTE } from './styles/palette.js';
-import { SkillInstallLocation } from './configurators/slash/base.js';
+import { SkillInstallLocation } from './configurators/skills/base.js';
 
 const PROGRESS_SPINNER = {
   interval: 80,
@@ -423,7 +423,7 @@ export class InitCommand {
 
     // Get configuration (after validation to avoid prompts if validation fails)
     const config = await this.getConfiguration(existingToolStates, extendMode);
-    SlashCommandRegistry.setInstallLocation(config.skillLocation);
+    AgentSkillRegistry.setInstallLocation(config.skillLocation);
 
     const availableTools = AI_TOOLS.filter((tool) => tool.available);
     const selectedIds = new Set(config.aiTools);
@@ -706,7 +706,7 @@ export class InitCommand {
     };
 
     let hasConfigFile = false;
-    let hasSlashCommands = false;
+    let hasSkills = false;
 
     // Check if the tool has a config file with LightSpec markers
     const configFile = ToolRegistry.get(toolId)?.configFileName;
@@ -716,32 +716,32 @@ export class InitCommand {
     }
 
     // Check if any skill file exists with LightSpec markers
-    const slashConfigurator = SlashCommandRegistry.get(toolId);
-    if (slashConfigurator) {
-      for (const target of slashConfigurator.getTargets()) {
-        const absolute = slashConfigurator.resolveAbsolutePath(projectPath, target.id);
+    const skillConfigurator = AgentSkillRegistry.get(toolId);
+    if (skillConfigurator) {
+      for (const target of skillConfigurator.getTargets()) {
+        const absolute = skillConfigurator.resolveAbsolutePath(projectPath, target.id);
         if ((await FileSystemUtils.fileExists(absolute)) && (await fileHasMarkers(absolute))) {
-          hasSlashCommands = true;
+          hasSkills = true;
           break; // At least one file with markers is sufficient
         }
       }
     }
 
     // Tool is only configured if BOTH exist with markers
-    // OR if the tool has no config file requirement (slash commands only)
-    // OR if the tool has no slash commands requirement (config file only)
+    // OR if the tool has no config file requirement (skills only)
+    // OR if the tool has no skill requirement (config file only)
     const hasConfigFileRequirement = configFile !== undefined;
-    const hasSkillRequirement = slashConfigurator !== undefined;
+    const hasSkillRequirement = skillConfigurator !== undefined;
 
     if (hasConfigFileRequirement && hasSkillRequirement) {
       // Both are required - both must be present with markers
-      return hasConfigFile && hasSlashCommands;
+      return hasConfigFile && hasSkills;
     } else if (hasConfigFileRequirement) {
       // Only config file required
       return hasConfigFile;
     } else if (hasSkillRequirement) {
       // Only skills required
-      return hasSlashCommands;
+      return hasSkills;
     }
 
     return false;
@@ -818,9 +818,9 @@ export class InitCommand {
         await configurator.configure(projectPath, lightspecDir);
       }
 
-      const slashConfigurator = SlashCommandRegistry.get(toolId);
-      if (slashConfigurator && slashConfigurator.isAvailable) {
-        await slashConfigurator.generateAll(projectPath, lightspecDir);
+      const skillConfigurator = AgentSkillRegistry.get(toolId);
+      if (skillConfigurator && skillConfigurator.isAvailable) {
+        await skillConfigurator.generateAll(projectPath, lightspecDir);
       }
     }
 
