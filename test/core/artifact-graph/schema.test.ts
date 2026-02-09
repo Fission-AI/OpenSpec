@@ -203,5 +203,88 @@ artifacts:
       const schema = parseSchema(yaml);
       expect(schema.artifacts[0].requires).toEqual([]);
     });
+
+    describe('hooks parsing', () => {
+      it('should parse schema with valid hooks', () => {
+        const yaml = `
+name: test-schema
+version: 1
+description: A test schema
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Initial proposal
+    template: templates/proposal.md
+    requires: []
+hooks:
+  pre-archive:
+    instruction: Run pre-archive validation
+  post-archive:
+    instruction: Run post-archive cleanup
+`;
+        const schema = parseSchema(yaml);
+
+        expect(schema.hooks).toBeDefined();
+        expect(schema.hooks).toHaveProperty('pre-archive');
+        expect(schema.hooks).toHaveProperty('post-archive');
+        expect(schema.hooks?.['pre-archive'].instruction).toBe('Run pre-archive validation');
+        expect(schema.hooks?.['post-archive'].instruction).toBe('Run post-archive cleanup');
+      });
+
+      it('should parse schema without hooks', () => {
+        const yaml = `
+name: test-schema
+version: 1
+description: A test schema
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Initial proposal
+    template: templates/proposal.md
+    requires: []
+`;
+        const schema = parseSchema(yaml);
+
+        expect(schema.hooks).toBeUndefined();
+      });
+
+      it('should parse schema with empty hooks', () => {
+        const yaml = `
+name: test-schema
+version: 1
+description: A test schema
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Initial proposal
+    template: templates/proposal.md
+    requires: []
+hooks: {}
+`;
+        const schema = parseSchema(yaml);
+
+        expect(schema.hooks).toBeDefined();
+        expect(Object.keys(schema.hooks || {})).toHaveLength(0);
+      });
+
+      it('should reject hook with empty instruction', () => {
+        const yaml = `
+name: test-schema
+version: 1
+description: A test schema
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Initial proposal
+    template: templates/proposal.md
+    requires: []
+hooks:
+  pre-archive:
+    instruction: ""
+`;
+        expect(() => parseSchema(yaml)).toThrow(SchemaValidationError);
+        expect(() => parseSchema(yaml)).toThrow(/instruction/);
+      });
+    });
   });
 });

@@ -841,5 +841,119 @@ context: Updated context
         expect(result2.stdout).not.toContain('Initial context');
       }, 60000);
     });
+
+    describe('hooks command', () => {
+      it('should show hooks for a lifecycle point with config hooks', async () => {
+        // Create config.yaml with hooks
+        await fs.writeFile(
+          path.join(tempDir, 'openspec', 'config.yaml'),
+          `hooks:
+  pre-archive:
+    instruction: "Run pre-archive check"
+`
+        );
+
+        // Run hooks command without --change flag
+        const result = await runCLI(['hooks', 'pre-archive'], { cwd: tempDir, timeoutMs: 30000 });
+        expect(result.exitCode).toBe(0);
+
+        const output = getOutput(result);
+        expect(output).toContain('Run pre-archive check');
+        expect(output).toContain('From config');
+      }, 60000);
+
+      it('should output JSON format', async () => {
+        // Create config.yaml with hooks
+        await fs.writeFile(
+          path.join(tempDir, 'openspec', 'config.yaml'),
+          `hooks:
+  pre-archive:
+    instruction: "Run pre-archive check"
+`
+        );
+
+        // Run hooks command with --json flag
+        const result = await runCLI(
+          ['hooks', 'pre-archive', '--json'],
+          { cwd: tempDir, timeoutMs: 30000 }
+        );
+        expect(result.exitCode).toBe(0);
+
+        const jsonData = JSON.parse(result.stdout);
+
+        expect(jsonData.lifecyclePoint).toBe('pre-archive');
+        expect(jsonData.changeName).toBeNull();
+        expect(Array.isArray(jsonData.hooks)).toBe(true);
+        expect(jsonData.hooks.length).toBe(1);
+        expect(jsonData.hooks[0].source).toBe('config');
+        expect(jsonData.hooks[0].instruction).toBe('Run pre-archive check');
+      }, 60000);
+
+      it('should show no hooks when none defined', async () => {
+        // Run hooks command without any config hooks
+        const result = await runCLI(['hooks', 'pre-archive'], { cwd: tempDir, timeoutMs: 30000 });
+        expect(result.exitCode).toBe(0);
+
+        const output = getOutput(result);
+        expect(output).toContain('No hooks defined');
+      }, 60000);
+
+      it('should error on invalid lifecycle point', async () => {
+        // Run hooks command with invalid lifecycle point
+        const result = await runCLI(['hooks', 'invalid-point'], { cwd: tempDir, timeoutMs: 30000 });
+        expect(result.exitCode).toBe(1);
+
+        const output = getOutput(result);
+        expect(output).toContain('Invalid lifecycle point');
+      }, 60000);
+
+      it('should error on missing lifecycle point argument', async () => {
+        // Run hooks command without lifecycle point argument
+        const result = await runCLI(['hooks'], { cwd: tempDir, timeoutMs: 30000 });
+        expect(result.exitCode).toBe(1);
+
+        const output = getOutput(result);
+        // Should contain an error about missing argument
+        expect(output.toLowerCase()).toMatch(/missing|required|argument/);
+      }, 60000);
+
+      it('should show hooks with --change flag', async () => {
+        // Create config.yaml with hooks
+        await fs.writeFile(
+          path.join(tempDir, 'openspec', 'config.yaml'),
+          `hooks:
+  pre-archive:
+    instruction: "Run pre-archive check"
+`
+        );
+
+        // Create a test change
+        await createTestChange('test-change');
+
+        // Run hooks command with --change flag
+        const result = await runCLI(
+          ['hooks', 'pre-archive', '--change', 'test-change'],
+          { cwd: tempDir, timeoutMs: 30000 }
+        );
+        expect(result.exitCode).toBe(0);
+
+        const output = getOutput(result);
+        expect(output).toContain('Run pre-archive check');
+
+        // Also test JSON output to verify changeName
+        const jsonResult = await runCLI(
+          ['hooks', 'pre-archive', '--change', 'test-change', '--json'],
+          { cwd: tempDir, timeoutMs: 30000 }
+        );
+        expect(jsonResult.exitCode).toBe(0);
+
+        const jsonData = JSON.parse(jsonResult.stdout);
+
+        expect(jsonData.lifecyclePoint).toBe('pre-archive');
+        expect(jsonData.changeName).toBe('test-change');
+        expect(Array.isArray(jsonData.hooks)).toBe(true);
+        expect(jsonData.hooks.length).toBeGreaterThan(0);
+      }, 60000);
+    });
   });
 });

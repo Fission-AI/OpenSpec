@@ -20,6 +20,14 @@ export const ApplyPhaseSchema = z.object({
   instruction: z.string().optional(),
 });
 
+// Single lifecycle hook definition
+export const HookSchema = z.object({
+  instruction: z.string().min(1, { error: 'Hook instruction is required' }),
+});
+
+// Hooks section: record of lifecycle point → hook definition
+export const HooksSchema = z.record(z.string(), HookSchema);
+
 // Full schema YAML structure
 export const SchemaYamlSchema = z.object({
   name: z.string().min(1, { error: 'Schema name is required' }),
@@ -28,11 +36,15 @@ export const SchemaYamlSchema = z.object({
   artifacts: z.array(ArtifactSchema).min(1, { error: 'At least one artifact required' }),
   // Optional apply phase configuration (for schema-aware apply instructions)
   apply: ApplyPhaseSchema.optional(),
+  // Optional lifecycle hooks (LLM instructions at operation boundaries)
+  hooks: HooksSchema.optional(),
 });
 
 // Derived TypeScript types
 export type Artifact = z.infer<typeof ArtifactSchema>;
 export type ApplyPhase = z.infer<typeof ApplyPhaseSchema>;
+export type Hook = z.infer<typeof HookSchema>;
+export type Hooks = z.infer<typeof HooksSchema>;
 export type SchemaYaml = z.infer<typeof SchemaYamlSchema>;
 
 // Per-change metadata schema
@@ -52,6 +64,16 @@ export const ChangeMetadataSchema = z.object({
 });
 
 export type ChangeMetadata = z.infer<typeof ChangeMetadataSchema>;
+
+// Valid lifecycle points for hooks
+export const VALID_LIFECYCLE_POINTS = [
+  'pre-new', 'post-new',
+  'pre-archive', 'post-archive',
+  'pre-sync', 'post-sync',
+  'pre-apply', 'post-apply',
+] as const;
+
+export type LifecyclePoint = typeof VALID_LIFECYCLE_POINTS[number];
 
 // Runtime state types (not Zod - internal only)
 
