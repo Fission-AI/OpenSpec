@@ -117,6 +117,11 @@ The system SHALL expose hooks via `openspec instructions --hook <lifecycle-point
 - **WHEN** executing `openspec instructions <artifact> --hook <lifecycle-point>`
 - **THEN** the system exits with an error indicating that `--hook` cannot be used with an artifact argument
 
+#### Scenario: Schema override not allowed in hook mode
+
+- **WHEN** executing `openspec instructions --hook <lifecycle-point> --schema <name>`
+- **THEN** the system exits with an error indicating that `--schema` cannot be used with `--hook`
+
 #### Scenario: JSON output
 
 - **WHEN** executing with `--json` flag
@@ -126,7 +131,7 @@ The system SHALL expose hooks via `openspec instructions --hook <lifecycle-point
 #### Scenario: No hooks found
 
 - **WHEN** no hooks are defined for the given lifecycle point
-- **THEN** the system outputs an empty result (empty array in JSON mode, informational message in text mode)
+- **THEN** the system outputs an empty result (JSON object with `hooks: []`, informational message in text mode)
 
 #### Scenario: Invalid lifecycle point argument
 
