@@ -920,6 +920,17 @@ context: Updated context
         expect(output).toContain('--hook cannot be used with an artifact argument');
       }, 60000);
 
+      it('should error when --schema used with --hook', async () => {
+        const result = await runCLI(
+          ['instructions', '--hook', 'pre-archive', '--schema', 'spec-driven'],
+          { cwd: tempDir, timeoutMs: 30000 }
+        );
+        expect(result.exitCode).toBe(1);
+
+        const output = getOutput(result);
+        expect(output).toContain('--schema cannot be used with --hook');
+      }, 60000);
+
       it('should accept pre-verify and post-verify as valid lifecycle points', async () => {
         // Run instructions --hook with pre-verify
         const result1 = await runCLI(
