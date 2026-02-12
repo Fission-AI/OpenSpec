@@ -9,6 +9,7 @@ import {
   getNewChangeSkillTemplate,
   getContinueChangeSkillTemplate,
   getApplyChangeSkillTemplate,
+  getClarifyChangeSkillTemplate,
   getFfChangeSkillTemplate,
   getSyncSpecsSkillTemplate,
   getArchiveChangeSkillTemplate,
@@ -27,7 +28,6 @@ import {
   getOpsxClarifyCommandTemplate,
   getOpsxOnboardCommandTemplate,
   type SkillTemplate,
-  getClarifyChangeSkillTemplate,
 } from '../templates/skill-templates.js';
 import type { CommandContent } from '../command-generation/index.js';
 
