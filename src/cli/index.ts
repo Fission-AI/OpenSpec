@@ -169,15 +169,18 @@ program
 
 program
   .command('list')
-  .description('List items (changes by default). Use --specs to list specs.')
+  .description('List items (changes by default). Use --specs to list specs, --archive to list archived changes.')
   .option('--specs', 'List specs instead of changes')
   .option('--changes', 'List changes explicitly (default)')
+  .option('--archive', 'List archived changes')
   .option('--sort <order>', 'Sort order: "recent" (default) or "name"', 'recent')
   .option('--json', 'Output as JSON (for programmatic use)')
-  .action(async (options?: { specs?: boolean; changes?: boolean; sort?: string; json?: boolean }) => {
+  .action(async (options?: { specs?: boolean; changes?: boolean; archive?: boolean; sort?: string; json?: boolean }) => {
     try {
       const listCommand = new ListCommand();
-      const mode: 'changes' | 'specs' = options?.specs ? 'specs' : 'changes';
+      // Precedence: archive > specs > changes
+      const mode: 'changes' | 'specs' | 'archive' =
+        options?.archive ? 'archive' : options?.specs ? 'specs' : 'changes';
       const sort = options?.sort === 'name' ? 'name' : 'recent';
       await listCommand.execute('.', mode, { sort, json: options?.json });
     } catch (error) {
