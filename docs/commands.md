@@ -425,7 +425,7 @@ AI:  ✓ Answer recorded. Updating spec...
      
      ### By Category
      - Data Model: 2 resolved
-     - Security: 2 resolved  
+     - Non-Functional: 2 resolved  
      - Edge Cases: 1 resolved
      
      All ambiguities resolved! Specs are now clearer.

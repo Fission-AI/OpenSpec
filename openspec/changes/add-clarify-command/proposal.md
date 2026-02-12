@@ -62,7 +62,6 @@ compatibility: Requires openspec CLI.
 metadata:
   author: openspec
   version: "2.0"
-  generatedBy: "1.0.2"
 ---
 
 [Full skill template content with 8 steps: Select change, Check status, Load specs, Scan for ambiguity using taxonomy, Generate question queue, Interactive Q&A loop with recommendations, Integrate answers into specs, Validate and report]

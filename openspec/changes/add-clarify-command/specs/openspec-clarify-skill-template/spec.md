@@ -9,7 +9,7 @@ The system SHALL provide a `getClarifyChangeSkillTemplate()` function that retur
 
 #### Scenario: Template includes required metadata
 - **WHEN** the template is generated
-- **THEN** it includes name, description, license, compatibility, author, version, and generatedBy fields
+- **THEN** it includes name, description, license, compatibility, author, and version fields
 
 ### Requirement: Change selection workflow
 The system SHALL support auto-detection of the current change from conversation context when no change name is provided.

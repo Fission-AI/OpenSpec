@@ -38,7 +38,7 @@ The system SHALL format each clarification answer with question, category, and r
 - **THEN** it includes the full user response in a quoted block or formatted text
 
 ### Requirement: Spec section updates from clarifications
-The system SHALL apply clarification answers to relevant spec in the `Clarifications` sections to resolve ambiguities.
+The system SHALL apply clarification answers to relevant spec sections and record them in the `Clarifications` section to resolve ambiguities.
 
 #### Scenario: Clarification updates requirement
 - **WHEN** an answer clarifies a vague requirement
@@ -83,7 +83,7 @@ The system SHALL preserve existing spec content when adding clarifications.
 
 #### Scenario: Existing content unchanged
 - **WHEN** clarifications are added to a spec
-- **THEN** all original requirements, scenarios, and sections remain intact
+- **THEN** all unrelated requirements, scenarios, and sections remain intact (only targeted clarifications may update relevant text)
 
 #### Scenario: File validation before write
 - **WHEN** a spec is about to be modified
