@@ -236,7 +236,7 @@ Three levels of testing, following existing patterns in the codebase:
 ## Risks / Trade-offs
 
 - **[LLM compliance]** Hooks are instructions the LLM should follow, but there's no guarantee it will execute them perfectly. → Mitigation: Same limitation applies to artifact instructions, which work well in practice. Hook instructions should be written as clear, actionable prompts.
-- **[Hook sprawl]** Users might define too many hooks, making operations slow. → Mitigation: Start with 10 lifecycle points only. Each hook adds one CLI call + LLM reasoning time, which is bounded.
+- **[Hook sprawl]** Users might define too many hooks, making operations slow. → Mitigation: Start with 20 lifecycle points only. Each hook adds one CLI call + LLM reasoning time, which is bounded.
 - **[Schema/config conflict]** Both define hooks for the same point — user might expect override semantics. → Mitigation: Document clearly that both execute (schema first, config second). This is additive, not override.
 
 ## Resolved Questions
