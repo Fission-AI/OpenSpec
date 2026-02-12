@@ -118,6 +118,8 @@ describe('skill templates split parity', () => {
   });
 
   it('preserves generated skill file content exactly', () => {
+    // Intentionally excludes getFeedbackSkillTemplate: skillFactories only models templates
+    // deployed via generateSkillContent, while feedback is covered in function payload parity.
     const skillFactories: Array<[string, () => SkillTemplate]> = [
       ['openspec-explore', getExploreSkillTemplate],
       ['openspec-new-change', getNewChangeSkillTemplate],
