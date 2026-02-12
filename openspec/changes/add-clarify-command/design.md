@@ -67,7 +67,6 @@ The existing skill templates follow a consistent structure:
 - Function name matches skill name: `getClarifyChangeSkillTemplate`
 
 **Alternatives considered:**
-- `openspec-clarify`: Conflicts with any existing v1 implementations
 - `openspec-clarify-skill`: Redundant since all these are skills
 
 ### Decision 4: Ambiguity Taxonomy Categories
