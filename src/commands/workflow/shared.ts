@@ -35,6 +35,7 @@ export interface ApplyInstructions {
   state: 'blocked' | 'all_done' | 'ready';
   missingArtifacts?: string[];
   instruction: string;
+  context?: string;
 }
 
 // -----------------------------------------------------------------------------

@@ -101,11 +101,16 @@ At the start, quickly check what exists:
 \`\`\`bash
 openspec list --json
 \`\`\`
+\`\`\`bash
+openspec instructions --context --json
+\`\`\`
 
-This tells you:
+The first tells you:
 - If there are active changes
 - Their names, schemas, and status
 - What the user might be working on
+
+The second returns the project's \`context\` from \`config.yaml\`. **If it returns a \`context\` field, you MUST follow these project constraints throughout the session** (tech stack, conventions, cross-platform rules, etc.).
 
 ### When no change exists
 
@@ -443,16 +448,16 @@ export function getContinueChangeSkillTemplate(): SkillTemplate {
      openspec instructions <artifact-id> --change "<name>" --json
      \`\`\`
    - Parse the JSON. The key fields are:
-     - \`context\`: Project background (constraints for you - do NOT include in output)
-     - \`rules\`: Artifact-specific rules (constraints for you - do NOT include in output)
+     - \`context\`: Project constraints — you MUST follow these when creating artifacts. Do NOT include in output.
+     - \`rules\`: Artifact-specific rules — you MUST follow these. Do NOT include in output.
+     - \`instruction\`: Directives for how to create this artifact — you MUST follow these.
      - \`template\`: The structure to use for your output file
-     - \`instruction\`: Schema-specific guidance
      - \`outputPath\`: Where to write the artifact
      - \`dependencies\`: Completed artifacts to read for context
    - **Create the artifact file**:
      - Read any completed dependency files for context
      - Use \`template\` as the structure - fill in its sections
-     - Apply \`context\` and \`rules\` as constraints when writing - but do NOT copy them into the file
+     - Follow \`context\`, \`rules\`, and \`instruction\` as mandatory constraints — but do NOT copy them into the file
      - Write to the output path specified in instructions
    - Show what was created and what's now unlocked
    - STOP after creating ONE artifact
@@ -499,9 +504,11 @@ For other schemas, follow the \`instruction\` field from the CLI output.
 - If context is unclear, ask the user before creating
 - Verify the artifact file exists after writing before marking progress
 - Use the schema's artifact sequence, don't assume specific artifact names
-- **IMPORTANT**: \`context\` and \`rules\` are constraints for YOU, not content for the file
-  - Do NOT copy \`<context>\`, \`<rules>\`, \`<project_context>\` blocks into the artifact
-  - These guide what you write, but should never appear in the output`,
+- **MANDATORY**: \`context\`, \`rules\`, and \`instruction\` from the instructions output are constraints you MUST follow
+  - \`context\`: Project-level constraints (tech stack, conventions) — follow them, do NOT copy into the artifact
+  - \`rules\`: Artifact-specific rules — follow them, do NOT copy into the artifact
+  - \`instruction\`: Directives for how to create this artifact — follow them
+  - Do NOT copy \`<context>\`, \`<rules>\`, \`<project_context>\` blocks into the artifact`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
@@ -546,6 +553,7 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
    \`\`\`
 
    This returns:
+   - \`context\`: Project constraints — you MUST follow these when implementing code. Do NOT include in output.
    - Context file paths (varies by schema - could be proposal/specs/design/tasks or spec/tests/implementation/docs)
    - Progress (total, complete, remaining)
    - Task list with status
@@ -646,6 +654,7 @@ What would you like to do?
 \`\`\`
 
 **Guardrails**
+- **MANDATORY**: If the apply instructions include a \`context\` field, you MUST follow these project constraints when implementing code
 - Keep going through tasks until done or blocked
 - Always read context files before starting (from the apply instructions output)
 - If task is ambiguous, pause and ask before implementing
@@ -716,15 +725,15 @@ export function getFfChangeSkillTemplate(): SkillTemplate {
         openspec instructions <artifact-id> --change "<name>" --json
         \`\`\`
       - The instructions JSON includes:
-        - \`context\`: Project background (constraints for you - do NOT include in output)
-        - \`rules\`: Artifact-specific rules (constraints for you - do NOT include in output)
+        - \`context\`: Project constraints — you MUST follow these when creating artifacts. Do NOT include in output.
+        - \`rules\`: Artifact-specific rules — you MUST follow these. Do NOT include in output.
+        - \`instruction\`: Directives for how to create this artifact — you MUST follow these.
         - \`template\`: The structure to use for your output file
-        - \`instruction\`: Schema-specific guidance for this artifact type
         - \`outputPath\`: Where to write the artifact
         - \`dependencies\`: Completed artifacts to read for context
       - Read any completed dependency files for context
       - Create the artifact file using \`template\` as the structure
-      - Apply \`context\` and \`rules\` as constraints - but do NOT copy them into the file
+      - Follow \`context\`, \`rules\`, and \`instruction\` as mandatory constraints — but do NOT copy them into the file
       - Show brief progress: "✓ Created <artifact-id>"
 
    b. **Continue until all \`applyRequires\` artifacts are complete**
@@ -755,9 +764,11 @@ After completing all artifacts, summarize:
 - The schema defines what each artifact should contain - follow it
 - Read dependency artifacts for context before creating new ones
 - Use \`template\` as the structure for your output file - fill in its sections
-- **IMPORTANT**: \`context\` and \`rules\` are constraints for YOU, not content for the file
+- **MANDATORY**: \`context\`, \`rules\`, and \`instruction\` from the instructions output are constraints you MUST follow
+  - \`context\`: Project-level constraints (tech stack, conventions) — follow them, do NOT copy into the artifact
+  - \`rules\`: Artifact-specific rules — follow them, do NOT copy into the artifact
+  - \`instruction\`: Directives for how to create this artifact — follow them
   - Do NOT copy \`<context>\`, \`<rules>\`, \`<project_context>\` blocks into the artifact
-  - These guide what you write, but should never appear in the output
 
 **Guardrails**
 - Create ALL artifacts needed for implementation (as defined by schema's \`apply.requires\`)
@@ -784,6 +795,12 @@ export function getSyncSpecsSkillTemplate(): SkillTemplate {
 This is an **agent-driven** operation - you will read delta specs and directly edit main specs to apply the changes. This allows intelligent merging (e.g., adding a scenario without copying the entire requirement).
 
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+
+**Project Context**: At the start, load project context:
+\`\`\`bash
+openspec instructions --context --json
+\`\`\`
+If it returns a \`context\` field, you MUST follow these project constraints throughout the session.
 
 **Steps**
 
@@ -1565,11 +1582,16 @@ At the start, quickly check what exists:
 \`\`\`bash
 openspec list --json
 \`\`\`
+\`\`\`bash
+openspec instructions --context --json
+\`\`\`
 
-This tells you:
+The first tells you:
 - If there are active changes
 - Their names, schemas, and status
 - What the user might be working on
+
+The second returns the project's \`context\` from \`config.yaml\`. **If it returns a \`context\` field, you MUST follow these project constraints throughout the session** (tech stack, conventions, cross-platform rules, etc.).
 
 If the user mentioned a specific change name, read its artifacts for context.
 
@@ -1783,16 +1805,16 @@ export function getOpsxContinueCommandTemplate(): CommandTemplate {
      openspec instructions <artifact-id> --change "<name>" --json
      \`\`\`
    - Parse the JSON. The key fields are:
-     - \`context\`: Project background (constraints for you - do NOT include in output)
-     - \`rules\`: Artifact-specific rules (constraints for you - do NOT include in output)
+     - \`context\`: Project constraints — you MUST follow these when creating artifacts. Do NOT include in output.
+     - \`rules\`: Artifact-specific rules — you MUST follow these. Do NOT include in output.
+     - \`instruction\`: Directives for how to create this artifact — you MUST follow these.
      - \`template\`: The structure to use for your output file
-     - \`instruction\`: Schema-specific guidance
      - \`outputPath\`: Where to write the artifact
      - \`dependencies\`: Completed artifacts to read for context
    - **Create the artifact file**:
      - Read any completed dependency files for context
      - Use \`template\` as the structure - fill in its sections
-     - Apply \`context\` and \`rules\` as constraints when writing - but do NOT copy them into the file
+     - Follow \`context\`, \`rules\`, and \`instruction\` as mandatory constraints — but do NOT copy them into the file
      - Write to the output path specified in instructions
    - Show what was created and what's now unlocked
    - STOP after creating ONE artifact
@@ -1839,9 +1861,11 @@ For other schemas, follow the \`instruction\` field from the CLI output.
 - If context is unclear, ask the user before creating
 - Verify the artifact file exists after writing before marking progress
 - Use the schema's artifact sequence, don't assume specific artifact names
-- **IMPORTANT**: \`context\` and \`rules\` are constraints for YOU, not content for the file
-  - Do NOT copy \`<context>\`, \`<rules>\`, \`<project_context>\` blocks into the artifact
-  - These guide what you write, but should never appear in the output`
+- **MANDATORY**: \`context\`, \`rules\`, and \`instruction\` from the instructions output are constraints you MUST follow
+  - \`context\`: Project-level constraints (tech stack, conventions) — follow them, do NOT copy into the artifact
+  - \`rules\`: Artifact-specific rules — follow them, do NOT copy into the artifact
+  - \`instruction\`: Directives for how to create this artifact — follow them
+  - Do NOT copy \`<context>\`, \`<rules>\`, \`<project_context>\` blocks into the artifact`
   };
 }
 
@@ -1884,6 +1908,7 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
    \`\`\`
 
    This returns:
+   - \`context\`: Project constraints — you MUST follow these when implementing code. Do NOT include in output.
    - Context file paths (varies by schema)
    - Progress (total, complete, remaining)
    - Task list with status
@@ -1984,6 +2009,7 @@ What would you like to do?
 \`\`\`
 
 **Guardrails**
+- **MANDATORY**: If the apply instructions include a \`context\` field, you MUST follow these project constraints when implementing code
 - Keep going through tasks until done or blocked
 - Always read context files before starting (from the apply instructions output)
 - If task is ambiguous, pause and ask before implementing
@@ -2053,15 +2079,15 @@ export function getOpsxFfCommandTemplate(): CommandTemplate {
         openspec instructions <artifact-id> --change "<name>" --json
         \`\`\`
       - The instructions JSON includes:
-        - \`context\`: Project background (constraints for you - do NOT include in output)
-        - \`rules\`: Artifact-specific rules (constraints for you - do NOT include in output)
+        - \`context\`: Project constraints — you MUST follow these when creating artifacts. Do NOT include in output.
+        - \`rules\`: Artifact-specific rules — you MUST follow these. Do NOT include in output.
+        - \`instruction\`: Directives for how to create this artifact — you MUST follow these.
         - \`template\`: The structure to use for your output file
-        - \`instruction\`: Schema-specific guidance for this artifact type
         - \`outputPath\`: Where to write the artifact
         - \`dependencies\`: Completed artifacts to read for context
       - Read any completed dependency files for context
       - Create the artifact file using \`template\` as the structure
-      - Apply \`context\` and \`rules\` as constraints - but do NOT copy them into the file
+      - Follow \`context\`, \`rules\`, and \`instruction\` as mandatory constraints — but do NOT copy them into the file
       - Show brief progress: "✓ Created <artifact-id>"
 
    b. **Continue until all \`applyRequires\` artifacts are complete**
@@ -2113,6 +2139,12 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
     instructions: `Archive a completed change in the experimental workflow.
 
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+
+**Project Context**: At the start, load project context:
+\`\`\`bash
+openspec instructions --context --json
+\`\`\`
+If it returns a \`context\` field, you MUST follow these project constraints throughout the session.
 
 **Steps**
 
@@ -2232,6 +2264,12 @@ export function getBulkArchiveChangeSkillTemplate(): SkillTemplate {
 This skill allows you to batch-archive changes, handling spec conflicts intelligently by checking the codebase to determine what's actually implemented.
 
 **Input**: None required (prompts for selection)
+
+**Project Context**: At the start, load project context:
+\`\`\`bash
+openspec instructions --context --json
+\`\`\`
+If it returns a \`context\` field, you MUST follow these project constraints throughout the session.
 
 **Steps**
 
@@ -2483,6 +2521,12 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
 **Input**: Optionally specify a change name after \`/opsx:sync\` (e.g., \`/opsx:sync add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
+**Project Context**: At the start, load project context:
+\`\`\`bash
+openspec instructions --context --json
+\`\`\`
+If it returns a \`context\` field, you MUST follow these project constraints throughout the session.
+
 **Steps**
 
 1. **If no change name provided, prompt for selection**
@@ -2645,7 +2689,9 @@ export function getVerifyChangeSkillTemplate(): SkillTemplate {
    openspec instructions apply --change "<name>" --json
    \`\`\`
 
-   This returns the change directory and context files. Read all available artifacts from \`contextFiles\`.
+   This returns the change directory, context files, and project context. Read all available artifacts from \`contextFiles\`.
+
+   **MANDATORY**: If the response includes a \`context\` field, you MUST follow these project constraints throughout verification. Do NOT include in output.
 
 4. **Initialize verification report structure**
 
@@ -2790,6 +2836,12 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
     content: `Archive a completed change in the experimental workflow.
 
 **Input**: Optionally specify a change name after \`/opsx:archive\` (e.g., \`/opsx:archive add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+
+**Project Context**: At the start, load project context:
+\`\`\`bash
+openspec instructions --context --json
+\`\`\`
+If it returns a \`context\` field, you MUST follow these project constraints throughout the session.
 
 **Steps**
 
@@ -2968,6 +3020,12 @@ export function getOpsxBulkArchiveCommandTemplate(): CommandTemplate {
 This skill allows you to batch-archive changes, handling spec conflicts intelligently by checking the codebase to determine what's actually implemented.
 
 **Input**: None required (prompts for selection)
+
+**Project Context**: At the start, load project context:
+\`\`\`bash
+openspec instructions --context --json
+\`\`\`
+If it returns a \`context\` field, you MUST follow these project constraints throughout the session.
 
 **Steps**
 
@@ -3240,7 +3298,9 @@ export function getOpsxVerifyCommandTemplate(): CommandTemplate {
    openspec instructions apply --change "<name>" --json
    \`\`\`
 
-   This returns the change directory and context files. Read all available artifacts from \`contextFiles\`.
+   This returns the change directory, context files, and project context. Read all available artifacts from \`contextFiles\`.
+
+   **MANDATORY**: If the response includes a \`context\` field, you MUST follow these project constraints throughout verification. Do NOT include in output.
 
 4. **Initialize verification report structure**
 
