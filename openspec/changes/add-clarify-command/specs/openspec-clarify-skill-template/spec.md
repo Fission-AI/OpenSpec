@@ -160,8 +160,8 @@ The system SHALL write each answer back into the appropriate spec artifact immed
 - **THEN** the section is added with `## Clarifications` header before writing the answer
 
 #### Scenario: Clarifications section exists
-- **WHEN** a spec artifact already has a Clarifications section
-- **THEN** the new answer is appended with a new session timestamp
+- **WHEN** a spec artifact already has a Clarifications section and the current session header exists  
+- **THEN** the new answer is appended under that session header 
 
 ### Requirement: Spec section updates based on clarifications
 The system SHALL update relevant spec sections to reflect clarified requirements.
