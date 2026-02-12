@@ -49,14 +49,6 @@ export async function hooksCommand(
       );
     }
 
-    const validPoints = new Set<string>(VALID_LIFECYCLE_POINTS);
-    if (!validPoints.has(lifecyclePoint)) {
-      spinner.stop();
-      throw new Error(
-        `Invalid lifecycle point: "${lifecyclePoint}". Valid points:\n  ${VALID_LIFECYCLE_POINTS.join('\n  ')}`
-      );
-    }
-
     // Resolve change name if provided
     let changeName: string | null = null;
     if (options.change) {
