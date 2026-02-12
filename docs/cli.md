@@ -154,7 +154,7 @@ openspec update
 
 ### `openspec list`
 
-List changes or specs in your project.
+List changes, specs, or archived changes in your project.
 
 ```
 openspec list [options]
@@ -166,8 +166,11 @@ openspec list [options]
 |--------|-------------|
 | `--specs` | List specs instead of changes |
 | `--changes` | List changes (default) |
+| `--archive` | List archived changes |
 | `--sort <order>` | Sort by `recent` (default) or `name` |
 | `--json` | Output as JSON |
+
+Only one mode applies per run. If you pass more than one of `--changes`, `--specs`, or `--archive`, precedence is: `--archive` over `--specs` over default (changes). With `--json`, the root key matches the mode: `{ "changes": [...] }`, `{ "specs": [...] }` (each item has `id`, `requirementCount`), or `{ "archivedChanges": [...] }` (same shape as changes: name, completedTasks, totalTasks, lastModified, status).
 
 **Examples:**
 
@@ -180,15 +183,26 @@ openspec list --specs
 
 # JSON output for scripts
 openspec list --json
+
+# List archived changes
+openspec list --archive
+
+# JSON for specs (script/agent use)
+openspec list --specs --json
+
+# JSON for archived changes
+openspec list --archive --json
 ```
 
 **Output (text):**
 
 ```
-Active changes:
-  add-dark-mode     UI theme switching support
-  fix-login-bug     Session timeout handling
+Changes:
+  add-dark-mode     2/5 tasks      2h ago
+  fix-login-bug     ✓ Complete     1d ago
 ```
+
+With `--archive`, the header is "Archived changes:" and rows show archived change names with task progress and last modified.
 
 ---
 
