@@ -70,7 +70,13 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
   {
     name: 'view',
     description: 'Display an interactive dashboard of specs and changes',
-    flags: [],
+    flags: [
+      {
+        name: 'watch',
+        short: 'w',
+        description: 'Watch for file changes and refresh dashboard',
+      },
+    ],
   },
   {
     name: 'validate',
