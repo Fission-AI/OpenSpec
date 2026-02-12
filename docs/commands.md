@@ -373,7 +373,7 @@ Clarify underspecified areas in an OpenSpec change by identifying ambiguities an
 | **Placeholders** | TODO markers, TBD language, "to be determined" content |
 
 **Example:**
-```
+```text
 You: /opsx:clarify
 
 AI:  Using change: add-user-auth
