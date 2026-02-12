@@ -115,10 +115,6 @@ The system SHALL write each answer immediately after capture rather than batchin
 - **WHEN** user provides an answer
 - **THEN** it is written to the spec file(s) before the next question is shown
 
-#### Scenario: Write failure halts Q&A
-- **WHEN** a spec file write fails
-- **THEN** the Q&A loop pauses and reports the error before continuing
-
 ### Requirement: Path handling in spec updates
 The system SHALL use platform-independent path operations when reading and writing spec files.
 
