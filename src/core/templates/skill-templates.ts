@@ -440,7 +440,13 @@ export function getContinueChangeSkillTemplate(): SkillTemplate {
    - \`artifacts\`: Array of artifacts with their status ("done", "ready", "blocked")
    - \`isComplete\`: Boolean indicating if all artifacts are complete
 
-3. **Act based on status**:
+3. **Execute pre-continue hooks**
+   \`\`\`bash
+   openspec instructions --hook pre-continue --change "<name>" --json
+   \`\`\`
+   If hooks are returned, follow each instruction in order before proceeding.
+
+4. **Act based on status**:
 
    ---
 
@@ -479,10 +485,16 @@ export function getContinueChangeSkillTemplate(): SkillTemplate {
    - This shouldn't happen with a valid schema
    - Show status and suggest checking for issues
 
-4. **After creating an artifact, show progress**
+5. **After creating an artifact, show progress**
    \`\`\`bash
    openspec status --change "<name>"
    \`\`\`
+
+6. **Execute post-continue hooks**
+   \`\`\`bash
+   openspec instructions --hook post-continue --change "<name>" --json
+   \`\`\`
+   If hooks are returned, follow each instruction in order.
 
 **Output**
 
@@ -728,7 +740,13 @@ export function getFfChangeSkillTemplate(): SkillTemplate {
    \`\`\`
    This creates a scaffolded change at \`openspec/changes/<name>/\`.
 
-3. **Get the artifact build order**
+3. **Execute pre-ff hooks**
+   \`\`\`bash
+   openspec instructions --hook pre-ff --change "<name>" --json
+   \`\`\`
+   If hooks are returned, follow each instruction in order before proceeding.
+
+4. **Get the artifact build order**
    \`\`\`bash
    openspec status --change "<name>" --json
    \`\`\`
@@ -736,13 +754,19 @@ export function getFfChangeSkillTemplate(): SkillTemplate {
    - \`applyRequires\`: array of artifact IDs needed before implementation (e.g., \`["tasks"]\`)
    - \`artifacts\`: list of all artifacts with their status and dependencies
 
-4. **Create artifacts in sequence until apply-ready**
+5. **Create artifacts in sequence until apply-ready**
 
    Use the **TodoWrite tool** to track progress through the artifacts.
 
    Loop through artifacts in dependency order (artifacts with no pending dependencies first):
 
-   a. **For each artifact that is \`ready\` (dependencies satisfied)**:
+   a. **Execute pre-continue hooks** (before each artifact):
+      \`\`\`bash
+      openspec instructions --hook pre-continue --change "<name>" --json
+      \`\`\`
+      If hooks are returned, follow each instruction in order.
+
+   b. **For each artifact that is \`ready\` (dependencies satisfied)**:
       - Get instructions:
         \`\`\`bash
         openspec instructions <artifact-id> --change "<name>" --json
@@ -759,16 +783,28 @@ export function getFfChangeSkillTemplate(): SkillTemplate {
       - Apply \`context\` and \`rules\` as constraints - but do NOT copy them into the file
       - Show brief progress: "✓ Created <artifact-id>"
 
-   b. **Continue until all \`applyRequires\` artifacts are complete**
+   c. **Execute post-continue hooks** (after each artifact):
+      \`\`\`bash
+      openspec instructions --hook post-continue --change "<name>" --json
+      \`\`\`
+      If hooks are returned, follow each instruction in order.
+
+   d. **Continue until all \`applyRequires\` artifacts are complete**
       - After creating each artifact, re-run \`openspec status --change "<name>" --json\`
       - Check if every artifact ID in \`applyRequires\` has \`status: "done"\` in the artifacts array
       - Stop when all \`applyRequires\` artifacts are done
 
-   c. **If an artifact requires user input** (unclear context):
+   e. **If an artifact requires user input** (unclear context):
       - Use **AskUserQuestion tool** to clarify
       - Then continue with creation
 
-5. **Show final status**
+6. **Execute post-ff hooks**
+   \`\`\`bash
+   openspec instructions --hook post-ff --change "<name>" --json
+   \`\`\`
+   If hooks are returned, follow each instruction in order.
+
+7. **Show final status**
    \`\`\`bash
    openspec status --change "<name>"
    \`\`\`
@@ -1828,7 +1864,13 @@ export function getOpsxContinueCommandTemplate(): CommandTemplate {
    - \`artifacts\`: Array of artifacts with their status ("done", "ready", "blocked")
    - \`isComplete\`: Boolean indicating if all artifacts are complete
 
-3. **Act based on status**:
+3. **Execute pre-continue hooks**
+   \`\`\`bash
+   openspec instructions --hook pre-continue --change "<name>" --json
+   \`\`\`
+   If hooks are returned, follow each instruction in order before proceeding.
+
+4. **Act based on status**:
 
    ---
 
@@ -1867,10 +1909,16 @@ export function getOpsxContinueCommandTemplate(): CommandTemplate {
    - This shouldn't happen with a valid schema
    - Show status and suggest checking for issues
 
-4. **After creating an artifact, show progress**
+5. **After creating an artifact, show progress**
    \`\`\`bash
    openspec status --change "<name>"
    \`\`\`
+
+6. **Execute post-continue hooks**
+   \`\`\`bash
+   openspec instructions --hook post-continue --change "<name>" --json
+   \`\`\`
+   If hooks are returned, follow each instruction in order.
 
 **Output**
 
@@ -2113,7 +2161,13 @@ export function getOpsxFfCommandTemplate(): CommandTemplate {
    \`\`\`
    This creates a scaffolded change at \`openspec/changes/<name>/\`.
 
-3. **Get the artifact build order**
+3. **Execute pre-ff hooks**
+   \`\`\`bash
+   openspec instructions --hook pre-ff --change "<name>" --json
+   \`\`\`
+   If hooks are returned, follow each instruction in order before proceeding.
+
+4. **Get the artifact build order**
    \`\`\`bash
    openspec status --change "<name>" --json
    \`\`\`
@@ -2121,13 +2175,19 @@ export function getOpsxFfCommandTemplate(): CommandTemplate {
    - \`applyRequires\`: array of artifact IDs needed before implementation (e.g., \`["tasks"]\`)
    - \`artifacts\`: list of all artifacts with their status and dependencies
 
-4. **Create artifacts in sequence until apply-ready**
+5. **Create artifacts in sequence until apply-ready**
 
    Use the **TodoWrite tool** to track progress through the artifacts.
 
    Loop through artifacts in dependency order (artifacts with no pending dependencies first):
 
-   a. **For each artifact that is \`ready\` (dependencies satisfied)**:
+   a. **Execute pre-continue hooks** (before each artifact):
+      \`\`\`bash
+      openspec instructions --hook pre-continue --change "<name>" --json
+      \`\`\`
+      If hooks are returned, follow each instruction in order.
+
+   b. **For each artifact that is \`ready\` (dependencies satisfied)**:
       - Get instructions:
         \`\`\`bash
         openspec instructions <artifact-id> --change "<name>" --json
@@ -2144,16 +2204,28 @@ export function getOpsxFfCommandTemplate(): CommandTemplate {
       - Apply \`context\` and \`rules\` as constraints - but do NOT copy them into the file
       - Show brief progress: "✓ Created <artifact-id>"
 
-   b. **Continue until all \`applyRequires\` artifacts are complete**
+   c. **Execute post-continue hooks** (after each artifact):
+      \`\`\`bash
+      openspec instructions --hook post-continue --change "<name>" --json
+      \`\`\`
+      If hooks are returned, follow each instruction in order.
+
+   d. **Continue until all \`applyRequires\` artifacts are complete**
       - After creating each artifact, re-run \`openspec status --change "<name>" --json\`
       - Check if every artifact ID in \`applyRequires\` has \`status: "done"\` in the artifacts array
       - Stop when all \`applyRequires\` artifacts are done
 
-   c. **If an artifact requires user input** (unclear context):
+   e. **If an artifact requires user input** (unclear context):
       - Use **AskUserQuestion tool** to clarify
       - Then continue with creation
 
-5. **Show final status**
+6. **Execute post-ff hooks**
+   \`\`\`bash
+   openspec instructions --hook post-ff --change "<name>" --json
+   \`\`\`
+   If hooks are returned, follow each instruction in order.
+
+7. **Show final status**
    \`\`\`bash
    openspec status --change "<name>"
    \`\`\`

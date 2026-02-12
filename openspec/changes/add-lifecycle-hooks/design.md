@@ -19,7 +19,7 @@ Key files:
 - Allow schemas to define LLM instruction hooks at operation lifecycle points
 - Allow projects to add/extend hooks via config.yaml
 - Expose hooks via `openspec instructions --hook` for skills to consume
-- Update all operation skills (archive, sync, new, apply, verify) to execute hooks
+- Update all operation skills (archive, sync, new, apply, verify, continue, ff) to execute hooks
 
 **Non-Goals:**
 - Shell script execution (`run` field) — deferred to future iteration
@@ -157,15 +157,19 @@ This function:
 
 ### Decision 6: Valid lifecycle points
 
-10 lifecycle points covering all operations:
+14 lifecycle points covering all operations:
 
 ```
-pre-new       post-new        — creating a change
-pre-apply     post-apply      — implementing tasks
-pre-verify    post-verify     — verifying implementation
-pre-sync      post-sync       — syncing delta specs
-pre-archive   post-archive    — archiving a change
+pre-new        post-new        — creating a change
+pre-continue   post-continue   — creating an artifact (one invocation of continue)
+pre-ff         post-ff         — fast-forward artifact generation (wraps the entire ff run)
+pre-apply      post-apply      — implementing tasks
+pre-verify     post-verify     — verifying implementation
+pre-sync       post-sync       — syncing delta specs
+pre-archive    post-archive    — archiving a change
 ```
+
+The `ff` skill fires `pre-ff`/`post-ff` around the entire operation, and `pre-continue`/`post-continue` for each artifact iteration within it. This allows hooks to run both per-artifact (continue) and per-batch (ff).
 
 These are defined in `VALID_LIFECYCLE_POINTS` in `types.ts` and validated at runtime.
 
@@ -185,7 +189,18 @@ openspec instructions --hook post-archive --change "<name>" --json
 → If hooks returned, follow each instruction in order
 ```
 
-The same pattern applies to all skills: new, apply, verify, sync, archive.
+The same pattern applies to all skills: new, continue, ff, apply, verify, sync, archive.
+
+The `ff` skill has a nested pattern: it fires `pre-ff` at the start, then for each artifact creation it fires `pre-continue`/`post-continue` (reusing the continue hooks), and finally `post-ff` at the end:
+
+```
+ff:
+  pre-ff
+  ├── pre-continue → create artifact 1 → post-continue
+  ├── pre-continue → create artifact 2 → post-continue
+  └── pre-continue → create artifact N → post-continue
+  post-ff
+```
 
 The skill templates in `src/core/templates/skill-templates.ts` are updated to include these steps, and `openspec update` regenerates the output files. This is the same pattern as how skills already call `openspec instructions` and `openspec status`.
 

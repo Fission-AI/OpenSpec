@@ -16,9 +16,10 @@
 - [x] 3.2 Implement `resolveHooks(projectRoot, changeName | null, lifecyclePoint)` function in `src/core/artifact-graph/instruction-loader.ts`
 - [x] 3.3 Handle edge cases: no schema hooks, no config hooks, no hooks at all, invalid lifecycle point, null changeName
 
-## 4. Verify Lifecycle Points
+## 4. Additional Lifecycle Points
 
 - [x] 4.1 Add `pre-verify` and `post-verify` to `VALID_LIFECYCLE_POINTS` in `src/core/artifact-graph/types.ts`
+- [x] 4.2 Add `pre-continue`, `post-continue`, `pre-ff`, `post-ff` to `VALID_LIFECYCLE_POINTS` in `src/core/artifact-graph/types.ts`
 
 ## 5. CLI: Merge hooks into instructions command
 
@@ -36,7 +37,9 @@
 - [x] 6.4 Update sync skill templates to call hooks at pre/post-sync points
 - [x] 6.5 Change all hook invocations in skill templates from `openspec hooks <point>` to `openspec instructions --hook <point>` (~18 occurrences in `src/core/templates/skill-templates.ts`)
 - [x] 6.6 Add pre/post-verify hook steps to `getVerifyChangeSkillTemplate()` and `getOpsxVerifyCommandTemplate()` in `src/core/templates/skill-templates.ts`
-- [x] 6.7 Regenerate agent skills with `openspec update --force` to update generated files
+- [x] 6.8 Add pre/post-continue hook steps to `getContinueChangeSkillTemplate()` and `getOpsxContinueCommandTemplate()`
+- [x] 6.9 Add pre-ff/post-ff hook steps and pre/post-continue per-artifact hooks to `getFfChangeSkillTemplate()` and `getOpsxFfCommandTemplate()`
+- [x] 6.10 Regenerate agent skills with `openspec update --force`
 
 ## 7. Documentation
 
@@ -50,4 +53,5 @@
 - [x] 8.4 CLI integration: Update existing hook tests in `test/commands/artifact-workflow.test.ts` to use `instructions --hook` instead of `hooks` command
 - [x] 8.5 CLI integration: Add mutual exclusivity test — `instructions <artifact> --hook <point>` returns error
 - [x] 8.6 CLI integration: Add `pre-verify`/`post-verify` as valid lifecycle points in tests
-- [x] 8.7 Verify existing tests still pass (no regressions)
+- [x] 8.8 CLI integration: Add `pre-continue`/`post-continue`/`pre-ff`/`post-ff` as valid lifecycle points in tests
+- [x] 8.9 Verify existing tests still pass (no regressions)

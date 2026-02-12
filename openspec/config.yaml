@@ -26,6 +26,36 @@ context: |
   - Tests must use path.join() for expected path values, not hardcoded strings
   - Consider case sensitivity differences in file systems
 
+hooks:
+  pre-new:
+    instruction: "Append a line to HOOKSTEST.md in the project root: `[config] pre-new`"
+  post-new:
+    instruction: "Append a line to HOOKSTEST.md in the project root: `[config] post-new`"
+  pre-continue:
+    instruction: "Append a line to HOOKSTEST.md in the project root: `[config] pre-continue`"
+  post-continue:
+    instruction: "Append a line to HOOKSTEST.md in the project root: `[config] post-continue`"
+  pre-ff:
+    instruction: "Append a line to HOOKSTEST.md in the project root: `[config] pre-ff`"
+  post-ff:
+    instruction: "Append a line to HOOKSTEST.md in the project root: `[config] post-ff`"
+  pre-apply:
+    instruction: "Append a line to HOOKSTEST.md in the project root: `[config] pre-apply`"
+  post-apply:
+    instruction: "Append a line to HOOKSTEST.md in the project root: `[config] post-apply`"
+  pre-verify:
+    instruction: "Append a line to HOOKSTEST.md in the project root: `[config] pre-verify`"
+  post-verify:
+    instruction: "Append a line to HOOKSTEST.md in the project root: `[config] post-verify`"
+  pre-sync:
+    instruction: "Append a line to HOOKSTEST.md in the project root: `[config] pre-sync`"
+  post-sync:
+    instruction: "Append a line to HOOKSTEST.md in the project root: `[config] post-sync`"
+  pre-archive:
+    instruction: "Append a line to HOOKSTEST.md in the project root: `[config] pre-archive`"
+  post-archive:
+    instruction: "Append a line to HOOKSTEST.md in the project root: `[config] post-archive`"
+
 rules:
   specs:
     - Include scenarios for Windows path handling when dealing with file paths

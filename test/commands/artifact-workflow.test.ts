@@ -939,6 +939,18 @@ context: Updated context
         expect(json2.lifecyclePoint).toBe('post-verify');
       }, 60000);
 
+      it('should accept pre-continue, post-continue, pre-ff, post-ff as valid lifecycle points', async () => {
+        for (const point of ['pre-continue', 'post-continue', 'pre-ff', 'post-ff']) {
+          const result = await runCLI(
+            ['instructions', '--hook', point, '--json'],
+            { cwd: tempDir, timeoutMs: 30000 }
+          );
+          expect(result.exitCode).toBe(0);
+          const json = JSON.parse(result.stdout);
+          expect(json.lifecyclePoint).toBe(point);
+        }
+      }, 60000);
+
       it('should return schema hooks before config hooks', async () => {
         // Create a custom schema with hooks
         const userDataDir = path.join(tempDir, 'user-data-hooks');

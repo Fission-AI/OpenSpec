@@ -47,6 +47,8 @@ The system SHALL support an optional `hooks` section in `config.yaml` with the s
 The system SHALL recognize the following lifecycle points as valid hook keys:
 
 - `pre-new`, `post-new`
+- `pre-continue`, `post-continue`
+- `pre-ff`, `post-ff`
 - `pre-apply`, `post-apply`
 - `pre-verify`, `post-verify`
 - `pre-sync`, `post-sync`
