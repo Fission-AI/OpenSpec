@@ -940,7 +940,7 @@ context: Updated context
       }, 60000);
 
       it('should accept all lifecycle points as valid', async () => {
-        for (const point of ['pre-explore', 'post-explore', 'pre-continue', 'post-continue', 'pre-ff', 'post-ff', 'pre-bulk-archive', 'post-bulk-archive', 'pre-onboard', 'post-onboard']) {
+        for (const point of ['pre-explore', 'post-explore', 'pre-new', 'post-new', 'pre-continue', 'post-continue', 'pre-ff', 'post-ff', 'pre-apply', 'post-apply', 'pre-verify', 'post-verify', 'pre-sync', 'post-sync', 'pre-archive', 'post-archive', 'pre-bulk-archive', 'post-bulk-archive', 'pre-onboard', 'post-onboard']) {
           const result = await runCLI(
             ['instructions', '--hook', point, '--json'],
             { cwd: tempDir, timeoutMs: 30000 }
