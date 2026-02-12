@@ -401,7 +401,12 @@ export function resolveHooks(
   }
 
   const hooks: ResolvedHook[] = [];
-  const config = readProjectConfig(projectRoot);
+  let config = null;
+  try {
+    config = readProjectConfig(projectRoot);
+  } catch {
+    // If config read fails, continue without config hooks
+  }
 
   // 1. Schema hooks
   // If a change is specified, resolve schema from the change's metadata.
