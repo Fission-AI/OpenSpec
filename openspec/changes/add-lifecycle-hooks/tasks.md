@@ -20,6 +20,7 @@
 
 - [x] 4.1 Add `pre-verify` and `post-verify` to `VALID_LIFECYCLE_POINTS` in `src/core/artifact-graph/types.ts`
 - [x] 4.2 Add `pre-continue`, `post-continue`, `pre-ff`, `post-ff` to `VALID_LIFECYCLE_POINTS` in `src/core/artifact-graph/types.ts`
+- [x] 4.3 Add `pre-explore`, `post-explore`, `pre-bulk-archive`, `post-bulk-archive`, `pre-onboard`, `post-onboard` to `VALID_LIFECYCLE_POINTS` (20 total)
 
 ## 5. CLI: Merge hooks into instructions command
 
@@ -40,6 +41,9 @@
 - [x] 6.8 Add pre/post-continue hook steps to `getContinueChangeSkillTemplate()` and `getOpsxContinueCommandTemplate()`
 - [x] 6.9 Add pre-ff/post-ff hook steps and pre/post-continue per-artifact hooks to `getFfChangeSkillTemplate()` and `getOpsxFfCommandTemplate()`
 - [x] 6.10 Regenerate agent skills with `openspec update --force`
+- [x] 6.11 Add pre/post-explore hook steps to `getExploreSkillTemplate()` and `getOpsxExploreCommandTemplate()`
+- [x] 6.12 Add pre/post-bulk-archive hook steps to `getBulkArchiveChangeSkillTemplate()` and `getOpsxBulkArchiveCommandTemplate()`, including per-change pre/post-archive hooks
+- [x] 6.13 Add pre/post-onboard hook steps to `getOnboardInstructions()`
 
 ## 7. Documentation
 
@@ -55,3 +59,4 @@
 - [x] 8.6 CLI integration: Add `pre-verify`/`post-verify` as valid lifecycle points in tests
 - [x] 8.8 CLI integration: Add `pre-continue`/`post-continue`/`pre-ff`/`post-ff` as valid lifecycle points in tests
 - [x] 8.9 Verify existing tests still pass (no regressions)
+- [x] 8.10 CLI integration: Add `pre-explore`/`post-explore`/`pre-bulk-archive`/`post-bulk-archive`/`pre-onboard`/`post-onboard` as valid lifecycle points in tests

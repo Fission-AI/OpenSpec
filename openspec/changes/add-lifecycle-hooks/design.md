@@ -19,7 +19,7 @@ Key files:
 - Allow schemas to define LLM instruction hooks at operation lifecycle points
 - Allow projects to add/extend hooks via config.yaml
 - Expose hooks via `openspec instructions --hook` for skills to consume
-- Update all operation skills (archive, sync, new, apply, verify, continue, ff) to execute hooks
+- Update all skills (explore, new, continue, ff, apply, verify, sync, archive, bulk-archive, onboard) to execute hooks
 
 **Non-Goals:**
 - Shell script execution (`run` field) — deferred to future iteration
@@ -157,19 +157,24 @@ This function:
 
 ### Decision 6: Valid lifecycle points
 
-14 lifecycle points covering all operations:
+20 lifecycle points covering all operations:
 
 ```
-pre-new        post-new        — creating a change
-pre-continue   post-continue   — creating an artifact (one invocation of continue)
-pre-ff         post-ff         — fast-forward artifact generation (wraps the entire ff run)
-pre-apply      post-apply      — implementing tasks
-pre-verify     post-verify     — verifying implementation
-pre-sync       post-sync       — syncing delta specs
-pre-archive    post-archive    — archiving a change
+pre-explore       post-explore       — entering/exiting explore mode
+pre-new           post-new           — creating a change
+pre-continue      post-continue      — creating an artifact (one invocation of continue)
+pre-ff            post-ff            — fast-forward artifact generation (wraps the entire ff run)
+pre-apply         post-apply         — implementing tasks
+pre-verify        post-verify        — verifying implementation
+pre-sync          post-sync          — syncing delta specs
+pre-archive       post-archive       — archiving a change
+pre-bulk-archive  post-bulk-archive  — batch archiving (wraps the entire bulk operation)
+pre-onboard       post-onboard       — onboarding session
 ```
 
-The `ff` skill fires `pre-ff`/`post-ff` around the entire operation, and `pre-continue`/`post-continue` for each artifact iteration within it. This allows hooks to run both per-artifact (continue) and per-batch (ff).
+Nesting patterns:
+- The `ff` skill fires `pre-ff`/`post-ff` around the entire operation, and `pre-continue`/`post-continue` for each artifact iteration within it.
+- The `bulk-archive` skill fires `pre-bulk-archive`/`post-bulk-archive` around the batch, and `pre-archive`/`post-archive` for each individual change within it.
 
 These are defined in `VALID_LIFECYCLE_POINTS` in `types.ts` and validated at runtime.
 
@@ -189,7 +194,7 @@ openspec instructions --hook post-archive --change "<name>" --json
 → If hooks returned, follow each instruction in order
 ```
 
-The same pattern applies to all skills: new, continue, ff, apply, verify, sync, archive.
+The same pattern applies to all skills: explore, new, continue, ff, apply, verify, sync, archive, bulk-archive, onboard.
 
 The `ff` skill has a nested pattern: it fires `pre-ff` at the start, then for each artifact creation it fires `pre-continue`/`post-continue` (reusing the continue hooks), and finally `post-ff` at the end:
 

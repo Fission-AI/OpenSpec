@@ -487,7 +487,7 @@ This command has three modes:
 
 **Hook mode** (`openspec instructions --hook <lifecycle-point> [--change <name>]`): Returns lifecycle hooks for a given point. With `--change`, resolves hooks from the change's schema and project config. Without `--change`, resolves from `config.yaml`'s default schema and config. The `--hook` flag is mutually exclusive with the `[artifact]` positional argument — using both produces an error.
 
-Valid lifecycle points: `pre-new`, `post-new`, `pre-continue`, `post-continue`, `pre-ff`, `post-ff`, `pre-apply`, `post-apply`, `pre-verify`, `post-verify`, `pre-sync`, `post-sync`, `pre-archive`, `post-archive`. Note: `pre-continue`/`post-continue` hooks also fire for each artifact iteration inside the `ff` skill.
+Valid lifecycle points: `pre-explore`, `post-explore`, `pre-new`, `post-new`, `pre-continue`, `post-continue`, `pre-ff`, `post-ff`, `pre-apply`, `post-apply`, `pre-verify`, `post-verify`, `pre-sync`, `post-sync`, `pre-archive`, `post-archive`, `pre-bulk-archive`, `post-bulk-archive`, `pre-onboard`, `post-onboard`. Note: `pre-continue`/`post-continue` hooks also fire for each artifact iteration inside the `ff` skill, and `pre-archive`/`post-archive` hooks fire for each individual change inside `bulk-archive`.
 
 **Examples:**
 

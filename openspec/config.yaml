@@ -27,6 +27,10 @@ context: |
   - Consider case sensitivity differences in file systems
 
 hooks:
+  pre-explore:
+    instruction: "Append a line to HOOKSTEST.md in the project root: `[config] pre-explore`"
+  post-explore:
+    instruction: "Append a line to HOOKSTEST.md in the project root: `[config] post-explore`"
   pre-new:
     instruction: "Append a line to HOOKSTEST.md in the project root: `[config] pre-new`"
   post-new:
@@ -55,6 +59,14 @@ hooks:
     instruction: "Append a line to HOOKSTEST.md in the project root: `[config] pre-archive`"
   post-archive:
     instruction: "Append a line to HOOKSTEST.md in the project root: `[config] post-archive`"
+  pre-bulk-archive:
+    instruction: "Append a line to HOOKSTEST.md in the project root: `[config] pre-bulk-archive`"
+  post-bulk-archive:
+    instruction: "Append a line to HOOKSTEST.md in the project root: `[config] post-bulk-archive`"
+  pre-onboard:
+    instruction: "Append a line to HOOKSTEST.md in the project root: `[config] pre-onboard`"
+  post-onboard:
+    instruction: "Append a line to HOOKSTEST.md in the project root: `[config] post-onboard`"
 
 rules:
   specs:

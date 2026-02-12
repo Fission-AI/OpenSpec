@@ -95,9 +95,17 @@ Depending on what the user brings, you might:
 
 You have full context of the OpenSpec system. Use it naturally, don't force it.
 
+### Execute pre-explore hooks
+
+At the start, run:
+\`\`\`bash
+openspec instructions --hook pre-explore --json
+\`\`\`
+If hooks are returned, follow each instruction in order before proceeding.
+
 ### Check for context
 
-At the start, quickly check what exists:
+Then check what exists:
 \`\`\`bash
 openspec list --json
 \`\`\`
@@ -303,7 +311,15 @@ But this summary is optional. Sometimes the thinking IS the value.
 - **Don't auto-capture** - Offer to save insights, don't just do it
 - **Do visualize** - A good diagram is worth many paragraphs
 - **Do explore the codebase** - Ground discussions in reality
-- **Do question assumptions** - Including the user's and your own`,
+- **Do question assumptions** - Including the user's and your own
+
+## Post-explore hooks
+
+When the exploration session ends (user moves on, starts a change, or explicitly exits explore mode), run:
+\`\`\`bash
+openspec instructions --hook post-explore --json
+\`\`\`
+If hooks are returned, follow each instruction in order.`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
@@ -1019,9 +1035,17 @@ function getOnboardInstructions(): string {
 
 ---
 
+## Pre-onboard hooks
+
+Before starting, run:
+\`\`\`bash
+openspec instructions --hook pre-onboard --json
+\`\`\`
+If hooks are returned, follow each instruction in order before proceeding.
+
 ## Preflight
 
-Before starting, check if the OpenSpec CLI is installed:
+Check if the OpenSpec CLI is installed:
 
 \`\`\`bash
 # Unix/macOS
@@ -1533,6 +1557,14 @@ Exit gracefully.
 
 ---
 
+## Post-onboard hooks
+
+When the onboarding session ends (user completes the cycle, exits, or moves on), run:
+\`\`\`bash
+openspec instructions --hook post-onboard --json
+\`\`\`
+If hooks are returned, follow each instruction in order.
+
 ## Guardrails
 
 - **Follow the EXPLAIN → DO → SHOW → PAUSE pattern** at key transitions (after explore, after proposal draft, after tasks, after archive)
@@ -1643,9 +1675,17 @@ Depending on what the user brings, you might:
 
 You have full context of the OpenSpec system. Use it naturally, don't force it.
 
+### Execute pre-explore hooks
+
+At the start, run:
+\`\`\`bash
+openspec instructions --hook pre-explore --json
+\`\`\`
+If hooks are returned, follow each instruction in order before proceeding.
+
 ### Check for context
 
-At the start, quickly check what exists:
+Then check what exists:
 \`\`\`bash
 openspec list --json
 \`\`\`
@@ -1732,7 +1772,15 @@ When things crystallize, you might offer a summary - but it's optional. Sometime
 - **Don't auto-capture** - Offer to save insights, don't just do it
 - **Do visualize** - A good diagram is worth many paragraphs
 - **Do explore the codebase** - Ground discussions in reality
-- **Do question assumptions** - Including the user's and your own`
+- **Do question assumptions** - Including the user's and your own
+
+## Post-explore hooks
+
+When the exploration session ends (user moves on, starts a change, or explicitly exits explore mode), run:
+\`\`\`bash
+openspec instructions --hook post-explore --json
+\`\`\`
+If hooks are returned, follow each instruction in order.`
   };
 }
 
@@ -2405,13 +2453,19 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
 **Steps**
 
-1. **Get active changes**
+1. **Execute pre-bulk-archive hooks**
+   \`\`\`bash
+   openspec instructions --hook pre-bulk-archive --json
+   \`\`\`
+   If hooks are returned, follow each instruction in order before proceeding.
+
+2. **Get active changes**
 
    Run \`openspec list --json\` to get all active changes.
 
    If no active changes exist, inform user and stop.
 
-2. **Prompt for change selection**
+3. **Prompt for change selection**
 
    Use **AskUserQuestion tool** with multi-select to let user choose changes:
    - Show each change with its schema
@@ -2420,7 +2474,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    **IMPORTANT**: Do NOT auto-select. Always let the user choose.
 
-3. **Batch validation - gather status for all selected changes**
+4. **Batch validation - gather status for all selected changes**
 
    For each selected change, collect:
 
@@ -2436,7 +2490,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - List which capability specs exist
       - For each, extract requirement names (lines matching \`### Requirement: <name>\`)
 
-4. **Detect spec conflicts**
+5. **Detect spec conflicts**
 
    Build a map of \`capability -> [changes that touch it]\`:
 
@@ -2447,7 +2501,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    A conflict exists when 2+ selected changes have delta specs for the same capability.
 
-5. **Resolve conflicts agentically**
+6. **Resolve conflicts agentically**
 
    **For each conflict**, investigate the codebase:
 
@@ -2467,7 +2521,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - In what order (if both)
       - Rationale (what was found in codebase)
 
-6. **Show consolidated status table**
+7. **Show consolidated status table**
 
    Display a table summarizing all changes:
 
@@ -2492,7 +2546,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
    - add-verify-skill: 1 incomplete artifact, 3 incomplete tasks
    \`\`\`
 
-7. **Confirm batch operation**
+8. **Confirm batch operation**
 
    Use **AskUserQuestion tool** with a single confirmation:
 
@@ -2504,27 +2558,41 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    If there are incomplete changes, make clear they'll be archived with warnings.
 
-8. **Execute archive for each confirmed change**
+9. **Execute archive for each confirmed change**
 
-   Process changes in the determined order (respecting conflict resolution):
+   Process changes in the determined order (respecting conflict resolution).
 
-   a. **Sync specs** if delta specs exist:
+   **For each change**:
+
+   a. **Execute pre-archive hooks**:
+      \`\`\`bash
+      openspec instructions --hook pre-archive --change "<name>" --json
+      \`\`\`
+      If hooks are returned, follow each instruction in order.
+
+   b. **Sync specs** if delta specs exist:
       - Use the openspec-sync-specs approach (agent-driven intelligent merge)
       - For conflicts, apply in resolved order
       - Track if sync was done
 
-   b. **Perform the archive**:
+   c. **Perform the archive**:
       \`\`\`bash
       mkdir -p openspec/changes/archive
       mv openspec/changes/<name> openspec/changes/archive/YYYY-MM-DD-<name>
       \`\`\`
 
-   c. **Track outcome** for each change:
+   d. **Execute post-archive hooks**:
+      \`\`\`bash
+      openspec instructions --hook post-archive --change "<name>" --json
+      \`\`\`
+      If hooks are returned, follow each instruction in order.
+
+   e. **Track outcome** for each change:
       - Success: archived successfully
       - Failed: error during archive (record error)
       - Skipped: user chose not to archive (if applicable)
 
-9. **Display summary**
+10. **Display summary**
 
    Show final results:
 
@@ -2619,6 +2687,12 @@ Failed K changes:
 
 No active changes found. Use \`/opsx:new\` to create a new change.
 \`\`\`
+
+11. **Execute post-bulk-archive hooks**
+   \`\`\`bash
+   openspec instructions --hook post-bulk-archive --json
+   \`\`\`
+   If hooks are returned, follow each instruction in order.
 
 **Guardrails**
 - Allow any number of changes (1+ is fine, 2+ is the typical use case)
@@ -3187,13 +3261,19 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
 **Steps**
 
-1. **Get active changes**
+1. **Execute pre-bulk-archive hooks**
+   \`\`\`bash
+   openspec instructions --hook pre-bulk-archive --json
+   \`\`\`
+   If hooks are returned, follow each instruction in order before proceeding.
+
+2. **Get active changes**
 
    Run \`openspec list --json\` to get all active changes.
 
    If no active changes exist, inform user and stop.
 
-2. **Prompt for change selection**
+3. **Prompt for change selection**
 
    Use **AskUserQuestion tool** with multi-select to let user choose changes:
    - Show each change with its schema
@@ -3202,7 +3282,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    **IMPORTANT**: Do NOT auto-select. Always let the user choose.
 
-3. **Batch validation - gather status for all selected changes**
+4. **Batch validation - gather status for all selected changes**
 
    For each selected change, collect:
 
@@ -3218,7 +3298,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - List which capability specs exist
       - For each, extract requirement names (lines matching \`### Requirement: <name>\`)
 
-4. **Detect spec conflicts**
+5. **Detect spec conflicts**
 
    Build a map of \`capability -> [changes that touch it]\`:
 
@@ -3229,7 +3309,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    A conflict exists when 2+ selected changes have delta specs for the same capability.
 
-5. **Resolve conflicts agentically**
+6. **Resolve conflicts agentically**
 
    **For each conflict**, investigate the codebase:
 
@@ -3249,7 +3329,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - In what order (if both)
       - Rationale (what was found in codebase)
 
-6. **Show consolidated status table**
+7. **Show consolidated status table**
 
    Display a table summarizing all changes:
 
@@ -3274,7 +3354,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
    - add-verify-skill: 1 incomplete artifact, 3 incomplete tasks
    \`\`\`
 
-7. **Confirm batch operation**
+8. **Confirm batch operation**
 
    Use **AskUserQuestion tool** with a single confirmation:
 
@@ -3286,27 +3366,41 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    If there are incomplete changes, make clear they'll be archived with warnings.
 
-8. **Execute archive for each confirmed change**
+9. **Execute archive for each confirmed change**
 
-   Process changes in the determined order (respecting conflict resolution):
+   Process changes in the determined order (respecting conflict resolution).
 
-   a. **Sync specs** if delta specs exist:
+   **For each change**:
+
+   a. **Execute pre-archive hooks**:
+      \`\`\`bash
+      openspec instructions --hook pre-archive --change "<name>" --json
+      \`\`\`
+      If hooks are returned, follow each instruction in order.
+
+   b. **Sync specs** if delta specs exist:
       - Use the openspec-sync-specs approach (agent-driven intelligent merge)
       - For conflicts, apply in resolved order
       - Track if sync was done
 
-   b. **Perform the archive**:
+   c. **Perform the archive**:
       \`\`\`bash
       mkdir -p openspec/changes/archive
       mv openspec/changes/<name> openspec/changes/archive/YYYY-MM-DD-<name>
       \`\`\`
 
-   c. **Track outcome** for each change:
+   d. **Execute post-archive hooks**:
+      \`\`\`bash
+      openspec instructions --hook post-archive --change "<name>" --json
+      \`\`\`
+      If hooks are returned, follow each instruction in order.
+
+   e. **Track outcome** for each change:
       - Success: archived successfully
       - Failed: error during archive (record error)
       - Skipped: user chose not to archive (if applicable)
 
-9. **Display summary**
+10. **Display summary**
 
    Show final results:
 
@@ -3401,6 +3495,12 @@ Failed K changes:
 
 No active changes found. Use \`/opsx:new\` to create a new change.
 \`\`\`
+
+11. **Execute post-bulk-archive hooks**
+   \`\`\`bash
+   openspec instructions --hook post-bulk-archive --json
+   \`\`\`
+   If hooks are returned, follow each instruction in order.
 
 **Guardrails**
 - Allow any number of changes (1+ is fine, 2+ is the typical use case)

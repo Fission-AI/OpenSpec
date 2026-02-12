@@ -939,8 +939,8 @@ context: Updated context
         expect(json2.lifecyclePoint).toBe('post-verify');
       }, 60000);
 
-      it('should accept pre-continue, post-continue, pre-ff, post-ff as valid lifecycle points', async () => {
-        for (const point of ['pre-continue', 'post-continue', 'pre-ff', 'post-ff']) {
+      it('should accept all lifecycle points as valid', async () => {
+        for (const point of ['pre-explore', 'post-explore', 'pre-continue', 'post-continue', 'pre-ff', 'post-ff', 'pre-bulk-archive', 'post-bulk-archive', 'pre-onboard', 'post-onboard']) {
           const result = await runCLI(
             ['instructions', '--hook', point, '--json'],
             { cwd: tempDir, timeoutMs: 30000 }

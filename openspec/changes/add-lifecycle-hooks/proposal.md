@@ -17,18 +17,21 @@ Related issues: #682 (extensible hook capability), #557 (ADR lifecycle hooks), #
 - Add a `hooks` section to `config.yaml` for project-level lifecycle hooks
 - Create hook resolution function (schema + config merge, schema first)
 - Expose hooks via a `--hook <lifecycle-point>` flag on `openspec instructions`. Supports optional `--change <name>` to resolve hooks from the change's schema; without `--change`, resolves from config.yaml's default schema. The `--hook` flag is mutually exclusive with the `[artifact]` positional argument — using both produces an error. Hook resolution logic lives in `hooks.ts` as an internal module
-- Update skills (archive, sync, new, apply, verify, continue, ff) to query and execute hooks at their lifecycle points
+- Update all skills (explore, new, continue, ff, apply, verify, sync, archive, bulk-archive, onboard) to query and execute hooks at their lifecycle points
 - Document the `instructions` command covering all modes (artifact, apply, `--hook`)
 - Hooks are LLM instructions only in this iteration — no `run` field for shell execution (deferred to future iteration)
 
-Supported lifecycle points:
+Supported lifecycle points (20 total):
+- `pre-explore` / `post-explore` — entering/exiting explore mode
 - `pre-new` / `post-new` — creating a change
 - `pre-continue` / `post-continue` — creating an artifact (also fires inside ff)
 - `pre-ff` / `post-ff` — fast-forward artifact generation
 - `pre-apply` / `post-apply` — implementing tasks
 - `pre-verify` / `post-verify` — verifying implementation
 - `pre-sync` / `post-sync` — syncing delta specs
-- `pre-archive` / `post-archive` — archiving a change
+- `pre-archive` / `post-archive` — archiving a change (also fires per change inside bulk-archive)
+- `pre-bulk-archive` / `post-bulk-archive` — batch archiving
+- `pre-onboard` / `post-onboard` — onboarding session
 
 ### Example: schema.yaml
 ```yaml
@@ -79,8 +82,8 @@ hooks:
 - **Schema format**: `schema.yaml` gains optional `hooks` field — fully backward-compatible
 - **Config format**: `config.yaml` gains optional `hooks` field — fully backward-compatible
 - **CLI**: `openspec instructions --hook <lifecycle-point>` exposes hooks. `--hook` is mutually exclusive with `[artifact]` positional — error if both provided
-- **Skills**: Archive, sync, new, apply, verify, continue, and ff skills use `openspec instructions --hook`
-- **Lifecycle points**: 14 total — `pre/post` for new, continue, ff, apply, verify, sync, archive. The ff skill fires `pre-ff`/`post-ff` around the entire operation, and `pre-continue`/`post-continue` for each artifact iteration within it
+- **Skills**: All skills (explore, new, continue, ff, apply, verify, sync, archive, bulk-archive, onboard) use `openspec instructions --hook`
+- **Lifecycle points**: 20 total — `pre/post` for explore, new, continue, ff, apply, verify, sync, archive, bulk-archive, onboard. The ff skill fires `pre-ff`/`post-ff` around the entire operation and `pre-continue`/`post-continue` for each artifact iteration. The bulk-archive skill fires `pre-bulk-archive`/`post-bulk-archive` around the batch and `pre-archive`/`post-archive` for each individual change
 - **Existing schemas**: Unaffected — `hooks` is optional
 - **Tests**: Hook tests via `instructions --hook`, verify hook tests
 - **Validation**: Hook keys validated against `VALID_LIFECYCLE_POINTS`; unknown keys emit warnings
