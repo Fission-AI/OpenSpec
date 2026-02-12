@@ -2585,6 +2585,10 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       \`\`\`bash
       openspec instructions --hook post-archive --change "<name>" --json
       \`\`\`
+      **Note:** The change has been moved to archive, so the \`--change\` flag may not resolve. If this fails, fall back to:
+      \`\`\`bash
+      openspec instructions --hook post-archive --json
+      \`\`\`
       If hooks are returned, follow each instruction in order.
 
    e. **Track outcome** for each change:
@@ -3392,6 +3396,10 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
    d. **Execute post-archive hooks**:
       \`\`\`bash
       openspec instructions --hook post-archive --change "<name>" --json
+      \`\`\`
+      **Note:** The change has been moved to archive, so the \`--change\` flag may not resolve. If this fails, fall back to:
+      \`\`\`bash
+      openspec instructions --hook post-archive --json
       \`\`\`
       If hooks are returned, follow each instruction in order.
 
