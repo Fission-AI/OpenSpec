@@ -931,37 +931,15 @@ context: Updated context
         expect(output).toContain('--schema cannot be used with --hook');
       }, 60000);
 
-      it('should accept pre-verify and post-verify as valid lifecycle points', async () => {
-        // Run instructions --hook with pre-verify
-        const result1 = await runCLI(
-          ['instructions', '--hook', 'pre-verify', '--json'],
+      it.each(VALID_LIFECYCLE_POINTS)('should accept %s as a valid lifecycle point', async (point) => {
+        const result = await runCLI(
+          ['instructions', '--hook', point, '--json'],
           { cwd: tempDir, timeoutMs: 30000 }
         );
-        expect(result1.exitCode).toBe(0);
-        const json1 = JSON.parse(result1.stdout);
-        expect(json1.lifecyclePoint).toBe('pre-verify');
-
-        // Run instructions --hook with post-verify
-        const result2 = await runCLI(
-          ['instructions', '--hook', 'post-verify', '--json'],
-          { cwd: tempDir, timeoutMs: 30000 }
-        );
-        expect(result2.exitCode).toBe(0);
-        const json2 = JSON.parse(result2.stdout);
-        expect(json2.lifecyclePoint).toBe('post-verify');
-      }, 60000);
-
-      it('should accept all lifecycle points as valid', async () => {
-        for (const point of VALID_LIFECYCLE_POINTS) {
-          const result = await runCLI(
-            ['instructions', '--hook', point, '--json'],
-            { cwd: tempDir, timeoutMs: 30000 }
-          );
-          expect(result.exitCode).toBe(0);
-          const json = JSON.parse(result.stdout);
-          expect(json.lifecyclePoint).toBe(point);
-        }
-      }, 60000);
+        expect(result.exitCode).toBe(0);
+        const json = JSON.parse(result.stdout);
+        expect(json.lifecyclePoint).toBe(point);
+      }, 30000);
 
       it('should return schema hooks before config hooks', async () => {
         // Create a custom schema with hooks
