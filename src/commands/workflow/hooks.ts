@@ -22,7 +22,7 @@ export interface HooksOptions {
   json?: boolean;
 }
 
-export interface HooksOutput {
+interface HooksOutput {
   lifecyclePoint: string;
   changeName: string | null;
   hooks: ResolvedHook[];
