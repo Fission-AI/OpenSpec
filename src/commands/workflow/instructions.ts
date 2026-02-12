@@ -14,6 +14,7 @@ import {
   resolveSchema,
   type ArtifactInstructions,
 } from '../../core/artifact-graph/index.js';
+import { readProjectConfig } from '../../core/project-config.js';
 import {
   validateChangeExists,
   validateSchemaExists,
@@ -34,6 +35,10 @@ export interface InstructionsOptions {
 export interface ApplyInstructionsOptions {
   change?: string;
   schema?: string;
+  json?: boolean;
+}
+
+export interface ContextInstructionsOptions {
   json?: boolean;
 }
 
@@ -386,6 +391,15 @@ export async function generateApplyInstructions(
     instruction = schemaInstruction?.trim() ?? 'Read context files, work through pending tasks, mark complete as you go.\nPause if you hit blockers or need clarification.';
   }
 
+  // Read project config for context
+  let projectContext: string | undefined;
+  try {
+    const projectConfig = readProjectConfig(projectRoot);
+    projectContext = projectConfig?.context?.trim() || undefined;
+  } catch {
+    // If config read fails, continue without context
+  }
+
   return {
     changeName,
     changeDir,
@@ -396,6 +410,7 @@ export async function generateApplyInstructions(
     state,
     missingArtifacts: missingArtifacts.length > 0 ? missingArtifacts : undefined,
     instruction,
+    context: projectContext,
   };
 }
 
@@ -429,11 +444,20 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
 }
 
 export function printApplyInstructionsText(instructions: ApplyInstructions): void {
-  const { changeName, schemaName, contextFiles, progress, tasks, state, missingArtifacts, instruction } = instructions;
+  const { changeName, schemaName, contextFiles, progress, tasks, state, missingArtifacts, instruction, context } = instructions;
 
   console.log(`## Apply: ${changeName}`);
   console.log(`Schema: ${schemaName}`);
   console.log();
+
+  // Project context (AI constraint - do not include in output)
+  if (context) {
+    console.log('<project_context>');
+    console.log('<!-- This is background information for you. Do NOT include this in your output. -->');
+    console.log(context);
+    console.log('</project_context>');
+    console.log();
+  }
 
   // Warning for blocked state
   if (state === 'blocked' && missingArtifacts) {
@@ -478,4 +502,32 @@ export function printApplyInstructionsText(instructions: ApplyInstructions): voi
   // Instruction
   console.log('### Instruction');
   console.log(instruction);
+}
+
+// -----------------------------------------------------------------------------
+// Context Instructions Command
+// -----------------------------------------------------------------------------
+
+/**
+ * Returns project context from config.yaml without requiring a change or artifact.
+ * Used by skills that operate outside of a specific change context.
+ */
+export async function contextInstructionsCommand(options: ContextInstructionsOptions): Promise<void> {
+  const projectRoot = process.cwd();
+  let contextValue: string | null = null;
+
+  try {
+    const projectConfig = readProjectConfig(projectRoot);
+    contextValue = projectConfig?.context?.trim() || null;
+  } catch {
+    // If config read fails, return null context gracefully
+  }
+
+  if (options.json) {
+    console.log(JSON.stringify({ context: contextValue }, null, 2));
+  } else {
+    if (contextValue) {
+      console.log(contextValue);
+    }
+  }
 }

@@ -458,7 +458,7 @@ Next: Create design using /opsx:continue
 
 ### `openspec instructions`
 
-Get enriched instructions for creating an artifact or applying tasks. Used by AI agents to understand what to create next.
+Get enriched instructions for creating an artifact, applying tasks, or retrieving project context. Used by AI agents to understand what to create next.
 
 ```
 openspec instructions [artifact] [options]
@@ -476,9 +476,20 @@ openspec instructions [artifact] [options]
 |--------|-------------|
 | `--change <id>` | Change name (required in non-interactive mode) |
 | `--schema <name>` | Schema override |
+| `--context` | Output project context from `config.yaml` (incompatible with `--change`, `--schema`, artifact) |
 | `--json` | Output as JSON |
 
 **Special case:** Use `apply` as the artifact to get task implementation instructions.
+
+**Modes:**
+
+This command operates in three modes:
+
+1. **Artifact instructions** (default): Get instructions for creating a specific artifact
+2. **Apply instructions** (`apply` argument): Get task implementation instructions with progress tracking
+3. **Context-only** (`--context` flag): Return just the project context from `config.yaml`
+
+The `--context` flag is exclusive — it cannot be combined with `--change`, `--schema`, or an artifact argument.
 
 **Examples:**
 
@@ -494,14 +505,30 @@ openspec instructions apply --change add-dark-mode
 
 # JSON for agent consumption
 openspec instructions design --change add-dark-mode --json
+
+# Get project context (text)
+openspec instructions --context
+
+# Get project context (JSON)
+openspec instructions --context --json
 ```
 
 **Output includes:**
 
 - Template content for the artifact
-- Project context from config
+- Project context from `config.yaml`
 - Content from dependency artifacts
-- Per-artifact rules from config
+- Per-artifact rules from `config.yaml`
+
+**Context-only output (JSON):**
+
+```json
+{
+  "context": "This is a TypeScript CLI tool that runs on Node.js 18+..."
+}
+```
+
+If no `config.yaml` exists or it has no `context` field, returns `{"context": null}` in JSON mode or no output in text mode.
 
 ---
 

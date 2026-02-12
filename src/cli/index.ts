@@ -20,6 +20,7 @@ import {
   statusCommand,
   instructionsCommand,
   applyInstructionsCommand,
+  contextInstructionsCommand,
   templatesCommand,
   schemasCommand,
   newChangeCommand,
@@ -437,14 +438,27 @@ program
 // Instructions command
 program
   .command('instructions [artifact]')
-  .description('Output enriched instructions for creating an artifact or applying tasks')
+  .description('Output enriched instructions for creating an artifact, applying tasks, or getting project context')
   .option('--change <id>', 'Change name')
   .option('--schema <name>', 'Schema override (auto-detected from config.yaml)')
+  .option('--context', 'Output project context from config.yaml (incompatible with --change, --schema, artifact)')
   .option('--json', 'Output as JSON')
-  .action(async (artifactId: string | undefined, options: InstructionsOptions) => {
+  .action(async (artifactId: string | undefined, options: InstructionsOptions & { context?: boolean }) => {
     try {
-      // Special case: "apply" is not an artifact, but a command to get apply instructions
-      if (artifactId === 'apply') {
+      if (options.context) {
+        // Validate exclusivity: --context is incompatible with other options
+        if (artifactId) {
+          throw new Error('--context cannot be combined with an artifact argument');
+        }
+        if (options.change) {
+          throw new Error('--context cannot be combined with --change');
+        }
+        if (options.schema) {
+          throw new Error('--context cannot be combined with --schema');
+        }
+        await contextInstructionsCommand({ json: options.json });
+      } else if (artifactId === 'apply') {
+        // Special case: "apply" is not an artifact, but a command to get apply instructions
         await applyInstructionsCommand(options);
       } else {
         await instructionsCommand(artifactId, options);

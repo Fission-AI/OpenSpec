@@ -549,6 +549,167 @@ artifacts:
       expect(json.state).toBe('ready');
       expect(json.instruction).toContain('All required artifacts complete');
     });
+
+    it('includes project context when config.yaml has context field', async () => {
+      await createTestChange('context-apply', ['proposal', 'design', 'specs', 'tasks']);
+
+      // Create config.yaml with context
+      await fs.writeFile(
+        path.join(tempDir, 'openspec', 'config.yaml'),
+        'schema: spec-driven\ncontext: |\n  Tech stack: TypeScript\n  Cross-platform: yes\n'
+      );
+
+      const result = await runCLI(
+        ['instructions', 'apply', '--change', 'context-apply', '--json'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).toBe(0);
+
+      const json = JSON.parse(result.stdout);
+      expect(json.context).toContain('Tech stack: TypeScript');
+      expect(json.context).toContain('Cross-platform: yes');
+    });
+
+    it('includes project context in text output', async () => {
+      await createTestChange('context-text-apply', ['proposal', 'design', 'specs', 'tasks']);
+
+      await fs.writeFile(
+        path.join(tempDir, 'openspec', 'config.yaml'),
+        'schema: spec-driven\ncontext: |\n  Tech stack: TypeScript\n'
+      );
+
+      const result = await runCLI(
+        ['instructions', 'apply', '--change', 'context-text-apply'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('<project_context>');
+      expect(result.stdout).toContain('Tech stack: TypeScript');
+      expect(result.stdout).toContain('</project_context>');
+    });
+
+    it('omits context when config.yaml has no context field', async () => {
+      await createTestChange('no-context-apply', ['proposal', 'design', 'specs', 'tasks']);
+
+      // Create config.yaml without context
+      await fs.writeFile(
+        path.join(tempDir, 'openspec', 'config.yaml'),
+        'schema: spec-driven\n'
+      );
+
+      const result = await runCLI(
+        ['instructions', 'apply', '--change', 'no-context-apply', '--json'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).toBe(0);
+
+      const json = JSON.parse(result.stdout);
+      expect(json.context).toBeUndefined();
+    });
+
+    it('omits context when no config.yaml exists', async () => {
+      await createTestChange('no-config-apply', ['proposal', 'design', 'specs', 'tasks']);
+
+      const result = await runCLI(
+        ['instructions', 'apply', '--change', 'no-config-apply', '--json'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).toBe(0);
+
+      const json = JSON.parse(result.stdout);
+      expect(json.context).toBeUndefined();
+    });
+  });
+
+  describe('instructions --context command', () => {
+    it('returns project context as JSON', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'openspec', 'config.yaml'),
+        'schema: spec-driven\ncontext: |\n  Tech stack: TypeScript\n  Cross-platform: yes\n'
+      );
+
+      const result = await runCLI(['instructions', '--context', '--json'], {
+        cwd: tempDir,
+      });
+      expect(result.exitCode).toBe(0);
+
+      const json = JSON.parse(result.stdout);
+      expect(json.context).toContain('Tech stack: TypeScript');
+      expect(json.context).toContain('Cross-platform: yes');
+    });
+
+    it('returns project context as text', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'openspec', 'config.yaml'),
+        'schema: spec-driven\ncontext: |\n  Tech stack: TypeScript\n'
+      );
+
+      const result = await runCLI(['instructions', '--context'], {
+        cwd: tempDir,
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Tech stack: TypeScript');
+    });
+
+    it('returns null context when no config exists', async () => {
+      const result = await runCLI(['instructions', '--context', '--json'], {
+        cwd: tempDir,
+      });
+      expect(result.exitCode).toBe(0);
+
+      const json = JSON.parse(result.stdout);
+      expect(json.context).toBeNull();
+    });
+
+    it('returns null context when config has no context field', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'openspec', 'config.yaml'),
+        'schema: spec-driven\n'
+      );
+
+      const result = await runCLI(['instructions', '--context', '--json'], {
+        cwd: tempDir,
+      });
+      expect(result.exitCode).toBe(0);
+
+      const json = JSON.parse(result.stdout);
+      expect(json.context).toBeNull();
+    });
+
+    it('returns empty output in text mode when no context', async () => {
+      const result = await runCLI(['instructions', '--context'], {
+        cwd: tempDir,
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout.trim()).toBe('');
+    });
+
+    it('errors when combined with --change', async () => {
+      const result = await runCLI(
+        ['instructions', '--context', '--change', 'some-change'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).not.toBe(0);
+      expect(getOutput(result)).toContain('--context cannot be combined with --change');
+    });
+
+    it('errors when combined with --schema', async () => {
+      const result = await runCLI(
+        ['instructions', '--context', '--schema', 'some-schema'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).not.toBe(0);
+      expect(getOutput(result)).toContain('--context cannot be combined with --schema');
+    });
+
+    it('errors when combined with artifact argument', async () => {
+      const result = await runCLI(
+        ['instructions', 'proposal', '--context'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).not.toBe(0);
+      expect(getOutput(result)).toContain('--context cannot be combined with an artifact argument');
+    });
   });
 
   describe('help text', () => {

@@ -7,7 +7,7 @@
 export { statusCommand } from './status.js';
 export type { StatusOptions } from './status.js';
 
-export { instructionsCommand, applyInstructionsCommand } from './instructions.js';
+export { instructionsCommand, applyInstructionsCommand, contextInstructionsCommand } from './instructions.js';
 export type { InstructionsOptions } from './instructions.js';
 
 export { templatesCommand } from './templates.js';
