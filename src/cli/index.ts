@@ -32,9 +32,9 @@ import {
   type NewChangeOptions,
   type HooksOptions,
 } from '../commands/workflow/index.js';
+import { maybeShowTelemetryNotice, trackCommand, shutdown } from '../telemetry/index.js';
 
 type InstructionsActionOptions = InstructionsOptions & { hook?: string };
-import { maybeShowTelemetryNotice, trackCommand, shutdown } from '../telemetry/index.js';
 
 const program = new Command();
 const require = createRequire(import.meta.url);
