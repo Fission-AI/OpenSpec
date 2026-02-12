@@ -3749,6 +3749,6 @@ Question 2 of 5 - *Category: Security*
 \`\`\``,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
-    metadata: { author: 'openspec', version: '2.0' },
+    metadata: { author: 'openspec', version: '1.0' },
   };
 }
