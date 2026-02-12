@@ -85,7 +85,7 @@ The system SHALL preserve existing spec content when adding clarifications.
 - **WHEN** clarifications are added to a spec
 - **THEN** all original requirements, scenarios, and sections remain intact
 
-#### Scenario: File backup before write
+#### Scenario: File validation before write
 - **WHEN** a spec is about to be modified
 - **THEN** the system confirms the file path exists and is writable before proceeding
 
