@@ -2592,7 +2592,13 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - Failed: error during archive (record error)
       - Skipped: user chose not to archive (if applicable)
 
-10. **Display summary**
+10. **Execute post-bulk-archive hooks**
+   \`\`\`bash
+   openspec instructions --hook post-bulk-archive --json
+   \`\`\`
+   If hooks are returned, follow each instruction in order.
+
+11. **Display summary**
 
    Show final results:
 
@@ -2687,12 +2693,6 @@ Failed K changes:
 
 No active changes found. Use \`/opsx:new\` to create a new change.
 \`\`\`
-
-11. **Execute post-bulk-archive hooks**
-   \`\`\`bash
-   openspec instructions --hook post-bulk-archive --json
-   \`\`\`
-   If hooks are returned, follow each instruction in order.
 
 **Guardrails**
 - Allow any number of changes (1+ is fine, 2+ is the typical use case)
@@ -3400,7 +3400,13 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - Failed: error during archive (record error)
       - Skipped: user chose not to archive (if applicable)
 
-10. **Display summary**
+10. **Execute post-bulk-archive hooks**
+   \`\`\`bash
+   openspec instructions --hook post-bulk-archive --json
+   \`\`\`
+   If hooks are returned, follow each instruction in order.
+
+11. **Display summary**
 
    Show final results:
 
@@ -3495,12 +3501,6 @@ Failed K changes:
 
 No active changes found. Use \`/opsx:new\` to create a new change.
 \`\`\`
-
-11. **Execute post-bulk-archive hooks**
-   \`\`\`bash
-   openspec instructions --hook post-bulk-archive --json
-   \`\`\`
-   If hooks are returned, follow each instruction in order.
 
 **Guardrails**
 - Allow any number of changes (1+ is fine, 2+ is the typical use case)
