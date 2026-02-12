@@ -63,9 +63,8 @@ The existing skill templates follow a consistent structure:
 **Choice:** Name the skill `openspec-clarify` and function `getClarifyChangeSkillTemplate()`
 
 **Rationale:**
-- The "" suffix distinguishes from any previous clarification approaches
 - Follows naming pattern: `openspec-<action>-<optional-variant>`
-- Function name matches skill name: `getClarify Change SkillTemplate()`
+- Function name matches skill name: `getClarifyChangeSkillTemplate`
 
 **Alternatives considered:**
 - `openspec-clarify`: Conflicts with any existing v1 implementations

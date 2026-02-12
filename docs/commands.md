@@ -340,11 +340,12 @@ AI:  Verifying add-dark-mode...
 Clarify underspecified areas in an OpenSpec change by identifying ambiguities and resolving them through interactive Q&A. Writes answers directly back into spec artifacts.
 
 **Syntax:**
-```
+```text
 /opsx:clarify [change-name]
 ```
 
 **Arguments:**
+
 | Argument | Required | Description |
 |----------|----------|-------------|
 | `change-name` | No | Which change to clarify (inferred from context if not provided) |
