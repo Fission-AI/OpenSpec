@@ -1,7 +1,7 @@
 # Lifecycle Hooks Specification
 
 ## Purpose
-Lifecycle hooks allow schemas and projects to define LLM instructions that execute at operation boundaries (pre/post archive, sync, new, apply, verify). Schema-level hooks define workflow-inherent behavior; project-level hooks add project-specific customization. Both are surfaced to the LLM via the `openspec instructions --hook` flag.
+Lifecycle hooks allow schemas and projects to define LLM instructions that execute at operation boundaries (pre/post for each operation: explore, new, continue, ff, apply, verify, sync, archive, bulk-archive, onboard). Schema-level hooks define workflow-inherent behavior; project-level hooks add project-specific customization. Both are surfaced to the LLM via the `openspec instructions --hook` flag.
 
 ## Requirements
 
