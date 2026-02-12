@@ -361,9 +361,9 @@ export function getNewChangeSkillTemplate(): SkillTemplate {
 
 3. **Execute pre-new hooks**
 
-   Run \`openspec instructions --hook pre-new --json\` to check for lifecycle hooks (config-only, since the change does not exist yet).
+   Run \`openspec instructions --hook pre-new --json\` to check for lifecycle hooks (schema hooks may also apply if config.yaml sets a default schema).
 
-   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order. Complete all hook instructions before proceeding.
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before proceeding.
 
    If the \`hooks\` array is empty, skip this step.
 
@@ -642,7 +642,7 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
 
    Run \`openspec instructions --hook post-apply --change "<name>" --json\` to check for lifecycle hooks.
 
-   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order. Complete all hook instructions before displaying the summary.
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before displaying the summary.
 
    If the \`hooks\` array is empty, skip this step.
 
@@ -936,7 +936,7 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
    Run \`openspec instructions --hook post-sync --change "<name>" --json\` to check for lifecycle hooks.
 
-   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order. Complete all hook instructions before displaying the summary.
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before displaying the summary.
 
    If the \`hooks\` array is empty, skip this step.
 
@@ -1820,9 +1820,9 @@ export function getOpsxNewCommandTemplate(): CommandTemplate {
 
 3. **Execute pre-new hooks**
 
-   Run \`openspec instructions --hook pre-new --json\` to check for lifecycle hooks (config-only, since the change does not exist yet).
+   Run \`openspec instructions --hook pre-new --json\` to check for lifecycle hooks (schema hooks may also apply if config.yaml sets a default schema).
 
-   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order. Complete all hook instructions before proceeding.
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before proceeding.
 
    If the \`hooks\` array is empty, skip this step.
 
@@ -2096,7 +2096,7 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
 
    Run \`openspec instructions --hook post-apply --change "<name>" --json\` to check for lifecycle hooks.
 
-   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order. Complete all hook instructions before displaying the summary.
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before displaying the summary.
 
    If the \`hooks\` array is empty, skip this step.
 
@@ -2397,7 +2397,7 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
 
    **Note:** The change has been moved to archive, so the \`--change\` flag may not resolve. If this fails, fall back to \`openspec instructions --hook post-archive --json\` (config-only hooks).
 
-   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order. Complete all hook instructions before displaying the summary.
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before displaying the summary.
 
    If the \`hooks\` array is empty, skip this step.
 
@@ -2794,7 +2794,7 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
    Run \`openspec instructions --hook post-sync --change "<name>" --json\` to check for lifecycle hooks.
 
-   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order. Complete all hook instructions before displaying the summary.
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before displaying the summary.
 
    If the \`hooks\` array is empty, skip this step.
 
@@ -3043,7 +3043,7 @@ Use clear markdown with:
 
    Run \`openspec instructions --hook post-verify --change "<name>" --json\` to check for lifecycle hooks.
 
-   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order. Complete all hook instructions before displaying the report.`,
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before displaying the report.`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
@@ -3146,7 +3146,7 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
 
    **Note:** The change has been moved to archive, so the \`--change\` flag may not resolve. If this fails, fall back to \`openspec instructions --hook post-archive --json\` (config-only hooks).
 
-   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order. Complete all hook instructions before displaying the summary.
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before displaying the summary.
 
    If the \`hooks\` array is empty, skip this step.
 
@@ -3694,7 +3694,7 @@ Use clear markdown with:
 
    Run \`openspec instructions --hook post-verify --change "<name>" --json\` to check for lifecycle hooks.
 
-   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order. Complete all hook instructions before displaying the report.`
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before displaying the report.`
   };
 }
 /**

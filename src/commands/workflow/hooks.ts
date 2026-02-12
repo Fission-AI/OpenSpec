@@ -100,7 +100,7 @@ function printHooksText(output: HooksOutput): void {
   for (const hook of hooks) {
     const label = hook.source === 'schema' ? 'From schema' : 'From config';
     console.log(`### ${label}`);
-    console.log(hook.instruction.trim());
+    console.log(hook.instruction.trimEnd());
     console.log();
   }
 }

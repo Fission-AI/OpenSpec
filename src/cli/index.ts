@@ -454,6 +454,10 @@ program
       }
 
       if (options.hook) {
+        // --schema is not supported in hook mode
+        if (options.schema) {
+          throw new Error('--schema cannot be used with --hook');
+        }
         // Hook mode: delegate to hooksCommand
         await hooksCommand(options.hook, { change: options.change, json: options.json });
       } else if (artifactId === 'apply') {
