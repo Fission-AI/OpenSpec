@@ -458,7 +458,7 @@ Next: Create design using /opsx:continue
 
 ### `openspec instructions`
 
-Get enriched instructions for creating an artifact or applying tasks. Used by AI agents to understand what to create next.
+Get enriched instructions for creating an artifact, applying tasks, or retrieving lifecycle hooks. Used by AI agents to understand what to do next.
 
 ```
 openspec instructions [artifact] [options]
@@ -474,34 +474,52 @@ openspec instructions [artifact] [options]
 
 | Option | Description |
 |--------|-------------|
-| `--change <id>` | Change name (required in non-interactive mode) |
+| `--change <id>` | Change name (required for artifact mode; optional for hook mode) |
 | `--schema <name>` | Schema override |
+| `--hook <lifecycle-point>` | Retrieve lifecycle hooks for a given point (mutually exclusive with `[artifact]`) |
 | `--json` | Output as JSON |
 
-**Special case:** Use `apply` as the artifact to get task implementation instructions.
+This command has three modes:
+
+**Artifact mode** (`openspec instructions <artifact> --change <name>`): Returns instructions for creating a specific artifact, including template, dependencies, and project context.
+
+**Apply mode** (`openspec instructions apply --change <name>`): Returns task implementation instructions with progress tracking and context files.
+
+**Hook mode** (`openspec instructions --hook <lifecycle-point> [--change <name>]`): Returns lifecycle hooks for a given point. With `--change`, resolves hooks from the change's schema and project config. Without `--change`, resolves from `config.yaml`'s default schema and config. The `--hook` flag is mutually exclusive with the `[artifact]` positional argument — using both produces an error.
+
+Valid lifecycle points: `pre-new`, `post-new`, `pre-apply`, `post-apply`, `pre-verify`, `post-verify`, `pre-sync`, `post-sync`, `pre-archive`, `post-archive`.
 
 **Examples:**
 
 ```bash
-# Get instructions for next artifact
-openspec instructions --change add-dark-mode
-
 # Get specific artifact instructions
 openspec instructions design --change add-dark-mode
 
 # Get apply/implementation instructions
 openspec instructions apply --change add-dark-mode
 
+# Get lifecycle hooks for a point (with change context)
+openspec instructions --hook pre-archive --change add-dark-mode --json
+
+# Get lifecycle hooks (project-wide, no change context)
+openspec instructions --hook post-new --json
+
 # JSON for agent consumption
 openspec instructions design --change add-dark-mode --json
 ```
 
-**Output includes:**
+**Hook output (JSON):**
 
-- Template content for the artifact
-- Project context from config
-- Content from dependency artifacts
-- Per-artifact rules from config
+```json
+{
+  "lifecyclePoint": "pre-archive",
+  "changeName": "add-dark-mode",
+  "hooks": [
+    { "source": "schema", "instruction": "Generate ADR entries..." },
+    { "source": "config", "instruction": "Notify Slack channel..." }
+  ]
+}
+```
 
 ---
 

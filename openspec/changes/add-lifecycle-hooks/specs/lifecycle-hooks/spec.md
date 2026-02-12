@@ -1,7 +1,7 @@
 # Lifecycle Hooks Specification
 
 ## Purpose
-Lifecycle hooks allow schemas and projects to define LLM instructions that execute at operation boundaries (pre/post archive, sync, new, apply). Schema-level hooks define workflow-inherent behavior; project-level hooks add project-specific customization. Both are surfaced to the LLM via a CLI command.
+Lifecycle hooks allow schemas and projects to define LLM instructions that execute at operation boundaries (pre/post archive, sync, new, apply, verify). Schema-level hooks define workflow-inherent behavior; project-level hooks add project-specific customization. Both are surfaced to the LLM via the `openspec instructions --hook` flag.
 
 ## Requirements
 
@@ -47,9 +47,10 @@ The system SHALL support an optional `hooks` section in `config.yaml` with the s
 The system SHALL recognize the following lifecycle points as valid hook keys:
 
 - `pre-new`, `post-new`
-- `pre-archive`, `post-archive`
-- `pre-sync`, `post-sync`
 - `pre-apply`, `post-apply`
+- `pre-verify`, `post-verify`
+- `pre-sync`, `post-sync`
+- `pre-archive`, `post-archive`
 
 #### Scenario: All valid lifecycle points accepted
 
@@ -87,24 +88,29 @@ The system SHALL resolve hooks for a given lifecycle point by returning schema h
 - **WHEN** neither schema nor config define a hook for a lifecycle point
 - **THEN** the system returns an empty list
 
-### Requirement: Hook CLI Command
+### Requirement: Hook CLI Exposure
 
-The system SHALL expose a CLI command to retrieve resolved hooks for a given lifecycle point, optionally scoped to a change.
+The system SHALL expose hooks via `openspec instructions --hook <lifecycle-point>`, optionally scoped to a change with `--change`.
 
 #### Scenario: Retrieve hooks with change context
 
-- **WHEN** executing `openspec hooks <lifecycle-point> --change "<name>"`
+- **WHEN** executing `openspec instructions --hook <lifecycle-point> --change "<name>"`
 - **THEN** the system resolves the schema from the change's metadata
 - **AND** reads hooks from both schema and config
 - **AND** outputs the resolved hooks in order (schema first, config second)
 
 #### Scenario: Retrieve hooks without change context
 
-- **WHEN** executing `openspec hooks <lifecycle-point>` without `--change`
+- **WHEN** executing `openspec instructions --hook <lifecycle-point>` without `--change`
 - **THEN** the system resolves the schema from `config.yaml`'s default `schema` field
 - **AND** reads hooks from both the resolved schema and config (schema first, config second)
 - **AND** sets `changeName` to null in JSON output
 - **AND** if no schema is configured in `config.yaml`, returns config hooks only
+
+#### Scenario: Mutual exclusivity with artifact argument
+
+- **WHEN** executing `openspec instructions <artifact> --hook <lifecycle-point>`
+- **THEN** the system exits with an error indicating that `--hook` cannot be used with an artifact argument
 
 #### Scenario: JSON output
 

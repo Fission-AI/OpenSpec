@@ -1,8 +1,9 @@
 ## Why
 
-OpenSpec schemas define artifact creation instructions but have no way to inject custom behavior at operation lifecycle points (archive, sync, new, apply). Users need project-specific and workflow-specific actions at these points, such as:
+OpenSpec schemas define artifact creation instructions but have no way to inject custom behavior at operation lifecycle points (archive, sync, new, apply, verify). Users need project-specific and workflow-specific actions at these points, such as:
 - Consolidating error logs on archive
 - Generating ADRs
+- Running test suites before verification
 - Notifying external systems
 - Updating documentation indexes
 
@@ -14,15 +15,18 @@ Related issues: #682 (extensible hook capability), #557 (ADR lifecycle hooks), #
 
 - Add a `hooks` section to `schema.yaml` for workflow-level lifecycle hooks (LLM instructions that run at operation boundaries)
 - Add a `hooks` section to `config.yaml` for project-level lifecycle hooks
-- Create a CLI command to resolve and return hooks for a given lifecycle point. With `--change`, resolves schema from the change's metadata. Without `--change`, resolves schema from the `schema` field in `config.yaml`. Both modes return schema + config hooks (schema first)
-- Update skills (archive, sync, new, apply) to query and execute hooks at their lifecycle points
+- Create hook resolution function (schema + config merge, schema first)
+- Expose hooks via a `--hook <lifecycle-point>` flag on `openspec instructions`. Supports optional `--change <name>` to resolve hooks from the change's schema; without `--change`, resolves from config.yaml's default schema. The `--hook` flag is mutually exclusive with the `[artifact]` positional argument — using both produces an error. Hook resolution logic lives in `hooks.ts` as an internal module
+- Update skills (archive, sync, new, apply, verify) to query and execute hooks at their lifecycle points
+- Document the `instructions` command covering all modes (artifact, apply, `--hook`)
 - Hooks are LLM instructions only in this iteration — no `run` field for shell execution (deferred to future iteration)
 
 Supported lifecycle points:
 - `pre-new` / `post-new` — creating a change
-- `pre-archive` / `post-archive` — archiving a change
-- `pre-sync` / `post-sync` — syncing delta specs
 - `pre-apply` / `post-apply` — implementing tasks
+- `pre-verify` / `post-verify` — verifying implementation
+- `pre-sync` / `post-sync` — syncing delta specs
+- `pre-archive` / `post-archive` — archiving a change
 
 ### Example: schema.yaml
 ```yaml
@@ -31,9 +35,9 @@ hooks:
   post-archive:
     instruction: |
       Review the archived change and update the project changelog with key decisions
-  pre-apply:
+  pre-verify:
     instruction: |
-      Verify all prerequisite tasks are complete before implementation
+      Run the full test suite before verification begins
 ```
 
 ### Example: config.yaml
@@ -61,20 +65,23 @@ hooks:
 
 ### Modified Capabilities
 - `artifact-graph`: Schema YAML type extended with optional `hooks` section
-- `instruction-loader`: New function/command to resolve hooks for a lifecycle point
-- `cli-archive`: Archive operation awareness of pre/post hooks (CLI level)
+- `instruction-loader`: Hook resolution function + `--hook` flag integration in instructions command
+- `cli-artifact-workflow`: `openspec instructions` gains `--hook` flag
+- `cli-archive`: Archive operation awareness of pre/post hooks
 - `opsx-archive-skill`: Archive skill executes hooks at pre/post-archive points
 - `specs-sync-skill`: Sync skill executes hooks at pre/post-sync points
-- `cli-artifact-workflow`: New `openspec hooks` command registered alongside existing workflow commands
+- `opsx-verify-skill`: Verify skill executes hooks at pre/post-verify points
 
 ## Impact
 
-- **Schema format**: `schema.yaml` gains optional `hooks` field — fully backward-compatible (no hooks = no change)
+- **Schema format**: `schema.yaml` gains optional `hooks` field — fully backward-compatible
 - **Config format**: `config.yaml` gains optional `hooks` field — fully backward-compatible
-- **CLI**: New `openspec hooks` command to resolve and retrieve hooks for a lifecycle point (with optional `--change` flag)
-- **Skills**: Archive, sync, new, and apply skills gain hook execution steps
+- **CLI**: `openspec instructions --hook <lifecycle-point>` exposes hooks. `--hook` is mutually exclusive with `[artifact]` positional — error if both provided
+- **Skills**: Archive, sync, new, apply, and verify skills use `openspec instructions --hook`
+- **Lifecycle points**: 10 total — `pre/post` for new, apply, verify, sync, archive
 - **Existing schemas**: Unaffected — `hooks` is optional
-- **Tests**: New tests for hook parsing, merging, resolution, and validation
-- **Validation**: Hook keys are validated against `VALID_LIFECYCLE_POINTS` at parse time; unknown keys emit warnings
+- **Tests**: Hook tests via `instructions --hook`, verify hook tests
+- **Validation**: Hook keys validated against `VALID_LIFECYCLE_POINTS`; unknown keys emit warnings
+- **Documentation**: `instructions` command documented with all three modes
 - **Error handling**: Malformed hooks (empty instruction, non-object values) are skipped with warnings — resilient field-by-field parsing
-- **Security**: Hooks are LLM instructions only (no shell execution in this iteration), limiting the security surface
+- **Security**: Hooks are LLM instructions only (no shell execution in this iteration)

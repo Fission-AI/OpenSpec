@@ -10,7 +10,7 @@ The archive skill SHALL execute lifecycle hooks at the pre-archive and post-arch
 
 - **WHEN** the agent begins the archive operation
 - **AND** hooks are defined for the `pre-archive` lifecycle point
-- **THEN** the agent retrieves hook instructions via `openspec hooks pre-archive --change "<name>" --json`
+- **THEN** the agent retrieves hook instructions via `openspec instructions --hook pre-archive --change "<name>" --json`
 - **AND** follows each hook instruction in order (schema hooks first, then config hooks)
 - **AND** proceeds with the archive operation after completing hook instructions
 
@@ -18,7 +18,7 @@ The archive skill SHALL execute lifecycle hooks at the pre-archive and post-arch
 
 - **WHEN** the archive operation completes successfully (change moved to archive)
 - **AND** hooks are defined for the `post-archive` lifecycle point
-- **THEN** the agent retrieves hook instructions via `openspec hooks post-archive --change "<name>" --json`
+- **THEN** the agent retrieves hook instructions via `openspec instructions --hook post-archive --change "<name>" --json`
 - **AND** follows each hook instruction in order (schema hooks first, then config hooks)
 
 #### Scenario: No hooks defined

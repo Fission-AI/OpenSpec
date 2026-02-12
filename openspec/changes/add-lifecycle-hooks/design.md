@@ -1,8 +1,8 @@
 ## Context
 
-OpenSpec schemas define artifact creation workflows (proposal, specs, design, tasks) with instructions for each artifact. Operations like archive, sync, new, and apply are orchestrated by skills (LLM prompt files) that call CLI commands. There is currently no mechanism for schemas or projects to inject custom behavior at operation lifecycle points.
+OpenSpec schemas define artifact creation workflows (proposal, specs, design, tasks) with instructions for each artifact. Operations like archive, sync, new, apply, and verify are orchestrated by skills (LLM prompt files) that call CLI commands. There is currently no mechanism for schemas or projects to inject custom behavior at operation lifecycle points.
 
-The existing `openspec instructions` command already demonstrates the pattern: it reads schema + config, merges them (instruction from schema, context/rules from config), and outputs enriched data for the LLM. Hooks follow the same architecture.
+The existing `openspec instructions` command already demonstrates the pattern: it reads schema + config, merges them, and outputs enriched data for the LLM. It already supports two modes — artifact instructions (`openspec instructions <artifact>`) and apply instructions (`openspec instructions apply`). Hooks follow the same architecture and fit naturally as a third mode via `--hook`.
 
 Key files:
 - Schema types: `src/core/artifact-graph/types.ts` (Zod schemas for `SchemaYaml`)
@@ -10,6 +10,7 @@ Key files:
 - Instruction loading: `src/core/artifact-graph/instruction-loader.ts`
 - Project config: `src/core/project-config.ts`
 - CLI commands: `src/commands/workflow/instructions.ts`
+- Hook resolution: `src/commands/workflow/hooks.ts` (internal module)
 - Skill templates: `src/core/templates/skill-templates.ts` (source of truth, generates agent skills via `openspec update`)
 
 ## Goals / Non-Goals
@@ -17,8 +18,8 @@ Key files:
 **Goals:**
 - Allow schemas to define LLM instruction hooks at operation lifecycle points
 - Allow projects to add/extend hooks via config.yaml
-- Expose hooks via a CLI command for skills to consume
-- Update archive skill as first consumer (other skills follow same pattern)
+- Expose hooks via `openspec instructions --hook` for skills to consume
+- Update all operation skills (archive, sync, new, apply, verify) to execute hooks
 
 **Non-Goals:**
 - Shell script execution (`run` field) — deferred to future iteration
@@ -38,24 +39,28 @@ hooks:
   post-archive:
     instruction: |
       Review the archived change and generate ADR entries...
-  pre-apply:
+  pre-verify:
     instruction: |
-      Before implementing, verify all specs are consistent...
+      Run the full test suite before verification begins...
 ```
 
 **Why this over nested structure**: Flat keys are simpler to parse, validate, and merge. Each lifecycle point maps to exactly one hook per source (schema or config). No need for arrays of hooks per point — if a schema author needs multiple actions, they write them as a single instruction.
 
 **Alternative considered**: Array of hooks per lifecycle point (`post-archive: [{instruction: ...}, {instruction: ...}]`). Rejected because it adds complexity without clear benefit — a single instruction can contain multiple steps, and the schema/config split already provides two layers.
 
-### Decision 2: New CLI command `openspec hooks`
+### Decision 2: `--hook` flag on `openspec instructions`
 
-A new top-level command rather than a flag on `openspec instructions`:
+Hooks are exposed as a `--hook <lifecycle-point>` flag on the existing `instructions` command rather than as a separate top-level command:
 
 ```bash
-openspec hooks <lifecycle-point> [--change "<name>"] [--json]
+openspec instructions --hook <lifecycle-point> [--change "<name>"] [--json]
 ```
 
+The `--hook` flag is mutually exclusive with the `[artifact]` positional argument. If both are provided, the command exits with an error: `"--hook cannot be used with an artifact argument"`.
+
 The `--change` flag is optional. When provided, hooks are resolved from the change's schema (via metadata) and the project config. When omitted, the schema is resolved from `config.yaml`'s default `schema` field, and hooks are returned from both schema and config. This ensures lifecycle points like `pre-new` (where no change exists yet) still receive schema-level hooks.
+
+Hook resolution logic lives in `src/commands/workflow/hooks.ts` as an internal module. The `instructions` command imports and delegates to it when `--hook` is present.
 
 Output (JSON mode, with change):
 ```json
@@ -92,9 +97,7 @@ Generate ADR entries...
 Notify Slack channel...
 ```
 
-**Why new command over extending `instructions`**: The `instructions` command is artifact-scoped — it takes an artifact ID and returns creation instructions. Hooks are operation-scoped — they relate to lifecycle events, not artifacts. A separate command keeps concerns clean and makes skill integration straightforward.
-
-**Alternative considered**: `openspec instructions --hook post-archive`. Rejected because it conflates two different concepts (artifact instructions vs operation hooks) in one command.
+**Why `--hook` on `instructions` instead of separate command**: The `instructions` command is the single entry point for "what does the LLM need right now". It already has two modes (artifact and apply), and `apply` is already operation-scoped rather than artifact-scoped. Adding hooks as a third mode is consistent. Fewer top-level commands keeps the CLI surface clean.
 
 ### Decision 3: Schema type extension
 
@@ -152,45 +155,71 @@ This function:
 5. Returns array: schema hooks first (if any), then config hooks
 6. Warns on unrecognized lifecycle points
 
-### Decision 6: Skill integration pattern
+### Decision 6: Valid lifecycle points
 
-Skills call the CLI command and follow the returned instructions. Example for archive skill:
+10 lifecycle points covering all operations:
+
+```
+pre-new       post-new        — creating a change
+pre-apply     post-apply      — implementing tasks
+pre-verify    post-verify     — verifying implementation
+pre-sync      post-sync       — syncing delta specs
+pre-archive   post-archive    — archiving a change
+```
+
+These are defined in `VALID_LIFECYCLE_POINTS` in `types.ts` and validated at runtime.
+
+### Decision 7: Skill integration pattern
+
+Skills call `openspec instructions --hook` and follow the returned instructions. Example for archive skill:
 
 ```
 # Before archive operation:
-openspec hooks pre-archive --change "<name>" --json
+openspec instructions --hook pre-archive --change "<name>" --json
 → If hooks returned, follow each instruction in order
 
 # [normal archive steps...]
 
 # After archive operation:
-openspec hooks post-archive --change "<name>" --json
+openspec instructions --hook post-archive --change "<name>" --json
 → If hooks returned, follow each instruction in order
 ```
 
-The skill templates in `src/core/templates/skill-templates.ts` are updated to include these steps, and `openspec generate` regenerates the output files. This is the same pattern as how skills already call `openspec instructions` and `openspec status`.
+The same pattern applies to all skills: new, apply, verify, sync, archive.
+
+The skill templates in `src/core/templates/skill-templates.ts` are updated to include these steps, and `openspec update` regenerates the output files. This is the same pattern as how skills already call `openspec instructions` and `openspec status`.
+
+### Decision 8: Documentation
+
+The `instructions` command gets documented with all three modes:
+- Artifact mode: `openspec instructions <artifact> --change <name>`
+- Apply mode: `openspec instructions apply --change <name>`
+- Hook mode: `openspec instructions --hook <lifecycle-point> [--change <name>]`
+
+Documentation covers the mutual exclusivity constraint, the hook resolution order (schema first, config second), and examples for each mode.
 
 ## Testing Strategy
 
 Three levels of testing, following existing patterns in the codebase:
 
 **Unit tests** — Pure logic, no filesystem or CLI:
-- `test/core/artifact-graph/schema.test.ts` — Extend with hook parsing tests: valid hooks, missing hooks, empty hooks, invalid instruction
-- `test/core/project-config.test.ts` — Extend with config hook parsing: valid, invalid, unknown lifecycle points, resilient parsing
-- `test/core/artifact-graph/instruction-loader.test.ts` — Extend with `resolveHooks()` tests: schema only, config only, both (ordering), neither, null changeName (config-only)
+- `test/core/artifact-graph/schema.test.ts` — Hook parsing tests: valid hooks, missing hooks, empty hooks, invalid instruction
+- `test/core/project-config.test.ts` — Config hook parsing: valid, invalid, unknown lifecycle points, resilient parsing
+- `test/core/artifact-graph/instruction-loader.test.ts` — `resolveHooks()` tests: schema only, config only, both (ordering), neither, null changeName (config-only)
 
 **CLI integration tests** — Run the actual CLI binary:
-- `test/commands/artifact-workflow.test.ts` — Extend with `openspec hooks` command tests: with --change, without --change, no hooks found, invalid lifecycle point, JSON output format
+- `test/commands/artifact-workflow.test.ts` — `openspec instructions --hook` tests: with --change, without --change, no hooks found, invalid lifecycle point, JSON output format, mutual exclusivity error with positional artifact
 
 **Skill template tests** — Verify generated content:
-- Existing skill template tests (if any) extended to verify hook steps appear in generated output
+- Existing skill template tests extended to verify hook steps appear in generated output
 
 ## Risks / Trade-offs
 
 - **[LLM compliance]** Hooks are instructions the LLM should follow, but there's no guarantee it will execute them perfectly. → Mitigation: Same limitation applies to artifact instructions, which work well in practice. Hook instructions should be written as clear, actionable prompts.
-- **[Hook sprawl]** Users might define too many hooks, making operations slow. → Mitigation: Start with 8 lifecycle points only. Each hook adds one CLI call + LLM reasoning time, which is bounded.
+- **[Hook sprawl]** Users might define too many hooks, making operations slow. → Mitigation: Start with 10 lifecycle points only. Each hook adds one CLI call + LLM reasoning time, which is bounded.
 - **[Schema/config conflict]** Both define hooks for the same point — user might expect override semantics. → Mitigation: Document clearly that both execute (schema first, config second). This is additive, not override.
 
 ## Resolved Questions
 
-- **Should `openspec hooks` work without `--change`?** Yes. Without `--change`, the schema is resolved from `config.yaml`'s default `schema` field, so both schema and config hooks are returned. This is essential for lifecycle points like `pre-new` where the change doesn't exist yet but the project's default schema is known. If no schema is configured in `config.yaml`, only config hooks are returned.
+- **Should `--hook` work without `--change`?** Yes. Without `--change`, the schema is resolved from `config.yaml`'s default `schema` field, so both schema and config hooks are returned. This is essential for lifecycle points like `pre-new` where the change doesn't exist yet but the project's default schema is known. If no schema is configured in `config.yaml`, only config hooks are returned.
+- **Why not a separate `openspec hooks` command?** The `instructions` command already serves as the "what does the LLM need" entry point with two modes (artifact, apply). Adding hooks as `--hook` is consistent and avoids adding another top-level command. The hook resolution logic stays in its own module (`hooks.ts`) for separation of concerns.

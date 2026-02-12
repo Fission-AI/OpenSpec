@@ -345,7 +345,7 @@ export function getNewChangeSkillTemplate(): SkillTemplate {
 
 3. **Execute pre-new hooks**
 
-   Run \`openspec hooks pre-new --json\` to check for lifecycle hooks (config-only, since the change does not exist yet).
+   Run \`openspec instructions --hook pre-new --json\` to check for lifecycle hooks (config-only, since the change does not exist yet).
 
    If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order. Complete all hook instructions before proceeding.
 
@@ -360,7 +360,7 @@ export function getNewChangeSkillTemplate(): SkillTemplate {
 
 5. **Execute post-new hooks**
 
-   Run \`openspec hooks post-new --change "<name>" --json\` to check for lifecycle hooks.
+   Run \`openspec instructions --hook post-new --change "<name>" --json\` to check for lifecycle hooks.
 
    If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before proceeding.
 
@@ -549,7 +549,7 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
 
 2. **Execute pre-apply hooks**
 
-   Run \`openspec hooks pre-apply --change "<name>" --json\` to check for lifecycle hooks.
+   Run \`openspec instructions --hook pre-apply --change "<name>" --json\` to check for lifecycle hooks.
 
    If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before proceeding.
 
@@ -612,7 +612,7 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
 
 8. **Execute post-apply hooks**
 
-   Run \`openspec hooks post-apply --change "<name>" --json\` to check for lifecycle hooks.
+   Run \`openspec instructions --hook post-apply --change "<name>" --json\` to check for lifecycle hooks.
 
    If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order. Complete all hook instructions before displaying the summary.
 
@@ -829,7 +829,7 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
 2. **Execute pre-sync hooks**
 
-   Run \`openspec hooks pre-sync --change "<name>" --json\` to check for lifecycle hooks.
+   Run \`openspec instructions --hook pre-sync --change "<name>" --json\` to check for lifecycle hooks.
 
    If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before proceeding.
 
@@ -882,7 +882,7 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
 5. **Execute post-sync hooks**
 
-   Run \`openspec hooks post-sync --change "<name>" --json\` to check for lifecycle hooks.
+   Run \`openspec instructions --hook post-sync --change "<name>" --json\` to check for lifecycle hooks.
 
    If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order. Complete all hook instructions before displaying the summary.
 
@@ -1736,7 +1736,7 @@ export function getOpsxNewCommandTemplate(): CommandTemplate {
 
 3. **Execute pre-new hooks**
 
-   Run \`openspec hooks pre-new --json\` to check for lifecycle hooks (config-only, since the change does not exist yet).
+   Run \`openspec instructions --hook pre-new --json\` to check for lifecycle hooks (config-only, since the change does not exist yet).
 
    If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order. Complete all hook instructions before proceeding.
 
@@ -1751,7 +1751,7 @@ export function getOpsxNewCommandTemplate(): CommandTemplate {
 
 5. **Execute post-new hooks**
 
-   Run \`openspec hooks post-new --change "<name>" --json\` to check for lifecycle hooks.
+   Run \`openspec instructions --hook post-new --change "<name>" --json\` to check for lifecycle hooks.
 
    If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before proceeding.
 
@@ -1935,7 +1935,7 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
 
 2. **Execute pre-apply hooks**
 
-   Run \`openspec hooks pre-apply --change "<name>" --json\` to check for lifecycle hooks.
+   Run \`openspec instructions --hook pre-apply --change "<name>" --json\` to check for lifecycle hooks.
 
    If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before proceeding.
 
@@ -1998,7 +1998,7 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
 
 8. **Execute post-apply hooks**
 
-   Run \`openspec hooks post-apply --change "<name>" --json\` to check for lifecycle hooks.
+   Run \`openspec instructions --hook post-apply --change "<name>" --json\` to check for lifecycle hooks.
 
    If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order. Complete all hook instructions before displaying the summary.
 
@@ -2207,7 +2207,7 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
 
 2. **Execute pre-archive hooks**
 
-   Run \`openspec hooks pre-archive --change "<name>" --json\` to check for lifecycle hooks.
+   Run \`openspec instructions --hook pre-archive --change "<name>" --json\` to check for lifecycle hooks.
 
    If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before proceeding.
 
@@ -2273,9 +2273,9 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
 
 7. **Execute post-archive hooks**
 
-   Run \`openspec hooks post-archive --change "<name>" --json\` to check for lifecycle hooks.
+   Run \`openspec instructions --hook post-archive --change "<name>" --json\` to check for lifecycle hooks.
 
-   **Note:** The change has been moved to archive, so the \`--change\` flag may not resolve. If this fails, fall back to \`openspec hooks post-archive --json\` (config-only hooks).
+   **Note:** The change has been moved to archive, so the \`--change\` flag may not resolve. If this fails, fall back to \`openspec instructions --hook post-archive --json\` (config-only hooks).
 
    If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order. Complete all hook instructions before displaying the summary.
 
@@ -2593,7 +2593,7 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
 2. **Execute pre-sync hooks**
 
-   Run \`openspec hooks pre-sync --change "<name>" --json\` to check for lifecycle hooks.
+   Run \`openspec instructions --hook pre-sync --change "<name>" --json\` to check for lifecycle hooks.
 
    If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before proceeding.
 
@@ -2646,7 +2646,7 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
 5. **Execute post-sync hooks**
 
-   Run \`openspec hooks post-sync --change "<name>" --json\` to check for lifecycle hooks.
+   Run \`openspec instructions --hook post-sync --change "<name>" --json\` to check for lifecycle hooks.
 
    If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order. Complete all hook instructions before displaying the summary.
 
@@ -2761,7 +2761,13 @@ export function getVerifyChangeSkillTemplate(): SkillTemplate {
 
    This returns the change directory and context files. Read all available artifacts from \`contextFiles\`.
 
-4. **Initialize verification report structure**
+4. **Execute pre-verify hooks**
+
+   Run \`openspec instructions --hook pre-verify --change "<name>" --json\` to check for lifecycle hooks.
+
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before proceeding.
+
+5. **Initialize verification report structure**
 
    Create a report structure with three dimensions:
    - **Completeness**: Track tasks and spec coverage
@@ -2770,7 +2776,7 @@ export function getVerifyChangeSkillTemplate(): SkillTemplate {
 
    Each dimension can have CRITICAL, WARNING, or SUGGESTION issues.
 
-5. **Verify Completeness**
+6. **Verify Completeness**
 
    **Task Completion**:
    - If tasks.md exists in contextFiles, read it
@@ -2790,7 +2796,7 @@ export function getVerifyChangeSkillTemplate(): SkillTemplate {
        - Add CRITICAL issue: "Requirement not found: <requirement name>"
        - Recommendation: "Implement requirement X: <description>"
 
-6. **Verify Correctness**
+7. **Verify Correctness**
 
    **Requirement Implementation Mapping**:
    - For each requirement from delta specs:
@@ -2809,7 +2815,7 @@ export function getVerifyChangeSkillTemplate(): SkillTemplate {
        - Add WARNING: "Scenario not covered: <scenario name>"
        - Recommendation: "Add test or implementation for scenario: <description>"
 
-7. **Verify Coherence**
+8. **Verify Coherence**
 
    **Design Adherence**:
    - If design.md exists in contextFiles:
@@ -2827,7 +2833,7 @@ export function getVerifyChangeSkillTemplate(): SkillTemplate {
      - Add SUGGESTION: "Code pattern deviation: <details>"
      - Recommendation: "Consider following project pattern: <example>"
 
-8. **Generate Verification Report**
+9. **Generate Verification Report**
 
    **Summary Scorecard**:
    \`\`\`
@@ -2885,7 +2891,13 @@ Use clear markdown with:
 - Grouped lists for issues (CRITICAL/WARNING/SUGGESTION)
 - Code references in format: \`file.ts:123\`
 - Specific, actionable recommendations
-- No vague suggestions like "consider reviewing"`,
+- No vague suggestions like "consider reviewing"
+
+10. **Execute post-verify hooks**
+
+   Run \`openspec instructions --hook post-verify --change "<name>" --json\` to check for lifecycle hooks.
+
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order. Complete all hook instructions before displaying the report.`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
@@ -2918,7 +2930,7 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
 
 2. **Execute pre-archive hooks**
 
-   Run \`openspec hooks pre-archive --change "<name>" --json\` to check for lifecycle hooks.
+   Run \`openspec instructions --hook pre-archive --change "<name>" --json\` to check for lifecycle hooks.
 
    If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before proceeding.
 
@@ -2984,9 +2996,9 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
 
 7. **Execute post-archive hooks**
 
-   Run \`openspec hooks post-archive --change "<name>" --json\` to check for lifecycle hooks.
+   Run \`openspec instructions --hook post-archive --change "<name>" --json\` to check for lifecycle hooks.
 
-   **Note:** The change has been moved to archive, so the \`--change\` flag may not resolve. If this fails, fall back to \`openspec hooks post-archive --json\` (config-only hooks).
+   **Note:** The change has been moved to archive, so the \`--change\` flag may not resolve. If this fails, fall back to \`openspec instructions --hook post-archive --json\` (config-only hooks).
 
    If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order. Complete all hook instructions before displaying the summary.
 
@@ -3374,7 +3386,13 @@ export function getOpsxVerifyCommandTemplate(): CommandTemplate {
 
    This returns the change directory and context files. Read all available artifacts from \`contextFiles\`.
 
-4. **Initialize verification report structure**
+4. **Execute pre-verify hooks**
+
+   Run \`openspec instructions --hook pre-verify --change "<name>" --json\` to check for lifecycle hooks.
+
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before proceeding.
+
+5. **Initialize verification report structure**
 
    Create a report structure with three dimensions:
    - **Completeness**: Track tasks and spec coverage
@@ -3383,7 +3401,7 @@ export function getOpsxVerifyCommandTemplate(): CommandTemplate {
 
    Each dimension can have CRITICAL, WARNING, or SUGGESTION issues.
 
-5. **Verify Completeness**
+6. **Verify Completeness**
 
    **Task Completion**:
    - If tasks.md exists in contextFiles, read it
@@ -3403,7 +3421,7 @@ export function getOpsxVerifyCommandTemplate(): CommandTemplate {
        - Add CRITICAL issue: "Requirement not found: <requirement name>"
        - Recommendation: "Implement requirement X: <description>"
 
-6. **Verify Correctness**
+7. **Verify Correctness**
 
    **Requirement Implementation Mapping**:
    - For each requirement from delta specs:
@@ -3422,7 +3440,7 @@ export function getOpsxVerifyCommandTemplate(): CommandTemplate {
        - Add WARNING: "Scenario not covered: <scenario name>"
        - Recommendation: "Add test or implementation for scenario: <description>"
 
-7. **Verify Coherence**
+8. **Verify Coherence**
 
    **Design Adherence**:
    - If design.md exists in contextFiles:
@@ -3440,7 +3458,7 @@ export function getOpsxVerifyCommandTemplate(): CommandTemplate {
      - Add SUGGESTION: "Code pattern deviation: <details>"
      - Recommendation: "Consider following project pattern: <example>"
 
-8. **Generate Verification Report**
+9. **Generate Verification Report**
 
    **Summary Scorecard**:
    \`\`\`
@@ -3498,7 +3516,13 @@ Use clear markdown with:
 - Grouped lists for issues (CRITICAL/WARNING/SUGGESTION)
 - Code references in format: \`file.ts:123\`
 - Specific, actionable recommendations
-- No vague suggestions like "consider reviewing"`
+- No vague suggestions like "consider reviewing"
+
+10. **Execute post-verify hooks**
+
+   Run \`openspec instructions --hook post-verify --change "<name>" --json\` to check for lifecycle hooks.
+
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order. Complete all hook instructions before displaying the report.`
   };
 }
 /**

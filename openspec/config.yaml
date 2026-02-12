@@ -5,6 +5,20 @@ context: |
   Package manager: pnpm
   CLI framework: Commander.js
 
+  Spec compliance:
+  - Before explore, creating or updating any artifact, or implementing/modifying code,
+    run `openspec list --specs --json` to discover existing specs and their summaries.
+    Identify relevant specs from the summaries, then read each in
+    openspec/specs/<name>/*.md.
+  - Ensure changes don't contradict existing requirements.
+  - Code must conform to all applicable spec requirements.
+  - If a spec is unclear, incomplete, or potentially conflicts with the
+    implementation, stop and inform the user. The user decides whether to
+    proceed as-is or explore an alternative approach.
+  - If a decision changes an existing spec's assumptions, note it explicitly.
+  - If new specs dependencies are discovered, update the relevant artifacts
+    (design.md, proposal.md, tasks.md, etc.) to reflect them before continuing.
+
   Cross-platform requirements:
   - This tool runs on macOS, Linux, AND Windows
   - Always use path.join() or path.resolve() for file paths - never hardcode slashes
