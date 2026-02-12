@@ -9,8 +9,7 @@ export class ViewCommand {
     const openspecDir = path.join(targetPath, 'openspec');
 
     if (!fs.existsSync(openspecDir)) {
-      console.error(chalk.red('No openspec directory found'));
-      process.exit(1);
+      throw new Error('No openspec directory found');
     }
 
     if (options.watch) {
@@ -38,29 +37,17 @@ export class ViewCommand {
 
       const interval = setInterval(update, 2000);
 
-      const cleanup = () => {
-        clearInterval(interval);
-        if (!options.signal?.aborted) {
-            console.log('\nExiting watch mode...');
-            process.exit(0);
-        }
-      };
-
-      // Register cleanup handler
-      process.once('SIGINT', cleanup);
-
-      // Keep the process running until aborted or SIGINT
+      // Keep the process running until aborted
       if (options.signal) {
         if (options.signal.aborted) {
           clearInterval(interval);
-          process.removeListener('SIGINT', cleanup);
           return;
         }
 
         await new Promise<void>((resolve) => {
           options.signal!.addEventListener('abort', () => {
             clearInterval(interval);
-            process.removeListener('SIGINT', cleanup);
+            console.log('\nExiting watch mode...');
             resolve();
           });
         });

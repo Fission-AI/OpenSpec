@@ -194,7 +194,18 @@ program
   .action(async (options?: { watch?: boolean }) => {
     try {
       const viewCommand = new ViewCommand();
-      await viewCommand.execute('.', { watch: options?.watch });
+
+      if (options?.watch) {
+        const controller = new AbortController();
+
+        process.once('SIGINT', () => {
+          controller.abort();
+        });
+
+        await viewCommand.execute('.', { watch: true, signal: controller.signal });
+      } else {
+        await viewCommand.execute('.', { watch: false });
+      }
     } catch (error) {
       console.log(); // Empty line for spacing
       ora().fail(`Error: ${(error as Error).message}`);

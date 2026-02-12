@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
@@ -129,9 +129,9 @@ describe('ViewCommand', () => {
   it('runs in watch mode and respects AbortSignal', async () => {
     const changesDir = path.join(tempDir, 'openspec', 'changes');
     await fs.mkdir(changesDir, { recursive: true });
-    await fs.mkdir(path.join(changesDir, 'watch-change'), { recursive: true });
 
     // Create initial state
+    await fs.mkdir(path.join(changesDir, 'watch-change'), { recursive: true });
     await fs.writeFile(
       path.join(changesDir, 'watch-change', 'tasks.md'),
       '- [ ] Task 1\n'
@@ -140,23 +140,34 @@ describe('ViewCommand', () => {
     const viewCommand = new ViewCommand();
     const controller = new AbortController();
 
+    // Mock process.stdout.write
+    const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
     // Start watch mode in background
     const watchPromise = viewCommand.execute(tempDir, { watch: true, signal: controller.signal });
 
     // Allow initial render
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    // Verify initial output
-    const initialOutput = logOutput.join('\n'); // Note: ViewCommand uses process.stdout.write which we haven't mocked here fully for this test setup,
-                                                // but let's assume for this specific test structure we might need to mock process.stdout.write or adjust expectations.
-                                                // Since we mocked console.log in beforeEach, and ViewCommand switched to process.stdout.write,
-                                                // we need to mock process.stdout.write for this test to be effective.
-
     // Abort watch mode
     controller.abort();
 
-    // Should resolve quickly
-    await expect(watchPromise).resolves.toBeUndefined();
+    // Should resolve
+    await watchPromise;
+
+    // Verify calls
+    const calls = stdoutSpy.mock.calls.map(args => args[0].toString());
+    const fullOutput = calls.join('');
+
+    // Check for clear screen
+    expect(fullOutput).toContain('\x1B[2J');
+    // Check for dashboard header
+    expect(fullOutput).toContain('OpenSpec Dashboard');
+    // Check for content
+    expect(fullOutput).toContain('watch-change');
+
+    // Restore mock
+    stdoutSpy.mockRestore();
   });
 });
 
