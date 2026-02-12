@@ -168,6 +168,7 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
         const parsedHooks: Record<string, { instruction: string }> = {};
         let hasValidHooks = false;
         const validPoints = new Set<string>(VALID_LIFECYCLE_POINTS);
+        const hookSchema = z.object({ instruction: z.string().min(1) });
 
         for (const [point, hook] of Object.entries(raw.hooks)) {
           // Warn on unrecognized lifecycle points
@@ -176,7 +177,7 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
             continue;
           }
 
-          const hookResult = z.object({ instruction: z.string().min(1) }).safeParse(hook);
+          const hookResult = hookSchema.safeParse(hook);
           if (hookResult.success) {
             parsedHooks[point] = hookResult.data;
             hasValidHooks = true;
