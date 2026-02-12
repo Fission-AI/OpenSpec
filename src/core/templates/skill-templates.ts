@@ -3607,7 +3607,7 @@ Your answer: B
 
 ---
 
-Question 2 of 5 - *Category: Security*
+Question 2 of 5 - *Category: Non-Functional*
 ...
 \`\`\``
   };
@@ -3988,7 +3988,7 @@ Please provide answer: [user response]
 
 ---
 
-Question 2 of 5 - *Category: Security*
+Question 2 of 5 - *Category: Non-Functional*
 ...
 \`\`\``,
     license: 'MIT',

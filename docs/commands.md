@@ -400,7 +400,7 @@ AI:  ✓ Answer recorded. Updating spec...
      
      ─────────────────────────────────────────
      
-     Question 2 of 5 - *Category: Security*
+     Question 2 of 5 - *Category: Non-Functional*
      
      **What authentication method should be used?**
      

@@ -202,4 +202,4 @@ The system SHALL export the skill template function from the templates module fo
 
 #### Scenario: Template compatible with agent systems
 - **WHEN** an AI agent requests the template
-- **THEN** it receives valid markdown with frontmatter and structured instructions
+- **THEN** it receives valid Markdown with frontmatter and structured instructions

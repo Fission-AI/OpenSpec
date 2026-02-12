@@ -38,7 +38,7 @@ The system SHALL format each clarification answer with question, category, and r
 - **THEN** it includes the full user response in a quoted block or formatted text
 
 ### Requirement: Spec section updates from clarifications
-The system SHALL apply clarification answers to relevant spec sections to resolve ambiguities.
+The system SHALL apply clarification answers to relevant spec in the `Clarifications` sections to resolve ambiguities.
 
 #### Scenario: Clarification updates requirement
 - **WHEN** an answer clarifies a vague requirement
@@ -90,7 +90,7 @@ The system SHALL preserve existing spec content when adding clarifications.
 - **THEN** the system confirms the file path exists and is writable before proceeding
 
 ### Requirement: Markdown formatting preservation
-The system SHALL maintain proper markdown formatting when integrating clarifications.
+The system SHALL maintain proper Markdown formatting when integrating clarifications.
 
 #### Scenario: Header hierarchy preserved
 - **WHEN** clarifications section is added
@@ -102,11 +102,11 @@ The system SHALL maintain proper markdown formatting when integrating clarificat
 
 #### Scenario: Question formatting uses bold
 - **WHEN** questions are written in clarifications
-- **THEN** they use bold markdown (`**Q: ...**`) for visibility
+- **THEN** they use bold Markdown (`**Q: ...**`) for visibility
 
 #### Scenario: Category labels use italics
 - **WHEN** taxonomy categories are written
-- **THEN** they use italic markdown (`*Category: ...*`) for distinction
+- **THEN** they use italic Markdown (`*Category: ...*`) for distinction
 
 ### Requirement: Incremental write protocol
 The system SHALL write each answer immediately after capture rather than batching writes.

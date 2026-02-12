@@ -105,7 +105,6 @@ The existing skill templates follow a consistent structure:
 - Short-answer keeps responses actionable and concise
 - AI recommendations reduce user cognitive load (accept, override, or customize)
 - Table format is readable in agent chat interfaces
-- 5-word limit prevents essay responses that bloat specs
 
 **Alternatives considered:**
 - Open-ended questions only: Too vague, hard to integrate into specs
