@@ -16,6 +16,7 @@ export {
   getArchiveChangeSkillTemplate,
   getBulkArchiveChangeSkillTemplate,
   getVerifyChangeSkillTemplate,
+  getClarifyChangeSkillTemplate,
   getOpsxExploreCommandTemplate,
   getOpsxNewCommandTemplate,
   getOpsxContinueCommandTemplate,

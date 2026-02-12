@@ -3474,6 +3474,281 @@ Body:
 Does this look good? I can modify it if you'd like, or submit it as-is.
 \`\`\`
 
-Only proceed with submission after user confirms.`
+  Only proceed with submission after user confirms.`
+  };
+}
+
+/**
+ * Template for openspec-clarify skill
+ * Clarify underspecified areas in OpenSpec changes
+ */
+export function getClarifyChangeSkillTemplate(): SkillTemplate {
+  return {
+    name: 'openspec-clarify',
+    description: 'Clarify underspecified areas in an OpenSpec change by asking up to 5 targeted questions and writing answers back into spec artifacts.',
+    instructions: `Clarify underspecified areas in an OpenSpec change by systematically identifying ambiguities and resolving them through interactive Q&A.
+
+**Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+
+**Steps**
+
+1. **Select the change**
+
+   If a name is provided, use it. Otherwise:
+   - Infer from conversation context if the user mentioned a change
+   - Auto-select if only one active change exists
+   - If ambiguous, run \`openspec list --json\` to get available changes and use the **AskUserQuestion tool** to let the user select
+
+   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:clarify <other>\`).
+
+2. **Check status to verify specs exist**
+   \`\`\`bash
+   openspec status --change "<name>" --json
+   \`\`\`
+   Parse the JSON to check:
+   - Does the change have spec artifacts completed?
+   - If no specs exist, report: "This change doesn't have spec artifacts yet. Create them with \`/opsx:continue\` first." and terminate.
+
+3. **Load spec artifacts**
+
+   Read all spec files from the change's specs directory (pattern: \`specs/**/*.md\`).
+   
+   Use the file reading tools to load each spec file for analysis.
+
+4. **Scan for ambiguities using the taxonomy**
+
+   Systematically scan the specs across **10 categories**:
+
+   1. **Functional Scope and Behavior**
+      - Vague verbs without concrete definitions ("handle", "process", "manage", "deal with")
+      - Missing input/output specifications or format details
+      - Incomplete user/system flows or interaction sequences
+      - Unspecified behavior for common operations
+
+   2. **Domain and Data Model**
+      - Undefined types, entities, or data structures
+      - Unclear relationships between entities (1:1, 1:N, M:N)
+      - Missing validation rules or constraints on data
+      - Unspecified data formats, schemas, or serialization
+
+   3. **Interaction and UX Flow**
+      - Missing feedback states (loading, success, error, empty)
+      - Unclear navigation paths or state transitions
+      - Interaction gaps (what happens between steps)
+      - Unspecified user input validation or feedback
+
+   4. **Non-Functional Quality Attributes**
+      - Missing performance targets (latency, throughput, response time)
+      - Unspecified security requirements (authentication, authorization, encryption)
+      - Missing accessibility criteria (WCAG levels, screen reader support)
+      - Unclear reliability/availability requirements (uptime, fault tolerance)
+
+   5. **Integration and External Dependencies**
+      - References to undefined external systems or services
+      - Missing API contracts, protocol details, or data formats
+      - Unspecified error handling for external failures
+      - Missing fallback or retry strategies
+
+   6. **Edge Cases and Failure Handling**
+      - Unspecified behavior for empty/null/zero inputs
+      - Missing boundary condition handling (min/max values)
+      - Unclear concurrent operation behavior (race conditions, conflicts)
+      - Unspecified failure modes and recovery strategies
+
+   7. **Constraints and Tradeoffs**
+      - Missing limits or quotas (rate limits, size limits, count limits)
+      - Unspecified resource boundaries (memory, disk, bandwidth)
+      - Missing capacity planning considerations
+      - Unclear cost/performance tradeoffs
+
+   8. **Terminology and Consistency**
+      - Overloaded terms used with multiple meanings
+      - Undefined abbreviations, acronyms, or jargon
+      - Context-dependent terms without clear definitions
+      - Inconsistent naming across requirements
+
+   9. **Completion Signals**
+      - Missing acceptance criteria or definition of "done"
+      - Unspecified success metrics or verification methods
+      - Missing done conditions for workflows or processes
+      - Unclear testing or validation requirements
+
+   10. **Misc and Placeholders**
+       - TODO markers without resolution
+       - TBD placeholders or "to be determined" language
+       - Comments indicating missing information
+       - Deferred decisions that block implementation
+
+   For each category, identify specific ambiguities that would **materially impact implementation**.
+
+5. **Generate question queue (max 5 questions)**
+
+   - Prioritize ambiguities by **blocking potential** (what would stop or significantly slow implementation?)
+   - Select top 5 most impactful questions
+   - If fewer than 5 ambiguities found, include all
+   - If **no ambiguities found**, report: "Specs are clear! No ambiguities detected." and terminate successfully
+
+6. **Interactive Q&A loop**
+
+   For each question:
+   
+   **Question Format Options:**
+   
+   A. **Multiple-choice (for enumerable options)**:
+   \`\`\`
+   Question 2 of 5 - *Category: Constraints*
+   
+   **What is the maximum file upload size?**
+   
+   | Option | Description | Pros/Cons |
+   |--------|-------------|-----------|
+   | 10 MB | Standard limit | Simple, covers most use cases |
+   | 50 MB | Medium limit | Supports larger files, moderate storage cost |
+   | 100 MB (Recommended) | Large limit | Handles all common scenarios, higher storage/bandwidth cost but best UX |
+   | No limit | Unlimited | Flexible but risk of abuse and storage issues |
+   
+   Please select an option or provide custom answer:
+   \`\`\`
+   
+   B. **Short-answer (for open-ended)**:
+   \`\`\`
+   Question 3 of 5 - *Category: Terminology*
+   
+   **What does "session" mean in this context?**
+   
+   Suggestions: "User login session", "Data collection session", "WebSocket connection session"
+   
+   Please provide answer (≤5 words if possible):
+   \`\`\`
+
+   **User Response Options:**
+   - Provide answer (from options or custom)
+   - Type "skip" or "defer" to skip question
+   - Type "done" or "stop" to end early
+
+   **Validation:**
+   - Multiple-choice: Verify answer matches an option (or is clearly custom)
+   - Short-answer: Reject empty responses
+   - Re-prompt if invalid
+
+   **Incremental Integration:**
+   After each valid answer, immediately:
+   - Add/append to the spec's \`## Clarifications\` section
+   - Use format: \`**Q: [question]** → A: [answer]\` under a timestamped session (e.g., \`### Session 2026-02-12\`)
+   - Apply the answer to relevant spec sections (update requirements, add scenarios, add constraints, etc.)
+   - Confirm write succeeded before showing next question
+
+7. **Update spec sections based on clarifications**
+
+   For each answer, intelligently update the appropriate spec sections:
+   
+   - **Clarification resolves ambiguous requirement** → Update requirement text to incorporate answer
+   - **Clarification defines new edge case** → Add new scenario to relevant requirement
+   - **Clarification defines terminology** → Add glossary entry or definition
+   - **Clarification specifies constraint** → Document in constraints or add to requirement
+   
+   **Cross-spec propagation:** If an answer applies to multiple capabilities, write it to all relevant spec files.
+
+8. **Coverage summary report**
+
+   After Q&A completes (or user stops early), generate a summary:
+
+   \`\`\`
+   ## Clarification Summary
+   
+   **Change:** <name>
+   **Status:** 3/5 questions answered
+   
+   | Category | Resolved | Deferred |
+   |----------|----------|----------|
+   | Functional Scope | 1 | 0 |
+   | Constraints | 2 (Recommended) | 0 |
+   | Edge Cases | 0 | 1 |
+   | Terminology | 0 | 1 |
+   
+   ### Deferred Items
+   - [Edge Cases] Behavior when concurrent uploads occur
+   - [Terminology] Definition of "active user"
+   
+   **Next Steps:**
+   - Run \`/opsx:clarify\` again to address deferred items
+   - Or continue creating artifacts: \`/opsx:continue\`
+   \`\`\`
+
+**Ambiguity Detection Guidelines**
+
+When scanning specs, look for:
+- Vague or abstract language without concrete details
+- References to undefined entities, types, or systems
+- Missing specifications for common cases (empty input, errors, limits)
+- Overloaded terms used inconsistently
+- Placeholder language (TODO, TBD, "will be defined")
+- Implicit assumptions not stated explicitly
+- Missing acceptance criteria or success metrics
+
+**Question Generation Guidelines**
+
+Good questions:
+- Target specific implementation blockers
+- Have clear, actionable answers
+- Include AI-generated recommendations with explicit reasoning
+- Present recommendations inline in tables using "(Recommended)" marker
+- Use acceptance phrases like "yes", "recommended", "suggested" for default options
+- Are scoped to the change at hand
+
+Avoid:
+- Questions about things already clearly specified
+- Over-detailed questions that belong in implementation
+- Questions that can't reasonably be answered without extensive research
+
+**Spec Integration Guidelines**
+
+- **Add \`## Clarifications\` section** if it doesn't exist (place at end of spec file, after all other sections)
+- **Use timestamped sessions** (e.g., \`### Session 2026-02-12\`) to track multiple clarification runs
+- **Format answers**: \`**Q: [question]** → A: [answer]\` with category label
+- **Update existing sections** to reflect clarifications (don't just append to Clarifications)
+- **Write incrementally** (one answer at a time, not batched)
+- **Validate consistency** - warn if answer contradicts existing spec content
+
+**Guardrails**
+
+- **Max 5 questions** per session (keeps sessions focused)
+- **Prioritize by blocking potential** (implementation blockers first)
+- **Allow early termination** (user can stop anytime with "done")
+- **Allow deferrals** (user can skip questions with "skip")
+- **Validate answers** before writing (reject empty, malformed, or invalid responses)
+- **Write incrementally** (each answer written immediately, preserves work if interrupted)
+- **Report clearly** if no specs exist or no ambiguities found
+
+**Example Session Flow**
+
+\`\`\`
+Using change: add-user-auth
+
+Loading specs... Found 2 specs
+Scanning for ambiguities...
+
+Found 7 ambiguities across 4 categories. Prioritizing top 5 questions.
+
+---
+
+Question 1 of 5 - *Category: Data Model*
+
+**What fields should the User entity include?**
+
+Suggestions: "email, password_hash, created_at", "email, username, password_hash, role, created_at"
+
+Please provide answer: [user response]
+
+✓ Answer recorded. Updating spec...
+
+---
+
+Question 2 of 5 - *Category: Security*
+...
+\`\`\``,
+    license: 'MIT',
+    compatibility: 'Requires openspec CLI.',
+    metadata: { author: 'openspec', version: '2.0' },
   };
 }

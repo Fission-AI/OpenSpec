@@ -14,6 +14,7 @@ For workflow patterns and when to use each command, see [Workflows](workflows.md
 | `/opsx:ff` | Fast-forward: create all planning artifacts at once |
 | `/opsx:apply` | Implement tasks from the change |
 | `/opsx:verify` | Validate implementation matches artifacts |
+| `/opsx:clarify` | Resolve ambiguities in specs through interactive Q&A |
 | `/opsx:sync` | Merge delta specs into main specs |
 | `/opsx:archive` | Archive a completed change |
 | `/opsx:bulk-archive` | Archive multiple changes at once |
@@ -331,6 +332,122 @@ AI:  Verifying add-dark-mode...
 - Warnings don't block archive but indicate potential issues
 - Good for reviewing AI's work before committing
 - Can reveal drift between artifacts and implementation
+
+---
+
+### `/opsx:clarify`
+
+Clarify underspecified areas in an OpenSpec change by identifying ambiguities and resolving them through interactive Q&A. Writes answers directly back into spec artifacts.
+
+**Syntax:**
+```
+/opsx:clarify [change-name]
+```
+
+**Arguments:**
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `change-name` | No | Which change to clarify (inferred from context if not provided) |
+
+**What it does:**
+- Scans spec artifacts for ambiguities using a structured taxonomy
+- Asks up to 5 prioritized questions with AI-generated recommendations
+- Captures answers and writes them to spec artifacts incrementally
+- Updates relevant spec sections to resolve ambiguities
+- Provides coverage summary showing resolved/deferred/outstanding items
+
+**Ambiguity taxonomy (10 categories):**
+
+| Category | What it identifies |
+|----------|-------------------|
+| **Functional Scope** | Vague verbs, missing input/output details, incomplete flows |
+| **Data Model** | Undefined types, unclear relationships, missing validation rules |
+| **UX Flow** | Missing feedback states, navigation gaps, interaction ambiguity |
+| **Non-Functional** | Missing performance, security, accessibility, or reliability requirements |
+| **Integration** | Undefined external systems, missing protocols, boundary error handling |
+| **Edge Cases** | Empty inputs, boundary conditions, concurrent operations, failure modes |
+| **Constraints** | Missing limits, quotas, resource boundaries |
+| **Terminology** | Overloaded terms, undefined abbreviations, context-dependent jargon |
+| **Completion Signals** | Missing acceptance criteria, success metrics, done conditions |
+| **Placeholders** | TODO markers, TBD language, "to be determined" content |
+
+**Example:**
+```
+You: /opsx:clarify
+
+AI:  Using change: add-user-auth
+     
+     Loading specs... Found 2 specs
+     Scanning for ambiguities...
+     
+     Found 7 ambiguities across 4 categories. Prioritizing top 5 questions.
+     
+     ─────────────────────────────────────────
+     
+     Question 1 of 5 - *Category: Data Model*
+     
+     **What fields should the User entity include?**
+     
+     Suggestions: "email, password_hash, created_at", 
+                  "email, username, password_hash, role, created_at"
+     
+     Please provide answer:
+
+You: email, username, password_hash, role, created_at, updated_at
+
+AI:  ✓ Answer recorded. Updating spec...
+     
+     ─────────────────────────────────────────
+     
+     Question 2 of 5 - *Category: Security*
+     
+     **What authentication method should be used?**
+     
+     | Option | Description | Pros/Cons |
+     |--------|-------------|-----------|
+     | JWT | Token-based auth | Stateless, scalable, requires token management |
+     | Session cookies | Server-side sessions | Simple, secure, requires session storage |
+     | OAuth (Recommended) | Delegated auth | Industry standard, best UX, more complex setup |
+     
+     Please select an option or provide custom answer:
+
+You: OAuth
+
+AI:  ✓ Answer recorded. Updating spec...
+     
+     [... continues through remaining questions ...]
+     
+     ## Clarification Summary
+     
+     **Change:** add-user-auth
+     **Resolved:** 5/5 questions answered
+     
+     ### By Category
+     - Data Model: 2 resolved
+     - Security: 2 resolved  
+     - Edge Cases: 1 resolved
+     
+     All ambiguities resolved! Specs are now clearer.
+     
+     **Next Steps:**
+     - Review updated specs to confirm
+     - Continue creating artifacts: `/opsx:continue`
+```
+
+**Tips:**
+- Use after creating specs but before implementation to catch ambiguities early
+- Can run multiple times as new ambiguities are discovered
+- Type "skip" or "defer" to skip questions and address them later
+- Type "done" or "stop" to end early with partial completion
+- Answers are written incrementally (work preserved if interrupted)
+- Multiple-choice questions include AI recommendations with reasoning
+- Short-answer questions should be concise (≤5 words when possible)
+
+**When to use:**
+- After `/opsx:continue` creates specs but before creating tasks
+- When specs have placeholders (TODO, TBD) that need resolution
+- When implementation reveals unclear requirements (pause and clarify)
+- Before handing off to another developer (ensure shared understanding)
 
 ---
 
