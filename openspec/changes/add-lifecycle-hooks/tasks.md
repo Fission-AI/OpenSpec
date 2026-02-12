@@ -38,12 +38,12 @@
 - [x] 6.4 Update sync skill templates to call hooks at pre/post-sync points
 - [x] 6.5 Change all hook invocations in skill templates from `openspec hooks <point>` to `openspec instructions --hook <point>` (~18 occurrences in `src/core/templates/skill-templates.ts`)
 - [x] 6.6 Add pre/post-verify hook steps to `getVerifyChangeSkillTemplate()` and `getOpsxVerifyCommandTemplate()` in `src/core/templates/skill-templates.ts`
-- [x] 6.8 Add pre/post-continue hook steps to `getContinueChangeSkillTemplate()` and `getOpsxContinueCommandTemplate()`
-- [x] 6.9 Add pre-ff/post-ff hook steps and pre/post-continue per-artifact hooks to `getFfChangeSkillTemplate()` and `getOpsxFfCommandTemplate()`
-- [x] 6.10 Regenerate agent skills with `openspec update --force`
-- [x] 6.11 Add pre/post-explore hook steps to `getExploreSkillTemplate()` and `getOpsxExploreCommandTemplate()`
-- [x] 6.12 Add pre/post-bulk-archive hook steps to `getBulkArchiveChangeSkillTemplate()` and `getOpsxBulkArchiveCommandTemplate()`, including per-change pre/post-archive hooks
-- [x] 6.13 Add pre/post-onboard hook steps to `getOnboardInstructions()`
+- [x] 6.7 Add pre/post-continue hook steps to `getContinueChangeSkillTemplate()` and `getOpsxContinueCommandTemplate()`
+- [x] 6.8 Add pre-ff/post-ff hook steps and pre/post-continue per-artifact hooks to `getFfChangeSkillTemplate()` and `getOpsxFfCommandTemplate()`
+- [x] 6.9 Regenerate agent skills with `openspec update --force`
+- [x] 6.10 Add pre/post-explore hook steps to `getExploreSkillTemplate()` and `getOpsxExploreCommandTemplate()`
+- [x] 6.11 Add pre/post-bulk-archive hook steps to `getBulkArchiveChangeSkillTemplate()` and `getOpsxBulkArchiveCommandTemplate()`, including per-change pre/post-archive hooks
+- [x] 6.12 Add pre/post-onboard hook steps to `getOnboardInstructions()`
 
 ## 7. Documentation
 
@@ -57,6 +57,6 @@
 - [x] 8.4 CLI integration: Update existing hook tests in `test/commands/artifact-workflow.test.ts` to use `instructions --hook` instead of `hooks` command
 - [x] 8.5 CLI integration: Add mutual exclusivity test — `instructions <artifact> --hook <point>` returns error
 - [x] 8.6 CLI integration: Add `pre-verify`/`post-verify` as valid lifecycle points in tests
-- [x] 8.8 CLI integration: Add `pre-continue`/`post-continue`/`pre-ff`/`post-ff` as valid lifecycle points in tests
-- [x] 8.9 Verify existing tests still pass (no regressions)
-- [x] 8.10 CLI integration: Add `pre-explore`/`post-explore`/`pre-bulk-archive`/`post-bulk-archive`/`pre-onboard`/`post-onboard` as valid lifecycle points in tests
+- [x] 8.7 CLI integration: Add `pre-continue`/`post-continue`/`pre-ff`/`post-ff` as valid lifecycle points in tests
+- [x] 8.8 Verify existing tests still pass (no regressions)
+- [x] 8.9 CLI integration: Add `pre-explore`/`post-explore`/`pre-bulk-archive`/`post-bulk-archive`/`pre-onboard`/`post-onboard` as valid lifecycle points in tests
