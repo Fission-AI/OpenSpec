@@ -10,6 +10,7 @@ import { VALID_LIFECYCLE_POINTS } from './types.js';
 
 // Session-level cache for validation warnings (avoid repeating same warnings)
 const shownWarnings = new Set<string>();
+const validLifecyclePoints = new Set<string>(VALID_LIFECYCLE_POINTS);
 
 /**
  * Error thrown when loading a template fails.
@@ -394,8 +395,7 @@ export function resolveHooks(
   changeName: string | null,
   lifecyclePoint: string
 ): ResolvedHook[] {
-  const validPoints = new Set<string>(VALID_LIFECYCLE_POINTS);
-  if (!validPoints.has(lifecyclePoint)) {
+  if (!validLifecyclePoints.has(lifecyclePoint)) {
     const valid = VALID_LIFECYCLE_POINTS.join(', ');
     throw new Error(`Invalid lifecycle point: "${lifecyclePoint}". Valid points: ${valid}`);
   }
