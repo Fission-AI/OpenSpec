@@ -34,8 +34,6 @@ import {
 } from '../commands/workflow/index.js';
 import { maybeShowTelemetryNotice, trackCommand, shutdown } from '../telemetry/index.js';
 
-type InstructionsActionOptions = InstructionsOptions & { hook?: string };
-
 const program = new Command();
 const require = createRequire(import.meta.url);
 const { version } = require('../../package.json');
@@ -446,7 +444,7 @@ program
   .option('--schema <name>', 'Schema override (auto-detected from config.yaml)')
   .option('--hook <lifecycle-point>', 'Retrieve lifecycle hooks for a given point (mutually exclusive with [artifact])')
   .option('--json', 'Output as JSON')
-  .action(async (artifactId: string | undefined, options: InstructionsActionOptions) => {
+  .action(async (artifactId: string | undefined, options: InstructionsOptions) => {
     try {
       // Mutual exclusivity: --hook cannot be used with an artifact argument
       if (options.hook && artifactId) {
