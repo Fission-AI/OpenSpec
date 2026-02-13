@@ -2,6 +2,7 @@ import { existsSync, readFileSync, statSync } from 'fs';
 import path from 'path';
 import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
+import { VALID_LIFECYCLE_POINTS } from './artifact-graph/types.js';
 
 /**
  * Zod schema for project configuration.
@@ -38,6 +39,15 @@ export const ProjectConfigSchema = z.object({
     )
     .optional()
     .describe('Per-artifact rules, keyed by artifact ID'),
+
+  // Optional: lifecycle hooks (LLM instructions at operation boundaries)
+  hooks: z
+    .record(
+      z.string(), // lifecycle point (e.g., "post-archive")
+      z.object({ instruction: z.string().min(1) })
+    )
+    .optional()
+    .describe('Lifecycle hooks keyed by lifecycle point'),
 });
 
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
@@ -149,6 +159,40 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
         }
       } else {
         console.warn(`Invalid 'rules' field in config (must be object)`);
+      }
+    }
+
+    // Parse hooks field
+    if (raw.hooks !== undefined) {
+      if (typeof raw.hooks === 'object' && raw.hooks !== null && !Array.isArray(raw.hooks)) {
+        const parsedHooks: Record<string, { instruction: string }> = {};
+        let hasValidHooks = false;
+        const validPoints = new Set<string>(VALID_LIFECYCLE_POINTS);
+        const hookSchema = z.object({ instruction: z.string().min(1) });
+
+        for (const [point, hook] of Object.entries(raw.hooks)) {
+          // Warn on unrecognized lifecycle points
+          if (!validPoints.has(point)) {
+            console.warn(`Unknown lifecycle point in hooks: "${point}". Valid points: ${VALID_LIFECYCLE_POINTS.join(', ')}`);
+            continue;
+          }
+
+          const hookResult = hookSchema.safeParse(hook);
+          if (hookResult.success) {
+            parsedHooks[point] = hookResult.data;
+            hasValidHooks = true;
+          } else {
+            console.warn(
+              `Invalid hook for '${point}': instruction must be a non-empty string, ignoring`
+            );
+          }
+        }
+
+        if (hasValidHooks) {
+          config.hooks = parsedHooks;
+        }
+      } else {
+        console.warn(`Invalid 'hooks' field in config (must be object)`);
       }
     }
 

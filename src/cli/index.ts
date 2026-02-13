@@ -23,12 +23,14 @@ import {
   templatesCommand,
   schemasCommand,
   newChangeCommand,
+  hooksCommand,
   DEFAULT_SCHEMA,
   type StatusOptions,
   type InstructionsOptions,
   type TemplatesOptions,
   type SchemasOptions,
   type NewChangeOptions,
+  type HooksOptions,
 } from '../commands/workflow/index.js';
 import { maybeShowTelemetryNotice, trackCommand, shutdown } from '../telemetry/index.js';
 
@@ -437,14 +439,27 @@ program
 // Instructions command
 program
   .command('instructions [artifact]')
-  .description('Output enriched instructions for creating an artifact or applying tasks')
+  .description('Output enriched instructions for creating an artifact, applying tasks, or retrieving lifecycle hooks')
   .option('--change <id>', 'Change name')
   .option('--schema <name>', 'Schema override (auto-detected from config.yaml)')
+  .option('--hook <lifecycle-point>', 'Retrieve lifecycle hooks for a given point (mutually exclusive with [artifact])')
   .option('--json', 'Output as JSON')
   .action(async (artifactId: string | undefined, options: InstructionsOptions) => {
     try {
-      // Special case: "apply" is not an artifact, but a command to get apply instructions
-      if (artifactId === 'apply') {
+      // Mutual exclusivity: --hook cannot be used with an artifact argument
+      if (options.hook && artifactId) {
+        throw new Error('--hook cannot be used with an artifact argument');
+      }
+
+      if (options.hook) {
+        // --schema is not supported in hook mode
+        if (options.schema) {
+          throw new Error('--schema cannot be used with --hook');
+        }
+        // Hook mode: delegate to hooksCommand
+        await hooksCommand(options.hook, { change: options.change, json: options.json });
+      } else if (artifactId === 'apply') {
+        // Special case: "apply" is not an artifact, but a command to get apply instructions
         await applyInstructionsCommand(options);
       } else {
         await instructionsCommand(artifactId, options);

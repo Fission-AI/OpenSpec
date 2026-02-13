@@ -19,4 +19,7 @@ export type { SchemasOptions } from './schemas.js';
 export { newChangeCommand } from './new-change.js';
 export type { NewChangeOptions } from './new-change.js';
 
+export { hooksCommand } from './hooks.js';
+export type { HooksOptions } from './hooks.js';
+
 export { DEFAULT_SCHEMA } from './shared.js';

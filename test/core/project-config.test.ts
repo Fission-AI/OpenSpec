@@ -480,6 +480,157 @@ rules:
         ]);
       });
     });
+
+    describe('hooks parsing', () => {
+      it('should parse valid hooks', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+hooks:
+  pre-archive:
+    instruction: "Run cleanup"
+  post-archive:
+    instruction: "Notify team"
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config).toEqual({
+          schema: 'spec-driven',
+          hooks: {
+            'pre-archive': { instruction: 'Run cleanup' },
+            'post-archive': { instruction: 'Notify team' },
+          },
+        });
+        expect(consoleWarnSpy).not.toHaveBeenCalled();
+      });
+
+      it('should ignore hooks with unknown lifecycle points', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+hooks:
+  invalid-point:
+    instruction: "something"
+  pre-archive:
+    instruction: "valid"
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config).toEqual({
+          schema: 'spec-driven',
+          hooks: {
+            'pre-archive': { instruction: 'valid' },
+          },
+        });
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Unknown lifecycle point')
+        );
+      });
+
+      it('should skip hooks with empty instruction', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+hooks:
+  pre-archive:
+    instruction: ""
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config).toEqual({
+          schema: 'spec-driven',
+        });
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('instruction must be a non-empty string')
+        );
+      });
+
+      it('should handle hooks that is not an object', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+hooks: "not an object"
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config).toEqual({
+          schema: 'spec-driven',
+        });
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Invalid')
+        );
+      });
+
+      it('should parse config with hooks alongside other fields', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+context: "Project context here"
+rules:
+  proposal:
+    - Valid rule one
+    - Valid rule two
+hooks:
+  pre-sync:
+    instruction: "Backup data"
+  post-apply:
+    instruction: "Deploy changes"
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config).toEqual({
+          schema: 'spec-driven',
+          context: 'Project context here',
+          rules: {
+            proposal: ['Valid rule one', 'Valid rule two'],
+          },
+          hooks: {
+            'pre-sync': { instruction: 'Backup data' },
+            'post-apply': { instruction: 'Deploy changes' },
+          },
+        });
+        expect(consoleWarnSpy).not.toHaveBeenCalled();
+      });
+
+      it('should handle hooks: null gracefully', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+context: "Valid context"
+hooks:
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config).toEqual({
+          schema: 'spec-driven',
+          context: 'Valid context',
+        });
+      });
+    });
   });
 
   describe('validateConfigRules', () => {

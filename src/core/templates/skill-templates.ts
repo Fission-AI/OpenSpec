@@ -95,9 +95,17 @@ Depending on what the user brings, you might:
 
 You have full context of the OpenSpec system. Use it naturally, don't force it.
 
+### Execute pre-explore hooks
+
+At the start, run:
+\`\`\`bash
+openspec instructions --hook pre-explore --json
+\`\`\`
+If hooks are returned, follow each instruction in order before proceeding.
+
 ### Check for context
 
-At the start, quickly check what exists:
+Then check what exists:
 \`\`\`bash
 openspec list --json
 \`\`\`
@@ -303,7 +311,15 @@ But this summary is optional. Sometimes the thinking IS the value.
 - **Don't auto-capture** - Offer to save insights, don't just do it
 - **Do visualize** - A good diagram is worth many paragraphs
 - **Do explore the codebase** - Ground discussions in reality
-- **Do question assumptions** - Including the user's and your own`,
+- **Do question assumptions** - Including the user's and your own
+
+## Post-explore hooks
+
+When the exploration session ends (user moves on, starts a change, or explicitly exits explore mode), run:
+\`\`\`bash
+openspec instructions --hook post-explore --json
+\`\`\`
+If hooks are returned, follow each instruction in order.`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
@@ -343,20 +359,36 @@ export function getNewChangeSkillTemplate(): SkillTemplate {
 
    **Otherwise**: Omit \`--schema\` to use the default.
 
-3. **Create the change directory**
+3. **Execute pre-new hooks**
+
+   Run \`openspec instructions --hook pre-new --json\` to check for lifecycle hooks (schema hooks may also apply if config.yaml sets a default schema).
+
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before proceeding.
+
+   If the \`hooks\` array is empty, skip this step.
+
+4. **Create the change directory**
    \`\`\`bash
    openspec new change "<name>"
    \`\`\`
    Add \`--schema <name>\` only if the user requested a specific workflow.
    This creates a scaffolded change at \`openspec/changes/<name>/\` with the selected schema.
 
-4. **Show the artifact status**
+5. **Execute post-new hooks**
+
+   Run \`openspec instructions --hook post-new --change "<name>" --json\` to check for lifecycle hooks.
+
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before proceeding.
+
+   If the \`hooks\` array is empty, skip this step.
+
+6. **Show the artifact status**
    \`\`\`bash
    openspec status --change "<name>"
    \`\`\`
    This shows which artifacts need to be created and which are ready (dependencies satisfied).
 
-5. **Get instructions for the first artifact**
+7. **Get instructions for the first artifact**
    The first artifact depends on the schema (e.g., \`proposal\` for spec-driven).
    Check the status output to find the first artifact with status "ready".
    \`\`\`bash
@@ -364,7 +396,7 @@ export function getNewChangeSkillTemplate(): SkillTemplate {
    \`\`\`
    This outputs the template and context for creating the first artifact.
 
-6. **STOP and wait for user direction**
+8. **STOP and wait for user direction**
 
 **Output**
 
@@ -424,7 +456,13 @@ export function getContinueChangeSkillTemplate(): SkillTemplate {
    - \`artifacts\`: Array of artifacts with their status ("done", "ready", "blocked")
    - \`isComplete\`: Boolean indicating if all artifacts are complete
 
-3. **Act based on status**:
+3. **Execute pre-continue hooks**
+   \`\`\`bash
+   openspec instructions --hook pre-continue --change "<name>" --json
+   \`\`\`
+   If hooks are returned, follow each instruction in order before proceeding.
+
+4. **Act based on status**:
 
    ---
 
@@ -463,10 +501,16 @@ export function getContinueChangeSkillTemplate(): SkillTemplate {
    - This shouldn't happen with a valid schema
    - Show status and suggest checking for issues
 
-4. **After creating an artifact, show progress**
+5. **After creating an artifact, show progress**
    \`\`\`bash
    openspec status --change "<name>"
    \`\`\`
+
+6. **Execute post-continue hooks**
+   \`\`\`bash
+   openspec instructions --hook post-continue --change "<name>" --json
+   \`\`\`
+   If hooks are returned, follow each instruction in order.
 
 **Output**
 
@@ -531,7 +575,15 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
 
    Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:apply <other>\`).
 
-2. **Check status to understand the schema**
+2. **Execute pre-apply hooks**
+
+   Run \`openspec instructions --hook pre-apply --change "<name>" --json\` to check for lifecycle hooks.
+
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before proceeding.
+
+   If the \`hooks\` array is empty, skip this step.
+
+3. **Check status to understand the schema**
    \`\`\`bash
    openspec status --change "<name>" --json
    \`\`\`
@@ -539,7 +591,7 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
    - \`schemaName\`: The workflow being used (e.g., "spec-driven")
    - Which artifact contains the tasks (typically "tasks" for spec-driven, check status for others)
 
-3. **Get apply instructions**
+4. **Get apply instructions**
 
    \`\`\`bash
    openspec instructions apply --change "<name>" --json
@@ -556,14 +608,14 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
    - If \`state: "all_done"\`: congratulate, suggest archive
    - Otherwise: proceed to implementation
 
-4. **Read context files**
+5. **Read context files**
 
    Read the files listed in \`contextFiles\` from the apply instructions output.
    The files depend on the schema being used:
    - **spec-driven**: proposal, specs, design, tasks
    - Other schemas: follow the contextFiles from CLI output
 
-5. **Show current progress**
+6. **Show current progress**
 
    Display:
    - Schema being used
@@ -571,7 +623,7 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
    - Remaining tasks overview
    - Dynamic instruction from CLI
 
-6. **Implement tasks (loop until done or blocked)**
+7. **Implement tasks (loop until done or blocked)**
 
    For each pending task:
    - Show which task is being worked on
@@ -586,7 +638,15 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
    - Error or blocker encountered → report and wait for guidance
    - User interrupts
 
-7. **On completion or pause, show status**
+8. **Execute post-apply hooks**
+
+   Run \`openspec instructions --hook post-apply --change "<name>" --json\` to check for lifecycle hooks.
+
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before displaying the summary.
+
+   If the \`hooks\` array is empty, skip this step.
+
+9. **On completion or pause, show status**
 
    Display:
    - Tasks completed this session
@@ -696,7 +756,13 @@ export function getFfChangeSkillTemplate(): SkillTemplate {
    \`\`\`
    This creates a scaffolded change at \`openspec/changes/<name>/\`.
 
-3. **Get the artifact build order**
+3. **Execute pre-ff hooks**
+   \`\`\`bash
+   openspec instructions --hook pre-ff --change "<name>" --json
+   \`\`\`
+   If hooks are returned, follow each instruction in order before proceeding.
+
+4. **Get the artifact build order**
    \`\`\`bash
    openspec status --change "<name>" --json
    \`\`\`
@@ -704,13 +770,19 @@ export function getFfChangeSkillTemplate(): SkillTemplate {
    - \`applyRequires\`: array of artifact IDs needed before implementation (e.g., \`["tasks"]\`)
    - \`artifacts\`: list of all artifacts with their status and dependencies
 
-4. **Create artifacts in sequence until apply-ready**
+5. **Create artifacts in sequence until apply-ready**
 
    Use the **TodoWrite tool** to track progress through the artifacts.
 
    Loop through artifacts in dependency order (artifacts with no pending dependencies first):
 
-   a. **For each artifact that is \`ready\` (dependencies satisfied)**:
+   a. **Execute pre-continue hooks** (before each artifact):
+      \`\`\`bash
+      openspec instructions --hook pre-continue --change "<name>" --json
+      \`\`\`
+      If hooks are returned, follow each instruction in order.
+
+   b. **For each artifact that is \`ready\` (dependencies satisfied)**:
       - Get instructions:
         \`\`\`bash
         openspec instructions <artifact-id> --change "<name>" --json
@@ -727,16 +799,28 @@ export function getFfChangeSkillTemplate(): SkillTemplate {
       - Apply \`context\` and \`rules\` as constraints - but do NOT copy them into the file
       - Show brief progress: "✓ Created <artifact-id>"
 
-   b. **Continue until all \`applyRequires\` artifacts are complete**
+   c. **Execute post-continue hooks** (after each artifact):
+      \`\`\`bash
+      openspec instructions --hook post-continue --change "<name>" --json
+      \`\`\`
+      If hooks are returned, follow each instruction in order.
+
+   d. **Continue until all \`applyRequires\` artifacts are complete**
       - After creating each artifact, re-run \`openspec status --change "<name>" --json\`
       - Check if every artifact ID in \`applyRequires\` has \`status: "done"\` in the artifacts array
       - Stop when all \`applyRequires\` artifacts are done
 
-   c. **If an artifact requires user input** (unclear context):
+   e. **If an artifact requires user input** (unclear context):
       - Use **AskUserQuestion tool** to clarify
       - Then continue with creation
 
-5. **Show final status**
+6. **Execute post-ff hooks**
+   \`\`\`bash
+   openspec instructions --hook post-ff --change "<name>" --json
+   \`\`\`
+   If hooks are returned, follow each instruction in order.
+
+7. **Show final status**
    \`\`\`bash
    openspec status --change "<name>"
    \`\`\`
@@ -795,7 +879,15 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
    **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
 
-2. **Find delta specs**
+2. **Execute pre-sync hooks**
+
+   Run \`openspec instructions --hook pre-sync --change "<name>" --json\` to check for lifecycle hooks.
+
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before proceeding.
+
+   If the \`hooks\` array is empty, skip this step.
+
+3. **Find delta specs**
 
    Look for delta spec files in \`openspec/changes/<name>/specs/*/spec.md\`.
 
@@ -807,7 +899,7 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
    If no delta specs found, inform user and stop.
 
-3. **For each delta spec, apply changes to main specs**
+4. **For each delta spec, apply changes to main specs**
 
    For each capability with a delta spec at \`openspec/changes/<name>/specs/<capability>/spec.md\`:
 
@@ -840,7 +932,15 @@ This is an **agent-driven** operation - you will read delta specs and directly e
       - Add Purpose section (can be brief, mark as TBD)
       - Add Requirements section with the ADDED requirements
 
-4. **Show summary**
+5. **Execute post-sync hooks**
+
+   Run \`openspec instructions --hook post-sync --change "<name>" --json\` to check for lifecycle hooks.
+
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before displaying the summary.
+
+   If the \`hooks\` array is empty, skip this step.
+
+6. **Show summary**
 
    After applying all changes, summarize:
    - Which capabilities were updated
@@ -935,9 +1035,17 @@ function getOnboardInstructions(): string {
 
 ---
 
+## Pre-onboard hooks
+
+Before starting, run:
+\`\`\`bash
+openspec instructions --hook pre-onboard --json
+\`\`\`
+If hooks are returned, follow each instruction in order before proceeding.
+
 ## Preflight
 
-Before starting, check if the OpenSpec CLI is installed:
+Check if the OpenSpec CLI is installed:
 
 \`\`\`bash
 # Unix/macOS
@@ -1449,6 +1557,14 @@ Exit gracefully.
 
 ---
 
+## Post-onboard hooks
+
+When the onboarding session ends (user completes the cycle, exits, or moves on), run:
+\`\`\`bash
+openspec instructions --hook post-onboard --json
+\`\`\`
+If hooks are returned, follow each instruction in order.
+
 ## Guardrails
 
 - **Follow the EXPLAIN → DO → SHOW → PAUSE pattern** at key transitions (after explore, after proposal draft, after tasks, after archive)
@@ -1559,9 +1675,17 @@ Depending on what the user brings, you might:
 
 You have full context of the OpenSpec system. Use it naturally, don't force it.
 
+### Execute pre-explore hooks
+
+At the start, run:
+\`\`\`bash
+openspec instructions --hook pre-explore --json
+\`\`\`
+If hooks are returned, follow each instruction in order before proceeding.
+
 ### Check for context
 
-At the start, quickly check what exists:
+Then check what exists:
 \`\`\`bash
 openspec list --json
 \`\`\`
@@ -1648,7 +1772,15 @@ When things crystallize, you might offer a summary - but it's optional. Sometime
 - **Don't auto-capture** - Offer to save insights, don't just do it
 - **Do visualize** - A good diagram is worth many paragraphs
 - **Do explore the codebase** - Ground discussions in reality
-- **Do question assumptions** - Including the user's and your own`
+- **Do question assumptions** - Including the user's and your own
+
+## Post-explore hooks
+
+When the exploration session ends (user moves on, starts a change, or explicitly exits explore mode), run:
+\`\`\`bash
+openspec instructions --hook post-explore --json
+\`\`\`
+If hooks are returned, follow each instruction in order.`
   };
 }
 
@@ -1686,27 +1818,43 @@ export function getOpsxNewCommandTemplate(): CommandTemplate {
 
    **Otherwise**: Omit \`--schema\` to use the default.
 
-3. **Create the change directory**
+3. **Execute pre-new hooks**
+
+   Run \`openspec instructions --hook pre-new --json\` to check for lifecycle hooks (schema hooks may also apply if config.yaml sets a default schema).
+
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before proceeding.
+
+   If the \`hooks\` array is empty, skip this step.
+
+4. **Create the change directory**
    \`\`\`bash
    openspec new change "<name>"
    \`\`\`
    Add \`--schema <name>\` only if the user requested a specific workflow.
    This creates a scaffolded change at \`openspec/changes/<name>/\` with the selected schema.
 
-4. **Show the artifact status**
+5. **Execute post-new hooks**
+
+   Run \`openspec instructions --hook post-new --change "<name>" --json\` to check for lifecycle hooks.
+
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before proceeding.
+
+   If the \`hooks\` array is empty, skip this step.
+
+6. **Show the artifact status**
    \`\`\`bash
    openspec status --change "<name>"
    \`\`\`
    This shows which artifacts need to be created and which are ready (dependencies satisfied).
 
-5. **Get instructions for the first artifact**
+7. **Get instructions for the first artifact**
    The first artifact depends on the schema. Check the status output to find the first artifact with status "ready".
    \`\`\`bash
    openspec instructions <first-artifact-id> --change "<name>"
    \`\`\`
    This outputs the template and context for creating the first artifact.
 
-6. **STOP and wait for user direction**
+8. **STOP and wait for user direction**
 
 **Output**
 
@@ -1764,7 +1912,13 @@ export function getOpsxContinueCommandTemplate(): CommandTemplate {
    - \`artifacts\`: Array of artifacts with their status ("done", "ready", "blocked")
    - \`isComplete\`: Boolean indicating if all artifacts are complete
 
-3. **Act based on status**:
+3. **Execute pre-continue hooks**
+   \`\`\`bash
+   openspec instructions --hook pre-continue --change "<name>" --json
+   \`\`\`
+   If hooks are returned, follow each instruction in order before proceeding.
+
+4. **Act based on status**:
 
    ---
 
@@ -1803,10 +1957,16 @@ export function getOpsxContinueCommandTemplate(): CommandTemplate {
    - This shouldn't happen with a valid schema
    - Show status and suggest checking for issues
 
-4. **After creating an artifact, show progress**
+5. **After creating an artifact, show progress**
    \`\`\`bash
    openspec status --change "<name>"
    \`\`\`
+
+6. **Execute post-continue hooks**
+   \`\`\`bash
+   openspec instructions --hook post-continue --change "<name>" --json
+   \`\`\`
+   If hooks are returned, follow each instruction in order.
 
 **Output**
 
@@ -1869,7 +2029,15 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
 
    Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:apply <other>\`).
 
-2. **Check status to understand the schema**
+2. **Execute pre-apply hooks**
+
+   Run \`openspec instructions --hook pre-apply --change "<name>" --json\` to check for lifecycle hooks.
+
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before proceeding.
+
+   If the \`hooks\` array is empty, skip this step.
+
+3. **Check status to understand the schema**
    \`\`\`bash
    openspec status --change "<name>" --json
    \`\`\`
@@ -1877,7 +2045,7 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
    - \`schemaName\`: The workflow being used (e.g., "spec-driven")
    - Which artifact contains the tasks (typically "tasks" for spec-driven, check status for others)
 
-3. **Get apply instructions**
+4. **Get apply instructions**
 
    \`\`\`bash
    openspec instructions apply --change "<name>" --json
@@ -1894,14 +2062,14 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
    - If \`state: "all_done"\`: congratulate, suggest archive
    - Otherwise: proceed to implementation
 
-4. **Read context files**
+5. **Read context files**
 
    Read the files listed in \`contextFiles\` from the apply instructions output.
    The files depend on the schema being used:
    - **spec-driven**: proposal, specs, design, tasks
    - Other schemas: follow the contextFiles from CLI output
 
-5. **Show current progress**
+6. **Show current progress**
 
    Display:
    - Schema being used
@@ -1909,7 +2077,7 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
    - Remaining tasks overview
    - Dynamic instruction from CLI
 
-6. **Implement tasks (loop until done or blocked)**
+7. **Implement tasks (loop until done or blocked)**
 
    For each pending task:
    - Show which task is being worked on
@@ -1924,7 +2092,15 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
    - Error or blocker encountered → report and wait for guidance
    - User interrupts
 
-7. **On completion or pause, show status**
+8. **Execute post-apply hooks**
+
+   Run \`openspec instructions --hook post-apply --change "<name>" --json\` to check for lifecycle hooks.
+
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before displaying the summary.
+
+   If the \`hooks\` array is empty, skip this step.
+
+9. **On completion or pause, show status**
 
    Display:
    - Tasks completed this session
@@ -2033,7 +2209,13 @@ export function getOpsxFfCommandTemplate(): CommandTemplate {
    \`\`\`
    This creates a scaffolded change at \`openspec/changes/<name>/\`.
 
-3. **Get the artifact build order**
+3. **Execute pre-ff hooks**
+   \`\`\`bash
+   openspec instructions --hook pre-ff --change "<name>" --json
+   \`\`\`
+   If hooks are returned, follow each instruction in order before proceeding.
+
+4. **Get the artifact build order**
    \`\`\`bash
    openspec status --change "<name>" --json
    \`\`\`
@@ -2041,13 +2223,19 @@ export function getOpsxFfCommandTemplate(): CommandTemplate {
    - \`applyRequires\`: array of artifact IDs needed before implementation (e.g., \`["tasks"]\`)
    - \`artifacts\`: list of all artifacts with their status and dependencies
 
-4. **Create artifacts in sequence until apply-ready**
+5. **Create artifacts in sequence until apply-ready**
 
    Use the **TodoWrite tool** to track progress through the artifacts.
 
    Loop through artifacts in dependency order (artifacts with no pending dependencies first):
 
-   a. **For each artifact that is \`ready\` (dependencies satisfied)**:
+   a. **Execute pre-continue hooks** (before each artifact):
+      \`\`\`bash
+      openspec instructions --hook pre-continue --change "<name>" --json
+      \`\`\`
+      If hooks are returned, follow each instruction in order.
+
+   b. **For each artifact that is \`ready\` (dependencies satisfied)**:
       - Get instructions:
         \`\`\`bash
         openspec instructions <artifact-id> --change "<name>" --json
@@ -2064,16 +2252,28 @@ export function getOpsxFfCommandTemplate(): CommandTemplate {
       - Apply \`context\` and \`rules\` as constraints - but do NOT copy them into the file
       - Show brief progress: "✓ Created <artifact-id>"
 
-   b. **Continue until all \`applyRequires\` artifacts are complete**
+   c. **Execute post-continue hooks** (after each artifact):
+      \`\`\`bash
+      openspec instructions --hook post-continue --change "<name>" --json
+      \`\`\`
+      If hooks are returned, follow each instruction in order.
+
+   d. **Continue until all \`applyRequires\` artifacts are complete**
       - After creating each artifact, re-run \`openspec status --change "<name>" --json\`
       - Check if every artifact ID in \`applyRequires\` has \`status: "done"\` in the artifacts array
       - Stop when all \`applyRequires\` artifacts are done
 
-   c. **If an artifact requires user input** (unclear context):
+   e. **If an artifact requires user input** (unclear context):
       - Use **AskUserQuestion tool** to clarify
       - Then continue with creation
 
-5. **Show final status**
+6. **Execute post-ff hooks**
+   \`\`\`bash
+   openspec instructions --hook post-ff --change "<name>" --json
+   \`\`\`
+   If hooks are returned, follow each instruction in order.
+
+7. **Show final status**
    \`\`\`bash
    openspec status --change "<name>"
    \`\`\`
@@ -2125,7 +2325,15 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
 
    **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
 
-2. **Check artifact completion status**
+2. **Execute pre-archive hooks**
+
+   Run \`openspec instructions --hook pre-archive --change "<name>" --json\` to check for lifecycle hooks.
+
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before proceeding.
+
+   If the \`hooks\` array is empty, skip this step.
+
+3. **Check artifact completion status**
 
    Run \`openspec status --change "<name>" --json\` to check artifact completion.
 
@@ -2138,7 +2346,7 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
    - Use **AskUserQuestion tool** to confirm user wants to proceed
    - Proceed if user confirms
 
-3. **Check task completion status**
+4. **Check task completion status**
 
    Read the tasks file (typically \`tasks.md\`) to check for incomplete tasks.
 
@@ -2151,7 +2359,7 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
 
    **If no tasks file exists:** Proceed without task-related warning.
 
-4. **Assess delta spec sync state**
+5. **Assess delta spec sync state**
 
    Check for delta specs at \`openspec/changes/<name>/specs/\`. If none exist, proceed without sync prompt.
 
@@ -2166,7 +2374,7 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
 
    If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
 
-5. **Perform the archive**
+6. **Perform the archive**
 
    Create the archive directory if it doesn't exist:
    \`\`\`bash
@@ -2183,7 +2391,17 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
    mv openspec/changes/<name> openspec/changes/archive/YYYY-MM-DD-<name>
    \`\`\`
 
-6. **Display summary**
+7. **Execute post-archive hooks**
+
+   Run \`openspec instructions --hook post-archive --change "<name>" --json\` to check for lifecycle hooks.
+
+   **Note:** The change has been moved to archive, so the \`--change\` flag may not resolve. If this fails, fall back to \`openspec instructions --hook post-archive --json\` (config-only hooks).
+
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before displaying the summary.
+
+   If the \`hooks\` array is empty, skip this step.
+
+8. **Display summary**
 
    Show archive completion summary including:
    - Change name
@@ -2235,13 +2453,19 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
 **Steps**
 
-1. **Get active changes**
+1. **Execute pre-bulk-archive hooks**
+   \`\`\`bash
+   openspec instructions --hook pre-bulk-archive --json
+   \`\`\`
+   If hooks are returned, follow each instruction in order before proceeding.
+
+2. **Get active changes**
 
    Run \`openspec list --json\` to get all active changes.
 
    If no active changes exist, inform user and stop.
 
-2. **Prompt for change selection**
+3. **Prompt for change selection**
 
    Use **AskUserQuestion tool** with multi-select to let user choose changes:
    - Show each change with its schema
@@ -2250,7 +2474,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    **IMPORTANT**: Do NOT auto-select. Always let the user choose.
 
-3. **Batch validation - gather status for all selected changes**
+4. **Batch validation - gather status for all selected changes**
 
    For each selected change, collect:
 
@@ -2266,7 +2490,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - List which capability specs exist
       - For each, extract requirement names (lines matching \`### Requirement: <name>\`)
 
-4. **Detect spec conflicts**
+5. **Detect spec conflicts**
 
    Build a map of \`capability -> [changes that touch it]\`:
 
@@ -2277,7 +2501,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    A conflict exists when 2+ selected changes have delta specs for the same capability.
 
-5. **Resolve conflicts agentically**
+6. **Resolve conflicts agentically**
 
    **For each conflict**, investigate the codebase:
 
@@ -2297,7 +2521,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - In what order (if both)
       - Rationale (what was found in codebase)
 
-6. **Show consolidated status table**
+7. **Show consolidated status table**
 
    Display a table summarizing all changes:
 
@@ -2322,7 +2546,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
    - add-verify-skill: 1 incomplete artifact, 3 incomplete tasks
    \`\`\`
 
-7. **Confirm batch operation**
+8. **Confirm batch operation**
 
    Use **AskUserQuestion tool** with a single confirmation:
 
@@ -2334,27 +2558,51 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    If there are incomplete changes, make clear they'll be archived with warnings.
 
-8. **Execute archive for each confirmed change**
+9. **Execute archive for each confirmed change**
 
-   Process changes in the determined order (respecting conflict resolution):
+   Process changes in the determined order (respecting conflict resolution).
 
-   a. **Sync specs** if delta specs exist:
+   **For each change**:
+
+   a. **Execute pre-archive hooks**:
+      \`\`\`bash
+      openspec instructions --hook pre-archive --change "<name>" --json
+      \`\`\`
+      If hooks are returned, follow each instruction in order.
+
+   b. **Sync specs** if delta specs exist:
       - Use the openspec-sync-specs approach (agent-driven intelligent merge)
       - For conflicts, apply in resolved order
       - Track if sync was done
 
-   b. **Perform the archive**:
+   c. **Perform the archive**:
       \`\`\`bash
       mkdir -p openspec/changes/archive
       mv openspec/changes/<name> openspec/changes/archive/YYYY-MM-DD-<name>
       \`\`\`
 
-   c. **Track outcome** for each change:
+   d. **Execute post-archive hooks**:
+      \`\`\`bash
+      openspec instructions --hook post-archive --change "<name>" --json
+      \`\`\`
+      **Note:** The change has been moved to archive, so the \`--change\` flag may not resolve. If this fails, fall back to:
+      \`\`\`bash
+      openspec instructions --hook post-archive --json
+      \`\`\`
+      If hooks are returned, follow each instruction in order.
+
+   e. **Track outcome** for each change:
       - Success: archived successfully
       - Failed: error during archive (record error)
       - Skipped: user chose not to archive (if applicable)
 
-9. **Display summary**
+10. **Execute post-bulk-archive hooks**
+   \`\`\`bash
+   openspec instructions --hook post-bulk-archive --json
+   \`\`\`
+   If hooks are returned, follow each instruction in order.
+
+11. **Display summary**
 
    Show final results:
 
@@ -2493,7 +2741,15 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
    **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
 
-2. **Find delta specs**
+2. **Execute pre-sync hooks**
+
+   Run \`openspec instructions --hook pre-sync --change "<name>" --json\` to check for lifecycle hooks.
+
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before proceeding.
+
+   If the \`hooks\` array is empty, skip this step.
+
+3. **Find delta specs**
 
    Look for delta spec files in \`openspec/changes/<name>/specs/*/spec.md\`.
 
@@ -2505,7 +2761,7 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
    If no delta specs found, inform user and stop.
 
-3. **For each delta spec, apply changes to main specs**
+4. **For each delta spec, apply changes to main specs**
 
    For each capability with a delta spec at \`openspec/changes/<name>/specs/<capability>/spec.md\`:
 
@@ -2538,7 +2794,15 @@ This is an **agent-driven** operation - you will read delta specs and directly e
       - Add Purpose section (can be brief, mark as TBD)
       - Add Requirements section with the ADDED requirements
 
-4. **Show summary**
+5. **Execute post-sync hooks**
+
+   Run \`openspec instructions --hook post-sync --change "<name>" --json\` to check for lifecycle hooks.
+
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before displaying the summary.
+
+   If the \`hooks\` array is empty, skip this step.
+
+6. **Show summary**
 
    After applying all changes, summarize:
    - Which capabilities were updated
@@ -2647,7 +2911,13 @@ export function getVerifyChangeSkillTemplate(): SkillTemplate {
 
    This returns the change directory and context files. Read all available artifacts from \`contextFiles\`.
 
-4. **Initialize verification report structure**
+4. **Execute pre-verify hooks**
+
+   Run \`openspec instructions --hook pre-verify --change "<name>" --json\` to check for lifecycle hooks.
+
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before proceeding.
+
+5. **Initialize verification report structure**
 
    Create a report structure with three dimensions:
    - **Completeness**: Track tasks and spec coverage
@@ -2656,7 +2926,7 @@ export function getVerifyChangeSkillTemplate(): SkillTemplate {
 
    Each dimension can have CRITICAL, WARNING, or SUGGESTION issues.
 
-5. **Verify Completeness**
+6. **Verify Completeness**
 
    **Task Completion**:
    - If tasks.md exists in contextFiles, read it
@@ -2676,7 +2946,7 @@ export function getVerifyChangeSkillTemplate(): SkillTemplate {
        - Add CRITICAL issue: "Requirement not found: <requirement name>"
        - Recommendation: "Implement requirement X: <description>"
 
-6. **Verify Correctness**
+7. **Verify Correctness**
 
    **Requirement Implementation Mapping**:
    - For each requirement from delta specs:
@@ -2695,7 +2965,7 @@ export function getVerifyChangeSkillTemplate(): SkillTemplate {
        - Add WARNING: "Scenario not covered: <scenario name>"
        - Recommendation: "Add test or implementation for scenario: <description>"
 
-7. **Verify Coherence**
+8. **Verify Coherence**
 
    **Design Adherence**:
    - If design.md exists in contextFiles:
@@ -2713,7 +2983,7 @@ export function getVerifyChangeSkillTemplate(): SkillTemplate {
      - Add SUGGESTION: "Code pattern deviation: <details>"
      - Recommendation: "Consider following project pattern: <example>"
 
-8. **Generate Verification Report**
+9. **Generate Verification Report**
 
    **Summary Scorecard**:
    \`\`\`
@@ -2771,7 +3041,13 @@ Use clear markdown with:
 - Grouped lists for issues (CRITICAL/WARNING/SUGGESTION)
 - Code references in format: \`file.ts:123\`
 - Specific, actionable recommendations
-- No vague suggestions like "consider reviewing"`,
+- No vague suggestions like "consider reviewing"
+
+10. **Execute post-verify hooks**
+
+   Run \`openspec instructions --hook post-verify --change "<name>" --json\` to check for lifecycle hooks.
+
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before displaying the report.`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
@@ -2802,7 +3078,15 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
 
    **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
 
-2. **Check artifact completion status**
+2. **Execute pre-archive hooks**
+
+   Run \`openspec instructions --hook pre-archive --change "<name>" --json\` to check for lifecycle hooks.
+
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before proceeding.
+
+   If the \`hooks\` array is empty, skip this step.
+
+3. **Check artifact completion status**
 
    Run \`openspec status --change "<name>" --json\` to check artifact completion.
 
@@ -2815,7 +3099,7 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
    - Prompt user for confirmation to continue
    - Proceed if user confirms
 
-3. **Check task completion status**
+4. **Check task completion status**
 
    Read the tasks file (typically \`tasks.md\`) to check for incomplete tasks.
 
@@ -2828,7 +3112,7 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
 
    **If no tasks file exists:** Proceed without task-related warning.
 
-4. **Assess delta spec sync state**
+5. **Assess delta spec sync state**
 
    Check for delta specs at \`openspec/changes/<name>/specs/\`. If none exist, proceed without sync prompt.
 
@@ -2843,7 +3127,7 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
 
    If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
 
-5. **Perform the archive**
+6. **Perform the archive**
 
    Create the archive directory if it doesn't exist:
    \`\`\`bash
@@ -2860,7 +3144,17 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
    mv openspec/changes/<name> openspec/changes/archive/YYYY-MM-DD-<name>
    \`\`\`
 
-6. **Display summary**
+7. **Execute post-archive hooks**
+
+   Run \`openspec instructions --hook post-archive --change "<name>" --json\` to check for lifecycle hooks.
+
+   **Note:** The change has been moved to archive, so the \`--change\` flag may not resolve. If this fails, fall back to \`openspec instructions --hook post-archive --json\` (config-only hooks).
+
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before displaying the summary.
+
+   If the \`hooks\` array is empty, skip this step.
+
+8. **Display summary**
 
    Show archive completion summary including:
    - Change name
@@ -2971,13 +3265,19 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
 **Steps**
 
-1. **Get active changes**
+1. **Execute pre-bulk-archive hooks**
+   \`\`\`bash
+   openspec instructions --hook pre-bulk-archive --json
+   \`\`\`
+   If hooks are returned, follow each instruction in order before proceeding.
+
+2. **Get active changes**
 
    Run \`openspec list --json\` to get all active changes.
 
    If no active changes exist, inform user and stop.
 
-2. **Prompt for change selection**
+3. **Prompt for change selection**
 
    Use **AskUserQuestion tool** with multi-select to let user choose changes:
    - Show each change with its schema
@@ -2986,7 +3286,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    **IMPORTANT**: Do NOT auto-select. Always let the user choose.
 
-3. **Batch validation - gather status for all selected changes**
+4. **Batch validation - gather status for all selected changes**
 
    For each selected change, collect:
 
@@ -3002,7 +3302,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - List which capability specs exist
       - For each, extract requirement names (lines matching \`### Requirement: <name>\`)
 
-4. **Detect spec conflicts**
+5. **Detect spec conflicts**
 
    Build a map of \`capability -> [changes that touch it]\`:
 
@@ -3013,7 +3313,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    A conflict exists when 2+ selected changes have delta specs for the same capability.
 
-5. **Resolve conflicts agentically**
+6. **Resolve conflicts agentically**
 
    **For each conflict**, investigate the codebase:
 
@@ -3033,7 +3333,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - In what order (if both)
       - Rationale (what was found in codebase)
 
-6. **Show consolidated status table**
+7. **Show consolidated status table**
 
    Display a table summarizing all changes:
 
@@ -3058,7 +3358,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
    - add-verify-skill: 1 incomplete artifact, 3 incomplete tasks
    \`\`\`
 
-7. **Confirm batch operation**
+8. **Confirm batch operation**
 
    Use **AskUserQuestion tool** with a single confirmation:
 
@@ -3070,27 +3370,51 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    If there are incomplete changes, make clear they'll be archived with warnings.
 
-8. **Execute archive for each confirmed change**
+9. **Execute archive for each confirmed change**
 
-   Process changes in the determined order (respecting conflict resolution):
+   Process changes in the determined order (respecting conflict resolution).
 
-   a. **Sync specs** if delta specs exist:
+   **For each change**:
+
+   a. **Execute pre-archive hooks**:
+      \`\`\`bash
+      openspec instructions --hook pre-archive --change "<name>" --json
+      \`\`\`
+      If hooks are returned, follow each instruction in order.
+
+   b. **Sync specs** if delta specs exist:
       - Use the openspec-sync-specs approach (agent-driven intelligent merge)
       - For conflicts, apply in resolved order
       - Track if sync was done
 
-   b. **Perform the archive**:
+   c. **Perform the archive**:
       \`\`\`bash
       mkdir -p openspec/changes/archive
       mv openspec/changes/<name> openspec/changes/archive/YYYY-MM-DD-<name>
       \`\`\`
 
-   c. **Track outcome** for each change:
+   d. **Execute post-archive hooks**:
+      \`\`\`bash
+      openspec instructions --hook post-archive --change "<name>" --json
+      \`\`\`
+      **Note:** The change has been moved to archive, so the \`--change\` flag may not resolve. If this fails, fall back to:
+      \`\`\`bash
+      openspec instructions --hook post-archive --json
+      \`\`\`
+      If hooks are returned, follow each instruction in order.
+
+   e. **Track outcome** for each change:
       - Success: archived successfully
       - Failed: error during archive (record error)
       - Skipped: user chose not to archive (if applicable)
 
-9. **Display summary**
+10. **Execute post-bulk-archive hooks**
+   \`\`\`bash
+   openspec instructions --hook post-bulk-archive --json
+   \`\`\`
+   If hooks are returned, follow each instruction in order.
+
+11. **Display summary**
 
    Show final results:
 
@@ -3242,7 +3566,13 @@ export function getOpsxVerifyCommandTemplate(): CommandTemplate {
 
    This returns the change directory and context files. Read all available artifacts from \`contextFiles\`.
 
-4. **Initialize verification report structure**
+4. **Execute pre-verify hooks**
+
+   Run \`openspec instructions --hook pre-verify --change "<name>" --json\` to check for lifecycle hooks.
+
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before proceeding.
+
+5. **Initialize verification report structure**
 
    Create a report structure with three dimensions:
    - **Completeness**: Track tasks and spec coverage
@@ -3251,7 +3581,7 @@ export function getOpsxVerifyCommandTemplate(): CommandTemplate {
 
    Each dimension can have CRITICAL, WARNING, or SUGGESTION issues.
 
-5. **Verify Completeness**
+6. **Verify Completeness**
 
    **Task Completion**:
    - If tasks.md exists in contextFiles, read it
@@ -3271,7 +3601,7 @@ export function getOpsxVerifyCommandTemplate(): CommandTemplate {
        - Add CRITICAL issue: "Requirement not found: <requirement name>"
        - Recommendation: "Implement requirement X: <description>"
 
-6. **Verify Correctness**
+7. **Verify Correctness**
 
    **Requirement Implementation Mapping**:
    - For each requirement from delta specs:
@@ -3290,7 +3620,7 @@ export function getOpsxVerifyCommandTemplate(): CommandTemplate {
        - Add WARNING: "Scenario not covered: <scenario name>"
        - Recommendation: "Add test or implementation for scenario: <description>"
 
-7. **Verify Coherence**
+8. **Verify Coherence**
 
    **Design Adherence**:
    - If design.md exists in contextFiles:
@@ -3308,7 +3638,7 @@ export function getOpsxVerifyCommandTemplate(): CommandTemplate {
      - Add SUGGESTION: "Code pattern deviation: <details>"
      - Recommendation: "Consider following project pattern: <example>"
 
-8. **Generate Verification Report**
+9. **Generate Verification Report**
 
    **Summary Scorecard**:
    \`\`\`
@@ -3366,7 +3696,13 @@ Use clear markdown with:
 - Grouped lists for issues (CRITICAL/WARNING/SUGGESTION)
 - Code references in format: \`file.ts:123\`
 - Specific, actionable recommendations
-- No vague suggestions like "consider reviewing"`
+- No vague suggestions like "consider reviewing"
+
+10. **Execute post-verify hooks**
+
+   Run \`openspec instructions --hook post-verify --change "<name>" --json\` to check for lifecycle hooks.
+
+   If the \`hooks\` array is non-empty, follow each hook's \`instruction\` in order (schema hooks first, then config hooks). Complete all hook instructions before displaying the report.`
   };
 }
 /**

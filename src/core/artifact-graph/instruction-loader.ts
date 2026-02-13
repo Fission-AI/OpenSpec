@@ -6,9 +6,11 @@ import { detectCompleted } from './state.js';
 import { resolveSchemaForChange } from '../../utils/change-metadata.js';
 import { readProjectConfig, validateConfigRules } from '../project-config.js';
 import type { Artifact, CompletedSet } from './types.js';
+import { VALID_LIFECYCLE_POINTS } from './types.js';
 
 // Session-level cache for validation warnings (avoid repeating same warnings)
 const shownWarnings = new Set<string>();
+const validLifecyclePoints = new Set<string>(VALID_LIFECYCLE_POINTS);
 
 /**
  * Error thrown when loading a template fails.
@@ -360,4 +362,80 @@ export function formatChangeStatus(context: ChangeContext): ChangeStatus {
     applyRequires,
     artifacts: artifactStatuses,
   };
+}
+
+// -----------------------------------------------------------------------------
+// Hook Resolution
+// -----------------------------------------------------------------------------
+
+/**
+ * A resolved lifecycle hook with its source and instruction.
+ */
+export interface ResolvedHook {
+  /** Where this hook was defined */
+  source: 'schema' | 'config';
+  /** LLM instruction to follow at this lifecycle point */
+  instruction: string;
+}
+
+/**
+ * Resolves lifecycle hooks for a given lifecycle point.
+ *
+ * Resolution order:
+ * 1. Schema hooks (from the change's schema, or from config.yaml's default schema)
+ * 2. Config hooks (from project config.yaml)
+ *
+ * @param projectRoot - Project root directory
+ * @param changeName - Change name (null = resolve schema from config.yaml)
+ * @param lifecyclePoint - The lifecycle point to resolve hooks for
+ * @returns Array of resolved hooks in execution order (schema first, config second)
+ */
+export function resolveHooks(
+  projectRoot: string,
+  changeName: string | null,
+  lifecyclePoint: string
+): ResolvedHook[] {
+  if (!validLifecyclePoints.has(lifecyclePoint)) {
+    const valid = VALID_LIFECYCLE_POINTS.join(', ');
+    throw new Error(`Invalid lifecycle point: "${lifecyclePoint}". Valid points: ${valid}`);
+  }
+
+  const hooks: ResolvedHook[] = [];
+  let config = null;
+  try {
+    config = readProjectConfig(projectRoot);
+  } catch {
+    // If config read fails, continue without config hooks
+  }
+
+  // 1. Schema hooks
+  // If a change is specified, resolve schema from the change's metadata.
+  // Otherwise, resolve schema from config.yaml's default schema.
+  let schemaName: string | undefined;
+  if (changeName) {
+    const changeDir = path.join(projectRoot, 'openspec', 'changes', changeName);
+    schemaName = resolveSchemaForChange(changeDir);
+  } else {
+    schemaName = config?.schema ?? undefined;
+  }
+
+  if (schemaName) {
+    const schema = resolveSchema(schemaName, projectRoot);
+    if (schema.hooks?.[lifecyclePoint]) {
+      hooks.push({
+        source: 'schema',
+        instruction: schema.hooks[lifecyclePoint].instruction,
+      });
+    }
+  }
+
+  // 2. Config hooks
+  if (config?.hooks?.[lifecyclePoint]) {
+    hooks.push({
+      source: 'config',
+      instruction: config.hooks[lifecyclePoint].instruction,
+    });
+  }
+
+  return hooks;
 }

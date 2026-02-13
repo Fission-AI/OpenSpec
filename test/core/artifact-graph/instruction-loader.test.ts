@@ -8,6 +8,9 @@ import {
   generateInstructions,
   formatChangeStatus,
   TemplateLoadError,
+  resolveHooks,
+  ResolvedHook,
+  VALID_LIFECYCLE_POINTS,
 } from '../../../src/core/artifact-graph/instruction-loader.js';
 
 describe('instruction-loader', () => {
@@ -604,6 +607,196 @@ rules:
       // proposal must come before specs, specs before tasks
       expect(proposalIdx).toBeLessThan(specsIdx);
       expect(specsIdx).toBeLessThan(tasksIdx);
+    });
+  });
+
+  describe('resolveHooks', () => {
+    let tempDir: string;
+
+    beforeEach(() => {
+      tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-test-'));
+    });
+
+    afterEach(() => {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    });
+
+    /**
+     * Helper to create a custom schema with hooks in the test project.
+     */
+    function createSchemaWithHooks(
+      schemaName: string,
+      hooks: Record<string, { instruction: string }>
+    ): void {
+      const schemaDir = path.join(tempDir, 'openspec', 'schemas', schemaName);
+      fs.mkdirSync(schemaDir, { recursive: true });
+
+      const schemaContent = `name: ${schemaName}
+version: 1
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Test proposal
+    template: templates/proposal.md
+${Object.keys(hooks).length > 0 ? 'hooks:\n' : ''}${Object.entries(hooks)
+        .map(([point, hook]) => `  ${point}:\n    instruction: "${hook.instruction}"`)
+        .join('\n')}
+`;
+
+      fs.writeFileSync(path.join(schemaDir, 'schema.yaml'), schemaContent);
+
+      // Create a minimal template
+      const templatesDir = path.join(schemaDir, 'templates');
+      fs.mkdirSync(templatesDir, { recursive: true });
+      fs.writeFileSync(path.join(templatesDir, 'proposal.md'), '# Proposal');
+    }
+
+    /**
+     * Helper to create a change that uses a specific schema.
+     */
+    function createChangeWithSchema(changeName: string, schemaName: string): void {
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      fs.mkdirSync(changeDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(changeDir, '.openspec.yaml'),
+        `schema: ${schemaName}\ncreated: "2025-01-05"\n`
+      );
+    }
+
+    /**
+     * Helper to create a project config with hooks.
+     */
+    function createConfigWithHooks(hooks: Record<string, { instruction: string }>): void {
+      const configDir = path.join(tempDir, 'openspec');
+      fs.mkdirSync(configDir, { recursive: true });
+
+      const configContent = `schema: spec-driven
+${Object.keys(hooks).length > 0 ? 'hooks:\n' : ''}${Object.entries(hooks)
+        .map(([point, hook]) => `  ${point}:\n    instruction: "${hook.instruction}"`)
+        .join('\n')}
+`;
+
+      fs.writeFileSync(path.join(configDir, 'config.yaml'), configContent);
+    }
+
+    it('should return empty array when no hooks defined', () => {
+      // Create a change using built-in spec-driven schema (no hooks)
+      createChangeWithSchema('my-change', 'spec-driven');
+
+      const hooks = resolveHooks(tempDir, 'my-change', 'pre-archive');
+
+      expect(hooks).toEqual([]);
+    });
+
+    it('should return schema hooks when defined', () => {
+      // Create custom schema with pre-archive hook
+      createSchemaWithHooks('test-schema', {
+        'pre-archive': { instruction: 'Schema pre-archive hook' },
+      });
+
+      // Create change pointing to custom schema
+      createChangeWithSchema('my-change', 'test-schema');
+
+      const hooks = resolveHooks(tempDir, 'my-change', 'pre-archive');
+
+      expect(hooks).toHaveLength(1);
+      expect(hooks[0]).toEqual({
+        source: 'schema',
+        instruction: 'Schema pre-archive hook',
+      });
+    });
+
+    it('should return config hooks when defined', () => {
+      // Create config with pre-archive hook
+      createConfigWithHooks({
+        'pre-archive': { instruction: 'Config hook' },
+      });
+
+      // No change name (null) - only config hooks
+      const hooks = resolveHooks(tempDir, null, 'pre-archive');
+
+      expect(hooks).toHaveLength(1);
+      expect(hooks[0]).toEqual({
+        source: 'config',
+        instruction: 'Config hook',
+      });
+    });
+
+    it('should return schema hooks first, then config hooks', () => {
+      // Create custom schema with pre-archive hook
+      createSchemaWithHooks('test-schema', {
+        'pre-archive': { instruction: 'Schema hook' },
+      });
+
+      // Create change pointing to custom schema
+      createChangeWithSchema('my-change', 'test-schema');
+
+      // Create config with pre-archive hook
+      createConfigWithHooks({
+        'pre-archive': { instruction: 'Config hook' },
+      });
+
+      const hooks = resolveHooks(tempDir, 'my-change', 'pre-archive');
+
+      expect(hooks).toHaveLength(2);
+      expect(hooks[0]).toEqual({
+        source: 'schema',
+        instruction: 'Schema hook',
+      });
+      expect(hooks[1]).toEqual({
+        source: 'config',
+        instruction: 'Config hook',
+      });
+    });
+
+    it('should return only config hooks when changeName is null', () => {
+      // Create custom schema with hooks (should be ignored)
+      createSchemaWithHooks('test-schema', {
+        'pre-archive': { instruction: 'Schema hook' },
+      });
+
+      // Create change pointing to custom schema (should be ignored)
+      createChangeWithSchema('my-change', 'test-schema');
+
+      // Create config with pre-archive hook
+      createConfigWithHooks({
+        'pre-archive': { instruction: 'Config hook' },
+      });
+
+      // Pass null for changeName - should only return config hooks
+      const hooks = resolveHooks(tempDir, null, 'pre-archive');
+
+      expect(hooks).toHaveLength(1);
+      expect(hooks[0]).toEqual({
+        source: 'config',
+        instruction: 'Config hook',
+      });
+    });
+
+    it('should throw on invalid lifecycle point', () => {
+      createChangeWithSchema('my-change', 'spec-driven');
+
+      expect(() => resolveHooks(tempDir, 'my-change', 'invalid-point')).toThrow(
+        /Invalid lifecycle point/
+      );
+      expect(() => resolveHooks(tempDir, 'my-change', 'invalid-point')).toThrow(
+        /invalid-point/
+      );
+    });
+
+    it('should return empty array when lifecycle point has no hooks', () => {
+      // Create custom schema with hooks for pre-archive only
+      createSchemaWithHooks('test-schema', {
+        'pre-archive': { instruction: 'Schema pre-archive hook' },
+      });
+
+      // Create change pointing to custom schema
+      createChangeWithSchema('my-change', 'test-schema');
+
+      // Query for different lifecycle point (post-sync)
+      const hooks = resolveHooks(tempDir, 'my-change', 'post-sync');
+
+      expect(hooks).toEqual([]);
     });
   });
 });

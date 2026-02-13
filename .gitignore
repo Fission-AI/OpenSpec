@@ -153,3 +153,10 @@ result
 # OpenCode
 .opencode/
 opencode.json
+
+# Codex
+.codex/
+
+# GitHub generated files (openspec update)
+.github/prompts/
+.github/skills/
