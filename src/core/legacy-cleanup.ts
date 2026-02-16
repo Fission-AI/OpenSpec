@@ -42,6 +42,7 @@ export const LEGACY_SLASH_COMMAND_PATHS: Record<string, LegacySlashCommandPatter
   'cursor': { type: 'files', pattern: '.cursor/commands/openspec-*.md' },
   'windsurf': { type: 'files', pattern: '.windsurf/workflows/openspec-*.md' },
   'kilocode': { type: 'files', pattern: '.kilocode/workflows/openspec-*.md' },
+  'kiro': { type: 'files', pattern: '.kiro/prompts/openspec-*.prompt.md' },
   'github-copilot': { type: 'files', pattern: '.github/prompts/openspec-*.prompt.md' },
   'amazon-q': { type: 'files', pattern: '.amazonq/prompts/openspec-*.md' },
   'cline': { type: 'files', pattern: '.clinerules/workflows/openspec-*.md' },
