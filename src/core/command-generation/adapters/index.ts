@@ -20,6 +20,7 @@ export { geminiAdapter } from './gemini.js';
 export { githubCopilotAdapter } from './github-copilot.js';
 export { iflowAdapter } from './iflow.js';
 export { kilocodeAdapter } from './kilocode.js';
+export { kiroAdapter } from './kiro.js';
 export { opencodeAdapter } from './opencode.js';
 export { qoderAdapter } from './qoder.js';
 export { qwenAdapter } from './qwen.js';
