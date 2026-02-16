@@ -48,7 +48,7 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getOpsxOnboardCommandTemplate: '8d6fd8918a8e21d80974ac44b547c5af4c02ffdbe5fe2d9bf05162116af90fce',
   getOpsxBulkArchiveCommandTemplate: '166ce6a552515b82526d3806218c03ec1b6e8aba6dc6fdf7b72c725ad2a2d4cd',
   getOpsxVerifyCommandTemplate: '9b4d3ca422553b7534764eb3a009da87a051612c5238e9baab294c7b1233e9a2',
-  getFeedbackSkillTemplate: '776c601db3145f9eb2a0dc54a227bb7e91750e16d25e37744aebb961d66ed0f9',
+  getFeedbackSkillTemplate: 'd7d83c5f7fc2b92fe8f4588a5bf2d9cb315e4c73ec19bcd5ef28270906319a0d',
 };
 
 const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {

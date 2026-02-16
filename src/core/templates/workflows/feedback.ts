@@ -107,6 +107,9 @@ Body:
 Does this look good? I can modify it if you'd like, or submit it as-is.
 \`\`\`
 
-Only proceed with submission after user confirms.`
+Only proceed with submission after user confirms.`,
+    license: 'MIT',
+    compatibility: 'Requires openspec CLI.',
+    metadata: { author: 'openspec', version: '1.0' },
   };
 }
