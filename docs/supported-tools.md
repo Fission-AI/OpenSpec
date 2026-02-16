@@ -35,6 +35,7 @@ For each tool you select, OpenSpec installs:
 | RooCode | `.roo/skills/` | `.roo/commands/` |
 | Trae | `.trae/skills/` | `.trae/skills/` (via `/openspec-*`) |
 | Windsurf | `.windsurf/skills/` | `.windsurf/workflows/` |
+| Kimi CLI | `.kimi/skills/` | `.kimi/commands/` |
 
 \* Codex commands are installed to the global home directory (`~/.codex/prompts/` or `$CODEX_HOME/prompts/`), not the project directory.
 
@@ -55,7 +56,7 @@ openspec init --tools all
 openspec init --tools none
 ```
 
-**Available tool IDs:** `amazon-q`, `antigravity`, `auggie`, `claude`, `cline`, `codebuddy`, `codex`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `iflow`, `kilocode`, `opencode`, `qoder`, `qwen`, `roocode`, `trae`, `windsurf`
+**Available tool IDs:** `amazon-q`, `antigravity`, `auggie`, `claude`, `cline`, `codebuddy`, `codex`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `iflow`, `kilocode`, `opencode`, `qoder`, `qwen`, `roocode`, `trae`, `windsurf`, `kimi`
 
 ## What Gets Installed
 
