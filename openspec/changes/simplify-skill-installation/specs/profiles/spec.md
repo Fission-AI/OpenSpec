@@ -1,0 +1,58 @@
+## ADDED Requirements
+
+### Requirement: Profile definitions
+The system SHALL support three workflow profiles: `core`, `extended`, and `custom`.
+
+#### Scenario: Core profile contents
+- **WHEN** profile is set to `core`
+- **THEN** the profile SHALL include workflows: `propose`, `explore`, `apply`, `archive`
+
+#### Scenario: Extended profile contents
+- **WHEN** profile is set to `extended`
+- **THEN** the profile SHALL include all 11 workflows: `propose`, `explore`, `apply`, `archive`, `new`, `ff`, `continue`, `verify`, `sync`, `bulk-archive`, `onboard`
+
+#### Scenario: Custom profile contents
+- **WHEN** profile is set to `custom`
+- **THEN** the profile SHALL include only the workflows specified in global config `workflows` array
+
+### Requirement: Profile CLI commands
+The system SHALL provide CLI commands for managing profiles.
+
+#### Scenario: Set profile
+- **WHEN** user runs `openspec profile set <name>`
+- **THEN** the system SHALL update the global config profile setting
+- **THEN** the system SHALL output confirmation of the change
+
+#### Scenario: Install individual workflow
+- **WHEN** user runs `openspec profile install <workflow>`
+- **THEN** the system SHALL set profile to `custom` if not already
+- **THEN** the system SHALL add the workflow to the global config `workflows` array
+- **THEN** the system SHALL detect all configured tools in current project
+- **THEN** the system SHALL immediately generate skill/command files for the workflow across all detected tools
+- **THEN** the system SHALL display confirmation with installed locations
+
+#### Scenario: Uninstall individual workflow
+- **WHEN** user runs `openspec profile uninstall <workflow>`
+- **THEN** the system SHALL set profile to `custom` if not already
+- **THEN** the system SHALL remove the workflow from the global config `workflows` array
+- **THEN** the system SHALL detect all configured tools in current project
+- **THEN** the system SHALL immediately delete skill directories for the workflow (via SKILL_NAMES lookup)
+- **THEN** the system SHALL immediately delete command files for the workflow (via COMMAND_IDS lookup)
+- **THEN** the system SHALL only delete items whose names/IDs exist in SKILL_NAMES or COMMAND_IDS constants
+- **THEN** the system SHALL display confirmation with removed locations
+
+#### Scenario: List available profiles
+- **WHEN** user runs `openspec profile list`
+- **THEN** the system SHALL display all available profiles with their workflow counts
+
+#### Scenario: Show current installation
+- **WHEN** user runs `openspec profile show`
+- **THEN** the system SHALL read the filesystem to show actually installed workflows
+- **THEN** the system SHALL indicate which profile the installation matches (if any)
+
+### Requirement: Profile defaults
+The system SHALL use `core` as the default profile for new users.
+
+#### Scenario: No global config exists
+- **WHEN** global config file does not exist
+- **THEN** the system SHALL behave as if profile is `core`
