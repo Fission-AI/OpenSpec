@@ -84,6 +84,7 @@ describe('Validation Schemas', () => {
     it('should validate a valid spec', () => {
       const spec = {
         name: 'user-auth',
+        title: 'User Authentication',
         overview: 'This spec defines user authentication requirements',
         requirements: [
           {
@@ -104,6 +105,7 @@ describe('Validation Schemas', () => {
     it('should reject spec without requirements', () => {
       const spec = {
         name: 'user-auth',
+        title: 'User Authentication',
         overview: 'This spec defines user authentication requirements',
         requirements: [],
       };

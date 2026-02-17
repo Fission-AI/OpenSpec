@@ -52,8 +52,15 @@ The command SHALL display items in a clear, readable table format with mode-appr
   - Requirement count (e.g., "requirements 12")
 
 #### Scenario: JSON output for specs
-- **WHEN** `openspec list --specs --json` is executed
-- **THEN** output a JSON object with key `specs` and an array of objects with `id` and `requirementCount`
+- **WHEN** `openspec list --specs --json` is executed without `--detail`
+- **THEN** output a JSON object with key `specs` and an array of objects with `id` and `requirementCount` only
+- **AND** output `{ "specs": [] }` when no specs exist
+
+#### Scenario: JSON output for specs with detail
+- **WHEN** `openspec list --specs --json --detail` is executed
+- **THEN** output a JSON object with key `specs` and an array of objects with `id`, `requirementCount`, `title`, and `overview`
+- **AND** `title` SHALL be the spec's display title (from document H1 or spec id)
+- **AND** `overview` SHALL be the spec's Purpose section content
 - **AND** output `{ "specs": [] }` when no specs exist
 
 #### Scenario: Displaying archive list
@@ -65,7 +72,7 @@ The command SHALL display items in a clear, readable table format with mode-appr
 - **THEN** output a JSON object with key `archivedChanges` and an array of objects with `name`, `completedTasks`, `totalTasks`, `lastModified` (ISO string), and `status`
 
 ### Requirement: Flags
-The command SHALL accept flags to select the noun being listed. When more than one of `--changes`, `--specs`, or `--archive` is provided, the effective mode SHALL be determined by precedence: `--archive` overrides `--specs`, `--specs` overrides default (changes).
+The command SHALL accept flags to select the noun being listed. When more than one of `--changes`, `--specs`, or `--archive` is provided, the effective mode SHALL be determined by precedence: `--archive` overrides `--specs`, `--specs` overrides default (changes). The command SHALL accept a `--detail` flag that, when used with `--specs --json`, causes each spec entry to include `title` and `overview`.
 
 #### Scenario: Selecting specs
 - **WHEN** `--specs` is provided
@@ -82,6 +89,11 @@ The command SHALL accept flags to select the noun being listed. When more than o
 #### Scenario: Mode precedence
 - **WHEN** more than one of `--changes`, `--specs`, or `--archive` is provided
 - **THEN** the effective mode SHALL be determined by precedence: `--archive` overrides `--specs`, `--specs` overrides default (changes)
+
+#### Scenario: Requesting detail for spec list JSON
+- **WHEN** `--detail` is provided together with `--specs --json`
+- **THEN** each object in the `specs` array SHALL include `title` and `overview` in addition to `id` and `requirementCount`
+- **AND** when `--detail` is omitted, spec list JSON SHALL remain unchanged (id and requirementCount only)
 
 ### Requirement: Empty State
 The command SHALL provide clear feedback when no items are present for the selected mode.

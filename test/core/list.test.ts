@@ -163,7 +163,7 @@ Regular text that should be ignored
       expect(logOutput.some(line => line.includes('no-tasks') && line.includes('No tasks'))).toBe(true);
     });
 
-    it('should output JSON for specs mode with id and requirementCount', async () => {
+    it('should output JSON for specs mode with id and requirementCount only (no detail)', async () => {
       const specsDir = path.join(tempDir, 'openspec', 'specs');
       await fs.mkdir(path.join(specsDir, 'cap-a'), { recursive: true });
       await fs.writeFile(
@@ -180,6 +180,30 @@ Regular text that should be ignored
       expect(Array.isArray(parsed.specs)).toBe(true);
       expect(parsed.specs.length).toBe(1);
       expect(parsed.specs[0]).toMatchObject({ id: 'cap-a', requirementCount: expect.any(Number) });
+      expect(parsed.specs[0]).not.toHaveProperty('title');
+      expect(parsed.specs[0]).not.toHaveProperty('overview');
+    });
+
+    it('should include title and overview in specs JSON when detail is true', async () => {
+      const specsDir = path.join(tempDir, 'openspec', 'specs');
+      await fs.mkdir(path.join(specsDir, 'cap-b'), { recursive: true });
+      await fs.writeFile(
+        path.join(specsDir, 'cap-b', 'spec.md'),
+        '# My Cap B Title\n\n## Purpose\nThis is the overview for cap-b.\n\n## Requirements\n### Requirement: R\nSHALL\n#### Scenario: S\n- **WHEN** a\n- **THEN** b\n'
+      );
+
+      const listCommand = new ListCommand();
+      await listCommand.execute(tempDir, 'specs', { json: true, detail: true });
+
+      const out = logOutput.join('\n');
+      const parsed = JSON.parse(out);
+      expect(parsed.specs.length).toBe(1);
+      expect(parsed.specs[0]).toMatchObject({
+        id: 'cap-b',
+        requirementCount: 1,
+        title: 'My Cap B Title',
+        overview: 'This is the overview for cap-b.',
+      });
     });
 
     it('should output empty specs array when no specs exist (specs mode + json)', async () => {

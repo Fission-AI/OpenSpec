@@ -23,6 +23,8 @@ export class MarkdownParser {
 
   parseSpec(name: string): Spec {
     const sections = this.parseSections();
+    const titleSection = sections.find(s => s.level === 1);
+    const title = titleSection?.title?.trim() || name;
     const purpose = this.findSection(sections, 'Purpose')?.content || '';
     
     const requirementsSection = this.findSection(sections, 'Requirements');
@@ -39,6 +41,7 @@ export class MarkdownParser {
 
     return {
       name,
+      title,
       overview: purpose.trim(),
       requirements,
       metadata: {

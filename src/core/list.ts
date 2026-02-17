@@ -15,6 +15,7 @@ interface ChangeInfo {
 interface ListOptions {
   sort?: 'recent' | 'name';
   json?: boolean;
+  detail?: boolean;
 }
 
 /**
@@ -76,7 +77,7 @@ function formatRelativeTime(date: Date): string {
 
 export class ListCommand {
   async execute(targetPath: string = '.', mode: 'changes' | 'specs' | 'archive' = 'changes', options: ListOptions = {}): Promise<void> {
-    const { sort = 'recent', json = false } = options;
+    const { sort = 'recent', json = false, detail = false } = options;
 
     if (mode === 'changes') {
       const changesDir = path.join(targetPath, 'openspec', 'changes');
@@ -175,7 +176,7 @@ export class ListCommand {
       return;
     }
 
-    type SpecInfo = { id: string; requirementCount: number };
+    type SpecInfo = { id: string; requirementCount: number; title?: string; overview?: string };
     const specs: SpecInfo[] = [];
     for (const id of specDirs) {
       const specPath = join(specsDir, id, 'spec.md');
@@ -183,7 +184,12 @@ export class ListCommand {
         const content = readFileSync(specPath, 'utf-8');
         const parser = new MarkdownParser(content);
         const spec = parser.parseSpec(id);
-        specs.push({ id, requirementCount: spec.requirements.length });
+        const entry: SpecInfo = { id, requirementCount: spec.requirements.length };
+        if (json && detail) {
+          entry.title = spec.title;
+          entry.overview = spec.overview;
+        }
+        specs.push(entry);
       } catch {
         // If spec cannot be read or parsed, include with 0 count
         specs.push({ id, requirementCount: 0 });
