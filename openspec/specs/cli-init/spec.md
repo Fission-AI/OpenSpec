@@ -19,83 +19,41 @@ The command SHALL display progress indicators during initialization to provide c
   - Then success: "✔ AI tools configured"
 
 ### Requirement: Directory Creation
-The command SHALL create the complete OpenSpec directory structure with all required directories and files.
+
+The command SHALL create the OpenSpec directory structure with config file.
 
 #### Scenario: Creating OpenSpec structure
+
 - **WHEN** `openspec init` is executed
 - **THEN** create the following directory structure:
 ```
 openspec/
-├── project.md
-├── AGENTS.md
+├── config.yaml
 ├── specs/
 └── changes/
     └── archive/
 ```
 
-### Requirement: File Generation
-The command SHALL generate required template files with appropriate content for immediate use.
-
-#### Scenario: Generating template files
-- **WHEN** initializing OpenSpec
-- **THEN** generate `openspec/AGENTS.md` containing complete OpenSpec instructions for AI assistants
-- **AND** generate `project.md` with project context template
-
 ### Requirement: AI Tool Configuration
-The command SHALL configure AI coding assistants with OpenSpec instructions using a grouped selection experience so teams can enable native integrations while always provisioning guidance for other assistants.
+
+The command SHALL configure AI coding assistants with skills and slash commands using a searchable multi-select experience.
 
 #### Scenario: Prompting for AI tool selection
+
 - **WHEN** run interactively
-- **THEN** present a multi-select wizard that separates options into two headings:
-  - **Natively supported providers** shows each available first-party integration (Claude Code, Cursor, OpenCode, …) with checkboxes
-  - **Other tools** explains that the root-level `AGENTS.md` stub is always generated for AGENTS-compatible assistants and cannot be deselected
-- **AND** mark already configured native tools with "(already configured)" to signal that choosing them will refresh managed content
-- **AND** keep disabled or unavailable providers labelled as "coming soon" so users know they cannot opt in yet
-- **AND** allow confirming the selection even when no native provider is chosen because the root stub remains enabled by default
-- **AND** change the base prompt copy in extend mode to "Which natively supported AI tools would you like to add or refresh?"
+- **THEN** display animated welcome screen with OpenSpec logo
+- **AND** present a searchable multi-select that shows all available tools
+- **AND** mark already configured tools with "(configured ✓)" indicator
+- **AND** pre-select configured tools for easy refresh
+- **AND** sort configured tools to appear first in the list
+- **AND** allow filtering by typing to search
 
-### Requirement: AI Tool Configuration Details
+#### Scenario: Selecting tools to configure
 
-The command SHALL properly configure selected AI tools with OpenSpec-specific instructions using a marker system.
-
-#### Scenario: Configuring Claude Code
-
-- **WHEN** Claude Code is selected
-- **THEN** create or update `CLAUDE.md` in the project root directory (not inside openspec/)
-- **AND** populate the managed block with a short stub that points teammates to `@/openspec/AGENTS.md`
-
-#### Scenario: Configuring CodeBuddy Code
-
-- **WHEN** CodeBuddy Code is selected
-- **THEN** create or update `CODEBUDDY.md` in the project root directory (not inside openspec/)
-- **AND** populate the managed block with a short stub that points teammates to `@/openspec/AGENTS.md`
-
-#### Scenario: Configuring Cline
-
-- **WHEN** Cline is selected
-- **THEN** create or update `CLINE.md` in the project root directory (not inside openspec/)
-- **AND** populate the managed block with a short stub that points teammates to `@/openspec/AGENTS.md`
-
-#### Scenario: Configuring iFlow CLI
-
-- **WHEN** iFlow CLI is selected
-- **THEN** create or update `IFLOW.md` in the project root directory (not inside openspec/)
-- **AND** populate the managed block with a short stub that points teammates to `@/openspec/AGENTS.md`
-
-#### Scenario: Creating new CLAUDE.md
-
-- **WHEN** CLAUDE.md does not exist
-- **THEN** create new file with stub instructions wrapped in markers so the full workflow stays in `openspec/AGENTS.md`:
-```markdown
-<!-- OPENSPEC:START -->
-# OpenSpec Instructions
-
-This project uses OpenSpec to manage AI assistant workflows.
-
-- Full guidance lives in '@/openspec/AGENTS.md'.
-- Keep this managed block so 'openspec update' can refresh the instructions.
-<!-- OPENSPEC:END -->
-```
+- **WHEN** user selects tools and confirms
+- **THEN** generate skills in `.<tool>/skills/` directory for each selected tool
+- **AND** generate slash commands in `.<tool>/commands/opsx/` directory for each selected tool
+- **AND** create `openspec/config.yaml` with default schema setting
 
 ### Requirement: Interactive Mode
 The command SHALL provide an interactive menu for AI tool selection with clear navigation instructions.
@@ -121,14 +79,22 @@ The command SHALL perform safety checks to prevent overwriting existing structur
 The command SHALL provide clear, actionable next steps upon successful initialization.
 
 #### Scenario: Displaying success message
+
 - **WHEN** initialization completes successfully
-- **THEN** include prompt: "Please explain the OpenSpec workflow from openspec/AGENTS.md and how I should work with you on this project"
+- **THEN** display categorized summary:
+  - "Created: <tools>" for newly configured tools
+  - "Refreshed: <tools>" for already-configured tools that were updated
+  - Count of skills and commands generated
+- **AND** display getting started section with:
+  - `/opsx:new` - Start a new change
+  - `/opsx:continue` - Create the next artifact
+  - `/opsx:apply` - Implement tasks
+- **AND** display links to documentation and feedback
 
 #### Scenario: Displaying restart instruction
+
 - **WHEN** initialization completes successfully and tools were created or refreshed
-- **THEN** display a prominent restart instruction before the "Next steps" section
-- **AND** inform users that slash commands are loaded at startup
-- **AND** instruct users to restart their coding assistant to ensure /openspec commands appear
+- **THEN** display instruction to restart IDE for slash commands to take effect
 
 ### Requirement: Exit Codes
 
@@ -169,151 +135,95 @@ The command SHALL use consistent exit codes to indicate different failure modes.
 - **THEN** complete successfully while refreshing the root `AGENTS.md` stub
 - **AND** exit with code 0
 
-### Requirement: Slash Command Configuration
-The init command SHALL generate slash command files for supported editors using shared templates.
-
-#### Scenario: Generating slash commands for Antigravity
-- **WHEN** the user selects Antigravity during initialization
-- **THEN** create `.agent/workflows/openspec-proposal.md`, `.agent/workflows/openspec-apply.md`, and `.agent/workflows/openspec-archive.md`
-- **AND** ensure each file begins with YAML frontmatter that contains only a `description: <stage summary>` field followed by the shared OpenSpec workflow instructions wrapped in managed markers
-- **AND** populate the workflow body with the same proposal/apply/archive guidance used for other tools so Antigravity behaves like Windsurf while pointing to the `.agent/workflows/` directory
-
-#### Scenario: Generating slash commands for Claude Code
-- **WHEN** the user selects Claude Code during initialization
-- **THEN** create `.claude/commands/openspec/proposal.md`, `.claude/commands/openspec/apply.md`, and `.claude/commands/openspec/archive.md`
-- **AND** populate each file from shared templates so command text matches other tools
-- **AND** each template includes instructions for the relevant OpenSpec workflow stage
-
-#### Scenario: Generating slash commands for CodeBuddy Code
-- **WHEN** the user selects CodeBuddy Code during initialization
-- **THEN** create `.codebuddy/commands/openspec/proposal.md`, `.codebuddy/commands/openspec/apply.md`, and `.codebuddy/commands/openspec/archive.md`
-- **AND** populate each file from shared templates that include CodeBuddy-compatible YAML frontmatter for the `description` and `argument-hint` fields
-- **AND** use square bracket format for `argument-hint` parameters (e.g., `[change-id]`)
-- **AND** each template includes instructions for the relevant OpenSpec workflow stage
-
-#### Scenario: Generating slash commands for Cline
-- **WHEN** the user selects Cline during initialization
-- **THEN** create `.clinerules/workflows/openspec-proposal.md`, `.clinerules/workflows/openspec-apply.md`, and `.clinerules/workflows/openspec-archive.md`
-- **AND** populate each file from shared templates so command text matches other tools
-- **AND** include Cline-specific Markdown heading frontmatter
-- **AND** each template includes instructions for the relevant OpenSpec workflow stage
-
-#### Scenario: Generating slash commands for Crush
-- **WHEN** the user selects Crush during initialization
-- **THEN** create `.crush/commands/openspec/proposal.md`, `.crush/commands/openspec/apply.md`, and `.crush/commands/openspec/archive.md`
-- **AND** populate each file from shared templates so command text matches other tools
-- **AND** include Crush-specific frontmatter with OpenSpec category and tags
-- **AND** each template includes instructions for the relevant OpenSpec workflow stage
-
-#### Scenario: Generating slash commands for Cursor
-- **WHEN** the user selects Cursor during initialization
-- **THEN** create `.cursor/commands/openspec-proposal.md`, `.cursor/commands/openspec-apply.md`, and `.cursor/commands/openspec-archive.md`
-- **AND** populate each file from shared templates so command text matches other tools
-- **AND** each template includes instructions for the relevant OpenSpec workflow stage
-
-#### Scenario: Generating slash commands for Continue
-- **WHEN** the user selects Continue during initialization
-- **THEN** create `.continue/prompts/openspec-proposal.prompt`, `.continue/prompts/openspec-apply.prompt`, and `.continue/prompts/openspec-archive.prompt`
-- **AND** populate each file from shared templates so command text matches other tools
-- **AND** each template includes instructions for the relevant OpenSpec workflow stage
-
-#### Scenario: Generating slash commands for Factory Droid
-- **WHEN** the user selects Factory Droid during initialization
-- **THEN** create `.factory/commands/openspec-proposal.md`, `.factory/commands/openspec-apply.md`, and `.factory/commands/openspec-archive.md`
-- **AND** populate each file from shared templates that include Factory-compatible YAML frontmatter for the `description` and `argument-hint` fields
-- **AND** include the `$ARGUMENTS` placeholder in the template body so droid receives any user-supplied input
-- **AND** wrap the generated content in OpenSpec managed markers so `openspec update` can safely refresh the commands
-
-#### Scenario: Generating slash commands for OpenCode
-- **WHEN** the user selects OpenCode during initialization
-- **THEN** create `.opencode/commands/openspec-proposal.md`, `.opencode/commands/openspec-apply.md`, and `.opencode/commands/openspec-archive.md`
-- **AND** populate each file from shared templates so command text matches other tools
-- **AND** each template includes instructions for the relevant OpenSpec workflow stage
-
-#### Scenario: Generating slash commands for Windsurf
-- **WHEN** the user selects Windsurf during initialization
-- **THEN** create `.windsurf/workflows/openspec-proposal.md`, `.windsurf/workflows/openspec-apply.md`, and `.windsurf/workflows/openspec-archive.md`
-- **AND** populate each file from shared templates (wrapped in OpenSpec markers) so workflow text matches other tools
-- **AND** each template includes instructions for the relevant OpenSpec workflow stage
-
-#### Scenario: Generating slash commands for Kilo Code
-- **WHEN** the user selects Kilo Code during initialization
-- **THEN** create `.kilocode/workflows/openspec-proposal.md`, `.kilocode/workflows/openspec-apply.md`, and `.kilocode/workflows/openspec-archive.md`
-- **AND** populate each file from shared templates (wrapped in OpenSpec markers) so workflow text matches other tools
-- **AND** each template includes instructions for the relevant OpenSpec workflow stage
-
-#### Scenario: Generating slash commands for Codex
-- **WHEN** the user selects Codex during initialization
-- **THEN** create global prompt files at `~/.codex/prompts/openspec-proposal.md`, `~/.codex/prompts/openspec-apply.md`, and `~/.codex/prompts/openspec-archive.md` (or under `$CODEX_HOME/prompts` if set)
-- **AND** populate each file from shared templates that map the first numbered placeholder (`$1`) to the primary user input (e.g., change identifier or question text)
-- **AND** wrap the generated content in OpenSpec markers so `openspec update` can refresh the prompts without touching surrounding custom notes
-
-#### Scenario: Generating slash commands for GitHub Copilot
-- **WHEN** the user selects GitHub Copilot during initialization
-- **THEN** create `.github/prompts/openspec-proposal.prompt.md`, `.github/prompts/openspec-apply.prompt.md`, and `.github/prompts/openspec-archive.prompt.md`
-- **AND** populate each file with YAML frontmatter containing a `description` field that summarizes the workflow stage
-- **AND** include `$ARGUMENTS` placeholder to capture user input
-- **AND** wrap the shared template body with OpenSpec markers so `openspec update` can refresh the content
-- **AND** each template includes instructions for the relevant OpenSpec workflow stage
-
-#### Scenario: Generating slash commands for Gemini CLI
-- **WHEN** the user selects Gemini CLI during initialization
-- **THEN** create `.gemini/commands/openspec/proposal.toml`, `.gemini/commands/openspec/apply.toml`, and `.gemini/commands/openspec/archive.toml`
-- **AND** populate each file as TOML that sets a stage-specific `description = "<summary>"` and a multi-line `prompt = """` block with the shared OpenSpec template
-- **AND** wrap the OpenSpec managed markers (`<!-- OPENSPEC:START -->` / `<!-- OPENSPEC:END -->`) inside the `prompt` value so `openspec update` can safely refresh the body between markers without touching the TOML framing
-- **AND** ensure the slash-command copy matches the existing proposal/apply/archive templates used by other tools
-
-#### Scenario: Generating slash commands for iFlow CLI
-- **WHEN** the user selects iFlow CLI during initialization
-- **THEN** create `.iflow/commands/openspec-proposal.md`, `.iflow/commands/openspec-apply.md`, and `.iflow/commands/openspec-archive.md`
-- **AND** populate each file from shared templates so command text matches other tools
-- **AND** include YAML frontmatter with `name`, `id`, `category`, and `description` fields for each command
-- **AND** wrap the generated content in OpenSpec managed markers so `openspec update` can safely refresh the commands
-- **AND** each template includes instructions for the relevant OpenSpec workflow stage
-
-#### Scenario: Generating slash commands for RooCode
-- **WHEN** the user selects RooCode during initialization
-- **THEN** create `.roo/commands/openspec-proposal.md`, `.roo/commands/openspec-apply.md`, and `.roo/commands/openspec-archive.md`
-- **AND** populate each file from shared templates so command text matches other tools
-- **AND** include simple Markdown headings (e.g., `# OpenSpec: Proposal`) without YAML frontmatter
-- **AND** wrap the generated content in OpenSpec managed markers where applicable so `openspec update` can safely refresh the commands
-- **AND** each template includes instructions for the relevant OpenSpec workflow stage
-
 ### Requirement: Non-Interactive Mode
-The command SHALL support non-interactive operation through command-line options for automation and CI/CD use cases.
+
+The command SHALL support non-interactive operation through command-line options.
 
 #### Scenario: Select all tools non-interactively
+
 - **WHEN** run with `--tools all`
 - **THEN** automatically select every available AI tool without prompting
-- **AND** proceed with initialization using the selected tools
+- **AND** proceed with skill and command generation
 
 #### Scenario: Select specific tools non-interactively
+
 - **WHEN** run with `--tools claude,cursor`
-- **THEN** parse the comma-separated tool IDs and validate against available tools
-- **AND** proceed with initialization using only the specified valid tools
+- **THEN** parse the comma-separated tool IDs
+- **AND** generate skills and commands for specified tools only
 
 #### Scenario: Skip tool configuration non-interactively
+
 - **WHEN** run with `--tools none`
-- **THEN** skip AI tool configuration entirely
-- **AND** only create the OpenSpec directory structure and template files
+- **THEN** create only the openspec directory structure and config.yaml
+- **AND** skip skill and command generation
 
-#### Scenario: Invalid tool specification
-- **WHEN** run with `--tools` containing any IDs not present in the AI tool registry
-- **THEN** exit with code 1 and display available values (`all`, `none`, or the supported tool IDs)
+### Requirement: Skill Generation
 
-#### Scenario: Help text lists available tool IDs
-- **WHEN** displaying CLI help for `openspec init`
-- **THEN** show the `--tools` option description with the valid values derived from the AI tool registry
+The command SHALL generate Agent Skills for selected AI tools.
 
-### Requirement: Root instruction stub
-`openspec init` SHALL always scaffold the root-level `AGENTS.md` hand-off so every teammate finds the primary OpenSpec instructions.
+#### Scenario: Generating skills for a tool
 
-#### Scenario: Creating root `AGENTS.md`
-- **GIVEN** the project may or may not already contain an `AGENTS.md` file
-- **WHEN** initialization completes in fresh or extend mode
-- **THEN** create or refresh `AGENTS.md` at the repository root using the managed marker block from `TemplateManager.getAgentsStandardTemplate()`
-- **AND** preserve any existing content outside the managed markers while replacing the stub text inside them
-- **AND** create the stub regardless of which native AI tools are selected
+- **WHEN** a tool is selected during initialization
+- **THEN** create 9 skill directories under `.<tool>/skills/`:
+  - `openspec-explore/SKILL.md`
+  - `openspec-new-change/SKILL.md`
+  - `openspec-continue-change/SKILL.md`
+  - `openspec-apply-change/SKILL.md`
+  - `openspec-ff-change/SKILL.md`
+  - `openspec-verify-change/SKILL.md`
+  - `openspec-sync-specs/SKILL.md`
+  - `openspec-archive-change/SKILL.md`
+  - `openspec-bulk-archive-change/SKILL.md`
+- **AND** each SKILL.md SHALL contain YAML frontmatter with name and description
+- **AND** each SKILL.md SHALL contain the skill instructions
+
+### Requirement: Slash Command Generation
+
+The command SHALL generate opsx slash commands for selected AI tools.
+
+#### Scenario: Generating slash commands for a tool
+
+- **WHEN** a tool is selected during initialization
+- **THEN** create 9 slash command files using the tool's command adapter:
+  - `/opsx:explore`
+  - `/opsx:new`
+  - `/opsx:continue`
+  - `/opsx:apply`
+  - `/opsx:ff`
+  - `/opsx:verify`
+  - `/opsx:sync`
+  - `/opsx:archive`
+  - `/opsx:bulk-archive`
+- **AND** use tool-specific path conventions (e.g., `.claude/commands/opsx/` for Claude)
+- **AND** include tool-specific frontmatter format
+
+### Requirement: Config File Generation
+
+The command SHALL create an OpenSpec config file with schema settings.
+
+#### Scenario: Creating config.yaml
+
+- **WHEN** initialization completes
+- **AND** config.yaml does not exist
+- **THEN** create `openspec/config.yaml` with default schema setting
+- **AND** display config location in output
+
+#### Scenario: Preserving existing config.yaml
+
+- **WHEN** initialization runs in extend mode
+- **AND** `openspec/config.yaml` already exists
+- **THEN** preserve the existing config file
+- **AND** display "(exists)" indicator in output
+
+### Requirement: Experimental Command Alias
+
+The command SHALL maintain backward compatibility with the experimental command.
+
+#### Scenario: Running openspec experimental
+
+- **WHEN** user runs `openspec experimental`
+- **THEN** delegate to `openspec init`
+- **AND** the command SHALL be hidden from help output
 
 ## Why
 

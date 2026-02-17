@@ -212,11 +212,56 @@ The system SHALL generate schema-aware apply instructions via `openspec instruct
   - `tracks`: path to progress file or null
   - `applyRequires`: list of required artifact IDs
 
-## REMOVED Requirements
+### Requirement: Tool selection flag
 
-### Requirement: Next Command
+The `artifact-experimental-setup` command SHALL accept a `--tool <tool-id>` flag to specify the target AI tool.
 
-**Reason**: Redundant with Status Command - `openspec status` already shows which artifacts are ready (status: "ready") vs blocked vs done.
+#### Scenario: Specify tool via flag
 
-**Migration**: Use `openspec status --change <id> --json` and filter artifacts with `status: "ready"` to find artifacts that can be created next.
+- **WHEN** user runs `openspec artifact-experimental-setup --tool cursor`
+- **THEN** skill files are generated in `.cursor/skills/`
+- **AND** command files are generated using Cursor's frontmatter format
+
+#### Scenario: Missing tool flag
+
+- **WHEN** user runs `openspec artifact-experimental-setup` without `--tool`
+- **THEN** the system displays an error requiring the `--tool` flag
+- **AND** lists valid tool IDs in the error message
+
+#### Scenario: Unknown tool ID
+
+- **WHEN** user runs `openspec artifact-experimental-setup --tool unknown-tool`
+- **AND** the tool ID is not in `AI_TOOLS`
+- **THEN** the system displays an error listing valid tool IDs
+
+#### Scenario: Tool without skillsDir
+
+- **WHEN** user specifies a tool that has no `skillsDir` configured
+- **THEN** the system displays an error indicating skill generation is not supported for that tool
+
+#### Scenario: Tool without command adapter
+
+- **WHEN** user specifies a tool that has `skillsDir` but no command adapter registered
+- **THEN** skill files are generated successfully
+- **AND** command generation is skipped with informational message
+
+### Requirement: Output messaging
+
+The setup command SHALL display clear output about what was generated.
+
+#### Scenario: Show target tool in output
+
+- **WHEN** setup command runs successfully
+- **THEN** output includes the target tool name (e.g., "Setting up for Cursor...")
+
+#### Scenario: Show generated paths
+
+- **WHEN** setup command completes
+- **THEN** output lists all generated skill file paths
+- **AND** lists all generated command file paths (if applicable)
+
+#### Scenario: Show skipped commands message
+
+- **WHEN** command generation is skipped due to missing adapter
+- **THEN** output includes message: "Command generation skipped - no adapter for <tool>"
 
