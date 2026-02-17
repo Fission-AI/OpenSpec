@@ -1,7 +1,7 @@
 # schema-resolution Specification
 
 ## Purpose
-Define schema resolution precedence and lookup behavior across project-local, user, and package schema sources.
+Define project-local schema resolution behavior, including precedence order (project-local, then user override, then package built-in) and backward-compatible fallback when `projectRoot` is not provided.
 
 ## Requirements
 ### Requirement: Project-local schema resolution
@@ -170,4 +170,3 @@ The system SHALL continue to work with existing changes that do not have project
 #### Scenario: Existing change with config added later
 - **WHEN** config file is added to project with existing changes
 - **THEN** existing changes continue to use their bound schema from `.openspec.yaml`
-

@@ -121,7 +121,7 @@ The agent SHALL produce a structured, prioritized report.
 #### Scenario: Report summary
 - **WHEN** verification completes
 - **THEN** display summary scorecard:
-  ```
+  ```text
   ## Verification Report: <change-name>
 
   ### Summary
@@ -148,14 +148,14 @@ The agent SHALL produce a structured, prioritized report.
 #### Scenario: All checks pass
 - **WHEN** no issues found across all dimensions
 - **THEN** display:
-  ```
+  ```text
   All checks passed. Ready for archive.
   ```
 
 #### Scenario: Critical issues found
 - **WHEN** CRITICAL issues exist
 - **THEN** display:
-  ```
+  ```text
   X critical issue(s) found. Fix before archiving.
   ```
 - **AND** do NOT suggest running archive
@@ -163,7 +163,7 @@ The agent SHALL produce a structured, prioritized report.
 #### Scenario: Only warnings/suggestions
 - **WHEN** no CRITICAL issues but warnings exist
 - **THEN** display:
-  ```
+  ```text
   No critical issues. Y warning(s) to consider.
   Ready for archive (with noted improvements).
   ```
@@ -187,4 +187,3 @@ The agent SHALL gracefully handle changes with varying artifact completeness.
 - **WHEN** change has proposal, design, specs, and tasks
 - **THEN** perform all verification checks
 - **AND** cross-reference artifacts for consistency
-
