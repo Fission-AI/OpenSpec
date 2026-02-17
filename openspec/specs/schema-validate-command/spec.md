@@ -1,7 +1,8 @@
 # schema-validate-command Specification
 
 ## Purpose
-TBD - created by archiving change schema-management-cli. Update Purpose after archive.
+Define `openspec schema validate` behavior for validating schema syntax, structure, templates, and dependency graphs.
+
 ## Requirements
 ### Requirement: Schema validate checks schema structure
 The CLI SHALL provide an `openspec schema validate [name]` command that validates schema configuration and reports errors.

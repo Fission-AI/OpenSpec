@@ -1,7 +1,8 @@
 # schema-fork-command Specification
 
 ## Purpose
-TBD - created by archiving change schema-management-cli. Update Purpose after archive.
+Define `openspec schema fork` behavior for cloning existing schemas into project-local schemas with safe overwrite controls.
+
 ## Requirements
 ### Requirement: Schema fork copies existing schema
 The CLI SHALL provide an `openspec schema fork <source> [name]` command that copies an existing schema to the project's `openspec/schemas/` directory.

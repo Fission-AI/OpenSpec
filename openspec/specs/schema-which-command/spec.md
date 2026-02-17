@@ -1,7 +1,8 @@
 # schema-which-command Specification
 
 ## Purpose
-TBD - created by archiving change schema-management-cli. Update Purpose after archive.
+Define `openspec schema which` behavior for reporting resolved schema source, location, and fallback details.
+
 ## Requirements
 ### Requirement: Schema which shows resolution result
 The CLI SHALL provide an `openspec schema which <name>` command that displays where a schema resolves from.

@@ -1,7 +1,8 @@
 # opsx-verify-skill Specification
 
 ## Purpose
-TBD - created by archiving change add-verify-skill. Update Purpose after archive.
+Define `/opsx:verify` behavior for assessing implementation completeness, correctness, and coherence against change artifacts.
+
 ## Requirements
 ### Requirement: Verify Skill Invocation
 The system SHALL provide an `/opsx:verify` skill that validates implementation against change artifacts.

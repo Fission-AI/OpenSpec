@@ -1,7 +1,8 @@
 # cli-artifact-workflow Specification
 
 ## Purpose
-TBD - created by archiving change add-artifact-workflow-cli. Update Purpose after archive.
+Define artifact workflow CLI behavior (`status`, `instructions`, `templates`, and setup flows) for scaffolded and active changes.
+
 ## Requirements
 ### Requirement: Status Command
 
@@ -52,6 +53,16 @@ The system SHALL display artifact completion status for a change, including scaf
 - **WHEN** user runs `openspec status --change unknown-id`
 - **AND** directory `openspec/changes/unknown-id/` does not exist
 - **THEN** the system displays an error listing all available change directories
+
+### Requirement: Next Artifact Discovery
+
+The workflow SHALL use `openspec status` output to determine what can be created next, rather than a separate next-command surface.
+
+#### Scenario: Discover next artifacts from status output
+
+- **WHEN** a user needs to know which artifact to create next
+- **THEN** `openspec status --change <id>` identifies ready artifacts with `[ ]`
+- **AND** no dedicated "next command" is required to continue the workflow
 
 ### Requirement: Instructions Command
 
@@ -264,4 +275,3 @@ The setup command SHALL display clear output about what was generated.
 
 - **WHEN** command generation is skipped due to missing adapter
 - **THEN** output includes message: "Command generation skipped - no adapter for <tool>"
-

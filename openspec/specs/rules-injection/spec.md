@@ -1,7 +1,8 @@
 # rules-injection Specification
 
 ## Purpose
-TBD - created by archiving change project-config. Update Purpose after archive.
+Define how per-artifact rules from project config are injected into generated instructions with deterministic formatting and validation.
+
 ## Requirements
 ### Requirement: Inject rules only for matching artifact
 

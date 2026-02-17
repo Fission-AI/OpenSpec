@@ -1,7 +1,8 @@
 # cli-feedback Specification
 
 ## Purpose
-TBD - created by archiving change add-feedback-command. Update Purpose after archive.
+Define `openspec feedback` behavior for creating GitHub issues safely via `gh`, with a manual fallback when automation is unavailable.
+
 ## Requirements
 ### Requirement: Feedback command
 

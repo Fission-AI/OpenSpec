@@ -1,7 +1,8 @@
 # ai-tool-paths Specification
 
 ## Purpose
-TBD - created by archiving change multi-provider-skill-generation. Update Purpose after archive.
+Define AI tool path metadata used to generate OpenSpec skills and commands in tool-specific directories.
+
 ## Requirements
 ### Requirement: AIToolOption skillsDir field
 

@@ -1,7 +1,8 @@
 # schema-init-command Specification
 
 ## Purpose
-TBD - created by archiving change schema-management-cli. Update Purpose after archive.
+Define `openspec schema init` behavior for creating project-local schema skeletons in interactive and non-interactive modes.
+
 ## Requirements
 ### Requirement: Schema init command creates project-local schema
 The CLI SHALL provide an `openspec schema init <name>` command that creates a new schema directory under `openspec/schemas/<name>/` with a valid `schema.yaml` file and default template files.

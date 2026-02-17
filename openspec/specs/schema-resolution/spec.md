@@ -1,7 +1,8 @@
 # schema-resolution Specification
 
 ## Purpose
-TBD - created by archiving change project-local-schemas. Update Purpose after archive.
+Define schema resolution precedence and lookup behavior across project-local, user, and package schema sources.
+
 ## Requirements
 ### Requirement: Project-local schema resolution
 

@@ -1,7 +1,8 @@
 # opsx-onboard-skill Specification
 
 ## Purpose
-TBD - created by archiving change add-opsx-onboard-skill. Update Purpose after archive.
+Define `/opsx:onboard` behavior for guiding users through an end-to-end OpenSpec workflow on their real codebase.
+
 ## Requirements
 ### Requirement: OPSX Onboard Skill
 

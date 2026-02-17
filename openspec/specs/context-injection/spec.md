@@ -1,7 +1,8 @@
 # context-injection Specification
 
 ## Purpose
-TBD - created by archiving change project-config. Update Purpose after archive.
+Define how project context from `openspec/config.yaml` is injected into workflow instructions while preserving source text and formatting.
+
 ## Requirements
 ### Requirement: Inject context into all artifact instructions
 
@@ -47,7 +48,6 @@ The system SHALL inject context content without modification, escaping, or inter
 - **WHEN** context includes URLs like "docs at https://example.com"
 - **THEN** URLs are preserved exactly in the injected content
 
-#### Scenario: Context contains markdown
-- **WHEN** context includes markdown formatting like `**bold**` or `[links](url)`
-- **THEN** markdown is preserved without rendering or escaping
-
+#### Scenario: Context contains Markdown
+- **WHEN** context includes Markdown formatting like `**bold**` or `[links](url)`
+- **THEN** Markdown is preserved without rendering or escaping

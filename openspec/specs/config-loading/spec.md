@@ -1,7 +1,8 @@
 # config-loading Specification
 
 ## Purpose
-TBD - created by archiving change project-config. Update Purpose after archive.
+Define how `openspec/config.yaml` is discovered, parsed, validated, and exposed to callers with safe fallbacks.
+
 ## Requirements
 ### Requirement: Load project config from openspec/config.yaml
 

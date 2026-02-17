@@ -1,7 +1,8 @@
 # legacy-cleanup Specification
 
 ## Purpose
-TBD - created by archiving change merge-init-experimental. Update Purpose after archive.
+Define detection and cleanup behavior for legacy OpenSpec artifacts during initialization and update workflows.
+
 ## Requirements
 ### Requirement: Legacy artifact detection
 

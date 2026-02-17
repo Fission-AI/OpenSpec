@@ -1,7 +1,8 @@
 # command-generation Specification
 
 ## Purpose
-TBD - created by archiving change multi-provider-skill-generation. Update Purpose after archive.
+Define tool-agnostic command content and adapter contracts for generating tool-specific OpenSpec command files.
+
 ## Requirements
 ### Requirement: CommandContent interface
 

@@ -132,7 +132,8 @@ The command SHALL use consistent exit codes to indicate different failure modes.
 
 #### Scenario: Allowing empty extend runs
 - **WHEN** OpenSpec is already initialized and the user selects no additional natively supported tools
-- **THEN** complete successfully while refreshing the root `AGENTS.md` stub
+- **THEN** complete successfully without requiring additional tool setup
+- **AND** preserve the existing OpenSpec structure and config files
 - **AND** exit with code 0
 
 ### Requirement: Non-Interactive Mode
@@ -154,8 +155,28 @@ The command SHALL support non-interactive operation through command-line options
 #### Scenario: Skip tool configuration non-interactively
 
 - **WHEN** run with `--tools none`
-- **THEN** create only the openspec directory structure and config.yaml
+- **THEN** create only the openspec directory structure
 - **AND** skip skill and command generation
+- **AND** create config only when config creation conditions are met
+
+#### Scenario: Invalid tool specification
+
+- **WHEN** run with `--tools invalid-tool`
+- **THEN** fail with exit code 1
+- **AND** display an error listing available values (`all`, `none`, and supported tool IDs)
+
+#### Scenario: Reserved value combined with tool IDs
+
+- **WHEN** run with `--tools all,claude` or `--tools none,cursor`
+- **THEN** fail with exit code 1
+- **AND** display an error explaining reserved values cannot be combined with specific tool IDs
+
+#### Scenario: Missing --tools in non-interactive mode
+
+- **GIVEN** prompts are unavailable in non-interactive execution
+- **WHEN** user runs `openspec init` without `--tools`
+- **THEN** fail with exit code 1
+- **AND** instruct to use `--tools all`, `--tools none`, or explicit tool IDs
 
 ### Requirement: Skill Generation
 
