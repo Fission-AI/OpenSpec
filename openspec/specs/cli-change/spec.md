@@ -1,7 +1,8 @@
 # cli-change Specification
 
 ## Purpose
-TBD - created by archiving change add-change-commands. Update Purpose after archive.
+Define `openspec change` command behavior for showing, listing, and validating change proposals and deltas.
+
 ## Requirements
 ### Requirement: Change Command
 

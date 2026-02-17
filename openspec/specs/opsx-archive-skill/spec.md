@@ -1,5 +1,11 @@
 # OPSX Archive Skill Spec
 
+## Purpose
+
+Define the expected behavior for the `/opsx:archive` skill, including readiness checks, spec sync prompting, archive execution, and user-facing output.
+
+## Requirements
+
 ### Requirement: OPSX Archive Skill
 
 The system SHALL provide an `/opsx:archive` skill that archives completed changes in the experimental workflow.

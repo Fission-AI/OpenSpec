@@ -1,7 +1,8 @@
 # docs-agent-instructions Specification
 
 ## Purpose
-TBD - created by archiving change improve-agent-instruction-usability. Update Purpose after archive.
+Define authoring standards for generated agent instruction docs so templates, examples, and validation checklists are clear and copy-ready.
+
 ## Requirements
 ### Requirement: Quick Reference Placement
 The AI instructions SHALL begin with a quick-reference section that surfaces required file structures, templates, and formatting rules before any narrative guidance.
