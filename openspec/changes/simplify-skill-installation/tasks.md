@@ -50,6 +50,7 @@
 - [ ] 6.5 Export templates from `src/core/templates/skill-templates.ts`
 - [ ] 6.6 Add `openspec-propose` to `SKILL_NAMES` in `src/core/shared/tool-detection.ts`
 - [ ] 6.7 Add `propose` to command templates in `src/core/shared/skill-generation.ts`
+- [ ] 6.8 Add `propose` to `COMMAND_IDS` in `src/core/shared/tool-detection.ts`
 
 ## 7. Conditional Skill/Command Generation
 
@@ -62,7 +63,7 @@
 
 ## 8. Init Flow Updates
 
-- [ ] 8.1 Update init to call `detectInstalledTools()` first
+- [ ] 8.1 Update init to call `getAvailableTools()` first
 - [ ] 8.2 Update init to read global config for profile/delivery defaults
 - [ ] 8.3 Change tool selection to show pre-selected detected tools
 - [ ] 8.4 Update success message to show `/opsx:propose` prompt

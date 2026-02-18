@@ -11,7 +11,6 @@ The skill generation system SHALL respect profile and delivery settings.
 #### Scenario: Skip skill generation when delivery is commands-only
 - **WHEN** generating with delivery set to `commands`
 - **THEN** the system SHALL NOT generate any skill files
-- **THEN** the system SHALL only generate command files
 
 #### Scenario: Generate skills when delivery is both or skills
 - **WHEN** generating with delivery set to `both` or `skills`
@@ -23,7 +22,7 @@ The skill generation system SHALL include the new `propose` workflow template.
 #### Scenario: Propose skill in templates
 - **WHEN** getting skill templates
 - **THEN** the system SHALL include `openspec-propose` template
-- **THEN** the template SHALL be in addition to existing templates
+- **THEN** the template SHALL be in addition to templates listed in SKILL_NAMES constant
 
 ### Requirement: Skill names constant update
 The `SKILL_NAMES` constant SHALL include the propose workflow.

@@ -64,7 +64,9 @@ The init command SHALL work with sensible defaults, minimizing required user inp
 
 #### Scenario: Init success message
 - **WHEN** init completes successfully
-- **THEN** the system SHALL display: "Start your first change: /opsx:propose \"your idea\""
+- **THEN** the system SHALL display a tool-appropriate success message
+- **THEN** for tools using colon syntax (Claude Code): "Start your first change: /opsx:propose \"your idea\""
+- **THEN** for tools using hyphen syntax (Cursor, others): "Start your first change: /opsx-propose \"your idea\""
 
 ### Requirement: Init respects global config
 The init command SHALL read and apply settings from global config.
@@ -88,7 +90,7 @@ The init command SHALL NOT remove workflows that are already installed.
 #### Scenario: Existing extended installation
 - **WHEN** user has extended profile installed and runs `openspec init` with core profile
 - **THEN** the system SHALL NOT remove extra workflows
-- **THEN** the system SHALL refresh/update the core workflows
+- **THEN** the system SHALL regenerate core workflow files, overwriting existing content with latest templates
 
 ### Requirement: Apply profile deletion via constant lookups
 The `--apply-profile` flag SHALL remove workflows by checking SKILL_NAMES and COMMAND_IDS constants.

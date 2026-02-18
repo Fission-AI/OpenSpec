@@ -4,7 +4,7 @@ Users have complained that there are too many skills/commands (currently 10) and
 
 The goal: **get users to an "aha moment" in under a minute**.
 
-```
+```text
 0:00  $ openspec init
       ✓ Done. Run /opsx:propose "your idea"
 
@@ -24,7 +24,7 @@ Additionally, users have different preferences for how workflows are delivered (
 
 Init should just work with sensible defaults:
 
-```
+```text
 $ openspec init
 
 Detected: Claude Code, Cursor
@@ -71,7 +71,7 @@ The `propose` workflow is new - it combines `new` + `ff` into a single command t
 
 `/opsx:propose` should naturally onboard users by explaining what it's doing:
 
-```
+```text
 I'll create a change with 3 artifacts:
 - proposal.md (what & why)
 - design.md (how)
@@ -94,7 +94,7 @@ Stored in existing global config (`~/.config/openspec/config.json`). Not prompte
 
 ### 7. New CLI Commands
 
-```
+```shell
 # Profile management (what to install)
 openspec profile set core
 openspec profile set extended
@@ -147,7 +147,7 @@ openspec config list
 - `src/core/config.ts` - Add profile and delivery types
 - `src/core/global-config.ts` - Add profile, delivery, workflows fields to schema
 - `src/core/shared/skill-generation.ts` - Filter by profile, respect delivery
-- `src/core/shared/tool-detection.ts` - Update SKILL_NAMES to include propose
+- `src/core/shared/tool-detection.ts` - Update SKILL_NAMES and COMMAND_IDS to include propose
 - `src/commands/config.ts` - Add delivery config commands
 - `src/prompts/searchable-multi-select.ts` - Fix keybindings (space/enter)
 

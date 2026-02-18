@@ -112,7 +112,7 @@ What's installed in `.claude/skills/` (etc.) is the source of truth, not config.
 
 **Behavior:**
 - `openspec init` installs profile workflows, doesn't remove extras
-- `openspec init --apply-profile` syncs to profile (removes extras from SKILL_NAMES only)
+- `openspec init --apply-profile` syncs to profile (removes extras via SKILL_NAMES and COMMAND_IDS lookups)
 - `openspec profile show` reads filesystem, shows what's actually installed
 - `openspec profile install <workflow>` immediately generates files (not config-only)
 - `openspec profile uninstall <workflow>` immediately removes files (not config-only)

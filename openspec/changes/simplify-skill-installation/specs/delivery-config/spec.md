@@ -7,12 +7,12 @@ The system SHALL support three delivery methods: `both`, `skills`, and `commands
 - **WHEN** delivery is set to `both`
 - **THEN** the system SHALL install both skill files and command files for each workflow
 
-#### Scenario: Skills only delivery
+#### Scenario: Skills-only delivery
 - **WHEN** delivery is set to `skills`
 - **THEN** the system SHALL install only skill files (SKILL.md) for each workflow
 - **THEN** the system SHALL NOT install command files
 
-#### Scenario: Commands only delivery
+#### Scenario: Commands-only delivery
 - **WHEN** delivery is set to `commands`
 - **THEN** the system SHALL install only command files for each workflow
 - **THEN** the system SHALL NOT install skill files
@@ -28,6 +28,7 @@ The system SHALL provide CLI commands for managing delivery preference.
 #### Scenario: Get delivery preference
 - **WHEN** user runs `openspec config get delivery`
 - **THEN** the system SHALL display the current delivery setting
+- **THEN** if delivery is not explicitly set, the system SHALL display "both (default)"
 
 #### Scenario: Invalid delivery value
 - **WHEN** user runs `openspec config set delivery <invalid>`

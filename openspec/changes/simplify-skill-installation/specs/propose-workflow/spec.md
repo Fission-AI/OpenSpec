@@ -6,11 +6,14 @@ The system SHALL provide a `propose` workflow that creates a change and generate
 #### Scenario: Basic propose invocation
 - **WHEN** user invokes `/opsx:propose "add user authentication"`
 - **THEN** the system SHALL create a change directory with kebab-case name
-- **THEN** the system SHALL generate all artifacts needed for implementation
+- **THEN** the system SHALL generate all artifacts needed for implementation: proposal.md, design.md, specs/, tasks.md
 
 #### Scenario: Propose with existing change name
 - **WHEN** user invokes `/opsx:propose` with a name that already exists
 - **THEN** the system SHALL ask if user wants to continue existing change or create new
+- **THEN** if "continue": the system SHALL resume artifact generation from last completed state
+- **THEN** if "create new": the system SHALL prompt for a new name
+- **THEN** in non-interactive mode: the system SHALL fail with error suggesting to use a different name
 
 ### Requirement: Propose workflow onboarding UX
 The `propose` workflow SHALL include explanatory output to help new users understand the process.
@@ -29,6 +32,6 @@ The `propose` workflow SHALL perform the same operations as running `new` follow
 
 #### Scenario: Equivalent to new + ff
 - **WHEN** user invokes `/opsx:propose "feature name"`
-- **THEN** the result SHALL be functionally equivalent to running `openspec new change "feature-name"` followed by `/opsx:ff feature-name`
+- **THEN** the result SHALL be functionally equivalent to invoking `/opsx:new "feature-name"` followed by `/opsx:ff feature-name`
 - **THEN** the same directory structure and artifacts SHALL be created
 - **THEN** console output MAY differ (propose includes onboarding explanations)
