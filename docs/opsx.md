@@ -160,6 +160,8 @@ rules:
 | `/opsx:continue` | Create the next artifact (based on what's ready) |
 | `/opsx:ff` | Fast-forward — create all planning artifacts at once |
 | `/opsx:apply` | Implement tasks, updating artifacts as needed |
+| `/opsx:verify` | Validate implementation matches artifacts |
+| `/opsx:clarify` | Resolve ambiguities in specs through interactive Q&A |
 | `/opsx:sync` | Sync delta specs to main (optional—archive prompts if needed) |
 | `/opsx:archive` | Archive when done |
 

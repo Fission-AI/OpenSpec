@@ -372,6 +372,52 @@ AI:  Let me investigate your current setup and options...
 
 Exploration clarifies thinking before you create artifacts.
 
+### Use `/opsx:clarify` for Ambiguous Specs
+
+After creating specs but before implementation, use `/opsx:clarify` to identify and resolve ambiguities:
+
+```text
+You: /opsx:continue
+     (specs are created)
+
+You: /opsx:clarify
+
+AI:  Using change: add-user-auth
+     
+     Loading specs... Found 2 specs
+     Scanning for ambiguities...
+     
+     Found 5 ambiguities across 3 categories.
+     
+     ─────────────────────────────────────────
+     
+     Question 1 of 5 - *Category: Data Model*
+     
+     **What fields should the User entity include?**
+     
+     Suggestions: "email, password_hash, created_at"
+
+You: email, username, password_hash, role, created_at, updated_at
+
+AI:  ✓ Answer recorded. Updating spec...
+     
+     [... continues through questions ...]
+     
+     All ambiguities resolved! Ready to continue.
+
+You: /opsx:continue
+
+AI:  Creating tasks.md based on clarified specs...
+```
+
+**When to use `/opsx:clarify`:**
+- After `/opsx:continue` creates specs (before creating tasks)
+- When specs have placeholders (TODO, TBD) that need resolution
+- When implementation reveals unclear requirements (pause and clarify)
+- Before handing off to another developer (ensure shared understanding)
+
+Clarification makes specs concrete before implementation, reducing rework.
+
 ### Verify Before Archiving
 
 Use `/opsx:verify` to check implementation matches artifacts:
@@ -414,6 +460,7 @@ For full command details and options, see [Commands](commands.md).
 | `/opsx:ff` | Create all planning artifacts | Clear scope, ready to build |
 | `/opsx:apply` | Implement tasks | Ready to write code |
 | `/opsx:verify` | Validate implementation | Before archiving, catch mismatches |
+| `/opsx:clarify` | Resolve spec ambiguities | After specs created, before implementation |
 | `/opsx:sync` | Merge delta specs | Optional—archive prompts if needed |
 | `/opsx:archive` | Complete the change | All work finished |
 | `/opsx:bulk-archive` | Archive multiple changes | Parallel work, batch completion |
