@@ -1,3 +1,7 @@
+## Purpose
+
+The propose workflow SHALL combine change creation and artifact generation into a single command, reducing friction for new users while teaching them the OpenSpec workflow through embedded guidance.
+
 ## ADDED Requirements
 
 ### Requirement: Propose workflow creation
@@ -20,7 +24,7 @@ The `propose` workflow SHALL include explanatory output to help new users unders
 
 #### Scenario: First-time user guidance
 - **WHEN** user invokes `/opsx:propose`
-- **THEN** the system SHALL explain what artifacts will be created (proposal.md, design.md, tasks.md)
+- **THEN** the system SHALL explain what artifacts will be created (proposal.md, design.md, specs/, tasks.md)
 - **THEN** the system SHALL indicate next step (`/opsx:apply` to implement)
 
 #### Scenario: Artifact creation progress

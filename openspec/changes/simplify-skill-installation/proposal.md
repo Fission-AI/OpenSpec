@@ -147,7 +147,7 @@ Workflows: (space to toggle, enter to save)
 
 ### Modified Capabilities
 
-- `init`: Smart defaults with auto-detection and confirmation
+- `cli-init`: Smart defaults with auto-detection and confirmation
 - `tool-selection-ux`: Space to select, Enter to confirm
 - `skill-generation`: Conditional based on profile and delivery settings
 - `command-generation`: Conditional based on profile and delivery settings

@@ -1,3 +1,7 @@
+## Purpose
+
+The init command SHALL provide a streamlined setup experience that auto-detects tools and uses smart defaults, getting users to their first change in under a minute.
+
 ## MODIFIED Requirements
 
 ### Requirement: Skill generation per tool (REPLACES fixed 9-skill mandate)
@@ -57,6 +61,12 @@ The init command SHALL work with sensible defaults and tool confirmation, minimi
 - **WHEN** user runs `openspec init --tools claude`
 - **THEN** the system SHALL use specified tools
 - **THEN** the system SHALL NOT prompt for any input
+
+#### Scenario: Interactive with explicit tools
+- **WHEN** user runs `openspec init --tools claude` interactively
+- **THEN** the system SHALL use specified tools (ignoring auto-detection)
+- **THEN** the system SHALL NOT prompt for tool selection
+- **THEN** the system SHALL proceed with default profile and delivery
 
 #### Scenario: Init success message
 - **WHEN** init completes successfully

@@ -1,3 +1,7 @@
+## Purpose
+
+Command generation SHALL create CLI command files for workflows based on profile and delivery settings, enabling users to choose their preferred invocation method.
+
 ## MODIFIED Requirements
 
 ### Requirement: Conditional command generation

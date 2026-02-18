@@ -1,3 +1,7 @@
+## Purpose
+
+Skill generation SHALL create skill files for workflows based on profile and delivery settings, supporting both the streamlined core profile and custom user configurations.
+
 ## MODIFIED Requirements
 
 ### Requirement: Conditional skill generation

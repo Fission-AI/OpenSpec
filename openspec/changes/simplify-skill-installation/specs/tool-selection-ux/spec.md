@@ -1,3 +1,7 @@
+## Purpose
+
+Tool selection UX SHALL use industry-standard keybindings (space to toggle, enter to confirm) to reduce user confusion during initialization.
+
 ## MODIFIED Requirements
 
 ### Requirement: Multi-select keybindings

@@ -89,8 +89,10 @@
 ## 10. Scaffolding Verification
 
 - [ ] 10.1 Verify `openspec new change` creates `.openspec.yaml` with schema and created fields
-- [ ] 10.2 Update ff skill to verify `.openspec.yaml` exists after `openspec new change`
-- [ ] 10.3 Add guardrail to skills: "Never manually create files in openspec/changes/ - use openspec new change"
+
+<!-- Note: 10.2 and 10.3 below are potential follow-up work, not core to this change -->
+<!-- - [ ] 10.2 Update ff skill to verify `.openspec.yaml` exists after `openspec new change` -->
+<!-- - [ ] 10.3 Add guardrail to skills: "Never manually create files in openspec/changes/ - use openspec new change" -->
 
 ## 11. Explore Workflow Updates
 

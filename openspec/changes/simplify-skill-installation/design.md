@@ -102,13 +102,12 @@ Scan for existing tool directories, pre-select detected tools, ask for confirmat
 
 **Detection logic:**
 ```typescript
-const TOOL_DIRS = {
-  'claude': '.claude',
-  'cursor': '.cursor',
-  'windsurf': '.windsurf',
-  // ... etc
-};
-// Scan cwd for existing directories, pre-select matches
+// Use existing AI_TOOLS config to get directory mappings
+// Each tool in AI_TOOLS has a skillsDir property (e.g., '.claude', '.cursor', '.windsurf')
+// Scan cwd for existing directories matching skillsDir values, pre-select matches
+const detectedTools = AI_TOOLS.filter(tool =>
+  fs.existsSync(path.join(cwd, tool.skillsDir))
+);
 ```
 
 ### 5. Delivery as Part of Profile Config

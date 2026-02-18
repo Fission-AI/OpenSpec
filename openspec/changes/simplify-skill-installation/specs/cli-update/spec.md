@@ -1,3 +1,7 @@
+## Purpose
+
+The update command SHALL apply global configuration changes to existing projects, syncing profile and delivery preferences without requiring full re-initialization.
+
 ## MODIFIED Requirements
 
 ### Requirement: Update respects global profile config

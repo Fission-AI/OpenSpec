@@ -1,3 +1,7 @@
+## Purpose
+
+User configuration SHALL extend the existing global config to store profile and delivery preferences, enabling persistent customization across projects.
+
 ## MODIFIED Requirements
 
 ### Requirement: Global configuration storage (EXTENDS existing)

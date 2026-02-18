@@ -1,3 +1,7 @@
+## Purpose
+
+Available tools detection SHALL enable smart defaults init by auto-discovering which AI tools the user has installed, reducing setup friction while maintaining user control.
+
 ## ADDED Requirements
 
 ### Requirement: Detect tools from directories
@@ -10,6 +14,10 @@ The system SHALL detect installed AI tools by scanning for their configuration d
 #### Scenario: Detect Cursor
 - **WHEN** `.cursor/` directory exists in project root
 - **THEN** the system SHALL detect Cursor as an installed tool
+
+#### Scenario: Detect Windsurf
+- **WHEN** `.windsurf/` directory exists in project root
+- **THEN** the system SHALL detect Windsurf as an installed tool
 
 #### Scenario: Detect multiple tools
 - **WHEN** multiple tool directories exist (e.g., `.claude/`, `.cursor/`)

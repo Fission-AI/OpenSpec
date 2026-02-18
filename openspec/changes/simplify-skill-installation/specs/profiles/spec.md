@@ -1,3 +1,7 @@
+## Purpose
+
+Profiles SHALL define which workflows to install, enabling a streamlined core experience for new users while allowing power users to customize their workflow selection.
+
 ## ADDED Requirements
 
 ### Requirement: Profile definitions
@@ -44,6 +48,7 @@ The system SHALL provide an interactive picker for configuring profiles.
 - **THEN** the system SHALL NOT change the delivery setting (preserves user preference)
 - **THEN** the system SHALL NOT modify any project files
 - **THEN** the system SHALL display: "Config updated. Run `openspec update` in your projects to apply."
+- **THEN** the new profile takes effect on the next `openspec init` or `openspec update` run
 
 #### Scenario: Config profile run inside a project
 - **WHEN** user runs `openspec config profile` inside an OpenSpec project directory

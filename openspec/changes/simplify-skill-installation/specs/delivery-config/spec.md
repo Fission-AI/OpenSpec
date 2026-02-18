@@ -1,3 +1,7 @@
+## Purpose
+
+Delivery configuration SHALL allow power users to control how workflows are installed (skills, commands, or both) without affecting the default experience for new users.
+
 ## ADDED Requirements
 
 ### Requirement: Delivery options
