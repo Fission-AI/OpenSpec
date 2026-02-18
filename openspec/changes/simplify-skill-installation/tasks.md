@@ -80,9 +80,15 @@
 - [ ] 9.5 Add hint text "Space to toggle, Enter to confirm"
 - [ ] 9.6 Add tests for keybinding behavior
 
-## 10. Integration & Documentation
+## 10. Scaffolding Verification
 
-- [ ] 10.1 Run full test suite and fix any failures
-- [ ] 10.2 Test on Windows (or verify CI passes on Windows)
-- [ ] 10.3 Test end-to-end flow: init → propose → apply → archive
-- [ ] 10.4 Update CLI help text for new commands
+- [ ] 10.1 Verify `openspec new change` creates `.openspec.yaml` with schema and created fields
+- [ ] 10.2 Update ff skill to verify `.openspec.yaml` exists after `openspec new change`
+- [ ] 10.3 Add guardrail to skills: "Never manually create files in openspec/changes/ - use openspec new change"
+
+## 11. Integration & Documentation
+
+- [ ] 11.1 Run full test suite and fix any failures
+- [ ] 11.2 Test on Windows (or verify CI passes on Windows)
+- [ ] 11.3 Test end-to-end flow: init → propose → apply → archive
+- [ ] 11.4 Update CLI help text for new commands

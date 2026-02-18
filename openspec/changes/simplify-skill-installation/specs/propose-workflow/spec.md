@@ -29,4 +29,6 @@ The `propose` workflow SHALL perform the same operations as running `new` follow
 
 #### Scenario: Equivalent to new + ff
 - **WHEN** user invokes `/opsx:propose "feature name"`
-- **THEN** the result SHALL be identical to running `openspec new change "feature-name"` followed by `/opsx:ff feature-name`
+- **THEN** the result SHALL be functionally equivalent to running `openspec new change "feature-name"` followed by `/opsx:ff feature-name`
+- **THEN** the same directory structure and artifacts SHALL be created
+- **THEN** console output MAY differ (propose includes onboarding explanations)

@@ -26,6 +26,7 @@ The system SHALL provide CLI commands for managing profiles.
 #### Scenario: Install individual workflow
 - **WHEN** user runs `openspec profile install <workflow>`
 - **THEN** the system SHALL set profile to `custom` if not already
+- **THEN** the system SHALL inform user if profile changed (e.g., "Profile changed from core to custom")
 - **THEN** the system SHALL add the workflow to the global config `workflows` array
 - **THEN** the system SHALL detect all configured tools in current project
 - **THEN** the system SHALL immediately generate skill/command files for the workflow across all detected tools
@@ -34,12 +35,20 @@ The system SHALL provide CLI commands for managing profiles.
 #### Scenario: Uninstall individual workflow
 - **WHEN** user runs `openspec profile uninstall <workflow>`
 - **THEN** the system SHALL set profile to `custom` if not already
+- **THEN** the system SHALL inform user if profile changed (e.g., "Profile changed from core to custom")
 - **THEN** the system SHALL remove the workflow from the global config `workflows` array
 - **THEN** the system SHALL detect all configured tools in current project
 - **THEN** the system SHALL immediately delete skill directories for the workflow (via SKILL_NAMES lookup)
 - **THEN** the system SHALL immediately delete command files for the workflow (via COMMAND_IDS lookup)
 - **THEN** the system SHALL only delete items whose names/IDs exist in SKILL_NAMES or COMMAND_IDS constants
 - **THEN** the system SHALL display confirmation with removed locations
+
+#### Scenario: Uninstall workflow from current profile
+- **WHEN** user runs `openspec profile uninstall <workflow>` where workflow is part of current non-custom profile
+- **THEN** the system SHALL change profile to `custom`
+- **THEN** the system SHALL set `workflows` array to current profile's workflows minus the uninstalled one
+- **THEN** the system SHALL inform user: "Profile changed from <old> to custom. Remaining workflows: [...]"
+- **THEN** the system SHALL proceed with deletion
 
 #### Scenario: List available profiles
 - **WHEN** user runs `openspec profile list`

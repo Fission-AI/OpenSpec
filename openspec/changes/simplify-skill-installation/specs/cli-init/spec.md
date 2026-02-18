@@ -102,6 +102,12 @@ The `--apply-profile` flag SHALL remove workflows by checking SKILL_NAMES and CO
 - **AND** ignore all directories/files not in these constants (user-created)
 - **AND** ask for confirmation before removing, listing each item to be deleted
 
+#### Scenario: Apply profile confirmation declined
+- **WHEN** user declines the deletion confirmation
+- **THEN** the system SHALL skip all deletions
+- **THEN** the system SHALL proceed with installing/refreshing profile workflows
+- **THEN** the system SHALL display: "Skipped deletion. Extra workflows preserved."
+
 #### Scenario: Skill deletion scope
 - **WHEN** evaluating skill directories for deletion
 - **THEN** the system SHALL only consider directories whose names exist in SKILL_NAMES

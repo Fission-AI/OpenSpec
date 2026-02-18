@@ -62,7 +62,7 @@ New behavior:
 Profiles define which workflows to install:
 
 - **core** (default): `propose`, `explore`, `apply`, `archive` (4 workflows)
-- **extended**: All 11 workflows including `new`, `ff`, `continue`, `verify`, `sync`, `bulk-archive`, `onboard`
+- **extended**: All 11 workflows (existing 10 + new `propose`): `propose`, `explore`, `apply`, `archive`, `new`, `ff`, `continue`, `verify`, `sync`, `bulk-archive`, `onboard`
 - **custom**: User-selected subset
 
 The `propose` workflow is new - it combines `new` + `ff` into a single command that creates a change and generates all artifacts.

@@ -153,7 +153,7 @@ if (COMMAND_IDS.includes(commandId)) {
 - `SKILL_NAMES`: Array of skill directory names (e.g., `openspec-explore`, `openspec-apply-change`)
 - `COMMAND_IDS`: Array of command IDs (e.g., `explore`, `apply`, `new`)
 
-### 7. Fix Multi-Select Keybindings
+### 8. Fix Multi-Select Keybindings
 
 Change from tab-to-confirm to industry-standard space/enter.
 

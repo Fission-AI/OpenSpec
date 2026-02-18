@@ -34,5 +34,7 @@ The system SHALL use cross-platform path handling for directory detection.
 - **THEN** the system SHALL use `path.join()` to construct paths
 
 #### Scenario: Case sensitivity on different platforms
-- **WHEN** checking for directories on case-insensitive filesystems (Windows, macOS default)
-- **THEN** the system SHALL handle case variations appropriately
+- **WHEN** checking for directories on any filesystem
+- **THEN** the system SHALL use `fs.existsSync()` with exact directory names from AI_TOOLS
+- **THEN** the operating system's filesystem SHALL handle case sensitivity natively
+- **THEN** the system SHALL NOT perform manual case normalization
