@@ -92,9 +92,15 @@
 - [ ] 10.2 Update ff skill to verify `.openspec.yaml` exists after `openspec new change`
 - [ ] 10.3 Add guardrail to skills: "Never manually create files in openspec/changes/ - use openspec new change"
 
-## 11. Integration & Documentation
+## 11. Explore Workflow Updates
 
-- [ ] 11.1 Run full test suite and fix any failures
-- [ ] 11.2 Test on Windows (or verify CI passes on Windows)
-- [ ] 11.3 Test end-to-end flow: init → propose → apply → archive
-- [ ] 11.4 Update CLI help text for new commands
+- [ ] 11.1 Update `src/core/templates/workflows/explore.ts` to reference `/opsx:propose` instead of `/opsx:new` and `/opsx:ff`
+- [ ] 11.2 Update explore's "next steps" summary to show single propose path
+- [ ] 11.3 Review explore → propose transition UX (see `openspec/explorations/explore-workflow-ux.md` for open questions)
+
+## 12. Integration & Documentation
+
+- [ ] 12.1 Run full test suite and fix any failures
+- [ ] 12.2 Test on Windows (or verify CI passes on Windows)
+- [ ] 12.3 Test end-to-end flow: init → propose → apply → archive
+- [ ] 12.4 Update CLI help text for new commands
