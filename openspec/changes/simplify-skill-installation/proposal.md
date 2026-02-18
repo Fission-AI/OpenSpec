@@ -39,7 +39,7 @@ Start your first change:
 - Profile: core
 - Delivery: both
 
-Power users can customize later via `openspec profile` and `openspec config`.
+Power users can customize via `openspec config profile`.
 
 ### 2. Auto-Detect Tools
 
@@ -62,8 +62,7 @@ New behavior:
 Profiles define which workflows to install:
 
 - **core** (default): `propose`, `explore`, `apply`, `archive` (4 workflows)
-- **extended**: All 11 workflows (existing 10 + new `propose`): `propose`, `explore`, `apply`, `archive`, `new`, `ff`, `continue`, `verify`, `sync`, `bulk-archive`, `onboard`
-- **custom**: User-selected subset
+- **custom**: User-selected subset of workflows
 
 The `propose` workflow is new - it combines `new` + `ff` into a single command that creates a change and generates all artifacts.
 
@@ -95,33 +94,46 @@ Stored in existing global config (`~/.config/openspec/config.json`). Not prompte
 ### 7. New CLI Commands
 
 ```shell
-# Profile management (what to install)
-openspec profile set core
-openspec profile set extended
-openspec profile install explore     # add one workflow
-openspec profile uninstall verify    # remove one workflow
-openspec profile list                # show available profiles
-openspec profile show                # show current installation
+# Profile configuration (interactive picker for delivery + workflows)
+openspec config profile          # interactive picker
+openspec config profile core     # preset shortcut (core workflows, preserves delivery)
+```
 
-# Config management (how to install)
-openspec config set delivery skills
-openspec config set delivery both
-openspec config get delivery
-openspec config list
+The interactive picker allows users to configure both delivery method and workflow selection in one place:
+
+```
+$ openspec config profile
+
+Delivery: [skills] [commands] [both]
+                              ^^^^^^
+
+Workflows: (space to toggle, enter to save)
+[x] propose
+[x] explore
+[x] apply
+[x] archive
+[ ] new
+[ ] ff
+[ ] continue
+[ ] verify
+[ ] sync
+[ ] bulk-archive
+[ ] onboard
 ```
 
 ### 8. Backwards Compatibility
 
-- Existing users with all workflows keep them (filesystem is truth)
-- `openspec init` on existing projects refreshes without removing extras
-- `openspec init --apply-profile` explicitly syncs to profile (removes extras)
-- All existing commands remain available in extended profile
+- Existing users with all workflows keep them (extra workflows not in profile are preserved)
+- `openspec init` sets up new projects using current profile config
+- `openspec update` applies config changes to existing projects (adds missing workflows, refreshes templates)
+- Delivery changes are applied: switching to `skills` removes command files, switching to `commands` removes skill files
+- All workflows remain available via custom profile
 
 ## Capabilities
 
 ### New Capabilities
 
-- `profiles`: Support for workflow profiles (core, extended, custom)
+- `profiles`: Support for workflow profiles (core, custom) with interactive configuration
 - `delivery-config`: User preference for delivery method (skills, commands, both)
 - `propose-workflow`: Combined workflow that creates change + generates all artifacts
 - `user-config`: Extend existing global config with profile/delivery settings
@@ -138,7 +150,6 @@ openspec config list
 
 ### New Files
 - `src/core/templates/workflows/propose.ts` - New propose workflow template
-- `src/commands/profile.ts` - Profile management command
 - `src/core/profiles.ts` - Profile definitions and logic
 - `src/core/available-tools.ts` - Detect what AI tools user has from directories
 
@@ -148,7 +159,8 @@ openspec config list
 - `src/core/global-config.ts` - Add profile, delivery, workflows fields to schema
 - `src/core/shared/skill-generation.ts` - Filter by profile, respect delivery
 - `src/core/shared/tool-detection.ts` - Update SKILL_NAMES and COMMAND_IDS to include propose
-- `src/commands/config.ts` - Add delivery config commands
+- `src/commands/config.ts` - Add `profile` subcommand with interactive picker
+- `src/commands/update.ts` - Add profile/delivery support, file deletion for delivery changes
 - `src/prompts/searchable-multi-select.ts` - Fix keybindings (space/enter)
 
 ### Global Config Schema Extension
@@ -157,7 +169,7 @@ openspec config list
 {
   "telemetry": { ... },          // existing
   "featureFlags": { ... },       // existing
-  "profile": "core",             // NEW: core | extended | custom
+  "profile": "core",             // NEW: core | custom
   "delivery": "both",            // NEW: both | skills | commands
   "workflows": ["propose", ...]  // NEW: only if profile: custom
 }
@@ -167,6 +179,5 @@ openspec config list
 
 | Profile | Workflows | Description |
 |---------|-----------|-------------|
-| core | propose, explore, apply, archive | Streamlined flow for most users |
-| extended | all 11 | Full control including new, ff, continue, verify, sync, bulk-archive, onboard |
-| custom | user-defined | Pick exactly what you need |
+| core | propose, explore, apply, archive | Streamlined flow for most users (default) |
+| custom | user-defined | Pick exactly what you need via `openspec config profile` |

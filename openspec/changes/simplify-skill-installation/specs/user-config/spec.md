@@ -5,7 +5,7 @@ The system SHALL store profile, delivery, and workflows settings in the existing
 
 #### Scenario: Profile config structure
 - **WHEN** reading or writing profile configuration
-- **THEN** the config contains `profile` (string: core|extended|custom), `delivery` (string: both|skills|commands), and optionally `workflows` (array of strings)
+- **THEN** the config contains `profile` (string: core|custom), `delivery` (string: both|skills|commands), and optionally `workflows` (array of strings)
 
 #### Scenario: Schema evolution for new fields
 - **WHEN** loading config without profile/delivery fields

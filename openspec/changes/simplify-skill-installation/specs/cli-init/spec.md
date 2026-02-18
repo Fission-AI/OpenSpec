@@ -8,10 +8,6 @@ The init command SHALL generate skills based on the active profile, not a fixed 
 - **THEN** the system SHALL generate skills for workflows in CORE_WORKFLOWS constant: propose, explore, apply, archive
 - **THEN** the system SHALL NOT generate skills for workflows outside the profile
 
-#### Scenario: Extended profile skill generation
-- **WHEN** user runs init with profile `extended`
-- **THEN** the system SHALL generate skills for all workflows in SKILL_NAMES constant
-
 #### Scenario: Custom profile skill generation
 - **WHEN** user runs init with profile `custom`
 - **THEN** the system SHALL generate skills only for workflows listed in config `workflows` array
@@ -72,54 +68,32 @@ The init command SHALL work with sensible defaults, minimizing required user inp
 The init command SHALL read and apply settings from global config.
 
 #### Scenario: User has profile preference
-- **WHEN** global config contains `profile: "extended"`
-- **THEN** init SHALL install extended profile workflows
+- **WHEN** global config contains `profile: "custom"` with custom workflows
+- **THEN** init SHALL install custom profile workflows
 
 #### Scenario: User has delivery preference
 - **WHEN** global config contains `delivery: "skills"`
 - **THEN** init SHALL install only skill files, not commands
 
 #### Scenario: Override via flags
-- **WHEN** user runs `openspec init --profile extended`
+- **WHEN** user runs `openspec init --profile core`
 - **THEN** the system SHALL use the flag value instead of config value
 - **THEN** the system SHALL NOT update the global config
 
 ### Requirement: Init preserves existing workflows
-The init command SHALL NOT remove workflows that are already installed.
+The init command SHALL NOT remove workflows that are already installed, but SHALL respect delivery setting.
 
-#### Scenario: Existing extended installation
-- **WHEN** user has extended profile installed and runs `openspec init` with core profile
+#### Scenario: Existing custom installation
+- **WHEN** user has custom profile with extra workflows and runs `openspec init` with core profile
 - **THEN** the system SHALL NOT remove extra workflows
 - **THEN** the system SHALL regenerate core workflow files, overwriting existing content with latest templates
 
-### Requirement: Apply profile deletion via constant lookups
-The `--apply-profile` flag SHALL remove workflows by checking SKILL_NAMES and COMMAND_IDS constants.
-
-#### Scenario: Apply profile flag
-- **WHEN** user runs `openspec init --apply-profile`
-- **THEN** the system SHALL iterate through SKILL_NAMES constant for skill directories
-- **AND** iterate through COMMAND_IDS constant for command files
-- **AND** delete skill directories matching names in SKILL_NAMES but not in current profile
-- **AND** delete command files matching IDs in COMMAND_IDS but not in current profile
-- **AND** ignore all directories/files not in these constants (user-created)
-- **AND** ask for confirmation before removing, listing each item to be deleted
-
-#### Scenario: Apply profile confirmation declined
-- **WHEN** user declines the deletion confirmation
-- **THEN** the system SHALL skip all deletions
-- **THEN** the system SHALL proceed with installing/refreshing profile workflows
-- **THEN** the system SHALL display: "Skipped deletion. Extra workflows preserved."
-
-#### Scenario: Skill deletion scope
-- **WHEN** evaluating skill directories for deletion
-- **THEN** the system SHALL only consider directories whose names exist in SKILL_NAMES
-- **THEN** the system SHALL NOT use pattern matching or regex
-
-#### Scenario: Command deletion scope
-- **WHEN** evaluating command files for deletion
-- **THEN** the system SHALL only consider files whose IDs exist in COMMAND_IDS
-- **THEN** the system SHALL use tool adapter to resolve file paths from command IDs
-- **THEN** the system SHALL NOT use pattern matching or regex
+#### Scenario: Init with different delivery setting
+- **WHEN** user runs `openspec init` on existing project
+- **AND** delivery setting differs from what's installed (e.g., was `both`, now `skills`)
+- **THEN** the system SHALL generate files matching current delivery setting
+- **THEN** the system SHALL delete files that don't match delivery (e.g., commands removed if `skills`)
+- **THEN** this applies to all workflows, including extras not in profile
 
 ### Requirement: Init tool confirmation UX
 The init command SHALL show detected tools and ask for confirmation.

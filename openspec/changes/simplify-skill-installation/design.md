@@ -17,14 +17,14 @@ Global config exists at `~/.config/openspec/config.json` for telemetry/feature f
 - Get new users to "aha moment" in under 1 minute
 - Zero-question init with sensible defaults (core profile, both delivery)
 - Auto-detect installed tools from existing directories
-- Introduce profile system (core/extended/custom) for workflow selection
+- Introduce profile system (core/custom) for workflow selection
 - Introduce delivery config (skills/commands/both) as power-user setting
 - Create new `propose` workflow combining `new` + `ff`
 - Fix tool selection UX (space to select, enter to confirm)
 - Maintain backwards compatibility for existing users
 
 **Non-Goals:**
-- Removing any existing workflows (all remain available in extended profile)
+- Removing any existing workflows (all remain available via custom profile)
 - Per-project profile/delivery settings (user-level only)
 - Changing the artifact structure or schema system
 - Modifying how skills/commands are formatted or written
@@ -53,25 +53,41 @@ Add profile/delivery settings to existing `~/.config/openspec/config.json` (via 
 - Project config: Would require syncing mechanism, users edit it directly
 - Environment variables: Less discoverable, harder to persist
 
-### 2. Profile System with Three Tiers
+### 2. Profile System with Two Tiers
 
 ```
 core (default):     propose, explore, apply, archive (4)
-extended:           all 11 workflows
-custom:             user-defined subset
+custom:             user-defined subset of workflows
 ```
 
-**Rationale:** Core covers the essential loop (propose → explore → apply → archive). Extended provides full control for power users. Custom allows fine-tuning.
+**Rationale:** Core covers the essential loop (propose → explore → apply → archive). Custom allows users to pick exactly what they need via an interactive picker.
+
+**Configuration UX:**
+```
+$ openspec config profile
+
+Delivery: [skills] [commands] [both]
+                              ^^^^^^
+
+Workflows: (space to toggle, enter to save)
+[x] propose
+[x] explore
+[x] apply
+[x] archive
+[ ] new
+[ ] ff
+...
+```
 
 **Alternatives considered:**
-- Two tiers (simple/full): Less flexibility for users who want most but not all
-- No profiles (always custom): More cognitive load, defeats simplification goal
+- Three tiers (core/extended/custom): Extended is redundant - users who want all workflows can select them in custom
+- Separate commands for profile and delivery: Combining into one picker reduces cognitive load
 
 ### 3. Propose Workflow = New + FF Combined
 
 Single workflow that creates a change and generates all artifacts in one step.
 
-**Rationale:** Most users want to go from idea to implementation-ready. Separating `new` (creates folder) and `ff` (generates artifacts) adds unnecessary steps. Power users who want control can use `new` + `continue` from extended profile.
+**Rationale:** Most users want to go from idea to implementation-ready. Separating `new` (creates folder) and `ff` (generates artifacts) adds unnecessary steps. Power users who want control can use `new` + `continue` via custom profile.
 
 **Implementation:** New template in `src/core/templates/workflows/propose.ts` that:
 1. Creates change directory via `openspec new change`
@@ -95,11 +111,11 @@ const TOOL_DIRS = {
 // Scan cwd for existing directories, pre-select matches
 ```
 
-### 5. Delivery as Config, Not Init Prompt
+### 5. Delivery as Part of Profile Config
 
 Delivery preference (skills/commands/both) stored in global config, defaulting to "both".
 
-**Rationale:** Most users don't know or care about this distinction. Power users who have a preference can set it once via `openspec config set delivery skills`. Not worth asking during init.
+**Rationale:** Most users don't know or care about this distinction. Power users who have a preference can set it via `openspec config profile` interactive picker. Not worth asking during init.
 
 ### 6. Filesystem as Truth for Installed Workflows
 
@@ -111,49 +127,17 @@ What's installed in `.claude/skills/` (etc.) is the source of truth, not config.
 - Config profile is a "template" for what to install, not a constraint
 
 **Behavior:**
-- `openspec init` installs profile workflows, doesn't remove extras
-- `openspec init --apply-profile` syncs to profile (removes extras via SKILL_NAMES and COMMAND_IDS lookups)
-- `openspec profile show` reads filesystem, shows what's actually installed
-- `openspec profile install <workflow>` immediately generates files (not config-only)
-- `openspec profile uninstall <workflow>` immediately removes files (not config-only)
+- `openspec init` sets up new projects OR re-initializes existing projects (selects tools, generates workflows)
+- `openspec update` refreshes an existing project to match current config (no tool selection)
+- `openspec config profile` updates global config only, offers to run update if in a project
+- Extra workflows (not in profile) are preserved
+- Delivery changes are applied: switching to `skills` removes commands, switching to `commands` removes skills
 
-### 6a. Profile Install/Uninstall = Immediate Filesystem Mutation
+**When to use init vs update:**
+- `init`: First time setup, or when you want to change which tools are configured
+- `update`: After changing config, or to refresh templates to latest version
 
-When user runs `profile install X`, files are generated immediately. No separate "apply" step.
-
-**Rationale:** Users expect "install" to install. Config-only mutations with deferred application creates confusion where `profile install explore` succeeds but `profile show` shows nothing installed.
-
-**Implementation:**
-1. Update config to reflect new custom profile
-2. Detect all configured tools in current project
-3. Generate skill/command files for the workflow across all tools
-4. Display confirmation with installed locations
-
-### 6b. Safe Deletion via Constant Lookups
-
-When removing workflows, only delete items in SKILL_NAMES and COMMAND_IDS constants.
-
-**Rationale:** We generate known lists of skills and commands. Delete only what we created by checking against explicit lists, not pattern matching.
-
-**Implementation:**
-```typescript
-// For skills - only delete if name is in our known list
-if (SKILL_NAMES.includes(dirName)) {
-  // Safe to delete skill directory - we created it
-}
-
-// For commands - only delete if ID is in our known list
-if (COMMAND_IDS.includes(commandId)) {
-  // Safe to delete command file - we created it
-  // Use tool adapter to resolve actual file path
-}
-```
-
-**Constants:**
-- `SKILL_NAMES`: Array of skill directory names (e.g., `openspec-explore`, `openspec-apply-change`)
-- `COMMAND_IDS`: Array of command IDs (e.g., `explore`, `apply`, `new`)
-
-### 8. Fix Multi-Select Keybindings
+### 7. Fix Multi-Select Keybindings
 
 Change from tab-to-confirm to industry-standard space/enter.
 
@@ -164,7 +148,7 @@ Change from tab-to-confirm to industry-standard space/enter.
 ## Risks / Trade-offs
 
 **Risk: Breaking existing user workflows**
-→ Mitigation: Filesystem is truth, existing installs untouched. Extended profile includes all current workflows.
+→ Mitigation: Filesystem is truth, existing installs untouched. All workflows available via custom profile.
 
 **Risk: Propose workflow duplicates ff logic**
 → Mitigation: Extract shared artifact generation into reusable function, both `propose` and `ff` call it.
@@ -176,7 +160,7 @@ Change from tab-to-confirm to industry-standard space/enter.
 → Mitigation: Show detected tools and ask for confirmation, don't auto-install silently.
 
 **Trade-off: Core profile has only 4 workflows**
-→ Acceptable: These cover the main loop. Users who need more can `openspec profile set extended` or install individual workflows.
+→ Acceptable: These cover the main loop. Users who need more can use `openspec config profile` to select additional workflows.
 
 ## Migration Plan
 
@@ -194,11 +178,17 @@ Change from tab-to-confirm to industry-standard space/enter.
    - Auto-detect and confirm tools
    - Respect profile/delivery settings
 
-4. **Phase 4: Add profile/config commands**
-   - `openspec profile set/install/uninstall/list/show`
-   - `openspec config set/get/list`
+4. **Phase 4: Add config profile command**
+   - `openspec config profile` interactive picker
+   - `openspec config profile core` preset shortcut
 
-5. **Phase 5: Fix multi-select UX**
+5. **Phase 5: Update the update command**
+   - Read global config for profile/delivery
+   - Add missing workflows from profile
+   - Delete files when delivery changes (e.g., commands removed if `skills`)
+   - Display summary of changes
+
+6. **Phase 6: Fix multi-select UX**
    - Update keybindings in searchable-multi-select
 
-**Rollback:** All changes are additive. Existing behavior preserved via extended profile.
+**Rollback:** All changes are additive. Existing behavior preserved via custom profile with all workflows selected.

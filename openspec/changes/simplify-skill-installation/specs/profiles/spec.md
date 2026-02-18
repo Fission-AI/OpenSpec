@@ -1,82 +1,79 @@
 ## ADDED Requirements
 
 ### Requirement: Profile definitions
-The system SHALL support three workflow profiles: `core`, `extended`, and `custom`.
+The system SHALL support two workflow profiles: `core` and `custom`.
 
 #### Scenario: Core profile contents
 - **WHEN** profile is set to `core`
 - **THEN** the profile SHALL include workflows: `propose`, `explore`, `apply`, `archive`
 
-#### Scenario: Extended profile contents
-- **WHEN** profile is set to `extended`
-- **THEN** the profile SHALL include all 11 workflows: `propose`, `explore`, `apply`, `archive`, `new`, `ff`, `continue`, `verify`, `sync`, `bulk-archive`, `onboard`
-
 #### Scenario: Custom profile contents
 - **WHEN** profile is set to `custom`
 - **THEN** the profile SHALL include only the workflows specified in global config `workflows` array
 
-### Requirement: Profile CLI commands
-The system SHALL provide CLI commands for managing profiles.
+### Requirement: Delivery is independent of profile
+The delivery setting controls HOW workflows are installed, separate from WHICH workflows are installed.
 
-#### Scenario: Set profile (config-only)
-- **WHEN** user runs `openspec profile set <name>` without `--apply-profile`
-- **THEN** the system SHALL update the global config profile setting
-- **THEN** the system SHALL NOT modify the filesystem (no workflow files added or removed)
-- **THEN** the system SHALL output confirmation of the change
+#### Scenario: Core profile with custom delivery
+- **WHEN** profile is set to `core`
+- **AND** delivery is set to `skills`
+- **THEN** the system SHALL install core workflows as skills only (no commands)
 
-#### Scenario: Set profile with apply
-- **WHEN** user runs `openspec profile set <name> --apply-profile`
-- **THEN** the system SHALL update the global config profile setting
-- **THEN** the system SHALL remove workflow files not in new profile (via SKILL_NAMES and COMMAND_IDS lookups)
-- **THEN** the system SHALL install any missing workflow files for the new profile
-- **THEN** the system SHALL ask for confirmation before removing files
+#### Scenario: Delivery defaults
+- **WHEN** delivery is not set in global config
+- **THEN** the system SHALL default to `both`
 
-#### Scenario: Invalid profile name
-- **WHEN** user runs `openspec profile set <name>` where name is not `core`, `extended`, or `custom`
-- **THEN** the system SHALL display an error listing valid profile names
-- **THEN** the system SHALL NOT modify the global config
+### Requirement: Profile configuration via interactive picker
+The system SHALL provide an interactive picker for configuring profiles.
 
-#### Scenario: Install individual workflow
-- **WHEN** user runs `openspec profile install <workflow>`
-- **THEN** the system SHALL set profile to `custom` if not already
-- **THEN** the system SHALL inform user if profile changed (e.g., "Profile changed from core to custom")
-- **THEN** the system SHALL add the workflow to the global config `workflows` array
-- **THEN** the system SHALL detect all configured tools in current project
-- **THEN** the system SHALL immediately generate skill/command files for the workflow across all detected tools
-- **THEN** the system SHALL display confirmation with installed locations
+#### Scenario: Interactive profile configuration
+- **WHEN** user runs `openspec config profile`
+- **THEN** the system SHALL display an interactive picker with:
+  - Delivery selection: `skills`, `commands`, `both`
+  - Workflow toggles for all available workflows
+- **THEN** the system SHALL pre-select current config values
+- **THEN** on confirmation, the system SHALL update global config
+- **THEN** the system SHALL set profile to `custom` if user changes from core defaults
+- **THEN** the system SHALL NOT modify any project files
+- **THEN** the system SHALL display: "Config updated. Run `openspec update` in your projects to apply."
 
-#### Scenario: Install unknown workflow
-- **WHEN** user runs `openspec profile install <workflow>` where workflow is not recognized
-- **THEN** the system SHALL display an error listing valid workflow names
-- **THEN** the system SHALL NOT modify the global config or filesystem
+#### Scenario: Core preset shortcut
+- **WHEN** user runs `openspec config profile core`
+- **THEN** the system SHALL set profile to `core`
+- **THEN** the system SHALL set workflows to `['propose', 'explore', 'apply', 'archive']`
+- **THEN** the system SHALL NOT change the delivery setting (preserves user preference)
+- **THEN** the system SHALL NOT modify any project files
+- **THEN** the system SHALL display: "Config updated. Run `openspec update` in your projects to apply."
 
-#### Scenario: Uninstall individual workflow
-- **WHEN** user runs `openspec profile uninstall <workflow>`
-- **THEN** the system SHALL set profile to `custom` if not already
-- **THEN** the system SHALL inform user if profile changed (e.g., "Profile changed from core to custom")
-- **THEN** the system SHALL remove the workflow from the global config `workflows` array
-- **THEN** the system SHALL detect all configured tools in current project
-- **THEN** the system SHALL immediately delete skill directories for the workflow (via SKILL_NAMES lookup)
-- **THEN** the system SHALL immediately delete command files for the workflow (via COMMAND_IDS lookup)
-- **THEN** the system SHALL only delete items whose names/IDs exist in SKILL_NAMES or COMMAND_IDS constants
-- **THEN** the system SHALL display confirmation with removed locations
+#### Scenario: Config profile run inside a project
+- **WHEN** user runs `openspec config profile` inside an OpenSpec project directory
+- **THEN** after updating global config, the system SHALL prompt: "Apply to this project now? (y/n)"
+- **WHEN** user confirms
+- **THEN** the system SHALL run `openspec update` automatically
+- **THEN** the system SHALL still display: "Run `openspec update` in your other projects to apply."
 
-#### Scenario: Uninstall workflow from current profile
-- **WHEN** user runs `openspec profile uninstall <workflow>` where workflow is part of current non-custom profile
-- **THEN** the system SHALL change profile to `custom`
-- **THEN** the system SHALL set `workflows` array to current profile's workflows minus the uninstalled one
-- **THEN** the system SHALL inform user: "Profile changed from <old> to custom. Remaining workflows: [...]"
-- **THEN** the system SHALL proceed with deletion
+#### Scenario: Config profile - user declines apply
+- **WHEN** user runs `openspec config profile` inside an OpenSpec project directory
+- **AND** user declines the "Apply to this project now?" prompt
+- **THEN** the system SHALL display: "Config updated. Run `openspec update` in your projects to apply."
+- **THEN** the system SHALL exit successfully without modifying project files
 
-#### Scenario: List available profiles
-- **WHEN** user runs `openspec profile list`
-- **THEN** the system SHALL display all available profiles with their workflow counts
-- **THEN** the system SHALL mark the currently active profile (e.g., "core (active)")
+#### Scenario: Config profile non-interactive
+- **WHEN** user runs `openspec config profile` non-interactively (e.g., in CI, no TTY)
+- **THEN** the system SHALL display an error: "Interactive mode required. Use `openspec config profile core` or set config via environment/flags."
+- **THEN** the system SHALL exit with code 1
 
-#### Scenario: Show current installation
-- **WHEN** user runs `openspec profile show`
-- **THEN** the system SHALL read the filesystem to show actually installed workflows
-- **THEN** the system SHALL indicate which profile the installation matches (if any)
+### Requirement: Config is global, projects are explicit
+Config changes do NOT automatically propagate to projects.
+
+#### Scenario: Config update does not modify projects
+- **WHEN** user updates config via `openspec config profile`
+- **THEN** the system SHALL only update global config (`~/.config/openspec/config.json`)
+- **THEN** the system SHALL NOT modify any project skill/command files
+- **THEN** existing projects retain their current workflow files until user runs `openspec update`
+
+### Requirement: Config changes applied via update command
+The existing `openspec update` command applies the current global config to a project. See `specs/cli-update/spec.md` for detailed update behavior.
 
 ### Requirement: Profile defaults
 The system SHALL use `core` as the default profile for new users.
