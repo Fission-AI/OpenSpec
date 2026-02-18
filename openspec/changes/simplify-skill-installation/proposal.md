@@ -20,14 +20,20 @@ Additionally, users have different preferences for how workflows are delivered (
 
 ## What Changes
 
-### 1. Zero-Question Init
+### 1. Smart Defaults Init
 
-Init should just work with sensible defaults:
+Init auto-detects tools and asks for confirmation:
 
 ```text
 $ openspec init
 
-Detected: Claude Code, Cursor
+Detected tools:
+  [x] Claude Code
+  [x] Cursor
+  [ ] Windsurf
+
+Press Enter to confirm, or Space to toggle
+
 Setting up OpenSpec...
 ✓ Done
 
@@ -41,12 +47,12 @@ Start your first change:
 
 Power users can customize via `openspec config profile`.
 
-### 2. Auto-Detect Tools
+### 2. Tool Detection Behavior
 
-Init scans for existing tool directories (`.claude/`, `.cursor/`, etc.) and:
-- If tools found: Shows detected tools, asks for confirmation
-- If no tools found: Prompts for selection
-- Non-interactive: Uses detected tools automatically, fails only if none detected
+Init scans for existing tool directories (`.claude/`, `.cursor/`, etc.):
+- **Tools detected (interactive):** Shows pre-selected checkboxes, user confirms or adjusts
+- **No tools detected (interactive):** Prompts for full tool selection
+- **Non-interactive (CI):** Uses detected tools automatically, fails if none detected
 
 ### 3. Fix Tool Selection UX
 
@@ -141,7 +147,7 @@ Workflows: (space to toggle, enter to save)
 
 ### Modified Capabilities
 
-- `init`: Zero-question flow with auto-detection and sensible defaults
+- `init`: Smart defaults with auto-detection and confirmation
 - `tool-selection-ux`: Space to select, Enter to confirm
 - `skill-generation`: Conditional based on profile and delivery settings
 - `command-generation`: Conditional based on profile and delivery settings
@@ -154,7 +160,7 @@ Workflows: (space to toggle, enter to save)
 - `src/core/available-tools.ts` - Detect what AI tools user has from directories
 
 ### Modified Files
-- `src/core/init.ts` - Zero-question flow, auto-detection, sensible defaults
+- `src/core/init.ts` - Smart defaults, auto-detection, tool confirmation
 - `src/core/config.ts` - Add profile and delivery types
 - `src/core/global-config.ts` - Add profile, delivery, workflows fields to schema
 - `src/core/shared/skill-generation.ts` - Filter by profile, respect delivery

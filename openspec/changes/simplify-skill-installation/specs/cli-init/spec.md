@@ -27,8 +27,8 @@ The init command SHALL generate commands based on profile AND delivery settings.
 - **WHEN** delivery is set to `both`
 - **THEN** the system SHALL generate both skill and command files for profile workflows
 
-### Requirement: Zero-question init flow
-The init command SHALL work with sensible defaults, minimizing required user input.
+### Requirement: Smart defaults init flow
+The init command SHALL work with sensible defaults and tool confirmation, minimizing required user input.
 
 #### Scenario: Init with detected tools (interactive)
 - **WHEN** user runs `openspec init` interactively and tool directories are detected

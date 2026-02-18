@@ -15,7 +15,7 @@ Global config exists at `~/.config/openspec/config.json` for telemetry/feature f
 
 **Goals:**
 - Get new users to "aha moment" in under 1 minute
-- Zero-question init with sensible defaults (core profile, both delivery)
+- Smart defaults init with auto-detection and confirmation (core profile, both delivery)
 - Auto-detect installed tools from existing directories
 - Introduce profile system (core/custom) for workflow selection
 - Introduce delivery config (skills/commands/both) as power-user setting
@@ -174,7 +174,7 @@ Change from tab-to-confirm to industry-standard space/enter.
    - Enhanced UX with explanatory output
 
 3. **Phase 3: Update init flow**
-   - Zero-question default flow
+   - Smart defaults with tool confirmation
    - Auto-detect and confirm tools
    - Respect profile/delivery settings
 
