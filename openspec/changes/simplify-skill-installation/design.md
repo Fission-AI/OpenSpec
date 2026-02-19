@@ -136,6 +136,60 @@ What's installed in `.claude/skills/` (etc.) is the source of truth, not config.
 - `init`: First time setup, or when you want to change which tools are configured
 - `update`: After changing config, or to refresh templates to latest version
 
+### 8. Existing User Migration
+
+When `openspec init` or `openspec update` encounters a project with existing workflows but no `profile` field in global config, it performs a one-time migration to preserve the user's current setup.
+
+**Rationale:** Without migration, existing users would default to `core` profile, causing `propose` to be added on top of their 10 workflows — making things worse, not better. Migration ensures existing users keep exactly what they have.
+
+**Triggered by:** Both `init` (re-init on existing project) and `update`. The migration check is a shared function called early in both commands, before profile resolution.
+
+**Detection logic:**
+```typescript
+// Shared migration check, called by both init and update:
+function migrateIfNeeded(projectPath: string, tools: AiTool[]): void {
+  const globalConfig = readGlobalConfig();
+  if (globalConfig.profile) return; // already migrated or explicitly set
+
+  const installedWorkflows = scanInstalledWorkflows(projectPath, tools);
+  if (installedWorkflows.length === 0) return; // new user, use core defaults
+
+  // Existing user — migrate to custom profile
+  writeGlobalConfig({
+    ...globalConfig,
+    profile: 'custom',
+    delivery: 'both',
+    workflows: installedWorkflows,
+  });
+}
+```
+
+**Scanning logic:**
+- Scan all tool directories (`.claude/skills/`, `.cursor/skills/`, etc.) for workflow directories/files
+- Match only against `ALL_WORKFLOWS` constant — ignore user-created custom skills/commands
+- Map directory names back to workflow IDs (e.g., `openspec-explore/` → `explore`, `opsx-explore.md` → `explore`)
+- Take the union of detected workflow names across all tools
+
+**Edge cases:**
+- **User manually deleted some workflows:** Migration scans what's actually installed, respecting their choices
+- **Multiple projects with different workflow sets:** First project to trigger migration sets global config; subsequent projects use it
+- **User has custom (non-OpenSpec) skills in the directory:** Ignored — scanner only matches known workflow IDs from `ALL_WORKFLOWS`
+- **Migration is idempotent:** If `profile` is already set in config, no re-migration occurs
+- **Non-interactive (CI):** Same migration logic, no confirmation needed — it's preserving existing state
+
+**Alternatives considered:**
+- Migrate during `init` instead of `update`: Init already has its own flow (tool selection, etc.). Mixing migration with init creates confusing UX
+- Don't migrate, just default to core: Breaks existing users by adding `propose` and showing "extra workflows" warnings
+- Migrate at global config read time: Too implicit, hard to show feedback to user
+
+### 9. Generic Next-Step Guidance in Templates
+
+Workflow templates use generic, concept-based next-step guidance rather than referencing specific workflow commands. For example, instead of "run `/opsx:propose`", templates say "create a change proposal".
+
+**Rationale:** Conditional cross-referencing (where each template checks which other workflows are installed and renders different command names) adds significant complexity to template generation, testing, and maintenance. Generic guidance avoids this entirely while still being useful — users already know their installed workflows.
+
+**Note:** If we find that users consistently struggle to map concepts to commands, we can revisit this with conditional cross-references. For now, simplicity wins.
+
 ### 7. Fix Multi-Select Keybindings
 
 Change from tab-to-confirm to industry-standard space/enter.
