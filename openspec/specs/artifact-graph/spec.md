@@ -1,7 +1,8 @@
 # artifact-graph Specification
 
 ## Purpose
-TBD - created by archiving change add-artifact-graph-core. Update Purpose after archive.
+Define the artifact graph model, dependency validation, and completion-state logic used by schema-driven workflows.
+
 ## Requirements
 ### Requirement: Schema Loading
 The system SHALL load artifact graph definitions from YAML schema files within schema directories.

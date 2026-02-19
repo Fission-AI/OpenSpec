@@ -1,7 +1,8 @@
 # docs-agent-instructions Specification
 
 ## Purpose
-TBD - created by archiving change improve-agent-instruction-usability. Update Purpose after archive.
+Define authoring standards for generated agent instruction docs so templates, examples, and validation checklists are clear and copy-ready.
+
 ## Requirements
 ### Requirement: Quick Reference Placement
 The AI instructions SHALL begin with a quick-reference section that surfaces required file structures, templates, and formatting rules before any narrative guidance.
@@ -36,3 +37,26 @@ The documentation SHALL separate beginner essentials from advanced topics so new
 - **AND** move advanced topics (multi-capability changes, archiving details, tooling deep dives) into clearly labeled later sections
 - **AND** provide anchor links from the quick-reference to those advanced sections
 
+### Requirement: Behavior-First Spec Authoring Guidance
+Agent instruction docs SHALL explicitly teach that specs capture observable behavior contracts, while implementation details belong in design/tasks.
+
+#### Scenario: Distinguishing spec vs implementation content
+- **WHEN** `openspec/AGENTS.md` explains how to write `spec.md`
+- **THEN** it SHALL instruct agents to include externally verifiable behavior, inputs/outputs, errors, and constraints
+- **AND** it SHALL instruct agents to avoid internal library/framework choices and class/function-level implementation details in specs
+
+#### Scenario: Routing detail to the right artifact
+- **WHEN** implementation detail is necessary
+- **THEN** instructions SHALL direct the agent to place it in `design.md` or `tasks.md`, not in the behavioral requirements section of `spec.md`
+
+### Requirement: Lightweight-by-Default Guidance
+Agent instruction docs SHALL promote minimal ceremony and proportional rigor for spec authoring.
+
+#### Scenario: Applying progressive rigor
+- **WHEN** an agent drafts specs for routine changes
+- **THEN** instructions SHALL favor concise, lightweight requirements and scenarios
+- **AND** reserve deeper, fuller specification style for higher-risk changes (such as API breaks, migrations, cross-team, or security/privacy sensitive work)
+
+#### Scenario: Time-to-clarity optimization
+- **WHEN** guidance discusses drafting workflow
+- **THEN** it SHALL emphasize producing the smallest spec that is still testable and reviewable
