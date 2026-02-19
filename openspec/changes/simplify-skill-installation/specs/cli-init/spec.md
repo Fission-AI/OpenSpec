@@ -142,6 +142,12 @@ The init command SHALL read and apply settings from global config.
 - **THEN** the system SHALL use the flag value instead of config value
 - **THEN** the system SHALL NOT update the global config
 
+#### Scenario: Invalid profile override
+- **WHEN** user runs `openspec init --profile <invalid>`
+- **AND** `<invalid>` is not one of `core` or `custom`
+- **THEN** the system SHALL exit with code 1
+- **THEN** the system SHALL display a validation error listing allowed profile values
+
 ### Requirement: Init shows profile confirmation for non-default profiles
 The init command SHALL show what profile is being applied when it differs from `core`, allowing the user to adjust before proceeding.
 
@@ -183,6 +189,13 @@ The init command SHALL NOT remove workflows that are already installed, but SHAL
 - **THEN** the system SHALL generate files matching current delivery setting
 - **THEN** the system SHALL delete files that don't match delivery (e.g., commands removed if `skills`)
 - **THEN** this applies to all workflows, including extras not in profile
+
+#### Scenario: Re-init applies delivery cleanup even when templates are current
+- **WHEN** user runs `openspec init` on an existing project
+- **AND** existing files are already on current template versions
+- **AND** delivery changed since the previous init
+- **THEN** the system SHALL still remove files that no longer match delivery
+- **THEN** for example, switching from `both` to `skills` SHALL remove generated command files
 
 ### Requirement: Init tool confirmation UX
 The init command SHALL show detected tools and ask for confirmation.

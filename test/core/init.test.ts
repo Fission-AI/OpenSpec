@@ -483,6 +483,18 @@ describe('InitCommand - profile and detection features', () => {
     expect(await fileExists(newChangeSkill)).toBe(false);
   });
 
+  it('should reject invalid --profile values', async () => {
+    const initCommand = new InitCommand({
+      tools: 'claude',
+      force: true,
+      profile: 'invalid-profile',
+    });
+
+    await expect(initCommand.execute(testDir)).rejects.toThrow(
+      /Invalid profile "invalid-profile"/
+    );
+  });
+
   it('should use detected tools in non-interactive mode when no --tools flag', async () => {
     // Create a .claude directory to simulate detected tool
     await fs.mkdir(path.join(testDir, '.claude'), { recursive: true });
@@ -553,6 +565,34 @@ describe('InitCommand - profile and detection features', () => {
     // Commands should exist
     const cmdFile = path.join(testDir, '.claude', 'commands', 'opsx', 'explore.md');
     expect(await fileExists(cmdFile)).toBe(true);
+  });
+
+  it('should remove commands on re-init when delivery changes to skills', async () => {
+    saveGlobalConfig({
+      featureFlags: {},
+      profile: 'core',
+      delivery: 'both',
+    });
+
+    const initCommand1 = new InitCommand({ tools: 'claude', force: true });
+    await initCommand1.execute(testDir);
+
+    const cmdFile = path.join(testDir, '.claude', 'commands', 'opsx', 'explore.md');
+    expect(await fileExists(cmdFile)).toBe(true);
+
+    saveGlobalConfig({
+      featureFlags: {},
+      profile: 'core',
+      delivery: 'skills',
+    });
+
+    const initCommand2 = new InitCommand({ tools: 'claude', force: true });
+    await initCommand2.execute(testDir);
+
+    expect(await fileExists(cmdFile)).toBe(false);
+
+    const skillFile = path.join(testDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md');
+    expect(await fileExists(skillFile)).toBe(true);
   });
 });
 

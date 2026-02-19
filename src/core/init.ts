@@ -42,7 +42,7 @@ import {
   type ToolSkillStatus,
 } from './shared/index.js';
 import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
-import { getProfileWorkflows, CORE_WORKFLOWS } from './profiles.js';
+import { getProfileWorkflows, CORE_WORKFLOWS, ALL_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
 import { migrateIfNeeded } from './migration.js';
 
@@ -58,6 +58,20 @@ const DEFAULT_SCHEMA = 'spec-driven';
 const PROGRESS_SPINNER = {
   interval: 80,
   frames: ['░░░', '▒░░', '▒▒░', '▒▒▒', '▓▒▒', '▓▓▒', '▓▓▓', '▒▓▓', '░▒▓'],
+};
+
+const WORKFLOW_TO_SKILL_DIR: Record<string, string> = {
+  'explore': 'openspec-explore',
+  'new': 'openspec-new-change',
+  'continue': 'openspec-continue-change',
+  'apply': 'openspec-apply-change',
+  'ff': 'openspec-ff-change',
+  'sync': 'openspec-sync-specs',
+  'archive': 'openspec-archive-change',
+  'bulk-archive': 'openspec-bulk-archive-change',
+  'verify': 'openspec-verify-change',
+  'onboard': 'openspec-onboard',
+  'propose': 'openspec-propose',
 };
 
 // -----------------------------------------------------------------------------
@@ -116,7 +130,7 @@ export class InitCommand {
 
     // Resolve profile (--profile flag overrides global config) (task 7.7)
     const globalConfig = getGlobalConfig();
-    const profile: Profile = (this.profileOverride as Profile) ?? globalConfig.profile ?? 'core';
+    const profile: Profile = this.resolveProfileOverride() ?? globalConfig.profile ?? 'core';
     const workflows = getProfileWorkflows(profile, globalConfig.workflows);
 
     // Profile confirmation for non-default profiles (task 7.5)
@@ -176,6 +190,18 @@ export class InitCommand {
     if (this.interactiveOption === false) return false;
     if (this.toolsArg !== undefined) return false;
     return isInteractive({ interactive: this.interactiveOption });
+  }
+
+  private resolveProfileOverride(): Profile | undefined {
+    if (this.profileOverride === undefined) {
+      return undefined;
+    }
+
+    if (this.profileOverride === 'core' || this.profileOverride === 'custom') {
+      return this.profileOverride;
+    }
+
+    throw new Error(`Invalid profile "${this.profileOverride}". Available profiles: core, custom`);
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -471,15 +497,19 @@ export class InitCommand {
     refreshedTools: typeof tools;
     failedTools: Array<{ name: string; error: Error }>;
     commandsSkipped: string[];
+    removedCommandCount: number;
+    removedSkillCount: number;
   }> {
     const createdTools: typeof tools = [];
     const refreshedTools: typeof tools = [];
     const failedTools: Array<{ name: string; error: Error }> = [];
     const commandsSkipped: string[] = [];
+    let removedCommandCount = 0;
+    let removedSkillCount = 0;
 
     // Read global config for profile and delivery settings (use --profile override if set)
     const globalConfig = getGlobalConfig();
-    const profile: Profile = (this.profileOverride as Profile) ?? globalConfig.profile ?? 'core';
+    const profile: Profile = this.resolveProfileOverride() ?? globalConfig.profile ?? 'core';
     const delivery: Delivery = globalConfig.delivery ?? 'both';
     const workflows = getProfileWorkflows(profile, globalConfig.workflows);
 
@@ -513,6 +543,10 @@ export class InitCommand {
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
         }
+        if (!shouldGenerateSkills) {
+          const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
+          removedSkillCount += await this.removeSkillDirs(skillsDir);
+        }
 
         // Generate commands if delivery includes commands
         if (shouldGenerateCommands) {
@@ -527,8 +561,9 @@ export class InitCommand {
           } else {
             commandsSkipped.push(tool.value);
           }
-        } else {
-          commandsSkipped.push(tool.value);
+        }
+        if (!shouldGenerateCommands) {
+          removedCommandCount += await this.removeCommandFiles(projectPath, tool.value);
         }
 
         spinner.succeed(`Setup complete for ${tool.name}`);
@@ -544,7 +579,14 @@ export class InitCommand {
       }
     }
 
-    return { createdTools, refreshedTools, failedTools, commandsSkipped };
+    return {
+      createdTools,
+      refreshedTools,
+      failedTools,
+      commandsSkipped,
+      removedCommandCount,
+      removedSkillCount,
+    };
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -587,6 +629,8 @@ export class InitCommand {
       refreshedTools: typeof tools;
       failedTools: Array<{ name: string; error: Error }>;
       commandsSkipped: string[];
+      removedCommandCount: number;
+      removedSkillCount: number;
     },
     configStatus: 'created' | 'exists' | 'skipped'
   ): void {
@@ -629,6 +673,12 @@ export class InitCommand {
     // Show skipped commands
     if (results.commandsSkipped.length > 0) {
       console.log(chalk.dim(`Commands skipped for: ${results.commandsSkipped.join(', ')} (no adapter)`));
+    }
+    if (results.removedCommandCount > 0) {
+      console.log(chalk.dim(`Removed: ${results.removedCommandCount} command files (delivery: skills)`));
+    }
+    if (results.removedSkillCount > 0) {
+      console.log(chalk.dim(`Removed: ${results.removedSkillCount} skill directories (delivery: commands)`));
     }
 
     // Config status
@@ -680,5 +730,48 @@ export class InitCommand {
       color: 'gray',
       spinner: PROGRESS_SPINNER,
     }).start();
+  }
+
+  private async removeSkillDirs(skillsDir: string): Promise<number> {
+    let removed = 0;
+
+    for (const workflow of ALL_WORKFLOWS) {
+      const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
+      if (!dirName) continue;
+
+      const skillDir = path.join(skillsDir, dirName);
+      try {
+        if (fs.existsSync(skillDir)) {
+          await fs.promises.rm(skillDir, { recursive: true, force: true });
+          removed++;
+        }
+      } catch {
+        // Ignore errors
+      }
+    }
+
+    return removed;
+  }
+
+  private async removeCommandFiles(projectPath: string, toolId: string): Promise<number> {
+    let removed = 0;
+    const adapter = CommandAdapterRegistry.get(toolId);
+    if (!adapter) return 0;
+
+    for (const workflow of ALL_WORKFLOWS) {
+      const cmdPath = adapter.getFilePath(workflow);
+      const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
+
+      try {
+        if (fs.existsSync(fullPath)) {
+          await fs.promises.unlink(fullPath);
+          removed++;
+        }
+      } catch {
+        // Ignore errors
+      }
+    }
+
+    return removed;
   }
 }

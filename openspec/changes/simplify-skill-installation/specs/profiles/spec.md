@@ -16,7 +16,7 @@ The system SHALL support two workflow profiles: `core` and `custom`.
 - **THEN** the profile SHALL include only the workflows specified in global config `workflows` array
 
 ### Requirement: Delivery is independent of profile
-The delivery setting controls HOW workflows are installed (skills, commands, or both), separate from WHICH workflows are installed.
+The delivery setting SHALL control HOW workflows are installed (skills, commands, or both), separate from WHICH workflows are installed.
 
 #### Scenario: Delivery options
 - **WHEN** configuring delivery
@@ -105,7 +105,7 @@ Profile and delivery settings SHALL be stored in the existing global config file
 - **AND** SHALL indicate which values are defaults vs explicitly set
 
 ### Requirement: Config is global, projects are explicit
-Config changes do NOT automatically propagate to projects.
+Config changes SHALL NOT automatically propagate to projects.
 
 #### Scenario: Config update does not modify projects
 - **WHEN** user updates config via `openspec config profile`
@@ -114,7 +114,12 @@ Config changes do NOT automatically propagate to projects.
 - **THEN** existing projects retain their current workflow files until user runs `openspec update`
 
 ### Requirement: Config changes applied via update command
-The existing `openspec update` command applies the current global config to a project. See `specs/cli-update/spec.md` for detailed update behavior.
+The existing `openspec update` command SHALL apply the current global config to a project. See `specs/cli-update/spec.md` for detailed update behavior.
+
+#### Scenario: Config changes require explicit project sync
+- **WHEN** user updates profile or delivery via `openspec config profile`
+- **THEN** the global config SHALL be updated immediately
+- **AND** project files SHALL remain unchanged until `openspec update` is run for that project
 
 ### Requirement: Profile defaults
 The system SHALL use `core` as the default profile for new users, while preserving existing users' workflows via migration.

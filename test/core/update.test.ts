@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { UpdateCommand, scanInstalledWorkflows } from '../../src/core/update.js';
+import { InitCommand } from '../../src/core/init.js';
 import { FileSystemUtils } from '../../src/utils/file-system.js';
 import { OPENSPEC_MARKERS } from '../../src/core/config.js';
 import type { GlobalConfig } from '../../src/core/global-config.js';
@@ -588,27 +589,9 @@ Old instructions content
 
   describe('smart update detection', () => {
     it('should show "up to date" message when skills have current version', async () => {
-      // Set up a configured tool with current version
-      const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
-        recursive: true,
-      });
-
-      // Use the current package version in generatedBy
-      const { version } = await import('../../package.json');
-      await fs.writeFile(
-        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
-        `---
-name: openspec-explore
-metadata:
-  author: openspec
-  version: "1.0"
-  generatedBy: "${version}"
----
-
-Content here
-`
-      );
+      // Initialize full core profile output so there is no profile/delivery drift.
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+      await initCommand.execute(testDir);
 
       const consoleSpy = vi.spyOn(console, 'log');
 
@@ -840,29 +823,16 @@ metadata:
     });
 
     it('should only update tools that need updating', async () => {
-      // Set up Claude with old version (needs update)
-      const claudeSkillDir = path.join(testDir, '.claude', 'skills', 'openspec-explore');
-      await fs.mkdir(claudeSkillDir, { recursive: true });
-      await fs.writeFile(
-        path.join(claudeSkillDir, 'SKILL.md'),
-        `---
-metadata:
-  generatedBy: "0.1.0"
----
-`
-      );
+      // Initialize both tools so Cursor is fully synced with profile/delivery.
+      const initCommand = new InitCommand({ tools: 'claude,cursor', force: true });
+      await initCommand.execute(testDir);
 
-      // Set up Cursor with current version (up to date)
-      const { version } = await import('../../package.json');
-      const cursorSkillDir = path.join(testDir, '.cursor', 'skills', 'openspec-explore');
-      await fs.mkdir(cursorSkillDir, { recursive: true });
+      // Make Claude stale to force a version update.
+      const claudeSkillFile = path.join(testDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md');
+      const claudeContent = await fs.readFile(claudeSkillFile, 'utf-8');
       await fs.writeFile(
-        path.join(cursorSkillDir, 'SKILL.md'),
-        `---
-metadata:
-  generatedBy: "${version}"
----
-`
+        claudeSkillFile,
+        claudeContent.replace(/generatedBy:\s*["'][^"']+["']/, 'generatedBy: "0.1.0"')
       );
 
       const consoleSpy = vi.spyOn(console, 'log');
@@ -1467,8 +1437,76 @@ More user content after markers.
         path.join(commandsDir, 'explore.md')
       )).toBe(true);
 
-      // Note: existing skill dirs are NOT removed for non-profile workflows.
-      // The skill for 'explore' which IS in profile would be removed by removeSkillDirs.
+      // Skills should be removed for commands-only delivery
+      expect(await FileSystemUtils.fileExists(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md')
+      )).toBe(false);
+    });
+
+    it('should apply config sync when templates are up to date', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'skills',
+      });
+
+      const skillsDir = path.join(testDir, '.claude', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), { recursive: true });
+      const packageJsonPath = path.join(process.cwd(), 'package.json');
+      const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf-8')) as { version: string };
+      await fs.writeFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        `---
+name: openspec-explore
+metadata:
+  generatedBy: "${packageJson.version}"
+---
+content
+`
+      );
+
+      const commandsDir = path.join(testDir, '.claude', 'commands', 'opsx');
+      await fs.mkdir(commandsDir, { recursive: true });
+      await fs.writeFile(path.join(commandsDir, 'explore.md'), 'old command');
+
+      await updateCommand.execute(testDir);
+
+      // Command files should be removed due to delivery change, even though skill version is current
+      expect(await FileSystemUtils.fileExists(
+        path.join(commandsDir, 'explore.md')
+      )).toBe(false);
+    });
+
+    it('should detect commands-only tool configuration', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'commands',
+      });
+
+      const commandsDir = path.join(testDir, '.claude', 'commands', 'opsx');
+      await fs.mkdir(commandsDir, { recursive: true });
+      await fs.writeFile(path.join(commandsDir, 'explore.md'), 'existing command');
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      // Should not short-circuit with "No configured tools found"
+      const calls = consoleSpy.mock.calls.map(call =>
+        call.map(arg => String(arg)).join(' ')
+      );
+      const hasNoConfiguredMessage = calls.some(call =>
+        call.includes('No configured tools found')
+      );
+      expect(hasNoConfiguredMessage).toBe(false);
+
+      // Commands should be updated/generated for the core profile
+      expect(await FileSystemUtils.fileExists(
+        path.join(commandsDir, 'propose.md')
+      )).toBe(true);
+
+      consoleSpy.mockRestore();
     });
 
     it('should display extra workflows note when workflows outside profile exist', async () => {

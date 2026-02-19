@@ -143,10 +143,14 @@ After migration, subsequent `init` and `update` commands respect the migrated co
 - Both `init` (re-init) and `update` trigger migration on existing projects if no profile is set
 - `openspec init` on a **new** project (no existing workflows) uses global config, defaulting to `core`
 - `init` with a custom profile shows what will be installed and prompts to proceed or reconfigure
+- `init` validates `--profile` values (`core` or `custom`) and errors on invalid input
 - Migration message mentions `propose` and suggests `openspec config profile core` to opt in
 - After migration, users can opt into `core` profile via `openspec config profile core`
 - Workflow templates conditionally reference only installed workflows in "next steps" guidance
 - Delivery changes are applied: switching to `skills` removes command files, switching to `commands` removes skill files
+- Re-running `init` applies delivery cleanup on existing projects (removes files that no longer match delivery)
+- `update` treats profile/delivery drift as update-required even when template versions are already current
+- `update` treats command-only installs as configured tools
 - All workflows remain available via custom profile
 
 ## Capabilities
@@ -175,7 +179,7 @@ After migration, subsequent `init` and `update` commands respect the migrated co
 - `src/core/shared/skill-generation.ts` - Filter by profile, respect delivery
 - `src/core/shared/tool-detection.ts` - Update SKILL_NAMES and COMMAND_IDS to include propose
 - `src/commands/config.ts` - Add `profile` subcommand with interactive picker
-- `src/commands/update.ts` - Add profile/delivery support, file deletion for delivery changes
+- `src/core/update.ts` - Add profile/delivery support, file deletion for delivery changes
 - `src/prompts/searchable-multi-select.ts` - Fix keybindings (space/enter)
 
 ### Global Config Schema Extension

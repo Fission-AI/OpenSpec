@@ -18,8 +18,9 @@ import {
   CommandAdapterRegistry,
 } from './command-generation/index.js';
 import {
+  COMMAND_IDS,
   getConfiguredTools,
-  getAllToolVersionStatus,
+  getToolVersionStatus,
   getSkillTemplates,
   getCommandContents,
   generateSkillContent,
@@ -104,7 +105,7 @@ export class UpdateCommand {
     const newlyConfiguredTools = await this.handleLegacyCleanup(resolvedProjectPath);
 
     // 3. Find configured tools
-    const configuredTools = getConfiguredTools(resolvedProjectPath);
+    const configuredTools = this.getConfiguredToolsForUpdate(resolvedProjectPath);
 
     if (configuredTools.length === 0 && newlyConfiguredTools.length === 0) {
       console.log(chalk.yellow('No configured tools found.'));
@@ -124,21 +125,50 @@ export class UpdateCommand {
     const profile = globalConfig.profile ?? 'core';
     const delivery: Delivery = globalConfig.delivery ?? 'both';
     const profileWorkflows = getProfileWorkflows(profile, globalConfig.workflows);
+    const desiredWorkflows = profileWorkflows.filter((workflow): workflow is (typeof ALL_WORKFLOWS)[number] =>
+      (ALL_WORKFLOWS as readonly string[]).includes(workflow)
+    );
+    const shouldGenerateSkills = delivery !== 'commands';
+    const shouldGenerateCommands = delivery !== 'skills';
 
     // 6. Check version status for all configured tools
-    const toolStatuses = getAllToolVersionStatus(resolvedProjectPath, OPENSPEC_VERSION);
+    const commandConfiguredTools = this.getCommandConfiguredTools(resolvedProjectPath);
+    const commandConfiguredSet = new Set(commandConfiguredTools);
+    const toolStatuses = configuredTools.map((toolId) => {
+      const status = getToolVersionStatus(resolvedProjectPath, toolId, OPENSPEC_VERSION);
+      if (!status.configured && commandConfiguredSet.has(toolId)) {
+        return { ...status, configured: true };
+      }
+      return status;
+    });
+    const statusByTool = new Map(toolStatuses.map((status) => [status.toolId, status] as const));
 
     // 7. Smart update detection
-    const toolsNeedingUpdate = toolStatuses.filter((s) => s.needsUpdate);
-    const toolsUpToDate = toolStatuses.filter((s) => !s.needsUpdate);
+    const toolsNeedingVersionUpdate = toolStatuses
+      .filter((s) => s.needsUpdate)
+      .map((s) => s.toolId);
+    const toolsNeedingConfigSync = configuredTools.filter((toolId) =>
+      this.hasProfileOrDeliveryDrift(
+        resolvedProjectPath,
+        toolId,
+        desiredWorkflows,
+        shouldGenerateSkills,
+        shouldGenerateCommands
+      )
+    );
+    const toolsToUpdateSet = new Set<string>([
+      ...toolsNeedingVersionUpdate,
+      ...toolsNeedingConfigSync,
+    ]);
+    const toolsUpToDate = toolStatuses.filter((s) => !toolsToUpdateSet.has(s.toolId));
 
-    if (!this.force && toolsNeedingUpdate.length === 0) {
+    if (!this.force && toolsToUpdateSet.size === 0) {
       // All tools are up to date
       this.displayUpToDateMessage(toolStatuses);
 
       // Still check for new tool directories and extra workflows
       this.detectNewTools(resolvedProjectPath, configuredTools);
-      this.displayExtraWorkflowsNote(resolvedProjectPath, configuredTools, profileWorkflows);
+      this.displayExtraWorkflowsNote(resolvedProjectPath, configuredTools, desiredWorkflows);
       return;
     }
 
@@ -146,18 +176,16 @@ export class UpdateCommand {
     if (this.force) {
       console.log(`Force updating ${configuredTools.length} tool(s): ${configuredTools.join(', ')}`);
     } else {
-      this.displayUpdatePlan(toolsNeedingUpdate, toolsUpToDate);
+      this.displayUpdatePlan([...toolsToUpdateSet], statusByTool, toolsUpToDate);
     }
     console.log();
 
     // 9. Determine what to generate based on delivery
-    const shouldGenerateSkills = delivery !== 'commands';
-    const shouldGenerateCommands = delivery !== 'skills';
-    const skillTemplates = shouldGenerateSkills ? getSkillTemplates(profileWorkflows) : [];
-    const commandContents = shouldGenerateCommands ? getCommandContents(profileWorkflows) : [];
+    const skillTemplates = shouldGenerateSkills ? getSkillTemplates(desiredWorkflows) : [];
+    const commandContents = shouldGenerateCommands ? getCommandContents(desiredWorkflows) : [];
 
     // 10. Update tools (all if force, otherwise only those needing update)
-    const toolsToUpdate = this.force ? configuredTools : toolsNeedingUpdate.map((s) => s.toolId);
+    const toolsToUpdate = this.force ? configuredTools : [...toolsToUpdateSet];
     const updatedTools: string[] = [];
     const failedTools: Array<{ name: string; error: string }> = [];
     let removedCommandCount = 0;
@@ -249,7 +277,7 @@ export class UpdateCommand {
     this.detectNewTools(resolvedProjectPath, configuredTools);
 
     // 14. Display note about extra workflows not in profile
-    this.displayExtraWorkflowsNote(resolvedProjectPath, configuredTools, profileWorkflows);
+    this.displayExtraWorkflowsNote(resolvedProjectPath, configuredTools, desiredWorkflows);
 
     // 15. List affected tools
     if (updatedTools.length > 0) {
@@ -269,27 +297,134 @@ export class UpdateCommand {
     console.log(chalk.green(`✓ All ${toolStatuses.length} tool(s) up to date (v${OPENSPEC_VERSION})`));
     console.log(chalk.dim(`  Tools: ${toolNames.join(', ')}`));
     console.log();
-    console.log(chalk.dim('Use --force to refresh skills anyway.'));
+    console.log(chalk.dim('Use --force to refresh files anyway.'));
   }
 
   /**
    * Display the update plan showing which tools need updating.
    */
   private displayUpdatePlan(
-    needingUpdate: ToolVersionStatus[],
+    toolsToUpdate: string[],
+    statusByTool: Map<string, ToolVersionStatus>,
     upToDate: ToolVersionStatus[]
   ): void {
-    const updates = needingUpdate.map((s) => {
-      const fromVersion = s.generatedByVersion ?? 'unknown';
-      return `${s.toolId} (${fromVersion} → ${OPENSPEC_VERSION})`;
+    const updates = toolsToUpdate.map((toolId) => {
+      const status = statusByTool.get(toolId);
+      if (status?.needsUpdate) {
+        const fromVersion = status.generatedByVersion ?? 'unknown';
+        return `${status.toolId} (${fromVersion} → ${OPENSPEC_VERSION})`;
+      }
+      return `${toolId} (config sync)`;
     });
 
-    console.log(`Updating ${needingUpdate.length} tool(s): ${updates.join(', ')}`);
+    console.log(`Updating ${toolsToUpdate.length} tool(s): ${updates.join(', ')}`);
 
     if (upToDate.length > 0) {
       const upToDateNames = upToDate.map((s) => s.toolId);
       console.log(chalk.dim(`Already up to date: ${upToDateNames.join(', ')}`));
     }
+  }
+
+  /**
+   * Returns tools that are configured via either skills or commands.
+   */
+  private getConfiguredToolsForUpdate(projectPath: string): string[] {
+    const skillConfigured = getConfiguredTools(projectPath);
+    const commandConfigured = this.getCommandConfiguredTools(projectPath);
+    return [...new Set([...skillConfigured, ...commandConfigured])];
+  }
+
+  /**
+   * Returns tools with at least one generated command file on disk.
+   */
+  private getCommandConfiguredTools(projectPath: string): string[] {
+    return AI_TOOLS
+      .filter((tool) => {
+        if (!tool.skillsDir) return false;
+        const toolDir = path.join(projectPath, tool.skillsDir);
+        try {
+          return fs.statSync(toolDir).isDirectory();
+        } catch {
+          return false;
+        }
+      })
+      .map((tool) => tool.value)
+      .filter((toolId) => this.toolHasAnyConfiguredCommand(projectPath, toolId));
+  }
+
+  /**
+   * Checks whether a tool has at least one generated OpenSpec command file.
+   */
+  private toolHasAnyConfiguredCommand(projectPath: string, toolId: string): boolean {
+    const adapter = CommandAdapterRegistry.get(toolId);
+    if (!adapter) return false;
+
+    for (const commandId of COMMAND_IDS) {
+      const cmdPath = adapter.getFilePath(commandId);
+      const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
+      if (fs.existsSync(fullPath)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Detects if profile or delivery settings require a file-level sync.
+   */
+  private hasProfileOrDeliveryDrift(
+    projectPath: string,
+    toolId: string,
+    profileWorkflows: readonly (typeof ALL_WORKFLOWS)[number][],
+    shouldGenerateSkills: boolean,
+    shouldGenerateCommands: boolean
+  ): boolean {
+    const tool = AI_TOOLS.find((t) => t.value === toolId);
+    if (!tool?.skillsDir) return false;
+
+    const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
+    const adapter = CommandAdapterRegistry.get(toolId);
+
+    if (shouldGenerateSkills) {
+      for (const workflow of profileWorkflows) {
+        const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
+        if (!dirName) continue;
+        const skillFile = path.join(skillsDir, dirName, 'SKILL.md');
+        if (!fs.existsSync(skillFile)) {
+          return true;
+        }
+      }
+    } else {
+      for (const workflow of ALL_WORKFLOWS) {
+        const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
+        if (!dirName) continue;
+        const skillDir = path.join(skillsDir, dirName);
+        if (fs.existsSync(skillDir)) {
+          return true;
+        }
+      }
+    }
+
+    if (shouldGenerateCommands && adapter) {
+      for (const workflow of profileWorkflows) {
+        const cmdPath = adapter.getFilePath(workflow);
+        const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
+        if (!fs.existsSync(fullPath)) {
+          return true;
+        }
+      }
+    } else if (!shouldGenerateCommands && adapter) {
+      for (const workflow of ALL_WORKFLOWS) {
+        const cmdPath = adapter.getFilePath(workflow);
+        const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
+        if (fs.existsSync(fullPath)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   }
 
   /**
@@ -470,7 +605,7 @@ export class UpdateCommand {
     }
 
     // Get currently configured tools
-    const configuredTools = getConfiguredTools(projectPath);
+    const configuredTools = this.getConfiguredToolsForUpdate(projectPath);
     const configuredSet = new Set(configuredTools);
 
     // Filter to tools that aren't already configured

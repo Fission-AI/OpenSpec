@@ -132,6 +132,18 @@ What's installed in `.claude/skills/` (etc.) is the source of truth, not config.
 - Extra workflows (not in profile) are preserved
 - Delivery changes are applied: switching to `skills` removes commands, switching to `commands` removes skills
 
+**Why not a separate tool manifest?**
+
+Tool selection (which assistants a project uses) is per-user AND per-project, but the two config locations are per-user-only (global config) or per-project-shared (checked-in project config). A separate manifest was explored and rejected:
+
+- *Path-keyed global config* (`projects: { "/path": { tools: [...] } }`): Fragile on directory move/rename/delete, symlink ambiguity, and project behavior depends on invisible external state.
+- *Gitignored local file* (`.openspec.local`): Lost on fresh clone, adds file management overhead.
+- *Checked-in project config* (`openspec/config.yaml` with `tools` field): Forces tool choices on the whole team — Alice uses Claude Code, Bob uses Cursor, neither wants the other's tools mandated.
+
+The filesystem approach avoids all three problems. For teams, it's actually beneficial: checked-in skill files mean `openspec update` from any team member refreshes skills for all tools the project supports. The generated files serve as both the deliverable and the implicit tool manifest.
+
+Known gap: a tool that stores config outside the project tree (no local directory to scan) would need tool-specific handling, since there's nothing in the project to scan. Address if/when such a tool is supported.
+
 **When to use init vs update:**
 - `init`: First time setup, or when you want to change which tools are configured
 - `update`: After changing config, or to refresh templates to latest version
@@ -197,6 +209,35 @@ Change from tab-to-confirm to industry-standard space/enter.
 **Rationale:** Tab to confirm is non-standard and confuses users. Most CLI tools use space to toggle, enter to confirm.
 
 **Implementation:** Modify `src/prompts/searchable-multi-select.ts` keybinding configuration.
+
+### 10. Update Sync Must Consider Config Drift, Not Just Version Drift
+
+`openspec update` cannot rely only on `generatedBy` version checks for deciding whether work is needed.
+
+**Rationale:** profile and delivery changes can require file add/remove operations even when existing skill templates are current. If we only check template versions, update may incorrectly return "up to date" and skip required sync.
+
+**Implementation:**
+- Keep version checks for template refresh decisions
+- Add file-state drift checks for profile/delivery (missing expected files or stale files from removed delivery mode)
+- Treat either version drift OR config drift as update-required
+
+### 11. Tool Configuration Detection Includes Commands-Only Installs
+
+Configured-tool detection for update must include command files, not only skill files.
+
+**Rationale:** with `delivery: commands`, a project can be fully configured without skill files. Skill-only detection incorrectly reports "No configured tools found."
+
+**Implementation:**
+- For update flows, treat a tool as configured if it has either generated skills or generated commands
+- Keep migration workflow scanning behavior unchanged (skills remain the migration source of truth)
+
+### 12. Init Profile Override Is Strictly Validated
+
+`openspec init --profile` must validate allowed values before proceeding.
+
+**Rationale:** silently accepting unknown profile values hides user errors and produces implicit fallback behavior.
+
+**Implementation:** accept only `core` and `custom`; throw a clear CLI error for invalid values.
 
 ## Risks / Trade-offs
 

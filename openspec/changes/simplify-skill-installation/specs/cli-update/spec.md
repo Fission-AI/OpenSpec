@@ -26,6 +26,13 @@ The update command SHALL read global config and apply profile settings to the pr
 - **AND** delivery setting matches installed files
 - **THEN** the system SHALL display: "Already up to date."
 
+#### Scenario: Profile or delivery drift with current templates
+- **WHEN** user runs `openspec update`
+- **AND** workflow templates are current for the installed skills
+- **AND** project files do not match current profile and/or delivery config
+- **THEN** the system SHALL treat this as an update-required state (not "Already up to date.")
+- **THEN** the system SHALL add/remove files to match current profile and delivery settings
+
 #### Scenario: Update summary output
 - **WHEN** update completes with changes
 - **THEN** the system SHALL display a summary:
@@ -57,6 +64,16 @@ The update command SHALL add or remove files based on the delivery setting.
 - **WHEN** user runs `openspec update`
 - **AND** global config specifies `delivery: both`
 - **THEN** the system SHALL generate/update both skill and command files
+
+### Requirement: Update detects configured tools from skills or commands
+The update command SHALL treat a tool as configured if it has either generated skill files or generated command files.
+
+#### Scenario: Commands-only installation
+- **WHEN** user runs `openspec update`
+- **AND** a tool has generated OpenSpec command files
+- **AND** that tool has no OpenSpec skill files (commands-only delivery)
+- **THEN** the tool SHALL still be treated as configured
+- **THEN** the system SHALL apply profile and delivery sync for that tool
 
 ### Requirement: One-time migration for existing users
 The update command SHALL detect existing users (no `profile` in global config + existing workflows) and migrate them to `custom` profile before applying updates.

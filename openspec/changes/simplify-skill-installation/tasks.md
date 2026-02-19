@@ -122,3 +122,11 @@
 - [x] 12.7 Manual: init with custom profile — verify confirmation prompt shows what will be installed
 - [x] 12.8 Manual: delivery change via update — verify correct files are deleted/created when switching between skills/commands/both
 - [x] 12.9 Manual: migration flow — run update on a pre-existing project with no profile in config, verify migration message and resulting config
+
+## 13. Post-Implementation Hardening (Review Follow-up)
+
+- [x] 13.1 Ensure `update` treats profile/delivery drift as update-required even when templates are current
+- [x] 13.2 Ensure `update` recognizes command-only installations as configured tools
+- [x] 13.3 Ensure `init` validates `--profile` values and errors on invalid overrides
+- [x] 13.4 Ensure re-running `init` applies delivery cleanup (removes files not matching current delivery mode)
+- [x] 13.5 Add/adjust regression tests for config drift sync, command-only detection, invalid profile override, and re-init delivery cleanup
