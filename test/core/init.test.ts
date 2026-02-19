@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'fs';
-import * as fsSync from 'fs';
 import path from 'path';
 import os from 'os';
 import { InitCommand } from '../../src/core/init.js';
@@ -8,6 +7,7 @@ import { saveGlobalConfig, getGlobalConfig } from '../../src/core/global-config.
 
 describe('InitCommand', () => {
   let testDir: string;
+  let configTempDir: string;
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(async () => {
@@ -15,7 +15,7 @@ describe('InitCommand', () => {
     await fs.mkdir(testDir, { recursive: true });
     originalEnv = { ...process.env };
     // Use a temp dir for global config to avoid reading real config
-    const configTempDir = path.join(os.tmpdir(), `openspec-config-init-${Date.now()}`);
+    configTempDir = path.join(os.tmpdir(), `openspec-config-init-${Date.now()}`);
     await fs.mkdir(configTempDir, { recursive: true });
     process.env.XDG_CONFIG_HOME = configTempDir;
 
@@ -26,6 +26,7 @@ describe('InitCommand', () => {
   afterEach(async () => {
     process.env = originalEnv;
     await fs.rm(testDir, { recursive: true, force: true });
+    await fs.rm(configTempDir, { recursive: true, force: true });
     vi.restoreAllMocks();
   });
 
@@ -442,6 +443,7 @@ describe('InitCommand', () => {
 
 describe('InitCommand - profile and detection features', () => {
   let testDir: string;
+  let configTempDir: string;
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(async () => {
@@ -449,7 +451,7 @@ describe('InitCommand - profile and detection features', () => {
     await fs.mkdir(testDir, { recursive: true });
     originalEnv = { ...process.env };
     // Use a temp dir for global config to avoid polluting real config
-    const configTempDir = path.join(os.tmpdir(), `openspec-config-test-${Date.now()}`);
+    configTempDir = path.join(os.tmpdir(), `openspec-config-test-${Date.now()}`);
     await fs.mkdir(configTempDir, { recursive: true });
     process.env.XDG_CONFIG_HOME = configTempDir;
     vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -458,6 +460,7 @@ describe('InitCommand - profile and detection features', () => {
   afterEach(async () => {
     process.env = originalEnv;
     await fs.rm(testDir, { recursive: true, force: true });
+    await fs.rm(configTempDir, { recursive: true, force: true });
     vi.restoreAllMocks();
   });
 

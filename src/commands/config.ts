@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { spawn } from 'node:child_process';
+import { spawn, execSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
@@ -78,11 +78,12 @@ export function registerConfigCommand(program: Command): void {
         console.log(`\nProfile settings:`);
         console.log(`  profile: ${config.profile} ${profileSource}`);
         console.log(`  delivery: ${config.delivery} ${deliverySource}`);
-        if (config.workflows) {
+        if (config.profile === 'core') {
+          console.log(`  workflows: ${CORE_WORKFLOWS.join(', ')} (from core profile)`);
+        } else if (config.workflows && config.workflows.length > 0) {
           console.log(`  workflows: ${config.workflows.join(', ')} (explicit)`);
         } else {
-          const coreList = CORE_WORKFLOWS.join(', ');
-          console.log(`  workflows: ${coreList} (from core profile)`);
+          console.log(`  workflows: (none)`);
         }
       }
     });
@@ -339,10 +340,13 @@ export function registerConfigCommand(program: Command): void {
         });
 
         if (applyNow) {
-          // Dynamic import to avoid circular dependency
-          const { execSync } = await import('node:child_process');
-          execSync('npx openspec update', { stdio: 'inherit', cwd: projectDir });
-          console.log('Run `openspec update` in your other projects to apply.');
+          try {
+            execSync('npx openspec update', { stdio: 'inherit', cwd: projectDir });
+            console.log('Run `openspec update` in your other projects to apply.');
+          } catch {
+            console.error('`openspec update` failed. Please run it manually to apply the profile changes.');
+            process.exitCode = 1;
+          }
           return;
         }
       }

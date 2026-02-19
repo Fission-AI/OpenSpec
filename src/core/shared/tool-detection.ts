@@ -21,6 +21,7 @@ export const SKILL_NAMES = [
   'openspec-archive-change',
   'openspec-bulk-archive-change',
   'openspec-verify-change',
+  'openspec-onboard',
   'openspec-propose',
 ] as const;
 
