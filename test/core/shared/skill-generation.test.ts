@@ -8,9 +8,9 @@ import {
 
 describe('skill-generation', () => {
   describe('getSkillTemplates', () => {
-    it('should return all 10 skill templates', () => {
+    it('should return all 11 skill templates', () => {
       const templates = getSkillTemplates();
-      expect(templates).toHaveLength(10);
+      expect(templates).toHaveLength(11);
     });
 
     it('should have unique directory names', () => {
@@ -34,24 +34,63 @@ describe('skill-generation', () => {
       expect(dirNames).toContain('openspec-bulk-archive-change');
       expect(dirNames).toContain('openspec-verify-change');
       expect(dirNames).toContain('openspec-onboard');
+      expect(dirNames).toContain('openspec-propose');
     });
 
     it('should have valid template structure', () => {
       const templates = getSkillTemplates();
 
-      for (const { template, dirName } of templates) {
+      for (const { template, dirName, workflowId } of templates) {
         expect(template.name).toBeTruthy();
         expect(template.description).toBeTruthy();
         expect(template.instructions).toBeTruthy();
         expect(dirName).toBeTruthy();
+        expect(workflowId).toBeTruthy();
       }
+    });
+
+    it('should have unique workflow IDs', () => {
+      const templates = getSkillTemplates();
+      const ids = templates.map(t => t.workflowId);
+      const uniqueIds = new Set(ids);
+      expect(uniqueIds.size).toBe(templates.length);
+    });
+
+    it('should filter by workflow IDs when provided', () => {
+      const filtered = getSkillTemplates(['propose', 'explore', 'apply', 'archive']);
+      expect(filtered).toHaveLength(4);
+      const ids = filtered.map(t => t.workflowId);
+      expect(ids).toContain('propose');
+      expect(ids).toContain('explore');
+      expect(ids).toContain('apply');
+      expect(ids).toContain('archive');
+      expect(ids).not.toContain('new');
+      expect(ids).not.toContain('ff');
+    });
+
+    it('should return all templates when filter is undefined', () => {
+      const all = getSkillTemplates();
+      const noFilter = getSkillTemplates(undefined);
+      expect(noFilter).toHaveLength(all.length);
+    });
+
+    it('should return empty array when filter matches nothing', () => {
+      const filtered = getSkillTemplates(['nonexistent']);
+      expect(filtered).toHaveLength(0);
+    });
+
+    it('should return single template when filter has one workflow', () => {
+      const filtered = getSkillTemplates(['propose']);
+      expect(filtered).toHaveLength(1);
+      expect(filtered[0].workflowId).toBe('propose');
+      expect(filtered[0].dirName).toBe('openspec-propose');
     });
   });
 
   describe('getCommandTemplates', () => {
-    it('should return all 10 command templates', () => {
+    it('should return all 11 command templates', () => {
       const templates = getCommandTemplates();
-      expect(templates).toHaveLength(10);
+      expect(templates).toHaveLength(11);
     });
 
     it('should have unique IDs', () => {
@@ -75,13 +114,37 @@ describe('skill-generation', () => {
       expect(ids).toContain('bulk-archive');
       expect(ids).toContain('verify');
       expect(ids).toContain('onboard');
+      expect(ids).toContain('propose');
+    });
+
+    it('should filter by workflow IDs when provided', () => {
+      const filtered = getCommandTemplates(['propose', 'explore', 'apply', 'archive']);
+      expect(filtered).toHaveLength(4);
+      const ids = filtered.map(t => t.id);
+      expect(ids).toContain('propose');
+      expect(ids).toContain('explore');
+      expect(ids).toContain('apply');
+      expect(ids).toContain('archive');
+      expect(ids).not.toContain('new');
+      expect(ids).not.toContain('ff');
+    });
+
+    it('should return all templates when filter is undefined', () => {
+      const all = getCommandTemplates();
+      const noFilter = getCommandTemplates(undefined);
+      expect(noFilter).toHaveLength(all.length);
+    });
+
+    it('should return empty array when filter matches nothing', () => {
+      const filtered = getCommandTemplates(['nonexistent']);
+      expect(filtered).toHaveLength(0);
     });
   });
 
   describe('getCommandContents', () => {
-    it('should return all 10 command contents', () => {
+    it('should return all 11 command contents', () => {
       const contents = getCommandContents();
-      expect(contents).toHaveLength(10);
+      expect(contents).toHaveLength(11);
     });
 
     it('should have valid content structure', () => {
@@ -103,6 +166,21 @@ describe('skill-generation', () => {
       const contentIds = contents.map(c => c.id).sort();
 
       expect(contentIds).toEqual(templateIds);
+    });
+
+    it('should filter by workflow IDs when provided', () => {
+      const filtered = getCommandContents(['propose', 'explore']);
+      expect(filtered).toHaveLength(2);
+      const ids = filtered.map(c => c.id);
+      expect(ids).toContain('propose');
+      expect(ids).toContain('explore');
+      expect(ids).not.toContain('new');
+    });
+
+    it('should return all contents when filter is undefined', () => {
+      const all = getCommandContents();
+      const noFilter = getCommandContents(undefined);
+      expect(noFilter).toHaveLength(all.length);
     });
   });
 

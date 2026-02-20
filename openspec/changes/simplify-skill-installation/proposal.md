@@ -127,30 +127,43 @@ Workflows: (space to toggle, enter to save)
 [ ] onboard
 ```
 
-### 8. Backwards Compatibility
+### 8. Backwards Compatibility & Migration
 
-- Existing users with all workflows keep them (extra workflows not in profile are preserved)
-- `openspec init` sets up new projects using current profile config
-- `openspec update` applies config changes to existing projects (adds missing workflows, refreshes templates)
+**Existing users keep their current setup.** When `openspec update` runs on a project with existing workflows and no `profile` in global config, it performs a one-time migration:
+
+1. Scans installed workflow files across all tool directories in the project
+2. Writes `profile: "custom"`, `delivery: "both"`, `workflows: [<detected>]` to global config
+3. Refreshes templates but does NOT add or remove any workflows
+4. Displays: "Migrated: custom profile with N existing workflows"
+
+After migration, subsequent `init` and `update` commands respect the migrated config.
+
+**Key behaviors:**
+- Existing users' workflows are preserved exactly as-is (no `propose` added automatically)
+- Both `init` (re-init) and `update` trigger migration on existing projects if no profile is set
+- `openspec init` on a **new** project (no existing workflows) uses global config, defaulting to `core`
+- `init` with a custom profile shows what will be installed and prompts to proceed or reconfigure
+- `init` validates `--profile` values (`core` or `custom`) and errors on invalid input
+- Migration message mentions `propose` and suggests `openspec config profile core` to opt in
+- After migration, users can opt into `core` profile via `openspec config profile core`
+- Workflow templates conditionally reference only installed workflows in "next steps" guidance
 - Delivery changes are applied: switching to `skills` removes command files, switching to `commands` removes skill files
+- Re-running `init` applies delivery cleanup on existing projects (removes files that no longer match delivery)
+- `update` treats profile/delivery drift as update-required even when template versions are already current
+- `update` treats command-only installs as configured tools
 - All workflows remain available via custom profile
 
 ## Capabilities
 
 ### New Capabilities
 
-- `profiles`: Support for workflow profiles (core, custom) with interactive configuration
-- `delivery-config`: User preference for delivery method (skills, commands, both)
+- `profiles`: Workflow profiles (core, custom), delivery preferences, global config storage, interactive picker
 - `propose-workflow`: Combined workflow that creates change + generates all artifacts
-- `user-config`: Extend existing global config with profile/delivery settings
-- `available-tools`: Detect what AI tools the user has from existing directories
 
 ### Modified Capabilities
 
-- `cli-init`: Smart defaults with auto-detection and confirmation
-- `tool-selection-ux`: Space to select, Enter to confirm
-- `skill-generation`: Conditional based on profile and delivery settings
-- `command-generation`: Conditional based on profile and delivery settings
+- `cli-init`: Smart defaults with tool auto-detection, profile-based skill/command generation
+- `cli-update`: Profile support, delivery changes, one-time migration for existing users
 
 ## Impact
 
@@ -166,7 +179,7 @@ Workflows: (space to toggle, enter to save)
 - `src/core/shared/skill-generation.ts` - Filter by profile, respect delivery
 - `src/core/shared/tool-detection.ts` - Update SKILL_NAMES and COMMAND_IDS to include propose
 - `src/commands/config.ts` - Add `profile` subcommand with interactive picker
-- `src/commands/update.ts` - Add profile/delivery support, file deletion for delivery changes
+- `src/core/update.ts` - Add profile/delivery support, file deletion for delivery changes
 - `src/prompts/searchable-multi-select.ts` - Fix keybindings (space/enter)
 
 ### Global Config Schema Extension

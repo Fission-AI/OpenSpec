@@ -21,9 +21,30 @@ export const SKILL_NAMES = [
   'openspec-archive-change',
   'openspec-bulk-archive-change',
   'openspec-verify-change',
+  'openspec-onboard',
+  'openspec-propose',
 ] as const;
 
 export type SkillName = (typeof SKILL_NAMES)[number];
+
+/**
+ * IDs of command templates created by openspec init.
+ */
+export const COMMAND_IDS = [
+  'explore',
+  'new',
+  'continue',
+  'apply',
+  'ff',
+  'sync',
+  'archive',
+  'bulk-archive',
+  'verify',
+  'onboard',
+  'propose',
+] as const;
+
+export type CommandId = (typeof COMMAND_IDS)[number];
 
 /**
  * Status of skill configuration for a tool.
@@ -31,9 +52,9 @@ export type SkillName = (typeof SKILL_NAMES)[number];
 export interface ToolSkillStatus {
   /** Whether the tool has any skills configured */
   configured: boolean;
-  /** Whether all 9 skills are configured */
+  /** Whether all skills are configured */
   fullyConfigured: boolean;
-  /** Number of skills currently configured (0-9) */
+  /** Number of skills currently configured */
   skillCount: number;
 }
 

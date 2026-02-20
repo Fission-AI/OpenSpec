@@ -10,6 +10,7 @@ The system SHALL provide a `propose` workflow that creates a change and generate
 #### Scenario: Basic propose invocation
 - **WHEN** user invokes `/opsx:propose "add user authentication"`
 - **THEN** the system SHALL create a change directory with kebab-case name
+- **THEN** the system SHALL create `.openspec.yaml` in the change directory (via `openspec new change`)
 - **THEN** the system SHALL generate all artifacts needed for implementation: proposal.md, design.md, specs/, tasks.md
 
 #### Scenario: Propose with existing change name
