@@ -7,13 +7,22 @@ export const GLOBAL_CONFIG_DIR_NAME = 'openspec';
 export const GLOBAL_CONFIG_FILE_NAME = 'config.json';
 export const GLOBAL_DATA_DIR_NAME = 'openspec';
 
+// TypeScript types
+export type Profile = 'core' | 'custom';
+export type Delivery = 'both' | 'skills' | 'commands';
+
 // TypeScript interfaces
 export interface GlobalConfig {
   featureFlags?: Record<string, boolean>;
+  profile?: Profile;
+  delivery?: Delivery;
+  workflows?: string[];
 }
 
 const DEFAULT_CONFIG: GlobalConfig = {
-  featureFlags: {}
+  featureFlags: {},
+  profile: 'core',
+  delivery: 'both',
 };
 
 /**
@@ -101,7 +110,7 @@ export function getGlobalConfig(): GlobalConfig {
     const parsed = JSON.parse(content);
 
     // Merge with defaults (loaded values take precedence)
-    return {
+    const merged: GlobalConfig = {
       ...DEFAULT_CONFIG,
       ...parsed,
       // Deep merge featureFlags
@@ -110,6 +119,16 @@ export function getGlobalConfig(): GlobalConfig {
         ...(parsed.featureFlags || {})
       }
     };
+
+    // Schema evolution: apply defaults for new fields if not present in loaded config
+    if (parsed.profile === undefined) {
+      merged.profile = DEFAULT_CONFIG.profile;
+    }
+    if (parsed.delivery === undefined) {
+      merged.delivery = DEFAULT_CONFIG.delivery;
+    }
+
+    return merged;
   } catch (error) {
     // Log warning for parse errors, but not for missing files
     if (error instanceof SyntaxError) {
