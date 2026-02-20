@@ -148,6 +148,9 @@ What would you like to do?
 - Update task checkbox immediately after completing each task
 - Pause on errors, blockers, or unclear requirements - don't guess
 - Use contextFiles from CLI output, don't assume specific file names
+- **New code in new files**: When creating new functions, classes, structs, or modules, place them in new files within a feature directory (e.g., \`src/features/<name>/\`) rather than appending to existing files. Only modify existing files for integration (imports, wiring, routing) or direct behavioral changes.
+- **Generate documentation**: After implementing each task that introduces new code, add or update documentation — doc comments for public APIs, a brief README or usage note for new modules, and a changelog entry summarizing the change.
+- **Generate curl commands for HTTP APIs**: When a task involves creating or modifying HTTP endpoints, produce \`curl\` command examples that cover the happy path for each endpoint. Place them in an \`api-tests.sh\` file or an \`## API Testing\` doc section. Use placeholder values (\`localhost:3000\`, \`YOUR_TOKEN\`) for easy substitution.
 
 **Fluid Workflow Integration**
 
@@ -305,6 +308,9 @@ What would you like to do?
 - Update task checkbox immediately after completing each task
 - Pause on errors, blockers, or unclear requirements - don't guess
 - Use contextFiles from CLI output, don't assume specific file names
+- **New code in new files**: When creating new functions, classes, structs, or modules, place them in new files within a feature directory (e.g., \`src/features/<name>/\`) rather than appending to existing files. Only modify existing files for integration (imports, wiring, routing) or direct behavioral changes.
+- **Generate documentation**: After implementing each task that introduces new code, add or update documentation — doc comments for public APIs, a brief README or usage note for new modules, and a changelog entry summarizing the change.
+- **Generate curl commands for HTTP APIs**: When a task involves creating or modifying HTTP endpoints, produce \`curl\` command examples that cover the happy path for each endpoint. Place them in an \`api-tests.sh\` file or an \`## API Testing\` doc section. Use placeholder values (\`localhost:3000\`, \`YOUR_TOKEN\`) for easy substitution.
 
 **Fluid Workflow Integration**
 

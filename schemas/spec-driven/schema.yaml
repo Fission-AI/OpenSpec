@@ -141,6 +141,16 @@ artifacts:
 
       Reference specs for what needs to be built, design for how to build it.
       Each task should be verifiable - you know when it's done.
+
+      Additional task guidelines:
+      - For new features, include a task to create the feature directory structure
+        and place new code in dedicated files (e.g., "Create src/features/<name>/ directory").
+      - Include a documentation task for writing or updating docs that describe the
+        changes (e.g., "Document <feature> usage and API" or "Add doc comments to new
+        public exports").
+      - If the change involves HTTP API endpoints, include a task to generate `curl`
+        command examples for testing each endpoint (e.g., "Add curl examples for
+        <endpoint> in api-tests.sh").
     requires:
       - specs
       - design
@@ -151,3 +161,37 @@ apply:
   instruction: |
     Read context files, work through pending tasks, mark complete as you go.
     Pause if you hit blockers or need clarification.
+
+    ## Code organization
+
+    Prefer creating new files over modifying existing ones when the change introduces
+    new functionality. Specifically:
+    - New functions, classes, structs, or modules SHOULD be placed in new files
+      within a directory named after the feature (e.g., `src/features/user-auth/`).
+    - Group related code together in the same directory rather than scattering it
+      across the existing tree.
+    - Only modify existing files when integrating the new feature (imports, wiring,
+      routing) or when the change is a direct modification to existing behavior.
+    - Use descriptive, kebab-case directory and file names that reflect the feature.
+
+    ## Documentation
+
+    After implementing code changes for each task, generate or update documentation:
+    - Add a brief summary of what was changed and why (e.g., a `CHANGES.md` entry or
+      inline doc comments for new public APIs).
+    - For new modules or features, include a short README or doc comment at the top of
+      the main file explaining purpose, usage, and key exports.
+    - Keep documentation concise and co-located with the code it describes.
+
+    ## HTTP API testing
+
+    When the change introduces or modifies HTTP API endpoints, generate `curl` command
+    examples for testing:
+    - Include one `curl` example per endpoint (covering the happy path at minimum).
+    - Place curl examples in a `## API Testing` section at the bottom of the relevant
+      documentation file, or in a dedicated `api-tests.sh` file within the feature
+      directory.
+    - Use placeholder values (e.g., `localhost:3000`, `YOUR_TOKEN`) that are easy to
+      substitute.
+    - Cover common HTTP methods used (GET, POST, PUT, DELETE) and include headers such
+      as `Content-Type` and `Authorization` where applicable.
