@@ -176,12 +176,19 @@ program
   .option('--changes', 'List changes explicitly (default)')
   .option('--sort <order>', 'Sort order: "recent" (default) or "name"', 'recent')
   .option('--json', 'Output as JSON (for programmatic use)')
-  .action(async (options?: { specs?: boolean; changes?: boolean; sort?: string; json?: boolean }) => {
+  .option('--spaceline', 'Output in compact spaceline format with emoji indicators')
+  .action(async (options?: { specs?: boolean; changes?: boolean; sort?: string; json?: boolean; spaceline?: boolean }) => {
     try {
+      // Check for mutually exclusive flags
+      if (options?.spaceline && options?.json) {
+        console.error('Error: Cannot use --spaceline with --json');
+        process.exit(2);
+      }
+
       const listCommand = new ListCommand();
       const mode: 'changes' | 'specs' = options?.specs ? 'specs' : 'changes';
       const sort = options?.sort === 'name' ? 'name' : 'recent';
-      await listCommand.execute('.', mode, { sort, json: options?.json });
+      await listCommand.execute('.', mode, { sort, json: options?.json, spaceline: options?.spaceline });
     } catch (error) {
       console.log(); // Empty line for spacing
       ora().fail(`Error: ${(error as Error).message}`);
