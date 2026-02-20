@@ -132,9 +132,75 @@ What's installed in `.claude/skills/` (etc.) is the source of truth, not config.
 - Extra workflows (not in profile) are preserved
 - Delivery changes are applied: switching to `skills` removes commands, switching to `commands` removes skills
 
+**Why not a separate tool manifest?**
+
+Tool selection (which assistants a project uses) is per-user AND per-project, but the two config locations are per-user-only (global config) or per-project-shared (checked-in project config). A separate manifest was explored and rejected:
+
+- *Path-keyed global config* (`projects: { "/path": { tools: [...] } }`): Fragile on directory move/rename/delete, symlink ambiguity, and project behavior depends on invisible external state.
+- *Gitignored local file* (`.openspec.local`): Lost on fresh clone, adds file management overhead.
+- *Checked-in project config* (`openspec/config.yaml` with `tools` field): Forces tool choices on the whole team — Alice uses Claude Code, Bob uses Cursor, neither wants the other's tools mandated.
+
+The filesystem approach avoids all three problems. For teams, it's actually beneficial: checked-in skill files mean `openspec update` from any team member refreshes skills for all tools the project supports. The generated files serve as both the deliverable and the implicit tool manifest.
+
+Known gap: a tool that stores config outside the project tree (no local directory to scan) would need tool-specific handling, since there's nothing in the project to scan. Address if/when such a tool is supported.
+
 **When to use init vs update:**
 - `init`: First time setup, or when you want to change which tools are configured
 - `update`: After changing config, or to refresh templates to latest version
+
+### 8. Existing User Migration
+
+When `openspec init` or `openspec update` encounters a project with existing workflows but no `profile` field in global config, it performs a one-time migration to preserve the user's current setup.
+
+**Rationale:** Without migration, existing users would default to `core` profile, causing `propose` to be added on top of their 10 workflows — making things worse, not better. Migration ensures existing users keep exactly what they have.
+
+**Triggered by:** Both `init` (re-init on existing project) and `update`. The migration check is a shared function called early in both commands, before profile resolution.
+
+**Detection logic:**
+```typescript
+// Shared migration check, called by both init and update:
+function migrateIfNeeded(projectPath: string, tools: AiTool[]): void {
+  const globalConfig = readGlobalConfig();
+  if (globalConfig.profile) return; // already migrated or explicitly set
+
+  const installedWorkflows = scanInstalledWorkflows(projectPath, tools);
+  if (installedWorkflows.length === 0) return; // new user, use core defaults
+
+  // Existing user — migrate to custom profile
+  writeGlobalConfig({
+    ...globalConfig,
+    profile: 'custom',
+    delivery: 'both',
+    workflows: installedWorkflows,
+  });
+}
+```
+
+**Scanning logic:**
+- Scan all tool directories (`.claude/skills/`, `.cursor/skills/`, etc.) for workflow directories/files
+- Match only against `ALL_WORKFLOWS` constant — ignore user-created custom skills/commands
+- Map directory names back to workflow IDs (e.g., `openspec-explore/` → `explore`, `opsx-explore.md` → `explore`)
+- Take the union of detected workflow names across all tools
+
+**Edge cases:**
+- **User manually deleted some workflows:** Migration scans what's actually installed, respecting their choices
+- **Multiple projects with different workflow sets:** First project to trigger migration sets global config; subsequent projects use it
+- **User has custom (non-OpenSpec) skills in the directory:** Ignored — scanner only matches known workflow IDs from `ALL_WORKFLOWS`
+- **Migration is idempotent:** If `profile` is already set in config, no re-migration occurs
+- **Non-interactive (CI):** Same migration logic, no confirmation needed — it's preserving existing state
+
+**Alternatives considered:**
+- Migrate during `init` instead of `update`: Init already has its own flow (tool selection, etc.). Mixing migration with init creates confusing UX
+- Don't migrate, just default to core: Breaks existing users by adding `propose` and showing "extra workflows" warnings
+- Migrate at global config read time: Too implicit, hard to show feedback to user
+
+### 9. Generic Next-Step Guidance in Templates
+
+Workflow templates use generic, concept-based next-step guidance rather than referencing specific workflow commands. For example, instead of "run `/opsx:propose`", templates say "create a change proposal".
+
+**Rationale:** Conditional cross-referencing (where each template checks which other workflows are installed and renders different command names) adds significant complexity to template generation, testing, and maintenance. Generic guidance avoids this entirely while still being useful — users already know their installed workflows.
+
+**Note:** If we find that users consistently struggle to map concepts to commands, we can revisit this with conditional cross-references. For now, simplicity wins.
 
 ### 7. Fix Multi-Select Keybindings
 
@@ -143,6 +209,35 @@ Change from tab-to-confirm to industry-standard space/enter.
 **Rationale:** Tab to confirm is non-standard and confuses users. Most CLI tools use space to toggle, enter to confirm.
 
 **Implementation:** Modify `src/prompts/searchable-multi-select.ts` keybinding configuration.
+
+### 10. Update Sync Must Consider Config Drift, Not Just Version Drift
+
+`openspec update` cannot rely only on `generatedBy` version checks for deciding whether work is needed.
+
+**Rationale:** profile and delivery changes can require file add/remove operations even when existing skill templates are current. If we only check template versions, update may incorrectly return "up to date" and skip required sync.
+
+**Implementation:**
+- Keep version checks for template refresh decisions
+- Add file-state drift checks for profile/delivery (missing expected files or stale files from removed delivery mode)
+- Treat either version drift OR config drift as update-required
+
+### 11. Tool Configuration Detection Includes Commands-Only Installs
+
+Configured-tool detection for update must include command files, not only skill files.
+
+**Rationale:** with `delivery: commands`, a project can be fully configured without skill files. Skill-only detection incorrectly reports "No configured tools found."
+
+**Implementation:**
+- For update flows, treat a tool as configured if it has either generated skills or generated commands
+- Keep migration workflow scanning behavior unchanged (skills remain the migration source of truth)
+
+### 12. Init Profile Override Is Strictly Validated
+
+`openspec init --profile` must validate allowed values before proceeding.
+
+**Rationale:** silently accepting unknown profile values hides user errors and produces implicit fallback behavior.
+
+**Implementation:** accept only `core` and `custom`; throw a clear CLI error for invalid values.
 
 ## Risks / Trade-offs
 
