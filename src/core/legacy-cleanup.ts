@@ -55,6 +55,7 @@ export const LEGACY_SLASH_COMMAND_PATHS: Record<string, LegacySlashCommandPatter
   'iflow': { type: 'files', pattern: '.iflow/commands/openspec-*.md' },
   'qwen': { type: 'files', pattern: '.qwen/commands/openspec-*.toml' },
   'codex': { type: 'files', pattern: '.codex/prompts/openspec-*.md' },
+  'pi': { type: 'files', pattern: '.pi/prompts/openspec-*.md' },
 };
 
 /**
