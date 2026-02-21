@@ -22,7 +22,7 @@ Add an optional field in tool metadata to describe how a tool exposes commands:
 - `skills-invocable`: skills are directly invocable as commands
 - `none`: no OpenSpec command surface
 
-Field should be optional. Default behavior should be inferred from existing adapter registration to avoid requiring every tool to be annotated.
+Field should be optional. Default behavior is inferred from adapter registry presence: tools with a registered adapter resolve to `adapter`; tools with no adapter registration and no explicit annotation resolve to `none`.
 Capability values use kebab-case string tokens for consistency with serialized metadata conventions.
 
 Initial explicit override:
@@ -48,7 +48,7 @@ Behavior matrix:
   - `none`: no artifact action; MAY emit compatibility warning
 - `commands`:
   - `adapter`: generate commands, remove skills
-  - `skills-invocable`: keep/generate skills as command surface, do not remove them
+  - `skills-invocable`: generate (or keep if up-to-date) skills as command surface; do not remove them
   - `none`: fail fast with clear error
 
 ### 3. Add preflight validation and clearer output
@@ -107,3 +107,5 @@ Implementation tests should cover mixed-tool matrices to ensure deterministic be
 - This change is intended to stack safely with `simplify-skill-installation` by introducing additive, capability-specific requirements for init/update.
 - If `simplify-skill-installation` merges first, this change should be rebased and keep the capability-aware rule as the source of truth for `delivery=commands` behavior on `skills-invocable` tools.
 - If this change merges first, the `simplify-skill-installation` branch should be rebased to avoid re-introducing a global "commands-only means no skills for all tools" assumption.
+- If `add-global-install-scope` merges first, this change should be rebased to compose capability-aware behavior on top of scope-resolved path decisions from that change.
+- If this change merges first, `add-global-install-scope` should be rebased to preserve Section 5 composition rules (`install scope` + `delivery mode` + `command surface capability`) without overriding capability-aware command-surface outcomes.

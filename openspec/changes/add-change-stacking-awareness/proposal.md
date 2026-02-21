@@ -47,6 +47,7 @@ Validation should fail only for deterministic blockers (for example cycles or mi
 Add lightweight CLI support to inspect and execute plan order:
 
 - `openspec change graph` to show dependency DAG/order
+- `openspec change graph` validates for cycles first; when cycles are present it fails with the same deterministic cycle error as stack-aware validation
 - `openspec change next` to suggest unblocked changes ready to implement/archive
 
 ### 4. Add split scaffolding for large changes
@@ -57,6 +58,7 @@ Add helper workflow to decompose large proposals into stackable slices:
 - generates minimal proposal/tasks stubs for each child slice
 - converts the source change into a parent planning container (no duplicate child implementation tasks)
 - re-running split for an already-split source change returns a deterministic actionable error unless `--overwrite` (alias `--force`) is passed
+- `--overwrite` / `--force` fully regenerates managed child scaffold stubs and metadata links for the split, replacing prior scaffold content
 
 ### 5. Document stack-first workflow
 
