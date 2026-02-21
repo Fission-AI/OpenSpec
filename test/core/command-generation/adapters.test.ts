@@ -546,6 +546,24 @@ describe('command-generation/adapters', () => {
       expect(output).toContain('---\n\n');
       expect(output).toContain('This is the command body.');
     });
+
+    it('should escape YAML special characters in description', () => {
+      const contentWithSpecialChars: CommandContent = {
+        ...sampleContent,
+        description: 'Fix: regression in "auth" feature',
+      };
+      const output = piAdapter.formatFile(contentWithSpecialChars);
+      expect(output).toContain('description: "Fix: regression in \\"auth\\" feature"');
+    });
+
+    it('should escape newlines in description', () => {
+      const contentWithNewline: CommandContent = {
+        ...sampleContent,
+        description: 'Line 1\nLine 2',
+      };
+      const output = piAdapter.formatFile(contentWithNewline);
+      expect(output).toContain('description: "Line 1\\nLine 2"');
+    });
   });
 
   describe('roocodeAdapter', () => {
