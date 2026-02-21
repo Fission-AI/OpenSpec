@@ -79,6 +79,11 @@ Resolver output:
 - concrete target paths
 - optional fallback reasons for user-facing output
 
+Platform behavior:
+
+- Resolver outputs are OS-aware and normalized for the current platform.
+- Windows global targets MUST use Windows path conventions (for example `%USERPROFILE%\\.codex\\prompts` fallback for Codex when `CODEX_HOME` is unset), not POSIX defaults.
+
 ### 4. Context-aware command adapter paths
 
 Update command generation contract so adapters receive install context for path resolution. This avoids hardcoded absolute/relative assumptions and centralizes scope decisions.
@@ -100,7 +105,7 @@ getFilePath(commandId: string, context: InstallContext): string
 `update`:
 
 - Applies current scope preference (or override).
-- Performs drift detection using effective scoped paths.
+- Performs drift detection using effective scoped paths and last-applied scope state.
 - Reports effective scope decisions in summary output.
 
 `config`:
@@ -115,6 +120,20 @@ When scope changes:
 - Writes occur in the new effective targets.
 - Cleanup/removal is limited to OpenSpec-managed files for the relevant tool/workflow IDs.
 - Output explicitly states which scope locations were updated and which were cleaned.
+
+### 7. Scope drift state tracking
+
+Track last successful effective scope per tool/surface in project-managed state.
+
+Rules:
+
+1. Drift is detected when current resolved scope differs from last successful scope for a configured tool/surface.
+2. Update writes to newly resolved targets first, then removes managed files at previous targets.
+3. Cleanup failures do not rollback new writes; command returns actionable failure with leftover paths to resolve.
+
+### 8. Coordination with command-surface capability changes
+
+If `add-tool-command-surface-capabilities` lands, planning logic must evaluate scope resolution and delivery/capability behavior together (scope × delivery × command surface).
 
 ## Risks / Trade-offs
 

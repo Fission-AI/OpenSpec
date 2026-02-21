@@ -1,5 +1,23 @@
 ## ADDED Requirements
 
+### Requirement: Command surface capability resolution
+The init command SHALL resolve each selected tool's command surface using explicit metadata first, then deterministic inference.
+
+#### Scenario: Explicit command surface override
+- **WHEN** a tool declares an explicit command-surface capability
+- **THEN** init SHALL use that explicit capability
+- **AND** SHALL NOT override it based on adapter presence
+
+#### Scenario: Inferred command surface from adapter presence
+- **WHEN** a tool does not declare an explicit command-surface capability
+- **AND** a command adapter is registered for the tool
+- **THEN** init SHALL infer `adapter` as the command surface
+
+#### Scenario: Inferred command surface without adapter
+- **WHEN** a tool does not declare an explicit command-surface capability
+- **AND** no command adapter is registered for the tool
+- **THEN** init SHALL infer `none` as the command surface
+
 ### Requirement: Delivery compatibility by tool command surface
 The init command SHALL apply delivery settings using each tool's command surface capability, not adapter presence alone.
 
@@ -44,4 +62,3 @@ The init command SHALL clearly signal command-surface compatibility outcomes in 
 - **AND** selected tools include any tool with no command surface capability
 - **THEN** the command SHALL exit with code 1
 - **AND** the output SHALL include deterministic, actionable guidance for resolving the selection
-

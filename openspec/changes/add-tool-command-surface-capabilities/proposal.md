@@ -23,6 +23,7 @@ Add an optional field in tool metadata to describe how a tool exposes commands:
 - `none`: no OpenSpec command surface
 
 Field should be optional. Default behavior should be inferred from existing adapter registration to avoid requiring every tool to be annotated.
+Capability values remain kebab-case string tokens for consistency with serialized metadata conventions.
 
 Initial explicit override:
 
@@ -66,6 +67,16 @@ Update summaries to show effective delivery outcomes per tool (for example, when
   - `update` with Trae configured under `delivery=commands`
   - mixed selections (`claude + trae`) across all delivery modes
   - explicit error path for tools with no command surface under `delivery=commands`
+
+### 5. Coordinate with install-scope behavior
+
+When combined with `add-global-install-scope`, init/update planning must compose:
+
+- install scope (`global | project`)
+- delivery mode (`both | skills | commands`)
+- command surface capability (`adapter | skills-invocable | none`)
+
+Implementation tests should cover mixed-tool matrices to ensure deterministic behavior when both changes are active.
 
 ## Capabilities
 

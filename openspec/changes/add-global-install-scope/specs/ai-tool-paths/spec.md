@@ -19,3 +19,10 @@ Path metadata SHALL support both project and global install targets via resolver
 - **WHEN** effective scope is `global` for a supported tool/surface
 - **THEN** paths SHALL resolve to tool-specific global directories
 - **AND** environment overrides (for example `CODEX_HOME`) SHALL be respected where applicable
+
+#### Scenario: Windows global path resolution for Codex commands
+- **WHEN** effective scope is `global`
+- **AND** tool is Codex
+- **AND** platform is Windows
+- **THEN** command targets SHALL resolve to `%CODEX_HOME%\\prompts` when `CODEX_HOME` is set
+- **AND** SHALL otherwise resolve to `%USERPROFILE%\\.codex\\prompts`

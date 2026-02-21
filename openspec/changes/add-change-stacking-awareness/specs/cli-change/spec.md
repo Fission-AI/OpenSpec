@@ -21,3 +21,7 @@ The change CLI SHALL support scaffolding child slices from an existing large cha
 - **THEN** the CLI SHALL create child change directories with proposal/tasks stubs
 - **AND** generated metadata SHALL include `parent` and dependency links back to the source change
 
+#### Scenario: Re-running split on an already-split change
+- **WHEN** a user runs `openspec change split <change-id>` for a parent whose generated child directories already exist
+- **THEN** the CLI SHALL fail with a deterministic, actionable error
+- **AND** SHALL NOT mutate existing child change content unless an explicit overwrite mode is requested

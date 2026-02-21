@@ -49,6 +49,7 @@ Extend command adapter path resolution so adapters receive install context (scop
 - `openspec update`:
   - applies current scope preference
   - syncs artifacts in effective scope per tool/surface
+  - tracks last successful effective scope per tool/surface for deterministic scope-drift detection
   - reports effective scope decisions clearly
 
 ### 6. Extend config UX and docs
@@ -56,6 +57,16 @@ Extend command adapter path resolution so adapters receive install context (scop
 - Add install scope control in `openspec config profile` interactive flow.
 - Extend `openspec config list` output with install scope source (explicit/default).
 - Update supported tools and CLI docs to explain scope behavior and fallback rules.
+
+### 7. Coordinate with command-surface capability delivery rules
+
+`cli-init` and `cli-update` planning SHALL compose:
+
+- install scope (`global | project`)
+- delivery mode (`both | skills | commands`)
+- command surface capability (`adapter | skills-invocable | none`)
+
+This proposal remains focused on scope resolution, but implementation and test coverage should include mixed-tool cases to avoid regressions when combined with `add-tool-command-surface-capabilities`.
 
 ## Capabilities
 

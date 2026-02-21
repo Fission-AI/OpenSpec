@@ -31,9 +31,10 @@
 
 - [ ] 5.1 Add scope override flag to `openspec update` (`--scope global|project`)
 - [ ] 5.2 Make configured-tool detection and drift checks scope-aware
-- [ ] 5.3 Apply scope-aware sync/removal with consistent fallback/error behavior
-- [ ] 5.4 Ensure scope changes update managed files in new targets and clean old managed targets safely
-- [ ] 5.5 Add update tests for global/project/fallback/error and repeat-run idempotency
+- [ ] 5.3 Persist and read last successful effective scope per tool/surface for deterministic scope-drift detection
+- [ ] 5.4 Apply scope-aware sync/removal with consistent fallback/error behavior
+- [ ] 5.5 Ensure scope changes update managed files in new targets and clean old managed targets safely
+- [ ] 5.6 Add update tests for global/project/fallback/error and repeat-run idempotency
 
 ## 6. Config UX
 
@@ -54,3 +55,5 @@
 - [ ] 8.2 Run full test suite (`pnpm test`) and resolve regressions
 - [ ] 8.3 Manual smoke test: init/update with `installScope=global`
 - [ ] 8.4 Manual smoke test: init/update with `--scope project`
+- [ ] 8.5 Verify path resolution behavior on Windows CI (or cross-platform unit tests with mocked Windows paths)
+- [ ] 8.6 Verify combined behavior matrix for mixed tools across scope × delivery × command-surface capability

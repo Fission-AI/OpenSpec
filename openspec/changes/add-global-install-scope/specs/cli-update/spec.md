@@ -18,7 +18,8 @@ The update command SHALL evaluate configured state and drift using effective sco
 #### Scenario: Scoped drift detection
 - **WHEN** update evaluates whether tools are up to date
 - **THEN** it SHALL inspect files at effective scoped targets for each tool/surface
-- **AND** SHALL treat scope mismatch as sync-required drift
+- **AND** SHALL compare current resolved scope against last successful effective scope for each tool/surface
+- **AND** SHALL treat a difference as sync-required drift
 
 #### Scenario: Scope fallback during update
 - **WHEN** preferred scope is unsupported for a configured tool/surface

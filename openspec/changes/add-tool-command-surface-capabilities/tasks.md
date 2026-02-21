@@ -3,6 +3,7 @@
 - [ ] 0.1 Rebase this change on latest `main` before implementation
 - [ ] 0.2 If `simplify-skill-installation` is merged first, preserve its profile/delivery model and apply this change as a capability-aware refinement
 - [ ] 0.3 If this change merges first, ensure follow-up rebases do not reintroduce a blanket "commands = remove all skills" rule
+- [ ] 0.4 If `add-global-install-scope` is merged, verify combined scope × delivery × command-surface behavior remains deterministic
 
 ## 1. Tool Command-Surface Capability Model
 
@@ -19,10 +20,7 @@
 - [ ] 2.3 In `delivery=commands`, fail fast before writes when any selected tool resolves to `none`
 - [ ] 2.4 Update init output to clearly report effective behavior for `skills-invocable` tools (skills used as command surface)
 - [ ] 2.5 Ensure init no longer reports "no adapter" for tools intentionally using `skills-invocable`
-- [ ] 2.6 Add/adjust init tests for:
-- [ ] 2.7 `delivery=commands` + `trae` (skills retained/generated, no adapter error)
-- [ ] 2.8 `delivery=commands` + mixed tools (`claude,trae`) with per-tool expected outputs
-- [ ] 2.9 deterministic failure path for `delivery=commands` + unsupported command surface (`none`)
+- [ ] 2.6 Add/adjust init tests for `delivery=commands` + `trae` (skills retained/generated, no adapter error), mixed tools (`claude,trae`) with per-tool expected outputs, and deterministic failure path for unsupported command surface (`none`)
 
 ## 3. Update: Capability-Aware Sync and Drift Detection
 
@@ -32,11 +30,7 @@
 - [ ] 3.4 Update profile/delivery drift detection to avoid perpetual drift for `skills-invocable` tools under commands delivery
 - [ ] 3.5 Ensure configured-tool detection still includes `skills-invocable` tools under commands delivery when managed skills exist
 - [ ] 3.6 Update summary output so skills-invocable behavior is reported as expected behavior (not implicit skip/error)
-- [ ] 3.7 Add/adjust update tests for:
-- [ ] 3.8 `delivery=commands` + configured Trae (skills retained/generated)
-- [ ] 3.9 idempotent second update under same config (no false drift loop for Trae)
-- [ ] 3.10 mixed configured tools under commands delivery (`claude` + `trae`)
-- [ ] 3.11 deterministic preflight failure for unsupported command surface (`none`)
+- [ ] 3.7 Add/adjust update tests for `delivery=commands` + configured Trae (skills retained/generated), idempotent second update (no false drift loop), mixed configured tools (`claude` + `trae`), and deterministic preflight failure for unsupported command surface (`none`)
 
 ## 4. UX and Error Messaging
 

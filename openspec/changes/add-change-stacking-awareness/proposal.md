@@ -19,10 +19,16 @@ Extend change metadata to support sequencing and decomposition context, for exam
 - `dependsOn`: changes that must land first
 - `provides`: capability markers exposed by this change
 - `requires`: capability markers needed by this change
-- `touches`: capability/spec areas likely affected
+- `touches`: capability/spec areas likely affected (advisory only; warning signal, not a hard dependency)
 - `parent`: optional parent change for split work
 
 Metadata is optional and backward compatible for existing changes.
+
+Ordering semantics:
+
+- `dependsOn` is the source of truth for execution/archive ordering
+- `provides`/`requires` are capability contracts for validation and planning visibility
+- `provides`/`requires` do not create implicit dependency edges; authors must still declare required ordering via `dependsOn`
 
 ### 2. Add stack-aware validation
 
@@ -56,6 +62,9 @@ Update docs to describe:
 - how to model dependencies and parent/child slices
 - when to split a large change
 - how to use graph/next validation signals during parallel development
+- migration guidance for `openspec/changes/IMPLEMENTATION_ORDER.md`:
+  - machine-readable change metadata becomes the normative dependency source
+  - `IMPLEMENTATION_ORDER.md` remains optional narrative context during transition
 
 ## Capabilities
 
