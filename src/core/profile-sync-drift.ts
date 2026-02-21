@@ -79,6 +79,12 @@ export function getConfiguredToolsForProfileSync(projectPath: string): string[] 
 
 /**
  * Detects if a single tool has profile/delivery drift against the desired state.
+ *
+ * Note: this function is intentionally scoped to "required artifacts missing"
+ * and "artifacts that should not exist for the selected delivery mode".
+ * Extra workflows that are outside the desired profile are handled by
+ * `hasProjectConfigDrift`, which compares installed workflow IDs against
+ * the desired workflow set.
  */
 export function hasToolProfileOrDeliveryDrift(
   projectPath: string,

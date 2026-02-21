@@ -8,26 +8,10 @@
 import type { AIToolOption } from './config.js';
 import { getGlobalConfig, getGlobalConfigPath, saveGlobalConfig, type Delivery } from './global-config.js';
 import { CommandAdapterRegistry } from './command-generation/index.js';
+import { WORKFLOW_TO_SKILL_DIR } from './profile-sync-drift.js';
 import { ALL_WORKFLOWS } from './profiles.js';
 import path from 'path';
 import * as fs from 'fs';
-
-/**
- * Maps workflow IDs to their skill directory names for scanning.
- */
-const WORKFLOW_TO_SKILL_DIR: Record<(typeof ALL_WORKFLOWS)[number], string> = {
-  'propose': 'openspec-propose',
-  'explore': 'openspec-explore',
-  'new': 'openspec-new-change',
-  'continue': 'openspec-continue-change',
-  'apply': 'openspec-apply-change',
-  'ff': 'openspec-ff-change',
-  'sync': 'openspec-sync-specs',
-  'archive': 'openspec-archive-change',
-  'bulk-archive': 'openspec-bulk-archive-change',
-  'verify': 'openspec-verify-change',
-  'onboard': 'openspec-onboard',
-};
 
 interface InstalledWorkflowArtifacts {
   workflows: string[];
@@ -47,7 +31,8 @@ function scanInstalledWorkflowArtifacts(
     if (!tool.skillsDir) continue;
     const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
 
-    for (const [workflowId, skillDirName] of Object.entries(WORKFLOW_TO_SKILL_DIR)) {
+    for (const workflowId of ALL_WORKFLOWS) {
+      const skillDirName = WORKFLOW_TO_SKILL_DIR[workflowId];
       const skillFile = path.join(skillsDir, skillDirName, 'SKILL.md');
       if (fs.existsSync(skillFile)) {
         installed.add(workflowId);

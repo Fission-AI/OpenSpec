@@ -128,7 +128,8 @@ export class InitCommand {
       await showWelcomeScreen();
     }
 
-    // Resolve profile override early so invalid values fail before tool setup.
+    // Validate profile override early so invalid values fail before tool setup.
+    // The resolved value is consumed later when generation reads effective config.
     this.resolveProfileOverride();
 
     // Get tool states before processing

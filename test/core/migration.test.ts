@@ -113,6 +113,22 @@ describe('migration', () => {
     expect(config.workflows).toBeUndefined();
   });
 
+  it('preserves explicit delivery value during migration', async () => {
+    // Raw config has explicit delivery but no profile yet.
+    saveGlobalConfig({
+      featureFlags: {},
+      delivery: 'both',
+    });
+    await writeSkill(projectDir, 'openspec-explore');
+
+    migrateIfNeeded(projectDir, [ensureClaudeTool()]);
+
+    const config = readRawConfig();
+    expect(config.profile).toBe('custom');
+    expect(config.delivery).toBe('both');
+    expect(config.workflows).toEqual(['explore']);
+  });
+
   it('does not migrate when no managed workflow artifacts are detected', async () => {
     migrateIfNeeded(projectDir, [ensureClaudeTool()]);
 

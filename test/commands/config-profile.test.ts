@@ -56,6 +56,23 @@ describe('diffProfileState workflow formatting', () => {
   });
 });
 
+describe('deriveProfileFromWorkflowSelection', () => {
+  it('returns custom for an empty workflow selection', async () => {
+    const { deriveProfileFromWorkflowSelection } = await import('../../src/commands/config.js');
+    expect(deriveProfileFromWorkflowSelection([])).toBe('custom');
+  });
+
+  it('returns custom when selection is a superset of core workflows', async () => {
+    const { deriveProfileFromWorkflowSelection } = await import('../../src/commands/config.js');
+    expect(deriveProfileFromWorkflowSelection(['propose', 'explore', 'apply', 'archive', 'new'])).toBe('custom');
+  });
+
+  it('returns core when selection has exactly core workflows in different order', async () => {
+    const { deriveProfileFromWorkflowSelection } = await import('../../src/commands/config.js');
+    expect(deriveProfileFromWorkflowSelection(['archive', 'apply', 'explore', 'propose'])).toBe('core');
+  });
+});
+
 describe('config profile interactive flow', () => {
   let tempDir: string;
   let originalEnv: NodeJS.ProcessEnv;
