@@ -31,6 +31,7 @@ For each tool you select, OpenSpec installs:
 | Kilo Code | `.kilocode/skills/` | `.kilocode/workflows/` |
 | Kiro | `.kiro/skills/` | `.kiro/prompts/` |
 | OpenCode | `.opencode/skills/` | `.opencode/command/` |
+| Pi | `.pi/skills/` | `.pi/prompts/` |
 | Qoder | `.qoder/skills/` | `.qoder/commands/opsx/` |
 | Qwen Code | `.qwen/skills/` | `.qwen/commands/` |
 | RooCode | `.roo/skills/` | `.roo/commands/` |
@@ -56,7 +57,7 @@ openspec init --tools all
 openspec init --tools none
 ```
 
-**Available tool IDs:** `amazon-q`, `antigravity`, `auggie`, `claude`, `cline`, `codebuddy`, `codex`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `iflow`, `kilocode`, `kiro`, `opencode`, `qoder`, `qwen`, `roocode`, `trae`, `windsurf`
+**Available tool IDs:** `amazon-q`, `antigravity`, `auggie`, `claude`, `cline`, `codebuddy`, `codex`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `iflow`, `kilocode`, `kiro`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `windsurf`
 
 ## What Gets Installed
 
