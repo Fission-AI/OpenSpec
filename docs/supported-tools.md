@@ -34,7 +34,7 @@ For each tool you select, OpenSpec installs:
 | Qoder | `.qoder/skills/` | `.qoder/commands/opsx/` |
 | Qwen Code | `.qwen/skills/` | `.qwen/commands/` |
 | RooCode | `.roo/skills/` | `.roo/commands/` |
-| Trae | `.trae/skills/` | `.trae/skills/` (via `/openspec-*`) |
+| Trae | `.trae/skills/` | `.trae/commands/opsx/` (via `/opsx:*`) |
 | Windsurf | `.windsurf/skills/` | `.windsurf/workflows/` |
 
 \* Codex commands are installed to the global home directory (`~/.codex/prompts/` or `$CODEX_HOME/prompts/`), not the project directory.
