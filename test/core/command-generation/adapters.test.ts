@@ -18,6 +18,7 @@ import { githubCopilotAdapter } from '../../../src/core/command-generation/adapt
 import { iflowAdapter } from '../../../src/core/command-generation/adapters/iflow.js';
 import { kilocodeAdapter } from '../../../src/core/command-generation/adapters/kilocode.js';
 import { opencodeAdapter } from '../../../src/core/command-generation/adapters/opencode.js';
+import { piAdapter } from '../../../src/core/command-generation/adapters/pi.js';
 import { qoderAdapter } from '../../../src/core/command-generation/adapters/qoder.js';
 import { qwenAdapter } from '../../../src/core/command-generation/adapters/qwen.js';
 import { roocodeAdapter } from '../../../src/core/command-generation/adapters/roocode.js';
@@ -523,6 +524,48 @@ describe('command-generation/adapters', () => {
     });
   });
 
+  describe('piAdapter', () => {
+    it('should have correct toolId', () => {
+      expect(piAdapter.toolId).toBe('pi');
+    });
+
+    it('should generate correct file path', () => {
+      const filePath = piAdapter.getFilePath('explore');
+      expect(filePath).toBe(path.join('.pi', 'prompts', 'opsx-explore.md'));
+    });
+
+    it('should generate correct file paths for different commands', () => {
+      expect(piAdapter.getFilePath('new')).toBe(path.join('.pi', 'prompts', 'opsx-new.md'));
+      expect(piAdapter.getFilePath('bulk-archive')).toBe(path.join('.pi', 'prompts', 'opsx-bulk-archive.md'));
+    });
+
+    it('should format file with description frontmatter', () => {
+      const output = piAdapter.formatFile(sampleContent);
+      expect(output).toContain('---\n');
+      expect(output).toContain('description: Enter explore mode for thinking');
+      expect(output).toContain('---\n\n');
+      expect(output).toContain('This is the command body.');
+    });
+
+    it('should escape YAML special characters in description', () => {
+      const contentWithSpecialChars: CommandContent = {
+        ...sampleContent,
+        description: 'Fix: regression in "auth" feature',
+      };
+      const output = piAdapter.formatFile(contentWithSpecialChars);
+      expect(output).toContain('description: "Fix: regression in \\"auth\\" feature"');
+    });
+
+    it('should escape newlines in description', () => {
+      const contentWithNewline: CommandContent = {
+        ...sampleContent,
+        description: 'Line 1\nLine 2',
+      };
+      const output = piAdapter.formatFile(contentWithNewline);
+      expect(output).toContain('description: "Line 1\\nLine 2"');
+    });
+  });
+
   describe('roocodeAdapter', () => {
     it('should have correct toolId', () => {
       expect(roocodeAdapter.toolId).toBe('roocode');
@@ -566,7 +609,7 @@ describe('command-generation/adapters', () => {
         amazonQAdapter, antigravityAdapter, auggieAdapter, clineAdapter,
         codexAdapter, codebuddyAdapter, continueAdapter, costrictAdapter,
         crushAdapter, factoryAdapter, geminiAdapter, githubCopilotAdapter,
-        iflowAdapter, kilocodeAdapter, opencodeAdapter, qoderAdapter,
+        iflowAdapter, kilocodeAdapter, opencodeAdapter, piAdapter, qoderAdapter,
         qwenAdapter, roocodeAdapter
       ];
       for (const adapter of adapters) {

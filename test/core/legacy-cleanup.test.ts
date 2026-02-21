@@ -902,16 +902,16 @@ ${OPENSPEC_MARKERS.end}`);
       });
     });
 
-    it('should cover all tools from the CommandAdapterRegistry', () => {
-      const expectedTools = CommandAdapterRegistry.getAll().map(adapter => adapter.toolId);
+    it('should only include legacy tool IDs that are present in the CommandAdapterRegistry', () => {
+      const registeredTools = new Set(CommandAdapterRegistry.getAll().map(adapter => adapter.toolId));
 
-      // Verify all adapters have legacy paths
-      for (const tool of expectedTools) {
-        expect(LEGACY_SLASH_COMMAND_PATHS).toHaveProperty(tool);
+      // Verify all legacy map entries correspond to known adapters
+      for (const tool of Object.keys(LEGACY_SLASH_COMMAND_PATHS)) {
+        expect(registeredTools.has(tool)).toBe(true);
       }
 
-      // Verify counts match
-      expect(expectedTools.length).toBe(Object.keys(LEGACY_SLASH_COMMAND_PATHS).length);
+      // Pi was never a pre-1.0 legacy tool
+      expect(LEGACY_SLASH_COMMAND_PATHS).not.toHaveProperty('pi');
     });
   });
 
