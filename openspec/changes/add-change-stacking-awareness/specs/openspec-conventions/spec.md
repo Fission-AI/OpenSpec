@@ -18,6 +18,11 @@ OpenSpec conventions SHALL define optional metadata fields for sequencing and de
 - **THEN** conventions SHALL require explicit `dependsOn` edges for ordering relationships
 - **AND** conventions SHALL prohibit treating `requires` as an implicit dependency edge
 
+#### Scenario: Declaring advisory overlap via touches
+- **WHEN** a change may affect capability/spec areas shared by concurrent changes without requiring ordering
+- **THEN** conventions SHALL allow authors to declare `touches` with advisory area identifiers (for example capability IDs, spec area names, or paths)
+- **AND** tooling SHALL treat `touches` as informational only (no implicit dependency edge, non-blocking validation signal)
+
 #### Scenario: Declaring parent-child split structure
 - **WHEN** a large change is decomposed into smaller slices
 - **THEN** conventions SHALL define parent-child metadata and expected ordering semantics

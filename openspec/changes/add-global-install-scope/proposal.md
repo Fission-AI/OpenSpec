@@ -56,7 +56,7 @@ Extend command adapter path resolution so adapters receive install context (scop
 ### 6. Extend config UX and docs
 
 - Add install scope control in `openspec config profile` interactive flow.
-- Extend `openspec config list` output with install scope source (explicit/default).
+- Extend `openspec config list` output with install scope source (`explicit`, `new-default`, `legacy-default`).
 - Add explicit migration guidance and prompt path so legacy users can opt into `global` scope.
 - Update supported tools and CLI docs to explain scope behavior and fallback rules.
 
@@ -84,6 +84,7 @@ This proposal remains focused on scope resolution, but implementation and test c
 - `command-generation`: Scope-aware adapter path resolution via install context.
 - `cli-init`: Scope-aware initialization planning and output.
 - `cli-update`: Scope-aware update sync, drift detection, and output.
+- `migration`: Scope-aware migration scanning with install-scope-aware workflow lookup.
 
 ## Impact
 

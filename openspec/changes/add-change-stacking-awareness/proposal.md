@@ -54,6 +54,8 @@ Add helper workflow to decompose large proposals into stackable slices:
 
 - `openspec change split <change-id>` scaffolds child changes with `parent` + `dependsOn`
 - generates minimal proposal/tasks stubs for each child slice
+- converts the source change into a parent planning container (no duplicate child implementation tasks)
+- re-running split for an already-split source change returns a deterministic actionable error unless explicit overwrite mode is requested
 
 ### 5. Document stack-first workflow
 

@@ -16,7 +16,7 @@ The update command SHALL support install scope selection for sync operations.
 The update command SHALL evaluate configured state and drift using effective scoped paths.
 
 #### Scenario: Scoped drift detection
-- **WHEN** update evaluates whether tools are up to date
+- **WHEN** update evaluates whether tools are up-to-date
 - **THEN** it SHALL inspect files at effective scoped targets for each tool/surface
 - **AND** SHALL compare current resolved scope against last successful effective scope for each tool/surface
 - **AND** SHALL treat a difference as sync-required drift
@@ -29,5 +29,6 @@ The update command SHALL evaluate configured state and drift using effective sco
 
 #### Scenario: Unsupported scope during update
 - **WHEN** configured tool/surface supports neither preferred nor alternate scope
-- **THEN** update SHALL fail before partial writes
+- **THEN** scope support SHALL be validated for all configured tools/surfaces before any write
+- **AND** update SHALL fail without performing file writes when incompatibilities are detected
 - **AND** SHALL report incompatible tools with remediation steps

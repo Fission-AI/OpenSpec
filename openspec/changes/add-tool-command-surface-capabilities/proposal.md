@@ -39,11 +39,13 @@ Update `init` and `update` to compute effective artifact actions per tool from:
 Behavior matrix:
 
 - `both`:
-  - generate skills for all tools with `skillsDir`
+  - generate skills for all tools with `skillsDir` (including `skills-invocable`)
   - generate command files only for `adapter` tools
+  - `none`: no artifact action; MAY emit compatibility warning
 - `skills`:
-  - generate skills
+  - generate skills for all tools with `skillsDir` (including `skills-invocable`)
   - remove adapter-generated command files
+  - `none`: no artifact action; MAY emit compatibility warning
 - `commands`:
   - `adapter`: generate commands, remove skills
   - `skills-invocable`: keep/generate skills as command surface, do not remove them
@@ -96,7 +98,7 @@ Implementation tests should cover mixed-tool matrices to ensure deterministic be
 - `src/core/command-generation/registry.ts` (or shared helper) - capability inference from adapter presence
 - `src/core/init.ts` - capability-aware generation/removal planning + compatibility validation + summary messaging
 - `src/core/update.ts` - capability-aware sync/removal planning + compatibility validation + summary messaging
-- `src/core/shared/tool-detection.ts` - keep configured-tool detection aligned with capability model
+- `src/core/shared/tool-detection.ts` - include capability-aware detection so `skills-invocable` tools remain detectable under `delivery=commands`
 - `docs/supported-tools.md` and `docs/cli.md` - document delivery behavior and compatibility notes
 - `test/core/init.test.ts` and `test/core/update.test.ts` - add coverage for skills-invocable behavior and mixed-tool delivery scenarios
 

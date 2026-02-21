@@ -9,7 +9,7 @@
 
 - [ ] 2.1 Extend `AI_TOOLS` metadata to declare scope support per surface (skills/commands)
 - [ ] 2.2 Add shared install-target resolver for skills and commands using requested scope + tool support
-- [ ] 2.3 Implement deterministic fallback/error behavior when preferred scope is unsupported
+- [ ] 2.3 Implement deterministic fallback/error behavior when preferred scope is unsupported, including default behavior when scope support metadata is absent
 - [ ] 2.4 Add unit tests for scope resolution (preferred, fallback, and hard-fail paths)
 
 ## 3. Command Generation Contract
@@ -49,6 +49,7 @@
 - [ ] 7.1 Update `docs/supported-tools.md` with scope behavior and effective-scope fallback notes
 - [ ] 7.2 Update `docs/cli.md` examples for init/update scope options
 - [ ] 7.3 Document cross-project implications of global installs
+- [ ] 7.4 Add existing-user migration guide covering legacy-default behavior and explicit opt-in to `installScope: global`
 
 ## 8. Verification
 

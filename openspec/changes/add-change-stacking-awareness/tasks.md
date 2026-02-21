@@ -7,7 +7,7 @@
 ## 2. Stack-Aware Validation
 
 - [ ] 2.1 Detect dependency cycles and fail validation with deterministic errors
-- [ ] 2.2 Detect missing dependencies and blocked sequencing states
+- [ ] 2.2 Detect missing `dependsOn` targets (referenced change ID does not exist) and detect changes transitively blocked by unresolved/cyclic dependency paths
 - [ ] 2.3 Add overlap warnings for active changes that touch the same capability/spec areas
 - [ ] 2.4 Add tests for cycle, missing dependency, and overlap warning cases
 
@@ -15,7 +15,7 @@
 
 - [ ] 3.1 Add `openspec change graph` to display dependency order for active changes
 - [ ] 3.2 Add `openspec change next` to suggest unblocked changes in recommended order
-- [ ] 3.3 Add tests for topological ordering and deterministic tie-breaking
+- [ ] 3.3 Add tests for topological ordering and deterministic tie-breaking (lexicographic by change ID at equal depth)
 
 ## 4. Split Scaffolding
 

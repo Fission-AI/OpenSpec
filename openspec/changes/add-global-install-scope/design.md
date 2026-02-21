@@ -53,9 +53,10 @@ interface ToolInstallScopeSupport {
 
 Resolution rules:
 
-1. Try preferred scope.
-2. If unsupported, use alternate scope when supported.
-3. If neither is supported, fail with actionable error.
+1. If scope support metadata is absent for a tool surface, treat it as project-only support for conservative backward compatibility.
+2. Try preferred scope.
+3. If unsupported, use alternate scope when supported.
+4. If neither is supported, fail with actionable error.
 
 This enables default-global behavior while remaining safe for tools that only support project-local paths.
 
@@ -82,7 +83,7 @@ Resolver output:
 Platform behavior:
 
 - Resolver outputs are OS-aware and normalized for the current platform.
-- Windows global targets MUST use Windows path conventions (for example `%USERPROFILE%\\.codex\\prompts` fallback for Codex when `CODEX_HOME` is unset), not POSIX defaults.
+- Windows global targets MUST use Windows path conventions (for example `%USERPROFILE%\.codex\prompts` fallback for Codex when `CODEX_HOME` is unset), not POSIX defaults.
 
 ### 4. Context-aware command adapter paths
 
@@ -128,8 +129,10 @@ Track last successful effective scope per tool/surface in project-managed state.
 Rules:
 
 1. Drift is detected when current resolved scope differs from last successful scope for a configured tool/surface.
-2. Update writes to newly resolved targets first, then removes managed files at previous targets.
-3. Cleanup failures do not rollback new writes; command returns actionable failure with leftover paths to resolve.
+2. Scope support MUST be validated for all configured tools/surfaces before any write starts.
+3. Update writes to newly resolved targets first, verifies completeness, then removes managed files at previous targets.
+4. If new-target writes are partial or verification fails, command SHALL abort old-target cleanup and report actionable failure with incomplete/new and preserved/old paths.
+5. Cleanup failures do not rollback new writes; command returns actionable failure with leftover paths to resolve.
 
 ### 8. Coordination with command-surface capability changes
 
