@@ -142,7 +142,7 @@ After migration, subsequent `init` and `update` commands respect the migrated co
 - Existing users' workflows are preserved exactly as-is (no `propose` added automatically)
 - Both `init` (re-init) and `update` trigger migration on existing projects if no profile is set
 - `openspec init` on a **new** project (no existing workflows) uses global config, defaulting to `core`
-- `init` with a custom profile shows what will be installed and prompts to proceed or reconfigure
+- `init` with a custom profile applies the configured workflows directly (no profile confirmation prompt)
 - `init` validates `--profile` values (`core` or `custom`) and errors on invalid input
 - Migration message mentions `propose` and suggests `openspec config profile core` to opt in
 - After migration, users can opt into `core` profile via `openspec config profile core`
