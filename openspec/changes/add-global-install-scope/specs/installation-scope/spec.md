@@ -9,7 +9,9 @@ The system SHALL support a user-level install scope preference with values `glob
 
 #### Scenario: Default install scope
 - **WHEN** install scope is not explicitly configured
-- **THEN** the system SHALL use `global` as the default scope
+- **THEN** the system SHALL resolve a migration-aware default:
+- **AND** use `global` for newly created configs
+- **AND** use `project` for legacy schema-evolved configs until explicit migration
 
 #### Scenario: Explicit install scope
 - **WHEN** user configures install scope to `project`

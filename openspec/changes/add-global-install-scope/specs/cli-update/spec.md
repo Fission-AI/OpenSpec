@@ -6,7 +6,7 @@ The update command SHALL support install scope selection for sync operations.
 #### Scenario: Scope defaults to global config value
 - **WHEN** user runs `openspec update` without explicit scope override
 - **THEN** update SHALL use configured install scope
-- **AND** if unset, SHALL default to `global`
+- **AND** if unset, SHALL resolve migration-aware default (`global` for newly created configs, `project` for legacy schema-evolved configs)
 
 #### Scenario: Scope override via flag
 - **WHEN** user runs `openspec update --scope project`

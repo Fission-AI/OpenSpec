@@ -6,7 +6,7 @@ The init command SHALL support install scope selection for generated artifacts.
 #### Scenario: Scope defaults to global
 - **WHEN** user runs `openspec init` without explicit scope override
 - **THEN** init SHALL use global config install scope
-- **AND** if unset, SHALL default to `global`
+- **AND** if unset, SHALL resolve migration-aware default (`global` for newly created configs, `project` for legacy schema-evolved configs)
 
 #### Scenario: Scope override via flag
 - **WHEN** user runs `openspec init --scope project`

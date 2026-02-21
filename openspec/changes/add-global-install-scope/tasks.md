@@ -1,9 +1,9 @@
 ## 1. Global Config + Validation
 
-- [ ] 1.1 Add `installScope` (`global` | `project`) to `GlobalConfig` with default `global`
+- [ ] 1.1 Add `installScope` (`global` | `project`) to `GlobalConfig` with explicit `global` default for newly created configs
 - [ ] 1.2 Update config schema validation and known-key checks to include install scope
-- [ ] 1.3 Add schema-evolution tests for config files that omit install scope
-- [ ] 1.4 Extend `openspec config list` output to show install scope and source (default/explicit)
+- [ ] 1.3 Add schema-evolution tests ensuring missing `installScope` in legacy configs resolves to effective `project` until explicit migration
+- [ ] 1.4 Extend `openspec config list` output to show install scope and source (`explicit`, `new-default`, `legacy-default`)
 
 ## 2. Tool Capability Metadata + Resolvers
 
@@ -42,6 +42,7 @@
 - [ ] 6.2 Preserve install scope when using preset shortcuts unless explicitly changed
 - [ ] 6.3 Ensure non-interactive config behavior remains deterministic with clear errors
 - [ ] 6.4 Add/adjust config command tests for install scope flows
+- [ ] 6.5 Add migration UX for legacy users to opt into `global` scope explicitly
 
 ## 7. Documentation
 

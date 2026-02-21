@@ -2,7 +2,7 @@
 
 OpenSpec today assumes project-local installation for most generated artifacts, with Codex command prompts as the main global exception. This mixed model works, but it is implicit and not user-configurable.
 
-The requested change is to support user-selectable install scope (`global` or `project`) for tool skills/commands, defaulting to `global`.
+The requested change is to support user-selectable install scope (`global` or `project`) for tool skills/commands, defaulting to `global` for new configurations while preserving legacy project-local behavior until explicit migration.
 
 ## Goals / Non-Goals
 
@@ -11,7 +11,7 @@ The requested change is to support user-selectable install scope (`global` or `p
 - Provide a single scope preference that users can set globally and override per run
 - Default new users to `global` scope
 - Make install path resolution deterministic and explicit across tools/surfaces
-- Keep existing behavior backward compatible for users with older config files
+- Preserve current behavior for users with older config files that do not yet define `installScope`
 - Avoid silent partial installs; surface effective scope decisions in output
 
 **Non-Goals:**
@@ -37,8 +37,8 @@ interface GlobalConfig {
 
 Defaults:
 
-- `installScope` defaults to `global` when absent.
-- Existing config files without this field continue to load safely through schema evolution.
+- New configs SHOULD write `installScope: global` explicitly.
+- Existing configs without this field continue to load safely through schema evolution and SHALL resolve effective default as `project` until users explicitly set `installScope`.
 
 ### 2. Explicit tool scope support metadata
 
@@ -98,20 +98,20 @@ getFilePath(commandId: string, context: InstallContext): string
 
 `init`:
 
-- Uses configured install scope by default.
+- Uses configured install scope by default; if absent in a legacy config, uses migration-safe effective default (`project`).
 - Supports explicit override flag (`--scope global|project`).
 - In interactive mode, displays chosen scope and any per-tool fallback decisions before writing files.
 
 `update`:
 
-- Applies current scope preference (or override).
+- Applies current scope preference (or override); if absent in a legacy config, uses migration-safe effective default (`project`).
 - Performs drift detection using effective scoped paths and last-applied scope state.
 - Reports effective scope decisions in summary output.
 
 `config`:
 
 - `openspec config profile` interactive flow includes install scope selection.
-- `openspec config list` shows `installScope` with explicit/default annotation.
+- `openspec config list` shows `installScope` with source annotation (`explicit`, `new-default`, or `legacy-default`).
 
 ### 6. Cleanup safety during scope changes
 

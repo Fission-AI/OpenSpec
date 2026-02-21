@@ -10,14 +10,15 @@ This creates friction for users who prefer user-level setup and expect tool arti
 
 ## What Changes
 
-### 1. Add install scope preference (default: global)
+### 1. Add install scope preference with legacy-safe defaults
 
 Introduce a global install scope setting with two modes:
 
-- `global` (default)
+- `global` (default for newly created configs)
 - `project`
 
 The setting is stored in global config and can be overridden per command run.
+For schema-evolved legacy configs where `installScope` is absent, effective default remains `project` until users opt in to global scope.
 
 ### 2. Add scope-aware path resolution for skills and commands
 
@@ -44,7 +45,7 @@ Extend command adapter path resolution so adapters receive install context (scop
 
 - `openspec init`:
   - accepts scope override flag
-  - uses global scope preference by default
+  - uses configured scope or migration-aware default (new configs default global; legacy configs preserve project until migration)
   - applies scope-aware generation and cleanup planning
 - `openspec update`:
   - applies current scope preference
@@ -56,6 +57,7 @@ Extend command adapter path resolution so adapters receive install context (scop
 
 - Add install scope control in `openspec config profile` interactive flow.
 - Extend `openspec config list` output with install scope source (explicit/default).
+- Add explicit migration guidance and prompt path so legacy users can opt into `global` scope.
 - Update supported tools and CLI docs to explain scope behavior and fallback rules.
 
 ### 7. Coordinate with command-surface capability delivery rules
