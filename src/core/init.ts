@@ -128,24 +128,9 @@ export class InitCommand {
       await showWelcomeScreen();
     }
 
-    // Resolve profile (--profile flag overrides global config) (task 7.7)
-    const globalConfig = getGlobalConfig();
-    const profile: Profile = this.resolveProfileOverride() ?? globalConfig.profile ?? 'core';
-    const workflows = getProfileWorkflows(profile, globalConfig.workflows);
-
-    // Profile confirmation for non-default profiles (task 7.5)
-    if (canPrompt && profile === 'custom' && workflows.length > 0) {
-      console.log(`Applying custom profile (${workflows.length} workflows): ${[...workflows].join(', ')}`);
-      const { confirm } = await import('@inquirer/prompts');
-      const proceed = await confirm({
-        message: "Proceed? Or run 'openspec config profile' to change.",
-        default: true,
-      });
-      if (!proceed) {
-        console.log("Run 'openspec config profile' to update your profile, then try again.");
-        return;
-      }
-    }
+    // Validate profile override early so invalid values fail before tool setup.
+    // The resolved value is consumed later when generation reads effective config.
+    this.resolveProfileOverride();
 
     // Get tool states before processing
     const toolStates = getToolStates(projectPath);
@@ -286,6 +271,12 @@ export class InitCommand {
 
     const validTools = getToolsWithSkillsDir();
     const detectedToolIds = new Set(detectedTools.map((t) => t.value));
+    const configuredToolIds = new Set(
+      [...toolStates.entries()]
+        .filter(([, status]) => status.configured)
+        .map(([toolId]) => toolId)
+    );
+    const shouldPreselectDetected = !extendMode && configuredToolIds.size === 0;
     const canPrompt = this.canPromptInteractively();
 
     // Non-interactive mode: use detected tools as fallback (task 7.8)
@@ -307,7 +298,7 @@ export class InitCommand {
     // Interactive mode: show searchable multi-select
     const { searchableMultiSelect } = await import('../prompts/searchable-multi-select.js');
 
-    // Build choices: pre-select detected tools AND configured tools (task 7.4)
+    // Build choices: pre-select configured tools; keep detected tools visible but unselected.
     const sortedChoices = validTools
       .map((toolId) => {
         const tool = AI_TOOLS.find((t) => t.value === toolId);
@@ -319,20 +310,36 @@ export class InitCommand {
           name: tool?.name || toolId,
           value: toolId,
           configured,
-          preSelected: configured || detected, // Pre-select both configured and detected tools
+          detected: detected && !configured,
+          preSelected: configured || (shouldPreselectDetected && detected && !configured),
         };
       })
       .sort((a, b) => {
-        // Pre-selected tools first (configured or detected)
-        if (a.preSelected && !b.preSelected) return -1;
-        if (!a.preSelected && b.preSelected) return 1;
+        // Configured tools first, then detected (not configured), then everything else.
+        if (a.configured && !b.configured) return -1;
+        if (!a.configured && b.configured) return 1;
+        if (a.detected && !b.detected) return -1;
+        if (!a.detected && b.detected) return 1;
         return 0;
       });
 
-    // Show detected tools if any
-    if (detectedToolIds.size > 0) {
-      const detectedNames = detectedTools.map((t) => t.name).join(', ');
-      console.log(`Detected: ${detectedNames}`);
+    const configuredNames = validTools
+      .filter((toolId) => configuredToolIds.has(toolId))
+      .map((toolId) => AI_TOOLS.find((t) => t.value === toolId)?.name || toolId);
+
+    if (configuredNames.length > 0) {
+      console.log(`OpenSpec configured: ${configuredNames.join(', ')} (pre-selected)`);
+    }
+
+    const detectedOnlyNames = detectedTools
+      .filter((tool) => !configuredToolIds.has(tool.value))
+      .map((tool) => tool.name);
+
+    if (detectedOnlyNames.length > 0) {
+      const detectionLabel = shouldPreselectDetected
+        ? 'pre-selected for first-time setup'
+        : 'not pre-selected';
+      console.log(`Detected tool directories: ${detectedOnlyNames.join(', ')} (${detectionLabel})`);
     }
 
     const selectedTools = await searchableMultiSelect({

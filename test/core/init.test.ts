@@ -5,6 +5,24 @@ import os from 'os';
 import { InitCommand } from '../../src/core/init.js';
 import { saveGlobalConfig, getGlobalConfig } from '../../src/core/global-config.js';
 
+const { confirmMock, showWelcomeScreenMock, searchableMultiSelectMock } = vi.hoisted(() => ({
+  confirmMock: vi.fn(),
+  showWelcomeScreenMock: vi.fn().mockResolvedValue(undefined),
+  searchableMultiSelectMock: vi.fn(),
+}));
+
+vi.mock('@inquirer/prompts', () => ({
+  confirm: confirmMock,
+}));
+
+vi.mock('../../src/ui/welcome-screen.js', () => ({
+  showWelcomeScreen: showWelcomeScreenMock,
+}));
+
+vi.mock('../../src/prompts/searchable-multi-select.js', () => ({
+  searchableMultiSelect: searchableMultiSelectMock,
+}));
+
 describe('InitCommand', () => {
   let testDir: string;
   let configTempDir: string;
@@ -21,6 +39,10 @@ describe('InitCommand', () => {
 
     // Mock console.log to suppress output during tests
     vi.spyOn(console, 'log').mockImplementation(() => { });
+    confirmMock.mockReset();
+    confirmMock.mockResolvedValue(true);
+    showWelcomeScreenMock.mockClear();
+    searchableMultiSelectMock.mockReset();
   });
 
   afterEach(async () => {
@@ -455,6 +477,10 @@ describe('InitCommand - profile and detection features', () => {
     await fs.mkdir(configTempDir, { recursive: true });
     process.env.XDG_CONFIG_HOME = configTempDir;
     vi.spyOn(console, 'log').mockImplementation(() => {});
+    confirmMock.mockReset();
+    confirmMock.mockResolvedValue(true);
+    showWelcomeScreenMock.mockClear();
+    searchableMultiSelectMock.mockReset();
   });
 
   afterEach(async () => {
@@ -510,6 +536,54 @@ describe('InitCommand - profile and detection features', () => {
     expect(await fileExists(skillFile)).toBe(true);
   });
 
+  it('should preselect configured tools but not directory-detected tools in extend mode', async () => {
+    // Simulate existing OpenSpec project (extend mode).
+    await fs.mkdir(path.join(testDir, 'openspec'), { recursive: true });
+
+    // Configured with OpenSpec
+    const claudeSkillDir = path.join(testDir, '.claude', 'skills', 'openspec-explore');
+    await fs.mkdir(claudeSkillDir, { recursive: true });
+    await fs.writeFile(path.join(claudeSkillDir, 'SKILL.md'), 'configured');
+
+    // Directory detected only (not configured with OpenSpec)
+    await fs.mkdir(path.join(testDir, '.github'), { recursive: true });
+
+    searchableMultiSelectMock.mockResolvedValue(['claude']);
+
+    const initCommand = new InitCommand({ force: true });
+    vi.spyOn(initCommand as any, 'canPromptInteractively').mockReturnValue(true);
+
+    await initCommand.execute(testDir);
+
+    expect(searchableMultiSelectMock).toHaveBeenCalledTimes(1);
+    const [{ choices }] = searchableMultiSelectMock.mock.calls[0] as [{ choices: Array<{ value: string; preSelected?: boolean; detected?: boolean }> }];
+
+    const claude = choices.find((choice) => choice.value === 'claude');
+    const githubCopilot = choices.find((choice) => choice.value === 'github-copilot');
+
+    expect(claude?.preSelected).toBe(true);
+    expect(githubCopilot?.preSelected).toBe(false);
+    expect(githubCopilot?.detected).toBe(true);
+  });
+
+  it('should preselect detected tools for first-time interactive setup', async () => {
+    // First-time init: no openspec/ directory and no configured OpenSpec skills.
+    await fs.mkdir(path.join(testDir, '.github'), { recursive: true });
+
+    searchableMultiSelectMock.mockResolvedValue(['github-copilot']);
+
+    const initCommand = new InitCommand({ force: true });
+    vi.spyOn(initCommand as any, 'canPromptInteractively').mockReturnValue(true);
+
+    await initCommand.execute(testDir);
+
+    expect(searchableMultiSelectMock).toHaveBeenCalledTimes(1);
+    const [{ choices }] = searchableMultiSelectMock.mock.calls[0] as [{ choices: Array<{ value: string; preSelected?: boolean }> }];
+    const githubCopilot = choices.find((choice) => choice.value === 'github-copilot');
+
+    expect(githubCopilot?.preSelected).toBe(true);
+  });
+
   it('should respect custom profile from global config', async () => {
     saveGlobalConfig({
       featureFlags: {},
@@ -530,6 +604,56 @@ describe('InitCommand - profile and detection features', () => {
     // Non-selected skills should NOT be created
     const proposeSkill = path.join(testDir, '.claude', 'skills', 'openspec-propose', 'SKILL.md');
     expect(await fileExists(proposeSkill)).toBe(false);
+  });
+
+  it('should migrate commands-only extend mode to custom profile without injecting propose', async () => {
+    await fs.mkdir(path.join(testDir, 'openspec'), { recursive: true });
+    await fs.mkdir(path.join(testDir, '.claude', 'commands', 'opsx'), { recursive: true });
+    await fs.writeFile(path.join(testDir, '.claude', 'commands', 'opsx', 'explore.md'), '# explore\n');
+
+    const initCommand = new InitCommand({ tools: 'claude', force: true });
+    await initCommand.execute(testDir);
+
+    const config = getGlobalConfig();
+    expect(config.profile).toBe('custom');
+    expect(config.delivery).toBe('commands');
+    expect(config.workflows).toEqual(['explore']);
+
+    const exploreCommand = path.join(testDir, '.claude', 'commands', 'opsx', 'explore.md');
+    const proposeCommand = path.join(testDir, '.claude', 'commands', 'opsx', 'propose.md');
+    expect(await fileExists(exploreCommand)).toBe(true);
+    expect(await fileExists(proposeCommand)).toBe(false);
+
+    const exploreSkill = path.join(testDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md');
+    const proposeSkill = path.join(testDir, '.claude', 'skills', 'openspec-propose', 'SKILL.md');
+    expect(await fileExists(exploreSkill)).toBe(false);
+    expect(await fileExists(proposeSkill)).toBe(false);
+  });
+
+  it('should not prompt for confirmation when applying custom profile in interactive init', async () => {
+    saveGlobalConfig({
+      featureFlags: {},
+      profile: 'custom',
+      delivery: 'both',
+      workflows: ['explore', 'new'],
+    });
+
+    const initCommand = new InitCommand({ force: true });
+    vi.spyOn(initCommand as any, 'canPromptInteractively').mockReturnValue(true);
+    vi.spyOn(initCommand as any, 'getSelectedTools').mockResolvedValue(['claude']);
+
+    await initCommand.execute(testDir);
+
+    expect(showWelcomeScreenMock).toHaveBeenCalled();
+    expect(confirmMock).not.toHaveBeenCalled();
+
+    const exploreSkill = path.join(testDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md');
+    const newChangeSkill = path.join(testDir, '.claude', 'skills', 'openspec-new-change', 'SKILL.md');
+    expect(await fileExists(exploreSkill)).toBe(true);
+    expect(await fileExists(newChangeSkill)).toBe(true);
+
+    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+    expect(logCalls.some((entry) => entry.includes('Applying custom profile'))).toBe(false);
   });
 
   it('should respect delivery=skills setting (no commands)', async () => {

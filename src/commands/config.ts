@@ -21,6 +21,185 @@ import {
 } from '../core/config-schema.js';
 import { CORE_WORKFLOWS, ALL_WORKFLOWS, getProfileWorkflows } from '../core/profiles.js';
 import { OPENSPEC_DIR_NAME } from '../core/config.js';
+import { hasProjectConfigDrift } from '../core/profile-sync-drift.js';
+
+type ProfileAction = 'both' | 'delivery' | 'workflows' | 'keep';
+
+interface ProfileState {
+  profile: Profile;
+  delivery: Delivery;
+  workflows: string[];
+}
+
+interface ProfileStateDiff {
+  hasChanges: boolean;
+  lines: string[];
+}
+
+interface WorkflowPromptMeta {
+  name: string;
+  description: string;
+}
+
+const WORKFLOW_PROMPT_META: Record<string, WorkflowPromptMeta> = {
+  propose: {
+    name: 'Propose change',
+    description: 'Create proposal, design, and tasks from a request',
+  },
+  explore: {
+    name: 'Explore ideas',
+    description: 'Investigate a problem before implementation',
+  },
+  new: {
+    name: 'New change',
+    description: 'Create a new change scaffold quickly',
+  },
+  continue: {
+    name: 'Continue change',
+    description: 'Resume work on an existing change',
+  },
+  apply: {
+    name: 'Apply tasks',
+    description: 'Implement tasks from the current change',
+  },
+  ff: {
+    name: 'Fast-forward',
+    description: 'Run a faster implementation workflow',
+  },
+  sync: {
+    name: 'Sync specs',
+    description: 'Sync change artifacts with specs',
+  },
+  archive: {
+    name: 'Archive change',
+    description: 'Finalize and archive a completed change',
+  },
+  'bulk-archive': {
+    name: 'Bulk archive',
+    description: 'Archive multiple completed changes together',
+  },
+  verify: {
+    name: 'Verify change',
+    description: 'Run verification checks against a change',
+  },
+  onboard: {
+    name: 'Onboard',
+    description: 'Guided onboarding flow for OpenSpec',
+  },
+};
+
+function isPromptCancellationError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.name === 'ExitPromptError' || error.message.includes('force closed the prompt with SIGINT'))
+  );
+}
+
+/**
+ * Resolve the effective current profile state from global config defaults.
+ */
+export function resolveCurrentProfileState(config: GlobalConfig): ProfileState {
+  const profile = config.profile || 'core';
+  const delivery = config.delivery || 'both';
+  const workflows = [
+    ...getProfileWorkflows(profile, config.workflows ? [...config.workflows] : undefined),
+  ];
+  return { profile, delivery, workflows };
+}
+
+/**
+ * Derive profile type from selected workflows.
+ */
+export function deriveProfileFromWorkflowSelection(selectedWorkflows: string[]): Profile {
+  const isCoreMatch =
+    selectedWorkflows.length === CORE_WORKFLOWS.length &&
+    CORE_WORKFLOWS.every((w) => selectedWorkflows.includes(w));
+  return isCoreMatch ? 'core' : 'custom';
+}
+
+/**
+ * Format a compact workflow summary for the profile header.
+ */
+export function formatWorkflowSummary(workflows: readonly string[], profile: Profile): string {
+  return `${workflows.length} selected (${profile})`;
+}
+
+function stableWorkflowOrder(workflows: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const ordered: string[] = [];
+
+  for (const workflow of ALL_WORKFLOWS) {
+    if (workflows.includes(workflow) && !seen.has(workflow)) {
+      ordered.push(workflow);
+      seen.add(workflow);
+    }
+  }
+
+  const extras = workflows.filter((w) => !ALL_WORKFLOWS.includes(w as (typeof ALL_WORKFLOWS)[number]));
+  extras.sort();
+  for (const extra of extras) {
+    if (!seen.has(extra)) {
+      ordered.push(extra);
+      seen.add(extra);
+    }
+  }
+
+  return ordered;
+}
+
+/**
+ * Build a user-facing diff summary between two profile states.
+ */
+export function diffProfileState(before: ProfileState, after: ProfileState): ProfileStateDiff {
+  const lines: string[] = [];
+
+  if (before.delivery !== after.delivery) {
+    lines.push(`delivery: ${before.delivery} -> ${after.delivery}`);
+  }
+
+  if (before.profile !== after.profile) {
+    lines.push(`profile: ${before.profile} -> ${after.profile}`);
+  }
+
+  const beforeOrdered = stableWorkflowOrder(before.workflows);
+  const afterOrdered = stableWorkflowOrder(after.workflows);
+  const beforeSet = new Set(beforeOrdered);
+  const afterSet = new Set(afterOrdered);
+
+  const added = afterOrdered.filter((w) => !beforeSet.has(w));
+  const removed = beforeOrdered.filter((w) => !afterSet.has(w));
+
+  if (added.length > 0 || removed.length > 0) {
+    const tokens: string[] = [];
+    if (added.length > 0) {
+      tokens.push(`added ${added.join(', ')}`);
+    }
+    if (removed.length > 0) {
+      tokens.push(`removed ${removed.join(', ')}`);
+    }
+    lines.push(`workflows: ${tokens.join('; ')}`);
+  }
+
+  return {
+    hasChanges: lines.length > 0,
+    lines,
+  };
+}
+
+function maybeWarnConfigDrift(
+  projectDir: string,
+  state: ProfileState,
+  colorize: (message: string) => string
+): void {
+  const openspecDir = path.join(projectDir, OPENSPEC_DIR_NAME);
+  if (!fs.existsSync(openspecDir)) {
+    return;
+  }
+  if (!hasProjectConfigDrift(projectDir, state.workflows, state.delivery)) {
+    return;
+  }
+  console.log(colorize('Warning: Global config is not applied to this project. Run `openspec update` to sync.'));
+}
 
 /**
  * Register the config command and all its subcommands.
@@ -182,10 +361,20 @@ export function registerConfigCommand(program: Command): void {
 
       if (!options.yes) {
         const { confirm } = await import('@inquirer/prompts');
-        const confirmed = await confirm({
-          message: 'Reset all configuration to defaults?',
-          default: false,
-        });
+        let confirmed: boolean;
+        try {
+          confirmed = await confirm({
+            message: 'Reset all configuration to defaults?',
+            default: false,
+          });
+        } catch (error) {
+          if (isPromptCancellationError(error)) {
+            console.log('Reset cancelled.');
+            process.exitCode = 130;
+            return;
+          }
+          throw error;
+        }
 
         if (!confirmed) {
           console.log('Reset cancelled.');
@@ -290,67 +479,167 @@ export function registerConfigCommand(program: Command): void {
       }
 
       // Interactive picker
-      const { select, checkbox } = await import('@inquirer/prompts');
+      const { select, checkbox, confirm } = await import('@inquirer/prompts');
+      const chalk = (await import('chalk')).default;
 
-      const config = getGlobalConfig();
+      try {
+        const config = getGlobalConfig();
+        const currentState = resolveCurrentProfileState(config);
 
-      // Delivery selection
-      const delivery = await select<Delivery>({
-        message: 'Delivery mode (how workflows are installed):',
-        choices: [
-          { value: 'both' as Delivery, name: 'Both (skills and commands)' },
-          { value: 'skills' as Delivery, name: 'Skills only' },
-          { value: 'commands' as Delivery, name: 'Commands only' },
-        ],
-        default: config.delivery || 'both',
-      });
+        console.log(chalk.bold('\nCurrent profile settings'));
+        console.log(`  Delivery: ${currentState.delivery}`);
+        console.log(`  Workflows: ${formatWorkflowSummary(currentState.workflows, currentState.profile)}`);
+        console.log(chalk.dim('  Delivery = where workflows are installed (skills, commands, or both)'));
+        console.log(chalk.dim('  Workflows = which actions are available (propose, explore, apply, etc.)'));
+        console.log();
 
-      // Workflow toggles - use getProfileWorkflows to resolve current active workflows
-      const currentWorkflows = getProfileWorkflows(config.profile || 'core', config.workflows ? [...config.workflows] : undefined);
-      const selectedWorkflows = await checkbox<string>({
-        message: 'Select workflows to install:',
-        choices: ALL_WORKFLOWS.map((w) => ({
-          value: w,
-          name: w,
-          checked: currentWorkflows.includes(w),
-        })),
-      });
-
-      // Determine profile based on selection
-      const isCoreMatch =
-        selectedWorkflows.length === CORE_WORKFLOWS.length &&
-        CORE_WORKFLOWS.every((w) => selectedWorkflows.includes(w));
-
-      const profile: Profile = isCoreMatch ? 'core' : 'custom';
-
-      config.profile = profile;
-      config.delivery = delivery;
-      config.workflows = selectedWorkflows;
-
-      saveGlobalConfig(config);
-
-      // Check if inside an OpenSpec project
-      const projectDir = process.cwd();
-      const openspecDir = path.join(projectDir, OPENSPEC_DIR_NAME);
-      if (fs.existsSync(openspecDir)) {
-        const { confirm } = await import('@inquirer/prompts');
-        const applyNow = await confirm({
-          message: 'Apply to this project now?',
-          default: true,
+        const action = await select<ProfileAction>({
+          message: 'What do you want to configure?',
+          choices: [
+            {
+              value: 'both',
+              name: 'Delivery and workflows',
+              description: 'Update install mode and available actions together',
+            },
+            {
+              value: 'delivery',
+              name: 'Delivery only',
+              description: 'Change where workflows are installed',
+            },
+            {
+              value: 'workflows',
+              name: 'Workflows only',
+              description: 'Change which workflow actions are available',
+            },
+            {
+              value: 'keep',
+              name: 'Keep current settings (exit)',
+              description: 'Leave configuration unchanged and exit',
+            },
+          ],
         });
 
-        if (applyNow) {
-          try {
-            execSync('npx openspec update', { stdio: 'inherit', cwd: projectDir });
-            console.log('Run `openspec update` in your other projects to apply.');
-          } catch {
-            console.error('`openspec update` failed. Please run it manually to apply the profile changes.');
-            process.exitCode = 1;
-          }
+        if (action === 'keep') {
+          console.log('No config changes.');
+          maybeWarnConfigDrift(process.cwd(), currentState, chalk.yellow);
           return;
         }
-      }
 
-      console.log('Config updated. Run `openspec update` in your projects to apply.');
+        const nextState: ProfileState = {
+          profile: currentState.profile,
+          delivery: currentState.delivery,
+          workflows: [...currentState.workflows],
+        };
+
+        if (action === 'both' || action === 'delivery') {
+          const deliveryChoices: { value: Delivery; name: string; description: string }[] = [
+            {
+              value: 'both' as Delivery,
+              name: 'Both (skills + commands)',
+              description: 'Install workflows as both skills and slash commands',
+            },
+            {
+              value: 'skills' as Delivery,
+              name: 'Skills only',
+              description: 'Install workflows only as skills',
+            },
+            {
+              value: 'commands' as Delivery,
+              name: 'Commands only',
+              description: 'Install workflows only as slash commands',
+            },
+          ];
+          for (const choice of deliveryChoices) {
+            if (choice.value === currentState.delivery) {
+              choice.name += ' [current]';
+            }
+          }
+
+          nextState.delivery = await select<Delivery>({
+            message: 'Delivery mode (how workflows are installed):',
+            choices: deliveryChoices,
+            default: currentState.delivery,
+          });
+        }
+
+        if (action === 'both' || action === 'workflows') {
+          const formatWorkflowChoice = (workflow: string) => {
+            const metadata = WORKFLOW_PROMPT_META[workflow] ?? {
+              name: workflow,
+              description: `Workflow: ${workflow}`,
+            };
+            return {
+              value: workflow,
+              name: metadata.name,
+              description: metadata.description,
+              short: metadata.name,
+              checked: currentState.workflows.includes(workflow),
+            };
+          };
+
+          const selectedWorkflows = await checkbox<string>({
+            message: 'Select workflows to make available:',
+            instructions: 'Space to toggle, Enter to confirm',
+            pageSize: ALL_WORKFLOWS.length,
+            theme: {
+              icon: {
+                checked: '[x]',
+                unchecked: '[ ]',
+              },
+            },
+            choices: ALL_WORKFLOWS.map(formatWorkflowChoice),
+          });
+          nextState.workflows = selectedWorkflows;
+          nextState.profile = deriveProfileFromWorkflowSelection(selectedWorkflows);
+        }
+
+        const diff = diffProfileState(currentState, nextState);
+        if (!diff.hasChanges) {
+          console.log('No config changes.');
+          maybeWarnConfigDrift(process.cwd(), nextState, chalk.yellow);
+          return;
+        }
+
+        console.log(chalk.bold('\nConfig changes:'));
+        for (const line of diff.lines) {
+          console.log(`  ${line}`);
+        }
+        console.log();
+
+        config.profile = nextState.profile;
+        config.delivery = nextState.delivery;
+        config.workflows = nextState.workflows;
+        saveGlobalConfig(config);
+
+        // Check if inside an OpenSpec project
+        const projectDir = process.cwd();
+        const openspecDir = path.join(projectDir, OPENSPEC_DIR_NAME);
+        if (fs.existsSync(openspecDir)) {
+          const applyNow = await confirm({
+            message: 'Apply changes to this project now?',
+            default: true,
+          });
+
+          if (applyNow) {
+            try {
+              execSync('npx openspec update', { stdio: 'inherit', cwd: projectDir });
+              console.log('Run `openspec update` in your other projects to apply.');
+            } catch {
+              console.error('`openspec update` failed. Please run it manually to apply the profile changes.');
+              process.exitCode = 1;
+            }
+            return;
+          }
+        }
+
+        console.log('Config updated. Run `openspec update` in your projects to apply.');
+      } catch (error) {
+        if (isPromptCancellationError(error)) {
+          console.log('Config profile cancelled.');
+          process.exitCode = 130;
+          return;
+        }
+        throw error;
+      }
     });
 }

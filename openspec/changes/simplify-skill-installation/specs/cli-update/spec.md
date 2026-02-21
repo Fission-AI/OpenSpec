@@ -139,6 +139,13 @@ The update command SHALL notify the user if new AI tool directories are detected
 - **THEN** the system SHALL NOT automatically add the new tool
 - **THEN** the system SHALL proceed with update for currently configured tools only
 
+#### Scenario: Multiple new tool directories detected
+- **WHEN** user runs `openspec update`
+- **AND** multiple new tool directories are detected (e.g., `.github/` and `.windsurf/` exist but neither tool is configured)
+- **THEN** the system SHALL display one consolidated message listing all detected tools, for example: "Detected new tools: GitHub Copilot, Windsurf. Run 'openspec init' to add them."
+- **THEN** the system SHALL NOT automatically add any new tools
+- **THEN** the system SHALL proceed with update for currently configured tools only
+
 #### Scenario: No new tool directories
 - **WHEN** user runs `openspec update`
 - **AND** no new tool directories are detected

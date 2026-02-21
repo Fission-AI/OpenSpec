@@ -64,11 +64,11 @@
 - [x] 7.2 Update init to read global config for profile/delivery defaults
 - [x] 7.3 Add migration check to init: call shared `migrateIfNeeded()` before profile resolution
 - [x] 7.4 Change tool selection to show pre-selected detected tools
-- [x] 7.5 Add profile confirmation for non-default profiles: display what will be installed and prompt to proceed or reconfigure
+- [x] 7.5 Apply configured profile directly in init (no profile confirmation prompt)
 - [x] 7.6 Update success message to show `/opsx:propose` prompt (only if propose is in the active profile)
 - [x] 7.7 Add `--profile` flag to override global config
 - [x] 7.8 Update non-interactive mode to use defaults without prompting
-- [x] 7.9 Add tests for init flow with various scenarios (including migration on re-init, custom profile confirmation)
+- [x] 7.9 Add tests for init flow with various scenarios (including migration on re-init and custom profile behavior)
 
 ## 8. Update Command (Profile Support + Migration)
 
@@ -119,7 +119,7 @@
 - [x] 12.4 Update CLI help text for new commands
 - [x] 12.5 Manual: interactive init — verify detected tools are pre-selected, confirm prompt works, success message is correct
 - [x] 12.6 Manual: `openspec config profile` picker — verify delivery toggle, workflow toggles, pre-selection of current values, core preset shortcut
-- [x] 12.7 Manual: init with custom profile — verify confirmation prompt shows what will be installed
+- [x] 12.7 Manual: init with custom profile — verify init proceeds without profile confirmation prompt
 - [x] 12.8 Manual: delivery change via update — verify correct files are deleted/created when switching between skills/commands/both
 - [x] 12.9 Manual: migration flow — run update on a pre-existing project with no profile in config, verify migration message and resulting config
 

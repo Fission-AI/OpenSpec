@@ -148,32 +148,24 @@ The init command SHALL read and apply settings from global config.
 - **THEN** the system SHALL exit with code 1
 - **THEN** the system SHALL display a validation error listing allowed profile values
 
-### Requirement: Init shows profile confirmation for non-default profiles
-The init command SHALL show what profile is being applied when it differs from `core`, allowing the user to adjust before proceeding.
+### Requirement: Init applies configured profile without confirmation
+The init command SHALL apply the resolved profile (`--profile` override or global config) directly without prompting for confirmation.
 
 #### Scenario: Init with custom profile (interactive)
 - **WHEN** user runs `openspec init` interactively
 - **AND** global config specifies `profile: "custom"` with workflows
-- **THEN** the system SHALL display: "Applying custom profile (<count> workflows): <workflow-names>"
-- **THEN** the system SHALL prompt: "Proceed? (y/n) Or run 'openspec config profile' to change."
-- **WHEN** user confirms
-- **THEN** the system SHALL proceed with init using the custom profile
-
-#### Scenario: Init with custom profile — user declines
-- **WHEN** user declines the profile confirmation prompt
-- **THEN** the system SHALL display: "Run 'openspec config profile' to update your profile, then try again."
-- **THEN** the system SHALL exit with code 0 (no error)
-
-#### Scenario: Init with core profile (no confirmation needed)
-- **WHEN** user runs `openspec init` interactively
-- **AND** profile is `core` (default)
-- **THEN** the system SHALL NOT show a profile confirmation prompt
-- **THEN** the system SHALL proceed directly
+- **THEN** the system SHALL proceed directly using the custom profile workflows
+- **AND** the system SHALL NOT show a profile confirmation prompt
 
 #### Scenario: Non-interactive init with custom profile
 - **WHEN** user runs `openspec init` non-interactively
 - **AND** global config specifies a custom profile
-- **THEN** the system SHALL proceed without confirmation (CI assumes intentional config)
+- **THEN** the system SHALL proceed without confirmation
+
+#### Scenario: Init with core profile
+- **WHEN** user runs `openspec init` interactively
+- **AND** profile is `core` (default)
+- **THEN** the system SHALL proceed directly without a profile confirmation prompt
 
 ### Requirement: Init preserves existing workflows
 The init command SHALL NOT remove workflows that are already installed, but SHALL respect delivery setting.

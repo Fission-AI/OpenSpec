@@ -379,7 +379,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
       },
       {
         name: 'profile',
-        description: 'Configure workflow profile',
+        description: 'Configure workflow profile (interactive picker or preset shortcut)',
         flags: [],
       },
     ],
