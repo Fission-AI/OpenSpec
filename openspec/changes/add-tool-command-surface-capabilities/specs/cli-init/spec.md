@@ -13,9 +13,16 @@ The init command SHALL resolve each selected tool's command surface using explic
 - **AND** a command adapter is registered for the tool
 - **THEN** init SHALL infer `adapter` as the command surface
 
-#### Scenario: Inferred command surface without adapter
+#### Scenario: Inferred command surface for skills-only tool
 - **WHEN** a tool does not declare an explicit command-surface capability
 - **AND** no command adapter is registered for the tool
+- **AND** the tool has a configured `skillsDir`
+- **THEN** init SHALL infer `skills-invocable` as the command surface
+
+#### Scenario: Inferred command surface without adapter or skills
+- **WHEN** a tool does not declare an explicit command-surface capability
+- **AND** no command adapter is registered for the tool
+- **AND** the tool has no `skillsDir`
 - **THEN** init SHALL infer `none` as the command surface
 
 ### Requirement: Delivery compatibility by tool command surface
@@ -30,7 +37,7 @@ The init command SHALL apply delivery settings using each tool's command surface
 #### Scenario: Both delivery for skills-invocable tool
 - **WHEN** user runs `openspec init` with a selected tool whose command surface is `skills-invocable`
 - **AND** delivery is set to `both`
-- **THEN** the system SHALL generate or refresh managed skill directories for active workflows
+- **THEN** the system SHALL generate or refresh managed skill directories when the tool has `skillsDir`
 - **AND** SHALL NOT require adapter-generated command files for that tool
 
 #### Scenario: Both delivery for none command surface
@@ -48,7 +55,7 @@ The init command SHALL apply delivery settings using each tool's command surface
 #### Scenario: Skills delivery for skills-invocable tool
 - **WHEN** user runs `openspec init` with a selected tool whose command surface is `skills-invocable`
 - **AND** delivery is set to `skills`
-- **THEN** the system SHALL generate or refresh managed skill directories for active workflows
+- **THEN** the system SHALL generate or refresh managed skill directories when the tool has `skillsDir`
 - **AND** SHALL NOT require adapter-generated command files for that tool
 
 #### Scenario: Skills delivery for none command surface
@@ -83,6 +90,13 @@ The init command SHALL apply delivery settings using each tool's command surface
 - **THEN** the system SHALL fail before generating or deleting artifacts
 - **AND** the error SHALL list incompatible tool IDs and explain supported alternatives (`both` or `skills`)
 
+#### Scenario: Interactive handling for unsupported command surface
+- **WHEN** user runs `openspec init` interactively
+- **AND** delivery is set to `commands`
+- **AND** selected tools include one or more tools with command surface `none`
+- **THEN** the CLI SHALL show a compatibility error and return to the interactive selection flow for correction
+- **AND** SHALL not perform artifact writes until a valid selection is confirmed
+
 ### Requirement: Init compatibility signaling
 The init command SHALL clearly signal command-surface compatibility outcomes in both interactive and non-interactive flows.
 
@@ -97,11 +111,11 @@ The init command SHALL clearly signal command-surface compatibility outcomes in 
 - **AND** delivery is `commands`
 - **AND** selected tools include one or more `skills-invocable` command surfaces
 - **THEN** the command SHALL proceed with exit code 0
-- **AND** output SHALL include deterministic compatibility summary lines indicating those tools will use managed skills as their command surface
+- **AND** the command SHALL write deterministic compatibility summary lines to stdout indicating those tools will use managed skills as their command surface
 
 #### Scenario: Non-interactive compatibility failure
 - **WHEN** init runs non-interactively (including `--tools` usage)
 - **AND** delivery is `commands`
 - **AND** selected tools include any tool with no command surface capability
 - **THEN** the command SHALL exit with code 1
-- **AND** the output SHALL include deterministic, actionable guidance for resolving the selection
+- **AND** the command SHALL write deterministic, actionable guidance for resolving the selection to stderr

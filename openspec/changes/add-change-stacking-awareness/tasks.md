@@ -9,7 +9,8 @@
 - [ ] 2.1 Detect dependency cycles and fail validation with deterministic errors
 - [ ] 2.2 Detect missing `dependsOn` targets (referenced change ID does not exist) and detect changes transitively blocked by unresolved/cyclic dependency paths
 - [ ] 2.3 Add overlap warnings for active changes that touch the same capability/spec areas
-- [ ] 2.4 Add tests for cycle, missing dependency, and overlap warning cases
+- [ ] 2.4 Emit advisory warnings for unmatched `requires` markers when no provider exists in active history
+- [ ] 2.5 Add tests for cycle, missing dependency, overlap warning, and unmatched `requires` cases
 
 ## 3. Sequencing Commands
 
@@ -21,7 +22,8 @@
 
 - [ ] 4.1 Add `openspec change split <change-id>` to scaffold child slices
 - [ ] 4.2 Ensure generated children include parent/dependency metadata and stub proposal/tasks files
-- [ ] 4.3 Add tests for split output structure and idempotency/error behavior
+- [ ] 4.3 Add tests for split output structure and deterministic re-split error behavior when overwrite mode is not requested
+- [ ] 4.4 Implement and test explicit overwrite mode for `openspec change split` (`--overwrite` / `--force`) for controlled re-splitting
 
 ## 5. Documentation
 

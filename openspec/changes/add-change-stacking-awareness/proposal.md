@@ -36,7 +36,8 @@ Enhance change validation to detect planning issues early:
 
 - missing dependencies
 - dependency cycles
-- blocked/archive ordering violations
+- archive ordering violations (for example, attempting to archive a change before all `dependsOn` predecessors are archived)
+- unmatched capability markers (for example, `requires` marker with no provider in active history emits non-blocking warning)
 - overlap warnings when active changes touch the same capability
 
 Validation should fail only for deterministic blockers (for example cycles or missing required dependencies), and keep overlap checks as actionable warnings.
@@ -55,7 +56,7 @@ Add helper workflow to decompose large proposals into stackable slices:
 - `openspec change split <change-id>` scaffolds child changes with `parent` + `dependsOn`
 - generates minimal proposal/tasks stubs for each child slice
 - converts the source change into a parent planning container (no duplicate child implementation tasks)
-- re-running split for an already-split source change returns a deterministic actionable error unless explicit overwrite mode is requested
+- re-running split for an already-split source change returns a deterministic actionable error unless `--overwrite` (alias `--force`) is passed
 
 ### 5. Document stack-first workflow
 

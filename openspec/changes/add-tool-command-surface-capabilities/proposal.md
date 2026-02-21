@@ -23,7 +23,7 @@ Add an optional field in tool metadata to describe how a tool exposes commands:
 - `none`: no OpenSpec command surface
 
 Field should be optional. Default behavior should be inferred from existing adapter registration to avoid requiring every tool to be annotated.
-Capability values remain kebab-case string tokens for consistency with serialized metadata conventions.
+Capability values use kebab-case string tokens for consistency with serialized metadata conventions.
 
 Initial explicit override:
 
@@ -84,7 +84,7 @@ Implementation tests should cover mixed-tool matrices to ensure deterministic be
 
 ### New Capabilities
 
-- `tool-command-surface`: Capability model that distinguishes adapter commands from skills-invocable command surfaces
+- `tool-command-surface`: Capability model that classifies tools as `adapter`, `skills-invocable`, or `none` to drive delivery behavior
 
 ### Modified Capabilities
 
@@ -98,12 +98,12 @@ Implementation tests should cover mixed-tool matrices to ensure deterministic be
 - `src/core/command-generation/registry.ts` (or shared helper) - capability inference from adapter presence
 - `src/core/init.ts` - capability-aware generation/removal planning + compatibility validation + summary messaging
 - `src/core/update.ts` - capability-aware sync/removal planning + compatibility validation + summary messaging
-- `src/core/shared/tool-detection.ts` - include capability-aware detection so `skills-invocable` tools remain detectable under `delivery=commands`
+- `src/core/shared/tool-detection.ts` - include capability-aware detection so `skills-invocable` tools remain detectable under `delivery=commands`, and `none` tools are excluded from command-surface artifact detection
 - `docs/supported-tools.md` and `docs/cli.md` - document delivery behavior and compatibility notes
 - `test/core/init.test.ts` and `test/core/update.test.ts` - add coverage for skills-invocable behavior and mixed-tool delivery scenarios
 
 ## Sequencing Notes
 
 - This change is intended to stack safely with `simplify-skill-installation` by introducing additive, capability-specific requirements for init/update.
-- If `simplify-skill-installation` merges first, this change should be rebased and keep the capability-aware exception as the source of truth for `delivery=commands` behavior on `skills-invocable` tools.
+- If `simplify-skill-installation` merges first, this change should be rebased and keep the capability-aware rule as the source of truth for `delivery=commands` behavior on `skills-invocable` tools.
 - If this change merges first, the `simplify-skill-installation` branch should be rebased to avoid re-introducing a global "commands-only means no skills for all tools" assumption.
