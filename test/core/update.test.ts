@@ -1567,7 +1567,7 @@ content
       consoleSpy.mockRestore();
     });
 
-    it('should display extra workflows note when workflows outside profile exist', async () => {
+    it('should remove workflows outside profile during update sync', async () => {
       // Set core profile (propose, explore, apply, archive)
       setMockConfig({
         featureFlags: {},
@@ -1583,19 +1583,28 @@ content
       // Add a non-core workflow
       await fs.mkdir(path.join(skillsDir, 'openspec-new-change'), { recursive: true });
       await fs.writeFile(path.join(skillsDir, 'openspec-new-change', 'SKILL.md'), 'old');
+      const extraCommandFile = path.join(testDir, '.claude', 'commands', 'opsx', 'new.md');
+      await fs.mkdir(path.dirname(extraCommandFile), { recursive: true });
+      await fs.writeFile(extraCommandFile, 'old');
 
       const consoleSpy = vi.spyOn(console, 'log');
 
       await updateCommand.execute(testDir);
 
-      // Should display note about extra workflows
+      // Deselected workflow artifacts should be removed for both delivery surfaces.
+      expect(await FileSystemUtils.fileExists(
+        path.join(skillsDir, 'openspec-new-change', 'SKILL.md')
+      )).toBe(false);
+      expect(await FileSystemUtils.fileExists(extraCommandFile)).toBe(false);
+
+      // Should report deselected workflow cleanup.
       const calls = consoleSpy.mock.calls.map(call =>
         call.map(arg => String(arg)).join(' ')
       );
-      const hasExtraNote = calls.some(call =>
-        call.includes('extra workflows not in profile')
+      const hasDeselectedRemovalNote = calls.some(call =>
+        call.includes('deselected workflows')
       );
-      expect(hasExtraNote).toBe(true);
+      expect(hasDeselectedRemovalNote).toBe(true);
 
       consoleSpy.mockRestore();
     });

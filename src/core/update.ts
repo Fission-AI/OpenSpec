@@ -176,6 +176,8 @@ export class UpdateCommand {
     const failedTools: Array<{ name: string; error: string }> = [];
     let removedCommandCount = 0;
     let removedSkillCount = 0;
+    let removedDeselectedCommandCount = 0;
+    let removedDeselectedSkillCount = 0;
 
     for (const toolId of toolsToUpdate) {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
@@ -197,6 +199,8 @@ export class UpdateCommand {
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
+
+          removedDeselectedSkillCount += await this.removeUnselectedSkillDirs(skillsDir, desiredWorkflows);
         }
 
         // Delete skill directories if delivery is commands-only
@@ -214,6 +218,12 @@ export class UpdateCommand {
               const commandFile = path.isAbsolute(cmd.path) ? cmd.path : path.join(resolvedProjectPath, cmd.path);
               await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
             }
+
+            removedDeselectedCommandCount += await this.removeUnselectedCommandFiles(
+              resolvedProjectPath,
+              toolId,
+              desiredWorkflows
+            );
           }
         }
 
@@ -246,6 +256,12 @@ export class UpdateCommand {
     }
     if (removedSkillCount > 0) {
       console.log(chalk.dim(`Removed: ${removedSkillCount} skill directories (delivery: commands)`));
+    }
+    if (removedDeselectedCommandCount > 0) {
+      console.log(chalk.dim(`Removed: ${removedDeselectedCommandCount} command files (deselected workflows)`));
+    }
+    if (removedDeselectedSkillCount > 0) {
+      console.log(chalk.dim(`Removed: ${removedDeselectedSkillCount} skill directories (deselected workflows)`));
     }
 
     // 12. Show onboarding message for newly configured tools from legacy upgrade
@@ -379,6 +395,36 @@ export class UpdateCommand {
   }
 
   /**
+   * Removes skill directories for workflows that are no longer selected in the active profile.
+   * Returns the number of directories removed.
+   */
+  private async removeUnselectedSkillDirs(
+    skillsDir: string,
+    desiredWorkflows: readonly (typeof ALL_WORKFLOWS)[number][]
+  ): Promise<number> {
+    const desiredSet = new Set(desiredWorkflows);
+    let removed = 0;
+
+    for (const workflow of ALL_WORKFLOWS) {
+      if (desiredSet.has(workflow)) continue;
+      const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
+      if (!dirName) continue;
+
+      const skillDir = path.join(skillsDir, dirName);
+      try {
+        if (fs.existsSync(skillDir)) {
+          await fs.promises.rm(skillDir, { recursive: true, force: true });
+          removed++;
+        }
+      } catch {
+        // Ignore errors
+      }
+    }
+
+    return removed;
+  }
+
+  /**
    * Removes command files for workflows when delivery changed to skills-only.
    * Returns the number of files removed.
    */
@@ -392,6 +438,40 @@ export class UpdateCommand {
     if (!adapter) return 0;
 
     for (const workflow of ALL_WORKFLOWS) {
+      const cmdPath = adapter.getFilePath(workflow);
+      const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
+
+      try {
+        if (fs.existsSync(fullPath)) {
+          await fs.promises.unlink(fullPath);
+          removed++;
+        }
+      } catch {
+        // Ignore errors
+      }
+    }
+
+    return removed;
+  }
+
+  /**
+   * Removes command files for workflows that are no longer selected in the active profile.
+   * Returns the number of files removed.
+   */
+  private async removeUnselectedCommandFiles(
+    projectPath: string,
+    toolId: string,
+    desiredWorkflows: readonly (typeof ALL_WORKFLOWS)[number][]
+  ): Promise<number> {
+    let removed = 0;
+
+    const adapter = CommandAdapterRegistry.get(toolId);
+    if (!adapter) return 0;
+
+    const desiredSet = new Set(desiredWorkflows);
+
+    for (const workflow of ALL_WORKFLOWS) {
+      if (desiredSet.has(workflow)) continue;
       const cmdPath = adapter.getFilePath(workflow);
       const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
 
