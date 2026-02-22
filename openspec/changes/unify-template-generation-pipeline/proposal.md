@@ -15,6 +15,7 @@ This fragmentation creates drift risk (missing exports, missing metadata parity,
 - Introduce a `ToolProfileRegistry` to centralize tool capabilities (skills path, command adapter, transforms)
 - Introduce a first-class transform pipeline with explicit phases (`preAdapter`, `postAdapter`) and scopes (`skill`, `command`, `both`)
 - Introduce a shared `ArtifactSyncEngine` used by `init`, `update`, and legacy upgrade paths
+- Carry forward the incremental command-invocation-style model (`opsx-colon`, `opsx-hyphen`, `openspec-hyphen`) as a first-class tool profile attribute
 - Add strict validation and test guardrails to preserve fidelity during migration and future changes
 
 ## Capabilities

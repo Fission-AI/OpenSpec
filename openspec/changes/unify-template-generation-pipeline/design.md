@@ -59,6 +59,7 @@ interface ToolProfile {
   toolId: string;
   skillsDir?: string;
   commandAdapterId?: string;
+  commandReferenceStyle: 'opsx-colon' | 'opsx-hyphen' | 'openspec-hyphen';
   transforms: string[];
 }
 ```

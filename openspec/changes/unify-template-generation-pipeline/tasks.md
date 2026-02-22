@@ -18,6 +18,7 @@
 - [ ] 3.2 Implement transform runner with deterministic ordering
 - [ ] 3.3 Migrate OpenCode command reference rewrite to transform pipeline
 - [ ] 3.4 Remove ad-hoc transform invocation from `init` and `update`
+- [ ] 3.5 Fold `commandReferenceStyle`-based invocation rendering (`opsx-colon`, `opsx-hyphen`, `openspec-hyphen`) into tool profiles + transform registry
 
 ## 4. Artifact Sync Engine
 

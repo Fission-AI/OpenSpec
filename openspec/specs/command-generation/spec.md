@@ -85,13 +85,17 @@ The system SHALL provide a registry for looking up tool adapters.
 - **THEN** `CommandAdapterRegistry.get()` SHALL return undefined
 - **AND** caller SHALL handle missing adapter appropriately
 
-### Requirement: Shared command body content
+### Requirement: Canonical body content with tool-specific invocation rendering
 
-The body content of commands SHALL be shared across all tools.
+The system SHALL treat workflow command body content as canonical and apply tool-specific invocation rendering when needed.
 
-#### Scenario: Same instructions across tools
+#### Scenario: Canonical body is shared before rendering
 
-- **WHEN** generating the 'explore' command for Claude and Cursor
-- **THEN** both SHALL use the same `body` content
-- **AND** only the frontmatter and file path SHALL differ
+- **WHEN** generating command content for multiple tools
+- **THEN** the canonical workflow instructions SHALL be sourced from one shared template body
 
+#### Scenario: Tool-specific invocation style rendering
+
+- **WHEN** a tool requires a different invocation syntax (for example `/opsx:<id>`, `/opsx-<id>`, or `/openspec-<workflow>`)
+- **THEN** generation SHALL rewrite command references in canonical body content to the selected tool style before adapter formatting
+- **AND** this rewrite SHALL apply consistently to command artifacts and skill artifacts for that tool

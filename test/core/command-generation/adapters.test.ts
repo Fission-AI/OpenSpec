@@ -455,19 +455,17 @@ describe('command-generation/adapters', () => {
       expect(output).toContain('This is the command body.');
     });
 
-    it('should transform colon-based command references to hyphen-based', () => {
+    it('should preserve body content without inline command rewriting', () => {
       const contentWithCommands: CommandContent = {
         ...sampleContent,
         body: 'Use /opsx:new to start, then /opsx:apply to implement.',
       };
       const output = opencodeAdapter.formatFile(contentWithCommands);
-      expect(output).toContain('/opsx-new');
-      expect(output).toContain('/opsx-apply');
-      expect(output).not.toContain('/opsx:new');
-      expect(output).not.toContain('/opsx:apply');
+      expect(output).toContain('/opsx:new');
+      expect(output).toContain('/opsx:apply');
     });
 
-    it('should handle multiple command references in body', () => {
+    it('should keep multiline command references unchanged', () => {
       const contentWithMultipleCommands: CommandContent = {
         ...sampleContent,
         body: `/opsx:explore for ideas
@@ -476,10 +474,10 @@ describe('command-generation/adapters', () => {
 /opsx:apply to implement`,
       };
       const output = opencodeAdapter.formatFile(contentWithMultipleCommands);
-      expect(output).toContain('/opsx-explore');
-      expect(output).toContain('/opsx-new');
-      expect(output).toContain('/opsx-continue');
-      expect(output).toContain('/opsx-apply');
+      expect(output).toContain('/opsx:explore');
+      expect(output).toContain('/opsx:new');
+      expect(output).toContain('/opsx:continue');
+      expect(output).toContain('/opsx:apply');
     });
   });
 
