@@ -2,13 +2,13 @@
 
 ## Purpose
 
-The `openspec list` command SHALL provide developers with a quick overview of all active changes in the project, showing their names and task completion status.
+The `openspec list` command SHALL provide developers with a quick overview of all active changes, specs, or archived changes in the project, showing names and task/requirement completion as appropriate.
 ## Requirements
 ### Requirement: Command Execution
-The command SHALL scan and analyze either active changes or specs based on the selected mode.
+The command SHALL scan and analyze active changes, specs, or archived changes based on the selected mode.
 
 #### Scenario: Scanning for changes (default)
-- **WHEN** `openspec list` is executed without flags
+- **WHEN** `openspec list` is executed without flags (or with `--changes`)
 - **THEN** scan the `openspec/changes/` directory for change directories
 - **AND** exclude the `archive/` subdirectory from results
 - **AND** parse each change's `tasks.md` file to count task completion
@@ -18,6 +18,11 @@ The command SHALL scan and analyze either active changes or specs based on the s
 - **THEN** scan the `openspec/specs/` directory for capabilities
 - **AND** read each capability's `spec.md`
 - **AND** parse requirements to compute requirement counts
+
+#### Scenario: Scanning for archived changes
+- **WHEN** `openspec list --archive` is executed
+- **THEN** scan the archive directory (`openspec/changes/archive/` on the target path, using path.join for the platform) for direct child directories
+- **AND** list each directory as an archived change and parse tasks.md and last-modified time when producing output
 
 ### Requirement: Task Counting
 
@@ -32,22 +37,42 @@ The command SHALL accurately count task completion status using standard markdow
 - **AND** calculate total tasks as the sum of completed and incomplete
 
 ### Requirement: Output Format
-The command SHALL display items in a clear, readable table format with mode-appropriate progress or counts.
+The command SHALL display items in a clear, readable table format with mode-appropriate progress or counts when `--json` is not provided, or output JSON when `--json` is provided.
 
 #### Scenario: Displaying change list (default)
-- **WHEN** displaying the list of changes
+- **WHEN** displaying the list of changes without `--json`
 - **THEN** show a table with columns:
   - Change name (directory name)
   - Task progress (e.g., "3/5 tasks" or "✓ Complete")
 
 #### Scenario: Displaying spec list
-- **WHEN** displaying the list of specs
+- **WHEN** displaying the list of specs without `--json`
 - **THEN** show a table with columns:
   - Spec id (directory name)
   - Requirement count (e.g., "requirements 12")
 
+#### Scenario: JSON output for specs
+- **WHEN** `openspec list --specs --json` is executed without `--detail`
+- **THEN** output a JSON object with key `specs` and an array of objects with `id` and `requirementCount` only
+- **AND** output `{ "specs": [] }` when no specs exist
+
+#### Scenario: JSON output for specs with detail
+- **WHEN** `openspec list --specs --json --detail` is executed
+- **THEN** output a JSON object with key `specs` and an array of objects with `id`, `requirementCount`, `title`, and `overview`
+- **AND** `title` SHALL be the spec's display title (from document H1 or spec id)
+- **AND** `overview` SHALL be the spec's Purpose section content
+- **AND** output `{ "specs": [] }` when no specs exist
+
+#### Scenario: Displaying archive list
+- **WHEN** displaying the list of archived changes without `--json`
+- **THEN** show a table with columns: archived change name (directory name), task progress, and last modified (e.g. relative time)
+
+#### Scenario: JSON output for archive
+- **WHEN** `openspec list --archive --json` is executed
+- **THEN** output a JSON object with key `archivedChanges` and an array of objects with `name`, `completedTasks`, `totalTasks`, `lastModified` (ISO string), and `status`
+
 ### Requirement: Flags
-The command SHALL accept flags to select the noun being listed.
+The command SHALL accept flags to select the noun being listed. When more than one of `--changes`, `--specs`, or `--archive` is provided, the effective mode SHALL be determined by precedence: `--archive` overrides `--specs`, `--specs` overrides default (changes). The command SHALL accept a `--detail` flag that, when used with `--specs --json`, causes each spec entry to include `title` and `overview`.
 
 #### Scenario: Selecting specs
 - **WHEN** `--specs` is provided
@@ -56,6 +81,19 @@ The command SHALL accept flags to select the noun being listed.
 #### Scenario: Selecting changes
 - **WHEN** `--changes` is provided
 - **THEN** list changes explicitly (same as default behavior)
+
+#### Scenario: Selecting archive
+- **WHEN** `--archive` is provided
+- **THEN** list archived changes (directories under openspec/changes/archive/)
+
+#### Scenario: Mode precedence
+- **WHEN** more than one of `--changes`, `--specs`, or `--archive` is provided
+- **THEN** the effective mode SHALL be determined by precedence: `--archive` overrides `--specs`, `--specs` overrides default (changes)
+
+#### Scenario: Requesting detail for spec list JSON
+- **WHEN** `--detail` is provided together with `--specs --json`
+- **THEN** each object in the `specs` array SHALL include `title` and `overview` in addition to `id` and `requirementCount`
+- **AND** when `--detail` is omitted, spec list JSON SHALL remain unchanged (id and requirementCount only)
 
 ### Requirement: Empty State
 The command SHALL provide clear feedback when no items are present for the selected mode.
@@ -66,7 +104,12 @@ The command SHALL provide clear feedback when no items are present for the selec
 
 #### Scenario: Handling empty state (specs)
 - **WHEN** no specs directory exists or contains no capabilities
-- **THEN** display: "No specs found."
+- **THEN** display: "No specs found." (or output `{ "specs": [] }` with `--json`)
+
+#### Scenario: Handling empty state (archive)
+- **WHEN** `openspec list --archive` is executed and the archive directory is missing or has no subdirectories
+- **THEN** display: "No archived changes found." (without `--json`) or output `{ "archivedChanges": [] }` (with `--json`)
+- **AND** exit with code 0
 
 ### Requirement: Error Handling
 
@@ -85,12 +128,17 @@ The command SHALL gracefully handle missing files and directories with appropria
 
 ### Requirement: Sorting
 
-The command SHALL maintain consistent ordering of changes for predictable output.
+The command SHALL maintain consistent ordering for predictable output. For changes and archive mode, order SHALL follow the `--sort` option (default "recent": by last modified descending; "name": alphabetical by name). For specs mode, order SHALL be alphabetical by spec id.
 
 #### Scenario: Ordering changes
 
 - **WHEN** displaying multiple changes
-- **THEN** sort them in alphabetical order by change name
+- **THEN** sort them according to `--sort`: "recent" (default) by last modified descending, or "name" by change name alphabetical
+
+#### Scenario: Ordering archived changes
+
+- **WHEN** displaying multiple archived changes
+- **THEN** sort them according to `--sort`: "recent" (default) or "name", same as for active changes
 
 ## Why
 
