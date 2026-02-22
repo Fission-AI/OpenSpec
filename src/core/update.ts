@@ -11,7 +11,7 @@ import ora from 'ora';
 import * as fs from 'fs';
 import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { formatCommandInvocation } from '../utils/command-references.js';
+import { transformToHyphenCommands } from '../utils/command-references.js';
 import { AI_TOOLS, OPENSPEC_DIR_NAME } from './config.js';
 import {
   generateCommands,
@@ -47,11 +47,6 @@ import {
   scanInstalledWorkflows as scanInstalledWorkflowsShared,
   migrateIfNeeded as migrateIfNeededShared,
 } from './migration.js';
-import {
-  getDisplayCommandReferenceStyle,
-  getToolCommandReferenceTransformer,
-  transformCommandContentsForTool,
-} from './command-invocation-style.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
@@ -197,7 +192,8 @@ export class UpdateCommand {
             const skillDir = path.join(skillsDir, dirName);
             const skillFile = path.join(skillDir, 'SKILL.md');
 
-            const transformer = getToolCommandReferenceTransformer(tool.value);
+            // Use hyphen-based command references for OpenCode
+            const transformer = tool.value === 'opencode' ? transformToHyphenCommands : undefined;
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
@@ -212,8 +208,7 @@ export class UpdateCommand {
         if (shouldGenerateCommands) {
           const adapter = CommandAdapterRegistry.get(tool.value);
           if (adapter) {
-            const transformedCommandContents = transformCommandContentsForTool(commandContents, tool.value);
-            const generatedCommands = generateCommands(transformedCommandContents, adapter);
+            const generatedCommands = generateCommands(commandContents, adapter);
 
             for (const cmd of generatedCommands) {
               const commandFile = path.isAbsolute(cmd.path) ? cmd.path : path.join(resolvedProjectPath, cmd.path);
@@ -255,12 +250,11 @@ export class UpdateCommand {
 
     // 12. Show onboarding message for newly configured tools from legacy upgrade
     if (newlyConfiguredTools.length > 0) {
-      const commandStyle = getDisplayCommandReferenceStyle(newlyConfiguredTools);
       console.log();
       console.log(chalk.bold('Getting started:'));
-      console.log(`  ${formatCommandInvocation('new', commandStyle)}       Start a new change`);
-      console.log(`  ${formatCommandInvocation('continue', commandStyle)}  Create the next artifact`);
-      console.log(`  ${formatCommandInvocation('apply', commandStyle)}     Implement tasks`);
+      console.log('  /opsx:new       Start a new change');
+      console.log('  /opsx:continue  Create the next artifact');
+      console.log('  /opsx:apply     Implement tasks');
       console.log();
       console.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
     }
@@ -591,7 +585,8 @@ export class UpdateCommand {
             const skillDir = path.join(skillsDir, dirName);
             const skillFile = path.join(skillDir, 'SKILL.md');
 
-            const transformer = getToolCommandReferenceTransformer(tool.value);
+            // Use hyphen-based command references for OpenCode
+            const transformer = tool.value === 'opencode' ? transformToHyphenCommands : undefined;
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
@@ -601,8 +596,7 @@ export class UpdateCommand {
         if (shouldGenerateCommands) {
           const adapter = CommandAdapterRegistry.get(tool.value);
           if (adapter) {
-            const transformedCommandContents = transformCommandContentsForTool(commandContents, tool.value);
-            const generatedCommands = generateCommands(transformedCommandContents, adapter);
+            const generatedCommands = generateCommands(commandContents, adapter);
 
             for (const cmd of generatedCommands) {
               const commandFile = path.isAbsolute(cmd.path) ? cmd.path : path.join(projectPath, cmd.path);

@@ -1,10 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  transformToHyphenCommands,
-  transformCommandReferences,
-  formatCommandInvocation,
-  formatCommandFamily,
-} from '../../src/utils/command-references.js';
+import { transformToHyphenCommands } from '../../src/utils/command-references.js';
 
 describe('transformToHyphenCommands', () => {
   describe('basic transformations', () => {
@@ -84,53 +79,5 @@ Finally /opsx-apply to implement`;
         expect(transformToHyphenCommands(`/opsx:${cmd}`)).toBe(`/opsx-${cmd}`);
       });
     }
-  });
-});
-
-describe('transformCommandReferences', () => {
-  it('should preserve colon style as-is', () => {
-    const input = 'Run /opsx:new then /opsx:apply';
-    expect(transformCommandReferences(input, 'opsx-colon')).toBe(input);
-  });
-
-  it('should transform to hyphen style', () => {
-    const input = 'Run /opsx:new then /opsx:apply';
-    expect(transformCommandReferences(input, 'opsx-hyphen')).toBe('Run /opsx-new then /opsx-apply');
-  });
-
-  it('should transform to openspec skill invocation style', () => {
-    const input = 'Run /opsx:new then /opsx:continue then /opsx:apply';
-    expect(transformCommandReferences(input, 'openspec-hyphen')).toBe(
-      'Run /openspec-new-change then /openspec-continue-change then /openspec-apply-change'
-    );
-  });
-});
-
-describe('formatCommandInvocation', () => {
-  it('should format opsx colon syntax', () => {
-    expect(formatCommandInvocation('propose', 'opsx-colon')).toBe('/opsx:propose');
-  });
-
-  it('should format opsx hyphen syntax', () => {
-    expect(formatCommandInvocation('propose', 'opsx-hyphen')).toBe('/opsx-propose');
-  });
-
-  it('should format openspec skill syntax for known workflow IDs', () => {
-    expect(formatCommandInvocation('new', 'openspec-hyphen')).toBe('/openspec-new-change');
-    expect(formatCommandInvocation('sync', 'openspec-hyphen')).toBe('/openspec-sync-specs');
-  });
-});
-
-describe('formatCommandFamily', () => {
-  it('should format wildcard hint for opsx colon style', () => {
-    expect(formatCommandFamily('opsx-colon')).toBe('/opsx:*');
-  });
-
-  it('should format wildcard hint for opsx hyphen style', () => {
-    expect(formatCommandFamily('opsx-hyphen')).toBe('/opsx-*');
-  });
-
-  it('should format wildcard hint for openspec hyphen style', () => {
-    expect(formatCommandFamily('openspec-hyphen')).toBe('/openspec-*');
   });
 });

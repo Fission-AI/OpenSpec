@@ -85,11 +85,10 @@ The command SHALL provide clear, actionable next steps upon successful initializ
   - "Created: <tools>" for newly configured tools
   - "Refreshed: <tools>" for already-configured tools that were updated
   - Count of skills and commands generated
-- **AND** display getting started section with tool-appropriate command syntax for:
-  - Start a new change
-  - Create the next artifact
-  - Implement tasks
-- **AND** when all selected tools share the same syntax style, the displayed commands SHALL match that style
+- **AND** display getting started section with:
+  - `/opsx:new` - Start a new change
+  - `/opsx:continue` - Create the next artifact
+  - `/opsx:apply` - Implement tasks
 - **AND** display links to documentation and feedback
 
 #### Scenario: Displaying restart instruction
@@ -207,16 +206,15 @@ The command SHALL generate opsx slash commands for selected AI tools.
 
 - **WHEN** a tool is selected during initialization
 - **THEN** create 9 slash command files using the tool's command adapter:
-  - `explore`
-  - `new`
-  - `continue`
-  - `apply`
-  - `ff`
-  - `verify`
-  - `sync`
-  - `archive`
-  - `bulk-archive`
-- **AND** invocation references rendered inside command/skill content SHALL use the configured tool syntax style (for example `/opsx:<id>`, `/opsx-<id>`, or `/openspec-<workflow>`)
+  - `/opsx:explore`
+  - `/opsx:new`
+  - `/opsx:continue`
+  - `/opsx:apply`
+  - `/opsx:ff`
+  - `/opsx:verify`
+  - `/opsx:sync`
+  - `/opsx:archive`
+  - `/opsx:bulk-archive`
 - **AND** use tool-specific path conventions (e.g., `.claude/commands/opsx/` for Claude)
 - **AND** include tool-specific frontmatter format
 

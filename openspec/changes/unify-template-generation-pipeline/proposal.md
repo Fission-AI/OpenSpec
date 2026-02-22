@@ -4,7 +4,8 @@ The recent split of `skill-templates.ts` into workflow modules improved readabil
 
 - Workflow definitions are split from projection logic (`getSkillTemplates`, `getCommandTemplates`, `getCommandContents`)
 - Tool capability and compatibility are spread across `AI_TOOLS`, `CommandAdapterRegistry`, and hardcoded lists like `SKILL_NAMES`
-- Agent/tool-specific transformations (for example OpenCode command reference rewrites) are applied in different places (`init`, `update`, and adapter code)
+- Agent/tool-specific transformations are applied in different places (`init`, `update`, and adapter code)
+- Command and terminology references are currently hardcoded in workflow text, but tool invocation surfaces vary (`/opsx:apply`, `/opsx-apply`, `/opsx/apply`, and tool-specific naming)
 - Artifact writing logic is duplicated across `init`, `update`, and legacy-upgrade flow
 
 This fragmentation creates drift risk (missing exports, missing metadata parity, mismatched counts/support) and makes future workflow/tool additions slower and less predictable.
@@ -15,14 +16,16 @@ This fragmentation creates drift risk (missing exports, missing metadata parity,
 - Introduce a `ToolProfileRegistry` to centralize tool capabilities (skills path, command adapter, transforms)
 - Introduce a first-class transform pipeline with explicit phases (`preAdapter`, `postAdapter`) and scopes (`skill`, `command`, `both`)
 - Introduce a shared `ArtifactSyncEngine` used by `init`, `update`, and legacy upgrade paths
-- Carry forward the incremental command-invocation-style model (`opsx-colon`, `opsx-hyphen`, `openspec-hyphen`) as a first-class tool profile attribute
+- Add tokenized workflow text rendering so command references and tool terminology are resolved per tool profile at generation time
+- Add explicit command-surface profiles per tool (pattern, namespace/path style, alias support, verification status)
+- Add safe fallback behavior: when a tool command surface is not verified, render neutral workflow guidance (for example skill/workflow names) instead of potentially wrong literal command strings
 - Add strict validation and test guardrails to preserve fidelity during migration and future changes
 
 ## Capabilities
 
 ### New Capabilities
 
-- `template-artifact-pipeline`: Unified workflow manifest, tool profile registry, transform pipeline, and sync engine for skill/command generation
+- `template-artifact-pipeline`: Unified workflow manifest, tool profile registry, token-aware transform pipeline, and sync engine for skill/command generation
 
 ### Modified Capabilities
 
@@ -42,7 +45,9 @@ This fragmentation creates drift risk (missing exports, missing metadata parity,
 - **Testing additions**:
   - Manifest completeness tests (workflows, required metadata, projection parity)
   - Transform ordering and applicability tests
+  - Tool command-surface/terminology profile validation tests
   - End-to-end parity tests for generated skill/command outputs across tools
 - **User-facing behavior**:
   - No new CLI surface area required
-  - Existing generated artifacts remain behaviorally equivalent unless explicitly changed in future deltas
+  - Generated text may become more tool-accurate for verified tool profiles
+  - Generated text may intentionally use neutral workflow wording for unverified tools to avoid incorrect slash-command guidance

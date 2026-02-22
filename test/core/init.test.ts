@@ -354,17 +354,6 @@ describe('InitCommand', () => {
       // Should contain generatedBy field with a version string
       expect(content).toMatch(/generatedBy:\s*["']?\d+\.\d+\.\d+["']?/);
     });
-
-    it('should rewrite skill command references for Trae invocation style', async () => {
-      const initCommand = new InitCommand({ tools: 'trae', force: true });
-      await initCommand.execute(testDir);
-
-      const skillFile = path.join(testDir, '.trae', 'skills', 'openspec-propose', 'SKILL.md');
-      const content = await fs.readFile(skillFile, 'utf-8');
-
-      expect(content).toContain('/openspec-apply-change');
-      expect(content).not.toContain('/opsx:apply');
-    });
   });
 
   describe('command generation', () => {
@@ -390,21 +379,6 @@ describe('InitCommand', () => {
 
       const content = await fs.readFile(cmdFile, 'utf-8');
       expect(content).toMatch(/^---\n/);
-    });
-
-    it('should rewrite Codex command references to hyphen syntax', async () => {
-      const codexHome = path.join(testDir, '.codex-home');
-      process.env.CODEX_HOME = codexHome;
-
-      const initCommand = new InitCommand({ tools: 'codex', force: true });
-      await initCommand.execute(testDir);
-
-      const cmdFile = path.join(codexHome, 'prompts', 'opsx-propose.md');
-      expect(await fileExists(cmdFile)).toBe(true);
-
-      const content = await fs.readFile(cmdFile, 'utf-8');
-      expect(content).toContain('/opsx-apply');
-      expect(content).not.toContain('/opsx:apply');
     });
   });
 

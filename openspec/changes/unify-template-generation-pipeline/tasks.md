@@ -10,15 +10,18 @@
 - [ ] 2.1 Add `ToolProfile` types and `ToolProfileRegistry`
 - [ ] 2.2 Map all currently supported tools to explicit profile entries
 - [ ] 2.3 Wire profile lookups to command adapter resolution and skills path resolution
-- [ ] 2.4 Replace hardcoded detection arrays (for example `SKILL_NAMES`) with manifest-derived values
+- [ ] 2.4 Add per-tool `commandSurface` metadata (pattern, aliases, `verified` flag)
+- [ ] 2.5 Add per-tool terminology metadata (for example change/workflow/command labels)
+- [ ] 2.6 Replace hardcoded detection arrays (for example `SKILL_NAMES`) with manifest-derived values
 
 ## 3. Transform Pipeline
 
 - [ ] 3.1 Introduce transform interfaces (`scope`, `phase`, `priority`, `applies`, `transform`)
 - [ ] 3.2 Implement transform runner with deterministic ordering
-- [ ] 3.3 Migrate OpenCode command reference rewrite to transform pipeline
-- [ ] 3.4 Remove ad-hoc transform invocation from `init` and `update`
-- [ ] 3.5 Fold `commandReferenceStyle`-based invocation rendering (`opsx-colon`, `opsx-hyphen`, `openspec-hyphen`) into tool profiles + transform registry
+- [ ] 3.3 Add token renderer transform for command + terminology tokens (`{{cmd.*}}`, `{{term.*}}`)
+- [ ] 3.4 Implement neutral fallback rendering for tools with unverified command surfaces
+- [ ] 3.5 Migrate OpenCode command reference rewrite to transform pipeline
+- [ ] 3.6 Remove ad-hoc transform invocation from `init` and `update`
 
 ## 4. Artifact Sync Engine
 
@@ -30,10 +33,12 @@
 ## 5. Validation and Tests
 
 - [ ] 5.1 Add manifest completeness tests (metadata required fields, command IDs, dir names)
-- [ ] 5.2 Add tool-profile consistency tests (skillsDir support and adapter/profile alignment)
-- [ ] 5.3 Add transform applicability/order tests
-- [ ] 5.4 Expand parity tests for representative workflow/tool matrix
-- [ ] 5.5 Run full test suite and verify generated artifacts remain stable
+- [ ] 5.2 Add tool-profile consistency tests (skillsDir support, adapter/profile alignment, command-surface metadata)
+- [ ] 5.3 Add token rendering tests (all tokens resolved, per-tool rendering correctness)
+- [ ] 5.4 Add fallback tests for unverified tool command surfaces
+- [ ] 5.5 Add transform applicability/order tests
+- [ ] 5.6 Expand parity tests for representative workflow/tool matrix
+- [ ] 5.7 Run full test suite and verify generated artifacts remain stable
 
 ## 6. Cleanup and Documentation
 
