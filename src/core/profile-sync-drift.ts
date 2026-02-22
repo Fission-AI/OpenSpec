@@ -80,11 +80,10 @@ export function getConfiguredToolsForProfileSync(projectPath: string): string[] 
 /**
  * Detects if a single tool has profile/delivery drift against the desired state.
  *
- * Note: this function is intentionally scoped to "required artifacts missing"
- * and "artifacts that should not exist for the selected delivery mode".
- * Extra workflows that are outside the desired profile are handled by
- * `hasProjectConfigDrift`, which compares installed workflow IDs against
- * the desired workflow set.
+ * This function covers:
+ * - required artifacts missing for selected workflows
+ * - artifacts that should not exist for the selected delivery mode
+ * - artifacts for workflows that were deselected from the current profile
  */
 export function hasToolProfileOrDeliveryDrift(
   projectPath: string,
@@ -96,6 +95,7 @@ export function hasToolProfileOrDeliveryDrift(
   if (!tool?.skillsDir) return false;
 
   const knownDesiredWorkflows = toKnownWorkflows(desiredWorkflows);
+  const desiredWorkflowSet = new Set<WorkflowId>(knownDesiredWorkflows);
   const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
   const adapter = CommandAdapterRegistry.get(toolId);
   const shouldGenerateSkills = delivery !== 'commands';
@@ -106,6 +106,16 @@ export function hasToolProfileOrDeliveryDrift(
       const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
       const skillFile = path.join(skillsDir, dirName, 'SKILL.md');
       if (!fs.existsSync(skillFile)) {
+        return true;
+      }
+    }
+
+    // Deselecting workflows in a profile should trigger sync.
+    for (const workflow of ALL_WORKFLOWS) {
+      if (desiredWorkflowSet.has(workflow)) continue;
+      const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
+      const skillDir = path.join(skillsDir, dirName);
+      if (fs.existsSync(skillDir)) {
         return true;
       }
     }
@@ -124,6 +134,16 @@ export function hasToolProfileOrDeliveryDrift(
       const cmdPath = adapter.getFilePath(workflow);
       const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
       if (!fs.existsSync(fullPath)) {
+        return true;
+      }
+    }
+
+    // Deselecting workflows in a profile should trigger sync.
+    for (const workflow of ALL_WORKFLOWS) {
+      if (desiredWorkflowSet.has(workflow)) continue;
+      const cmdPath = adapter.getFilePath(workflow);
+      const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
+      if (fs.existsSync(fullPath)) {
         return true;
       }
     }
