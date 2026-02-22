@@ -16,6 +16,7 @@ import { validateSchemaExists } from './shared.js';
 export interface NewChangeOptions {
   description?: string;
   schema?: string;
+  json?: boolean;
 }
 
 // -----------------------------------------------------------------------------
@@ -40,7 +41,10 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
   }
 
   const schemaDisplay = options.schema ? ` with schema '${options.schema}'` : '';
-  const spinner = ora(`Creating change '${name}'${schemaDisplay}...`).start();
+  const spinner = ora(`Creating change '${name}'${schemaDisplay}...`);
+  if (!options.json) {
+    spinner.start();
+  }
 
   try {
     const result = await createChange(projectRoot, name, { schema: options.schema });
@@ -53,9 +57,20 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
       await fs.writeFile(readmePath, `# ${name}\n\n${options.description}\n`, 'utf-8');
     }
 
-    spinner.succeed(`Created change '${name}' at openspec/changes/${name}/ (schema: ${result.schema})`);
+    if (options.json) {
+      console.log(JSON.stringify({ 
+        success: true, 
+        name, 
+        schema: result.schema, 
+        path: `openspec/changes/${name}/` 
+      }, null, 2));
+    } else {
+      spinner.succeed(`Created change '${name}' at openspec/changes/${name}/ (schema: ${result.schema})`);
+    }
   } catch (error) {
-    spinner.fail(`Failed to create change '${name}'`);
+    if (!options.json) {
+      spinner.fail(`Failed to create change '${name}'`);
+    }
     throw error;
   }
 }
