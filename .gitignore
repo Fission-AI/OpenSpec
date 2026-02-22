@@ -153,3 +153,6 @@ result
 # OpenCode
 .opencode/
 opencode.json
+
+# JetBrains
+.idea/
