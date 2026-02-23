@@ -371,7 +371,7 @@ Examples in this section use the expanded command set (`new`, `continue`, etc.);
 │   Hardcoded Templates (TypeScript strings)                                  │
 │                    │                                                        │
 │                    ▼                                                        │
-│   Tool-specific configurators/adapters                                        │
+│   Tool-specific configurators/adapters                                      │
 │                    │                                                        │
 │                    ▼                                                        │
 │   Generated Command Files (.claude/commands/openspec/*.md)                  │

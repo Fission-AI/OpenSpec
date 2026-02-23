@@ -618,9 +618,9 @@ Different AI tools use slightly different command syntax. Use the format that ma
 | Cursor | `/opsx-propose`, `/opsx-apply` |
 | Windsurf | `/opsx-propose`, `/opsx-apply` |
 | Copilot (IDE) | `/opsx-propose`, `/opsx-apply` |
-| Trae | `/openspec-propose`, `/openspec-apply-change` |
+| Trae | Skill-based invocations such as `/openspec-propose`, `/openspec-apply-change` (no generated `opsx-*` command files) |
 
-The functionality is identical regardless of syntax.
+The intent is the same across tools, but how commands are surfaced can differ by integration.
 
 > **Note:** GitHub Copilot commands (`.github/prompts/*.prompt.md`) are only available in IDE extensions (VS Code, JetBrains, Visual Studio). GitHub Copilot CLI does not currently support custom prompt files — see [Supported Tools](supported-tools.md) for details and workarounds.
 
