@@ -47,19 +47,19 @@ The current step 6 is a flat bullet list: show task → make changes → mark co
 
 **Alternative considered:** Keeping the bullet-list format. Rejected because bullets imply optional/unordered items, which is exactly the misinterpretation we're fixing.
 
-### 3. Define "tightly coupled" by coherence, not by file proximity
+### 3. Define grouping by build coherence, not by file proximity
 
-**Decision:** Define tightly-coupled tasks as "changes that would be incoherent if split" with the example of a class change and its corresponding test.
+**Decision:** Group the minimum number of tasks needed to avoid introducing a commit that would break the build on its own. A class change and its corresponding test are the canonical example — committing one without the other would fail CI.
 
-**Rationale:** File-based rules (e.g., "tasks touching the same file") are too brittle — a refactoring task and a feature task might touch the same file but be logically independent. Coherence is the right criterion because it maps to what a reviewer would consider a single logical unit.
+**Rationale:** File-based rules (e.g., "tasks touching the same file") are too brittle — a refactoring task and a feature task might touch the same file but be logically independent. Build coherence is the right criterion because it's objective (does CI pass?) and maps to what a reviewer would consider a single logical unit.
 
 **Alternative considered:** Strict one-task-per-checkpoint with no grouping. Rejected as impractical — splitting a function change from its test would create commits that fail tests, which is worse for recovery.
 
-### 4. Cap grouped tasks at 2–3
+### 4. Hard ceiling of 3 tasks per checkpoint
 
-**Decision:** "Never let more than 2–3 tasks accumulate without a checkpoint."
+**Decision:** No checkpoint may exceed 3 tasks, regardless of coupling. If more than 3 are needed to avoid a broken build, the tasks should be restructured.
 
-**Rationale:** This is deliberately imprecise. A hard cap of exactly 2 or exactly 3 would invite rules-lawyering. The range signals "this should be rare and small" while leaving room for agent judgment. The typical case is 1 task per checkpoint; grouping is the exception.
+**Rationale:** The build-coherence rule (decision 3) provides the primary grouping criterion, but without a ceiling agents could rationalise large batches. The cap of 3 is a safety net — the typical case is 1 task per checkpoint, and needing more than 3 for a non-breaking commit signals the tasks are too granular and should be rewritten.
 
 ### 5. Include git commit in the checkpoint, not just file update
 
@@ -74,6 +74,8 @@ The current step 6 is a flat bullet list: show task → make changes → mark co
 **Decision:** Edit `getApplyChangeSkillTemplate()` and `getOpsxApplyCommandTemplate()` in `apply-change.ts` with matching changes.
 
 **Rationale:** Both functions contain the same step 6 and guardrails text. They must stay in sync — the skill template drives SKILL.md generation and the command template drives slash command generation.
+
+**Follow-up consideration:** A snapshot or diff-based test asserting that the step-6 and guardrail sections of both rendered outputs are identical (modulo the expected `/opsx:continue` vs `openspec-continue-change` substitution) would prevent silent drift. This is out of scope for this change but worth tracking separately.
 
 ### 7. Add MR bundling guidance to the guardrails
 

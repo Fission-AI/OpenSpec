@@ -24,6 +24,11 @@ The apply-change skill SHALL checkpoint after completing each task (or small gro
 - **THEN** only the current in-progress task's changes are lost
 - **AND** all previously checkpointed tasks remain recoverable
 
+#### Scenario: Session crash in mid-checkpoint (marked complete, uncommitted)
+- **WHEN** a session crashes after marking a task `[x]` but before the `git commit` succeeds
+- **THEN** on recovery the agent SHALL verify that each `[x]` task has a corresponding commit in git history
+- **AND** SHALL treat any `[x]` task without a corresponding commit as incomplete and re-attempt the checkpoint
+
 ### Requirement: Recovery rationale in instructions
 The apply-change skill instructions SHALL explain that the tasks file serves as a recovery log and that progress is only durable once marked complete and committed. This rationale SHALL appear in the implementation step, not only in guardrails.
 
@@ -33,21 +38,22 @@ The apply-change skill instructions SHALL explain that the tasks file serves as 
 - **AND** SHALL state that progress is only durable once tasks are marked complete and committed
 
 ### Requirement: Tightly-coupled task grouping
-The apply-change skill SHALL allow tightly-coupled tasks to be checkpointed together in a single commit, but SHALL prohibit batching unrelated tasks.
+The apply-change skill SHALL group tasks into the minimum number needed to avoid introducing a commit that would break the build on its own. Unrelated tasks that can each produce a non-breaking commit SHALL be checkpointed separately. No checkpoint SHALL exceed 3 tasks regardless of coupling.
 
 #### Scenario: Grouping a class change and its test
-- **WHEN** two tasks are tightly coupled (e.g., a class modification and its corresponding unit test)
-- **THEN** the agent MAY implement both before checkpointing
-- **AND** SHALL commit them together in a single checkpoint
+- **WHEN** committing a class modification without its corresponding unit test would break the build
+- **THEN** the agent SHALL group both tasks into a single checkpoint
+- **AND** SHALL commit them together
 
 #### Scenario: Unrelated tasks
-- **WHEN** two tasks are not tightly coupled (their changes would be coherent if split)
+- **WHEN** two tasks can each produce a non-breaking commit independently
 - **THEN** the agent SHALL checkpoint each task separately
 - **AND** SHALL NOT batch them into a single commit
 
 #### Scenario: Maximum batch size
 - **WHEN** an agent groups tightly-coupled tasks
-- **THEN** no more than 2–3 tasks SHALL accumulate without a checkpoint
+- **THEN** no more than 3 tasks SHALL accumulate without a checkpoint (the typical case is 1; grouping is the exception)
+- **AND** if more than 3 tasks are needed to avoid a broken build, the tasks SHOULD be restructured to allow smaller checkpoints
 
 ### Requirement: Checkpoint guardrail prominence
 The checkpoint rule SHALL appear as the first guardrail in the apply-change skill and SHALL include an explicit anti-batching statement.
