@@ -27,7 +27,9 @@ The apply-change skill SHALL checkpoint after completing each task (or small gro
 #### Scenario: Session crash in mid-checkpoint (marked complete, uncommitted)
 - **WHEN** a session crashes after marking a task `[x]` but before the `git commit` succeeds
 - **THEN** on recovery the agent SHALL verify that each `[x]` task has a corresponding commit in git history
-- **AND** SHALL treat any `[x]` task without a corresponding commit as incomplete and re-attempt the checkpoint
+- **AND** for any `[x]` task without a corresponding commit, SHALL check the working directory for uncommitted changes
+- **AND** if uncommitted changes are present, SHALL commit them to complete the checkpoint
+- **AND** if no uncommitted changes are present, SHALL treat the task as not started and re-implement before committing
 
 ### Requirement: Recovery rationale in instructions
 The apply-change skill instructions SHALL explain that the tasks file serves as a recovery log and that progress is only durable once marked complete and committed. This rationale SHALL appear in the implementation step, not only in guardrails.

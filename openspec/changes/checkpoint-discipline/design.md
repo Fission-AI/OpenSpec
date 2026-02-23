@@ -19,7 +19,7 @@ The current step 6 is a flat bullet list: show task → make changes → mark co
 - Add git commit as part of the checkpoint so recovery survives process crashes (not just context window loss)
 - Define tightly-coupled grouping clearly enough that agents can apply it without ambiguity
 - Promote the checkpoint guardrail to first position with anti-batching language
-- Address the PR noise problem by noting that per-task commits should be bundled for review
+- Address the merge request noise problem by noting that per-task commits should be bundled for review
 
 **Non-Goals:**
 
@@ -77,11 +77,11 @@ The current step 6 is a flat bullet list: show task → make changes → mark co
 
 **Follow-up consideration:** A snapshot or diff-based test asserting that the step-6 and guardrail sections of both rendered outputs are identical (modulo the expected `/opsx:continue` vs `openspec-continue-change` substitution) would prevent silent drift. This is out of scope for this change but worth tracking separately.
 
-### 7. Add MR bundling guidance to the guardrails
+### 7. Add merge request bundling guidance to the guardrails
 
 **Decision:** Add a guardrail note that per-task commits should be bundled into a single merge request by default, with user confirmation.
 
-**Rationale:** Per-task commits are a recovery mechanism, not a review unit. Without this guidance, the granular commit history could produce noisy PRs. The user confirmation step ensures the agent doesn't automatically submit without the user's awareness.
+**Rationale:** Per-task commits are a recovery mechanism, not a review unit. Without this guidance, the granular commit history could produce noisy merge requests. The user confirmation step ensures the agent doesn't automatically submit without the user's awareness.
 
 **Alternative considered:** Automatically bundling commits into a single squashed commit. Rejected because rewriting history destroys the recovery trail before the user has confirmed the work is complete, and some users may prefer the granular history.
 
