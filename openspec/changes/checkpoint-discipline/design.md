@@ -81,7 +81,7 @@ The current step 6 is a flat bullet list: show task → make changes → mark co
 
 **Rationale:** Per-task commits are a recovery mechanism, not a review unit. Without this guidance, the granular commit history could produce noisy PRs. The user confirmation step ensures the agent doesn't automatically submit without the user's awareness.
 
-**Alternative considered:** Squashing commits automatically. Rejected because squashing destroys the recovery trail before the user has confirmed the work is complete, and some users may prefer the granular history.
+**Alternative considered:** Automatically bundling commits into a single squashed commit. Rejected because rewriting history destroys the recovery trail before the user has confirmed the work is complete, and some users may prefer the granular history.
 
 ## Risks / Trade-offs
 

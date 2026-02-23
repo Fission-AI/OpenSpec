@@ -11,7 +11,7 @@ The apply-change skill SHALL checkpoint after completing each task (or small gro
 #### Scenario: Single task completion
 - **WHEN** an agent completes a single pending task
 - **THEN** it SHALL mark the task `[x]` in the tasks file
-- **AND** run `git add -A && git commit` with a message referencing the task number and a short description
+- **AND** run `git add -A && git commit -m "task N: <short description>"` where N is the task number
 - **AND** output a confirmation (e.g., "Task N complete") before starting the next task
 
 #### Scenario: Session crash after checkpoint
@@ -70,4 +70,5 @@ Per-task commits SHALL be bundled into a single merge request per change by defa
 
 #### Scenario: User opts for separate merge requests
 - **WHEN** the user declines the default bundling and requests separate merge requests
-- **THEN** the agent SHALL accommodate the user's preference
+- **THEN** the agent SHALL create separate merge requests as directed by the user
+- **AND** SHALL NOT bundle per-task commits without the user's explicit confirmation

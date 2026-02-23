@@ -10,7 +10,7 @@ This happens because the instruction competes with stronger signals: coding agen
 - **Explain the "why"** — frame the tasks file as a recovery log so agents understand the purpose of per-task updates
 - **Add git commit to the checkpoint** — marking `[x]` without committing still loses progress on crash; committing makes recovery durable
 - **Allow pragmatic grouping** — tightly-coupled tasks (e.g., a class change and its test) can be checkpointed together, but unrelated tasks must not be batched
-- **Default to squashing per-task commits in merge requests** — per-task commits are a recovery mechanism, not a review unit. When creating a merge request for a change, all per-task commits should be included in a single PR by default, with the user prompted to confirm before submission
+- **Default to bundling per-task commits in a single merge request** — per-task commits are a recovery mechanism, not a review unit. When creating a merge request for a change, all per-task commits should be included in a single PR by default, with the user prompted to confirm before submission
 - **Reorder and strengthen guardrails** — move the checkpoint rule to the top, add an explicit anti-batching statement, remove the weaker "update task checkbox immediately" bullet it replaces
 
 ## Capabilities
@@ -21,7 +21,7 @@ This happens because the instruction competes with stronger signals: coding agen
 
 ### Modified Capabilities
 
-_(none — no existing spec requirements are changing)_
+*(none — no existing spec requirements are changing)*
 
 ## Impact
 
