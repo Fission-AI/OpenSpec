@@ -172,4 +172,114 @@ describe('config key validation', () => {
     const { validateConfigKeyPath } = await import('../../src/core/config-schema.js');
     expect(validateConfigKeyPath('featureFlags.someFlag.extra').valid).toBe(false);
   });
+
+  it('allows profile key', async () => {
+    const { validateConfigKeyPath } = await import('../../src/core/config-schema.js');
+    expect(validateConfigKeyPath('profile').valid).toBe(true);
+  });
+
+  it('allows delivery key', async () => {
+    const { validateConfigKeyPath } = await import('../../src/core/config-schema.js');
+    expect(validateConfigKeyPath('delivery').valid).toBe(true);
+  });
+
+  it('allows workflows key', async () => {
+    const { validateConfigKeyPath } = await import('../../src/core/config-schema.js');
+    expect(validateConfigKeyPath('workflows').valid).toBe(true);
+  });
+});
+
+describe('config profile command', () => {
+  let tempDir: string;
+  let originalEnv: NodeJS.ProcessEnv;
+
+  beforeEach(() => {
+    tempDir = path.join(os.tmpdir(), `openspec-profile-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    fs.mkdirSync(tempDir, { recursive: true });
+    originalEnv = { ...process.env };
+    process.env.XDG_CONFIG_HOME = tempDir;
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+    fs.rmSync(tempDir, { recursive: true, force: true });
+    vi.resetModules();
+  });
+
+  it('core preset should set profile to core and preserve delivery', async () => {
+    const { getGlobalConfig, saveGlobalConfig } = await import('../../src/core/global-config.js');
+
+    // Set initial config with custom delivery
+    saveGlobalConfig({ featureFlags: {}, profile: 'custom', delivery: 'skills', workflows: ['explore'] });
+
+    // Simulate the core preset logic
+    const config = getGlobalConfig();
+    const { CORE_WORKFLOWS } = await import('../../src/core/profiles.js');
+    config.profile = 'core';
+    config.workflows = [...CORE_WORKFLOWS];
+    // Delivery should be preserved
+    saveGlobalConfig(config);
+
+    const result = getGlobalConfig();
+    expect(result.profile).toBe('core');
+    expect(result.delivery).toBe('skills'); // preserved
+    expect(result.workflows).toEqual(['propose', 'explore', 'apply', 'archive']);
+  });
+
+  it('custom workflow selection should set profile to custom', async () => {
+    const { getGlobalConfig, saveGlobalConfig } = await import('../../src/core/global-config.js');
+    const { CORE_WORKFLOWS } = await import('../../src/core/profiles.js');
+
+    // Simulate custom selection that differs from core
+    const selectedWorkflows = ['explore', 'new', 'apply', 'ff', 'verify'];
+    const isCoreMatch =
+      selectedWorkflows.length === CORE_WORKFLOWS.length &&
+      CORE_WORKFLOWS.every((w: string) => selectedWorkflows.includes(w));
+
+    expect(isCoreMatch).toBe(false);
+
+    saveGlobalConfig({
+      featureFlags: {},
+      profile: isCoreMatch ? 'core' : 'custom',
+      delivery: 'both',
+      workflows: selectedWorkflows,
+    });
+
+    const result = getGlobalConfig();
+    expect(result.profile).toBe('custom');
+    expect(result.workflows).toEqual(selectedWorkflows);
+  });
+
+  it('selecting exactly core workflows should set profile to core', async () => {
+    const { CORE_WORKFLOWS } = await import('../../src/core/profiles.js');
+
+    const selectedWorkflows = [...CORE_WORKFLOWS];
+    const isCoreMatch =
+      selectedWorkflows.length === CORE_WORKFLOWS.length &&
+      CORE_WORKFLOWS.every((w: string) => selectedWorkflows.includes(w));
+
+    expect(isCoreMatch).toBe(true);
+  });
+
+  it('config schema should validate profile and delivery values', async () => {
+    const { validateConfig } = await import('../../src/core/config-schema.js');
+
+    expect(validateConfig({ featureFlags: {}, profile: 'core', delivery: 'both' }).success).toBe(true);
+    expect(validateConfig({ featureFlags: {}, profile: 'custom', delivery: 'skills' }).success).toBe(true);
+    expect(validateConfig({ featureFlags: {}, profile: 'custom', delivery: 'commands', workflows: ['explore'] }).success).toBe(true);
+  });
+
+  it('config schema should reject invalid profile values', async () => {
+    const { validateConfig } = await import('../../src/core/config-schema.js');
+
+    const result = validateConfig({ featureFlags: {}, profile: 'invalid' });
+    expect(result.success).toBe(false);
+  });
+
+  it('config schema should reject invalid delivery values', async () => {
+    const { validateConfig } = await import('../../src/core/config-schema.js');
+
+    const result = validateConfig({ featureFlags: {}, delivery: 'invalid' });
+    expect(result.success).toBe(false);
+  });
 });
