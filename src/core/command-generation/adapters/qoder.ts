@@ -31,4 +31,8 @@ tags: [${tagsStr}]
 ${content.body}
 `;
   },
+
+  getGlobalRoot(): null {
+    return null;
+  },
 };

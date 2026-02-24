@@ -207,23 +207,20 @@ describe('command-generation/adapters', () => {
       expect(codexAdapter.toolId).toBe('codex');
     });
 
-    it('should return an absolute path', () => {
+    it('should return a project-relative path from getFilePath', () => {
       const filePath = codexAdapter.getFilePath('explore');
-      expect(path.isAbsolute(filePath)).toBe(true);
+      expect(path.isAbsolute(filePath)).toBe(false);
+      expect(filePath).toBe(path.join('.codex', 'prompts', 'opsx-explore.md'));
     });
 
-    it('should generate path ending with correct structure', () => {
-      const filePath = codexAdapter.getFilePath('explore');
-      expect(filePath).toMatch(/prompts[/\\]opsx-explore\.md$/);
-    });
-
-    it('should default to homedir/.codex', () => {
+    it('should return absolute global root from getGlobalRoot', () => {
       const original = process.env.CODEX_HOME;
       delete process.env.CODEX_HOME;
       try {
-        const filePath = codexAdapter.getFilePath('explore');
-        const expected = path.join(os.homedir(), '.codex', 'prompts', 'opsx-explore.md');
-        expect(filePath).toBe(expected);
+        const globalRoot = codexAdapter.getGlobalRoot!();
+        expect(globalRoot).not.toBeNull();
+        expect(path.isAbsolute(globalRoot!)).toBe(true);
+        expect(globalRoot).toBe(path.join(os.homedir(), '.codex'));
       } finally {
         if (original !== undefined) {
           process.env.CODEX_HOME = original;
@@ -231,12 +228,12 @@ describe('command-generation/adapters', () => {
       }
     });
 
-    it('should respect CODEX_HOME env var', () => {
+    it('should respect CODEX_HOME env var in getGlobalRoot', () => {
       const original = process.env.CODEX_HOME;
       process.env.CODEX_HOME = '/custom/codex-home';
       try {
-        const filePath = codexAdapter.getFilePath('explore');
-        expect(filePath).toBe(path.join(path.resolve('/custom/codex-home'), 'prompts', 'opsx-explore.md'));
+        const globalRoot = codexAdapter.getGlobalRoot!();
+        expect(globalRoot).toBe(path.resolve('/custom/codex-home'));
       } finally {
         if (original !== undefined) {
           process.env.CODEX_HOME = original;

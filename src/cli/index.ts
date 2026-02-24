@@ -96,34 +96,46 @@ program
   .option('--tools <tools>', toolsOptionDescription)
   .option('--force', 'Auto-cleanup legacy files without prompting')
   .option('--profile <profile>', 'Override global config profile (core or custom)')
-  .action(async (targetPath = '.', options?: { tools?: string; force?: boolean; profile?: string }) => {
+  .option('--global', 'Install skills and commands to tool global directories (requires --tools)')
+  .action(async (targetPath = '.', options?: { tools?: string; force?: boolean; profile?: string; global?: boolean }) => {
     try {
-      // Validate that the path is a valid directory
-      const resolvedPath = path.resolve(targetPath);
+      if (options?.global) {
+        const { InitCommand } = await import('../core/init.js');
+        const initCommand = new InitCommand({
+          tools: options?.tools,
+          force: options?.force,
+          profile: options?.profile,
+          global: true,
+        });
+        await initCommand.executeGlobal();
+      } else {
+        // Validate that the path is a valid directory
+        const resolvedPath = path.resolve(targetPath);
 
-      try {
-        const stats = await fs.stat(resolvedPath);
-        if (!stats.isDirectory()) {
-          throw new Error(`Path "${targetPath}" is not a directory`);
+        try {
+          const stats = await fs.stat(resolvedPath);
+          if (!stats.isDirectory()) {
+            throw new Error(`Path "${targetPath}" is not a directory`);
+          }
+        } catch (error: any) {
+          if (error.code === 'ENOENT') {
+            // Directory doesn't exist, but we can create it
+            console.log(`Directory "${targetPath}" doesn't exist, it will be created.`);
+          } else if (error.message && error.message.includes('not a directory')) {
+            throw error;
+          } else {
+            throw new Error(`Cannot access path "${targetPath}": ${error.message}`);
+          }
         }
-      } catch (error: any) {
-        if (error.code === 'ENOENT') {
-          // Directory doesn't exist, but we can create it
-          console.log(`Directory "${targetPath}" doesn't exist, it will be created.`);
-        } else if (error.message && error.message.includes('not a directory')) {
-          throw error;
-        } else {
-          throw new Error(`Cannot access path "${targetPath}": ${error.message}`);
-        }
+
+        const { InitCommand } = await import('../core/init.js');
+        const initCommand = new InitCommand({
+          tools: options?.tools,
+          force: options?.force,
+          profile: options?.profile,
+        });
+        await initCommand.execute(targetPath);
       }
-
-      const { InitCommand } = await import('../core/init.js');
-      const initCommand = new InitCommand({
-        tools: options?.tools,
-        force: options?.force,
-        profile: options?.profile,
-      });
-      await initCommand.execute(targetPath);
     } catch (error) {
       console.log(); // Empty line for spacing
       ora().fail(`Error: ${(error as Error).message}`);
@@ -157,11 +169,17 @@ program
   .command('update [path]')
   .description('Update OpenSpec instruction files')
   .option('--force', 'Force update even when tools are up to date')
-  .action(async (targetPath = '.', options?: { force?: boolean }) => {
+  .option('--global', 'Update globally-installed skills and commands')
+  .action(async (targetPath = '.', options?: { force?: boolean; global?: boolean }) => {
     try {
-      const resolvedPath = path.resolve(targetPath);
-      const updateCommand = new UpdateCommand({ force: options?.force });
-      await updateCommand.execute(resolvedPath);
+      if (options?.global) {
+        const updateCommand = new UpdateCommand({ force: options?.force, global: true });
+        await updateCommand.executeGlobal();
+      } else {
+        const resolvedPath = path.resolve(targetPath);
+        const updateCommand = new UpdateCommand({ force: options?.force });
+        await updateCommand.execute(resolvedPath);
+      }
     } catch (error) {
       console.log(); // Empty line for spacing
       ora().fail(`Error: ${(error as Error).message}`);

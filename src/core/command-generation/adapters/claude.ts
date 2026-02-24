@@ -4,6 +4,7 @@
  * Formats commands for Claude Code following its frontmatter specification.
  */
 
+import os from 'os';
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
 
@@ -40,6 +41,13 @@ export const claudeAdapter: ToolCommandAdapter = {
 
   getFilePath(commandId: string): string {
     return path.join('.claude', 'commands', 'opsx', `${commandId}.md`);
+  },
+
+  getGlobalRoot(): string {
+    if (process.platform === 'win32') {
+      return path.join(process.env.APPDATA || os.homedir(), 'Claude');
+    }
+    return path.join(os.homedir(), '.claude');
   },
 
   formatFile(content: CommandContent): string {

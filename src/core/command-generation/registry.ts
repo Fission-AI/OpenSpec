@@ -96,4 +96,14 @@ export class CommandAdapterRegistry {
   static has(toolId: string): boolean {
     return CommandAdapterRegistry.adapters.has(toolId);
   }
+
+  /**
+   * Get all adapters that support global installation.
+   * @returns Array of adapters where getGlobalRoot() returns a non-null value
+   */
+  static getGlobalAdapters(): ToolCommandAdapter[] {
+    return Array.from(CommandAdapterRegistry.adapters.values()).filter(
+      (adapter) => adapter.getGlobalRoot?.() != null
+    );
+  }
 }

@@ -29,4 +29,8 @@ invokable: true
 ${content.body}
 `;
   },
+
+  getGlobalRoot(): null {
+    return null;
+  },
 };

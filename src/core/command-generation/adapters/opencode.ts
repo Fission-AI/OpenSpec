@@ -4,6 +4,7 @@
  * Formats commands for OpenCode following its frontmatter specification.
  */
 
+import os from 'os';
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
 import { transformToHyphenCommands } from '../../../utils/command-references.js';
@@ -18,6 +19,16 @@ export const opencodeAdapter: ToolCommandAdapter = {
 
   getFilePath(commandId: string): string {
     return path.join('.opencode', 'command', `opsx-${commandId}.md`);
+  },
+
+  getGlobalRoot(): string {
+    if (process.platform === 'win32') {
+      return path.join(process.env.APPDATA || os.homedir(), 'opencode');
+    }
+    const xdgConfig = process.env.XDG_CONFIG_HOME?.trim();
+    return xdgConfig
+      ? path.join(xdgConfig, 'opencode')
+      : path.join(os.homedir(), '.config', 'opencode');
   },
 
   formatFile(content: CommandContent): string {

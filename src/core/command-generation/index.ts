@@ -29,5 +29,8 @@ export { CommandAdapterRegistry } from './registry.js';
 // Generator functions
 export { generateCommand, generateCommands } from './generator.js';
 
+// Global root resolution
+export { resolveGlobalRoot } from './global-root.js';
+
 // Adapters (for direct access if needed)
 export { claudeAdapter, cursorAdapter, windsurfAdapter } from './adapters/index.js';

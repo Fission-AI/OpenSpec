@@ -23,6 +23,7 @@ import { serializeConfig } from './config-prompts.js';
 import {
   generateCommands,
   CommandAdapterRegistry,
+  resolveGlobalRoot,
 } from './command-generation/index.js';
 import {
   detectLegacyArtifacts,
@@ -83,6 +84,7 @@ type InitCommandOptions = {
   force?: boolean;
   interactive?: boolean;
   profile?: string;
+  global?: boolean;
 };
 
 // -----------------------------------------------------------------------------
@@ -94,12 +96,14 @@ export class InitCommand {
   private readonly force: boolean;
   private readonly interactiveOption?: boolean;
   private readonly profileOverride?: string;
+  private readonly globalMode: boolean;
 
   constructor(options: InitCommandOptions = {}) {
     this.toolsArg = options.tools;
     this.force = options.force ?? false;
     this.interactiveOption = options.interactive;
     this.profileOverride = options.profile;
+    this.globalMode = options.global ?? false;
   }
 
   async execute(targetPath: string): Promise<void> {
@@ -152,6 +156,137 @@ export class InitCommand {
 
     // Display success message
     this.displaySuccessMessage(projectPath, validatedTools, results, configStatus);
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // GLOBAL MODE
+  // ═══════════════════════════════════════════════════════════
+
+  async executeGlobal(): Promise<void> {
+    // Require --tools with --global
+    if (typeof this.toolsArg === 'undefined') {
+      throw new Error(
+        '--tools is required with --global. Use --tools all to install for all tools with a known global path.'
+      );
+    }
+
+    // Resolve profile settings
+    const globalConfig = getGlobalConfig();
+    const profile: Profile = this.resolveProfileOverride() ?? globalConfig.profile ?? 'core';
+    const delivery: Delivery = globalConfig.delivery ?? 'both';
+    const workflows = getProfileWorkflows(profile, globalConfig.workflows);
+
+    // Parse --tools argument
+    const requestedToolIds = this.resolveToolsArgForGlobal();
+
+    // Resolve adapters and validate global support
+    const toolResults: Array<{ toolId: string; globalRoot: string; name: string }> = [];
+    const skippedTools: string[] = [];
+
+    for (const toolId of requestedToolIds) {
+      const adapter = CommandAdapterRegistry.get(toolId);
+      if (!adapter) {
+        skippedTools.push(toolId);
+        continue;
+      }
+
+      const globalRoot = resolveGlobalRoot(adapter);
+      if (!globalRoot) {
+        skippedTools.push(toolId);
+        continue;
+      }
+
+      const tool = AI_TOOLS.find((t) => t.value === toolId);
+      toolResults.push({ toolId, globalRoot, name: tool?.name || toolId });
+    }
+
+    // If all requested tools were skipped (no global support), error out
+    if (toolResults.length === 0) {
+      const msg = skippedTools.length > 0
+        ? `No tools with global support found. Skipped: ${skippedTools.join(', ')}`
+        : 'No valid tools specified.';
+      throw new Error(msg);
+    }
+
+    // Get skill and command templates filtered by profile
+    const shouldGenerateSkills = delivery !== 'commands';
+    const shouldGenerateCommands = delivery !== 'skills';
+    const skillTemplates = shouldGenerateSkills ? getSkillTemplates(workflows) : [];
+    const commandContents = shouldGenerateCommands ? getCommandContents(workflows) : [];
+
+    let totalFiles = 0;
+
+    for (const { toolId, globalRoot, name } of toolResults) {
+      const spinner = ora(`Installing globally for ${name}...`).start();
+
+      try {
+        // Generate skills to global path
+        if (shouldGenerateSkills) {
+          const skillsDir = path.join(globalRoot, 'skills');
+          for (const { template, dirName } of skillTemplates) {
+            const skillDir = path.join(skillsDir, dirName);
+            const skillFile = path.join(skillDir, 'SKILL.md');
+
+            const transformer = toolId === 'opencode' ? transformToHyphenCommands : undefined;
+            const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
+            await FileSystemUtils.writeFile(skillFile, skillContent);
+            totalFiles++;
+          }
+        }
+
+        // Generate commands to global path
+        if (shouldGenerateCommands) {
+          const adapter = CommandAdapterRegistry.get(toolId);
+          if (adapter) {
+            const generatedCommands = generateCommands(commandContents, adapter);
+            for (const cmd of generatedCommands) {
+              // Derive global command path from global root + relative path pattern
+              const commandFile = path.join(globalRoot, cmd.path.replace(/^\.?[^/\\]+[/\\]/, ''));
+              await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
+              totalFiles++;
+            }
+          }
+        }
+
+        spinner.succeed(`Installed globally for ${name} → ${globalRoot}`);
+      } catch (error) {
+        spinner.fail(`Failed for ${name}: ${(error as Error).message}`);
+      }
+    }
+
+    // Output
+    console.log();
+    console.log(chalk.bold('Global Installation Complete'));
+    console.log();
+    console.log(`Installed: ${toolResults.map((t) => t.name).join(', ')}`);
+    console.log(`${totalFiles} file(s) written.`);
+
+    if (skippedTools.length > 0) {
+      console.log(chalk.dim(`Skipped (no global support): ${skippedTools.join(', ')}`));
+    }
+  }
+
+  private resolveToolsArgForGlobal(): string[] {
+    const raw = (this.toolsArg ?? '').trim();
+
+    if (raw.toLowerCase() === 'all') {
+      // Return only tools that have global support
+      return CommandAdapterRegistry.getGlobalAdapters().map((a) => a.toolId);
+    }
+
+    // Parse comma-separated tool IDs (reuse validation logic)
+    const tokens = raw
+      .split(',')
+      .map((token) => token.trim().toLowerCase())
+      .filter((token) => token.length > 0);
+
+    if (tokens.length === 0) {
+      throw new Error(
+        '--tools requires at least one tool ID. Use --tools all for all tools with global support.'
+      );
+    }
+
+    return tokens;
   }
 
   // ═══════════════════════════════════════════════════════════

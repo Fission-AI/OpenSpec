@@ -24,4 +24,8 @@ export const kilocodeAdapter: ToolCommandAdapter = {
     return `${content.body}
 `;
   },
+
+  getGlobalRoot(): null {
+    return null;
+  },
 };

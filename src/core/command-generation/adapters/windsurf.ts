@@ -54,4 +54,8 @@ tags: ${formatTagsArray(content.tags)}
 ${content.body}
 `;
   },
+
+  getGlobalRoot(): null {
+    return null;
+  },
 };

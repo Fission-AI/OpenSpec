@@ -16,6 +16,7 @@ import { AI_TOOLS, OPENSPEC_DIR_NAME } from './config.js';
 import {
   generateCommands,
   CommandAdapterRegistry,
+  resolveGlobalRoot,
 } from './command-generation/index.js';
 import {
   getToolVersionStatus,
@@ -57,6 +58,8 @@ const { version: OPENSPEC_VERSION } = require('../../package.json');
 export interface UpdateCommandOptions {
   /** Force update even when tools are up to date */
   force?: boolean;
+  /** Update globally-installed files instead of project-local */
+  global?: boolean;
 }
 
 /**
@@ -74,9 +77,11 @@ export function scanInstalledWorkflows(projectPath: string, toolIds: string[]): 
 
 export class UpdateCommand {
   private readonly force: boolean;
+  private readonly globalMode: boolean;
 
   constructor(options: UpdateCommandOptions = {}) {
     this.force = options.force ?? false;
+    this.globalMode = options.global ?? false;
   }
 
   async execute(projectPath: string): Promise<void> {
@@ -698,5 +703,90 @@ export class UpdateCommand {
     }
 
     return newlyConfigured;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // GLOBAL UPDATE
+  // ═══════════════════════════════════════════════════════════
+
+  async executeGlobal(): Promise<void> {
+    const globalConfig = getGlobalConfig();
+    const profile = globalConfig.profile ?? 'core';
+    const delivery: Delivery = globalConfig.delivery ?? 'both';
+    const workflows = getProfileWorkflows(profile, globalConfig.workflows);
+
+    const shouldGenerateSkills = delivery !== 'commands';
+    const shouldGenerateCommands = delivery !== 'skills';
+    const skillTemplates = shouldGenerateSkills ? getSkillTemplates(workflows) : [];
+    const commandContents = shouldGenerateCommands ? getCommandContents(workflows) : [];
+
+    // Find adapters with global support that have files installed
+    const globalAdapters = CommandAdapterRegistry.getGlobalAdapters();
+    let updatedCount = 0;
+    let toolsUpdated = 0;
+
+    for (const adapter of globalAdapters) {
+      const globalRoot = resolveGlobalRoot(adapter);
+      if (!globalRoot) continue;
+
+      // Check if any OpenSpec files exist in this global root
+      const skillsDir = path.join(globalRoot, 'skills');
+      const hasSkills = fs.existsSync(skillsDir) &&
+        fs.readdirSync(skillsDir).some((d) => d.startsWith('openspec-'));
+
+      // Check for commands by looking at the adapter's command path pattern
+      let hasCommands = false;
+      if (shouldGenerateCommands) {
+        const testPath = adapter.getFilePath('explore');
+        const globalCmdPath = path.join(globalRoot, testPath.replace(/^\.?[^/\\]+[/\\]/, ''));
+        hasCommands = fs.existsSync(globalCmdPath);
+      }
+
+      if (!hasSkills && !hasCommands) continue;
+
+      const tool = AI_TOOLS.find((t) => t.value === adapter.toolId);
+      const toolName = tool?.name || adapter.toolId;
+      const spinner = ora(`Updating global files for ${toolName}...`).start();
+
+      try {
+        // Regenerate skills
+        if (shouldGenerateSkills && hasSkills) {
+          const skillsDirPath = path.join(globalRoot, 'skills');
+          for (const { template, dirName } of skillTemplates) {
+            const skillDir = path.join(skillsDirPath, dirName);
+            const skillFile = path.join(skillDir, 'SKILL.md');
+
+            const transformer = adapter.toolId === 'opencode' ? transformToHyphenCommands : undefined;
+            const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
+            await FileSystemUtils.writeFile(skillFile, skillContent);
+            updatedCount++;
+          }
+        }
+
+        // Regenerate commands
+        if (shouldGenerateCommands && hasCommands) {
+          const generatedCommands = generateCommands(commandContents, adapter);
+          for (const cmd of generatedCommands) {
+            const commandFile = path.join(globalRoot, cmd.path.replace(/^\.?[^/\\]+[/\\]/, ''));
+            await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
+            updatedCount++;
+          }
+        }
+
+        spinner.succeed(`Updated global files for ${toolName} → ${globalRoot}`);
+        toolsUpdated++;
+      } catch (error) {
+        spinner.fail(`Failed to update ${toolName}: ${(error as Error).message}`);
+      }
+    }
+
+    console.log();
+    if (toolsUpdated === 0) {
+      console.log('No globally-installed OpenSpec files found.');
+      console.log(chalk.dim('Install globally first: openspec init --global --tools <id>'));
+    } else {
+      console.log(chalk.bold('Global Update Complete'));
+      console.log(`Updated ${updatedCount} file(s) across ${toolsUpdated} tool(s).`);
+    }
   }
 }

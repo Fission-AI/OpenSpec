@@ -27,4 +27,8 @@ description: ${content.description}
 ${content.body}
 `;
   },
+
+  getGlobalRoot(): null {
+    return null;
+  },
 };

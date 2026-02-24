@@ -33,10 +33,9 @@ export interface ToolCommandAdapter {
   /** Tool identifier matching AIToolOption.value (e.g., 'claude', 'cursor') */
   toolId: string;
   /**
-   * Returns the file path for a command.
+   * Returns the file path for a command, relative to the project root.
    * @param commandId - The command identifier (e.g., 'explore')
    * @returns Path from project root (e.g., '.claude/commands/opsx/explore.md').
-   *          May be absolute for tools with global-scoped prompts (e.g., Codex).
    */
   getFilePath(commandId: string): string;
   /**
@@ -45,13 +44,19 @@ export interface ToolCommandAdapter {
    * @returns Complete file content ready to write
    */
   formatFile(content: CommandContent): string;
+  /**
+   * Returns the tool's global configuration root directory.
+   * @returns Absolute path to the global root (e.g., '~/.claude/'), or null
+   *          if the tool has no global filesystem path.
+   */
+  getGlobalRoot?(): string | null;
 }
 
 /**
  * Result of generating a command file.
  */
 export interface GeneratedCommand {
-  /** File path from project root, or absolute for global-scoped tools */
+  /** File path from project root, or absolute for global installs */
   path: string;
   /** Complete file content (frontmatter + body) */
   fileContent: string;

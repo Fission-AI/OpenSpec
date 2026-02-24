@@ -29,4 +29,8 @@ argument-hint: "[command arguments]"
 ${content.body}
 `;
   },
+
+  getGlobalRoot(): null {
+    return null;
+  },
 };
