@@ -114,12 +114,14 @@ describe('Global Init', () => {
   describe('openspec init --global --tools claude,cursor (mixed support)', () => {
     it('should install for supported tools and skip unsupported ones', async () => {
       delete process.env.OPENSPEC_GLOBAL_ROOT;
+      // Mock getGlobalRoot to avoid writing to the real ~/.claude directory
+      const tempClaudeRoot = path.join(globalRoot, 'claude-native');
+      vi.spyOn(claudeAdapter, 'getGlobalRoot').mockReturnValue(tempClaudeRoot);
       const initCommand = new InitCommand({ tools: 'claude,cursor', global: true });
       await initCommand.executeGlobal();
 
-      // Claude should be installed at its native global root
-      const claudeRoot = claudeAdapter.getGlobalRoot!();
-      const skillsDir = path.join(claudeRoot, 'skills');
+      // Claude should be installed at the mocked global root
+      const skillsDir = path.join(tempClaudeRoot, 'skills');
       const hasSkills = await fs.readdir(skillsDir).then(
         (entries) => entries.some((e) => e.startsWith('openspec-')),
         () => false

@@ -734,13 +734,14 @@ export class UpdateCommand {
       const hasSkills = fs.existsSync(skillsDir) &&
         fs.readdirSync(skillsDir).some((d) => d.startsWith('openspec-'));
 
-      // Check for commands by looking at the adapter's command path pattern
-      let hasCommands = false;
-      if (shouldGenerateCommands) {
-        const testPath = adapter.getFilePath('explore');
-        const globalCmdPath = path.join(globalRoot, testPath.replace(/^\.?[^/\\]+[/\\]/, ''));
-        hasCommands = fs.existsSync(globalCmdPath);
-      }
+      // Check for commands by checking if any generated command files exist globally
+      const generatedCommands = shouldGenerateCommands
+        ? generateCommands(commandContents, adapter)
+        : [];
+      const hasCommands = generatedCommands.some((cmd) => {
+        const globalCmdPath = path.join(globalRoot, cmd.path.replace(/^\.?[^/\\]+[/\\]/, ''));
+        return fs.existsSync(globalCmdPath);
+      });
 
       if (!hasSkills && !hasCommands) continue;
 
@@ -765,7 +766,6 @@ export class UpdateCommand {
 
         // Regenerate commands
         if (shouldGenerateCommands && hasCommands) {
-          const generatedCommands = generateCommands(commandContents, adapter);
           for (const cmd of generatedCommands) {
             const commandFile = path.join(globalRoot, cmd.path.replace(/^\.?[^/\\]+[/\\]/, ''));
             await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
