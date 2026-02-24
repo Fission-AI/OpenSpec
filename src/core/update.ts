@@ -776,7 +776,7 @@ export class UpdateCommand {
         spinner.succeed(`Updated global files for ${toolName} → ${globalRoot}`);
         toolsUpdated++;
       } catch (error) {
-        spinner.fail(`Failed to update ${toolName}: ${(error as Error).message}`);
+        spinner.fail(`Failed to update ${toolName}: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
 
