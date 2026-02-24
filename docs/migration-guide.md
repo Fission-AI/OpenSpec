@@ -8,7 +8,7 @@ OPSX replaces the old phase-locked workflow with a fluid, action-based approach.
 
 | Aspect | Legacy | OPSX |
 |--------|--------|------|
-| **Commands** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` | `/opsx:new`, `/opsx:continue`, `/opsx:apply`, and more |
+| **Commands** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` | Default: `/opsx:propose`, `/opsx:apply`, `/opsx:archive` (expanded workflow commands optional) |
 | **Workflow** | Create all artifacts at once | Create incrementally or all at once—your choice |
 | **Going back** | Awkward phase gates | Natural—update any artifact anytime |
 | **Customization** | Fixed structure | Schema-driven, fully hackable |
@@ -84,6 +84,9 @@ Don't worry about getting it perfect. We're still learning what works best here,
 
 Both `openspec init` and `openspec update` detect legacy files and guide you through the same cleanup process. Use whichever fits your situation:
 
+- New installs default to profile `core` (`propose`, `explore`, `apply`, `archive`).
+- Migrated installs preserve your previously installed workflows by writing a `custom` profile when needed.
+
 ### Using `openspec init`
 
 Run this if you want to add new tools or reconfigure which tools are set up:
@@ -141,7 +144,7 @@ Run this if you just want to migrate and refresh your existing tools to the late
 openspec update
 ```
 
-The update command also detects and cleans up legacy artifacts, then refreshes your skills to the latest version.
+The update command also detects and cleans up legacy artifacts, then refreshes generated skills/commands to match your current profile and delivery settings.
 
 ### Non-Interactive / CI Environments
 
@@ -275,29 +278,42 @@ The AI will help you identify what's essential vs. what can be trimmed.
 
 ## The New Commands
 
-After migration, you have 9 OPSX commands instead of 3:
+Command availability is profile-dependent:
+
+**Default (`core` profile):**
 
 | Command | Purpose |
 |---------|---------|
+| `/opsx:propose` | Create a change and generate planning artifacts in one step |
 | `/opsx:explore` | Think through ideas with no structure |
-| `/opsx:new` | Start a new change |
-| `/opsx:continue` | Create the next artifact (one at a time) |
-| `/opsx:ff` | Fast-forward—create all planning artifacts at once |
 | `/opsx:apply` | Implement tasks from tasks.md |
-| `/opsx:verify` | Validate implementation matches specs |
-| `/opsx:sync` | Preview spec merge (optional—archive prompts if needed) |
 | `/opsx:archive` | Finalize and archive the change |
+
+**Expanded workflow (custom selection):**
+
+| Command | Purpose |
+|---------|---------|
+| `/opsx:new` | Start a new change scaffold |
+| `/opsx:continue` | Create the next artifact (one at a time) |
+| `/opsx:ff` | Fast-forward—create planning artifacts at once |
+| `/opsx:verify` | Validate implementation matches specs |
+| `/opsx:sync` | Preview/spec-merge without archiving |
 | `/opsx:bulk-archive` | Archive multiple changes at once |
+| `/opsx:onboard` | Guided end-to-end onboarding workflow |
+
+Enable expanded commands with `openspec config profile`, then run `openspec update`.
 
 ### Command Mapping from Legacy
 
 | Legacy | OPSX Equivalent |
 |--------|-----------------|
-| `/openspec:proposal` | `/opsx:new` then `/opsx:ff` |
+| `/openspec:proposal` | `/opsx:propose` (default) or `/opsx:new` then `/opsx:ff` (expanded) |
 | `/openspec:apply` | `/opsx:apply` |
 | `/openspec:archive` | `/opsx:archive` |
 
 ### New Capabilities
+
+These capabilities are part of the expanded workflow command set.
 
 **Granular artifact creation:**
 ```
@@ -542,9 +558,10 @@ project/
 │   └── config.yaml               # NEW: Project configuration
 ├── .claude/
 │   └── skills/                   # NEW: OPSX skills
+│       ├── openspec-propose/     # default core profile
 │       ├── openspec-explore/
-│       ├── openspec-new-change/
-│       └── ...
+│       ├── openspec-apply-change/
+│       └── ...                   # expanded profile adds new/continue/ff/etc.
 ├── CLAUDE.md                     # OpenSpec markers removed, your content preserved
 └── AGENTS.md                     # OpenSpec markers removed, your content preserved
 ```
@@ -558,12 +575,15 @@ project/
 
 ### Command Cheatsheet
 
-```
-/opsx:new          Start a change
-/opsx:continue     Create next artifact
-/opsx:ff           Create all planning artifacts
+```text
+/opsx:propose      Start quickly (default core profile)
 /opsx:apply        Implement tasks
 /opsx:archive      Finish and archive
+
+# Expanded workflow (if enabled):
+/opsx:new          Scaffold a change
+/opsx:continue     Create next artifact
+/opsx:ff           Create planning artifacts
 ```
 
 ---

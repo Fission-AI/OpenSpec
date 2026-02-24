@@ -36,7 +36,7 @@ Our philosophy:
 > [!TIP]
 > **New workflow now available!** We've rebuilt OpenSpec with a new artifact-guided workflow.
 >
-> Run `/opsx:onboard` to get started. → [Learn more here](docs/opsx.md)
+> Run `/opsx:propose "your idea"` to get started. → [Learn more here](docs/opsx.md)
 
 <p align="center">
   Follow <a href="https://x.com/0xTab">@0xTab on X</a> for updates · Join the <a href="https://discord.gg/YctCnvvshC">OpenSpec Discord</a> for help and questions.
@@ -46,17 +46,14 @@ Our philosophy:
 
 Using OpenSpec in a team? [Email here](mailto:teams@openspec.dev) for access to our Slack channel.
 
-<!-- TODO: Add GIF demo of /opsx:new → /opsx:archive workflow -->
+<!-- TODO: Add GIF demo of /opsx:propose → /opsx:archive workflow -->
 
 ## See it in action
 
 ```text
-You: /opsx:new add-dark-mode
+You: /opsx:propose add-dark-mode
 AI:  Created openspec/changes/add-dark-mode/
-     Ready to create: proposal
-
-You: /opsx:ff   # "fast-forward" - generate all planning docs
-AI:  ✓ proposal.md — why we're doing this, what's changing
+     ✓ proposal.md — why we're doing this, what's changing
      ✓ specs/       — requirements and scenarios
      ✓ design.md    — technical approach
      ✓ tasks.md     — implementation checklist
@@ -101,7 +98,9 @@ cd your-project
 openspec init
 ```
 
-Now tell your AI: `/opsx:new <what-you-want-to-build>`
+Now tell your AI: `/opsx:propose <what-you-want-to-build>`
+
+If you want the expanded workflow (`/opsx:new`, `/opsx:continue`, `/opsx:ff`, `/opsx:verify`, `/opsx:sync`, `/opsx:bulk-archive`, `/opsx:onboard`), select it with `openspec config profile` and apply with `openspec update`.
 
 > [!NOTE]
 > Not sure if your tool is supported? [View the full list](docs/supported-tools.md) – we support 20+ tools and growing.
