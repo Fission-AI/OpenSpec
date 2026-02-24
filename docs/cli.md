@@ -1,6 +1,6 @@
 # CLI Reference
 
-The OpenSpec CLI (`openspec`) provides terminal commands for project setup, validation, status inspection, and management. These commands complement the AI slash commands (like `/opsx:new`) documented in [Commands](commands.md).
+The OpenSpec CLI (`openspec`) provides terminal commands for project setup, validation, status inspection, and management. These commands complement the AI slash commands (like `/opsx:propose`) documented in [Commands](commands.md).
 
 ## Summary
 
@@ -67,6 +67,8 @@ These options work with all commands:
 
 Initialize OpenSpec in your project. Creates the folder structure and configures AI tool integrations.
 
+Default behavior uses global config defaults: profile `core`, delivery `both`, workflows `propose, explore, apply, archive`.
+
 ```
 openspec init [path] [options]
 ```
@@ -83,8 +85,11 @@ openspec init [path] [options]
 |--------|-------------|
 | `--tools <list>` | Configure AI tools non-interactively. Use `all`, `none`, or comma-separated list |
 | `--force` | Auto-cleanup legacy files without prompting |
+| `--profile <profile>` | Override global profile for this init run (`core` or `custom`) |
 
-**Supported tools:** `amazon-q`, `antigravity`, `auggie`, `claude`, `cline`, `codex`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `iflow`, `kilocode`, `opencode`, `qoder`, `qwen`, `roocode`, `windsurf`
+`--profile custom` uses whatever workflows are currently selected in global config (`openspec config profile`).
+
+**Supported tool IDs (`--tools`):** `amazon-q`, `antigravity`, `auggie`, `claude`, `cline`, `codex`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `iflow`, `kilocode`, `kiro`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `windsurf`
 
 **Examples:**
 
@@ -101,6 +106,9 @@ openspec init --tools claude,cursor
 # Configure for all supported tools
 openspec init --tools all
 
+# Override profile for this run
+openspec init --profile core
+
 # Skip prompts and auto-cleanup legacy files
 openspec init --force
 ```
@@ -113,8 +121,9 @@ openspec/
 ├── changes/            # Proposed changes
 └── config.yaml         # Project configuration
 
-.claude/skills/         # Claude Code skill files (if claude selected)
-.cursor/rules/          # Cursor rules (if cursor selected)
+.claude/skills/         # Claude Code skills (if claude selected)
+.cursor/skills/         # Cursor skills (if cursor selected)
+.cursor/commands/       # Cursor OPSX commands (if delivery includes commands)
 ... (other tool configs)
 ```
 
@@ -122,7 +131,7 @@ openspec/
 
 ### `openspec update`
 
-Update OpenSpec instruction files after upgrading the CLI. Re-generates AI tool configuration files.
+Update OpenSpec instruction files after upgrading the CLI. Re-generates AI tool configuration files using your current global profile, selected workflows, and delivery mode.
 
 ```
 openspec update [path] [options]
@@ -920,7 +929,7 @@ openspec completion uninstall
 
 ## Related Documentation
 
-- [Commands](commands.md) - AI slash commands (`/opsx:new`, `/opsx:apply`, etc.)
+- [Commands](commands.md) - AI slash commands (`/opsx:propose`, `/opsx:apply`, etc.)
 - [Workflows](workflows.md) - Common patterns and when to use each command
 - [Customization](customization.md) - Create custom schemas and templates
 - [Getting Started](getting-started.md) - First-time setup guide
