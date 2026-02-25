@@ -34,5 +34,5 @@ The error surfaces during onboarding (issue #714) when AI agents call `openspec 
 
 ## Risks / Trade-offs
 
-- [Risk] Extra filesystem read when no `--change` is provided and no changes exist (calls `getAvailableChanges` then `validateChangeExists` would also call it) → Mitigation: `statusCommand` returns early before reaching `validateChangeExists`, so the extra read only happens when changes *do* exist — minimal overhead.
+- [Risk] Extra filesystem read when no `--change` is provided and changes *do* exist (`getAvailableChanges` is called first, then `validateChangeExists` performs its own read) → Mitigation: `statusCommand` returns early before reaching `validateChangeExists` when no changes exist, so the double-read only occurs when changes are present — minimal overhead.
 - [Risk] Other commands may also benefit from graceful no-changes handling in the future → Mitigation: `getAvailableChanges` is now public and reusable, making it easy to apply the same pattern elsewhere.

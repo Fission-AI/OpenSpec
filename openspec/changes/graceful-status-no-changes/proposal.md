@@ -16,7 +16,7 @@ When `openspec status` is called without `--change` and no changes exist (e.g., 
 
 ### Modified Capabilities
 
-_None — the change is scoped to `statusCommand` only; `validateChangeExists` and other consumers are unaffected._
+_None — `validateChangeExists` was internally refactored to delegate to the newly exported `getAvailableChanges`, but its behavior and public contract are unchanged. Other consumers are unaffected._
 
 ## Impact
 
