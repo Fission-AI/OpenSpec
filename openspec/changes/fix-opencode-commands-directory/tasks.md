@@ -4,7 +4,7 @@
 
 ## 2. Legacy Cleanup
 
-- [x] 2.1 Update `src/core/legacy-cleanup.ts`: change the `'opencode'` entry in `LEGACY_SLASH_COMMAND_PATHS` from `'.opencode/command/openspec-*.md'` to `'.opencode/command/opsx-*.md'` to detect old singular-path artifacts with the current `opsx-*` prefix
+- [x] 2.1 Update `src/core/legacy-cleanup.ts`: update the `'opencode'` entry in `LEGACY_SLASH_COMMAND_PATHS` to detect both `opsx-*.md` and `openspec-*.md` patterns at `.opencode/command/` for backward compatibility
 
 ## 3. Documentation
 
