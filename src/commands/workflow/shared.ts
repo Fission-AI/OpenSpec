@@ -97,8 +97,9 @@ export async function getAvailableChanges(projectRoot: string): Promise<string[]
     return entries
       .filter((e) => e.isDirectory() && e.name !== 'archive' && !e.name.startsWith('.'))
       .map((e) => e.name);
-  } catch {
-    return [];
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw error;
   }
 }
 
