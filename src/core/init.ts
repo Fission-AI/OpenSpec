@@ -41,6 +41,10 @@ import {
   generateSkillContent,
   type ToolSkillStatus,
 } from './shared/index.js';
+import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
+import { getProfileWorkflows, CORE_WORKFLOWS, ALL_WORKFLOWS } from './profiles.js';
+import { getAvailableTools } from './available-tools.js';
+import { migrateIfNeeded } from './migration.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
@@ -56,6 +60,20 @@ const PROGRESS_SPINNER = {
   frames: ['░░░', '▒░░', '▒▒░', '▒▒▒', '▓▒▒', '▓▓▒', '▓▓▓', '▒▓▓', '░▒▓'],
 };
 
+const WORKFLOW_TO_SKILL_DIR: Record<string, string> = {
+  'explore': 'openspec-explore',
+  'new': 'openspec-new-change',
+  'continue': 'openspec-continue-change',
+  'apply': 'openspec-apply-change',
+  'ff': 'openspec-ff-change',
+  'sync': 'openspec-sync-specs',
+  'archive': 'openspec-archive-change',
+  'bulk-archive': 'openspec-bulk-archive-change',
+  'verify': 'openspec-verify-change',
+  'onboard': 'openspec-onboard',
+  'propose': 'openspec-propose',
+};
+
 // -----------------------------------------------------------------------------
 // Types
 // -----------------------------------------------------------------------------
@@ -64,6 +82,7 @@ type InitCommandOptions = {
   tools?: string;
   force?: boolean;
   interactive?: boolean;
+  profile?: string;
 };
 
 // -----------------------------------------------------------------------------
@@ -74,11 +93,13 @@ export class InitCommand {
   private readonly toolsArg?: string;
   private readonly force: boolean;
   private readonly interactiveOption?: boolean;
+  private readonly profileOverride?: string;
 
   constructor(options: InitCommandOptions = {}) {
     this.toolsArg = options.tools;
     this.force = options.force ?? false;
     this.interactiveOption = options.interactive;
+    this.profileOverride = options.profile;
   }
 
   async execute(targetPath: string): Promise<void> {
@@ -92,6 +113,14 @@ export class InitCommand {
     // Check for legacy artifacts and handle cleanup
     await this.handleLegacyCleanup(projectPath, extendMode);
 
+    // Detect available tools in the project (task 7.1)
+    const detectedTools = getAvailableTools(projectPath);
+
+    // Migration check: migrate existing projects to profile system (task 7.3)
+    if (extendMode) {
+      migrateIfNeeded(projectPath, detectedTools);
+    }
+
     // Show animated welcome screen (interactive mode only)
     const canPrompt = this.canPromptInteractively();
     if (canPrompt) {
@@ -99,11 +128,15 @@ export class InitCommand {
       await showWelcomeScreen();
     }
 
+    // Validate profile override early so invalid values fail before tool setup.
+    // The resolved value is consumed later when generation reads effective config.
+    this.resolveProfileOverride();
+
     // Get tool states before processing
     const toolStates = getToolStates(projectPath);
 
-    // Get tool selection
-    const selectedToolIds = await this.getSelectedTools(toolStates, extendMode);
+    // Get tool selection (pass detected tools for pre-selection)
+    const selectedToolIds = await this.getSelectedTools(toolStates, extendMode, detectedTools, projectPath);
 
     // Validate selected tools
     const validatedTools = this.validateTools(selectedToolIds, toolStates);
@@ -142,6 +175,18 @@ export class InitCommand {
     if (this.interactiveOption === false) return false;
     if (this.toolsArg !== undefined) return false;
     return isInteractive({ interactive: this.interactiveOption });
+  }
+
+  private resolveProfileOverride(): Profile | undefined {
+    if (this.profileOverride === undefined) {
+      return undefined;
+    }
+
+    if (this.profileOverride === 'core' || this.profileOverride === 'custom') {
+      return this.profileOverride;
+    }
+
+    throw new Error(`Invalid profile "${this.profileOverride}". Available profiles: core, custom`);
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -214,7 +259,9 @@ export class InitCommand {
 
   private async getSelectedTools(
     toolStates: Map<string, ToolSkillStatus>,
-    extendMode: boolean
+    extendMode: boolean,
+    detectedTools: AIToolOption[],
+    projectPath: string
   ): Promise<string[]> {
     // Check for --tools flag first
     const nonInteractiveSelection = this.resolveToolsArg();
@@ -223,37 +270,77 @@ export class InitCommand {
     }
 
     const validTools = getToolsWithSkillsDir();
+    const detectedToolIds = new Set(detectedTools.map((t) => t.value));
+    const configuredToolIds = new Set(
+      [...toolStates.entries()]
+        .filter(([, status]) => status.configured)
+        .map(([toolId]) => toolId)
+    );
+    const shouldPreselectDetected = !extendMode && configuredToolIds.size === 0;
     const canPrompt = this.canPromptInteractively();
 
-    if (!canPrompt || validTools.length === 0) {
+    // Non-interactive mode: use detected tools as fallback (task 7.8)
+    if (!canPrompt) {
+      if (detectedToolIds.size > 0) {
+        return [...detectedToolIds];
+      }
       throw new Error(
-        `Missing required option --tools. Valid tools:\n  ${validTools.join('\n  ')}\n\nUse --tools all, --tools none, or --tools claude,cursor,...`
+        `No tools detected and no --tools flag provided. Valid tools:\n  ${validTools.join('\n  ')}\n\nUse --tools all, --tools none, or --tools claude,cursor,...`
+      );
+    }
+
+    if (validTools.length === 0) {
+      throw new Error(
+        `No tools available for skill generation.`
       );
     }
 
     // Interactive mode: show searchable multi-select
     const { searchableMultiSelect } = await import('../prompts/searchable-multi-select.js');
 
-    // Build choices with configured status and sort configured tools first
+    // Build choices: pre-select configured tools; keep detected tools visible but unselected.
     const sortedChoices = validTools
       .map((toolId) => {
         const tool = AI_TOOLS.find((t) => t.value === toolId);
         const status = toolStates.get(toolId);
         const configured = status?.configured ?? false;
+        const detected = detectedToolIds.has(toolId);
 
         return {
           name: tool?.name || toolId,
           value: toolId,
           configured,
-          preSelected: configured, // Pre-select configured tools for easy refresh
+          detected: detected && !configured,
+          preSelected: configured || (shouldPreselectDetected && detected && !configured),
         };
       })
       .sort((a, b) => {
-        // Configured tools first
+        // Configured tools first, then detected (not configured), then everything else.
         if (a.configured && !b.configured) return -1;
         if (!a.configured && b.configured) return 1;
+        if (a.detected && !b.detected) return -1;
+        if (!a.detected && b.detected) return 1;
         return 0;
       });
+
+    const configuredNames = validTools
+      .filter((toolId) => configuredToolIds.has(toolId))
+      .map((toolId) => AI_TOOLS.find((t) => t.value === toolId)?.name || toolId);
+
+    if (configuredNames.length > 0) {
+      console.log(`OpenSpec configured: ${configuredNames.join(', ')} (pre-selected)`);
+    }
+
+    const detectedOnlyNames = detectedTools
+      .filter((tool) => !configuredToolIds.has(tool.value))
+      .map((tool) => tool.name);
+
+    if (detectedOnlyNames.length > 0) {
+      const detectionLabel = shouldPreselectDetected
+        ? 'pre-selected for first-time setup'
+        : 'not pre-selected';
+      console.log(`Detected tool directories: ${detectedOnlyNames.join(', ')} (${detectionLabel})`);
+    }
 
     const selectedTools = await searchableMultiSelect({
       message: `Select tools to set up (${validTools.length} available)`,
@@ -417,49 +504,73 @@ export class InitCommand {
     refreshedTools: typeof tools;
     failedTools: Array<{ name: string; error: Error }>;
     commandsSkipped: string[];
+    removedCommandCount: number;
+    removedSkillCount: number;
   }> {
     const createdTools: typeof tools = [];
     const refreshedTools: typeof tools = [];
     const failedTools: Array<{ name: string; error: Error }> = [];
     const commandsSkipped: string[] = [];
+    let removedCommandCount = 0;
+    let removedSkillCount = 0;
 
-    // Get skill and command templates once (shared across all tools)
-    const skillTemplates = getSkillTemplates();
-    const commandContents = getCommandContents();
+    // Read global config for profile and delivery settings (use --profile override if set)
+    const globalConfig = getGlobalConfig();
+    const profile: Profile = this.resolveProfileOverride() ?? globalConfig.profile ?? 'core';
+    const delivery: Delivery = globalConfig.delivery ?? 'both';
+    const workflows = getProfileWorkflows(profile, globalConfig.workflows);
+
+    // Get skill and command templates filtered by profile workflows
+    const shouldGenerateSkills = delivery !== 'commands';
+    const shouldGenerateCommands = delivery !== 'skills';
+    const skillTemplates = shouldGenerateSkills ? getSkillTemplates(workflows) : [];
+    const commandContents = shouldGenerateCommands ? getCommandContents(workflows) : [];
 
     // Process each tool
     for (const tool of tools) {
       const spinner = ora(`Setting up ${tool.name}...`).start();
 
       try {
-        // Use tool-specific skillsDir
-        const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
+        // Generate skill files if delivery includes skills
+        if (shouldGenerateSkills) {
+          // Use tool-specific skillsDir
+          const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
 
-        // Create skill directories and SKILL.md files
-        for (const { template, dirName } of skillTemplates) {
-          const skillDir = path.join(skillsDir, dirName);
-          const skillFile = path.join(skillDir, 'SKILL.md');
+          // Create skill directories and SKILL.md files
+          for (const { template, dirName } of skillTemplates) {
+            const skillDir = path.join(skillsDir, dirName);
+            const skillFile = path.join(skillDir, 'SKILL.md');
 
-          // Generate SKILL.md content with YAML frontmatter including generatedBy
-          // Use hyphen-based command references for OpenCode
-          const transformer = tool.value === 'opencode' ? transformToHyphenCommands : undefined;
-          const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
+            // Generate SKILL.md content with YAML frontmatter including generatedBy
+            // Use hyphen-based command references for OpenCode
+            const transformer = tool.value === 'opencode' ? transformToHyphenCommands : undefined;
+            const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
 
-          // Write the skill file
-          await FileSystemUtils.writeFile(skillFile, skillContent);
+            // Write the skill file
+            await FileSystemUtils.writeFile(skillFile, skillContent);
+          }
+        }
+        if (!shouldGenerateSkills) {
+          const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
+          removedSkillCount += await this.removeSkillDirs(skillsDir);
         }
 
-        // Generate commands using the adapter system
-        const adapter = CommandAdapterRegistry.get(tool.value);
-        if (adapter) {
-          const generatedCommands = generateCommands(commandContents, adapter);
+        // Generate commands if delivery includes commands
+        if (shouldGenerateCommands) {
+          const adapter = CommandAdapterRegistry.get(tool.value);
+          if (adapter) {
+            const generatedCommands = generateCommands(commandContents, adapter);
 
-          for (const cmd of generatedCommands) {
-            const commandFile = path.isAbsolute(cmd.path) ? cmd.path : path.join(projectPath, cmd.path);
-            await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
+            for (const cmd of generatedCommands) {
+              const commandFile = path.isAbsolute(cmd.path) ? cmd.path : path.join(projectPath, cmd.path);
+              await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
+            }
+          } else {
+            commandsSkipped.push(tool.value);
           }
-        } else {
-          commandsSkipped.push(tool.value);
+        }
+        if (!shouldGenerateCommands) {
+          removedCommandCount += await this.removeCommandFiles(projectPath, tool.value);
         }
 
         spinner.succeed(`Setup complete for ${tool.name}`);
@@ -475,7 +586,14 @@ export class InitCommand {
       }
     }
 
-    return { createdTools, refreshedTools, failedTools, commandsSkipped };
+    return {
+      createdTools,
+      refreshedTools,
+      failedTools,
+      commandsSkipped,
+      removedCommandCount,
+      removedSkillCount,
+    };
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -518,6 +636,8 @@ export class InitCommand {
       refreshedTools: typeof tools;
       failedTools: Array<{ name: string; error: Error }>;
       commandsSkipped: string[];
+      removedCommandCount: number;
+      removedSkillCount: number;
     },
     configStatus: 'created' | 'exists' | 'skipped'
   ): void {
@@ -533,15 +653,22 @@ export class InitCommand {
       console.log(`Refreshed: ${results.refreshedTools.map((t) => t.name).join(', ')}`);
     }
 
-    // Show counts
+    // Show counts (respecting profile filter)
     const successfulTools = [...results.createdTools, ...results.refreshedTools];
     if (successfulTools.length > 0) {
+      const globalConfig = getGlobalConfig();
+      const profile: Profile = (this.profileOverride as Profile) ?? globalConfig.profile ?? 'core';
+      const delivery: Delivery = globalConfig.delivery ?? 'both';
+      const workflows = getProfileWorkflows(profile, globalConfig.workflows);
       const toolDirs = [...new Set(successfulTools.map((t) => t.skillsDir))].join(', ');
-      const hasCommands = results.commandsSkipped.length < successfulTools.length;
-      if (hasCommands) {
-        console.log(`${getSkillTemplates().length} skills and ${getCommandContents().length} commands in ${toolDirs}/`);
-      } else {
-        console.log(`${getSkillTemplates().length} skills in ${toolDirs}/`);
+      const skillCount = delivery !== 'commands' ? getSkillTemplates(workflows).length : 0;
+      const commandCount = delivery !== 'skills' ? getCommandContents(workflows).length : 0;
+      if (skillCount > 0 && commandCount > 0) {
+        console.log(`${skillCount} skills and ${commandCount} commands in ${toolDirs}/`);
+      } else if (skillCount > 0) {
+        console.log(`${skillCount} skills in ${toolDirs}/`);
+      } else if (commandCount > 0) {
+        console.log(`${commandCount} commands in ${toolDirs}/`);
       }
     }
 
@@ -553,6 +680,12 @@ export class InitCommand {
     // Show skipped commands
     if (results.commandsSkipped.length > 0) {
       console.log(chalk.dim(`Commands skipped for: ${results.commandsSkipped.join(', ')} (no adapter)`));
+    }
+    if (results.removedCommandCount > 0) {
+      console.log(chalk.dim(`Removed: ${results.removedCommandCount} command files (delivery: skills)`));
+    }
+    if (results.removedSkillCount > 0) {
+      console.log(chalk.dim(`Removed: ${results.removedSkillCount} skill directories (delivery: commands)`));
     }
 
     // Config status
@@ -568,12 +701,20 @@ export class InitCommand {
       console.log(chalk.dim(`Config: skipped (non-interactive mode)`));
     }
 
-    // Getting started
+    // Getting started (task 7.6: show propose if in profile)
+    const globalCfg = getGlobalConfig();
+    const activeProfile: Profile = (this.profileOverride as Profile) ?? globalCfg.profile ?? 'core';
+    const activeWorkflows = [...getProfileWorkflows(activeProfile, globalCfg.workflows)];
     console.log();
-    console.log(chalk.bold('Getting started:'));
-    console.log('  /opsx:new       Start a new change');
-    console.log('  /opsx:continue  Create the next artifact');
-    console.log('  /opsx:apply     Implement tasks');
+    if (activeWorkflows.includes('propose')) {
+      console.log(chalk.bold('Getting started:'));
+      console.log('  Start your first change: /opsx:propose "your idea"');
+    } else if (activeWorkflows.includes('new')) {
+      console.log(chalk.bold('Getting started:'));
+      console.log('  Start your first change: /opsx:new "your idea"');
+    } else {
+      console.log("Done. Run 'openspec config profile' to configure your workflows.");
+    }
 
     // Links
     console.log();
@@ -596,5 +737,48 @@ export class InitCommand {
       color: 'gray',
       spinner: PROGRESS_SPINNER,
     }).start();
+  }
+
+  private async removeSkillDirs(skillsDir: string): Promise<number> {
+    let removed = 0;
+
+    for (const workflow of ALL_WORKFLOWS) {
+      const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
+      if (!dirName) continue;
+
+      const skillDir = path.join(skillsDir, dirName);
+      try {
+        if (fs.existsSync(skillDir)) {
+          await fs.promises.rm(skillDir, { recursive: true, force: true });
+          removed++;
+        }
+      } catch {
+        // Ignore errors
+      }
+    }
+
+    return removed;
+  }
+
+  private async removeCommandFiles(projectPath: string, toolId: string): Promise<number> {
+    let removed = 0;
+    const adapter = CommandAdapterRegistry.get(toolId);
+    if (!adapter) return 0;
+
+    for (const workflow of ALL_WORKFLOWS) {
+      const cmdPath = adapter.getFilePath(workflow);
+      const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
+
+      try {
+        if (fs.existsSync(fullPath)) {
+          await fs.promises.unlink(fullPath);
+          removed++;
+        }
+      } catch {
+        // Ignore errors
+      }
+    }
+
+    return removed;
   }
 }

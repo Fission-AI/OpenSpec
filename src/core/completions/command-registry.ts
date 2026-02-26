@@ -377,6 +377,11 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         description: 'Open config in $EDITOR',
         flags: [],
       },
+      {
+        name: 'profile',
+        description: 'Configure workflow profile (interactive picker or preset shortcut)',
+        flags: [],
+      },
     ],
   },
   {

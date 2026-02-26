@@ -4,32 +4,21 @@ This guide explains how OpenSpec works after you've installed and initialized it
 
 ## How It Works
 
-OpenSpec helps you and your AI coding assistant agree on what to build before any code is written. The workflow follows a simple pattern:
+OpenSpec helps you and your AI coding assistant agree on what to build before any code is written.
 
+**Default quick path (core profile):**
+
+```text
+/opsx:propose ──► /opsx:apply ──► /opsx:archive
 ```
-┌────────────────────┐
-│ Start a Change     │  /opsx:new
-└────────┬───────────┘
-         │
-         ▼
-┌────────────────────┐
-│ Create Artifacts   │  /opsx:ff or /opsx:continue
-│ (proposal, specs,  │
-│  design, tasks)    │
-└────────┬───────────┘
-         │
-         ▼
-┌────────────────────┐
-│ Implement Tasks    │  /opsx:apply
-│ (AI writes code)   │
-└────────┬───────────┘
-         │
-         ▼
-┌────────────────────┐
-│ Archive & Merge    │  /opsx:archive
-│ Specs              │
-└────────────────────┘
+
+**Expanded path (custom workflow selection):**
+
+```text
+/opsx:new ──► /opsx:ff or /opsx:continue ──► /opsx:apply ──► /opsx:verify ──► /opsx:archive
 ```
+
+The default global profile is `core`, which includes `propose`, `explore`, `apply`, and `archive`. You can enable the expanded workflow commands with `openspec config profile` and then `openspec update`.
 
 ## What OpenSpec Creates
 
@@ -131,23 +120,12 @@ The change folder moves to `openspec/changes/archive/` for audit history.
 
 Let's walk through adding dark mode to an application.
 
-### 1. Start the Change
+### 1. Start the Change (Default)
 
-```
-You: /opsx:new add-dark-mode
+```text
+You: /opsx:propose add-dark-mode
 
 AI:  Created openspec/changes/add-dark-mode/
-     Ready to create: proposal
-```
-
-### 2. Create Artifacts
-
-Use `/opsx:ff` (fast-forward) to create all planning artifacts at once:
-
-```
-You: /opsx:ff
-
-AI:  Creating artifacts for add-dark-mode...
      ✓ proposal.md — why we're doing this, what's changing
      ✓ specs/       — requirements and scenarios
      ✓ design.md    — technical approach
@@ -155,7 +133,9 @@ AI:  Creating artifacts for add-dark-mode...
      Ready for implementation!
 ```
 
-### 3. What Gets Created
+If you've enabled the expanded workflow profile, you can also do this as two steps: `/opsx:new` then `/opsx:ff` (or `/opsx:continue` incrementally).
+
+### 2. What Gets Created
 
 **proposal.md** - Captures the intent:
 
@@ -218,7 +198,7 @@ The system SHALL allow users to choose between light and dark themes.
 - [ ] 3.2 Update components to use CSS variables
 ```
 
-### 4. Implement
+### 3. Implement
 
 ```
 You: /opsx:apply
@@ -234,7 +214,7 @@ AI:  Working through tasks...
 
 During implementation, if you discover the design needs adjustment, just update the artifact and continue.
 
-### 5. Archive
+### 4. Archive
 
 ```
 You: /opsx:archive

@@ -133,6 +133,52 @@ The system MUST expire sessions after 30 minutes of inactivity.
 - **SHOULD** — recommended, but exceptions exist
 - **MAY** — optional
 
+### What a Spec Is (and Is Not)
+
+A spec is a **behavior contract**, not an implementation plan.
+
+Good spec content:
+- Observable behavior users or downstream systems rely on
+- Inputs, outputs, and error conditions
+- External constraints (security, privacy, reliability, compatibility)
+- Scenarios that can be tested or explicitly validated
+
+Avoid in specs:
+- Internal class/function names
+- Library or framework choices
+- Step-by-step implementation details
+- Detailed execution plans (those belong in `design.md` or `tasks.md`)
+
+Quick test:
+- If implementation can change without changing externally visible behavior, it likely does not belong in the spec.
+
+### Keep It Lightweight: Progressive Rigor
+
+OpenSpec aims to avoid bureaucracy. Use the lightest level that still makes the change verifiable.
+
+**Lite spec (default):**
+- Short behavior-first requirements
+- Clear scope and non-goals
+- A few concrete acceptance checks
+
+**Full spec (for higher risk):**
+- Cross-team or cross-repo changes
+- API/contract changes, migrations, security/privacy concerns
+- Changes where ambiguity is likely to cause expensive rework
+
+Most changes should stay in Lite mode.
+
+### Human + Agent Collaboration
+
+In many teams, humans explore and agents draft artifacts. The intended loop is:
+
+1. Human provides intent, context, and constraints.
+2. Agent converts this into behavior-first requirements and scenarios.
+3. Agent keeps implementation detail in `design.md` and `tasks.md`, not `spec.md`.
+4. Validation confirms structure and clarity before implementation.
+
+This keeps specs readable for humans and consistent for agents.
+
 ## Changes
 
 A change is a proposed modification to your system, packaged as a folder with everything needed to understand and implement it.
@@ -516,13 +562,13 @@ openspec/
 │                              OPENSPEC FLOW                                   │
 │                                                                              │
 │   ┌────────────────┐                                                         │
-│   │  1. START      │  /opsx:new creates a change folder                      │
+│   │  1. START      │  /opsx:propose (core) or /opsx:new (expanded)          │
 │   │     CHANGE     │                                                         │
 │   └───────┬────────┘                                                         │
 │           │                                                                  │
 │           ▼                                                                  │
 │   ┌────────────────┐                                                         │
-│   │  2. CREATE     │  /opsx:ff or /opsx:continue                             │
+│   │  2. CREATE     │  /opsx:ff or /opsx:continue (expanded workflow)         │
 │   │     ARTIFACTS  │  Creates proposal → specs → design → tasks              │
 │   │                │  (based on schema dependencies)                         │
 │   └───────┬────────┘                                                         │

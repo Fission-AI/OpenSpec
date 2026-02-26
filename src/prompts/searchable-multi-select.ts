@@ -5,6 +5,7 @@ interface Choice {
   value: string;
   description?: string;
   configured?: boolean;
+  detected?: boolean;
   configuredLabel?: string;
   preSelected?: boolean;
 }
@@ -68,8 +69,8 @@ async function createSearchableMultiSelect(): Promise<
     useKeypress((key) => {
       if (status === 'done') return;
 
-      // Tab to confirm
-      if (key.name === 'tab') {
+      // Enter to confirm/submit
+      if (isEnterKey(key)) {
         if (validate) {
           const result = validate(selectedValues);
           if (result !== true) {
@@ -82,13 +83,15 @@ async function createSearchableMultiSelect(): Promise<
         return;
       }
 
-      // Enter to add item
-      if (isEnterKey(key)) {
+      // Space to toggle selection
+      if (key.name === 'space') {
         const choice = filteredChoices[cursor];
-        if (choice && !selectedSet.has(choice.value)) {
-          setSelectedValues([...selectedValues, choice.value]);
-          setSearchText('');
-          setCursor(0);
+        if (choice) {
+          if (selectedSet.has(choice.value)) {
+            setSelectedValues(selectedValues.filter(v => v !== choice.value));
+          } else {
+            setSelectedValues([...selectedValues, choice.value]);
+          }
         }
         return;
       }
@@ -149,7 +152,7 @@ async function createSearchableMultiSelect(): Promise<
 
     // Instructions
     lines.push(
-      `  ${chalk.cyan('↑↓')} navigate • ${chalk.cyan('Enter')} add • ${chalk.cyan('Backspace')} remove • ${chalk.cyan('Tab')} confirm`
+      `  ${chalk.cyan('↑↓')} navigate • ${chalk.cyan('Space')} toggle • ${chalk.cyan('Backspace')} remove • ${chalk.cyan('Enter')} confirm`
     );
 
     // List
@@ -173,9 +176,16 @@ async function createSearchableMultiSelect(): Promise<
         const arrow = isActive ? chalk.cyan('›') : ' ';
         const name = isActive ? chalk.cyan(item.name) : item.name;
         const isRefresh = selected && item.configured;
+        const statusLabel = !selected
+          ? item.configured
+            ? ' (configured)'
+            : item.detected
+              ? ' (detected)'
+              : ''
+          : '';
         const suffix = selected
           ? chalk.dim(isRefresh ? ' (refresh)' : ' (selected)')
-          : '';
+          : chalk.dim(statusLabel);
         lines.push(`  ${arrow} ${icon} ${name}${suffix}`);
       }
 
@@ -198,9 +208,9 @@ async function createSearchableMultiSelect(): Promise<
  *
  * - Type to filter choices
  * - ↑↓ to navigate
- * - Enter to add highlighted item
+ * - Space to toggle highlighted item selection
  * - Backspace to remove last selected item (or delete search char)
- * - Tab to confirm selections
+ * - Enter to confirm selections
  */
 export async function searchableMultiSelect(config: Config): Promise<string[]> {
   const prompt = await createSearchableMultiSelect();

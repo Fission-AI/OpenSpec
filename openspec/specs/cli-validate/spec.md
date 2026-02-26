@@ -1,7 +1,8 @@
 # cli-validate Specification
 
 ## Purpose
-TBD - created by archiving change improve-validate-error-messages. Update Purpose after archive.
+Define `openspec validate` behavior for validating changes and specs with actionable remediation guidance and structured output.
+
 ## Requirements
 ### Requirement: Validation SHALL provide actionable remediation steps
 Validation output SHALL include specific guidance to fix each error, including expected structure, example headers, and suggested commands to verify fixes.

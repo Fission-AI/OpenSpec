@@ -95,7 +95,8 @@ program
   .description('Initialize OpenSpec in your project')
   .option('--tools <tools>', toolsOptionDescription)
   .option('--force', 'Auto-cleanup legacy files without prompting')
-  .action(async (targetPath = '.', options?: { tools?: string; force?: boolean }) => {
+  .option('--profile <profile>', 'Override global config profile (core or custom)')
+  .action(async (targetPath = '.', options?: { tools?: string; force?: boolean; profile?: string }) => {
     try {
       // Validate that the path is a valid directory
       const resolvedPath = path.resolve(targetPath);
@@ -120,6 +121,7 @@ program
       const initCommand = new InitCommand({
         tools: options?.tools,
         force: options?.force,
+        profile: options?.profile,
       });
       await initCommand.execute(targetPath);
     } catch (error) {

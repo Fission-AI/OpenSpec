@@ -11,6 +11,7 @@ import {
   GLOBAL_CONFIG_DIR_NAME,
   GLOBAL_CONFIG_FILE_NAME
 } from '../../src/core/global-config.js';
+import type { Profile, Delivery } from '../../src/core/global-config.js';
 
 describe('global-config', () => {
   let tempDir: string;
@@ -100,7 +101,7 @@ describe('global-config', () => {
 
       const config = getGlobalConfig();
 
-      expect(config).toEqual({ featureFlags: {} });
+      expect(config).toEqual({ featureFlags: {}, profile: 'core', delivery: 'both' });
     });
 
     it('should not create directory when reading non-existent config', () => {
@@ -137,7 +138,7 @@ describe('global-config', () => {
 
       const config = getGlobalConfig();
 
-      expect(config).toEqual({ featureFlags: {} });
+      expect(config).toEqual({ featureFlags: {}, profile: 'core', delivery: 'both' });
     });
 
     it('should log warning for invalid JSON', () => {
@@ -188,6 +189,81 @@ describe('global-config', () => {
 
       // Should have the custom flag
       expect(config.featureFlags?.customFlag).toBe(true);
+    });
+
+    describe('schema evolution', () => {
+      it('should add default profile and delivery when loading old config without them', () => {
+        process.env.XDG_CONFIG_HOME = tempDir;
+        const configDir = path.join(tempDir, 'openspec');
+        const configPath = path.join(configDir, 'config.json');
+
+        // Simulate a pre-existing config that only has featureFlags
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(configPath, JSON.stringify({
+          featureFlags: { existingFlag: true }
+        }));
+
+        const config = getGlobalConfig();
+
+        expect(config.profile).toBe('core');
+        expect(config.delivery).toBe('both');
+        expect(config.workflows).toBeUndefined();
+        expect(config.featureFlags?.existingFlag).toBe(true);
+      });
+
+      it('should preserve explicit profile and delivery values from config', () => {
+        process.env.XDG_CONFIG_HOME = tempDir;
+        const configDir = path.join(tempDir, 'openspec');
+        const configPath = path.join(configDir, 'config.json');
+
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(configPath, JSON.stringify({
+          featureFlags: {},
+          profile: 'custom',
+          delivery: 'skills',
+          workflows: ['propose', 'review']
+        }));
+
+        const config = getGlobalConfig();
+
+        expect(config.profile).toBe('custom');
+        expect(config.delivery).toBe('skills');
+        expect(config.workflows).toEqual(['propose', 'review']);
+      });
+
+      it('should round-trip new fields correctly', () => {
+        process.env.XDG_CONFIG_HOME = tempDir;
+        const originalConfig = {
+          featureFlags: { flag1: true },
+          profile: 'custom' as Profile,
+          delivery: 'commands' as Delivery,
+          workflows: ['propose']
+        };
+
+        saveGlobalConfig(originalConfig);
+        const loadedConfig = getGlobalConfig();
+
+        expect(loadedConfig.profile).toBe('custom');
+        expect(loadedConfig.delivery).toBe('commands');
+        expect(loadedConfig.workflows).toEqual(['propose']);
+      });
+
+      it('should default workflows to undefined when not in config', () => {
+        process.env.XDG_CONFIG_HOME = tempDir;
+        const configDir = path.join(tempDir, 'openspec');
+        const configPath = path.join(configDir, 'config.json');
+
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(configPath, JSON.stringify({
+          featureFlags: {},
+          profile: 'core',
+          delivery: 'both'
+        }));
+
+        const config = getGlobalConfig();
+
+        expect(config.workflows).toBeUndefined();
+      });
     });
   });
 

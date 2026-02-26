@@ -28,7 +28,32 @@ OPSX (fluid actions):
 
 > **Customization:** OPSX workflows are driven by schemas that define artifact sequences. See [Customization](customization.md) for details on creating custom schemas.
 
-## Workflow Patterns
+## Two Modes
+
+### Default Quick Path (`core` profile)
+
+New installs default to `core`, which provides:
+- `/opsx:propose`
+- `/opsx:explore`
+- `/opsx:apply`
+- `/opsx:archive`
+
+Typical flow:
+
+```text
+/opsx:propose ──► /opsx:apply ──► /opsx:archive
+```
+
+### Expanded/Full Workflow (custom selection)
+
+If you want explicit scaffold-and-build commands (`/opsx:new`, `/opsx:continue`, `/opsx:ff`, `/opsx:verify`, `/opsx:sync`, `/opsx:bulk-archive`, `/opsx:onboard`), enable them with:
+
+```bash
+openspec config profile
+openspec update
+```
+
+## Workflow Patterns (Expanded Mode)
 
 ### Quick Feature
 
@@ -408,15 +433,16 @@ For full command details and options, see [Commands](commands.md).
 
 | Command | Purpose | When to Use |
 |---------|---------|-------------|
+| `/opsx:propose` | Create change + planning artifacts | Fast default path (`core` profile) |
 | `/opsx:explore` | Think through ideas | Unclear requirements, investigation |
-| `/opsx:new` | Start a change | Beginning any new work |
-| `/opsx:continue` | Create next artifact | Step-by-step artifact creation |
-| `/opsx:ff` | Create all planning artifacts | Clear scope, ready to build |
+| `/opsx:new` | Start a change scaffold | Expanded mode, explicit artifact control |
+| `/opsx:continue` | Create next artifact | Expanded mode, step-by-step artifact creation |
+| `/opsx:ff` | Create all planning artifacts | Expanded mode, clear scope |
 | `/opsx:apply` | Implement tasks | Ready to write code |
-| `/opsx:verify` | Validate implementation | Before archiving, catch mismatches |
-| `/opsx:sync` | Merge delta specs | Optional—archive prompts if needed |
+| `/opsx:verify` | Validate implementation | Expanded mode, before archiving |
+| `/opsx:sync` | Merge delta specs | Expanded mode, optional |
 | `/opsx:archive` | Complete the change | All work finished |
-| `/opsx:bulk-archive` | Archive multiple changes | Parallel work, batch completion |
+| `/opsx:bulk-archive` | Archive multiple changes | Expanded mode, parallel work |
 
 ## Next Steps
 
