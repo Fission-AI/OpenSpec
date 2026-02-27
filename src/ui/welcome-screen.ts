@@ -97,8 +97,8 @@ function waitForEnter(): Promise<void> {
       // Enter key or Ctrl+C
       if (char === '\r' || char === '\n' || char === '\u0003') {
         stdin.removeListener('data', onData);
-        stdin.setRawMode(wasRaw);
-        stdin.pause();
+        // Don't restore raw mode or pause stdin here - let the next prompt handle stdin state
+        // This fixes the issue where arrow keys don't work in searchableMultiSelect after welcome screen
 
         // Handle Ctrl+C
         if (char === '\u0003') {
