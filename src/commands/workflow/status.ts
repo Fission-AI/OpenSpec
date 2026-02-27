@@ -34,7 +34,10 @@ export interface StatusOptions {
 // -----------------------------------------------------------------------------
 
 export async function statusCommand(options: StatusOptions): Promise<void> {
-  const spinner = ora('Loading change status...').start();
+  const spinner = ora('Loading change status...');
+  if (!options.json) {
+    spinner.start();
+  }
 
   try {
     const projectRoot = process.cwd();

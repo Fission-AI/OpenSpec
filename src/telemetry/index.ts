@@ -119,7 +119,7 @@ export async function trackCommand(commandName: string, version: string): Promis
 /**
  * Show first-run telemetry notice if not already seen.
  */
-export async function maybeShowTelemetryNotice(): Promise<void> {
+export async function maybeShowTelemetryNotice(options: { silent?: boolean } = {}): Promise<void> {
   if (!isTelemetryEnabled()) {
     return;
   }
@@ -130,10 +130,12 @@ export async function maybeShowTelemetryNotice(): Promise<void> {
       return;
     }
 
-    // Display notice
-    console.log(
-      'Note: OpenSpec collects anonymous usage stats. Opt out: OPENSPEC_TELEMETRY=0'
-    );
+    if (!options.silent) {
+      // Display notice
+      console.log(
+        'Note: OpenSpec collects anonymous usage stats. Opt out: OPENSPEC_TELEMETRY=0'
+      );
+    }
 
     // Mark as seen
     await updateTelemetryConfig({ noticeSeen: true });
