@@ -49,7 +49,7 @@ export const LEGACY_SLASH_COMMAND_PATHS: Record<string, LegacySlashCommandPatter
   'roocode': { type: 'files', pattern: '.roo/commands/openspec-*.md' },
   'auggie': { type: 'files', pattern: '.augment/commands/openspec-*.md' },
   'factory': { type: 'files', pattern: '.factory/commands/openspec-*.md' },
-  'opencode': { type: 'files', pattern: '.opencode/command/openspec-*.md' },
+  'opencode': { type: 'files', pattern: ['.opencode/command/opsx-*.md', '.opencode/command/openspec-*.md'] },
   'continue': { type: 'files', pattern: '.continue/prompts/openspec-*.prompt' },
   'antigravity': { type: 'files', pattern: '.agent/workflows/openspec-*.md' },
   'iflow': { type: 'files', pattern: '.iflow/commands/openspec-*.md' },
@@ -63,7 +63,7 @@ export const LEGACY_SLASH_COMMAND_PATHS: Record<string, LegacySlashCommandPatter
 export interface LegacySlashCommandPattern {
   type: 'directory' | 'files';
   path?: string; // For directory type
-  pattern?: string; // For files type (glob pattern)
+  pattern?: string | string[]; // For files type (glob pattern or array of patterns)
 }
 
 /**
@@ -192,8 +192,11 @@ export async function detectLegacySlashCommands(
       }
     } else if (pattern.type === 'files' && pattern.pattern) {
       // For file-based patterns, check for individual files
-      const foundFiles = await findLegacySlashCommandFiles(projectPath, pattern.pattern);
-      files.push(...foundFiles);
+      const patterns = Array.isArray(pattern.pattern) ? pattern.pattern : [pattern.pattern];
+      for (const p of patterns) {
+        const foundFiles = await findLegacySlashCommandFiles(projectPath, p);
+        files.push(...foundFiles);
+      }
     }
   }
 
@@ -604,14 +607,20 @@ export function getToolsFromLegacyArtifacts(detection: LegacyDetectionResult): s
       if (pattern.type === 'files' && pattern.pattern) {
         // Convert glob pattern to regex for matching
         // e.g., '.cursor/commands/openspec-*.md' -> /^\.cursor\/commands\/openspec-.*\.md$/
-        const regexPattern = pattern.pattern
-          .replace(/[.+^${}()|[\]\\]/g, '\\$&') // Escape regex special chars except *
-          .replace(/\*/g, '.*'); // Replace * with .*
-        const regex = new RegExp(`^${regexPattern}$`);
-        if (regex.test(normalizedFile)) {
-          tools.add(toolId);
-          break;
+        const patterns = Array.isArray(pattern.pattern) ? pattern.pattern : [pattern.pattern];
+        let matched = false;
+        for (const p of patterns) {
+          const regexPattern = p
+            .replace(/[.+^${}()|[\]\\]/g, '\\$&') // Escape regex special chars except *
+            .replace(/\*/g, '.*'); // Replace * with .*
+          const regex = new RegExp(`^${regexPattern}$`);
+          if (regex.test(normalizedFile)) {
+            tools.add(toolId);
+            matched = true;
+            break;
+          }
         }
+        if (matched) break;
       }
     }
   }
