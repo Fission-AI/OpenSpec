@@ -131,6 +131,22 @@ describe('artifact-workflow CLI commands', () => {
       expect(result.stdout).toContain('All artifacts complete!');
     });
 
+    it('exits gracefully when no changes exist', async () => {
+      const result = await runCLI(['status'], { cwd: tempDir });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('No active changes');
+      expect(result.stdout).toContain('openspec new change');
+    });
+
+    it('exits gracefully with JSON when no changes exist', async () => {
+      const result = await runCLI(['status', '--json'], { cwd: tempDir });
+      expect(result.exitCode).toBe(0);
+
+      const json = JSON.parse(result.stdout);
+      expect(json.changes).toEqual([]);
+      expect(json.message).toBe('No active changes.');
+    });
+
     it('errors when --change is missing and lists available changes', async () => {
       await createTestChange('some-change');
 
