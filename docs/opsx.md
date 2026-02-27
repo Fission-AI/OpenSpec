@@ -164,6 +164,7 @@ rules:
 | `/opsx:ff` | Fast-forward planning artifacts (expanded workflow) |
 | `/opsx:apply` | Implement tasks, updating artifacts as needed |
 | `/opsx:verify` | Validate implementation against artifacts (expanded workflow) |
+| `/opsx:clarify` | Resolve ambiguities in specs through interactive Q&A |
 | `/opsx:sync` | Sync delta specs to main (expanded workflow, optional) |
 | `/opsx:archive` | Archive when done |
 | `/opsx:bulk-archive` | Archive multiple completed changes (expanded workflow) |
