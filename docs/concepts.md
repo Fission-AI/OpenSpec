@@ -270,7 +270,7 @@ Delta specs describe **what's changing** relative to the current specs. See [Del
 
 The design captures **technical approach** and **architecture decisions**.
 
-```markdown
+````markdown
 # Design: Add Dark Mode
 
 ## Technical Approach
@@ -306,7 +306,7 @@ CSS Variables (applied to :root)
 - `src/contexts/ThemeContext.tsx` (new)
 - `src/components/ThemeToggle.tsx` (new)
 - `src/styles/globals.css` (modified)
-```
+````
 
 **When to update the design:**
 - Implementation reveals the approach won't work
