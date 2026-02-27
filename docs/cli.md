@@ -437,29 +437,28 @@ openspec status --change add-dark-mode --json
 ```
 Change: add-dark-mode
 Schema: spec-driven
+Progress: 2/4 artifacts complete
 
-Artifacts:
-  ✓ proposal     proposal.md exists
-  ✓ specs        specs/ exists
-  ◆ design       ready (requires: specs)
-  ○ tasks        blocked (requires: design)
-
-Next: Create design using /opsx:continue
+[x] proposal
+[ ] design
+[x] specs
+[-] tasks (blocked by: design)
 ```
 
 **Output (JSON):**
 
 ```json
 {
-  "change": "add-dark-mode",
-  "schema": "spec-driven",
+  "changeName": "add-dark-mode",
+  "schemaName": "spec-driven",
+  "isComplete": false,
+  "applyRequires": ["tasks"],
   "artifacts": [
-    {"id": "proposal", "status": "complete", "path": "proposal.md"},
-    {"id": "specs", "status": "complete", "path": "specs/"},
-    {"id": "design", "status": "ready", "requires": ["specs"]},
-    {"id": "tasks", "status": "blocked", "requires": ["design"]}
-  ],
-  "next": "design"
+    {"id": "proposal", "outputPath": "proposal.md", "status": "done"},
+    {"id": "design", "outputPath": "design.md", "status": "ready"},
+    {"id": "specs", "outputPath": "specs/**/*.md", "status": "done"},
+    {"id": "tasks", "outputPath": "tasks.md", "status": "blocked", "missingDeps": ["design"]}
+  ]
 }
 ```
 
