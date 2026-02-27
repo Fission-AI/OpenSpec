@@ -4,6 +4,7 @@ import { VALIDATION_MESSAGES } from '../validation/constants.js';
 
 export const SpecSchema = z.object({
   name: z.string().min(1, VALIDATION_MESSAGES.SPEC_NAME_EMPTY),
+  title: z.string().min(1, VALIDATION_MESSAGES.SPEC_TITLE_EMPTY),
   overview: z.string().min(1, VALIDATION_MESSAGES.SPEC_PURPOSE_EMPTY),
   requirements: z.array(RequirementSchema)
     .min(1, VALIDATION_MESSAGES.SPEC_NO_REQUIREMENTS),
