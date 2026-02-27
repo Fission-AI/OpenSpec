@@ -192,10 +192,22 @@ program
 program
   .command('view')
   .description('Display an interactive dashboard of specs and changes')
-  .action(async () => {
+  .option('-w, --watch', 'Watch for changes and update real-time')
+  .action(async (options?: { watch?: boolean }) => {
     try {
       const viewCommand = new ViewCommand();
-      await viewCommand.execute('.');
+
+      if (options?.watch) {
+        const controller = new AbortController();
+
+        process.once('SIGINT', () => {
+          controller.abort();
+        });
+
+        await viewCommand.execute('.', { watch: true, signal: controller.signal });
+      } else {
+        await viewCommand.execute('.', { watch: false });
+      }
     } catch (error) {
       console.log(); // Empty line for spacing
       ora().fail(`Error: ${(error as Error).message}`);
