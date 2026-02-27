@@ -127,12 +127,29 @@ export class ValidateCommand {
     await this.validateByType(type, itemName, opts);
   }
 
+  private async validateChangeReports(changeDir: string, validator: Validator) {
+    const [deltaReport, tasksReport] = await Promise.all([
+      validator.validateChangeDeltaSpecs(changeDir),
+      validator.validateTasksFile(changeDir),
+    ]);
+
+    return {
+      valid: deltaReport.valid && tasksReport.valid,
+      issues: [...deltaReport.issues, ...tasksReport.issues],
+      summary: {
+        errors: deltaReport.summary.errors + tasksReport.summary.errors,
+        warnings: deltaReport.summary.warnings + tasksReport.summary.warnings,
+        info: deltaReport.summary.info + tasksReport.summary.info,
+      },
+    };
+  }
+
   private async validateByType(type: ItemType, id: string, opts: { strict: boolean; json: boolean }): Promise<void> {
     const validator = new Validator(opts.strict);
     if (type === 'change') {
       const changeDir = path.join(process.cwd(), 'openspec', 'changes', id);
       const start = Date.now();
-      const report = await validator.validateChangeDeltaSpecs(changeDir);
+      const report = await this.validateChangeReports(changeDir, validator);
       const durationMs = Date.now() - start;
       this.printReport('change', id, report, durationMs, opts.json);
       // Non-zero exit if invalid (keeps enriched output test semantics)
@@ -198,7 +215,7 @@ export class ValidateCommand {
       queue.push(async () => {
         const start = Date.now();
         const changeDir = path.join(process.cwd(), 'openspec', 'changes', id);
-        const report = await validator.validateChangeDeltaSpecs(changeDir);
+        const report = await this.validateChangeReports(changeDir, validator);
         const durationMs = Date.now() - start;
         return { id, type: 'change' as const, valid: report.valid, issues: report.issues, durationMs };
       });
