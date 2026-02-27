@@ -380,6 +380,19 @@ describe('InitCommand', () => {
       const content = await fs.readFile(cmdFile, 'utf-8');
       expect(content).toMatch(/^---\n/);
     });
+
+    it('should generate Trae commands with correct format', async () => {
+      const initCommand = new InitCommand({ tools: 'trae', force: true });
+      await initCommand.execute(testDir);
+
+      const cmdFile = path.join(testDir, '.trae', 'commands', 'opsx-explore.md');
+      expect(await fileExists(cmdFile)).toBe(true);
+
+      const content = await fs.readFile(cmdFile, 'utf-8');
+      expect(content).toMatch(/^---\n/);
+      expect(content).toContain('name: /opsx-explore');
+      expect(content).toContain('description:');
+    });
   });
 
   describe('error handling', () => {

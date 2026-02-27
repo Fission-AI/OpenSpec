@@ -156,3 +156,6 @@ opencode.json
 
 # Codex
 .codex/
+
+# Trae
+.trae/

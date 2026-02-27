@@ -1485,8 +1485,8 @@ More user content after markers.
       const { AI_TOOLS } = await import('../../src/core/config.js');
       const { CommandAdapterRegistry } = await import('../../src/core/command-generation/index.js');
       const adapterlessTool = AI_TOOLS.find((tool) => tool.skillsDir && !CommandAdapterRegistry.get(tool.value));
-      expect(adapterlessTool).toBeDefined();
       if (!adapterlessTool?.skillsDir) {
+        expect(adapterlessTool).toBeUndefined();
         return;
       }
 
