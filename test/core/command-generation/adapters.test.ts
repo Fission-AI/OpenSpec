@@ -444,7 +444,7 @@ describe('command-generation/adapters', () => {
 
     it('should generate correct file path', () => {
       const filePath = opencodeAdapter.getFilePath('explore');
-      expect(filePath).toBe(path.join('.opencode', 'command', 'opsx-explore.md'));
+      expect(filePath).toBe(path.join('.opencode', 'commands', 'opsx-explore.md'));
     });
 
     it('should format file with description frontmatter', () => {
