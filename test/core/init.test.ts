@@ -536,6 +536,24 @@ describe('InitCommand - profile and detection features', () => {
     expect(await fileExists(skillFile)).toBe(true);
   });
 
+  it('should auto-cleanup legacy artifacts in non-interactive mode without --force', async () => {
+    // Create legacy OpenCode command files (singular 'command' path)
+    const legacyDir = path.join(testDir, '.opencode', 'command');
+    await fs.mkdir(legacyDir, { recursive: true });
+    await fs.writeFile(path.join(legacyDir, 'opsx-propose.md'), 'legacy content');
+
+    // Run init in non-interactive mode without --force
+    const initCommand = new InitCommand({ tools: 'opencode' });
+    await initCommand.execute(testDir);
+
+    // Legacy files should be cleaned up automatically
+    expect(await fileExists(path.join(legacyDir, 'opsx-propose.md'))).toBe(false);
+
+    // New commands should be at the correct plural path
+    const newCommandsDir = path.join(testDir, '.opencode', 'commands');
+    expect(await directoryExists(newCommandsDir)).toBe(true);
+  });
+
   it('should preselect configured tools but not directory-detected tools in extend mode', async () => {
     // Simulate existing OpenSpec project (extend mode).
     await fs.mkdir(path.join(testDir, 'openspec'), { recursive: true });

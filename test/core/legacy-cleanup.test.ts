@@ -335,6 +335,35 @@ ${OPENSPEC_MARKERS.end}`);
       const result = await detectLegacySlashCommands(testDir);
       expect(result.files).toContain('.continue/prompts/openspec-apply.prompt');
     });
+
+    it('should detect legacy OpenCode opsx-* command files', async () => {
+      const dirPath = path.join(testDir, '.opencode', 'command');
+      await fs.mkdir(dirPath, { recursive: true });
+      await fs.writeFile(path.join(dirPath, 'opsx-propose.md'), 'content');
+
+      const result = await detectLegacySlashCommands(testDir);
+      expect(result.files).toContain('.opencode/command/opsx-propose.md');
+    });
+
+    it('should detect legacy OpenCode openspec-* command files', async () => {
+      const dirPath = path.join(testDir, '.opencode', 'command');
+      await fs.mkdir(dirPath, { recursive: true });
+      await fs.writeFile(path.join(dirPath, 'openspec-new.md'), 'content');
+
+      const result = await detectLegacySlashCommands(testDir);
+      expect(result.files).toContain('.opencode/command/openspec-new.md');
+    });
+
+    it('should detect both opsx-* and openspec-* OpenCode command files', async () => {
+      const dirPath = path.join(testDir, '.opencode', 'command');
+      await fs.mkdir(dirPath, { recursive: true });
+      await fs.writeFile(path.join(dirPath, 'opsx-propose.md'), 'content');
+      await fs.writeFile(path.join(dirPath, 'openspec-new.md'), 'content');
+
+      const result = await detectLegacySlashCommands(testDir);
+      expect(result.files).toContain('.opencode/command/opsx-propose.md');
+      expect(result.files).toContain('.opencode/command/openspec-new.md');
+    });
   });
 
   describe('detectLegacyStructureFiles', () => {
@@ -1055,6 +1084,60 @@ ${OPENSPEC_MARKERS.end}`);
 
       const tools = getToolsFromLegacyArtifacts(detection);
       expect(tools).toContain('github-copilot');
+      expect(tools).toHaveLength(1);
+    });
+
+    it('should handle opencode opsx-* legacy files', () => {
+      const detection = {
+        configFiles: [],
+        configFilesToUpdate: [],
+        slashCommandDirs: [],
+        slashCommandFiles: ['.opencode/command/opsx-propose.md'],
+        hasOpenspecAgents: false,
+        hasProjectMd: false,
+        hasRootAgentsWithMarkers: false,
+        hasLegacyArtifacts: true,
+      };
+
+      const tools = getToolsFromLegacyArtifacts(detection);
+      expect(tools).toContain('opencode');
+      expect(tools).toHaveLength(1);
+    });
+
+    it('should handle opencode openspec-* legacy files', () => {
+      const detection = {
+        configFiles: [],
+        configFilesToUpdate: [],
+        slashCommandDirs: [],
+        slashCommandFiles: ['.opencode/command/openspec-new.md'],
+        hasOpenspecAgents: false,
+        hasProjectMd: false,
+        hasRootAgentsWithMarkers: false,
+        hasLegacyArtifacts: true,
+      };
+
+      const tools = getToolsFromLegacyArtifacts(detection);
+      expect(tools).toContain('opencode');
+      expect(tools).toHaveLength(1);
+    });
+
+    it('should deduplicate opencode when both opsx-* and openspec-* files exist', () => {
+      const detection = {
+        configFiles: [],
+        configFilesToUpdate: [],
+        slashCommandDirs: [],
+        slashCommandFiles: [
+          '.opencode/command/opsx-propose.md',
+          '.opencode/command/openspec-new.md',
+        ],
+        hasOpenspecAgents: false,
+        hasProjectMd: false,
+        hasRootAgentsWithMarkers: false,
+        hasLegacyArtifacts: true,
+      };
+
+      const tools = getToolsFromLegacyArtifacts(detection);
+      expect(tools).toContain('opencode');
       expect(tools).toHaveLength(1);
     });
 
