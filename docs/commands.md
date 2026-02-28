@@ -6,22 +6,69 @@ For workflow patterns and when to use each command, see [Workflows](workflows.md
 
 ## Quick Reference
 
+### Default Quick Path (`core` profile)
+
 | Command | Purpose |
 |---------|---------|
+| `/opsx:propose` | Create a change and generate planning artifacts in one step |
 | `/opsx:explore` | Think through ideas before committing to a change |
-| `/opsx:new` | Start a new change |
+| `/opsx:apply` | Implement tasks from the change |
+| `/opsx:archive` | Archive a completed change |
+
+### Expanded Workflow Commands (custom workflow selection)
+
+| Command | Purpose |
+|---------|---------|
+| `/opsx:new` | Start a new change scaffold |
 | `/opsx:continue` | Create the next artifact based on dependencies |
 | `/opsx:ff` | Fast-forward: create all planning artifacts at once |
-| `/opsx:apply` | Implement tasks from the change |
 | `/opsx:verify` | Validate implementation matches artifacts |
 | `/opsx:sync` | Merge delta specs into main specs |
-| `/opsx:archive` | Archive a completed change |
 | `/opsx:bulk-archive` | Archive multiple changes at once |
 | `/opsx:onboard` | Guided tutorial through the complete workflow |
+
+The default global profile is `core`. To enable expanded workflow commands, run `openspec config profile`, select workflows, then run `openspec update` in your project.
 
 ---
 
 ## Command Reference
+
+### `/opsx:propose`
+
+Create a new change and generate planning artifacts in one step. This is the default start command in the `core` profile.
+
+**Syntax:**
+```text
+/opsx:propose [change-name-or-description]
+```
+
+**Arguments:**
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `change-name-or-description` | No | Kebab-case name or plain-language change description |
+
+**What it does:**
+- Creates `openspec/changes/<change-name>/`
+- Generates artifacts needed before implementation (for `spec-driven`: proposal, specs, design, tasks)
+- Stops when the change is ready for `/opsx:apply`
+
+**Example:**
+```text
+You: /opsx:propose add-dark-mode
+
+AI:  Created openspec/changes/add-dark-mode/
+     ✓ proposal.md
+     ✓ specs/ui/spec.md
+     ✓ design.md
+     ✓ tasks.md
+     Ready for implementation. Run /opsx:apply.
+```
+
+**Tips:**
+- Use this for the fastest end-to-end path
+- If you want step-by-step artifact control, enable expanded workflows and use `/opsx:new` + `/opsx:continue`
+
+---
 
 ### `/opsx:explore`
 
@@ -42,7 +89,7 @@ Think through ideas, investigate problems, and clarify requirements before commi
 - Investigates the codebase to answer questions
 - Compares options and approaches
 - Creates visual diagrams to clarify thinking
-- Can transition to `/opsx:new` when insights crystallize
+- Can transition to `/opsx:propose` (default) or `/opsx:new` (expanded workflow) when insights crystallize
 
 **Example:**
 ```text
@@ -66,7 +113,7 @@ AI:  Let me investigate your current auth setup...
 
 You: Let's go with JWT. Can we start a change for that?
 
-AI:  Ready when you are. Run /opsx:new add-jwt-auth to begin.
+AI:  Ready when you are. Run /opsx:propose add-jwt-auth to begin.
 ```
 
 **Tips:**
@@ -79,7 +126,9 @@ AI:  Ready when you are. Run /opsx:new add-jwt-auth to begin.
 
 ### `/opsx:new`
 
-Start a new change. Creates the change folder structure and scaffolds it with the selected schema.
+Start a new change scaffold. Creates the change folder and waits for you to generate artifacts with `/opsx:continue` or `/opsx:ff`.
+
+This command is part of the expanded workflow set (not included in the default `core` profile).
 
 **Syntax:**
 ```
@@ -565,13 +614,13 @@ Different AI tools use slightly different command syntax. Use the format that ma
 
 | Tool | Syntax Example |
 |------|----------------|
-| Claude Code | `/opsx:new`, `/opsx:apply` |
-| Cursor | `/opsx-new`, `/opsx-apply` |
-| Windsurf | `/opsx-new`, `/opsx-apply` |
-| Copilot (IDE) | `/opsx-new`, `/opsx-apply` |
-| Trae | `/openspec-new-change`, `/openspec-apply-change` |
+| Claude Code | `/opsx:propose`, `/opsx:apply` |
+| Cursor | `/opsx-propose`, `/opsx-apply` |
+| Windsurf | `/opsx-propose`, `/opsx-apply` |
+| Copilot (IDE) | `/opsx-propose`, `/opsx-apply` |
+| Trae | Skill-based invocations such as `/openspec-propose`, `/openspec-apply-change` (no generated `opsx-*` command files) |
 
-The functionality is identical regardless of syntax.
+The intent is the same across tools, but how commands are surfaced can differ by integration.
 
 > **Note:** GitHub Copilot commands (`.github/prompts/*.prompt.md`) are only available in IDE extensions (VS Code, JetBrains, Visual Studio). GitHub Copilot CLI does not currently support custom prompt files — see [Supported Tools](supported-tools.md) for details and workarounds.
 

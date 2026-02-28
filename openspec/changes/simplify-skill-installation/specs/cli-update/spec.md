@@ -139,6 +139,13 @@ The update command SHALL notify the user if new AI tool directories are detected
 - **THEN** the system SHALL NOT automatically add the new tool
 - **THEN** the system SHALL proceed with update for currently configured tools only
 
+#### Scenario: Multiple new tool directories detected
+- **WHEN** user runs `openspec update`
+- **AND** multiple new tool directories are detected (e.g., `.github/` and `.windsurf/` exist but neither tool is configured)
+- **THEN** the system SHALL display one consolidated message listing all detected tools, for example: "Detected new tools: GitHub Copilot, Windsurf. Run 'openspec init' to add them."
+- **THEN** the system SHALL NOT automatically add any new tools
+- **THEN** the system SHALL proceed with update for currently configured tools only
+
 #### Scenario: No new tool directories
 - **WHEN** user runs `openspec update`
 - **AND** no new tool directories are detected
@@ -153,15 +160,14 @@ The update command SHALL only run inside an initialized OpenSpec project.
 - **THEN** the system SHALL display: "No OpenSpec project found. Run 'openspec init' to set up."
 - **THEN** the system SHALL exit with code 1
 
-### Requirement: Extra workflows preserved
-The update command SHALL NOT remove workflow files that aren't in the current profile.
+### Requirement: Extra workflows synchronized to active profile
+The update command SHALL remove workflow files that are no longer selected in the current profile.
 
-#### Scenario: Extra workflows from previous profile
+#### Scenario: Deselected workflows from previous profile
 - **WHEN** user runs `openspec update`
-- **AND** project has workflows not in current profile (e.g., user switched from custom to core)
-- **THEN** the system SHALL NOT delete those extra workflow files
-- **THEN** the system SHALL only add/update workflows in the current profile
-- **THEN** the system SHALL display a note: "Note: <count> extra workflows not in profile (use `openspec config profile` to manage)"
+- **AND** project has workflows not in current profile (e.g., user switched from custom to core or deselected workflows via `openspec config profile`)
+- **THEN** the system SHALL delete skill and command workflow files for deselected workflows (respecting active delivery mode)
+- **THEN** the system SHALL keep only workflows currently selected in profile
 
 #### Scenario: Delivery change with extra workflows
 - **WHEN** user runs `openspec update`

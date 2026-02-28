@@ -5,6 +5,7 @@ interface Choice {
   value: string;
   description?: string;
   configured?: boolean;
+  detected?: boolean;
   configuredLabel?: string;
   preSelected?: boolean;
 }
@@ -175,9 +176,16 @@ async function createSearchableMultiSelect(): Promise<
         const arrow = isActive ? chalk.cyan('›') : ' ';
         const name = isActive ? chalk.cyan(item.name) : item.name;
         const isRefresh = selected && item.configured;
+        const statusLabel = !selected
+          ? item.configured
+            ? ' (configured)'
+            : item.detected
+              ? ' (detected)'
+              : ''
+          : '';
         const suffix = selected
           ? chalk.dim(isRefresh ? ' (refresh)' : ' (selected)')
-          : '';
+          : chalk.dim(statusLabel);
         lines.push(`  ${arrow} ${icon} ${name}${suffix}`);
       }
 

@@ -270,7 +270,7 @@ Delta specs describe **what's changing** relative to the current specs. See [Del
 
 The design captures **technical approach** and **architecture decisions**.
 
-```markdown
+````markdown
 # Design: Add Dark Mode
 
 ## Technical Approach
@@ -306,7 +306,7 @@ CSS Variables (applied to :root)
 - `src/contexts/ThemeContext.tsx` (new)
 - `src/components/ThemeToggle.tsx` (new)
 - `src/styles/globals.css` (modified)
-```
+````
 
 **When to update the design:**
 - Implementation reveals the approach won't work
@@ -562,13 +562,13 @@ openspec/
 │                              OPENSPEC FLOW                                   │
 │                                                                              │
 │   ┌────────────────┐                                                         │
-│   │  1. START      │  /opsx:new creates a change folder                      │
+│   │  1. START      │  /opsx:propose (core) or /opsx:new (expanded)          │
 │   │     CHANGE     │                                                         │
 │   └───────┬────────┘                                                         │
 │           │                                                                  │
 │           ▼                                                                  │
 │   ┌────────────────┐                                                         │
-│   │  2. CREATE     │  /opsx:ff or /opsx:continue                             │
+│   │  2. CREATE     │  /opsx:ff or /opsx:continue (expanded workflow)         │
 │   │     ARTIFACTS  │  Creates proposal → specs → design → tasks              │
 │   │                │  (based on schema dependencies)                         │
 │   └───────┬────────┘                                                         │
