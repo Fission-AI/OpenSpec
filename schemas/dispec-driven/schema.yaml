@@ -1,0 +1,266 @@
+name: dispec-driven
+version: 1
+description: Distributed spec-driven workflow - proposal → specs → design → tasks → dependencies → distribution
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Initial proposal document outlining the change
+    template: proposal.md
+    instruction: |
+      Create the proposal document that establishes WHY this change is needed.
+
+      Sections:
+      - **Why**: 1-2 sentences on the problem or opportunity. What problem does this solve? Why now?
+      - **What Changes**: Bullet list of changes. Be specific about new capabilities, modifications, or removals. Mark breaking changes with **BREAKING**.
+      - **Capabilities**: Identify which specs will be created or modified:
+        - **New Capabilities**: List capabilities being introduced. Each becomes a new `specs/<name>/spec.md`. Use kebab-case names (e.g., `user-auth`, `data-export`).
+        - **Modified Capabilities**: List existing capabilities whose REQUIREMENTS are changing. Only include if spec-level behavior changes (not just implementation details). Each needs a delta spec file. Check `openspec/specs/` for existing spec names. Leave empty if no requirement changes.
+      - **Impact**: Affected code, APIs, dependencies, or systems.
+
+      IMPORTANT: The Capabilities section is critical. It creates the contract between
+      proposal and specs phases. Research existing specs before filling this in.
+      Each capability listed here will need a corresponding spec file.
+
+      Keep it concise (1-2 pages). Focus on the "why" not the "how" -
+      implementation details belong in design.md.
+
+      This is the foundation - specs, design, and tasks all build on this.
+
+      **Multi-agent consideration**: Scope capabilities so they can be worked on
+      independently by different agents. Identify modules or subsystems that are
+      naturally isolated, as this aids parallel execution downstream.
+    requires: []
+
+  - id: specs
+    generates: "specs/**/*.md"
+    description: Detailed specifications for the change
+    template: spec.md
+    instruction: |
+      Create specification files that define WHAT the system should do.
+
+      Create one spec file per capability listed in the proposal's Capabilities section.
+      - New capabilities: use the exact kebab-case name from the proposal (specs/<capability>/spec.md).
+      - Modified capabilities: use the existing spec folder name from openspec/specs/<capability>/ when creating the delta spec at specs/<capability>/spec.md.
+
+      Delta operations (use ## headers):
+      - **ADDED Requirements**: New capabilities
+      - **MODIFIED Requirements**: Changed behavior - MUST include full updated content
+      - **REMOVED Requirements**: Deprecated features - MUST include **Reason** and **Migration**
+      - **RENAMED Requirements**: Name changes only - use FROM:/TO: format
+
+      Format requirements:
+      - Each requirement: `### Requirement: <name>` followed by description
+      - Use SHALL/MUST for normative requirements (avoid should/may)
+      - Each scenario: `#### Scenario: <name>` with WHEN/THEN format
+      - **CRITICAL**: Scenarios MUST use exactly 4 hashtags (`####`). Using 3 hashtags or bullets will fail silently.
+      - Every requirement MUST have at least one scenario.
+
+      MODIFIED requirements workflow:
+      1. Locate the existing requirement in openspec/specs/<capability>/spec.md
+      2. Copy the ENTIRE requirement block (from `### Requirement:` through all scenarios)
+      3. Paste under `## MODIFIED Requirements` and edit to reflect new behavior
+      4. Ensure header text matches exactly (whitespace-insensitive)
+
+      Common pitfall: Using MODIFIED with partial content loses detail at archive time.
+      If adding new concerns without changing existing behavior, use ADDED instead.
+
+      Example:
+      ```
+      ## ADDED Requirements
+
+      ### Requirement: User can export data
+      The system SHALL allow users to export their data in CSV format.
+
+      #### Scenario: Successful export
+      - **WHEN** user clicks "Export" button
+      - **THEN** system downloads a CSV file with all user data
+
+      ## REMOVED Requirements
+
+      ### Requirement: Legacy export
+      **Reason**: Replaced by new export system
+      **Migration**: Use new export endpoint at /api/v2/export
+      ```
+
+      Specs should be testable - each scenario is a potential test case.
+
+      **Multi-agent consideration**: For each capability, note the primary files and modules
+      it touches. This file/module ownership information aids task distribution across agents.
+    requires:
+      - proposal
+
+  - id: design
+    generates: design.md
+    description: Technical design document with implementation details
+    template: design.md
+    instruction: |
+      Create the design document that explains HOW to implement the change.
+
+      When to include design.md (create only if any apply):
+      - Cross-cutting change (multiple services/modules) or new architectural pattern
+      - New external dependency or significant data model changes
+      - Security, performance, or migration complexity
+      - Ambiguity that benefits from technical decisions before coding
+
+      Sections:
+      - **Context**: Background, current state, constraints, stakeholders
+      - **Goals / Non-Goals**: What this design achieves and explicitly excludes
+      - **Decisions**: Key technical choices with rationale (why X over Y?). Include alternatives considered for each decision.
+      - **Risks / Trade-offs**: Known limitations, things that could go wrong. Format: [Risk] → Mitigation
+      - **Migration Plan**: Steps to deploy, rollback strategy (if applicable)
+      - **Parallelism Considerations**: Which components can be built independently? Identify shared interfaces or contracts that must be defined before parallel work begins. Call out any serialization points where one piece must finish before another can start.
+      - **Open Questions**: Outstanding decisions or unknowns to resolve
+
+      Focus on architecture and approach, not line-by-line implementation.
+      Reference the proposal for motivation and specs for requirements.
+
+      Good design docs explain the "why" behind technical decisions.
+    requires:
+      - proposal
+
+  - id: tasks
+    generates: tasks.md
+    description: Implementation checklist with trackable tasks
+    template: tasks.md
+    instruction: |
+      Create the task list that breaks down the implementation work.
+
+      **IMPORTANT: Follow the template below exactly.** The apply phase parses
+      checkbox format to track progress. Tasks not using `- [ ]` won't be tracked.
+
+      Guidelines:
+      - Group related tasks under ## numbered headings
+      - Each task MUST be a checkbox: `- [ ] X.Y Task description`
+      - Tasks should be small enough to complete in one session
+      - Order tasks by dependency (what must be done first?)
+      - Aim for **15-30 tasks** sized for multi-agent distribution
+      - Each task MUST include a `Files:` annotation listing the primary files it touches
+
+      Example:
+      ```
+      ## 1. Setup
+
+      - [ ] 1.1 Create new module structure
+        <!-- Files: src/modules/new-module/index.ts, src/modules/new-module/types.ts -->
+      - [ ] 1.2 Add dependencies to package.json
+        <!-- Files: package.json -->
+
+      ## 2. Core Implementation
+
+      - [ ] 2.1 Implement data export function
+        <!-- Files: src/export/exporter.ts, src/export/formats.ts -->
+      - [ ] 2.2 Add CSV formatting utilities
+        <!-- Files: src/export/csv.ts -->
+      ```
+
+      Each task should be self-contained - an agent should be able to complete it
+      without needing to coordinate mid-task with other agents.
+
+      Reference specs for what needs to be built, design for how to build it.
+      Each task should be verifiable - you know when it's done.
+    requires:
+      - specs
+      - design
+
+  - id: dependencies
+    generates: dependencies.md
+    description: Dependency analysis of tasks for parallel execution
+    template: dependencies.md
+    instruction: |
+      Analyze the tasks from tasks.md and produce a dependency analysis document.
+
+      This artifact identifies which tasks depend on others, enabling parallel execution
+      planning. Use project management dependency analysis concepts.
+
+      **Dependency types** (use standard PM notation):
+      - **FS (Finish-to-Start)**: Task B cannot start until Task A finishes. Most common.
+      - **SS (Start-to-Start)**: Task B can start once Task A starts (but not before).
+      - **FF (Finish-to-Finish)**: Task B cannot finish until Task A finishes.
+      - **SF (Start-to-Finish)**: Task B cannot finish until Task A starts. Rare.
+
+      **Sections to produce**:
+
+      1. **Dependency Matrix**: Table of all tasks with their dependency relationships.
+         Format: `| Task ID | Depends On | Type | Reason |`
+
+      2. **Critical Path**: The longest chain of dependent tasks that determines the
+         minimum total duration. List the chain of task IDs.
+
+      3. **Parallel Execution Waves**: Group tasks into waves that can execute
+         simultaneously. Wave 1 has no dependencies, Wave 2 depends only on Wave 1, etc.
+
+      4. **Float / Slack**: For each task NOT on the critical path, note how much
+         it can be delayed without affecting the overall timeline.
+
+      5. **Text DAG**: ASCII representation of the dependency graph showing
+         parallel lanes and dependencies between them.
+
+      Read tasks.md carefully. Look at the `Files:` annotations to detect implicit
+      dependencies (tasks touching the same files likely have ordering constraints).
+      Be conservative - if two tasks might conflict, declare a dependency.
+    requires:
+      - tasks
+
+  - id: distribution
+    generates: distribution.md
+    description: Agent distribution plan for parallel task execution
+    template: distribution.md
+    instruction: |
+      Create the agent distribution plan that assigns tasks to parallel agents.
+
+      **Before starting**: Ask the user how many agents they want to use.
+      Recommend 3-5 agents based on Claude Code agent teams best practices.
+      If the user requests 1 agent, suggest using `/opsx:propose` instead for
+      a simpler single-agent workflow.
+
+      **Validation**:
+      - Minimum 2 agents (otherwise use single-agent workflow)
+      - Maximum 5 agents (beyond 5, coordination overhead outweighs parallelism gains)
+      - Total tasks / agents should yield 5-6 tasks per agent ideally
+
+      **Sections to produce**:
+
+      1. **Configuration**: Number of agents, total tasks, tasks per agent ratio.
+
+      2. **Token Cost Warning**: Multi-agent execution scales costs. Each agent
+         maintains its own context. With N agents, expect roughly N× the token usage
+         of a single-agent run. State the estimated multiplier clearly.
+
+      3. **Feasibility Assessment**: Given the dependency analysis, is the requested
+         agent count feasible? Can tasks be distributed without excessive cross-agent
+         dependencies? If not, recommend a lower agent count.
+
+      4. **Agent Assignment Cards**: For each agent, list:
+         - Agent name/number
+         - Assigned tasks (by ID)
+         - File ownership (which files this agent is responsible for)
+         - Execution order (respecting dependencies)
+         - Dependencies on other agents' tasks (cross-agent sync points)
+
+      5. **File Ownership Isolation**: Verify that no two agents write to the same
+         file. If unavoidable, document the conflict and specify ordering.
+
+      6. **Cross-Agent Dependencies**: List sync points where one agent must wait
+         for another. Minimize these - they are the main source of coordination overhead.
+
+      7. **Claude Code Team Setup**: Provide the Claude Code team setup instructions:
+         - Team creation command
+         - Teammate spawning commands for each agent
+         - Task assignment commands
+         - Suggest reviewing the distribution before executing
+
+      **Key principles**:
+      - Minimize cross-agent dependencies (prefer independent task clusters)
+      - Respect file ownership isolation (one agent per file)
+      - Balance workload across agents (avoid one agent getting all critical-path tasks)
+      - Always warn about token cost scaling
+    requires:
+      - dependencies
+
+apply:
+  requires: [distribution]
+  tracks: tasks.md
+  instruction: |
+    Read context files, work through pending tasks, mark complete as you go.
+    Follow the distribution plan for agent assignments if using multi-agent execution.
+    Pause if you hit blockers or need clarification.
