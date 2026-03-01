@@ -73,6 +73,7 @@ const WORKFLOW_TO_SKILL_DIR: Record<string, string> = {
   'onboard': 'openspec-onboard',
   'propose': 'openspec-propose',
   'multiagent': 'openspec-multiagent',
+  'multiagent-apply': 'openspec-multiagent-apply',
 };
 
 // -----------------------------------------------------------------------------

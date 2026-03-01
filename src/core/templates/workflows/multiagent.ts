@@ -20,7 +20,7 @@ I'll create a change with artifacts:
 - dependencies.md (task dependency analysis)
 - distribution.md (agent assignment plan)
 
-When ready to implement, run /opsx:apply
+When ready to implement, run /opsx:multiagent-apply
 
 ---
 
@@ -53,7 +53,7 @@ When ready to implement, run /opsx:apply
 
 4. **Create artifacts in sequence until apply-ready**
 
-   Use the **TodoWrite tool** to track progress through the artifacts.
+   Use **TaskCreate** and **TaskUpdate** tools to track progress through the artifacts.
 
    Loop through artifacts in dependency order (artifacts with no pending dependencies first):
 
@@ -106,7 +106,7 @@ After completing all artifacts, summarize:
 - **Agent assignment summary**: Which tasks go to which agent
 - **Token cost warning**: Remind that N agents ≈ N× token usage
 - What's ready: "All artifacts created! Ready for multi-agent implementation."
-- Prompt: "Run \`/opsx:apply\` or set up a Claude Code team to start parallel implementation."
+- Prompt: "Run \`/opsx:multiagent-apply\` to orchestrate a Claude Code agent team for parallel implementation."
 
 **Artifact Creation Guidelines**
 
@@ -146,7 +146,7 @@ I'll create a change with artifacts:
 - dependencies.md (task dependency analysis)
 - distribution.md (agent assignment plan)
 
-When ready to implement, run /opsx:apply
+When ready to implement, run /opsx:multiagent-apply
 
 ---
 
@@ -179,7 +179,7 @@ When ready to implement, run /opsx:apply
 
 4. **Create artifacts in sequence until apply-ready**
 
-   Use the **TodoWrite tool** to track progress through the artifacts.
+   Use **TaskCreate** and **TaskUpdate** tools to track progress through the artifacts.
 
    Loop through artifacts in dependency order (artifacts with no pending dependencies first):
 
@@ -232,7 +232,7 @@ After completing all artifacts, summarize:
 - **Agent assignment summary**: Which tasks go to which agent
 - **Token cost warning**: Remind that N agents ≈ N× token usage
 - What's ready: "All artifacts created! Ready for multi-agent implementation."
-- Prompt: "Run \`/opsx:apply\` or set up a Claude Code team to start parallel implementation."
+- Prompt: "Run \`/opsx:multiagent-apply\` to orchestrate a Claude Code agent team for parallel implementation."
 
 **Artifact Creation Guidelines**
 

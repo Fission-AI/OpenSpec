@@ -60,13 +60,26 @@
 
 ## Claude Code Team Setup
 
-```bash
-# Create the team
-# TeamCreate: team_name="<change-name>", description="<change description>"
+To execute this plan, run `/opsx:multiagent-apply` on this change. It will automate the steps below.
 
-# Spawn teammates (one per agent above)
-# Agent: name="agent-1", prompt="<task assignment for agent 1>"
-# Agent: name="agent-2", prompt="<task assignment for agent 2>"
+Alternatively, set up the team manually:
 
-# Review the distribution plan before executing
-```
+**1. Create the team** using `TeamCreate`:
+- `team_name`: the change name (kebab-case)
+- `description`: brief description from the proposal
+
+**2. Populate the shared task list** using `TaskCreate` for each task:
+- `subject`: task description (e.g., "1.1 Create module structure")
+- `description`: include the `Files:` annotation and relevant context
+- `activeForm`: present-continuous form (e.g., "Creating module structure")
+
+Then use `TaskUpdate` with `addBlockedBy` to set dependency relationships, and `TaskUpdate` with `owner` to pre-assign tasks per the agent assignments above.
+
+**3. Spawn teammates** using the `Agent` tool for each agent:
+- `name`: agent name from assignments above
+- `team_name`: the change name
+- `subagent_type`: "general-purpose"
+- `isolation`: "worktree"
+- `prompt`: include assigned tasks, file ownership, execution order, and cross-agent dependencies
+
+**4. Monitor and shutdown:** Use `TaskList` to track progress. Send `shutdown_request` via `SendMessage` when all tasks are complete.

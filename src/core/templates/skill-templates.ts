@@ -18,4 +18,5 @@ export { getVerifyChangeSkillTemplate, getOpsxVerifyCommandTemplate } from './wo
 export { getOnboardSkillTemplate, getOpsxOnboardCommandTemplate } from './workflows/onboard.js';
 export { getOpsxProposeSkillTemplate, getOpsxProposeCommandTemplate } from './workflows/propose.js';
 export { getOpsxMultiagentSkillTemplate, getOpsxMultiagentCommandTemplate } from './workflows/multiagent.js';
+export { getOpsxMultiagentApplySkillTemplate, getOpsxMultiagentApplyCommandTemplate } from './workflows/multiagent-apply.js';
 export { getFeedbackSkillTemplate } from './workflows/feedback.js';

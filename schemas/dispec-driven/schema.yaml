@@ -243,11 +243,16 @@ artifacts:
       6. **Cross-Agent Dependencies**: List sync points where one agent must wait
          for another. Minimize these - they are the main source of coordination overhead.
 
-      7. **Claude Code Team Setup**: Provide the Claude Code team setup instructions:
-         - Team creation command
-         - Teammate spawning commands for each agent
-         - Task assignment commands
-         - Suggest reviewing the distribution before executing
+      7. **Claude Code Team Setup**: Provide actionable team setup instructions using
+         Claude Code's team primitives:
+         - Team creation via `TeamCreate` with `team_name` (change name) and `description`
+         - Task list population via `TaskCreate` with `subject`, `description`, `activeForm`
+           for each task, then `TaskUpdate` with `addBlockedBy` for dependencies and `owner`
+           for agent pre-assignment
+         - Teammate spawning via the `Agent` tool with `name` (agent name), `team_name`,
+           `subagent_type: "general-purpose"`, `isolation: "worktree"`, and a `prompt`
+           containing assigned tasks, file ownership, and execution order
+         - Recommend running `/opsx:multiagent-apply` to automate the above steps
 
       **Key principles**:
       - Minimize cross-agent dependencies (prefer independent task clusters)
@@ -261,6 +266,17 @@ apply:
   requires: [distribution]
   tracks: tasks.md
   instruction: |
-    Read context files, work through pending tasks, mark complete as you go.
-    Follow the distribution plan for agent assignments if using multi-agent execution.
+    This schema supports multi-agent parallel execution via `/opsx:multiagent-apply`.
+
+    **Multi-agent execution (recommended):**
+    1. Run `/opsx:multiagent-apply` to orchestrate a Claude Code agent team
+    2. It reads distribution.md and automatically:
+       - Creates a team via `TeamCreate` with the change name
+       - Populates the shared task list via `TaskCreate` with dependencies
+       - Spawns teammates via `Agent` with `isolation: "worktree"` per assignment card
+       - Monitors progress via `TaskList` and shuts down agents when complete
+
+    **Single-agent fallback:**
+    Read context files, work through pending tasks sequentially, mark complete as you go.
+    Follow the distribution plan's execution order for the critical path.
     Pause if you hit blockers or need clarification.
