@@ -78,9 +78,20 @@ export class MarkdownParser {
   protected parseSections(): Section[] {
     const sections: Section[] = [];
     const stack: Section[] = [];
+    let inCodeBlock = false;
     
     for (let i = 0; i < this.lines.length; i++) {
       const line = this.lines[i];
+
+      if (line.trim().startsWith('```')) {
+        inCodeBlock = !inCodeBlock;
+        continue;
+      }
+
+      if (inCodeBlock) {
+        continue;
+      }
+
       const headerMatch = line.match(/^(#{1,6})\s+(.+)$/);
       
       if (headerMatch) {
@@ -114,9 +125,22 @@ export class MarkdownParser {
 
   protected getContentUntilNextHeader(startLine: number, currentLevel: number): string {
     const contentLines: string[] = [];
+    let inCodeBlock = false;
     
     for (let i = startLine; i < this.lines.length; i++) {
       const line = this.lines[i];
+
+      if (line.trim().startsWith('```')) {
+        inCodeBlock = !inCodeBlock;
+        contentLines.push(line);
+        continue;
+      }
+
+      if (inCodeBlock) {
+        contentLines.push(line);
+        continue;
+      }
+
       const headerMatch = line.match(/^(#{1,6})\s+/);
       
       if (headerMatch && headerMatch[1].length <= currentLevel) {
