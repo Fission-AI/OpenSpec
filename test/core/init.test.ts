@@ -65,6 +65,17 @@ describe('InitCommand', () => {
       expect(await directoryExists(path.join(openspecPath, 'changes', 'archive'))).toBe(true);
     });
 
+    it('should create .gitkeep files in empty directories', async () => {
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+
+      await initCommand.execute(testDir);
+
+      const openspecPath = path.join(testDir, 'openspec');
+      expect(await fileExists(path.join(openspecPath, 'specs', '.gitkeep'))).toBe(true);
+      expect(await fileExists(path.join(openspecPath, 'changes', '.gitkeep'))).toBe(true);
+      expect(await fileExists(path.join(openspecPath, 'changes', 'archive', '.gitkeep'))).toBe(true);
+    });
+
     it('should create config.yaml with default schema', async () => {
       const initCommand = new InitCommand({ tools: 'claude', force: true });
 
