@@ -264,8 +264,9 @@ export class ArchiveCommand {
       }
     }
 
-    // Create archive directory with date prefix
-    const archiveName = `${this.getArchiveDate()}-${changeName}`;
+    // Create archive directory with sequence number prefix
+    const sequenceNumber = await this.getNextSequenceNumber(archiveDir);
+    const archiveName = `${sequenceNumber}-${changeName}`;
     const archivePath = path.join(archiveDir, archiveName);
 
     // Check if archive already exists
@@ -332,8 +333,20 @@ export class ArchiveCommand {
     }
   }
 
-  private getArchiveDate(): string {
-    // Returns date in YYYY-MM-DD format
-    return new Date().toISOString().split('T')[0];
+  private async getNextSequenceNumber(archiveDir: string): Promise<string> {
+    let max = 0;
+    try {
+      const entries = await fs.readdir(archiveDir);
+      for (const entry of entries) {
+        const match = entry.match(/^(\d+)-/);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (num > max) max = num;
+        }
+      }
+    } catch {
+      // Archive directory may not exist yet
+    }
+    return String(max + 1).padStart(3, '0');
   }
 }
