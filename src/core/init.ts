@@ -465,6 +465,17 @@ export class InitCommand {
       for (const dir of directories) {
         await FileSystemUtils.createDirectory(dir);
       }
+
+      // Add .gitkeep to empty directories so they are tracked by git
+      const emptyDirs = [
+        path.join(openspecPath, 'specs'),
+        path.join(openspecPath, 'changes'),
+        path.join(openspecPath, 'changes', 'archive'),
+      ];
+      for (const dir of emptyDirs) {
+        const gitkeepPath = path.join(dir, '.gitkeep');
+        await FileSystemUtils.writeFile(gitkeepPath, '');
+      }
       return;
     }
 
@@ -479,6 +490,17 @@ export class InitCommand {
 
     for (const dir of directories) {
       await FileSystemUtils.createDirectory(dir);
+    }
+
+    // Add .gitkeep to empty directories so they are tracked by git
+    const emptyDirs = [
+      path.join(openspecPath, 'specs'),
+      path.join(openspecPath, 'changes'),
+      path.join(openspecPath, 'changes', 'archive'),
+    ];
+    for (const dir of emptyDirs) {
+      const gitkeepPath = path.join(dir, '.gitkeep');
+      await FileSystemUtils.writeFile(gitkeepPath, '');
     }
 
     spinner.stopAndPersist({
