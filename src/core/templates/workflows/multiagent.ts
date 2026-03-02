@@ -6,137 +6,7 @@
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 
-export function getOpsxMultiagentSkillTemplate(): SkillTemplate {
-  return {
-    name: 'openspec-multiagent',
-    description: 'Plan and distribute a change across multiple AI agents for parallel execution. Use when the user wants to break down a complex change into tasks that can be worked on simultaneously by a team of agents.',
-    instructions: `Plan and distribute a change across multiple AI agents for parallel execution.
-
-I'll create a change with artifacts:
-- proposal.md (what & why)
-- specs/ (detailed specifications)
-- design.md (how, with parallelism considerations)
-- tasks.md (implementation steps with file ownership)
-- dependencies.md (task dependency analysis)
-- distribution.md (agent assignment plan)
-
-When ready to implement, run /opsx:multiagent-apply
-
----
-
-**Input**: The user's request should include a change name (kebab-case) OR a description of what they want to build.
-
-**Steps**
-
-1. **If no clear input provided, ask what they want to build**
-
-   Use the **AskUserQuestion tool** (open-ended, no preset options) to ask:
-   > "What change do you want to work on? Describe what you want to build or fix."
-
-   From their description, derive a kebab-case name (e.g., "add user authentication" → \`add-user-auth\`).
-
-   **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
-
-2. **Create the change directory**
-   \`\`\`bash
-   openspec new change "<name>" --schema dispec-driven
-   \`\`\`
-   This creates a scaffolded change at \`openspec/changes/<name>/\` with \`.openspec.yaml\` using the dispec-driven schema.
-
-3. **Get the artifact build order**
-   \`\`\`bash
-   openspec status --change "<name>" --json
-   \`\`\`
-   Parse the JSON to get:
-   - \`applyRequires\`: array of artifact IDs needed before implementation (e.g., \`["distribution"]\`)
-   - \`artifacts\`: list of all artifacts with their status and dependencies
-
-4. **Create artifacts in sequence until apply-ready**
-
-   Use **TaskCreate** and **TaskUpdate** tools to track progress through the artifacts.
-
-   Loop through artifacts in dependency order (artifacts with no pending dependencies first):
-
-   a. **For each artifact that is \`ready\` (dependencies satisfied)**:
-      - Get instructions:
-        \`\`\`bash
-        openspec instructions <artifact-id> --change "<name>" --json
-        \`\`\`
-      - The instructions JSON includes:
-        - \`context\`: Project background (constraints for you - do NOT include in output)
-        - \`rules\`: Artifact-specific rules (constraints for you - do NOT include in output)
-        - \`template\`: The structure to use for your output file
-        - \`instruction\`: Schema-specific guidance for this artifact type
-        - \`outputPath\`: Where to write the artifact
-        - \`dependencies\`: Completed artifacts to read for context
-      - Read any completed dependency files for context
-      - Create the artifact file using \`template\` as the structure
-      - Apply \`context\` and \`rules\` as constraints - but do NOT copy them into the file
-      - Show brief progress: "Created <artifact-id>"
-
-   b. **For the distribution artifact**: Use the **AskUserQuestion tool** to ask:
-      > "How many agents do you want to distribute tasks across? (Recommended: 3-5)"
-
-      With options:
-      - "3 agents (Recommended)" - Good balance of parallelism and coordination
-      - "4 agents" - More parallelism, moderate coordination
-      - "5 agents" - Maximum parallelism, higher coordination overhead
-
-      If the user selects 1 agent, suggest using \`/opsx:propose\` instead for a simpler single-agent workflow.
-
-   c. **Continue until all \`applyRequires\` artifacts are complete**
-      - After creating each artifact, re-run \`openspec status --change "<name>" --json\`
-      - Check if every artifact ID in \`applyRequires\` has \`status: "done"\` in the artifacts array
-      - Stop when all \`applyRequires\` artifacts are done
-
-   d. **If an artifact requires user input** (unclear context):
-      - Use **AskUserQuestion tool** to clarify
-      - Then continue with creation
-
-5. **Show final status**
-   \`\`\`bash
-   openspec status --change "<name>"
-   \`\`\`
-
-**Output**
-
-After completing all artifacts, summarize:
-- Change name and location
-- List of artifacts created with brief descriptions
-- **Agent assignment summary**: Which tasks go to which agent
-- **Token cost warning**: Remind that N agents ≈ N× token usage
-- What's ready: "All artifacts created! Ready for multi-agent implementation."
-- Prompt: "Run \`/opsx:multiagent-apply\` to orchestrate a Claude Code agent team for parallel implementation."
-
-**Artifact Creation Guidelines**
-
-- Follow the \`instruction\` field from \`openspec instructions\` for each artifact type
-- The schema defines what each artifact should contain - follow it
-- Read dependency artifacts for context before creating new ones
-- Use \`template\` as the structure for your output file - fill in its sections
-- **IMPORTANT**: \`context\` and \`rules\` are constraints for YOU, not content for the file
-  - Do NOT copy \`<context>\`, \`<rules>\`, \`<project_context>\` blocks into the artifact
-  - These guide what you write, but should never appear in the output
-
-**Guardrails**
-- Create ALL artifacts needed for implementation (as defined by schema's \`apply.requires\`)
-- Always read dependency artifacts before creating a new one
-- If context is critically unclear, ask the user - but prefer making reasonable decisions to keep momentum
-- If a change with that name already exists, ask if user wants to continue it or create a new one
-- Verify each artifact file exists after writing before proceeding to next`,
-    license: 'MIT',
-    compatibility: 'Requires openspec CLI.',
-    metadata: { author: 'openspec', version: '1.0' },
-  };
-}
-
-export function getOpsxMultiagentCommandTemplate(): CommandTemplate {
-  return {
-    name: 'OPSX: Multiagent',
-    description: 'Plan and distribute a change across multiple AI agents for parallel execution',
-    category: 'Workflow',
-    tags: ['workflow', 'artifacts', 'multiagent', 'experimental'],
-    content: `Plan and distribute a change across multiple AI agents for parallel execution.
+const MULTIAGENT_INSTRUCTIONS = `Plan and distribute a change across multiple AI agents for parallel execution.
 
 I'll create a change with artifacts:
 - proposal.md (what & why)
@@ -204,11 +74,13 @@ When ready to implement, run /opsx:multiagent-apply
       > "How many agents do you want to distribute tasks across? (Recommended: 3-5)"
 
       With options:
+      - "2 agents" - Minimum viable parallelism
       - "3 agents (Recommended)" - Good balance of parallelism and coordination
       - "4 agents" - More parallelism, moderate coordination
       - "5 agents" - Maximum parallelism, higher coordination overhead
 
-      If the user selects 1 agent, suggest using \`/opsx:propose\` instead for a simpler single-agent workflow.
+      If the user selects fewer than 2, suggest using \`/opsx:propose\` instead for a simpler single-agent workflow.
+      If the user requests more than 5, warn about coordination overhead and recommend 3-5 agents.
 
    c. **Continue until all \`applyRequires\` artifacts are complete**
       - After creating each artifact, re-run \`openspec status --change "<name>" --json\`
@@ -249,6 +121,25 @@ After completing all artifacts, summarize:
 - Always read dependency artifacts before creating a new one
 - If context is critically unclear, ask the user - but prefer making reasonable decisions to keep momentum
 - If a change with that name already exists, ask if user wants to continue it or create a new one
-- Verify each artifact file exists after writing before proceeding to next`
+- Verify each artifact file exists after writing before proceeding to next`;
+
+export function getOpsxMultiagentSkillTemplate(): SkillTemplate {
+  return {
+    name: 'openspec-multiagent',
+    description: 'Plan and distribute a change across multiple AI agents for parallel execution. Use when the user wants to break down a complex change into tasks that can be worked on simultaneously by a team of agents.',
+    instructions: MULTIAGENT_INSTRUCTIONS,
+    license: 'MIT',
+    compatibility: 'Requires openspec CLI.',
+    metadata: { author: 'openspec', version: '1.0' },
+  };
+}
+
+export function getOpsxMultiagentCommandTemplate(): CommandTemplate {
+  return {
+    name: 'OPSX: Multiagent',
+    description: 'Plan and distribute a change across multiple AI agents for parallel execution',
+    category: 'Workflow',
+    tags: ['workflow', 'artifacts', 'multiagent', 'experimental'],
+    content: MULTIAGENT_INSTRUCTIONS,
   };
 }

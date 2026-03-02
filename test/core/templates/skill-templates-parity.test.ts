@@ -56,8 +56,8 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getOpsxVerifyCommandTemplate: '9b4d3ca422553b7534764eb3a009da87a051612c5238e9baab294c7b1233e9a2',
   getOpsxProposeSkillTemplate: 'd67f937d44650e9c61d2158c865309fbab23cb3f50a3d4868a640a97776e3999',
   getOpsxProposeCommandTemplate: '41ad59b37eafd7a161bab5c6e41997a37368f9c90b194451295ede5cd42e4d46',
-  getOpsxMultiagentSkillTemplate: 'd0f5057cdd58d2cd3ae917e916a36a376cd4d956e53c337d1af9efcb01414a07',
-  getOpsxMultiagentCommandTemplate: '84c01236b6d55342a8786d5c2904cb0b5dd45cc9cbd2f81e82e1334d2c24e433',
+  getOpsxMultiagentSkillTemplate: '9f0869a754c0f316c76d0970d886cbf96ebd073c5ba62278a6b6707d3535ccf4',
+  getOpsxMultiagentCommandTemplate: '353b3dc822145884acd27f33ed692b36f4b9d75349f350bb6ca9cbce01562892',
   getOpsxMultiagentApplySkillTemplate: 'b90f8d481511a1c0d69651f2b7116166d044d12acfcc1fd9e336e4636cedfa05',
   getOpsxMultiagentApplyCommandTemplate: '046abe3e18f86a807e79fd1f399a9105cae93106d1448b1a989d57623baed4c6',
   getFeedbackSkillTemplate: 'd7d83c5f7fc2b92fe8f4588a5bf2d9cb315e4c73ec19bcd5ef28270906319a0d',
@@ -75,7 +75,7 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-verify-change': '30d07c6f7051965f624f5964db51844ec17c7dfd05f0da95281fe0ca73616326',
   'openspec-onboard': 'dbce376cf895f3fe4f63b4bce66d258c35b7b8884ac746670e5e35fabcefd255',
   'openspec-propose': '20e36dabefb90e232bad0667292bd5007ec280f8fc4fc995dbc4282bf45a22e7',
-  'openspec-multiagent': 'e061c1d547c7fa8e647fb91fc80d236fe7751f3e180dd06914ee519bb9148695',
+  'openspec-multiagent': '4aeb273e34f9b4ac7385bc636ca4ddbd401b43afd2f9834eda76790617f5aa9c',
   'openspec-multiagent-apply': '55300df760099dca2f7e965d63d9bd75b7e2152b35638f9ac66a4f516d167204',
 };
 

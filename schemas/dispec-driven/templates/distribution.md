@@ -18,21 +18,9 @@
 
 ## Agent Assignments
 
-### Agent 1: <!-- agent name/focus area -->
+<!-- Repeat this card for each agent (recommended: 3-5 agents) -->
 
-**Tasks:**
-<!-- List assigned task IDs -->
-
-**File ownership:**
-<!-- Files this agent is responsible for -->
-
-**Execution order:**
-<!-- Order respecting dependencies -->
-
-**Cross-agent dependencies:**
-<!-- Tasks from other agents this agent must wait for -->
-
-### Agent 2: <!-- agent name/focus area -->
+### Agent N: <!-- agent name/focus area -->
 
 **Tasks:**
 <!-- List assigned task IDs -->

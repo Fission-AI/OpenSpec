@@ -1,6 +1,6 @@
 name: dispec-driven
 version: 1
-description: Distributed spec-driven workflow - proposal → specs → design → tasks → dependencies → distribution
+description: Distributed spec-driven workflow - proposal → (specs + design) → tasks → dependencies → distribution
 artifacts:
   - id: proposal
     generates: proposal.md
