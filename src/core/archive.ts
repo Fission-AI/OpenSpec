@@ -264,7 +264,9 @@ export class ArchiveCommand {
       }
     }
 
-    // Create archive directory with sequence number prefix
+    // Create archive directory with sequence number prefix.
+    // Note: sequence assignment is non-atomic, but this is a single-user CLI
+    // tool where concurrent archive operations are not a realistic scenario.
     const sequenceNumber = await this.getNextSequenceNumber(archiveDir);
     const archiveName = `${sequenceNumber}-${changeName}`;
     const archivePath = path.join(archiveDir, archiveName);
