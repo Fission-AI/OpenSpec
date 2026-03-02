@@ -344,9 +344,16 @@ export class ArchiveCommand {
           if (num > max) max = num;
         }
       }
-    } catch {
+    } catch (error: any) {
       // Archive directory may not exist yet
+      if (error?.code !== 'ENOENT') {
+        throw error;
+      }
     }
-    return String(max + 1).padStart(3, '0');
+    const next = max + 1;
+    if (next > 999) {
+      throw new Error('Archive sequence overflow (>999). Increase prefix width before continuing.');
+    }
+    return String(next).padStart(3, '0');
   }
 }
