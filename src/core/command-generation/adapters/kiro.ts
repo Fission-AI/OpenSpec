@@ -7,6 +7,16 @@
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
 
+function transformExploreBodyForKiro(content: CommandContent): string {
+  if (content.id !== 'explore') {
+    return content.body;
+  }
+
+  return content.body
+    .replaceAll('`specs/<capability>/spec.md`', '`openspec/specs/<capability>/spec.md`')
+    .replaceAll('Add it to specs?', 'Add it to `openspec/specs/<capability>/spec.md`?');
+}
+
 /**
  * Kiro adapter for command generation.
  * File path: .kiro/prompts/opsx-<id>.prompt.md
@@ -20,11 +30,13 @@ export const kiroAdapter: ToolCommandAdapter = {
   },
 
   formatFile(content: CommandContent): string {
+    const transformedBody = transformExploreBodyForKiro(content);
+
     return `---
 description: ${content.description}
 ---
 
-${content.body}
+${transformedBody}
 `;
   },
 };

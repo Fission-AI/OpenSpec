@@ -16,6 +16,7 @@ import { factoryAdapter } from '../../../src/core/command-generation/adapters/fa
 import { geminiAdapter } from '../../../src/core/command-generation/adapters/gemini.js';
 import { githubCopilotAdapter } from '../../../src/core/command-generation/adapters/github-copilot.js';
 import { iflowAdapter } from '../../../src/core/command-generation/adapters/iflow.js';
+import { kiroAdapter } from '../../../src/core/command-generation/adapters/kiro.js';
 import { kilocodeAdapter } from '../../../src/core/command-generation/adapters/kilocode.js';
 import { opencodeAdapter } from '../../../src/core/command-generation/adapters/opencode.js';
 import { piAdapter } from '../../../src/core/command-generation/adapters/pi.js';
@@ -434,6 +435,43 @@ describe('command-generation/adapters', () => {
       const output = kilocodeAdapter.formatFile(sampleContent);
       expect(output).not.toContain('---');
       expect(output).toContain('This is the command body.');
+    });
+  });
+
+  describe('kiroAdapter', () => {
+    it('should have correct toolId', () => {
+      expect(kiroAdapter.toolId).toBe('kiro');
+    });
+
+    it('should generate correct file path', () => {
+      const filePath = kiroAdapter.getFilePath('explore');
+      expect(filePath).toBe(path.join('.kiro', 'prompts', 'opsx-explore.prompt.md'));
+    });
+
+    it('should rewrite explore spec paths for OpenSpec project specs', () => {
+      const contentWithSpecs: CommandContent = {
+        ...sampleContent,
+        id: 'explore',
+        body: 'Store in `specs/<capability>/spec.md`. This is a new requirement. Add it to specs?',
+      };
+
+      const output = kiroAdapter.formatFile(contentWithSpecs);
+      expect(output).toContain('`openspec/specs/<capability>/spec.md`');
+      expect(output).toContain('Add it to `openspec/specs/<capability>/spec.md`?');
+      expect(output).not.toContain('`specs/<capability>/spec.md`');
+      expect(output).not.toContain('Add it to specs?');
+    });
+
+    it('should not rewrite non-explore commands', () => {
+      const content: CommandContent = {
+        ...sampleContent,
+        id: 'apply',
+        body: 'Keep this in `specs/<capability>/spec.md`',
+      };
+
+      const output = kiroAdapter.formatFile(content);
+      expect(output).toContain('`specs/<capability>/spec.md`');
+      expect(output).not.toContain('`openspec/specs/<capability>/spec.md`');
     });
   });
 
