@@ -1,28 +1,28 @@
-# Getting Started
+# Початок роботи
 
-This guide explains how OpenSpec works after you've installed and initialized it. For installation instructions, see the [main README](../README.md#quick-start).
+У цьому посібнику пояснюється, як працює OpenSpec після встановлення та ініціалізації. Щоб отримати інструкції зі встановлення, перегляньте [основний файл README](../README.md#quick-start).
 
-## How It Works
+## Як це працює
 
-OpenSpec helps you and your AI coding assistant agree on what to build before any code is written.
+OpenSpec допомагає вам і вашому помічнику з програмування штучного інтелекту домовитися про те, що потрібно створити, перш ніж буде написаний код.
 
-**Default quick path (core profile):**
+**Швидкий шлях за замовчуванням (основний профіль):**
 
 ```text
 /opsx:propose ──► /opsx:apply ──► /opsx:archive
 ```
 
-**Expanded path (custom workflow selection):**
+**Розширений шлях (спеціальний вибір робочого процесу):**
 
 ```text
 /opsx:new ──► /opsx:ff or /opsx:continue ──► /opsx:apply ──► /opsx:verify ──► /opsx:archive
 ```
 
-The default global profile is `core`, which includes `propose`, `explore`, `apply`, and `archive`. You can enable the expanded workflow commands with `openspec config profile` and then `openspec update`.
+Стандартним глобальним профілем є `core`, який включає `propose`, `explore`, `apply` та `archive`. Ви можете ввімкнути розширені команди робочого процесу за допомогою `профілю конфігурації openspec`, а потім `оновлення openspec`.
 
-## What OpenSpec Creates
+## Що створює OpenSpec
 
-After running `openspec init`, your project has this structure:
+Після запуску `openspec init` ваш проект має таку структуру:
 
 ```
 openspec/
@@ -40,24 +40,24 @@ openspec/
 └── config.yaml         # Project configuration (optional)
 ```
 
-**Two key directories:**
+**Два ключові каталоги:**
 
-- **`specs/`** - The source of truth. These specs describe how your system currently behaves. Organized by domain (e.g., `specs/auth/`, `specs/payments/`).
+- **`specs/`** - Джерело правди. Ці специфікації описують, як зараз поводиться ваша система. Упорядковано за доменом (наприклад, `specs/auth/`, `specs/payments/`).
 
-- **`changes/`** - Proposed modifications. Each change gets its own folder with all related artifacts. When a change is complete, its specs merge into the main `specs/` directory.
+- **`changes/`** - Запропоновані зміни. Кожна зміна отримує окрему папку з усіма пов’язаними артефактами. Коли зміна завершена, її характеристики зливаються в головний каталог `specs/`.
 
-## Understanding Artifacts
+## Розуміння артефактів
 
-Each change folder contains artifacts that guide the work:
+Кожна папка змін містить артефакти, які спрямовують роботу:
 
-| Artifact | Purpose |
+| Артефакт | Призначення |
 |----------|---------|
-| `proposal.md` | The "why" and "what" - captures intent, scope, and approach |
-| `specs/` | Delta specs showing ADDED/MODIFIED/REMOVED requirements |
-| `design.md` | The "how" - technical approach and architecture decisions |
-| `tasks.md` | Implementation checklist with checkboxes |
+| `proposal.md` | «Чому» і «що» – це фіксує намір, обсяг і підхід |
+| `технічні характеристики/` | Специфікації Delta показують ДОДАНІ/ЗМІНЕНІ/ВИЛУЧЕНІ вимоги |
+| `design.md` | «Як» - технічний підхід і архітектурні рішення |
+| `tasks.md` | Контрольний список впровадження з прапорцями |
 
-**Artifacts build on each other:**
+**Артефакти будуються один на одному:**
 
 ```
 proposal ──► specs ──► design ──► tasks ──► implement
@@ -66,15 +66,15 @@ proposal ──► specs ──► design ──► tasks ──► implement
             update as you learn
 ```
 
-You can always go back and refine earlier artifacts as you learn more during implementation.
+Ви завжди можете повернутися назад і вдосконалити попередні артефакти, коли дізнаєтеся більше під час впровадження.
 
-## How Delta Specs Work
+## Як працюють дельта-специфікації
 
-Delta specs are the key concept in OpenSpec. They show what's changing relative to your current specs.
+Дельта-специфікації є ключовим поняттям в OpenSpec. Вони показують, що змінилося відносно ваших поточних характеристик.
 
-### The Format
+### Формат
 
-Delta specs use sections to indicate the type of change:
+Специфікації Delta використовують розділи для вказівки типу зміни:
 
 ```markdown
 # Delta for Auth
@@ -106,21 +106,21 @@ The system SHALL expire sessions after 30 minutes of inactivity.
 (Deprecated in favor of 2FA)
 ```
 
-### What Happens on Archive
+### Що відбувається в архіві
 
-When you archive a change:
+Коли ви архівуєте зміни:
 
-1. **ADDED** requirements are appended to the main spec
-2. **MODIFIED** requirements replace the existing version
-3. **REMOVED** requirements are deleted from the main spec
+1. **ДОДАНІ** вимоги додаються до основної специфікації
+2. **МОДИФІКОВАНІ** вимоги замінюють існуючу версію
+3. **ВИДАЛЕНО** вимоги видалено з основної специфікації
 
-The change folder moves to `openspec/changes/archive/` for audit history.
+Папка змін переміщується до `openspec/changes/archive/` для журналу аудиту.
 
-## Example: Your First Change
+## Приклад: ваша перша зміна
 
-Let's walk through adding dark mode to an application.
+Розглянемо, як додати темний режим до програми.
 
-### 1. Start the Change (Default)
+### 1. Почати зміну (за замовчуванням)
 
 ```text
 You: /opsx:propose add-dark-mode
@@ -133,11 +133,11 @@ AI:  Created openspec/changes/add-dark-mode/
      Ready for implementation!
 ```
 
-If you've enabled the expanded workflow profile, you can also do this as two steps: `/opsx:new` then `/opsx:ff` (or `/opsx:continue` incrementally).
+Якщо ви ввімкнули розширений профіль робочого процесу, ви також можете зробити це у два кроки: `/opsx:new`, потім `/opsx:ff` (або `/opsx:continue` поступово).
 
-### 2. What Gets Created
+### 2. Що створюється
 
-**proposal.md** - Captures the intent:
+**proposal.md** - фіксує намір:
 
 ```markdown
 # Proposal: Add Dark Mode
@@ -156,7 +156,7 @@ Use CSS custom properties for theming with a React context
 for state management.
 ```
 
-**specs/ui/spec.md** - Delta showing new requirements:
+**specs/ui/spec.md** - Delta показує нові вимоги:
 
 ```markdown
 # Delta for UI
@@ -178,7 +178,7 @@ The system SHALL allow users to choose between light and dark themes.
 - THEN the system's preferred color scheme is used
 ```
 
-**tasks.md** - Implementation checklist:
+**tasks.md** - контрольний список впровадження:
 
 ```markdown
 # Tasks
@@ -198,7 +198,7 @@ The system SHALL allow users to choose between light and dark themes.
 - [ ] 3.2 Update components to use CSS variables
 ```
 
-### 3. Implement
+### 3. Реалізувати
 
 ```
 You: /opsx:apply
@@ -212,9 +212,9 @@ AI:  Working through tasks...
      All tasks complete!
 ```
 
-During implementation, if you discover the design needs adjustment, just update the artifact and continue.
+Якщо під час реалізації ви виявите, що дизайн потребує коригування, просто оновіть артефакт і продовжуйте.
 
-### 4. Archive
+### 4. Архів
 
 ```
 You: /opsx:archive
@@ -225,11 +225,11 @@ AI:  Archiving add-dark-mode...
      Done! Ready for the next feature.
 ```
 
-Your delta specs are now part of the main specs, documenting how your system works.
+Ваші дельта-специфікації тепер є частиною основних специфікацій, документуючи, як працює ваша система.
 
-## Verifying and Reviewing
+## Перевірка та перегляд
 
-Use the CLI to check on your changes:
+Використовуйте CLI, щоб перевірити свої зміни:
 
 ```bash
 # List active changes
@@ -245,9 +245,9 @@ openspec validate add-dark-mode
 openspec view
 ```
 
-## Next Steps
+## Наступні кроки
 
-- [Workflows](workflows.md) - Common patterns and when to use each command
-- [Commands](commands.md) - Full reference for all slash commands
-- [Concepts](concepts.md) - Deeper understanding of specs, changes, and schemas
-- [Customization](customization.md) - Make OpenSpec work your way
+- [Робочі процеси](workflows.md) - Загальні шаблони та коли використовувати кожну команду
+- [Команди](commands.md) - Повний довідник для всіх команд із косою рискою
+- [Концепції] (concepts.md) - Глибше розуміння специфікацій, змін і схем
+- [Налаштування](customization.md) - Зробіть так, щоб OpenSpec працював на ваш смак

@@ -1,30 +1,30 @@
-# Customization
+# Налаштування
 
-OpenSpec provides three levels of customization:
+OpenSpec забезпечує три рівні налаштування:
 
-| Level | What it does | Best for |
+| Рівень | Що він робить | Найкраще для |
 |-------|--------------|----------|
-| **Project Config** | Set defaults, inject context/rules | Most teams |
-| **Custom Schemas** | Define your own workflow artifacts | Teams with unique processes |
-| **Global Overrides** | Share schemas across all projects | Power users |
+| **Конфігурація проекту** | Встановити значення за замовчуванням, додати контекст/правила | Більшість команд |
+| **Користувацькі схеми** | Визначте власні артефакти робочого процесу | Команди з унікальними процесами |
+| **Глобальні перевизначення** | Спільний доступ до схем для всіх проектів | Досвідчені користувачі |
 
 ---
 
-## Project Configuration
+## Конфігурація проекту
 
-The `openspec/config.yaml` file is the easiest way to customize OpenSpec for your team. It lets you:
+Файл `openspec/config.yaml` — це найпростіший спосіб налаштувати OpenSpec для вашої команди. Це дозволяє:
 
-- **Set a default schema** - Skip `--schema` on every command
-- **Inject project context** - AI sees your tech stack, conventions, etc.
-- **Add per-artifact rules** - Custom rules for specific artifacts
+- **Встановити схему за замовчуванням** - Пропускати `--schema` в кожній команді
+- **Впровадження контексту проекту** - AI бачить ваш технічний стек, конвенції тощо.
+- **Додати правила для кожного артефакту** - Спеціальні правила для конкретних артефактів
 
-### Quick Setup
+### Швидке налаштування
 
 ```bash
 openspec init
 ```
 
-This walks you through creating a config interactively. Or create one manually:
+Це допоможе вам створити конфігурацію в інтерактивному режимі. Або створіть його вручну:
 
 ```yaml
 # openspec/config.yaml
@@ -45,9 +45,9 @@ rules:
     - Reference existing patterns before inventing new ones
 ```
 
-### How It Works
+### Як це працює
 
-**Default schema:**
+**Схема за замовчуванням:**
 
 ```bash
 # Without config
@@ -57,9 +57,9 @@ openspec new change my-feature --schema spec-driven
 openspec new change my-feature
 ```
 
-**Context and rules injection:**
+**Впровадження контексту та правил:**
 
-When generating any artifact, your context and rules are injected into the AI prompt:
+Під час генерації будь-якого артефакту ваш контекст і правила вводяться в підказку ШІ:
 
 ```xml
 <context>
@@ -77,23 +77,23 @@ Tech stack: TypeScript, React, Node.js, PostgreSQL
 </template>
 ```
 
-- **Context** appears in ALL artifacts
-- **Rules** ONLY appear for the matching artifact
+- **Контекст** з'являється в УСІХ артефактах
+- **Правила** з’являються ЛИШЕ для відповідного артефакту
 
-### Schema Resolution Order
+### Порядок вирішення схеми
 
-When OpenSpec needs a schema, it checks in this order:
+Коли OpenSpec потребує схеми, він перевіряє в такому порядку:
 
-1. CLI flag: `--schema <name>`
-2. Change metadata (`.openspec.yaml` in the change folder)
-3. Project config (`openspec/config.yaml`)
-4. Default (`spec-driven`)
+1. Прапор CLI: `--schema <name>`
+2. Змініть метадані (`.openspec.yaml` в папці змін)
+3. Конфігурація проекту (`openspec/config.yaml`)
+4. За замовчуванням (`керований специфікацією`)
 
 ---
 
-## Custom Schemas
+## Спеціальні схеми
 
-When project config isn't enough, create your own schema with a completely custom workflow. Custom schemas live in your project's `openspec/schemas/` directory and are version-controlled with your code.
+Якщо конфігурації проекту недостатньо, створіть власну схему з повністю індивідуальним робочим процесом. Спеціальні схеми містяться в каталозі `openspec/schemas/` вашого проекту та контролюються версіями за допомогою вашого коду.
 
 ```text
 your-project/
@@ -107,17 +107,17 @@ your-project/
 └── src/
 ```
 
-### Fork an Existing Schema
+### Форк існуючої схеми
 
-The fastest way to customize is to fork a built-in schema:
+Найшвидший спосіб налаштувати — розгалужити вбудовану схему:
 
 ```bash
 openspec schema fork spec-driven my-workflow
 ```
 
-This copies the entire `spec-driven` schema to `openspec/schemas/my-workflow/` where you can edit it freely.
+Це копіює всю схему, керовану специфікаціями, до `openspec/schemas/my-workflow/`, де ви можете її вільно редагувати.
 
-**What you get:**
+**Що ви отримуєте:**
 
 ```text
 openspec/schemas/my-workflow/
@@ -129,11 +129,11 @@ openspec/schemas/my-workflow/
     └── tasks.md          # Template for tasks
 ```
 
-Now edit `schema.yaml` to change the workflow, or edit templates to change what AI generates.
+Тепер відредагуйте `schema.yaml`, щоб змінити робочий процес, або відредагуйте шаблони, щоб змінити те, що генерує ШІ.
 
-### Create a Schema from Scratch
+### Створіть схему з нуля
 
-For a completely fresh workflow:
+Для абсолютно нового робочого процесу:
 
 ```bash
 # Interactive
@@ -146,9 +146,9 @@ openspec schema init rapid \
   --default
 ```
 
-### Schema Structure
+### Структура схеми
 
-A schema defines the artifacts in your workflow and how they depend on each other:
+Схема визначає артефакти у вашому робочому процесі та те, як вони залежать один від одного:
 
 ```yaml
 # openspec/schemas/my-workflow/schema.yaml
@@ -187,19 +187,19 @@ apply:
   tracks: tasks.md
 ```
 
-**Key fields:**
+**Ключові поля:**
 
-| Field | Purpose |
+| Поле | Призначення |
 |-------|---------|
-| `id` | Unique identifier, used in commands and rules |
-| `generates` | Output filename (supports globs like `specs/**/*.md`) |
-| `template` | Template file in `templates/` directory |
-| `instruction` | AI instructions for creating this artifact |
-| `requires` | Dependencies - which artifacts must exist first |
+| `id` | Унікальний ідентифікатор, який використовується в командах і правилах |
+| `генерує` | Ім’я вихідного файлу (підтримує глобуси, наприклад `specs/**/*.md`) |
+| `шаблон` | Файл шаблону в каталозі `templates/` |
+| `інструкція` | Інструкції AI для створення цього артефакту |
+| `вимагає` | Залежності - які артефакти повинні існувати першими |
 
-### Templates
+### Шаблони
 
-Templates are markdown files that guide the AI. They're injected into the prompt when creating that artifact.
+Шаблони — це файли розмітки, які керують ШІ. Вони вводяться в підказку під час створення цього артефакту.
 
 ```markdown
 <!-- templates/proposal.md -->
@@ -216,28 +216,28 @@ Templates are markdown files that guide the AI. They're injected into the prompt
 <!-- Affected code, APIs, dependencies, systems -->
 ```
 
-Templates can include:
-- Section headers the AI should fill in
-- HTML comments with guidance for the AI
-- Example formats showing expected structure
+Шаблони можуть містити:
+- Заголовки розділів, які має заповнити ШІ
+- Коментарі HTML з інструкціями для ШІ
+- Приклади форматів, що показують очікувану структуру
 
-### Validate Your Schema
+### Перевірте свою схему
 
-Before using a custom schema, validate it:
+Перш ніж використовувати спеціальну схему, перевірте її:
 
 ```bash
 openspec schema validate my-workflow
 ```
 
-This checks:
-- `schema.yaml` syntax is correct
-- All referenced templates exist
-- No circular dependencies
-- Artifact IDs are valid
+Це перевіряє:
+- Синтаксис `schema.yaml` правильний
+- Усі шаблони, на які посилаються, існують
+- Немає циклічних залежностей
+- Ідентифікатори артефактів дійсні
 
-### Use Your Custom Schema
+### Використовуйте свою спеціальну схему
 
-Once created, use your schema with:
+Після створення використовуйте свою схему з:
 
 ```bash
 # Specify on command
@@ -247,9 +247,9 @@ openspec new change feature --schema my-workflow
 schema: my-workflow
 ```
 
-### Debug Schema Resolution
+### Розв'язання схеми налагодження
 
-Not sure which schema is being used? Check with:
+Не знаєте, яка схема використовується? Перевірте в:
 
 ```bash
 # See where a specific schema resolves from
@@ -259,7 +259,7 @@ openspec schema which my-workflow
 openspec schema which --all
 ```
 
-Output shows whether it's from your project, user directory, or the package:
+Вихідні дані показують, чи це з вашого проекту, каталогу користувача чи пакета:
 
 ```text
 Schema: my-workflow
@@ -269,15 +269,15 @@ Path: /path/to/project/openspec/schemas/my-workflow
 
 ---
 
-> **Note:** OpenSpec also supports user-level schemas at `~/.local/share/openspec/schemas/` for sharing across projects, but project-level schemas in `openspec/schemas/` are recommended since they're version-controlled with your code.
+> **Примітка:** OpenSpec також підтримує схеми рівня користувача в `~/.local/share/openspec/schemas/` для спільного використання між проектами, але схеми рівня проекту в `openspec/schemas/` рекомендовані, оскільки вони керуються версією вашого коду.
 
 ---
 
-## Examples
+## Приклади
 
-### Rapid Iteration Workflow
+### Робочий процес швидкої ітерації
 
-A minimal workflow for quick iterations:
+Мінімальний робочий процес для швидких ітерацій:
 
 ```yaml
 # openspec/schemas/rapid/schema.yaml
@@ -306,15 +306,15 @@ apply:
   tracks: tasks.md
 ```
 
-### Adding a Review Artifact
+### Додавання артефакту огляду
 
-Fork the default and add a review step:
+Відгалужте значення за замовчуванням і додайте крок перегляду:
 
 ```bash
 openspec schema fork spec-driven with-review
 ```
 
-Then edit `schema.yaml` to add:
+Потім відредагуйте `schema.yaml`, щоб додати:
 
 ```yaml
   - id: review
@@ -337,6 +337,6 @@ Then edit `schema.yaml` to add:
 
 ---
 
-## See Also
+## Дивіться також
 
-- [CLI Reference: Schema Commands](cli.md#schema-commands) - Full command documentation
+- [Довідка CLI: команди схеми] (cli.md#schema-commands) - Повна документація команд

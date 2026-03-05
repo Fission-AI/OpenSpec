@@ -1,58 +1,58 @@
-# Supported Tools
+# Підтримувані інструменти
 
-OpenSpec works with many AI coding assistants. When you run `openspec init`, OpenSpec configures selected tools using your active profile/workflow selection and delivery mode.
+OpenSpec працює з багатьма помічниками кодування ШІ. Коли ви запускаєте `openspec init`, OpenSpec налаштовує вибрані інструменти, використовуючи ваш активний профіль/робочий процес вибору та режим доставки.
 
-## How It Works
+## Як це працює
 
-For each selected tool, OpenSpec can install:
+Для кожного вибраного інструменту OpenSpec може встановити:
 
-1. **Skills** (if delivery includes skills): `.../skills/openspec-*/SKILL.md`
-2. **Commands** (if delivery includes commands): tool-specific `opsx-*` command files
+1. **Навички** (якщо доставка включає в себе навички): `.../skills/openspec-*/SKILL.md`
+2. **Команди** (якщо поставка включає команди): файли команд `opsx-*` для окремих інструментів
 
-By default, OpenSpec uses the `core` profile, which includes:
-- `propose`
-- `explore`
-- `apply`
-- `archive`
+За замовчуванням OpenSpec використовує профіль `core`, який включає:
+- `пропонувати`
+- `дослідити`
+- `застосувати`
+- `архів`
 
-You can enable expanded workflows (`new`, `continue`, `ff`, `verify`, `sync`, `bulk-archive`, `onboard`) via `openspec config profile`, then run `openspec update`.
+Ви можете ввімкнути розширені робочі цикли (`new`, `continue`, `ff`, `verify`, `sync`, `bulk-archive`, `onboard`) через `openspec config profile`, а потім запустити `openspec update`.
 
-## Tool Directory Reference
+## Довідник каталогу інструментів
 
-| Tool (ID) | Skills path pattern | Command path pattern |
-|-----------|---------------------|----------------------|
+| Інструмент (ID) | Схема шляху навичок | Шаблон шляху до команди |
+|-----------|--------------------|--------------------|
 | Amazon Q Developer (`amazon-q`) | `.amazonq/skills/openspec-*/SKILL.md` | `.amazonq/prompts/opsx-<id>.md` |
-| Antigravity (`antigravity`) | `.agent/skills/openspec-*/SKILL.md` | `.agent/workflows/opsx-<id>.md` |
-| Auggie (`auggie`) | `.augment/skills/openspec-*/SKILL.md` | `.augment/commands/opsx-<id>.md` |
-| Claude Code (`claude`) | `.claude/skills/openspec-*/SKILL.md` | `.claude/commands/opsx/<id>.md` |
-| Cline (`cline`) | `.cline/skills/openspec-*/SKILL.md` | `.clinerules/workflows/opsx-<id>.md` |
+| Антигравітація (`antgravity`) | `.agent/skills/openspec-*/SKILL.md` | `.agent/workflows/opsx-<id>.md` |
+| Оггі (`auggie`) | `.augment/skills/openspec-*/SKILL.md` | `.augment/commands/opsx-<id>.md` |
+| Код Клода (`claude`) | `.claude/skills/openspec-*/SKILL.md` | `.claude/commands/opsx/<id>.md` |
+| Клайн (`cline`) | `.cline/skills/openspec-*/SKILL.md` | `.clinerules/workflows/opsx-<id>.md` |
 | CodeBuddy (`codebuddy`) | `.codebuddy/skills/openspec-*/SKILL.md` | `.codebuddy/commands/opsx/<id>.md` |
-| Codex (`codex`) | `.codex/skills/openspec-*/SKILL.md` | `$CODEX_HOME/prompts/opsx-<id>.md`\* |
-| Continue (`continue`) | `.continue/skills/openspec-*/SKILL.md` | `.continue/prompts/opsx-<id>.prompt` |
+| Кодекс (`codex`) | `.codex/skills/openspec-*/SKILL.md` | `$CODEX_HOME/prompts/opsx-<id>.md`\* |
+| Продовжити (`продовжити`) | `.continue/skills/openspec-*/SKILL.md` | `.continue/prompts/opsx-<id>.prompt` |
 | CoStrict (`costrict`) | `.cospec/skills/openspec-*/SKILL.md` | `.cospec/openspec/commands/opsx-<id>.md` |
-| Crush (`crush`) | `.crush/skills/openspec-*/SKILL.md` | `.crush/commands/opsx/<id>.md` |
-| Cursor (`cursor`) | `.cursor/skills/openspec-*/SKILL.md` | `.cursor/commands/opsx-<id>.md` |
-| Factory Droid (`factory`) | `.factory/skills/openspec-*/SKILL.md` | `.factory/commands/opsx-<id>.md` |
+| Розчавити (`розчавити`) | `.crush/skills/openspec-*/SKILL.md` | `.crush/commands/opsx/<id>.md` |
+| Курсор (`курсор`) | `.cursor/skills/openspec-*/SKILL.md` | `.cursor/commands/opsx-<id>.md` |
+| Фабричний дроїд (`factory`) | `.factory/skills/openspec-*/SKILL.md` | `.factory/commands/opsx-<id>.md` |
 | Gemini CLI (`gemini`) | `.gemini/skills/openspec-*/SKILL.md` | `.gemini/commands/opsx/<id>.toml` |
 | GitHub Copilot (`github-copilot`) | `.github/skills/openspec-*/SKILL.md` | `.github/prompts/opsx-<id>.prompt.md`\*\* |
 | iFlow (`iflow`) | `.iflow/skills/openspec-*/SKILL.md` | `.iflow/commands/opsx-<id>.md` |
-| Kilo Code (`kilocode`) | `.kilocode/skills/openspec-*/SKILL.md` | `.kilocode/workflows/opsx-<id>.md` |
-| Kiro (`kiro`) | `.kiro/skills/openspec-*/SKILL.md` | `.kiro/prompts/opsx-<id>.prompt.md` |
-| OpenCode (`opencode`) | `.opencode/skills/openspec-*/SKILL.md` | `.opencode/commands/opsx-<id>.md` |
-| Pi (`pi`) | `.pi/skills/openspec-*/SKILL.md` | `.pi/prompts/opsx-<id>.md` |
-| Qoder (`qoder`) | `.qoder/skills/openspec-*/SKILL.md` | `.qoder/commands/opsx/<id>.md` |
-| Qwen Code (`qwen`) | `.qwen/skills/openspec-*/SKILL.md` | `.qwen/commands/opsx-<id>.toml` |
+| Кілокод (`kilocode`) | `.kilocode/skills/openspec-*/SKILL.md` | `.kilocode/workflows/opsx-<id>.md` |
+| Кіро (`kiro`) | `.kiro/skills/openspec-*/SKILL.md` | `.kiro/prompts/opsx-<id>.prompt.md` |
+| OpenCode (`відкритий код`) | `.opencode/skills/openspec-*/SKILL.md` | `.opencode/commands/opsx-<id>.md` |
+| Пі (`пі`) | `.pi/skills/openspec-*/SKILL.md` | `.pi/prompts/opsx-<id>.md` |
+| Кодер (`qoder`) | `.qoder/skills/openspec-*/SKILL.md` | `.qoder/commands/opsx/<id>.md` |
+| Код Qwen (`qwen`) | `.qwen/skills/openspec-*/SKILL.md` | `.qwen/commands/opsx-<id>.toml` |
 | RooCode (`roocode`) | `.roo/skills/openspec-*/SKILL.md` | `.roo/commands/opsx-<id>.md` |
-| Trae (`trae`) | `.trae/skills/openspec-*/SKILL.md` | Not generated (no command adapter; use skill-based `/openspec-*` invocations) |
-| Windsurf (`windsurf`) | `.windsurf/skills/openspec-*/SKILL.md` | `.windsurf/workflows/opsx-<id>.md` |
+| Трае (`trae`) | `.trae/skills/openspec-*/SKILL.md` | Не створено (немає адаптера команд; використовуйте виклики `/openspec-*` на основі навичок) |
+| Віндсерфінг (`windsurf`) | `.windsurf/skills/openspec-*/SKILL.md` | `.windsurf/workflows/opsx-<id>.md` |
 
-\* Codex commands are installed in the global Codex home (`$CODEX_HOME/prompts/` if set, otherwise `~/.codex/prompts/`), not your project directory.
+\* Команди Codex встановлюються в глобальну домашню сторінку Codex (`$CODEX_HOME/prompts/`, якщо встановлено, інакше `~/.codex/prompts/`), а не в каталозі вашого проекту.
 
-\*\* GitHub Copilot prompt files are recognized as custom slash commands in IDE extensions (VS Code, JetBrains, Visual Studio). Copilot CLI does not currently consume `.github/prompts/*.prompt.md` directly.
+\*\* Файли підказок GitHub Copilot розпізнаються як спеціальні команди з скісною рискою в розширеннях IDE (VS Code, JetBrains, Visual Studio). Copilot CLI наразі не використовує безпосередньо `.github/prompts/*.prompt.md`.
 
-## Non-Interactive Setup
+## Неінтерактивне налаштування
 
-For CI/CD or scripted setup, use `--tools` (and optionally `--profile`):
+Для CI/CD або налаштування за сценарієм використовуйте `--tools` (та додатково `--profile`):
 
 ```bash
 # Configure specific tools
@@ -68,21 +68,21 @@ openspec init --tools none
 openspec init --profile core
 ```
 
-**Available tool IDs (`--tools`):** `amazon-q`, `antigravity`, `auggie`, `claude`, `cline`, `codex`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `iflow`, `kilocode`, `kiro`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `windsurf`
+**Доступні ідентифікатори інструментів (`--tools`):** `amazon-q`, `antigravity`, `auggie`, `claude`, `cline`, `codex`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `iflow`, `kilocode`, `kiro`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `windsurf`
 
-## Workflow-Dependent Installation
+## Встановлення, що залежить від робочого процесу
 
-OpenSpec installs workflow artifacts based on selected workflows:
+OpenSpec встановлює артефакти робочого процесу на основі вибраних робочих процесів:
 
-- **Core profile (default):** `propose`, `explore`, `apply`, `archive`
-- **Custom selection:** any subset of all workflow IDs:
-  `propose`, `explore`, `new`, `continue`, `apply`, `ff`, `sync`, `archive`, `bulk-archive`, `verify`, `onboard`
+- **Основний профіль (за замовчуванням):** `propose`, `explore`, `apply`, `archive`
+- **Користувацький вибір:** будь-яка підмножина всіх ідентифікаторів робочого процесу:
+`propose`, `explore`, `new`, `continue`, `apply`, `ff`, `sync`, `archive`, `bulk-archive`, `verify`, `onboard`
 
-In other words, skill/command counts are profile-dependent and delivery-dependent, not fixed.
+Іншими словами, кількість навичок/команд залежить від профілю та доставки, а не фіксована.
 
-## Generated Skill Names
+## Згенеровані назви навичок
 
-When selected by profile/workflow config, OpenSpec generates these skills:
+Якщо вибрати конфігурацію профілю/робочого процесу, OpenSpec генерує такі навички:
 
 - `openspec-propose`
 - `openspec-explore`
@@ -96,10 +96,10 @@ When selected by profile/workflow config, OpenSpec generates these skills:
 - `openspec-verify-change`
 - `openspec-onboard`
 
-See [Commands](commands.md) for command behavior and [CLI](cli.md) for `init`/`update` options.
+Перегляньте [Команди](commands.md) для інформації про поведінку команди та [CLI](cli.md) для параметрів `init`/`update`.
 
-## Related
+## Пов'язані
 
-- [CLI Reference](cli.md) — Terminal commands
-- [Commands](commands.md) — Slash commands and skills
-- [Getting Started](getting-started.md) — First-time setup
+- [Довідник CLI](cli.md) — команди терміналу
+- [Команди](commands.md) — команди та навички з косою рискою
+- [Початок роботи](getting-started.md) — перше налаштування

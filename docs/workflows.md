@@ -1,12 +1,12 @@
-# Workflows
+# Робочі процеси
 
-This guide covers common workflow patterns for OpenSpec and when to use each one. For basic setup, see [Getting Started](getting-started.md). For command reference, see [Commands](commands.md).
+Цей посібник охоплює загальні шаблони робочого процесу для OpenSpec і коли використовувати кожен із них. Для базового налаштування див. [Початок роботи](getting-started.md). Довідку про команди див. у [Команди](commands.md).
 
-## Philosophy: Actions, Not Phases
+## Філософія: дії, а не етапи
 
-Traditional workflows force you through phases: planning, then implementation, then done. But real work doesn't fit neatly into boxes.
+Традиційні робочі процеси змушують вас проходити етапи: планування, потім реалізація, потім готове. Але справжня робота не вписується в коробки.
 
-OPSX takes a different approach:
+OPSX використовує інший підхід:
 
 ```text
 Traditional (phase-locked):
@@ -21,49 +21,49 @@ OPSX (fluid actions):
   proposal ──► specs ──► design ──► tasks ──► implement
 ```
 
-**Key principles:**
+**Ключові принципи:**
 
-- **Actions, not phases** - Commands are things you can do, not stages you're stuck in
-- **Dependencies are enablers** - They show what's possible, not what's required next
+- **Дії, а не фази** - Команди – це те, що ви можете робити, а не етапи, на яких ви застрягли
+- **Залежності - це активатори** - вони показують, що можливо, а не те, що потрібно далі
 
-> **Customization:** OPSX workflows are driven by schemas that define artifact sequences. See [Customization](customization.md) for details on creating custom schemas.
+> **Налаштування:** робочі процеси OPSX керуються схемами, які визначають послідовності артефактів. Див. [Налаштування](customization.md), щоб дізнатися більше про створення власних схем.
 
-## Two Modes
+## Два режими
 
-### Default Quick Path (`core` profile)
+### Швидкий шлях за замовчуванням (основний профіль)
 
-New installs default to `core`, which provides:
+Нові інсталяції за замовчуванням `core`, що забезпечує:
 - `/opsx:propose`
 - `/opsx:explore`
-- `/opsx:apply`
-- `/opsx:archive`
+- `/opsx: застосувати`
+- `/opsx:архів`
 
-Typical flow:
+Типовий потік:
 
 ```text
 /opsx:propose ──► /opsx:apply ──► /opsx:archive
 ```
 
-### Expanded/Full Workflow (custom selection)
+### Розширений/повний робочий процес (спеціальний вибір)
 
-If you want explicit scaffold-and-build commands (`/opsx:new`, `/opsx:continue`, `/opsx:ff`, `/opsx:verify`, `/opsx:sync`, `/opsx:bulk-archive`, `/opsx:onboard`), enable them with:
+Якщо вам потрібні явні команди скаффолду та побудови (`/opsx:new`, `/opsx:continue`, `/opsx:ff`, `/opsx:verify`, `/opsx:sync`, `/opsx:bulk-archive`, `/opsx:onboard`), увімкніть їх за допомогою:
 
 ```bash
 openspec config profile
 openspec update
 ```
 
-## Workflow Patterns (Expanded Mode)
+## Шаблони робочого процесу (розширений режим)
 
-### Quick Feature
+### Швидка функція
 
-When you know what you want to build and just need to execute:
+Коли ви знаєте, що хочете створити, і вам просто потрібно виконати:
 
 ```text
 /opsx:new ──► /opsx:ff ──► /opsx:apply ──► /opsx:verify ──► /opsx:archive
 ```
 
-**Example conversation:**
+**Приклад розмови:**
 
 ```text
 You: /opsx:new add-logout-button
@@ -94,17 +94,17 @@ AI:  ✓ Merged specs
      ✓ Archived change
 ```
 
-**Best for:** Small to medium features, bug fixes, straightforward changes.
+**Найкраще для:** малих і середніх функцій, виправлень помилок, простих змін.
 
-### Exploratory
+### Дослідницький
 
-When requirements are unclear or you need to investigate first:
+Якщо вимоги незрозумілі або вам потрібно спочатку їх дослідити:
 
 ```text
 /opsx:explore ──► /opsx:new ──► /opsx:continue ──► ... ──► /opsx:apply
 ```
 
-**Example conversation:**
+**Приклад розмови:**
 
 ```text
 You: /opsx:explore
@@ -144,11 +144,11 @@ You: /opsx:continue
 AI:  Creating specs...
 ```
 
-**Best for:** Performance optimization, debugging, architectural decisions, unclear requirements.
+**Найкраще для:** Оптимізації продуктивності, налагодження, архітектурних рішень, незрозумілих вимог.
 
-### Parallel Changes
+### Паралельні зміни
 
-Work on multiple changes at once:
+Працюйте над кількома змінами одночасно:
 
 ```text
 Change A: /opsx:new ──► /opsx:ff ──► /opsx:apply (in progress)
@@ -158,7 +158,7 @@ Change A: /opsx:new ──► /opsx:ff ──► /opsx:apply (in progress)
 Change B: /opsx:new ──► /opsx:ff ──────► /opsx:apply
 ```
 
-**Example conversation:**
+**Приклад розмови:**
 
 ```text
 You: I'm working on add-dark-mode but got pulled into a bug fix
@@ -189,9 +189,9 @@ AI:  Resuming add-dark-mode...
      Picking up at task 2.3: Update Header...
 ```
 
-**Best for:** Parallel work streams, urgent interrupts, team collaboration.
+**Найкраще для:** Паралельних робочих потоків, термінових перерв, командної співпраці.
 
-When you have multiple completed changes, use `/opsx:bulk-archive`:
+Якщо у вас є кілька завершених змін, використовуйте `/opsx:bulk-archive`:
 
 ```text
 You: /opsx:bulk-archive
@@ -217,11 +217,11 @@ AI:  ✓ Archived add-dark-mode
      Specs merged in order: add-dark-mode → update-footer
 ```
 
-Bulk archive detects when multiple changes touch the same specs and resolves conflicts by checking what's actually implemented.
+Масовий архів виявляє, коли кілька змін стосуються одних і тих самих специфікацій, і вирішує конфлікти, перевіряючи, що насправді реалізовано.
 
-### Completing a Change
+### Завершення зміни
 
-The recommended completion flow:
+Рекомендований потік завершення:
 
 ```text
 /opsx:apply ──► /opsx:verify ──► /opsx:archive
@@ -230,9 +230,9 @@ The recommended completion flow:
               implementation     if needed
 ```
 
-#### Verify: Check Your Work
+#### Перевірте: перевірте свою роботу
 
-`/opsx:verify` validates implementation against your artifacts across three dimensions:
+`/opsx:verify` перевіряє реалізацію щодо ваших артефактів у трьох вимірах:
 
 ```text
 You: /opsx:verify
@@ -265,19 +265,19 @@ AI:  Verifying add-auth...
      2. Consider refactoring to event-driven as designed, or update design.md
 ```
 
-**What verify checks:**
+**Що перевіряє:**
 
-| Dimension | What it validates |
+| Розмір | Що він підтверджує |
 |-----------|------------------|
-| Completeness | All tasks done, all requirements implemented, scenarios covered |
-| Correctness | Implementation matches spec intent, edge cases handled |
-| Coherence | Design decisions reflected in code, patterns consistent |
+| Повнота | Усі завдання виконано, усі вимоги виконано, сценарії охоплено |
+| Правильність | Реалізація відповідає наміру специфікації, обробляються крайові випадки |
+| Когерентність | Дизайнерські рішення, відображені в коді, узгоджені |
 
-Verify won't block archive, but it surfaces issues you might want to address first.
+Перевірка не заблокує архів, але виявить проблеми, які ви можете спочатку вирішити.
 
-#### Archive: Finalize the Change
+#### Архів: завершити зміни
 
-`/opsx:archive` completes the change and moves it to the archive:
+`/opsx:archive` завершує зміни та переміщує їх до архіву:
 
 ```text
 You: /opsx:archive
@@ -301,39 +301,39 @@ AI:  ✓ Synced specs to openspec/specs/auth/spec.md
      Change archived successfully.
 ```
 
-Archive will prompt if specs aren't synced. It won't block on incomplete tasks, but it will warn you.
+Архів підкаже, якщо характеристики не синхронізовано. Він не блокуватиме невиконані завдання, але попередить вас.
 
-## When to Use What
+## Коли що використовувати
 
-### `/opsx:ff` vs `/opsx:continue`
+### `/opsx:ff` проти `/opsx:continue`
 
-| Situation | Use |
+| Ситуація | Використовуйте |
 |-----------|-----|
-| Clear requirements, ready to build | `/opsx:ff` |
-| Exploring, want to review each step | `/opsx:continue` |
-| Want to iterate on proposal before specs | `/opsx:continue` |
-| Time pressure, need to move fast | `/opsx:ff` |
-| Complex change, want control | `/opsx:continue` |
+| Чіткі вимоги, готові будувати | `/opsx:ff` |
+| Досліджуючи, хочу переглянути кожен крок | `/opsx:продовжити` |
+| Хочете переглянути пропозицію перед специфікаціями | `/opsx:продовжити` |
+| Тиск часу, потрібно рухатися швидко | `/opsx:ff` |
+| Комплексні зміни, потрібно контролювати | `/opsx:продовжити` |
 
-**Rule of thumb:** If you can describe the full scope upfront, use `/opsx:ff`. If you're figuring it out as you go, use `/opsx:continue`.
+**Емпіричне правило:** якщо ви можете заздалегідь описати повний обсяг, використовуйте `/opsx:ff`. Якщо ви з’ясовуєте це по ходу роботи, використовуйте `/opsx:continue`.
 
-### When to Update vs Start Fresh
+### Коли оновлювати чи починати заново
 
-A common question: when is updating an existing change okay, and when should you start a new one?
+Поширене запитання: коли можна оновлювати існуючу зміну, а коли слід починати нову?
 
-**Update the existing change when:**
+**Оновіть наявну зміну, коли:**
 
-- Same intent, refined execution
-- Scope narrows (MVP first, rest later)
-- Learning-driven corrections (codebase isn't what you expected)
-- Design tweaks based on implementation discoveries
+- Той самий задум, витончене виконання
+- Область звужується (спочатку MVP, потім відпочинок)
+- Виправлення на основі навчання (кодова база не така, як ви очікували)
+- Налаштування дизайну на основі відкриттів реалізації
 
-**Start a new change when:**
+**Почніть нову зміну, коли:**
 
-- Intent fundamentally changed
-- Scope exploded to different work entirely
-- Original change can be marked "done" standalone
-- Patches would confuse more than clarify
+- Принципово змінився намір
+- Сфера вибухнула до зовсім іншої роботи
+- Оригінальна зміна може бути окремо позначена як "виконана".
+- Патчі більше заплутають, ніж прояснить
 
 ```text
                      ┌─────────────────────────────────────┐
@@ -355,27 +355,27 @@ A common question: when is updating an existing change okay, and when should you
     UPDATE            NEW  UPDATE       NEW  UPDATE          NEW
 ```
 
-**Example: "Add dark mode"**
+**Приклад: «Додати темний режим»**
 
-- "Need to also support custom themes" → New change (scope exploded)
-- "System preference detection is harder than expected" → Update (same intent)
-- "Let's ship toggle first, add preferences later" → Update then archive, then new change
+- «Потрібно також підтримувати спеціальні теми» → Нова зміна (розширений обсяг)
+- «Виявлення системних налаштувань важче, ніж очікувалося» → Оновлення (таке саме призначення)
+- «Спочатку відправимо перемикач, а потім додамо налаштування» → Оновити, потім архівувати, а потім нові зміни
 
-## Best Practices
+## Найкращі практики
 
-### Keep Changes Focused
+### Зосередьтеся на змінах
 
-One logical unit of work per change. If you're doing "add feature X and also refactor Y", consider two separate changes.
+Одна логічна одиниця роботи на зміну. Якщо ви робите «додати функцію X, а також рефакторити Y», розгляньте дві окремі зміни.
 
-**Why it matters:**
-- Easier to review and understand
-- Cleaner archive history
-- Can ship independently
-- Simpler rollback if needed
+**Чому це важливо:**
+- Легше переглянути та зрозуміти
+— Очищення історії архіву
+- Можна відправляти самостійно
+— Простіший відкат, якщо потрібно
 
-### Use `/opsx:explore` for Unclear Requirements
+### Використовуйте `/opsx:explore` для незрозумілих вимог
 
-Before committing to a change, explore the problem space:
+Перш ніж приступити до змін, вивчіть проблемний простір:
 
 ```text
 You: /opsx:explore
@@ -395,11 +395,11 @@ AI:  Let me investigate your current setup and options...
      Your current stack suggests #1 or #2. What's your scale?
 ```
 
-Exploration clarifies thinking before you create artifacts.
+Дослідження прояснює мислення, перш ніж створювати артефакти.
 
-### Verify Before Archiving
+### Перевірте перед архівуванням
 
-Use `/opsx:verify` to check implementation matches artifacts:
+Використовуйте `/opsx:verify`, щоб перевірити відповідність реалізації артефактам:
 
 ```text
 You: /opsx:verify
@@ -413,11 +413,11 @@ AI:  Verifying add-dark-mode...
      Ready to archive!
 ```
 
-Catches mismatches before you close out the change.
+Виявляє невідповідності перед тим, як закрити зміну.
 
-### Name Changes Clearly
+### Чітко змінюються назви
 
-Good names make `openspec list` useful:
+Хороші імена роблять `openspec list` корисним:
 
 ```text
 Good:                          Avoid:
@@ -427,25 +427,25 @@ optimize-product-query         changes
 implement-2fa                  wip
 ```
 
-## Command Quick Reference
+## Короткий довідник команд
 
-For full command details and options, see [Commands](commands.md).
+Щоб отримати повну інформацію про команди та параметри, перегляньте [Команди](commands.md).
 
-| Command | Purpose | When to Use |
+| Команда | Призначення | Коли використовувати |
 |---------|---------|-------------|
-| `/opsx:propose` | Create change + planning artifacts | Fast default path (`core` profile) |
-| `/opsx:explore` | Think through ideas | Unclear requirements, investigation |
-| `/opsx:new` | Start a change scaffold | Expanded mode, explicit artifact control |
-| `/opsx:continue` | Create next artifact | Expanded mode, step-by-step artifact creation |
-| `/opsx:ff` | Create all planning artifacts | Expanded mode, clear scope |
-| `/opsx:apply` | Implement tasks | Ready to write code |
-| `/opsx:verify` | Validate implementation | Expanded mode, before archiving |
-| `/opsx:sync` | Merge delta specs | Expanded mode, optional |
-| `/opsx:archive` | Complete the change | All work finished |
-| `/opsx:bulk-archive` | Archive multiple changes | Expanded mode, parallel work |
+| `/opsx:пропонувати` | Створення змін + артефакти планування | Швидкий шлях за умовчанням (`core` профіль) |
+| `/opsx:explore` | Продумайте ідеї | Нечіткі вимоги, розслідування |
+| `/opsx:новий` | Розпочати зміну ешафоту | Розширений режим, явний контроль артефактів |
+| `/opsx:продовжити` | Створити наступний артефакт | Розгорнутий режим, покрокове створення артефакту |
+| `/opsx:ff` | Створити всі артефакти планування | Розгорнутий режим, чітка область |
+| `/opsx: застосувати` | Реалізувати завдання | Готовий до написання коду |
+| `/opsx:перевірити` | Підтвердити реалізацію | Розгорнутий режим, перед архівуванням |
+| `/opsx:sync` | Об’єднати дельта-специфікації | Розгорнутий режим, необов'язковий |
+| `/opsx:архів` | Завершити зміну | Всі роботи закінчені |
+| `/opsx:bulk-archive` | Архівувати кілька змін | Розгорнутий режим, паралельна робота |
 
-## Next Steps
+## Наступні кроки
 
-- [Commands](commands.md) - Full command reference with options
-- [Concepts](concepts.md) - Deep dive into specs, artifacts, and schemas
-- [Customization](customization.md) - Create custom workflows
+- [Команди](commands.md) - Повний довідник команд із параметрами
+- [Концепції] (concepts.md) - Глибоке занурення в характеристики, артефакти та схеми
+- [Налаштування](customization.md) - Створення власних робочих процесів

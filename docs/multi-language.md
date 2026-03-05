@@ -1,10 +1,10 @@
-# Multi-Language Guide
+# Багатомовний посібник
 
-Configure OpenSpec to generate artifacts in languages other than English.
+Налаштуйте OpenSpec для створення артефактів мовами, відмінними від англійської.
 
-## Quick Setup
+## Швидке налаштування
 
-Add a language instruction to your `openspec/config.yaml`:
+Додайте мовну інструкцію до вашого `openspec/config.yaml`:
 
 ```yaml
 schema: spec-driven
@@ -17,11 +17,11 @@ context: |
   Tech stack: TypeScript, React, Node.js
 ```
 
-That's it. All generated artifacts will now be in Portuguese.
+Ось і все. Усі згенеровані артефакти тепер будуть португальською мовою.
 
-## Language Examples
+## Приклади мови
 
-### Portuguese (Brazil)
+### Португальська (Бразилія)
 
 ```yaml
 context: |
@@ -29,7 +29,7 @@ context: |
   All artifacts must be written in Brazilian Portuguese.
 ```
 
-### Spanish
+### Іспанська
 
 ```yaml
 context: |
@@ -37,7 +37,7 @@ context: |
   Todos los artefactos deben escribirse en español.
 ```
 
-### Chinese (Simplified)
+### Китайська (спрощена)
 
 ```yaml
 context: |
@@ -45,7 +45,7 @@ context: |
   所有产出物必须用简体中文撰写。
 ```
 
-### Japanese
+### Японська
 
 ```yaml
 context: |
@@ -53,7 +53,7 @@ context: |
   すべての成果物は日本語で作成してください。
 ```
 
-### French
+### Французька
 
 ```yaml
 context: |
@@ -61,7 +61,7 @@ context: |
   Tous les artefacts doivent être rédigés en français.
 ```
 
-### German
+### німецька
 
 ```yaml
 context: |
@@ -69,11 +69,11 @@ context: |
   Alle Artefakte müssen auf Deutsch verfasst werden.
 ```
 
-## Tips
+## Поради
 
-### Handle Technical Terms
+### Опрацювати технічні умови
 
-Decide how to handle technical terminology:
+Вирішіть, як використовувати технічну термінологію:
 
 ```yaml
 context: |
@@ -83,9 +83,9 @@ context: |
   - Code examples and file paths remain in English
 ```
 
-### Combine with Other Context
+### Поєднати з іншим контекстом
 
-Language settings work alongside your other project context:
+Налаштування мови працюють разом із іншим контекстом вашого проекту:
 
 ```yaml
 schema: spec-driven
@@ -98,9 +98,9 @@ context: |
   Database: PostgreSQL with Prisma ORM
 ```
 
-## Verification
+## Перевірка
 
-To verify your language config is working:
+Щоб перевірити, чи працює конфігурація мови:
 
 ```bash
 # Check the instructions - should show your language context
@@ -109,7 +109,7 @@ openspec instructions proposal --change my-change
 # Output will include your language context
 ```
 
-## Related Documentation
+## Пов'язана документація
 
-- [Customization Guide](./customization.md) - Project configuration options
-- [Workflows Guide](./workflows.md) - Full workflow documentation
+- [Посібник з налаштування](./customization.md) - Параметри конфігурації проекту
+- [Посібник із робочих процесів](./workflows.md) - Повна документація робочого процесу
