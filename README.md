@@ -1,3 +1,8 @@
+# This is a Chinese translation of the original project.
+
+Original project:
+https://github.com/Fission-AI/OpenSpec.git
+
 <p align="center">
   <a href="https://github.com/Fission-AI/OpenSpec">
     <picture>
