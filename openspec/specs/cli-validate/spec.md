@@ -30,6 +30,11 @@ Validation output SHALL include specific guidance to fix each error, including e
   - Suggest adding 1-2 sentences describing the normative behavior prior to listing scenarios
   - Reference the pre-validation checklist in `openspec/AGENTS.md`
 
+#### Scenario: Missing normative keyword with multi-language hint
+- **WHEN** a requirement fails the normative keyword check
+- **THEN** the error message SHALL list all accepted keywords across supported languages (e.g., `SHALL, MUST, DEBE, DEBERA`)
+- **AND** the remediation guidance SHALL mention that keywords must be in UPPERCASE
+
 ### Requirement: Validator SHALL detect likely misformatted scenarios and warn with a fix
 The validator SHALL recognize bulleted lines that look like scenarios (e.g., lines beginning with WHEN/THEN/AND) and emit a targeted warning with a conversion example to `#### Scenario:`.
 

@@ -11,12 +11,32 @@ export const MAX_WHY_SECTION_LENGTH = 1000;
 export const MAX_REQUIREMENT_TEXT_LENGTH = 500;
 export const MAX_DELTAS_PER_CHANGE = 10;
 
+// Normative keywords per language (RFC 2119 equivalents)
+// Display keywords are used in error messages; match keywords include accent variants
+export const NORMATIVE_KEYWORDS: Record<string, readonly string[]> = {
+  en: ['SHALL', 'MUST'],
+  es: ['DEBE', 'DEBERA'],
+} as const;
+
+const MATCH_KEYWORDS = [
+  ...Object.values(NORMATIVE_KEYWORDS).flat(),
+  'DEBER\u00c1', // DEBERÁ — accented variant of DEBERA
+];
+
+const COMPILED_PATTERNS = MATCH_KEYWORDS.map(
+  kw => new RegExp(`\\b${kw}(?!\\w)`)
+);
+
+export function containsNormativeKeyword(text: string): boolean {
+  return COMPILED_PATTERNS.some(re => re.test(text));
+}
+
 // Validation messages
 export const VALIDATION_MESSAGES = {
   // Required content
   SCENARIO_EMPTY: 'Scenario text cannot be empty',
   REQUIREMENT_EMPTY: 'Requirement text cannot be empty',
-  REQUIREMENT_NO_SHALL: 'Requirement must contain SHALL or MUST keyword',
+  REQUIREMENT_NO_SHALL: `Requirement must contain an UPPERCASE normative keyword (${MATCH_KEYWORDS.join(', ')})`,
   REQUIREMENT_NO_SCENARIOS: 'Requirement must have at least one scenario',
   SPEC_NAME_EMPTY: 'Spec name cannot be empty',
   SPEC_PURPOSE_EMPTY: 'Purpose section cannot be empty',

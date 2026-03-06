@@ -69,6 +69,17 @@ context: |
   Alle Artefakte müssen auf Deutsch verfasst werden.
 ```
 
+## Normative Keywords
+
+The validator accepts RFC 2119 normative keywords in **English** and **Spanish**:
+
+| English | Spanish |
+|---------|---------|
+| `SHALL` | `DEBE` |
+| `MUST` | `DEBERA` / `DEBERÁ` |
+
+Every requirement must contain at least one of these keywords (in uppercase). For other languages, use the English keywords (`SHALL`/`MUST`) in your requirements.
+
 ## Tips
 
 ### Handle Technical Terms
