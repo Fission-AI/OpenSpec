@@ -1,193 +1,193 @@
-# cli-feedback Specification
+# cli-回饋規範
 
-## Purpose
-Define `openspec feedback` behavior for creating GitHub issues safely via `gh`, with a manual fallback when automation is unavailable.
+## 目的
+定義 `openspec feedback` 透過以下方式安全地建立 GitHub 問題的行為 `gh`，當自動化不可用時進行手動回退。
 
-## Requirements
-### Requirement: Feedback command
+## 要求
+### 要求：回饋命令
 
-The system SHALL provide an `openspec feedback` command that creates a GitHub Issue in the openspec repository using the `gh` CLI. The system SHALL use `execFileSync` with argument arrays to prevent shell injection vulnerabilities.
+系統應提供 `openspec feedback` 使用以下命令在 openspec 儲存庫中建立 GitHub 問題的命令 `gh` CLI。系統應使用 `execFileSync` 使用參數陣列來防止 shell 注入漏洞。
 
-#### Scenario: Simple feedback submission
+#### 場景：簡單的回饋提交
 
-- **WHEN** user executes `openspec feedback "Great tool!"`
-- **THEN** the system executes `gh issue create` with title "Feedback: Great tool!"
-- **AND** the issue is created in the openspec repository
-- **AND** the issue has the `feedback` label
-- **AND** the system displays the created issue URL
+- **何時** 使用者執行 `openspec feedback "Great tool!"`
+- **然後**系統執行 `gh issue create` 標題為“反饋：很棒的工具！”
+- **並且** 該問題是在 openspec 儲存庫中建立的
+- **並且**問題有 `feedback` 標籤
+- **並且**系統顯示已建立的問題 URL
 
-#### Scenario: Safe command execution
+#### 場景：安全命令執行
 
-- **WHEN** submitting feedback via `gh` CLI
-- **THEN** the system uses `execFileSync` with separate arguments array
-- **AND** user input is NOT passed through a shell
-- **AND** shell metacharacters (quotes, backticks, $(), etc.) are treated as literal text
+- **何時**透過以下方式提交回饋 `gh` CLI
+- **那麼**系統使用 `execFileSync` 帶有單獨的參數數組
+- **並且** 使用者輸入不透過 shell 傳遞
+- **AND** shell 元字元（引號、反引號、$() 等）被視為文字文字
 
-#### Scenario: Feedback with body
+#### 場景：身體回饋
 
-- **WHEN** user executes `openspec feedback "Title here" --body "Detailed description..."`
+- **何時** 使用者執行 `openspec feedback "Title here" --body "Detailed description..."`
 - **THEN** the system creates a GitHub Issue with the specified title
-- **AND** the issue body contains the detailed description
-- **AND** the issue body includes metadata (OpenSpec version, platform, timestamp)
+- **並且**問題正文包含詳細描述
+- **並且**問題正文包含元資料（OpenSpec版本、平台、時間戳記）
 
-### Requirement: GitHub CLI dependency
+### 要求：GitHub CLI 依賴性
 
-The system SHALL use `gh` CLI for automatic feedback submission when available, and provide a manual submission fallback when `gh` is not installed or not authenticated. The system SHALL use platform-appropriate commands to detect `gh` CLI availability.
+系統應使用 `gh` CLI 用於在可用時自動提交回饋，並在可用時提供手動提交回退 `gh` 未安裝或未經過身份驗證。系統應使用適合平台的命令來檢測 `gh` CLI 可用性。
 
-#### Scenario: Missing gh CLI with fallback
+#### 場景：缺少 gh CLI 並有後備
 
-- **WHEN** user runs `openspec feedback "message"`
-- **AND** `gh` CLI is not installed (not found in PATH)
-- **THEN** the system displays warning: "GitHub CLI not found. Manual submission required."
-- **AND** outputs structured feedback content with delimiters:
-  - "--- FORMATTED FEEDBACK ---"
-  - Title line
-  - Labels line
-  - Body content with metadata
-  - "--- END FEEDBACK ---"
-- **AND** displays pre-filled GitHub issue URL for manual submission
-- **AND** exits with zero code (successful fallback)
+- **何時** 使用者執行 `openspec feedback "message"`
+- **和** `gh` CLI 未安裝（在 PATH 中找不到）
+- **然後**系統顯示警告：“GitHub CLI 未找到。需要手動提交。”
+- **AND** 輸出帶分隔符號的結構化回饋內容：
+  - “--- 格式化回饋 ---”
+  - 標題行
+  - 標籤線
+  - 帶有元資料的正文內容
+  - “--- 回饋結束 ---”
+- **並且** 顯示預先填寫的 GitHub 問題 URL 以供手動提交
+- **AND** 以零代碼退出（成功回退）
 
-#### Scenario: Cross-platform gh CLI detection on Unix
+#### 場景：Unix 上跨平台 gh CLI 檢測
 
-- **WHEN** system is running on macOS or Linux (platform is 'darwin' or 'linux')
-- **AND** checking if `gh` CLI is installed
-- **THEN** the system executes `which gh` command
+- **何時** 系統在 macOS 或 Linux 上運作（平台是「darwin」或「linux」）
+- **並且**檢查是否 `gh` CLI 已安裝
+- **然後**系統執行 `which gh` 命令
 
-#### Scenario: Cross-platform gh CLI detection on Windows
+#### 場景：跨平台 gh CLI 偵測於 Windows
 
-- **WHEN** system is running on Windows (platform is 'win32')
-- **AND** checking if `gh` CLI is installed
-- **THEN** the system executes `where gh` command
+- **何時** 系統在 Windows 上運作（平台為「win32」）
+- **並且**檢查是否 `gh` CLI 已安裝
+- **然後**系統執行 `where gh` 命令
 
-#### Scenario: Unauthenticated gh CLI with fallback
+#### 場景：未經驗證的 gh CLI，並有後備
 
-- **WHEN** user runs `openspec feedback "message"`
-- **AND** `gh` CLI is installed but not authenticated
-- **THEN** the system displays warning: "GitHub authentication required. Manual submission required."
-- **AND** outputs structured feedback content (same format as missing gh CLI scenario)
-- **AND** displays pre-filled GitHub issue URL for manual submission
-- **AND** displays authentication instructions: "To auto-submit in the future: gh auth login"
-- **AND** exits with zero code (successful fallback)
+- **何時** 使用者執行 `openspec feedback "message"`
+- **和** `gh` CLI 已安裝但未經身份驗證
+- **然後**系統顯示警告：“需要GitHub身份驗證。需要手動提交。”
+- **AND** 輸出結構化回饋內容（與缺少 gh CLI 場景的格式相同）
+- **並且** 顯示預先填寫的 GitHub 問題 URL 以供手動提交
+- **AND** 顯示驗證說明：“將來自動提交：gh auth login”
+- **AND** 以零代碼退出（成功回退）
 
-#### Scenario: Authenticated gh CLI
+#### 場景：已驗證 gh CLI
 
-- **WHEN** user runs `openspec feedback "message"`
-- **AND** `gh auth status` returns success (authenticated)
-- **THEN** the system proceeds with feedback submission
+- **何時** 使用者執行 `openspec feedback "message"`
+- **和** `gh auth status` 返回成功（已驗證）
+- **然後** 系統繼續提交回饋
 
-### Requirement: Issue metadata
+### 需求：發布元資料
 
-The system SHALL include relevant metadata in the GitHub Issue body.
+系統應在 GitHub 問題正文中包含相關元資料。
 
-#### Scenario: Standard metadata
+#### 場景：標準元資料
 
-- **WHEN** creating a GitHub Issue for feedback
-- **THEN** the issue body includes:
-  - OpenSpec CLI version
-  - Platform (darwin, linux, win32)
-  - Submission timestamp
-  - Separator line: "---\nSubmitted via OpenSpec CLI"
+- **何時** 建立 GitHub 問題以獲取回饋
+- **那麼**問題正文包括：
+  - OpenSpec CLI 版本
+  - 平台（darwin、linux、win32）
+  - 提交時間戳
+  - 分隔行：“---\n透過 OpenSpec CLI 提交”
 
-#### Scenario: Windows platform metadata
+#### 場景：Windows 平台元資料
 
-- **WHEN** creating a GitHub Issue for feedback on Windows
-- **THEN** the issue body includes "Platform: win32"
-- **AND** all platform detection uses Node.js `os.platform()` API
+- **何時** 建立 GitHub 問題以獲取有關 Windows 的反饋
+- **那麼**問題正文包括“平台：win32”
+- **並且** 所有平台檢測都使用 Node.js `os.platform()` API
 
-#### Scenario: No sensitive metadata
+#### 場景：沒有敏感元資料
 
-- **WHEN** creating a GitHub Issue for feedback
-- **THEN** the issue body does NOT include:
-  - File paths from user's system
-  - Project names or directory names
-  - Environment variables
-  - IP addresses
+- **何時** 建立 GitHub 問題以獲取回饋
+- **那麼**問題正文不包括：
+  - 使用者係統中的檔案路徑
+  - 項目名稱或目錄名稱
+  - 環境變數
+  - IP位址
 
-### Requirement: Feedback always works
+### 要求：回饋始終有效
 
-The system SHALL allow feedback submission regardless of telemetry settings.
+無論遙測設定如何，系統都應允許提交回饋。
 
-#### Scenario: Feedback with telemetry disabled
+#### 場景：禁用遙測的回饋
 
-- **WHEN** user has disabled telemetry via `OPENSPEC_TELEMETRY=0`
-- **AND** user runs `openspec feedback "message"`
-- **THEN** the feedback is still submitted via `gh` CLI
-- **AND** telemetry events are not sent
+- **何時** 使用者透過以下方式停用了遙測 `OPENSPEC_TELEMETRY=0`
+- **和** 用戶執行 `openspec feedback "message"`
+- **那麼** 回饋仍然透過 `gh` CLI
+- **並且** 不發送遙測事件
 
-#### Scenario: Feedback in CI environment
+#### 場景：CI環境中的回饋
 
-- **WHEN** `CI=true` is set in the environment
-- **AND** user runs `openspec feedback "message"`
-- **THEN** the feedback submission proceeds normally (if `gh` is available and authenticated)
+- **什麼時候** `CI=true` 是在環境中設定的
+- **和** 用戶執行 `openspec feedback "message"`
+- **那麼** 反饋提交正常進行（如果 `gh` 可用並經過身份驗證）
 
-### Requirement: Error handling
+### 要求：錯誤處理
 
-The system SHALL handle feedback submission errors gracefully.
+系統應妥善處理回饋提交錯誤。
 
-#### Scenario: gh CLI execution failure
+#### 場景：gh CLI執行失敗
 
-- **WHEN** `gh issue create` command fails
-- **THEN** the system displays the error output from `gh` CLI
-- **AND** exits with the same exit code as `gh`
+- **什麼時候** `gh issue create` 命令失敗
+- **THEN** 系統顯示錯誤輸出 `gh` CLI
+- **AND** 使用與以下相同的退出代碼退出 `gh`
 
-#### Scenario: Network failure
+#### 場景：網路故障
 
-- **WHEN** `gh` CLI reports network connectivity issues
-- **THEN** the system displays the error message from `gh`
-- **AND** suggests checking network connectivity
-- **AND** exits with non-zero code
+- **什麼時候** `gh` CLI 報告網路連線問題
+- **然後** 系統顯示錯誤訊息 `gh`
+- **並且**建議檢查網路連接
+- **AND** 以非零代碼退出
 
-### Requirement: Feedback skill for agents
+### 要求：座席回饋能力
 
-The system SHALL provide a `/feedback` skill that guides agents through collecting and submitting user feedback.
+系統應提供 `/feedback` 指導代理收集和提交使用者回饋的技能。
 
-#### Scenario: Agent-initiated feedback
+#### 場景：座席發起的回饋
 
-- **WHEN** user invokes `/feedback` in an agent conversation
-- **THEN** the agent gathers context from the conversation
-- **AND** drafts a feedback issue with enriched content
-- **AND** anonymizes sensitive information
-- **AND** presents the draft to the user for approval
-- **AND** submits via `openspec feedback` command on user confirmation
+- **何時** 用戶調用 `/feedback` 在代理對話中
+- **然後** 代理從對話中收集上下文
+- **並**起草內容豐富的回饋問題
+- **AND** 匿名化敏感訊息
+- **並且** 將草稿提交給使用者批准
+- **並且** 透過以下方式提交 `openspec feedback` 用戶確認命令
 
-#### Scenario: Context enrichment
+#### 場景：上下文豐富
 
-- **WHEN** agent drafts feedback
-- **THEN** the agent includes relevant context such as:
-  - What task was being performed
-  - What worked well or poorly
-  - Specific friction points or praise
+- **何時** 代理起草回饋
+- **那麼** 代理包含相關上下文，例如：
+  - 正在執行什麼任務
+  - 哪些方面效果好，哪些效果不好
+  - 具體摩擦點或好評
 
-#### Scenario: Anonymization
+#### 場景：匿名化
 
-- **WHEN** agent drafts feedback
-- **THEN** the agent removes or replaces:
-  - File paths with `<path>` or generic descriptions
-  - API keys, tokens, secrets with `<redacted>`
-  - Company/organization names with `<company>`
-  - Personal names with `<user>`
-  - Specific URLs with `<url>` unless public/relevant
+- **何時** 代理起草回饋
+- **然後** 代理刪除或替換：
+  - 文件路徑與 `<path>` 或一般描述
+  - API 密鑰、令牌、秘密 `<redacted>`
+  - 公司/組織名稱 `<company>`
+  - 個人姓名與 `<user>`
+  - 具體網址為 `<url>` 除非公開/相關
 
-#### Scenario: User confirmation required
+#### 場景：需要使用者確認
 
-- **WHEN** agent has drafted feedback
-- **THEN** the agent MUST show the complete draft to the user
-- **AND** ask for explicit approval before submitting
-- **AND** allow the user to request modifications
-- **AND** only submit after user confirms
+- **何時** 代理起草回饋
+- **那麼** 代理必須向使用者顯示完整的草稿
+- **並且**在提交之前請求明確批准
+- **並且**允許使用者請求修改
+- **並且**僅在用戶確認後提交
 
-### Requirement: Shell completions
+### 要求：外殼完工
 
-The system SHALL provide shell completions for the feedback command.
+系統應為回授指令提供 shell 補全。
 
-#### Scenario: Command completion
+#### 場景：命令完成
 
-- **WHEN** user types `openspec fee<TAB>`
-- **THEN** the shell completes to `openspec feedback`
+- **何時** 使用者類型 `openspec fee<TAB>`
+- **然後** shell 完成 `openspec feedback`
 
-#### Scenario: Flag completion
+#### 場景：標記完成
 
-- **WHEN** user types `openspec feedback "msg" --<TAB>`
-- **THEN** the shell suggests available flags (`--body`)
+- **何時** 使用者類型 `openspec feedback "msg" --<TAB>`
+- **那麼** shell 會建議可用的標誌（`--body`)
 

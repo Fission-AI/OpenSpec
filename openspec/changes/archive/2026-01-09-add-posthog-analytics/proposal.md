@@ -1,37 +1,37 @@
-## Why
+## 為什麼
 
-OpenSpec currently has no visibility into how the tool is being used. Without analytics, we cannot:
-- Understand which commands and features are most valuable to users
-- Measure adoption and usage patterns
-- Make data-driven decisions about product development
+OpenSpec 目前無法瞭解該工具的使用方式。沒有分析，我們就無法：
+- 瞭解哪些命令和功能對使用者最有價值
+- 衡量採用和使用模式
+- 做出有關產品開發的資料驅動決策
 
-Adding PostHog analytics enables product insights while respecting user privacy through transparent, opt-out telemetry.
+新增 PostHog 分析可以實現產品洞察，同時透過透明、選擇退出的遙測尊重用戶隱私。
 
-## What Changes
+## 有什麼變化
 
-- Add PostHog Node.js SDK as a dependency
-- Implement telemetry system with environment variable opt-out
-- Track command usage (command name and version only)
-- Show first-run notice informing users about telemetry
-- Store anonymous ID in global config (`~/.config/openspec/config.json`)
-- Respect `DO_NOT_TRACK` and `OPENSPEC_TELEMETRY=0` environment variables
-- Auto-disable in CI environments
+- 新增 PostHog Node.js SDK 作為依賴項
+- 實施具有環境變數選擇退出的遙測系統
+- 追蹤命令使用情況（僅命令名稱和版本）
+- 顯示首次執行通知，告知用戶有關遙測的信息
+- 將匿名 ID 儲存在全域設定中（`~/.config/openspec/config.json`)
+- 尊重 `DO_NOT_TRACK` 和 `OPENSPEC_TELEMETRY=0` 環境變數
+- 在 CI 環境中自動停用
 
-## Capabilities
+## 能力
 
-### New Capabilities
+### 新功能
 
-- `telemetry`: Anonymous usage analytics using PostHog. Covers command tracking, opt-out controls, and first-run disclosure notice.
+- `telemetry`：使用 PostHog 進行匿名使用分析。涵蓋命令追蹤、選擇退出控制和首次執行披露通知。
 
-### Modified Capabilities
+### 修改後的功能
 
-- `global-config`: Add telemetry state storage (anonymous ID, notice seen flag)
+- `global-config`：新增遙測狀態儲存（匿名ID，通知可見標誌）
 
-## Impact
+## 影響
 
-- **Dependencies**: Add `posthog-node` package
+- **依賴項**：新增 `posthog-node` 包裹
 - **Privacy**: Opt-out via env var, no personal data collected, clear disclosure
-- **Configuration**: New global config fields for telemetry state
-- **Network**: Async event sending with flush on exit (~100-300ms added)
-- **CI/CD**: Telemetry auto-disabled when `CI=true`
-- **Documentation**: Update README with telemetry disclosure
+- **設定**：遙測狀態的新全域設定字段
+- **網路**：非同步事件發送並退出時重新整理（新增了~100-300ms）
+- **CI/CD**：遙測自動停用 `CI=true`
+- **文件**：透過遙測揭露更新 README

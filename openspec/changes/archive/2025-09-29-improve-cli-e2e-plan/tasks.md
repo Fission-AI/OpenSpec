@@ -1,9 +1,9 @@
-## 1. Phase 1 – Stabilize Local Spawn Coverage
-- [x] 1.1 Add `test/helpers/run-cli.ts` that ensures the build runs once and executes `node dist/cli/index.js` with non-TTY defaults; update `vitest.setup.ts` to reuse the shared build step.
-- [x] 1.2 Seed `test/cli-e2e` using the minimal fixture set (`tmp-init` or copy) to cover help/version, a happy-path `validate`, and a representative error flow via the new helper.
-- [x] 1.3 Migrate the highest-value existing CLI exec tests (e.g., validate) onto `runCLI` and summarize Phase 1 coverage in this proposal for the next phase.
+## 1. 第一階段 – 穩定本地生成覆蓋範圍
+- [x] 1.1 添加 `test/helpers/run-cli.ts` 確保建置執行一次並執行 `node dist/cli/index.js` 使用非 TTY 預設值；更新 `vitest.setup.ts` 重用共享的建置步驟。
+- [x] 1.2 種子 `test/cli-e2e` 使用最小的夾具組（`tmp-init` 或複製）以覆蓋幫助/版本，一條快樂的道路 `validate`，以及透過新助手的代表性錯誤流。
+- [x] 1.3 將最高價值的現有 CLI 執行測試（例如，驗證）遷移到 `runCLI` 並總結本提案中第一階段的涵蓋範圍以供下一階段使用。
 
-## 2. Phase 2 – Expand Cross-Shell Validation
-- [x] 2.1 Exercise both entry points (`node dist/cli/index.js`, `bin/openspec.js`) in the spawn suite and add diagnostics for shell/OS context.
-- [x] 2.2 Extend GitHub Actions to run the spawn suite on bash jobs for Linux/macOS and a `pwsh` job on Windows; capture shell/OS diagnostics and note follow-ups for additional shells.
+## 2. 第 2 階段 – 擴展跨 Shell 驗證
+- [x] 2.1 運用兩個切入點（`node dist/cli/index.js`, `bin/openspec.js`）在生成套件中並添加 shell/OS 上下文的診斷。
+- [x] 2.2 擴展 GitHub 操作以在 bash 作業上執行生成套件 Linux/macOS 和 `pwsh` Windows 上的工作；擷取 shell/作業系統診斷並記錄其他 shell 的後續情況。
 

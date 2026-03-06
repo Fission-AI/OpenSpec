@@ -1,38 +1,38 @@
-# Implementation Tasks
+# 實施任務
 
-## 1. Update Core Documentation
-- [x] 1.1 Update openspec/README.md section on "Creating a Change Proposal"
-  - [x] Replace `patches/` with `specs/` in directory structure
-  - [x] Update step 3 to show storing complete future state
-  - [x] Remove diff syntax instructions (+/- prefixes)
+## 1.更新核心文檔
+- [x] 1.1 更新 openspec/README.md 中「建立變更提案」部分
+  - [x] 代替 `patches/` 和 `specs/` 在目錄結構中
+  - [x] 更新步驟 3 以顯示儲存完整的未來狀態
+  - [x] 刪除 diff 語法指令（+/- 前綴）
 
-## 2. Migrate Existing Change
-- [x] 2.1 Convert add-init-command change to new format
-  - [x] Create `specs/cli-init/spec.md` with clean content (no diff markers)
-  - [x] Delete old `patches/` directory
-- [x] 2.2 Test that the migrated change is clear and reviewable
+## 2. 遷移現有變更
+- [x] 2.1 將 add-init-command 變更轉換為新格式
+  - [x] 創造 `specs/cli-init/spec.md` 內容乾淨（沒有差異標記）
+  - [x] 刪除舊的 `patches/` 目錄
+- [x] 2.2 測試遷移的變更是否清晰且可審查
 
-## 3. Update Documentation Examples
-- [x] 3.1 Update docs/PRD.md
-  - [x] Fix directory structure examples (lines 376-382)
-  - [x] Update archive examples (lines 778-783)
-  - [x] Ensure consistency throughout
-- [x] 3.2 Update docs/openspec-walkthrough.md
-  - [x] Replace diff examples with future state examples
-  - [x] Ensure the walkthrough reflects new approach
+## 3.更新文檔範例
+- [x] 3.1 更新文件/PRD.md
+  - [x] 修復目錄結構範例（第 376-382 行）
+  - [x] 更新存檔範例（第 778-783 行）
+  - [x] 確保整個流程的一致性
+- [x] 3.2 更新 docs/openspec-walkthrough.md
+  - [x] 將 diff 範例替換為未​​來狀態範例
+  - [x] 確保演練反映新方法
 
-## 4. Create New Spec
-- [x] 4.1 Finalize openspec-conventions spec in main specs/ directory
-  - [x] Document the future state storage approach
-  - [x] Include examples of good proposals
-  - [x] Make it the source of truth for conventions
+## 4. 建立新規範
+- [x] 4.1 在主specs/目錄中最終確定openspec-conventions規範
+  - [x] 記錄未來狀態儲存方法
+  - [x] 包括好的建議的例子
+  - [x] 使其成為慣例的真相來源
 
-## 5. Validation
-- [x] 5.1 Verify all documentation is consistent
-- [x] 5.2 Test creating a new change with the new approach
-- [x] 5.3 Ensure GitHub PR view shows diffs clearly
+## 5. 驗證
+- [x] 5.1 驗證所有文件是否一致
+- [x] 5.2 測試使用新方法建立新變更
+- [x] 5.3 確保 GitHub PR 視圖清楚顯示差異
 
-## 6. Deployment
-- [x] 6.1 Get approval for this change
-- [x] 6.2 Implement all tasks above
-- [x] 6.3 After deployment, archive this change with completion date
+## 6. 部署
+- [x] 6.1 獲得此變更的批准
+- [x] 6.2 實施上述所有任務
+- [x] 6.3 部署後，歸檔此變更並註明完成日期

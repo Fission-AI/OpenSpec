@@ -1,12 +1,12 @@
-## 1. Messaging enhancements
-- [x] 1.1 Inventory current validation failures and map each to the desired message improvements.
-- [x] 1.2 Implement structured error builders that include file paths, normalized header names, and example fixes.
-- [x] 1.3 Ensure `openspec validate --help` and troubleshooting docs mention the richer messages and debug tips.
+## 1. 訊息傳遞增強
+- [x] 1.1 清點目前的驗證失敗並將每個失敗對應到所需的訊息改進。
+- [x] 1.2 實作結構化錯誤產生器，其中包括檔案路徑、規範化標頭名稱和範例修復。
+- [x] 1.3 確保 `openspec validate --help` 故障排除文件提到了更豐富的訊息和調試提示。
 
-## 2. Tests
-- [x] 2.1 Add unit tests for representative errors (no deltas, missing requirement body, missing scenarios) asserting the new wording.
-- [x] 2.2 Add integration coverage verifying the Next steps footer reflects contextual guidance.
+## 2. 測試
+- [x] 2.1 新增代表性錯誤（無增量、缺乏需求主體、缺少場景）的單元測試，以斷言新措詞。
+- [x] 2.2 增加整合覆蓋範圍，驗證後續步驟頁腳是否反映了上下文指導。
 
-## 3. Documentation
-- [x] 3.1 Update troubleshooting sections and CLI docs with sample output from the enhanced errors.
-- [x] 3.2 Note the change in CHANGELOG or release notes if applicable.
+## 3. 文件
+- [x] 3.1 使用增強錯誤的範例輸出更新故障排除部分和 CLI 文件。
+- [x] 3.2 如果適用，請注意變更日誌或發行說明中的變更。

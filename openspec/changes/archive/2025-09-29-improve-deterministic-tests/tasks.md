@@ -1,25 +1,25 @@
-# Implementation Tasks
+# 實施任務
 
-## 1. Test Isolation
-- [x] 1.1 Create temp fixture roots per suite (openspec/changes, openspec/specs)
-- [x] 1.2 Use process.chdir to temp root within tests
-- [x] 1.3 Restore original cwd and clean temp dirs after each
+## 1. 測試隔離
+- [x] 1.1 建立每個套件的臨時固定根（openspec/changes、openspec/specs）
+- [x] 1.2 在測試中使用 process.chdir 暫時 root
+- [x] 1.3 每次執行後恢復原始 cwd 並清理臨時目錄
 
-## 2. Deterministic Discovery
-- [x] 2.1 Implement getActiveChangeIds(root?) to only include dirs with proposal.md
-- [x] 2.2 Implement getSpecIds(root?) to only include dirs with spec.md
-- [x] 2.3 Return sorted results to avoid fs.readdir ordering variance
+## 2. 確定性發現
+- [x] 2.1 實作 getActiveChangeIds(root?) 以僅包含帶有proposal.md的目錄
+- [x] 2.2 實作 getSpecIds(root?) 以僅包含spec.md的目錄
+- [x] 2.3 傳回排序結果以避免 fs.readdir 排序差異
 
-## 3. Command Integration
-- [x] 3.1 Ensure change/show/validate rely on cwd and discovery helpers
-- [x] 3.2 Keep runtime behavior unchanged for end users
+## 3. 命令集成
+- [x] 3.1 確保更改/顯示/驗證依賴 cwd 和發現助手
+- [x] 3.2 保持最終用戶的執行時行為不變
 
-## 4. Validation
-- [x] 4.1 Convert affected command tests (show, spec, validate, change) to isolated fixtures
-- [x] 4.2 Verify tests pass consistently across environments
-- [x] 4.3 Confirm no reads from real repo state during tests
+## 4. 驗證
+- [x] 4.1 將受影響的命令測試（顯示、規格、驗證、變更）轉換為隔離的裝置
+- [x] 4.2 驗證測試在不同環境中一致通過
+- [x] 4.3 確認測試期間沒有讀取真實倉庫狀態
 
-## 5. Optional (Not Needed Now)
-- [x] 5.1 Add optional root param to discovery helpers (default process.cwd())
+## 5. 可選（現在不需要）
+- [x] 5.1 將可選的根參數加入到發現助手（預設為 process.cwd()）
 
 

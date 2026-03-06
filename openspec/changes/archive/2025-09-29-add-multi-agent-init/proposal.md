@@ -1,35 +1,35 @@
-# Allow Additional AI Tool Initialization After Setup
+# 允許在設定後初始化其他 AI 工具
 
-## Summary
-- Let `openspec init` configure new AI coding tools for projects that already contain an OpenSpec structure.
-- Keep the initialization flow safe by skipping structure creation and only generating files for tools the user explicitly selects.
-- Provide clear feedback so users know which tool files were added versus already present.
+## 概括
+- 讓 `openspec init` 為已包含 OpenSpec 結構的專案設定新的 AI 編碼工具。
+- 透過跳過結構建立並僅為使用者明確選擇的工俱生成檔案來保持初始化流程的安全。
+- 提供清晰的回饋，以便使用者知道哪些工具檔案已添加，哪些工具檔案已存在。
 
-## Motivation
-Today `openspec init` exits with an error once an `openspec/` directory exists. That protects the directory layout, but it blocks
-teams that start with one assistant (for example, Claude Code) and later want to add another such as Cursor. They have to create
-those files by hand or rerun `init` in a clean clone, which undermines the "easy onboarding" promise. Letting the command extend
-an existing installation keeps the workflow consistent and avoids manual file management.
+## 動機
+今天 `openspec init` 一旦出現錯誤就退出 `openspec/` 目錄存在。這可以保護目錄佈局，但會阻塞
+一開始只有一個助手（例如 Claude Code），後來又想再增加一個助手（例如 Cursor）的隊伍。他們必須創造
+手動或重新執行這些文件 `init` 在一個乾淨的克隆中，這破壞了“輕鬆入門”的承諾。讓命令擴展
+現有安裝可保持工作流程的一致性並避免手動文件管理。
 
-## Proposal
-1. Detect an existing OpenSpec structure at the start of `openspec init` and branch into an "extend" mode instead of exiting.
-   - Announce that the base structure already exists and that the command will only manage AI tool configuration files.
-   - Keep the existing guard for directories or files we must not overwrite.
-2. Present the usual AI tool selection prompt even in extend mode, showing which tools are already configured.
-   - Skip disabled options that remain "coming soon".
-   - Mark already configured tools as such so users know whether selecting them will refresh or add files.
-3. When the user selects additional tools, generate the same initialization files that a fresh run would create (e.g., Cursor
-   workspace files) while leaving untouched tools intact apart from marker-managed sections.
-   - Do nothing when the user selects no new tools and keep the previous error messaging to avoid silently succeeding.
-4. Summarize the outcome (created, refreshed, skipped) before exiting with code 0 when work was performed.
-   - Include friendly guidance that future updates to shared content still come from `openspec update`.
+## 提議
+1. 檢測開頭處是否存在 OpenSpec 結構 `openspec init` 並分支到“擴展”模式而不是退出。
+   - 宣布基礎結構已經存在，並且該命令將僅管理 AI 工具設定檔。
+   - 保留現有的目錄或檔案保護，不得覆蓋。
+2. 即使在擴充模式下也會顯示常用的 AI 工具選擇提示，顯示哪些工具已設定。
+   - 跳過仍然“即將推出”的已停用選項。
+   - 標記已設定的工具，以便使用者知道選擇它們是否會重新整理或新增檔案。
+3. 當使用者選擇其他工具時，產生與全新執行相同的初始化檔案（例如，Cursor
+   工作區文件），同時除了標記管理的部分之外，保持未受影響的工具完好無損。
+   - 當使用者沒有選擇新工具時，不執行任何操作，並保留先前的錯誤訊息，以避免默默地成功。
+4. 執行工作時，在以程式碼 0 退出之前總結結果（建立、重新整理、跳過）。
+   - 包括友好的指導，共享內容的未來更新仍然來自 `openspec update`.
 
-## Out of Scope
-- Changing how `openspec update` discovers or updates AI tool files.
-- Supporting brand-new AI tools beyond those already wired into the CLI.
-- Adding non-interactive flags for selecting multiple tools in one run (follow-up if needed).
+## 超出範圍
+- 改變方式 `openspec update` 發現或更新 AI 工具檔案。
+- 除了已經連接到 CLI 的工具之外，還支援全新的 AI 工具。
+- 新增非互動式標誌，以便在一次執行中選擇多個工具（如果需要，請進行後續操作）。
 
-## Risks & Mitigations
-- **User confusion about extend mode** → Explicitly log what will happen before prompting and summarise results afterward.
-- **Accidental overwrites** → Continue using marker-based updates and skip files unless the user chooses that tool.
-- **Inconsistent state if init fails mid-run** → Reuse existing rollback/transaction logic so partial writes clean up.
+## 風險與緩解措施
+- **使用者對擴展模式感到困惑** → 在提示之前明確記錄將發生的情況，並在之後總結結果。
+- **意外覆蓋** → 繼續使用基於標記的更新並跳過文件，除非使用者選擇該工具。
+- **如果 init 在運作中失敗，則狀態不一致** → 重複使用現有的回溯/事務邏輯，以便清除部分寫入。

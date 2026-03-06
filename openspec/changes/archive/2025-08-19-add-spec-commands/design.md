@@ -1,15 +1,15 @@
-# Design: Spec Commands
+# 設計：規格指令
 
-## Architecture Decisions
+## 架構決策
 
-### Command Hierarchy
-We chose a subcommand pattern (`spec show`, `spec list`, `spec validate`) to:
-- Group related functionality under a common namespace
-- Enable future extensibility without polluting the top-level CLI
-- Maintain consistency with the planned `change` command structure
+### 命令層次結構
+我們選擇了一個子命令模式（`spec show`, `spec list`, `spec validate`） 到：
+- 將相關功能分組到公共命名空間下
+- 啟用未來的可擴展性而不污染頂層CLI
+- 與計劃保持一致 `change` 命令結構
 
-### JSON Schema Structure
-The spec JSON schema follows this structure:
+### JSON 架構結構
+規範 JSON 架構遵循以下結構：
 ```typescript
 {
   version: string,        // Schema version for compatibility
@@ -29,17 +29,17 @@ The spec JSON schema follows this structure:
 }
 ```
 
-**Rationale:**
-- Flat structure for requirements array (vs nested objects) for easier iteration
-- Scenarios nested within requirements to maintain relationship
-- Metadata fields (version, format, sourcePath) for tooling integration
+**理由：**
+- 需求數組的扁平結構（相對於嵌套物件）更容易迭代
+- 場景嵌套在需求中以維持關係
+- 用於工具整合的元資料欄位（版本、格式、sourcePath）
 
-### Parser Architecture
-- **Markdown-first approach**: Parse markdown headings rather than custom syntax
-- **Streaming parser**: Process line-by-line to handle large files efficiently
-- **Strict heading hierarchy**: Enforce ##/###/#### structure for consistency
+### 解析器架構
+- **Markdown-第一種方法**：解析 markdown 標題而非自訂語法
+- **串流解析器**：逐行處理以高效處理大文件
+- **嚴格的標題層次結構**：強制執行 ##/###/#### 結構以保持一致性
 
-### Validation Strategy
-- **Parse-time validation**: Catch structural issues during parsing
-- **Schema validation**: Use Zod for runtime type checking of parsed data
-- **Separate validation command**: Allow validation without full parsing/conversion
+### 驗證策略
+- **解析時驗證**：在解析過程中捕捉結構問題
+- **模式驗證**：使用 Zod 對解析資料進行執行時間類型檢查
+- **單獨的驗證命令**：允許在沒有完整解析/轉換的情況下進行驗證

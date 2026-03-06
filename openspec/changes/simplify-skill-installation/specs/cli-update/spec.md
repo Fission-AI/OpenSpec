@@ -1,177 +1,177 @@
-## Purpose
+## 目的
 
-The update command SHALL apply global configuration changes to existing projects, syncing profile and delivery preferences without requiring full re-initialization.
+更新命令應將全域設定變更套用至現有項目，同步設定檔和交付首選項，而無需完全重新初始化。
 
-## MODIFIED Requirements
+## 修改後的要求
 
-### Requirement: Update respects global profile config
-The update command SHALL read global config and apply profile settings to the project.
+### 要求：更新尊重全域設定檔設定
+更新命令應讀取全域設定並將設定檔設定套用至專案。
 
-#### Scenario: Update adds missing workflows from config
-- **WHEN** user runs `openspec update`
-- **AND** global config specifies workflows not currently installed in the project
-- **THEN** the system SHALL generate skill/command files for missing workflows
-- **THEN** the system SHALL display: "Added: <workflow-names>"
+#### 場景：更新新增設定中缺少的工作流程
+- **何時** 使用者執行 `openspec update`
+- **和** 全域設定指定專案中目前未安裝的工作流程
+- **那麼**系統將為缺少的工作流程產生技能/命令文件
+- **那麼**系統應顯示：「已新增： <workflow-names>"
 
-#### Scenario: Update refreshes existing workflows
-- **WHEN** user runs `openspec update`
-- **AND** workflows are already installed in the project
-- **THEN** the system SHALL refresh those workflow files with latest templates
-- **THEN** the system SHALL display: "Updated: <workflow-names>"
+#### 場景：更新重新整理現有工作流程
+- **何時** 使用者執行 `openspec update`
+- **並且**工作流程已安裝在專案中
+- **然後**系統應使用最新範本重新整理這些工作流程文件
+- **然後**系統應顯示：「更新： <workflow-names>"
 
-#### Scenario: Update with no changes needed
-- **WHEN** user runs `openspec update`
-- **AND** installed workflows match global config
-- **AND** all templates are current
-- **AND** delivery setting matches installed files
-- **THEN** the system SHALL display: "Already up to date."
+#### 場景：更新，無需更改
+- **何時** 使用者執行 `openspec update`
+- **並且**安裝的工作流程與全域設定匹配
+- **並且** 所有範本都是最新的
+- **和** 交付設定與已安裝的檔案匹配
+- **然後**系統應顯示：“已經是最新的。”
 
-#### Scenario: Profile or delivery drift with current templates
-- **WHEN** user runs `openspec update`
-- **AND** workflow templates are current for the installed skills
-- **AND** project files do not match current profile and/or delivery config
-- **THEN** the system SHALL treat this as an update-required state (not "Already up to date.")
-- **THEN** the system SHALL add/remove files to match current profile and delivery settings
+#### 場景：目前範本的設定檔或交付偏差
+- **何時** 使用者執行 `openspec update`
+- **並且** 工作流程範本對於已安裝的技能來說是最新的
+- **和**專案文件與目前設定檔和/或交付設定不匹配
+- **那麼**系統應將此視為需要更新的狀態（而不是「已經是最新的」。）
+- **然後**系統應添加/刪除檔案以匹配當前設定檔和交付設置
 
-#### Scenario: Update summary output
-- **WHEN** update completes with changes
-- **THEN** the system SHALL display a summary:
-  - "Added: propose, explore" (new workflows installed)
-  - "Updated: apply, archive" (existing workflows refreshed)
-  - "Removed: 4 command files" (if delivery changed)
-- **THEN** the system SHALL list affected tools: "Tools: Claude Code, Cursor"
+#### 場景：更新摘要輸出
+- **何時** 更新完成並進行更改
+- **那麼**系統應顯示摘要：
+  - 「新增：建議、探索」（安裝了新的工作流程）
+  - 「更新：應用程式、存檔」（現有工作流程已重新整理）
+  - 「已刪除：4 個命令檔案」（如果交付更改）
+- **然後**系統應列出受影響的工具：“工具：Claude代碼，遊標”
 
-### Requirement: Update respects delivery setting
-The update command SHALL add or remove files based on the delivery setting.
+### 要求：更新尊重交付設置
+更新命令應根據交付設定新增或刪除檔案。
 
-#### Scenario: Delivery changed to skills-only
-- **WHEN** user runs `openspec update`
-- **AND** global config specifies `delivery: skills`
-- **AND** project has command files installed
-- **THEN** the system SHALL delete command files for workflows in the profile
-- **THEN** the system SHALL generate/update skill files only
-- **THEN** the system SHALL display: "Removed: <count> command files (delivery: skills)"
+#### 場景：交付更改為僅技能
+- **何時** 使用者執行 `openspec update`
+- **和** 全域設定指定 `delivery: skills`
+- **並且**項目已安裝命令文件
+- **那麼**系統應刪除設定檔中工作流程的命令文件
+- **那麼**系統應只產生/更新技能文件
+- **然後**系統應顯示：「已刪除： <count> 命令檔（傳遞：技能）”
 
-#### Scenario: Delivery changed to commands-only
-- **WHEN** user runs `openspec update`
-- **AND** global config specifies `delivery: commands`
-- **AND** project has skill files installed
-- **THEN** the system SHALL delete skill directories for workflows in the profile
-- **THEN** the system SHALL generate/update command files only
-- **THEN** the system SHALL display: "Removed: <count> skill directories (delivery: commands)"
+#### 場景：交付更改為僅命令
+- **何時** 使用者執行 `openspec update`
+- **和** 全域設定指定 `delivery: commands`
+- **並且**項目已安裝技能文件
+- **然後**系統應刪除設定檔中工作流程的技能目錄
+- **那麼**系統應僅產生/更新命令文件
+- **然後**系統應顯示：「已刪除： <count> 技能目錄（傳遞：指令）”
 
-#### Scenario: Delivery is both
-- **WHEN** user runs `openspec update`
-- **AND** global config specifies `delivery: both`
-- **THEN** the system SHALL generate/update both skill and command files
+#### 場景：交付都是
+- **何時** 使用者執行 `openspec update`
+- **和** 全域設定指定 `delivery: both`
+- **那麼**系統將產生/更新技能和命令文件
 
-### Requirement: Update detects configured tools from skills or commands
-The update command SHALL treat a tool as configured if it has either generated skill files or generated command files.
+### 需求：更新從技能或指令中偵測設定的工具
+如果工具具有產生的技能文件或產生的命令文件，則更新命令應將其視為已設定的工具。
 
-#### Scenario: Commands-only installation
-- **WHEN** user runs `openspec update`
-- **AND** a tool has generated OpenSpec command files
-- **AND** that tool has no OpenSpec skill files (commands-only delivery)
-- **THEN** the tool SHALL still be treated as configured
-- **THEN** the system SHALL apply profile and delivery sync for that tool
+#### 場景：僅命令安裝
+- **何時** 使用者執行 `openspec update`
+- **並且** 工具已產生 OpenSpec 命令文件
+- **且** 該工具沒有 OpenSpec 技能檔（僅傳遞指令）
+- **那麼** 該工具仍應依設定處理
+- **那麼**系統應為該工具套用設定檔和交付同步
 
-### Requirement: One-time migration for existing users
-The update command SHALL detect existing users (no `profile` in global config + existing workflows) and migrate them to `custom` profile before applying updates.
+### 需求：現有用戶一次遷移
+更新命令應檢測現有用戶（無 `profile` 在全域設定+現有工作流程中）並將它們遷移到 `custom` 應用更新之前的設定檔。
 
-#### Scenario: First update after upgrade (existing user)
-- **WHEN** user runs `openspec update`
-- **AND** global config does not contain a `profile` field
-- **AND** project has existing workflow files installed
-- **THEN** the system SHALL scan installed workflows across all tool directories in the project
-- **THEN** the system SHALL only match workflow names present in `ALL_WORKFLOWS` constant (ignoring user-created custom skills)
-- **THEN** the system SHALL take the union of detected workflow names across all tools
-- **THEN** the system SHALL write to global config: `profile: "custom"`, `delivery: "both"`, `workflows: [<detected>]`
-- **THEN** the system SHALL display: "Migrated: custom profile with <count> workflows (<workflow-names>)"
-- **THEN** the system SHALL display: "New in this version: /opsx:propose (combines new + ff). Try 'openspec config profile core' for the streamlined 4-workflow experience."
-- **THEN** the system SHALL proceed with normal update logic (using the migrated config)
-- **THEN** the result SHALL be template refresh only (no workflows added or removed)
+#### 場景：升級後首次更新（現有用戶）
+- **何時** 使用者執行 `openspec update`
+- **且**全域設定不包含 `profile` 場地
+- **並且**專案已安裝現有工作流程文件
+- **那麼**系統應掃描專案中所有工具目錄中已安裝的工作流程
+- **那麼**系統應僅符合存在於中的工作流程名稱 `ALL_WORKFLOWS` 常量（忽略使用者建立的自訂技能）
+- **那麼**系統應將所有工具中偵測到的工作流程名稱合併起來
+- **然後**系統應寫入全域設定： `profile: "custom"`, `delivery: "both"`, `workflows: [<detected>]`
+- **然後**系統應顯示：「已遷移：自訂設定檔 <count> 工作流程（<workflow-names>)"
+- **然後** 系統應顯示：“此版本中的新功能：/opsx:propose（組合 new + ff）。嘗試‘openspec config profile core’以獲得簡化的 4 工作流程體驗。”
+- **然後**系統應繼續正常更新邏輯（使用遷移的設定）
+- **那麼** 結果應僅為範本重新整理（不新增或刪除工作流程）
 
-#### Scenario: Migration with partial workflows (user manually removed some)
-- **WHEN** user runs `openspec update`
-- **AND** global config does not contain a `profile` field
-- **AND** project has fewer than the original 10 workflows installed
-- **THEN** the system SHALL migrate with only the workflows that are actually present
-- **THEN** the migrated `workflows` array SHALL reflect the user's current state, not the original set
+#### 場景：部分工作流程遷移（使用者手動刪除一些）
+- **何時** 使用者執行 `openspec update`
+- **且**全域設定不包含 `profile` 場地
+- **且** 專案安裝的工作流程少於原始 10 個
+- **那麼**系統應只遷移實際存在的工作流程
+- **然後** 遷移的 `workflows` 數組應反映使用者的當前狀態，而不是原始設定
 
-#### Scenario: Migration with multiple tools having different workflow sets
-- **WHEN** user runs `openspec update`
-- **AND** project has multiple tools configured (e.g., Claude Code, Cursor)
-- **AND** different tools have different workflows installed
-- **THEN** the system SHALL take the union of all detected workflows across all tools
-- **THEN** the migrated `workflows` array SHALL include any workflow that exists in at least one tool
+#### 場景：使用具有不同工作流程集的多個工具進行遷移
+- **何時** 使用者執行 `openspec update`
+- **AND** 專案設定了多個工具（例如 Claude 程式碼、遊標）
+- **並且**不同的工具安裝了不同的工作流程
+- **那麼**系統應將所有工具中所有偵測到的工作流程合併起來
+- **然後** 遷移的 `workflows` 數組應包含至少一個工具中存在的任何工作流程
 
-#### Scenario: No migration needed (profile already set)
-- **WHEN** user runs `openspec update`
-- **AND** global config already contains a `profile` field
-- **THEN** the system SHALL NOT perform migration
-- **THEN** the system SHALL proceed with normal update logic using existing config
+#### 場景：無需遷移（設定檔已設定）
+- **何時** 使用者執行 `openspec update`
+- **並且**全域設定已經包含 `profile` 場地
+- **那麼**系統就不應該執行遷移
+- **然後**系統應使用現有設定繼續正常更新邏輯
 
-#### Scenario: No migration needed (no existing workflows)
-- **WHEN** user runs `openspec update`
-- **AND** global config does not contain a `profile` field
-- **AND** project has no existing workflow files
-- **THEN** the system SHALL NOT perform migration
-- **THEN** the system SHALL use `core` profile defaults
+#### 場景：無需遷移（無現有工作流程）
+- **何時** 使用者執行 `openspec update`
+- **且**全域設定不包含 `profile` 場地
+- **並且**專案沒有現有的工作流程文件
+- **那麼**系統就不應該執行遷移
+- **那麼**系統要使用 `core` 設定檔預設值
 
-#### Scenario: Migration is idempotent
-- **WHEN** user runs `openspec update` multiple times
-- **THEN** migration SHALL only occur on the first run (when `profile` field is absent)
-- **THEN** subsequent runs SHALL use the existing global config without re-scanning
+#### 場景：遷移是冪等的
+- **何時** 使用者執行 `openspec update` 多次
+- **那麼**遷移應該只發生在第一次執行時（當 `profile` 字段不存在）
+- **那麼**後續執行應使用現有的全域設定而無需重新掃描
 
-#### Scenario: Non-interactive migration
-- **WHEN** user runs `openspec update` non-interactively (e.g., in CI)
-- **AND** migration is triggered
-- **THEN** the system SHALL perform migration without prompting
-- **THEN** the system SHALL display the migration summary to stdout
+#### 場景：非互動式遷移
+- **何時** 使用者執行 `openspec update` 非互動式（例如，在 CI 中）
+- **並且** 遷移被觸發
+- **那麼**系統將在不提示的情況下執行遷移
+- **那麼**系統應將遷移摘要顯示到標準輸出
 
-### Requirement: Update detects new tool directories
-The update command SHALL notify the user if new AI tool directories are detected that aren't currently configured.
+### 需求：更新偵測新的工具目錄
+如果偵測到目前未設定的新 AI 工具目錄，更新命令應通知使用者。
 
-#### Scenario: New tool directory detected
-- **WHEN** user runs `openspec update`
-- **AND** a new tool directory is detected (e.g., `.windsurf/` exists but Windsurf is not configured)
-- **THEN** the system SHALL display: "Detected new tool: Windsurf. Run 'openspec init' to add it."
+#### 場景：偵測到新的工具目錄
+- **何時** 使用者執行 `openspec update`
+- **並且** 偵測到新的工具目錄（例如， `.windsurf/` 存在但 Windsurf 未設定）
+- **然後**系統應顯示：“檢測到新工具：Windsurf。執行‘openspec init’來添加它。”
 - **THEN** the system SHALL NOT automatically add the new tool
-- **THEN** the system SHALL proceed with update for currently configured tools only
+- **那麼**系統將只繼續更新目前設定的工具
 
-#### Scenario: Multiple new tool directories detected
-- **WHEN** user runs `openspec update`
-- **AND** multiple new tool directories are detected (e.g., `.github/` and `.windsurf/` exist but neither tool is configured)
-- **THEN** the system SHALL display one consolidated message listing all detected tools, for example: "Detected new tools: GitHub Copilot, Windsurf. Run 'openspec init' to add them."
-- **THEN** the system SHALL NOT automatically add any new tools
-- **THEN** the system SHALL proceed with update for currently configured tools only
+#### 場景：偵測到多個新工具目錄
+- **何時** 使用者執行 `openspec update`
+- **並且** 偵測到多個新工具目錄（例如， `.github/` 和 `.windsurf/` 存在但兩個工具均未設定）
+- **然後** 系統應顯示一條綜合訊息，列出所有偵測到的工具，例如：“偵測到新工具：GitHub Copilot、Windsurf。執行‘openspec init’來新增它們。”
+- **那麼**系統將不會自動新增任何新工具
+- **那麼**系統將只繼續更新目前設定的工具
 
-#### Scenario: No new tool directories
-- **WHEN** user runs `openspec update`
-- **AND** no new tool directories are detected
-- **THEN** the system SHALL NOT display any tool detection message
+#### 場景：沒有新的工具目錄
+- **何時** 使用者執行 `openspec update`
+- **並且** 沒有偵測到新的工具目錄
+- **那麼**系統不應顯示任何工具檢測訊息
 
-### Requirement: Update requires an OpenSpec project
-The update command SHALL only run inside an initialized OpenSpec project.
+### 要求：更新需要 OpenSpec 項目
+更新命令只能在已初始化的 OpenSpec 專案內執行。
 
-#### Scenario: Update outside a project
-- **WHEN** user runs `openspec update`
-- **AND** no `openspec/` directory exists in the current working directory
-- **THEN** the system SHALL display: "No OpenSpec project found. Run 'openspec init' to set up."
-- **THEN** the system SHALL exit with code 1
+#### 場景：項目外更新
+- **何時** 使用者執行 `openspec update`
+- **並且**沒有 `openspec/` 目前工作目錄中存在目錄
+- **然後**系統應顯示：“未找到 OpenSpec 項目。執行‘openspec init’進行設定。”
+- **那麼**系統應以代碼 1 退出
 
-### Requirement: Extra workflows synchronized to active profile
-The update command SHALL remove workflow files that are no longer selected in the current profile.
+### 需求：額外工作流程同步到活動設定檔
+更新命令應刪除目前設定檔中不再選擇的工作流程檔案。
 
-#### Scenario: Deselected workflows from previous profile
-- **WHEN** user runs `openspec update`
-- **AND** project has workflows not in current profile (e.g., user switched from custom to core or deselected workflows via `openspec config profile`)
-- **THEN** the system SHALL delete skill and command workflow files for deselected workflows (respecting active delivery mode)
-- **THEN** the system SHALL keep only workflows currently selected in profile
+#### 場景：從先前的設定檔中取消選擇工作流程
+- **何時** 使用者執行 `openspec update`
+- **且**專案具有不在目前設定檔中的工作流程（例如，使用者透過以下方式從自訂切換到核心或取消選擇工作流程 `openspec config profile`)
+- **然後**系統應刪除取消選擇的工作流程的技能和命令工作流程文件（尊重主動交付模式）
+- **那麼**系統應僅保留目前在設定檔中選擇的工作流程
 
-#### Scenario: Delivery change with extra workflows
-- **WHEN** user runs `openspec update`
-- **AND** delivery changed (e.g., `both` → `skills`)
-- **AND** project has extra workflows not in current profile
-- **THEN** the system SHALL delete files for extra workflows that match the removed delivery type
-- **THEN** for example: if switching to `skills`, all command files are deleted (including for extra workflows)
+#### 場景：透過額外的工作流程進行交付更改
+- **何時** 使用者執行 `openspec update`
+- **和** 交付方式已更改（例如， `both` → `skills`)
+- **並且**專案有當前設定檔中沒有的額外工作流程
+- **然後** 系統應刪除與刪除的交付類型相符的額外工作流程的文件
+- **那麼** 例如：如果切換到 `skills`，所有命令檔案都被刪除（包括額外的工作流程）

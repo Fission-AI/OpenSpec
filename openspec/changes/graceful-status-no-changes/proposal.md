@@ -1,25 +1,25 @@
-## Why
+## 為什麼
 
-When `openspec status` is called without `--change` and no changes exist (e.g., during onboarding on a freshly initialized project), the CLI throws a fatal error: `No changes found. Create one with: openspec new change <name>`. This breaks the onboarding flow because AI agents may call `openspec status` before any change has been created, causing the agent to halt or report failure. Fixes [#714](https://github.com/Fission-AI/OpenSpec/issues/714).
+什麼時候 `openspec status` 被調用時沒有 `--change` 且不存在任何變更（例如，在新初始化的項目上啟動期間），CLI 會引發致命錯誤： `No changes found. Create one with: openspec new change <name>`。這會破壞入職流程，因為人工智慧代理可能會調用 `openspec status` 在建立任何更改之前，導致代理停止或報告故障。修復 [#714](https://github.com/Fission-AI/OpenSpec/issues/714).
 
-## What Changes
+## 有什麼變化
 
-- `openspec status` will exit gracefully (code 0) with a friendly message when no changes exist, instead of throwing a fatal error
-- `openspec status --json` will return a valid JSON object with an empty changes array when no changes exist
-- Other commands (`apply`, `show`, etc.) retain their current strict validation behavior
+- `openspec status` 當不存在任何更改時，將優雅退出（代碼 0）並顯示友好訊息，而不是拋出致命錯誤
+- `openspec status --json` 當不存在任何更改時，將返回一個有效的 JSON 對象，其中包含一個空的更改數組
+- 其他命令（`apply`, `show`等等）保留其當前嚴格的驗證行為
 
-## Capabilities
+## 能力
 
-### New Capabilities
+### 新功能
 
-- `graceful-status-empty`: Graceful handling of `openspec status` when no changes exist, covering both text and JSON output modes
+- `graceful-status-empty`: 優雅的處理 `openspec status` 當不存在任何變更時，涵蓋文字和 JSON 輸出模式
 
-### Modified Capabilities
+### 修改後的功能
 
-_None — `validateChangeExists` was internally refactored to delegate to the newly exported `getAvailableChanges`, but its behavior and public contract are unchanged. Other consumers are unaffected._
+_沒有任何 - `validateChangeExists` 被內部重構以委託給新導出的 `getAvailableChanges`，但其行為和公共契約不變。其他消費者不受影響。 _
 
-## Impact
+## 影響
 
-- `src/commands/workflow/shared.ts` — extract `getAvailableChanges` as a public function (validation behavior unchanged)
-- `src/commands/workflow/status.ts` — check for available changes before validation, handle empty case gracefully
-- Tests for the status command need to cover the new graceful behavior
+- `src/commands/workflow/shared.ts` - 提煉 `getAvailableChanges` 作為公共函數（驗證行為不變）
+- `src/commands/workflow/status.ts` — 在驗證之前檢查可用的更改，優雅地處理空案例
+- 對狀態命令的測試需要涵蓋新的優雅行為

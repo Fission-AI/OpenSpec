@@ -1,11 +1,11 @@
-## MODIFIED Requirements
+## 修改後的要求
 
-### Requirement: Directory Creation
-The command SHALL create the complete OpenSpec directory structure with all required directories and files.
+### 需求：建立目錄
+此命令應建立包含所有必需目錄和檔案的完整 OpenSpec 目錄結構。
 
-#### Scenario: Creating OpenSpec structure
-- **WHEN** `openspec init` is executed
-- **THEN** create the following directory structure:
+#### 場景：建立 OpenSpec 結構
+- **什麼時候** `openspec init` 被執行
+- **然後** 建立以下目錄結構：
 ```
 openspec/
 ├── project.md
@@ -15,26 +15,26 @@ openspec/
     └── archive/
 ```
 
-### Requirement: File Generation
-The command SHALL generate required template files with appropriate content for immediate use.
+### 需求：文件生成
+該命令應產生具有適當內容的所需模板檔案以供立即使用。
 
-#### Scenario: Generating template files
-- **WHEN** initializing OpenSpec
-- **THEN** generate `AGENTS.md` containing complete OpenSpec instructions for AI assistants
-- **AND** generate `project.md` with project context template
+#### 場景：生成模板文件
+- **何時** 初始化 OpenSpec
+- **然後**生成 `AGENTS.md` 包含 AI 助理的完整 OpenSpec 指令
+- **並**生成 `project.md` 帶有專案上下文模板
 
-### Requirement: AI Tool Configuration Details
+### 要求：AI工具設定詳細信息
 
-The command SHALL properly configure selected AI tools with OpenSpec-specific instructions using a marker system.
+此指令應使用標記系統使用 OpenSpec 特定指令正確設定選定的 AI 工具。
 
-#### Scenario: Creating new CLAUDE.md
-- **WHEN** CLAUDE.md does not exist
-- **THEN** create new file with OpenSpec content wrapped in markers including reference to `@openspec/AGENTS.md`
+#### 場景：建立新的 CLAUDE.md
+- **何時** CLAUDE.md 不存在
+- **然後** 建立新文件，其中 OpenSpec 內容包含在標記中，包括對 `@openspec/AGENTS.md`
 
-### Requirement: Success Output
+### 要求：成功輸出
 
-The command SHALL provide clear, actionable next steps upon successful initialization.
+該命令應在成功初始化後提供清晰、可操作的後續步驟。
 
-#### Scenario: Displaying success message
-- **WHEN** initialization completes successfully
-- **THEN** include prompt: "Please explain the OpenSpec workflow from openspec/AGENTS.md and how I should work with you on this project"
+#### 場景：顯示成功訊息
+- **何時** 初始化成功完成
+- **然後** 包含提示：“請解釋 openspec/AGENTS.md 中的 OpenSpec 工作流程以及我應該如何與您合作完成此專案”

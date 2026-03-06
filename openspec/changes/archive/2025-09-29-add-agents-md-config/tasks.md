@@ -1,17 +1,17 @@
-# Implementation Tasks
+# 實施任務
 
-## 1. Extend Init Workflow
-- [x] 1.1 Add an "AGENTS.md standard" option to the `openspec init` tool-selection prompt, respecting the existing UI conventions.
-- [x] 1.2 Generate or refresh a root-level `AGENTS.md` file using the OpenSpec markers when that option is selected, sourcing content from the canonical template.
+## 1. 擴充初始化工作流程
+- [x] 1.1 新增“AGENTS.md standard”選項 `openspec init` 工具選擇提示，尊重現有的 UI 約定。
+- [x] 1.2 產生或重新整理根級別 `AGENTS.md` 選擇此選項時，使用 OpenSpec 標記建立文件，從規範範本中取得內容。
 
-## 2. Enhance Update Command
-- [x] 2.1 Ensure `openspec update` writes the root `AGENTS.md` from the latest template (creating it if missing) alongside `openspec/AGENTS.md`.
-- [x] 2.2 Update success messaging and logging to reflect creation vs refresh of the AGENTS standard file.
+## 2. 增強更新指令
+- [x] 2.1 確保 `openspec update` 寫根 `AGENTS.md` 從最新的模板（如果丟失則建立它）旁邊 `openspec/AGENTS.md`.
+- [x] 2.2 更新成功訊息傳遞和日誌記錄以反映 AGENTS 標準檔案的建立與重新整理。
 
-## 3. Shared Template Handling
-- [x] 3.1 Refactor template utilities if necessary so both commands reuse the same content without duplication.
-- [x] 3.2 Add automated tests covering init/update flows for projects with and without an existing `AGENTS.md`, ensuring markers behave correctly.
+## 3. 共享模板處理
+- [x] 3.1 如有必要，重構範本實用程序，以便兩個指令重複使用相同的內容。
+- [x] 3.2 新增涵蓋現有項目和沒有現有項目的初始化/更新流程的自動化測試 `AGENTS.md`，確保標記行為正確。
 
-## 4. Documentation
-- [x] 4.1 Update CLI specs and user-facing docs to describe AGENTS standard support.
-- [x] 4.2 Run `openspec validate add-agents-md-config --strict` and document any notable behavior changes.
+## 4. 文件
+- [x] 4.1 更新 CLI 規格和用戶導向的文件以描述 AGENTS 標準支援。
+- [x] 4.2 Run `openspec validate add-agents-md-config --strict` 並記錄任何顯著的行為變化。

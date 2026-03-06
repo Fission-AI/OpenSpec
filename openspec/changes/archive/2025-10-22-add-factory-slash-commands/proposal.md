@@ -1,12 +1,12 @@
-## Why
-Factory's Droid CLI recently shipped custom slash commands that mirror other native assistant integrations. Teams using OpenSpec want the same managed workflows they already get for Cursor, Windsurf, and others so init/update can provision and refresh Factory commands without manual setup.
+## 為什麼
+Factory 的 Droid CLI 最近發布了反映其他本機助理整合的自訂斜線指令。使用 OpenSpec 的團隊希望獲得與 Cursor、Windsurf 等相同的託管工作流程，因此 init/update 可以設定和重新整理 Factory 命令，而無需手動設定。
 
-## What Changes
-- Extend the native tool registry so Factory/Droid appears alongside other slash-command integrations during `openspec init`.
-- Add shared templates that generate the three Factory custom commands (proposal, apply, archive) and wrap them in OpenSpec markers for safe refreshes.
-- Update the init and update command flows so they create or refresh Factory command files when the tool is selected or already present.
-- Refresh CLI specs to document the Factory support and align validation expectations.
+## 有什麼變化
+- 擴展本機工具註冊表，以便 Factory/Droid 與其他斜杠命令整合一起出現 `openspec init`.
+- 新增產生三個 Factory 自訂命令（建議、應用、存檔）的共用模板，並將它們包裝在 OpenSpec 標記中以實現安全重新整理。
+- 更新 init 和 update 命令流，以便在選擇工具或工具已存在時建立或重新整理 Factory 命令檔。
+- 重新整理 CLI 規範以記錄工廠支援並調整驗證預期。
 
-## Impact
-- Affected specs: `specs/cli-init`, `specs/cli-update`
-- Affected code (expected): tool registry, slash-command template manager, init/update command helpers, documentation snippets
+## 影響
+- 受影響的規格： `specs/cli-init`, `specs/cli-update`
+- 受影響的程式碼（預期）：工具登錄、斜線命令範本管理器、初始化/更新命令幫助程式、文件片段

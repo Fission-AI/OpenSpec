@@ -1,22 +1,22 @@
-## MODIFIED Requirements
+## 修改後的要求
 
-### Requirement: Update Behavior
-The update command SHALL update OpenSpec instruction files to the latest templates in a team-friendly manner.
+### 要求：更新行為
+更新命令應以團隊友好的方式將 OpenSpec 指令檔更新為最新模板。
 
-#### Scenario: Running update command
-- **WHEN** a user runs `openspec update`
-- **THEN** replace `openspec/AGENTS.md` with the latest template
+#### 場景：執行更新命令
+- **何時** 使用者執行 `openspec update`
+- **然後** 更換 `openspec/AGENTS.md` 與最新的模板
 
-### Requirement: File Handling
-The update command SHALL handle file updates in a predictable and safe manner.
+### 要求：文件處理
+更新命令應以可預測且安全的方式處理文件更新。
 
-#### Scenario: Updating files
-- **WHEN** updating files
-- **THEN** completely replace `openspec/AGENTS.md` with the latest template
+#### 場景：更新文件
+- **何時**更新文件
+- **然後** 完全替換 `openspec/AGENTS.md` 與最新的模板
 
-### Requirement: Core Files Always Updated
-The update command SHALL always update the core OpenSpec files and display an ASCII-safe success message.
+### 需求：核心檔案始終更新
+更新命令應始終更新核心 OpenSpec 檔案並顯示 ASCII 安全性成功訊息。
 
-#### Scenario: Successful update
-- **WHEN** the update completes successfully
-- **THEN** replace `openspec/AGENTS.md` with the latest template
+#### 場景：更新成功
+- **何時** 更新成功完成
+- **然後** 更換 `openspec/AGENTS.md` 與最新的模板

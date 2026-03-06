@@ -1,23 +1,23 @@
-## ADDED Requirements
+## 新增要求
 
-### Requirement: Tool-Agnostic Updates
+### 要求：與工具無關的更新
 
-The update command SHALL update only existing AI tool configuration files and SHALL NOT create new ones.
+更新命令應僅更新現有的 AI 工具設定檔，並且不應建立新的設定檔。
 
-#### Scenario: Updating existing tool files
+#### 場景：更新現有工具文件
 
-- **WHEN** a user runs `openspec update`
-- **THEN** update each AI tool configuration file that exists (e.g., CLAUDE.md, COPILOT.md)
-- **AND** do not create missing tool configuration files
-- **AND** preserve user content outside OpenSpec markers
+- **何時** 使用者執行 `openspec update`
+- **然後** 更新現有的每個 AI 工具設定檔（例如 CLAUDE.md、COPILOT.md）
+- **並且**不建立丟失的工具設定檔
+- **並且** 將使用者內容保留在 OpenSpec 標記之外
 
-### Requirement: Core Files Always Updated
+### 需求：核心檔案始終更新
 
-The update command SHALL always update the core OpenSpec files and display an ASCII-safe success message.
+更新命令應始終更新核心 OpenSpec 檔案並顯示 ASCII 安全性成功訊息。
 
-#### Scenario: Successful update
+#### 場景：更新成功
 
-- **WHEN** the update completes successfully
-- **THEN** replace `openspec/README.md` with the latest template
-- **AND** update existing AI tool configuration files within markers
-- **AND** display the message: "Updated OpenSpec instructions"
+- **何時** 更新成功完成
+- **然後** 更換 `openspec/README.md` 與最新的模板
+- **並**更新標記內現有的 AI 工具設定檔
+- **並且**顯示訊息：“已更新 OpenSpec 說明”

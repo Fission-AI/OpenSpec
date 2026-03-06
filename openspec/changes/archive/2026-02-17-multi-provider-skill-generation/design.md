@@ -1,32 +1,32 @@
-## Context
+## 情境
 
-The `artifact-experimental-setup` command generates skill files and opsx slash commands for AI coding assistants. Currently it hardcodes paths to `.claude/skills` and `.claude/commands/opsx`.
+這 `artifact-experimental-setup` 指令為 AI 編碼助手產生技能檔和 opsx 斜線指令。目前它硬編碼路徑 `.claude/skills` 和 `.claude/commands/opsx`.
 
-The existing `AI_TOOLS` array in `config.ts` lists 22 AI tools but lacks path information. There's also an existing `SlashCommandConfigurator` system for the old workflow commands, but it's tightly coupled to the old 3 commands (proposal, apply, archive) and can't be easily extended for the 9 opsx commands.
+現有的 `AI_TOOLS` 數組中 `config.ts` 列出了 22 個 AI 工具，但缺少路徑資訊。還有一個現有的 `SlashCommandConfigurator` 系統適用於舊的工作流程指令，但它與舊的 3 個命令（提案、應用、存檔）緊密耦合，並且無法輕鬆擴展為 9 個 opsx 命令。
 
-Each AI tool has:
-- Different skill directory conventions (`.claude/skills/`, `.cursor/skills/`, etc.)
-- Different command file paths (`.claude/commands/opsx/`, `.cursor/commands/`, etc.)
-- Different frontmatter formats (YAML keys, structure varies by tool)
+每個人工智慧工具都具有：
+- 不同的技能目錄約定（`.claude/skills/`, `.cursor/skills/`， ETC。 ）
+- 不同的命令檔路徑（`.claude/commands/opsx/`, `.cursor/commands/`， ETC。 ）
+- 不同的 frontmatter 格式（YAML 鍵，結構因工具而異）
 
-## Goals / Non-Goals
+## 目標/非目標
 
-**Goals:**
-- Support skill generation for any AI tool following the Agent Skills spec
-- Support command generation with tool-specific formatting via adapters
-- Require explicit tool selection (no defaults)
-- Create a generic, extensible command generation system
+**目標：**
+- 支援遵循代理技能規範的任何 AI 工具的技能生成
+- 透過適配器支援使用特定於工具的格式產生命令
+- 需要明確的工具選擇（無預設值）
+- 建立通用的、可擴展的命令產生系統
 
-**Non-Goals:**
-- Global path installation for tools other than Codex (Codex uses absolute adapter paths today)
-- Multi-tool generation in single command (future enhancement)
-- Unifying with existing SlashCommandConfigurator (separate systems for now)
+**非目標：**
+- Codex 以外的工具的全域路徑安裝（Codex 目前使用絕對適配器路徑）
+- 在單一命令中產生多工具（未來增強）
+- 與現有的 SlashCommandConfigurator 統一（目前是單獨的系統）
 
-## Decisions
+## 決定
 
-### 1. Add `skillsDir` to `AIToolOption` interface
+### 1.添加 `skillsDir` 到 `AIToolOption` 介面
 
-**Decision**: Add single `skillsDir` field to existing interface. No `commandsDir` or `globalSkillsDir`.
+**決定**：新增單個 `skillsDir` 字段到現有介面。不 `commandsDir` 或者 `globalSkillsDir`.
 
 ```typescript
 interface AIToolOption {
@@ -38,14 +38,14 @@ interface AIToolOption {
 }
 ```
 
-**Rationale**:
-- Skills follow Agent Skills spec: `<toolDir>/skills/` - suffix is standard
-- Commands need per-tool formatting, handled by adapters (not a simple path)
-- Global paths supported — Codex adapter returns absolute paths via os.homedir()
+**理由**：
+- 技能遵循特工技能規範： `<toolDir>/skills/` - 後綴為標準
+- 命令需要按工具格式化，由適配器處理（不是簡單的路徑）
+- 支援全域路徑 - Codex 適配器透過 os.homedir() 返回絕對路徑
 
-### 2. Strategy/Adapter pattern for command generation
+### 2.命令產生的策略/適配器模式
 
-**Decision**: Create generic command generation with tool-specific adapters.
+**決定**：使用特定於工具的適配器建立通用命令產生。
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
@@ -66,7 +66,7 @@ interface AIToolOption {
         └──────────┘   └──────────┘   └──────────┘
 ```
 
-**Interfaces:**
+**接口：**
 
 ```typescript
 // Tool-agnostic command data
@@ -87,18 +87,18 @@ interface ToolCommandAdapter {
 }
 ```
 
-**Rationale**:
-- Separates "what to generate" from "how to format it"
-- Each tool's frontmatter quirks encapsulated in its adapter
-- Easy to add new tools by implementing adapter interface
-- Body content shared across all tools
+**理由**：
+- 將「生成什麼」與「如何格式化」分開
+- 每個工具的 frontmatter 怪癖都封裝在其適配器中
+- 透過實現適配器介面輕鬆新增工具
+- 所有工具共享的正文內容
 
-**Alternative considered**: Extend existing SlashCommandConfigurator
-- Rejected: Tightly coupled to old 3 commands, significant refactor needed
+**考慮的替代方案**：擴展現有的 SlashCommandConfigurator
+- 被拒絕：與舊的 3 個命令緊密耦合，需要重大重構
 
-### 3. Adapter registry pattern
+### 3.適配器註冊表模式
 
-**Decision**: Create `CommandAdapterRegistry` similar to existing `SlashCommandRegistry`.
+**決定**：建立 `CommandAdapterRegistry` 與現有的相似 `SlashCommandRegistry`.
 
 ```typescript
 class CommandAdapterRegistry {
@@ -109,36 +109,36 @@ class CommandAdapterRegistry {
 }
 ```
 
-**Rationale**:
-- Consistent with existing codebase patterns
-- Easy lookup by tool ID
-- Centralized registration
+**理由**：
+- 與現有程式碼庫模式一致
+- 透過工具 ID 輕鬆找到
+- 集中註冊
 
-### 4. Required tool flag
+### 4. 所需工具標誌
 
-**Decision**: Require `--tool` flag - error if omitted.
+**決定**：需要 `--tool` flag - 如果省略則出錯。
 
-**Rationale**:
-- Explicit tool selection avoids assumptions
-- Consistent with project convention of not providing defaults
-- Users must consciously choose their target tool
+**理由**：
+- 明確的工具選擇避免假設
+- 符合不提供預設值的項目約定
+- 使用者必須有意識地選擇自己的目標工具
 
-## Risks / Trade-offs
+## 風險/權衡
 
-**[Risk] Adapter maintenance burden** → Each new tool needs an adapter. Mitigated by simple interface - most adapters are ~20 lines.
+**[風險]適配器維護負擔** → 每個新工具都需要一個適配器。透過簡單的介面來緩解 - 大多數適配器大約有 20 條線。
 
-**[Risk] Frontmatter format drift** → Tools may change their formats. Mitigated by encapsulating format in adapter - single place to update.
+**[風險] Frontmatter 格式漂移** → 工具可能會改變其格式。透過將格式封裝在適配器中來緩解 - 單一位置更新。
 
-**[Trade-off] Two command systems** → Old SlashCommandConfigurator and new CommandAdapterRegistry coexist. Acceptable for now - can unify later if needed.
+**[權衡] 兩個命令系統** → 舊的 SlashCommandConfigurator 和新的 CommandAdapterRegistry 共存。目前可以接受 - 如果需要的話可以稍後統一。
 
-**[Trade-off] skillsDir optional** → Tools without skillsDir configured will error. Acceptable - we add paths as tools are tested.
+**[權衡] SkillsDir 可選** → 沒有設定 SkillsDir 的工具將會出錯。可接受 - 我們在測試工具時新增路徑。
 
-## Implementation Approach
+## 實施方式
 
-1. Add `skillsDir` to `AIToolOption` and populate for known tools
-2. Create `CommandContent` and `ToolCommandAdapter` interfaces
-3. Implement adapters for Claude, Cursor, Windsurf (start with 3)
-4. Create `CommandAdapterRegistry`
-5. Create `generateCommand()` function
-6. Update `artifact-experimental-setup` to use new system
-7. Add `--tool` flag with validation
+1. 添加 `skillsDir` 到 `AIToolOption` 並填滿已知工具
+2. 創造 `CommandContent` 和 `ToolCommandAdapter` 介面
+3. 為 Claude、Cursor、Windsurf 實作適配器（從 3 開始）
+4. 創造 `CommandAdapterRegistry`
+5. 創造 `generateCommand()` 功能
+6. 更新 `artifact-experimental-setup` 使用新系統
+7. 添加 `--tool` 帶有驗證的標誌

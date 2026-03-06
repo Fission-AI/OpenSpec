@@ -1,26 +1,26 @@
-# Design: Unify Change State Model
+# 設計：統一變更狀態模型
 
-## Overview
+## 概述
 
-This change fixes two bugs with minimal disruption to the existing system:
+此變更修復了兩個錯誤，對現有系統的影響最小：
 
-1. **View bug**: Empty changes incorrectly shown as "Completed"
-2. **Artifact workflow bug**: Commands fail on scaffolded changes
+1. **檢視錯誤**：空更改錯誤地顯示為“已完成”
+2. **工件工作流程錯誤**：指令在鷹架變更時失敗
 
-## Key Design Decision: Two Systems, Two Purposes
+## 關鍵設計決策：兩個系統，兩個目的
 
-The task-based and artifact-based systems serve **different purposes** and should coexist:
+基於任務和基於工件的系統服務於**不同的目的**並且應該共存：
 
-| System | Purpose | Used By |
+| 系統 | 目的 | 使用者 |
 |--------|---------|---------|
-| **Task Progress** | Track implementation work | `openspec view`, `openspec list` |
-| **Artifact Progress** | Track planning/spec work | `openspec status`, `openspec next` |
+| **任務進度** | 追蹤實施工作 | `openspec view`, `openspec list` |
+| **神器進度** | 追蹤規劃/規格工作 | `openspec status`, `openspec next` |
 
-We do NOT merge these systems. Instead, we fix each to work correctly in its domain.
+我們不會合併這些系統。相反，我們修復每個問題以使其在其網域中正常工作。
 
-## Change 1: Fix View Command
+## 變更1：修復檢視指令
 
-### Current Logic (Buggy)
+### 當前邏輯（錯誤）
 
 ```typescript
 // view.ts line 90
@@ -29,9 +29,9 @@ if (progress.total === 0 || progress.completed === progress.total) {
 }
 ```
 
-Problem: `total === 0` means "no tasks defined yet", not "all tasks done".
+問題： `total === 0` 意思是“尚未定義任務”，而不是“所有任務都已完成”。
 
-### New Logic
+### 新邏輯
 
 ```typescript
 if (progress.total === 0) {
@@ -43,9 +43,9 @@ if (progress.total === 0) {
 }
 ```
 
-### View Output Change
+### 檢視輸出變化
 
-**Before:**
+**前：**
 ```
 Completed Changes
 ─────────────────
@@ -53,7 +53,7 @@ Completed Changes
   ✓ test-workflow      (no tasks - WRONG)
 ```
 
-**After:**
+**後：**
 ```
 Draft Changes
 ─────────────────
@@ -68,9 +68,9 @@ Completed Changes
   ✓ add-feature        (all tasks done)
 ```
 
-## Change 2: Fix Artifact Workflow Discovery
+## 變更 2：修復工件工作流程發現
 
-### Current Logic (Buggy)
+### 當前邏輯（錯誤）
 
 ```typescript
 // artifact-workflow.ts - validateChangeExists()
@@ -80,9 +80,9 @@ if (!activeChanges.includes(changeName)) {
 }
 ```
 
-Problem: `getActiveChangeIds()` requires `proposal.md`, but artifact workflow should work on empty directories to help create the first artifact.
+問題： `getActiveChangeIds()` 需要 `proposal.md`，但工件工作流程應該在空目錄上工作，以幫助建立第一個工件。
 
-### New Logic
+### 新邏輯
 
 ```typescript
 async function validateChangeExists(changeName: string, projectRoot: string): Promise<string> {
@@ -109,7 +109,7 @@ async function validateChangeExists(changeName: string, projectRoot: string): Pr
 }
 ```
 
-### Behavior Change
+### 行為改變
 
 ```bash
 # Before
@@ -129,23 +129,23 @@ Progress: 0/4 artifacts complete
 [-] tasks (blocked by: specs, design)
 ```
 
-## What Stays the Same
+## 什麼保持不變
 
-1. **`getActiveChangeIds()`** - Still requires `proposal.md` (used by validate, show)
-2. **`getArchivedChangeIds()`** - Unchanged
-3. **Active/Completed semantics** - Still based on task checkboxes
-4. **Validation** - Still requires `proposal.md` to have something to validate
+1. **`getActiveChangeIds()`** - 仍然需要 `proposal.md` （由驗證、顯示使用）
+2. **`getArchivedChangeIds()`** - 不變
+3. **活動/完成語意** - 仍基於任務核取方塊
+4. **驗證** - 仍然需要 `proposal.md` 有東西要驗證
 
-## File Changes
+## 文件變更
 
-| File | Change |
+| 文件 | 改變 |
 |------|--------|
-| `src/core/view.ts` | Add draft category, fix completion logic |
-| `src/commands/artifact-workflow.ts` | Update `validateChangeExists()` to use directory existence |
-| `test/commands/artifact-workflow.test.ts` | Add tests for scaffolded changes |
+| `src/core/view.ts` | 新增草稿類別，修復完成邏輯 |
+| `src/commands/artifact-workflow.ts` | 更新 `validateChangeExists()` 使用目錄存在 |
+| `test/commands/artifact-workflow.test.ts` | 新增腳手架更改測試 |
 
-## Testing Strategy
+## 測試策略
 
-1. **Unit test**: `validateChangeExists()` with scaffolded change
-2. **View test**: Verify three categories render correctly
-3. **Manual test**: Full workflow from `new change` → `status` → `view`
+1. **單元測試**： `validateChangeExists()` 鷹架式變革
+2. **檢視測試**：驗證三個類別正確渲染
+3. **手動測試**：完整的工作流程 `new change` → `status` → `view`

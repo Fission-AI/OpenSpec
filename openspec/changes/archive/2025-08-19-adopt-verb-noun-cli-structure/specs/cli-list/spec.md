@@ -1,57 +1,57 @@
-# Delta: CLI List Command
+# 增量：CLI 列表指令
 
-## MODIFIED Requirements
+## 修改後的要求
 
-### Requirement: Command Execution
-The command SHALL scan and analyze either active changes or specs based on the selected mode.
+### 要求：命令執行
+該命令應根據所選模式掃描並分析活動變更或規格。
 
-#### Scenario: Scanning for changes (default)
-- **WHEN** `openspec list` is executed without flags
-- **THEN** scan the `openspec/changes/` directory for change directories
-- **AND** exclude the `archive/` subdirectory from results
-- **AND** parse each change's `tasks.md` file to count task completion
+#### 場景：掃描更改（預設）
+- **什麼時候** `openspec list` 不含標誌執行
+- **然後** 掃描 `openspec/changes/` 更改目錄的目錄
+- **並且**排除 `archive/` 結果的子目錄
+- **和** 解析每個更改的 `tasks.md` 文件來計算任務完成狀況
 
-#### Scenario: Scanning for specs
-- **WHEN** `openspec list --specs` is executed
-- **THEN** scan the `openspec/specs/` directory for capabilities
-- **AND** read each capability's `spec.md`
-- **AND** parse requirements to compute requirement counts
+#### 場景：掃描規格
+- **什麼時候** `openspec list --specs` 被執行
+- **然後** 掃描 `openspec/specs/` 能力目錄
+- **並且**讀取每個功能的 `spec.md`
+- **AND** 解析需求以計算需求計數
 
-### Requirement: Output Format
-The command SHALL display items in a clear, readable table format with mode-appropriate progress or counts.
+### 要求：輸出格式
+此命令應以清晰、可讀的表格格式顯示項目，並具有適合模式的進度或計數。
 
-#### Scenario: Displaying change list (default)
-- **WHEN** displaying the list of changes
-- **THEN** show a table with columns:
-  - Change name (directory name)
-  - Task progress (e.g., "3/5 tasks" or "✓ Complete")
+#### 場景：顯示更改清單（預設）
+- **何時** 顯示更改列表
+- **THEN** 顯示一個包含列的表格：
+  - 更改名稱（目錄名稱）
+  - 任務進度（例如「3/5 任務」或「✓ 完成」）
 
-#### Scenario: Displaying spec list
-- **WHEN** displaying the list of specs
-- **THEN** show a table with columns:
-  - Spec id (directory name)
-  - Requirement count (e.g., "requirements 12")
+#### 場景：顯示規格列表
+- **何時** 顯示規格列表
+- **THEN** 顯示一個包含列的表格：
+  - 規格 ID（目錄名稱）
+  - 需求數量（例如“需求 12”）
 
-### Requirement: Empty State
-The command SHALL provide clear feedback when no items are present for the selected mode.
+### 要求：空狀態
+當所選模式不存在任何項目時，該命令應提供清晰的回饋。
 
-#### Scenario: Handling empty state (changes)
-- **WHEN** no active changes exist (only archive/ or empty changes/)
-- **THEN** display: "No active changes found."
+#### 場景：處理空狀態（變化）
+- **何時** 不存在活動變更（僅存檔/或空白變更/）
+- **然後** 顯示：“未發現活動變更。”
 
-#### Scenario: Handling empty state (specs)
-- **WHEN** no specs directory exists or contains no capabilities
-- **THEN** display: "No specs found."
+#### 場景：處理空狀態（規格）
+- **何時** 規格目錄不存在或不包含任何功能
+- **然後** 顯示：“未找到規格。”
 
-### Requirement: Flags
-The command SHALL accept flags to select the noun being listed.
+### 要求：旗幟
+該命令應接受標誌來選擇列出的名詞。
 
-#### Scenario: Selecting specs
-- **WHEN** `--specs` is provided
-- **THEN** list specs instead of changes
+#### 場景：選擇規格
+- **什麼時候** `--specs` 提供
+- **然後** 列出規格而不是更改
 
-#### Scenario: Selecting changes
-- **WHEN** `--changes` is provided
-- **THEN** list changes explicitly (same as default behavior)
+#### 場景：選擇更改
+- **什麼時候** `--changes` 提供
+- **THEN** 明確列出更改（與預設行為相同）
 
 

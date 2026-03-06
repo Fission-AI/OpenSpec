@@ -1,23 +1,23 @@
-# CLI Spec Command Spec
+# CLI 規格 指令規格
 
-## ADDED Requirements
+## 新增要求
 
-### Requirement: Interactive spec validation
+### 要求：互動式規格驗證
 
-The spec validate command SHALL support interactive selection when no spec-id is provided.
+當沒有提供規範 ID 時，規範驗證命令應支援互動式選擇。
 
-#### Scenario: Interactive spec selection for validation
+#### 場景：互動式規格選擇以進行驗證
 
-- **WHEN** executing `openspec spec validate` without arguments
-- **THEN** display an interactive list of available specs
-- **AND** allow the user to select a spec to validate
-- **AND** validate the selected spec
-- **AND** maintain all existing validation options (--strict, --json)
+- **何時**執行 `openspec spec validate` 沒有參數
+- **然後** 顯示可用規格的互動式列表
+- **並且**允許使用者選擇要驗證的規範
+- **並** 驗證所選規格
+- **並** 維護所有現有的驗證選項（--strict、--json）
 
-#### Scenario: Non-interactive fallback keeps current behavior
+#### 場景：非互動式回退保持當前行為
 
-- **GIVEN** stdin is not a TTY or `--no-interactive` is provided or environment variable `OPEN_SPEC_INTERACTIVE=0`
-- **WHEN** executing `openspec spec validate` without a spec-id
-- **THEN** do not prompt interactively
-- **AND** print the existing error message for missing spec-id
-- **AND** set non-zero exit code
+- **給定** stdin 不是 TTY 或 `--no-interactive` 提供或環境變數 `OPEN_SPEC_INTERACTIVE=0`
+- **何時**執行 `openspec spec validate` 沒有spec-id
+- **THEN** 不交互提示
+- **並且** 列印缺少spec-id 的現有錯誤訊息
+- **並** 設定非零退出代碼

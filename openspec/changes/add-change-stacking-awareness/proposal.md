@@ -1,93 +1,93 @@
-## Why
+## 為什麼
 
-Parallel changes often touch the same capabilities and `cli-init`/`cli-update` behavior, but today there is no machine-readable way to express sequencing, dependencies, or expected merge order.
+並行變更通常涉及相同的功能和 `cli-init`/`cli-update` 行為，但今天沒有機器可讀的方式來表達排序、依賴關係或預期的合併順序。
 
-This creates three recurring problems:
+這會產生三個反覆出現的問題：
 
-- teams cannot tell which change should land first
-- large changes are hard to split into safe mergeable slices
-- parallel work can accidentally reintroduce assumptions already removed by another change
+- 團隊無法判斷哪個變更應該先落地
+- 大的變化很難分割成安全的可合併切片
+- 並行工作可能會意外地重新引入已被其他變更刪除的假設
 
-We need lightweight planning metadata and CLI guidance so contributors can safely stack plans on top of each other.
+我們需要輕量級的計劃元資料和 CLI 指導，以便貢獻者可以安全地將計劃堆疊在一起。
 
-## What Changes
+## 有什麼變化
 
-### 1. Add lightweight stack metadata for changes
+### 1. 新增輕量級堆疊元資料以進行更改
 
-Extend change metadata to support sequencing and decomposition context, for example:
+擴展變更元資料以支援排序和分解上下文，例如：
 
-- `dependsOn`: changes that must land first
-- `provides`: capability markers exposed by this change
-- `requires`: capability markers needed by this change
-- `touches`: capability/spec areas likely affected (advisory only; warning signal, not a hard dependency)
-- `parent`: optional parent change for split work
+- `dependsOn`：必須先落地的改變
+- `provides`：此更改暴露的能力標記
+- `requires`：此變更所需的功能標記
+- `touches`：可能受影響的功能/規格領域（僅供參考；警告訊號，不是硬依賴）
+- `parent`：可選的父級變更以進行拆分工作
 
-Metadata is optional and backward compatible for existing changes.
+元資料是可選的，並且向後相容現有的變更。
 
-Ordering semantics:
+排序語意：
 
-- `dependsOn` is the source of truth for execution/archive ordering
-- `provides`/`requires` are capability contracts for validation and planning visibility
-- `provides`/`requires` do not create implicit dependency edges; authors must still declare required ordering via `dependsOn`
+- `dependsOn` 是執行/歸檔排序的真相來源
+- `provides`/`requires` 是用於驗證和規劃可見性的能力合約
+- `provides`/`requires` 不建立隱式依賴邊；作者仍必須透過以下方式聲明所需的排序 `dependsOn`
 
-### 2. Add stack-aware validation
+### 2.添加堆疊感知驗證
 
-Enhance change validation to detect planning issues early:
+增強變更驗證以儘早發現規劃問題：
 
-- missing dependencies
-- dependency cycles
-- archive ordering violations (for example, attempting to archive a change before all `dependsOn` predecessors are archived)
-- unmatched capability markers (for example, `requires` marker with no provider in active history emits non-blocking warning)
-- overlap warnings when active changes touch the same capability
+- 缺少依賴項
+- 依賴循環
+- 歸檔順序違規（例如，嘗試在所有更改之前歸檔更改） `dependsOn` 前人已存檔）
+- unmatched capability markers (for example, `requires` 活動歷史記錄中沒有提供者的標記會發出非阻塞警告）
+- 當活動變更觸及相同功能時重疊警告
 
-Validation should fail only for deterministic blockers (for example cycles or missing required dependencies), and keep overlap checks as actionable warnings.
+驗證應該僅對確定性阻止程序失敗（例如循環或缺少所需的依賴項），並將重疊檢查保留為可操作的警告。
 
-### 3. Add sequencing visibility commands
+### 3.新增排序可見性命令
 
-Add lightweight CLI support to inspect and execute plan order:
+增加輕量級 CLI 支援來檢查和執行計劃訂單：
 
-- `openspec change graph` to show dependency DAG/order
-- `openspec change graph` validates for cycles first; when cycles are present it fails with the same deterministic cycle error as stack-aware validation
-- `openspec change next` to suggest unblocked changes ready to implement/archive
+- `openspec change graph` 顯示依賴 DAG/順序
+- `openspec change graph` 首先驗證循環；當存在循環時，它會失敗，並出現與堆疊感知驗證相同的確定性循環錯誤
+- `openspec change next` 建議準備實施/歸檔的暢通無阻的更改
 
-### 4. Add split scaffolding for large changes
+### 4. 為大的改動添加分離式鷹架
 
-Add helper workflow to decompose large proposals into stackable slices:
+新增幫助程序工作流程以將大型提案分解為可堆疊的切片：
 
-- `openspec change split <change-id>` scaffolds child changes with `parent` + `dependsOn`
-- generates minimal proposal/tasks stubs for each child slice
-- converts the source change into a parent planning container (no duplicate child implementation tasks)
-- re-running split for an already-split source change returns a deterministic actionable error unless `--overwrite` (alias `--force`) is passed
-- `--overwrite` / `--force` fully regenerates managed child scaffold stubs and metadata links for the split, replacing prior scaffold content
+- `openspec change split <change-id>` 鷹架孩子變化 `parent` + `dependsOn`
+- 為每個子切片產生最小的提案/任務存根
+- 將來源變更轉換為父計畫容器（無重複的子實作任務）
+- 對已分割的來源變更重新執行分割會傳回確定性可操作錯誤，除非 `--overwrite` （別名 `--force`) 已通過
+- `--overwrite` / `--force` 完全重新生成拆分的託管子腳手架存根和元資料鏈接，替換以前的腳手架內容
 
-### 5. Document stack-first workflow
+### 5. 文件堆疊優先工作流程
 
-Update docs to describe:
+更新文檔來描述：
 
-- how to model dependencies and parent/child slices
-- when to split a large change
-- how to use graph/next validation signals during parallel development
-- migration guidance for `openspec/changes/IMPLEMENTATION_ORDER.md`:
-  - machine-readable change metadata becomes the normative dependency source
-  - `IMPLEMENTATION_ORDER.md` remains optional narrative context during transition
+- 如何對依賴關係和父/子切片進行建模
+- 何時分割大的變化
+- 如何在並行開發期間使用圖形/下一個驗證訊號
+- 遷移指南 `openspec/changes/IMPLEMENTATION_ORDER.md`:
+  - 機器可讀的變更元資料成為規範的依賴來源
+  - `IMPLEMENTATION_ORDER.md` 在過渡期間保留可選的敘事背景
 
-## Capabilities
+## 能力
 
-### New Capabilities
+### 新功能
 
-- `change-stacking-workflow`: Dependency-aware sequencing and split scaffolding for change planning
+- `change-stacking-workflow`：用於變更計劃的依賴性感知排序和拆分腳手架
 
-### Modified Capabilities
+### 修改後的功能
 
-- `cli-change`: Adds graph/next/split planning commands and stack-aware validation messaging
-- `change-creation`: Supports parent/dependency metadata when creating or splitting changes
-- `openspec-conventions`: Defines optional stack metadata conventions for change proposals
+- `cli-change`：新增圖形/下一個/拆分規劃命令和堆疊感知驗證訊息傳遞
+- `change-creation`：建立或拆分更改時支援父/依賴元資料
+- `openspec-conventions`：定義變更提案的可選堆疊元資料約定
 
-## Impact
+## 影響
 
-- `src/core/project-config.ts` and related parsing/validation utilities for change metadata loading
-- `src/core/config-schema.ts` (or dedicated change schema) for stack metadata validation
-- `src/commands/change.ts` and/or `src/core/list.ts` for graph/next/split command behavior
-- `src/core/validation/*` for dependency cycle and overlap checks
-- `docs/cli.md`, `docs/concepts.md`, and contributor guidance for stack-aware workflows
-- tests for metadata parsing, graph ordering, next-item suggestions, and split scaffolding
+- `src/core/project-config.ts` 以及用於更改元資料加載的相關解析/驗證實用程序
+- `src/core/config-schema.ts` （或專用變更模式）用於堆疊元資料驗證
+- `src/commands/change.ts` and/or `src/core/list.ts` 對於圖形/下一個/分割命令行為
+- `src/core/validation/*` 用於依賴性循環和重疊檢查
+- `docs/cli.md`, `docs/concepts.md`以及堆疊感知工作流程的貢獻者指南
+- 元資料解析、圖形排序、下一項建議和拆分腳手架的測試

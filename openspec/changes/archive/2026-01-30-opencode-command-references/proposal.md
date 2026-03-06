@@ -1,32 +1,32 @@
-## Why
+## 為什麼
 
-OpenCode uses hyphen-based command syntax (`/opsx-new`) but our templates contain colon-based references (`/opsx:new`). This creates inconsistency where generated command files and skill files contain references that don't match the actual command invocation syntax, confusing both the AI and users.
+OpenCode uses hyphen-based command syntax (`/opsx-new`）但我們的範本包含基於冒號的引用（`/opsx:new`）。這會造成不一致，生成的命令檔案和技能檔案包含與實際命令呼叫語法不匹配的引用，從而使 AI 和使用者感到困惑。
 
-## What Changes
+## 有什麼變化
 
-- Create a shared transformation utility (`transformToHyphenCommands`) for converting `/opsx:` to `/opsx-`
-- Update the OpenCode command adapter to transform body text using this utility
-- Add an optional `transformInstructions` callback parameter to `generateSkillContent()`
-- Update `init.ts` and `update.ts` to pass the transformer when generating skills for OpenCode
+- 建立共享轉換實用程式（`transformToHyphenCommands`）用於轉換 `/opsx:` 到 `/opsx-`
+- 更新 OpenCode 命令適配器以使用此實用程式轉換正文文本
+- 添加一個可選的 `transformInstructions` 回呼參數為 `generateSkillContent()`
+- 更新 `init.ts` 和 `update.ts` 為 OpenCode 產生技能時傳遞變壓器
 
-## Capabilities
+## 能力
 
-### New Capabilities
+### 新功能
 
-None - this is a bug fix, not a new capability.
+無 - 這是錯誤修復，而不是新功能。
 
-### Modified Capabilities
+### 修改後的功能
 
-None - no spec-level behavior changes. This is an implementation fix in the OpenCode adapter and skill generation that doesn't change any external requirements or contracts.
+無 - 沒有規範層級的行為變化。這是 OpenCode 適配器和技能生成中的實作修復，不會更改任何外部要求或合約。
 
-## Impact
+## 影響
 
-- **Code**: 
-  - `src/utils/command-references.ts` (new file)
-  - `src/utils/index.ts` (export)
-  - `src/core/shared/skill-generation.ts` (add callback parameter)
-  - `src/core/command-generation/adapters/opencode.ts` (use transformer)
-  - `src/core/init.ts` (pass transformer for OpenCode)
-  - `src/core/update.ts` (pass transformer for OpenCode)
-- **Users**: OpenCode users will see correct `/opsx-` command references in both generated command files AND skill files
-- **Other tools**: No impact - transformation only applies to OpenCode
+- **代碼**： 
+  - `src/utils/command-references.ts` （新文件）
+  - `src/utils/index.ts` （出口）
+  - `src/core/shared/skill-generation.ts` （新增回呼參數）
+  - `src/core/command-generation/adapters/opencode.ts` （使用變壓器）
+  - `src/core/init.ts` （OpenCode 的傳遞變壓器）
+  - `src/core/update.ts` （OpenCode 的傳遞變壓器）
+- **使用者**：OpenCode 用戶將看到正確的 `/opsx-` 產生的命令檔案和技能檔案中的命令引用
+- **其他工具**：沒有影響 - 轉換僅適用於 OpenCode

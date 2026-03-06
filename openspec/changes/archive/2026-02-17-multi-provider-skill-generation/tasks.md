@@ -1,55 +1,55 @@
-## 1. Extend AIToolOption Interface
+## 1. 擴充AIToolOption接口
 
-- [x] 1.1 Add `skillsDir?: string` field to `AIToolOption` interface in `src/core/config.ts`
+- [x] 1.1 添加 `skillsDir?: string` 字段到 `AIToolOption` 接口在 `src/core/config.ts`
 
-## 2. Add skillsDir to AI_TOOLS
+## 2.將skillsDir加入AI_TOOLS
 
-- [x] 2.1 Add `skillsDir: '.claude'` to Claude Code tool entry
-- [x] 2.2 Add `skillsDir: '.cursor'` to Cursor tool entry
-- [x] 2.3 Add `skillsDir: '.windsurf'` to Windsurf tool entry
-- [x] 2.4 Add skillsDir for other tools with known Agent Skills spec support (codex, opencode, roocode, kilocode, gemini, factory, github-copilot)
+- [x] 2.1 添加 `skillsDir: '.claude'` 到Claude代碼工具入口
+- [x] 2.2 添加 `skillsDir: '.cursor'` 到遊標工具條目
+- [x] 2.3 添加 `skillsDir: '.windsurf'` 到 Windsurf 工具入口
+- [x] 2.4 為其他具有已知代理技能規格支援的工具新增技能目錄（codex、opencode、roocode、kilocode、gemini、factory、github-copilot）
 
-## 3. Create Command Generation Types
+## 3. 建立命令產生類型
 
-- [x] 3.1 Create `src/core/command-generation/types.ts` with `CommandContent` interface
-- [x] 3.2 Add `ToolCommandAdapter` interface to types.ts
-- [x] 3.3 Export types from module index
+- [x] 3.1 建立 `src/core/command-generation/types.ts` 和 `CommandContent` 介面
+- [x] 3.2 添加 `ToolCommandAdapter` types.ts 的接口
+- [x] 3.3 從模組索引匯出類型
 
-## 4. Implement Tool Command Adapters
+## 4. 實施工具命令適配器
 
-- [x] 4.1 Create `src/core/command-generation/adapters/claude.ts` with Claude frontmatter format
-- [x] 4.2 Create `src/core/command-generation/adapters/cursor.ts` with Cursor frontmatter format
-- [x] 4.3 Create `src/core/command-generation/adapters/windsurf.ts` with Windsurf frontmatter format
-- [x] 4.4 Create base adapter or utility for shared YAML formatting logic (if applicable)
+- [x] 4.1 建立 `src/core/command-generation/adapters/claude.ts` 帶有 Claude frontmatter 格式
+- [x] 4.2 建立 `src/core/command-generation/adapters/cursor.ts` 附 Cursor frontmatter 格式
+- [x] 4.3 建立 `src/core/command-generation/adapters/windsurf.ts` 帶有 Windsurf frontmatter 格式
+- [x] 4.4 為共用 YAML 格式化邏輯建立基本適配器或實用程式（如果適用）
 
-## 5. Create Command Adapter Registry
+## 5. 建立命令適配器註冊表
 
-- [x] 5.1 Create `src/core/command-generation/registry.ts` with `CommandAdapterRegistry` class
-- [x] 5.2 Register Claude, Cursor, Windsurf adapters in static initializer
-- [x] 5.3 Add `get(toolId)` and `getAll()` methods
+- [x] 5.1 建立 `src/core/command-generation/registry.ts` 和 `CommandAdapterRegistry` 班級
+- [x] 5.2 在靜態初始化程序中註冊Claude、遊標、Windsurf 適配器
+- [x] 5.3 添加 `get(toolId)` 和 `getAll()` 方法
 
-## 6. Create Command Generator
+## 6. 建立命令產生器
 
-- [x] 6.1 Create `src/core/command-generation/generator.ts` with `generateCommand()` function
-- [x] 6.2 Add `generateCommands()` function for batch generation
-- [x] 6.3 Create module index `src/core/command-generation/index.ts` exporting public API
+- [x] 6.1 建立 `src/core/command-generation/generator.ts` 和 `generateCommand()` 功能
+- [x] 6.2 添加 `generateCommands()` 批次生成函數
+- [x] 6.3 建立模組索引 `src/core/command-generation/index.ts` 出口公共API
 
-## 7. Update artifact-experimental-setup Command
+## 7. 更新artifact-experimental-setup指令
 
-- [x] 7.1 Add `--tool <tool-id>` option (required) to command in `src/commands/artifact-workflow.ts`
-- [x] 7.2 Add validation: `--tool` flag is required (error if missing with list of valid tools)
-- [x] 7.3 Add validation: tool exists in AI_TOOLS
-- [x] 7.4 Add validation: tool has skillsDir configured
-- [x] 7.5 Replace hardcoded `.claude` skill paths with `tool.skillsDir`
-- [x] 7.6 Replace hardcoded command generation with `CommandAdapterRegistry.get()` + `generateCommands()`
-- [x] 7.7 Handle missing adapter gracefully (skip commands with message)
-- [x] 7.8 Update output messages to show target tool name and paths
+- [x] 7.1 添加 `--tool <tool-id>` 命令的選項（必需） `src/commands/artifact-workflow.ts`
+- [x] 7.2 新增驗證： `--tool` 需要標誌（如果缺少有效工具列表，則會出現錯誤）
+- [x] 7.3 新增驗證：工具存在於AI_TOOLS中
+- [x] 7.4 新增驗證：工具已設定 SkillsDir
+- [x] 7.5 替換硬編碼 `.claude` 技能路徑與 `tool.skillsDir`
+- [x] 7.6 將硬編碼指令生成替換為 `CommandAdapterRegistry.get()` + `generateCommands()`
+- [x] 7.7 優雅地處理遺失的適配器（跳過帶有訊息的命令）
+- [x] 7.8 更新輸出訊息以顯示目標工具名稱和路徑
 
-## 8. Testing
+## 8. 測試
 
-- [x] 8.1 Add unit tests for `CommandContent` and `ToolCommandAdapter` contracts
-- [x] 8.2 Add unit tests for Claude adapter (path + frontmatter format)
-- [x] 8.3 Add unit tests for Cursor adapter (path + frontmatter format)
-- [x] 8.4 Add unit tests for `CommandAdapterRegistry.get()` and missing adapter case
-- [x] 8.5 Add integration test for `--tool` flag validation
-- [x] 8.6 Verify cross-platform path handling uses `path.join()` throughout
+- [x] 8.1 新增單元測試 `CommandContent` 和 `ToolCommandAdapter` 合約
+- [x] 8.2 為Claude適配器新增單元測試（路徑+frontmatter格式）
+- [x] 8.3 為Cursor適配器新增單元測試（路徑+frontmatter格式）
+- [x] 8.4 新增單元測試 `CommandAdapterRegistry.get()` 缺少適配器盒
+- [x] 8.5 新增整合測試 `--tool` 標誌驗證
+- [x] 8.6 驗證跨平台路徑處理用途 `path.join()` 自始至終

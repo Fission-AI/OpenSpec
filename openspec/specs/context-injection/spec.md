@@ -1,53 +1,53 @@
-# context-injection Specification
+# 情境注入規範
 
-## Purpose
-Define how project context from `openspec/config.yaml` is injected into workflow instructions while preserving source text and formatting.
+## 目的
+定義專案上下文如何來自 `openspec/config.yaml` 被注入到工作流程指令中，同時保留原始文字和格式。
 
-## Requirements
-### Requirement: Inject context into all artifact instructions
+## 要求
+### 需求：將上下文注入所有工件指令
 
-The system SHALL inject the context field from project config into instructions for all artifacts, wrapped in XML-style `<context>` tags.
+系統應將專案設定中的上下文欄位注入到所有工件的指令中，以 XML 樣式包裝 `<context>` tags.
 
-#### Scenario: Config has context field
-- **WHEN** config contains `context: "Tech stack: TypeScript, React"`
-- **THEN** instruction output includes `<context>\nTech stack: TypeScript, React\n</context>`
+#### 場景：設定有上下文字段
+- **何時** 設定包含 `context: "Tech stack: TypeScript, React"`
+- **THEN** 指令輸出包括 `<context>\nTech stack: TypeScript, React\n</context>`
 
-#### Scenario: Config has no context field
-- **WHEN** config omits the context field or context is undefined
-- **THEN** instruction output does not include `<context>` tags
+#### 場景：設定沒有上下文字段
+- **何時** 設定忽略上下文欄位或上下文未定義
+- **THEN**指令輸出不包括 `<context>` 標籤
 
-#### Scenario: Context is multi-line string
-- **WHEN** config contains context with multiple lines
-- **THEN** instruction output preserves line breaks within `<context>` tags
+#### 場景：上下文是多行字串
+- **何時** 設定包含多行上下文
+- **THEN** 指令輸出保留換行符 `<context>` 標籤
 
-#### Scenario: Context applied to all artifacts
-- **WHEN** instructions are loaded for any artifact (proposal, specs, design, tasks)
-- **THEN** context section appears in all instruction outputs
+#### 場景：應用於所有工件的上下文
+- **何時** 載入任何工件（提案、規格、設計、任務）的說明
+- **THEN** 上下文部分出現在所有指令輸出中
 
-### Requirement: Format context with XML-style tags
+### 需求：使用 XML 樣式標籤格式化上下文
 
-The system SHALL wrap context content in `<context>` opening and `</context>` closing tags with content on separate lines.
+系統應將上下文內容包裝在 `<context>` 開放和 `</context>` 內容位於單獨行的結束標籤。
 
-#### Scenario: Context tag structure
-- **WHEN** context is injected into instructions
-- **THEN** format is exactly `<context>\n{content}\n</context>\n\n`
+#### 場景：上下文標籤結構
+- **何時** 上下文被注入到指令中
+- **THEN** 格式完全正確 `<context>\n{content}\n</context>\n\n`
 
-#### Scenario: Context appears before template
-- **WHEN** instructions are generated with context
-- **THEN** `<context>` section appears before the `<template>` section
+#### 場景：上下文出現在模板之前
+- **何時** 指令是根據上下文產生的
+- **然後** `<context>` 部分出現在 `<template>` 部分
 
-### Requirement: Preserve context content exactly as provided
+### 要求：完全按照提供的方式保留上下文內容
 
-The system SHALL inject context content without modification, escaping, or interpretation.
+系統應注入上下文內容，無需修改、轉義或解釋。
 
-#### Scenario: Context contains special characters
-- **WHEN** context includes characters like `<`, `>`, `&`, quotes
-- **THEN** characters are preserved exactly as written in the config
+#### 場景：上下文包含特殊字符
+- **何時** 上下文包含以下字符 `<`, `>`, `&`， 引號
+- **THEN** 字元完全按照設定中寫入的方式保留
 
-#### Scenario: Context contains URLs
-- **WHEN** context includes URLs like "docs at https://example.com"
-- **THEN** URLs are preserved exactly in the injected content
+#### 場景：上下文包含 URL
+- **何時** 上下文包含諸如“docs at https://example.com"
+- **那麼** URL 會準確地保留在註入的內容中
 
-#### Scenario: Context contains Markdown
-- **WHEN** context includes Markdown formatting like `**bold**` or `[links](url)`
-- **THEN** Markdown is preserved without rendering or escaping
+#### 場景：上下文包含Markdown
+- **何時** 上下文包含 Markdown 格式，例如 `**bold**` 或者 `[links](url)`
+- **那麼** Markdown 保留而不渲染或轉義

@@ -1,101 +1,101 @@
 # OpenSpec Conventions - Changes
 
-## MODIFIED Requirements
+## 修改後的要求
 
-### Requirement: Header-Based Requirement Identification
+### 需求：基於標頭的需求識別
 
-Requirement headers SHALL serve as unique identifiers for programmatic matching between current specs and proposed changes.
+需求標頭應作為當前規範和建議變更之間的程式匹配的唯一識別碼。
 
-#### Scenario: Matching requirements programmatically
+#### 場景：以程式設計方式搭配需求
 
-- **WHEN** processing delta changes
-- **THEN** use the `### Requirement: [Name]` header as the unique identifier
-- **AND** match using normalized headers: `normalize(header) = trim(header)`
-- **AND** compare headers with case-sensitive equality after normalization
+- **何時** 處理增量更改
+- **然後**使用 `### Requirement: [Name]` header 作為唯一識別符
+- **AND** 使用標準化標頭進行比對： `normalize(header) = trim(header)`
+- **AND** 標準化後將標頭與區分大小寫的相等性進行比較
 
-#### Scenario: Handling requirement renames
+#### 場景：處理需求重新命名
 
-- **WHEN** renaming a requirement
-- **THEN** use a special `## RENAMED Requirements` section
-- **AND** specify both old and new names explicitly:
+- **何時** 重新命名需求
+- **那麼**使用特殊的 `## RENAMED Requirements` 部分
+- **並且** 明確指定舊名稱和新名稱：
   ```markdown
   ## RENAMED Requirements
   - FROM: `### Requirement: Old Name`
   - TO: `### Requirement: New Name`
   ```
-- **AND** if content also changes, include under MODIFIED using the NEW header
+- **並且** 如果內容也發生變化，請使用 NEW 標頭包含在 MODIFIED 下
 
-#### Scenario: Validating header uniqueness
+#### 場景：驗證標頭唯一性
 
-- **WHEN** creating or modifying requirements
-- **THEN** ensure no duplicate headers exist within a spec
-- **AND** validation tools SHALL flag duplicate headers as errors
+- **何時** 建立或修改需求
+- **然後** 確保規範中不存在重複的標頭
+- **和** 驗證工具應將重複標頭標記為錯誤
 
-### Requirement: Change Storage Convention
+### 要求：更改儲存約定
 
-Change proposals SHALL store only the additions, modifications, and removals to specifications, not complete future states.
+變更提案應僅儲存規範的新增、修改和刪除，而不是完整的未來狀態。
 
-#### Scenario: Creating change proposals with additions
+#### 場景：建立具有新增內容的變更提案
 
-- **WHEN** creating a change proposal that adds new requirements
-- **THEN** include only the new requirements under `## ADDED Requirements`
-- **AND** each requirement SHALL include its complete content
-- **AND** use the standard structured format for requirements and scenarios
+- **何時** 建立新增要求的變更提案
+- **那麼** 只包含以下新要求 `## ADDED Requirements`
+- **且** 每項要求應包含其完整內容
+- **並且**使用標準結構化格式來滿足需求和場景
 
-#### Scenario: Creating change proposals with modifications  
+#### 場景：建立帶有修改的變更提案  
 
-- **WHEN** creating a change proposal that modifies existing requirements
-- **THEN** include the modified requirements under `## MODIFIED Requirements`
-- **AND** use the same header text as in the current spec (normalized)
-- **AND** include the complete modified requirement (not a diff)
-- **AND** optionally annotate what changed with inline comments like `← (was X)`
+- **何時** 建立修改現有需求的變更提案
+- **然後** 包括以下修改後的要求 `## MODIFIED Requirements`
+- **並且** 使用與當前規範相同的標題文字（標準化）
+- **並且**包括完整的修改要求（不是差異）
+- **和** 可以選擇使用內嵌註解來註釋變更的內容，例如 `← (was X)`
 
-#### Scenario: Creating change proposals with removals
+#### 場景：建立包含刪除的變更提案
 
-- **WHEN** creating a change proposal that removes requirements
-- **THEN** list them under `## REMOVED Requirements`
-- **AND** use the normalized header text for identification
-- **AND** include reason for removal
-- **AND** document any migration path if applicable
+- **何時** 建立刪除要求的變更提案
+- **然後** 將它們列在下面 `## REMOVED Requirements`
+- **並且**使用規範化的標題文字進行識別
+- **並** 包含刪除原因
+- **並**記錄任何遷移路徑（如果適用）
 
 
-The `changes/[name]/specs/` directory SHALL contain:
-- Delta files showing only what changes
-- Sections for ADDED, MODIFIED, REMOVED, and RENAMED requirements
-- Normalized header matching for requirement identification
-- Complete requirements using the structured format
-- Clear indication of change type for each requirement
+這 `changes/[name]/specs/` 目錄應包含：
+- 僅顯示更改內容的增量文件
+- 有關「新增」、「修改」、「刪除」和「重新命名」要求的部分
+- 用於需求識別的標準化標頭匹配
+- 使用結構化格式完成需求
+- 清楚指示每個需求的變更類型
 
-#### Scenario: Using standard output symbols
+#### 場景：使用標準輸出符號
 
 - **WHEN** displaying delta operations in CLI output
 - **THEN** use these standard symbols:
-  - `+` for ADDED (green)
-  - `~` for MODIFIED (yellow)
-  - `-` for REMOVED (red)
-  - `→` for RENAMED (cyan)
+  - `+` 添加（綠色）
+  - `~` 改良版（黃色）
+  - `-` 對於已刪除（紅色）
+  - `→` 重新命名（青色）
 
-### Requirement: Archive Process Enhancement
+### 需求：歸檔流程增強
 
-The archive process SHALL programmatically apply delta changes to current specifications using header-based matching.
+歸檔過程應使用基於標頭的匹配以編程方式將增量更改應用於當前規範。
 
-#### Scenario: Archiving changes with deltas
+#### 場景：使用增量歸檔更改
 
-- **WHEN** archiving a completed change
-- **THEN** the archive command SHALL:
-  1. Parse RENAMED sections first and apply renames
-  2. Parse REMOVED sections and remove by normalized header match
-  3. Parse MODIFIED sections and replace by normalized header match (using new names if renamed)
-  4. Parse ADDED sections and append new requirements
-- **AND** validate that all MODIFIED/REMOVED headers exist in current spec
-- **AND** validate that ADDED headers don't already exist
-- **AND** generate the updated spec in the main specs/ directory
+- **何時** 歸檔已完成的變更
+- **那麼** 歸檔指令應：
+  1. 首先解析 RENAMED 部分並應用重命名
+  2. 解析 REMOVED 部分並透過標準化標頭匹配刪除
+  3. 解析 MODIFIED 部分並替換為標準化標頭匹配（如果重命名，則使用新名稱）
+  4. 解析新增的部分並附加新的要求
+- **並** 驗證目前規範中是否存在所有 MODIFIED/REMOVED 標頭
+- **並且** 驗證 ADDED 標頭尚不存在
+- **並且**在主specs/目錄中產生更新的規格
 
-#### Scenario: Handling conflicts during archive
+#### 場景：處理歸檔期間的衝突
 
-- **WHEN** delta changes conflict with current spec state
-- **THEN** the archive command SHALL report specific conflicts
-- **AND** require manual resolution before proceeding
-- **AND** provide clear guidance on resolving conflicts
+- **何時** 增量變更與目前規範狀態衝突
+- **那麼** 歸檔指令應報告特定衝突
+- **並且**在繼續之前需要手動解決
+- **並且** 提供解決衝突的明確指導
 
  

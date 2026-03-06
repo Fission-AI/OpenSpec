@@ -1,29 +1,29 @@
-# Add Shell Completions
+# 添加 Shell 補全
 
-## Why
+## 為什麼
 
-OpenSpec CLI commands lack shell completion, forcing users to remember all commands, subcommands, flags, and change/spec IDs manually. This creates friction during daily use and slows developer workflows. Shell completions are a standard expectation for modern CLI tools and significantly improve user experience through:
-- Faster command discovery via tab completion
-- Reduced cognitive load by removing memorization requirements
-- Fewer typos through validated suggestions
-- Professional polish expected of production-grade tools
+OpenSpec CLI 指令缺少 shell 補全，迫使使用者手動記住所有指令、子指令、標誌和變更/規範 ID。這會在日常使用過程中產生摩擦並減慢開發人員的工作流程。 Shell 完成是現代 CLI 工具的標準期望，並透過以下方式顯著改善使用者體驗：
+- 透過選項卡補全更快發現指令
+- 透過消除記憶要求來減少認知負荷
+- 透過經過驗證的建議減少拼字錯誤
+- 生產級工具需要專業打磨
 
-## What Changes
+## 有什麼變化
 
-This change adds shell completion support for the OpenSpec CLI, starting with **Zsh (including Oh My Zsh)** and establishing a scalable architecture for future shells (bash, fish, PowerShell). The implementation provides:
+此更改增加了對 OpenSpec CLI 的 shell 完成支援，從 **Zsh（包括 Oh My Zsh）** 開始，並為未來的 shell（bash、fish、PowerShell）建立可擴展的架構。該實施規定：
 
-1. **New `openspec completion` command** with Zsh generation and installation/uninstallation capabilities
-2. **Native Zsh integration** that respects standard Zsh tab completion behavior (single-TAB menu navigation)
-3. **Dynamic completion providers** that discover active changes and specs from the current project
-4. **Plugin-based architecture** using TypeScript interfaces for easy extension to additional shells in future proposals
-5. **Installation automation** for Oh My Zsh (priority) and standard Zsh configurations
-6. **Context-aware suggestions** that only activate within OpenSpec-enabled projects
+1. **新的 `openspec completion` 命令** 具有 Zsh 生成和安裝/卸載功能
+2. **本機 Zsh 整合** 尊重標準 Zsh 選項卡完成行為（單選項卡選單導覽）
+3. **動態完成提供者**，發現目前專案的活動變更和規範
+4. **基於插件的架構**使用 TypeScript 接口，以便在未來的提案中輕鬆擴展至其他 shell
+5. **安裝自動化** Oh My Zsh（優先）和標準 Zsh 設定
+6. **上下文感知建議**僅在 OpenSpec 啟用的項目中激活
 
-The architecture emphasizes clean TypeScript patterns, composable generators, separation of concerns between shell-specific logic and shared completion data providers, and integration with native shell completion systems. Other shells (bash, fish, PowerShell) are architecturally documented but not implemented in this proposal—they will be added in follow-up changes.
+該架構強調乾淨的 TypeScript 模式、可組合生成器、特定於 shell 的邏輯和共享完成資料提供者之間的關注點分離，以及與本機 shell 完成系統的整合。其他 shell（bash、fish、PowerShell）在架構上有文件記錄，但未在本提案中實現——它們將在後續更改中添加。
 
-## Deltas
+## 三角洲
 
-### Delta: New CLI completion specification
-- **Spec:** cli-completion
-- **Operation:** ADDED
-- **Description:** Defines requirements for the new `openspec completion` command including generation, installation, and shell-specific behaviors for Oh My Zsh, bash, fish, and PowerShell.
+### 增量：新的CLI完成規範
+- **規格：** cli 完成
+- **操作：** 新增
+- **描述：** 定義新的要求 `openspec completion` 指令包括 Oh My Zsh、bash、fish 和 PowerShell 的產生、安裝和特定於 shell 的行為。

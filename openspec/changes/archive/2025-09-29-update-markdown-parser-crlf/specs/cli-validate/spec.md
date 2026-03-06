@@ -1,9 +1,9 @@
-## ADDED Requirements
-### Requirement: Parser SHALL handle cross-platform line endings
-The markdown parser SHALL correctly identify sections regardless of line ending format (LF, CRLF, CR).
+## 新增要求
+### 需求：解析器應處理跨平台行結尾
+無論行結束格式為何（LF、CRLF、CR），Markdown 解析器應正確辨識節。
 
-#### Scenario: Required sections parsed with CRLF line endings
-- **GIVEN** a change proposal markdown saved with CRLF line endings
-- **AND** the document contains `## Why` and `## What Changes`
-- **WHEN** running `openspec validate <change-id>`
-- **THEN** validation SHALL recognize the sections and NOT raise parsing errors
+#### 場景：用 CRLF 行結尾解析必需的部分
+- **給定** 更改提案降價以 CRLF 行結尾保存
+- **並且** 該文件包含 `## Why` 和 `## What Changes`
+- **何時**執行 `openspec validate <change-id>`
+- **那麼** 驗證應可辨識這些部分且不會引發解析錯誤

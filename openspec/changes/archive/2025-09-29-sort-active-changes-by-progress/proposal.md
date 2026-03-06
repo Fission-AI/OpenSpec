@@ -1,25 +1,25 @@
-# Change: Sort Active Changes by Progress
+# 更改：按進度對活動更改進行排序
 
-## Problem
-- The dashboard currently lists active changes in filesystem discovery order.
-- Users cannot quickly spot proposals that have not started or are nearly complete.
-- Inconsistent ordering between runs makes it harder to track progress when many changes exist.
+## 問題
+- 儀表板目前列出了檔案系統發現順序中的活動變更。
+- 用戶無法快速發現尚未開始或接近完成的提案。
+- 當存在許多變更時，執行之間的順序不一致會使追蹤進度變得更加困難。
 
-## Proposal
-1. Update the Active Changes list in the dashboard to sort by percentage of completion in ascending order so 0% items show first.
-2. When two changes share the same completion percentage, break ties deterministically by change identifier (alphabetical).
+## 提議
+1. 更新儀表板中的活動變更列表，以按完成百分比升序排序，以便先顯示 0% 的項目。
+2. 當兩個變更共享相同的完成百分比時，透過變更識別碼（按字母順序）確定性地打破聯繫。
 
-## Benefits
-- Highlights work that has not started yet, enabling quicker prioritization.
-- Provides consistent ordering across machines and repeated runs.
-- Keeps the dashboard compact while communicating the most important status signal.
+## 好處
+- 突出顯示尚未開始的工作，以便更快地確定優先順序。
+- 提供跨機器和重複執行的一致排序。
+- 保持儀表板緊湊，同時傳達最重要的狀態訊號。
 
-## Risks & Mitigations
-- **Risk:** Sorting logic could regress rendering when progress data is missing.
-  - **Mitigation:** Treat missing progress as 0% so items still surface and document behavior in tests.
-- **Risk:** Additional sorting could impact performance for large change sets.
-  - **Mitigation:** The number of active changes is typically small; sorting a few entries is negligible.
+## 風險與緩解措施
+- **風險：** 當進度資料遺失時，排序邏輯可能會導致渲染迴歸。
+  - **緩解措施：** 將缺少的進度視為 0%，以便項目在測試中仍然浮現並記錄行為。
+- **風險：** 額外的排序可能會影響大型變更集的效能。
+  - **緩解措施：** 主動更改的數量通常很少；對一些條目進行排序可以忽略不計。
 
-## Success Criteria
-- Dashboard output shows active changes ordered by ascending completion percentage with deterministic tie-breaking.
-- Unit coverage verifying the sort when percentages vary and when ties occur.
+## 成功標準
+- 儀表板輸出顯示按完成百分比升序排序的活動更改，並具有確定性的平局決斷。
+- 單位覆蓋率在百分比變化和出現平局時驗證排序。

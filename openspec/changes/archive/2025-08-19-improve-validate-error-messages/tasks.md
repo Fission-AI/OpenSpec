@@ -1,21 +1,21 @@
-## 1. Enhance validation messages
-- [x] 1.1 Add remediation guidance for "No deltas found"
-- [x] 1.2 Include file path and structured path in all issues
-- [x] 1.3 Improve messages for missing required sections (Spec, Change)
-- [x] 1.4 Detect likely misformatted scenarios and warn with conversion example
-- [x] 1.5 Add "Next steps" footer for non-JSON invalid output
+## 1. 增強驗證訊息
+- [x] 1.1 新增「未發現增量」的修復指南
+- [x] 1.2 所有問題中包含檔案路徑和結構化路徑
+- [x] 1.3 改進缺少必需部分的訊息（規格、更改）
+- [x] 1.4 偵測可能的格式錯誤場景並透過轉換範例發出警告
+- [x] 1.5 為非JSON無效輸出新增「後續步驟」頁尾
 
-## 2. Update constants and helpers
-- [x] 2.1 Centralize guidance snippets in `VALIDATION_MESSAGES`
-- [x] 2.2 Provide minimal skeleton examples for missing sections
+## 2. 更新常數和助手
+- [x] 2.1 將指導片段集中在 `VALIDATION_MESSAGES`
+- [x] 2.2 為缺少的部分提供最小的骨架範例
 
-## 3. Parser integration
-- [x] 3.1 Capture parser-thrown errors and wrap with richer context
-- [x] 3.2 Add file/section references to surfaced parser errors
+## 3. 解析器集成
+- [x] 3.1 捕捉解析器拋出的錯誤並使用更豐富的上下文進行包裝
+- [x] 3.2 新增對出現的解析器錯誤的檔案/節引用
 
-## 4. Tests
-- [x] 4.1 Unit tests for validator message composition
-- [x] 4.2 CLI integration tests for human-readable output (with footer)
-- [x] 4.3 JSON mode tests (structure unchanged, content enriched)
+## 4. 測試
+- [x] 4.1 驗證器訊息組成的單元測試
+- [x] 4.2 CLI 人類可讀輸出的整合測試（附頁尾）
+- [x] 4.3 JSON模式測試（結構不變，內容豐富）
 
 

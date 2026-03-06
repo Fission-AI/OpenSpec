@@ -1,40 +1,40 @@
-## Context
+## 情境
 
-OpenSpec currently resolves schemas from two locations:
-1. User override: `~/.local/share/openspec/schemas/<name>/`
-2. Package built-in: `<npm-package>/schemas/<name>/`
+OpenSpec 目前從兩個位置解析架構：
+1. 用戶覆蓋： `~/.local/share/openspec/schemas/<name>/`
+2. 包內建： `<npm-package>/schemas/<name>/`
 
-This change adds a third, highest-priority level: project-local schemas at `./openspec/schemas/<name>/`.
+此變更新增了第三個最高優先權：專案本地架構 `./openspec/schemas/<name>/`.
 
-The resolver functions in `src/core/artifact-graph/resolver.ts` currently don't take a `projectRoot` parameter because user and package paths are absolute. To support project-local schemas, we need to pass project root context into the resolver.
+解析器的功能在 `src/core/artifact-graph/resolver.ts` 目前不採取 `projectRoot` 參數，因為使用者和包路徑是絕對路徑。為了支援專案本地模式，我們需要將專案根上下文傳遞到解析器中。
 
-## Goals / Non-Goals
+## 目標/非目標
 
-**Goals:**
-- Enable version-controlled custom workflow schemas
-- Allow teams to share schemas via git without per-machine setup
-- Maintain backward compatibility with existing resolver API
-- Integrate with `config.yaml`'s `schema` field (from project-config change)
+**目標：**
+- 啟用版本控制的自訂工作流程架構
+- 允許團隊透過 git 共享架構，無需每台機器進行設置
+- 保持與現有解析器的向後相容性API
+- 整合於 `config.yaml`的 `schema` 字段（來自項目設定更改）
 
-**Non-Goals:**
-- Schema inheritance or `extends` keyword
-- Template-level overrides (partial forks)
-- Schema management CLI commands (`openspec schema copy/which/diff/reset`)
-- Validation that project-local schema names don't conflict with built-ins (shadowing is intentional)
+**非目標：**
+- 模式繼承或 `extends` 關鍵字
+- 模板級覆蓋（部分分叉）
+- 架構管理 CLI 指令（`openspec schema copy/which/diff/reset`)
+- 驗證專案本機模式名稱與內建模式名稱不衝突（陰影是有意的）
 
-## Decisions
+## 決定
 
-### Decision 1: Add optional `projectRoot` parameter to resolver functions
+### 決定 1：新增可選 `projectRoot` 解析器函數的參數
 
-**Choice:** Add optional `projectRoot?: string` parameter to resolver functions rather than using `process.cwd()` internally.
+**選擇：** 新增可選 `projectRoot?: string` 解析器函數的參數而不是使用 `process.cwd()` internally.
 
-**Alternatives considered:**
-- Use `process.cwd()` internally: Simpler API but implicit, harder to test, doesn't match existing codebase patterns
-- Create separate project-aware functions: No breaking changes but awkward API, callers must compose
+**考慮的替代方案：**
+- 使用 `process.cwd()` 內部：較簡單 API 但隱式，難以測試，與現有程式碼庫模式不匹配
+- 建立單獨的項目感知函數：沒有重大更改，但尷尬 API，呼叫者必須撰寫
 
-**Rationale:** The codebase already follows a pattern where CLI commands get project root via `process.cwd()` and pass it down to functions that need it. Adding an optional parameter maintains backward compatibility while enabling explicit, testable behavior.
+**基本原理：** 程式碼庫已經遵循一種模式，其中 CLI 命令透過以下方式取得專案根目錄 `process.cwd()` 並將其傳遞給需要它的函數。新增可選參數可以保持向後相容性，同時啟用明確的、可測試的行為。
 
-**Affected functions:**
+**受影響的功能：**
 ```typescript
 getSchemaDir(name: string, projectRoot?: string): string | null
 listSchemas(projectRoot?: string): string[]
@@ -42,14 +42,14 @@ listSchemasWithInfo(projectRoot?: string): SchemaInfo[]
 resolveSchema(name: string, projectRoot?: string): SchemaYaml
 ```
 
-### Decision 2: Resolution order is project → user → package
+### 決策2：解決順序是項目→使用者→包
 
-**Choice:** Project-local schemas have highest priority, then user overrides, then package built-ins.
+**選擇：** 專案本地架構具有最高優先級，然後是使用者覆蓋，然後是打包內建程式。
 
-**Rationale:**
-- Project-local should win because it represents team intent (version controlled, shared)
-- User overrides still useful for personal experimentation without affecting team
-- Package built-ins are the fallback defaults
+**理由：**
+- 專案在地化應該獲勝，因為它代表了團隊意圖（版本控制、共享）
+- 用戶覆蓋對於個人實驗仍然有用，而不影響團隊
+- 包內建是後備預設值
 
 ```
 1. ./openspec/schemas/<name>/              # Project-local (highest)
@@ -57,9 +57,9 @@ resolveSchema(name: string, projectRoot?: string): SchemaYaml
 3. <npm-package>/schemas/<name>/           # Package built-in (lowest)
 ```
 
-### Decision 3: Add `getProjectSchemasDir()` helper function
+### 決策 3：添加 `getProjectSchemasDir()` 輔助函數
 
-**Choice:** Create a dedicated function to get the project schemas directory path.
+**選擇：** 建立一個專用函數來取得專案模式目錄路徑。
 
 ```typescript
 function getProjectSchemasDir(projectRoot: string): string {
@@ -67,51 +67,51 @@ function getProjectSchemasDir(projectRoot: string): string {
 }
 ```
 
-**Rationale:** Matches existing pattern with `getPackageSchemasDir()` and `getUserSchemasDir()`. Keeps path logic centralized.
+**基本原理：** 將現有模式與 `getPackageSchemasDir()` 和 `getUserSchemasDir()`。保持路徑邏輯集中。
 
-### Decision 4: Extend `SchemaInfo.source` to include `'project'`
+### 決定 4：延長 `SchemaInfo.source` 包括 `'project'`
 
-**Choice:** Update the source type from `'package' | 'user'` to `'project' | 'user' | 'package'`.
+**選擇：** 更新來源類型 `'package' | 'user'` 到 `'project' | 'user' | 'package'`.
 
-**Rationale:** Consumers need to distinguish project-local schemas for display purposes (e.g., `schemasCommand` output).
+**理由：** 消費者需要區分專案本地模式以用於顯示目的（例如， `schemasCommand` 輸出）。
 
-### Decision 5: No special handling for schema name conflicts
+### 決策 5：不對模式名稱衝突進行特殊處理
 
-**Choice:** If a project-local schema has the same name as a built-in (e.g., `spec-driven`), the project-local version wins. No warning, no error.
+**選擇：** 如果專案本地模式與內建模式具有相同的名稱（例如， `spec-driven`），項目本地版本獲勝。沒有警告，沒有錯誤。
 
-**Rationale:** This is intentional shadowing. Teams may want to customize a built-in schema while keeping the same name for familiarity.
+**理由：** 這是故意的陰影。團隊可能希望自訂內建架構，同時保留相同的名稱以方便熟悉。
 
-## Risks / Trade-offs
+## 風險/權衡
 
-### Risk: Confusion when project schema shadows built-in
-A team could create `openspec/schemas/spec-driven/` that shadows the built-in, causing confusion when someone expects default behavior.
+### 風險：專案架構陰影內建時會造成混亂
+一個團隊可以創造 `openspec/schemas/spec-driven/` 這會遮蔽內建功能，當有人期望預設行為時會造成混亂。
 
-**Mitigation:** The `openspec schemas` command shows the source of each schema. Users can see `spec-driven (project)` vs `spec-driven (package)`.
+**緩解措施：** `openspec schemas` 命令顯示每個模式的來源。用戶可以看到 `spec-driven (project)` 與 `spec-driven (package)`.
 
-### Risk: Missing projectRoot parameter
-If callers forget to pass `projectRoot`, project-local schemas won't be found.
+### 風險：缺少projectRoot參數
+如果來電者忘記轉接電話 `projectRoot`，將找不到專案本地架構。
 
-**Mitigation:**
-- Make the change incrementally, updating call sites that need project-local support
-- Existing behavior (user + package only) is preserved when `projectRoot` is undefined
+**減輕：**
+- 逐步進行更改，更新需要專案本地支援的呼叫站點
+- 現有行為（僅用戶+套件）將保留 `projectRoot` 未定義
 
-### Trade-off: Optional parameter vs required
-Making `projectRoot` optional maintains backward compatibility but means some code paths may silently skip project-local resolution.
+### 權衡：可選參數與必要參數
+製作 `projectRoot` 可選保持向後相容性，但意味著某些程式碼路徑可能會默默地跳過專案本地解析。
 
-**Accepted:** Backward compatibility is more important. The main entry points (CLI commands) will always pass `projectRoot`.
+**接受：** 向後相容性更重要。主要入口點（CLI 命令）將始終通過 `projectRoot`.
 
-## Implementation Approach
+## 實施方式
 
-1. **Update `resolver.ts`:**
-   - Add `getProjectSchemasDir(projectRoot: string)` function
-   - Update `getSchemaDir()` to check project-local first when `projectRoot` provided
-   - Update `listSchemas()` to include project schemas when `projectRoot` provided
-   - Update `listSchemasWithInfo()` to return `source: 'project'` for project schemas
-   - Update `SchemaInfo` type to include `'project'` in source union
+1. **更新 `resolver.ts`:**
+   - 添加 `getProjectSchemasDir(projectRoot: string)` 功能
+   - 更新 `getSchemaDir()` 首先檢查項目本地 `projectRoot` 假如
+   - 更新 `listSchemas()` 包括項目模式 `projectRoot` 假如
+   - 更新 `listSchemasWithInfo()` 返回 `source: 'project'` 對於專案模式
+   - 更新 `SchemaInfo` 鍵入要包含的內容 `'project'` 在源聯盟中
 
-2. **Update `artifact-workflow.ts`:**
-   - Update `schemasCommand` to pass `projectRoot` and display source labels
+2. **更新 `artifact-workflow.ts`:**
+   - 更新 `schemasCommand` 透過 `projectRoot` 並顯示來源標籤
 
-3. **Update call sites:**
-   - Any existing code that needs project-local resolution should pass `projectRoot`
-   - `config.yaml` schema resolution already has access to `projectRoot`
+3. **更新呼叫站點：**
+   - 任何需要專案本地解析的現有程式碼都應該透過 `projectRoot`
+   - `config.yaml` 模式解析已經可以存取 `projectRoot`

@@ -1,48 +1,48 @@
-## Context
+## 情境
 
-The OpenCode adapter in `src/core/command-generation/adapters/opencode.ts` currently generates command files at `.opencode/command/opsx-<id>.md` (singular `command`). OpenCode's official documentation uses `.opencode/commands/` (plural), and every other adapter in the codebase follows the plural convention for commands directories. The legacy cleanup module in `src/core/legacy-cleanup.ts` also references the singular form for detecting old artifacts.
+OpenCode 適配器位於 `src/core/command-generation/adapters/opencode.ts` 目前生成命令檔位於 `.opencode/command/opsx-<id>.md` （單數 `command`）。 OpenCode的官方文件使用 `.opencode/commands/` （複數），程式碼庫中的所有其他適配器都遵循命令目錄的複數約定。遺留清理模組 `src/core/legacy-cleanup.ts` 也引用了用於檢測舊文物的單數形式。
 
-## Goals / Non-Goals
+## 目標/非目標
 
-**Goals:**
-- Align the OpenCode adapter path with OpenCode's official `.opencode/commands/` convention
-- Add the old singular path `.opencode/command/` to legacy cleanup so existing installations are properly cleaned
-- Update documentation to reflect the corrected path
-- Update test assertions to match the new path
+**目標：**
+- 將OpenCode適配器路徑與OpenCode官方的一致 `.opencode/commands/` 習俗
+- 新增舊的單一路徑 `.opencode/command/` 進行遺留清理，以便正確清理現有安裝
+- 更新文件以反映正確的路徑
+- 更新測試斷言以符合新路徑
 
-**Non-Goals:**
-- Changing the OpenCode skill path (`.opencode/skills/`) — already correct
-- Modifying any other adapter's directory structure
-- Adding migration prompts or interactive upgrade flows
+**非目標：**
+- 更改 OpenCode 技能路徑（`.opencode/skills/`) — 已經正確
+- 修改任何其他適配器的目錄結構
+- 新增遷移提示或互動式升級流程
 
-## Decisions
+## 決定
 
-### 1. Direct path rename in adapter
+### 1.適配器中直接路徑重新命名
 
-**Decision:** Change `path.join('.opencode', 'command', ...)` to `path.join('.opencode', 'commands', ...)` in the adapter's `getFilePath` method.
+**決定：** 改變 `path.join('.opencode', 'command', ...)` 到 `path.join('.opencode', 'commands', ...)` 在適配器的 `getFilePath` method.
 
-**Rationale:** This is a single-line change that aligns with the established pattern across all other adapters. No abstraction or indirection needed.
+**基本原理：** 這是一個單行更改，與所有其他適配器的既定模式保持一致。不需要抽像或間接。
 
-**Alternatives considered:**
-- Add a configuration option for the directory name — rejected as over-engineering for a bug fix
-- Keep singular and add plural as alias — rejected as it creates ambiguity about which is canonical
+**考慮的替代方案：**
+- 新增目錄名稱的設定選項 - 由於錯誤修復的過度設計而被拒絕
+- 保留單數並添加複數作為別名 - 被拒絕，因為它會造成關於哪個是規範的歧義
 
-### 2. Legacy cleanup via existing constant map
+### 2. 透過現有常數映射進行遺留清理
 
-**Decision:** Update the `LEGACY_SLASH_COMMAND_PATHS` entry for `'opencode'` from `'.opencode/command/openspec-*.md'` to `'.opencode/command/opsx-*.md'` (the old singular path becomes the legacy pattern) and ensure the new path is handled by the current command generation pipeline.
+**決定：** 更新 `LEGACY_SLASH_COMMAND_PATHS` 條目為 `'opencode'` 從 `'.opencode/command/openspec-*.md'` 到 `'.opencode/command/opsx-*.md'` （舊的單一路徑成為遺留模式）並確保新路徑由目前命令產生管道處理。
 
-**Rationale:** The existing legacy cleanup infrastructure uses `LEGACY_SLASH_COMMAND_PATHS` as an explicit lookup. The old singular-path pattern already matches the legacy format (`openspec-*` prefix from the old SlashCommandRegistry era). The current command generation uses the `opsx-*` prefix, so we also need to add a legacy pattern for `opsx-*` files in the old singular directory.
+**理由：** 現有的遺留清理基礎設施使用 `LEGACY_SLASH_COMMAND_PATHS` 作為顯式查找。舊的單一路徑模式已經與舊格式相符（`openspec-*` 來自舊 SlashCommandRegistry 時代的前綴）。目前的命令產生使用 `opsx-*` 前綴，所以我們還需要加入一個遺留模式 `opsx-*` 舊單一目錄中的檔案。
 
-**Alternatives considered:**
-- Add a separate migration script — rejected; the existing legacy cleanup mechanism handles this scenario
+**考慮的替代方案：**
+- 新增單獨的遷移腳本－拒絕；現有的遺留清理機制可以處理這種情況
 
-### 3. Documentation update
+### 3. 文件更新
 
-**Decision:** Update the `docs/supported-tools.md` table entry for OpenCode from `.opencode/command/opsx-<id>.md` to `.opencode/commands/opsx-<id>.md`.
+**決定：** 更新 `docs/supported-tools.md` OpenCode 的表格條目來自 `.opencode/command/opsx-<id>.md` 到 `.opencode/commands/opsx-<id>.md`.
 
-**Rationale:** Documentation must match the actual generated paths.
+**理由：** 文件必須與實際產生的路徑相符。
 
-## Risks / Trade-offs
+## 風險/權衡
 
-- **[Existing installations have files at old path]** → Mitigated by legacy cleanup detecting `.opencode/command/` artifacts. On next `openspec init`, old files are cleaned up and new files written to `.opencode/commands/`.
-- **[Users referencing old path in custom scripts]** → Low risk. The old path was incorrect per OpenCode's specification, so custom references were already misaligned.
+- **[現有安裝的檔案位於舊路徑]** → 透過遺留清理偵測來緩​​解 `.opencode/command/` 文物。下一個 `openspec init`，舊文件被清理並寫入新文件 `.opencode/commands/`.
+- **[使用者在自訂腳本中引用舊路徑]** → 低風險。根據 OpenCode 的規範，舊路徑不正確，因此自訂引用已經未對齊。

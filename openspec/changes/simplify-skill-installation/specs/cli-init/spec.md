@@ -1,199 +1,199 @@
-## Purpose
+## 目的
 
-The init command SHALL provide a streamlined setup experience that auto-detects tools and uses smart defaults, getting users to their first change in under a minute.
+init 指令應提供簡化的設定體驗，自動偵測工具並使用智慧預設值，讓使用者在一分鐘內完成第一次變更。
 
-## MODIFIED Requirements
+## 修改後的要求
 
-### Requirement: Skill generation per tool (REPLACES fixed 9-skill mandate)
-The init command SHALL generate skills based on the active profile, not a fixed set.
+### 要求：每個工具產生技能（取代固定的 9 項技能指令）
+init 指令應根據活動設定檔而不是固定集產生技能。
 
-#### Scenario: Core profile skill generation
-- **WHEN** user runs init with profile `core`
-- **THEN** the system SHALL generate skills for workflows in CORE_WORKFLOWS constant: propose, explore, apply, archive
-- **THEN** the system SHALL NOT generate skills for workflows outside the profile
+#### 場景：核心設定檔技能生成
+- **何時** 使用者使用設定檔執行 init `core`
+- **那麼**系統應為 CORE_WORKFLOWS 常數中的工作流程產生技能：建議、探索、應用、存檔
+- **那麼**系統不應為設定檔以外的工作流程產生技能
 
-#### Scenario: Custom profile skill generation
-- **WHEN** user runs init with profile `custom`
-- **THEN** the system SHALL generate skills only for workflows listed in config `workflows` array
+#### 場景：自訂設定檔技能生成
+- **何時** 使用者使用設定檔執行 init `custom`
+- **那麼**系統應僅為設定中所列的工作流程產生技能 `workflows` 大批
 
-#### Scenario: Propose workflow included in skill templates
-- **WHEN** generating skills
-- **THEN** the system SHALL include the `propose` workflow as an available skill template
+#### 場景：建議技能範本中包含的工作流程
+- **何時** 生成技能
+- **那麼**系統應包括 `propose` 工作流程作為可用的技能模板
 
-### Requirement: Command generation per tool (REPLACES fixed 9-command mandate)
-The init command SHALL generate commands based on profile AND delivery settings.
+### 要求：每個工具產生命令（取代固定的 9 個命令任務）
+init 命令應根據設定檔和交付設定產生命令。
 
-#### Scenario: Skills-only delivery
-- **WHEN** delivery is set to `skills`
-- **THEN** the system SHALL NOT generate any command files
+#### 場景：僅交付技能
+- **何時** 交貨設定為 `skills`
+- **那麼**系統將不會產生任何命令文件
 
-#### Scenario: Commands-only delivery
-- **WHEN** delivery is set to `commands`
-- **THEN** the system SHALL NOT generate any skill files
+#### 場景：僅命令傳送
+- **何時** 交貨設定為 `commands`
+- **那麼**系統將不會產生任何技能文件
 
-#### Scenario: Both delivery
-- **WHEN** delivery is set to `both`
-- **THEN** the system SHALL generate both skill and command files for profile workflows
+#### 場景：雙方交付
+- **何時** 交貨設定為 `both`
+- **然後**系統應為設定檔工作流程產生技能和命令文件
 
-#### Scenario: Propose workflow included in command templates
-- **WHEN** generating commands
-- **THEN** the system SHALL include the `propose` workflow as an available command template
+#### 場景：建議命令範本中包含的工作流程
+- **何時** 產生命令
+- **那麼**系統應包括 `propose` 工作流程作為可用的命令模板
 
-### Requirement: Tool auto-detection
-The init command SHALL detect installed AI tools by scanning for their configuration directories in the project root.
+### 需求：刀具自動檢測
+init 指令應透過掃描專案根目錄中的設定目錄來偵測已安裝的 AI 工具。
 
-#### Scenario: Detection from directories
-- **WHEN** scanning for tools
-- **THEN** the system SHALL check for directories matching each supported AI tool's configuration directory (e.g., `.claude/`, `.cursor/`, `.windsurf/`)
-- **THEN** all tools with a matching directory SHALL be returned as detected
+#### 場景：從目錄中偵測
+- **何時** 掃描工具
+- **然後**系統應檢查與每個受支援的 AI 工具的設定目錄相符的目錄（例如， `.claude/`, `.cursor/`, `.windsurf/`)
+- **那麼**具有匹配目錄的所有工具均應按檢測到的方式返回
 
-#### Scenario: Detection covers all supported tools
-- **WHEN** scanning for tools
-- **THEN** the system SHALL check for all tools defined in the supported tools configuration that have a configuration directory
+#### 場景：偵測覆蓋所有支援的工具
+- **何時** 掃描工具
+- **那麼**系統應檢查支援的工具設定中定義的所有具有設定目錄的工具
 
-#### Scenario: No tools detected
-- **WHEN** no tool configuration directories exist in project root
-- **THEN** the system SHALL return an empty list of detected tools
+#### 場景：未偵測到工具
+- **何時** 專案根目錄中不存在工具設定目錄
+- **那麼**系統應傳回偵測到的工具的空列表
 
-### Requirement: Smart defaults init flow
-The init command SHALL work with sensible defaults and tool confirmation, minimizing required user input.
+### 需求：智慧預設初始化流程
+init 指令應使用合理的預設值和工具確認，從而最大限度地減少所需的使用者輸入。
 
-#### Scenario: Init with detected tools (interactive)
-- **WHEN** user runs `openspec init` interactively and tool directories are detected
-- **THEN** the system SHALL show detected tools pre-selected
-- **THEN** the system SHALL ask for confirmation (not full selection)
-- **THEN** the system SHALL use default profile (`core`) and delivery (`both`)
+#### 場景：使用偵測到的工具進行初始化（互動式）
+- **何時** 使用者執行 `openspec init` 以互動方式檢測工具目錄
+- **然後** 系統應顯示預先選擇的偵測到的工具
+- **那麼**系統將要求確認（不是完整選擇）
+- **那麼**系統應使用預設設定檔（`core`）和交付（`both`)
 
-#### Scenario: Init with no detected tools (interactive)
-- **WHEN** user runs `openspec init` interactively and no tool directories are detected
-- **THEN** the system SHALL prompt for tool selection
-- **THEN** the system SHALL use default profile (`core`) and delivery (`both`)
+#### 場景：未偵測到工具的初始化（互動式）
+- **何時** 使用者執行 `openspec init` 互動式且未偵測到工具目錄
+- **那麼**系統將提示選擇工具
+- **那麼**系統應使用預設設定檔（`core`）和交付（`both`)
 
-#### Scenario: Non-interactive with detected tools
-- **WHEN** user runs `openspec init` non-interactively (e.g., in CI)
-- **AND** tool directories are detected
-- **THEN** the system SHALL use detected tools automatically without prompting
-- **THEN** the system SHALL use default profile and delivery
+#### 場景：與偵測到的工具不交互
+- **何時** 使用者執行 `openspec init` 非互動式（例如，在 CI 中）
+- 偵測到 **AND** 工具目錄
+- **那麼**系統將自動使用偵測到的工具而不提示
+- **那麼**系統應使用預設設定檔和交付
 
-#### Scenario: Non-interactive with no detected tools
-- **WHEN** user runs `openspec init` non-interactively
-- **AND** no tool directories are detected
-- **THEN** the system SHALL fail with exit code 1
-- **AND** display message to use `--tools` flag
+#### 場景：非互動且未偵測到工具
+- **何時** 使用者執行 `openspec init` non-interactively
+- **且** 未偵測到工具目錄
+- **那麼** 系統將會失敗並退出代碼 1
+- **和** 顯示要使用的消息 `--tools` 旗幟
 
-#### Scenario: Non-interactive with explicit tools
-- **WHEN** user runs `openspec init --tools claude`
-- **THEN** the system SHALL use specified tools
-- **THEN** the system SHALL NOT prompt for any input
+#### 場景：與顯式工具非交互
+- **何時** 使用者執行 `openspec init --tools claude`
+- **那麼**系統應使用指定的工具
+- **那麼**系統將不會提示任何輸入
 
-#### Scenario: Interactive with explicit tools
-- **WHEN** user runs `openspec init --tools claude` interactively
-- **THEN** the system SHALL use specified tools (ignoring auto-detection)
-- **THEN** the system SHALL NOT prompt for tool selection
-- **THEN** the system SHALL proceed with default profile and delivery
+#### 場景：與顯式工具交互
+- **何時** 使用者執行 `openspec init --tools claude` 互動地
+- **那麼**系統應使用指定的工具（忽略自動檢測）
+- **那麼**系統將不會提示選擇工具
+- **那麼**系統將繼續使用預設設定檔和交付
 
-#### Scenario: Init success message (propose installed)
-- **WHEN** init completes successfully
-- **AND** `propose` is in the active profile
-- **THEN** the system SHALL display a tool-appropriate success message
-- **THEN** for tools using colon syntax (Claude Code): "Start your first change: /opsx:propose \"your idea\""
-- **THEN** for tools using hyphen syntax (Cursor, others): "Start your first change: /opsx-propose \"your idea\""
+#### 場景：初始化成功訊息（建議安裝）
+- **何時** init 成功完成
+- **和** `propose` 處於活動設定檔中
+- **那麼**系統應顯示適合工具的成功訊息
+- **那麼** 對於使用冒號語法的工具（Claude 代碼）：“開始你的第一個更改：/opsx:propose \“你的想法\””
+- **THEN** 對於使用連字符語法的工具（遊標、其他）：“開始你的第一個更改：/opsx-propose \“你的想法\””
 
-#### Scenario: Init success message (propose not installed, new installed)
-- **WHEN** init completes successfully
-- **AND** `propose` is NOT in the active profile
-- **AND** `new` is in the active profile
-- **THEN** for tools using colon syntax: "Start your first change: /opsx:new \"your idea\""
-- **THEN** for tools using hyphen syntax: "Start your first change: /opsx-new \"your idea\""
+#### 場景：初始化成功訊息（建議未安裝，新安裝）
+- **何時** init 成功完成
+- **和** `propose` 不在活動設定檔中
+- **和** `new` 處於活動設定檔中
+- **THEN** 對於使用冒號語法的工具：“開始你的第一個更改：/opsx:new \“你的想法\””
+- **THEN** 對於使用連字符語法的工具：“開始你的第一個更改：/opsx-new \“你的想法\””
 
-#### Scenario: Init success message (neither propose nor new)
-- **WHEN** init completes successfully
-- **AND** neither `propose` nor `new` is in the active profile
-- **THEN** the system SHALL display: "Done. Run 'openspec config profile' to configure your workflows."
+#### 場景：初始化成功訊息（既不是提議也不是新的）
+- **何時** init 成功完成
+- **並且**都不是 `propose` 也不 `new` 處於活動設定檔中
+- **然後**系統應顯示：“完成。執行‘openspec config profile’來設定您的工作流程。”
 
-### Requirement: Init performs migration on existing projects
-The init command SHALL perform one-time migration when re-initializing an existing project, using the same shared migration logic as the update command.
+### 需求：Init對現有專案進行遷移
+init 指令應在重新初始化現有專案時執行一次性遷移，使用與 update 指令相同的共用遷移邏輯。
 
-#### Scenario: Re-init on existing project (no profile set)
-- **WHEN** user runs `openspec init` on a project with existing workflow files
-- **AND** global config does not contain a `profile` field
-- **THEN** the system SHALL perform one-time migration before proceeding (see `specs/cli-update/spec.md`)
-- **THEN** the system SHALL proceed with init using the migrated config
+#### 場景：重新初始化現有項目（未設定設定檔）
+- **何時** 使用者執行 `openspec init` 在具有現有工作流程文件的專案上
+- **且**全域設定不包含 `profile` 場地
+- **那麼**系統應在繼續之前執行一次性遷移（請參閱 `specs/cli-update/spec.md`)
+- **然後**系統應使用遷移的設定繼續進行 init
 
-#### Scenario: Init on new project (no existing workflows)
-- **WHEN** user runs `openspec init` on a project with no existing workflow files
-- **AND** global config does not contain a `profile` field
-- **THEN** the system SHALL NOT perform migration
-- **THEN** the system SHALL use `core` profile defaults
+#### 場景：在新專案上初始化（沒有現有工作流程）
+- **何時** 使用者執行 `openspec init` 在沒有現有工作流程文件的專案上
+- **且**全域設定不包含 `profile` 場地
+- **那麼**系統就不應該執行遷移
+- **那麼**系統要使用 `core` 設定檔預設值
 
-### Requirement: Init respects global config
-The init command SHALL read and apply settings from global config.
+### 要求：Init 尊重全域設定
+init 指令應讀取並套用全域設定中的設定。
 
-#### Scenario: User has profile preference
-- **WHEN** global config contains `profile: "custom"` with custom workflows
-- **THEN** init SHALL install custom profile workflows
+#### 場景：用戶有個人資料偏好
+- **何時** 全域設定包含 `profile: "custom"` 具有自訂工作流程
+- **那麼** init 應安裝自訂設定檔工作流程
 
-#### Scenario: User has delivery preference
-- **WHEN** global config contains `delivery: "skills"`
-- **THEN** init SHALL install only skill files, not commands
+#### 場景：用戶有交付偏好
+- **何時** 全域設定包含 `delivery: "skills"`
+- **那麼** init 應僅安裝技能文件，而不安裝命令
 
-#### Scenario: Override via flags
-- **WHEN** user runs `openspec init --profile core`
-- **THEN** the system SHALL use the flag value instead of config value
-- **THEN** the system SHALL NOT update the global config
+#### 場景：透過標誌覆蓋
+- **何時** 使用者執行 `openspec init --profile core`
+- **那麼**系統應使用標誌值而不是設定值
+- **那麼**系統不應更新全域設定
 
-#### Scenario: Invalid profile override
-- **WHEN** user runs `openspec init --profile <invalid>`
-- **AND** `<invalid>` is not one of `core` or `custom`
-- **THEN** the system SHALL exit with code 1
-- **THEN** the system SHALL display a validation error listing allowed profile values
+#### 場景：無效的設定檔覆蓋
+- **何時** 使用者執行 `openspec init --profile <invalid>`
+- **和** `<invalid>` 不是其中之一 `core` 或者 `custom`
+- **那麼**系統應以代碼 1 退出
+- **那麼**系統應顯示一個驗證錯誤，列出允許的設定檔值
 
-### Requirement: Init applies configured profile without confirmation
-The init command SHALL apply the resolved profile (`--profile` override or global config) directly without prompting for confirmation.
+### 要求：Init 應用設定的設定檔而不進行確認
+init 指令應套用已解析的設定檔（`--profile` 直接覆蓋或全域設定）而不提示確認。
 
-#### Scenario: Init with custom profile (interactive)
-- **WHEN** user runs `openspec init` interactively
-- **AND** global config specifies `profile: "custom"` with workflows
-- **THEN** the system SHALL proceed directly using the custom profile workflows
-- **AND** the system SHALL NOT show a profile confirmation prompt
+#### 場景：使用自訂設定檔進行初始化（互動式）
+- **何時** 使用者執行 `openspec init` 互動地
+- **和** 全域設定指定 `profile: "custom"` 與工作流程
+- **那麼**系統應直接使用自訂設定檔工作流程
+- **且**系統不應顯示設定檔確認提示
 
-#### Scenario: Non-interactive init with custom profile
-- **WHEN** user runs `openspec init` non-interactively
-- **AND** global config specifies a custom profile
-- **THEN** the system SHALL proceed without confirmation
+#### 場景：具有自訂設定檔的非互動式 init
+- **何時** 使用者執行 `openspec init` non-interactively
+- **和** 全域設定指定自訂設定檔
+- **那麼**系統將在沒有確認的情況下繼續進行
 
-#### Scenario: Init with core profile
-- **WHEN** user runs `openspec init` interactively
-- **AND** profile is `core` (default)
-- **THEN** the system SHALL proceed directly without a profile confirmation prompt
+#### 場景：使用核心設定檔進行初始化
+- **何時** 使用者執行 `openspec init` 互動地
+- **和**設定檔是 `core` (預設)
+- **那麼**系統將直接繼續，沒有設定檔確認提示
 
-### Requirement: Init preserves existing workflows
-The init command SHALL NOT remove workflows that are already installed, but SHALL respect delivery setting.
+### 要求：Init 保留現有工作流程
+init 指令不應刪除已安裝的工作流程，但應尊重交付設定。
 
-#### Scenario: Existing custom installation
-- **WHEN** user has custom profile with extra workflows and runs `openspec init` with core profile
-- **THEN** the system SHALL NOT remove extra workflows
-- **THEN** the system SHALL regenerate core workflow files, overwriting existing content with latest templates
+#### 場景：現有自訂安裝
+- **何時** 使用者擁有具有額外工作流程和執行的自訂設定檔 `openspec init` 具有核心輪廓
+- **那麼**系統不應刪除額外的工作流程
+- **然後**系統將重新產生核心工作流程文件，以最新的範本覆蓋現有內容
 
-#### Scenario: Init with different delivery setting
-- **WHEN** user runs `openspec init` on existing project
-- **AND** delivery setting differs from what's installed (e.g., was `both`, now `skills`)
-- **THEN** the system SHALL generate files matching current delivery setting
-- **THEN** the system SHALL delete files that don't match delivery (e.g., commands removed if `skills`)
-- **THEN** this applies to all workflows, including extras not in profile
+#### 場景：使用不同的交付設定進行初始化
+- **何時** 使用者執行 `openspec init` 在現有項目上
+- **並且** 交付設定與已安裝的設定不同（例如，是 `both`， 現在 `skills`)
+- **那麼**系統應產生與目前交付設定相符的文件
+- **那麼**系統應刪除與交付不符的檔案（例如，如果 `skills`)
+- **那麼** 這適用於所有工作流程，包括設定檔中未列出的額外內容
 
-#### Scenario: Re-init applies delivery cleanup even when templates are current
-- **WHEN** user runs `openspec init` on an existing project
-- **AND** existing files are already on current template versions
-- **AND** delivery changed since the previous init
-- **THEN** the system SHALL still remove files that no longer match delivery
-- **THEN** for example, switching from `both` to `skills` SHALL remove generated command files
+#### 場景：即使模板是最新的，重新初始化也會套用交付清理
+- **何時** 使用者執行 `openspec init` 在現有項目上
+- **並且** 現有文件已在目前範本版本上
+- **並且**自上次初始化以來交付發生了變化
+- **那麼**系統仍應刪除不再符合交付的文件
+- **那麼** 例如，從 `both` 到 `skills` 應刪除生成的命令文件
 
-### Requirement: Init tool confirmation UX
-The init command SHALL show detected tools and ask for confirmation.
+### 要求：初始化工具確認UX
+init 指令應顯示偵測到的工具並要求確認。
 
-#### Scenario: Confirmation prompt
-- **WHEN** tools are detected in interactive mode
-- **THEN** the system SHALL display: "Detected: Claude Code, Cursor"
-- **THEN** the system SHALL show pre-selected checkboxes for confirmation
-- **THEN** the system SHALL allow user to deselect unwanted tools
+#### 場景：確認提示
+- **何時** 在互動模式下偵測到工具
+- **然後**系統應顯示：“檢測到：Claude代碼，遊標”
+- **然後** 系統應顯示預先選擇的核取方塊以進行確認
+- **那麼**系統應允許使用者取消選擇不需要的工具

@@ -1,47 +1,47 @@
-## Why
+## 為什麼
 
-The recent split of `skill-templates.ts` into workflow modules improved readability, but the generation pipeline is still fragmented across multiple layers:
+最近的分裂 `skill-templates.ts` 工作流程模組提高了可讀性，但生成管道仍然分散在多個層中：
 
-- Workflow definitions are split from projection logic (`getSkillTemplates`, `getCommandTemplates`, `getCommandContents`)
-- Tool capability and compatibility are spread across `AI_TOOLS`, `CommandAdapterRegistry`, and hardcoded lists like `SKILL_NAMES`
-- Agent/tool-specific transformations (for example OpenCode command reference rewrites) are applied in different places (`init`, `update`, and adapter code)
-- Artifact writing logic is duplicated across `init`, `update`, and legacy-upgrade flow
+- 工作流程定義從投影邏輯分離出來（`getSkillTemplates`, `getCommandTemplates`, `getCommandContents`)
+- 工具功能和相容性分佈廣泛 `AI_TOOLS`, `CommandAdapterRegistry`，以及硬編碼列表，例如 `SKILL_NAMES`
+- 代理/工具特定的轉換（例如 OpenCode 命令參考重寫）應用於不同的地方（`init`, `update`，和適配器代碼）
+- 工件寫入邏輯是重複的 `init`, `update`和舊版升級流程
 
-This fragmentation creates drift risk (missing exports, missing metadata parity, mismatched counts/support) and makes future workflow/tool additions slower and less predictable.
+這種碎片化會帶來漂移風險（缺少導出、缺少元資料奇偶性、計數/支援不匹配），並使未來的工作流程/工具添加速度變慢且難以預測。
 
-## What Changes
+## 有什麼變化
 
-- Introduce a canonical `WorkflowManifest` as the single source of truth for all workflow artifacts
-- Introduce a `ToolProfileRegistry` to centralize tool capabilities (skills path, command adapter, transforms)
-- Introduce a first-class transform pipeline with explicit phases (`preAdapter`, `postAdapter`) and scopes (`skill`, `command`, `both`)
-- Introduce a shared `ArtifactSyncEngine` used by `init`, `update`, and legacy upgrade paths
-- Add strict validation and test guardrails to preserve fidelity during migration and future changes
+- 引入一個規範 `WorkflowManifest` 作為所有工作流程工件的單一事實來源
+- 介紹一個 `ToolProfileRegistry` 集中工具功能（技能路徑、命令適配器、轉換）
+- 引入具有顯式階段的一流轉換管道（`preAdapter`, `postAdapter`）和範圍（`skill`, `command`, `both`)
+- 介紹一個分享的 `ArtifactSyncEngine` 被使用過 `init`, `update`和傳統升級路徑
+- 添加嚴格的驗證和測試護欄，以在遷移和未來更改期間保持保真度
 
-## Capabilities
+## 能力
 
-### New Capabilities
+### 新功能
 
-- `template-artifact-pipeline`: Unified workflow manifest, tool profile registry, transform pipeline, and sync engine for skill/command generation
+- `template-artifact-pipeline`：統一的工作流程清單、工具設定檔註冊表、轉換管道和用於產生技能/命令的同步引擎
 
-### Modified Capabilities
+### 修改後的功能
 
-- `command-generation`: Extended to support ordered transform phases around adapter rendering
-- `cli-init`: Uses shared artifact sync orchestration instead of bespoke loops
-- `cli-update`: Uses shared artifact sync orchestration instead of bespoke loops
+- `command-generation`：擴展為支援適配器渲染周圍的有序變換階段
+- `cli-init`：使用共享工件同步編排而不是自訂循環
+- `cli-update`：使用共享工件同步編排而不是自訂循環
 
-## Impact
+## 影響
 
-- **Primary refactor area**:
+- **主要重構區域**：
   - `src/core/templates/*`
   - `src/core/shared/skill-generation.ts`
   - `src/core/command-generation/*`
   - `src/core/init.ts`
   - `src/core/update.ts`
   - `src/core/shared/tool-detection.ts`
-- **Testing additions**:
-  - Manifest completeness tests (workflows, required metadata, projection parity)
-  - Transform ordering and applicability tests
-  - End-to-end parity tests for generated skill/command outputs across tools
-- **User-facing behavior**:
-  - No new CLI surface area required
-  - Existing generated artifacts remain behaviorally equivalent unless explicitly changed in future deltas
+- **測試新增**：
+  - 清單完整性測試（工作流程、所需元資料、投影奇偶校驗）
+  - 轉換排序和適用性測試
+  - 對跨工具產生的技能/指令輸出進行端對端奇偶校驗測試
+- **使用者導向的行為**：
+  - 不需要新的CLI表面積
+  - 現有生成的工件在行為上保持等效，除非在未來的增量中明確更改

@@ -1,30 +1,30 @@
-# Add Init Command for OpenSpec
+# 新增 OpenSpec 的初始化命令
 
-## Why
+## 為什麼
 
-Projects need a simple way to adopt OpenSpec conventions. Currently, users must manually create the directory structure and understand all the conventions, which creates friction for adoption. An init command would enable instant OpenSpec setup with proper structure and guidance.
+專案需要一種簡單的方法來採用 OpenSpec 約定。目前，使用者必須手動建立目錄結構並瞭解所有約定，這給採用帶來了障礙。 init 指令將啟用具有正確結構和指導的即時 OpenSpec 設定。
 
-## What Changes
+## 有什麼變化
 
-- Add `openspec init` CLI command that creates the complete OpenSpec directory structure
-- Generate template files (README.md with AI instructions, project.md template)
-- Interactive prompt to select which AI tools to configure (Claude Code initially, others marked as "coming soon")
-- Support for multiple AI coding assistants with extensible plugin architecture
-- Smart file updates using content markers to preserve existing configurations
-- Custom directory naming with `--dir` flag
-- Validation to prevent overwriting existing OpenSpec structures
-- Clear error messages with helpful guidance (e.g., suggesting 'openspec update' for existing structures)
-- Display actionable next steps after successful initialization
+- 添加 `openspec init` CLI 指令建立完整的 OpenSpec 目錄結構
+- 產生模板檔（帶有AI指令的README.md、project.md模板）
+- 互動式提示選擇要設定的 AI 工具（Claude 程式碼最初，其他標記為「即將推出」）
+- 支援多個具有可擴充插件架構的AI編碼助手
+- 使用內容標記進行智慧型文件更新以保留現有設定
+- 自訂目錄命名 `--dir` 旗幟
+- 驗證以防止覆蓋現有的 OpenSpec 結構
+- 清除錯誤訊息並提供有用的指導（例如，建議對現有結構進行「openspec 更新」）
+- 成功初始化後顯示可操作的後續步驟
 
-### Breaking Changes
-- None - this is a new feature
+### 重大變化
+- 無 - 這是一個新功能
 
-## Impact
+## 影響
 
-- Affected specs: None (new feature)
-- Affected code: 
-  - src/cli/index.ts (add init command)
-  - src/core/init.ts (new - initialization logic)
-  - src/core/templates/ (new - template files)
-  - src/core/configurators/ (new - AI tool plugins)
-  - src/utils/file-system.ts (new - file operations)
+- 受影響的規格：無（新功能）
+- 受影響的代碼： 
+  - src/cli/index.ts（新增init指令）
+  - src/core/init.ts（新 - 初始化邏輯）
+  - src/core/templates/（新 - 模板檔案）
+  - src/core/configurators/（新 - AI 工具外掛程式）
+  - src/utils/file-system.ts（新 - 檔案操作）

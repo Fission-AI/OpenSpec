@@ -1,9 +1,9 @@
-# No Spec Changes
+# 規格無變化
 
-This is a bug fix that doesn't modify any external requirements or contracts.
+這是一個錯誤修復，不會修改任何外部需求或合約。
 
-The proposal's Capabilities section indicates:
-- **New Capabilities**: None
-- **Modified Capabilities**: None
+該提案的功能部分指出：
+- **新功能**：無
+- **修改的功能**：無
 
-No spec files are needed for this implementation-only fix.
+此僅實作修復不需要規格文件。

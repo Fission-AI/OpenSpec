@@ -1,13 +1,13 @@
-# Add Complexity Management Guidelines
+# 新增複雜性管理指南
 
-## Why
-OpenSpec currently lacks guidance on managing complexity, leading to over-engineered solutions when simple ones suffice.
+## 為什麼
+OpenSpec 目前缺乏管理複雜性的指導，導致在簡單的解決方案就足夠的情況下過度設計的解決方案。
 
-## What Changes
-- Add "Start Simple" section to openspec/README.md with default minimalism rules
-- Add complexity triggers to help identify when complexity is justified
-- Enhance AI assistant instructions in CLAUDE.md to bias toward simplicity
+## 有什麼變化
+- 使用預設的極簡主義規則將「Start Simple」部分新增至 openspec/README.md
+- 添加複雜性觸發器以幫助確定複雜性何時合理
+- 增強 CLAUDE.md 中的 AI 助理指令，使其偏向簡單性
 
-## Impact
-- Affected specs: None (documentation only)
-- Affected code: openspec/README.md, CLAUDE.md
+## 影響
+- 受影響的規格：無（僅文件）
+- 受影響的程式碼：openspec/README.md、CLAUDE.md

@@ -1,127 +1,127 @@
-# opsx-verify-skill Specification
+# opsx-verify-skill 規範
 
-## Purpose
-Defines the agent skill for verifying that implementation matches change artifacts (specs, tasks, design).
+## 目的
+定義用於驗證實作是否與變更工件（規格、任務、設計）相符的代理技能。
 
-## ADDED Requirements
+## 新增要求
 
-### Requirement: Verify Skill Invocation
-The system SHALL provide an `/opsx:verify` skill that validates implementation against change artifacts.
+### 要求：驗證技能調用
+系統應提供 `/opsx:verify` 根據變更工件驗證實施的技能。
 
-#### Scenario: Verify with change name provided
-- **WHEN** agent executes `/opsx:verify <change-name>`
-- **THEN** the agent verifies implementation for that specific change
-- **AND** produces a verification report
+#### 場景：使用提供的變更名稱進行驗證
+- **何時** 代理執行 `/opsx:verify <change-name>`
+- **然後** 代理驗證該特定更改的實施
+- **並且**產生驗證報告
 
-#### Scenario: Verify without change name
-- **WHEN** agent executes `/opsx:verify` without a change name
-- **THEN** the agent prompts user to select from available changes
-- **AND** shows only changes that have implementation tasks
+#### 場景：驗證不改名
+- **何時** 代理執行 `/opsx:verify` 不改名
+- **然後** 代理程式提示使用者從可用變更中進行選擇
+- **AND** 僅顯示具有實施任務的更改
 
-#### Scenario: Change has no tasks
-- **WHEN** selected change has no tasks.md or tasks are empty
-- **THEN** the agent reports "No tasks to verify"
-- **AND** suggests running `/opsx:continue` to create tasks
+#### 場景：變革沒有任務
+- **何時** 所選更改沒有tasks.md 或任務為空
+- **然後** 代理程式報告“沒有要驗證的任務”
+- **並且**建議執行 `/opsx:continue` 建立任務
 
-### Requirement: Completeness Verification
-The agent SHALL verify that all required work has been completed.
+### 要求：完整性驗證
+代理應驗證所有必需的工作是否已完成。
 
-#### Scenario: Task completion check
-- **WHEN** verifying completeness
-- **THEN** the agent reads tasks.md
-- **AND** counts tasks marked `- [x]` (complete) vs `- [ ]` (incomplete)
-- **AND** reports completion status with specific incomplete tasks listed
+#### 場景：任務完成狀況檢查
+- **何時** 驗證完整性
+- **然後** 代理程式讀取tasks.md
+- **AND** 對標記的任務進行計​​數 `- [x]` （完整）與 `- [ ]` （不完整）
+- **AND** 報告完成狀態，並列出特定未完成的任務
 
-#### Scenario: Spec coverage check
-- **WHEN** verifying completeness
-- **AND** delta specs exist in `openspec/changes/<name>/specs/`
-- **THEN** the agent extracts all requirements from delta specs
-- **AND** searches codebase for implementation of each requirement
-- **AND** reports which requirements appear to have implementation vs which are missing
+#### 場景：規格覆蓋率檢查
+- **何時** 驗證完整性
+- **和** Delta 規格存在於 `openspec/changes/<name>/specs/`
+- **然後** 代理從 delta 規格中提取所有要求
+- **AND** 搜尋程式碼庫以實現每個要求
+- **和** 報告哪些要求似乎已經實施，哪些要求缺失
 
-#### Scenario: All tasks complete
-- **WHEN** all tasks are marked complete
-- **THEN** report "Tasks: N/N complete"
-- **AND** mark completeness dimension as passed
+#### 場景：所有任務完成
+- **何時** 所有任務都標記為完成
+- **然後** 報告“任務：N/N 完成”
+- **和** 將完整性尺寸標記為已通過
 
-#### Scenario: Incomplete tasks found
-- **WHEN** some tasks are incomplete
-- **THEN** report "Tasks: X/N complete"
-- **AND** list each incomplete task
-- **AND** mark as CRITICAL issue
-- **AND** suggest: "Complete remaining tasks or mark as done if already implemented"
+#### 場景：發現未完成的任務
+- **何時** 某些任務未完成
+- **然後** 報告“任務：X/N 已完成”
+- **並**列出每個未完成的任務
+- **和** 標記為關鍵問題
+- **並**建議：“完成剩餘任務或標記為已完成（如果已實施）”
 
-### Requirement: Correctness Verification
-The agent SHALL verify that implementation matches the specifications.
+### 要求：正確性驗證
+代理應驗證實施是否符合規範。
 
-#### Scenario: Requirement implementation mapping
-- **WHEN** verifying correctness
-- **THEN** for each requirement in delta specs:
-  - Search codebase for implementation
-  - Identify relevant files and line numbers
-  - Assess whether implementation satisfies the requirement
+#### 場景：需求實作映射
+- **何時** 驗證正確性
+- **那麼** 對於 Delta 規格中的每項要求：
+  - 搜尋程式碼庫以實現
+  - 識別相關文件和行號
+  - 評估實施是否符合要求
 
-#### Scenario: Scenario coverage check
-- **WHEN** verifying correctness
-- **THEN** for each scenario in delta specs:
-  - Check if the scenario's conditions are handled in code
-  - Check if tests exist that cover the scenario
-  - Report coverage status
+#### 場景：場景覆蓋檢查
+- **何時** 驗證正確性
+- **那麼** 對於增量規格中的每個場景：
+  - 檢查程式碼中是否處理了場景的條件
+  - 檢查是否有覆蓋該場景的測試
+  - 報告覆蓋狀態
 
-#### Scenario: Implementation matches spec
-- **WHEN** implementation appears to satisfy a requirement
-- **THEN** report which files/lines implement it
-- **AND** mark requirement as covered
+#### 場景：實施符合規範
+- **何時** 實施似乎滿足要求
+- **然後** 報告哪些文件/行實現了它
+- **並且** 將要求標記為涵蓋
 
-#### Scenario: Implementation diverges from spec
-- **WHEN** implementation exists but doesn't match spec intent
-- **THEN** report the divergence as WARNING
-- **AND** explain what differs
-- **AND** suggest: either update implementation or update spec to match reality
+#### 場景：實施與規範存在差異
+- **何時** 實現存在但不符合規範意圖
+- **然後** 將差異報告為警告
+- **並**解釋有何不同
+- **和**建議：更新實作或更新規格以符合現實
 
-#### Scenario: Missing implementation
-- **WHEN** no implementation found for a requirement
-- **THEN** report as CRITICAL issue
-- **AND** suggest: "Implement requirement X" with guidance on what's needed
+#### 場景：缺少實施
+- **何時** 未找到需求的實現
+- **然後** 報告為嚴重問題
+- **並**建議：「實施要求 X」並提供所需內容的指導
 
-### Requirement: Coherence Verification
-The agent SHALL verify that implementation is sensible and follows design decisions.
+### 需求：一致性驗證
+代理應驗證實施是否合理並遵循設計決策。
 
-#### Scenario: Design.md adherence check
-- **WHEN** verifying coherence
-- **AND** design.md exists for the change
-- **THEN** extract key decisions from design.md
-- **AND** verify implementation follows those decisions
-- **AND** report any deviations
+#### 情境：Design.md 一致性檢查
+- **何時** 驗證一致性
+- **並且** design.md 存在用於更改
+- **然後** 從 design.md 中提取關鍵決策
+- **並**驗證實施遵循這些決定
+- **並**報告任何偏差
 
-#### Scenario: No design.md
-- **WHEN** verifying coherence
-- **AND** no design.md exists
-- **THEN** skip design adherence check
-- **AND** note "No design.md to verify against"
+#### 場景：無設計.md
+- **何時** 驗證一致性
+- **且**不存在 design.md
+- **然後** 跳過設計一致性檢查
+- **並且**注意“沒有要驗證的設計.md”
 
-#### Scenario: Design decision followed
-- **WHEN** implementation follows a design decision
-- **THEN** report as confirmed
-- **AND** cite evidence from code
+#### 場景：遵循設計決策
+- **何時** 實施遵循設計決策
+- **然後** 報告已確認
+- **並且**引用程式碼中的證據
 
-#### Scenario: Design decision violated
-- **WHEN** implementation contradicts a design decision
-- **THEN** report as WARNING
-- **AND** explain the contradiction
-- **AND** suggest: either update implementation or update design.md
+#### 場景：違反設計決策
+- **何時** 實施與設計決策相矛盾
+- **然後** 報告為警告
+- **並**解釋矛盾
+- **並且**建議：更新實作或更新設計.md
 
-#### Scenario: Code pattern consistency
-- **WHEN** verifying coherence
-- **THEN** check if new code follows existing project patterns
-- **AND** flag any significant deviations as suggestions
+#### 場景：程式碼模式一致性
+- **何時** 驗證一致性
+- **然後** 檢查新程式碼是否遵循現有專案模式
+- **和** 將任何重大偏差標記為建議
 
-### Requirement: Verification Report Format
-The agent SHALL produce a structured, prioritized report.
+### 要求：驗證報告格式
+代理應產生一份結構化的、優先排序的報告。
 
-#### Scenario: Report summary
-- **WHEN** verification completes
-- **THEN** display summary scorecard:
+#### 場景：報告摘要
+- **何時** 驗證完成
+- **然後** 顯示摘要記分卡：
   ```
   ## Verification Report: <change-name>
 
@@ -133,58 +133,58 @@ The agent SHALL produce a structured, prioritized report.
   | Coherence    | Followed |
   ```
 
-#### Scenario: Issue prioritization
-- **WHEN** issues are found
-- **THEN** group and display in priority order:
-  1. CRITICAL - Must fix before archive (missing implementation, incomplete tasks)
-  2. WARNING - Should fix (divergence from spec/design, missing tests)
-  3. SUGGESTION - Nice to fix (pattern inconsistencies, minor improvements)
+#### 場景：問題優先級
+- **何時**發現問題
+- **THEN** 按優先順序分組並顯示：
+  1. 關鍵 - 必須在存檔之前修復（缺少實現、任務不完整）
+  2. 警告 - 應該修復（與規範/設計的分歧，缺少測試）
+  3. 建議 - 很好修復（模式不一致，小改進）
 
-#### Scenario: Actionable recommendations
-- **WHEN** reporting an issue
-- **THEN** include specific, actionable fix recommendation
-- **AND** reference relevant files and line numbers where applicable
-- **AND** avoid vague suggestions like "consider reviewing"
+#### 場景：可行的建議
+- **何時**報告問題
+- **然後** 包括具體的、可操作的修復建議
+- **和**參考相關文件和行號（如果適用）
+- **並且**避免諸如“考慮審查”之類的模糊建議
 
-#### Scenario: All checks pass
-- **WHEN** no issues found across all dimensions
-- **THEN** display:
+#### 場景：所有檢查均通過
+- **何時** 所有維度均未發現問題
+- **然後** 顯示：
   ```
   All checks passed. Ready for archive.
   ```
 
-#### Scenario: Critical issues found
-- **WHEN** CRITICAL issues exist
-- **THEN** display:
+#### 場景：發現關鍵問題
+- **何時** 有關鍵問題
+- **然後** 顯示：
   ```
   X critical issue(s) found. Fix before archiving.
   ```
-- **AND** do NOT suggest running archive
+- **且**不建議執行存檔
 
-#### Scenario: Only warnings/suggestions
-- **WHEN** no CRITICAL issues but warnings exist
-- **THEN** display:
+#### 場景：僅警告/建議
+- **何時** 沒有嚴重問題但有警告
+- **然後** 顯示：
   ```
   No critical issues. Y warning(s) to consider.
   Ready for archive (with noted improvements).
   ```
 
-### Requirement: Flexible Artifact Handling
-The agent SHALL gracefully handle changes with varying artifact completeness.
+### 需求：靈活的工件處理
+代理應優雅地處理具有不同工件完整性的變更。
 
-#### Scenario: Minimal change (tasks only)
-- **WHEN** change has only tasks.md
-- **THEN** verify task completion only
-- **AND** skip spec and design checks
-- **AND** note which checks were skipped
+#### 場景：最小變化（僅限任務）
+- **何時** 更改只有tasks.md
+- **然後** 僅驗證任務完成情況
+- **並** 跳過規格和設計檢查
+- **並**記下跳過了哪些檢查
 
-#### Scenario: Change with specs but no design
-- **WHEN** change has tasks.md and delta specs but no design.md
-- **THEN** verify completeness and correctness
-- **AND** skip design adherence
-- **AND** still check code coherence against project patterns
+#### 場景：規格發生變化，但設計沒有變化
+- **何時** 更改有tasks.md 和delta 規範，但沒有design.md
+- **然後** 驗證完整性和正確性
+- **並**跳過設計遵守
+- **並且**仍然根據專案模式檢查程式碼一致性
 
-#### Scenario: Full change (all artifacts)
-- **WHEN** change has proposal, design, specs, and tasks
-- **THEN** perform all verification checks
-- **AND** cross-reference artifacts for consistency
+#### 場景：完全改變（所有工件）
+- **何時**更改提案、設計、規格和任務
+- **然後** 執行所有驗證檢查
+- **和** 交叉引用工件以確保一致性

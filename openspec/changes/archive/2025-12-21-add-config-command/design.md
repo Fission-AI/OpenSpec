@@ -1,89 +1,89 @@
-## Context
+## 情境
 
-The `global-config` spec defines how OpenSpec reads/writes `config.json`, but users currently must edit it by hand. This command provides a CLI interface to that config.
+這 `global-config` 規範定義 OpenSpec 如何讀/寫 `config.json`，但用戶目前必須手動編輯它。此命令為該設定提供 CLI 介面。
 
-## Goals / Non-Goals
+## 目標/非目標
 
-**Goals:**
-- Provide a discoverable CLI for config management
-- Support scripting with machine-readable output
-- Validate config changes with zod schema
-- Handle nested keys gracefully
+**目標：**
+- 為設定管理提供可發現的CLI
+- 支援具有機器可讀輸出的腳本
+- 使用 zod 架構驗證設定更改
+- 優雅地處理嵌套鍵
 
-**Non-Goals:**
-- Project-local config (reserved for future via `--scope` flag)
-- Complex queries (JSONPath, filtering)
-- Config file format migration
+**非目標：**
+- 專案本地設定（保留供將來通過 `--scope` 旗幟）
+- 複雜查詢（JSON路徑、過濾）
+- 設定檔格式遷移
 
-## Decisions
+## 決定
 
-### Key Naming: camelCase with Dot Notation
+### 鍵命名：帶有有點表示法的駝峰命名法
 
-**Decision:** Keys use camelCase matching the JSON structure, with dot notation for nesting.
+**決定：** 鍵使用駝峰命名法來匹配 JSON 結構，並使用點表示法進行巢狀。
 
-**Rationale:**
-- Matches the actual JSON keys (no translation layer)
-- Dot notation is intuitive and widely used (lodash, jq, kubectl)
-- Avoids complexity of supporting multiple casing styles
+**理由：**
+- 搭配實際的 JSON 鍵（無翻譯層）
+- 點表示法直觀且廣泛使用（lodash、jq、kubectl）
+- 避免支援多種外殼樣式的複雜性
 
-**Examples:**
+**範例：**
 ```bash
 openspec config get featureFlags              # Returns object
 openspec config get featureFlags.experimental # Returns nested value
 openspec config set featureFlags.newFlag true
 ```
 
-### Type Coercion: Auto-detect with `--string` Override
+### 類型強制：自動檢測 `--string` 覆蓋
 
-**Decision:** Parse values automatically; provide `--string` flag to force string storage.
+**決策：** 自動解析值；提供 `--string` 強製字串儲存的標誌。
 
-**Rationale:**
-- Most intuitive for common cases (`true`, `false`, `123`)
-- Explicit override for edge cases (storing literal string "true")
-- Follows npm/yarn config patterns
+**理由：**
+- 對於常見情況最直觀（`true`, `false`, `123`)
+- 邊緣情況的明確覆蓋（儲存文字字串“true”）
+- 遵循 npm/yarn 設定模式
 
-**Coercion rules:**
-| Input | Stored As |
+**強制規則：**
+| 輸入 | 儲存為 |
 |-------|-----------|
-| `true`, `false` | boolean |
-| Numeric string (`123`, `3.14`) | number |
-| Everything else | string |
-| Any value with `--string` | string |
+| `true`, `false` | 布林值 |
+| 數字字串 (`123`, `3.14`) | 數位 |
+| 其他一切 | 細繩 |
+| 任何值與 `--string` | 細繩 |
 
-### Output Format: Raw by Default
+### 輸出格式：預設為原始
 
-**Decision:** `get` prints raw value only. `list` prints YAML-like format by default, JSON with `--json`.
+**決定：** `get` 僅列印原始值。 `list` 預設列印 YAML 類似格式，JSON 與 `--json`.
 
-**Rationale:**
-- Raw output enables piping: `VAR=$(openspec config get key)`
-- YAML-like is human-readable for inspection
-- JSON for automation/scripting
+**理由：**
+- 原始輸出啟用管道： `VAR=$(openspec config get key)`
+- YAML-like 是人類可讀的檢查
+- JSON 用於自動化/腳本編寫
 
-### Schema Validation: Zod with Unknown Field Passthrough
+### 模式驗證：具有未知字段直通的 Zod
 
 **Decision:** Use zod for validation but preserve unknown fields per `global-config` spec.
 
-**Rationale:**
-- Type safety for known fields
-- Forward compatibility (old CLI doesn't break new config)
-- Follows existing `global-config` spec requirement
+**理由：**
+- 已知欄位的類型安全
+- 向前相容性（舊CLI不會破壞新設定）
+- 遵循現有的 `global-config` 規格要求
 
-### Reserved Flag: `--scope`
+### 保留標誌： `--scope`
 
-**Decision:** Reserve `--scope global|project` but only implement `global` initially.
+**決定：** 保留 `--scope global|project` 但僅實施 `global` initially.
 
-**Rationale:**
-- Avoids breaking change if project-local config is added later
-- Clear error message if someone tries `--scope project`
+**理由：**
+- 如果稍後新增專案本地設定，可以避免重大更改
+- 如果有人嘗試，請清除錯誤訊息 `--scope project`
 
-## Risks / Trade-offs
+## 風險/權衡
 
-| Risk | Mitigation |
+| 風險 | 減輕 |
 |------|------------|
-| Dot notation conflicts with keys containing dots | Rare in practice; document limitation |
-| Type coercion surprises | `--string` escape hatch; document rules |
-| $EDITOR not set | Check and provide helpful error message |
+| 點符號與包含點的鍵衝突 | 實務上很少見；文件限制 |
+| 類型強制令人驚訝 | `--string` 逃生艙口；文件規則 |
+| $EDITOR 未設置 | 檢查並提供有用的錯誤訊息 |
 
-## Open Questions
+## 開放式問題
 
-None - design is straightforward.
+無 - 設計很簡單。

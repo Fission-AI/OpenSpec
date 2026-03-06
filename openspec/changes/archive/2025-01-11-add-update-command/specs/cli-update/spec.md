@@ -1,59 +1,59 @@
-# Update Command Specification
+# 更新命令規範
 
-## Purpose
+## 目的
 
-As a developer using OpenSpec, I want to update the OpenSpec instructions in my project when new versions are released, so that I can benefit from improvements to AI agent instructions.
+作為使用 OpenSpec 的開發人員，我希望在新版本發佈時更新專案中的 OpenSpec 指令，以便我可以從 AI 代理指令的改進中受益。
 
-## Core Requirements
+## 核心要求
 
-### Update Behavior
+### 更新行為
 
-The update command SHALL update OpenSpec instruction files to the latest templates.
+更新命令應將 OpenSpec 指令檔案更新為最新範本。
 
-WHEN a user runs `openspec update` THEN the command SHALL:
-- Check if the `openspec` directory exists
-- Replace `openspec/README.md` with the latest template (complete replacement)
-- Update the OpenSpec-managed block in `CLAUDE.md` using markers
-  - Preserve user content outside markers
-  - Create `CLAUDE.md` if missing
-- Display ASCII-safe success message: "Updated OpenSpec instructions"
+當用戶執行時 `openspec update` 那麼命令應該：
+- 檢查是否 `openspec` 目錄存在
+- 代替 `openspec/README.md` 使用最新模板（完全替換）
+- 更新 OpenSpec 管理的區塊 `CLAUDE.md` 使用標記
+  - 將使用者內容保留在標記之外
+  - 創造 `CLAUDE.md` 如果遺失
+- 顯示 ASCII 安全成功訊息：“已更新 OpenSpec 指令”
 
-### Prerequisites
+### 先決條件
 
-The command SHALL require:
-- An existing `openspec` directory (created by `openspec init`)
+該命令應要求：
+- 現有的 `openspec` 目錄（由建立 `openspec init`)
 
-IF the `openspec` directory does not exist THEN:
-- Display error: "No OpenSpec directory found. Run 'openspec init' first."
-- Exit with code 1
+如果 `openspec` 目錄不存在然後：
+- 顯示錯誤：“未找到 OpenSpec 目錄。請先執行 'openspec init'。”
+- 使用代碼 1 退出
 
-### File Handling
+### 文件處理
 
-The update command SHALL:
-- Completely replace `openspec/README.md` with the latest template
-- Update only the OpenSpec-managed block in `CLAUDE.md` using markers
-- Use the default directory name `openspec`
-- Be idempotent (repeated runs have no additional effect)
+更新命令應：
+- 完全取代 `openspec/README.md` 與最新的模板
+- 僅更新 OpenSpec 管理的區塊 `CLAUDE.md` 使用標記
+- 使用預設目錄名 `openspec`
+- 冪等（重複執行沒有額外效果）
 
-## Edge Cases
+## 邊緣情況
 
-### File Permissions
-IF file write fails THEN let the error bubble up naturally with file path.
+### 文件權限
+如果檔案寫入失敗，讓錯誤隨檔案路徑自然冒出。
 
-### Missing CLAUDE.md
-IF CLAUDE.md doesn't exist THEN create it with the template content.
+### 失蹤的克勞德.md
+如果 CLAUDE.md 不存在，則使用範本內容建立它。
 
-### Custom Directory Name
-Not supported in this change. The default directory name `openspec` SHALL be used.
+### 自訂目錄名稱
+此更改不支援。預設目錄名稱 `openspec` 應使用。
 
-## Success Criteria
+## 成功標準
 
-Users SHALL be able to:
-- Update OpenSpec instructions with a single command
-- Get the latest AI agent instructions
-- See clear confirmation of the update
+用戶應該能夠：
+- 使用單一指令更新OpenSpec指令
+- 取得最新的AI代理指令
+- 檢視更新的明確確認
 
-The update process SHALL be:
-- Simple and fast (no version checking)
-- Predictable (same result every time)
-- Self-contained (no network required)
+更新過程應為：
+- 簡單快速（無需版本檢查）
+- 可預測（每次結果相同）
+- 獨立（無需網路）

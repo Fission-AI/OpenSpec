@@ -1,28 +1,28 @@
-# Add AGENTS.md Standard Support To Init/Update
+# 添加 AGENTS.md 標準支援以初始化/更新
 
-## Summary
-- Teach `openspec init` to manage a root-level `AGENTS.md` file using the same marker system as `CLAUDE.md`.
-- Allow `openspec update` to refresh or scaffold that root `AGENTS.md` so AGENTS-compatible tools always receive current instructions.
-- Keep the existing `openspec/AGENTS.md` template as the canonical source while ensuring assistants that read `AGENTS.md` opt-in instructions get the latest guidance automatically.
+## 概括
+- 教 `openspec init` 管理根級別 `AGENTS.md` 使用與以下相同的標記系統的文件 `CLAUDE.md`.
+- 允許 `openspec update` 重新整理或建置根目錄 `AGENTS.md` 因此與 AGENTS 相容的工具始終接收最新指令。
+- 保留現有的 `openspec/AGENTS.md` 模板作為規範來源，同時確保助手能夠閱讀 `AGENTS.md` 選擇加入說明會自動取得最新指示。
 
-## Motivation
-The README now points teams to AGENTS.md-compatible assistants, but the CLI only manages `CLAUDE.md`. Projects must hand-roll a root `AGENTS.md` file to benefit from the standard, and updates will drift unless maintainers remember to copy content manually. Extending `init` and `update` closes that gap so OpenSpec actually delivers on the promise of first-class AGENTS support.
+## 動機
+README 現在將團隊指向 AGENTS.md 相容的助手，但 CLI 只能管理 `CLAUDE.md`。項目必須手動滾動根 `AGENTS.md` 文件才能從標準中受益，除非維護人員記得手動複製內容，否則更新將會發生變化。延伸 `init` 和 `update` 縮小了這一差距，因此 OpenSpec 實際上兌現了一流代理商支援的承諾。
 
-## Proposal
-1. Extend the `openspec init` selection flow with an "AGENTS.md standard" option that creates or refreshes a root `AGENTS.md` file wrapped in OpenSpec markers, mirroring the existing CLAUDE integration.
-2. When generating the file, pull the managed content from the same template used in `openspec/AGENTS.md`, ensuring both locations stay in sync.
-3. Update `openspec update` so it always refreshes the root `AGENTS.md` (creating it if missing) alongside `openspec/AGENTS.md` and any other configured assistants.
-4. Document the new behavior in CLI specs and verify marker handling (no duplicates, preserve user content outside the block) with tests for both commands.
+## 提議
+1. 延長 `openspec init` 具有建立或重新整理根的“AGENTS.md standard”選項的選擇流程 `AGENTS.md` 文件包含在 OpenSpec 標記中，鏡像現有的 CLAUDE 整合。
+2. 生成文件時，從中使用的相同範本中提取託管內容 `openspec/AGENTS.md`，確保兩個位置保持同步。
+3. 更新 `openspec update` 所以它總是重新整理根 `AGENTS.md` （如果丟失則建立它）旁邊 `openspec/AGENTS.md` 以及任何其他設定的助手。
+4. 在 CLI 規範中記錄新行為，並透過對這兩個命令的測試來驗證標記處理（無重複，保留區塊外的使用者內容）。
 
-## Out of Scope
-- Adding additional AGENTS-specific prompts or workflows beyond the shared instructions block.
-- Non-interactive flags or bulk configuration for multiple standards in one run.
-- Broader restructuring of how templates are stored or loaded.
+## 超出範圍
+- 在共享指令區塊之外添加其他特定於代理的提示或工作流程。
+- 一次執行中多個標準的非互動式標誌或批次設定。
+- 更廣泛地重構模板的儲存或載入方式。
 
-## Risks & Mitigations
-- **Risk:** Accidentally overwriting user-edited content surrounding the managed block.
-  - **Mitigation:** Reuse the existing marker-update helper shared with `CLAUDE.md`, and add tests that cover files containing custom text before and after the block.
-- **Risk:** Divergence between `openspec/AGENTS.md` and the root file.
-  - **Mitigation:** Source the root file content from the canonical template rather than duplicating strings inline.
-- **Risk:** Confusion about when the file is created.
-  - **Mitigation:** Log creation vs update, and ensure help text references the AGENTS option during `init`.
+## 風險與緩解措施
+- **風險：** 意外覆蓋託管區塊周圍的使用者編輯內容。
+  - **緩解措施：** 重複使用與共享的現有標記更新助手 `CLAUDE.md`，並新增覆蓋區塊前後包含自訂文字的檔案的測試。
+- **風險：** 之間的差異 `openspec/AGENTS.md` 和根文件。
+  - **緩解措施：** 從規範範本中取得根文件內容，而不是內聯複製字串。
+- **風險：** 關於文件建立時間的混亂。
+  - **緩解：** 日誌建立與更新，並確保說明文字在期間引用 AGENTS 選項 `init`.

@@ -1,122 +1,122 @@
-# config-loading Specification
+# 設定載入規範
 
-## Purpose
-Define how `openspec/config.yaml` is discovered, parsed, validated, and exposed to callers with safe fallbacks.
+## 目的
+定義如何 `openspec/config.yaml` 被發現、解析、驗證並透過安全後備方式暴露給呼叫者。
 
-## Requirements
-### Requirement: Load project config from openspec/config.yaml
+## 要求
+### 需求：從 openspec/config.yaml 載入專案設定
 
-The system SHALL read and parse the project configuration file located at `openspec/config.yaml` relative to the project root.
+系統應讀取並解析位於以下位置的項目設定檔 `openspec/config.yaml` 相對於專案根目錄。
 
-#### Scenario: Valid config file exists
-- **WHEN** `openspec/config.yaml` exists with valid YAML content
-- **THEN** system parses the file and returns a ProjectConfig object
+#### 場景：有效的設定檔存在
+- **什麼時候** `openspec/config.yaml` 存在有效的 YAML 內容
+- **THEN** 系統解析檔並傳回一個 ProjectConfig 對象
 
-#### Scenario: Config file does not exist
-- **WHEN** `openspec/config.yaml` does not exist
-- **THEN** system returns null without error
+#### 場景：設定檔不存在
+- **什麼時候** `openspec/config.yaml` 不存在
+- **THEN** 系統回傳 null 而沒有錯誤
 
-#### Scenario: Config file has invalid YAML syntax
-- **WHEN** `openspec/config.yaml` contains malformed YAML
-- **THEN** system logs a warning message and returns null
+#### 場景：設定檔具有無效的 YAML 語法
+- **什麼時候** `openspec/config.yaml` 包含格式錯誤的 YAML
+- **THEN** 系統記錄警告訊息並傳回 null
 
-#### Scenario: Config file has valid YAML but invalid schema
-- **WHEN** `openspec/config.yaml` contains valid YAML that fails Zod schema validation
-- **THEN** system logs a warning message with validation details and returns null
+#### 場景：設定檔具有有效的 YAML 但架構無效
+- **什麼時候** `openspec/config.yaml` 包含未通過 Zod 架構驗證的有效 YAML
+- **然後** 系統記錄一條包含驗證詳細資訊的警告訊息並傳回 null
 
-### Requirement: Support .yml file extension alias
+### 要求：支援.yml檔案副檔名別名
 
-The system SHALL accept both `.yaml` and `.yml` file extensions for the config file.
+系統應接受兩者 `.yaml` 和 `.yml` 設定檔的檔案副檔名。
 
-#### Scenario: Config file uses .yml extension
-- **WHEN** `openspec/config.yml` exists and `openspec/config.yaml` does not exist
-- **THEN** system reads from `openspec/config.yml`
+#### 場景：設定檔使用 .yml 副檔名
+- **什麼時候** `openspec/config.yml` 存在並且 `openspec/config.yaml` 不存在
+- **那麼**系統讀取 `openspec/config.yml`
 
-#### Scenario: Both .yaml and .yml exist
-- **WHEN** both `openspec/config.yaml` and `openspec/config.yml` exist
-- **THEN** system prefers `openspec/config.yaml`
+#### 場景：.yaml 和 .yml 都存在
+- **何時**兩者 `openspec/config.yaml` 和 `openspec/config.yml` 存在
+- **那麼**系統更喜歡 `openspec/config.yaml`
 
-### Requirement: Use resilient field-by-field parsing
+### 要求：使用彈性逐字段解析
 
-The system SHALL parse each config field independently, collecting valid fields and warning about invalid ones without rejecting the entire config.
+系統應獨立解析每個設定字段，收集有效字段並警告無效字段，而不拒絕整個設定。
 
-#### Scenario: Schema field is valid
-- **WHEN** config contains `schema: "spec-driven"`
-- **THEN** schema field is included in returned config
+#### 場景：架構字段有效
+- **何時** 設定包含 `schema: "spec-driven"`
+- **THEN** 架構欄位包含在傳回的設定中
 
-#### Scenario: Schema field is missing
-- **WHEN** config lacks the `schema` field
-- **THEN** no warning is logged (field is optional at parse level)
+#### 場景：架構欄位遺失
+- **何時** 設定缺少 `schema` 場地
+- **那麼** 不會記錄任何警告（欄位在解析層級是可選的）
 
-#### Scenario: Schema field is empty string
-- **WHEN** config contains `schema: ""`
-- **THEN** warning is logged and schema field is not included in returned config
+#### 場景：架構欄位為空字串
+- **何時** 設定包含 `schema: ""`
+- **THEN** 警告被記錄，且模式欄位不包含在傳回的設定中
 
-#### Scenario: Schema field is invalid type
-- **WHEN** config contains `schema: 123` (number instead of string)
-- **THEN** warning is logged and schema field is not included in returned config
+#### 場景：架構欄位類型無效
+- **何時** 設定包含 `schema: 123` （數字而不是字串）
+- **THEN** 警告被記錄，且模式欄位不包含在傳回的設定中
 
-#### Scenario: Context field is valid
-- **WHEN** config contains `context: "Tech stack: TypeScript"`
-- **THEN** context field is included in returned config
+#### 場景：上下文欄位有效
+- **何時** 設定包含 `context: "Tech stack: TypeScript"`
+- **那麼** 上下文欄位包含在傳回的設定中
 
-#### Scenario: Context field is invalid type
-- **WHEN** config contains `context: 123` (number instead of string)
-- **THEN** warning is logged and context field is not included in returned config
+#### 場景：上下文欄位的類型無效
+- **何時** 設定包含 `context: 123` （數字而不是字串）
+- **然後** 警告被記錄，並且上下文欄位不包含在傳回的設定中
 
-#### Scenario: Rules field has valid structure
-- **WHEN** config contains `rules: { proposal: ["Rule 1"], specs: ["Rule 2"] }`
-- **THEN** rules field is included in returned config with valid rules
+#### 場景：規則欄位具有有效的結構
+- **何時** 設定包含 `rules: { proposal: ["Rule 1"], specs: ["Rule 2"] }`
+- **THEN** 規則欄位包含在傳回的設定中，並具有有效的規則
 
-#### Scenario: Rules field has non-array value for artifact
-- **WHEN** config contains `rules: { proposal: "not an array", specs: ["Valid"] }`
-- **THEN** warning is logged for proposal, but specs rules are still included in returned config
+#### 場景：規則欄位具有工件的非數組值
+- **何時** 設定包含 `rules: { proposal: "not an array", specs: ["Valid"] }`
+- **然後** 為提案記錄警告，但規範規則仍包含在傳回的設定中
 
-#### Scenario: Rules array contains non-string elements
-- **WHEN** config contains `rules: { proposal: ["Valid rule", 123, ""] }`
-- **THEN** only "Valid rule" is included, warning logged about invalid elements
+#### 場景：規則陣列包含非字串元素
+- **何時** 設定包含 `rules: { proposal: ["Valid rule", 123, ""] }`
+- **那麼** 只包含“有效規則”，記錄有關無效元素的警告
 
-#### Scenario: Mix of valid and invalid fields
-- **WHEN** config contains valid schema, invalid context type, valid rules
-- **THEN** config is returned with schema and rules fields, warning logged about context
+#### 場景：有效欄位和無效欄位混合
+- **何時** 設定包含有效架構、無效上下文類型、有效規則
+- **然後** 設定與架構和規則欄位一起傳回，並記錄有關上下文的警告
 
-### Requirement: Enforce context size limit
+### 要求：強制執行上下文大小限制
 
-The system SHALL reject context fields exceeding 50KB and log a warning.
+系統應拒絕超過 50KB 的上下文欄位並記錄警告。
 
-#### Scenario: Context within size limit
-- **WHEN** config contains context of 1KB
-- **THEN** context is included in returned config
+#### 場景：大小限制內的上下文
+- **何時** 設定包含 1KB 的上下文
+- **那麼** 上下文包含在傳回的設定中
 
-#### Scenario: Context at size limit
-- **WHEN** config contains context of exactly 50KB
-- **THEN** context is included in returned config
+#### 場景：上下文大小限制
+- **何時** 設定包含正好 50KB 的上下文
+- **那麼** 上下文包含在傳回的設定中
 
-#### Scenario: Context exceeds size limit
-- **WHEN** config contains context of 51KB
-- **THEN** warning is logged with size and limit, context field is not included in returned config
+#### 場景：上下文超出大小限制
+- **何時** 設定包含 51KB 的上下文
+- **那麼** 警告會記錄大小和限制，上下文欄位不包含在傳回的設定中
 
-### Requirement: Defer artifact ID validation to instruction loading
+### 要求：將工件 ID 驗證推遲到指令加載
 
-The system SHALL NOT validate artifact IDs in rules during config load time. Validation happens during instruction loading when schema is known.
+在設定載入期間，系統不應驗證規則中的工件 ID。當架構已知時，驗證會在指令載入期間進行。
 
-#### Scenario: Config with rules is loaded
-- **WHEN** config contains `rules: { unknownartifact: [...] }`
-- **THEN** config is loaded successfully without validation errors
+#### 場景：載入帶有規則的設定
+- **何時** 設定包含 `rules: { unknownartifact: [...] }`
+- **THEN** 設定已成功加載，沒有驗證錯誤
 
-#### Scenario: Validation happens at instruction load time
-- **WHEN** instructions are loaded for any artifact and config has unknown artifact IDs in rules
-- **THEN** warnings are emitted about unknown artifact IDs (see rules-injection spec for details)
+#### 場景：驗證發生在指令載入時
+- **何時** 為任何工件載入指令，並且設定在規則中具有未知的工件 ID
+- **然後** 發出有關未知工件 ID 的警告（有關詳細信息，請參閱規則注入規範）
 
-### Requirement: Gracefully handle config errors without halting
+### 要求：在不停止的情況下優雅地處理設定錯誤
 
-The system SHALL continue operation with default values when config loading or parsing fails.
+當設定載入或解析失敗時，系統應繼續使用預設值執行。
 
-#### Scenario: Config parse failure during command execution
-- **WHEN** config file has syntax errors and user runs `openspec new change`
-- **THEN** command executes using default schema "spec-driven"
+#### 場景：命令執行期間設定解析失敗
+- **何時** 設定檔有語法錯誤且使用者執行 `openspec new change`
+- **THEN** 指令使用預設模式「規範驅動」執行
 
-#### Scenario: Warning is visible to user
-- **WHEN** config loading fails
-- **THEN** system outputs warning message to stderr with details about the failure
+#### 場景：警告對使用者可見
+- **何時** 設定載入失敗
+- **然後** 系統向 stderr 輸出警告訊息，其中包含有關失敗的詳細信息
 

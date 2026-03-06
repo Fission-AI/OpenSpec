@@ -1,8 +1,8 @@
-## 1. Implementation
-- [x] Update the tool selection wizard to auto-select the highlighted tool when Enter is pressed without prior toggles.
-- [x] Refresh inline instructions copy so Enter behavior is clear.
-- [x] Adjust or add tests if needed to cover the new selection flow.
+## 1. 實施
+- [x] 更新工具選擇精靈，以便在按下 Enter 鍵時自動選擇反白顯示的工具，而無需事先切換。
+- [x] 重新整理內聯指令副本，以便輸入行為清晰。
+- [x] 如果需要，請調整或新增測試以覆蓋新的選擇流程。
 
-## 2. Validation
-- [x] Run `pnpm run build`.
-- [x] Run `pnpm test` (or targeted suite) if applicable.
+## 2. 驗證
+- [x] 執行 `pnpm run build`.
+- [x] 執行 `pnpm test` （或目標套件）如果適用。

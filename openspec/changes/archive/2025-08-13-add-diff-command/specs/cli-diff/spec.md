@@ -1,58 +1,58 @@
-# CLI Diff Command Specification
+# CLI Diff 指令規範
 
-## Purpose
+## 目的
 
-The `openspec diff` command provides developers with a visual comparison between proposed spec changes and the current deployed specs.
+這 `openspec diff` 該命令為開發人員提供了建議的規格更改與當前部署的規格之間的直觀比較。
 
-## Command Syntax
+## 命令語法
 
 ```bash
 openspec diff [change-name]
 ```
 
-## Behavior
+## 行為
 
-### Without Arguments
+### 沒有參數
 
-WHEN running `openspec diff` without arguments
-THEN list all available changes in the `changes/` directory (excluding archive)
-AND prompt user to select a change
+執行時 `openspec diff` 沒有參數
+然後列出所有可用的更改 `changes/` 目錄（不包括存檔）
+並提示用戶選擇更改
 
-### With Change Name
+### 更改名稱
 
-WHEN running `openspec diff <change-name>`
-THEN compare all spec files in `changes/<change-name>/specs/` with corresponding files in `specs/`
+執行時 `openspec diff <change-name>`
+然後比較所有規格文件 `changes/<change-name>/specs/` 以及相應的文件 `specs/`
 
-### Diff Output
+### 差分輸出
 
-FOR each spec file in the change:
-- IF file exists in both locations THEN show unified diff
-- IF file only exists in change THEN show as new file (all lines with +)
-- IF file only exists in current specs THEN show as deleted (all lines with -)
+對於更改中的每個規範文件：
+- IF 檔案存在於兩個位置則顯示統一差異
+- IF 檔案僅存在於變更中 THEN 顯示為新檔案（所有行均帶有 +）
+- 如果檔案僅存在於目前規格中則顯示為已刪除（所有行均帶有 -）
 
-### Display Format
+### 顯示格式
 
-The diff SHALL use standard unified diff format:
-- Lines prefixed with `-` for removed content
-- Lines prefixed with `+` for added content
-- Lines without prefix for unchanged context
-- File headers showing the paths being compared
+diff 應使用標準統一 diff 格式：
+- 前綴為的行 `-` 對於已刪除的內容
+- 前綴為的行 `+` 添加內容
+- 沒有前綴的行表示未更改的上下文
+- 顯示正在比較的路徑的檔案頭
 
-### Color Support
+### 顏色支援
 
-WHEN terminal supports colors:
-- Removed lines displayed in red
-- Added lines displayed in green
-- File headers displayed in bold
-- Context lines in default color
+當終端支援顏色時：
+- 刪除的行顯示為紅色
+- 新增的行顯示為綠色
+- 文件頭以粗體顯示
+- 預設顏色的上下文線
 
-### Error Handling
+### 錯誤處理
 
-WHEN specified change doesn't exist THEN display error "Change '<name>' not found"
-WHEN no specs directory in change THEN display "No spec changes found for '<name>'"
-WHEN changes directory doesn't exist THEN display "No OpenSpec changes directory found"
+當指定的更改不存在時，顯示錯誤“更改'<name>' 未找到”
+當沒有更改規格目錄時，則顯示“未發現 ' 的規格變更”<name>'"
+當更改目錄不存在時，顯示“未找到 OpenSpec 更改目錄”
 
-## Examples
+## 範例
 
 ```bash
 # View diff for specific change

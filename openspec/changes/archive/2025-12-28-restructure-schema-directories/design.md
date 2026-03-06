@@ -1,6 +1,6 @@
-## Context
+## 情境
 
-Built-in schemas are currently embedded as TypeScript objects:
+內建架構目前嵌入為 TypeScript 物件：
 
 ```typescript
 // src/core/artifact-graph/builtin-schemas.ts
@@ -11,26 +11,26 @@ export const SPEC_DRIVEN_SCHEMA: SchemaYaml = {
 };
 ```
 
-This doesn't support templates co-located with schemas. The instruction loader (Slice 3) needs templates, and the cleanest approach is self-contained schema directories.
+這不支援與架構位於相同位置的模板。指令載入器（Slice 3）需要模板，最乾淨的方法是獨立的模式目錄。
 
-## Goals / Non-Goals
+## 目標/非目標
 
-**Goals:**
-- Schemas as self-contained directories (schema.yaml + templates/)
-- User overrides via XDG data directory
-- Simple 2-level resolution (user → package)
-- Templates co-located with their schema
+**目標：**
+- 模式作為獨立目錄（schema.yaml + templates/）
+- 使用者透過 XDG 資料目錄覆蓋
+- 簡單的2級解析（用戶→套件）
+- 模板與其架構位於相同位置
 
-**Non-Goals:**
-- Shared template fallback (intentionally avoiding complexity)
-- Runtime schema compilation
-- Schema inheritance
+**非目標：**
+- 共享模板後備（有意避免複雜性）
+- 執行時模式編譯
+- 模式繼承
 
-## Decisions
+## 決定
 
-### 1. Directory structure
+### 1.目錄結構
 
-Each schema is a directory containing `schema.yaml` and `templates/`:
+每個模式都是一個包含以下內容的目錄 `schema.yaml` 和 `templates/`:
 
 ```
 <package>/schemas/
@@ -50,9 +50,9 @@ Each schema is a directory containing `schema.yaml` and `templates/`:
         └── docs.md
 ```
 
-**Why:** Self-contained like Helm charts. No cross-schema dependencies. Each schema owns its templates.
+**為什麼：** 像 Helm 圖表一樣獨立。沒有跨模式依賴。每個模式都有其模板。
 
-### 2. Resolution order (2 levels)
+### 2. 決議順序（2級）
 
 ```
 1. ${XDG_DATA_HOME}/openspec/schemas/<name>/schema.yaml   # User override
@@ -60,11 +60,11 @@ Each schema is a directory containing `schema.yaml` and `templates/`:
 3. Error (not found)
 ```
 
-**Why:** Simple mental model. User can override entire schema directory or just parts.
+**為什麼：** 簡單的心理模型。使用者可以覆蓋整個模式目錄或僅部分目錄。
 
-### 3. Template path in schema.yaml
+### 3. schema.yaml中的模板路徑
 
-The `template` field is relative to the schema's `templates/` directory:
+這 `template` 字段是相對於模式的 `templates/` 目錄：
 
 ```yaml
 # schemas/spec-driven/schema.yaml
@@ -73,9 +73,9 @@ artifacts:
     template: "proposal.md"  # → schemas/spec-driven/templates/proposal.md
 ```
 
-**Why:** Paths are relative to the schema, not a global templates directory.
+**為什麼：** 路徑是相對於架構的，而不是全域範本目錄。
 
-### 4. Resolve package directory via import.meta.url
+### 4.透過import.meta.url解析套件目錄
 
 ```typescript
 function getPackageSchemasDir(): string {
@@ -85,11 +85,11 @@ function getPackageSchemasDir(): string {
 }
 ```
 
-**Why:** Works in ESM. No hardcoded paths.
+**為什麼：** 適用於 ESM。没有硬编码路径。
 
-### 5. Keep schema.yaml format unchanged
+### 5.保持schema.yaml格式不變
 
-The YAML format stays the same - only the storage location changes:
+YAML 格式保持不變 - 只是儲存位置變更：
 
 ```yaml
 name: spec-driven
@@ -102,28 +102,28 @@ artifacts:
     requires: []
 ```
 
-**Why:** No breaking changes to schema format. Just moving from TS to YAML files.
+**原因：** 模式格式沒有重大變更。只是從 TS 移動到 YAML 檔案。
 
-## Migration
+## 遷移
 
-1. Create `schemas/` directory at package root
-2. Convert `SPEC_DRIVEN_SCHEMA` to `schemas/spec-driven/schema.yaml`
-3. Convert `TDD_SCHEMA` to `schemas/tdd/schema.yaml`
-4. Update `resolveSchema()` to load from directories
-5. Remove `builtin-schemas.ts`
-6. Update `listSchemas()` to scan directories
+1. 創造 `schemas/` 包根目錄
+2. 轉變 `SPEC_DRIVEN_SCHEMA` 到 `schemas/spec-driven/schema.yaml`
+3. 轉變 `TDD_SCHEMA` 到 `schemas/tdd/schema.yaml`
+4. 更新 `resolveSchema()` 從目錄載入
+5. 消除 `builtin-schemas.ts`
+6. 更新 `listSchemas()` 掃描目錄
 
-## Risks / Trade-offs
+## 風險/權衡
 
-**File I/O at runtime:**
-- Previously schemas were in-memory objects
-- Now requires reading YAML files
-- Mitigation: Schemas are small, loaded once per operation
+**執行時的檔案I/O：**
+- 以前模式是記憶體中的對象
+- 現在需要讀取 YAML 文件
+- 緩解措施：模式很小，每次操作載入一次
 
-**Package distribution:**
-- Must ensure `schemas/` directory is included in npm package
-- Add to `files` in package.json
+**包裝分發：**
+- 必須保證 `schemas/` 目錄包含在 npm 包中
+- 添加 `files` 在 package.json 中
 
-## Open Questions
+## 開放式問題
 
 None.

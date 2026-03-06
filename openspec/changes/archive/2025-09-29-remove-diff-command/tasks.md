@@ -1,37 +1,37 @@
-# Remove Diff Command - Tasks
+# 刪除 Diff 指令 - 任務
 
-## 1. Remove Core Implementation
-- [x] Delete `/src/core/diff.ts`
-- [x] Remove DiffCommand import from `/src/cli/index.ts`
-- [x] Remove diff command registration from CLI
+## 1. 刪除核心實現
+- [x] 刪除 `/src/core/diff.ts`
+- [x] 刪除 DiffCommand 匯入 `/src/cli/index.ts`
+- [x] 從 CLI 中刪除 diff 指令註冊
 
-## 2. Remove Specifications
-- [x] Delete `/openspec/specs/cli-diff/spec.md`
-- [x] Archive the spec for historical reference if needed
+## 2. 刪除規格
+- [x] 刪除 `/openspec/specs/cli-diff/spec.md`
+- [x] 如果需要，將規格存檔以供歷史參考
 
-## 3. Update Dependencies
-- [x] Remove jest-diff from package.json dependencies
-- [x] Run pnpm install to update lock file
+## 3. 更新依賴
+- [x] 從 package.json 依賴項中刪除 jest-diff
+- [x] 執行 pnpm install 更新鎖定文件
 
-## 4. Update Documentation
-- [x] Update main README.md to remove diff command references
-- [x] Update openspec/README.md to remove diff command from command list
-- [x] Update CLAUDE.md template if it mentions diff command
-- [x] Update any example workflows that use diff command
+## 4. 更新文檔
+- [x] 更新 main README.md 以刪除 diff 指令引用
+- [x] 更新 openspec/README.md 以從命令清單中刪除 diff 命令
+- [x] 如果 CLAUDE.md 範本提到 diff 指令，請更新它
+- [x] 更新使用 diff 命令的任何範例工作流程
 
-## 5. Update Related Files
-- [x] Search and update any remaining references to "openspec diff" in:
-  - Template files
-  - Test files (if any exist for diff command)
-  - Archive documentation
-  - Change proposals
+## 5.更新相關文件
+- [x] 在以下位置搜尋並更新對“openspec diff”的任何剩餘引用：
+  - 範本文件
+  - 測試檔案（如果存在 diff 命令）
+  - 存檔文檔
+  - 變更提案
 
-## 7. Testing
-- [x] Ensure all tests pass after removal
-- [x] Verify CLI help text no longer shows diff command
-- [x] Test that show command provides adequate replacement functionality
+## 7. 測試
+- [x] 確保移除後通過所有測試
+- [x] 驗證 CLI 幫助文字不再顯示 diff 命令
+- [x] 測試 show 指令是否提供足夠的替換功能
 
-## 8. Documentation of Alternative Workflows
-- [x] Document how to use `openspec show` for viewing changes
-- [x] Document how to use git diff for file comparisons
-- [x] Add migration guide to help text or documentation
+## 8. 替代工作流程的文檔
+- [x] 記錄如何使用 `openspec show` 用於檢視更改
+- [x] 記錄如何使用 git diff 進行檔案比較
+- [x] 新增遷移指南以協助文字或文檔

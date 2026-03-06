@@ -1,49 +1,49 @@
-## MODIFIED Requirements
+## 修改後的要求
 
-### Requirement: Schema Loading
-The system SHALL load artifact graph definitions from YAML schema files within schema directories.
+### 要求：架構加載
+系統應從模式目錄中的 YAML 模式檔案載入工件圖定義。
 
-#### Scenario: Valid schema loaded
-- **WHEN** a schema directory contains a valid `schema.yaml` file
-- **THEN** the system returns an ArtifactGraph with all artifacts and dependencies
+#### 場景：載入有效架構
+- **何時** 架構目錄包含有效的 `schema.yaml` 文件
+- **然後** 系統傳回包含所有工件和相依性的 ArtifactGraph
 
-#### Scenario: Invalid schema rejected
-- **WHEN** a schema YAML file is missing required fields
-- **THEN** the system throws an error with a descriptive message
+#### 場景：無效架構被拒絕
+- **何時** 架構 YAML 檔案缺少必填字段
+- **然後** 系統拋出錯誤並顯示一條描述性訊息
 
-#### Scenario: Cyclic dependencies detected
-- **WHEN** a schema contains cyclic artifact dependencies
-- **THEN** the system throws an error listing the artifact IDs in the cycle
+#### 場景：偵測到循環依賴
+- **何時**模式包含循環工件依賴項
+- **然後** 系統拋出一個錯誤，列出循環中的工件 ID
 
-#### Scenario: Invalid dependency reference
-- **WHEN** an artifact's `requires` array references a non-existent artifact ID
-- **THEN** the system throws an error identifying the invalid reference
+#### 場景：依賴項引用無效
+- **何時** 工件的 `requires` 數組引用不存在的工件 ID
+- **然後** 系統會拋出錯誤，辨識無效引用
 
-#### Scenario: Duplicate artifact IDs rejected
-- **WHEN** a schema contains multiple artifacts with the same ID
-- **THEN** the system throws an error identifying the duplicate
+#### 場景：重複的工件 ID 被拒絕
+- **何時** 模式包含具有相同 ID 的多個工件
+- **然後** 系統會拋出一個錯誤來識別重複項
 
-#### Scenario: Schema directory not found
-- **WHEN** resolving a schema name that has no corresponding directory
-- **THEN** the system throws an error listing available schemas
+#### 場景：找不到架構目錄
+- **何時** 解析沒有對應目錄的架構名稱
+- **然後** 系統拋出錯誤，列出可用的模式
 
-## ADDED Requirements
+## 新增要求
 
-### Requirement: Schema Directory Structure
-The system SHALL support self-contained schema directories with co-located templates.
+### 需求：架構目錄結構
+系統應支援具有共置模板的自包含模式目錄。
 
-#### Scenario: Schema with templates
-- **WHEN** a schema directory contains `schema.yaml` and `templates/` subdirectory
-- **THEN** artifacts can reference templates relative to the schema's templates directory
+#### 場景：帶有模板的架構
+- **何時** 架構目錄包含 `schema.yaml` 和 `templates/` 子目錄
+- **那麼** 工件可以引用相對於模式模板目錄的模板
 
-#### Scenario: User schema override
-- **WHEN** a schema directory exists at `${XDG_DATA_HOME}/openspec/schemas/<name>/`
-- **THEN** the system uses that directory instead of the built-in
+#### 場景：用戶架構覆蓋
+- **何時** 架構目錄存在於 `${XDG_DATA_HOME}/openspec/schemas/<name>/`
+- **那麼**系統使用該目錄而不是內建目錄
 
-#### Scenario: Built-in schema fallback
-- **WHEN** no user override exists for a schema
-- **THEN** the system uses the package built-in schema directory
+#### 場景：內建模式回退
+- **何時** 架構不存在使用者覆蓋
+- **THEN**系統使用套件內建的schema目錄
 
-#### Scenario: List available schemas
-- **WHEN** listing schemas
-- **THEN** the system returns schema names from both user and package directories
+#### 場景：列出可用模式
+- **何時** 列出架構
+- **然後** 系統從使用者和套件目錄返回模式名稱

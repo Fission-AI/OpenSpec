@@ -1,40 +1,40 @@
-# Fix Update Command Tool Selection
+# 修復更新命令工具選擇
 
-## Problem
+## 問題
 
-The `openspec update` command currently forces the creation/update of CLAUDE.md regardless of which AI tool was selected during initialization. This violates the tool-agnostic design principle and creates confusion for users who selected different AI assistants.
+這 `openspec update` 命令目前強制建立/更新 CLAUDE.md，無論在初始化期間選擇哪個 AI 工具。這違反了與工具無關的設計原則，並且給選擇不同人工智慧助理的用戶帶來了困惑。
 
-Additionally, different team members may use different AI tools, so we cannot rely on a shared configuration file.
+此外，不同的團隊成員可能使用不同的AI工具，因此我們不能依賴共享的設定檔。
 
-## Solution
+## 解決方案
 
-Modify the update command to:
-1. Only update AI tool configuration files that already exist
-2. Never create new AI tool configuration files
-3. Always update the core OpenSpec files (README.md, etc.)
+將更新命令修改為：
+1. 只更新已經存在的AI工具設定檔
+2. 切勿建立新的 AI 工具設定檔
+3. 始終更新核心OpenSpec檔案（README.md等）
 
-## Implementation
+## 執行
 
-- Remove hardcoded CLAUDE.md update from update command
-- Implement file existence check before updating any AI tool config
-- Update each existing AI tool config file with its appropriate markers
-- No configuration file needed (avoids team conflicts)
+- 從更新指令中刪除硬編碼的 CLAUDE.md 更新
+- 在更新任何 AI 工具設定之前實施文件存在檢查
+- 使用適當的標記更新每個現有的 AI 工具設定檔
+- 無需設定檔（避免團隊衝突）
 
-## Success Criteria
+## 成功標準
 
-- Update command only modifies existing AI tool configuration files
-- No new AI tool files created during update
-- Team members can use different AI tools without conflicts
-- Existing projects continue to work (backward compatibility)
+- 更新命令僅修改現有的AI工具設定檔
+- 更新期間沒有建立新的 AI 工具文件
+- 團隊成員可以使用不同的AI工具而不會發生衝突
+- 現有項目繼續工作（向後相容）
 
-## Why
+## 為什麼
 
-Users need predictable, tool-agnostic behavior from `openspec update`. Creating or forcing updates for AI tool files that a project does not use causes confusion and merge conflicts. Restricting updates to existing files and always updating core OpenSpec files keeps the workflow consistent for mixed-tool teams.
+使用者需要可預測的、與工具無關的行為 `openspec update`。建立或強制更新項目不使用的 AI 工具檔案會導致混亂和合併衝突。限制現有文件的更新並始終更新核心 OpenSpec 檔案可以使混合工具團隊的工作流程保持一致。
 
-## What Changes
+## 有什麼變化
 
-- **cli-update:** Modify update behavior to update only existing AI tool configuration files and never create new ones; always update core OpenSpec files and display an ASCII-safe success message.
+- **cli-update：**修改更新行為以僅更新現有的AI工具設定檔，並且從不建立新的；始終更新核心 OpenSpec 文件並顯示 ASCII 安全成功訊息。
 
-## ADDED Requirements
+## 新增要求
 
-Removed from proposal to follow conventions. See `specs/cli-update/spec.md` for the delta requirements content.
+從遵循慣例的提案中刪除。看 `specs/cli-update/spec.md` 對於增量需求內容。

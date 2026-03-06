@@ -1,102 +1,102 @@
-# rules-injection Specification
+# 規則注入規範
 
-## Purpose
-Define how per-artifact rules from project config are injected into generated instructions with deterministic formatting and validation.
+## 目的
+定義如何將專案設定中的每個工件規則注入到具有確定性格式和驗證的生成指令中。
 
-## Requirements
-### Requirement: Inject rules only for matching artifact
+## 要求
+### 需求：僅為符合工件注入規則
 
-The system SHALL inject rules from config into instructions only when the artifact ID matches a key in the rules object.
+僅當工件 ID 與規則物件中的鍵相符時，系統才應將設定中的規則注入到指令中。
 
-#### Scenario: Rules exist for the artifact
-- **WHEN** loading instructions for "proposal" and config has `rules: { proposal: ["Rule 1", "Rule 2"] }`
-- **THEN** instruction output includes rules section with both rules
+#### 場景：工件存在規則
+- **何時**載入「提案」和設定的說明 `rules: { proposal: ["Rule 1", "Rule 2"] }`
+- **THEN** 指令輸出包含包含兩個規則的規則部分
 
-#### Scenario: No rules for the artifact
-- **WHEN** loading instructions for "design" and config has `rules: { proposal: [...] }`
-- **THEN** instruction output does not include `<rules>` tags
+#### 場景：工件沒有規則
+- **何時**載入「設計」和設定的說明 `rules: { proposal: [...] }`
+- **THEN**指令輸出不包括 `<rules>` 標籤
 
-#### Scenario: Rules object is undefined
-- **WHEN** config omits the rules field or rules is undefined
-- **THEN** instruction output does not include `<rules>` tags for any artifact
+#### 場景：規則物件未定義
+- **何時** 設定省略規則欄位或規則未定義
+- **THEN**指令輸出不包括 `<rules>` 任何工件的標籤
 
-#### Scenario: Rules array is empty for artifact
-- **WHEN** config has `rules: { proposal: [] }`
-- **THEN** instruction output does not include `<rules>` tags
+#### 場景：工件的規則數組為空
+- **何時** 設定有 `rules: { proposal: [] }`
+- **THEN**指令輸出不包括 `<rules>` 標籤
 
-### Requirement: Format rules with XML-style tags and bullet list
+### 需求：使用 XML 樣式標籤和項目符號清單格式化規則
 
-The system SHALL wrap rules in `<rules>` tags with each rule as a bulleted list item.
+系統應將規則包裝在 `<rules>` 將每個規則標記為項目符號清單項目。
 
-#### Scenario: Single rule for artifact
-- **WHEN** config has `rules: { proposal: ["Include rollback plan"] }`
-- **THEN** instruction output includes `<rules>\n- Include rollback plan\n</rules>\n\n`
+#### 場景：工件的單一規則
+- **何時** 設定有 `rules: { proposal: ["Include rollback plan"] }`
+- **THEN** 指令輸出包括 `<rules>\n- Include rollback plan\n</rules>\n\n`
 
-#### Scenario: Multiple rules for artifact
-- **WHEN** config has `rules: { proposal: ["Rule 1", "Rule 2", "Rule 3"] }`
-- **THEN** instruction output includes each rule as separate bullet point
+#### 場景：工件的多個規則
+- **何時** 設定有 `rules: { proposal: ["Rule 1", "Rule 2", "Rule 3"] }`
+- **THEN** 指令輸出包括每個規則作為單獨的要點
 
-#### Scenario: Rules appear after context and before template
-- **WHEN** instructions are generated with both context and rules
-- **THEN** order is `<context>` then `<rules>` then `<template>`
+#### 場景：規則出現在上下文之後、範本之前
+- **何時** 使用上下文和規則產生指令
+- **那麼**訂單是 `<context>` 然後 `<rules>` 然後 `<template>`
 
-### Requirement: Preserve rule text exactly as provided
+### 要求：完全按照提供的方式保留規則文本
 
-The system SHALL inject rule text without modification, escaping, or interpretation.
+系統應注入規則文本，無需修改、轉義或解釋。
 
-#### Scenario: Rule contains markdown
-- **WHEN** rule includes markdown like "Use **Given/When/Then** format"
-- **THEN** markdown is preserved in the injected content
+#### 場景：規則包含 markdown
+- **WHEN** 規則包括降價，例如“使用 **Given/When/Then** 格式”
+- **那麼** markdown 會保留在註入的內容中
 
-#### Scenario: Rule contains special characters
-- **WHEN** rule includes characters like `<`, `>`, quotes
-- **THEN** characters are preserved exactly as written
+#### 場景：規則包含特殊字符
+- **WHEN** 規則包括類似字符 `<`, `>`， 引號
+- **THEN** 字元完全按照書寫方式保留
 
-#### Scenario: Rule is multi-line string
-- **WHEN** rule text contains line breaks
-- **THEN** line breaks are preserved within the bullet point
+#### 場景：規則是多行字串
+- **何時** 規則文字包含換行符
+- **那麼** 換行符號保留在項目符號點內
 
-### Requirement: Support multiple artifacts with different rules
+### 需求：支援具有不同規則的多個工件
 
-The system SHALL allow different rule sets for different artifacts in the same config.
+系統應允許同一設定中的不同工件使用不同的規則集。
 
-#### Scenario: Multiple artifacts have rules
-- **WHEN** config has `rules: { proposal: ["P1"], specs: ["S1", "S2"], tasks: ["T1"] }`
-- **THEN** proposal instructions show only ["P1"], specs show only ["S1", "S2"], tasks show only ["T1"]
+#### 場景：多個工件有規則
+- **何時** 設定有 `rules: { proposal: ["P1"], specs: ["S1", "S2"], tasks: ["T1"] }`
+- **那麼**提案說明僅顯示[“P1”]，規格僅顯示[“S1”，“S2”]，任務僅顯示[“T1”]
 
-#### Scenario: Some artifacts have rules, others do not
-- **WHEN** config has rules for proposal and specs only
-- **THEN** design and tasks instructions have no `<rules>` section
+#### 場景：有些工件有規則，有些則沒有
+- **何時** 設定僅具有提案和規格的規則
+- **那麼**設計和任務說明沒有 `<rules>` 部分
 
-### Requirement: Rules are additive to schema guidance
+### 要求：規則是模式指導的補充
 
-The system SHALL add config rules to the schema's built-in artifact instruction, not replace it.
+系統應將設定規則新增至模式的內建工件指令中，而不是取代它。
 
-#### Scenario: Artifact has schema instruction and config rules
-- **WHEN** artifact has built-in instruction from schema and config provides rules
-- **THEN** final instruction contains both schema guidance and config rules
+#### 場景：Artifact 具有模式指令和設定規則
+- **何時** 工件具有來自模式的內建指令，並且設定提供規則
+- **那麼** 最終指令包含架構指導和設定規則
 
-#### Scenario: Rules provide additional constraints
-- **WHEN** schema says "create proposal" and config rules say "include rollback plan"
-- **THEN** agent sees both the schema template and the additional rule
+#### 場景：規則提供額外的約束
+- **何時** 模式顯示“建立提案”並且設定規則顯示“包括回滾計劃”
+- **那麼** 代理程式會看到架構範本和附加規則
 
-### Requirement: Validate artifact IDs during instruction loading
+### 需求：在指令載入期間驗證工件 ID
 
-The system SHALL validate artifact IDs in rules against the schema when instructions are loaded and emit warnings for unknown IDs.
+當載入指令時，系統應根據模式驗證規則中的工件 ID，並對未知 ID 發出警告。
 
-#### Scenario: All artifact IDs are valid
-- **WHEN** instructions loaded and config has `rules: { proposal: [...], specs: [...] }` for schema with those artifacts
-- **THEN** no validation warnings are emitted
+#### 場景：所有工件 ID 均有效
+- **何時** 指令已載入且設定已 `rules: { proposal: [...], specs: [...] }` 對於具有這些工件的架構
+- **那麼** 不會發出任何驗證警告
 
-#### Scenario: Unknown artifact ID in rules
-- **WHEN** instructions loaded and config has `rules: { unknownartifact: [...] }`
-- **THEN** warning emitted: "Unknown artifact ID in rules: 'unknownartifact'. Valid IDs for schema 'spec-driven': design, proposal, specs, tasks"
+#### 場景：規則中未知的工件 ID
+- **何時** 指令已載入且設定已 `rules: { unknownartifact: [...] }`
+- **然後** 發出警告：“規則中的未知工件 ID：‘unknownartifact’。模式‘規範驅動’的有效 ID：設計、提案、規範、任務”
 
-#### Scenario: Multiple unknown artifact IDs
-- **WHEN** instructions loaded and config has multiple unknown artifact IDs
-- **THEN** separate warning emitted for each unknown artifact ID
+#### 場景：多個未知工件 ID
+- **何時** 載入指令且設定具有多個未知工件 ID
+- **那麼** 為每個未知工件 ID 發出單獨的警告
 
-#### Scenario: Validation warnings shown once per session
-- **WHEN** instructions loaded multiple times in same CLI session
-- **THEN** each unique validation warning is shown only once (cached)
+#### 場景：每個會話顯示一次驗證警告
+- **何時** 指令在同一個 CLI 會話中載入多次
+- **那麼** 每個唯一的驗證警告僅顯示一次（快取）
 

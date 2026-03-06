@@ -1,33 +1,33 @@
-## Why
+## 為什麼
 
-The ArtifactGraph (Slice 1) and InstructionLoader (Slice 3) provide programmatic APIs for artifact-based workflow management. Users currently have no CLI interface to:
-- See artifact completion status for a change
-- Discover what artifacts are ready to create
-- Get enriched instructions for creating artifacts
-- Create new changes with proper validation
+ArtifactGraph (Slice 1) 和InstructionLoader (Slice 3) 為基於工件的工作流程管理提供程式設計APIs。用戶目前沒有CLI介面：
+- 檢視變更的工件完成狀態
+- 發現可以建立哪些工件
+- 取得建立工件的豐富說明
+- 透過適當的驗證來建立新的更改
 
-This proposal adds CLI commands that expose the artifact workflow functionality to users and agents.
+此提案新增 CLI 指令，向使用者和代理程式公開工件工作流程功能。
 
-## What Changes
+## 有什麼變化
 
-- **NEW**: `openspec status --change <id>` shows artifact completion state
-- **NEW**: `openspec next --change <id>` shows artifacts ready to create
-- **NEW**: `openspec instructions <artifact> --change <id>` outputs enriched template
-- **NEW**: `openspec templates [--schema <name>]` shows resolved template paths
-- **NEW**: `openspec new change <name>` creates a new change directory
+- **新的**： `openspec status --change <id>` 顯示工件完成狀態
+- **新的**： `openspec next --change <id>` 顯示準備建立的工件
+- **新的**： `openspec instructions <artifact> --change <id>` 輸出豐富模板
+- **新的**： `openspec templates [--schema <name>]` 顯示已解析的範本路徑
+- **新的**： `openspec new change <name>` 建立一個新的更改目錄
 
-All commands are top-level for fluid UX. They integrate with existing core modules:
-- Uses `loadChangeContext()`, `formatChangeStatus()`, `generateInstructions()` from instruction-loader
-- Uses `ArtifactGraph`, `detectCompleted()` from artifact-graph
-- Uses `createChange()`, `validateChangeName()` from change-utils
+所有指令都是流暢使用者體驗的頂級指令。它们与现有核心模块集成：
+- 用途 `loadChangeContext()`, `formatChangeStatus()`, `generateInstructions()` 來自指令載入器
+- 用途 `ArtifactGraph`, `detectCompleted()` 來自工件圖
+- 用途 `createChange()`, `validateChangeName()` 來自變更實用程式
 
-**Experimental isolation**: All commands are implemented in a single file (`src/commands/artifact-workflow.ts`) for easy removal if the feature doesn't work out. Help text marks them as experimental.
+**實驗隔離**：所有命令都在單一檔案中實現（`src/commands/artifact-workflow.ts`）以便在該功能不起作用時輕鬆刪除。幫助文本將它們標記為實驗性的。
 
-## Impact
+## 影響
 
-- Affected specs: NEW `cli-artifact-workflow` capability
-- Affected code:
-  - `src/cli/index.ts` - register new commands
-  - `src/commands/artifact-workflow.ts` - new command implementations
-- No changes to existing commands or specs
-- Builds on completed Slice 1, 2, and 3 implementations
+- 受影響的規格：新 `cli-artifact-workflow` 能力
+- 受影響的代碼：
+  - `src/cli/index.ts` - 註冊新指令
+  - `src/commands/artifact-workflow.ts` - 新的命令實施
+- 現有命令或規範沒有變化
+- 基於已完成的 Slice 1、2 和 3 實作構建

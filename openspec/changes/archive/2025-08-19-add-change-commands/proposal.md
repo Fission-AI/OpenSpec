@@ -1,17 +1,17 @@
-# Change: Add Change Commands with JSON Output
+# 更改：新增具有 JSON 輸出的更改命令
 
-## Why
+## 為什麼
 
-OpenSpec change proposals currently can only be viewed as markdown files, creating the same programmatic access limitations as specs. Additionally, the current `openspec list` command only lists changes, which is inconsistent with the new resource-based command structure.
+OpenSpec 更改提案目前只能作為 Markdown 文件檢視，從而建立與規範相同的程式存取限制。此外，目前的 `openspec list` 命令僅列出更改，這與新的基於資源的命令結構不一致。
 
-## What Changes
+## 有什麼變化
 
-- **cli-change:** Add new command for managing change proposals with show, list, and validate subcommands
-- **cli-list:** Add deprecation notice for legacy list command to guide users to the new change list command
+- **cli-change：** 新增指令，用於使用 show、list 和 validate 子指令管理變更提案
+- **cli-list：** 新增舊清單指令的棄用通知，以引導使用者使用新的變更清單指令
 
-## Impact
+## 影響
 
-- **Affected specs**: cli-list (modify to add deprecation notice)
-- **Affected code**:
-  - src/cli/index.ts (register new command)
-  - src/core/list.ts (add deprecation notice)
+- **受影響的規格**：cli-list（修改以新增棄用通知）
+- **受影響的代碼**：
+  - src/cli/index.ts（註冊新指令）
+  - src/core/list.ts（新增棄用通知）

@@ -1,32 +1,32 @@
-## Prerequisites
+## 先決條件
 
-- [x] 0.1 Implement `add-per-change-schema-metadata` change first
+- [x] 0.1 實施 `add-per-change-schema-metadata` 先改變
 
-## 1. Schema Discovery
+## 1. 模式發現
 
-- [x] 1.1 Add CLI command or helper to list schemas with descriptions (for agent use)
-- [x] 1.2 Ensure `openspec templates --schema <name>` returns artifact list for any schema
+- [x] 1.1 新增 CLI 指令或幫助程式來列出帶有描述的模式（供代理使用）
+- [x] 1.2 確保 `openspec templates --schema <name>` 傳回任何模式的工件列表
 
-## 2. Update New Change Skill
+## 2.更新新變化技能
 
-- [x] 2.1 Add schema selection prompt using AskUserQuestion tool
-- [x] 2.2 Present available schemas with descriptions (spec-driven, tdd, etc.)
-- [x] 2.3 Pass selected schema to `openspec new change --schema <name>`
-- [x] 2.4 Update output to show which schema/workflow was selected
+- [x] 2.1 使用AskUserQuestion工具新增模式選擇提示
+- [x] 2.2 提供可用的模式和描述（規範驅動、tdd 等）
+- [x] 2.3 將選定的模式傳遞給 `openspec new change --schema <name>`
+- [x] 2.4 更新輸出以顯示選擇了哪個架構/工作流程
 
-## 3. Update Continue Change Skill
+## 3.更新繼續變更技能
 
-- [x] 3.1 Remove hardcoded artifact references (proposal, specs, design, tasks)
-- [x] 3.2 Read artifact list dynamically from `openspec status --json`
-- [x] 3.3 Adjust artifact creation guidelines to be schema-agnostic
-- [x] 3.4 Handle schema-specific artifact types (e.g., TDD's `tests` artifact)
+- [x] 3.1 刪除硬編碼工件參考（提案、規格、設計、任務）
+- [x] 3.2 動態讀取工件列表 `openspec status --json`
+- [x] 3.3 將工件建立指南調整為與模式無關
+- [x] 3.4 處理特定於模式的工件類型（例如，TDD `tests` 工件）
 
 ## 4. Update Apply Change Skill
 
-- [x] 4.1 Make task detection work with different schema structures
-- [x] 4.2 Adjust context file reading for schema-specific artifacts
+- [x] 4.1 使任務偵測適用於不同的模式結構
+- [x] 4.2 調整特定於模式的工件的上下文檔案讀取
 
-## 5. Documentation
+## 5. 文件
 
-- [x] 5.1 Add schema descriptions to help text or skill instructions
-- [x] 5.2 Document when to use each schema (TDD for bug fixes, spec-driven for features, etc.)
+- [x] 5.1 新增模式描述以幫助文字或技能說明
+- [x] 5.2 記錄何時使用每個模式（用於錯誤修復的 TDD、用於功能的規格驅動等）

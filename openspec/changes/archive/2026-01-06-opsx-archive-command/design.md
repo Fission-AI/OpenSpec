@@ -1,84 +1,84 @@
-## Context
+## 情境
 
-The experimental workflow (OPSX) provides a complete lifecycle for creating changes:
-- `/opsx:new` - Scaffold a new change with schema
-- `/opsx:continue` - Create next artifact
-- `/opsx:ff` - Fast-forward all artifacts
-- `/opsx:apply` - Implement tasks
-- `/opsx:sync` - Sync delta specs to main
+實驗工作流程 (OPSX) 提供了用於建立變更的完整生命週期：
+- `/opsx:new` - 用架構支撐新的變化
+- `/opsx:continue` - 建立下一個工件
+- `/opsx:ff` - 快轉所有工件
+- `/opsx:apply` - 實施任務
+- `/opsx:sync` - 將增量規格同步到主規格
 
-The missing piece is archiving. The existing `openspec archive` command works but:
-1. Applies specs programmatically (not agent-driven)
-2. Doesn't use the artifact graph for completion checking
-3. Doesn't integrate with the OPSX workflow philosophy
+缺失的部分是歸檔。現有的 `openspec archive` 命令有效，但是：
+1. 以程式方式應用規範（不是代理驅動）
+2. 不使用工件圖進行完成檢查
+3. 不與 OPSX 工作流程概念集成
 
-## Goals / Non-Goals
+## 目標/非目標
 
-**Goals:**
-- Add `/opsx:archive` skill to complete the OPSX workflow lifecycle
-- Use artifact graph for schema-aware completion checking
-- Integrate with `/opsx:sync` for agent-driven spec syncing
-- Preserve `.openspec.yaml` schema metadata in archive
+**目標：**
+- 添加 `/opsx:archive` 完成 OPSX 工作流程生命週期的技能
+- 使用工件圖進行模式感知完成檢查
+- 整合於 `/opsx:sync` 用於代理驅動的規範同步
+- 儲存 `.openspec.yaml` 存檔中的架構元資料
 
-**Non-Goals:**
-- Replacing the existing `openspec archive` CLI command
-- Changing how specs are applied in the CLI command
-- Modifying the artifact graph or schema system
+**非目標：**
+- 替換現有的 `openspec archive` CLI命令
+- 更改 CLI 指令中應用規範的方式
+- 修改工件圖或模式系統
 
-## Decisions
+## 決定
 
-### Decision 1: Skill-only implementation (no new CLI command)
+### 決策 1：僅使用技能實施（沒有新的 CLI 指令）
 
-The `/opsx:archive` will be a slash command/skill only, not a new CLI command.
+這 `/opsx:archive` 僅是斜線指令/技能，而不是新的 CLI 指令。
 
-**Rationale**: The existing `openspec archive` CLI command already handles the core archive functionality (moving to archive folder, date prefixing). The OPSX version just needs different pre-archive checks and optional sync prompting, which are agent behaviors better suited to a skill.
+**理由**：現有 `openspec archive` CLI 指令已經處理核心存檔功能（移動到存檔資料夾、日期前綴）。 OPSX 版本只需要不同的預存檔檢查和可選的同步提示，這些是更適合技能的代理行為。
 
-**Alternatives considered**:
-- Adding flags to `openspec archive` (e.g., `--experimental`) - Rejected: adds complexity to CLI, harder to maintain two code paths
-- New CLI command `openspec archive-experimental` - Rejected: unnecessary duplication, agent skills are the OPSX pattern
+**考慮的替代方案**：
+- 添加標誌到 `openspec archive` （例如。， `--experimental`) - 已拒絕：將複雜度增加到 CLI，更難維護兩條程式碼路徑
+- 新CLI命令 `openspec archive-experimental` - 拒絕：不必要的重複，代理技能是OPSX模式
 
-### Decision 2: Prompt for sync before archive
+### 決策 2：存檔前提示同步
 
-The skill will check for unsynced delta specs and prompt the user before archiving.
+此技能將檢查未同步的增量規格並在存檔之前提示使用者。
 
-**Rationale**: The OPSX philosophy is agent-driven intelligent merging via `/opsx:sync`. Rather than programmatically applying specs like the regular archive command, we prompt the user to sync first if needed. This maintains workflow flexibility (user can decline and just archive).
+**基本原理**：OPSX 理念是代理驅動的智慧合併，透過 `/opsx:sync`。我們不像常規歸檔指令那樣以程式設計方式應用規範，而是提示使用者在需要時先同步。這保持了工作流程的靈活性（使用者可以拒絕並僅存檔）。
 
-**Flow**:
-1. Check if `specs/` directory exists in the change
-2. If yes, ask: "This change has delta specs. Would you like to sync them to main specs before archiving?"
-3. If user says yes, execute `/opsx:sync` logic
-4. Proceed with archive regardless of answer
+**流動**：
+1. 檢查是否 `specs/` 目錄已存在於變更中
+2. 如果是，請詢問：“此更改有增量規格。您想在存檔之前將它們同步到主要規格嗎？”
+3. 如果用戶說是，則執行 `/opsx:sync` 邏輯
+4. 無論答案如何，繼續存檔
 
-### Decision 3: Use artifact graph for completion checking
+### 決策 3：使用工件圖進行完成檢查
 
-The skill will use `openspec status --change "<name>" --json` to check artifact completion instead of just validating proposal.md and specs.
+該技能將使用 `openspec status --change "<name>" --json` 檢查工件完成情況，而不僅僅是驗證proposal.md和規格。
 
-**Rationale**: The experimental workflow is schema-aware. Different schemas have different required artifacts. The artifact graph knows which artifacts are complete/incomplete for the current schema.
+**基本原理**：實驗工作流程是模式感知的。不同的模式有不同的所需工件。工件圖知道目前模式的哪些工件是完整的/不完整的。
 
-**Behavior**:
-- Show warning if any artifacts are not `done`
-- Don't block archive (user may have valid reasons to archive early)
-- List incomplete artifacts so user can make informed decision
+**行為**：
+- 如果有任何工件不存在，則顯示警告 `done`
+- 不要阻止存檔（使用者可能有提前存檔的正當理由）
+- 列出不完整的工件，以便使用者可以做出明智的決定
 
-### Decision 4: Reuse tasks.md completion check from regular archive
+### 決策 4：重複使用常規檔案中的tasks.md 完成檢查
 
-The skill will parse tasks.md and warn about incomplete tasks, same as regular archive.
+該技能將解析tasks.md並警告未完成的任務，與常規存檔相同。
 
-**Rationale**: Task completion checking is valuable regardless of workflow. The logic is simple (count `- [ ]` vs `- [x]`) and doesn't need special OPSX handling.
+**基本原理**：無論工作流程如何，任務完成檢查都很有價值。邏輯很簡單（數數 `- [ ]` 與 `- [x]`）並且不需要特殊的 OPSX 處理。
 
-### Decision 5: Move change to archive/ with date prefix
+### 決策 5：將變更移至存檔/帶有日期前綴
 
-Same archive behavior as regular command: move to `openspec/changes/archive/YYYY-MM-DD-<name>/`.
+與常規指令相同的存檔行為：移至 `openspec/changes/archive/YYYY-MM-DD-<name>/`.
 
-**Rationale**: Consistency with existing archive convention. The `.openspec.yaml` file moves with the change, preserving schema metadata.
+**基本原理**：與現有存檔約定保持一致。這 `.openspec.yaml` 檔案隨著變更而移動，保留架構元資料。
 
-## Risks / Trade-offs
+## 風險/權衡
 
-**Risk**: Users confused about when to use `/opsx:archive` vs `openspec archive`
-→ **Mitigation**: Documentation should clarify: use `/opsx:archive` if you've been using the OPSX workflow, use `openspec archive` otherwise. Both produce the same archived result.
+**風險**：使用者對何時使用感到困惑 `/opsx:archive` 與 `openspec archive`
+→ **緩解**：文件應闡明：使用 `/opsx:archive` 如果您一直在使用 OPSX 工作流程，請使用 `openspec archive` 否則。兩者都會產生相同的存檔結果。
 
-**Risk**: Incomplete sync if user declines and has delta specs
-→ **Mitigation**: The prompt is informational; user has full control. They may want to archive without syncing (e.g., abandoned change). Log a note in output.
+**風險**：如果使用者拒絕並且具有增量規格，則同步不完整
+→ **緩解**：提示是資訊性的；使用者擁有完全控制權。他們可能希望在不同步的情況下進行存檔（例如，放棄的更改）。在輸出中記錄註解。
 
-**Trade-off**: No programmatic spec application in OPSX archive
-→ **Accepted**: This is intentional. OPSX philosophy is agent-driven merging. If user wants programmatic application, use `openspec archive` instead.
+**權衡**：OPSX 存檔中沒有編程規範應用程式
+→ **接受**：這是故意的。 OPSX 的理念是代理驅動的合併。如果用戶想要編程應用程序，請使用 `openspec archive` instead.

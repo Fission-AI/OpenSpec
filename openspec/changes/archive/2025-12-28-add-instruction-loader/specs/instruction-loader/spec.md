@@ -1,70 +1,70 @@
-# instruction-loader Specification
+# 指令載入器規範
 
-## Purpose
-Load templates from schema directories and enrich them with change-specific context for guiding artifact creation.
+## 目的
+從架構目錄載入模板，並使用特定於變更的上下文來豐富它們，以指導工件建立。
 
-## ADDED Requirements
+## 新增要求
 
-### Requirement: Template Loading
-The system SHALL load templates from schema directories.
+### 要求：模板加載
+系統應從模式目錄載入模板。
 
-#### Scenario: Load template from schema directory
-- **WHEN** `loadTemplate(schemaName, templatePath)` is called
-- **THEN** the system loads the template from `schemas/<schemaName>/templates/<templatePath>`
+#### 場景：從架構目錄載入模板
+- **什麼時候** `loadTemplate(schemaName, templatePath)` 被稱為
+- **然後**系統從以下位置載入模板 `schemas/<schemaName>/templates/<templatePath>`
 
-#### Scenario: Template file not found
-- **WHEN** a template file does not exist in the schema's templates directory
-- **THEN** the system throws an error with the template path
+#### 場景：找不到模板文件
+- **何時** 模式的範本目錄中不存在範本文件
+- **然後** 系統會拋出範本路徑錯誤
 
-### Requirement: Change Context Loading
-The system SHALL load change context combining graph and completion state.
+### 要求：更改上下文加載
+系統應載入結合圖和完成狀態的變更上下文。
 
-#### Scenario: Load context for existing change
-- **WHEN** `loadChangeContext(projectRoot, changeName)` is called for an existing change
-- **THEN** the system returns a context with graph, completed set, schema name, and change info
+#### 場景：載入現有變更的上下文
+- **什麼時候** `loadChangeContext(projectRoot, changeName)` 需要對現有的改變
+- **然後** 系統傳回包含圖形、完成集、模式名稱和變更資訊的上下文
 
-#### Scenario: Load context with custom schema
-- **WHEN** `loadChangeContext(projectRoot, changeName, schemaName)` is called
-- **THEN** the system uses the specified schema instead of default
+#### 場景：使用自訂架構載入上下文
+- **什麼時候** `loadChangeContext(projectRoot, changeName, schemaName)` 被稱為
+- **那麼**系統使用指定的架構而不是預設的架構
 
-#### Scenario: Load context for non-existent change directory
-- **WHEN** `loadChangeContext` is called for a non-existent change directory
-- **THEN** the system returns context with empty completed set
+#### 場景：載入不存在的更改目錄的上下文
+- **什麼時候** `loadChangeContext` 因不存在的更改目錄而被調用
+- **然後** 系統傳回有空完成集的上下文
 
-### Requirement: Template Enrichment
-The system SHALL enrich templates with change-specific context.
+### 要求：模板豐富
+系統應使用特定於變更的上下文來豐富範本。
 
-#### Scenario: Include artifact metadata
-- **WHEN** instructions are generated for an artifact
-- **THEN** the output includes change name, artifact ID, schema name, and output path
+#### 場景：包括工件元資料
+- **何時** 為工件產生指令
+- **那麼** 輸出包含更改名稱、工件 ID、架構名稱和輸出路徑
 
-#### Scenario: Include dependency status
-- **WHEN** an artifact has dependencies
-- **THEN** the output shows each dependency with completion status (done/missing)
+#### 場景：包括依賴性狀態
+- **何時** 工件具有依賴項
+- **然後** 輸出顯示每個依賴項的完成狀態（完成/缺少）
 
-#### Scenario: Include unlocked artifacts
-- **WHEN** instructions are generated
-- **THEN** the output includes which artifacts become available after this one
+#### 場景：包含解鎖的文物
+- **何時**產生指令
+- **那麼** 輸出包含在此之後可用的工件
 
-#### Scenario: Root artifact indicator
-- **WHEN** an artifact has no dependencies
-- **THEN** the dependency section indicates this is a root artifact
+#### 場景：根工件指示器
+- **何時** 工件沒有依賴項
+- **那麼** 依賴項部分錶示這是一個根工件
 
-### Requirement: Status Formatting
-The system SHALL format change status as readable output.
+### 要求：狀態格式
+系統應將狀態變更格式為可讀輸出。
 
-#### Scenario: All artifacts completed
-- **WHEN** all artifacts are completed
-- **THEN** status shows all artifacts as "done"
+#### 場景：所有工件均已完成
+- **何時** 所有工件已完成
+- **THEN** 狀態將所有工件顯示為“完成”
 
-#### Scenario: Mixed completion status
-- **WHEN** some artifacts are completed
-- **THEN** status shows completed as "done", ready as "ready", blocked as "blocked"
+#### 場景：混合完成狀態
+- **何時** 一些工件完成
+- **THEN** 狀態顯示已完成為“完成”，準備就緒為“就緒”，已封鎖為“已封鎖”
 
-#### Scenario: Blocked artifact details
-- **WHEN** an artifact is blocked
-- **THEN** status shows which dependencies are missing
+#### 場景：被阻止的工件詳細信息
+- **何時** 工件被阻止
+- **THEN** 狀態顯示缺少哪些依賴項
 
-#### Scenario: Include output paths
-- **WHEN** status is formatted
-- **THEN** each artifact shows its output path pattern
+#### 場景：包含輸出路徑
+- **何時** 狀態已格式化
+- **那麼** 每個工件都會顯示其輸出路徑模式

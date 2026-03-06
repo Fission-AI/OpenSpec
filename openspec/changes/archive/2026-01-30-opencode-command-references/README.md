@@ -1,3 +1,3 @@
 # opencode-command-references
 
-Transform /opsx: to /opsx- in both commands and skills for OpenCode
+將 OpenCode 的指令和技能中的 /opsx: 轉換為 /opsx-

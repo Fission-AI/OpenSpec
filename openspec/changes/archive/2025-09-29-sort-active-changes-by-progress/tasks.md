@@ -1,8 +1,8 @@
-# Implementation Tasks
+# 實施任務
 
-## 1. Dashboard Sorting Logic
-- [x] 1.1 Update the Active Changes rendering to sort by completion percentage ascending.
-- [x] 1.2 Treat missing progress as 0% and break ties alphabetically by change identifier.
+## 1.儀表板排序邏輯
+- [x] 1.1 更新 Active Changes 渲染以完成百分比升序排序。
+- [x] 1.2 將缺少的進度視為 0%，並依變更標識符的字母順序打破平手。
 
-## 2. Verification
-- [x] 2.1 Add tests that cover different completion percentages and tie cases to confirm deterministic ordering.
+## 2. 驗證
+- [x] 2.1 新增涵蓋不同完成百分比和平局案例的測試，以確認確定性排序。

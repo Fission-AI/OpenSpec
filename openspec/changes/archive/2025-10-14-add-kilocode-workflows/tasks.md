@@ -1,15 +1,15 @@
-## 1. CLI wiring
-- [x] 1.1 Add Kilo Code to the selectable AI tools in `openspec init`, including "already configured" detection and success summaries.
-- [x] 1.2 Register a `KiloCodeSlashCommandConfigurator` alongside other slash-command tools.
+## 1.CLI接線
+- [x] 1.1 將 Kilo Code 加入選購的 AI 工具中 `openspec init`，包括“已設定”檢測和成功摘要。
+- [x] 1.2 註冊一個 `KiloCodeSlashCommandConfigurator` 與其他斜杠命令工具一起。
 
-## 2. Workflow generation
-- [x] 2.1 Implement the configurator so it creates `.kilocode/workflows/` (if needed) and writes `openspec-{proposal,apply,archive}.md` with OpenSpec markers.
-- [x] 2.2 Reuse the shared slash-command bodies without front matter; verify resulting files stay Markdown-only with no extra metadata.
+## 2. 工作流程生成
+- [x] 2.1 實作設定器以建立 `.kilocode/workflows/` （如果需要）並寫道 `openspec-{proposal,apply,archive}.md` 帶有 OpenSpec 標記。
+- [x] 2.2 重複使用共享的斜線指令體，無需前置內容；驗證產生的檔案僅保留 Markdown，沒有額外的元資料。
 
-## 3. Update support
-- [x] 3.1 Ensure `openspec update` refreshes existing Kilo Code workflows while skipping ones that are absent.
-- [x] 3.2 Add regression coverage confirming marker content is replaced (not duplicated) during updates.
+## 3.更新支援
+- [x] 3.1 確保 `openspec update` 重新整理現有的 Kilo Code 工作流程，同時跳過不存在的工作流程。
+- [x] 3.2 新增迴歸覆蓋範圍，確認標記內容在更新期間被取代（不重複）。
 
-## 4. Documentation
-- [x] 4.1 Update README / docs to note Kilo Code workflow support and path (`.kilocode/workflows/`).
-- [x] 4.2 Mention the integration in CHANGELOG or release notes if applicable.
+## 4. 文件
+- [x] 4.1 更新 README/docs 以記錄 Kilo Code 工作流程支援和路徑（`.kilocode/workflows/`).
+- [x] 4.2 在變更日誌或發行說明中提及整合（如果適用）。

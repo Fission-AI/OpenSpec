@@ -1,30 +1,30 @@
-# Technical Design
+# 技術設計
 
-## Architecture Decisions
+## 架構決策
 
-### Simplicity First
-- No version tracking - always update when commanded
-- Full replacement for OpenSpec-managed files only (e.g., `openspec/README.md`)
-- Marker-based updates for user-owned files (e.g., `CLAUDE.md`)
-- Templates bundled with package - no network required
-- Minimal error handling - only check prerequisites
+### 簡單第一
+- 無版本追蹤 - 始終根據命令進行更新
+- 僅完全替換 OpenSpec 管理的文件（例如， `openspec/README.md`)
+- 對使用者擁有的檔案進行基於標記的更新（例如， `CLAUDE.md`)
+- 模板 bundled 帶包 - 無需網絡
+- 最少的錯誤處理 - 僅檢查先決條件
 
-### Template Strategy
-- Use existing template utilities
-  - `readmeTemplate` from `src/core/templates/readme-template.ts` for `openspec/README.md`
-  - `TemplateManager.getClaudeTemplate()` for `CLAUDE.md`
-- Directory name is fixed to `openspec` (from `OPENSPEC_DIR_NAME`)
+### 範本策略
+- 使用現有的範本實用程式
+  - `readmeTemplate` 從 `src/core/templates/readme-template.ts` 為了 `openspec/README.md`
+  - `TemplateManager.getClaudeTemplate()` 為了 `CLAUDE.md`
+- 目錄名稱固定為 `openspec` （從 `OPENSPEC_DIR_NAME`)
 
-### File Operations
-- Use async utilities for consistency
-  - `FileSystemUtils.writeFile` for `openspec/README.md`
-  - `FileSystemUtils.updateFileWithMarkers` for `CLAUDE.md`
-- No atomic operations needed - users have git
-- Check directory existence before proceeding
+### 文件操作
+- 使用非同步實用程式來保持一致性
+  - `FileSystemUtils.writeFile` 為了 `openspec/README.md`
+  - `FileSystemUtils.updateFileWithMarkers` 為了 `CLAUDE.md`
+- 不需要原子操作 - 使用者有 git
+- 在繼續之前檢查目錄是否存在
 
-## Implementation
+## 執行
 
-### Update Command (`src/core/update.ts`)
+### 更新指令（`src/core/update.ts`)
 ```typescript
 export class UpdateCommand {
   async execute(projectPath: string): Promise<void> {
@@ -56,31 +56,31 @@ export class UpdateCommand {
 }
 ```
 
-## Why This Approach
+## 為什麼要採用這種方法
 
-### Benefits
-- **Dead simple**: ~40 lines of code total
-- **Fast**: No version checks, minimal parsing
-- **Predictable**: Same result every time; idempotent
-- **Maintainable**: Reuses existing utilities
+### 好處
+- **非常簡單**：總共約 40 行程式碼
+- **快速**：無需版本檢查，最少的解析
+- **可預測**：每次結果相同；冪等的
+- **可維護**：重複使用現有實用程式
 
-### Trade-offs Accepted
-- No version tracking (unnecessary complexity)
-- Full overwrite only for OpenSpec-managed files
-- Marker-managed updates for user-owned files
+### 接受權衡
+- 沒有版本追蹤（不必要的複雜性）
+- 僅完全覆蓋 OpenSpec 管理的文件
+- 使用者擁有的文件的標記管理更新
 
-## Error Handling
+## 錯誤處理
 
-Only handle critical errors:
-- Missing `openspec` directory → throw error handled by CLI to present a friendly message
-- File write failures → let errors bubble up to CLI
+只處理嚴重錯誤：
+- 遺失的 `openspec` 目錄 → 拋出由 CLI 處理的錯誤以呈現友善訊息
+- 文件寫入失敗→讓錯誤冒泡至CLI
 
-## Testing Strategy
+## 測試策略
 
-Manual smoke tests are sufficient initially:
-1. Run `openspec init` in a test project
-2. Modify both files (including custom content around markers in `CLAUDE.md`)
-3. Run `openspec update`
-4. Verify `openspec/README.md` fully replaced; `CLAUDE.md` OpenSpec block updated without altering user content outside markers
-5. Run the command twice to verify idempotency and no duplicate markers
-6. Test with missing `openspec` directory (expect failure)
+最初手動煙霧測試就足夠了：
+1. 執行 `openspec init` 在一個測試項目中
+2. 修改這兩個文件（包括標記周圍的自訂內容 `CLAUDE.md`)
+3. 執行 `openspec update`
+4. 核實 `openspec/README.md` 完全更換； `CLAUDE.md` OpenSpec 區塊已更新，但未更改標記之外的使用者內容
+5. 執行命令兩次以驗證冪等性且沒有重複標記
+6. 測試缺失 `openspec` 目錄（預計失敗）

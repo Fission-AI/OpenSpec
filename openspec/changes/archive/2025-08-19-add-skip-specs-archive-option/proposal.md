@@ -1,13 +1,13 @@
-## Why
-The archive command currently forces users to either accept spec updates or cancel the entire archive operation. Users need flexibility to archive changes without updating specs, either through explicit flags or by declining the confirmation prompt. This is especially important for changes that don't modify specs (like tooling, documentation, or infrastructure updates).
+## 為什麼
+archive 指令目前強制使用者接受規範更新或取消整個存檔操作。使用者需要靈活地歸檔更改而不更新規範，無論是透過顯式標誌還是拒絕確認提示。這對於不修改規範的變更（例如工具、文件或基礎架構更新）尤其重要。
 
-## What Changes
-- Add new `--skip-specs` flag to the archive command that bypasses all spec update operations
-- Fix confirmation behavior: when users decline spec updates interactively, proceed with archiving instead of cancelling the entire operation
-- When `--skip-specs` flag is used, skip both the spec discovery and update confirmation steps entirely
-- Display clear message when specs are skipped (either via flag or user choice)
-- Flag can be combined with existing `--yes` flag for fully automated archiving without spec updates
+## 有什麼變化
+- 新增新的 `--skip-specs` 繞過所有規範更新操作的存檔命令的標誌
+- 修復確認行為：當使用者互動式拒絕規範更新時，繼續歸檔而不是取消整個操作
+- 什麼時候 `--skip-specs` 使用標誌，完全跳過規範發現和更新確認步驟
+- 跳過規格時顯示清晰的訊息（透過標誌或使用者選擇）
+- 標誌可以與現有的組合 `--yes` 無需規格更新即可進行全自動歸檔的標誌
 
-## Impact
-- Affected specs: cli-archive
-- Affected code: src/core/archive.ts, src/cli/index.ts
+## 影響
+- 受影響的規格：cli-archive
+- 受影響的程式碼：src/core/archive.ts、src/cli/index.ts

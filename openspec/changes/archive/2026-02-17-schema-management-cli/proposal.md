@@ -1,55 +1,55 @@
-## Why
+## 為什麼
 
-Creating and managing project-local schemas currently requires manual directory creation, copying files, and hoping the structure is correct. Users only discover structural errors at runtime when commands fail. This friction discourages schema customization and makes it harder to tailor OpenSpec workflows to specific project needs.
+建立和管理專案本機模式目前需要手動建立目錄、複製檔案並希望結構正確。使用者僅在命令失敗時才在執行時發現結構錯誤。這種摩擦阻礙了架構定制，並使根據特定專案需求量身定制 OpenSpec 工作流程變得更加困難。
 
-Key pain points:
-- **Manual scaffolding**: Users must manually create `openspec/schemas/<name>/` with correct structure
-- **No validation feedback**: Schema errors aren't caught until a command tries to use the schema
-- **Starting from scratch is hard**: No easy way to base a custom schema on an existing one
-- **Debugging resolution**: When a schema doesn't resolve as expected, there's no way to see the resolution path
+關鍵痛點：
+- **手動腳手架**：使用者必須手動建立 `openspec/schemas/<name>/` 具有正確的結構
+- **沒有驗證回饋**：在命令嘗試使用架構之前不會捕獲架構錯誤
+- **從頭開始很難**：沒有簡單的方法可以將自訂模式建立在現有模式的基礎上
+- **偵錯解析**：當模式未如預期解析時，無法檢視解析路徑
 
-## What Changes
+## 有什麼變化
 
-Add a new `openspec schema` command group with subcommands for creating, forking, validating, and inspecting schemas.
+新增新的 `openspec schema` 命令組，其中包含用於建立、分叉、驗證和檢查模式的子命令。
 
-### Commands
+### 命令
 
-1. **`openspec schema init <name>`** - Interactive wizard to scaffold a new project schema
-   - Prompts for schema description
-   - Prompts for artifacts to include (with explanations)
-   - Creates valid directory structure with `schema.yaml` and template files
-   - Optionally sets as project default in `openspec/config.yaml`
+1. **`openspec schema init <name>`** - 用於建立新專案模式的互動式精靈
+   - 提示輸入模式描述
+   - 提示要包含的工件（含解釋）
+   - 建立有效的目錄結構 `schema.yaml` 和範本文件
+   - 可以選擇將其設定為項目預設值 `openspec/config.yaml`
 
-2. **`openspec schema fork <source> [name]`** - Copy an existing schema as a starting point
-   - Copies from user override or package built-in
-   - Allows renaming (defaults to `<source>-custom`)
-   - Preserves all templates and configuration
+2. **`openspec schema fork <source> [name]`** - 複製現有架構作為起點
+   - 從使用者覆蓋或內建包複製
+   - 允許重命名（預設為 `<source>-custom`)
+   - 保留所有模板和設定
 
-3. **`openspec schema validate [name]`** - Validate schema structure and templates
-   - Checks `schema.yaml` is valid
-   - Verifies all referenced templates exist
-   - Reports missing or malformed files
-   - Run without name to validate all project schemas
+3. **`openspec schema validate [name]`** - 驗證架構結構和模板
+   - 支票 `schema.yaml` 有效
+   - 驗證所有引用的模板是否存在
+   - 報告遺失或格式錯誤的文件
+   - 不使用名稱執行以驗證所有專案架構
 
-4. **`openspec schema which <name>`** - Show schema resolution path
-   - Displays which location the schema resolves from (project/user/package)
-   - Shows full path to schema directory
-   - Useful for debugging shadowing issues
+4. **`openspec schema which <name>`** - 顯示模式解析路徑
+   - 顯示架構從哪個位置解析（項目/使用者/套件）
+   - 顯示架構目錄的完整路徑
+   - 對於調試陰影問題很有用
 
-## Capabilities
+## 能力
 
-### New Capabilities
-- `schema-init-command`: Interactive wizard for creating new project schemas with guided prompts
-- `schema-fork-command`: Copy existing schemas to project for customization
-- `schema-validate-command`: Validate schema structure and report errors before runtime
-- `schema-which-command`: Debug schema resolution by showing which location is used
+### 新功能
+- `schema-init-command`：互動式嚮導，用於透過引導提示建立新專案模式
+- `schema-fork-command`：將現有架構複製到專案中進行客製化
+- `schema-validate-command`：執行前驗證模式結構並報告錯誤
+- `schema-which-command`：透過顯示使用的位置來調試模式解析
 
-### Modified Capabilities
+### 修改後的功能
 <!-- None - these are additive commands -->
 
-## Impact
+## 影響
 
-- **Code**: New command implementations in `src/commands/` using existing resolver infrastructure
-- **CLI**: New `schema` command group with 4 subcommands
-- **Dependencies**: May use `enquirer` or similar for interactive prompts in `schema init`
-- **Documentation**: Need to update CLI reference and schema customization guide
+- **程式碼**：新命令實現 `src/commands/` 使用現有的解析器基礎設施
+- **CLI**：新 `schema` 具有 4 個子命令的命令組
+- **依賴關係**：可以使用 `enquirer` 或類似的互動式提示 `schema init`
+- **文件**：需要更新 CLI 參考和架構自訂指南

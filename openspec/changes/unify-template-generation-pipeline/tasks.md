@@ -1,41 +1,41 @@
-## 1. Manifest Foundation
+## 1. 清單基金會
 
-- [ ] 1.1 Create canonical workflow manifest registry under `src/core/templates/`
-- [ ] 1.2 Define shared manifest types for workflow IDs, skill metadata, and optional command descriptors
-- [ ] 1.3 Migrate existing workflow registration (`getSkillTemplates`, `getCommandTemplates`, `getCommandContents`) to derive from the manifest
-- [ ] 1.4 Preserve existing external exports/API compatibility for `src/core/templates/skill-templates.ts`
+- [ ] 1.1 建立規範的工作流程清單註冊表 `src/core/templates/`
+- [ ] 1.2 定義工作流程 ID、技能元資料和可選指令描述符的共用清單類型
+- [ ] 1.3 遷移現有工作流程註冊（`getSkillTemplates`, `getCommandTemplates`, `getCommandContents`) 從清單中派生
+- [ ] 1.4 保留現有的外部匯出/API相容性 `src/core/templates/skill-templates.ts`
 
-## 2. Tool Profile Layer
+## 2.刀具輪廓層
 
-- [ ] 2.1 Add `ToolProfile` types and `ToolProfileRegistry`
-- [ ] 2.2 Map all currently supported tools to explicit profile entries
-- [ ] 2.3 Wire profile lookups to command adapter resolution and skills path resolution
-- [ ] 2.4 Replace hardcoded detection arrays (for example `SKILL_NAMES`) with manifest-derived values
+- [ ] 2.1 添加 `ToolProfile` 類型和 `ToolProfileRegistry`
+- [ ] 2.2 將目前支援的所有工具對應到明確設定檔條目
+- [ ] 2.3 連線設定檔查找以指令適配器解析和技能路徑解析
+- [ ] 2.4 替換硬編碼的偵測數組（例如 `SKILL_NAMES`) 具有明顯派生值
 
-## 3. Transform Pipeline
+## 3. 改造管道
 
-- [ ] 3.1 Introduce transform interfaces (`scope`, `phase`, `priority`, `applies`, `transform`)
-- [ ] 3.2 Implement transform runner with deterministic ordering
-- [ ] 3.3 Migrate OpenCode command reference rewrite to transform pipeline
-- [ ] 3.4 Remove ad-hoc transform invocation from `init` and `update`
+- [ ] 3.1 引入變換介面（`scope`, `phase`, `priority`, `applies`, `transform`)
+- [ ] 3.2 實作具有確定性排序的變換執行器
+- [ ] 3.3 將 OpenCode 指令參考重寫遷移到轉換管道
+- [ ] 3.4 刪除臨時轉換調用 `init` 和 `update`
 
-## 4. Artifact Sync Engine
+## 4.神器同步引擎
 
-- [ ] 4.1 Create shared artifact sync engine for generation planning + rendering + writing
-- [ ] 4.2 Integrate engine into `init` flow
-- [ ] 4.3 Integrate engine into `update` flow
-- [ ] 4.4 Integrate engine into legacy-upgrade artifact generation path
+- [ ] 4.1 建立共享工件同步引擎，用於產生規劃+渲染+編寫
+- [ ] 4.2 整合引擎 `init` 流動
+- [ ] 4.3 將引擎整合到 `update` 流動
+- [ ] 4.4 將引擎整合到遺留升級工件產生路徑中
 
-## 5. Validation and Tests
+## 5. 驗證和測試
 
-- [ ] 5.1 Add manifest completeness tests (metadata required fields, command IDs, dir names)
-- [ ] 5.2 Add tool-profile consistency tests (skillsDir support and adapter/profile alignment)
-- [ ] 5.3 Add transform applicability/order tests
-- [ ] 5.4 Expand parity tests for representative workflow/tool matrix
-- [ ] 5.5 Run full test suite and verify generated artifacts remain stable
+- [ ] 5.1 新增清單完整性測試（元資料必填欄位、指令 ID、目錄名稱）
+- [ ] 5.2 新增工具-設定檔一致性測試（skillsDir 支援和適配器/設定檔對齊）
+- [ ] 5.3 新增變換適用性/順序測試
+- [ ] 5.4 擴展代表性工作流程/工具矩陣的奇偶校驗測試
+- [ ] 5.5 執行完整的測試套件並驗證產生的工件保持穩定
 
-## 6. Cleanup and Documentation
+## 6. 清理和記錄
 
-- [ ] 6.1 Remove superseded helper code and duplicate write loops after cutover
-- [ ] 6.2 Update internal developer docs for template generation architecture
-- [ ] 6.3 Document migration guardrails for future workflow/tool additions
+- [ ] 6.1 切換後刪除被取代的幫助程式碼和重複的寫入循環
+- [ ] 6.2 更新範本產生架構的內部開發人員文檔
+- [ ] 6.3 未來工作流程/工具新增的文件遷移護欄

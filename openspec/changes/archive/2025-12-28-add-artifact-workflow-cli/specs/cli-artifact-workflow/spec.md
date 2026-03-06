@@ -1,153 +1,153 @@
-# cli-artifact-workflow Specification
+# cli-artifact-workflow 規範
 
-## Purpose
-CLI commands for artifact workflow operations, exposing the artifact graph and instruction loader functionality to users and agents. Commands are top-level for fluid UX and implemented in isolation for easy removal.
+## 目的
+CLI 用於工件工作流程操作的命令，向使用者和代理程式公開工件圖和指令載入器功能。命令是流暢用戶體驗的頂級命令，並且單獨實施以便於刪除。
 
-## ADDED Requirements
+## 新增要求
 
-### Requirement: Status Command
-The system SHALL display artifact completion status for a change.
+### 要求：狀態命令
+系統應顯示變更的工件完成狀態。
 
-#### Scenario: Show status with all states
-- **WHEN** user runs `openspec status --change <id>`
-- **THEN** the system displays each artifact with status indicator:
-  - `[x]` for completed artifacts
-  - `[ ]` for ready artifacts
-  - `[-]` for blocked artifacts (with missing dependencies listed)
+#### 場景：顯示所有狀態的狀態
+- **何時** 使用者執行 `openspec status --change <id>`
+- **然後** 系統會顯示每個工件以及狀態指示燈：
+  - `[x]` 對於已完成的工件
+  - `[ ]` 對於準備好的工件
+  - `[-]` 對於被阻止的工件（列出了缺少的依賴項）
 
-#### Scenario: Status shows completion summary
-- **WHEN** user runs `openspec status --change <id>`
-- **THEN** output includes completion percentage and count (e.g., "2/4 artifacts complete")
+#### 場景：狀態顯示完成摘要
+- **何時** 使用者執行 `openspec status --change <id>`
+- **那麼** 輸出包含完成百分比和計數（例如，「2/4 工件完成」）
 
-#### Scenario: Status JSON output
-- **WHEN** user runs `openspec status --change <id> --json`
-- **THEN** the system outputs JSON with changeName, schemaName, isComplete, and artifacts array
+#### 場景：狀態JSON輸出
+- **何時** 使用者執行 `openspec status --change <id> --json`
+- **那麼** 系統輸出 JSON，其中包含changeName、schemaName、isComplete 和artifacts 陣列
 
-#### Scenario: Missing change parameter
-- **WHEN** user runs `openspec status` without `--change`
-- **THEN** the system displays an error with list of available changes
+#### 場景：缺少更改參數
+- **何時** 使用者執行 `openspec status` 沒有 `--change`
+- **然後** 系統顯示錯誤以及可用更改列表
 
-#### Scenario: Unknown change
-- **WHEN** user runs `openspec status --change unknown-id`
-- **THEN** the system displays an error indicating the change does not exist
+#### 場景：未知變化
+- **何時** 使用者執行 `openspec status --change unknown-id`
+- **然後** 系統顯示錯誤，指示更改不存在
 
-### Requirement: Next Command
-The system SHALL show which artifacts are ready to be created.
+### 要求：下一個命令
+系統應顯示哪些工件已準備好建立。
 
-#### Scenario: Show ready artifacts
-- **WHEN** user runs `openspec next --change <id>`
-- **THEN** the system lists artifacts whose dependencies are all satisfied
+#### 場景：顯示準備好的工件
+- **何時** 使用者執行 `openspec next --change <id>`
+- **然後** 系統列出依賴項全部滿足的工件
 
-#### Scenario: No artifacts ready
-- **WHEN** all artifacts are either completed or blocked
-- **THEN** the system indicates no artifacts are ready (with explanation)
+#### 場景：沒有準備好工件
+- **何時** 所有工件都完成或被阻止
+- **然後** 系統指示沒有準備好任何工件（帶解釋）
 
-#### Scenario: All artifacts complete
-- **WHEN** all artifacts in the change are completed
-- **THEN** the system indicates the change is complete
+#### 場景：所有工件均已完成
+- **何時** 變更中的所有工件均已完成
+- **THEN**系統提示變更完成
 
-#### Scenario: Next JSON output
-- **WHEN** user runs `openspec next --change <id> --json`
-- **THEN** the system outputs JSON array of ready artifact IDs
+#### 場景：下一個 JSON 輸出
+- **何時** 使用者執行 `openspec next --change <id> --json`
+- **然後** 系統輸出 JSON 就緒工件 ID 數組
 
-### Requirement: Instructions Command
-The system SHALL output enriched instructions for creating an artifact.
+### 要求：指令命令
+系統應輸出用於建立工件的豐富指令。
 
-#### Scenario: Show enriched instructions
-- **WHEN** user runs `openspec instructions <artifact> --change <id>`
-- **THEN** the system outputs:
-  - Artifact metadata (ID, output path, description)
-  - Template content
-  - Dependency status (done/missing)
-  - Unlocked artifacts (what becomes available after completion)
+#### 場景：顯示豐富的指令
+- **何時** 使用者執行 `openspec instructions <artifact> --change <id>`
+- **那麼**系統輸出：
+  - 工件元資料（ID、輸出路徑、描述）
+  - 模板內容
+  - 依賴狀態（完成/缺失）
+  - 解鎖的工件（完成後可用的東西）
 
-#### Scenario: Instructions JSON output
-- **WHEN** user runs `openspec instructions <artifact> --change <id> --json`
-- **THEN** the system outputs JSON matching ArtifactInstructions interface
+#### 場景：指令JSON輸出
+- **何時** 使用者執行 `openspec instructions <artifact> --change <id> --json`
+- **那麼**系統輸出JSON符合ArtifactInstructions接口
 
-#### Scenario: Unknown artifact
-- **WHEN** user runs `openspec instructions unknown-artifact --change <id>`
-- **THEN** the system displays an error listing valid artifact IDs for the schema
+#### 場景：未知神器
+- **何時** 使用者執行 `openspec instructions unknown-artifact --change <id>`
+- **然後** 系統顯示一錯誤，列出模式的有效工件 ID
 
-#### Scenario: Artifact with unmet dependencies
-- **WHEN** user requests instructions for a blocked artifact
-- **THEN** the system displays instructions with a warning about missing dependencies
+#### 場景：具有未滿足的依賴關係的工件
+- **何時** 使用者請求有關被封鎖工件的說明
+- **然後** 系統顯示說明，並警告缺少依賴項
 
-### Requirement: Templates Command
-The system SHALL show resolved template paths for all artifacts in a schema.
+### 要求：模板命令
+系統應顯示模式中所有工件的已解析範本路徑。
 
-#### Scenario: List template paths with default schema
-- **WHEN** user runs `openspec templates`
-- **THEN** the system displays each artifact with its resolved template path using the default schema
+#### 場景：列出具有預設架構的模板路徑
+- **何時** 使用者執行 `openspec templates`
+- **然後** 系統使用預設架構顯示每個工件及其解析的模板路徑
 
-#### Scenario: List template paths with custom schema
-- **WHEN** user runs `openspec templates --schema tdd`
-- **THEN** the system displays template paths for the specified schema
+#### 場景：列出具有自訂架構的範本路徑
+- **何時** 使用者執行 `openspec templates --schema tdd`
+- **然後** 系統顯示指定模式的範本路徑
 
-#### Scenario: Templates JSON output
-- **WHEN** user runs `openspec templates --json`
-- **THEN** the system outputs JSON mapping artifact IDs to template paths
+#### 場景：模板JSON輸出
+- **何時** 使用者執行 `openspec templates --json`
+- **然後** 系統輸出 JSON 將工件 ID 對應到範本路徑
 
-#### Scenario: Template resolution source
+#### 場景：模板解析來源
 - **WHEN** displaying template paths
-- **THEN** the system indicates whether each template is from user override or package built-in
+- **那麼** 系統指示每個模板是來自使用者覆蓋還是包內置
 
-### Requirement: New Change Command
-The system SHALL create new change directories with validation.
+### 要求：新的更改命令
+系統應建立新的更改目錄並進行驗證。
 
-#### Scenario: Create valid change
-- **WHEN** user runs `openspec new change add-feature`
-- **THEN** the system creates `openspec/changes/add-feature/` directory
+#### 場景：建立有效的變更
+- **何時** 使用者執行 `openspec new change add-feature`
+- **然後**系統建立 `openspec/changes/add-feature/` 目錄
 
-#### Scenario: Invalid change name
-- **WHEN** user runs `openspec new change "Add Feature"` with invalid name
-- **THEN** the system displays validation error with guidance
+#### 場景：更改名稱無效
+- **何時** 使用者執行 `openspec new change "Add Feature"` 名稱無效
+- **然後** 系統顯示驗證錯誤並提供指導
 
-#### Scenario: Duplicate change name
-- **WHEN** user runs `openspec new change existing-change` for an existing change
-- **THEN** the system displays an error indicating the change already exists
+#### 場景：重複更改名稱
+- **何時** 使用者執行 `openspec new change existing-change` 對於現有的更改
+- **然後** 系統顯示錯誤，表示更改已存在
 
-#### Scenario: Create with description
-- **WHEN** user runs `openspec new change add-feature --description "Add new feature"`
-- **THEN** the system creates the change directory with description in README.md
+#### 場景：根據描述建立
+- **何時** 使用者執行 `openspec new change add-feature --description "Add new feature"`
+- **然後** 系統建立更改目錄，其描述在 README.md 中
 
-### Requirement: Schema Selection
-The system SHALL support custom schema selection for workflow commands.
+### 要求：架構選擇
+系統應支援工作流程指令的自訂模式選擇。
 
-#### Scenario: Default schema
-- **WHEN** user runs workflow commands without `--schema`
-- **THEN** the system uses the "spec-driven" schema
+#### 場景：預設模式
+- **何時** 使用者執行工作流程指令，無需 `--schema`
+- **那麼**系統使用「規範驅動」模式
 
-#### Scenario: Custom schema
-- **WHEN** user runs `openspec status --change <id> --schema tdd`
-- **THEN** the system uses the specified schema for artifact graph
+#### 場景：自訂架構
+- **何時** 使用者執行 `openspec status --change <id> --schema tdd`
+- **那麼**系統使用工件圖的指定模式
 
-#### Scenario: Unknown schema
-- **WHEN** user specifies an unknown schema
-- **THEN** the system displays an error listing available schemas
+#### 場景：未知架構
+- **何時** 使用者指定未知架構
+- **然後** 系統顯示錯誤，列出可用的模式
 
-### Requirement: Output Formatting
-The system SHALL provide consistent output formatting.
+### 要求：輸出格式
+系統應提供一致的輸出格式。
 
-#### Scenario: Color output
-- **WHEN** terminal supports colors
-- **THEN** status indicators use colors: green (done), yellow (ready), red (blocked)
+#### 場景：彩色輸出
+- **何時** 終端支援顏色
+- **那麼** 狀態指示燈使用顏色：綠色（完成）、黃色（就緒）、紅色（阻止）
 
-#### Scenario: No color output
-- **WHEN** `--no-color` flag is used or NO_COLOR environment variable is set
-- **THEN** output uses text-only indicators without ANSI colors
+#### 場景：無顏色輸出
+- **什麼時候** `--no-color` 使用標誌或設定 NO_COLOR 環境變量
+- **THEN** 輸出使用不含 ANSI 顏色的純文字指示器
 
-#### Scenario: Progress indication
-- **WHEN** loading change state takes time
-- **THEN** the system displays a spinner during loading
+#### 場景：進度指示
+- **何時** 載入更改狀態需要時間
+- **然後** 系統在加載期間顯示旋轉圖標
 
-### Requirement: Experimental Isolation
-The system SHALL implement artifact workflow commands in isolation for easy removal.
+### 要求：實驗隔離
+系統應單獨執行工件工作流程指令，以便於刪除。
 
-#### Scenario: Single file implementation
-- **WHEN** artifact workflow feature is implemented
-- **THEN** all commands are in `src/commands/artifact-workflow.ts`
+#### 場景：單一文件實現
+- **何時** 實施工件工作流程功能
+- **那麼** 所有指令都在 `src/commands/artifact-workflow.ts`
 
-#### Scenario: Help text marking
-- **WHEN** user runs `--help` on any artifact workflow command
-- **THEN** help text indicates the command is experimental
+#### 場景：幫助文字標記
+- **何時** 使用者執行 `--help` 在任何工件工作流程指令上
+- **THEN** 幫助文字指示該指令是實驗性的

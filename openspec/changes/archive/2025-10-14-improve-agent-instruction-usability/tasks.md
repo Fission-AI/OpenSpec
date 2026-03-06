@@ -1,11 +1,11 @@
-## 1. Instruction redesign
-- [x] 1.1 Draft a quick-reference section that surfaces file templates and formatting rules at the top of `openspec/AGENTS.md`.
-- [x] 1.2 Reorganize the workflow narrative with inline examples and progressive disclosure for advanced topics.
+## 1. 指令重新設計
+- [x] 1.1 起草一個快速參考部分，在頂部顯示文件範本和格式規則 `openspec/AGENTS.md`.
+- [x] 1.2 透過內嵌範例和高階主題的漸進式揭露來重新組織工作流程敘述。
 
-## 2. Templates and checklists
-- [x] 2.1 Add copy/paste templates for proposal, tasks, design, and spec delta files.
-- [x] 2.2 Insert a pre-validation checklist capturing common lint failures before running `openspec validate`.
+## 2. 範本和清單
+- [x] 2.1 新增提案、任務、設計和規格增量文件的複製/貼上範本。
+- [x] 2.2 在執行前插入捕獲常見 lint 故障的預驗證檢查表 `openspec validate`.
 
-## 3. Documentation updates
-- [x] 3.1 Update supporting docs or README pointers so contributors find the redesigned instructions.
-- [x] 3.2 Confirm examples and references stay in sync with the new scaffold command guidance.
+## 3. 文件更新
+- [x] 3.1 更新支援文件或 README 指針，以便貢獻者找到重新設計的說明。
+- [x] 3.2 確認範例和參考與新的鷹架指令指南保持同步。

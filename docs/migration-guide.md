@@ -1,101 +1,101 @@
-# Migrating to OPSX
+# 遷移到 OPSX
 
-This guide helps you transition from the legacy OpenSpec workflow to OPSX. The migration is designed to be smooth—your existing work is preserved, and the new system offers more flexibility.
+本指南可協助您從舊版 OpenSpec 工作流程過渡到 OPSX。遷移旨在順利進行—您現有的工作將被保留，而新系統提供了更大的靈活性。
 
-## What's Changing?
+## 發生了什麼變化？
 
-OPSX replaces the old phase-locked workflow with a fluid, action-based approach. Here's the key shift:
+OPSX 以一種流暢的、基於操作的方法取代了舊的鎖相工作流程。這是關鍵的轉變：
 
-| Aspect | Legacy | OPSX |
+| 方面 | 遺產 | OPSX |
 |--------|--------|------|
-| **Commands** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` | Default: `/opsx:propose`, `/opsx:apply`, `/opsx:archive` (expanded workflow commands optional) |
-| **Workflow** | Create all artifacts at once | Create incrementally or all at once—your choice |
-| **Going back** | Awkward phase gates | Natural—update any artifact anytime |
-| **Customization** | Fixed structure | Schema-driven, fully hackable |
-| **Configuration** | `CLAUDE.md` with markers + `project.md` | Clean config in `openspec/config.yaml` |
+| **命令** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` | 預設: `/opsx:propose`, `/opsx:apply`, `/opsx:archive` （擴充工作流程指令可選） |
+| **Workflow** | 一次建立所有工件 | 增量建立或一次性建立—您的選擇 |
+| **回去** | 尷尬的相位門 | 自然－隨時更新任何工件 |
+| **客製化** | 固定結構 | 模式驅動，完全可破解 |
+| **設定** | `CLAUDE.md` 帶標記 + `project.md` | 清理設定 `openspec/config.yaml` |
 
-**The philosophy change:** Work isn't linear. OPSX stops pretending it is.
+**理念的改變：**工作不是線性的。 OPSX 不再假裝如此。
 
 ---
 
-## Before You Begin
+## 開始之前
 
-### Your Existing Work Is Safe
+### 您現有的工作是安全的
 
-The migration process is designed with preservation in mind:
+遷移過程的設計考慮到了保護：
 
-- **Active changes in `openspec/changes/`** — Completely preserved. You can continue them with OPSX commands.
-- **Archived changes** — Untouched. Your history remains intact.
-- **Main specs in `openspec/specs/`** — Untouched. These are your source of truth.
-- **Your content in CLAUDE.md, AGENTS.md, etc.** — Preserved. Only the OpenSpec marker blocks are removed; everything you wrote stays.
+- **積極的變化 `openspec/changes/`** — 完整保存。您可以使用 OPSX 命令繼續它們。
+- **已存檔的變更** — 未受影響。你的歷史仍然完好無損。
+- **主要規格 `openspec/specs/`** — 未受影響。這些就是你的真相來源。
+- **您在 CLAUDE.md、AGENTS.md 等中的內容** — 保留。僅刪除 OpenSpec 標記區塊；您寫的所有內容都會保留。
 
-### What Gets Removed
+### 什麼被刪除
 
-Only OpenSpec-managed files that are being replaced:
+僅 OpenSpec 託管文件被替換：
 
-| What | Why |
+| 什麼 | 為什麼 |
 |------|-----|
-| Legacy slash command directories/files | Replaced by the new skills system |
-| `openspec/AGENTS.md` | Obsolete workflow trigger |
-| OpenSpec markers in `CLAUDE.md`, `AGENTS.md`, etc. | No longer needed |
+| 舊版斜槓指令目錄/文件 | 被新的技能係統取代 |
+| `openspec/AGENTS.md` | 過時的工作流程觸發器 |
+| OpenSpec 標記在 `CLAUDE.md`, `AGENTS.md`， ETC。 | 不再需要 |
 
-**Legacy command locations by tool** (examples—your tool may vary):
+**按工具劃分的舊命令位置**（範例 - 您的工具可能會有所不同）：
 
-- Claude Code: `.claude/commands/openspec/`
-- Cursor: `.cursor/commands/openspec-*.md`
-- Windsurf: `.windsurf/workflows/openspec-*.md`
-- Cline: `.clinerules/workflows/openspec-*.md`
-- Roo: `.roo/commands/openspec-*.md`
-- GitHub Copilot: `.github/prompts/openspec-*.prompt.md` (IDE extensions only; not supported in Copilot CLI)
-- And others (Augment, Continue, Amazon Q, etc.)
+- Claude 代碼： `.claude/commands/openspec/`
+- 游標: `.cursor/commands/openspec-*.md`
+- 風帆衝浪： `.windsurf/workflows/openspec-*.md`
+- 克萊恩： `.clinerules/workflows/openspec-*.md`
+- 袋鼠： `.roo/commands/openspec-*.md`
+- GitHub 副駕駛： `.github/prompts/openspec-*.prompt.md` （僅限 IDE 擴充；Copilot CLI 不支援）
+- 以及其他（Augment、Continue、Amazon Q 等）
 
-The migration detects whichever tools you have configured and cleans up their legacy files.
+遷移會偵測您設定的任何工具並清理其舊檔案。
 
-The removal list may seem long, but these are all files that OpenSpec originally created. Your own content is never deleted.
+刪除清單可能看起來很長，但這些都是 OpenSpec 最初建立的檔案。您自己的內容永遠不會被刪除。
 
-### What Needs Your Attention
+### 需要注意什麼
 
-One file requires manual migration:
+一個檔案需要手動遷移：
 
-**`openspec/project.md`** — This file isn't deleted automatically because it may contain project context you've written. You'll need to:
+**`openspec/project.md`** — 該檔案不會自動刪除，因為它可能包含您所寫的項目上下文。您需要：
 
-1. Review its contents
-2. Move useful context to `openspec/config.yaml` (see guidance below)
-3. Delete the file when ready
+1. 檢視其內容
+2. 將有用的上下文移至 `openspec/config.yaml` （請參閱下面的指南）
+3. 準備好後刪除文件
 
-**Why we made this change:**
+**我們為何進行此更改：**
 
-The old `project.md` was passive—agents might read it, might not, might forget what they read. We found reliability was inconsistent.
+舊的 `project.md` 是被動的——代理人可能會讀它，可能不會，也可能會忘記他們讀過的內容。我們發現可靠性不一致。
 
-The new `config.yaml` context is **actively injected into every OpenSpec planning request**. This means your project conventions, tech stack, and rules are always present when the AI is creating artifacts. Higher reliability.
+新的 `config.yaml` 上下文**主動注入到每個 OpenSpec 規劃請求中**。這意味著當人工智慧建立工件時，您的專案約定、技術堆疊和規則始終存在。更高的可靠性。
 
-**The tradeoff:**
+**權衡：**
 
-Because context is injected into every request, you'll want to be concise. Focus on what really matters:
-- Tech stack and key conventions
-- Non-obvious constraints the AI needs to know
-- Rules that frequently got ignored before
+由於上下文會注入到每個請求中，因此您需要簡潔。專注於真正重要的事情：
+- 技術堆疊和關鍵約定
+- 人工智慧需要瞭解的非明顯約束
+- 以前常被忽略的規則
 
-Don't worry about getting it perfect. We're still learning what works best here, and we'll be improving how context injection works as we experiment.
+不用擔心是否完美。我們仍在學習什麼在這裡最有效，並且我們將在實驗時改進上下文注入的工作方式。
 
 ---
 
-## Running the Migration
+## 執行遷移
 
-Both `openspec init` and `openspec update` detect legacy files and guide you through the same cleanup process. Use whichever fits your situation:
+兩個都 `openspec init` 和 `openspec update` 偵測遺留文件並引導您完成相同的清理過程。使用適合您情況的選項：
 
-- New installs default to profile `core` (`propose`, `explore`, `apply`, `archive`).
-- Migrated installs preserve your previously installed workflows by writing a `custom` profile when needed.
+- 新安裝預設設定檔 `core` (`propose`, `explore`, `apply`, `archive`).
+- 遷移的安裝透過編寫一個檔案來保留您先前安裝的工作流程 `custom` 需要時設定檔。
 
-### Using `openspec init`
+### 使用 `openspec init`
 
-Run this if you want to add new tools or reconfigure which tools are set up:
+如果您想要新增工具或重新設定已設定的工具，請執行此命令：
 
 ```bash
 openspec init
 ```
 
-The init command detects legacy files and guides you through cleanup:
+init 指令偵測舊檔案並引導您完成清理：
 
 ```
 Upgrading to the new OpenSpec
@@ -128,41 +128,41 @@ Needs your attention
 ? Upgrade and clean up legacy files? (Y/n)
 ```
 
-**What happens when you say yes:**
+**當你說「是」時會發生什麼：**
 
-1. Legacy slash command directories are removed
-2. OpenSpec markers are stripped from `CLAUDE.md`, `AGENTS.md`, etc. (your content stays)
-3. `openspec/AGENTS.md` is deleted
-4. New skills are installed in `.claude/skills/`
-5. `openspec/config.yaml` is created with a default schema
+1. 舊的斜槓指令目錄被刪除
+2. OpenSpec 標記被剝離 `CLAUDE.md`, `AGENTS.md`等等（您的內容保留）
+3. `openspec/AGENTS.md` 被刪除
+4. 新技能安裝在 `.claude/skills/`
+5. `openspec/config.yaml` 使用預設模式建立
 
-### Using `openspec update`
+### 使用 `openspec update`
 
-Run this if you just want to migrate and refresh your existing tools to the latest version:
+如果您只想將現有工具遷移並重新整理到最新版本，請執行此命令：
 
 ```bash
 openspec update
 ```
 
-The update command also detects and cleans up legacy artifacts, then refreshes generated skills/commands to match your current profile and delivery settings.
+更新命令也會偵測並清理遺留工件，然後重新整理產生的技能/命令以符合您目前的設定檔和交付設定。
 
-### Non-Interactive / CI Environments
+### 非互動式/CI 環境
 
-For scripted migrations:
+對於腳本化遷移：
 
 ```bash
 openspec init --force --tools claude
 ```
 
-The `--force` flag skips prompts and auto-accepts cleanup.
+這 `--force` flag 跳過提示並自動接受清理。
 
 ---
 
-## Migrating project.md to config.yaml
+## 將project.md遷移到config.yaml
 
-The old `openspec/project.md` was a freeform markdown file for project context. The new `openspec/config.yaml` is structured and—critically—**injected into every planning request** so your conventions are always present when the AI works.
+舊的 `openspec/project.md` 是專案上下文的自由格式 Markdown 檔案。新的 `openspec/config.yaml` 是結構化的，至關重要的是，**注入到每個規劃請求中**，因此當人工智慧工作時，您的約定始終存在。
 
-### Before (project.md)
+### 之前（項目.md）
 
 ```markdown
 # Project Context
@@ -178,7 +178,7 @@ Our API is RESTful and documented in docs/api.md.
 - Use Given/When/Then format for specifications
 ```
 
-### After (config.yaml)
+### 之後（config.yaml）
 
 ```yaml
 schema: spec-driven
@@ -199,50 +199,50 @@ rules:
     - Include sequence diagrams for complex flows
 ```
 
-### Key Differences
+### 主要差異
 
 | project.md | config.yaml |
 |------------|-------------|
-| Freeform markdown | Structured YAML |
-| One blob of text | Separate context and per-artifact rules |
-| Unclear when it's used | Context appears in ALL artifacts; rules appear in matching artifacts only |
-| No schema selection | Explicit `schema:` field sets default workflow |
+| 自由格式降價 | 結構化YAML |
+| 一團文本 | 單獨的上下文和每個工件規則 |
+| 不清楚什麼時候使用 | 上下文出現在所有工件中；規則僅出現在符合工件中 |
+| 沒有模式選擇 | 顯式的 `schema:` 欄位設定預設工作流程 |
 
-### What to Keep, What to Drop
+### 保留什麼，放棄什麼
 
-When migrating, be selective. Ask yourself: "Does the AI need this for *every* planning request?"
+遷移時，要有選擇性。問問自己：“人工智慧是否需要這個來滿足*每個*規劃請求？”
 
-**Good candidates for `context:`**
-- Tech stack (languages, frameworks, databases)
-- Key architectural patterns (monorepo, microservices, etc.)
-- Non-obvious constraints ("we can't use library X because...")
-- Critical conventions that often get ignored
+**良好的候選人 `context:`**
+- 技術堆疊（語言、框架、資料庫）
+- 關鍵架構模式（monorepo、微服務等）
+- 非明顯的限制（「我們不能使用庫 X 因為......」）
+- 經常被忽略的關鍵約定
 
-**Move to `rules:` instead**
-- Artifact-specific formatting ("use Given/When/Then in specs")
-- Review criteria ("proposals must include rollback plans")
-- These only appear for the matching artifact, keeping other requests lighter
+**移至 `rules:` 反而**
+- 特定於工件的格式（“在規格中使用給定/何時/然後”）
+- 審查標準（「提案必須包括回溯計畫」）
+- 這些僅針對匹配的工件出現，使其他請求更輕鬆
 
-**Leave out entirely**
-- General best practices the AI already knows
-- Verbose explanations that could be summarized
-- Historical context that doesn't affect current work
+**完全省略**
+- 人工智慧已經知道的一般最佳實踐
+- 可以總結的詳細解釋
+- 不影響目前工作的歷史背景
 
-### Migration Steps
+### 遷移步驟
 
-1. **Create config.yaml** (if not already created by init):
+1. **建立 config.yaml** （如果 init 尚未建立）：
    ```yaml
    schema: spec-driven
    ```
 
-2. **Add your context** (be concise—this goes into every request):
+2. **新增您的上下文**（簡潔扼要 - 這適用於每個請求）：
    ```yaml
    context: |
      Your project background goes here.
      Focus on what the AI genuinely needs to know.
    ```
 
-3. **Add per-artifact rules** (optional):
+3. **新增每個工件的規則**（可選）：
    ```yaml
    rules:
      proposal:
@@ -251,13 +251,13 @@ When migrating, be selective. Ask yourself: "Does the AI need this for *every* p
        - Your spec-writing rules
    ```
 
-4. **Delete project.md** once you've moved everything useful.
+4. **一旦你移動了所有有用的東西，就刪除project.md**。
 
-**Don't overthink it.** Start with the essentials and iterate. If you notice the AI missing something important, add it. If context feels bloated, trim it. This is a living document.
+**不要想太多。 ** 從要點開始並迭代。如果您發現人工智慧遺漏了一些重要的內容，請添加它。如果上下文感覺臃腫，請修剪它。這是一份動態文件。
 
-### Need Help? Use This Prompt
+### 需要幫助嗎？使用此提示
 
-If you're unsure how to distill your project.md, ask your AI assistant:
+如果您不確定如何提取您的project.md，請詢問您的 AI 助理：
 
 ```
 I'm migrating from OpenSpec's old project.md to the new config.yaml format.
@@ -272,68 +272,68 @@ Please help me create a config.yaml with:
 Leave out anything generic that AI models already know. Be ruthless about brevity.
 ```
 
-The AI will help you identify what's essential vs. what can be trimmed.
+人工智慧將幫助您確定哪些是必要的，哪些是可以修剪的。
 
 ---
 
-## The New Commands
+## 新指令
 
-Command availability is profile-dependent:
+命令可用性取決於設定檔：
 
-**Default (`core` profile):**
+**預設 (`core` 輪廓）：**
 
-| Command | Purpose |
+| 命令 | 目的 |
 |---------|---------|
-| `/opsx:propose` | Create a change and generate planning artifacts in one step |
-| `/opsx:explore` | Think through ideas with no structure |
-| `/opsx:apply` | Implement tasks from tasks.md |
-| `/opsx:archive` | Finalize and archive the change |
+| `/opsx:propose` | 一步建立變更並產生規劃工件 |
+| `/opsx:explore` | 思考沒有結構的想法 |
+| `/opsx:apply` | 從tasks.md實現任務 |
+| `/opsx:archive` | 完成並存檔變更 |
 
-**Expanded workflow (custom selection):**
+**擴充工作流程（自訂選擇）：**
 
-| Command | Purpose |
+| 命令 | 目的 |
 |---------|---------|
-| `/opsx:new` | Start a new change scaffold |
-| `/opsx:continue` | Create the next artifact (one at a time) |
-| `/opsx:ff` | Fast-forward—create planning artifacts at once |
-| `/opsx:verify` | Validate implementation matches specs |
-| `/opsx:sync` | Preview/spec-merge without archiving |
-| `/opsx:bulk-archive` | Archive multiple changes at once |
-| `/opsx:onboard` | Guided end-to-end onboarding workflow |
+| `/opsx:new` | 開始新的變革鷹架 |
+| `/opsx:continue` | 建立下一個工件（一次一個） |
+| `/opsx:ff` | 快轉－立即建立規劃工件 |
+| `/opsx:verify` | 驗證實施是否符合規範 |
+| `/opsx:sync` | 預覽/規格合併，無需存檔 |
+| `/opsx:bulk-archive` | 一次存檔多個更改 |
+| `/opsx:onboard` | 引導式端到端入職工作流程 |
 
-Enable expanded commands with `openspec config profile`, then run `openspec update`.
+啟用擴充命令 `openspec config profile`，然後執行 `openspec update`.
 
-### Command Mapping from Legacy
+### 傳統命令映射
 
-| Legacy | OPSX Equivalent |
+| 遺產 | OPSX 等效 |
 |--------|-----------------|
-| `/openspec:proposal` | `/opsx:propose` (default) or `/opsx:new` then `/opsx:ff` (expanded) |
+| `/openspec:proposal` | `/opsx:propose` （預設）或 `/opsx:new` 然後 `/opsx:ff` （擴展） |
 | `/openspec:apply` | `/opsx:apply` |
 | `/openspec:archive` | `/opsx:archive` |
 
-### New Capabilities
+### 新功能
 
-These capabilities are part of the expanded workflow command set.
+這些功能是擴充工作流程指令集的一部分。
 
-**Granular artifact creation:**
+**精細的工件建立：**
 ```
 /opsx:continue
 ```
-Creates one artifact at a time based on dependencies. Use this when you want to review each step.
+根據依賴關係一次建立一個工件。當您想要檢視每個步驟時使用此選項。
 
-**Exploration mode:**
+**探索模式：**
 ```
 /opsx:explore
 ```
-Think through ideas with a partner before committing to a change.
+在做出改變之前，與夥伴一起思考想法。
 
 ---
 
-## Understanding the New Architecture
+## 瞭解新架構
 
-### From Phase-Locked to Fluid
+### 從鎖相到流體
 
-The legacy workflow forced linear progression:
+遺留工作流程強制線性進展：
 
 ```
 ┌──────────────┐      ┌──────────────┐      ┌──────────────┐
@@ -345,7 +345,7 @@ If you're in implementation and realize the design is wrong?
 Too bad. Phase gates don't let you go back easily.
 ```
 
-OPSX uses actions, not phases:
+OPSX 使用操作，而不是階段：
 
 ```
          ┌───────────────────────────────────────────────┐
@@ -358,9 +358,9 @@ OPSX uses actions, not phases:
          └───────────────────────────────────────────────┘
 ```
 
-### Dependency Graph
+### 依賴圖
 
-Artifacts form a directed graph. Dependencies are enablers, not gates:
+工件形成有向圖。依賴是推動者，不是大門：
 
 ```
                         proposal
@@ -381,11 +381,11 @@ Artifacts form a directed graph. Dependencies are enablers, not gates:
                      specs, design)
 ```
 
-When you run `/opsx:continue`, it checks what's ready and offers the next artifact. You can also create multiple ready artifacts in any order.
+當你執行時 `/opsx:continue`，它檢查已準備好的內容並提供下一個工件。您也可以以任意順序建立多個現成的工件。
 
-### Skills vs Commands
+### 技能與命令
 
-The legacy system used tool-specific command files:
+舊系統使用特定於工具的命令檔案：
 
 ```
 .claude/commands/openspec/
@@ -394,7 +394,7 @@ The legacy system used tool-specific command files:
 └── archive.md
 ```
 
-OPSX uses the emerging **skills** standard:
+OPSX 使用新興的**技能**標準：
 
 ```
 .claude/skills/
@@ -405,31 +405,31 @@ OPSX uses the emerging **skills** standard:
 └── ...
 ```
 
-Skills are recognized across multiple AI coding tools and provide richer metadata.
+技能可以透過多種人工智慧編碼工具得到認可，並提供更豐富的元資料。
 
 ---
 
-## Continuing Existing Changes
+## 延續現有的變化
 
-Your in-progress changes work seamlessly with OPSX commands.
+您正在進行的變更可與 OPSX 指令無縫協作。
 
-**Have an active change from the legacy workflow?**
+**對舊工作流程有正面的改變嗎？ **
 
 ```
 /opsx:apply add-my-feature
 ```
 
-OPSX reads the existing artifacts and continues from where you left off.
+OPSX 讀取現有工件並從您上次停下的地方繼續。
 
-**Want to add more artifacts to an existing change?**
+**想要為現有變更添加更多工件嗎？ **
 
 ```
 /opsx:continue add-my-feature
 ```
 
-Shows what's ready to create based on what already exists.
+顯示根據已存在的內容準備建立的內容。
 
-**Need to see status?**
+**需要檢視狀態嗎？ **
 
 ```bash
 openspec status --change add-my-feature
@@ -437,9 +437,9 @@ openspec status --change add-my-feature
 
 ---
 
-## The New Config System
+## 新的設定系統
 
-### config.yaml Structure
+### config.yaml 結構
 
 ```yaml
 # Required: Default schema for new changes
@@ -464,90 +464,90 @@ rules:
     - Break into 2-hour maximum chunks
 ```
 
-### Schema Resolution
+### 模式解析
 
-When determining which schema to use, OPSX checks in order:
+在決定要使用哪個架構時，OPSX 會依序檢查：
 
-1. **CLI flag**: `--schema <name>` (highest priority)
-2. **Change metadata**: `.openspec.yaml` in the change directory
-3. **Project config**: `openspec/config.yaml`
-4. **Default**: `spec-driven`
+1. **CLI 標誌**： `--schema <name>` （最高優先權）
+2. **更改元資料**： `.openspec.yaml` 在更改目錄中
+3. **專案設定**： `openspec/config.yaml`
+4. **預設**: `spec-driven`
 
-### Available Schemas
+### 可用模式
 
-| Schema | Artifacts | Best For |
+| 模式 | 文物 | 最適合 |
 |--------|-----------|----------|
-| `spec-driven` | proposal → specs → design → tasks | Most projects |
+| `spec-driven` | 提案→規格→設計→任務 | 大多數項目 |
 
-List all available schemas:
+列出所有可用的模式：
 
 ```bash
 openspec schemas
 ```
 
-### Custom Schemas
+### 自訂模式
 
-Create your own workflow:
+建立您自己的工作流程：
 
 ```bash
 openspec schema init my-workflow
 ```
 
-Or fork an existing one:
+或分叉一個現有的：
 
 ```bash
 openspec schema fork spec-driven my-workflow
 ```
 
-See [Customization](customization.md) for details.
+看 [客製化](customization.md) 瞭解詳情。
 
 ---
 
-## Troubleshooting
+## 故障排除
 
-### "Legacy files detected in non-interactive mode"
+### “在非交互模式下偵測到舊文件”
 
-You're running in a CI or non-interactive environment. Use:
+您正在 CI 或非互動式環境中執行。使用：
 
 ```bash
 openspec init --force
 ```
 
-### Commands not appearing after migration
+### 遷移後指令不出現
 
-Restart your IDE. Skills are detected at startup.
+重新啟動您的 IDE。技能在啟動時被偵測到。
 
-### "Unknown artifact ID in rules"
+### “規則中未知的工件 ID”
 
-Check that your `rules:` keys match your schema's artifact IDs:
+檢查您的 `rules:` 鍵與您的架構的工件 ID 相符：
 
-- **spec-driven**: `proposal`, `specs`, `design`, `tasks`
+- **規範驅動**： `proposal`, `specs`, `design`, `tasks`
 
-Run this to see valid artifact IDs:
+執行此命令以檢視有效的工件 ID：
 
 ```bash
 openspec schemas --json
 ```
 
-### Config not being applied
+### 設定未套用
 
-1. Ensure the file is at `openspec/config.yaml` (not `.yml`)
-2. Validate YAML syntax
-3. Config changes take effect immediately—no restart needed
+1. 確保文件位於 `openspec/config.yaml` （不是 `.yml`)
+2. 驗證 YAML 語法
+3. 設定變更立即生效－無需重啟
 
-### project.md not migrated
+### 項目.md 未遷移
 
-The system intentionally preserves `project.md` because it may contain your custom content. Review it manually, move useful parts to `config.yaml`, then delete it.
+系統有意保留 `project.md` 因為它可能包含您的自訂內容。手動審核，將有用的部分移至 `config.yaml`，然後將其刪除。
 
-### Want to see what would be cleaned up?
+### 想看看會清理什麼嗎？
 
-Run init and decline the cleanup prompt—you'll see the full detection summary without any changes being made.
+執行 init 並拒絕清理提示 — 您將看到完整的偵測摘要，而無需進行任何變更。
 
 ---
 
-## Quick Reference
+## 快速參考
 
-### Files After Migration
+### 遷移後的文件
 
 ```
 project/
@@ -566,14 +566,14 @@ project/
 └── AGENTS.md                     # OpenSpec markers removed, your content preserved
 ```
 
-### What's Gone
+### 消失了什麼
 
-- `.claude/commands/openspec/` — replaced by `.claude/skills/`
-- `openspec/AGENTS.md` — obsolete
-- `openspec/project.md` — migrate to `config.yaml`, then delete
-- OpenSpec marker blocks in `CLAUDE.md`, `AGENTS.md`, etc.
+- `.claude/commands/openspec/` — 替換為 `.claude/skills/`
+- `openspec/AGENTS.md` - 過時的
+- `openspec/project.md` — 遷移到 `config.yaml`，然後刪除
+- OpenSpec 標記塊 `CLAUDE.md`, `AGENTS.md`， ETC。
 
-### Command Cheatsheet
+### 指令備忘單
 
 ```text
 /opsx:propose      Start quickly (default core profile)
@@ -588,8 +588,8 @@ project/
 
 ---
 
-## Getting Help
+## 尋求協助
 
-- **Discord**: [discord.gg/YctCnvvshC](https://discord.gg/YctCnvvshC)
-- **GitHub Issues**: [github.com/Fission-AI/OpenSpec/issues](https://github.com/Fission-AI/OpenSpec/issues)
-- **Documentation**: [docs/opsx.md](opsx.md) for the full OPSX reference
+- **Discord**： [discord.gg/YctCnvvshC](https://discord.gg/YctCnvvshC)
+- **GitHub 問題**： [github.com/Fission-AI/OpenSpec/issues](https://github.com/Fission-AI/OpenSpec/issues)
+- **文件**: [docs/opsx.md](opsx.md) 完整的 OPSX 參考

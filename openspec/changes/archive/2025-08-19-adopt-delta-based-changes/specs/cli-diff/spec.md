@@ -1,45 +1,45 @@
-# CLI Diff Command - Changes
+# CLI Diff 指令 - 更改
 
-## REMOVED Requirements
+## 刪除的要求
 
-### Requirement: Display Format
+### 要求：顯示格式
 
-The diff command SHALL display unified diff output in text format.
+diff 指令應以文字格式顯示統一的 diff 輸出。
 
-**Reason for removal**: The standard unified diff format is replaced by requirement-level side-by-side comparison that better shows semantic changes rather than line-by-line text differences.
+**刪除原因**：標準統一 diff 格式被需求層級的並排比較所取代，這樣可以更好地顯示語義變化，而不是逐行文字差異。
 
-#### Scenario: Unified diff output (deprecated)
+#### 場景：統一 diff 輸出（已棄用）
 
-- **WHEN** running `openspec diff <change>`
-- **THEN** show a unified text diff of files
-- **AND** include `+`/`-` prefixed lines representing additions and removals
+- **何時**執行 `openspec diff <change>`
+- **然後** 顯示文件的統一文字差異
+- **和**包括 `+`/`-` 代表新增和刪除的前綴行
 
-## MODIFIED Requirements
+## 修改後的要求
 
-### Requirement: Diff Output
+### 要求：差分輸出
 
-The command SHALL show a requirement-level comparison displaying only changed requirements.
+此指令應顯示需求等級的比較，僅顯示變更的需求。
 
-#### Scenario: Side-by-side comparison of changes
+#### 場景：並排比較變化
 
-- **WHEN** running `openspec diff <change>`
-- **THEN** display only requirements that have changed
-- **AND** show them in a side-by-side format that:
-  - Clearly shows the current version on the left
-  - Shows the future version on the right
-  - Indicates new requirements (not in current)
-  - Indicates removed requirements (not in future)
-  - Aligns modified requirements for easy comparison
+- **何時**執行 `openspec diff <change>`
+- **THEN** 僅顯示已變更的要求
+- **並且** 以並排格式顯示它們：
+  - 左側清晰顯示目前版本
+  - 右側顯示未來版本
+  - 表示新的要求（不是當前的）
+  - 表示刪除的要求（將來不會）
+  - 調整修改後的要求以便於比較
 
-## ADDED Requirements
+## 新增要求
 
-### Requirement: Validation
+### 要求：驗證
 
-The command SHALL validate that changes can be applied successfully.
+該命令應驗證更改是否可以成功應用。
 
-#### Scenario: Invalid delta references
+#### 場景：無效的增量引用
 
-- **WHEN** delta references non-existent requirement
-- **THEN** show error message with specific requirement
-- **AND** continue showing other valid changes
-- **AND** clearly mark failed changes in the output
+- **何時** 增量引用不存在的要求
+- **然後** 顯示具有特定要求的錯誤訊息
+- **並**繼續顯示其他有效更改
+- **AND** 在輸出中明確標記失敗的更改

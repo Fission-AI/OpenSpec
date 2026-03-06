@@ -1,12 +1,12 @@
-## MODIFIED Requirements
+## 修改後的要求
 
-### Requirement: Command Execution
+### 要求：命令執行
 
-The current `list` command behavior SHALL be preserved but marked as deprecated.
+目前的 `list` 命令行為應保留但標記為已棄用。
 
-#### Scenario: Deprecation notice
+#### 場景：棄用通知
 
-- **WHEN** using the legacy `list` command
-- **THEN** continue to work as before
-- **AND** display deprecation notice
-- **AND** suggest using `openspec change list` instead
+- **何時**使用舊版 `list` 命令
+- **然後** 繼續像以前一樣工作
+- **和** 顯示棄用通知
+- **並且**建議使用 `openspec change list` 反而

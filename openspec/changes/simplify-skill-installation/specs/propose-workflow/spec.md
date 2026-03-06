@@ -1,42 +1,42 @@
-## Purpose
+## 目的
 
-The propose workflow SHALL combine change creation and artifact generation into a single command, reducing friction for new users while teaching them the OpenSpec workflow through embedded guidance.
+建議的工作流程應將變更建立和工件產生結合到單一命令中，減少新使用者的摩擦，同時透過嵌入式指導向他們傳授 OpenSpec 工作流程。
 
-## ADDED Requirements
+## 新增要求
 
-### Requirement: Propose workflow creation
-The system SHALL provide a `propose` workflow that creates a change and generates all artifacts in one step.
+### 要求：提出工作流程建立建議
+系統應提供 `propose` 一步建立變更並產生所有工件的工作流程。
 
-#### Scenario: Basic propose invocation
-- **WHEN** user invokes `/opsx:propose "add user authentication"`
-- **THEN** the system SHALL create a change directory with kebab-case name
-- **THEN** the system SHALL create `.openspec.yaml` in the change directory (via `openspec new change`)
-- **THEN** the system SHALL generate all artifacts needed for implementation: proposal.md, design.md, specs/, tasks.md
+#### 場景：基本提議調用
+- **何時** 用戶調用 `/opsx:propose "add user authentication"`
+- **然後** 系統應建立具有 kebab-case 名稱的變更目錄
+- **那麼**系統將會建立 `.openspec.yaml` 在更改目錄中（透過 `openspec new change`)
+- **然後** 系統應產生實作所需的所有工件：proposal.md、design.md、specs/、tasks.md
 
-#### Scenario: Propose with existing change name
-- **WHEN** user invokes `/opsx:propose` with a name that already exists
-- **THEN** the system SHALL ask if user wants to continue existing change or create new
-- **THEN** if "continue": the system SHALL resume artifact generation from last completed state
-- **THEN** if "create new": the system SHALL prompt for a new name
-- **THEN** in non-interactive mode: the system SHALL fail with error suggesting to use a different name
+#### 場景：使用現有更改名稱提出建議
+- **何時** 用戶調用 `/opsx:propose` 具有已存在的名稱
+- **那麼**系統應詢問使用者是否想要繼續現有變更或建立新的更改
+- **那麼** 如果「繼續」：系統應從上次完成的狀態恢復工件生成
+- **那麼** 如果「建立新的」：系統應提示輸入新名稱
+- **那麼**在非互動模式下：系統將失敗並出現錯誤，建議使用不同的名稱
 
-### Requirement: Propose workflow onboarding UX
-The `propose` workflow SHALL include explanatory output to help new users understand the process.
+### 要求：提出入職使用者體驗工作流程
+這 `propose` 工作流程應包括解釋性輸出，以幫助新使用者理解流程。
 
-#### Scenario: First-time user guidance
-- **WHEN** user invokes `/opsx:propose`
-- **THEN** the system SHALL explain what artifacts will be created (proposal.md, design.md, specs/, tasks.md)
-- **THEN** the system SHALL indicate next step (`/opsx:apply` to implement)
+#### 場景：首次使用者指導
+- **何時** 用戶調用 `/opsx:propose`
+- **然後** 系統應解釋將建立哪些工件（proposal.md、design.md、specs/、tasks.md）
+- **那麼**系統應指示下一步（`/opsx:apply` 實施）
 
-#### Scenario: Artifact creation progress
-- **WHEN** the system creates each artifact
-- **THEN** the system SHALL show progress (e.g., "✓ Created proposal.md")
+#### 場景：神器建立進度
+- **何時**系統建立每個工件
+- **然後** 系統應顯示進度（例如，「✓ 建立提案.md」）
 
-### Requirement: Propose workflow combines new and ff
-The `propose` workflow SHALL perform the same operations as running `new` followed by `ff`.
+### 要求：提出結合new和ff的工作流程
+這 `propose` 工作流程應執行與運作相同的操作 `new` 其次是 `ff`.
 
-#### Scenario: Equivalent to new + ff
-- **WHEN** user invokes `/opsx:propose "feature name"`
-- **THEN** the result SHALL be functionally equivalent to invoking `/opsx:new "feature-name"` followed by `/opsx:ff feature-name`
-- **THEN** the same directory structure and artifacts SHALL be created
-- **THEN** console output MAY differ (propose includes onboarding explanations)
+#### 場景：相當於new+ff
+- **何時** 用戶調用 `/opsx:propose "feature name"`
+- **那麼** 結果在功能上應等同於調用 `/opsx:new "feature-name"` 其次是 `/opsx:ff feature-name`
+- **然後** 應建立相同的目錄結構和工件
+- **那麼** 控制台輸出可能會有所不同（建議包括入門說明）

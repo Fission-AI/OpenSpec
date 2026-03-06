@@ -1,19 +1,19 @@
-# Technical Design
+# 技術設計
 
-## Technology Choices
+## 技術選擇
 
-### TypeScript Configuration
-- **Strict mode**: Enable all strict type checking for better AI understanding
-- **Target**: ES2022 for modern JavaScript features
-- **Module**: ES2022 for modern ESM support
-- **Module Resolution**: Node for proper package resolution
-- **Output**: dist/ directory for compiled JavaScript
-- **Source Maps**: Enable for debugging TypeScript directly
-- **Declaration Files**: Generate .d.ts files for type definitions
-- **ES Module Interop**: true for better CommonJS compatibility
-- **Skip Lib Check**: false to ensure all types are validated
+### TypeScript 設定
+- **嚴格模式**：啟用所有嚴格類型檢查以更好地理解 AI
+- **目標**：ES2022 現代 JavaScript 功能
+- **模組**：ES2022 現代 ESM 支援
+- **模組解析**：正確套件解析的節點
+- **輸出**：已編譯的 JavaScript 的 dist/ 目錄
+- **來源映射**：啟用直接偵錯TypeScript
+- **聲明文件**：為類型定義產生 .d.ts 文件
+- **ES Module Interop**：true 以獲得更好的 CommonJS 相容性
+- **跳過庫檢查**： false 以確保所有類型都經過驗證
 
-### Package Structure
+### 封裝結構
 ```
 openspec
 ├── bin/            # CLI entry point
@@ -27,38 +27,38 @@ openspec
 └── build.js        # Build script
 ```
 
-### Dependency Strategy
-- **Minimal dependencies**: Only essential packages
-- **commander**: Industry-standard CLI framework
-- **@inquirer/prompts**: Modern prompting library
-- **No heavy frameworks**: Direct, readable implementation
+### 依賴策略
+- **最小依賴**：僅必要的套件
+- **指揮官**：業界標準CLI 框架
+- **@inquirer/prompts**：現代提示庫
+- **沒有繁重的框架**：直接、可讀的實現
 
-### Build Approach
-- Native TypeScript compilation via tsc
-- Simple build.js script for packaging
-- No complex build toolchain needed
-- ESM output with proper .js extensions in imports
+### 建構方法
+- 透過 tsc 進行本機 TypeScript 編譯
+- 簡單的 build.js 腳本用於打包
+- 不需要複雜的建置工具鏈
+- ESM 輸出在導入中具有正確的 .js 副檔名
 
-### Development Workflow
-1. `pnpm install` - Install dependencies
-2. `pnpm run build` - Compile TypeScript
-3. `pnpm run dev` - Development mode
-4. `pnpm link` - Test CLI locally
+### 開發流程
+1. `pnpm install` - 安裝依賴項
+2. `pnpm run build` - 編譯TypeScript
+3. `pnpm run dev` - 開發模式
+4. `pnpm link` - 本地測試CLI
 
-### Node.js Requirements
-- **Minimum version**: Node.js 20.19.0
-- **Recommended**: Node.js 22 LTS
-- **Rationale**: Full ESM support without flags, modern JavaScript features
+### Node.js 要求
+- **最低版本**：Node.js 20.19.0
+- **推薦**：Node.js 22 LTS
+- **基本原理**：完全支援 ESM，無需標誌，現代 JavaScript 功能
 
-### ESM Configuration
-- **Package type**: `"type": "module"` in package.json
-- **File extensions**: Use .js extensions in TypeScript imports (compiles correctly)
-- **Top-level await**: Available for cleaner async initialization
-- **Future-proof**: Aligns with JavaScript standards
+### ESM 設定
+- **封裝類型**： `"type": "module"` 在 package.json 中
+- **檔案副檔名**：在 TypeScript 導入中使用 .js 副檔名（正確編譯）
+- **頂級等待**：可用於更乾淨的非同步初始化
+- **面向未來**：符合 JavaScript 標準
 
-### TypeScript Best Practices
-- **All code in TypeScript**: No .js files in src/, only .ts
-- **Explicit types**: Prefer explicit typing over inference where it adds clarity
-- **Interfaces over types**: Use interfaces for object shapes, types for unions/aliases
-- **No any**: Strict mode prevents implicit any, use unknown when needed
-- **Async/await**: Modern async patterns throughout
+### TypeScript 最佳實踐
+- **TypeScript 中的所有程式碼**：src/ 中沒有 .js 文件，只有 .ts
+- **顯式類型**：與推理相比，偏好顯式類型，這樣可以增加清晰度
+- **介面優於類型**：將介面用於物件形狀，將類型用於聯合/別名
+- **No any**：嚴格模式防止隱式any，需要時使用unknown
+- **非同步/等待**：現代非同步模式貫穿始終

@@ -1,72 +1,72 @@
-## 1. Core Config System
+## 1. 核心設定系統
 
-- [x] 1.1 Create `src/core/project-config.ts` with ProjectConfigSchema using Zod (for docs and type inference)
-- [x] 1.2 Implement `readProjectConfig()` with resilient field-by-field parsing using Zod's `safeParse()`
-- [x] 1.3 Add support for both .yaml and .yml extensions (prefer .yaml)
-- [x] 1.4 Add 50KB hard limit for context field with size check and warning
-- [x] 1.5 Implement `validateConfigRules()` to validate artifact IDs against schema (called during instruction loading)
-- [x] 1.6 Implement `suggestSchemas()` with Levenshtein distance fuzzy matching for helpful error messages
-- [x] 1.7 Add unit tests for resilient parsing (partial configs, field-level errors with Zod safeParse)
-- [x] 1.8 Add unit tests for context size limit enforcement
-- [x] 1.9 Add unit tests for .yml/.yaml precedence
-- [x] 1.10 Add unit tests for fuzzy schema matching with typos
+- [x] 1.1 建立 `src/core/project-config.ts` 使用 Zod 與 ProjectConfigSchema（用於文件和類型推斷）
+- [x] 1.2 實施 `readProjectConfig()` 使用 Zod 進行彈性逐字段解析 `safeParse()`
+- [x] 1.3 新增 .yaml 和 .yml 副檔名的支援（首選 .yaml）
+- [x] 1.4 為上下文欄位新增 50KB 硬限制，並附有大小檢查和警告
+- [x] 1.5 實施 `validateConfigRules()` 根據架構驗證工件 ID（在指令載入期間呼叫）
+- [x] 1.6 實施 `suggestSchemas()` 使用 Levenshtein 距離模糊匹配來獲取有用的錯誤訊息
+- [x] 1.7 新增彈性解析的單元測試（部分設定、Zod safeParse 的欄位層級錯誤）
+- [x] 1.8 新增單元測試以執行上下文大小限制
+- [x] 1.9 新增 .yml/.yaml 優先權的單元測試
+- [x] 1.10 新增用於與拼字錯誤相符的模糊模式的單元測試
 
-## 2. Schema Resolution Integration
+## 2. 模式解析集成
 
-- [x] 2.1 Update `resolveSchemaForChange()` in `src/utils/change-metadata.ts` to check project config (3rd in precedence)
-- [x] 2.2 Update `createNewChange()` in `src/utils/change-utils.ts` to use config schema as default
-- [x] 2.3 Add integration tests for schema resolution precedence (CLI → change metadata → config → default)
-- [x] 2.4 Add test for project-local schema names in config
-- [x] 2.5 Add test for non-existent schema error handling with suggestions
+- [x] 2.1 更新 `resolveSchemaForChange()` 在 `src/utils/change-metadata.ts` 檢查項目設定（優先第三次）
+- [x] 2.2 更新 `createNewChange()` 在 `src/utils/change-utils.ts` 使用設定模式作為預設值
+- [x] 2.3 新增架構解析優先權的整合測試（CLI→更改元資料→設定→預設）
+- [x] 2.4 在設定中新增項目本地模式名稱的測試
+- [x] 2.5 新增對不存在模式錯誤處理的測試和建議
 
-## 3. Context and Rules Injection
+## 3. 上下文和規則注入
 
-- [x] 3.1 Update `loadInstructions()` in `src/core/artifact-graph/instruction-loader.ts` to inject context for all artifacts
-- [x] 3.2 Add rules injection logic for matching artifacts only with XML tags and bullet formatting
-- [x] 3.3 Add validation call during instruction loading to check artifact IDs in rules
-- [x] 3.4 Implement session-level warning cache to avoid repeating same validation warnings
-- [x] 3.5 Implement proper ordering: `<context>` → `<rules>` → `<template>`
-- [x] 3.6 Preserve multi-line strings and special characters without escaping
-- [x] 3.7 Add unit tests for context injection (present, absent, multi-line, special chars)
-- [x] 3.8 Add unit tests for rules injection (matching artifact, non-matching, empty array, multiple artifacts)
-- [x] 3.9 Add unit tests for validation timing (warnings during instruction load, not config load)
-- [x] 3.10 Add unit tests for warning deduplication (same warning shown once per session)
-- [x] 3.11 Add integration test verifying full instruction output with context + rules + template
+- [x] 3.1 更新 `loadInstructions()` 在 `src/core/artifact-graph/instruction-loader.ts` 為所有工件注入上下文
+- [x] 3.2 新增規則注入邏輯，僅使用 XML 標籤和項目符號格式來符合工件
+- [x] 3.3 在指令載入期間新增驗證呼叫以檢查規則中的工件 ID
+- [x] 3.4 實作會話層級警告快取以避免重複相同的驗證警告
+- [x] 3.5 實施正確的排序： `<context>` → `<rules>` → `<template>`
+- [x] 3.6 保留多行字串和特殊字元而不轉義
+- [x] 3.7 新增上下文注入的單元測試（存在、不存在、多行、特殊字元）
+- [x] 3.8 新增規則注入的單元測試（符合工件、不符、空數組、多個工件）
+- [x] 3.9 新增驗證計時的單元測試（指令載入期間的警告，而不是設定載入期間的警告）
+- [x] 3.10 新增警告重複資料刪除的單元測試（每個會話顯示一次相同的警告）
+- [x] 3.11 新增整合測試，使用上下文+規則+範本驗證完整指令輸出
 
-## 4. Interactive Config Creation
+## 4. 互動式設定建立
 
-- [x] 4.1 Add @inquirer/prompts dependency to package.json
-- [x] 4.2 Create `src/core/config-prompts.ts` with ConfigPromptResult interface
-- [x] 4.3 Implement `promptForConfig()` function with schema selection prompt
-- [x] 4.4 Add multi-line context input prompt with examples and skip option
-- [x] 4.5 Add per-artifact rules prompts with checkbox selection and line-by-line input
-- [x] 4.6 Implement YAML serialization with proper multi-line string formatting
-- [x] 4.7 Add validation and retry logic for prompt errors
+- [x] 4.1 在package.json中加入@inquirer/prompts依賴
+- [x] 4.2 建立 `src/core/config-prompts.ts` 使用 ConfigPromptResult 介面
+- [x] 4.3 實施 `promptForConfig()` 帶有模式選擇提示的函數
+- [x] 4.4 新增多行上下文輸入提示以及範例和跳過選項
+- [x] 4.5 新增每個工件規則提示，帶有核取方塊選擇和逐行輸入
+- [x] 4.6 使用正確的多行字串格式實現 YAML 序列化
+- [x] 4.7 新增提示錯誤的驗證和重試邏輯
 
-## 5. Experimental Setup Integration
+## 5. 實驗設置集成
 
-- [x] 5.1 Update `artifactExperimentalSetupCommand()` in `src/commands/artifact-workflow.ts` to check for existing config
-- [x] 5.2 Add config creation section after skills/commands creation with header and description
-- [x] 5.3 Integrate `promptForConfig()` calls with proper flow control
-- [x] 5.4 Add Ctrl+C (ExitPromptError) handling - log cancellation message, continue with setup (non-fatal)
-- [x] 5.5 Write created config to `openspec/config.yaml` using YAML stringify
-- [x] 5.6 Display success summary showing path, schema, context lines, rules count
-- [x] 5.7 Show usage examples and git commit suggestion
-- [x] 5.8 Handle existing config case with skip message and manual update instructions
-- [x] 5.9 Add error handling for file write failures with fallback suggestions
-- [x] 5.10 Add test for cancellation behavior (skills/commands preserved, config not created)
+- [x] 5.1 更新 `artifactExperimentalSetupCommand()` 在 `src/commands/artifact-workflow.ts` 檢查現有設定
+- [x] 5.2 在建立技能/指令後新增組態建立部分，包含標題和描述
+- [x] 5.3 積分 `promptForConfig()` 具有適當流量控制的調用
+- [x] 5.4 新增 Ctrl+C (ExitPromptError) 處理 - 記錄取消訊息，繼續設定（非致命）
+- [x] 5.5 將建立的設定寫入 `openspec/config.yaml` 使用 YAML 字串化
+- [x] 5.6 顯示成功摘要，顯示路徑、模式、上下文行、規則計數
+- [x] 5.7 顯示使用範例和git提交建議
+- [x] 5.8 使用跳過訊息和手動更新指令處理現有設定情況
+- [x] 5.9 新增檔案寫入失敗的錯誤處理以及後備建議
+- [x] 5.10 新增取消行為測試（保留技能/指令，未建立設定）
 
-## 6. Testing and Documentation
+## 6. 測試和文檔
 
-- [x] 6.1 Add end-to-end test: run experimental setup → create config → create change → verify schema used
-- [x] 6.2 Add end-to-end test: create config → get instructions → verify context and rules injected
-- [x] 6.3 Test backwards compatibility: existing changes work without config
-- [x] 6.4 Test config changes are reflected immediately (no stale cache)
-- [x] 6.5 Add performance benchmark: measure config read time with typical config (1KB context)
-- [x] 6.6 Add performance benchmark: measure config read time with large config (50KB context)
-- [x] 6.7 Add performance benchmark: measure repeated reads within single command
-- [x] 6.8 Document benchmark results and decide if caching is needed (target: <10ms typical, <50ms acceptable)
+- [x] 6.1 新增端對端測試：執行實驗設定→建立設定→建立變更→驗證使用的模式
+- [x] 6.2 新增端對端測試：建立設定→取得指令→驗證注入的上下文與規則
+- [x] 6.3 測試向後相容性：現有變更無需設定即可運作
+- [x] 6.4 測試設定變更立即反映出來（沒有過時的快取）
+- [x] 6.5 新增效能基準：使用典型設定（1KB 上下文）測量設定讀取時間
+- [x] 6.6 新增效能基準：測量大型設定（50KB 上下文）的設定讀取時間
+- [x] 6.7 新增效能基準：測量單一指令內的重複讀取
+- [x] 6.8 記錄基準測試結果並決定是否需要快取（目標：<10ms（典型值），<50ms（可接受））
 - [x] 6.9 If benchmarks fail: implement mtime-based caching with cache invalidation
-- [x] 6.10 Update README or docs with config feature examples and schema
-- [x] 6.11 Document common artifact IDs for different schemas
-- [x] 6.12 Add troubleshooting section for config validation errors
+- [x] 6.10 使用設定功能範例和架構更新 README 或文檔
+- [x] 6.11 記錄不同模式的公共工件 ID
+- [x] 6.12 新增設定驗證錯誤的故障排除部分

@@ -1,10 +1,10 @@
-## MODIFIED Requirements
-### Requirement: Interactive Mode
-The command SHALL provide an interactive menu for AI tool selection with clear navigation instructions.
-#### Scenario: Displaying interactive menu
-- **WHEN** run in fresh or extend mode
-- **THEN** present a looping select menu that lets users toggle tools with Space and review selections with Enter
-- **AND** when Enter is pressed on a highlighted selectable tool that is not already selected, automatically add it to the selection before moving to review so the highlighted tool is configured
-- **AND** label already configured tools with "(already configured)" while keeping disabled options marked "coming soon"
-- **AND** change the prompt copy in extend mode to "Which AI tools would you like to add or refresh?"
-- **AND** display inline instructions clarifying that Space toggles tools and Enter selects the highlighted tool before reviewing selections
+## 修改後的要求
+### 要求：互動模式
+該命令應提供一個用於 AI 工具選擇的互動式選單，並具有清晰的導航說明。
+#### 場景：顯示互動式選單
+- **何時** 以新鮮或擴展模式執行
+- **然後** 呈現一個循環選擇選單，讓使用者可以使用 Space 切換工具並使用 Enter 檢視選擇
+- **並且** 當在尚未選擇的突出顯示的選用工具上按 Enter 時，會在移動到審閱之前自動將其添加到選擇中，以便設定突出顯示的工具
+- **並且** 以“（已設定）”標記已設定的工具，同時將禁用的選項標記為“即將推出”
+- **並且**將擴展模式下的提示副本更改為“您想要添加或重新整理哪些 AI 工具？”
+- **和** 顯示內聯指令，闡明空格切換工具和 Enter 在檢視選擇之前選擇突出顯示的工具

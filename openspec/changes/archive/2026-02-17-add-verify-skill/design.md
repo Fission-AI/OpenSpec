@@ -1,96 +1,96 @@
-# Design: Add /opsx:verify Skill
+# 設計：新增/opsx:驗證技能
 
-## Architecture Decision: Dynamic Generation via Setup Command
+## 架構決策：透過設定命令動態生成
 
-### Context
+### 情境
 
-All existing opsx experimental skills (explore, new, continue, apply, ff, sync, archive) are dynamically generated when users run `openspec artifact-experimental-setup`. They are not manually created files checked into the repository.
+所有現有的 opsx 實驗技能（explore、new、 continue、apply、ff、sync、archive）都是在使用者執行時動態產生的 `openspec artifact-experimental-setup`。它們不是簽入儲存庫的手動建立的檔案。
 
-### Decision
+### 決定
 
-**Integrate verify into the existing artifact-experimental-setup system rather than creating static skill files.**
+**將驗證整合到現有的工件實驗設定係統中，而不是建立靜態技能文件。 **
 
-### Rationale
+### 基本原理
 
-1. **Consistency**: All 7 existing opsx skills follow this pattern. Adding verify as the 8th skill should follow the same architecture.
+1. **一致性**：所有 7 種現有 opsx 技能都遵循此模式。新增驗證作為第 8 項技能應該遵循相同的架構。
 
-2. **Maintainability**: Template functions in `skill-templates.ts` are the single source of truth. Changes to skill definitions automatically propagate to all users when they re-run setup.
+2. **可維護性**：模板函數 `skill-templates.ts` 是唯一的事實來源。重新執行安裝程式時，對技能定義的變更會自動傳播到所有使用者。
 
-3. **Distribution**: Users get the verify skill automatically when running `openspec artifact-experimental-setup`, just like all other opsx skills. No special installation steps needed.
+3. **分發**：用戶執行時自動獲得驗證技能 `openspec artifact-experimental-setup`，就像所有其他 opsx 技能一樣。無需特殊安裝步驟。
 
-4. **Versioning**: Skills are generated from the installed npm package version, ensuring consistency between CLI version and skill behavior.
+4. **版本控制**：技能是根據已安裝的 npm 軟體包版本產生的，確保 CLI 版本和技能行為之間的一致性。
 
-### Implementation Approach
+### 實施方式
 
-#### 1. Template Functions
+#### 1. 模板函數
 
-Add two template functions to `src/core/templates/skill-templates.ts`:
+新增兩個模板函數 `src/core/templates/skill-templates.ts`:
 
 ```typescript
 export function getVerifyChangeSkillTemplate(): SkillTemplate
 export function getOpsxVerifyCommandTemplate(): CommandTemplate
 ```
 
-These return the skill definition (for Agent Skills) and slash command definition (for explicit invocation).
+它們會傳回技能定義（對於代理技能）和斜線命令定義（對於明確呼叫）。
 
-#### 2. Setup Integration
+#### 2. 設定集成
 
-Update `artifactExperimentalSetupCommand()` in `src/commands/artifact-workflow.ts`:
+更新 `artifactExperimentalSetupCommand()` 在 `src/commands/artifact-workflow.ts`:
 
-- Import both template functions
-- Add verify to the `skills` array (position 8)
-- Add verify to the `commands` array (position 8)
-- Update help text to list `/opsx:verify`
+- 導入兩個模板函數
+- 新增驗證到 `skills` 數組（位置8）
+- 新增驗證到 `commands` 數組（位置8）
+- 將幫助文字更新為列表 `/opsx:verify`
 
-#### 3. Generated Artifacts
+#### 3. 產生的工件
 
-When users run `openspec artifact-experimental-setup`, the command creates:
+當用戶執行時 `openspec artifact-experimental-setup`，該命令建立：
 
-- `.claude/skills/openspec-verify-change/SKILL.md` - Agent Skills format
-- `.claude/commands/opsx/verify.md` - Slash command format
+- `.claude/skills/openspec-verify-change/SKILL.md` - 特工技能格式
+- `.claude/commands/opsx/verify.md` - 斜槓指令格式
 
-Both are generated from the template functions, with YAML frontmatter automatically added.
+兩者都是從模板函數生成的，並自動添加 YAML frontmatter。
 
-### Alternatives Considered
+### 考慮的替代方案
 
-**Alternative 1: Static skill files in repository**
+**替代方案 1：儲存庫中的靜態技能文件**
 
-Create `.claude/skills/openspec-verify-change/SKILL.md` as a static file in the OpenSpec repository.
+創造 `.claude/skills/openspec-verify-change/SKILL.md` 作為 OpenSpec 儲存庫中的靜態檔案。
 
-**Rejected because:**
-- Inconsistent with all other opsx skills
-- Requires users to manually copy/update files
-- Versioning becomes complicated (repo version vs installed package version)
-- Breaks the established pattern
+**被拒絕的原因是：**
+- 與所有其他 opsx 技能不一致
+- 需要使用者手動複製/更新文件
+- 版本控制變得複雜（儲存庫版本與已安裝的軟體包版本）
+- 打破既定模式
 
-**Alternative 2: Separate verify setup command**
+**替代方案 2：單獨驗證設定指令**
 
-Add `openspec setup-verify` as a separate command.
+添加 `openspec setup-verify` 作為一個單獨的命令。
 
-**Rejected because:**
-- Fragments the setup experience
-- Users would need to run multiple commands
-- Doesn't scale if we add more skills in the future
-- Goes against the "setup once, get everything" philosophy
+**被拒絕的原因是：**
+- 設置體驗支離破碎
+- 用戶需要執行多個命令
+- 如果我們將來添加更多技能，則無法擴展
+- 違背了「一次設置，獲得一切」的概念
 
 ### Trade-offs
 
-**Advantages:**
-- Consistent with existing architecture
-- Zero additional setup burden for users
-- Easy to update and maintain
-- Automatic version compatibility
+**優點：**
+- 與現有架構一致
+- 用戶零額外設定負擔
+- 易於更新和維護
+- 自動版本相容
 
-**Disadvantages:**
-- Slightly more complex initial implementation (template functions + integration)
-- Requires understanding the setup system (but that's already documented)
+**缺點：**
+- 初始實作稍微複雜一些（模板函數+整合）
+- 需要瞭解設定係統（但這已經記錄在案）
 
-### Verification
+### 確認
 
-The implementation correctly follows this design if:
+如果滿足以下條件，則實現正確遵循此設計：
 
-1. Both template functions exist in `skill-templates.ts`
-2. Verify appears in both skills and commands arrays in `artifact-workflow.ts`
-3. Help text mentions `/opsx:verify`
-4. Running `openspec artifact-experimental-setup` generates both skill and command files
-5. Build succeeds with no TypeScript errors
+1. 兩個模板函數都存在於 `skill-templates.ts`
+2. 驗證出現在技能和命令數組中 `artifact-workflow.ts`
+3. 幫助文本提及 `/opsx:verify`
+4. 執行 `openspec artifact-experimental-setup` 生成技能和命令文件
+5. 建置成功，沒有 TypeScript 錯誤

@@ -1,19 +1,19 @@
-# Change: Add Spec Commands with JSON Output
+# 更改：新增具有 JSON 輸出的 Spec 命令
 
-## Why
+## 為什麼
 
-Currently, OpenSpec specs can only be viewed as markdown files. This makes programmatic access difficult and prevents integration with CI/CD pipelines, external tools, and automated processing.
+目前，OpenSpec 規格只能以 Markdown 文件形式檢視。這使得程式存取變得困難，並阻止與 CI/CD 管道、外部工具和自動化處理的整合。
 
-## What Changes
+## 有什麼變化
 
-- Add new `openspec spec` command with three subcommands: `show`, `list`, and `validate`
-- Implement JSON output capability for specs using heading-based parsing
-- Add Zod schemas for spec structure validation
-- Enable content filtering options (requirements only, no scenarios, specific requirement)
+- 新增新的 `openspec spec` 具有三個子命令的命令： `show`, `list`， 和 `validate`
+- 使用基於標題的解析實現規範的 JSON 輸出能力
+- 新增 Zod 模式以進行規範結構驗證
+- 啟用內容過濾選項（僅要求，無場景，特定要求）
 
-## Impact
+## 影響
 
-- **Affected specs**: None (new capability)
-- **Affected code**: 
-  - src/cli/index.ts (register new command)
-  - package.json (add zod dependency)
+- **受影響的規格**：無（新功能）
+- **受影響的代碼**： 
+  - src/cli/index.ts（註冊新指令）
+  - package.json（增加zod依賴）

@@ -1,126 +1,126 @@
-## Context
+## 情境
 
-This implements "Slice 1: What's Ready?" from the artifact POC analysis. The core insight is using the filesystem as a database - artifact completion is detected by file existence, making the system stateless and version-control friendly.
+這實現了「Slice 1：什麼準備好了？」來自工件 POC 分析。核心見解是將檔案系統用作資料庫 - 透過檔案存在來檢測工件完成情況，從而使系統無狀態且版本控制友好。
 
-This module will coexist with the current OpenSpec system as a parallel capability, potentially enabling future migration or integration.
+該模組將作為平行功能與目前的 OpenSpec 系統共存，有可能實現未來的遷移或整合。
 
-## Goals / Non-Goals
+## 目標/非目標
 
-**Goals:**
-- Pure dependency graph logic with no side effects
-- Stateless state detection (rescan filesystem each query)
-- Support glob patterns for multi-file artifacts (e.g., `specs/*.md`)
-- Load artifact definitions from YAML schemas
-- Calculate topological build order
-- Determine "ready" artifacts based on dependency completion
+**目標：**
+- 純依賴圖邏輯，無副作用
+- 無狀態狀態偵測（每次查詢重新掃描檔案系統）
+- 支援多文件工件的全域模式（例如， `specs/*.md`)
+- 從 YAML 架構載入工件定義
+- 計算拓樸建置順序
+- 根據依賴完成確定“就緒”工件
 
-**Non-Goals:**
-- CLI commands (Slice 4)
-- Multi-change management (Slice 2)
-- Template resolution and enrichment (Slice 3)
-- Agent integration or Claude commands
-- Replacing existing OpenSpec functionality
+**非目標：**
+- CLI 指令（切片 4）
+- 多變更管理（第 2 部分）
+- 模板解析與豐富（切片 3）
+- 代理整合或 Claude 指令
+- 替換現有的 OpenSpec 功能
 
-## Decisions
+## 決定
 
-### Decision: Filesystem as Database
-Use file existence for state detection rather than a separate state file.
+### 決策：檔案系統作為資料庫
+使用檔案存在來進行狀態檢測，而不是使用單獨的狀態檔案。
 
-**Rationale:**
-- Stateless - no state corruption possible
-- Git-friendly - state derived from committed files
-- Simple - no sync issues between state file and actual files
+**理由：**
+- 無國籍－不可能有國家腐敗
+- Git 友善 - 從提交的文件派生狀態
+- 簡單 - 狀態檔案和實際檔案之間沒有同步問題
 
-**Alternatives considered:**
-- JSON/SQLite state file: More complex, sync issues, not git-friendly
-- Git metadata: Too coupled to git, complex implementation
+**考慮的替代方案：**
+- JSON/SQLite 狀態檔：更複雜，同步問題，不適合 git
+- Git 元資料：與 git 耦合度太高，實現複雜
 
-### Decision: Kahn's Algorithm for Topological Sort
-Use Kahn's algorithm for computing build order.
+### 決策：卡恩拓樸排序演算法
+使用卡恩演算法計算建構順序。
 
-**Rationale:**
-- Well-understood, O(V+E) complexity
-- Naturally detects cycles during execution
-- Produces a stable, deterministic order
+**理由：**
+- 很好理解，O(V+E) 複雜度
+- 自然地檢測執行期間的循環
+- 產生穩定的、確定性的順序
 
-### Decision: Glob Pattern Support
-Support glob patterns like `specs/*.md` in artifact `generates` field.
+### 決策：Glob 模式支援
+支援全域模式，例如 `specs/*.md` 在神器中 `generates` field.
 
-**Rationale:**
-- Allows multiple files to satisfy a single artifact requirement
-- Common pattern for spec directories with multiple files
-- Uses standard glob syntax
+**理由：**
+- 允許多個檔案滿足單一工件要求
+- 具有多個檔案的規格目錄的常見模式
+- 使用標準 glob 語法
 
-### Decision: Immutable Completed Set
-Represent completion state as an immutable Set of completed artifact IDs.
+### 決策：不可變的完整集
+將完成狀態表示為一組不可變的已完成工件 ID。
 
-**Rationale:**
-- Functional style, easier to reason about
-- State derived fresh each query, no mutation needed
-- Clear separation between graph structure and runtime state
-- Filesystem can only detect binary existence (complete vs not complete)
+**理由：**
+- 函數式風格，更容易推理
+- 每個查詢都衍生出新的狀態，無需進行突變
+- 圖表結構和執行時狀態之間清晰分離
+- 檔案系統只能偵測二進位存在（完整與不完整）
 
-**Note:** `inProgress` and `failed` states are deferred to future slices. They would require external state tracking (e.g., a status file) since file existence alone cannot distinguish these states.
+**筆記：** `inProgress` 和 `failed` 狀態被推遲到未來的切片。它們需要外部狀態追蹤（例如狀態檔案），因為檔案的存在本身無法區分這些狀態。
 
-### Decision: Zod for Schema Validation
-Use Zod for validating YAML schema structure and deriving TypeScript types.
+### 決策：Zod 用於模式驗證
+使用 Zod 驗證 YAML 模式結構並衍生 TypeScript 類型。
 
-**Rationale:**
-- Already a project dependency (v4.0.17) used in `src/core/schemas/`
-- Type inference via `z.infer<>` - single source of truth for types
-- Runtime validation with detailed error messages
-- Consistent with existing project patterns (`base.schema.ts`, `config-schema.ts`)
+**理由：**
+- 已經是專案依賴項（v4.0.17）用於 `src/core/schemas/`
+- 類型推斷透過 `z.infer<>` - 類型的單一事實來源
+- 帶有詳細錯誤訊息的執行時驗證
+- 與現有項目模式一致（`base.schema.ts`, `config-schema.ts`)
 
-**Alternatives considered:**
-- Manual validation: More code, error-prone, no type inference
-- JSON Schema: Would require additional dependency, less TypeScript integration
-- io-ts: Not already in project, steeper learning curve
+**考慮的替代方案：**
+- 手動驗證：程式碼較多，容易出錯，無型別推斷
+- JSON 架構：需要額外的依賴項，減少 TypeScript 集成
+- io-ts：尚未進入項目，學習曲線更陡
 
-### Decision: Two-Level Schema Resolution
-Schemas resolve from global user data directory, falling back to package built-ins.
+### 決策：兩級模式解析
+模式從全域使用者資料目錄解析，回退到包內建項目。
 
-**Resolution order:**
-1. `${XDG_DATA_HOME:-~/.local/share}/openspec/schemas/<name>.yaml` - Global user override
-2. `<package>/schemas/<name>.yaml` - Built-in defaults
+**解決順序：**
+1. `${XDG_DATA_HOME:-~/.local/share}/openspec/schemas/<name>.yaml` - 全域用戶覆蓋
+2. `<package>/schemas/<name>.yaml` - 內建預設值
 
-**Rationale:**
-- Follows XDG Base Directory Specification (schemas are data, not config)
-- Mirrors existing `getGlobalConfigDir()` pattern in `src/core/global-paths.ts`
-- Built-ins baked into package, never auto-copied
-- Users customize by creating files in global data dir
-- Simple - no project-level overrides (can add later if needed)
+**理由：**
+- 遵循 XDG 基本目錄規範（模式是資料，而不是設定）
+- 現有鏡子 `getGlobalConfigDir()` 模式在 `src/core/global-paths.ts`
+- 內建程式烘焙到包中，從不自動複製
+- 使用者透過在全域資料目錄中建立檔案來自訂
+- 簡單 - 沒有項目級覆蓋（如果需要可以稍後添加）
 
-**XDG compliance:**
-- Uses `XDG_DATA_HOME` env var when set (all platforms)
-- Unix/macOS fallback: `~/.local/share/openspec/`
-- Windows fallback: `%LOCALAPPDATA%/openspec/`
+**XDG 合規性：**
+- 用途 `XDG_DATA_HOME` 設定後的環境變數（所有平台）
+- Unix/macOS 後備： `~/.local/share/openspec/`
+- Windows 後備： `%LOCALAPPDATA%/openspec/`
 
-**Alternatives considered:**
-- Project-level overrides: Added complexity, not needed initially
-- Auto-copy to user space: Creates drift, harder to update defaults
-- Config directory (`XDG_CONFIG_HOME`): Schemas are workflow definitions (data), not user preferences (config)
+**考慮的替代方案：**
+- 專案級覆蓋：增加了複雜性，最初不需要
+- 自動複製到使用者空間：產生偏差，更難更新預設值
+- 設定目錄（`XDG_CONFIG_HOME`)：模式是工作流程定義（資料），而不是使用者首選項（設定）
 
-### Decision: Template Field Parsed But Not Resolved
-The `template` field is required in schema YAML for completeness, but template resolution is deferred to Slice 3.
+### 決策：模板欄位已解析但未解析
+這 `template` 為了完整性，架構 YAML 中需要字段，但模板解析推遲到切片 3。
 
-**Rationale:**
-- Slice 1 focuses on "What's Ready?" - dependency and completion queries only
-- Template paths are validated syntactically (non-empty string) but not resolved
-- Keeps Slice 1 focused and independently testable
+**理由：**
+- 第 1 部分重點在於「準備好了嗎？」 - 只依賴關係和完成查詢
+- 模板路徑經過語法驗證（非空字串）但未解析
+- 保持 Slice 1 的重點和可獨立測試
 
-### Decision: Cycle Error Format
-Cycle errors list all artifact IDs in the cycle for easy debugging.
+### 決策：循環錯誤格式
+循環錯誤列出了循環中的所有工件 ID，以便於偵錯。
 
-**Format:** `"Cyclic dependency detected: A → B → C → A"`
+**格式：** `"Cyclic dependency detected: A → B → C → A"`
 
-**Rationale:**
-- Shows the full cycle path, not just that a cycle exists
-- Actionable - developer can see exactly which artifacts to fix
-- Consistent with Kahn's algorithm which naturally identifies cycle participants
+**理由：**
+- 顯示完整的循環路徑，而不僅僅是循環的存在
+- 可操作 - 開發人員可以準確地看到要修復哪些工件
+- 與卡恩演算法一致，自然辨識循環參與者
 
-## Data Structures
+## 資料結構
 
-**Zod Schemas (source of truth):**
+**Zod 模式（事實來源）：**
 
 ```typescript
 import { z } from 'zod';
@@ -147,7 +147,7 @@ export type Artifact = z.infer<typeof ArtifactSchema>;
 export type SchemaYaml = z.infer<typeof SchemaYamlSchema>;
 ```
 
-**Runtime State (not Zod - internal only):**
+**執行時狀態（不是 Zod - 僅限內部）：**
 
 ```typescript
 // Slice 1: Simple completion tracking via filesystem
@@ -166,7 +166,7 @@ interface ArtifactGraphResult {
 }
 ```
 
-## File Structure
+## 文件結構
 
 ```
 src/core/artifact-graph/
@@ -180,18 +180,18 @@ src/core/artifact-graph/
     └── tdd.yaml           # Alternative: tests → implementation → docs
 ```
 
-**Schema Resolution Paths:**
-- Global user override: `${XDG_DATA_HOME:-~/.local/share}/openspec/schemas/<name>.yaml`
-- Package built-in: `src/core/artifact-graph/schemas/<name>.yaml` (bundled with package)
+**架構解析路徑：**
+- 全域用戶覆蓋： `${XDG_DATA_HOME:-~/.local/share}/openspec/schemas/<name>.yaml`
+- 包內建： `src/core/artifact-graph/schemas/<name>.yaml` (bundled 帶包)
 
-## Risks / Trade-offs
+## 風險/權衡
 
-| Risk | Mitigation |
+| 風險 | 減輕 |
 |------|------------|
-| Glob pattern edge cases | Use well-tested glob library (fast-glob or similar) |
-| Cycle detection | Kahn's algorithm naturally fails on cycles; provide clear error |
-| Schema evolution | Version field in schema, validate on load |
+| Glob 模式邊緣情況 | 使用經過充分測試的 glob 庫（fast-glob 或類似庫） |
+| 循環檢測 | 卡恩的演算法自然會在循環上失敗；提供明確的錯誤 |
+| 模式演變 | 模式中的版本字段，載入時驗證 |
 
-## Open Questions
+## 開放式問題
 
-None - all questions resolved in Decisions section.
+無 - 所有問題均在決策部分解決。

@@ -1,8 +1,8 @@
-# Technical Design for Init Command
+# Init指令技術設計
 
-## Architecture Overview
+## 架構概述
 
-The init command follows a modular architecture with clear separation of concerns:
+init 指令遵循模組化架構，具有明確的關注點分離：
 
 ```
 CLI Layer (src/cli/index.ts)
@@ -14,44 +14,44 @@ Templates (src/core/templates/)
 File System Utils (src/utils/file-system.ts)
 ```
 
-## Key Design Decisions
+## 關鍵設計決策
 
-### 1. Template Management
+### 1. 範本管理
 
-**Decision**: Store templates as TypeScript modules rather than separate files
-**Rationale**: 
-- Ensures templates are bundled with the compiled code
-- Allows for dynamic content insertion
-- Type-safe template handling
-- No need for complex file path resolution
+**決定**：將模板儲存為 TypeScript 模組而不是單獨的文件
+**理由**： 
+- 確保模板與編譯後的程式碼bun一致
+- 允許動態內容插入
+- 類型安全的模板處理
+- 無需複雜的檔案路徑解析
 
-### 2. Interactive vs Non-Interactive Mode
+### 2. 互動模式與非互動模式
 
-**Decision**: Support both interactive (default) and non-interactive modes
-**Rationale**:
-- Interactive mode for developer experience
-- Non-interactive for CI/CD and automation
-- Flags: `--yes` to accept defaults, `--no-input` for full automation
+**決定**：支援互動（預設）和非互動模式
+**理由**：
+- 開發者體驗的互動模式
+- CI/CD 和自動化的非互動式
+- 標誌： `--yes` 接受預設值， `--no-input` 用於完全自動化
 
-### 3. Directory Structure Creation
+### 3. 目錄結構建立
 
-**Decision**: Create all directories upfront, then populate files
-**Rationale**:
-- Fail fast if permissions issues
-- Clear transaction boundary
-- Easier to clean up on failure
+**決定**：預先建立所有目錄，然後填入文件
+**理由**：
+- 如果權限問題快速失敗
+- 清晰的交易邊界
+- 更容易清理故障
 
-### 4. Error Handling Strategy
+### 4. 錯誤處理策略
 
-**Decision**: Implement rollback on failure
-**Rationale**:
-- Prevent partial installations
-- Clear error states
-- Better user experience
+**決定**：失敗時實施回滾
+**理由**：
+- 防止部分安裝
+- 清除錯誤狀態
+- 更好的使用者體驗
 
-## Implementation Details
+## 實施細節
 
-### File System Operations
+### 檔案系統操作
 
 ```typescript
 // Atomic directory creation with rollback
@@ -62,7 +62,7 @@ interface InitTransaction {
 }
 ```
 
-### Template System
+### 模板系統
 
 ```typescript
 interface Template {
@@ -78,7 +78,7 @@ interface ProjectContext {
 }
 ```
 
-### CLI Command Structure
+### CLI 指令結構
 
 ```bash
 openspec init [path]           # Initialize in specified path (default: current directory)
@@ -88,17 +88,17 @@ openspec init [path]           # Initialize in specified path (default: current 
   --dry-run                   # Show what would be created
 ```
 
-## Security Considerations
+## 安全考慮
 
-1. **Path Traversal**: Sanitize all user-provided paths
-2. **File Permissions**: Check write permissions before starting
-3. **Existing Files**: Never overwrite without explicit --force flag
-4. **Template Injection**: Sanitize user inputs in templates
+1. **路徑遍歷**：清理所有使用者提供的路徑
+2. **檔案權限**：開始前檢查寫入權限
+3. **現有文件**：如果沒有明確的 --force 標誌，切勿覆蓋
+4. **模板注入**：清理模板中的使用者輸入
 
-## Future Extensibility
+## 未來的可擴展性
 
-The design supports future enhancements:
-- Custom template sources
-- Project type presets (API, web app, library)
-- Migration from other documentation systems
-- Integration with version control systems
+該設計支援未來的增強功能：
+- 自訂模板來源
+- 項目類型預設（API、Web 應用程式、庫）
+- 從其他文件系統遷移
+- 與版本控制系統集成

@@ -1,21 +1,21 @@
-## MODIFIED Requirements
+## 修改後的要求
 
-### Requirement: Global configuration storage
-The system SHALL store global configuration in `~/.config/openspec/config.json`, including telemetry state with `anonymousId` and `noticeSeen` fields.
+### 要求：全域設定存儲
+系統應將全域設定儲存在 `~/.config/openspec/config.json`，包括遙測狀態 `anonymousId` 和 `noticeSeen` fields.
 
-#### Scenario: Initial config creation
-- **WHEN** no global config file exists
-- **AND** the first telemetry event is about to be sent
-- **THEN** the system creates `~/.config/openspec/config.json` with telemetry configuration
+#### 場景：初始設定建立
+- **何時** 不存在全域設定檔
+- **並且** 第一個遙測事件即將發送
+- **然後**系統建立 `~/.config/openspec/config.json` 帶遙測設定
 
-#### Scenario: Telemetry config structure
-- **WHEN** reading or writing telemetry configuration
-- **THEN** the config contains a `telemetry` object with `anonymousId` (string UUID) and `noticeSeen` (boolean) fields
+#### 場景：遙測設定結構
+- **何時** 讀取或寫入遙測設定
+- **那麼** 設定包含 `telemetry` 對象與 `anonymousId` （字串 UUID）和 `noticeSeen` （布爾）字段
 
-#### Scenario: Config file format
-- **WHEN** storing configuration
-- **THEN** the system writes valid JSON that can be read and modified by users
+#### 場景：設定檔格式
+- **何時** 儲存設定
+- **那麼**系統寫入使用者可以讀取和修改的有效JSON
 
-#### Scenario: Existing config preservation
-- **WHEN** adding telemetry fields to an existing config file
-- **THEN** the system preserves all existing configuration fields
+#### 場景：保留現有設定
+- **何時** 將遙測欄位新增至現有設定檔
+- **那麼**系統保留所有現有的設定字段

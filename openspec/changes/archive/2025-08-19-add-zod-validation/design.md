@@ -1,21 +1,21 @@
-# Design: Zod Validation Framework
+# 設計：Zod驗證框架
 
-## Architecture Decisions
+## 架構決策
 
-### Validation Levels
-Three-tier validation system:
-1. **ERROR**: Structural issues that prevent parsing (must fix)
-2. **WARNING**: Quality issues that should be addressed (recommended fix)
-3. **INFO**: Suggestions for improvement (optional)
+### 驗證等級
+三層驗證系統：
+1. **錯誤**：阻止解析的結構問題（必須修復）
+2. **警告**：應解決的品質問題（建議修復）
+3. **資訊**：改進建議（可選）
 
-**Rationale:** 
-- Gradual enforcement allows teams to adopt validation incrementally
-- CI/CD can fail on errors but allow warnings initially
-- Info level provides guidance without blocking
+**理由：** 
+- 逐步執行允許團隊逐步採用驗證
+- CI/CD 可能因錯誤而失敗，但最初允許警告
+- 資訊等級提供指導而不阻塞
 
-### Validation Rules Hierarchy
+### 驗證規則層次結構
 
-#### Spec Validation Rules
+#### 規格驗證規則
 ```
 ERROR level:
 - Missing ## Overview or ## Requirements sections
@@ -32,7 +32,7 @@ INFO level:
 - Scenarios without Given/When/Then structure
 ```
 
-#### Change Validation Rules
+#### 更改驗證規則
 ```
 ERROR level:
 - Missing ## Why or ## What Changes sections
@@ -49,28 +49,28 @@ INFO level:
 - Too many deltas in single change (>10)
 ```
 
-### Strict Mode
-- **Default**: Show all levels, fail on ERROR only
-- **--strict flag**: Fail on both ERROR and WARNING
-- **Use case**: Gradual quality improvement in CI/CD pipelines
+### 嚴格模式
+- **預設**：顯示所有級別，僅因錯誤而失敗
+- **--strict 標誌**：錯誤和警告都失敗
+- **用例**：CI/CD 管道的品質逐漸提高
 
-### Archive Command Safety
-**Problem:** Invalid specs could be archived, polluting the archive.
+### 存檔命令安全
+**問題：** 無效的規格可能會被存檔，從而污染存檔。
 
-**Solution:** 
-1. Pre-archive validation (default behavior)
-2. --no-validate flag with safeguards:
-   - Interactive confirmation prompt
-   - Prominent warning message
-   - Console logging with timestamp
-   - Not recommended for CI/CD usage
+**解決方案：** 
+1. 預存檔驗證（預設行為）
+2. --no-validate 有保護措施的標誌：
+   - 互動式確認提示
+   - 顯著的警告訊息
+   - 帶有時間戳記的控制台日誌記錄
+   - 不建議 CI/CD 使用
 
-**Rationale:**
-- Protect archive integrity by default
-- Allow emergency overrides with accountability
-- Clear audit trail for validation bypasses
+**理由：**
+- 預設保護存檔完整性
+- 允許緊急情況下的優先權並承擔責任
+- 清除驗證繞過的審計跟踪
 
-### Validation Report Format
+### 驗證報告格式
 ```json
 {
   "valid": boolean,
@@ -91,14 +91,14 @@ INFO level:
 }
 ```
 
-**Benefits:**
-- Machine-readable for tooling integration
-- Human-friendly messages
-- Line/column info for IDE integration
-- Summary for quick assessment
+**好處：**
+- 機器可讀的工具集成
+- 人性化的訊息
+- 用於 IDE 整合的行/列信息
+- 快速評估摘要
 
-### Implementation Strategy
-1. **Zod schemas with refinements**: Built-in validation in type definitions
-2. **Custom validators**: Additional business logic validation
-3. **Composable rules**: Mix and match for different contexts
-4. **Extensible framework**: Easy to add new rules without refactoring
+### 實施策略
+1. **經過改進的 Zod 架構**：類型定義中的內建驗證
+2. **自訂驗證器**：附加業務邏輯驗證
+3. **可組合規則**：針對不同情境進行混合和匹配
+4. **可擴充框架**：無需重構即可輕鬆新增規則

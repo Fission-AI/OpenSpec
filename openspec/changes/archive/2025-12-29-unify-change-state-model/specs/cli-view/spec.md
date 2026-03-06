@@ -1,60 +1,60 @@
-# cli-view Specification Delta
+# cli-view 規格增量
 
-## ADDED Requirements
+## 新增要求
 
-### Requirement: Draft Changes Display
+### 要求：草稿更改顯示
 
-The dashboard SHALL display changes without tasks in a separate "Draft" section.
+儀表板應在單獨的「草稿」部分中顯示沒有任務的變更。
 
-#### Scenario: Draft changes listing
+#### 場景：草稿更改列表
 
-- **WHEN** there are changes with no tasks.md or zero tasks defined
-- **THEN** system shows them in a "Draft Changes" section
-- **AND** uses a distinct indicator (e.g., `○`) to show draft status
+- **何時** 有未定義tasks.md 或零個任務的更改
+- **那麼**系統就會在「草稿更改」部分顯示它們
+- **AND** 使用不同的指示符（例如， `○`) 顯示草稿狀態
 
-#### Scenario: Draft section ordering
+#### 場景：草稿部分排序
 
-- **WHEN** multiple draft changes exist
-- **THEN** system sorts them alphabetically by name
+- **何時** 存在多個草稿更改
+- **然後**系統會依照名稱字母順序對它們進行排序
 
-## MODIFIED Requirements
+## 修改後的要求
 
-### Requirement: Completed Changes Display
+### 要求：已完成的變更顯示
 
-The dashboard SHALL list completed changes in a separate section, only showing changes with ALL tasks completed.
+儀表板應在單獨的部分中列出已完成的更改，僅顯示所有任務已完成的更改。
 
-> **Fixes bug**: Previously, changes with `total === 0` were incorrectly shown as completed.
+> **修復錯誤**：以前，改為 `total === 0` 被錯誤地顯示為已完成。
 
-#### Scenario: Completed changes listing
+#### 場景：已完成的變更列表
 
-- **WHEN** there are changes with `tasks.total > 0` AND `tasks.completed === tasks.total`
-- **THEN** system shows them with checkmark indicators in a dedicated section
+- **何時**有變化 `tasks.total > 0` AND `tasks.completed === tasks.total`
+- **那麼** 系統會在專用部分中以複選標記指示器顯示它們
 
-#### Scenario: Mixed completion states
+#### 場景：混合完成狀態
 
-- **WHEN** some changes are complete and others active
-- **THEN** system separates them into appropriate sections
+- **何時** 有些變更已完成，有些變更則處於活動狀態
+- **然後**系統將它們分成適當的部分
 
-#### Scenario: Empty changes not completed
+#### 場景：未完成的空白更改
 
-- **WHEN** a change has no tasks.md or zero tasks defined
-- **THEN** system does NOT show it in "Completed Changes" section
-- **AND** shows it in "Draft Changes" section instead
+- **何時** 更改沒有定義tasks.md 或零個任務
+- **那麼**系統不會在「已完成的變更」部分中顯示它
+- **AND** 將其顯示在「草稿變更」部分中
 
-### Requirement: Summary Section
+### 要求：摘要部分
 
-The dashboard SHALL display a summary section with key project metrics, including draft change count.
+儀表板應顯示包含關鍵項目指標的摘要部分，包括草稿變更計數。
 
-#### Scenario: Complete summary display
+#### 場景：完整摘要展示
 
-- **WHEN** dashboard is rendered with specs and changes
-- **THEN** system shows total number of specifications and requirements
-- **AND** shows number of draft changes
-- **AND** shows number of active changes in progress
-- **AND** shows number of completed changes
-- **AND** shows overall task progress percentage
+- **何時** 儀表板呈現規格和更改
+- **那麼**系統顯示規格和要求的總數
+- **AND** 顯示草稿更改的數量
+- **AND** 顯示正在進行的活動變更的數量
+- **AND** 顯示已完成的變更數量
+- **AND** 顯示整體任務進度百分比
 
-#### Scenario: Empty project summary
+#### 場景：空項目摘要
 
-- **WHEN** no specs or changes exist
-- **THEN** summary shows zero counts for all metrics
+- **何時** 不存在任何規格或更改
+- **那麼** 摘要顯示所有指標的計數為零

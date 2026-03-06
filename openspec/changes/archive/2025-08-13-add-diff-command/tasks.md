@@ -1,23 +1,23 @@
-# Implementation Tasks
+# 實施任務
 
-## 1. Core Implementation
-- [x] 1.1 Create `src/core/diff.ts` with diff logic
-- [x] 1.2 Implement change directory scanning
-- [x] 1.3 Implement file comparison using unified diff format
-- [x] 1.4 Add color support for terminal output
+## 1. 核心實現
+- [x] 1.1 建立 `src/core/diff.ts` 具有差異邏輯
+- [x] 1.2 實現變更目錄掃描
+- [x] 1.3 使用統一diff格式實現文件比較
+- [x] 1.4 為終端輸出添加顏色支援
 
-## 2. CLI Integration
-- [x] 2.1 Add diff command to `src/cli/index.ts`
-- [x] 2.2 Implement interactive change selection when no argument provided
-- [x] 2.3 Add error handling for missing changes
+## 2.CLI整合
+- [x] 2.1 新增 diff 指令 `src/cli/index.ts`
+- [x] 2.2 不提供參數時實現互動式變更選擇
+- [x] 2.3 新增缺少更改的錯誤處理
 
-## 3. Enhancements
-- [x] 3.1 Replace with jest-diff for professional diff output
-- [x] 3.2 Improve file headers with status and statistics
-- [x] 3.3 Add summary view with file counts and line changes
+## 3. 增強功能
+- [x] 3.1 替換為 jest-diff 以實現專業 diff 輸出
+- [x] 3.2 改進文件頭的狀態和統計信息
+- [x] 3.3 新增包含文件計數和行更改的摘要視圖
 
-## 4. Testing
-- [ ] 4.1 Test diff generation for modified files
-- [ ] 4.2 Test handling of new files
-- [ ] 4.3 Test handling of deleted files
-- [ ] 4.4 Test interactive mode
+## 4. 測試
+- [ ] 4.1 測試修改文件的 diff 生成
+- [ ] 4.2 測試新文件的處理
+- [ ] 4.3 測試刪除檔案的處理
+- [ ] 4.4 測試互動模式

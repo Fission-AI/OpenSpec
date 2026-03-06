@@ -1,12 +1,12 @@
-## Context
+## 情境
 
-This is Slice 3 of the artifact-graph POC. We have:
-- `ArtifactGraph` class with graph operations (Slice 1)
-- `detectCompleted()` for filesystem-based state detection (Slice 1)
-- `resolveSchema()` for XDG schema resolution (Slice 1)
-- `createChange()` and `validateChangeName()` utilities (Slice 2)
+這是工件圖 POC 的切片 3。我們有：
+- `ArtifactGraph` 具有圖形操作的類別（切片 1）
+- `detectCompleted()` 用於基於檔案系統的狀態檢測（切片 1）
+- `resolveSchema()` 用於 XDG 架構解析（切片 1）
+- `createChange()` 和 `validateChangeName()` 實用程式（第 2 部分）
 
-After `restructure-schema-directories` is implemented, schemas will be self-contained directories:
+後 `restructure-schema-directories` 實現後，模式將是獨立的目錄：
 ```
 schemas/<name>/
 ├── schema.yaml
@@ -14,25 +14,25 @@ schemas/<name>/
     └── *.md
 ```
 
-This proposal adds template loading and instruction enrichment on top of that structure.
+該提案在該結構之上添加了模板載入和指令豐富。
 
-## Goals / Non-Goals
+## 目標/非目標
 
-**Goals:**
-- Load templates from schema directories
-- Enrich templates with change-specific context (dependency status)
-- Format change status for CLI output
+**目標：**
+- 從架構目錄載入模板
+- 使用特定於變更的上下文（依賴狀態）豐富模板
+- CLI 輸出的格式變更狀態
 
-**Non-Goals:**
-- Template authoring UI
-- Dynamic template compilation/execution
-- Caching (keep it stateless like the rest)
+**非目標：**
+- 模板創作 UI
+- 動態模板編譯/執行
+- 快取（像其他一樣保持無狀態）
 
-## Decisions
+## 決定
 
-### 1. Pure functions over classes
+### 1. 純函數優於類
 
-Follow the pattern in `resolver.ts` and `state.ts`. Use a simple `ChangeContext` interface with pure functions:
+遵循中的模式 `resolver.ts` 和 `state.ts`。使用一個簡單的 `ChangeContext` 與純函數的介面：
 
 ```typescript
 interface ChangeContext {
@@ -49,11 +49,11 @@ function getInstructions(artifactId: string, context: ChangeContext): string
 function formatStatus(context: ChangeContext): string
 ```
 
-**Why:** Matches existing codebase patterns. Easier to test. No hidden state.
+**為什麼：** 符合現有的程式碼庫模式。更容易測試。無隱藏狀態。
 
-### 2. Template resolution from schema directory
+### 2. schema目錄下的模板解析
 
-Templates are loaded from the schema's `templates/` subdirectory:
+模板是從架構載入的 `templates/` 子目錄：
 
 ```typescript
 function loadTemplate(schemaName: string, templatePath: string): string {
@@ -63,13 +63,13 @@ function loadTemplate(schemaName: string, templatePath: string): string {
 }
 ```
 
-Resolution is handled by `getSchemaDir()` which already checks user override → package built-in.
+解析度由以下人員處理 `getSchemaDir()` 它已經檢查了用戶覆蓋範圍→內建包。
 
-**Why:** Leverages existing schema resolution. Templates are co-located with schemas.
+**為什麼：** 利用現有架構解析。模板與模式位於相同位置。
 
-### 3. Template path from artifact definition
+### 3. 工件定義的範本路徑
 
-The artifact's `template` field is a path relative to the schema's `templates/` directory:
+神器的 `template` 字段是相對於模式的路徑 `templates/` 目錄：
 
 ```yaml
 artifacts:
@@ -77,11 +77,11 @@ artifacts:
     template: "proposal.md"  # → schemas/<schema>/templates/proposal.md
 ```
 
-**Why:** Explicit, simple, no magic.
+**為什麼：** 明確、簡單、沒有魔法。
 
-### 4. Minimal context injection
+### 4. 最少的上下文注入
 
-Templates are markdown. Injection prepends a header section with context:
+模板是降價的。注入會在標頭部分前面加入上下文：
 
 ```markdown
 ---
@@ -102,9 +102,9 @@ After creating this artifact, you can work on: design, specs
 [original template content...]
 ```
 
-**Why:** Simple string concatenation. No template engine dependency. Clear separation.
+**為什麼：** 簡單的字串連接。沒有模板引擎依賴性。清晰分離。
 
-### 5. Status output format
+### 5. 狀態輸出格式
 
 ```markdown
 ## Change: add-auth (spec-driven)
@@ -117,9 +117,9 @@ After creating this artifact, you can work on: design, specs
 | tasks | blocked (needs: specs, design) | tasks.md |
 ```
 
-**Why:** Markdown table is readable in terminal and docs. Matches CLI output style.
+**為什麼：** Markdown 表格在終端機和文件中可讀。匹配 CLI 輸出樣式。
 
-## File Structure
+## 文件結構
 
 ```
 src/core/artifact-graph/
@@ -129,21 +129,21 @@ src/core/artifact-graph/
 └── instructions.ts       # NEW: Enrichment and formatting
 ```
 
-## Risks / Trade-offs
+## 風險/權衡
 
-**Dependency on restructure-schema-directories:**
-- This proposal requires the schema restructure to be done first
-- Mitigation: Clear dependency documented, implement in order
+**對重組架構目錄的依賴：**
+- 該提案要求首先進行架構重組
+- 緩解措施：記錄清晰的依賴關係，依序實施
 
-**No template engine:**
-- Pro: Zero dependencies, simple code
-- Con: Limited expressiveness
-- Mitigation: Current use case only needs static templates + header injection
+**沒有模板引擎：**
+- 優點：零依賴，簡單的程式碼
+- 缺點：表達能力有限
+- 緩解措施：目前用例僅需要靜態模板+標頭注入
 
-## Migration Plan
+## 遷移計劃
 
-N/A - new capability, no existing code to migrate.
+N/A - 新功能，沒有現有要遷移的程式碼。
 
-## Open Questions
+## 開放式問題
 
 None.

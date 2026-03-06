@@ -1,57 +1,57 @@
-## 1. Update Archive Command Implementation
-- [x] 1.1 Add `skipSpecs` option to the archive command options interface
-- [x] 1.2 Modify the execute method to skip spec operations when flag is set
-- [x] 1.3 Fix confirmation behavior: when user declines spec updates, proceed with archiving instead of cancelling
-- [x] 1.4 Update console output to indicate when specs are being skipped (via flag or user choice)
-- [x] 1.5 Ensure archive continues after declining spec updates
+## 1.更新存檔命令實現
+- [x] 1.1 添加 `skipSpecs` 歸檔指令選項介面的選項
+- [x] 1.2 修改execute方法，在設定flag時跳過spec操作
+- [x] 1.3 修復確認行為：當使用者拒絕規範更新時，繼續存檔而不是取消
+- [x] 1.4 更新控制台輸出以指示何時跳過規格（透過標誌或使用者選擇）
+- [x] 1.5 確保在拒絕規範更新後繼續存檔
 
-## 2. Update CLI Interface
-- [x] 2.1 Add `--skip-specs` flag to the archive command definition
-- [x] 2.2 Pass the flag value to the archive command execute method
+## 2.更新CLI介面
+- [x] 2.1 添加 `--skip-specs` 歸檔命令定義的標誌
+- [x] 2.2 將標誌值傳遞給歸檔指令執行方法
 
-## 3. Update Tests
-- [x] 3.1 Add test case for archiving with --skip-specs flag
-- [x] 3.2 Add test case for declining spec updates but continuing with archive
-- [x] 3.3 Verify that spec updates are skipped when flag is used
-- [x] 3.4 Verify that archive proceeds when user declines spec updates
-- [x] 3.5 Ensure existing behavior remains unchanged when flag is not used
+## 3. 更新測試
+- [x] 3.1 使用 --skip-specs 標誌新增用於存檔的測試案例
+- [x] 3.2 新增拒絕規範更新但繼續存檔的測試案例
+- [x] 3.3 驗證使用標誌時是否跳過規範更新
+- [x] 3.4 驗證當使用者拒絕規範更新時存檔是否繼續
+- [x] 3.5 確保不使用標誌時現有行為保持不變
 
-## 4. Update Documentation
-- [x] 4.1 Update the cli-archive spec to document the new --skip-specs flag
-- [x] 4.2 Document the new behavior when declining spec updates interactively
+## 4. 更新文檔
+- [x] 4.1 更新 cli-archive 規範以記錄新的 --skip-specs 標誌
+- [x] 4.2 記錄互動式拒絕規範更新時的新行為
 
-## Implementation Notes
+## 實施說明
 
-### Key Design Decisions
+### 關鍵設計決策
 
-1. **Non-blocking Confirmation Behavior**: When users decline spec updates interactively, the archive operation continues rather than cancelling entirely. This was a critical UX improvement because:
-   - Users may want to review specs separately before updating them
-   - Archiving work shouldn't be blocked by spec review decisions
-   - Maintains flexibility in the deployment workflow
+1. **非阻塞確認行為**：當使用者以互動方式拒絕規範更新時，存檔操作將繼續而不是完全取消。這是一項關鍵的使用者體驗改進，因為：
+   - 用戶可能希望在更新之前單獨檢視規格
+   - 歸檔工作不應因規範審查決定而受到阻礙
+   - 保持部署工作流程的彈性
 
-2. **Flag Naming Convention**: Chose `--skip-specs` for clarity and consistency:
-   - Clearly indicates the action (skipping) and target (specs)
-   - Follows kebab-case convention for CLI flags
-   - Converts naturally to `skipSpecs` camelCase in code
+2. **標誌命名約定**：選擇 `--skip-specs` 為了清晰和一致性：
+   - 清楚地指示操作（跳過）和目標（規格）
+   - 遵循 CLI 標誌的 kebab-case 約定
+   - 自然地轉換為 `skipSpecs` 程式碼中的駝峰式命名法
 
-3. **Console Messaging Strategy**: Added explicit messages for all spec-skipping scenarios:
-   - When flag is used: "Skipping spec updates (--skip-specs flag provided)."
-   - When user declines: "Skipping spec updates. Proceeding with archive."
-   - Ensures users always understand what's happening with their specs
+3. **控制台訊息策略**：為所有規範跳過場景新增明確訊息：
+   - 使用標誌時：“跳過規範更新（提供--skip-specs標誌）。”
+   - 當使用者拒絕時：“跳過規範更新。繼續存檔。”
+   - 確保用戶始終瞭解其規格的變化
 
-4. **Test Coverage Approach**: Created separate test cases for:
-   - Flag-based skipping (explicit user choice via CLI)
-   - Interactive declining (runtime user decision)
-   - Both verify the same outcome but test different code paths
+4. **測試覆蓋率方法**：為以下內容建立單獨的測試案例：
+   - 基於標誌的跳過（透過 CLI 明確使用者選擇）
+   - 互動下降（執行時用戶決定）
+   - 兩者都驗證相同的結果，但測試不同的程式碼路徑
 
-### Use Cases Addressed
+### 解決的用例
 
-- **Infrastructure Changes**: Changes to build tools, CI/CD, dependencies
-- **Documentation Updates**: README updates, comment improvements
-- **Tooling Modifications**: Developer tools, scripts, configuration files
-- **Refactoring**: Code improvements that don't change functionality/specs
+- **基礎架構變更**：建置工具、CI/CD、相依性的更改
+- **文件更新**：README更新，評論改進
+- **工具修改**：開發人員工具、腳本、設定檔
+- **重構**：不改變功能/規格的程式碼改進
 
-### Future Considerations
+### 未來的考慮因素
 
-- Could potentially auto-detect when changes don't include specs and suggest using the flag
-- May want to track which archives skipped spec updates for audit purposes
+- 當變更不包含規格時可能會自動偵測並建議使用該標誌
+- 出於審計目的可能想要追蹤哪些檔案跳過了規範更新

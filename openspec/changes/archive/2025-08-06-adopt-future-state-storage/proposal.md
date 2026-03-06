@@ -1,24 +1,24 @@
-# Adopt Future State Storage for OpenSpec Changes
+# 採用未來狀態儲存進行 OpenSpec 的更改
 
-## Why
+## 為什麼
 
-The current approach of storing spec changes as diff files (`.spec.md.diff`) creates friction for both humans and AI. Diff syntax with `+` and `-` prefixes makes specs hard to read, AI tools struggle with the format when understanding future state, and GitHub can't show nice comparisons between current and proposed specs in different folders.
+目前將規範變更儲存為 diff 檔案的方法（`.spec.md.diff`）給人類和人工智慧帶來摩擦。差異語法與 `+` 和 `-` 前綴使規格難以閱讀，AI 工具在理解未來狀態時難以適應格式，並且 GitHub 無法顯示不同資料夾中當前規格和建議規格之間的良好比較。
 
-## What Changes
+## 有什麼變化
 
-- Change from storing diffs (`patches/[capability]/spec.md.diff`) to storing complete future state (`specs/[capability]/spec.md`)
-- Update all documentation to reflect new storage format
-- Migrate existing `add-init-command` change to new format
-- Add new `openspec-conventions` capability to document these conventions
+- 更改儲存差異（`patches/[capability]/spec.md.diff`）來儲存完整的未來狀態（`specs/[capability]/spec.md`)
+- 更新所有文件以反映新的儲存格式
+- 遷移現有的 `add-init-command` 更改為新格式
+- 新增新的 `openspec-conventions` 記錄這些約定的能力
 
 
 
-## Impact
+## 影響
 
-- Affected specs: New `openspec-conventions` capability
-- Affected code: 
-  - openspec/README.md (lines 85-108)
-  - docs/PRD.md (lines 376-382, 778-783)
-  - docs/openspec-walkthrough.md (lines 58-62, 112-126)
-  - openspec/changes/add-init-command/ (migration needed)
+- 受影響的規格：新 `openspec-conventions` 能力
+- 受影響的代碼： 
+  - openspec/README.md（第 85-108 行）
+  - docs/PRD.md（第 376-382、778-783 行）
+  - docs/openspec-walkthrough.md（第 58-62、112-126 行）
+  - openspec/changes/add-init-command/ （需要遷移）
 

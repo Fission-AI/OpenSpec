@@ -1,27 +1,27 @@
-## ADDED Requirements
+## 新增要求
 
-### Requirement: Stack Planning Commands
+### 要求：堆疊規劃命令
 The change CLI SHALL provide commands for dependency-aware sequencing of active changes.
 
-#### Scenario: Show dependency graph
-- **WHEN** a user runs `openspec change graph`
-- **THEN** the CLI SHALL display dependency relationships for active changes
-- **AND** SHALL include a deterministic recommended order for execution
+#### 場景：顯示依賴圖
+- **何時** 使用者執行 `openspec change graph`
+- **那麼** CLI 應顯示活動變更的依賴關係
+- **並且** 應包括確定性的建議執行順序
 
-#### Scenario: Show next unblocked changes
-- **WHEN** a user runs `openspec change next`
-- **THEN** the CLI SHALL list changes that are not blocked by unresolved dependencies
-- **AND** SHALL use deterministic tie-breaking when multiple options are available
+#### 場景：顯示下一個未封鎖的更改
+- **何時** 使用者執行 `openspec change next`
+- **那麼** CLI 應列出未被未解決的依賴項阻止的更改
+- **並且** 當有多個選項可用時應使用確定性平局打破
 
-### Requirement: Split Large Change Scaffolding
-The change CLI SHALL support scaffolding child slices from an existing large change.
+### 要求：分離式大變鷹架
+更改 CLI 應支援現有大型更改的腳手架子切片。
 
-#### Scenario: Split command scaffolds child changes
-- **WHEN** a user runs `openspec change split <change-id>`
-- **THEN** the CLI SHALL create child change directories with proposal/tasks stubs
-- **AND** generated metadata SHALL include `parent` and dependency links back to the source change
+#### 場景：拆分命令腳手架子級更改
+- **何時** 使用者執行 `openspec change split <change-id>`
+- **那麼** CLI 應使用提案/任務存根建立子變更目錄
+- **且**產生的元資料應包括 `parent` 和依賴關係連結回源更改
 
-#### Scenario: Re-running split on an already-split change
-- **WHEN** a user runs `openspec change split <change-id>` for a parent whose generated child directories already exist
-- **THEN** the CLI SHALL fail with a deterministic, actionable error
-- **AND** SHALL NOT mutate existing child change content unless an explicit overwrite mode is requested
+#### 場景：對已拆分的變更重新執行拆分
+- **何時** 使用者執行 `openspec change split <change-id>` 對於其產生的子目錄已存在的父級
+- **那麼** CLI 將失敗並出現確定性、可操作的錯誤
+- **且** 不應改變現有的子變更內容，除非要求明確覆蓋模式

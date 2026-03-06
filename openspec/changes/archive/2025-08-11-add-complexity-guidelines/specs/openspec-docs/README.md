@@ -1,33 +1,33 @@
-# OpenSpec Instructions
+# OpenSpec 說明
 
-This document provides instructions for AI coding assistants on how to use OpenSpec conventions for spec-driven development. Follow these rules precisely when working on OpenSpec-enabled projects.
+本文檔為 AI 編碼助理提供如何使用 OpenSpec 約定進行規範驅動開發的說明。在處理 OpenSpec 啟用的項目時，請嚴格遵守這些規則。
 
-## Core Principle
+## 核心原則
 
-OpenSpec is an AI-native system for change-driven development where:
-- **Specs** (`specs/`) reflect what IS currently built and deployed
-- **Changes** (`changes/`) contain proposals for what SHOULD be changed
-- **AI drives the process** - You generate proposals, humans review and approve
-- **Specs are living documentation** - Always kept in sync with deployed code
+OpenSpec 是一個用於變革驅動開發的 AI 原生系統，其中：
+- **規格**（`specs/`）反映目前建置和部署的內容
+- **變化**（`changes/`）包含應更改內容的建議
+- **人工智慧驅動流程** - 您產生提案，人工審核和批准
+- **規格是動態文件** - 始終與部署的程式碼保持同步
 
-## Start Simple
+## 從簡單開始
 
-**Default to minimal implementations:**
-- New features should be <100 lines of code initially
-- Use the simplest solution that works
-- Avoid premature optimization (no caching, parallelization, or complex patterns without proven need)
-- Choose boring technology over cutting-edge solutions
+**預設為最小實作：**
+- 新功能最初應少於 100 行程式碼
+- 使用最簡單有效的解決方案
+- 避免過早優化（未經證實需要，不進行快取、並行化或複雜模式）
+- 選擇鏜削技術而不是尖端解決方案
 
-**Complexity triggers** - Only add complexity when you have:
-- **Performance data** showing current solution is too slow
-- **Scale requirements** with specific numbers (>1000 users, >100MB data)
-- **Multiple use cases** requiring the same abstraction
-- **Regulatory compliance** mandating specific patterns
-- **Security threats** that simple solutions cannot address
+**複雜性觸發器** - 僅當您滿足以下條件時才會增加複雜度：
+- **效能資料**顯示目前解決方案太慢
+- **規模需求** 具有特定數量（>1000 個用戶，>100MB 資料）
+- **多個用例**需要相同的抽象
+- **法規遵循**規定特定模式
+- **簡單解決方案無法解決的安全威脅**
 
-When triggered, document the specific justification in your change proposal.
+當觸發時，在變更提案中記錄具體理由。
 
-## Directory Structure
+## 目錄結構
 
 ```
 openspec/
@@ -49,54 +49,54 @@ openspec/
 │   └── archive/            # Completed changes (dated)
 ```
 
-### Capability Organization
+### 能力組織
 
-**Use capabilities, not features** - Each directory under `specs/` represents a single, focused responsibility:
-- **Verb-noun naming**: `user-auth`, `payment-capture`, `order-checkout`
-- **10-minute rule**: Each capability should be understandable in <10 minutes
-- **Single purpose**: If it needs "AND" to describe it, split it
+**使用功能，而不是特性** - 下的每個目錄 `specs/` 代表單一、集中的責任：
+- **動詞-名詞命名**： `user-auth`, `payment-capture`, `order-checkout`
+- **10 分鐘規則**：每個功能都應該在 10 分鐘內被理解
+- **目的單一**：如果需要「AND」來描述，則將其拆分
 
-Examples:
+範例：
 ```
 ✅ GOOD: user-auth, user-sessions, payment-capture, payment-refunds
 ❌ BAD: users, payments, core, misc
 ```
 
-## Key Behavioral Rules
+## 關鍵行為規則
 
-### 1. Always Start by Reading
+### 1. 始終從閱讀開始
 
-Before any task:
-1. **Read relevant specs** in `specs/[capability]/spec.md` to understand current state
-2. **Check pending changes** in `changes/` directory for potential conflicts
-3. **Read project.md** for project-specific conventions
+在執行任何任務之前：
+1. **閱讀相關規格** `specs/[capability]/spec.md` 瞭解當前狀態
+2. **檢查待處理的更改** `changes/` 潛在衝突的目錄
+3. **閱讀project.md**瞭解專案特定的約定
 
-### 2. When to Create Change Proposals
+### 2. 何時建立變更提案
 
-**ALWAYS create a change proposal for:**
-- New features or functionality
-- Breaking changes (API changes, schema updates)
-- Architecture changes or new patterns
-- Performance optimizations that change behavior
-- Security updates affecting auth/access patterns
-- Any change requiring multiple steps or affecting multiple systems
+**始終為以下內容建立變更提案：**
+- 新特性或功能
+- 重大變更（API 變更、架構更新）
+- 架構變化或新模式
+- 改變行為的效能優化
+- 影響身份驗證/存取模式的安全性更新
+- 任何需要多個步驟或影響多個系統的更改
 
-**SKIP proposals for:**
-- Bug fixes that restore intended behavior
-- Typos, formatting, or comment updates
-- Dependency updates (unless breaking)
-- Configuration or environment variable changes
-- Adding tests for existing behavior
-- Documentation fixes
+**跳過以下建議：**
+- 修復錯誤以恢復預期行為
+- 拼字錯誤、格式或評論更新
+- 依賴項更新（除非損壞）
+- 設定或環境變數更改
+- 添加對現有行為的測試
+- 文件修復
 
-**Complexity assessment:**
-- If your solution requires >100 lines of new code, justify the complexity
-- If adding dependencies, frameworks, or architectural patterns, document why simpler alternatives won't work
-- Default to single-file implementations until proven insufficient
+**複雜性評估：**
+- 如果您的解決方案需要超過 100 行新程式碼，請證明其複雜性
+- 如果新增依賴項、框架或架構模式，請記錄為什麼更簡單的替代方案不起作用
+- 預設為單一文件實現，直到證明不足為止
 
-### 3. Creating a Change Proposal
+### 3. 建立變更提案
 
-When a user requests a significant change:
+當用戶請求重大更改時：
 
 ```bash
 # 1. Create the change directory
@@ -130,63 +130,63 @@ specs/
 [Technical decisions and trade-offs]
 ```
 
-### 4. The Change Lifecycle
+### 4. 變革生命週期
 
-1. **Propose** → Create change directory with all documentation
-2. **Review** → User reviews and approves the proposal
-3. **Implement** → Follow the approved tasks.md (can be multiple PRs)
-4. **Deploy** → User confirms deployment
-5. **Update Specs** → Sync specs/ with new reality (IF the change affects system capabilities)
-6. **Archive** → Move to `changes/archive/YYYY-MM-DD-[name]/`
+1. **建議** → 建立包含所有文件的變更目錄
+2. **審核** → 使用者審核並批准提案
+3. **實施** → 遵循核准的tasks.md（可以是多個PR）
+4. **部署** → 使用者確認部署
+5. **更新規格** → 將規格/與新的現實同步（如果更改影響系統功能）
+6. **存檔** → 移至 `changes/archive/YYYY-MM-DD-[name]/`
 
-### 5. Implementing Changes
+### 5. 實施變革
 
-When implementing an approved change:
-1. Follow the tasks.md checklist exactly
-2. **Mark completed tasks** in tasks.md as you finish them (e.g., `- [x] 1.1 Task completed`)
-3. Ensure code matches the proposed behavior
-4. Update any affected tests
-5. **Keep change in `changes/` directory** - do NOT archive in implementation PR
+實施已核准的變更時：
+1. 嚴格遵循tasks.md清單
+2. **在完成任務時在tasks.md中標記已完成的任務**（例如， `- [x] 1.1 Task completed`)
+3. 確保程式碼符合建議的行為
+4. 更新所有受影響的測試
+5. **保留更改 `changes/` 目錄** - 不在實作 PR 中存檔
 
-**Multiple Implementation PRs:**
-- Changes can be implemented across multiple PRs
-- Each PR should update tasks.md to mark what was completed
-- Different developers can work on different task groups
-- Example: PR #1 completes tasks 1.1-1.3, PR #2 completes tasks 2.1-2.4
+**多個實施 PR：**
+- 可以跨多個 PR 實施更改
+- 每個 PR 都應該更新tasks.md 以標記已完成的內容
+- 不同的開發人員可以在不同的任務組中工作
+- 範例：PR #1 完成任務 1.1-1.3，PR #2 完成任務 2.1-2.4
 
-### 6. Updating Specs and Archiving After Deployment
+### 6. 部署後更新規格並存檔
 
-**Create a separate PR after deployment** that:
-1. Moves change to `changes/archive/YYYY-MM-DD-[name]/`
-2. Updates relevant files in `specs/` to reflect new reality (if needed)
-3. If design.md exists, incorporates proven patterns into `specs/[capability]/design.md`
+**部署後建立一個單獨的 PR**：
+1. 移動更改為 `changes/archive/YYYY-MM-DD-[name]/`
+2. 更新相關文件 `specs/` 反映新的現實（如果需要）
+3. 如果 design.md 存在，則將經過驗證的模式合併到 `specs/[capability]/design.md`
 
-This ensures changes are only archived when truly complete and deployed.
+這可確保變更僅在真正完成和部署時才存檔。
 
-### 7. Types of Changes That Don't Require Specs
+### 7. 不需要規格的變更類型
 
-Some changes only affect development infrastructure and don't need specs:
-- Initial project setup (package.json, tsconfig.json, etc.)
-- Development tooling changes (linters, formatters, build tools)
+一些變更僅影響開發基礎設施，不需要規範：
+- 初始專案設定（package.json、tsconfig.json 等）
+- 開發工具變更（linter、格式化程式、建置工具）
 - CI/CD configuration
-- Development dependencies
+- 開發依賴
 
-For these changes:
-1. Implement → Deploy → Mark tasks complete → Archive
-2. Skip the "Update Specs" step entirely
+對於這些變化：
+1. 實作→部署→標記任務完成→存檔
+2. 完全跳過“更新規格”步驟
 
-### What Deserves a Spec?
+### 什麼值得規格？
 
-Ask yourself:
-- Is this a system capability that users or other systems interact with?
-- Does it have ongoing behavior that needs documentation?
-- Would a new developer need to understand this to work with the system?
+問問自己：
+- 這是使用者或其他系統與之互動的系統功能嗎？
+- 它是否有需要記錄的持續行為？
+- 新開發人員需要瞭解這一點才能使用該系統嗎？
 
-If NO to all → No spec needed (likely just tooling/infrastructure)
+如果全部否定 → 不需要規格（可能只是工具/基礎設施）
 
-## Understanding Specs vs Code
+## 瞭解規格與程式碼
 
-### Specs Document WHAT and WHY
+### 規格記錄內容​​和原因
 ```markdown
 # Authentication Spec
 
@@ -198,18 +198,18 @@ WHEN credentials are invalid THEN return generic error.
 WHY: Prevent user enumeration attacks.
 ```
 
-### Code Documents HOW
+### 程式碼文檔如何
 ```javascript
 // Implementation details
 const user = await db.users.findOne({ email });
 const valid = await bcrypt.compare(password, user.hashedPassword);
 ```
 
-**Key Distinction**: Specs capture intent, constraints, and decisions that aren't obvious from code.
+**關鍵區別**：規範捕捉了程式碼中不明顯的意圖、約束和決策。
 
-## Common Scenarios
+## 常見場景
 
-### New Feature Request
+### 新功能請求
 ```
 User: "Add password reset functionality"
 
@@ -220,7 +220,7 @@ You should:
 4. Wait for approval before implementing
 ```
 
-### Bug Fix
+### 錯誤修復
 ```
 User: "Getting null pointer error when bio is empty"
 
@@ -230,7 +230,7 @@ You should:
 3. If no → Create change proposal (it's a behavior change)
 ```
 
-### Infrastructure Setup
+### 基礎設施設置
 ```
 User: "Initialize TypeScript project"
 
@@ -242,22 +242,22 @@ You should:
    (no specs update needed - this is tooling, not a capability)
 ```
 
-## Summary Workflow
+## 工作流程總結
 
-1. **Receive request** → Determine if it needs a change proposal
-2. **Read current state** → Check specs and pending changes
-3. **Create proposal** → Generate complete change documentation
-4. **Get approval** → User reviews the proposal
-5. **Implement** → Follow approved tasks, mark completed items in tasks.md
-6. **Deploy** → User deploys the implementation
-7. **Archive PR** → Create separate PR to:
-   - Move change to archive
-   - Update specs if needed
-   - Mark change as complete
+1. **接收請求** → 確定是否需要變更提案
+2. **讀取目前狀態** → 檢查規格和待定更改
+3. **建立提案** → 產生完整的變更文檔
+4. **獲得批准** → 使用者審查提案
+5. **實施** → 遵循已批准的任務，在tasks.md中標記已完成的項目
+6. **部署** → 使用者部署實施
+7. **存檔 PR** → 建立單獨的 PR 以便：
+   - 將更改移至存檔
+   - 如果需要更新規格
+   - 將更改標記為完成
 
-## PR Workflow Examples
+## 公關工作流程範例
 
-### Single Developer, Simple Change
+### 單一開發者，簡單的改變
 ```
 PR #1: Implementation
 - Implement all tasks
@@ -269,7 +269,7 @@ PR #2: Archive (after deployment)
 - Update specs if needed
 ```
 
-### Multiple Developers, Complex Change
+### 多個開發人員，複雜的變更
 ```
 PR #1: Alice implements auth components
 - Complete tasks 1.1, 1.2, 1.3
@@ -290,45 +290,45 @@ PR #4: Archive
 - Update specs to reflect new auth flow
 ```
 
-### Key Rules
-- **Never archive in implementation PRs** - changes aren't done until deployed
-- **Always update tasks.md** - shows accurate progress
-- **One archive PR per change** - clear completion boundary
-- **Archive PR includes spec updates** - keeps specs current
+### 關鍵規則
+- **切勿在實作 PR 中存檔** - 變更在部署前不會完成
+- **始終更新tasks.md** - 顯示準確的進度
+- **每次變更一個存檔 PR** - 明確的完成邊界
+- **存檔 PR 包括規格更新** - 保持規格最新
 
-## Capability Organization Best Practices
+## 能力組織最佳實踐
 
-### Naming Capabilities
-- Use **verb-noun** patterns: `user-auth`, `payment-capture`, `order-checkout`
-- Be specific: `payment-capture` not just `payments`
-- Keep flat: Avoid nesting capabilities within capabilities
-- Singular focus: If you need "AND" to describe it, split it
+### 命名能力
+- 使用**動詞-名詞**模式： `user-auth`, `payment-capture`, `order-checkout`
+- 具體一點： `payment-capture` 不僅 `payments`
+- 保持扁平：避免功能內嵌套功能
+- 單一焦點：如果需要「AND」來描述，就拆分它
 
-### When to Split Capabilities
-Split when you have:
-- Multiple unrelated API endpoints
-- Different user personas or actors
-- Separate deployment considerations
-- Independent evolution paths
+### 何時拆分能力
+當你有以下情況時拆分：
+- 多個不相關的API端點
+- 不同的使用者角色或參與者
+- 單獨的部署注意事項
+- 獨立的進化路徑
 
-#### Capability Boundary Guidelines
-- Would you import these separately? → Separate capabilities
-- Different deployment cadence? → Separate capabilities
-- Different teams own them? → Separate capabilities
-- Shared data models are OK, shared business logic means combine
+#### 能力邊界指南
+- 您會單獨導入這些嗎？ → 獨立的功能
+- 不同的部署節奏？ → 獨立的功能
+- 不同的球隊擁有它們？ → 獨立的功能
+- 共享資料模型就可以了，共享業務邏輯意味著結合起來
 
-Examples:
-- user-auth (login/logout) vs user-sessions (token management) → SEPARATE
-- payment-capture vs payment-refunds → SEPARATE (different workflows)
-- user-profile vs user-settings → COMBINE (same data model, same owner)
+範例：
+- 使用者驗證（登入/登出）與使用者會話（令牌管理）→ 單獨
+- 付款捕獲與付款退款 → 單獨（不同的工作流程）
+- 使用者設定檔與使用者設定→組合（相同的資料模型，相同的擁有者）
 
-### Cross-Cutting Concerns
-For system-wide policies (rate limiting, error handling, security), document them in:
-- `project.md` for project-wide conventions
-- Within relevant capability specs where they apply
-- Or create a dedicated capability if complex enough (e.g., `api-rate-limiting/`)
+### 跨領域的關注點
+對於系統範圍的策略（速率限制、錯誤處理、安全性），將其記錄在：
+- `project.md` 用於專案範圍的會議
+- 在適用的相關功能規格內
+- 或者如果足夠複雜，則建立專用功能（例如， `api-rate-limiting/`)
 
-### Examples of Well-Organized Capabilities
+### 組織良好的功能範例
 ```
 specs/
 ├── user-auth/              # Login, logout, password reset
@@ -339,41 +339,41 @@ specs/
 └── order-checkout/         # Checkout workflow
 ```
 
-For detailed guidance, see the [Capability Organization Guide](../docs/capability-organization.md).
+有關詳細指導，請參閱 [能力組織指南](../docs/capability-organization.md).
 
-## Common Scenarios and Clarifications
+## 常見場景和說明
 
-### Decision Ambiguity: Bug vs Behavior Change
+### 決策模糊性：錯誤與行為改變
 
-When specs are missing or ambiguous:
-- If NO spec exists → Treat current code behavior as implicit spec, require proposal
-- If spec is VAGUE → Require proposal to clarify spec alongside fix
-- If code and spec DISAGREE → Spec is truth, code is buggy (fix without proposal)
-- If unsure → Default to creating a proposal (safer option)
+當規格缺失或不明確時：
+- 如果不存在規範 → 將目前代碼行為視為隱式規範，則需要建議
+- 如果規格是 VAGUE → 需要提案在修復的同時澄清規格
+- 如果代碼和規範不同意 → 規範是事實，則代碼有錯誤（無需提案即可修復）
+- 如果不確定 → 預設建立提案（更安全的選項）
 
-Example:
+例子：
 ```
 User: "The API returns 404 for missing users but should return 400"
 AI: Is this a bug (spec says 400) or behavior change (spec says 404)?
 ```
 
-### When You Don't Know the Scope
-It's OK to explore first! Tell the user you need to investigate, then create an informed proposal.
+### 當你不知道範圍時
+先探索一下就可以了！告訴使用者您需要調查，然後建立一份知情提案。
 
-### Exploration Phase (When Needed)
+### 探索階段（需要時）
 
-BEFORE creating proposal, you may need exploration when:
-- User request is vague or high-level
-- Multiple implementation approaches exist
-- Scope is unclear without seeing code
+在建立提案之前，您可能需要在以下情況下進行探索：
+- 用戶請求模糊或等級較高
+- 存在多種實施方法
+- 不看代碼範圍不清楚
 
-Exploration checklist:
-1. Tell user you need to explore first
-2. Use Grep/Read to understand current state
-3. Create initial proposal based on findings
-4. Refine with user feedback
+探索清單：
+1. 告訴用戶您需要先探索
+2. 使用 Grep/Read 瞭解目前狀態
+3. 根據調查結果建立初步提案
+4. 根據用戶回饋進行優化
 
-Example:
+例子：
 ```
 User: "Add caching to improve performance"
 AI: "Let me explore the codebase to understand the current architecture and identify caching opportunities."
@@ -381,92 +381,92 @@ AI: "Let me explore the codebase to understand the current architecture and iden
 AI: "Based on my analysis, I've identified three areas where caching would help. Here's my proposal..."
 ```
 
-### When No Specs Exist
-Treat current code as implicit spec. Your proposal should document current state AND proposed changes.
+### 不存在規格時
+將目前程式碼視為隱式規範。您的提案應記錄當前狀態和提議的變更。
 
-### When in Doubt
-Default to creating a proposal. It's easier to skip an unnecessary proposal than fix an undocumented change.
+### 當有疑問時
+預設建立提案。跳過不必要的提案比修復未記錄的更改更容易。
 
-### AI Workflow Adaptations
+### AI 工作流程調整
 
-Task tracking with OpenSpec:
-- Track exploration tasks separately from implementation
-- Document proposal creation steps as you go
-- Keep implementation tasks separate until proposal approved
+使用 OpenSpec 進行任務追蹤：
+- 與實施分開追蹤探索任務
+- 隨時記錄提案建立步驟
+- 在提案獲得批准之前，將實施任務分開
 
-Parallel operations encouraged:
-- Read multiple specs simultaneously
-- Check multiple pending changes at once
-- Batch related searches for efficiency
+鼓勵並行運作：
+- 同時讀取多個規格
+- 一次檢查多個待處理的更改
+- 大量相關搜尋以提高效率
 
-Progress communication:
-- "Exploring codebase to understand scope..."
-- "Creating proposal based on findings..."
-- "Implementing approved changes..."
+進度溝通：
+- “探索程式碼庫以瞭解範圍......”
+- “根據調查結果建立提案......”
+- “實施批准的變更…”
 
-### For AI Assistants
-- **Bias toward simplicity** - Propose the minimal solution that works
-- Use your exploration tools liberally before proposing
-- Batch operations for efficiency
-- Communicate your progress
-- It's OK to revise proposals based on discoveries
-- **Question complexity** - If your solution feels complex, simplify first
+### 對於人工智慧助理
+- **偏向簡單性** - 提出可行的最小解決方案
+- 在求婚之前充分使用你的探索工具
+- 大量操作提高效率
+- 傳達您的進展
+- 根據發現修改提案是可以的
+- **問題複雜性** - 如果您的解決方案感覺很複雜，請先簡化
 
-## Edge Case Handling
+## 邊緣情況處理
 
-### Multi-Capability Changes
-Create ONE proposal that:
-- Lists all affected capabilities
-- Shows changes per capability
-- Has unified task list
-- Gets approved as a whole
+### 多功能變化
+建立一項提案：
+- 列出所有受影響的功能
+- 顯示每個功能的變化
+- 有統一的任務清單
+- 獲得整體批准
 
-### Outdated Specs
-If specs clearly outdated:
-1. Create proposal to update specs to match reality
-2. Implement new feature in separate proposal
-3. OR combine both in one proposal with clear sections
+### 過時的規格
+如果規格明顯過時：
+1. 建立提案以更新規格以符合現實
+2. 在單獨的提案中實施新功能
+3. 或將兩者合併到一份提案中，並有明確的部分
 
-### Emergency Hotfixes
-For critical production issues:
-1. Announce: "This is an emergency fix"
-2. Implement fix immediately
-3. Create retroactive proposal
-4. Update specs after deployment
-5. Tag with [EMERGENCY] in archive
+### 緊急修復
+對於關鍵的生產問題：
+1. 宣布：“這是緊急修復”
+2. 立即實施修復
+3. 建立追溯提案
+4. 部署後更新規格
+5. 存檔中帶有 [EMERGENCY] 標籤
 
-### Pure Refactoring
-No proposal needed for:
-- Code formatting/style
-- Internal refactoring (same API)
-- Performance optimization (same behavior)
-- Adding types to untyped code
+### 純粹的重構
+不需要提案：
+- 程式碼格式/風格
+- 內部重構（同API）
+- 效能優化（相同行為）
+- 為非類型化程式碼新增類型
 
-Proposal REQUIRED for:
-- API changes (even if compatible)
-- Database schema changes
-- Architecture changes
-- New dependencies
+需要提案：
+- API 更改（即使相容）
+- 資料庫結構定義更改
+- 架構變化
+- 新的依賴項
 
-### Observability Additions
-No proposal needed for:
-- Adding log statements
-- New metrics/traces
-- Debugging additions
-- Error tracking
+### 可觀察性的補充
+不需要提案：
+- 新增日誌語句
+- 新指標/軌跡
+- 偵錯新增
+- 錯誤追蹤
 
-Proposal REQUIRED if:
-- Changes log format/structure
-- Adds new monitoring service
-- Changes what's logged (privacy)
+如果滿足以下條件，則需要提案：
+- 更改日誌格式/結構
+- 新增新的監控服務
+- 更改記錄的內容（隱私）
 
-## Remember
+## 記住
 
-- You are the process driver - automate documentation burden
-- Specs must always reflect deployed reality
-- Changes are proposed, not imposed
-- Impact analysis prevents surprises
-- **Simplicity is the power** - just markdown files, minimal solutions
-- Start simple, add complexity only when justified
+- 您是流程驅動者 - 自動化文件負擔
+- 規格必須始終反映部署的實際情況
+- 改變是提議的，而不是強加的
+- 影響分析可以防止意外
+- **簡單就是力量** - 只需降價文件，最少的解決方案
+- 從簡單開始，只有在合理的情況下才會增加複雜性
 
-By following these conventions, you enable true spec-driven development where documentation stays current, changes are traceable, and evolution is intentional.
+透過遵循這些約定，您可以實現真正的規範驅動開發，其中文件保持最新、更改可追蹤、並且演變是有意的。

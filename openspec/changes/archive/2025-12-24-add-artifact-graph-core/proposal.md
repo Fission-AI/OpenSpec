@@ -1,18 +1,18 @@
-## Why
+## 為什麼
 
-The current OpenSpec system relies on conventions and AI inference for artifact ordering. A formal artifact graph with dependency awareness would enable deterministic "what's ready?" queries, making the system more predictable and enabling future features like automated pipeline execution.
+目前的 OpenSpec 系統依賴約定和 AI 推理來進行工件排序。具有依賴意識的正式工件圖將實現確定性的「準備好了什麼？」查詢，使系統更具可預測性，並支援未來的功能，例如自動管道執行。
 
-## What Changes
+## 有什麼變化
 
-- Add `ArtifactGraph` class to model artifacts as a DAG with dependency relationships
-- Add `ArtifactState` type to track completion status (completed, in_progress, failed)
-- Add filesystem-based state detection using file existence and glob patterns
-- Add schema YAML parser to load artifact definitions
-- Implement topological sort (Kahn's algorithm) for build order calculation
-- Add `getNextArtifacts()` to find artifacts ready for creation
+- 添加 `ArtifactGraph` 將工件建模為具有依賴關係的 DAG 的類
+- 添加 `ArtifactState` 追蹤完成狀態的類型（已完成、進行中、失敗）
+- 使用檔案存在和 glob 模式新增基於檔案系統的狀態偵測
+- 新增架構 YAML 解析器以載入工件定義
+- 實作拓樸排序（卡恩演算法）來計算建構順序
+- 添加 `getNextArtifacts()` 尋找可供創作的工件
 
-## Impact
+## 影響
 
-- Affected specs: New `artifact-graph` capability
-- Affected code: `src/core/artifact-graph/` (new directory)
-- No changes to existing functionality - this is a parallel module
+- 受影響的規格：新 `artifact-graph` 能力
+- 受影響的代碼： `src/core/artifact-graph/` （新目錄）
+- 現有功能沒有變化 - 這是一個並行模組

@@ -1,28 +1,28 @@
-## Why
+## 為什麼
 
-We want to rename `spec-driven` to `openspec-default` to better reflect that it's the standard/default workflow. However, renaming directly would break existing projects that have `schema: spec-driven` in their `openspec/config.yaml`. Adding alias support allows both names to work interchangeably, enabling a smooth transition with no breaking changes.
+我們想重命名 `spec-driven` 到 `openspec-default` 以更好地反映這是標準/預設工作流程。然而，直接重命名會破壞現有的項目 `schema: spec-driven` 在他們的 `openspec/config.yaml`。新增別名支援允許兩個名稱互換使用，從而實現平穩過渡，而無需進行重大更改。
 
-## What Changes
+## 有什麼變化
 
-- Add schema alias resolution in the schema resolver
-- `openspec-default` and `spec-driven` will both resolve to the same schema
-- The physical directory remains `schemas/spec-driven/` (or could be renamed to `schemas/openspec-default/` with `spec-driven` as the alias)
-- All CLI commands and config files accept either name
-- No changes required to existing user configs
+- 在架構解析器中加入架構別名解析
+- `openspec-default` 和 `spec-driven` 都將解析為相同的模式
+- 物理目錄仍然存在 `schemas/spec-driven/` （或者可以重新命名為 `schemas/openspec-default/` 和 `spec-driven` 作為別名）
+- 所有 CLI 命令和設定檔接受任一名稱
+- 無需更改現有使用者設定
 
-## Capabilities
+## 能力
 
-### New Capabilities
+### 新功能
 
-- `schema-aliases`: Support for schema name aliases so multiple names can resolve to the same schema directory
+- `schema-aliases`：支援架構名稱別名，以便多個名稱可以解析到同一架構目錄
 
-### Modified Capabilities
+### 修改後的功能
 
 <!-- No existing spec-level behavior is changing - this is purely additive -->
 
-## Impact
+## 影響
 
-- `src/core/artifact-graph/resolver.ts` - Add alias resolution logic
-- `schemas/` directory - Potentially rename `spec-driven` to `openspec-default`
-- Documentation - Update to prefer `openspec-default` while noting `spec-driven` still works
-- Default schema constants - Update `DEFAULT_SCHEMA` to `openspec-default`
+- `src/core/artifact-graph/resolver.ts` - 新增別名解析邏輯
+- `schemas/` 目錄 - 可能重新命名 `spec-driven` 到 `openspec-default`
+- 文件 - 更新為首選 `openspec-default` 同時注意到 `spec-driven` 仍然有效
+- 預設架構常數 - 更新 `DEFAULT_SCHEMA` 到 `openspec-default`

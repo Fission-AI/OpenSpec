@@ -1,55 +1,55 @@
-# Implementation Tasks
+# 實施任務
 
-## 1. Update Conventions
-- [x] 1.1 Update openspec-conventions spec with delta-based approach
-- [x] 1.2 Add Header-Based Requirement Identification
-- [x] 1.3 Define ADDED/MODIFIED/REMOVED/RENAMED sections
-- [x] 1.4 Document standard output symbols (+ ~ - →)
-- [x] 1.5 Update openspec/README.md with delta-based conventions
-- [x] 1.6 Update examples to use delta format
+## 1. 更新約定
+- [x] 1.1 使用基於增量的方法更新 openspec-conventions 規範
+- [x] 1.2 新增基於標頭的需求標識
+- [x] 1.3 定義 ADDED/MODIFIED/REMOVED/RENAMED 部分
+- [x] 1.4 文檔標準輸出符號(+~-→)
+- [x] 1.5 使用基於增量的約定更新 openspec/README.md
+- [x] 1.6 更新範例以使用 delta 格式
 
-## 2. Update Diff Command
-- [ ] 2.1 Update cli-diff spec with requirement-level comparison
-- [ ] 2.2 Parse specs into requirement-level structures
-- [ ] 2.3 Apply deltas to generate future state
-- [ ] 2.4 Implement side-by-side comparison view (changes only)
-- [ ] 2.5 Add tests for requirement-level comparison
-- [ ] 2.6 Add tests for side-by-side view formatting
+## 2.更新Diff指令
+- [ ] 2.1 透過需求層級比較更新 cli-diff 規範
+- [ ] 2.2 將規格解析為需求級結構
+- [ ] 2.3 應用增量來產生未來狀態
+- [ ] 2.4 實作並排比較視圖（僅變更）
+- [ ] 2.5 新增需求等級比較的測試
+- [ ] 2.6 新增並排視圖格式測試
 
-## 3. Update Archive Command
-- [x] 3.1 Update cli-archive spec with delta processing behavior
-- [x] 3.2 Implement requirement-block extractor that preserves exact headers (`### Requirement: [Name]`) and captures full content (including scenarios)
-- [x] 3.3 Implement normalized header matching (trim-only, case-sensitive)
-- [x] 3.4 Parse delta sections (ADDED/MODIFIED/REMOVED/RENAMED)
-- [x] 3.5 New spec creation when target spec does not exist
-  - [x] 3.5.1 Auto-generate minimal skeleton: `# [Spec Name] Specification`, `## Purpose` placeholder, `## Requirements`
-  - [x] 3.5.2 Allow only ADDED operations for non-existent specs; abort if MODIFIED/REMOVED/RENAMED present
-- [x] 3.6 Apply changes in order: RENAMED → REMOVED → MODIFIED → ADDED
-- [x] 3.7 Validation and conflict checks
-  - [x] 3.7.1 MODIFIED/REMOVED requirements exist (after applying rename mappings)
-  - [x] 3.7.2 ADDED requirements don't already exist (consider post-rename state)
-  - [x] 3.7.3 RENAMED FROM headers exist; TO headers don't (including collisions with ADDED)
-  - [x] 3.7.4 No duplicate headers within specs after all operations
-  - [x] 3.7.5 Detect cross-section conflicts (e.g., same requirement in MODIFIED and REMOVED)
-  - [x] 3.7.6 When a rename exists, require MODIFIED to reference the NEW header
-- [x] 3.8 Atomic updates
-  - [x] 3.8.1 Validate all deltas first; stage updates in-memory per spec
-  - [x] 3.8.2 Single write per spec; abort entire archive on any validation failure (no partial writes)
-- [x] 3.9 Output and error messaging
-  - [x] 3.9.1 Display per-spec operation counts with symbols: `+` added, `~` modified, `-` removed, `→` renamed
-  - [x] 3.9.2 Optionally display an aggregated totals line across all specs
-  - [x] 3.9.3 Standardize error message format: `[spec] [operation] failed for header "### Requirement: X" — reason`; end with `Aborted. No files were changed.` on failure
-- [x] 3.10 Idempotency behavior (v1): abort on precondition failures (e.g., ADDED already exists); do not implement no-op detection
-- [x] 3.11 Tests
-  - [x] 3.11.1 Header normalization (trim-only) matching
-  - [x] 3.11.2 Apply in correct order (RENAMED → REMOVED → MODIFIED → ADDED)
-  - [x] 3.11.3 Validation edge cases (missing headers, duplicates, rename collisions, conflicting sections)
-  - [x] 3.11.4 Rename + modify interplay (MODIFIED uses new header)
-  - [x] 3.11.5 New spec creation via skeleton
-  - [x] 3.11.6 Multi-spec mixed operations with independent validation and write
+## 3. 更新存檔指令
+- [x] 3.1 使用增量處理行為更新 cli-archive 規範
+- [x] 3.2 實作保留精確標頭的需求塊提取器（`### Requirement: [Name]`）並捕捉完整內容（包括場景）
+- [x] 3.3 實現標準化頭部匹配（僅修剪，區分大小寫）
+- [x] 3.4 解析增量部分（新增/修改/刪除/重新命名）
+- [x] 3.5 當目標規範不存在時建立新規範
+  - [x] 3.5.1 自動產生最小骨架： `# [Spec Name] Specification`, `## Purpose` 佔位符， `## Requirements`
+  - [x] 3.5.2 只允許對不存在的規範進行ADDED操作；如果存在 MODIFIED/REMOVED/RENAMED 則中止
+- [x] 3.6 依序套用變更：重新命名→刪除→修改→新增
+- [x] 3.7 驗證和衝突檢查
+  - [x] 3.7.1 存在修改/刪除的要求（應用重新命名映射後）
+  - [x] 3.7.2 新增的要求尚不存在（考慮重命名後的狀態）
+  - [x] 3.7.3 RENAMED FROM headers存在；TO 標頭不會（包括與 ADDED 衝突）
+  - [x] 3.7.4 所有操作後規範內沒有重複的標頭
+  - [x] 3.7.5 偵測橫斷面衝突（例如，MODIFIED 和 REMOVED 中的相同要求）
+  - [x] 3.7.6 當存在重命名時，請 MODIFIED 引用 NEW 標頭
+- [x] 3.8 原子更新
+  - [x] 3.8.1 首先驗證所有增量；根據規格在記憶體中進行階段更新
+  - [x] 3.8.2 依規範單次寫入；在任何驗證失敗時中止整個存檔（無部分寫入）
+- [x] 3.9 輸出和錯誤訊息
+  - [x] 3.9.1 用符號顯示每個規格的操作計數： `+` 額外， `~` 修改的， `-` 刪除, `→` 重新命名
+  - [x] 3.9.2 選擇性地顯示所有規格的總總計行
+  - [x] 3.9.3 標準化錯誤訊息格式： `[spec] [operation] failed for header "### Requirement: X" — reason`;結束於 `Aborted. No files were changed.` 失敗時
+- [x] 3.10 冪等性行為 (v1)：在前提條件失敗時中止（例如，ADDED 已存在）；不實現空操作偵測
+- [x] 3.11 測試
+  - [x] 3.11.1 標頭標準化（僅修剪）匹配
+  - [x] 3.11.2 以正確的順序套用（重新命名→刪除→修改→新增）
+  - [x] 3.11.3 驗證邊緣情況（缺少標頭、重複、重新命名衝突、衝突的部分）
+  - [x] 3.11.4 重新命名+修改互動（MODIFIED使用新的頭）
+  - [x] 3.11.5 透過骨架建立新規範
+  - [x] 3.11.6 獨立驗證和寫入的多規範混合操作
 
-## Notes
-- Archive command is critical path - must work reliably
-- All new changes must use delta format
-- Header normalization: normalize(header) = trim(header)
-- Diff command shows only changed requirements in side-by-side comparison
+## 筆記
+- 歸檔命令是關鍵路徑 - 必須可靠地工作
+- 所有新變更都必須使用增量格式
+- 標頭標準化：標準化（標頭）=修剪（標頭）
+- Diff 指令在並排比較中僅顯示變更的要求

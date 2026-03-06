@@ -1,21 +1,21 @@
-# Implementation Tasks
+# 實施任務
 
-## 1. Update Update Command
-- [x] Remove hardcoded CLAUDE.md update from `src/core/update.ts`
-- [x] Add logic to check for existing AI tool configuration files
-- [x] Update only existing files using their appropriate configurators
-- [x] Iterate through all registered configurators to check for existing files
+## 1.更新更新命令
+- [x] 刪除硬編碼的 CLAUDE.md 更新 `src/core/update.ts`
+- [x] 新增邏輯以檢查現有 AI 工具設定檔
+- [x] 使用適當的設定器僅更新現有文件
+- [x] 遍歷所有註冊的設定器以檢查現有文件
 
-## 2. Update Configurator Registry
-- [x] Add method to get all configurators for update command
-- [x] Ensure each configurator can check if its file exists
+## 2.更新設定器註冊表
+- [x] 新增方法來取得更新命令的所有設定器
+- [x] 確保每個設定器都可以檢查其檔案是否存在
 
-## 3. Add Tests
-- [x] Test update command with only CLAUDE.md present
-- [x] Test update command with no AI tool files present
-- [x] Test update command with multiple AI tool files present
-- [x] Test that update never creates new AI tool files
+## 3. 新增測試
+- [x] 僅在 CLAUDE.md 存在的情況下測試更新命令
+- [x] 在不存在 AI 工具檔案的情況下測試更新命令
+- [x] 使用多個 AI 工具檔案測試更新命令
+- [x] 測試更新不會建立新的 AI 工具文件
 
-## 4. Update Documentation
-- [x] Update README to clarify team-friendly behavior
-- [x] Document that update only modifies existing files
+## 4. 更新文檔
+- [x] 更新README以闡明團隊友善的行為
+- [x] 更新僅修改現有文件的文檔

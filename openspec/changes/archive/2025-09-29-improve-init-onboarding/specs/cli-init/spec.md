@@ -1,33 +1,33 @@
-## MODIFIED Requirements
-### Requirement: AI Tool Configuration
+## 修改後的要求
+### 需求：AI工具設定
 
-The command SHALL configure AI coding assistants with OpenSpec instructions based on user selection.
+該命令應根據使用者選擇使用 OpenSpec 指令設定 AI 編碼助理。
 
-#### Scenario: Prompting for AI tool selection
+#### 場景：提示選擇AI工具
 
-- **WHEN** run interactively
-- **THEN** prompt the user with "Which AI tools do you use?" using a multi-select menu
-- **AND** list every available tool with a checkbox:
-  - Claude Code (creates or refreshes CLAUDE.md and slash commands)
-  - Cursor (creates or refreshes `.cursor/commands/*` slash commands)
-  - AGENTS.md standard (creates or refreshes AGENTS.md with OpenSpec markers)
-- **AND** show "(already configured)" beside tools whose managed files exist so users understand selections will refresh content
-- **AND** treat disabled tools as "coming soon" and keep them unselectable
-- **AND** allow confirming with Enter after selecting one or more tools
+- **何時** 交互執行
+- **然後** 提示使用者「您使用哪些人工智慧工具？」使用多重選擇選單
+- **並** 使用核取方塊列出每個可用工具：
+  - Claude 程式碼（建立或重新整理 CLAUDE.md 和斜線指令）
+  - 遊標（建立或重新整理 `.cursor/commands/*` 斜線指令）
+  - AGENTS.md 標準（使用 OpenSpec 標記建立或重新整理 AGENTS.md）
+- **並且** 在存在託管文件的工具旁邊顯示“（已設定）”，以便用戶瞭解選擇將重新整理內容
+- **並且** 將禁用的工具視為“即將推出”並保持它們不可選擇
+- **並且**允許在選擇一個或多個工具後按 Enter 進行確認
 
-### Requirement: AI Tool Configuration Details
+### 要求：AI工具設定詳細信息
 
-The command SHALL properly configure selected AI tools with OpenSpec-specific instructions using a marker system.
+此指令應使用標記系統使用 OpenSpec 特定指令正確設定選定的 AI 工具。
 
-#### Scenario: Configuring Claude Code
+#### 場景：設定Claude代碼
 
-- **WHEN** Claude Code is selected
-- **THEN** create or update `CLAUDE.md` in the project root directory (not inside openspec/)
+- **何時** 選擇 Claude 代碼
+- **然後** 建立或更新 `CLAUDE.md` 在專案根目錄中（不在 openspec/ 內）
 
-#### Scenario: Creating new CLAUDE.md
+#### 場景：建立新的 CLAUDE.md
 
-- **WHEN** CLAUDE.md does not exist
-- **THEN** create new file with OpenSpec content wrapped in markers:
+- **何時** CLAUDE.md 不存在
+- **然後** 建立新文件，其中 OpenSpec 內容包含在標記中：
 ```markdown
 <!-- OPENSPEC:START -->
 # OpenSpec Instructions
@@ -44,49 +44,49 @@ Instructions for AI coding assistants using OpenSpec for spec-driven development
 <!-- OPENSPEC:END -->
 ```
 
-#### Scenario: Updating existing CLAUDE.md
+#### 場景：更新現有的 CLAUDE.md
 
-- **WHEN** CLAUDE.md already exists
-- **THEN** preserve all existing content
-- **AND** insert OpenSpec content at the beginning of the file using markers
-- **AND** ensure markers don't duplicate if they already exist
+- **當** CLAUDE.md 已經存在
+- **然後** 保留所有現有內容
+- **並且** 使用標記在檔案開頭插入 OpenSpec 內容
+- **並且** 確保標記在已經存在的情況下不會重複
 
-#### Scenario: Managing content with markers
+#### 場景：使用標記管理內容
 
-- **WHEN** using the marker system
-- **THEN** use `<!-- OPENSPEC:START -->` to mark the beginning of managed content
-- **AND** use `<!-- OPENSPEC:END -->` to mark the end of managed content
+- **何時** 使用標記系統
+- **然後**使用 `<!-- OPENSPEC:START -->` 標記託管內容的開始
+- **和**使用 `<!-- OPENSPEC:END -->` 標記託管內容的結束
 - **AND** allow OpenSpec to update its content without affecting user customizations
-- **AND** preserve all content outside the markers intact
+- **並且** 完整保留標記之外的所有內容
 
-### Requirement: Interactive Mode
+### 要求：互動模式
 
-The command SHALL provide an interactive menu for AI tool selection with clear navigation instructions.
+該命令應提供一個用於 AI 工具選擇的互動式選單，並具有清晰的導航說明。
 
-#### Scenario: Displaying interactive menu
+#### 場景：顯示互動式選單
 
-- **WHEN** run
-- **THEN** prompt the user with: "Which AI tools do you use?"
-- **AND** show a checkbox-based multi-select menu with available tools (Claude Code, Cursor, AGENTS.md standard)
-- **AND** show disabled options as "coming soon" (not selectable)
-- **AND** display inline help indicating Space toggles selections and Enter confirms
+- **何時**執行
+- **然後** 提示使用者：“您使用哪些人工智慧工具？”
+- **並且** 顯示具有可用工具的基於核取方塊的多選選單（Claude% 代碼、遊標、AGENTS.md 標準）
+- **並且** 將已停用的選項顯示為「即將推出」（不可選擇）
+- **和** 顯示內嵌幫助，指示空格切換選擇並按 Enter 確認
 
-#### Scenario: Navigating the menu
+#### 場景：導航選單
 
-- **WHEN** the user is in the menu
-- **THEN** allow arrow keys to move between options
-- **AND** allow Spacebar to toggle the highlighted option
-- **AND** allow Enter key to confirm all current selections
+- **何時** 使用者位於選單中
+- **然後** 允許箭頭鍵在選項之間移動
+- **並且**允許空白鍵切換突出顯示的選項
+- **並且**允許按 Enter 鍵確認所有目前選擇
 
-### Requirement: Success Output
+### 要求：成功輸出
 
-The command SHALL provide clear, actionable next steps upon successful initialization.
+該命令應在成功初始化後提供清晰、可操作的後續步驟。
 
-#### Scenario: Displaying success message
+#### 場景：顯示成功訊息
 
-- **WHEN** initialization completes successfully
-- **THEN** display a success banner followed by actionable prompts tailored to the selected tools
-- **AND** summarize which assistant files were created versus refreshed (e.g., `CLAUDE.md (created)`, `.cursor/commands/openspec-apply.md (refreshed)`)
-- **AND** include copy-pasteable onboarding prompts for each configured assistant, replacing placeholder text ([YOUR FEATURE HERE]) with real guidance to customize
-- **AND** reference AGENTS.md-compatible assistants when no tool-specific file exists (e.g., when only AGENTS.md standard is selected)
+- **何時** 初始化成功完成
+- **然後** 顯示成功橫幅，然後顯示針對所選工具自訂的可操作提示
+- **並** 總結建立了哪些輔助文件以及重新整理了哪些輔助文件（例如， `CLAUDE.md (created)`, `.cursor/commands/openspec-apply.md (refreshed)`)
+- **並且** 為每個設定的助手提供可複製貼上的入門提示，以真正的自訂指導替換佔位符文字（[您的功能]）
+- **和** 當不存在特定於工具的檔案時（例如，僅選擇 AGENTS.md 標準時），請參考 AGENTS.md 相容助手
 

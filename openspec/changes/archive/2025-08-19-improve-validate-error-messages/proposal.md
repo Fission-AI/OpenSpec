@@ -1,25 +1,25 @@
 # improve-validate-error-messages
 
-## Why
+## 為什麼
 
-Developers struggle to resolve validation failures because current errors lack actionable guidance. Common issues include: missing deltas, missing required sections, and misformatted scenarios that are silently ignored. Without clear remediation steps, users cannot quickly correct structure or formatting, leading to frustration and rework. Improving error messages with concrete fixes, file/section hints, and suggested commands will significantly reduce time-to-green and make OpenSpec more approachable.
+由於目前的錯誤缺乏可操作的指導，開發人員很難解決驗證失敗的問題。常見問題包括：缺少增量、缺少必要的部分以及被默默忽略的格式錯誤的方案。如果沒有明確的修復步驟，使用者就無法快速修正結構或格式，導致沮喪和重工。透過具體修復、文件/部分提示和建議命令來改進錯誤訊息將顯著縮短綠色時間，並使 OpenSpec 更容易理解。
 
-## What Changes
+## 有什麼變化
 
-- Validation errors SHALL include specific remediation steps (what to change and where).
-- "No deltas found" error SHALL guide users to create `specs/` with proper delta headers and suggest debug commands.
-- Missing required sections (Spec: Purpose/Requirements; Change: Why/What Changes) SHALL include expected header names and a minimal skeleton example.
-- Likely misformatted scenarios (bulleted WHEN/THEN/AND) SHALL emit a targeted warning explaining the `#### Scenario:` format and show a conversion template.
-- All reported issues SHALL include the source file path and structured location (e.g., `deltas[0].requirements[0]`).
-- Non-JSON output SHOULD end with a short "Next steps" footer when invalid.
+- 驗證錯誤應包括具體的補救步驟（更改內容和位置）。
+- 「未找到增量」錯誤應引導使用者建立 `specs/` 具有正確的增量標頭並建議調試命令。
+- 缺少必需的部分（規格：目的/要求；更改：為什麼/更改內容）應包括預期的標頭名稱和最小框架範例。
+- 可能格式錯誤的場景（以項目符號顯示的「WHEN/THEN/AND」）應發出有針對性的警告，解釋 `#### Scenario:` 格式化並顯示轉換模板。
+- 所有報告的問題應包括來源文件路徑和結構化位置（例如， `deltas[0].requirements[0]`).
+- 當無效時，非 JSON 輸出應該以短的「後續步驟」頁腳結束。
 
-## Impact
+## 影響
 
-- Affected CLI: validate
-- Affected code:
+- 受影響CLI：驗證
+- 受影響的代碼：
   - `src/commands/validate.ts`
   - `src/core/validation/validator.ts`
   - `src/core/validation/constants.ts`
-  - `src/core/parsers/*` (wrapping thrown errors with richer context)
+  - `src/core/parsers/*` （用更豐富的上下文包裝拋出的錯誤）
 
 

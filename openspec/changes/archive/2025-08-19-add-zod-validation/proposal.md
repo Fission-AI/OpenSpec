@@ -1,22 +1,22 @@
-# Change: Add Zod Runtime Validation
+# 更改：新增 Zod 執行時驗證
 
-## Why
+## 為什麼
 
-While the spec and change commands can output JSON, they currently don't perform strict runtime validation beyond basic structure checking. This can lead to invalid specs or changes being processed, silent failures when required fields are missing, and poor error messages.
+雖然spec和change指令可以輸出JSON，但它們目前除了基本結構檢查之外不執行嚴格的執行時間驗證。這可能會導致無效的規範或正在處理的變更、缺少必填欄位時的靜默失敗以及糟糕的錯誤訊息。
 
-## What Changes
+## 有什麼變化
 
-- Enhance existing `spec validate` and `change validate` commands with strict Zod validation
-- Add validation to the archive command to ensure changes are valid before applying
-- Add validation to the diff command to ensure changes are well-formed
-- Provide detailed validation reports in JSON format
-- Add `--strict` mode that fails on warnings
+- 增強現有 `spec validate` 和 `change validate` 具有嚴格 Zod 驗證的命令
+- 向歸檔命令添加驗證，以確保更改在應用之前有效
+- 向 diff 命令添加驗證以確保更改格式正確
+- 提供JSON格式的詳細驗證報告
+- 添加 `--strict` 出現警告時失敗的模式
 
-## Impact
+## 影響
 
-- **Affected specs**: cli-spec, cli-change, cli-archive, cli-diff
-- **Affected code**:
-  - src/commands/spec.ts (enhance validate subcommand)
-  - src/commands/change.ts (enhance validate subcommand)
-  - src/core/archive.ts (add pre-archive validation)
-  - src/core/diff.ts (add validation check)
+- **受影響的規範**：cli-spec、cli-change、cli-archive、cli-diff
+- **受影響的代碼**：
+  - src/commands/spec.ts（增強 validate 子指令）
+  - src/commands/change.ts（增強 validate 子命令）
+  - src/core/archive.ts（新增預存檔驗證）
+  - src/core/diff.ts（新增驗證檢查）

@@ -1,38 +1,38 @@
-# Change: Add View Dashboard Command
+# 更改：新增檢視儀表板命令
 
-## Why
+## 為什麼
 
-Users need a quick, at-a-glance overview of their OpenSpec project status without running multiple commands. Currently, users must run `openspec list --changes` and `openspec list --specs` separately to understand the project state. A unified dashboard view would improve developer experience and provide immediate insight into project progress.
+使用者需要快速、一目了然地瞭解其 OpenSpec 專案狀態，而無需執行多個命令。目前，用戶必須執行 `openspec list --changes` 和 `openspec list --specs` 分別瞭解專案狀態。統一的儀表板視圖將改善開發人員體驗並提供對專案進度的即時洞察。
 
-## What Changes
+## 有什麼變化
 
-### Added `openspec view` Command
+### 額外 `openspec view` 命令
 
-The new command provides an interactive dashboard displaying:
-- Summary metrics (total specs, requirements, changes, task progress)
-- Active changes with visual progress bars
-- Completed changes
-- Specifications with requirement counts
+新命令提供了一個互動式儀表板，顯示：
+- 摘要指標（總規格、要求、變更、任務進度）
+- 透過視覺進度條進行主動更改
+- 已完成的更改
+- 具有需求數量的規格
 
-### Specifications Affected
+### 受影響的規格
 
-- **cli-view** (NEW): Complete specification for the view dashboard command
+- **cli-view**（新）：檢視儀表板指令的完整規範
 
-## Implementation Details
+## 實施細節
 
-### File Structure
-- Created `/src/core/view.ts` implementing the `ViewCommand` class
-- Registered command in `/src/cli/index.ts`
-- Reuses existing utilities from `task-progress.ts` and `MarkdownParser`
+### 文件結構
+- 已建立 `/src/core/view.ts` 實施 `ViewCommand` 班級
+- 註冊命令在 `/src/cli/index.ts`
+- 重複使用現有實用程式 `task-progress.ts` 和 `MarkdownParser`
 
-### Visual Design
-- Uses Unicode box drawing characters for borders
-- Color coding: cyan for specs, yellow for active, green for completed
-- Progress bars using filled (█) and empty (░) blocks
-- Clean alignment with proper padding
+### 視覺設計
+- 使用 Unicode 框繪圖字元作為邊框
+- 顏色編碼：青色代表規格，黃色代表活動，綠色代表完成
+- 使用填滿 (█) 和空 (░) 區塊的進度條
+- 使用適當的填充物進行乾淨的對齊
 
-### Technical Approach
-- Async data fetching from changes and specs directories
-- Parallel processing of specs and changes
-- Error handling for missing or invalid data
-- Maintains consistency with existing list command output
+### 技術途徑
+- 從更改和規格目錄中獲取非同步資料
+- 並行處理規格和變更
+- 資料遺失或無效的錯誤處理
+- 與現有 list 指令輸出保持一致

@@ -1,142 +1,142 @@
-# Implementation Tasks — Add Interactive Show Command
+# 實施任務－新增互動表演指令
 
-## Goals
-- Add a top-level `show` command with intelligent selection and type detection.
-- Add interactive selection to `change show` and `spec show` when no ID is provided.
-- Preserve raw-first output behavior and existing JSON formats/filters.
-- Respect `--no-interactive` and `OPEN_SPEC_INTERACTIVE=0` consistently.
+## 目標
+- 添加頂級 `show` 具有智慧選擇和類型檢測功能的命令。
+- 新增互動式選擇 `change show` 和 `spec show` 當沒有提供身分證件時。
+- 保留原始優先輸出行為和現有的 JSON 格式/過濾器。
+- 尊重 `--no-interactive` 和 `OPEN_SPEC_INTERACTIVE=0` consistently.
 
 ---
 
-## 1) CLI wiring
-- [x] In `src/cli/index.ts` add a top-level command: `program.command('show [item-name]')`
-  - Options:
+## 1)CLI接線
+- [x] 在 `src/cli/index.ts` 新增頂級命令： `program.command('show [item-name]')`
+  - 選項：
     - `--json`
     - `--type <type>` where `<type>` is `change|spec`
     - `--no-interactive`
     - Allow passing-through type-specific flags using `.allowUnknownOption(true)` so the top-level can forward flags to the underlying type handler.
-  - Action: instantiate `new ShowCommand().execute(itemName, options)`.
-- [x] Update `change show` subcommand to accept `--no-interactive` and pass it to `ChangeCommand.show(...)`.
-- [x] Change `spec show` subcommand to accept optional ID (`show [spec-id]`), add `--no-interactive`, and pass to spec show implementation.
+  - 動作：實例化 `new ShowCommand().execute(itemName, options)`.
+- [x] 更新 `change show` 接受子命令 `--no-interactive` 並將其傳遞給 `ChangeCommand.show(...)`.
+- [x] 改變 `spec show` 子命令接受可選 ID (`show [spec-id]`）， 添加 `--no-interactive`，並傳遞給規範顯示實作。
 
-Acceptance:
-- `openspec show` exists and prints a helpful hint in non-interactive contexts when no args.
-- Unknown flags for other types do not crash parsing; they are warned/ignored appropriately.
+驗收：
+- `openspec show` 存在並在沒有參數時在非互動式上下文中列印有用的提示。
+- 其他類型的未知標誌不會導致解析崩潰；他們會被適當地警告/忽略。
 
 ---
 
-## 2) New module: `src/commands/show.ts`
-- [x] Create `ShowCommand` with:
+## 2）新模組： `src/commands/show.ts`
+- [x] 創造 `ShowCommand` 和：
   - `execute(itemName?: string, options?: { json?: boolean; type?: string; noInteractive?: boolean; [k: string]: any })`
-  - Interactive path when `!itemName` and interactive is enabled:
+  - 當互動路徑 `!itemName` 並啟用互動：
     - Prompt: "What would you like to show?" → `change` or `spec`.
     - Load available IDs for the chosen type and prompt selection.
     - Delegate to type-specific show implementation.
-  - Non-interactive path when `!itemName`:
+  - 非互動路徑時 `!itemName`:
     - Print hint with examples:
       - `openspec show <item>`
       - `openspec change show`
       - `openspec spec show`
     - Exit with code 1.
-  - Direct item path when `itemName` is provided:
+  - 直接專案路徑時 `itemName` 提供：
     - Type override via `--type` takes precedence.
     - Otherwise detect using `getActiveChangeIds()` and `getSpecIds()`.
     - If ambiguous and no override: print error + suggestion to pass `--type` or use subcommands; exit code 1.
     - If unknown: print not-found with nearest-match suggestions; exit code 1.
     - On success: delegate to type-specific show.
-- [x] Flag scoping and pass-through:
-  - Common: `--json` → forwarded to both types.
-  - Change-only: `--deltas-only`, `--requirements-only` (deprecated alias).
-  - Spec-only: `--requirements`, `--no-scenarios`, `-r/--requirement`.
-  - Warn and ignore irrelevant flags for the resolved type.
+- [x] 標誌範圍和傳遞：
+  - 常見的： `--json` → 轉發至兩種類型。
+  - 僅更改： `--deltas-only`, `--requirements-only` （已棄用的別名）。
+  - 僅規格： `--requirements`, `--no-scenarios`, `-r/--requirement`.
+  - 警告並忽略已解析類型的不相關標誌。
 
-Acceptance:
-- `openspec show <change-id> --json --deltas-only` matches `openspec change show <id> --json --deltas-only` output.
-- `openspec show <spec-id> --json --requirements` matches `openspec spec show <id> --json --requirements` output.
-- Ambiguity and not-found behaviors match the `cli-show` spec.
-
----
-
-## 3) Refactor spec show into reusable API
-- [x] In `src/commands/spec.ts`, extract show logic into an exported `SpecCommand` with `show(specId?: string, options?: { json?: boolean; requirements?: boolean; scenarios?: boolean; requirement?: string; noInteractive?: boolean })`.
-  - Reuse current helpers (`parseSpecFromFile`, `filterSpec`, raw-first printing).
-  - Keep `registerSpecCommand` but delegate to `new SpecCommand().show(...)`.
-- [x] Update CLI spec show subcommand to optional arg and interactive behavior (see section 4).
-
-Acceptance:
-- Existing `spec show` tests continue to pass.
-- New `SpecCommand.show` can be called from `ShowCommand`.
+驗收：
+- `openspec show <change-id> --json --deltas-only` 比賽 `openspec change show <id> --json --deltas-only` output.
+- `openspec show <spec-id> --json --requirements` 比賽 `openspec spec show <id> --json --requirements` output.
+- 模糊性和未發現的行為符合 `cli-show` spec.
 
 ---
 
-## 4) Backwards-compatible interactive in subcommands
-- [x] `src/commands/change.ts` → extend `show(changeName?: string, options?: { json?: boolean; requirementsOnly?: boolean; deltasOnly?: boolean; noInteractive?: boolean })`:
-  - When `!changeName` and interactive enabled: prompt from `getActiveChangeIds()` and show the selected change.
-  - Non-interactive fallback: keep current behavior (print available IDs + `openspec change list` hint, set `process.exitCode = 1`).
-- [x] `src/commands/spec.ts` → `SpecCommand.show` as above:
-  - When `!specId` and interactive enabled: prompt from `getSpecIds()` and show the selected spec.
-  - Non-interactive fallback: print the same error as existing behavior for missing `<spec-id>` and set non-zero exit code.
+## 3) 將規範顯示重構為可重複使用的API
+- [x] 在 `src/commands/spec.ts`，將顯示邏輯提取到導出的 `SpecCommand` 和 `show(specId?: string, options?: { json?: boolean; requirements?: boolean; scenarios?: boolean; requirement?: string; noInteractive?: boolean })`.
+  - 重用當前的助手（`parseSpecFromFile`, `filterSpec`，原始優先列印）。
+  - 保持 `registerSpecCommand` 但委託給 `new SpecCommand().show(...)`.
+- [x] 將 CLI spec show 子命令更新為可選參數和互動行為（請參閱第 4 節）。
 
-Acceptance:
-- `openspec change show` in non-interactive prints list hint and exits non-zero.
-- `openspec spec show` in non-interactive prints missing-arg error and exits non-zero.
+驗收：
+- 現存的 `spec show` 測試繼續通過。
+- 新的 `SpecCommand.show` 可以從調用 `ShowCommand`.
 
 ---
 
-## 5) Shared utilities
-- [x] Extract `nearestMatches` and `levenshtein` from `src/commands/validate.ts` into `src/utils/match.ts` (exported helpers).
-- [x] Update `ValidateCommand` and new `ShowCommand` to import from `utils/match`.
+## 4) 子命令中的向後相容交互
+- [x] `src/commands/change.ts` → 延長 `show(changeName?: string, options?: { json?: boolean; requirementsOnly?: boolean; deltasOnly?: boolean; noInteractive?: boolean })`:
+  - 什麼時候 `!changeName` 並啟用互動式：提示來自 `getActiveChangeIds()` 並顯示所選的變更。
+  - 非互動式回退：保持目前行為（列印可用 ID + `openspec change list` 提示、設定 `process.exitCode = 1`).
+- [x] `src/commands/spec.ts` → `SpecCommand.show` 如上所述：
+  - 什麼時候 `!specId` 並啟用互動式：提示來自 `getSpecIds()` 並顯示所選規格。
+  - 非互動式回退：列印與現有缺失行為相同的錯誤 `<spec-id>` 並設定非零退出代碼。
 
-Acceptance:
-- Build succeeds with shared helpers and no duplication.
-
----
-
-## 6) Hints, warnings, and messages
-- [x] Top-level `show` hint (non-interactive no-arg):
-  - Lines include: `openspec show <item>`, `openspec change show`, `openspec spec show`, and "Or run in an interactive terminal.".
-- [x] Ambiguity message suggests `--type change|spec` and the subcommands.
-- [x] Not-found suggests nearest matches (up to 5).
-- [x] Irrelevant flag warnings for the resolved type (printed to stderr, no crash).
-
-Acceptance:
-- Messages match the `cli-show` spec wording intent and style used elsewhere.
+驗收：
+- `openspec change show` 在非互動式列印清單提示並退出非零。
+- `openspec spec show` 在非互動式中列印遺失參數錯誤並以非零值退出。
 
 ---
 
-## 7) Tests
-Add tests mirroring existing patterns (non-TTY simulation via `OPEN_SPEC_INTERACTIVE=0`).
+## 5）共享公用設施
+- [x] 提煉 `nearestMatches` 和 `levenshtein` 從 `src/commands/validate.ts` 進入 `src/utils/match.ts` （導出的助手）。
+- [x] 更新 `ValidateCommand` 和新的 `ShowCommand` 導入自 `utils/match`.
+
+驗收：
+- 使用共享助手建立成功並且沒有重複。
+
+---
+
+## 6) 提示、警告和訊息
+- [x] Top-level `show` 提示（非互動式無參數）：
+  - 線路包括： `openspec show <item>`, `openspec change show`, `openspec spec show`，和“或在互動終端中執行。”。
+- [x] 含糊不清的消息表明 `--type change|spec` 和子命令。
+- [x] 未找到建議最接近的匹配項（最多 5 個）。
+- [x] 已解析類型的不相關標誌警告（列印到 stderr，不會崩潰）。
+
+驗收：
+- 訊息匹配 `cli-show` 規範其他地方使用的措詞意圖和風格。
+
+---
+
+## 7) 測試
+添加鏡像現有模式的測試（透過非 TTY 模擬 `OPEN_SPEC_INTERACTIVE=0`).
 
 - [x] `test/commands/show.test.ts`
-  - Non-interactive, no arg → prints hint and exits non-zero.
-  - Direct item detection for change and for spec.
-  - Ambiguity case when both exist → error and suggestion for `--type`.
-  - Not-found case → nearest-match suggestions.
-  - Pass-through flags: change `--json --deltas-only`, spec `--json --requirements`.
-- [x] `test/commands/change.interactive-show.test.ts` (non-interactive fallback)
-  - Ensure `openspec change show` without args prints available IDs + list hint and non-zero exit.
-- [x] `test/commands/spec.interactive-show.test.ts` (non-interactive fallback)
-  - Ensure `openspec spec show` without args prints missing-arg error and non-zero exit.
+  - 非互動式，無參數 → 列印提示並以非零值退出。
+  - 直接項目檢測以瞭解變更和規格。
+  - 兩者都存在時的歧義情況 → 錯誤和建議 `--type`.
+  - 未找到案例→最近匹配建議。
+  - 傳遞標誌：更改 `--json --deltas-only`, 規格 `--json --requirements`.
+- [x] `test/commands/change.interactive-show.test.ts` （非互動式後備）
+  - 確保 `openspec change show` 不含 args 列印可用 ID + 清單提示和非零退出。
+- [x] `test/commands/spec.interactive-show.test.ts` （非互動式後備）
+  - 確保 `openspec spec show` 沒有 args 會列印缺少參數錯誤和非零退出。
 
-Acceptance:
-- All new tests pass after build; no regressions in existing tests.
-
----
-
-## 8) Documentation (optional but recommended)
-- [x] Update `openspec/README.md` usage examples to include the new `show` command with type detection and flags.
+驗收：
+- 建構後所有新測試均通過；現有測試中沒有回歸。
 
 ---
 
-## 9) Non-functional checks
-- [x] Run `pnpm build` and all tests (`pnpm test`).
-- [x] Ensure no linter/type errors and messages are consistent with existing style.
+## 8) 文檔（可選但建議）
+- [x] 更新 `openspec/README.md` 用法範例包括新的 `show` 具有類型檢測和標誌的命令。
 
 ---
 
-## Notes on consistency
-- Follow raw-first behavior for text output: passthrough file content with no formatting, mirroring current `change show` and `spec show`.
-- Reuse `isInteractive` and `item-discovery` helpers for consistent prompting behavior.
-- Keep JSON output shapes identical to current `ChangeCommand.show` and `spec show` outputs.
+## 9) 非功能檢查
+- [x] 執行 `pnpm build` 和所有測試（`pnpm test`).
+- [x] 確保沒有 linter/類型錯誤且訊息與現有樣式一致。
+
+---
+
+## 關於一致性的注意事項
+- 遵循文字輸出的原始優先行為：直通文件內容，不含格式，鏡像當前 `change show` 和 `spec show`.
+- 重複利用 `isInteractive` 和 `item-discovery` 一致提示行為的幫助者。
+- 保持 JSON 輸出形狀與目前相同 `ChangeCommand.show` 和 `spec show` outputs.
 
 

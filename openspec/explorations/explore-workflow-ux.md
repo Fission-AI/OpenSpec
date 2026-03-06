@@ -1,103 +1,103 @@
-# Explore Workflow UX
+# 探索工作流程使用者體驗
 
-## Context
+## 情境
 
-The explore workflow is part of the core loop (`propose`, `explore`, `apply`, `archive`). Users should be able to think through ideas in explore mode, then smoothly transition into a formal change proposal.
+探索工作流程是核心循環的一部分（`propose`, `explore`, `apply`, `archive`）。使用者應該能夠在探索模式下思考想法，然後順利過渡到正式的變更提案。
 
-Currently, explore references `/opsx:new` and `/opsx:ff` which are being replaced with `/opsx:propose`. But beyond just updating references, there are deeper UX questions about how explore should work.
+目前，探索參考資料 `/opsx:new` 和 `/opsx:ff` 正在被替換為 `/opsx:propose`。但除了更新參考之外，還有關於探索應該如何運作的更深層的使用者體驗問題。
 
-## Open Questions
+## 開放式問題
 
-### Exploration Artifacts
+### 探索文物
 
-1. **Should exploration be exportable to .md?**
-   - Currently explorations are ephemeral (just conversation)
-   - Would users benefit from saving exploration notes?
+1. **探索是否可以匯出為.md？ **
+   - 目前的探索是短暫的（只是對話）
+   - 用戶會從保存探索筆記中受益嗎？
 
-2. **Where should exploration files live?**
+2. **探索文件該存放在哪裡？ **
    - `openspec/explorations/<name>.md`?
    - `openspec/changes/<change>/explorations/`?
-   - Somewhere else?
+   - 其他地方？
 
-3. **What should the format be?**
-   - Free-form markdown?
-   - Structured template (problem, insights, open questions)?
-   - Conversation transcript?
+3. **格式應該是什麼？ **
+   - 自由格式降價？
+   - 結構化模板（問題、見解、開放性問題）？
+   - 談話記錄？
 
-### Multiple Explorations
+### 多重探索
 
-4. **Can a user have multiple explorations related to a change?**
-   - e.g., exploring auth approaches separately from UI approaches
-   - How would these relate to each other?
+4. **使用者可以進行與變更相關的多次探索嗎？ **
+   - 例如，將身份驗證方法與 UI 方法分開探索
+   - 這些相互之間有何關係？
 
-5. **How do explorations relate to changes?**
-   - Before change exists: standalone exploration
-   - After change exists: exploration linked to change?
+5. **探索與變化有何關係？ **
+   - 改變出現之前：獨立探索
+   - 改變存在後：探索與改變相關？
 
-### Lifecycle & Transitions
+### 生命週期和轉變
 
-6. **What happens before a change proposal exists?**
-   - Exploration is standalone
-   - When ready, user runs `/opsx:propose`
-   - Should exploration context automatically seed the proposal?
+6. **變更提案出現之前會發生什麼事？ **
+   - 探索是獨立的
+   - 準備好後，用戶執行 `/opsx:propose`
+   - 探索背景是否應該自動為提案提供種子？
 
-7. **What happens after a change proposal exists?**
-   - Exploration can reference existing artifacts
-   - Should exploration be able to update artifacts directly?
-   - Or just inform the user what to update?
+7. **變更提案存在後會發生什麼事？ **
+   - 探索可以參考現有的工件
+   - 探索是否應該能夠直接更新工件？
+   - 或只是告訴用戶要更新什麼？
 
-8. **How does explore → propose transition work?**
-   - Manual: user copies insights and runs propose separately
-   - Semi-auto: explore offers "Create proposal from this exploration?"
-   - Auto: explore detects crystallization and proactively starts propose
+8. **探索 → 提出過渡工作如何進行？ **
+   - 手動：用戶複製見解並單獨執行建議
+   - 半自動：探索優惠“根據此探索建立提案？”
+   - 自動：探索偵測結晶並主動啟動提議
 
-### Context Handoff
+### 上下文切換
 
-9. **How do exploration insights flow into proposals?**
-   - User manually incorporates insights
-   - Exploration summary becomes input to propose prompt
-   - Exploration file linked/referenced in proposal
+9. **探索見解如何轉化為提案？ **
+   - 使用者手動合併見解
+   - 探索總結成為建議提示的輸入
+   - 提案中連結/引用的探索文件
 
-10. **Should propose be able to read exploration files?**
+10. **應該建議能夠讀取探索文件嗎？ **
     - "I see you explored authentication approaches. Using those insights..."
 
-## Potential Approaches
+## 潛在的方法
 
-### Approach A: Ephemeral Explorations (Status Quo+)
-- Explorations remain conversational only
-- Just update references to `/opsx:propose`
-- User manually carries insights forward
-- **Pro:** Simple, no new artifacts
-- **Con:** Insights can be lost, no audit trail
+### 方法 A：短暫的探索（現況+）
+- 探索僅以對話形式進行
+- 只需更新參考 `/opsx:propose`
+- 用戶手動推進見解
+- **優點：** 簡單，沒有新的工件
+- **缺點：** 見解可能會遺失，沒有審計跟踪
 
-### Approach B: Optional Export
-- Add "save exploration" option at end
-- Saves to `openspec/explorations/<name>.md`
-- Propose can optionally read these for context
-- **Pro:** Opt-in complexity, preserves insights
-- **Con:** Another artifact type to manage
+### 方法 B：可選導出
+- 在末尾添加“保存探索”選項
+- 保存至 `openspec/explorations/<name>.md`
+- 建議可以選擇閱讀這些內容以瞭解上下文
+- **優點：** 選擇加入複雜性，保留見解
+- **缺點：** 另一種需要管理的工件類型
 
-### Approach C: Exploration as Proposal Seed
-- Exploration automatically saves structured notes
-- When transitioning to propose, notes become proposal input
-- **Pro:** Seamless handoff, context preserved
-- **Con:** More complexity, tight coupling
+### 方法 C：探索作為提案種子
+- 探索自動儲存結構化筆記
+- 當過渡到提案時，註釋成為提案輸入
+- **優點：** 無縫切換，保留上下文
+- **缺點：** 更複雜，耦合更緊密
 
-### Approach D: Explorations Within Changes
-- Before change: standalone exploration
-- After change created: exploration notes live in `changes/<name>/explorations/`
-- Artifacts can reference exploration notes
-- **Pro:** Clear relationship to changes
-- **Con:** Where do pre-change explorations go?
+### 方法 D：變化中的探索
+- 變更前：獨立探索
+- 建立變更後：探索筆記存在 `changes/<name>/explorations/`
+- 神器可以參考探索筆記
+- **優點：** 與變更的明確關係
+- **缺點：** 變更前的探索去哪了？
 
-## Next Steps
+## 下一步
 
-- [ ] User research: How do people actually use explore today?
-- [ ] Prototype: Try saving explorations and see if propose benefits
-- [ ] Decide: Pick an approach based on findings
-- [ ] Implement: Update explore workflow accordingly
+- [ ] 使用者研究：人們現在如何實際使用探索？
+- [ ] 原型：嘗試保存探索並看看是否能帶來好處
+- [ ] 決定：根據發現選擇一種方法
+- [ ] 實施：相應地更新探索工作流程
 
-## Related
+## 有關的
 
-- `openspec/changes/simplify-skill-installation/` - current change updating core workflows
-- `src/core/templates/workflows/explore.ts` - explore workflow template
+- `openspec/changes/simplify-skill-installation/` - 目前變更更新核心工作流程
+- `src/core/templates/workflows/explore.ts` - 探索工作流程模板

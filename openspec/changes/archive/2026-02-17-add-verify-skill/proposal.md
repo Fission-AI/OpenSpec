@@ -1,48 +1,48 @@
-# Change: Add /opsx:verify Skill
+# 更改：新增 /opsx:驗證技能
 
-## Why
+## 為什麼
 
-Users need a way to validate that their implementation actually matches what was requested before archiving a change. Currently, there's no systematic way to check:
-- Whether all tasks are truly complete
-- Whether the implementation covers all spec requirements and scenarios
-- Whether the implementation follows the design decisions
-- Whether the code is coherent and makes sense
+使用者需要一種方法來驗證他們的實作是否確實與歸檔變更之前所要求的相匹配。目前，沒有系統的方法來檢查：
+- 各項任務是否真正完成
+- 實施是否涵蓋所有規範要求和場景
+- 實施是否遵循設計決策
+- 代碼是否連貫、有意義
 
-A user requested: "Can we get a :verify that will ensure that the implementation matches what was requested?"
+用戶請求：“我們可以得到一個 :verify 來確保實現與所請求的相符嗎？”
 
-## What Changes
+## 有什麼變化
 
-- Add `getVerifyChangeSkillTemplate()` function to `skill-templates.ts`
-- Add `getOpsxVerifyCommandTemplate()` function to `skill-templates.ts`
-- Integrate verify skill into `artifactExperimentalSetupCommand` in `artifact-workflow.ts`
-- Add verify to the skills and commands arrays in the setup command
-- Update help text to include `/opsx:verify` in the list of available commands
-- Create `opsx-verify-skill` capability spec
+- 添加 `getVerifyChangeSkillTemplate()` 功能為 `skill-templates.ts`
+- 添加 `getOpsxVerifyCommandTemplate()` 功能為 `skill-templates.ts`
+- 將驗證技能整合到 `artifactExperimentalSetupCommand` 在 `artifact-workflow.ts`
+- 將驗證新增至 setup 命令中的技能和命令數組中
+- 更新說明文字以包含 `/opsx:verify` 在可用命令清單中
+- 創造 `opsx-verify-skill` 能力規格
 
-## Verification Dimensions
+## 驗證尺寸
 
-The skill verifies across three dimensions:
+此技能從三個維度進行驗證：
 
-1. **Completeness** - Are all tasks done? Are all specs addressed?
-2. **Correctness** - Does the implementation match specs? Are scenarios covered?
-3. **Coherence** - Does the implementation make sense? Does it follow design.md?
+1. **完整性** - 所有任務都完成了嗎？所有規格都已解決嗎？
+2. **正確性** - 實施是否符合規範？場景是否涵蓋？
+3. **連貫性** - 實施有意義嗎？它遵循design.md嗎？
 
-## Output Format
+## 輸出格式
 
-Produces a prioritized report with:
-- Summary scorecard (tasks, specs, design adherence)
-- Critical issues first (must fix before archive)
-- Warnings second (should fix)
-- Suggestions third (nice to have)
-- Actionable fix recommendations for each issue
+產生優先權報告：
+- 摘要記分卡（任務、規格、設計一致性）
+- 首先解決關鍵問題（必須在存檔之前修復）
+- 第二個警告（應該要修復）
+- 建議三（很高興有）
+- 針對每個問題的可行修復建議
 
-## Impact
+## 影響
 
-- Affected specs: New `opsx-verify-skill` spec
-- Affected code:
-  - `src/core/templates/skill-templates.ts` - Added 2 new template functions
-  - `src/commands/artifact-workflow.ts` - Integrated verify into experimental setup
-- Generated artifacts: When users run `openspec artifact-experimental-setup`:
-  - Creates `.claude/skills/openspec-verify-change/SKILL.md`
-  - Creates `.claude/commands/opsx/verify.md`
-- Related skills: Works alongside `/opsx:apply` and before `/opsx:archive`
+- 受影響的規格：新 `opsx-verify-skill` 規格
+- 受影響的代碼：
+  - `src/core/templates/skill-templates.ts` - 新增了2個新的模板功能
+  - `src/commands/artifact-workflow.ts` - 將驗證整合到實驗設定中
+- 產生的工件：當使用者執行時 `openspec artifact-experimental-setup`:
+  - 創造 `.claude/skills/openspec-verify-change/SKILL.md`
+  - 創造 `.claude/commands/opsx/verify.md`
+- 相關技能： 並肩工作 `/opsx:apply` 和之前 `/opsx:archive`

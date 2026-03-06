@@ -1,93 +1,93 @@
-## ADDED Requirements
+## 新增要求
 
-### Requirement: Dynamic Version Support
-The script SHALL support flake.nix configurations that read version dynamically from package.json.
+### 需求：動態版本支援
+該腳本應支援 flake.nix 設定，從 package.json 動態讀取版本。
 
-#### Scenario: Version validation
-- **WHEN** script runs
-- **THEN** version is read from package.json using Node.js
-- **AND** script verifies flake.nix uses dynamic version pattern
-- **AND** warns if hardcoded version is detected
+#### 場景：版本驗證
+- **何時** 腳本執行
+- **然後** 使用 Node.js 從 package.json 讀取版本
+- **AND** 腳本驗證 flake。 nix 使用動態版本模式
+- **AND** 若偵測到硬編碼版本則發出警告
 
-#### Scenario: Version display
-- **WHEN** script runs
-- **THEN** script displays current package version
-- **AND** indicates version is read dynamically by flake.nix
+#### 場景：版本展示
+- **何時** 腳本執行
+- **THEN** 腳本顯示目前套件版本
+- **AND**表示版本是由flake動態讀取的。 nix
 
-### Requirement: Automatic Hash Determination
-The script SHALL automatically determine and update the correct pnpm dependency hash.
+### 要求：自動哈希確定
+該腳本應自動確定並更新正確的 pnpm 依賴項雜湊。
 
-#### Scenario: Trigger build to get hash
-- **WHEN** script needs to determine correct hash
-- **THEN** script sets placeholder hash in flake.nix
-- **AND** runs nix build which fails with correct hash
-- **AND** extracts correct hash from build error output
+#### 場景：觸發構建獲取hash
+- **何時** 腳本需要確定正確的雜湊值
+- **THEN** 腳本在 flake 中設定佔位符雜湊。 nix
+- **AND** 執行 nix 構建，但失敗且哈希正確
+- **AND** 從建置錯誤輸出中提取正確的雜湊值
 
-#### Scenario: Hash extraction from build output
-- **WHEN** nix build fails with hash mismatch
-- **THEN** script parses "got: sha256-..." from error output
-- **AND** updates flake.nix with correct hash
+#### 場景：從建置輸出中提取哈希值
+- **何時** nix 建置因雜湊不符而失敗
+- **THEN** 腳本從錯誤輸出解析“got: sha256-...”
+- **並且**使用正確的雜湊值更新 flake.nix
 
-#### Scenario: Hash update failure
-- **WHEN** script cannot extract hash from build output
-- **THEN** script restores original hash to flake.nix
-- **AND** exits with error code 1
-- **AND** displays build output for debugging
+#### 場景：哈希更新失敗
+- **何時** 腳本無法從建置輸出中提取哈希值
+- **然後** 腳本將原始雜湊恢復為薄片。 nix
+- **AND** 退出並顯示錯誤代碼 1
+- **AND** 顯示建置輸出以進行偵錯
 
-### Requirement: Build Verification
-The script SHALL verify that flake.nix builds successfully after updates.
+### 要求：建置驗證
+該腳本應驗證 flake.nix 更新後是否成功建置。
 
-#### Scenario: Successful verification
-- **WHEN** hash has been updated
-- **THEN** script runs nix build to verify
-- **AND** reports success if build completes
+#### 場景：驗證成功
+- **何時** 哈希已更新
+- **THEN** 腳本執行 nix build 來驗證
+- **AND** 如果建置完成則報告成功
 
-#### Scenario: Dirty git tree warning
-- **WHEN** build succeeds but git tree is dirty
-- **THEN** script reports warning about dirty tree
-- **AND** still indicates build success
+#### 場景：髒 git 樹警告
+- **何時** 建置成功但 git 樹髒了
+- **那麼** 腳本報告有關髒樹的警告
+- **AND** 仍然表示建置成功
 
-### Requirement: User Feedback
-The script SHALL provide clear progress information and next steps.
+### 要求：用戶回饋
+該腳本應提供清晰的進度資訊和後續步驟。
 
-#### Scenario: Progress reporting
-- **WHEN** script runs
-- **THEN** each step is reported with descriptive message
-- **AND** detected version and hash are displayed
+#### 場景：進度報告
+- **何時** 腳本執行
+- **然後** 每個步驟都會報告有描述性訊息
+- **並且** 顯示偵測到的版本和雜湊值
 
-#### Scenario: Success summary
-- **WHEN** script completes successfully
-- **THEN** summary shows version and hash changes
-- **AND** next steps are displayed (test, verify, commit)
+#### 場景：成功總結
+- **何時** 腳本成功完成
+- **然後** 摘要顯示版本和哈希更改
+- **並且** 顯示後續步驟（測試、驗證、提交）
 
-#### Scenario: No changes needed
-- **WHEN** hash is already up-to-date
-- **THEN** script reports no changes needed
-- **AND** exits with success code 0
+#### 場景：無需更改
+- **何時** 雜湊值已經是最新的
+- **那麼** 腳本報告不需要更改
+- **AND** 退出並顯示成功代碼 0
 
-### Requirement: Script Safety
-The script SHALL fail fast on errors and use safe defaults.
+### 要求：腳本安全
+該腳本應在出現錯誤時快速失敗並使用安全的預設值。
 
-#### Scenario: Bash error handling
-- **WHEN** script encounters an error
-- **THEN** script exits immediately (set -e)
-- **AND** undefined variables cause exit (set -u)
-- **AND** pipe failures are caught (set -o pipefail)
+#### 場景：Bash錯誤處理
+- **何時** 腳本遇到錯誤
+- **THEN** 腳本立即退出（set -e）
+- **和** 未定義的變數導致退出（set -u）
+- **並且** 捕獲管道故障（set -o pipelinefail）
 
-#### Scenario: File path resolution
-- **WHEN** script determines file locations
-- **THEN** paths are calculated relative to script location
-- **AND** script works regardless of working directory
+#### 場景：檔案路徑解析
+- **何時** 腳本決定檔案位置
+- **THEN** 路徑是相對於腳本位置計算的
+- **AND** 無論工作目錄如何，腳本都可以工作
 
-### Requirement: Documentation
-The system SHALL provide documentation for the update script.
+### 要求：文檔
+系統應提供更新腳本的文檔。
 
-#### Scenario: Script usage documentation
-- **WHEN** maintainer needs to use update script
-- **THEN** scripts/README.md explains when and how to use it
-- **AND** example workflow is provided
+#### 場景：腳本使用文檔
+- **何時** 維護者需要使用更新腳本
+- **THEN** scripts/README.md 解釋了何時以及如何使用它
+- **並且** 提供了範例工作流程
 
-#### Scenario: Script listing
-- **WHEN** maintainer views scripts/README.md
-- **THEN** all maintenance scripts are documented
-- **AND** purpose of each script is clear
+#### 場景：腳本列表
+- **何時**維護者檢視腳本/README.md
+- **那麼** 所有維護腳本均已記錄
+- **並且** 每個腳本的目的都很明確

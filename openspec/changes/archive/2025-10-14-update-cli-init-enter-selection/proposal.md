@@ -1,14 +1,14 @@
-## Why
-- Users frequently scroll to a tool and press Enter without toggling it, resulting in no configuration changes.
-- The current workflow deviates from common CLI expectations where Enter confirms the highlighted item.
-- Aligning behavior with user expectations reduces friction during onboarding.
+## 為什麼
+- 使用者經常捲動到某個工具並按 Enter 鍵而不切換它，導致沒有設定變更。
+- 目前的工作流程偏離了常見的 CLI 預期，其中 Enter 確認突出顯示的項目。
+- 將行為與使用者期望保持一致可以減少入職期間的摩擦。
 
-## What Changes
-- Update the init wizard so pressing Enter on a highlighted tool selects it before moving to the review step.
-- Adjust interactive instructions to clarify Enter selects the current tool and Space still toggles selections.
-- Refresh specs to capture the clarified behavior for the interactive menu.
+## 有什麼變化
+- 更新初始化精靈，以便在反白的工具上按 Enter 鍵選擇它，然後再轉到檢視步驟。
+- 調整互動式指令以澄清 Enter 選擇目前工具，而 Space 仍切換選擇。
+- 重新整理規範以捕捉互動式選單的明確行為。
 
-## Impact
-- Users who press Enter without toggling now configure the highlighted tool instead of exiting with no selections.
-- Spacebar multi-select support remains unchanged for power users.
-- Documentation better reflects how the wizard behaves.
+## 影響
+- 現在，按 Enter 鍵而不進行切換的使用者可以設定突出顯示的工具，而不是在不進行任何選擇的情況下退出。
+- 對於進階用戶來說，空白鍵多選支援保持不變。
+- 文件更好地反映了嚮導的行為。

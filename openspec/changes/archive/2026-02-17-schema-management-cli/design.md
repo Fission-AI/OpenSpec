@@ -1,113 +1,113 @@
-## Context
+## 情境
 
-OpenSpec uses workflow schemas to define artifact sequences for change proposals. Currently, schemas are resolved from three locations (project → user → package), but managing custom schemas requires manual file creation with no tooling support. The resolver infrastructure exists (`src/core/artifact-graph/resolver.ts`) but there's no CLI exposure for schema management operations.
+OpenSpec 使用工作流程模式來定義變更建議的工件序列。目前，模式是從三個位置解析的（項目 → 使用者 → 套件），但管理自訂模式需要手動建立文件，沒有工具支援。解析器基礎設施存在（`src/core/artifact-graph/resolver.ts`）但架構管理作業沒有 CLI 暴露。
 
-Users who want to customize workflows must:
-1. Manually create directory structures under `openspec/schemas/<name>/`
-2. Copy and modify `schema.yaml` files without validation
-3. Debug resolution issues by inspecting the filesystem directly
+想要自訂工作流程的使用者必須：
+1. 手動建立目錄結構 `openspec/schemas/<name>/`
+2. 複製並修改 `schema.yaml` 未經驗證的文件
+3. 透過直接檢查檔案系統來調試解決問題
 
-This creates friction for schema customization and leads to runtime errors when schemas are malformed.
+這會給模式定制帶來麻煩，並在模式格式錯誤時導致執行時錯誤。
 
-## Goals / Non-Goals
+## 目標/非目標
 
-**Goals:**
-- Provide CLI commands for common schema management operations
-- Enable interactive schema creation with guided prompts
-- Allow forking existing schemas as customization starting points
-- Surface schema validation errors before runtime
-- Help debug schema resolution order when shadowing occurs
+**目標：**
+- 提供CLI指令用於常見的模式管理操作
+- 透過引導提示啟用互動模式建立
+- 允許分叉現有模式作為客製化起點
+- 執行前表面模式驗證錯誤
+- 發生陰影時幫助調試架構解析順序
 
-**Non-Goals:**
-- Schema editing (users edit YAML directly or via `$EDITOR`)
-- Schema publishing or sharing mechanisms
-- Schema versioning or migration tooling
-- Validation of template file contents (only checks existence)
-- Schema inheritance or composition beyond simple forking
+**非目標：**
+- 模式編輯（用戶直接編輯YAML或透過 `$EDITOR`)
+- 模式發布或共享機制
+- 架構版本控製或遷移工具
+- 驗證範本文件內容（僅檢查是否存在）
+- 超越簡單分叉的模式繼承或組合
 
-## Decisions
+## 決定
 
-### 1. Command Structure: `openspec schema <subcommand>`
+### 1.命令結構： `openspec schema <subcommand>`
 
-Add a new command group following the existing pattern used by `openspec config` and `openspec completion`.
+依照使用的現有模式新增新的命令組 `openspec config` 和 `openspec completion`.
 
-**Rationale:** Grouping related commands under a noun (schema) matches the established CLI patterns and provides a natural namespace for future schema operations.
+**基本原理：** 在名詞（模式）下對相關命令進行分組，與已建立的 CLI 模式相匹配，並為將來的模式操作提供自然的命名空間。
 
-**Alternatives considered:**
-- Flat commands (`openspec schema-init`, `openspec schema-fork`): Rejected because it pollutes the top-level namespace and doesn't scale well.
-- Extending existing commands (`openspec init --schema`): Rejected because schema management is distinct from project initialization.
+**考慮的替代方案：**
+- 平面命令 (`openspec schema-init`, `openspec schema-fork`)：被拒絕，因為它污染了頂級命名空間並且擴展性不好。
+- 擴充現有命令（`openspec init --schema`)：被拒絕，因為模式管理與專案初始化不同。
 
-### 2. Implementation Location
+### 2. 實施地點
 
-New file `src/commands/schema.ts` with a `registerSchemaCommand(program: Command)` function that registers the `schema` command group and all subcommands.
+新文件 `src/commands/schema.ts` 與一個 `registerSchemaCommand(program: Command)` 註冊函數 `schema` 命令組和所有子命令。
 
-**Rationale:** Follows the pattern established by `config.ts` and matches how other command groups are organized.
+**理由：** 遵循以下建立的模式 `config.ts` 並與其他指揮組的組織方式相符。
 
-### 3. Schema Validation Approach
+### 3. 模式驗證方法
 
-Validation checks:
-1. `schema.yaml` exists and is valid YAML
-2. Parses successfully against the Zod schema in `types.ts`
-3. All referenced template files exist in the schema directory
-4. Artifact dependency graph has no cycles (use existing topological sort)
+驗證檢查：
+1. `schema.yaml` 存在且有效 YAML
+2. 根據 Zod 架構成功解析 `types.ts`
+3. 所有引用的模板檔案都存在於架構目錄中
+4. 工件依賴圖沒有循環（使用現有的拓樸排序）
 
-**Rationale:** Reuse existing validation infrastructure (`parseSchema` from `schema.ts`) and extend with template existence checks. This catches the most common errors without duplicating validation logic.
+**理由：** 重複使用現有的驗證基礎設施（`parseSchema` 從 `schema.ts`）並透過模板存在檢查進行擴充。這可以捕獲最常見的錯誤，而無需重複驗證邏輯。
 
-**Alternatives considered:**
-- Deep template validation (check frontmatter, syntax): Rejected as over-engineering. Template contents are free-form markdown.
+**考慮的替代方案：**
+- 深度模板驗證（檢查 frontmatter、語法）：因過度設計而被拒絕。模板內容是自由式的 Markdown。
 
-### 4. Interactive Prompts for `schema init`
+### 4. 互動提示 `schema init`
 
-Use `@inquirer/prompts` (already a dependency) for:
-- Schema name input with kebab-case validation
-- Schema description input
-- Multi-select for artifact selection with descriptions
-- Optional: set as project default
+使用 `@inquirer/prompts` （已經是依賴項）：
+- 使用短橫線大小寫驗證的模式名稱輸入
+- 模式描述輸入
+- 多重選擇工件選擇和描述
+- 可選：設定為項目預設值
 
-**Rationale:** Matches the UX established by `openspec init` and `openspec config reset`. Provides a guided experience while keeping the wizard lightweight.
+**理由：** 匹配建立的使用者體驗 `openspec init` 和 `openspec config reset`。提供引導式體驗，同時保持嚮導的輕量。
 
-### 5. Fork Source Resolution
+### 5. 分叉源解析
 
-`schema fork <source>` resolves the source schema using the existing `getSchemaDir()` function, respecting the full resolution order (project → user → package). This allows forking from any accessible schema.
+`schema fork <source>` 使用現有的解析來源模式 `getSchemaDir()` 函數，尊重完整的解析順序（項目→使用者→套件）。這允許從任何可訪問的模式進行分叉。
 
-The destination is always project-local: `openspec/schemas/<name>/`
+目的地始終是專案本地的： `openspec/schemas/<name>/`
 
-**Rationale:** Forking to project scope makes sense because:
-- Custom schemas are project-specific decisions
-- User-global schemas can be added manually if needed
-- Keeps the command simple with a clear default
+**理由：** 分叉到專案範圍是有意義的，因為：
+- 自訂模式是特定於專案的決策
+- 如果需要，可以手動新增使用者全域架構
+- 透過明確的預設值保持命令簡單
 
-### 6. Output Format Consistency
+### 6. 輸出格式一致性
 
-All commands support `--json` flag for machine-readable output:
-- `schema init`: Outputs `{ "created": true, "path": "...", "schema": "..." }`
-- `schema fork`: Outputs `{ "forked": true, "source": "...", "destination": "..." }`
-- `schema validate`: Outputs validation report matching existing validate command format
-- `schema which`: Outputs `{ "name": "...", "source": "project|user|package", "path": "..." }`
+所有命令都支援 `--json` 機器可讀輸出的標誌：
+- `schema init`：輸出 `{ "created": true, "path": "...", "schema": "..." }`
+- `schema fork`：輸出 `{ "forked": true, "source": "...", "destination": "..." }`
+- `schema validate`：輸出與現有驗證命令格式相符的驗證報告
+- `schema which`：輸出 `{ "name": "...", "source": "project|user|package", "path": "..." }`
 
-Text output uses ora spinners for progress and clear success/error messaging.
+文字輸出使用 ora spinner 來顯示進度和清晰的成功/錯誤訊息。
 
-**Rationale:** Consistent with existing OpenSpec commands and enables scripting/automation.
+**基本原理：** 與現有 OpenSpec 指令一致並啟用腳本/自動化。
 
-### 7. Schema `which` Command Design
+### 7. 架構 `which` 指令設計
 
-Shows resolution details for a schema name:
-- Which location it resolves from (project/user/package)
-- Full path to the schema directory
-- Whether it shadows other schemas at lower priority levels
+顯示架構名稱的解析詳細資訊：
+- 它從哪個位置解析（項目/用戶/包）
+- 架構目錄的完整路徑
+- 是否隱藏較低優先權的其他架構
 
-**Rationale:** Essential for debugging "why isn't my schema being used?" scenarios when multiple schemas with the same name exist.
+**理由：** 對於偵錯「為什麼我的架構沒有被使用？」至關重要。存在多個同名模式的場景。
 
-## Risks / Trade-offs
+## 風險/權衡
 
-**[Template scaffolding may become stale]** → The `schema init` command will scaffold a default set of artifacts (proposal, specs, design, tasks). If the built-in schema patterns evolve, these templates may not reflect best practices.
-- *Mitigation*: Document that `init` creates a minimal starting point. Users can `fork` built-in schemas for the latest patterns.
+**[模板鷹架可能會變得陳舊]** → `schema init` 命令將建立一組預設的工件（提案、規格、設計、任務）。如果內建模式模式不斷發展，這些模板可能無法反映最佳實踐。
+- *緩解*：記錄 `init` 建立一個最小起點。使用者可以 `fork` 最新模式的內建模式。
 
-**[Interactive prompts in CI environments]** → `schema init` with prompts may hang in non-interactive environments.
-- *Mitigation*: Support `--name`, `--description`, and `--artifacts` flags for non-interactive use. Detect TTY and show helpful error if prompts would hang.
+**[CI環境下的互動提示]** → `schema init` 帶有提示的內容可能會在非互動式環境中掛起。
+- *緩解*：支援 `--name`, `--description`， 和 `--artifacts` 非互動使用的標誌。偵測 TTY 並在提示掛起時顯示有用的錯誤。
 
-**[Validation doesn't catch all errors]** → Schema validation checks structure but can't verify semantic correctness (e.g., a template that doesn't match its artifact purpose).
-- *Mitigation*: This is acceptable. Full semantic validation would require understanding template intent, which is out of scope.
+**[驗證無法捕捉所有錯誤]** → 模式驗證檢查結構，但無法驗證語意正確性（例如，範本與其工件用途不符）。
+- *緩解*：這是可以接受的。完整的語義驗證需要理解模板意圖，這超出了範圍。
 
-**[Fork overwrites without warning]** → If target schema already exists, `fork` could overwrite it.
-- *Mitigation*: Check for existing schema and require `--force` flag or interactive confirmation before overwriting.
+**[分叉覆蓋而不警告]** → 如果目標模式已經存在， `fork` 可以覆蓋它。
+- *緩解*：檢查現有架構並要求 `--force` 覆蓋前標記或互動式確認。

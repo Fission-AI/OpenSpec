@@ -1,12 +1,12 @@
-## 1. Planning & Spec Updates
-- [x] 1.1 Confirm overlap with `add-multi-agent-init` and coordinate extend-mode flow
-- [x] 1.2 Update `openspec/specs/cli-init/spec.md` to capture multi-select onboarding requirements
+## 1. 規劃和規格更新
+- [x] 1.1 確認重疊 `add-multi-agent-init` 並協調擴展模式流程
+- [x] 1.2 更新 `openspec/specs/cli-init/spec.md` 捕獲多選入職要求
 
-## 2. Implementation
-- [x] 2.1 Add multi-select support to the `openspec init` prompt, including indicators for existing tool configs
-- [x] 2.2 Enhance success messaging to summarize created/refreshed assets per tool
-- [x] 2.3 Ensure shared instruction template is applied consistently (CLAUDE.md, AGENTS.md, slash commands)
+## 2. 實施
+- [x] 2.1 新增多選支援 `openspec init` 提示，包括現有工具設定的指示器
+- [x] 2.2 增強成功訊息傳遞以總結每個工具所建立/重新整理的資產
+- [x] 2.3 確保一致地套用共用指令模板（CLAUDE.md、AGENTS.md、斜線指令）
 
-## 3. Quality
-- [x] 3.1 Expand unit tests for init/update flows covering multi-select and summaries
-- [x] 3.2 Perform `openspec init` smoke test in a temp directory (document output)
+## 3. 品質
+- [x] 3.1 擴展初始化/更新流程的單元測試，涵蓋多選和摘要
+- [x] 3.2 執行 `openspec init` 臨時目錄中的冒煙測試（文檔輸出）

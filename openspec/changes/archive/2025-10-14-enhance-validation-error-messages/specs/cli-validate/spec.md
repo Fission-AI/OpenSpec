@@ -1,36 +1,36 @@
-## MODIFIED Requirements
-### Requirement: Validation SHALL provide actionable remediation steps
-Validation output SHALL include specific guidance to fix each error, including expected structure, example headers, and suggested commands to verify fixes.
+## 修改後的要求
+### 要求：驗證應提供可行的補救措施
+驗證輸出應包括修復每個錯誤的特定指南，包括預期結構、範例標頭以及用於驗證修復的建議命令。
 
-#### Scenario: No deltas found in change
-- **WHEN** validating a change with zero parsed deltas
-- **THEN** show error "No deltas found" with guidance:
-  - Explain that change specs must include `## ADDED Requirements`, `## MODIFIED Requirements`, `## REMOVED Requirements`, or `## RENAMED Requirements`
-  - Remind authors that files must live under `openspec/changes/{id}/specs/<capability>/spec.md`
-  - Include an explicit note: "Spec delta files cannot start with titles before the operation headers"
-  - Suggest running `openspec change show {id} --json --deltas-only` for debugging
+#### 場景：在變化中沒有發現增量
+- **何時** 使用零解析增量驗證更改
+- **然後** 顯示錯誤“未找到增量”並提供指導：
+  - 解釋變更規格必須包括 `## ADDED Requirements`, `## MODIFIED Requirements`, `## REMOVED Requirements`， 或者 `## RENAMED Requirements`
+  - 提醒作者文件必須位於 `openspec/changes/{id}/specs/<capability>/spec.md`
+  - 包含明確的註釋：“規範增量文件不能以操作標題之前的標題開頭”
+  - 建議執行 `openspec change show {id} --json --deltas-only` 用於調試
 
-#### Scenario: Missing required sections
-- **WHEN** a required section is missing
-- **THEN** include expected header names and a minimal skeleton:
-  - For Spec: `## Purpose`, `## Requirements`
-  - For Change: `## Why`, `## What Changes`
-  - Provide an example snippet of the missing section with placeholder prose ready to copy
-  - Mention the quick-reference section in `openspec/AGENTS.md` as the authoritative template
+#### 場景：缺少必要的部分
+- **何時** 缺少必填部分
+- **然後** 包括預期的標頭名稱和最小框架：
+  - 對於規格： `## Purpose`, `## Requirements`
+  - 對於改變： `## Why`, `## What Changes`
+  - 提供缺失部分的範例片段以及可供複製的佔位符散文
+  - 提及快速參考部分 `openspec/AGENTS.md` 作為權威模板
 
-#### Scenario: Missing requirement descriptive text
-- **WHEN** a requirement header lacks descriptive text before scenarios
-- **THEN** emit an error explaining that `### Requirement:` lines must be followed by narrative text before any `#### Scenario:` headers
-  - Show compliant example: "### Requirement: Foo" followed by "The system SHALL ..."
-  - Suggest adding 1-2 sentences describing the normative behavior prior to listing scenarios
-  - Reference the pre-validation checklist in `openspec/AGENTS.md`
+#### 場景：缺少需求描述文本
+- **何時** 需求標題在場景之前缺少描述性文本
+- **THEN** 發出一個錯誤，解釋說 `### Requirement:` 任何行之前必須有敘述性文本 `#### Scenario:` 標頭
+  - 顯示合規範例：“### Requirement: Foo”後面跟著“The system SHALL ...”
+  - 建議在列出場景之前添加 1-2 個描述規範行為的句子
+  - 參考預驗證清單 `openspec/AGENTS.md`
 
-### Requirement: Validator SHALL detect likely misformatted scenarios and warn with a fix
-The validator SHALL recognize bulleted lines that look like scenarios (e.g., lines beginning with WHEN/THEN/AND) and emit a targeted warning with a conversion example to `#### Scenario:`.
+### 要求：驗證器應檢測可能的格式錯誤場景並發出修復警告
+驗證器應識別看起來像場景的項目符號行（例如，以 WHEN/THEN/AND 開頭的行），並發出有針對性的警告，其中包含轉換範例 `#### Scenario:`.
 
-#### Scenario: Bulleted WHEN/THEN under a Requirement
-- **WHEN** bullets that start with WHEN/THEN/AND are found under a requirement without any `#### Scenario:` headers
-- **THEN** emit warning: "Scenarios must use '#### Scenario:' headers", and show a conversion template:
+#### 場景：需求下的 WHEN/THEN 項目符號
+- **WHEN** 以 WHEN/THEN/AND 開頭的項目符號在沒有任何要求的情況下找到 `#### Scenario:` 標頭
+- **THEN** 發出警告：“場景必須使用 '#### Scenario:' 標頭”，並顯示轉換模板：
 ```
 #### Scenario: Short name
 - **WHEN** ...

@@ -1,29 +1,29 @@
-## Why
+## 為什麼
 
-Currently, the schema (workflow type) must be passed via `--schema` flag on every experimental workflow command. This is repetitive and error-prone. Agents have no way to know which schema a change uses, so they default to `spec-driven` and cannot leverage alternative workflows like `tdd`.
+目前，架構（工作流程類型）必須透過 `--schema` 每個實驗工作流程指令上的標記。這是重複且容易出錯的。代理無法知道更改使用哪個架構，因此它們預設為 `spec-driven` 且無法利用替代工作流程，例如 `tdd`.
 
-## What Changes
+## 有什麼變化
 
-**Scope: Experimental artifact workflow only** (`openspec new change`, `openspec status`, `openspec instructions`, `openspec templates`)
+**範圍：僅限實驗工件工作流程** (`openspec new change`, `openspec status`, `openspec instructions`, `openspec templates`)
 
-- Store schema choice in `.openspec.yaml` metadata file when creating a change via `openspec new change`
-- Auto-detect schema from metadata in experimental workflow commands
-- Make `--schema` flag optional (override only, metadata takes precedence)
-- Add `--schema` option to `openspec new change` command
+- 將模式選擇儲存在 `.openspec.yaml` 透過建立更改時的元資料文件 `openspec new change`
+- 從實驗工作流程指令中的元資料自動偵測模式
+- 製作 `--schema` 標誌可選（僅覆蓋，元資料優先）
+- 添加 `--schema` 選項 `openspec new change` 命令
 
-**Not affected**: Legacy commands (`openspec validate`, `openspec archive`, `openspec list`, `openspec show`)
+**不受影響**：舊命令（`openspec validate`, `openspec archive`, `openspec list`, `openspec show`)
 
-## Capabilities
+## 能力
 
-### New Capabilities
-- `change-metadata`: Reading/writing per-change metadata files
+### 新功能
+- `change-metadata`：讀取/寫入每次更改元資料文件
 
-### Modified Capabilities
-- `cli-artifact-workflow`: Commands auto-detect schema from change metadata
+### 修改後的功能
+- `cli-artifact-workflow`：命令從更改元資料自動偵測模式
 
-## Impact
+## 影響
 
-- **Affected code**: `src/utils/change-utils.ts`, `src/core/artifact-graph/instruction-loader.ts`, `src/commands/artifact-workflow.ts`
-- **Agent skills**: Can be simplified - no longer need to pass schema explicitly
-- **Backward compatible**: Changes without `.openspec.yaml` fall back to `spec-driven` default
-- **Isolation**: All changes contained within experimental workflow code; legacy commands untouched
+- **受影響的代碼**： `src/utils/change-utils.ts`, `src/core/artifact-graph/instruction-loader.ts`, `src/commands/artifact-workflow.ts`
+- **代理技能**：可以簡化 - 不再需要明確傳遞模式
+- **向後相容**：無需更改 `.openspec.yaml` 回落到 `spec-driven` 預設
+- **隔離**：實驗工作流程程式碼中包含的所有變更；遺留指令未受影響

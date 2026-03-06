@@ -1,33 +1,33 @@
-## ADDED Requirements
-### Requirement: Quick Reference Placement
-The AI instructions SHALL begin with a quick-reference section that surfaces required file structures, templates, and formatting rules before any narrative guidance.
+## 新增要求
+### 要求：快速參考放置
+AI 指令應以快速參考部分開始，該部分在任何敘述性指導之前顯示所需的文件結構、範本和格式規則。
 
-#### Scenario: Loading templates at the top
-- **WHEN** `openspec/AGENTS.md` is regenerated or updated
-- **THEN** the first substantive section after the title SHALL provide copy-ready headings for `proposal.md`, `tasks.md`, spec deltas, and scenario formatting
-- **AND** link each template to the corresponding workflow step for deeper reading
+#### 場景：頂部載入模板
+- **什麼時候** `openspec/AGENTS.md` 已重新產生或更新
+- **那麼** 標題後的第一個實質部分應提供可複製的標題 `proposal.md`, `tasks.md`、規格增量和場景格式
+- **並且**將每個範本連結到相應的工作流程步驟以進行更深入的閱讀
 
-### Requirement: Embedded Templates and Examples
-`openspec/AGENTS.md` SHALL include complete copy/paste templates and inline examples exactly where agents make corresponding edits.
+### 要求：嵌入模板和範例
+`openspec/AGENTS.md` 應包括完整的複製/貼上範本和內聯範例，以準確說明代理進行相應編輯的位置。
 
-#### Scenario: Providing file templates
-- **WHEN** authors reach the workflow guidance for drafting proposals and deltas
-- **THEN** provide fenced Markdown templates that match the required structure (`## Why`, `## ADDED Requirements`, `#### Scenario:` etc.)
-- **AND** accompany each template with a brief example showing correct header usage and scenario bullets
+#### 場景：提供文件模板
+- **何時** 作者達到起草提案和增量的工作流程指南
+- **那麼** 提供與所需結構相符的受保護的 Markdown 範本（`## Why`, `## ADDED Requirements`, `#### Scenario:` ETC。 ）
+- **並且** 每個範本都附有一個簡短的範例，顯示正確的標題用法和場景項目符號
 
-### Requirement: Pre-validation Checklist
-`openspec/AGENTS.md` SHALL offer a concise pre-validation checklist that highlights common formatting mistakes before running `openspec validate`.
+### 要求：預驗證清單
+`openspec/AGENTS.md` 應提供一份簡明的預驗證清單，在執行前突出顯示常見的格式錯誤 `openspec validate`.
 
-#### Scenario: Highlighting common validation failures
-- **WHEN** a reader reaches the validation guidance
-- **THEN** present a checklist reminding them to verify requirement headers, scenario formatting, and delta sections
-- **AND** include reminders about at least `#### Scenario:` usage and descriptive requirement text before scenarios
+#### 場景：突出顯示常見的驗證失敗
+- **當**讀者達到驗證指南時
+- **然後** 提供一份清單，提醒他們驗證需求標題、場景格式和增量部分
+- **並且** 包括至少關於的提醒 `#### Scenario:` 場景之前的用法和描述性要求文本
 
-### Requirement: Progressive Disclosure of Workflow Guidance
-The documentation SHALL separate beginner essentials from advanced topics so newcomers can focus on core steps without losing access to advanced workflows.
+### 要求：逐步揭露工作流程指南
+該文件應將初學者要點與高級主題分開，以便新手可以專注於核心步驟，而不會失去對高級工作流程的存取權。
 
-#### Scenario: Organizing beginner and advanced sections
-- **WHEN** reorganizing `openspec/AGENTS.md`
-- **THEN** keep an introductory section limited to the minimum steps (scaffold, draft, validate, request review)
-- **AND** move advanced topics (multi-capability changes, archiving details, tooling deep dives) into clearly labeled later sections
-- **AND** provide anchor links from the quick-reference to those advanced sections
+#### 場景：組織初級和高級部分
+- **何時**重組 `openspec/AGENTS.md`
+- **那麼** 將介紹部分限制在最少的步驟（支架、草稿、驗證、請求審查）
+- **並且** 將高級主題（多功能更改、歸檔詳細資訊、工具深入研究）移至標記清晰的後續部分
+- **並且**提供從快速參考到這些高級部分的錨鏈接

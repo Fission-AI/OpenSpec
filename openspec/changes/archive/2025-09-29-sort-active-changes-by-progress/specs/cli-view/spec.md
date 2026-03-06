@@ -1,9 +1,9 @@
-## MODIFIED Requirements
-### Requirement: Active Changes Display
-The dashboard SHALL show active changes with visual progress indicators.
+## 修改後的要求
+### 要求：活動更改顯示
+儀表板應透過視覺進度指示器顯示活動變化。
 
-#### Scenario: Active changes ordered by completion percentage
-- **WHEN** multiple active changes are displayed with progress information
-- **THEN** list them sorted by completion percentage ascending so 0% items appear first
-- **AND** treat missing progress values as 0% for ordering
-- **AND** break ties by change identifier in ascending alphabetical order to keep output deterministic
+#### 場景：按完成百分比排序的活動變更
+- **何時** 顯示多個活動變更以及進度訊息
+- **然後** 按完成百分比升序列出它們，以便 0% 的項目首先出現
+- **並且** 將缺少的進度值視為 0% 進行訂購
+- **AND** 透過按字母升序更改識別碼來打破聯繫，以保持輸出的確定性

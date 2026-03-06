@@ -1,32 +1,32 @@
-# CLI Update Specification Delta
+# CLI 更新規格增量
 
-## MODIFIED Requirements
+## 修改後的要求
 
-### Requirement: Slash Command Updates
-The update command SHALL refresh existing slash command files for configured tools without creating new ones, and ensure the OpenCode archive command accepts change ID arguments.
+### 需求：Slash 指令更新
+更新命令應重新整理已設定工具的現有斜杠命令文件，而不建立新文件，並確保 OpenCode 存檔命令接受更改 ID 參數。
 
-#### Scenario: Updating slash commands for OpenCode
-- **WHEN** `.opencode/command/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
-- **THEN** refresh each file using shared templates
-- **AND** ensure templates include instructions for the relevant workflow stage
-- **AND** ensure the archive command includes `$ARGUMENTS` placeholder in frontmatter for accepting change ID arguments
+#### 場景：更新 OpenCode 的斜杠指令
+- **什麼時候** `.opencode/command/` 包含 `openspec-proposal.md`, `openspec-apply.md`， 和 `openspec-archive.md`
+- **然後** 使用共用範本重新整理每個文件
+- **並**確保範本包含相關工作流程階段的說明
+- **並且**確保存檔命令包括 `$ARGUMENTS` frontmatter 中的佔位符用於接受更改 ID 參數
 
-### Requirement: Archive Command Argument Support
-The archive slash command template SHALL support optional change ID arguments for tools that support `$ARGUMENTS` placeholder.
+### 需求：存檔命令參數支援
+歸檔斜線命令範本應支援可選的變更 ID 參數，以支援以下工具： `$ARGUMENTS` placeholder.
 
-#### Scenario: Archive command with change ID argument
-- **WHEN** a user invokes `/openspec:archive <change-id>` with a change ID
-- **THEN** the template SHALL instruct the AI to validate the provided change ID against `openspec list`
-- **AND** use the provided change ID for archiving if valid
-- **AND** fail fast if the provided change ID doesn't match an archivable change
+#### 場景：帶有更改 ID 參數的存檔命令
+- **何時** 用戶調用 `/openspec:archive <change-id>` 更改 ID
+- **然後** 範本應指示 AI 驗證提供的變更 ID `openspec list`
+- **並且** 使用提供的更改 ID 進行存檔（如果有效）
+- **並且** 如果提供的更改 ID 與可存檔更改不匹配，則會快速失敗
 
-#### Scenario: Archive command without argument (backward compatibility)
-- **WHEN** a user invokes `/openspec:archive` without providing a change ID
-- **THEN** the template SHALL instruct the AI to identify the change ID from context or by running `openspec list`
-- **AND** proceed with the existing behavior (maintaining backward compatibility)
+#### 場景：不含參數的 Archive 指令（向後相容）
+- **何時** 用戶調用 `/openspec:archive` 無需提供變更 ID
+- **那麼** 範本應指示 AI 從上下文中或透過執行來識別更改 ID `openspec list`
+- **並且** 繼續現有行為（保持向後相容性）
 
-#### Scenario: OpenCode archive template generation
-- **WHEN** generating the OpenCode archive slash command file
-- **THEN** include the `$ARGUMENTS` placeholder in the frontmatter
-- **AND** wrap it in a clear structure like `<ChangeId>\n  $ARGUMENTS\n</ChangeId>` to indicate the expected argument
-- **AND** include validation steps in the template body to check if the change ID is valid
+#### 場景：OpenCode 歸檔模板生成
+- **何時** 產生 OpenCode 存檔斜線命令文件
+- **然後** 包括 `$ARGUMENTS` 前面的佔位符
+- **並且**將其包裝在一個清晰的結構中，例如 `<ChangeId>\n  $ARGUMENTS\n</ChangeId>` 指示預期的參數
+- **並且** 在範本正文中包含驗證步驟以檢查更改 ID 是否有效

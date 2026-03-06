@@ -1,34 +1,34 @@
-# Add Artifact Regeneration Support
+# 添加神器再生支援
 
-## Problem
+## 問題
 
-Currently, there is **no way to regenerate artifacts** in the OPSX workflow:
+目前，OPSX 工作流程中**無法重新產生工件**：
 
-- `/opsx:apply` just reads whatever's on disk
-- `/opsx:continue` only creates the NEXT artifact - won't touch existing ones
+- `/opsx:apply` 只讀取磁碟上的所有內容
+- `/opsx:continue` 只建立下一個工件 - 不會觸及現有的工件
 
-If you edit `design.md` after `tasks.md` exists, your only options are:
-1. Delete tasks.md manually, then run `/opsx:continue`
-2. Edit tasks.md manually
+如果您編輯 `design.md` 後 `tasks.md` 存在，您唯一的選擇是：
+1. 手動刪除tasks.md，然後執行 `/opsx:continue`
+2. 手動編輯tasks.md
 
-The documentation claims you can "update artifacts mid-flight and continue" but there's no mechanism that actually supports this.
+該文件聲稱您可以“在飛行中更新工件並繼續”，但沒有實際支援這一點的機制。
 
-## Proposed Solution
+## 建議的解決方案
 
-Two parts:
+兩部分：
 
-### Part 1: Staleness Detection
-Add artifact staleness detection to `/opsx:apply`:
+### 第 1 部分：陳舊性檢測
+新增工件陳舊性檢測 `/opsx:apply`:
 
-1. **Track modification times**: When generating an artifact, record the mtime of its dependencies
-2. **Detect staleness**: When `/opsx:apply` runs, check if upstream artifacts (design.md, specs) have been modified since tasks.md was generated
-3. **Prompt user**: If stale, ask: "Design was modified after tasks were generated. Would you like to regenerate tasks with `/opsx:continue`?"
+1. **追蹤修改時間**：產生工件時，記錄其依賴項的 mtime
+2. **檢測陳舊性**：何時 `/opsx:apply` 執行，檢查自生成tasks.md以來上游工件（design.md、specs）是否已被修改
+3. **提示使用者**：如果過時，請詢問：“生成任務後修改了設計。您想使用以下命令重新生成任務嗎？” `/opsx:continue`?"
 
-## User Experience
+## 使用者體驗
 
-### Vision: Seamless Mid-Flight Correction
+### 視覺：無縫飛行中校正
 
-This is the workflow we want to enable (currently documented but not supported):
+這是我們想要啟用的工作流程（目前已記錄但不支援）：
 
 ```
 You: /opsx:apply
@@ -50,11 +50,11 @@ AI:  Updated design.md to use CacheManager from src/cache/
      ...
 ```
 
-**No restart needed.** Just update the artifact and continue.
+**無需重新啟動。 ** 只需更新工件並繼續。
 
-### Staleness Warning UX
+### 過時警告使用者體驗
 
-When user manually edits an upstream artifact:
+當使用者手動編輯上游工件時：
 
 ```
 $ /opsx:apply
@@ -70,9 +70,9 @@ Options:
 >
 ```
 
-### Part 2: Regeneration Capability
+### 第二部分：再生能力
 
-Add a way to regenerate specific artifacts:
+新增一種重新產生特定工件的方法：
 
 ```bash
 # Option A: Flag on continue
@@ -86,10 +86,10 @@ Add a way to regenerate specific artifacts:
 # "Design changed. Regenerate tasks? [y/N]"
 ```
 
-## Technical Approach
+## 技術途徑
 
-### Option A: Metadata File
-Store `.openspec-meta.json` in change directory:
+### 選項 A：元資料文件
+店鋪 `.openspec-meta.json` 在更改目錄中：
 ```json
 {
   "tasks.md": {
@@ -102,8 +102,8 @@ Store `.openspec-meta.json` in change directory:
 }
 ```
 
-### Option B: Frontmatter
-Add YAML frontmatter to generated artifacts:
+### 選項 B：前題
+將 YAML frontmatter 加入到產生的工件中：
 ```markdown
 ---
 generated_at: 2025-01-24T10:00:00Z
@@ -114,23 +114,23 @@ depends_on:
 ...
 ```
 
-### Option C: Git-based
-Use git to detect if upstream files changed since downstream was last modified. No extra metadata needed but requires git.
+### 選項 C：基於 Git
+使用 git 檢測自下游上次修改以來上游檔案是否發生變更。不需要額外的元資料，但需要 git。
 
 ## Non-Goals
 
-- Automatic regeneration (user should always choose)
-- Blocking apply entirely (just warn)
-- Tracking code file changes (only artifact dependencies)
+- 自動再生（使用者應始終選擇）
+- 完全阻止（只是警告）
+- 追蹤程式碼檔案更改（僅限工件依賴項）
 
-## Dependencies
+## 依賴關係
 
-- Should be implemented after `fix-midflight-update-docs` so docs are accurate first
-- Could be combined with that change if desired
+- 應在之後實施 `fix-midflight-update-docs` 所以文件首先是準確的
+- 如果需要，可以與該更改相結合
 
-## Success Criteria
+## 成功標準
 
-- User is warned when applying with stale artifacts
-- Clear path to regenerate if needed
-- No false positives (only warn when genuinely stale)
-- Documentation claims become actually true
+- 當使用過時的工件進行應用時，使用者會收到警告
+- 如果需要，清除再生路徑
+- 沒有誤報（僅在真正過時時發出警告）
+- 文件聲明成為事實

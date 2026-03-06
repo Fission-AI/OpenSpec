@@ -1,67 +1,67 @@
-# change-creation Specification
+# 變革創造規範
 
-## Purpose
-Provide programmatic utilities for creating and validating OpenSpec change directories.
-## Requirements
-### Requirement: Change Creation
-The system SHALL provide a function to create new change directories programmatically.
+## 目的
+提供用於建立和驗證 OpenSpec 更改目錄的程式設計實用程式。
+## 要求
+### 要求：創造變革
+系統應提供以程式設計方式建立新更改目錄的功能。
 
-#### Scenario: Create change
-- **WHEN** `createChange(projectRoot, 'add-auth')` is called
-- **THEN** the system creates `openspec/changes/add-auth/` directory
+#### 場景：創造改變
+- **什麼時候** `createChange(projectRoot, 'add-auth')` 被稱為
+- **然後**系統建立 `openspec/changes/add-auth/` 目錄
 
-#### Scenario: Duplicate change rejected
-- **WHEN** `createChange(projectRoot, 'add-auth')` is called and `openspec/changes/add-auth/` already exists
-- **THEN** the system throws an error indicating the change already exists
+#### 場景：重複更改被拒絕
+- **什麼時候** `createChange(projectRoot, 'add-auth')` 被稱為和 `openspec/changes/add-auth/` 已經存在
+- **然後** 系統拋出錯誤，表示更改已存在
 
-#### Scenario: Creates parent directories if needed
-- **WHEN** `createChange(projectRoot, 'add-auth')` is called and `openspec/changes/` does not exist
-- **THEN** the system creates the full path including parent directories
+#### 場景：如果需要，建立父目錄
+- **什麼時候** `createChange(projectRoot, 'add-auth')` 被稱為和 `openspec/changes/` 不存在
+- **然後**系統建立包含父目錄的完整路徑
 
-#### Scenario: Invalid change name rejected
-- **WHEN** `createChange(projectRoot, 'Add Auth')` is called with an invalid name
-- **THEN** the system throws a validation error
+#### 場景：無效的更改名稱被拒絕
+- **什麼時候** `createChange(projectRoot, 'Add Auth')` 使用無效名稱調用
+- **然後** 系統拋出驗證錯誤
 
-### Requirement: Change Name Validation
-The system SHALL validate change names follow kebab-case conventions.
+### 要求：更改名稱驗證
+系統應驗證更改名稱是否遵循短橫線大小寫約定。
 
-#### Scenario: Valid kebab-case name accepted
-- **WHEN** a change name like `add-user-auth` is validated
-- **THEN** validation returns `{ valid: true }`
+#### 場景：接受有效的烤肉串名稱
+- **何時** 更改名稱，例如 `add-user-auth` 已驗證
+- **那麼** 驗證返回 `{ valid: true }`
 
-#### Scenario: Numeric suffixes accepted
-- **WHEN** a change name like `add-feature-2` is validated
-- **THEN** validation returns `{ valid: true }`
+#### 場景：接受數字後綴
+- **何時** 更改名稱，例如 `add-feature-2` 已驗證
+- **那麼** 驗證返回 `{ valid: true }`
 
-#### Scenario: Single word accepted
-- **WHEN** a change name like `refactor` is validated
-- **THEN** validation returns `{ valid: true }`
+#### 場景：接受單字
+- **何時** 更改名稱，例如 `refactor` 已驗證
+- **那麼** 驗證返回 `{ valid: true }`
 
-#### Scenario: Uppercase characters rejected
-- **WHEN** a change name like `Add-Auth` is validated
-- **THEN** validation returns `{ valid: false, error: "..." }`
+#### 場景：大寫字元被拒絕
+- **何時** 更改名稱，例如 `Add-Auth` 已驗證
+- **那麼** 驗證返回 `{ valid: false, error: "..." }`
 
-#### Scenario: Spaces rejected
-- **WHEN** a change name like `add auth` is validated
-- **THEN** validation returns `{ valid: false, error: "..." }`
+#### 場景：空間被拒絕
+- **何時** 更改名稱，例如 `add auth` 已驗證
+- **那麼** 驗證返回 `{ valid: false, error: "..." }`
 
-#### Scenario: Underscores rejected
-- **WHEN** a change name like `add_auth` is validated
-- **THEN** validation returns `{ valid: false, error: "..." }`
+#### 場景：底線被拒絕
+- **何時** 更改名稱，例如 `add_auth` 已驗證
+- **那麼** 驗證返回 `{ valid: false, error: "..." }`
 
-#### Scenario: Special characters rejected
-- **WHEN** a change name like `add-auth!` is validated
-- **THEN** validation returns `{ valid: false, error: "..." }`
+#### 場景：特殊字元被拒絕
+- **何時** 更改名稱，例如 `add-auth!` 已驗證
+- **那麼** 驗證返回 `{ valid: false, error: "..." }`
 
-#### Scenario: Leading hyphen rejected
-- **WHEN** a change name like `-add-auth` is validated
-- **THEN** validation returns `{ valid: false, error: "..." }`
+#### 場景：前導連字符被拒絕
+- **何時** 更改名稱，例如 `-add-auth` 已驗證
+- **那麼** 驗證返回 `{ valid: false, error: "..." }`
 
-#### Scenario: Trailing hyphen rejected
-- **WHEN** a change name like `add-auth-` is validated
-- **THEN** validation returns `{ valid: false, error: "..." }`
+#### 場景：尾隨連字符被拒絕
+- **何時** 更改名稱，例如 `add-auth-` 已驗證
+- **那麼** 驗證返回 `{ valid: false, error: "..." }`
 
-#### Scenario: Consecutive hyphens rejected
-- **WHEN** a change name like `add--auth` is validated
-- **THEN** validation returns `{ valid: false, error: "..." }`
+#### 場景：連續連字符被拒絕
+- **何時** 更改名稱，例如 `add--auth` 已驗證
+- **那麼** 驗證返回 `{ valid: false, error: "..." }`
 

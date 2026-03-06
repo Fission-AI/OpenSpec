@@ -1,22 +1,22 @@
-# CLI Change Command Spec
+# CLI 更改指令規範
 
-## ADDED Requirements
+## 新增要求
 
-### Requirement: Interactive validation selection
+### 需求：互動式驗證選擇
 
-The change validate command SHALL support interactive selection when no change name is provided.
+當未提供更改名稱時，更改驗證命令應支援互動式選擇。
 
-#### Scenario: Interactive change selection for validation
+#### 場景：互動式變更選擇以進行驗證
 
-- **WHEN** executing `openspec change validate` without arguments
-- **THEN** display an interactive list of available changes
-- **AND** allow the user to select a change to validate
-- **AND** validate the selected change
+- **何時**執行 `openspec change validate` 沒有參數
+- **然後** 顯示可用變更的互動式列表
+- **並且**允許使用者選擇要驗證的更改
+- **並** 驗證所選更改
 
-#### Scenario: Non-interactive fallback keeps current behavior
+#### 場景：非互動式回退保持當前行為
 
-- **GIVEN** stdin is not a TTY or `--no-interactive` is provided or environment variable `OPEN_SPEC_INTERACTIVE=0`
-- **WHEN** executing `openspec change validate` without a change name
-- **THEN** do not prompt interactively
-- **AND** print the existing hint including available change IDs
-- **AND** set `process.exitCode = 1`
+- **給定** stdin 不是 TTY 或 `--no-interactive` 提供或環境變數 `OPEN_SPEC_INTERACTIVE=0`
+- **何時**執行 `openspec change validate` 不改名
+- **THEN** 不交互提示
+- **並** 列印現有提示，包括可用的更改 ID
+- **和**設定 `process.exitCode = 1`

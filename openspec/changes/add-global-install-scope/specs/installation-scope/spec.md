@@ -1,71 +1,71 @@
-## Purpose
+## 目的
 
-Define the install scope model for OpenSpec-generated skills and commands, including scope preference, effective scope resolution, and fallback/error semantics.
+為 OpenSpec 產生的技能和命令定義安裝範圍模型，包括範圍首選項、有效範圍解析和回退/錯誤語義。
 
-## ADDED Requirements
+## 新增要求
 
-### Requirement: Install scope preference model
-The system SHALL support a user-level install scope preference with values `global` and `project`.
+### 需求：安裝範圍首選項模型
+系統應支援使用者級安裝範圍首選項及其值 `global` 和 `project`.
 
-#### Scenario: Default install scope
-- **WHEN** install scope is not explicitly configured
-- **THEN** the system SHALL resolve a migration-aware default:
-- **AND** use `global` for newly created configs
-- **AND** use `project` for legacy schema-evolved configs until explicit migration
+#### 場景：預設安裝範圍
+- **何時** 安裝範圍未明確設定
+- **那麼**系統應解析遷移感知預設值：
+- **和**使用 `global` 對於新建立的設定
+- **和**使用 `project` 對於遺留架構演進的設定，直到明確遷移
 
-#### Scenario: Explicit install scope
-- **WHEN** user configures install scope to `project`
-- **THEN** generation and update flows SHALL use `project` as the preferred scope
+#### 場景：明確安裝範圍
+- **何時** 使用者將安裝範圍設定為 `project`
+- **那麼** 產生和更新流程應使用 `project` 作為首選範圍
 
-### Requirement: Effective scope resolution by tool surface
-The system SHALL compute effective scope per tool surface (skills, commands) based on preferred scope and tool capability support.
+### 要求：工具表面的有效範圍分辨率
+系統應根據首選範圍和工具功能支援計算每個工具表面（技能、命令）的有效範圍。
 
-#### Scenario: Preferred scope is supported
-- **WHEN** preferred scope is supported for a tool surface
-- **THEN** the system SHALL use that scope as the effective scope
+#### 場景：支援首選範圍
+- **何時** 工具表面支援首選範圍
+- **那麼**系統應使用該範圍作為有效範圍
 
-#### Scenario: Preferred scope is unsupported but alternate is supported
-- **WHEN** preferred scope is not supported for a tool surface
-- **AND** the alternate scope is supported
-- **THEN** the system SHALL use the alternate scope as effective scope
-- **AND** SHALL record a fallback note for user-facing output
+#### 場景：不支援首選範圍，但支援備用範圍
+- **何時** 工具表面不支援首選範圍
+- **並且** 支援備用範圍
+- **那麼**系統應使用備用範圍作為有效範圍
+- **並且** 應記錄面向使用者輸出的後備註釋
 
-#### Scenario: No supported scope
-- **WHEN** neither `global` nor `project` is supported for a tool surface
-- **THEN** the command SHALL fail before writing files
-- **AND** SHALL display actionable remediation
+#### 場景：不支援範圍
+- **何時** 兩者都不是 `global` 也不 `project` 支援工具表面
+- **那麼**命令在寫入檔案之前將會失敗
+- **並且** 應顯示可行的補救措施
 
-### Requirement: Effective scope reporting
-The system SHALL report effective scope decisions in command output when they differ from the preferred scope.
+### 要求：有效的範圍報告
+當有效範圍決策與首選範圍不同時，系統應在命令輸出中報告有效範圍決策。
 
-#### Scenario: Fallback reporting
-- **WHEN** fallback resolution occurs for any selected/configured tool surface
-- **THEN** init/update summaries SHALL include effective scope notes per affected tool
+#### 場景：後備報告
+- **何時** 任何選定/設定的工具表面發生後備分辨率
+- **那麼** 初始化/更新摘要應包括每個受影響工具的有效範圍註釋
 
-### Requirement: Cross-platform path behavior
-Install scope resolution SHALL produce platform-correct target paths.
+### 要求：跨平台路徑行為
+安裝範圍解析應產生平台正確的目標路徑。
 
-#### Scenario: Global scope path on Windows
-- **WHEN** effective scope is `global`
-- **AND** the command runs on Windows
-- **THEN** resolved target paths SHALL use Windows path conventions and separators
-- **AND** SHALL NOT reuse POSIX-style home-relative defaults directly
+#### 場景：Windows 上的全域範圍路徑
+- **何時** 有效範圍是 `global`
+- **並且** 該指令在 Windows 上執行
+- **那麼**解析的目標路徑應使用 Windows 路徑約定與分隔符
+- **且** 不應直接重複使用 POSIX 風格的 home 相關預設值
 
-### Requirement: Cleanup safety for scope transitions
-Scope transitions SHALL update new targets first and clean old managed targets safely.
+### 要求：範圍轉換的清理安全
+範圍轉換應先更新新目標並安全地清理舊的託管目標。
 
-#### Scenario: Automatic cleanup for managed files on scope change
-- **WHEN** update or init applies a scope transition for a configured tool/surface
-- **THEN** the system SHALL write new artifacts in the new effective scope before cleanup
-- **AND** SHALL automatically remove only OpenSpec-managed files in the previous effective scope
+#### 場景：範圍變更時自動清理託管文件
+- **何時** update 或 init 對已設定的工具/介面套用範圍轉換
+- **那麼**系統應該在清理之前在新的有效範圍中寫入新的工件
+- **並且** 應自動刪除先前有效範圍內的 OpenSpec 託管文件
 
-#### Scenario: Cleanup scope boundaries
-- **WHEN** cleanup runs after a scope transition
-- **THEN** the system SHALL leave non-managed files untouched
-- **AND** SHALL limit removal scope to the affected tool/workflow-managed paths
+#### 場景：清理範圍邊界
+- **何時** 清理在範圍轉換後執行
+- **那麼**系統應保持非託管文件不變
+- **並且** 應將刪除範圍限制為受影響的工具/工作流程管理路徑
 
-#### Scenario: Cleanup failure after successful writes
-- **WHEN** new artifacts were written successfully in the new scope
-- **AND** cleanup of old managed targets fails
-- **THEN** the command SHALL report failure with leftover cleanup paths
-- **AND** SHALL NOT rollback successfully written new-scope artifacts
+#### 場景：成功寫入後清理失敗
+- **何時** 新工件在新範圍內成功寫入
+- **並且**舊託管目標的清理失敗
+- **那麼** 該命令將報告失敗並帶有剩餘的清理路徑
+- **且** 不應回滾成功寫入的新範圍工件

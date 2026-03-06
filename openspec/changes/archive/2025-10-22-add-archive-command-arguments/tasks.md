@@ -1,15 +1,15 @@
-# Implementation Tasks
+# 實施任務
 
-## 1. Update OpenCode Configurator
-- [x] 1.1 Add `$ARGUMENTS` placeholder to OpenCode archive frontmatter (matching the proposal pattern)
-- [x] 1.2 Format it as `<ChangeId>\n  $ARGUMENTS\n</ChangeId>` or similar structure for clarity
-- [x] 1.3 Ensure `updateExisting` rewrites the archive frontmatter/body so `$ARGUMENTS` persists after `openspec update`
+## 1.更新OpenCode設定器
+- [x] 1.1 添加 `$ARGUMENTS` OpenCode 存檔 frontmatter 的佔位符（與提案模式相符）
+- [x] 1.2 格式化為 `<ChangeId>\n  $ARGUMENTS\n</ChangeId>` 或為了清晰起見類似的結構
+- [x] 1.3 確保 `updateExisting` 重寫存檔 frontmatter/body 以便 `$ARGUMENTS` 之後持續存在 `openspec update`
 
-## 2. Update Slash Command Templates
-- [x] 2.1 Modify archive steps to validate change ID argument when provided via `$ARGUMENTS`
-- [x] 2.2 Keep backward compatibility - allow inferring from context if no argument provided
-- [x] 2.3 Add step to validate the change ID exists using `openspec list` before archiving
+## 2. 更新斜線指令模板
+- [x] 2.1 修改存檔步驟以驗證透過提供的變更 ID 參數 `$ARGUMENTS`
+- [x] 2.2 保持向後相容性 - 如果沒有提供參數，則允許從上下文推斷
+- [x] 2.3 新增步驟以驗證更改 ID 是否存在 `openspec list` 歸檔前
 
-## 3. Update Documentation
+## 3. 更新文檔
 - [x] 3.1 Update AGENTS.md archive examples to show argument usage
-- [x] 3.2 Document that OpenCode now supports `/openspec:archive <change-id>`
+- [x] 3.2 OpenCode現在支援的文檔 `/openspec:archive <change-id>`

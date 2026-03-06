@@ -1,65 +1,65 @@
-## ADDED Requirements
+## 新增要求
 
-### Requirement: Stack Metadata Model
-The system SHALL support optional metadata on active changes to express sequencing and decomposition relationships.
+### 需求：堆疊元資料模型
+系統應支援有關活動變更的可選元資料，以表達排序和分解關係。
 
-#### Scenario: Optional stack metadata is present
-- **WHEN** a change includes stack metadata fields
-- **THEN** the system SHALL parse and expose `dependsOn`, `provides`, `requires`, `touches`, and `parent`
-- **AND** validation SHALL enforce normalized field shapes and value types (`dependsOn`/`provides`/`requires`/`touches` as string arrays, `parent` as string when present)
+#### 場景：存在可選的堆疊元資料
+- **何時** 變更包括堆疊元資料字段
+- **那麼**系統將解析並公開 `dependsOn`, `provides`, `requires`, `touches`， 和 `parent`
+- **和** 驗證應強制規範化欄位形狀和值類型（`dependsOn`/`provides`/`requires`/`touches` 作為字串數組， `parent` 當存在時作為字串）
 
-#### Scenario: Backward compatibility without stack metadata
-- **WHEN** a change does not include stack metadata
-- **THEN** existing behavior SHALL continue without migration steps
-- **AND** validation SHALL not fail solely because stack metadata is absent
+#### 場景：沒有堆疊元資料的向後相容
+- **何時** 更改不包括堆疊元資料
+- **那麼**現有行為將繼續，無需遷移步驟
+- **並且**驗證不會僅僅因為堆疊元資料不存在而失敗
 
-### Requirement: Change Dependency Graph
-The system SHALL provide dependency-aware ordering for active changes.
+### 需求：更改依賴關係圖
+系統應為主動變更提供依賴性感知排序。
 
-#### Scenario: Build dependency order
-- **WHEN** users request stack planning output
-- **THEN** the system SHALL compute a dependency graph across active changes
-- **AND** SHALL return a deterministic topological order for unblocked changes
+#### 場景：建構依賴順序
+- **何時** 使用者請求堆疊規劃輸出
+- **那麼**系統應計算活動變更之間的依賴關係圖
+- **並且** 應返回確定性拓撲順序以進行無阻礙的更改
 
-#### Scenario: Tie-breaking within the same dependency depth
-- **WHEN** multiple unblocked changes share the same topological dependency depth
-- **THEN** ordering SHALL break ties lexicographically by change ID
-- **AND** repeated runs over the same input SHALL return the same order
+#### 場景：相同依賴深度內的平手打破
+- **何時** 多個未阻止的更改共享相同的拓撲依賴深度
+- **那麼** 排序應透過更改 ID 按字典順序打破聯繫
+- **並且** 對相同輸入的重複執行應返回相同的順序
 
-#### Scenario: Dependency cycle detection
-- **WHEN** active changes contain a dependency cycle
-- **THEN** validation SHALL fail with cycle details before archive or sequencing actions proceed
-- **AND** output SHALL include actionable guidance to break the cycle
+#### 場景：依賴循環檢測
+- **何時** 主動更改包含依賴循環
+- **那麼** 在歸檔或排序操作繼續之前，驗證將失敗並顯示循環詳細信息
+- **和**輸出應包括打破循環的可行指導
 
-### Requirement: Capability marker and overlap semantics
-The system SHALL treat capability markers as validation contracts and `touches` as advisory overlap signals.
+### 要求：能力標記和重疊語義
+系統應將能力標記視為驗證合同，並且 `touches` 作為諮詢重疊信號。
 
-#### Scenario: Required capability provided by an active change
-- **WHEN** change B declares `requires` marker `X`
-- **AND** active change A declares `provides` marker `X`
-- **THEN** validation SHALL require B to declare an explicit ordering edge in `dependsOn` to at least one active provider of `X`
-- **AND** validation SHALL fail if no explicit dependency is declared
+#### 場景：主動變更提供所需的功能
+- **何時** 變更 B 聲明 `requires` 標記 `X`
+- **和** 主動變更 A 聲明 `provides` 標記 `X`
+- **那麼** 驗證應要求 B 在中聲明顯排序邊緣 `dependsOn` 至少一個活躍的提供者 `X`
+- **並且**如果沒有聲音明顯式依賴項，驗證將失敗
 
-#### Scenario: Requires marker without active provider
-- **WHEN** a change declares a `requires` marker
-- **AND** no active change declares the corresponding `provides` marker
-- **THEN** validation SHALL NOT infer an implicit dependency edge
-- **AND** ordering SHALL continue to be determined solely by explicit `dependsOn` relationships
+#### 場景：需要沒有活動提供者的標記
+- **何時** 變更聲明 `requires` 標記
+- **並且**沒有活動的更改聲明相應的 `provides` 標記
+- **那麼**驗證不應推斷隱式依賴邊緣
+- **和** 排序應繼續僅由明確的決定 `dependsOn` 關係
 
-#### Scenario: Requires marker satisfied by archived history
-- **WHEN** a change declares a `requires` marker
-- **AND** no active change provides that marker
-- **AND** at least one archived change in history provides that marker
-- **THEN** validation SHALL NOT warn solely about missing provider
-- **AND** SHALL continue to use explicit `dependsOn` for active ordering
+#### 場景：需要歸檔歷史滿足標記
+- **何時** 變更聲明 `requires` 標記
+- **且**沒有主動更改提供該標記
+- **並且** 歷史記錄中至少一項存檔的更改提供了該標記
+- **那麼**驗證不應僅警告缺少的提供者
+- **並且** 應繼續使用顯式 `dependsOn` 用於主動訂購
 
-#### Scenario: Requires marker missing in full history
-- **WHEN** a change declares a `requires` marker
-- **AND** no active or archived change in history provides that marker
-- **THEN** validation SHALL emit a non-blocking warning naming the change and missing marker
-- **AND** SHALL NOT infer an implicit dependency edge
+#### 場景：需要完整歷史記錄中缺少標記
+- **何時** 變更聲明 `requires` 標記
+- **並且** 歷史記錄中沒有活動或存檔的更改提供該標記
+- **那麼**驗證應發出非阻塞警告，命名更改和丟失標記
+- **且**不應推斷隱式依賴邊緣
 
-#### Scenario: Overlap warning for shared touches
-- **WHEN** multiple active changes declare overlapping `touches` values
-- **THEN** validation SHALL emit a warning listing the overlapping changes and touched areas
-- **AND** validation SHALL NOT fail solely on overlap
+#### 場景：共享觸控的重疊警告
+- **何時** 多個活動變更聲明重疊 `touches` 價值觀
+- **那麼**驗證應發出警告，列出重疊的變更和觸及的區域
+- **且**驗證不應僅因重疊而失敗

@@ -1,35 +1,35 @@
-# Adopt Delta-Based Changes for Specifications
+# 採用基於增量的規格變更
 
-## Why
+## 為什麼
 
-The current approach of storing complete future states in change proposals creates a poor review experience. When reviewing changes on GitHub, reviewers see entire spec files (often 100+ lines) as "added" in green, making it impossible to identify what actually changed. With the recent structured format adoption, we now have clear section boundaries that enable a better approach: storing only additions and modifications.
+目前在變更提案中儲存完整的未來狀態的方法會帶來糟糕的審核體驗。當審查 GitHub 上的更改時，審閱者會看到整個規範文件（通常超過 100 行）以綠色“添加”，從而無法識別實際更改的內容。隨著最近採用結構化格式，我們現在有了清晰的部分邊界，可以實現更好的方法：僅儲存添加和修改。
 
-## What Changes
+## 有什麼變化
 
-Store only the requirements that actually change, not complete future states:
+僅儲存實際變更的需求，而不儲存完整的未來狀態：
 
-- **ADDED Requirements**: New capabilities being introduced
-- **MODIFIED Requirements**: Existing requirements being changed (must match current header)
-- **REMOVED Requirements**: Deprecated capabilities
-- **RENAMED Requirements**: Explicit header changes (e.g., `FROM: Old Name` → `TO: New Name`)
+- **新增的要求**：引入新功能
+- **修改的要求**：現有要求被更改（必須與當前標題相符）
+- **刪除的要求**：已棄用的功能
+- **重新命名要求**：明確標頭變更（例如， `FROM: Old Name` → `TO: New Name`)
 
-The archive command will programmatically apply these deltas using normalized header matching (trim leading/trailing whitespace) instead of manually copying entire files.
+歸檔命令將使用標準化標頭匹配（修剪前導/尾隨空格）以程式設計方式應用這些增量，而不是手動複製整個檔案。
 
-## Impact
+## 影響
 
-**Affected specs**: openspec-conventions, cli-archive, cli-diff
+**受影響的規範**：openspec-conventions、cli-archive、cli-diff
 
-**Benefits**:
-- GitHub diffs show only actual changes (25 lines instead of 150+)
-- Reviewers immediately see what's being added, modified, or removed
-- Conflicts are more apparent when two changes modify the same requirement
-- Archive command can programmatically apply changes
+**好處**：
+- GitHub 差異僅顯示實際變更（25 行而不是 150 多行）
+- 審閱者可以立即看到新增、修改或刪除的內容
+- 當兩個變更修改相同的需求時，衝突會更加明顯
+- Archive 命令可以以程式設計方式應用更改
 
-**Format**: Delta format only - all changes must use ADDED/MODIFIED/REMOVED sections.
+**格式**：僅限增量格式 - 所有變更都必須使用 ADDED/MODIFIED/REMOVED 部分。
 
-## Example
+## 例子
 
-Instead of storing a 150-line complete future spec, store only:
+不儲存 150 行完整的未來規範，而只儲存：
 
 ```markdown
 # User Authentication - Changes
@@ -59,35 +59,35 @@ Sessions SHALL expire after 30 minutes of inactivity.
 - TO: `### Requirement: Email Authentication`
 ```
 
-This makes reviews focused and changes explicit.
+這使得審查更加集中並且變更更加明確。
 
-## Conflict Resolution
+## 衝突解決
 
-Git naturally detects conflicts when two changes modify the same requirement header. This is actually better than full-state storage where Git might silently merge incompatible changes.
+當兩個變更修改相同的需求標頭時，Git 自然會偵測到衝突。這實際上比全狀態儲存更好，在全狀態儲存中，Git 可能會默默地合併不相容的變更。
 
-## Decisions and Product Guidelines
+## 決策和產品指南
 
-To keep the archive flow lean and predictable, the following decisions apply:
+為了保持歸檔流程精簡且可預測，需要做出以下決定：
 
-- New spec creation: When a target spec does not exist, auto-generate a minimal skeleton and insert ADDED requirements only. Skeleton format:
+- 新規範建立：當目標規範不存在時，自動產生最小框架並僅插入新增的需求。骨架格式：
   - `# [Spec Name] Specification`
-  - `## Purpose` with placeholder: "TBD — created by archiving change [change-name]. Update Purpose after archive."
+  - `## Purpose` 帶佔位符：“TBD — 由歸檔更改 [更改名稱] 建立。歸檔後更新目的。”
   - `## Requirements`
-  - If a non-existent spec includes MODIFIED/REMOVED/RENAMED, abort with guidance to create via ADDED-only first.
+  - 如果不存在的規範包含 MODIFIED/REMOVED/RENAMED，則中止並先透過 ADDED-only 進行建立。
 
-- Requirement identification: Match requirements by exact header `### Requirement: [Name]` with trim-only normalization and case-sensitive comparison. Use a requirement-block extractor that preserves the exact header and captures full content (including scenarios) for both main specs and delta files.
+- 需求識別：透過精確的標題來匹配需求 `### Requirement: [Name]` 僅修剪標準化和區分大小寫的比較。使用需求區塊提取器，保留準確的標頭並捕獲主要規格和增量檔案的完整內容（包括場景）。
 
-- Application order and atomicity: Apply deltas in order RENAMED → REMOVED → MODIFIED → ADDED. Validate all operations first, apply in-memory, and write each spec once. On any validation failure, abort without writing partial results. An aggregated totals line is displayed across all specs: `Totals: + A, ~ M, - R, → N`.
+- 應用程式順序與原子性：依 RENAMED → REMOVED → MODIFIED → ADDED 的順序套用增量。首先驗證所有操作，在記憶體中應用，然後將每個規範寫入一次。如果驗證失敗，則中止而不寫入部分結果。顯示所有規格的總計總計行： `Totals: + A, ~ M, - R, → N`.
 
-- Validation matrix: Enforce that MODIFIED/REMOVED exist; ADDED do not exist; RENAMED FROM exists and TO does not; no duplicates after all operations; and no cross-section conflicts (e.g., same item in MODIFIED and REMOVED). When a rename and modify apply to the same item, MODIFIED must reference the NEW header.
+- 驗證矩陣：強制 MODIFIED/REMOVED 存在；添加不存在； RENAMED FROM 存在，而 TO 不存在；所有操作後不重複；並且沒有橫截面衝突（例如，MODIFIED 和 REMOVED 中的相同項目）。當重新命名和修改應用於相同專案時，MODIFIED 必須引用 NEW 標頭。
 
-- Idempotency: Keep v1 simple. Abort on precondition failures (e.g., ADDED already exists) with clear errors. Do not implement no-op detection in v1.
+- 冪等性：保持 v1 簡單。在前提條件失敗時中止（例如，ADDED 已存在）並出現明顯錯誤。不要在 v1 中實現空操作檢測。
 
-- Output and UX: For each spec, display operation counts using standard symbols `+ ~ - →`. Optionally include a short aggregated totals line at the end. Keep messages concise and actionable.
+- 輸出和使用者體驗：對於每個規範，使用標準符號顯示操作計數 `+ ~ - →`。可以選擇在末尾包含一個簡短的匯總總計行。保持訊息簡潔且可操作。
 
-- Error messaging: Standardize messages as `[spec] [operation] failed for header "### Requirement: X" — reason`. On abort, explicitly state: `Aborted. No files were changed.`
-- Subsections: Any subsections under a requirement (e.g., `#### Scenario: ...`) are preserved verbatim during parsing and application.
+- 錯誤訊息：將訊息標準化為 `[spec] [operation] failed for header "### Requirement: X" — reason`。中止時，明確聲明： `Aborted. No files were changed.`
+- 小節：要求下的任何小節（例如， `#### Scenario: ...`) 在解析和應用過程中逐字保留。
 
-- Backward compatibility: Reject full future-state spec copies for existing specs with guidance to convert to deltas. Allow brand-new specs to be created via ADDED-only deltas using the skeleton above.
+- 向後相容性：拒絕現有規範的完整未來狀態規範副本，並指導轉換為增量。允許使用上面的框架透過僅添加的增量來建立全新的規格。
 
-- Dry-run: Deferred for v1 to keep scope minimal.
+- 試運轉：延後到 v1 以保持最小範圍。

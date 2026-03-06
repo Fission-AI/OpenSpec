@@ -1,30 +1,30 @@
-# Customization
+# 客製化
 
-OpenSpec provides three levels of customization:
+OpenSpec 提供三個等級的客製化：
 
-| Level | What it does | Best for |
+| 等級 | 它的作用 | 最適合 |
 |-------|--------------|----------|
-| **Project Config** | Set defaults, inject context/rules | Most teams |
-| **Custom Schemas** | Define your own workflow artifacts | Teams with unique processes |
-| **Global Overrides** | Share schemas across all projects | Power users |
+| **專案設定** | 設定預設值，注入上下文/規則 | 大多數球隊 |
+| **自訂架構** | 定義您自己的工作流程工件 | 具有獨特流程的團隊 |
+| **全域覆蓋** | 跨所有專案共享架構 | 進階用戶 |
 
 ---
 
-## Project Configuration
+## 專案設定
 
-The `openspec/config.yaml` file is the easiest way to customize OpenSpec for your team. It lets you:
+這 `openspec/config.yaml` 文件是為您的團隊客製化 OpenSpec 的最簡單方法。它可以讓您：
 
-- **Set a default schema** - Skip `--schema` on every command
-- **Inject project context** - AI sees your tech stack, conventions, etc.
-- **Add per-artifact rules** - Custom rules for specific artifacts
+- **設定預設架構** - 跳過 `--schema` 在每個命令上
+- **注入專案上下文** - AI 可以看到您的技術堆疊、約定等。
+- **新增每個工件規則** - 針對特定工件的自訂規則
 
-### Quick Setup
+### 快速設定
 
 ```bash
 openspec init
 ```
 
-This walks you through creating a config interactively. Or create one manually:
+這將引導您以互動方式建立設定。或手動建立一個：
 
 ```yaml
 # openspec/config.yaml
@@ -45,9 +45,9 @@ rules:
     - Reference existing patterns before inventing new ones
 ```
 
-### How It Works
+### 它是如何運作的
 
-**Default schema:**
+**預設架構：**
 
 ```bash
 # Without config
@@ -57,9 +57,9 @@ openspec new change my-feature --schema spec-driven
 openspec new change my-feature
 ```
 
-**Context and rules injection:**
+**上下文與規則注入：**
 
-When generating any artifact, your context and rules are injected into the AI prompt:
+產生任何工件時，您的上下文和規則將被注入到 AI 提示中：
 
 ```xml
 <context>
@@ -77,23 +77,23 @@ Tech stack: TypeScript, React, Node.js, PostgreSQL
 </template>
 ```
 
-- **Context** appears in ALL artifacts
-- **Rules** ONLY appear for the matching artifact
+- **上下文**出現在所有工件中
+- **規則** 僅針對符合的工件出現
 
-### Schema Resolution Order
+### 模式解析順序
 
-When OpenSpec needs a schema, it checks in this order:
+當 OpenSpec 需要架構時，它會依照以下順序檢查：
 
-1. CLI flag: `--schema <name>`
-2. Change metadata (`.openspec.yaml` in the change folder)
-3. Project config (`openspec/config.yaml`)
-4. Default (`spec-driven`)
+1. CLI 標誌： `--schema <name>`
+2. 更改元資料（`.openspec.yaml` 在更改資料夾中）
+3. 項目設定（`openspec/config.yaml`)
+4. 預設 (`spec-driven`)
 
 ---
 
-## Custom Schemas
+## 自訂模式
 
-When project config isn't enough, create your own schema with a completely custom workflow. Custom schemas live in your project's `openspec/schemas/` directory and are version-controlled with your code.
+當專案設定不夠時，可以使用完全自訂的工作流程來建立自己的架構。自訂模式存在於您的專案中 `openspec/schemas/` 目錄並由您的程式碼進行版本控制。
 
 ```text
 your-project/
@@ -107,17 +107,17 @@ your-project/
 └── src/
 ```
 
-### Fork an Existing Schema
+### 分叉現有架構
 
-The fastest way to customize is to fork a built-in schema:
+最快的自訂方法是分叉內建模式：
 
 ```bash
 openspec schema fork spec-driven my-workflow
 ```
 
-This copies the entire `spec-driven` schema to `openspec/schemas/my-workflow/` where you can edit it freely.
+這會複製整個 `spec-driven` 架構到 `openspec/schemas/my-workflow/` 您可以在其中自由編輯它。
 
-**What you get:**
+**你得到什麼：**
 
 ```text
 openspec/schemas/my-workflow/
@@ -129,11 +129,11 @@ openspec/schemas/my-workflow/
     └── tasks.md          # Template for tasks
 ```
 
-Now edit `schema.yaml` to change the workflow, or edit templates to change what AI generates.
+現在編輯 `schema.yaml` 變更工作流程，或編輯範本以變更 AI 產生的內容。
 
-### Create a Schema from Scratch
+### 從頭開始建立架構
 
-For a completely fresh workflow:
+對於全新的工作流程：
 
 ```bash
 # Interactive
@@ -146,9 +146,9 @@ openspec schema init rapid \
   --default
 ```
 
-### Schema Structure
+### 模式結構
 
-A schema defines the artifacts in your workflow and how they depend on each other:
+架構定義了工作流程中的工件以及它們如何相互依賴：
 
 ```yaml
 # openspec/schemas/my-workflow/schema.yaml
@@ -187,19 +187,19 @@ apply:
   tracks: tasks.md
 ```
 
-**Key fields:**
+**關鍵字段：**
 
-| Field | Purpose |
+| 場地 | 目的 |
 |-------|---------|
-| `id` | Unique identifier, used in commands and rules |
-| `generates` | Output filename (supports globs like `specs/**/*.md`) |
-| `template` | Template file in `templates/` directory |
-| `instruction` | AI instructions for creating this artifact |
-| `requires` | Dependencies - which artifacts must exist first |
+| `id` | 唯一標識符，用於命令和規則 |
+| `generates` | 輸出檔名（支援像 `specs/**/*.md`) |
+| `template` | 模板檔案位於 `templates/` 目錄 |
+| `instruction` | 建立此工件的 AI 指令 |
+| `requires` | 依賴關係 - 哪些工件必須先存在 |
 
-### Templates
+### 範本
 
-Templates are markdown files that guide the AI. They're injected into the prompt when creating that artifact.
+模板是指導 AI 的 Markdown 文件。建立該工件時，它們會被注入到提示中。
 
 ```markdown
 <!-- templates/proposal.md -->
@@ -216,28 +216,28 @@ Templates are markdown files that guide the AI. They're injected into the prompt
 <!-- Affected code, APIs, dependencies, systems -->
 ```
 
-Templates can include:
-- Section headers the AI should fill in
-- HTML comments with guidance for the AI
-- Example formats showing expected structure
+模板可以包括：
+- AI 應填寫的節標題
+- 帶有 AI 指導的 HTML 註釋
+- 顯示預期結構的範例格式
 
-### Validate Your Schema
+### 驗證您的架構
 
-Before using a custom schema, validate it:
+在使用自訂架構之前，請先驗證它：
 
 ```bash
 openspec schema validate my-workflow
 ```
 
-This checks:
-- `schema.yaml` syntax is correct
-- All referenced templates exist
-- No circular dependencies
-- Artifact IDs are valid
+這會檢查：
+- `schema.yaml` 語法正確
+- 所有引用的模板都存在
+- 無循環依賴
+- 工件 ID 有效
 
-### Use Your Custom Schema
+### 使用您的自訂架構
 
-Once created, use your schema with:
+建立後，將您的架構用於：
 
 ```bash
 # Specify on command
@@ -247,9 +247,9 @@ openspec new change feature --schema my-workflow
 schema: my-workflow
 ```
 
-### Debug Schema Resolution
+### 偵錯模式解析
 
-Not sure which schema is being used? Check with:
+不確定正在使用哪個架構？檢查：
 
 ```bash
 # See where a specific schema resolves from
@@ -259,7 +259,7 @@ openspec schema which my-workflow
 openspec schema which --all
 ```
 
-Output shows whether it's from your project, user directory, or the package:
+輸出顯示它是來自您的專案、使用者目錄還是套件：
 
 ```text
 Schema: my-workflow
@@ -269,15 +269,15 @@ Path: /path/to/project/openspec/schemas/my-workflow
 
 ---
 
-> **Note:** OpenSpec also supports user-level schemas at `~/.local/share/openspec/schemas/` for sharing across projects, but project-level schemas in `openspec/schemas/` are recommended since they're version-controlled with your code.
+> **注意：** OpenSpec 也支援用戶級架構 `~/.local/share/openspec/schemas/` 用於跨專案共享，但專案級架構 `openspec/schemas/` 建議使用它們，因為它們是由您的程式碼進行版本控制的。
 
 ---
 
-## Examples
+## 範例
 
 ### Rapid Iteration Workflow
 
-A minimal workflow for quick iterations:
+用於快速迭代的最小工作流程：
 
 ```yaml
 # openspec/schemas/rapid/schema.yaml
@@ -306,15 +306,15 @@ apply:
   tracks: tasks.md
 ```
 
-### Adding a Review Artifact
+### 新增評論工件
 
-Fork the default and add a review step:
+分叉預設值並新增審核步驟：
 
 ```bash
 openspec schema fork spec-driven with-review
 ```
 
-Then edit `schema.yaml` to add:
+然後編輯 `schema.yaml` 添加：
 
 ```yaml
   - id: review
@@ -337,6 +337,6 @@ Then edit `schema.yaml` to add:
 
 ---
 
-## See Also
+## 參見
 
-- [CLI Reference: Schema Commands](cli.md#schema-commands) - Full command documentation
+- [CLI 參考：架構指令](cli.md#schema-commands) - 完整的命令文檔

@@ -1,23 +1,23 @@
-# Project-Local Schemas
+# 專案本地模式
 
-## Summary
+## 概括
 
-Add project-local schema resolution (`./openspec/schemas/`) as the highest priority in the schema lookup chain. This enables teams to version control custom workflow schemas with their repository.
+新增專案本地架構解析（`./openspec/schemas/`）作為模式查找鏈中的最高優先權。這使團隊能夠使用其儲存庫對自訂工作流程模式進行版本控制。
 
-## Motivation
+## 動機
 
-Currently, schema resolution is 2-level:
-1. User override: `~/.local/share/openspec/schemas/<name>/`
-2. Package built-in: `<npm-package>/schemas/<name>/`
+目前，模式解析為 2 層：
+1. 用戶覆蓋： `~/.local/share/openspec/schemas/<name>/`
+2. 包內建： `<npm-package>/schemas/<name>/`
 
-This creates friction for teams:
-- Custom schemas must be set up per-machine via XDG paths
-- Cannot share schemas via version control
-- No single source of truth for team workflows
+這會為團隊帶來摩擦：
+- 必須透過 XDG 路徑為每台機器設定自訂架構
+- 無法透過版本控制共享架構
+- 團隊工作流程沒有單一的事實來源
 
-## Design Decisions
+## 設計決策
 
-### 3-Level Resolution Order
+### 三級決議順序
 
 ```
 1. ./openspec/schemas/<name>/                    # Project-local (NEW)
@@ -25,20 +25,20 @@ This creates friction for teams:
 3. <npm-package>/schemas/<name>/                 # Package built-in
 ```
 
-Project-local takes highest priority, enabling:
-- Version-controlled custom workflows
-- Automatic team sharing via git
-- No per-machine setup required
+專案本地化具有最高優先級，從而能夠：
+- 版本控制的自訂工作流程
+- 透過 git 自動團隊共享
+- 無需每台機器設置
 
-### Fork Model (Not Inheritance)
+### 分叉模型（非繼承）
 
-Custom schemas are complete definitions, not extensions. There is no `extends` keyword.
+自訂模式是完整的定義，而不是擴展。沒有 `extends` keyword.
 
-**Rationale:** Simplicity. Inheritance adds complexity (conflict resolution, partial overrides, debugging "where did this come from?"). Users who need custom workflows can define them fully. This keeps the mental model simple:
-- Use a preset → Configure path (see project-config change)
-- Need different structure → Fork path (define your own)
+**理由：** 簡單。繼承增加了複雜性（衝突解決、部分覆蓋、調試「這是從哪裡來的？」）。需要自訂工作流程的使用者可以完全定義它們。這使得心智模式變得簡單：
+- 使用預設 → 設定路徑（請參閱項目設定變更）
+- 需要不同的結構→分叉路徑（定義自己的）
 
-### Directory Structure
+### 目錄結構
 
 ```
 openspec/
@@ -52,32 +52,32 @@ openspec/
 └── changes/
 ```
 
-### Schema Naming
+### 模式命名
 
-Project-local schemas are referenced by their directory name:
-- `openspec/schemas/my-workflow/` → referenced as `my-workflow`
-- Works with `--schema my-workflow` flag
-- Works with `schema: my-workflow` in config.yaml (see project-config change)
+項目本地模式透過其目錄名稱引用：
+- `openspec/schemas/my-workflow/` → 引用為 `my-workflow`
+- 與 `--schema my-workflow` 旗幟
+- 與 `schema: my-workflow` 在 config.yaml 中（請參閱專案設定變更）
 
-## Scope
+## 範圍
 
-### In Scope
+### 範圍內
 
-- Add `getProjectSchemasDir()` function to resolver
-- Update `getSchemaDir()` to check project-local first
-- Update `listSchemas()` to include project schemas
-- Update `listSchemasWithInfo()` to include `source: 'project'`
-- Update `schemasCommand` output to show project schemas
+- 添加 `getProjectSchemasDir()` 解析器函數
+- 更新 `getSchemaDir()` 首先檢查項目本地
+- 更新 `listSchemas()` 包括項目模式
+- 更新 `listSchemasWithInfo()` 包括 `source: 'project'`
+- 更新 `schemasCommand` 輸出以顯示專案架構
 
-### Out of Scope
+### 超出範圍
 
-- Schema management CLI (`openspec schema copy/which/diff/reset`) - future enhancement
-- Schema inheritance/extends - explicitly not supported
-- Template-level overrides (partial fork) - explicitly not supported
+- 架構管理CLI (`openspec schema copy/which/diff/reset`) - 未來的增強
+- 模式繼承/擴展 - 明確不支援
+- 模板級覆蓋（部分分叉）- 明確不支援
 
-## User Experience
+## 使用者體驗
 
-### Creating a Custom Schema
+### 建立自訂架構
 
 ```bash
 # Create schema directory
@@ -114,7 +114,7 @@ echo "# Research\n\n..." > openspec/schemas/my-workflow/templates/research.md
 # ... etc
 ```
 
-### Using the Custom Schema
+### 使用自訂架構
 
 ```bash
 # Via CLI flag
@@ -125,7 +125,7 @@ openspec status --change add-feature --schema my-workflow
 # schema: my-workflow
 ```
 
-### Team Sharing
+### 團隊分享
 
 ```bash
 # Commit to repo
@@ -138,30 +138,30 @@ git pull
 openspec status --change add-feature --schema my-workflow  # Just works
 ```
 
-## Implementation Notes
+## 實施說明
 
-### Files to Modify
+### 要修改的文件
 
-| File | Changes |
+| 文件 | 變化 |
 |------|---------|
-| `src/core/artifact-graph/resolver.ts` | Add `getProjectSchemasDir()`, update resolution order |
-| `src/commands/artifact-workflow.ts` | Update `schemasCommand` to show source |
+| `src/core/artifact-graph/resolver.ts` | 添加 `getProjectSchemasDir()`，更新解析順序 |
+| `src/commands/artifact-workflow.ts` | 更新 `schemasCommand` 顯示來源 |
 
-### Project Root Detection
+### 項目根檢測
 
-Use existing `findProjectRoot()` pattern or current working directory. The project-local schemas directory is always `./openspec/schemas/` relative to project root.
+使用現有的 `findProjectRoot()` 模式或目前工作目錄。專案本地模式目錄始終是 `./openspec/schemas/` 相對於專案根目錄。
 
-### Source Indication
+### 來源說明
 
-`listSchemasWithInfo()` returns `source: 'project' | 'user' | 'package'`. Update type definition and implementation.
+`listSchemasWithInfo()` 回報 `source: 'project' | 'user' | 'package'`。更新類型定義和實作。
 
-## Testing Considerations
+## 測試注意事項
 
-- Create temp project with local schema, verify resolution priority
-- Verify local schema overrides user override with same name
-- Verify `listSchemas()` includes project schemas
-- Verify `schemasCommand` shows correct source labels
+- 使用本機架構建立臨時項目，驗證解析優先權
+- 驗證本機架構是否覆蓋同名的使用者覆蓋
+- 核實 `listSchemas()` 包含專案架構
+- 核實 `schemasCommand` 顯示正確的來源標籤
 
-## Related Changes
+## 相關變更
 
-- **project-config**: Adds `config.yaml` with `schema` field that can reference project-local schemas
+- **專案設定**：新增 `config.yaml` 和 `schema` 可以引用項目本地模式的字段

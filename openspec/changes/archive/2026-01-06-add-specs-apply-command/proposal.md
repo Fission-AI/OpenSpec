@@ -1,32 +1,32 @@
-## Why
+## 為什麼
 
-Spec application is currently bundled with archive - users must run `openspec archive` to apply delta specs to main specs. This couples two distinct concerns (applying specs vs. archiving the change) and forces users to wait until they're "done" to see main specs updated. Users want the flexibility to sync specs earlier in the workflow while iterating.
+規範應用程式目前 bun 已存檔 - 使用者必須執行 `openspec archive` 將增量規格應用於主要規格。這將兩個不同的問題結合在一起（應用規範與歸檔更改），並迫使用戶等到「完成」後才能看到主要規範的更新。使用者希望能夠在迭代時靈活地在工作流程的早期階段同步規範。
 
-## What Changes
+## 有什麼變化
 
-- Add `/opsx:sync` skill that syncs delta specs to main specs as a standalone action
-- The operation is idempotent - safe to run multiple times, agent reconciles main specs to match deltas
-- Archive continues to work as today (applies specs if not already reconciled, then moves to archive)
-- No new state tracking - the agent reads delta and main specs, reconciles on each run
-- Agent-driven approach allows intelligent merging (partial updates, adding scenarios)
+- 添加 `/opsx:sync` 將增量規格同步到主要規格作為獨立操作的技能
+- 該操作是冪等的 - 可以安全地執行多次，代理協調主要規格以匹配增量
+- 存檔繼續像今天一樣工作（如果尚未協調，則應用規範，然後移至存檔）
+- 沒有新的狀態追蹤 - 代理程式讀取增量和主要規格，在每次執行時進行協調
+- 代理驅動的方法允許智慧合併（部分更新、添加場景）
 
-**Workflow becomes:**
+**工作流程變成：**
 ```
 /opsx:new → /opsx:continue → /opsx:apply → archive
                                   │
                                   └── /opsx:sync (optional, anytime)
 ```
 
-## Capabilities
+## 能力
 
-### New Capabilities
-- `specs-sync-skill`: Skill template for `/opsx:sync` command that reconciles main specs with delta specs
+### 新功能
+- `specs-sync-skill`：技能模板 `/opsx:sync` 協調主要規格與增量規格的指令
 
-### Modified Capabilities
-- None (agent-driven, no CLI command needed)
+### 修改後的功能
+- 無（代理驅動，不需要 CLI 命令）
 
-## Impact
+## 影響
 
-- **Skills**: New `openspec-sync-specs` skill in `skill-templates.ts`
-- **Archive**: No changes needed - already does reconciliation, will continue to work
-- **Agent workflow**: Users gain flexibility to sync specs before archive
+- **技能**：新 `openspec-sync-specs` 技能 `skill-templates.ts`
+- **存檔**：無需更改 - 已經進行了協調，將繼續工作
+- **代理工作流程**：使用者可以靈活地在存檔前同步規格

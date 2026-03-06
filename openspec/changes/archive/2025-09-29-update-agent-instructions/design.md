@@ -1,130 +1,130 @@
-# Design: Agent Instructions Update
+# 設計：代理指令更新
 
-## Approach
+## 方法
 
-### Information Architecture
-- **Front-load critical information** - Three-stage workflow comes first
-- **Clear hierarchy** - Core Workflow → Quick Start → Commands → Details → Edge Cases
-- **50% length reduction** - Target ~285 lines from current ~575 lines
-- **Imperative mood** - "Create proposal" vs "You should create a proposal"
-- **Bullet points over paragraphs** - Scannable, concise information
+### 資訊架構
+- **提前載入關鍵資訊** - 三階段工作流程優先
+- **清晰的層次結構** - 核心工作流程 → 快速入門 → 指令 → 詳細資料 → 邊緣案例
+- **長度減少 50%** - 目標從目前的 ~575 行增加到 ~285 行
+- **命令語氣** - “建立提案”與“您應該建立提案”
+- **段落上的要點** - 可掃描、簡潔的訊息
 
-### Three-Stage Workflow Documentation
-The workflow is now prominently featured as a core concept:
-1. **Creating** - Proposal generation phase
-2. **Implementing** - Code development phase with explicit steps:
-   - Read proposal.md for understanding
-   - Read design.md for technical context
-   - Read tasks.md for checklist
-   - Implement tasks sequentially
-   - Mark complete immediately after each task
-3. **Archiving** - Post-deployment finalization phase
+### 三階段工作流程文檔
+工作流程現在已成為一個突出的核心概念：
+1. **建立** - 提案產生階段
+2. **實作** - 具有明確步驟的程式碼開發階段：
+   - 閱讀proposal.md 進行理解
+   - 閱讀 design.md 瞭解技術背景
+   - 閱讀tasks.md以取得清單
+   - 依序執行任務
+   - 每項任務後立即標記為完成
+3. **存檔** - 部署後完成階段
 
-This structure helps agents understand the lifecycle and their role at each stage. The implementation phase is particularly detailed to prevent common mistakes like skipping documentation or batching task completion.
+這種結構有助於代理人瞭解生命週期及其在每個階段的角色。實施階段特別詳細，以防止常見錯誤，例如跳過文件或完成批次任務。
 
-### CLI Documentation Updates
-- **Comprehensive command coverage** - All 9 primary commands documented
-- **`openspec list` prominence** - Essential for discovering changes and specs
-- **Interactive mode documentation** - How agents can use prompts effectively
-- **Complete flag documentation** - All options like --json, --type, --skip-specs
-- **Deprecation cleanup** - Remove noun-first patterns (openspec change show)
+### CLI 文件更新
+- **全面的命令覆蓋** - 記錄了所有 9 個主要命令
+- **`openspec list` 突出** - 對於發現變化和規格至關重要
+- **互動模式文件** - 客服人員如何有效地使用提示
+- **完整的標誌文件** - 所有選項，如 --json、--type、--skip-specs
+- **棄用清理** - 刪除名詞優先模式（openspec 變更顯示）
 
-### Agent-Specific Enhancements
-Based on industry best practices for coding agents (Claude Code, Cursor, etc.):
+### 特定於代理的增強功能
+基於編碼代理的行業最佳實踐（Claude代碼、遊標等）：
 
-**Implementation Workflow**
-- Explicit steps prevent skipping critical context
-- Reading proposal/design first ensures understanding before coding
-- Sequential task completion maintains focus
-- Immediate marking prevents losing track of progress
-- Addresses common failure mode: jumping straight to code
+**實施工作流程**
+- 明確的步驟可防止跳過關鍵上下文
+- 首先閱讀提案/設計可確保在編碼之前理解
+- 依序完成任務保持焦點
+- 立即標記可防止丟失進度
+- 解決常見故障模式：直接跳到程式碼
 
-**Spec Discovery Workflow**
-- Always check existing specs before creating new ones
-- Use `openspec list --specs` to discover current capabilities
-- Prefer modifying existing specs over creating duplicates
-- Prevents fragmentation and maintains coherent architecture
+**規格發現工作流程**
+- 在建立新規範之前始終檢查現有規範
+- 使用 `openspec list --specs` 發現當前的能力
+- 喜歡修改現有規範而不是建立重複項
+- 防止碎片並保持一致的架構
 
-**Decision Clarity**
-- Clear decision trees eliminating ambiguous conditions
-- Concrete examples for each decision branch
-- Simplified bug vs feature determination
+**決策清晰度**
+- 清晰的決策樹消除了不明確的條件
+- 每個決策分支的具體範例
+- 簡化的錯誤與功能確定
 
-**Tool Usage Guidance**
-- Tool selection matrix (when to use Grep vs Glob vs Read)
-- Error recovery patterns for common failures
-- Verification workflows to confirm correctness
+**工具使用指南**
+- 工具選擇矩陣（何時使用 Grep、Glob 和 Read）
+- 常見故障的錯誤恢復模式
+- 驗證工作流程以確認正確性
 
-**Context Management**
-- "Before Any Task" checklist for gathering context
-- What to read before starting any work
-- How to maintain state across interactions
+**情境管理**
+- 用於收集背景資訊的「執行任何任務之前」清單
+- 在開始任何工作之前要閱讀什麼
+- 如何在互動中維護狀態
 
-**Spec File Structure Documentation**
-- Complete examples with ADDED/MODIFIED/REMOVED sections
-- Critical scenario formatting (#### Scenario: headers)
-- Delta file location clarity (changes/{name}/specs/)
-- Addresses most common creation errors from retrospective
+**規格文件結構文件**
+- 包含“新增”/“修改”/“刪除”部分的完整範例
+- 關鍵場景格式（####場景：標題）
+- 增量檔案位置清晰度（changes/{name}/specs/）
+- 解決了回顧中最常見的建立錯誤
 
-**Troubleshooting and Debugging**
-- Common error messages with solutions
-- Delta detection debugging steps
-- Validation best practices
-- JSON output for inspection
-- Prevents hours of frustration from silent failures
+**故障排除與調試**
+- 常見錯誤訊息及解決方案
+- Delta檢測調試步驟
+- 驗證最佳實踐
+- JSON輸出用於檢查
+- 防止因無聲故障而造成數小時的挫敗感
 
-**Best Practices**
-- Be concise (one-line answers when appropriate)
-- Be specific (file.ts:42 line references)
-- Start simple (<100 lines, single-file defaults)
-- Justify complexity (require metrics/data)
+**最佳實踐**
+- 簡潔（適當時用一行答案）
+- 具體（file.ts：42行引用）
+- 從簡單開始（<100 行，單一檔案預設值）
+- 證明複雜性的合理性（需要指標/資料）
 
-## Design Rationale
+## 設計原理
 
-### Why These Changes Matter
+### 為什麼這些變化很重要
 
-**Cognitive Load Reduction**
-- Agents process instructions better with clear structure
-- Front-loading critical info reduces scanning time
-- Decision trees eliminate analysis paralysis
+**減少認知負荷**
+- 結構清晰，代理可以更好地處理指令
+- 提前載入關鍵資訊可減少掃描時間
+- 決策樹消除了分析癱瘓
 
-**Industry Alignment**
-- Follows patterns proven effective in Claude Code, Cursor, GitHub Copilot
-- Addresses common failure modes (ambiguous decisions, missing context)
-- Optimizes for LLM strengths (pattern matching) vs weaknesses (calculations)
+**產業調整**
+- 遵循在 Claude 代碼、遊標、GitHub Copilot 中證明有效的模式
+- 解決常見的故障模式（決策不明確、情境缺失）
+- 優化 LLM 的優勢（模式匹配）與劣勢（計算）
 
-**Addressing Critical Pain Points (from Retrospective)**
-- **Scenario formatting** - Biggest struggle, now explicitly documented with examples
-- **Complete spec structure** - Full examples prevent structural errors
-- **Delta detection issues** - Debugging commands help diagnose problems
-- **Silent parsing failures** - Troubleshooting section explains common issues
+**解決關鍵痛點（回顧）**
+- **場景格式** - 最大的困難，現在透過範例明確記錄
+- **完整的規範結構** - 完整的範例可防止結構錯誤
+- **Delta 檢測問題** - 偵錯指令有助於診斷問題
+- **靜默解析失敗** - 故障排除部分解釋了常見問題
 
-**Practical Impact**
-- Faster agent comprehension of tasks
-- Fewer misinterpretations of requirements
-- More consistent implementation quality
-- Better error recovery when things go wrong
-- Prevents the most common errors identified in user experience
+**實際影響**
+- 座席更快理解任務
+- 減少對要求的誤解
+- 實施品質更加一致
+- 出現問題時更好的錯誤恢復
+- 防止使用者體驗中發現最常見的錯誤
 
 ## Trade-offs
 
-### What We're Removing
-- Lengthy explanations of concepts that can be inferred
-- Redundant examples that don't add clarity
-- Verbose edge case documentation (moved to reference section)
-- Deprecated command documentation
+### 我們要刪除的內容
+- 可推斷概念的冗長解釋
+- 冗餘的例子並不能增加清晰度
+- 詳細的邊緣情況文件（移至參考部分）
+- 已棄用的命令文檔
 
-### What We're Keeping
-- All critical workflow steps
-- Complete CLI command reference
-- Complexity management principles
-- Directory structure visualization
-- Quick reference summary
+### 我們保留什麼
+- 所有關鍵工作流程步驟
+- 完成CLI命令參考
+- 複雜性管理原則
+- 目錄結構視覺化
+- 快速參考摘要
 
-## Implementation Notes
+## 實施說明
 
-The CLAUDE.md template is intentionally more concise than README.md since:
-- It appears in every project root
-- Agents can reference the full README.md for details
-- It needs to load quickly in AI context windows
-- Focus is on immediate actionable guidance
+CLAUDE.md 模板故意比 README.md 更簡潔，因為：
+- 它出現在每個專案根目錄中
+- 代理商可以參考完整的README.md瞭解詳情
+- 它需要在 AI 上下文視窗中快速加載
+- 重點是立即可行的指導

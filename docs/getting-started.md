@@ -1,28 +1,28 @@
-# Getting Started
+# 入門
 
-This guide explains how OpenSpec works after you've installed and initialized it. For installation instructions, see the [main README](../README.md#quick-start).
+本指南解釋了 OpenSpec 在安裝並初始化後如何相容。有關安裝說明，請參閱 [主要 README](../README.md#quick-start).
 
-## How It Works
+## 它是如何運作的
 
-OpenSpec helps you and your AI coding assistant agree on what to build before any code is written.
+OpenSpec 可協助您和您的 AI 編碼助理在編寫任何程式碼之前建立內容。
 
-**Default quick path (core profile):**
+**預設快速路徑（核心設定檔）：**
 
 ```text
 /opsx:propose ──► /opsx:apply ──► /opsx:archive
 ```
 
-**Expanded path (custom workflow selection):**
+**擴充路徑（自訂工作流程選擇）：**
 
 ```text
 /opsx:new ──► /opsx:ff or /opsx:continue ──► /opsx:apply ──► /opsx:verify ──► /opsx:archive
 ```
 
-The default global profile is `core`, which includes `propose`, `explore`, `apply`, and `archive`. You can enable the expanded workflow commands with `openspec config profile` and then `openspec update`.
+預設的全域設定檔是 `core`，其中包括 `propose`, `explore`, `apply`， 和 `archive`。您可以使用以下命令啟用擴充功能的工作流程指令 `openspec config profile` 進而 `openspec update`.
 
-## What OpenSpec Creates
+## OpenSpec 建立什麼
 
-After running `openspec init`, your project has this structure:
+執行後 `openspec init`，您的專案具有以下結構：
 
 ```
 openspec/
@@ -40,24 +40,24 @@ openspec/
 └── config.yaml         # Project configuration (optional)
 ```
 
-**Two key directories:**
+**兩個關鍵目錄：**
 
-- **`specs/`** - The source of truth. These specs describe how your system currently behaves. Organized by domain (e.g., `specs/auth/`, `specs/payments/`).
+- **`specs/`** - 事實來源。這些規格描述了您的系統目前的行為。按域組織（例如， `specs/auth/`, `specs/payments/`).
 
-- **`changes/`** - Proposed modifications. Each change gets its own folder with all related artifacts. When a change is complete, its specs merge into the main `specs/` directory.
+- **`changes/`** - 提議變更。每個變更都有自己的資料夾，其中包含所有相關的工件。更改完成後，其規格會合併到主要規格中 `specs/` 目錄。
 
-## Understanding Artifacts
+## 瞭解工件
 
-Each change folder contains artifacts that guide the work:
+每個更改資料夾都包含指導工作的工件：
 
-| Artifact | Purpose |
+| 工件 | 目的 |
 |----------|---------|
-| `proposal.md` | The "why" and "what" - captures intent, scope, and approach |
-| `specs/` | Delta specs showing ADDED/MODIFIED/REMOVED requirements |
-| `design.md` | The "how" - technical approach and architecture decisions |
-| `tasks.md` | Implementation checklist with checkboxes |
+| `proposal.md` | 「為什麼」和「什麼」——捕捉意圖、範圍和方法 |
+| `specs/` | 增量規格顯示新增/修改/刪除的要求 |
+| `design.md` | 「如何」—技術方法與架構決策 |
+| `tasks.md` | 帶有核取方塊的實施清單 |
 
-**Artifacts build on each other:**
+**工件相互建構：**
 
 ```
 proposal ──► specs ──► design ──► tasks ──► implement
@@ -66,15 +66,15 @@ proposal ──► specs ──► design ──► tasks ──► implement
             update as you learn
 ```
 
-You can always go back and refine earlier artifacts as you learn more during implementation.
+當您在實施過程中瞭解更多資訊時，您可以隨時返回並完善早期的工件。
 
-## How Delta Specs Work
+## Delta 規格運作原理
 
-Delta specs are the key concept in OpenSpec. They show what's changing relative to your current specs.
+Delta 規格是OpenSpec 中的關鍵概念。它們顯示了相對於您當前規格的變化。
 
-### The Format
+### 格式
 
-Delta specs use sections to indicate the type of change:
+增量規範使用部分來指示更改的類型：
 
 ```markdown
 # Delta for Auth
@@ -106,21 +106,21 @@ The system SHALL expire sessions after 30 minutes of inactivity.
 (Deprecated in favor of 2FA)
 ```
 
-### What Happens on Archive
+### 封存時會發生什麼
 
-When you archive a change:
+當您歸檔變更時：
 
-1. **ADDED** requirements are appended to the main spec
-2. **MODIFIED** requirements replace the existing version
-3. **REMOVED** requirements are deleted from the main spec
+1. **新增**要求附加到主要規格中
+2. **修改**要求替換現有版本
+3. **已刪除** 要求已從主要規格中刪除
 
-The change folder moves to `openspec/changes/archive/` for audit history.
+更改資料夾移動到 `openspec/changes/archive/` 用於審計歷史記錄。
 
-## Example: Your First Change
+## 範例：您的第一個改變
 
-Let's walk through adding dark mode to an application.
+讓我們逐步瞭解如何為應用程式添加暗模式。
 
-### 1. Start the Change (Default)
+### 1. 開始更改（預設）
 
 ```text
 You: /opsx:propose add-dark-mode
@@ -133,11 +133,11 @@ AI:  Created openspec/changes/add-dark-mode/
      Ready for implementation!
 ```
 
-If you've enabled the expanded workflow profile, you can also do this as two steps: `/opsx:new` then `/opsx:ff` (or `/opsx:continue` incrementally).
+如果您已啟用擴充工作流程設定檔，您也可以透過兩個步驟執行此操作： `/opsx:new` 然後 `/opsx:ff` （或者 `/opsx:continue` 逐步）。
 
-### 2. What Gets Created
+### 2. 建立了什麼
 
-**proposal.md** - Captures the intent:
+**proposal.md** - 捕捉意圖：
 
 ```markdown
 # Proposal: Add Dark Mode
@@ -156,7 +156,7 @@ Use CSS custom properties for theming with a React context
 for state management.
 ```
 
-**specs/ui/spec.md** - Delta showing new requirements:
+**specs/ui/spec.md** - Delta 顯示新要求：
 
 ```markdown
 # Delta for UI
@@ -178,7 +178,7 @@ The system SHALL allow users to choose between light and dark themes.
 - THEN the system's preferred color scheme is used
 ```
 
-**tasks.md** - Implementation checklist:
+**tasks.md** - 實施清單：
 
 ```markdown
 # Tasks
@@ -198,7 +198,7 @@ The system SHALL allow users to choose between light and dark themes.
 - [ ] 3.2 Update components to use CSS variables
 ```
 
-### 3. Implement
+### 3. 實施
 
 ```
 You: /opsx:apply
@@ -212,9 +212,9 @@ AI:  Working through tasks...
      All tasks complete!
 ```
 
-During implementation, if you discover the design needs adjustment, just update the artifact and continue.
+在實施過程中，如果您發現設計需要調整，只需更新工件並繼續即可。
 
-### 4. Archive
+### 4. 存檔
 
 ```
 You: /opsx:archive
@@ -225,11 +225,11 @@ AI:  Archiving add-dark-mode...
      Done! Ready for the next feature.
 ```
 
-Your delta specs are now part of the main specs, documenting how your system works.
+您的增量規格現在是主要規格的一部分，記錄您的系統如何運作。
 
-## Verifying and Reviewing
+## 驗證和審查
 
-Use the CLI to check on your changes:
+使用 CLI 檢查您的變更：
 
 ```bash
 # List active changes
@@ -245,9 +245,9 @@ openspec validate add-dark-mode
 openspec view
 ```
 
-## Next Steps
+## 下一步
 
-- [Workflows](workflows.md) - Common patterns and when to use each command
-- [Commands](commands.md) - Full reference for all slash commands
-- [Concepts](concepts.md) - Deeper understanding of specs, changes, and schemas
-- [Customization](customization.md) - Make OpenSpec work your way
+- [工作流程](workflows.md) - 常見模式以及何時使用每個命令
+- [命令](commands.md) - 所有斜槓指令的完整參考
+- [概念](concepts.md) - 更深入瞭解規範、變更和模式
+- [客製化](customization.md) - 讓OpenSpec按照你的方式工作

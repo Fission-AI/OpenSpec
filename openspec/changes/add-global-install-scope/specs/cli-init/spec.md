@@ -1,28 +1,28 @@
-## ADDED Requirements
+## 新增要求
 
-### Requirement: Init install scope selection
-The init command SHALL support install scope selection for generated artifacts.
+### 需求：初始化安裝範圍選擇
+init 指令應支援產生的工件的安裝範圍選擇。
 
-#### Scenario: Scope defaults to global
-- **WHEN** user runs `openspec init` without explicit scope override
-- **THEN** init SHALL use global config install scope
-- **AND** if unset, SHALL resolve migration-aware default (`global` for newly created configs, `project` for legacy schema-evolved configs)
+#### 場景：範圍預設為全域
+- **何時** 使用者執行 `openspec init` 沒有明確的範圍覆蓋
+- **那麼** init 應使用全域設定安裝範圍
+- **且** 若未設置，應解析遷移感知預設值（`global` 對於新建立的設定， `project` 對於遺留架構演進的設定）
 
-#### Scenario: Scope override via flag
-- **WHEN** user runs `openspec init --scope project`
-- **THEN** init SHALL use `project` as preferred scope for that run
-- **AND** SHALL NOT mutate persisted global config unless user explicitly changes config
+#### 場景：透過標誌覆蓋範圍
+- **何時** 使用者執行 `openspec init --scope project`
+- **那麼** init 應該使用 `project` 作為該執行的首選範圍
+- **且** 不應改變持久的全域設定，除非使用者明確更改設定
 
-### Requirement: Init uses effective scope resolution
-The init command SHALL resolve effective scope per tool surface before generating files.
+### 需求：Init 使用有效的範圍解析
+init 指令應在產生檔案之前解析每個工具表面的有效範圍。
 
 #### Scenario: Effective scope with fallback
-- **WHEN** selected tool/surface does not support preferred scope
-- **AND** supports alternate scope
-- **THEN** init SHALL generate files at alternate effective scope
-- **AND** SHALL display fallback note in summary
+- **何時** 所選工具/表面不支援首選範圍
+- **AND** 支援備用範圍
+- **那麼** init 應在備用有效範圍內產生文件
+- **並且** 應在摘要中顯示後備註釋
 
-#### Scenario: Unsupported scope selection
-- **WHEN** selected tool/surface supports neither preferred nor alternate scope
-- **THEN** init SHALL fail before writing files
-- **AND** SHALL provide clear error guidance
+#### 場景：範圍選擇不受支援
+- **何時** 所選工具/表面既不支援首選範圍也不支援備用範圍
+- **那麼** init 將在寫入檔案之前失敗
+- **並且** 應提供明確的錯誤指導

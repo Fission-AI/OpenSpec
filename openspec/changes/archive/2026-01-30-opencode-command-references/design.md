@@ -1,70 +1,70 @@
-## Context
+## 情境
 
-OpenCode is one of many supported AI tools. Each tool has:
-- A **command adapter** (in `src/core/command-generation/adapters/`) for generating tool-specific command files
-- **Skills** generated via `generateSkillContent()` in `src/core/shared/skill-generation.ts`
+OpenCode 是眾多支援的 AI 工具之一。每個工具都有：
+- **命令適配器**（在 `src/core/command-generation/adapters/`) 用於產生特定於工具的命令文件
+- **技能**透過生成 `generateSkillContent()` 在 `src/core/shared/skill-generation.ts`
 
-Currently:
-- Commands go through the adapter system which can transform content per-tool
-- Skills use a single shared function with no tool-specific transformation
+現在：
+- 命令通過適配器系統，該系統可以轉換每個工具的內容
+- 技能使用單一共享功能，沒有特定於工具的轉換
 
-The templates in `src/core/templates/skill-templates.ts` use Claude's colon-based format (`/opsx:new`) as the canonical format. Tools that use different formats need transformation at generation time.
+中的模板 `src/core/templates/skill-templates.ts` 使用 Claude 的基於冒號的格式（`/opsx:new`) 作為規範格式。使用不同格式的工具需要在生成時進行轉換。
 
-## Goals / Non-Goals
+## 目標/非目標
 
-**Goals:**
-- Transform all `/opsx:` command references to `/opsx-` for OpenCode in both commands and skills
-- Create a shared, reusable transformation utility
-- Keep the transformation opt-in via a callback parameter (not hard-coded tool detection)
+**目標：**
+- 全部改造 `/opsx:` 命令引用 `/opsx-` OpenCode 的指令與技能
+- 建立共享、可重複使用的轉換實用程序
+- 透過回調參數保持轉換選擇加入（不是硬編碼工具檢測）
 
-**Non-Goals:**
-- Modifying the canonical template format (templates stay with `/opsx:`)
-- Applying transformation to other tools (only OpenCode for now)
-- Creating a full adapter system for skills (overkill for current needs)
+**非目標：**
+- 修改規範範本格式（範本保留 `/opsx:`)
+- 將轉換套用到其他工具（目前僅限 OpenCode）
+- 建立一個完整的技能適配器系統（對於當前的需求來說有點過頭了）
 
-## Decisions
+## 決定
 
-### Decision 1: Shared Utility Function
+### 決策 1：共享效用函數
 
-**Choice**: Create `transformToHyphenCommands()` in `src/utils/command-references.ts`
+**選擇**：建立 `transformToHyphenCommands()` 在 `src/utils/command-references.ts`
 
-**Rationale**: 
-- Single source of truth for the transformation logic
-- Can be used by both command adapter and skill generation
-- Easy to test in isolation
-- Follows existing utils pattern in the codebase
+**理由**： 
+- 轉換邏輯的單一事實來源
+- 命令適配器和技能產生均可使用
+- 易於隔離測試
+- 遵循程式庫中現有的 utils 模式
 
-**Alternatives considered**:
-- Inline the transformation in each location - Duplicates logic, harder to maintain
+**考慮的替代方案**：
+- 在每個位置內聯轉換 - 重複邏輯，難以維護
 
-### Decision 2: Callback Parameter for Skill Generation
+### 決策2：技能產生的回呼參數
 
-**Choice**: Add optional `transformInstructions?: (instructions: string) => string` parameter to `generateSkillContent()`
+**選擇**：新增可選 `transformInstructions?: (instructions: string) => string` 參數為 `generateSkillContent()`
 
-**Rationale**:
-- Flexible - callers define the transformation, not the generation function
-- No coupling - `generateSkillContent()` doesn't need to know about tool formats
-- Extensible - could support other transformations in the future
-- Follows inversion of control principle
+**理由**：
+- 靈活 - 呼叫者定義轉換，而不是產生函數
+- 無耦合 - `generateSkillContent()` 不需要瞭解工具格式
+- 可擴展 - 可以支援未來的其他轉換
+- 遵循控制反轉原理
 
-**Alternatives considered**:
-- Add tool ID parameter and switch on it - Creates coupling, harder to extend
-- Create skill adapter system parallel to commands - Over-engineering for current needs
-- Transform in templates directly - Breaks single-source-of-truth principle
+**考慮的替代方案**：
+- 添加工具 ID 參數並打開它 - 建立耦合，難以擴展
+- 建立與命令並行的技能適配器系統 - 針對當前需求進行過度設計
+- 直接在模板中轉換 - 打破單一事實來源原則
 
-### Decision 3: Apply at Generation Sites
+### 決策 3：在發電站申請
 
-**Choice**: Pass transformer in `init.ts` and `update.ts` when `tool.value === 'opencode'`
+**選擇**：通入變壓器 `init.ts` 和 `update.ts` 什麼時候 `tool.value === 'opencode'`
 
-**Rationale**:
-- These are the only two places that generate skills
-- Simple conditional check, no new abstractions needed
-- Easy to extend to other tools if needed later
+**理由**：
+- 這是唯一產生技能的兩個地方
+- 簡單的條件檢查，不需要新的抽象
+- 如果以後需要，可以輕鬆擴展到其他工具
 
-## Risks / Trade-offs
+## 風險/權衡
 
-| Risk | Mitigation |
+| 風險 | 減輕 |
 |------|------------|
-| Other `/opsx:` patterns exist that shouldn't be transformed | All occurrences in templates are command invocations - verified by inspection |
-| Future tools may need same transformation | Utility is shared and easy to reuse; can add to other tools' generation |
-| Callback adds complexity to function signature | Optional parameter with sensible default (no transformation) |
+| 其他 `/opsx:` 存在不該改變的模式 | 模板中的所有出現都是命令調用 - 通過檢查驗證 |
+| 未來的工具可能需要同樣的轉變 | 實用程式共享且易於重複使用；可以添加到其他工具的生成中 |
+| 回調增加了函數簽名的複雜性 | 具有合理預設值的可選參數（無轉換） |

@@ -1,9 +1,9 @@
-# Implementation Tasks
+# 實施任務
 
-## 1. Update OpenSpec README
-- [x] 1.1 Add "Start Simple" section after Core Principle
-- [x] 1.2 Add complexity triggers to "When to Create Change Proposals" section
-- [x] 1.3 Update AI workflow guidance to emphasize minimal implementations
+## 1.更新OpenSpecREADME
+- [x] 1.1 在核心原則後面加上「從簡單開始」部分
+- [x] 1.2 將複雜性觸發器新增至「何時建立變更提案」部分
+- [x] 1.3 更新人工智慧工作流程指南以強調最少的實施
 
-## 2. Update CLAUDE.md
-- [x] 2.1 Add complexity management rules to project instructions
+## 2.更新CLAUDE.md
+- [x] 2.1 在專案指令中加入複雜性管理規則

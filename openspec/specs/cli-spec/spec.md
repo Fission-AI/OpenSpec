@@ -1,88 +1,88 @@
-# cli-spec Specification
+# cli-spec 規範
 
-## Purpose
-Define `openspec spec` command behavior for listing, showing, and validating source-of-truth specifications.
+## 目的
+定義 `openspec spec` 用於列出、顯示和驗證真實來源規範的命令行為。
 
-## Requirements
-### Requirement: Interactive spec show
+## 要求
+### 要求：互動式規格展示
 
-The spec show command SHALL support interactive selection when no spec-id is provided.
+當沒有提供spec-id 時，spec show 指令應支援互動式選擇。
 
-#### Scenario: Interactive spec selection for show
+#### 場景：展會互動規格選擇
 
-- **WHEN** executing `openspec spec show` without arguments
-- **THEN** display an interactive list of available specs
-- **AND** allow the user to select a spec to show
-- **AND** display the selected spec content
+- **何時**執行 `openspec spec show` 沒有參數
+- **然後** 顯示可用規格的互動式列表
+- **並且**允許使用者選擇要顯示的規格
+- **並** 顯示選定的規格內容
 - **AND** maintain all existing show options (--json, --requirements, --no-scenarios, -r)
 
-#### Scenario: Non-interactive fallback keeps current behavior
+#### 場景：非互動式回退保持當前行為
 
-- **GIVEN** stdin is not a TTY or `--no-interactive` is provided or environment variable `OPEN_SPEC_INTERACTIVE=0`
-- **WHEN** executing `openspec spec show` without a spec-id
-- **THEN** do not prompt interactively
-- **AND** print the existing error message for missing spec-id
-- **AND** set non-zero exit code
+- **給定** stdin 不是 TTY 或 `--no-interactive` 提供或環境變數 `OPEN_SPEC_INTERACTIVE=0`
+- **何時**執行 `openspec spec show` 沒有spec-id
+- **THEN** 不交互提示
+- **並且** 列印缺少spec-id 的現有錯誤訊息
+- **並** 設定非零退出代碼
 
-### Requirement: Spec Command
+### 要求：規範命令
 
-The system SHALL provide a `spec` command with subcommands for displaying, listing, and validating specifications.
+系統應提供 `spec` 命令以及用於顯示、列出和驗證規範的子命令。
 
-#### Scenario: Show spec as JSON
+#### 場景：將規格顯示為 JSON
 
-- **WHEN** executing `openspec spec show init --json`
-- **THEN** parse the markdown spec file
-- **AND** extract headings and content hierarchically
-- **AND** output valid JSON to stdout
+- **何時**執行 `openspec spec show init --json`
+- **然後** 解析 markdown 規範文件
+- **和** 分層提取標題和內容
+- **AND** 將有效 JSON 輸出到標準輸出
 
-#### Scenario: List all specs
+#### 場景：列出所有規格
 
-- **WHEN** executing `openspec spec list`
-- **THEN** scan the openspec/specs directory
-- **AND** return list of all available capabilities
-- **AND** support JSON output with `--json` flag
+- **何時**執行 `openspec spec list`
+- **然後** 掃描 openspec/specs 目錄
+- **和** 傳回所有可用功能的列表
+- **並且** 支援 JSON 輸出 `--json` 旗幟
 
-#### Scenario: Filter spec content
+#### 場景：過濾規格內容
 
-- **WHEN** executing `openspec spec show init --requirements`
-- **THEN** display only requirement names and SHALL statements
-- **AND** exclude scenario content
+- **何時**執行 `openspec spec show init --requirements`
+- **THEN** 僅顯示需求名稱和 SHALL 語句
+- **並**排除場景內容
 
-#### Scenario: Validate spec structure
+#### 場景：驗證規範結構
 
-- **WHEN** executing `openspec spec validate init`
-- **THEN** parse the spec file
-- **AND** validate against Zod schema
-- **AND** report any structural issues
+- **何時**執行 `openspec spec validate init`
+- **然後** 解析規範文件
+- **和** 根據 Zod 模式進行驗證
+- **並**報告任何結構性問題
 
-### Requirement: JSON Schema Definition
+### 需求：JSON 架構定義
 
-The system SHALL define Zod schemas that accurately represent the spec structure for runtime validation.
+系統應定義準確表示執行時間驗證規範結構的 Zod 模式。
 
-#### Scenario: Schema validation
+#### 場景：模式驗證
 
-- **WHEN** parsing a spec into JSON
-- **THEN** validate the structure using Zod schemas
-- **AND** ensure all required fields are present
-- **AND** provide clear error messages for validation failures
+- **何時** 將規範解析為 JSON
+- **然後** 使用 Zod 模式驗證結構
+- **並** 確保所有必填欄位都存在
+- **並且** 為驗證失敗提供清晰的錯誤訊息
 
-### Requirement: Interactive spec validation
+### 要求：互動式規格驗證
 
-The spec validate command SHALL support interactive selection when no spec-id is provided.
+當沒有提供規範 ID 時，規範驗證命令應支援互動式選擇。
 
-#### Scenario: Interactive spec selection for validation
+#### 場景：互動式規格選擇以進行驗證
 
-- **WHEN** executing `openspec spec validate` without arguments
-- **THEN** display an interactive list of available specs
-- **AND** allow the user to select a spec to validate
-- **AND** validate the selected spec
-- **AND** maintain all existing validation options (--strict, --json)
+- **何時**執行 `openspec spec validate` 沒有參數
+- **然後** 顯示可用規格的互動式列表
+- **並且**允許使用者選擇要驗證的規範
+- **並** 驗證所選規格
+- **並** 維護所有現有的驗證選項（--strict、--json）
 
-#### Scenario: Non-interactive fallback keeps current behavior
+#### 場景：非互動式回退保持當前行為
 
-- **GIVEN** stdin is not a TTY or `--no-interactive` is provided or environment variable `OPEN_SPEC_INTERACTIVE=0`
-- **WHEN** executing `openspec spec validate` without a spec-id
-- **THEN** do not prompt interactively
-- **AND** print the existing error message for missing spec-id
-- **AND** set non-zero exit code
+- **給定** stdin 不是 TTY 或 `--no-interactive` 提供或環境變數 `OPEN_SPEC_INTERACTIVE=0`
+- **何時**執行 `openspec spec validate` 沒有spec-id
+- **THEN** 不交互提示
+- **並且** 列印缺少spec-id 的現有錯誤訊息
+- **並** 設定非零退出代碼
 

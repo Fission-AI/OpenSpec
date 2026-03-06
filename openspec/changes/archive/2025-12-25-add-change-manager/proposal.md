@@ -1,45 +1,45 @@
-## Why
+## 為什麼
 
-There's no programmatic way to create a new change directory. Users must manually:
-1. Create `openspec/changes/<name>/` directory
-2. Create a `proposal.md` file
-3. Hope they got the naming right
+沒有程式設計方式來建立新的更改目錄。使用者必須手動：
+1. 創造 `openspec/changes/<name>/` 目錄
+2. 建立一個 `proposal.md` 文件
+3. 希望他們能正確命名
 
-This is error-prone and blocks automation (e.g., Claude commands, scripts).
+這很容易出錯並且會阻止自動化（例如 Claude 命令、腳本）。
 
-**This proposal adds:**
-1. `createChange(projectRoot, name)` - Create change directories programmatically
-2. `validateChangeName(name)` - Enforce kebab-case naming conventions
+**此提案新增：**
+1. `createChange(projectRoot, name)` - 以程式設計方式建立更改目錄
+2. `validateChangeName(name)` - 強制執行短橫線命名約定
 
-## What Changes
+## 有什麼變化
 
-### New Utilities
+### 新實用程式
 
-| Function | Description |
+| 功能 | 描述 |
 |----------|-------------|
-| `createChange(projectRoot, name)` | Creates `openspec/changes/<name>/` directory |
-| `validateChangeName(name)` | Returns `{ valid: boolean; error?: string }` |
+| `createChange(projectRoot, name)` | 創造 `openspec/changes/<name>/` 目錄 |
+| `validateChangeName(name)` | 退貨 `{ valid: boolean; error?: string }` |
 
-### Name Validation Rules
+### 名稱驗證規則
 
-Pattern: `^[a-z][a-z0-9]*(-[a-z0-9]+)*$`
+圖案： `^[a-z][a-z0-9]*(-[a-z0-9]+)*$`
 
-| Valid | Invalid |
+| 有效的 | 無效的 |
 |-------|---------|
-| `add-auth` | `Add-Auth` (uppercase) |
-| `refactor-db` | `add auth` (spaces) |
-| `add-feature-2` | `add_auth` (underscores) |
-| `refactor` | `-add-auth` (leading hyphen) |
+| `add-auth` | `Add-Auth` （大寫） |
+| `refactor-db` | `add auth` （空格） |
+| `add-feature-2` | `add_auth` （底線） |
+| `refactor` | `-add-auth` （前導連字號） |
 
-### Location
+### 地點
 
-New file: `src/utils/change-utils.ts`
+新文件： `src/utils/change-utils.ts`
 
-Simple utility functions - no class, no abstraction layer.
+簡單的實用函數 - 沒有類，沒有抽象層。
 
-## Impact
+## 影響
 
-- **Affected specs**: None
-- **Affected code**: None (new utilities only)
-- **New files**: `src/utils/change-utils.ts`
-- **Breaking changes**: None
+- **受影響的規格**：無
+- **受影響的代碼**：無（僅限新實用程式）
+- **新文件**： `src/utils/change-utils.ts`
+- **重大變更**：無

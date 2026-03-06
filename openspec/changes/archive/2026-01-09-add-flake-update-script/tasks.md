@@ -1,55 +1,55 @@
-## 1. Create Update Script
+## 1. 建立更新腳本
 
-- [x] 1.1 Create scripts/update-flake.sh file
-- [x] 1.2 Add shebang and error handling (set -euo pipefail)
-- [x] 1.3 Add path resolution for project root and files
-- [x] 1.4 Make script executable (chmod +x)
+- [x] 1.1 建立scripts/update-flake.sh文件
+- [x] 1.2 新增shebang和錯誤處理(set -euo pipelinefail)
+- [x] 1.3 新增專案根目錄和檔案的路徑解析
+- [x] 1.4 使腳本可執行（chmod +x）
 
-## 2. Implement Version Update Logic
+## 2. 實作版本更新邏輯
 
-- [x] 2.1 Extract version from package.json using Node.js
-- [x] 2.2 Use sed to update version in flake.nix
-- [x] 2.3 Report if version already up-to-date
-- [x] 2.4 Display detected version to user
+- [x] 2.1 使用Node.js從package.json中擷取版本
+- [x] 2.2 使用sed更新flake中的版本。 nix
+- [x] 2.3 報告版本是否已是最新
+- [x] 2.4 向使用者顯示偵測到的版本
 
-## 3. Implement Hash Update Logic
+## 3. 實作哈希更新邏輯
 
-- [x] 3.1 Set placeholder hash in flake.nix
-- [x] 3.2 Run nix build and capture output (allow failure)
-- [x] 3.3 Extract correct hash from build error using grep
-- [x] 3.4 Handle case where hash extraction fails
-- [x] 3.5 Update flake.nix with correct hash
-- [x] 3.6 Display detected hash to user
+- [x] 3.1 在 flake 中設定佔位符哈希。 nix
+- [x] 3.2 執行nix建置並捕獲輸出（允許失敗）
+- [x] 3.3 使用 grep 從建置錯誤中提取正確的雜湊值
+- [x] 3.4 處理哈希提取失敗的情況
+- [x] 3.5 使用正確的雜湊更新 flake.nix
+- [x] 3.6 向使用者顯示偵測到的雜湊值
 
-## 4. Add Build Verification
+## 4.新增建置驗證
 
-- [x] 4.1 Run nix build after hash update
-- [x] 4.2 Check for dirty git tree warning
-- [x] 4.3 Report success or failure clearly
+- [x] 4.1 哈希更新後執行nix構建
+- [x] 4.2 檢查髒git樹警告
+- [x] 4.3 清楚報告成功或失敗
 
-## 5. Add User Feedback
+## 5.新增用戶回饋
 
-- [x] 5.1 Add progress messages for each step
-- [x] 5.2 Add success summary with version and hash
-- [x] 5.3 Add next steps instructions (test, commit)
-- [x] 5.4 Add error messages with context
+- [x] 5.1 為每個步驟新增進度訊息
+- [x] 5.2 新增包含版本和哈希的成功摘要
+- [x] 5.3 新增後續步驟說明（測試、提交）
+- [x] 5.4 新增帶有上下文的錯誤訊息
 
-## 6. Create Documentation
+## 6. 建立文檔
 
-- [x] 6.1 Create scripts/README.md
-- [x] 6.2 Document update-flake.sh purpose and usage
-- [x] 6.3 Add example workflow
-- [x] 6.4 Document other existing scripts
+- [x] 6.1 建立腳本/README.md
+- [x] 6.2 文件update-flake.sh目的和使用
+- [x] 6.3 新增範例工作流程
+- [x] 6.4 記錄其他現有腳本
 
-## 7. Testing
+## 7. 測試
 
-- [x] 7.1 Test script runs successfully
-- [x] 7.2 Verify version is extracted correctly
-- [x] 7.3 Verify hash is updated correctly
-- [x] 7.4 Verify build succeeds after update
-- [x] 7.5 Test idempotency (running twice works)
+- [x] 7.1 測試腳本執行成功
+- [x] 7.2 驗證版本是否正確擷取
+- [x] 7.3 驗證哈希是否正確更新
+- [x] 7.4 更新後驗證建置是否成功
+- [x] 7.5 測試冪等性（跑兩次有效）
 
 ## 8. Integration
 
-- [ ] 8.1 Add note to release process documentation
-- [ ] 8.2 Use in next actual version bump to validate workflow
+- [ ] 8.1 發布流程文件新增註釋
+- [ ] 8.2 在下一個實際版本升級中使用來驗證工作流程

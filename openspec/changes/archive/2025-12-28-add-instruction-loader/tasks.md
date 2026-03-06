@@ -1,13 +1,13 @@
-# Tasks
+# 任務
 
-## Implementation Tasks
+## 實施任務
 
-- [x] Create `instruction-loader` spec in `openspec/specs/instruction-loader/spec.md`
-- [x] Implement `loadTemplate` function to load templates from schema directories
-- [x] Implement `loadChangeContext` function to combine graph and completion state
-- [x] Implement `generateInstructions` function to enrich templates with change context
-- [x] Implement `formatChangeStatus` function for readable status output
-- [x] Export new functions from `src/core/artifact-graph/index.ts`
-- [x] Add comprehensive tests in `test/core/artifact-graph/instruction-loader.test.ts`
-- [x] Verify build passes
-- [x] Verify all tests pass
+- [x] 創造 `instruction-loader` 規格 `openspec/specs/instruction-loader/spec.md`
+- [x] 實施 `loadTemplate` 從架構目錄載入模板的函數
+- [x] 實施 `loadChangeContext` 組合圖和完成狀態的函數
+- [x] 實施 `generateInstructions` 透過更改上下文來豐富模板的功能
+- [x] 實施 `formatChangeStatus` 可讀狀態輸出功能
+- [x] 從匯出新函數 `src/core/artifact-graph/index.ts`
+- [x] 新增綜合測試 `test/core/artifact-graph/instruction-loader.test.ts`
+- [x] 驗證建置過程
+- [x] 驗證所有測試均通過

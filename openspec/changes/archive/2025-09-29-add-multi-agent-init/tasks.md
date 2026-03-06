@@ -1,16 +1,16 @@
-# Implementation Tasks
+# 實施任務
 
-## 1. Extend Init Guard
-- [x] 1.1 Detect existing OpenSpec structures at the start of `openspec init` and enter an extend mode instead of failing.
-- [x] 1.2 Log that core scaffolding will be skipped while still protecting against missing write permissions.
+## 1. 擴展初始化防護
+- [x] 1.1 檢測開頭已有的OpenSpec結構 `openspec init` 並進入擴展模式而不是失敗。
+- [x] 1.2 記錄核心腳手架將被跳過，同時仍防止遺失寫入權限。
 
-## 2. Update AI Tool Selection
-- [x] 2.1 Present AI tool choices even in extend mode, indicating which tools are already configured.
-- [x] 2.2 Ensure disabled "coming soon" tools remain non-selectable.
+## 2.更新AI工具選擇
+- [x] 2.1 即使在擴充模式下也顯示 AI 工具選擇，指示哪些工具已設定。
+- [x] 2.2 確保已停用的「即將推出」工具保持不可選擇。
 
-## 3. Generate Additional Tool Files
-- [x] 3.1 Create configuration files for newly selected tools while leaving untouched tools unaffected apart from marker-managed sections.
-- [x] 3.2 Summarize created, refreshed, and skipped tools before exiting with the appropriate code.
+## 3. 產生附加工具文件
+- [x] 3.1 為新選擇的工具建立設定檔，同時使除標記管理部分之外未受影響的工具不受影響。
+- [x] 3.2 在使用適當的程式碼退出之前總結建立、重新整理和跳過的工具。
 
-## 4. Verification
-- [x] 4.1 Add tests covering rerunning `openspec init` to add another tool and the scenario where the user declines to add anything.
+## 4. 驗證
+- [x] 4.1 新增涵蓋重新執行的測試 `openspec init` 新增另一個工具以及用戶拒絕添加任何內容的場景。

@@ -1,80 +1,80 @@
-## Context
+## 情境
 
-OpenSpec has a complete skill and slash command generation system. Skills are defined in `src/core/templates/skill-templates.ts` as functions that return `SkillTemplate` objects (for Agent Skills) and `CommandTemplate` objects (for slash commands). These are registered in `src/core/shared/skill-generation.ts` and generated during `openspec init` and `openspec update`.
+OpenSpec擁有完整的技能和斜線命令產生系統。技能定義於 `src/core/templates/skill-templates.ts` 作為返回的函數 `SkillTemplate` 物件（用於代理技能）和 `CommandTemplate` 物件（用於斜線命令）。這些已註冊於 `src/core/shared/skill-generation.ts` 並在期間生成 `openspec init` 和 `openspec update`.
 
-Existing skills follow a consistent pattern:
-- `getXxxSkillTemplate()` returns the skill with name, description, instructions
-- `getOpsxXxxCommandTemplate()` returns the slash command with name, description, category, tags, content
-- Both are registered in their respective arrays in `skill-generation.ts`
+現有技能遵循一致的模式：
+- `getXxxSkillTemplate()` 返回技能及其名稱、描述、說明
+- `getOpsxXxxCommandTemplate()` 傳回包含名稱、描述、類別、標籤、內容的斜線命令
+- 兩者都註冊在各自的數組中 `skill-generation.ts`
 
-## Goals / Non-Goals
+## 目標/非目標
 
-**Goals:**
-- Add `/opsx:onboard` skill that teaches the OpenSpec workflow through guided practice
-- Follow existing patterns for skill/command template generation
-- Provide comprehensive narration that explains each step
-- Include codebase analysis to suggest real, appropriately-scoped tasks
+**目標：**
+- 添加 `/opsx:onboard` 透過指導練習教導 OpenSpec 工作流程的技能
+- 遵循現有的技能/命令範本產生模式
+- 提供解釋每個步驟的全面旁白
+- 包括程式碼庫分析以建議真實的、適當範圍的任務
 
-**Non-Goals:**
-- Creating a separate "demo mode" or simulated workflow (we do real work)
-- Adding new CLI commands (this is purely agent instructions)
-- Modifying the init/update flow (just adding to the template arrays)
+**非目標：**
+- 建立單獨的「演示模式」或模擬工作流程（我們做實際工作）
+- 新增的CLI指令（這純粹是代理指令）
+- 修改初始化/更新流程（僅新增至範本陣列）
 
-## Decisions
+## 決定
 
-### Decision 1: Single Monolithic Skill
+### 決策 1：單一整體技能
 
-The onboard skill will be a single comprehensive instruction set rather than composing existing skills with flags.
+板載技能將是一個單一的綜合指令集，而不是用標誌組合現有技能。
 
-**Rationale:**
-- Slash commands don't support flags (they're just prompts)
-- A monolithic skill gives complete control over narration and pacing
-- Easier to maintain a single cohesive experience
-- Users learn the real commands by seeing them mentioned in narration
+**理由：**
+- 斜杠命令不支援標誌（它們只是提示）
+- 單一技能可以完全控制敘述和節奏
+- 更容易維持單一的有凝聚力的體驗
+- 使用者透過看到旁白中提到的命令來學習真正的命令
 
-### Decision 2: Codebase Analysis Patterns
+### 決策 2：程式碼庫分析模式
 
-The skill instructions will direct the agent to look for specific patterns when suggesting starter tasks:
+技能說明將指導代理在建議啟動任務時尋找特定模式：
 
-1. TODO/FIXME comments in code
-2. Missing error handling (`catch` blocks that swallow errors, no try-catch around risky operations)
-3. Functions without tests (cross-reference src/ with test files)
-4. Type: `any` in TypeScript files
-5. Console.log statements in non-debug code
-6. Missing input validation on user-facing inputs
-7. Recent git commits (for context on what user is working on)
+1. 程式碼中的 TODO/FIXME 註釋
+2. 缺少錯誤處理（`catch` 吞掉錯誤的區塊，沒有嘗試捕獲有風險的操作）
+3. 沒有測試的函數（交叉引用 src/ 和測試檔）
+4. 類型： `any` 在 TypeScript 個檔案中
+5. 非調試程式碼中的 Console.log 語句
+6. 缺少面向使用者的輸入的輸入驗證
+7. 最近的 git 提交（有關用戶正在處理的內容的上下文）
 
-**Rationale:** These are universally applicable, easy to detect, and produce well-scoped tasks.
+**理由：** 這些是普遍適用的，易於檢測，並產生廣泛的任務。
 
-### Decision 3: Narration Integration Style
+### 決策3：敘事整合風格
 
-Each phase will follow a pattern:
-1. **EXPLAIN** what we're about to do and why (1-2 sentences)
-2. **DO** the action (run command, create artifact)
-3. **SHOW** what happened
-4. **PAUSE** at key transitions (not every step)
+每個階段都將遵循一種模式：
+1. **解釋**我們要做什麼以及為什麼（1-2 句）
+2. **執行** 操作（執行指令、建立工件）
+3. **顯示**發生了什麼
+4. **在關鍵轉換處暫停**（不是每一步）
 
-Pauses occur at:
-- After task selection (before creating change)
-- After drafting proposal (before saving)
-- After tasks are generated (before implementation)
-- After archive (final recap)
+暫停發生在：
+- 任務選擇之後（建立變更前）
+- 起草提案後（保存前）
+- 任務生成後（執行前）
+- 存檔後（最終回顧）
 
-**Rationale:** Too many pauses becomes tedious. Too few loses the teaching opportunity. These are the natural "chapter breaks."
+**理由：** 太多的停頓會變得乏味。太少的人會失去教學機會。這些是自然的「章節中斷」。
 
-### Decision 4: Scope Guardrail Approach
+### 決策 4：範圍護欄方法
 
-When user selects a task that's too large, the skill will:
-1. Acknowledge the task is valuable
-2. Explain why smaller is better for first time
-3. Suggest a smaller slice or alternative
-4. Let user override if they insist
+當使用者選擇太大的任務時，技能將：
+1. 承認任務有價值
+2. 解釋為什麼第一次越小越好
+3. 建議較小的切片或替代品
+4. 如果用戶堅持的話，可以讓他們覆蓋
 
-**Rationale:** Soft guardrails teach without frustrating. Users learn scope calibration as part of the experience.
+**理由：** 軟護欄教學不會令人沮喪。使用者學習示波器校準作為體驗的一部分。
 
-### Decision 5: Template Structure
+### 決策 5：模板結構
 
-The skill template will be ~400-600 lines of instruction text, structured as:
+技能模板將包含約 400-600 行指令文本，結構如下：
 
 ```
 - Preflight checks (init status)
@@ -92,24 +92,24 @@ The skill template will be ~400-600 lines of instruction text, structured as:
 - Edge cases & graceful exits
 ```
 
-The command template will be identical to the skill template (same content, different wrapper).
+命令模板將與技能模板相同（相同內容，不同包裝）。
 
-**Rationale:** Following the established pattern where skill and command share the same core instructions.
+**理由：** 遵循既定模式，其中技能和命令共享相同的核心指令。
 
-## Risks / Trade-offs
+## 風險/權衡
 
-**Risk: Instruction length**
-The skill will be significantly longer than existing skills (~500 lines vs ~100-200).
-→ Mitigation: This is acceptable since onboarding is inherently comprehensive. Token cost is one-time per session.
+**風險：指令長度**
+此技能將比現有技能長得多（約 500 行 vs 約 100-200 行）。
+→ 緩解措施：這是可以接受的，因為入職訓練本質上是全面的。令牌成本是每個會話一次性的。
 
-**Risk: Codebase analysis may find nothing**
-Some codebases (new projects, very clean code) may not have obvious improvement opportunities.
-→ Mitigation: Fall back to asking user what they want to build. Include "add a new feature" as an option.
+**風險：程式碼庫分析可能一無所獲**
+有些程式碼庫（新專案、非常乾淨的程式碼）可能沒有明顯的改進機會。
+→ 緩解措施：回退到詢問使用者想要建立什麼。包括“新增功能”作為選項。
 
-**Risk: Task suggestions may be inappropriate**
-Agent might suggest tasks that touch sensitive code or have hidden complexity.
-→ Mitigation: User always chooses; agent just suggests. Scope estimates help set expectations.
+**風險：任務建議可能不合適**
+代理可能會建議涉及敏感程式碼或具有隱藏複雜性的任務。
+→ 緩解措施：使用者總是選擇；代理商只是建議。範圍估計有助於設定期望。
 
-**Risk: User abandons mid-way**
-Onboarding takes ~15 minutes; users may not complete it.
-→ Mitigation: Graceful exit handling - note the change is saved, explain how to continue later.
+**風險：使用者中途放棄**
+入職大約需要 15 分鐘；用戶可能無法完成它。
+→ 緩解措施：優雅的退出處理 - 請注意更改已儲存，以解釋稍後如何繼續。

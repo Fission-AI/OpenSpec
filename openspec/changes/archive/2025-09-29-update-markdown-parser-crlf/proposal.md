@@ -1,19 +1,19 @@
-# Update Markdown Parser CRLF Handling
+# 更新 Markdown 解析器 CRLF 處理
 
-## Problem
-Windows users report that `openspec validate` raises “Change must have a Why section” even when the section exists (see GitHub issue #77). The CLI currently splits markdown on `\n` and compares headers without stripping `\r`, so files saved with CRLF line endings keep a trailing carriage return in the header token. As a result the parser fails to detect `## Why`/`## What Changes`, triggering false validation errors and breaking the workflow on Windows-default editors.
+## 問題
+Windows 用戶報告說 `openspec validate` 即使該部分存在，也會引發「更改必須有一個原因部分」（請參閱 GitHub 問題 #77）。 CLI 目前將降價拆分為 `\n` 並比較標題而不剝離 `\r`，因此以 CRLF 行結尾儲存的檔案在標頭標記中保留尾隨回車符。結果解析器無法偵測到 `## Why`/`## What Changes`，觸發虛假驗證錯誤並破壞 Windows-預設編輯器上的工作流程。
 
-## Solution
-- Normalize markdown content inside the parser so CRLF and lone-CR inputs are treated as `\n` before section detection, trimming any carriage returns from titles and content comparisons.
-- Reuse the normalized reader everywhere `MarkdownParser` is constructed to keep behavior consistent for validation, view, spec, and list flows.
-- Add regression coverage that reproduces the failure (unit test around `parseChange` and a CLI spawn/e2e test that writes a CRLF change then runs `openspec validate`).
-- Update the `cli-validate` spec to codify the expectation that required sections are recognized regardless of line-ending style.
+## 解決方案
+- 規範化解析器內的 markdown 內容，以便 CRLF 和 lone-CR 輸入被視為 `\n` 在部分檢測之前，修剪標題和內容比較中的任何回車符。
+- 在任何地方重複使用標準化閱讀器 `MarkdownParser` 旨在保持驗證、視圖、規格和清單流的行為一致。
+- 增加重現故障的回歸覆蓋率（圍繞 `parseChange` 以及寫入 CRLF 更改然後執行的 CLI spawn/e2e 測試 `openspec validate`).
+- 更新 `cli-validate` 規範來編碼所需部分的期望，無論行結束樣式為何。
 
-## Benefits
-- Restores correct validation behavior for Windows editors without requiring manual line-ending conversion.
-- Locks in the fix with targeted tests so future parser refactors keep cross-platform support.
-- Clarifies the spec so downstream work (e.g., cross-shell e2e plan) understands the non-negotiable behavior.
+## 好處
+- 還原 Windows 編輯器的正確驗證行為，無需手動行結束轉換。
+- 透過有針對性的測試鎖定修復，以便未來的解析器重構保持跨平台支援。
+- 澄清規範，以便下游工作（例如跨 shell e2e 計劃）瞭解不可協商的行為。
 
-## Risks
-- Low: parser normalization touches shared code paths that parse specs and changes; need to ensure no regressions in other command consumers (mitigated by existing parser tests plus the new CRLF fixtures).
+## 風險
+- 低：解析器規範化涉及解析規範和更改的共享程式碼路徑；需要確保其他命令使用者不會出現回歸（透過現有解析器測試加上新的 CRLF 裝置來緩解）。
 

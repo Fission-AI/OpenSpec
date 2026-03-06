@@ -1,94 +1,94 @@
-## Context
+## 情境
 
-OpenSpec is a TypeScript CLI tool using pnpm for dependency management. The project requires Node.js ≥20.19.0. Nix uses its own build system that needs to understand how to fetch dependencies and build the project reproducibly.
+OpenSpec 是一個 TypeScript CLI 工具，使用 pnpm 進行依賴管理。該項目要求Node.js≥20.19.0。 Nix 使用自己的建置系統，該系統需要瞭解如何取得依賴項並可重複地建置專案。
 
-The Nix ecosystem has specific patterns for packaging Node.js/pnpm projects that differ from the traditional npm ecosystem.
+Nix 生態系統具有與傳統 npm 生態系統不同的特定模式來打包 Node.js/pnpm 專案。
 
-## Goals
+## 目標
 
-- Enable OpenSpec to be run directly via `nix run github:Fission-AI/OpenSpec`
+- 啟用 OpenSpec 直接執行 `nix run github:Fission-AI/OpenSpec`
 - Support all major platforms (Linux x86/ARM, macOS x86/ARM)
-- Use existing pnpm-lock.yaml for reproducible builds
-- Provide development environment for Nix users
+- 使用現有的 pnpm-lock.yaml 進行可重現的構建
+- 為Nix用戶提供開發環境
 
 ## Non-Goals
 
-- Replace existing npm/pnpm publishing workflow
-- Publish to nixpkgs (can be done later as separate effort)
-- Support Windows (Nix doesn't run natively on Windows)
+- 替換現有的 npm/pnpm 發布工作流程
+- 發佈到 nixpkgs（可以稍後單獨完成）
+- 支援 Windows（Nix 不在 Windows 上本地執行）
 
-## Decisions
+## 決定
 
-### Use stdenv.mkDerivation instead of buildNpmPackage
+### 使用 stdenv.mkDerivation 而不是 buildNpmPackage
 
-**Decision**: Package OpenSpec using `stdenv.mkDerivation` with pnpm hooks.
+**決定**：使用 OpenSpec 包 `stdenv.mkDerivation` 有 pnpm 鉤子。
 
-**Rationale**: The zigbee2mqtt package in nixpkgs demonstrates the current best practice for pnpm projects. Using `buildNpmPackage` with pnpm requires complex configuration, while `mkDerivation` with the right hooks is more straightforward and better supported.
+**基本原理**：nixpkgs 中的 zigbee2mqtt 套件演示了 pnpm 專案的當前最佳實踐。使用 `buildNpmPackage` pnpm 需要複雜的設定，而 `mkDerivation` 使用正確的鉤子會更簡單並且得到更好的支撐。
 
-**Alternative considered**: Using `buildNpmPackage` with `npmConfigHook = pkgs.pnpmConfigHook` - this is the older pattern and causes issues with dependency fetching.
+**考慮的替代方案**：使用 `buildNpmPackage` 和 `npmConfigHook = pkgs.pnpmConfigHook` - 這是較舊的模式，會導致依賴項獲取問題。
 
-### Use fetchPnpmDeps with explicit pnpm version
+### 將 fetchPnpmDeps 與顯式 pnpm 版本一起使用
 
-**Decision**: Use `pkgs.fetchPnpmDeps` with `pnpm = pkgs.pnpm_9` and `fetcherVersion = 3`.
+**決定**：使用 `pkgs.fetchPnpmDeps` 和 `pnpm = pkgs.pnpm_9` 和 `fetcherVersion = 3`.
 
-**Rationale**:
-- pnpm lockfile version 9.0 requires fetcherVersion 3
-- Explicit pnpm_9 ensures consistency between fetch and build
-- This is the documented way to handle pnpm projects in nixpkgs
+**理由**：
+- pnpm 鎖定檔案版本 9.0 需要 fetcherVersion 3
+- 顯式 pnpm_9 確保獲取和建置之間的一致性
+- 這是處理 nixpkgs 中 pnpm 項目的記錄方法
 
-### Multi-platform support without flake-utils
+### 無需 flake-utils 的多平台支援
 
-**Decision**: Implement multi-platform support using plain Nix with `nixpkgs.lib.genAttrs`.
+**決定**：使用 plain Nix 實現多平台支援 `nixpkgs.lib.genAttrs`.
 
-**Rationale**: Per user request, avoid extra dependencies. The `genAttrs` pattern is simple and well-understood in the Nix community.
+**基本原理**：根據使用者要求，避免額外的依賴關係。這 `genAttrs` 此模式在 Nix 社群中很簡單且易於理解。
 
-### Node.js 20 instead of latest
+### Node.js 20 而不是最新的
 
-**Decision**: Pin to nodejs_20 to match package.json engines requirement.
+**決定**：固定到nodejs_20以符合package.json引擎的要求。
 
-**Rationale**: Ensures consistency with development environment and npm package requirements. Avoids potential compatibility issues with newer Node versions.
+**基本原理**：確保與開發環境和npm套件要求的一致性。避免與較新的 Node 版本的潛在相容性問題。
 
-## Key Implementation Details
+## 關鍵實施細節
 
-### Dependency Hash Management
+### 依賴項哈希管理
 
-The `pnpmDeps.hash` field must be updated whenever dependencies change. The workflow:
-1. Set hash to fake value (all zeros)
-2. Run `nix build`
-3. Nix fails with actual hash
-4. Update flake.nix with correct hash
+這 `pnpmDeps.hash` 每當依賴關係發生變化時，必須更新欄位。工作流程：
+1. 將哈希設為假值（全零）
+2. 執行 `nix build`
+3. Nix 因實際哈希值而失敗
+4. 使用正確的雜湊更新 flake.nix
 
-This is standard Nix workflow for fixed-output derivations.
+這是固定輸出推導的標準 Nix 工作流程。
 
-### Build Inputs
+### 建構輸入
 
-Required nativeBuildInputs:
-- `nodejs_20` - runtime
-- `npmHooks.npmInstallHook` - handles installation phase
-- `pnpmConfigHook` - configures pnpm environment
-- `pnpm_9` - pnpm executable
+所需的nativeBuildInputs：
+- `nodejs_20` - 執行時
+- `npmHooks.npmInstallHook` - 處理安裝階段
+- `pnpmConfigHook` - 設定pnpm環境
+- `pnpm_9` - pnpm 可執行文件
 
-The `dontNpmPrune = true` is important to keep all dependencies after build.
+這 `dontNpmPrune = true` 在建置後保留所有依賴項很重要。
 
-## Risks / Trade-offs
+## 風險/權衡
 
-**[Risk]** Hash needs updating when dependencies change → **Mitigation**: Document this clearly; error message from Nix provides correct hash
+**[風險]** 當依賴關係改變時，雜湊值需要更新 → **緩解**：清楚地記錄這一點；來自 Nix 的錯誤訊息提供了正確的雜湊值
 
-**[Risk]** Nix builds might lag behind npm releases → **Mitigation**: This is fine; Nix users can still use npm if they need bleeding edge
+**[風險]** Nix 版本可能落後於 npm 版本 → **緩解**：這很好；如果 Nix 用戶需要前沿技術，他們仍然可以使用 npm
 
-**[Trade-off]** Additional maintenance burden for hash updates → **Benefit**: Better experience for Nix ecosystem users
+**[權衡]** 雜湊更新的額外維護負擔 → **好處**：為 Nix 生態系統使用者提供更好的體驗
 
-## Migration Plan
+## 遷移計劃
 
-1. Add flake.nix to repository
-2. Test builds on multiple platforms (can use GitHub Actions with Nix)
-3. Update README with Nix installation instructions
-4. Optionally add to CI pipeline to catch hash mismatches early
+1. 將 flake.nix 新增至儲存庫
+2. 在多個平台上進行測試建置（可以使用 Nix 的 GitHub 操作）
+3. 使用 Nix 安裝說明更新 README
+4. 可以選擇添加到 CI 管道以儘早捕獲哈希不匹配
 
-No breaking changes - this is purely additive.
+沒有重大變化 - 這純粹是附加的。
 
-## Open Questions
+## 開放式問題
 
-- Should we add automatic hash updating to CI? (Could use nix-update-script)
-- Should we submit to nixpkgs after validation? (Separate decision)
-- Do we want to support older Node versions in flake? (Probably no - stick to package.json requirement)
+- 我們應該為 CI 添加自動哈希更新嗎？ （可以使用nix-update-script）
+- 驗證後我們是否應該提交nixpkgs？ （單獨決定）
+- 我們想要在 flake 中支援較舊的 Node 版本嗎？ （可能不會 - 遵守 package.json 要求）

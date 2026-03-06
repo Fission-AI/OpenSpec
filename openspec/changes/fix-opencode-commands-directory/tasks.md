@@ -1,19 +1,19 @@
-## 1. Adapter Fix
+## 1. 適配器修復
 
-- [x] 1.1 Update `src/core/command-generation/adapters/opencode.ts`: change `path.join('.opencode', 'command', ...)` to `path.join('.opencode', 'commands', ...)` and update the JSDoc comment
+- [x] 1.1 更新 `src/core/command-generation/adapters/opencode.ts`： 改變 `path.join('.opencode', 'command', ...)` 到 `path.join('.opencode', 'commands', ...)` 並更新 JSDoc 評論
 
-## 2. Legacy Cleanup
+## 2. 遺留清理
 
-- [x] 2.1 Update `src/core/legacy-cleanup.ts`: update the `'opencode'` entry in `LEGACY_SLASH_COMMAND_PATHS` to detect both `opsx-*.md` and `openspec-*.md` patterns at `.opencode/command/` for backward compatibility
+- [x] 2.1 更新 `src/core/legacy-cleanup.ts`: 更新一下 `'opencode'` 進入 `LEGACY_SLASH_COMMAND_PATHS` 檢測兩者 `opsx-*.md` 和 `openspec-*.md` 模式在 `.opencode/command/` 為了向後相容
 
-## 3. Documentation
+## 3. 文件
 
-- [x] 3.1 Update `docs/supported-tools.md`: change OpenCode command path from `.opencode/command/opsx-<id>.md` to `.opencode/commands/opsx-<id>.md`
+- [x] 3.1 更新 `docs/supported-tools.md`：更改 OpenCode 命令路徑 `.opencode/command/opsx-<id>.md` 到 `.opencode/commands/opsx-<id>.md`
 
-## 4. Tests
+## 4. 測試
 
-- [x] 4.1 Update `test/core/command-generation/adapters.test.ts`: change the OpenCode file path assertion from `path.join('.opencode', 'command', 'opsx-explore.md')` to `path.join('.opencode', 'commands', 'opsx-explore.md')`
+- [x] 4.1 更新 `test/core/command-generation/adapters.test.ts`：更改 OpenCode 檔案路徑斷言 `path.join('.opencode', 'command', 'opsx-explore.md')` 到 `path.join('.opencode', 'commands', 'opsx-explore.md')`
 
-## 5. Changeset
+## 5. 變更集
 
-- [x] 5.1 Create a changeset file (`.changeset/fix-opencode-commands-directory.md`) with a patch bump describing the path fix
+- [x] 5.1 建立變更集檔案（`.changeset/fix-opencode-commands-directory.md`）帶有描述路徑修復的補丁凹凸

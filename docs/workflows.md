@@ -1,12 +1,12 @@
-# Workflows
+# 工作流程
 
-This guide covers common workflow patterns for OpenSpec and when to use each one. For basic setup, see [Getting Started](getting-started.md). For command reference, see [Commands](commands.md).
+本指南涵蓋了 OpenSpec 的常見工作流程模式以及何時使用每種模式。有關基本設置，請參閱 [入門](getting-started.md)。命令參考請參見 [命令](commands.md).
 
-## Philosophy: Actions, Not Phases
+## 理念：行動，而非階段
 
-Traditional workflows force you through phases: planning, then implementation, then done. But real work doesn't fit neatly into boxes.
+傳統的工作流程迫使您經歷幾個階段：規劃、實施、最後完成。但真正的工作並不完全適合盒子。
 
-OPSX takes a different approach:
+OPSX 採用不同的方法：
 
 ```text
 Traditional (phase-locked):
@@ -21,49 +21,49 @@ OPSX (fluid actions):
   proposal ──► specs ──► design ──► tasks ──► implement
 ```
 
-**Key principles:**
+**關鍵原則：**
 
-- **Actions, not phases** - Commands are things you can do, not stages you're stuck in
-- **Dependencies are enablers** - They show what's possible, not what's required next
+- **行動，而不是階段** - 命令是你可以做的事情，而不是你陷入的階段
+- **依賴關係是推動者** - 它們顯示什麼是可能的，而不是接下來需要什麼
 
-> **Customization:** OPSX workflows are driven by schemas that define artifact sequences. See [Customization](customization.md) for details on creating custom schemas.
+> **自訂：** OPSX 工作流程由定義工件序列的模式驅動。看 [客製化](customization.md) 有關建立自訂架構的詳細資訊。
 
-## Two Modes
+## 兩種模式
 
-### Default Quick Path (`core` profile)
+### 預設快速路徑 (`core` 輪廓）
 
-New installs default to `core`, which provides:
+新安裝預設為 `core`，它提供：
 - `/opsx:propose`
 - `/opsx:explore`
 - `/opsx:apply`
 - `/opsx:archive`
 
-Typical flow:
+典型流程：
 
 ```text
 /opsx:propose ──► /opsx:apply ──► /opsx:archive
 ```
 
-### Expanded/Full Workflow (custom selection)
+### 擴展/完整工作流程（自訂選擇）
 
-If you want explicit scaffold-and-build commands (`/opsx:new`, `/opsx:continue`, `/opsx:ff`, `/opsx:verify`, `/opsx:sync`, `/opsx:bulk-archive`, `/opsx:onboard`), enable them with:
+如果您想要顯式的腳手架和建置命令（`/opsx:new`, `/opsx:continue`, `/opsx:ff`, `/opsx:verify`, `/opsx:sync`, `/opsx:bulk-archive`, `/opsx:onboard`），啟用它們：
 
 ```bash
 openspec config profile
 openspec update
 ```
 
-## Workflow Patterns (Expanded Mode)
+## 工作流程模式（擴充模式）
 
-### Quick Feature
+### 快速功能
 
-When you know what you want to build and just need to execute:
+當您知道要建立什麼並且只需要執行時：
 
 ```text
 /opsx:new ──► /opsx:ff ──► /opsx:apply ──► /opsx:verify ──► /opsx:archive
 ```
 
-**Example conversation:**
+**對話範例：**
 
 ```text
 You: /opsx:new add-logout-button
@@ -94,17 +94,17 @@ AI:  ✓ Merged specs
      ✓ Archived change
 ```
 
-**Best for:** Small to medium features, bug fixes, straightforward changes.
+**最適合：** 中小型功能、錯誤修復、簡單更改。
 
-### Exploratory
+### 探索性
 
-When requirements are unclear or you need to investigate first:
+當需求不明確或需要先調查時：
 
 ```text
 /opsx:explore ──► /opsx:new ──► /opsx:continue ──► ... ──► /opsx:apply
 ```
 
-**Example conversation:**
+**對話範例：**
 
 ```text
 You: /opsx:explore
@@ -144,11 +144,11 @@ You: /opsx:continue
 AI:  Creating specs...
 ```
 
-**Best for:** Performance optimization, debugging, architectural decisions, unclear requirements.
+**最適合：** 效能最佳化、除錯、架構決策、不明確的需求。
 
-### Parallel Changes
+### 平行變化
 
-Work on multiple changes at once:
+一次處理多個更改：
 
 ```text
 Change A: /opsx:new ──► /opsx:ff ──► /opsx:apply (in progress)
@@ -158,7 +158,7 @@ Change A: /opsx:new ──► /opsx:ff ──► /opsx:apply (in progress)
 Change B: /opsx:new ──► /opsx:ff ──────► /opsx:apply
 ```
 
-**Example conversation:**
+**對話範例：**
 
 ```text
 You: I'm working on add-dark-mode but got pulled into a bug fix
@@ -189,9 +189,9 @@ AI:  Resuming add-dark-mode...
      Picking up at task 2.3: Update Header...
 ```
 
-**Best for:** Parallel work streams, urgent interrupts, team collaboration.
+**最適合：** 並行工作流程、緊急中斷、團隊合作。
 
-When you have multiple completed changes, use `/opsx:bulk-archive`:
+當您有多個已完成的變更時，請使用 `/opsx:bulk-archive`:
 
 ```text
 You: /opsx:bulk-archive
@@ -217,11 +217,11 @@ AI:  ✓ Archived add-dark-mode
      Specs merged in order: add-dark-mode → update-footer
 ```
 
-Bulk archive detects when multiple changes touch the same specs and resolves conflicts by checking what's actually implemented.
+批次存檔可偵測多個變更何時觸及相同規範，並透過檢查實際實施的內容來解決衝突。
 
-### Completing a Change
+### 完成變更
 
-The recommended completion flow:
+推薦的完成流程：
 
 ```text
 /opsx:apply ──► /opsx:verify ──► /opsx:archive
@@ -230,9 +230,9 @@ The recommended completion flow:
               implementation     if needed
 ```
 
-#### Verify: Check Your Work
+#### 驗證：檢查您的工作
 
-`/opsx:verify` validates implementation against your artifacts across three dimensions:
+`/opsx:verify` 跨三個維度驗證您的工件的實作：
 
 ```text
 You: /opsx:verify
@@ -265,19 +265,19 @@ AI:  Verifying add-auth...
      2. Consider refactoring to event-driven as designed, or update design.md
 ```
 
-**What verify checks:**
+**驗證檢查的內容：**
 
-| Dimension | What it validates |
+| 方面 | 它驗證了什麼 |
 |-----------|------------------|
-| Completeness | All tasks done, all requirements implemented, scenarios covered |
-| Correctness | Implementation matches spec intent, edge cases handled |
-| Coherence | Design decisions reflected in code, patterns consistent |
+| 完整性 | 所有任務已完成，所有要求已實現，並已覆蓋場景 |
+| 正確性 | Implementation matches spec intent, edge cases handled |
+| 連貫性 | 設計決策體現在程式碼中，模式一致 |
 
-Verify won't block archive, but it surfaces issues you might want to address first.
+驗證不會阻止存檔，但它會顯示您可能想要先解決的問題。
 
-#### Archive: Finalize the Change
+#### 存檔：完成更改
 
-`/opsx:archive` completes the change and moves it to the archive:
+`/opsx:archive` 完成更改並將其移至存檔：
 
 ```text
 You: /opsx:archive
@@ -301,39 +301,39 @@ AI:  ✓ Synced specs to openspec/specs/auth/spec.md
      Change archived successfully.
 ```
 
-Archive will prompt if specs aren't synced. It won't block on incomplete tasks, but it will warn you.
+如果規格未同步，存檔將提示。它不會阻止未完成的任務，但會警告您。
 
-## When to Use What
+## 何時使用什麼
 
-### `/opsx:ff` vs `/opsx:continue`
+### `/opsx:ff` 與 `/opsx:continue`
 
-| Situation | Use |
+| 情況 | 使用 |
 |-----------|-----|
-| Clear requirements, ready to build | `/opsx:ff` |
-| Exploring, want to review each step | `/opsx:continue` |
-| Want to iterate on proposal before specs | `/opsx:continue` |
-| Time pressure, need to move fast | `/opsx:ff` |
-| Complex change, want control | `/opsx:continue` |
+| 明確需求，準備構建 | `/opsx:ff` |
+| 探索中，想回顧每一步 | `/opsx:continue` |
+| 想要在規格之前迭代提案 | `/opsx:continue` |
+| 時間緊迫，需要快速行動 | `/opsx:ff` |
+| 複雜的變化，需要控制 | `/opsx:continue` |
 
-**Rule of thumb:** If you can describe the full scope upfront, use `/opsx:ff`. If you're figuring it out as you go, use `/opsx:continue`.
+**經驗法則：** 如果您可以預先描述完整範圍，請使用 `/opsx:ff`。如果您邊走邊想，請使用 `/opsx:continue`.
 
-### When to Update vs Start Fresh
+### 何時更新與重新開始
 
-A common question: when is updating an existing change okay, and when should you start a new one?
+一個常見的問題：什麼時候可以更新現有的更改，什麼時候應該開始新的更改？
 
-**Update the existing change when:**
+**在以下情況下更新現有變更：**
 
-- Same intent, refined execution
-- Scope narrows (MVP first, rest later)
-- Learning-driven corrections (codebase isn't what you expected)
-- Design tweaks based on implementation discoveries
+- 相同的意圖，精細的執行
+- 範圍縮小（MVP優先，其餘稍後）
+- 學習驅動的修正（程式碼庫不是你所期望的）
+- 根據實施發現進行設計調整
 
-**Start a new change when:**
+**在以下情況下開始新的變更：**
 
-- Intent fundamentally changed
-- Scope exploded to different work entirely
-- Original change can be marked "done" standalone
-- Patches would confuse more than clarify
+- 意圖從根本上改變了
+- 範圍完全擴展到不同的工作
+- 原始更改可以獨立標記為“完成”
+- 補丁只會讓人困惑而不是澄清
 
 ```text
                      ┌─────────────────────────────────────┐
@@ -355,27 +355,27 @@ A common question: when is updating an existing change okay, and when should you
     UPDATE            NEW  UPDATE       NEW  UPDATE          NEW
 ```
 
-**Example: "Add dark mode"**
+**範例：「新增深色模式」**
 
-- "Need to also support custom themes" → New change (scope exploded)
-- "System preference detection is harder than expected" → Update (same intent)
-- "Let's ship toggle first, add preferences later" → Update then archive, then new change
+- 「還需要支援自訂主題」→新變化（範圍爆炸）
+- 「系統偏好偵測比預期更難」→更新（相同意圖）
+- 「讓我們先發布切換，稍後添加首選項」 → 更新，然後存檔，然後進行新更改
 
-## Best Practices
+## 最佳實踐
 
-### Keep Changes Focused
+### 保持變革的重點
 
-One logical unit of work per change. If you're doing "add feature X and also refactor Y", consider two separate changes.
+每個變更一個邏輯工作單元。如果您正在執行“新增功能 X 並重構 Y”，請考慮兩個單獨的變更。
 
-**Why it matters:**
-- Easier to review and understand
-- Cleaner archive history
-- Can ship independently
-- Simpler rollback if needed
+**為什麼重要：**
+- 更容易檢視和理解
+- 更清晰的存檔歷史記錄
+- 可獨立出貨
+- 如果需要更簡單的回滾
 
-### Use `/opsx:explore` for Unclear Requirements
+### 使用 `/opsx:explore` 對於不明確的要求
 
-Before committing to a change, explore the problem space:
+在做出改變之前，先探索問題空間：
 
 ```text
 You: /opsx:explore
@@ -395,11 +395,11 @@ AI:  Let me investigate your current setup and options...
      Your current stack suggests #1 or #2. What's your scale?
 ```
 
-Exploration clarifies thinking before you create artifacts.
+在建立工件之前，探索可以澄清思路。
 
-### Verify Before Archiving
+### 存檔前驗證
 
-Use `/opsx:verify` to check implementation matches artifacts:
+使用 `/opsx:verify` 檢查實作是否符合工件：
 
 ```text
 You: /opsx:verify
@@ -413,11 +413,11 @@ AI:  Verifying add-dark-mode...
      Ready to archive!
 ```
 
-Catches mismatches before you close out the change.
+在結束變更之前捕獲不匹配的情況。
 
-### Name Changes Clearly
+### 名稱變更一目了然
 
-Good names make `openspec list` useful:
+好名字讓人 `openspec list` 有用：
 
 ```text
 Good:                          Avoid:
@@ -427,25 +427,25 @@ optimize-product-query         changes
 implement-2fa                  wip
 ```
 
-## Command Quick Reference
+## 指令快速參考
 
-For full command details and options, see [Commands](commands.md).
+有關完整命令詳細資訊和選項，請參閱 [命令](commands.md).
 
-| Command | Purpose | When to Use |
+| 命令 | 目的 | 何時使用 |
 |---------|---------|-------------|
-| `/opsx:propose` | Create change + planning artifacts | Fast default path (`core` profile) |
-| `/opsx:explore` | Think through ideas | Unclear requirements, investigation |
-| `/opsx:new` | Start a change scaffold | Expanded mode, explicit artifact control |
-| `/opsx:continue` | Create next artifact | Expanded mode, step-by-step artifact creation |
-| `/opsx:ff` | Create all planning artifacts | Expanded mode, clear scope |
-| `/opsx:apply` | Implement tasks | Ready to write code |
-| `/opsx:verify` | Validate implementation | Expanded mode, before archiving |
-| `/opsx:sync` | Merge delta specs | Expanded mode, optional |
-| `/opsx:archive` | Complete the change | All work finished |
-| `/opsx:bulk-archive` | Archive multiple changes | Expanded mode, parallel work |
+| `/opsx:propose` | 建立變更+規劃工件 | 快速預設路徑（`core` 輪廓） |
+| `/opsx:explore` | 透過想法思考 | 要求不明確，調查 |
+| `/opsx:new` | 啟動變革鷹架 | 擴展模式，顯式工件控制 |
+| `/opsx:continue` | 建立下一個工件 | 擴充模式，一步步建立工件 |
+| `/opsx:ff` | 建立所有計劃工件 | 擴展模式，範圍清晰 |
+| `/opsx:apply` | 落實任務 | 準備寫程式碼了 |
+| `/opsx:verify` | 驗證實施 | 歸檔前的擴充模式 |
+| `/opsx:sync` | 合併增量規格 | 擴展模式，可選 |
+| `/opsx:archive` | 完成變更 | 全部工作完成 |
+| `/opsx:bulk-archive` | 存檔多項更改 | 擴展模式，並行工作 |
 
-## Next Steps
+## 下一步
 
-- [Commands](commands.md) - Full command reference with options
-- [Concepts](concepts.md) - Deep dive into specs, artifacts, and schemas
-- [Customization](customization.md) - Create custom workflows
+- [命令](commands.md) - 帶有選項的完整命令參考
+- [概念](concepts.md) - 深入研究規格、工件和模式
+- [客製化](customization.md) - 建立自訂工作流程

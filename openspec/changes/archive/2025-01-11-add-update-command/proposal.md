@@ -1,29 +1,29 @@
-# Add Update Command
+# 新增更新命令
 
-## Why
+## 為什麼
 
-Users need a way to update their local OpenSpec instructions (README.md and CLAUDE.md) when the OpenSpec package releases new versions with improved AI agent instructions or structural conventions.
+當 OpenSpec 軟體包發布具有改進的 AI 代理指令或結構約定的新版本時，使用者需要一種方法來更新其本地 OpenSpec 指令（README.md 和 CLAUDE.md）。
 
-## What Changes
+## 有什麼變化
 
-- Add new `openspec update` CLI command that updates OpenSpec instructions
-- Replace `openspec/README.md` with the latest template
-  - Safe because this file is fully OpenSpec-managed
-- Update only the OpenSpec-managed block in `CLAUDE.md` using markers
-  - Preserve all user content outside markers
-  - If `CLAUDE.md` is missing, create it with the managed block
-- Display success message after update (ASCII-safe): "Updated OpenSpec instructions"
-  - A leading checkmark MAY be shown when the terminal supports it
-  - Operation is idempotent (re-running yields identical results)
+- 新增新的 `openspec update` 更新OpenSpec指令的CLI命令
+- 代替 `openspec/README.md` 與最新的模板
+  - 安全，因為此文件完全由 OpenSpec 管理
+- 僅更新 OpenSpec 管理的區塊 `CLAUDE.md` 使用標記
+  - 保留標記以外的所有使用者內容
+  - 如果 `CLAUDE.md` 丟失，使用託管區塊建立它
+- 更新後顯示成功訊息（ASCII-safe）：“已更新 OpenSpec 說明”
+  - 當終端支援時，可能會顯示前導複選標記
+  - 操作是冪等的（重新執行會產生相同的結果）
 
-## Impact
+## 影響
 
-- Affected specs: `cli-update` (new capability)
-- Affected code:
-  - `src/core/update.ts` (new command class, mirrors `InitCommand` placement)
-  - `src/cli/index.ts` (register new command)
-  - Uses existing templates via `TemplateManager` and `readmeTemplate`
+- 受影響的規格： `cli-update` （新能力）
+- 受影響的代碼：
+  - `src/core/update.ts` （新命令類，鏡像 `InitCommand` 放置）
+  - `src/cli/index.ts` （註冊新指令）
+  - 透過使用現有模板 `TemplateManager` 和 `readmeTemplate`
 
-## Out of Scope
+## 超出範圍
 
-- No `.openspec/config.json` is introduced by this change. The default directory name `openspec` is used.
+- 不 `.openspec/config.json` 是由這項變更引入的。預設目錄名稱 `openspec` 被使用。

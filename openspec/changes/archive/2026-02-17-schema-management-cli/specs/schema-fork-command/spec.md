@@ -1,66 +1,66 @@
-## ADDED Requirements
+## 新增要求
 
-### Requirement: Schema fork copies existing schema
-The CLI SHALL provide an `openspec schema fork <source> [name]` command that copies an existing schema to the project's `openspec/schemas/` directory.
+### 要求：模式分支複製現有模式
+CLI 應提供 `openspec schema fork <source> [name]` 將現有模式複製到專案的命令 `openspec/schemas/` 目錄。
 
-#### Scenario: Fork with explicit name
-- **WHEN** user runs `openspec schema fork spec-driven my-custom`
-- **THEN** system locates `spec-driven` schema using resolution order (project → user → package)
-- **AND** copies all files to `openspec/schemas/my-custom/`
-- **AND** updates `name` field in `schema.yaml` to `my-custom`
-- **AND** displays success message with source and destination paths
+#### 場景：具有明確名稱的分叉
+- **何時** 使用者執行 `openspec schema fork spec-driven my-custom`
+- **那麼**系統定位 `spec-driven` 使用解析順序的模式（項目→使用者→套件）
+- **並且**將所有文件複製到 `openspec/schemas/my-custom/`
+- **和**更新 `name` 領域在 `schema.yaml` 到 `my-custom`
+- **AND** 顯示具有來源路徑和目標路徑的成功訊息
 
-#### Scenario: Fork with default name
-- **WHEN** user runs `openspec schema fork spec-driven` without specifying a name
-- **THEN** system copies to `openspec/schemas/spec-driven-custom/`
-- **AND** updates `name` field in `schema.yaml` to `spec-driven-custom`
+#### 場景：具有預設名稱的分叉
+- **何時** 使用者執行 `openspec schema fork spec-driven` 不指定名稱
+- **那麼**系統複製到 `openspec/schemas/spec-driven-custom/`
+- **和**更新 `name` 領域在 `schema.yaml` 到 `spec-driven-custom`
 
-#### Scenario: Source schema not found
-- **WHEN** user runs `openspec schema fork nonexistent`
+#### 場景：找不到來源架構
+- **何時** 使用者執行 `openspec schema fork nonexistent`
 - **THEN** system displays error that schema was not found
 - **AND** lists available schemas
-- **AND** exits with non-zero code
+- **AND** 以非零代碼退出
 
-### Requirement: Schema fork prevents accidental overwrites
-The CLI SHALL require confirmation or `--force` flag when the destination schema already exists.
+### 需求：架構分叉可防止意外覆蓋
+CLI 應要求確認或 `--force` 當目標模式已存在時進行標記。
 
-#### Scenario: Destination exists without force
-- **WHEN** user runs `openspec schema fork spec-driven my-custom` and `openspec/schemas/my-custom/` exists
-- **THEN** system displays error that destination already exists
-- **AND** suggests using `--force` to overwrite
-- **AND** exits with non-zero code
+#### 場景：目的地無需強制即可存在
+- **何時** 使用者執行 `openspec schema fork spec-driven my-custom` 和 `openspec/schemas/my-custom/` 存在
+- **THEN** 系統顯示錯誤，目的地已存在
+- **和**建議使用 `--force` 覆蓋
+- **AND** 以非零代碼退出
 
-#### Scenario: Destination exists with force flag
-- **WHEN** user runs `openspec schema fork spec-driven my-custom --force` and destination exists
-- **THEN** system removes existing destination directory
-- **AND** copies source schema to destination
-- **AND** displays success message
+#### 場景：存在強制標誌的目的地
+- **何時** 使用者執行 `openspec schema fork spec-driven my-custom --force` 且目的地存在
+- **然後**系統刪除現有的目標目錄
+- **AND** 將來源架構複製到目標
+- **AND** 顯示成功訊息
 
-#### Scenario: Interactive confirmation for overwrite
-- **WHEN** user runs `openspec schema fork spec-driven my-custom` in interactive mode and destination exists
-- **THEN** system prompts for confirmation to overwrite
-- **AND** proceeds based on user response
+#### 場景：互動式確認覆蓋
+- **何時** 使用者執行 `openspec schema fork spec-driven my-custom` 處於互動模式且目的地存在
+- **THEN**系統提示確認覆蓋
+- **和** 根據用戶回應進行收益
 
-### Requirement: Schema fork preserves all schema files
-The CLI SHALL copy the complete schema directory including templates, configuration, and any additional files.
+### 要求：模式分支保留所有模式文件
+CLI 應複製完整的架構目錄，包括範本、設定和任何其他檔案。
 
-#### Scenario: Copy includes template files
-- **WHEN** user forks a schema with template files (e.g., `proposal.md`, `design.md`)
-- **THEN** all template files are copied to the destination
-- **AND** template file contents are unchanged
+#### 場景：副本包含範本文件
+- **何時** 使用者使用模板檔案分叉模式（例如， `proposal.md`, `design.md`)
+- **然後** 所有範本檔案都會複製到目標位置
+- **並且** 範本文件內容不變
 
-#### Scenario: Copy includes nested directories
-- **WHEN** user forks a schema with nested directories (e.g., `templates/specs/`)
-- **THEN** nested directory structure is preserved
-- **AND** all nested files are copied
+#### 場景：複製包含嵌套目錄
+- **何時** 使用者分叉具有巢狀目錄的模式（例如， `templates/specs/`)
+- **那麼** 巢狀目錄結構被保留
+- **並且** 所有巢狀檔案都被複製
 
-### Requirement: Schema fork outputs JSON format
-The CLI SHALL support `--json` flag for machine-readable output.
+### 需求：模式分支輸出 JSON 格式
+CLI 應支援 `--json` 機器可讀輸出的標誌。
 
-#### Scenario: JSON output on success
-- **WHEN** user runs `openspec schema fork spec-driven my-custom --json`
-- **THEN** system outputs JSON with `forked: true`, `source`, `destination`, and `sourcePath` fields
+#### 場景：成功時輸出JSON
+- **何時** 使用者執行 `openspec schema fork spec-driven my-custom --json`
+- **那麼** 系統輸出 JSON `forked: true`, `source`, `destination`， 和 `sourcePath` 領域
 
-#### Scenario: JSON output shows source location
-- **WHEN** user runs `openspec schema fork spec-driven --json`
-- **THEN** JSON output includes `sourceLocation` field indicating "project", "user", or "package"
+#### 場景：JSON 輸出顯示來源位置
+- **何時** 使用者執行 `openspec schema fork spec-driven --json`
+- **那麼** JSON 輸出包括 `sourceLocation` 指示「項目」、「使用者」或「包」的字段

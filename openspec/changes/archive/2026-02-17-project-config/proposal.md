@@ -1,25 +1,25 @@
-# Project Config
+# 專案設定
 
-## Summary
+## 概括
 
-Add `openspec/config.yaml` support for project-level configuration. This enables teams to customize OpenSpec behavior without forking schemas, by providing context and rules that are injected into artifact generation.
+添加 `openspec/config.yaml` 支援專案級設定。這使團隊能夠透過提供注入到工件生成中的上下文和規則來自訂 OpenSpec 行為，而無需分叉架構。
 
-## Motivation
+## 動機
 
-Currently, customizing OpenSpec requires forking entire schemas:
-- Must copy all files even to add one rule
-- Lose updates when openspec upgrades
-- High friction for simple customizations
+目前，自訂 OpenSpec 需要分叉整個架構：
+- 即使新增一條規則也必須複製所有文件
+- openspec 升級時遺失更新
+- 高摩擦力，可進行簡單定制
 
-Most users don't need different workflow structure. They need to:
-- Provide project context (tech stack, conventions, constraints)
-- Add rules for specific artifacts (requirements, formatting preferences)
+大多數使用者不需要不同的工作流程結構。他們需要：
+- 提供專案背景（技術堆疊、約定、約束）
+- 新增特定工件的規則（需求、格式首選項）
 
-## Design Decisions
+## 設計決策
 
-### Two-Path Model
+### 雙路徑模型
 
-OpenSpec customization follows two distinct paths:
+OpenSpec 客製化遵循兩條不同的路徑：
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -39,7 +39,7 @@ OpenSpec customization follows two distinct paths:
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Config Schema
+### 設定模式
 
 ```yaml
 # openspec/config.yaml
@@ -67,42 +67,42 @@ rules:
     - Include acceptance criteria
 ```
 
-### What's NOT in Config
+### 設定中沒有什麼
 
-The following were explicitly excluded to keep the model simple:
+為了保持模型簡單，明確排除了以下內容：
 
-| Feature | Decision | Rationale |
+| 特徵 | 決定 | 基本原理 |
 |---------|----------|-----------|
-| `skip: [artifact]` | Not supported | Structural changes belong in fork path |
-| `add: [{...}]` | Not supported | Structural changes belong in fork path |
-| `extends: base` | Not supported | No inheritance, fork is full copy |
-| `context: ./file.md` | Not supported (yet) | Start with string, add file reference later if needed |
+| `skip: [artifact]` | 不支援 | 結構性變化屬於岔路 |
+| `add: [{...}]` | 不支援 | 結構性變化屬於岔路 |
+| `extends: base` | 不支援 | 沒有繼承，fork 是完整副本 |
+| `context: ./file.md` | 不支援（尚） | 從字串開始，如果需要，稍後新增文件引用 |
 
-### Field Definitions
+### 欄位定義
 
-#### `schema` (required)
+#### `schema` （必需的）
 
-Which workflow schema to use. Can be:
-- Built-in name: `spec-driven`, `tdd`
-- Project-local schema name: `my-workflow` (requires project-local-schemas change)
+使用哪種工作流程架構。可以是：
+- 內建名稱： `spec-driven`, `tdd`
+- 專案本地架構名稱： `my-workflow` （需要專案本地模式變更）
 
-This becomes the default schema for:
-- New changes created without `--schema` flag
-- Commands run on changes without `.openspec.yaml` metadata
+這成為以下內容的預設架構：
+- 沒有建立的新更改 `--schema` 旗幟
+- 命令在更改時執行，無需 `.openspec.yaml` 元資料
 
-#### `context` (optional)
+#### `context` （選修的）
 
-A string containing project context. Injected into ALL artifact prompts.
+包含項目上下文的字串。注入所有工件提示中。
 
-Use cases:
-- Tech stack description
-- Link to conventions/style guides
-- Team constraints or preferences
-- Domain-specific context
+使用案例：
+- 技術堆疊描述
+- 連結到約定/風格指南
+- 團隊限製或偏好
+- 特定領域的上下文
 
-#### `rules` (optional)
+#### `rules` （選修的）
 
-Per-artifact rules, keyed by artifact ID. Additive to schema's built-in guidance.
+每個工件的規則，由工件 ID 鍵入。模式內建指導的補充。
 
 ```yaml
 rules:
@@ -111,11 +111,11 @@ rules:
     - Rule 2
 ```
 
-Rules are injected into the specific artifact's prompt, not all prompts.
+規則被注入到特定工件的提示中，而不是所有提示中。
 
-### Injection Format
+### 注射形式
 
-When generating instructions for an artifact:
+為工件產生指令時：
 
 ```xml
 <context>
@@ -134,22 +134,22 @@ API style: RESTful, documented in docs/api-conventions.md
 </template>
 ```
 
-Context appears for all artifacts. Rules only appear for the matching artifact.
+所有工件都會出現上下文。規則僅針對符合的工件出現。
 
-### Config Creation Strategy
+### 設定建立策略
 
-**Why integrate with `artifact-experimental-setup`?**
+**為什麼要集成 `artifact-experimental-setup`?**
 
-This feature targets **experimental workflow users**. The decision to create config during experimental setup (rather than providing standalone commands) is intentional:
+此功能針對**實驗工作流程使用者**。在實驗設定期間建立設定（而不是提供獨立命令）的決定是有意的：
 
-**Rationale:**
-1. **Single entry point** - Users setting up experimental features are already in "configuration mode"
-2. **Contextual timing** - Natural to configure project defaults when setting up workflow
-3. **Avoids premature API surface** - No standalone `openspec config init` until feature graduates
-4. **Experimental scope** - Keeps config as experimental feature, not stable API
-5. **Progressive disclosure** - Users can skip and create manually later if needed
+**理由：**
+1. **單一入口點** - 設定實驗功能的使用者已處於“設定模式”
+2. **上下文計時** - 設定工作流程時自然設定項目預設值
+3. **避免過早的 API 表面** - 無獨立 `openspec config init` 直到特色畢業
+4. **實驗範圍** - 將設定保留為實驗功能，不穩定API
+5. **漸進式揭露** - 使用者可以根據需要跳過並稍後手動建立
 
-**Evolution path:**
+**進化路徑：**
 
 ```
 Today (Experimental):
@@ -170,52 +170,52 @@ Future (When graduating):
     openspec config set <key> <value>
 ```
 
-**Why optional?**
+**為什麼是可選的？ **
 
-Config is **additive**, not required:
-- OpenSpec works without config (uses defaults)
-- Users can skip during setup and add manually later
-- Teams can start simple and add config when they feel friction
-- No config file in git = no problem, everyone gets defaults
+設定是**附加**，不是必要的：
+- OpenSpec 無需設定即可運作（使用預設值）
+- 用戶可以在設定過程中跳過並稍後手動新增
+- 團隊可以從簡單的開始，並在感到摩擦時添加設定
+- git 中沒有設定檔=沒問題，每個人都得到預設值
 
-**Design principle:** The system never *requires* config, but makes it easy to create when users want customization.
+**設計原則：**系統從不*需要*設定，但在使用者需要自訂時可以輕鬆建立。
 
-## Scope
+## 範圍
 
-### In Scope
+### 範圍內
 
-**Core Config System:**
-- Define `ProjectConfig` type with Zod schema
-- Add `readProjectConfig()` function with graceful error handling
-- Update instruction generation to inject context (all artifacts)
-- Update instruction generation to inject rules (per-artifact)
-- Update schema resolution to use config's `schema` field as default
-- Update `openspec new change` to use config's schema as default
+**核心設定系統：**
+- 定義 `ProjectConfig` 使用 Zod 模式輸入
+- 添加 `readProjectConfig()` 具有優雅錯誤處理功能的函數
+- 更新指令產生以注入上下文（所有工件）
+- 更新指令產生以注入規則（每個工件）
+- 更新架構解析以使用設定 `schema` 欄位設為預設值
+- 更新 `openspec new change` 使用設定的模式作為預設值
 
-**Config Creation (Experimental Setup):**
-- Extend `artifact-experimental-setup` command to optionally create config
-- Interactive prompts for schema selection (with description of each schema)
-- Interactive prompts for project context (optional multi-line input)
-- Interactive prompts for per-artifact rules (optional)
-- Validate config immediately after creation
-- Show clear "skip" option for users who want to create config manually later
-- Display created config location and usage examples
+**設定建立（實驗設定）：**
+- 延長 `artifact-experimental-setup` 選擇性地建立設定的命令
+- 模式選擇的互動式提示（帶有每個模式的描述）
+- 項目上下文的互動式提示（可選多行輸入）
+- 每個工件規則的互動式提示（可選）
+- 建立後立即驗證設定
+- 為稍後想要手動建立設定的使用者顯示清晰的「跳過」選項
+- 顯示建立的設定位置和使用範例
 
-### Out of Scope
+### 超出範圍
 
-- `skip` / `add` for structural changes (use fork path for structural changes)
-- File reference for context (`context: ./CONTEXT.md`) - start with string, add later if needed
-- Global user-level config (XDG directories, etc.)
-- Integration with standard `openspec init` (will add when experimental graduates)
-- Standalone `openspec config init` command (may add in future change)
-- `openspec config validate` command (may add in future change)
-- Config editing/updating commands (users edit YAML directly)
+- `skip` / `add` 用於結構變化（使用分叉路徑進行結構變化）
+- 上下文的文件參考（`context: ./CONTEXT.md`) - 以字串開頭，如果需要稍後添加
+- 全域用戶級設定（XDG目錄等）
+- 與標準集成 `openspec init` （實驗畢業生時會添加）
+- 獨立式 `openspec config init` 命令（可能會在將來的更改中添加）
+- `openspec config validate` 命令（可能會在將來的更改中添加）
+- 設定編輯/更新命令（用戶直接編輯YAML）
 
-## User Experience
+## 使用者體驗
 
-### Setting Up Config (Experimental Workflow)
+### 設定設定（實驗工作流程）
 
-When users set up the experimental workflow, they're prompted to optionally create config:
+當使用者設定實驗工作流程時，系統會提示他們選擇建立設定：
 
 ```bash
 $ openspec artifact-experimental-setup
@@ -301,17 +301,17 @@ To share with team:
 [Rest of experimental setup output...]
 ```
 
-**Key UX decisions:**
+**關鍵的使用者體驗決策：**
 
-1. **Prompted during setup** - Natural place since users are already configuring experimental features
-2. **Optional at every step** - Clear skip options, no forced configuration
-3. **Guided prompts** - Schema descriptions, example context, artifact selection
-4. **Immediate validation** - Config is validated after creation, errors shown immediately
-5. **Clear output** - Shows exactly what was created and how it affects workflow
+1. **安裝過程中提示** - 自然的地方，因為使用者已經在設定實驗性功能
+2. **每一步可選** - 清除跳過選項，無強製設定
+3. **引導提示** - 模式描述、範例上下文、工件選擇
+4. **立即驗證** - 設定在建立後進行驗證，錯誤立即顯示
+5. **清晰的輸出** - 準確顯示建立的內容以及它如何影響工作流程
 
-### Setting Up Config (Manual Creation)
+### 設定設定（手動建立）
 
-Users can also create config manually (or skip during setup and add later):
+使用者也可以手動建立設定（或在設定過程中跳過並稍後新增）：
 
 ```bash
 # Create config file manually
@@ -332,11 +332,11 @@ rules:
 EOF
 ```
 
-### Effect on Workflow
+### 對工作流程的影響
 
-Once config is created, it affects the experimental workflow in three ways:
+建立設定後，它會透過三種方式影響實驗工作流程：
 
-**1. Default Schema Selection**
+**1.預設架構選擇**
 
 ```bash
 # Before config: must specify schema
@@ -351,7 +351,7 @@ Once config is created, it affects the experimental workflow in three ways:
 # Uses tdd, ignoring config
 ```
 
-**2. Context Injection (All Artifacts)**
+**2.上下文注入（所有工件）**
 
 ```bash
 # Get instructions for any artifact
@@ -370,9 +370,9 @@ We value backwards compatibility for all public APIs
 </template>
 ```
 
-Context appears in instructions for **all artifacts** (proposal, specs, design, tasks).
+上下文出現在**所有工件**（提案、規格、設計、任務）的說明中。
 
-**3. Rules Injection (Per-Artifact)**
+**3.規則注入（每個工件）**
 
 ```bash
 # Get instructions for artifact with rules configured
@@ -393,16 +393,16 @@ openspec instructions specs --change my-feature
 </template>
 ```
 
-Rules only appear for the **specific artifact** they're configured for.
+規則僅針對其設定的**特定工件**顯示。
 
-**Artifacts without rules** (e.g., design, tasks) don't get a `<rules>` section:
+**沒有規則的工件**（例如設計、任務）不會得到 `<rules>` 部分：
 
 ```bash
 openspec instructions design --change my-feature
 # Output: <context> then <template> only (no rules)
 ```
 
-### Team Sharing
+### 團隊分享
 
 ```bash
 # Commit config
@@ -412,26 +412,26 @@ git commit -m "Add project config with context and rules"
 # Everyone gets the same context and rules automatically
 ```
 
-## Implementation Notes
+## 實施說明
 
-### Files to Modify/Create
+### 要修改/建立的文件
 
-| File | Changes |
+| 文件 | 變化 |
 |------|---------|
-| `src/core/project-config.ts` | **NEW FILE:** Types, parsing, reading, validation helpers |
-| `src/core/artifact-graph/instruction-loader.ts` | Inject context (all artifacts) and rules (per-artifact) |
-| `src/utils/change-utils.ts` | Use config schema as default in `createChange()` |
-| `src/utils/change-metadata.ts` | Update `resolveSchemaForChange()` to check config |
-| `src/commands/artifact-workflow.ts` | Extend `artifactExperimentalSetupCommand()` to prompt for config creation |
-| `src/core/config-prompts.ts` | **NEW FILE:** Interactive prompts for config creation (reusable) |
+| `src/core/project-config.ts` | **新檔案：** 類型、解析、讀取、驗證助手 |
+| `src/core/artifact-graph/instruction-loader.ts` | 注入上下文（所有工件）和規則（每個工件） |
+| `src/utils/change-utils.ts` | 使用設定模式作為預設值 `createChange()` |
+| `src/utils/change-metadata.ts` | 更新 `resolveSchemaForChange()` 檢查設定 |
+| `src/commands/artifact-workflow.ts` | 延長 `artifactExperimentalSetupCommand()` 提示建立設定 |
+| `src/core/config-prompts.ts` | **新檔案：** 設定建立的互動式提示（可重複使用） |
 
-### Config Location
+### 設定位置
 
-Always at `./openspec/config.yaml` relative to project root. No XDG/global config for simplicity.
+始終在 `./openspec/config.yaml` 相對於專案根目錄。為了簡單起見，沒有 XDG/全域設定。
 
-### Resolution Order Update
+### 決議訂單更新
 
-Schema selection order becomes:
+模式選擇順序變成：
 
 ```
 1. --schema CLI flag                    # Explicit override
@@ -440,71 +440,71 @@ Schema selection order becomes:
 4. "spec-driven"                        # Hardcoded fallback
 ```
 
-### Validation
+### 驗證
 
-- `schema` must be a valid schema name (exists in resolution)
-- `context` must be string
-- `rules` must be object with string keys (artifact IDs) and array values
-- Unknown artifact IDs in `rules` should warn, not error (allows forward compat)
+- `schema` 必須是有效的架構名稱（存在於解析中）
+- `context` 必須是字串
+- `rules` 必須是帶有字串鍵（工件 ID）和陣列值的對象
+- 中的未知工件 ID `rules` 應該警告，而不是錯誤（允許向前兼容）
 
-### Experimental Setup Integration
+### 實驗設定集成
 
-**Changes to `artifactExperimentalSetupCommand()` in `src/commands/artifact-workflow.ts`:**
+**更改為 `artifactExperimentalSetupCommand()` 在 `src/commands/artifact-workflow.ts`:**
 
-After creating skills and commands, the setup command will:
+建立技能和命令後，設定命令將：
 
-1. **Display section header:**
+1. **顯示節標題：**
    ```
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    📋 Project Configuration (Optional)
    Configure project defaults for OpenSpec workflows.
    ```
 
-2. **Prompt: Create config?**
-   - Yes/No prompt with default "Yes"
-   - If No → skip entire config section, show usage instructions
-   - If Yes → continue to detailed prompts
+2. **提示：创建設定？ **
+   - 是/否提示，預設“是”
+   - 如果否 → 跳過整個設定部分，顯示使用說明
+   - 如果是 → 繼續詳細提示
 
-3. **Prompt: Schema selection**
-   - Use `listSchemasWithInfo()` to get available schemas
-   - Display each with description and artifact flow
-   - Default to first schema (likely "spec-driven")
+3. **提示：架構選擇**
+   - 使用 `listSchemasWithInfo()` 取得可用的模式
+   - 顯示每個內容的描述和工件流程
+   - 預設為第一個模式（可能是“規範驅動”）
 
-4. **Prompt: Project context**
-   - Multi-line input (or editor if available)
-   - Show examples: "tech stack, conventions, style guides"
-   - Allow empty (skip)
+4. **提示：專案背景**
+   - 多行輸入（或編輯器，如果可用）
+   - 顯示範例：“技術堆疊、約定、風格指南”
+   - 允許為空（跳過）
 
-5. **Prompt: Per-artifact rules**
-   - Yes/No prompt, default "No" (rules are less common)
-   - If Yes:
+5. **提示：每個工件的規則**
+   - 是/否提示，預設“否”（規則不太常見）
+   - 如果是：
      - Show checklist of artifacts from selected schema
      - For each selected artifact, prompt for rules (line-by-line input)
      - Allow empty line to finish each artifact's rules
 
-6. **Create and validate config:**
-   - Build `ProjectConfig` object from inputs
-   - Validate with Zod schema
-   - Write to `openspec/config.yaml` using YAML serializer
-   - If validation fails, show error and ask to retry or skip
+6. **建立並驗證設定：**
+   - 建造 `ProjectConfig` 來自輸入的對象
+   - 使用 Zod 架構進行驗證
+   - 寫信給 `openspec/config.yaml` 使用 YAML 序列化器
+   - 如果驗證失敗，顯示錯誤並要求重試或跳過
 
-7. **Display success summary:**
-   - Path to created config
-   - Summary: schema used, context added (line count), rules count
-   - Usage examples showing how config affects workflow
-   - Suggestion to commit config to git
+7. **顯示成功摘要：**
+   - 建立的設定的路徑
+   - 摘要：使用的模式、新增的上下文（行數）、規則數
+   - 顯示設定如何影響工作流程的用法範例
+   - 建議將設定提交到 git
 
-**Error handling:**
-- Invalid schema selection → show available schemas with fuzzy match suggestions, retry
-- Context too large (>50KB) → reject with error, ask to reduce size
-- Rules reference invalid artifact → warn but continue (forward compat)
-- File write fails → show error, suggest manual creation
-- Config already exists → show message, skip config section, continue with setup
-- User cancellation (Ctrl+C) → log "Config creation cancelled", continue with rest of setup (skills/commands already created)
+**錯誤處理：**
+- 模式選擇無效 → 顯示可用模式以及模糊匹配建議，然後重試
+- 上下文太大 (>50KB) → 錯誤拒絕，要求減少大小
+- 規則引用無效工件 → 警告但繼續（前向相容）
+- 文件寫入失敗→顯示錯誤，建議手動建立
+- 設定已存在 → 顯示訊息，跳過設定部分，繼續設定
+- 使用者取消 (Ctrl+C) → 記錄“設定建立已取消”，繼續其餘設定（技能/指令已建立）
 
-**If config already exists:**
+**如果設定已經存在：**
 
-When `openspec/config.yaml` already exists:
+什麼時候 `openspec/config.yaml` 已經存在：
 
 ```bash
 $ openspec artifact-experimental-setup
@@ -526,11 +526,11 @@ $ openspec artifact-experimental-setup
 [Rest of setup output...]
 ```
 
-This prevents accidentally overwriting user's config.
+這可以防止意外覆蓋使用者的設定。
 
-**Implementation approach:**
+**實施方式：**
 
-Create separate `src/core/config-prompts.ts` module:
+建立單獨的 `src/core/config-prompts.ts` 模組：
 
 ```typescript
 export interface ConfigPromptResult {
@@ -547,7 +547,7 @@ export async function promptForConfig(): Promise<ConfigPromptResult> {
 }
 ```
 
-**Ctrl+C handling in setup command:**
+**設定指令中的 Ctrl+C 處理：**
 
 ```typescript
 try {
@@ -568,50 +568,50 @@ try {
 }
 ```
 
-This keeps prompts reusable and testable separately from the setup command.
+這使得提示可以與設定命令分開重複使用和測試。
 
-### Dependencies
+### 依賴關係
 
-**Interactive Prompting Library:**
+**互動式提示庫：**
 
-The experimental setup command will need an interactive prompting library for the config creation flow. Options:
+實驗設定指令將需要一個用於設定建立流程的互動式提示庫。選項：
 
-1. **@inquirer/prompts** (recommended)
-   - Modern, tree-shakeable, TypeScript-first
-   - Individual imports: `@inquirer/input`, `@inquirer/confirm`, `@inquirer/checkbox`, `@inquirer/editor`
-   - Already used in OpenSpec (if not, lightweight addition)
+1. **@inquirer/prompts**（推薦）
+   - 現代，可搖樹，TypeScript-first
+   - 單獨進口： `@inquirer/input`, `@inquirer/confirm`, `@inquirer/checkbox`, `@inquirer/editor`
+   - 已在OpenSpec中使用（如果沒有，輕量添加）
 
-2. **inquirer** (classic)
-   - More established, larger ecosystem
-   - Heavier bundle size
-   - Single package with all prompt types
+2. **詢問者**（經典）
+   - 更成熟、更大的生態系統
+   - 較重 bun 尺寸
+   - 具有所有提示類型的單一套件
 
-**Prompts needed:**
-- `confirm` - "Create config?" "Add rules?"
-- `select` - Schema selection with descriptions
-- `editor` or multi-line `input` - Project context
-- `checkbox` - Artifact selection for rules
-- `input` (repeated) - Rule entry (line-by-line)
+**需要提示：**
+- `confirm` - “建立設定？” “新增規則？”
+- `select` - 帶有描述的模式選擇
+- `editor` 或多行 `input` - 專案背景
+- `checkbox` - 規則的工件選擇
+- `input` （重複） - 規則輸入（逐行）
 
-**Alternative (no dependency):**
+**替代方案（無依賴性）：**
 
-Use Node's built-in `readline` for basic prompts:
-- More code to write
-- Less polished UX (no arrow key navigation, checkbox selection)
-- Zero dependency cost
+使用 Node 的內建 `readline` 對於基本提示：
+- 更多程式碼需要編寫
+- 不太完善的使用者體驗（沒有箭頭鍵導航，核取方塊選擇）
+- 零依賴成本
 
-**Recommendation:** Use `@inquirer/prompts` for best UX. Config setup is a one-time operation where UX matters.
+**建議：** 使用 `@inquirer/prompts` 以獲得最佳使用者體驗。設定設定是一項一次性操作，使用者體驗很重要。
 
-### YAML Serialization
+### YAML 序列化
 
-Config creation needs YAML serialization:
+設定建立需要 YAML 序列化：
 
-- **yaml** package (already a dependency)
-- Use `yaml.stringify()` to write config
-- Preserve multi-line strings with `|` literal style
-- Format: 2-space indent, no quotes unless needed
+- **yaml** 套件（已經是依賴項）
+- 使用 `yaml.stringify()` 寫入設定
+- 保留多行字串 `|` 字面風格
+- 格式：2 個空格縮進，除非需要，否則不加引號
 
-Example:
+例子：
 ```typescript
 import { stringify } from 'yaml';
 
@@ -629,76 +629,76 @@ const yamlContent = stringify(config, {
 // context will use | literal style automatically for multi-line
 ```
 
-## Testing Considerations
+## 測試注意事項
 
-**Core Config Functionality:**
-- Create config with all fields (schema, context, rules), verify parsing
-- Create minimal config (schema only), verify parsing
-- Verify context appears in instruction output for all artifacts
-- Verify rules appear only for matching artifact (not all artifacts)
-- Verify schema from config is used for new changes
-- Verify CLI `--schema` flag overrides config
-- Verify change's `.openspec.yaml` overrides config
-- Verify graceful handling of missing config (fallback to defaults)
-- Verify graceful handling of invalid YAML syntax (warning, fallback)
-- Verify graceful handling of invalid schema (warning, show valid schemas)
-- Verify unknown artifact IDs in rules emit warnings but don't halt
+**核心設定功能：**
+- 使用所有欄位（架構、上下文、規則）建立設定，驗證解析
+- 建立最小設定（僅模式），驗證解析
+- 驗證所有工件的指令輸出是否出現上下文
+- 驗證規則僅針對符合的工件（並非所有工件）顯示
+- 驗證設定中的架構是否用於新更改
+- 驗證CLI `--schema` 標誌覆蓋設定
+- 驗證變更 `.openspec.yaml` 覆蓋設定
+- 驗證對遺失設定的妥善處理（回退到預設值）
+- 驗證對無效 YAML 語法的優雅處理（警告、後備）
+- 驗證對無效模式的優雅處理（警告，顯示有效模式）
+- 驗證規則中的未知工件 ID 會發出警告，但不會停止
 
-**Schema Resolution Precedence:**
-- Test all four levels of schema resolution:
-  1. CLI flag `--schema` (highest priority)
-  2. Change metadata `.openspec.yaml`
-  3. Project config `openspec/config.yaml`
-  4. Hardcoded default "spec-driven" (lowest priority)
-- Verify each level correctly overrides lower levels
+**架構解析優先權：**
+- 測試所有四個層級的模式解析：
+  1. CLI 標誌 `--schema` （最高優先權）
+  2. 更改元資料 `.openspec.yaml`
+  3. 專案設定 `openspec/config.yaml`
+  4. 硬編碼預設“規範驅動”（最低優先級）
+- 驗證每個級別是否正確覆蓋較低級別
 
-**Context and Rules Injection:**
-- Verify context injection uses `<context>` XML-style tags
-- Verify rules injection uses `<rules>` XML-style tags with bullets
-- Verify injection order: `<context>` → `<rules>` → `<template>`
-- Verify multi-line context is preserved
-- Verify special characters in context/rules are not escaped
-- Verify empty context/rules don't create tags
+**上下文與規則注入：**
+- 驗證上下文注入使用 `<context>` XML 樣式標籤
+- 驗證規則注入使用 `<rules>` 帶有項目符號的 XML 樣式標籤
+- 驗證注入順序： `<context>` → `<rules>` → `<template>`
+- 驗證多行上下文是否已保留
+- 驗證上下文/規則中的特殊字元未轉義
+- 驗證空上下文/規則不會建立標籤
 
-**Experimental Setup Integration:**
-- Test `artifact-experimental-setup` with user skipping config creation
-- Test `artifact-experimental-setup` with minimal config (schema only)
-- Test `artifact-experimental-setup` with full config (schema + context + rules)
-- Test schema selection from available schemas
-- Test multi-line context input
-- Test per-artifact rules prompts
-- Test artifact selection (checkboxes)
-- Test validation errors during config creation
-- Test file write errors (permissions, etc.)
-- Verify created config can be parsed by `readProjectConfig()`
-- Verify success summary shows correct information
+**實驗設定集成：**
+- 測試 `artifact-experimental-setup` 使用者跳過設定建立
+- 測試 `artifact-experimental-setup` 使用最少的設定（僅限架構）
+- 測試 `artifact-experimental-setup` 具有完整的設定（架構+上下文+規則）
+- 從可用模式中測試模式選擇
+- 測試多行上下文輸入
+- 測試每個工件規則提示
+- 測試工件選擇（核取方塊）
+- 設定建立期間測試驗證錯誤
+- 測試檔案寫入錯誤（權限等）
+- 驗證所建立的設定可以被解析 `readProjectConfig()`
+- 驗證成功摘要顯示正確的訊息
 
-**Edge Cases:**
-- Config file exists but is empty → treat as invalid, warn
-- Config has `.yml` extension instead of `.yaml` → accept both
-- Both `.yaml` and `.yml` exist → prefer `.yaml`
-- Context contains YAML-significant characters → properly escape in output
-- Rules array contains empty strings → filter out or warn
-- Schema references non-existent schema → error with suggestions
-- Config in subdirectory (not project root) → not found, use defaults
+**邊緣情況：**
+- 設定檔存在但為空 → 視為無效，警告
+- 設定有 `.yml` 擴展名而不是 `.yaml` → 兩者都接受
+- 兩個都 `.yaml` 和 `.yml` 存在 → 更喜歡 `.yaml`
+- 上下文包含YAML-重要字元→在輸出中正確轉義
+- 規則陣列包含空字串→過濾掉或警告
+- 架構引用不存在的架構→建議錯誤
+- 子目錄中的設定（不是專案根目錄）→ 找不到，使用預設值
 
-**Backward Compatibility:**
-- Existing projects without config continue to work
-- Existing changes with `.openspec.yaml` metadata aren't affected by config
-- Adding config to existing project doesn't break in-progress changes
+**向後相容性：**
+- 沒有設定的現有項目可以繼續工作
+- 現有的變化與 `.openspec.yaml` 元資料不受設定影響
+- 將設定新增至現有項目不會破壞正在進行的更改
 
-**Integration Tests:**
-- Create config → create change → verify schema used
-- Create config → get instructions → verify context injected
-- Create config → get instructions → verify rules injected
-- Update config → verify changes reflected immediately (no caching)
-- Run `artifact-experimental-setup` → create config → create change → verify flow
+**整合測試：**
+- 建立設定 → 建立變更 → 驗證使用的架構
+- 建立設定 → 取得說明 → 驗證注入的上下文
+- 建立設定 → 取得說明 → 驗證注入的規則
+- 更新設定 → 驗證變更立即反映（無快取）
+- 執行 `artifact-experimental-setup` → 建立設定 → 建立變更 → 驗證流程
 
-## Related Changes
+## 相關變更
 
-- **project-local-schemas**: Enables `schema: my-workflow` to reference project-local schemas
+- **專案本地架構**：啟用 `schema: my-workflow` 引用項目本地模式
 
-## Appendix: Full Config Schema
+## 附錄：完整設定架構
 
 ```typescript
 import { z } from 'zod';
@@ -726,7 +726,7 @@ export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
 // Invalid fields are warned about but don't prevent other fields from being loaded
 ```
 
-## Appendix: Visual Summary
+## 附錄：視覺摘要
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐

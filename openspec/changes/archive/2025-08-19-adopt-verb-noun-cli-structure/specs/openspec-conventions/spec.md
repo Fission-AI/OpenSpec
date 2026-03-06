@@ -1,23 +1,23 @@
-# Delta: OpenSpec Conventions — Verb–Noun CLI Design
+# Delta：OpenSpec 約定 — 動詞–名詞 CLI 設計
 
-## ADDED Requirements
+## 新增要求
 
-### Requirement: Verb–Noun CLI Command Structure
-OpenSpec CLI design SHALL use verbs as top-level commands with nouns provided as arguments or flags for scoping.
+### 要求：動詞–名詞 CLI 命令結構
+OpenSpec CLI 設計應使用動詞作為頂級命令，並使用名詞作為範圍界定的參數或標誌。
 
-#### Scenario: Verb-first command discovery
-- **WHEN** a user runs a command like `openspec list`
-- **THEN** the verb communicates the action clearly
-- **AND** nouns refine scope via flags or arguments (e.g., `--changes`, `--specs`)
+#### 場景：動詞優先的命令發現
+- **何時** 使用者執行以下命令 `openspec list`
+- **THEN** 動詞清楚地傳達了動作
+- **AND** 名詞透過標誌或參數縮小範圍（例如， `--changes`, `--specs`)
 
-#### Scenario: Backward compatibility for noun commands
-- **WHEN** users run noun-prefixed commands such as `openspec spec ...` or `openspec change ...`
-- **THEN** the CLI SHALL continue to support them for at least one release
-- **AND** display a deprecation warning that points to verb-first alternatives
+#### 場景：名詞命令的向後相容性
+- **何時** 使用者執行帶有名詞前綴的命令，例如 `openspec spec ...` 或者 `openspec change ...`
+- **那麼** CLI 應繼續支援他們至少一個版本
+- **AND** 顯示指向動詞優先替代方案的棄用警告
 
-#### Scenario: Disambiguation guidance
-- **WHEN** item names are ambiguous between changes and specs
-- **THEN** `openspec show` and `openspec validate` SHALL accept `--type spec|change`
-- **AND** the help text SHALL document this clearly
+#### 場景：消歧指導
+- **何時** 項目名稱在變更和規格之間不明確
+- **然後** `openspec show` 和 `openspec validate` 應接受 `--type spec|change`
+- **並且**幫助文本應清楚地記錄這一點
 
 

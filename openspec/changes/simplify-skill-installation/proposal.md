@@ -1,8 +1,8 @@
-## Why
+## 為什麼
 
-Users have complained that there are too many skills/commands (currently 10) and new users feel overwhelmed. We want to simplify the default experience while preserving power-user capabilities and backwards compatibility.
+用戶抱怨技能/命令太多（目前有 10 個），新用戶感到不知所措。我們希望簡化預設體驗，同時保留進階使用者功能和向後相容性。
 
-The goal: **get users to an "aha moment" in under a minute**.
+目標：**讓使用者在一分鐘內獲得「頓悟時刻」**。
 
 ```text
 0:00  $ openspec init
@@ -16,13 +16,13 @@ The goal: **get users to an "aha moment" in under a minute**.
 1:00  /opsx:apply
 ```
 
-Additionally, users have different preferences for how workflows are delivered (skills vs commands vs both), but this should be a power-user configuration, not something new users think about.
+此外，使用者對工作流程的交付方式有不同的偏好（技能、命令、兩者），但這應該是高級使用者設定，而不是新使用者考慮的事情。
 
-## What Changes
+## 有什麼變化
 
-### 1. Smart Defaults Init
+### 1. 智能預設初始化
 
-Init auto-detects tools and asks for confirmation:
+Init 自動偵測工具並要求確認：
 
 ```text
 $ openspec init
@@ -41,40 +41,40 @@ Start your first change:
   /opsx:propose "add dark mode"
 ```
 
-**No prompts for profile or delivery.** Defaults are:
-- Profile: core
-- Delivery: both
+**沒有設定檔或交付提示。 **預設值為：
+- 簡介： 核心
+- 交貨方式：均
 
-Power users can customize via `openspec config profile`.
+高級用戶可以透過自訂 `openspec config profile`.
 
-### 2. Tool Detection Behavior
+### 2. 工具檢測行為
 
-Init scans for existing tool directories (`.claude/`, `.cursor/`, etc.):
-- **Tools detected (interactive):** Shows pre-selected checkboxes, user confirms or adjusts
-- **No tools detected (interactive):** Prompts for full tool selection
-- **Non-interactive (CI):** Uses detected tools automatically, fails if none detected
+Init 掃描現有工具目錄（`.claude/`, `.cursor/`， ETC。 ）：
+- **偵測到的工具（互動式）：** 顯示預先選取的核取方塊，使用者確認或調整
+- **未偵測到工具（互動式）：** 提示選擇完整工具
+- **非互動式 (CI)：** 自動使用偵測到的工具，如果未偵測到則失敗
 
-### 3. Fix Tool Selection UX
+### 3.修復工具選擇UX
 
-Current behavior confuses users:
-- Tab to confirm (unexpected)
+目前的行為讓使用者感到困惑：
+- 按 T​​ab 鍵確認（意外）
 
-New behavior:
-- **Space** to toggle selection
-- **Enter** to confirm
+新行為：
+- **空格** 切換選擇
+- **輸入**確認
 
-### 4. Introduce Profiles
+### 4. 引入設定檔
 
-Profiles define which workflows to install:
+設定檔定義要安裝的工作流程：
 
-- **core** (default): `propose`, `explore`, `apply`, `archive` (4 workflows)
-- **custom**: User-selected subset of workflows
+- **核心**（預設）： `propose`, `explore`, `apply`, `archive` （4個工作流程）
+- **自訂**：使用者選擇的工作流程子集
 
-The `propose` workflow is new - it combines `new` + `ff` into a single command that creates a change and generates all artifacts.
+這 `propose` 工作流程是新的——它結合了 `new` + `ff` 到建立變更並產生所有工件的單一命令中。
 
-### 5. Improved Propose UX
+### 5. 改善提案使用者體驗
 
-`/opsx:propose` should naturally onboard users by explaining what it's doing:
+`/opsx:propose` 應該透過解釋它正在做什麼來自然地吸引用戶：
 
 ```text
 I'll create a change with 3 artifacts:
@@ -85,19 +85,19 @@ I'll create a change with 3 artifacts:
 When ready to implement, run /opsx:apply
 ```
 
-This teaches as it goes - no separate onboarding needed for most users.
+這說明了大多數用戶不需要單獨的入職培訓。
 
-### 6. Introduce Delivery Config
+### 6. 引入交付設定
 
-Delivery controls how workflows are installed:
+交付控制工作流程的安裝方式：
 
-- **both** (default): Skills and commands
-- **skills**: Skills only
-- **commands**: Commands only
+- **兩者**（預設）：技能和命令
+- **技能**：僅技能
+- **命令**：僅命令
 
-Stored in existing global config (`~/.config/openspec/config.json`). Not prompted during init.
+儲存在現有的全域設定中（`~/.config/openspec/config.json`）。初始化期間不提示。
 
-### 7. New CLI Commands
+### 7. 新CLI命令
 
 ```shell
 # Profile configuration (interactive picker for delivery + workflows)
@@ -105,7 +105,7 @@ openspec config profile          # interactive picker
 openspec config profile core     # preset shortcut (core workflows, preserves delivery)
 ```
 
-The interactive picker allows users to configure both delivery method and workflow selection in one place:
+互動式選擇器允許使用者在一處設定交付方法和工作流程選擇：
 
 ```
 $ openspec config profile
@@ -127,62 +127,62 @@ Workflows: (space to toggle, enter to save)
 [ ] onboard
 ```
 
-### 8. Backwards Compatibility & Migration
+### 8. 向後相容和遷移
 
-**Existing users keep their current setup.** When `openspec update` runs on a project with existing workflows and no `profile` in global config, it performs a one-time migration:
+**現有使用者保留目前設定。 ** 當 `openspec update` 在具有現有工作流程的專案上執行，並且沒有 `profile` 在全域設定中，它執行一次性遷移：
 
-1. Scans installed workflow files across all tool directories in the project
-2. Writes `profile: "custom"`, `delivery: "both"`, `workflows: [<detected>]` to global config
-3. Refreshes templates but does NOT add or remove any workflows
-4. Displays: "Migrated: custom profile with N existing workflows"
+1. 掃描專案中所有工具目錄中已安裝的工作流程文件
+2. 寫 `profile: "custom"`, `delivery: "both"`, `workflows: [<detected>]` 到全域設定
+3. 重新整理模板但不新增或刪除任何工作流程
+4. 顯示：“已遷移：具有 N 個現有工作流程的自訂設定檔”
 
-After migration, subsequent `init` and `update` commands respect the migrated config.
+遷移後，後續 `init` 和 `update` 命令尊重遷移的設定。
 
-**Key behaviors:**
-- Existing users' workflows are preserved exactly as-is (no `propose` added automatically)
-- Both `init` (re-init) and `update` trigger migration on existing projects if no profile is set
-- `openspec init` on a **new** project (no existing workflows) uses global config, defaulting to `core`
-- `init` with a custom profile applies the configured workflows directly (no profile confirmation prompt)
-- `init` validates `--profile` values (`core` or `custom`) and errors on invalid input
-- Migration message mentions `propose` and suggests `openspec config profile core` to opt in
-- After migration, users can opt into `core` profile via `openspec config profile core`
-- Workflow templates conditionally reference only installed workflows in "next steps" guidance
-- Delivery changes are applied: switching to `skills` removes command files, switching to `commands` removes skill files
-- Re-running `init` applies delivery cleanup on existing projects (removes files that no longer match delivery)
-- `update` treats profile/delivery drift as update-required even when template versions are already current
-- `update` treats command-only installs as configured tools
-- All workflows remain available via custom profile
+**關鍵行為：**
+- 現有使用者的工作流程完全按原樣保留（不 `propose` 自動添加）
+- 兩個都 `init` （重新初始化）和 `update` 如果未設定設定檔，則觸發現有項目的遷移
+- `openspec init` 在 **新** 專案（沒有現有工作流程）上使用全域設定，預設為 `core`
+- `init` 使用自訂設定檔直接套用設定的工作流程（無設定檔確認提示）
+- `init` 驗證 `--profile` 值（`core` 或者 `custom`) 以及無效輸入的錯誤
+- 遷移訊息提及 `propose` 並建議 `openspec config profile core` 選擇加入
+- 遷移後，使用者可以選擇加入 `core` 個人資料透過 `openspec config profile core`
+- 工作流程範本有條件地僅引用「後續步驟」指南中已安裝的工作流程
+- 應用程式交付變更：切換到 `skills` 刪除命令文件，切換到 `commands` 刪除技能文件
+- Re-running `init` 對現有專案應用交付清理（刪除不再與交付相符的檔案）
+- `update` 即使模板版本已經是最新版本，也會將設定檔/交付偏差視為需要更新
+- `update` 將僅命令安裝視為已設定的工具
+- 所有工作流程仍然可以透過自訂設定檔使用
 
-## Capabilities
+## 能力
 
-### New Capabilities
+### 新功能
 
-- `profiles`: Workflow profiles (core, custom), delivery preferences, global config storage, interactive picker
-- `propose-workflow`: Combined workflow that creates change + generates all artifacts
+- `profiles`：工作流程設定檔（核心、自訂）、交付首選項、全域設定儲存、互動式選擇器
+- `propose-workflow`：建立變更+產生所有工件的組合工作流程
 
-### Modified Capabilities
+### 修改後的功能
 
-- `cli-init`: Smart defaults with tool auto-detection, profile-based skill/command generation
-- `cli-update`: Profile support, delivery changes, one-time migration for existing users
+- `cli-init`：智慧預設設置，具有工具自動檢測、基於設定檔的技能/命令生成
+- `cli-update`：設定檔支援、交付變更、現有用戶的一次性遷移
 
-## Impact
+## 影響
 
-### New Files
-- `src/core/templates/workflows/propose.ts` - New propose workflow template
-- `src/core/profiles.ts` - Profile definitions and logic
-- `src/core/available-tools.ts` - Detect what AI tools user has from directories
+### 新文件
+- `src/core/templates/workflows/propose.ts` - 新的提案工作流程模板
+- `src/core/profiles.ts` - 設定檔定義和邏輯
+- `src/core/available-tools.ts` - 偵測使用者從目錄中擁有哪些人工智慧工具
 
-### Modified Files
-- `src/core/init.ts` - Smart defaults, auto-detection, tool confirmation
-- `src/core/config.ts` - Add profile and delivery types
-- `src/core/global-config.ts` - Add profile, delivery, workflows fields to schema
-- `src/core/shared/skill-generation.ts` - Filter by profile, respect delivery
-- `src/core/shared/tool-detection.ts` - Update SKILL_NAMES and COMMAND_IDS to include propose
-- `src/commands/config.ts` - Add `profile` subcommand with interactive picker
-- `src/core/update.ts` - Add profile/delivery support, file deletion for delivery changes
-- `src/prompts/searchable-multi-select.ts` - Fix keybindings (space/enter)
+### 修改文件
+- `src/core/init.ts` - 智慧預設、自動偵測、工具確認
+- `src/core/config.ts` - 新增設定檔和交付類型
+- `src/core/global-config.ts` - 將設定檔、交付、工作流程欄位新增至架構中
+- `src/core/shared/skill-generation.ts` - 依個人資料過濾，尊重交付
+- `src/core/shared/tool-detection.ts` - 更新 SKILL_NAMES 和 COMMAND_IDS 以包含建議
+- `src/commands/config.ts` - 添加 `profile` 帶有互動式選擇器的子命令
+- `src/core/update.ts` - 新增設定檔/交付支援、交付變更的檔案刪除
+- `src/prompts/searchable-multi-select.ts` - 修復鍵綁定（空白/輸入）
 
-### Global Config Schema Extension
+### 全域設定模式擴充
 ```json
 // ~/.config/openspec/config.json (extends existing)
 {
@@ -194,9 +194,9 @@ After migration, subsequent `init` and `update` commands respect the migrated co
 }
 ```
 
-## Profiles Reference
+## 設定檔參考
 
-| Profile | Workflows | Description |
+| 輪廓 | 工作流程 | 描述 |
 |---------|-----------|-------------|
-| core | propose, explore, apply, archive | Streamlined flow for most users (default) |
-| custom | user-defined | Pick exactly what you need via `openspec config profile` |
+| 核 | 提出、探索、應用、歸檔 | 為大多數使用者簡化流程（預設） |
+| 風俗 | user-defined | 透過以下方式準確選擇您需要的內容 `openspec config profile` |

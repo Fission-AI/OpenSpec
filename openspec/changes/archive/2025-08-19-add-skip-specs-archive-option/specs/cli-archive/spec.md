@@ -1,118 +1,118 @@
-# CLI Archive Command Specification
+# CLI 存檔指令說明
 
-## Purpose
-The archive command moves completed changes from the active changes directory to the archive folder with date-based naming, following OpenSpec conventions.
+## 目的
+archive 指令將已完成的變更從活動變更目錄移至具有基於日期的命名的存檔資料夾，遵循 OpenSpec 約定。
 
-## Command Syntax
+## 命令語法
 ```bash
 openspec archive [change-name] [--yes|-y] [--skip-specs]
 ```
 
-Options:
-- `--yes`, `-y`: Skip confirmation prompts (for automation)
-- `--skip-specs`: Skip spec update operations entirely (for changes without spec modifications)
+選項：
+- `--yes`, `-y`：跳過確認提示（用於自動化）
+- `--skip-specs`：完全跳過規格更新操作（對於沒有規格修改的變更）
 
-## Behavior
+## 行為
 
-### Requirement: Change Selection
+### 要求：更改選擇
 
-The command SHALL support both interactive and direct change selection methods.
+該命令應支援互動式和直接更改選擇方法。
 
-#### Scenario: Interactive selection
+#### 場景：互動選擇
 
-- **WHEN** no change-name is provided
-- **THEN** display interactive list of available changes (excluding archive/)
-- **AND** allow user to select one
+- **何時** 未提供更改名稱
+- **然後** 顯示可用變更的互動式清單（不包括存檔/）
+- **並且**允許使用者選擇一個
 
-#### Scenario: Direct selection
+#### 場景：直接選擇
 
-- **WHEN** change-name is provided
-- **THEN** use that change directly
-- **AND** validate it exists
+- **何時** 提供更改名稱
+- **然後** 直接使用該更改
+- **並且**驗證它存在
 
-### Requirement: Task Completion Check
+### 要求：任務完成檢查
 
-The command SHALL verify task completion status before archiving to prevent premature archival.
+該命令應在歸檔之前驗證任務完成狀態，以防止過早歸檔。
 
-#### Scenario: Incomplete tasks found
+#### 場景：發現未完成的任務
 
-- **WHEN** incomplete tasks are found (marked with `- [ ]`)
-- **THEN** display all incomplete tasks to the user
-- **AND** prompt for confirmation to continue
-- **AND** default to "No" for safety
+- **何時** 發現不完整的任務（標記為 `- [ ]`)
+- **然後** 向使用者顯示所有未完成的任務
+- **並且**提示確認繼續
+- **並且**為了安全起見預設為“否”
 
-#### Scenario: All tasks complete
+#### 場景：所有任務完成
 
-- **WHEN** all tasks are complete OR no tasks.md exists
-- **THEN** proceed with archiving without prompting
+- **何時** 所有任務均已完成或不存在任何tasks.md
+- **然後** 繼續存檔而不提示
 
-### Requirement: Archive Process
+### 需求：存檔過程
 
-The archive operation SHALL follow a structured process to safely move changes to the archive.
+歸檔操作應遵循結構化流程以安全地將變更移至歸檔。
 
-#### Scenario: Performing archive
+#### 場景：執行歸檔
 
-- **WHEN** archiving a change
-- **THEN** execute these steps:
-  1. Create archive/ directory if it doesn't exist
-  2. Generate target name as `YYYY-MM-DD-[change-name]` using current date
-  3. Check if target directory already exists
-  4. Update main specs from the change's future state specs unless `--skip-specs` is provided (see Spec Update Process below)
-  5. Move the entire change directory to the archive location
+- **何時** 歸檔更改
+- **然後** 執行以下步驟：
+  1. 如果 archive/ 目錄不存在，則建立它
+  2. 產生目標名稱為 `YYYY-MM-DD-[change-name]` 使用目前日期
+  3. 檢查目標目錄是否已存在
+  4. 從變更的未來狀態規格中更新主要規格，除非 `--skip-specs` 提供（請參閱下面的規格更新流程）
+  5. 將整個變更目錄移至存檔位置
 
-#### Scenario: Archive already exists
+#### 場景：存檔已存在
 
-- **WHEN** target archive already exists
-- **THEN** fail with error message
-- **AND** do not overwrite existing archive
+- **何時** 目標存檔已存在
+- **然後** 失敗並顯示錯誤訊息
+- **且**不覆蓋現有存檔
 
-#### Scenario: Successful archive
+#### 場景：成功歸檔
 
-- **WHEN** move succeeds
-- **THEN** display success message with archived name and list of updated specs (if any)
+- **何時** 移動成功
+- **然後** 顯示成功訊息，其中包含存檔名稱和更新規格清單（如果有）
 
-### Requirement: Spec Update Process
+### 要求：規格更新流程
 
-Before moving the change to archive, the command SHALL update main specs to reflect the deployed reality unless the `--skip-specs` flag is provided.
+在將變更移至存檔之前，該命令應更新主要規格以反映部署的實際情況，除非 `--skip-specs` 提供了標誌。
 
-#### Scenario: Skipping spec updates
+#### 場景：跳過規範更新
 
-- **WHEN** the `--skip-specs` flag is provided
-- **THEN** skip all spec discovery and update operations
-- **AND** proceed directly to moving the change to archive
-- **AND** display message indicating specs were skipped
+- **何時** `--skip-specs` 提供了標誌
+- **然後** 跳過所有規範發現和更新操作
+- **並且**直接繼續將變更移至存檔
+- **和** 顯示訊息指示跳過規格
 
-#### Scenario: Updating specs from change
+#### 場景：根據變更更新規格
 
-- **WHEN** the change contains specs in `changes/[name]/specs/` AND `--skip-specs` is NOT provided
-- **THEN** execute these steps:
-  1. Analyze which specs will be affected by comparing with existing specs
-  2. Display a summary of spec updates to the user (see Confirmation Behavior below)
-  3. Prompt for confirmation unless `--yes` flag is provided
-  4. If confirmed, for each capability spec in the change directory:
+- **何時** 變更包含以下規格 `changes/[name]/specs/` AND `--skip-specs` 未提供
+- **然後** 執行以下步驟：
+  1. 透過與現有規格進行比較來分析哪些規格會受到影響
+  2. 向使用者顯示規範更新的摘要（請參閱下面的確認行為）
+  3. 提示確認，除非 `--yes` 提供了標誌
+  4. 如果確認，對於更改目錄中的每個功能規格：
      - Copy the spec from `changes/[name]/specs/[capability]/spec.md` to `openspec/specs/[capability]/spec.md`
      - Create the target directory structure if it doesn't exist
      - Overwrite existing spec files (specs represent current reality, change specs are the new reality)
      - Track which specs were updated for the success message
 
-#### Scenario: No specs in change
+#### 場景：沒有變化的規格
 
-- **WHEN** no specs exist in the change AND `--skip-specs` is NOT provided
-- **THEN** skip the spec update step
-- **AND** proceed with archiving
+- **何時** 變更中不存在規範且 `--skip-specs` 未提供
+- **然後** 跳過規格更新步驟
+- **並** 繼續存檔
 
-### Requirement: Confirmation Behavior
+### 要求：確認行為
 
-The spec update confirmation SHALL provide clear visibility into changes before they are applied.
+規範更新確認應在應用變更之前提供清晰的可見性。
 
-#### Scenario: Displaying confirmation
+#### 場景：顯示確認
 
-- **WHEN** prompting for confirmation AND `--skip-specs` is NOT provided
-- **THEN** display a clear summary showing:
-  - Which specs will be created (new capabilities)
-  - Which specs will be updated (existing capabilities)
-  - The source path for each spec
-- **AND** format the confirmation prompt as:
+- **何時** 提示確認且 `--skip-specs` 未提供
+- **然後** 顯示清晰的摘要，其中顯示：
+  - 將建立哪些規範（新功能）
+  - 哪些規格將會更新（現有功能）
+  - 每個規範的來源路徑
+- **和** 將確認提示格式化為：
   ```
   The following specs will be updated:
   
@@ -124,68 +124,68 @@ The spec update confirmation SHALL provide clear visibility into changes before 
   
   Update 2 specs and archive 'add-archive-command'? [y/N]:
   ```
-#### Scenario: Handling confirmation response
+#### 場景：處理確認回應
 
-- **WHEN** waiting for user confirmation
-- **THEN** default to "No" for safety (require explicit "y" or "yes")
-- **AND** skip confirmation when `--yes` or `-y` flag is provided
-- **AND** skip entire spec confirmation when `--skip-specs` flag is provided
+- **何時** 等待使用者確認
+- **那麼** 為了安全起見預設為「否」（需要明確的「y」或「是」）
+- **並且**跳過確認 `--yes` 或者 `-y` 提供了標誌
+- **並且**跳過整個規格確認 `--skip-specs` 提供了標誌
 
-#### Scenario: User declines spec update confirmation
+#### 場景：使用者拒絕規格更新確認
 
-- **WHEN** user declines the spec update confirmation
-- **THEN** skip the spec update operations
-- **AND** display message: "Skipping spec updates. Proceeding with archive."
-- **AND** continue with the archive operation
-- **AND** display success message indicating specs were not updated
+- **何時** 使用者拒絕規範更新確認
+- **然後** 跳過規範更新操作
+- **並且**顯示訊息：“跳過規範更新。繼續存檔。”
+- **並且** 繼續歸檔操作
+- **且** 顯示成功訊息，表示規格未更新
 
-## Error Handling
+## 錯誤處理
 
-### Requirement: Error Conditions
+### 要求：錯誤條件
 
-The command SHALL handle various error conditions gracefully.
+該命令應優雅地處理各種錯誤情況。
 
-#### Scenario: Handling errors
+#### 場景：處理錯誤
 
-- **WHEN** errors occur
+- **何時**發生錯誤
 - **THEN** handle the following conditions:
-  - Missing openspec/changes/ directory
-  - Change not found
-  - Archive target already exists
-  - File system permissions issues
+  - 缺少 openspec/changes/ 目錄
+  - 未找到更改
+  - 存檔目標已存在
+  - 檔案系統權限問題
 
-## Why These Decisions
+## 為什麼要做出這些決定
 
-**Interactive selection**: Reduces typing and helps users see available changes
-**Task checking**: Prevents accidental archiving of incomplete work
-**Date prefixing**: Maintains chronological order and prevents naming conflicts
-**No overwrite**: Preserves historical archives and prevents data loss
-**Spec updates before archiving**: Specs in the main directory represent current reality; when a change is deployed and archived, its future state specs become the new reality and must replace the main specs
-**Confirmation for spec updates**: Provides visibility into what will change, prevents accidental overwrites, and ensures users understand the impact before specs are modified
-**Non-blocking confirmation**: Declining spec updates doesn't cancel archiving - users can review specs and choose to update them separately if needed
-**--yes flag for automation**: Allows CI/CD pipelines to archive without interactive prompts while maintaining safety by default for manual use
-**--skip-specs flag**: Enables archiving of changes that don't modify specs (like infrastructure, tooling, or documentation changes) without unnecessary spec update prompts or operations
+**互動式選擇**：減少打字並幫助使用者檢視可用的更改
+**任務檢查**：防止意外歸檔不完整的工作
+**日期前綴**：保持時間順序並防止命名衝突
+**不覆蓋**：保留歷史檔案並防止資料遺失
+**存檔前的規格更新**：主目錄中的規格代表當前的現實；當部署和存檔變更時，其未來狀態規範將成為新的現實，並且必須取代主要規範
+**規範更新確認**：提供將要更改的內容的可見性，防止意外覆蓋，並確保用戶在修改規範之前瞭解影響
+**非阻塞確認**：拒絕規範更新不會取消存檔 - 使用者可以檢視規範並選擇在需要時單獨更新它們
+**--自動化的 yes 標誌**：允許 CI/CD 管道在沒有互動式提示的情況下存檔，同時預設保持手動使用的安全性
+**--skip-specs 標誌**：允許歸檔不修改規範的變更（例如基礎設施、工具或文件變更），而無需不必要的規格更新提示或操作
 
-## ADDED Requirements
+## 新增要求
 
-### Requirement: Skip Specs Option
+### 要求：跳過規格選項
 
-The archive command SHALL support a `--skip-specs` flag that skips all spec update operations and proceeds directly to archiving.
+歸檔命令應支援 `--skip-specs` 跳過所有規範更新操作並直接進行歸檔的標誌。
 
-#### Scenario: Skipping spec updates with flag
+#### 場景：使用標誌跳過規範更新
 
-- **WHEN** executing `openspec archive <change> --skip-specs`
-- **THEN** skip spec discovery and update confirmation
-- **AND** proceed directly to moving the change to archive
-- **AND** display a message indicating specs were skipped
+- **何時**執行 `openspec archive <change> --skip-specs`
+- **然後** 跳過規範發現和更新確認
+- **並且**直接繼續將變更移至存檔
+- **並** 顯示一則訊息，指示已跳過規格
 
-### Requirement: Non-blocking confirmation
+### 要求：非阻塞確認
 
-The archive operation SHALL proceed when the user declines spec updates instead of cancelling the entire operation.
+當使用者拒絕規範更新時，歸檔操作應繼續進行，而不是取消整個操作。
 
-#### Scenario: User declines spec update confirmation
+#### 場景：使用者拒絕規格更新確認
 
-- **WHEN** the user declines spec update confirmation
-- **THEN** skip spec updates
-- **AND** continue with the archive operation
-- **AND** display a success message indicating specs were not updated
+- **何時** 使用者拒絕規格更新確認
+- **然後** 跳過規格更新
+- **並且** 繼續歸檔操作
+- **且** 顯示成功訊息，表示規格未更新

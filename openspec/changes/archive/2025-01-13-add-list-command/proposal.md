@@ -1,20 +1,20 @@
-# Add List Command to OpenSpec CLI
+# 將列表命令添加到 OpenSpec CLI
 
-## Why
+## 為什麼
 
-Developers need visibility into available changes and their status to understand the project's evolution and pending work.
+開發人員需要瞭解可用變更及其狀態，以瞭解專案的演變和待處理的工作。
 
-## What Changes
+## 有什麼變化
 
-- Add `openspec list` command that displays all changes in the changes/ directory
-- Show each change name with task completion count (e.g., "add-auth: 3/5 tasks")
-- Display completion status indicator (✓ for fully complete, progress for partial)
-- Skip the archive/ subdirectory to focus on active changes
-- Simple table output for easy scanning
+- 添加 `openspec list` 顯示changes/目錄中所有變更的命令
+- 顯示每個變更名稱以及任務完成計數（例如“add-auth：3/5 任務”）
+- 顯示完成狀態指示燈（✓表示完全完成，進度表示部分完成）
+- 跳過存檔/子目錄以專注於主動更改
+- 簡單的表格輸出，方便掃描
 
-## Impact
+## 影響
 
-- Affected specs: New capability `cli-list` will be added
-- Affected code:
-  - `src/cli/index.ts` - Add list command
-  - `src/core/list.ts` - New file with directory scanning and task parsing (~60 lines)
+- 受影響的規格：新功能 `cli-list` 將被添加
+- 受影響的代碼：
+  - `src/cli/index.ts` - 新增清單指令
+  - `src/core/list.ts` - 包含目錄掃描和任務解析的新檔案（約 60 行）

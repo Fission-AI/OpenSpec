@@ -1,15 +1,15 @@
-## 1. Templates
-- [x] 1.1 Add a shared stub template that renders the root agent instructions hand-off message.
-- [x] 1.2 Ensure the stub covers both `AGENTS.md` and `CLAUDE.md` variants.
+## 1. 模板
+- [x] 1.1 新增共享存根模板，用於呈現根代理指令移交訊息。
+- [x] 1.2 確保存根覆蓋兩個 `AGENTS.md` 和 `CLAUDE.md` variants.
 
-## 2. Init Flow
-- [x] 2.1 Update `createInitArtifacts` to write the stub to the project root instead of the full instructions.
-- [x] 2.2 Preserve the managed block markers so future updates can overwrite the stub safely.
+## 2. 初始化流程
+- [x] 2.1 更新 `createInitArtifacts` 將存根寫入專案根目錄而不是完整的指令。
+- [x] 2.2 保留託管區塊標記，以便將來的更新可以安全地覆蓋存根。
 
-## 3. Update Flow
-- [x] 3.1 Make the update command refresh the root stub rather than the full instructions.
-- [x] 3.2 Confirm the update log output still reflects the files that changed.
+## 3. 更新流程
+- [x] 3.1 使更新指令重新整理根存根而不是完整指令。
+- [x] 3.2 確認更新日誌輸出仍反映已變更的檔案。
 
-## 4. Tests & Docs
-- [x] 4.1 Adjust CLI/init tests to match the new root content.
-- [x] 4.2 Document the stub message in `openspec/specs/cli-init` and `openspec/specs/cli-update` (and any relevant README snippets).
+## 4. 測試和文檔
+- [x] 4.1 調整CLI/init測試以符合新的根內容。
+- [x] 4.2 將存根訊息記錄在 `openspec/specs/cli-init` 和 `openspec/specs/cli-update` （以及任何相關的 README 片段）。

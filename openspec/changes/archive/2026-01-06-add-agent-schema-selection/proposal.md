@@ -1,26 +1,26 @@
-## Why
+## 為什麼
 
-With per-change schema metadata in place (see `add-per-change-schema-metadata`), agents can now create changes with different workflow schemas. However, the agent skills are still hardcoded to `spec-driven` artifacts and don't offer schema selection to users.
+有了每次更改模式元資料（請參閱 `add-per-change-schema-metadata`），代理現在可以使用不同的工作流程模式建立變更。然而，代理技能仍然是硬編碼的 `spec-driven` 工件並且不向使用者提供架構選擇。
 
-## What Changes
+## 有什麼變化
 
-**Scope: Experimental artifact workflow agent skills**
+**範圍：實驗工件工作流程代理技能**
 
-**Depends on:** `add-per-change-schema-metadata` (must be implemented first)
+**取決於：** `add-per-change-schema-metadata` （必須先執行）
 
-- Update `openspec-new-change` skill to prompt user for schema selection
-- Update `openspec-continue-change` skill to work with any schema's artifacts
-- Update `openspec-apply-change` skill to handle schema-specific task structures
-- Add schema descriptions to help users choose appropriate workflow
+- 更新 `openspec-new-change` 提示使用者選擇模式的技巧
+- 更新 `openspec-continue-change` 處理任何模式工件的技能
+- 更新 `openspec-apply-change` 處理特定於模式的任務結構的技能
+- 新增架構描述以協助使用者選擇合適的工作流程
 
-## Capabilities
+## 能力
 
-### Modified Capabilities
-- `cli-artifact-workflow`: Agent skills support dynamic schema selection
+### 修改後的功能
+- `cli-artifact-workflow`：Agent技能支援動態模式選擇
 
-## Impact
+## 影響
 
-- **Affected code**: `src/core/templates/skill-templates.ts`
-- **User experience**: Users can choose TDD, spec-driven, or future workflows when starting a change
-- **Agent behavior**: Skills read artifact list from schema rather than hardcoding
-- **Backward compatible**: Default remains `spec-driven` if user doesn't choose
+- **受影響的代碼**： `src/core/templates/skill-templates.ts`
+- **使用者體驗**：使用者在開始變更時可以選擇 TDD、規範驅動或未來工作流程
+- **代理行為**：技能從模式讀取工件清單而不是硬編碼
+- **向後相容**：保留預設值 `spec-driven` 如果用戶不選擇

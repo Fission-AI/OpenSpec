@@ -1,300 +1,300 @@
-# CLI Completion Specification
+# CLI 完成規範
 
-## Purpose
+## 目的
 
-The `openspec completion` command SHALL provide shell completion functionality for all OpenSpec CLI commands, flags, and dynamic values (change IDs, spec IDs), with support for Zsh (including Oh My Zsh) and a scalable architecture ready for future shells (bash, fish, PowerShell). The completion system SHALL integrate with Zsh's native completion behavior rather than attempting to customize the user experience.
+這 `openspec completion` 命令應為所有 OpenSpec CLI 命令、標誌和動態值（更改 ID、規範 ID）提供 shell 完成功能，並支援 Zsh（包括 Oh My Zsh）和為未來 shell（bash、fish、PowerShell）做好準備的可擴展架構。完成系統應與 Zsh 的本機完成行為集成，而不是嘗試自訂使用者體驗。
 
-## ADDED Requirements
+## 新增要求
 
-### Requirement: Native Shell Behavior Integration
+### 要求：本機 Shell 行為集成
 
-The completion system SHALL respect and integrate with Zsh's native completion patterns and user interaction model.
+完成系統應尊重並與 Zsh 的本機完成模式和使用者互動模型整合。
 
-#### Scenario: Zsh native completion
+#### 場景：Zsh 本機完成
 
-- **WHEN** generating Zsh completion scripts
-- **THEN** use Zsh completion system with `_arguments`, `_describe`, and `compadd`
-- **AND** completions SHALL trigger on single TAB (standard Zsh behavior)
-- **AND** display as an interactive menu that users navigate with TAB/arrow keys
-- **AND** support Oh My Zsh's enhanced menu styling automatically
+- **何時**產生 Zsh 完成腳本
+- **那麼** 使用 Zsh 完成系統 `_arguments`, `_describe`， 和 `compadd`
+- **並且** 完成應在單一 TAB 上觸發（標準 Zsh 行為）
+- **AND** 顯示為互動式選單，使用者可以使用 TAB/箭頭鍵進行導航
+- **並且** 自動支援 Oh My Zsh 的增強選單樣式
 
-#### Scenario: No custom UX patterns
+#### 場景：沒有自訂 UX 模式
 
-- **WHEN** implementing Zsh completion
-- **THEN** do NOT attempt to customize completion trigger behavior
-- **AND** do NOT override Zsh-specific navigation patterns
-- **AND** ensure completions feel native to experienced Zsh users
+- **何時** 實施 Zsh 完成率
+- **那麼** 不要嘗試自訂完成觸發器行為
+- **並且** 不要覆蓋 Zsh 特定的導航模式
+- **並且**確保完成對於有經驗的 Zsh 用戶來說是原生的
 
-### Requirement: Command Structure
+### 要求：命令結構
 
-The completion command SHALL follow a subcommand pattern for generating and managing completion scripts.
+完成命令應遵循子命令模式來產生和管理完成腳本。
 
-#### Scenario: Available subcommands
+#### 場景：可用子命令
 
-- **WHEN** user executes `openspec completion --help`
-- **THEN** display available subcommands:
-  - `zsh` - Generate Zsh completion script
-  - `install [shell]` - Install completion for Zsh (auto-detects or requires explicit shell)
-  - `uninstall [shell]` - Remove completion for Zsh (auto-detects or requires explicit shell)
+- **何時** 使用者執行 `openspec completion --help`
+- **THEN** 顯示可用的子命令：
+  - `zsh` - 產生Zsh完成腳本
+  - `install [shell]` - Zsh 安裝完成（自動偵測或需要明確 shell）
+  - `uninstall [shell]` - 刪除 Zsh 的完成（自動偵測或需要明確 shell）
 
-### Requirement: Shell Detection
+### 要求：外殼檢測
 
-The completion system SHALL automatically detect the user's current shell environment.
+完成系統應自動偵測使用者目前的 shell 環境。
 
-#### Scenario: Detecting Zsh from environment
+#### 場景：從環境中檢測 Zsh
 
-- **WHEN** no shell is explicitly specified
-- **THEN** read the `$SHELL` environment variable
-- **AND** extract the shell name from the path (e.g., `/bin/zsh` → `zsh`)
-- **AND** validate the shell is `zsh`
-- **AND** throw an error if the shell is not `zsh`, with message indicating only Zsh is currently supported
+- **何時** 沒有明確指定 shell
+- **然後**閱讀 `$SHELL` 環境變數
+- **並且** 從路徑中提取 shell 名稱（例如， `/bin/zsh` → `zsh`)
+- **並且**驗證 shell 是 `zsh`
+- **並且** 如果 shell 不是，則拋出錯誤 `zsh`，訊息表明當前僅支援 Zsh
 
-#### Scenario: Non-Zsh shell detection
+#### 場景：非Zsh shell偵測
 
-- **WHEN** shell path indicates bash, fish, powershell, or other non-Zsh shell
-- **THEN** throw error: "Shell '<name>' is not supported yet. Currently supported: zsh"
+- **何時** shell 路徑指示 bash、fish、powershell 或其他非 Zsh shell
+- **然後** 拋出錯誤：「Shell '<name>' 尚不支援。目前支援：zsh”
 
-### Requirement: Completion Generation
+### 要求：完成生成
 
-The completion command SHALL generate Zsh completion scripts on demand.
+完成命令應根據需要產生 Zsh 完成腳本。
 
-#### Scenario: Generating Zsh completion
+#### 場景：產生 Zsh 完成度
 
-- **WHEN** user executes `openspec completion zsh`
-- **THEN** output a complete Zsh completion script to stdout
-- **AND** include completions for all commands: init, list, show, validate, archive, view, update, change, spec, completion
-- **AND** include all command-specific flags and options
-- **AND** use Zsh's `_arguments` and `_describe` built-in functions
-- **AND** support dynamic completion for change and spec IDs
+- **何時** 使用者執行 `openspec completion zsh`
+- **然後** 將完整的 Zsh 完成腳本輸出到 stdout
+- **並且** 包含所有指令的完成：init、list、show、validate、archive、view、update、change、spec、completion
+- **並且** 包括所有特定於命令的標誌和選項
+- **並且**使用Zsh's `_arguments` 和 `_describe` 內建函數
+- **並且** 支援變更和規範 ID 的動態完成
 
-### Requirement: Dynamic Completions
+### 要求：動態完成
 
-The completion system SHALL provide context-aware dynamic completions for project-specific values.
+完成系統應為項目特定值提供上下文感知的動態完成。
 
-#### Scenario: Completing change IDs
+#### 場景：完成變更 ID
 
-- **WHEN** completing arguments for commands that accept change names (show, validate, archive)
-- **THEN** discover active changes from `openspec/changes/` directory
-- **AND** exclude archived changes in `openspec/changes/archive/`
-- **AND** return change IDs as completion suggestions
-- **AND** only provide suggestions when inside an OpenSpec-enabled project
+- **何時** 完成接受更改名稱的命令的參數（顯示、驗證、存檔）
+- **然後**發現來自的活躍變化 `openspec/changes/` 目錄
+- **並** 排除已存檔的更改 `openspec/changes/archive/`
+- **並且** 返回更改 ID 作為完成建議
+- **並且** 僅在啟用 OpenSpec 的項目中提供建議
 
-#### Scenario: Completing spec IDs
+#### 場景：完成規格 ID
 
-- **WHEN** completing arguments for commands that accept spec names (show, validate)
-- **THEN** discover specs from `openspec/specs/` directory
-- **AND** return spec IDs as completion suggestions
-- **AND** only provide suggestions when inside an OpenSpec-enabled project
+- **何時** 完成接受規範名稱的命令的參數（顯示、驗證）
+- **然後** 發現規格 `openspec/specs/` 目錄
+- **並且** 返回規範 ID 作為完成建議
+- **並且** 僅在啟用 OpenSpec 的項目中提供建議
 
-#### Scenario: Completion caching
+#### 場景：完成快取
 
-- **WHEN** dynamic completions are requested
-- **THEN** cache discovered change and spec IDs for 2 seconds
-- **AND** reuse cached values for subsequent requests within cache window
-- **AND** automatically refresh cache after expiration
+- **何時** 請求動態完成
+- **然後** 將發現的變更和規範 ID 快取 2 秒
+- **並且** 在快取視窗內為後續請求重複使用快取值
+- **並且**過期後自動重新整理快取
 
-#### Scenario: Project detection
+#### 場景：專案偵測
 
-- **WHEN** user requests completions outside an OpenSpec project
-- **THEN** skip dynamic change/spec ID completions
-- **AND** only suggest static commands and flags
+- **何時** 使用者請求在 OpenSpec 項目之外完成
+- **然後** 跳過動態變更/規範 ID 完成
+- **並且**僅建議靜態命令和標誌
 
-### Requirement: Installation Automation
+### 需求：安裝自動化
 
-The completion command SHALL automatically install completion scripts into shell configuration files.
+完成命令應自動將完成腳本安裝到 shell 設定檔中。
 
-#### Scenario: Installing for Oh My Zsh
+#### 場景：安裝 Oh My Zsh
 
-- **WHEN** user executes `openspec completion install zsh`
-- **THEN** detect if Oh My Zsh is installed by checking for `$ZSH` environment variable or `~/.oh-my-zsh/` directory
-- **AND** create custom completions directory at `~/.oh-my-zsh/custom/completions/` if it doesn't exist
-- **AND** write completion script to `~/.oh-my-zsh/custom/completions/_openspec`
-- **AND** ensure `~/.oh-my-zsh/custom/completions` is in `$fpath` by updating `~/.zshrc` if needed
-- **AND** display success message with instruction to run `exec zsh` or restart terminal
+- **何時** 使用者執行 `openspec completion install zsh`
+- **然後** 透過檢查來檢測 Oh My Zsh 是否已安裝 `$ZSH` 環境變數或 `~/.oh-my-zsh/` 目錄
+- **並** 在以下位置建立自訂完成目錄 `~/.oh-my-zsh/custom/completions/` 如果它不存在
+- **並且** 將完成腳本寫入 `~/.oh-my-zsh/custom/completions/_openspec`
+- **並**確保 `~/.oh-my-zsh/custom/completions` 是在 `$fpath` 透過更新 `~/.zshrc` 如果需要的話
+- **並且** 顯示成功訊息以及執行說明 `exec zsh` 或重新啟動終端
 
-#### Scenario: Installing for standard Zsh
+#### 場景：安裝標準Zsh
 
-- **WHEN** user executes `openspec completion install zsh` and Oh My Zsh is not detected
-- **THEN** create completions directory at `~/.zsh/completions/` if it doesn't exist
-- **AND** write completion script to `~/.zsh/completions/_openspec`
-- **AND** add `fpath=(~/.zsh/completions $fpath)` to `~/.zshrc` if not already present
-- **AND** add `autoload -Uz compinit && compinit` to `~/.zshrc` if not already present
-- **AND** display success message with instruction to run `exec zsh` or restart terminal
+- **何時** 使用者執行 `openspec completion install zsh` 哦，我的 Zsh 未檢測到
+- **然後** 建立完成目錄 `~/.zsh/completions/` 如果它不存在
+- **並且** 將完成腳本寫入 `~/.zsh/completions/_openspec`
+- **並**添加 `fpath=(~/.zsh/completions $fpath)` 到 `~/.zshrc` 如果尚未出現
+- **並**添加 `autoload -Uz compinit && compinit` 到 `~/.zshrc` 如果尚未出現
+- **並且** 顯示成功訊息以及執行說明 `exec zsh` 或重新啟動終端
 
-#### Scenario: Auto-detecting Zsh for installation
+#### 場景：自動偵測Zsh進行安裝
 
-- **WHEN** user executes `openspec completion install` without specifying a shell
-- **THEN** detect current shell using shell detection logic
-- **AND** install completion if detected shell is Zsh
-- **AND** throw error if detected shell is not Zsh
-- **AND** display which shell was detected
+- **何時** 使用者執行 `openspec completion install` 不指定外殼
+- **然後** 使用 shell 偵測邏輯來偵測目前 shell
+- **且** 如果偵測到的 shell 是 Zsh，則安裝完成
+- **且** 如果偵測到的 shell 不是 Zsh，則拋出錯誤
+- **AND** 顯示偵測到哪個 shell
 
-#### Scenario: Already installed
+#### 場景：已安裝
 
-- **WHEN** completion is already installed for the target shell
-- **THEN** display message indicating completion is already installed
-- **AND** offer to reinstall/update by overwriting existing files
-- **AND** exit with code 0
+- **何時** 已為目標 shell 安裝完成
+- **THEN** 顯示訊息表示已安裝完成
+- **並且**透過覆蓋現有文件提供重新安裝/更新
+- **並且** 以代碼 0 退出
 
-### Requirement: Uninstallation
+### 要求：卸載
 
-The completion command SHALL remove installed completion scripts and configuration.
+完成命令應刪除已安裝的完成腳本和設定。
 
-#### Scenario: Uninstalling Oh My Zsh completion
+#### 場景：卸載 Oh My Zsh 完成
 
-- **WHEN** user executes `openspec completion uninstall zsh`
-- **THEN** remove `~/.oh-my-zsh/custom/completions/_openspec` if Oh My Zsh is detected
-- **AND** remove `~/.zsh/completions/_openspec` if standard Zsh setup is detected
-- **AND** optionally remove fpath modifications from `~/.zshrc` (with confirmation)
-- **AND** display success message
+- **何時** 使用者執行 `openspec completion uninstall zsh`
+- **然後**刪除 `~/.oh-my-zsh/custom/completions/_openspec` 如果檢測到 Oh My Zsh
+- **並**刪除 `~/.zsh/completions/_openspec` 如果偵測到標準 Zsh 設定
+- **並且**可選擇刪除 fpath 修改 `~/.zshrc` （有確認）
+- **並** 顯示成功訊息
 
-#### Scenario: Auto-detecting Zsh for uninstallation
+#### 場景：自動偵測Zsh進行卸載
 
-- **WHEN** user executes `openspec completion uninstall` without specifying a shell
-- **THEN** detect current shell and uninstall completion if shell is Zsh
-- **AND** throw error if detected shell is not Zsh
+- **何時** 使用者執行 `openspec completion uninstall` 不指定外殼
+- **那麼** 偵測目前 shell，如果 shell 是 Zsh，則卸載完成
+- **且** 如果偵測到的 shell 不是 Zsh，則拋出錯誤
 
-#### Scenario: Not installed
+#### 場景：未安裝
 
-- **WHEN** attempting to uninstall completion that isn't installed
-- **THEN** display message indicating completion is not installed
-- **AND** exit with code 0
+- **何時** 嘗試卸載未安裝的完成
+- **THEN** 顯示訊息表示未安裝完成
+- **並且** 以代碼 0 退出
 
-### Requirement: Architecture Patterns
+### 要求：架構模式
 
-The completion implementation SHALL follow clean architecture principles with TypeScript best practices.
+完成實施應遵循乾淨的架構原則和TypeScript最佳實務。
 
-#### Scenario: Shell-specific generators
+#### 場景：殼牌專用發電機
 
-- **WHEN** implementing completion generators
-- **THEN** create `ZshCompletionGenerator` class for Zsh
-- **AND** implement a common `CompletionGenerator` interface with methods:
-  - `generate(): string` - Returns complete shell script
-  - `getInstallPath(): string` - Returns target installation path
-  - `getConfigFile(): string` - Returns shell configuration file path
-- **AND** design interface to be extensible for future shells (bash, fish, powershell)
+- **何時** 實作完成產生器
+- **然後**建立 `ZshCompletionGenerator` Zsh 的班級
+- **並且**實施一個共同的 `CompletionGenerator` 接口與方法：
+  - `generate(): string` - 傳回完整的 shell 腳本
+  - `getInstallPath(): string` - 返回目標安裝路徑
+  - `getConfigFile(): string` - 返回 shell 設定檔路徑
+- **和** 設計介面可針對未來的 shell（bash、fish、powershell）進行擴展
 
-#### Scenario: Dynamic completion providers
+#### 場景：動態完成提供者
 
-- **WHEN** implementing dynamic completions
-- **THEN** create a `CompletionProvider` class that encapsulates project discovery logic
-- **AND** implement methods:
-  - `getChangeIds(): Promise<string[]>` - Discovers active change IDs
-  - `getSpecIds(): Promise<string[]>` - Discovers spec IDs
-  - `isOpenSpecProject(): boolean` - Checks if current directory is OpenSpec-enabled
-- **AND** implement caching with 2-second TTL using class properties
+- **何時**實施動態完成
+- **然後** 建立一個 `CompletionProvider` 封裝項目發現邏輯的類
+- **和** 實作方法：
+  - `getChangeIds(): Promise<string[]>` - 發現活動變更 ID
+  - `getSpecIds(): Promise<string[]>` - 發現規格 ID
+  - `isOpenSpecProject(): boolean` - 檢查目前目錄是否啟用 OpenSpec
+- **並且** 使用類別屬性實現 2 秒 TTL 的緩存
 
-#### Scenario: Command registry
+#### 場景：命令註冊表
 
-- **WHEN** defining completable commands
-- **THEN** create a centralized `CommandDefinition` type with properties:
-  - `name: string` - Command name
-  - `description: string` - Help text
-  - `flags: FlagDefinition[]` - Available flags
-  - `acceptsChangeId: boolean` - Whether command takes change ID argument
-  - `acceptsSpecId: boolean` - Whether command takes spec ID argument
-  - `subcommands?: CommandDefinition[]` - Nested subcommands
-- **AND** export a `COMMAND_REGISTRY` constant with all command definitions
-- **AND** generators consume this registry to ensure consistency
+- **何時** 定義可完成的命令
+- **然後** 建立一個集中式 `CommandDefinition` 具有屬性的類型：
+  - `name: string` - 命令名稱
+  - `description: string` - 幫助文本
+  - `flags: FlagDefinition[]` - 可用的標誌
+  - `acceptsChangeId: boolean` - 指令是否採用更改 ID 參數
+  - `acceptsSpecId: boolean` - 指令是否採用規範 ID 參數
+  - `subcommands?: CommandDefinition[]` - 嵌套子命令
+- **並且**導出一個 `COMMAND_REGISTRY` 所有命令定義的常數
+- **和** 產生器使用此註冊表來確保一致性
 
-#### Scenario: Type-safe shell detection
+#### 場景：類型安全的 shell 偵測
 
-- **WHEN** implementing shell detection
-- **THEN** define a `SupportedShell` type as literal type: `'zsh'`
-- **AND** implement `detectShell()` function that returns 'zsh' or throws error
-- **AND** design type to be extensible (e.g., future: `'bash' | 'zsh' | 'fish' | 'powershell'`)
+- **何時**實施外殼偵測
+- **然後** 定義一個 `SupportedShell` 類型為文字類型： `'zsh'`
+- **和**實施 `detectShell()` 傳回“zsh”或拋出錯誤的函數
+- **和** 設計類型可擴展（例如，未來： `'bash' | 'zsh' | 'fish' | 'powershell'`)
 
-### Requirement: Error Handling
+### 要求：錯誤處理
 
-The completion command SHALL provide clear error messages for common failure scenarios.
+完成命令應為常見故障場景提供清晰的錯誤訊息。
 
-#### Scenario: Unsupported shell
+#### 場景：不支援的 shell
 
-- **WHEN** user requests completion for unsupported shell (bash, fish, powershell, etc.)
-- **THEN** display error message: "Shell '<name>' is not supported yet. Currently supported: zsh"
-- **AND** exit with code 1
+- **何時** 使用者請求完成不支援的 shell（bash、fish、powershell 等）
+- **然後** 顯示錯誤訊息："Shell '<name>' 尚不支援。目前支援：zsh”
+- **並且** 使用代碼 1 退出
 
-#### Scenario: Permission errors during installation
+#### 場景：安裝過程中權限錯誤
 
-- **WHEN** installation fails due to file permission issues
-- **THEN** display clear error message indicating permission problem
-- **AND** suggest using appropriate permissions or alternative installation method
-- **AND** exit with code 1
+- **何時** 由於檔案權限問題安裝失敗
+- **然後** 顯示明確的錯誤訊息，指示權限問題
+- **並**建議使用適當的權限或替代安裝方法
+- **並且** 使用代碼 1 退出
 
 #### Scenario: Missing shell configuration directory
 
-- **WHEN** expected shell configuration directory doesn't exist
-- **THEN** create the directory automatically (with user notification)
-- **AND** proceed with installation
+- **何時** 預期的 shell 設定目錄不存在
+- **然後** 自動建立目錄（並通知使用者）
+- **並**繼續安裝
 
-#### Scenario: Shell not detected
+#### 場景：未偵測到 Shell
 
-- **WHEN** `openspec completion install` cannot detect current shell or detects non-Zsh shell
-- **THEN** display error: "Could not detect Zsh. Please specify explicitly: openspec completion install zsh"
-- **AND** exit with code 1
+- **什麼時候** `openspec completion install` 無法偵測到目前 shell 或偵測到非 Zsh shell
+- **然後** 顯示錯誤：“無法偵測 Zsh。請明確指定：openspec 完成安裝 zsh”
+- **並且** 使用代碼 1 退出
 
-### Requirement: Output Format
+### 要求：輸出格式
 
-The completion command SHALL provide machine-parseable and human-readable output.
+完成命令應提供機器可解析和人類可讀的輸出。
 
-#### Scenario: Script generation output
+#### 場景：腳本產生輸出
 
-- **WHEN** generating completion script to stdout
-- **THEN** output only the completion script content (no extra messages)
-- **AND** allow redirection to files: `openspec completion zsh > /path/to/_openspec`
+- **何時** 產生完成腳本到標準輸出
+- **THEN** 只輸出完成腳本內容（沒有額外的訊息）
+- **並且**允許重定向到檔案： `openspec completion zsh > /path/to/_openspec`
 
-#### Scenario: Installation success output
+#### 場景：安裝成功輸出
 
-- **WHEN** installation completes successfully
-- **THEN** display formatted success message with:
-  - Checkmark indicator
-  - Installation location
-  - Next steps (shell reload instructions)
-- **AND** use colors when terminal supports it (unless `--no-color` is set)
+- **何時** 安裝成功完成
+- **然後** 顯示已格式化的成功訊息：
+  - 複選標記指示器
+  - 安裝位置
+  - 後續步驟（shell 重新載入說明）
+- **且** 當終端支援時使用顏色（除非 `--no-color` 已設定）
 
-#### Scenario: Verbose installation output
+#### 場景：詳細安裝輸出
 
-- **WHEN** user provides `--verbose` flag during installation
-- **THEN** display detailed steps:
-  - Shell detection result
-  - Target file paths
-  - Configuration modifications
-  - File creation confirmations
+- **何時** 用戶提供 `--verbose` 安裝期間標記
+- **THEN** 顯示詳細步驟：
+  - 外殼檢測結果
+  - 目標檔案路徑
+  - 設定修改
+  - 文件建立確認
 
-### Requirement: Testing Support
+### 需求：測試支援
 
-The completion implementation SHALL be testable with unit and integration tests.
+完成實現應可透過單元測試和整合測試進行測試。
 
-#### Scenario: Mock shell environment
+#### 場景：模擬shell環境
 
-- **WHEN** writing tests for shell detection
-- **THEN** allow overriding `$SHELL` environment variable
-- **AND** use dependency injection for file system operations
+- **何時** 編寫 shell 檢測測試
+- **然後** 允許覆蓋 `$SHELL` 環境變數
+- **並且** 使用依賴注入進行檔案系統操作
 
-#### Scenario: Generator output verification
+#### 場景：發電機輸出驗證
 
-- **WHEN** testing completion generators
-- **THEN** verify generated scripts contain expected patterns
-- **AND** test that command registry is properly consumed
-- **AND** ensure dynamic completion placeholders are present
+- **何時** 測試完成產生器
+- **然後** 驗證產生的腳本包含預期的模式
+- **和** 測試命令註冊表是否正確使用
+- **並** 確保存在動態完成佔位符
 
-#### Scenario: Installation simulation
+#### 場景：安裝模擬
 
-- **WHEN** testing installation logic
-- **THEN** use temporary test directories instead of actual home directories
-- **AND** verify file creation without modifying real shell configurations
-- **AND** test path resolution logic independently
+- **何時** 測試安裝邏輯
+- **然後** 使用臨時測試目錄而不是實際的主目錄
+- **和** 驗證檔案建立而不修改真實的 shell 設定
+- **AND** 獨立測試路徑解析邏輯
 
-## Not in Scope
+## 不在範圍內
 
-The following shells are **architecturally documented but not implemented** in this proposal. They will be added in future proposals:
+本提案中的以下 shell **已在架構上進行了記錄，但尚未實現**。它們將在未來的提案中添加：
 
-- **Bash completion** - Will use bash-completion framework with `_init_completion`, `compgen`, and `COMPREPLY`
-- **Fish completion** - Will use Fish's declarative `complete -c` syntax
-- **PowerShell completion** - Will use `Register-ArgumentCompleter` with completion result objects
+- **Bash 完成** - 將使用 bash-completion 框架 `_init_completion`, `compgen`， 和 `COMPREPLY`
+- **Fish 完成** - 將使用 Fish 的聲明式 `complete -c` 句法
+- **PowerShell 完成** - 將使用 `Register-ArgumentCompleter` 帶有完成結果對象
 
-The plugin-based architecture (CompletionGenerator interface, command registry, dynamic providers) is designed to make adding these shells straightforward in follow-up changes.
+基於插件的架構（CompletionGenerator 介面、命令註冊表、動態提供者）旨在讓在後續變更中新增這些 shell 變得簡單。
 
-## Why
+## 為什麼
 
-Shell completions are essential for professional CLI tools and significantly improve developer experience by reducing friction, errors, and cognitive load during daily workflows.
+Shell 補全對於專業 CLI 工具至關重要，並透過減少日常工作流程中的摩擦、錯誤和認知負荷來顯著改善開發人員體驗。

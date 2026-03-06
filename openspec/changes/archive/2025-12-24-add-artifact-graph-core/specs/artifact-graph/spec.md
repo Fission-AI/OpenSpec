@@ -1,103 +1,103 @@
-## ADDED Requirements
+## 新增要求
 
-### Requirement: Schema Loading
-The system SHALL load artifact graph definitions from YAML schema files.
+### 要求：架構加載
+系統應從 YAML 模式檔案載入工件圖定義。
 
-#### Scenario: Valid schema loaded
-- **WHEN** a valid schema YAML file is provided
-- **THEN** the system returns an ArtifactGraph with all artifacts and dependencies
+#### 場景：載入有效架構
+- **何時** 提供了有效的架構 YAML 文件
+- **然後** 系統傳回包含所有工件和相依性的 ArtifactGraph
 
-#### Scenario: Invalid schema rejected
-- **WHEN** a schema YAML file is missing required fields
-- **THEN** the system throws an error with a descriptive message
+#### 場景：無效架構被拒絕
+- **何時** 架構 YAML 檔案缺少必填字段
+- **然後** 系統拋出錯誤並顯示一條描述性訊息
 
-#### Scenario: Cyclic dependencies detected
-- **WHEN** a schema contains cyclic artifact dependencies
-- **THEN** the system throws an error listing the artifact IDs in the cycle
+#### 場景：偵測到循環依賴
+- **何時**模式包含循環工件依賴項
+- **然後** 系統拋出一個錯誤，列出循環中的工件 ID
 
-#### Scenario: Invalid dependency reference
-- **WHEN** an artifact's `requires` array references a non-existent artifact ID
-- **THEN** the system throws an error identifying the invalid reference
+#### 場景：依賴項引用無效
+- **何時** 工件的 `requires` 數組引用不存在的工件 ID
+- **然後** 系統會拋出錯誤，辨識無效引用
 
-#### Scenario: Duplicate artifact IDs rejected
-- **WHEN** a schema contains multiple artifacts with the same ID
-- **THEN** the system throws an error identifying the duplicate
+#### 場景：重複的工件 ID 被拒絕
+- **何時** 模式包含具有相同 ID 的多個工件
+- **然後** 系統會拋出一個錯誤來識別重複項
 
-### Requirement: Build Order Calculation
-The system SHALL compute a valid topological build order for artifacts.
+### 要求：建立訂單計算
+系統應計算工件的有效拓樸建置順序。
 
-#### Scenario: Linear dependency chain
-- **WHEN** artifacts form a linear chain (A → B → C)
-- **THEN** getBuildOrder() returns [A, B, C]
+#### 場景：線性依賴鏈
+- **何時** 工件形成線性鏈（A → B → C）
+- **那麼** getBuildOrder() 回傳 [A, B, C]
 
-#### Scenario: Diamond dependency
-- **WHEN** artifacts form a diamond (A → B, A → C, B → D, C → D)
-- **THEN** getBuildOrder() returns A before B and C, and D last
+#### 場景：鑽石依賴
+- **何時** 文物形成鑽石（A → B、A → C、B → D、C → D）
+- **那麼** getBuildOrder() 在 B 和 C 之前回傳 A，最後回傳 D
 
-#### Scenario: Independent artifacts
-- **WHEN** artifacts have no dependencies
-- **THEN** getBuildOrder() returns them in a stable order
+#### 場景：獨立工件
+- **何時** 工件沒有依賴項
+- **然後** getBuildOrder() 以穩定的順序傳回它們
 
-### Requirement: State Detection
-The system SHALL detect artifact completion state by scanning the filesystem.
+### 需求：狀態檢測
+系統應透過掃描檔案系統來偵測工件完成狀態。
 
-#### Scenario: Simple file exists
-- **WHEN** an artifact generates "proposal.md" and the file exists
-- **THEN** the artifact is marked as completed
+#### 場景：簡單檔案存在
+- **何時** 工件產生“proposal.md”且該檔案存在
+- **那麼** 工件被標記為已完成
 
-#### Scenario: Simple file missing
-- **WHEN** an artifact generates "proposal.md" and the file does not exist
-- **THEN** the artifact is not marked as completed
+#### 場景：簡單檔案遺失
+- **何時** 工件產生“proposal.md”且該檔案不存在
+- **那麼** 工件未標記為已完成
 
-#### Scenario: Glob pattern with files
-- **WHEN** an artifact generates "specs/*.md" and the specs/ directory contains .md files
-- **THEN** the artifact is marked as completed
+#### 場景：帶有檔案的 Glob 模式
+- **何時** 工件產生“specs/*.md”並且 specs/ 目錄包含 .md 檔案
+- **那麼** 工件被標記為已完成
 
-#### Scenario: Glob pattern empty
-- **WHEN** an artifact generates "specs/*.md" and the specs/ directory is empty or missing
-- **THEN** the artifact is not marked as completed
+#### 場景：Glob 模式為空
+- **何時** 工件產生「specs/*.md」且 specs/ 目錄為空或遺失
+- **那麼** 工件未標記為已完成
 
-#### Scenario: Missing change directory
-- **WHEN** the change directory does not exist
-- **THEN** all artifacts are marked as not completed (empty state)
+#### 場景：缺少更改目錄
+- **何時** 更改目錄不存在
+- **然後** 所有工件都標記為未完成（空狀態）
 
-### Requirement: Ready Artifact Query
-The system SHALL identify which artifacts are ready to be created based on dependency completion.
+### 需求：準備好工件查詢
+系統應根據依賴性完成來識別哪些工件已準備好建立。
 
-#### Scenario: Root artifacts ready initially
-- **WHEN** no artifacts are completed
-- **THEN** getNextArtifacts() returns artifacts with no dependencies
+#### 場景：根工件初步準備就緒
+- **何時** 沒有工件完成
+- **那麼** getNextArtifacts() 傳回沒有相依性的工件
 
-#### Scenario: Dependent artifact becomes ready
-- **WHEN** an artifact's dependencies are all completed
-- **THEN** getNextArtifacts() includes that artifact
+#### 場景：依賴工件已準備就緒
+- **何時** 工件的依賴項全部完成
+- **那麼** getNextArtifacts() 包含該工件
 
-#### Scenario: Blocked artifacts excluded
-- **WHEN** an artifact has uncompleted dependencies
-- **THEN** getNextArtifacts() does not include that artifact
+#### 場景：排除被阻止的工件
+- **何時** 工件具有未完成的依賴項
+- **那麼** getNextArtifacts() 不包含該工件
 
-### Requirement: Completion Check
-The system SHALL determine when all artifacts in a graph are complete.
+### 要求：完成檢查
+系統應確定圖中所有工件何時完成。
 
-#### Scenario: All complete
-- **WHEN** all artifacts in the graph are in the completed set
-- **THEN** isComplete() returns true
+#### 場景：全部完成
+- **何時** 圖表中的所有工件都在完整的集合中
+- **那麼** isComplete() 回傳 true
 
-#### Scenario: Partially complete
-- **WHEN** some artifacts in the graph are not completed
-- **THEN** isComplete() returns false
+#### 場景：部分完成
+- **何時** 圖表中的某些工件尚未完成
+- **那麼** isComplete() 回傳 false
 
-### Requirement: Blocked Query
-The system SHALL identify which artifacts are blocked and return all their unmet dependencies.
+### 要求：阻止查詢
+系統應識別哪些工件被阻止並傳回所有未滿足的依賴關係。
 
-#### Scenario: Artifact blocked by single dependency
-- **WHEN** artifact B requires artifact A and A is not complete
-- **THEN** getBlocked() returns `{ B: ['A'] }`
+#### 場景：工件被單一依賴項阻止
+- **何時** 工件 B 需要工件 A 且 A 不完整
+- **然後** getBlocked() 返回 `{ B: ['A'] }`
 
-#### Scenario: Artifact blocked by multiple dependencies
-- **WHEN** artifact C requires A and B, and only A is complete
-- **THEN** getBlocked() returns `{ C: ['B'] }`
+#### 場景：工件被多個相依性阻止
+- **何時** 工件 C 需要 A 和 B，且只有 A 是完整的
+- **然後** getBlocked() 返回 `{ C: ['B'] }`
 
-#### Scenario: Artifact blocked by all dependencies
-- **WHEN** artifact C requires A and B, and neither is complete
-- **THEN** getBlocked() returns `{ C: ['A', 'B'] }`
+#### 場景：工件被所有相依性阻止
+- **何時** 工件 C 需要 A 和 B，但兩者都不完整
+- **然後** getBlocked() 返回 `{ C: ['A', 'B'] }`

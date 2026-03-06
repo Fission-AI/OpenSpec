@@ -1,27 +1,27 @@
-## Context
+## 情境
 
-The experimental artifact workflow supports multiple schemas (`spec-driven`, `tdd`), but schema selection must be passed on every command. This creates friction for agents and users.
+實驗工件工作流程支援多種模式（`spec-driven`, `tdd`），但必須在每個命令上傳遞模式選擇。這給代理商和用戶帶來了摩擦。
 
-We need a lightweight metadata file to persist the schema choice per change.
+我們需要一個輕量級元資​​料檔案來保存每次更改的模式選擇。
 
-## Goals / Non-Goals
+## 目標/非目標
 
-**Goals:**
-- Store schema choice once at change creation
-- Auto-detect schema in experimental workflow commands
-- Maintain backward compatibility (no metadata = default)
-- Validate metadata with Zod schema
+**目標：**
+- 在建立變更時儲存架構選擇一次
+- 自動偵測實驗工作流程指令中的架構
+- 保持向後相容性（無元資料=預設）
+- 使用 Zod 架構驗證元資料
 
-**Non-Goals:**
-- Migrate existing changes (they use default)
-- Extend to legacy commands
-- Store additional metadata beyond schema (keep minimal for now)
+**非目標：**
+- 遷移現有更改（它們使用預設值）
+- 擴展到遺留命令
+- 儲存架構以外的其他元資料（目前保持最少）
 
-## Decisions
+## 決定
 
-### Decision: Zod Schema Design
+### 決策：Zod 架構設計
 
-The metadata file (`.openspec.yaml`) will be validated with this Zod schema:
+The metadata file (`.openspec.yaml`) 將使用此 Zod 模式進行驗證：
 
 ```typescript
 // src/core/artifact-graph/types.ts (or new metadata.ts)
@@ -48,28 +48,28 @@ export const ChangeMetadataSchema = z.object({
 export type ChangeMetadata = z.infer<typeof ChangeMetadataSchema>;
 ```
 
-**Rationale:**
-- `schema` is required and validated against available schemas at parse time
-- `created` is optional, ISO date format for consistency
-- Minimal fields - can extend later without breaking existing files
-- Follows existing codebase pattern (see `ArtifactSchema`, `SchemaYamlSchema`)
+**理由：**
+- `schema` 是必需的，並在解析時根據可用模式進行驗證
+- `created` 是可選的，ISO 日期格式以保持一致性
+- 最小字段 - 以後可以擴展而不會破壞現有文件
+- 遵循現有的程式碼庫模式（請參閱 `ArtifactSchema`, `SchemaYamlSchema`)
 
-### Decision: File Location and Format
+### 決定：文件位置和格式
 
-**Location:** `openspec/changes/<name>/.openspec.yaml`
+**地點：** `openspec/changes/<name>/.openspec.yaml`
 
-**Format:**
+**格式：**
 ```yaml
 schema: tdd
 created: 2025-01-05
 ```
 
-**Alternatives considered:**
-- `change.yaml` - less hidden, but clutters directory
-- Frontmatter in `proposal.md` - couples to proposal existence
-- `openspec.json` - YAML matches existing schema files
+**考慮的替代方案：**
+- `change.yaml` - 隱藏程度較低，但目錄混亂
+- 前沿內容 `proposal.md` - 情侶求婚存在
+- `openspec.json` - YAML 符合現有架構文件
 
-### Decision: Read/Write Functions
+### 決策：讀/寫函數
 
 ```typescript
 // src/utils/change-metadata.ts
@@ -108,13 +108,13 @@ export function readChangeMetadata(
 }
 ```
 
-### Decision: Schema Resolution Order
+### 決策：模式解析順序
 
-When determining which schema to use:
+確定要使用哪個架構時：
 
-1. **Explicit `--schema` flag** (highest priority - user override)
-2. **`.openspec.yaml` metadata** (persisted choice)
-3. **Default `spec-driven`** (fallback)
+1. **明確 `--schema` 標誌**（最高優先順序 - 使用者覆蓋）
+2. **`.openspec.yaml` 元資料**（持續選擇）
+3. **預設 `spec-driven`** （倒退）
 
 ```typescript
 function resolveSchemaForChange(
@@ -130,18 +130,18 @@ function resolveSchemaForChange(
 }
 ```
 
-## Risks / Trade-offs
+## 風險/權衡
 
-- **Extra file per change** → Minimal overhead, hidden file
-- **YAML parsing dependency** → Already using `yaml` package for schema files
-- **Schema validation at read time** → Fail fast with clear error if corrupted
+- **每次更改額外文件** → 最小開銷，隱藏文件
+- **YAML 解析依賴** → 已使用 `yaml` 模式檔案包
+- **讀取時的架構驗證** → 如果損壞，會快速失敗並顯示明顯的錯誤
 
-## Migration Plan
+## 遷移計劃
 
-No migration needed:
-- Existing changes without `.openspec.yaml` continue to work (use default)
-- New changes created with `openspec new change --schema X` get metadata file
+無需遷移：
+- 現有變更無 `.openspec.yaml` 繼續工作（使用預設）
+- 建立的新更改 `openspec new change --schema X` 取得元資料文件
 
-## Open Questions
+## 開放式問題
 
-- Should `openspec new change` prompt for schema interactively if not specified? (Leaning no - default is fine)
+- 應該 `openspec new change` 如果未指定，則互動式提示模式？ （傾向於否 - 預設即可）

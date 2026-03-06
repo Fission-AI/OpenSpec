@@ -1,79 +1,79 @@
-## ADDED Requirements
+## 新增要求
 
-### Requirement: Multi-platform Nix flake
-The system SHALL provide a Nix flake that builds OpenSpec for multiple platforms.
+### 需求：多平台 Nix flake
+系統應提供一個 Nix flake，為多個平台建構 OpenSpec。
 
-#### Scenario: Build on Linux x86_64
-- **WHEN** user runs `nix build` on x86_64-linux system
-- **THEN** system builds OpenSpec package successfully
-- **AND** package includes the `openspec` binary
+#### 場景：在 Linux x86_64 上構建
+- **何時** 使用者執行 `nix build` 在 x86_64-linux 系統上
+- **那麼** 系統成功建置 OpenSpec 包
+- **和** 套餐包括 `openspec` 二進位
 
-#### Scenario: Build on macOS ARM
-- **WHEN** user runs `nix build` on aarch64-darwin system
-- **THEN** system builds OpenSpec package successfully
-- **AND** package includes the `openspec` binary
+#### 場景：基於 macOS ARM 構建
+- **何時** 使用者執行 `nix build` 在 aarch64-darwin 系統上
+- **那麼** 系統成功建置 OpenSpec 包
+- **和** 套餐包括 `openspec` 二進位
 
-#### Scenario: Build on Linux ARM
-- **WHEN** user runs `nix build` on aarch64-linux system
-- **THEN** system builds OpenSpec package successfully
+#### 場景：基於 Linux ARM 構建
+- **何時** 使用者執行 `nix build` 在aarch64-linux系統上
+- **那麼** 系統成功建置 OpenSpec 包
 
-#### Scenario: Build on macOS x86_64
-- **WHEN** user runs `nix build` on x86_64-darwin system
-- **THEN** system builds OpenSpec package successfully
+#### 場景：在 macOS x86_64 上構建
+- **何時** 使用者執行 `nix build` 在 x86_64-darwin 系統上
+- **那麼** 系統成功建置 OpenSpec 包
 
-### Requirement: Direct execution via nix run
-The system SHALL allow users to run OpenSpec directly from GitHub without installing.
+### 要求：透過nix run直接執行
+系統應允許用戶直接從GitHub執行OpenSpec而無需安裝。
 
-#### Scenario: Run init command from GitHub
-- **WHEN** user runs `nix run github:Fission-AI/OpenSpec -- init`
-- **THEN** system downloads and builds OpenSpec
-- **AND** executes `openspec init` command
+#### 場景：從 GitHub 執行 init 指令
+- **何時** 使用者執行 `nix run github:Fission-AI/OpenSpec -- init`
+- **然後**系統下載並建置OpenSpec
+- **AND** 執行 `openspec init` 命令
 
-#### Scenario: Run any OpenSpec command
-- **WHEN** user runs `nix run github:Fission-AI/OpenSpec -- <command> <args>`
-- **THEN** system executes `openspec <command> <args>`
+#### 場景：執行任意 OpenSpec 指令
+- **何時** 使用者執行 `nix run github:Fission-AI/OpenSpec -- <command> <args>`
+- **然後**系統執行 `openspec <command> <args>`
 
-### Requirement: pnpm dependency management
-The system SHALL use pnpm for building OpenSpec in the Nix flake.
+### 要求：pnpm 依賴管理
+系統應使用 pnpm 在 Nix 片中建構 OpenSpec。
 
-#### Scenario: Fetch dependencies with pnpm
-- **WHEN** Nix builds the package
-- **THEN** system uses `fetchPnpmDeps` to download dependencies
-- **AND** uses pnpm-lock.yaml for reproducible builds
-- **AND** uses fetcherVersion 3 for lockfile version 9.0
+#### 場景：使用 pnpm 取得依賴項
+- **何時** Nix 建立軟體包
+- **那麼**系統使用 `fetchPnpmDeps` 下載依賴項
+- **AND** 使用 pnpm-lock.yaml 進行可重現的構建
+- **AND** 對鎖定檔案版本 9.0 使用 fetcherVersion 3
 
-#### Scenario: Build with pnpm
-- **WHEN** Nix runs the build phase
-- **THEN** system executes `pnpm run build`
-- **AND** produces dist directory with compiled TypeScript
+#### 場景：使用 pnpm 構建
+- **何時** Nix 執行建置階段
+- **然後**系統執行 `pnpm run build`
+- **AND** 產生已編譯的 dist 目錄 TypeScript
 
-### Requirement: Node.js version compatibility
-The system SHALL use Node.js 20 as specified in package.json engines field.
+### 要求：Node.js版本相容性
+系統應使用 package.json 引擎欄位中指定的 Node.js 20。
 
-#### Scenario: Build with correct Node version
-- **WHEN** Nix builds OpenSpec
-- **THEN** system uses nodejs_20 from nixpkgs
-- **AND** build succeeds without version compatibility errors
+#### 場景：使用正確的 Node 版本進行構建
+- **何時** Nix 建構 OpenSpec
+- **那麼**系統使用nixpkgs中的nodejs_20
+- **且**建置成功，沒有版本相容性錯誤
 
-### Requirement: Development shell
-The system SHALL provide a Nix development shell for contributors.
+### 需求：開發外殼
+系統應為貢獻者提供 Nix 開發 shell。
 
-#### Scenario: Enter dev shell
-- **WHEN** user runs `nix develop` in OpenSpec repository
-- **THEN** system provides shell with nodejs_20 and pnpm_9
-- **AND** displays welcome message with versions
-- **AND** provides instructions to run `pnpm install`
+#### 場景：進入dev shell
+- **何時** 使用者執行 `nix develop` 在 OpenSpec 儲存庫中
+- **那麼**系統提供了一個有nodejs_20和pnpm_9的shell
+- **AND** 顯示帶有版本的歡迎訊息
+- **AND** 提供執行指令 `pnpm install`
 
-### Requirement: Proper binary installation
-The system SHALL install the openspec binary correctly.
+### 要求：正確的二進位安裝
+系統應正確安裝 openspec 二進位。
 
-#### Scenario: Binary in PATH
-- **WHEN** package is built or installed
-- **THEN** `openspec` binary is available in `$out/bin/openspec`
-- **AND** binary is executable
-- **AND** binary can be invoked without full path when installed
+#### 場景：PATH 中的二進位文件
+- **何時** 軟體包被建置或安裝
+- **然後** `openspec` 二進位檔案可用於 `$out/bin/openspec`
+- **並且** 二進位檔案是可執行的
+- **和** 安裝時可以在沒有完整路徑的情況下呼叫二進位文件
 
-#### Scenario: Binary executes correctly
-- **WHEN** user runs the installed `openspec` command
-- **THEN** system executes the CLI entry point
-- **AND** all subcommands work correctly
+#### 場景：二進位正確執行
+- **何時** 使用者執行已安裝的 `openspec` 命令
+- **那麼**系統執行%%%31%入口點
+- **並且** 所有子命令都能正常工作

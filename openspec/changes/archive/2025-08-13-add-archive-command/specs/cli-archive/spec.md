@@ -1,78 +1,78 @@
-# CLI Archive Command Specification
+# CLI 存檔指令說明
 
-## Purpose
-The archive command moves completed changes from the active changes directory to the archive folder with date-based naming, following OpenSpec conventions.
+## 目的
+archive 指令將已完成的變更從活動變更目錄移至具有基於日期的命名的存檔資料夾，遵循 OpenSpec 約定。
 
-## Command Syntax
+## 命令語法
 ```bash
 openspec archive [change-name] [--yes|-y]
 ```
 
-Options:
-- `--yes`, `-y`: Skip confirmation prompts (for automation)
+選項：
+- `--yes`, `-y`：跳過確認提示（用於自動化）
 
-## Behavior
+## 行為
 
-### Change Selection
-WHEN no change-name is provided
-THEN display interactive list of available changes (excluding archive/)
-AND allow user to select one
+### 更改選擇
+當沒有提供更改名稱時
+然後顯示可用變更的互動式清單（不包括存檔/）
+並允許用戶選擇一個
 
-WHEN change-name is provided
-THEN use that change directly
-AND validate it exists
+何時提供更改名稱
+然後直接使用該更改
+並驗證它存在
 
-### Task Completion Check
-The command SHALL scan the change's tasks.md file for incomplete tasks (marked with `- [ ]`)
+### 任務完成檢查
+該命令應掃描更改的tasks.md檔案以查找不完整的任務（標記為 `- [ ]`)
 
-WHEN incomplete tasks are found
-THEN display all incomplete tasks to the user
-AND prompt for confirmation to continue
-AND default to "No" for safety
+當發現未完成的任務時
+然後向使用者顯示所有未完成的任務
+並提示確認繼續
+為了安全起見，預設為“否”
 
-WHEN all tasks are complete OR no tasks.md exists
-THEN proceed with archiving without prompting
+當所有任務完成或沒有tasks.md存在時
+然後繼續歸檔而不提示
 
-### Archive Process
-The archive operation SHALL:
-1. Create archive/ directory if it doesn't exist
-2. Generate target name as `YYYY-MM-DD-[change-name]` using current date
-3. Check if target directory already exists
-4. Update main specs from the change's future state specs (see Spec Update Process below)
-5. Move the entire change directory to the archive location
+### 歸檔流程
+歸檔操作應：
+1. 如果 archive/ 目錄不存在，則建立它
+2. 產生目標名稱為 `YYYY-MM-DD-[change-name]` 使用目前日期
+3. 檢查目標目錄是否已存在
+4. 根據變更的未來狀態規格更新主要規格（請參閱下面的規格更新流程）
+5. 將整個變更目錄移至存檔位置
 
-WHEN target archive already exists
-THEN fail with error message
-AND do not overwrite existing archive
+當目標存檔已存在時
+然後失敗並顯示錯誤訊息
+且不覆蓋現有存檔
 
-WHEN move succeeds
-THEN display success message with archived name and list of updated specs
+當移動成功時
+然後顯示成功訊息以及存檔名稱和更新規格列表
 
-### Spec Update Process
-Before moving the change to archive, the command SHALL update main specs to reflect the deployed reality:
+### 規格更新流程
+在將變更移至存檔之前，該命令應更新主要規格以反映部署的實際情況：
 
-WHEN the change contains specs in `changes/[name]/specs/`
-THEN:
-1. Analyze which specs will be affected by comparing with existing specs
-2. Display a summary of spec updates to the user (see Confirmation Behavior below)
-3. Prompt for confirmation unless `--yes` flag is provided
-4. If confirmed, for each capability spec in the change directory:
-   - Copy the spec from `changes/[name]/specs/[capability]/spec.md` to `openspec/specs/[capability]/spec.md`
-   - Create the target directory structure if it doesn't exist
-   - Overwrite existing spec files (specs represent current reality, change specs are the new reality)
-   - Track which specs were updated for the success message
+當變更包含以下規格時 `changes/[name]/specs/`
+然後：
+1. 透過與現有規格進行比較來分析哪些規格會受到影響
+2. 向使用者顯示規範更新的摘要（請參閱下面的確認行為）
+3. 提示確認，除非 `--yes` 提供了標誌
+4. 如果確認，對於更改目錄中的每個功能規格：
+   - 複製規格 `changes/[name]/specs/[capability]/spec.md` 到 `openspec/specs/[capability]/spec.md`
+   - 如果目標目錄結構不存在則建立
+   - 覆蓋現有規格文件（規格代表當前現實，更改規格是新現實）
+   - 追蹤成功訊息更新了哪些規格
 
-WHEN no specs exist in the change
-THEN skip the spec update step
-AND proceed with archiving
+當變更中不存在規格時
+然後跳過規格更新步驟
+並繼續歸檔
 
-### Confirmation Behavior
-The spec update confirmation SHALL:
-- Display a clear summary showing:
-  - Which specs will be created (new capabilities)
-  - Which specs will be updated (existing capabilities)
-  - The source path for each spec
-- Format the confirmation prompt as:
+### 確認行為
+規範更新確認應：
+- 顯示清晰的摘要，顯示：
+  - 將建立哪些規範（新功能）
+  - 哪些規格將會更新（現有功能）
+  - 每個規範的來源路徑
+- 將確認提示格式設定為：
   ```
   The following specs will be updated:
   
@@ -84,28 +84,28 @@ The spec update confirmation SHALL:
   
   Update 2 specs and archive 'add-archive-command'? [y/N]:
   ```
-- Default to "No" for safety (require explicit "y" or "yes")
-- Skip confirmation when `--yes` or `-y` flag is provided
+- 為了安全起見，預設為“否”（需要明確的“y”或“是”）
+- 跳過確認時 `--yes` 或者 `-y` 提供了標誌
 
-WHEN user declines the confirmation
-THEN abort the entire archive operation
-AND display message: "Archive cancelled. No changes were made."
-AND exit with non-zero status code
+當用戶拒絕確認時
+然後中止整個歸檔操作
+並顯示訊息：“存檔已取消。未進行任何更改。”
+AND 以非零狀態代碼退出
 
-## Error Handling
+## 錯誤處理
 
-SHALL handle the following error conditions:
-- Missing openspec/changes/ directory
-- Change not found
-- Archive target already exists
-- File system permissions issues
+應處理以下錯誤情況：
+- 缺少 openspec/changes/ 目錄
+- 未找到更改
+- 存檔目標已存在
+- 檔案系統權限問題
 
-## Why These Decisions
+## 為什麼要做出這些決定
 
-**Interactive selection**: Reduces typing and helps users see available changes
-**Task checking**: Prevents accidental archiving of incomplete work
-**Date prefixing**: Maintains chronological order and prevents naming conflicts
-**No overwrite**: Preserves historical archives and prevents data loss
-**Spec updates before archiving**: Specs in the main directory represent current reality; when a change is deployed and archived, its future state specs become the new reality and must replace the main specs
-**Confirmation for spec updates**: Provides visibility into what will change, prevents accidental overwrites, and ensures users understand the impact before specs are modified
-**--yes flag for automation**: Allows CI/CD pipelines to archive without interactive prompts while maintaining safety by default for manual use
+**互動式選擇**：減少打字並幫助使用者檢視可用的更改
+**任務檢查**：防止意外歸檔不完整的工作
+**日期前綴**：保持時間順序並防止命名衝突
+**不覆蓋**：保留歷史檔案並防止資料遺失
+**存檔前的規格更新**：主目錄中的規格代表當前的現實；當部署和存檔變更時，其未來狀態規範將成為新的現實，並且必須取代主要規範
+**規範更新確認**：提供將要更改的內容的可見性，防止意外覆蓋，並確保用戶在修改規範之前瞭解影響
+**--自動化的 yes 標誌**：允許 CI/CD 管道在沒有互動式提示的情況下存檔，同時預設保持手動使用的安全性

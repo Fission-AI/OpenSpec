@@ -1,202 +1,202 @@
-# Update Command Specification
+# 更新命令規範
 
-## Purpose
+## 目的
 
-As a developer using OpenSpec, I want to update the OpenSpec instructions in my project when new versions are released, so that I can benefit from improvements to AI agent instructions.
-## Requirements
-### Requirement: Update Behavior
-The update command SHALL update OpenSpec instruction files to the latest templates in a team-friendly manner.
+作為使用 OpenSpec 的開發人員，我希望在新版本發佈時更新專案中的 OpenSpec 指令，以便我可以從 AI 代理指令的改進中受益。
+## 要求
+### 要求：更新行為
+更新命令應以團隊友好的方式將 OpenSpec 指令檔更新為最新模板。
 
-#### Scenario: Running update command
-- **WHEN** a user runs `openspec update`
-- **THEN** replace `openspec/AGENTS.md` with the latest template
-- **AND** if a root-level stub (`AGENTS.md`/`CLAUDE.md`) exists, refresh it so it points to `@/openspec/AGENTS.md`
+#### 場景：執行更新命令
+- **何時** 使用者執行 `openspec update`
+- **然後** 更換 `openspec/AGENTS.md` 與最新的模板
+- **AND** 若根級存根 (`AGENTS.md`/`CLAUDE.md`) 存在，重新整理它以便它指向 `@/openspec/AGENTS.md`
 
-### Requirement: Prerequisites
+### 要求：先決條件
 
-The command SHALL require an existing OpenSpec structure before allowing updates.
+在允許更新之前，該命令應需要現有的 OpenSpec 結構。
 
-#### Scenario: Checking prerequisites
+#### 場景：檢查先決條件
 
-- **GIVEN** the command requires an existing `openspec` directory (created by `openspec init`)
-- **WHEN** the `openspec` directory does not exist
-- **THEN** display error: "No OpenSpec directory found. Run 'openspec init' first."
-- **AND** exit with code 1
+- **鑑於**該命令需要現有的 `openspec` 目錄（由建立 `openspec init`)
+- **何時** `openspec` 目錄不存在
+- **然後** 顯示錯誤：“未找到 OpenSpec 目錄。首先執行 'openspec init'。”
+- **並且** 使用代碼 1 退出
 
-### Requirement: File Handling
-The update command SHALL handle file updates in a predictable and safe manner.
+### 要求：文件處理
+更新命令應以可預測且安全的方式處理文件更新。
 
-#### Scenario: Updating files
-- **WHEN** updating files
-- **THEN** completely replace `openspec/AGENTS.md` with the latest template
-- **AND** if a root-level stub exists, update the managed block content so it keeps directing teammates to `@/openspec/AGENTS.md`
+#### 場景：更新文件
+- **何時**更新文件
+- **然後** 完全替換 `openspec/AGENTS.md` 與最新的模板
+- **並且** 如果存在根級存根，請更新託管區塊內容，以便它繼續引導隊友 `@/openspec/AGENTS.md`
 
-### Requirement: Tool-Agnostic Updates
-The update command SHALL refresh OpenSpec-managed files in a predictable manner while respecting each team's chosen tooling.
+### 要求：與工具無關的更新
+更新命令應以可預測的方式重新整理 OpenSpec 託管文件，同時尊重每個團隊選擇的工具。
 
-#### Scenario: Updating files
-- **WHEN** updating files
-- **THEN** completely replace `openspec/AGENTS.md` with the latest template
-- **AND** create or refresh the root-level `AGENTS.md` stub using the managed marker block, even if the file was previously absent
-- **AND** update only the OpenSpec-managed sections inside existing AI tool files, leaving user-authored content untouched
-- **AND** avoid creating new native-tool configuration files (slash commands, CLAUDE.md, etc.) unless they already exist
+#### 場景：更新文件
+- **何時**更新文件
+- **然後** 完全替換 `openspec/AGENTS.md` 與最新的模板
+- **和** 建立或重新整理根級別 `AGENTS.md` 使用託管標記區塊進行存根，即使該檔案之前不存在
+- **且** 僅更新現有 AI 工具檔案中 OpenSpec 管理的部分，使用戶創作的內容保持不變
+- **並且**避免建立新的本機工具設定檔（斜線指令、CLAUDE.md 等），除非它們已經存在
 
-### Requirement: Core Files Always Updated
-The update command SHALL always update the core OpenSpec files and display an ASCII-safe success message.
+### 需求：核心檔案始終更新
+更新命令應始終更新核心 OpenSpec 檔案並顯示 ASCII 安全性成功訊息。
 
-#### Scenario: Successful update
-- **WHEN** the update completes successfully
-- **THEN** replace `openspec/AGENTS.md` with the latest template
-- **AND** if a root-level stub exists, refresh it so it still directs contributors to `@/openspec/AGENTS.md`
+#### 場景：更新成功
+- **何時** 更新成功完成
+- **然後** 更換 `openspec/AGENTS.md` 與最新的模板
+- **並且** 如果存在根級存根，請重新整理它，以便它仍然引導貢獻者 `@/openspec/AGENTS.md`
 
-### Requirement: Slash Command Updates
+### 需求：Slash 指令更新
 
-The update command SHALL refresh existing slash command files for configured tools without creating new ones, and ensure the OpenCode archive command accepts change ID arguments.
+更新命令應重新整理已設定工具的現有斜杠命令文件，而不建立新文件，並確保 OpenCode 存檔命令接受更改 ID 參數。
 
-#### Scenario: Updating slash commands for Antigravity
-- **WHEN** `.agent/workflows/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
-- **THEN** refresh the OpenSpec-managed portion of each file so the workflow copy matches other tools while preserving the existing single-field `description` frontmatter
-- **AND** skip creating any missing workflow files during update, mirroring the behavior for Windsurf and other IDEs
+#### 場景：更新反重力的斜線指令
+- **什麼時候** `.agent/workflows/` 包含 `openspec-proposal.md`, `openspec-apply.md`， 和 `openspec-archive.md`
+- **然後** 重新整理每個文件的 OpenSpec 託管部分，以便工作流程副本與其他工具匹配，同時保留現有的單字段 `description` 頭條
+- **並且** 在更新期間跳過建立任何丟失的工作流程文件，鏡像 Windsurf 和其他 IDE 的行為
 
-#### Scenario: Updating slash commands for Claude Code
-- **WHEN** `.claude/commands/openspec/` contains `proposal.md`, `apply.md`, and `archive.md`
-- **THEN** refresh each file using shared templates
-- **AND** ensure templates include instructions for the relevant workflow stage
+#### 場景：更新 Claude 程式碼的斜線指令
+- **什麼時候** `.claude/commands/openspec/` 包含 `proposal.md`, `apply.md`， 和 `archive.md`
+- **然後** 使用共用範本重新整理每個文件
+- **並**確保範本包含相關工作流程階段的說明
 
-#### Scenario: Updating slash commands for CodeBuddy Code
-- **WHEN** `.codebuddy/commands/openspec/` contains `proposal.md`, `apply.md`, and `archive.md`
-- **THEN** refresh each file using the shared CodeBuddy templates that include YAML frontmatter for the `description` and `argument-hint` fields
-- **AND** use square bracket format for `argument-hint` parameters (e.g., `[change-id]`)
-- **AND** preserve any user customizations outside the OpenSpec managed markers
+#### 場景：更新 CodeBuddy 程式碼的斜杠命令
+- **什麼時候** `.codebuddy/commands/openspec/` 包含 `proposal.md`, `apply.md`， 和 `archive.md`
+- **然後** 使用共享 CodeBuddy 模板重新整理每個文件，其中包含 YAML frontmatter `description` 和 `argument-hint` 領域
+- **AND** 使用方括號格式 `argument-hint` 參數（例如， `[change-id]`)
+- **並** 保留 OpenSpec 託管標記之外的任何用戶自訂設置
 
 #### Scenario: Updating slash commands for Cline
-- **WHEN** `.clinerules/workflows/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
-- **THEN** refresh each file using shared templates
-- **AND** include Cline-specific Markdown heading frontmatter
-- **AND** ensure templates include instructions for the relevant workflow stage
+- **什麼時候** `.clinerules/workflows/` 包含 `openspec-proposal.md`, `openspec-apply.md`， 和 `openspec-archive.md`
+- **然後** 使用共用範本重新整理每個文件
+- **並且** 包括 Cline 特定的 Markdown 標題 frontmatter
+- **並**確保範本包含相關工作流程階段的說明
 
-#### Scenario: Updating slash commands for Continue
-- **WHEN** `.continue/prompts/` contains `openspec-proposal.prompt`, `openspec-apply.prompt`, and `openspec-archive.prompt`
-- **THEN** refresh each file using shared templates
-- **AND** ensure templates include instructions for the relevant workflow stage
+#### 場景：更新「繼續」的斜槓指令
+- **什麼時候** `.continue/prompts/` 包含 `openspec-proposal.prompt`, `openspec-apply.prompt`， 和 `openspec-archive.prompt`
+- **然後** 使用共用範本重新整理每個文件
+- **並**確保範本包含相關工作流程階段的說明
 
-#### Scenario: Updating slash commands for Crush
-- **WHEN** `.crush/commands/` contains `openspec/proposal.md`, `openspec/apply.md`, and `openspec/archive.md`
-- **THEN** refresh each file using shared templates
-- **AND** include Crush-specific frontmatter with OpenSpec category and tags
-- **AND** ensure templates include instructions for the relevant workflow stage
+#### 場景：更新 Crush 的斜線命令
+- **什麼時候** `.crush/commands/` 包含 `openspec/proposal.md`, `openspec/apply.md`， 和 `openspec/archive.md`
+- **然後** 使用共用範本重新整理每個文件
+- **並且** 包括特定於 Crush 的 Frontmatter 以及 OpenSpec 類別和標籤
+- **並**確保範本包含相關工作流程階段的說明
 
-#### Scenario: Updating slash commands for Cursor
-- **WHEN** `.cursor/commands/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
-- **THEN** refresh each file using shared templates
-- **AND** ensure templates include instructions for the relevant workflow stage
+#### 場景：更新遊標的斜杠指令
+- **什麼時候** `.cursor/commands/` 包含 `openspec-proposal.md`, `openspec-apply.md`， 和 `openspec-archive.md`
+- **然後** 使用共用範本重新整理每個文件
+- **並**確保範本包含相關工作流程階段的說明
 
-#### Scenario: Updating slash commands for Factory Droid
-- **WHEN** `.factory/commands/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
-- **THEN** refresh each file using the shared Factory templates that include YAML frontmatter for the `description` and `argument-hint` fields
-- **AND** ensure the template body retains the `$ARGUMENTS` placeholder so user input keeps flowing into droid
-- **AND** update only the content inside the OpenSpec managed markers, leaving any unmanaged notes untouched
-- **AND** skip creating missing files during update
+#### 場景：更新 Factory Droid 的斜線指令
+- **什麼時候** `.factory/commands/` 包含 `openspec-proposal.md`, `openspec-apply.md`， 和 `openspec-archive.md`
+- **然後** 使用共享 Factory 模板重新整理每個文件，其中包含 YAML frontmatter `description` 和 `argument-hint` 領域
+- **並**確保模板主體保留 `$ARGUMENTS` 佔位符，以便使用者輸入不斷流入 droid
+- **且** 僅更新 OpenSpec 託管標記內的內容，保持任何非託管註解不變
+- **並且**在更新期間跳過建立丟失的文件
 
-#### Scenario: Updating slash commands for OpenCode
-- **WHEN** `.opencode/command/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
-- **THEN** refresh each file using shared templates
-- **AND** ensure templates include instructions for the relevant workflow stage
-- **AND** ensure the archive command includes `$ARGUMENTS` placeholder in frontmatter for accepting change ID arguments
+#### 場景：更新 OpenCode 的斜杠指令
+- **什麼時候** `.opencode/command/` 包含 `openspec-proposal.md`, `openspec-apply.md`， 和 `openspec-archive.md`
+- **然後** 使用共用範本重新整理每個文件
+- **並**確保範本包含相關工作流程階段的說明
+- **並且**確保存檔命令包括 `$ARGUMENTS` frontmatter 中的佔位符用於接受更改 ID 參數
 
-#### Scenario: Updating slash commands for Windsurf
-- **WHEN** `.windsurf/workflows/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
-- **THEN** refresh each file using shared templates wrapped in OpenSpec markers
-- **AND** ensure templates include instructions for the relevant workflow stage
-- **AND** skip creating missing files (the update command only refreshes what already exists)
+#### 場景：更新 Windsurf 的斜線命令
+- **什麼時候** `.windsurf/workflows/` 包含 `openspec-proposal.md`, `openspec-apply.md`， 和 `openspec-archive.md`
+- **然後** 使用包含 OpenSpec 標記的共享模板重新整理每個文件
+- **並**確保範本包含相關工作流程階段的說明
+- **並且** 跳過建立遺失的檔案（更新命令僅重新整理已存在的檔案）
 
-#### Scenario: Updating slash commands for Kilo Code
-- **WHEN** `.kilocode/workflows/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
-- **THEN** refresh each file using shared templates wrapped in OpenSpec markers
-- **AND** ensure templates include instructions for the relevant workflow stage
-- **AND** skip creating missing files (the update command only refreshes what already exists)
+#### 場景：更新 Kilo Code 的斜線指令
+- **什麼時候** `.kilocode/workflows/` 包含 `openspec-proposal.md`, `openspec-apply.md`， 和 `openspec-archive.md`
+- **然後** 使用包含 OpenSpec 標記的共享模板重新整理每個文件
+- **並**確保範本包含相關工作流程階段的說明
+- **並且** 跳過建立遺失的檔案（更新命令僅重新整理已存在的檔案）
 
-#### Scenario: Updating slash commands for Codex
-- **GIVEN** the global Codex prompt directory contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
-- **WHEN** a user runs `openspec update`
-- **THEN** refresh each file using the shared slash-command templates (including placeholder guidance)
-- **AND** preserve any unmanaged content outside the OpenSpec marker block
-- **AND** skip creation when a Codex prompt file is missing
+#### 場景：更新 Codex 的斜線指令
+- **鑑於**全域 Codex 提示目錄包含 `openspec-proposal.md`, `openspec-apply.md`， 和 `openspec-archive.md`
+- **何時** 使用者執行 `openspec update`
+- **然後** 使用共享斜杠命令模板（包括佔位符指導）重新整理每個文件
+- **並** 保留 OpenSpec 標記區塊之外的所有非託管內容
+- **並且** 當 Codex 提示文件遺失時跳過建立
 
-#### Scenario: Updating slash commands for GitHub Copilot
-- **WHEN** `.github/prompts/` contains `openspec-proposal.prompt.md`, `openspec-apply.prompt.md`, and `openspec-archive.prompt.md`
-- **THEN** refresh each file using shared templates while preserving the YAML frontmatter
-- **AND** update only the OpenSpec-managed block between markers
-- **AND** ensure templates include instructions for the relevant workflow stage
+#### 場景：更新 GitHub Copilot 的斜線指令
+- **什麼時候** `.github/prompts/` 包含 `openspec-proposal.prompt.md`, `openspec-apply.prompt.md`， 和 `openspec-archive.prompt.md`
+- **然後** 使用共享模板重新整理每個文件，同時保留 YAML frontmatter
+- **並且** 僅更新標記之間的 OpenSpec 管理區塊
+- **並**確保範本包含相關工作流程階段的說明
 
-#### Scenario: Updating slash commands for Gemini CLI
-- **WHEN** `.gemini/commands/openspec/` contains `proposal.toml`, `apply.toml`, and `archive.toml`
-- **THEN** refresh the body of each file using the shared proposal/apply/archive templates
-- **AND** replace only the content between `<!-- OPENSPEC:START -->` and `<!-- OPENSPEC:END -->` markers inside the `prompt = """` block so the TOML framing (`description`, `prompt`) stays intact
-- **AND** skip creating any missing `.toml` files during update; only pre-existing Gemini commands are refreshed
+#### 場景：更新 Gemini CLI 的斜線指令
+- **什麼時候** `.gemini/commands/openspec/` 包含 `proposal.toml`, `apply.toml`， 和 `archive.toml`
+- **然後** 使用共用提案/應用程式/存檔範本重新整理每個文件的正文
+- **AND** 僅替換之間的內容 `<!-- OPENSPEC:START -->` 和 `<!-- OPENSPEC:END -->` 內的標記 `prompt = """` 阻止 TOML 框架（`description`, `prompt`）保持完好無損
+- **並且**跳過建立任何缺少的 `.toml` 更新期間的檔案；僅重新整理預先存在的 Gemini 命令
 
-#### Scenario: Updating slash commands for iFlow CLI
-- **WHEN** `.iflow/commands/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
-- **THEN** refresh each file using shared templates
-- **AND** preserve the YAML frontmatter with `name`, `id`, `category`, and `description` fields
-- **AND** update only the OpenSpec-managed block between markers
-- **AND** ensure templates include instructions for the relevant workflow stage
+#### 場景：更新 iFlow CLI 的斜線指令
+- **什麼時候** `.iflow/commands/` 包含 `openspec-proposal.md`, `openspec-apply.md`， 和 `openspec-archive.md`
+- **然後** 使用共用範本重新整理每個文件
+- **並且** 保留 YAML frontmatter `name`, `id`, `category`， 和 `description` 領域
+- **並且** 僅更新標記之間的 OpenSpec 管理區塊
+- **並**確保範本包含相關工作流程階段的說明
 
-#### Scenario: Missing slash command file
-- **WHEN** a tool lacks a slash command file
-- **THEN** do not create a new file during update
+#### 場景：缺少斜線指令文件
+- **當**工具缺少斜線指令檔時
+- **那麼** 在更新期間不要建立新文件
 
-### Requirement: Archive Command Argument Support
-The archive slash command template SHALL support optional change ID arguments for tools that support `$ARGUMENTS` placeholder.
+### 需求：存檔命令參數支援
+歸檔斜線命令範本應支援可選的變更 ID 參數，以支援以下工具： `$ARGUMENTS` placeholder.
 
-#### Scenario: Archive command with change ID argument
-- **WHEN** a user invokes `/openspec:archive <change-id>` with a change ID
-- **THEN** the template SHALL instruct the AI to validate the provided change ID against `openspec list`
-- **AND** use the provided change ID for archiving if valid
-- **AND** fail fast if the provided change ID doesn't match an archivable change
+#### 場景：帶有更改 ID 參數的存檔命令
+- **何時** 用戶調用 `/openspec:archive <change-id>` 更改 ID
+- **然後** 範本應指示 AI 驗證提供的變更 ID `openspec list`
+- **並且** 使用提供的更改 ID 進行存檔（如果有效）
+- **並且** 如果提供的更改 ID 與可存檔更改不匹配，則會快速失敗
 
-#### Scenario: Archive command without argument (backward compatibility)
-- **WHEN** a user invokes `/openspec:archive` without providing a change ID
-- **THEN** the template SHALL instruct the AI to identify the change ID from context or by running `openspec list`
-- **AND** proceed with the existing behavior (maintaining backward compatibility)
+#### 場景：不含參數的 Archive 指令（向後相容）
+- **何時** 用戶調用 `/openspec:archive` 無需提供變更 ID
+- **那麼** 範本應指示 AI 從上下文中或透過執行來識別更改 ID `openspec list`
+- **並且** 繼續現有行為（保持向後相容性）
 
-#### Scenario: OpenCode archive template generation
-- **WHEN** generating the OpenCode archive slash command file
-- **THEN** include the `$ARGUMENTS` placeholder in the frontmatter
-- **AND** wrap it in a clear structure like `<ChangeId>\n  $ARGUMENTS\n</ChangeId>` to indicate the expected argument
-- **AND** include validation steps in the template body to check if the change ID is valid
+#### 場景：OpenCode 歸檔模板生成
+- **何時** 產生 OpenCode 存檔斜線命令文件
+- **然後** 包括 `$ARGUMENTS` 前面的佔位符
+- **並且**將其包裝在一個清晰的結構中，例如 `<ChangeId>\n  $ARGUMENTS\n</ChangeId>` 指示預期的參數
+- **並且** 在範本正文中包含驗證步驟以檢查更改 ID 是否有效
 
-## Edge Cases
+## 邊緣情況
 
-### Requirement: Error Handling
+### 要求：錯誤處理
 
-The command SHALL handle edge cases gracefully.
+該命令應妥善處理邊緣情況。
 
-#### Scenario: File permission errors
+#### 場景：檔案權限錯誤
 
-- **WHEN** file write fails
-- **THEN** let the error bubble up naturally with file path
+- **何時** 文件寫入失敗
+- **然後** 讓錯誤隨著檔案路徑自然地冒出來
 
-#### Scenario: Missing AI tool files
+#### 場景：AI 工具檔案遺失
 
-- **WHEN** an AI tool configuration file doesn't exist
-- **THEN** skip updating that file
-- **AND** do not create it
+- **何時** AI 工具設定檔不存在
+- **然後** 跳過更新該文件
+- **並且**不要建立它
 
-#### Scenario: Custom directory names
+#### 場景：自訂目錄名稱
 
-- **WHEN** considering custom directory names
-- **THEN** not supported in this change
-- **AND** the default directory name `openspec` SHALL be used
+- **何時** 考慮自訂目錄名稱
+- **那麼** 此更改不支援
+- **和** 預設目錄名稱 `openspec` 應使用
 
-## Success Criteria
+## 成功標準
 
-Users SHALL be able to:
-- Update OpenSpec instructions with a single command
-- Get the latest AI agent instructions
-- See clear confirmation of the update
+用戶應該能夠：
+- 使用單一指令更新OpenSpec指令
+- 取得最新的AI代理指令
+- 檢視更新的明確確認
 
-The update process SHALL be:
-- Simple and fast (no version checking)
-- Predictable (same result every time)
-- Self-contained (no network required)
+更新過程應為：
+- 簡單快速（無需版本檢查）
+- 可預測（每次結果相同）
+- 獨立（無需網路）

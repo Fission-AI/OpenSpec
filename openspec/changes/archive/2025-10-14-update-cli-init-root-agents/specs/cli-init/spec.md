@@ -1,32 +1,32 @@
-## MODIFIED Requirements
-### Requirement: AI Tool Configuration
-The command SHALL configure AI coding assistants with OpenSpec instructions using a grouped selection experience so teams can enable native integrations while always provisioning guidance for other assistants.
+## 修改後的要求
+### 需求：AI工具設定
+該命令應使用分組選擇體驗使用 OpenSpec 指令設定 AI 編碼助手，以便團隊可以啟用本機集成，同時始終為其他助手提供指導。
 
-#### Scenario: Prompting for AI tool selection
-- **WHEN** run interactively
-- **THEN** present a multi-select wizard that separates options into two headings:
-  - **Natively supported providers** shows each available first-party integration (Claude Code, Cursor, OpenCode, …) with checkboxes
-  - **Other tools** explains that the root-level `AGENTS.md` stub is always generated for AGENTS-compatible assistants and cannot be deselected
-- **AND** mark already configured native tools with "(already configured)" to signal that choosing them will refresh managed content
-- **AND** keep disabled or unavailable providers labelled as "coming soon" so users know they cannot opt in yet
-- **AND** allow confirming the selection even when no native provider is chosen because the root stub remains enabled by default
-- **AND** change the base prompt copy in extend mode to "Which natively supported AI tools would you like to add or refresh?"
+#### 場景：提示選擇AI工具
+- **何時** 交互執行
+- **然後** 呈現一個多重選取嚮導，將選項分成兩個標題：
+  - **本機支援的提供者** 顯示每個可用的第一方整合（Claude% 代碼、遊標、OpenCode 等）以及核取方塊
+  - **其他工具**解釋說根級別 `AGENTS.md` 始終為相容 AGENTS 的助手產生存根，且無法取消選擇
+- **並且** 使用「（已設定）」標記已設定的本機工具，以表示選擇它們將重新整理託管內容
+- **並且** 將已停用或不可用的提供者標記為“即將推出”，以便用戶知道他們還無法選擇加入
+- **並且** 即使沒有選擇本機提供者也允許確認選擇，因為預設情況下根存根保持啟用狀態
+- **並且**將擴展模式下的基本提示副本更改為“您想要添加或重新整理哪些本機支援的AI 工具？”
 
-### Requirement: Exit Code Adjustments
-`openspec init` SHALL treat extend mode without new native tool selections as a successful refresh.
+### 要求：退出代碼調整
+`openspec init` 應將沒有新本機工具選擇的擴充模式視為成功重新整理。
 
-#### Scenario: Allowing empty extend runs
-- **WHEN** OpenSpec is already initialized and the user selects no additional natively supported tools
-- **THEN** complete successfully while refreshing the root `AGENTS.md` stub
-- **AND** exit with code 0
+#### 場景：允許空擴展執行
+- **何時** OpenSpec 已初始化且使用者未選擇其他本機支援的工具
+- **然後** 成功完成，同時重新整理根目錄 `AGENTS.md` 存根
+- **並且** 以代碼 0 退出
 
-## ADDED Requirements
-### Requirement: Root instruction stub
-`openspec init` SHALL always scaffold the root-level `AGENTS.md` hand-off so every teammate finds the primary OpenSpec instructions.
+## 新增要求
+### 要求：根指令存根
+`openspec init` 應始終搭建根級別 `AGENTS.md` 交接，讓每位隊友都能找到主要的 OpenSpec 指示。
 
-#### Scenario: Creating root `AGENTS.md`
-- **GIVEN** the project may or may not already contain an `AGENTS.md` file
-- **WHEN** initialization completes in fresh or extend mode
-- **THEN** create or refresh `AGENTS.md` at the repository root using the managed marker block from `TemplateManager.getAgentsStandardTemplate()`
-- **AND** preserve any existing content outside the managed markers while replacing the stub text inside them
-- **AND** create the stub regardless of which native AI tools are selected
+#### 場景：建立root `AGENTS.md`
+- **鑑於**該項目可能已包含或尚未包含 `AGENTS.md` 文件
+- **何時** 初始化在新鮮或擴展模式下完成
+- **然後** 建立或重新整理 `AGENTS.md` 在儲存庫根目錄中使用來自的託管標記塊 `TemplateManager.getAgentsStandardTemplate()`
+- **並且** 保留託管標記之外的任何現有內容，同時替換其中的存根文本
+- **並且** 無論選擇哪種本機 AI 工具都建立存根

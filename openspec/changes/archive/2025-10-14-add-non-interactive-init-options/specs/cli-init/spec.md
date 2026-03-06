@@ -1,39 +1,39 @@
-# Delta for CLI Init Specification
+# CLI 初始規範的增量
 
-## ADDED Requirements
-### Requirement: Non-Interactive Mode
-The command SHALL support non-interactive operation through command-line options for automation and CI/CD use cases.
+## 新增要求
+### 要求：非互動模式
+該命令應透過自動化和 CI/CD 用例的命令列選項支援非互動式操作。
 
-#### Scenario: Select all tools non-interactively
-- **WHEN** run with `--tools all`
-- **THEN** automatically select every available AI tool without prompting
-- **AND** proceed with initialization using the selected tools
+#### 場景：以非互動方式選擇所有工具
+- **何時** 執行 `--tools all`
+- **然後** 自動選擇每個可用的 AI 工具，無需提示
+- **並且** 使用所選工具繼續初始化
 
-#### Scenario: Select specific tools non-interactively
-- **WHEN** run with `--tools claude,cursor`
-- **THEN** parse the comma-separated tool IDs and validate against available tools
-- **AND** proceed with initialization using only the specified valid tools
+#### 場景：非互動地選擇特定工具
+- **何時** 執行 `--tools claude,cursor`
+- **然後** 解析以逗號分隔的工具 ID 並針對可用工具進行驗證
+- **且** 僅使用指定的有效工具繼續初始化
 
-#### Scenario: Skip tool configuration non-interactively
-- **WHEN** run with `--tools none`
-- **THEN** skip AI tool configuration entirely
-- **AND** only create the OpenSpec directory structure and template files
+#### 場景：以非互動方式跳過工具設定
+- **何時** 執行 `--tools none`
+- **然後** 完全跳過 AI 工具設定
+- **並且**僅建立 OpenSpec 目錄結構和範本文件
 
-#### Scenario: Invalid tool specification
-- **WHEN** run with `--tools` containing any IDs not present in the AI tool registry
-- **THEN** exit with code 1 and display available values (`all`, `none`, or the supported tool IDs)
+#### 場景：無效的工具規範
+- **何時** 執行 `--tools` 包含 AI 工具註冊表中不存在的任何 ID
+- **然後** 使用代碼 1 退出並顯示可用值 (`all`, `none`，或支援的工具 ID）
 
-#### Scenario: Help text lists available tool IDs
-- **WHEN** displaying CLI help for `openspec init`
-- **THEN** show the `--tools` option description with the valid values derived from the AI tool registry
+#### 場景：幫助文字列出可用的工具 ID
+- **何時** 顯示 CLI 協助 `openspec init`
+- **然後** 顯示 `--tools` 選項描述以及從 AI 工具註冊表派生的有效值
 
-## MODIFIED Requirements
-### Requirement: Interactive Mode
-The command SHALL provide an interactive menu for AI tool selection with clear navigation instructions.
+## 修改後的要求
+### 要求：互動模式
+該命令應提供一個用於 AI 工具選擇的互動式選單，並具有清晰的導航說明。
 
-#### Scenario: Displaying interactive menu
-- **WHEN** run in fresh or extend mode without non-interactive options
-- **THEN** present a looping select menu that lets users toggle tools with Enter and finish via a "Done" option
-- **AND** label already configured tools with "(already configured)" while keeping disabled options marked "coming soon"
-- **AND** change the prompt copy in extend mode to "Which AI tools would you like to add or refresh?"
-- **AND** display inline instructions clarifying that Enter toggles a tool and selecting "Done" confirms the list
+#### 場景：顯示互動式選單
+- **何時** 在新鮮或擴展模式下執行，沒有非交互選項
+- **然後** 呈現一個循環選擇選單，讓使用者可以透過 Enter 切換工具並透過「完成」選項完成
+- **並且** 以“（已設定）”標記已設定的工具，同時將禁用的選項標記為“即將推出”
+- **並且**將擴展模式下的提示副本更改為“您想要添加或重新整理哪些 AI 工具？”
+- **並且** 顯示內聯指令，闡明 Enter 鍵切換工具並選擇「完成」確認列表

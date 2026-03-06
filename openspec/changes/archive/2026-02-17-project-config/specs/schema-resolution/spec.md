@@ -1,83 +1,83 @@
-# Spec: Schema Resolution with Config
+# 規範：使用組態進行模式解析
 
-## ADDED Requirements
+## 新增要求
 
-### Requirement: Use config schema as default for new changes
+### 要求：使用設定架構作為新更改的預設值
 
-The system SHALL use the schema field from `openspec/config.yaml` as the default when creating new changes without explicit `--schema` flag.
+系統應使用來自的模式字段 `openspec/config.yaml` 在沒有明確建立新變更時作為預設值 `--schema` flag.
 
-#### Scenario: Create change without --schema flag and config exists
-- **WHEN** user runs `openspec new change foo` and config contains `schema: "tdd"`
-- **THEN** system creates change with schema "tdd"
+#### 場景：在沒有 --schema 標誌且設定存在的情況下建立更改
+- **何時** 使用者執行 `openspec new change foo` 並且設定包含 `schema: "tdd"`
+- **然後** 系統使用模式「tdd」建立更改
 
-#### Scenario: Create change without --schema flag and no config
-- **WHEN** user runs `openspec new change foo` and no config file exists
-- **THEN** system creates change with default schema "spec-driven"
+#### 場景：建立不帶 --schema 標誌且無設定的更改
+- **何時** 使用者執行 `openspec new change foo` 並且不存在設定檔
+- **然後** 系統使用預設模式「規範驅動」建立更改
 
-#### Scenario: Create change with explicit --schema flag
-- **WHEN** user runs `openspec new change foo --schema custom` and config contains `schema: "tdd"`
-- **THEN** system creates change with schema "custom" (CLI flag overrides config)
+#### 場景：使用明確 --schema 標誌建立更改
+- **何時** 使用者執行 `openspec new change foo --schema custom` 並且設定包含 `schema: "tdd"`
+- **然後**系統使用架構「自訂」建立變更（CLI 標誌覆蓋設定）
 
-### Requirement: Resolve schema with updated precedence order
+### 需求：使用更新的優先順序解析架構
 
-The system SHALL resolve the schema for a change using the following precedence order: CLI flag, change metadata, project config, hardcoded default.
+系統應使用以下優先順序解析變更的架構：CLI 標誌、變更元資料、專案設定、硬編碼預設值。
 
-#### Scenario: CLI flag is provided
-- **WHEN** user runs command with `--schema custom`
-- **THEN** system uses "custom" regardless of change metadata or config
+#### 場景：提供了 CLI 標誌
+- **何時** 使用者執行命令 `--schema custom`
+- **那麼**系統使用“自訂”，無論更改元資料或設定如何
 
-#### Scenario: Change metadata specifies schema
-- **WHEN** change has `.openspec.yaml` with `schema: bound` and config has `schema: tdd`
-- **THEN** system uses "bound" from change metadata
+#### 場景：更改元資料指定架構
+- **何時**發生變化 `.openspec.yaml` 和 `schema: bound` 並且設定有 `schema: tdd`
+- **那麼**系統使用更改元資料中的“綁定”
 
-#### Scenario: Only project config specifies schema
-- **WHEN** no CLI flag or change metadata, but config has `schema: tdd`
-- **THEN** system uses "tdd" from project config
+#### 場景：只有專案設定指定 schema
+- **何時** 沒有 CLI 標誌或更改元資料，但設定有 `schema: tdd`
+- **那麼**系統使用專案設定中的“tdd”
 
-#### Scenario: No schema specified anywhere
-- **WHEN** no CLI flag, change metadata, or project config
-- **THEN** system uses hardcoded default "spec-driven"
+#### 場景：沒有在任何地方指定模式
+- **何時** 無 CLI 標誌、變更元資料或項目設定
+- **那麼**系統使用硬編碼的預設“規範驅動”
 
-### Requirement: Support project-local schema names in config
+### 要求：在設定中支援專案本地模式名稱
 
-The system SHALL allow the config schema field to reference project-local schemas defined in `openspec/schemas/`.
+系統應允許設定模式欄位引用中定義的項目本機模式 `openspec/schemas/`.
 
-#### Scenario: Config references project-local schema
-- **WHEN** config contains `schema: "my-workflow"` and `openspec/schemas/my-workflow/` exists
-- **THEN** system resolves to the project-local schema
+#### 場景：設定引用專案本地架構
+- **何時** 設定包含 `schema: "my-workflow"` 和 `openspec/schemas/my-workflow/` 存在
+- **然後** 系統解析為專案本地架構
 
-#### Scenario: Config references non-existent schema
-- **WHEN** config contains `schema: "nonexistent"` and that schema does not exist
-- **THEN** system shows error when attempting to load the schema with fuzzy match suggestions and list of all valid schemas
+#### 場景：設定引用不存在的架構
+- **何時** 設定包含 `schema: "nonexistent"` 且該模式不存在
+- **那麼** 嘗試使用模糊匹配建議和所有有效架構清單加載架構​​時系統顯示錯誤
 
-### Requirement: Provide helpful error message for invalid schema
+### 要求：為無效架構提供有用的錯誤訊息
 
-The system SHALL display schema error with fuzzy match suggestions, list of available schemas, and fix instructions.
+系統應顯示模式錯誤以及模糊匹配建議、可用模式清單和修復說明。
 
-#### Scenario: Schema name with typo (close match)
-- **WHEN** config contains `schema: "spce-driven"` (typo)
-- **THEN** error message includes "Did you mean: spec-driven (built-in)" as suggestion
+#### 場景：模式名稱有拼字錯誤（緊密匹配）
+- **何時** 設定包含 `schema: "spce-driven"` （錯字）
+- **那麼** 錯誤訊息包括「您的意思是：規範驅動（內建）」作為建議
 
-#### Scenario: Schema name with no close matches
-- **WHEN** config contains `schema: "completely-wrong"`
-- **THEN** error message shows list of all available built-in and project-local schemas
+#### 場景：架構名稱沒有緊密匹配
+- **何時** 設定包含 `schema: "completely-wrong"`
+- **THEN** 錯誤訊息顯示所有可用內建和專案本地架構的列表
 
-#### Scenario: Error message includes fix instructions
-- **WHEN** config references invalid schema
-- **THEN** error message includes "Fix: Edit openspec/config.yaml and change 'schema: X' to a valid schema name"
+#### 場景：錯誤訊息包含修復說明
+- **何時** 設定引用無效架構
+- **那麼** 錯誤訊息包括“修復：編輯 openspec/config.yaml 並將‘schema: X’更改為有效的架構名稱”
 
-#### Scenario: Error distinguishes built-in vs project-local schemas
-- **WHEN** error lists available schemas
-- **THEN** output clearly labels each as "built-in" or "project-local"
+#### 場景：區分內建模式與專案本地模式時發生錯誤
+- **何時** 錯誤列出可用架構
+- **那麼** 輸出清楚地將每個標籤標記為“內建”或“專案本地”
 
-### Requirement: Maintain backwards compatibility for existing changes
+### 要求：保持現有變更的向後相容性
 
-The system SHALL continue to work with existing changes that do not have project config.
+系統應繼續使用沒有項目設定的現有變更。
 
-#### Scenario: Existing change without config
-- **WHEN** change was created before config feature and no config file exists
-- **THEN** system resolves schema using existing logic (change metadata or hardcoded default)
+#### 場景：沒有設定的現有更改
+- **何時** 更改是在設定功能之前建立的並且不存在設定檔
+- **然後**系統使用現有邏輯解析架構（更改元資料或硬編碼預設值）
 
-#### Scenario: Existing change with config added later
-- **WHEN** config file is added to project with existing changes
-- **THEN** existing changes continue to use their bound schema from `.openspec.yaml`
+#### 場景：現有更改，稍後新增設定
+- **何時** 將設定檔新增至具有現有變更的專案中
+- **那麼** 現有變更繼續使用其綁定架構 `.openspec.yaml`

@@ -1,37 +1,37 @@
-# List Command Specification
+# 列表命令規範
 
-## Purpose
+## 目的
 
-The `openspec list` command SHALL provide developers with a quick overview of all active changes in the project, showing their names and task completion status.
+這 `openspec list` 命令應為開發人員提供專案中所有活動變更的快速概覽，顯示其名稱和任務完成狀態。
 
-## Behavior
+## 行為
 
-### Command Execution
+### 命令執行
 
-WHEN `openspec list` is executed
-THEN scan the `openspec/changes/` directory for change directories
-AND exclude the `archive/` subdirectory from results
-AND parse each change's `tasks.md` file to count task completion
+WHEN `openspec list` 被執行
+然後掃描 `openspec/changes/` 更改目錄的目錄
+並排除 `archive/` 結果的子目錄
+並解析每個更改的 `tasks.md` 文件來計算任務完成狀況
 
-### Task Counting
+### 任務計數
 
-WHEN parsing a `tasks.md` file
-THEN count tasks matching these patterns:
-- Completed: Lines containing `- [x]`
-- Incomplete: Lines containing `- [ ]`
-AND calculate total tasks as the sum of completed and incomplete
+當解析一個 `tasks.md` 文件
+然後計算匹配這些模式的任務：
+- 已完成：包含的行 `- [x]`
+- 不完整：包含的行 `- [ ]`
+AND 將總任務計算為已完成和未完成的總和
 
-### Output Format
+### 輸出格式
 
-WHEN displaying the list
-THEN show a table with columns:
-- Change name (directory name)
-- Task progress (e.g., "3/5 tasks" or "✓ Complete")
-- Status indicator:
-  - `✓` for fully completed changes (all tasks done)
-  - Progress fraction for partial completion
+顯示列表時
+然後顯示一個包含列的表格：
+- 更改名稱（目錄名稱）
+- 任務進度（例如「3/5 任務」或「✓ 完成」）
+- 狀態指示燈：
+  - `✓` 完全完成的變更（所有任務均已完成）
+  - 部分完成的進度分數
 
-Example output:
+輸出範例：
 ```
 Changes:
   add-auth-feature     3/5 tasks
@@ -40,30 +40,30 @@ Changes:
   add-list-command     1/4 tasks
 ```
 
-### Empty State
+### 空狀態
 
-WHEN no active changes exist (only archive/ or empty changes/)
-THEN display: "No active changes found."
+當不存在活動變更時（僅存檔/或空白變更/）
+然後顯示：“未發現有效更改。”
 
-### Error Handling
+### 錯誤處理
 
-IF a change directory has no `tasks.md` file
-THEN display the change with "No tasks" status
+如果更改目錄沒有 `tasks.md` 文件
+然後顯示“無任務”狀態的更改
 
-IF `openspec/changes/` directory doesn't exist
-THEN display error: "No OpenSpec changes directory found. Run 'openspec init' first."
-AND exit with code 1
+IF `openspec/changes/` 目錄不存在
+然後顯示錯誤：“找不到 OpenSpec 更改目錄。首先執行 'openspec init'。”
+並使用代碼 1 退出
 
-### Sorting
+### 排序
 
-Changes SHALL be displayed in alphabetical order by change name for consistency.
+為了保持一致性，變更應按更改名稱的字母順序顯示。
 
-## Why
+## 為什麼
 
-Developers need a quick way to:
-- See what changes are in progress
-- Identify which changes are ready to archive
-- Understand the overall project evolution status
-- Get a bird's-eye view without opening multiple files
+開發人員需要一種快速的方法來：
+- 檢視正在進行哪些更改
+- 確定哪些變更已準備好存檔
+- 瞭解專案整體進度狀況
+- 無需打開多個文件即可獲得鳥瞰圖
 
-This command provides that visibility with minimal effort, following OpenSpec's philosophy of simplicity and clarity.
+該命令遵循 OpenSpec 的簡單和清晰的理念，以最少的努力提供可見性。

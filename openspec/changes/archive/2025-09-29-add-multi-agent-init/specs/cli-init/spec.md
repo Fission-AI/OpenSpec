@@ -1,45 +1,45 @@
-## MODIFIED Requirements
-### Requirement: Safety Checks
-The command SHALL perform safety checks to prevent overwriting existing structures and ensure proper permissions.
+## 修改後的要求
+### 要求：安全檢查
+該命令應執行安全檢查，以防止覆蓋現有結構並確保適當的權限。
 
-#### Scenario: Detecting existing initialization
-- **WHEN** the `openspec/` directory already exists
-- **THEN** inform the user that OpenSpec is already initialized, skip recreating the base structure, and enter an extend mode
-- **AND** continue to the AI tool selection step so additional tools can be configured
-- **AND** display the existing-initialization error message only when the user declines to add any AI tools
+#### 場景：偵測現有初始化
+- **何時** `openspec/` 目錄已存在
+- **THEN** 通知使用者 OpenSpec 已初始化，跳過重新建立基本結構，並進入擴充模式
+- **並且**繼續進行 AI 工具選擇步驟，以便可以設定其他工具
+- **且**僅當使用者拒絕新增任何 AI 工具時才顯示現有初始化錯誤訊息
 
-### Requirement: Interactive Mode
-The command SHALL provide an interactive menu for AI tool selection with clear navigation instructions.
+### 要求：互動模式
+該命令應提供一個用於 AI 工具選擇的互動式選單，並具有清晰的導航說明。
 
-#### Scenario: Displaying interactive menu
-- **WHEN** run in fresh or extend mode
-- **THEN** present a looping select menu that lets users toggle tools with Enter and finish via a "Done" option
-- **AND** label already configured tools with "(already configured)" while keeping disabled options marked "coming soon"
-- **AND** change the prompt copy in extend mode to "Which AI tools would you like to add or refresh?"
-- **AND** display inline instructions clarifying that Enter toggles a tool and selecting "Done" confirms the list
+#### 場景：顯示互動式選單
+- **何時** 以新鮮或擴展模式執行
+- **然後** 呈現一個循環選擇選單，讓使用者可以透過 Enter 切換工具並透過「完成」選項完成
+- **並且** 以“（已設定）”標記已設定的工具，同時將禁用的選項標記為“即將推出”
+- **並且**將擴展模式下的提示副本更改為“您想要添加或重新整理哪些 AI 工具？”
+- **並且** 顯示內聯指令，闡明 Enter 鍵切換工具並選擇「完成」確認列表
 
-## ADDED Requirements
-### Requirement: Additional AI Tool Initialization
-`openspec init` SHALL allow users to add configuration files for new AI coding assistants after the initial setup.
+## 新增要求
+### 需求：額外的 AI 工具初始化
+`openspec init` 應允許使用者在初始設定後為新的 AI 編碼助理新增設定檔。
 
-#### Scenario: Configuring an extra tool after initial setup
-- **GIVEN** an `openspec/` directory already exists and at least one AI tool file is present
-- **WHEN** the user runs `openspec init` and selects a different supported AI tool
-- **THEN** generate that tool's configuration files with OpenSpec markers the same way as during first-time initialization
-- **AND** leave existing tool configuration files unchanged except for managed sections that need refreshing
+#### 場景：初始設定後設定額外工具
+- **鑑於** `openspec/` 目錄已存在且至少存在一個 AI 工具文件
+- **何時** 使用者執行 `openspec init` 並選擇不同的支援的 AI 工具
+- **然後** 以與首次初始化期間相同的方式生成帶有 OpenSpec 標記的該工具的設定檔
+- **並且** 除了需要重新整理的託管部分之外，保持現有工具設定檔不變
 - **AND** exit with code 0 and display a success summary highlighting the newly added tool files
 
-### Requirement: Success Output Enhancements
-`openspec init` SHALL summarize tool actions when initialization or extend mode completes.
+### 需求：成功輸出增強
+`openspec init` 應總結初始化或擴展模式完成時的工具操作。
 
-#### Scenario: Showing tool summary
-- **WHEN** the command completes successfully
-- **THEN** display a categorized summary of tools that were created, refreshed, or skipped (including already-configured skips)
-- **AND** personalize the "Next steps" header using the names of the selected tools, defaulting to a generic label when none remain
+#### 場景：顯示工具摘要
+- **何時** 命令成功完成
+- **然後** 顯示已建立、重新整理或跳過的工具的分類摘要（包括已設定的跳過）
+- **和** 使用所選工具的名稱個性化“後續步驟”標題，如果沒有剩餘，則預設為通用標籤
 
-### Requirement: Exit Code Adjustments
-`openspec init` SHALL treat extend mode with no selected tools as a guarded error.
+### 要求：退出代碼調整
+`openspec init` 應將沒有選定工具的擴展模式視為受保護的錯誤。
 
-#### Scenario: Preventing empty extend runs
-- **WHEN** OpenSpec is already initialized and the user selects no additional tools
-- **THEN** exit with code 1 after showing the existing-initialization guidance message
+#### 場景：防止空擴展執行
+- **何時** OpenSpec 已初始化且使用者未選擇其他工具
+- **THEN** 在顯示現有初始化指導訊息後以代碼 1 退出

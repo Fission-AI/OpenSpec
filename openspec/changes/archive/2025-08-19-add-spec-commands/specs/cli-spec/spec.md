@@ -1,43 +1,43 @@
-## ADDED Requirements
+## 新增要求
 
-### Requirement: Spec Command
+### 要求：規範命令
 
-The system SHALL provide a `spec` command with subcommands for displaying, listing, and validating specifications.
+系統應提供 `spec` 命令以及用於顯示、列出和驗證規範的子命令。
 
-#### Scenario: Show spec as JSON
+#### 場景：將規格顯示為 JSON
 
-- **WHEN** executing `openspec spec show init --json`
-- **THEN** parse the markdown spec file
-- **AND** extract headings and content hierarchically
-- **AND** output valid JSON to stdout
+- **何時**執行 `openspec spec show init --json`
+- **然後** 解析 markdown 規範文件
+- **和** 分層提取標題和內容
+- **AND** 將有效 JSON 輸出到標準輸出
 
-#### Scenario: List all specs
+#### 場景：列出所有規格
 
-- **WHEN** executing `openspec spec list`
-- **THEN** scan the openspec/specs directory
-- **AND** return list of all available capabilities
-- **AND** support JSON output with `--json` flag
+- **何時**執行 `openspec spec list`
+- **然後** 掃描 openspec/specs 目錄
+- **和** 傳回所有可用功能的列表
+- **並且** 支援 JSON 輸出 `--json` 旗幟
 
-#### Scenario: Filter spec content
+#### 場景：過濾規格內容
 
-- **WHEN** executing `openspec spec show init --requirements`
-- **THEN** display only requirement names and SHALL statements
-- **AND** exclude scenario content
+- **何時**執行 `openspec spec show init --requirements`
+- **THEN** 僅顯示需求名稱和 SHALL 語句
+- **並**排除場景內容
 
-#### Scenario: Validate spec structure
+#### 場景：驗證規範結構
 
-- **WHEN** executing `openspec spec validate init`
-- **THEN** parse the spec file
-- **AND** validate against Zod schema
-- **AND** report any structural issues
+- **何時**執行 `openspec spec validate init`
+- **然後** 解析規範文件
+- **和** 根據 Zod 模式進行驗證
+- **並**報告任何結構性問題
 
-### Requirement: JSON Schema Definition
+### 需求：JSON 架構定義
 
-The system SHALL define Zod schemas that accurately represent the spec structure for runtime validation.
+系統應定義準確表示執行時間驗證規範結構的 Zod 模式。
 
-#### Scenario: Schema validation
+#### 場景：模式驗證
 
-- **WHEN** parsing a spec into JSON
-- **THEN** validate the structure using Zod schemas
-- **AND** ensure all required fields are present
-- **AND** provide clear error messages for validation failures
+- **何時** 將規範解析為 JSON
+- **然後** 使用 Zod 模式驗證結構
+- **並** 確保所有必填欄位都存在
+- **並且** 為驗證失敗提供清晰的錯誤訊息

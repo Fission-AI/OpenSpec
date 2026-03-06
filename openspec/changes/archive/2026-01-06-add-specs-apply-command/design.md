@@ -1,77 +1,77 @@
-## Context
+## 情境
 
-Currently, delta specs are only applied to main specs when running `openspec archive`. This bundles two concerns:
-1. Applying spec changes (delta → main)
-2. Archiving the change (move to archive folder)
+目前，增量規格僅在執行時應用於主規格 `openspec archive`。這bun引起了兩個問題：
+1. 應用規格變更（增量 → 主要）
+2. 存檔變更（移至存檔資料夾）
 
-Users want flexibility to sync specs earlier, especially when iterating. The archive command already contains the reconciliation logic in `buildUpdatedSpec()`.
+使用者希望能夠靈活地更早地同步規範，尤其是在迭代時。歸檔指令已包含協調邏輯 `buildUpdatedSpec()`.
 
-## Goals / Non-Goals
+## 目標/非目標
 
-**Goals:**
-- Decouple spec syncing from archiving
-- Provide `/opsx:sync` skill for agents to sync specs on demand
-- Keep operation idempotent (safe to run multiple times)
+**目標：**
+- 將規範同步與歸檔分離
+- 提供 `/opsx:sync` 代理商按需同步規格的技能
+- 保持操作冪等（可以安全執行多次）
 
-**Non-Goals:**
-- Tracking whether specs have been synced (no state)
-- Changing archive behavior (it will continue to apply specs)
-- Supporting partial application (all deltas sync together)
+**非目標：**
+- 追蹤規格是否已同步（無狀態）
+- 更改存檔行為（它將繼續應用規範）
+- 支援部分應用（所有增量同步）
 
-## Decisions
+## 決定
 
-### 1. Reuse existing reconciliation logic
+### 1. 重複使用現有的協調邏輯
 
-**Decision**: Extract `buildUpdatedSpec()` logic from `ArchiveCommand` into a shared module.
+**決定**：摘錄 `buildUpdatedSpec()` 邏輯來自 `ArchiveCommand` 到共享模組中。
 
-**Rationale**: The archive command already implements delta parsing and application. Rather than duplicate, we extract and reuse.
+**基本原理**：archive指令已經實作了delta解析和應用。我們不是重複，而是提取和重複使用。
 
-**Alternatives considered**:
-- Duplicate logic in new command (rejected: maintenance burden)
-- Have sync call archive with flags (rejected: coupling)
+**考慮的替代方案**：
+- 新指令中的重複邏輯（拒絕：維護負擔）
+- 具有帶有標誌的同步呼叫存檔（拒絕：耦合）
 
-### 2. No state tracking
+### 2.無狀態跟踪
 
-**Decision**: Don't track whether specs have been synced. Each invocation reads delta and main specs, reconciles.
+**決定**：不追蹤規格是否已同步。每次調用都會讀取增量和主要規格並進行協調。
 
-**Rationale**:
-- Idempotent operations don't need state
-- Avoids sync issues between flag and reality
-- Simpler implementation and mental model
+**理由**：
+- 冪等運算不需要狀態
+- 避免旗幟與現實之間的同步問題
+- 更簡單的實施和心智模型
 
-**Alternatives considered**:
-- Track `specsSynced: true` in `.openspec.yaml` (rejected: unnecessary complexity)
-- Store snapshot of synced deltas (rejected: over-engineering)
+**考慮的替代方案**：
+- 追蹤 `specsSynced: true` 在 `.openspec.yaml` （拒絕：不必要的複雜性）
+- 儲存同步增量的快照（被拒絕：過度設計）
 
-### 3. Agent-driven approach (no CLI command)
+### 3.代理驅動方式（無CLI命令）
 
-**Decision**: The `/opsx:sync` skill is fully agent-driven - the agent reads delta specs and directly edits main specs.
+**決定**： `/opsx:sync` 技能完全由代理驅動 - 代理讀取增量規格並直接編輯主要規格。
 
-**Rationale**:
-- Allows intelligent merging (add scenarios without copying entire requirements)
-- Delta represents *intent*, not wholesale replacement
-- More flexible and natural editing workflow
-- Archive still uses programmatic merge (for finalized changes)
+**理由**：
+- 允許智慧合併（添加場景而無需複製整個需求）
+- 增量代表*意圖*，而不是批發替換
+- 更靈活、自然的編輯工作流程
+- 存檔仍然使用編程合併（用於最終更改）
 
-### 4. Archive behavior unchanged
+### 4. 存檔行為不變
 
-**Decision**: Archive continues to apply specs as part of its flow. If specs are already reconciled, the operation is a no-op.
+**決定**：Archive 繼續將規範作為其流程的一部分。如果規格已經協調，則該操作是無操作的。
 
-**Rationale**: Backward compatibility. Users who don't use `/opsx:sync` get the same experience.
+**基本原理**：向後相容性。不使用的用戶 `/opsx:sync` 獲得相同的體驗。
 
-## Risks / Trade-offs
+## 風險/權衡
 
-**[Risk] Multiple changes modify same spec**
-→ Last to sync wins. Same as today with archive. Users should coordinate or use sequential archives.
+**[風險] 多次變更會修改相同規範**
+→ 最後同步者獲勝。與今天的存檔相同。使用者應協調或使用順序存檔。
 
-**[Risk] User syncs specs then continues editing deltas**
-→ Running `/opsx:sync` again reconciles. Idempotent design handles this.
+**[風險] 使用者同步規格然後繼續編輯增量**
+→ 執行 `/opsx:sync` 再次和解。冪等設計可以解決這個問題。
 
-**[Trade-off] No undo mechanism**
-→ Users can `git checkout` main specs if needed. Explicit undo command is out of scope.
+**[權衡]無撤銷機制**
+→ 使用者可以 `git checkout` main specs if needed. Explicit undo command is out of scope.
 
-## Implementation Approach
+## 實施方式
 
-1. Extract spec application logic from `ArchiveCommand.buildUpdatedSpec()` into `src/core/specs-apply.ts`
-2. Add skill template for `/opsx:sync` in `skill-templates.ts`
-3. Register skill in managed skills
+1. 從中提取規範應用程式邏輯 `ArchiveCommand.buildUpdatedSpec()` 進入 `src/core/specs-apply.ts`
+2. 新增技能模板 `/opsx:sync` 在 `skill-templates.ts`
+3. 註冊管理技能中的技能

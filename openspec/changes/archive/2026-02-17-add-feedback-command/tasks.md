@@ -1,30 +1,30 @@
-## 1. Feedback Command
+## 1. 回饋命令
 
-- [x] 1.1 Create `src/commands/feedback.ts` with command implementation
-- [x] 1.2 Check `gh` CLI availability using platform-appropriate command (`which` on Unix/macOS, `where` on Windows)
-- [x] 1.3 Check GitHub auth status with `gh auth status`
-- [x] 1.4 Execute `gh issue create` with formatted title and body using `execFileSync` to prevent shell injection
-- [x] 1.5 Display issue URL returned by `gh` CLI
-- [x] 1.6 Register `feedback <message>` command in `src/cli/index.ts`
-- [x] 1.7 Ensure cross-platform compatibility (macOS, Linux, Windows)
+- [x] 1.1 建立 `src/commands/feedback.ts` 與命令執行
+- [x] 1.2 檢查 `gh` 使用適合平台的命令可實現 CLI 可用性（`which` 在 Unix/macOS 上， `where` 於Windows）
+- [x] 1.3 檢查 GitHub 身份驗證狀態 `gh auth status`
+- [x] 1.4 執行 `gh issue create` 使用格式化的標題和正文 `execFileSync` 防止 shell 注入
+- [x] 1.5 顯示傳回的問題URL `gh` CLI
+- [x] 1.6 註冊 `feedback <message>` 命令輸入 `src/cli/index.ts`
+- [x] 1.7 確保跨平台相容性（macOS、Linux、Windows）
 
-## 2. Shell Completions
+## 2. 外殼竣工
 
-- [x] 2.1 Add `feedback` command to command registry
-- [x] 2.2 Regenerate completion scripts for all shells
+- [x] 2.1 添加 `feedback` 命令到命令註冊表
+- [x] 2.2 重新產生所有shell的完成腳本
 
-## 3. Feedback Skill
+## 3.回饋技巧
 
-- [x] 3.1 Create feedback skill template in `skill-templates.ts`
-- [x] 3.2 Document context gathering workflow
-- [x] 3.3 Document anonymization rules
+- [x] 3.1 建立回饋技能模板 `skill-templates.ts`
+- [x] 3.2 文件上下文收集工作流程
+- [x] 3.3 文檔匿名化規則
 - [x] 3.4 Document user confirmation flow
 
-## 4. Testing
+## 4. 測試
 
-- [x] 4.1 Add unit tests for feedback command (mock `gh` subprocess calls)
-- [x] 4.2 Add integration test for full feedback flow with mocked `gh` CLI
-- [x] 4.3 Test error handling for missing `gh` CLI
-- [x] 4.4 Test error handling for unauthenticated `gh` session
-- [x] 4.5 Test cross-platform `gh` CLI detection (verify `which` on Unix, `where` on Windows)
-- [x] 4.6 Test platform metadata includes correct value for Windows (win32)
+- [x] 4.1 為回授命令新增單元測試（mock `gh` 子流程呼叫）
+- [x] 4.2 使用模擬添加完整回饋流程的整合測試 `gh` CLI
+- [x] 4.3 測試缺失的錯誤處理 `gh` CLI
+- [x] 4.4 測試未驗證的錯誤處理 `gh` 會議
+- [x] 4.5 測試跨平台 `gh` CLI檢測（驗證 `which` 在 Unix 上， `where` 於Windows）
+- [x] 4.6 測試平台元資料包括 Windows 的正確值 (win32)

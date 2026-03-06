@@ -1,18 +1,18 @@
-## ADDED Requirements
+## 新增要求
 
-### Requirement: Archive Validation
+### 需求：存檔驗證
 
-The archive command SHALL validate changes before applying them to ensure data integrity.
+歸檔命令應在應用變更之前驗證變更以確保資料完整性。
 
-#### Scenario: Pre-archive validation
+#### 場景：預先歸檔驗證
 
-- **WHEN** executing `openspec archive change-name`
-- **THEN** validate the change structure first
-- **AND** only proceed if validation passes
-- **AND** show validation errors if it fails
+- **何時**執行 `openspec archive change-name`
+- **然後** 先驗證變更結構
+- **並且**僅在驗證通過時繼續
+- **並且** 如果失敗則顯示驗證錯誤
 
-#### Scenario: Force archive without validation
+#### 場景：強制存檔而不驗證
 
-- **WHEN** executing `openspec archive change-name --no-validate`
-- **THEN** skip validation (unsafe mode)
-- **AND** show warning about skipping validation
+- **何時**執行 `openspec archive change-name --no-validate`
+- **然後** 跳過驗證（不安全模式）
+- **並且** 顯示有關跳過驗證的警告

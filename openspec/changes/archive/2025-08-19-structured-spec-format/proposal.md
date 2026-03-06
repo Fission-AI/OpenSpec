@@ -1,36 +1,36 @@
-## Why
+## 為什麼
 
-OpenSpec specifications lack a consistent structure that makes sections visually identifiable and programmatically parseable across different specs. This makes it harder to maintain consistency and build tooling.
+OpenSpec 規範缺乏一致的結構，無法使各部分在不同規範中視覺化辨識並以程式方式解析。這使得保持一致性和建置工具變得更加困難。
 
-## What Changes
+## 有什麼變化
 
-**Specification Format Section**
-- From: No formal structure requirements for specifications
-- To: Structured format with `### Requirement:` and `#### Scenario:` headers
-- Reason: Visual consistency and parseability across all specs
-- Impact: Non-breaking - existing specs can migrate gradually
+**規範格式部分**
+- 來自：規範沒有正式的結構要求
+- 至：結構化格式 `### Requirement:` 和 `#### Scenario:` 標頭
+- 原因：所有規格的視覺一致性和可解析性
+- 影響：不會造成破壞 - 現有規範可以逐漸遷移
 
-**Keyword Formatting**
-- From: Inconsistent use of WHEN/THEN/AND keywords
-- To: Bold keywords (**WHEN**, **THEN**, **AND**) in scenario bullets
-- Reason: Improved readability and consistent visual hierarchy
-- Impact: Non-breaking - formatting enhancement only
+**關鍵字格式**
+- 來自：WHEN/THEN/AND 關鍵字的使用不一致
+- 收件人：場景項目符號中的粗體關鍵字（**WHEN**、**THEN**、**AND**）
+- 原因：提升了可讀性和一致的視覺層次結構
+- 影響：非破壞性 - 僅格式增強
 
-**Format Flexibility**
-- From: Implicit understanding that different content needs different formats
-- To: Explicit allowance for alternative formats (OpenAPI, JSON Schema, etc.)
-- Reason: Address concern that not all specs fit requirement/scenario pattern
-- Impact: Non-breaking - clarifies existing practice
+**格式靈活性**
+- 來自：隱含地理解不同的內容需要不同的格式
+- To：明確允許替代格式（OpenAPI、JSON Schema 等）
+- 原因：解決並非所有規格都符合要求/場景模式的擔憂
+- 影響：非破壞性 - 澄清現有實踐
 
-**Migration Guidelines**
-- From: No migration guidance
-- To: Documented gradual migration approach
-- Reason: Allows incremental adoption without disrupting existing specs
-- Impact: Non-breaking - opt-in migration as specs are modified
+**遷移指南**
+- 來自：沒有遷移指導
+- 至：記錄的漸進遷移方法
+- 原因：允許增量採用而不破壞現有規範
+- 影響：不間斷 - 在修改規格時選擇加入遷移
 
-## Impact
+## 影響
 
-- Affected specs: openspec-conventions (enhancement to existing capability)
-- Affected code: None initially - this is a documentation standard enhancement
-- Migration: Gradual - existing specs migrate as they're modified
-- Tooling: Enables future parsing tools but doesn't require them
+- 受影響的規格：openspec-conventions（增強現有功能）
+- 受影響的程式碼：最初沒有 - 這是文件標準增強
+- 遷移：漸進 - 現有規範在修改時遷移
+- 工具：啟用未來的解析工具，但不需要它們

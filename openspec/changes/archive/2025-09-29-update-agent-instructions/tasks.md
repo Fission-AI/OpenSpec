@@ -1,69 +1,69 @@
-# Implementation Tasks
+# 實施任務
 
-## 1. Restructure OpenSpec README.md
-- [x] 1.1 Front-load the three-stage workflow as primary content
-- [x] 1.2 Restructure with hierarchy: Core Workflow → Quick Start → Commands → Details → Edge Cases
-- [x] 1.3 Reduce total length by 50% (target: ~285 lines from current ~575)
-- [x] 1.4 Add "Before Any Task" context-gathering checklist
-- [x] 1.5 Add "Before Creating Specs" rule to check existing specs first
+## 1.重組OpenSpecREADME.md
+- [x] 1.1 將三階段工作流程作為主要內容預先載入
+- [x] 1.2 層次結構重構：核心工作流程→快速入門→指令→詳細資料→邊緣案例
+- [x] 1.3 將總長度減少 50%（目標：從目前的 ~575 行增加到 ~285 行）
+- [x] 1.4 新增「在任何任務之前」上下文收集清單
+- [x] 1.5 新增「建立規格之前」規則，先檢查現有規格
 
-## 2. Add Decision Clarity  
-- [x] 2.1 Create clear decision trees for "Create Proposal?" scenarios
-- [x] 2.2 Remove ambiguous conditions that confuse agents
-- [x] 2.3 Add concrete examples for each decision branch
-- [x] 2.4 Simplify bug vs feature determination logic
-- [x] 2.5 Add explicit Stage 2 implementation steps (read → implement → mark complete)
+## 2. 增加決策清晰度  
+- [x] 2.1 為「建立提案？」創造清晰的決策樹場景
+- [x] 2.2 消除使代理人感到困惑的模糊條件
+- [x] 2.3 為每個決策分支添加具體範例
+- [x] 2.4 簡化 bug 與功能確定邏輯
+- [x] 2.5 新增明確的第 2 階段實施步驟（閱讀 → 實作 → 標記完成）
 
-## 3. Update CLI Documentation
-- [x] 3.1 Document `openspec list` and `openspec list --specs` commands
-- [x] 3.2 Document `openspec show` with all flags and interactive mode
-- [x] 3.3 Document `openspec diff [change]` for viewing spec differences
-- [x] 3.4 Document `openspec archive` with --skip-specs option
-- [x] 3.5 Document `openspec validate` with --strict and batch modes
-- [x] 3.6 Document `openspec init` and `openspec update` commands
-- [x] 3.7 Remove all deprecated noun-first command references
-- [x] 3.8 Add concrete usage examples for each command variation
-- [x] 3.9 Document all flags: --json, --type, --no-interactive, etc.
-- [x] 3.10 Document debugging commands: `show --json --deltas-only`
+## 3.更新CLI文檔
+- [x] 3.1 文件 `openspec list` 和 `openspec list --specs` 命令
+- [x] 3.2 文件 `openspec show` 具有所有標誌和互動模式
+- [x] 3.3 文件 `openspec diff [change]` 檢視規格差異
+- [x] 3.4 文件 `openspec archive` 使用 --skip-specs 選項
+- [x] 3.5 文件 `openspec validate` 使用 --strict 和批次模式
+- [x] 3.6 文件 `openspec init` 和 `openspec update` 命令
+- [x] 3.7 刪除所有已棄用的名詞優先命令引用
+- [x] 3.8 為每個命令變體添加具體使用範例
+- [x] 3.9 記錄所有標誌：--json、--type、--no-interactive 等。
+- [x] 3.10 記錄調試命令： `show --json --deltas-only`
 
-## 4. Add Spec File Documentation
-- [x] 4.1 Add complete spec file structure example with ADDED/MODIFIED sections
-- [x] 4.2 Document scenario formatting requirements (#### Scenario: headers)
-- [x] 4.3 Explain delta file location (changes/{name}/specs/ directory)
-- [x] 4.4 Show how deltas are automatically extracted
-- [x] 4.5 Include warning about most common error (scenario formatting)
+## 4.新增Spec文件文檔
+- [x] 4.1 新增帶有 ADDED/MODIFIED 部分的完整規格文件結構範例
+- [x] 4.2 文檔場景格式要求（####場景：標題）
+- [x] 4.3 解釋增量檔案位置（changes/{name}/specs/ 目錄）
+- [x] 4.4 顯示增量是如何自動擷取的
+- [x] 4.5 包含有關最常見錯誤的警告（場景格式）
 
-## 5. Add Troubleshooting Section
-- [x] 5.1 Document common errors and their solutions
-- [x] 5.2 Add delta detection debugging steps
-- [x] 5.3 Include validation best practices (--strict flag)
-- [x] 5.4 Show how to use JSON output for debugging
-- [x] 5.5 Add examples of silent parsing failures
+## 5.新增故障排除部分
+- [x] 5.1 記錄常見錯誤及其解決方案
+- [x] 5.2 新增delta檢測調試步驟
+- [x] 5.3 包括驗證最佳實踐（--strict 標誌）
+- [x] 5.4 展示如何使用JSON輸出進行除錯
+- [x] 5.5 新增靜默解析失敗的範例
 
-## 6. Add Agent-Specific Sections
+## 6. 新增特定於代理的部分
 - [x] 6.1 Add implementation workflow (read docs → implement tasks → mark complete)
 - [x] 6.2 Add spec discovery workflow (check existing before creating)
-- [x] 6.3 Create tool selection matrix (Grep vs Glob vs Read)
-- [x] 6.4 Add error recovery patterns section
-- [x] 6.5 Add context management guide
-- [x] 6.6 Add verification workflows section
-- [x] 6.7 Add best practices section (concise, specific, simple)
+- [x] 6.3 建立工具選擇矩陣（Grep、Glob、Read）
+- [x] 6.4 新增錯誤恢復模式部分
+- [x] 6.5 新增上下文管理指南
+- [x] 6.6 新增驗證工作流程部分
+- [x] 6.7 新增最佳實務部分（簡潔、具體、簡單）
 
-## 7. Update CLAUDE.md Template
-- [x] 7.1 Update `src/core/templates/claude-template.ts` with streamlined content
-- [x] 7.2 Include three-stage workflow prominently
-- [x] 7.3 Add comprehensive CLI quick reference (list, show, diff, archive, etc.)
-- [x] 7.4 Add "Before Any Task" checklist
-- [x] 7.5 Add "Before Creating Specs" rule
-- [x] 7.6 Keep complexity management principles
-- [x] 7.7 Add critical scenario formatting note (#### Scenario: headers)
-- [x] 7.8 Include debugging command reference
+## 7.更新CLAUDE.md模板
+- [x] 7.1 更新 `src/core/templates/claude-template.ts` 內容精簡
+- [x] 7.2 突顯三階段工作流程
+- [x] 7.3 新增全面的CLI快速參考（清單、顯示、差異、存檔等）
+- [x] 7.4 新增「執行任何任務之前」清單
+- [x] 7.5 新增「建立規格之前」規則
+- [x] 7.6 保持複雜性管理原則
+- [x] 7.7 新增關鍵場景格式註解（####場景：標題）
+- [x] 7.8 包含調試命令參考
 
-## 8. Testing and Validation
-- [x] 8.1 Test all documented CLI commands for accuracy
-- [x] 8.2 Run `openspec init` to verify CLAUDE.md generation
-- [x] 8.3 Validate instruction clarity with example scenarios
-- [x] 8.4 Ensure no critical information was lost in streamlining
-- [x] 8.5 Verify decision trees eliminate ambiguity
-- [x] 8.6 Test scenario formatting examples work correctly
-- [x] 8.7 Verify troubleshooting steps resolve common errors
+## 8. 測試和驗證
+- [x] 8.1 測試所有記錄的 CLI 命令的準確性
+- [x] 8.2 執行 `openspec init` 驗證 CLAUDE.md 的生成
+- [x] 8.3 用範例場景驗證指令的清晰度
+- [x] 8.4 確保精簡過程中不會遺失關鍵訊息
+- [x] 8.5 驗證決策樹消除歧義
+- [x] 8.6 測試場景格式化範例正常運作
+- [x] 8.7 驗證故障排除步驟是否解決了常見錯誤

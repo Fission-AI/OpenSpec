@@ -1,12 +1,12 @@
-## Why
-Validation errors like "no deltas found" or "missing requirement text" do not tell agents how to recover, leading to repeated failures. Making error output specific about headers, required text, and next actions will help assistants fix issues in a single pass.
+## 為什麼
+“未找到增量”或“缺少需求文本”之類的驗證錯誤不會告訴代理如何恢復，從而導致重複失敗。使錯誤輸出特定於標題、所需文字和下一步操作將有助於助手一次解決問題。
 
-## What Changes
-- Extend `openspec validate` error reporting so each failure names the exact header, file, and expected structure, including concrete examples of compliant Markdown.
-- Tailor messages for the most common mistakes (missing delta sections, absent descriptive requirement text, missing scenarios) with actionable fixes and suggested debug commands.
-- Update docs/help output so the improved messaging is discoverable (e.g., `--help`, troubleshooting section).
-- Add regression coverage to lock in the richer messaging for the top validation paths.
+## 有什麼變化
+- 延長 `openspec validate` 錯誤報告，以便每次失敗都會命名確切的標頭、文件和預期結構，包括符合 Markdown 的具體範例。
+- 針對最常見的錯誤（缺少增量部分、缺少描述性要求文字、缺少場景）自訂訊息，並提供可操作的修復和建議的調試命令。
+- 更新文件/幫助輸出，以便發現改進的訊息傳遞（例如， `--help`，故障排除部分）。
+- 新增回歸覆蓋範圍以鎖定頂級驗證路徑的更豐富的訊息傳遞。
 
-## Impact
-- Affected specs: `specs/cli-validate`
-- Affected code: `src/commands/validate.ts`, `src/core/validation`, `docs/`
+## 影響
+- 受影響的規格： `specs/cli-validate`
+- 受影響的代碼： `src/commands/validate.ts`, `src/core/validation`, `docs/`

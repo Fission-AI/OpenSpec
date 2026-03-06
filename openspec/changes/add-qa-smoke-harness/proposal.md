@@ -1,45 +1,45 @@
-## Why
+## 為什麼
 
-We need a faster, more reliable way to manually validate CLI behavior changes like profile/delivery sync, migration behavior, and tool-detection UX.
+我們需要一種更快、更可靠的方法來手動驗證 CLI 的行為更改，例如設定檔/交付同步、遷移行為和工具偵測使用者體驗。
 
-Today, manual review is mostly ad hoc: each developer sets up state differently, runs a different command order, and checks outputs informally. This makes regressions easy to miss and slows iteration on CLI UX work.
+如今，手動審查主要是臨時的：每個開發人員以不同的方式設定狀態，執行不同的命令順序，並非正式地檢查輸出。這使得回歸很容易被忽略，並減慢 CLI UX 工作的迭代速度。
 
-An 80/20 solution is to add a lightweight smoke harness for deterministic non-interactive flows, plus a short manual checklist for interactive prompt behavior.
+80/20 解決方案是為確定性非互動式流程添加輕量級煙霧線束，並為互動式提示行為添加簡短的手動檢查表。
 
-## What Changes
+## 有什麼變化
 
-- Add a lightweight QA smoke harness for OpenSpec CLI behavior with isolated per-run sandbox state
-- Use `Makefile` targets as the primary entrypoint:
-  - `make qa` (default local QA entrypoint)
-  - `make qa-smoke` (deterministic non-interactive suite)
-  - `make qa-interactive` (prints/opens manual interactive checklist)
-- Implement smoke logic in a script (invoked by Make targets), not in Make itself
-- Ensure each scenario runs in an isolated sandbox with temporary `HOME`, `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, and `CODEX_HOME`
-- Capture scenario artifacts for inspection (command output, exit code, and before/after filesystem state)
-- Add a focused scenario set for high-risk behavior:
-  - init core output generation
-  - non-interactive detected-tool behavior
-  - migration when profile is unset
-  - delivery cleanup (`both -> skills`, `both -> commands`)
-  - commands-only update detection
-  - new tool directory detection messaging
-  - invalid profile override validation
-- Add a short interactive checklist for keypress/prompt UX verification (Space toggle, Enter confirm, detected pre-selection)
-- Wire CI to run the smoke suite on Linux as a fast regression gate
+- 添加輕量級 QA 煙霧線束，實現 OpenSpec CLI 行為，並具有隔離的每次執行沙箱狀態
+- 使用 `Makefile` 目標作為主要入口點：
+  - `make qa` （預設本地 QA 入口點）
+  - `make qa-smoke` （確定性非互動式套件）
+  - `make qa-interactive` （列印/開啟手動互動清單）
+- 在腳本中實作煙霧邏輯（由 Make 目標呼叫），而不是在 Make 本身中
+- Ensure each scenario runs in an isolated sandbox with temporary `HOME`, `XDG_CONFIG_HOME`, `XDG_DATA_HOME`， 和 `CODEX_HOME`
+- 擷取場景工件以進行檢查（命令輸出、退出程式碼以及檔案系統狀態之前/之後）
+- 新增針對高風險行為的重點場景集：
+  - 初始化核心輸出生成
+  - 非互動式偵測工具行為
+  - 未設定設定檔時遷移
+  - 交付清理（`both -> skills`, `both -> commands`)
+  - 僅命令更新檢測
+  - 新工具目錄檢測訊息傳遞
+  - 無效的設定檔覆蓋驗證
+- 新增一個簡短的互動式清單，用於按鍵/提示 UX 驗證（空格切換、輸入確認、偵測到預選）
+- 連接 CI 以在 Linux 上執行煙霧套件作為快速回歸門
 
-## Capabilities
+## 能力
 
-### New Capabilities
+### 新功能
 
-- `qa-smoke-harness`: Deterministic, sandboxed CLI smoke validation with a single developer entrypoint
+- `qa-smoke-harness`：具有單一開發人員入口點的確定性、沙盒 CLI 煙霧驗證
 
-### Modified Capabilities
+### 修改後的功能
 
-- `developer-qa-workflow`: Standardized local/CI QA flow for CLI behavior and migration-sensitive scenarios
+- `developer-qa-workflow`：針對 CLI 行為和遷移敏感場景的標準化本地/CI QA 流程
 
-## Impact
+## 影響
 
-- `Makefile` - Add `qa`, `qa-smoke`, and `qa-interactive` targets
-- `scripts/qa-smoke.sh` (or equivalent) - Implement sandbox setup, scenario execution, and assertions
-- `docs/` - Add/update contributor-facing QA instructions and interactive checklist usage
-- CI workflow - Add smoke target execution as a lightweight regression gate
+- `Makefile` - 添加 `qa`, `qa-smoke`， 和 `qa-interactive` 目標
+- `scripts/qa-smoke.sh` （或同等內容）- 實施沙箱設定、場景執行和斷言
+- `docs/` - 新增/更新貢獻者的 QA 說明和互動式清單使用
+- CI 工作流程 - 增加菸霧目標執行作為輕量級回歸門

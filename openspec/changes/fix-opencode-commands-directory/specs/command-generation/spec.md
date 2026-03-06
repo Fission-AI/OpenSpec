@@ -1,63 +1,63 @@
-## MODIFIED Requirements
+## 修改後的要求
 
-### Requirement: ToolCommandAdapter interface
+### 需求：ToolCommandAdapter 介面
 
-The system SHALL define a `ToolCommandAdapter` interface for per-tool formatting.
+系統應定義一個 `ToolCommandAdapter` 每個工具格式化的介面。
 
-#### Scenario: Adapter interface structure
+#### 場景：Adapter介面結構
 
-- **WHEN** implementing a tool adapter
-- **THEN** `ToolCommandAdapter` SHALL require:
-  - `toolId`: string identifier matching `AIToolOption.value`
-  - `getFilePath(commandId: string)`: returns file path for command (relative from project root, or absolute for global-scoped tools like Codex)
-  - `formatFile(content: CommandContent)`: returns complete file content with frontmatter
+- **何時**實施工具適配器
+- **然後** `ToolCommandAdapter` 應要求：
+  - `toolId`：字串標識符匹配 `AIToolOption.value`
+  - `getFilePath(commandId: string)`：傳回指令的檔案路徑（相對於專案根目錄，或全域範圍工具的絕對路徑，例如 Codex）
+  - `formatFile(content: CommandContent)`：返回帶有 frontmatter 的完整文件內容
 
-#### Scenario: Claude adapter formatting
+#### 場景：Claude 適配器格式化
 
-- **WHEN** formatting a command for Claude Code
-- **THEN** the adapter SHALL output YAML frontmatter with `name`, `description`, `category`, `tags` fields
-- **AND** file path SHALL follow pattern `.claude/commands/opsx/<id>.md`
+- **何時** 格式化 Claude 代碼的命令
+- **那麼** 適配器應輸出 YAML frontmatter `name`, `description`, `category`, `tags` 領域
+- **並且**文件路徑應遵循模式 `.claude/commands/opsx/<id>.md`
 
-#### Scenario: Cursor adapter formatting
+#### 場景：遊標適配器格式化
 
-- **WHEN** formatting a command for Cursor
-- **THEN** the adapter SHALL output YAML frontmatter with `name` as `/opsx-<id>`, `id`, `category`, `description` fields
-- **AND** file path SHALL follow pattern `.cursor/commands/opsx-<id>.md`
+- **何時** 格式化遊標指令
+- **那麼** 適配器應輸出 YAML frontmatter `name` 作為 `/opsx-<id>`, `id`, `category`, `description` 領域
+- **並且**文件路徑應遵循模式 `.cursor/commands/opsx-<id>.md`
 
-#### Scenario: Windsurf adapter formatting
+#### 場景：Windsurf 適配器格式化
 
-- **WHEN** formatting a command for Windsurf
-- **THEN** the adapter SHALL output YAML frontmatter with `name`, `description`, `category`, `tags` fields
-- **AND** file path SHALL follow pattern `.windsurf/workflows/opsx-<id>.md`
+- **何時** 格式化 Windsurf 指令
+- **那麼** 適配器應輸出 YAML frontmatter `name`, `description`, `category`, `tags` 領域
+- **並且**文件路徑應遵循模式 `.windsurf/workflows/opsx-<id>.md`
 
-#### Scenario: OpenCode adapter formatting
+#### 場景：OpenCode 適配器格式化
 
-- **WHEN** formatting a command for OpenCode
-- **THEN** the adapter SHALL output YAML frontmatter with `description` field
-- **AND** file path SHALL follow pattern `.opencode/commands/opsx-<id>.md` using `path.join('.opencode', 'commands', ...)` for cross-platform compatibility
-- **AND** the adapter SHALL transform colon-based command references (`/opsx:name`) to hyphen-based (`/opsx-name`) in the body
+- **何時** 格式化 OpenCode 指令
+- **那麼** 適配器應輸出 YAML frontmatter `description` 場地
+- **並且**文件路徑應遵循模式 `.opencode/commands/opsx-<id>.md` 使用 `path.join('.opencode', 'commands', ...)` 為了跨平台相容性
+- **並且** 適配器應轉換基於冒號的命令引用（`/opsx:name`) 到基於連字符的 (`/opsx-name`）在體內
 
-## ADDED Requirements
+## 新增要求
 
-### Requirement: Legacy cleanup for renamed OpenCode command directory
+### 需求：重新命名的 OpenCode 指令目錄的舊版清理
 
-The legacy cleanup module SHALL detect and remove old OpenCode command files from the previous singular `.opencode/command/` directory path.
+遺留清理模組應檢測並刪除先前的單數中的舊 OpenCode 命令文件 `.opencode/command/` 目錄路徑。
 
-#### Scenario: Detect old singular-path OpenCode command files
+#### 場景：偵測舊的單一路徑 OpenCode 命令文件
 
-- **WHEN** running legacy artifact detection on a project with files matching `.opencode/command/opsx-*.md` or `.opencode/command/openspec-*.md`
-- **THEN** the system SHALL include those files in the legacy slash command files list via `LEGACY_SLASH_COMMAND_PATHS`
-- **AND** `LegacySlashCommandPattern.pattern` SHALL accept `string | string[]` to support multiple glob patterns per tool
+- **何時** 在檔案相符的專案上執行遺留工件偵測 `.opencode/command/opsx-*.md` 或者 `.opencode/command/openspec-*.md`
+- **那麼**系統應透過以下方式將這些檔案包含在舊斜線命令檔案清單中 `LEGACY_SLASH_COMMAND_PATHS`
+- **和** `LegacySlashCommandPattern.pattern` 應接受 `string | string[]` 每個工具支援多種全域模式
 
-#### Scenario: Clean up old OpenCode command files on init
+#### 場景：在 init 上清理舊的 OpenCode 命令文件
 
-- **WHEN** a user runs `openspec init` in a project with old `.opencode/command/` artifacts
-- **THEN** the system SHALL remove the old files
-- **AND** generate new command files at `.opencode/commands/`
+- **何時** 使用者執行 `openspec init` 在一個舊的項目中 `.opencode/command/` 文物
+- **那麼**系統將刪除舊文件
+- **並且**在以下位置產生新的命令文件 `.opencode/commands/`
 
-#### Scenario: Auto-cleanup legacy artifacts in non-interactive mode
+#### 場景：在非互動模式下自動清理遺留工件
 
-- **WHEN** a user runs `openspec init` in non-interactive mode (e.g., CI) and legacy artifacts are detected
-- **THEN** the system SHALL auto-cleanup legacy artifacts without requiring `--force`
-- **AND** legacy slash command files (100% OpenSpec-managed) SHALL be removed
-- **AND** config file cleanup SHALL only remove OpenSpec markers (never delete user files)
+- **何時** 使用者執行 `openspec init` 在非互動模式下（例如，CI）並且偵測到遺留工件
+- **那麼**系統將自動清理遺留工件，而不需要 `--force`
+- **和** 舊斜線命令檔案（100% OpenSpec-託管）應被刪除
+- **和** 設定檔清理應僅刪除 OpenSpec 標記（絕不刪除使用者檔案）

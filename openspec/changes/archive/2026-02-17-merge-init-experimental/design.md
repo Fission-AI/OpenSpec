@@ -1,107 +1,107 @@
-## Context
+## 情境
 
-Currently `openspec init` and `openspec experimental` are separate commands with distinct purposes:
+現在 `openspec init` 和 `openspec experimental` 是具有不同目的的單獨命令：
 
-- **init**: Creates `openspec/` directory, generates `AGENTS.md`/`project.md`, configures tool config files (`CLAUDE.md`, etc.), generates old slash commands (`/openspec:proposal`, etc.)
-- **experimental**: Generates skills (9 per tool), generates opsx slash commands (`/opsx:new`, etc.), creates `config.yaml`
+- **init**：建立 `openspec/` 目錄，生成 `AGENTS.md`/`project.md`，設定工具設定檔（`CLAUDE.md`等），產生舊的斜線指令（`/openspec:proposal`， ETC。 ）
+- **實驗**：產生技能（每個工具 9 個），產生 opsx 斜線指令（`/opsx:new`等），建立 `config.yaml`
 
-The skill-based workflow (experimental) is the direction we're going, so we're making it the default by merging into `init`.
+基於技能的工作流程（實驗性）是我們前進的方向，因此我們透過合併到將其設為預設值 `init`.
 
-## Goals / Non-Goals
+## 目標/非目標
 
-**Goals:**
-- Single `openspec init` command that sets up the complete skill-based workflow
-- Clean migration path for existing users with legacy artifacts
-- Remove all code related to config files and old slash commands
-- Keep the polished UX from experimental (animated welcome, searchable multi-select)
+**目標：**
+- 單身的 `openspec init` 設定完整的基於技能的工作流程的命令
+- 為現有使用者提供遺留工件的乾淨遷移路徑
+- 刪除與設定檔和舊斜線命令相關的所有程式碼
+- 避免實驗性的精美使用者體驗（歡迎動畫、可搜尋的多選）
 
-**Non-Goals:**
-- Supporting both workflows simultaneously
-- Providing options to use the old workflow
-- Backward compatibility for `/openspec:*` commands (breaking change)
+**非目標：**
+- 同時支援兩個工作流程
+- 提供使用舊工作流程的選項
+- 向後相容性 `/openspec:*` 命令（重大更改）
 
-## Decisions
+## 決定
 
-### Decision 1: Merge into init, not into experimental
+### 決策 1：合併到 init 中，而不是合併到 Experimental 中
 
-**Choice**: Rewrite `init` to do what `experimental` does, then delete `experimental`.
+**選擇**：重寫 `init` 做什麼 `experimental` 是，然後刪除 `experimental`.
 
-**Rationale**: `init` is the canonical setup command. Users expect `init` to set up their project. `experimental` was always meant to be temporary.
+**理由**： `init` 是規範的設定命令。用戶期望 `init` 建立他們的項目。 `experimental` 總是意味著暫時的。
 
-**Alternatives considered**:
-- Keep `experimental` as the main command → confusing name for default behavior
-- Create new command → unnecessary, `init` already exists
+**考慮的替代方案**：
+- 保持 `experimental` 作為主命令 → 預設行為的令人困惑的名稱
+- 建立新指令→不必要， `init` 已經存在
 
-### Decision 2: Legacy cleanup with Y/N prompt
+### 決策 2：帶有 Y/N 提示的舊版清理
 
-**Choice**: Detect legacy artifacts, show what was found, prompt `"Legacy files detected. Upgrade and clean up? [Y/n]"`, then remove if confirmed.
+**選擇**：偵測遺留工件，顯示發現的內容，提示 `"Legacy files detected. Upgrade and clean up? [Y/n]"`，如果確認則刪除。
 
-**Rationale**: Users should know what's being removed. A single Y/N is simple and decisive. No need for multiple options.
+**理由**：使用者應該知道哪些內容被刪除。一個 Y/N 簡單而決定性。無需多個選項。
 
-**Alternatives considered**:
-- Multiple options (keep/remove/cancel) → overcomplicated
-- Silent removal → users might be surprised
-- Just warn without removing → leaves cruft
+**考慮的替代方案**：
+- 多個選項（保留/刪除/取消）→ 過於複雜
+- 靜默刪除 → 使用者可能會感到驚訝
+- 只是警告而不刪除 → 留下痕跡
 
-### Decision 3: Surgical removal of legacy content
+### 決策 3：以手術刪除遺留內容
 
-**Choice**: For files with mixed content (OpenSpec markers + user content), only remove the OpenSpec marker block. For files that are 100% OpenSpec content, delete the entire file.
+**選擇**：對於具有混合內容（OpenSpec標記+使用者內容）的文件，僅刪除OpenSpec標記區塊。對於 100% OpenSpec 內容的文件，刪除整個文件。
 
-**Rationale**: Respects user customizations. CLAUDE.md might have other instructions beyond OpenSpec.
+**基本原理**：尊重使用者自訂。 CLAUDE.md 可能有 OpenSpec 以外的其他指示。
 
-**Edge cases**:
-- **Config files with mixed content**: Remove only `<!-- OPENSPEC:START -->` to `<!-- OPENSPEC:END -->` block
-- **Config files that are 100% OpenSpec**: Delete file entirely (check if content outside markers is empty/whitespace)
-- **Old slash command directories** (`.claude/commands/openspec/`): Delete entire directory (ours)
-- **`openspec/AGENTS.md`**: Delete (ours)
-- **Root `AGENTS.md`**: Only remove OpenSpec marker block, preserve rest
+**邊緣情況**：
+- **具有混合內容的設定檔**：僅刪除 `<!-- OPENSPEC:START -->` 到 `<!-- OPENSPEC:END -->` 堵塞
+- **設定檔為 100% OpenSpec**：完全刪除檔案（檢查標記之外的內容是否為空白/空格）
+- **舊斜槓指令目錄** (`.claude/commands/openspec/`): 刪除整個目錄（我們的）
+- **`openspec/AGENTS.md`**：刪除（我們的）
+- **根 `AGENTS.md`**：僅刪除OpenSpec標記區塊，保留其餘部分
 
-### Decision 6: Preserve project.md with migration hint
+### 決策 6：保留有遷移提示的 project.md
 
-**Choice**: Do NOT auto-delete `openspec/project.md`. Preserve it and show a message directing users to manually migrate content to `config.yaml`'s `context:` field.
+**選擇**：不自動刪除 `openspec/project.md`。保留它並顯示一條訊息，指導用戶手動將內容遷移到 `config.yaml`的 `context:` field.
 
-**Rationale**:
-- `project.md` may contain valuable user-written project documentation
-- The new workflow uses `config.yaml.context` for the same purpose (auto-injected into artifacts)
-- Auto-deleting would lose user content; auto-migrating is complex (needs LLM to compress)
-- Users can migrate manually or use `/opsx:explore` to get AI assistance
+**理由**：
+- `project.md` 可能包含有價值的用戶編寫的專案文檔
+- 新的工作流程使用 `config.yaml.context` 出於相同目的（自動注入到工件中）
+- 自動刪除會遺失使用者內容；自動遷移比較複雜（需要LLM來壓縮）
+- 使用者可以手動遷移或使用 `/opsx:explore` 獲得人工智慧幫助
 
-**Migration path**:
-1. During legacy cleanup, detect `openspec/project.md` but do not delete
-2. Show in output: "openspec/project.md still exists - migrate content to config.yaml's context: field, then delete"
-3. User migrates manually or asks Claude in explore mode: "help me migrate project.md to config.yaml"
-4. User deletes project.md when ready
+**遷移路徑**：
+1. 在遺留清理期間，偵測 `openspec/project.md` 但不要刪除
+2. 在輸出中顯示：“openspec/project.md 仍然存在 - 將內容遷移到 config.yaml 的 context: 字段，然後刪除”
+3. 使用者手動遷移或在探索模式下詢問 Claude：“help me migrate project.md to config.yaml”
+4. 用戶準備好後刪除project.md
 
-**Why not auto-migrate?**
-- `project.md` is verbose (sections, headers, placeholders)
-- `config.yaml.context` should be concise and dense
-- LLM compression would be ideal but adds complexity and non-determinism to init
-- Manual migration lets users decide what's actually important
+**為什麼不自動遷移？ **
+- `project.md` 很詳細（部分、標題、佔位符）
+- `config.yaml.context` 應該簡潔而密集
+- LLM 壓縮是理想的，但會增加 init 的複雜性和不確定性
+- 手動遷移讓用戶可以決定什麼是真正重要的
 
-### Decision 4: Hidden alias for experimental
+### 決策 4：實驗的隱藏別名
 
-**Choice**: Keep `openspec experimental` as a hidden command that delegates to `init`.
+**選擇**：保留 `openspec experimental` 作為委託給的隱藏命令 `init`.
 
-**Rationale**: Users who learned `experimental` can still use it during transition. Hidden means it won't show in help.
+**理由**：學習過的用戶 `experimental` 過渡期間仍然可以使用它。隱藏意味著它不會顯示在幫助中。
 
-### Decision 5: Reuse existing infrastructure
+### 決策 5：重複使用現有基礎設施
 
-**Choice**: Reuse skill templates, command adapters, welcome screen, and multi-select from experimental.
+**選擇**：重複使用技能範本、命令適配器、歡迎畫面以及實驗中的多項選擇。
 
-**Rationale**: Already built and working. Just needs to be called from init instead of experimental.
+**理由**：已經建置並正在執行。只需要從 init 調用，而不是實驗性的。
 
-## Risks / Trade-offs
+## 風險/權衡
 
-| Risk | Mitigation |
+| 風險 | 減輕 |
 |------|------------|
-| Users with custom `/openspec:*` commands lose them | Document in release notes; old commands are in git history |
-| Mixed-content detection might be imperfect | Conservative approach: if unsure, preserve the file and warn |
-| Users confused by missing config files | Clear messaging in init output about what changed |
-| `openspec update` might break | Review and update `update` command to work with new structure |
+| 具有自訂功能的用戶 `/openspec:*` 命令失去它們 | 發行說明中的文件；舊命令在 git 歷史記錄中 |
+| 混合內容檢測可能不完善 | 保守方法：如果不確定，保留文件並發出警告 |
+| 用戶因缺少設定檔而感到困惑 | 清除初始化輸出中有關更改內容的訊息 |
+| `openspec update` 可能會壞掉 | 審查和更新 `update` 使用新結構的命令 |
 
-## Architecture
+## 建築學
 
-### What init creates (after merge)
+### init 建立了什麼（合併後）
 
 ```
 openspec/
@@ -133,61 +133,61 @@ openspec/
   └── bulk-archive.md
 ```
 
-### What init no longer creates
+### init 不再創造什麼
 
-- `CLAUDE.md`, `.cursorrules`, `.windsurfrules`, etc. (config files)
+- `CLAUDE.md`, `.cursorrules`, `.windsurfrules`等（設定檔）
 - `openspec/AGENTS.md`
 - `openspec/project.md`
-- Root `AGENTS.md` stub
-- `.claude/commands/openspec/` (old slash commands)
+- 根 `AGENTS.md` 存根
+- `.claude/commands/openspec/` （舊的斜線命令）
 
-### Legacy detection targets
+### 遺留檢測目標
 
-| Artifact Type | Detection Method | Removal Method |
+| 神器類型 | 檢測方法 | 去除方法 |
 |--------------|------------------|----------------|
-| Config files (CLAUDE.md, etc.) | File exists AND contains OpenSpec markers | Remove marker block; delete file if empty after |
-| Old slash command dirs | Directory exists at `.<tool>/commands/openspec/` | Delete entire directory |
-| openspec/AGENTS.md | File exists at `openspec/AGENTS.md` | Delete file |
-| openspec/project.md | File exists at `openspec/project.md` | **Preserve** - show migration hint only |
-| Root AGENTS.md | File exists at `AGENTS.md` AND contains OpenSpec markers | Remove marker block; delete file if empty after |
+| 設定檔（CLAUDE.md等） | 文件存在且包含 OpenSpec 標記 | 移除標記區塊；如果之後為空則刪除文件 |
+| 舊的斜槓指令目錄 | 目錄存在於 `.<tool>/commands/openspec/` | 刪除整個目錄 |
+| openspec/AGENTS.md | 文件存在於 `openspec/AGENTS.md` | 刪除文件 |
+| openspec/project.md | 文件存在於 `openspec/project.md` | **保留** - 僅顯示遷移提示 |
+| 根代理.md | 文件存在於 `AGENTS.md` AND 包含 OpenSpec 標記 | 移除標記區塊；如果之後為空則刪除文件 |
 
-### Code to remove
+### 要刪除的程式碼
 
-- `src/core/configurators/` - entire directory (ToolRegistry, all config generators)
-- `src/core/configurators/slash/` - entire directory (SlashCommandRegistry, old command generators)
-- `src/core/templates/slash-command-templates.ts` - old `/openspec:*` content
+- `src/core/configurators/` - 整個目錄（ToolRegistry，所有設定產生器）
+- `src/core/configurators/slash/` - 整個目錄（SlashCommandRegistry，舊命令產生器）
+- `src/core/templates/slash-command-templates.ts` - 老的 `/openspec:*` 內容
 - `src/core/templates/claude-template.ts`
 - `src/core/templates/cline-template.ts`
 - `src/core/templates/costrict-template.ts`
 - `src/core/templates/agents-template.ts`
 - `src/core/templates/agents-root-stub.ts`
 - `src/core/templates/project-template.ts`
-- `src/commands/experimental/` - entire directory (merged into init)
-- Related test files
+- `src/commands/experimental/` - 整個目錄（合併到init中）
+- 相關測試文件
 
-### Code to migrate into init
+### 遷移到 init 的程式碼
 
-- Animated welcome screen (`src/ui/welcome-screen.ts`) - keep, call from init
-- Searchable multi-select (`src/prompts/searchable-multi-select.ts`) - keep, call from init
-- Skill templates (`src/core/templates/skill-templates.ts`) - keep
-- Command generation (`src/core/command-generation/`) - keep
-- Tool states detection (from `experimental/setup.ts`) - move to init
+- 動畫歡迎畫面（`src/ui/welcome-screen.ts`) - 保持，從 init 調用
+- 可搜尋多選（`src/prompts/searchable-multi-select.ts`) - 保持，從 init 調用
+- 技能模板（`src/core/templates/skill-templates.ts`） - 保持
+- 命令生成（`src/core/command-generation/`） - 保持
+- 工具狀態檢測（來自 `experimental/setup.ts`) - 移至 init
 
-## Open Questions
+## 開放式問題
 
-1. **What happens to `openspec update`?** - RESOLVED
+1. **會發生什麼 `openspec update`?** - 已解決
 
-   **Current behavior**: Updates `openspec/AGENTS.md`, config files (`CLAUDE.md`, etc.) via `ToolRegistry`, and old slash commands (`/openspec:*`) via `SlashCommandRegistry`.
+   **當前行為**：更新 `openspec/AGENTS.md`，設定檔（`CLAUDE.md`等）透過 `ToolRegistry`，和舊的斜杠命令（`/openspec:*`） 透過 `SlashCommandRegistry`.
 
-   **New behavior**: Rewrite to refresh skills and opsx commands instead:
-   - Detect which tools have skills installed (check for `.claude/skills/openspec-*/`, etc.)
-   - Refresh all 9 skill files per installed tool using `skill-templates.ts`
-   - Refresh all 9 opsx command files per installed tool using `command-generation/` adapters
-   - Remove imports of `ToolRegistry`, `SlashCommandRegistry`, `agentsTemplate`
-   - Update output messaging to reflect skills/commands instead of config files
+   **新行為**：重寫以重新整理技能和 opsx 命令：
+   - 檢測哪些工具安裝了技能（檢查 `.claude/skills/openspec-*/`， ETC。 ）
+   - 使用以下命令重新整理每個已安裝工具的所有 9 個技能文件 `skill-templates.ts`
+   - 使用以下命令重新整理每個已安裝工具的所有 9 個 opsx 命令文件 `command-generation/` 適配器
+   - 刪除進口 `ToolRegistry`, `SlashCommandRegistry`, `agentsTemplate`
+   - 更新輸出訊息以反映技能/命令而不是設定檔
 
-   **Key principle**: Same as current update - only refresh existing tools, don't add new ones.
+   **關鍵原則**：與目前更新相同-僅重新整理現有工具，不新增工具。
 
-2. **Should we keep `openspec schemas` and other experimental subcommands?** - RESOLVED
+2. **我們應該保留 `openspec schemas` 和其他實驗子指令？ ** - 已解決
 
-   **Decision**: Yes, keep them. Remove "[Experimental]" label from all subcommands (status, instructions, schemas, etc.). See task 4.3.
+   **決定**：是的，保留它們。從所有子指令（狀態、指令、模式等）中刪除「[實驗]」標籤。參見任務 4.3。

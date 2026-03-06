@@ -1,10 +1,10 @@
-## MODIFIED Requirements
-### Requirement: Tool-Agnostic Updates
-The update command SHALL refresh OpenSpec-managed files in a predictable manner while respecting each team's chosen tooling.
+## 修改後的要求
+### 要求：與工具無關的更新
+更新命令應以可預測的方式重新整理 OpenSpec 託管文件，同時尊重每個團隊選擇的工具。
 
-#### Scenario: Updating files
-- **WHEN** updating files
-- **THEN** completely replace `openspec/AGENTS.md` with the latest template
-- **AND** create or refresh the root-level `AGENTS.md` stub using the managed marker block, even if the file was previously absent
-- **AND** update only the OpenSpec-managed sections inside existing AI tool files, leaving user-authored content untouched
-- **AND** avoid creating new native-tool configuration files (slash commands, CLAUDE.md, etc.) unless they already exist
+#### 場景：更新文件
+- **何時**更新文件
+- **然後** 完全替換 `openspec/AGENTS.md` 與最新的模板
+- **和** 建立或重新整理根級別 `AGENTS.md` 使用託管標記區塊進行存根，即使該檔案之前不存在
+- **且** 僅更新現有 AI 工具檔案中 OpenSpec 管理的部分，使用戶創作的內容保持不變
+- **並且**避免建立新的本機工具設定檔（斜線指令、CLAUDE.md 等），除非它們已經存在

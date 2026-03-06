@@ -1,48 +1,48 @@
-## ADDED Requirements
+## 新增要求
 
-### Requirement: Change Command
+### 要求：更改命令
 
-The system SHALL provide a `change` command with subcommands for displaying, listing, and validating change proposals.
+系統應提供 `change` 命令以及用於顯示、列出和驗證更改建議的子命令。
 
-#### Scenario: Show change as JSON
+#### 場景：將變更顯示為 JSON
 
-- **WHEN** executing `openspec change show update-error --json`
-- **THEN** parse the markdown change file
-- **AND** extract change structure and deltas
-- **AND** output valid JSON to stdout
+- **何時**執行 `openspec change show update-error --json`
+- **THEN** 解析 markdown 變更文件
+- **和** 提取變化結構和增量
+- **AND** 將有效 JSON 輸出到標準輸出
 
-#### Scenario: List all changes
+#### 場景：列出所有更改
 
-- **WHEN** executing `openspec change list`
-- **THEN** scan the openspec/changes directory
-- **AND** return list of all pending changes
-- **AND** support JSON output with `--json` flag
+- **何時**執行 `openspec change list`
+- **然後** 掃描 openspec/changes 目錄
+- **並且** 傳回所有待處理變更的列表
+- **並且** 支援 JSON 輸出 `--json` 旗幟
 
-#### Scenario: Show only requirement changes
+#### 場景：僅顯示需求變更
 
-- **WHEN** executing `openspec change show update-error --requirements-only`
-- **THEN** display only the requirement changes (ADDED/MODIFIED/REMOVED/RENAMED)
-- **AND** exclude why and what changes sections
+- **何時**執行 `openspec change show update-error --requirements-only`
+- **THEN** 僅顯示需求變更（新增/修改/刪除/重新命名）
+- **和** 排除更改部分的原因和內容
 
-#### Scenario: Validate change structure
+#### 場景：驗證變更結構
 
-- **WHEN** executing `openspec change validate update-error`
-- **THEN** parse the change file
-- **AND** validate against Zod schema
-- **AND** ensure deltas are well-formed
+- **何時**執行 `openspec change validate update-error`
+- **然後** 解析更改文件
+- **和** 根據 Zod 模式進行驗證
+- **並** 確保增量結構良好
 
-### Requirement: Legacy Compatibility
+### 需求：舊版相容性
 
-The system SHALL maintain backward compatibility with the existing `list` command while showing deprecation notices.
+系統應保持與現有系統的向後相容性 `list` 命令同時顯示棄用通知。
 
-#### Scenario: Legacy list command
+#### 場景：遺留清單命令
 
-- **WHEN** executing `openspec list`
-- **THEN** display current list of changes (existing behavior)
-- **AND** show deprecation notice: "Note: 'openspec list' is deprecated. Use 'openspec change list' instead."
+- **何時**執行 `openspec list`
+- **THEN** 顯示目前變更清單（現有行為）
+- **並且** 顯示棄用通知：“注意：'openspec list' 已棄用。請改用 'openspec change list'。”
 
-#### Scenario: Legacy list with --all flag
+#### 場景：帶有 --all 標誌的舊列表
 
-- **WHEN** executing `openspec list --all`
-- **THEN** display all changes (existing behavior)
-- **AND** show same deprecation notice
+- **何時**執行 `openspec list --all`
+- **然後** 顯示所有變更（現有行為）
+- **並且** 顯示相同的棄用通知

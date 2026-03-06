@@ -1,13 +1,13 @@
-## Why
-The project root currently receives a full copy of the OpenSpec agent instructions, duplicating the content that also lives in `openspec/AGENTS.md`. When teams edit one copy but not the other, the files drift and onboarding assistants see conflicting guidance.
+## 為什麼
+專案根目前收到 OpenSpec 代理指令的完整副本，複製也存在於 `openspec/AGENTS.md`。當團隊編輯一份副本而不編輯另一份副本時，文件會發生變化，入職助理會看到相互衝突的指導。
 
-## What Changes
-- Keep generating the complete template in `openspec/AGENTS.md` during `openspec init` and follow-up updates.
-- Replace the root-level file (`AGENTS.md` or `CLAUDE.md`, depending on tool selection) with a short hand-off that explains the project uses OpenSpec and points directly to `openspec/AGENTS.md`.
-- Add a dedicated stub template so both the init and update flows reuse the same minimal copy instructions.
-- Update CLI tests and documentation to reflect the new root-level messaging and ensure the OpenSpec marker block still protects future updates.
+## 有什麼變化
+- 繼續產生完整的模板 `openspec/AGENTS.md` 期間 `openspec init` 以及後續更新。
+- 替換根級檔案（`AGENTS.md` 或者 `CLAUDE.md`，取決於工具選擇），並有一個簡短的交接，解釋項目使用 OpenSpec 並直接指向 `openspec/AGENTS.md`.
+- 新增專用存根模板，以便初始化和更新流程重複使用相同的最小複製指令。
+- 更新 CLI 測試和文件以反映新的根級訊息傳遞，並確保 OpenSpec 標記區塊仍然保護未來的更新。
 
-## Impact
-- Affected specs: `cli-init`, `cli-update`
-- Affected code: `src/core/init.ts`, `src/core/update.ts`, `src/core/templates/agents-template.ts`
-- Update assets/readmes that mention the root `AGENTS.md` contents to reference the new stub message.
+## 影響
+- 受影響的規格： `cli-init`, `cli-update`
+- 受影響的代碼： `src/core/init.ts`, `src/core/update.ts`, `src/core/templates/agents-template.ts`
+- 更新提及根的資產/自述文件 `AGENTS.md` 引用新存根訊息的內容。

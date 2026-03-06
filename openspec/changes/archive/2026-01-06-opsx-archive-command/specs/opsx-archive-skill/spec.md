@@ -1,122 +1,122 @@
-## ADDED Requirements
+## 新增要求
 
-### Requirement: OPSX Archive Skill
+### 需求：OPSX 存檔技能
 
-The system SHALL provide an `/opsx:archive` skill that archives completed changes in the experimental workflow.
+系統應提供 `/opsx:archive` 歸檔實驗工作流程中已完成的變更的技能。
 
-#### Scenario: Archive a change with all artifacts complete
+#### 場景：歸檔更改並完成所有工件
 
-- **WHEN** agent executes `/opsx:archive` with a change name
-- **AND** all artifacts in the schema are complete
-- **AND** all tasks are complete
-- **THEN** the agent moves the change to `openspec/changes/archive/YYYY-MM-DD-<name>/`
+- **何時** 代理執行 `/opsx:archive` 更改名稱
+- **且** 架構中的所有工件均已完成
+- **且**所有任務已完成
+- **然後** 代理程式將變更移至 `openspec/changes/archive/YYYY-MM-DD-<name>/`
 - **AND** displays success message with archived location
 
-#### Scenario: Change selection prompt
+#### 場景：更改選擇提示
 
-- **WHEN** agent executes `/opsx:archive` without specifying a change
-- **THEN** the agent prompts user to select from available changes
+- **何時** 代理執行 `/opsx:archive` 沒有指定更改
+- **然後** 代理程式提示使用者從可用變更中進行選擇
 - **AND** shows only active changes (excludes archive/)
 
 ### Requirement: Artifact Completion Check
 
 The skill SHALL check artifact completion status using the artifact graph before archiving.
 
-#### Scenario: Incomplete artifacts warning
+#### 場景：不完整的工件警告
 
 - **WHEN** agent checks artifact status
-- **AND** one or more artifacts have status other than `done`
-- **THEN** display warning listing incomplete artifacts
+- **且** 一個或多個工件的狀態不同於 `done`
+- **然後** 顯示警告，列出不完整的工件
 - **AND** prompt user for confirmation to continue
 - **AND** proceed if user confirms
 
-#### Scenario: All artifacts complete
+#### 場景：所有工件均已完成
 
 - **WHEN** agent checks artifact status
 - **AND** all artifacts have status `done`
 - **THEN** proceed without warning
 
-### Requirement: Task Completion Check
+### 要求：任務完成檢查
 
-The skill SHALL check task completion status from tasks.md before archiving.
+該技能應在存檔之前從tasks.md檢查任務完成狀態。
 
-#### Scenario: Incomplete tasks found
+#### 場景：發現未完成的任務
 
 - **WHEN** agent reads tasks.md
-- **AND** incomplete tasks are found (marked with `- [ ]`)
-- **THEN** display warning showing count of incomplete tasks
+- **並且**發現不完整的任務（標記為 `- [ ]`)
+- **然後** 顯示警告，顯示未完成任務的計數
 - **AND** prompt user for confirmation to continue
 - **AND** proceed if user confirms
 
-#### Scenario: All tasks complete
+#### 場景：所有任務完成
 
 - **WHEN** agent reads tasks.md
-- **AND** all tasks are complete (marked with `- [x]`)
-- **THEN** proceed without task-related warning
+- **並且** 所有任務均已完成（標記為 `- [x]`)
+- **然後** 繼續執行，而不會出現與任務相關的警告
 
-#### Scenario: No tasks file
+#### 場景：沒有任務文件
 
-- **WHEN** tasks.md does not exist
-- **THEN** proceed without task-related warning
+- **何時**tasks.md 不存在
+- **然後** 繼續執行，而不會出現與任務相關的警告
 
-### Requirement: Spec Sync Prompt
+### 需求：規格同步提示
 
-The skill SHALL prompt to sync delta specs before archiving if specs exist.
+如果規格存在，則技能應在存檔之前提示同步增量規格。
 
-#### Scenario: Delta specs exist
+#### 場景：Delta 規格存在
 
-- **WHEN** agent checks for delta specs
-- **AND** `specs/` directory exists in the change with spec files
-- **THEN** prompt user: "This change has delta specs. Would you like to sync them to main specs before archiving?"
-- **AND** if user confirms, execute `/opsx:sync` logic
-- **AND** proceed with archive regardless of sync choice
+- **何時** 代理檢查增量規格
+- **和** `specs/` 目錄存在於與規格文件的變更中
+- **然後** 提示使用者：“此變更有增量規格。您想在存檔之前將它們同步到主要規格嗎？”
+- **並且** 如果使用者確認，則執行 `/opsx:sync` 邏輯
+- **並且** 無論同步選擇如何都繼續存檔
 
-#### Scenario: No delta specs
+#### 場景：無增量規格
 
-- **WHEN** agent checks for delta specs
-- **AND** no `specs/` directory or no spec files exist
-- **THEN** proceed without sync prompt
+- **何時** 代理檢查增量規格
+- **並且**沒有 `specs/` 目錄或不存在規格文件
+- **然後** 在沒有同步提示的情況下繼續
 
-### Requirement: Archive Process
+### 需求：存檔過程
 
-The skill SHALL move the change to the archive folder with date prefix.
+技能應將變更移至帶有日期前綴的存檔資料夾。
 
-#### Scenario: Successful archive
+#### 場景：成功歸檔
 
-- **WHEN** archiving a change
-- **THEN** create `archive/` directory if it doesn't exist
-- **AND** generate target name as `YYYY-MM-DD-<change-name>` using current date
-- **AND** move entire change directory to archive location
-- **AND** preserve `.openspec.yaml` file in archived change
+- **何時** 歸檔更改
+- **然後**建立 `archive/` 目錄（如果不存在）
+- **AND** generate target name as `YYYY-MM-DD-<change-name>` 使用目前日期
+- **並且** 將整個更改目錄移動到存檔位置
+- **並**保留 `.openspec.yaml` 存檔更改中的文件
 
-#### Scenario: Archive already exists
+#### 場景：存檔已存在
 
-- **WHEN** target archive directory already exists
-- **THEN** fail with error message
-- **AND** suggest renaming existing archive or using different date
+- **何時** 目標存檔目錄已存在
+- **然後** 失敗並顯示錯誤訊息
+- **並**建議重命名現有存檔或使用不同的日期
 
-### Requirement: Skill Output
+### 需求：技能輸出
 
-The skill SHALL provide clear feedback about the archive operation.
+此技能應提供有關存檔操作的清晰回饋。
 
-#### Scenario: Archive complete with sync
+#### 場景：存檔完成並同步
 
-- **WHEN** archive completes after syncing specs
-- **THEN** display summary:
-  - Specs synced (from `/opsx:sync` output)
-  - Change archived to location
-  - Schema that was used
+- **何時** 同步規格後存檔完成
+- **然後** 顯示摘要：
+  - 規格已同步（來自 `/opsx:sync` 輸出）
+  - 更改存檔位置
+  - 使用的架構
 
-#### Scenario: Archive complete without sync
+#### 場景：存檔完成但未同步
 
-- **WHEN** archive completes without syncing specs
-- **THEN** display summary:
-  - Note that specs were not synced (if applicable)
-  - Change archived to location
-  - Schema that was used
+- **何時** 存檔完成但未同步規格
+- **然後** 顯示摘要：
+  - 請注意，規格未同步（如果適用）
+  - 更改存檔位置
+  - 使用的架構
 
-#### Scenario: Archive complete with warnings
+#### 場景：存檔完整但有警告
 
-- **WHEN** archive completes with incomplete artifacts or tasks
-- **THEN** include note about what was incomplete
-- **AND** suggest reviewing if archive was intentional
+- **何時** 歸檔完成但工件或任務不完整
+- **然後** 包括有關不完整內容的註釋
+- **並**建議審查存檔是否是故意的

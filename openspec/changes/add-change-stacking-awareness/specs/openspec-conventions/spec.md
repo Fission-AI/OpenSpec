@@ -1,29 +1,29 @@
-## ADDED Requirements
+## 新增要求
 
-### Requirement: Stack-Aware Change Planning Conventions
-OpenSpec conventions SHALL define optional metadata fields for sequencing and decomposition across concurrent changes.
+### 要求：堆疊感知變更計畫約定
+OpenSpec 約定應定義可選元資料字段，用於跨並發變更進行排序和分解。
 
-#### Scenario: Declaring change dependencies
-- **WHEN** authors need to sequence related changes
-- **THEN** conventions SHALL define how to declare dependencies and provided/required capability markers
-- **AND** validation guidance SHALL distinguish hard blockers from soft overlap warnings
+#### 場景：聲明更改依賴項
+- **何時** 作者需要對相關變更進行排序
+- **那麼** 約定應定義如何宣告依賴項和提供/所需的功能標記
+- **和** 驗證指南應區分硬阻止程序和軟重疊警告
 
-#### Scenario: Dependency source of truth during migration
-- **WHEN** both stack metadata and `openspec/changes/IMPLEMENTATION_ORDER.md` are present
-- **THEN** conventions SHALL treat per-change stack metadata as the normative dependency source
-- **AND** `IMPLEMENTATION_ORDER.md` SHALL be treated as optional narrative guidance
+#### 場景：遷移過程中的依賴事實來源
+- **何時** 堆疊元資料和 `openspec/changes/IMPLEMENTATION_ORDER.md` 存在
+- **那麼** 約定應將每次變更的堆疊元資料視為規範的依賴來源
+- **和** `IMPLEMENTATION_ORDER.md` 應被視為可選擇的敘述指導
 
-#### Scenario: Explicit ordering remains required for capability markers
-- **WHEN** authors use `provides` and `requires` markers to describe capability contracts
-- **THEN** conventions SHALL require explicit `dependsOn` edges for ordering relationships
-- **AND** conventions SHALL prohibit treating `requires` as an implicit dependency edge
+#### 場景：能力標記仍需要明確排序
+- **何時**作者使用 `provides` 和 `requires` 描述能力合約的標記
+- **那麼**約定應要求明確 `dependsOn` 排序關係的邊
+- **和** 公約應禁止治療 `requires` 作為隱式依賴邊
 
-#### Scenario: Declaring advisory overlap via touches
-- **WHEN** a change may affect capability/spec areas shared by concurrent changes without requiring ordering
-- **THEN** conventions SHALL allow authors to declare `touches` with advisory area identifiers (for example capability IDs, spec area names, or paths)
-- **AND** tooling SHALL treat `touches` as informational only (no implicit dependency edge, non-blocking validation signal)
+#### 場景：透過觸摸聲明諮詢重疊
+- **何時** 更改可能會影響並發更改共享的功能/規格區域，而無需訂購
+- **那麼** 約定應允許作者聲明 `touches` 帶有建議區域識別碼（例如功能 ID、規範區域名稱或路徑）
+- **和**工具應處理 `touches` 僅供參考（無隱式依賴邊緣、非阻塞驗證訊號）
 
-#### Scenario: Declaring parent-child split structure
-- **WHEN** a large change is decomposed into smaller slices
-- **THEN** conventions SHALL define parent-child metadata and expected ordering semantics
-- **AND** docs SHALL describe when to split versus keep a single change
+#### 場景：聲明父子拆分結構
+- **何時** 一個大的變化被分解成更小的部分
+- **那麼** 約定應定義父子元資料和預期的排序語意
+- **和** 文件應描述何時拆分與保留單一更改

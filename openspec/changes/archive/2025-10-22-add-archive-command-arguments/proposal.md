@@ -1,17 +1,17 @@
-# Add Archive Command Arguments
+# 新增存檔命令參數
 
-## Why
-The `/openspec:archive` slash command currently lacks argument support, forcing the AI to infer which change to archive from conversation context or by listing all changes. This creates a safety risk where the wrong proposal could be archived if the context is ambiguous or multiple changes exist. Users expect to specify the change ID explicitly, matching the behavior of the CLI command `openspec archive <id>`.
+## 為什麼
+這 `/openspec:archive` 目前，slash 命令缺乏參數支援，迫使 AI 從對話上下文或列出所有更改來推斷要存檔的更改。這會產生安全風險，如果上下文不明確或存在多個更改，則可能會存檔錯誤的提案。使用者希望明確指定更改 ID，以符合 CLI 命令的行為 `openspec archive <id>`.
 
-## What Changes
-- Add `$ARGUMENTS` placeholder to the OpenCode archive slash command frontmatter (matching existing pattern for proposal command)
-- Update archive command template steps to validate the specific change ID argument when provided
-- Note: Codex, GitHub Copilot, and Amazon Q already have `$ARGUMENTS` for archive; Claude/Cursor/Windsurf/Kilocode don't support arguments
+## 有什麼變化
+- 添加 `$ARGUMENTS` OpenCode 存檔斜線指令 frontmatter 的佔位符（與提案指令的現有模式相符）
+- 更新存檔命令範本步驟以驗證提供的特定變更 ID 參數
+- 注意：Codex、GitHub Copilot 和 Amazon Q 已經有 `$ARGUMENTS` 用於存檔； Claude/Cursor/Windsurf/Kilocode 不支援參數
 
-## Impact
-- Affected specs: `cli-update` (slash command generation logic)
-- Affected code:
-  - `src/core/configurators/slash/opencode.ts` (add `$ARGUMENTS` to archive frontmatter)
-  - `src/core/templates/slash-command-templates.ts` (archive template steps for argument validation)
-- Breaking: No - this is additive functionality that makes the command safer
-- User-facing: Yes - OpenCode users will be able to pass the change ID as an argument: `/openspec:archive <change-id>`
+## 影響
+- 受影響的規格： `cli-update` （斜線指令產生邏輯）
+- 受影響的代碼：
+  - `src/core/configurators/slash/opencode.ts` （新增 `$ARGUMENTS` 存檔前言）
+  - `src/core/templates/slash-command-templates.ts` （參數驗證的存檔範本步驟）
+- 突破：否 - 這是附加功能，使命令更安全
+- 面向用戶：是 - OpenCode 用戶將能夠將更改 ID 作為參數傳遞： `/openspec:archive <change-id>`

@@ -1,59 +1,59 @@
-# Implementation Tasks (Foundation Phase)
+# 實施任務（基礎階段）
 
-## 1. Core Schemas
-- [x] 1.1 Add zod dependency to package.json
-- [x] 1.2 Create src/core/schemas/base.schema.ts with ScenarioSchema and RequirementSchema
-- [x] 1.3 Create src/core/schemas/spec.schema.ts with SpecSchema
-- [x] 1.4 Create src/core/schemas/change.schema.ts with DeltaSchema and ChangeSchema
-- [x] 1.5 Create src/core/schemas/index.ts to export all schemas
+## 1. 核心模式
+- [x] 1.1 在package.json中加入zod依賴
+- [x] 1.2 使用 ScenarioSchema 和 RequirementSchema 建立 src/core/schemas/base.schema.ts
+- [x] 1.3 使用SpecSchema建立src/core/schemas/spec.schema.ts
+- [x] 1.4 使用 DeltaSchema 和 ChangeSchema 建立 src/core/schemas/change.schema.ts
+- [x] 1.5 建立src/core/schemas/index.ts匯出所有schema
 
-## 2. Parser Implementation
-- [x] 2.1 Create src/core/parsers/markdown-parser.ts
-- [x] 2.2 Implement heading extraction (##, ###, ####)
-- [x] 2.3 Implement content capture between headings
-- [x] 2.4 Add tests for parser edge cases
+## 2. 解析器實作
+- [x] 2.1 建立src/core/parsers/markdown-parser.ts
+- [x] 2.2 實作標題提取（##、###、####）
+- [x] 2.3 實現標題之間的內容捕獲
+- [x] 2.4 新增解析器邊緣情況的測試
 
-## 3. Validation Infrastructure
-- [x] 3.1 Create src/core/validation/types.ts with ValidationLevel, ValidationIssue, ValidationReport types
-- [x] 3.2 Create src/core/validation/constants.ts with validation rules and thresholds
-- [x] 3.3 Create src/core/validation/validator.ts with SpecValidator and ChangeValidator classes
+## 3. 驗證基礎設施
+- [x] 3.1 建立 src/core/validation/types.ts，其中包含 ValidationLevel、ValidationIssue、ValidationReport 類型
+- [x] 3.2 建立具有驗證規則和閾值的 src/core/validation/constants.ts
+- [x] 3.3 使用SpecValidator和ChangeValidator類別建立src/core/validation/validator.ts
 
-## 4. Enhanced Validation Rules
-- [x] 4.1 Add RequirementValidation refinements (must have scenarios, must contain SHALL)
-- [x] 4.2 Add SpecValidation refinements (must have requirements)
-- [x] 4.3 Add ChangeValidation refinements (must have deltas, why section length)
-- [x] 4.4 Implement custom error messages for each rule
+## 4. 增強的驗證規則
+- [x] 4.1 新增RequirementValidation細化（必須有場景，必須包含SHALL）
+- [x] 4.2 加入SpecValidation細化（必須有要求）
+- [x] 4.3 加入ChangeValidation細化（必須有增量，為什麼部分長度）
+- [x] 4.4 為每個規則實作自訂錯誤訊息
 
-## 5. JSON Converter
-- [x] 5.1 Create src/core/converters/json-converter.ts
-- [x] 5.2 Implement spec-to-JSON conversion
-- [x] 5.3 Implement change-to-JSON conversion
+## 5.JSON轉換器
+- [x] 5.1 建立 src/core/converters/json-converter.ts
+- [x] 5.2 實現規範到JSON的轉換
+- [x] 5.3 實施更改為-JSON轉換
 - [x] 5.4 Add metadata fields (version, format, sourcePath)
 
-## 6. Archive Command Enhancement
-- [x] 6.1 Add pre-archive validation check using new validators
-- [x] 6.2 Add --no-validate flag with required confirmation prompt and warning message: "⚠️  WARNING: Skipping validation may archive invalid specs. Continue? (y/N)"
-- [x] 6.3 Display validation errors before aborting
-- [x] 6.4 Log all --no-validate usages to console with timestamp and affected files
-- [x] 6.5 Add tests for validation scenarios including --no-validate confirmation flow
+## 6. 存檔命令增強
+- [x] 6.1 使用新驗證器新增預存檔驗證檢查
+- [x] 6.2 新增 --no-validate 標誌以及所需的確認提示和警告訊息：“⚠️ 警告：跳過驗證可能會存檔無效規格。繼續？（y/N）”
+- [x] 6.3 中止前顯示驗證錯誤
+- [x] 6.4 將所有 --no-validate 使用情況記錄到控制台，並包含時間戳記和受影響的文件
+- [x] 6.5 新增驗證場景的測試，包括 --no-validate 確認流程
 
-## 7. Diff Command Enhancement
-- [x] 7.1 Add validation check before diff using new validators
-- [x] 7.2 Show validation warnings (non-blocking)
+## 7. Diff命令增強
+- [x] 7.1 使用新驗證器在 diff 之前新增驗證檢查
+- [x] 7.2 顯示驗證警告（非阻塞）
 - [x] 7.3 Continue with diff even if warnings present
 
-## 8. Testing
-- [x] 8.1 Unit tests for all schemas
-- [x] 8.2 Unit tests for parser
-- [x] 8.3 Unit tests for validation rules
-- [x] 8.4 Integration tests for validation reports
-- [x] 8.5 Test various invalid spec/change formats
-- [x] 8.6 Test strict mode behavior
-- [x] 8.7 Test pre-archive validation
-- [x] 8.8 Test validation report JSON output
+## 8. 測試
+- [x] 8.1 所有模式的單元測試
+- [x] 8.2 解析器的單元測試
+- [x] 8.3 驗證規則的單元測試
+- [x] 8.4 驗證報告的整合測試
+- [x] 8.5 測試各種無效的規範/更改格式
+- [x] 8.6 測試嚴格模式行為
+- [x] 8.7 測試預歸檔驗證
+- [x] 8.8 測試驗證報告JSON輸出
 
-## 9. Documentation
-- [x] 9.1 Document schema structure and validation rules (openspec/VALIDATION.md)
-- [x] 9.2 Update CLI help for archive (document --no-validate flag and its warnings)
-- [x] 9.3 Update CLI help for diff (document validation warnings behavior)
-- [x] 9.4 Create migration guide for future command integration (openspec/MIGRATION.md)
+## 9. 文件
+- [x] 9.1 文件模式結構與驗證規則（openspec/VALIDATION.md）
+- [x] 9.2 更新 CLI 存檔幫助（文檔 --no-validate 標誌及其警告）
+- [x] 9.3 更新 CLI diff 幫助（文件驗證警告行為）
+- [x] 9.4 為未來的指令整合建立遷移指南（openspec/MIGRATION.md）

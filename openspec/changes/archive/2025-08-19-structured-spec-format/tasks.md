@@ -1,19 +1,19 @@
-## 1. Update OpenSpec Conventions Spec
+## 1.更新OpenSpec約定規範
 
-- [x] 1.1 Add "Specification Format" section to openspec-conventions
-- [x] 1.2 Document structured format with Requirement/Scenario headers
-- [x] 1.3 Define bold keyword usage (WHEN/THEN/AND) for scenarios
-- [x] 1.4 Include examples demonstrating the format within the spec itself
+- [x] 1.1 在 openspec-conventions 中新增「規格格式」部分
+- [x] 1.2 帶有需求/場景標題的文檔結構化格式
+- [x] 1.3 定義場景的粗體關鍵字用法（WHEN/THEN/AND）
+- [x] 1.4 在規格本身中包含演示格式的範例
 
-## 2. Update Documentation
+## 2. 更新文檔
 
-- [x] 2.1 Update the "Why This Approach" section with structured format benefits
-- [x] 2.2 Ensure spec follows its own format as a demonstration
+- [x] 2.1 使用結構化格式的優點更新「為什麼採用這種方法」部分
+- [x] 2.2 確保spec遵循自己的格式作為演示
 
-## 3. Update Existing Specs
+## 3.更新現有規格
 
-- [x] 3.1 Update cli-init spec to use structured format in Behavior section
-- [x] 3.2 Update cli-list spec to use structured format in Behavior section
-- [x] 3.3 Update cli-update spec to use structured format in Behavior section
-- [x] 3.4 Update cli-diff spec to use structured format in Behavior section
-- [x] 3.5 Update cli-archive spec to use structured format in Behavior section
+- [x] 3.1 更新 cli-init 規格以在行為部分使用結構化格式
+- [x] 3.2 更新 cli-list 規範以在行為部分使用結構化格式
+- [x] 3.3 更新 cli-update 規格以在行為部分使用結構化格式
+- [x] 3.4 更新 cli-diff 規範以在行為部分使用結構化格式
+- [x] 3.5 更新 cli-archive 規範以在行為部分使用結構化格式

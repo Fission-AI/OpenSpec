@@ -1,47 +1,47 @@
-# Implementation Tasks
+# 實施任務
 
-## Design Phase
-- [x] Research existing list command implementation
-- [x] Design dashboard layout and information architecture
-- [x] Choose appropriate command verb (`view`)
-- [x] Define visual elements (progress bars, colors, layout)
+## 設計階段
+- [x] 研究現有清單命令的實現
+- [x] 設計儀表板佈局和資訊架構
+- [x] 選擇適當的命令動詞（`view`)
+- [x] 定義視覺元素（進度條、顏色、佈局）
 
-## Core Implementation
-- [x] Create ViewCommand class in `/src/core/view.ts`
-- [x] Implement getChangesData method for fetching change information
-- [x] Implement getSpecsData method for fetching spec information
-- [x] Implement displaySummary method for summary metrics
-- [x] Add progress bar visualization with Unicode characters
-- [x] Implement color coding using chalk
+## 核心實施
+- [x] 在中建立ViewCommand類 `/src/core/view.ts`
+- [x] 實作 getChangesData 方法來取得變更訊息
+- [x] 實作 getSpecsData 方法來取得規格信息
+- [x] 實作摘要指標的 displaySummary 方法
+- [x] 新增帶有 Unicode 字元的進度條視覺化
+- [x] 使用粉筆實作顏色編碼
 
-## Integration
-- [x] Import ViewCommand in CLI index
-- [x] Register `openspec view` command with commander
-- [x] Add proper error handling and ora spinner integration
-- [x] Ensure command appears in help documentation
+## 一體化
+- [x] 導入 CLI 索引中的 ViewCommand
+- [x] 登記 `openspec view` 與指揮官一起指揮
+- [x] 添加適當的錯誤處理和 ora spinner 集成
+- [x] 確保命令出現在說明文件中
 
-## Data Processing
-- [x] Reuse TaskProgress utilities for change progress
-- [x] Integrate MarkdownParser for spec requirement counting
-- [x] Handle async operations for file system access
-- [x] Sort specifications by requirement count
+## 資料處理
+- [x] 重複使用 TaskProgress 實用程式來更改進度
+- [x] 整合 MarkdownParser 以進行規範要求計數
+- [x] 處理檔案系統存取的非同步操作
+- [x] 依需求數量對規格進行排序
 
-## Testing and Validation
-- [x] Build project successfully with new command
-- [x] Test command with sample data
-- [x] Verify correct requirement counts match list --specs
-- [x] Test progress bar display for various completion states
-- [x] Run existing test suite to ensure no regressions
-- [x] Verify TypeScript compilation with no errors
+## 測試和驗證
+- [x] 使用新命令成功建構項目
+- [x] 使用範例資料測試命令
+- [x] 驗證正確的需求計數匹配清單 --specs
+- [x] 各種完成狀態的測試進度條顯示
+- [x] 執行現有的測試套件以確保沒有回歸
+- [x] 驗證 TypeScript 編譯沒有錯誤
 
-## Documentation
-- [x] Add command description in CLI help
-- [x] Create change proposal documentation
-- [x] Update README with view command example (if needed)
-- [x] Add view command to user documentation (if exists)
+## 文件
+- [x] 在CLI幫助中加入指令說明
+- [x] 建立變更提案文檔
+- [x] 使用檢視命令範例更新 README（如果需要）
+- [x] 將檢視命令新增至使用者文件（如果存在）
 
-## Polish
-- [x] Ensure consistent formatting and alignment
-- [x] Add helpful footer text referencing list commands
-- [x] Optimize for terminal width considerations
-- [x] Review and refine color choices for accessibility
+## 拋光
+- [x] 確保一致的格式和對齊方式
+- [x] 新增有用的頁尾文字引用清單指令
+- [x] 針對終端寬度考慮因素進行最佳化
+- [x] 檢查並完善顏色選擇以實現可訪問性

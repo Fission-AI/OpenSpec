@@ -1,111 +1,111 @@
-## Why
+## 為什麼
 
-OpenSpec currently assumes command delivery maps directly to command adapters. That assumption does not hold for all tools.
+OpenSpec 目前假定命令傳遞直接對應到命令適配器。該假設並不適用於所有工具。
 
-Trae is a concrete example: it invokes OpenSpec workflows via skill entries (for example `/openspec-new-change`) rather than adapter-generated command files. In this model, skills are the command surface.
+Trae 是一個具體的例子：它透過技能條目呼叫 OpenSpec 工作流程（例如 `/openspec-new-change`）而不是適配器產生的命令檔。在這個模型中，技能是命令面。
 
-Today, this creates a behavior gap:
+如今，這造成了行為差距：
 
-- `delivery=commands` can remove skills
-- tools without adapters skip command generation
-- result: selected tools like Trae can end up with no invocable workflow artifacts
+- `delivery=commands` 可以刪除技能
+- 沒有適配器的工具會跳過命令生成
+- 結果：像 Trae 這樣的選取工具最終可能沒有可呼叫的工作流程工件
 
-This is more than a prompt UX issue because non-interactive and CI flows bypass interactive guidance. We need a capability-aware model in core generation logic.
+這不僅僅是一個提示使用者體驗問題，因為非互動式和 CI 流程繞過了互動式指導。我們在核心生成邏輯中需要一個能力感知模型。
 
-## What Changes
+## 有什麼變化
 
-### 1. Add explicit command-surface capability metadata
+### 1. 新增顯式命令面功能元資料
 
-Add an optional field in tool metadata to describe how a tool exposes commands:
+在工具元資料中新增可選欄位來描述工具如何公開命令：
 
-- `adapter`: command files are generated through a command adapter
-- `skills-invocable`: skills are directly invocable as commands
-- `none`: no OpenSpec command surface
+- `adapter`：命令檔案是透過命令適配器產生的
+- `skills-invocable`：技能可以直接作為命令調用
+- `none`: 無 OpenSpec 指令面
 
-Field should be optional. Default behavior is inferred from adapter registry presence: tools with a registered adapter resolve to `adapter`; tools with no adapter registration and no explicit annotation resolve to `none`.
-Capability values use kebab-case string tokens for consistency with serialized metadata conventions.
+字段應該是可選的。預設行為是從適配器註冊表的存在推斷出來的：具有已註冊適配器的工具解析為 `adapter`;沒有適配器註冊和沒有明確註釋的工具解析為 `none`.
+功能值使用短橫線大小寫的字串標記來與序列化元資料約定保持一致。
 
-Initial explicit override:
+初始顯式覆蓋：
 
-- Trae -> `skills-invocable`
+- 特雷-> `skills-invocable`
 
-### 2. Make delivery behavior capability-aware
+### 2. 使交付行為具有能力感知能力
 
-Update `init` and `update` to compute effective artifact actions per tool from:
+更新 `init` 和 `update` 計算每個工具的有效工件操作：
 
-- global delivery (`both | skills | commands`)
-- tool command surface capability
+- 全球配送（`both | skills | commands`)
+- 工具命令面功能
 
-Behavior matrix:
+行為矩陣：
 
 - `both`:
-  - generate skills for all tools with `skillsDir` (including `skills-invocable`)
-  - generate command files only for `adapter` tools
-  - `none`: no artifact action; MAY emit compatibility warning
+  - 為所有工具產生技能 `skillsDir` （包括 `skills-invocable`)
+  - 僅生成命令文件 `adapter` 工具
+  - `none`：無神器動作；可能會發出相容性警告
 - `skills`:
-  - generate skills for all tools with `skillsDir` (including `skills-invocable`)
-  - remove adapter-generated command files
-  - `none`: no artifact action; MAY emit compatibility warning
+  - 為所有工具產生技能 `skillsDir` （包括 `skills-invocable`)
+  - 刪除適配器產生的命令文件
+  - `none`：無神器動作；可能會發出相容性警告
 - `commands`:
-  - `adapter`: generate commands, remove skills
-  - `skills-invocable`: generate (or keep if up-to-date) skills as command surface; do not remove them
-  - `none`: fail fast with clear error
+  - `adapter`：產生指令，移除技能
+  - `skills-invocable`：產生（或保留，如果是最新的）技能作為命令介面；不要刪除它們
+  - `none`：快速失敗並出現明顯錯誤
 
-### 3. Add preflight validation and clearer output
+### 3.加入預檢驗證和更清晰的輸出
 
-Before writing/removing artifacts, validate selected/configured tools against delivery mode:
+在寫入/刪除工件之前，根據交付模式驗證所選/設定的工具：
 
-- interactive flow: show clear compatibility note before confirmation
+- 互動流程：確認前顯示清晰的相容性說明
 - non-interactive flow: fail with deterministic error listing incompatible tools and supported alternatives
 
-Update summaries to show effective delivery outcomes per tool (for example, when commands mode still installs skills for skills-invocable tools).
+更新摘要以顯示每個工具的有效交付結果（例如，當命令模式仍然為技能呼叫工具安裝技能時）。
 
-### 4. Update docs and tests
+### 4.更新文件和測試
 
-- document capability model and Trae behavior under delivery modes
-- ensure CLI docs and supported-tools docs reflect effective behavior
-- add test coverage for:
-  - `init --tools trae` with `delivery=commands`
-  - `update` with Trae configured under `delivery=commands`
-  - mixed selections (`claude + trae`) across all delivery modes
-  - explicit error path for tools with no command surface under `delivery=commands`
+- 文件能力模型和交付模式下的 Trae 行為
+- 確保 CLI 文件和支援的工具文件反映有效的行為
+- 新增測試覆蓋範圍：
+  - `init --tools trae` 和 `delivery=commands`
+  - `update` Trae 設定如下 `delivery=commands`
+  - 混合選擇（`claude + trae`) 跨越所有交付模式
+  - 沒有命令介面的工具的明確錯誤路徑 `delivery=commands`
 
-### 5. Coordinate with install-scope behavior
+### 5. 與安裝範圍行為協調
 
-When combined with `add-global-install-scope`, init/update planning must compose:
+當與 `add-global-install-scope`，初始化/更新計劃必須組成：
 
-- install scope (`global | project`)
-- delivery mode (`both | skills | commands`)
-- command surface capability (`adapter | skills-invocable | none`)
+- 安裝範圍（`global | project`)
+- 交貨方式（`both | skills | commands`)
+- 指揮面能力（`adapter | skills-invocable | none`)
 
-Implementation tests should cover mixed-tool matrices to ensure deterministic behavior when both changes are active.
+實施測試應涵蓋混合工具矩陣，以確保兩個變更都處於活動狀態時的確定性行為。
 
-## Capabilities
+## 能力
 
-### New Capabilities
+### 新功能
 
-- `tool-command-surface`: Capability model that classifies tools as `adapter`, `skills-invocable`, or `none` to drive delivery behavior
+- `tool-command-surface`：將工具分類為的能力模型 `adapter`, `skills-invocable`， 或者 `none` 推動交付行為
 
-### Modified Capabilities
+### 修改後的功能
 
-- `cli-init`: Delivery handling becomes tool-capability-aware with preflight compatibility validation
-- `cli-update`: Delivery sync becomes tool-capability-aware with consistent compatibility validation and messaging
-- `supported-tools-docs`: Documents command-surface semantics for non-adapter tools
+- `cli-init`：透過預檢相容性驗證，交付處理變得具有工具功能意識
+- `cli-update`：交付同步變得具有工具功能意識，具有一致的兼容性驗證和訊息傳遞
+- `supported-tools-docs`：記錄非適配器工具的命令表面語義
 
-## Impact
+## 影響
 
-- `src/core/config.ts` - add optional command-surface metadata and Trae override
-- `src/core/command-generation/registry.ts` (or shared helper) - capability inference from adapter presence
-- `src/core/init.ts` - capability-aware generation/removal planning + compatibility validation + summary messaging
-- `src/core/update.ts` - capability-aware sync/removal planning + compatibility validation + summary messaging
-- `src/core/shared/tool-detection.ts` - include capability-aware detection so `skills-invocable` tools remain detectable under `delivery=commands`, and `none` tools are excluded from command-surface artifact detection
-- `docs/supported-tools.md` and `docs/cli.md` - document delivery behavior and compatibility notes
-- `test/core/init.test.ts` and `test/core/update.test.ts` - add coverage for skills-invocable behavior and mixed-tool delivery scenarios
+- `src/core/config.ts` - 新增可選的命令表面元資料和 Trae 覆蓋
+- `src/core/command-generation/registry.ts` （或共享助手） - 根據適配器存在進行能力推斷
+- `src/core/init.ts` - 能力感知的產生/刪除計畫+相容性驗證+摘要訊息傳遞
+- `src/core/update.ts` - 能力感知同步/刪除計畫+相容性驗證+摘要訊息傳遞
+- `src/core/shared/tool-detection.ts` - 包括能力感知檢測，以便 `skills-invocable` 工具仍然可檢測到 `delivery=commands`， 和 `none` 工具被排除在命令表面偽影檢測之外
+- `docs/supported-tools.md` 和 `docs/cli.md` - 文件傳遞行為和相容性說明
+- `test/core/init.test.ts` 和 `test/core/update.test.ts` - 新增技能呼叫行為和混合工具交付場景的覆蓋範圍
 
-## Sequencing Notes
+## 排序註釋
 
-- This change is intended to stack safely with `simplify-skill-installation` by introducing additive, capability-specific requirements for init/update.
-- If `simplify-skill-installation` merges first, this change should be rebased and keep the capability-aware rule as the source of truth for `delivery=commands` behavior on `skills-invocable` tools.
-- If this change merges first, the `simplify-skill-installation` branch should be rebased to avoid re-introducing a global "commands-only means no skills for all tools" assumption.
-- If `add-global-install-scope` merges first, this change should be rebased to compose capability-aware behavior on top of scope-resolved path decisions from that change.
-- If this change merges first, `add-global-install-scope` should be rebased to preserve Section 5 composition rules (`install scope` + `delivery mode` + `command surface capability`) without overriding capability-aware command-surface outcomes.
+- 此更改旨在安全地堆疊 `simplify-skill-installation` 透過引入附加的、特定於功能的初始化/更新要求。
+- 如果 `simplify-skill-installation` 首先合併，應該重新調整此變更的基礎，並將能力感知規則作為事實來源 `delivery=commands` 行為上 `skills-invocable` tools.
+- 如果此變更首先合併，則 `simplify-skill-installation` 應重新調整分支基礎，以避免重新引入全局「僅命令意味著所有工具都沒技能」的假設。
+- 如果 `add-global-install-scope` 首先合併，應該重新調整此變更的基礎，以在該變更的範圍解析路徑決策之上組成功能感知行為。
+- 如果此變更首先合併， `add-global-install-scope` 應重新調整基礎以保留第 5 節的構成規則（`install scope` + `delivery mode` + `command surface capability`）而不覆蓋能力感知的命令面結果。

@@ -1,206 +1,206 @@
-# Design: Nix CI Validation
+# 設計：Nix CI 驗證
 
-## Context
+## 情境
 
-OpenSpec recently added Nix flake support to enable Nix users to install the tool. This includes:
-- `flake.nix`: Nix package definition with pnpm dependency fetching
-- `scripts/update-flake.sh`: Automation script to update version and hash when releasing
+OpenSpec 最近添加了 Nix flake 支援，使 Nix 用户能够安装该工具。這包括：
+- `flake.nix`: Nix 套件定義帶有 pnpm 依賴項獲取
+- `scripts/update-flake.sh`：發佈時更新版本和哈希的自動化腳本
 
-Currently, there is no CI validation ensuring these Nix artifacts remain functional. The existing CI workflow (.github/workflows/ci.yml) validates Node.js builds, tests, and linting across multiple platforms (Linux, macOS, Windows) but does not validate Nix builds.
+目前，沒有 CI 的驗證來確保這些 Nix 工件保持功能。現有的 CI 工作流程 (.github/workflows/ci.yml) 跨多個平台（Linux、macOS、Windows）驗證 Node.js 建置、測試和 linting，但不驗證 Nix 建置。
 
-**Stakeholders**: Nix users, maintainers, contributors who need confidence that Nix support works.
+**利害關係人**：需要對 Nix 支援有效的信心的 Nix 使用者、維護者、貢獻者。
 
-**Constraints**:
-- Must work in GitHub Actions Linux runners
-- Should minimize CI runtime impact (<5 minutes added)
-- Should support local testing with `act` for rapid iteration
-- Must integrate with existing required checks
+**限制**：
+- 必須在 GitHub 動作 Linux 跑者中工作
+- 應盡量減少 CI 執行時影響（添加 <5 分鐘）
+- 應該支援本地測試 `act` 用於快速迭代
+- 必須與現有的必需檢查集成
 
-## Goals / Non-Goals
+## 目標/非目標
 
-**Goals**:
-- Validate `nix build` succeeds on every PR/push
-- Validate `scripts/update-flake.sh` executes without errors
-- Ensure Nix support doesn't regress silently
-- Support local testing with `act`
-- Optimize with caching to minimize CI time
+**目標**：
+- 證實 `nix build` 每次 PR/push 都取得成功
+- 證實 `scripts/update-flake.sh` 執行沒有錯誤
+- 確保 Nix 支援不會悄悄倒退
+- 支援本地測試 `act`
+- 透過快取進行最佳化，以最大限度地減少 CI 時間
 
-**Non-Goals**:
-- Testing on macOS (GitHub-hosted macOS runners are slower and more expensive; Nix flake already declares macOS support)
-- Building for all declared systems (x86_64-linux, aarch64-linux, x86_64-darwin, aarch64-darwin) - focus on most common platform
-- Validating Nix flake quality/style (nixpkgs-fmt, etc.) - can be added later if needed
-- Running OpenSpec's full test suite through Nix build - existing CI already does this
+**非目標**：
+- 在 macOS 上進行測試（GitHub 託管的 macOS 執行程式速度較慢且成本更高；Nix flake 已聲明支援 macOS）
+- 為所有聲明的系統（x86_64-linux、aarch64-linux、x86_64-darwin、aarch64-darwin）構建 - 專注於最常見的平台
+- 驗證 Nix 薄片質量/風格（nixpkgs-fmt 等）- 如果需要，可以稍後添加
+- 透過 Nix 建置執行 OpenSpec 的完整測試套件 - 現有 CI 已經執行此操作
 
-## Decisions
+## 決定
 
-### Decision 1: Use DeterminateSystems nix-installer-action
+### 決策 1：使用確定係統 nix-installer-action
 
-**What**: Use `determinatesystems/nix-installer-action` for installing Nix in CI.
+**什麼**：使用 `determinatesystems/nix-installer-action` 用於在 CI 中安裝 Nix。
 
-**Why**:
-- Official GitHub Action maintained by Determinate Systems (Nix experts)
-- Handles GitHub Actions environment quirks automatically
-- Includes automatic caching configuration
-- More reliable than curl | sh installation script
-- Better error messages and diagnostics
+**為什麼**：
+- 由確定係統維護的官方 GitHub 操作（Nix 專家）
+- 自動處理 GitHub Actions 環境異常
+- 包括自動快取設定
+- 比curl更可靠 | sh安裝腳本
+- 更好的錯誤訊息和診斷
 
-**Alternatives considered**:
-- Official Nix installer (`curl -L https://nixos.org/nix/install | sh`): Works but requires manual setup of flakes, caching, and CI-specific configuration
-- `cachix/install-nix-action`: Popular alternative but determinatesystems is more actively maintained and has better GHA integration
+**考慮的替代方案**：
+- 官方 Nix 安裝程式 (`curl -L https://nixos.org/nix/install | sh`)：可以工作，但需要手動設定薄片、快取和 CI 特定設定
+- `cachix/install-nix-action`：流行的替代方案，但確定係統的維護更加積極，並且具有更好的 GHA 集成
 
-### Decision 2: Use Magic Nix Cache for performance
+### 決策 2：使用 Magic Nix 快取來提高效能
 
-**What**: Use `determinatesystems/magic-nix-cache-action` for automatic binary caching.
+**什麼**：使用 `determinatesystems/magic-nix-cache-action` 用於自動二進位緩存。
 
-**Why**:
-- Zero-configuration caching for Nix store
-- Significantly reduces CI time on subsequent runs (from ~5min to ~1-2min)
-- Free for public repositories
-- Handles cache keys automatically
+**為什麼**：
+- Nix 商店的零設定緩存
+- 顯著減少後續執行 CI 的時間（從 ~5 分鐘減少到 ~1-2 分鐘）
+- 免費用於公共儲存庫
+- 自動處理快取鍵
 
-**Alternatives considered**:
-- Manual Nix store caching with GitHub Actions cache: More complex, requires manual cache key management
-- Cachix: Excellent tool but requires account setup and token management
-- No caching: Acceptable for initial implementation, but poor developer experience
+**考慮的替代方案**：
+- 手動 Nix 儲存緩存，使用 GitHub 操作快取：更複雜，需要手動快取密鑰管理
+- Cachix：優秀的工具，但需要帳戶設定和令牌管理
+- 無快取：對於初始實作來說可以接受，但開發者體驗較差
 
-### Decision 3: Separate job for Nix validation
+### 決策 3：Nix 驗證的單獨工作
 
-**What**: Create a dedicated `nix-validate` job in .github/workflows/ci.yml that runs in parallel with other jobs.
+**什麼**：建立專用的 `nix-validate` .github/workflows/ci.yml 中的作業與其他作業並行運作。
 
-**Why**:
-- Keeps Nix validation isolated from Node.js validation
-- Allows parallel execution for faster CI
-- Easier to debug when Nix-specific issues occur
-- Can be marked as required check independently
+**為什麼**：
+- 使 Nix 驗證與 Node.js 驗證隔離
+- 允許並行執行，速度更快CI
+- 發生 Nix 特定問題時更容易調試
+- 可依要求獨立檢查標記
 
-**Alternatives considered**:
-- Add Nix steps to existing jobs: Creates coupling between Node.js and Nix validation, harder to maintain
-- Separate workflow file: Overkill for a single job, harder to manage required checks
+**考慮的替代方案**：
+- 將 Nix 步驟新增至現有作業：在 Node.js 和 Nix 驗證之間建立耦合，更難維護
+- 單獨的工作流程文件：單一作業的殺傷力太大，難以管理所需的檢查
 
-### Decision 4: Validate update script by executing it
+### 決策 4：透過執行來驗證更新腳本
 
-**What**: Run `scripts/update-flake.sh` as part of CI validation.
+**什麼**：執行 `scripts/update-flake.sh` 作為 CI 驗證的一部分。
 
-**Why**:
-- Ensures the script doesn't break due to changes in package.json format, nix build output, or dependencies
-- Tests the full workflow users will follow when releasing
-- Catches errors early
+**為什麼**：
+- 確保腳本不會因為 package.json 格式、nix 建置輸出或依賴項的變更而中斷
+- 測試使用者發佈時將遵循的完整工作流程
+- 及早發現錯誤
 
-**Implementation approach**:
-- Execute script in a way that doesn't modify git state (or discard changes after)
-- Verify script exits with code 0
-- Optionally validate that flake.nix contains expected patterns after execution
+**實施方式**：
+- 以不修改 git 狀態的方式執行腳本（或放棄之後的變更）
+- 驗證腳本退出並顯示代碼 0
+- （可選）驗證 flake.nix 執行後是否包含預期模式
 
-**Alternatives considered**:
-- Mock/dry-run mode: Would require modifying the script significantly
-- Skip validation: Risky - script could break and only be discovered at release time
-- Only run on release branches: Misses issues early in development
+**考慮的替代方案**：
+- 模擬/試執行模式：需要大量修改腳本
+- 跳過驗證：有風險 - 腳本可能會損壞並且只有在發佈時才會被發現
+- 僅在發布分支上執行：錯過開發早期的問題
 
-### Decision 5: Run on pull_request and push to main
+### 決策 5：執行 pull_request 並推送到 main
 
-**What**: Configure Nix validation job to run on:
-- `pull_request` events (any PR to main)
-- `push` events (direct pushes to main)
-- `workflow_dispatch` (manual trigger for testing)
+**內容**：設定 Nix 驗證作業以執行：
+- `pull_request` 事件（任何 PR 到主要事件）
+- `push` 事件（直接推送到主）
+- `workflow_dispatch` （手動觸發測試）
 
-**Why**:
-- Catches issues before merge (pull_request)
-- Validates main branch stays healthy (push)
-- Allows manual testing without creating PRs (workflow_dispatch)
+**為什麼**：
+- 在合併之前捕獲問題（pull_request）
+- 驗證主分支保持健康（推送）
+- 允許手動測試而不建立 PR (workflow_dispatch)
 
-### Decision 6: Support act for local testing
+### 決定 6：支援本地測試法案
 
-**What**: Ensure workflow is compatible with `act` tool for local CI testing.
+**內容**：確保工作流程相容 `act` 用於本地 CI 測試的工具。
 
-**Why**:
-- Faster iteration when developing CI changes
-- Allows testing without pushing to GitHub
-- Reduces commit noise from CI debugging
+**為什麼**：
+- 開發 CI 變更時迭代速度較快
+- 允許測試而無需推送到 GitHub
+- 減少 CI 調試的提交噪音
 
-**Requirements**:
-- Use standard GitHub Actions syntax
-- Document any act-specific configuration needed
-- Test that Nix can be installed in act's Docker containers
+**要求**：
+- 使用標準 GitHub 操作語法
+- 記錄所需的任何特定於操作的設定
+- 測試 Nix 是否可以安裝在 act 的 Docker 容器中
 
-**Limitations**:
-- act may not perfectly replicate GitHub's runners, but close enough for validation
+**限制**：
+- act 可能無法完美複製 GitHub 的執行者，但足夠接近以進行驗證
 
-## Risks / Trade-offs
+## 風險/權衡
 
-### Risk: CI runtime increase
+### 風險：運轉時間增加CI
 
-**Impact**: Adding Nix validation will increase total CI time by 2-5 minutes per run.
+**影響**：新增 Nix 驗證將使每次執行的總時間增加 CI 2-5 分鐘。
 
-**Mitigation**:
-- Run Nix job in parallel with existing jobs (no blocking delay)
-- Use magic-nix-cache for subsequent runs (~1-2 min with cache)
-- Configure appropriate timeout (10 minutes max)
+**減輕**：
+- 與現有作業並行執行 Nix 作業（無阻塞延遲）
+- 使用 magic-nix-cache 進行後續執行（使用快取約 1-2 分鐘）
+- 設定適當的超時（最多 10 分鐘）
 
-**Acceptance**: The benefit of preventing Nix regressions outweighs the cost.
+**接受**：防止 Nix 迴歸的好處大於成本。
 
-### Risk: Nix installer failures in CI
+### 風險：安裝程式在 CI 內失敗
 
-**Impact**: Transient failures in Nix installation could block PRs.
+**影響**：Nix 安裝中的暫時故障可能會阻止 PR。
 
-**Mitigation**:
-- Use determinatesystems action which has retry logic
-- Monitor for flaky failures and adjust if needed
-- Document troubleshooting steps
+**減輕**：
+- 使用具有重試邏輯的確定係統操作
+- 監控片狀故障並根據需要進行調整
+- 記錄故障排除步驟
 
-**Acceptance**: Nix installation is generally stable in GHA; this is low risk.
+**接受**：Nix 安裝在 GHA 中整體穩定；這是低風險的。
 
-### Risk: Update script modifies git state
+### 風險：更新腳本修改 git 狀態
 
-**Impact**: Running update-flake.sh modifies flake.nix, which could cause CI to fail if git state is checked.
+**影響**：執行 update-flake.sh 會修改 flake.nix，如果檢查 git state，這可能會導致 CI 失敗。
 
-**Mitigation**:
-- Run script in isolation without committing changes
-- Add `git checkout -- flake.nix` after validation
-- Or accept dirty git state in CI (doesn't affect build validation)
+**減輕**：
+- 獨立執行腳本而不提交更改
+- 添加 `git checkout -- flake.nix` 驗證後
+- 或接受 CI 中的髒 git 狀態（不影響建置驗證）
 
-**Acceptance**: Script validation is important enough to handle this carefully.
+**接受**：腳本驗證非常重要，需要仔細處理。
 
-### Risk: act compatibility issues
+### 風險：行為相容性問題
 
-**Impact**: Workflow might not work perfectly with act due to Docker environment differences.
+**影響**：由於 Docker 環境差異，工作流程可能無法與 act 完美配合。
 
-**Mitigation**:
-- Document known limitations
-- Focus on GitHub Actions as primary validation target
-- Use act as best-effort local testing
+**減輕**：
+- 記錄已知限制
+- 重點關注 GitHub 操作作為主要驗證目標
+- 使用行為作為盡力而為的本地測試
 
-**Acceptance**: act support is nice-to-have, not required.
+**接受**：行為支援是很好的，但不是必要的。
 
-## Migration Plan
+## 遷移計劃
 
-### Phase 1: Add Nix job (new, non-required)
-1. Add `nix-validate` job to .github/workflows/ci.yml
-2. Configure to run in parallel with existing jobs
-3. Do NOT mark as required check initially
-4. Monitor for ~1 week to ensure stability
+### 第 1 階段：新增 Nix 作業（新的，非必要）
+1. 添加 `nix-validate` 工作到 .github/workflows/ci.yml
+2. 設定為與現有作業並行執行
+3. 最初不要標記為必需檢查
+4. 監控約 1 週以確保穩定性
 
-### Phase 2: Make required
-1. After validation is stable, add to required checks
-2. Update branch protection rules in GitHub settings
-3. Document in CONTRIBUTING.md or README
+### 第 2 階段：提出要求
+1. 驗證穩定後，添加到所需的檢查
+2. 更新 GitHub 設定中的分支保護規則
+3. CONTRIBUTING.md 或 README 中的文檔
 
-### Rollback Plan
-If Nix validation causes issues:
-1. Remove job from required checks in GitHub settings (immediate)
-2. Comment out or remove job from workflow (permanent fix)
-3. Investigate and fix issues
-4. Re-enable following same phased approach
+### 復原計劃
+如果 Nix 驗證導致問題：
+1. 從 GitHub 設定中的必需檢查中刪除作業（立即）
+2. 註解掉作業或從工作流程中刪除作業（永久修復）
+3. 調查並解決問題
+4. 重新啟用以下相同的分階段方法
 
-## Open Questions
+## 開放式問題
 
-- **Q**: Should we test update-flake.sh on every CI run, or only when package.json or pnpm-lock.yaml changes?
-  - **A**: Test on every run for simplicity. The script is fast (<30 seconds) and catching regressions is valuable.
+- **問**：我們應該在每次 CI 執行時測試 update-flake.sh，還是僅在 package.json 或 pnpm-lock.yaml 更改時測試？
+  - **A**：為簡單起見，在每次執行時進行測試。該腳本速度很快（<30 秒）並且捕獲回歸很有價值。
 
-- **Q**: Should we validate on macOS as well?
-  - **A**: No for initial implementation. Linux validation is sufficient and macOS runners are slower/more expensive. Can add later if users report macOS-specific issues.
+- **問**：我們也應該在 macOS 上進行驗證嗎？
+  - **A**：初始實施否。 Linux 驗證就足夠了，macOS 跑者更慢/更昂貴。如果用戶報告 macOS 特定問題，可以稍後新增。
 
-- **Q**: Should we run full OpenSpec tests through the Nix build?
-  - **A**: No. The Nix build already runs `pnpm test` as part of its build phase. Existing CI jobs cover testing thoroughly. Nix validation focuses on build success.
+- **問**：我們應該透過 Nix 建置執行完整的 OpenSpec 測試嗎？
+  - **A**：不。 Nix 版本已經執行 `pnpm test` 作為其構建階段的一部分。現有的 CI 工作涵蓋了徹底的測試。 Nix 驗證著重於建置成功。
 
-- **Q**: What timeout should we use for the Nix validation job?
-  - **A**: Start with 10 minutes. With caching, jobs should complete in 1-3 minutes. Without cache (first run), 5-7 minutes is expected.
+- **問**：Nix 驗證作業應該使用什麼逾時？
+  - **A**：從 10 分鐘開始。透過緩存，作業應在 1-3 分鐘內完成。如果沒有快取（首次執行），預計需要 5-7 分鐘。

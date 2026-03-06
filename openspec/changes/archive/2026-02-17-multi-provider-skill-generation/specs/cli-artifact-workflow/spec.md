@@ -1,60 +1,60 @@
-# cli-artifact-workflow Delta Specification
+# cli-artifact-workflow Delta 規範
 
-## Purpose
+## 目的
 
-Add `--tool` flag to the `artifact-experimental-setup` command for multi-provider support.
+添加 `--tool` 標誌到 `artifact-experimental-setup` 用於多提供者支援的命令。
 
-## ADDED Requirements
+## 新增要求
 
-### Requirement: Tool selection flag
+### 要求：工具選擇標誌
 
-The `artifact-experimental-setup` command SHALL accept a `--tool <tool-id>` flag to specify the target AI tool.
+這 `artifact-experimental-setup` 命令應接受 `--tool <tool-id>` 用於指定目標 AI 工具的標誌。
 
-#### Scenario: Specify tool via flag
+#### 場景：透過flag指定工具
 
-- **WHEN** user runs `openspec artifact-experimental-setup --tool cursor`
-- **THEN** skill files are generated in `.cursor/skills/`
-- **AND** command files are generated using Cursor's frontmatter format
+- **何時** 使用者執行 `openspec artifact-experimental-setup --tool cursor`
+- **那麼**技能文件生成於 `.cursor/skills/`
+- **AND** 指令檔是使用 Cursor 的 frontmatter 格式產生的
 
-#### Scenario: Missing tool flag
+#### 場景：缺少工具標誌
 
-- **WHEN** user runs `openspec artifact-experimental-setup` without `--tool`
-- **THEN** the system displays an error requiring the `--tool` flag
-- **AND** lists valid tool IDs in the error message
+- **何時** 使用者執行 `openspec artifact-experimental-setup` 沒有 `--tool`
+- **然後** 系統顯示錯誤，要求 `--tool` 旗幟
+- **AND** 在錯誤訊息中列出有效的工具 ID
 
-#### Scenario: Unknown tool ID
+#### 場景：未知工具 ID
 
-- **WHEN** user runs `openspec artifact-experimental-setup --tool unknown-tool`
-- **AND** the tool ID is not in `AI_TOOLS`
-- **THEN** the system displays an error listing valid tool IDs
+- **何時** 使用者執行 `openspec artifact-experimental-setup --tool unknown-tool`
+- **並且** 工具 ID 不在 `AI_TOOLS`
+- **然後** 系統顯示錯誤，列出有效的工具 ID
 
-#### Scenario: Tool without skillsDir
+#### 場景：沒有技能目錄的工具
 
-- **WHEN** user specifies a tool that has no `skillsDir` configured
-- **THEN** the system displays an error indicating skill generation is not supported for that tool
+- **何時** 使用者指定的工具沒有 `skillsDir` 設定好的
+- **然後** 系統顯示錯誤，指示工具不支援技能生成
 
-#### Scenario: Tool without command adapter
+#### 場景：沒有命令適配器的工具
 
-- **WHEN** user specifies a tool that has `skillsDir` but no command adapter registered
-- **THEN** skill files are generated successfully
-- **AND** command generation is skipped with informational message
+- **何時** 使用者指定具有以下功能的工具： `skillsDir` 但沒有註冊命令適配器
+- **那麼**技能文件產生成功
+- **AND** 命令產生被跳過並顯示資訊性訊息
 
-### Requirement: Output messaging
+### 需求：輸出訊息
 
-The setup command SHALL display clear output about what was generated.
+設定命令應顯示有關生成內容的清晰輸出。
 
-#### Scenario: Show target tool in output
+#### 場景：在輸出中顯示目標工具
 
-- **WHEN** setup command runs successfully
-- **THEN** output includes the target tool name (e.g., "Setting up for Cursor...")
+- **何時** 設定命令成功執行
+- **THEN** 輸出包含目標工具名稱（例如，「設定遊標...」）
 
-#### Scenario: Show generated paths
+#### 場景：顯示生成的路徑
 
-- **WHEN** setup command completes
-- **THEN** output lists all generated skill file paths
-- **AND** lists all generated command file paths (if applicable)
+- **何時** 設定指令完成
+- **THEN** 輸出列出所有產生的技能檔案路徑
+- **AND** 列出所有產生的命令檔案路徑（如果適用）
 
-#### Scenario: Show skipped commands message
+#### 場景：顯示跳過的命令訊息
 
-- **WHEN** command generation is skipped due to missing adapter
-- **THEN** output includes message: "Command generation skipped - no adapter for <tool>"
+- **WHEN** 由於缺少適配器而跳過命令生成
+- **THEN** 輸出包括訊息：「命令產生已跳過 - 沒有適配器 <tool>"

@@ -1,32 +1,32 @@
-## MODIFIED Requirements
-### Requirement: AI Tool Configuration
-The command SHALL configure AI coding assistants with OpenSpec instructions based on user selection.
+## 修改後的要求
+### 需求：AI工具設定
+該命令應根據使用者選擇使用 OpenSpec 指令設定 AI 編碼助理。
 
-#### Scenario: Prompting for AI tool selection
+#### 場景：提示選擇AI工具
 
-- **WHEN** run
-- **THEN** prompt user to select AI tools to configure:
-  - Claude Code (✅ OpenSpec custom slash commands available)
-  - Cursor (✅ OpenSpec custom slash commands available)
-  - AGENTS.md (works with Codex, Amp, Copilot, …)
+- **何時**執行
+- **然後** 提示使用者選擇要設定的 AI 工具：
+  - Claude 代碼（✅ OpenSpec 自訂斜線指令可用）
+  - 遊標（✅ OpenSpec 自訂斜線指令可用）
+  - AGENTS.md（適用於 Codex、Amp、Copilot、...）
 
-### Requirement: AI Tool Configuration Details
-The command SHALL properly configure selected AI tools with OpenSpec-specific instructions using a marker system.
+### 要求：AI工具設定詳細信息
+此指令應使用標記系統使用 OpenSpec 特定指令正確設定選定的 AI 工具。
 
-#### Scenario: Configuring Claude Code
+#### 場景：設定Claude代碼
 
-- **WHEN** Claude Code is selected
-- **THEN** create or update `CLAUDE.md` in the project root directory (not inside openspec/)
+- **何時** 選擇 Claude 代碼
+- **然後** 建立或更新 `CLAUDE.md` 在專案根目錄中（不在 openspec/ 內）
 
-#### Scenario: Configuring AGENTS standard
+#### 場景：設定AGENTS標準
 
-- **WHEN** the AGENTS.md standard is selected
-- **THEN** create or update `AGENTS.md` in the project root directory (not inside openspec/)
+- **何時** 選擇 AGENTS.md 標準
+- **然後** 建立或更新 `AGENTS.md` 在專案根目錄中（不在 openspec/ 內）
 
-#### Scenario: Creating new CLAUDE.md
+#### 場景：建立新的 CLAUDE.md
 
-- **WHEN** CLAUDE.md does not exist
-- **THEN** create new file with OpenSpec content wrapped in markers:
+- **何時** CLAUDE.md 不存在
+- **然後** 建立新文件，其中 OpenSpec 內容包含在標記中：
 ```markdown
 <!-- OPENSPEC:START -->
 # OpenSpec Project
@@ -39,33 +39,33 @@ See @openspec/AGENTS.md for detailed conventions and guidelines.
 <!-- OPENSPEC:END -->
 ```
 
-#### Scenario: Creating new AGENTS.md
+#### 場景：建立新的 AGENTS.md
 
-- **WHEN** AGENTS.md does not exist in the project root
-- **THEN** create new file with OpenSpec content wrapped in markers using the same template as CLAUDE.md
+- **何時** AGENTS.md 不存在於專案根目錄中
+- **然後** 使用與 CLAUDE.md 相同的範本建立新文件，其中 OpenSpec 內容包含在標記中
 
-#### Scenario: Updating existing CLAUDE.md
+#### 場景：更新現有的 CLAUDE.md
 
-- **WHEN** CLAUDE.md already exists
-- **THEN** preserve all existing content
-- **AND** insert OpenSpec content at the beginning of the file using markers
-- **AND** ensure markers don't duplicate if they already exist
+- **當** CLAUDE.md 已經存在
+- **然後** 保留所有現有內容
+- **並且** 使用標記在檔案開頭插入 OpenSpec 內容
+- **並且** 確保標記在已經存在的情況下不會重複
 
-#### Scenario: Updating existing AGENTS.md
+#### 場景：更新現有的 AGENTS.md
 
-- **WHEN** AGENTS.md already exists in the project root
-- **THEN** preserve all existing content
-- **AND** ensure the OpenSpec-managed block at the beginning of the file is refreshed without duplicating markers
+- **何時** AGENTS.md 已存在於專案根目錄中
+- **然後** 保留所有現有內容
+- **並且** 確保檔案開頭的 OpenSpec 託管區塊已重新整理而不重複標記
 
-#### Scenario: Managing content with markers
+#### 場景：使用標記管理內容
 
-- **WHEN** using the marker system
-- **THEN** use `<!-- OPENSPEC:START -->` to mark the beginning of managed content
-- **AND** use `<!-- OPENSPEC:END -->` to mark the end of managed content
+- **何時** 使用標記系統
+- **然後**使用 `<!-- OPENSPEC:START -->` 標記託管內容的開始
+- **和**使用 `<!-- OPENSPEC:END -->` 標記託管內容的結束
 - **AND** allow OpenSpec to update its content without affecting user customizations
-- **AND** preserve all content outside the markers intact
+- **並且** 完整保留標記之外的所有內容
 
-WHY use markers:
-- Users may have existing CLAUDE.md or AGENTS.md instructions they want to keep
-- OpenSpec can update its instructions in future versions
-- Clear boundary between OpenSpec-managed and user-managed content
+為什麼要使用標記：
+- 使用者可能想要保留現有的 CLAUDE.md 或 AGENTS.md 指令
+- OpenSpec可以在未來版本中更新其說明
+- OpenSpec 管理的內容和使用者管理的內容之間有清晰的界限

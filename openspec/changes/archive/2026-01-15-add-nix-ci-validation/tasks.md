@@ -1,49 +1,49 @@
-# Implementation Tasks
+# 實施任務
 
-## 1. Add Nix Installation to CI
+## 1.新增Nix安裝到CI
 
-- [x] 1.1 Research Nix installation options for GitHub Actions (nix-installer-action vs manual install)
-- [x] 1.2 Add Nix installation step to .github/workflows/ci.yml
-- [x] 1.3 Configure Nix with experimental features enabled (flakes, nix-command)
-- [x] 1.4 Add Nix store caching to improve CI performance
+- [x] 1.1 Research Nix 安裝選項的 GitHub 操作（nix-installer-action 與手動安裝）
+- [x] 1.2 將Nix安裝步驟加入.github/workflows/ci.yml
+- [x] 1.3 設定Nix並啟用實驗性功能（flakes，nix-指令）
+- [x] 1.4 新增 Nix 儲存快取以提高 CI 效能
 
-## 2. Create Nix Build Validation Job
+## 2. 建立 Nix 建置驗證作業
 
-- [x] 2.1 Add new `nix-flake-validate` job to .github/workflows/ci.yml
-- [x] 2.2 Implement `nix build` step with proper error handling
-- [x] 2.3 Add verification step to confirm binary exists in build output
-- [x] 2.4 Add step to test binary execution (`nix run . -- --version`)
+- [x] 2.1 新增 `nix-flake-validate` 工作到 .github/workflows/ci.yml
+- [x] 2.2 實施 `nix build` 採取正確的錯誤處理步驟
+- [x] 2.3 新增驗證步驟以確認建置輸出中存在二進位文件
+- [x] 2.4 新增測試二進位執行的步驟（`nix run . -- --version`)
 
-## 3. Add Update Script Validation
+## 3.新增更新腳本驗證
 
-- [x] 3.1 Add job step to run scripts/update-flake.sh in dry-run or test mode
-- [x] 3.2 Verify script executes without errors
-- [x] 3.3 Add validation that version is correctly extracted from package.json
-- [x] 3.4 Verify flake.nix is updated with correct format (version and hash)
+- [x] 3.1 新增作業步驟以在乾執行或測試模式下執行scripts/update-flake.sh
+- [x] 3.2 驗證腳本執行沒有錯誤
+- [x] 3.3 新增驗證從 package.json 中正確擷取版本
+- [x] 3.4 驗證 flake.nix 已更新為正確的格式（版本和雜湊值）
 
-## 4. Configure Job Dependencies and Requirements
+## 4. 設定作業依賴關係和要求
 
-- [x] 4.1 Configure Nix validation job to run on pull_request and push events
-- [x] 4.2 Add Nix validation to required checks list
-- [x] 4.3 Configure job to run in parallel with existing test/lint jobs
-- [x] 4.4 Set appropriate timeout (5-10 minutes)
+- [x] 4.1 設定 Nix 驗證作業在 pull_request 和推播事件上執行
+- [x] 4.2 將 Nix 驗證新增至所需檢查清單中
+- [x] 4.3 設定作業與現有測驗/lint 作業並行執行
+- [x] 4.4 設定適當的超時時間（5-10分鐘）
 
-## 5. Test with act Locally
+## 5. 本地測試
 
-- [x] 5.1 Install act locally if not already available
-- [x] 5.2 Test Nix validation job using `act pull_request`
-- [x] 5.3 Verify act can run the workflow with Nix installed
-- [x] 5.4 Document any act-specific configuration needed in .actrc or README
+- [x] 5.1 如果尚不可用，請在本機安裝
+- [x] 5.2 使用測驗 Nix 驗證作業 `act pull_request`
+- [x] 5.3 驗證act可以在安裝了Nix的情況下執行工作流程
+- [x] 5.4 在 .actrc 或 README 中記錄所需的任何特定於操作的設定
 
-## 6. Documentation and Finalization
+## 6. 文件記錄和最終確定
 
-- [x] 6.1 Add documentation about Nix CI validation to README or CONTRIBUTING.md
-- [x] 6.2 Document how to test CI locally with act
-- [ ] 6.3 Update CI badge or status indicators if needed
-- [ ] 6.4 Test end-to-end by creating a test PR
+- [x] 6.1 將有關 Nix CI 驗證的文件加入 README 或 CONTRIBUTING.md
+- [x] 6.2 記錄如何使用 act 在本地測試 CI
+- [ ] 6.3 如有需要，更新 CI 徽章或狀態指示器
+- [ ] 6.4 透過建立測試 PR 進行端到端測試
 
-## 7. Archive Change
+## 7. 存檔變更
 
-- [x] 7.1 After merge and verification, create new spec file at openspec/specs/ci-nix-validation/spec.md
-- [x] 7.2 Move change directory to openspec/changes/archive/[date]-add-nix-ci-validation/
-- [x] 7.3 Run `openspec validate --strict` to confirm archived change passes
+- [x] 7.1 合併並驗證後，在 openspec/specs/ci-nix-validation/spec.md 建立新的spec文件
+- [x] 7.2 將更改目錄移至 openspec/changes/archive/[date]-add-nix-ci-validation/
+- [x] 7.3 執行 `openspec validate --strict` 確認存檔的變更通行證

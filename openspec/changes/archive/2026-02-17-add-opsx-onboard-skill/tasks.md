@@ -1,21 +1,21 @@
-## 1. Add Skill Template
+## 1.新增技能模板
 
-- [x] 1.1 Add `getOnboardSkillTemplate()` function to `src/core/templates/skill-templates.ts` with full onboarding instruction text covering all phases (preflight, welcome, task selection, explore demo, change creation, proposal, specs, design, tasks, apply, archive, recap)
-- [x] 1.2 Include codebase analysis instructions for suggesting starter tasks (TODO/FIXME, missing error handling, missing tests, type:any, console.log, missing validation)
-- [x] 1.3 Include narration pattern instructions (EXPLAIN → DO → SHOW → PAUSE at key transitions)
-- [x] 1.4 Include scope guardrail instructions for redirecting users away from overly large tasks
-- [x] 1.5 Include graceful exit handling instructions (user stops mid-way, user just wants command reference)
+- [x] 1.1 添加 `getOnboardSkillTemplate()` 功能為 `src/core/templates/skill-templates.ts` 包含涵蓋所有階段的完整入職指導文本（預檢、歡迎、任務選擇、探索演示、變更建立、提案、規格、設計、任務、應用、存檔、回顧）
+- [x] 1.2 包含建議入門任務的程式碼庫分析說明（TODO/FIXME、缺少錯誤處理、缺少測試、類型：any、console.log、缺少驗證）
+- [x] 1.3 包括敘述模式指令（按鍵轉換處的 EXPLAIN → DO → SHOW → PAUSE）
+- [x] 1.4 包含範圍護欄指令，用於將使用者從過大的任務中重定向出來
+- [x] 1.5 包含優雅的退出處理指令（使用者中途停止，使用者只想命令參考）
 
-## 2. Add Command Template
+## 2.新增命令模板
 
-- [x] 2.1 Add `getOpsxOnboardCommandTemplate()` function to `src/core/templates/skill-templates.ts` returning CommandTemplate with same instruction content as skill
+- [x] 2.1 添加 `getOpsxOnboardCommandTemplate()` 功能為 `src/core/templates/skill-templates.ts` 傳回與技能相同指令內容的 CommandTemplate
 
-## 3. Register Templates
+## 3. 註冊模板
 
-- [x] 3.1 Add onboard skill to `getSkillTemplates()` array in `src/core/shared/skill-generation.ts` with dirName `openspec-onboard`
-- [x] 3.2 Add onboard command to `getCommandTemplates()` array in `src/core/shared/skill-generation.ts` with id `onboard`
+- [x] 3.1 增加板載技能 `getSkillTemplates()` 數組中 `src/core/shared/skill-generation.ts` 與目錄名 `openspec-onboard`
+- [x] 3.2 新增板載指令 `getCommandTemplates()` 數組中 `src/core/shared/skill-generation.ts` 附身分證 `onboard`
 
-## 4. Verify
+## 4. 驗證
 
-- [x] 4.1 Run `pnpm run build` to ensure TypeScript compiles
-- [x] 4.2 Test skill generation by running `openspec init` in a test directory and verifying onboard skill/command files are created
+- [x] 4.1 執行 `pnpm run build` 確保 TypeScript 編譯
+- [x] 4.2 透過執行測試技能生成 `openspec init` 在測試目錄中並驗證已建立板載技能/命令文件

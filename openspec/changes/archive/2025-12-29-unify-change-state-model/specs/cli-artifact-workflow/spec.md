@@ -1,109 +1,109 @@
-# cli-artifact-workflow Specification Delta
+# cli-artifact-workflow 規範增量
 
-## MODIFIED Requirements
+## 修改後的要求
 
-### Requirement: Status Command
+### 要求：狀態命令
 
-The system SHALL display artifact completion status for a change, including scaffolded (empty) changes.
+系統應顯示變更的工件完成狀態，包括鷹架（空）變更。
 
-> **Fixes bug**: Previously required `proposal.md` to exist via `getActiveChangeIds()`.
+> **修復錯誤**：以前需要 `proposal.md` 透過存在 `getActiveChangeIds()`.
 
-#### Scenario: Show status with all states
+#### 場景：顯示所有狀態的狀態
 
-- **WHEN** user runs `openspec status --change <id>`
-- **THEN** the system displays each artifact with status indicator:
-  - `[x]` for completed artifacts
-  - `[ ]` for ready artifacts
-  - `[-]` for blocked artifacts (with missing dependencies listed)
+- **何時** 使用者執行 `openspec status --change <id>`
+- **然後** 系統會顯示每個工件以及狀態指示燈：
+  - `[x]` 對於已完成的工件
+  - `[ ]` 對於準備好的工件
+  - `[-]` 對於被阻止的工件（列出了缺少的依賴項）
 
-#### Scenario: Status shows completion summary
+#### 場景：狀態顯示完成摘要
 
-- **WHEN** user runs `openspec status --change <id>`
-- **THEN** output includes completion percentage and count (e.g., "2/4 artifacts complete")
+- **何時** 使用者執行 `openspec status --change <id>`
+- **那麼** 輸出包含完成百分比和計數（例如，「2/4 工件完成」）
 
-#### Scenario: Status JSON output
+#### 場景：狀態JSON輸出
 
-- **WHEN** user runs `openspec status --change <id> --json`
-- **THEN** the system outputs JSON with changeName, schemaName, isComplete, and artifacts array
+- **何時** 使用者執行 `openspec status --change <id> --json`
+- **那麼** 系統輸出 JSON，其中包含changeName、schemaName、isComplete 和artifacts 陣列
 
-#### Scenario: Status on scaffolded change
+#### 場景：腳手架變更狀態
 
-- **WHEN** user runs `openspec status --change <id>` on a change with no artifacts
-- **THEN** system displays all artifacts with their status
-- **AND** root artifacts (no dependencies) show as ready `[ ]`
-- **AND** dependent artifacts show as blocked `[-]`
+- **何時** 使用者執行 `openspec status --change <id>` 在沒有工件的情況下進行更改
+- **然後** 系統顯示所有工件及其狀態
+- **和** 根工件（無依賴項）顯示為就緒 `[ ]`
+- **和** 依賴工件顯示為被阻止 `[-]`
 
-#### Scenario: Missing change parameter
+#### 場景：缺少更改參數
 
-- **WHEN** user runs `openspec status` without `--change`
-- **THEN** the system displays an error with list of available changes
-- **AND** includes scaffolded changes (directories without proposal.md)
+- **何時** 使用者執行 `openspec status` 沒有 `--change`
+- **然後** 系統顯示錯誤以及可用更改列表
+- **AND** 包含支架式變更（沒有proposal.md 的目錄）
 
-#### Scenario: Unknown change
+#### 場景：未知變化
 
-- **WHEN** user runs `openspec status --change unknown-id`
-- **AND** directory `openspec/changes/unknown-id/` does not exist
-- **THEN** the system displays an error listing all available change directories
+- **何時** 使用者執行 `openspec status --change unknown-id`
+- **和**目錄 `openspec/changes/unknown-id/` 不存在
+- **然後** 系統顯示一個錯誤，列出所有可用的更改目錄
 
-### Requirement: Next Command
+### 要求：下一個命令
 
 The system SHALL show which artifacts are ready to be created, including for scaffolded changes.
 
-#### Scenario: Show ready artifacts
+#### 場景：顯示準備好的工件
 
-- **WHEN** user runs `openspec next --change <id>`
-- **THEN** the system lists artifacts whose dependencies are all satisfied
+- **何時** 使用者執行 `openspec next --change <id>`
+- **然後** 系統列出依賴項全部滿足的工件
 
-#### Scenario: No artifacts ready
+#### 場景：沒有準備好工件
 
-- **WHEN** all artifacts are either completed or blocked
-- **THEN** the system indicates no artifacts are ready (with explanation)
+- **何時** 所有工件都完成或被阻止
+- **然後** 系統指示沒有準備好任何工件（帶解釋）
 
-#### Scenario: All artifacts complete
+#### 場景：所有工件均已完成
 
-- **WHEN** all artifacts in the change are completed
-- **THEN** the system indicates the change is complete
+- **何時** 變更中的所有工件均已完成
+- **THEN**系統提示變更完成
 
-#### Scenario: Next JSON output
+#### 場景：下一個 JSON 輸出
 
-- **WHEN** user runs `openspec next --change <id> --json`
-- **THEN** the system outputs JSON array of ready artifact IDs
+- **何時** 使用者執行 `openspec next --change <id> --json`
+- **然後** 系統輸出 JSON 就緒工件 ID 數組
 
-#### Scenario: Next on scaffolded change
+#### 場景：下一步是鷹架變革
 
-- **WHEN** user runs `openspec next --change <id>` on a change with no artifacts
-- **THEN** system shows root artifacts (e.g., "proposal") as ready to create
+- **何時** 使用者執行 `openspec next --change <id>` 在沒有工件的情況下進行更改
+- **那麼**系統顯示根工件（例如“提案”）已準備好建立
 
-### Requirement: Instructions Command
+### 要求：指令命令
 
-The system SHALL output enriched instructions for creating an artifact, including for scaffolded changes.
+系統應輸出用於建立工件的豐富指令，包括腳手架的變更。
 
-#### Scenario: Show enriched instructions
+#### 場景：顯示豐富的指令
 
-- **WHEN** user runs `openspec instructions <artifact> --change <id>`
-- **THEN** the system outputs:
-  - Artifact metadata (ID, output path, description)
-  - Template content
-  - Dependency status (done/missing)
-  - Unlocked artifacts (what becomes available after completion)
+- **何時** 使用者執行 `openspec instructions <artifact> --change <id>`
+- **那麼**系統輸出：
+  - 工件元資料（ID、輸出路徑、描述）
+  - 模板內容
+  - 依賴狀態（完成/缺失）
+  - 解鎖的工件（完成後可用的東西）
 
-#### Scenario: Instructions JSON output
+#### 場景：指令JSON輸出
 
-- **WHEN** user runs `openspec instructions <artifact> --change <id> --json`
-- **THEN** the system outputs JSON matching ArtifactInstructions interface
+- **何時** 使用者執行 `openspec instructions <artifact> --change <id> --json`
+- **那麼**系統輸出JSON符合ArtifactInstructions接口
 
-#### Scenario: Unknown artifact
+#### 場景：未知神器
 
-- **WHEN** user runs `openspec instructions unknown-artifact --change <id>`
-- **THEN** the system displays an error listing valid artifact IDs for the schema
+- **何時** 使用者執行 `openspec instructions unknown-artifact --change <id>`
+- **然後** 系統顯示一錯誤，列出模式的有效工件 ID
 
-#### Scenario: Artifact with unmet dependencies
+#### 場景：具有未滿足的依賴關係的工件
 
-- **WHEN** user requests instructions for a blocked artifact
-- **THEN** the system displays instructions with a warning about missing dependencies
+- **何時** 使用者請求有關被封鎖工件的說明
+- **然後** 系統顯示說明，並警告缺少依賴項
 
-#### Scenario: Instructions on scaffolded change
+#### 場景：鷹架變更說明
 
-- **WHEN** user runs `openspec instructions proposal --change <id>` on a scaffolded change
-- **THEN** system outputs template and metadata for creating the proposal
-- **AND** does not require any artifacts to already exist
+- **何時** 使用者執行 `openspec instructions proposal --change <id>` 鷹架上的改變
+- **然後** 系統輸出用於建立提案的範本和元資料
+- **且** 不需要任何工件已經存在
