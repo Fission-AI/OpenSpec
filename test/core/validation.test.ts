@@ -103,6 +103,12 @@ describe('Validation Schemas', () => {
       expect(containsNormativeKeyword('El sistema debera hacer X')).toBe(false);
     });
 
+    it('should accept keywords adjacent to punctuation', () => {
+      expect(containsNormativeKeyword('The system SHALL, under all circumstances, handle errors')).toBe(true);
+      expect(containsNormativeKeyword('(SHALL be implemented by the service)')).toBe(true);
+      expect(containsNormativeKeyword('The component DEBE: autenticar usuarios')).toBe(true);
+    });
+
     it('should reject substring matches', () => {
       expect(containsNormativeKeyword('The INDEBTED user logs in')).toBe(false);
       expect(containsNormativeKeyword('MUSTERING all resources')).toBe(false);

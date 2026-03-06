@@ -5,7 +5,7 @@ Define multi-language support for normative keyword validation, enabling the val
 
 ## Requirements
 ### Requirement: Validator SHALL accept normative keywords in all supported languages
-The validator SHALL accept RFC 2119 normative keywords in English (`SHALL`, `MUST`) and Spanish (`DEBE`, `DEBERA`) when checking requirement text. Keywords SHALL be matched in uppercase only, using word-boundary detection to prevent substring false positives.
+The validator SHALL accept RFC 2119 normative keywords in English (`SHALL`, `MUST`) and Spanish (`DEBE`, `DEBERA`) when checking requirement text. Keywords SHALL be matched in uppercase only, using precompiled word-boundary patterns to prevent substring false positives.
 
 #### Scenario: English keywords accepted
 - **WHEN** a requirement contains `SHALL` or `MUST` in uppercase
@@ -23,6 +23,10 @@ The validator SHALL accept RFC 2119 normative keywords in English (`SHALL`, `MUS
 - **WHEN** a requirement contains `debe`, `shall`, `must`, or `debera` in lowercase
 - **THEN** the validator SHALL fail the normative keyword check
 - **AND** report a missing keyword error
+
+#### Scenario: Keywords adjacent to punctuation accepted
+- **WHEN** a normative keyword appears next to punctuation (e.g., `SHALL,`, `(SHALL`, `DEBE:`)
+- **THEN** the validator SHALL still recognize the keyword as valid
 
 #### Scenario: Substring matches rejected
 - **WHEN** a requirement contains a word that includes a keyword as a substring (e.g., `INDEBTED`, `MUSTERING`)

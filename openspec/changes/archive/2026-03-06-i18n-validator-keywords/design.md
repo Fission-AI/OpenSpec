@@ -50,12 +50,16 @@ const MATCH_KEYWORDS = [
   'DEBER\u00c1', // DEBERÁ — accented variant of DEBERA
 ];
 
+const COMPILED_PATTERNS = MATCH_KEYWORDS.map(
+  kw => new RegExp(`\\b${kw}(?!\\w)`)
+);
+
 export function containsNormativeKeyword(text: string): boolean {
-  return MATCH_KEYWORDS.some(kw => new RegExp(`\\b${kw}(?=\\W|$)`).test(text));
+  return COMPILED_PATTERNS.some(re => re.test(text));
 }
 ```
 
-**Why hybrid `\b…(?=\W|$)` instead of pure `\b…\b`:** In JavaScript, `\b` treats accented characters (e.g., `Á`) as non-word (`\W`), so `\bDEBERÁ\b` fails because there is no word boundary between two `\W` characters (`Á` and the following space). Using `(?=\W|$)` as the trailing anchor instead of `\b` correctly handles accented keywords, punctuation-delimited tokens (`MUST:`, `DEBE,`), and markdown formatting (`**SHALL**`). The leading `\b` works because all keywords start with ASCII letters. Substring false positives (e.g., `INDEBTED`, `MUSTERING`) are still prevented because `\b` requires a non-word character before the keyword and `(?=\W|$)` requires one after.
+**Why precompiled `\b…(?!\w)` patterns:** Patterns are compiled once at module load for performance. `(?!\w)` (negative lookahead for word char) is equivalent to `(?=\W|$)` but more concise, and correctly handles accented keywords like `DEBERÁ` where `\b` alone would fail.
 
 **Why centralized:** Eliminates the duplication between `base.schema.ts` and `validator.ts`. One place to update when adding languages.
 

@@ -23,8 +23,12 @@ const MATCH_KEYWORDS = [
   'DEBER\u00c1', // DEBERÁ — accented variant of DEBERA
 ];
 
+const COMPILED_PATTERNS = MATCH_KEYWORDS.map(
+  kw => new RegExp(`\\b${kw}(?!\\w)`)
+);
+
 export function containsNormativeKeyword(text: string): boolean {
-  return MATCH_KEYWORDS.some(kw => new RegExp(`\\b${kw}(?=\\W|$)`).test(text));
+  return COMPILED_PATTERNS.some(re => re.test(text));
 }
 
 // Validation messages
