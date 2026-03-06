@@ -13,12 +13,33 @@ A self-contained, CLI-free version of OpenSpec implemented entirely as Claude Co
 
 ## Installation
 
-Copy the skill files to your project's `.claude/commands/opsx/` directory:
+Clone this repo (or download the files), then copy the skill files into **your project**:
 
 ```bash
+# 1. Clone OpenSpec (if you haven't already)
+git clone https://github.com/wmwang/OpenSpec.git /tmp/openspec
+
+# 2. Copy skills into your project's .claude/commands/opsx/
+cd your-project
 mkdir -p .claude/commands/opsx
-cp path/to/skills/opsx/*.md .claude/commands/opsx/
-# Don't copy README.md
+cp /tmp/openspec/skills/opsx/*.md .claude/commands/opsx/
+# (README.md is automatically excluded by the *.md wildcard... actually copy all then delete)
+rm -f .claude/commands/opsx/README.md
+```
+
+Or if you already have this repo checked out locally:
+
+```bash
+cd your-project
+mkdir -p .claude/commands/opsx
+cp /path/to/OpenSpec/skills/opsx/propose.md .claude/commands/opsx/
+cp /path/to/OpenSpec/skills/opsx/apply.md .claude/commands/opsx/
+cp /path/to/OpenSpec/skills/opsx/archive.md .claude/commands/opsx/
+cp /path/to/OpenSpec/skills/opsx/sync.md .claude/commands/opsx/
+cp /path/to/OpenSpec/skills/opsx/verify.md .claude/commands/opsx/
+cp /path/to/OpenSpec/skills/opsx/new.md .claude/commands/opsx/
+cp /path/to/OpenSpec/skills/opsx/continue.md .claude/commands/opsx/
+cp /path/to/OpenSpec/skills/opsx/status.md .claude/commands/opsx/
 ```
 
 Then restart Claude Code. The commands will appear as `/opsx:*`.
