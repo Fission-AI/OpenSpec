@@ -2,13 +2,14 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { Validator } from '../../src/core/validation/validator.js';
-import { 
-  ScenarioSchema, 
-  RequirementSchema, 
-  SpecSchema, 
+import {
+  ScenarioSchema,
+  RequirementSchema,
+  SpecSchema,
   ChangeSchema,
-  DeltaSchema 
+  DeltaSchema
 } from '../../src/core/schemas/index.js';
+import { containsNormativeKeyword } from '../../src/core/validation/constants.js';
 
 describe('Validation Schemas', () => {
   describe('ScenarioSchema', () => {
@@ -62,7 +63,7 @@ describe('Validation Schemas', () => {
       const result = RequirementSchema.safeParse(requirement);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues[0].message).toBe('Requirement must contain SHALL or MUST keyword');
+        expect(result.error.issues[0].message).toBe('Requirement must contain a normative keyword (SHALL, MUST, DEBE, DEBERA)');
       }
     });
 
@@ -77,6 +78,66 @@ describe('Validation Schemas', () => {
       if (!result.success) {
         expect(result.error.issues[0].message).toBe('Requirement must have at least one scenario');
       }
+    });
+  });
+
+  describe('containsNormativeKeyword', () => {
+    it('should accept English keywords', () => {
+      expect(containsNormativeKeyword('The system SHALL do X')).toBe(true);
+      expect(containsNormativeKeyword('The system MUST do X')).toBe(true);
+    });
+
+    it('should accept Spanish keywords', () => {
+      expect(containsNormativeKeyword('El sistema DEBE hacer X')).toBe(true);
+      expect(containsNormativeKeyword('El sistema DEBERA hacer X')).toBe(true);
+    });
+
+    it('should accept accented Spanish keyword', () => {
+      expect(containsNormativeKeyword('El sistema DEBERÁ hacer X')).toBe(true);
+    });
+
+    it('should reject lowercase keywords', () => {
+      expect(containsNormativeKeyword('The system shall do X')).toBe(false);
+      expect(containsNormativeKeyword('The system must do X')).toBe(false);
+      expect(containsNormativeKeyword('El sistema debe hacer X')).toBe(false);
+      expect(containsNormativeKeyword('El sistema debera hacer X')).toBe(false);
+    });
+
+    it('should reject substring matches', () => {
+      expect(containsNormativeKeyword('The INDEBTED user logs in')).toBe(false);
+      expect(containsNormativeKeyword('MUSTERING all resources')).toBe(false);
+    });
+
+    it('should reject text without any normative keyword', () => {
+      expect(containsNormativeKeyword('The system will do X')).toBe(false);
+    });
+  });
+
+  describe('RequirementSchema with Spanish keywords', () => {
+    const validScenario = { rawText: 'Given X\nWhen Y\nThen Z' };
+
+    it('should accept requirement with DEBE', () => {
+      const result = RequirementSchema.safeParse({
+        text: 'El sistema DEBE autenticar usuarios',
+        scenarios: [validScenario],
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should accept requirement with DEBERA', () => {
+      const result = RequirementSchema.safeParse({
+        text: 'El sistema DEBERA manejar errores',
+        scenarios: [validScenario],
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject requirement without any normative keyword', () => {
+      const result = RequirementSchema.safeParse({
+        text: 'El sistema maneja errores',
+        scenarios: [validScenario],
+      });
+      expect(result.success).toBe(false);
     });
   });
 
@@ -427,7 +488,7 @@ The system will log all events.
 
       expect(report.valid).toBe(false);
       expect(report.summary.errors).toBeGreaterThan(0);
-      expect(report.issues.some(i => i.message.includes('must contain SHALL or MUST'))).toBe(true);
+      expect(report.issues.some(i => i.message.includes('must contain a normative keyword'))).toBe(true);
     });
 
     it('should handle requirements without metadata fields', async () => {
@@ -446,6 +507,60 @@ The system SHALL implement this feature.
 **Given** a condition
 **When** an action occurs
 **Then** a result happens`;
+
+      const specPath = path.join(specsDir, 'spec.md');
+      await fs.writeFile(specPath, deltaSpec);
+
+      const validator = new Validator(true);
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(true);
+      expect(report.summary.errors).toBe(0);
+    });
+
+    it('should pass ADDED requirement with Spanish DEBE keyword', async () => {
+      const changeDir = path.join(testDir, 'test-change-es-debe');
+      const specsDir = path.join(changeDir, 'specs', 'test-spec');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      const deltaSpec = `# Test Spec
+
+## ADDED Requirements
+
+### Requirement: Autenticacion de usuarios
+El sistema DEBE autenticar a los usuarios antes de permitir acceso.
+
+#### Scenario: Login exitoso
+**Given** un usuario con credenciales validas
+**When** envia el formulario de login
+**Then** el usuario es autenticado`;
+
+      const specPath = path.join(specsDir, 'spec.md');
+      await fs.writeFile(specPath, deltaSpec);
+
+      const validator = new Validator(true);
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(true);
+      expect(report.summary.errors).toBe(0);
+    });
+
+    it('should pass MODIFIED requirement with Spanish DEBERA keyword', async () => {
+      const changeDir = path.join(testDir, 'test-change-es-debera');
+      const specsDir = path.join(changeDir, 'specs', 'test-spec');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      const deltaSpec = `# Test Spec
+
+## MODIFIED Requirements
+
+### Requirement: Manejo de errores
+El sistema DEBERA manejar todos los errores correctamente.
+
+#### Scenario: Error de red
+**Given** una conexion inestable
+**When** ocurre un error de red
+**Then** el sistema muestra un mensaje de error`;
 
       const specPath = path.join(specsDir, 'spec.md');
       await fs.writeFile(specPath, deltaSpec);
