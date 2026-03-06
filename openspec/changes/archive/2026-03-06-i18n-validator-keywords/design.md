@@ -45,13 +45,17 @@ export const NORMATIVE_KEYWORDS = {
 Create a `containsNormativeKeyword(text: string): boolean` function in `constants.ts` (or a small `keywords.ts` utility) that checks against all keywords from all languages. Both the schema refinement and the validator method call this single function.
 
 ```ts
+const MATCH_KEYWORDS = [
+  ...Object.values(NORMATIVE_KEYWORDS).flat(),
+  'DEBER\u00c1', // DEBERÁ — accented variant of DEBERA
+];
+
 export function containsNormativeKeyword(text: string): boolean {
-  const allKeywords = Object.values(NORMATIVE_KEYWORDS).flat();
-  return allKeywords.some(kw => new RegExp(`\\b${kw}\\b`).test(text));
+  return MATCH_KEYWORDS.some(kw => new RegExp(`\\b${kw}(?=\\W|$)`).test(text));
 }
 ```
 
-**Why word-boundary regex:** Prevents false positives from substrings (e.g., "DEBERÁ" partially matching "DEBE"). The current validator already uses `\b` boundaries for the English check. Spanish keywords without accents (`DEBERA` instead of `DEBERÁ`) are accepted to avoid encoding issues in different editors and platforms.
+**Why hybrid `\b…(?=\W|$)` instead of pure `\b…\b`:** In JavaScript, `\b` treats accented characters (e.g., `Á`) as non-word (`\W`), so `\bDEBERÁ\b` fails because there is no word boundary between two `\W` characters (`Á` and the following space). Using `(?=\W|$)` as the trailing anchor instead of `\b` correctly handles accented keywords, punctuation-delimited tokens (`MUST:`, `DEBE,`), and markdown formatting (`**SHALL**`). The leading `\b` works because all keywords start with ASCII letters. Substring false positives (e.g., `INDEBTED`, `MUSTERING`) are still prevented because `\b` requires a non-word character before the keyword and `(?=\W|$)` requires one after.
 
 **Why centralized:** Eliminates the duplication between `base.schema.ts` and `validator.ts`. One place to update when adding languages.
 
@@ -59,7 +63,7 @@ export function containsNormativeKeyword(text: string): boolean {
 
 Spanish RFC 2119 equivalents use accented characters (`DEBERÁ`), but many developers may type without accents. Accept both `DEBE`/`DEBERÁ` and `DEBERA` (without accent).
 
-The keyword list includes the unaccented forms as canonical, and the regex word-boundary check handles the accented variant naturally since `\b` matches at the boundary before the accented character.
+`NORMATIVE_KEYWORDS` lists the unaccented forms as canonical, while `MATCH_KEYWORDS` adds the accented `DEBERÁ` explicitly so the regex can match it as a literal. The error message is built from `MATCH_KEYWORDS` so it lists all accepted forms including `DEBERÁ`. This is necessary because JavaScript's `\b` cannot reliably boundary-check strings ending with non-ASCII characters.
 
 ### 4. Update validation error message
 
@@ -69,10 +73,10 @@ Change `REQUIREMENT_NO_SHALL` from:
 ```
 to:
 ```
-'Requirement must contain a normative keyword (SHALL, MUST, DEBE, DEBERA)'
+'Requirement must contain an UPPERCASE normative keyword (SHALL, MUST, DEBE, DEBERA, DEBERÁ)'
 ```
 
-This tells users exactly which keywords are accepted regardless of their language.
+The message is built from `MATCH_KEYWORDS` (not `NORMATIVE_KEYWORDS`) so it includes the accented variant and stays in sync automatically. The "UPPERCASE" hint tells users that lowercase normative keywords are rejected.
 
 ## Risks / Trade-offs
 

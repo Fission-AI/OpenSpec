@@ -63,7 +63,7 @@ describe('Validation Schemas', () => {
       const result = RequirementSchema.safeParse(requirement);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues[0].message).toBe('Requirement must contain a normative keyword (SHALL, MUST, DEBE, DEBERA)');
+        expect(result.error.issues[0].message).toBe('Requirement must contain an UPPERCASE normative keyword (SHALL, MUST, DEBE, DEBERA, DEBERÁ)');
       }
     });
 
@@ -488,7 +488,7 @@ The system will log all events.
 
       expect(report.valid).toBe(false);
       expect(report.summary.errors).toBeGreaterThan(0);
-      expect(report.issues.some(i => i.message.includes('must contain a normative keyword'))).toBe(true);
+      expect(report.issues.some(i => i.message.includes('must contain an UPPERCASE normative keyword'))).toBe(true);
     });
 
     it('should handle requirements without metadata fields', async () => {

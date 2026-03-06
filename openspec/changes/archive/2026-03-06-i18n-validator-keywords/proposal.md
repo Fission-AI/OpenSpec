@@ -4,10 +4,11 @@ The validator hardcodes RFC 2119 keywords (`SHALL`, `MUST`) in English, causing 
 
 ## What Changes
 
-- Add a language-aware keyword map that maps RFC 2119 keywords to their equivalents in supported languages (English and Spanish initially)
-- Update the `RequirementSchema` refinement in `base.schema.ts` to accept keywords from all configured languages
-- Update the `containsShallOrMust` method in `validator.ts` to accept keywords from all configured languages
-- Expose validation messages in both English and Spanish so error output matches the spec language
+- Add a fixed `NORMATIVE_KEYWORDS` map in `constants.ts` with English (`SHALL`, `MUST`) and Spanish (`DEBE`, `DEBERA`) RFC 2119 equivalents
+- Add a shared `containsNormativeKeyword()` helper used by both check sites
+- Update the `RequirementSchema` refinement in `base.schema.ts` to call `containsNormativeKeyword()` instead of hardcoded `includes('SHALL') || includes('MUST')`
+- Update `containsShallOrMust()` in `validator.ts` to delegate to `containsNormativeKeyword()`
+- Update validation error messages to list all accepted keywords (messages remain in English)
 
 ## Capabilities
 

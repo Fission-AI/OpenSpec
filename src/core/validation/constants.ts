@@ -24,7 +24,7 @@ const MATCH_KEYWORDS = [
 ];
 
 export function containsNormativeKeyword(text: string): boolean {
-  return MATCH_KEYWORDS.some(kw => new RegExp(`(?<=\\s|^)${kw}(?=\\s|$)`).test(text));
+  return MATCH_KEYWORDS.some(kw => new RegExp(`\\b${kw}(?=\\W|$)`).test(text));
 }
 
 // Validation messages
@@ -32,7 +32,7 @@ export const VALIDATION_MESSAGES = {
   // Required content
   SCENARIO_EMPTY: 'Scenario text cannot be empty',
   REQUIREMENT_EMPTY: 'Requirement text cannot be empty',
-  REQUIREMENT_NO_SHALL: `Requirement must contain a normative keyword (${Object.values(NORMATIVE_KEYWORDS).flat().join(', ')})`,
+  REQUIREMENT_NO_SHALL: `Requirement must contain an UPPERCASE normative keyword (${MATCH_KEYWORDS.join(', ')})`,
   REQUIREMENT_NO_SCENARIOS: 'Requirement must have at least one scenario',
   SPEC_NAME_EMPTY: 'Spec name cannot be empty',
   SPEC_PURPOSE_EMPTY: 'Purpose section cannot be empty',
