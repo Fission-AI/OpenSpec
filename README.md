@@ -91,6 +91,18 @@ AI:  Заархівовано в openspec/changes/archive/2025-01-23-add-dark-mo
 npm install -g @fission-ai/openspec@latest
 ```
 
+Якщо потрібно встановити напряму з вашого GitHub-репозиторію через npm:
+
+```bash
+npm install -g github:h0rn3t/OpenSpec
+```
+
+Або з конкретної гілки чи тега:
+
+```bash
+npm install -g github:h0rn3t/OpenSpec#main
+```
+
 Далі перейдіть у директорію проєкту та ініціалізуйте:
 
 ```bash

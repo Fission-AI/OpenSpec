@@ -37,13 +37,15 @@ describe('available-tools', () => {
       await fs.mkdir(path.join(testDir, '.claude'), { recursive: true });
       await fs.mkdir(path.join(testDir, '.cursor'), { recursive: true });
       await fs.mkdir(path.join(testDir, '.windsurf'), { recursive: true });
+      await fs.mkdir(path.join(testDir, '.vibe'), { recursive: true });
 
       const tools = getAvailableTools(testDir);
       const toolValues = tools.map((t) => t.value);
       expect(toolValues).toContain('claude');
       expect(toolValues).toContain('cursor');
       expect(toolValues).toContain('windsurf');
-      expect(tools).toHaveLength(3);
+      expect(toolValues).toContain('mistral-vibe');
+      expect(tools).toHaveLength(4);
     });
 
     it('should ignore files that are not directories', async () => {

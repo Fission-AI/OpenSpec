@@ -190,6 +190,29 @@ Old instructions content
         expect(exists).toBe(false);
       }
     });
+
+    it('should update configured Mistral Vibe skills without generating commands', async () => {
+      const skillsDir = path.join(testDir, '.vibe', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        'old vibe content'
+      );
+
+      await updateCommand.execute(testDir);
+
+      const updatedSkill = await fs.readFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        'utf-8'
+      );
+      expect(updatedSkill).toContain('name: openspec-explore');
+      expect(updatedSkill).not.toContain('old vibe content');
+
+      const commandFile = path.join(testDir, '.vibe', 'commands', 'opsx', 'explore.md');
+      expect(await FileSystemUtils.fileExists(commandFile)).toBe(false);
+    });
   });
 
   describe('command updates', () => {

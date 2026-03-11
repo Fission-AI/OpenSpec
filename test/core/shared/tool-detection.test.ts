@@ -49,6 +49,7 @@ describe('tool-detection', () => {
       expect(tools).toContain('claude');
       expect(tools).toContain('cursor');
       expect(tools).toContain('windsurf');
+      expect(tools).toContain('mistral-vibe');
       expect(tools.length).toBeGreaterThan(0);
     });
   });
@@ -111,6 +112,18 @@ describe('tool-detection', () => {
       const states = getToolStates(testDir);
       expect(states.get('claude')?.configured).toBe(true);
       expect(states.get('cursor')?.configured).toBe(false);
+    });
+  });
+
+  describe('mistral-vibe support', () => {
+    it('should detect configured Mistral Vibe skills', async () => {
+      const skillDir = path.join(testDir, '.vibe', 'skills', 'openspec-explore');
+      await fs.mkdir(skillDir, { recursive: true });
+      await fs.writeFile(path.join(skillDir, 'SKILL.md'), 'test content');
+
+      const status = getToolSkillStatus(testDir, 'mistral-vibe');
+      expect(status.configured).toBe(true);
+      expect(status.skillCount).toBe(1);
     });
   });
 

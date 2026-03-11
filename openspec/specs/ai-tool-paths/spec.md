@@ -2,7 +2,6 @@
 
 ## Purpose
 Define AI tool path metadata used to generate OpenSpec skills and commands in tool-specific directories.
-
 ## Requirements
 ### Requirement: AIToolOption skillsDir field
 
@@ -37,6 +36,11 @@ The `AI_TOOLS` array SHALL include `skillsDir` for tools that support the Agent 
 
 - **WHEN** looking up the `windsurf` tool
 - **THEN** `skillsDir` SHALL be `.windsurf`
+
+#### Scenario: Mistral Vibe paths defined
+
+- **WHEN** looking up the `mistral-vibe` tool
+- **THEN** `skillsDir` SHALL be `.vibe`
 
 #### Scenario: Tools without skillsDir
 

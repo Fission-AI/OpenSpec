@@ -168,6 +168,23 @@ describe('InitCommand', () => {
       expect(await fileExists(skillFile)).toBe(true);
     });
 
+    it('should configure Mistral Vibe skills and report skipped commands', async () => {
+      const initCommand = new InitCommand({ tools: 'mistral-vibe', force: true });
+
+      await initCommand.execute(testDir);
+
+      const skillFile = path.join(testDir, '.vibe', 'skills', 'openspec-explore', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
+
+      const commandFile = path.join(testDir, '.vibe', 'commands', 'opsx', 'explore.md');
+      expect(await fileExists(commandFile)).toBe(false);
+
+      const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls
+        .flat()
+        .map(String);
+      expect(logCalls.some((entry) => entry.includes('Commands skipped for: mistral-vibe (no adapter)'))).toBe(true);
+    });
+
     it('should create skills for multiple tools at once', async () => {
       const initCommand = new InitCommand({ tools: 'claude,cursor', force: true });
 
@@ -397,7 +414,7 @@ describe('InitCommand', () => {
           ) {
             throw new Error('EACCES: permission denied');
           }
-          return originalWriteFile.call(fs, filePath, ...args);
+          return (originalWriteFile as any)(filePath, ...args);
         }
       );
 
@@ -476,7 +493,7 @@ describe('InitCommand - profile and detection features', () => {
     configTempDir = path.join(os.tmpdir(), `openspec-config-test-${Date.now()}`);
     await fs.mkdir(configTempDir, { recursive: true });
     process.env.XDG_CONFIG_HOME = configTempDir;
-    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'log').mockImplementation(() => { });
     confirmMock.mockReset();
     confirmMock.mockResolvedValue(true);
     showWelcomeScreenMock.mockClear();
