@@ -151,7 +151,7 @@ describe('command-generation/adapters', () => {
 
     it('should generate correct file path', () => {
       const filePath = antigravityAdapter.getFilePath('explore');
-      expect(filePath).toBe(path.join('.agent', 'workflows', 'opsx-explore.md'));
+      expect(filePath).toBe(path.join('.agents', 'workflows', 'opsx-explore.md'));
     });
 
     it('should format file with description frontmatter', () => {
