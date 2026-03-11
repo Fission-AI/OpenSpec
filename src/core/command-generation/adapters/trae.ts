@@ -36,12 +36,12 @@ export const traeAdapter: ToolCommandAdapter = {
   toolId: 'trae',
 
   getFilePath(commandId: string): string {
-    return path.join('.trae', 'commands', `opsx-${commandId}.md`);
+    return path.join('.trae', 'commands', 'opsx', `${commandId}.md`);
   },
 
   formatFile(content: CommandContent): string {
     return `---
-name: /opsx-${content.id}
+name: /opsx:${content.id}
 description: ${escapeYamlValue(content.description)}
 category: ${escapeYamlValue(content.category)}
 tags: ${formatTagsArray(content.tags)}

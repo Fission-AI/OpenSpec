@@ -554,6 +554,16 @@ export class InitCommand {
         if (shouldGenerateCommands) {
           const adapter = CommandAdapterRegistry.get(tool.value);
           if (adapter) {
+            if (tool.value === 'trae') {
+              for (const workflow of ALL_WORKFLOWS) {
+                const legacyCommandFile = path.join(projectPath, '.trae', 'commands', `opsx-${workflow}.md`);
+                try {
+                  if (fs.existsSync(legacyCommandFile)) {
+                    await fs.promises.unlink(legacyCommandFile);
+                  }
+                } catch {}
+              }
+            }
             const generatedCommands = generateCommands(commandContents, adapter);
 
             for (const cmd of generatedCommands) {
@@ -763,10 +773,17 @@ export class InitCommand {
     for (const workflow of ALL_WORKFLOWS) {
       const cmdPath = adapter.getFilePath(workflow);
       const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
+      const legacyTraePath = toolId === 'trae'
+        ? path.join(projectPath, '.trae', 'commands', `opsx-${workflow}.md`)
+        : null;
 
       try {
         if (fs.existsSync(fullPath)) {
           await fs.promises.unlink(fullPath);
+          removed++;
+        }
+        if (legacyTraePath && fs.existsSync(legacyTraePath)) {
+          await fs.promises.unlink(legacyTraePath);
           removed++;
         }
       } catch {
