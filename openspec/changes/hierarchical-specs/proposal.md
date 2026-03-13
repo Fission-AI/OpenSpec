@@ -10,7 +10,7 @@ OpenSpec stores all specs in a flat structure under `openspec/specs/`. As projec
 - Path construction throughout the codebase changes from `join(SPECS_DIR, specId, 'spec.md')` to handle `/`-separated IDs as nested directories
 - `spec list` gains the ability to filter by subtree (e.g., `openspec spec list cli/` shows only CLI specs)
 - Delta specs in changes mirror the hierarchical structure
-- **BREAKING**: Existing flat spec IDs remain valid — no migration required. However, tools that parse spec IDs as simple strings may need updating.
+- **COMPATIBILITY**: Existing flat spec IDs remain valid — no migration required. Tools that treat spec IDs as opaque strings need no changes. Tools that parse or construct spec ID structure (e.g., splitting on `-` to infer hierarchy) must be updated to handle `/`-separated IDs.
 
 ## Capabilities
 

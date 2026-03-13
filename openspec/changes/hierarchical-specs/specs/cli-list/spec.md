@@ -17,8 +17,9 @@ The command SHALL scan and analyze either active changes or specs based on the s
 
 #### Scenario: Scanning for specs in subtree
 - **WHEN** `openspec list --specs cli/` is executed
-- **THEN** recursively scan only specs whose ID starts with `cli/`
+- **THEN** recursively scan only specs whose ID starts with `cli/` at a segment boundary (i.e., the character after the prefix must be a path separator or the prefix must end with `/`)
 - **AND** display them with their full hierarchical IDs
+- **AND** `cli/` matches `cli/show` and `cli/bar/baz` but NOT `client/foo`
 
 ### Requirement: Output Format
 The command SHALL display items in a clear, readable table format with mode-appropriate progress or counts.
