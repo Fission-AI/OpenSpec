@@ -1,7 +1,7 @@
 import { z, ZodError } from 'zod';
 import { readFileSync, promises as fs } from 'fs';
 import path from 'path';
-import { SpecSchema, ChangeSchema, Spec, Change } from '../schemas/index.js';
+import { SpecSchema, ChangeSchema, createSpecSchema, createChangeSchema, Spec, Change } from '../schemas/index.js';
 import { MarkdownParser } from '../parsers/markdown-parser.js';
 import { ChangeParser } from '../parsers/change-parser.js';
 import { ValidationReport, ValidationIssue, ValidationLevel } from './types.js';
@@ -12,12 +12,22 @@ import {
 } from './constants.js';
 import { parseDeltaSpec, normalizeRequirementName } from '../parsers/requirement-blocks.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
+import { resolveKeywords, buildKeywordRegex, formatKeywordMessage } from '../i18n/keywords.js';
 
 export class Validator {
   private strictMode: boolean;
+  private language?: string;
+  private keywordRegex: RegExp;
+  private specSchema: ReturnType<typeof createSpecSchema>;
+  private changeSchema: ReturnType<typeof createChangeSchema>;
 
-  constructor(strictMode: boolean = false) {
+  constructor(strictMode: boolean = false, language?: string) {
     this.strictMode = strictMode;
+    this.language = language;
+    const keywords = resolveKeywords(language);
+    this.keywordRegex = buildKeywordRegex(keywords);
+    this.specSchema = language ? createSpecSchema(language) : SpecSchema;
+    this.changeSchema = language ? createChangeSchema(language) : ChangeSchema;
   }
 
   async validateSpec(filePath: string): Promise<ValidationReport> {
@@ -29,7 +39,7 @@ export class Validator {
       
       const spec = parser.parseSpec(specName);
       
-      const result = SpecSchema.safeParse(spec);
+      const result = this.specSchema.safeParse(spec);
       
       if (!result.success) {
         issues.push(...this.convertZodErrors(result.error));
@@ -58,7 +68,7 @@ export class Validator {
     try {
       const parser = new MarkdownParser(content);
       const spec = parser.parseSpec(specName);
-      const result = SpecSchema.safeParse(spec);
+      const result = this.specSchema.safeParse(spec);
       if (!result.success) {
         issues.push(...this.convertZodErrors(result.error));
       }
@@ -81,7 +91,7 @@ export class Validator {
       
       const change = await parser.parseChangeWithDeltas(changeName);
       
-      const result = ChangeSchema.safeParse(change);
+      const result = this.changeSchema.safeParse(change);
       
       if (!result.success) {
         issues.push(...this.convertZodErrors(result.error));
@@ -164,7 +174,7 @@ export class Validator {
           if (!requirementText) {
             issues.push({ level: 'ERROR', path: entryPath, message: `ADDED "${block.name}" is missing requirement text` });
           } else if (!this.containsShallOrMust(requirementText)) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `ADDED "${block.name}" must contain SHALL or MUST` });
+            issues.push({ level: 'ERROR', path: entryPath, message: `ADDED "${block.name}" must contain a normative keyword (${resolveKeywords(this.language).map(k => `"${k}"`).join(', ')})` });
           }
           const scenarioCount = this.countScenarios(block.raw);
           if (scenarioCount < 1) {
@@ -185,7 +195,7 @@ export class Validator {
           if (!requirementText) {
             issues.push({ level: 'ERROR', path: entryPath, message: `MODIFIED "${block.name}" is missing requirement text` });
           } else if (!this.containsShallOrMust(requirementText)) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `MODIFIED "${block.name}" must contain SHALL or MUST` });
+            issues.push({ level: 'ERROR', path: entryPath, message: `MODIFIED "${block.name}" must contain a normative keyword (${resolveKeywords(this.language).map(k => `"${k}"`).join(', ')})` });
           }
           const scenarioCount = this.countScenarios(block.raw);
           if (scenarioCount < 1) {
@@ -431,7 +441,7 @@ export class Validator {
   }
 
   private containsShallOrMust(text: string): boolean {
-    return /\b(SHALL|MUST)\b/.test(text);
+    return this.keywordRegex.test(text);
   }
 
   private countScenarios(blockRaw: string): number {
