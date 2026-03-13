@@ -12,11 +12,12 @@ import {
 } from './constants.js';
 import { parseDeltaSpec, normalizeRequirementName } from '../parsers/requirement-blocks.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
-import { resolveKeywords, buildKeywordRegex, formatKeywordMessage } from '../i18n/keywords.js';
+import { resolveKeywords, buildKeywordRegex } from '../i18n/keywords.js';
 
 export class Validator {
   private strictMode: boolean;
   private language?: string;
+  private keywords: string[];
   private keywordRegex: RegExp;
   private specSchema: ReturnType<typeof createSpecSchema>;
   private changeSchema: ReturnType<typeof createChangeSchema>;
@@ -24,8 +25,8 @@ export class Validator {
   constructor(strictMode: boolean = false, language?: string) {
     this.strictMode = strictMode;
     this.language = language;
-    const keywords = resolveKeywords(language);
-    this.keywordRegex = buildKeywordRegex(keywords);
+    this.keywords = resolveKeywords(language);
+    this.keywordRegex = buildKeywordRegex(this.keywords);
     this.specSchema = language ? createSpecSchema(language) : SpecSchema;
     this.changeSchema = language ? createChangeSchema(language) : ChangeSchema;
   }
@@ -174,7 +175,7 @@ export class Validator {
           if (!requirementText) {
             issues.push({ level: 'ERROR', path: entryPath, message: `ADDED "${block.name}" is missing requirement text` });
           } else if (!this.containsShallOrMust(requirementText)) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `ADDED "${block.name}" must contain a normative keyword (${resolveKeywords(this.language).map(k => `"${k}"`).join(', ')})` });
+            issues.push({ level: 'ERROR', path: entryPath, message: `ADDED "${block.name}": ${VALIDATION_MESSAGES.REQUIREMENT_NO_SHALL(this.keywords)}` });
           }
           const scenarioCount = this.countScenarios(block.raw);
           if (scenarioCount < 1) {
@@ -195,7 +196,7 @@ export class Validator {
           if (!requirementText) {
             issues.push({ level: 'ERROR', path: entryPath, message: `MODIFIED "${block.name}" is missing requirement text` });
           } else if (!this.containsShallOrMust(requirementText)) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `MODIFIED "${block.name}" must contain a normative keyword (${resolveKeywords(this.language).map(k => `"${k}"`).join(', ')})` });
+            issues.push({ level: 'ERROR', path: entryPath, message: `MODIFIED "${block.name}": ${VALIDATION_MESSAGES.REQUIREMENT_NO_SHALL(this.keywords)}` });
           }
           const scenarioCount = this.countScenarios(block.raw);
           if (scenarioCount < 1) {
@@ -320,7 +321,7 @@ export class Validator {
         issues.push({
           level: 'WARNING',
           path: `requirements[${index}].scenarios`,
-          message: `${VALIDATION_MESSAGES.REQUIREMENT_NO_SCENARIOS}. ${VALIDATION_MESSAGES.GUIDE_SCENARIO_FORMAT}`,
+          message: `${VALIDATION_MESSAGES.REQUIREMENT_NO_SCENARIOS}. ${VALIDATION_MESSAGES.GUIDE_SCENARIO_FORMAT(this.keywords)}`,
         });
       }
     });
@@ -361,7 +362,7 @@ export class Validator {
       return `${msg}. ${VALIDATION_MESSAGES.GUIDE_NO_DELTAS}`;
     }
     if (msg.includes('Spec must have a Purpose section') || msg.includes('Spec must have a Requirements section')) {
-      return `${msg}. ${VALIDATION_MESSAGES.GUIDE_MISSING_SPEC_SECTIONS}`;
+      return `${msg}. ${VALIDATION_MESSAGES.GUIDE_MISSING_SPEC_SECTIONS(this.keywords)}`;
     }
     if (msg.includes('Change must have a Why section') || msg.includes('Change must have a What Changes section')) {
       return `${msg}. ${VALIDATION_MESSAGES.GUIDE_MISSING_CHANGE_SECTIONS}`;

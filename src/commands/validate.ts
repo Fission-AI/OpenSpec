@@ -1,6 +1,7 @@
 import ora from 'ora';
 import path from 'path';
 import { Validator } from '../core/validation/validator.js';
+import { readProjectConfig } from '../core/project-config.js';
 import { isInteractive, resolveNoInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds, getSpecIds } from '../utils/item-discovery.js';
 import { nearestMatches } from '../utils/match.js';
@@ -127,8 +128,13 @@ export class ValidateCommand {
     await this.validateByType(type, itemName, opts);
   }
 
+  private resolveLanguage(): string | undefined {
+    const config = readProjectConfig(process.cwd());
+    return config?.language;
+  }
+
   private async validateByType(type: ItemType, id: string, opts: { strict: boolean; json: boolean }): Promise<void> {
-    const validator = new Validator(opts.strict);
+    const validator = new Validator(opts.strict, this.resolveLanguage());
     if (type === 'change') {
       const changeDir = path.join(process.cwd(), 'openspec', 'changes', id);
       const start = Date.now();
@@ -191,7 +197,7 @@ export class ValidateCommand {
     const DEFAULT_CONCURRENCY = 6;
     const maxSuggestions = 5; // used by nearestMatches
     const concurrency = normalizeConcurrency(opts.concurrency) ?? normalizeConcurrency(process.env.OPENSPEC_CONCURRENCY) ?? DEFAULT_CONCURRENCY;
-    const validator = new Validator(opts.strict);
+    const validator = new Validator(opts.strict, this.resolveLanguage());
     const queue: Array<() => Promise<BulkItemResult>> = [];
 
     for (const id of changeIds) {

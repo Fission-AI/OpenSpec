@@ -17,10 +17,10 @@
 - [x] 3.1 Refactor `base.schema.ts`: replace static `RequirementSchema` with `createRequirementSchema(keywords, keywordRegex)` factory function. Keep backward-compatible default export using English keywords.
 - [x] 3.2 Update `Validator` constructor to accept optional `language` parameter, resolve keywords from registry, precompile regex, and create the Zod schema via factory
 - [x] 3.3 Update `containsShallOrMust()` in `validator.ts` to use the precompiled keyword regex instead of hardcoded `/\b(SHALL|MUST)\b/`
-- [ ] 3.4 Update `VALIDATION_MESSAGES.REQUIREMENT_NO_SHALL` in `constants.ts` to be a function or template that accepts keyword list, and update guidance snippets (`GUIDE_MISSING_SPEC_SECTIONS`, `GUIDE_SCENARIO_FORMAT`) to reference configured keywords
-- [ ] 3.5 Thread language from config into Validator instantiation in `src/commands/validate.ts`
-- [ ] 3.6 Add unit tests: English validation (existing behavior preserved), Spanish validation (DEBE/DEBERA/DEBERÁ accepted), unknown language fallback to English, error messages show configured keywords
+- [x] 3.4 Update `VALIDATION_MESSAGES.REQUIREMENT_NO_SHALL` in `constants.ts` to be a function or template that accepts keyword list, and update guidance snippets (`GUIDE_MISSING_SPEC_SECTIONS`, `GUIDE_SCENARIO_FORMAT`) to reference configured keywords
+- [x] 3.5 Thread language from config into Validator instantiation in `src/commands/validate.ts`
+- [x] 3.6 Add unit tests: English validation (existing behavior preserved), Spanish validation (DEBE/DEBERA/DEBERÁ accepted), unknown language fallback to English, error messages show configured keywords
 
 ## 4. Documentation
 
-- [ ] 4.1 Add i18n section to README.md documenting: `language` config property, recommended `config.yaml` setup for Spanish projects (including `context` field for AI keyword guidance), list of supported languages and their keywords
+- [x] 4.1 Add i18n section to README.md documenting: `language` config property, recommended `config.yaml` setup for Spanish projects (including `context` field for AI keyword guidance), list of supported languages and their keywords
