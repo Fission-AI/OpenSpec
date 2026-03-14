@@ -21,6 +21,7 @@ export const VALIDATION_MESSAGES = {
     if (quoted.length === 1) return `Requirement must contain ${quoted[0]} keyword`;
     const last = quoted[quoted.length - 1];
     const rest = quoted.slice(0, -1);
+    if (quoted.length === 2) return `Requirement must contain ${rest[0]} or ${last} keyword`;
     return `Requirement must contain ${rest.join(', ')}, or ${last} keyword`;
   },
   REQUIREMENT_NO_SCENARIOS: 'Requirement must have at least one scenario',

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   buildKeywordRegex,
   formatKeywordMessage,
@@ -75,7 +75,7 @@ describe('i18n keywords', () => {
 
     it('should format two keywords', () => {
       expect(formatKeywordMessage(['MUST', 'SHALL'])).toBe(
-        'Requirement must contain "MUST", or "SHALL" keyword'
+        'Requirement must contain "MUST" or "SHALL" keyword'
       );
     });
 
@@ -99,8 +99,13 @@ describe('i18n keywords', () => {
       expect(resolveKeywords('es')).toEqual(['DEBE', 'DEBERA', 'DEBERÁ']);
     });
 
-    it('should fall back to English for unknown language', () => {
+    it('should fall back to English for unknown language and log warning', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
       expect(resolveKeywords('xx')).toEqual(NORMATIVE_KEYWORDS[DEFAULT_LANGUAGE]);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Unknown language "xx"')
+      );
+      warnSpy.mockRestore();
     });
 
     it('should fall back to English for undefined', () => {
