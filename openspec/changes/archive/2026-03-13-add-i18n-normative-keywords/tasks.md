@@ -2,7 +2,7 @@
 
 ## 1. Keyword Registry
 
-- [x] 1.1 Create `src/core/i18n/keywords.ts` with `NORMATIVE_KEYWORDS` constant (`en`, `es`), `DEFAULT_LANGUAGE`, `buildKeywordRegex()` using `(?<!\p{L})...(?\p{L})` with `u` flag, and `formatKeywordMessage()` helper
+- [x] 1.1 Create `src/core/i18n/keywords.ts` with `NORMATIVE_KEYWORDS` constant (`en`, `es`), `DEFAULT_LANGUAGE`, `buildKeywordRegex()` using `(?<!\p{L})...(?!\p{L})` with `u` flag, and `formatKeywordMessage()` helper
 - [x] 1.2 Add unit tests for `buildKeywordRegex()`: English keywords, Spanish keywords (with accents), substring non-matching (`DEBE` should not match inside `DEBERÁ`), punctuation boundaries, case sensitivity
 - [x] 1.3 Add unit tests for `formatKeywordMessage()`: single keyword, two keywords, three keywords
 

@@ -41,6 +41,7 @@ export function formatKeywordMessage(keywords: string[]): string {
   if (quoted.length === 1) return `Requirement must contain ${quoted[0]} keyword`;
   const last = quoted[quoted.length - 1];
   const rest = quoted.slice(0, -1);
+  if (quoted.length === 2) return `Requirement must contain ${rest[0]} or ${last} keyword`;
   return `Requirement must contain ${rest.join(', ')}, or ${last} keyword`;
 }
 
@@ -51,5 +52,7 @@ export function resolveKeywords(language?: string): string[] {
   if (!language) return NORMATIVE_KEYWORDS[DEFAULT_LANGUAGE];
   const keywords = NORMATIVE_KEYWORDS[language];
   if (keywords) return keywords;
+  const available = Object.keys(NORMATIVE_KEYWORDS).join(', ');
+  console.warn(`Unknown language "${language}". Available: ${available}. Falling back to "${DEFAULT_LANGUAGE}".`);
   return NORMATIVE_KEYWORDS[DEFAULT_LANGUAGE];
 }
