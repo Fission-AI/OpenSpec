@@ -34,7 +34,7 @@ export interface ValidationResult {
  *
  * Valid names:
  * - Start with a lowercase letter
- * - Contain only lowercase letters, numbers, and hyphens
+ * - Contain only lowercase letters, numbers, hyphens, and dots
  * - Do not start or end with a hyphen
  * - Do not contain consecutive hyphens
  *
@@ -47,8 +47,8 @@ export interface ValidationResult {
  */
 export function validateChangeName(name: string): ValidationResult {
   // Pattern: starts with lowercase letter, followed by lowercase letters/numbers,
-  // optionally followed by hyphen + lowercase letters/numbers (repeatable)
-  const kebabCasePattern = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
+  // optionally followed by hyphen/dot + lowercase letters/numbers (repeatable)
+  const kebabCasePattern = /^[a-z][a-z0-9]*([-.][a-z0-9]+)*$/;
 
   if (!name) {
     return { valid: false, error: 'Change name cannot be empty' };
@@ -74,8 +74,11 @@ export function validateChangeName(name: string): ValidationResult {
     if (/--/.test(name)) {
       return { valid: false, error: 'Change name cannot contain consecutive hyphens' };
     }
-    if (/[^a-z0-9-]/.test(name)) {
-      return { valid: false, error: 'Change name can only contain lowercase letters, numbers, and hyphens' };
+    if (/\.\./.test(name)) {
+      return { valid: false, error: 'Change name cannot contain consecutive dots' };
+    }
+    if (/[^a-z0-9.\-]/.test(name)) {
+      return { valid: false, error: 'Change name can only contain lowercase letters, numbers, hyphens, and dots' };
     }
     if (/^[0-9]/.test(name)) {
       return { valid: false, error: 'Change name must start with a letter' };
