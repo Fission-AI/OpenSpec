@@ -1,9 +1,9 @@
-import path from 'path';
-import { FileSystemUtils } from './file-system.js';
-import { writeChangeMetadata, validateSchemaName } from './change-metadata.js';
-import { readProjectConfig } from '../core/project-config.js';
+import path from "path";
+import { FileSystemUtils } from "./file-system.js";
+import { writeChangeMetadata, validateSchemaName } from "./change-metadata.js";
+import { readProjectConfig } from "../core/project-config.js";
 
-const DEFAULT_SCHEMA = 'spec-driven';
+const DEFAULT_SCHEMA = "opti-spec-driven";
 
 /**
  * Options for creating a change.
@@ -51,37 +51,57 @@ export function validateChangeName(name: string): ValidationResult {
   const kebabCasePattern = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 
   if (!name) {
-    return { valid: false, error: 'Change name cannot be empty' };
+    return { valid: false, error: "Change name cannot be empty" };
   }
 
   if (!kebabCasePattern.test(name)) {
     // Provide specific error messages for common mistakes
     if (/[A-Z]/.test(name)) {
-      return { valid: false, error: 'Change name must be lowercase (use kebab-case)' };
+      return {
+        valid: false,
+        error: "Change name must be lowercase (use kebab-case)",
+      };
     }
     if (/\s/.test(name)) {
-      return { valid: false, error: 'Change name cannot contain spaces (use hyphens instead)' };
+      return {
+        valid: false,
+        error: "Change name cannot contain spaces (use hyphens instead)",
+      };
     }
     if (/_/.test(name)) {
-      return { valid: false, error: 'Change name cannot contain underscores (use hyphens instead)' };
+      return {
+        valid: false,
+        error: "Change name cannot contain underscores (use hyphens instead)",
+      };
     }
-    if (name.startsWith('-')) {
-      return { valid: false, error: 'Change name cannot start with a hyphen' };
+    if (name.startsWith("-")) {
+      return { valid: false, error: "Change name cannot start with a hyphen" };
     }
-    if (name.endsWith('-')) {
-      return { valid: false, error: 'Change name cannot end with a hyphen' };
+    if (name.endsWith("-")) {
+      return { valid: false, error: "Change name cannot end with a hyphen" };
     }
     if (/--/.test(name)) {
-      return { valid: false, error: 'Change name cannot contain consecutive hyphens' };
+      return {
+        valid: false,
+        error: "Change name cannot contain consecutive hyphens",
+      };
     }
     if (/[^a-z0-9-]/.test(name)) {
-      return { valid: false, error: 'Change name can only contain lowercase letters, numbers, and hyphens' };
+      return {
+        valid: false,
+        error:
+          "Change name can only contain lowercase letters, numbers, and hyphens",
+      };
     }
     if (/^[0-9]/.test(name)) {
-      return { valid: false, error: 'Change name must start with a letter' };
+      return { valid: false, error: "Change name must start with a letter" };
     }
 
-    return { valid: false, error: 'Change name must follow kebab-case convention (e.g., add-auth, refactor-db)' };
+    return {
+      valid: false,
+      error:
+        "Change name must follow kebab-case convention (e.g., add-auth, refactor-db)",
+    };
   }
 
   return { valid: true };
@@ -112,7 +132,7 @@ export function validateChangeName(name: string): ValidationResult {
 export async function createChange(
   projectRoot: string,
   name: string,
-  options: CreateChangeOptions = {}
+  options: CreateChangeOptions = {},
 ): Promise<CreateChangeResult> {
   // Validate the name first
   const validation = validateChangeName(name);
@@ -139,7 +159,7 @@ export async function createChange(
   validateSchemaName(schemaName, projectRoot);
 
   // Build the change directory path
-  const changeDir = path.join(projectRoot, 'openspec', 'changes', name);
+  const changeDir = path.join(projectRoot, "openspec", "changes", name);
 
   // Check if change already exists
   if (await FileSystemUtils.directoryExists(changeDir)) {
@@ -150,11 +170,15 @@ export async function createChange(
   await FileSystemUtils.createDirectory(changeDir);
 
   // Write metadata file with schema and creation date
-  const today = new Date().toISOString().split('T')[0];
-  writeChangeMetadata(changeDir, {
-    schema: schemaName,
-    created: today,
-  }, projectRoot);
+  const today = new Date().toISOString().split("T")[0];
+  writeChangeMetadata(
+    changeDir,
+    {
+      schema: schemaName,
+      created: today,
+    },
+    projectRoot,
+  );
 
   return { schema: schemaName };
 }

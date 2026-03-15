@@ -40,9 +40,15 @@ export function extractRequirementsSection(content: string): RequirementsSection
   }
 
   // Find end of this section: next line that starts with '## ' at same or higher level
+  // Skip headers inside fenced code blocks
   let endIndex = lines.length;
+  let inFenceEnd = false;
   for (let i = reqHeaderIndex + 1; i < lines.length; i++) {
-    if (/^##\s+/.test(lines[i])) {
+    if (lines[i].startsWith('```')) {
+      inFenceEnd = !inFenceEnd;
+      continue;
+    }
+    if (!inFenceEnd && /^##\s+/.test(lines[i])) {
       endIndex = i;
       break;
     }
@@ -58,7 +64,15 @@ export function extractRequirementsSection(content: string): RequirementsSection
   let preambleLines: string[] = [];
 
   // Collect preamble lines until first requirement header
-  while (cursor < sectionBodyLines.length && !/^###\s+Requirement:/.test(sectionBodyLines[cursor])) {
+  // Track fenced code blocks so headers inside them are skipped
+  let inFencePreamble = false;
+  while (cursor < sectionBodyLines.length) {
+    if (sectionBodyLines[cursor].startsWith('```')) {
+      inFencePreamble = !inFencePreamble;
+    }
+    if (!inFencePreamble && /^###\s+Requirement:/.test(sectionBodyLines[cursor])) {
+      break;
+    }
     preambleLines.push(sectionBodyLines[cursor]);
     cursor++;
   }
@@ -75,8 +89,16 @@ export function extractRequirementsSection(content: string): RequirementsSection
     const name = normalizeRequirementName(headerMatch[1]);
     cursor++;
     // Gather lines until next requirement header or end of section
+    // Track fenced code blocks so headers inside them don't break the block
     const bodyLines: string[] = [headerLineCandidate];
-    while (cursor < sectionBodyLines.length && !/^###\s+Requirement:/.test(sectionBodyLines[cursor]) && !/^##\s+/.test(sectionBodyLines[cursor])) {
+    let inFenceBody = false;
+    while (cursor < sectionBodyLines.length) {
+      if (sectionBodyLines[cursor].startsWith('```')) {
+        inFenceBody = !inFenceBody;
+      }
+      if (!inFenceBody && (/^###\s+Requirement:/.test(sectionBodyLines[cursor]) || /^##\s+/.test(sectionBodyLines[cursor]))) {
+        break;
+      }
       bodyLines.push(sectionBodyLines[cursor]);
       cursor++;
     }
@@ -145,7 +167,14 @@ function splitTopLevelSections(content: string): Record<string, string> {
   const lines = content.split('\n');
   const result: Record<string, string> = {};
   const indices: Array<{ title: string; index: number; level: number }> = [];
+  // Track fenced code blocks so ## headers inside them are not treated as sections
+  let inFence = false;
   for (let i = 0; i < lines.length; i++) {
+    if (lines[i].startsWith('```')) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence) continue;
     const m = lines[i].match(/^(##)\s+(.+)$/);
     if (m) {
       const level = m[1].length; // only care for '##'
@@ -174,9 +203,17 @@ function parseRequirementBlocksFromSection(sectionBody: string): RequirementBloc
   const lines = normalizeLineEndings(sectionBody).split('\n');
   const blocks: RequirementBlock[] = [];
   let i = 0;
+  // Track fenced code blocks so headers inside them are treated as body content
+  let inFence = false;
   while (i < lines.length) {
-    // Seek next requirement header
-    while (i < lines.length && !/^###\s+Requirement:/.test(lines[i])) i++;
+    // Seek next requirement header, skipping fenced code blocks
+    while (i < lines.length) {
+      if (lines[i].startsWith('```')) {
+        inFence = !inFence;
+      }
+      if (!inFence && /^###\s+Requirement:/.test(lines[i])) break;
+      i++;
+    }
     if (i >= lines.length) break;
     const headerLine = lines[i];
     const m = headerLine.match(REQUIREMENT_HEADER_REGEX);
@@ -184,7 +221,14 @@ function parseRequirementBlocksFromSection(sectionBody: string): RequirementBloc
     const name = normalizeRequirementName(m[1]);
     const buf: string[] = [headerLine];
     i++;
-    while (i < lines.length && !/^###\s+Requirement:/.test(lines[i]) && !/^##\s+/.test(lines[i])) {
+    let inFenceBlock = false;
+    while (i < lines.length) {
+      if (lines[i].startsWith('```')) {
+        inFenceBlock = !inFenceBlock;
+      }
+      if (!inFenceBlock && (/^###\s+Requirement:/.test(lines[i]) || /^##\s+/.test(lines[i]))) {
+        break;
+      }
       buf.push(lines[i]);
       i++;
     }
@@ -231,4 +275,115 @@ function parseRenamedPairs(sectionBody: string): Array<{ from: string; to: strin
     }
   }
   return pairs;
+}
+
+// ---------------------------------------------------------------------------
+// Scenario-level parsing (for scenario-level merge in MODIFIED handler)
+// ---------------------------------------------------------------------------
+
+export interface ScenarioBlock {
+  headerLine: string;   // e.g., '#### Scenario: Phase 2 gate check (MODIFIED)'
+  name: string;         // e.g., 'Phase 2 gate check' (without tags)
+  tag?: string;         // e.g., 'MODIFIED', 'REMOVED', or undefined
+  raw: string;          // full block including header and body
+}
+
+export interface RequirementBlockWithScenarios extends RequirementBlock {
+  description: string;      // text between requirement header and first scenario
+  scenarios: ScenarioBlock[];
+}
+
+const SCENARIO_HEADER_REGEX = /^####\s*Scenario:\s*(.+)\s*$/;
+const SCENARIO_TAG_REGEX = /^(.+?)\s*\((MODIFIED|REMOVED)\)\s*$/i;
+
+/**
+ * Normalize a scenario name by stripping (MODIFIED)/(REMOVED) tags and trimming.
+ */
+export function normalizeScenarioName(name: string): string {
+  const tagMatch = name.match(SCENARIO_TAG_REGEX);
+  if (tagMatch) {
+    return tagMatch[1].trim();
+  }
+  return name.trim();
+}
+
+/**
+ * Extract the tag from a scenario name if present.
+ * Returns the tag in uppercase, or undefined if no tag.
+ */
+export function extractScenarioTag(name: string): string | undefined {
+  const tagMatch = name.match(SCENARIO_TAG_REGEX);
+  if (tagMatch) {
+    return tagMatch[2].toUpperCase();
+  }
+  return undefined;
+}
+
+/**
+ * Parse a RequirementBlock into scenarios, extracting the requirement-level
+ * description (text between the requirement header and the first scenario).
+ */
+export function parseScenarios(block: RequirementBlock): RequirementBlockWithScenarios {
+  const normalized = normalizeLineEndings(block.raw);
+  const lines = normalized.split('\n');
+
+  // First line is the requirement header — skip it
+  let cursor = 1;
+  const descriptionLines: string[] = [];
+  const scenarios: ScenarioBlock[] = [];
+
+  // Collect description lines until first scenario header (skip fenced code blocks)
+  let inFence = false;
+  while (cursor < lines.length) {
+    if (lines[cursor].startsWith('```')) {
+      inFence = !inFence;
+    }
+    if (!inFence && SCENARIO_HEADER_REGEX.test(lines[cursor])) {
+      break;
+    }
+    descriptionLines.push(lines[cursor]);
+    cursor++;
+  }
+
+  // Parse scenario blocks
+  while (cursor < lines.length) {
+    const headerLine = lines[cursor];
+    const headerMatch = headerLine.match(SCENARIO_HEADER_REGEX);
+    if (!headerMatch) {
+      cursor++;
+      continue;
+    }
+
+    const rawName = headerMatch[1].trim();
+    const name = normalizeScenarioName(rawName);
+    const tag = extractScenarioTag(rawName);
+    const buf: string[] = [headerLine];
+    cursor++;
+
+    // Gather body lines until next scenario header or end
+    let inFenceBody = false;
+    while (cursor < lines.length) {
+      if (lines[cursor].startsWith('```')) {
+        inFenceBody = !inFenceBody;
+      }
+      if (!inFenceBody && SCENARIO_HEADER_REGEX.test(lines[cursor])) {
+        break;
+      }
+      buf.push(lines[cursor]);
+      cursor++;
+    }
+
+    scenarios.push({
+      headerLine,
+      name,
+      tag,
+      raw: buf.join('\n').trimEnd(),
+    });
+  }
+
+  return {
+    ...block,
+    description: descriptionLines.join('\n').trimEnd(),
+    scenarios,
+  };
 }

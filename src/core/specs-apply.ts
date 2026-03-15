@@ -12,7 +12,11 @@ import {
   extractRequirementsSection,
   parseDeltaSpec,
   normalizeRequirementName,
+  normalizeScenarioName,
+  parseScenarios,
   type RequirementBlock,
+  type ScenarioBlock,
+  type RequirementBlockWithScenarios,
 } from './parsers/requirement-blocks.js';
 import { Validator } from './validation/validator.js';
 
@@ -44,6 +48,108 @@ export interface SpecsApplyOutput {
     renamed: number;
   };
   noChanges: boolean;
+}
+
+// -----------------------------------------------------------------------------
+// Scenario-level merge helpers
+// -----------------------------------------------------------------------------
+
+/**
+ * Check if any scenario in a parsed requirement block has (MODIFIED) or (REMOVED) tags.
+ * If none have tags, the MODIFIED handler should use legacy full-block replacement.
+ */
+function hasScenarioTags(block: RequirementBlockWithScenarios): boolean {
+  return block.scenarios.some(s => s.tag !== undefined);
+}
+
+/**
+ * Merge scenarios from a delta into a main requirement block at the scenario level.
+ *
+ * Logic:
+ * - Scenarios tagged (MODIFIED): replace matching main scenario (by normalized name)
+ * - Scenarios tagged (REMOVED): remove matching main scenario
+ * - Scenarios with no tag that exist in main: replace (implicit update)
+ * - Scenarios with no tag that don't exist in main: append as new
+ * - Main scenarios not referenced by delta: preserved unchanged
+ */
+function mergeScenarios(
+  main: RequirementBlockWithScenarios,
+  delta: RequirementBlockWithScenarios
+): ScenarioBlock[] {
+  // Build a map of delta scenarios by normalized name for quick lookup
+  const deltaByName = new Map<string, ScenarioBlock>();
+  for (const s of delta.scenarios) {
+    deltaByName.set(normalizeScenarioName(s.name), s);
+  }
+
+  // Track which delta scenarios were used (to find new ones to append)
+  const usedDeltaNames = new Set<string>();
+
+  // Names of scenarios marked for removal
+  const removedNames = new Set<string>();
+  for (const s of delta.scenarios) {
+    if (s.tag === 'REMOVED') {
+      removedNames.add(normalizeScenarioName(s.name));
+    }
+  }
+
+  // Process main scenarios: keep, replace, or remove
+  const result: ScenarioBlock[] = [];
+  for (const mainScenario of main.scenarios) {
+    const mainName = normalizeScenarioName(mainScenario.name);
+
+    // Check if this scenario is marked for removal
+    if (removedNames.has(mainName)) {
+      usedDeltaNames.add(mainName);
+      continue; // Skip (remove)
+    }
+
+    // Check if delta has a replacement for this scenario
+    const deltaScenario = deltaByName.get(mainName);
+    if (deltaScenario && deltaScenario.tag !== 'REMOVED') {
+      result.push(deltaScenario);
+      usedDeltaNames.add(mainName);
+    } else {
+      // Keep main scenario unchanged
+      result.push(mainScenario);
+    }
+  }
+
+  // Append new scenarios from delta (not in main, not used, not REMOVED)
+  for (const s of delta.scenarios) {
+    const name = normalizeScenarioName(s.name);
+    if (!usedDeltaNames.has(name) && s.tag !== 'REMOVED') {
+      result.push(s);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Reconstruct a RequirementBlock from its description and merged scenarios.
+ */
+function reconstructRequirementBlock(
+  description: string,
+  scenarios: ScenarioBlock[],
+  headerLine: string
+): RequirementBlock {
+  const parts: string[] = [headerLine];
+
+  if (description.trim()) {
+    parts.push(description);
+  }
+
+  for (const s of scenarios) {
+    parts.push('');  // blank line separator before each scenario
+    parts.push(s.raw);
+  }
+
+  const raw = parts.join('\n').trimEnd();
+  const nameMatch = headerLine.match(/^###\s*Requirement:\s*(.+)\s*$/);
+  const name = nameMatch ? nameMatch[1].trim() : '';
+
+  return { headerLine, name, raw };
 }
 
 // -----------------------------------------------------------------------------
@@ -269,7 +375,7 @@ export async function buildUpdatedSpec(
     nameToBlock.delete(key);
   }
 
-  // MODIFIED
+  // MODIFIED (scenario-level merge when tags are present, full-block otherwise)
   for (const mod of plan.modified) {
     const key = normalizeRequirementName(mod.name);
     if (!nameToBlock.has(key)) {
@@ -282,7 +388,37 @@ export async function buildUpdatedSpec(
         `${specName} MODIFIED failed for header "### Requirement: ${mod.name}" - header mismatch in content`
       );
     }
-    nameToBlock.set(key, mod);
+
+    const mainBlock = nameToBlock.get(key)!;
+    const deltaParsed = parseScenarios(mod);
+
+    // Check if delta uses scenario-level tags
+    if (hasScenarioTags(deltaParsed)) {
+      // Scenario-level merge
+      const mainParsed = parseScenarios(mainBlock);
+      const merged = mergeScenarios(mainParsed, deltaParsed);
+
+      // Scenario count warning (when no REMOVED tags are used)
+      const hasRemovedTags = deltaParsed.scenarios.some(s => s.tag === 'REMOVED');
+      if (!hasRemovedTags && merged.length < mainParsed.scenarios.length) {
+        console.log(
+          chalk.yellow(
+            `⚠️  Warning: ${specName} requirement '${mod.name}': scenario count changed from ${mainParsed.scenarios.length} to ${merged.length}`
+          )
+        );
+      }
+
+      // Use delta description if provided, otherwise keep main
+      const description = deltaParsed.description.trim()
+        ? deltaParsed.description
+        : mainParsed.description;
+
+      const rebuilt = reconstructRequirementBlock(description, merged, mainBlock.headerLine);
+      nameToBlock.set(key, rebuilt);
+    } else {
+      // Legacy: full-block replacement (no scenario tags → backward compat)
+      nameToBlock.set(key, mod);
+    }
   }
 
   // ADDED

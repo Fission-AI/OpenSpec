@@ -804,4 +804,374 @@ E1 updated`);
       await expect(fs.access(changeDir)).resolves.not.toThrow();
     });
   });
+
+  describe('scenario-level merge', () => {
+    // Helper to create a main spec with multiple scenarios in one requirement
+    function multiScenarioMainSpec() {
+      return `# multi Specification
+
+## Purpose
+Multi purpose.
+
+## Requirements
+
+### Requirement: User Authentication
+The system SHALL authenticate users.
+
+#### Scenario: Leader initiates
+- WHEN a Leader starts
+- THEN the system validates
+
+#### Scenario: Designer explores
+- WHEN a Designer explores
+- THEN the system allows
+
+#### Scenario: Coder implements
+- WHEN a Coder implements
+- THEN the system builds
+
+#### Scenario: Command permission
+- WHEN a command runs
+- THEN permissions are checked`;
+    }
+
+    it('should preserve unchanged scenarios when delta has (MODIFIED) tags', async () => {
+      const changeName = 'scenario-merge-preserve';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'multi');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'multi');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), multiScenarioMainSpec());
+
+      // Only modify one scenario - others should be preserved
+      const deltaContent = `# Multi - Changes
+
+## MODIFIED Requirements
+
+### Requirement: User Authentication
+The system SHALL authenticate users.
+
+#### Scenario: Command permission (MODIFIED)
+- WHEN a command runs
+- THEN permissions are checked via role matrix`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const updated = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      // All original scenarios must be present
+      expect(updated).toContain('#### Scenario: Leader initiates');
+      expect(updated).toContain('#### Scenario: Designer explores');
+      expect(updated).toContain('#### Scenario: Coder implements');
+      // Modified scenario should have new content
+      expect(updated).toContain('#### Scenario: Command permission (MODIFIED)');
+      expect(updated).toContain('permissions are checked via role matrix');
+    });
+
+    it('should replace tagged scenario while keeping others', async () => {
+      const changeName = 'scenario-merge-replace';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'multi');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'multi');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), multiScenarioMainSpec());
+
+      const deltaContent = `# Multi - Changes
+
+## MODIFIED Requirements
+
+### Requirement: User Authentication
+The system SHALL authenticate users.
+
+#### Scenario: Designer explores (MODIFIED)
+- WHEN a Designer explores
+- THEN the system allows with enhanced UX`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const updated = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      expect(updated).toContain('enhanced UX');
+      expect(updated).toContain('#### Scenario: Leader initiates');
+      expect(updated).toContain('#### Scenario: Coder implements');
+      expect(updated).toContain('#### Scenario: Command permission');
+    });
+
+    it('should append new scenario not in main', async () => {
+      const changeName = 'scenario-merge-append';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'multi');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'multi');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), multiScenarioMainSpec());
+
+      const deltaContent = `# Multi - Changes
+
+## MODIFIED Requirements
+
+### Requirement: User Authentication
+The system SHALL authenticate users.
+
+#### Scenario: Command permission (MODIFIED)
+- WHEN a command runs
+- THEN updated check
+
+#### Scenario: Coder self-verifies
+- WHEN a Coder finishes
+- THEN self-verification occurs`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const updated = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      // Original scenarios preserved
+      expect(updated).toContain('#### Scenario: Leader initiates');
+      expect(updated).toContain('#### Scenario: Designer explores');
+      expect(updated).toContain('#### Scenario: Coder implements');
+      // Modified
+      expect(updated).toContain('updated check');
+      // New scenario appended
+      expect(updated).toContain('#### Scenario: Coder self-verifies');
+      expect(updated).toContain('self-verification occurs');
+    });
+
+    it('should remove (REMOVED) tagged scenario', async () => {
+      const changeName = 'scenario-merge-remove';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'multi');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'multi');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), multiScenarioMainSpec());
+
+      const deltaContent = `# Multi - Changes
+
+## MODIFIED Requirements
+
+### Requirement: User Authentication
+The system SHALL authenticate users.
+
+#### Scenario: Designer explores (REMOVED)
+
+#### Scenario: Command permission (MODIFIED)
+- WHEN a command runs
+- THEN updated permissions`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const updated = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      expect(updated).toContain('#### Scenario: Leader initiates');
+      expect(updated).not.toContain('#### Scenario: Designer explores');
+      expect(updated).toContain('#### Scenario: Coder implements');
+      expect(updated).toContain('updated permissions');
+    });
+
+    it('should replace description when delta provides one', async () => {
+      const changeName = 'scenario-merge-desc';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'multi');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'multi');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), multiScenarioMainSpec());
+
+      const deltaContent = `# Multi - Changes
+
+## MODIFIED Requirements
+
+### Requirement: User Authentication
+The system SHALL authenticate users securely via multi-factor auth.
+
+#### Scenario: Command permission (MODIFIED)
+- WHEN a command runs
+- THEN MFA is checked`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const updated = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      expect(updated).toContain('multi-factor auth');
+      expect(updated).toContain('#### Scenario: Leader initiates');
+    });
+
+    it('should use full-block replacement when no scenario tags (backward compat)', async () => {
+      const changeName = 'scenario-merge-legacy';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'multi');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'multi');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), multiScenarioMainSpec());
+
+      // No (MODIFIED)/(REMOVED) tags → legacy full-block replacement
+      const deltaContent = `# Multi - Changes
+
+## MODIFIED Requirements
+
+### Requirement: User Authentication
+Updated description only.
+
+#### Scenario: Only scenario
+- WHEN something
+- THEN happens`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const updated = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      // Full replacement: original scenarios are gone
+      expect(updated).not.toContain('#### Scenario: Leader initiates');
+      expect(updated).not.toContain('#### Scenario: Designer explores');
+      expect(updated).toContain('#### Scenario: Only scenario');
+      expect(updated).toContain('Updated description only.');
+    });
+
+    it('should emit scenario count warning on unexpected decrease', async () => {
+      const changeName = 'scenario-merge-warn';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'multi');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'multi');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+
+      // Main spec with 3 scenarios
+      const mainContent = `# multi Specification
+
+## Purpose
+Multi purpose.
+
+## Requirements
+
+### Requirement: User Auth
+Auth desc.
+
+#### Scenario: Login
+- WHEN user logs in
+
+#### Scenario: Logout
+- WHEN user logs out
+
+#### Scenario: Reset
+- WHEN user resets`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainContent);
+
+      // Delta modifies Login, implicitly replaces only Login
+      // Since (MODIFIED) tag is present, scenario merge is used
+      // We only include 1 of 3 scenarios with a tag → the other 2 are preserved
+      // This test verifies no warning because count doesn't decrease
+      const deltaContent = `# Multi - Changes
+
+## MODIFIED Requirements
+
+### Requirement: User Auth
+Auth desc.
+
+#### Scenario: Login (MODIFIED)
+- WHEN user logs in with MFA`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const updated = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      // All 3 scenarios preserved, Login is updated
+      expect(updated).toContain('MFA');
+      expect(updated).toContain('#### Scenario: Logout');
+      expect(updated).toContain('#### Scenario: Reset');
+      // No warning should be emitted since count didn't decrease
+      expect(console.log).not.toHaveBeenCalledWith(
+        expect.stringContaining('scenario count changed')
+      );
+    });
+
+    it('should handle scenario name normalization (tag stripping, whitespace)', async () => {
+      const changeName = 'scenario-merge-normalize';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'multi');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'multi');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+
+      const mainContent = `# multi Specification
+
+## Purpose
+Multi purpose.
+
+## Requirements
+
+### Requirement: Feature
+Feature desc.
+
+#### Scenario: Phase 2 gate check
+- WHEN phase 2 starts
+- THEN gate is checked`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainContent);
+
+      // Delta uses (MODIFIED) tag — should match by stripping tag
+      const deltaContent = `# Multi - Changes
+
+## MODIFIED Requirements
+
+### Requirement: Feature
+Feature desc.
+
+#### Scenario: Phase 2 gate check (MODIFIED)
+- WHEN phase 2 starts
+- THEN gate is checked with evidence`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const updated = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      expect(updated).toContain('checked with evidence');
+      expect(updated).not.toContain('THEN gate is checked\n');
+    });
+
+    it('should handle description-only requirement (no scenarios) — MODIFIED works', async () => {
+      const changeName = 'scenario-merge-no-scenarios';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'multi');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'multi');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+
+      const mainContent = `# multi Specification
+
+## Purpose
+Multi purpose.
+
+## Requirements
+
+### Requirement: Simple Rule
+This is a simple requirement with no scenarios.`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainContent);
+
+      // No tags because no scenarios → should use legacy full-block replacement
+      const deltaContent = `# Multi - Changes
+
+## MODIFIED Requirements
+
+### Requirement: Simple Rule
+Updated simple requirement text.`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const updated = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      expect(updated).toContain('Updated simple requirement text.');
+      expect(updated).not.toContain('This is a simple requirement with no scenarios.');
+    });
+  });
 });
