@@ -63,6 +63,25 @@ function hasScenarioTags(block: RequirementBlockWithScenarios): boolean {
 }
 
 /**
+ * Strip delta-specific tags (MODIFIED, REMOVED) from a scenario block.
+ * Returns a clean ScenarioBlock suitable for writing to the main spec.
+ */
+function stripScenarioTag(scenario: ScenarioBlock): ScenarioBlock {
+  if (!scenario.tag) return scenario;
+  const cleanHeader = scenario.headerLine.replace(
+    /\s*\((MODIFIED|REMOVED)\)\s*$/i, ''
+  );
+  const rawLines = scenario.raw.split('\n');
+  rawLines[0] = cleanHeader;
+  return {
+    ...scenario,
+    headerLine: cleanHeader,
+    raw: rawLines.join('\n'),
+    tag: undefined,
+  };
+}
+
+/**
  * Merge scenarios from a delta into a main requirement block at the scenario level.
  *
  * Logic:
@@ -107,7 +126,7 @@ function mergeScenarios(
     // Check if delta has a replacement for this scenario
     const deltaScenario = deltaByName.get(mainName);
     if (deltaScenario && deltaScenario.tag !== 'REMOVED') {
-      result.push(deltaScenario);
+      result.push(stripScenarioTag(deltaScenario));
       usedDeltaNames.add(mainName);
     } else {
       // Keep main scenario unchanged
@@ -119,7 +138,7 @@ function mergeScenarios(
   for (const s of delta.scenarios) {
     const name = normalizeScenarioName(s.name);
     if (!usedDeltaNames.has(name) && s.tag !== 'REMOVED') {
-      result.push(s);
+      result.push(stripScenarioTag(s));
     }
   }
 

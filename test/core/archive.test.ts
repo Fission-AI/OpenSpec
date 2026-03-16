@@ -865,8 +865,9 @@ The system SHALL authenticate users.
       expect(updated).toContain('#### Scenario: Leader initiates');
       expect(updated).toContain('#### Scenario: Designer explores');
       expect(updated).toContain('#### Scenario: Coder implements');
-      // Modified scenario should have new content
-      expect(updated).toContain('#### Scenario: Command permission (MODIFIED)');
+      // Modified scenario should have new content with tag stripped
+      expect(updated).toContain('#### Scenario: Command permission');
+      expect(updated).not.toContain('(MODIFIED)');
       expect(updated).toContain('permissions are checked via role matrix');
     });
 
@@ -1036,7 +1037,7 @@ Updated description only.
       expect(updated).toContain('Updated description only.');
     });
 
-    it('should emit scenario count warning on unexpected decrease', async () => {
+    it('should not emit warning when scenario count is preserved via (MODIFIED) tags', async () => {
       const changeName = 'scenario-merge-warn';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
       const changeSpecDir = path.join(changeDir, 'specs', 'multi');
@@ -1135,7 +1136,7 @@ Feature desc.
 
       const updated = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
       expect(updated).toContain('checked with evidence');
-      expect(updated).not.toContain('THEN gate is checked\n');
+      expect(updated).not.toMatch(/THEN gate is checked(?!\s+with evidence)/);
     });
 
     it('should handle description-only requirement (no scenarios) — MODIFIED works', async () => {
@@ -1172,6 +1173,69 @@ Updated simple requirement text.`;
       const updated = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
       expect(updated).toContain('Updated simple requirement text.');
       expect(updated).not.toContain('This is a simple requirement with no scenarios.');
+    });
+
+    it('should suppress warning when REMOVED tags explain scenario decrease', async () => {
+      const changeName = 'scenario-merge-warn-decrease';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'multi');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'multi');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+
+      // Main spec with 3 scenarios
+      const mainContent = `# multi Specification
+
+## Purpose
+Multi purpose.
+
+## Requirements
+
+### Requirement: User Auth
+Auth desc.
+
+#### Scenario: Login
+- WHEN user logs in
+
+#### Scenario: Logout
+- WHEN user logs out
+
+#### Scenario: Reset
+- WHEN user resets`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainContent);
+
+      // Delta: modify Login, remove Logout — count decreases from 3 to 2
+      // but REMOVED tag explains the decrease, so no warning should fire.
+      // (The warning at specs-apply.ts L420-428 only fires when count drops
+      // WITHOUT REMOVED tags — a defensive safety net for merge logic bugs.)
+      const deltaContent = `# Multi - Changes
+
+## MODIFIED Requirements
+
+### Requirement: User Auth
+Auth desc.
+
+#### Scenario: Login (MODIFIED)
+- WHEN user logs in with MFA
+
+#### Scenario: Logout (REMOVED)`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const updated = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      // Login updated, Logout removed, Reset preserved
+      expect(updated).toContain('MFA');
+      expect(updated).not.toContain('#### Scenario: Logout');
+      expect(updated).toContain('#### Scenario: Reset');
+      // Tags should be stripped from output
+      expect(updated).not.toContain('(MODIFIED)');
+      expect(updated).not.toContain('(REMOVED)');
+      // No warning because REMOVED tags explain the decrease
+      expect(console.log).not.toHaveBeenCalledWith(
+        expect.stringContaining('scenario count changed')
+      );
     });
   });
 });

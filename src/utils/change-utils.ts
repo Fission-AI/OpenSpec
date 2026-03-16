@@ -3,7 +3,7 @@ import { FileSystemUtils } from "./file-system.js";
 import { writeChangeMetadata, validateSchemaName } from "./change-metadata.js";
 import { readProjectConfig } from "../core/project-config.js";
 
-const DEFAULT_SCHEMA = "opti-spec-driven";
+const DEFAULT_SCHEMA = "spec-driven";
 
 /**
  * Options for creating a change.
