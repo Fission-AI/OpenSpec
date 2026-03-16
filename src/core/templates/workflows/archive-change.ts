@@ -66,6 +66,9 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
 
    If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
 
+   **Front matter consistency (after sync):**
+   Ensure newly synced specs follow existing front matter conventions. See sync-specs step 3e for full logic (monorepo detection, opt-out via \`monorepoAppLabel: false\` in \`openspec/config.yaml\`).
+
 5. **Perform the archive**
 
    Create the archive directory if it doesn't exist:
@@ -180,6 +183,9 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
    - If already synced: "Archive now", "Sync anyway", "Cancel"
 
    If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
+
+   **Front matter consistency (after sync):**
+   Ensure newly synced specs follow existing front matter conventions. See sync-specs step 3e for full logic (monorepo detection, opt-out via \`monorepoAppLabel: false\` in \`openspec/config.yaml\`).
 
 5. **Perform the archive**
 

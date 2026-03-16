@@ -71,6 +71,17 @@ This is an **agent-driven** operation - you will read delta specs and directly e
       - Add Purpose section (can be brief, mark as TBD)
       - Add Requirements section with the ADDED requirements
 
+   e. **Ensure front matter consistency** on newly synced specs (common in monorepos where specs need to indicate which app/package they belong to):
+      - If \`openspec/config.yaml\` contains \`monorepoAppLabel: false\` → skip
+      - Sample existing main specs in \`openspec/specs/\` for YAML front matter convention
+      - If existing specs use front matter → apply same pattern to newly created/updated specs
+      - If no existing specs have front matter AND project is single-app → skip
+      - If no existing specs have front matter AND project is a monorepo (multiple apps/packages detected):
+
+        **Prompt options:**
+        - "Establish front matter convention (recommended)" — suggest \`app: <name>\` based on project structure, apply to newly synced specs
+        - "Skip and don't ask again" — add \`monorepoAppLabel: false\` to \`openspec/config.yaml\`
+
 4. **Show summary**
 
    After applying all changes, summarize:
@@ -209,6 +220,17 @@ This is an **agent-driven** operation - you will read delta specs and directly e
       - Create \`openspec/specs/<capability>/spec.md\`
       - Add Purpose section (can be brief, mark as TBD)
       - Add Requirements section with the ADDED requirements
+
+   e. **Ensure front matter consistency** on newly synced specs (common in monorepos where specs need to indicate which app/package they belong to):
+      - If \`openspec/config.yaml\` contains \`monorepoAppLabel: false\` → skip
+      - Sample existing main specs in \`openspec/specs/\` for YAML front matter convention
+      - If existing specs use front matter → apply same pattern to newly created/updated specs
+      - If no existing specs have front matter AND project is single-app → skip
+      - If no existing specs have front matter AND project is a monorepo (multiple apps/packages detected):
+
+        **Prompt options:**
+        - "Establish front matter convention (recommended)" — suggest \`app: <name>\` based on project structure, apply to newly synced specs
+        - "Skip and don't ask again" — add \`monorepoAppLabel: false\` to \`openspec/config.yaml\`
 
 4. **Show summary**
 
