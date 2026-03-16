@@ -1,0 +1,63 @@
+name: quick-task
+version: 1
+description: Lightweight workflow for simple tasks - proposal → tasks (skip specs and design)
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Brief proposal outlining the change
+    template: proposal.md
+    instruction: |
+      Create a brief proposal document for this change.
+
+      Sections:
+      - **Why**: 1-2 sentences on the problem or opportunity. What problem does this solve? Why now?
+      - **What Changes**: Bullet list of changes. Be specific about what will be added, modified, or removed.
+      - **Impact**: Affected code, APIs, dependencies, or systems.
+
+      This is a lightweight schema for simple tasks. Keep it concise -
+      a few paragraphs at most. No need for capabilities or spec mappings.
+
+      If the change turns out to be more complex than expected, consider
+      switching to the spec-driven schema instead.
+    requires: []
+
+  - id: tasks
+    generates: tasks.md
+    description: Implementation checklist with trackable tasks
+    template: tasks.md
+    instruction: |
+      Create the task list that breaks down the implementation work.
+
+      **IMPORTANT: Follow the template below exactly.** The apply phase parses
+      checkbox format to track progress. Tasks not using `- [ ]` won't be tracked.
+
+      Guidelines:
+      - Group related tasks under ## numbered headings
+      - Each task MUST be a checkbox: `- [ ] X.Y Task description`
+      - Tasks should be small enough to complete in one session
+      - Order tasks by dependency (what must be done first?)
+
+      Example:
+      ```
+      ## 1. Setup
+
+      - [ ] 1.1 Create new module structure
+      - [ ] 1.2 Add dependencies to package.json
+
+      ## 2. Core Implementation
+
+      - [ ] 2.1 Implement the main function
+      - [ ] 2.2 Add error handling
+      ```
+
+      Reference the proposal for what needs to be built.
+      Each task should be verifiable - you know when it's done.
+    requires:
+      - proposal
+
+apply:
+  requires: [tasks]
+  tracks: tasks.md
+  instruction: |
+    Read the proposal for context, work through pending tasks, mark complete as you go.
+    Pause if you hit blockers or need clarification.
