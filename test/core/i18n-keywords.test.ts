@@ -128,5 +128,18 @@ describe('i18n keywords', () => {
     it('should fall back to English for undefined', () => {
       expect(resolveKeywords(undefined)).toEqual(NORMATIVE_KEYWORDS[DEFAULT_LANGUAGE]);
     });
+
+    it('should normalize uppercase language codes', () => {
+      expect(resolveKeywords('ES')).toEqual(['DEBE', 'DEBERA', 'DEBERÁ']);
+      expect(resolveKeywords('EN')).toEqual(['MUST', 'SHALL']);
+    });
+
+    it('should normalize whitespace in language codes', () => {
+      expect(resolveKeywords(' es ')).toEqual(['DEBE', 'DEBERA', 'DEBERÁ']);
+    });
+
+    it('should fall back to English for whitespace-only language', () => {
+      expect(resolveKeywords('   ')).toEqual(NORMATIVE_KEYWORDS[DEFAULT_LANGUAGE]);
+    });
   });
 });

@@ -50,7 +50,9 @@ export function formatKeywordMessage(keywords: string[]): string {
  */
 export function resolveKeywords(language?: string): string[] {
   if (!language) return NORMATIVE_KEYWORDS[DEFAULT_LANGUAGE];
-  const keywords = NORMATIVE_KEYWORDS[language];
+  const normalized = language.trim().toLowerCase();
+  if (!normalized) return NORMATIVE_KEYWORDS[DEFAULT_LANGUAGE];
+  const keywords = NORMATIVE_KEYWORDS[normalized];
   if (keywords) return keywords;
   const available = Object.keys(NORMATIVE_KEYWORDS).join(', ');
   console.warn(`Unknown language "${language}". Available: ${available}. Falling back to "${DEFAULT_LANGUAGE}".`);
