@@ -14,7 +14,7 @@ export const DEFAULT_LANGUAGE = 'en';
 
 /**
  * Build a regex that matches any of the given keywords as whole words,
- * using Unicode-aware boundaries (\p{L}) instead of \b.
+ * using Unicode-aware boundaries (\p{L}, \p{N}, \p{Pc}, \p{Pd}) instead of \b.
  *
  * JavaScript's \b treats accented characters (e.g., Á in DEBERÁ) as
  * non-word characters, so we use negative lookbehind/lookahead for
@@ -24,7 +24,7 @@ export const DEFAULT_LANGUAGE = 'en';
  */
 export function buildKeywordRegex(keywords: string[]): RegExp {
   const escaped = keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-  const pattern = `(?<!\\p{L})(${escaped.join('|')})(?!\\p{L})`;
+  const pattern = `(?<![\\p{L}\\p{N}\\p{Pc}\\p{Pd}])(${escaped.join('|')})(?![\\p{L}\\p{N}\\p{Pc}\\p{Pd}])`;
   return new RegExp(pattern, 'u');
 }
 

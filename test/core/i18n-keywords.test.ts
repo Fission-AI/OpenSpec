@@ -60,6 +60,23 @@ describe('i18n keywords', () => {
       expect(regex.test('MUSTARD is a condiment')).toBe(false);
     });
 
+    it('should not match keyword inside hyphenated tokens', () => {
+      const regex = buildKeywordRegex(['MUST', 'SHALL']);
+      expect(regex.test('MUST-API requires auth')).toBe(false);
+      expect(regex.test('SHALL-NOT is a pattern')).toBe(false);
+    });
+
+    it('should not match keyword inside underscored tokens', () => {
+      const regex = buildKeywordRegex(['SHALL']);
+      expect(regex.test('SHALL_v2 is deprecated')).toBe(false);
+    });
+
+    it('should not match keyword adjacent to digits', () => {
+      const regex = buildKeywordRegex(['MUST']);
+      expect(regex.test('MUST2 is a variant')).toBe(false);
+      expect(regex.test('2MUST is invalid')).toBe(false);
+    });
+
     it('should match when multiple keywords exist in text', () => {
       const regex = buildKeywordRegex(['DEBE', 'DEBERÁ']);
       expect(regex.test('DEBE y DEBERÁ funcionar')).toBe(true);
