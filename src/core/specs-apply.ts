@@ -91,24 +91,44 @@ function stripScenarioTag(scenario: ScenarioBlock): ScenarioBlock {
  * - Scenarios with no tag that don't exist in main: append as new
  * - Main scenarios not referenced by delta: preserved unchanged
  */
+interface MergeResult {
+  scenarios: ScenarioBlock[];
+  matchedRemovedCount: number;
+}
+
 function mergeScenarios(
   main: RequirementBlockWithScenarios,
   delta: RequirementBlockWithScenarios
-): ScenarioBlock[] {
+): MergeResult {
   // Build a map of delta scenarios by normalized name for quick lookup
   const deltaByName = new Map<string, ScenarioBlock>();
   for (const s of delta.scenarios) {
     deltaByName.set(normalizeScenarioName(s.name), s);
   }
 
+  // Build a set of main scenario names for REMOVED matching
+  const mainByName = new Set<string>();
+  for (const s of main.scenarios) {
+    mainByName.add(normalizeScenarioName(s.name));
+  }
+
   // Track which delta scenarios were used (to find new ones to append)
   const usedDeltaNames = new Set<string>();
 
-  // Names of scenarios marked for removal
+  // Names of scenarios marked for removal, with unmatched tracking
   const removedNames = new Set<string>();
+  let matchedRemovedCount = 0;
   for (const s of delta.scenarios) {
     if (s.tag === 'REMOVED') {
-      removedNames.add(normalizeScenarioName(s.name));
+      const name = normalizeScenarioName(s.name);
+      if (mainByName.has(name)) {
+        matchedRemovedCount++;
+      } else {
+        console.log(chalk.yellow(
+          `⚠️  Warning: REMOVED scenario '${s.name}' not found in main — ignored`
+        ));
+      }
+      removedNames.add(name);
     }
   }
 
@@ -138,11 +158,16 @@ function mergeScenarios(
   for (const s of delta.scenarios) {
     const name = normalizeScenarioName(s.name);
     if (!usedDeltaNames.has(name) && s.tag !== 'REMOVED') {
+      if (s.tag === 'MODIFIED') {
+        console.log(chalk.yellow(
+          `⚠️  Warning: MODIFIED scenario '${s.name}' not found in main — appended as new`
+        ));
+      }
       result.push(stripScenarioTag(s));
     }
   }
 
-  return result;
+  return { scenarios: result, matchedRemovedCount };
 }
 
 /**
@@ -415,14 +440,16 @@ export async function buildUpdatedSpec(
     if (hasScenarioTags(deltaParsed)) {
       // Scenario-level merge
       const mainParsed = parseScenarios(mainBlock);
-      const merged = mergeScenarios(mainParsed, deltaParsed);
+      const mergeResult = mergeScenarios(mainParsed, deltaParsed);
 
-      // Scenario count warning (when no REMOVED tags are used)
-      const hasRemovedTags = deltaParsed.scenarios.some(s => s.tag === 'REMOVED');
-      if (!hasRemovedTags && merged.length < mainParsed.scenarios.length) {
+      // Precision warning: use matchedRemovedCount instead of raw REMOVED tag count
+      const expectedMinCount = mainParsed.scenarios.length - mergeResult.matchedRemovedCount;
+      if (mergeResult.scenarios.length < expectedMinCount) {
         console.log(
           chalk.yellow(
-            `⚠️  Warning: ${specName} requirement '${mod.name}': scenario count changed from ${mainParsed.scenarios.length} to ${merged.length}`
+            `⚠️  Warning: ${specName} requirement '${mod.name}': scenario count ` +
+            `${mergeResult.scenarios.length} is less than expected ${expectedMinCount} ` +
+            `(${mainParsed.scenarios.length} main - ${mergeResult.matchedRemovedCount} removed)`
           )
         );
       }
@@ -432,7 +459,7 @@ export async function buildUpdatedSpec(
         ? deltaParsed.description
         : mainParsed.description;
 
-      const rebuilt = reconstructRequirementBlock(description, merged, mainBlock.headerLine);
+      const rebuilt = reconstructRequirementBlock(description, mergeResult.scenarios, mainBlock.headerLine);
       nameToBlock.set(key, rebuilt);
     } else {
       // Legacy: full-block replacement (no scenario tags → backward compat)

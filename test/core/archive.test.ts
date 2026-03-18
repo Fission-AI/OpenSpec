@@ -1232,9 +1232,255 @@ Auth desc.
       // Tags should be stripped from output
       expect(updated).not.toContain('(MODIFIED)');
       expect(updated).not.toContain('(REMOVED)');
-      // No warning because REMOVED tags explain the decrease
+      // No warning because matched REMOVED tags fully explain the decrease
       expect(console.log).not.toHaveBeenCalledWith(
-        expect.stringContaining('scenario count changed')
+        expect.stringContaining('scenario count')
+      );
+      // No unmatched warning either — Logout exists in main
+      expect(console.log).not.toHaveBeenCalledWith(
+        expect.stringContaining('not found in main')
+      );
+    });
+
+    it('should warn when MODIFIED scenario does not match any main scenario', async () => {
+      const changeName = 'scenario-merge-unmatched-modified';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'multi');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'multi');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+
+      const mainContent = `# multi Specification
+
+## Purpose
+Multi purpose.
+
+## Requirements
+
+### Requirement: User Auth
+Auth desc.
+
+#### Scenario: Login
+- WHEN user logs in
+
+#### Scenario: Logout
+- WHEN user logs out`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainContent);
+
+      // Typo: "Loginn" instead of "Login"
+      const deltaContent = `# Multi - Changes
+
+## MODIFIED Requirements
+
+### Requirement: User Auth
+Auth desc.
+
+#### Scenario: Loginn (MODIFIED)
+- WHEN user logs in with MFA`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const updated = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      // Unmatched MODIFIED is appended as new (non-breaking)
+      expect(updated).toContain('#### Scenario: Loginn');
+      expect(updated).toContain('MFA');
+      // Original Login preserved (no replacement happened)
+      expect(updated).toContain('#### Scenario: Login');
+      // Warning emitted
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining("MODIFIED scenario 'Loginn' not found in main")
+      );
+    });
+
+    it('should warn when REMOVED scenario does not match any main scenario', async () => {
+      const changeName = 'scenario-merge-unmatched-removed';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'multi');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'multi');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+
+      const mainContent = `# multi Specification
+
+## Purpose
+Multi purpose.
+
+## Requirements
+
+### Requirement: User Auth
+Auth desc.
+
+#### Scenario: Login
+- WHEN user logs in
+
+#### Scenario: Logout
+- WHEN user logs out`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainContent);
+
+      // Typo: "Loguot" instead of "Logout"
+      const deltaContent = `# Multi - Changes
+
+## MODIFIED Requirements
+
+### Requirement: User Auth
+Auth desc.
+
+#### Scenario: Loguot (REMOVED)`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const updated = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      // Original Logout preserved (typo didn't remove it)
+      expect(updated).toContain('#### Scenario: Logout');
+      // Unmatched REMOVED is ignored
+      expect(updated).not.toContain('#### Scenario: Loguot');
+      // Warning emitted
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining("REMOVED scenario 'Loguot' not found in main")
+      );
+    });
+
+    it('should warn when REMOVED tags do not fully explain scenario decrease', async () => {
+      const changeName = 'scenario-merge-partial-removed';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'multi');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'multi');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+
+      // Main spec with 4 scenarios — TWO have the same name "Login" (duplicate)
+      // This is the edge case: a single REMOVED removes both duplicates,
+      // but matchedRemovedCount only increments once → gap triggers warning
+      const mainContent = `# multi Specification
+
+## Purpose
+Multi purpose.
+
+## Requirements
+
+### Requirement: User Auth
+Auth desc.
+
+#### Scenario: Login
+- WHEN user logs in
+
+#### Scenario: Login
+- WHEN user logs in again (duplicate)
+
+#### Scenario: Logout
+- WHEN user logs out
+
+#### Scenario: Reset
+- WHEN user resets`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainContent);
+
+      // Delta: REMOVED Login (1 matched REMOVED, but removes both duplicate "Login" entries)
+      // matchedRemovedCount = 1, but 2 scenarios are actually removed
+      // Expected: 4 - 1 = 3. Result: Logout + Reset = 2. 2 < 3 → ⚠️ WARNING FIRES
+      const deltaContent = `# Multi - Changes
+
+## MODIFIED Requirements
+
+### Requirement: User Auth
+Auth desc.
+
+#### Scenario: Login (REMOVED)
+
+#### Scenario: Logout (MODIFIED)
+- WHEN user logs out securely`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const updated = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      // Both Login duplicates removed, Logout updated, Reset preserved
+      expect(updated).not.toContain('#### Scenario: Login');
+      expect(updated).toContain('logs out securely');
+      expect(updated).toContain('#### Scenario: Reset');
+      // WARNING: scenario count 2 < expected 3 (4 main - 1 matched removed)
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('scenario count')
+      );
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('is less than expected')
+      );
+    });
+
+    it('should warn when unmatched REMOVED typo does not suppress warning', async () => {
+      const changeName = 'scenario-merge-removed-typo-warn';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'multi');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'multi');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+
+      // Main spec with 4 scenarios — "Login" appears twice (duplicate)
+      const mainContent = `# multi Specification
+
+## Purpose
+Multi purpose.
+
+## Requirements
+
+### Requirement: User Auth
+Auth desc.
+
+#### Scenario: Login
+- WHEN user logs in
+
+#### Scenario: Login
+- WHEN user logs in again (duplicate)
+
+#### Scenario: Logout
+- WHEN user logs out
+
+#### Scenario: Reset
+- WHEN user resets`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), mainContent);
+
+      // Delta: "Loginn" (typo REMOVED, unmatched) + "Login" (matched REMOVED)
+      // matchedRemovedCount = 1 (Login matches), typo adds 0
+      // Both "Login" duplicates removed → result = Logout + Reset = 2
+      // Expected = 4 - 1 = 3. 2 < 3 → ⚠️ WARNING FIRES
+      // The typo REMOVED correctly does NOT inflate matchedRemovedCount
+      const deltaContent = `# Multi - Changes
+
+## MODIFIED Requirements
+
+### Requirement: User Auth
+Auth desc.
+
+#### Scenario: Login (REMOVED)
+
+#### Scenario: Loginn (REMOVED)
+
+#### Scenario: Logout (MODIFIED)
+- WHEN user logs out securely`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const updated = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      // Both Login duplicates removed, Logout updated, Reset preserved
+      expect(updated).not.toContain('#### Scenario: Login');
+      expect(updated).toContain('logs out securely');
+      expect(updated).toContain('#### Scenario: Reset');
+      // Typo REMOVED emits unmatched warning
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining("REMOVED scenario 'Loginn' not found in main")
+      );
+      // Precision warning fires: 2 < expected 3 (typo didn't suppress it)
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('scenario count')
+      );
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('is less than expected')
       );
     });
   });
