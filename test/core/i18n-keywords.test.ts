@@ -60,6 +60,23 @@ describe('i18n keywords', () => {
       expect(regex.test('MUSTARD is a condiment')).toBe(false);
     });
 
+    it('should not match keyword inside hyphenated tokens', () => {
+      const regex = buildKeywordRegex(['MUST', 'SHALL']);
+      expect(regex.test('MUST-API requires auth')).toBe(false);
+      expect(regex.test('SHALL-NOT is a pattern')).toBe(false);
+    });
+
+    it('should not match keyword inside underscored tokens', () => {
+      const regex = buildKeywordRegex(['SHALL']);
+      expect(regex.test('SHALL_v2 is deprecated')).toBe(false);
+    });
+
+    it('should not match keyword adjacent to digits', () => {
+      const regex = buildKeywordRegex(['MUST']);
+      expect(regex.test('MUST2 is a variant')).toBe(false);
+      expect(regex.test('2MUST is invalid')).toBe(false);
+    });
+
     it('should match when multiple keywords exist in text', () => {
       const regex = buildKeywordRegex(['DEBE', 'DEBERÁ']);
       expect(regex.test('DEBE y DEBERÁ funcionar')).toBe(true);
@@ -110,6 +127,19 @@ describe('i18n keywords', () => {
 
     it('should fall back to English for undefined', () => {
       expect(resolveKeywords(undefined)).toEqual(NORMATIVE_KEYWORDS[DEFAULT_LANGUAGE]);
+    });
+
+    it('should normalize uppercase language codes', () => {
+      expect(resolveKeywords('ES')).toEqual(['DEBE', 'DEBERA', 'DEBERÁ']);
+      expect(resolveKeywords('EN')).toEqual(['MUST', 'SHALL']);
+    });
+
+    it('should normalize whitespace in language codes', () => {
+      expect(resolveKeywords(' es ')).toEqual(['DEBE', 'DEBERA', 'DEBERÁ']);
+    });
+
+    it('should fall back to English for whitespace-only language', () => {
+      expect(resolveKeywords('   ')).toEqual(NORMATIVE_KEYWORDS[DEFAULT_LANGUAGE]);
     });
   });
 });
