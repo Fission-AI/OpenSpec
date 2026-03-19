@@ -6,6 +6,7 @@ import { ChangeParser } from '../core/parsers/change-parser.js';
 import { Change } from '../core/schemas/index.js';
 import { isInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds } from '../utils/item-discovery.js';
+import { getChangesDir } from '../utils/change-utils.js';
 
 // Constants for better maintainability
 const ARCHIVE_DIR = 'archive';
@@ -26,7 +27,7 @@ export class ChangeCommand {
    *   Note: --requirements-only is deprecated alias for --deltas-only
    */
   async show(changeName?: string, options?: { json?: boolean; requirementsOnly?: boolean; deltasOnly?: boolean; noInteractive?: boolean }): Promise<void> {
-    const changesPath = path.join(process.cwd(), 'openspec', 'changes');
+    const changesPath = getChangesDir(process.cwd());
 
     if (!changeName) {
       const canPrompt = isInteractive(options);
@@ -95,7 +96,7 @@ export class ChangeCommand {
    * - JSON: array of { id, title, deltaCount, taskStatus }, sorted by id
    */
   async list(options?: { json?: boolean; long?: boolean }): Promise<void> {
-    const changesPath = path.join(process.cwd(), 'openspec', 'changes');
+    const changesPath = getChangesDir(process.cwd());
     
     const changes = await this.getActiveChanges(changesPath);
     
@@ -183,7 +184,7 @@ export class ChangeCommand {
   }
 
   async validate(changeName?: string, options?: { strict?: boolean; json?: boolean; noInteractive?: boolean }): Promise<void> {
-    const changesPath = path.join(process.cwd(), 'openspec', 'changes');
+    const changesPath = getChangesDir(process.cwd());
     
     if (!changeName) {
       const canPrompt = isInteractive(options);

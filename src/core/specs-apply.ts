@@ -8,6 +8,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import chalk from 'chalk';
+import { getChangesDir } from '../utils/change-utils.js';
 import {
   extractRequirementsSection,
   parseDeltaSpec,
@@ -382,7 +383,7 @@ export async function applySpecs(
     silent?: boolean;
   } = {}
 ): Promise<SpecsApplyOutput> {
-  const changeDir = path.join(projectRoot, 'openspec', 'changes', changeName);
+  const changeDir = path.join(getChangesDir(projectRoot), changeName);
   const mainSpecsDir = path.join(projectRoot, 'openspec', 'specs');
 
   // Verify change exists

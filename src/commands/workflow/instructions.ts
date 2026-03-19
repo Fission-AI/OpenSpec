@@ -20,6 +20,7 @@ import {
   type TaskItem,
   type ApplyInstructions,
 } from './shared.js';
+import { getChangesDir } from '../../utils/change-utils.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -311,7 +312,7 @@ export async function generateApplyInstructions(
 ): Promise<ApplyInstructions> {
   // loadChangeContext will auto-detect schema from metadata if not provided
   const context = loadChangeContext(projectRoot, changeName, schemaName);
-  const changeDir = path.join(projectRoot, 'openspec', 'changes', changeName);
+  const changeDir = path.join(getChangesDir(projectRoot), changeName);
 
   // Get the full schema to access the apply phase configuration
   const schema = resolveSchema(context.schemaName, projectRoot);

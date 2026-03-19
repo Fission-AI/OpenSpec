@@ -9,7 +9,7 @@ import chalk from 'chalk';
 import path from 'path';
 import * as fs from 'fs';
 import { getSchemaDir, listSchemas } from '../../core/artifact-graph/index.js';
-import { validateChangeName } from '../../utils/change-utils.js';
+import { validateChangeName, getChangesDir } from '../../utils/change-utils.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -91,7 +91,7 @@ export function getStatusIndicator(status: 'done' | 'ready' | 'blocked'): string
  * Excludes the archive directory and hidden directories.
  */
 export async function getAvailableChanges(projectRoot: string): Promise<string[]> {
-  const changesPath = path.join(projectRoot, 'openspec', 'changes');
+  const changesPath = getChangesDir(projectRoot);
   try {
     const entries = await fs.promises.readdir(changesPath, { withFileTypes: true });
     return entries

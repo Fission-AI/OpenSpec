@@ -4,6 +4,37 @@ import { writeChangeMetadata, validateSchemaName } from './change-metadata.js';
 import { readProjectConfig } from '../core/project-config.js';
 
 const DEFAULT_SCHEMA = 'spec-driven';
+const DEFAULT_CHANGES_DIR = path.join('openspec', 'changes');
+
+/**
+ * Returns the changes directory path for a project.
+ *
+ * Reads `changesDir` from `openspec/config.yaml` if set,
+ * otherwise falls back to the default `openspec/changes`.
+ *
+ * @param projectRoot - The root directory of the project
+ * @returns Absolute path to the changes directory
+ *
+ * @example
+ * // Default: returns /path/to/project/openspec/changes
+ * getChangesDir('/path/to/project')
+ *
+ * @example
+ * // With config changesDir: "user/my_module/.specs/changes"
+ * // Returns /path/to/project/user/my_module/.specs/changes
+ * getChangesDir('/path/to/project')
+ */
+export function getChangesDir(projectRoot: string): string {
+  try {
+    const config = readProjectConfig(projectRoot);
+    if (config?.changesDir) {
+      return path.join(projectRoot, config.changesDir);
+    }
+  } catch {
+    // If config read fails, use default
+  }
+  return path.join(projectRoot, DEFAULT_CHANGES_DIR);
+}
 
 /**
  * Options for creating a change.
@@ -139,7 +170,7 @@ export async function createChange(
   validateSchemaName(schemaName, projectRoot);
 
   // Build the change directory path
-  const changeDir = path.join(projectRoot, 'openspec', 'changes', name);
+  const changeDir = path.join(getChangesDir(projectRoot), name);
 
   // Check if change already exists
   if (await FileSystemUtils.directoryExists(changeDir)) {

@@ -23,6 +23,14 @@ export const ProjectConfigSchema = z.object({
     .min(1)
     .describe('The workflow schema to use (e.g., "spec-driven")'),
 
+  // Optional: custom directory for changes (relative to project root)
+  // Default: "openspec/changes"
+  changesDir: z
+    .string()
+    .min(1)
+    .optional()
+    .describe('Custom directory for changes, relative to project root (default: "openspec/changes")'),
+
   // Optional: project context (injected into all artifact instructions)
   // Max size: 50KB (enforced during parsing)
   context: z
@@ -91,6 +99,17 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
       config.schema = schemaResult.data;
     } else if (raw.schema !== undefined) {
       console.warn(`Invalid 'schema' field in config (must be non-empty string)`);
+    }
+
+    // Parse changesDir field
+    if (raw.changesDir !== undefined) {
+      const changesDirField = z.string().min(1);
+      const changesDirResult = changesDirField.safeParse(raw.changesDir);
+      if (changesDirResult.success) {
+        config.changesDir = changesDirResult.data;
+      } else {
+        console.warn(`Invalid 'changesDir' field in config (must be non-empty string)`);
+      }
     }
 
     // Parse context field with size limit
