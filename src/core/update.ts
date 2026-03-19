@@ -47,6 +47,7 @@ import {
   scanInstalledWorkflows as scanInstalledWorkflowsShared,
   migrateIfNeeded as migrateIfNeededShared,
 } from './migration.js';
+import { includesGitHubCopilot, writeCopilotCloudFiles, removeCopilotCloudFiles } from './github-copilot/cloud-agent.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
@@ -240,6 +241,25 @@ export class UpdateCommand {
           name: tool.name,
           error: error instanceof Error ? error.message : String(error)
         });
+      }
+    }
+
+    // Generate GitHub Copilot coding agent cloud files if github-copilot is being updated
+    if (includesGitHubCopilot(toolsToUpdate)) {
+      try {
+        await writeCopilotCloudFiles(resolvedProjectPath);
+      } catch {
+        // Non-fatal
+      }
+    } else if (!includesGitHubCopilot(configuredTools)) {
+      // github-copilot is not configured at all — clean up cloud agent files if they exist
+      try {
+        const removed = await removeCopilotCloudFiles(resolvedProjectPath);
+        if (removed > 0) {
+          console.log(chalk.dim(`Removed: ${removed} Copilot cloud agent file(s) (github-copilot not configured)`));
+        }
+      } catch {
+        // Non-fatal
       }
     }
 
