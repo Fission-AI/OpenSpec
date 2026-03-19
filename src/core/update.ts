@@ -47,6 +47,7 @@ import {
   scanInstalledWorkflows as scanInstalledWorkflowsShared,
   migrateIfNeeded as migrateIfNeededShared,
 } from './migration.js';
+import { includesGitHubCopilot, writeCopilotCloudFiles } from './github-copilot/cloud-agent.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
@@ -240,6 +241,15 @@ export class UpdateCommand {
           name: tool.name,
           error: error instanceof Error ? error.message : String(error)
         });
+      }
+    }
+
+    // Generate GitHub Copilot coding agent cloud files if github-copilot is being updated
+    if (includesGitHubCopilot(toolsToUpdate)) {
+      try {
+        await writeCopilotCloudFiles(resolvedProjectPath);
+      } catch {
+        // Non-fatal
       }
     }
 

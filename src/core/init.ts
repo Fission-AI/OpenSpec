@@ -45,6 +45,7 @@ import { getGlobalConfig, type Delivery, type Profile } from './global-config.js
 import { getProfileWorkflows, CORE_WORKFLOWS, ALL_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
 import { migrateIfNeeded } from './migration.js';
+import { includesGitHubCopilot, writeCopilotCloudFiles } from './github-copilot/cloud-agent.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
@@ -578,6 +579,15 @@ export class InitCommand {
       } catch (error) {
         spinner.fail(`Failed for ${tool.name}`);
         failedTools.push({ name: tool.name, error: error as Error });
+      }
+    }
+
+    // Generate GitHub Copilot coding agent cloud files if github-copilot is selected
+    if (includesGitHubCopilot(tools.map((t) => t.value))) {
+      try {
+        await writeCopilotCloudFiles(projectPath);
+      } catch {
+        // Non-fatal: don't block init if cloud agent files fail
       }
     }
 
