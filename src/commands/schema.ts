@@ -11,6 +11,7 @@ import {
   listSchemas,
 } from '../core/artifact-graph/resolver.js';
 import { parseSchema, SchemaValidationError } from '../core/artifact-graph/schema.js';
+import { isDirectoryEntrySync } from '../utils/file-system.js';
 import type { SchemaYaml, Artifact } from '../core/artifact-graph/types.js';
 
 /**
@@ -241,7 +242,7 @@ function copyDirRecursive(src: string, dest: string): void {
     const srcPath = path.join(src, entry.name);
     const destPath = path.join(dest, entry.name);
 
-    if (entry.isDirectory()) {
+    if (isDirectoryEntrySync(entry, src)) {
       copyDirRecursive(srcPath, destPath);
     } else {
       fs.copyFileSync(srcPath, destPath);
@@ -437,7 +438,7 @@ export function registerSchemaCommand(program: Command): void {
           let anyInvalid = false;
 
           for (const entry of entries) {
-            if (!entry.isDirectory()) continue;
+            if (!isDirectoryEntrySync(entry, projectSchemasDir)) continue;
 
             const schemaDir = path.join(projectSchemasDir, entry.name);
             const schemaPath = path.join(schemaDir, 'schema.yaml');

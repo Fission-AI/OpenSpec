@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
+import { readdirSync } from 'fs';
 import path from 'path';
 import os from 'os';
 import { randomUUID } from 'crypto';
-import { FileSystemUtils } from '../../src/utils/file-system.js';
+import { FileSystemUtils, isDirectoryEntrySync, isFileEntrySync } from '../../src/utils/file-system.js';
 
 describe('FileSystemUtils', () => {
   let testDir: string;
@@ -252,6 +253,98 @@ describe('FileSystemUtils', () => {
       const filePath = FileSystemUtils.joinPath(testDir, 'subdir', 'file.txt');
       const canWrite = await FileSystemUtils.canWriteFile(filePath);
       expect(canWrite).toBe(true);
+    });
+  });
+
+  describe('isDirectoryEntrySync', () => {
+    it('should return true for a real directory', async () => {
+      await fs.mkdir(path.join(testDir, 'real-dir'));
+
+      const entries = readdirSync(testDir, { withFileTypes: true });
+      const entry = entries.find(e => e.name === 'real-dir')!;
+      expect(isDirectoryEntrySync(entry, testDir)).toBe(true);
+    });
+
+    it('should return false for a file', async () => {
+      await fs.writeFile(path.join(testDir, 'file.txt'), 'content');
+
+      const entries = readdirSync(testDir, { withFileTypes: true });
+      const entry = entries.find(e => e.name === 'file.txt')!;
+      expect(isDirectoryEntrySync(entry, testDir)).toBe(false);
+    });
+
+    it.skipIf(process.platform === 'win32')('should return true for a symlink to a directory', async () => {
+      const realDir = path.join(testDir, 'real-dir');
+      await fs.mkdir(realDir);
+      await fs.symlink(realDir, path.join(testDir, 'link-dir'));
+
+      const entries = readdirSync(testDir, { withFileTypes: true });
+      const entry = entries.find(e => e.name === 'link-dir')!;
+      expect(isDirectoryEntrySync(entry, testDir)).toBe(true);
+    });
+
+    it.skipIf(process.platform === 'win32')('should return false for a symlink to a file', async () => {
+      const realFile = path.join(testDir, 'real-file.txt');
+      await fs.writeFile(realFile, 'content');
+      await fs.symlink(realFile, path.join(testDir, 'link-file'));
+
+      const entries = readdirSync(testDir, { withFileTypes: true });
+      const entry = entries.find(e => e.name === 'link-file')!;
+      expect(isDirectoryEntrySync(entry, testDir)).toBe(false);
+    });
+
+    it.skipIf(process.platform === 'win32')('should return false for a broken symlink', async () => {
+      await fs.symlink(path.join(testDir, 'nonexistent'), path.join(testDir, 'broken-link'));
+
+      const entries = readdirSync(testDir, { withFileTypes: true });
+      const entry = entries.find(e => e.name === 'broken-link')!;
+      expect(isDirectoryEntrySync(entry, testDir)).toBe(false);
+    });
+  });
+
+  describe('isFileEntrySync', () => {
+    it('should return true for a real file', async () => {
+      await fs.writeFile(path.join(testDir, 'file.txt'), 'content');
+
+      const entries = readdirSync(testDir, { withFileTypes: true });
+      const entry = entries.find(e => e.name === 'file.txt')!;
+      expect(isFileEntrySync(entry, testDir)).toBe(true);
+    });
+
+    it('should return false for a directory', async () => {
+      await fs.mkdir(path.join(testDir, 'dir'));
+
+      const entries = readdirSync(testDir, { withFileTypes: true });
+      const entry = entries.find(e => e.name === 'dir')!;
+      expect(isFileEntrySync(entry, testDir)).toBe(false);
+    });
+
+    it.skipIf(process.platform === 'win32')('should return true for a symlink to a file', async () => {
+      const realFile = path.join(testDir, 'real-file.txt');
+      await fs.writeFile(realFile, 'content');
+      await fs.symlink(realFile, path.join(testDir, 'link-file'));
+
+      const entries = readdirSync(testDir, { withFileTypes: true });
+      const entry = entries.find(e => e.name === 'link-file')!;
+      expect(isFileEntrySync(entry, testDir)).toBe(true);
+    });
+
+    it.skipIf(process.platform === 'win32')('should return false for a symlink to a directory', async () => {
+      const realDir = path.join(testDir, 'real-dir');
+      await fs.mkdir(realDir);
+      await fs.symlink(realDir, path.join(testDir, 'link-dir'));
+
+      const entries = readdirSync(testDir, { withFileTypes: true });
+      const entry = entries.find(e => e.name === 'link-dir')!;
+      expect(isFileEntrySync(entry, testDir)).toBe(false);
+    });
+
+    it.skipIf(process.platform === 'win32')('should return false for a broken symlink', async () => {
+      await fs.symlink(path.join(testDir, 'nonexistent'), path.join(testDir, 'broken-link'));
+
+      const entries = readdirSync(testDir, { withFileTypes: true });
+      const entry = entries.find(e => e.name === 'broken-link')!;
+      expect(isFileEntrySync(entry, testDir)).toBe(false);
     });
   });
 

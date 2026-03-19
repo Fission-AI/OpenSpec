@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { isDirectoryEntrySync } from './file-system.js';
 
 export async function getActiveChangeIds(root: string = process.cwd()): Promise<string[]> {
   const changesPath = path.join(root, 'openspec', 'changes');
@@ -7,7 +8,7 @@ export async function getActiveChangeIds(root: string = process.cwd()): Promise<
     const entries = await fs.readdir(changesPath, { withFileTypes: true });
     const result: string[] = [];
     for (const entry of entries) {
-      if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === 'archive') continue;
+      if (!isDirectoryEntrySync(entry, changesPath) || entry.name.startsWith('.') || entry.name === 'archive') continue;
       const proposalPath = path.join(changesPath, entry.name, 'proposal.md');
       try {
         await fs.access(proposalPath);
@@ -28,7 +29,7 @@ export async function getSpecIds(root: string = process.cwd()): Promise<string[]
   try {
     const entries = await fs.readdir(specsPath, { withFileTypes: true });
     for (const entry of entries) {
-      if (!entry.isDirectory() || entry.name.startsWith('.')) continue;
+      if (!isDirectoryEntrySync(entry, specsPath) || entry.name.startsWith('.')) continue;
       const specFile = path.join(specsPath, entry.name, 'spec.md');
       try {
         await fs.access(specFile);
@@ -49,7 +50,7 @@ export async function getArchivedChangeIds(root: string = process.cwd()): Promis
     const entries = await fs.readdir(archivePath, { withFileTypes: true });
     const result: string[] = [];
     for (const entry of entries) {
-      if (!entry.isDirectory() || entry.name.startsWith('.')) continue;
+      if (!isDirectoryEntrySync(entry, archivePath) || entry.name.startsWith('.')) continue;
       const proposalPath = path.join(archivePath, entry.name, 'proposal.md');
       try {
         await fs.access(proposalPath);

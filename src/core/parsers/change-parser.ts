@@ -2,6 +2,7 @@ import { MarkdownParser, Section } from './markdown-parser.js';
 import { Change, Delta, DeltaOperation, Requirement } from '../schemas/index.js';
 import path from 'path';
 import { promises as fs } from 'fs';
+import { isDirectoryEntrySync } from '../../utils/file-system.js';
 
 interface DeltaSection {
   operation: DeltaOperation;
@@ -59,7 +60,7 @@ export class ChangeParser extends MarkdownParser {
       const specDirs = await fs.readdir(specsDir, { withFileTypes: true });
       
       for (const dir of specDirs) {
-        if (!dir.isDirectory()) continue;
+        if (!isDirectoryEntrySync(dir, specsDir)) continue;
         
         const specName = dir.name;
         const specFile = path.join(specsDir, specName, 'spec.md');

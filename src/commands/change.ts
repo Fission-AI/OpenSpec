@@ -6,6 +6,7 @@ import { ChangeParser } from '../core/parsers/change-parser.js';
 import { Change } from '../core/schemas/index.js';
 import { isInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds } from '../utils/item-discovery.js';
+import { isDirectoryEntrySync } from '../utils/file-system.js';
 
 // Constants for better maintainability
 const ARCHIVE_DIR = 'archive';
@@ -244,7 +245,7 @@ export class ChangeCommand {
       const entries = await fs.readdir(changesPath, { withFileTypes: true });
       const result: string[] = [];
       for (const entry of entries) {
-        if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === ARCHIVE_DIR) continue;
+        if (!isDirectoryEntrySync(entry, changesPath) || entry.name.startsWith('.') || entry.name === ARCHIVE_DIR) continue;
         const proposalPath = path.join(changesPath, entry.name, 'proposal.md');
         try {
           await fs.access(proposalPath);
