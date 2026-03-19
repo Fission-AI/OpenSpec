@@ -1,0 +1,64 @@
+# Odoo Archive Phase — 3 steps
+# 讀取方式：/change archive 啟動時 parse 此檔案取得步驟定義
+# OpenSpec 不會讀這個檔案，這是我們自己的 convention
+
+name: archive
+description: 歸檔（merge main + BR 回寫 + branch 清理）
+requires_phase: verify  # verify 完成後才能進入
+
+steps:
+  - id: main-merged
+    description: staging → main merge + build 成功
+    auto: true
+    action: |
+      gh pr create --base main + merge。
+      等待 main build 成功。
+    done_when: main build 成功
+
+  - id: docs-updated
+    description: Delta Spec 回寫 BR 文件
+    parallel_group: cleanup
+    auto: true
+    requires_steps: [main-merged]
+    action: |
+      掃描 change 下的 specs/**/*.md。
+      根據 Delta 類型回寫 BR 文件：
+        ADDED → BR_README 新增 Requirement 區段 + 新增 US/WF/TASK
+        MODIFIED → BR_README 替換對應區段 + 更新 US/WF/TASK
+        REMOVED → BR_README 刪除區段 + 記錄原因 + 標記 US/WF/TASK 已廢棄
+      回寫前列出所有即將修改的 BR 文件，等用戶確認。
+      產出 archive_summary.md。
+      更新 proposal.md 狀態為 **archive**。
+    done_when: BR 文件更新完成 + archive_summary.md 產出
+    confirm_before: true  # 回寫前等用戶確認
+
+  - id: branch-cleaned
+    description: OpenSpec 歸檔 + Git branch 清理
+    parallel_group: cleanup
+    auto: true
+    requires_steps: [main-merged]
+    action: |
+      openspec archive --yes "<change-name>"（搬到 archive/）。
+      git branch -d feature/<change-name>。
+      git push origin --delete feature/<change-name>。
+    done_when: change 在 archive/ + branch 已刪除
+
+# BR 回寫規則
+br_writeback:
+  # Delta Type → BR 動作對照
+  ADDED:
+    br_readme: 新增 Requirement 區段
+    derived_docs: 新增 US/WF/TASK
+  MODIFIED:
+    br_readme: 替換對應區段（完整替換，不是 patch）
+    derived_docs: 更新對應 US/WF/TASK
+  REMOVED:
+    br_readme: 刪除區段 + 記錄原因
+    derived_docs: 標記 US/WF/TASK 已廢棄
+
+  # 安全規則
+  safety:
+    - 回寫前必須列出所有即將修改的 BR 文件
+    - 等用戶確認後才執行
+    - 不刪除 delta spec 檔案（移到 archive/ 保留歷史）
+    - BR 文件有衝突（被其他 change 修改過）→ 提示手動合併
