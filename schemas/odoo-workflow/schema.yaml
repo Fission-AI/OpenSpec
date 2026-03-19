@@ -44,12 +44,30 @@ artifacts:
       - **MODIFIED Requirements**：變更行為（MUST 包含完整更新內容）
       - **REMOVED Requirements**：廢棄功能（MUST 包含 Reason 和 Migration）
 
-      **格式要求**：
-      - 每個 requirement：`### Requirement: <name>` + 描述
+      **格式要求（MUST — archive 解析依賴這些精確格式）**：
+      - 每個 delta section：`## ADDED Requirements` / `## MODIFIED Requirements` / `## REMOVED Requirements`
+      - 每個 requirement：`### Requirement: <name>`（精確 3 個 #）
+      - 每個 scenario：`#### Scenario: <name>`（精確 4 個 #）+ WHEN/THEN
+      - **CRITICAL**：不可用自由格式（表格、編號清單）替代上述 header 結構
+      - **CRITICAL**：不可省略 `### Requirement:` 和 `#### Scenario:` prefix
       - 使用 MUST/SHALL 表達規範性需求
-      - 每個 scenario：`#### Scenario: <name>` + WHEN/THEN 格式
-      - **CRITICAL**：Scenario 必須使用 4 個 `####`，不是 3 個
       - 每個 requirement 至少一個 scenario
+
+      **錯誤範例**（archive 會 parse 失敗）：
+      ```
+      ## MODIFIED: job_connection_search_view    ← 錯！缺 "Requirements"
+      #### 1. ADDED: 篩選                        ← 錯！不是 "### Requirement:"
+      ```
+
+      **正確範例**：
+      ```
+      ## MODIFIED Requirements
+      ### Requirement: search-view-state-filters
+      job.connection search view MUST provide state-based filters.
+      #### Scenario: user filters by state
+      - **WHEN** user selects "Draft" filter
+      - **THEN** only state=draft records are shown
+      ```
 
       **Odoo 特化規則**：
       - Requirement 如涉及 compute 欄位，scenario 必須覆蓋 depends 觸發
