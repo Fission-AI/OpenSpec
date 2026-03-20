@@ -10,7 +10,7 @@
   - Add WARNING: without tags, full-block replacement destroys unincluded scenarios
 - [x] 1.3. Update "Common pitfall" line (line 60) to reference scenario-level tags as the safe alternative
 - [x] 1.4. Add a MODIFIED example to the Example section (lines 63-79) showing scenario tags:
-  ```
+  ```md
   ## MODIFIED Requirements
   
   ### Requirement: User Authentication

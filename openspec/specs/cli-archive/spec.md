@@ -113,10 +113,12 @@ The archive command MUST apply delta specs to main specs using structured merge 
 
 #### Scenario: Scenario count warning on unexpected decrease
 
-- WHEN a scenario-level merge results in fewer scenarios than the original requirement
-- AND no `(REMOVED)` tags were used in the delta
-- THEN the merge MUST emit a warning: `"⚠️ Warning: {specName} requirement '{name}': scenario count changed from {original} to {result}"`
+- WHEN a scenario-level merge results in fewer scenarios than expected
+- THEN the merge MUST compute `expected_count` as `main_count - matchedRemovedCount`
+- AND the merge MUST emit a warning when `merged_count < expected_count`: `"⚠️ Warning: {specName} requirement '{name}': scenario count {merged_count} is less than expected {expected_count} ({main_count} main - {matchedRemovedCount} removed)"`
 - AND the merge MUST still proceed (warning, not error)
+
+> Updated to reflect precision warning logic. The old formulation assumed "no REMOVED tags" as a separate condition, but the implementation always computes expected_count from matchedRemovedCount (which is 0 when no REMOVED tags exist).
 
 #### Scenario: Scenario name normalization for matching
 

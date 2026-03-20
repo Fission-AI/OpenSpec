@@ -43,6 +43,7 @@ artifacts:
       - **MODIFIED Requirements**: Changed behavior - MUST include full updated content
       - **REMOVED Requirements**: Deprecated features - MUST include **Reason** and **Migration**
       - **RENAMED Requirements**: Name changes only - use FROM:/TO: format
+      - **Purpose**: Updated purpose text - replaces main spec's `## Purpose` section. A delta file with ONLY a `## Purpose` section (no requirement operations) is valid.
 
       Format requirements:
       - Each requirement: `### Requirement: <name>` followed by description

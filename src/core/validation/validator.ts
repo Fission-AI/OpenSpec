@@ -140,7 +140,9 @@ export class Validator {
         if (plan.sectionPresence.renamed) sectionNames.push('## RENAMED Requirements');
         const hasSections = sectionNames.length > 0;
         const hasEntries = plan.added.length + plan.modified.length + plan.removed.length + plan.renamed.length > 0;
-        if (!hasEntries) {
+        const hasPurpose = !!plan.purposeText;
+        if (hasPurpose) totalDeltas++;
+        if (!hasEntries && !hasPurpose) {
           if (hasSections) emptySectionSpecs.push({ path: entryPath, sections: sectionNames });
           else missingHeaderSpecs.push(entryPath);
         }

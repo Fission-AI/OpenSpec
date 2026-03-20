@@ -117,12 +117,12 @@ function mergeScenarios(
 
   // Names of scenarios marked for removal, with unmatched tracking
   const removedNames = new Set<string>();
-  let matchedRemovedCount = 0;
+  const matchedRemovedNames = new Set<string>();
   for (const s of delta.scenarios) {
     if (s.tag === 'REMOVED') {
       const name = normalizeScenarioName(s.name);
       if (mainByName.has(name)) {
-        matchedRemovedCount++;
+        matchedRemovedNames.add(name);
       } else {
         console.log(chalk.yellow(
           `⚠️  Warning: REMOVED scenario '${s.name}' not found in main — ignored`
@@ -164,10 +164,11 @@ function mergeScenarios(
         ));
       }
       result.push(stripScenarioTag(s));
+      usedDeltaNames.add(name);
     }
   }
 
-  return { scenarios: result, matchedRemovedCount };
+  return { scenarios: result, matchedRemovedCount: matchedRemovedNames.size };
 }
 
 /**
@@ -341,10 +342,11 @@ export async function buildUpdatedSpec(
     );
   }
   const hasAnyDelta = plan.added.length + plan.modified.length + plan.removed.length + plan.renamed.length > 0;
-  if (!hasAnyDelta) {
+  const hasPurposeDelta = !!plan.purposeText;
+  if (!hasAnyDelta && !hasPurposeDelta) {
     throw new Error(
       `Delta parsing found no operations for ${path.basename(path.dirname(update.source))}. ` +
-        `Provide ADDED/MODIFIED/REMOVED/RENAMED sections in change spec.`
+        `Provide ADDED/MODIFIED/REMOVED/RENAMED sections or a Purpose section in change spec.`
     );
   }
 
@@ -370,7 +372,7 @@ export async function buildUpdatedSpec(
       );
     }
     isNewSpec = true;
-    targetContent = buildSpecSkeleton(specName, changeName);
+    targetContent = buildSpecSkeleton(specName, changeName, plan.purposeText);
   }
 
   // Extract requirements section and build name->block map
@@ -507,8 +509,14 @@ export async function buildUpdatedSpec(
     .join('\n')
     .replace(/\n{3,}/g, '\n\n');
 
+  // Apply Purpose delta if present
+  let finalRebuilt = rebuilt;
+  if (plan.purposeText) {
+    finalRebuilt = replacePurposeSection(finalRebuilt, plan.purposeText);
+  }
+
   return {
-    rebuilt,
+    rebuilt: finalRebuilt,
     counts: {
       added: plan.added.length,
       modified: plan.modified.length,
@@ -542,9 +550,46 @@ export async function writeUpdatedSpec(
 /**
  * Build a skeleton spec for new capabilities.
  */
-export function buildSpecSkeleton(specFolderName: string, changeName: string): string {
+export function buildSpecSkeleton(specFolderName: string, changeName: string, purposeText?: string): string {
   const titleBase = specFolderName;
-  return `# ${titleBase} Specification\n\n## Purpose\nTBD - created by archiving change ${changeName}. Update Purpose after archive.\n\n## Requirements\n`;
+  const purpose = purposeText || `TBD - created by archiving change ${changeName}. Update Purpose after archive.`;
+  return `# ${titleBase} Specification\n\n## Purpose\n${purpose}\n\n## Requirements\n`;
+}
+
+/**
+ * Replace the ## Purpose section in a spec with new purpose text.
+ * If no Purpose section exists, inserts one after the title.
+ */
+function replacePurposeSection(content: string, newPurpose: string): string {
+  const lines = content.replace(/\r\n?/g, '\n').split('\n');
+  const purposeIdx = lines.findIndex(l => /^##\s+Purpose\s*$/i.test(l));
+
+  if (purposeIdx === -1) {
+    // No Purpose section found — insert after the first heading (# title)
+    const titleIdx = lines.findIndex(l => /^#\s+/.test(l));
+    const insertAt = titleIdx >= 0 ? titleIdx + 1 : 0;
+    lines.splice(insertAt, 0, '', '## Purpose', newPurpose, '');
+    return lines.join('\n');
+  }
+
+  // Find next ## section after Purpose
+  let endIdx = lines.length;
+  let inFence = false;
+  for (let i = purposeIdx + 1; i < lines.length; i++) {
+    if (lines[i].startsWith('```')) {
+      inFence = !inFence;
+      continue;
+    }
+    if (!inFence && /^##\s+/.test(lines[i])) {
+      endIdx = i;
+      break;
+    }
+  }
+
+  // Replace Purpose body: keep header, replace body lines
+  const before = lines.slice(0, purposeIdx + 1);
+  const after = lines.slice(endIdx);
+  return [...before, newPurpose, '', ...after].join('\n');
 }
 
 /**
