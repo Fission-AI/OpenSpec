@@ -118,7 +118,7 @@ The archive command MUST apply delta specs to main specs using structured merge 
 - AND the merge MUST emit a warning when `merged_count < expected_count`: `"⚠️ Warning: {specName} requirement '{name}': scenario count {merged_count} is less than expected {expected_count} ({main_count} main - {matchedRemovedCount} removed)"`
 - AND the merge MUST still proceed (warning, not error)
 
-> Updated to reflect precision warning logic. The old formulation assumed "no REMOVED tags" as a separate condition, but the implementation always computes expected_count from matchedRemovedCount (which is 0 when no REMOVED tags exist).
+> Updated to align with precision warning suppression logic introduced in the same PR. Wording now matches the staged main spec and implementation exactly.
 
 #### Scenario: Scenario name normalization for matching
 
@@ -153,6 +153,24 @@ The archive command MUST apply delta specs to main specs using structured merge 
 - AND if `merged_count < expected_count`, the system MUST emit a warning including the expected count, actual count, main count, and matched removed count
 
 > Previously, ANY `(REMOVED)` tag suppressed the warning entirely. The revised logic uses matched removals only, preventing unmatched typos from hiding real scenario loss.
+
+#### Scenario: Unique counting for matched REMOVED scenarios (ADDED)
+
+- WHEN a delta spec contains multiple `(REMOVED)` entries with the same normalized scenario name
+- THEN the system MUST count each unique matched scenario name only ONCE toward `matchedRemovedCount`
+- AND `matchedRemovedCount` MUST equal the number of unique REMOVED names that matched main scenarios
+- AND duplicate REMOVED entries for the same name MUST NOT inflate `matchedRemovedCount`
+
+> Prevents duplicate REMOVED entries from understating `expectedMinCount`, which would suppress warnings when scenarios are accidentally dropped.
+
+#### Scenario: Deduplicated appends for new delta scenarios (ADDED)
+
+- WHEN appending new delta scenarios (not matched to any main scenario)
+- THEN the system MUST track each appended scenario name to prevent duplicate appends
+- AND if a delta contains multiple scenarios with the same normalized name, only the first MUST be appended
+- AND subsequent duplicates MUST be skipped silently
+
+> Prevents duplicate scenario entries in merged output when delta contains multiple entries with the same normalized name.
 
 ### Requirement: Confirmation Behavior
 

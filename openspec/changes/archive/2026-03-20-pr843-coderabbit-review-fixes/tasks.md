@@ -60,8 +60,8 @@
 - [x] **8.3**: `npx vitest run test/core/purpose-delta.test.ts` — 8/8 pass ✅
 - [x] **8.4**: `npm run build` — clean
 - [x] **8.5**: `openspec validate pr843-coderabbit-review-fixes` — valid ✅
-- [ ] **8.6**: Reviewer-Collab re-review → APPROVED
-- [ ] **8.7**: Commit and push to branch `fix/scenario-level-merge`
+- [x] **8.6**: Reviewer-Collab re-review → APPROVED (v10)
+- [x] **8.7**: Commit and push to branch `fix/scenario-level-merge` (52012ce)
 
 ## Section 9: Phase 4 — CodeRabbit Second Review Fixes (commit `db09c44`)
 

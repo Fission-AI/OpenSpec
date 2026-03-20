@@ -2,9 +2,7 @@
 
 ## Purpose
 Defines the agent skill for syncing delta specs from changes to main specs.
-
 ## Requirements
-
 ### Requirement: Specs Sync Skill
 The system SHALL provide an `/opsx:sync` skill that syncs delta specs from a change to the main specs.
 
@@ -25,7 +23,7 @@ The system SHALL provide an `/opsx:sync` skill that syncs delta specs from a cha
 - **AND** shows changes that have delta specs
 
 ### Requirement: Delta Reconciliation Logic
-The agent SHALL reconcile main specs with delta specs using the delta operation headers.
+The agent SHALL reconcile main specs with delta specs using the delta operation headers and the Purpose section.
 
 #### Scenario: ADDED requirements
 - **WHEN** delta contains `## ADDED Requirements` with a requirement
@@ -35,7 +33,8 @@ The agent SHALL reconcile main specs with delta specs using the delta operation 
 #### Scenario: ADDED requirement already exists
 - **WHEN** delta contains `## ADDED Requirements` with a requirement
 - **AND** a requirement with the same name already exists in main spec
-- **THEN** update the existing requirement to match the delta version
+- **THEN** abort with error: "ADDED failed — requirement already exists"
+- **AND** display guidance to use `## MODIFIED Requirements` instead
 
 #### Scenario: MODIFIED requirements
 - **WHEN** delta contains `## MODIFIED Requirements` with a requirement
@@ -52,6 +51,12 @@ The agent SHALL reconcile main specs with delta specs using the delta operation 
 - **AND** the FROM requirement exists in main spec
 - **THEN** rename the requirement to the TO name
 
+#### Scenario: Purpose changes
+- **WHEN** delta contains a `## Purpose` section
+- **THEN** replace the main spec's `## Purpose` section with the delta Purpose text
+- **AND** if the main spec has no Purpose section, insert one after the title heading
+- **AND** purpose changes MAY coexist with requirement changes in the same delta file
+
 #### Scenario: New capability spec
 - **WHEN** delta spec exists for a capability not in main specs
 - **THEN** create new main spec file at `openspec/specs/<capability>/spec.md`
@@ -66,7 +71,9 @@ The skill SHALL provide clear feedback on what was applied.
   - Number of requirements modified
   - Number of requirements removed
   - Number of requirements renamed
+  - Number of purpose sections updated
 
 #### Scenario: No changes needed
 - **WHEN** main specs already match delta specs
 - **THEN** display "Specs already in sync - no changes needed"
+

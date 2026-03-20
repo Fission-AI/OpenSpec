@@ -2,7 +2,6 @@
 
 ## Purpose
 Define `openspec validate` behavior for validating changes and specs with actionable remediation guidance and structured output.
-
 ## Requirements
 ### Requirement: Validation SHALL provide actionable remediation steps
 Validation output SHALL include specific guidance to fix each error, including expected structure, example headers, and suggested commands to verify fixes.
@@ -10,9 +9,9 @@ Validation output SHALL include specific guidance to fix each error, including e
 #### Scenario: No deltas found in change
 - **WHEN** validating a change with zero parsed deltas
 - **THEN** show error "No deltas found" with guidance:
-  - Explain that change specs must include `## ADDED Requirements`, `## MODIFIED Requirements`, `## REMOVED Requirements`, or `## RENAMED Requirements`
+  - Explain that change specs must include `## ADDED Requirements`, `## MODIFIED Requirements`, `## REMOVED Requirements`, `## RENAMED Requirements`, or a `## Purpose` section
   - Remind authors that files must live under `openspec/changes/{id}/specs/<capability>/spec.md`
-  - Include an explicit note: "Spec delta files cannot start with titles before the operation headers"
+  - Include an explicit note: "A delta spec file is valid if it contains at least one requirement operation section OR a Purpose section"
   - Suggest running `openspec change show {id} --json --deltas-only` for debugging
 
 #### Scenario: Missing required sections
