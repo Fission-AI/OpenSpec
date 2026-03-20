@@ -393,6 +393,7 @@ The system MUST expire sessions after 15 minutes of inactivity.
 | `## ADDED Requirements` | New behavior | Appended to main spec |
 | `## MODIFIED Requirements` | Changed behavior | Replaces existing requirement |
 | `## REMOVED Requirements` | Deprecated behavior | Deleted from main spec |
+| `## Purpose` | Updated purpose text | Replaces main spec's `## Purpose` section |
 
 ### Why Deltas Instead of Full Specs
 
@@ -612,7 +613,7 @@ openspec/
 | **Artifact** | A document within a change (proposal, design, tasks, or delta specs) |
 | **Archive** | The process of completing a change and merging its deltas into main specs |
 | **Change** | A proposed modification to the system, packaged as a folder with artifacts |
-| **Delta spec** | A spec that describes changes (ADDED/MODIFIED/REMOVED) relative to current specs |
+| **Delta spec** | A spec that describes changes (ADDED/MODIFIED/REMOVED/Purpose) relative to current specs |
 | **Domain** | A logical grouping for specs (e.g., `auth/`, `payments/`) |
 | **Requirement** | A specific behavior the system must have |
 | **Scenario** | A concrete example of a requirement, typically in Given/When/Then format |
