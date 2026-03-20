@@ -1469,5 +1469,69 @@ The system SHALL authenticate users.
       // Duplicate content should NOT be present
       expect(updated).not.toContain('it activates again');
     });
+
+    // F2 — Duplicate scenario preflight validation tests
+    // These test buildUpdatedSpec directly because archiveCommand.execute catches errors internally
+    it('should throw on mixed REMOVED + non-REMOVED duplicate scenario names', async () => {
+      const changeDir = path.join(tempDir, 'openspec', 'changes', 'scenario-merge-mixed-dup-throw');
+      const deltaDir = path.join(changeDir, 'specs', 'multi');
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'multi-dup1');
+      await fs.mkdir(deltaDir, { recursive: true });
+      await fs.mkdir(mainSpecDir, { recursive: true });
+
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), multiScenarioMainSpec());
+      await fs.writeFile(path.join(deltaDir, 'spec.md'), `# Mixed Dup Delta
+
+## MODIFIED Requirements
+
+### Requirement: User Authentication
+Auth desc.
+
+#### Scenario: Command permission (REMOVED)
+
+#### Scenario: Command permission (MODIFIED)
+- WHEN updated
+- THEN updated behavior`);
+
+      const { buildUpdatedSpec } = await import('../../src/core/specs-apply.js');
+      const update = {
+        source: path.join(deltaDir, 'spec.md'),
+        target: path.join(mainSpecDir, 'spec.md'),
+        exists: true,
+      };
+      await expect(buildUpdatedSpec(update, 'mixed-dup-test')).rejects.toThrow(/Ambiguous duplicate scenario entries/);
+    });
+
+    it('should throw on duplicate tagged MODIFIED scenario names', async () => {
+      const changeDir = path.join(tempDir, 'openspec', 'changes', 'scenario-merge-dup-modified-throw');
+      const deltaDir = path.join(changeDir, 'specs', 'multi');
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'multi-dup2');
+      await fs.mkdir(deltaDir, { recursive: true });
+      await fs.mkdir(mainSpecDir, { recursive: true });
+
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), multiScenarioMainSpec());
+      await fs.writeFile(path.join(deltaDir, 'spec.md'), `# Dup Modified Delta
+
+## MODIFIED Requirements
+
+### Requirement: User Authentication
+Auth desc.
+
+#### Scenario: Command permission (MODIFIED)
+- WHEN first version
+- THEN first behavior
+
+#### Scenario: Command permission (MODIFIED)
+- WHEN second version
+- THEN second behavior`);
+
+      const { buildUpdatedSpec } = await import('../../src/core/specs-apply.js');
+      const update = {
+        source: path.join(deltaDir, 'spec.md'),
+        target: path.join(mainSpecDir, 'spec.md'),
+        exists: true,
+      };
+      await expect(buildUpdatedSpec(update, 'dup-modified-test')).rejects.toThrow(/Ambiguous duplicate scenario entries/);
+    });
   });
 });

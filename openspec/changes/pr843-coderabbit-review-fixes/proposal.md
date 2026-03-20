@@ -45,9 +45,23 @@ During remediation, finding C4 (Purpose placeholder fix) exposed a **root-cause 
 | `docs/concepts.md` | Add Purpose row to Delta Sections table + update Glossary |
 | `schemas/spec-driven/schema.yaml` | Add Purpose to delta operations instruction for agent authoring |
 
+### Phase 4: CodeRabbit Second Review Fixes (commit `db09c44`)
+
+CodeRabbit automated review on commit `db09c44` flagged 4 Major + 2 Nitpick findings. Reviewer-Collab analysis (v7/v8) confirmed all valid.
+
+| # | Finding | File(s) | Fix |
+|---|---------|---------|-----|
+| **F1** | ADDED overwrite semantics in `specs-sync-skill` don't match engine (aborts) | `specs-sync-skill/spec.md` | Rewrite scenario: duplicate ADDED → abort with guidance to use MODIFIED |
+| **F2** | `deltaByName.set()` silently overwrites duplicate normalized scenario names | `specs-apply.ts` | Add preflight validation: allow dup REMOVED + dup untagged-append; reject ambiguous mixed groups (per v8) |
+| **F3** | Fence tracking only supports `` ``` `` — misses `~~~` and indented fences | `requirement-blocks.ts`, `specs-apply.ts` | Shared `isMarkdownFenceLine()` helper; replace all 7 inline checks |
+| **F4** | `purposeText \|\| undefined` erases empty Purpose header distinction | `requirement-blocks.ts`, `validator.ts` | Add `sectionPresence.purpose`; preserve `''`; explicit validator error on empty Purpose |
+| **N2** | Missing apply test for specs without `## Purpose` (insertion path) | `purpose-delta.test.ts` | Add 1 apply test |
+
+> **Note**: F1, F4, F3 (helper only) already partially applied before process correction. Remaining: F3 (replace 7 inline checks), F2, N2, all tests.
+
 ## Impact
 
 - **Code**: `specs-apply.ts`, `requirement-blocks.ts`, `validator.ts`, `change-parser.ts`, `change.schema.ts`
 - **Specs**: `cli-archive/spec.md`, `schema-instruction/spec.md`, `openspec-conventions/spec.md`, `cli-validate/spec.md`, `specs-sync-skill/spec.md`
 - **Docs**: `docs/concepts.md`, `schemas/spec-driven/schema.yaml`
-- **Tests**: `archive.test.ts` (helper extraction + 2 regression tests), `purpose-delta.test.ts` (8 new tests), `change-parser.test.ts` (1 new test)
+- **Tests**: `archive.test.ts` (helper extraction + 2 regression + 3 new F2 tests), `purpose-delta.test.ts` (8 existing + 1 N2 + ~3 F4 tests), `change-parser.test.ts` (1 existing), `requirement-blocks-fence.test.ts` (~3 new F3 tests)

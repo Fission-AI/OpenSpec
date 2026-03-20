@@ -140,7 +140,10 @@ export class Validator {
         if (plan.sectionPresence.renamed) sectionNames.push('## RENAMED Requirements');
         const hasSections = sectionNames.length > 0;
         const hasEntries = plan.added.length + plan.modified.length + plan.removed.length + plan.renamed.length > 0;
-        const hasPurpose = !!plan.purposeText;
+        const hasPurpose = plan.sectionPresence.purpose;
+        if (hasPurpose && plan.purposeText === '') {
+          issues.push({ level: 'ERROR', path: entryPath, message: '## Purpose section is present but empty — provide purpose text or remove the section' });
+        }
         if (hasPurpose) totalDeltas++;
         if (!hasEntries && !hasPurpose) {
           if (hasSections) emptySectionSpecs.push({ path: entryPath, sections: sectionNames });

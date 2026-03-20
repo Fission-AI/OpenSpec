@@ -19,6 +19,17 @@ export function normalizeRequirementName(name: string): string {
 const REQUIREMENT_HEADER_REGEX = /^###\s*Requirement:\s*(.+)\s*$/;
 
 /**
+ * Detect Markdown fenced code block delimiters.
+ * Supports:
+ * - Backtick fences (```) and tilde fences (~~~)
+ * - Optional leading indentation (up to 3 spaces per CommonMark)
+ * - Minimum 3 fence characters
+ */
+export function isMarkdownFenceLine(line: string): boolean {
+  return /^ {0,3}(`{3,}|~{3,})/.test(line);
+}
+
+/**
  * Extracts the Requirements section from a spec file and parses requirement blocks.
  */
 export function extractRequirementsSection(content: string): RequirementsSectionParts {
@@ -44,7 +55,7 @@ export function extractRequirementsSection(content: string): RequirementsSection
   let endIndex = lines.length;
   let inFenceEnd = false;
   for (let i = reqHeaderIndex + 1; i < lines.length; i++) {
-    if (lines[i].startsWith('```')) {
+    if (isMarkdownFenceLine(lines[i])) {
       inFenceEnd = !inFenceEnd;
       continue;
     }
@@ -67,7 +78,7 @@ export function extractRequirementsSection(content: string): RequirementsSection
   // Track fenced code blocks so headers inside them are skipped
   let inFencePreamble = false;
   while (cursor < sectionBodyLines.length) {
-    if (sectionBodyLines[cursor].startsWith('```')) {
+    if (isMarkdownFenceLine(sectionBodyLines[cursor])) {
       inFencePreamble = !inFencePreamble;
     }
     if (!inFencePreamble && /^###\s+Requirement:/.test(sectionBodyLines[cursor])) {
@@ -93,7 +104,7 @@ export function extractRequirementsSection(content: string): RequirementsSection
     const bodyLines: string[] = [headerLineCandidate];
     let inFenceBody = false;
     while (cursor < sectionBodyLines.length) {
-      if (sectionBodyLines[cursor].startsWith('```')) {
+      if (isMarkdownFenceLine(sectionBodyLines[cursor])) {
         inFenceBody = !inFenceBody;
       }
       if (!inFenceBody && (/^###\s+Requirement:/.test(sectionBodyLines[cursor]) || /^##\s+/.test(sectionBodyLines[cursor]))) {
@@ -123,12 +134,13 @@ export interface DeltaPlan {
   modified: RequirementBlock[];
   removed: string[]; // requirement names
   renamed: Array<{ from: string; to: string }>;
-  purposeText?: string; // delta Purpose text, if present
+  purposeText?: string; // delta Purpose text, if present ('' for empty header)
   sectionPresence: {
     added: boolean;
     modified: boolean;
     removed: boolean;
     renamed: boolean;
+    purpose: boolean;
   };
 }
 
@@ -157,12 +169,13 @@ export function parseDeltaSpec(content: string): DeltaPlan {
     modified,
     removed: removedNames,
     renamed: renamedPairs,
-    purposeText: purposeText || undefined,
+    purposeText: purposeLookup.found ? (purposeText || '') : undefined,
     sectionPresence: {
       added: addedLookup.found,
       modified: modifiedLookup.found,
       removed: removedLookup.found,
       renamed: renamedLookup.found,
+      purpose: purposeLookup.found,
     },
   };
 }
@@ -174,7 +187,7 @@ function splitTopLevelSections(content: string): Record<string, string> {
   // Track fenced code blocks so ## headers inside them are not treated as sections
   let inFence = false;
   for (let i = 0; i < lines.length; i++) {
-    if (lines[i].startsWith('```')) {
+    if (isMarkdownFenceLine(lines[i])) {
       inFence = !inFence;
       continue;
     }
@@ -212,7 +225,7 @@ function parseRequirementBlocksFromSection(sectionBody: string): RequirementBloc
   while (i < lines.length) {
     // Seek next requirement header, skipping fenced code blocks
     while (i < lines.length) {
-      if (lines[i].startsWith('```')) {
+      if (isMarkdownFenceLine(lines[i])) {
         inFence = !inFence;
       }
       if (!inFence && /^###\s+Requirement:/.test(lines[i])) break;
@@ -227,7 +240,7 @@ function parseRequirementBlocksFromSection(sectionBody: string): RequirementBloc
     i++;
     let inFenceBlock = false;
     while (i < lines.length) {
-      if (lines[i].startsWith('```')) {
+      if (isMarkdownFenceLine(lines[i])) {
         inFenceBlock = !inFenceBlock;
       }
       if (!inFenceBlock && (/^###\s+Requirement:/.test(lines[i]) || /^##\s+/.test(lines[i]))) {
@@ -339,7 +352,7 @@ export function parseScenarios(block: RequirementBlock): RequirementBlockWithSce
   // Collect description lines until first scenario header (skip fenced code blocks)
   let inFence = false;
   while (cursor < lines.length) {
-    if (lines[cursor].startsWith('```')) {
+    if (isMarkdownFenceLine(lines[cursor])) {
       inFence = !inFence;
     }
     if (!inFence && SCENARIO_HEADER_REGEX.test(lines[cursor])) {
@@ -367,7 +380,7 @@ export function parseScenarios(block: RequirementBlock): RequirementBlockWithSce
     // Gather body lines until next scenario header or end
     let inFenceBody = false;
     while (cursor < lines.length) {
-      if (lines[cursor].startsWith('```')) {
+      if (isMarkdownFenceLine(lines[cursor])) {
         inFenceBody = !inFenceBody;
       }
       if (!inFenceBody && SCENARIO_HEADER_REGEX.test(lines[cursor])) {

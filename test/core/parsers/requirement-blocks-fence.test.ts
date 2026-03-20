@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   extractRequirementsSection,
   parseDeltaSpec,
+  parseScenarios,
 } from '../../../src/core/parsers/requirement-blocks.js';
 
 describe('requirement-blocks: fenced code block handling', () => {
@@ -158,6 +159,68 @@ describe('requirement-blocks: fenced code block handling', () => {
       expect(plan.added).toHaveLength(2);
       expect(plan.modified).toHaveLength(0);
       expect(plan.removed).toHaveLength(0);
+    });
+  });
+
+  describe('parseDeltaSpec — tilde fences (F3)', () => {
+    it('should not split on ## headers inside tilde fences', () => {
+      const content = [
+        '# Delta Spec',
+        '',
+        '## ADDED Requirements',
+        '',
+        '### Requirement: Feature A',
+        '',
+        'Has tilde fence:',
+        '',
+        '~~~',
+        '## Not A Section',
+        '### Requirement: Not Real',
+        '~~~',
+        '',
+        '### Requirement: Feature B',
+        '',
+        'Simple.',
+      ].join('\n');
+
+      const plan = parseDeltaSpec(content);
+      expect(plan.added).toHaveLength(2);
+      expect(plan.added[0].name).toBe('Feature A');
+      expect(plan.added[1].name).toBe('Feature B');
+      expect(plan.added[0].raw).toContain('## Not A Section');
+    });
+  });
+
+  describe('parseScenarios — indented fences (F3)', () => {
+    it('should not split on #### Scenario: inside indented backtick fences', () => {
+      const block = {
+        headerLine: '### Requirement: Test',
+        name: 'Test',
+        raw: [
+          '### Requirement: Test',
+          '',
+          'The system MUST handle fences.',
+          '',
+          '#### Scenario: Real scenario',
+          '- WHEN something happens',
+          '- THEN show template:',
+          '',
+          '   ```',
+          '   #### Scenario: Fake scenario',
+          '   - WHEN fake',
+          '   ```',
+          '',
+          '#### Scenario: Second real scenario',
+          '- WHEN other thing',
+          '- THEN result',
+        ].join('\n'),
+      };
+
+      const parsed = parseScenarios(block);
+      expect(parsed.scenarios).toHaveLength(2);
+      expect(parsed.scenarios[0].name).toBe('Real scenario');
+      expect(parsed.scenarios[1].name).toBe('Second real scenario');
+      expect(parsed.scenarios[0].raw).toContain('#### Scenario: Fake scenario');
     });
   });
 });

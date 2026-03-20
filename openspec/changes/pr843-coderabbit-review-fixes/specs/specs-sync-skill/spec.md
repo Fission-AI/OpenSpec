@@ -13,7 +13,8 @@ The agent SHALL reconcile main specs with delta specs using the delta operation 
 #### Scenario: ADDED requirement already exists
 - **WHEN** delta contains `## ADDED Requirements` with a requirement
 - **AND** a requirement with the same name already exists in main spec
-- **THEN** update the existing requirement to match the delta version
+- **THEN** abort with error: "ADDED failed — requirement already exists"
+- **AND** display guidance to use `## MODIFIED Requirements` instead
 
 #### Scenario: MODIFIED requirements
 - **WHEN** delta contains `## MODIFIED Requirements` with a requirement

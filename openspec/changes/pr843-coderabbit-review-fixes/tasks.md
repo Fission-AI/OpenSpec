@@ -62,3 +62,29 @@
 - [x] **8.5**: `openspec validate pr843-coderabbit-review-fixes` — valid ✅
 - [ ] **8.6**: Reviewer-Collab re-review → APPROVED
 - [ ] **8.7**: Commit and push to branch `fix/scenario-level-merge`
+
+## Section 9: Phase 4 — CodeRabbit Second Review Fixes (commit `db09c44`)
+
+- [x] **9.1**: F1 — Rewrite `specs-sync-skill/spec.md` scenario: ADDED duplicate → abort with guidance
+- [x] **9.2**: F3 — Add shared `isMarkdownFenceLine()` helper to `requirement-blocks.ts` (backtick + tilde + indent)
+- [x] **9.3**: F3 — Replace all inline `startsWith('```')` checks in `requirement-blocks.ts` with helper
+- [x] **9.4**: F3 — Replace fence check in `replacePurposeSection()` in `specs-apply.ts` with helper import
+- [x] **9.5**: F4 — Add `purpose: boolean` to `DeltaPlan.sectionPresence`
+- [x] **9.6**: F4 — Preserve empty Purpose body as `''` (not collapse to undefined)
+- [x] **9.7**: F4 — Validator: explicit error on empty `## Purpose` section
+- [x] **9.8**: F2 — Add preflight validation in `mergeScenarios()` for duplicate normalized scenario names (v8 rule)
+- [x] **9.9**: N2 — Add apply test for target spec missing `## Purpose` (insertion path)
+
+## Section 10: Phase 4 — Tests + Verify
+
+- [x] **10.1**: F3 test — `parseDeltaSpec` with `~~~` fence containing fake `##`
+- [x] **10.2**: F3 test — `parseScenarios` with indented backtick fence containing fake `#### Scenario:`
+- [x] **10.3**: F3 test — `replacePurposeSection()` with fenced content containing fake `##`
+- [x] **10.4**: F4 test — Parser: empty `## Purpose` section returns `purposeText === ''`
+- [x] **10.5**: F4 test — Validator: empty Purpose rejects with explicit error
+- [x] **10.6**: F4 test — Validator: no Purpose section + no requirements → missing header error
+- [x] **10.7**: F2 test — Mixed `REMOVED` + non-`REMOVED` same name → throw
+- [x] **10.8**: F2 test — Duplicate tagged `MODIFIED` same name → throw
+- [x] **10.10**: `npm run build` + `npx tsc --noEmit` clean ✅
+- [x] **10.11**: Full test suite: 64/64 passing ✅
+- [x] **10.12**: `openspec validate` ✅

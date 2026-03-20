@@ -14,6 +14,7 @@ import {
   normalizeRequirementName,
   normalizeScenarioName,
   parseScenarios,
+  isMarkdownFenceLine,
   type RequirementBlock,
   type ScenarioBlock,
   type RequirementBlockWithScenarios,
@@ -100,16 +101,38 @@ function mergeScenarios(
   main: RequirementBlockWithScenarios,
   delta: RequirementBlockWithScenarios
 ): MergeResult {
+  // Build a set of main scenario names for REMOVED matching and preflight
+  const mainByName = new Set<string>();
+  for (const s of main.scenarios) {
+    mainByName.add(normalizeScenarioName(s.name));
+  }
+
+  // Preflight: validate duplicate normalized scenario names (F2 — v8 rule)
+  const deltaGroups = new Map<string, ScenarioBlock[]>();
+  for (const s of delta.scenarios) {
+    const name = normalizeScenarioName(s.name);
+    const group = deltaGroups.get(name) || [];
+    group.push(s);
+    deltaGroups.set(name, group);
+  }
+  for (const [name, group] of deltaGroups) {
+    if (group.length <= 1) continue;
+    const allRemoved = group.every(s => s.tag === 'REMOVED');
+    if (allRemoved) continue; // allow duplicate REMOVED (idempotent)
+    const allUntagged = group.every(s => !s.tag);
+    if (allUntagged && !mainByName.has(name)) continue; // allow duplicate untagged append for new scenarios
+    // All other duplicate groups are ambiguous — fail fast
+    const tags = group.map(s => s.tag || 'untagged').join(', ');
+    throw new Error(
+      `Ambiguous duplicate scenario entries for '${group[0].name}' (normalized: '${name}'): [${tags}]. ` +
+      `Use unique scenario names or consolidate into a single entry.`
+    );
+  }
+
   // Build a map of delta scenarios by normalized name for quick lookup
   const deltaByName = new Map<string, ScenarioBlock>();
   for (const s of delta.scenarios) {
     deltaByName.set(normalizeScenarioName(s.name), s);
-  }
-
-  // Build a set of main scenario names for REMOVED matching
-  const mainByName = new Set<string>();
-  for (const s of main.scenarios) {
-    mainByName.add(normalizeScenarioName(s.name));
   }
 
   // Track which delta scenarios were used (to find new ones to append)
@@ -576,7 +599,7 @@ function replacePurposeSection(content: string, newPurpose: string): string {
   let endIdx = lines.length;
   let inFence = false;
   for (let i = purposeIdx + 1; i < lines.length; i++) {
-    if (lines[i].startsWith('```')) {
+    if (isMarkdownFenceLine(lines[i])) {
       inFence = !inFence;
       continue;
     }

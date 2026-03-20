@@ -294,5 +294,191 @@ Then result
       expect(rebuilt).toContain('### Requirement: New Rule');
       expect(counts.added).toBe(1);
     });
+
+    // N2 — Missing insertion test for spec without ## Purpose
+    it('should insert Purpose section when target spec has no Purpose section', async () => {
+      const srcDir = path.join(tmpDir, 'change', 'specs', 'no-purpose-spec');
+      await fs.mkdir(srcDir, { recursive: true });
+      const srcFile = path.join(srcDir, 'spec.md');
+      await fs.writeFile(srcFile, `# No Purpose Delta
+
+## Purpose
+
+Newly added purpose text.
+`);
+
+      const tgtDir = path.join(tmpDir, 'main', 'no-purpose-spec');
+      await fs.mkdir(tgtDir, { recursive: true });
+      const tgtFile = path.join(tgtDir, 'spec.md');
+      await fs.writeFile(tgtFile, `# no-purpose-spec Specification
+
+## Requirements
+
+### Requirement: Existing Rule
+
+The system MUST do something.
+
+#### Scenario: Basic
+
+Given state
+When action
+Then result
+`);
+
+      const update: SpecUpdate = { source: srcFile, target: tgtFile, exists: true };
+      const { rebuilt } = await buildUpdatedSpec(update, 'test-change');
+
+      // Purpose section inserted
+      expect(rebuilt).toContain('## Purpose');
+      expect(rebuilt).toContain('Newly added purpose text.');
+      // Requirements still present
+      expect(rebuilt).toContain('### Requirement: Existing Rule');
+      expect(rebuilt).toContain('#### Scenario: Basic');
+    });
+
+    // F3 — replacePurposeSection with tilde fence containing fake ##
+    it('should not break on tilde fence with fake ## inside Purpose section', async () => {
+      const srcDir = path.join(tmpDir, 'change', 'specs', 'tilde-purpose');
+      await fs.mkdir(srcDir, { recursive: true });
+      const srcFile = path.join(srcDir, 'spec.md');
+      await fs.writeFile(srcFile, `# Tilde Purpose Delta
+
+## Purpose
+
+New purpose with code example.
+`);
+
+      const tgtDir = path.join(tmpDir, 'main', 'tilde-purpose');
+      await fs.mkdir(tgtDir, { recursive: true });
+      const tgtFile = path.join(tgtDir, 'spec.md');
+      await fs.writeFile(tgtFile, `# tilde-purpose Specification
+
+## Purpose
+
+Old purpose with tilde fence:
+
+~~~
+## Fake Section Inside Fence
+This should NOT be treated as a section boundary.
+~~~
+
+## Requirements
+
+### Requirement: Keep This
+
+The system MUST keep this.
+
+#### Scenario: Basic
+
+Given something
+When action
+Then result
+`);
+
+      const update: SpecUpdate = { source: srcFile, target: tgtFile, exists: true };
+      const { rebuilt } = await buildUpdatedSpec(update, 'test-change');
+
+      // Purpose replaced (old content removed, new content inserted)
+      expect(rebuilt).toContain('New purpose with code example.');
+      expect(rebuilt).not.toContain('Old purpose with tilde fence');
+      expect(rebuilt).not.toContain('Fake Section Inside Fence');
+      // Requirements still present
+      expect(rebuilt).toContain('### Requirement: Keep This');
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // F4 — Empty Purpose section tests
+  // -----------------------------------------------------------------------
+  describe('parseDeltaSpec — Empty Purpose handling (F4)', () => {
+    it('should return purposeText === empty string for empty ## Purpose header', () => {
+      const content = `# Delta Spec
+
+## Purpose
+
+## ADDED Requirements
+
+### Requirement: New Thing
+
+The system MUST do the new thing.
+
+#### Scenario: Basic usage
+
+Given the system
+When the user does the thing
+Then the system does its thing
+`;
+      const plan = parseDeltaSpec(content);
+      expect(plan.sectionPresence.purpose).toBe(true);
+      expect(plan.purposeText).toBe('');
+      expect(plan.added).toHaveLength(1);
+    });
+  });
+
+  describe('Validator — Empty Purpose rejection (F4)', () => {
+    let tmpDir: string;
+    let changeDir: string;
+
+    beforeEach(async () => {
+      tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-f4-test-'));
+      changeDir = path.join(tmpDir, 'test-change');
+      await fs.mkdir(path.join(changeDir, 'specs'), { recursive: true });
+    });
+
+    afterEach(async () => {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('should reject a delta file with empty ## Purpose section', async () => {
+      const specDir = path.join(changeDir, 'specs', 'empty-purpose');
+      await fs.mkdir(specDir, { recursive: true });
+      await fs.writeFile(
+        path.join(specDir, 'spec.md'),
+        `# Empty Purpose Delta
+
+## Purpose
+
+`
+      );
+
+      const validator = new Validator();
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+      expect(report.valid).toBe(false);
+      expect(report.summary.errors).toBeGreaterThan(0);
+
+      // Specific empty-Purpose error must be present
+      const errorMessages = report.issues.map((i: { message: string }) => i.message);
+      expect(errorMessages).toContain('## Purpose section is present but empty — provide purpose text or remove the section');
+
+      // Top-level CHANGE_NO_DELTAS must NOT be present (empty Purpose IS a delta section)
+      const hasNoDeltas = errorMessages.some((m: string) => m.includes('No deltas found'));
+      expect(hasNoDeltas).toBe(false);
+    });
+
+    it('should treat no Purpose section + no requirements as missing header error', async () => {
+      const specDir = path.join(changeDir, 'specs', 'no-sections');
+      await fs.mkdir(specDir, { recursive: true });
+      await fs.writeFile(
+        path.join(specDir, 'spec.md'),
+        `# Nothing Delta
+
+Just some text.
+`
+      );
+
+      const validator = new Validator();
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+      expect(report.valid).toBe(false);
+      expect(report.summary.errors).toBeGreaterThan(0);
+
+      // Should have missing-header or no-deltas error (NOT the empty-Purpose error)
+      const errorMessages = report.issues.map((i: { message: string }) => i.message);
+      const hasMissingHeader = errorMessages.some((m: string) => m.includes('No delta sections found'));
+      const hasNoDeltas = errorMessages.some((m: string) => m.includes('No deltas found'));
+      expect(hasMissingHeader || hasNoDeltas).toBe(true);
+
+      // Empty-Purpose error must NOT be present (there is no ## Purpose section)
+      expect(errorMessages).not.toContain('## Purpose section is present but empty — provide purpose text or remove the section');
+    });
   });
 });
