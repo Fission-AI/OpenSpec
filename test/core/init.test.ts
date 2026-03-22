@@ -541,23 +541,25 @@ describe('InitCommand - profile and detection features', () => {
     const opencodeHome = path.join(os.tmpdir(), `openspec-opencode-home-${Date.now()}`);
     process.env.OPENCODE_HOME = opencodeHome;
 
-    // Create legacy OpenCode command files (singular 'command' path)
-    const legacyDir = path.join(testDir, '.opencode', 'command');
-    await fs.mkdir(legacyDir, { recursive: true });
-    await fs.writeFile(path.join(legacyDir, 'opsx-propose.md'), 'legacy content');
+    try {
+      // Create legacy OpenCode command files (singular 'command' path)
+      const legacyDir = path.join(testDir, '.opencode', 'command');
+      await fs.mkdir(legacyDir, { recursive: true });
+      await fs.writeFile(path.join(legacyDir, 'opsx-propose.md'), 'legacy content');
 
-    // Run init in non-interactive mode without --force
-    const initCommand = new InitCommand({ tools: 'opencode' });
-    await initCommand.execute(testDir);
+      // Run init in non-interactive mode without --force
+      const initCommand = new InitCommand({ tools: 'opencode' });
+      await initCommand.execute(testDir);
 
-    // Legacy files should be cleaned up automatically
-    expect(await fileExists(path.join(legacyDir, 'opsx-propose.md'))).toBe(false);
+      // Legacy files should be cleaned up automatically
+      expect(await fileExists(path.join(legacyDir, 'opsx-propose.md'))).toBe(false);
 
-    // New commands should be at the global OpenCode path
-    const newCommandsDir = path.join(opencodeHome, 'commands');
-    expect(await directoryExists(newCommandsDir)).toBe(true);
-
-    await fs.rm(opencodeHome, { recursive: true, force: true });
+      // New commands should be at the global OpenCode path
+      const newCommandsDir = path.join(opencodeHome, 'commands');
+      expect(await directoryExists(newCommandsDir)).toBe(true);
+    } finally {
+      await fs.rm(opencodeHome, { recursive: true, force: true });
+    }
   });
 
   it('should preselect configured tools but not directory-detected tools in extend mode', async () => {
