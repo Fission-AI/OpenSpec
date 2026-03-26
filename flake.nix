@@ -59,6 +59,7 @@
               npmHooks.npmInstallHook
               pnpmConfigHook
               pnpm_9
+              installShellFiles
             ];
 
             buildPhase = ''
@@ -68,6 +69,15 @@
 
               runHook postBuild
             '';
+
+            postInstall =
+              with pkgs;
+              lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
+                installShellCompletion --cmd openspec \
+                  --bash <($out/bin/openspec completion generate bash | tail -n+2) \
+                  --fish <($out/bin/openspec completion generate fish | tail -n+2) \
+                  --zsh <($out/bin/openspec completion generate zsh | tail -n+2) 
+              '';
 
             dontNpmPrune = true;
 
