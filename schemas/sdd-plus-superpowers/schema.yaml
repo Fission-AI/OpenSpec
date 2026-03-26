@@ -1,0 +1,182 @@
+name: sdd-plus-superpowers
+version: 1
+description: >
+  Spec-driven workflow integrated with Superpowers skills.
+  brainstorm → proposal → design/specs → tasks → plan.
+  Apply phase uses git worktrees + subagent-driven development.
+
+artifacts:
+  - id: brainstorm
+    generates: brainstorm.md
+    description: Collaborative design exploration using Superpowers brainstorming
+    template: brainstorm.md
+    instruction: |
+      Use the Skill tool to invoke **superpowers:brainstorming**.
+
+      IMPORTANT output redirection:
+      - Do NOT write to `docs/superpowers/specs/`. Instead, write the
+        brainstorming design output directly to this change's `brainstorm.md`.
+      - If brainstorming produces a design document, also write it to
+        this change's `design.md` (this will pre-fill the design artifact).
+
+      After brainstorming completes, summarize the agreed design in
+      brainstorm.md using the template structure.
+
+      The brainstorming skill will:
+      1. Explore project context
+      2. Ask clarifying questions (one at a time)
+      3. Propose 2-3 approaches with trade-offs
+      4. Present design sections for approval
+      5. Output the validated design
+    requires: []
+
+  - id: proposal
+    generates: proposal.md
+    description: Initial proposal document outlining the change
+    template: proposal.md
+    instruction: |
+      Create the proposal document based on the brainstorming output.
+
+      Read brainstorm.md for the validated design. Extract:
+      - **Why**: The motivation (from brainstorming discussion)
+      - **What Changes**: Specific changes agreed upon
+      - **Capabilities**: Identify which specs will be created or modified:
+        - **New Capabilities**: List capabilities being introduced. Each becomes a new `specs/<name>/spec.md`. Use kebab-case names.
+        - **Modified Capabilities**: List existing capabilities whose REQUIREMENTS are changing. Check `openspec/specs/` for existing spec names.
+      - **Impact**: Affected code, APIs, dependencies, or systems.
+
+      Since brainstorming already explored the problem space,
+      this should be a concise extraction, not a new exploration.
+
+      IMPORTANT: The Capabilities section is critical. It creates the contract between
+      proposal and specs phases. Each capability listed here will need a spec file.
+
+      Keep it concise (1-2 pages). Focus on the "why" not the "how".
+    requires:
+      - brainstorm
+
+  - id: design
+    generates: design.md
+    description: Technical design document with implementation details
+    template: design.md
+    instruction: |
+      Create the design document explaining HOW to implement the change.
+
+      Check if brainstorming already produced a design.md file.
+      If design.md already exists with content from brainstorming,
+      review and refine it rather than starting from scratch.
+
+      If design.md is empty or doesn't exist, create it from
+      the brainstorm.md output.
+
+      Sections:
+      - **Context**: Background, current state, constraints, stakeholders
+      - **Goals / Non-Goals**: What this design achieves and explicitly excludes
+      - **Decisions**: Key technical choices with rationale (why X over Y?). Include alternatives considered.
+      - **Risks / Trade-offs**: Known limitations, things that could go wrong. Format: [Risk] → Mitigation
+      - **Migration Plan**: Steps to deploy, rollback strategy (if applicable)
+      - **Open Questions**: Outstanding decisions or unknowns to resolve
+
+      Focus on architecture and approach, not line-by-line implementation.
+      Good design docs explain the "why" behind technical decisions.
+    requires:
+      - brainstorm
+
+  - id: specs
+    generates: "specs/**/*.md"
+    description: Detailed specifications for the change
+    template: spec.md
+    instruction: |
+      Create specification files that define WHAT the system should do.
+
+      Create one spec file per capability listed in the proposal's Capabilities section.
+      - New capabilities: use the exact kebab-case name from the proposal (specs/<capability>/spec.md).
+      - Modified capabilities: use the existing spec folder name from openspec/specs/<capability>/ when creating the delta spec at specs/<capability>/spec.md.
+
+      Delta operations (use ## headers):
+      - **ADDED Requirements**: New capabilities
+      - **MODIFIED Requirements**: Changed behavior - MUST include full updated content
+      - **REMOVED Requirements**: Deprecated features - MUST include **Reason** and **Migration**
+      - **RENAMED Requirements**: Name changes only - use FROM:/TO: format
+
+      Format requirements:
+      - Each requirement: `### Requirement: <name>` followed by description
+      - Use SHALL/MUST for normative requirements (avoid should/may)
+      - Each scenario: `#### Scenario: <name>` with WHEN/THEN format
+      - **CRITICAL**: Scenarios MUST use exactly 4 hashtags (`####`). Using 3 hashtags or bullets will fail silently.
+      - Every requirement MUST have at least one scenario.
+
+      Specs should be testable - each scenario is a potential test case.
+    requires:
+      - proposal
+
+  - id: tasks
+    generates: tasks.md
+    description: Implementation checklist with trackable tasks
+    template: tasks.md
+    instruction: |
+      Create the task list that breaks down the implementation work.
+
+      **IMPORTANT: Follow the template below exactly.** The apply phase parses
+      checkbox format to track progress. Tasks not using `- [ ]` won't be tracked.
+
+      Guidelines:
+      - Group related tasks under ## numbered headings
+      - Each task MUST be a checkbox: `- [ ] X.Y Task description`
+      - Tasks should be small enough to complete in one session
+      - Order tasks by dependency (what must be done first?)
+
+      Reference specs for what needs to be built, design for how to build it.
+      Each task should be verifiable - you know when it's done.
+    requires:
+      - specs
+      - design
+
+  - id: plan
+    generates: plan.md
+    description: Micro-task implementation plan using Superpowers writing-plans
+    template: plan.md
+    instruction: |
+      Use the Skill tool to invoke **superpowers:writing-plans**.
+
+      IMPORTANT output redirection:
+      - Do NOT write to `docs/superpowers/plans/`. Instead, write
+        the plan directly to this change's `plan.md`.
+
+      The writing-plans skill will:
+      1. Read the tasks.md and design.md for context
+      2. Break each task into 2-5 minute micro-steps (TDD style)
+      3. Include exact file paths, code snippets, test commands
+      4. Add commit points after each task
+
+      Pass the tasks.md content to the skill as the input for
+      decomposition. The plan should reference the specs and
+      design artifacts in this change directory.
+    requires:
+      - tasks
+
+apply:
+  requires: [plan]
+  tracks: tasks.md
+  instruction: |
+    Before implementing, set up an isolated workspace and executor:
+
+    1. **Workspace**: Use the Skill tool to invoke
+       **superpowers:using-git-worktrees** to create an isolated
+       git worktree for this change.
+
+    2. **Executor**: Use the Skill tool to invoke
+       **superpowers:subagent-driven-development** to execute
+       the plan.md micro-tasks with fresh subagents per task.
+
+       Tell the executor:
+       - Read plan.md in this change directory for micro-tasks
+       - Update tasks.md checkboxes as coarse tasks complete
+       - Work within the created worktree
+
+    3. **Completion**: When all tasks are done, use the Skill tool
+       to invoke **superpowers:finishing-a-development-branch**
+       for branch cleanup, PR creation, etc.
+
+    If any skill is unavailable, fall back to manual implementation
+    using the standard task-by-task loop from tasks.md.
