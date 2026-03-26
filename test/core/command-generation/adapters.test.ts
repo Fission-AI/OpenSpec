@@ -285,7 +285,7 @@ describe('command-generation/adapters', () => {
 
     it('should generate correct file path with .prompt.md extension', () => {
       const filePath = codeStudioAdapter.getFilePath('explore');
-      expect(filePath).toBe(path.join('.code-studio', 'prompts', 'opsx-explore.prompt.md'));
+      expect(filePath).toBe(path.join('.codestudio', 'prompts', 'opsx-explore.prompt.md'));
     });
 
     it('should format file with description frontmatter', () => {

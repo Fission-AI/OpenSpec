@@ -9,14 +9,14 @@ import type { CommandContent, ToolCommandAdapter } from '../types.js';
 
 /**
  * Code Studio adapter for command generation.
- * File path: .code-studio/prompts/opsx-<id>.prompt.md
+ * File path: .codestudio/prompts/opsx-<id>.prompt.md
  * Frontmatter: description
  */
 export const codeStudioAdapter: ToolCommandAdapter = {
   toolId: 'code-studio',
 
   getFilePath(commandId: string): string {
-    return path.join('.code-studio', 'prompts', `opsx-${commandId}.prompt.md`);
+    return path.join('.codestudio', 'prompts', `opsx-${commandId}.prompt.md`);
   },
 
   formatFile(content: CommandContent): string {
