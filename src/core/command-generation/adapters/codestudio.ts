@@ -13,7 +13,7 @@ import type { CommandContent, ToolCommandAdapter } from '../types.js';
  * Frontmatter: description
  */
 export const codeStudioAdapter: ToolCommandAdapter = {
-  toolId: 'code-studio',
+  toolId: 'codestudio',
 
   getFilePath(commandId: string): string {
     return path.join('.codestudio', 'prompts', `opsx-${commandId}.prompt.md`);

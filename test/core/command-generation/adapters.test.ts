@@ -8,7 +8,7 @@ import { claudeAdapter } from '../../../src/core/command-generation/adapters/cla
 import { clineAdapter } from '../../../src/core/command-generation/adapters/cline.js';
 import { codexAdapter } from '../../../src/core/command-generation/adapters/codex.js';
 import { codebuddyAdapter } from '../../../src/core/command-generation/adapters/codebuddy.js';
-import { codeStudioAdapter } from '../../../src/core/command-generation/adapters/code-studio.js';
+import { codeStudioAdapter } from '../../../src/core/command-generation/adapters/codestudio.js';
 import { continueAdapter } from '../../../src/core/command-generation/adapters/continue.js';
 import { costrictAdapter } from '../../../src/core/command-generation/adapters/costrict.js';
 import { crushAdapter } from '../../../src/core/command-generation/adapters/crush.js';
@@ -280,7 +280,7 @@ describe('command-generation/adapters', () => {
 
   describe('codeStudioAdapter', () => {
     it('should have correct toolId', () => {
-      expect(codeStudioAdapter.toolId).toBe('code-studio');
+      expect(codeStudioAdapter.toolId).toBe('codestudio');
     });
 
     it('should generate correct file path with .prompt.md extension', () => {

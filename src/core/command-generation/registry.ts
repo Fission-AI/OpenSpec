@@ -13,7 +13,7 @@ import { claudeAdapter } from './adapters/claude.js';
 import { clineAdapter } from './adapters/cline.js';
 import { codexAdapter } from './adapters/codex.js';
 import { codebuddyAdapter } from './adapters/codebuddy.js';
-import { codeStudioAdapter } from './adapters/code-studio.js';
+import { codeStudioAdapter } from './adapters/codestudio.js';
 import { continueAdapter } from './adapters/continue.js';
 import { costrictAdapter } from './adapters/costrict.js';
 import { crushAdapter } from './adapters/crush.js';
