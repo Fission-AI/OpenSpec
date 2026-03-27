@@ -341,4 +341,4 @@ openspec schema fork spec-driven with-review
 
 ## 另请参阅
 
-- [CLI 参考：Schema 命令](cli.md#schema-commands) - 完整的命令文档
+- [CLI 参考：Schema 命令](cli.md#schema-命令) - 完整的命令文档
