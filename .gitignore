@@ -156,4 +156,6 @@ opencode.json
 
 # Codex
 .codex/
+
+# Bob
 .bob/
