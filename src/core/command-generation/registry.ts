@@ -13,6 +13,7 @@ import { claudeAdapter } from './adapters/claude.js';
 import { clineAdapter } from './adapters/cline.js';
 import { codexAdapter } from './adapters/codex.js';
 import { codebuddyAdapter } from './adapters/codebuddy.js';
+import { codeStudioAdapter } from './adapters/codestudio.js';
 import { continueAdapter } from './adapters/continue.js';
 import { costrictAdapter } from './adapters/costrict.js';
 import { crushAdapter } from './adapters/crush.js';
@@ -45,6 +46,7 @@ export class CommandAdapterRegistry {
     CommandAdapterRegistry.register(clineAdapter);
     CommandAdapterRegistry.register(codexAdapter);
     CommandAdapterRegistry.register(codebuddyAdapter);
+    CommandAdapterRegistry.register(codeStudioAdapter);
     CommandAdapterRegistry.register(continueAdapter);
     CommandAdapterRegistry.register(costrictAdapter);
     CommandAdapterRegistry.register(crushAdapter);
