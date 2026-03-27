@@ -2,7 +2,7 @@
 
 # 快速入门
 
-本指南解释了在安装和初始化 OpenSpec 后它的工作原理。安装说明请参阅 [主 README](../README.md#quick-start)。
+本指南解释了在安装和初始化 OpenSpec 后它的工作原理。安装说明请参阅 [主 README](README.md#快速开始)。
 
 ## 工作原理
 

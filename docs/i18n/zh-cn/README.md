@@ -3,8 +3,8 @@
 <p align="center">
   <a href="https://github.com/Fission-AI/OpenSpec">
     <picture>
-      <source srcset="../../assets/openspec_bg.png">
-      <img src="../../assets/openspec_bg.png" alt="OpenSpec logo">
+      <source srcset="../../../assets/openspec_bg.png">
+      <img src="../../../assets/openspec_bg.png" alt="OpenSpec logo">
     </picture>
   </a>
 </p>
@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/Fission-AI/OpenSpec/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Fission-AI/OpenSpec/actions/workflows/ci.yml/badge.svg" /></a>
   <a href="https://www.npmjs.com/package/@fission-ai/openspec"><img alt="npm version" src="https://img.shields.io/npm/v/@fission-ai/openspec?style=flat-square" /></a>
-  <a href="../../LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" /></a>
+  <a href="../../../LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" /></a>
   <a href="https://discord.gg/YctCnvvshC"><img alt="Discord" src="https://img.shields.io/discord/1411657095639601154?style=flat-square&logo=discord&logoColor=white&label=Discord&suffix=%20online" /></a>
 </p>
 
@@ -78,7 +78,7 @@ AI:  已归档至 openspec/changes/archive/2025-01-23-add-dark-mode/
 <summary><strong>OpenSpec 仪表板</strong></summary>
 
 <p align="center">
-  <img src="../../assets/openspec_dashboard.png" alt="OpenSpec 仪表板预览" width="90%">
+  <img src="../../../assets/openspec_dashboard.png" alt="OpenSpec 仪表板预览" width="90%">
 </p>
 
 </details>
@@ -194,7 +194,7 @@ OpenSpec 收集匿名使用统计。
 <details>
 <summary><strong>维护者和顾问</strong></summary>
 
-请参阅 [MAINTAINERS.md](../../MAINTAINERS.md) 了解核心维护者和顾问的列表，他们帮助指导项目发展。
+请参阅 [MAINTAINERS.md](../../../MAINTAINERS.md) 了解核心维护者和顾问的列表，他们帮助指导项目发展。
 
 </details>
 
