@@ -35,6 +35,38 @@ export interface ApplyInstructions {
   state: 'blocked' | 'all_done' | 'ready';
   missingArtifacts?: string[];
   instruction: string;
+  gates?: {
+    pre?: Array<{
+      id: string;
+      check: string;
+      severity: string;
+      prompt?: string;
+      command?: string;
+      retry?: number;
+      on_p2?: string;
+    }>;
+    post?: Array<{
+      id: string;
+      check: string;
+      severity: string;
+      prompt?: string;
+      command?: string;
+      retry?: number;
+      on_p2?: string;
+    }>;
+  };
+  steps?: Array<{
+    id: string;
+    method?: string;
+    tdd?: {
+      enforce: string;
+      test_pattern?: string;
+      min_coverage?: number;
+      marker?: boolean;
+    };
+    gate_ref?: string;
+    instruction?: string;
+  }>;
 }
 
 // -----------------------------------------------------------------------------
@@ -127,8 +159,8 @@ export async function validateChangeExists(
     throw new Error(`Invalid change name '${changeName}': ${nameValidation.error}`);
   }
 
-  // Check directory existence directly
-  const changePath = path.join(projectRoot, 'openspec', 'changes', changeName);
+  // Check directory existence directly (use getChangesDir to respect config.yaml changesDir)
+  const changePath = path.join(getChangesDir(projectRoot), changeName);
   const exists = fs.existsSync(changePath) && fs.statSync(changePath).isDirectory();
 
   if (!exists) {

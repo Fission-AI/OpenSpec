@@ -16,6 +16,7 @@ import { CompletionCommand } from '../commands/completion.js';
 import { FeedbackCommand } from '../commands/feedback.js';
 import { registerConfigCommand } from '../commands/config.js';
 import { registerSchemaCommand } from '../commands/schema.js';
+import { GateCommand } from '../commands/gate.js';
 import {
   statusCommand,
   instructionsCommand,
@@ -500,6 +501,27 @@ newCmd
   .action(async (name: string, options: NewChangeOptions) => {
     try {
       await newChangeCommand(name, options);
+    } catch (error) {
+      console.log();
+      ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+
+// Gate command group
+const gateCmd = program.command('gate').description('Quality gate operations');
+
+gateCmd
+  .command('check')
+  .description('Run quality gate checks for a change')
+  .option('--change <name>', 'Change name')
+  .option('--phase <phase>', 'Gate phase: pre or post')
+  .option('--json', 'Output as JSON')
+  .action(async (options: { change?: string; phase?: string; json?: boolean }) => {
+    try {
+      const gateCommand = new GateCommand();
+      await gateCommand.execute(options);
     } catch (error) {
       console.log();
       ora().fail(`Error: ${(error as Error).message}`);

@@ -1,0 +1,246 @@
+name: odoo-sdd
+version: 1
+description: Odoo SDD workflow with alignment gates, TDD enforcement, and quality pipeline
+
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Initial proposal document outlining the change
+    template: proposal.md
+    instruction: |
+      Create the proposal document that establishes WHY this change is needed.
+
+      Sections:
+      - **Why**: 1-2 sentences on the problem or opportunity. What problem does this solve? Why now?
+      - **What Changes**: Bullet list of changes. Be specific about new capabilities, modifications, or removals. Mark breaking changes with **BREAKING**.
+      - **Capabilities**: Identify which specs will be created or modified:
+        - **New Capabilities**: List capabilities being introduced. Each becomes a new `specs/<name>/spec.md`. Use kebab-case names (e.g., `user-auth`, `data-export`).
+        - **Modified Capabilities**: List existing capabilities whose REQUIREMENTS are changing. Only include if spec-level behavior changes (not just implementation details). Each needs a delta spec file. Check `openspec/specs/` for existing spec names. Leave empty if no requirement changes.
+      - **Impact**: Affected code, APIs, dependencies, or systems.
+
+      IMPORTANT: The Capabilities section is critical. It creates the contract between
+      proposal and specs phases. Research existing specs before filling this in.
+      Each capability listed here will need a corresponding spec file.
+
+      Keep it concise (1-2 pages). Focus on the "why" not the "how" -
+      implementation details belong in design.md.
+
+      This is the foundation - specs, design, and tasks all build on this.
+
+      Odoo-specific guidance:
+      - List affected Odoo modules in Impact section
+      - Note model/view/security changes separately
+      - Flag i18n impact if new user-visible strings are added
+    requires: []
+
+  - id: specs
+    generates: "specs/**/*.md"
+    description: Detailed specifications for the change
+    template: spec.md
+    instruction: |
+      Create specification files that define WHAT the system should do.
+
+      Create one spec file per capability listed in the proposal's Capabilities section.
+      - New capabilities: use the exact kebab-case name from the proposal (specs/<capability>/spec.md).
+      - Modified capabilities: use the existing spec folder name from openspec/specs/<capability>/ when creating the delta spec at specs/<capability>/spec.md.
+
+      Delta operations (use ## headers):
+      - **ADDED Requirements**: New capabilities
+      - **MODIFIED Requirements**: Changed behavior - MUST include full updated content
+      - **REMOVED Requirements**: Deprecated features - MUST include **Reason** and **Migration**
+      - **RENAMED Requirements**: Name changes only - use FROM:/TO: format
+
+      Format requirements:
+      - Each requirement: `### Requirement: <name>` followed by description
+      - Use SHALL/MUST for normative requirements (avoid should/may)
+      - Each scenario: `#### Scenario: <name>` with WHEN/THEN format
+      - **CRITICAL**: Scenarios MUST use exactly 4 hashtags (`####`). Using 3 hashtags or bullets will fail silently.
+      - Every requirement MUST have at least one scenario.
+
+      MODIFIED requirements workflow:
+      1. Locate the existing requirement in openspec/specs/<capability>/spec.md
+      2. Copy the ENTIRE requirement block (from `### Requirement:` through all scenarios)
+      3. Paste under `## MODIFIED Requirements` and edit to reflect new behavior
+      4. Ensure header text matches exactly (whitespace-insensitive)
+
+      Common pitfall: Using MODIFIED with partial content loses detail at archive time.
+      If adding new concerns without changing existing behavior, use ADDED instead.
+
+      Specs should be testable - each scenario is a potential test case.
+
+      Odoo-specific guidance:
+      - Include model field constraints in requirements (required, unique, domain)
+      - Specify access control requirements (groups, record rules)
+      - Use Odoo domain syntax in scenarios when describing filters
+    requires:
+      - proposal
+
+  - id: design
+    generates: design.md
+    description: Technical design document with implementation details
+    template: design.md
+    instruction: |
+      Create the design document that explains HOW to implement the change.
+
+      When to include design.md (create only if any apply):
+      - Cross-cutting change (multiple services/modules) or new architectural pattern
+      - New external dependency or significant data model changes
+      - Security, performance, or migration complexity
+      - Ambiguity that benefits from technical decisions before coding
+
+      Sections:
+      - **Context**: Background, current state, constraints, stakeholders
+      - **Goals / Non-Goals**: What this design achieves and explicitly excludes
+      - **Decisions**: Key technical choices with rationale (why X over Y?). Include alternatives considered for each decision.
+      - **Risks / Trade-offs**: Known limitations, things that could go wrong. Format: [Risk] → Mitigation
+      - **Migration Plan**: Steps to deploy, rollback strategy (if applicable)
+      - **Open Questions**: Outstanding decisions or unknowns to resolve
+
+      Focus on architecture and approach, not line-by-line implementation.
+      Reference the proposal for motivation and specs for requirements.
+
+      Good design docs explain the "why" behind technical decisions.
+
+      Odoo-specific guidance:
+      - Document model inheritance strategy (_inherit vs _inherits vs new model)
+      - Specify view inheritance targets (base view XML IDs)
+      - Note Odoo 18 migration concerns (list not tree, direct attributes not attrs)
+      - Include deployment steps for Odoo.sh if applicable
+    requires:
+      - proposal
+
+  - id: tasks
+    generates: tasks.md
+    description: Implementation checklist with trackable tasks
+    template: tasks.md
+    instruction: |
+      Create the task list that breaks down the implementation work.
+
+      **IMPORTANT: Follow the template below exactly.** The apply phase parses
+      checkbox format to track progress. Tasks not using `- [ ]` won't be tracked.
+
+      Guidelines:
+      - Group related tasks under ## numbered headings
+      - Each task MUST be a checkbox: `- [ ] X.Y Task description`
+      - Tasks should be small enough to complete in one session
+      - Order tasks by dependency (what must be done first?)
+
+      Reference specs for what needs to be built, design for how to build it.
+      Each task should be verifiable - you know when it's done.
+
+      Odoo-specific guidance:
+      - Include tasks for: models, views, security (ir.model.access.csv), manifest, i18n
+      - Frontend tasks (OWL components) must be separate from backend tasks
+      - Include TDD tasks: write test before implementation
+      - Add i18n task if any new _() strings are introduced
+    requires:
+      - specs
+      - design
+
+apply:
+  requires: [tasks]
+  tracks: tasks.md
+
+  gates:
+    pre:
+      - id: capability-coverage
+        check: capability-coverage
+        severity: blocking
+
+      - id: scenario-task-alignment
+        check: ai-review
+        severity: blocking
+        prompt: |
+          逐一比對每個 spec scenario 和 tasks.md 中的 task。
+          對每個 #### Scenario:，找出覆蓋它的 task。
+          列出未覆蓋的 scenario。
+          如果有未覆蓋的 scenario，報告 FAIL。
+
+    post:
+      - id: task-completion
+        check: all-tasks-done
+        severity: blocking
+
+      - id: test-exists
+        check: ai-review
+        severity: blocking
+        prompt: |
+          對每個已完成的 task，檢查：
+          1. tasks.md 中是否有 > TDD: marker
+          2. 對應的 test 檔案是否存在
+          缺少 TDD marker 的 task 標記為 FAIL。
+
+      - id: impl-aligned
+        check: ai-review
+        severity: blocking
+        prompt: |
+          對每個 spec requirement，grep codebase 確認有對應實作。
+          對每個 spec scenario，確認有 code 或 test 覆蓋。
+          列出未覆蓋的 requirement/scenario。
+
+      - id: code-reviewed
+        check: ai-review
+        severity: blocking
+        retry: 3
+        on_p2: batch-then-recheck
+        prompt: |
+          執行 code review，檢查：
+          - 安全性（SQL injection、XSS、auth bypass）
+          - ORM 正確性（N+1 查詢、batch 處理）
+          - Odoo 18 view 語法（list not tree、直接屬性 not attrs）
+          - 錯誤處理（UserError、ValidationError）
+          嚴重度分級：P0(critical) P1(high) P2(medium)
+          P0/P1 = blocking，P2 = batch-fix then recheck
+
+      - id: precommit
+        check: command
+        severity: blocking
+        command: "node .claude/scripts/hooks/precommit-check.js"
+
+  steps:
+    - id: coded
+      method: tdd
+      tdd:
+        enforce: per-task
+        test_pattern: "tests/test_*.py"
+        min_coverage: 80
+        marker: true
+      instruction: |
+        對每個 task，嚴格遵循 TDD：
+        1. RED:   先寫測試，執行確認 FAIL
+        2. GREEN: 寫最少的實作讓測試 PASS
+        3. REFACTOR: 清理，確認測試仍 PASS
+
+        在 tasks.md 每個 task 下方記錄：
+        > TDD: test_file.py::TestClass::test_method → RED ✓ → GREEN ✓
+
+        如果 task 不需要測試（如 view-only 變更），記錄：
+        > TDD: skipped (view-only change, no logic)
+
+    - id: reviewed
+      method: gate
+      gate_ref: code-reviewed
+      instruction: "由 post gate code-reviewed 處理"
+
+    - id: committed
+      instruction: |
+        使用 Lore Protocol 格式提交：
+        [module]: type WHY-not-WHAT
+
+        Trailers（選用）：
+        Constraint: / Rejected: / Confidence: / Scope-risk: / Tested: / Not-tested:
+        Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+    - id: pr-ready
+      instruction: |
+        gh pr create --base staging --title "[module] change-name"
+        PR URL 寫入 proposal.md
+
+  instruction: |
+    ⚠️ Branch Gate（MUST — 開始前強制檢查）
+
+    目前 branch 必須是 feature/*。
+    如果在 staging/main/其他 → 停止，提示：
+    「目前在 {branch}，apply 必須在 feature branch。建議：git checkout -b feature/{change-name}」
+
+    等用戶確認已切換後才繼續。

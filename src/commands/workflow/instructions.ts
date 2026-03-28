@@ -318,6 +318,10 @@ export async function generateApplyInstructions(
   const schema = resolveSchema(context.schemaName, projectRoot);
   const applyConfig = schema.apply;
 
+  // Extract gates and steps from schema apply config
+  const gates = applyConfig?.gates ?? undefined;
+  const steps = applyConfig?.steps ?? undefined;
+
   // Determine required artifacts and tracking file from schema
   // Fallback: if no apply block, require all artifacts
   const requiredArtifactIds = applyConfig?.requires ?? schema.artifacts.map((a) => a.id);
@@ -397,6 +401,8 @@ export async function generateApplyInstructions(
     state,
     missingArtifacts: missingArtifacts.length > 0 ? missingArtifacts : undefined,
     instruction,
+    gates,
+    steps,
   };
 }
 
@@ -472,6 +478,35 @@ export function printApplyInstructionsText(instructions: ApplyInstructions): voi
     for (const task of tasks) {
       const checkbox = task.done ? '[x]' : '[ ]';
       console.log(`- ${checkbox} ${task.description}`);
+    }
+    console.log();
+  }
+
+  // Gates
+  if (instructions.gates) {
+    if (instructions.gates.pre?.length) {
+      console.log('### Pre Gates (before coding)');
+      for (const gate of instructions.gates.pre) {
+        console.log(`- [${gate.severity}] ${gate.id}: ${gate.check}`);
+      }
+      console.log();
+    }
+    if (instructions.gates.post?.length) {
+      console.log('### Post Gates (after coding)');
+      for (const gate of instructions.gates.post) {
+        const extra = gate.retry ? ` (retry: ${gate.retry})` : '';
+        console.log(`- [${gate.severity}] ${gate.id}: ${gate.check}${extra}`);
+      }
+      console.log();
+    }
+  }
+
+  // Steps
+  if (instructions.steps?.length) {
+    console.log('### Steps');
+    for (const step of instructions.steps) {
+      const method = step.method ? ` [${step.method}]` : '';
+      console.log(`- ${step.id}${method}`);
     }
     console.log();
   }
