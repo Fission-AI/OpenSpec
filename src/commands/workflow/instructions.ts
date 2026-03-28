@@ -17,11 +17,11 @@ import {
 import {
   validateChangeExists,
   validateSchemaExists,
+  readPhaseConfig,
   type TaskItem,
   type ApplyInstructions,
   type VerifyInstructions,
 } from './shared.js';
-import { readProjectConfig } from '../../core/project-config.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -395,19 +395,7 @@ export async function generateApplyInstructions(
   }
 
   // Read project config for context and rules injection
-  let configContext: string | undefined;
-  let configRules: string[] | undefined;
-  try {
-    const projectConfig = readProjectConfig(projectRoot);
-    if (projectConfig?.context?.trim()) {
-      configContext = projectConfig.context.trim();
-    }
-    if (projectConfig?.rules?.['apply'] && projectConfig.rules['apply'].length > 0) {
-      configRules = projectConfig.rules['apply'];
-    }
-  } catch {
-    // If config read fails, continue without config
-  }
+  const phaseConfig = readPhaseConfig(projectRoot, 'apply');
 
   return {
     changeName,
@@ -419,8 +407,8 @@ export async function generateApplyInstructions(
     state,
     missingArtifacts: missingArtifacts.length > 0 ? missingArtifacts : undefined,
     instruction,
-    context: configContext,
-    rules: configRules,
+    context: phaseConfig.context,
+    rules: phaseConfig.rules,
   };
 }
 
@@ -564,19 +552,7 @@ export async function generateVerifyInstructions(
   const remaining = total - complete;
 
   // Read project config for context and rules injection
-  let configContext: string | undefined;
-  let configRules: string[] | undefined;
-  try {
-    const projectConfig = readProjectConfig(projectRoot);
-    if (projectConfig?.context?.trim()) {
-      configContext = projectConfig.context.trim();
-    }
-    if (projectConfig?.rules?.['verify'] && projectConfig.rules['verify'].length > 0) {
-      configRules = projectConfig.rules['verify'];
-    }
-  } catch {
-    // If config read fails, continue without config
-  }
+  const phaseConfig = readPhaseConfig(projectRoot, 'verify');
 
   return {
     changeName,
@@ -585,8 +561,8 @@ export async function generateVerifyInstructions(
     contextFiles,
     progress: { total, complete, remaining },
     tasks,
-    context: configContext,
-    rules: configRules,
+    context: phaseConfig.context,
+    rules: phaseConfig.rules,
   };
 }
 

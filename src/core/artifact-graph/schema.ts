@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import { parse as parseYaml } from 'yaml';
 import { SchemaYamlSchema, type SchemaYaml, type Artifact } from './types.js';
+import { RESERVED_PHASE_IDS } from '../project-config.js';
 
 export class SchemaValidationError extends Error {
   constructor(message: string) {
@@ -32,6 +33,9 @@ export function parseSchema(yamlContent: string): SchemaYaml {
 
   const schema = result.data;
 
+  // Check for reserved phase IDs used as artifact IDs
+  validateNoReservedIds(schema.artifacts);
+
   // Check for duplicate artifact IDs
   validateNoDuplicateIds(schema.artifacts);
 
@@ -42,6 +46,21 @@ export function parseSchema(yamlContent: string): SchemaYaml {
   validateNoCycles(schema.artifacts);
 
   return schema;
+}
+
+/**
+ * Validates that no artifact uses a reserved phase ID ('apply', 'verify').
+ * These names are reserved for phase-level commands in the CLI.
+ */
+function validateNoReservedIds(artifacts: Artifact[]): void {
+  for (const artifact of artifacts) {
+    if (RESERVED_PHASE_IDS.has(artifact.id)) {
+      throw new SchemaValidationError(
+        `Artifact ID '${artifact.id}' is reserved for phase commands. ` +
+        `Reserved IDs: ${Array.from(RESERVED_PHASE_IDS).join(', ')}`
+      );
+    }
+  }
 }
 
 /**
