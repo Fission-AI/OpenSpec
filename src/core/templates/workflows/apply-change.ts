@@ -44,6 +44,8 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
    - Progress (total, complete, remaining)
    - Task list with status
    - Dynamic instruction based on current state
+   - \`context\`: Project context from config.yaml (if present)
+   - \`rules\`: Apply-phase rules from config.yaml (if present) — **these are mandatory constraints, you MUST follow them**
 
    **Handle states:**
    - If \`state: "blocked"\` (missing artifacts): show message, suggest using openspec-continue-change
@@ -64,9 +66,13 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
    - Progress: "N/M tasks complete"
    - Remaining tasks overview
    - Dynamic instruction from CLI
+   - If rules are present, display them as "Apply Rules" section
 
 6. **Implement tasks (loop until done or blocked)**
 
+   **IMPORTANT**: If \`rules\` are present in the apply instructions output, you MUST follow them as mandatory execution constraints. Rules may specify execution strategies (e.g., using subagents, specific testing requirements, retry policies). Follow them exactly.
+
+   If no rules are present, use the default behavior:
    For each pending task:
    - Show which task is being worked on
    - Make the code changes required
@@ -201,6 +207,8 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
    - Progress (total, complete, remaining)
    - Task list with status
    - Dynamic instruction based on current state
+   - \`context\`: Project context from config.yaml (if present)
+   - \`rules\`: Apply-phase rules from config.yaml (if present) — **these are mandatory constraints, you MUST follow them**
 
    **Handle states:**
    - If \`state: "blocked"\` (missing artifacts): show message, suggest using \`/opsx:continue\`
@@ -221,9 +229,13 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
    - Progress: "N/M tasks complete"
    - Remaining tasks overview
    - Dynamic instruction from CLI
+   - If rules are present, display them as "Apply Rules" section
 
 6. **Implement tasks (loop until done or blocked)**
 
+   **IMPORTANT**: If \`rules\` are present in the apply instructions output, you MUST follow them as mandatory execution constraints. Rules may specify execution strategies (e.g., using subagents, specific testing requirements, retry policies). Follow them exactly.
+
+   If no rules are present, use the default behavior:
    For each pending task:
    - Show which task is being worked on
    - Make the code changes required

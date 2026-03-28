@@ -175,14 +175,16 @@ export function validateConfigRules(
   validArtifactIds: Set<string>,
   schemaName: string
 ): string[] {
+  // Phase IDs that are valid rule targets but not artifacts
+  const validPhaseIds = new Set(['apply', 'verify']);
   const warnings: string[] = [];
 
   for (const artifactId of Object.keys(rules)) {
-    if (!validArtifactIds.has(artifactId)) {
+    if (!validArtifactIds.has(artifactId) && !validPhaseIds.has(artifactId)) {
       const validIds = Array.from(validArtifactIds).sort().join(', ');
       warnings.push(
         `Unknown artifact ID in rules: "${artifactId}". ` +
-          `Valid IDs for schema "${schemaName}": ${validIds}`
+          `Valid IDs for schema "${schemaName}": ${validIds}, apply, verify`
       );
     }
   }

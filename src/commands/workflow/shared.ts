@@ -35,6 +35,23 @@ export interface ApplyInstructions {
   state: 'blocked' | 'all_done' | 'ready';
   missingArtifacts?: string[];
   instruction: string;
+  context?: string;
+  rules?: string[];
+}
+
+export interface VerifyInstructions {
+  changeName: string;
+  changeDir: string;
+  schemaName: string;
+  contextFiles: Record<string, string>;
+  progress: {
+    total: number;
+    complete: number;
+    remaining: number;
+  };
+  tasks: TaskItem[];
+  context?: string;
+  rules?: string[];
 }
 
 // -----------------------------------------------------------------------------
