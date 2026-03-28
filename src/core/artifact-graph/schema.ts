@@ -54,7 +54,7 @@ export function parseSchema(yamlContent: string): SchemaYaml {
  */
 function validateNoReservedIds(artifacts: Artifact[]): void {
   for (const artifact of artifacts) {
-    if (RESERVED_PHASE_IDS.has(artifact.id)) {
+    if (RESERVED_PHASE_IDS.has(artifact.id.toLowerCase())) {
       throw new SchemaValidationError(
         `Artifact ID '${artifact.id}' is reserved for phase commands. ` +
         `Reserved IDs: ${Array.from(RESERVED_PHASE_IDS).join(', ')}`
