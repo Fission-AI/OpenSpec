@@ -4,6 +4,12 @@ import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
 
 /**
+ * Phase IDs that are valid rule targets but not schema artifacts.
+ * These names are reserved and cannot be used as artifact IDs.
+ */
+export const RESERVED_PHASE_IDS = new Set(['apply', 'verify']);
+
+/**
  * Zod schema for project configuration.
  *
  * Purpose:
@@ -178,11 +184,11 @@ export function validateConfigRules(
   const warnings: string[] = [];
 
   for (const artifactId of Object.keys(rules)) {
-    if (!validArtifactIds.has(artifactId)) {
+    if (!validArtifactIds.has(artifactId) && !RESERVED_PHASE_IDS.has(artifactId)) {
       const validIds = Array.from(validArtifactIds).sort().join(', ');
       warnings.push(
         `Unknown artifact ID in rules: "${artifactId}". ` +
-          `Valid IDs for schema "${schemaName}": ${validIds}`
+          `Valid IDs for schema "${schemaName}": ${validIds}, apply, verify`
       );
     }
   }
