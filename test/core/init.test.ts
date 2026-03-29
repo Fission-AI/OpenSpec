@@ -82,11 +82,12 @@ describe('InitCommand', () => {
 
       await initCommand.execute(testDir);
 
-      // Core profile: propose, explore, apply, archive
+      // Core profile: propose, explore, apply, verify, archive
       const coreSkillNames = [
         'openspec-propose',
         'openspec-explore',
         'openspec-apply-change',
+        'openspec-verify-change',
         'openspec-archive-change',
       ];
 
@@ -107,7 +108,6 @@ describe('InitCommand', () => {
         'openspec-ff-change',
         'openspec-sync-specs',
         'openspec-bulk-archive-change',
-        'openspec-verify-change',
       ];
 
       for (const skillName of nonCoreSkillNames) {
@@ -121,11 +121,12 @@ describe('InitCommand', () => {
 
       await initCommand.execute(testDir);
 
-      // Core profile: propose, explore, apply, archive
+      // Core profile: propose, explore, apply, verify, archive
       const coreCommandNames = [
         'opsx/propose.md',
         'opsx/explore.md',
         'opsx/apply.md',
+        'opsx/verify.md',
         'opsx/archive.md',
       ];
 
@@ -141,7 +142,6 @@ describe('InitCommand', () => {
         'opsx/ff.md',
         'opsx/sync.md',
         'opsx/bulk-archive.md',
-        'opsx/verify.md',
       ];
 
       for (const cmdName of nonCoreCommandNames) {

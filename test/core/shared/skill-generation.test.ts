@@ -57,8 +57,8 @@ describe('skill-generation', () => {
     });
 
     it('should filter by workflow IDs when provided', () => {
-      const filtered = getSkillTemplates(['propose', 'explore', 'apply', 'archive']);
-      expect(filtered).toHaveLength(4);
+      const filtered = getSkillTemplates(['propose', 'explore', 'apply', 'verify', 'archive']);
+      expect(filtered).toHaveLength(5);
       const ids = filtered.map(t => t.workflowId);
       expect(ids).toContain('propose');
       expect(ids).toContain('explore');
@@ -118,8 +118,8 @@ describe('skill-generation', () => {
     });
 
     it('should filter by workflow IDs when provided', () => {
-      const filtered = getCommandTemplates(['propose', 'explore', 'apply', 'archive']);
-      expect(filtered).toHaveLength(4);
+      const filtered = getCommandTemplates(['propose', 'explore', 'apply', 'verify', 'archive']);
+      expect(filtered).toHaveLength(5);
       const ids = filtered.map(t => t.id);
       expect(ids).toContain('propose');
       expect(ids).toContain('explore');

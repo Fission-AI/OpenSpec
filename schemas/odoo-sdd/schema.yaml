@@ -161,6 +161,8 @@ apply:
         check: all-tasks-done
         severity: blocking
 
+      # Note: test-exists uses ai-review instead of command because test execution
+      # depends on project-specific test runner (pytest, vitest, etc.)
       - id: test-exists
         check: ai-review
         severity: blocking
