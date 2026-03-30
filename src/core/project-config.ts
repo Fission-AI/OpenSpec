@@ -129,7 +129,22 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
         let hasValidRules = false;
 
         for (const [artifactId, rules] of Object.entries(raw.rules)) {
-          const rulesArrayResult = z.array(z.string()).safeParse(rules);
+          // Normalize rules array: YAML may parse strings containing colons
+          // (e.g., "subagent_type: flutter-agent") as objects instead of strings.
+          // Convert such objects back to "key: value" strings before validation.
+          const normalizedRules = Array.isArray(rules)
+            ? rules.map((item: unknown) => {
+                if (typeof item === 'string') return item;
+                if (typeof item === 'object' && item !== null && !Array.isArray(item)) {
+                  return Object.entries(item)
+                    .map(([k, v]) => `${k}: ${v}`)
+                    .join(', ');
+                }
+                return String(item);
+              })
+            : rules;
+
+          const rulesArrayResult = z.array(z.string()).safeParse(normalizedRules);
 
           if (rulesArrayResult.success) {
             // Filter out empty strings
