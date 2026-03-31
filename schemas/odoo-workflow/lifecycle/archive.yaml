@@ -7,19 +7,19 @@ description: 歸檔（merge main + BR 回寫 + branch 清理）
 requires_phase: verify  # verify 完成後才能進入
 
 steps:
-  - id: main-merged
-    description: staging → main merge + build 成功
+  - id: pr-merged
+    description: PR merge 到 master + build 成功
     auto: true
     action: |
-      gh pr create --base main + merge。
-      等待 main build 成功。
-    done_when: main build 成功
+      gh pr merge --squash → master。
+      等待 production build 成功。
+    done_when: master build 成功
 
   - id: docs-updated
     description: Delta Spec 回寫 BR 文件
     parallel_group: cleanup
     auto: true
-    requires_steps: [main-merged]
+    requires_steps: [pr-merged]
     action: |
       掃描 change 下的 specs/**/*.md。
       根據 Delta 類型回寫 BR 文件：
@@ -36,7 +36,7 @@ steps:
     description: OpenSpec 歸檔 + Git branch 清理
     parallel_group: cleanup
     auto: true
-    requires_steps: [main-merged]
+    requires_steps: [pr-merged]
     action: |
       openspec archive --yes "<change-name>"（搬到 archive/）。
       git branch -d feature/<change-name>。

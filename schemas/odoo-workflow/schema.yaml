@@ -139,5 +139,5 @@ apply:
 
     **完成條件**：
     - tasks.md 所有 checkbox 勾完
-    - `gh pr create --base staging`
+    - `gh pr create --base master`
     - PR URL 寫入 proposal.md

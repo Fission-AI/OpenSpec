@@ -235,14 +235,14 @@ apply:
 
     - id: pr-ready
       instruction: |
-        gh pr create --base staging --title "[module] change-name"
+        gh pr create --base master --title "[module] change-name"
         PR URL 寫入 proposal.md
 
   instruction: |
     ⚠️ Branch Gate（MUST — 開始前強制檢查）
 
     目前 branch 必須是 feature/*。
-    如果在 staging/main/其他 → 停止，提示：
+    如果在 master/staging/其他 → 停止，提示：
     「目前在 {branch}，apply 必須在 feature branch。建議：git checkout -b feature/{change-name}」
 
     等用戶確認已切換後才繼續。
