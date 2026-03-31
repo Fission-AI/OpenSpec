@@ -18,7 +18,7 @@ function buildInstructions(inputLine: string): string {
 
 1. **If no change name provided, prompt for selection**
 
-   Run \`openspec list --json\` to get available changes. Use the **AskUserQuestion tool** to let the user select.
+   Run \`openspec list --json\` to get available changes. Present the list and ask the user which change to refine.
 
    Show only active changes (not already archived).
    Include the schema used for each change if available.
@@ -69,8 +69,12 @@ function buildInstructions(inputLine: string): string {
    - Present the issue to the user with context
    - Propose a fix (artifact update)
    - Apply the fix after user approval
-   - Update the scratchpad status to reflect the artifact state
-   - **Commit the scratchpad and updated artifacts together** (if the user approves)
+   - Validate the updated artifacts:
+     \`\`\`bash
+     openspec validate --change "<name>" --strict
+     \`\`\`
+     If validation fails, mark the issue as "Needs refinement" in the scratchpad, keep changes uncommitted, and ask the user for direction.
+   - If validation passes, update the scratchpad status and **commit the scratchpad and updated artifacts together**
 
    **IMPORTANT**: Address one issue at a time so the user can review each change.
 
