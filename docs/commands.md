@@ -326,6 +326,7 @@ Review and refine change artifacts for cross-artifact consistency, best-practice
 ```
 
 **Arguments:**
+
 | Argument | Required | Description |
 |----------|----------|-------------|
 | `change-name` | No | Which change to refine (prompted if not provided) |

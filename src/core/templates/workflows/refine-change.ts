@@ -6,9 +6,13 @@
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 
-const refineInstructions = `Review and refine change artifacts for cross-artifact consistency, best-practice alignment, and implementation readiness. Tracks issues in a scratchpad file scoped to the change.
+const SKILL_INPUT_LINE = 'Optionally specify a change name (e.g., `/opsx:refine add-auth`).';
+const COMMAND_INPUT_LINE = 'The argument after `/opsx:refine` is the change name (e.g., `/opsx:refine add-auth`).';
 
-**Input**: Optionally specify a change name (e.g., \`/opsx:refine add-auth\`).
+function buildInstructions(inputLine: string): string {
+  return `Review and refine change artifacts for cross-artifact consistency, best-practice alignment, and implementation readiness. Tracks issues in a scratchpad file scoped to the change.
+
+**Input**: ${inputLine}
 
 **Steps**
 
@@ -94,7 +98,7 @@ const refineInstructions = `Review and refine change artifacts for cross-artifac
 \`\`\`markdown
 ## <change-name> Refinement Scratchpad
 
-Tracks openspec-refine issues and working decisions for the \\\`<change-name>\\\` change.
+Tracks openspec-refine issues and working decisions for the \`<change-name>\` change.
 This is a working document, not a spec artifact.
 
 Last updated: YYYY-MM-DD
@@ -116,7 +120,7 @@ Last updated: YYYY-MM-DD
 - **Status**: <status>
 - **Notes**: <clarify the status>
 - **Artifacts touched**:
-  - \\\`openspec/changes/<change-name>/...\\\`
+  - \`openspec/changes/<change-name>/...\`
 
 #### P1(1): <title>
 ...
@@ -131,12 +135,13 @@ Last updated: YYYY-MM-DD
 - If proposal + specs exist: check proposal-spec consistency, skip design/task checks
 - If full artifacts: run all checks
 - Always note which checks were skipped and why`;
+}
 
 export function getRefineChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-refine-change',
     description: 'Refine change artifacts for cross-artifact consistency, best-practice alignment, and implementation readiness. Use when the user wants to review artifact quality before implementation.',
-    instructions: refineInstructions,
+    instructions: buildInstructions(SKILL_INPUT_LINE),
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
@@ -149,9 +154,6 @@ export function getOpsxRefineCommandTemplate(): CommandTemplate {
     description: 'Refine change artifacts for consistency and quality before implementation',
     category: 'Workflow',
     tags: ['workflow', 'refine', 'quality'],
-    content: refineInstructions.replace(
-      'Optionally specify a change name (e.g., `/opsx:refine add-auth`).',
-      'The argument after `/opsx:refine` is the change name (e.g., `/opsx:refine add-auth`).',
-    ),
+    content: buildInstructions(COMMAND_INPUT_LINE),
   };
 }
