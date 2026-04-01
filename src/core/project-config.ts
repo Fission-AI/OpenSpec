@@ -46,6 +46,21 @@ export const ProjectConfigSchema = z.object({
     )
     .optional()
     .describe('Per-artifact rules, keyed by artifact ID'),
+
+  // Optional: plugin whitelist (only listed plugins are loaded, order matters)
+  plugins: z
+    .array(z.string().min(1))
+    .optional()
+    .describe('Plugin names to load, in execution order'),
+
+  // Optional: per-plugin configuration (namespaced by plugin name)
+  plugin_config: z
+    .record(
+      z.string(), // plugin name
+      z.record(z.string(), z.unknown()) // plugin-specific config (validated by plugin)
+    )
+    .optional()
+    .describe('Per-plugin configuration, keyed by plugin name'),
 });
 
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
@@ -168,6 +183,48 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
         }
       } else {
         console.warn(`Invalid 'rules' field in config (must be object)`);
+      }
+    }
+
+    // Parse plugins field (string array)
+    if (raw.plugins !== undefined) {
+      if (Array.isArray(raw.plugins)) {
+        const validPlugins: string[] = [];
+        for (let i = 0; i < raw.plugins.length; i++) {
+          if (typeof raw.plugins[i] === 'string' && raw.plugins[i].length > 0) {
+            validPlugins.push(raw.plugins[i]);
+          } else {
+            console.warn(
+              `Invalid element at index ${i} in 'plugins' array (must be non-empty string), ignoring`
+            );
+          }
+        }
+        if (validPlugins.length > 0) {
+          config.plugins = validPlugins;
+        }
+      } else {
+        console.warn(`Invalid 'plugins' field in config (must be array of strings)`);
+      }
+    }
+
+    // Parse plugin_config field (record of plugin name → config object)
+    if (raw.plugin_config !== undefined) {
+      if (typeof raw.plugin_config === 'object' && raw.plugin_config !== null && !Array.isArray(raw.plugin_config)) {
+        const parsedPluginConfig: Record<string, Record<string, unknown>> = {};
+        for (const [pluginName, pluginConf] of Object.entries(raw.plugin_config)) {
+          if (typeof pluginConf === 'object' && pluginConf !== null && !Array.isArray(pluginConf)) {
+            parsedPluginConfig[pluginName] = pluginConf as Record<string, unknown>;
+          } else {
+            console.warn(
+              `Invalid config for plugin '${pluginName}' (must be object), ignoring`
+            );
+          }
+        }
+        if (Object.keys(parsedPluginConfig).length > 0) {
+          config.plugin_config = parsedPluginConfig;
+        }
+      } else {
+        console.warn(`Invalid 'plugin_config' field in config (must be object)`);
       }
     }
 

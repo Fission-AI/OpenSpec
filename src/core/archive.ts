@@ -10,6 +10,9 @@ import {
   writeUpdatedSpec,
   type SpecUpdate,
 } from './specs-apply.js';
+import { dispatchHooks } from './plugin/hook-dispatcher.js';
+import type { LoadedPlugin } from './plugin/types.js';
+import type { HookContext, HookResult } from './plugin/hook-dispatcher.js';
 
 /**
  * Recursively copy a directory. Used when fs.rename fails (e.g. EPERM on Windows).
@@ -51,8 +54,8 @@ async function moveDirectory(src: string, dest: string): Promise<void> {
 export class ArchiveCommand {
   async execute(
     changeName?: string,
-    options: { yes?: boolean; skipSpecs?: boolean; noValidate?: boolean; validate?: boolean } = {}
-  ): Promise<void> {
+    options: { yes?: boolean; skipSpecs?: boolean; noValidate?: boolean; validate?: boolean; plugins?: LoadedPlugin[]; schema?: string } = {}
+  ): Promise<{ archiveName: string; hooks?: HookResult } | void> {
     const targetPath = '.';
     const changesDir = getChangesDir(path.resolve(targetPath));
     const archiveDir = path.join(changesDir, 'archive');
@@ -265,6 +268,27 @@ export class ArchiveCommand {
       }
     }
 
+    const projectRoot = path.resolve(targetPath);
+    const plugins = options.plugins || [];
+
+    // Dispatch archive.pre hooks
+    if (plugins.length > 0) {
+      const preContext: HookContext = {
+        changeName: changeName!,
+        changeDir,
+        schema: options.schema || '',
+        projectRoot,
+        phase: 'archive',
+        hookPoint: 'archive.pre',
+      };
+      const preResult = await dispatchHooks(plugins, 'archive.pre', preContext);
+      const failed = preResult.executed.find(r => r.status === 'failed');
+      if (failed) {
+        console.log(chalk.red(`Archive blocked by pre-hook "${failed.id}": ${failed.output}`));
+        return;
+      }
+    }
+
     // Create archive directory with date prefix
     const archiveName = `${this.getArchiveDate()}-${changeName}`;
     const archivePath = path.join(archiveDir, archiveName);
@@ -286,6 +310,38 @@ export class ArchiveCommand {
     await moveDirectory(changeDir, archivePath);
 
     console.log(`Change '${changeName}' archived as '${archiveName}'.`);
+
+    // Dispatch archive.post hooks
+    if (plugins.length > 0) {
+      const postContext: HookContext = {
+        changeName: changeName!,
+        changeDir: archivePath,
+        schema: options.schema || '',
+        projectRoot,
+        phase: 'archive',
+        hookPoint: 'archive.post',
+        archiveDir: archivePath,
+      };
+      const postResult = await dispatchHooks(plugins, 'archive.post', postContext);
+
+      // Report executed hooks
+      for (const result of postResult.executed) {
+        if (result.status === 'success') {
+          console.log(chalk.green(`  ✓ Hook "${result.id}" completed`));
+        } else {
+          console.log(chalk.yellow(`  ⚠ Hook "${result.id}" failed: ${result.output}`));
+        }
+      }
+
+      // Report pending prompts
+      if (postResult.pending.length > 0) {
+        console.log(`\n${postResult.pending.length} prompt hook(s) pending for AI agent execution.`);
+      }
+
+      return { archiveName, hooks: postResult };
+    }
+
+    return { archiveName };
   }
 
   private async selectChange(changesDir: string): Promise<string | null> {

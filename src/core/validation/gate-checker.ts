@@ -2,6 +2,7 @@ import { readFileSync, readdirSync } from 'fs';
 import { execSync } from 'child_process';
 import path from 'path';
 import { Validator } from './validator.js';
+import type { LoadedPlugin, GateDefinition } from '../plugin/types.js';
 
 // ── Interfaces ──────────────────────────────────────────────────────────
 
@@ -53,9 +54,64 @@ interface CommandDetails {
   stderr: string;
 }
 
+// ── Built-in gate types ────────────────────────────────────────────────
+
+export const BUILTIN_GATE_TYPES = [
+  'capability-coverage',
+  'scenario-task-ratio',
+  'all-tasks-done',
+  'validate-delta-specs',
+  'ai-review',
+  'command',
+  'tdd-markers',
+] as const;
+
+export type BuiltinGateType = typeof BUILTIN_GATE_TYPES[number];
+
+// ── Plugin gate uniqueness validation ──────────────────────────────────
+
+/**
+ * Validate that plugin gate IDs don't conflict with built-in types
+ * or with each other across plugins.
+ * Returns an array of error messages (empty = no conflicts).
+ */
+export function validateGateTypeUniqueness(plugins: LoadedPlugin[]): string[] {
+  const errors: string[] = [];
+  const builtinSet = new Set<string>(BUILTIN_GATE_TYPES);
+  const seen = new Map<string, string>(); // gate id -> plugin name
+
+  for (const plugin of plugins) {
+    const gates = plugin.manifest.gates ?? [];
+    for (const gate of gates) {
+      // Check conflict with built-in types
+      if (builtinSet.has(gate.id)) {
+        errors.push(
+          `Plugin "${plugin.manifest.name}" gate "${gate.id}" conflicts with built-in gate type`
+        );
+      }
+      // Check conflict with other plugins
+      const existing = seen.get(gate.id);
+      if (existing) {
+        errors.push(
+          `Plugin "${plugin.manifest.name}" gate "${gate.id}" conflicts with plugin "${existing}"`
+        );
+      } else {
+        seen.set(gate.id, plugin.manifest.name);
+      }
+    }
+  }
+
+  return errors;
+}
+
 // ── GateChecker ─────────────────────────────────────────────────────────
 
 export class GateChecker {
+  private plugins: LoadedPlugin[];
+
+  constructor(plugins?: LoadedPlugin[]) {
+    this.plugins = plugins ?? [];
+  }
 
   /**
    * Check that every capability listed in proposal.md has a matching spec dir.
@@ -284,13 +340,111 @@ export class GateChecker {
       }
 
       default: {
+        // Look for a matching plugin gate
+        const pluginGate = this.findPluginGate(gate.check);
+        if (pluginGate) {
+          return this.executePluginGate(gate, pluginGate.gate, pluginGate.plugin, changeDir);
+        }
         return {
           id: gate.id,
           description: `Unknown check type: ${gate.check}`,
           passed: false,
-          details: { error: 'Unknown check type' },
+          details: { error: `Unknown check type: "${gate.check}". Not a built-in type and no plugin provides it.` },
         };
       }
+    }
+  }
+
+  // ── Plugin gate helpers ──────────────────────────────────────────────
+
+  private findPluginGate(checkType: string): { gate: GateDefinition; plugin: LoadedPlugin } | null {
+    for (const plugin of this.plugins) {
+      const gates = plugin.manifest.gates ?? [];
+      for (const gate of gates) {
+        if (gate.id === checkType) {
+          return { gate, plugin };
+        }
+      }
+    }
+    return null;
+  }
+
+  private executePluginGate(
+    input: GateInput,
+    gateDef: GateDefinition,
+    plugin: LoadedPlugin,
+    changeDir: string,
+  ): GateCheckResult {
+    const handler = gateDef.handler;
+    const description = gateDef.description ?? `Plugin gate: ${gateDef.id} (from ${plugin.manifest.name})`;
+
+    if (handler.type === 'command' || handler.type === 'both') {
+      const command = handler.run;
+      if (!command) {
+        return {
+          id: input.id,
+          description,
+          passed: handler.ignore_failure ?? false,
+          details: { error: 'Plugin gate handler has no "run" command specified' },
+        };
+      }
+      // Resolve command relative to plugin dir, inject CHANGE_DIR env
+      const result = this.runPluginCommand(command, plugin.dir, changeDir);
+      const passed = result.passed || (handler.ignore_failure ?? false);
+
+      if (handler.type === 'both') {
+        return {
+          id: input.id,
+          description,
+          passed,
+          details: { ...result, prompt: handler.file },
+          ai_review_needed: true,
+        };
+      }
+      return {
+        id: input.id,
+        description,
+        passed,
+        details: { ...result },
+      };
+    }
+
+    if (handler.type === 'prompt') {
+      return {
+        id: input.id,
+        description,
+        passed: true,
+        details: { prompt: handler.file },
+        ai_review_needed: true,
+      };
+    }
+
+    return {
+      id: input.id,
+      description,
+      passed: false,
+      details: { error: `Unsupported handler type: ${handler.type}` },
+    };
+  }
+
+  private runPluginCommand(command: string, pluginDir: string, changeDir: string): { passed: boolean; exit_code: number; stdout: string; stderr: string } {
+    try {
+      const stdout = execSync(command, {
+        cwd: pluginDir,
+        timeout: 30_000,
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: { ...process.env, OPENSPEC_CHANGE_DIR: changeDir },
+      });
+      return { passed: true, exit_code: 0, stdout, stderr: '' };
+    } catch (err: unknown) {
+      const error = err as { status?: number; stdout?: string; stderr?: string };
+      return {
+        passed: false,
+        exit_code: error.status ?? 1,
+        stdout: error.stdout ?? '',
+        stderr: error.stderr ?? '',
+      };
     }
   }
 

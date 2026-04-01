@@ -16,6 +16,10 @@ import { CompletionCommand } from '../commands/completion.js';
 import { FeedbackCommand } from '../commands/feedback.js';
 import { registerConfigCommand } from '../commands/config.js';
 import { registerSchemaCommand } from '../commands/schema.js';
+import { registerPluginCommand } from '../commands/plugin.js';
+import { readProjectConfig } from '../core/project-config.js';
+import { loadPlugins } from '../core/plugin/loader.js';
+import { validateAllPluginConfigs } from '../core/plugin/config-validator.js';
 import { GateCommand } from '../commands/gate.js';
 import {
   statusCommand,
@@ -275,7 +279,27 @@ program
   .action(async (changeName?: string, options?: { yes?: boolean; skipSpecs?: boolean; noValidate?: boolean; validate?: boolean }) => {
     try {
       const archiveCommand = new ArchiveCommand();
-      await archiveCommand.execute(changeName, options);
+
+      // Load plugins if configured
+      const projectRoot = path.resolve('.');
+      const config = readProjectConfig(projectRoot);
+      let plugins;
+      if (config?.plugins && config.plugins.length > 0) {
+        try {
+          const loaded = loadPlugins(projectRoot, config.plugins);
+          const validated = validateAllPluginConfigs(loaded, config.plugin_config as Record<string, unknown> | undefined);
+          if (validated.errors.length > 0) {
+            for (const err of validated.errors) {
+              console.warn(`Plugin config: ${err}`);
+            }
+          }
+          plugins = validated.plugins;
+        } catch (err) {
+          console.warn(`Plugin loading failed: ${(err as Error).message}`);
+        }
+      }
+
+      await archiveCommand.execute(changeName, { ...options, plugins, schema: config?.schema });
     } catch (error) {
       console.log(); // Empty line for spacing
       ora().fail(`Error: ${(error as Error).message}`);
@@ -286,6 +310,7 @@ program
 registerSpecCommand(program);
 registerConfigCommand(program);
 registerSchemaCommand(program);
+registerPluginCommand(program);
 
 // Top-level validate command
 program
