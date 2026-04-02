@@ -205,6 +205,7 @@ plugins:
 | `config` | object | No | Config schema (category → field → {type, required, default}) |
 | `hooks` | object | No | Lifecycle hooks by hook point |
 | `gates` | GateDefinition[] | No | Custom gate types for schema `apply.gates` |
+| `skill_overlays` | object | No | Content to inject into generated skills/commands per workflow |
 
 ### Hook Points
 
@@ -281,6 +282,33 @@ plugin_config:
     obsidian:
       vault: "my-specs"
 ```
+
+### Skill Overlays
+
+Plugins can inject content into generated skill and command files. When `openspec update` runs, overlay content is appended to the corresponding workflow's output.
+
+```yaml
+# plugin.yaml
+skill_overlays:
+  apply:
+    append: overlays/apply-orchestration.md
+  explore:
+    append: overlays/explore-research.md
+```
+
+Create the overlay files in your plugin directory:
+
+```
+my-plugin/
+  plugin.yaml
+  overlays/
+    apply-orchestration.md    # Appended to the apply skill/command
+    explore-research.md       # Appended to the explore skill/command
+```
+
+After `openspec update --force`, the generated skill files include the overlay content. Multiple plugins' overlays are appended in whitelist order. Missing overlay files produce a warning but don't block generation.
+
+Currently only `append` is supported. Future versions may add `prepend` and `replace_section`.
 
 ### Plugin-Provided Schemas and Gates
 
