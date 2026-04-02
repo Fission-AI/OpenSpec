@@ -9,13 +9,13 @@ OpenSpec helps you and your AI coding assistant agree on what to build before an
 **Default quick path (core profile):**
 
 ```text
-/opsx:propose ──► /opsx:apply ──► /opsx:archive
+/openspec:propose ──► /openspec:apply ──► /openspec:archive
 ```
 
 **Expanded path (custom workflow selection):**
 
 ```text
-/opsx:new ──► /opsx:ff or /opsx:continue ──► /opsx:apply ──► /opsx:verify ──► /opsx:archive
+/openspec:new ──► /openspec:ff or /openspec:continue ──► /openspec:apply ──► /openspec:verify ──► /openspec:archive
 ```
 
 The default global profile is `core`, which includes `propose`, `explore`, `apply`, and `archive`. You can enable the expanded workflow commands with `openspec config profile` and then `openspec update`.
@@ -123,7 +123,7 @@ Let's walk through adding dark mode to an application.
 ### 1. Start the Change (Default)
 
 ```text
-You: /opsx:propose add-dark-mode
+You: /openspec:propose add-dark-mode
 
 AI:  Created openspec/changes/add-dark-mode/
      ✓ proposal.md — why we're doing this, what's changing
@@ -133,7 +133,7 @@ AI:  Created openspec/changes/add-dark-mode/
      Ready for implementation!
 ```
 
-If you've enabled the expanded workflow profile, you can also do this as two steps: `/opsx:new` then `/opsx:ff` (or `/opsx:continue` incrementally).
+If you've enabled the expanded workflow profile, you can also do this as two steps: `/openspec:new` then `/openspec:ff` (or `/openspec:continue` incrementally).
 
 ### 2. What Gets Created
 
@@ -201,7 +201,7 @@ The system SHALL allow users to choose between light and dark themes.
 ### 3. Implement
 
 ```
-You: /opsx:apply
+You: /openspec:apply
 
 AI:  Working through tasks...
      ✓ 1.1 Created ThemeContext with light/dark state
@@ -217,7 +217,7 @@ During implementation, if you discover the design needs adjustment, just update 
 ### 4. Archive
 
 ```
-You: /opsx:archive
+You: /openspec:archive
 
 AI:  Archiving add-dark-mode...
      ✓ Merged specs into openspec/specs/ui/spec.md

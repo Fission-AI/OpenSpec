@@ -8,7 +8,7 @@ OPSX replaces the old phase-locked workflow with a fluid, action-based approach.
 
 | Aspect | Legacy | OPSX |
 |--------|--------|------|
-| **Commands** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` | Default: `/opsx:propose`, `/opsx:apply`, `/opsx:archive` (expanded workflow commands optional) |
+| **Commands** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` | Default: `/openspec:propose`, `/openspec:apply`, `/openspec:archive` (expanded workflow commands optional) |
 | **Workflow** | Create all artifacts at once | Create incrementally or all at once—your choice |
 | **Going back** | Awkward phase gates | Natural—update any artifact anytime |
 | **Customization** | Fixed structure | Schema-driven, fully hackable |
@@ -284,22 +284,22 @@ Command availability is profile-dependent:
 
 | Command | Purpose |
 |---------|---------|
-| `/opsx:propose` | Create a change and generate planning artifacts in one step |
-| `/opsx:explore` | Think through ideas with no structure |
-| `/opsx:apply` | Implement tasks from tasks.md |
-| `/opsx:archive` | Finalize and archive the change |
+| `/openspec:propose` | Create a change and generate planning artifacts in one step |
+| `/openspec:explore` | Think through ideas with no structure |
+| `/openspec:apply` | Implement tasks from tasks.md |
+| `/openspec:archive` | Finalize and archive the change |
 
 **Expanded workflow (custom selection):**
 
 | Command | Purpose |
 |---------|---------|
-| `/opsx:new` | Start a new change scaffold |
-| `/opsx:continue` | Create the next artifact (one at a time) |
-| `/opsx:ff` | Fast-forward—create planning artifacts at once |
-| `/opsx:verify` | Validate implementation matches specs |
-| `/opsx:sync` | Preview/spec-merge without archiving |
-| `/opsx:bulk-archive` | Archive multiple changes at once |
-| `/opsx:onboard` | Guided end-to-end onboarding workflow |
+| `/openspec:new` | Start a new change scaffold |
+| `/openspec:continue` | Create the next artifact (one at a time) |
+| `/openspec:ff` | Fast-forward—create planning artifacts at once |
+| `/openspec:verify` | Validate implementation matches specs |
+| `/openspec:sync` | Preview/spec-merge without archiving |
+| `/openspec:bulk-archive` | Archive multiple changes at once |
+| `/openspec:onboard` | Guided end-to-end onboarding workflow |
 
 Enable expanded commands with `openspec config profile`, then run `openspec update`.
 
@@ -307,9 +307,9 @@ Enable expanded commands with `openspec config profile`, then run `openspec upda
 
 | Legacy | OPSX Equivalent |
 |--------|-----------------|
-| `/openspec:proposal` | `/opsx:propose` (default) or `/opsx:new` then `/opsx:ff` (expanded) |
-| `/openspec:apply` | `/opsx:apply` |
-| `/openspec:archive` | `/opsx:archive` |
+| `/openspec:proposal` | `/openspec:propose` (default) or `/openspec:new` then `/openspec:ff` (expanded) |
+| `/openspec:apply` | `/openspec:apply` |
+| `/openspec:archive` | `/openspec:archive` |
 
 ### New Capabilities
 
@@ -317,13 +317,13 @@ These capabilities are part of the expanded workflow command set.
 
 **Granular artifact creation:**
 ```
-/opsx:continue
+/openspec:continue
 ```
 Creates one artifact at a time based on dependencies. Use this when you want to review each step.
 
 **Exploration mode:**
 ```
-/opsx:explore
+/openspec:explore
 ```
 Think through ideas with a partner before committing to a change.
 
@@ -381,7 +381,7 @@ Artifacts form a directed graph. Dependencies are enablers, not gates:
                      specs, design)
 ```
 
-When you run `/opsx:continue`, it checks what's ready and offers the next artifact. You can also create multiple ready artifacts in any order.
+When you run `/openspec:continue`, it checks what's ready and offers the next artifact. You can also create multiple ready artifacts in any order.
 
 ### Skills vs Commands
 
@@ -416,7 +416,7 @@ Your in-progress changes work seamlessly with OPSX commands.
 **Have an active change from the legacy workflow?**
 
 ```
-/opsx:apply add-my-feature
+/openspec:apply add-my-feature
 ```
 
 OPSX reads the existing artifacts and continues from where you left off.
@@ -424,7 +424,7 @@ OPSX reads the existing artifacts and continues from where you left off.
 **Want to add more artifacts to an existing change?**
 
 ```
-/opsx:continue add-my-feature
+/openspec:continue add-my-feature
 ```
 
 Shows what's ready to create based on what already exists.
@@ -576,14 +576,14 @@ project/
 ### Command Cheatsheet
 
 ```text
-/opsx:propose      Start quickly (default core profile)
-/opsx:apply        Implement tasks
-/opsx:archive      Finish and archive
+/openspec:propose      Start quickly (default core profile)
+/openspec:apply        Implement tasks
+/openspec:archive      Finish and archive
 
 # Expanded workflow (if enabled):
-/opsx:new          Scaffold a change
-/opsx:continue     Create next artifact
-/opsx:ff           Create planning artifacts
+/openspec:new          Scaffold a change
+/openspec:continue     Create next artifact
+/openspec:ff           Create planning artifacts
 ```
 
 ---

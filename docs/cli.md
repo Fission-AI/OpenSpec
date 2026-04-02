@@ -1,6 +1,6 @@
 # CLI Reference
 
-The OpenSpec CLI (`openspec`) provides terminal commands for project setup, validation, status inspection, and management. These commands complement the AI slash commands (like `/opsx:propose`) documented in [Commands](commands.md).
+The OpenSpec CLI (`openspec`) provides terminal commands for project setup, validation, status inspection, and management. These commands complement the AI slash commands (like `/openspec:propose`) documented in [Commands](commands.md).
 
 ## Summary
 
@@ -928,7 +928,7 @@ openspec completion uninstall
 
 ## Related Documentation
 
-- [Commands](commands.md) - AI slash commands (`/opsx:propose`, `/opsx:apply`, etc.)
+- [Commands](commands.md) - AI slash commands (`/openspec:propose`, `/openspec:apply`, etc.)
 - [Workflows](workflows.md) - Common patterns and when to use each command
 - [Customization](customization.md) - Create custom schemas and templates
 - [Getting Started](getting-started.md) - First-time setup guide
