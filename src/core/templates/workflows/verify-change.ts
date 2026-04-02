@@ -42,7 +42,22 @@ export function getVerifyChangeSkillTemplate(): SkillTemplate {
 
    This returns the change directory and context files. Read all available artifacts from \`contextFiles\`.
 
-4. **Initialize verification report structure**
+4. **Check for schema-level verify definition**
+
+   From the status JSON, check the \`schemaName\`. Read the schema's YAML to see if it defines a \`verify\` phase with steps.
+
+   **If the schema defines verify steps** (e.g., \`verify.steps\` in schema.yaml):
+   - Skip the default Completeness/Correctness/Coherence verification below
+   - Execute the schema-defined steps in order
+   - For each step: show progress, execute according to \`method\` (gate/free), report result
+   - Plugin hooks for \`verify.pre\` / \`verify.post\` will be triggered via skill overlays if defined
+   - After all steps pass, report success and suggest \`/opsx:archive\`
+   - **IMPORTANT**: When schema verify steps are present, STOP HERE — do not proceed to the default verification below
+
+   **If no schema verify definition exists:**
+   - Continue with the default three-dimension verification below
+
+5. **Initialize verification report structure** (default — only when no schema verify steps)
 
    Create a report structure with three dimensions:
    - **Completeness**: Track tasks and spec coverage
@@ -211,7 +226,22 @@ export function getOpsxVerifyCommandTemplate(): CommandTemplate {
 
    This returns the change directory and context files. Read all available artifacts from \`contextFiles\`.
 
-4. **Initialize verification report structure**
+4. **Check for schema-level verify definition**
+
+   From the status JSON, check the \`schemaName\`. Read the schema's YAML to see if it defines a \`verify\` phase with steps.
+
+   **If the schema defines verify steps** (e.g., \`verify.steps\` in schema.yaml):
+   - Skip the default Completeness/Correctness/Coherence verification below
+   - Execute the schema-defined steps in order
+   - For each step: show progress, execute according to \`method\` (gate/free), report result
+   - Plugin hooks for \`verify.pre\` / \`verify.post\` will be triggered via skill overlays if defined
+   - After all steps pass, report success and suggest \`/opsx:archive\`
+   - **IMPORTANT**: When schema verify steps are present, STOP HERE — do not proceed to the default verification below
+
+   **If no schema verify definition exists:**
+   - Continue with the default three-dimension verification below
+
+5. **Initialize verification report structure** (default — only when no schema verify steps)
 
    Create a report structure with three dimensions:
    - **Completeness**: Track tasks and spec coverage

@@ -66,7 +66,20 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
 
    If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
 
-5. **Perform the archive**
+5. **Check for schema-level archive definition**
+
+   From the status JSON, check the \`schemaName\`. Read the schema's YAML to see if it defines an \`archive\` phase with steps.
+
+   **If the schema defines archive steps** (e.g., \`archive.steps\` in schema.yaml):
+   - Before the standard mv archive, execute each schema-defined step in order
+   - For each step: show progress, execute according to \`method\` (gate/free), report result
+   - Plugin hooks (\`archive.pre\`/\`archive.post\`) will fire automatically if defined
+   - After all steps complete, proceed to the standard mv archive below
+
+   **If no schema archive definition exists:**
+   - Proceed directly to the standard mv archive below
+
+6. **Perform the archive**
 
    Create the archive directory if it doesn't exist:
    \`\`\`bash
@@ -181,7 +194,20 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
 
    If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
 
-5. **Perform the archive**
+5. **Check for schema-level archive definition**
+
+   From the status JSON, check the \`schemaName\`. Read the schema's YAML to see if it defines an \`archive\` phase with steps.
+
+   **If the schema defines archive steps** (e.g., \`archive.steps\` in schema.yaml):
+   - Before the standard mv archive, execute each schema-defined step in order
+   - For each step: show progress, execute according to \`method\` (gate/free), report result
+   - Plugin hooks (\`archive.pre\`/\`archive.post\`) will fire automatically if defined
+   - After all steps complete, proceed to the standard mv archive below
+
+   **If no schema archive definition exists:**
+   - Proceed directly to the standard mv archive below
+
+6. **Perform the archive**
 
    Create the archive directory if it doesn't exist:
    \`\`\`bash

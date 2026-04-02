@@ -58,6 +58,26 @@ export const ApplyPhaseSchema = z.object({
   instruction: z.string().optional(),
 });
 
+// Verify phase configuration for schema-aware verify instructions
+export const VerifyPhaseSchema = z.object({
+  // Artifact IDs that must be complete before verify is available
+  requires: z.array(z.string()).min(1, { error: 'At least one required artifact' }),
+  // Quality gates (pre = before verification, post = after verification)
+  gates: GatesSchema.optional(),
+  // Verification steps (coverage, regression, tech validation, e2e)
+  steps: z.array(StepSchema).optional(),
+  // Custom guidance for the verify phase
+  instruction: z.string().optional(),
+});
+
+// Archive phase configuration for schema-aware archive instructions
+export const ArchivePhaseSchema = z.object({
+  // Archive steps (merge, docs, cleanup, sync)
+  steps: z.array(StepSchema).optional(),
+  // Custom guidance for the archive phase
+  instruction: z.string().optional(),
+});
+
 // Full schema YAML structure
 export const SchemaYamlSchema = z.object({
   name: z.string().min(1, { error: 'Schema name is required' }),
@@ -66,11 +86,17 @@ export const SchemaYamlSchema = z.object({
   artifacts: z.array(ArtifactSchema).min(1, { error: 'At least one artifact required' }),
   // Optional apply phase configuration (for schema-aware apply instructions)
   apply: ApplyPhaseSchema.optional(),
+  // Optional verify phase configuration (for schema-aware verify instructions)
+  verify: VerifyPhaseSchema.optional(),
+  // Optional archive phase configuration (for schema-aware archive instructions)
+  archive: ArchivePhaseSchema.optional(),
 });
 
 // Derived TypeScript types
 export type Artifact = z.infer<typeof ArtifactSchema>;
 export type ApplyPhase = z.infer<typeof ApplyPhaseSchema>;
+export type VerifyPhase = z.infer<typeof VerifyPhaseSchema>;
+export type ArchivePhase = z.infer<typeof ArchivePhaseSchema>;
 export type SchemaYaml = z.infer<typeof SchemaYamlSchema>;
 
 // Per-change metadata schema

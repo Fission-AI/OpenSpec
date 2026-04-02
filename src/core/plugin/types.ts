@@ -6,6 +6,8 @@ export const VALID_HOOK_POINTS = [
   'propose.post',
   'apply.pre',
   'apply.post',
+  'verify.pre',
+  'verify.post',
   'archive.pre',
   'archive.post',
 ] as const;
@@ -46,6 +48,8 @@ export const PluginHooksSchema = z.object({
   'propose.post': z.array(HookDefinitionSchema).optional(),
   'apply.pre': z.array(HookDefinitionSchema).optional(),
   'apply.post': z.array(HookDefinitionSchema).optional(),
+  'verify.pre': z.array(HookDefinitionSchema).optional(),
+  'verify.post': z.array(HookDefinitionSchema).optional(),
   'archive.pre': z.array(HookDefinitionSchema).optional(),
   'archive.post': z.array(HookDefinitionSchema).optional(),
 });
