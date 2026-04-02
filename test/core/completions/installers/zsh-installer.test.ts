@@ -8,8 +8,12 @@ import { ZshInstaller } from '../../../../src/core/completions/installers/zsh-in
 describe('ZshInstaller', () => {
   let testHomeDir: string;
   let installer: ZshInstaller;
+  let originalZshEnv: string | undefined;
 
   beforeEach(async () => {
+    // Isolate from real Oh My Zsh: process.env.ZSH short-circuits isOhMyZshInstalled()
+    originalZshEnv = process.env.ZSH;
+    delete process.env.ZSH;
     // Create a temporary home directory for testing
     testHomeDir = path.join(os.tmpdir(), `openspec-zsh-test-${randomUUID()}`);
     await fs.mkdir(testHomeDir, { recursive: true });
@@ -17,6 +21,12 @@ describe('ZshInstaller', () => {
   });
 
   afterEach(async () => {
+    // Restore process.env.ZSH
+    if (originalZshEnv !== undefined) {
+      process.env.ZSH = originalZshEnv;
+    } else {
+      delete process.env.ZSH;
+    }
     // Clean up test directory
     await fs.rm(testHomeDir, { recursive: true, force: true });
   });

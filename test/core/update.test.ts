@@ -155,10 +155,11 @@ Old instructions content
 
       await updateCommand.execute(testDir);
 
-      // Verify core profile skill files were created/updated (propose, explore, apply, archive)
+      // Verify core profile skill files were created/updated (propose, explore, apply, verify, archive)
       const coreSkillNames = [
         'openspec-explore',
         'openspec-apply-change',
+        'openspec-verify-change',
         'openspec-archive-change',
         'openspec-propose',
       ];
@@ -181,7 +182,6 @@ Old instructions content
         'openspec-ff-change',
         'openspec-sync-specs',
         'openspec-bulk-archive-change',
-        'openspec-verify-change',
       ];
 
       for (const skillName of nonCoreSkillNames) {
@@ -233,8 +233,8 @@ Old instructions content
 
       await updateCommand.execute(testDir);
 
-      // Verify core profile commands were created (propose, explore, apply, archive)
-      const coreCommandIds = ['explore', 'apply', 'archive', 'propose'];
+      // Verify core profile commands were created (propose, explore, apply, verify, archive)
+      const coreCommandIds = ['explore', 'apply', 'verify', 'archive', 'propose'];
       const commandsDir = path.join(testDir, '.claude', 'commands', 'opsx');
       for (const cmdId of coreCommandIds) {
         const cmdFile = path.join(commandsDir, `${cmdId}.md`);
@@ -243,7 +243,7 @@ Old instructions content
       }
 
       // Verify non-core commands are NOT created
-      const nonCoreCommandIds = ['new', 'continue', 'ff', 'sync', 'bulk-archive', 'verify'];
+      const nonCoreCommandIds = ['new', 'continue', 'ff', 'sync', 'bulk-archive'];
       for (const cmdId of nonCoreCommandIds) {
         const cmdFile = path.join(commandsDir, `${cmdId}.md`);
         const exists = await FileSystemUtils.fileExists(cmdFile);
@@ -1568,7 +1568,7 @@ content
     });
 
     it('should remove workflows outside profile during update sync', async () => {
-      // Set core profile (propose, explore, apply, archive)
+      // Set core profile (propose, explore, apply, verify, archive)
       setMockConfig({
         featureFlags: {},
         profile: 'core',

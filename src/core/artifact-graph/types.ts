@@ -10,12 +10,50 @@ export const ArtifactSchema = z.object({
   requires: z.array(z.string()).default([]),
 });
 
+// Gate definition for quality checkpoints
+export const GateSchema = z.object({
+  id: z.string().min(1),
+  check: z.string().min(1), // 'capability-coverage' | 'scenario-task-ratio' | 'all-tasks-done' | 'validate-delta-specs' | 'ai-review' | 'command'
+  severity: z.enum(['blocking', 'warning']),
+  prompt: z.string().optional(),
+  command: z.string().optional(),
+  retry: z.number().int().positive().optional(),
+  on_p2: z.enum(['batch-then-recheck', 'skip']).optional(),
+});
+
+// Gates configuration with pre (before coding) and post (after coding) arrays
+export const GatesSchema = z.object({
+  pre: z.array(GateSchema).optional(),
+  post: z.array(GateSchema).optional(),
+});
+
+// TDD configuration for a step
+export const TddConfigSchema = z.object({
+  enforce: z.enum(['per-task', 'per-group', 'optional']),
+  test_pattern: z.string().optional(),
+  min_coverage: z.number().optional(),
+  marker: z.boolean().optional(),
+});
+
+// Step definition within apply phase
+export const StepSchema = z.object({
+  id: z.string().min(1),
+  method: z.enum(['tdd', 'free', 'gate']).optional(),
+  tdd: TddConfigSchema.optional(),
+  gate_ref: z.string().optional(),
+  instruction: z.string().optional(),
+});
+
 // Apply phase configuration for schema-aware apply instructions
 export const ApplyPhaseSchema = z.object({
   // Artifact IDs that must exist before apply is available
   requires: z.array(z.string()).min(1, { error: 'At least one required artifact' }),
   // Path to file with checkboxes for progress (relative to change dir), or null if no tracking
   tracks: z.string().nullable().optional(),
+  // Quality gates (pre = before coding, post = after coding)
+  gates: GatesSchema.optional(),
+  // Execution steps within apply (coded, reviewed, committed, etc.)
+  steps: z.array(StepSchema).optional(),
   // Custom guidance for the apply phase
   instruction: z.string().optional(),
 });

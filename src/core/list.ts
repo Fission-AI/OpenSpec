@@ -4,6 +4,7 @@ import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progre
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { MarkdownParser } from './parsers/markdown-parser.js';
+import { getChangesDir } from '../utils/change-utils.js';
 
 interface ChangeInfo {
   name: string;
@@ -79,7 +80,7 @@ export class ListCommand {
     const { sort = 'recent', json = false } = options;
 
     if (mode === 'changes') {
-      const changesDir = path.join(targetPath, 'openspec', 'changes');
+      const changesDir = getChangesDir(path.resolve(targetPath));
 
       // Check if changes directory exists
       try {

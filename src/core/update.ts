@@ -22,9 +22,13 @@ import {
   getSkillTemplates,
   getCommandContents,
   generateSkillContent,
+  composeTransformers,
   getToolsWithSkillsDir,
   type ToolVersionStatus,
 } from './shared/index.js';
+import { getLoadedPlugins } from './plugin/context.js';
+import { getPluginOverlays } from './plugin/loader.js';
+import type { LoadedPlugin } from './plugin/types.js';
 import {
   detectLegacyArtifacts,
   cleanupLegacyArtifacts,
@@ -104,6 +108,14 @@ export class UpdateCommand {
     const shouldGenerateSkills = delivery !== 'commands';
     const shouldGenerateCommands = delivery !== 'skills';
 
+    // 3b. Load plugins for skill overlays (warn and continue on failure)
+    let loadedPlugins: LoadedPlugin[] = [];
+    try {
+      loadedPlugins = getLoadedPlugins(resolvedProjectPath);
+    } catch (err) {
+      console.warn(chalk.yellow(`Plugin loading failed, continuing without overlays: ${err instanceof Error ? err.message : String(err)}`));
+    }
+
     // 4. Detect and handle legacy artifacts + upgrade legacy tools using effective config
     const newlyConfiguredTools = await this.handleLegacyCleanup(
       resolvedProjectPath,
@@ -170,6 +182,16 @@ export class UpdateCommand {
     const skillTemplates = shouldGenerateSkills ? getSkillTemplates(desiredWorkflows) : [];
     const commandContents = shouldGenerateCommands ? getCommandContents(desiredWorkflows) : [];
 
+    // 9b. Apply plugin overlays to command content (once, before per-tool pipeline)
+    if (loadedPlugins.length > 0) {
+      for (const cmd of commandContents) {
+        const overlayContents = getPluginOverlays(loadedPlugins, cmd.id);
+        if (overlayContents.length > 0) {
+          cmd.body = cmd.body + '\n\n' + overlayContents.join('\n\n');
+        }
+      }
+    }
+
     // 10. Update tools (all if force, otherwise only those needing update)
     const toolsToUpdate = this.force ? configuredTools : [...toolsToUpdateSet];
     const updatedTools: string[] = [];
@@ -190,12 +212,19 @@ export class UpdateCommand {
 
         // Generate skill files if delivery includes skills
         if (shouldGenerateSkills) {
-          for (const { template, dirName } of skillTemplates) {
+          for (const { template, dirName, workflowId } of skillTemplates) {
             const skillDir = path.join(skillsDir, dirName);
             const skillFile = path.join(skillDir, 'SKILL.md');
 
+            // Build overlay transformer from active plugins
+            const overlayContents = getPluginOverlays(loadedPlugins, workflowId);
+            const overlayTransformer = overlayContents.length > 0
+              ? (s: string) => s + '\n\n' + overlayContents.join('\n\n')
+              : undefined;
+
             // Use hyphen-based command references for OpenCode
-            const transformer = tool.value === 'opencode' ? transformToHyphenCommands : undefined;
+            const toolTransformer = tool.value === 'opencode' ? transformToHyphenCommands : undefined;
+            const transformer = composeTransformers(overlayTransformer, toolTransformer);
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }

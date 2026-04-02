@@ -1,6 +1,10 @@
 // Types
 export {
   ArtifactSchema,
+  GateSchema,
+  GatesSchema,
+  TddConfigSchema,
+  StepSchema,
   SchemaYamlSchema,
   type Artifact,
   type SchemaYaml,

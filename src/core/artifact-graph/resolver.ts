@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 import { getGlobalDataDir } from '../global-config.js';
 import { parseSchema, SchemaValidationError } from './schema.js';
 import type { SchemaYaml } from './types.js';
+import type { LoadedPlugin } from '../plugin/types.js';
+import { getLoadedPlugins } from '../plugin/context.js';
 
 /**
  * Error thrown when loading a schema fails.
@@ -62,7 +64,8 @@ export function getProjectSchemasDir(projectRoot: string): string {
  */
 export function getSchemaDir(
   name: string,
-  projectRoot?: string
+  projectRoot?: string,
+  loadedPlugins?: LoadedPlugin[]
 ): string | null {
   // 1. Check project-local directory (if projectRoot provided)
   if (projectRoot) {
@@ -73,14 +76,27 @@ export function getSchemaDir(
     }
   }
 
-  // 2. Check user override directory
+  // 2. Check plugin-provided schemas (in whitelist order)
+  if (loadedPlugins) {
+    for (const plugin of loadedPlugins) {
+      if (plugin.manifest.schemas?.includes(name)) {
+        const pluginSchemaDir = path.join(plugin.dir, 'schemas', name);
+        const pluginSchemaPath = path.join(pluginSchemaDir, 'schema.yaml');
+        if (fs.existsSync(pluginSchemaPath)) {
+          return pluginSchemaDir;
+        }
+      }
+    }
+  }
+
+  // 3. Check user override directory
   const userDir = path.join(getUserSchemasDir(), name);
   const userSchemaPath = path.join(userDir, 'schema.yaml');
   if (fs.existsSync(userSchemaPath)) {
     return userDir;
   }
 
-  // 3. Check package built-in directory
+  // 4. Check package built-in directory
   const packageDir = path.join(getPackageSchemasDir(), name);
   const packageSchemaPath = path.join(packageDir, 'schema.yaml');
   if (fs.existsSync(packageSchemaPath)) {
@@ -106,13 +122,16 @@ export function getSchemaDir(
  * @returns The resolved schema object
  * @throws Error if schema is not found in any location
  */
-export function resolveSchema(name: string, projectRoot?: string): SchemaYaml {
+export function resolveSchema(name: string, projectRoot?: string, loadedPlugins?: LoadedPlugin[]): SchemaYaml {
   // Normalize name (remove .yaml extension if provided)
   const normalizedName = name.replace(/\.ya?ml$/, '');
 
-  const schemaDir = getSchemaDir(normalizedName, projectRoot);
+  // Auto-load plugins if projectRoot is provided but plugins are not
+  const plugins = loadedPlugins ?? (projectRoot ? getLoadedPlugins(projectRoot) : undefined);
+
+  const schemaDir = getSchemaDir(normalizedName, projectRoot, plugins);
   if (!schemaDir) {
-    const availableSchemas = listSchemas(projectRoot);
+    const availableSchemas = listSchemas(projectRoot, plugins);
     throw new Error(
       `Schema '${normalizedName}' not found. Available schemas: ${availableSchemas.join(', ')}`
     );
@@ -158,7 +177,7 @@ export function resolveSchema(name: string, projectRoot?: string): SchemaYaml {
  *
  * @param projectRoot - Optional project root directory for project-local schema resolution
  */
-export function listSchemas(projectRoot?: string): string[] {
+export function listSchemas(projectRoot?: string, loadedPlugins?: LoadedPlugin[]): string[] {
   const schemas = new Set<string>();
 
   // Add package built-in schemas
@@ -182,6 +201,20 @@ export function listSchemas(projectRoot?: string): string[] {
         const schemaPath = path.join(userDir, entry.name, 'schema.yaml');
         if (fs.existsSync(schemaPath)) {
           schemas.add(entry.name);
+        }
+      }
+    }
+  }
+
+  // Add plugin-provided schemas
+  if (loadedPlugins) {
+    for (const plugin of loadedPlugins) {
+      if (plugin.manifest.schemas) {
+        for (const schemaName of plugin.manifest.schemas) {
+          const pluginSchemaPath = path.join(plugin.dir, 'schemas', schemaName, 'schema.yaml');
+          if (fs.existsSync(pluginSchemaPath)) {
+            schemas.add(schemaName);
+          }
         }
       }
     }
@@ -212,7 +245,7 @@ export interface SchemaInfo {
   name: string;
   description: string;
   artifacts: string[];
-  source: 'project' | 'user' | 'package';
+  source: 'project' | 'plugin' | 'user' | 'package';
 }
 
 /**
@@ -221,7 +254,7 @@ export interface SchemaInfo {
  *
  * @param projectRoot - Optional project root directory for project-local schema resolution
  */
-export function listSchemasWithInfo(projectRoot?: string): SchemaInfo[] {
+export function listSchemasWithInfo(projectRoot?: string, loadedPlugins?: LoadedPlugin[]): SchemaInfo[] {
   const schemas: SchemaInfo[] = [];
   const seenNames = new Set<string>();
 
@@ -251,7 +284,34 @@ export function listSchemasWithInfo(projectRoot?: string): SchemaInfo[] {
     }
   }
 
-  // Add user override schemas (if not overridden by project)
+  // Add plugin-provided schemas (if not overridden by project)
+  if (loadedPlugins) {
+    for (const plugin of loadedPlugins) {
+      if (plugin.manifest.schemas) {
+        for (const schemaName of plugin.manifest.schemas) {
+          if (!seenNames.has(schemaName)) {
+            const schemaPath = path.join(plugin.dir, 'schemas', schemaName, 'schema.yaml');
+            if (fs.existsSync(schemaPath)) {
+              try {
+                const schema = parseSchema(fs.readFileSync(schemaPath, 'utf-8'));
+                schemas.push({
+                  name: schemaName,
+                  description: schema.description || '',
+                  artifacts: schema.artifacts.map((a) => a.id),
+                  source: 'plugin',
+                });
+                seenNames.add(schemaName);
+              } catch {
+                // Skip invalid schemas
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Add user override schemas (if not overridden by project or plugin)
   const userDir = getUserSchemasDir();
   if (fs.existsSync(userDir)) {
     for (const entry of fs.readdirSync(userDir, { withFileTypes: true })) {

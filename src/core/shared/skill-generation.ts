@@ -124,6 +124,19 @@ export function getCommandContents(workflowFilter?: readonly string[]): CommandC
  * @param generatedByVersion - The OpenSpec version to embed in the file
  * @param transformInstructions - Optional callback to transform the instructions content
  */
+/**
+ * Composes multiple instruction transformers into a single function.
+ * Applies transformers left-to-right, skipping undefined entries.
+ */
+export function composeTransformers(
+  ...fns: Array<((s: string) => string) | undefined>
+): ((s: string) => string) | undefined {
+  const defined = fns.filter((fn): fn is (s: string) => string => fn !== undefined);
+  if (defined.length === 0) return undefined;
+  if (defined.length === 1) return defined[0];
+  return (input: string) => defined.reduce((acc, fn) => fn(acc), input);
+}
+
 export function generateSkillContent(
   template: SkillTemplate,
   generatedByVersion: string,

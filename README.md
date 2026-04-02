@@ -152,6 +152,158 @@ Run this inside each project to regenerate AI guidance and ensure the latest sla
 openspec update
 ```
 
+## Plugins
+
+OpenSpec supports a plugin system for extending lifecycle hooks, gate types, and schemas without modifying core.
+
+### Quick Start
+
+1. Create a plugin directory with a manifest:
+
+```
+openspec/plugins/my-plugin/
+  plugin.yaml
+  hooks/
+    my-hook.md
+```
+
+2. Define `plugin.yaml`:
+
+```yaml
+name: my-plugin
+version: 1.0.0
+description: My custom lifecycle hooks
+openspec: ">=1.2.0"
+
+hooks:
+  archive.post:
+    - id: notify
+      handler:
+        type: command
+        run: "echo 'Archived ${OPENSPEC_CHANGE_NAME}'"
+```
+
+3. Enable in `openspec/config.yaml`:
+
+```yaml
+schema: spec-driven
+plugins:
+  - my-plugin
+```
+
+4. Verify: `openspec plugin list`
+
+### Plugin Manifest (`plugin.yaml`)
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Plugin name |
+| `version` | string | Yes | Semver version |
+| `description` | string | No | Brief description |
+| `openspec` | string | No | Compatible OpenSpec version range (e.g., `">=1.2.0"`) |
+| `schemas` | string[] | No | Schema names bundled in `schemas/` subdirectory |
+| `config` | object | No | Config schema (category → field → {type, required, default}) |
+| `hooks` | object | No | Lifecycle hooks by hook point |
+| `gates` | GateDefinition[] | No | Custom gate types for schema `apply.gates` |
+
+### Hook Points
+
+| Hook Point | When | Use Case |
+|------------|------|----------|
+| `propose.pre` | Before proposal creation | Pre-checks |
+| `propose.post` | After proposal creation | Notifications |
+| `apply.pre` | Before apply phase | Git branch creation, env setup |
+| `apply.post` | After all tasks complete | Cleanup, notifications |
+| `archive.pre` | Before archive operation | Validation, blocking checks |
+| `archive.post` | After archive completes | Obsidian sync, git cleanup |
+
+### Handler Types
+
+Hooks and gates support three handler types:
+
+- **`command`** — Execute a shell command. Exit code 0 = success.
+- **`prompt`** — Output a markdown prompt for the AI agent to execute.
+- **`both`** — Run a command first, then output a prompt with `{{command_output}}`.
+
+```yaml
+hooks:
+  archive.post:
+    # Shell command (deterministic)
+    - id: git-cleanup
+      handler:
+        type: command
+        run: "git branch -d feature/${OPENSPEC_CHANGE_NAME}"
+        ignore_failure: true
+
+    # AI prompt (judgment-based)
+    - id: obsidian-sync
+      handler:
+        type: prompt
+        file: hooks/obsidian-sync.md
+```
+
+### Environment Variables
+
+Command handlers receive these environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `OPENSPEC_CHANGE_NAME` | Change name |
+| `OPENSPEC_CHANGE_DIR` | Absolute path to change directory |
+| `OPENSPEC_SCHEMA` | Schema name |
+| `OPENSPEC_PROJECT_ROOT` | Absolute path to project root |
+| `OPENSPEC_PHASE` | Current phase (propose, apply, archive) |
+| `OPENSPEC_HOOK_POINT` | Hook point (e.g., archive.post) |
+| `OPENSPEC_ARCHIVE_DIR` | Archive destination (archive.post only) |
+
+Plugin config values are available as `OPENSPEC_PLUGIN_CONFIG_{CATEGORY}_{FIELD}`.
+
+### Plugin Config
+
+Plugins can declare configuration requirements. Users provide values in `config.yaml`:
+
+```yaml
+# plugin.yaml
+config:
+  obsidian:
+    vault:
+      type: string
+      required: true
+    target_pattern:
+      type: string
+      default: "modules/{module}"
+
+# config.yaml
+plugins:
+  - my-plugin
+plugin_config:
+  my-plugin:
+    obsidian:
+      vault: "my-specs"
+```
+
+### Plugin-Provided Schemas and Gates
+
+Plugins can bundle schemas in a `schemas/` subdirectory and custom gate types. See `openspec plugin info <name>` for details on any installed plugin.
+
+### Resolution Order
+
+Plugins resolve from three locations (highest priority first):
+
+1. **Project-local**: `openspec/plugins/<name>/`
+2. **User-global**: `~/.local/share/openspec/plugins/<name>/`
+3. **Package built-in**: `<openspec-package>/plugins/<name>/`
+
+Only plugins listed in `config.yaml`'s `plugins` array are loaded. Order in the array determines hook execution order.
+
+### CLI Commands
+
+```bash
+openspec plugin list          # Show all available plugins
+openspec plugin list --json   # Machine-readable output
+openspec plugin info <name>   # Detailed plugin information
+```
+
 ## Usage Notes
 
 **Model selection**: OpenSpec works best with high-reasoning models. We recommend Opus 4.5 and GPT 5.2 for both planning and implementation.

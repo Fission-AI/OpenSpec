@@ -9,7 +9,7 @@ import chalk from 'chalk';
 import path from 'path';
 import * as fs from 'fs';
 import { getSchemaDir, listSchemas } from '../../core/artifact-graph/index.js';
-import { validateChangeName } from '../../utils/change-utils.js';
+import { validateChangeName, getChangesDir } from '../../utils/change-utils.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -35,6 +35,38 @@ export interface ApplyInstructions {
   state: 'blocked' | 'all_done' | 'ready';
   missingArtifacts?: string[];
   instruction: string;
+  gates?: {
+    pre?: Array<{
+      id: string;
+      check: string;
+      severity: string;
+      prompt?: string;
+      command?: string;
+      retry?: number;
+      on_p2?: string;
+    }>;
+    post?: Array<{
+      id: string;
+      check: string;
+      severity: string;
+      prompt?: string;
+      command?: string;
+      retry?: number;
+      on_p2?: string;
+    }>;
+  };
+  steps?: Array<{
+    id: string;
+    method?: string;
+    tdd?: {
+      enforce: string;
+      test_pattern?: string;
+      min_coverage?: number;
+      marker?: boolean;
+    };
+    gate_ref?: string;
+    instruction?: string;
+  }>;
 }
 
 // -----------------------------------------------------------------------------
@@ -91,7 +123,7 @@ export function getStatusIndicator(status: 'done' | 'ready' | 'blocked'): string
  * Excludes the archive directory and hidden directories.
  */
 export async function getAvailableChanges(projectRoot: string): Promise<string[]> {
-  const changesPath = path.join(projectRoot, 'openspec', 'changes');
+  const changesPath = getChangesDir(projectRoot);
   try {
     const entries = await fs.promises.readdir(changesPath, { withFileTypes: true });
     return entries
@@ -127,8 +159,8 @@ export async function validateChangeExists(
     throw new Error(`Invalid change name '${changeName}': ${nameValidation.error}`);
   }
 
-  // Check directory existence directly
-  const changePath = path.join(projectRoot, 'openspec', 'changes', changeName);
+  // Check directory existence directly (use getChangesDir to respect config.yaml changesDir)
+  const changePath = path.join(getChangesDir(projectRoot), changeName);
   const exists = fs.existsSync(changePath) && fs.statSync(changePath).isDirectory();
 
   if (!exists) {

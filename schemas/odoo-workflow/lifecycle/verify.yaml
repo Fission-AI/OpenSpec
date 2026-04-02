@@ -1,0 +1,64 @@
+# Odoo Verify Phase — 4 steps
+# 讀取方式：/change verify 啟動時 parse 此檔案取得步驟定義
+# OpenSpec 不會讀這個檔案，這是我們自己的 convention
+
+name: verify
+description: Odoo 驗證（coverage → regression → tech → e2e）
+requires_phase: apply  # apply 完成後才能進入
+
+steps:
+  - id: coverage-ok
+    description: 單元測試覆蓋率 ≥80%
+    parallel_group: gate
+    auto: true
+    environment:
+      prefer: odoo-sh-dev
+      fallback: docker
+    action: |
+      從 proposal.md 讀取影響的模組清單。
+      SSH dev 或 Docker 執行 coverage check。
+      不足 → 建議 /autoloop 補 coverage。
+    done_when: 所有模組覆蓋率 ≥80%
+    fail_action: 輸出模組覆蓋率表格 + 建議 /autoloop
+
+  - id: regression-ok
+    description: 跨模組回歸測試全過
+    parallel_group: gate
+    auto: true
+    environment:
+      prefer: odoo-sh-dev
+      fallback: docker
+    action: |
+      SSH dev 或 Docker 執行 /regression 跨模組回歸。
+    done_when: 0 failures
+    fail_action: 列出失敗的測試
+
+  - id: tech-validated
+    description: ORM + DB 技術驗證
+    auto: true
+    requires_steps: [coverage-ok, regression-ok]
+    environment:
+      prefer: odoo-sh-dev
+      fallback: docker
+    action: |
+      SSH dev → odoo-bin shell / psql / curl 技術驗證。
+      確認 ORM 行為正確 + DB 狀態一致。
+    done_when: ORM 行為正確 + DB 一致
+
+  - id: e2e-passed
+    description: 端對端場景測試
+    auto: true
+    requires_steps: [tech-validated]
+    action: |
+      執行 /odoo-e2e-scenario（Chrome 自動化）。
+      依 E2E 場景逐一測試，P1 → P2 → P3。
+    done_when: 所有 E2E 場景 PASS
+
+# PR merge 到 master 在 archive 階段處理，不在 verify
+
+# 失敗回退規則
+rollback:
+  coverage-ok: { target: coded, scope: "補 test → 重跑 coverage" }
+  regression-ok: { target: coded, scope: "修復 → 重跑 regression" }
+  tech-validated: { target: coded, scope: "修復 ORM/DB → 重跑" }
+  e2e-passed: { target: coded, scope: "修復 UI → 重跑" }

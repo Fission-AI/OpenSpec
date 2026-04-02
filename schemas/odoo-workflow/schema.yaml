@@ -1,0 +1,143 @@
+name: odoo-workflow
+version: 1
+description: Odoo SDD workflow — proposal → specs → tasks, with BR linkage and Lore commits
+
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: 變更提案（Why/What/Impact + 狀態追蹤）
+    template: proposal.md
+    instruction: |
+      建立變更提案文件，說明 WHY 需要這個變更。
+
+      **必須包含的區段**：
+      - **狀態表**：Change 名稱、關聯 BR、Schema、狀態、日期、PR URL
+      - **變更原因（Why）**：1-2 段文字說明為什麼需要這個變更
+      - **變更內容（What）**：簡要描述打算改什麼
+      - **Capabilities**：列出需要建立或修改的 specs
+        - New Capabilities → 每個建立 `specs/<name>/spec.md`
+        - Modified Capabilities → 引用 `openspec/specs/<name>/` 現有 spec
+      - **影響範圍**：用表格列出受影響的 models、views、API、測試、i18n
+      - **目標**：checkbox 清單
+
+      **Odoo 特化規則**：
+      - 影響範圍必須包含 Odoo 特有面向（models、views、security、i18n）
+      - 如果涉及 `_()` 新增字串，影響範圍的 i18n 欄位必須標註
+      - 關聯 BR 使用 BR-xxx 格式；基礎設施變更用 `--`
+      - Schema 選項：sdd（新功能）、bugfix（修 Bug）、refactor（重構）
+
+      保持簡潔（1-2 頁）。聚焦 "why" 不是 "how"。
+    requires: []
+
+  - id: specs
+    generates: "specs/**/*.md"
+    description: Delta Spec（ADDED/MODIFIED/REMOVED 需求定義）
+    template: spec.md
+    instruction: |
+      建立規格文件，定義系統 WHAT should do。
+
+      每個 capability 對應一個 `specs/<capability>/spec.md`。
+      使用 proposal 中 Capabilities 區段列出的名稱。
+
+      **Delta 操作**（使用 ## headers）：
+      - **ADDED Requirements**：新增功能
+      - **MODIFIED Requirements**：變更行為（MUST 包含完整更新內容）
+      - **REMOVED Requirements**：廢棄功能（MUST 包含 Reason 和 Migration）
+
+      **格式要求（MUST — archive 解析依賴這些精確格式）**：
+      - 每個 delta section：`## ADDED Requirements` / `## MODIFIED Requirements` / `## REMOVED Requirements`
+      - 每個 requirement：`### Requirement: <name>`（精確 3 個 #）
+      - 每個 scenario：`#### Scenario: <name>`（精確 4 個 #）+ WHEN/THEN
+      - **CRITICAL**：不可用自由格式（表格、編號清單）替代上述 header 結構
+      - **CRITICAL**：不可省略 `### Requirement:` 和 `#### Scenario:` prefix
+      - 使用 MUST/SHALL 表達規範性需求
+      - 每個 requirement 至少一個 scenario
+
+      **錯誤範例**（archive 會 parse 失敗）：
+      ```
+      ## MODIFIED: job_connection_search_view    ← 錯！缺 "Requirements"
+      #### 1. ADDED: 篩選                        ← 錯！不是 "### Requirement:"
+      ```
+
+      **正確範例**：
+      ```
+      ## MODIFIED Requirements
+      ### Requirement: search-view-state-filters
+      job.connection search view MUST provide state-based filters.
+      #### Scenario: user filters by state
+      - **WHEN** user selects "Draft" filter
+      - **THEN** only state=draft records are shown
+      ```
+
+      **Odoo 特化規則**：
+      - Requirement 如涉及 compute 欄位，scenario 必須覆蓋 depends 觸發
+      - 涉及 security 的 requirement 必須有 record rule scenario
+      - 涉及 view 的 requirement 必須指明 Odoo 18 語法（`<list>` 非 `<tree>`）
+      - Target BR 欄位連結到對應的 BR-xxx
+    requires:
+      - proposal
+
+  - id: tasks
+    generates: tasks.md
+    description: 實作任務清單（P0/P1/P2 分層 + checkbox 追蹤）
+    template: tasks.md
+    instruction: |
+      建立實作任務清單，將工作分解為可追蹤的步驟。
+
+      **IMPORTANT**: Apply phase 解析 `- [ ]` checkbox 格式追蹤進度。
+      不使用 checkbox 的任務不會被追蹤。
+
+      **分層規則**：
+      - **P0（CRITICAL）**：核心功能，必須完成
+      - **P1（HIGH）**：重要功能，應該完成
+      - **P2（MEDIUM）**：改善項目，可選
+
+      **任務格式**：
+      ```
+      ## P0（CRITICAL）
+      - [ ] 1.1 任務描述 — `path/to/file.py`
+      - [ ] 1.2 任務描述 — `path/to/file.xml`
+      ```
+
+      **Odoo 模組必檢檔案**（確保任務清單涵蓋所有需要修改的檔案）：
+
+      | 檔案類型 | 何時需要任務 |
+      |---------|------------|
+      | `models/*.py` | 新增/修改模型或欄位 |
+      | `views/*.xml` | 新增/修改視圖 |
+      | `security/ir.model.access.csv` | 新增模型 |
+      | `__manifest__.py` | 新增依賴或資料檔案 |
+      | `i18n/zh_TW.po` | 有新增 `_()` term |
+      | `tests/test_*.py` | 新增功能或修 bug |
+
+      **依賴圖**：使用 Mermaid `graph TD` 畫出任務依賴關係。
+
+      參考 specs 了解要建什麼，proposal 了解為什麼建。
+    requires:
+      - specs
+
+apply:
+  requires: [tasks]
+  tracks: tasks.md
+  instruction: |
+    讀取 proposal.md 和 tasks.md，按 P0 → P1 → P2 順序實作。
+
+    **實作規則**：
+    - 遵循 TDD：先寫測試（RED）→ 實作通過（GREEN）→ 重構（IMPROVE）
+    - 每個 task 完成後勾選 `- [x]`
+    - 新增 `_()` 字串必須同步更新 i18n/*.po
+    - 新增模型必須加 security/ir.model.access.csv
+
+    **Commit 格式**：Lore Protocol
+    ```
+    [module]: type WHY-not-WHAT
+
+    Constraint: ...
+    Tested: ...
+    Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+    ```
+
+    **完成條件**：
+    - tasks.md 所有 checkbox 勾完
+    - `gh pr create --base master`
+    - PR URL 寫入 proposal.md

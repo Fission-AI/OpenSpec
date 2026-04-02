@@ -1,8 +1,9 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { getChangesDir } from './change-utils.js';
 
 export async function getActiveChangeIds(root: string = process.cwd()): Promise<string[]> {
-  const changesPath = path.join(root, 'openspec', 'changes');
+  const changesPath = getChangesDir(root);
   try {
     const entries = await fs.readdir(changesPath, { withFileTypes: true });
     const result: string[] = [];
@@ -44,7 +45,7 @@ export async function getSpecIds(root: string = process.cwd()): Promise<string[]
 }
 
 export async function getArchivedChangeIds(root: string = process.cwd()): Promise<string[]> {
-  const archivePath = path.join(root, 'openspec', 'changes', 'archive');
+  const archivePath = path.join(getChangesDir(root), 'archive');
   try {
     const entries = await fs.readdir(archivePath, { withFileTypes: true });
     const result: string[] = [];
