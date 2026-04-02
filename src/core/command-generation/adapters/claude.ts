@@ -32,14 +32,14 @@ function formatTagsArray(tags: string[]): string {
 
 /**
  * Claude Code adapter for command generation.
- * File path: .claude/commands/opsx/<id>.md
+ * File path: .claude/commands/openspec/<id>.md
  * Frontmatter: name, description, category, tags
  */
 export const claudeAdapter: ToolCommandAdapter = {
   toolId: 'claude',
 
   getFilePath(commandId: string): string {
-    return path.join('.claude', 'commands', 'opsx', `${commandId}.md`);
+    return path.join('.claude', 'commands', 'openspec', `${commandId}.md`);
   },
 
   formatFile(content: CommandContent): string {

@@ -650,9 +650,9 @@ artifacts:
       expect(stat.isFile()).toBe(true);
 
       // Verify commands were created with Cursor format
-      const commandFile = path.join(tempDir, '.cursor', 'commands', 'opsx-explore.md');
+      const commandFile = path.join(tempDir, '.cursor', 'commands', 'openspec-explore.md');
       const content = await fs.readFile(commandFile, 'utf-8');
-      expect(content).toContain('name: /opsx-explore');
+      expect(content).toContain('name: /openspec-explore');
     });
 
     it('creates skills for Windsurf tool', async () => {

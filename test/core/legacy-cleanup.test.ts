@@ -260,47 +260,47 @@ ${OPENSPEC_MARKERS.end}`);
 
   describe('detectLegacySlashCommands', () => {
     it('should detect legacy Claude slash command directory', async () => {
-      const dirPath = path.join(testDir, '.claude', 'commands', 'openspec');
+      const dirPath = path.join(testDir, '.claude', 'commands', 'opsx');
       await fs.mkdir(dirPath, { recursive: true });
       await fs.writeFile(path.join(dirPath, 'proposal.md'), 'content');
 
       const result = await detectLegacySlashCommands(testDir);
-      expect(result.directories).toContain('.claude/commands/openspec');
+      expect(result.directories).toContain('.claude/commands/opsx');
     });
 
     it('should detect legacy Cursor slash command files', async () => {
       const dirPath = path.join(testDir, '.cursor', 'commands');
       await fs.mkdir(dirPath, { recursive: true });
-      await fs.writeFile(path.join(dirPath, 'openspec-proposal.md'), 'content');
-      await fs.writeFile(path.join(dirPath, 'openspec-apply.md'), 'content');
+      await fs.writeFile(path.join(dirPath, 'opsx-proposal.md'), 'content');
+      await fs.writeFile(path.join(dirPath, 'opsx-apply.md'), 'content');
 
       const result = await detectLegacySlashCommands(testDir);
-      expect(result.files).toContain('.cursor/commands/openspec-proposal.md');
-      expect(result.files).toContain('.cursor/commands/openspec-apply.md');
+      expect(result.files).toContain('.cursor/commands/opsx-proposal.md');
+      expect(result.files).toContain('.cursor/commands/opsx-apply.md');
     });
 
     it('should detect legacy Windsurf workflow files', async () => {
       const dirPath = path.join(testDir, '.windsurf', 'workflows');
       await fs.mkdir(dirPath, { recursive: true });
-      await fs.writeFile(path.join(dirPath, 'openspec-archive.md'), 'content');
+      await fs.writeFile(path.join(dirPath, 'opsx-archive.md'), 'content');
 
       const result = await detectLegacySlashCommands(testDir);
-      expect(result.files).toContain('.windsurf/workflows/openspec-archive.md');
+      expect(result.files).toContain('.windsurf/workflows/opsx-archive.md');
     });
 
     it('should detect multiple tool directories and files', async () => {
       // Create directory-based
-      await fs.mkdir(path.join(testDir, '.claude', 'commands', 'openspec'), { recursive: true });
-      await fs.mkdir(path.join(testDir, '.qoder', 'commands', 'openspec'), { recursive: true });
+      await fs.mkdir(path.join(testDir, '.claude', 'commands', 'opsx'), { recursive: true });
+      await fs.mkdir(path.join(testDir, '.qoder', 'commands', 'opsx'), { recursive: true });
 
       // Create file-based
       await fs.mkdir(path.join(testDir, '.cursor', 'commands'), { recursive: true });
-      await fs.writeFile(path.join(testDir, '.cursor', 'commands', 'openspec-proposal.md'), 'content');
+      await fs.writeFile(path.join(testDir, '.cursor', 'commands', 'opsx-proposal.md'), 'content');
 
       const result = await detectLegacySlashCommands(testDir);
-      expect(result.directories).toContain('.claude/commands/openspec');
-      expect(result.directories).toContain('.qoder/commands/openspec');
-      expect(result.files).toContain('.cursor/commands/openspec-proposal.md');
+      expect(result.directories).toContain('.claude/commands/opsx');
+      expect(result.directories).toContain('.qoder/commands/opsx');
+      expect(result.files).toContain('.cursor/commands/opsx-proposal.md');
     });
 
     it('should not detect non-openspec files', async () => {
@@ -321,19 +321,19 @@ ${OPENSPEC_MARKERS.end}`);
     it('should detect TOML-based slash commands for Qwen', async () => {
       const dirPath = path.join(testDir, '.qwen', 'commands');
       await fs.mkdir(dirPath, { recursive: true });
-      await fs.writeFile(path.join(dirPath, 'openspec-proposal.toml'), 'content');
+      await fs.writeFile(path.join(dirPath, 'opsx-proposal.toml'), 'content');
 
       const result = await detectLegacySlashCommands(testDir);
-      expect(result.files).toContain('.qwen/commands/openspec-proposal.toml');
+      expect(result.files).toContain('.qwen/commands/opsx-proposal.toml');
     });
 
     it('should detect Continue prompt files', async () => {
       const dirPath = path.join(testDir, '.continue', 'prompts');
       await fs.mkdir(dirPath, { recursive: true });
-      await fs.writeFile(path.join(dirPath, 'openspec-apply.prompt'), 'content');
+      await fs.writeFile(path.join(dirPath, 'opsx-apply.prompt'), 'content');
 
       const result = await detectLegacySlashCommands(testDir);
-      expect(result.files).toContain('.continue/prompts/openspec-apply.prompt');
+      expect(result.files).toContain('.continue/prompts/opsx-apply.prompt');
     });
 
     it('should detect legacy OpenCode opsx-* command files', async () => {
@@ -424,11 +424,11 @@ ${OPENSPEC_MARKERS.end}`);
     });
 
     it('should return hasLegacyArtifacts: true when slash commands are found', async () => {
-      await fs.mkdir(path.join(testDir, '.claude', 'commands', 'openspec'), { recursive: true });
+      await fs.mkdir(path.join(testDir, '.claude', 'commands', 'opsx'), { recursive: true });
 
       const result = await detectLegacyArtifacts(testDir);
       expect(result.hasLegacyArtifacts).toBe(true);
-      expect(result.slashCommandDirs).toContain('.claude/commands/openspec');
+      expect(result.slashCommandDirs).toContain('.claude/commands/opsx');
     });
 
     it('should return hasLegacyArtifacts: true when openspec/AGENTS.md is found', async () => {
@@ -451,14 +451,14 @@ ${OPENSPEC_MARKERS.end}`);
     it('should combine all detection results', async () => {
       // Create various legacy artifacts
       await fs.writeFile(path.join(testDir, 'CLAUDE.md'), `${OPENSPEC_MARKERS.start}\nContent\n${OPENSPEC_MARKERS.end}`);
-      await fs.mkdir(path.join(testDir, '.claude', 'commands', 'openspec'), { recursive: true });
+      await fs.mkdir(path.join(testDir, '.claude', 'commands', 'opsx'), { recursive: true });
       await fs.writeFile(path.join(testDir, 'openspec', 'AGENTS.md'), 'content');
       await fs.writeFile(path.join(testDir, 'openspec', 'project.md'), 'content');
 
       const result = await detectLegacyArtifacts(testDir);
       expect(result.hasLegacyArtifacts).toBe(true);
       expect(result.configFiles).toContain('CLAUDE.md');
-      expect(result.slashCommandDirs).toContain('.claude/commands/openspec');
+      expect(result.slashCommandDirs).toContain('.claude/commands/opsx');
       expect(result.hasOpenspecAgents).toBe(true);
       expect(result.hasProjectMd).toBe(true);
     });
@@ -500,14 +500,14 @@ ${OPENSPEC_MARKERS.end}`);
     });
 
     it('should delete legacy slash command directories', async () => {
-      const dirPath = path.join(testDir, '.claude', 'commands', 'openspec');
+      const dirPath = path.join(testDir, '.claude', 'commands', 'opsx');
       await fs.mkdir(dirPath, { recursive: true });
       await fs.writeFile(path.join(dirPath, 'proposal.md'), 'content');
 
       const detection = await detectLegacyArtifacts(testDir);
       const result = await cleanupLegacyArtifacts(testDir, detection);
 
-      expect(result.deletedDirs).toContain('.claude/commands/openspec');
+      expect(result.deletedDirs).toContain('.claude/commands/opsx');
       await expect(fs.access(dirPath)).rejects.toThrow();
       // Parent directory should still exist
       await expect(fs.access(path.join(testDir, '.claude', 'commands'))).resolves.not.toThrow();
@@ -516,13 +516,13 @@ ${OPENSPEC_MARKERS.end}`);
     it('should delete legacy slash command files', async () => {
       const dirPath = path.join(testDir, '.cursor', 'commands');
       await fs.mkdir(dirPath, { recursive: true });
-      const filePath = path.join(dirPath, 'openspec-proposal.md');
+      const filePath = path.join(dirPath, 'opsx-proposal.md');
       await fs.writeFile(filePath, 'content');
 
       const detection = await detectLegacyArtifacts(testDir);
       const result = await cleanupLegacyArtifacts(testDir, detection);
 
-      expect(result.deletedFiles).toContain('.cursor/commands/openspec-proposal.md');
+      expect(result.deletedFiles).toContain('.cursor/commands/opsx-proposal.md');
       await expect(fs.access(filePath)).rejects.toThrow();
     });
 
@@ -622,13 +622,13 @@ ${OPENSPEC_MARKERS.end}`);
       const result = {
         deletedFiles: [],
         modifiedFiles: [],
-        deletedDirs: ['.claude/commands/openspec'],
+        deletedDirs: ['.claude/commands/opsx'],
         projectMdNeedsMigration: false,
         errors: [],
       };
 
       const summary = formatCleanupSummary(result);
-      expect(summary).toContain('✓ Removed .claude/commands/openspec/ (replaced by /opsx:*)');
+      expect(summary).toContain('✓ Removed .claude/commands/opsx/ (replaced by /openspec:*)');
     });
 
     it('should format modified files', () => {
@@ -749,7 +749,7 @@ ${OPENSPEC_MARKERS.end}`);
       const detection = {
         configFiles: [],
         configFilesToUpdate: [],
-        slashCommandDirs: ['.claude/commands/openspec'],
+        slashCommandDirs: ['.claude/commands/opsx'],
         slashCommandFiles: [],
         hasOpenspecAgents: false,
         hasProjectMd: false,
@@ -759,7 +759,7 @@ ${OPENSPEC_MARKERS.end}`);
 
       const summary = formatDetectionSummary(detection);
       expect(summary).toContain('Files to remove');
-      expect(summary).toContain('• .claude/commands/openspec/');
+      expect(summary).toContain('• .claude/commands/opsx/');
     });
 
     it('should format slash command files', () => {
@@ -767,7 +767,7 @@ ${OPENSPEC_MARKERS.end}`);
         configFiles: [],
         configFilesToUpdate: [],
         slashCommandDirs: [],
-        slashCommandFiles: ['.cursor/commands/openspec-proposal.md'],
+        slashCommandFiles: ['.cursor/commands/opsx-proposal.md'],
         hasOpenspecAgents: false,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,
@@ -776,7 +776,7 @@ ${OPENSPEC_MARKERS.end}`);
 
       const summary = formatDetectionSummary(detection);
       expect(summary).toContain('Files to remove');
-      expect(summary).toContain('• .cursor/commands/openspec-proposal.md');
+      expect(summary).toContain('• .cursor/commands/opsx-proposal.md');
     });
 
     it('should format openspec/AGENTS.md', () => {
@@ -840,7 +840,7 @@ ${OPENSPEC_MARKERS.end}`);
       const detection = {
         configFiles: ['CLAUDE.md', 'CLINE.md'],
         configFilesToUpdate: ['CLAUDE.md', 'CLINE.md'],
-        slashCommandDirs: ['.claude/commands/openspec'],
+        slashCommandDirs: ['.claude/commands/opsx'],
         slashCommandFiles: [],
         hasOpenspecAgents: true,
         hasProjectMd: false,
@@ -853,7 +853,7 @@ ${OPENSPEC_MARKERS.end}`);
       expect(summary).toContain('Files to remove');
       expect(summary).toContain('Files to update');
       // Check removals (only slash commands and openspec/AGENTS.md)
-      expect(summary).toContain('• .claude/commands/openspec/');
+      expect(summary).toContain('• .claude/commands/opsx/');
       expect(summary).toContain('• openspec/AGENTS.md');
       // Check updates (all config files)
       expect(summary).toContain('• CLAUDE.md');
@@ -917,17 +917,17 @@ ${OPENSPEC_MARKERS.end}`);
     it('should include expected tool patterns', () => {
       expect(LEGACY_SLASH_COMMAND_PATHS['claude']).toEqual({
         type: 'directory',
-        path: '.claude/commands/openspec',
+        path: '.claude/commands/opsx',
       });
 
       expect(LEGACY_SLASH_COMMAND_PATHS['cursor']).toEqual({
         type: 'files',
-        pattern: '.cursor/commands/openspec-*.md',
+        pattern: '.cursor/commands/opsx-*.md',
       });
 
       expect(LEGACY_SLASH_COMMAND_PATHS['windsurf']).toEqual({
         type: 'files',
-        pattern: '.windsurf/workflows/openspec-*.md',
+        pattern: '.windsurf/workflows/opsx-*.md',
       });
     });
 
@@ -949,7 +949,7 @@ ${OPENSPEC_MARKERS.end}`);
       const detection = {
         configFiles: [],
         configFilesToUpdate: [],
-        slashCommandDirs: ['.claude/commands/openspec'],
+        slashCommandDirs: ['.claude/commands/opsx'],
         slashCommandFiles: [],
         hasOpenspecAgents: false,
         hasProjectMd: false,
@@ -967,7 +967,7 @@ ${OPENSPEC_MARKERS.end}`);
         configFiles: [],
         configFilesToUpdate: [],
         slashCommandDirs: [],
-        slashCommandFiles: ['.cursor/commands/openspec-proposal.md'],
+        slashCommandFiles: ['.cursor/commands/opsx-proposal.md'],
         hasOpenspecAgents: false,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,
@@ -983,8 +983,8 @@ ${OPENSPEC_MARKERS.end}`);
       const detection = {
         configFiles: [],
         configFilesToUpdate: [],
-        slashCommandDirs: ['.claude/commands/openspec', '.qoder/commands/openspec'],
-        slashCommandFiles: ['.cursor/commands/openspec-apply.md', '.windsurf/workflows/openspec-archive.md'],
+        slashCommandDirs: ['.claude/commands/opsx', '.qoder/commands/opsx'],
+        slashCommandFiles: ['.cursor/commands/opsx-apply.md', '.windsurf/workflows/opsx-archive.md'],
         hasOpenspecAgents: false,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,
@@ -1005,9 +1005,9 @@ ${OPENSPEC_MARKERS.end}`);
         configFilesToUpdate: [],
         slashCommandDirs: [],
         slashCommandFiles: [
-          '.cursor/commands/openspec-proposal.md',
-          '.cursor/commands/openspec-apply.md',
-          '.cursor/commands/openspec-archive.md',
+          '.cursor/commands/opsx-proposal.md',
+          '.cursor/commands/opsx-apply.md',
+          '.cursor/commands/opsx-archive.md',
         ],
         hasOpenspecAgents: false,
         hasProjectMd: false,
@@ -1041,7 +1041,7 @@ ${OPENSPEC_MARKERS.end}`);
         configFiles: [],
         configFilesToUpdate: [],
         slashCommandDirs: [],
-        slashCommandFiles: ['.qwen/commands/openspec-proposal.toml'],
+        slashCommandFiles: ['.qwen/commands/opsx-proposal.toml'],
         hasOpenspecAgents: false,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,
@@ -1058,7 +1058,7 @@ ${OPENSPEC_MARKERS.end}`);
         configFiles: [],
         configFilesToUpdate: [],
         slashCommandDirs: [],
-        slashCommandFiles: ['.continue/prompts/openspec-apply.prompt'],
+        slashCommandFiles: ['.continue/prompts/opsx-apply.prompt'],
         hasOpenspecAgents: false,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,
@@ -1075,7 +1075,7 @@ ${OPENSPEC_MARKERS.end}`);
         configFiles: [],
         configFilesToUpdate: [],
         slashCommandDirs: [],
-        slashCommandFiles: ['.github/prompts/openspec-apply.prompt.md'],
+        slashCommandFiles: ['.github/prompts/opsx-apply.prompt.md'],
         hasOpenspecAgents: false,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,
