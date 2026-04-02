@@ -9,7 +9,10 @@ import {
   parsePluginManifest,
   loadPlugins,
   PluginLoadError,
+  resolveOverlayPaths,
+  getPluginOverlays,
 } from '../../../src/core/plugin/loader.js';
+import type { LoadedPlugin } from '../../../src/core/plugin/types.js';
 
 describe('plugin/loader', () => {
   let tempDir: string;
@@ -160,6 +163,143 @@ describe('plugin/loader', () => {
       expect(() =>
         loadPlugins(tempDir, ['nonexistent'])
       ).toThrow(/not found/);
+    });
+  });
+
+  describe('resolveOverlayPaths', () => {
+    it('should return resolved paths for plugin with overlays', () => {
+      const pluginDir = path.join(tempDir, 'overlay-plugin');
+      createPluginYaml(pluginDir, {
+        name: 'overlay-plugin',
+        version: '1.0.0',
+        skill_overlays: {
+          apply: { append: 'overlays/apply.md' },
+          explore: { append: 'overlays/explore.md' },
+        },
+      });
+
+      const plugin: LoadedPlugin = {
+        manifest: parsePluginManifest(pluginDir),
+        dir: pluginDir,
+        source: 'project',
+        config: {},
+      };
+
+      const paths = resolveOverlayPaths(plugin);
+
+      expect(paths.size).toBe(2);
+      expect(paths.get('apply')).toBe(path.join(pluginDir, 'overlays', 'apply.md'));
+      expect(paths.get('explore')).toBe(path.join(pluginDir, 'overlays', 'explore.md'));
+    });
+
+    it('should return empty map for plugin without overlays', () => {
+      const pluginDir = path.join(tempDir, 'no-overlay-plugin');
+      createPluginYaml(pluginDir, {
+        name: 'no-overlay-plugin',
+        version: '1.0.0',
+      });
+
+      const plugin: LoadedPlugin = {
+        manifest: parsePluginManifest(pluginDir),
+        dir: pluginDir,
+        source: 'project',
+        config: {},
+      };
+
+      const paths = resolveOverlayPaths(plugin);
+      expect(paths.size).toBe(0);
+    });
+  });
+
+  describe('getPluginOverlays', () => {
+    it('should return overlay content when file exists', () => {
+      const pluginDir = path.join(tempDir, 'openspec', 'plugins', 'content-plugin');
+      createPluginYaml(pluginDir, {
+        name: 'content-plugin',
+        version: '1.0.0',
+        skill_overlays: { apply: { append: 'overlays/apply.md' } },
+      });
+      fs.mkdirSync(path.join(pluginDir, 'overlays'), { recursive: true });
+      fs.writeFileSync(path.join(pluginDir, 'overlays', 'apply.md'), '## Orchestration Modes');
+
+      const plugin: LoadedPlugin = {
+        manifest: parsePluginManifest(pluginDir),
+        dir: pluginDir,
+        source: 'project',
+        config: {},
+      };
+
+      const contents = getPluginOverlays([plugin], 'apply');
+      expect(contents).toEqual(['## Orchestration Modes']);
+    });
+
+    it('should warn and return empty when overlay file is missing', () => {
+      const pluginDir = path.join(tempDir, 'openspec', 'plugins', 'missing-file-plugin');
+      createPluginYaml(pluginDir, {
+        name: 'missing-file-plugin',
+        version: '1.0.0',
+        skill_overlays: { apply: { append: 'overlays/missing.md' } },
+      });
+
+      const plugin: LoadedPlugin = {
+        manifest: parsePluginManifest(pluginDir),
+        dir: pluginDir,
+        source: 'project',
+        config: {},
+      };
+
+      const contents = getPluginOverlays([plugin], 'apply');
+      expect(contents).toEqual([]);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Overlay file not found')
+      );
+    });
+
+    it('should return overlays in whitelist order from multiple plugins', () => {
+      const pluginADir = path.join(tempDir, 'openspec', 'plugins', 'plugin-a');
+      const pluginBDir = path.join(tempDir, 'openspec', 'plugins', 'plugin-b');
+
+      for (const [dir, name, content] of [
+        [pluginADir, 'plugin-a', 'Content from A'],
+        [pluginBDir, 'plugin-b', 'Content from B'],
+      ] as const) {
+        createPluginYaml(dir, {
+          name,
+          version: '1.0.0',
+          skill_overlays: { apply: { append: 'overlays/apply.md' } },
+        });
+        fs.mkdirSync(path.join(dir, 'overlays'), { recursive: true });
+        fs.writeFileSync(path.join(dir, 'overlays', 'apply.md'), content);
+      }
+
+      const plugins: LoadedPlugin[] = [
+        { manifest: parsePluginManifest(pluginADir), dir: pluginADir, source: 'project', config: {} },
+        { manifest: parsePluginManifest(pluginBDir), dir: pluginBDir, source: 'project', config: {} },
+      ];
+
+      const contents = getPluginOverlays(plugins, 'apply');
+      expect(contents).toEqual(['Content from A', 'Content from B']);
+    });
+
+    it('should return empty array when no plugins have overlays for the workflow', () => {
+      const pluginDir = path.join(tempDir, 'openspec', 'plugins', 'other-plugin');
+      createPluginYaml(pluginDir, {
+        name: 'other-plugin',
+        version: '1.0.0',
+        skill_overlays: { explore: { append: 'overlays/explore.md' } },
+      });
+      fs.mkdirSync(path.join(pluginDir, 'overlays'), { recursive: true });
+      fs.writeFileSync(path.join(pluginDir, 'overlays', 'explore.md'), 'Explore content');
+
+      const plugin: LoadedPlugin = {
+        manifest: parsePluginManifest(pluginDir),
+        dir: pluginDir,
+        source: 'project',
+        config: {},
+      };
+
+      const contents = getPluginOverlays([plugin], 'apply');
+      expect(contents).toEqual([]);
     });
   });
 });

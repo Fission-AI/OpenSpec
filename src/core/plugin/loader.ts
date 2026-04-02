@@ -295,3 +295,49 @@ export function loadPlugins(
 
   return loaded;
 }
+
+/**
+ * Resolves overlay file paths for a loaded plugin.
+ * Returns a map of workflow ID → absolute file path.
+ */
+export function resolveOverlayPaths(
+  plugin: LoadedPlugin
+): Map<string, string> {
+  const result = new Map<string, string>();
+  const overlays = plugin.manifest.skill_overlays;
+  if (!overlays) return result;
+
+  for (const [workflowId, overlay] of Object.entries(overlays)) {
+    result.set(workflowId, path.join(plugin.dir, overlay.append));
+  }
+  return result;
+}
+
+/**
+ * Collects overlay content for a specific workflow from all active plugins.
+ * Returns overlay contents in plugin whitelist order.
+ * Warns (but continues) if a declared overlay file doesn't exist.
+ */
+export function getPluginOverlays(
+  plugins: LoadedPlugin[],
+  workflowId: string
+): string[] {
+  const contents: string[] = [];
+
+  for (const plugin of plugins) {
+    const paths = resolveOverlayPaths(plugin);
+    const overlayPath = paths.get(workflowId);
+    if (!overlayPath) continue;
+
+    try {
+      const content = fs.readFileSync(overlayPath, 'utf-8');
+      contents.push(content);
+    } catch {
+      console.warn(
+        `[plugin:${plugin.manifest.name}] Overlay file not found: ${overlayPath}`
+      );
+    }
+  }
+
+  return contents;
+}

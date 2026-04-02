@@ -50,6 +50,14 @@ export const PluginHooksSchema = z.object({
   'archive.post': z.array(HookDefinitionSchema).optional(),
 });
 
+// A single skill overlay operation (currently only 'append' supported)
+export const SkillOverlaySchema = z.object({
+  append: z.string(),
+}).strict();
+
+// Skill overlays mapped by workflow ID
+export const SkillOverlaysSchema = z.record(z.string(), SkillOverlaySchema);
+
 // Full plugin.yaml manifest
 export const PluginManifestSchema = z.object({
   name: z.string().min(1),
@@ -60,6 +68,7 @@ export const PluginManifestSchema = z.object({
   config: z.record(z.string(), z.record(z.string(), ConfigFieldSchema)).optional(),
   hooks: PluginHooksSchema.optional(),
   gates: z.array(GateDefinitionSchema).optional(),
+  skill_overlays: SkillOverlaysSchema.optional(),
 });
 
 // Derived TypeScript types
@@ -68,6 +77,8 @@ export type HandlerConfig = z.infer<typeof HandlerConfigSchema>;
 export type HookDefinition = z.infer<typeof HookDefinitionSchema>;
 export type GateDefinition = z.infer<typeof GateDefinitionSchema>;
 export type PluginHooks = z.infer<typeof PluginHooksSchema>;
+export type SkillOverlay = z.infer<typeof SkillOverlaySchema>;
+export type SkillOverlays = z.infer<typeof SkillOverlaysSchema>;
 export type PluginManifest = z.infer<typeof PluginManifestSchema>;
 
 // Runtime type (not Zod - internal only)

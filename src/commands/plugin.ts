@@ -156,7 +156,12 @@ export function registerPluginCommand(program: Command): void {
       }
 
       if (options.json) {
-        console.log(JSON.stringify({ ...manifest, source: resolved.source, dir: resolved.dir }, null, 2));
+        console.log(JSON.stringify({
+          ...manifest,
+          skillOverlays: manifest.skill_overlays ?? {},
+          source: resolved.source,
+          dir: resolved.dir,
+        }, null, 2));
         return;
       }
 
@@ -197,6 +202,16 @@ export function registerPluginCommand(program: Command): void {
         console.log('\nGates:');
         for (const gate of manifest.gates) {
           console.log(`  ${gate.id} (${gate.handler.type})`);
+        }
+      }
+
+      if (manifest.skill_overlays) {
+        const entries = Object.entries(manifest.skill_overlays);
+        if (entries.length > 0) {
+          console.log('\nSkill Overlays:');
+          for (const [workflowId, overlay] of entries) {
+            console.log(`  ${workflowId} → append: ${overlay.append}`);
+          }
         }
       }
     });

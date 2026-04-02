@@ -7,6 +7,8 @@ export {
   GateDefinitionSchema,
   PluginHooksSchema,
   ConfigFieldSchema,
+  SkillOverlaySchema,
+  SkillOverlaysSchema,
 } from './types.js';
 
 export type {
@@ -17,6 +19,8 @@ export type {
   PluginHooks,
   ConfigField,
   LoadedPlugin,
+  SkillOverlay,
+  SkillOverlays,
 } from './types.js';
 
 export {
@@ -28,6 +32,8 @@ export {
   getUserPluginsDir,
   getPackagePluginsDir,
   PluginLoadError,
+  resolveOverlayPaths,
+  getPluginOverlays,
 } from './loader.js';
 
 export {

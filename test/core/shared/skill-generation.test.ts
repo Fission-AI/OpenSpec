@@ -4,6 +4,7 @@ import {
   getCommandTemplates,
   getCommandContents,
   generateSkillContent,
+  composeTransformers,
 } from '../../../src/core/shared/skill-generation.js';
 
 describe('skill-generation', () => {
@@ -296,6 +297,44 @@ describe('skill-generation', () => {
 
       expect(content).toContain('Some REPLACED text here.');
       expect(content).not.toContain('PLACEHOLDER');
+    });
+  });
+
+  describe('composeTransformers', () => {
+    it('should return undefined when all inputs are undefined', () => {
+      const result = composeTransformers(undefined, undefined);
+      expect(result).toBeUndefined();
+    });
+
+    it('should return undefined when no arguments provided', () => {
+      const result = composeTransformers();
+      expect(result).toBeUndefined();
+    });
+
+    it('should return the single function when only one is defined', () => {
+      const fn = (s: string) => s.toUpperCase();
+      const result = composeTransformers(fn);
+      expect(result).toBe(fn);
+    });
+
+    it('should compose two functions left-to-right', () => {
+      const addPrefix = (s: string) => `PREFIX: ${s}`;
+      const addSuffix = (s: string) => `${s} :SUFFIX`;
+      const composed = composeTransformers(addPrefix, addSuffix);
+      expect(composed!('hello')).toBe('PREFIX: hello :SUFFIX');
+    });
+
+    it('should skip undefined entries in the middle', () => {
+      const upper = (s: string) => s.toUpperCase();
+      const exclaim = (s: string) => `${s}!`;
+      const composed = composeTransformers(upper, undefined, exclaim);
+      expect(composed!('hello')).toBe('HELLO!');
+    });
+
+    it('should handle single defined with surrounding undefineds', () => {
+      const fn = (s: string) => s.trim();
+      const result = composeTransformers(undefined, fn, undefined);
+      expect(result).toBe(fn);
     });
   });
 });

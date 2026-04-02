@@ -3,6 +3,8 @@ import {
   PluginManifestSchema,
   ConfigFieldSchema,
   HandlerConfigSchema,
+  SkillOverlaySchema,
+  SkillOverlaysSchema,
 } from '../../../src/core/plugin/types.js';
 
 describe('plugin/types', () => {
@@ -178,6 +180,78 @@ describe('plugin/types', () => {
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.default).toBe('hello');
+      }
+    });
+  });
+
+  describe('SkillOverlaySchema', () => {
+    it('should accept valid append overlay', () => {
+      const result = SkillOverlaySchema.safeParse({ append: 'overlays/apply.md' });
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject unknown operation key (strict mode)', () => {
+      const result = SkillOverlaySchema.safeParse({ unknown_op: 'file.md' });
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject extra keys alongside append (strict mode)', () => {
+      const result = SkillOverlaySchema.safeParse({ append: 'a.md', prepend: 'b.md' });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('SkillOverlaysSchema', () => {
+    it('should accept empty record', () => {
+      const result = SkillOverlaysSchema.safeParse({});
+      expect(result.success).toBe(true);
+    });
+
+    it('should accept multiple workflows', () => {
+      const result = SkillOverlaysSchema.safeParse({
+        apply: { append: 'overlays/apply.md' },
+        explore: { append: 'overlays/explore.md' },
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.apply.append).toBe('overlays/apply.md');
+        expect(result.data.explore.append).toBe('overlays/explore.md');
+      }
+    });
+
+    it('should reject invalid overlay value', () => {
+      const result = SkillOverlaysSchema.safeParse({
+        apply: 'just-a-string',
+      });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('PluginManifestSchema with skill_overlays', () => {
+    it('should parse manifest with skill_overlays', () => {
+      const input = {
+        name: 'overlay-plugin',
+        version: '1.0.0',
+        skill_overlays: {
+          apply: { append: 'overlays/apply.md' },
+        },
+      };
+      const result = PluginManifestSchema.safeParse(input);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.skill_overlays?.apply.append).toBe('overlays/apply.md');
+      }
+    });
+
+    it('should parse manifest without skill_overlays (backwards compatible)', () => {
+      const input = {
+        name: 'no-overlay-plugin',
+        version: '1.0.0',
+      };
+      const result = PluginManifestSchema.safeParse(input);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.skill_overlays).toBeUndefined();
       }
     });
   });
