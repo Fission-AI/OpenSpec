@@ -25,14 +25,14 @@ function escapeYamlValue(value: string): string {
 
 /**
  * Pi adapter for prompt template generation.
- * File path: .pi/prompts/opsx-<id>.md
+ * File path: .pi/prompts/openspec-<id>.md
  * Frontmatter: description
  */
 export const piAdapter: ToolCommandAdapter = {
   toolId: 'pi',
 
   getFilePath(commandId: string): string {
-    return path.join('.pi', 'prompts', `opsx-${commandId}.md`);
+    return path.join('.pi', 'prompts', `openspec-${commandId}.md`);
   },
 
   formatFile(content: CommandContent): string {

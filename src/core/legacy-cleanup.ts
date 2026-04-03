@@ -30,31 +30,31 @@ export const LEGACY_CONFIG_FILES = [
  * Some tools used a directory structure, others used individual files.
  */
 export const LEGACY_SLASH_COMMAND_PATHS: Record<string, LegacySlashCommandPattern> = {
-  // Directory-based: .tooldir/commands/openspec/ or .tooldir/commands/openspec/*.md
-  'claude': { type: 'directory', path: '.claude/commands/openspec' },
-  'codebuddy': { type: 'directory', path: '.codebuddy/commands/openspec' },
-  'qoder': { type: 'directory', path: '.qoder/commands/openspec' },
-  'crush': { type: 'directory', path: '.crush/commands/openspec' },
-  'gemini': { type: 'directory', path: '.gemini/commands/openspec' },
+  // Directory-based: .tooldir/commands/opsx/ or .tooldir/commands/opsx/*.md
+  'claude': { type: 'directory', path: '.claude/commands/opsx' },
+  'codebuddy': { type: 'directory', path: '.codebuddy/commands/opsx' },
+  'qoder': { type: 'directory', path: '.qoder/commands/opsx' },
+  'crush': { type: 'directory', path: '.crush/commands/opsx' },
+  'gemini': { type: 'directory', path: '.gemini/commands/opsx' },
   'costrict': { type: 'directory', path: '.cospec/openspec/commands' },
 
-  // File-based: individual openspec-*.md files in a commands/workflows/prompts folder
-  'cursor': { type: 'files', pattern: '.cursor/commands/openspec-*.md' },
-  'windsurf': { type: 'files', pattern: '.windsurf/workflows/openspec-*.md' },
-  'kilocode': { type: 'files', pattern: '.kilocode/workflows/openspec-*.md' },
-  'kiro': { type: 'files', pattern: '.kiro/prompts/openspec-*.prompt.md' },
-  'github-copilot': { type: 'files', pattern: '.github/prompts/openspec-*.prompt.md' },
-  'amazon-q': { type: 'files', pattern: '.amazonq/prompts/openspec-*.md' },
-  'cline': { type: 'files', pattern: '.clinerules/workflows/openspec-*.md' },
-  'roocode': { type: 'files', pattern: '.roo/commands/openspec-*.md' },
-  'auggie': { type: 'files', pattern: '.augment/commands/openspec-*.md' },
-  'factory': { type: 'files', pattern: '.factory/commands/openspec-*.md' },
+  // File-based: individual opsx-*.md files in a commands/workflows/prompts folder
+  'cursor': { type: 'files', pattern: '.cursor/commands/opsx-*.md' },
+  'windsurf': { type: 'files', pattern: '.windsurf/workflows/opsx-*.md' },
+  'kilocode': { type: 'files', pattern: '.kilocode/workflows/opsx-*.md' },
+  'kiro': { type: 'files', pattern: '.kiro/prompts/opsx-*.prompt.md' },
+  'github-copilot': { type: 'files', pattern: '.github/prompts/opsx-*.prompt.md' },
+  'amazon-q': { type: 'files', pattern: '.amazonq/prompts/opsx-*.md' },
+  'cline': { type: 'files', pattern: '.clinerules/workflows/opsx-*.md' },
+  'roocode': { type: 'files', pattern: '.roo/commands/opsx-*.md' },
+  'auggie': { type: 'files', pattern: '.augment/commands/opsx-*.md' },
+  'factory': { type: 'files', pattern: '.factory/commands/opsx-*.md' },
   'opencode': { type: 'files', pattern: ['.opencode/command/opsx-*.md', '.opencode/command/openspec-*.md'] },
-  'continue': { type: 'files', pattern: '.continue/prompts/openspec-*.prompt' },
-  'antigravity': { type: 'files', pattern: '.agent/workflows/openspec-*.md' },
-  'iflow': { type: 'files', pattern: '.iflow/commands/openspec-*.md' },
-  'qwen': { type: 'files', pattern: '.qwen/commands/openspec-*.toml' },
-  'codex': { type: 'files', pattern: '.codex/prompts/openspec-*.md' },
+  'continue': { type: 'files', pattern: '.continue/prompts/opsx-*.prompt' },
+  'antigravity': { type: 'files', pattern: '.agent/workflows/opsx-*.md' },
+  'iflow': { type: 'files', pattern: '.iflow/commands/opsx-*.md' },
+  'qwen': { type: 'files', pattern: '.qwen/commands/opsx-*.toml' },
+  'codex': { type: 'files', pattern: '.codex/prompts/opsx-*.md' },
 };
 
 /**
@@ -445,7 +445,7 @@ export function formatCleanupSummary(result: CleanupResult): string {
     }
 
     for (const dir of result.deletedDirs) {
-      lines.push(`  ✓ Removed ${dir}/ (replaced by /opsx:*)`);
+      lines.push(`  ✓ Removed ${dir}/ (replaced by /openspec:*)`);
     }
 
     for (const file of result.modifiedFiles) {

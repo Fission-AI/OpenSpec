@@ -562,27 +562,27 @@ openspec/
 │                              OPENSPEC FLOW                                   │
 │                                                                              │
 │   ┌────────────────┐                                                         │
-│   │  1. START      │  /opsx:propose (core) or /opsx:new (expanded)          │
+│   │  1. START      │  /openspec:propose (core) or /openspec:new (expanded)          │
 │   │     CHANGE     │                                                         │
 │   └───────┬────────┘                                                         │
 │           │                                                                  │
 │           ▼                                                                  │
 │   ┌────────────────┐                                                         │
-│   │  2. CREATE     │  /opsx:ff or /opsx:continue (expanded workflow)         │
+│   │  2. CREATE     │  /openspec:ff or /openspec:continue (expanded workflow)         │
 │   │     ARTIFACTS  │  Creates proposal → specs → design → tasks              │
 │   │                │  (based on schema dependencies)                         │
 │   └───────┬────────┘                                                         │
 │           │                                                                  │
 │           ▼                                                                  │
 │   ┌────────────────┐                                                         │
-│   │  3. IMPLEMENT  │  /opsx:apply                                            │
+│   │  3. IMPLEMENT  │  /openspec:apply                                            │
 │   │     TASKS      │  Work through tasks, checking them off                  │
 │   │                │◄──── Update artifacts as you learn                      │
 │   └───────┬────────┘                                                         │
 │           │                                                                  │
 │           ▼                                                                  │
 │   ┌────────────────┐                                                         │
-│   │  4. VERIFY     │  /opsx:verify (optional)                                │
+│   │  4. VERIFY     │  /openspec:verify (optional)                                │
 │   │     WORK       │  Check implementation matches specs                     │
 │   └───────┬────────┘                                                         │
 │           │                                                                  │

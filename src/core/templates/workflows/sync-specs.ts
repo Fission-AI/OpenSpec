@@ -145,7 +145,7 @@ Main specs are now updated. The change remains active - archive when implementat
 
 export function getOpsxSyncCommandTemplate(): CommandTemplate {
   return {
-    name: 'OPSX: Sync',
+    name: 'OpenSpec: Sync',
     description: 'Sync delta specs from a change to main specs',
     category: 'Workflow',
     tags: ['workflow', 'specs', 'experimental'],
@@ -153,7 +153,7 @@ export function getOpsxSyncCommandTemplate(): CommandTemplate {
 
 This is an **agent-driven** operation - you will read delta specs and directly edit main specs to apply the changes. This allows intelligent merging (e.g., adding a scenario without copying the entire requirement).
 
-**Input**: Optionally specify a change name after \`/opsx:sync\` (e.g., \`/opsx:sync add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Input**: Optionally specify a change name after \`/openspec:sync\` (e.g., \`/openspec:sync add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 

@@ -121,13 +121,13 @@ All artifacts complete. All tasks complete.
 
 export function getOpsxArchiveCommandTemplate(): CommandTemplate {
   return {
-    name: 'OPSX: Archive',
+    name: 'OpenSpec: Archive',
     description: 'Archive a completed change in the experimental workflow',
     category: 'Workflow',
     tags: ['workflow', 'archive', 'experimental'],
     content: `Archive a completed change in the experimental workflow.
 
-**Input**: Optionally specify a change name after \`/opsx:archive\` (e.g., \`/opsx:archive add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Input**: Optionally specify a change name after \`/openspec:archive\` (e.g., \`/openspec:archive add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 

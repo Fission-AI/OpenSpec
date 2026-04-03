@@ -34,7 +34,7 @@ openspec --version 2>&1 || echo "CLI_NOT_INSTALLED"
 \`\`\`
 
 **If CLI not installed:**
-> OpenSpec CLI is not installed. Install it first, then come back to \`/opsx:onboard\`.
+> OpenSpec CLI is not installed. Install it first, then come back to \`/openspec:onboard\`.
 
 Stop here if not installed.
 
@@ -161,7 +161,7 @@ Spend 1-2 minutes investigating the relevant code:
 │   [Optional: ASCII diagram if helpful]  │
 └─────────────────────────────────────────┘
 
-Explore mode (\`/opsx:explore\`) is for this kind of thinking—investigating before implementing. You can use it anytime you need to think through a problem.
+Explore mode (\`/openspec:explore\`) is for this kind of thinking—investigating before implementing. You can use it anytime you need to think through a problem.
 
 Now let's create a change to hold our work.
 \`\`\`
@@ -479,25 +479,25 @@ This same rhythm works for any size change—a small fix or a major feature.
 
 | Command | What it does |
 |---------|--------------|
-| \`/opsx:propose\` | Create a change and generate all artifacts |
-| \`/opsx:explore\` | Think through problems before/during work |
-| \`/opsx:apply\` | Implement tasks from a change |
-| \`/opsx:archive\` | Archive a completed change |
+| \`/openspec:propose\` | Create a change and generate all artifacts |
+| \`/openspec:explore\` | Think through problems before/during work |
+| \`/openspec:apply\` | Implement tasks from a change |
+| \`/openspec:archive\` | Archive a completed change |
 
 **Additional commands:**
 
 | Command | What it does |
 |---------|--------------|
-| \`/opsx:new\` | Start a new change, step through artifacts one at a time |
-| \`/opsx:continue\` | Continue working on an existing change |
-| \`/opsx:ff\` | Fast-forward: create all artifacts at once |
-| \`/opsx:verify\` | Verify implementation matches artifacts |
+| \`/openspec:new\` | Start a new change, step through artifacts one at a time |
+| \`/openspec:continue\` | Continue working on an existing change |
+| \`/openspec:ff\` | Fast-forward: create all artifacts at once |
+| \`/openspec:verify\` | Verify implementation matches artifacts |
 
 ---
 
 ## What's Next?
 
-Try \`/opsx:propose\` on something you actually want to build. You've got the rhythm now!
+Try \`/openspec:propose\` on something you actually want to build. You've got the rhythm now!
 \`\`\`
 
 ---
@@ -512,8 +512,8 @@ If the user says they need to stop, want to pause, or seem disengaged:
 No problem! Your change is saved at \`openspec/changes/<name>/\`.
 
 To pick up where we left off later:
-- \`/opsx:continue <name>\` - Resume artifact creation
-- \`/opsx:apply <name>\` - Jump to implementation (if tasks exist)
+- \`/openspec:continue <name>\` - Resume artifact creation
+- \`/openspec:apply <name>\` - Jump to implementation (if tasks exist)
 
 The work won't be lost. Come back whenever you're ready.
 \`\`\`
@@ -531,21 +531,21 @@ If the user says they just want to see the commands or skip the tutorial:
 
 | Command | What it does |
 |---------|--------------|
-| \`/opsx:propose <name>\` | Create a change and generate all artifacts |
-| \`/opsx:explore\` | Think through problems (no code changes) |
-| \`/opsx:apply <name>\` | Implement tasks |
-| \`/opsx:archive <name>\` | Archive when done |
+| \`/openspec:propose <name>\` | Create a change and generate all artifacts |
+| \`/openspec:explore\` | Think through problems (no code changes) |
+| \`/openspec:apply <name>\` | Implement tasks |
+| \`/openspec:archive <name>\` | Archive when done |
 
 **Additional commands:**
 
 | Command | What it does |
 |---------|--------------|
-| \`/opsx:new <name>\` | Start a new change, step by step |
-| \`/opsx:continue <name>\` | Continue an existing change |
-| \`/opsx:ff <name>\` | Fast-forward: all artifacts at once |
-| \`/opsx:verify <name>\` | Verify implementation |
+| \`/openspec:new <name>\` | Start a new change, step by step |
+| \`/openspec:continue <name>\` | Continue an existing change |
+| \`/openspec:ff <name>\` | Fast-forward: all artifacts at once |
+| \`/openspec:verify <name>\` | Verify implementation |
 
-Try \`/opsx:propose\` to start your first change.
+Try \`/openspec:propose\` to start your first change.
 \`\`\`
 
 Exit gracefully.
@@ -565,7 +565,7 @@ Exit gracefully.
 
 export function getOpsxOnboardCommandTemplate(): CommandTemplate {
   return {
-    name: 'OPSX: Onboard',
+    name: 'OpenSpec: Onboard',
     description: 'Guided onboarding - walk through a complete OpenSpec workflow cycle with narration',
     category: 'Workflow',
     tags: ['workflow', 'onboarding', 'tutorial', 'learning'],

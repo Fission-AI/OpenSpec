@@ -137,7 +137,7 @@ describe('migration', () => {
 
   it('ignores unknown custom skill and command files when scanning workflows', async () => {
     await writeSkill(projectDir, 'my-custom-skill');
-    const customCommandPath = path.join(projectDir, '.claude', 'commands', 'opsx', 'my-custom.md');
+    const customCommandPath = path.join(projectDir, '.claude', 'commands', 'openspec', 'my-custom.md');
     await fsp.mkdir(path.dirname(customCommandPath), { recursive: true });
     await fsp.writeFile(customCommandPath, '# custom\n', 'utf-8');
 

@@ -10,22 +10,22 @@ For workflow patterns and when to use each command, see [Workflows](workflows.md
 
 | Command | Purpose |
 |---------|---------|
-| `/opsx:propose` | Create a change and generate planning artifacts in one step |
-| `/opsx:explore` | Think through ideas before committing to a change |
-| `/opsx:apply` | Implement tasks from the change |
-| `/opsx:archive` | Archive a completed change |
+| `/openspec:propose` | Create a change and generate planning artifacts in one step |
+| `/openspec:explore` | Think through ideas before committing to a change |
+| `/openspec:apply` | Implement tasks from the change |
+| `/openspec:archive` | Archive a completed change |
 
 ### Expanded Workflow Commands (custom workflow selection)
 
 | Command | Purpose |
 |---------|---------|
-| `/opsx:new` | Start a new change scaffold |
-| `/opsx:continue` | Create the next artifact based on dependencies |
-| `/opsx:ff` | Fast-forward: create all planning artifacts at once |
-| `/opsx:verify` | Validate implementation matches artifacts |
-| `/opsx:sync` | Merge delta specs into main specs |
-| `/opsx:bulk-archive` | Archive multiple changes at once |
-| `/opsx:onboard` | Guided tutorial through the complete workflow |
+| `/openspec:new` | Start a new change scaffold |
+| `/openspec:continue` | Create the next artifact based on dependencies |
+| `/openspec:ff` | Fast-forward: create all planning artifacts at once |
+| `/openspec:verify` | Validate implementation matches artifacts |
+| `/openspec:sync` | Merge delta specs into main specs |
+| `/openspec:bulk-archive` | Archive multiple changes at once |
+| `/openspec:onboard` | Guided tutorial through the complete workflow |
 
 The default global profile is `core`. To enable expanded workflow commands, run `openspec config profile`, select workflows, then run `openspec update` in your project.
 
@@ -33,13 +33,13 @@ The default global profile is `core`. To enable expanded workflow commands, run 
 
 ## Command Reference
 
-### `/opsx:propose`
+### `/openspec:propose`
 
 Create a new change and generate planning artifacts in one step. This is the default start command in the `core` profile.
 
 **Syntax:**
 ```text
-/opsx:propose [change-name-or-description]
+/openspec:propose [change-name-or-description]
 ```
 
 **Arguments:**
@@ -50,33 +50,33 @@ Create a new change and generate planning artifacts in one step. This is the def
 **What it does:**
 - Creates `openspec/changes/<change-name>/`
 - Generates artifacts needed before implementation (for `spec-driven`: proposal, specs, design, tasks)
-- Stops when the change is ready for `/opsx:apply`
+- Stops when the change is ready for `/openspec:apply`
 
 **Example:**
 ```text
-You: /opsx:propose add-dark-mode
+You: /openspec:propose add-dark-mode
 
 AI:  Created openspec/changes/add-dark-mode/
      ✓ proposal.md
      ✓ specs/ui/spec.md
      ✓ design.md
      ✓ tasks.md
-     Ready for implementation. Run /opsx:apply.
+     Ready for implementation. Run /openspec:apply.
 ```
 
 **Tips:**
 - Use this for the fastest end-to-end path
-- If you want step-by-step artifact control, enable expanded workflows and use `/opsx:new` + `/opsx:continue`
+- If you want step-by-step artifact control, enable expanded workflows and use `/openspec:new` + `/openspec:continue`
 
 ---
 
-### `/opsx:explore`
+### `/openspec:explore`
 
 Think through ideas, investigate problems, and clarify requirements before committing to a change.
 
 **Syntax:**
 ```
-/opsx:explore [topic]
+/openspec:explore [topic]
 ```
 
 **Arguments:**
@@ -89,11 +89,11 @@ Think through ideas, investigate problems, and clarify requirements before commi
 - Investigates the codebase to answer questions
 - Compares options and approaches
 - Creates visual diagrams to clarify thinking
-- Can transition to `/opsx:propose` (default) or `/opsx:new` (expanded workflow) when insights crystallize
+- Can transition to `/openspec:propose` (default) or `/openspec:new` (expanded workflow) when insights crystallize
 
 **Example:**
 ```text
-You: /opsx:explore
+You: /openspec:explore
 
 AI:  What would you like to explore?
 
@@ -113,7 +113,7 @@ AI:  Let me investigate your current auth setup...
 
 You: Let's go with JWT. Can we start a change for that?
 
-AI:  Ready when you are. Run /opsx:propose add-jwt-auth to begin.
+AI:  Ready when you are. Run /openspec:propose add-jwt-auth to begin.
 ```
 
 **Tips:**
@@ -124,15 +124,15 @@ AI:  Ready when you are. Run /opsx:propose add-jwt-auth to begin.
 
 ---
 
-### `/opsx:new`
+### `/openspec:new`
 
-Start a new change scaffold. Creates the change folder and waits for you to generate artifacts with `/opsx:continue` or `/opsx:ff`.
+Start a new change scaffold. Creates the change folder and waits for you to generate artifacts with `/openspec:continue` or `/openspec:ff`.
 
 This command is part of the expanded workflow set (not included in the default `core` profile).
 
 **Syntax:**
 ```
-/opsx:new [change-name] [--schema <schema-name>]
+/openspec:new [change-name] [--schema <schema-name>]
 ```
 
 **Arguments:**
@@ -155,13 +155,13 @@ openspec/changes/<change-name>/
 
 **Example:**
 ```
-You: /opsx:new add-dark-mode
+You: /openspec:new add-dark-mode
 
 AI:  Created openspec/changes/add-dark-mode/
      Schema: spec-driven
 
      Ready to create: proposal
-     Use /opsx:continue to create it, or /opsx:ff to create all artifacts.
+     Use /openspec:continue to create it, or /openspec:ff to create all artifacts.
 ```
 
 **Tips:**
@@ -171,13 +171,13 @@ AI:  Created openspec/changes/add-dark-mode/
 
 ---
 
-### `/opsx:continue`
+### `/openspec:continue`
 
 Create the next artifact in the dependency chain. Creates one artifact at a time for incremental progress.
 
 **Syntax:**
 ```
-/opsx:continue [change-name]
+/openspec:continue [change-name]
 ```
 
 **Arguments:**
@@ -194,7 +194,7 @@ Create the next artifact in the dependency chain. Creates one artifact at a time
 
 **Example:**
 ```
-You: /opsx:continue
+You: /openspec:continue
 
 AI:  Change: add-dark-mode
 
@@ -211,7 +211,7 @@ AI:  Change: add-dark-mode
      ✓ Created openspec/changes/add-dark-mode/specs/ui/spec.md
 
      Now available: tasks
-     Run /opsx:continue to create the next artifact.
+     Run /openspec:continue to create the next artifact.
 ```
 
 **Tips:**
@@ -222,13 +222,13 @@ AI:  Change: add-dark-mode
 
 ---
 
-### `/opsx:ff`
+### `/openspec:ff`
 
 Fast-forward through artifact creation. Creates all planning artifacts at once.
 
 **Syntax:**
 ```
-/opsx:ff [change-name]
+/openspec:ff [change-name]
 ```
 
 **Arguments:**
@@ -244,7 +244,7 @@ Fast-forward through artifact creation. Creates all planning artifacts at once.
 
 **Example:**
 ```
-You: /opsx:ff add-dark-mode
+You: /openspec:ff add-dark-mode
 
 AI:  Fast-forwarding add-dark-mode...
 
@@ -254,24 +254,24 @@ AI:  Fast-forwarding add-dark-mode...
      ✓ Creating tasks.md
 
      All planning artifacts complete!
-     Ready for implementation. Run /opsx:apply to begin.
+     Ready for implementation. Run /openspec:apply to begin.
 ```
 
 **Tips:**
 - Use when you have a clear picture of what you're building
-- Faster than `/opsx:continue` for straightforward changes
+- Faster than `/openspec:continue` for straightforward changes
 - You can still edit artifacts afterward
 - Good for small to medium features
 
 ---
 
-### `/opsx:apply`
+### `/openspec:apply`
 
 Implement tasks from the change. Works through the task list, writing code and checking off items.
 
 **Syntax:**
 ```
-/opsx:apply [change-name]
+/openspec:apply [change-name]
 ```
 
 **Arguments:**
@@ -287,7 +287,7 @@ Implement tasks from the change. Works through the task list, writing code and c
 
 **Example:**
 ```
-You: /opsx:apply
+You: /openspec:apply
 
 AI:  Implementing add-dark-mode...
 
@@ -315,13 +315,13 @@ AI:  Implementing add-dark-mode...
 
 ---
 
-### `/opsx:verify`
+### `/openspec:verify`
 
 Validate that implementation matches your change artifacts. Checks completeness, correctness, and coherence.
 
 **Syntax:**
 ```
-/opsx:verify [change-name]
+/openspec:verify [change-name]
 ```
 
 **Arguments:**
@@ -345,7 +345,7 @@ Validate that implementation matches your change artifacts. Checks completeness,
 
 **Example:**
 ```
-You: /opsx:verify
+You: /openspec:verify
 
 AI:  Verifying add-dark-mode...
 
@@ -383,13 +383,13 @@ AI:  Verifying add-dark-mode...
 
 ---
 
-### `/opsx:sync`
+### `/openspec:sync`
 
 **Optional command.** Merge delta specs from a change into main specs. Archive will prompt to sync if needed, so you typically don't need to run this manually.
 
 **Syntax:**
 ```
-/opsx:sync [change-name]
+/openspec:sync [change-name]
 ```
 
 **Arguments:**
@@ -406,7 +406,7 @@ AI:  Verifying add-dark-mode...
 
 **Example:**
 ```text
-You: /opsx:sync
+You: /openspec:sync
 
 AI:  Syncing add-dark-mode delta specs...
 
@@ -420,7 +420,7 @@ AI:  Syncing add-dark-mode delta specs...
      Merging...
      ✓ openspec/specs/ui/spec.md updated
 
-     Change remains active. Run /opsx:archive when ready to complete.
+     Change remains active. Run /openspec:archive when ready to complete.
 ```
 
 **When to use manually:**
@@ -440,13 +440,13 @@ AI:  Syncing add-dark-mode delta specs...
 
 ---
 
-### `/opsx:archive`
+### `/openspec:archive`
 
 Archive a completed change. Finalizes the change and moves it to the archive folder.
 
 **Syntax:**
 ```
-/opsx:archive [change-name]
+/openspec:archive [change-name]
 ```
 
 **Arguments:**
@@ -463,7 +463,7 @@ Archive a completed change. Finalizes the change and moves it to the archive fol
 
 **Example:**
 ```text
-You: /opsx:archive
+You: /openspec:archive
 
 AI:  Archiving add-dark-mode...
 
@@ -488,17 +488,17 @@ AI:  ✓ Synced specs to openspec/specs/ui/spec.md
 - Archive won't block on incomplete tasks, but will warn
 - Delta specs can be synced during archive or beforehand
 - Archived changes are preserved for history
-- Use `/opsx:verify` first to catch issues
+- Use `/openspec:verify` first to catch issues
 
 ---
 
-### `/opsx:bulk-archive`
+### `/openspec:bulk-archive`
 
 Archive multiple completed changes at once. Handles spec conflicts between changes.
 
 **Syntax:**
 ```
-/opsx:bulk-archive [change-names...]
+/openspec:bulk-archive [change-names...]
 ```
 
 **Arguments:**
@@ -515,7 +515,7 @@ Archive multiple completed changes at once. Handles spec conflicts between chang
 
 **Example:**
 ```
-You: /opsx:bulk-archive
+You: /openspec:bulk-archive
 
 AI:  Found 3 completed changes:
      - add-dark-mode (8/8 tasks complete)
@@ -548,13 +548,13 @@ AI:  ✓ Archived add-dark-mode
 
 ---
 
-### `/opsx:onboard`
+### `/openspec:onboard`
 
 Guided onboarding through the complete OpenSpec workflow. An interactive tutorial using your actual codebase.
 
 **Syntax:**
 ```
-/opsx:onboard
+/openspec:onboard
 ```
 
 **What it does:**
@@ -568,19 +568,19 @@ Guided onboarding through the complete OpenSpec workflow. An interactive tutoria
 **Phases:**
 1. Welcome and codebase analysis
 2. Finding an improvement opportunity
-3. Creating a change (`/opsx:new`)
+3. Creating a change (`/openspec:new`)
 4. Writing the proposal
 5. Creating specs
 6. Writing the design
 7. Creating tasks
-8. Implementing tasks (`/opsx:apply`)
+8. Implementing tasks (`/openspec:apply`)
 9. Verifying implementation
 10. Archiving the change
 11. Summary and next steps
 
 **Example:**
 ```
-You: /opsx:onboard
+You: /openspec:onboard
 
 AI:  Welcome to OpenSpec!
 
@@ -614,11 +614,11 @@ Different AI tools use slightly different command syntax. Use the format that ma
 
 | Tool | Syntax Example |
 |------|----------------|
-| Claude Code | `/opsx:propose`, `/opsx:apply` |
-| Cursor | `/opsx-propose`, `/opsx-apply` |
-| Windsurf | `/opsx-propose`, `/opsx-apply` |
-| Copilot (IDE) | `/opsx-propose`, `/opsx-apply` |
-| Trae | Skill-based invocations such as `/openspec-propose`, `/openspec-apply-change` (no generated `opsx-*` command files) |
+| Claude Code | `/openspec:propose`, `/openspec:apply` |
+| Cursor | `/openspec-propose`, `/openspec-apply` |
+| Windsurf | `/openspec-propose`, `/openspec-apply` |
+| Copilot (IDE) | `/openspec-propose`, `/openspec-apply` |
+| Trae | Skill-based invocations such as `/openspec-propose`, `/openspec-apply-change` (no generated `openspec-*` command files) |
 
 The intent is the same across tools, but how commands are surfaced can differ by integration.
 
@@ -653,7 +653,7 @@ Legacy changes can be continued with OPSX commands. The artifact structure is co
 The command couldn't identify which change to work on.
 
 **Solutions:**
-- Specify the change name explicitly: `/opsx:apply add-dark-mode`
+- Specify the change name explicitly: `/openspec:apply add-dark-mode`
 - Check that the change folder exists: `openspec list`
 - Verify you're in the right project directory
 
@@ -693,7 +693,7 @@ The AI creates incomplete or incorrect artifacts.
 - Add project context in `openspec/config.yaml`
 - Add per-artifact rules for specific guidance
 - Provide more detail in your change description
-- Use `/opsx:continue` instead of `/opsx:ff` for more control
+- Use `/openspec:continue` instead of `/openspec:ff` for more control
 
 ---
 

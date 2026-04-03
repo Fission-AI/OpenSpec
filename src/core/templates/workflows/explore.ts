@@ -202,7 +202,7 @@ You: [reads codebase]
 
 **User is stuck mid-implementation:**
 \`\`\`
-User: /opsx:explore add-auth-system
+User: /openspec:explore add-auth-system
       The OAuth integration is more complex than expected
 
 You: [reads change artifacts]
@@ -295,7 +295,7 @@ But this summary is optional. Sometimes the thinking IS the value.
 
 export function getOpsxExploreCommandTemplate(): CommandTemplate {
   return {
-    name: 'OPSX: Explore',
+    name: 'OpenSpec: Explore',
     description: 'Enter explore mode - think through ideas, investigate problems, clarify requirements',
     category: 'Workflow',
     tags: ['workflow', 'explore', 'experimental', 'thinking'],
@@ -305,7 +305,7 @@ export function getOpsxExploreCommandTemplate(): CommandTemplate {
 
 **This is a stance, not a workflow.** There are no fixed steps, no required sequence, no mandatory outputs. You're a thinking partner helping the user explore.
 
-**Input**: The argument after \`/opsx:explore\` is whatever the user wants to think about. Could be:
+**Input**: The argument after \`/openspec:explore\` is whatever the user wants to think about. Could be:
 - A vague idea: "real-time collaboration"
 - A specific problem: "the auth system is getting unwieldy"
 - A change name: "add-dark-mode" (to explore in context of that change)
