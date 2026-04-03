@@ -108,7 +108,8 @@ After completing all artifacts, summarize:
 - Always read dependency artifacts before creating a new one
 - If context is critically unclear, ask the user - but prefer making reasonable decisions to keep momentum
 - If a change with that name already exists, ask if user wants to continue it or create a new one
-- Verify each artifact file exists after writing before proceeding to next`,
+- Verify each artifact file exists after writing before proceeding to next
+- After all artifacts are created, run \`openspec run start --phase propose --json\` to trigger alignment checks if defined`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
@@ -219,6 +220,7 @@ After completing all artifacts, summarize:
 - Always read dependency artifacts before creating a new one
 - If context is critically unclear, ask the user - but prefer making reasonable decisions to keep momentum
 - If a change with that name already exists, ask if user wants to continue it or create a new one
-- Verify each artifact file exists after writing before proceeding to next`
+- Verify each artifact file exists after writing before proceeding to next
+- After all artifacts are created, run \`openspec run start --phase propose --json\` to trigger alignment checks if defined`
   };
 }

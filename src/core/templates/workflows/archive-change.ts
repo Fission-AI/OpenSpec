@@ -125,7 +125,8 @@ All artifacts complete. All tasks complete.
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
 - Show clear summary of what happened
 - If sync is requested, use openspec-sync-specs approach (agent-driven)
-- If delta specs exist, always run the sync assessment and show the combined summary before prompting`,
+- If delta specs exist, always run the sync assessment and show the combined summary before prompting
+- If schema defines archive hooks, run \`openspec run start --phase archive --json\` to trigger them`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
@@ -300,6 +301,7 @@ Target archive directory already exists.
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
 - Show clear summary of what happened
 - If sync is requested, use the Skill tool to invoke \`openspec-sync-specs\` (agent-driven)
-- If delta specs exist, always run the sync assessment and show the combined summary before prompting`
+- If delta specs exist, always run the sync assessment and show the combined summary before prompting
+- If schema defines archive hooks, run \`openspec run start --phase archive --json\` to trigger them`
   };
 }

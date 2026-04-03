@@ -181,7 +181,8 @@ Use clear markdown with:
 - Grouped lists for issues (CRITICAL/WARNING/SUGGESTION)
 - Code references in format: \`file.ts:123\`
 - Specific, actionable recommendations
-- No vague suggestions like "consider reviewing"`,
+- No vague suggestions like "consider reviewing"
+- If schema defines verify gates, run \`openspec run start/complete --phase verify\` to enforce them`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
@@ -365,6 +366,7 @@ Use clear markdown with:
 - Grouped lists for issues (CRITICAL/WARNING/SUGGESTION)
 - Code references in format: \`file.ts:123\`
 - Specific, actionable recommendations
-- No vague suggestions like "consider reviewing"`
+- No vague suggestions like "consider reviewing"
+- If schema defines verify gates, run \`openspec run start/complete --phase verify\` to enforce them`
   };
 }
