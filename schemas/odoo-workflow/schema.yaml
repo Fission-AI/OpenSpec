@@ -119,6 +119,12 @@ artifacts:
 apply:
   requires: [tasks]
   tracks: tasks.md
+  orchestration:
+    parallel_groups:
+      - gates: ["claude-review", "codex-review"]
+        parallel: true
+        mode: teams
+        synthesis: require-both-pass
   instruction: |
     讀取 proposal.md 和 tasks.md，按 P0 → P1 → P2 順序實作。
 

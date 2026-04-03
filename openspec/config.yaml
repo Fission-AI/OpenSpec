@@ -1,5 +1,9 @@
 schema: spec-driven
 
+plugins:
+  - dual-review
+  - alignment-check
+
 context: |
   Tech stack: TypeScript, Node.js (≥20.19.0), ESM modules
   Package manager: pnpm

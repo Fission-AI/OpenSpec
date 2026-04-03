@@ -10,6 +10,7 @@ import path from 'path';
 import * as fs from 'fs';
 import { getSchemaDir, listSchemas } from '../../core/artifact-graph/index.js';
 import { validateChangeName, getChangesDir } from '../../utils/change-utils.js';
+import type { OrchestrationHints } from '../../core/orchestration/types.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -67,6 +68,7 @@ export interface ApplyInstructions {
     gate_ref?: string;
     instruction?: string;
   }>;
+  orchestration?: OrchestrationHints;
 }
 
 // -----------------------------------------------------------------------------

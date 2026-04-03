@@ -157,3 +157,6 @@ opencode.json
 # Codex
 .codex/
 .actrc
+
+# OpenSpec gate results (ephemeral execution state)
+**/.gates/

@@ -1,5 +1,9 @@
-## ADDED Requirements
+# skill-overlay-manifest Specification
 
+## Purpose
+Define the plugin manifest schema for declaring skill overlays and how overlay file paths are resolved.
+
+## Requirements
 ### Requirement: Plugin manifest declares skill overlays
 
 The plugin manifest schema SHALL support an optional `skill_overlays` field that maps workflow IDs to overlay operations.

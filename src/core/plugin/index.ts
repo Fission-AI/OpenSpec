@@ -44,6 +44,7 @@ export {
 
 export {
   dispatchHooks,
+  buildParallelGroups,
 } from './hook-dispatcher.js';
 
 export type {

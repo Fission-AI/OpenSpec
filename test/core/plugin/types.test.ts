@@ -5,6 +5,9 @@ import {
   HandlerConfigSchema,
   SkillOverlaySchema,
   SkillOverlaysSchema,
+  OrchestrationDeclSchema,
+  GateDefinitionSchema,
+  HookDefinitionSchema,
 } from '../../../src/core/plugin/types.js';
 
 describe('plugin/types', () => {
@@ -276,6 +279,141 @@ describe('plugin/types', () => {
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.ignore_failure).toBe(false);
+      }
+    });
+  });
+
+  describe('OrchestrationDeclSchema', () => {
+    it('should accept valid orchestration with parallel_with and preferred_mode', () => {
+      const result = OrchestrationDeclSchema.safeParse({
+        parallel_with: ['codex-review'],
+        preferred_mode: 'teams',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.parallel_with).toEqual(['codex-review']);
+        expect(result.data.preferred_mode).toBe('teams');
+      }
+    });
+
+    it('should accept empty orchestration (all fields optional)', () => {
+      const result = OrchestrationDeclSchema.safeParse({});
+      expect(result.success).toBe(true);
+    });
+
+    it('should accept orchestration with only parallel_with', () => {
+      const result = OrchestrationDeclSchema.safeParse({
+        parallel_with: ['gate-a', 'gate-b'],
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.parallel_with).toEqual(['gate-a', 'gate-b']);
+        expect(result.data.preferred_mode).toBeUndefined();
+      }
+    });
+
+    it('should reject invalid preferred_mode value', () => {
+      const result = OrchestrationDeclSchema.safeParse({
+        preferred_mode: 'invalid',
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('should accept all valid preferred_mode values', () => {
+      for (const mode of ['default', 'subagents', 'teams']) {
+        const result = OrchestrationDeclSchema.safeParse({ preferred_mode: mode });
+        expect(result.success).toBe(true);
+      }
+    });
+
+    it('should reject unknown fields (strict mode)', () => {
+      const result = OrchestrationDeclSchema.safeParse({
+        parallel_with: ['a'],
+        unknown_field: true,
+      });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('GateDefinitionSchema with orchestration', () => {
+    it('should accept gate with orchestration', () => {
+      const result = GateDefinitionSchema.safeParse({
+        id: 'claude-review',
+        handler: { type: 'prompt', file: 'gates/claude-review.md' },
+        orchestration: {
+          parallel_with: ['codex-review'],
+          preferred_mode: 'teams',
+        },
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.orchestration?.parallel_with).toEqual(['codex-review']);
+      }
+    });
+
+    it('should accept gate without orchestration (backwards compatible)', () => {
+      const result = GateDefinitionSchema.safeParse({
+        id: 'security-scan',
+        handler: { type: 'command', run: 'npm run security' },
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.orchestration).toBeUndefined();
+      }
+    });
+  });
+
+  describe('HookDefinitionSchema with orchestration', () => {
+    it('should accept hook with orchestration', () => {
+      const result = HookDefinitionSchema.safeParse({
+        id: 'review-trigger',
+        handler: { type: 'prompt', file: 'hooks/review.md' },
+        orchestration: {
+          parallel_with: [],
+        },
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.orchestration?.parallel_with).toEqual([]);
+      }
+    });
+
+    it('should accept hook without orchestration (backwards compatible)', () => {
+      const result = HookDefinitionSchema.safeParse({
+        id: 'lint-check',
+        handler: { type: 'command', run: 'npm run lint' },
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.orchestration).toBeUndefined();
+      }
+    });
+  });
+
+  describe('PluginManifestSchema with orchestration', () => {
+    it('should parse manifest with orchestrated gates', () => {
+      const input = {
+        name: 'dual-review',
+        version: '0.1.0',
+        gates: [
+          {
+            id: 'claude-review',
+            handler: { type: 'prompt', file: 'gates/claude.md' },
+            orchestration: { parallel_with: ['codex-review'], preferred_mode: 'teams' },
+          },
+          {
+            id: 'codex-review',
+            handler: { type: 'prompt', file: 'gates/codex.md' },
+            orchestration: { parallel_with: ['claude-review'], preferred_mode: 'teams' },
+          },
+        ],
+      };
+      const result = PluginManifestSchema.safeParse(input);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.gates).toHaveLength(2);
+        expect(result.data.gates![0].orchestration?.parallel_with).toEqual(['codex-review']);
+        expect(result.data.gates![1].orchestration?.parallel_with).toEqual(['claude-review']);
       }
     });
   });

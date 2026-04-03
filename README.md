@@ -332,6 +332,104 @@ openspec plugin list --json   # Machine-readable output
 openspec plugin info <name>   # Detailed plugin information
 ```
 
+## Orchestration
+
+OpenSpec supports parallel execution hints via `--subagents` and `--teams` flags. The CLI declares WHAT can be parallel; the AI harness decides HOW.
+
+### Flags
+
+```bash
+openspec instructions apply --change my-change --subagents --json
+openspec instructions apply --change my-change --teams --json
+```
+
+Flags are mutually exclusive and available on all `openspec instructions <phase>` commands.
+
+### Plugin Orchestration Declaration
+
+Plugins declare parallel capabilities on gates and hooks:
+
+```yaml
+# plugin.yaml
+gates:
+  - id: claude-review
+    handler:
+      type: prompt
+      file: gates/claude-review.md
+    orchestration:
+      parallel_with: ["codex-review"]   # Can run alongside codex-review
+      preferred_mode: teams              # Suggest teams mode
+
+  - id: codex-review
+    handler:
+      type: prompt
+      file: gates/codex-review.md
+    orchestration:
+      parallel_with: ["claude-review"]   # Bidirectional declaration required
+      preferred_mode: teams
+```
+
+Both sides must declare `parallel_with` (bidirectional). Unidirectional declarations emit a warning and default to sequential.
+
+### Schema Orchestration Override
+
+Schemas can override plugin declarations at the project level:
+
+```yaml
+# schema.yaml
+apply:
+  orchestration:
+    parallel_groups:
+      - gates: ["claude-review", "codex-review"]
+        parallel: true
+        mode: teams
+        synthesis: require-both-pass    # Both must pass
+```
+
+### Two-Layer Resolution
+
+```
+User flag (--teams)  →  mode only, doesn't force parallel grouping
+         ↓
+Schema orchestration →  final decision on parallel groups + synthesis
+         ↓
+Plugin declaration   →  default capabilities (parallel_with)
+         ↓
+Default              →  sequential execution
+```
+
+Schema always wins. Plugin is the default when schema is silent.
+
+### Task Group Parallelism
+
+Tasks in `tasks.md` are grouped by `## N.` section headers:
+
+- **Intra-group**: Tasks within a group run in parallel (`parallel: true`)
+- **Inter-group**: Sequential by default (group N depends on N-1)
+- **Explicit parallel**: Add `<!-- parallel-with: 1 -->` in a section header to override
+
+Domain tags `[domain: backend]` enable `--teams` assignment to specialized agents.
+
+### Gate Result Persistence
+
+Gate results are written to `.gates/` in the change directory (gitignored):
+
+```
+openspec/changes/my-change/
+└── .gates/
+    ├── claude-review.json
+    ├── codex-review.json
+    └── synthesis.json
+```
+
+### Synthesis Strategies
+
+| Strategy | Behavior |
+|----------|----------|
+| `require-both-pass` | All gates in the group must pass |
+| `any-pass` | At least one gate must pass |
+| `majority` | More than half must pass |
+
 ## Usage Notes
 
 **Model selection**: OpenSpec works best with high-reasoning models. We recommend Opus 4.5 and GPT 5.2 for both planning and implementation.

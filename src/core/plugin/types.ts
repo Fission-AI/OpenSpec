@@ -26,11 +26,20 @@ export const HandlerConfigSchema = z.object({
   ignore_failure: z.boolean().optional().default(false),
 });
 
+// Orchestration declaration for gates and hooks
+export const OrchestrationDeclSchema = z
+  .object({
+    parallel_with: z.array(z.string()).optional(),
+    preferred_mode: z.enum(['default', 'subagents', 'teams']).optional(),
+  })
+  .strict();
+
 // A single hook registration
 export const HookDefinitionSchema = z.object({
   id: z.string().min(1),
   handler: HandlerConfigSchema,
   description: z.string().optional(),
+  orchestration: OrchestrationDeclSchema.optional(),
 });
 
 // A plugin-provided gate type
@@ -38,6 +47,7 @@ export const GateDefinitionSchema = z.object({
   id: z.string().min(1),
   handler: HandlerConfigSchema,
   description: z.string().optional(),
+  orchestration: OrchestrationDeclSchema.optional(),
 });
 
 // Hooks grouped by hook point
@@ -74,6 +84,7 @@ export const PluginManifestSchema = z.object({
 // Derived TypeScript types
 export type ConfigField = z.infer<typeof ConfigFieldSchema>;
 export type HandlerConfig = z.infer<typeof HandlerConfigSchema>;
+export type OrchestrationDecl = z.infer<typeof OrchestrationDeclSchema>;
 export type HookDefinition = z.infer<typeof HookDefinitionSchema>;
 export type GateDefinition = z.infer<typeof GateDefinitionSchema>;
 export type PluginHooks = z.infer<typeof PluginHooksSchema>;

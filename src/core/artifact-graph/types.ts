@@ -44,6 +44,20 @@ export const StepSchema = z.object({
   instruction: z.string().optional(),
 });
 
+// Parallel group declaration within schema orchestration
+export const SchemaParallelGroupSchema = z.object({
+  gates: z.array(z.string()).optional(),
+  hooks: z.array(z.string()).optional(),
+  parallel: z.boolean(),
+  mode: z.enum(['default', 'subagents', 'teams']).optional(),
+  synthesis: z.enum(['require-both-pass', 'any-pass', 'majority']).optional(),
+});
+
+// Orchestration section within a phase definition
+export const PhaseOrchestrationSchema = z.object({
+  parallel_groups: z.array(SchemaParallelGroupSchema).optional(),
+});
+
 // Apply phase configuration for schema-aware apply instructions
 export const ApplyPhaseSchema = z.object({
   // Artifact IDs that must exist before apply is available
@@ -56,6 +70,8 @@ export const ApplyPhaseSchema = z.object({
   steps: z.array(StepSchema).optional(),
   // Custom guidance for the apply phase
   instruction: z.string().optional(),
+  // Orchestration hints for parallel execution
+  orchestration: PhaseOrchestrationSchema.optional(),
 });
 
 // Full schema YAML structure
@@ -72,6 +88,8 @@ export const SchemaYamlSchema = z.object({
 export type Artifact = z.infer<typeof ArtifactSchema>;
 export type ApplyPhase = z.infer<typeof ApplyPhaseSchema>;
 export type SchemaYaml = z.infer<typeof SchemaYamlSchema>;
+export type SchemaParallelGroup = z.infer<typeof SchemaParallelGroupSchema>;
+export type PhaseOrchestration = z.infer<typeof PhaseOrchestrationSchema>;
 
 // Per-change metadata schema
 // Note: schema field is validated at parse time against available schemas

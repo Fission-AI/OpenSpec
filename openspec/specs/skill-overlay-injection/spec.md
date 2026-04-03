@@ -1,5 +1,9 @@
-## ADDED Requirements
+# skill-overlay-injection Specification
 
+## Purpose
+Define how overlay content from plugins is injected into generated skill and command files during `openspec update`.
+
+## Requirements
 ### Requirement: Overlay content is appended to generated skill instructions
 
 During `openspec update`, the system SHALL read overlay files from active plugins and append their content to the corresponding workflow's skill instructions before writing the skill file.

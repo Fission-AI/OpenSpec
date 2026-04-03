@@ -1,5 +1,9 @@
-## ADDED Requirements
+# skill-overlay-cli Specification
 
+## Purpose
+Define how the `openspec plugin info` command displays skill overlay declarations from plugin manifests.
+
+## Requirements
 ### Requirement: Plugin info command shows overlay declarations
 
 The `openspec plugin info` command SHALL display skill overlay registrations when a plugin declares them.
