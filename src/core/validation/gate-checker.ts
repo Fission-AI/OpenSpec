@@ -47,6 +47,7 @@ interface TddMarkerDetails {
   total_done: number;
   with_marker: number;
   without_marker: string[];
+  skipped: string[];
 }
 
 interface CommandDetails {
@@ -203,13 +204,14 @@ export class GateChecker {
     try {
       content = readFileSync(tasksPath, 'utf-8');
     } catch {
-      return { passed: true, total_done: 0, with_marker: 0, without_marker: [] };
+      return { passed: true, total_done: 0, with_marker: 0, without_marker: [], skipped: [] };
     }
 
     const lines = content.split('\n');
     let totalDone = 0;
     let withMarker = 0;
     const withoutMarker: string[] = [];
+    const skipped: string[] = [];
 
     for (let i = 0; i < lines.length; i++) {
       const doneMatch = lines[i].match(/^-\s+\[x\]\s+(.+)/i);
@@ -217,6 +219,13 @@ export class GateChecker {
 
       totalDone++;
       const taskDesc = doneMatch[1].trim();
+
+      // Skip TDD check for tasks annotated with [skip-tdd]
+      if (taskDesc.includes('[skip-tdd]')) {
+        skipped.push(taskDesc);
+        continue;
+      }
+
       const nextLine = i + 1 < lines.length ? lines[i + 1].trim() : '';
 
       if (nextLine.startsWith('> TDD:')) {
@@ -231,6 +240,7 @@ export class GateChecker {
       total_done: totalDone,
       with_marker: withMarker,
       without_marker: withoutMarker,
+      skipped,
     };
   }
 

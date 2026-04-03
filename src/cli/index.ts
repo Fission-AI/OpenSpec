@@ -21,6 +21,7 @@ import { readProjectConfig } from '../core/project-config.js';
 import { loadPlugins } from '../core/plugin/loader.js';
 import { validateAllPluginConfigs } from '../core/plugin/config-validator.js';
 import { GateCommand } from '../commands/gate.js';
+import { RunCommand } from '../commands/run.js';
 import {
   statusCommand,
   instructionsCommand,
@@ -557,6 +558,62 @@ gateCmd
     try {
       const gateCommand = new GateCommand();
       await gateCommand.execute(options);
+    } catch (error) {
+      console.log();
+      ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+gateCmd
+  .command('resolve')
+  .description('Resolve a pending gate with PASS or FAIL result')
+  .option('--change <name>', 'Change name')
+  .option('--id <gate-id>', 'Gate ID to resolve')
+  .option('--result <result>', 'PASS or FAIL')
+  .option('--details <json>', 'Optional JSON details')
+  .action(async (options: { change?: string; id?: string; result?: string; details?: string }) => {
+    try {
+      const gateCommand = new GateCommand();
+      await gateCommand.resolveGate(options);
+    } catch (error) {
+      console.log();
+      ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+// Run command group
+const runCmd = program.command('run').description('Pipeline runner for phase execution');
+
+runCmd
+  .command('start')
+  .description('Start a pipeline phase: execute pre-hooks and pre-gates')
+  .option('--change <name>', 'Change name')
+  .option('--phase <phase>', 'Phase: propose, apply, verify, or archive')
+  .option('--session <id>', 'Session ID (auto-generated if not provided)')
+  .option('--json', 'Output as JSON')
+  .action(async (options: { change?: string; phase?: string; session?: string; json?: boolean }) => {
+    try {
+      const runCommand = new RunCommand();
+      await runCommand.startAction(options);
+    } catch (error) {
+      console.log();
+      ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+runCmd
+  .command('complete')
+  .description('Complete a pipeline phase: execute post-gates and post-hooks')
+  .option('--change <name>', 'Change name')
+  .option('--phase <phase>', 'Phase: propose, apply, verify, or archive')
+  .option('--json', 'Output as JSON')
+  .action(async (options: { change?: string; phase?: string; json?: boolean }) => {
+    try {
+      const runCommand = new RunCommand();
+      await runCommand.completeAction(options);
     } catch (error) {
       console.log();
       ora().fail(`Error: ${(error as Error).message}`);
