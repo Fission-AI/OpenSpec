@@ -469,11 +469,21 @@ program
   .option('--change <id>', 'Change name')
   .option('--schema <name>', 'Schema override (auto-detected from config.yaml)')
   .option('--json', 'Output as JSON')
-  .action(async (artifactId: string | undefined, options: InstructionsOptions) => {
+  .option('--subagents', 'Use subagent orchestration mode (mutually exclusive with --teams)')
+  .option('--teams', 'Use team orchestration mode (mutually exclusive with --subagents)')
+  .action(async (artifactId: string | undefined, options: InstructionsOptions & { subagents?: boolean; teams?: boolean }) => {
     try {
+      // Validate mutually exclusive flags
+      if (options.subagents && options.teams) {
+        throw new Error('--subagents and --teams are mutually exclusive. Use one or the other.');
+      }
+
       // Special case: "apply" is not an artifact, but a command to get apply instructions
       if (artifactId === 'apply') {
-        await applyInstructionsCommand(options);
+        const orchestrationMode = options.subagents ? 'subagents' as const
+          : options.teams ? 'teams' as const
+          : undefined;
+        await applyInstructionsCommand({ change: options.change, schema: options.schema, json: options.json, orchestrationMode });
       } else {
         await instructionsCommand(artifactId, options);
       }

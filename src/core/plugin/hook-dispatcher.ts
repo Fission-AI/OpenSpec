@@ -4,6 +4,7 @@ import { exec } from 'node:child_process';
 import type { LoadedPlugin, HandlerConfig, HookDefinition } from './types.js';
 import { VALID_HOOK_POINTS } from './types.js';
 import { flattenConfigToEnvVars } from './config-validator.js';
+import type { ParallelGroup } from '../orchestration/types.js';
 
 export type HookPoint = (typeof VALID_HOOK_POINTS)[number];
 
@@ -18,6 +19,7 @@ export interface HookPendingResult {
   id: string;
   type: 'prompt';
   prompt: string;
+  parallel_group?: string[];
 }
 
 export interface HookResult {
@@ -249,17 +251,65 @@ function collectHooks(
 }
 
 /**
+ * Build parallel groups from hook orchestration declarations.
+ * Groups hooks that declare parallel_with each other (bidirectional).
+ */
+export function buildParallelGroups(
+  hookEntries: Array<{ plugin: LoadedPlugin; hook: HookDefinition }>
+): ParallelGroup[] {
+  const groups: ParallelGroup[] = [];
+  const parallelDecls = new Map<string, Set<string>>();
+
+  for (const { hook } of hookEntries) {
+    if (hook.orchestration?.parallel_with) {
+      parallelDecls.set(hook.id, new Set(hook.orchestration.parallel_with));
+    }
+  }
+
+  const processed = new Set<string>();
+
+  for (const [id, partners] of parallelDecls) {
+    if (processed.has(id)) continue;
+
+    const group = new Set<string>([id]);
+    for (const partnerId of partners) {
+      const partnerDecl = parallelDecls.get(partnerId);
+      if (partnerDecl && partnerDecl.has(id)) {
+        group.add(partnerId);
+      }
+    }
+
+    if (group.size > 1) {
+      groups.push({
+        ids: Array.from(group).sort(),
+        parallel: true,
+      });
+      for (const gid of group) {
+        processed.add(gid);
+      }
+    }
+  }
+
+  return groups;
+}
+
+/**
  * Dispatch hooks for a given hook point across all loaded plugins.
  *
  * Command handlers are executed immediately.
  * Prompt handlers are collected for the calling agent.
+ *
+ * When orchestrationMode is provided, command hooks within parallel groups
+ * are executed via Promise.all(). Prompt hooks in parallel groups are
+ * returned as pending with parallel_group metadata.
  *
  * @returns HookResult with executed commands and pending prompts
  */
 export async function dispatchHooks(
   plugins: LoadedPlugin[],
   hookPoint: HookPoint,
-  context: HookContext
+  context: HookContext,
+  orchestrationMode?: 'default' | 'subagents' | 'teams'
 ): Promise<HookResult> {
   const result: HookResult = { executed: [], pending: [] };
   const hookEntries = collectHooks(plugins, hookPoint);
@@ -268,6 +318,108 @@ export async function dispatchHooks(
     return result;
   }
 
+  // If orchestration mode is set, check for parallel groups
+  if (orchestrationMode) {
+    const parallelGroups = buildParallelGroups(hookEntries);
+    const parallelIds = new Set(parallelGroups.flatMap((g) => g.ids));
+
+    // Execute parallel groups first
+    for (const group of parallelGroups) {
+      const groupEntries = hookEntries.filter(({ hook }) => group.ids.includes(hook.id));
+
+      // Separate command and prompt hooks
+      const commandEntries = groupEntries.filter(({ hook }) =>
+        hook.handler.type === 'command' || hook.handler.type === 'both'
+      );
+      const promptEntries = groupEntries.filter(({ hook }) =>
+        hook.handler.type === 'prompt'
+      );
+
+      // Execute command hooks in parallel
+      if (commandEntries.length > 0) {
+        const promises = commandEntries.map(async ({ plugin, hook }) => {
+          try {
+            return await executeHandler(hook, hook.handler, context, plugin);
+          } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            return {
+              executed: {
+                id: hook.id,
+                type: 'command' as const,
+                status: 'failed' as const,
+                output: `Hook error: ${errorMessage}`,
+              },
+            };
+          }
+        });
+
+        const results = await Promise.all(promises);
+        for (const hookOutput of results) {
+          if (hookOutput.executed) {
+            result.executed.push(hookOutput.executed);
+          }
+          if (hookOutput.pending) {
+            result.pending.push({
+              ...hookOutput.pending,
+              parallel_group: group.ids,
+            });
+          }
+        }
+      }
+
+      // Collect prompt hooks as pending with parallel_group metadata
+      for (const { plugin, hook } of promptEntries) {
+        try {
+          const hookOutput = await executeHandler(hook, hook.handler, context, plugin);
+          if (hookOutput.pending) {
+            result.pending.push({
+              ...hookOutput.pending,
+              parallel_group: group.ids,
+            });
+          }
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          result.executed.push({
+            id: hook.id,
+            type: 'command',
+            status: 'failed',
+            output: `Hook error: ${errorMessage}`,
+          });
+        }
+      }
+    }
+
+    // Execute non-parallel hooks sequentially (existing behavior)
+    const sequentialEntries = hookEntries.filter(({ hook }) => !parallelIds.has(hook.id));
+    for (const { plugin, hook } of sequentialEntries) {
+      const handler = hook.handler;
+      try {
+        const hookOutput = await executeHandler(hook, handler, context, plugin);
+        if (hookOutput.executed) {
+          result.executed.push(hookOutput.executed);
+          if (hookOutput.executed.status === 'failed' && !handler.ignore_failure) {
+            break;
+          }
+        }
+        if (hookOutput.pending) {
+          result.pending.push(hookOutput.pending);
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        result.executed.push({
+          id: hook.id,
+          type: 'command',
+          status: 'failed',
+          output: `Hook error: ${errorMessage}`,
+        });
+        if (!handler.ignore_failure) break;
+      }
+    }
+
+    return result;
+  }
+
+  // Default sequential execution (original behavior)
   for (const { plugin, hook } of hookEntries) {
     const handler = hook.handler;
 
