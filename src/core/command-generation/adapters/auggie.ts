@@ -9,14 +9,14 @@ import type { CommandContent, ToolCommandAdapter } from '../types.js';
 
 /**
  * Auggie adapter for command generation.
- * File path: .augment/commands/opsx-<id>.md
+ * File path: .augment/commands/openspec-<id>.md
  * Frontmatter: description, argument-hint
  */
 export const auggieAdapter: ToolCommandAdapter = {
   toolId: 'auggie',
 
   getFilePath(commandId: string): string {
-    return path.join('.augment', 'commands', `opsx-${commandId}.md`);
+    return path.join('.augment', 'commands', `openspec-${commandId}.md`);
   },
 
   formatFile(content: CommandContent): string {

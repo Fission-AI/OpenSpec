@@ -33,20 +33,20 @@ OPSX (fluid actions):
 ### Default Quick Path (`core` profile)
 
 New installs default to `core`, which provides:
-- `/opsx:propose`
-- `/opsx:explore`
-- `/opsx:apply`
-- `/opsx:archive`
+- `/openspec:propose`
+- `/openspec:explore`
+- `/openspec:apply`
+- `/openspec:archive`
 
 Typical flow:
 
 ```text
-/opsx:propose ──► /opsx:apply ──► /opsx:archive
+/openspec:propose ──► /openspec:apply ──► /openspec:archive
 ```
 
 ### Expanded/Full Workflow (custom selection)
 
-If you want explicit scaffold-and-build commands (`/opsx:new`, `/opsx:continue`, `/opsx:ff`, `/opsx:verify`, `/opsx:sync`, `/opsx:bulk-archive`, `/opsx:onboard`), enable them with:
+If you want explicit scaffold-and-build commands (`/openspec:new`, `/openspec:continue`, `/openspec:ff`, `/openspec:verify`, `/openspec:sync`, `/openspec:bulk-archive`, `/openspec:onboard`), enable them with:
 
 ```bash
 openspec config profile
@@ -60,18 +60,18 @@ openspec update
 When you know what you want to build and just need to execute:
 
 ```text
-/opsx:new ──► /opsx:ff ──► /opsx:apply ──► /opsx:verify ──► /opsx:archive
+/openspec:new ──► /openspec:ff ──► /openspec:apply ──► /openspec:verify ──► /openspec:archive
 ```
 
 **Example conversation:**
 
 ```text
-You: /opsx:new add-logout-button
+You: /openspec:new add-logout-button
 
 AI:  Created openspec/changes/add-logout-button/
      Ready to create: proposal
 
-You: /opsx:ff
+You: /openspec:ff
 
 AI:  Creating all planning artifacts...
      ✓ proposal.md
@@ -80,7 +80,7 @@ AI:  Creating all planning artifacts...
      ✓ tasks.md
      Ready for implementation!
 
-You: /opsx:apply
+You: /openspec:apply
 
 AI:  Working through tasks...
      ✓ Added logout button to header
@@ -88,7 +88,7 @@ AI:  Working through tasks...
      ✓ Added confirmation dialog
      All tasks complete!
 
-You: /opsx:archive
+You: /openspec:archive
 
 AI:  ✓ Merged specs
      ✓ Archived change
@@ -101,13 +101,13 @@ AI:  ✓ Merged specs
 When requirements are unclear or you need to investigate first:
 
 ```text
-/opsx:explore ──► /opsx:new ──► /opsx:continue ──► ... ──► /opsx:apply
+/openspec:explore ──► /openspec:new ──► /openspec:continue ──► ... ──► /openspec:apply
 ```
 
 **Example conversation:**
 
 ```text
-You: /opsx:explore
+You: /openspec:explore
 
 AI:  What would you like to explore?
 
@@ -127,11 +127,11 @@ AI:  Let me help investigate...
 
 You: Let's tackle the data fetching issue.
 
-You: /opsx:new optimize-product-list-fetching
+You: /openspec:new optimize-product-list-fetching
 
 AI:  Created change. Ready to create: proposal
 
-You: /opsx:continue
+You: /openspec:continue
 
 AI:  Creating proposal based on our exploration...
      [Writes proposal incorporating investigation insights]
@@ -139,7 +139,7 @@ AI:  Creating proposal based on our exploration...
      Ready to create: specs, design
      Which would you like next?
 
-You: /opsx:continue
+You: /openspec:continue
 
 AI:  Creating specs...
 ```
@@ -151,11 +151,11 @@ AI:  Creating specs...
 Work on multiple changes at once:
 
 ```text
-Change A: /opsx:new ──► /opsx:ff ──► /opsx:apply (in progress)
+Change A: /openspec:new ──► /openspec:ff ──► /openspec:apply (in progress)
                                          │
                                     context switch
                                          │
-Change B: /opsx:new ──► /opsx:ff ──────► /opsx:apply
+Change B: /openspec:new ──► /openspec:ff ──────► /openspec:apply
 ```
 
 **Example conversation:**
@@ -163,27 +163,27 @@ Change B: /opsx:new ──► /opsx:ff ──────► /opsx:apply
 ```text
 You: I'm working on add-dark-mode but got pulled into a bug fix
 
-You: /opsx:new fix-login-redirect
+You: /openspec:new fix-login-redirect
 
 AI:  Created openspec/changes/fix-login-redirect/
 
-You: /opsx:ff
+You: /openspec:ff
 
 AI:  ✓ Created planning artifacts
 
-You: /opsx:apply
+You: /openspec:apply
 
 AI:  Working on fix-login-redirect...
      [Implements the fix]
      All tasks complete!
 
-You: /opsx:archive
+You: /openspec:archive
 
 AI:  ✓ Archived fix-login-redirect
 
 You: Let's get back to dark mode
 
-You: /opsx:apply add-dark-mode
+You: /openspec:apply add-dark-mode
 
 AI:  Resuming add-dark-mode...
      Picking up at task 2.3: Update Header...
@@ -191,10 +191,10 @@ AI:  Resuming add-dark-mode...
 
 **Best for:** Parallel work streams, urgent interrupts, team collaboration.
 
-When you have multiple completed changes, use `/opsx:bulk-archive`:
+When you have multiple completed changes, use `/openspec:bulk-archive`:
 
 ```text
-You: /opsx:bulk-archive
+You: /openspec:bulk-archive
 
 AI:  Found 3 completed changes:
      - add-dark-mode (all tasks done)
@@ -224,7 +224,7 @@ Bulk archive detects when multiple changes touch the same specs and resolves con
 The recommended completion flow:
 
 ```text
-/opsx:apply ──► /opsx:verify ──► /opsx:archive
+/openspec:apply ──► /openspec:verify ──► /openspec:archive
                     │                 │
               validates          prompts to sync
               implementation     if needed
@@ -232,10 +232,10 @@ The recommended completion flow:
 
 #### Verify: Check Your Work
 
-`/opsx:verify` validates implementation against your artifacts across three dimensions:
+`/openspec:verify` validates implementation against your artifacts across three dimensions:
 
 ```text
-You: /opsx:verify
+You: /openspec:verify
 
 AI:  Verifying add-auth...
 
@@ -277,10 +277,10 @@ Verify won't block archive, but it surfaces issues you might want to address fir
 
 #### Archive: Finalize the Change
 
-`/opsx:archive` completes the change and moves it to the archive:
+`/openspec:archive` completes the change and moves it to the archive:
 
 ```text
-You: /opsx:archive
+You: /openspec:archive
 
 AI:  Archiving add-auth...
 
@@ -305,17 +305,17 @@ Archive will prompt if specs aren't synced. It won't block on incomplete tasks, 
 
 ## When to Use What
 
-### `/opsx:ff` vs `/opsx:continue`
+### `/openspec:ff` vs `/openspec:continue`
 
 | Situation | Use |
 |-----------|-----|
-| Clear requirements, ready to build | `/opsx:ff` |
-| Exploring, want to review each step | `/opsx:continue` |
-| Want to iterate on proposal before specs | `/opsx:continue` |
-| Time pressure, need to move fast | `/opsx:ff` |
-| Complex change, want control | `/opsx:continue` |
+| Clear requirements, ready to build | `/openspec:ff` |
+| Exploring, want to review each step | `/openspec:continue` |
+| Want to iterate on proposal before specs | `/openspec:continue` |
+| Time pressure, need to move fast | `/openspec:ff` |
+| Complex change, want control | `/openspec:continue` |
 
-**Rule of thumb:** If you can describe the full scope upfront, use `/opsx:ff`. If you're figuring it out as you go, use `/opsx:continue`.
+**Rule of thumb:** If you can describe the full scope upfront, use `/openspec:ff`. If you're figuring it out as you go, use `/openspec:continue`.
 
 ### When to Update vs Start Fresh
 
@@ -373,12 +373,12 @@ One logical unit of work per change. If you're doing "add feature X and also ref
 - Can ship independently
 - Simpler rollback if needed
 
-### Use `/opsx:explore` for Unclear Requirements
+### Use `/openspec:explore` for Unclear Requirements
 
 Before committing to a change, explore the problem space:
 
 ```text
-You: /opsx:explore
+You: /openspec:explore
 
 AI:  What would you like to explore?
 
@@ -399,10 +399,10 @@ Exploration clarifies thinking before you create artifacts.
 
 ### Verify Before Archiving
 
-Use `/opsx:verify` to check implementation matches artifacts:
+Use `/openspec:verify` to check implementation matches artifacts:
 
 ```text
-You: /opsx:verify
+You: /openspec:verify
 
 AI:  Verifying add-dark-mode...
 
@@ -433,16 +433,16 @@ For full command details and options, see [Commands](commands.md).
 
 | Command | Purpose | When to Use |
 |---------|---------|-------------|
-| `/opsx:propose` | Create change + planning artifacts | Fast default path (`core` profile) |
-| `/opsx:explore` | Think through ideas | Unclear requirements, investigation |
-| `/opsx:new` | Start a change scaffold | Expanded mode, explicit artifact control |
-| `/opsx:continue` | Create next artifact | Expanded mode, step-by-step artifact creation |
-| `/opsx:ff` | Create all planning artifacts | Expanded mode, clear scope |
-| `/opsx:apply` | Implement tasks | Ready to write code |
-| `/opsx:verify` | Validate implementation | Expanded mode, before archiving |
-| `/opsx:sync` | Merge delta specs | Expanded mode, optional |
-| `/opsx:archive` | Complete the change | All work finished |
-| `/opsx:bulk-archive` | Archive multiple changes | Expanded mode, parallel work |
+| `/openspec:propose` | Create change + planning artifacts | Fast default path (`core` profile) |
+| `/openspec:explore` | Think through ideas | Unclear requirements, investigation |
+| `/openspec:new` | Start a change scaffold | Expanded mode, explicit artifact control |
+| `/openspec:continue` | Create next artifact | Expanded mode, step-by-step artifact creation |
+| `/openspec:ff` | Create all planning artifacts | Expanded mode, clear scope |
+| `/openspec:apply` | Implement tasks | Ready to write code |
+| `/openspec:verify` | Validate implementation | Expanded mode, before archiving |
+| `/openspec:sync` | Merge delta specs | Expanded mode, optional |
+| `/openspec:archive` | Complete the change | All work finished |
+| `/openspec:bulk-archive` | Archive multiple changes | Expanded mode, parallel work |
 
 ## Next Steps
 

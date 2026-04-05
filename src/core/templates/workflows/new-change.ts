@@ -81,13 +81,13 @@ After completing the steps, summarize:
 
 export function getOpsxNewCommandTemplate(): CommandTemplate {
   return {
-    name: 'OPSX: New',
+    name: 'OpenSpec: New',
     description: 'Start a new change using the experimental artifact workflow (OPSX)',
     category: 'Workflow',
     tags: ['workflow', 'artifacts', 'experimental'],
     content: `Start a new change using the experimental artifact-driven approach.
 
-**Input**: The argument after \`/opsx:new\` is the change name (kebab-case), OR a description of what the user wants to build.
+**Input**: The argument after \`/openspec:new\` is the change name (kebab-case), OR a description of what the user wants to build.
 
 **Steps**
 
@@ -139,13 +139,13 @@ After completing the steps, summarize:
 - Schema/workflow being used and its artifact sequence
 - Current status (0/N artifacts complete)
 - The template for the first artifact
-- Prompt: "Ready to create the first artifact? Run \`/opsx:continue\` or just describe what this change is about and I'll draft it."
+- Prompt: "Ready to create the first artifact? Run \`/openspec:continue\` or just describe what this change is about and I'll draft it."
 
 **Guardrails**
 - Do NOT create any artifacts yet - just show the instructions
 - Do NOT advance beyond showing the first artifact template
 - If the name is invalid (not kebab-case), ask for a valid name
-- If a change with that name already exists, suggest using \`/opsx:continue\` instead
+- If a change with that name already exists, suggest using \`/openspec:continue\` instead
 - Pass --schema if using a non-default workflow`
   };
 }

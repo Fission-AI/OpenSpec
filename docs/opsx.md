@@ -157,60 +157,60 @@ rules:
 
 | Command | What it does |
 |---------|--------------|
-| `/opsx:propose` | Create a change and generate planning artifacts in one step (default quick path) |
-| `/opsx:explore` | Think through ideas, investigate problems, clarify requirements |
-| `/opsx:new` | Start a new change scaffold (expanded workflow) |
-| `/opsx:continue` | Create the next artifact (expanded workflow) |
-| `/opsx:ff` | Fast-forward planning artifacts (expanded workflow) |
-| `/opsx:apply` | Implement tasks, updating artifacts as needed |
-| `/opsx:verify` | Validate implementation against artifacts (expanded workflow) |
-| `/opsx:sync` | Sync delta specs to main (expanded workflow, optional) |
-| `/opsx:archive` | Archive when done |
-| `/opsx:bulk-archive` | Archive multiple completed changes (expanded workflow) |
-| `/opsx:onboard` | Guided walkthrough of an end-to-end change (expanded workflow) |
+| `/openspec:propose` | Create a change and generate planning artifacts in one step (default quick path) |
+| `/openspec:explore` | Think through ideas, investigate problems, clarify requirements |
+| `/openspec:new` | Start a new change scaffold (expanded workflow) |
+| `/openspec:continue` | Create the next artifact (expanded workflow) |
+| `/openspec:ff` | Fast-forward planning artifacts (expanded workflow) |
+| `/openspec:apply` | Implement tasks, updating artifacts as needed |
+| `/openspec:verify` | Validate implementation against artifacts (expanded workflow) |
+| `/openspec:sync` | Sync delta specs to main (expanded workflow, optional) |
+| `/openspec:archive` | Archive when done |
+| `/openspec:bulk-archive` | Archive multiple completed changes (expanded workflow) |
+| `/openspec:onboard` | Guided walkthrough of an end-to-end change (expanded workflow) |
 
 ## Usage
 
 ### Explore an idea
 ```
-/opsx:explore
+/openspec:explore
 ```
-Think through ideas, investigate problems, compare options. No structure required - just a thinking partner. When insights crystallize, transition to `/opsx:propose` (default) or `/opsx:new`/`/opsx:ff` (expanded).
+Think through ideas, investigate problems, compare options. No structure required - just a thinking partner. When insights crystallize, transition to `/openspec:propose` (default) or `/openspec:new`/`/openspec:ff` (expanded).
 
 ### Start a new change
 ```
-/opsx:propose
+/openspec:propose
 ```
 Creates the change and generates planning artifacts needed before implementation.
 
 If you've enabled expanded workflows, you can instead use:
 
 ```text
-/opsx:new        # scaffold only
-/opsx:continue   # create one artifact at a time
-/opsx:ff         # create all planning artifacts at once
+/openspec:new        # scaffold only
+/openspec:continue   # create one artifact at a time
+/openspec:ff         # create all planning artifacts at once
 ```
 
 ### Create artifacts
 ```
-/opsx:continue
+/openspec:continue
 ```
 Shows what's ready to create based on dependencies, then creates one artifact. Use repeatedly to build up your change incrementally.
 
 ```
-/opsx:ff add-dark-mode
+/openspec:ff add-dark-mode
 ```
 Creates all planning artifacts at once. Use when you have a clear picture of what you're building.
 
 ### Implement (the fluid part)
 ```
-/opsx:apply
+/openspec:apply
 ```
-Works through tasks, checking them off as you go. If you're juggling multiple changes, you can run `/opsx:apply <name>`; otherwise it should infer from the conversation and prompt you to choose if it can't tell.
+Works through tasks, checking them off as you go. If you're juggling multiple changes, you can run `/openspec:apply <name>`; otherwise it should infer from the conversation and prompt you to choose if it can't tell.
 
 ### Finish up
 ```
-/opsx:archive   # Move to archive when done (prompts to sync specs if needed)
+/openspec:archive   # Move to archive when done (prompts to sync specs if needed)
 ```
 
 ## When to Update vs. Start Fresh
@@ -301,7 +301,7 @@ Think of it like git branches:
 
 ## What's Different?
 
-| | Legacy (`/openspec:proposal`) | OPSX (`/opsx:*`) |
+| | Legacy (`/openspec:proposal`) | OPSX (`/openspec:*`) |
 |---|---|---|
 | **Structure** | One big proposal document | Discrete artifacts with dependencies |
 | **Workflow** | Linear phases: plan → implement → archive | Fluid actions — do anything anytime |
@@ -484,7 +484,7 @@ Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, no
 **OPSX** — agent queries for rich context:
 
 ```
-  User: "/opsx:continue"
+  User: "/openspec:continue"
            │
            ▼
   ┌──────────────────────────────────────────────────────────────────────────┐
@@ -541,7 +541,7 @@ Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, no
 **OPSX** — natural iteration:
 
 ```
-  /opsx:new ───► /opsx:continue ───► /opsx:apply ───► /opsx:archive
+  /openspec:new ───► /openspec:continue ───► /openspec:apply ───► /openspec:archive
       │                │                  │
       │                │                  ├── "The design is wrong"
       │                │                  │
@@ -550,7 +550,7 @@ Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, no
       │                │            and continue!
       │                │                  │
       │                │                  ▼
-      │                │         /opsx:apply picks up
+      │                │         /openspec:apply picks up
       │                │         where you left off
       │                │
       │                └── Creates ONE artifact, shows what's unlocked
@@ -646,9 +646,9 @@ openspec schema validate my-workflow
 
 ## Tips
 
-- Use `/opsx:explore` to think through an idea before committing to a change
-- `/opsx:ff` when you know what you want, `/opsx:continue` when exploring
-- During `/opsx:apply`, if something's wrong — fix the artifact, then continue
+- Use `/openspec:explore` to think through an idea before committing to a change
+- `/openspec:ff` when you know what you want, `/openspec:continue` when exploring
+- During `/openspec:apply`, if something's wrong — fix the artifact, then continue
 - Tasks track progress via checkboxes in `tasks.md`
 - Check status anytime: `openspec status --change "name"`
 
