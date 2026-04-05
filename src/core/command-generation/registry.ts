@@ -9,6 +9,7 @@ import type { ToolCommandAdapter } from './types.js';
 import { amazonQAdapter } from './adapters/amazon-q.js';
 import { antigravityAdapter } from './adapters/antigravity.js';
 import { auggieAdapter } from './adapters/auggie.js';
+import { avianAdapter } from './adapters/avian.js';
 import { claudeAdapter } from './adapters/claude.js';
 import { clineAdapter } from './adapters/cline.js';
 import { codexAdapter } from './adapters/codex.js';
@@ -41,6 +42,7 @@ export class CommandAdapterRegistry {
     CommandAdapterRegistry.register(amazonQAdapter);
     CommandAdapterRegistry.register(antigravityAdapter);
     CommandAdapterRegistry.register(auggieAdapter);
+    CommandAdapterRegistry.register(avianAdapter);
     CommandAdapterRegistry.register(claudeAdapter);
     CommandAdapterRegistry.register(clineAdapter);
     CommandAdapterRegistry.register(codexAdapter);

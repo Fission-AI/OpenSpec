@@ -4,6 +4,7 @@ import path from 'path';
 import { amazonQAdapter } from '../../../src/core/command-generation/adapters/amazon-q.js';
 import { antigravityAdapter } from '../../../src/core/command-generation/adapters/antigravity.js';
 import { auggieAdapter } from '../../../src/core/command-generation/adapters/auggie.js';
+import { avianAdapter } from '../../../src/core/command-generation/adapters/avian.js';
 import { claudeAdapter } from '../../../src/core/command-generation/adapters/claude.js';
 import { clineAdapter } from '../../../src/core/command-generation/adapters/cline.js';
 import { codexAdapter } from '../../../src/core/command-generation/adapters/codex.js';
@@ -180,6 +181,39 @@ describe('command-generation/adapters', () => {
       expect(output).toContain('argument-hint: command arguments');
       expect(output).toContain('---\n\n');
       expect(output).toContain('This is the command body.');
+    });
+  });
+
+  describe('avianAdapter', () => {
+    it('should have correct toolId', () => {
+      expect(avianAdapter.toolId).toBe('avian');
+    });
+
+    it('should generate correct file path with nested opsx folder', () => {
+      const filePath = avianAdapter.getFilePath('explore');
+      expect(filePath).toBe(path.join('.avian', 'commands', 'opsx', 'explore.md'));
+    });
+
+    it('should generate correct file paths for different commands', () => {
+      expect(avianAdapter.getFilePath('new')).toBe(path.join('.avian', 'commands', 'opsx', 'new.md'));
+      expect(avianAdapter.getFilePath('bulk-archive')).toBe(path.join('.avian', 'commands', 'opsx', 'bulk-archive.md'));
+    });
+
+    it('should format file with name, description, category, and tags', () => {
+      const output = avianAdapter.formatFile(sampleContent);
+      expect(output).toContain('---\n');
+      expect(output).toContain('name: OpenSpec Explore');
+      expect(output).toContain('description: Enter explore mode for thinking');
+      expect(output).toContain('category: Workflow');
+      expect(output).toContain('tags: [workflow, explore, experimental]');
+      expect(output).toContain('---\n\n');
+      expect(output).toContain('This is the command body.\n\nWith multiple lines.');
+    });
+
+    it('should handle empty tags', () => {
+      const contentNoTags: CommandContent = { ...sampleContent, tags: [] };
+      const output = avianAdapter.formatFile(contentNoTags);
+      expect(output).toContain('tags: []');
     });
   });
 
@@ -606,7 +640,7 @@ describe('command-generation/adapters', () => {
     it('All adapters use path.join for paths', () => {
       // Verify all adapters produce valid paths
       const adapters = [
-        amazonQAdapter, antigravityAdapter, auggieAdapter, clineAdapter,
+        amazonQAdapter, antigravityAdapter, auggieAdapter, avianAdapter, clineAdapter,
         codexAdapter, codebuddyAdapter, continueAdapter, costrictAdapter,
         crushAdapter, factoryAdapter, geminiAdapter, githubCopilotAdapter,
         iflowAdapter, kilocodeAdapter, opencodeAdapter, piAdapter, qoderAdapter,
