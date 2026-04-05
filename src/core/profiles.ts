@@ -28,6 +28,8 @@ export const ALL_WORKFLOWS = [
   'bulk-archive',
   'verify',
   'onboard',
+  'multiagent',
+  'multiagent-apply',
 ] as const;
 
 export type WorkflowId = (typeof ALL_WORKFLOWS)[number];
