@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { transformToHyphenCommands } from '../../src/utils/command-references.js';
+import { transformToHyphenCommands, transformToSkillReferences } from '../../src/utils/command-references.js';
 
 describe('transformToHyphenCommands', () => {
   describe('basic transformations', () => {
@@ -79,5 +79,43 @@ Finally /opsx-apply to implement`;
         expect(transformToHyphenCommands(`/opsx:${cmd}`)).toBe(`/opsx-${cmd}`);
       });
     }
+  });
+});
+
+describe('transformToSkillReferences', () => {
+  it('should transform known workflow references to skill references', () => {
+    const input = 'Use /opsx:apply then /opsx:archive';
+    const expected = 'Use /openspec-apply-change then /openspec-archive-change';
+    expect(transformToSkillReferences(input)).toBe(expected);
+  });
+
+  it('should transform all known workflow references', () => {
+    const mappings = {
+      '/opsx:apply': '/openspec-apply-change',
+      '/opsx:archive': '/openspec-archive-change',
+      '/opsx:verify': '/openspec-verify-change',
+      '/opsx:continue': '/openspec-continue-change',
+      '/opsx:propose': '/openspec-propose',
+      '/opsx:explore': '/openspec-explore',
+      '/opsx:ff': '/openspec-ff-change',
+      '/opsx:new': '/openspec-new-change',
+      '/opsx:sync': '/openspec-sync-specs',
+      '/opsx:bulk-archive': '/openspec-bulk-archive-change',
+      '/opsx:onboard': '/openspec-onboard',
+    };
+
+    for (const [input, expected] of Object.entries(mappings)) {
+      expect(transformToSkillReferences(input)).toBe(expected);
+    }
+  });
+
+  it('should leave unknown workflow references unchanged', () => {
+    const input = 'Unknown /opsx:unknown should stay untouched';
+    expect(transformToSkillReferences(input)).toBe(input);
+  });
+
+  it('should leave non-command text unchanged', () => {
+    const input = 'This is plain text without command references';
+    expect(transformToSkillReferences(input)).toBe(input);
   });
 });
