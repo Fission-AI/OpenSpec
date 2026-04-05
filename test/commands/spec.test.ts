@@ -81,6 +81,7 @@ The system SHALL process credit card payments securely`;
         
         const json = JSON.parse(output);
         expect(json.id).toBe('auth');
+        // Test spec has no # H1, so title falls back to spec id
         expect(json.title).toBe('auth');
         expect(json.overview).toContain('test specification');
         expect(json.requirements).toHaveLength(2);
@@ -88,6 +89,18 @@ The system SHALL process credit card payments securely`;
       } finally {
         process.chdir(originalCwd);
       }
+    });
+
+    it('should output title from parsed spec (spec show --json)', async () => {
+      // auth spec has no # H1, so title falls back to id; parser unit tests cover H1 vs fallback
+      const output = execSync(`node ${openspecBin} spec show auth --json`, {
+        encoding: 'utf-8',
+        cwd: testDir
+      });
+      const json = JSON.parse(output);
+      expect(json).toHaveProperty('title');
+      expect(json.title).toBe('auth');
+      expect(json.id).toBe('auth');
     });
 
     it('should filter to show only requirements with --requirements flag (JSON only)', () => {
@@ -187,6 +200,9 @@ The system SHALL process credit card payments securely`;
         expect(json.find((s: any) => s.id === 'auth')).toBeDefined();
         expect(json.find((s: any) => s.id === 'payment')).toBeDefined();
         expect(json[0].requirementCount).toBeDefined();
+        // Title comes from parsed spec (H1 or fallback to id)
+        expect(json.find((s: any) => s.id === 'auth').title).toBe('auth');
+        expect(json.find((s: any) => s.id === 'payment').title).toBe('payment');
       } finally {
         process.chdir(originalCwd);
       }
