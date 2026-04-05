@@ -6,6 +6,14 @@
 
 ## Package Managers
 
+### bun (recommended)
+
+```bash
+bun add -g @fission-ai/openspec@latest
+```
+
+> **Why bun?** Bun blocks untrusted postinstall scripts by default, giving you visibility into what runs during installation. For example, OpenSpec includes a postinstall script that auto-installs shell completions — npm runs it silently, while bun surfaces it so you can review and opt in via `bun pm trust`. For packages you install globally, this default-deny behavior is a meaningful supply chain security improvement.
+
 ### npm
 
 ```bash
@@ -22,12 +30,6 @@ pnpm add -g @fission-ai/openspec@latest
 
 ```bash
 yarn global add @fission-ai/openspec@latest
-```
-
-### bun
-
-```bash
-bun add -g @fission-ai/openspec@latest
 ```
 
 ## Nix
