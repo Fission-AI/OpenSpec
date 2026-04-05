@@ -1,4 +1,5 @@
 import { promises as fs, constants as fsConstants } from 'fs';
+import { statSync, type Dirent } from 'node:fs';
 import path from 'path';
 
 function isMarkerOnOwnLine(content: string, markerIndex: number, markerLength: number): boolean {
@@ -39,6 +40,54 @@ function findMarkerIndex(
   }
 
   return -1;
+}
+
+/**
+ * Checks if a directory entry represents a directory, following symlinks.
+ * `Dirent.isDirectory()` returns false for symlinks, so symlinked directories
+ * are silently skipped when scanning with `readdirSync({ withFileTypes: true })`.
+ * This function resolves symlinks via `statSync` to detect the actual target type.
+ *
+ * @param entry - A directory entry from `readdirSync` or `readdir` with `{ withFileTypes: true }`
+ * @param parentDir - The directory that was scanned (needed to resolve the full path)
+ * @returns `true` if the entry is a directory or a symlink pointing to a directory
+ */
+export function isDirectoryEntrySync(entry: Dirent, parentDir: string): boolean {
+  if (entry.isDirectory()) return true;
+  if (entry.isSymbolicLink()) {
+    try {
+      return statSync(path.join(parentDir, entry.name)).isDirectory();
+    } catch (error: any) {
+      if (error.code !== 'ENOENT') {
+        console.debug(`Unable to resolve symlink ${path.join(parentDir, entry.name)}: ${error.message}`);
+      }
+      return false;
+    }
+  }
+  return false;
+}
+
+/**
+ * Checks if a directory entry represents a file, following symlinks.
+ * Counterpart to {@link isDirectoryEntrySync} for file detection.
+ *
+ * @param entry - A directory entry from `readdirSync` or `readdir` with `{ withFileTypes: true }`
+ * @param parentDir - The directory that was scanned (needed to resolve the full path)
+ * @returns `true` if the entry is a file or a symlink pointing to a file
+ */
+export function isFileEntrySync(entry: Dirent, parentDir: string): boolean {
+  if (entry.isFile()) return true;
+  if (entry.isSymbolicLink()) {
+    try {
+      return statSync(path.join(parentDir, entry.name)).isFile();
+    } catch (error: any) {
+      if (error.code !== 'ENOENT') {
+        console.debug(`Unable to resolve symlink ${path.join(parentDir, entry.name)}: ${error.message}`);
+      }
+      return false;
+    }
+  }
+  return false;
 }
 
 export class FileSystemUtils {

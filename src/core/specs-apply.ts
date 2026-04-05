@@ -8,6 +8,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import chalk from 'chalk';
+import { isDirectoryEntrySync } from '../utils/file-system.js';
 import {
   extractRequirementsSection,
   parseDeltaSpec,
@@ -61,7 +62,7 @@ export async function findSpecUpdates(changeDir: string, mainSpecsDir: string): 
     const entries = await fs.readdir(changeSpecsDir, { withFileTypes: true });
 
     for (const entry of entries) {
-      if (entry.isDirectory()) {
+      if (isDirectoryEntrySync(entry, changeSpecsDir)) {
         const specFile = path.join(changeSpecsDir, entry.name, 'spec.md');
         const targetFile = path.join(mainSpecsDir, entry.name, 'spec.md');
 

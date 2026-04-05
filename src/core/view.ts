@@ -3,6 +3,7 @@ import * as path from 'path';
 import chalk from 'chalk';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
 import { MarkdownParser } from './parsers/markdown-parser.js';
+import { isDirectoryEntrySync } from '../utils/file-system.js';
 
 export class ViewCommand {
   async execute(targetPath: string = '.'): Promise<void> {
@@ -96,7 +97,7 @@ export class ViewCommand {
     const entries = fs.readdirSync(changesDir, { withFileTypes: true });
 
     for (const entry of entries) {
-      if (entry.isDirectory() && entry.name !== 'archive') {
+      if (isDirectoryEntrySync(entry, changesDir) && entry.name !== 'archive') {
         const progress = await getTaskProgressForChange(changesDir, entry.name);
 
         if (progress.total === 0) {
@@ -140,7 +141,7 @@ export class ViewCommand {
     const entries = fs.readdirSync(specsDir, { withFileTypes: true });
     
     for (const entry of entries) {
-      if (entry.isDirectory()) {
+      if (isDirectoryEntrySync(entry, specsDir)) {
         const specFile = path.join(specsDir, entry.name, 'spec.md');
         
         if (fs.existsSync(specFile)) {

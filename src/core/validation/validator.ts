@@ -11,7 +11,7 @@ import {
   VALIDATION_MESSAGES
 } from './constants.js';
 import { parseDeltaSpec, normalizeRequirementName } from '../parsers/requirement-blocks.js';
-import { FileSystemUtils } from '../../utils/file-system.js';
+import { FileSystemUtils, isDirectoryEntrySync } from '../../utils/file-system.js';
 
 export class Validator {
   private strictMode: boolean;
@@ -121,7 +121,7 @@ export class Validator {
     try {
       const entries = await fs.readdir(specsDir, { withFileTypes: true });
       for (const entry of entries) {
-        if (!entry.isDirectory()) continue;
+        if (!isDirectoryEntrySync(entry, specsDir)) continue;
         const specName = entry.name;
         const specFile = path.join(specsDir, specName, 'spec.md');
         let content: string | undefined;

@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { isDirectoryEntrySync } from '../utils/file-system.js';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
 import { Validator } from './validation/validator.js';
 import chalk from 'chalk';
@@ -19,7 +20,7 @@ async function copyDirRecursive(src: string, dest: string): Promise<void> {
   for (const entry of entries) {
     const srcPath = path.join(src, entry.name);
     const destPath = path.join(dest, entry.name);
-    if (entry.isDirectory()) {
+    if (isDirectoryEntrySync(entry, src)) {
       await copyDirRecursive(srcPath, destPath);
     } else {
       await fs.copyFile(srcPath, destPath);
@@ -116,7 +117,7 @@ export class ArchiveCommand {
       try {
         const candidates = await fs.readdir(changeSpecsDir, { withFileTypes: true });
         for (const c of candidates) {
-          if (c.isDirectory()) {
+          if (isDirectoryEntrySync(c, changeSpecsDir)) {
             try {
               const candidatePath = path.join(changeSpecsDir, c.name, 'spec.md');
               await fs.access(candidatePath);
@@ -292,7 +293,7 @@ export class ArchiveCommand {
     // Get all directories in changes (excluding archive)
     const entries = await fs.readdir(changesDir, { withFileTypes: true });
     const changeDirs = entries
-      .filter(entry => entry.isDirectory() && entry.name !== 'archive')
+      .filter(entry => isDirectoryEntrySync(entry, changesDir) && entry.name !== 'archive')
       .map(entry => entry.name)
       .sort();
 

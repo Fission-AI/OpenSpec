@@ -8,6 +8,7 @@
 import chalk from 'chalk';
 import path from 'path';
 import * as fs from 'fs';
+import { isDirectoryEntrySync } from '../../utils/file-system.js';
 import { getSchemaDir, listSchemas } from '../../core/artifact-graph/index.js';
 import { validateChangeName } from '../../utils/change-utils.js';
 
@@ -95,7 +96,7 @@ export async function getAvailableChanges(projectRoot: string): Promise<string[]
   try {
     const entries = await fs.promises.readdir(changesPath, { withFileTypes: true });
     return entries
-      .filter((e) => e.isDirectory() && e.name !== 'archive' && !e.name.startsWith('.'))
+      .filter((e) => isDirectoryEntrySync(e, changesPath) && e.name !== 'archive' && !e.name.startsWith('.'))
       .map((e) => e.name);
   } catch (error: unknown) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];

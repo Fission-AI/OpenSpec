@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { isDirectoryEntrySync } from '../utils/file-system.js';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -28,7 +29,7 @@ async function getLastModified(dirPath: string): Promise<Date> {
     const entries = await fs.readdir(dir, { withFileTypes: true });
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
+      if (isDirectoryEntrySync(entry, dir)) {
         await walk(fullPath);
       } else {
         const stat = await fs.stat(fullPath);
@@ -91,7 +92,7 @@ export class ListCommand {
       // Get all directories in changes (excluding archive)
       const entries = await fs.readdir(changesDir, { withFileTypes: true });
       const changeDirs = entries
-        .filter(entry => entry.isDirectory() && entry.name !== 'archive')
+        .filter(entry => isDirectoryEntrySync(entry, changesDir) && entry.name !== 'archive')
         .map(entry => entry.name);
 
       if (changeDirs.length === 0) {
@@ -161,7 +162,7 @@ export class ListCommand {
     }
 
     const entries = await fs.readdir(specsDir, { withFileTypes: true });
-    const specDirs = entries.filter(e => e.isDirectory()).map(e => e.name);
+    const specDirs = entries.filter(e => isDirectoryEntrySync(e, specsDir)).map(e => e.name);
     if (specDirs.length === 0) {
       console.log('No specs found.');
       return;
