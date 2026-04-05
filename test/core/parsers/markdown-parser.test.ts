@@ -287,5 +287,48 @@ Then result`;
       
       expect(spec.requirements[0].text).toBe('This is the actual requirement text.');
     });
+
+    it('should not treat hash symbols inside code blocks as headers', () => {
+      const content = `# test-bug Specification
+
+## Purpose
+Minimal test case to reproduce the code block parsing bug.
+
+## Requirements
+
+### Requirement: First requirement before code block
+This requirement comes before the problematic code block.
+
+#### Scenario: Example with code block containing hash symbols
+- **GIVEN** a code block with bash comments
+\`\`\`bash
+# This is a comment
+echo "hello"
+# Another comment
+\`\`\`
+- **THEN** the parser should ignore hash symbols inside code blocks
+
+### Requirement: Second requirement after code block
+This requirement comes after the code block.
+
+#### Scenario: Another scenario
+- **GIVEN** something
+- **THEN** something happens
+
+### Requirement: Third requirement
+This is the third requirement.
+
+#### Scenario: Third scenario
+- **GIVEN** more conditions
+- **THEN** more results`;
+
+      const parser = new MarkdownParser(content);
+      const spec = parser.parseSpec('test-bug');
+
+      expect(spec.requirements).toHaveLength(3);
+      expect(spec.requirements[0].text).toContain('before the problematic code block');
+      expect(spec.requirements[1].text).toContain('after the code block');
+      expect(spec.requirements[2].text).toContain('third requirement');
+    });
   });
 });
