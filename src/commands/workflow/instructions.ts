@@ -45,7 +45,10 @@ export async function instructionsCommand(
   artifactId: string | undefined,
   options: InstructionsOptions
 ): Promise<void> {
-  const spinner = ora('Generating instructions...').start();
+  const spinner = ora('Generating instructions...');
+  if (!options.json) {
+    spinner.start();
+  }
 
   try {
     const projectRoot = process.cwd();
@@ -400,7 +403,10 @@ export async function generateApplyInstructions(
 }
 
 export async function applyInstructionsCommand(options: ApplyInstructionsOptions): Promise<void> {
-  const spinner = ora('Generating apply instructions...').start();
+  const spinner = ora('Generating apply instructions...');
+  if (!options.json) {
+    spinner.start();
+  }
 
   try {
     const projectRoot = process.cwd();
