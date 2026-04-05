@@ -3,6 +3,8 @@ name: CI
 on:
   pull_request:
     branches: [main]
+  merge_group:
+    branches: [main]
   push:
     branches: [main]
   workflow_dispatch:
@@ -42,7 +44,7 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
 
     steps:
       - name: Checkout code
@@ -81,7 +83,7 @@ jobs:
     name: Test (${{ matrix.label }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'push'
     strategy:
       fail-fast: false
       matrix:
@@ -242,7 +244,7 @@ jobs:
   validate-changesets:
     name: Validate Changesets
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -275,7 +277,7 @@ jobs:
     name: All checks passed
     runs-on: ubuntu-latest
     needs: [test_pr, lint, nix-flake-validate]
-    if: always() && github.event_name == 'pull_request'
+    if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
     steps:
       - name: Verify all checks passed
         run: |
@@ -301,7 +303,7 @@ jobs:
     name: All checks passed
     runs-on: ubuntu-latest
     needs: [test_matrix, lint, nix-flake-validate]
-    if: always() && github.event_name != 'pull_request'
+    if: always() && github.event_name == 'push'
     steps:
       - name: Verify all checks passed
         run: |
