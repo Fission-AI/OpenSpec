@@ -17,8 +17,10 @@ import {
 import {
   validateChangeExists,
   validateSchemaExists,
+  readPhaseConfig,
   type TaskItem,
   type ApplyInstructions,
+  type VerifyInstructions,
 } from './shared.js';
 
 // -----------------------------------------------------------------------------
@@ -32,6 +34,12 @@ export interface InstructionsOptions {
 }
 
 export interface ApplyInstructionsOptions {
+  change?: string;
+  schema?: string;
+  json?: boolean;
+}
+
+export interface VerifyInstructionsOptions {
   change?: string;
   schema?: string;
   json?: boolean;
@@ -386,6 +394,9 @@ export async function generateApplyInstructions(
     instruction = schemaInstruction?.trim() ?? 'Read context files, work through pending tasks, mark complete as you go.\nPause if you hit blockers or need clarification.';
   }
 
+  // Read project config for context and rules injection
+  const phaseConfig = readPhaseConfig(projectRoot, 'apply');
+
   return {
     changeName,
     changeDir,
@@ -396,6 +407,8 @@ export async function generateApplyInstructions(
     state,
     missingArtifacts: missingArtifacts.length > 0 ? missingArtifacts : undefined,
     instruction,
+    context: phaseConfig.context,
+    rules: phaseConfig.rules,
   };
 }
 
@@ -429,7 +442,7 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
 }
 
 export function printApplyInstructionsText(instructions: ApplyInstructions): void {
-  const { changeName, schemaName, contextFiles, progress, tasks, state, missingArtifacts, instruction } = instructions;
+  const { changeName, schemaName, contextFiles, progress, tasks, state, missingArtifacts, instruction, context, rules } = instructions;
 
   console.log(`## Apply: ${changeName}`);
   console.log(`Schema: ${schemaName}`);
@@ -475,7 +488,160 @@ export function printApplyInstructionsText(instructions: ApplyInstructions): voi
     console.log();
   }
 
+  // Project context (if present)
+  if (context) {
+    console.log('### Project Context');
+    console.log(context);
+    console.log();
+  }
+
+  // Rules (if present)
+  if (rules && rules.length > 0) {
+    console.log('### Rules');
+    for (const rule of rules) {
+      console.log(`- ${rule}`);
+    }
+    console.log();
+  }
+
   // Instruction
   console.log('### Instruction');
   console.log(instruction);
+}
+
+// -----------------------------------------------------------------------------
+// Verify Instructions Command
+// -----------------------------------------------------------------------------
+
+/**
+ * Generates verify instructions for validating implementation against artifacts.
+ * Reads config.yaml context and rules.verify for custom verification strategies.
+ */
+export async function generateVerifyInstructions(
+  projectRoot: string,
+  changeName: string,
+  schemaName?: string
+): Promise<VerifyInstructions> {
+  const context = loadChangeContext(projectRoot, changeName, schemaName);
+  const changeDir = path.join(projectRoot, 'openspec', 'changes', changeName);
+
+  const schema = resolveSchema(context.schemaName, projectRoot);
+
+  // Build context files from all existing artifacts in schema
+  const contextFiles: Record<string, string> = {};
+  for (const artifact of schema.artifacts) {
+    if (artifactOutputExists(changeDir, artifact.generates)) {
+      contextFiles[artifact.id] = path.join(changeDir, artifact.generates);
+    }
+  }
+
+  // Parse tasks if tracking file exists (reuse apply logic)
+  const applyConfig = schema.apply;
+  const tracksFile = applyConfig?.tracks ?? null;
+  let tasks: TaskItem[] = [];
+  if (tracksFile) {
+    const tracksPath = path.join(changeDir, tracksFile);
+    if (fs.existsSync(tracksPath)) {
+      const tasksContent = await fs.promises.readFile(tracksPath, 'utf-8');
+      tasks = parseTasksFile(tasksContent);
+    }
+  }
+
+  const total = tasks.length;
+  const complete = tasks.filter((t) => t.done).length;
+  const remaining = total - complete;
+
+  // Read project config for context and rules injection
+  const phaseConfig = readPhaseConfig(projectRoot, 'verify');
+
+  return {
+    changeName,
+    changeDir,
+    schemaName: context.schemaName,
+    contextFiles,
+    progress: { total, complete, remaining },
+    tasks,
+    context: phaseConfig.context,
+    rules: phaseConfig.rules,
+  };
+}
+
+export async function verifyInstructionsCommand(options: VerifyInstructionsOptions): Promise<void> {
+  const spinner = ora('Generating verify instructions...').start();
+
+  try {
+    const projectRoot = process.cwd();
+    const changeName = await validateChangeExists(options.change, projectRoot);
+
+    if (options.schema) {
+      validateSchemaExists(options.schema, projectRoot);
+    }
+
+    const instructions = await generateVerifyInstructions(projectRoot, changeName, options.schema);
+
+    spinner.stop();
+
+    if (options.json) {
+      console.log(JSON.stringify(instructions, null, 2));
+      return;
+    }
+
+    printVerifyInstructionsText(instructions);
+  } catch (error) {
+    spinner.stop();
+    throw error;
+  }
+}
+
+export function printVerifyInstructionsText(instructions: VerifyInstructions): void {
+  const { changeName, schemaName, contextFiles, progress, tasks, context, rules } = instructions;
+
+  console.log(`## Verify: ${changeName}`);
+  console.log(`Schema: ${schemaName}`);
+  console.log();
+
+  // Context files
+  const contextFileEntries = Object.entries(contextFiles);
+  if (contextFileEntries.length > 0) {
+    console.log('### Context Files');
+    for (const [artifactId, filePath] of contextFileEntries) {
+      console.log(`- ${artifactId}: ${filePath}`);
+    }
+    console.log();
+  }
+
+  // Progress
+  if (progress.total > 0) {
+    console.log('### Progress');
+    console.log(`${progress.complete}/${progress.total} tasks complete`);
+    console.log();
+  }
+
+  // Project context (if present)
+  if (context) {
+    console.log('### Project Context');
+    console.log(context);
+    console.log();
+  }
+
+  // Rules (if present)
+  if (rules && rules.length > 0) {
+    console.log('### Rules');
+    for (const rule of rules) {
+      console.log(`- ${rule}`);
+    }
+    console.log();
+  }
+
+  // Incomplete tasks
+  if (tasks.length > 0) {
+    const incomplete = tasks.filter(t => !t.done);
+    if (incomplete.length > 0) {
+      console.log('### Incomplete Tasks');
+      for (const task of incomplete) {
+        console.log(`- [ ] ${task.description}`);
+      }
+      console.log();
+    }
+  }
 }
