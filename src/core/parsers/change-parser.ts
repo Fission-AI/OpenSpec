@@ -144,6 +144,16 @@ export class ChangeParser extends MarkdownParser {
         });
       });
     }
+
+    // Parse Purpose delta
+    const purposeSection = this.findSection(sections, 'Purpose');
+    if (purposeSection && purposeSection.content.trim()) {
+      deltas.push({
+        spec: specName,
+        operation: 'PURPOSE_MODIFIED' as DeltaOperation,
+        description: `Update Purpose: ${purposeSection.content.trim().substring(0, 80)}${purposeSection.content.trim().length > 80 ? '...' : ''}`,
+      });
+    }
     
     return deltas;
   }

@@ -43,6 +43,7 @@ artifacts:
       - **MODIFIED Requirements**: Changed behavior - MUST include full updated content
       - **REMOVED Requirements**: Deprecated features - MUST include **Reason** and **Migration**
       - **RENAMED Requirements**: Name changes only - use FROM:/TO: format
+      - **Purpose**: Updated purpose text - replaces main spec's `## Purpose` section. A delta file with ONLY a `## Purpose` section (no requirement operations) is valid.
 
       Format requirements:
       - Each requirement: `### Requirement: <name>` followed by description
@@ -57,8 +58,21 @@ artifacts:
       3. Paste under `## MODIFIED Requirements` and edit to reflect new behavior
       4. Ensure header text matches exactly (whitespace-insensitive)
 
+      Scenario-level modification (use when a requirement has MULTIPLE scenarios):
+      - If you only need to change SOME scenarios, add a tag to each scenario header:
+        - `#### Scenario: Name (MODIFIED)` — scenario is being changed
+        - `#### Scenario: Name (REMOVED)` — scenario is being deleted
+      - Untagged scenarios in the main spec are PRESERVED during archive merge.
+      - WARNING: Without `(MODIFIED)`/`(REMOVED)` tags, the ENTIRE requirement
+        block (including ALL scenarios) is replaced during archive. If your delta
+        has fewer scenarios than the main spec, the missing ones are silently destroyed.
+      - Use full-block copy (steps 1-4 above) when the requirement has only one
+        scenario or you are rewriting ALL scenarios.
+
       Common pitfall: Using MODIFIED with partial content loses detail at archive time.
-      If adding new concerns without changing existing behavior, use ADDED instead.
+      Use scenario-level `(MODIFIED)` tags to safely change individual scenarios
+      while preserving others. If adding new concerns without changing existing
+      behavior, use ADDED instead.
 
       Example:
       ```
@@ -70,6 +84,15 @@ artifacts:
       #### Scenario: Successful export
       - **WHEN** user clicks "Export" button
       - **THEN** system downloads a CSV file with all user data
+
+      ## MODIFIED Requirements
+
+      ### Requirement: User Authentication
+      Users MUST authenticate before accessing protected resources.
+
+      #### Scenario: Login with MFA (MODIFIED)
+      - **WHEN** user enters valid credentials
+      - **THEN** system MUST require MFA verification before granting access
 
       ## REMOVED Requirements
 

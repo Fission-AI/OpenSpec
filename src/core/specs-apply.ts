@@ -12,7 +12,12 @@ import {
   extractRequirementsSection,
   parseDeltaSpec,
   normalizeRequirementName,
+  normalizeScenarioName,
+  parseScenarios,
+  isMarkdownFenceLine,
   type RequirementBlock,
+  type ScenarioBlock,
+  type RequirementBlockWithScenarios,
 } from './parsers/requirement-blocks.js';
 import { Validator } from './validation/validator.js';
 
@@ -44,6 +49,175 @@ export interface SpecsApplyOutput {
     renamed: number;
   };
   noChanges: boolean;
+}
+
+// -----------------------------------------------------------------------------
+// Scenario-level merge helpers
+// -----------------------------------------------------------------------------
+
+/**
+ * Check if any scenario in a parsed requirement block has (MODIFIED) or (REMOVED) tags.
+ * If none have tags, the MODIFIED handler should use legacy full-block replacement.
+ */
+function hasScenarioTags(block: RequirementBlockWithScenarios): boolean {
+  return block.scenarios.some(s => s.tag !== undefined);
+}
+
+/**
+ * Strip delta-specific tags (MODIFIED, REMOVED) from a scenario block.
+ * Returns a clean ScenarioBlock suitable for writing to the main spec.
+ */
+function stripScenarioTag(scenario: ScenarioBlock): ScenarioBlock {
+  if (!scenario.tag) return scenario;
+  const cleanHeader = scenario.headerLine.replace(
+    /\s*\((MODIFIED|REMOVED)\)\s*$/i, ''
+  );
+  const rawLines = scenario.raw.split('\n');
+  rawLines[0] = cleanHeader;
+  return {
+    ...scenario,
+    headerLine: cleanHeader,
+    raw: rawLines.join('\n'),
+    tag: undefined,
+  };
+}
+
+/**
+ * Merge scenarios from a delta into a main requirement block at the scenario level.
+ *
+ * Logic:
+ * - Scenarios tagged (MODIFIED): replace matching main scenario (by normalized name)
+ * - Scenarios tagged (REMOVED): remove matching main scenario
+ * - Scenarios with no tag that exist in main: replace (implicit update)
+ * - Scenarios with no tag that don't exist in main: append as new
+ * - Main scenarios not referenced by delta: preserved unchanged
+ */
+interface MergeResult {
+  scenarios: ScenarioBlock[];
+  matchedRemovedCount: number;
+}
+
+function mergeScenarios(
+  main: RequirementBlockWithScenarios,
+  delta: RequirementBlockWithScenarios
+): MergeResult {
+  // Build a set of main scenario names for REMOVED matching and preflight
+  const mainByName = new Set<string>();
+  for (const s of main.scenarios) {
+    mainByName.add(normalizeScenarioName(s.name));
+  }
+
+  // Preflight: validate duplicate normalized scenario names (F2 — v8 rule)
+  const deltaGroups = new Map<string, ScenarioBlock[]>();
+  for (const s of delta.scenarios) {
+    const name = normalizeScenarioName(s.name);
+    const group = deltaGroups.get(name) || [];
+    group.push(s);
+    deltaGroups.set(name, group);
+  }
+  for (const [name, group] of deltaGroups) {
+    if (group.length <= 1) continue;
+    const allRemoved = group.every(s => s.tag === 'REMOVED');
+    if (allRemoved) continue; // allow duplicate REMOVED (idempotent)
+    const allUntagged = group.every(s => !s.tag);
+    if (allUntagged && !mainByName.has(name)) continue; // allow duplicate untagged append for new scenarios
+    // All other duplicate groups are ambiguous — fail fast
+    const tags = group.map(s => s.tag || 'untagged').join(', ');
+    throw new Error(
+      `Ambiguous duplicate scenario entries for '${group[0].name}' (normalized: '${name}'): [${tags}]. ` +
+      `Use unique scenario names or consolidate into a single entry.`
+    );
+  }
+
+  // Build a map of delta scenarios by normalized name for quick lookup
+  const deltaByName = new Map<string, ScenarioBlock>();
+  for (const s of delta.scenarios) {
+    deltaByName.set(normalizeScenarioName(s.name), s);
+  }
+
+  // Track which delta scenarios were used (to find new ones to append)
+  const usedDeltaNames = new Set<string>();
+
+  // Names of scenarios marked for removal, with unmatched tracking
+  const removedNames = new Set<string>();
+  const matchedRemovedNames = new Set<string>();
+  for (const s of delta.scenarios) {
+    if (s.tag === 'REMOVED') {
+      const name = normalizeScenarioName(s.name);
+      if (mainByName.has(name)) {
+        matchedRemovedNames.add(name);
+      } else {
+        console.log(chalk.yellow(
+          `⚠️  Warning: REMOVED scenario '${s.name}' not found in main — ignored`
+        ));
+      }
+      removedNames.add(name);
+    }
+  }
+
+  // Process main scenarios: keep, replace, or remove
+  const result: ScenarioBlock[] = [];
+  for (const mainScenario of main.scenarios) {
+    const mainName = normalizeScenarioName(mainScenario.name);
+
+    // Check if this scenario is marked for removal
+    if (removedNames.has(mainName)) {
+      usedDeltaNames.add(mainName);
+      continue; // Skip (remove)
+    }
+
+    // Check if delta has a replacement for this scenario
+    const deltaScenario = deltaByName.get(mainName);
+    if (deltaScenario && deltaScenario.tag !== 'REMOVED') {
+      result.push(stripScenarioTag(deltaScenario));
+      usedDeltaNames.add(mainName);
+    } else {
+      // Keep main scenario unchanged
+      result.push(mainScenario);
+    }
+  }
+
+  // Append new scenarios from delta (not in main, not used, not REMOVED)
+  for (const s of delta.scenarios) {
+    const name = normalizeScenarioName(s.name);
+    if (!usedDeltaNames.has(name) && s.tag !== 'REMOVED') {
+      if (s.tag === 'MODIFIED') {
+        console.log(chalk.yellow(
+          `⚠️  Warning: MODIFIED scenario '${s.name}' not found in main — appended as new`
+        ));
+      }
+      result.push(stripScenarioTag(s));
+      usedDeltaNames.add(name);
+    }
+  }
+
+  return { scenarios: result, matchedRemovedCount: matchedRemovedNames.size };
+}
+
+/**
+ * Reconstruct a RequirementBlock from its description and merged scenarios.
+ */
+function reconstructRequirementBlock(
+  description: string,
+  scenarios: ScenarioBlock[],
+  headerLine: string
+): RequirementBlock {
+  const parts: string[] = [headerLine];
+
+  if (description.trim()) {
+    parts.push(description);
+  }
+
+  for (const s of scenarios) {
+    parts.push('');  // blank line separator before each scenario
+    parts.push(s.raw);
+  }
+
+  const raw = parts.join('\n').trimEnd();
+  const nameMatch = headerLine.match(/^###\s*Requirement:\s*(.+)\s*$/);
+  const name = nameMatch ? nameMatch[1].trim() : '';
+
+  return { headerLine, name, raw };
 }
 
 // -----------------------------------------------------------------------------
@@ -191,10 +365,11 @@ export async function buildUpdatedSpec(
     );
   }
   const hasAnyDelta = plan.added.length + plan.modified.length + plan.removed.length + plan.renamed.length > 0;
-  if (!hasAnyDelta) {
+  const hasPurposeDelta = !!plan.purposeText;
+  if (!hasAnyDelta && !hasPurposeDelta) {
     throw new Error(
       `Delta parsing found no operations for ${path.basename(path.dirname(update.source))}. ` +
-        `Provide ADDED/MODIFIED/REMOVED/RENAMED sections in change spec.`
+        `Provide ADDED/MODIFIED/REMOVED/RENAMED sections or a Purpose section in change spec.`
     );
   }
 
@@ -220,7 +395,7 @@ export async function buildUpdatedSpec(
       );
     }
     isNewSpec = true;
-    targetContent = buildSpecSkeleton(specName, changeName);
+    targetContent = buildSpecSkeleton(specName, changeName, plan.purposeText);
   }
 
   // Extract requirements section and build name->block map
@@ -269,7 +444,7 @@ export async function buildUpdatedSpec(
     nameToBlock.delete(key);
   }
 
-  // MODIFIED
+  // MODIFIED (scenario-level merge when tags are present, full-block otherwise)
   for (const mod of plan.modified) {
     const key = normalizeRequirementName(mod.name);
     if (!nameToBlock.has(key)) {
@@ -282,7 +457,39 @@ export async function buildUpdatedSpec(
         `${specName} MODIFIED failed for header "### Requirement: ${mod.name}" - header mismatch in content`
       );
     }
-    nameToBlock.set(key, mod);
+
+    const mainBlock = nameToBlock.get(key)!;
+    const deltaParsed = parseScenarios(mod);
+
+    // Check if delta uses scenario-level tags
+    if (hasScenarioTags(deltaParsed)) {
+      // Scenario-level merge
+      const mainParsed = parseScenarios(mainBlock);
+      const mergeResult = mergeScenarios(mainParsed, deltaParsed);
+
+      // Precision warning: use matchedRemovedCount instead of raw REMOVED tag count
+      const expectedMinCount = mainParsed.scenarios.length - mergeResult.matchedRemovedCount;
+      if (mergeResult.scenarios.length < expectedMinCount) {
+        console.log(
+          chalk.yellow(
+            `⚠️  Warning: ${specName} requirement '${mod.name}': scenario count ` +
+            `${mergeResult.scenarios.length} is less than expected ${expectedMinCount} ` +
+            `(${mainParsed.scenarios.length} main - ${mergeResult.matchedRemovedCount} removed)`
+          )
+        );
+      }
+
+      // Use delta description if provided, otherwise keep main
+      const description = deltaParsed.description.trim()
+        ? deltaParsed.description
+        : mainParsed.description;
+
+      const rebuilt = reconstructRequirementBlock(description, mergeResult.scenarios, mainBlock.headerLine);
+      nameToBlock.set(key, rebuilt);
+    } else {
+      // Legacy: full-block replacement (no scenario tags → backward compat)
+      nameToBlock.set(key, mod);
+    }
   }
 
   // ADDED
@@ -325,8 +532,14 @@ export async function buildUpdatedSpec(
     .join('\n')
     .replace(/\n{3,}/g, '\n\n');
 
+  // Apply Purpose delta if present
+  let finalRebuilt = rebuilt;
+  if (plan.purposeText) {
+    finalRebuilt = replacePurposeSection(finalRebuilt, plan.purposeText);
+  }
+
   return {
-    rebuilt,
+    rebuilt: finalRebuilt,
     counts: {
       added: plan.added.length,
       modified: plan.modified.length,
@@ -360,9 +573,46 @@ export async function writeUpdatedSpec(
 /**
  * Build a skeleton spec for new capabilities.
  */
-export function buildSpecSkeleton(specFolderName: string, changeName: string): string {
+export function buildSpecSkeleton(specFolderName: string, changeName: string, purposeText?: string): string {
   const titleBase = specFolderName;
-  return `# ${titleBase} Specification\n\n## Purpose\nTBD - created by archiving change ${changeName}. Update Purpose after archive.\n\n## Requirements\n`;
+  const purpose = purposeText || `TBD - created by archiving change ${changeName}. Update Purpose after archive.`;
+  return `# ${titleBase} Specification\n\n## Purpose\n${purpose}\n\n## Requirements\n`;
+}
+
+/**
+ * Replace the ## Purpose section in a spec with new purpose text.
+ * If no Purpose section exists, inserts one after the title.
+ */
+function replacePurposeSection(content: string, newPurpose: string): string {
+  const lines = content.replace(/\r\n?/g, '\n').split('\n');
+  const purposeIdx = lines.findIndex(l => /^##\s+Purpose\s*$/i.test(l));
+
+  if (purposeIdx === -1) {
+    // No Purpose section found — insert after the first heading (# title)
+    const titleIdx = lines.findIndex(l => /^#\s+/.test(l));
+    const insertAt = titleIdx >= 0 ? titleIdx + 1 : 0;
+    lines.splice(insertAt, 0, '', '## Purpose', newPurpose, '');
+    return lines.join('\n');
+  }
+
+  // Find next ## section after Purpose
+  let endIdx = lines.length;
+  let inFence = false;
+  for (let i = purposeIdx + 1; i < lines.length; i++) {
+    if (isMarkdownFenceLine(lines[i])) {
+      inFence = !inFence;
+      continue;
+    }
+    if (!inFence && /^##\s+/.test(lines[i])) {
+      endIdx = i;
+      break;
+    }
+  }
+
+  // Replace Purpose body: keep header, replace body lines
+  const before = lines.slice(0, purposeIdx + 1);
+  const after = lines.slice(endIdx);
+  return [...before, newPurpose, '', ...after].join('\n');
 }
 
 /**
