@@ -6,6 +6,7 @@
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
+import { COMMAND_NAMESPACE } from '../namespace.js';
 
 /**
  * Qoder adapter for command generation.
@@ -16,7 +17,7 @@ export const qoderAdapter: ToolCommandAdapter = {
   toolId: 'qoder',
 
   getFilePath(commandId: string): string {
-    return path.join('.qoder', 'commands', 'opsx', `${commandId}.md`);
+    return path.join('.qoder', 'commands', COMMAND_NAMESPACE, `${commandId}.md`);
   },
 
   formatFile(content: CommandContent): string {

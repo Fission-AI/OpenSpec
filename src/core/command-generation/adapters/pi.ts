@@ -7,6 +7,7 @@
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
+import { COMMAND_NAMESPACE } from '../namespace.js';
 
 /**
  * Escapes a string value for safe YAML output.
@@ -32,7 +33,7 @@ export const piAdapter: ToolCommandAdapter = {
   toolId: 'pi',
 
   getFilePath(commandId: string): string {
-    return path.join('.pi', 'prompts', `opsx-${commandId}.md`);
+    return path.join('.pi', 'prompts', `${COMMAND_NAMESPACE}-${commandId}.md`);
   },
 
   formatFile(content: CommandContent): string {

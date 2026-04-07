@@ -6,6 +6,7 @@
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
+import { COMMAND_NAMESPACE } from '../namespace.js';
 
 /**
  * iFlow adapter for command generation.
@@ -16,13 +17,13 @@ export const iflowAdapter: ToolCommandAdapter = {
   toolId: 'iflow',
 
   getFilePath(commandId: string): string {
-    return path.join('.iflow', 'commands', `opsx-${commandId}.md`);
+    return path.join('.iflow', 'commands', `${COMMAND_NAMESPACE}-${commandId}.md`);
   },
 
   formatFile(content: CommandContent): string {
     return `---
-name: /opsx-${content.id}
-id: opsx-${content.id}
+name: /${COMMAND_NAMESPACE}-${content.id}
+id: ${COMMAND_NAMESPACE}-${content.id}
 category: ${content.category}
 description: ${content.description}
 ---

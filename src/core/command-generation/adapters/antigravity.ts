@@ -6,6 +6,7 @@
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
+import { COMMAND_NAMESPACE } from '../namespace.js';
 
 /**
  * Antigravity adapter for command generation.
@@ -16,7 +17,7 @@ export const antigravityAdapter: ToolCommandAdapter = {
   toolId: 'antigravity',
 
   getFilePath(commandId: string): string {
-    return path.join('.agent', 'workflows', `opsx-${commandId}.md`);
+    return path.join('.agent', 'workflows', `${COMMAND_NAMESPACE}-${commandId}.md`);
   },
 
   formatFile(content: CommandContent): string {

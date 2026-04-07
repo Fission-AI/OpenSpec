@@ -131,7 +131,7 @@ export function getOpsxContinueCommandTemplate(): CommandTemplate {
     tags: ['workflow', 'artifacts', 'experimental'],
     content: `Continue working on a change by creating the next artifact.
 
-**Input**: Optionally specify a change name after \`/opsx:continue\` (e.g., \`/opsx:continue add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Input**: Optionally specify a change name after \`/enpalspec:continue\` (e.g., \`/enpalspec:continue add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
@@ -165,7 +165,7 @@ export function getOpsxContinueCommandTemplate(): CommandTemplate {
    **If all artifacts are complete (\`isComplete: true\`)**:
    - Congratulate the user
    - Show final status including the schema used
-   - Suggest: "All artifacts created! You can now implement this change with \`/opsx:apply\` or archive it with \`/opsx:archive\`."
+   - Suggest: "All artifacts created! You can now implement this change with \`/enpalspec:apply\` or archive it with \`/enpalspec:archive\`."
    - STOP
 
    ---
@@ -209,7 +209,7 @@ After each invocation, show:
 - Schema workflow being used
 - Current progress (N/M complete)
 - What artifacts are now unlocked
-- Prompt: "Run \`/opsx:continue\` to create the next artifact"
+- Prompt: "Run \`/enpalspec:continue\` to create the next artifact"
 
 **Artifact Creation Guidelines**
 

@@ -6,6 +6,7 @@
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
+import { COMMAND_NAMESPACE } from '../namespace.js';
 
 /**
  * CodeBuddy adapter for command generation.
@@ -16,7 +17,7 @@ export const codebuddyAdapter: ToolCommandAdapter = {
   toolId: 'codebuddy',
 
   getFilePath(commandId: string): string {
-    return path.join('.codebuddy', 'commands', 'opsx', `${commandId}.md`);
+    return path.join('.codebuddy', 'commands', COMMAND_NAMESPACE, `${commandId}.md`);
   },
 
   formatFile(content: CommandContent): string {

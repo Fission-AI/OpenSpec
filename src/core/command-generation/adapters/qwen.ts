@@ -6,6 +6,7 @@
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
+import { COMMAND_NAMESPACE } from '../namespace.js';
 
 /**
  * Qwen adapter for command generation.
@@ -16,7 +17,7 @@ export const qwenAdapter: ToolCommandAdapter = {
   toolId: 'qwen',
 
   getFilePath(commandId: string): string {
-    return path.join('.qwen', 'commands', `opsx-${commandId}.toml`);
+    return path.join('.qwen', 'commands', `${COMMAND_NAMESPACE}-${commandId}.toml`);
   },
 
   formatFile(content: CommandContent): string {

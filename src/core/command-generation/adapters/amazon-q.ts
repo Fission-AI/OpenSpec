@@ -6,6 +6,7 @@
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
+import { COMMAND_NAMESPACE } from '../namespace.js';
 
 /**
  * Amazon Q adapter for command generation.
@@ -16,7 +17,7 @@ export const amazonQAdapter: ToolCommandAdapter = {
   toolId: 'amazon-q',
 
   getFilePath(commandId: string): string {
-    return path.join('.amazonq', 'prompts', `opsx-${commandId}.md`);
+    return path.join('.amazonq', 'prompts', `${COMMAND_NAMESPACE}-${commandId}.md`);
   },
 
   formatFile(content: CommandContent): string {

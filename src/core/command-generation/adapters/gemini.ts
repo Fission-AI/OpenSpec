@@ -6,6 +6,7 @@
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
+import { COMMAND_NAMESPACE } from '../namespace.js';
 
 /**
  * Gemini adapter for command generation.
@@ -16,7 +17,7 @@ export const geminiAdapter: ToolCommandAdapter = {
   toolId: 'gemini',
 
   getFilePath(commandId: string): string {
-    return path.join('.gemini', 'commands', 'opsx', `${commandId}.toml`);
+    return path.join('.gemini', 'commands', COMMAND_NAMESPACE, `${commandId}.toml`);
   },
 
   formatFile(content: CommandContent): string {
