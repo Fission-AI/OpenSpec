@@ -9,10 +9,10 @@
     "ai",
     "development"
   ],
-  "homepage": "https://github.com/enpal-tech/enpalspec",
+  "homepage": "https://github.com/enpal/enpalspec",
   "repository": {
     "type": "git",
-    "url": "https://github.com/enpal-tech/enpalspec"
+    "url": "https://github.com/enpal/enpalspec"
   },
   "license": "MIT",
   "author": "OpenSpec Contributors",
