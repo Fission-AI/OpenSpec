@@ -264,7 +264,7 @@ You: [reads codebase]
 
 **User is stuck mid-implementation:**
 \`\`\`
-User: /opsx:explore add-auth-system
+User: /enpalspec:explore add-auth-system
       The OAuth integration is more complex than expected
 
 You: [reads change artifacts]
@@ -434,7 +434,7 @@ export function getOpsxExploreCommandTemplate(): CommandTemplate {
 
 ### Step 1: Derive the topic
 
-The argument after \`/opsx:explore\` is the topic. Derive a kebab-case slug from it
+The argument after \`/enpalspec:explore\` is the topic. Derive a kebab-case slug from it
 (e.g., "auth redesign" → \`auth-redesign\`, "postgres vs sqlite" → \`postgres-vs-sqlite\`).
 
 If no argument was provided, use the **AskUserQuestion tool** to ask:
@@ -460,7 +460,7 @@ Tell the user: "Started exploration doc at \`<docPath>\`"
 
 **This is a stance, not a workflow.** There are no fixed steps, no required sequence, no mandatory outputs. You're a thinking partner helping the user explore.
 
-**Input**: The argument after \`/opsx:explore\` is whatever the user wants to think about. Could be:
+**Input**: The argument after \`/enpalspec:explore\` is whatever the user wants to think about. Could be:
 - A vague idea: "real-time collaboration"
 - A specific problem: "the auth system is getting unwieldy"
 - A change name: "add-dark-mode" (to explore in context of that change)

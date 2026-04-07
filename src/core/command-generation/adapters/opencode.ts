@@ -7,6 +7,7 @@
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
 import { transformToHyphenCommands } from '../../../utils/command-references.js';
+import { COMMAND_NAMESPACE } from '../namespace.js';
 
 /**
  * OpenCode adapter for command generation.
@@ -17,7 +18,7 @@ export const opencodeAdapter: ToolCommandAdapter = {
   toolId: 'opencode',
 
   getFilePath(commandId: string): string {
-    return path.join('.opencode', 'commands', `opsx-${commandId}.md`);
+    return path.join('.opencode', 'commands', `${COMMAND_NAMESPACE}-${commandId}.md`);
   },
 
   formatFile(content: CommandContent): string {

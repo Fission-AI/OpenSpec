@@ -6,6 +6,7 @@
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
+import { COMMAND_NAMESPACE } from '../namespace.js';
 
 /**
  * Factory adapter for command generation.
@@ -16,7 +17,7 @@ export const factoryAdapter: ToolCommandAdapter = {
   toolId: 'factory',
 
   getFilePath(commandId: string): string {
-    return path.join('.factory', 'commands', `opsx-${commandId}.md`);
+    return path.join('.factory', 'commands', `${COMMAND_NAMESPACE}-${commandId}.md`);
   },
 
   formatFile(content: CommandContent): string {

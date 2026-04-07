@@ -6,6 +6,7 @@
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
+import { COMMAND_NAMESPACE } from '../namespace.js';
 
 /**
  * CoStrict adapter for command generation.
@@ -16,7 +17,7 @@ export const costrictAdapter: ToolCommandAdapter = {
   toolId: 'costrict',
 
   getFilePath(commandId: string): string {
-    return path.join('.cospec', 'openspec', 'commands', `opsx-${commandId}.md`);
+    return path.join('.cospec', 'openspec', 'commands', `${COMMAND_NAMESPACE}-${commandId}.md`);
   },
 
   formatFile(content: CommandContent): string {

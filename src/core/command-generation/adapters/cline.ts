@@ -7,6 +7,7 @@
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
+import { COMMAND_NAMESPACE } from '../namespace.js';
 
 /**
  * Cline adapter for command generation.
@@ -17,7 +18,7 @@ export const clineAdapter: ToolCommandAdapter = {
   toolId: 'cline',
 
   getFilePath(commandId: string): string {
-    return path.join('.clinerules', 'workflows', `opsx-${commandId}.md`);
+    return path.join('.clinerules', 'workflows', `${COMMAND_NAMESPACE}-${commandId}.md`);
   },
 
   formatFile(content: CommandContent): string {

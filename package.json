@@ -1,7 +1,7 @@
 {
-  "name": "@fission-ai/openspec",
+  "name": "@enpal/enpalspec",
   "version": "1.2.0",
-  "description": "AI-native system for spec-driven development",
+  "description": "Enpal's AI-native system for spec-driven development",
   "keywords": [
     "openspec",
     "specs",
@@ -9,10 +9,10 @@
     "ai",
     "development"
   ],
-  "homepage": "https://github.com/Fission-AI/OpenSpec",
+  "homepage": "https://github.com/enpal/enpalspec",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Fission-AI/OpenSpec"
+    "url": "https://github.com/enpal/enpalspec"
   },
   "license": "MIT",
   "author": "OpenSpec Contributors",
@@ -27,7 +27,7 @@
     }
   },
   "bin": {
-    "openspec": "./bin/openspec.js"
+    "enpalspec": "./bin/openspec.js"
   },
   "files": [
     "dist",

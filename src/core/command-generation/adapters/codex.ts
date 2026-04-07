@@ -10,6 +10,7 @@
 import os from 'os';
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
+import { COMMAND_NAMESPACE } from '../namespace.js';
 
 /**
  * Returns the Codex home directory.
@@ -29,7 +30,7 @@ export const codexAdapter: ToolCommandAdapter = {
   toolId: 'codex',
 
   getFilePath(commandId: string): string {
-    return path.join(getCodexHome(), 'prompts', `opsx-${commandId}.md`);
+    return path.join(getCodexHome(), 'prompts', `${COMMAND_NAMESPACE}-${commandId}.md`);
   },
 
   formatFile(content: CommandContent): string {

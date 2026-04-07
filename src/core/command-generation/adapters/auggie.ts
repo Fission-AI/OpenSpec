@@ -6,6 +6,7 @@
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
+import { COMMAND_NAMESPACE } from '../namespace.js';
 
 /**
  * Auggie adapter for command generation.
@@ -16,7 +17,7 @@ export const auggieAdapter: ToolCommandAdapter = {
   toolId: 'auggie',
 
   getFilePath(commandId: string): string {
-    return path.join('.augment', 'commands', `opsx-${commandId}.md`);
+    return path.join('.augment', 'commands', `${COMMAND_NAMESPACE}-${commandId}.md`);
   },
 
   formatFile(content: CommandContent): string {

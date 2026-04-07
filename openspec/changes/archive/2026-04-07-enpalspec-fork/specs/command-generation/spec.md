@@ -1,143 +1,61 @@
-# command-generation Specification
+## ADDED Requirements
 
-## Purpose
-Define tool-agnostic command content and adapter contracts for generating tool-specific OpenSpec command files.
-
-## Requirements
 ### Requirement: Shared COMMAND_NAMESPACE constant
-
 The system SHALL define a single `COMMAND_NAMESPACE` constant in `src/core/command-generation/namespace.ts` with the value `'enpalspec'`. All adapters and workflow templates SHALL import and use this constant instead of the hardcoded string `'opsx'`.
 
 #### Scenario: Constant is the single source of truth
-
 - **WHEN** `COMMAND_NAMESPACE` is defined as `'enpalspec'`
 - **THEN** no adapter file contains the literal string `'opsx'` in its path or frontmatter template
 - **AND** no workflow template file contains the literal string `/opsx:` in its body content
 
-### Requirement: CommandContent interface
+## MODIFIED Requirements
 
-The system SHALL define a tool-agnostic `CommandContent` interface for command data.
-
-#### Scenario: CommandContent structure
-
-- **WHEN** defining a command to generate
-- **THEN** `CommandContent` SHALL include:
-  - `id`: string identifier (e.g., 'explore', 'apply')
-  - `name`: human-readable name (e.g., 'OpenSpec Explore')
-  - `description`: brief description of command purpose
-  - `category`: grouping category (e.g., 'OpenSpec')
-  - `tags`: array of tag strings
-  - `body`: the command instruction content
-
-### Requirement: ToolCommandAdapter interface
-
-The system SHALL define a `ToolCommandAdapter` interface for per-tool formatting.
-
-#### Scenario: Adapter interface structure
-
-- **WHEN** implementing a tool adapter
-- **THEN** `ToolCommandAdapter` SHALL require:
-  - `toolId`: string identifier matching `AIToolOption.value`
-  - `getFilePath(commandId: string)`: returns file path for command (relative from project root, or absolute for global-scoped tools like Codex)
-  - `formatFile(content: CommandContent)`: returns complete file content with frontmatter
-
-#### Scenario: Claude adapter formatting
+### Requirement: Claude adapter formatting
+The system SHALL generate Claude command files with the `enpalspec` namespace.
 
 - **WHEN** formatting a command for Claude Code
 - **THEN** the adapter SHALL output YAML frontmatter with `name`, `description`, `category`, `tags` fields
 - **AND** file path SHALL follow pattern `.claude/commands/enpalspec/<id>.md`
 
 #### Scenario: Claude adapter uses enpalspec path
-
 - **WHEN** `generateCommand` is called with the Claude adapter and command id `explore`
 - **THEN** the returned path is `.claude/commands/enpalspec/explore.md`
 
-#### Scenario: Cursor adapter formatting
+### Requirement: Cursor adapter formatting
+The system SHALL generate Cursor command files with the `enpalspec` namespace.
 
 - **WHEN** formatting a command for Cursor
 - **THEN** the adapter SHALL output YAML frontmatter with `name` as `/enpalspec-<id>`, `id` as `enpalspec-<id>`, `category`, `description` fields
 - **AND** file path SHALL follow pattern `.cursor/commands/enpalspec-<id>.md`
 
 #### Scenario: Cursor adapter uses enpalspec path
-
 - **WHEN** `generateCommand` is called with the Cursor adapter and command id `explore`
 - **THEN** the returned path is `.cursor/commands/enpalspec-explore.md`
 - **AND** the frontmatter `name` field is `/enpalspec-explore`
 
-#### Scenario: Windsurf adapter formatting
+### Requirement: Windsurf adapter formatting
+The system SHALL generate Windsurf workflow files with the `enpalspec` namespace.
 
 - **WHEN** formatting a command for Windsurf
 - **THEN** the adapter SHALL output YAML frontmatter with `name`, `description`, `category`, `tags` fields
 - **AND** file path SHALL follow pattern `.windsurf/workflows/enpalspec-<id>.md`
 
 #### Scenario: Windsurf adapter uses enpalspec path
-
 - **WHEN** `generateCommand` is called with the Windsurf adapter and command id `explore`
 - **THEN** the returned path is `.windsurf/workflows/enpalspec-explore.md`
 
-### Requirement: Command generator function
-
-The system SHALL provide a `generateCommand` function that combines content with adapter.
-
-#### Scenario: Generate command file
-
-- **WHEN** calling `generateCommand(content, adapter)`
-- **THEN** it SHALL return an object with:
-  - `path`: the file path from `adapter.getFilePath(content.id)`
-  - `fileContent`: the formatted content from `adapter.formatFile(content)`
-
-#### Scenario: Generate multiple commands
-
-- **WHEN** generating all opsx commands for a tool
-- **THEN** the system SHALL iterate over command contents and generate each using the tool's adapter
-
-### Requirement: CommandAdapterRegistry
-
-The system SHALL provide a registry for looking up tool adapters.
-
-#### Scenario: Get adapter by tool ID
-
-- **WHEN** calling `CommandAdapterRegistry.get('cursor')`
-- **THEN** it SHALL return the Cursor adapter or undefined if not registered
-
-#### Scenario: Get all adapters
-
-- **WHEN** calling `CommandAdapterRegistry.getAll()`
-- **THEN** it SHALL return array of all registered adapters
-
-#### Scenario: Adapter not found
-
-- **WHEN** looking up an adapter for unregistered tool
-- **THEN** `CommandAdapterRegistry.get()` SHALL return undefined
-- **AND** caller SHALL handle missing adapter appropriately
-
 ### Requirement: All other tool adapters use enpalspec namespace
-
 All remaining tool adapters (antigravity, cline, codebuddy, codex, continue, factory, gemini, github-copilot, iflow, kilocode, kiro, opencode, qoder, qwen, roocode, amazon-q, auggie, costrict, crush, pi) SHALL use `COMMAND_NAMESPACE` in their `getFilePath` and `formatFile` implementations, replacing the previous `opsx` prefix.
 
 #### Scenario: All adapters use the shared constant
-
 - **WHEN** any registered adapter generates a command file path
 - **THEN** the path contains `enpalspec` in place of `opsx`
 - **AND** any frontmatter referencing the namespace uses `enpalspec`
 
 ### Requirement: Workflow template body references use enpalspec namespace
-
 All workflow skill template files SHALL reference `/enpalspec:*` commands in their body content, replacing all previous `/opsx:*` references.
 
 #### Scenario: Installed skill body uses enpalspec commands
-
 - **WHEN** a user runs `enpalspec init` and reads an installed skill file
 - **THEN** any cross-skill references in the skill body use `/enpalspec:explore`, `/enpalspec:propose`, `/enpalspec:apply`, etc.
 - **AND** no installed skill body contains `/opsx:` references
-
-### Requirement: Shared command body content
-
-The body content of commands SHALL be shared across all tools.
-
-#### Scenario: Same instructions across tools
-
-- **WHEN** generating the 'explore' command for Claude and Cursor
-- **THEN** both SHALL use the same `body` content
-- **AND** only the frontmatter and file path SHALL differ
-

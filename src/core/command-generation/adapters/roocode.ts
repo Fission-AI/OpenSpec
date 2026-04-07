@@ -7,6 +7,7 @@
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
+import { COMMAND_NAMESPACE } from '../namespace.js';
 
 /**
  * RooCode adapter for command generation.
@@ -17,7 +18,7 @@ export const roocodeAdapter: ToolCommandAdapter = {
   toolId: 'roocode',
 
   getFilePath(commandId: string): string {
-    return path.join('.roo', 'commands', `opsx-${commandId}.md`);
+    return path.join('.roo', 'commands', `${COMMAND_NAMESPACE}-${commandId}.md`);
   },
 
   formatFile(content: CommandContent): string {
