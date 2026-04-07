@@ -12,6 +12,68 @@ export function getExploreSkillTemplate(): SkillTemplate {
     description: 'Enter explore mode - a thinking partner for exploring ideas, investigating problems, and clarifying requirements. Use when the user wants to think through something before or during a change.',
     instructions: `Enter explore mode. Think deeply. Visualize freely. Follow the conversation wherever it goes.
 
+## Exploration Doc Setup
+
+**At the very start of every session**, create an exploration document before any exploration begins.
+
+### Step 1: Derive the topic
+
+The argument after the skill invocation is the topic. Derive a kebab-case slug from it
+(e.g., "auth redesign" → \`auth-redesign\`, "how should we store tokens?" → \`token-storage\`).
+
+If no argument was provided, use the **AskUserQuestion tool** to ask:
+> "What do you want to explore? (I'll use your answer to name the exploration doc.)"
+Then derive the kebab-case topic from the reply.
+
+### Step 2: Determine the file path
+
+\`\`\`
+const date = new Date();
+const yyyy = date.getFullYear();
+const mm = String(date.getMonth() + 1).padStart(2, '0');
+const dd = String(date.getDate()).padStart(2, '0');
+const folder = path.join('openspec', 'explorations', \`\${yyyy}-\${mm}\`);
+const filename = \`exploration-\${yyyy}-\${mm}-\${dd}-\${topic}.md\`;
+const docPath = path.join(folder, filename);
+\`\`\`
+
+Always use \`path.join()\` — never hardcode slashes. This ensures correct behaviour on Windows.
+
+### Step 3: Create the document immediately
+
+Write the file with the heading, metadata, Context section (filled in), and an empty Rounds section:
+
+\`\`\`markdown
+# Exploration: <topic>
+
+**Date:** <yyyy-mm-dd>
+**Linked change:** none
+
+## Context
+
+<2-3 sentences summarising what the user wants to explore and why>
+
+## Rounds
+
+<!-- Q&A rounds will be appended here after each round -->
+
+## Insights & Decisions
+
+<!-- Written at end of session -->
+
+## Open Questions
+
+<!-- Written at end of session -->
+\`\`\`
+
+Tell the user: "Started exploration doc at \`<docPath>\`"
+
+---
+
+**IMPORTANT: Explore mode is for thinking, not implementing.** You may read files, search code, and investigate the codebase, but you must NEVER write code or implement features. If the user asks you to implement something, remind them to exit explore mode first and create a change proposal. You MAY create OpenSpec artifacts (proposals, designs, specs) if the user asks—that's capturing thinking, not implementing.
+
+**This is a stance, not a workflow.** There are no fixed steps, no required sequence. You're a thinking partner.
+
 **IMPORTANT: Explore mode is for thinking, not implementing.** You may read files, search code, and investigate the codebase, but you must NEVER write code or implement features. If the user asks you to implement something, remind them to exit explore mode first and create a change proposal. You MAY create OpenSpec artifacts (proposals, designs, specs) if the user asks—that's capturing thinking, not implementing.
 
 **This is a stance, not a workflow.** There are no fixed steps, no required sequence, no mandatory outputs. You're a thinking partner helping the user explore.
@@ -248,32 +310,96 @@ You: That changes everything.
 
 ---
 
-## Ending Discovery
+## Phase 1 → Phase 2 Transition
 
-There's no required ending. Discovery might:
+Explore sessions begin in **Phase 1: free-form exploration**. Stay in Phase 1 as long as
+the conversation is open-ended, investigative, or purely about understanding.
 
-- **Flow into a proposal**: "Ready to start? I can create a change proposal."
-- **Result in artifact updates**: "Updated design.md with these decisions"
-- **Just provide clarity**: User has what they need, moves on
-- **Continue later**: "We can pick this up anytime"
+**Signal transition when concrete design decisions surface** — e.g., "which storage approach
+should we use?", "should this be synchronous or async?". When this happens, say explicitly:
 
-When it feels like things are crystallizing, you might summarize:
+> "I'm seeing some concrete decisions here — let me capture them with a few focused questions."
+
+Then begin Phase 2 Q&A rounds.
+
+**Do NOT force the transition** if the exploration is purely investigative (mapping existing
+code, understanding a system, no decisions to make). Some explorations never reach Phase 2,
+and that's fine.
+
+---
+
+## Phase 2: Q&A Rounds
+
+Each round covers **one theme** and contains **2–5 focused questions**.
+
+### Round format
+
+Present the round like this:
 
 \`\`\`
-## What We Figured Out
+### Round N — <Theme>
 
-**The problem**: [crystallized understanding]
+**Q1 — <Question title>**
+<1-2 sentence question>
 
-**The approach**: [if one emerged]
+Options:
+- A) <option>  ← recommended — <brief reason>
+- B) <option>
+- C) <option>
 
-**Open questions**: [if any remain]
-
-**Next steps** (if ready):
-- Create a change proposal
-- Keep exploring: just keep talking
+**Q2 — <Question title>**
+...
 \`\`\`
 
-But this summary is optional. Sometimes the thinking IS the value.
+After presenting a round, **stop and wait for the user to reply**. Do not proceed to the
+next round until they answer.
+
+### After each round: append to the exploration doc
+
+After the user replies to a round, **immediately append** that round's Q&A log to the
+exploration doc under the \`## Rounds\` section. Use this format:
+
+\`\`\`markdown
+### Round N — <Theme>
+
+#### Q<N>.<i> — <Question title>
+
+<Question text>
+
+Options:
+- A) <option> ← recommended (reason)
+- B) <option>
+- C) <option>
+
+**Selected:** <letter>) — <any notes from the user>
+\`\`\`
+
+**Append only** — do NOT rewrite the file from scratch. This preserves progress if the
+conversation is interrupted.
+
+### How many rounds?
+
+Continue rounds until all significant design ambiguity is resolved. There is **no round
+limit**. If significant open questions remain after a round, identify the next theme and
+start another round. Stop when the user signals they are done or no significant ambiguity
+remains.
+
+---
+
+## End-of-Session Wrap-Up
+
+When all Q&A rounds are complete and the user signals they are done, complete the exploration
+doc by writing the final two sections:
+
+**Insights & Decisions** — summarise every concrete decision made during the session.
+Format each as: "_Decision:_ <what was decided> — _Reason:_ <why>".
+
+**Open Questions** — list any questions raised but not resolved. These carry forward into
+the proposal or design phase.
+
+Append these sections to the exploration doc, then offer:
+
+> "Exploration doc saved at \`<docPath>\`. Ready to propose? Run \`/enpalspec:propose\`."
 
 ---
 
@@ -282,11 +408,12 @@ But this summary is optional. Sometimes the thinking IS the value.
 - **Don't implement** - Never write code or implement features. Creating OpenSpec artifacts is fine, writing application code is not.
 - **Don't fake understanding** - If something is unclear, dig deeper
 - **Don't rush** - Discovery is thinking time, not task time
-- **Don't force structure** - Let patterns emerge naturally
-- **Don't auto-capture** - Offer to save insights, don't just do it
+- **Don't force structure** - Let patterns emerge naturally; Phase 2 only when decisions surface
+- **Don't auto-capture mid-session** - Append Q&A log after each round; final sections at wrap-up
 - **Do visualize** - A good diagram is worth many paragraphs
 - **Do explore the codebase** - Ground discussions in reality
-- **Do question assumptions** - Including the user's and your own`,
+- **Do question assumptions** - Including the user's and your own
+- **Always use path.join()** - Never hardcode path separators; this tool runs on Windows too`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
@@ -300,6 +427,34 @@ export function getOpsxExploreCommandTemplate(): CommandTemplate {
     category: 'Workflow',
     tags: ['workflow', 'explore', 'experimental', 'thinking'],
     content: `Enter explore mode. Think deeply. Visualize freely. Follow the conversation wherever it goes.
+
+## Exploration Doc Setup
+
+**At the very start of every session**, create an exploration document before any exploration begins.
+
+### Step 1: Derive the topic
+
+The argument after \`/opsx:explore\` is the topic. Derive a kebab-case slug from it
+(e.g., "auth redesign" → \`auth-redesign\`, "postgres vs sqlite" → \`postgres-vs-sqlite\`).
+
+If no argument was provided, use the **AskUserQuestion tool** to ask:
+> "What do you want to explore? (I'll use your answer to name the exploration doc.)"
+Then derive the kebab-case topic from the reply.
+
+### Step 2: Determine the file path
+
+Always use \`path.join()\` with platform-appropriate separators:
+- Folder: \`path.join('openspec', 'explorations', '<yyyy-mm>')\`
+- File: \`exploration-<yyyy-mm-dd>-<topic>.md\`
+
+Example: \`openspec/explorations/2026-04/exploration-2026-04-07-auth-redesign.md\`
+
+### Step 3: Create the document immediately
+
+Write the file with heading, metadata, Context section, and empty Rounds/Insights/OpenQuestions sections.
+Tell the user: "Started exploration doc at \`<docPath>\`"
+
+---
 
 **IMPORTANT: Explore mode is for thinking, not implementing.** You may read files, search code, and investigate the codebase, but you must NEVER write code or implement features. If the user asks you to implement something, remind them to exit explore mode first and create a change proposal. You MAY create OpenSpec artifacts (proposals, designs, specs) if the user asks—that's capturing thinking, not implementing.
 
@@ -442,16 +597,37 @@ If the user mentions a change or you detect one is relevant:
 
 ---
 
-## Ending Discovery
+## Phase 1 → Phase 2 Transition
 
-There's no required ending. Discovery might:
+Start every session in **Phase 1: free-form exploration**. Stay open-ended until concrete
+design decisions surface. When they do, signal the transition explicitly:
 
-- **Flow into a proposal**: "Ready to start? I can create a change proposal."
-- **Result in artifact updates**: "Updated design.md with these decisions"
-- **Just provide clarity**: User has what they need, moves on
-- **Continue later**: "We can pick this up anytime"
+> "I'm seeing some concrete decisions here — let me capture them with a few focused questions."
 
-When things crystallize, you might offer a summary - but it's optional. Sometimes the thinking IS the value.
+If the exploration is purely investigative, stay in Phase 1 — never force Q&A rounds.
+
+---
+
+## Phase 2: Q&A Rounds
+
+Each round covers **one theme**, 2–5 questions with options (one marked recommended). After
+presenting a round, **stop and wait for the user's reply**. Then:
+
+1. Append that round's Q&A log to the exploration doc (append only — don't rewrite)
+2. Identify the next theme if ambiguity remains
+3. Start the next round
+
+Continue rounds until all significant design ambiguity is resolved. **No round limit.**
+
+---
+
+## End-of-Session Wrap-Up
+
+When done, complete the exploration doc:
+- Write **Insights & Decisions** — all concrete decisions made
+- Write **Open Questions** — unresolved items for proposal/design
+
+Then offer: "Exploration doc saved. Ready to propose? Run \`/enpalspec:propose\`"
 
 ---
 
@@ -460,10 +636,11 @@ When things crystallize, you might offer a summary - but it's optional. Sometime
 - **Don't implement** - Never write code or implement features. Creating OpenSpec artifacts is fine, writing application code is not.
 - **Don't fake understanding** - If something is unclear, dig deeper
 - **Don't rush** - Discovery is thinking time, not task time
-- **Don't force structure** - Let patterns emerge naturally
-- **Don't auto-capture** - Offer to save insights, don't just do it
+- **Don't force structure** - Let patterns emerge naturally; Phase 2 only when decisions surface
+- **Append, don't rewrite** - Q&A log is appended after each round; final sections at wrap-up
 - **Do visualize** - A good diagram is worth many paragraphs
 - **Do explore the codebase** - Ground discussions in reality
-- **Do question assumptions** - Including the user's and your own`
+- **Do question assumptions** - Including the user's and your own
+- **Always use path.join()** - Never hardcode path separators; this tool runs on Windows too`
   };
 }

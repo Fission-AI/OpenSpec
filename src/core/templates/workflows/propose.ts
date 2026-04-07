@@ -34,13 +34,48 @@ When ready to implement, run /opsx:apply
 
    **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
 
-2. **Create the change directory**
+2. **Trivial change detection**
+
+   Before scanning for explorations, judge whether the change is trivial. A change is trivial if:
+   - The description indicates a small, localised fix: typo, rename, config value, single-line change
+   - No new capabilities or spec changes are required
+   - No architectural decisions are involved
+
+   If trivial: briefly state your reasoning ("This looks like a minor change — skipping exploration check")
+   and skip directly to step 4.
+
+   If non-trivial: proceed to step 3.
+
+3. **Exploration doc scan and gate**
+
+   Scan \`openspec/explorations/\` (all \`<yyyy-mm>/\` subdirectories) for a matching exploration doc.
+   Match by comparing the change name/description against:
+   - Exploration filenames (the \`<topic>\` segment)
+   - The \`# Exploration: <topic>\` header line inside each doc
+
+   **Match found:**
+   - If one match: state explicitly which doc you're using:
+     "Using \`explorations/<yyyy-mm>/exploration-<date>-<topic>.md\` as context for this proposal"
+   - If multiple matches: list them, select the most recent, state selection
+   - Read the matched exploration doc
+   - Use Insights & Decisions to inform all artifacts (do not relitigate decided questions)
+   - Carry any Open Questions from the exploration into \`design.md\` Open Questions section
+
+   **No match found (non-trivial change):**
+   Use the **AskUserQuestion tool** to ask:
+   > "No exploration found for this change. It's recommended to run \`/enpalspec:explore\` first.
+   > Continue anyway, or explore now?"
+
+   - If user says "explore now": output "Run \`/enpalspec:explore <topic>\`" and exit (do NOT create artifacts)
+   - If user says "continue anyway": proceed without exploration context
+
+4. **Create the change directory**
    \`\`\`bash
    openspec new change "<name>"
    \`\`\`
    This creates a scaffolded change at \`openspec/changes/<name>/\` with \`.openspec.yaml\`.
 
-3. **Get the artifact build order**
+5. **Get the artifact build order**
    \`\`\`bash
    openspec status --change "<name>" --json
    \`\`\`
@@ -48,7 +83,7 @@ When ready to implement, run /opsx:apply
    - \`applyRequires\`: array of artifact IDs needed before implementation (e.g., \`["tasks"]\`)
    - \`artifacts\`: list of all artifacts with their status and dependencies
 
-4. **Create artifacts in sequence until apply-ready**
+6. **Create artifacts in sequence until apply-ready**
 
    Use the **TodoWrite tool** to track progress through the artifacts.
 
@@ -80,7 +115,7 @@ When ready to implement, run /opsx:apply
       - Use **AskUserQuestion tool** to clarify
       - Then continue with creation
 
-5. **Show final status**
+7. **Show final status**
    \`\`\`bash
    openspec status --change "<name>"
    \`\`\`
@@ -90,6 +125,7 @@ When ready to implement, run /opsx:apply
 After completing all artifacts, summarize:
 - Change name and location
 - List of artifacts created with brief descriptions
+- Exploration context used (if any)
 - What's ready: "All artifacts created! Ready for implementation."
 - Prompt: "Run \`/opsx:apply\` or ask me to implement to start working on the tasks."
 
@@ -145,13 +181,32 @@ When ready to implement, run /opsx:apply
 
    **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
 
-2. **Create the change directory**
+2. **Trivial change detection**
+
+   Judge whether the change is trivial: typo fix, rename, config value, single-line change,
+   no new capabilities or architectural decisions. If trivial, briefly state:
+   "This looks like a minor change — skipping exploration check" and skip to step 4.
+
+3. **Exploration doc scan and gate**
+
+   Scan \`openspec/explorations/\` (all \`<yyyy-mm>/\` subdirectories) for a matching exploration doc.
+   Match by comparing the change name/description against filenames and \`# Exploration: <topic>\` headers.
+
+   - **One match**: state which doc you're using, read it, seed artifacts from Insights & Decisions,
+     carry Open Questions into \`design.md\` Open Questions section
+   - **Multiple matches**: list them, select most recent, state selection
+   - **No match (non-trivial change)**: ask (AskUserQuestion):
+     > "No exploration found. Recommended to run \`/enpalspec:explore\` first. Continue anyway, or explore now?"
+     - "explore now" → output "Run \`/enpalspec:explore <topic>\`" and exit without creating artifacts
+     - "continue anyway" → proceed
+
+4. **Create the change directory**
    \`\`\`bash
    openspec new change "<name>"
    \`\`\`
    This creates a scaffolded change at \`openspec/changes/<name>/\` with \`.openspec.yaml\`.
 
-3. **Get the artifact build order**
+5. **Get the artifact build order**
    \`\`\`bash
    openspec status --change "<name>" --json
    \`\`\`
@@ -159,7 +214,7 @@ When ready to implement, run /opsx:apply
    - \`applyRequires\`: array of artifact IDs needed before implementation (e.g., \`["tasks"]\`)
    - \`artifacts\`: list of all artifacts with their status and dependencies
 
-4. **Create artifacts in sequence until apply-ready**
+6. **Create artifacts in sequence until apply-ready**
 
    Use the **TodoWrite tool** to track progress through the artifacts.
 
@@ -191,7 +246,7 @@ When ready to implement, run /opsx:apply
       - Use **AskUserQuestion tool** to clarify
       - Then continue with creation
 
-5. **Show final status**
+7. **Show final status**
    \`\`\`bash
    openspec status --change "<name>"
    \`\`\`
@@ -200,6 +255,7 @@ When ready to implement, run /opsx:apply
 
 After completing all artifacts, summarize:
 - Change name and location
+- Exploration context used (if any)
 - List of artifacts created with brief descriptions
 - What's ready: "All artifacts created! Ready for implementation."
 - Prompt: "Run \`/opsx:apply\` to start implementing."
