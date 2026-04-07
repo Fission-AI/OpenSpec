@@ -21,9 +21,15 @@ When ready to implement, run /enpalspec:apply
 
 ---
 
-**Input**: The user's request should include a change name (kebab-case) OR a description of what they want to build.
+**Input**: The user's request should include a change name (kebab-case) OR a description of what they want to build. Optionally, include \`--exploration <path>\` to specify an exploration doc explicitly and skip the directory scan (e.g., \`my-change --exploration openspec/explorations/explore-topic.md\`).
 
 **Steps**
+
+0. **Parse --exploration flag**
+
+   Before doing anything else, check whether the argument string contains \`--exploration <path>\`.
+   - If found: extract the path value (everything after \`--exploration\` up to the next flag or end of string; strip surrounding quotes if present). Store it as the explicit exploration path. The change name/description is everything before \`--exploration\`.
+   - If not found: no explicit exploration path; proceed normally.
 
 1. **If no clear input provided, ask what they want to build**
 
@@ -48,6 +54,13 @@ When ready to implement, run /enpalspec:apply
 
 3. **Exploration doc scan and gate**
 
+   **If \`--exploration <path>\` was provided (step 0):**
+   - Attempt to read the file at that path
+   - If the file cannot be read: report "Could not read exploration doc at \`<path>\`. Check the path and retry." and exit without creating any artifacts
+   - If found: state "Using \`<path>\` as exploration context (provided explicitly)" and proceed — skip the directory scan entirely
+   - Use Insights & Decisions to inform all artifacts; carry Open Questions into \`design.md\`
+
+   **If no \`--exploration\` flag was provided:**
    Scan \`openspec/explorations/\` (all \`<yyyy-mm>/\` subdirectories) for a matching exploration doc.
    Match by comparing the change name/description against:
    - Exploration filenames (the \`<topic>\` segment)
@@ -168,9 +181,15 @@ When ready to implement, run /enpalspec:apply
 
 ---
 
-**Input**: The argument after \`/enpalspec:propose\` is the change name (kebab-case), OR a description of what the user wants to build.
+**Input**: The argument after \`/enpalspec:propose\` is the change name (kebab-case), OR a description of what the user wants to build. Optionally, include \`--exploration <path>\` to specify an exploration doc explicitly and skip the directory scan (e.g., \`/enpalspec:propose my-change --exploration openspec/explorations/explore-topic.md\`).
 
 **Steps**
+
+0. **Parse --exploration flag**
+
+   Before doing anything else, check whether the argument string contains \`--exploration <path>\`.
+   - If found: extract the path value (everything after \`--exploration\` up to the next flag or end of string; strip surrounding quotes if present). Store it as the explicit exploration path. The change name/description is everything before \`--exploration\`.
+   - If not found: no explicit exploration path; proceed normally.
 
 1. **If no input provided, ask what they want to build**
 
@@ -189,6 +208,13 @@ When ready to implement, run /enpalspec:apply
 
 3. **Exploration doc scan and gate**
 
+   **If \`--exploration <path>\` was provided (step 0):**
+   - Attempt to read the file at that path
+   - If the file cannot be read: report "Could not read exploration doc at \`<path>\`. Check the path and retry." and exit without creating any artifacts
+   - If found: state "Using \`<path>\` as exploration context (provided explicitly)" and proceed — skip the directory scan entirely
+   - Use Insights & Decisions to inform all artifacts; carry Open Questions into \`design.md\`
+
+   **If no \`--exploration\` flag was provided:**
    Scan \`openspec/explorations/\` (all \`<yyyy-mm>/\` subdirectories) for a matching exploration doc.
    Match by comparing the change name/description against filenames and \`# Exploration: <topic>\` headers.
 
