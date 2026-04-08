@@ -20,7 +20,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
 1. **Get active changes**
 
-   Run \`openspec list --json\` to get all active changes.
+   Run \`enpalspec list --json\` to get all active changes.
 
    If no active changes exist, inform user and stop.
 
@@ -37,7 +37,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    For each selected change, collect:
 
-   a. **Artifact status** - Run \`openspec status --change "<name>" --json\`
+   a. **Artifact status** - Run \`enpalspec status --change "<name>" --json\`
       - Parse \`schemaName\` and \`artifacts\` list
       - Note which artifacts are \`done\` vs other states
 
@@ -246,14 +246,14 @@ No active changes found. Create a new change to get started.
 - Archive directory target uses current date: YYYY-MM-DD-<name>
 - If archive target exists, fail that change but continue with others`,
     license: 'MIT',
-    compatibility: 'Requires openspec CLI.',
-    metadata: { author: 'openspec', version: '1.0' },
+    compatibility: 'Requires enpalspec CLI.',
+    metadata: { author: 'enpalspec', version: '1.0' },
   };
 }
 
 export function getOpsxBulkArchiveCommandTemplate(): CommandTemplate {
   return {
-    name: 'OPSX: Bulk Archive',
+    name: 'EnpalSpec: Bulk Archive',
     description: 'Archive multiple completed changes at once',
     category: 'Workflow',
     tags: ['workflow', 'archive', 'experimental', 'bulk'],
@@ -267,7 +267,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
 1. **Get active changes**
 
-   Run \`openspec list --json\` to get all active changes.
+   Run \`enpalspec list --json\` to get all active changes.
 
    If no active changes exist, inform user and stop.
 
@@ -284,7 +284,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    For each selected change, collect:
 
-   a. **Artifact status** - Run \`openspec status --change "<name>" --json\`
+   a. **Artifact status** - Run \`enpalspec status --change "<name>" --json\`
       - Parse \`schemaName\` and \`artifacts\` list
       - Note which artifacts are \`done\` vs other states
 
