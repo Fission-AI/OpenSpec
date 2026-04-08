@@ -1,4 +1,9 @@
-## ADDED Requirements
+# explore-skill-workflow Specification
+
+## Purpose
+Define the two-phase explore skill workflow: open-ended exploration followed by structured Q&A rounds, with exploration doc creation and a propose handoff.
+
+## Requirements
 
 ### Requirement: Explore skill creates exploration doc at session start
 The explore skill SHALL create the exploration document at the correct path at the start of every session, before any Q&A or free-form exploration begins. The topic SHALL be derived from the user's input argument.

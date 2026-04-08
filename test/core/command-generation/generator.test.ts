@@ -28,9 +28,9 @@ describe('command-generation/generator', () => {
       const result = generateCommand(sampleContent, cursorAdapter);
 
       expect(result.path).toContain('.cursor');
-      expect(result.path).toContain('opsx-explore.md');
-      expect(result.fileContent).toContain('name: /opsx-explore');
-      expect(result.fileContent).toContain('id: opsx-explore');
+      expect(result.path).toContain('enpalspec-explore.md');
+      expect(result.fileContent).toContain('name: /enpalspec-explore');
+      expect(result.fileContent).toContain('id: enpalspec-explore');
       expect(result.fileContent).toContain('Command body here.');
     });
 

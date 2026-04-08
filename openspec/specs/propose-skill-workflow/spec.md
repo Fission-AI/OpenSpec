@@ -1,4 +1,9 @@
-## ADDED Requirements
+# propose-skill-workflow Specification
+
+## Purpose
+Define the propose skill workflow including exploration doc scanning, trivial change detection, and EnpalSpec branding requirements for generated templates.
+
+## Requirements
 
 ### Requirement: Propose skill scans for matching exploration doc
 The propose skill SHALL scan `openspec/explorations/` (all `<yyyy-mm>/` subdirectories) for an exploration document whose topic matches the proposed change, before creating any artifacts, **unless an explicit exploration path is provided via `--exploration`**. The match SHALL be determined by the agent comparing the change description against exploration filenames and the `# Exploration: <topic>` header in each doc. When `--exploration <path>` is provided, the skill SHALL skip the directory scan and read the specified file directly.
