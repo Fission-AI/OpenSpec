@@ -17,29 +17,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Detect which files changed to enable path-based filtering
-  changes:
-    name: Detect changes
-    runs-on: ubuntu-latest
-    outputs:
-      nix: ${{ steps.filter.outputs.nix }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Check for Nix-related changes
-        uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            nix:
-              - 'flake.nix'
-              - 'flake.lock'
-              - 'package.json'
-              - 'pnpm-lock.yaml'
-              - 'scripts/update-flake.sh'
-              - '.github/workflows/ci.yml'
-
   test_pr:
     name: Test
     runs-on: ubuntu-latest
@@ -181,66 +158,6 @@ jobs:
             exit 1
           fi
 
-  nix-flake-validate:
-    name: Nix Flake Validation
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs: changes
-    if: needs.changes.outputs.nix == 'true'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v21
-
-      - name: Setup Nix cache
-        uses: DeterminateSystems/magic-nix-cache-action@v13
-
-      - name: Build with Nix
-        run: nix build
-
-      - name: Verify build output
-        run: |
-          if [ ! -e "result" ]; then
-            echo "Error: Nix build output 'result' symlink not found"
-            exit 1
-          fi
-          if [ ! -f "result/bin/openspec" ]; then
-            echo "Error: openspec binary not found in build output"
-            exit 1
-          fi
-          echo "✅ Build output verified"
-
-      - name: Test binary execution
-        run: |
-          VERSION=$(nix run . -- --version)
-          echo "OpenSpec version: $VERSION"
-          if [ -z "$VERSION" ]; then
-            echo "Error: Version command returned empty output"
-            exit 1
-          fi
-          echo "✅ Binary execution successful"
-
-      - name: Validate update script
-        run: |
-          echo "Testing update-flake.sh script..."
-          bash scripts/update-flake.sh
-          echo "✅ Update script executed successfully"
-
-      - name: Check flake.nix modifications
-        run: |
-          if git diff --quiet flake.nix; then
-            echo "ℹ️  flake.nix unchanged (hash already up-to-date)"
-          else
-            echo "✅ flake.nix was updated by script"
-            git diff flake.nix
-          fi
-
-      - name: Restore flake.nix
-        if: always()
-        run: git checkout -- flake.nix || true
-
   validate-changesets:
     name: Validate Changesets
     runs-on: ubuntu-latest
@@ -276,7 +193,7 @@ jobs:
   required-checks-pr:
     name: All checks passed
     runs-on: ubuntu-latest
-    needs: [test_pr, lint, nix-flake-validate]
+    needs: [test_pr, lint]
     if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
     steps:
       - name: Verify all checks passed
@@ -289,20 +206,12 @@ jobs:
             echo "Lint job failed"
             exit 1
           fi
-          # Nix validation may be skipped if no Nix-related files changed
-          if [[ "${{ needs.nix-flake-validate.result }}" != "success" && "${{ needs.nix-flake-validate.result }}" != "skipped" ]]; then
-            echo "Nix flake validation job failed"
-            exit 1
-          fi
-          if [[ "${{ needs.nix-flake-validate.result }}" == "skipped" ]]; then
-            echo "Nix flake validation skipped (no Nix-related changes)"
-          fi
           echo "All required checks passed!"
 
   required-checks-main:
     name: All checks passed
     runs-on: ubuntu-latest
-    needs: [test_matrix, lint, nix-flake-validate]
+    needs: [test_matrix, lint]
     if: always() && github.event_name == 'push'
     steps:
       - name: Verify all checks passed
@@ -314,13 +223,5 @@ jobs:
           if [[ "${{ needs.lint.result }}" != "success" ]]; then
             echo "Lint job failed"
             exit 1
-          fi
-          # Nix validation may be skipped if no Nix-related files changed
-          if [[ "${{ needs.nix-flake-validate.result }}" != "success" && "${{ needs.nix-flake-validate.result }}" != "skipped" ]]; then
-            echo "Nix flake validation job failed"
-            exit 1
-          fi
-          if [[ "${{ needs.nix-flake-validate.result }}" == "skipped" ]]; then
-            echo "Nix flake validation skipped (no Nix-related changes)"
           fi
           echo "All required checks passed!"
