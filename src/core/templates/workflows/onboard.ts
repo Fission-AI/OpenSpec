@@ -9,32 +9,32 @@ import type { SkillTemplate, CommandTemplate } from '../types.js';
 export function getOnboardSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-onboard',
-    description: 'Guided onboarding for OpenSpec - walk through a complete workflow cycle with narration and real codebase work.',
+    description: 'Guided onboarding for EnpalSpec - walk through a complete workflow cycle with narration and real codebase work.',
     instructions: getOnboardInstructions(),
     license: 'MIT',
-    compatibility: 'Requires openspec CLI.',
-    metadata: { author: 'openspec', version: '1.0' },
+    compatibility: 'Requires enpalspec CLI.',
+    metadata: { author: 'enpalspec', version: '1.0' },
   };
 }
 
 function getOnboardInstructions(): string {
-  return `Guide the user through their first complete OpenSpec workflow cycle. This is a teaching experience—you'll do real work in their codebase while explaining each step.
+  return `Guide the user through their first complete EnpalSpec workflow cycle. This is a teaching experience—you'll do real work in their codebase while explaining each step.
 
 ---
 
 ## Preflight
 
-Before starting, check if the OpenSpec CLI is installed:
+Before starting, check if the EnpalSpec CLI is installed:
 
 \`\`\`bash
 # Unix/macOS
-openspec --version 2>&1 || echo "CLI_NOT_INSTALLED"
+enpalspec --version 2>&1 || echo "CLI_NOT_INSTALLED"
 # Windows (PowerShell)
-# if (Get-Command openspec -ErrorAction SilentlyContinue) { openspec --version } else { echo "CLI_NOT_INSTALLED" }
+# if (Get-Command enpalspec -ErrorAction SilentlyContinue) { enpalspec --version } else { echo "CLI_NOT_INSTALLED" }
 \`\`\`
 
 **If CLI not installed:**
-> OpenSpec CLI is not installed. Install it first, then come back to \`/enpalspec:onboard\`.
+> EnpalSpec CLI is not installed. Install it first, then come back to \`/enpalspec:onboard\`.
 
 Stop here if not installed.
 
@@ -45,7 +45,7 @@ Stop here if not installed.
 Display:
 
 \`\`\`
-## Welcome to OpenSpec!
+## Welcome to EnpalSpec!
 
 I'll walk you through a complete change cycle—from idea to implementation—using a real task in your codebase. Along the way, you'll learn the workflow by doing it.
 
@@ -123,7 +123,7 @@ Which task interests you? (Pick a number or describe your own)
 If the user picks or describes something too large (major feature, multi-day work):
 
 \`\`\`
-That's a valuable task, but it's probably larger than ideal for your first OpenSpec run-through.
+That's a valuable task, but it's probably larger than ideal for your first EnpalSpec run-through.
 
 For learning the workflow, smaller is better—it lets you see the full cycle without getting stuck in implementation details.
 
@@ -176,14 +176,14 @@ Now let's create a change to hold our work.
 \`\`\`
 ## Creating a Change
 
-A "change" in OpenSpec is a container for all the thinking and planning around a piece of work. It lives in \`openspec/changes/<name>/\` and holds your artifacts—proposal, specs, design, tasks.
+A "change" in EnpalSpec is a container for all the thinking and planning around a piece of work. It lives in \`openspec/changes/<name>/\` and holds your artifacts—proposal, specs, design, tasks.
 
 Let me create one for our task.
 \`\`\`
 
 **DO:** Create the change with a derived kebab-case name:
 \`\`\`bash
-openspec new change "<derived-name>"
+enpalspec new change "<derived-name>"
 \`\`\`
 
 **SHOW:**
@@ -252,7 +252,7 @@ Does this capture the intent? I can adjust before we save it.
 
 After approval, save the proposal:
 \`\`\`bash
-openspec instructions proposal --change "<name>" --json
+enpalspec instructions proposal --change "<name>" --json
 \`\`\`
 Then write the content to \`openspec/changes/<name>/proposal.md\`.
 
@@ -441,7 +441,7 @@ Archived changes become your project's decision history—you can always find th
 
 **DO:**
 \`\`\`bash
-openspec archive "<name>"
+enpalspec archive "<name>"
 \`\`\`
 
 **SHOW:**
@@ -458,7 +458,7 @@ The change is now part of your project's history. The code is in your codebase, 
 \`\`\`
 ## Congratulations!
 
-You just completed a full OpenSpec cycle:
+You just completed a full EnpalSpec cycle:
 
 1. **Explore** - Thought through the problem
 2. **New** - Created a change container
@@ -525,7 +525,7 @@ Exit gracefully without pressure.
 If the user says they just want to see the commands or skip the tutorial:
 
 \`\`\`
-## OpenSpec Quick Reference
+## EnpalSpec Quick Reference
 
 **Core workflow:**
 
@@ -565,8 +565,8 @@ Exit gracefully.
 
 export function getOpsxOnboardCommandTemplate(): CommandTemplate {
   return {
-    name: 'OPSX: Onboard',
-    description: 'Guided onboarding - walk through a complete OpenSpec workflow cycle with narration',
+    name: 'EnpalSpec: Onboard',
+    description: 'Guided onboarding - walk through a complete EnpalSpec workflow cycle with narration',
     category: 'Workflow',
     tags: ['workflow', 'onboarding', 'tutorial', 'learning'],
     content: getOnboardInstructions(),

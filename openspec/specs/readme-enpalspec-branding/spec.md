@@ -1,4 +1,9 @@
-## ADDED Requirements
+# readme-enpalspec-branding Specification
+
+## Purpose
+Define the EnpalSpec branding requirements for the README, welcome screen, and init success messages.
+
+## Requirements
 
 ### Requirement: README references enpalspec workflow commands
 The README SHALL reference `/enpalspec:propose`, `/enpalspec:apply`, and `/enpalspec:archive` as the default workflow commands, not the upstream `/opsx:*` equivalents.

@@ -1,4 +1,9 @@
-## ADDED Requirements
+# propose-exploration-param Specification
+
+## Purpose
+Define the `--exploration <path>` parameter for the propose skill, allowing users to bypass the exploration directory scan and provide an explicit exploration document.
+
+## Requirements
 
 ### Requirement: Propose skill accepts explicit exploration doc path
 The propose skill SHALL accept an `--exploration <path>` parameter in the command argument string. When present, the skill SHALL read the file at that path directly and use it as exploration context, skipping the `openspec/explorations/` directory scan entirely.

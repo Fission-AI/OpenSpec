@@ -1,4 +1,9 @@
-## ADDED Requirements
+# enpal-spec-driven-schema Specification
+
+## Purpose
+Define the project-local `enpal-spec-driven` schema that forks the upstream `spec-driven` schema with Enpal-specific exploration conventions.
+
+## Requirements
 
 ### Requirement: enpal-spec-driven schema exists in project
 The system SHALL provide a project-local schema named `enpal-spec-driven` at `schemas/enpal-spec-driven/` containing a `schema.yaml` and `templates/` directory forked from `spec-driven`.

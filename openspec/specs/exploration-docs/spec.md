@@ -1,4 +1,9 @@
-## ADDED Requirements
+# exploration-docs Specification
+
+## Purpose
+Define the structure and storage convention for exploration documents created during `/enpalspec:explore` sessions.
+
+## Requirements
 
 ### Requirement: Exploration doc path convention
 The system SHALL store exploration documents at `openspec/explorations/<yyyy-mm>/exploration-<yyyy-mm-dd>-<topic>.md` relative to the project root, where `<topic>` is a kebab-case summary of the exploration subject derived from the user's input.

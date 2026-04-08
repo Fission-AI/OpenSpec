@@ -69,7 +69,7 @@ describe('deriveProfileFromWorkflowSelection', () => {
 
   it('returns core when selection has exactly core workflows in different order', async () => {
     const { deriveProfileFromWorkflowSelection } = await import('../../src/commands/config.js');
-    expect(deriveProfileFromWorkflowSelection(['archive', 'apply', 'explore', 'propose'])).toBe('core');
+    expect(deriveProfileFromWorkflowSelection(['archive', 'apply', 'explore', 'propose', 'verify'])).toBe('core');
   });
 });
 
@@ -95,6 +95,7 @@ describe('config profile interactive flow', () => {
       'openspec-propose',
       'openspec-explore',
       'openspec-apply-change',
+      'openspec-verify-change',
       'openspec-archive-change',
     ];
     for (const dirName of coreSkillDirs) {
@@ -103,9 +104,9 @@ describe('config profile interactive flow', () => {
       fs.writeFileSync(skillPath, `name: ${dirName}\n`, 'utf-8');
     }
 
-    const coreCommands = ['propose', 'explore', 'apply', 'archive'];
+    const coreCommands = ['propose', 'explore', 'apply', 'verify', 'archive'];
     for (const commandId of coreCommands) {
-      const commandPath = path.join(projectDir, '.claude', 'commands', 'opsx', `${commandId}.md`);
+      const commandPath = path.join(projectDir, '.claude', 'commands', 'enpalspec', `${commandId}.md`);
       fs.mkdirSync(path.dirname(commandPath), { recursive: true });
       fs.writeFileSync(commandPath, `# ${commandId}\n`, 'utf-8');
     }
@@ -116,7 +117,7 @@ describe('config profile interactive flow', () => {
     fs.mkdirSync(path.dirname(syncSkillPath), { recursive: true });
     fs.writeFileSync(syncSkillPath, 'name: openspec-sync-specs\n', 'utf-8');
 
-    const syncCommandPath = path.join(projectDir, '.claude', 'commands', 'opsx', 'sync.md');
+    const syncCommandPath = path.join(projectDir, '.claude', 'commands', 'enpalspec', 'sync.md');
     fs.mkdirSync(path.dirname(syncCommandPath), { recursive: true });
     fs.writeFileSync(syncCommandPath, '# sync\n', 'utf-8');
   }
@@ -376,7 +377,7 @@ describe('config profile interactive flow', () => {
     const config = getGlobalConfig();
     expect(config.profile).toBe('core');
     expect(config.delivery).toBe('skills');
-    expect(config.workflows).toEqual(['propose', 'explore', 'apply', 'archive']);
+    expect(config.workflows).toEqual(['propose', 'explore', 'apply', 'verify', 'archive']);
     expect(select).not.toHaveBeenCalled();
     expect(checkbox).not.toHaveBeenCalled();
     expect(confirm).not.toHaveBeenCalled();
