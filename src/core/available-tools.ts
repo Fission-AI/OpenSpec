@@ -13,12 +13,26 @@ import { AI_TOOLS, type AIToolOption } from './config.js';
  * Scans the project path for AI tool configuration directories and returns
  * the tools that are present.
  *
- * Checks for each tool's `skillsDir` (e.g., `.claude/`, `.cursor/`) at the
- * project root. Only tools with a `skillsDir` property are considered.
+ * For tools with `detectionPaths`, checks those specific paths (files or
+ * directories). Otherwise checks for the tool's `skillsDir` directory at
+ * the project root. Only tools with a `skillsDir` property are considered.
  */
 export function getAvailableTools(projectPath: string): AIToolOption[] {
   return AI_TOOLS.filter((tool) => {
     if (!tool.skillsDir) return false;
+
+    if (tool.detectionPaths && tool.detectionPaths.length > 0) {
+      // statSync without .isDirectory() — detection paths can be files or directories
+      return tool.detectionPaths.some((p) => {
+        try {
+          fs.statSync(path.join(projectPath, p));
+          return true;
+        } catch {
+          return false;
+        }
+      });
+    }
+
     const dirPath = path.join(projectPath, tool.skillsDir);
     try {
       return fs.statSync(dirPath).isDirectory();

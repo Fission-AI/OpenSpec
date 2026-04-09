@@ -565,6 +565,7 @@ describe('InitCommand - profile and detection features', () => {
 
     // Directory detected only (not configured with OpenSpec)
     await fs.mkdir(path.join(testDir, '.github'), { recursive: true });
+    await fs.writeFile(path.join(testDir, '.github', 'copilot-instructions.md'), '');
 
     searchableMultiSelectMock.mockResolvedValue(['claude']);
 
@@ -587,6 +588,7 @@ describe('InitCommand - profile and detection features', () => {
   it('should preselect detected tools for first-time interactive setup', async () => {
     // First-time init: no openspec/ directory and no configured OpenSpec skills.
     await fs.mkdir(path.join(testDir, '.github'), { recursive: true });
+    await fs.writeFile(path.join(testDir, '.github', 'copilot-instructions.md'), '');
 
     searchableMultiSelectMock.mockResolvedValue(['github-copilot']);
 

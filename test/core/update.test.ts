@@ -1644,6 +1644,7 @@ content
 
       // Create two unconfigured tool directories
       await fs.mkdir(path.join(testDir, '.github'), { recursive: true });
+      await fs.writeFile(path.join(testDir, '.github', 'copilot-instructions.md'), '');
       await fs.mkdir(path.join(testDir, '.windsurf'), { recursive: true });
 
       const consoleSpy = vi.spyOn(console, 'log');
