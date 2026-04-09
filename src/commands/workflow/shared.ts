@@ -10,6 +10,7 @@ import path from 'path';
 import * as fs from 'fs';
 import { getSchemaDir, listSchemas } from '../../core/artifact-graph/index.js';
 import { validateChangeName } from '../../utils/change-utils.js';
+import { readProjectConfig, RESERVED_PHASE_IDS } from '../../core/project-config.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -35,6 +36,56 @@ export interface ApplyInstructions {
   state: 'blocked' | 'all_done' | 'ready';
   missingArtifacts?: string[];
   instruction: string;
+  context?: string;
+  rules?: string[];
+}
+
+export interface VerifyInstructions {
+  changeName: string;
+  changeDir: string;
+  schemaName: string;
+  contextFiles: Record<string, string>;
+  progress: {
+    total: number;
+    complete: number;
+    remaining: number;
+  };
+  tasks: TaskItem[];
+  context?: string;
+  rules?: string[];
+}
+
+// Re-export RESERVED_PHASE_IDS for convenience
+export { RESERVED_PHASE_IDS } from '../../core/project-config.js';
+
+/**
+ * Reads project config and extracts context + phase-specific rules.
+ * Centralizes the config-reading logic used by both apply and verify phases.
+ *
+ * @param projectRoot - The root directory of the project
+ * @param phase - The phase to read rules for ('apply' | 'verify')
+ * @returns Object with optional context and rules, or empty object on failure
+ */
+export function readPhaseConfig(
+  projectRoot: string,
+  phase: 'apply' | 'verify'
+): { context?: string; rules?: string[] } {
+  try {
+    const projectConfig = readProjectConfig(projectRoot);
+    const result: { context?: string; rules?: string[] } = {};
+
+    if (projectConfig?.context?.trim()) {
+      result.context = projectConfig.context.trim();
+    }
+    if (projectConfig?.rules?.[phase] && projectConfig.rules[phase].length > 0) {
+      result.rules = projectConfig.rules[phase];
+    }
+
+    return result;
+  } catch {
+    // If config read fails, continue without config
+    return {};
+  }
 }
 
 // -----------------------------------------------------------------------------

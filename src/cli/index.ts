@@ -20,12 +20,14 @@ import {
   statusCommand,
   instructionsCommand,
   applyInstructionsCommand,
+  verifyInstructionsCommand,
   templatesCommand,
   schemasCommand,
   newChangeCommand,
   DEFAULT_SCHEMA,
   type StatusOptions,
   type InstructionsOptions,
+  type VerifyInstructionsOptions,
   type TemplatesOptions,
   type SchemasOptions,
   type NewChangeOptions,
@@ -445,9 +447,11 @@ program
   .option('--json', 'Output as JSON')
   .action(async (artifactId: string | undefined, options: InstructionsOptions) => {
     try {
-      // Special case: "apply" is not an artifact, but a command to get apply instructions
+      // Special case: "apply" and "verify" are not artifacts, but phase commands
       if (artifactId === 'apply') {
         await applyInstructionsCommand(options);
+      } else if (artifactId === 'verify') {
+        await verifyInstructionsCommand(options as VerifyInstructionsOptions);
       } else {
         await instructionsCommand(artifactId, options);
       }

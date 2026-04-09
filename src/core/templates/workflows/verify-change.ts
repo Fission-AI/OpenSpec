@@ -34,13 +34,19 @@ export function getVerifyChangeSkillTemplate(): SkillTemplate {
    - \`schemaName\`: The workflow being used (e.g., "spec-driven")
    - Which artifacts exist for this change
 
-3. **Get the change directory and load artifacts**
+3. **Get verify instructions and load artifacts**
 
    \`\`\`bash
-   openspec instructions apply --change "<name>" --json
+   openspec instructions verify --change "<name>" --json
    \`\`\`
 
-   This returns the change directory and context files. Read all available artifacts from \`contextFiles\`.
+   This returns:
+   - Change directory and context files — read all available artifacts from \`contextFiles\`
+   - Task progress (total, complete, remaining)
+   - \`context\`: Project context from config.yaml (if present)
+   - \`rules\`: Verify-phase rules from config.yaml (if present) — **these are mandatory constraints, you MUST follow them**
+
+   **IMPORTANT**: If \`rules\` are present, they define the verification strategy (e.g., parallel subagent scans, issue classification, fix loops). You MUST follow the rules instead of the default verification steps below. The default steps (4-8) are only used when no custom rules are configured.
 
 4. **Initialize verification report structure**
 
@@ -203,13 +209,19 @@ export function getOpsxVerifyCommandTemplate(): CommandTemplate {
    - \`schemaName\`: The workflow being used (e.g., "spec-driven")
    - Which artifacts exist for this change
 
-3. **Get the change directory and load artifacts**
+3. **Get verify instructions and load artifacts**
 
    \`\`\`bash
-   openspec instructions apply --change "<name>" --json
+   openspec instructions verify --change "<name>" --json
    \`\`\`
 
-   This returns the change directory and context files. Read all available artifacts from \`contextFiles\`.
+   This returns:
+   - Change directory and context files — read all available artifacts from \`contextFiles\`
+   - Task progress (total, complete, remaining)
+   - \`context\`: Project context from config.yaml (if present)
+   - \`rules\`: Verify-phase rules from config.yaml (if present) — **these are mandatory constraints, you MUST follow them**
+
+   **IMPORTANT**: If \`rules\` are present, they define the verification strategy (e.g., parallel subagent scans, issue classification, fix loops). You MUST follow the rules instead of the default verification steps below. The default steps (4-8) are only used when no custom rules are configured.
 
 4. **Initialize verification report structure**
 
