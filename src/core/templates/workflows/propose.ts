@@ -30,7 +30,7 @@ When ready to implement, run /opsx:apply
    Use the **AskUserQuestion tool** (open-ended, no preset options) to ask:
    > "What change do you want to work on? Describe what you want to build or fix."
 
-   From their description, derive a kebab-case name (e.g., "add user authentication" → \`add-user-auth\`).
+   From their description, choose which one of the following categories applies best: feat, fix, chore, or docs. Then derive a kebab-case name and prepend the category with an underscore (e.g., "add user authentication" → \`feat_add-user-auth\`).
 
    **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
 
@@ -141,7 +141,7 @@ When ready to implement, run /opsx:apply
    Use the **AskUserQuestion tool** (open-ended, no preset options) to ask:
    > "What change do you want to work on? Describe what you want to build or fix."
 
-   From their description, derive a kebab-case name (e.g., "add user authentication" → \`add-user-auth\`).
+   From their description, choose which one of the following categories applies best: feat, fix, chore, or docs. Then derive a kebab-case name and prepend the category with an underscore (e.g., "add user authentication" → \`feat_add-user-auth\`).
 
    **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
 
