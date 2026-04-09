@@ -1,0 +1,75 @@
+name: adr-constrained-dag
+version: 1
+description: >
+  Spec-driven workflow with ADR-backed project constraints in config context
+  and DAG-style task metadata inside tasks.md.
+
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Why this change exists and which constraints apply
+    template: proposal.md
+    instruction: |
+      Create a proposal for this change.
+
+      The proposal must:
+      - State the intended outcome clearly
+      - List applicable project constraints by ID
+      - Reference the ADRs backing those constraints
+      - Call out compatibility impact on APIs, events, and persisted contracts
+      - Mention rollback or containment when behavior changes are hard to reverse
+    requires: []
+
+  - id: specs
+    generates: specs/**/*.md
+    description: Behavioral deltas for this change
+    template: spec.md
+    instruction: |
+      Create delta specs for this change.
+
+      The spec must:
+      - Use OpenSpec delta sections such as ADDED and MODIFIED Requirements
+      - Focus on behavior deltas for this change
+      - Make constrained behavior observable in scenarios
+      - Avoid duplicating full ADR text; reference constraint IDs where relevant
+    requires:
+      - proposal
+
+  - id: design
+    generates: design.md
+    description: Technical design and constraint alignment
+    template: design.md
+    instruction: |
+      Create a design document explaining how to implement this change.
+
+      The design must:
+      - List applicable constraints
+      - Reference the ADRs behind those constraints
+      - Explain how the design satisfies each applicable constraint
+      - State whether a new ADR is required
+      - Highlight impact on APIs, storage, messaging, jobs, and deployment assumptions
+    requires:
+      - proposal
+
+  - id: tasks
+    generates: tasks.md
+    description: DAG-aware implementation checklist
+    template: tasks.md
+    instruction: |
+      Create an implementation task list.
+
+      Requirements:
+      - Every task MUST be a checkbox item in markdown
+      - Every task MUST have a stable task ID like T01, T02, T03
+      - Every task MUST declare depends_on metadata
+      - Every task SHOULD reference requirements, constraints, and ADRs where applicable
+      - Keep tasks in topological order
+      - Prefer small, verifiable tasks
+      - Include tests and docs tasks when required by the change
+    requires:
+      - specs
+      - design
+
+apply:
+  requires: [tasks]
+  tracks: tasks.md
