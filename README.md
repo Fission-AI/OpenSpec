@@ -1,4 +1,4 @@
-<p align="center">
+/opsx:propose "your idea"<p align="center">
   <a href="https://github.com/Fission-AI/OpenSpec">
     <picture>
       <source srcset="assets/openspec_bg.png">
