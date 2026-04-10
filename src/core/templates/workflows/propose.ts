@@ -21,7 +21,7 @@ When ready to implement, run /opsx:apply
 
 ---
 
-**Input**: The user's request should include a change name (kebab-case) OR a description of what they want to build.
+**Input**: The user's request should include a change name (<category>_<kebab-case>, e.g., feat_add-user-auth) OR a description of what they want to build.
 
 **Steps**
 
@@ -132,7 +132,7 @@ When ready to implement, run /opsx:apply
 
 ---
 
-**Input**: The argument after \`/opsx:propose\` is the change name (kebab-case), OR a description of what the user wants to build.
+**Input**: The argument after \`/opsx:propose\` is the change name (<category>_<kebab-case>, e.g., feat_add-user-auth), OR a description of what the user wants to build.
 
 **Steps**
 

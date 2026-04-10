@@ -12,7 +12,7 @@ export function getFfChangeSkillTemplate(): SkillTemplate {
     description: 'Fast-forward through OpenSpec artifact creation. Use when the user wants to quickly create all artifacts needed for implementation without stepping through each one individually.',
     instructions: `Fast-forward through artifact creation - generate everything needed to start implementation in one go.
 
-**Input**: The user's request should include a change name (kebab-case) OR a description of what they want to build.
+**Input**: The user's request should include a change name (<category>_<kebab-case>, e.g., feat_add-user-auth) OR a description of what they want to build.
 
 **Steps**
 
@@ -114,7 +114,7 @@ export function getOpsxFfCommandTemplate(): CommandTemplate {
     tags: ['workflow', 'artifacts', 'experimental'],
     content: `Fast-forward through artifact creation - generate everything needed to start implementation.
 
-**Input**: The argument after \`/opsx:ff\` is the change name (kebab-case), OR a description of what the user wants to build.
+**Input**: The argument after \`/opsx:ff\` is the change name (<category>_<kebab-case>, e.g., feat_add-user-auth), OR a description of what the user wants to build.
 
 **Steps**
 
