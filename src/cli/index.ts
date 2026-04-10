@@ -74,8 +74,12 @@ program.hook('preAction', async (thisCommand, actionCommand) => {
     process.env.NO_COLOR = '1';
   }
 
+  // Check if action command is requesting JSON output
+  const actionOpts = actionCommand.opts();
+  const isJson = actionOpts.json === true;
+
   // Show first-run telemetry notice (if not seen)
-  await maybeShowTelemetryNotice();
+  await maybeShowTelemetryNotice({ silent: isJson });
 
   // Track command execution (use actionCommand to get the actual subcommand)
   const commandPath = getCommandPath(actionCommand);
@@ -497,6 +501,7 @@ newCmd
   .description('Create a new change directory')
   .option('--description <text>', 'Description to add to README.md')
   .option('--schema <name>', `Workflow schema to use (default: ${DEFAULT_SCHEMA})`)
+  .option('--json', 'Output as JSON (success/failure details)')
   .action(async (name: string, options: NewChangeOptions) => {
     try {
       await newChangeCommand(name, options);

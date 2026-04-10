@@ -33,7 +33,10 @@ export interface TemplateInfo {
 // -----------------------------------------------------------------------------
 
 export async function templatesCommand(options: TemplatesOptions): Promise<void> {
-  const spinner = ora('Loading templates...').start();
+  const spinner = ora('Loading templates...');
+  if (!options.json) {
+    spinner.start();
+  }
 
   try {
     const projectRoot = process.cwd();
