@@ -687,8 +687,11 @@ describe('InitCommand - profile and detection features', () => {
     await initCommand.execute(testDir);
 
     // Skills should exist
-    const skillFile = path.join(testDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md');
+    const skillFile = path.join(testDir, '.claude', 'skills', 'openspec-propose', 'SKILL.md');
     expect(await fileExists(skillFile)).toBe(true);
+    const skillContent = await fs.readFile(skillFile, 'utf-8');
+    expect(skillContent).toContain('/openspec-apply-change');
+    expect(skillContent).not.toContain('/opsx:apply');
 
     // Commands should NOT exist
     const cmdFile = path.join(testDir, '.claude', 'commands', 'opsx', 'explore.md');
