@@ -85,7 +85,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
    Display a table summarizing all changes:
 
    \`\`\`
-   | Change               | Artifacts | Tasks | Specs   | Conflicts | Status |
+   | Change              | Artifacts | Tasks | Specs   | Conflicts | Status |
    |---------------------|-----------|-------|---------|-----------|--------|
    | schema-management   | Done      | 5/5   | 2 delta | None      | Ready  |
    | project-config      | Done      | 3/3   | 1 delta | None      | Ready  |
@@ -332,7 +332,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
    Display a table summarizing all changes:
 
    \`\`\`
-   | Change               | Artifacts | Tasks | Specs   | Conflicts | Status |
+   | Change              | Artifacts | Tasks | Specs   | Conflicts | Status |
    |---------------------|-----------|-------|---------|-----------|--------|
    | schema-management   | Done      | 5/5   | 2 delta | None      | Ready  |
    | project-config      | Done      | 3/3   | 1 delta | None      | Ready  |
