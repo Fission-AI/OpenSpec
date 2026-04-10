@@ -206,8 +206,14 @@ Active changes:
 Display an interactive dashboard for exploring specs and changes.
 
 ```
-openspec view
+openspec view [options]
 ```
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--watch`, `-w` | Watch for file changes and refresh dashboard |
 
 Opens a terminal-based interface for navigating your project's specifications and changes.
 
