@@ -12,7 +12,7 @@ export function getNewChangeSkillTemplate(): SkillTemplate {
     description: 'Start a new OpenSpec change using the experimental artifact workflow. Use when the user wants to create a new feature, fix, or modification with a structured step-by-step approach.',
     instructions: `Start a new change using the experimental artifact-driven approach.
 
-**Input**: The user's request should include a change name (<category>_<kebab-case>, e.g., feat_add-user-auth) OR a description of what they want to build.
+**Input**: The user's request should include a change name (kebab-case, optionally prefixed with a category like feat_, fix_, chore_, or docs_; e.g., feat_add-user-auth or add-user-auth) OR a description of what they want to build.
 
 **Steps**
 
@@ -21,7 +21,7 @@ export function getNewChangeSkillTemplate(): SkillTemplate {
    Use the **AskUserQuestion tool** (open-ended, no preset options) to ask:
    > "What change do you want to work on? Describe what you want to build or fix."
 
-   From their description, choose which one of the following categories applies best: feat, fix, chore, or docs. Then derive a kebab-case name and prepend the category with an underscore (e.g., "add user authentication" → \`feat_add-user-auth\`).
+   From their description, derive a kebab-case name. If the change clearly fits a category (feat, fix, chore, or docs), prepend it with an underscore (e.g., "add user authentication" → \`feat_add-user-auth\`), otherwise use the plain kebab-case name (e.g., \`add-user-auth\`).
 
    **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
 
@@ -70,7 +70,7 @@ After completing the steps, summarize:
 **Guardrails**
 - Do NOT create any artifacts yet - just show the instructions
 - Do NOT advance beyond showing the first artifact template
-- If the name is invalid (not <category>_<kebab-case>), ask for a valid name
+- If the name is invalid (not kebab-case, with or without a category prefix), ask for a valid name
 - If a change with that name already exists, suggest continuing that change instead
 - Pass --schema if using a non-default workflow`,
     license: 'MIT',
@@ -87,7 +87,7 @@ export function getOpsxNewCommandTemplate(): CommandTemplate {
     tags: ['workflow', 'artifacts', 'experimental'],
     content: `Start a new change using the experimental artifact-driven approach.
 
-**Input**: The argument after \`/opsx:new\` is the change name (<category>_<kebab-case>, e.g., feat_add-user-auth), OR a description of what the user wants to build.
+**Input**: The argument after \`/opsx:new\` is the change name (kebab-case, optionally prefixed with a category like feat_, fix_, chore_, or docs_; e.g., feat_add-user-auth or add-user-auth), OR a description of what the user wants to build.
 
 **Steps**
 
@@ -96,7 +96,7 @@ export function getOpsxNewCommandTemplate(): CommandTemplate {
    Use the **AskUserQuestion tool** (open-ended, no preset options) to ask:
    > "What change do you want to work on? Describe what you want to build or fix."
 
-   From their description, choose which one of the following categories applies best: feat, fix, chore, or docs. Then derive a kebab-case name and prepend the category with an underscore (e.g., "add user authentication" → \`feat_add-user-auth\`).
+   From their description, derive a kebab-case name. If the change clearly fits a category (feat, fix, chore, or docs), prepend it with an underscore (e.g., "add user authentication" → \`feat_add-user-auth\`), otherwise use the plain kebab-case name (e.g., \`add-user-auth\`).
 
    **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
 
@@ -144,7 +144,7 @@ After completing the steps, summarize:
 **Guardrails**
 - Do NOT create any artifacts yet - just show the instructions
 - Do NOT advance beyond showing the first artifact template
-- If the name is invalid (not <category>_<kebab-case>), ask for a valid name
+- If the name is invalid (not kebab-case, with or without a category prefix), ask for a valid name
 - If a change with that name already exists, suggest using \`/opsx:continue\` instead
 - Pass --schema if using a non-default workflow`
   };
