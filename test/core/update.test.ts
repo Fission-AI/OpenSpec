@@ -1484,10 +1484,22 @@ More user content after markers.
 
       const { AI_TOOLS } = await import('../../src/core/config.js');
       const { CommandAdapterRegistry } = await import('../../src/core/command-generation/index.js');
+      const candidateTool = AI_TOOLS.find((tool) => tool.skillsDir);
+      expect(candidateTool).toBeDefined();
+      if (!candidateTool?.skillsDir) {
+        return;
+      }
+      const originalGet = CommandAdapterRegistry.get.bind(CommandAdapterRegistry);
+      vi.spyOn(CommandAdapterRegistry, 'get').mockImplementation((toolId: string) => {
+        if (toolId === candidateTool.value) {
+          return undefined;
+        }
+        return originalGet(toolId);
+      });
       const adapterlessTool = AI_TOOLS.find((tool) => tool.skillsDir && !CommandAdapterRegistry.get(tool.value));
       expect(adapterlessTool).toBeDefined();
       if (!adapterlessTool?.skillsDir) {
-        return;
+        throw new Error('Expected adapterless tool with skillsDir');
       }
 
       const skillsDir = path.join(testDir, adapterlessTool.skillsDir, 'skills');

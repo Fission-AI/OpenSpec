@@ -30,6 +30,7 @@ import { qoderAdapter } from './adapters/qoder.js';
 import { lingmaAdapter } from './adapters/lingma.js';
 import { qwenAdapter } from './adapters/qwen.js';
 import { roocodeAdapter } from './adapters/roocode.js';
+import { traeAdapter } from './adapters/trae.js';
 import { windsurfAdapter } from './adapters/windsurf.js';
 
 /**
@@ -64,6 +65,7 @@ export class CommandAdapterRegistry {
     CommandAdapterRegistry.register(lingmaAdapter);
     CommandAdapterRegistry.register(qwenAdapter);
     CommandAdapterRegistry.register(roocodeAdapter);
+    CommandAdapterRegistry.register(traeAdapter);
     CommandAdapterRegistry.register(windsurfAdapter);
   }
 
