@@ -1,5 +1,28 @@
 # @fission-ai/openspec
 
+## 1.3.0
+
+### Minor Changes
+
+- [#952](https://github.com/Fission-AI/OpenSpec/pull/952) [`cce787e`](https://github.com/Fission-AI/OpenSpec/commit/cce787ec4083da2b27781f6786f5ce0002909a7b) Thanks [@TabishB](https://github.com/TabishB)! - ### New Features
+
+  - **Junie support** — Added tool and command generation for JetBrains Junie
+  - **Lingma IDE support** — Added configuration support for Lingma IDE
+  - **ForgeCode support** — Added tool support for ForgeCode
+  - **IBM Bob support** — Added support for IBM Bob coding assistant
+
+  ### Bug Fixes
+
+  - **Shell completions opt-in** — Completion install is now opt-in, fixing PowerShell encoding corruption
+  - **Copilot auto-detection** — Prevented false GitHub Copilot detection from a bare `.github/` directory
+  - **pi.dev command generation** — Fixed command reference transforms and template argument passing
+
+### Patch Changes
+
+- [#760](https://github.com/Fission-AI/OpenSpec/pull/760) [`61eb999`](https://github.com/Fission-AI/OpenSpec/commit/61eb999f7c6c0fc98d2e7f3678756fce6a3f4378) Thanks [@fsilvaortiz](https://github.com/fsilvaortiz)! - fix: OpenCode adapter now uses `.opencode/commands/` (plural) to match OpenCode's official directory convention. Fixes #748.
+
+- [#759](https://github.com/Fission-AI/OpenSpec/pull/759) [`afdca0d`](https://github.com/Fission-AI/OpenSpec/commit/afdca0d5dab1aa109cfd8848b2512333ccad60c3) Thanks [@fsilvaortiz](https://github.com/fsilvaortiz)! - fix: `openspec status` now exits gracefully when no changes exist instead of throwing a fatal error. Fixes #714.
+
 ## 1.2.0
 
 ### Minor Changes
