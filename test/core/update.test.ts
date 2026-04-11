@@ -250,6 +250,7 @@ Old instructions content
         expect(exists).toBe(false);
       }
     });
+
   });
 
   describe('multi-tool support', () => {
