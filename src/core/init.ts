@@ -23,8 +23,6 @@ import { serializeConfig } from './config-prompts.js';
 import {
   generateCommands,
   CommandAdapterRegistry,
-  getCommandFilePaths,
-  type ToolCommandAdapter,
 } from './command-generation/index.js';
 import {
   detectLegacyArtifacts,
@@ -539,8 +537,8 @@ export class InitCommand {
             const skillFile = path.join(skillDir, 'SKILL.md');
 
             // Generate SKILL.md content with YAML frontmatter including generatedBy
-            // Use hyphen-based command references for OpenCode
-            const transformer = tool.value === 'opencode' ? transformToHyphenCommands : undefined;
+            // Use hyphen-based command references for tools where filename = command name
+            const transformer = (tool.value === 'opencode' || tool.value === 'pi') ? transformToHyphenCommands : undefined;
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
 
             // Write the skill file
@@ -558,14 +556,9 @@ export class InitCommand {
           if (adapter) {
             const generatedCommands = generateCommands(commandContents, adapter);
 
-            for (let index = 0; index < generatedCommands.length; index++) {
-              const cmd = generatedCommands[index];
+            for (const cmd of generatedCommands) {
               const commandFile = path.isAbsolute(cmd.path) ? cmd.path : path.join(projectPath, cmd.path);
               await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
-              const commandId = commandContents[index]?.id;
-              if (commandId) {
-                await this.removeLegacyCommandAliases(projectPath, adapter, commandId);
-              }
             }
           } else {
             commandsSkipped.push(tool.value);
@@ -768,40 +761,19 @@ export class InitCommand {
     if (!adapter) return 0;
 
     for (const workflow of ALL_WORKFLOWS) {
-      for (const cmdPath of getCommandFilePaths(adapter, workflow)) {
-        const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
-
-        try {
-          if (fs.existsSync(fullPath)) {
-            await fs.promises.unlink(fullPath);
-            removed++;
-          }
-        } catch {
-          // Ignore errors
-        }
-      }
-    }
-
-    return removed;
-  }
-
-  private async removeLegacyCommandAliases(
-    projectPath: string,
-    adapter: ToolCommandAdapter,
-    commandId: string
-  ): Promise<void> {
-    const [, ...legacyPaths] = getCommandFilePaths(adapter, commandId);
-
-    for (const legacyPath of legacyPaths) {
-      const fullPath = path.isAbsolute(legacyPath) ? legacyPath : path.join(projectPath, legacyPath);
+      const cmdPath = adapter.getFilePath(workflow);
+      const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
 
       try {
         if (fs.existsSync(fullPath)) {
           await fs.promises.unlink(fullPath);
+          removed++;
         }
       } catch {
         // Ignore errors
       }
     }
+
+    return removed;
   }
 }

@@ -531,18 +531,12 @@ describe('command-generation/adapters', () => {
 
     it('should generate correct file path', () => {
       const filePath = piAdapter.getFilePath('explore');
-      expect(filePath).toBe(path.join('.pi', 'prompts', 'opsx:explore.md'));
+      expect(filePath).toBe(path.join('.pi', 'prompts', 'opsx-explore.md'));
     });
 
     it('should generate correct file paths for different commands', () => {
-      expect(piAdapter.getFilePath('new')).toBe(path.join('.pi', 'prompts', 'opsx:new.md'));
-      expect(piAdapter.getFilePath('bulk-archive')).toBe(path.join('.pi', 'prompts', 'opsx:bulk-archive.md'));
-    });
-
-    it('should expose legacy hyphenated file paths for migration', () => {
-      expect(piAdapter.getLegacyFilePaths?.('explore')).toEqual([
-        path.join('.pi', 'prompts', 'opsx-explore.md'),
-      ]);
+      expect(piAdapter.getFilePath('new')).toBe(path.join('.pi', 'prompts', 'opsx-new.md'));
+      expect(piAdapter.getFilePath('bulk-archive')).toBe(path.join('.pi', 'prompts', 'opsx-bulk-archive.md'));
     });
 
     it('should format file with description frontmatter', () => {
@@ -553,6 +547,18 @@ describe('command-generation/adapters', () => {
       expect(output).toContain('This is the command body.');
     });
 
+    it('should transform command references from colon to hyphen format', () => {
+      const contentWithRefs: CommandContent = {
+        ...sampleContent,
+        body: 'Run /opsx:apply to implement. Then /opsx:archive when done.',
+      };
+
+      const output = piAdapter.formatFile(contentWithRefs);
+      expect(output).toContain('/opsx-apply');
+      expect(output).toContain('/opsx-archive');
+      expect(output).not.toContain('/opsx:apply');
+    });
+
     it('should inject template arguments into the input section', () => {
       const contentWithInput: CommandContent = {
         ...sampleContent,
@@ -560,7 +566,6 @@ describe('command-generation/adapters', () => {
       };
 
       const output = piAdapter.formatFile(contentWithInput);
-      expect(output).toContain('**Input**: The argument after `/opsx:explore` is the topic.');
       expect(output).toContain('**Provided arguments**: $@');
     });
 

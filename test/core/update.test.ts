@@ -251,20 +251,6 @@ Old instructions content
       }
     });
 
-    it('migrates legacy Pi command files to colon-based prompt names', async () => {
-      const legacyPiPrompt = path.join(testDir, '.pi', 'prompts', 'opsx-explore.md');
-      await fs.mkdir(path.dirname(legacyPiPrompt), { recursive: true });
-      await fs.writeFile(legacyPiPrompt, 'legacy pi prompt');
-
-      await updateCommand.execute(testDir);
-
-      const newPiPrompt = path.join(testDir, '.pi', 'prompts', 'opsx:explore.md');
-      expect(await FileSystemUtils.fileExists(newPiPrompt)).toBe(true);
-      expect(await FileSystemUtils.fileExists(legacyPiPrompt)).toBe(false);
-
-      const content = await fs.readFile(newPiPrompt, 'utf-8');
-      expect(content).toContain('**Provided arguments**: $@');
-    });
   });
 
   describe('multi-tool support', () => {

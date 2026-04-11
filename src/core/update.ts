@@ -16,8 +16,6 @@ import { AI_TOOLS, OPENSPEC_DIR_NAME } from './config.js';
 import {
   generateCommands,
   CommandAdapterRegistry,
-  getCommandFilePaths,
-  type ToolCommandAdapter,
 } from './command-generation/index.js';
 import {
   getToolVersionStatus,
@@ -197,7 +195,7 @@ export class UpdateCommand {
             const skillFile = path.join(skillDir, 'SKILL.md');
 
             // Use hyphen-based command references for OpenCode
-            const transformer = tool.value === 'opencode' ? transformToHyphenCommands : undefined;
+            const transformer = (tool.value === 'opencode' || tool.value === 'pi') ? transformToHyphenCommands : undefined;
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
@@ -216,14 +214,9 @@ export class UpdateCommand {
           if (adapter) {
             const generatedCommands = generateCommands(commandContents, adapter);
 
-            for (let index = 0; index < generatedCommands.length; index++) {
-              const cmd = generatedCommands[index];
+            for (const cmd of generatedCommands) {
               const commandFile = path.isAbsolute(cmd.path) ? cmd.path : path.join(resolvedProjectPath, cmd.path);
               await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
-              const commandId = commandContents[index]?.id;
-              if (commandId) {
-                await this.removeLegacyCommandAliases(resolvedProjectPath, adapter, commandId);
-              }
             }
 
             removedDeselectedCommandCount += await this.removeUnselectedCommandFiles(
@@ -445,17 +438,16 @@ export class UpdateCommand {
     if (!adapter) return 0;
 
     for (const workflow of ALL_WORKFLOWS) {
-      for (const cmdPath of getCommandFilePaths(adapter, workflow)) {
-        const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
+      const cmdPath = adapter.getFilePath(workflow);
+      const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
 
-        try {
-          if (fs.existsSync(fullPath)) {
-            await fs.promises.unlink(fullPath);
-            removed++;
-          }
-        } catch {
-          // Ignore errors
+      try {
+        if (fs.existsSync(fullPath)) {
+          await fs.promises.unlink(fullPath);
+          removed++;
         }
+      } catch {
+        // Ignore errors
       }
     }
 
@@ -480,41 +472,20 @@ export class UpdateCommand {
 
     for (const workflow of ALL_WORKFLOWS) {
       if (desiredSet.has(workflow)) continue;
-      for (const cmdPath of getCommandFilePaths(adapter, workflow)) {
-        const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
-
-        try {
-          if (fs.existsSync(fullPath)) {
-            await fs.promises.unlink(fullPath);
-            removed++;
-          }
-        } catch {
-          // Ignore errors
-        }
-      }
-    }
-
-    return removed;
-  }
-
-  private async removeLegacyCommandAliases(
-    projectPath: string,
-    adapter: ToolCommandAdapter,
-    commandId: string
-  ): Promise<void> {
-    const [, ...legacyPaths] = getCommandFilePaths(adapter, commandId);
-
-    for (const legacyPath of legacyPaths) {
-      const fullPath = path.isAbsolute(legacyPath) ? legacyPath : path.join(projectPath, legacyPath);
+      const cmdPath = adapter.getFilePath(workflow);
+      const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
 
       try {
         if (fs.existsSync(fullPath)) {
           await fs.promises.unlink(fullPath);
+          removed++;
         }
       } catch {
         // Ignore errors
       }
     }
+
+    return removed;
   }
 
   /**
@@ -695,7 +666,7 @@ export class UpdateCommand {
             const skillFile = path.join(skillDir, 'SKILL.md');
 
             // Use hyphen-based command references for OpenCode
-            const transformer = tool.value === 'opencode' ? transformToHyphenCommands : undefined;
+            const transformer = (tool.value === 'opencode' || tool.value === 'pi') ? transformToHyphenCommands : undefined;
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
@@ -707,14 +678,9 @@ export class UpdateCommand {
           if (adapter) {
             const generatedCommands = generateCommands(commandContents, adapter);
 
-            for (let index = 0; index < generatedCommands.length; index++) {
-              const cmd = generatedCommands[index];
+            for (const cmd of generatedCommands) {
               const commandFile = path.isAbsolute(cmd.path) ? cmd.path : path.join(projectPath, cmd.path);
               await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
-              const commandId = commandContents[index]?.id;
-              if (commandId) {
-                await this.removeLegacyCommandAliases(projectPath, adapter, commandId);
-              }
             }
           }
         }

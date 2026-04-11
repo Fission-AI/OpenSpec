@@ -22,7 +22,6 @@ export type {
   ToolCommandAdapter,
   GeneratedCommand,
 } from './types.js';
-export { getCommandFilePaths } from './types.js';
 
 // Registry
 export { CommandAdapterRegistry } from './registry.js';

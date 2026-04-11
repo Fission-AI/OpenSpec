@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import { AI_TOOLS } from './config.js';
 import type { Delivery } from './global-config.js';
 import { ALL_WORKFLOWS } from './profiles.js';
-import { CommandAdapterRegistry, getCommandFilePaths } from './command-generation/index.js';
+import { CommandAdapterRegistry } from './command-generation/index.js';
 import { COMMAND_IDS, getConfiguredTools } from './shared/index.js';
 
 type WorkflowId = (typeof ALL_WORKFLOWS)[number];
@@ -40,11 +40,9 @@ export function toolHasAnyConfiguredCommand(projectPath: string, toolId: string)
   if (!adapter) return false;
 
   for (const commandId of COMMAND_IDS) {
-    const cmdPaths = getCommandFilePaths(adapter, commandId);
-    if (cmdPaths.some((cmdPath) => {
-      const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
-      return fs.existsSync(fullPath);
-    })) {
+    const cmdPath = adapter.getFilePath(commandId);
+    const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
+    if (fs.existsSync(fullPath)) {
       return true;
     }
   }
@@ -133,15 +131,9 @@ export function hasToolProfileOrDeliveryDrift(
 
   if (shouldGenerateCommands && adapter) {
     for (const workflow of knownDesiredWorkflows) {
-      const [cmdPath, ...legacyPaths] = getCommandFilePaths(adapter, workflow);
+      const cmdPath = adapter.getFilePath(workflow);
       const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
       if (!fs.existsSync(fullPath)) {
-        return true;
-      }
-      if (legacyPaths.some((legacyPath) => {
-        const fullLegacyPath = path.isAbsolute(legacyPath) ? legacyPath : path.join(projectPath, legacyPath);
-        return fs.existsSync(fullLegacyPath);
-      })) {
         return true;
       }
     }
@@ -149,21 +141,17 @@ export function hasToolProfileOrDeliveryDrift(
     // Deselecting workflows in a profile should trigger sync.
     for (const workflow of ALL_WORKFLOWS) {
       if (desiredWorkflowSet.has(workflow)) continue;
-      const cmdPaths = getCommandFilePaths(adapter, workflow);
-      if (cmdPaths.some((cmdPath) => {
-        const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
-        return fs.existsSync(fullPath);
-      })) {
+      const cmdPath = adapter.getFilePath(workflow);
+      const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
+      if (fs.existsSync(fullPath)) {
         return true;
       }
     }
   } else if (!shouldGenerateCommands && adapter) {
     for (const workflow of ALL_WORKFLOWS) {
-      const cmdPaths = getCommandFilePaths(adapter, workflow);
-      if (cmdPaths.some((cmdPath) => {
-        const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
-        return fs.existsSync(fullPath);
-      })) {
+      const cmdPath = adapter.getFilePath(workflow);
+      const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
+      if (fs.existsSync(fullPath)) {
         return true;
       }
     }
@@ -212,11 +200,9 @@ function getInstalledWorkflowsForTool(
     const adapter = CommandAdapterRegistry.get(toolId);
     if (adapter) {
       for (const workflow of ALL_WORKFLOWS) {
-        const cmdPaths = getCommandFilePaths(adapter, workflow);
-        if (cmdPaths.some((cmdPath) => {
-          const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
-          return fs.existsSync(fullPath);
-        })) {
+        const cmdPath = adapter.getFilePath(workflow);
+        const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
+        if (fs.existsSync(fullPath)) {
           installed.add(workflow);
         }
       }
