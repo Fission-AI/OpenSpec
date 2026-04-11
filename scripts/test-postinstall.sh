@@ -15,7 +15,7 @@ ORIGINAL_CI="${CI:-}"
 ORIGINAL_OPENSPEC_NO_COMPLETIONS="${OPENSPEC_NO_COMPLETIONS:-}"
 
 # Test 1: Normal install
-echo "Test 1: Normal install (should attempt to install completions)"
+echo "Test 1: Normal install (should print tip about completions)"
 echo "--------------------------------------"
 unset CI
 unset OPENSPEC_NO_COMPLETIONS
