@@ -1,9 +1,13 @@
 #!/usr/bin/env node
 
 /**
- * Postinstall script for auto-installing shell completions
+ * Postinstall script that hints about shell completions
  *
- * This script runs automatically after npm install unless:
+ * Completion installation is opt-in: the user must run
+ * `openspec completion install` explicitly. This script only
+ * prints a one-line tip after npm install.
+ *
+ * The tip is suppressed when:
  * - CI=true environment variable is set
  * - OPENSPEC_NO_COMPLETIONS=1 environment variable is set
  * - dist/ directory doesn't exist (dev setup scenario)
@@ -49,65 +53,6 @@ async function distExists() {
 }
 
 /**
- * Detect the user's shell
- */
-async function detectShell() {
-  try {
-    const { detectShell } = await import('../dist/utils/shell-detection.js');
-    const result = detectShell();
-    return result.shell;
-  } catch (error) {
-    // Fail silently if detection module doesn't exist
-    return undefined;
-  }
-}
-
-/**
- * Install completions for the detected shell
- */
-async function installCompletions(shell) {
-  try {
-    const { CompletionFactory } = await import('../dist/core/completions/factory.js');
-    const { COMMAND_REGISTRY } = await import('../dist/core/completions/command-registry.js');
-
-    // Check if shell is supported
-    if (!CompletionFactory.isSupported(shell)) {
-      console.log(`\nTip: Run 'openspec completion install' for shell completions`);
-      return;
-    }
-
-    // Generate completion script
-    const generator = CompletionFactory.createGenerator(shell);
-    const script = generator.generate(COMMAND_REGISTRY);
-
-    // Install completion script
-    const installer = CompletionFactory.createInstaller(shell);
-    const result = await installer.install(script);
-
-    if (result.success) {
-      // Show success message based on installation type
-      if (result.isOhMyZsh) {
-        console.log(`✓ Shell completions installed`);
-        console.log(`  Restart shell: exec zsh`);
-      } else if (result.zshrcConfigured) {
-        console.log(`✓ Shell completions installed and configured`);
-        console.log(`  Restart shell: exec zsh`);
-      } else {
-        console.log(`✓ Shell completions installed to ~/.zsh/completions/`);
-        console.log(`  Add to ~/.zshrc: fpath=(~/.zsh/completions $fpath)`);
-        console.log(`  Then: exec zsh`);
-      }
-    } else {
-      // Installation failed, show tip for manual install
-      console.log(`\nTip: Run 'openspec completion install' for shell completions`);
-    }
-  } catch (error) {
-    // Fail gracefully - show tip for manual install
-    console.log(`\nTip: Run 'openspec completion install' for shell completions`);
-  }
-}
-
-/**
  * Main function
  */
 async function main() {
@@ -124,19 +69,10 @@ async function main() {
       return;
     }
 
-    // Detect shell
-    const shell = await detectShell();
-    if (!shell) {
-      console.log(`\nTip: Run 'openspec completion install' for shell completions`);
-      return;
-    }
-
-    // Install completions
-    await installCompletions(shell);
+    // Completions are opt-in — just print a hint
+    console.log(`\nTip: Run 'openspec completion install' for shell completions`);
   } catch (error) {
     // Fail gracefully - never break npm install
-    // Show tip for manual install
-    console.log(`\nTip: Run 'openspec completion install' for shell completions`);
   }
 }
 

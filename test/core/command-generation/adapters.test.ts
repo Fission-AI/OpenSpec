@@ -613,6 +613,28 @@ describe('command-generation/adapters', () => {
       expect(output).toContain('This is the command body.');
     });
 
+    it('should transform command references from colon to hyphen format', () => {
+      const contentWithRefs: CommandContent = {
+        ...sampleContent,
+        body: 'Run /opsx:apply to implement. Then /opsx:archive when done.',
+      };
+
+      const output = piAdapter.formatFile(contentWithRefs);
+      expect(output).toContain('/opsx-apply');
+      expect(output).toContain('/opsx-archive');
+      expect(output).not.toContain('/opsx:apply');
+    });
+
+    it('should inject template arguments into the input section', () => {
+      const contentWithInput: CommandContent = {
+        ...sampleContent,
+        body: '**Input**: The argument after `/opsx:explore` is the topic.\n\n**Steps**\n1. Think.',
+      };
+
+      const output = piAdapter.formatFile(contentWithInput);
+      expect(output).toContain('**Provided arguments**: $@');
+    });
+
     it('should escape YAML special characters in description', () => {
       const contentWithSpecialChars: CommandContent = {
         ...sampleContent,
