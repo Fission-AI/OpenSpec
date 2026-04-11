@@ -8,6 +8,19 @@
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
 
+const PI_INPUT_HEADING = /^\*\*Input\*\*:[^\n]*$/m;
+
+function injectPiArgs(body: string): string {
+  if (body.includes('$@') || body.includes('$ARGUMENTS')) {
+    return body;
+  }
+
+  return body.replace(
+    PI_INPUT_HEADING,
+    (heading) => `${heading}\n**Provided arguments**: $@`
+  );
+}
+
 /**
  * Escapes a string value for safe YAML output.
  * Quotes the string if it contains special YAML characters.
@@ -25,14 +38,18 @@ function escapeYamlValue(value: string): string {
 
 /**
  * Pi adapter for prompt template generation.
- * File path: .pi/prompts/opsx-<id>.md
+ * File path: .pi/prompts/opsx:<id>.md
  * Frontmatter: description
  */
 export const piAdapter: ToolCommandAdapter = {
   toolId: 'pi',
 
   getFilePath(commandId: string): string {
-    return path.join('.pi', 'prompts', `opsx-${commandId}.md`);
+    return path.join('.pi', 'prompts', `opsx:${commandId}.md`);
+  },
+
+  getLegacyFilePaths(commandId: string): string[] {
+    return [path.join('.pi', 'prompts', `opsx-${commandId}.md`)];
   },
 
   formatFile(content: CommandContent): string {
@@ -40,7 +57,7 @@ export const piAdapter: ToolCommandAdapter = {
 description: ${escapeYamlValue(content.description)}
 ---
 
-${content.body}
+${injectPiArgs(content.body)}
 `;
   },
 };

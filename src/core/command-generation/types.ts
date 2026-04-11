@@ -40,11 +40,30 @@ export interface ToolCommandAdapter {
    */
   getFilePath(commandId: string): string;
   /**
+   * Returns legacy file paths that should be treated as aliases for this command.
+   * These are used for migration-safe detection and cleanup when a tool changes
+   * its on-disk command naming convention.
+   */
+  getLegacyFilePaths?(commandId: string): string[];
+  /**
    * Formats the complete file content including frontmatter.
    * @param content - The tool-agnostic command content
    * @returns Complete file content ready to write
    */
   formatFile(content: CommandContent): string;
+}
+
+/**
+ * Returns the canonical file path followed by any legacy aliases for a command.
+ */
+export function getCommandFilePaths(
+  adapter: ToolCommandAdapter,
+  commandId: string
+): string[] {
+  return [
+    adapter.getFilePath(commandId),
+    ...(adapter.getLegacyFilePaths?.(commandId) ?? []),
+  ].filter((path, index, paths) => paths.indexOf(path) === index);
 }
 
 /**

@@ -23,6 +23,8 @@ import { serializeConfig } from './config-prompts.js';
 import {
   generateCommands,
   CommandAdapterRegistry,
+  getCommandFilePaths,
+  type ToolCommandAdapter,
 } from './command-generation/index.js';
 import {
   detectLegacyArtifacts,
@@ -556,9 +558,14 @@ export class InitCommand {
           if (adapter) {
             const generatedCommands = generateCommands(commandContents, adapter);
 
-            for (const cmd of generatedCommands) {
+            for (let index = 0; index < generatedCommands.length; index++) {
+              const cmd = generatedCommands[index];
               const commandFile = path.isAbsolute(cmd.path) ? cmd.path : path.join(projectPath, cmd.path);
               await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
+              const commandId = commandContents[index]?.id;
+              if (commandId) {
+                await this.removeLegacyCommandAliases(projectPath, adapter, commandId);
+              }
             }
           } else {
             commandsSkipped.push(tool.value);
@@ -761,19 +768,40 @@ export class InitCommand {
     if (!adapter) return 0;
 
     for (const workflow of ALL_WORKFLOWS) {
-      const cmdPath = adapter.getFilePath(workflow);
-      const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
+      for (const cmdPath of getCommandFilePaths(adapter, workflow)) {
+        const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
+
+        try {
+          if (fs.existsSync(fullPath)) {
+            await fs.promises.unlink(fullPath);
+            removed++;
+          }
+        } catch {
+          // Ignore errors
+        }
+      }
+    }
+
+    return removed;
+  }
+
+  private async removeLegacyCommandAliases(
+    projectPath: string,
+    adapter: ToolCommandAdapter,
+    commandId: string
+  ): Promise<void> {
+    const [, ...legacyPaths] = getCommandFilePaths(adapter, commandId);
+
+    for (const legacyPath of legacyPaths) {
+      const fullPath = path.isAbsolute(legacyPath) ? legacyPath : path.join(projectPath, legacyPath);
 
       try {
         if (fs.existsSync(fullPath)) {
           await fs.promises.unlink(fullPath);
-          removed++;
         }
       } catch {
         // Ignore errors
       }
     }
-
-    return removed;
   }
 }
