@@ -640,6 +640,7 @@ Register-ArgumentCompleter -CommandName openspec -ScriptBlock $openspecCompleter
 
     it('should skip UTF-16 BE profile and leave it unchanged', async () => {
       delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      process.env.PROFILE = path.join(testHomeDir, 'custom-profile.ps1');
       const profilePath = installer.getProfilePath();
       await fs.mkdir(path.dirname(profilePath), { recursive: true });
 
