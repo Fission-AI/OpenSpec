@@ -638,6 +638,25 @@ Register-ArgumentCompleter -CommandName openspec -ScriptBlock $openspecCompleter
       expect(content).toContain('# OPENSPEC:START');
     });
 
+    it('should skip UTF-16 BE profile and leave it unchanged', async () => {
+      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      const profilePath = installer.getProfilePath();
+      await fs.mkdir(path.dirname(profilePath), { recursive: true });
+
+      // Write a fake UTF-16 BE file (FE FF BOM + some bytes)
+      const utf16beBom = Buffer.from([0xfe, 0xff]);
+      const body = Buffer.from([0x00, 0x23]); // '#' in UTF-16 BE
+      const originalBytes = Buffer.concat([utf16beBom, body]);
+      await fs.writeFile(profilePath, originalBytes);
+
+      const result = await installer.configureProfile(mockScriptPath);
+      expect(result).toBe(false);
+
+      // File should be untouched
+      const raw = await fs.readFile(profilePath);
+      expect(Buffer.compare(raw, originalBytes)).toBe(0);
+    });
+
     it('should handle plain UTF-8 files without BOM (no regression)', async () => {
       delete process.env.OPENSPEC_NO_AUTO_CONFIG;
       const profilePath = installer.getProfilePath();

@@ -32,9 +32,12 @@ export class PowerShellInstaller {
     if (buffer.length >= 2 && buffer[0] === 0xff && buffer[1] === 0xfe) {
       return { encoding: 'utf16le', bom: Buffer.from([0xff, 0xfe]) };
     }
-    // UTF-16 BE BOM: FE FF — not natively supported by Node; treat as unsupported
+    // UTF-16 BE BOM: FE FF — not natively supported by Node
     if (buffer.length >= 2 && buffer[0] === 0xfe && buffer[1] === 0xff) {
-      return { encoding: 'utf16le', bom: Buffer.from([0xfe, 0xff]) }; // sentinel; callers must check
+      throw new Error(
+        'File is encoded as UTF-16 BE which is not supported. ' +
+          'Please re-save as UTF-8 or UTF-16 LE, then retry.',
+      );
     }
     // UTF-8 BOM: EF BB BF
     if (buffer.length >= 3 && buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf) {
@@ -51,15 +54,6 @@ export class PowerShellInstaller {
   private async readProfileFile(filePath: string): Promise<{ content: string; encoding: BufferEncoding; bom: Buffer }> {
     const raw = await fs.readFile(filePath);
     const { encoding, bom } = this.detectEncoding(raw);
-
-    // UTF-16 BE: we detected FE FF — Node can't decode this natively
-    if (bom.length === 2 && bom[0] === 0xfe && bom[1] === 0xff) {
-      throw new Error(
-        `Profile ${filePath} is encoded as UTF-16 BE which is not supported. ` +
-          'Please re-save the file as UTF-8 or UTF-16 LE, then retry.',
-      );
-    }
-
     const content = raw.subarray(bom.length).toString(encoding);
     return { content, encoding, bom };
   }
@@ -190,12 +184,12 @@ export class PowerShellInstaller {
           fileBom = file.bom;
         } catch (err: any) {
           // If the file doesn't exist that's fine — we'll create it as UTF-8.
-          // But if the file exists and has an unsupported encoding, skip it.
-          if (err?.code !== 'ENOENT') {
-            if (err?.message?.includes('not supported')) {
-              console.warn(`Warning: Skipping ${profilePath}: ${err.message}`);
-              continue;
-            }
+          // Any other read error (permissions, unsupported encoding, etc.) → skip this profile.
+          if (err?.code === 'ENOENT') {
+            // keep defaults
+          } else {
+            console.warn(`Warning: Skipping ${profilePath}: ${err?.message ?? String(err)}`);
+            continue;
           }
         }
 
@@ -251,10 +245,7 @@ export class PowerShellInstaller {
           if (err?.code === 'ENOENT') {
             continue; // Profile doesn't exist, nothing to remove
           }
-          if (err?.message?.includes('not supported')) {
-            console.warn(`Warning: Skipping ${profilePath}: ${err.message}`);
-            continue;
-          }
+          console.warn(`Warning: Could not read ${profilePath}: ${err?.message ?? String(err)}`);
           continue;
         }
 
