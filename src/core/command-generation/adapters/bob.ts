@@ -7,6 +7,7 @@
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
+import { transformToHyphenCommands } from '../../../utils/command-references.js';
 
 /**
  * Escapes a string value for safe YAML output.
@@ -26,7 +27,7 @@ function escapeYamlValue(value: string): string {
 /**
  * Bob Shell adapter for command generation.
  * File path: .bob/commands/opsx-<id>.md
- * Frontmatter: description (optional)
+ * Frontmatter: description, argument-hint
  */
 export const bobAdapter: ToolCommandAdapter = {
   toolId: 'bob',
@@ -36,12 +37,15 @@ export const bobAdapter: ToolCommandAdapter = {
   },
 
   formatFile(content: CommandContent): string {
-    // Bob Shell supports optional YAML frontmatter with description field
+    // Transform command references from colon to hyphen format for Bob
+    const transformedBody = transformToHyphenCommands(content.body);
+
     return `---
 description: ${escapeYamlValue(content.description)}
+argument-hint: command arguments
 ---
 
-${content.body}
+${transformedBody}
 `;
   },
 };

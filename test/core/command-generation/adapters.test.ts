@@ -200,12 +200,25 @@ describe('command-generation/adapters', () => {
       expect(bobAdapter.getFilePath('bulk-archive')).toBe(path.join('.bob', 'commands', 'opsx-bulk-archive.md'));
     });
 
-    it('should format file with description frontmatter', () => {
+    it('should format file with description and argument-hint frontmatter', () => {
       const output = bobAdapter.formatFile(sampleContent);
       expect(output).toContain('---\n');
       expect(output).toContain('description: Enter explore mode for thinking');
+      expect(output).toContain('argument-hint: command arguments');
       expect(output).toContain('---\n\n');
       expect(output).toContain('This is the command body.\n\nWith multiple lines.');
+    });
+
+    it('should transform colon command references to hyphen format', () => {
+      const contentWithRefs: CommandContent = {
+        ...sampleContent,
+        body: 'Run /opsx:apply to implement. Then use /opsx:verify.',
+      };
+      const output = bobAdapter.formatFile(contentWithRefs);
+      expect(output).toContain('/opsx-apply');
+      expect(output).toContain('/opsx-verify');
+      expect(output).not.toContain('/opsx:apply');
+      expect(output).not.toContain('/opsx:verify');
     });
 
     it('should escape YAML special characters in description', () => {
