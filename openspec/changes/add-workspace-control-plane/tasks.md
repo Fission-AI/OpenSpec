@@ -14,7 +14,7 @@
 ## 3. Discovery and Scaffolding
 
 - [ ] 3.1 Implement sibling repo discovery for immediate child directories
-- [ ] 3.2 Detect candidate instruction files such as `AGENTS.md`
+- [ ] 3.2 Detect candidate `AGENTS.md` instruction files
 - [ ] 3.3 Implement reviewed selection flow before persisting discovered repos
 - [ ] 3.4 Scaffold control-plane repo boilerplate when missing
 - [ ] 3.5 Add tests for discovery confidence and path normalization
