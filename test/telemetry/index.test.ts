@@ -145,6 +145,8 @@ describe('telemetry/index', () => {
 
     it('should return a synthetic success response when fetch throws a network error', async () => {
       delete process.env.OPENSPEC_TELEMETRY;
+      delete process.env.DO_NOT_TRACK;
+      delete process.env.CI;
       await trackCommand('test', '1.0.0');
 
       const fetchFn = (PostHog as any).mock.calls[0][1].fetch as typeof fetch;
@@ -157,6 +159,8 @@ describe('telemetry/index', () => {
 
     it('should return a synthetic success response when fetch aborts', async () => {
       delete process.env.OPENSPEC_TELEMETRY;
+      delete process.env.DO_NOT_TRACK;
+      delete process.env.CI;
       await trackCommand('test', '1.0.0');
 
       const fetchFn = (PostHog as any).mock.calls[0][1].fetch as typeof fetch;
@@ -169,6 +173,8 @@ describe('telemetry/index', () => {
 
     it('should return a synthetic success response for non-2xx responses', async () => {
       delete process.env.OPENSPEC_TELEMETRY;
+      delete process.env.DO_NOT_TRACK;
+      delete process.env.CI;
       await trackCommand('test', '1.0.0');
 
       const fetchFn = (PostHog as any).mock.calls[0][1].fetch as typeof fetch;
@@ -181,6 +187,8 @@ describe('telemetry/index', () => {
 
     it('should pass through successful responses from fetch', async () => {
       delete process.env.OPENSPEC_TELEMETRY;
+      delete process.env.DO_NOT_TRACK;
+      delete process.env.CI;
       await trackCommand('test', '1.0.0');
 
       const fetchFn = (PostHog as any).mock.calls[0][1].fetch as typeof fetch;
