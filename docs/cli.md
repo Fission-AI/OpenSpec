@@ -786,11 +786,11 @@ openspec config path
 # List all settings
 openspec config list
 
-# Get a specific value
-openspec config get telemetry.enabled
+# Disable telemetry in restricted environments
+OPENSPEC_TELEMETRY=0 openspec init
 
-# Set a value
-openspec config set telemetry.enabled false
+# Respect the standard do-not-track flag
+DO_NOT_TRACK=1 openspec init
 
 # Set a string value explicitly
 openspec config set user.name "My Name" --string
@@ -818,6 +818,8 @@ openspec config profile core
 - Keep current settings (exit)
 
 If you keep current settings, no changes are written and no update prompt is shown.
+
+Telemetry opt-out is environment-based. If you are in a restricted or firewalled environment, disable telemetry before first run with `OPENSPEC_TELEMETRY=0` or `DO_NOT_TRACK=1`.
 If there are no config changes but the current project files are out of sync with your global profile/delivery, OpenSpec will show a warning and suggest running `openspec update`.
 Pressing `Ctrl+C` also cancels the flow cleanly (no stack trace) and exits with code `130`.
 In the workflow checklist, `[x]` means the workflow is selected in global config. To apply those selections to project files, run `openspec update` (or choose `Apply changes to this project now?` when prompted inside a project).

@@ -67,6 +67,8 @@ Or add to your development environment in `flake.nix`:
 openspec --version
 ```
 
+If you are in a restricted or firewalled environment, disable telemetry before first run with `OPENSPEC_TELEMETRY=0` or `DO_NOT_TRACK=1`.
+
 ## Next Steps
 
 After installing, initialize OpenSpec in your project:
