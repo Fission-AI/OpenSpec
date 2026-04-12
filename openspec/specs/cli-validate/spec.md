@@ -26,9 +26,14 @@ Validation output SHALL include specific guidance to fix each error, including e
 #### Scenario: Missing requirement descriptive text
 - **WHEN** a requirement header lacks descriptive text before scenarios
 - **THEN** emit an error explaining that `### Requirement:` lines must be followed by narrative text before any `#### Scenario:` headers
-  - Show compliant example: "### Requirement: Foo" followed by "The system SHALL ..."
+  - Show compliant example using the normative keywords from the configured language (e.g., `DEBE` for Spanish, `SHALL` for English)
   - Suggest adding 1-2 sentences describing the normative behavior prior to listing scenarios
   - Reference the pre-validation checklist in `openspec/AGENTS.md`
+
+#### Scenario: Missing normative keyword error references configured language
+- **WHEN** a requirement is missing normative keywords and the project language is configured
+- **THEN** the error message SHALL quote the expected keywords from the configured language
+- **AND** guidance examples SHALL use the configured language's keywords
 
 ### Requirement: Validator SHALL detect likely misformatted scenarios and warn with a fix
 The validator SHALL recognize bulleted lines that look like scenarios (e.g., lines beginning with WHEN/THEN/AND) and emit a targeted warning with a conversion example to `#### Scenario:`.

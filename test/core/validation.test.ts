@@ -58,11 +58,11 @@ describe('Validation Schemas', () => {
           },
         ],
       };
-      
+
       const result = RequirementSchema.safeParse(requirement);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues[0].message).toBe('Requirement must contain SHALL or MUST keyword');
+        expect(result.error.issues[0].message).toBe('Requirement must contain "MUST" or "SHALL" keyword');
       }
     });
 
@@ -427,7 +427,7 @@ The system will log all events.
 
       expect(report.valid).toBe(false);
       expect(report.summary.errors).toBeGreaterThan(0);
-      expect(report.issues.some(i => i.message.includes('must contain SHALL or MUST'))).toBe(true);
+      expect(report.issues.some(i => i.message.includes('Requirement must contain "MUST" or "SHALL" keyword'))).toBe(true);
     });
 
     it('should handle requirements without metadata fields', async () => {
@@ -484,6 +484,280 @@ The system MUST support mixed case delta headers.
       expect(report.summary.errors).toBe(0);
       expect(report.summary.warnings).toBe(0);
       expect(report.summary.info).toBe(0);
+    });
+  });
+
+  describe('i18n validation', () => {
+    it('should preserve English validation behavior by default', async () => {
+      const specContent = `# Test Spec
+
+## Purpose
+This specification defines the requirements for testing English validation behavior.
+
+## Requirements
+
+### The system SHALL provide authentication
+The system SHALL provide secure user authentication mechanisms.
+
+#### Scenario: Login
+Given a user with valid credentials
+When they submit the login form
+Then they are authenticated`;
+
+      const specPath = path.join(testDir, 'spec.md');
+      await fs.writeFile(specPath, specContent);
+
+      const validator = new Validator();
+      const report = await validator.validateSpec(specPath);
+
+      expect(report.valid).toBe(true);
+      expect(report.summary.errors).toBe(0);
+    });
+
+    it('should accept MUST keyword in English mode', async () => {
+      const specContent = `# Test Spec
+
+## Purpose
+This specification defines the requirements for testing English validation behavior.
+
+## Requirements
+
+### The system MUST log all events
+The system MUST log all events for auditing purposes.
+
+#### Scenario: Event logging
+Given an event occurs
+When the system processes it
+Then it is logged`;
+
+      const specPath = path.join(testDir, 'spec.md');
+      await fs.writeFile(specPath, specContent);
+
+      const validator = new Validator(false, 'en');
+      const report = await validator.validateSpec(specPath);
+
+      expect(report.valid).toBe(true);
+    });
+
+    it('should accept DEBE keyword in Spanish mode', async () => {
+      const changeDir = path.join(testDir, 'test-change-es-1');
+      const specsDir = path.join(changeDir, 'specs', 'test-spec');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      const deltaSpec = `# Test Spec
+
+## ADDED Requirements
+
+### Requirement: Logging
+El sistema DEBE registrar todos los eventos.
+
+#### Scenario: Event logging
+**Given** an event occurs
+**When** the system processes it
+**Then** it is logged`;
+
+      const specPath = path.join(specsDir, 'spec.md');
+      await fs.writeFile(specPath, deltaSpec);
+
+      const validator = new Validator(false, 'es');
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(true);
+      expect(report.summary.errors).toBe(0);
+    });
+
+    it('should accept DEBERA keyword in Spanish mode', async () => {
+      const changeDir = path.join(testDir, 'test-change-es-2');
+      const specsDir = path.join(changeDir, 'specs', 'test-spec');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      const deltaSpec = `# Test Spec
+
+## ADDED Requirements
+
+### Requirement: Authentication
+El sistema DEBERA autenticar usuarios.
+
+#### Scenario: User login
+**Given** valid credentials
+**When** user logs in
+**Then** user is authenticated`;
+
+      const specPath = path.join(specsDir, 'spec.md');
+      await fs.writeFile(specPath, deltaSpec);
+
+      const validator = new Validator(false, 'es');
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(true);
+      expect(report.summary.errors).toBe(0);
+    });
+
+    it('should accept DEBERÁ keyword with accent in Spanish mode', async () => {
+      const changeDir = path.join(testDir, 'test-change-es-3');
+      const specsDir = path.join(changeDir, 'specs', 'test-spec');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      const deltaSpec = `# Test Spec
+
+## ADDED Requirements
+
+### Requirement: Token emission
+El sistema DEBERÁ emitir un token válido.
+
+#### Scenario: Token generation
+**Given** a valid request
+**When** authentication succeeds
+**Then** a token is emitted`;
+
+      const specPath = path.join(specsDir, 'spec.md');
+      await fs.writeFile(specPath, deltaSpec);
+
+      const validator = new Validator(false, 'es');
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(true);
+      expect(report.summary.errors).toBe(0);
+    });
+
+    it('should fall back to English for unknown language', async () => {
+      const specContent = `# Test Spec
+
+## Purpose
+This specification defines the requirements for testing unknown language fallback.
+
+## Requirements
+
+### The system SHALL handle errors
+The system SHALL handle all errors gracefully.
+
+#### Scenario: Error handling
+Given an error condition
+When an error occurs
+Then it is handled`;
+
+      const specPath = path.join(testDir, 'spec.md');
+      await fs.writeFile(specPath, specContent);
+
+      const validator = new Validator(false, 'xx');
+      const report = await validator.validateSpec(specPath);
+
+      expect(report.valid).toBe(true);
+    });
+
+    it('should show Spanish keywords in error messages when language is es', async () => {
+      const changeDir = path.join(testDir, 'test-change-es-err');
+      const specsDir = path.join(changeDir, 'specs', 'test-spec');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      const deltaSpec = `# Test Spec
+
+## ADDED Requirements
+
+### Requirement: Missing keyword
+El sistema registrará todos los eventos.
+
+#### Scenario: Event logging
+**Given** an event
+**When** it occurs
+**Then** it is logged`;
+
+      const specPath = path.join(specsDir, 'spec.md');
+      await fs.writeFile(specPath, deltaSpec);
+
+      const validator = new Validator(false, 'es');
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(false);
+      expect(report.issues.some(i => i.message.includes('"DEBE"'))).toBe(true);
+      expect(report.issues.some(i => i.message.includes('"DEBERÁ"'))).toBe(true);
+    });
+
+    it('should not treat English keywords as normative in Spanish mode', async () => {
+      const changeDir = path.join(testDir, 'test-change-es-en-words');
+      const specsDir = path.join(changeDir, 'specs', 'test-spec');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      // Spanish requirement that happens to contain MUST/SHALL (e.g. as acronyms)
+      // but has no Spanish normative keyword — should fail validation
+      const deltaSpec = `# Test Spec
+
+## ADDED Requirements
+
+### Requirement: Integración con MUST-API
+El sistema se integrará con el servicio MUST (Multi-Unit Scheduling Tool) y SHALL (Secure Hosted Auth Layer).
+
+#### Scenario: Conexión al servicio
+**Given** credenciales válidas
+**When** el sistema se conecta
+**Then** recibe un token`;
+
+      const specPath = path.join(specsDir, 'spec.md');
+      await fs.writeFile(specPath, deltaSpec);
+
+      const validator = new Validator(false, 'es');
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      // MUST and SHALL are NOT Spanish keywords, so this should fail
+      expect(report.valid).toBe(false);
+      expect(report.summary.errors).toBeGreaterThan(0);
+    });
+
+    it('should pass Spanish validation when text contains English keywords alongside a Spanish keyword', async () => {
+      const changeDir = path.join(testDir, 'test-change-es-mixed');
+      const specsDir = path.join(changeDir, 'specs', 'test-spec');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      // Spanish requirement that contains MUST/SHALL incidentally but also has DEBE
+      const deltaSpec = `# Test Spec
+
+## ADDED Requirements
+
+### Requirement: Integración con MUST-API
+El sistema DEBE integrarse con el servicio MUST (Multi-Unit Scheduling Tool) y SHALL (Secure Hosted Auth Layer).
+
+#### Scenario: Conexión al servicio
+**Given** credenciales válidas
+**When** el sistema se conecta
+**Then** recibe un token`;
+
+      const specPath = path.join(specsDir, 'spec.md');
+      await fs.writeFile(specPath, deltaSpec);
+
+      const validator = new Validator(false, 'es');
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      // Has DEBE (Spanish keyword), so it should pass regardless of MUST/SHALL
+      expect(report.valid).toBe(true);
+      expect(report.summary.errors).toBe(0);
+    });
+
+    it('should show English keywords in error messages by default', async () => {
+      const changeDir = path.join(testDir, 'test-change-en-err');
+      const specsDir = path.join(changeDir, 'specs', 'test-spec');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      const deltaSpec = `# Test Spec
+
+## ADDED Requirements
+
+### Requirement: Missing keyword
+The system will log all events.
+
+#### Scenario: Event logging
+**Given** an event
+**When** it occurs
+**Then** it is logged`;
+
+      const specPath = path.join(specsDir, 'spec.md');
+      await fs.writeFile(specPath, deltaSpec);
+
+      const validator = new Validator();
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(false);
+      expect(report.issues.some(i => i.message.includes('"MUST"'))).toBe(true);
+      expect(report.issues.some(i => i.message.includes('"SHALL"'))).toBe(true);
     });
   });
 });
