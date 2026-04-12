@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import path from 'path';
 import os from 'os';
 import { randomUUID } from 'crypto';
@@ -133,6 +133,22 @@ describe('migration', () => {
     migrateIfNeeded(projectDir, [ensureClaudeTool()]);
 
     expect(fs.existsSync(getGlobalConfigPath())).toBe(false);
+  });
+
+  it('prints workflow and delivery guidance during migration', async () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    await writeSkill(projectDir, 'openspec-explore');
+    await writeManagedCommand(projectDir, 'apply');
+
+    migrateIfNeeded(projectDir, [ensureClaudeTool()]);
+
+    const logLines = consoleSpy.mock.calls.flat().map(String);
+    expect(logLines.some((line) => line.includes('Available workflows: explore, apply'))).toBe(true);
+    expect(logLines.some((line) => line.includes('Delivery: both (skills + commands)'))).toBe(true);
+    expect(logLines.some((line) => line.includes("Run 'openspec config profile core', then 'openspec update'"))).toBe(true);
+
+    consoleSpy.mockRestore();
   });
 
   it('ignores unknown custom skill and command files when scanning workflows', async () => {

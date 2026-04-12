@@ -4,28 +4,42 @@ This is the reference for OpenSpec's slash commands. These commands are invoked 
 
 For workflow patterns and when to use each command, see [Workflows](workflows.md). For CLI commands, see [CLI](cli.md).
 
+## First: Use the Syntax Your Tool Expects
+
+OpenSpec command intent is shared, but the invocation syntax is tool-dependent. Check this before debugging a setup.
+
+| Tool family | Syntax example |
+|-------------|----------------|
+| Claude Code and other colon-style integrations | `/opsx:propose`, `/opsx:apply` |
+| OpenCode, Cursor, Windsurf, GitHub Copilot IDE, Bob Shell, Pi, and other hyphen-style integrations | `/opsx-propose`, `/opsx-apply` |
+| Skill-based tools or skills-only delivery | `/openspec-propose`, `/openspec-apply-change` |
+
+If you are not sure which surface your tool uses, check [Supported Tools](supported-tools.md).
+
 ## Quick Reference
+
+By default, OpenSpec installs the `core` profile only: `propose`, `explore`, `apply`, and `archive`. Expanded workflows are opt-in.
 
 ### Default Quick Path (`core` profile)
 
-| Command | Purpose |
+| Command intent | Purpose |
 |---------|---------|
-| `/opsx:propose` | Create a change and generate planning artifacts in one step |
-| `/opsx:explore` | Think through ideas before committing to a change |
-| `/opsx:apply` | Implement tasks from the change |
-| `/opsx:archive` | Archive a completed change |
+| `propose` | Create a change and generate planning artifacts in one step |
+| `explore` | Think through ideas before committing to a change |
+| `apply` | Implement tasks from the change |
+| `archive` | Archive a completed change |
 
-### Expanded Workflow Commands (custom workflow selection)
+### Expanded Workflow Commands (opt-in via `openspec config profile` + `openspec update`)
 
-| Command | Purpose |
+| Command intent | Purpose |
 |---------|---------|
-| `/opsx:new` | Start a new change scaffold |
-| `/opsx:continue` | Create the next artifact based on dependencies |
-| `/opsx:ff` | Fast-forward: create all planning artifacts at once |
-| `/opsx:verify` | Validate implementation matches artifacts |
-| `/opsx:sync` | Merge delta specs into main specs |
-| `/opsx:bulk-archive` | Archive multiple changes at once |
-| `/opsx:onboard` | Guided tutorial through the complete workflow |
+| `new` | Start a new change scaffold |
+| `continue` | Create the next artifact based on dependencies |
+| `ff` | Fast-forward: create all planning artifacts at once |
+| `verify` | Validate implementation matches artifacts |
+| `sync` | Merge delta specs into main specs |
+| `bulk-archive` | Archive multiple changes at once |
+| `onboard` | Guided tutorial through the complete workflow |
 
 The default global profile is `core`. To enable expanded workflow commands, run `openspec config profile`, select workflows, then run `openspec update` in your project.
 
@@ -610,19 +624,9 @@ AI:  Welcome to OpenSpec!
 
 ## Command Syntax by AI Tool
 
-Different AI tools use slightly different command syntax. Use the format that matches your tool:
+The syntax table now lives near the top of this page because it is usually the first thing to verify.
 
-| Tool | Syntax Example |
-|------|----------------|
-| Claude Code | `/opsx:propose`, `/opsx:apply` |
-| Cursor | `/opsx-propose`, `/opsx-apply` |
-| Windsurf | `/opsx-propose`, `/opsx-apply` |
-| Copilot (IDE) | `/opsx-propose`, `/opsx-apply` |
-| Trae | Skill-based invocations such as `/openspec-propose`, `/openspec-apply-change` (no generated `opsx-*` command files) |
-
-The intent is the same across tools, but how commands are surfaced can differ by integration.
-
-> **Note:** GitHub Copilot commands (`.github/prompts/*.prompt.md`) are only available in IDE extensions (VS Code, JetBrains, Visual Studio). GitHub Copilot CLI does not currently support custom prompt files — see [Supported Tools](supported-tools.md) for details and workarounds.
+> **Note:** GitHub Copilot commands (`.github/prompts/*.prompt.md`) are only available in IDE extensions (VS Code, JetBrains, Visual Studio). GitHub Copilot CLI does not currently support custom prompt files. See [Supported Tools](supported-tools.md) for details and workarounds.
 
 ---
 

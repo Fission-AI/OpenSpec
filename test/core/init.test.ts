@@ -741,6 +741,31 @@ describe('InitCommand - profile and detection features', () => {
     const skillFile = path.join(testDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md');
     expect(await fileExists(skillFile)).toBe(true);
   });
+
+  it('should print tool-aware onboarding guidance after setup', async () => {
+    const initCommand = new InitCommand({ tools: 'opencode', force: true });
+    await initCommand.execute(testDir);
+
+    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+    expect(logCalls.some((entry) => entry.includes('Available workflows: propose, explore, apply, archive'))).toBe(true);
+    expect(logCalls.some((entry) => entry.includes('OpenCode: /opsx-propose "your idea"'))).toBe(true);
+    expect(logCalls.some((entry) => entry.includes('Want expanded workflows like /opsx:new and /opsx:continue?'))).toBe(true);
+  });
+
+  it('should explain skills-only delivery in setup output', async () => {
+    saveGlobalConfig({
+      featureFlags: {},
+      profile: 'core',
+      delivery: 'skills',
+    });
+
+    const initCommand = new InitCommand({ tools: 'claude', force: true });
+    await initCommand.execute(testDir);
+
+    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+    expect(logCalls.some((entry) => entry.includes('Delivery: skills only'))).toBe(true);
+    expect(logCalls.some((entry) => entry.includes('Command files were not generated because delivery is set to skills-only.'))).toBe(true);
+  });
 });
 
 async function fileExists(filePath: string): Promise<boolean> {

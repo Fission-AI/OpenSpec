@@ -17,6 +17,20 @@ By default, OpenSpec uses the `core` profile, which includes:
 
 You can enable expanded workflows (`new`, `continue`, `ff`, `verify`, `sync`, `bulk-archive`, `onboard`) via `openspec config profile`, then run `openspec update`.
 
+## What to Expect After `openspec init`
+
+- **Only 4 workflows installed?** That is the default `core` profile. You should expect `propose`, `explore`, `apply`, and `archive` unless you explicitly opt into a broader workflow set.
+- **Missing command files?** Check your delivery mode. `skills` delivery installs only `openspec-*` skills, `commands` delivery installs only `opsx-*` command files, and `both` installs both surfaces when the tool supports both.
+- **Wrong command syntax?** The same workflow may surface as `/opsx:propose`, `/opsx-propose`, or `/openspec-propose` depending on the tool and delivery mode.
+
+## Command Syntax by Tool Family
+
+| Tool family | Syntax example |
+|-------------|----------------|
+| Claude Code and other colon-style integrations | `/opsx:propose`, `/opsx:apply` |
+| OpenCode, Cursor, Windsurf, GitHub Copilot IDE, Bob Shell, Pi, and other hyphen-style integrations | `/opsx-propose`, `/opsx-apply` |
+| ForgeCode, Trae, or any project using skills-only delivery | `/openspec-propose`, `/openspec-apply-change` |
+
 ## Tool Directory Reference
 
 | Tool (ID) | Skills path pattern | Command path pattern |
@@ -100,6 +114,33 @@ When selected by profile/workflow config, OpenSpec generates these skills:
 - `openspec-onboard`
 
 See [Commands](commands.md) for command behavior and [CLI](cli.md) for `init`/`update` options.
+
+## Troubleshooting
+
+### Why did I only get 4 workflows?
+
+Because OpenSpec defaults to the `core` profile. Run `openspec config profile`, choose the expanded workflows you want, then run `openspec update` in the project.
+
+### Why are command files missing?
+
+Two common reasons:
+
+1. **Delivery is set to `skills`**. That installs only `openspec-*` skills, so missing `opsx-*` files are expected.
+2. **Your tool is skill-based**. Tools such as ForgeCode and Trae do not currently get generated `opsx-*` command files, so use the installed skills instead.
+
+### Which syntax should I use?
+
+Use the syntax family that matches your tool:
+
+- `/opsx:...` for colon-style integrations
+- `/opsx-...` for hyphen-style integrations
+- `/openspec-...` when you are using skills directly
+
+If you are unsure, compare your generated file paths against the table above or check [Commands](commands.md) first.
+
+### Why does OpenCode documentation sometimes mention `.opencode/command/` and sometimes `.opencode/commands/`?
+
+Current OpenSpec releases generate `.opencode/commands/`. Older OpenCode setups and older docs may still mention `.opencode/command/`. If you see the singular path in older reports, treat it as version drift rather than a separate workflow model.
 
 ## Related
 

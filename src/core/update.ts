@@ -37,6 +37,7 @@ import { isInteractive } from '../utils/interactive.js';
 import { getGlobalConfig, type Delivery } from './global-config.js';
 import { getProfileWorkflows, ALL_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
+import { buildOnboardingGuidance } from './onboarding-guidance.js';
 import {
   WORKFLOW_TO_SKILL_DIR,
   getCommandConfiguredTools,
@@ -268,9 +269,14 @@ export class UpdateCommand {
     if (newlyConfiguredTools.length > 0) {
       console.log();
       console.log(chalk.bold('Getting started:'));
-      console.log('  /opsx:new       Start a new change');
-      console.log('  /opsx:continue  Create the next artifact');
-      console.log('  /opsx:apply     Implement tasks');
+      const onboardingLines = buildOnboardingGuidance({
+        workflows: desiredWorkflows,
+        delivery,
+        toolIds: newlyConfiguredTools,
+      });
+      for (const line of onboardingLines) {
+        console.log(`  ${line}`);
+      }
       console.log();
       console.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
     }

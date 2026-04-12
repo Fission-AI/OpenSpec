@@ -20,6 +20,9 @@ OpenSpec helps you and your AI coding assistant agree on what to build before an
 
 The default global profile is `core`, which includes `propose`, `explore`, `apply`, and `archive`. You can enable the expanded workflow commands with `openspec config profile` and then `openspec update`.
 
+> [!NOTE]
+> Examples on this page use Claude-style `/opsx:...` syntax for readability. If your tool expects `/opsx-...` or direct `openspec-*` skill invocations instead, check [Commands](commands.md#first-use-the-syntax-your-tool-expects).
+
 ## What OpenSpec Creates
 
 After running `openspec init`, your project has this structure:
