@@ -49,6 +49,7 @@ function filterSpec(spec: Spec, options: ShowOptions): Spec {
 
   return {
     name: spec.name,
+    title: spec.title,
     overview: spec.overview,
     requirements: filteredRequirements,
     metadata,
@@ -95,7 +96,7 @@ export class SpecCommand {
       const filtered = filterSpec(parsed, options);
       const output = {
         id: specId,
-        title: parsed.name,
+        title: parsed.title,
         overview: parsed.overview,
         requirementCount: filtered.requirements.length,
         requirements: filtered.requirements,
@@ -158,7 +159,7 @@ export function registerSpecCommand(rootProgram: typeof program) {
                 
                 return {
                   id: dirent.name,
-                  title: spec.name,
+                  title: spec.title,
                   requirementCount: spec.requirements.length
                 };
               } catch {

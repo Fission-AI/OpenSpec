@@ -31,6 +31,7 @@ Then they see an error message`;
       const spec = parser.parseSpec('user-auth');
       
       expect(spec.name).toBe('user-auth');
+      expect(spec.title).toBe('User Authentication Spec');
       expect(spec.overview).toContain('requirements for user authentication');
       expect(spec.requirements).toHaveLength(2);
       
@@ -101,6 +102,46 @@ This is a test spec`;
 
       const parser = new MarkdownParser(content);
       expect(() => parser.parseSpec('test')).toThrow('must have a Requirements section');
+    });
+
+    it('should set title from first H1 when present', () => {
+      const content = `# My Spec Title
+
+## Purpose
+Overview here.
+
+## Requirements
+
+### Requirement: One
+SHALL do one.
+
+#### Scenario: S1
+- **WHEN** x
+- **THEN** y`;
+
+      const parser = new MarkdownParser(content);
+      const spec = parser.parseSpec('spec-id');
+      expect(spec.title).toBe('My Spec Title');
+      expect(spec.name).toBe('spec-id');
+    });
+
+    it('should set title to name when document has no H1', () => {
+      const content = `## Purpose
+Overview only, no H1.
+
+## Requirements
+
+### Requirement: One
+SHALL do one.
+
+#### Scenario: S1
+- **WHEN** x
+- **THEN** y`;
+
+      const parser = new MarkdownParser(content);
+      const spec = parser.parseSpec('fallback-id');
+      expect(spec.title).toBe('fallback-id');
+      expect(spec.name).toBe('fallback-id');
     });
   });
 
