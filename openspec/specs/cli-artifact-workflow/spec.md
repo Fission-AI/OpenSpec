@@ -203,7 +203,7 @@ The system SHALL generate schema-aware apply instructions via `openspec instruct
 - **WHEN** user runs `openspec instructions apply --change <id>`
 - **AND** all required artifacts (per schema's `apply.requires`) exist
 - **THEN** the system outputs:
-  - Context files from all existing artifacts
+  - `contextFiles` mapping artifact IDs to arrays of concrete paths for all existing artifacts
   - Schema-specific instruction text
   - Progress tracking file path (if `apply.tracks` is set)
 
@@ -218,7 +218,7 @@ The system SHALL generate schema-aware apply instructions via `openspec instruct
 
 - **WHEN** user runs `openspec instructions apply --change <id> --json`
 - **THEN** the system outputs JSON with:
-  - `contextFiles`: array of paths to existing artifacts
+  - `contextFiles`: object mapping artifact IDs to arrays of concrete paths for existing artifacts
   - `instruction`: the apply instruction text
   - `tracks`: path to progress file or null
   - `applyRequires`: list of required artifact IDs
