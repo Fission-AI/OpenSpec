@@ -786,11 +786,11 @@ openspec config path
 # List all settings
 openspec config list
 
-# Disable telemetry in restricted environments
-OPENSPEC_TELEMETRY=0 openspec init
+# Get a specific value
+openspec config get telemetry.enabled
 
-# Respect the standard do-not-track flag
-DO_NOT_TRACK=1 openspec init
+# Set a value
+openspec config set telemetry.enabled false
 
 # Set a string value explicitly
 openspec config set user.name "My Name" --string
