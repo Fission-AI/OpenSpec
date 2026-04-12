@@ -98,9 +98,20 @@ cd your-project
 openspec init
 ```
 
-Now tell your AI: `/opsx:propose <what-you-want-to-build>`
+By default, OpenSpec installs the `core` workflow set only:
+- `propose`
+- `explore`
+- `apply`
+- `archive`
 
-If you want the expanded workflow (`/opsx:new`, `/opsx:continue`, `/opsx:ff`, `/opsx:verify`, `/opsx:sync`, `/opsx:bulk-archive`, `/opsx:onboard`), select it with `openspec config profile` and apply with `openspec update`.
+Then tell your AI using the syntax that matches your tool:
+- **Claude Code and other colon-style tools:** `/opsx:propose <what-you-want-to-build>`
+- **OpenCode, Cursor, Windsurf, Copilot IDE, and other hyphen-style tools:** `/opsx-propose <what-you-want-to-build>`
+- **Skills-only delivery or skill-based tools:** `/openspec-propose <what-you-want-to-build>`
+
+If command files are missing, your setup may be using `skills` delivery by design. See [Supported Tools](docs/supported-tools.md) for the full delivery and syntax model.
+
+If you want the expanded workflow (`/opsx:new`, `/opsx:continue`, `/opsx:ff`, `/opsx:verify`, `/opsx:sync`, `/opsx:bulk-archive`, `/opsx:onboard`), run `openspec config profile` and then `openspec update`.
 
 > [!NOTE]
 > Not sure if your tool is supported? [View the full list](docs/supported-tools.md) – we support 25+ tools and growing.
