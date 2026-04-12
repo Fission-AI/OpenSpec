@@ -91,8 +91,6 @@ Install OpenSpec globally:
 npm install -g @fission-ai/openspec@latest
 ```
 
-If you are in a restricted or firewalled environment, disable telemetry before first run with `OPENSPEC_TELEMETRY=0` or `DO_NOT_TRACK=1`.
-
 Then navigate to your project directory and initialize:
 
 ```bash
