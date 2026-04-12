@@ -6,7 +6,7 @@
 
 - **New CLI command** `openspec guidance <skill-name> [--json]`: reads `openspec/config.yaml` and returns the shared project `context` plus any skill-specific instruction string from a new `skills:` key.
 - **New `skills:` key in `config.yaml`**: a free-form map of skill name → instruction string. All keys are accepted without validation.
-- **Guidance step in all seeded workflow templates**: every workflow skill (explore, propose, apply, archive, verify, onboard, continue, ff-change) calls `openspec guidance <skill-name> --json` as Step 1. The returned `context` is applied as binding project constraints throughout the session; the returned `instructions` override or extend the skill's default behaviour for the session. If the command fails or returns null fields, the skill continues normally.
+- **Guidance step in all seeded workflow templates**: every workflow skill (explore, propose, apply, archive, verify, onboard, continue, ff-change) calls `openspec guidance <skill-name> --json` as Step 1. If the command exits non-zero, cannot be found, or its output cannot be parsed, the skill logs a warning with the command, skill name, and error details and continues without applying any guidance. If the command succeeds but one or both fields are null, the skill silently applies only the non-null field(s).
 - **Updated seeded `config.yaml` template**: the scaffold from `openspec init` gains a commented-out `skills:` section so the feature is discoverable on first setup.
 - **Updated user-facing docs**: `docs/customization.md` documents the `skills:` config key; `docs/cli.md` documents the `openspec guidance` command.
 - **Updated specs**: `skill-guidance-command`, `config-loading`, `explore-skill-workflow`, and `propose-skill-workflow` specs updated to reflect OpenSpec CLI identity and precise field roles.
@@ -15,13 +15,13 @@
 
 ### New Capabilities
 
-- `skill-guidance-command`: The `openspec guidance <skill-name>` CLI command — reads `openspec/config.yaml` and returns `{ skill, context, instructions }`. `context` is the shared project context field; `instructions` is the value of `skills.<skill-name>` if present, null otherwise.
-- `explore-skill-workflow`: Guidance fetch as Step 1 in the numbered Steps sequence, before document creation or any other action. `context` = binding project constraints applied throughout the session (not written to the exploration document); `instructions` = workflow-specific overrides for the session.
-- `propose-skill-workflow`: Guidance fetch as Step 1, before flag parsing, exploration doc scanning, or any other action. `context` = binding project constraints; `instructions` = workflow-specific overrides. Includes requirements for OpenSpec branding in generated templates (CLI binary, display names, skill metadata).
+- `skill-guidance-command`: The `openspec guidance <skill-name>` CLI command — reads `openspec/config.yaml` and returns `{ skill, context, instructions }`. `skill` is an echo of the input argument. `context` is the shared project context field (e.g. "Always use TypeScript strict mode; follow the Google Style Guide"); `instructions` is the value of `skills.<skill-name>` if present, null otherwise.
+- `explore-skill-workflow`: Guidance fetch as Step 1 in the numbered Steps sequence, before document creation or any other action. `context` = persistent project-level constraints applied throughout the session, never written to the exploration document (e.g. "All code must target Node.js ≥20"); `instructions` = session overrides specific to the explore workflow (e.g. "always create a decision log entry for each Q&A round").
+- `propose-skill-workflow`: Guidance fetch as Step 1, before flag parsing, exploration doc scanning, or any other action. `context` = persistent project-level constraints; `instructions` = session overrides specific to the propose workflow (e.g. "include cost estimates in every proposal"; "tag proposals affecting the public API with `api-impact: true`").
 
 ### Modified Capabilities
 
-- `config-loading`: `ProjectConfigSchema` and `readProjectConfig` gain a `skills` field — a `Record<string, string>` map of skill name to instruction string. Unknown keys accepted without validation.
+- `config-loading`: `ProjectConfigSchema` and `readProjectConfig` gain a `skills` field — a `Record<string, string>` map of skill name to instruction string. All keys are accepted without validation.
 
 ## Impact
 
