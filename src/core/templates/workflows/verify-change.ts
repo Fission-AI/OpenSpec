@@ -40,7 +40,7 @@ export function getVerifyChangeSkillTemplate(): SkillTemplate {
    openspec instructions apply --change "<name>" --json
    \`\`\`
 
-   This returns the change directory and context files. Read all available artifacts from \`contextFiles\`.
+   This returns the change directory and \`contextFiles\` (artifact ID -> array of concrete file paths). Read all available artifacts from \`contextFiles\`.
 
 4. **Initialize verification report structure**
 
@@ -54,7 +54,7 @@ export function getVerifyChangeSkillTemplate(): SkillTemplate {
 5. **Verify Completeness**
 
    **Task Completion**:
-   - If tasks.md exists in contextFiles, read it
+   - If \`contextFiles.tasks\` exists, read every file path in it
    - Parse checkboxes: \`- [ ]\` (incomplete) vs \`- [x]\` (complete)
    - Count complete vs total tasks
    - If incomplete tasks exist:
@@ -93,7 +93,7 @@ export function getVerifyChangeSkillTemplate(): SkillTemplate {
 7. **Verify Coherence**
 
    **Design Adherence**:
-   - If design.md exists in contextFiles:
+   - If \`contextFiles.design\` exists:
      - Extract key decisions (look for sections like "Decision:", "Approach:", "Architecture:")
      - Verify implementation follows those decisions
      - If contradiction detected:
@@ -209,7 +209,7 @@ export function getOpsxVerifyCommandTemplate(): CommandTemplate {
    openspec instructions apply --change "<name>" --json
    \`\`\`
 
-   This returns the change directory and context files. Read all available artifacts from \`contextFiles\`.
+   This returns the change directory and \`contextFiles\` (artifact ID -> array of concrete file paths). Read all available artifacts from \`contextFiles\`.
 
 4. **Initialize verification report structure**
 
@@ -223,7 +223,7 @@ export function getOpsxVerifyCommandTemplate(): CommandTemplate {
 5. **Verify Completeness**
 
    **Task Completion**:
-   - If tasks.md exists in contextFiles, read it
+   - If \`contextFiles.tasks\` exists, read every file path in it
    - Parse checkboxes: \`- [ ]\` (incomplete) vs \`- [x]\` (complete)
    - Count complete vs total tasks
    - If incomplete tasks exist:
@@ -262,7 +262,7 @@ export function getOpsxVerifyCommandTemplate(): CommandTemplate {
 7. **Verify Coherence**
 
    **Design Adherence**:
-   - If design.md exists in contextFiles:
+   - If \`contextFiles.design\` exists:
      - Extract key decisions (look for sections like "Decision:", "Approach:", "Architecture:")
      - Verify implementation follows those decisions
      - If contradiction detected:
