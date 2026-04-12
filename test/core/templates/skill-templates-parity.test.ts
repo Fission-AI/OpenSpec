@@ -23,7 +23,9 @@ import {
   getOpsxSyncCommandTemplate,
   getOpsxProposeCommandTemplate,
   getOpsxProposeSkillTemplate,
+  getOpsxRefineCommandTemplate,
   getOpsxVerifyCommandTemplate,
+  getRefineChangeSkillTemplate,
   getSyncSpecsSkillTemplate,
   getVerifyChangeSkillTemplate,
 } from '../../../src/core/templates/skill-templates.js';
@@ -52,6 +54,8 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getOpsxVerifyCommandTemplate: '9b4d3ca422553b7534764eb3a009da87a051612c5238e9baab294c7b1233e9a2',
   getOpsxProposeSkillTemplate: 'd67f937d44650e9c61d2158c865309fbab23cb3f50a3d4868a640a97776e3999',
   getOpsxProposeCommandTemplate: '41ad59b37eafd7a161bab5c6e41997a37368f9c90b194451295ede5cd42e4d46',
+  getRefineChangeSkillTemplate: '61d79ed4d9673ea032d80d3ec88c617062433ff1a3ee39b1ee8b422ddc834e5b',
+  getOpsxRefineCommandTemplate: 'da0b28a867314bce78f2302ad11f64b8806687c97f554656969291a71fb9b45e',
   getFeedbackSkillTemplate: 'd7d83c5f7fc2b92fe8f4588a5bf2d9cb315e4c73ec19bcd5ef28270906319a0d',
 };
 
@@ -67,6 +71,7 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-verify-change': '30d07c6f7051965f624f5964db51844ec17c7dfd05f0da95281fe0ca73616326',
   'openspec-onboard': 'c1444e026028210efd699110f7e9079bcb486d85ccf27f743213a81cb1084303',
   'openspec-propose': '20e36dabefb90e232bad0667292bd5007ec280f8fc4fc995dbc4282bf45a22e7',
+  'openspec-refine-change': 'cc84efb5d418561868bca76ac7d51cbd6f1f3a93a02746db9550c9d52db9f8dc',
 };
 
 function stableStringify(value: unknown): string {
@@ -114,6 +119,8 @@ describe('skill templates split parity', () => {
       getOpsxVerifyCommandTemplate,
       getOpsxProposeSkillTemplate,
       getOpsxProposeCommandTemplate,
+      getRefineChangeSkillTemplate,
+      getOpsxRefineCommandTemplate,
       getFeedbackSkillTemplate,
     };
 
@@ -139,6 +146,7 @@ describe('skill templates split parity', () => {
       ['openspec-verify-change', getVerifyChangeSkillTemplate],
       ['openspec-onboard', getOnboardSkillTemplate],
       ['openspec-propose', getOpsxProposeSkillTemplate],
+      ['openspec-refine-change', getRefineChangeSkillTemplate],
     ];
 
     const actualHashes = Object.fromEntries(
