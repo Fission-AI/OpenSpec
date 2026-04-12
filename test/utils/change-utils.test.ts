@@ -31,6 +31,21 @@ describe('validateChangeName', () => {
       const result = validateChangeName('upgrade-to-v2');
       expect(result).toEqual({ valid: true });
     });
+
+    it('should accept name with dot separator', () => {
+      const result = validateChangeName('v1.2');
+      expect(result).toEqual({ valid: true });
+    });
+
+    it('should accept name with mixed dot and hyphen separators', () => {
+      const result = validateChangeName('add-auth.v2');
+      expect(result).toEqual({ valid: true });
+    });
+
+    it('should accept name with dot between words', () => {
+      const result = validateChangeName('feature.sub-task');
+      expect(result).toEqual({ valid: true });
+    });
   });
 
   describe('invalid names - uppercase rejected', () => {
@@ -96,6 +111,14 @@ describe('validateChangeName', () => {
       const result = validateChangeName('add--auth');
       expect(result.valid).toBe(false);
       expect(result.error).toContain('consecutive hyphens');
+    });
+  });
+
+  describe('invalid names - consecutive dots rejected', () => {
+    it('should reject name with double dots', () => {
+      const result = validateChangeName('add..auth');
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('consecutive dots');
     });
   });
 
