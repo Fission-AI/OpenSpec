@@ -11,6 +11,7 @@ import {
   VALIDATION_MESSAGES
 } from './constants.js';
 import { parseDeltaSpec, normalizeRequirementName } from '../parsers/requirement-blocks.js';
+import { findMainSpecStructureIssues } from '../parsers/spec-structure.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 
 export class Validator {
@@ -288,6 +289,15 @@ export class Validator {
 
   private applySpecRules(spec: Spec, content: string): ValidationIssue[] {
     const issues: ValidationIssue[] = [];
+
+    for (const structuralIssue of findMainSpecStructureIssues(content)) {
+      issues.push({
+        level: 'ERROR',
+        path: 'file',
+        line: structuralIssue.line,
+        message: structuralIssue.message,
+      });
+    }
     
     if (spec.overview.length < MIN_PURPOSE_LENGTH) {
       issues.push({

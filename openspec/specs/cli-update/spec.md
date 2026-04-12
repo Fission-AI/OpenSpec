@@ -168,7 +168,7 @@ The archive slash command template SHALL support optional change ID arguments fo
 
 ## Edge Cases
 
-### Requirement: Error Handling
+### Error Handling
 
 The command SHALL handle edge cases gracefully.
 
