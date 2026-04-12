@@ -28,3 +28,18 @@ export {
   getCommandContents,
   generateSkillContent,
 } from './skill-generation.js';
+
+export {
+  removeAllSkillDirs,
+  removeUnselectedSkillDirs,
+  removeAllCommandFiles,
+  removeUnselectedCommandFiles,
+} from './artifact-removal.js';
+
+export {
+  type OnboardingContext,
+  formatGettingStarted,
+  formatLinks,
+  formatIdeRestart,
+  printOnboardingFooter,
+} from './onboarding.js';
