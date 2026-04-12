@@ -3,7 +3,10 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { describe, it, expect } from 'vitest';
 import { MarkdownParser } from '../../src/core/parsers/markdown-parser.js';
-import { findMainSpecStructureIssues } from '../../src/core/parsers/spec-structure.js';
+import {
+  findMainSpecStructureIssues,
+  stripFencedCodeBlocksPreservingLines,
+} from '../../src/core/parsers/spec-structure.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -42,7 +45,8 @@ describe('source-of-truth specs normalization', () => {
       const structureIssues = findMainSpecStructureIssues(content);
       const parser = new MarkdownParser(content);
       const spec = parser.parseSpec(path.basename(path.dirname(file)));
-      const rawRequirementCount = content.match(REQUIREMENT_HEADER_PATTERN)?.length ?? 0;
+      const rawRequirementCount =
+        stripFencedCodeBlocksPreservingLines(content).match(REQUIREMENT_HEADER_PATTERN)?.length ?? 0;
 
       expect(content, `${relativeFile} must include ## Purpose`).toMatch(/^## Purpose$/m);
       expect(content, `${relativeFile} must include ## Requirements`).toMatch(/^## Requirements$/m);

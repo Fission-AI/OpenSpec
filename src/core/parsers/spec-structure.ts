@@ -73,7 +73,7 @@ export function findMainSpecStructureIssues(content: string): MainSpecStructureI
   return issues;
 }
 
-function stripFencedCodeBlocksPreservingLines(content: string): string {
+export function stripFencedCodeBlocksPreservingLines(content: string): string {
   const lines = content.split('\n');
   const output: string[] = [];
   let activeFence: { marker: '`' | '~'; length: number } | null = null;
@@ -96,13 +96,22 @@ function stripFencedCodeBlocksPreservingLines(content: string): string {
 
     output.push('');
 
-    if (fenceMatch) {
-      const marker = fenceMatch[1][0] as '`' | '~';
-      if (marker === activeFence.marker && fenceMatch[1].length >= activeFence.length) {
-        activeFence = null;
-      }
+    if (isClosingFence(line, activeFence)) {
+      activeFence = null;
     }
   }
 
   return output.join('\n');
+}
+
+function isClosingFence(
+  line: string,
+  activeFence: { marker: '`' | '~'; length: number }
+): boolean {
+  const fenceMatch = line.match(/^\s*(`{3,}|~{3,})\s*$/);
+  return Boolean(
+    fenceMatch &&
+    fenceMatch[1][0] === activeFence.marker &&
+    fenceMatch[1].length >= activeFence.length
+  );
 }

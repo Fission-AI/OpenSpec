@@ -39,7 +39,7 @@ export class MarkdownParser {
       }
 
       mask[i] = true;
-      if (fence && fence.marker === activeFence.marker && fence.length >= activeFence.length) {
+      if (MarkdownParser.isClosingFence(lines[i], activeFence)) {
         activeFence = null;
       }
     }
@@ -57,6 +57,18 @@ export class MarkdownParser {
       marker: fenceMatch[1][0] as '`' | '~',
       length: fenceMatch[1].length,
     };
+  }
+
+  private static isClosingFence(
+    line: string,
+    activeFence: { marker: '`' | '~'; length: number }
+  ): boolean {
+    const fenceMatch = line.match(/^\s*(`{3,}|~{3,})\s*$/);
+    return Boolean(
+      fenceMatch &&
+      fenceMatch[1][0] === activeFence.marker &&
+      fenceMatch[1].length >= activeFence.length
+    );
   }
 
   parseSpec(name: string): Spec {

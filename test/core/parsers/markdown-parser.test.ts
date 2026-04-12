@@ -135,6 +135,37 @@ The system SHALL ...
       expect(spec.requirements[0].scenarios).toHaveLength(1);
       expect(spec.requirements[0].scenarios[0].rawText).toContain('- **WHEN** a reader reviews the documentation');
     });
+
+    it('should not treat fence-like lines with trailing content as closing fences', () => {
+      const content = `# Test Spec
+
+## Purpose
+This spec includes a fence-like line with trailing content inside a fenced block.
+
+## Requirements
+
+### Requirement: Explain fence parsing
+The system SHALL keep fenced examples isolated until a real closing fence appears.
+
+\`\`\`markdown
+\`\`\` still inside the example
+## ADDED Requirements
+
+### Requirement: Example
+The system SHALL remain part of the example.
+\`\`\`
+
+#### Scenario: reader follows the example
+- **WHEN** a reader reviews the documentation
+- **THEN** the parser ignores headings until the real closing fence`;
+
+      const parser = new MarkdownParser(content);
+      const spec = parser.parseSpec('test');
+
+      expect(spec.requirements).toHaveLength(1);
+      expect(spec.requirements[0].scenarios).toHaveLength(1);
+      expect(spec.requirements[0].scenarios[0].rawText).toContain('parser ignores headings until the real closing fence');
+    });
   });
 
   describe('parseChange', () => {
