@@ -26,6 +26,12 @@ async function prepareFixture(fixtureName: string): Promise<string> {
   return projectDir;
 }
 
+function expectJsonOnlyOutput(result: Awaited<ReturnType<typeof runCLI>>) {
+  expect(result.exitCode).toBe(0);
+  expect(result.stderr).toBe('');
+  expect(() => JSON.parse(result.stdout)).not.toThrow();
+}
+
 afterAll(async () => {
   await Promise.all(tempRoots.map((dir) => fs.rm(dir, { recursive: true, force: true })));
 });
@@ -69,6 +75,46 @@ describe('openspec CLI e2e basics', () => {
     const json = JSON.parse(output);
     expect(json.summary?.totals?.failed).toBe(0);
     expect(json.items.some((item: any) => item.id === 'c1' && item.type === 'change')).toBe(true);
+  });
+
+  it('keeps list --json free of spinner output', async () => {
+    const projectDir = await prepareFixture('tmp-init');
+    const result = await runCLI(['list', '--json'], { cwd: projectDir });
+    expectJsonOnlyOutput(result);
+  });
+
+  it('keeps schemas --json free of spinner output', async () => {
+    const projectDir = await prepareFixture('tmp-init');
+    const result = await runCLI(['schemas', '--json'], { cwd: projectDir });
+    expectJsonOnlyOutput(result);
+  });
+
+  it('keeps status --json free of spinner output', async () => {
+    const projectDir = await prepareFixture('tmp-init');
+    const result = await runCLI(['status', '--change', 'c1', '--json'], { cwd: projectDir });
+    expectJsonOnlyOutput(result);
+  });
+
+  it('keeps instructions --json free of spinner output', async () => {
+    const projectDir = await prepareFixture('tmp-init');
+    const result = await runCLI(['instructions', 'proposal', '--change', 'c1', '--json'], {
+      cwd: projectDir,
+    });
+    expectJsonOnlyOutput(result);
+  });
+
+  it('keeps instructions apply --json free of spinner output', async () => {
+    const projectDir = await prepareFixture('tmp-init');
+    const result = await runCLI(['instructions', 'apply', '--change', 'c1', '--json'], {
+      cwd: projectDir,
+    });
+    expectJsonOnlyOutput(result);
+  });
+
+  it('keeps templates --json free of spinner output', async () => {
+    const projectDir = await prepareFixture('tmp-init');
+    const result = await runCLI(['templates', '--json'], { cwd: projectDir });
+    expectJsonOnlyOutput(result);
   });
 
   it('returns an error for unknown items in the fixture', async () => {
