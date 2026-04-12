@@ -110,6 +110,7 @@ describe('artifact-workflow CLI commands', () => {
         cwd: tempDir,
       });
       expect(result.exitCode).toBe(0);
+      expect(result.stderr).toBe('');
 
       const json = JSON.parse(result.stdout);
       expect(json.changeName).toBe('json-change');
@@ -256,6 +257,7 @@ describe('artifact-workflow CLI commands', () => {
         cwd: tempDir,
       });
       expect(result.exitCode).toBe(0);
+      expect(result.stderr).toBe('');
 
       const json = JSON.parse(result.stdout);
       expect(json.artifactId).toBe('design');
@@ -309,6 +311,7 @@ describe('artifact-workflow CLI commands', () => {
     it('outputs JSON mapping of templates', async () => {
       const result = await runCLI(['templates', '--json'], { cwd: tempDir });
       expect(result.exitCode).toBe(0);
+      expect(result.stderr).toBe('');
 
       const json = JSON.parse(result.stdout);
       expect(json.proposal).toBeDefined();
@@ -405,6 +408,7 @@ describe('artifact-workflow CLI commands', () => {
         { cwd: tempDir }
       );
       expect(result.exitCode).toBe(0);
+      expect(result.stderr).toBe('');
 
       const json = JSON.parse(result.stdout);
       expect(json.changeName).toBe('json-apply');
