@@ -22,6 +22,7 @@ describe('telemetry/index', () => {
   let tempDir: string;
   let originalEnv: NodeJS.ProcessEnv;
   let consoleLogSpy: ReturnType<typeof vi.spyOn>;
+  let fetchSpy: ReturnType<typeof vi.spyOn<typeof globalThis, 'fetch'>>;
 
   beforeEach(() => {
     // Create unique temp directory for each test using UUID
@@ -39,9 +40,10 @@ describe('telemetry/index', () => {
 
     // Spy on console.log for notice tests
     consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    fetchSpy = vi.spyOn(globalThis, 'fetch');
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     // Restore original env
     process.env = originalEnv;
 
@@ -51,6 +53,8 @@ describe('telemetry/index', () => {
     } catch {
       // Ignore cleanup errors
     }
+
+    await shutdown();
 
     // Restore all mocks
     vi.restoreAllMocks();
@@ -114,6 +118,86 @@ describe('telemetry/index', () => {
       await trackCommand('test', '1.0.0');
 
       expect(PostHog).toHaveBeenCalled();
+    });
+
+    it('should construct PostHog with bounded silent-failure settings', async () => {
+      delete process.env.OPENSPEC_TELEMETRY;
+      delete process.env.DO_NOT_TRACK;
+      delete process.env.CI;
+
+      await trackCommand('test', '1.0.0');
+
+      expect(PostHog).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          host: 'https://edge.openspec.dev',
+          flushAt: 1,
+          flushInterval: 0,
+          fetchRetryCount: 0,
+          requestTimeout: 1000,
+          preloadFeatureFlags: false,
+          disableRemoteConfig: true,
+          disableSurveys: true,
+          fetch: expect.any(Function),
+        })
+      );
+    });
+
+    it('should return a synthetic success response when fetch throws a network error', async () => {
+      delete process.env.OPENSPEC_TELEMETRY;
+      delete process.env.DO_NOT_TRACK;
+      delete process.env.CI;
+      await trackCommand('test', '1.0.0');
+
+      const fetchFn = (PostHog as any).mock.calls[0][1].fetch as typeof fetch;
+      fetchSpy.mockRejectedValueOnce(new Error('network down'));
+
+      const response = await fetchFn('https://edge.openspec.dev/batch/', { method: 'POST' });
+
+      expect(response.status).toBe(204);
+    });
+
+    it('should return a synthetic success response when fetch aborts', async () => {
+      delete process.env.OPENSPEC_TELEMETRY;
+      delete process.env.DO_NOT_TRACK;
+      delete process.env.CI;
+      await trackCommand('test', '1.0.0');
+
+      const fetchFn = (PostHog as any).mock.calls[0][1].fetch as typeof fetch;
+      fetchSpy.mockRejectedValueOnce(new DOMException('This operation was aborted', 'AbortError'));
+
+      const response = await fetchFn('https://edge.openspec.dev/batch/', { method: 'POST' });
+
+      expect(response.status).toBe(204);
+    });
+
+    it('should return a synthetic success response for non-2xx responses', async () => {
+      delete process.env.OPENSPEC_TELEMETRY;
+      delete process.env.DO_NOT_TRACK;
+      delete process.env.CI;
+      await trackCommand('test', '1.0.0');
+
+      const fetchFn = (PostHog as any).mock.calls[0][1].fetch as typeof fetch;
+      fetchSpy.mockResolvedValueOnce(new Response('forbidden', { status: 403 }));
+
+      const response = await fetchFn('https://edge.openspec.dev/batch/', { method: 'POST' });
+
+      expect(response.status).toBe(204);
+    });
+
+    it('should pass through successful responses from fetch', async () => {
+      delete process.env.OPENSPEC_TELEMETRY;
+      delete process.env.DO_NOT_TRACK;
+      delete process.env.CI;
+      await trackCommand('test', '1.0.0');
+
+      const fetchFn = (PostHog as any).mock.calls[0][1].fetch as typeof fetch;
+      const expectedResponse = new Response(null, { status: 200 });
+      fetchSpy.mockResolvedValueOnce(expectedResponse);
+
+      const response = await fetchFn('https://edge.openspec.dev/batch/', { method: 'POST' });
+
+      expect(response).toBe(expectedResponse);
     });
   });
 
