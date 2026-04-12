@@ -16,6 +16,8 @@ import {
   getVerifyChangeSkillTemplate,
   getOnboardSkillTemplate,
   getOpsxProposeSkillTemplate,
+  getOpsxMultiagentSkillTemplate,
+  getOpsxMultiagentApplySkillTemplate,
   getOpsxExploreCommandTemplate,
   getOpsxNewCommandTemplate,
   getOpsxContinueCommandTemplate,
@@ -27,6 +29,8 @@ import {
   getOpsxVerifyCommandTemplate,
   getOpsxOnboardCommandTemplate,
   getOpsxProposeCommandTemplate,
+  getOpsxMultiagentCommandTemplate,
+  getOpsxMultiagentApplyCommandTemplate,
   type SkillTemplate,
 } from '../templates/skill-templates.js';
 import type { CommandContent } from '../command-generation/index.js';
@@ -66,6 +70,8 @@ export function getSkillTemplates(workflowFilter?: readonly string[]): SkillTemp
     { template: getVerifyChangeSkillTemplate(), dirName: 'openspec-verify-change', workflowId: 'verify' },
     { template: getOnboardSkillTemplate(), dirName: 'openspec-onboard', workflowId: 'onboard' },
     { template: getOpsxProposeSkillTemplate(), dirName: 'openspec-propose', workflowId: 'propose' },
+    { template: getOpsxMultiagentSkillTemplate(), dirName: 'openspec-multiagent', workflowId: 'multiagent' },
+    { template: getOpsxMultiagentApplySkillTemplate(), dirName: 'openspec-multiagent-apply', workflowId: 'multiagent-apply' },
   ];
 
   if (!workflowFilter) return all;
@@ -92,6 +98,8 @@ export function getCommandTemplates(workflowFilter?: readonly string[]): Command
     { template: getOpsxVerifyCommandTemplate(), id: 'verify' },
     { template: getOpsxOnboardCommandTemplate(), id: 'onboard' },
     { template: getOpsxProposeCommandTemplate(), id: 'propose' },
+    { template: getOpsxMultiagentCommandTemplate(), id: 'multiagent' },
+    { template: getOpsxMultiagentApplyCommandTemplate(), id: 'multiagent-apply' },
   ];
 
   if (!workflowFilter) return all;
