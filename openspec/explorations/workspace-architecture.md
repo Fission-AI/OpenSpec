@@ -645,23 +645,131 @@ To avoid losing this in exploration notes, codify it in:
 
 ---
 
+## Part 10: Design Decisions (April 2026)
+
+After evaluating the models above against real multi-repo use cases (see [#725](https://github.com/Fission-AI/OpenSpec/issues/725)), we converged on the following design direction.
+
+### Core Insight
+
+The durable thing is the spec or the change, not the workspace. The set of repos involved in a feature is typically feature-scoped and changes over time. A static workspace manifest that must be configured before work begins creates ceremony that doesn't match how teams actually work.
+
+### Decision: Model D with Lazy Workspace
+
+Choose Model D (Hybrid) from Part 4, but make the workspace manifest **optional and lazy, not prerequisite**.
+
+- **Each repo keeps its own canonical `openspec/`** — no change to the fundamental storage model.
+- **Specs and changes declare cross-project links** — the coordination metadata lives on the artifacts themselves.
+- **"Workspace" is a derived view** over those links, not something users must register up front.
+- **Persist a workspace manifest only when someone explicitly wants a reusable cross-repo bundle** — this is an opt-in convenience, not a requirement.
+
+### Decision: Change-Scoped Linking via Initiative Records
+
+Cross-repo coordination happens at the change level, not the workspace level:
+
+```yaml
+# billing-service/openspec/changes/add-3ds/.openspec.yaml
+schema: spec-driven
+created: 2026-04-12
+links:
+  - project: github.com/fission/web-client
+    change: add-3ds-checkout
+  - project: github.com/fission/ios-client
+    change: add-3ds-checkout
+```
+
+Each repo holds its own change with its own deltas. A "cross-repo change" is N linked single-repo changes. This is preferable to a single mega-change because:
+- Each repo's change goes through its own archive cycle
+- No need to resolve cross-repo file paths in delta specs
+- Teams can move at different speeds (web ships before iOS)
+
+An **initiative record** is the optional connective tissue — a lightweight, feature-scoped coordination artifact that ties linked changes together for visibility. It is not a workspace; it is ephemeral and scoped to one feature.
+
+### Decision: Stable Project Identifiers, Not Paths
+
+Cross-repo links must use **stable project identifiers**, not filesystem paths.
+
+- **Canonical form:** A normalized `host/org/repo` tuple (e.g., `github.com/fission/web-client`).
+- **Authoring shorthand:** The CLI accepts `org/repo` (e.g., `fission/web-client`) and infers the host from the current repo's remote.
+- **Relative paths are never the durable identifier.** They may exist only as cached local resolution results.
+
+### Decision: Offline-First Resolution
+
+The CLI resolves project identifiers to local paths using an offline-first chain:
+
+1. **Explicit paths** passed for the current run (e.g., CLI flags, ad-hoc multi-root).
+2. **Local OpenSpec repo registry** — a persistent mapping in `~/.config/openspec/` or `~/.local/share/openspec/` (see `src/core/global-config.ts`).
+3. **Parent directory scanning** — scan known parent directories for git checkouts whose remotes match the target identifier.
+4. **Unresolved** — if no local path is found, leave the target unresolved and continue with a partial workspace. The CLI must not fail.
+
+The registry is populated progressively: when the CLI discovers a clone (via scanning or user prompt), it persists the mapping for future resolution. The registry also stores "known scan roots" (e.g., `~/work/`) so scanning improves over time without upfront configuration.
+
+### Decision: Informational References Only (v1)
+
+Spec-level cross-repo references are **documentation-only pointers**:
+
+```yaml
+# web-client/openspec/specs/checkout/spec.md frontmatter
+references:
+  - project: github.com/fission/contracts-service
+    spec: checkout-contract
+```
+
+- The CLI does **not** fail validation because a referenced cross-repo spec is missing or unresolved.
+- The CLI **does** surface references to humans and agents when planning, viewing, or applying changes.
+- Stronger guarantees (e.g., staleness warnings, cross-repo validation) are an opt-in layer added later — via `lint`, `doctor`, or a feature flag — not baseline behavior.
+
+This avoids accidentally committing OpenSpec to a full dependency graph system before the use cases justify it.
+
+### Decision: Explicit Owner Repo for Shared Contracts
+
+When a spec cannot be mapped to a single implementation repo (e.g., a shared API contract):
+
+- **One repo must be the explicit owner.** This can be a dedicated "contracts" repo, or whichever repo is the natural source of truth.
+- **Other repos reference the owning repo's spec** via informational references (see above).
+- **There is no default "pure spec repo" pattern.** Separating spec ownership from code ownership too aggressively makes agent execution awkward and diffuses responsibility.
+
+### Monorepo vs. Multi-Repo Summary
+
+| Concern | Monorepo | Multi-Repo |
+|---------|----------|------------|
+| **Spec organization** | Nested specs inside one `openspec/` (Model B) | Each repo has its own `openspec/` |
+| **Cross-cutting specs** | Nested under a `contracts/` or `shared/` directory | Dedicated owner repo, others reference it |
+| **Changes** | One change can touch multiple nested specs | Linked per-repo changes via initiative records |
+| **Relationships** | References (no inheritance in v1) | Project identifier links, informational only |
+| **Workspace** | Not needed (single repo) | Derived from change links; optional manifest for reuse |
+
+### Implementation Path
+
+1. **Extend change metadata** — add `links` field to `.openspec.yaml` for cross-repo change linking.
+2. **Extend spec metadata** — add `references` field for cross-repo spec pointers.
+3. **Build project resolution** — implement the offline-first resolution chain and local registry.
+4. **Build `openspec links`** — a command that resolves and displays the cross-repo graph for a change.
+5. **Support ad-hoc multi-root** — "add these dirs for this run" or "derive roots from this change's links."
+6. **Optional workspace manifest** — add saved workspaces only if teams demonstrate reuse patterns.
+
+Nested specs (Model B inside a single repo) are a prerequisite for clean monorepo support and should be tackled first, as outlined in #662.
+
+---
+
 ## Summary
 
 | Question | Status | Notes |
 |----------|--------|-------|
 | Profile UX | Decided | `openspec config profile` with presets |
 | Config layering | Decided | Two layers: global + project (no workspace layer) |
-| Spec organization | Open | Four models under consideration (including hybrid Model D) |
+| Spec organization | **Direction set** | Model D (hybrid): nested specs per repo + cross-repo linking |
 | Spec philosophy | Direction set | Behavior-first contracts, progressive rigor, and agent-aligned authoring |
-| Spec inheritance | Open | Inheritance vs references vs none |
-| Multi-repo support | Open | Workspace concept TBD |
-| Dependency tracking | Open | Probably out of scope initially |
+| Spec inheritance | **Decided** | References only, no inheritance in v1 |
+| Multi-repo support | **Direction set** | Change-scoped linking with stable identifiers; workspace is derived, not prerequisite |
+| Dependency tracking | **Decided** | Out of scope for v1; references are informational only |
+| Cross-repo resolution | **Decided** | Offline-first resolution chain with local registry |
+| Shared contracts | **Decided** | Explicit owner repo required; no default pure-spec-repo pattern |
 
 ### Key Insight
 
 The "workspace" question is really two separate questions:
 1. **Config/profile scope** → Solved with global + project (no workspace needed)
-2. **Spec/change organization** → Unsolved, needs deeper design work
+2. **Spec/change organization** → Direction set: Model D with lazy workspace, change-scoped linking, stable identifiers, informational references
 
 These should be separate changes with separate explorations.
 
