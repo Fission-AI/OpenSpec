@@ -33,7 +33,7 @@ export interface TemplateInfo {
 // -----------------------------------------------------------------------------
 
 export async function templatesCommand(options: TemplatesOptions): Promise<void> {
-  const spinner = ora('Loading templates...').start();
+  const spinner = options.json ? undefined : ora('Loading templates...').start();
 
   try {
     const projectRoot = process.cwd();
@@ -72,7 +72,7 @@ export async function templatesCommand(options: TemplatesOptions): Promise<void>
       source,
     }));
 
-    spinner.stop();
+    spinner?.stop();
 
     if (options.json) {
       const output: Record<string, { path: string; source: string }> = {};
@@ -92,7 +92,7 @@ export async function templatesCommand(options: TemplatesOptions): Promise<void>
       console.log(`  ${t.templatePath}`);
     }
   } catch (error) {
-    spinner.stop();
+    spinner?.stop();
     throw error;
   }
 }

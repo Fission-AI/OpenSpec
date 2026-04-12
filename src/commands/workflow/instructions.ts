@@ -45,7 +45,7 @@ export async function instructionsCommand(
   artifactId: string | undefined,
   options: InstructionsOptions
 ): Promise<void> {
-  const spinner = ora('Generating instructions...').start();
+  const spinner = options.json ? undefined : ora('Generating instructions...').start();
 
   try {
     const projectRoot = process.cwd();
@@ -60,7 +60,7 @@ export async function instructionsCommand(
     const context = loadChangeContext(projectRoot, changeName, options.schema);
 
     if (!artifactId) {
-      spinner.stop();
+      spinner?.stop();
       const validIds = context.graph.getAllArtifacts().map((a) => a.id);
       throw new Error(
         `Missing required argument <artifact>. Valid artifacts:\n  ${validIds.join('\n  ')}`
@@ -70,7 +70,7 @@ export async function instructionsCommand(
     const artifact = context.graph.getArtifact(artifactId);
 
     if (!artifact) {
-      spinner.stop();
+      spinner?.stop();
       const validIds = context.graph.getAllArtifacts().map((a) => a.id);
       throw new Error(
         `Artifact '${artifactId}' not found in schema '${context.schemaName}'. Valid artifacts:\n  ${validIds.join('\n  ')}`
@@ -80,7 +80,7 @@ export async function instructionsCommand(
     const instructions = generateInstructions(context, artifactId, projectRoot);
     const isBlocked = instructions.dependencies.some((d) => !d.done);
 
-    spinner.stop();
+    spinner?.stop();
 
     if (options.json) {
       console.log(JSON.stringify(instructions, null, 2));
@@ -89,7 +89,7 @@ export async function instructionsCommand(
 
     printInstructionsText(instructions, isBlocked);
   } catch (error) {
-    spinner.stop();
+    spinner?.stop();
     throw error;
   }
 }
@@ -400,7 +400,7 @@ export async function generateApplyInstructions(
 }
 
 export async function applyInstructionsCommand(options: ApplyInstructionsOptions): Promise<void> {
-  const spinner = ora('Generating apply instructions...').start();
+  const spinner = options.json ? undefined : ora('Generating apply instructions...').start();
 
   try {
     const projectRoot = process.cwd();
@@ -414,7 +414,7 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
     // generateApplyInstructions uses loadChangeContext which auto-detects schema
     const instructions = await generateApplyInstructions(projectRoot, changeName, options.schema);
 
-    spinner.stop();
+    spinner?.stop();
 
     if (options.json) {
       console.log(JSON.stringify(instructions, null, 2));
@@ -423,7 +423,7 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
 
     printApplyInstructionsText(instructions);
   } catch (error) {
-    spinner.stop();
+    spinner?.stop();
     throw error;
   }
 }
