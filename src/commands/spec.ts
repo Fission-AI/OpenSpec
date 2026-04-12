@@ -6,6 +6,7 @@ import { Validator } from '../core/validation/validator.js';
 import type { Spec } from '../core/schemas/index.js';
 import { isInteractive } from '../utils/interactive.js';
 import { getSpecIds } from '../utils/item-discovery.js';
+import { isDirectoryEntrySync } from '../utils/file-system.js';
 
 const SPECS_DIR = 'openspec/specs';
 
@@ -149,7 +150,7 @@ export function registerSpecCommand(rootProgram: typeof program) {
         }
 
         const specs = readdirSync(SPECS_DIR, { withFileTypes: true })
-          .filter(dirent => dirent.isDirectory())
+          .filter(dirent => isDirectoryEntrySync(dirent, SPECS_DIR))
           .map(dirent => {
             const specPath = join(SPECS_DIR, dirent.name, 'spec.md');
             if (existsSync(specPath)) {

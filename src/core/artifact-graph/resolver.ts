@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getGlobalDataDir } from '../global-config.js';
+import { isDirectoryEntrySync } from '../../utils/file-system.js';
 import { parseSchema, SchemaValidationError } from './schema.js';
 import type { SchemaYaml } from './types.js';
 
@@ -165,7 +166,7 @@ export function listSchemas(projectRoot?: string): string[] {
   const packageDir = getPackageSchemasDir();
   if (fs.existsSync(packageDir)) {
     for (const entry of fs.readdirSync(packageDir, { withFileTypes: true })) {
-      if (entry.isDirectory()) {
+      if (isDirectoryEntrySync(entry, packageDir)) {
         const schemaPath = path.join(packageDir, entry.name, 'schema.yaml');
         if (fs.existsSync(schemaPath)) {
           schemas.add(entry.name);
@@ -178,7 +179,7 @@ export function listSchemas(projectRoot?: string): string[] {
   const userDir = getUserSchemasDir();
   if (fs.existsSync(userDir)) {
     for (const entry of fs.readdirSync(userDir, { withFileTypes: true })) {
-      if (entry.isDirectory()) {
+      if (isDirectoryEntrySync(entry, userDir)) {
         const schemaPath = path.join(userDir, entry.name, 'schema.yaml');
         if (fs.existsSync(schemaPath)) {
           schemas.add(entry.name);
@@ -192,7 +193,7 @@ export function listSchemas(projectRoot?: string): string[] {
     const projectDir = getProjectSchemasDir(projectRoot);
     if (fs.existsSync(projectDir)) {
       for (const entry of fs.readdirSync(projectDir, { withFileTypes: true })) {
-        if (entry.isDirectory()) {
+        if (isDirectoryEntrySync(entry, projectDir)) {
           const schemaPath = path.join(projectDir, entry.name, 'schema.yaml');
           if (fs.existsSync(schemaPath)) {
             schemas.add(entry.name);
@@ -230,7 +231,7 @@ export function listSchemasWithInfo(projectRoot?: string): SchemaInfo[] {
     const projectDir = getProjectSchemasDir(projectRoot);
     if (fs.existsSync(projectDir)) {
       for (const entry of fs.readdirSync(projectDir, { withFileTypes: true })) {
-        if (entry.isDirectory()) {
+        if (isDirectoryEntrySync(entry, projectDir)) {
           const schemaPath = path.join(projectDir, entry.name, 'schema.yaml');
           if (fs.existsSync(schemaPath)) {
             try {
@@ -255,7 +256,7 @@ export function listSchemasWithInfo(projectRoot?: string): SchemaInfo[] {
   const userDir = getUserSchemasDir();
   if (fs.existsSync(userDir)) {
     for (const entry of fs.readdirSync(userDir, { withFileTypes: true })) {
-      if (entry.isDirectory() && !seenNames.has(entry.name)) {
+      if (isDirectoryEntrySync(entry, userDir) && !seenNames.has(entry.name)) {
         const schemaPath = path.join(userDir, entry.name, 'schema.yaml');
         if (fs.existsSync(schemaPath)) {
           try {
@@ -279,7 +280,7 @@ export function listSchemasWithInfo(projectRoot?: string): SchemaInfo[] {
   const packageDir = getPackageSchemasDir();
   if (fs.existsSync(packageDir)) {
     for (const entry of fs.readdirSync(packageDir, { withFileTypes: true })) {
-      if (entry.isDirectory() && !seenNames.has(entry.name)) {
+      if (isDirectoryEntrySync(entry, packageDir) && !seenNames.has(entry.name)) {
         const schemaPath = path.join(packageDir, entry.name, 'schema.yaml');
         if (fs.existsSync(schemaPath)) {
           try {

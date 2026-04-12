@@ -8,6 +8,7 @@
 import ora from 'ora';
 import path from 'path';
 import * as fs from 'fs';
+import { isDirectoryEntrySync, isFileEntrySync } from '../../utils/file-system.js';
 import {
   loadChangeContext,
   generateInstructions,
@@ -275,12 +276,12 @@ function artifactOutputExists(changeDir: string, generates: string): boolean {
       try {
         const entries = fs.readdirSync(dir, { withFileTypes: true });
         for (const entry of entries) {
-          if (entry.isDirectory()) {
+          if (isDirectoryEntrySync(entry, dir)) {
             // For ** patterns, recurse into subdirectories
             if (generates.includes('**') && hasMatchingFiles(path.join(dir, entry.name))) {
               return true;
             }
-          } else if (entry.isFile()) {
+          } else if (isFileEntrySync(entry, dir)) {
             // Check if file matches expected extension (or any file if no extension specified)
             if (!expectedExt || entry.name.endsWith(expectedExt)) {
               return true;
