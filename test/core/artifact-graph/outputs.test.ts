@@ -24,6 +24,14 @@ describe('artifact-graph/outputs', () => {
     expect(artifactOutputExists(tempDir, 'proposal.md')).toBe(true);
   });
 
+  it('does not treat a directory as a resolved literal artifact output', () => {
+    const dirPath = path.join(tempDir, 'proposal.md');
+    fs.mkdirSync(dirPath, { recursive: true });
+
+    expect(resolveArtifactOutputs(tempDir, 'proposal.md')).toEqual([]);
+    expect(artifactOutputExists(tempDir, 'proposal.md')).toBe(false);
+  });
+
   it('resolves single-star nested globs to concrete files', () => {
     const nestedDir = path.join(tempDir, 'specs', 'change-a');
     const filePath = path.join(nestedDir, 'spec.md');

@@ -18,7 +18,11 @@ export function resolveArtifactOutputs(changeDir: string, generates: string): st
   const fullPattern = path.join(changeDir, generates);
 
   if (!isGlobPattern(generates)) {
-    return fs.existsSync(fullPattern) ? [fullPattern] : [];
+    try {
+      return fs.statSync(fullPattern).isFile() ? [fullPattern] : [];
+    } catch {
+      return [];
+    }
   }
 
   const normalizedPattern = FileSystemUtils.toPosixPath(fullPattern);
