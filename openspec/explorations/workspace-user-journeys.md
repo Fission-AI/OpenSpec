@@ -1234,19 +1234,24 @@ Or OpenSpec may have already scaffolded the initiative and tell the agent to con
 
 ### Storage outcome
 
-The coordination workspace stores:
+The coordination workspace stores the **initiative-level planning object**:
 
+- proposal.md
+- design.md
 - initiative summary
 - cross-repo scope map
+- ownership, milestones, risks, and dependencies
 - links to repo-local changes
 - agent workspace instructions
 
-Each repo stores its own change:
+Each repo stores its own execution change:
 
 - `contracts/openspec/changes/add-3ds-contract/`
 - `billing-service/openspec/changes/add-3ds-billing/`
 - `web-client/openspec/changes/add-3ds-web/`
 - `ios-client/openspec/changes/add-3ds-ios/`
+
+Those repo-local changes are where repo-specific tasks, delta specs, and local implementation state live.
 
 ### Why this matters
 
@@ -1654,13 +1659,18 @@ Examples:
 - `contracts/openspec/changes/add-3ds-contract/`
 - `web-client/openspec/changes/add-3ds-web/`
 
+These changes are the execution artifacts for each owning repo. They should carry repo-specific tasks, delta specs, and local implementation state.
+
 ### Rule 3: Initiative-level planning lives in the coordination workspace
 
 Examples:
 
+- proposal.md
+- design.md
 - initiative summary
 - rollout sequencing
 - cross-repo assumptions
+- ownership, milestones, risks, and dependencies
 - links between repo-local changes
 
 ### Rule 4: Workspace never becomes canonical spec storage
