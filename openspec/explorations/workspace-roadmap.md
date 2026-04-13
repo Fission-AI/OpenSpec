@@ -47,18 +47,19 @@ OpenSpec needs a better way to organize:
 
 References help agents and humans navigate related specs without requiring OpenSpec to build a dependency graph system on day one.
 
-### 3. Linked per-repo changes are the right primitive
+### 3. Initiatives plus linked per-repo changes are the right primitive
 
 For true multi-repo work, the likely durable primitive is:
 
-- one linked change per owning repo
+- one initiative as the shared planning object
+- one linked change per owning repo as the execution artifact
 - stable identifiers connecting them
 
 ### 4. Cross-repo work needs a neutral planning location
 
 For multi-repo work, a single repo is not an honest home for the whole planning artifact.
 
-Some form of coordination workspace or coordination repo is needed.
+Some form of coordination workspace or coordination repo is needed for the initiative-level plan.
 
 ### 5. Team-shared coordination is a real requirement
 
@@ -124,8 +125,8 @@ Support real multi-repo planning demand with the thinnest credible coordination 
 
 ### Ship
 
-1. Linked per-repo changes using stable project identifiers
-2. A neutral coordination workspace or coordination repo for planning
+1. Initiative artifacts for shared planning in a neutral coordination workspace or coordination repo
+2. Linked per-repo changes using stable project identifiers
 3. Explicit repo linking via project IDs
 4. Resolution through:
    - explicit input
@@ -137,6 +138,7 @@ Support real multi-repo planning demand with the thinnest credible coordination 
 
 - users have an honest place to stand for multi-repo work
 - cross-repo plans are no longer buried in one repo
+- shared planning and repo-local execution are clearly separated
 - ownership stays with the real repos
 - agents can be told what roots matter
 
@@ -157,6 +159,7 @@ This phase should feel like:
 
 - local planning by default
 - upgrade to a coordinated initiative when needed
+- initiative-level planning in the coordination workspace
 - linked repo-local changes underneath
 
 Not like:
@@ -257,7 +260,7 @@ Because demand is already real, some things should not be treated as purely futu
 
 - nested spec paths
 - references
-- linked change primitive
+- initiative artifact + linked change primitive
 - stable project identifiers
 - thin coordination layer for multi-repo planning
 
@@ -310,10 +313,11 @@ If this roadmap were translated into actual change proposals, the sequence would
 
 1. nested spec paths + references
 2. monorepo scope filtering and multi-area planning improvements
-3. linked change metadata across repos
-4. thin coordination workspace / repo for multi-repo planning
-5. team-shared coordination hardening
-6. optional shared contract maturity features
+3. initiative artifact for shared planning
+4. linked change metadata across repos
+5. thin coordination workspace / repo for multi-repo planning
+6. team-shared coordination hardening
+7. optional shared contract maturity features
 
 ---
 
