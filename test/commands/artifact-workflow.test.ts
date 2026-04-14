@@ -110,6 +110,7 @@ describe('artifact-workflow CLI commands', () => {
         cwd: tempDir,
       });
       expect(result.exitCode).toBe(0);
+      expect(result.stderr).toBe('');
 
       const json = JSON.parse(result.stdout);
       expect(json.changeName).toBe('json-change');
@@ -256,6 +257,7 @@ describe('artifact-workflow CLI commands', () => {
         cwd: tempDir,
       });
       expect(result.exitCode).toBe(0);
+      expect(result.stderr).toBe('');
 
       const json = JSON.parse(result.stdout);
       expect(json.artifactId).toBe('design');
@@ -309,6 +311,7 @@ describe('artifact-workflow CLI commands', () => {
     it('outputs JSON mapping of templates', async () => {
       const result = await runCLI(['templates', '--json'], { cwd: tempDir });
       expect(result.exitCode).toBe(0);
+      expect(result.stderr).toBe('');
 
       const json = JSON.parse(result.stdout);
       expect(json.proposal).toBeDefined();
@@ -405,13 +408,76 @@ describe('artifact-workflow CLI commands', () => {
         { cwd: tempDir }
       );
       expect(result.exitCode).toBe(0);
+      expect(result.stderr).toBe('');
 
       const json = JSON.parse(result.stdout);
+      const expectedProposalPath = await fs.realpath(path.join(changesDir, 'json-apply', 'proposal.md'));
+      const expectedSpecPath = await fs.realpath(
+        path.join(changesDir, 'json-apply', 'specs', 'test-spec.md')
+      );
       expect(json.changeName).toBe('json-apply');
       expect(json.schemaName).toBe('spec-driven');
       expect(json.state).toBe('ready');
       expect(json.contextFiles).toBeDefined();
       expect(typeof json.contextFiles).toBe('object');
+      expect(json.contextFiles.proposal).toEqual([expectedProposalPath]);
+      expect(json.contextFiles.specs).toEqual([expectedSpecPath]);
+    });
+
+    it('resolves single-star glob artifacts consistently between status and apply', async () => {
+      const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'glob-test');
+      const templatesDir = path.join(schemaDir, 'templates');
+      await fs.mkdir(templatesDir, { recursive: true });
+
+      await fs.writeFile(
+        path.join(schemaDir, 'schema.yaml'),
+        `name: glob-test
+version: 1
+description: Test schema for single-star globs
+artifacts:
+  - id: specs
+    generates: specs/*/spec.md
+    description: Nested specs
+    template: spec.md
+    requires: []
+apply:
+  requires: [specs]
+  instruction: Ready when specs exist.
+`
+      );
+      await fs.writeFile(path.join(templatesDir, 'spec.md'), '# Spec\n');
+
+      const changeDir = path.join(changesDir, 'single-star-glob');
+      const specPath = path.join(changeDir, 'specs', 'single-star-glob', 'spec.md');
+      await fs.mkdir(path.dirname(specPath), { recursive: true });
+      await fs.writeFile(path.join(changeDir, '.openspec.yaml'), 'schema: glob-test\n');
+      await fs.writeFile(specPath, '# Nested spec\n');
+
+      const statusResult = await runCLI(['status', '--change', 'single-star-glob', '--json'], {
+        cwd: tempDir,
+      });
+      expect(statusResult.exitCode).toBe(0);
+      const statusJson = JSON.parse(statusResult.stdout);
+      expect(statusJson.artifacts).toEqual([
+        {
+          id: 'specs',
+          outputPath: 'specs/*/spec.md',
+          status: 'done',
+        },
+      ]);
+
+      const applyResult = await runCLI(
+        ['instructions', 'apply', '--change', 'single-star-glob', '--json'],
+        { cwd: tempDir }
+      );
+      expect(applyResult.exitCode).toBe(0);
+      const applyJson = JSON.parse(applyResult.stdout);
+      const resolvedSpecPath = await fs.realpath(specPath);
+      expect(applyJson.state).toBe('ready');
+      expect(applyJson.missingArtifacts).toBeUndefined();
+      expect(applyJson.contextFiles).toEqual({
+        specs: [resolvedSpecPath],
+      });
     });
 
     it('shows schema instruction from apply block', async () => {

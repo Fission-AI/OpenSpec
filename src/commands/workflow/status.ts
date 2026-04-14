@@ -34,7 +34,7 @@ export interface StatusOptions {
 // -----------------------------------------------------------------------------
 
 export async function statusCommand(options: StatusOptions): Promise<void> {
-  const spinner = ora('Loading change status...').start();
+  const spinner = options.json ? undefined : ora('Loading change status...').start();
 
   try {
     const projectRoot = process.cwd();
@@ -44,7 +44,7 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
     if (!options.change) {
       const available = await getAvailableChanges(projectRoot);
       if (available.length === 0) {
-        spinner.stop();
+        spinner?.stop();
         if (options.json) {
           console.log(JSON.stringify({ changes: [], message: 'No active changes.' }, null, 2));
           return;
@@ -53,7 +53,7 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
         return;
       }
       // Changes exist but --change not provided
-      spinner.stop();
+      spinner?.stop();
       throw new Error(
         `Missing required option --change. Available changes:\n  ${available.join('\n  ')}`
       );
@@ -70,7 +70,7 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
     const context = loadChangeContext(projectRoot, changeName, options.schema);
     const status = formatChangeStatus(context);
 
-    spinner.stop();
+    spinner?.stop();
 
     if (options.json) {
       console.log(JSON.stringify(status, null, 2));
@@ -79,7 +79,7 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
 
     printStatusText(status);
   } catch (error) {
-    spinner.stop();
+    spinner?.stop();
     throw error;
   }
 }

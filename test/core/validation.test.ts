@@ -247,6 +247,111 @@ Then authenticated`;
       expect(report.summary.errors).toBeGreaterThan(0);
       expect(report.issues.some(i => i.message.includes('Purpose'))).toBe(true);
     });
+
+    it('should error on delta headers inside a main spec', async () => {
+      const specContent = `# Test Specification
+
+## Purpose
+This specification validates that stray delta headers are rejected in main specs.
+
+## Requirements
+
+### Requirement: A
+The system SHALL do A.
+
+#### Scenario: A works
+- **WHEN** foo
+- **THEN** bar
+
+## MODIFIED Requirements
+
+### Requirement: B
+The system SHALL do B.
+
+#### Scenario: B works
+- **WHEN** baz
+- **THEN** qux`;
+
+      const specPath = path.join(testDir, 'spec.md');
+      await fs.writeFile(specPath, specContent);
+
+      const report = await new Validator().validateSpec(specPath);
+
+      expect(report.valid).toBe(false);
+      expect(
+        report.issues.some(i => i.level === 'ERROR' && i.message.includes('Main spec contains delta header'))
+      ).toBe(true);
+      expect(
+        report.issues.some(i => i.level === 'ERROR' && i.message.includes('Requirement header "### Requirement: B" appears outside'))
+      ).toBe(true);
+    });
+
+    it('should error on requirement headers that appear after the Requirements section ends', async () => {
+      const specContent = `# Test Specification
+
+## Purpose
+This specification validates that hidden requirements are rejected even without delta headers.
+
+## Requirements
+
+### Requirement: A
+The system SHALL do A.
+
+#### Scenario: A works
+- **WHEN** foo
+- **THEN** bar
+
+## Edge Cases
+
+### Requirement: B
+The system SHALL do B.
+
+#### Scenario: B works
+- **WHEN** baz
+- **THEN** qux`;
+
+      const specPath = path.join(testDir, 'spec.md');
+      await fs.writeFile(specPath, specContent);
+
+      const report = await new Validator().validateSpec(specPath);
+
+      expect(report.valid).toBe(false);
+      expect(
+        report.issues.some(i => i.level === 'ERROR' && i.message.includes('Requirement header "### Requirement: B" appears outside'))
+      ).toBe(true);
+    });
+
+    it('should ignore delta header examples inside fenced code blocks', async () => {
+      const specContent = `# Test Specification
+
+## Purpose
+This specification documents delta syntax without being flagged for quoted examples.
+
+## Requirements
+
+### Requirement: Explain delta syntax
+The system SHALL allow documentation specs to quote delta headers inside fenced code blocks.
+
+\`\`\`markdown
+## ADDED Requirements
+
+### Requirement: Example
+The system SHALL ...
+\`\`\`
+
+#### Scenario: reader follows the example
+- **WHEN** a reader reviews the documentation
+- **THEN** the quoted delta header remains an example only`;
+
+      const specPath = path.join(testDir, 'spec.md');
+      await fs.writeFile(specPath, specContent);
+
+      const report = await new Validator().validateSpec(specPath);
+
+      expect(report.valid).toBe(true);
+      expect(report.issues.some(i => i.message.includes('Main spec contains delta header'))).toBe(false);
+      expect(report.issues.some(i => i.message.includes('appears outside the main ## Requirements section'))).toBe(false);
+    });
   });
 
   describe('validateChange', () => {
