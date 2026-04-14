@@ -2,8 +2,11 @@ name: sdd-plus-superpowers
 version: 1
 description: >
   Spec-driven workflow integrated with Superpowers skills.
-  brainstorm → proposal → design/specs → tasks → plan.
-  Apply phase uses git worktrees + subagent-driven development.
+  brainstorm → proposal → specs → tasks → plan → verify.
+  design is optional (produced from brainstorm but not required by tasks).
+  Apply phase uses git worktrees + subagent-driven-development
+  (brings TDD and code-review transitively). executing-plans is
+  documented only as a fallback for platforms without subagent support.
 
 artifacts:
   - id: brainstorm
@@ -126,11 +129,12 @@ artifacts:
       - Tasks should be small enough to complete in one session
       - Order tasks by dependency (what must be done first?)
 
-      Reference specs for what needs to be built, design for how to build it.
-      Each task should be verifiable - you know when it's done.
+      Reference specs for what needs to be built. If design.md exists,
+      reference it for how to build it — but design is optional (see
+      openspec-conventions: design.md is only for changes that need to
+      explain non-trivial technical decisions).
     requires:
       - specs
-      - design
 
   - id: plan
     generates: plan.md
@@ -155,6 +159,57 @@ artifacts:
     requires:
       - tasks
 
+  - id: verify
+    generates: verify.md
+    description: Post-implementation verification against specs, design, and tasks
+    template: verify.md
+    instruction: |
+      Use the Skill tool to invoke **openspec-verify-change** (the
+      `/opsx:verify` slash command is its user-facing equivalent).
+
+      IMPORTANT timing note:
+      - Unlike other artifacts, verify.md is produced AFTER the apply
+        phase completes, NOT during planning. The `requires: [plan]`
+        edge exists only for schema graph purposes — the actual
+        verification step MUST run on a completed implementation.
+
+      The verify step MUST perform the following checks and record
+      results in verify.md using the template:
+
+      1. **Structural validation**: Run `openspec validate --all --json`
+         in the repository root and confirm every item returns
+         `"valid": true`. If any item fails, record the issues and
+         return to fix the underlying artifact before proceeding.
+
+      2. **Task completion**: Confirm every checkbox in tasks.md is
+         `- [x]`. For any `- [ ]` remaining, document the reason
+         (e.g. manual / out-of-scope / blocked) and whether it blocks
+         archive.
+
+      3. **Delta spec sync state**: For each directory under
+         `openspec/changes/<name>/specs/`, compare against the
+         corresponding `openspec/specs/<capability>/spec.md` and
+         record one of:
+         - ✓ Already synced
+         - ✗ Needs sync (list the capabilities)
+         - N/A (no delta specs produced)
+
+      4. **Design/specs coherence**: Spot-check that design.md
+         decisions reference or align with the requirements listed
+         in specs/. Record any drift as a warning (non-blocking).
+
+      5. **Implementation signal**: Confirm all code changes are
+         committed (no unstaged files in the worktree). Cite the
+         commit range if known.
+
+      Verify MAY be re-run multiple times as the implementation is
+      refined — each run overwrites verify.md with current state.
+
+      If `openspec-verify-change` skill is unavailable, fall back to
+      running the 5 checks manually and recording results in verify.md.
+    requires:
+      - plan
+
 apply:
   requires: [plan]
   tracks: tasks.md
@@ -165,7 +220,13 @@ apply:
        **superpowers:using-git-worktrees** to create an isolated
        git worktree for this change.
 
-    2. **Executor**: Use the Skill tool to invoke
+    2. **Executor** — on Claude Code you should **always use 2a**.
+       2b exists only as a fallback for platforms without subagent
+       support; see the 2b section for details.
+
+       **2a. Default — subagent-driven-development**:
+
+       Use the Skill tool to invoke
        **superpowers:subagent-driven-development** to execute
        the plan.md micro-tasks with fresh subagents per task.
 
@@ -174,9 +235,48 @@ apply:
        - Update tasks.md checkboxes as coarse tasks complete
        - Work within the created worktree
 
-    3. **Completion**: When all tasks are done, use the Skill tool
-       to invoke **superpowers:finishing-a-development-branch**
-       for branch cleanup, PR creation, etc.
+       IMPORTANT — transitive skill activation:
+       subagent-driven-development internally enforces the
+       following skills, so you do NOT need to invoke them
+       manually:
+       - **superpowers:test-driven-development** — every task
+         follows RED-GREEN-REFACTOR. Implementation code written
+         before a failing test is deleted.
+       - **superpowers:requesting-code-review** — after each
+         task, a code-reviewer subagent is dispatched to catch
+         spec compliance and code quality issues. A final review
+         runs for the entire implementation before apply
+         concludes.
+
+       **2b. Fallback — executing-plans** (use ONLY when subagent
+       support is unavailable):
+
+       The superpowers:executing-plans SKILL.md itself states:
+       "If subagents are available, use superpowers:subagent-
+       driven-development instead of this skill." executing-plans
+       exists for platforms or sessions without Task-tool /
+       subagent support. On Claude Code, subagents ARE available,
+       so this path should not be used under normal circumstances.
+
+       If you must use 2b (e.g. running in a constrained runtime
+       without subagent support), use the Skill tool to invoke
+       **superpowers:executing-plans** and note that 2b does NOT
+       transitively activate TDD or code-review. You are
+       responsible for:
+       - Following TDD discipline manually (the executor will
+         not enforce it)
+       - Invoking **superpowers:requesting-code-review** yourself
+         after completing the plan, before proceeding to step 3
+
+    3. **Verification**: When all tasks are done, produce the
+       `verify` artifact by invoking **openspec-verify-change**
+       to check completeness, correctness, and coherence.
+       Re-run verify until all blocking issues are resolved.
+
+    4. **Completion**: Once verify.md shows no blocking issues,
+       use the Skill tool to invoke
+       **superpowers:finishing-a-development-branch** for branch
+       cleanup, PR creation, etc.
 
     If any skill is unavailable, fall back to manual implementation
     using the standard task-by-task loop from tasks.md.
