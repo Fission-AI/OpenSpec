@@ -11,6 +11,7 @@ import {
   getSchemaDir,
   ArtifactGraph,
 } from '../../core/artifact-graph/index.js';
+import { FileSystemUtils } from '../../utils/file-system.js';
 import { validateSchemaExists, DEFAULT_SCHEMA } from './shared.js';
 
 // -----------------------------------------------------------------------------
@@ -68,7 +69,9 @@ export async function templatesCommand(options: TemplatesOptions): Promise<void>
 
     const templates: TemplateInfo[] = graph.getAllArtifacts().map((artifact) => ({
       artifactId: artifact.id,
-      templatePath: path.join(schemaDir, 'templates', artifact.template),
+      templatePath: FileSystemUtils.canonicalizeExistingPath(
+        path.join(schemaDir, 'templates', artifact.template)
+      ),
       source,
     }));
 

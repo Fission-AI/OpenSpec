@@ -4,6 +4,7 @@ import { getSchemaDir, resolveSchema } from './resolver.js';
 import { ArtifactGraph } from './graph.js';
 import { detectCompleted } from './state.js';
 import { resolveSchemaForChange } from '../../utils/change-metadata.js';
+import { FileSystemUtils } from '../../utils/file-system.js';
 import { readProjectConfig, validateConfigRules } from '../project-config.js';
 import type { Artifact, CompletedSet } from './types.js';
 
@@ -137,14 +138,16 @@ export function loadTemplate(
     );
   }
 
-  const fullPath = path.join(schemaDir, 'templates', templatePath);
+  const templatePathOnDisk = path.join(schemaDir, 'templates', templatePath);
 
-  if (!fs.existsSync(fullPath)) {
+  if (!fs.existsSync(templatePathOnDisk)) {
     throw new TemplateLoadError(
-      `Template not found: ${fullPath}`,
-      fullPath
+      `Template not found: ${templatePathOnDisk}`,
+      templatePathOnDisk
     );
   }
+
+  const fullPath = FileSystemUtils.canonicalizeExistingPath(templatePathOnDisk);
 
   try {
     return fs.readFileSync(fullPath, 'utf-8');
@@ -175,7 +178,9 @@ export function loadChangeContext(
   changeName: string,
   schemaName?: string
 ): ChangeContext {
-  const changeDir = path.join(projectRoot, 'openspec', 'changes', changeName);
+  const changeDir = FileSystemUtils.canonicalizeExistingPath(
+    path.join(projectRoot, 'openspec', 'changes', changeName)
+  );
 
   // Resolve schema: explicit > metadata > default
   const resolvedSchemaName = resolveSchemaForChange(changeDir, schemaName);

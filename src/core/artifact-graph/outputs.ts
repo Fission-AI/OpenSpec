@@ -19,14 +19,18 @@ export function resolveArtifactOutputs(changeDir: string, generates: string): st
 
   if (!isGlobPattern(generates)) {
     try {
-      return fs.statSync(fullPattern).isFile() ? [fullPattern] : [];
+      return fs.statSync(fullPattern).isFile()
+        ? [FileSystemUtils.canonicalizeExistingPath(fullPattern)]
+        : [];
     } catch {
       return [];
     }
   }
 
   const normalizedPattern = FileSystemUtils.toPosixPath(fullPattern);
-  const matches = fg.sync(normalizedPattern, { onlyFiles: true }).map((match) => path.normalize(match));
+  const matches = fg
+    .sync(normalizedPattern, { onlyFiles: true })
+    .map((match) => FileSystemUtils.canonicalizeExistingPath(path.normalize(match)));
 
   return Array.from(new Set(matches)).sort();
 }
