@@ -1,42 +1,47 @@
-name: Release
+name: Release (prepare)
 
 on:
   push:
     branches: [main]
 
 permissions:
-  contents: read
-  id-token: write
+  contents: write
+  pull-requests: write
+  id-token: write # Required for npm OIDC trusted publishing
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  release:
-    name: Publish to npm
+  prepare:
+    if: github.repository == 'enpal/enpalspec'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v4
         with:
           version: 9
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24' # Node 24 includes npm 11.5.1+ required for OIDC
           cache: 'pnpm'
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
 
-      - name: Build project
-        run: pnpm run build
-
-      - name: Publish to npm
-        run: pnpm run release:ci
+      # Opens/updates the Version Packages PR; publishes when the Version PR merges
+      - name: Create/Update Version PR
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          title: 'chore(release): version packages'
+          createGithubReleases: true
+          publish: pnpm run release:ci
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # npm authentication handled via OIDC trusted publishing (no token needed)
