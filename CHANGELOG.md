@@ -1,5 +1,11 @@
 # @enpal/enpalspec
 
+## 1.3.0
+
+### Minor Changes
+
+- 160dbe5: Release process for enpalspec
+
 <!-- enpalspec changelog starts here — entries below are the openspec baseline record -->
 
 # @fission-ai/openspec (openspec baseline)
