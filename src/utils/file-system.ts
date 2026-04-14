@@ -1,4 +1,4 @@
-import { promises as fs, constants as fsConstants } from 'fs';
+import { promises as fs, constants as fsConstants, realpathSync } from 'fs';
 import path from 'path';
 
 function isMarkerOnOwnLine(content: string, markerIndex: number, markerLength: number): boolean {
@@ -48,6 +48,18 @@ export class FileSystemUtils {
    */
   static toPosixPath(p: string): string {
     return p.replace(/\\/g, '/');
+  }
+
+  /**
+   * Returns a canonical absolute path when the target exists.
+   * Falls back to path.resolve() so callers can still produce a stable absolute path.
+   */
+  static canonicalizeExistingPath(targetPath: string): string {
+    try {
+      return realpathSync(targetPath);
+    } catch {
+      return path.resolve(targetPath);
+    }
   }
 
   private static isWindowsBasePath(basePath: string): boolean {
