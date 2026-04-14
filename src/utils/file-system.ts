@@ -1,5 +1,8 @@
-import { promises as fs, constants as fsConstants, realpathSync } from 'fs';
+import * as nodeFs from 'fs';
 import path from 'path';
+
+const fs = nodeFs.promises;
+const { constants: fsConstants } = nodeFs;
 
 function isMarkerOnOwnLine(content: string, markerIndex: number, markerLength: number): boolean {
   let leftIndex = markerIndex - 1;
@@ -56,9 +59,14 @@ export class FileSystemUtils {
    */
   static canonicalizeExistingPath(targetPath: string): string {
     try {
-      return realpathSync(targetPath);
+      // Prefer the native resolver so Windows short-path aliases are expanded.
+      return nodeFs.realpathSync.native(targetPath);
     } catch {
-      return path.resolve(targetPath);
+      try {
+        return nodeFs.realpathSync(targetPath);
+      } catch {
+        return path.resolve(targetPath);
+      }
     }
   }
 
