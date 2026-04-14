@@ -1,68 +1,49 @@
 {
-  "name": "OpenSpec Development",
-  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-20-bookworm",
-
-  // Additional tools and features
-  "features": {
-    "ghcr.io/devcontainers/features/git:1": {
-      "version": "latest",
-      "ppa": true
-    },
-    "ghcr.io/devcontainers/features/github-cli:1": {
-      "version": "latest"
-    }
+  "name": "Dev Container",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {}
   },
-
-  // Configure tool-specific properties
+  "runArgs": ["--cap-add=NET_ADMIN", "--cap-add=NET_RAW"],
   "customizations": {
     "vscode": {
-      // Set default container specific settings
+      "extensions": [
+        "anthropic.claude-code",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "eamodio.gitlens"
+      ],
       "settings": {
-        "typescript.tsdk": "node_modules/typescript/lib",
-        "typescript.enablePromptUseWorkspaceTsdk": true,
         "editor.formatOnSave": true,
         "editor.defaultFormatter": "esbenp.prettier-vscode",
         "editor.codeActionsOnSave": {
-          "source.fixAll": "explicit"
+          "source.fixAll.eslint": "explicit"
         },
-        "files.eol": "\n",
-        "terminal.integrated.defaultProfile.linux": "bash"
-      },
-
-      // Add extensions you want installed when the container is created
-      "extensions": [
-        // TypeScript/JavaScript essentials
-        "dbaeumer.vscode-eslint",
-        "esbenp.prettier-vscode",
-
-        // Testing
-        "vitest.explorer",
-
-        // Git
-        "eamodio.gitlens",
-
-        // Utilities
-        "streetsidesoftware.code-spell-checker",
-        "usernamehw.errorlens",
-        "christian-kohler.path-intellisense"
-      ]
+        "terminal.integrated.defaultProfile.linux": "zsh",
+        "terminal.integrated.profiles.linux": {
+          "bash": {
+            "path": "bash",
+            "icon": "terminal-bash"
+          },
+          "zsh": {
+            "path": "zsh"
+          }
+        }
+      }
     }
   },
-
-  // Use 'forwardPorts' to make a list of ports inside the container available locally
-  // "forwardPorts": [],
-
-  // Use 'postCreateCommand' to run commands after the container is created
-  "postCreateCommand": "corepack enable && corepack prepare pnpm@latest --activate && pnpm install",
-
-  // Configure mounts to preserve SSH keys for git operations
+  "remoteUser": "vscode",
   "mounts": [
-    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/home/node/.ssh,readonly,type=bind,consistency=cached"
+    "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
+    "source=claude-code-config-${devcontainerId},target=/home/vscode/.claude,type=volume",
+    "source=claude-code-gh-${devcontainerId},target=/home/vscode/.config/gh,type=volume",
+    "source=${localEnv:HOME}/.gitconfig,target=/home/vscode/.gitconfig,type=bind,readonly",
+    "source=${localWorkspaceFolder}/.devcontainer,target=/workspace/.devcontainer,type=bind,readonly"
   ],
-
-  // Set the default user to 'node' (non-root user)
-  "remoteUser": "node",
-
-  // Ensure git is properly configured
-  "initializeCommand": "echo 'Initializing dev container...'"
+  "containerEnv": {
+    "CLAUDE_CONFIG_DIR": "/home/vscode/.claude",
+    "POWERLEVEL9K_DISABLE_GITSTATUS": "true"
+  },
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
+  "workspaceFolder": "/workspace"
 }

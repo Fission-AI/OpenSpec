@@ -1,9 +1,6 @@
 {
   "$schema": "https://unpkg.com/@changesets/config/schema.json",
-  "changelog": [
-    "@changesets/changelog-github",
-    { "repo": "Fission-AI/OpenSpec" }
-  ],
+  "changelog": "@changesets/cli/changelog",
   "commit": false,
   "fixed": [],
   "linked": [],
