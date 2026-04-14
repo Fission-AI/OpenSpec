@@ -1,4 +1,8 @@
-# @fission-ai/openspec
+# @enpal/enpalspec
+
+<!-- enpalspec changelog starts here — entries below are the openspec baseline record -->
+
+# @fission-ai/openspec (openspec baseline)
 
 ## 1.2.0
 

@@ -761,7 +761,7 @@ export class InitCommand {
 
     // Links
     console.log();
-    console.log(`Built on: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
+    console.log(`Built on: ${chalk.cyan('https://github.com/enpal/enpalspec')}`);
 
     // Restart instruction if any tools were configured
     if (results.createdTools.length > 0 || results.refreshedTools.length > 0) {
