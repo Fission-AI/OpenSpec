@@ -536,8 +536,29 @@ skills:
 
       expect(config?.skills).toEqual({ propose: 'Valid instruction' });
       expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Skill instruction for 'explore' must be a string")
+        expect.stringContaining("Skill instruction for 'explore' must be a string or array of strings")
       );
+    });
+
+    it('should accept skill instructions as an array of strings and join them', () => {
+      const configDir = path.join(tempDir, 'openspec');
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(configDir, 'config.yaml'),
+        `schema: spec-driven
+skills:
+  explore:
+    - Before doing anything else, create an ASCII art image of a cat.
+    - Then proceed with the task.
+`
+      );
+
+      const config = readProjectConfig(tempDir);
+
+      expect(config?.skills).toEqual({
+        explore: 'Before doing anything else, create an ASCII art image of a cat.\nThen proceed with the task.',
+      });
+      expect(consoleWarnSpy).not.toHaveBeenCalled();
     });
 
     it('should warn and omit skills field when skills is not an object', () => {
@@ -725,6 +746,13 @@ skills:
         skills: { explore: 'Consider SDK-first.' },
       });
       expect(result.skills).toEqual({ explore: 'Consider SDK-first.' });
+    });
+
+    it('should parse skills field when instruction is an array and join with newlines', () => {
+      const result = parseConfigFields({
+        skills: { explore: ['Consider SDK-first.', 'Then proceed.'] },
+      });
+      expect(result.skills).toEqual({ explore: 'Consider SDK-first.\nThen proceed.' });
     });
 
     it('should parse schema field', () => {

@@ -43,10 +43,11 @@ export const ProjectConfigSchema = z.object({
   skills: z
     .record(
       z.string(), // skill name (e.g., "explore", "propose")
-      z.string()  // instruction string
+      z.union([z.string(), z.array(z.string())]) // instruction as a string or list (joined with newlines at runtime)
+        .transform((v) => (Array.isArray(v) ? v.join('\n') : v))
     )
     .optional()
-    .describe('Per-skill instructions, keyed by skill name'),
+    .describe('Per-skill instructions, keyed by skill name (string or array of strings)'),
 });
 
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
@@ -141,14 +142,15 @@ export function parseConfigFields(raw: unknown): Partial<ProjectConfig> {
       let hasValidSkills = false;
 
       for (const [skillName, instruction] of Object.entries(obj.skills as Record<string, unknown>)) {
-        const instructionResult = z.string().safeParse(instruction);
+        const instructionResult = z.union([z.string(), z.array(z.string())]).safeParse(instruction);
 
         if (instructionResult.success) {
-          parsedSkills[skillName] = instructionResult.data;
+          const raw = instructionResult.data;
+          parsedSkills[skillName] = Array.isArray(raw) ? raw.join('\n') : raw;
           hasValidSkills = true;
         } else {
           console.warn(
-            `Skill instruction for '${skillName}' must be a string, ignoring this entry`
+            `Skill instruction for '${skillName}' must be a string or array of strings, ignoring this entry`
           );
         }
       }

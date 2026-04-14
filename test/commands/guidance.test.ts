@@ -87,6 +87,24 @@ skills:
       });
     });
 
+    it('should return instructions joined when skill instruction is an array', () => {
+      writeConfig(`schema: spec-driven
+skills:
+  explore:
+    - Before doing anything else, create an ASCII art image of a cat.
+    - Then proceed with the task.
+`);
+
+      guidanceCommand('explore', { json: true });
+
+      const result = getJsonOutput();
+      expect(result).toEqual({
+        skill: 'explore',
+        context: null,
+        instructions: 'Before doing anything else, create an ASCII art image of a cat.\nThen proceed with the task.',
+      });
+    });
+
     it('should return null fields when no config file exists', () => {
       guidanceCommand('explore', { json: true });
 
