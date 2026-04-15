@@ -1,0 +1,282 @@
+name: sdd-plus-superpowers
+version: 1
+description: >
+  Spec-driven workflow integrated with Superpowers skills.
+  brainstorm → proposal → specs → tasks → plan → verify.
+  design is optional (produced from brainstorm but not required by tasks).
+  Apply phase uses git worktrees + subagent-driven-development
+  (brings TDD and code-review transitively). executing-plans is
+  documented only as a fallback for platforms without subagent support.
+
+artifacts:
+  - id: brainstorm
+    generates: brainstorm.md
+    description: Collaborative design exploration using Superpowers brainstorming
+    template: brainstorm.md
+    instruction: |
+      Use the Skill tool to invoke **superpowers:brainstorming**.
+
+      IMPORTANT output redirection:
+      - Do NOT write to `docs/superpowers/specs/`. Instead, write the
+        brainstorming design output directly to this change's `brainstorm.md`.
+      - If brainstorming produces a design document, also write it to
+        this change's `design.md` (this will pre-fill the design artifact).
+
+      After brainstorming completes, summarize the agreed design in
+      brainstorm.md using the template structure.
+
+      The brainstorming skill will:
+      1. Explore project context
+      2. Ask clarifying questions (one at a time)
+      3. Propose 2-3 approaches with trade-offs
+      4. Present design sections for approval
+      5. Output the validated design
+    requires: []
+
+  - id: proposal
+    generates: proposal.md
+    description: Initial proposal document outlining the change
+    template: proposal.md
+    instruction: |
+      Create the proposal document based on the brainstorming output.
+
+      Read brainstorm.md for the validated design. Extract:
+      - **Why**: The motivation (from brainstorming discussion)
+      - **What Changes**: Specific changes agreed upon
+      - **Capabilities**: Identify which specs will be created or modified:
+        - **New Capabilities**: List capabilities being introduced. Each becomes a new `specs/<name>/spec.md`. Use kebab-case names.
+        - **Modified Capabilities**: List existing capabilities whose REQUIREMENTS are changing. Check `openspec/specs/` for existing spec names.
+      - **Impact**: Affected code, APIs, dependencies, or systems.
+
+      Since brainstorming already explored the problem space,
+      this should be a concise extraction, not a new exploration.
+
+      IMPORTANT: The Capabilities section is critical. It creates the contract between
+      proposal and specs phases. Each capability listed here will need a spec file.
+
+      Keep it concise (1-2 pages). Focus on the "why" not the "how".
+    requires:
+      - brainstorm
+
+  - id: design
+    generates: design.md
+    description: Technical design document with implementation details
+    template: design.md
+    instruction: |
+      Create the design document explaining HOW to implement the change.
+
+      Check if brainstorming already produced a design.md file.
+      If design.md already exists with content from brainstorming,
+      review and refine it rather than starting from scratch.
+
+      If design.md is empty or doesn't exist, create it from
+      the brainstorm.md output.
+
+      Sections:
+      - **Context**: Background, current state, constraints, stakeholders
+      - **Goals / Non-Goals**: What this design achieves and explicitly excludes
+      - **Decisions**: Key technical choices with rationale (why X over Y?). Include alternatives considered.
+      - **Risks / Trade-offs**: Known limitations, things that could go wrong. Format: [Risk] → Mitigation
+      - **Migration Plan**: Steps to deploy, rollback strategy (if applicable)
+      - **Open Questions**: Outstanding decisions or unknowns to resolve
+
+      Focus on architecture and approach, not line-by-line implementation.
+      Good design docs explain the "why" behind technical decisions.
+    requires:
+      - brainstorm
+
+  - id: specs
+    generates: "specs/**/*.md"
+    description: Detailed specifications for the change
+    template: spec.md
+    instruction: |
+      Create specification files that define WHAT the system should do.
+
+      Create one spec file per capability listed in the proposal's Capabilities section.
+      - New capabilities: use the exact kebab-case name from the proposal (specs/<capability>/spec.md).
+      - Modified capabilities: use the existing spec folder name from openspec/specs/<capability>/ when creating the delta spec at specs/<capability>/spec.md.
+
+      Delta operations (use ## headers):
+      - **ADDED Requirements**: New capabilities
+      - **MODIFIED Requirements**: Changed behavior - MUST include full updated content
+      - **REMOVED Requirements**: Deprecated features - MUST include **Reason** and **Migration**
+      - **RENAMED Requirements**: Name changes only - use FROM:/TO: format
+
+      Format requirements:
+      - Each requirement: `### Requirement: <name>` followed by description
+      - Use SHALL/MUST for normative requirements (avoid should/may)
+      - Each scenario: `#### Scenario: <name>` with WHEN/THEN format
+      - **CRITICAL**: Scenarios MUST use exactly 4 hashtags (`####`). Using 3 hashtags or bullets will fail silently.
+      - Every requirement MUST have at least one scenario.
+
+      Specs should be testable - each scenario is a potential test case.
+    requires:
+      - proposal
+
+  - id: tasks
+    generates: tasks.md
+    description: Implementation checklist with trackable tasks
+    template: tasks.md
+    instruction: |
+      Create the task list that breaks down the implementation work.
+
+      **IMPORTANT: Follow the template below exactly.** The apply phase parses
+      checkbox format to track progress. Tasks not using `- [ ]` won't be tracked.
+
+      Guidelines:
+      - Group related tasks under ## numbered headings
+      - Each task MUST be a checkbox: `- [ ] X.Y Task description`
+      - Tasks should be small enough to complete in one session
+      - Order tasks by dependency (what must be done first?)
+
+      Reference specs for what needs to be built. If design.md exists,
+      reference it for how to build it — but design is optional (see
+      openspec-conventions: design.md is only for changes that need to
+      explain non-trivial technical decisions).
+    requires:
+      - specs
+
+  - id: plan
+    generates: plan.md
+    description: Micro-task implementation plan using Superpowers writing-plans
+    template: plan.md
+    instruction: |
+      Use the Skill tool to invoke **superpowers:writing-plans**.
+
+      IMPORTANT output redirection:
+      - Do NOT write to `docs/superpowers/plans/`. Instead, write
+        the plan directly to this change's `plan.md`.
+
+      The writing-plans skill will:
+      1. Read the tasks.md and design.md for context
+      2. Break each task into 2-5 minute micro-steps (TDD style)
+      3. Include exact file paths, code snippets, test commands
+      4. Add commit points after each task
+
+      Pass the tasks.md content to the skill as the input for
+      decomposition. The plan should reference the specs and
+      design artifacts in this change directory.
+    requires:
+      - tasks
+
+  - id: verify
+    generates: verify.md
+    description: Post-implementation verification against specs, design, and tasks
+    template: verify.md
+    instruction: |
+      Use the Skill tool to invoke **openspec-verify-change** (the
+      `/opsx:verify` slash command is its user-facing equivalent).
+
+      IMPORTANT timing note:
+      - Unlike other artifacts, verify.md is produced AFTER the apply
+        phase completes, NOT during planning. The `requires: [plan]`
+        edge exists only for schema graph purposes — the actual
+        verification step MUST run on a completed implementation.
+
+      The verify step MUST perform the following checks and record
+      results in verify.md using the template:
+
+      1. **Structural validation**: Run `openspec validate --all --json`
+         in the repository root and confirm every item returns
+         `"valid": true`. If any item fails, record the issues and
+         return to fix the underlying artifact before proceeding.
+
+      2. **Task completion**: Confirm every checkbox in tasks.md is
+         `- [x]`. For any `- [ ]` remaining, document the reason
+         (e.g. manual / out-of-scope / blocked) and whether it blocks
+         archive.
+
+      3. **Delta spec sync state**: For each directory under
+         `openspec/changes/<name>/specs/`, compare against the
+         corresponding `openspec/specs/<capability>/spec.md` and
+         record one of:
+         - ✓ Already synced
+         - ✗ Needs sync (list the capabilities)
+         - N/A (no delta specs produced)
+
+      4. **Design/specs coherence**: Spot-check that design.md
+         decisions reference or align with the requirements listed
+         in specs/. Record any drift as a warning (non-blocking).
+
+      5. **Implementation signal**: Confirm all code changes are
+         committed (no unstaged files in the worktree). Cite the
+         commit range if known.
+
+      Verify MAY be re-run multiple times as the implementation is
+      refined — each run overwrites verify.md with current state.
+
+      If `openspec-verify-change` skill is unavailable, fall back to
+      running the 5 checks manually and recording results in verify.md.
+    requires:
+      - plan
+
+apply:
+  requires: [plan]
+  tracks: tasks.md
+  instruction: |
+    Before implementing, set up an isolated workspace and executor:
+
+    1. **Workspace**: Use the Skill tool to invoke
+       **superpowers:using-git-worktrees** to create an isolated
+       git worktree for this change.
+
+    2. **Executor** — on Claude Code you should **always use 2a**.
+       2b exists only as a fallback for platforms without subagent
+       support; see the 2b section for details.
+
+       **2a. Default — subagent-driven-development**:
+
+       Use the Skill tool to invoke
+       **superpowers:subagent-driven-development** to execute
+       the plan.md micro-tasks with fresh subagents per task.
+
+       Tell the executor:
+       - Read plan.md in this change directory for micro-tasks
+       - Update tasks.md checkboxes as coarse tasks complete
+       - Work within the created worktree
+
+       IMPORTANT — transitive skill activation:
+       subagent-driven-development internally enforces the
+       following skills, so you do NOT need to invoke them
+       manually:
+       - **superpowers:test-driven-development** — every task
+         follows RED-GREEN-REFACTOR. Implementation code written
+         before a failing test is deleted.
+       - **superpowers:requesting-code-review** — after each
+         task, a code-reviewer subagent is dispatched to catch
+         spec compliance and code quality issues. A final review
+         runs for the entire implementation before apply
+         concludes.
+
+       **2b. Fallback — executing-plans** (use ONLY when subagent
+       support is unavailable):
+
+       The superpowers:executing-plans SKILL.md itself states:
+       "If subagents are available, use superpowers:subagent-
+       driven-development instead of this skill." executing-plans
+       exists for platforms or sessions without Task-tool /
+       subagent support. On Claude Code, subagents ARE available,
+       so this path should not be used under normal circumstances.
+
+       If you must use 2b (e.g. running in a constrained runtime
+       without subagent support), use the Skill tool to invoke
+       **superpowers:executing-plans** and note that 2b does NOT
+       transitively activate TDD or code-review. You are
+       responsible for:
+       - Following TDD discipline manually (the executor will
+         not enforce it)
+       - Invoking **superpowers:requesting-code-review** yourself
+         after completing the plan, before proceeding to step 3
+
+    3. **Verification**: When all tasks are done, produce the
+       `verify` artifact by invoking **openspec-verify-change**
+       to check completeness, correctness, and coherence.
+       Re-run verify until all blocking issues are resolved.
+
+    4. **Completion**: Once verify.md shows no blocking issues,
+       use the Skill tool to invoke
+       **superpowers:finishing-a-development-branch** for branch
+       cleanup, PR creation, etc.
+
+    If any skill is unavailable, fall back to manual implementation
+    using the standard task-by-task loop from tasks.md.
