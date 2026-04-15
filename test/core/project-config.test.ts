@@ -286,6 +286,71 @@ rules:
       });
     });
 
+    describe('language field parsing', () => {
+      it('should parse valid language field', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven\nlanguage: es\n`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config).toEqual({
+          schema: 'spec-driven',
+          language: 'es',
+        });
+        expect(consoleWarnSpy).not.toHaveBeenCalled();
+      });
+
+      it('should ignore missing language field without warning', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven\n`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config).toEqual({ schema: 'spec-driven' });
+        expect(consoleWarnSpy).not.toHaveBeenCalled();
+      });
+
+      it('should warn on empty string language', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven\nlanguage: ""\n`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config).toEqual({ schema: 'spec-driven' });
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid 'language' field")
+        );
+      });
+
+      it('should warn on invalid type for language', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven\nlanguage: 123\n`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config).toEqual({ schema: 'spec-driven' });
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid 'language' field")
+        );
+      });
+    });
+
     describe('context size limit enforcement', () => {
       it('should accept context under 50KB limit', () => {
         const configDir = path.join(tempDir, 'openspec');

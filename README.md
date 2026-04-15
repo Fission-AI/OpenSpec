@@ -158,6 +158,31 @@ openspec update
 
 **Context hygiene**: OpenSpec benefits from a clean context window. Clear your context before starting implementation and maintain good context hygiene throughout your session.
 
+## Internationalization (i18n)
+
+OpenSpec validates that requirements contain normative keywords like `MUST` or `SHALL`. For non-English projects, set the `language` field in `openspec/config.yaml` to use localized keywords:
+
+```yaml
+schema: spec-driven
+language: es
+
+context: |
+  Idioma: Español
+  Todos los artefactos deben escribirse en español.
+  Use DEBE, DEBERA, or DEBERÁ as normative keywords in requirements.
+```
+
+**Supported languages and keywords:**
+
+| Language | Code | Keywords |
+|----------|------|----------|
+| English  | `en` | `MUST`, `SHALL` |
+| Spanish  | `es` | `DEBE`, `DEBERA`, `DEBERÁ` |
+
+When no `language` is configured, English is used by default. Unknown language codes fall back to English with a warning.
+
+Adding a new language requires a one-line addition to the keyword registry in `src/core/i18n/keywords.ts`. See the [Multi-Language Guide](docs/multi-language.md) for full details.
+
 ## Contributing
 
 **Small fixes** — Bug fixes, typo corrections, and minor improvements can be submitted directly as PRs.
