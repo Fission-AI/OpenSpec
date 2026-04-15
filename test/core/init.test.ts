@@ -65,6 +65,37 @@ describe('InitCommand', () => {
       expect(await directoryExists(path.join(openspecPath, 'changes', 'archive'))).toBe(true);
     });
 
+    it('should create .gitkeep files in empty directories', async () => {
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+
+      await initCommand.execute(testDir);
+
+      const openspecPath = path.join(testDir, 'openspec');
+      expect(await fileExists(path.join(openspecPath, 'specs', '.gitkeep'))).toBe(true);
+      expect(await fileExists(path.join(openspecPath, 'changes', '.gitkeep'))).toBe(true);
+      expect(await fileExists(path.join(openspecPath, 'changes', 'archive', '.gitkeep'))).toBe(true);
+    });
+
+    it('should create .gitkeep files in extend mode', async () => {
+      const initCommand1 = new InitCommand({ tools: 'claude', force: true });
+      await initCommand1.execute(testDir);
+
+      const openspecPath = path.join(testDir, 'openspec');
+
+      // Remove .gitkeep files to simulate a cloned repo without them
+      await fs.unlink(path.join(openspecPath, 'specs', '.gitkeep'));
+      await fs.unlink(path.join(openspecPath, 'changes', '.gitkeep'));
+      await fs.unlink(path.join(openspecPath, 'changes', 'archive', '.gitkeep'));
+
+      // Re-run init (triggers extend mode since openspec dir already exists)
+      const initCommand2 = new InitCommand({ tools: 'claude', force: true });
+      await initCommand2.execute(testDir);
+
+      expect(await fileExists(path.join(openspecPath, 'specs', '.gitkeep'))).toBe(true);
+      expect(await fileExists(path.join(openspecPath, 'changes', '.gitkeep'))).toBe(true);
+      expect(await fileExists(path.join(openspecPath, 'changes', 'archive', '.gitkeep'))).toBe(true);
+    });
+
     it('should create config.yaml with default schema', async () => {
       const initCommand = new InitCommand({ tools: 'claude', force: true });
 
