@@ -2,10 +2,13 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import { FileSystemUtils } from '../../../src/utils/file-system.js';
 import { artifactOutputExists, resolveArtifactOutputs } from '../../../src/core/artifact-graph/outputs.js';
 
 describe('artifact-graph/outputs', () => {
   let tempDir: string;
+
+  const canonical = (targetPath: string): string => FileSystemUtils.canonicalizeExistingPath(targetPath);
 
   beforeEach(() => {
     tempDir = path.join(os.tmpdir(), `openspec-outputs-test-${Date.now()}`);
@@ -20,7 +23,7 @@ describe('artifact-graph/outputs', () => {
     const filePath = path.join(tempDir, 'proposal.md');
     fs.writeFileSync(filePath, 'content');
 
-    expect(resolveArtifactOutputs(tempDir, 'proposal.md')).toEqual([fs.realpathSync(filePath)]);
+    expect(resolveArtifactOutputs(tempDir, 'proposal.md')).toEqual([canonical(filePath)]);
     expect(artifactOutputExists(tempDir, 'proposal.md')).toBe(true);
   });
 
@@ -38,7 +41,7 @@ describe('artifact-graph/outputs', () => {
     fs.mkdirSync(nestedDir, { recursive: true });
     fs.writeFileSync(filePath, 'content');
 
-    expect(resolveArtifactOutputs(tempDir, 'specs/*/spec.md')).toEqual([fs.realpathSync(filePath)]);
+    expect(resolveArtifactOutputs(tempDir, 'specs/*/spec.md')).toEqual([canonical(filePath)]);
     expect(artifactOutputExists(tempDir, 'specs/*/spec.md')).toBe(true);
   });
 
@@ -50,7 +53,7 @@ describe('artifact-graph/outputs', () => {
     fs.writeFileSync(matching, 'content');
     fs.writeFileSync(nonMatching, 'content');
 
-    expect(resolveArtifactOutputs(tempDir, 'specs/foo*.md')).toEqual([fs.realpathSync(matching)]);
+    expect(resolveArtifactOutputs(tempDir, 'specs/foo*.md')).toEqual([canonical(matching)]);
   });
 
   it('supports question-mark glob patterns', () => {
@@ -60,7 +63,7 @@ describe('artifact-graph/outputs', () => {
     fs.writeFileSync(matching, 'content');
     fs.writeFileSync(path.join(specsDir, 'a10.md'), 'content');
 
-    expect(resolveArtifactOutputs(tempDir, 'specs/a?.md')).toEqual([fs.realpathSync(matching)]);
+    expect(resolveArtifactOutputs(tempDir, 'specs/a?.md')).toEqual([canonical(matching)]);
   });
 
   it('supports character class glob patterns', () => {
@@ -73,8 +76,8 @@ describe('artifact-graph/outputs', () => {
     fs.writeFileSync(path.join(specsDir, 'c.md'), 'content');
 
     expect(resolveArtifactOutputs(tempDir, 'specs/[ab].md')).toEqual([
-      fs.realpathSync(aPath),
-      fs.realpathSync(bPath),
+      canonical(aPath),
+      canonical(bPath),
     ]);
   });
 
@@ -92,10 +95,10 @@ describe('artifact-graph/outputs', () => {
     fs.symlinkSync(realChangeDir, aliasChangeDir, process.platform === 'win32' ? 'junction' : 'dir');
 
     expect(resolveArtifactOutputs(aliasChangeDir, 'proposal.md')).toEqual([
-      fs.realpathSync(proposalPath),
+      canonical(proposalPath),
     ]);
     expect(resolveArtifactOutputs(aliasChangeDir, 'specs/*/spec.md')).toEqual([
-      fs.realpathSync(specPath),
+      canonical(specPath),
     ]);
   });
 
