@@ -497,6 +497,7 @@ newCmd
   .description('Create a new change directory')
   .option('--description <text>', 'Description to add to README.md')
   .option('--schema <name>', `Workflow schema to use (default: ${DEFAULT_SCHEMA})`)
+  .option('--branch', 'Create and checkout a git branch named openspec/<change-name>')
   .action(async (name: string, options: NewChangeOptions) => {
     try {
       await newChangeCommand(name, options);
