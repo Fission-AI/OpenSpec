@@ -215,7 +215,7 @@ export class ChangeCommand {
       throw new Error(`Change "${changeName}" not found at ${changeDir}`);
     }
     
-    const validator = new Validator(options?.strict || false);
+    const validator = new Validator({ strictMode: options?.strict || false });
     const report = await validator.validateChangeDeltaSpecs(changeDir);
     
     if (options?.json) {

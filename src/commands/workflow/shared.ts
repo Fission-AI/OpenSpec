@@ -57,7 +57,7 @@ export function isColorDisabled(): boolean {
 /**
  * Gets the color function based on status.
  */
-export function getStatusColor(status: 'done' | 'ready' | 'blocked'): (text: string) => string {
+export function getStatusColor(status: 'done' | 'ready' | 'blocked' | 'skipped'): (text: string) => string {
   if (isColorDisabled()) {
     return (text: string) => text;
   }
@@ -68,13 +68,15 @@ export function getStatusColor(status: 'done' | 'ready' | 'blocked'): (text: str
       return chalk.yellow;
     case 'blocked':
       return chalk.red;
+    case 'skipped':
+      return chalk.dim;
   }
 }
 
 /**
  * Gets the status indicator for an artifact.
  */
-export function getStatusIndicator(status: 'done' | 'ready' | 'blocked'): string {
+export function getStatusIndicator(status: 'done' | 'ready' | 'blocked' | 'skipped'): string {
   const color = getStatusColor(status);
   switch (status) {
     case 'done':
@@ -83,6 +85,8 @@ export function getStatusIndicator(status: 'done' | 'ready' | 'blocked'): string
       return color('[ ]');
     case 'blocked':
       return color('[-]');
+    case 'skipped':
+      return color('[~]');
   }
 }
 
