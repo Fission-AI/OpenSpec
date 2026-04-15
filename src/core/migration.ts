@@ -10,6 +10,7 @@ import { getGlobalConfig, getGlobalConfigPath, saveGlobalConfig, type Delivery }
 import { CommandAdapterRegistry } from './command-generation/index.js';
 import { WORKFLOW_TO_SKILL_DIR } from './profile-sync-drift.js';
 import { ALL_WORKFLOWS } from './profiles.js';
+import { buildOnboardingGuidance } from './onboarding-guidance.js';
 import path from 'path';
 import * as fs from 'fs';
 
@@ -127,5 +128,12 @@ export function migrateIfNeeded(projectPath: string, tools: AIToolOption[]): voi
   saveGlobalConfig(config);
 
   console.log(`Migrated: custom profile with ${installedWorkflows.length} workflows`);
-  console.log("New in this version: /opsx:propose. Try 'openspec config profile core' for the streamlined experience.");
+  const onboardingLines = buildOnboardingGuidance({
+    workflows: installedWorkflows,
+    delivery: config.delivery ?? inferDelivery(artifacts),
+  });
+  for (const line of onboardingLines) {
+    console.log(line);
+  }
+  console.log("New projects default to the streamlined core profile. Run 'openspec config profile core', then 'openspec update' if you want that setup here.");
 }

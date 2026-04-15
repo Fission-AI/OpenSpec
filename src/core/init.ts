@@ -45,6 +45,7 @@ import { getGlobalConfig, type Delivery, type Profile } from './global-config.js
 import { getProfileWorkflows, CORE_WORKFLOWS, ALL_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
 import { migrateIfNeeded } from './migration.js';
+import { buildOnboardingGuidance } from './onboarding-guidance.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
@@ -696,17 +697,21 @@ export class InitCommand {
       console.log(chalk.dim(`Config: skipped (non-interactive mode)`));
     }
 
-    // Getting started (task 7.6: show propose if in profile)
+    // Getting started
     const globalCfg = getGlobalConfig();
     const activeProfile: Profile = (this.profileOverride as Profile) ?? globalCfg.profile ?? 'core';
     const activeWorkflows = [...getProfileWorkflows(activeProfile, globalCfg.workflows)];
     console.log();
-    if (activeWorkflows.includes('propose')) {
+    if (activeWorkflows.length > 0) {
       console.log(chalk.bold('Getting started:'));
-      console.log('  Start your first change: /opsx:propose "your idea"');
-    } else if (activeWorkflows.includes('new')) {
-      console.log(chalk.bold('Getting started:'));
-      console.log('  Start your first change: /opsx:new "your idea"');
+      const onboardingLines = buildOnboardingGuidance({
+        workflows: activeWorkflows,
+        delivery: globalCfg.delivery ?? 'both',
+        toolIds: successfulTools.map((tool) => tool.value),
+      });
+      for (const line of onboardingLines) {
+        console.log(`  ${line}`);
+      }
     } else {
       console.log("Done. Run 'openspec config profile' to configure your workflows.");
     }
