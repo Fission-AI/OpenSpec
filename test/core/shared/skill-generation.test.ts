@@ -33,6 +33,7 @@ describe('skill-generation', () => {
       expect(dirNames).toContain('openspec-archive-change');
       expect(dirNames).toContain('openspec-bulk-archive-change');
       expect(dirNames).toContain('openspec-verify-change');
+      expect(dirNames).toContain('openspec-clarify-change');
       expect(dirNames).toContain('openspec-onboard');
       expect(dirNames).toContain('openspec-propose');
     });
@@ -113,6 +114,7 @@ describe('skill-generation', () => {
       expect(ids).toContain('archive');
       expect(ids).toContain('bulk-archive');
       expect(ids).toContain('verify');
+      expect(ids).toContain('clarify');
       expect(ids).toContain('onboard');
       expect(ids).toContain('propose');
     });
