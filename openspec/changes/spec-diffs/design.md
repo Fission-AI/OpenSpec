@@ -72,7 +72,7 @@ This reuses the section-parsing logic already in `MarkdownParser` but needs a fu
 - ADDED/REMOVED/RENAMED: display the requirement text as-is (prefixed with operation label)
 - MODIFIED: unified diff of the requirement block, colorized with chalk (green for `+`, red for `-`, dim for headers/context)
 
-**JSON mode:** Add `diff` string field to each MODIFIED delta object in the existing JSON output. The diff is the raw unified diff text (not colorized). ADDED/REMOVED/RENAMED deltas have no `diff` field (their content is already self-explanatory).
+**JSON mode:** `--json --diff` extends the existing `--json` output (same `{ id, title, deltaCount, deltas }` structure). For each MODIFIED delta, a `diff` string field is added containing the raw unified diff text. ADDED/REMOVED/RENAMED deltas are unchanged. This is backwards-compatible: consumers that don't look for `diff` see the same shape they always did.
 
 ### 6. Flag registration
 

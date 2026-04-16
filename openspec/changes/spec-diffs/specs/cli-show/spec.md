@@ -33,24 +33,32 @@ The show command SHALL support various output formats consistent with existing c
 - **AND** support other spec options (--no-scenarios, -r)
 - **AND** maintain compatibility with existing spec show options
 
+#### Scenario: Text mode change display
+
+- **WHEN** executing `openspec show <change-name>` in text mode (no `--json`)
+- **THEN** display the proposal markdown text
+- **AND** if delta spec files exist under `openspec/changes/<change-name>/specs/`, display each delta spec's full content grouped by capability name
+
 #### Scenario: Diff output in text mode
 
-- **WHEN** executing `openspec show <change-name> --diff`
-- **THEN** for each delta spec file under `openspec/changes/<change-name>/specs/<cap>/spec.md`, iterate parsed deltas grouped by capability
+- **WHEN** executing `openspec show <change-name> --diff` in text mode (no `--json`)
+- **THEN** display the proposal markdown text
+- **AND** for each delta spec file under `openspec/changes/<change-name>/specs/<cap>/spec.md`, iterate parsed deltas grouped by capability
 - **AND** for ADDED requirements, display the full requirement text with a green "ADDED" label
 - **AND** for REMOVED requirements, display the removal notice (Reason/Migration) with a red "REMOVED" label
 - **AND** for RENAMED requirements, display the FROM:/TO: with a cyan "RENAMED" label
 - **AND** for MODIFIED requirements, extract the matching requirement block from the base spec at `openspec/specs/<cap>/spec.md` by `### Requirement:` header name, compute a unified diff of the base block vs the delta block, and display it colorized (green for `+` lines, red for `-` lines, dim for context lines and diff headers)
 - **AND** when a MODIFIED requirement's name matches a RENAMED entry's TO name in the same spec, the system SHALL look up the base block using the RENAMED entry's FROM name instead
 - **AND** if a MODIFIED requirement has no matching base requirement (and no corresponding RENAMED entry), display the full text with a warning
-- **AND** do not display the proposal markdown text (only requirement-level output)
 
 #### Scenario: Diff output in JSON mode
 
 - **WHEN** executing `openspec show <change-name> --json --diff`
-- **THEN** for each MODIFIED delta, include a `diff` string field containing the unified diff of the base requirement block vs the delta requirement block
+- **THEN** the output SHALL use the same JSON structure as `--json` alone (`{ id, title, deltaCount, deltas }`)
+- **AND** for each MODIFIED delta, the delta object SHALL include an additional `diff` string field containing the unified diff of the base requirement block vs the delta requirement block
 - **AND** when a MODIFIED requirement corresponds to a RENAMED entry, the base block SHALL be looked up using the RENAMED FROM name
 - **AND** ADDED, REMOVED, and RENAMED deltas SHALL NOT have a `diff` field
+- **AND** if a MODIFIED requirement has no matching base requirement, the delta object SHALL include a `warning` string field instead of `diff`
 
 #### Scenario: Diff with no delta specs
 
