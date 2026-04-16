@@ -132,6 +132,16 @@ describe('diffRequirementBlock', () => {
     expect(diff).not.toContain('No newline');
   });
 
+  it('preserves leading space on context lines before first change', () => {
+    const base = '### Requirement: Foo\n\nLine one.\n\nLine two.\n\nLine three.';
+    const delta = '### Requirement: Foo\n\nLine one.\n\nLine two changed.\n\nLine three.';
+
+    const diff = diffRequirementBlock(base, delta, 'test');
+    const lines = diff.split('\n');
+    const firstNonEmpty = lines.find(l => l.length > 0)!;
+    expect(firstNonEmpty.startsWith(' ')).toBe(true);
+  });
+
   it('produces empty output for identical blocks', () => {
     const content = '### Requirement: Same\n\nThe system SHALL stay.\n\n#### Scenario: Same\n- **WHEN** called\n- **THEN** same';
 

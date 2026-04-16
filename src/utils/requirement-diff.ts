@@ -37,7 +37,7 @@ export function diffRequirementBlock(baseBlock: string | null, deltaBlock: strin
   const delta = ensureTrailingNewline(deltaBlock);
   const patch = structuredPatch(label, label, base, delta);
 
-  return patch.hunks.flatMap(h => h.lines).join('\n').trim();
+  return patch.hunks.flatMap(h => h.lines).join('\n').trimEnd();
 }
 
 function ensureTrailingNewline(s: string): string {
