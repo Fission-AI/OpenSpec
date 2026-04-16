@@ -148,11 +148,10 @@ export class ValidateCommand {
   }
 
   private printReport(type: ItemType, id: string, report: { valid: boolean; issues: any[] }, durationMs: number, json: boolean): void {
-    const hasErrors = report.issues.some((i: any) => i.level === 'ERROR');
     const hasWarnings = report.issues.some((i: any) => i.level === 'WARNING');
     const label = type === 'change' ? 'Change' : 'Specification';
 
-    if (hasErrors) {
+    if (!report.valid) {
       process.exitCode = 1;
     }
 
@@ -162,12 +161,11 @@ export class ValidateCommand {
       return;
     }
 
-    if (hasErrors) {
+    if (!report.valid) {
       console.error(`${label} '${id}' has issues`);
       for (const issue of report.issues) {
-        const issueLabel = issue.level === 'ERROR' ? 'ERROR' : issue.level;
         const prefix = issue.level === 'ERROR' ? '✗' : issue.level === 'WARNING' ? '⚠' : 'ℹ';
-        console.error(`${prefix} [${issueLabel}] ${issue.path}: ${issue.message}`);
+        console.error(`${prefix} [${issue.level}] ${issue.path}: ${issue.message}`);
       }
       this.printNextSteps(type);
     } else if (hasWarnings) {

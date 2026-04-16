@@ -223,16 +223,17 @@ export class ChangeCommand {
     
     if (options?.json) {
       console.log(JSON.stringify(report, null, 2));
+      if (!report.valid) {
+        process.exitCode = 1;
+      }
     } else {
-      const hasErrors = report.issues.some(i => i.level === 'ERROR');
       const hasWarnings = report.issues.some(i => i.level === 'WARNING');
 
-      if (hasErrors) {
+      if (!report.valid) {
         console.error(`Change "${changeName}" has issues`);
         report.issues.forEach(issue => {
-          const label = issue.level === 'ERROR' ? 'ERROR' : 'WARNING';
-          const prefix = issue.level === 'ERROR' ? '✗' : '⚠';
-          console.error(`${prefix} [${label}] ${issue.path}: ${issue.message}`);
+          const prefix = issue.level === 'ERROR' ? '✗' : issue.level === 'WARNING' ? '⚠' : 'ℹ';
+          console.error(`${prefix} [${issue.level}] ${issue.path}: ${issue.message}`);
         });
         this.printNextSteps();
         process.exitCode = 1;

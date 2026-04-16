@@ -85,6 +85,28 @@ describe('change validate — requireSpecDeltas warning display', () => {
     const warningIssues = json.issues.filter((i: any) => i.level === 'WARNING');
     expect(warningIssues.length).toBeGreaterThan(0);
   });
+
+  it('exits 1 and prints "has issues" with --strict when requireSpecDeltas is "warn"', async () => {
+    await writeConfig('schema: spec-driven\nrequireSpecDeltas: warn\n');
+    await scaffoldSpeclessChange('s1');
+
+    const result = await runCLI(['change', 'validate', 's1', '--strict'], { cwd: testDir });
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain('WARNING');
+    expect(result.stderr).toContain('has issues');
+  });
+
+  it('marks item invalid in JSON output with --strict when requireSpecDeltas is "warn"', async () => {
+    await writeConfig('schema: spec-driven\nrequireSpecDeltas: warn\n');
+    await scaffoldSpeclessChange('sj1');
+
+    const result = await runCLI(['change', 'validate', 'sj1', '--json', '--strict'], { cwd: testDir });
+    expect(result.exitCode).toBe(1);
+    const json = JSON.parse(result.stdout.trim());
+    expect(json.valid).toBe(false);
+    const warningIssues = json.issues.filter((i: any) => i.level === 'WARNING');
+    expect(warningIssues.length).toBeGreaterThan(0);
+  });
 });
 
 describe('openspec validate — requireSpecDeltas warning display', () => {
@@ -151,6 +173,28 @@ describe('openspec validate — requireSpecDeltas warning display', () => {
     const json = JSON.parse(result.stdout.trim());
     expect(json.items).toBeDefined();
     expect(json.items[0].valid).toBe(true);
+    const warningIssues = json.items[0].issues.filter((i: any) => i.level === 'WARNING');
+    expect(warningIssues.length).toBeGreaterThan(0);
+  });
+
+  it('exits 1 and prints "has issues" with --strict when requireSpecDeltas is "warn"', async () => {
+    await writeConfig('schema: spec-driven\nrequireSpecDeltas: warn\n');
+    await scaffoldSpeclessChange('s2');
+
+    const result = await runCLI(['validate', 's2', '--strict'], { cwd: testDir });
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain('WARNING');
+    expect(result.stderr).toContain('has issues');
+  });
+
+  it('marks item invalid in JSON output with --strict when requireSpecDeltas is "warn"', async () => {
+    await writeConfig('schema: spec-driven\nrequireSpecDeltas: warn\n');
+    await scaffoldSpeclessChange('sj2');
+
+    const result = await runCLI(['validate', 'sj2', '--json', '--strict'], { cwd: testDir });
+    expect(result.exitCode).toBe(1);
+    const json = JSON.parse(result.stdout.trim());
+    expect(json.items[0].valid).toBe(false);
     const warningIssues = json.items[0].issues.filter((i: any) => i.level === 'WARNING');
     expect(warningIssues.length).toBeGreaterThan(0);
   });
