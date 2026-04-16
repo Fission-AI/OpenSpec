@@ -286,6 +286,98 @@ rules:
       });
     });
 
+    describe('requireSpecDeltas parsing', () => {
+      it('should parse requireSpecDeltas: "error"', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          'schema: spec-driven\nrequireSpecDeltas: "error"\n'
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config?.requireSpecDeltas).toBe('error');
+        expect(consoleWarnSpy).not.toHaveBeenCalled();
+      });
+
+      it('should parse requireSpecDeltas: "warn"', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          'schema: spec-driven\nrequireSpecDeltas: "warn"\n'
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config?.requireSpecDeltas).toBe('warn');
+        expect(consoleWarnSpy).not.toHaveBeenCalled();
+      });
+
+      it('should parse requireSpecDeltas: false', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          'schema: spec-driven\nrequireSpecDeltas: false\n'
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config?.requireSpecDeltas).toBe(false);
+        expect(consoleWarnSpy).not.toHaveBeenCalled();
+      });
+
+      it('should default to undefined when requireSpecDeltas is omitted', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          'schema: spec-driven\n'
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config?.requireSpecDeltas).toBeUndefined();
+        expect(consoleWarnSpy).not.toHaveBeenCalled();
+      });
+
+      it('should warn and omit requireSpecDeltas with invalid string value', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          'schema: spec-driven\nrequireSpecDeltas: "invalid"\n'
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config?.requireSpecDeltas).toBeUndefined();
+        expect(config?.schema).toBe('spec-driven');
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid 'requireSpecDeltas' field")
+        );
+      });
+
+      it('should warn and omit requireSpecDeltas with invalid type', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          'schema: spec-driven\nrequireSpecDeltas: 123\n'
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config?.requireSpecDeltas).toBeUndefined();
+        expect(config?.schema).toBe('spec-driven');
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid 'requireSpecDeltas' field")
+        );
+      });
+    });
+
     describe('context size limit enforcement', () => {
       it('should accept context under 50KB limit', () => {
         const configDir = path.join(tempDir, 'openspec');
