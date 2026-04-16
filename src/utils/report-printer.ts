@@ -14,11 +14,9 @@ export function issueSeverityPrefix(level: ReportIssue['level']): string {
  * Print a validation report's issues in the standard text format.
  *
  * Handles the three-way branch:
- *   1. invalid  → stderr "has issues" + all issues + optional next-steps callback
+ *   1. invalid  → stderr "has issues" + all issues
  *   2. valid with warnings → stdout "is valid" + warnings/info to stderr
  *   3. clean    → stdout "is valid"
- *
- * Returns true when the report is invalid (caller should set exitCode = 1).
  */
 export function printReportIssues(
   label: string,
