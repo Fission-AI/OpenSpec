@@ -110,8 +110,6 @@ export function detectCompleted(
 }
 ```
 
-~5 lines added. `loadChangeContext()` in `instruction-loader.ts` reads project config and passes it through.
-
 **Why hardcode `'specs'`:** The `specs` artifact is the only one with a glob pattern that might legitimately have zero files. A more general "optional artifacts" system would be over-engineering for now.
 
 ### 5. "Skipped" status in display

@@ -27,7 +27,7 @@ The system SHALL display artifact completion status for a change, including scaf
 
 #### Scenario: Status on scaffolded change
 
-- **WHEN** user runs `openspec status --change <id>` on a change with no artifacts
+- **WHEN** user runs `openspec status --change <id>` on a change with no generated artifact files yet
 - **THEN** system displays all artifacts with their status
 - **AND** root artifacts (no dependencies) show as ready `[ ]`
 - **AND** dependent artifacts show as blocked `[-]`
