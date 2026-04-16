@@ -138,8 +138,6 @@ export class ValidateCommand {
       const report = await validator.validateChangeDeltaSpecs(changeDir);
       const durationMs = Date.now() - start;
       this.printReport('change', id, report, durationMs, opts.json);
-      // Non-zero exit if invalid (keeps enriched output test semantics)
-      process.exitCode = report.valid ? 0 : 1;
       return;
     }
     const file = path.join(process.cwd(), 'openspec', 'specs', id, 'spec.md');
@@ -147,25 +145,39 @@ export class ValidateCommand {
     const report = await validator.validateSpec(file);
     const durationMs = Date.now() - start;
     this.printReport('spec', id, report, durationMs, opts.json);
-    process.exitCode = report.valid ? 0 : 1;
   }
 
   private printReport(type: ItemType, id: string, report: { valid: boolean; issues: any[] }, durationMs: number, json: boolean): void {
+    const hasErrors = report.issues.some((i: any) => i.level === 'ERROR');
+    const hasWarnings = report.issues.some((i: any) => i.level === 'WARNING');
+    const label = type === 'change' ? 'Change' : 'Specification';
+
+    if (hasErrors) {
+      process.exitCode = 1;
+    }
+
     if (json) {
       const out = { items: [{ id, type, valid: report.valid, issues: report.issues, durationMs }], summary: { totals: { items: 1, passed: report.valid ? 1 : 0, failed: report.valid ? 0 : 1 }, byType: { [type]: { items: 1, passed: report.valid ? 1 : 0, failed: report.valid ? 0 : 1 } } }, version: '1.0' };
       console.log(JSON.stringify(out, null, 2));
       return;
     }
-    if (report.valid) {
-      console.log(`${type === 'change' ? 'Change' : 'Specification'} '${id}' is valid`);
-    } else {
-      console.error(`${type === 'change' ? 'Change' : 'Specification'} '${id}' has issues`);
+
+    if (hasErrors) {
+      console.error(`${label} '${id}' has issues`);
       for (const issue of report.issues) {
-        const label = issue.level === 'ERROR' ? 'ERROR' : issue.level;
+        const issueLabel = issue.level === 'ERROR' ? 'ERROR' : issue.level;
         const prefix = issue.level === 'ERROR' ? '✗' : issue.level === 'WARNING' ? '⚠' : 'ℹ';
-        console.error(`${prefix} [${label}] ${issue.path}: ${issue.message}`);
+        console.error(`${prefix} [${issueLabel}] ${issue.path}: ${issue.message}`);
       }
       this.printNextSteps(type);
+    } else if (hasWarnings) {
+      console.log(`${label} '${id}' is valid`);
+      for (const issue of report.issues) {
+        const prefix = issue.level === 'WARNING' ? '⚠' : 'ℹ';
+        console.error(`${prefix} [${issue.level}] ${issue.path}: ${issue.message}`);
+      }
+    } else {
+      console.log(`${label} '${id}' is valid`);
     }
   }
 

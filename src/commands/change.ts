@@ -224,20 +224,26 @@ export class ChangeCommand {
     if (options?.json) {
       console.log(JSON.stringify(report, null, 2));
     } else {
-      if (report.valid) {
-        console.log(`Change "${changeName}" is valid`);
-      } else {
+      const hasErrors = report.issues.some(i => i.level === 'ERROR');
+      const hasWarnings = report.issues.some(i => i.level === 'WARNING');
+
+      if (hasErrors) {
         console.error(`Change "${changeName}" has issues`);
         report.issues.forEach(issue => {
           const label = issue.level === 'ERROR' ? 'ERROR' : 'WARNING';
           const prefix = issue.level === 'ERROR' ? '✗' : '⚠';
           console.error(`${prefix} [${label}] ${issue.path}: ${issue.message}`);
         });
-        // Next steps footer to guide fixing issues
         this.printNextSteps();
-        if (!options?.json) {
-          process.exitCode = 1;
-        }
+        process.exitCode = 1;
+      } else if (hasWarnings) {
+        console.log(`Change "${changeName}" is valid`);
+        report.issues.forEach(issue => {
+          const prefix = issue.level === 'WARNING' ? '⚠' : 'ℹ';
+          console.error(`${prefix} [${issue.level}] ${issue.path}: ${issue.message}`);
+        });
+      } else {
+        console.log(`Change "${changeName}" is valid`);
       }
     }
   }

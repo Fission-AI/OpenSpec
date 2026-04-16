@@ -19,6 +19,14 @@ Validation output SHALL include specific guidance to fix each error, including e
 - **THEN** emit a WARNING stating "Change has no spec deltas (allowed by config)"
 - **AND** validation SHALL pass (report.valid is `true` in non-strict mode)
 
+#### Scenario: CLI output when validation passes with warnings
+- **WHEN** validating a change that passes (report.valid is `true`)
+- **AND** the report contains one or more WARNING-level issues
+- **THEN** the CLI SHALL print "<type> '<id>' is valid" to stdout
+- **AND** the CLI SHALL print each WARNING issue to stderr (e.g. `⚠ [WARNING] file: ...`)
+- **AND** the CLI SHALL exit with code 0
+- **AND** the Next steps footer SHALL NOT be printed (it is reserved for errors)
+
 #### Scenario: No deltas found, requireSpecDeltas is "warn", strict mode
 - **WHEN** validating a change with zero parsed deltas
 - **AND** the project config has `requireSpecDeltas` set to `"warn"`
