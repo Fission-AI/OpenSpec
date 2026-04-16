@@ -215,7 +215,10 @@ export class ChangeCommand {
       throw new Error(`Change "${changeName}" not found at ${changeDir}`);
     }
     
-    const validator = new Validator({ strictMode: options?.strict || false });
+    const { readProjectConfig } = await import('../core/project-config.js');
+    const projectConfig = readProjectConfig(process.cwd());
+    const requireSpecDeltas = projectConfig?.requireSpecDeltas ?? 'error';
+    const validator = new Validator({ strictMode: options?.strict || false, requireSpecDeltas });
     const report = await validator.validateChangeDeltaSpecs(changeDir);
     
     if (options?.json) {
