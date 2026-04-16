@@ -6,6 +6,7 @@ import { ChangeParser } from '../core/parsers/change-parser.js';
 import { Change } from '../core/schemas/index.js';
 import { isInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds } from '../utils/item-discovery.js';
+import { printReportIssues } from '../utils/report-printer.js';
 
 // Constants for better maintainability
 const ARCHIVE_DIR = 'archive';
@@ -227,24 +228,10 @@ export class ChangeCommand {
         process.exitCode = 1;
       }
     } else {
-      const hasWarnings = report.issues.some(i => i.level === 'WARNING');
-
+      printReportIssues(`Change "${changeName}"`, report);
       if (!report.valid) {
-        console.error(`Change "${changeName}" has issues`);
-        report.issues.forEach(issue => {
-          const prefix = issue.level === 'ERROR' ? '✗' : issue.level === 'WARNING' ? '⚠' : 'ℹ';
-          console.error(`${prefix} [${issue.level}] ${issue.path}: ${issue.message}`);
-        });
         this.printNextSteps();
         process.exitCode = 1;
-      } else if (hasWarnings) {
-        console.log(`Change "${changeName}" is valid`);
-        report.issues.forEach(issue => {
-          const prefix = issue.level === 'WARNING' ? '⚠' : 'ℹ';
-          console.error(`${prefix} [${issue.level}] ${issue.path}: ${issue.message}`);
-        });
-      } else {
-        console.log(`Change "${changeName}" is valid`);
       }
     }
   }

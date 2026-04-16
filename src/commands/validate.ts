@@ -5,6 +5,7 @@ import { readProjectConfig } from '../core/project-config.js';
 import { isInteractive, resolveNoInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds, getSpecIds } from '../utils/item-discovery.js';
 import { nearestMatches } from '../utils/match.js';
+import { printReportIssues } from '../utils/report-printer.js';
 
 type ItemType = 'change' | 'spec';
 
@@ -148,9 +149,6 @@ export class ValidateCommand {
   }
 
   private printReport(type: ItemType, id: string, report: { valid: boolean; issues: any[] }, durationMs: number, json: boolean): void {
-    const hasWarnings = report.issues.some((i: any) => i.level === 'WARNING');
-    const label = type === 'change' ? 'Change' : 'Specification';
-
     if (!report.valid) {
       process.exitCode = 1;
     }
@@ -161,21 +159,10 @@ export class ValidateCommand {
       return;
     }
 
+    const label = type === 'change' ? 'Change' : 'Specification';
+    printReportIssues(`${label} '${id}'`, report);
     if (!report.valid) {
-      console.error(`${label} '${id}' has issues`);
-      for (const issue of report.issues) {
-        const prefix = issue.level === 'ERROR' ? '✗' : issue.level === 'WARNING' ? '⚠' : 'ℹ';
-        console.error(`${prefix} [${issue.level}] ${issue.path}: ${issue.message}`);
-      }
       this.printNextSteps(type);
-    } else if (hasWarnings) {
-      console.log(`${label} '${id}' is valid`);
-      for (const issue of report.issues) {
-        const prefix = issue.level === 'WARNING' ? '⚠' : 'ℹ';
-        console.error(`${prefix} [${issue.level}] ${issue.path}: ${issue.message}`);
-      }
-    } else {
-      console.log(`${label} '${id}' is valid`);
     }
   }
 
