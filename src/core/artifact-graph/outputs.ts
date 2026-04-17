@@ -11,23 +11,33 @@ export function isGlobPattern(pattern: string): boolean {
 }
 
 /**
+ * Escapes glob-special characters in a directory path so it is treated as a
+ * literal string by fast-glob.  Only parentheses and square brackets need
+ * escaping — curly braces and other extglob prefixes do not break matching
+ * when they appear in isolation inside a filesystem path.
+ */
+function escapeGlobPath(p: string): string {
+  return p.replace(/[()[\]]/g, '\\$&');
+}
+
+/**
  * Resolves an artifact's output path(s) to concrete files that currently exist.
  * Returns absolute file paths. Glob matches are sorted for deterministic output.
  */
 export function resolveArtifactOutputs(changeDir: string, generates: string): string[] {
-  const fullPattern = path.join(changeDir, generates);
-
   if (!isGlobPattern(generates)) {
+    const fullPath = path.join(changeDir, generates);
     try {
-      return fs.statSync(fullPattern).isFile()
-        ? [FileSystemUtils.canonicalizeExistingPath(fullPattern)]
+      return fs.statSync(fullPath).isFile()
+        ? [FileSystemUtils.canonicalizeExistingPath(fullPath)]
         : [];
     } catch {
       return [];
     }
   }
 
-  const normalizedPattern = FileSystemUtils.toPosixPath(fullPattern);
+  const escapedDir = escapeGlobPath(FileSystemUtils.toPosixPath(changeDir));
+  const normalizedPattern = escapedDir + '/' + FileSystemUtils.toPosixPath(generates);
   const matches = fg
     .sync(normalizedPattern, { onlyFiles: true })
     .map((match) => FileSystemUtils.canonicalizeExistingPath(path.normalize(match)));
