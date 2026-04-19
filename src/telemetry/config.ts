@@ -1,10 +1,14 @@
 /**
  * Global configuration for telemetry state.
- * Stores anonymous ID and notice-seen flag in ~/.config/openspec/config.json
+ * Stores anonymous ID and notice-seen flag in the platform-appropriate config directory.
  */
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
+
+// Constants
+export const CONFIG_DIR_NAME = 'openspec';
+export const CONFIG_FILE_NAME = 'config.json';
 
 export interface TelemetryConfig {
   anonymousId?: string;
@@ -16,13 +20,40 @@ export interface GlobalConfig {
   [key: string]: unknown; // Preserve other fields
 }
 
+function getConfigDir(): string {
+  // XDG_CONFIG_HOME takes precedence on all platforms when explicitly set
+  const xdgConfigHome = process.env.XDG_CONFIG_HOME;
+  if (xdgConfigHome) {
+    return path.join(xdgConfigHome, CONFIG_DIR_NAME);
+  }
+
+  const platform = os.platform();
+
+  if (platform === 'win32') {
+    // Windows: use %APPDATA%
+    const appData = process.env.APPDATA;
+    if (appData) {
+      return path.join(appData, CONFIG_DIR_NAME);
+    }
+    // Fallback for Windows if APPDATA is not set
+    return path.join(os.homedir(), 'AppData', 'Roaming', CONFIG_DIR_NAME);
+  }
+
+  // Unix/macOS fallback: ~/.config
+  return path.join(os.homedir(), '.config', CONFIG_DIR_NAME);
+}
+
 /**
  * Get the path to the global config file.
- * Uses ~/.config/openspec/config.json on all platforms.
+ * Follows XDG Base Directory Specification and platform conventions.
+ *
+ * - All platforms: $XDG_CONFIG_HOME/openspec/ if XDG_CONFIG_HOME is set
+ * - Unix/macOS fallback: ~/.config/openspec/
+ * - Windows fallback: %APPDATA%/openspec/
  */
 export function getConfigPath(): string {
-  const configDir = path.join(os.homedir(), '.config', 'openspec');
-  return path.join(configDir, 'config.json');
+  const configDir = getConfigDir();
+  return path.join(configDir, CONFIG_FILE_NAME);
 }
 
 /**
