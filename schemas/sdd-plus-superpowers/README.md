@@ -27,7 +27,7 @@ OpenSpec 管理「做什麼」（proposal → specs → design → tasks），Su
 
 ## 工作流概覽
 
-```
+```text
 brainstorm ──→ proposal ──→ specs ──→ tasks ──→ plan
                   │                     ↑
                   └──→ design ──────────┘
@@ -82,7 +82,7 @@ Superpowers 技能有預設的輸出路徑（如 brainstorming 寫到 `docs/supe
 /opsx:new my-feature --schema sdd-plus-superpowers
 /opsx:continue         # → brainstorm（互動式對話）
 /opsx:continue         # → proposal
-/opsx:continue         # → design
+/opsx:continue         # → design（optional，僅在需要解釋技術決策時）
 /opsx:continue         # → specs
 /opsx:continue         # → tasks
 /opsx:continue         # → plan

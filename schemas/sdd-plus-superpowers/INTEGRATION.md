@@ -37,7 +37,7 @@ Superpowers 負責 **「怎麼做」（HOW）**—— brainstorming 對話、TDD
 
 ## 三、Artifact DAG（含 superpowers 注入點）
 
-```
+```text
 ┌──────────────┐
 │  brainstorm  │ ◄── superpowers:brainstorming
 │  (root)      │     （2-3 方案 + Alternatives Considered）
