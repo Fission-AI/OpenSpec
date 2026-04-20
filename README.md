@@ -42,10 +42,6 @@ Our philosophy:
   Follow <a href="https://x.com/0xTab">@0xTab on X</a> for updates · Join the <a href="https://discord.gg/YctCnvvshC">OpenSpec Discord</a> for help and questions.
 </p>
 
-### Teams
-
-Using OpenSpec in a team? [Email here](mailto:teams@openspec.dev) for access to our Slack channel.
-
 <!-- TODO: Add GIF demo of /opsx:propose → /opsx:archive workflow -->
 
 ## See it in action
