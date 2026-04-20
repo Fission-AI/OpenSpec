@@ -25,6 +25,11 @@ export interface GlobalConfig {
   [key: string]: unknown; // Preserve other fields
 }
 
+type ConfigReadResult =
+  | { status: 'missing' }
+  | { status: 'ok'; config: GlobalConfig }
+  | { status: 'invalid'; config: GlobalConfig };
+
 function getConfigDir(): string {
   return getGlobalConfigDir();
 }
@@ -33,16 +38,16 @@ function getLegacyConfigPath(): string {
   return path.join(os.homedir(), '.config', CONFIG_DIR_NAME, CONFIG_FILE_NAME);
 }
 
-async function readConfigFile(configPath: string): Promise<GlobalConfig | undefined> {
+async function readConfigFile(configPath: string): Promise<ConfigReadResult> {
   try {
     const content = await fs.readFile(configPath, 'utf-8');
-    return JSON.parse(content) as GlobalConfig;
+    return { status: 'ok', config: JSON.parse(content) as GlobalConfig };
   } catch (error: unknown) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      return undefined;
+      return { status: 'missing' };
     }
     // If parse fails or another read error occurs, ignore the file.
-    return {};
+    return { status: 'invalid', config: {} };
   }
 }
 
@@ -84,26 +89,32 @@ function mergeLegacyTelemetry(config: GlobalConfig, legacyConfig: GlobalConfig):
   };
 }
 
-async function migrateLegacyTelemetryConfig(configPath: string, config: GlobalConfig): Promise<GlobalConfig> {
+async function migrateLegacyTelemetryConfig(
+  configPath: string,
+  config: GlobalConfig,
+  persist: boolean,
+): Promise<GlobalConfig> {
   const legacyConfigPath = getLegacyConfigPath();
   if (path.resolve(configPath) === path.resolve(legacyConfigPath) || !hasMissingTelemetryFields(config)) {
     return config;
   }
 
-  const legacyConfig = await readConfigFile(legacyConfigPath);
-  if (!legacyConfig) {
+  const legacyRead = await readConfigFile(legacyConfigPath);
+  if (legacyRead.status !== 'ok') {
     return config;
   }
 
-  const migrated = mergeLegacyTelemetry(config, legacyConfig);
+  const migrated = mergeLegacyTelemetry(config, legacyRead.config);
   if (!migrated) {
     return config;
   }
 
-  try {
-    await writeConfigFile(configPath, migrated);
-  } catch {
-    // Preserve telemetry for this run even if the one-time migration cannot be persisted.
+  if (persist) {
+    try {
+      await writeConfigFile(configPath, migrated);
+    } catch {
+      // Preserve telemetry for this run even if the one-time migration cannot be persisted.
+    }
   }
 
   return migrated;
@@ -128,8 +139,9 @@ export function getConfigPath(): string {
  */
 export async function readConfig(): Promise<GlobalConfig> {
   const configPath = getConfigPath();
-  const config = (await readConfigFile(configPath)) ?? {};
-  return migrateLegacyTelemetryConfig(configPath, config);
+  const read = await readConfigFile(configPath);
+  const config = read.status === 'ok' ? read.config : {};
+  return migrateLegacyTelemetryConfig(configPath, config, read.status !== 'invalid');
 }
 
 /**

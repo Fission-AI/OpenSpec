@@ -23,6 +23,16 @@ describe('telemetry/config', () => {
     Object.assign(process.env, env);
   }
 
+  function defaultConfigDir(): string {
+    return os.platform() === 'win32'
+      ? path.join(tempDir, 'appdata', 'openspec')
+      : path.join(tempDir, '.config', 'openspec');
+  }
+
+  function defaultConfigPath(): string {
+    return path.join(defaultConfigDir(), 'config.json');
+  }
+
   beforeEach(() => {
     // Create temp directory for tests
     tempDir = path.join(os.tmpdir(), `openspec-telemetry-test-${randomUUID()}`);
@@ -32,7 +42,7 @@ describe('telemetry/config', () => {
     // On POSIX, os.homedir() uses HOME; on Windows it uses USERPROFILE
     originalEnv = { ...process.env };
     delete process.env.XDG_CONFIG_HOME;
-    delete process.env.APPDATA;
+    process.env.APPDATA = path.join(tempDir, 'appdata');
     process.env.HOME = tempDir;
     process.env.USERPROFILE = tempDir;
   });
@@ -46,9 +56,9 @@ describe('telemetry/config', () => {
   });
 
   describe('getConfigPath', () => {
-    it('should return path to config.json in .config/openspec', () => {
+    it('should return path to config.json in the default config directory', () => {
       const result = getConfigPath();
-      expect(result).toBe(path.join(tempDir, '.config', 'openspec', 'config.json'));
+      expect(result).toBe(defaultConfigPath());
     });
 
     it('should use XDG_CONFIG_HOME when set', () => {
@@ -68,8 +78,8 @@ describe('telemetry/config', () => {
     });
 
     it('should load valid config from file', async () => {
-      const configDir = path.join(tempDir, '.config', 'openspec');
-      const configPath = path.join(configDir, 'config.json');
+      const configDir = defaultConfigDir();
+      const configPath = defaultConfigPath();
 
       fs.mkdirSync(configDir, { recursive: true });
       fs.writeFileSync(configPath, JSON.stringify({
@@ -81,8 +91,8 @@ describe('telemetry/config', () => {
     });
 
     it('should return empty object for invalid JSON', async () => {
-      const configDir = path.join(tempDir, '.config', 'openspec');
-      const configPath = path.join(configDir, 'config.json');
+      const configDir = defaultConfigDir();
+      const configPath = defaultConfigPath();
 
       fs.mkdirSync(configDir, { recursive: true });
       fs.writeFileSync(configPath, '{ invalid json }');
@@ -110,6 +120,29 @@ describe('telemetry/config', () => {
         anonymousId: 'legacy-id',
         noticeSeen: true,
       });
+    });
+
+    it('should not overwrite invalid new config during legacy migration', async () => {
+      const xdgConfigHome = path.join(tempDir, 'xdg-config');
+      const legacyConfigDir = path.join(tempDir, '.config', 'openspec');
+      const legacyConfigPath = path.join(legacyConfigDir, 'config.json');
+      const newConfigDir = path.join(xdgConfigHome, 'openspec');
+      const newConfigPath = path.join(newConfigDir, 'config.json');
+      const invalidJson = '{ invalid json }';
+      process.env.XDG_CONFIG_HOME = xdgConfigHome;
+
+      fs.mkdirSync(legacyConfigDir, { recursive: true });
+      fs.writeFileSync(legacyConfigPath, JSON.stringify({
+        telemetry: { anonymousId: 'legacy-id', noticeSeen: true },
+      }));
+
+      fs.mkdirSync(newConfigDir, { recursive: true });
+      fs.writeFileSync(newConfigPath, invalidJson);
+
+      const config = await readConfig();
+
+      expect(config.telemetry).toEqual({ anonymousId: 'legacy-id', noticeSeen: true });
+      expect(fs.readFileSync(newConfigPath, 'utf-8')).toBe(invalidJson);
     });
 
     it('should fill only missing telemetry fields from legacy config', async () => {
@@ -146,7 +179,7 @@ describe('telemetry/config', () => {
 
   describe('writeConfig', () => {
     it('should create directory if it does not exist', async () => {
-      const configDir = path.join(tempDir, '.config', 'openspec');
+      const configDir = defaultConfigDir();
 
       await writeConfig({ telemetry: { noticeSeen: true } });
 
@@ -154,7 +187,7 @@ describe('telemetry/config', () => {
     });
 
     it('should write config to file', async () => {
-      const configPath = path.join(tempDir, '.config', 'openspec', 'config.json');
+      const configPath = defaultConfigPath();
 
       await writeConfig({ telemetry: { anonymousId: 'test-123' } });
 
@@ -176,8 +209,8 @@ describe('telemetry/config', () => {
     });
 
     it('should preserve existing fields when updating', async () => {
-      const configDir = path.join(tempDir, '.config', 'openspec');
-      const configPath = path.join(configDir, 'config.json');
+      const configDir = defaultConfigDir();
+      const configPath = defaultConfigPath();
 
       // Create initial config with other fields
       fs.mkdirSync(configDir, { recursive: true });
@@ -196,8 +229,8 @@ describe('telemetry/config', () => {
     });
 
     it('should deep merge telemetry fields', async () => {
-      const configDir = path.join(tempDir, '.config', 'openspec');
-      const configPath = path.join(configDir, 'config.json');
+      const configDir = defaultConfigDir();
+      const configPath = defaultConfigPath();
 
       // Create initial config
       fs.mkdirSync(configDir, { recursive: true });
@@ -222,8 +255,8 @@ describe('telemetry/config', () => {
     });
 
     it('should return telemetry section from config', async () => {
-      const configDir = path.join(tempDir, '.config', 'openspec');
-      const configPath = path.join(configDir, 'config.json');
+      const configDir = defaultConfigDir();
+      const configPath = defaultConfigPath();
 
       fs.mkdirSync(configDir, { recursive: true });
       fs.writeFileSync(configPath, JSON.stringify({
@@ -239,15 +272,15 @@ describe('telemetry/config', () => {
     it('should create telemetry config when none exists', async () => {
       await updateTelemetryConfig({ anonymousId: 'new-id' });
 
-      const configPath = path.join(tempDir, '.config', 'openspec', 'config.json');
+      const configPath = defaultConfigPath();
       const content = fs.readFileSync(configPath, 'utf-8');
       const parsed = JSON.parse(content);
       expect(parsed.telemetry.anonymousId).toBe('new-id');
     });
 
     it('should merge with existing telemetry config', async () => {
-      const configDir = path.join(tempDir, '.config', 'openspec');
-      const configPath = path.join(configDir, 'config.json');
+      const configDir = defaultConfigDir();
+      const configPath = defaultConfigPath();
 
       fs.mkdirSync(configDir, { recursive: true });
       fs.writeFileSync(configPath, JSON.stringify({
