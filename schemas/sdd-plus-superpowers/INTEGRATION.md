@@ -159,7 +159,13 @@ openspec validate --all --json
 /opsx:apply
 ```
 
-這會觸發 [schema.yaml](./schema.yaml) `apply.instruction` 的 4 個步驟：
+這會觸發 [schema.yaml](./schema.yaml) `apply.instruction` 的步驟：
+
+#### 3-0. Pre-flight — 先把 change artifact commit 到當前分支
+
+在建立 worktree 之前，先確認 `openspec/changes/<name>/` 已在當前分支上被追蹤。若仍是 untracked（`git status --porcelain` 輸出含 `??`），就 **只 commit 該 change 目錄**（不要用 `git add -A`）為 `docs(openspec): scaffold <name> change`。
+
+**為什麼需要這步**：worktree 會從當前 branch 開新 branch；若 change 目錄在 main 端仍未追蹤，之後把 worktree merge 回 main 時會遇到 "untracked files would be overwritten by merge" 錯誤。這一步把「planning 階段的產物」與「implementation 階段的產物」分到兩個 commit，讓 main 分支在任何時刻都不會有漂移的 untracked 副本。
 
 #### 3-1. Workspace — 呼叫 `superpowers:using-git-worktrees`
 
@@ -202,6 +208,23 @@ openspec validate --all --json
 - 確認 tests 全綠
 - 呈現選項：merge / PR / keep branch / discard
 - 清理 worktree
+
+#### 3-5. Retrospective（建議，non-blocking）
+
+**不是強制步驟，但強烈建議**：在 archive 之前，於 change 目錄產出 `retrospective.md`。retrospective 是對整個 change 的「自我審查」—— 它能捕捉 diff 看不到的東西：為什麼做這個決定、什麼讓你意外、哪些學到的經驗值得升級到長期記憶。
+
+**為什麼值得做**：每一次 retrospective 都會提升下一次 change 的品質。沒有 retro，blind spot 會重複累積；有 retro，團隊和 AI 都能從每次執行中學習。
+
+建議的 6 個段落（evidence-first，每個 claim 引用 commit / 檔案 / 可量化事實）：
+
+1. **Wins** — 什麼做得好（附 commit / 測試佐證）
+2. **Misses** — 什麼沒做好（🔴 blocking / 🟡 painful / 📌 nit）
+3. **Plan deviations** — 哪些 task 的範圍變了，為什麼
+4. **Skill / workflow compliance** — 哪些 skill 實際用了、哪些刻意跳過（理由）
+5. **Surprises** — 哪些原本的假設事後證明是錯的
+6. **Promote candidates** — 值得搬到長期記憶 / CLAUDE.md / schema 或 skill 更新的學習（每條分類，避免洞察靜靜死在 archive 裡）
+
+若環境中有 `workflow-retrospective` skill，它會自動化 evidence collection；否則就手動寫。對於單 commit 的 trivial fix，overhead 超過 value，可以跳過。
 
 ---
 

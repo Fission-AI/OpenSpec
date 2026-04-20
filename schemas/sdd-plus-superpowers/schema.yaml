@@ -216,6 +216,40 @@ apply:
   instruction: |
     Before implementing, set up an isolated workspace and executor:
 
+    0. **Pre-flight — commit change artifacts to current branch**:
+
+       Before creating the worktree, verify that the change directory
+       `openspec/changes/<name>/` is committed on the current branch.
+       This prevents drift between the main checkout and the worktree
+       during implementation, and avoids "untracked files would be
+       overwritten by merge" errors when later integrating the worktree
+       back into the main branch.
+
+       Steps:
+       a. Run `git status --porcelain openspec/changes/<name>/` to
+          inspect state.
+       b. If the output contains untracked entries (lines starting
+          with `??`), stage and commit ONLY this change's directory
+          (do NOT use `git add -A`):
+
+          ```
+          git add openspec/changes/<name>/
+          git commit -m "docs(openspec): scaffold <name> change
+
+          Captures pre-implementation artifacts (brainstorm/proposal/
+          specs/tasks/plan) so the implementation worktree starts
+          with the change directory already tracked."
+          ```
+
+       c. If the output is empty (everything committed) or contains
+          only modifications (`M`) without untracked entries, skip
+          the commit — the change directory is already tracked.
+
+       d. If on a detached HEAD or a branch that is not the project's
+          integration branch (typically `main` or `master`), warn the
+          user but still proceed — the commit lands on the current
+          branch and will be merged later as usual.
+
     1. **Workspace**: Use the Skill tool to invoke
        **superpowers:using-git-worktrees** to create an isolated
        git worktree for this change.
@@ -277,6 +311,33 @@ apply:
        use the Skill tool to invoke
        **superpowers:finishing-a-development-branch** for branch
        cleanup, PR creation, etc.
+
+    **Recommended — Retrospective before archive (non-blocking)**:
+
+    Before archiving the change, it is strongly recommended (but not
+    required) to write a short retrospective at `retrospective.md` in
+    the change directory. A good retrospective raises the quality of
+    every subsequent change because it captures what the diff alone
+    cannot: why decisions were made, what surprised you, and which
+    learnings deserve to be promoted to long-term memory.
+
+    Evidence first, opinion second — every claim should cite a
+    commit, file, or measurable fact. Suggested sections:
+
+    - **Wins** — what worked well (with commit / test evidence)
+    - **Misses** — what didn't work (🔴 blocking / 🟡 painful / 📌 nit)
+    - **Plan deviations** — tasks whose scope changed, and why
+    - **Skill / workflow compliance** — skills invoked vs. deliberately
+      skipped (and the reason)
+    - **Surprises** — assumptions that turned out wrong
+    - **Promote candidates** — learnings to move into long-term memory,
+      CLAUDE.md, or schema/skill updates (classify each candidate so
+      insights don't die silently in the archive)
+
+    If a `workflow-retrospective` skill is available in the environment,
+    it can automate evidence collection; otherwise write the six
+    sections manually. Skipping is acceptable for trivial changes
+    (single-commit fixes) where the overhead exceeds the value.
 
     If any skill is unavailable, fall back to manual implementation
     using the standard task-by-task loop from tasks.md.
