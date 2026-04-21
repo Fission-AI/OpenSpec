@@ -147,6 +147,19 @@ describe('artifact-graph/outputs', () => {
       expect(artifactOutputExists(dirWithBraces, 'specs/*/spec.md')).toBe(true);
     });
 
+    it('resolves glob patterns when directory contains brace expansion syntax', () => {
+      const dirWithBraceExpansion = path.join(tempDir, 'project {a,b}');
+      const specDir = path.join(dirWithBraceExpansion, 'specs', 'cap-a');
+      const specFile = path.join(specDir, 'spec.md');
+      fs.mkdirSync(specDir, { recursive: true });
+      fs.writeFileSync(specFile, 'content');
+
+      expect(resolveArtifactOutputs(dirWithBraceExpansion, 'specs/*/spec.md')).toEqual([
+        canonical(specFile),
+      ]);
+      expect(artifactOutputExists(dirWithBraceExpansion, 'specs/*/spec.md')).toBe(true);
+    });
+
     it('resolves non-glob generates when directory contains special characters', () => {
       const dirWithParens = path.join(tempDir, 'project (work)');
       const proposalFile = path.join(dirWithParens, 'proposal.md');
