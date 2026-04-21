@@ -9,6 +9,7 @@ import { claudeAdapter } from '../../../src/core/command-generation/adapters/cla
 import { clineAdapter } from '../../../src/core/command-generation/adapters/cline.js';
 import { codexAdapter } from '../../../src/core/command-generation/adapters/codex.js';
 import { codebuddyAdapter } from '../../../src/core/command-generation/adapters/codebuddy.js';
+import { codeStudioAdapter } from '../../../src/core/command-generation/adapters/codestudio.js';
 import { continueAdapter } from '../../../src/core/command-generation/adapters/continue.js';
 import { costrictAdapter } from '../../../src/core/command-generation/adapters/costrict.js';
 import { crushAdapter } from '../../../src/core/command-generation/adapters/crush.js';
@@ -338,6 +339,25 @@ describe('command-generation/adapters', () => {
       expect(output).toContain('name: OpenSpec Explore');
       expect(output).toContain('description: "Enter explore mode for thinking"');
       expect(output).toContain('argument-hint: "[command arguments]"');
+      expect(output).toContain('---\n\n');
+      expect(output).toContain('This is the command body.');
+    });
+  });
+
+  describe('codeStudioAdapter', () => {
+    it('should have correct toolId', () => {
+      expect(codeStudioAdapter.toolId).toBe('codestudio');
+    });
+
+    it('should generate correct file path with .prompt.md extension', () => {
+      const filePath = codeStudioAdapter.getFilePath('explore');
+      expect(filePath).toBe(path.join('.codestudio', 'prompts', 'opsx-explore.prompt.md'));
+    });
+
+    it('should format file with description frontmatter', () => {
+      const output = codeStudioAdapter.formatFile(sampleContent);
+      expect(output).toContain('---\n');
+      expect(output).toContain('description: Enter explore mode for thinking');
       expect(output).toContain('---\n\n');
       expect(output).toContain('This is the command body.');
     });
@@ -695,7 +715,7 @@ describe('command-generation/adapters', () => {
       // Verify all adapters produce valid paths
       const adapters = [
         amazonQAdapter, antigravityAdapter, auggieAdapter, bobAdapter, clineAdapter,
-        codexAdapter, codebuddyAdapter, continueAdapter, costrictAdapter,
+        codexAdapter, codebuddyAdapter, codeStudioAdapter, continueAdapter, costrictAdapter,
         crushAdapter, factoryAdapter, geminiAdapter, githubCopilotAdapter,
         iflowAdapter, kilocodeAdapter, opencodeAdapter, piAdapter, qoderAdapter,
         qwenAdapter, roocodeAdapter
