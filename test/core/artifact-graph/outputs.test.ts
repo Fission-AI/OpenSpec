@@ -106,4 +106,70 @@ describe('artifact-graph/outputs', () => {
     expect(resolveArtifactOutputs(tempDir, 'specs/*/spec.md')).toEqual([]);
     expect(artifactOutputExists(tempDir, 'specs/*/spec.md')).toBe(false);
   });
+
+  describe('glob-special characters in directory paths', () => {
+    it('resolves glob patterns when directory contains parentheses', () => {
+      const dirWithParens = path.join(tempDir, 'project (work)');
+      const specDir = path.join(dirWithParens, 'specs', 'cap-a');
+      const specFile = path.join(specDir, 'spec.md');
+      fs.mkdirSync(specDir, { recursive: true });
+      fs.writeFileSync(specFile, 'content');
+
+      expect(resolveArtifactOutputs(dirWithParens, 'specs/*/spec.md')).toEqual([
+        canonical(specFile),
+      ]);
+      expect(artifactOutputExists(dirWithParens, 'specs/*/spec.md')).toBe(true);
+    });
+
+    it('resolves glob patterns when directory contains square brackets', () => {
+      const dirWithBrackets = path.join(tempDir, '[projects]');
+      const specDir = path.join(dirWithBrackets, 'specs', 'cap-a');
+      const specFile = path.join(specDir, 'spec.md');
+      fs.mkdirSync(specDir, { recursive: true });
+      fs.writeFileSync(specFile, 'content');
+
+      expect(resolveArtifactOutputs(dirWithBrackets, 'specs/*/spec.md')).toEqual([
+        canonical(specFile),
+      ]);
+      expect(artifactOutputExists(dirWithBrackets, 'specs/*/spec.md')).toBe(true);
+    });
+
+    it('resolves glob patterns when directory contains curly braces', () => {
+      const dirWithBraces = path.join(tempDir, '{workspace}');
+      const specDir = path.join(dirWithBraces, 'specs', 'cap-a');
+      const specFile = path.join(specDir, 'spec.md');
+      fs.mkdirSync(specDir, { recursive: true });
+      fs.writeFileSync(specFile, 'content');
+
+      expect(resolveArtifactOutputs(dirWithBraces, 'specs/*/spec.md')).toEqual([
+        canonical(specFile),
+      ]);
+      expect(artifactOutputExists(dirWithBraces, 'specs/*/spec.md')).toBe(true);
+    });
+
+    it('resolves glob patterns when directory contains brace expansion syntax', () => {
+      const dirWithBraceExpansion = path.join(tempDir, 'project {a,b}');
+      const specDir = path.join(dirWithBraceExpansion, 'specs', 'cap-a');
+      const specFile = path.join(specDir, 'spec.md');
+      fs.mkdirSync(specDir, { recursive: true });
+      fs.writeFileSync(specFile, 'content');
+
+      expect(resolveArtifactOutputs(dirWithBraceExpansion, 'specs/*/spec.md')).toEqual([
+        canonical(specFile),
+      ]);
+      expect(artifactOutputExists(dirWithBraceExpansion, 'specs/*/spec.md')).toBe(true);
+    });
+
+    it('resolves non-glob generates when directory contains special characters', () => {
+      const dirWithParens = path.join(tempDir, 'project (work)');
+      const proposalFile = path.join(dirWithParens, 'proposal.md');
+      fs.mkdirSync(dirWithParens, { recursive: true });
+      fs.writeFileSync(proposalFile, 'content');
+
+      expect(resolveArtifactOutputs(dirWithParens, 'proposal.md')).toEqual([
+        canonical(proposalFile),
+      ]);
+      expect(artifactOutputExists(dirWithParens, 'proposal.md')).toBe(true);
+    });
+  });
 });

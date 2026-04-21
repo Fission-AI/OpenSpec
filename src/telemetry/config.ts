@@ -1,10 +1,19 @@
 /**
  * Global configuration for telemetry state.
- * Stores anonymous ID and notice-seen flag in ~/.config/openspec/config.json
+ * Stores anonymous ID and notice-seen flag in the platform-appropriate config directory.
  */
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
+import {
+  GLOBAL_CONFIG_DIR_NAME,
+  GLOBAL_CONFIG_FILE_NAME,
+  getGlobalConfigDir,
+} from '../core/global-config.js';
+
+// Constants
+export const CONFIG_DIR_NAME = GLOBAL_CONFIG_DIR_NAME;
+export const CONFIG_FILE_NAME = GLOBAL_CONFIG_FILE_NAME;
 
 export interface TelemetryConfig {
   anonymousId?: string;
@@ -16,13 +25,112 @@ export interface GlobalConfig {
   [key: string]: unknown; // Preserve other fields
 }
 
+type ConfigReadResult =
+  | { status: 'missing' }
+  | { status: 'ok'; config: GlobalConfig }
+  | { status: 'invalid'; config: GlobalConfig };
+
+function getConfigDir(): string {
+  return getGlobalConfigDir();
+}
+
+function getLegacyConfigPath(): string {
+  return path.join(os.homedir(), '.config', CONFIG_DIR_NAME, CONFIG_FILE_NAME);
+}
+
+async function readConfigFile(configPath: string): Promise<ConfigReadResult> {
+  try {
+    const content = await fs.readFile(configPath, 'utf-8');
+    return { status: 'ok', config: JSON.parse(content) as GlobalConfig };
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return { status: 'missing' };
+    }
+    // If parse fails or another read error occurs, ignore the file.
+    return { status: 'invalid', config: {} };
+  }
+}
+
+async function writeConfigFile(configPath: string, config: GlobalConfig): Promise<void> {
+  await fs.mkdir(path.dirname(configPath), { recursive: true });
+  await fs.writeFile(configPath, JSON.stringify(config, null, 2) + '\n');
+}
+
+function hasMissingTelemetryFields(config: GlobalConfig): boolean {
+  const telemetry = config.telemetry;
+  return (
+    !telemetry ||
+    telemetry.anonymousId === undefined ||
+    telemetry.noticeSeen === undefined
+  );
+}
+
+function mergeLegacyTelemetry(config: GlobalConfig, legacyConfig: GlobalConfig): GlobalConfig | undefined {
+  const legacyTelemetry = legacyConfig.telemetry;
+  if (!legacyTelemetry) {
+    return undefined;
+  }
+
+  const currentTelemetry = config.telemetry ?? {};
+  const shouldMigrate =
+    (currentTelemetry.anonymousId === undefined && legacyTelemetry.anonymousId !== undefined) ||
+    (currentTelemetry.noticeSeen === undefined && legacyTelemetry.noticeSeen !== undefined);
+
+  if (!shouldMigrate) {
+    return undefined;
+  }
+
+  return {
+    ...config,
+    telemetry: {
+      ...legacyTelemetry,
+      ...currentTelemetry,
+    },
+  };
+}
+
+async function migrateLegacyTelemetryConfig(
+  configPath: string,
+  config: GlobalConfig,
+  persist: boolean,
+): Promise<GlobalConfig> {
+  const legacyConfigPath = getLegacyConfigPath();
+  if (path.resolve(configPath) === path.resolve(legacyConfigPath) || !hasMissingTelemetryFields(config)) {
+    return config;
+  }
+
+  const legacyRead = await readConfigFile(legacyConfigPath);
+  if (legacyRead.status !== 'ok') {
+    return config;
+  }
+
+  const migrated = mergeLegacyTelemetry(config, legacyRead.config);
+  if (!migrated) {
+    return config;
+  }
+
+  if (persist) {
+    try {
+      await writeConfigFile(configPath, migrated);
+    } catch {
+      // Preserve telemetry for this run even if the one-time migration cannot be persisted.
+    }
+  }
+
+  return migrated;
+}
+
 /**
  * Get the path to the global config file.
- * Uses ~/.config/openspec/config.json on all platforms.
+ * Follows XDG Base Directory Specification and platform conventions.
+ *
+ * - All platforms: $XDG_CONFIG_HOME/openspec/ if XDG_CONFIG_HOME is set
+ * - Unix/macOS fallback: ~/.config/openspec/
+ * - Windows fallback: %APPDATA%/openspec/
  */
 export function getConfigPath(): string {
-  const configDir = path.join(os.homedir(), '.config', 'openspec');
-  return path.join(configDir, 'config.json');
+  const configDir = getConfigDir();
+  return path.join(configDir, CONFIG_FILE_NAME);
 }
 
 /**
@@ -31,16 +139,9 @@ export function getConfigPath(): string {
  */
 export async function readConfig(): Promise<GlobalConfig> {
   const configPath = getConfigPath();
-  try {
-    const content = await fs.readFile(configPath, 'utf-8');
-    return JSON.parse(content) as GlobalConfig;
-  } catch (error: unknown) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      return {};
-    }
-    // If parse fails or other error, return empty config
-    return {};
-  }
+  const read = await readConfigFile(configPath);
+  const config = read.status === 'ok' ? read.config : {};
+  return migrateLegacyTelemetryConfig(configPath, config, read.status !== 'invalid');
 }
 
 /**
@@ -49,10 +150,6 @@ export async function readConfig(): Promise<GlobalConfig> {
  */
 export async function writeConfig(updates: Partial<GlobalConfig>): Promise<void> {
   const configPath = getConfigPath();
-  const configDir = path.dirname(configPath);
-
-  // Ensure directory exists
-  await fs.mkdir(configDir, { recursive: true });
 
   // Read existing config and merge
   const existing = await readConfig();
@@ -63,7 +160,7 @@ export async function writeConfig(updates: Partial<GlobalConfig>): Promise<void>
     merged.telemetry = { ...existing.telemetry, ...updates.telemetry };
   }
 
-  await fs.writeFile(configPath, JSON.stringify(merged, null, 2) + '\n');
+  await writeConfigFile(configPath, merged);
 }
 
 /**
