@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { getSchemaDir, resolveSchema } from './resolver.js';
 import { ArtifactGraph } from './graph.js';
 import { detectCompleted } from './state.js';
+import { artifactOutputExists } from './outputs.js';
 import { resolveSchemaForChange } from '../../utils/change-metadata.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import { readProjectConfig, validateConfigRules } from '../project-config.js';
@@ -94,8 +95,8 @@ export interface ArtifactStatus {
   id: string;
   /** Output path pattern */
   outputPath: string;
-  /** Status: done, ready, or blocked */
-  status: 'done' | 'ready' | 'blocked';
+  /** Status: done, ready, blocked, or skipped (synthetically completed via config) */
+  status: 'done' | 'ready' | 'blocked' | 'skipped';
   /** Missing dependencies (only for blocked) */
   missingDeps?: string[];
 }
@@ -187,7 +188,12 @@ export function loadChangeContext(
 
   const schema = resolveSchema(resolvedSchemaName, projectRoot);
   const graph = ArtifactGraph.fromSchema(schema);
-  const completed = detectCompleted(graph, changeDir);
+
+  // Read project config for requireSpecDeltas setting
+  const projectConfig = readProjectConfig(projectRoot);
+  const requireSpecDeltas = projectConfig?.requireSpecDeltas;
+
+  const completed = detectCompleted(graph, changeDir, { requireSpecDeltas });
 
   return {
     graph,
@@ -330,10 +336,11 @@ export function formatChangeStatus(context: ChangeContext): ChangeStatus {
 
   const artifactStatuses: ArtifactStatus[] = artifacts.map(artifact => {
     if (context.completed.has(artifact.id)) {
+      const hasFiles = artifactOutputExists(context.changeDir, artifact.generates);
       return {
         id: artifact.id,
         outputPath: artifact.generates,
-        status: 'done' as const,
+        status: hasFiles ? 'done' as const : 'skipped' as const,
       };
     }
 

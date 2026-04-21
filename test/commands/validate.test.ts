@@ -144,4 +144,31 @@ describe('top-level validate command', () => {
     // Should complete without hanging and without prompts
     expect(result.stderr).not.toContain('What would you like to validate?');
   });
+
+  it('passes validation for specless change when requireSpecDeltas is false', async () => {
+    // Create config with requireSpecDeltas: false
+    await fs.writeFile(
+      path.join(testDir, 'openspec', 'config.yaml'),
+      'schema: spec-driven\nrequireSpecDeltas: false\n'
+    );
+
+    // Create a change with no specs directory at all
+    const noSpecsDir = path.join(changesDir, 'no-specs-change');
+    await fs.mkdir(noSpecsDir, { recursive: true });
+    await fs.writeFile(
+      path.join(noSpecsDir, 'proposal.md'),
+      '## Why\nBug fix that needs no spec changes and is long enough for validation.\n\n## What Changes\n- Fix a bug'
+    );
+
+    const validateResult = await runCLI(['validate', 'no-specs-change', '--json'], { cwd: testDir });
+    expect(validateResult.exitCode).toBe(0);
+    const json = JSON.parse(validateResult.stdout.trim());
+    expect(json.items[0].valid).toBe(true);
+
+    const statusResult = await runCLI(['status', '--change', 'no-specs-change', '--json'], { cwd: testDir });
+    expect(statusResult.exitCode).toBe(0);
+    const statusJson = JSON.parse(statusResult.stdout.trim());
+    const specs = statusJson.artifacts.find((a: any) => a.id === 'specs');
+    expect(specs?.status).toBe('skipped');
+  });
 });
