@@ -1,7 +1,7 @@
 schema: spec-driven
 
 context: |
-  Tech stack: TypeScript, Node.js (≥20.19.0), ESM modules
+  Tech stack: TypeScript, Node.js (≥22.0.0), ESM modules
   Package manager: pnpm
   CLI framework: Commander.js
 
