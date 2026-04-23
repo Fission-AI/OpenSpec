@@ -2,7 +2,6 @@
 
 ## Purpose
 Define AI tool path metadata used to generate OpenSpec skills and commands in tool-specific directories.
-
 ## Requirements
 ### Requirement: AIToolOption skillsDir field
 
@@ -38,6 +37,11 @@ The `AI_TOOLS` array SHALL include `skillsDir` for tools that support the Agent 
 - **WHEN** looking up the `windsurf` tool
 - **THEN** `skillsDir` SHALL be `.windsurf`
 
+#### Scenario: Kimi CLI paths defined
+
+- **WHEN** looking up the `kimi` tool
+- **THEN** `skillsDir` SHALL be `.kimi`
+
 #### Scenario: Tools without skillsDir
 
 - **WHEN** a tool has no `skillsDir` defined
@@ -57,4 +61,3 @@ The system SHALL handle paths correctly across operating systems.
 
 - **WHEN** constructing skill paths on macOS or Linux
 - **THEN** the system SHALL use `path.join()` for consistency
-
