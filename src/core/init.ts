@@ -25,6 +25,10 @@ import {
   CommandAdapterRegistry,
 } from './command-generation/index.js';
 import {
+  removeOpenSpecSkillDirs,
+  removeOpenSpecCommandFiles,
+} from './tools-manager.js';
+import {
   detectLegacyArtifacts,
   cleanupLegacyArtifacts,
   formatCleanupSummary,
@@ -42,7 +46,7 @@ import {
   type ToolSkillStatus,
 } from './shared/index.js';
 import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
-import { getProfileWorkflows, CORE_WORKFLOWS, ALL_WORKFLOWS } from './profiles.js';
+import { getProfileWorkflows, CORE_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
 import { migrateIfNeeded } from './migration.js';
 
@@ -60,19 +64,6 @@ const PROGRESS_SPINNER = {
   frames: ['░░░', '▒░░', '▒▒░', '▒▒▒', '▓▒▒', '▓▓▒', '▓▓▓', '▒▓▓', '░▒▓'],
 };
 
-const WORKFLOW_TO_SKILL_DIR: Record<string, string> = {
-  'explore': 'openspec-explore',
-  'new': 'openspec-new-change',
-  'continue': 'openspec-continue-change',
-  'apply': 'openspec-apply-change',
-  'ff': 'openspec-ff-change',
-  'sync': 'openspec-sync-specs',
-  'archive': 'openspec-archive-change',
-  'bulk-archive': 'openspec-bulk-archive-change',
-  'verify': 'openspec-verify-change',
-  'onboard': 'openspec-onboard',
-  'propose': 'openspec-propose',
-};
 
 // -----------------------------------------------------------------------------
 // Types
@@ -735,45 +726,10 @@ export class InitCommand {
   }
 
   private async removeSkillDirs(skillsDir: string): Promise<number> {
-    let removed = 0;
-
-    for (const workflow of ALL_WORKFLOWS) {
-      const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
-      if (!dirName) continue;
-
-      const skillDir = path.join(skillsDir, dirName);
-      try {
-        if (fs.existsSync(skillDir)) {
-          await fs.promises.rm(skillDir, { recursive: true, force: true });
-          removed++;
-        }
-      } catch {
-        // Ignore errors
-      }
-    }
-
-    return removed;
+    return removeOpenSpecSkillDirs(skillsDir);
   }
 
   private async removeCommandFiles(projectPath: string, toolId: string): Promise<number> {
-    let removed = 0;
-    const adapter = CommandAdapterRegistry.get(toolId);
-    if (!adapter) return 0;
-
-    for (const workflow of ALL_WORKFLOWS) {
-      const cmdPath = adapter.getFilePath(workflow);
-      const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
-
-      try {
-        if (fs.existsSync(fullPath)) {
-          await fs.promises.unlink(fullPath);
-          removed++;
-        }
-      } catch {
-        // Ignore errors
-      }
-    }
-
-    return removed;
+    return removeOpenSpecCommandFiles(projectPath, toolId);
   }
 }
