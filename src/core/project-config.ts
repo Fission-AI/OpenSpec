@@ -16,6 +16,30 @@ import { z } from 'zod';
  * - Single source of truth for type and validation
  * - Consistent with other OpenSpec schemas
  */
+// Isolation sub-schema for worktree-based change isolation
+const IsolationConfigSchema = z.object({
+  // Isolation mode: 'worktree' enables git worktree isolation, 'none' is default
+  mode: z
+    .enum(['worktree', 'none'])
+    .optional()
+    .describe('Isolation mode: "worktree" or "none"'),
+
+  // Root directory for worktrees (relative to project root)
+  root: z
+    .string()
+    .min(1)
+    .optional()
+    .describe('Worktree root directory (default: ".worktrees")'),
+
+  // Branch prefix for feature branches created in worktrees
+  branch_prefix: z
+    .string()
+    .optional()
+    .describe('Feature branch prefix (default: "feat/")'),
+});
+
+export type IsolationConfig = z.infer<typeof IsolationConfigSchema>;
+
 export const ProjectConfigSchema = z.object({
   // Required: which schema to use (e.g., "spec-driven", or project-local schema name)
   schema: z
@@ -38,6 +62,11 @@ export const ProjectConfigSchema = z.object({
     )
     .optional()
     .describe('Per-artifact rules, keyed by artifact ID'),
+
+  // Optional: worktree isolation settings
+  isolation: IsolationConfigSchema
+    .optional()
+    .describe('Worktree isolation settings for parallel change development'),
 });
 
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
@@ -149,6 +178,40 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
         }
       } else {
         console.warn(`Invalid 'rules' field in config (must be object)`);
+      }
+    }
+
+    // Parse isolation field
+    if (raw.isolation !== undefined) {
+      if (typeof raw.isolation === 'object' && raw.isolation !== null && !Array.isArray(raw.isolation)) {
+        const parsed: NonNullable<ProjectConfig['isolation']> = {};
+
+        const modeResult = z.enum(['worktree', 'none']).safeParse(raw.isolation.mode);
+        if (modeResult.success) {
+          parsed.mode = modeResult.data;
+        } else if (raw.isolation.mode !== undefined) {
+          console.warn(`Invalid 'isolation.mode' in config (must be "worktree" or "none")`);
+        }
+
+        const rootResult = z.string().min(1).safeParse(raw.isolation.root);
+        if (rootResult.success) {
+          parsed.root = rootResult.data;
+        } else if (raw.isolation.root !== undefined) {
+          console.warn(`Invalid 'isolation.root' in config (must be non-empty string)`);
+        }
+
+        const prefixResult = z.string().safeParse(raw.isolation.branch_prefix);
+        if (prefixResult.success) {
+          parsed.branch_prefix = prefixResult.data;
+        } else if (raw.isolation.branch_prefix !== undefined) {
+          console.warn(`Invalid 'isolation.branch_prefix' in config (must be string)`);
+        }
+
+        if (Object.keys(parsed).length > 0) {
+          config.isolation = parsed;
+        }
+      } else {
+        console.warn(`Invalid 'isolation' field in config (must be object)`);
       }
     }
 
