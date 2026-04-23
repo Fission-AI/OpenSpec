@@ -99,10 +99,10 @@ Quando selecionadas pela configuração de perfil/fluxo de trabalho, o OpenSpec 
 - `openspec-verify-change`
 - `openspec-onboard`
 
-Veja [Comandos](commands.md) para o comportamento dos comandos e [CLI](cli.md) para as opções de `init`/`update`.
+Veja [Comandos](../commands.md) para o comportamento dos comandos e [CLI](../cli.md) para as opções de `init`/`update`.
 
 ## Relacionados
 
-- [Referência da CLI](cli.md) — Comandos do terminal
-- [Comandos](commands.md) — Slash commands e skills
-- [Primeiros Passos](getting-started.md) — Configuração inicial
+- [Referência da CLI](../cli.md) — Comandos do terminal
+- [Comandos](../commands.md) — Slash commands e skills
+- [Primeiros Passos](../getting-started.md) — Configuração inicial

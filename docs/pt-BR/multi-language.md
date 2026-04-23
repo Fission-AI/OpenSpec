@@ -111,5 +111,5 @@ openspec instructions proposal --change my-change
 
 ## Documentação Relacionada
 
-- [Guia de Personalização](./customization.md) - Opções de configuração do projeto
-- [Guia de Fluxos de Trabalho](./workflows.md) - Documentação completa de fluxos de trabalho
+- [Guia de Personalização](../customization.md) - Opções de configuração do projeto
+- [Guia de Fluxos de Trabalho](../workflows.md) - Documentação completa de fluxos de trabalho
