@@ -148,6 +148,16 @@ Execute dentro de cada projeto para regenerar a orientação da IA e garantir qu
 openspec update
 ```
 
+**Gerenciar configurações de IDE/Code Agent**
+
+Adicione ou remova integrações de IDE e Code Agent suportadas sem precisar executar `init` novamente:
+
+```bash
+openspec tools            # lista interativa
+openspec tools --add claude,cursor
+openspec tools --remove windsurf
+```
+
 ## Notas de Uso
 
 **Seleção de modelo**: O OpenSpec funciona melhor com modelos de alto raciocínio. Recomendamos Opus 4.5 e GPT 5.2 tanto para planejamento quanto para implementação.

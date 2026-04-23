@@ -148,6 +148,16 @@ Run this inside each project to regenerate AI guidance and ensure the latest sla
 openspec update
 ```
 
+**Manage IDE/Code Agent configurations**
+
+Add or remove supported IDE and Code Agent integrations without re-running `init`:
+
+```bash
+openspec tools            # interactive checklist
+openspec tools --add claude,cursor
+openspec tools --remove windsurf
+```
+
 ## Usage Notes
 
 **Model selection**: OpenSpec works best with high-reasoning models. We recommend Opus 4.5 and GPT 5.2 for both planning and implementation.
