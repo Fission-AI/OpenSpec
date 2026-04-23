@@ -185,7 +185,11 @@ describe('InitCommand', () => {
       expect(await directoryExists(commandsDir)).toBe(false);
 
       const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
-      expect(logCalls).toContain('Commands skipped for: kimi (no adapter)');
+      expect(
+        logCalls.some(
+          (entry) => entry.includes('Commands skipped for: kimi') && entry.includes('(no adapter)'),
+        ),
+      ).toBe(true);
     });
 
     it('should create skills for multiple tools at once', async () => {
