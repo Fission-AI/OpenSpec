@@ -87,5 +87,66 @@ describe('available-tools', () => {
       expect(tools).toHaveLength(1);
       expect(tools[0].value).toBe('claude');
     });
+
+    it('should not detect GitHub Copilot from bare .github directory', async () => {
+      // .github/ exists in virtually every GitHub repo (for workflows, issue templates, etc.)
+      // A bare .github/ directory should NOT trigger Copilot detection
+      await fs.mkdir(path.join(testDir, '.github'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).not.toContain('github-copilot');
+    });
+
+    it('should detect GitHub Copilot when copilot-instructions.md exists', async () => {
+      await fs.mkdir(path.join(testDir, '.github'), { recursive: true });
+      await fs.writeFile(path.join(testDir, '.github', 'copilot-instructions.md'), '');
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('github-copilot');
+    });
+
+    it('should detect GitHub Copilot when .github/prompts directory exists', async () => {
+      await fs.mkdir(path.join(testDir, '.github', 'prompts'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('github-copilot');
+    });
+
+    it('should detect GitHub Copilot when .github/agents directory exists', async () => {
+      await fs.mkdir(path.join(testDir, '.github', 'agents'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('github-copilot');
+    });
+
+    it('should detect GitHub Copilot when .github/skills directory exists', async () => {
+      await fs.mkdir(path.join(testDir, '.github', 'skills'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('github-copilot');
+    });
+
+    it('should detect GitHub Copilot when copilot-setup-steps.yml exists', async () => {
+      await fs.mkdir(path.join(testDir, '.github', 'workflows'), { recursive: true });
+      await fs.writeFile(path.join(testDir, '.github', 'workflows', 'copilot-setup-steps.yml'), '');
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('github-copilot');
+    });
+
+    it('should still use skillsDir detection for tools without detectionPaths', async () => {
+      // Claude Code has no detectionPaths, so .claude/ directory should still work
+      await fs.mkdir(path.join(testDir, '.claude'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('claude');
+    });
   });
 });

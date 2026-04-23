@@ -1,26 +1,13 @@
 /**
- * Pi Command Adapter
+ * Bob Shell Command Adapter
  *
- * Formats commands for Pi (pi.dev) following its prompt template specification.
- * Pi prompt templates live in .pi/prompts/*.md with description frontmatter.
+ * Formats commands for Bob Shell following its markdown specification.
+ * Commands are stored in .bob/commands/ directory.
  */
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
 import { transformToHyphenCommands } from '../../../utils/command-references.js';
-
-const PI_INPUT_HEADING = /^\*\*Input\*\*:[^\n]*$/m;
-
-function injectPiArgs(body: string): string {
-  if (body.includes('$@') || body.includes('$ARGUMENTS')) {
-    return body;
-  }
-
-  return body.replace(
-    PI_INPUT_HEADING,
-    (heading) => `${heading}\n**Provided arguments**: $@`
-  );
-}
 
 /**
  * Escapes a string value for safe YAML output.
@@ -38,30 +25,27 @@ function escapeYamlValue(value: string): string {
 }
 
 /**
- * Pi adapter for prompt template generation.
- * File path: .pi/prompts/opsx-<id>.md
- * Frontmatter: description
- *
- * Pi uses the filename (minus .md) as the slash command name, so
- * opsx-propose.md → /opsx-propose. Command references in the body
- * are transformed from /opsx: to /opsx- for consistency.
+ * Bob Shell adapter for command generation.
+ * File path: .bob/commands/opsx-<id>.md
+ * Frontmatter: description, argument-hint
  */
-export const piAdapter: ToolCommandAdapter = {
-  toolId: 'pi',
+export const bobAdapter: ToolCommandAdapter = {
+  toolId: 'bob',
 
   getFilePath(commandId: string): string {
-    return path.join('.pi', 'prompts', `opsx-${commandId}.md`);
+    return path.join('.bob', 'commands', `opsx-${commandId}.md`);
   },
 
   formatFile(content: CommandContent): string {
-    // Transform /opsx: references to /opsx- and inject $@ for template args
+    // Transform command references from colon to hyphen format for Bob
     const transformedBody = transformToHyphenCommands(content.body);
 
     return `---
 description: ${escapeYamlValue(content.description)}
+argument-hint: command arguments
 ---
 
-${injectPiArgs(transformedBody)}
+${transformedBody}
 `;
   },
 };

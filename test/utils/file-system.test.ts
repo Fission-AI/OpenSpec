@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import * as nodeFs from 'fs';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
@@ -89,6 +90,22 @@ describe('FileSystemUtils', () => {
       
       const exists = await FileSystemUtils.directoryExists(filePath);
       expect(exists).toBe(false);
+    });
+  });
+
+  describe('canonicalizeExistingPath', () => {
+    it('should prefer the native realpath resolver when available', async () => {
+      const filePath = path.join(testDir, 'canonical.txt');
+      await fs.writeFile(filePath, 'content');
+
+      const nativeSpy = vi.spyOn(nodeFs.realpathSync, 'native');
+
+      const resolved = FileSystemUtils.canonicalizeExistingPath(filePath);
+
+      expect(nativeSpy).toHaveBeenCalledWith(filePath);
+      expect(resolved).toBe(nodeFs.realpathSync.native(filePath));
+
+      nativeSpy.mockRestore();
     });
   });
 

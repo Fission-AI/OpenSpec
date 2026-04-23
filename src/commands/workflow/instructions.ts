@@ -12,6 +12,7 @@ import {
   loadChangeContext,
   generateInstructions,
   resolveSchema,
+  resolveArtifactOutputs,
   type ArtifactInstructions,
 } from '../../core/artifact-graph/index.js';
 import {
@@ -45,7 +46,7 @@ export async function instructionsCommand(
   artifactId: string | undefined,
   options: InstructionsOptions
 ): Promise<void> {
-  const spinner = ora('Generating instructions...').start();
+  const spinner = options.json ? undefined : ora('Generating instructions...').start();
 
   try {
     const projectRoot = process.cwd();
@@ -60,7 +61,7 @@ export async function instructionsCommand(
     const context = loadChangeContext(projectRoot, changeName, options.schema);
 
     if (!artifactId) {
-      spinner.stop();
+      spinner?.stop();
       const validIds = context.graph.getAllArtifacts().map((a) => a.id);
       throw new Error(
         `Missing required argument <artifact>. Valid artifacts:\n  ${validIds.join('\n  ')}`
@@ -70,7 +71,7 @@ export async function instructionsCommand(
     const artifact = context.graph.getArtifact(artifactId);
 
     if (!artifact) {
-      spinner.stop();
+      spinner?.stop();
       const validIds = context.graph.getAllArtifacts().map((a) => a.id);
       throw new Error(
         `Artifact '${artifactId}' not found in schema '${context.schemaName}'. Valid artifacts:\n  ${validIds.join('\n  ')}`
@@ -80,7 +81,7 @@ export async function instructionsCommand(
     const instructions = generateInstructions(context, artifactId, projectRoot);
     const isBlocked = instructions.dependencies.some((d) => !d.done);
 
-    spinner.stop();
+    spinner?.stop();
 
     if (options.json) {
       console.log(JSON.stringify(instructions, null, 2));
@@ -89,7 +90,7 @@ export async function instructionsCommand(
 
     printInstructionsText(instructions, isBlocked);
   } catch (error) {
-    spinner.stop();
+    spinner?.stop();
     throw error;
   }
 }
@@ -238,68 +239,6 @@ function parseTasksFile(content: string): TaskItem[] {
 }
 
 /**
- * Checks if an artifact output exists in the change directory.
- * Supports glob patterns (e.g., "specs/*.md") by verifying at least one matching file exists.
- */
-function artifactOutputExists(changeDir: string, generates: string): boolean {
-  // Normalize the generates path to use platform-specific separators
-  const normalizedGenerates = generates.split('/').join(path.sep);
-  const fullPath = path.join(changeDir, normalizedGenerates);
-
-  // If it's a glob pattern (contains ** or *), check for matching files
-  if (generates.includes('*')) {
-    // Extract the directory part before the glob pattern
-    const parts = normalizedGenerates.split(path.sep);
-    const dirParts: string[] = [];
-    let patternPart = '';
-    for (const part of parts) {
-      if (part.includes('*')) {
-        patternPart = part;
-        break;
-      }
-      dirParts.push(part);
-    }
-    const dirPath = path.join(changeDir, ...dirParts);
-
-    // Check if directory exists
-    if (!fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) {
-      return false;
-    }
-
-    // Extract expected extension from pattern (e.g., "*.md" -> ".md")
-    const extMatch = patternPart.match(/\*(\.[a-zA-Z0-9]+)$/);
-    const expectedExt = extMatch ? extMatch[1] : null;
-
-    // Recursively check for matching files
-    const hasMatchingFiles = (dir: string): boolean => {
-      try {
-        const entries = fs.readdirSync(dir, { withFileTypes: true });
-        for (const entry of entries) {
-          if (entry.isDirectory()) {
-            // For ** patterns, recurse into subdirectories
-            if (generates.includes('**') && hasMatchingFiles(path.join(dir, entry.name))) {
-              return true;
-            }
-          } else if (entry.isFile()) {
-            // Check if file matches expected extension (or any file if no extension specified)
-            if (!expectedExt || entry.name.endsWith(expectedExt)) {
-              return true;
-            }
-          }
-        }
-      } catch {
-        return false;
-      }
-      return false;
-    };
-
-    return hasMatchingFiles(dirPath);
-  }
-
-  return fs.existsSync(fullPath);
-}
-
-/**
  * Generates apply instructions for implementing tasks from a change.
  * Schema-aware: reads apply phase configuration from schema to determine
  * required artifacts, tracking file, and instruction.
@@ -311,7 +250,7 @@ export async function generateApplyInstructions(
 ): Promise<ApplyInstructions> {
   // loadChangeContext will auto-detect schema from metadata if not provided
   const context = loadChangeContext(projectRoot, changeName, schemaName);
-  const changeDir = path.join(projectRoot, 'openspec', 'changes', changeName);
+  const changeDir = context.changeDir;
 
   // Get the full schema to access the apply phase configuration
   const schema = resolveSchema(context.schemaName, projectRoot);
@@ -327,16 +266,17 @@ export async function generateApplyInstructions(
   const missingArtifacts: string[] = [];
   for (const artifactId of requiredArtifactIds) {
     const artifact = schema.artifacts.find((a) => a.id === artifactId);
-    if (artifact && !artifactOutputExists(changeDir, artifact.generates)) {
+    if (artifact && resolveArtifactOutputs(changeDir, artifact.generates).length === 0) {
       missingArtifacts.push(artifactId);
     }
   }
 
   // Build context files from all existing artifacts in schema
-  const contextFiles: Record<string, string> = {};
+  const contextFiles: Record<string, string[]> = {};
   for (const artifact of schema.artifacts) {
-    if (artifactOutputExists(changeDir, artifact.generates)) {
-      contextFiles[artifact.id] = path.join(changeDir, artifact.generates);
+    const outputs = resolveArtifactOutputs(changeDir, artifact.generates);
+    if (outputs.length > 0) {
+      contextFiles[artifact.id] = outputs;
     }
   }
 
@@ -400,7 +340,7 @@ export async function generateApplyInstructions(
 }
 
 export async function applyInstructionsCommand(options: ApplyInstructionsOptions): Promise<void> {
-  const spinner = ora('Generating apply instructions...').start();
+  const spinner = options.json ? undefined : ora('Generating apply instructions...').start();
 
   try {
     const projectRoot = process.cwd();
@@ -414,7 +354,7 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
     // generateApplyInstructions uses loadChangeContext which auto-detects schema
     const instructions = await generateApplyInstructions(projectRoot, changeName, options.schema);
 
-    spinner.stop();
+    spinner?.stop();
 
     if (options.json) {
       console.log(JSON.stringify(instructions, null, 2));
@@ -423,7 +363,7 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
 
     printApplyInstructionsText(instructions);
   } catch (error) {
-    spinner.stop();
+    spinner?.stop();
     throw error;
   }
 }
@@ -448,8 +388,10 @@ export function printApplyInstructionsText(instructions: ApplyInstructions): voi
   const contextFileEntries = Object.entries(contextFiles);
   if (contextFileEntries.length > 0) {
     console.log('### Context Files');
-    for (const [artifactId, filePath] of contextFileEntries) {
-      console.log(`- ${artifactId}: ${filePath}`);
+    for (const [artifactId, filePaths] of contextFileEntries) {
+      for (const filePath of filePaths) {
+        console.log(`- ${artifactId}: ${filePath}`);
+      }
     }
     console.log();
   }

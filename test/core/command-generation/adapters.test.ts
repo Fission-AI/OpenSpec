@@ -4,6 +4,7 @@ import path from 'path';
 import { amazonQAdapter } from '../../../src/core/command-generation/adapters/amazon-q.js';
 import { antigravityAdapter } from '../../../src/core/command-generation/adapters/antigravity.js';
 import { auggieAdapter } from '../../../src/core/command-generation/adapters/auggie.js';
+import { bobAdapter } from '../../../src/core/command-generation/adapters/bob.js';
 import { claudeAdapter } from '../../../src/core/command-generation/adapters/claude.js';
 import { clineAdapter } from '../../../src/core/command-generation/adapters/cline.js';
 import { codexAdapter } from '../../../src/core/command-generation/adapters/codex.js';
@@ -180,6 +181,71 @@ describe('command-generation/adapters', () => {
       expect(output).toContain('argument-hint: command arguments');
       expect(output).toContain('---\n\n');
       expect(output).toContain('This is the command body.');
+    });
+  });
+
+
+  describe('bobAdapter', () => {
+    it('should have correct toolId', () => {
+      expect(bobAdapter.toolId).toBe('bob');
+    });
+
+    it('should generate correct file path', () => {
+      const filePath = bobAdapter.getFilePath('explore');
+      expect(filePath).toBe(path.join('.bob', 'commands', 'opsx-explore.md'));
+    });
+
+    it('should generate correct file paths for different commands', () => {
+      expect(bobAdapter.getFilePath('new')).toBe(path.join('.bob', 'commands', 'opsx-new.md'));
+      expect(bobAdapter.getFilePath('bulk-archive')).toBe(path.join('.bob', 'commands', 'opsx-bulk-archive.md'));
+    });
+
+    it('should format file with description and argument-hint frontmatter', () => {
+      const output = bobAdapter.formatFile(sampleContent);
+      expect(output).toContain('---\n');
+      expect(output).toContain('description: Enter explore mode for thinking');
+      expect(output).toContain('argument-hint: command arguments');
+      expect(output).toContain('---\n\n');
+      expect(output).toContain('This is the command body.\n\nWith multiple lines.');
+    });
+
+    it('should transform colon command references to hyphen format', () => {
+      const contentWithRefs: CommandContent = {
+        ...sampleContent,
+        body: 'Run /opsx:apply to implement. Then use /opsx:verify.',
+      };
+      const output = bobAdapter.formatFile(contentWithRefs);
+      expect(output).toContain('/opsx-apply');
+      expect(output).toContain('/opsx-verify');
+      expect(output).not.toContain('/opsx:apply');
+      expect(output).not.toContain('/opsx:verify');
+    });
+
+    it('should escape YAML special characters in description', () => {
+      const contentWithSpecialChars: CommandContent = {
+        ...sampleContent,
+        description: 'Fix: regression in "auth" feature',
+      };
+      const output = bobAdapter.formatFile(contentWithSpecialChars);
+      expect(output).toContain('description: "Fix: regression in \\"auth\\" feature"');
+    });
+
+    it('should escape newlines in description', () => {
+      const contentWithNewline: CommandContent = {
+        ...sampleContent,
+        description: 'Line 1\nLine 2',
+      };
+      const output = bobAdapter.formatFile(contentWithNewline);
+      expect(output).toContain('description: "Line 1\\nLine 2"');
+    });
+
+    it('should handle empty description', () => {
+      const contentEmptyDesc: CommandContent = {
+        ...sampleContent,
+        description: '',
+      };
+      const output = bobAdapter.formatFile(contentEmptyDesc);
+      expect(output).toContain('description: \n');
     });
   });
 
@@ -547,6 +613,28 @@ describe('command-generation/adapters', () => {
       expect(output).toContain('This is the command body.');
     });
 
+    it('should transform command references from colon to hyphen format', () => {
+      const contentWithRefs: CommandContent = {
+        ...sampleContent,
+        body: 'Run /opsx:apply to implement. Then /opsx:archive when done.',
+      };
+
+      const output = piAdapter.formatFile(contentWithRefs);
+      expect(output).toContain('/opsx-apply');
+      expect(output).toContain('/opsx-archive');
+      expect(output).not.toContain('/opsx:apply');
+    });
+
+    it('should inject template arguments into the input section', () => {
+      const contentWithInput: CommandContent = {
+        ...sampleContent,
+        body: '**Input**: The argument after `/opsx:explore` is the topic.\n\n**Steps**\n1. Think.',
+      };
+
+      const output = piAdapter.formatFile(contentWithInput);
+      expect(output).toContain('**Provided arguments**: $@');
+    });
+
     it('should escape YAML special characters in description', () => {
       const contentWithSpecialChars: CommandContent = {
         ...sampleContent,
@@ -606,7 +694,7 @@ describe('command-generation/adapters', () => {
     it('All adapters use path.join for paths', () => {
       // Verify all adapters produce valid paths
       const adapters = [
-        amazonQAdapter, antigravityAdapter, auggieAdapter, clineAdapter,
+        amazonQAdapter, antigravityAdapter, auggieAdapter, bobAdapter, clineAdapter,
         codexAdapter, codebuddyAdapter, continueAdapter, costrictAdapter,
         crushAdapter, factoryAdapter, geminiAdapter, githubCopilotAdapter,
         iflowAdapter, kilocodeAdapter, opencodeAdapter, piAdapter, qoderAdapter,

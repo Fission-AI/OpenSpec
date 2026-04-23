@@ -264,7 +264,7 @@ The system SHALL follow these principles:
 
 ## Directory Structure
 
-### Requirement: Project Structure
+### Project Structure
 
 An OpenSpec project SHALL maintain a consistent directory structure for specifications and changes.
 
@@ -294,7 +294,7 @@ openspec/
 
 ## Specification Format
 
-### Requirement: Structured Format for Behavioral Specs
+### Behavioral Spec Format
 
 Behavioral specifications SHALL use a structured format with consistent section headers and keywords to ensure visual consistency and parseability.
 
@@ -325,7 +325,7 @@ Behavioral specifications SHALL use a structured format with consistent section 
 
 ## Change Storage Convention
 
-### Requirement: Header-Based Requirement Identification
+### Header-Based Requirement Identification
 
 Requirement headers SHALL serve as unique identifiers for programmatic matching between current specs and proposed changes.
 
@@ -354,7 +354,7 @@ Requirement headers SHALL serve as unique identifiers for programmatic matching 
 - **THEN** ensure no duplicate headers exist within a spec
 - **AND** validation tools SHALL flag duplicate headers as errors
 
-### Requirement: Change Storage Convention
+### Change Storage Convention
 
 Change proposals SHALL store only the additions, modifications, and removals to specifications, not complete future states.
 
@@ -397,7 +397,7 @@ The `changes/[name]/specs/` directory SHALL contain:
   - `-` for REMOVED (red)
   - `→` for RENAMED (cyan)
 
-### Requirement: Archive Process Enhancement
+### Archive Process Enhancement
 
 The archive process SHALL programmatically apply delta changes to current specifications using header-based matching.
 
@@ -420,7 +420,7 @@ The archive process SHALL programmatically apply delta changes to current specif
 - **AND** require manual resolution before proceeding
 - **AND** provide clear guidance on resolving conflicts
 
-### Requirement: Proposal Format
+### Proposal Format
 
 Proposals SHALL explicitly document all changes with clear from/to comparisons.
 
@@ -453,7 +453,7 @@ The change process SHALL follow these states:
 
 ## Viewing Changes
 
-### Requirement: Change Review
+### Change Review
 
 The system SHALL support multiple methods for reviewing proposed changes.
 
