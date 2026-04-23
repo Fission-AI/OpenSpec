@@ -49,4 +49,25 @@ describe('ChangeParser', () => {
       expect(change.deltas[0].requirement).toBeDefined();
     });
   });
+
+  it('emits PURPOSE_MODIFIED for delta specs with Purpose section', async () => {
+    await withTempDir(async (dir) => {
+      const changeDir = dir;
+      const specsDir = path.join(changeDir, 'specs', 'my-purpose-spec');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      const content = `# Test Change\n\n## Why\nWe need to update the purpose text that is sufficiently long.\n\n## What Changes\n- **my-purpose-spec:** Update Purpose text`;
+      const deltaSpec = `# My Purpose Spec Delta\n\n## Purpose\n\nThis is the new purpose text for the spec.`;
+
+      await fs.writeFile(path.join(specsDir, 'spec.md'), deltaSpec, 'utf8');
+
+      const parser = new ChangeParser(content, changeDir);
+      const change = await parser.parseChangeWithDeltas('test-change');
+
+      const purposeDelta = change.deltas.find(d => d.operation === 'PURPOSE_MODIFIED');
+      expect(purposeDelta).toBeDefined();
+      expect(purposeDelta!.spec).toBe('my-purpose-spec');
+      expect(purposeDelta!.description).toContain('Update Purpose:');
+    });
+  });
 });

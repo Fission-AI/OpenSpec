@@ -157,5 +157,7 @@ opencode.json
 # Codex
 .codex/
 
+# Serena
+.serena/
 # Bob
 .bob/
