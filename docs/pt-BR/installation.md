@@ -9,25 +9,25 @@
 ### npm
 
 ```bash
-npm install -g @fission-ai/openspec@latest
+npm install -g @fkmatsuda/br-openspec@latest
 ```
 
 ### pnpm
 
 ```bash
-pnpm add -g @fission-ai/openspec@latest
+pnpm add -g @fkmatsuda/br-openspec@latest
 ```
 
 ### yarn
 
 ```bash
-yarn global add @fission-ai/openspec@latest
+yarn global add @fkmatsuda/br-openspec@latest
 ```
 
 ### bun
 
 ```bash
-bun add -g @fission-ai/openspec@latest
+bun add -g @fkmatsuda/br-openspec@latest
 ```
 
 ## Nix
@@ -35,13 +35,13 @@ bun add -g @fission-ai/openspec@latest
 Execute o OpenSpec diretamente sem instalação:
 
 ```bash
-nix run github:Fission-AI/OpenSpec -- init
+nix run github:fkmatsuda/BR-OpenSpec -- init
 ```
 
 Ou instale no seu perfil:
 
 ```bash
-nix profile install github:Fission-AI/OpenSpec
+nix profile install github:fkmatsuda/BR-OpenSpec
 ```
 
 Ou adicione ao seu ambiente de desenvolvimento em `flake.nix`:
@@ -50,7 +50,7 @@ Ou adicione ao seu ambiente de desenvolvimento em `flake.nix`:
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    openspec.url = "github:Fission-AI/OpenSpec";
+    openspec.url = "github:fkmatsuda/BR-OpenSpec";
   };
 
   outputs = { nixpkgs, openspec, ... }: {

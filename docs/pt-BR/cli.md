@@ -89,7 +89,7 @@ openspec init [path] [options]
 
 `--profile custom` usa os fluxos de trabalho atualmente selecionados na configuração global (`openspec config profile`).
 
-**IDs de ferramentas suportados (`--tools`):** `amazon-q`, `antigravity`, `auggie`, `claude`, `cline`, `codex`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `iflow`, `kilocode`, `kiro`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `windsurf`
+**IDs de ferramentas suportados (`--tools`):** `amazon-q`, `antigravity`, `auggie`, `claude`, `cline`, `codex`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `iflow`, `kilocode`, `kimi`, `kiro`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `windsurf`
 
 **Exemplos:**
 
@@ -153,7 +153,7 @@ openspec update [path] [options]
 
 ```bash
 # Atualizar arquivos de instrução após atualização via npm
-npm update @fission-ai/openspec
+npm update @fkmatsuda/br-openspec
 openspec update
 ```
 
@@ -743,7 +743,7 @@ openspec schema which spec-driven
 
 ```
 spec-driven resolves from: package
-  Source: /usr/local/lib/node_modules/@fission-ai/openspec/schemas/spec-driven
+  Source: /usr/local/lib/node_modules/@fkmatsuda/br-openspec/schemas/spec-driven
 ```
 
 **Precedência de schemas:**

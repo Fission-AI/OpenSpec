@@ -46,6 +46,15 @@ describe('available-tools', () => {
       expect(tools).toHaveLength(3);
     });
 
+    it('should detect kimi directory', async () => {
+      await fs.mkdir(path.join(testDir, '.kimi'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('kimi');
+      expect(tools).toHaveLength(1);
+    });
+
     it('should ignore files that are not directories', async () => {
       // Create a file named .claude instead of a directory
       await fs.writeFile(path.join(testDir, '.claude'), 'not a directory');

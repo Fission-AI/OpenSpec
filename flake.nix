@@ -1,5 +1,5 @@
 {
-  description = "OpenSpec - AI-native system for spec-driven development";
+  description = "BR-OpenSpec - AI-native system for spec-driven development";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -51,7 +51,7 @@
               inherit (finalAttrs) pname version src;
               pnpm = pkgs.pnpm_9;
               fetcherVersion = 3;
-              hash = "sha256-9s2kdvd7svK4hofnD66HkDc86WTQeayfF5y7L2dmjNg=";
+              hash = "sha256-JMQMQBriv89MLw+SE5qfO/oNjJEI44g/Y9dpyRz1hro=";
             };
 
             nativeBuildInputs = with pkgs; [
@@ -72,8 +72,8 @@
             dontNpmPrune = true;
 
             meta = with pkgs.lib; {
-              description = "AI-native system for spec-driven development";
-              homepage = "https://github.com/Fission-AI/OpenSpec";
+              description = "BR-OpenSpec - AI-native system for spec-driven development";
+              homepage = "https://github.com/fkmatsuda/BR-OpenSpec";
               license = licenses.mit;
               maintainers = [ ];
               mainProgram = "openspec";
@@ -102,7 +102,7 @@
             ];
 
             shellHook = ''
-              echo "OpenSpec development environment"
+              echo "BR-OpenSpec development environment"
               echo "Node version: $(node --version)"
               echo "pnpm version: $(pnpm --version)"
               echo "Run 'pnpm install' to install dependencies"

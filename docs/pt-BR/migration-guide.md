@@ -590,6 +590,5 @@ project/
 
 ## Obtendo Ajuda
 
-- **Discord**: [discord.gg/YctCnvvshC](https://discord.gg/YctCnvvshC)
-- **GitHub Issues**: [github.com/Fission-AI/OpenSpec/issues](https://github.com/Fission-AI/OpenSpec/issues)
+- **GitHub Issues**: [github.com/fkmatsuda/BR-OpenSpec/issues](https://github.com/fkmatsuda/BR-OpenSpec/issues)
 - **Documentação**: [docs/opsx.md](opsx.md) para a referência completa do OPSX

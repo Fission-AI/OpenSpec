@@ -1,7 +1,5 @@
 # Fluxo de Trabalho OPSX
 
-> Feedback é bem-vindo no [Discord](https://discord.gg/YctCnvvshC).
-
 ## O Que É?
 
 O OPSX é agora o fluxo de trabalho padrão do OpenSpec.
@@ -656,4 +654,4 @@ openspec schema validate my-workflow
 
 Isso ainda está em desenvolvimento. Isso é intencional — estamos aprendendo o que funciona.
 
-Encontrou um bug? Tem ideias? Junte-se a nós no [Discord](https://discord.gg/YctCnvvshC) ou abra uma issue no [GitHub](https://github.com/Fission-AI/openspec/issues).
+Encontrou um bug? Tem ideias? Abra uma issue no [GitHub](https://github.com/fkmatsuda/BR-OpenSpec/issues).

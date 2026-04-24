@@ -89,7 +89,7 @@ openspec init [path] [options]
 
 `--profile custom` uses whatever workflows are currently selected in global config (`openspec config profile`).
 
-**Supported tool IDs (`--tools`):** `amazon-q`, `antigravity`, `auggie`, `claude`, `cline`, `codex`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `iflow`, `kilocode`, `kiro`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `windsurf`
+**Supported tool IDs (`--tools`):** `amazon-q`, `antigravity`, `auggie`, `bob`, `claude`, `cline`, `codex`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `forgecode`, `gemini`, `github-copilot`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `lingma`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `windsurf`
 
 **Examples:**
 
@@ -153,7 +153,7 @@ openspec update [path] [options]
 
 ```bash
 # Update instruction files after npm upgrade
-npm update @fission-ai/openspec
+npm update @fkmatsuda/br-openspec
 openspec update
 ```
 
@@ -743,7 +743,7 @@ openspec schema which spec-driven
 
 ```
 spec-driven resolves from: package
-  Source: /usr/local/lib/node_modules/@fission-ai/openspec/schemas/spec-driven
+  Source: /usr/local/lib/node_modules/@fkmatsuda/br-openspec/schemas/spec-driven
 ```
 
 **Schema precedence:**
