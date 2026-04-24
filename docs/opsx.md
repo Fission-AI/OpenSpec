@@ -1,7 +1,5 @@
 # OPSX Workflow
 
-> Feedback welcome on [Discord](https://discord.gg/YctCnvvshC).
-
 ## What Is It?
 
 OPSX is now the standard workflow for OpenSpec.
@@ -656,4 +654,4 @@ openspec schema validate my-workflow
 
 This is rough. That's intentional — we're learning what works.
 
-Found a bug? Have ideas? Join us on [Discord](https://discord.gg/YctCnvvshC) or open an issue on [GitHub](https://github.com/Fission-AI/openspec/issues).
+Found a bug? Have ideas? Open an issue on [GitHub](https://github.com/fkmatsuda/BR-OpenSpec/issues).

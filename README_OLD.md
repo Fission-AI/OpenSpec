@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://github.com/Fission-AI/OpenSpec">
+  <a href="https://github.com/fkmatsuda/BR-OpenSpec">
     <picture>
       <source srcset="assets/openspec_pixel_dark.svg" media="(prefers-color-scheme: dark)">
       <source srcset="assets/openspec_pixel_light.svg" media="(prefers-color-scheme: light)">
@@ -10,12 +10,11 @@
 </p>
 <p align="center">Spec-driven development for AI coding assistants.</p>
 <p align="center">
-  <a href="https://github.com/Fission-AI/OpenSpec/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Fission-AI/OpenSpec/actions/workflows/ci.yml/badge.svg" /></a>
-  <a href="https://www.npmjs.com/package/@fission-ai/openspec"><img alt="npm version" src="https://img.shields.io/npm/v/@fission-ai/openspec?style=flat-square" /></a>
-  <a href="https://nodejs.org/"><img alt="node version" src="https://img.shields.io/node/v/@fission-ai/openspec?style=flat-square" /></a>
+  <a href="https://github.com/fkmatsuda/BR-OpenSpec/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/fkmatsuda/BR-OpenSpec/actions/workflows/ci.yml/badge.svg" /></a>
+  <a href="https://www.npmjs.com/package/@fkmatsuda/br-openspec"><img alt="npm version" src="https://img.shields.io/npm/v/@fkmatsuda/br-openspec?style=flat-square" /></a>
+  <a href="https://nodejs.org/"><img alt="node version" src="https://img.shields.io/node/v/@fkmatsuda/br-openspec?style=flat-square" /></a>
   <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" /></a>
   <a href="https://conventionalcommits.org"><img alt="Conventional Commits" src="https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg?style=flat-square" /></a>
-  <a href="https://discord.gg/YctCnvvshC"><img alt="Discord" src="https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?logo=discord&logoColor=white&style=flat-square" /></a>
 </p>
 
 <p align="center">
@@ -23,7 +22,7 @@
 </p>
 
 <p align="center">
-  Follow <a href="https://x.com/0xTab">@0xTab on X</a> for updates · Join the <a href="https://discord.gg/YctCnvvshC">OpenSpec Discord</a> for help and questions.
+  Follow <a href="https://x.com/0xTab">@0xTab on X</a> for updates.
 </p>
 
 <p align="center">
@@ -143,7 +142,7 @@ These tools automatically read workflow instructions from `openspec/AGENTS.md`. 
 **Option A: Using npm**
 
 ```bash
-npm install -g @fission-ai/openspec@latest
+npm install -g @fkmatsuda/br-openspec@latest
 ```
 
 Verify installation:
@@ -155,12 +154,12 @@ openspec --version
 
 Run OpenSpec directly without installation:
 ```bash
-nix run github:Fission-AI/OpenSpec -- init
+nix run github:fkmatsuda/BR-OpenSpec -- init
 ```
 
 Or install to your profile:
 ```bash
-nix profile install github:Fission-AI/OpenSpec
+nix profile install github:fkmatsuda/BR-OpenSpec
 ```
 
 Or add to your development environment in `flake.nix`:
@@ -168,7 +167,7 @@ Or add to your development environment in `flake.nix`:
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    openspec.url = "github:Fission-AI/OpenSpec";
+    openspec.url = "github:fkmatsuda/BR-OpenSpec";
   };
 
   outputs = { nixpkgs, openspec, ... }: {
@@ -403,7 +402,7 @@ Run `openspec update` whenever someone switches tools so your agents pick up the
 
 1. **Upgrade the package**
    ```bash
-   npm install -g @fission-ai/openspec@latest
+   npm install -g @fkmatsuda/br-openspec@latest
    ```
 2. **Refresh agent instructions**
    - Run `openspec update` inside each project to regenerate AI guidance and ensure the latest slash commands are active.
