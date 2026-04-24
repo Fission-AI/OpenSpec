@@ -46,7 +46,7 @@ importers:
         specifier: ^24.2.0
         version: 24.2.0
       '@vitest/coverage-v8':
-        specifier: 3.2.4
+        specifier: ^3.2.4
         version: 3.2.4(vitest@3.2.4)
       '@vitest/ui':
         specifier: ^3.2.4
