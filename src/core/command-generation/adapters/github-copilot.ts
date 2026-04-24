@@ -14,6 +14,9 @@ import type { CommandContent, ToolCommandAdapter } from '../types.js';
  */
 export const githubCopilotAdapter: ToolCommandAdapter = {
   toolId: 'github-copilot',
+  capabilities: {
+    supportsWorkspaceOpen: true,
+  },
 
   getFilePath(commandId: string): string {
     return path.join('.github', 'prompts', `opsx-${commandId}.prompt.md`);

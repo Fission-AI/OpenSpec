@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenSpec Workspace UX Playground</title>
+<style>
+  :root {
+    --bg: #0d1117; --surface: #161b22; --surface2: #1c2129; --border: #30363d;
+    --text: #e6edf3; --text-dim: #8b949e; --accent: #58a6ff; --accent-dim: #1f6feb;
+    --green: #3fb950; --green-dim: #238636; --yellow: #d29922; --red: #f85149;
+    --purple: #bc8cff; --orange: #f0883e; --radius: 8px;
+    --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+  .app { display: grid; grid-template-columns: 240px 1fr 330px; height: 100vh; overflow: hidden; }
+
+  .sidebar { background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; }
+  .sidebar-header { padding: 16px 14px 10px; border-bottom: 1px solid var(--border); }
+  .sidebar-header h1 { font-size: 14px; font-weight: 600; }
+  .sidebar-header p { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+  .sg { padding: 8px 0 2px; }
+  .sg-t { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: var(--text-dim); padding: 0 14px 5px; }
+  .sb { display: block; width: 100%; text-align: left; background: none; border: none; padding: 6px 14px; color: var(--text-dim); font-size: 12px; cursor: pointer; transition: all .12s; border-left: 2px solid transparent; font-family: inherit; }
+  .sb:hover { background: var(--surface2); color: var(--text); }
+  .sb.active { background: var(--surface2); color: var(--accent); border-left-color: var(--accent); }
+
+  .main { display: flex; flex-direction: column; overflow: hidden; }
+  .mhdr { padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .mhdr h2 { font-size: 16px; font-weight: 600; }
+  .mhdr .d { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+  .tarea { flex: 1; overflow-y: auto; padding: 14px 20px; }
+
+  .step { margin-bottom: 18px; opacity: 0; transform: translateY(5px); transition: all .22s ease; }
+  .step.vis { opacity: 1; transform: translateY(0); }
+  .slbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--text-dim); margin-bottom: 4px; display: flex; align-items: center; gap: 5px; }
+  .slbl .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+
+  .term { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; font-family: var(--mono); font-size: 12px; line-height: 1.65; white-space: pre-wrap; word-break: break-word; }
+  .term .p { color: var(--green); } .term .c { color: var(--text); font-weight: 600; }
+  .term .o { color: var(--text-dim); } .term .h { color: var(--accent); }
+  .term .w { color: var(--yellow); } .term .g { color: var(--green); }
+  .term .n { color: var(--purple); } .term .dm { color: #484f58; }
+
+  .dec { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .dec-h { padding: 9px 12px; background: var(--surface2); border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 600; color: var(--yellow); }
+  .dec-b { padding: 12px; font-size: 12px; line-height: 1.7; }
+  .dopt { display: flex; align-items: center; gap: 7px; padding: 4px 9px; margin: 2px 0; border-radius: 5px; cursor: pointer; transition: all .1s; font-size: 12px; }
+  .dopt:hover { background: var(--surface2); }
+  .dopt.sel { background: var(--accent-dim); color: var(--accent); }
+  .dopt .r { width: 13px; height: 13px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .dopt.sel .r { border-color: var(--accent); }
+  .dopt.sel .r::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+
+  .acts { padding: 10px 20px; border-top: 1px solid var(--border); background: var(--surface); display: flex; gap: 7px; justify-content: flex-end; }
+  .btn { padding: 6px 13px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); font-size: 12px; cursor: pointer; transition: all .1s; font-family: inherit; }
+  .btn:hover { background: var(--border); }
+  .btn-p { background: var(--accent-dim); border-color: var(--accent-dim); color: var(--accent); }
+  .btn-p:hover { background: var(--accent); color: var(--bg); }
+  .btn:disabled { opacity: .3; cursor: not-allowed; }
+
+  .rp { background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+  .rp-h { padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: .5px; }
+
+  .ft { flex: 1; overflow-y: auto; padding: 6px 0; font-family: var(--mono); font-size: 11px; line-height: 1.35; }
+  .tn { padding: 3px 14px 3px 0; white-space: nowrap; display: flex; align-items: center; }
+  .tn:hover { background: var(--surface2); }
+  .ti { display: inline-block; width: 16px; flex-shrink: 0; }
+  .ticon { width: 15px; text-align: center; margin-right: 4px; font-size: 10px; flex-shrink: 0; }
+  .tl { flex: 1; min-width: 0; }
+  .tl.dir { color: var(--accent); font-weight: 500; }
+  .tl.file { color: var(--text-dim); }
+  .tl.new { color: var(--green); }
+  .tl.hl { color: var(--yellow); }
+  .tl.ns { color: var(--purple); font-weight: 500; }
+  .tl.spec { color: var(--orange); }
+  .tbadge { font-size: 8px; padding: 0 4px; border-radius: 3px; margin-left: 5px; flex-shrink: 0; }
+  .tbadge-ns { background: rgba(188,140,255,.15); color: var(--purple); }
+  .tbadge-spec { background: rgba(240,136,62,.15); color: var(--orange); }
+
+  .fp { border-top: 1px solid var(--border); max-height: 42%; overflow-y: auto; }
+  .fp-h { padding: 5px 14px; font-size: 10px; font-weight: 600; color: var(--text-dim); background: var(--surface2); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .fp-b { padding: 8px 14px; font-family: var(--mono); font-size: 10.5px; line-height: 1.6; white-space: pre-wrap; color: var(--text-dim); }
+  .fp-b .k { color: var(--purple); } .fp-b .v { color: var(--green); } .fp-b .cm { color: #484f58; font-style: italic; }
+
+  .info { padding: 8px 14px; border-top: 1px solid var(--border); }
+  .info h4 { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--text-dim); margin-bottom: 5px; }
+  .it { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 3px; margin: 1px 2px 1px 0; font-family: var(--mono); }
+  .it-ns { background: rgba(188,140,255,.15); color: var(--purple); }
+  .it-sp { background: rgba(240,136,62,.15); color: var(--orange); }
+
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h1>OpenSpec Workspaces</h1>
+      <p>Specs = repo truth. Workspaces = change buckets.</p>
+    </div>
+    <div class="sg">
+      <div class="sg-t">The model</div>
+      <button class="sb active" data-key="model">Core split</button>
+      <button class="sb" data-key="ns-map">k8s mapping</button>
+    </div>
+    <div class="sg">
+      <div class="sg-t">No workspaces</div>
+      <button class="sb" data-key="default">Implicit default</button>
+    </div>
+    <div class="sg">
+      <div class="sg-t">With workspaces</div>
+      <button class="sb" data-key="ws-basic">Create a workspace</button>
+      <button class="sb" data-key="ws-multi">Multiple workspaces</button>
+      <button class="sb" data-key="ws-cross">Cross-workspace change</button>
+      <button class="sb" data-key="ws-initiative">Initiative</button>
+    </div>
+    <div class="sg">
+      <div class="sg-t">Cross-cutting specs</div>
+      <button class="sb" data-key="xcut-same">Same repo</button>
+      <button class="sb" data-key="xcut-multi">Cross-repo (hard)</button>
+    </div>
+    <div class="sg">
+      <div class="sg-t">Agent behavior</div>
+      <button class="sb" data-key="agent-infer">Workspace inference</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="mhdr">
+      <h2 id="stitle">Core Split</h2>
+      <div class="d" id="sdesc">Specs are repo truth. Workspaces scope changes.</div>
+    </div>
+    <div class="tarea" id="term"></div>
+    <div class="acts">
+      <button class="btn" onclick="reset()">Reset</button>
+      <button class="btn btn-p" id="bnext" onclick="next()">Next Step</button>
+    </div>
+  </div>
+
+  <div class="rp">
+    <div class="rp-h">File System</div>
+    <div class="ft" id="ftree"></div>
+    <div class="fp" id="fprev" style="display:none">
+      <div class="fp-h"><span id="fpn"></span><span style="cursor:pointer;color:var(--text-dim)" onclick="Q('fprev').style.display='none'">x</span></div>
+      <div class="fp-b" id="fpb"></div>
+    </div>
+    <div id="infos"></div>
+  </div>
+</div>
+
+<script>
+const Q=id=>document.getElementById(id);
+
+function renderTree(nodes){
+  Q('ftree').innerHTML=nodes.map(nd=>{
+    let ind='';for(let j=0;j<nd.d;j++)ind+=`<span class="ti"></span>`;
+    const isDir=nd.t==='dir'||nd.t==='ns'||(nd.t==='new'&&nd.n.endsWith('/'));
+    const ico=isDir?'\ud83d\udcc1':'\ud83d\udcc4';
+    let cls='file';
+    if(nd.t==='dir')cls='dir';else if(nd.t==='ns')cls='ns';else if(nd.t==='new')cls='new';
+    else if(nd.t==='hl')cls='hl';else if(nd.t==='spec')cls='spec';
+    const lbl=nd.label?`<span class="tbadge tbadge-${nd.label==='namespace'?'ns':'spec'}">${nd.label}</span>`:'';
+    return `<div class="tn">${ind}<span class="ticon">${ico}</span><span class="tl ${cls}">${nd.n}</span>${lbl}</div>`;
+  }).join('');
+}
+
+const SC={
+
+'model':{
+  title:'Core Split',
+  desc:'Specs are repo truth. Workspaces are just buckets for changes.',
+  tree:[
+    {n:'my-repo/',t:'dir',d:0},
+    {n:'openspec/',t:'dir',d:1},
+    {n:'specs/',t:'spec',d:2,label:'specs'},
+    {n:'checkout/spec.md',t:'file',d:3},
+    {n:'billing/spec.md',t:'file',d:3},
+    {n:'workspaces/',t:'ns',d:2,label:'namespace'},
+    {n:'payments/',t:'ns',d:3},
+    {n:'changes/',t:'dir',d:4},
+    {n:'frontend/',t:'ns',d:3},
+    {n:'changes/',t:'dir',d:4},
+    {n:'config.yaml',t:'file',d:2},
+  ],
+  steps:[
+    {label:'Two things, cleanly separated',type:'terminal',content:`<span class="h">Specs</span> <span class="o">= what the repo's behavior IS</span>
+<span class="o">  Always at: openspec/specs/
+  Repo-level. Shared. The source of truth.
+  Not scoped to anything. Just the truth.</span>
+
+<span class="h">Workspaces</span> <span class="o">= buckets for changes</span>
+<span class="o">  At: openspec/workspaces/{name}/changes/
+  Just a way to organize work.
+  Could be by feature area, initiative, whatever.
+  You decide what a workspace means to you.</span>`},
+    {label:'Why this split',type:'terminal',content:`<span class="n">Specs don't go in workspaces because:</span>
+<span class="o">  - They describe the repo, not some slice of work
+  - Everyone reads the same specs
+  - They persist after changes are done
+
+Changes go in workspaces because:
+  - They're temporary (archived when done)
+  - You might want several going in parallel
+  - You might want them organized by area
+  - They contain delta specs that propose
+    modifications to the repo-level specs</span>`},
+    {label:'The lifecycle',type:'terminal',content:`<span class="o">1. Agent reads <span class="h">openspec/specs/</span> for truth
+2. Agent works in <span class="h">openspec/workspaces/{name}/changes/</span>
+3. Change has delta specs (proposed modifications)
+4. When archived:
+   delta specs merge into <span class="h">openspec/specs/</span>
+   change moves to archive
+
+Specs persist. Changes come and go.
+Workspaces organize the coming and going.</span>`},
+    {label:'No workspaces? Same as today.',type:'terminal',content:`<span class="n">If no workspaces defined:</span>
+
+<span class="o">openspec/
+  specs/       <- repo truth
+  changes/     <- implicit default (no workspace)
+  config.yaml
+
+Identical to current OpenSpec.
+No concept shown. No config needed.
+
+Like k8s default namespace:
+you're in it and you never think about it.</span>`}
+  ]
+},
+
+'ns-map':{
+  title:'k8s Namespace Mapping',
+  desc:'How k8s namespaces map to this model',
+  tree:[],
+  steps:[
+    {label:'The mapping',type:'terminal',content:`<span class="h">k8s                    OpenSpec</span>
+<span class="o">cluster                repo
+namespace              workspace
+cluster-scoped res     openspec/specs/
+namespace-scoped res   workspace changes
+default namespace      openspec/changes/ (no workspaces)
+cross-ns reference     workspace:change link
+CRD / operator         initiative
+kubectl -n foo         agent infers from conversation</span>`},
+    {label:'What lives where',type:'terminal',content:`<span class="h">Cluster-scoped (repo-level):</span>
+<span class="o">  openspec/specs/*           behavioral contracts
+  openspec/config.yaml       config + workspace defs
+  openspec/initiatives/*     cross-workspace coordination</span>
+
+<span class="h">Namespace-scoped (per workspace):</span>
+<span class="o">  openspec/workspaces/{ws}/changes/*</span>
+
+<span class="n">Specs are always cluster-scoped.
+Workspaces only scope the work, not the truth.</span>`},
+    {label:'Progressive disclosure',type:'terminal',content:`<span class="h">Level 1: No workspaces</span>
+<span class="o">  openspec/specs/ + openspec/changes/
+  You never see the concept.</span>
+
+<span class="h">Level 2: One or more workspaces</span>
+<span class="o">  openspec/specs/ + openspec/workspaces/{name}/changes/
+  You chose to partition your changes.</span>
+
+<span class="h">Level 3: Initiative</span>
+<span class="o">  + openspec/initiatives/{name}/
+  You chose to coordinate across workspaces.</span>
+
+<span class="o">Each level adds one thing. Nothing changes underneath.</span>`}
+  ]
+},
+
+'default':{
+  title:'Implicit Default',
+  desc:'No workspaces. Identical to OpenSpec today.',
+  tree:[
+    {n:'my-app/',t:'dir',d:0},
+    {n:'openspec/',t:'dir',d:1},
+    {n:'specs/',t:'spec',d:2,label:'specs'},
+    {n:'auth/spec.md',t:'file',d:3},
+    {n:'ui/spec.md',t:'file',d:3},
+    {n:'changes/',t:'dir',d:2},
+    {n:'config.yaml',t:'file',d:2},
+    {n:'src/',t:'dir',d:1},
+  ],
+  steps:[
+    {label:'User talks to agent',type:'terminal',content:`<span class="dm">// User opens Claude Code in ~/work/my-app</span>
+
+<span class="p">User:</span> <span class="c">Add dark mode. Use /opsx:propose.</span>`},
+    {label:'Agent works in default location',type:'terminal',content:`<span class="p">Agent:</span> <span class="o"><span class="dm">// reads config - no workspaces</span>
+<span class="dm">// changes go to openspec/changes/</span>
+
+Reading specs from <span class="h">openspec/specs/</span>...
+
+<span class="g">Created openspec/changes/add-dark-mode/</span>
+
+  proposal.md
+  specs/ui/spec.md  (delta)
+  design.md
+  tasks.md</span>`,
+      treeUpdate:[
+        {n:'my-app/',t:'dir',d:0},
+        {n:'openspec/',t:'dir',d:1},
+        {n:'specs/',t:'spec',d:2,label:'specs'},
+        {n:'auth/spec.md',t:'file',d:3},
+        {n:'ui/spec.md',t:'file',d:3},
+        {n:'changes/',t:'dir',d:2},
+        {n:'add-dark-mode/',t:'new',d:3},
+        {n:'proposal.md',t:'new',d:4},
+        {n:'design.md',t:'new',d:4},
+        {n:'tasks.md',t:'new',d:4},
+        {n:'specs/ui/spec.md',t:'new',d:4},
+        {n:'config.yaml',t:'file',d:2},
+        {n:'src/',t:'dir',d:1},
+      ]},
+    {label:'That\'s it',type:'terminal',content:`<span class="n">No workspaces. No namespaces. No new concepts.
+openspec/specs/ for truth.
+openspec/changes/ for work.
+Same as today.</span>`}
+  ]
+},
+
+'ws-basic':{
+  title:'Create a Workspace',
+  desc:'User wants to separate their changes into a named bucket.',
+  tree:[
+    {n:'my-app/',t:'dir',d:0},
+    {n:'openspec/',t:'dir',d:1},
+    {n:'specs/',t:'spec',d:2,label:'specs'},
+    {n:'api/spec.md',t:'file',d:3},
+    {n:'dashboard/spec.md',t:'file',d:3},
+    {n:'changes/',t:'dir',d:2},
+    {n:'config.yaml',t:'file',d:2},
+  ],
+  steps:[
+    {label:'User wants to organize changes',type:'terminal',content:`<span class="p">User:</span> <span class="c">I want to keep my API work separate from my
+dashboard work. Create a workspace called "api".</span>`},
+    {label:'Agent creates workspace',type:'terminal',content:`<span class="p">Agent:</span> <span class="o">Creating workspace <span class="n">api</span>.
+
+This is just a named bucket for changes.
+Your specs stay at <span class="h">openspec/specs/</span> - unchanged.</span>`,
+      treeUpdate:[
+        {n:'my-app/',t:'dir',d:0},
+        {n:'openspec/',t:'dir',d:1},
+        {n:'specs/',t:'spec',d:2,label:'specs'},
+        {n:'api/spec.md',t:'file',d:3},
+        {n:'dashboard/spec.md',t:'file',d:3},
+        {n:'changes/',t:'dir',d:2},
+        {n:'workspaces/',t:'dir',d:2},
+        {n:'api/',t:'ns',d:3,label:'namespace'},
+        {n:'changes/',t:'new',d:4},
+        {n:'config.yaml',t:'hl',d:2},
+      ],
+      preview:{filename:'config.yaml',content:`<span class="k">schema</span>: <span class="v">spec-driven</span>
+
+<span class="k">workspaces</span>:
+  <span class="k">api</span>:
+    <span class="k">paths</span>: [<span class="v">src/api/</span>, <span class="v">src/routes/</span>]`}},
+    {label:'Using it',type:'terminal',content:`<span class="p">User:</span> <span class="c">Add rate limiting to the API</span>
+
+<span class="p">Agent:</span> <span class="o"><span class="dm">// "API" + "rate limiting" -> workspace: api</span>
+
+Working in workspace: <span class="n">api</span>
+Reading specs from <span class="h">openspec/specs/</span>...
+
+<span class="g">Created openspec/workspaces/api/changes/add-rate-limiting/</span>
+
+  proposal.md
+  specs/api/spec.md (delta)
+  tasks.md</span>`},
+    {label:'Changes outside a workspace still work',type:'terminal',content:`<span class="p">User:</span> <span class="c">Fix the login bug real quick</span>
+
+<span class="p">Agent:</span> <span class="o"><span class="dm">// doesn't match any workspace path</span>
+<span class="dm">// goes to default: openspec/changes/</span>
+
+<span class="g">Created openspec/changes/fix-login-bug/</span>
+
+Not everything needs a workspace.
+Default location still works for anything
+that doesn't fit a named bucket.</span>`},
+    {label:'Key point',type:'terminal',content:`<span class="n">A workspace is just a named directory for changes.
+Nothing more.
+
+You don't HAVE to use it for everything.
+openspec/changes/ still works as the default.
+
+The workspace exists when you want to
+organize parallel work. That's it.</span>`}
+  ]
+},
+
+'ws-multi':{
+  title:'Multiple Workspaces',
+  desc:'Several workspaces in the same repo, each holding different changes.',
+  tree:[
+    {n:'platform/',t:'dir',d:0},
+    {n:'openspec/',t:'dir',d:1},
+    {n:'specs/',t:'spec',d:2,label:'specs'},
+    {n:'checkout/spec.md',t:'file',d:3},
+    {n:'billing/spec.md',t:'file',d:3},
+    {n:'auth/spec.md',t:'file',d:3},
+    {n:'config.yaml',t:'file',d:2},
+  ],
+  steps:[
+    {label:'User sets up multiple workspaces',type:'terminal',content:`<span class="p">User:</span> <span class="c">Set up workspaces: "payments" for payment stuff,
+"frontend" for UI work, and "infra" for platform work.</span>`},
+    {label:'Agent creates them',type:'terminal',content:`<span class="p">Agent:</span> <span class="o">Done. Three workspaces created.
+Specs stay at repo level.</span>`,
+      treeUpdate:[
+        {n:'platform/',t:'dir',d:0},
+        {n:'openspec/',t:'dir',d:1},
+        {n:'specs/',t:'spec',d:2,label:'specs'},
+        {n:'checkout/spec.md',t:'file',d:3},
+        {n:'billing/spec.md',t:'file',d:3},
+        {n:'auth/spec.md',t:'file',d:3},
+        {n:'workspaces/',t:'dir',d:2},
+        {n:'payments/',t:'ns',d:3,label:'namespace'},
+        {n:'changes/',t:'new',d:4},
+        {n:'frontend/',t:'ns',d:3,label:'namespace'},
+        {n:'changes/',t:'new',d:4},
+        {n:'infra/',t:'ns',d:3,label:'namespace'},
+        {n:'changes/',t:'new',d:4},
+        {n:'config.yaml',t:'hl',d:2},
+      ],
+      preview:{filename:'config.yaml',content:`<span class="k">schema</span>: <span class="v">spec-driven</span>
+
+<span class="k">workspaces</span>:
+  <span class="k">payments</span>:
+    <span class="k">paths</span>: [<span class="v">services/billing/</span>, <span class="v">services/orders/</span>]
+  <span class="k">frontend</span>:
+    <span class="k">paths</span>: [<span class="v">apps/web/</span>, <span class="v">apps/admin/</span>]
+  <span class="k">infra</span>:
+    <span class="k">paths</span>: [<span class="v">packages/</span>, <span class="v">infra/</span>]`}},
+    {label:'Agent infers workspace from request',type:'terminal',content:`<span class="p">User:</span> <span class="c">Add invoice PDF generation</span>
+
+<span class="p">Agent:</span> <span class="o"><span class="dm">// "invoice" -> likely payments workspace</span>
+
+Working in workspace: <span class="n">payments</span>
+<span class="g">Created openspec/workspaces/payments/changes/add-invoice-pdf/</span></span>
+
+<span class="p">User:</span> <span class="c">Now add a chart widget to the admin dashboard</span>
+
+<span class="p">Agent:</span> <span class="o"><span class="dm">// "admin dashboard" -> frontend workspace</span>
+
+Switching to workspace: <span class="n">frontend</span>
+<span class="g">Created openspec/workspaces/frontend/changes/add-chart-widget/</span></span>`},
+    {label:'Key point',type:'terminal',content:`<span class="n">The agent infers workspace from context.
+The user just describes what they want.
+No flags, no switching commands.
+
+Both changes read the same openspec/specs/.
+They're just organized into different buckets.
+
+Workspaces are arbitrary. Name them however you want.
+By feature area, by initiative, by mood. Doesn't matter.</span>`}
+  ]
+},
+
+'ws-cross':{
+  title:'Cross-Workspace Change',
+  desc:'Work that touches multiple workspaces.',
+  tree:[
+    {n:'platform/',t:'dir',d:0},
+    {n:'openspec/',t:'dir',d:1},
+    {n:'specs/',t:'spec',d:2,label:'specs'},
+    {n:'checkout/spec.md',t:'file',d:3},
+    {n:'billing/spec.md',t:'file',d:3},
+    {n:'workspaces/',t:'dir',d:2},
+    {n:'payments/',t:'ns',d:3,label:'namespace'},
+    {n:'changes/',t:'dir',d:4},
+    {n:'frontend/',t:'ns',d:3,label:'namespace'},
+    {n:'changes/',t:'dir',d:4},
+    {n:'config.yaml',t:'file',d:2},
+  ],
+  steps:[
+    {label:'User describes broad work',type:'terminal',content:`<span class="p">User:</span> <span class="c">Add 3DS checkout support. This needs
+payment backend changes and a new checkout UI flow.</span>`},
+    {label:'Agent sees multiple workspaces involved',type:'terminal',content:`<span class="p">Agent:</span> <span class="o">This touches two workspaces:
+  <span class="n">payments</span> - backend 3DS processing
+  <span class="n">frontend</span> - checkout UI
+
+I'll create a linked change in each.
+Both will modify repo-level specs:
+  <span class="h">openspec/specs/checkout/spec.md</span>
+  <span class="h">openspec/specs/billing/spec.md</span></span>`},
+    {label:'Linked changes created',type:'terminal',content:`<span class="p">Agent:</span> <span class="o"><span class="g">Created linked changes:</span>
+
+openspec/workspaces/<span class="n">payments</span>/changes/add-3ds-backend/
+  tasks.md
+  specs/billing/spec.md (delta)
+  .openspec.yaml  <span class="dm">links: [frontend:add-3ds-ui]</span>
+
+openspec/workspaces/<span class="n">frontend</span>/changes/add-3ds-ui/
+  tasks.md
+  specs/checkout/spec.md (delta)
+  .openspec.yaml  <span class="dm">links: [payments:add-3ds-backend]</span>
+
+Both target repo-level specs.
+Links are just metadata - <span class="n">workspace:change</span> format.</span>`,
+      treeUpdate:[
+        {n:'platform/',t:'dir',d:0},
+        {n:'openspec/',t:'dir',d:1},
+        {n:'specs/',t:'spec',d:2,label:'specs'},
+        {n:'checkout/spec.md',t:'file',d:3},
+        {n:'billing/spec.md',t:'file',d:3},
+        {n:'workspaces/',t:'dir',d:2},
+        {n:'payments/',t:'ns',d:3,label:'namespace'},
+        {n:'changes/',t:'dir',d:4},
+        {n:'add-3ds-backend/',t:'new',d:5},
+        {n:'tasks.md',t:'new',d:6},
+        {n:'specs/billing/spec.md',t:'new',d:6},
+        {n:'.openspec.yaml',t:'hl',d:6},
+        {n:'frontend/',t:'ns',d:3,label:'namespace'},
+        {n:'changes/',t:'dir',d:4},
+        {n:'add-3ds-ui/',t:'new',d:5},
+        {n:'tasks.md',t:'new',d:6},
+        {n:'specs/checkout/spec.md',t:'new',d:6},
+        {n:'.openspec.yaml',t:'hl',d:6},
+        {n:'config.yaml',t:'file',d:2},
+      ],
+      preview:{filename:'.openspec.yaml (payments/add-3ds-backend)',content:`<span class="k">schema</span>: <span class="v">spec-driven</span>
+<span class="k">workspace</span>: <span class="v">payments</span>
+
+<span class="k">links</span>:
+  - <span class="k">workspace</span>: <span class="v">frontend</span>
+    <span class="k">change</span>: <span class="v">add-3ds-ui</span>`}},
+    {label:'Key point',type:'terminal',content:`<span class="n">Multiple delta specs can target the same repo spec.
+
+payments' delta -> modifies openspec/specs/billing/spec.md
+frontend's delta -> modifies openspec/specs/checkout/spec.md
+
+This works because:
+  - deltas are proposals, not truth
+  - they merge when archived
+  - the repo spec is always the real source
+
+The specs never moved. The work is just organized.</span>`}
+  ]
+},
+
+'ws-initiative':{
+  title:'Initiative',
+  desc:'Shared planning that sits above workspaces.',
+  tree:[
+    {n:'platform/',t:'dir',d:0},
+    {n:'openspec/',t:'dir',d:1},
+    {n:'specs/',t:'spec',d:2,label:'specs'},
+    {n:'checkout/spec.md',t:'file',d:3},
+    {n:'workspaces/',t:'dir',d:2},
+    {n:'payments/',t:'ns',d:3},
+    {n:'frontend/',t:'ns',d:3},
+    {n:'config.yaml',t:'file',d:2},
+  ],
+  steps:[
+    {label:'User wants shared planning',type:'terminal',content:`<span class="p">User:</span> <span class="c">The 3DS work needs a shared proposal and
+design doc that covers both the backend and
+frontend pieces. Create an initiative for it.</span>`},
+    {label:'Agent creates initiative',type:'terminal',content:`<span class="p">Agent:</span> <span class="o">Creating initiative: <span class="h">add-3ds</span>
+
+This holds shared planning docs above any
+single workspace. Links to the per-workspace changes.</span>`,
+      treeUpdate:[
+        {n:'platform/',t:'dir',d:0},
+        {n:'openspec/',t:'dir',d:1},
+        {n:'specs/',t:'spec',d:2,label:'specs'},
+        {n:'checkout/spec.md',t:'file',d:3},
+        {n:'initiatives/',t:'new',d:2},
+        {n:'add-3ds/',t:'new',d:3},
+        {n:'proposal.md',t:'new',d:4},
+        {n:'design.md',t:'new',d:4},
+        {n:'links.yaml',t:'hl',d:4},
+        {n:'workspaces/',t:'dir',d:2},
+        {n:'payments/changes/',t:'dir',d:3},
+        {n:'add-3ds-backend/',t:'new',d:4},
+        {n:'frontend/changes/',t:'dir',d:3},
+        {n:'add-3ds-ui/',t:'new',d:4},
+        {n:'config.yaml',t:'file',d:2},
+      ],
+      preview:{filename:'initiatives/add-3ds/links.yaml',content:`<span class="k">initiative</span>: <span class="v">add-3ds</span>
+
+<span class="k">linked_changes</span>:
+  - <span class="k">workspace</span>: <span class="v">payments</span>
+    <span class="k">change</span>: <span class="v">add-3ds-backend</span>
+  - <span class="k">workspace</span>: <span class="v">frontend</span>
+    <span class="k">change</span>: <span class="v">add-3ds-ui</span>`}},
+    {label:'Key point',type:'terminal',content:`<span class="n">Three levels:
+
+openspec/
+  specs/           what IS true
+  initiatives/     shared planning across workspaces
+  workspaces/      where the work lives
+
+Each level is optional.
+Most repos: just specs/ and changes/.
+Some repos: add workspaces/.
+Big efforts: add initiatives/.</span>`}
+  ]
+},
+
+'xcut-same':{
+  title:'Cross-Cutting Specs (Same Repo)',
+  desc:'Multiple workspaces care about the same spec. Easy case.',
+  tree:[
+    {n:'platform/',t:'dir',d:0},
+    {n:'openspec/',t:'dir',d:1},
+    {n:'specs/',t:'spec',d:2,label:'specs'},
+    {n:'checkout/spec.md',t:'file',d:3},
+    {n:'billing/spec.md',t:'file',d:3},
+    {n:'workspaces/',t:'dir',d:2},
+    {n:'payments/',t:'ns',d:3},
+    {n:'frontend/',t:'ns',d:3},
+  ],
+  steps:[
+    {label:'The situation',type:'terminal',content:`<span class="o">The checkout spec is relevant to work in both
+the payments and frontend workspaces.</span>
+
+<span class="h">Where does it live?</span>
+
+<span class="g">Where it already is: openspec/specs/checkout/spec.md</span>
+
+<span class="o">It's repo-level. That's the whole point.
+The "cross-cutting" part isn't about where it lives.
+It's just a spec that multiple changes happen to touch.</span>`},
+    {label:'Both workspaces can propose changes to it',type:'terminal',content:`<span class="o">Both workspaces can have delta specs targeting it:</span>
+
+<span class="n">workspaces/payments/changes/add-3ds-backend/</span>
+<span class="o">  specs/checkout/spec.md  <- adds 3DS payment flow</span>
+
+<span class="n">workspaces/frontend/changes/add-3ds-ui/</span>
+<span class="o">  specs/checkout/spec.md  <- adds loading states</span>
+
+<span class="o">Same target spec. Different proposed changes.
+Merges happen sequentially when each archives.
+Conflicts resolved at merge time.</span>`},
+    {label:'Key point',type:'terminal',content:`<span class="n">Cross-cutting specs within one repo are a non-issue.
+
+The spec is at repo level already.
+Anyone can read it. Any workspace's change can
+propose modifications via delta specs.
+
+No special treatment. No annotations needed.
+The structure already handles it.</span>`}
+  ]
+},
+
+'xcut-multi':{
+  title:'Cross-Repo Specs (The Hard One)',
+  desc:'A spec that needs to be true across multiple repos.',
+  tree:[
+    {n:'web-client/',t:'dir',d:0},
+    {n:'openspec/',t:'dir',d:1},
+    {n:'specs/',t:'spec',d:2},
+    {n:'checkout/spec.md',t:'file',d:3},
+    {n:'config.yaml',t:'file',d:2},
+  ],
+  steps:[
+    {label:'The problem',type:'terminal',content:`<span class="w">The checkout contract should be true in:</span>
+<span class="o">  - contracts repo (canonical definition)
+  - billing-service repo (backend impl)
+  - web-client repo (this repo)
+  - ios-client repo</span>
+
+<span class="w">But the agent is sandboxed to THIS repo.</span>
+<span class="o">It can't read the contracts repo.
+It can't validate cross-repo consistency.
+It can't create changes elsewhere.</span>`},
+    {label:'What we can do',type:'terminal',content:`<span class="g">1. Informational references</span>
+<span class="o">  This repo's spec points to the contracts repo.
+  The agent knows it exists but can't read it.
+  It flags assumptions for human verification.</span>
+
+<span class="g">2. Canonical owner pattern</span>
+<span class="o">  One repo owns the source of truth.
+  Other repos hold implementation specs.
+  Humans coordinate updates.</span>
+
+<span class="g">3. Copy + drift detection</span>
+<span class="o">  Snapshot of the contract copied locally.
+  CI detects when it drifts.</span>`},
+    {label:'The honest answer',type:'terminal',content:`<span class="n">Cross-repo specs don't have a clean home.
+
+Same repo: easy. Spec is repo-level. Done.
+
+Across repos: coordination problem.
+  One repo owns the spec.
+  Other repos reference it.
+  Humans coordinate.
+  Agents help within their sandbox.
+
+This is a people problem with tooling support.
+Not a tooling problem we can automate away.</span>`}
+  ]
+},
+
+'agent-infer':{
+  title:'Workspace Inference',
+  desc:'How the agent picks the right workspace from conversation.',
+  tree:[
+    {n:'platform/',t:'dir',d:0},
+    {n:'openspec/',t:'dir',d:1},
+    {n:'specs/',t:'spec',d:2},
+    {n:'workspaces/',t:'dir',d:2},
+    {n:'payments/',t:'ns',d:3},
+    {n:'frontend/',t:'ns',d:3},
+    {n:'infra/',t:'ns',d:3},
+    {n:'config.yaml',t:'file',d:2},
+  ],
+  steps:[
+    {label:'Resolution strategy',type:'terminal',content:`<span class="o">How the agent picks a workspace:
+
+<span class="h">1. User mentions it</span>
+   "work in the payments workspace"
+   -> <span class="n">payments</span>
+
+<span class="h">2. Path hint</span>
+   "fix services/billing/invoice.ts"
+   -> config: payments.paths includes services/billing/
+   -> <span class="n">payments</span>
+
+<span class="h">3. Content match</span>
+   "update the checkout flow"
+   -> relevant to multiple? ask.
+
+<span class="h">4. Ambiguous</span>
+   "add a feature"
+   -> "Which workspace? payments, frontend, or infra?
+      Or should I put this in the default changes?"</span>`},
+    {label:'What the agent reads',type:'terminal',content:`<span class="o">In any workspace:
+
+<span class="g">Always reads:</span>
+  openspec/specs/*
+  <span class="dm">(repo truth - always visible)</span>
+
+<span class="g">Scoped to workspace:</span>
+  openspec/workspaces/{active}/changes/*
+  <span class="dm">(only active workspace's work)</span>
+
+<span class="w">Doesn't read:</span>
+  other workspace changes
+  <span class="dm">(not relevant, keeps context small)</span>
+
+Specs are global. Changes are scoped.
+That's the whole model.</span>`},
+    {label:'The interaction',type:'terminal',content:`<span class="n">The user never types workspace flags.
+They describe what they want.
+The agent reads config once and figures it out.
+
+If no workspaces: everything in openspec/changes/.
+If workspaces: agent picks the right one.
+If ambiguous: agent asks.
+
+Simple.</span>`}
+  ]
+}
+
+};
+
+let cur='model',step=0;
+
+function load(key){
+  cur=key;step=0;const s=SC[key];
+  document.querySelectorAll('.sb').forEach(b=>b.classList.remove('active'));
+  document.querySelector(`[data-key="${key}"]`).classList.add('active');
+  Q('stitle').textContent=s.title;Q('sdesc').textContent=s.desc;
+  Q('term').innerHTML='';renderTree(s.tree);
+  Q('fprev').style.display='none';Q('infos').innerHTML='';
+  Q('bnext').disabled=false;
+}
+
+function renderStep(s,idx){
+  const d=document.createElement('div');d.className='step';d.id=`step-${idx}`;
+  let h=`<div class="slbl"><span class="dot"></span>${s.label}</div>`;
+  if(s.type==='terminal'){h+=`<div class="term">${s.content}</div>`;}
+  else if(s.type==='decision'){
+    h+=`<div class="dec"><div class="dec-h">${s.header}</div><div class="dec-b"><div style="margin-bottom:8px;white-space:pre-wrap">${s.body}</div>`;
+    s.options.forEach((o,i)=>{
+      const sel=o.selected?' sel':'';
+      h+=`<div class="dopt${sel}" onclick="togOpt(${idx},${i})"><span class="r"></span> ${o.text}</div>`;
+    });
+    h+='</div></div>';
+  }
+  d.innerHTML=h;return d;
+}
+
+function togOpt(si,oi){
+  const s=SC[cur].steps[si];s.options.forEach(x=>x.selected=false);s.options[oi].selected=true;
+  const el=Q(`step-${si}`),n=renderStep(s,si);n.classList.add('vis');el.replaceWith(n);
+}
+
+function next(){
+  const sc=SC[cur];if(step>=sc.steps.length)return;
+  const s=sc.steps[step],c=Q('term'),el=renderStep(s,step);
+  c.appendChild(el);
+  requestAnimationFrame(()=>{el.classList.add('vis');el.scrollIntoView({behavior:'smooth',block:'end'});});
+  if(s.treeUpdate)renderTree(s.treeUpdate);
+  if(s.preview){Q('fprev').style.display='block';Q('fpn').textContent=s.preview.filename;Q('fpb').innerHTML=s.preview.content;}
+  if(s.info){
+    let ih='';
+    if(s.info.ns)ih+=`<div class="info"><h4>Workspaces</h4>${s.info.ns.map(x=>`<span class="it it-ns">${x}</span>`).join('')}</div>`;
+    if(s.info.sp)ih+=`<div class="info"><h4>Specs</h4>${s.info.sp.map(x=>`<span class="it it-sp">${x}</span>`).join('')}</div>`;
+    Q('infos').innerHTML=ih;
+  }
+  step++;if(step>=sc.steps.length)Q('bnext').disabled=true;
+}
+
+function reset(){
+  step=0;Q('term').innerHTML='';renderTree(SC[cur].tree);
+  Q('fprev').style.display='none';Q('infos').innerHTML='';Q('bnext').disabled=false;
+}
+
+document.querySelectorAll('.sb').forEach(b=>b.addEventListener('click',()=>load(b.dataset.key)));
+renderTree(SC['model'].tree);
+</script>
+</body>
+</html>

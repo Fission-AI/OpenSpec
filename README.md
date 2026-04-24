@@ -109,6 +109,8 @@ If you want the expanded workflow (`/opsx:new`, `/opsx:continue`, `/opsx:ff`, `/
 → **[Workflows](docs/workflows.md)**: combos and patterns<br>
 → **[Commands](docs/commands.md)**: slash commands & skills<br>
 → **[CLI](docs/cli.md)**: terminal reference<br>
+→ **[Workspace Mode](docs/workspace.md)**: when to use cross-repo workspaces, starting with `openspec workspace setup`<br>
+→ **[Workspace Demo](docs/workspace-demo.md)**: a real-user workspace tutorial you can run against your actual local repos<br>
 → **[Supported Tools](docs/supported-tools.md)**: tool integrations & install paths<br>
 → **[Concepts](docs/concepts.md)**: how it all fits<br>
 → **[Multi-Language](docs/multi-language.md)**: multi-language support<br>

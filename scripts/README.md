@@ -35,3 +35,35 @@ Post-installation script that runs after package installation.
 ## pack-version-check.mjs
 
 Validates package version consistency before publishing.
+
+## ralph-roadmap.sh
+
+Runs `ROADMAP.md` in an autonomous Codex loop.
+
+What it does:
+1. Picks the first incomplete roadmap phase
+2. Runs that phase in a fresh `codex exec` implementation context
+3. Runs the same phase in a fresh verification context
+4. Runs the same phase in a fresh manual-test context
+5. Repeats until the phase is complete, then moves to the next phase
+6. Continues until the roadmap is complete
+
+Defaults:
+- model: `gpt-5.4`
+- reasoning effort: `xhigh`
+- run cap: unlimited
+- phase cycle cap: unlimited
+
+Quick checks without running the loop:
+```bash
+bash -n ./scripts/ralph-roadmap.sh
+./scripts/ralph-roadmap.sh --validate
+./scripts/ralph-roadmap.sh --dry-run
+./scripts/ralph-roadmap.sh --help
+```
+
+Typical usage:
+```bash
+./scripts/ralph-roadmap.sh
+./scripts/ralph-roadmap.sh --search
+```

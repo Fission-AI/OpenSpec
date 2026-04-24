@@ -11,6 +11,13 @@ import {
   formatChangeStatus,
   type ChangeStatus,
 } from '../../core/artifact-graph/index.js';
+import { readChangeMetadata } from '../../utils/change-metadata.js';
+import { getChangePath } from '../../core/workspace/metadata.js';
+import { findWorkspaceRoot } from '../../core/workspace/registry.js';
+import {
+  getWorkspaceChangeStatus,
+  printWorkspaceStatusText,
+} from '../../core/workspace/status.js';
 import {
   validateChangeExists,
   validateSchemaExists,
@@ -37,7 +44,9 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
   const spinner = options.json ? undefined : ora('Loading change status...').start();
 
   try {
-    const projectRoot = process.cwd();
+    const currentWorkingDir = process.cwd();
+    const workspaceRoot = await findWorkspaceRoot(currentWorkingDir);
+    const projectRoot = workspaceRoot ?? currentWorkingDir;
 
     // Handle no-changes case gracefully — status is informational,
     // so "no changes" is a valid state, not an error.
@@ -64,6 +73,25 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
     // Validate schema if explicitly provided
     if (options.schema) {
       validateSchemaExists(options.schema, projectRoot);
+    }
+
+    if (workspaceRoot) {
+      const workspaceChangePath = getChangePath(workspaceRoot, changeName);
+      const metadata = readChangeMetadata(workspaceChangePath, workspaceRoot);
+
+      if (metadata?.targets && metadata.targets.length > 0) {
+        const status = await getWorkspaceChangeStatus(workspaceRoot, changeName);
+
+        spinner?.stop();
+
+        if (options.json) {
+          console.log(JSON.stringify(status, null, 2));
+          return;
+        }
+
+        printWorkspaceStatusText(status);
+        return;
+      }
     }
 
     // loadChangeContext will auto-detect schema from metadata if not provided

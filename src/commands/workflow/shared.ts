@@ -9,6 +9,7 @@ import chalk from 'chalk';
 import path from 'path';
 import * as fs from 'fs';
 import { getSchemaDir, listSchemas } from '../../core/artifact-graph/index.js';
+import { getChangeContainerPath, getChangePath } from '../../core/workspace/metadata.js';
 import { validateChangeName } from '../../utils/change-utils.js';
 
 // -----------------------------------------------------------------------------
@@ -87,11 +88,11 @@ export function getStatusIndicator(status: 'done' | 'ready' | 'blocked'): string
 }
 
 /**
- * Returns the list of available change directory names under openspec/changes/.
+ * Returns the list of available change directory names under the active change container.
  * Excludes the archive directory and hidden directories.
  */
 export async function getAvailableChanges(projectRoot: string): Promise<string[]> {
-  const changesPath = path.join(projectRoot, 'openspec', 'changes');
+  const changesPath = getChangeContainerPath(projectRoot);
   try {
     const entries = await fs.promises.readdir(changesPath, { withFileTypes: true });
     return entries
@@ -128,7 +129,7 @@ export async function validateChangeExists(
   }
 
   // Check directory existence directly
-  const changePath = path.join(projectRoot, 'openspec', 'changes', changeName);
+  const changePath = getChangePath(projectRoot, changeName);
   const exists = fs.existsSync(changePath) && fs.statSync(changePath).isDirectory();
 
   if (!exists) {

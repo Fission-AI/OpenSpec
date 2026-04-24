@@ -450,6 +450,10 @@ describe('command-generation/adapters', () => {
       expect(githubCopilotAdapter.toolId).toBe('github-copilot');
     });
 
+    it('should advertise workspace-open support', () => {
+      expect(githubCopilotAdapter.capabilities?.supportsWorkspaceOpen).toBe(true);
+    });
+
     it('should generate correct file path with .prompt.md extension', () => {
       const filePath = githubCopilotAdapter.getFilePath('explore');
       expect(filePath).toBe(path.join('.github', 'prompts', 'opsx-explore.prompt.md'));

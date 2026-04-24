@@ -1,0 +1,10 @@
+Phase 01 is implemented. `openspec workspace create <name>` is registered in [src/commands/workspace.ts](/Users/tabishbidiwale/fission/repos/openspec/src/commands/workspace.ts:5), and the managed workspace bootstrap lives in [src/core/workspace/create.ts](/Users/tabishbidiwale/fission/repos/openspec/src/core/workspace/create.ts:68). It creates workspaces under `XDG_DATA_HOME/openspec/workspaces/<name>` with a dedicated layout: `.openspec/workspace.yaml`, `.openspec/local.yaml`, and top-level `changes/`, with no inner `openspec/` tree. Local overlay state is treated as local-only by writing `/.openspec/local.yaml` to `.gitignore`. I also pulled the writable-target and directory bootstrap into [src/core/setup/bootstrap.ts](/Users/tabishbidiwale/fission/repos/openspec/src/core/setup/bootstrap.ts:5) and reused that from [src/core/init.ts](/Users/tabishbidiwale/fission/repos/openspec/src/core/init.ts:165), so this phase shares setup plumbing instead of creating a parallel path.
+
+I updated the phase artifacts and marked Phase 01 complete in [ROADMAP.md](/Users/tabishbidiwale/fission/repos/openspec/ROADMAP.md:98), with details in [SUMMARY.md](/Users/tabishbidiwale/fission/repos/openspec/notes/workspace-poc/phase-01-workspace-create/SUMMARY.md:1), [VERIFY.md](/Users/tabishbidiwale/fission/repos/openspec/notes/workspace-poc/phase-01-workspace-create/VERIFY.md:1), and [MANUAL_TEST.md](/Users/tabishbidiwale/fission/repos/openspec/notes/workspace-poc/phase-01-workspace-create/MANUAL_TEST.md:1).
+
+Verification:
+- `pnpm run build`
+- `pnpm vitest run test/core/init.test.ts test/core/workspace/workspace-sandbox.test.ts test/cli-e2e/workspace/workspace-sandbox-cli.test.ts`
+- Fresh CLI smoke in temp XDG roots for create, duplicate-create failure, and invalid-name failure
+
+All of those passed. No new follow-up phases were needed from this run.

@@ -51,7 +51,7 @@ You can enable expanded workflows (`new`, `continue`, `ff`, `verify`, `sync`, `b
 
 \* Codex commands are installed in the global Codex home (`$CODEX_HOME/prompts/` if set, otherwise `~/.codex/prompts/`), not your project directory.
 
-\*\* GitHub Copilot prompt files are recognized as custom slash commands in IDE extensions (VS Code, JetBrains, Visual Studio). Copilot CLI does not currently consume `.github/prompts/*.prompt.md` directly.
+\*\* GitHub Copilot prompt files are recognized as custom slash commands in IDE extensions (VS Code, JetBrains, Visual Studio). `openspec workspace open --agent github-copilot` targets VS Code Copilot and emits a managed `.code-workspace` file under `.openspec/workspace-open/github-copilot/`. Copilot CLI does not currently consume `.github/prompts/*.prompt.md` directly.
 
 ## Non-Interactive Setup
 

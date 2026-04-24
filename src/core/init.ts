@@ -45,6 +45,10 @@ import { getGlobalConfig, type Delivery, type Profile } from './global-config.js
 import { getProfileWorkflows, CORE_WORKFLOWS, ALL_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
 import { migrateIfNeeded } from './migration.js';
+import {
+  ensureSetupDirectories,
+  ensureWritableSetupTarget,
+} from './setup/bootstrap.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
@@ -163,11 +167,7 @@ export class InitCommand {
     openspecPath: string
   ): Promise<boolean> {
     const extendMode = await FileSystemUtils.directoryExists(openspecPath);
-
-    // Check write permissions
-    if (!(await FileSystemUtils.ensureWritePermissions(projectPath))) {
-      throw new Error(`Insufficient permissions to write to ${projectPath}`);
-    }
+    await ensureWritableSetupTarget(projectPath);
     return extendMode;
   }
 
@@ -453,23 +453,6 @@ export class InitCommand {
   // ═══════════════════════════════════════════════════════════
 
   private async createDirectoryStructure(openspecPath: string, extendMode: boolean): Promise<void> {
-    if (extendMode) {
-      // In extend mode, just ensure directories exist without spinner
-      const directories = [
-        openspecPath,
-        path.join(openspecPath, 'specs'),
-        path.join(openspecPath, 'changes'),
-        path.join(openspecPath, 'changes', 'archive'),
-      ];
-
-      for (const dir of directories) {
-        await FileSystemUtils.createDirectory(dir);
-      }
-      return;
-    }
-
-    const spinner = this.startSpinner('Creating OpenSpec structure...');
-
     const directories = [
       openspecPath,
       path.join(openspecPath, 'specs'),
@@ -477,9 +460,14 @@ export class InitCommand {
       path.join(openspecPath, 'changes', 'archive'),
     ];
 
-    for (const dir of directories) {
-      await FileSystemUtils.createDirectory(dir);
+    if (extendMode) {
+      // In extend mode, just ensure directories exist without spinner
+      await ensureSetupDirectories(directories);
+      return;
     }
+
+    const spinner = this.startSpinner('Creating OpenSpec structure...');
+    await ensureSetupDirectories(directories);
 
     spinner.stopAndPersist({
       symbol: PALETTE.white('▌'),
