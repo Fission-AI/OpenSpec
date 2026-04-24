@@ -35,11 +35,16 @@ export function parseSchema(yamlContent: string): SchemaYaml {
   // Check for duplicate artifact IDs
   validateNoDuplicateIds(schema.artifacts);
 
-  // Check that all requires references are valid
-  validateRequiresReferences(schema.artifacts);
+  // When a schema uses `extends`, child artifacts may reference IDs provided by the
+  // parent. Skip cross-boundary requires validation here — it runs post-merge in
+  // resolver.ts after the full artifact set is assembled.
+  if (!schema.extends) {
+    // Check that all requires references are valid
+    validateRequiresReferences(schema.artifacts);
 
-  // Check for cycles
-  validateNoCycles(schema.artifacts);
+    // Check for cycles
+    validateNoCycles(schema.artifacts);
+  }
 
   return schema;
 }
@@ -77,8 +82,9 @@ function validateRequiresReferences(artifacts: Artifact[]): void {
 /**
  * Validates that there are no cyclic dependencies.
  * Uses DFS to detect cycles and reports the full cycle path.
+ * Exported for use after schema merging in the resolver.
  */
-function validateNoCycles(artifacts: Artifact[]): void {
+export function validateNoCycles(artifacts: Artifact[]): void {
   const artifactMap = new Map(artifacts.map(a => [a.id, a]));
   const visited = new Set<string>();
   const inStack = new Set<string>();

@@ -203,5 +203,34 @@ artifacts:
       const schema = parseSchema(yaml);
       expect(schema.artifacts[0].requires).toEqual([]);
     });
+
+    it('should parse extends field when present', () => {
+      const yaml = `
+name: child-schema
+version: 1
+extends: some-parent
+artifacts:
+  - id: root
+    generates: root.md
+    description: Root artifact
+    template: templates/root.md
+`;
+      const schema = parseSchema(yaml);
+      expect(schema.extends).toBe('some-parent');
+    });
+
+    it('should leave extends undefined when not set', () => {
+      const yaml = `
+name: test
+version: 1
+artifacts:
+  - id: root
+    generates: root.md
+    description: Root artifact
+    template: templates/root.md
+`;
+      const schema = parseSchema(yaml);
+      expect(schema.extends).toBeUndefined();
+    });
   });
 });

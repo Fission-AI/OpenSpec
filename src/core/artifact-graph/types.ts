@@ -25,6 +25,9 @@ export const SchemaYamlSchema = z.object({
   name: z.string().min(1, { error: 'Schema name is required' }),
   version: z.number().int().positive({ error: 'Version must be a positive integer' }),
   description: z.string().optional(),
+  // Optional: inherit artifacts and apply config from another schema.
+  // Only one level of inheritance is supported (the parent cannot also extend).
+  extends: z.string().optional(),
   artifacts: z.array(ArtifactSchema).min(1, { error: 'At least one artifact required' }),
   // Optional apply phase configuration (for schema-aware apply instructions)
   apply: ApplyPhaseSchema.optional(),
