@@ -49,6 +49,21 @@ export const ChangeMetadataSchema = z.object({
       message: 'created must be YYYY-MM-DD format',
     })
     .optional(),
+
+  // Optional: explicit workspace target aliases for multi-repo changes
+  targets: z
+    .array(z.string().min(1, { message: 'target alias must be non-empty' }))
+    .min(1, { message: 'targets must contain at least one alias' })
+    .refine((targets) => new Set(targets).size === targets.length, {
+      message: 'targets must be unique',
+    })
+    .optional(),
+
+  // Optional: explicit workspace-level archive/completion marker
+  workspaceArchivedAt: z
+    .string()
+    .min(1, { message: 'workspaceArchivedAt must be a non-empty ISO timestamp' })
+    .optional(),
 });
 
 export type ChangeMetadata = z.infer<typeof ChangeMetadataSchema>;
@@ -62,4 +77,3 @@ export type CompletedSet = Set<string>;
 export interface BlockedArtifacts {
   [artifactId: string]: string[];
 }
-

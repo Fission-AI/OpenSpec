@@ -1,0 +1,6 @@
+started_at=20260417-064737-20665
+pid=20678
+log=/Users/tabishbidiwale/fission/repos/openspec/notes/workspace-poc/runner/20260417-064737-20665-full-run.log
+launch=/Users/tabishbidiwale/fission/repos/openspec/notes/workspace-poc/runner/20260417-064737-20665-launch.txt
+cwd=/Users/tabishbidiwale/fission/repos/openspec
+command=nohup caffeinate -dims /Users/tabishbidiwale/fission/repos/openspec/scripts/ralph-roadmap.sh --search

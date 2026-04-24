@@ -1,0 +1,1 @@
+# Happy path docs fixture

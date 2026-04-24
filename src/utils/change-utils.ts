@@ -120,23 +120,7 @@ export async function createChange(
     throw new Error(validation.error);
   }
 
-  // Determine schema: explicit option → project config → hardcoded default
-  let schemaName: string;
-  if (options.schema) {
-    schemaName = options.schema;
-  } else {
-    // Try to read from project config
-    try {
-      const config = readProjectConfig(projectRoot);
-      schemaName = config?.schema ?? DEFAULT_SCHEMA;
-    } catch {
-      // If config read fails, use default
-      schemaName = DEFAULT_SCHEMA;
-    }
-  }
-
-  // Validate the resolved schema
-  validateSchemaName(schemaName, projectRoot);
+  const schemaName = resolveNewChangeSchema(projectRoot, options);
 
   // Build the change directory path
   const changeDir = path.join(projectRoot, 'openspec', 'changes', name);
@@ -157,4 +141,25 @@ export async function createChange(
   }, projectRoot);
 
   return { schema: schemaName };
+}
+
+export function resolveNewChangeSchema(
+  projectRoot: string,
+  options: CreateChangeOptions = {}
+): string {
+  let schemaName: string;
+
+  if (options.schema) {
+    schemaName = options.schema;
+  } else {
+    try {
+      const config = readProjectConfig(projectRoot);
+      schemaName = config?.schema ?? DEFAULT_SCHEMA;
+    } catch {
+      schemaName = DEFAULT_SCHEMA;
+    }
+  }
+
+  validateSchemaName(schemaName, projectRoot);
+  return schemaName;
 }

@@ -25,6 +25,16 @@ export interface CommandContent {
 }
 
 /**
+ * Optional feature flags for command adapters.
+ * These let higher-level workflows derive support from adapter metadata
+ * instead of maintaining separate tool allowlists.
+ */
+export interface ToolCommandAdapterCapabilities {
+  /** Whether this adapter can render a usable workspace-open prompt surface. */
+  supportsWorkspaceOpen?: boolean;
+}
+
+/**
  * Per-tool formatting strategy.
  * Each AI tool implements this interface to handle its specific file path
  * and frontmatter format requirements.
@@ -32,6 +42,8 @@ export interface CommandContent {
 export interface ToolCommandAdapter {
   /** Tool identifier matching AIToolOption.value (e.g., 'claude', 'cursor') */
   toolId: string;
+  /** Optional feature flags exposed to higher-level workflows. */
+  capabilities?: ToolCommandAdapterCapabilities;
   /**
    * Returns the file path for a command.
    * @param commandId - The command identifier (e.g., 'explore')

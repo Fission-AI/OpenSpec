@@ -69,6 +69,26 @@ describe('command-generation/registry', () => {
     });
   });
 
+  describe('capabilities', () => {
+    it('should list adapters by capability', () => {
+      const workspaceOpenAdapters = CommandAdapterRegistry.getByCapability('supportsWorkspaceOpen');
+      const toolIds = workspaceOpenAdapters.map((adapter) => adapter.toolId);
+
+      expect(toolIds).toContain('claude');
+      expect(toolIds).toContain('codex');
+      expect(toolIds).toContain('github-copilot');
+      expect(toolIds).not.toContain('cursor');
+    });
+
+    it('should report capability support for registered tools', () => {
+      expect(CommandAdapterRegistry.supports('claude', 'supportsWorkspaceOpen')).toBe(true);
+      expect(CommandAdapterRegistry.supports('codex', 'supportsWorkspaceOpen')).toBe(true);
+      expect(CommandAdapterRegistry.supports('github-copilot', 'supportsWorkspaceOpen')).toBe(true);
+      expect(CommandAdapterRegistry.supports('cursor', 'supportsWorkspaceOpen')).toBe(false);
+      expect(CommandAdapterRegistry.supports('unknown', 'supportsWorkspaceOpen')).toBe(false);
+    });
+  });
+
   describe('adapter functionality', () => {
     it('registered adapters should have working getFilePath', () => {
       const claudeAdapter = CommandAdapterRegistry.get('claude');

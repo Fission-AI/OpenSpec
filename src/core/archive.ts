@@ -9,6 +9,8 @@ import {
   writeUpdatedSpec,
   type SpecUpdate,
 } from './specs-apply.js';
+import { archiveWorkspaceChange } from './workspace/archive.js';
+import { resolveWorkspaceRoot } from './workspace/registry.js';
 
 /**
  * Recursively copy a directory. Used when fs.rename fails (e.g. EPERM on Windows).
@@ -50,8 +52,13 @@ async function moveDirectory(src: string, dest: string): Promise<void> {
 export class ArchiveCommand {
   async execute(
     changeName?: string,
-    options: { yes?: boolean; skipSpecs?: boolean; noValidate?: boolean; validate?: boolean } = {}
+    options: { yes?: boolean; skipSpecs?: boolean; noValidate?: boolean; validate?: boolean; workspace?: boolean } = {}
   ): Promise<void> {
+    if (options.workspace) {
+      await this.executeWorkspaceArchive(changeName);
+      return;
+    }
+
     const targetPath = '.';
     const changesDir = path.join(targetPath, 'openspec', 'changes');
     const archiveDir = path.join(changesDir, 'archive');
@@ -285,6 +292,32 @@ export class ArchiveCommand {
     await moveDirectory(changeDir, archivePath);
 
     console.log(`Change '${changeName}' archived as '${archiveName}'.`);
+  }
+
+  private async executeWorkspaceArchive(changeName?: string): Promise<void> {
+    if (!changeName) {
+      const workspaceRoot = await resolveWorkspaceRoot(process.cwd());
+      const changesDir = path.join(workspaceRoot, 'changes');
+      const selectedChange = await this.selectChange(changesDir);
+      if (!selectedChange) {
+        console.log('No change selected. Aborting.');
+        return;
+      }
+      changeName = selectedChange;
+    }
+
+    const result = await archiveWorkspaceChange(changeName, { cwd: process.cwd() });
+
+    if (result.alreadyArchived) {
+      console.log(
+        `Workspace change '${result.changeId}' is already hard-done (archived at ${result.workspaceArchivedAt}).`
+      );
+      return;
+    }
+
+    console.log(
+      `Workspace change '${result.changeId}' marked hard-done at ${result.workspaceArchivedAt}.`
+    );
   }
 
   private async selectChange(changesDir: string): Promise<string | null> {

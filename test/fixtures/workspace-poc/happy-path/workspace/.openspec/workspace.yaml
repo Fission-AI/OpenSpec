@@ -1,0 +1,9 @@
+version: 1
+name: happy-path
+repos:
+  app:
+    description: Application repo
+  api:
+    description: API repo
+  docs:
+    description: Docs repo

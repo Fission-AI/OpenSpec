@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OpenSpec Workspace — Coordinate Changes Across Repos</title>
+<style>
+  :root {
+    --bg: #faf8f3;
+    --surface: #ffffff;
+    --surface-warm: #f5f1e8;
+    --border: #e8e2d4;
+    --border-strong: #d8d0bc;
+    --text: #1f1d1a;
+    --text-muted: #5e574a;
+    --text-faint: #8a8373;
+
+    --workspace: #2d5b7a;
+    --workspace-soft: #e6eef3;
+    --repo: #5e7a47;
+    --repo-soft: #ecf0e3;
+    --handoff: #a86632;
+    --handoff-soft: #f5e8d9;
+    --accent: #7a5a9a;
+    --accent-soft: #ede6f2;
+
+    --shadow-sm: 0 1px 2px rgba(40, 30, 10, 0.04);
+    --shadow-md: 0 4px 14px rgba(40, 30, 10, 0.06), 0 1px 3px rgba(40, 30, 10, 0.04);
+    --shadow-lg: 0 12px 32px rgba(40, 30, 10, 0.08), 0 3px 8px rgba(40, 30, 10, 0.04);
+
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 14px;
+
+    --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-serif: "Newsreader", Georgia, "Times New Roman", serif;
+    --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  a { color: var(--workspace); text-decoration: none; }
+  button { font-family: inherit; cursor: pointer; }
+
+  .app {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+      "header header"
+      "sidebar stage"
+      "footer footer";
+    min-height: 100vh;
+    max-width: 1600px;
+    margin: 0 auto;
+  }
+
+  /* ===== Header ===== */
+  header.site {
+    grid-area: header;
+    padding: 40px 56px 28px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 10px;
+  }
+  header.site h1 {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    font-size: 40px;
+    letter-spacing: -0.02em;
+    margin: 0 0 6px;
+    color: var(--text);
+  }
+  header.site h1 em {
+    font-style: italic;
+    color: var(--workspace);
+  }
+  header.site p.tagline {
+    font-size: 16px;
+    color: var(--text-muted);
+    margin: 0;
+    max-width: 720px;
+  }
+
+  /* ===== Sidebar controls ===== */
+  aside.controls {
+    grid-area: sidebar;
+    padding: 28px 28px 28px 56px;
+    border-right: 1px solid var(--border);
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+  .control-group { }
+  .control-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .control-hint {
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 400;
+    font-size: 11px;
+    color: var(--text-faint);
+  }
+
+  /* Stepper */
+  .stepper { display: flex; flex-direction: column; gap: 2px; }
+  .step {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 10px 12px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--text-muted);
+    text-align: left;
+    width: 100%;
+    transition: all 0.15s ease;
+  }
+  .step:hover:not(.active) {
+    background: var(--surface-warm);
+    color: var(--text);
+  }
+  .step.active {
+    background: var(--surface);
+    border-color: var(--border-strong);
+    color: var(--text);
+    box-shadow: var(--shadow-sm);
+  }
+  .step-num {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--surface-warm);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+    margin-top: 1px;
+  }
+  .step.active .step-num {
+    background: var(--workspace);
+    border-color: var(--workspace);
+    color: white;
+  }
+  .step.done .step-num {
+    background: var(--repo-soft);
+    border-color: var(--repo);
+    color: var(--repo);
+  }
+  .step-body { min-width: 0; flex: 1; }
+  .step-title {
+    font-weight: 500;
+    font-size: 13px;
+    line-height: 1.3;
+    margin-bottom: 2px;
+  }
+  .step-sub {
+    font-size: 11px;
+    color: var(--text-faint);
+    line-height: 1.4;
+  }
+
+  /* Segmented */
+  .segmented {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    padding: 3px;
+    background: var(--surface-warm);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+  }
+  .seg {
+    border: 0;
+    background: transparent;
+    padding: 8px 10px;
+    border-radius: calc(var(--radius-md) - 2px);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    transition: all 0.15s ease;
+    font-family: inherit;
+  }
+  .seg:hover { color: var(--text); }
+  .seg.active {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .scenario-note {
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    background: var(--workspace-soft);
+    border: 1px solid #cfddea;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #254a64;
+  }
+  .scenario-note strong { color: var(--workspace); font-weight: 600; }
+
+  /* ===== Stage ===== */
+  section.stage {
+    grid-area: stage;
+    padding: 28px 56px 28px 28px;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: 20px;
+    min-height: 0;
+  }
+  .stage-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 24px;
+  }
+  .stage-head h2 {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    font-size: 22px;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+  .stage-head .pill {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .stage-lead {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-top: 4px;
+    max-width: 780px;
+  }
+
+  /* Diagram */
+  .diagram-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 28px;
+    box-shadow: var(--shadow-md);
+    min-height: 360px;
+    position: relative;
+    overflow: hidden;
+  }
+  .diagram-wrap svg {
+    width: 100%;
+    height: 360px;
+    display: block;
+  }
+
+  /* Two-column stage bottom: terminal + artifact list */
+  .stage-bottom {
+    display: grid;
+    grid-template-columns: 1.35fr 1fr;
+    gap: 16px;
+  }
+
+  .terminal {
+    background: #1e1b16;
+    border: 1px solid #3a342a;
+    border-radius: var(--radius-md);
+    padding: 14px 16px 16px;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.65;
+    color: #e8e2d4;
+    min-height: 200px;
+    max-height: 240px;
+    overflow-y: auto;
+    box-shadow: var(--shadow-md);
+  }
+  .terminal .tm-head {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #3a342a;
+  }
+  .terminal .tm-dot { width: 10px; height: 10px; border-radius: 50%; background: #3a342a; }
+  .terminal .tm-dot.r { background: #c07050; }
+  .terminal .tm-dot.y { background: #c09050; }
+  .terminal .tm-dot.g { background: #7a9a5a; }
+  .terminal .tm-label {
+    margin-left: auto;
+    font-size: 11px;
+    color: #8a8373;
+  }
+  .terminal .line { white-space: pre-wrap; }
+  .terminal .prompt-sym { color: #8a8373; user-select: none; }
+  .terminal .cmd { color: #e8e2d4; }
+  .terminal .cmd .flag { color: #c0a870; }
+  .terminal .cmd .val { color: #9abe7a; }
+  .terminal .out { color: #a8a090; }
+  .terminal .ok { color: #9abe7a; }
+  .terminal .warn { color: #c09050; }
+  .terminal .dim { color: #6a6458; }
+
+  .artifacts {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 16px 18px;
+    box-shadow: var(--shadow-sm);
+    min-height: 200px;
+    max-height: 240px;
+    overflow-y: auto;
+  }
+  .artifacts h3 {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin: 0 0 12px;
+  }
+  .artifact {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px dashed var(--border);
+    font-size: 12.5px;
+  }
+  .artifact:last-child { border-bottom: 0; }
+  .artifact-icon {
+    width: 18px; height: 18px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 1px;
+    opacity: 0.7;
+  }
+  .artifact-body { min-width: 0; flex: 1; }
+  .artifact-path {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .artifact-desc {
+    font-size: 11px;
+    color: var(--text-faint);
+    margin-top: 2px;
+    line-height: 1.4;
+  }
+  .artifact.new .artifact-path { color: var(--repo); }
+  .artifact.new .artifact-icon { color: var(--repo); opacity: 1; }
+  .artifact-owner {
+    display: inline-block;
+    font-size: 10px;
+    color: var(--workspace);
+    background: var(--workspace-soft);
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-left: 6px;
+    font-family: var(--font-mono);
+  }
+
+  /* ===== Footer / prompt out ===== */
+  footer.prompt-out {
+    grid-area: footer;
+    padding: 28px 56px 40px;
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+    display: flex;
+    gap: 28px;
+    align-items: flex-start;
+  }
+  .prompt-text {
+    flex: 1;
+    font-family: var(--font-serif);
+    font-size: 17px;
+    line-height: 1.55;
+    color: var(--text);
+    font-weight: 400;
+  }
+  .prompt-text em { color: var(--workspace); font-style: italic; }
+  .prompt-text .mono {
+    font-family: var(--font-mono);
+    font-size: 13.5px;
+    background: var(--surface-warm);
+    padding: 1px 6px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+  }
+
+  .prompt-actions { display: flex; gap: 10px; flex-shrink: 0; }
+  .btn {
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 10px 18px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text);
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn:hover { border-color: var(--text-muted); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+  .btn.primary {
+    background: var(--workspace);
+    color: white;
+    border-color: var(--workspace);
+  }
+  .btn.primary:hover { background: #254a64; border-color: #254a64; }
+  .btn.copied { background: var(--repo) !important; border-color: var(--repo) !important; color: white !important; }
+
+  /* SVG styling */
+  svg .node-box {
+    fill: var(--surface);
+    stroke: var(--border-strong);
+    stroke-width: 1.5;
+    filter: url(#soften);
+  }
+  svg .node-box.workspace {
+    stroke: var(--workspace);
+    fill: var(--workspace-soft);
+  }
+  svg .node-box.repo {
+    stroke: var(--repo);
+    fill: var(--repo-soft);
+  }
+  svg .node-box.repo.applied {
+    stroke: var(--handoff);
+    fill: var(--handoff-soft);
+  }
+  svg .node-box.archived {
+    opacity: 0.55;
+    stroke-dasharray: 4 3;
+  }
+  svg .node-label {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 600;
+    fill: var(--text);
+  }
+  svg .node-kind {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    fill: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  svg .node-meta {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    fill: var(--text-muted);
+  }
+  svg .node-file {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    fill: var(--text-muted);
+  }
+  svg .node-file.hi { fill: var(--workspace); font-weight: 600; }
+  svg .node-file.hi-repo { fill: var(--handoff); font-weight: 600; }
+  svg .edge {
+    stroke: var(--border-strong);
+    stroke-width: 1.2;
+    fill: none;
+  }
+  svg .edge.active { stroke: var(--workspace); stroke-width: 1.8; }
+  svg .edge.applied { stroke: var(--handoff); stroke-width: 2; }
+  svg .edge-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    fill: var(--text-muted);
+  }
+  svg .badge-bg {
+    fill: var(--handoff-soft);
+    stroke: var(--handoff);
+    stroke-width: 1;
+  }
+  svg .badge-bg.ok { fill: var(--repo-soft); stroke: var(--repo); }
+  svg .badge-bg.ws { fill: var(--workspace-soft); stroke: var(--workspace); }
+  svg .badge-text {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    font-weight: 600;
+    fill: var(--handoff);
+    letter-spacing: 0.04em;
+  }
+  svg .badge-text.ok { fill: var(--repo); }
+  svg .badge-text.ws { fill: var(--workspace); }
+
+  @keyframes flow {
+    from { stroke-dashoffset: 20; }
+    to { stroke-dashoffset: 0; }
+  }
+  svg .edge.flowing {
+    stroke-dasharray: 6 4;
+    animation: flow 1.2s linear infinite;
+  }
+
+  /* Responsive-ish */
+  @media (max-width: 1100px) {
+    .app { grid-template-columns: 280px 1fr; }
+    header.site, footer.prompt-out { padding-left: 28px; padding-right: 28px; }
+    aside.controls { padding-left: 28px; }
+    section.stage { padding-right: 28px; }
+    .stage-bottom { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ============= HEADER ============= -->
+  <header class="site">
+    <div class="eyebrow">OpenSpec · Design Partnership Preview</div>
+    <h1>Workspace — coordinate changes <em>across repos</em>, execute inside them.</h1>
+    <p class="tagline">
+      A lightweight coordination layer that lives outside your repos. Teams plan together, then each team
+      picks up their slice when they're ready — inside the repo they already know, with the agent they already use.
+    </p>
+  </header>
+
+  <!-- ============= SIDEBAR ============= -->
+  <aside class="controls">
+
+    <div class="control-group">
+      <div class="control-label">
+        Walkthrough
+        <span class="control-hint">6 steps</span>
+      </div>
+      <div class="stepper" id="stepper"></div>
+    </div>
+
+    <div class="control-group">
+      <div class="control-label">Repos in this scenario</div>
+      <div class="segmented" id="repoCountSeg">
+        <button class="seg" data-val="1">1 repo</button>
+        <button class="seg active" data-val="2">2 repos</button>
+        <button class="seg" data-val="3">3 repos</button>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <div class="control-label">Agent surface</div>
+      <div class="segmented" id="agentSeg">
+        <button class="seg active" data-val="planning">Planning</button>
+        <button class="seg" data-val="codex">Codex</button>
+        <button class="seg" data-val="copilot">Copilot</button>
+      </div>
+    </div>
+
+    <div class="scenario-note" id="scenarioNote">
+      <strong>Scenario:</strong> The payments team is revamping checkout.
+      It touches the <strong>api</strong> and <strong>web</strong> repos and needs coordinated rollout notes.
+    </div>
+
+  </aside>
+
+  <!-- ============= STAGE ============= -->
+  <section class="stage">
+
+    <div class="stage-head">
+      <div>
+        <h2 id="stageTitle">Register the repos that will move together</h2>
+        <p class="stage-lead" id="stageLead">The workspace is a managed directory, separate from any one repo. It tracks aliases and owners for each repo it coordinates.</p>
+      </div>
+      <span class="pill" id="stepPill">Step 1 of 6</span>
+    </div>
+
+    <div class="diagram-wrap">
+      <svg id="diagram" viewBox="0 0 900 360" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <filter id="soften" x="-2%" y="-2%" width="104%" height="104%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="0.3" />
+          </filter>
+          <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#5e574a"></path>
+          </marker>
+          <marker id="arrow-ws" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#2d5b7a"></path>
+          </marker>
+          <marker id="arrow-handoff" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#a86632"></path>
+          </marker>
+        </defs>
+        <g id="diagram-content"></g>
+      </svg>
+    </div>
+
+    <div class="stage-bottom">
+      <div class="terminal" id="terminal">
+        <div class="tm-head">
+          <span class="tm-dot r"></span>
+          <span class="tm-dot y"></span>
+          <span class="tm-dot g"></span>
+          <span class="tm-label" id="termLabel">~/workspaces/acme-payments</span>
+        </div>
+        <div id="termBody"></div>
+      </div>
+
+      <div class="artifacts">
+        <h3 id="artifactsTitle">What exists after this step</h3>
+        <div id="artifactsList"></div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ============= FOOTER ============= -->
+  <footer class="prompt-out">
+    <div class="prompt-text" id="promptText"></div>
+    <div class="prompt-actions">
+      <button class="btn" id="resetBtn">Reset</button>
+      <button class="btn primary" id="copyBtn">Copy scenario</button>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+// =========================================================
+// State
+// =========================================================
+const DEFAULTS = { step: 1, repos: 2, agent: "planning" };
+const state = { ...DEFAULTS };
+
+const REPOS_LIB = [
+  { alias: "api",  name: "platform-api",  owner: "Platform Team",  handoff: "Apply once the contract is frozen.",        color: "api"  },
+  { alias: "web",  name: "checkout-web",  owner: "Frontend Team",  handoff: "Pick up when API slice is applied.",          color: "web"  },
+  { alias: "docs", name: "docs-site",     owner: "Docs Team",      handoff: "Document the rollout after implementation.", color: "docs" }
+];
+
+const STEPS = [
+  { n: 1, title: "Register repos",       sub: "Set up the workspace & aliases." },
+  { n: 2, title: "Create a change",      sub: "Plan the cross-repo work centrally." },
+  { n: 3, title: "Open for an agent",    sub: "Surface the plan to your coding agent." },
+  { n: 4, title: "Check status",         sub: "The coordination control plane." },
+  { n: 5, title: "Apply → repo",         sub: "Hand off execution into a repo." },
+  { n: 6, title: "Archive",              sub: "Close out the cross-repo change." }
+];
+
+// =========================================================
+// Initial render
+// =========================================================
+buildStepper();
+bindSegmented("repoCountSeg", (v) => { state.repos = parseInt(v, 10); renderAll(); });
+bindSegmented("agentSeg",     (v) => { state.agent = v; renderAll(); });
+document.getElementById("copyBtn").addEventListener("click", onCopy);
+document.getElementById("resetBtn").addEventListener("click", () => {
+  Object.assign(state, DEFAULTS);
+  document.querySelectorAll("#repoCountSeg .seg").forEach(b => b.classList.toggle("active", b.dataset.val === String(state.repos)));
+  document.querySelectorAll("#agentSeg .seg").forEach(b => b.classList.toggle("active", b.dataset.val === state.agent));
+  renderAll();
+});
+
+renderAll();
+
+// =========================================================
+// Helpers
+// =========================================================
+function bindSegmented(id, onChange) {
+  const el = document.getElementById(id);
+  el.addEventListener("click", (e) => {
+    const b = e.target.closest("button.seg");
+    if (!b) return;
+    el.querySelectorAll(".seg").forEach(x => x.classList.remove("active"));
+    b.classList.add("active");
+    onChange(b.dataset.val);
+  });
+}
+
+function buildStepper() {
+  const root = document.getElementById("stepper");
+  root.innerHTML = STEPS.map(s => `
+    <button class="step" data-n="${s.n}">
+      <span class="step-num">${s.n}</span>
+      <span class="step-body">
+        <span class="step-title">${s.title}</span>
+        <span class="step-sub">${s.sub}</span>
+      </span>
+    </button>
+  `).join("");
+  root.addEventListener("click", (e) => {
+    const b = e.target.closest(".step");
+    if (!b) return;
+    state.step = parseInt(b.dataset.n, 10);
+    renderAll();
+  });
+}
+
+function renderStepper() {
+  document.querySelectorAll(".step").forEach(b => {
+    const n = parseInt(b.dataset.n, 10);
+    b.classList.toggle("active", n === state.step);
+    b.classList.toggle("done", n < state.step);
+  });
+}
+
+function activeRepos() {
+  return REPOS_LIB.slice(0, state.repos);
+}
+
+// =========================================================
+// Step copy
+// =========================================================
+function stepCopy() {
+  const repos = activeRepos();
+  const aliases = repos.map(r => r.alias).join(", ");
+  switch (state.step) {
+    case 1: return {
+      title: "Register the repos that will move together",
+      lead:  "The workspace is a managed directory, separate from any one repo. It records aliases, owners, and handoff notes for each repo it coordinates.",
+      artifactsTitle: "What the workspace looks like",
+    };
+    case 2: return {
+      title: "Create a change with explicit repo targets",
+      lead:  "A workspace change owns the shared planning artifacts. Each targeted repo gets a lightweight draft slice — but nothing is materialized inside the repos yet.",
+      artifactsTitle: "Files added to the workspace",
+    };
+    case 3: return {
+      title: `Open the change for ${agentLabel()}`,
+      lead:  agentLead(),
+      artifactsTitle: "Agent surface artifacts",
+    };
+    case 4: return {
+      title: "Status is the coordination control plane",
+      lead:  "One command gives you target-by-target progress, owners, handoff notes, and the recommended next step — regardless of who's driving which repo.",
+      artifactsTitle: `Status for change · across ${state.repos} repo${state.repos === 1 ? "" : "s"}`,
+    };
+    case 5: return {
+      title: `Hand off execution into ${repos[0].alias}`,
+      lead:  `Apply materializes the ${repos[0].alias} slice inside the real ${repos[0].name} repo. From here, the team works in their repo with their tools. The workspace keeps tracking coordination.`,
+      artifactsTitle: `What now exists in ${repos[0].name}`,
+    };
+    case 6: return {
+      title: "Archive — the cross-repo change is done",
+      lead:  "Each repo archives its own slice the normal way. The workspace archive is the explicit signal that the coordinated change is complete across all targets.",
+      artifactsTitle: "Archive state",
+    };
+  }
+}
+
+function agentLabel() {
+  return { planning: "planning only", codex: "Codex", copilot: "GitHub Copilot" }[state.agent];
+}
+function agentLead() {
+  if (state.agent === "planning") return "Planning-only opens the coordination root with no repos attached — right when you want to think at the workspace layer before touching any code.";
+  if (state.agent === "codex")    return "Codex mode writes a scoped prompt surface that points at the workspace root plus just the targeted repos. Non-targeted repos stay out of view.";
+  if (state.agent === "copilot")  return "Copilot mode generates a real VS Code multi-root workspace file — the workspace plus only the targeted repos — so the agent has exactly the right scope.";
+}
+
+// =========================================================
+// Master render
+// =========================================================
+function renderAll() {
+  renderStepper();
+  const c = stepCopy();
+  document.getElementById("stageTitle").textContent = c.title;
+  document.getElementById("stageLead").textContent  = c.lead;
+  document.getElementById("stepPill").textContent   = `Step ${state.step} of 6`;
+  document.getElementById("artifactsTitle").textContent = c.artifactsTitle;
+  renderDiagram();
+  renderTerminal();
+  renderArtifacts();
+  renderPrompt();
+}
+
+// =========================================================
+// Diagram (SVG)
+// =========================================================
+function renderDiagram() {
+  const g = document.getElementById("diagram-content");
+  const repos = activeRepos();
+  const wsX = 450 - 140;        // workspace x
+  const wsY = 20;
+  const wsW = 280, wsH = 140;
+  const repoW = 180, repoH = 130;
+  const repoY = 210;
+  const totalW = repos.length * repoW + (repos.length - 1) * 36;
+  const startX = 450 - totalW / 2;
+
+  let svg = "";
+
+  // --- Workspace node
+  const wsFiles = ["📄 .openspec/workspace.yaml", "📄 .openspec/local.yaml"];
+  if (state.step >= 2) {
+    wsFiles.push("📁 changes/checkout-revamp/");
+    wsFiles.push("   proposal.md   design.md");
+    wsFiles.push("   tasks/coordination.md");
+    wsFiles.push("   targets/ " + repos.map(r => r.alias).join(", "));
+  }
+  if (state.step >= 3 && state.agent !== "planning") {
+    wsFiles.push(state.agent === "codex"
+      ? "📝 .openspec/workspace-open/codex/…"
+      : "📝 .github/prompts/opsx-workspace-open.prompt.md");
+    if (state.agent === "copilot") {
+      wsFiles.push("🪟 …/checkout-revamp.code-workspace");
+    }
+  }
+
+  const wsClasses = "node-box workspace" + (state.step >= 6 ? " archived" : "");
+  svg += `
+    <rect x="${wsX}" y="${wsY}" width="${wsW}" height="${wsH}" rx="12" class="${wsClasses}"/>
+    <text x="${wsX + 16}" y="${wsY + 22}" class="node-kind">Workspace · coordination root</text>
+    <text x="${wsX + 16}" y="${wsY + 42}" class="node-label">acme-payments</text>
+  `;
+  wsFiles.slice(0, 5).forEach((f, i) => {
+    const cls = state.step === 2 && i >= 2 ? "node-file hi" : "node-file";
+    svg += `<text x="${wsX + 16}" y="${wsY + 62 + i * 14}" class="${cls}">${escapeHTML(f)}</text>`;
+  });
+
+  // Status badge on workspace
+  if (state.step >= 4) {
+    const badge = state.step >= 6 ? "ARCHIVED" : (state.step === 5 ? "IN PROGRESS" : "PLANNING");
+    const bClass = state.step >= 6 ? "ok" : "ws";
+    const bw = badge.length * 6.5 + 14;
+    svg += `
+      <rect x="${wsX + wsW - bw - 12}" y="${wsY + 12}" width="${bw}" height="18" rx="9" class="badge-bg ${bClass}"/>
+      <text x="${wsX + wsW - bw/2 - 12}" y="${wsY + 24.5}" text-anchor="middle" class="badge-text ${bClass}">${badge}</text>
+    `;
+  }
+
+  // --- Repo nodes
+  repos.forEach((r, i) => {
+    const x = startX + i * (repoW + 36);
+    const applied = state.step >= 5 && i === 0;
+    const archived = state.step >= 6;
+    let cls = "node-box repo";
+    if (applied) cls += " applied";
+    if (archived) cls += " archived";
+
+    svg += `
+      <rect x="${x}" y="${repoY}" width="${repoW}" height="${repoH}" rx="12" class="${cls}"/>
+      <text x="${x + 14}" y="${repoY + 20}" class="node-kind">Repo · alias "${r.alias}"</text>
+      <text x="${x + 14}" y="${repoY + 39}" class="node-label">${r.name}</text>
+      <text x="${x + 14}" y="${repoY + 55}" class="node-meta">${r.owner}</text>
+    `;
+
+    const files = ["📁 openspec/"];
+    if (applied) {
+      files.push("  changes/checkout-revamp/");
+      files.push("    proposal.md  tasks.md");
+      if (archived) files.push("  archive/checkout-revamp/");
+    } else if (archived) {
+      files.push("  archive/checkout-revamp/");
+    } else {
+      files.push("  (no change materialized yet)");
+    }
+
+    files.forEach((f, j) => {
+      const cls = (applied || archived) && j >= 1 ? "node-file hi-repo" : "node-file";
+      svg += `<text x="${x + 14}" y="${repoY + 73 + j * 13}" class="${cls}">${escapeHTML(f)}</text>`;
+    });
+
+    // Per-repo badge
+    if (state.step >= 4) {
+      let label, lcls;
+      if (archived)      { label = "ARCHIVED";  lcls = "ok"; }
+      else if (applied)  { label = "APPLIED";   lcls = ""; }
+      else if (state.step >= 2) { label = "DRAFT"; lcls = "ws"; }
+      else label = null;
+
+      if (label) {
+        const bw = label.length * 6.5 + 14;
+        svg += `
+          <rect x="${x + repoW - bw - 10}" y="${repoY + 10}" width="${bw}" height="16" rx="8" class="badge-bg ${lcls}"/>
+          <text x="${x + repoW - bw/2 - 10}" y="${repoY + 21.5}" text-anchor="middle" class="badge-text ${lcls}">${label}</text>
+        `;
+      }
+    }
+
+    // Edge workspace → repo
+    const ex1 = wsX + wsW / 2;
+    const ey1 = wsY + wsH;
+    const ex2 = x + repoW / 2;
+    const ey2 = repoY;
+    const cy = (ey1 + ey2) / 2;
+
+    let edgeCls = "edge";
+    let marker = "url(#arrow)";
+    if (state.step >= 5 && i === 0) {
+      edgeCls = "edge applied";
+      marker = "url(#arrow-handoff)";
+      if (state.step === 5) edgeCls += " flowing";
+    } else if (state.step === 2 || state.step === 3) {
+      edgeCls = "edge active";
+      marker = "url(#arrow-ws)";
+    }
+
+    svg += `
+      <path d="M ${ex1} ${ey1} C ${ex1} ${cy}, ${ex2} ${cy}, ${ex2} ${ey2}"
+            class="${edgeCls}" marker-end="${marker}"/>
+    `;
+
+    // Edge label: handoff note (short)
+    const short = r.handoff.length > 34 ? r.handoff.slice(0, 32) + "…" : r.handoff;
+    const labelY = cy + 4;
+    if (state.step >= 2) {
+      svg += `
+        <rect x="${ex2 - 70}" y="${labelY - 11}" width="140" height="15" rx="7"
+              fill="var(--bg)" stroke="var(--border)" stroke-width="1"/>
+        <text x="${ex2}" y="${labelY}" text-anchor="middle" class="edge-label">${escapeHTML(short)}</text>
+      `;
+    }
+  });
+
+  g.innerHTML = svg;
+}
+
+function escapeHTML(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// =========================================================
+// Terminal
+// =========================================================
+function renderTerminal() {
+  const repos = activeRepos();
+  const aliases = repos.map(r => r.alias).join(",");
+  const body = document.getElementById("termBody");
+  const lines = [];
+
+  const P = (cmd) => `<div class="line"><span class="prompt-sym">$ </span><span class="cmd">${cmd}</span></div>`;
+  const O = (text, cls = "out") => `<div class="line"><span class="${cls}">${text}</span></div>`;
+
+  if (state.step === 1) {
+    lines.push(P(`openspec workspace setup`));
+    lines.push(O(`  Workspace name: <span class="val">acme-payments</span>`, "dim"));
+    repos.forEach(r => lines.push(O(`  Register repo:  <span class="val">${r.alias}</span> <span class="dim">→ ~/src/${r.name}</span>`, "dim")));
+    lines.push(O(`✓ created ~/.local/share/openspec/workspaces/acme-payments`, "ok"));
+    lines.push(`<div class="line">&nbsp;</div>`);
+    lines.push(P(`openspec workspace doctor`));
+    lines.push(O(`✓ ${repos.length} repo${repos.length === 1 ? "" : "s"} resolved · registry clean`, "ok"));
+  }
+  else if (state.step === 2) {
+    lines.push(P(`openspec new change checkout-revamp <span class="flag">--targets</span> <span class="val">${aliases}</span>`));
+    lines.push(O(`✓ created changes/checkout-revamp/`, "ok"));
+    lines.push(O(`  ├─ proposal.md   design.md`, "dim"));
+    lines.push(O(`  ├─ tasks/coordination.md`, "dim"));
+    lines.push(O(`  └─ targets/`, "dim"));
+    repos.forEach(r => lines.push(O(`     └─ <span class="val">${r.alias}/</span> <span class="dim">(draft slice · ${r.owner})</span>`, "dim")));
+    lines.push(`<div class="line">&nbsp;</div>`);
+    lines.push(O(`<span class="warn">note:</span> no repo has been materialized yet — planning only`, "warn"));
+  }
+  else if (state.step === 3) {
+    if (state.agent === "planning") {
+      lines.push(P(`openspec workspace open`));
+      lines.push(O(`  Mode: planning-only`, "dim"));
+      lines.push(O(`  Attached repos: <span class="val">none</span>`, "dim"));
+      lines.push(O(`✓ coordination root opened`, "ok"));
+      lines.push(O(`  → use when you want to think at the workspace layer`, "dim"));
+    } else if (state.agent === "codex") {
+      lines.push(P(`openspec workspace open <span class="flag">--change</span> <span class="val">checkout-revamp</span> <span class="flag">--agent</span> <span class="val">codex</span>`));
+      lines.push(O(`✓ Codex prompt surface prepared`, "ok"));
+      lines.push(O(`  prompt: .openspec/workspace-open/codex/checkout-revamp.md`, "dim"));
+      lines.push(O(`  scope:  workspace root + ${aliases}`, "dim"));
+      lines.push(O(`  non-targeted repos excluded`, "dim"));
+    } else {
+      lines.push(P(`openspec workspace open <span class="flag">--change</span> <span class="val">checkout-revamp</span> <span class="flag">--agent</span> <span class="val">github-copilot</span>`));
+      lines.push(O(`✓ VS Code workspace generated`, "ok"));
+      lines.push(O(`  prompt: .github/prompts/opsx-workspace-open.prompt.md`, "dim"));
+      lines.push(O(`  file:   .openspec/workspace-open/github-copilot/`, "dim"));
+      lines.push(O(`          checkout-revamp.code-workspace`, "dim"));
+      lines.push(`<div class="line">&nbsp;</div>`);
+      lines.push(P(`code .openspec/workspace-open/github-copilot/checkout-revamp.code-workspace`));
+    }
+  }
+  else if (state.step === 4) {
+    lines.push(P(`openspec status <span class="flag">--change</span> <span class="val">checkout-revamp</span>`));
+    lines.push(O(``));
+    lines.push(O(`<span class="ok">●</span> checkout-revamp  <span class="dim">workspace · acme-payments</span>`));
+    lines.push(O(``));
+    repos.forEach((r, i) => {
+      lines.push(O(`  ${i === 0 ? "├─" : (i === repos.length - 1 ? "└─" : "├─")} <span class="val">${r.alias}</span>  <span class="dim">${r.owner}</span>  <span class="warn">draft</span>`));
+      lines.push(O(`  ${i === repos.length - 1 ? "  " : "│ "}     handoff: <span class="dim">${r.handoff}</span>`));
+    });
+    lines.push(O(``));
+    lines.push(O(`next: <span class="ok">openspec apply --change checkout-revamp --repo ${repos[0].alias}</span>`, "dim"));
+  }
+  else if (state.step === 5) {
+    const r = repos[0];
+    lines.push(P(`openspec apply <span class="flag">--change</span> <span class="val">checkout-revamp</span> <span class="flag">--repo</span> <span class="val">${r.alias}</span>`));
+    lines.push(O(`✓ materialized slice into <span class="val">~/src/${r.name}</span>`, "ok"));
+    lines.push(O(`  created openspec/changes/checkout-revamp/`, "dim"));
+    lines.push(O(`  ├─ proposal.md`, "dim"));
+    lines.push(O(`  ├─ design.md`, "dim"));
+    lines.push(O(`  └─ tasks.md`, "dim"));
+    lines.push(`<div class="line">&nbsp;</div>`);
+    lines.push(O(`→ execution continues inside the repo, with the ${r.owner}'s tools`, "dim"));
+  }
+  else if (state.step === 6) {
+    const r = repos[0];
+    lines.push(O(`<span class="dim"># in the repo</span>`, "dim"));
+    lines.push(P(`cd ~/src/${r.name}`));
+    lines.push(P(`openspec archive checkout-revamp <span class="flag">--yes</span>`));
+    lines.push(O(`✓ repo-local change archived`, "ok"));
+    lines.push(`<div class="line">&nbsp;</div>`);
+    lines.push(O(`<span class="dim"># back in the workspace</span>`, "dim"));
+    lines.push(P(`openspec archive checkout-revamp <span class="flag">--workspace</span>`));
+    lines.push(O(`✓ cross-repo change closed · ${repos.length} target${repos.length === 1 ? "" : "s"} complete`, "ok"));
+  }
+
+  body.innerHTML = lines.join("");
+}
+
+// =========================================================
+// Artifacts sidebar
+// =========================================================
+function renderArtifacts() {
+  const host = document.getElementById("artifactsList");
+  const repos = activeRepos();
+  const rows = [];
+
+  const row = ({ path, desc, isNew, owner }) => `
+    <div class="artifact ${isNew ? "new" : ""}">
+      <span class="artifact-icon">${isNew ? "✦" : "·"}</span>
+      <div class="artifact-body">
+        <div class="artifact-path">${escapeHTML(path)}${owner ? `<span class="artifact-owner">${owner}</span>` : ""}</div>
+        ${desc ? `<div class="artifact-desc">${desc}</div>` : ""}
+      </div>
+    </div>
+  `;
+
+  if (state.step === 1) {
+    rows.push(row({ path: ".openspec/workspace.yaml", desc: "Shared — aliases, owners, handoff notes", isNew: true }));
+    rows.push(row({ path: ".openspec/local.yaml",     desc: "Machine-local — resolved repo paths",     isNew: true }));
+    rows.push(row({ path: "changes/",                 desc: "Empty — no changes yet" }));
+  }
+  else if (state.step === 2) {
+    rows.push(row({ path: "changes/checkout-revamp/proposal.md", desc: "Shared proposal", isNew: true }));
+    rows.push(row({ path: "changes/checkout-revamp/design.md",   desc: "Cross-repo design", isNew: true }));
+    rows.push(row({ path: "changes/checkout-revamp/tasks/coordination.md", desc: "Shared coordination tasks", isNew: true }));
+    repos.forEach(r => rows.push(row({ path: `changes/checkout-revamp/targets/${r.alias}/`, desc: "Draft slice · not materialized in repo", isNew: true, owner: r.alias })));
+  }
+  else if (state.step === 3) {
+    if (state.agent === "planning") {
+      rows.push(row({ path: "(no artifacts written)", desc: "Planning-only opens the coordination root" }));
+    } else if (state.agent === "codex") {
+      rows.push(row({ path: ".openspec/workspace-open/codex/checkout-revamp.md", desc: "Scoped prompt surface for Codex", isNew: true }));
+    } else {
+      rows.push(row({ path: ".github/prompts/opsx-workspace-open.prompt.md", desc: "Copilot prompt", isNew: true }));
+      rows.push(row({ path: ".openspec/workspace-open/github-copilot/checkout-revamp.code-workspace", desc: "VS Code multi-root — workspace + only targeted repos", isNew: true }));
+    }
+  }
+  else if (state.step === 4) {
+    repos.forEach(r => rows.push(row({
+      path: `${r.alias} — draft`,
+      desc: `${r.owner} · ${r.handoff}`,
+      owner: r.alias
+    })));
+    rows.push(row({ path: `next: apply --repo ${repos[0].alias}`, desc: "Recommended next step" }));
+  }
+  else if (state.step === 5) {
+    const r = repos[0];
+    rows.push(row({ path: `~/src/${r.name}/openspec/changes/checkout-revamp/proposal.md`, desc: "Materialized inside repo", isNew: true, owner: r.alias }));
+    rows.push(row({ path: `~/src/${r.name}/openspec/changes/checkout-revamp/tasks.md`, desc: "Execution happens here now", isNew: true, owner: r.alias }));
+    rows.push(row({ path: "workspace: status still tracks coordination", desc: "Other repos remain drafts" }));
+  }
+  else if (state.step === 6) {
+    const r = repos[0];
+    rows.push(row({ path: `${r.name}/openspec/archive/checkout-revamp/`, desc: "Repo-local archive", isNew: true }));
+    rows.push(row({ path: `workspace · archive/checkout-revamp/`, desc: "Cross-repo archive marker", isNew: true }));
+  }
+
+  host.innerHTML = rows.join("");
+}
+
+// =========================================================
+// Prompt / scenario description at bottom
+// =========================================================
+function renderPrompt() {
+  const repos = activeRepos();
+  const p = document.getElementById("promptText");
+  const aliasStr = repos.map(r => `<span class="mono">${r.alias}</span>`).join(", ");
+  const repoNames = repos.map(r => r.name).join(", ");
+
+  let body;
+  switch (state.step) {
+    case 1: body = `A managed workspace called <em>acme-payments</em> sits outside ${repos.length === 1 ? "the" : "all"} ${repos.length} repo${repos.length === 1 ? "" : "s"} (${aliasStr}). It holds only the coordination metadata — shared owners, handoff notes, and resolved paths. Nothing inside ${repoNames} has changed.`; break;
+    case 2: body = `The <em>checkout-revamp</em> change is now planned at the workspace layer — a shared proposal and design, plus a draft slice for each targeted repo (${aliasStr}). None of the repos have a change materialized yet. Teams can review the shared plan before any repo commits to executing.`; break;
+    case 3: body = state.agent === "planning"
+      ? `The workspace is opened in <em>planning-only</em> mode — the coordination root with no repos attached. Right when you want to think at the workspace layer before touching any code.`
+      : state.agent === "codex"
+        ? `<em>Codex</em> gets a scoped prompt surface that points at the workspace root plus just the targeted repos (${aliasStr}). Other repos are out of scope so the agent can't drift into them.`
+        : `A real VS Code multi-root <span class="mono">.code-workspace</span> file is generated for <em>GitHub Copilot</em> — workspace + only ${aliasStr}. Open it in VS Code and Copilot is scoped correctly automatically.`;
+      break;
+    case 4: body = `<em>Status</em> is the one-command coordination view: every target, its owner, its handoff note, and the recommended next step. This is how an engineering lead re-enters an in-flight cross-repo change weeks later.`; break;
+    case 5: body = `<em>Apply</em> is the handoff. The <span class="mono">${repos[0].alias}</span> slice is now materialized inside <span class="mono">${repos[0].name}</span>, where the ${repos[0].owner} executes with their normal tools. The workspace still tracks coordination; other repos stay in draft until their teams are ready.`; break;
+    case 6: body = `Each repo archives its own slice. The <em>workspace archive</em> is the explicit signal that the cross-repo change is done across all ${repos.length} target${repos.length === 1 ? "" : "s"}. The coordination record remains for audit; the work itself is complete.`; break;
+  }
+  p.innerHTML = body;
+}
+
+// =========================================================
+// Copy
+// =========================================================
+function onCopy() {
+  const repos = activeRepos();
+  const aliases = repos.map(r => r.alias).join(",");
+  const lines = [
+    `# OpenSpec Workspace — scenario`,
+    `# step:       ${state.step} of 6 — ${STEPS[state.step-1].title}`,
+    `# repos:      ${repos.map(r => `${r.alias}=${r.name}`).join(", ")}`,
+    `# agent:      ${state.agent}`,
+    ``,
+    `openspec workspace setup          # create workspace + register repos`,
+    `openspec new change checkout-revamp --targets ${aliases}`,
+  ];
+  if (state.agent !== "planning") {
+    lines.push(`openspec workspace open --change checkout-revamp --agent ${state.agent}`);
+  } else {
+    lines.push(`openspec workspace open           # planning-only`);
+  }
+  lines.push(`openspec status --change checkout-revamp`);
+  lines.push(`openspec apply --change checkout-revamp --repo ${repos[0].alias}`);
+  lines.push(`openspec archive checkout-revamp --workspace`);
+
+  const text = lines.join("\n");
+  navigator.clipboard.writeText(text).then(() => {
+    const b = document.getElementById("copyBtn");
+    const old = b.textContent;
+    b.textContent = "Copied ✓";
+    b.classList.add("copied");
+    setTimeout(() => { b.textContent = old; b.classList.remove("copied"); }, 1600);
+  });
+}
+</script>
+</body>
+</html>

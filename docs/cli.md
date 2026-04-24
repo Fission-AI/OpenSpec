@@ -11,6 +11,7 @@ The OpenSpec CLI (`openspec`) provides terminal commands for project setup, vali
 | **Validation** | `validate` | Check changes and specs for issues |
 | **Lifecycle** | `archive` | Finalize completed changes |
 | **Workflow** | `status`, `instructions`, `templates`, `schemas` | Artifact-driven workflow support |
+| **Workspace** | `workspace setup`, `workspace create`, `workspace add-repo`, `workspace update-repo`, `workspace targets`, `workspace doctor`, `workspace open` | Coordinate cross-repo planning without collapsing repo ownership |
 | **Schemas** | `schema init`, `schema fork`, `schema validate`, `schema which` | Create and manage custom workflows |
 | **Config** | `config` | View and modify settings |
 | **Utility** | `feedback`, `completion` | Feedback and shell integration |
@@ -591,6 +592,45 @@ Available schemas:
 
 ---
 
+## Workspace Commands
+
+Use workspace mode when one change spans multiple repos or you need a neutral planning home for cross-repo coordination. Stay repo-local when one repo owns the full change end to end.
+
+For the supported v0 flow, re-entry path, and owner or handoff guidance, see [Workspace Mode](workspace.md).
+
+Start with the guided setup path unless you already know the exact workspace shape you want:
+
+- `openspec workspace setup`
+
+The setup wizard is interactive and asks for:
+
+- workspace name
+- repo paths
+- repo aliases
+- optional owner or handoff notes
+- whether to open the planning surface immediately
+
+The current workspace command group includes:
+
+- `openspec workspace setup`
+- `openspec workspace create <name>`
+- `openspec workspace add-repo <alias> <path> [--owner ...] [--handoff ...]`
+- `openspec workspace update-repo <alias> [--owner ...] [--handoff ...]`
+- `openspec workspace targets <id> [--add <a,b,c>] [--remove <x,y,z>]`
+- `openspec workspace doctor`
+- `openspec workspace open [--change <id>] [--name <workspace>] [--agent <claude|codex|github-copilot>] [--prepare-only]`
+
+`openspec workspace targets` only mutates workspace-owned planning state. If the same change ID already exists or was already archived in a target repo, the command fails instead of silently rewriting the target set around repo-local authority handoff.
+
+Workspace planning still uses the normal workflow commands around that command group:
+
+- `openspec new change <id> --targets <a,b,c>`
+- `openspec apply --change <id> --repo <alias>`
+- `openspec status --change <id>`
+- `openspec archive <id> --workspace`
+
+---
+
 ## Schema Commands
 
 Commands for creating and managing custom workflow schemas.
@@ -932,5 +972,6 @@ openspec completion uninstall
 
 - [Commands](commands.md) - AI slash commands (`/opsx:propose`, `/opsx:apply`, etc.)
 - [Workflows](workflows.md) - Common patterns and when to use each command
+- [Workspace Mode](workspace.md) - When to use cross-repo workspaces and the supported CLI flow
 - [Customization](customization.md) - Create custom schemas and templates
 - [Getting Started](getting-started.md) - First-time setup guide

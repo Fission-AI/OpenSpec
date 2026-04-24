@@ -5,7 +5,7 @@
  * Similar pattern to existing SlashCommandRegistry in the codebase.
  */
 
-import type { ToolCommandAdapter } from './types.js';
+import type { ToolCommandAdapter, ToolCommandAdapterCapabilities } from './types.js';
 import { amazonQAdapter } from './adapters/amazon-q.js';
 import { antigravityAdapter } from './adapters/antigravity.js';
 import { auggieAdapter } from './adapters/auggie.js';
@@ -95,11 +95,32 @@ export class CommandAdapterRegistry {
   }
 
   /**
+   * Get all registered adapters that advertise a specific capability.
+   * @param capability - Capability flag name
+   * @returns Array of adapters supporting the capability
+   */
+  static getByCapability(capability: keyof ToolCommandAdapterCapabilities): ToolCommandAdapter[] {
+    return CommandAdapterRegistry.getAll().filter(
+      (adapter) => adapter.capabilities?.[capability] === true
+    );
+  }
+
+  /**
    * Check if an adapter is registered for a tool.
    * @param toolId - The tool identifier
    * @returns True if an adapter exists
    */
   static has(toolId: string): boolean {
     return CommandAdapterRegistry.adapters.has(toolId);
+  }
+
+  /**
+   * Check whether a registered adapter advertises a specific capability.
+   * @param toolId - The tool identifier
+   * @param capability - Capability flag name
+   * @returns True if the adapter exists and supports the capability
+   */
+  static supports(toolId: string, capability: keyof ToolCommandAdapterCapabilities): boolean {
+    return CommandAdapterRegistry.get(toolId)?.capabilities?.[capability] === true;
   }
 }
