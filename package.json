@@ -63,6 +63,7 @@
     "@changesets/changelog-github": "^0.5.2",
     "@changesets/cli": "^2.27.7",
     "@types/node": "^24.2.0",
+    "@vitest/coverage-v8": "3.2.4",
     "@vitest/ui": "^3.2.4",
     "eslint": "^9.39.2",
     "typescript": "^5.9.3",
