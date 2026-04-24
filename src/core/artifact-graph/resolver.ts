@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getGlobalDataDir } from '../global-config.js';
-import { parseSchema, SchemaValidationError } from './schema.js';
+import { parseSchema, SchemaValidationError, validateNoCycles } from './schema.js';
 import type { SchemaYaml } from './types.js';
 
 /**
@@ -133,8 +133,9 @@ export function resolveSchema(name: string, projectRoot?: string): SchemaYaml {
     );
   }
 
+  let schema: SchemaYaml;
   try {
-    return parseSchema(content);
+    schema = parseSchema(content);
   } catch (err) {
     if (err instanceof SchemaValidationError) {
       throw new SchemaLoadError(
@@ -150,6 +151,137 @@ export function resolveSchema(name: string, projectRoot?: string): SchemaYaml {
       parseError
     );
   }
+
+  // Resolve inheritance if extends is set
+  if (schema.extends) {
+    schema = mergeWithParent(schema, projectRoot, schemaPath);
+  }
+
+  return schema;
+}
+
+/**
+ * Merges a child schema with its parent, applying single-level inheritance.
+ *
+ * Merge rules:
+ * - Child artifacts override matching parent artifacts by ID (field-level merge,
+ *   child fields take precedence).
+ * - Child artifacts with IDs not in the parent are appended after inherited ones.
+ * - The child's `apply` section (if present) replaces the parent's entirely.
+ * - Only one level of inheritance is supported; the parent must not also extend.
+ *
+ * @param child - The parsed child schema (with extends set)
+ * @param projectRoot - Project root for schema resolution
+ * @param childPath - Path to child schema file (for error messages)
+ */
+function mergeWithParent(
+  child: SchemaYaml,
+  projectRoot: string | undefined,
+  childPath: string
+): SchemaYaml {
+  const parentName = child.extends!;
+
+  // Load the raw parent schema file to check for transitive extends BEFORE merging.
+  // We can't use resolveSchema() here because it flattens extends away — reading
+  // the raw file is the only way to catch grandparent chains.
+  const parentDir = getSchemaDir(parentName, projectRoot);
+  if (!parentDir) {
+    const availableSchemas = listSchemas(projectRoot);
+    throw new SchemaLoadError(
+      `Schema '${child.name}' extends '${parentName}', but '${parentName}' was not found. ` +
+        `Available schemas: ${availableSchemas.join(', ')}`,
+      childPath
+    );
+  }
+
+  const parentSchemaPath = path.join(parentDir, 'schema.yaml');
+  let rawParentContent: string;
+  try {
+    rawParentContent = fs.readFileSync(parentSchemaPath, 'utf-8');
+  } catch (err) {
+    const ioError = err instanceof Error ? err : new Error(String(err));
+    throw new SchemaLoadError(
+      `Failed to read parent schema at '${parentSchemaPath}': ${ioError.message}`,
+      childPath,
+      ioError
+    );
+  }
+
+  // Parse raw parent without inheritance resolution to detect transitive extends
+  let rawParent: SchemaYaml;
+  try {
+    rawParent = parseSchema(rawParentContent);
+  } catch (err) {
+    const parseError = err instanceof Error ? err : new Error(String(err));
+    throw new SchemaLoadError(
+      `Parent schema '${parentName}' is invalid: ${parseError.message}`,
+      parentSchemaPath,
+      parseError
+    );
+  }
+
+  if (rawParent.extends) {
+    throw new SchemaLoadError(
+      `Schema '${child.name}' extends '${parentName}', but '${parentName}' also uses extends. ` +
+        `Only one level of inheritance is supported.`,
+      childPath
+    );
+  }
+
+  // Merge artifacts: parent as base, child overrides by ID.
+  // Child-only artifact IDs are validated against the merged set after this point.
+  const mergedArtifacts = rawParent.artifacts.map(parentArtifact => {
+    const override = child.artifacts.find(a => a.id === parentArtifact.id);
+    // Field-level merge: start with parent, apply only the fields the child explicitly set
+    return override ? { ...parentArtifact, ...override } : parentArtifact;
+  });
+
+  // Append artifacts defined in child but not present in parent
+  const newArtifacts = child.artifacts.filter(
+    a => !rawParent.artifacts.find(p => p.id === a.id)
+  );
+
+  const merged: SchemaYaml = {
+    // Parent fields as base
+    ...rawParent,
+    // Child top-level fields override (name, version, description)
+    ...child,
+    // extends is flattened out — the merged result has no extends
+    extends: undefined,
+    artifacts: [...mergedArtifacts, ...newArtifacts],
+    // Child's apply section fully replaces parent's if present
+    apply: child.apply ?? rawParent.apply,
+  };
+
+  // Re-validate requires references against the full merged artifact set.
+  // This is necessary because child artifacts may reference parent-provided IDs.
+  const allIds = new Set(merged.artifacts.map(a => a.id));
+  for (const artifact of merged.artifacts) {
+    for (const req of artifact.requires) {
+      if (!allIds.has(req)) {
+        throw new SchemaLoadError(
+          `Schema '${child.name}': artifact '${artifact.id}' requires '${req}', ` +
+            `which does not exist in the merged schema.`,
+          childPath
+        );
+      }
+    }
+  }
+
+  // Validate there are no cycles in the merged artifact set.
+  // Child overrides may change requires, potentially introducing cycles.
+  try {
+    validateNoCycles(merged.artifacts);
+  } catch (err) {
+    const cycleError = err instanceof Error ? err : new Error(String(err));
+    throw new SchemaLoadError(
+      `Schema '${child.name}' (extends '${parentName}'): ${cycleError.message}`,
+      childPath,
+      cycleError
+    );
+  }
+
+  return merged;
 }
 
 /**
