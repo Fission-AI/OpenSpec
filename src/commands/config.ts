@@ -129,7 +129,7 @@ function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function readProjectConfigFile(projectDir: string): ProjectConfigFile {
+function readRawProjectConfigFile(projectDir: string): ProjectConfigFile {
   const resolved = resolveProjectConfigFilePath(projectDir);
 
   if (!resolved.exists) {
@@ -170,7 +170,7 @@ function writeProjectConfigFile(file: ProjectConfigFile): void {
 }
 
 function ensureProjectConfigForWrite(projectDir: string): ProjectConfigFile {
-  const file = readProjectConfigFile(projectDir);
+  const file = readRawProjectConfigFile(projectDir);
   if (!file.exists && file.content.schema === undefined) {
     file.content.schema = DEFAULT_PROJECT_SCHEMA;
   }
@@ -226,14 +226,20 @@ function coerceProjectScopedValue(key: string, value: string, forceString: boole
     }
 
     if (trimmed.startsWith('[')) {
+      let parsed: unknown;
       try {
-        const parsed = JSON.parse(trimmed);
-        if (Array.isArray(parsed)) {
-          return parsed;
-        }
-      } catch {
-        // Fall back to comma-delimited parsing below.
+        parsed = JSON.parse(trimmed);
+      } catch (error) {
+        throw new Error(
+          `Invalid JSON array for workflows: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
+
+      if (!Array.isArray(parsed)) {
+        throw new Error('workflows JSON value must be an array');
+      }
+
+      return parsed;
     }
 
     return trimmed
@@ -452,7 +458,7 @@ export function registerConfigCommand(program: Command): void {
 
       let projectFile: ProjectConfigFile;
       try {
-        projectFile = readProjectConfigFile(projectDir);
+        projectFile = readRawProjectConfigFile(projectDir);
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
         process.exitCode = 1;
@@ -492,16 +498,20 @@ export function registerConfigCommand(program: Command): void {
   configCmd
     .command('get <key>')
     .description('Get a specific value (raw, scriptable)')
-    .action((key: string) => {
+    .option('--allow-unknown', 'Allow getting unknown keys')
+    .action((key: string, options: { allowUnknown?: boolean }) => {
       const scope = parseScope(configCmd.opts<{ scope?: string }>().scope);
       if (!scope) {
         return;
       }
 
-      if (scope === 'project' && !isSupportedProjectProfileKey(key)) {
+      const allowUnknown = Boolean(options.allowUnknown);
+
+      if (scope === 'project' && !allowUnknown && !isSupportedProjectProfileKey(key)) {
         console.error(
           `Error: Project scope only supports profile-related keys: ${Array.from(PROJECT_PROFILE_KEYS).join(', ')}`
         );
+        console.error('Pass --allow-unknown to bypass this check.');
         process.exitCode = 1;
         return;
       }
@@ -511,7 +521,7 @@ export function registerConfigCommand(program: Command): void {
         config = getGlobalConfig() as Record<string, unknown>;
       } else {
         try {
-          config = readProjectConfigFile(process.cwd()).content;
+          config = readRawProjectConfigFile(process.cwd()).content;
         } catch (error) {
           console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
           process.exitCode = 1;
@@ -592,7 +602,16 @@ export function registerConfigCommand(program: Command): void {
         return;
       }
 
-      const coercedValue = coerceProjectScopedValue(key, value, options.string || false);
+      let coercedValue: unknown;
+      try {
+        coercedValue = coerceProjectScopedValue(key, value, options.string || false);
+      } catch (error) {
+        console.error(
+          `Error: Invalid configuration - ${error instanceof Error ? error.message : String(error)}`
+        );
+        process.exitCode = 1;
+        return;
+      }
 
       if (isSupportedProjectProfileKey(key)) {
         const validation = validateProjectProfileValue(key, coercedValue);
@@ -625,11 +644,14 @@ export function registerConfigCommand(program: Command): void {
   configCmd
     .command('unset <key>')
     .description('Remove a key (revert to default)')
-    .action((key: string) => {
+    .option('--allow-unknown', 'Allow unsetting unknown keys')
+    .action((key: string, options: { allowUnknown?: boolean }) => {
       const scope = parseScope(configCmd.opts<{ scope?: string }>().scope);
       if (!scope) {
         return;
       }
+
+      const allowUnknown = Boolean(options.allowUnknown);
 
       if (scope === 'user') {
         const config = getGlobalConfig() as Record<string, unknown>;
@@ -644,17 +666,18 @@ export function registerConfigCommand(program: Command): void {
         return;
       }
 
-      if (!isSupportedProjectProfileKey(key)) {
+      if (!allowUnknown && !isSupportedProjectProfileKey(key)) {
         console.error(
           `Error: Project scope only supports profile-related keys: ${Array.from(PROJECT_PROFILE_KEYS).join(', ')}`
         );
+        console.error('Pass --allow-unknown to bypass this check.');
         process.exitCode = 1;
         return;
       }
 
       let projectFile: ProjectConfigFile;
       try {
-        projectFile = readProjectConfigFile(process.cwd());
+        projectFile = readRawProjectConfigFile(process.cwd());
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
         process.exitCode = 1;

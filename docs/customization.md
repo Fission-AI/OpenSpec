@@ -38,6 +38,7 @@ workflows:
   - propose
   - explore
   - apply
+  - verify
   - archive
 
 context: |
@@ -54,6 +55,8 @@ rules:
     - Use Given/When/Then format
     - Reference existing patterns before inventing new ones
 ```
+
+`workflows` is applied only when `profile: custom`. If `profile: core`, OpenSpec always uses the core workflow set.
 
 ### How It Works
 

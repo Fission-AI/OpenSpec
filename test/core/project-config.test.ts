@@ -167,6 +167,31 @@ delivery: commands
         );
       });
 
+      it('should keep valid sibling profile fields when delivery is invalid', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+profile: custom
+delivery: nonsense
+workflows:
+  - explore
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config).toEqual({
+          schema: 'spec-driven',
+          profile: 'custom',
+          workflows: ['explore'],
+        });
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid 'delivery' field")
+        );
+      });
+
       it('should keep valid profile and delivery when workflows is invalid', () => {
         const configDir = path.join(tempDir, 'openspec');
         fs.mkdirSync(configDir, { recursive: true });

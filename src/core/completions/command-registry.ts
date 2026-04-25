@@ -345,7 +345,12 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         name: 'get',
         description: 'Get a specific value (raw, scriptable)',
         acceptsPositional: true,
-        flags: [],
+        flags: [
+          {
+            name: 'allow-unknown',
+            description: 'Allow getting unknown keys',
+          },
+        ],
       },
       {
         name: 'set',
@@ -366,7 +371,12 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         name: 'unset',
         description: 'Remove a key (revert to default)',
         acceptsPositional: true,
-        flags: [],
+        flags: [
+          {
+            name: 'allow-unknown',
+            description: 'Allow unsetting unknown keys',
+          },
+        ],
       },
       {
         name: 'reset',

@@ -2,7 +2,6 @@ import { existsSync, readFileSync, statSync } from 'fs';
 import path from 'path';
 import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
-import type { Delivery, Profile } from './global-config.js';
 
 /**
  * Zod schema for project configuration.
@@ -58,11 +57,7 @@ export const ProjectConfigSchema = z.object({
 });
 
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
-export type ProjectProfileConfig = {
-  profile?: Profile;
-  delivery?: Delivery;
-  workflows?: string[];
-};
+export type ProjectProfileConfig = Pick<ProjectConfig, 'profile' | 'delivery' | 'workflows'>;
 
 const MAX_CONTEXT_SIZE = 50 * 1024; // 50KB hard limit
 

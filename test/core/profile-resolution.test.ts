@@ -97,6 +97,32 @@ describe('profile-resolution', () => {
     });
   });
 
+  it("honors scopeOverride='project' (project wins, user fallback preserved)", () => {
+    const resolved = resolveEffectiveProfileSettings({
+      scopeOverride: 'project',
+      globalConfig: {
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'commands',
+        workflows: ['continue'],
+      },
+      projectConfig: {
+        profile: 'custom',
+      },
+    });
+
+    expect(resolved).toEqual({
+      profile: 'custom',
+      delivery: 'commands',
+      workflows: ['continue'],
+      sources: {
+        profile: 'project',
+        delivery: 'user',
+        workflows: 'user',
+      },
+    });
+  });
+
   it('applies CLI overrides before project and global values', () => {
     const resolved = resolveEffectiveProfileSettings({
       cliOverrides: {

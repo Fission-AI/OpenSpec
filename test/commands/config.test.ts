@@ -210,6 +210,86 @@ profile: custom
     );
   });
 
+  it('rejects malformed JSON array syntax for project-scoped workflows', async () => {
+    const projectConfigPath = path.join(tempDir, 'openspec', 'config.yaml');
+
+    await runConfigCommand(['--scope', 'project', 'set', 'workflows', '[propose, explore]']);
+
+    expect(process.exitCode).toBe(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Invalid JSON array for workflows'));
+    expect(fs.existsSync(projectConfigPath)).toBe(false);
+  });
+
+  it('accepts JSON array syntax for project-scoped workflows', async () => {
+    await runConfigCommand(['--scope', 'project', 'set', 'workflows', '["propose", "explore"]']);
+
+    expect(process.exitCode).toBeUndefined();
+    const parsed = parseYaml(
+      fs.readFileSync(path.join(tempDir, 'openspec', 'config.yaml'), 'utf-8')
+    ) as Record<string, unknown>;
+    expect(parsed.workflows).toEqual(['propose', 'explore']);
+  });
+
+  it('project scope get honors --allow-unknown for unknown keys', async () => {
+    await runConfigCommand(['--scope', 'project', 'set', 'custom.key', 'value', '--allow-unknown']);
+
+    process.exitCode = undefined;
+    consoleLogSpy.mockClear();
+
+    await runConfigCommand(['--scope', 'project', 'get', 'custom.key', '--allow-unknown']);
+
+    expect(process.exitCode).toBeUndefined();
+    expect(consoleLogSpy).toHaveBeenCalledWith('value');
+  });
+
+  it('project scope get rejects unknown keys without --allow-unknown', async () => {
+    await runConfigCommand(['--scope', 'project', 'set', 'custom.key', 'value', '--allow-unknown']);
+
+    process.exitCode = undefined;
+    consoleErrorSpy.mockClear();
+
+    await runConfigCommand(['--scope', 'project', 'get', 'custom.key']);
+
+    expect(process.exitCode).toBe(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Project scope only supports profile-related keys')
+    );
+    expect(consoleErrorSpy).toHaveBeenCalledWith('Pass --allow-unknown to bypass this check.');
+  });
+
+  it('project scope unset honors --allow-unknown for unknown keys', async () => {
+    await runConfigCommand(['--scope', 'project', 'set', 'custom.key', 'value', '--allow-unknown']);
+
+    process.exitCode = undefined;
+    consoleLogSpy.mockClear();
+
+    await runConfigCommand(['--scope', 'project', 'unset', 'custom.key', '--allow-unknown']);
+
+    expect(process.exitCode).toBeUndefined();
+    expect(consoleLogSpy).toHaveBeenCalledWith('Unset custom.key (reverted to fallback)');
+
+    const parsed = parseYaml(
+      fs.readFileSync(path.join(tempDir, 'openspec', 'config.yaml'), 'utf-8')
+    ) as Record<string, unknown>;
+    const custom = parsed.custom as Record<string, unknown> | undefined;
+    expect(custom?.key).toBeUndefined();
+  });
+
+  it('project scope unset rejects unknown keys without --allow-unknown', async () => {
+    await runConfigCommand(['--scope', 'project', 'set', 'custom.key', 'value', '--allow-unknown']);
+
+    process.exitCode = undefined;
+    consoleErrorSpy.mockClear();
+
+    await runConfigCommand(['--scope', 'project', 'unset', 'custom.key']);
+
+    expect(process.exitCode).toBe(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Project scope only supports profile-related keys')
+    );
+    expect(consoleErrorSpy).toHaveBeenCalledWith('Pass --allow-unknown to bypass this check.');
+  });
+
   it('builds project config paths with cross-platform join semantics (including win32-style roots)', async () => {
     const { getProjectConfigFilePaths } = await import('../../src/commands/config.js');
 
@@ -268,6 +348,19 @@ describe('config command shell completion registry', () => {
 
     expect(flagNames).toContain('string');
     expect(flagNames).toContain('allow-unknown');
+  });
+
+  it('should have --allow-unknown flag on get and unset subcommands', async () => {
+    const { COMMAND_REGISTRY } = await import('../../src/core/completions/command-registry.js');
+
+    const configCmd = COMMAND_REGISTRY.find((cmd) => cmd.name === 'config');
+    const getCmd = configCmd?.subcommands?.find((s) => s.name === 'get');
+    const unsetCmd = configCmd?.subcommands?.find((s) => s.name === 'unset');
+    const getFlagNames = getCmd?.flags?.map((f) => f.name) ?? [];
+    const unsetFlagNames = unsetCmd?.flags?.map((f) => f.name) ?? [];
+
+    expect(getFlagNames).toContain('allow-unknown');
+    expect(unsetFlagNames).toContain('allow-unknown');
   });
 
   it('should have --all and -y flags on reset subcommand', async () => {
