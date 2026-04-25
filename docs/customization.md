@@ -17,6 +17,7 @@ The `openspec/config.yaml` file is the easiest way to customize OpenSpec for you
 - **Set a default schema** - Skip `--schema` on every command
 - **Inject project context** - AI sees your tech stack, conventions, etc.
 - **Add per-artifact rules** - Custom rules for specific artifacts
+- **Override profile settings per project** - Set `profile`, `delivery`, and `workflows` locally
 
 ### Quick Setup
 
@@ -29,6 +30,15 @@ This walks you through creating a config interactively. Or create one manually:
 ```yaml
 # openspec/config.yaml
 schema: spec-driven
+
+# Optional: project-scoped profile settings
+profile: custom
+delivery: both
+workflows:
+  - propose
+  - explore
+  - apply
+  - archive
 
 context: |
   Tech stack: TypeScript, React, Node.js, PostgreSQL
@@ -79,6 +89,17 @@ Tech stack: TypeScript, React, Node.js, PostgreSQL
 
 - **Context** appears in ALL artifacts
 - **Rules** ONLY appear for the matching artifact
+
+### Profile Resolution Order
+
+For profile-driven behavior (for example `openspec update`), OpenSpec resolves settings in this order:
+
+1. CLI scope override (if `--scope` is provided)
+2. Project config (`openspec/config.yaml` or existing `openspec/config.yml`)
+3. User-level config (`openspec config ...`)
+4. Defaults (`profile: core`, `delivery: both`, profile-derived workflows)
+
+This is key-by-key fallback, so partial project settings are valid. Example: if project config only sets `profile`, `delivery` can still come from user-level config.
 
 ### Schema Resolution Order
 

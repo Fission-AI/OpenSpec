@@ -2,6 +2,15 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import { Command } from 'commander';
+import { parse as parseYaml } from 'yaml';
+
+async function runConfigCommand(args: string[]): Promise<void> {
+  const { registerConfigCommand } = await import('../../src/commands/config.js');
+  const program = new Command();
+  registerConfigCommand(program);
+  await program.parseAsync(['node', 'openspec', 'config', ...args]);
+}
 
 describe('config command integration', () => {
   // These tests use real file system operations with XDG_CONFIG_HOME override
@@ -91,13 +100,138 @@ describe('config command integration', () => {
   });
 });
 
+describe('config command project scope', () => {
+  let tempDir: string;
+  let originalEnv: NodeJS.ProcessEnv;
+  let originalCwd: string;
+  let originalExitCode: number | undefined;
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+  let consoleLogSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    tempDir = path.join(os.tmpdir(), `openspec-config-project-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    fs.mkdirSync(tempDir, { recursive: true });
+    originalEnv = { ...process.env };
+    originalCwd = process.cwd();
+    originalExitCode = process.exitCode;
+
+    process.env.XDG_CONFIG_HOME = tempDir;
+    process.chdir(tempDir);
+    process.exitCode = undefined;
+
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+    process.chdir(originalCwd);
+    process.exitCode = originalExitCode;
+    fs.rmSync(tempDir, { recursive: true, force: true });
+    consoleErrorSpy.mockRestore();
+    consoleLogSpy.mockRestore();
+    vi.resetModules();
+  });
+
+  it('set/get with --scope project writes project config without mutating global config', async () => {
+    const { getGlobalConfig } = await import('../../src/core/global-config.js');
+
+    await runConfigCommand(['--scope', 'project', 'set', 'profile', 'custom']);
+
+    const projectConfigPath = path.join(tempDir, 'openspec', 'config.yaml');
+    expect(fs.existsSync(projectConfigPath)).toBe(true);
+
+    const parsed = parseYaml(fs.readFileSync(projectConfigPath, 'utf-8')) as Record<string, unknown>;
+    expect(parsed).toMatchObject({
+      schema: 'spec-driven',
+      profile: 'custom',
+    });
+
+    expect(getGlobalConfig().profile).toBe('core');
+
+    consoleLogSpy.mockClear();
+    await runConfigCommand(['--scope', 'project', 'get', 'profile']);
+    expect(consoleLogSpy).toHaveBeenCalledWith('custom');
+  });
+
+  it('project-scoped writes preserve existing schema/context/rules fields', async () => {
+    fs.mkdirSync(path.join(tempDir, 'openspec'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'openspec', 'config.yaml'),
+      `schema: spec-driven
+context: Keep me
+rules:
+  proposal:
+    - Keep this
+`
+    );
+
+    await runConfigCommand(['--scope', 'project', 'set', 'delivery', 'commands']);
+
+    const parsed = parseYaml(
+      fs.readFileSync(path.join(tempDir, 'openspec', 'config.yaml'), 'utf-8')
+    ) as Record<string, unknown>;
+
+    expect(parsed).toMatchObject({
+      schema: 'spec-driven',
+      context: 'Keep me',
+      delivery: 'commands',
+    });
+    expect(parsed.rules).toEqual({ proposal: ['Keep this'] });
+  });
+
+  it('unset with --scope project removes key without mutating global config', async () => {
+    const { getGlobalConfig, saveGlobalConfig } = await import('../../src/core/global-config.js');
+    saveGlobalConfig({ featureFlags: {}, profile: 'custom', delivery: 'both', workflows: ['explore'] });
+
+    fs.mkdirSync(path.join(tempDir, 'openspec'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'openspec', 'config.yaml'),
+      `schema: spec-driven
+profile: custom
+`
+    );
+
+    await runConfigCommand(['--scope', 'project', 'unset', 'profile']);
+
+    const parsed = parseYaml(
+      fs.readFileSync(path.join(tempDir, 'openspec', 'config.yaml'), 'utf-8')
+    ) as Record<string, unknown>;
+    expect(parsed).toEqual({ schema: 'spec-driven' });
+    expect(getGlobalConfig().profile).toBe('custom');
+  });
+
+  it('rejects unsupported project-scoped keys', async () => {
+    await runConfigCommand(['--scope', 'project', 'set', 'schema', 'spec-driven']);
+
+    expect(process.exitCode).toBe(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Project scope only supports profile-related keys')
+    );
+  });
+
+  it('builds project config paths with cross-platform join semantics (including win32-style roots)', async () => {
+    const { getProjectConfigFilePaths } = await import('../../src/commands/config.js');
+
+    const windowsLikeRoot = 'C:\\repo\\sample-project';
+    const paths = getProjectConfigFilePaths(windowsLikeRoot);
+
+    expect(path.win32.normalize(paths.yamlPath)).toBe(
+      path.win32.join(windowsLikeRoot, 'openspec', 'config.yaml')
+    );
+    expect(path.win32.normalize(paths.ymlPath)).toBe(
+      path.win32.join(windowsLikeRoot, 'openspec', 'config.yml')
+    );
+  });
+});
+
 describe('config command shell completion registry', () => {
   it('should have config command in registry', async () => {
     const { COMMAND_REGISTRY } = await import('../../src/core/completions/command-registry.js');
 
     const configCmd = COMMAND_REGISTRY.find((cmd) => cmd.name === 'config');
     expect(configCmd).toBeDefined();
-    expect(configCmd?.description).toBe('View and modify global OpenSpec configuration');
+    expect(configCmd?.description).toBe('View and modify OpenSpec configuration');
   });
 
   it('should have all config subcommands in registry', async () => {
@@ -151,9 +285,22 @@ describe('config command shell completion registry', () => {
     const { COMMAND_REGISTRY } = await import('../../src/core/completions/command-registry.js');
 
     const configCmd = COMMAND_REGISTRY.find((cmd) => cmd.name === 'config');
-    const flagNames = configCmd?.flags?.map((f) => f.name) ?? [];
+    const scopeFlag = configCmd?.flags?.find((f) => f.name === 'scope');
 
-    expect(flagNames).toContain('scope');
+    expect(scopeFlag).toBeDefined();
+    expect(scopeFlag?.values).toEqual(['user', 'project']);
+  });
+
+  it('should include update scope override flag in registry', async () => {
+    const { COMMAND_REGISTRY } = await import('../../src/core/completions/command-registry.js');
+
+    const updateCmd = COMMAND_REGISTRY.find((cmd) => cmd.name === 'update');
+    const scopeFlag = updateCmd?.flags?.find((f) => f.name === 'scope');
+    const forceFlag = updateCmd?.flags?.find((f) => f.name === 'force');
+
+    expect(forceFlag).toBeDefined();
+    expect(scopeFlag).toBeDefined();
+    expect(scopeFlag?.values).toEqual(['user', 'project']);
   });
 });
 

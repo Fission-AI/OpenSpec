@@ -2,6 +2,7 @@ import { existsSync, readFileSync, statSync } from 'fs';
 import path from 'path';
 import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
+import type { Delivery, Profile } from './global-config.js';
 
 /**
  * Zod schema for project configuration.
@@ -38,9 +39,30 @@ export const ProjectConfigSchema = z.object({
     )
     .optional()
     .describe('Per-artifact rules, keyed by artifact ID'),
+
+  // Optional: profile-related settings scoped to this project
+  profile: z
+    .enum(['core', 'custom'])
+    .optional()
+    .describe('Workflow profile override for this project'),
+
+  delivery: z
+    .enum(['both', 'skills', 'commands'])
+    .optional()
+    .describe('Workflow delivery override for this project'),
+
+  workflows: z
+    .array(z.string())
+    .optional()
+    .describe('Workflow selection override for this project'),
 });
 
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
+export type ProjectProfileConfig = {
+  profile?: Profile;
+  delivery?: Delivery;
+  workflows?: string[];
+};
 
 const MAX_CONTEXT_SIZE = 50 * 1024; // 50KB hard limit
 
@@ -63,7 +85,7 @@ const MAX_CONTEXT_SIZE = 50 * 1024; // 50KB hard limit
  * @param projectRoot - The root directory of the project (where `openspec/` lives)
  * @returns Parsed config or null if file doesn't exist
  */
-export function readProjectConfig(projectRoot: string): ProjectConfig | null {
+export function readProjectConfig(projectRoot: string): Partial<ProjectConfig> | null {
   // Try both .yaml and .yml, prefer .yaml
   let configPath = path.join(projectRoot, 'openspec', 'config.yaml');
   if (!existsSync(configPath)) {
@@ -152,8 +174,35 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
       }
     }
 
+    if (raw.profile !== undefined) {
+      const profileResult = z.enum(['core', 'custom']).safeParse(raw.profile);
+      if (profileResult.success) {
+        config.profile = profileResult.data;
+      } else {
+        console.warn(`Invalid 'profile' field in config (must be one of: core, custom)`);
+      }
+    }
+
+    if (raw.delivery !== undefined) {
+      const deliveryResult = z.enum(['both', 'skills', 'commands']).safeParse(raw.delivery);
+      if (deliveryResult.success) {
+        config.delivery = deliveryResult.data;
+      } else {
+        console.warn(`Invalid 'delivery' field in config (must be one of: both, skills, commands)`);
+      }
+    }
+
+    if (raw.workflows !== undefined) {
+      const workflowsResult = z.array(z.string()).safeParse(raw.workflows);
+      if (workflowsResult.success) {
+        config.workflows = workflowsResult.data;
+      } else {
+        console.warn(`Invalid 'workflows' field in config (must be an array of strings)`);
+      }
+    }
+
     // Return partial config even if some fields failed
-    return Object.keys(config).length > 0 ? (config as ProjectConfig) : null;
+    return Object.keys(config).length > 0 ? config : null;
   } catch (error) {
     console.warn(`Failed to parse openspec/config.yaml:`, error);
     return null;
