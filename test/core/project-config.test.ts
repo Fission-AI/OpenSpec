@@ -68,6 +68,31 @@ rules:
         expect(consoleWarnSpy).not.toHaveBeenCalled();
       });
 
+      it('should parse valid profile fields from project config', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+profile: custom
+delivery: skills
+workflows:
+  - explore
+  - apply
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config).toEqual({
+          schema: 'spec-driven',
+          profile: 'custom',
+          delivery: 'skills',
+          workflows: ['explore', 'apply'],
+        });
+        expect(consoleWarnSpy).not.toHaveBeenCalled();
+      });
+
       it('should return partial config when schema is invalid', () => {
         const configDir = path.join(tempDir, 'openspec');
         fs.mkdirSync(configDir, { recursive: true });
@@ -117,6 +142,52 @@ rules:
         });
         expect(consoleWarnSpy).toHaveBeenCalledWith(
           expect.stringContaining("Invalid 'context' field")
+        );
+      });
+
+      it('should keep valid sibling profile fields when profile is invalid', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+profile: invalid
+delivery: commands
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config).toEqual({
+          schema: 'spec-driven',
+          delivery: 'commands',
+        });
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid 'profile' field")
+        );
+      });
+
+      it('should keep valid profile and delivery when workflows is invalid', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+profile: custom
+delivery: both
+workflows: invalid
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config).toEqual({
+          schema: 'spec-driven',
+          profile: 'custom',
+          delivery: 'both',
+        });
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Invalid 'workflows' field")
         );
       });
 
@@ -395,6 +466,29 @@ context: |
 
         expect(config?.schema).toBe('custom-schema');
         expect(config?.context).toBe('from yml');
+      });
+
+      it('should parse profile fields from .yml files', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yml'),
+          `schema: custom-schema
+profile: custom
+delivery: commands
+workflows:
+  - verify
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config).toEqual({
+          schema: 'custom-schema',
+          profile: 'custom',
+          delivery: 'commands',
+          workflows: ['verify'],
+        });
       });
 
       it('should return null when neither .yaml nor .yml exist', () => {

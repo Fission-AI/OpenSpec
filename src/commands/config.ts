@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import { spawn, execSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import {
   getGlobalConfigPath,
   getGlobalConfig,
@@ -22,6 +23,12 @@ import {
 import { CORE_WORKFLOWS, ALL_WORKFLOWS, getProfileWorkflows } from '../core/profiles.js';
 import { OPENSPEC_DIR_NAME } from '../core/config.js';
 import { hasProjectConfigDrift } from '../core/profile-sync-drift.js';
+import { readProjectConfig } from '../core/project-config.js';
+import {
+  resolveEffectiveProfileSettings,
+  type ConfigScope,
+  type ProfileValueSource,
+} from '../core/profile-resolution.js';
 
 type ProfileAction = 'both' | 'delivery' | 'workflows' | 'keep';
 
@@ -39,6 +46,12 @@ interface ProfileStateDiff {
 interface WorkflowPromptMeta {
   name: string;
   description: string;
+}
+
+interface ProjectConfigFile {
+  path: string;
+  exists: boolean;
+  content: Record<string, unknown>;
 }
 
 const WORKFLOW_PROMPT_META: Record<string, WorkflowPromptMeta> = {
@@ -88,6 +101,157 @@ const WORKFLOW_PROMPT_META: Record<string, WorkflowPromptMeta> = {
   },
 };
 
+const DEFAULT_PROJECT_SCHEMA = 'spec-driven';
+const PROJECT_PROFILE_KEYS = new Set(['profile', 'delivery', 'workflows']);
+
+export function getProjectConfigFilePaths(projectDir: string): {
+  yamlPath: string;
+  ymlPath: string;
+} {
+  return {
+    yamlPath: path.join(projectDir, OPENSPEC_DIR_NAME, 'config.yaml'),
+    ymlPath: path.join(projectDir, OPENSPEC_DIR_NAME, 'config.yml'),
+  };
+}
+
+function resolveProjectConfigFilePath(projectDir: string): { path: string; exists: boolean } {
+  const { yamlPath, ymlPath } = getProjectConfigFilePaths(projectDir);
+  if (fs.existsSync(yamlPath)) {
+    return { path: yamlPath, exists: true };
+  }
+  if (fs.existsSync(ymlPath)) {
+    return { path: ymlPath, exists: true };
+  }
+  return { path: yamlPath, exists: false };
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function readProjectConfigFile(projectDir: string): ProjectConfigFile {
+  const resolved = resolveProjectConfigFilePath(projectDir);
+
+  if (!resolved.exists) {
+    return {
+      path: resolved.path,
+      exists: false,
+      content: {},
+    };
+  }
+
+  const fileContent = fs.readFileSync(resolved.path, 'utf-8');
+  const parsed = parseYaml(fileContent);
+
+  if (parsed == null) {
+    return {
+      path: resolved.path,
+      exists: true,
+      content: {},
+    };
+  }
+
+  if (!isObjectRecord(parsed)) {
+    throw new Error(`Invalid YAML object in ${path.relative(projectDir, resolved.path)}`);
+  }
+
+  return {
+    path: resolved.path,
+    exists: true,
+    content: { ...parsed },
+  };
+}
+
+function writeProjectConfigFile(file: ProjectConfigFile): void {
+  fs.mkdirSync(path.dirname(file.path), { recursive: true });
+  const serialized = stringifyYaml(file.content);
+  const contentWithNewline = serialized.endsWith('\n') ? serialized : `${serialized}\n`;
+  fs.writeFileSync(file.path, contentWithNewline, 'utf-8');
+}
+
+function ensureProjectConfigForWrite(projectDir: string): ProjectConfigFile {
+  const file = readProjectConfigFile(projectDir);
+  if (!file.exists && file.content.schema === undefined) {
+    file.content.schema = DEFAULT_PROJECT_SCHEMA;
+  }
+  return file;
+}
+
+function parseScope(rawScope: unknown): ConfigScope | null {
+  if (rawScope === undefined || rawScope === null || rawScope === 'user') {
+    return 'user';
+  }
+  if (rawScope === 'project') {
+    return 'project';
+  }
+  console.error(`Error: Invalid scope "${String(rawScope)}". Use "user" or "project".`);
+  process.exitCode = 1;
+  return null;
+}
+
+function isSupportedProjectProfileKey(key: string): boolean {
+  return !key.includes('.') && PROJECT_PROFILE_KEYS.has(key);
+}
+
+function validateProjectProfileValue(key: string, value: unknown): { valid: boolean; error?: string } {
+  if (key === 'profile') {
+    if (value === 'core' || value === 'custom') {
+      return { valid: true };
+    }
+    return { valid: false, error: 'profile must be "core" or "custom"' };
+  }
+
+  if (key === 'delivery') {
+    if (value === 'both' || value === 'skills' || value === 'commands') {
+      return { valid: true };
+    }
+    return { valid: false, error: 'delivery must be "both", "skills", or "commands"' };
+  }
+
+  if (key === 'workflows') {
+    if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
+      return { valid: true };
+    }
+    return { valid: false, error: 'workflows must be an array of strings' };
+  }
+
+  return { valid: false, error: `Unsupported project config key "${key}"` };
+}
+
+function coerceProjectScopedValue(key: string, value: string, forceString: boolean): unknown {
+  if (key === 'workflows' && !forceString) {
+    const trimmed = value.trim();
+    if (trimmed === '') {
+      return [];
+    }
+
+    if (trimmed.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      } catch {
+        // Fall back to comma-delimited parsing below.
+      }
+    }
+
+    return trimmed
+      .split(',')
+      .map((workflow) => workflow.trim())
+      .filter((workflow) => workflow.length > 0);
+  }
+
+  return coerceValue(value, forceString);
+}
+
+function formatSource(source: ProfileValueSource): string {
+  if (source === 'project') return 'project';
+  if (source === 'user') return 'user';
+  if (source === 'cli') return 'CLI override';
+  return 'default';
+}
+
 function isPromptCancellationError(error: unknown): boolean {
   return (
     error instanceof Error &&
@@ -96,7 +260,7 @@ function isPromptCancellationError(error: unknown): boolean {
 }
 
 /**
- * Resolve the effective current profile state from global config defaults.
+ * Resolve the effective current profile state from user config defaults.
  */
 export function resolveCurrentProfileState(config: GlobalConfig): ProfileState {
   const profile = config.profile || 'core';
@@ -189,7 +353,8 @@ export function diffProfileState(before: ProfileState, after: ProfileState): Pro
 function maybeWarnConfigDrift(
   projectDir: string,
   state: ProfileState,
-  colorize: (message: string) => string
+  colorize: (message: string) => string,
+  scope: ConfigScope = 'user'
 ): void {
   const openspecDir = path.join(projectDir, OPENSPEC_DIR_NAME);
   if (!fs.existsSync(openspecDir)) {
@@ -198,7 +363,11 @@ function maybeWarnConfigDrift(
   if (!hasProjectConfigDrift(projectDir, state.workflows, state.delivery)) {
     return;
   }
-  console.log(colorize('Warning: Global config is not applied to this project. Run `openspec update` to sync.'));
+  const message =
+    scope === 'project'
+      ? 'Warning: Project config is not applied to this project. Run `openspec update` to sync.'
+      : 'Warning: User config is not applied to this project. Run `openspec update` to sync.';
+  console.log(colorize(message));
 }
 
 /**
@@ -209,22 +378,25 @@ function maybeWarnConfigDrift(
 export function registerConfigCommand(program: Command): void {
   const configCmd = program
     .command('config')
-    .description('View and modify global OpenSpec configuration')
-    .option('--scope <scope>', 'Config scope (only "global" supported currently)')
-    .hook('preAction', (thisCommand) => {
-      const opts = thisCommand.opts();
-      if (opts.scope && opts.scope !== 'global') {
-        console.error('Error: Project-local config is not yet implemented');
-        process.exit(1);
-      }
-    });
+    .description('View and modify OpenSpec configuration')
+    .option('--scope <scope>', 'Config scope ("user" or "project")', 'user');
 
   // config path
   configCmd
     .command('path')
     .description('Show config file location')
     .action(() => {
-      console.log(getGlobalConfigPath());
+      const scope = parseScope(configCmd.opts<{ scope?: string }>().scope);
+      if (!scope) {
+        return;
+      }
+
+      if (scope === 'user') {
+        console.log(getGlobalConfigPath());
+        return;
+      }
+
+      console.log(resolveProjectConfigFilePath(process.cwd()).path);
     });
 
   // config list
@@ -233,11 +405,19 @@ export function registerConfigCommand(program: Command): void {
     .description('Show all current settings')
     .option('--json', 'Output as JSON')
     .action((options: { json?: boolean }) => {
-      const config = getGlobalConfig();
+      const scope = parseScope(configCmd.opts<{ scope?: string }>().scope);
+      if (!scope) {
+        return;
+      }
 
-      if (options.json) {
-        console.log(JSON.stringify(config, null, 2));
-      } else {
+      if (scope === 'user') {
+        const config = getGlobalConfig();
+
+        if (options.json) {
+          console.log(JSON.stringify(config, null, 2));
+          return;
+        }
+
         // Read raw config to determine which values are explicit vs defaults
         const configPath = getGlobalConfigPath();
         let rawConfig: Record<string, unknown> = {};
@@ -264,6 +444,47 @@ export function registerConfigCommand(program: Command): void {
         } else {
           console.log(`  workflows: (none)`);
         }
+
+        return;
+      }
+
+      const projectDir = process.cwd();
+
+      let projectFile: ProjectConfigFile;
+      try {
+        projectFile = readProjectConfigFile(projectDir);
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+        process.exitCode = 1;
+        return;
+      }
+
+      const projectConfig = readProjectConfig(projectDir) ?? {};
+      const effective = resolveEffectiveProfileSettings({
+        projectConfig,
+        globalConfig: getGlobalConfig(),
+      });
+
+      if (options.json) {
+        console.log(JSON.stringify(projectFile.content, null, 2));
+        return;
+      }
+
+      console.log(
+        Object.keys(projectFile.content).length > 0
+          ? formatValueYaml(projectFile.content)
+          : '{}'
+      );
+
+      console.log(`\nProfile settings (effective):`);
+      console.log(`  profile: ${effective.profile} (${formatSource(effective.sources.profile)})`);
+      console.log(`  delivery: ${effective.delivery} (${formatSource(effective.sources.delivery)})`);
+      if (effective.profile === 'core') {
+        console.log(`  workflows: ${CORE_WORKFLOWS.join(', ')} (from core profile)`);
+      } else if (effective.workflows.length > 0) {
+        console.log(`  workflows: ${effective.workflows.join(', ')} (${formatSource(effective.sources.workflows)})`);
+      } else {
+        console.log(`  workflows: (none)`);
       }
     });
 
@@ -272,8 +493,33 @@ export function registerConfigCommand(program: Command): void {
     .command('get <key>')
     .description('Get a specific value (raw, scriptable)')
     .action((key: string) => {
-      const config = getGlobalConfig();
-      const value = getNestedValue(config as Record<string, unknown>, key);
+      const scope = parseScope(configCmd.opts<{ scope?: string }>().scope);
+      if (!scope) {
+        return;
+      }
+
+      if (scope === 'project' && !isSupportedProjectProfileKey(key)) {
+        console.error(
+          `Error: Project scope only supports profile-related keys: ${Array.from(PROJECT_PROFILE_KEYS).join(', ')}`
+        );
+        process.exitCode = 1;
+        return;
+      }
+
+      let config: Record<string, unknown>;
+      if (scope === 'user') {
+        config = getGlobalConfig() as Record<string, unknown>;
+      } else {
+        try {
+          config = readProjectConfigFile(process.cwd()).content;
+        } catch (error) {
+          console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+          process.exitCode = 1;
+          return;
+        }
+      }
+
+      const value = getNestedValue(config, key);
 
       if (value === undefined) {
         process.exitCode = 1;
@@ -294,38 +540,84 @@ export function registerConfigCommand(program: Command): void {
     .option('--string', 'Force value to be stored as string')
     .option('--allow-unknown', 'Allow setting unknown keys')
     .action((key: string, value: string, options: { string?: boolean; allowUnknown?: boolean }) => {
+      const scope = parseScope(configCmd.opts<{ scope?: string }>().scope);
+      if (!scope) {
+        return;
+      }
+
       const allowUnknown = Boolean(options.allowUnknown);
-      const keyValidation = validateConfigKeyPath(key);
-      if (!keyValidation.valid && !allowUnknown) {
-        const reason = keyValidation.reason ? ` ${keyValidation.reason}.` : '';
-        console.error(`Error: Invalid configuration key "${key}".${reason}`);
-        console.error('Use "openspec config list" to see available keys.');
+
+      if (scope === 'user') {
+        const keyValidation = validateConfigKeyPath(key);
+        if (!keyValidation.valid && !allowUnknown) {
+          const reason = keyValidation.reason ? ` ${keyValidation.reason}.` : '';
+          console.error(`Error: Invalid configuration key "${key}".${reason}`);
+          console.error('Use "openspec config list" to see available keys.');
+          console.error('Pass --allow-unknown to bypass this check.');
+          process.exitCode = 1;
+          return;
+        }
+
+        const config = getGlobalConfig() as Record<string, unknown>;
+        const coercedValue = coerceValue(value, options.string || false);
+
+        // Create a copy to validate before saving
+        const newConfig = JSON.parse(JSON.stringify(config));
+        setNestedValue(newConfig, key, coercedValue);
+
+        // Validate the new config
+        const validation = validateConfig(newConfig);
+        if (!validation.success) {
+          console.error(`Error: Invalid configuration - ${validation.error}`);
+          process.exitCode = 1;
+          return;
+        }
+
+        // Apply changes and save
+        setNestedValue(config, key, coercedValue);
+        saveGlobalConfig(config as GlobalConfig);
+
+        const displayValue =
+          typeof coercedValue === 'string' ? `"${coercedValue}"` : String(coercedValue);
+        console.log(`Set ${key} = ${displayValue}`);
+        return;
+      }
+
+      if (!allowUnknown && !isSupportedProjectProfileKey(key)) {
+        console.error(
+          `Error: Project scope only supports profile-related keys: ${Array.from(PROJECT_PROFILE_KEYS).join(', ')}`
+        );
         console.error('Pass --allow-unknown to bypass this check.');
         process.exitCode = 1;
         return;
       }
 
-      const config = getGlobalConfig() as Record<string, unknown>;
-      const coercedValue = coerceValue(value, options.string || false);
+      const coercedValue = coerceProjectScopedValue(key, value, options.string || false);
 
-      // Create a copy to validate before saving
-      const newConfig = JSON.parse(JSON.stringify(config));
-      setNestedValue(newConfig, key, coercedValue);
+      if (isSupportedProjectProfileKey(key)) {
+        const validation = validateProjectProfileValue(key, coercedValue);
+        if (!validation.valid) {
+          console.error(`Error: Invalid configuration - ${validation.error}`);
+          process.exitCode = 1;
+          return;
+        }
+      }
 
-      // Validate the new config
-      const validation = validateConfig(newConfig);
-      if (!validation.success) {
-        console.error(`Error: Invalid configuration - ${validation.error}`);
+      let projectFile: ProjectConfigFile;
+      try {
+        projectFile = ensureProjectConfigForWrite(process.cwd());
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
         process.exitCode = 1;
         return;
       }
 
-      // Apply changes and save
-      setNestedValue(config, key, coercedValue);
-      saveGlobalConfig(config as GlobalConfig);
+      const nextConfig = JSON.parse(JSON.stringify(projectFile.content)) as Record<string, unknown>;
+      setNestedValue(nextConfig, key, coercedValue);
+      writeProjectConfigFile({ ...projectFile, content: nextConfig });
 
       const displayValue =
-        typeof coercedValue === 'string' ? `"${coercedValue}"` : String(coercedValue);
+        typeof coercedValue === 'string' ? `"${coercedValue}"` : JSON.stringify(coercedValue);
       console.log(`Set ${key} = ${displayValue}`);
     });
 
@@ -334,12 +626,47 @@ export function registerConfigCommand(program: Command): void {
     .command('unset <key>')
     .description('Remove a key (revert to default)')
     .action((key: string) => {
-      const config = getGlobalConfig() as Record<string, unknown>;
-      const existed = deleteNestedValue(config, key);
+      const scope = parseScope(configCmd.opts<{ scope?: string }>().scope);
+      if (!scope) {
+        return;
+      }
+
+      if (scope === 'user') {
+        const config = getGlobalConfig() as Record<string, unknown>;
+        const existed = deleteNestedValue(config, key);
+
+        if (existed) {
+          saveGlobalConfig(config as GlobalConfig);
+          console.log(`Unset ${key} (reverted to default)`);
+        } else {
+          console.log(`Key "${key}" was not set`);
+        }
+        return;
+      }
+
+      if (!isSupportedProjectProfileKey(key)) {
+        console.error(
+          `Error: Project scope only supports profile-related keys: ${Array.from(PROJECT_PROFILE_KEYS).join(', ')}`
+        );
+        process.exitCode = 1;
+        return;
+      }
+
+      let projectFile: ProjectConfigFile;
+      try {
+        projectFile = readProjectConfigFile(process.cwd());
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+        process.exitCode = 1;
+        return;
+      }
+
+      const nextConfig = JSON.parse(JSON.stringify(projectFile.content)) as Record<string, unknown>;
+      const existed = deleteNestedValue(nextConfig, key);
 
       if (existed) {
-        saveGlobalConfig(config as GlobalConfig);
-        console.log(`Unset ${key} (reverted to default)`);
+        writeProjectConfigFile({ ...projectFile, content: nextConfig });
+        console.log(`Unset ${key} (reverted to fallback)`);
       } else {
         console.log(`Key "${key}" was not set`);
       }
@@ -352,6 +679,17 @@ export function registerConfigCommand(program: Command): void {
     .option('--all', 'Reset all configuration (required)')
     .option('-y, --yes', 'Skip confirmation prompts')
     .action(async (options: { all?: boolean; yes?: boolean }) => {
+      const scope = parseScope(configCmd.opts<{ scope?: string }>().scope);
+      if (!scope) {
+        return;
+      }
+
+      if (scope === 'project') {
+          console.error('Error: config reset is only supported for user scope');
+        process.exitCode = 1;
+        return;
+      }
+
       if (!options.all) {
         console.error('Error: --all flag is required for reset');
         console.error('Usage: openspec config reset --all [-y]');
@@ -391,6 +729,17 @@ export function registerConfigCommand(program: Command): void {
     .command('edit')
     .description('Open config in $EDITOR')
     .action(async () => {
+      const scope = parseScope(configCmd.opts<{ scope?: string }>().scope);
+      if (!scope) {
+        return;
+      }
+
+      if (scope === 'project') {
+          console.error('Error: config edit is only supported for user scope');
+        process.exitCode = 1;
+        return;
+      }
+
       const editor = process.env.EDITOR || process.env.VISUAL;
 
       if (!editor) {
@@ -454,13 +803,34 @@ export function registerConfigCommand(program: Command): void {
     .command('profile [preset]')
     .description('Configure workflow profile (interactive picker or preset shortcut)')
     .action(async (preset?: string) => {
+      const scope = parseScope(configCmd.opts<{ scope?: string }>().scope);
+      if (!scope) {
+        return;
+      }
+
       // Preset shortcut: `openspec config profile core`
       if (preset === 'core') {
-        const config = getGlobalConfig();
-        config.profile = 'core';
-        config.workflows = [...CORE_WORKFLOWS];
-        // Preserve delivery setting
-        saveGlobalConfig(config);
+        if (scope === 'user') {
+          const config = getGlobalConfig();
+          config.profile = 'core';
+          config.workflows = [...CORE_WORKFLOWS];
+          // Preserve delivery setting
+          saveGlobalConfig(config);
+        } else {
+          let projectFile: ProjectConfigFile;
+          try {
+            projectFile = ensureProjectConfigForWrite(process.cwd());
+          } catch (error) {
+            console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+            process.exitCode = 1;
+            return;
+          }
+
+          const nextConfig = JSON.parse(JSON.stringify(projectFile.content)) as Record<string, unknown>;
+          nextConfig.profile = 'core';
+          nextConfig.workflows = [...CORE_WORKFLOWS];
+          writeProjectConfigFile({ ...projectFile, content: nextConfig });
+        }
         console.log('Config updated. Run `openspec update` in your projects to apply.');
         return;
       }
@@ -483,8 +853,17 @@ export function registerConfigCommand(program: Command): void {
       const chalk = (await import('chalk')).default;
 
       try {
-        const config = getGlobalConfig();
-        const currentState = resolveCurrentProfileState(config);
+        const globalConfig = getGlobalConfig();
+        const projectConfig = scope === 'project' ? (readProjectConfig(process.cwd()) ?? {}) : null;
+        const effective = resolveEffectiveProfileSettings({
+          projectConfig,
+          globalConfig,
+        });
+        const currentState: ProfileState = {
+          profile: effective.profile,
+          delivery: effective.delivery,
+          workflows: [...effective.workflows],
+        };
 
         console.log(chalk.bold('\nCurrent profile settings'));
         console.log(`  Delivery: ${currentState.delivery}`);
@@ -521,7 +900,7 @@ export function registerConfigCommand(program: Command): void {
 
         if (action === 'keep') {
           console.log('No config changes.');
-          maybeWarnConfigDrift(process.cwd(), currentState, chalk.yellow);
+          maybeWarnConfigDrift(process.cwd(), currentState, chalk.yellow, scope);
           return;
         }
 
@@ -596,7 +975,7 @@ export function registerConfigCommand(program: Command): void {
         const diff = diffProfileState(currentState, nextState);
         if (!diff.hasChanges) {
           console.log('No config changes.');
-          maybeWarnConfigDrift(process.cwd(), nextState, chalk.yellow);
+          maybeWarnConfigDrift(process.cwd(), nextState, chalk.yellow, scope);
           return;
         }
 
@@ -606,10 +985,32 @@ export function registerConfigCommand(program: Command): void {
         }
         console.log();
 
-        config.profile = nextState.profile;
-        config.delivery = nextState.delivery;
-        config.workflows = nextState.workflows;
-        saveGlobalConfig(config);
+        if (scope === 'user') {
+          const config = getGlobalConfig();
+          config.profile = nextState.profile;
+          config.delivery = nextState.delivery;
+          config.workflows = nextState.workflows;
+          saveGlobalConfig(config);
+        } else {
+          let projectFile: ProjectConfigFile;
+          try {
+            projectFile = ensureProjectConfigForWrite(process.cwd());
+          } catch (error) {
+            console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+            process.exitCode = 1;
+            return;
+          }
+
+          const nextConfig = JSON.parse(JSON.stringify(projectFile.content)) as Record<string, unknown>;
+          if (action === 'both' || action === 'workflows') {
+            nextConfig.profile = nextState.profile;
+            nextConfig.workflows = nextState.workflows;
+          }
+          if (action === 'both' || action === 'delivery') {
+            nextConfig.delivery = nextState.delivery;
+          }
+          writeProjectConfigFile({ ...projectFile, content: nextConfig });
+        }
 
         // Check if inside an OpenSpec project
         const projectDir = process.cwd();
@@ -622,7 +1023,9 @@ export function registerConfigCommand(program: Command): void {
 
           if (applyNow) {
             try {
-              execSync('npx openspec update', { stdio: 'inherit', cwd: projectDir });
+              const updateCommand =
+                scope === 'project' ? 'npx openspec update --scope project' : 'npx openspec update --scope user';
+              execSync(updateCommand, { stdio: 'inherit', cwd: projectDir });
               console.log('Run `openspec update` in your other projects to apply.');
             } catch {
               console.error('`openspec update` failed. Please run it manually to apply the profile changes.');

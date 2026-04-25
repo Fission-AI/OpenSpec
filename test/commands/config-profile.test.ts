@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import { parse as parseYaml } from 'yaml';
 
 vi.mock('@inquirer/prompts', () => ({
   select: vi.fn(),
@@ -380,6 +381,97 @@ describe('config profile interactive flow', () => {
     expect(select).not.toHaveBeenCalled();
     expect(checkbox).not.toHaveBeenCalled();
     expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it('project scope core preset should write project config and preserve project delivery', async () => {
+    const { saveGlobalConfig, getGlobalConfig } = await import('../../src/core/global-config.js');
+    const { select, checkbox, confirm } = await getPromptMocks();
+
+    saveGlobalConfig({ featureFlags: {}, profile: 'custom', delivery: 'skills', workflows: ['verify'] });
+    fs.mkdirSync(path.join(tempDir, 'openspec'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'openspec', 'config.yaml'),
+      `schema: spec-driven
+delivery: commands
+`
+    );
+
+    await runConfigCommand(['--scope', 'project', 'profile', 'core']);
+
+    const parsed = parseYaml(
+      fs.readFileSync(path.join(tempDir, 'openspec', 'config.yaml'), 'utf-8')
+    ) as Record<string, unknown>;
+
+    expect(parsed.profile).toBe('core');
+    expect(parsed.delivery).toBe('commands');
+    expect(parsed.workflows).toEqual(['propose', 'explore', 'apply', 'archive']);
+    expect(getGlobalConfig()).toMatchObject({
+      profile: 'custom',
+      delivery: 'skills',
+      workflows: ['verify'],
+    });
+    expect(select).not.toHaveBeenCalled();
+    expect(checkbox).not.toHaveBeenCalled();
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it('project scope interactive delivery-only change should persist delivery without forcing profile keys', async () => {
+    const { saveGlobalConfig, getGlobalConfig } = await import('../../src/core/global-config.js');
+    const { select, checkbox, confirm } = await getPromptMocks();
+
+    saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both', workflows: ['propose', 'explore', 'apply', 'archive'] });
+    select.mockResolvedValueOnce('delivery');
+    select.mockResolvedValueOnce('commands');
+    confirm.mockResolvedValueOnce(false);
+
+    await runConfigCommand(['--scope', 'project', 'profile']);
+
+    const parsed = parseYaml(
+      fs.readFileSync(path.join(tempDir, 'openspec', 'config.yaml'), 'utf-8')
+    ) as Record<string, unknown>;
+
+    expect(parsed).toMatchObject({
+      schema: 'spec-driven',
+      delivery: 'commands',
+    });
+    expect(parsed.profile).toBeUndefined();
+    expect(parsed.workflows).toBeUndefined();
+    expect(getGlobalConfig()).toMatchObject({
+      profile: 'core',
+      delivery: 'both',
+    });
+    expect(checkbox).not.toHaveBeenCalled();
+  });
+
+  it('project scope interactive workflows-only change should persist profile and workflows', async () => {
+    const { saveGlobalConfig, getGlobalConfig } = await import('../../src/core/global-config.js');
+    const { select, checkbox, confirm } = await getPromptMocks();
+
+    saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both', workflows: ['propose', 'explore', 'apply', 'archive'] });
+    select.mockResolvedValueOnce('workflows');
+    checkbox.mockResolvedValueOnce(['explore', 'verify']);
+    confirm.mockResolvedValueOnce(false);
+
+    await runConfigCommand(['--scope', 'project', 'profile']);
+
+    const parsed = parseYaml(
+      fs.readFileSync(path.join(tempDir, 'openspec', 'config.yaml'), 'utf-8')
+    ) as Record<string, unknown>;
+
+    expect(parsed).toMatchObject({
+      schema: 'spec-driven',
+      profile: 'custom',
+      workflows: ['explore', 'verify'],
+    });
+    expect(parsed.delivery).toBeUndefined();
+    expect(getGlobalConfig()).toMatchObject({
+      profile: 'core',
+      delivery: 'both',
+    });
+    expect(confirm).toHaveBeenCalledWith({
+      message: 'Apply changes to this project now?',
+      default: true,
+    });
   });
 
   it('Ctrl+C should cancel without stack trace and set interrupted exit code', async () => {

@@ -51,7 +51,18 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     description: 'Update OpenSpec instruction files',
     acceptsPositional: true,
     positionalType: 'path',
-    flags: [],
+    flags: [
+      {
+        name: 'force',
+        description: 'Force update even when tools are up to date',
+      },
+      {
+        name: 'scope',
+        description: 'Profile resolution scope override (user or project)',
+        takesValue: true,
+        values: ['user', 'project'],
+      },
+    ],
   },
   {
     name: 'list',
@@ -308,13 +319,13 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
   },
   {
     name: 'config',
-    description: 'View and modify global OpenSpec configuration',
+    description: 'View and modify OpenSpec configuration',
     flags: [
       {
         name: 'scope',
-        description: 'Config scope (only "global" supported currently)',
+        description: 'Config scope ("user" or "project")',
         takesValue: true,
-        values: ['global'],
+        values: ['user', 'project'],
       },
     ],
     subcommands: [
