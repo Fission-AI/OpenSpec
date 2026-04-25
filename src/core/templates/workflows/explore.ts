@@ -53,21 +53,28 @@ Depending on what the user brings, you might:
 
 **Visualize**
 \`\`\`
-┌─────────────────────────────────────────┐
-│     Use ASCII diagrams liberally        │
-├─────────────────────────────────────────┤
-│                                         │
-│      ┌────────┐         ┌────────┐      │
-│      │ State  │────────▶│ State  │      │
-│      │   A    │         │   B    │      │
-│      └────────┘         └────────┘      │
-│                                         │
-│   System diagrams, state machines,      │
-│   data flows, architecture sketches,    │
-│   dependency graphs, comparison tables  │
-│                                         │
-└─────────────────────────────────────────┘
++------------------------------------------+
+|     Use ASCII diagrams liberally         |
++------------------------------------------+
+|                                          |
+|   [State A] -------> [State B]           |
+|       |                                  |
+|       v                                  |
+|   [State C]                              |
+|                                          |
+|   System diagrams, state machines,       |
+|   data flows, architecture sketches,     |
+|   dependency graphs, comparison tables   |
+|                                          |
++------------------------------------------+
 \`\`\`
+
+**Important — use plain ASCII for all diagram characters:**
+- Box borders: \`+\`, \`-\`, \`|\` instead of \`┌\`, \`─\`, \`│\`
+- Arrows: \`-->\`, \`<--\`, \`^\`, \`v\` instead of \`→\`, \`←\`, \`↑\`, \`↓\`
+- Connections: \`|\` instead of \`│\`
+
+Unicode box-drawing and arrow characters (→, ←, ─, │, ┌, etc.) are "Ambiguous Width" in the Unicode standard — they render as double-width columns in many terminal configurations. Inside fixed-width padded boxes this causes the right border to appear misaligned or detached, since lines with different numbers of these characters end up at different visual widths.
 
 **Surface risks and unknowns**
 - Identify what could go wrong
@@ -349,21 +356,28 @@ Depending on what the user brings, you might:
 
 **Visualize**
 \`\`\`
-┌─────────────────────────────────────────┐
-│     Use ASCII diagrams liberally        │
-├─────────────────────────────────────────┤
-│                                         │
-│      ┌────────┐         ┌────────┐      │
-│      │ State  │────────▶│ State  │      │
-│      │   A    │         │   B    │      │
-│      └────────┘         └────────┘      │
-│                                         │
-│   System diagrams, state machines,      │
-│   data flows, architecture sketches,    │
-│   dependency graphs, comparison tables  │
-│                                         │
-└─────────────────────────────────────────┘
++------------------------------------------+
+|     Use ASCII diagrams liberally         |
++------------------------------------------+
+|                                          |
+|   [State A] -------> [State B]           |
+|       |                                  |
+|       v                                  |
+|   [State C]                              |
+|                                          |
+|   System diagrams, state machines,       |
+|   data flows, architecture sketches,     |
+|   dependency graphs, comparison tables   |
+|                                          |
++------------------------------------------+
 \`\`\`
+
+**Important — use plain ASCII for all diagram characters:**
+- Box borders: \`+\`, \`-\`, \`|\` instead of \`┌\`, \`─\`, \`│\`
+- Arrows: \`-->\`, \`<--\`, \`^\`, \`v\` instead of \`→\`, \`←\`, \`↑\`, \`↓\`
+- Connections: \`|\` instead of \`│\`
+
+Unicode box-drawing and arrow characters (→, ←, ─, │, ┌, etc.) are "Ambiguous Width" in the Unicode standard — they render as double-width columns in many terminal configurations. Inside fixed-width padded boxes this causes the right border to appear misaligned or detached, since lines with different numbers of these characters end up at different visual widths.
 
 **Surface risks and unknowns**
 - Identify what could go wrong
