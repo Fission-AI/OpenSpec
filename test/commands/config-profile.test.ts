@@ -287,7 +287,7 @@ describe('config profile interactive flow', () => {
     expect(consoleLogSpy).toHaveBeenCalledWith('No config changes.');
   });
 
-  it('keep action should warn when project files drift from global config', async () => {
+  it('keep action should warn when project files drift from user config', async () => {
     const { saveGlobalConfig } = await import('../../src/core/global-config.js');
     const { select } = await getPromptMocks();
 
@@ -298,7 +298,7 @@ describe('config profile interactive flow', () => {
     await runConfigCommand(['profile']);
 
     expect(consoleLogSpy).toHaveBeenCalledWith('No config changes.');
-    expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Warning: Global config is not applied to this project.'));
+    expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Warning: User config is not applied to this project.'));
   });
 
   it('keep action should not warn when project files are already synced', async () => {
@@ -312,7 +312,7 @@ describe('config profile interactive flow', () => {
     await runConfigCommand(['profile']);
 
     const allLogs = consoleLogSpy.mock.calls.map((args) => args.map(String).join(' '));
-    expect(allLogs.some((line) => line.includes('Warning: Global config is not applied to this project.'))).toBe(false);
+    expect(allLogs.some((line) => line.includes('Warning: User config is not applied to this project.'))).toBe(false);
   });
 
   it('effective no-op after prompts should warn when project files drift', async () => {
@@ -328,10 +328,10 @@ describe('config profile interactive flow', () => {
 
     expect(consoleLogSpy).toHaveBeenCalledWith('No config changes.');
     expect(confirm).not.toHaveBeenCalled();
-    expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Warning: Global config is not applied to this project.'));
+    expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Warning: User config is not applied to this project.'));
   });
 
-  it('keep action should warn when project has extra workflows beyond global config', async () => {
+  it('keep action should warn when project has extra workflows beyond user config', async () => {
     const { saveGlobalConfig } = await import('../../src/core/global-config.js');
     const { select } = await getPromptMocks();
 
@@ -343,7 +343,7 @@ describe('config profile interactive flow', () => {
     await runConfigCommand(['profile']);
 
     expect(consoleLogSpy).toHaveBeenCalledWith('No config changes.');
-    expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Warning: Global config is not applied to this project.'));
+    expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Warning: User config is not applied to this project.'));
   });
 
   it('changed config should save and ask apply when inside project', async () => {
