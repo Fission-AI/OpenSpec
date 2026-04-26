@@ -71,7 +71,7 @@ const AMBIGUOUS_PROJECT_CONFIG_ERROR =
   'Both openspec/config.yaml and openspec/config.yml exist. Remove one to continue.';
 
 /**
- * Read and parse openspec/config.yaml from project root.
+ * Read and parse openspec/config.yaml or openspec/config.yml from project root.
  * Uses resilient parsing - validates each field independently using Zod safeParse.
  * Returns null if file doesn't exist.
  * Returns partial config if some fields are invalid (with warnings).
@@ -103,13 +103,14 @@ export function readProjectConfig(projectRoot: string): Partial<ProjectConfig> |
   if (!configPath) {
     return null;
   }
+  const configDisplayPath = `openspec/${path.basename(configPath)}`;
 
   try {
     const content = readFileSync(configPath, 'utf-8');
     const raw = parseYaml(content);
 
     if (!raw || typeof raw !== 'object') {
-      console.warn(`openspec/config.yaml is not a valid YAML object`);
+      console.warn(`${configDisplayPath} is not a valid YAML object`);
       return null;
     }
 
@@ -213,7 +214,7 @@ export function readProjectConfig(projectRoot: string): Partial<ProjectConfig> |
     // Return partial config even if some fields failed
     return Object.keys(config).length > 0 ? config : null;
   } catch (error) {
-    console.warn(`Failed to parse openspec/config.yaml:`, error);
+    console.warn(`Failed to parse ${configDisplayPath}:`, error);
     return null;
   }
 }

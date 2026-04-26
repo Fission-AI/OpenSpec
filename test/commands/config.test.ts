@@ -413,18 +413,25 @@ delivery: both
     );
   });
 
-  it('builds project config paths with cross-platform join semantics (including win32-style roots)', async () => {
+  it('builds project config paths for windows-style roots without duplicated separators', async () => {
     const { getProjectConfigFilePaths } = await import('../../src/commands/config.js');
 
-    const windowsLikeRoot = 'C:\\repo\\sample-project';
-    const paths = getProjectConfigFilePaths(windowsLikeRoot);
+    const windowsLikeRootWithTrailingSlash = 'C:\\repo\\sample-project/';
+    const paths = getProjectConfigFilePaths(windowsLikeRootWithTrailingSlash);
 
-    expect(path.win32.normalize(paths.yamlPath)).toBe(
-      path.win32.join(windowsLikeRoot, 'openspec', 'config.yaml')
-    );
-    expect(path.win32.normalize(paths.ymlPath)).toBe(
-      path.win32.join(windowsLikeRoot, 'openspec', 'config.yml')
-    );
+    const expectedYamlPath =
+      process.platform === 'win32'
+        ? 'C:\\repo\\sample-project\\openspec\\config.yaml'
+        : 'C:\\repo\\sample-project/openspec/config.yaml';
+    const expectedYmlPath =
+      process.platform === 'win32'
+        ? 'C:\\repo\\sample-project\\openspec\\config.yml'
+        : 'C:\\repo\\sample-project/openspec/config.yml';
+
+    expect(paths.yamlPath).toBe(expectedYamlPath);
+    expect(paths.ymlPath).toBe(expectedYmlPath);
+    expect(paths.yamlPath).not.toContain('//openspec');
+    expect(paths.ymlPath).not.toContain('//openspec');
   });
 });
 

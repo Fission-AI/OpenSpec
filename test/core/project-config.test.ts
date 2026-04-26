@@ -344,30 +344,36 @@ rules:
         });
       });
 
-      it('should handle completely invalid YAML gracefully', () => {
+      it.each([
+        ['config.yaml'],
+        ['config.yml'],
+      ])('should handle completely invalid YAML gracefully for %s', (configFileName) => {
         const configDir = path.join(tempDir, 'openspec');
         fs.mkdirSync(configDir, { recursive: true });
-        fs.writeFileSync(path.join(configDir, 'config.yaml'), 'schema: [unclosed');
+        fs.writeFileSync(path.join(configDir, configFileName), 'schema: [unclosed');
 
         const config = readProjectConfig(tempDir);
 
         expect(config).toBeNull();
         expect(consoleWarnSpy).toHaveBeenCalledWith(
-          expect.stringContaining('Failed to parse openspec/config.yaml'),
+          expect.stringContaining(`Failed to parse openspec/${configFileName}`),
           expect.anything()
         );
       });
 
-      it('should warn when config is not a YAML object', () => {
+      it.each([
+        ['config.yaml'],
+        ['config.yml'],
+      ])('should warn when %s is not a YAML object', (configFileName) => {
         const configDir = path.join(tempDir, 'openspec');
         fs.mkdirSync(configDir, { recursive: true });
-        fs.writeFileSync(path.join(configDir, 'config.yaml'), '"just a string"');
+        fs.writeFileSync(path.join(configDir, configFileName), '"just a string"');
 
         const config = readProjectConfig(tempDir);
 
         expect(config).toBeNull();
         expect(consoleWarnSpy).toHaveBeenCalledWith(
-          expect.stringContaining('not a valid YAML object')
+          expect.stringContaining(`openspec/${configFileName} is not a valid YAML object`)
         );
       });
 
