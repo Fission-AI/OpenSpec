@@ -135,7 +135,7 @@ Update OpenSpec instruction files after upgrading the CLI. Re-generates AI tool 
 
 - CLI scope override (`--scope`) when provided
 - Project config (`openspec/config.yaml` or `openspec/config.yml`)
-- User config
+- Global config
 - Built-in defaults (`profile: core`, `delivery: both`)
 
 ```
@@ -153,7 +153,7 @@ openspec update [path] [options]
 | Option | Description |
 |--------|-------------|
 | `--force` | Force update even when files are up to date |
-| `--scope <scope>` | Resolution scope override: `user` or `project` |
+| `--scope <scope>` | Resolution scope override: `global` or `project` |
 
 **Example:**
 
@@ -162,8 +162,8 @@ openspec update [path] [options]
 npm update @fission-ai/openspec
 openspec update
 
-# Force user-only profile resolution for this run
-openspec update --scope user
+# Force global-only profile resolution for this run
+openspec update --scope global
 
 # Force project-prioritized resolution for this run
 openspec update --scope project
@@ -761,7 +761,7 @@ spec-driven resolves from: package
 **Schema precedence:**
 
 1. Project: `openspec/schemas/<name>/`
-2. User: `~/.local/share/openspec/schemas/<name>/`
+2. Global: `~/.local/share/openspec/schemas/<name>/`
 3. Package: Built-in schemas
 
 ---
@@ -772,8 +772,8 @@ spec-driven resolves from: package
 
 View and modify OpenSpec configuration.
 
-Default scope is `user`. Use `--scope project` to read/write project-scoped profile settings (`profile`, `delivery`, `workflows`) in `openspec/config.yaml` (or existing `config.yml`).
-If you already use user-level config only, no migration is required: existing commands keep user-level behavior unless you explicitly opt into `--scope project`.
+Default scope is `global`. Use `--scope project` to read/write project-scoped profile settings (`profile`, `delivery`, `workflows`) in `openspec/config.yaml` (or existing `config.yml`).
+If you already use global-only config, no migration is required: existing commands keep global behavior unless you explicitly opt into `--scope project`.
 
 ```
 openspec config <subcommand> [options]
@@ -808,10 +808,10 @@ openspec config get telemetry.enabled
 openspec config set telemetry.enabled false
 
 # Set a string value explicitly
-openspec config set user.name "My Name" --string
+openspec config set custom.name "My Name" --string
 
 # Remove a custom setting
-openspec config unset user.name
+openspec config unset custom.name
 
 # Reset all configuration
 openspec config reset --all --yes

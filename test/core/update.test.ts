@@ -1456,7 +1456,7 @@ workflows:
       )).toBe(false);
     });
 
-    it('should ignore project profile settings when scope override is user', async () => {
+    it('should ignore project profile settings when scope override is global', async () => {
       setMockConfig({
         featureFlags: {},
         profile: 'core',
@@ -1476,7 +1476,7 @@ workflows:
       await fs.mkdir(path.join(skillsDir, 'openspec-explore'), { recursive: true });
       await fs.writeFile(path.join(skillsDir, 'openspec-explore', 'SKILL.md'), 'old');
 
-      const scopedUpdateCommand = new UpdateCommand({ scope: 'user' });
+      const scopedUpdateCommand = new UpdateCommand({ scope: 'global' });
       await scopedUpdateCommand.execute(testDir);
 
       expect(await FileSystemUtils.fileExists(
@@ -1519,6 +1519,21 @@ workflows:
       const commandsDir = path.join(testDir, '.claude', 'commands', 'opsx');
       expect(await FileSystemUtils.fileExists(path.join(commandsDir, 'explore.md'))).toBe(true);
       expect(await FileSystemUtils.fileExists(path.join(commandsDir, 'verify.md'))).toBe(false);
+    });
+
+    it('should fail when both openspec/config.yaml and openspec/config.yml exist', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'both',
+      });
+
+      await fs.writeFile(path.join(testDir, 'openspec', 'config.yaml'), 'schema: spec-driven\n');
+      await fs.writeFile(path.join(testDir, 'openspec', 'config.yml'), 'schema: spec-driven\n');
+
+      await expect(updateCommand.execute(testDir)).rejects.toThrow(
+        'Both openspec/config.yaml and openspec/config.yml exist'
+      );
     });
 
     it('should respect skills-only delivery setting', async () => {

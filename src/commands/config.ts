@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { spawn, execSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+import { parseDocument, isMap } from 'yaml';
 import {
   getGlobalConfigPath,
   getGlobalConfig,
@@ -52,6 +52,7 @@ interface ProjectConfigFile {
   path: string;
   exists: boolean;
   content: Record<string, unknown>;
+  document: ReturnType<typeof parseDocument>;
 }
 
 const WORKFLOW_PROMPT_META: Record<string, WorkflowPromptMeta> = {
@@ -103,7 +104,15 @@ const WORKFLOW_PROMPT_META: Record<string, WorkflowPromptMeta> = {
 
 const DEFAULT_PROJECT_SCHEMA = 'spec-driven';
 const PROJECT_PROFILE_KEYS = new Set(['profile', 'delivery', 'workflows']);
+const AMBIGUOUS_PROJECT_CONFIG_ERROR =
+  'Both openspec/config.yaml and openspec/config.yml exist. Remove one to continue.';
 
+/**
+ * Return candidate project config paths for both supported YAML extensions.
+ *
+ * Callers can use this to implement existence checks, ambiguity handling,
+ * and default path selection for new files.
+ */
 export function getProjectConfigFilePaths(projectDir: string): {
   yamlPath: string;
   ymlPath: string;
@@ -116,10 +125,17 @@ export function getProjectConfigFilePaths(projectDir: string): {
 
 function resolveProjectConfigFilePath(projectDir: string): { path: string; exists: boolean } {
   const { yamlPath, ymlPath } = getProjectConfigFilePaths(projectDir);
-  if (fs.existsSync(yamlPath)) {
+  const yamlExists = fs.existsSync(yamlPath);
+  const ymlExists = fs.existsSync(ymlPath);
+
+  if (yamlExists && ymlExists) {
+    throw new Error(AMBIGUOUS_PROJECT_CONFIG_ERROR);
+  }
+
+  if (yamlExists) {
     return { path: yamlPath, exists: true };
   }
-  if (fs.existsSync(ymlPath)) {
+  if (ymlExists) {
     return { path: ymlPath, exists: true };
   }
   return { path: yamlPath, exists: false };
@@ -137,17 +153,26 @@ function readRawProjectConfigFile(projectDir: string): ProjectConfigFile {
       path: resolved.path,
       exists: false,
       content: {},
+      document: parseDocument(''),
     };
   }
 
   const fileContent = fs.readFileSync(resolved.path, 'utf-8');
-  const parsed = parseYaml(fileContent);
+  const document = parseDocument(fileContent);
+  if (document.errors.length > 0) {
+    throw new Error(
+      `Invalid YAML in ${path.relative(projectDir, resolved.path)}: ${document.errors[0]?.message}`
+    );
+  }
+
+  const parsed = document.toJS();
 
   if (parsed == null) {
     return {
       path: resolved.path,
       exists: true,
       content: {},
+      document,
     };
   }
 
@@ -159,32 +184,68 @@ function readRawProjectConfigFile(projectDir: string): ProjectConfigFile {
     path: resolved.path,
     exists: true,
     content: { ...parsed },
+    document,
   };
 }
 
 function writeProjectConfigFile(file: ProjectConfigFile): void {
   fs.mkdirSync(path.dirname(file.path), { recursive: true });
-  const serialized = stringifyYaml(file.content);
+  const serialized = String(file.document);
   const contentWithNewline = serialized.endsWith('\n') ? serialized : `${serialized}\n`;
   fs.writeFileSync(file.path, contentWithNewline, 'utf-8');
 }
 
 function ensureProjectConfigForWrite(projectDir: string): ProjectConfigFile {
   const file = readRawProjectConfigFile(projectDir);
-  if (!file.exists && file.content.schema === undefined) {
-    file.content.schema = DEFAULT_PROJECT_SCHEMA;
+  if (!file.exists && file.document.get('schema') === undefined) {
+    file.document.set('schema', DEFAULT_PROJECT_SCHEMA);
   }
   return file;
 }
 
+function toPathSegments(key: string): string[] {
+  return key.split('.');
+}
+
+function setProjectConfigDocumentValue(document: ReturnType<typeof parseDocument>, key: string, value: unknown): void {
+  const pathSegments = toPathSegments(key);
+
+  for (let depth = 1; depth < pathSegments.length; depth += 1) {
+    const parentPath = pathSegments.slice(0, depth);
+    const existingParent = document.getIn(parentPath, true);
+    if (existingParent === undefined) {
+      document.setIn(parentPath, document.createNode({}));
+      continue;
+    }
+    if (!isMap(existingParent)) {
+      document.setIn(parentPath, document.createNode({}));
+    }
+  }
+
+  if (pathSegments.length === 1) {
+    document.set(pathSegments[0], value);
+    return;
+  }
+  document.setIn(pathSegments, value);
+}
+
+function deleteProjectConfigDocumentValue(document: ReturnType<typeof parseDocument>, key: string): boolean {
+  const pathSegments = toPathSegments(key);
+  if (!document.hasIn(pathSegments)) {
+    return false;
+  }
+  document.deleteIn(pathSegments);
+  return true;
+}
+
 function parseScope(rawScope: unknown): ConfigScope | null {
-  if (rawScope === undefined || rawScope === null || rawScope === 'user') {
-    return 'user';
+  if (rawScope === undefined || rawScope === null || rawScope === 'global') {
+    return 'global';
   }
   if (rawScope === 'project') {
     return 'project';
   }
-  console.error(`Error: Invalid scope "${String(rawScope)}". Use "user" or "project".`);
+  console.error(`Error: Invalid scope "${String(rawScope)}". Use "global" or "project".`);
   process.exitCode = 1;
   return null;
 }
@@ -253,9 +314,21 @@ function coerceProjectScopedValue(key: string, value: string, forceString: boole
 
 function formatSource(source: ProfileValueSource): string {
   if (source === 'project') return 'project';
-  if (source === 'user') return 'user';
+  if (source === 'global') return 'global';
   if (source === 'cli') return 'CLI override';
   return 'default';
+}
+
+interface ProfileSourceState {
+  profile: ProfileValueSource;
+  delivery: ProfileValueSource;
+  workflows: ProfileValueSource;
+}
+
+interface DriftWarningContext {
+  scope?: ConfigScope;
+  effectiveSources?: ProfileSourceState;
+  hasProjectConfig?: boolean;
 }
 
 function isPromptCancellationError(error: unknown): boolean {
@@ -266,7 +339,7 @@ function isPromptCancellationError(error: unknown): boolean {
 }
 
 /**
- * Resolve the effective current profile state from user config defaults.
+ * Resolve the effective current profile state from global config defaults.
  */
 export function resolveCurrentProfileState(config: GlobalConfig): ProfileState {
   const profile = config.profile || 'core';
@@ -318,7 +391,7 @@ function stableWorkflowOrder(workflows: readonly string[]): string[] {
 }
 
 /**
- * Build a user-facing diff summary between two profile states.
+ * Build a CLI-facing diff summary between two profile states.
  */
 export function diffProfileState(before: ProfileState, after: ProfileState): ProfileStateDiff {
   const lines: string[] = [];
@@ -360,8 +433,9 @@ function maybeWarnConfigDrift(
   projectDir: string,
   state: ProfileState,
   colorize: (message: string) => string,
-  scope: ConfigScope = 'user'
+  context: DriftWarningContext = {}
 ): void {
+  const scope = context.scope ?? 'global';
   const openspecDir = path.join(projectDir, OPENSPEC_DIR_NAME);
   if (!fs.existsSync(openspecDir)) {
     return;
@@ -369,10 +443,21 @@ function maybeWarnConfigDrift(
   if (!hasProjectConfigDrift(projectDir, state.workflows, state.delivery)) {
     return;
   }
+
+  const hasProjectSource =
+    context.effectiveSources !== undefined &&
+    [
+      context.effectiveSources.profile,
+      context.effectiveSources.delivery,
+      context.effectiveSources.workflows,
+    ].some((source) => source === 'project');
+  const useProjectWording =
+    scope === 'project' && (hasProjectSource || context.hasProjectConfig === true);
+
   const message =
-    scope === 'project'
+    useProjectWording
       ? 'Warning: Project config is not applied to this project. Run `openspec update` to sync.'
-      : 'Warning: User config is not applied to this project. Run `openspec update` to sync.';
+      : 'Warning: Global config is not applied to this project. Run `openspec update` to sync.';
   console.log(colorize(message));
 }
 
@@ -385,7 +470,7 @@ export function registerConfigCommand(program: Command): void {
   const configCmd = program
     .command('config')
     .description('View and modify OpenSpec configuration')
-    .option('--scope <scope>', 'Config scope ("user" or "project")', 'user');
+    .option('--scope <scope>', 'Config scope ("global" or "project")', 'global');
 
   // config path
   configCmd
@@ -397,12 +482,17 @@ export function registerConfigCommand(program: Command): void {
         return;
       }
 
-      if (scope === 'user') {
+      if (scope === 'global') {
         console.log(getGlobalConfigPath());
         return;
       }
 
-      console.log(resolveProjectConfigFilePath(process.cwd()).path);
+      try {
+        console.log(resolveProjectConfigFilePath(process.cwd()).path);
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+        process.exitCode = 1;
+      }
     });
 
   // config list
@@ -416,7 +506,7 @@ export function registerConfigCommand(program: Command): void {
         return;
       }
 
-      if (scope === 'user') {
+      if (scope === 'global') {
         const config = getGlobalConfig();
 
         if (options.json) {
@@ -457,22 +547,37 @@ export function registerConfigCommand(program: Command): void {
       const projectDir = process.cwd();
 
       let projectFile: ProjectConfigFile;
+      let projectConfig: NonNullable<ReturnType<typeof readProjectConfig>>;
       try {
         projectFile = readRawProjectConfigFile(projectDir);
+        projectConfig = readProjectConfig(projectDir) ?? {};
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
         process.exitCode = 1;
         return;
       }
 
-      const projectConfig = readProjectConfig(projectDir) ?? {};
       const effective = resolveEffectiveProfileSettings({
         projectConfig,
         globalConfig: getGlobalConfig(),
       });
 
       if (options.json) {
-        console.log(JSON.stringify(projectFile.content, null, 2));
+        console.log(
+          JSON.stringify(
+            {
+              raw: projectFile.content,
+              effective: {
+                profile: effective.profile,
+                delivery: effective.delivery,
+                workflows: effective.workflows,
+                sources: effective.sources,
+              },
+            },
+            null,
+            2
+          )
+        );
         return;
       }
 
@@ -517,7 +622,7 @@ export function registerConfigCommand(program: Command): void {
       }
 
       let config: Record<string, unknown>;
-      if (scope === 'user') {
+      if (scope === 'global') {
         config = getGlobalConfig() as Record<string, unknown>;
       } else {
         try {
@@ -557,7 +662,7 @@ export function registerConfigCommand(program: Command): void {
 
       const allowUnknown = Boolean(options.allowUnknown);
 
-      if (scope === 'user') {
+      if (scope === 'global') {
         const keyValidation = validateConfigKeyPath(key);
         if (!keyValidation.valid && !allowUnknown) {
           const reason = keyValidation.reason ? ` ${keyValidation.reason}.` : '';
@@ -631,9 +736,8 @@ export function registerConfigCommand(program: Command): void {
         return;
       }
 
-      const nextConfig = JSON.parse(JSON.stringify(projectFile.content)) as Record<string, unknown>;
-      setNestedValue(nextConfig, key, coercedValue);
-      writeProjectConfigFile({ ...projectFile, content: nextConfig });
+      setProjectConfigDocumentValue(projectFile.document, key, coercedValue);
+      writeProjectConfigFile(projectFile);
 
       const displayValue =
         typeof coercedValue === 'string' ? `"${coercedValue}"` : JSON.stringify(coercedValue);
@@ -653,7 +757,7 @@ export function registerConfigCommand(program: Command): void {
 
       const allowUnknown = Boolean(options.allowUnknown);
 
-      if (scope === 'user') {
+      if (scope === 'global') {
         const config = getGlobalConfig() as Record<string, unknown>;
         const existed = deleteNestedValue(config, key);
 
@@ -684,11 +788,10 @@ export function registerConfigCommand(program: Command): void {
         return;
       }
 
-      const nextConfig = JSON.parse(JSON.stringify(projectFile.content)) as Record<string, unknown>;
-      const existed = deleteNestedValue(nextConfig, key);
+      const existed = deleteProjectConfigDocumentValue(projectFile.document, key);
 
       if (existed) {
-        writeProjectConfigFile({ ...projectFile, content: nextConfig });
+        writeProjectConfigFile(projectFile);
         console.log(`Unset ${key} (reverted to fallback)`);
       } else {
         console.log(`Key "${key}" was not set`);
@@ -708,7 +811,7 @@ export function registerConfigCommand(program: Command): void {
       }
 
       if (scope === 'project') {
-          console.error('Error: config reset is only supported for user scope');
+        console.error('Error: config reset is only supported for global scope');
         process.exitCode = 1;
         return;
       }
@@ -758,7 +861,7 @@ export function registerConfigCommand(program: Command): void {
       }
 
       if (scope === 'project') {
-          console.error('Error: config edit is only supported for user scope');
+        console.error('Error: config edit is only supported for global scope');
         process.exitCode = 1;
         return;
       }
@@ -833,7 +936,7 @@ export function registerConfigCommand(program: Command): void {
 
       // Preset shortcut: `openspec config profile core`
       if (preset === 'core') {
-        if (scope === 'user') {
+        if (scope === 'global') {
           const config = getGlobalConfig();
           config.profile = 'core';
           config.workflows = [...CORE_WORKFLOWS];
@@ -849,10 +952,9 @@ export function registerConfigCommand(program: Command): void {
             return;
           }
 
-          const nextConfig = JSON.parse(JSON.stringify(projectFile.content)) as Record<string, unknown>;
-          nextConfig.profile = 'core';
-          nextConfig.workflows = [...CORE_WORKFLOWS];
-          writeProjectConfigFile({ ...projectFile, content: nextConfig });
+          setProjectConfigDocumentValue(projectFile.document, 'profile', 'core');
+          setProjectConfigDocumentValue(projectFile.document, 'workflows', [...CORE_WORKFLOWS]);
+          writeProjectConfigFile(projectFile);
         }
         console.log('Config updated. Run `openspec update` in your projects to apply.');
         return;
@@ -877,7 +979,16 @@ export function registerConfigCommand(program: Command): void {
 
       try {
         const globalConfig = getGlobalConfig();
-        const projectConfig = scope === 'project' ? (readProjectConfig(process.cwd()) ?? {}) : null;
+        const projectDir = process.cwd();
+        let hasProjectConfig = false;
+        let projectConfig: NonNullable<ReturnType<typeof readProjectConfig>> | null = null;
+
+        if (scope === 'project') {
+          const resolvedProjectConfigPath = resolveProjectConfigFilePath(projectDir);
+          hasProjectConfig = resolvedProjectConfigPath.exists;
+          projectConfig = readProjectConfig(projectDir) ?? {};
+        }
+
         const effective = resolveEffectiveProfileSettings({
           projectConfig,
           globalConfig,
@@ -923,7 +1034,11 @@ export function registerConfigCommand(program: Command): void {
 
         if (action === 'keep') {
           console.log('No config changes.');
-          maybeWarnConfigDrift(process.cwd(), currentState, chalk.yellow, scope);
+          maybeWarnConfigDrift(projectDir, currentState, chalk.yellow, {
+            scope,
+            effectiveSources: effective.sources,
+            hasProjectConfig,
+          });
           return;
         }
 
@@ -998,7 +1113,11 @@ export function registerConfigCommand(program: Command): void {
         const diff = diffProfileState(currentState, nextState);
         if (!diff.hasChanges) {
           console.log('No config changes.');
-          maybeWarnConfigDrift(process.cwd(), nextState, chalk.yellow, scope);
+          maybeWarnConfigDrift(projectDir, nextState, chalk.yellow, {
+            scope,
+            effectiveSources: effective.sources,
+            hasProjectConfig,
+          });
           return;
         }
 
@@ -1008,7 +1127,7 @@ export function registerConfigCommand(program: Command): void {
         }
         console.log();
 
-        if (scope === 'user') {
+        if (scope === 'global') {
           const config = getGlobalConfig();
           config.profile = nextState.profile;
           config.delivery = nextState.delivery;
@@ -1024,19 +1143,17 @@ export function registerConfigCommand(program: Command): void {
             return;
           }
 
-          const nextConfig = JSON.parse(JSON.stringify(projectFile.content)) as Record<string, unknown>;
           if (action === 'both' || action === 'workflows') {
-            nextConfig.profile = nextState.profile;
-            nextConfig.workflows = nextState.workflows;
+            setProjectConfigDocumentValue(projectFile.document, 'profile', nextState.profile);
+            setProjectConfigDocumentValue(projectFile.document, 'workflows', nextState.workflows);
           }
           if (action === 'both' || action === 'delivery') {
-            nextConfig.delivery = nextState.delivery;
+            setProjectConfigDocumentValue(projectFile.document, 'delivery', nextState.delivery);
           }
-          writeProjectConfigFile({ ...projectFile, content: nextConfig });
+          writeProjectConfigFile(projectFile);
         }
 
         // Check if inside an OpenSpec project
-        const projectDir = process.cwd();
         const openspecDir = path.join(projectDir, OPENSPEC_DIR_NAME);
         if (fs.existsSync(openspecDir)) {
           const applyNow = await confirm({
@@ -1047,7 +1164,7 @@ export function registerConfigCommand(program: Command): void {
           if (applyNow) {
             try {
               const updateCommand =
-                scope === 'project' ? 'npx openspec update --scope project' : 'npx openspec update --scope user';
+                scope === 'project' ? 'npx openspec update --scope project' : 'npx openspec update --scope global';
               execSync(updateCommand, { stdio: 'inherit', cwd: projectDir });
               console.log('Run `openspec update` in your other projects to apply.');
             } catch {
@@ -1065,7 +1182,8 @@ export function registerConfigCommand(program: Command): void {
           process.exitCode = 130;
           return;
         }
-        throw error;
+        console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+        process.exitCode = 1;
       }
     });
 }

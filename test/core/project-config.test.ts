@@ -461,7 +461,7 @@ context: |
     });
 
     describe('.yml/.yaml precedence', () => {
-      it('should prefer .yaml when both exist', () => {
+      it('should fail when both .yaml and .yml exist', () => {
         const configDir = path.join(tempDir, 'openspec');
         fs.mkdirSync(configDir, { recursive: true });
         fs.writeFileSync(
@@ -473,10 +473,9 @@ context: |
           'schema: custom-schema\ncontext: from yml\n'
         );
 
-        const config = readProjectConfig(tempDir);
-
-        expect(config?.schema).toBe('spec-driven');
-        expect(config?.context).toBe('from yaml');
+        expect(() => readProjectConfig(tempDir)).toThrow(
+          'Both openspec/config.yaml and openspec/config.yml exist'
+        );
       });
 
       it('should use .yml when .yaml does not exist', () => {

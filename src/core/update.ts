@@ -79,6 +79,9 @@ export function scanInstalledWorkflows(projectPath: string, toolIds: string[]): 
   return scanInstalledWorkflowsShared(projectPath, tools);
 }
 
+/**
+ * Executes profile-aware update and sync operations for configured tools.
+ */
 export class UpdateCommand {
   private readonly force: boolean;
   private readonly scope?: ConfigScope;
@@ -88,6 +91,12 @@ export class UpdateCommand {
     this.scope = options.scope;
   }
 
+  /**
+   * Run the update flow for a project.
+   *
+   * @param projectPath - Project root path (absolute or relative)
+   * @throws Error when OpenSpec is not initialized in the target project
+   */
   async execute(projectPath: string): Promise<void> {
     const resolvedProjectPath = path.resolve(projectPath);
     const openspecPath = path.join(resolvedProjectPath, OPENSPEC_DIR_NAME);

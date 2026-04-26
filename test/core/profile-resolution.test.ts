@@ -63,15 +63,15 @@ describe('profile-resolution', () => {
       workflows: ['new'],
       sources: {
         profile: 'project',
-        delivery: 'user',
-        workflows: 'user',
+        delivery: 'global',
+        workflows: 'global',
       },
     });
   });
 
-  it('ignores project config when scope override is user', () => {
+  it('ignores project config when scope override is global', () => {
     const resolved = resolveEffectiveProfileSettings({
-      scopeOverride: 'user',
+      scopeOverride: 'global',
       globalConfig: {
         featureFlags: {},
         profile: 'custom',
@@ -90,14 +90,14 @@ describe('profile-resolution', () => {
       delivery: 'commands',
       workflows: ['continue'],
       sources: {
-        profile: 'user',
-        delivery: 'user',
-        workflows: 'user',
+        profile: 'global',
+        delivery: 'global',
+        workflows: 'global',
       },
     });
   });
 
-  it("honors scopeOverride='project' (project wins, user fallback preserved)", () => {
+  it("honors scopeOverride='project' (project wins, global fallback preserved)", () => {
     const resolved = resolveEffectiveProfileSettings({
       scopeOverride: 'project',
       globalConfig: {
@@ -117,8 +117,8 @@ describe('profile-resolution', () => {
       workflows: ['continue'],
       sources: {
         profile: 'project',
-        delivery: 'user',
-        workflows: 'user',
+        delivery: 'global',
+        workflows: 'global',
       },
     });
   });
@@ -168,6 +168,6 @@ describe('profile-resolution', () => {
     });
 
     expect(resolved.workflows).toEqual(['propose', 'explore', 'apply', 'archive']);
-    expect(resolved.sources.workflows).toBe('user');
+    expect(resolved.sources.workflows).toBe('global');
   });
 });

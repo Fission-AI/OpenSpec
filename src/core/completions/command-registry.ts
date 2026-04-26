@@ -58,9 +58,9 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
       },
       {
         name: 'scope',
-        description: 'Profile resolution scope override (user or project)',
+        description: 'Profile resolution scope override (global or project)',
         takesValue: true,
-        values: ['user', 'project'],
+        values: ['global', 'project'],
       },
     ],
   },
@@ -323,9 +323,9 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     flags: [
       {
         name: 'scope',
-        description: 'Config scope ("user" or "project")',
+        description: 'Config scope ("global" or "project")',
         takesValue: true,
-        values: ['user', 'project'],
+        values: ['global', 'project'],
       },
     ],
     subcommands: [

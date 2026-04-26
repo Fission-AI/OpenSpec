@@ -154,6 +154,59 @@ describe('config command project scope', () => {
     expect(consoleLogSpy).toHaveBeenCalledWith('custom');
   });
 
+  it('list --scope project --json includes raw and effective sections', async () => {
+    const { saveGlobalConfig } = await import('../../src/core/global-config.js');
+
+    saveGlobalConfig({
+      featureFlags: {},
+      profile: 'custom',
+      delivery: 'commands',
+      workflows: ['verify'],
+    });
+
+    fs.mkdirSync(path.join(tempDir, 'openspec'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'openspec', 'config.yaml'),
+      `schema: spec-driven
+profile: custom
+workflows:
+  - explore
+`
+    );
+
+    await runConfigCommand(['--scope', 'project', 'list', '--json']);
+
+    const payload = JSON.parse(consoleLogSpy.mock.calls[0]?.[0] as string) as {
+      raw: Record<string, unknown>;
+      effective: {
+        profile: string;
+        delivery: string;
+        workflows: string[];
+        sources: {
+          profile: string;
+          delivery: string;
+          workflows: string;
+        };
+      };
+    };
+
+    expect(payload.raw).toMatchObject({
+      schema: 'spec-driven',
+      profile: 'custom',
+      workflows: ['explore'],
+    });
+    expect(payload.effective).toEqual({
+      profile: 'custom',
+      delivery: 'commands',
+      workflows: ['explore'],
+      sources: {
+        profile: 'project',
+        delivery: 'global',
+        workflows: 'project',
+      },
+    });
+  });
+
   it('project-scoped writes preserve existing schema/context/rules fields', async () => {
     fs.mkdirSync(path.join(tempDir, 'openspec'), { recursive: true });
     fs.writeFileSync(
@@ -180,6 +233,33 @@ rules:
     expect(parsed.rules).toEqual({ proposal: ['Keep this'] });
   });
 
+  it('project-scoped set preserves YAML comments and key order', async () => {
+    fs.mkdirSync(path.join(tempDir, 'openspec'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'openspec', 'config.yaml'),
+      `# Top-level comment
+schema: spec-driven # schema comment
+# delivery comment
+delivery: both
+`
+    );
+
+    await runConfigCommand(['--scope', 'project', 'set', 'profile', 'custom']);
+
+    const written = fs.readFileSync(path.join(tempDir, 'openspec', 'config.yaml'), 'utf-8');
+
+    expect(written).toContain('# Top-level comment');
+    expect(written).toContain('# schema comment');
+    expect(written).toContain('# delivery comment');
+
+    const schemaIndex = written.indexOf('schema: spec-driven');
+    const deliveryIndex = written.indexOf('delivery: both');
+    const profileIndex = written.indexOf('profile: custom');
+    expect(schemaIndex).toBeGreaterThanOrEqual(0);
+    expect(deliveryIndex).toBeGreaterThan(schemaIndex);
+    expect(profileIndex).toBeGreaterThan(deliveryIndex);
+  });
+
   it('unset with --scope project removes key without mutating global config', async () => {
     const { getGlobalConfig, saveGlobalConfig } = await import('../../src/core/global-config.js');
     saveGlobalConfig({ featureFlags: {}, profile: 'custom', delivery: 'both', workflows: ['explore'] });
@@ -199,6 +279,26 @@ profile: custom
     ) as Record<string, unknown>;
     expect(parsed).toEqual({ schema: 'spec-driven' });
     expect(getGlobalConfig().profile).toBe('custom');
+  });
+
+  it('project-scoped unset preserves comments on untouched keys', async () => {
+    fs.mkdirSync(path.join(tempDir, 'openspec'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'openspec', 'config.yaml'),
+      `# keep this
+schema: spec-driven # and this
+profile: custom
+delivery: both
+`
+    );
+
+    await runConfigCommand(['--scope', 'project', 'unset', 'profile']);
+
+    const written = fs.readFileSync(path.join(tempDir, 'openspec', 'config.yaml'), 'utf-8');
+    expect(written).toContain('# keep this');
+    expect(written).toContain('# and this');
+    expect(written).not.toContain('profile: custom');
+    expect(written).toContain('delivery: both');
   });
 
   it('rejects unsupported project-scoped keys', async () => {
@@ -288,6 +388,29 @@ profile: custom
       expect.stringContaining('Project scope only supports profile-related keys')
     );
     expect(consoleErrorSpy).toHaveBeenCalledWith('Pass --allow-unknown to bypass this check.');
+  });
+
+  it.each([
+    ['path'],
+    ['list'],
+    ['get', 'profile'],
+    ['set', 'profile', 'custom'],
+    ['unset', 'profile'],
+    ['profile', 'core'],
+  ])('project scope %s fails when both config.yaml and config.yml exist', async (...commandArgs: string[]) => {
+    fs.mkdirSync(path.join(tempDir, 'openspec'), { recursive: true });
+    fs.writeFileSync(path.join(tempDir, 'openspec', 'config.yaml'), 'schema: spec-driven\n', 'utf-8');
+    fs.writeFileSync(path.join(tempDir, 'openspec', 'config.yml'), 'schema: spec-driven\n', 'utf-8');
+
+    process.exitCode = undefined;
+    consoleErrorSpy.mockClear();
+
+    await runConfigCommand(['--scope', 'project', ...commandArgs]);
+
+    expect(process.exitCode).toBe(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Both openspec/config.yaml and openspec/config.yml exist')
+    );
   });
 
   it('builds project config paths with cross-platform join semantics (including win32-style roots)', async () => {
@@ -381,7 +504,7 @@ describe('config command shell completion registry', () => {
     const scopeFlag = configCmd?.flags?.find((f) => f.name === 'scope');
 
     expect(scopeFlag).toBeDefined();
-    expect(scopeFlag?.values).toEqual(['user', 'project']);
+    expect(scopeFlag?.values).toEqual(['global', 'project']);
   });
 
   it('should include update scope override flag in registry', async () => {
@@ -393,7 +516,7 @@ describe('config command shell completion registry', () => {
 
     expect(forceFlag).toBeDefined();
     expect(scopeFlag).toBeDefined();
-    expect(scopeFlag?.values).toEqual(['user', 'project']);
+    expect(scopeFlag?.values).toEqual(['global', 'project']);
   });
 });
 

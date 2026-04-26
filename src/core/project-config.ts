@@ -56,10 +56,19 @@ export const ProjectConfigSchema = z.object({
     .describe('Workflow selection override for this project'),
 });
 
+/**
+ * Runtime-validated project configuration shape.
+ */
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
+
+/**
+ * Project-scoped profile fields consumed by profile resolution.
+ */
 export type ProjectProfileConfig = Pick<ProjectConfig, 'profile' | 'delivery' | 'workflows'>;
 
 const MAX_CONTEXT_SIZE = 50 * 1024; // 50KB hard limit
+const AMBIGUOUS_PROJECT_CONFIG_ERROR =
+  'Both openspec/config.yaml and openspec/config.yml exist. Remove one to continue.';
 
 /**
  * Read and parse openspec/config.yaml from project root.
@@ -81,13 +90,18 @@ const MAX_CONTEXT_SIZE = 50 * 1024; // 50KB hard limit
  * @returns Parsed config or null if file doesn't exist
  */
 export function readProjectConfig(projectRoot: string): Partial<ProjectConfig> | null {
-  // Try both .yaml and .yml, prefer .yaml
-  let configPath = path.join(projectRoot, 'openspec', 'config.yaml');
-  if (!existsSync(configPath)) {
-    configPath = path.join(projectRoot, 'openspec', 'config.yml');
-    if (!existsSync(configPath)) {
-      return null; // No config is OK
-    }
+  const yamlPath = path.join(projectRoot, 'openspec', 'config.yaml');
+  const ymlPath = path.join(projectRoot, 'openspec', 'config.yml');
+  const yamlExists = existsSync(yamlPath);
+  const ymlExists = existsSync(ymlPath);
+
+  if (yamlExists && ymlExists) {
+    throw new Error(AMBIGUOUS_PROJECT_CONFIG_ERROR);
+  }
+
+  const configPath = yamlExists ? yamlPath : ymlExists ? ymlPath : null;
+  if (!configPath) {
+    return null;
   }
 
   try {
