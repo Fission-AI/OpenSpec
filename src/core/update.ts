@@ -34,8 +34,8 @@ import {
   type LegacyDetectionResult,
 } from './legacy-cleanup.js';
 import { isInteractive } from '../utils/interactive.js';
-import { getGlobalConfig, type Delivery } from './global-config.js';
-import { getProfileWorkflows, ALL_WORKFLOWS } from './profiles.js';
+import type { Delivery } from './global-config.js';
+import { ALL_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
 import {
   WORKFLOW_TO_SKILL_DIR,
@@ -43,6 +43,11 @@ import {
   getConfiguredToolsForProfileSync,
   getToolsNeedingProfileSync,
 } from './profile-sync-drift.js';
+import { readProjectConfig } from './project-config.js';
+import {
+  resolveEffectiveProfileSettings,
+  type ConfigScope,
+} from './profile-resolution.js';
 import {
   scanInstalledWorkflows as scanInstalledWorkflowsShared,
   migrateIfNeeded as migrateIfNeededShared,
@@ -57,6 +62,8 @@ const { version: OPENSPEC_VERSION } = require('../../package.json');
 export interface UpdateCommandOptions {
   /** Force update even when tools are up to date */
   force?: boolean;
+  /** Optional config-scope override for effective profile resolution */
+  scope?: ConfigScope;
 }
 
 /**
@@ -72,13 +79,24 @@ export function scanInstalledWorkflows(projectPath: string, toolIds: string[]): 
   return scanInstalledWorkflowsShared(projectPath, tools);
 }
 
+/**
+ * Executes profile-aware update and sync operations for configured tools.
+ */
 export class UpdateCommand {
   private readonly force: boolean;
+  private readonly scope?: ConfigScope;
 
   constructor(options: UpdateCommandOptions = {}) {
     this.force = options.force ?? false;
+    this.scope = options.scope;
   }
 
+  /**
+   * Run the update flow for a project.
+   *
+   * @param projectPath - Project root path (absolute or relative)
+   * @throws Error when OpenSpec is not initialized in the target project
+   */
   async execute(projectPath: string): Promise<void> {
     const resolvedProjectPath = path.resolve(projectPath);
     const openspecPath = path.join(resolvedProjectPath, OPENSPEC_DIR_NAME);
@@ -93,12 +111,13 @@ export class UpdateCommand {
     const detectedTools = getAvailableTools(resolvedProjectPath);
     migrateIfNeededShared(resolvedProjectPath, detectedTools);
 
-    // 3. Read global config for profile/delivery
-    const globalConfig = getGlobalConfig();
-    const profile = globalConfig.profile ?? 'core';
-    const delivery: Delivery = globalConfig.delivery ?? 'both';
-    const profileWorkflows = getProfileWorkflows(profile, globalConfig.workflows);
-    const desiredWorkflows = profileWorkflows.filter((workflow): workflow is (typeof ALL_WORKFLOWS)[number] =>
+    // 3. Resolve effective profile/delivery/workflows by scope-aware precedence
+    const effective = resolveEffectiveProfileSettings({
+      scopeOverride: this.scope,
+      projectConfig: readProjectConfig(resolvedProjectPath),
+    });
+    const delivery: Delivery = effective.delivery;
+    const desiredWorkflows = effective.workflows.filter((workflow): workflow is (typeof ALL_WORKFLOWS)[number] =>
       (ALL_WORKFLOWS as readonly string[]).includes(workflow)
     );
     const shouldGenerateSkills = delivery !== 'commands';

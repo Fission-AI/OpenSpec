@@ -157,10 +157,18 @@ program
   .command('update [path]')
   .description('Update OpenSpec instruction files')
   .option('--force', 'Force update even when tools are up to date')
-  .action(async (targetPath = '.', options?: { force?: boolean }) => {
+  .option('--scope <scope>', 'Profile resolution scope override (global or project)')
+  .action(async (targetPath = '.', options?: { force?: boolean; scope?: string }) => {
     try {
+      if (options?.scope && options.scope !== 'global' && options.scope !== 'project') {
+        throw new Error(`Invalid scope "${options.scope}". Use "global" or "project".`);
+      }
+
       const resolvedPath = path.resolve(targetPath);
-      const updateCommand = new UpdateCommand({ force: options?.force });
+      const updateCommand = new UpdateCommand({
+        force: options?.force,
+        scope: options?.scope as 'global' | 'project' | undefined,
+      });
       await updateCommand.execute(resolvedPath);
     } catch (error) {
       console.log(); // Empty line for spacing

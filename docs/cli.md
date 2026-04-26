@@ -131,7 +131,12 @@ openspec/
 
 ### `openspec update`
 
-Update OpenSpec instruction files after upgrading the CLI. Re-generates AI tool configuration files using your current global profile, selected workflows, and delivery mode.
+Update OpenSpec instruction files after upgrading the CLI. Re-generates AI tool configuration files using effective profile settings resolved by precedence:
+
+- CLI scope override (`--scope`) when provided
+- Project config (`openspec/config.yaml` or `openspec/config.yml`)
+- Global config
+- Built-in defaults (`profile: core`, `delivery: both`)
 
 ```
 openspec update [path] [options]
@@ -148,6 +153,7 @@ openspec update [path] [options]
 | Option | Description |
 |--------|-------------|
 | `--force` | Force update even when files are up to date |
+| `--scope <scope>` | Resolution scope override: `global` or `project` |
 
 **Example:**
 
@@ -155,6 +161,12 @@ openspec update [path] [options]
 # Update instruction files after npm upgrade
 npm update @fission-ai/openspec
 openspec update
+
+# Force global-only profile resolution for this run
+openspec update --scope global
+
+# Force project-prioritized resolution for this run
+openspec update --scope project
 ```
 
 ---
@@ -749,7 +761,7 @@ spec-driven resolves from: package
 **Schema precedence:**
 
 1. Project: `openspec/schemas/<name>/`
-2. User: `~/.local/share/openspec/schemas/<name>/`
+2. Global: `~/.local/share/openspec/schemas/<name>/`
 3. Package: Built-in schemas
 
 ---
@@ -758,7 +770,10 @@ spec-driven resolves from: package
 
 ### `openspec config`
 
-View and modify global OpenSpec configuration.
+View and modify OpenSpec configuration.
+
+Default scope is `global`. Use `--scope project` to read/write project-scoped profile settings (`profile`, `delivery`, `workflows`) in `openspec/config.yaml` (or existing `config.yml`).
+If you already use global-only config, no migration is required: existing commands keep global behavior unless you explicitly opt into `--scope project`.
 
 ```
 openspec config <subcommand> [options]
@@ -793,10 +808,10 @@ openspec config get telemetry.enabled
 openspec config set telemetry.enabled false
 
 # Set a string value explicitly
-openspec config set user.name "My Name" --string
+openspec config set custom.name "My Name" --string
 
 # Remove a custom setting
-openspec config unset user.name
+openspec config unset custom.name
 
 # Reset all configuration
 openspec config reset --all --yes
@@ -809,6 +824,15 @@ openspec config profile
 
 # Fast preset: switch workflows to core (keeps delivery mode)
 openspec config profile core
+
+# Set project-scoped profile override
+openspec config --scope project set profile custom
+
+# Read project-scoped profile key
+openspec config --scope project get profile
+
+# Run profile wizard against project scope
+openspec config --scope project profile
 ```
 
 `openspec config profile` starts with a current-state summary, then lets you choose:
@@ -818,9 +842,9 @@ openspec config profile core
 - Keep current settings (exit)
 
 If you keep current settings, no changes are written and no update prompt is shown.
-If there are no config changes but the current project files are out of sync with your global profile/delivery, OpenSpec will show a warning and suggest running `openspec update`.
+If there are no config changes but the current project files are out of sync with your active scope settings, OpenSpec will show a warning and suggest running `openspec update`.
 Pressing `Ctrl+C` also cancels the flow cleanly (no stack trace) and exits with code `130`.
-In the workflow checklist, `[x]` means the workflow is selected in global config. To apply those selections to project files, run `openspec update` (or choose `Apply changes to this project now?` when prompted inside a project).
+In the workflow checklist, `[x]` means the workflow is selected in the effective scope state for this command. To apply those selections to project files, run `openspec update` (or choose `Apply changes to this project now?` when prompted inside a project).
 
 **Interactive examples:**
 

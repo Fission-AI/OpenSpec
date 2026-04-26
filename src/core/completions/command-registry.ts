@@ -51,7 +51,18 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     description: 'Update OpenSpec instruction files',
     acceptsPositional: true,
     positionalType: 'path',
-    flags: [],
+    flags: [
+      {
+        name: 'force',
+        description: 'Force update even when tools are up to date',
+      },
+      {
+        name: 'scope',
+        description: 'Profile resolution scope override (global or project)',
+        takesValue: true,
+        values: ['global', 'project'],
+      },
+    ],
   },
   {
     name: 'list',
@@ -308,13 +319,13 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
   },
   {
     name: 'config',
-    description: 'View and modify global OpenSpec configuration',
+    description: 'View and modify OpenSpec configuration',
     flags: [
       {
         name: 'scope',
-        description: 'Config scope (only "global" supported currently)',
+        description: 'Config scope ("global" or "project")',
         takesValue: true,
-        values: ['global'],
+        values: ['global', 'project'],
       },
     ],
     subcommands: [
@@ -334,7 +345,12 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         name: 'get',
         description: 'Get a specific value (raw, scriptable)',
         acceptsPositional: true,
-        flags: [],
+        flags: [
+          {
+            name: 'allow-unknown',
+            description: 'Allow getting unknown keys',
+          },
+        ],
       },
       {
         name: 'set',
@@ -355,7 +371,12 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         name: 'unset',
         description: 'Remove a key (revert to default)',
         acceptsPositional: true,
-        flags: [],
+        flags: [
+          {
+            name: 'allow-unknown',
+            description: 'Allow unsetting unknown keys',
+          },
+        ],
       },
       {
         name: 'reset',
