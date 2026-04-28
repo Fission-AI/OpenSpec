@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import { parse as parseYaml } from 'yaml';
-import { SchemaYamlSchema, type SchemaYaml, type Artifact } from './types.js';
+import { SchemaYamlSchema, type SchemaYaml, type Artifact, type ApplyPhase } from './types.js';
 
 export class SchemaValidationError extends Error {
   constructor(message: string) {
@@ -41,6 +41,9 @@ export function parseSchema(yamlContent: string): SchemaYaml {
   // Check for cycles
   validateNoCycles(schema.artifacts);
 
+  // Check instruction / instructionFile mutual exclusivity
+  validateInstructionExclusivity(schema.artifacts, schema.apply);
+
   return schema;
 }
 
@@ -71,6 +74,25 @@ function validateRequiresReferences(artifacts: Artifact[]): void {
         );
       }
     }
+  }
+}
+
+/**
+ * Validates that instruction and instructionFile are mutually exclusive.
+ * An artifact (or apply phase) cannot have both fields at the same time.
+ */
+function validateInstructionExclusivity(artifacts: Artifact[], apply?: ApplyPhase): void {
+  for (const artifact of artifacts) {
+    if (artifact.instruction && artifact.instructionFile) {
+      throw new SchemaValidationError(
+        `Artifact '${artifact.id}' cannot have both 'instruction' and 'instructionFile'`
+      );
+    }
+  }
+  if (apply?.instruction && apply?.instructionFile) {
+    throw new SchemaValidationError(
+      `Apply phase cannot have both 'instruction' and 'instructionFile'`
+    );
   }
 }
 

@@ -33,10 +33,12 @@ export {
 // Instruction loading
 export {
   loadTemplate,
+  loadInstruction,
   loadChangeContext,
   generateInstructions,
   formatChangeStatus,
   TemplateLoadError,
+  InstructionLoadError,
   type ChangeContext,
   type ArtifactInstructions,
   type DependencyInfo,
