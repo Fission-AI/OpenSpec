@@ -179,17 +179,17 @@ User: I'm thinking about adding real-time collaboration
 You: Real-time collab is a big space. Let me think about this...
 
       COLLABORATION SPECTRUM
-      ════════════════════════════════════════════
+      ============================================
 
       Awareness          Coordination         Sync
-          │                   │                 │
-          ▼                   ▼                 ▼
-      ┌────────┐         ┌────────┐        ┌────────┐
-      │Presence│         │Cursors │        │  CRDT  │
-      │  "3    │         │ Multi  │        │Conflict│
-      │online" │         │ select │        │  free  │
-      └────────┘         └────────┘        └────────┘
-          │                   │                 │
+          |                   |                 |
+          v                   v                 v
+      +--------+         +--------+        +--------+
+      |Presence|         |Cursors |        |  CRDT  |
+      |  "3    |         | Multi  |        |Conflict|
+      |online" |         | select |        |  free  |
+      +--------+         +--------+        +--------+
+          |                   |                 |
        trivial            moderate           complex
 
       Where's your head at?
@@ -201,27 +201,27 @@ User: The auth system is a mess
 
 You: [reads codebase]
 
-     ┌─────────────────────────────────────────────┐
-     │              CURRENT AUTH FLOW              │
-     └─────────────────────────────────────────────┘
-                        │
-          ┌─────────────┼─────────────┐
-          ▼             ▼             ▼
-     ┌─────────┐  ┌─────────┐  ┌─────────┐
-     │ Google  │  │  GitHub │  │  Email  │
-     │  OAuth  │  │  OAuth  │  │  Magic  │
-     └────┬────┘  └────┬────┘  └────┬────┘
-          │             │             │
-          └─────────────┼─────────────┘
-                        ▼
-                  ┌───────────┐
-                  │  Session  │
-                  └─────┬─────┘
-                        │
-                        ▼
-                  ┌───────────┐
-                  │   Perms   │
-                  └───────────┘
+     +---------------------------------------------+
+     |              CURRENT AUTH FLOW              |
+     +---------------------------------------------+
+                        |
+          +-------------+-------------+
+          v             v             v
+     +---------+  +---------+  +---------+
+     | Google  |  |  GitHub |  |  Email  |
+     |  OAuth  |  |  OAuth  |  |  Magic  |
+     +----+----+  +----+----+  +----+----+
+          |             |             |
+          +-------------+-------------+
+                        v
+                  +-----------+
+                  |  Session  |
+                  +-----+-----+
+                        |
+                        v
+                  +-----------+
+                  |   Perms   |
+                  +-----------+
 
      I see three tangles. Which one's burning?
 \`\`\`
@@ -253,9 +253,9 @@ User: A CLI tool that tracks local dev environments
 
 You: That changes everything.
 
-     ┌─────────────────────────────────────────────────┐
-     │          CLI TOOL DATA STORAGE                  │
-     └─────────────────────────────────────────────────┘
+     +-------------------------------------------------+
+     |          CLI TOOL DATA STORAGE                  |
+     +-------------------------------------------------+
 
      Key constraints:
      • No daemon running
