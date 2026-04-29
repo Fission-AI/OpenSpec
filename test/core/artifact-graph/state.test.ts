@@ -148,6 +148,77 @@ describe('artifact-graph/state', () => {
       expect(completed.has('specs')).toBe(false);
     });
 
+    describe('external folder artifacts', () => {
+      it('marks external artifact done when matching file exists in resolved folder', () => {
+        // changeDir: <projectRoot>/openspec/changes/my-change
+        // folder: ADR -> <projectRoot>/ADR
+        const projectRoot = path.join(tempDir, 'proj');
+        const changeDir = path.join(projectRoot, 'openspec', 'changes', 'my-change');
+        const adrDir = path.join(projectRoot, 'ADR');
+        fs.mkdirSync(changeDir, { recursive: true });
+        fs.mkdirSync(adrDir, { recursive: true });
+        fs.writeFileSync(path.join(adrDir, '0001-foo.md'), '# ADR');
+
+        const schema = createSchema([
+          { id: 'adr', generates: '*.md', folder: 'ADR', description: 'ADR', template: 't.md', requires: [] },
+        ]);
+        const graph = ArtifactGraph.fromSchema(schema);
+
+        const completed = detectCompleted(graph, changeDir);
+        expect(completed.has('adr')).toBe(true);
+      });
+
+      it('marks external artifact ready (not done) when folder is empty', () => {
+        const projectRoot = path.join(tempDir, 'proj');
+        const changeDir = path.join(projectRoot, 'openspec', 'changes', 'my-change');
+        const adrDir = path.join(projectRoot, 'ADR');
+        fs.mkdirSync(changeDir, { recursive: true });
+        fs.mkdirSync(adrDir, { recursive: true });
+
+        const schema = createSchema([
+          { id: 'adr', generates: '*.md', folder: 'ADR', description: 'ADR', template: 't.md', requires: [] },
+        ]);
+        const graph = ArtifactGraph.fromSchema(schema);
+
+        const completed = detectCompleted(graph, changeDir);
+        expect(completed.has('adr')).toBe(false);
+      });
+
+      it('marks external artifact not done when external folder does not exist', () => {
+        const projectRoot = path.join(tempDir, 'proj');
+        const changeDir = path.join(projectRoot, 'openspec', 'changes', 'my-change');
+        fs.mkdirSync(changeDir, { recursive: true });
+
+        const schema = createSchema([
+          { id: 'adr', generates: '*.md', folder: 'ADR', description: 'ADR', template: 't.md', requires: [] },
+        ]);
+        const graph = ArtifactGraph.fromSchema(schema);
+
+        const completed = detectCompleted(graph, changeDir);
+        expect(completed.has('adr')).toBe(false);
+      });
+
+      it('classifies external artifact as blocked when dependency is unmet', () => {
+        // adr depends on proposal; neither has files, so adr should be blocked on proposal.
+        const projectRoot = path.join(tempDir, 'proj');
+        const changeDir = path.join(projectRoot, 'openspec', 'changes', 'my-change');
+        fs.mkdirSync(changeDir, { recursive: true });
+
+        const schema = createSchema([
+          { id: 'proposal', generates: 'proposal.md', description: 'P', template: 't.md', requires: [] },
+          { id: 'adr', generates: '*.md', folder: 'ADR', description: 'ADR', template: 't.md', requires: ['proposal'] },
+        ]);
+        const graph = ArtifactGraph.fromSchema(schema);
+
+        const completed = detectCompleted(graph, changeDir);
+        expect(completed.has('proposal')).toBe(false);
+        expect(completed.has('adr')).toBe(false);
+
+        const blocked = graph.getBlocked(completed);
+        expect(blocked.adr).toEqual(['proposal']);
+      });
+    });
+
     it('should handle multiple artifacts with mixed completion', () => {
       const schema = createSchema([
         { id: 'proposal', generates: 'proposal.md', description: 'Proposal', template: 't.md', requires: [] },

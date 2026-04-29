@@ -29,5 +29,5 @@ _None._ This is a refinement of existing artifact/workflow/archive behavior, not
 
 - **Schema YAML**: new optional field on artifacts; built-in `spec-driven` schema is unaffected.
 - **Code**: schema Zod type + refinement, a new `resolveArtifactBaseDir` helper, and a single touch-up inside `resolveArtifactOutputs()`. `state.ts`, `instruction-loader.ts`, `archive.ts`, and `schema.ts` are untouched — they reach the new behavior transitively.
-- **Docs**: schema authoring guide gains a section on external folders and the "no archive, no delta" contract.
+- **Docs**: schema authoring guide gains a section on external folders and the "no archive, no delta" contract — see [`docs/customization.md` → External Folder Artifacts](../../../docs/customization.md#external-folder-artifacts).
 - **No data migration** — existing changes have no `folder:` declarations, so behavior is identical for them.

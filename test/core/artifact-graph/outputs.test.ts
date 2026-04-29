@@ -19,20 +19,22 @@ describe('artifact-graph/outputs', () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
+  const artifactWith = (generates: string, folder?: string) => ({ generates, folder });
+
   it('resolves a direct file path when it exists', () => {
     const filePath = path.join(tempDir, 'proposal.md');
     fs.writeFileSync(filePath, 'content');
 
-    expect(resolveArtifactOutputs(tempDir, 'proposal.md')).toEqual([canonical(filePath)]);
-    expect(artifactOutputExists(tempDir, 'proposal.md')).toBe(true);
+    expect(resolveArtifactOutputs(artifactWith('proposal.md'), tempDir)).toEqual([canonical(filePath)]);
+    expect(artifactOutputExists(artifactWith('proposal.md'), tempDir)).toBe(true);
   });
 
   it('does not treat a directory as a resolved literal artifact output', () => {
     const dirPath = path.join(tempDir, 'proposal.md');
     fs.mkdirSync(dirPath, { recursive: true });
 
-    expect(resolveArtifactOutputs(tempDir, 'proposal.md')).toEqual([]);
-    expect(artifactOutputExists(tempDir, 'proposal.md')).toBe(false);
+    expect(resolveArtifactOutputs(artifactWith('proposal.md'), tempDir)).toEqual([]);
+    expect(artifactOutputExists(artifactWith('proposal.md'), tempDir)).toBe(false);
   });
 
   it('resolves single-star nested globs to concrete files', () => {
@@ -41,8 +43,8 @@ describe('artifact-graph/outputs', () => {
     fs.mkdirSync(nestedDir, { recursive: true });
     fs.writeFileSync(filePath, 'content');
 
-    expect(resolveArtifactOutputs(tempDir, 'specs/*/spec.md')).toEqual([canonical(filePath)]);
-    expect(artifactOutputExists(tempDir, 'specs/*/spec.md')).toBe(true);
+    expect(resolveArtifactOutputs(artifactWith('specs/*/spec.md'), tempDir)).toEqual([canonical(filePath)]);
+    expect(artifactOutputExists(artifactWith('specs/*/spec.md'), tempDir)).toBe(true);
   });
 
   it('matches basename-sensitive glob patterns correctly', () => {
@@ -53,7 +55,7 @@ describe('artifact-graph/outputs', () => {
     fs.writeFileSync(matching, 'content');
     fs.writeFileSync(nonMatching, 'content');
 
-    expect(resolveArtifactOutputs(tempDir, 'specs/foo*.md')).toEqual([canonical(matching)]);
+    expect(resolveArtifactOutputs(artifactWith('specs/foo*.md'), tempDir)).toEqual([canonical(matching)]);
   });
 
   it('supports question-mark glob patterns', () => {
@@ -63,7 +65,7 @@ describe('artifact-graph/outputs', () => {
     fs.writeFileSync(matching, 'content');
     fs.writeFileSync(path.join(specsDir, 'a10.md'), 'content');
 
-    expect(resolveArtifactOutputs(tempDir, 'specs/a?.md')).toEqual([canonical(matching)]);
+    expect(resolveArtifactOutputs(artifactWith('specs/a?.md'), tempDir)).toEqual([canonical(matching)]);
   });
 
   it('supports character class glob patterns', () => {
@@ -75,7 +77,7 @@ describe('artifact-graph/outputs', () => {
     fs.writeFileSync(bPath, 'content');
     fs.writeFileSync(path.join(specsDir, 'c.md'), 'content');
 
-    expect(resolveArtifactOutputs(tempDir, 'specs/[ab].md')).toEqual([
+    expect(resolveArtifactOutputs(artifactWith('specs/[ab].md'), tempDir)).toEqual([
       canonical(aPath),
       canonical(bPath),
     ]);
@@ -94,17 +96,17 @@ describe('artifact-graph/outputs', () => {
     fs.writeFileSync(specPath, 'content');
     fs.symlinkSync(realChangeDir, aliasChangeDir, process.platform === 'win32' ? 'junction' : 'dir');
 
-    expect(resolveArtifactOutputs(aliasChangeDir, 'proposal.md')).toEqual([
+    expect(resolveArtifactOutputs(artifactWith('proposal.md'), aliasChangeDir)).toEqual([
       canonical(proposalPath),
     ]);
-    expect(resolveArtifactOutputs(aliasChangeDir, 'specs/*/spec.md')).toEqual([
+    expect(resolveArtifactOutputs(artifactWith('specs/*/spec.md'), aliasChangeDir)).toEqual([
       canonical(specPath),
     ]);
   });
 
   it('returns an empty list when no files match the artifact output', () => {
-    expect(resolveArtifactOutputs(tempDir, 'specs/*/spec.md')).toEqual([]);
-    expect(artifactOutputExists(tempDir, 'specs/*/spec.md')).toBe(false);
+    expect(resolveArtifactOutputs(artifactWith('specs/*/spec.md'), tempDir)).toEqual([]);
+    expect(artifactOutputExists(artifactWith('specs/*/spec.md'), tempDir)).toBe(false);
   });
 
   describe('glob-special characters in directory paths', () => {
@@ -115,10 +117,10 @@ describe('artifact-graph/outputs', () => {
       fs.mkdirSync(specDir, { recursive: true });
       fs.writeFileSync(specFile, 'content');
 
-      expect(resolveArtifactOutputs(dirWithParens, 'specs/*/spec.md')).toEqual([
+      expect(resolveArtifactOutputs(artifactWith('specs/*/spec.md'), dirWithParens)).toEqual([
         canonical(specFile),
       ]);
-      expect(artifactOutputExists(dirWithParens, 'specs/*/spec.md')).toBe(true);
+      expect(artifactOutputExists(artifactWith('specs/*/spec.md'), dirWithParens)).toBe(true);
     });
 
     it('resolves glob patterns when directory contains square brackets', () => {
@@ -128,10 +130,10 @@ describe('artifact-graph/outputs', () => {
       fs.mkdirSync(specDir, { recursive: true });
       fs.writeFileSync(specFile, 'content');
 
-      expect(resolveArtifactOutputs(dirWithBrackets, 'specs/*/spec.md')).toEqual([
+      expect(resolveArtifactOutputs(artifactWith('specs/*/spec.md'), dirWithBrackets)).toEqual([
         canonical(specFile),
       ]);
-      expect(artifactOutputExists(dirWithBrackets, 'specs/*/spec.md')).toBe(true);
+      expect(artifactOutputExists(artifactWith('specs/*/spec.md'), dirWithBrackets)).toBe(true);
     });
 
     it('resolves glob patterns when directory contains curly braces', () => {
@@ -141,10 +143,10 @@ describe('artifact-graph/outputs', () => {
       fs.mkdirSync(specDir, { recursive: true });
       fs.writeFileSync(specFile, 'content');
 
-      expect(resolveArtifactOutputs(dirWithBraces, 'specs/*/spec.md')).toEqual([
+      expect(resolveArtifactOutputs(artifactWith('specs/*/spec.md'), dirWithBraces)).toEqual([
         canonical(specFile),
       ]);
-      expect(artifactOutputExists(dirWithBraces, 'specs/*/spec.md')).toBe(true);
+      expect(artifactOutputExists(artifactWith('specs/*/spec.md'), dirWithBraces)).toBe(true);
     });
 
     it('resolves glob patterns when directory contains brace expansion syntax', () => {
@@ -154,10 +156,10 @@ describe('artifact-graph/outputs', () => {
       fs.mkdirSync(specDir, { recursive: true });
       fs.writeFileSync(specFile, 'content');
 
-      expect(resolveArtifactOutputs(dirWithBraceExpansion, 'specs/*/spec.md')).toEqual([
+      expect(resolveArtifactOutputs(artifactWith('specs/*/spec.md'), dirWithBraceExpansion)).toEqual([
         canonical(specFile),
       ]);
-      expect(artifactOutputExists(dirWithBraceExpansion, 'specs/*/spec.md')).toBe(true);
+      expect(artifactOutputExists(artifactWith('specs/*/spec.md'), dirWithBraceExpansion)).toBe(true);
     });
 
     it('resolves non-glob generates when directory contains special characters', () => {
@@ -166,10 +168,10 @@ describe('artifact-graph/outputs', () => {
       fs.mkdirSync(dirWithParens, { recursive: true });
       fs.writeFileSync(proposalFile, 'content');
 
-      expect(resolveArtifactOutputs(dirWithParens, 'proposal.md')).toEqual([
+      expect(resolveArtifactOutputs(artifactWith('proposal.md'), dirWithParens)).toEqual([
         canonical(proposalFile),
       ]);
-      expect(artifactOutputExists(dirWithParens, 'proposal.md')).toBe(true);
+      expect(artifactOutputExists(artifactWith('proposal.md'), dirWithParens)).toBe(true);
     });
   });
 });

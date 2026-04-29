@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { getSchemaDir, resolveSchema } from './resolver.js';
 import { ArtifactGraph } from './graph.js';
 import { detectCompleted } from './state.js';
+import { resolveArtifactBaseDir } from './paths.js';
 import { resolveSchemaForChange } from '../../utils/change-metadata.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import { readProjectConfig, validateConfigRules } from '../project-config.js';
@@ -54,7 +55,7 @@ export interface ArtifactInstructions {
   schemaName: string;
   /** Full path to change directory */
   changeDir: string;
-  /** Output path pattern (e.g., "proposal.md") */
+  /** Resolved output path (absolute file path or absolute base dir + glob pattern) */
   outputPath: string;
   /** Artifact description */
   description: string;
@@ -80,7 +81,7 @@ export interface DependencyInfo {
   id: string;
   /** Whether the dependency is completed */
   done: boolean;
-  /** Relative output path of the dependency (e.g., "proposal.md") */
+  /** Resolved output path of the dependency (absolute) */
   path: string;
   /** Description of the dependency artifact */
   description: string;
@@ -224,7 +225,7 @@ export function generateInstructions(
   }
 
   const templateContent = loadTemplate(context.schemaName, artifact.template, context.projectRoot);
-  const dependencies = getDependencyInfo(artifact, context.graph, context.completed);
+  const dependencies = getDependencyInfo(artifact, context.graph, context.completed, context.changeDir);
   const unlocks = getUnlockedArtifacts(context.graph, artifactId);
 
   // Use projectRoot from context if not explicitly provided
@@ -263,12 +264,17 @@ export function generateInstructions(
   const rulesForArtifact = projectConfig?.rules?.[artifactId];
   const configRules = rulesForArtifact && rulesForArtifact.length > 0 ? rulesForArtifact : undefined;
 
+  const resolvedOutputPath = path.join(
+    resolveArtifactBaseDir(artifact, context.changeDir),
+    artifact.generates
+  );
+
   return {
     changeName: context.changeName,
     artifactId: artifact.id,
     schemaName: context.schemaName,
     changeDir: context.changeDir,
-    outputPath: artifact.generates,
+    outputPath: resolvedOutputPath,
     description: artifact.description,
     instruction: artifact.instruction,
     context: configContext,
@@ -281,18 +287,23 @@ export function generateInstructions(
 
 /**
  * Gets dependency info including paths and descriptions.
+ * The path is the dependency's resolved output path (honors `folder:`).
  */
 function getDependencyInfo(
   artifact: Artifact,
   graph: ArtifactGraph,
-  completed: CompletedSet
+  completed: CompletedSet,
+  changeDir: string
 ): DependencyInfo[] {
   return artifact.requires.map(id => {
     const depArtifact = graph.getArtifact(id);
+    const depPath = depArtifact
+      ? path.join(resolveArtifactBaseDir(depArtifact, changeDir), depArtifact.generates)
+      : id;
     return {
       id,
       done: completed.has(id),
-      path: depArtifact?.generates ?? id,
+      path: depPath,
       description: depArtifact?.description ?? '',
     };
   });

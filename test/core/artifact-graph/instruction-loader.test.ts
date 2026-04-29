@@ -142,7 +142,7 @@ describe('instruction-loader', () => {
       expect(instructions.changeName).toBe('my-change');
       expect(instructions.artifactId).toBe('proposal');
       expect(instructions.schemaName).toBe('spec-driven');
-      expect(instructions.outputPath).toBe('proposal.md');
+      expect(instructions.outputPath).toBe(path.join(context.changeDir, 'proposal.md'));
     });
 
     it('should include template content', () => {
@@ -195,6 +195,47 @@ describe('instruction-loader', () => {
       expect(() => generateInstructions(context, 'nonexistent')).toThrow(
         "Artifact 'nonexistent' not found"
       );
+    });
+
+    describe('folder field on artifacts', () => {
+      function createCustomSchema(name: string, schemaContent: string, templates: Record<string, string>) {
+        const schemaDir = path.join(tempDir, 'openspec', 'schemas', name);
+        const templatesDir = path.join(schemaDir, 'templates');
+        fs.mkdirSync(templatesDir, { recursive: true });
+        fs.writeFileSync(path.join(schemaDir, 'schema.yaml'), schemaContent);
+        for (const [filename, content] of Object.entries(templates)) {
+          fs.writeFileSync(path.join(templatesDir, filename), content);
+        }
+      }
+
+      it('returns resolved external path in outputPath when folder is set', () => {
+        createCustomSchema(
+          'with-folder',
+          `name: with-folder
+version: 1
+artifacts:
+  - id: adr
+    generates: "*.md"
+    folder: ADR
+    description: ADR
+    template: adr.md
+    requires: []
+`,
+          { 'adr.md': '# ADR\n' }
+        );
+
+        const context = loadChangeContext(tempDir, 'my-change', 'with-folder');
+        const instructions = generateInstructions(context, 'adr', tempDir);
+
+        const expected = path.join(tempDir, 'ADR', '*.md');
+        expect(instructions.outputPath).toBe(expected);
+      });
+
+      it('returns resolved in-change path when folder is unset', () => {
+        const context = loadChangeContext(tempDir, 'my-change');
+        const instructions = generateInstructions(context, 'proposal');
+        expect(instructions.outputPath).toBe(path.join(context.changeDir, 'proposal.md'));
+      });
     });
 
     describe('project config integration', () => {

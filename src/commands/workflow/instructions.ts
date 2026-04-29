@@ -100,7 +100,6 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
     artifactId,
     changeName,
     schemaName,
-    changeDir,
     outputPath,
     description,
     instruction,
@@ -159,9 +158,8 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
     console.log();
     for (const dep of dependencies) {
       const status = dep.done ? 'done' : 'missing';
-      const fullPath = path.join(changeDir, dep.path);
       console.log(`<dependency id="${dep.id}" status="${status}">`);
-      console.log(`  <path>${fullPath}</path>`);
+      console.log(`  <path>${dep.path}</path>`);
       console.log(`  <description>${dep.description}</description>`);
       console.log('</dependency>');
     }
@@ -171,7 +169,7 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
 
   // Output location
   console.log('<output>');
-  console.log(`Write to: ${path.join(changeDir, outputPath)}`);
+  console.log(`Write to: ${outputPath}`);
   console.log('</output>');
   console.log();
 
@@ -266,7 +264,7 @@ export async function generateApplyInstructions(
   const missingArtifacts: string[] = [];
   for (const artifactId of requiredArtifactIds) {
     const artifact = schema.artifacts.find((a) => a.id === artifactId);
-    if (artifact && resolveArtifactOutputs(changeDir, artifact.generates).length === 0) {
+    if (artifact && resolveArtifactOutputs(artifact, changeDir).length === 0) {
       missingArtifacts.push(artifactId);
     }
   }
@@ -274,7 +272,7 @@ export async function generateApplyInstructions(
   // Build context files from all existing artifacts in schema
   const contextFiles: Record<string, string[]> = {};
   for (const artifact of schema.artifacts) {
-    const outputs = resolveArtifactOutputs(changeDir, artifact.generates);
+    const outputs = resolveArtifactOutputs(artifact, changeDir);
     if (outputs.length > 0) {
       contextFiles[artifact.id] = outputs;
     }

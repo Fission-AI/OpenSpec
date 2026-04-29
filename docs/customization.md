@@ -193,9 +193,37 @@ apply:
 |-------|---------|
 | `id` | Unique identifier, used in commands and rules |
 | `generates` | Output filename (supports globs like `specs/**/*.md`) |
+| `folder` | *(optional)* Project-root-relative directory for the artifact's outputs. See [External Folder Artifacts](#external-folder-artifacts) below. |
 | `template` | Template file in `templates/` directory |
 | `instruction` | AI instructions for creating this artifact |
 | `requires` | Dependencies - which artifacts must exist first |
+
+### External Folder Artifacts
+
+Set `folder:` on an artifact to write its outputs to a project-root-relative directory instead of the change directory. Use it for artifacts that should outlive a single change — ADRs are the canonical case.
+
+```yaml
+artifacts:
+  - id: adr
+    generates: "*.md"
+    folder: ADR                # writes to <projectRoot>/ADR/
+    description: Architecture Decision Record
+    template: adr.md
+    instruction: |
+      Read existing files in ADR/ first. Modify in place if relevant,
+      otherwise add a new file (e.g., 0007-<slug>.md). Never overwrite.
+```
+
+**Behavior:**
+
+- **Never archived** — files sit outside the change directory; VCS history is the record.
+- **No delta sync** to `openspec/specs/` as this is not related to specs.
+- **Counts in `openspec status` like any other artifact.** No preflight if you forget to write the file — run `openspec status` before archiving to verify.
+- **Re-running never overwrites.** `openspec instructions` only renders text; your `instruction:` must tell the agent to read existing files first.
+
+**Validation** (enforced by `openspec schema validate`):
+
+- Cannot start with the reserved `openspec/` prefix.
 
 ### Templates
 

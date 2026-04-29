@@ -18,6 +18,9 @@ export { ArtifactGraph } from './graph.js';
 export { detectCompleted } from './state.js';
 export { artifactOutputExists, isGlobPattern, resolveArtifactOutputs } from './outputs.js';
 
+// Path resolution
+export { resolveArtifactBaseDir } from './paths.js';
+
 // Schema resolution
 export {
   resolveSchema,

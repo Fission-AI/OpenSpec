@@ -1,4 +1,9 @@
+import * as path from 'node:path';
 import { z } from 'zod';
+
+// Stub project root used solely for `..`-escape detection during validation.
+// Validation is path-only — no filesystem is touched, so any absolute root works.
+const FOLDER_VALIDATION_STUB_ROOT = path.resolve('/__openspec_validation_stub__');
 
 // Artifact definition schema
 export const ArtifactSchema = z.object({
@@ -7,6 +12,52 @@ export const ArtifactSchema = z.object({
   description: z.string(),
   template: z.string().min(1, { error: 'template field is required' }),
   instruction: z.string().optional(),
+  folder: z
+    .string()
+    .optional()
+    .superRefine((value, ctx) => {
+      if (value === undefined) return;
+
+      const trimmed = value.trim();
+      if (trimmed.length === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'folder must be a non-empty path',
+        });
+        return;
+      }
+
+      // Check both POSIX and Windows absolute-path forms regardless of host platform,
+      // so a Windows-style "C:\\..." schema fails validation on Linux/macOS too.
+      if (path.posix.isAbsolute(trimmed) || path.win32.isAbsolute(trimmed)) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `folder must be a relative path (got "${trimmed}")`,
+        });
+        return;
+      }
+
+      const resolved = path.resolve(FOLDER_VALIDATION_STUB_ROOT, trimmed);
+      const rootWithSep = FOLDER_VALIDATION_STUB_ROOT.endsWith(path.sep)
+        ? FOLDER_VALIDATION_STUB_ROOT
+        : FOLDER_VALIDATION_STUB_ROOT + path.sep;
+      if (resolved !== FOLDER_VALIDATION_STUB_ROOT && !resolved.startsWith(rootWithSep)) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `folder must stay within the project root (got "${trimmed}")`,
+        });
+        return;
+      }
+
+      const normalized = path.normalize(trimmed);
+      const normalizedPosix = normalized.replace(/\\/g, '/');
+      if (normalizedPosix === 'openspec' || normalizedPosix.startsWith('openspec/')) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'folder must not start with the reserved "openspec/" prefix',
+        });
+      }
+    }),
   requires: z.array(z.string()).default([]),
 });
 

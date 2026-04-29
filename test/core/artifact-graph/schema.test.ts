@@ -203,5 +203,83 @@ artifacts:
       const schema = parseSchema(yaml);
       expect(schema.artifacts[0].requires).toEqual([]);
     });
+
+    describe('folder field', () => {
+      const baseYaml = (folderLine: string) => `
+name: test
+version: 1
+artifacts:
+  - id: adr
+    generates: "*.md"
+    description: ADR
+    template: adr.md${folderLine ? '\n    ' + folderLine : ''}
+`;
+
+      it('accepts a valid relative folder', () => {
+        const schema = parseSchema(baseYaml('folder: ADR'));
+        expect(schema.artifacts[0].folder).toBe('ADR');
+      });
+
+      it('accepts a nested relative folder', () => {
+        const schema = parseSchema(baseYaml('folder: docs/decisions'));
+        expect(schema.artifacts[0].folder).toBe('docs/decisions');
+      });
+
+      it('treats omitted folder as undefined', () => {
+        const schema = parseSchema(baseYaml(''));
+        expect(schema.artifacts[0].folder).toBeUndefined();
+      });
+
+      it('rejects empty folder string', () => {
+        expect(() => parseSchema(baseYaml('folder: ""'))).toThrow(SchemaValidationError);
+        expect(() => parseSchema(baseYaml('folder: ""'))).toThrow(/non-empty/);
+      });
+
+      it('rejects whitespace-only folder', () => {
+        expect(() => parseSchema(baseYaml('folder: "   "'))).toThrow(/non-empty/);
+      });
+
+      it('rejects POSIX absolute path', () => {
+        expect(() => parseSchema(baseYaml('folder: /etc/openspec'))).toThrow(/relative path/);
+      });
+
+      it('rejects Windows absolute path', () => {
+        expect(() => parseSchema(baseYaml('folder: "C:\\\\Windows\\\\Temp"'))).toThrow(
+          /relative path/
+        );
+      });
+
+      it('rejects parent traversal', () => {
+        expect(() => parseSchema(baseYaml('folder: "../outside"'))).toThrow(
+          /stay within the project root/
+        );
+      });
+
+      it('rejects nested parent traversal', () => {
+        expect(() => parseSchema(baseYaml('folder: "ADR/../../../escape"'))).toThrow(
+          /stay within the project root/
+        );
+      });
+
+      it('rejects reserved openspec/ prefix', () => {
+        expect(() => parseSchema(baseYaml('folder: "openspec/specs"'))).toThrow(
+          /reserved.*openspec/
+        );
+      });
+
+      it('rejects exact "openspec"', () => {
+        expect(() => parseSchema(baseYaml('folder: openspec'))).toThrow(/reserved.*openspec/);
+      });
+
+      it('includes the artifact ID in folder validation errors', () => {
+        try {
+          parseSchema(baseYaml('folder: /etc/openspec'));
+          expect.fail('Should have thrown');
+        } catch (err) {
+          expect((err as Error).message).toMatch(/\[adr\]/);
+          expect((err as Error).message).toMatch(/folder/);
+        }
+      });
+    });
   });
 });

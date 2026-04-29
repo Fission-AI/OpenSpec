@@ -26,7 +26,31 @@ export function parseSchema(yamlContent: string): SchemaYaml {
   // Validate with Zod
   const result = SchemaYamlSchema.safeParse(parsed);
   if (!result.success) {
-    const errors = result.error.issues.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+    const parsedArtifacts =
+      parsed && typeof parsed === 'object' && Array.isArray((parsed as any).artifacts)
+        ? ((parsed as any).artifacts as Array<{ id?: unknown }>)
+        : [];
+    const errors = result.error.issues
+      .map(e => {
+        const formattedPath = e.path
+          .map((segment, idx) => {
+            if (
+              idx === 1 &&
+              e.path[0] === 'artifacts' &&
+              typeof segment === 'number' &&
+              parsedArtifacts[segment] &&
+              typeof parsedArtifacts[segment].id === 'string' &&
+              (parsedArtifacts[segment].id as string).length > 0
+            ) {
+              return `[${parsedArtifacts[segment].id}]`;
+            }
+            return typeof segment === 'number' ? `[${segment}]` : `.${String(segment)}`;
+          })
+          .join('')
+          .replace(/^\./, '');
+        return `${formattedPath}: ${e.message}`;
+      })
+      .join(', ');
     throw new SchemaValidationError(`Invalid schema: ${errors}`);
   }
 

@@ -292,6 +292,110 @@ describe('artifact-workflow CLI commands', () => {
     });
   });
 
+  describe('instructions command with folder field', () => {
+    async function createCustomSchema(
+      name: string,
+      schemaContent: string,
+      templates: Record<string, string>
+    ) {
+      const schemaDir = path.join(tempDir, 'openspec', 'schemas', name);
+      const templatesDir = path.join(schemaDir, 'templates');
+      await fs.mkdir(templatesDir, { recursive: true });
+      await fs.writeFile(path.join(schemaDir, 'schema.yaml'), schemaContent);
+      for (const [filename, content] of Object.entries(templates)) {
+        await fs.writeFile(path.join(templatesDir, filename), content);
+      }
+    }
+
+    it('renders resolved external path in human and JSON output for folder artifact', async () => {
+      await createCustomSchema(
+        'with-folder',
+        `name: with-folder
+version: 1
+artifacts:
+  - id: adr
+    generates: "*.md"
+    folder: ADR
+    description: ADR artifact
+    template: adr.md
+    requires: []
+`,
+        { 'adr.md': '# ADR template\n' }
+      );
+
+      const changeDir = path.join(changesDir, 'folder-change');
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(
+        path.join(changeDir, '.openspec.yaml'),
+        'schema: with-folder\n'
+      );
+
+      // Project root gets canonicalized (e.g., /var → /private/var on macOS) when changeDir is resolved.
+      // The folder is resolved relative to the canonicalized project root.
+      const canonicalProjectRoot = canonical(tempDir);
+      const expectedExternalPath = path.join(canonicalProjectRoot, 'ADR', '*.md');
+
+      const human = await runCLI(['instructions', 'adr', '--change', 'folder-change'], {
+        cwd: tempDir,
+      });
+      expect(human.exitCode).toBe(0);
+      expect(human.stdout).toContain(`Write to: ${expectedExternalPath}`);
+      // Should not be writing into the change directory
+      expect(human.stdout).not.toContain(`Write to: ${path.join(changeDir, '*.md')}`);
+
+      const jsonRes = await runCLI(
+        ['instructions', 'adr', '--change', 'folder-change', '--json'],
+        { cwd: tempDir }
+      );
+      expect(jsonRes.exitCode).toBe(0);
+      const json = JSON.parse(jsonRes.stdout);
+      expect(json.outputPath).toBe(expectedExternalPath);
+    });
+
+    it('does not modify pre-existing files at the external folder path', async () => {
+      await createCustomSchema(
+        'with-folder-readonly',
+        `name: with-folder-readonly
+version: 1
+artifacts:
+  - id: adr
+    generates: "*.md"
+    folder: ADR
+    description: ADR artifact
+    template: adr.md
+    requires: []
+`,
+        { 'adr.md': '# Template that should not overwrite\n' }
+      );
+
+      const changeDir = path.join(changesDir, 'preserve-files');
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(
+        path.join(changeDir, '.openspec.yaml'),
+        'schema: with-folder-readonly\n'
+      );
+
+      const adrDir = path.join(tempDir, 'ADR');
+      await fs.mkdir(adrDir, { recursive: true });
+      const existingPath = path.join(adrDir, '0001-foo.md');
+      const existingContent = '# Existing ADR — must not be overwritten';
+      await fs.writeFile(existingPath, existingContent);
+
+      const result = await runCLI(['instructions', 'adr', '--change', 'preserve-files'], {
+        cwd: tempDir,
+      });
+      expect(result.exitCode).toBe(0);
+
+      // The file should be untouched
+      const after = await fs.readFile(existingPath, 'utf-8');
+      expect(after).toBe(existingContent);
+
+      // No new file should have been written
+      const entries = await fs.readdir(adrDir);
+      expect(entries).toEqual(['0001-foo.md']);
+    });
+  });
+
   describe('templates command', () => {
     it('shows template paths for default schema', async () => {
       const result = await runCLI(['templates'], { cwd: tempDir });
