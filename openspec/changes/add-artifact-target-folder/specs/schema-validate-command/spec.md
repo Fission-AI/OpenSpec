@@ -4,12 +4,12 @@
 
 The schema validation logic SHALL reject schemas whose artifact `folder` values violate the path-safety rules. Validation SHALL run inside the Zod refinement layer used by `parseSchema`, so every consumer of the schema (`openspec schema validate`, the artifact graph loader, the instructions command) sees the same errors without each having to duplicate the rule.
 
-The rules SHALL be:
+The rules SHALL be expressed using only Node's stdlib `path` module — no bespoke cross-platform parsing. The codebase's existing `FileSystemUtils` helpers cover any downstream cross-platform path math.
 
 1. The value MUST NOT be empty (after `trim()`).
-2. The value MUST NOT be an absolute path (rejected via `path.isAbsolute`).
-3. The value MUST NOT, after `path.normalize`, contain `..` segments that escape the project root.
-4. The value MUST NOT start with `openspec/` and MUST NOT equal `openspec` — this prefix is reserved for the change/archive/specs lifecycle.
+2. The value MUST NOT be an absolute path. A single `!path.isAbsolute(folder)` check natively covers POSIX `/...` and Windows `C:\...` forms — no separate Windows clause is required.
+3. The value, after `path.resolve(stubProjectRoot, folder)`, MUST remain a descendant of `stubProjectRoot`. This single check captures `..` escapes in any form (leading, nested, or post-normalization).
+4. The value MUST NOT start with `openspec/` and MUST NOT equal `openspec` (after `path.normalize`) — this prefix is reserved for the change/archive/specs lifecycle.
 
 Each violation SHALL produce a single Zod issue identifying the offending artifact ID, the field path, and a human-readable message describing the rule that failed.
 

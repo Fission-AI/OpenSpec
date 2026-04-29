@@ -4,7 +4,7 @@
 
 The artifact graph schema SHALL accept an optional string field `folder` on each artifact definition. When present, this field re-parents the artifact's outputs to a path relative to the project root rather than the change directory.
 
-The field SHALL be surfaced on the in-memory `Artifact` model so downstream consumers (instruction renderer, completion detector, archive command, schema validator) can branch on its presence.
+The field SHALL be surfaced on the in-memory `Artifact` model so the resolution helper and the schema validator can read it. Downstream consumers (instruction renderer, completion detector) inherit `folder:` support through the helper without reading the field directly.
 
 #### Scenario: Schema with folder field parses successfully
 - **WHEN** an artifact definition contains `folder: "ADR"` and `generates: "*.md"`
@@ -23,9 +23,11 @@ The field SHALL be surfaced on the in-memory `Artifact` model so downstream cons
 
 ### Requirement: Artifact Base Directory Resolution
 
-The system SHALL provide a single resolution helper that returns the absolute base directory for an artifact, given the change directory and project root. All call sites that join an artifact's `generates` glob to a base path SHALL use this helper.
+The system SHALL provide a single resolution helper, `resolveArtifactBaseDir(artifact, changeDir)`, that returns the absolute base directory for an artifact. The helper SHALL derive the project root from `changeDir` internally (using the invariant that `changeDir` is `<projectRoot>/openspec/changes/<name>/`), so callers do not need to thread `projectRoot` through the call stack.
 
-When the artifact's `folder` is unset, the helper SHALL return the change directory unchanged. When `folder` is set, the helper SHALL return `path.resolve(projectRoot, folder)`.
+The existing `resolveArtifactOutputs()` function SHALL be the single production call site that uses this helper. Because `state.ts` (via `artifactOutputExists`) and `instructions.ts` already funnel through `resolveArtifactOutputs()`, completion detection and instruction rendering inherit `folder:` support transitively without changes of their own.
+
+When the artifact's `folder` is unset, the helper SHALL return `changeDir` unchanged. When `folder` is set, the helper SHALL return `path.resolve(projectRoot, folder)` where `projectRoot` is `path.resolve(changeDir, '../../..')`.
 
 The helper SHALL use `path.resolve` and `path.join` exclusively — no string concatenation of separators — so resolution is correct on Windows, macOS, and Linux.
 
