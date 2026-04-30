@@ -256,14 +256,14 @@ export function registerConfigCommand(program: Command): void {
         const profileSource = rawConfig.profile !== undefined ? '(explicit)' : '(default)';
         const deliverySource = rawConfig.delivery !== undefined ? '(explicit)' : '(default)';
         console.log(`\n${CONFIG_MESSAGES.profileSettings}`);
-        console.log(`  perfil: ${config.profile} ${profileSource}`);
-        console.log(`  entrega: ${config.delivery} ${deliverySource}`);
+        console.log(CONFIG_MESSAGES.profileLabel(config.profile, profileSource));
+        console.log(CONFIG_MESSAGES.deliveryLabel(config.delivery, deliverySource));
         if (config.profile === 'core') {
-          console.log(`  fluxos: ${CORE_WORKFLOWS.join(', ')} (do perfil core)`);
+          console.log(CONFIG_MESSAGES.coreWorkflowsNote(CORE_WORKFLOWS.join(', ')));
         } else if (config.workflows && config.workflows.length > 0) {
-          console.log(`  fluxos: ${config.workflows.join(', ')} (explícito)`);
+          console.log(CONFIG_MESSAGES.explicitWorkflowsNote(config.workflows.join(', ')));
         } else {
-          console.log(`  fluxos: (nenhum)`);
+          console.log(CONFIG_MESSAGES.noWorkflowsNote);
         }
       }
     });

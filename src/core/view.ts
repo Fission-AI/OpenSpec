@@ -195,7 +195,7 @@ export class ViewCommand {
     console.log(
       `  ${chalk.yellow('●')} ${VIEW_MESSAGES.activeChangesCount(changesData.active.length)}`
     );
-    console.log(`  ${chalk.green('●')} Completed Changes: ${chalk.bold(changesData.completed.length)}`);
+    console.log(`  ${chalk.green('●')} ${VIEW_MESSAGES.completedChangesCount(changesData.completed.length)}`);
 
     if (totalTasks > 0) {
       const overallProgress = Math.round((completedTasks / totalTasks) * 100);

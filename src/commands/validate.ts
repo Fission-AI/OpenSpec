@@ -178,10 +178,10 @@ export class ValidateCommand {
       bullets.push(VALIDATE_MESSAGES.debugParsedDeltas);
     } else {
       bullets.push(VALIDATE_MESSAGES.ensurePurposeAndRequirements);
-      bullets.push('- Each requirement MUST include at least one #### Scenario: block');
+      bullets.push(VALIDATE_MESSAGES.requirementScenarioBullet);
       bullets.push(VALIDATE_MESSAGES.rerunWithJson);
     }
-    console.error(VALIDATE_MESSAGES.nextStepsChange);
+    console.error(type === 'change' ? VALIDATE_MESSAGES.nextStepsChange : VALIDATE_MESSAGES.nextStepsSpec);
     bullets.forEach(b => console.error(`  ${b}`));
   }
 
