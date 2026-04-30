@@ -19,7 +19,9 @@ The POC branch is reference material only:
 workspace-poc @ 79a45ac043f414e63d13e08b9da83b135cb20a39
 ```
 
-Use it to understand behavior, tests, and lessons learned. Do not merge it or preserve its architecture by default.
+Use it to understand behavior, tests, and lessons learned. Do not merge it or preserve its architecture by default. The full source direction document from that branch is copied at the repository root as `WORKSPACE_REIMPLEMENTATION_DIRECTION.md`.
+
+Fresh agents should read `POC_REFERENCE_GUIDE.md` before implementing any slice. That guide explains how to inspect the pinned POC commit, which files to read for each slice, and what findings to bring back into the OpenSpec artifacts.
 
 ## Change Order
 
@@ -54,10 +56,12 @@ Use this prompt at the start of future implementation sessions:
 
 ```text
 Continue the workspace reimplementation roadmap. Read
-openspec/changes/workspace-reimplementation-roadmap/README.md first, then
-pick up the next unfinished flat sibling change in order. Use workspace-poc
-at 79a45ac043f414e63d13e08b9da83b135cb20a39 as reference material only.
-Preserve intended behavior, but reimplement cleanly from the current base.
+openspec/changes/workspace-reimplementation-roadmap/README.md and
+openspec/changes/workspace-reimplementation-roadmap/POC_REFERENCE_GUIDE.md
+first, then pick up the next unfinished flat sibling change in order. Use
+workspace-poc at 79a45ac043f414e63d13e08b9da83b135cb20a39 as reference
+material only. Preserve intended behavior, but reimplement cleanly from the
+current base. Before editing, summarize the POC findings for the slice.
 ```
 
 ## Branching Guidance
