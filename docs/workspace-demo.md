@@ -216,8 +216,8 @@ What to look for:
 
 - your preferred agent should launch
 - the session should open in workspace-root mode
-- `Attached repos: none`
-- the agent should have the registered repo inventory and active workspace changes available for coordination
+- `Attached repos:` should list the registered repos with valid local paths
+- the agent should have the registered repos, repo inventory, and active workspace changes available for coordination
 
 If you want to inspect the prepared surface without launching the agent:
 

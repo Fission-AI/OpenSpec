@@ -92,7 +92,7 @@ describe('workspace open command integration', () => {
     vi.restoreAllMocks();
   });
 
-  it('launches a workspace-root session by default without attached repos', async () => {
+  it('launches a workspace-root session by default with ready registered repos attached', async () => {
     const sandbox = await createSandbox('dirty');
     const canonicalWorkspaceRoot = FileSystemUtils.canonicalizeExistingPath(sandbox.workspaceRoot);
 
@@ -101,13 +101,16 @@ describe('workspace open command integration', () => {
     const output = consoleLogSpy.mock.calls.map((call) => call.join(' ')).join('\n');
     expect(output).toContain('Opening workspace-root session for claude.');
     expect(output).toContain(`Workspace root: ${canonicalWorkspaceRoot}`);
-    expect(output).toContain('Attached repos: none');
+    expect(output).toContain('Attached repos: api, app');
     expect(output).toContain('Registered repos available: api, app, docs');
     expect(launchMock).toHaveBeenCalledWith(expect.objectContaining({
       workspaceRoot: canonicalWorkspaceRoot,
       mode: 'workspace-root',
       agent: 'claude',
-      attachedRepos: [],
+      attachedRepos: [
+        { alias: 'api', path: sandbox.repoPaths.api },
+        { alias: 'app', path: sandbox.repoPaths.app },
+      ],
     }));
     expect(consoleErrorSpy).not.toHaveBeenCalled();
     expect(failMock).not.toHaveBeenCalled();
@@ -274,6 +277,50 @@ describe('workspace open command integration', () => {
     expect(consoleErrorSpy).not.toHaveBeenCalled();
     expect(failMock).not.toHaveBeenCalled();
     expect(processExitSpy).not.toHaveBeenCalled();
+  });
+
+  it('lists locally managed workspaces', async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-workspace-list-'));
+    tempRoots.push(tempRoot);
+    process.env.XDG_CONFIG_HOME = path.join(tempRoot, 'xdg-config');
+    process.env.XDG_DATA_HOME = path.join(tempRoot, 'xdg-data');
+
+    const alphaWorkspace = await createManagedWorkspaceRoot('alpha-workspace');
+    const betaWorkspace = await createManagedWorkspaceRoot('beta-workspace');
+
+    await runWorkspaceCommand(['list'], tempRoot);
+
+    const output = consoleLogSpy.mock.calls.map((call) => call.join(' ')).join('\n');
+    expect(output).toContain('Managed workspaces:');
+    expect(output).toContain(`- alpha-workspace: ${alphaWorkspace.workspaceRoot}`);
+    expect(output).toContain(`- beta-workspace: ${betaWorkspace.workspaceRoot}`);
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
+    expect(failMock).not.toHaveBeenCalled();
+    expect(processExitSpy).not.toHaveBeenCalled();
+  });
+
+  it('lists available workspaces when doctor runs outside a workspace root', async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-workspace-doctor-outside-'));
+    tempRoots.push(tempRoot);
+    process.env.XDG_CONFIG_HOME = path.join(tempRoot, 'xdg-config');
+    process.env.XDG_DATA_HOME = path.join(tempRoot, 'xdg-data');
+
+    const workspace = await createManagedWorkspaceRoot('poc-workspace');
+
+    await expect(runWorkspaceCommand(['doctor'], tempRoot)).rejects.toThrow('process.exit(1)');
+
+    expect(failMock).toHaveBeenCalledWith(expect.stringContaining(
+      'Could not find a managed workspace from '
+    ));
+    expect(failMock).toHaveBeenCalledWith(expect.stringContaining('Available managed workspaces:'));
+    expect(failMock).toHaveBeenCalledWith(expect.stringContaining(
+      `- poc-workspace: ${workspace.workspaceRoot}`
+    ));
+    expect(failMock).toHaveBeenCalledWith(expect.stringContaining(
+      'Next step: cd into one of the workspace roots above, then rerun the command.'
+    ));
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
+    expect(processExitSpy).toHaveBeenCalledWith(1);
   });
 
   it('prompts for a workspace when multiple managed workspaces exist and the terminal is interactive', async () => {

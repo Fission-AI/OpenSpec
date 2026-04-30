@@ -145,6 +145,7 @@ describe('workspace setup command integration', () => {
 
     const workspaceRoot = path.join(tempRoot, 'xdg-data', 'openspec', 'workspaces', 'demo-open-now');
     const canonicalWorkspaceRoot = FileSystemUtils.canonicalizeExistingPath(workspaceRoot);
+    const canonicalRepoRoot = FileSystemUtils.canonicalizeExistingPath(repoRoot);
     const output = consoleLogSpy.mock.calls.map((call) => call.join(' ')).join('\n');
 
     expect(launchMock).toHaveBeenCalledWith(expect.objectContaining({
@@ -152,7 +153,14 @@ describe('workspace setup command integration', () => {
       mode: 'workspace-root',
       agent: 'github-copilot',
       change: null,
-      attachedRepos: [],
+      attachedRepos: [
+        {
+          alias: 'openspec',
+          path: canonicalRepoRoot,
+          owner: 'Core Team',
+          handoff: 'Start here',
+        },
+      ],
       editorSurface: expect.objectContaining({
         path: path.join(canonicalWorkspaceRoot, '.openspec', 'workspace-open', 'github-copilot', 'planning.code-workspace'),
       }),
@@ -163,6 +171,12 @@ describe('workspace setup command integration', () => {
         'utf-8'
       )
     ).toContain('"name": "workspace"');
+    expect(
+      await fs.readFile(
+        path.join(workspaceRoot, '.openspec', 'workspace-open', 'github-copilot', 'planning.code-workspace'),
+        'utf-8'
+      )
+    ).toContain('"name": "openspec"');
     expect(
       await fs.readFile(path.join(workspaceRoot, '.github', 'prompts', 'opsx-workspace-open.prompt.md'), 'utf-8')
     ).toContain('description: Prepare a workspace-root coordination session');

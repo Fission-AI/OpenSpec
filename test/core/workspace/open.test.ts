@@ -30,7 +30,7 @@ afterEach(async () => {
 });
 
 describe('workspace open core behavior', () => {
-  it('returns a workspace-root surface without attaching repo roots', async () => {
+  it('returns a workspace-root surface with ready registered repo roots attached', async () => {
     const sandbox = await createSandbox('dirty');
     const result = await openWorkspace({ cwd: sandbox.workspaceRoot });
     const canonicalWorkspaceRoot = FileSystemUtils.canonicalizeExistingPath(sandbox.workspaceRoot);
@@ -39,7 +39,10 @@ describe('workspace open core behavior', () => {
     expect(result.agent).toBe('claude');
     expect(result.change).toBeNull();
     expect(result.workspaceRoot).toBe(canonicalWorkspaceRoot);
-    expect(result.attachedRepos).toEqual([]);
+    expect(result.attachedRepos).toEqual([
+      { alias: 'api', path: sandbox.repoPaths.api },
+      { alias: 'app', path: sandbox.repoPaths.app },
+    ]);
     expect(result.availableChanges).toEqual(['shared-cleanup']);
     expect(result.registeredRepos).toEqual([
       { alias: 'api', path: sandbox.repoPaths.api, status: 'ready' },
@@ -59,7 +62,8 @@ describe('workspace open core behavior', () => {
     expect(result.instructionSurface.content).toContain(`- app: ${sandbox.repoPaths.app}`);
     expect(result.instructionSurface.content).toContain(`- docs: ${sandbox.overlayRepoPaths.docs}`);
     expect(result.instructionSurface.content).toContain('Active workspace changes:\n- shared-cleanup');
-    expect(result.instructionSurface.content).toContain('Attached repos:\nnone');
+    expect(result.instructionSurface.content).toContain(`- api: ${sandbox.repoPaths.api}`);
+    expect(result.instructionSurface.content).toContain(`- app: ${sandbox.repoPaths.app}`);
   });
 
   it('attaches only the targeted repos for a change-scoped open', async () => {

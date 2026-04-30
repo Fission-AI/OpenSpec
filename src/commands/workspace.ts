@@ -12,6 +12,7 @@ import {
   createManagedWorkspaceRoot,
   listManagedWorkspaces,
   resolveManagedWorkspaceByName,
+  type ManagedWorkspaceSummary,
 } from '../core/workspace/create.js';
 import {
   addWorkspaceRepo,
@@ -60,15 +61,50 @@ function printJson(payload: unknown): void {
   console.log(JSON.stringify(payload, null, 2));
 }
 
-function handleWorkspaceCommandError(error: unknown, options?: WorkspaceCommandOptions): void {
+function printManagedWorkspaceList(workspaces: ManagedWorkspaceSummary[]): void {
+  if (workspaces.length === 0) {
+    console.log("No managed workspaces found. Create one with 'openspec workspace setup' or 'openspec workspace create <name>'.");
+    return;
+  }
+
+  console.log('Managed workspaces:');
+  for (const workspace of workspaces) {
+    console.log(`- ${workspace.name}: ${workspace.workspaceRoot}`);
+  }
+}
+
+async function formatWorkspaceCommandErrorMessage(error: unknown): Promise<string> {
+  const message = (error as Error).message;
+  if (!message.startsWith('Could not find a managed workspace from ')) {
+    return message;
+  }
+
+  const managedWorkspaces = await listManagedWorkspaces();
+  if (managedWorkspaces.length === 0) {
+    return message;
+  }
+
+  return [
+    message,
+    '',
+    'Available managed workspaces:',
+    ...managedWorkspaces.map((workspace) => `- ${workspace.name}: ${workspace.workspaceRoot}`),
+    '',
+    'Next step: cd into one of the workspace roots above, then rerun the command.',
+  ].join('\n');
+}
+
+async function handleWorkspaceCommandError(error: unknown, options?: WorkspaceCommandOptions): Promise<void> {
+  const message = await formatWorkspaceCommandErrorMessage(error);
+
   if (options?.json) {
-    console.error(JSON.stringify({ error: (error as Error).message }, null, 2));
+    console.error(JSON.stringify({ error: message }, null, 2));
     process.exit(1);
     return;
   }
 
   console.log();
-  ora().fail(`Error: ${(error as Error).message}`);
+  ora().fail(`Error: ${message}`);
   process.exit(1);
 }
 
@@ -319,6 +355,26 @@ export function registerWorkspaceCommand(program: Command): void {
     .description('Manage OpenSpec workspaces for cross-repo planning');
 
   workspaceCmd
+    .command('list')
+    .alias('ls')
+    .description('List locally managed OpenSpec workspaces')
+    .option('--json', 'Output as JSON')
+    .action(async (options?: WorkspaceCommandOptions) => {
+      try {
+        const workspaces = await listManagedWorkspaces();
+
+        if (options?.json) {
+          printJson({ workspaces });
+          return;
+        }
+
+        printManagedWorkspaceList(workspaces);
+      } catch (error) {
+        await handleWorkspaceCommandError(error, options);
+      }
+    });
+
+  workspaceCmd
     .command('setup')
     .description('Interactively create a workspace and register repos')
     .option('--no-interactive', 'Disable interactive prompts')
@@ -347,7 +403,7 @@ export function registerWorkspaceCommand(program: Command): void {
           },
         });
       } catch (error) {
-        handleWorkspaceCommandError(error, options);
+        await handleWorkspaceCommandError(error, options);
       }
     });
 
@@ -367,7 +423,7 @@ export function registerWorkspaceCommand(program: Command): void {
         console.log(`Workspace '${result.name}' created at ${result.workspaceRoot}`);
         console.log('Created: .openspec/workspace.yaml, .openspec/local.yaml, changes/');
       } catch (error) {
-        handleWorkspaceCommandError(error, options);
+        await handleWorkspaceCommandError(error, options);
       }
     });
 
@@ -393,7 +449,7 @@ export function registerWorkspaceCommand(program: Command): void {
         printRepoGuidanceDetails(result);
         console.log('Updated: .openspec/workspace.yaml, .openspec/local.yaml');
       } catch (error) {
-        handleWorkspaceCommandError(error, options);
+        await handleWorkspaceCommandError(error, options);
       }
     });
 
@@ -419,7 +475,7 @@ export function registerWorkspaceCommand(program: Command): void {
         printRepoGuidanceDetails(result);
         console.log('Updated: .openspec/workspace.yaml');
       } catch (error) {
-        handleWorkspaceCommandError(error, options);
+        await handleWorkspaceCommandError(error, options);
       }
     });
 
@@ -445,7 +501,7 @@ export function registerWorkspaceCommand(program: Command): void {
           process.exitCode = 1;
         }
       } catch (error) {
-        handleWorkspaceCommandError(error, options);
+        await handleWorkspaceCommandError(error, options);
       }
     });
 
@@ -470,7 +526,7 @@ export function registerWorkspaceCommand(program: Command): void {
 
         printWorkspaceTargetUpdateReport(result);
       } catch (error) {
-        handleWorkspaceCommandError(error, options);
+        await handleWorkspaceCommandError(error, options);
       }
     });
 
@@ -509,7 +565,7 @@ export function registerWorkspaceCommand(program: Command): void {
         printWorkspaceOpenLaunchSummary(result);
         await launchWorkspaceOpenSession(result);
       } catch (error) {
-        handleWorkspaceCommandError(error, options);
+        await handleWorkspaceCommandError(error, options);
       }
     });
 }

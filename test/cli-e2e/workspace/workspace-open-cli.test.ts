@@ -169,7 +169,7 @@ describe('workspace open CLI e2e', () => {
     expect(output.mode).toBe('workspace-root');
   });
 
-  it('returns a workspace-root JSON surface without repo attachments', async () => {
+  it('returns a workspace-root JSON surface with ready registered repo attachments', async () => {
     const sandbox = await createSandbox('dirty');
     const result = await runCLI(['workspace', 'open', '--json'], {
       cwd: sandbox.workspaceRoot,
@@ -183,10 +183,14 @@ describe('workspace open CLI e2e', () => {
     expect(output.mode).toBe('workspace-root');
     expect(output.agent).toBe('claude');
     expect(output.change).toBeNull();
-    expect(output.attachedRepos).toEqual([]);
+    expect(output.attachedRepos).toEqual([
+      { alias: 'api', path: sandbox.repoPaths.api },
+      { alias: 'app', path: sandbox.repoPaths.app },
+    ]);
     expect(output.instructionSurface.path).toContain('.claude/commands/opsx/workspace-open.md');
     expect(output.instructionSurface.content).toContain('Mode: workspace-root');
-    expect(output.instructionSurface.content).toContain('Attached repos:\nnone');
+    expect(output.instructionSurface.content).toContain(`- api: ${sandbox.repoPaths.api}`);
+    expect(output.instructionSurface.content).toContain(`- app: ${sandbox.repoPaths.app}`);
     expect(output.instructionSurface.content).toContain('Registered repos:');
     expect(output.registeredRepos).toEqual([
       { alias: 'api', path: sandbox.repoPaths.api, status: 'ready' },

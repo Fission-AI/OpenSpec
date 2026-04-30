@@ -17,6 +17,7 @@ function getWorkspaceCommand(): Command {
 describe('workspace help metadata', () => {
   it('documents cross-repo planning and repo guidance commands in help output', () => {
     const workspaceCommand = getWorkspaceCommand();
+    const listCommand = workspaceCommand.commands.find((command) => command.name() === 'list');
     const setupCommand = workspaceCommand.commands.find((command) => command.name() === 'setup');
     const addRepoCommand = workspaceCommand.commands.find((command) => command.name() === 'add-repo');
     const updateRepoCommand = workspaceCommand.commands.find((command) => command.name() === 'update-repo');
@@ -24,10 +25,14 @@ describe('workspace help metadata', () => {
     const openCommand = workspaceCommand.commands.find((command) => command.name() === 'open');
 
     expect(workspaceCommand.description()).toBe('Manage OpenSpec workspaces for cross-repo planning');
+    expect(workspaceCommand.helpInformation()).toContain('list|ls [options]');
     expect(workspaceCommand.helpInformation()).toContain('setup [options]');
     expect(workspaceCommand.helpInformation()).toContain('create [options] <name>');
     expect(workspaceCommand.helpInformation()).toContain('update-repo [options] <alias>');
     expect(workspaceCommand.helpInformation()).toContain('targets [options] <change>');
+
+    expect(listCommand?.description()).toBe('List locally managed OpenSpec workspaces');
+    expect(listCommand?.helpInformation()).toContain('--json');
 
     expect(setupCommand?.description()).toBe('Interactively create a workspace and register repos');
     expect(setupCommand?.helpInformation()).toContain('--no-interactive');

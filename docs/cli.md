@@ -11,7 +11,7 @@ The OpenSpec CLI (`openspec`) provides terminal commands for project setup, vali
 | **Validation** | `validate` | Check changes and specs for issues |
 | **Lifecycle** | `archive` | Finalize completed changes |
 | **Workflow** | `status`, `instructions`, `templates`, `schemas` | Artifact-driven workflow support |
-| **Workspace** | `workspace setup`, `workspace create`, `workspace add-repo`, `workspace update-repo`, `workspace targets`, `workspace doctor`, `workspace open` | Coordinate cross-repo planning without collapsing repo ownership |
+| **Workspace** | `workspace setup`, `workspace list`, `workspace create`, `workspace add-repo`, `workspace update-repo`, `workspace targets`, `workspace doctor`, `workspace open` | Coordinate cross-repo planning without collapsing repo ownership |
 | **Schemas** | `schema init`, `schema fork`, `schema validate`, `schema which` | Create and manage custom workflows |
 | **Config** | `config` | View and modify settings |
 | **Utility** | `feedback`, `completion` | Feedback and shell integration |
@@ -613,6 +613,7 @@ The setup wizard is interactive and asks for:
 The current workspace command group includes:
 
 - `openspec workspace setup`
+- `openspec workspace list`
 - `openspec workspace create <name>`
 - `openspec workspace add-repo <alias> <path> [--owner ...] [--handoff ...]`
 - `openspec workspace update-repo <alias> [--owner ...] [--handoff ...]`

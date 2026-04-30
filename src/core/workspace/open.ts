@@ -216,9 +216,9 @@ function buildWorkspaceOpenBody(result: WorkspaceOpenSurfaceInput): string {
   lines.push('- Do not materialize repo-local changes from this session.');
 
   if (result.mode === 'workspace-root') {
-    lines.push(`- Registered repos are inventory only until a targeted workspace change scopes them in.`);
-    lines.push(`- When you determine scope, create or update a targeted workspace change.`);
-    lines.push(`- If you create a targeted workspace change from this root session, stop after the change is created so OpenSpec can reopen a change-scoped session with attached repos.`);
+    lines.push(`- Registered repos are attached as the workspace working set for exploration and planning.`);
+    lines.push(`- Creating or updating a targeted workspace change records proposal scope; it is not required just to inspect repos.`);
+    lines.push(`- Keep repo-local materialization explicit through 'openspec apply --change <id> --repo <alias>'.`);
   } else if (result.change) {
     lines.push(`- Repo-local materialization still happens with 'openspec apply --change ${result.change.id} --repo <alias>'.`);
   }
@@ -385,12 +385,22 @@ export async function openWorkspace(options: WorkspaceOpenOptions = {}): Promise
   const availableChanges = await listAvailableWorkspaceChanges(workspaceRoot);
 
   if (!options.change) {
+    const attachedRepos = registeredRepos
+      .filter((repo): repo is WorkspaceOpenRegisteredRepo & { path: string; status: 'ready' } => (
+        repo.status === 'ready' && repo.path !== null
+      ))
+      .map((repo) => ({
+        alias: repo.alias,
+        path: repo.path,
+        ...(repo.owner ? { owner: repo.owner } : {}),
+        ...(repo.handoff ? { handoff: repo.handoff } : {}),
+      }));
     const planningResult = {
       workspaceRoot,
       mode: 'workspace-root' as const,
       agent,
       change: null,
-      attachedRepos: [],
+      attachedRepos,
       registeredRepos,
       availableChanges,
     };
