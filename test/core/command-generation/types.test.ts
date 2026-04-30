@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import type { CommandContent, ToolCommandAdapter, GeneratedCommand } from '../../../src/core/command-generation/types.js';
+import type {
+  CommandContent,
+  ToolCommandAdapter,
+  GeneratedCommand,
+  ToolCommandAdapterCapabilities,
+} from '../../../src/core/command-generation/types.js';
 
 describe('command-generation/types', () => {
   describe('CommandContent interface', () => {
@@ -39,6 +44,9 @@ describe('command-generation/types', () => {
     it('should implement adapter with getFilePath and formatFile', () => {
       const mockAdapter: ToolCommandAdapter = {
         toolId: 'test-tool',
+        capabilities: {
+          supportsWorkspaceOpen: true,
+        },
         getFilePath(commandId: string): string {
           return `.test/${commandId}.md`;
         },
@@ -62,6 +70,16 @@ describe('command-generation/types', () => {
       const formatted = mockAdapter.formatFile(content);
       expect(formatted).toContain('name: Test Command');
       expect(formatted).toContain('Body content');
+    });
+  });
+
+  describe('ToolCommandAdapterCapabilities interface', () => {
+    it('should allow declaring workspace-open support', () => {
+      const capabilities: ToolCommandAdapterCapabilities = {
+        supportsWorkspaceOpen: true,
+      };
+
+      expect(capabilities.supportsWorkspaceOpen).toBe(true);
     });
   });
 

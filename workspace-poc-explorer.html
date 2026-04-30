@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>How the Workspace POC got built</title>
+<style>
+  :root {
+    --bg: #0b0d10;
+    --bg-panel: #11141a;
+    --bg-elev: #161b22;
+    --bg-card: #1a1f29;
+    --border: #242b36;
+    --border-soft: #1b2029;
+    --text: #e6edf3;
+    --text-dim: #a0abb9;
+    --text-mute: #6e7885;
+    --accent: #58a6ff;
+    --accent-soft: rgba(88, 166, 255, 0.12);
+    --research: #d29922;
+    --feature:  #58a6ff;
+    --test:     #3fb950;
+    --warn:     #f97583;
+    --good:     #3fb950;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+    font-size: 15px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.92em; }
+
+  .app {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    height: 100vh;
+  }
+
+  /* ------- Sidebar ------- */
+  aside {
+    border-right: 1px solid var(--border);
+    background: var(--bg-panel);
+    padding: 28px 18px 18px;
+    overflow-y: auto;
+  }
+  .brand {
+    font-size: 12px;
+    color: var(--text-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 4px;
+  }
+  .brand b { color: var(--text); font-weight: 600; }
+  .lede {
+    font-size: 12px;
+    color: var(--text-mute);
+    margin-bottom: 22px;
+    line-height: 1.5;
+  }
+  .toc {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .toc a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 13px;
+    cursor: pointer;
+    border-left: 2px solid transparent;
+  }
+  .toc a .n {
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--text-mute);
+    width: 18px;
+    flex-shrink: 0;
+  }
+  .toc a:hover { color: var(--text); background: var(--bg-elev); }
+  .toc a.current {
+    color: var(--text);
+    background: var(--accent-soft);
+    border-left-color: var(--accent);
+  }
+  .toc a.current .n { color: var(--accent); }
+
+  .toc-foot {
+    margin-top: 22px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-mute);
+    line-height: 1.6;
+  }
+  .toc-foot kbd {
+    display: inline-block;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-family: ui-monospace, monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    margin: 0 1px;
+  }
+
+  /* ------- Main scroller ------- */
+  main {
+    overflow-y: scroll;
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+    position: relative;
+  }
+
+  section.chapter {
+    min-height: 100vh;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    padding: 72px 64px 72px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    max-width: 880px;
+    margin: 0 auto;
+  }
+  section.chapter.wide { max-width: 1040px; }
+
+  .ch-label {
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--text-mute);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  h2.ch-title {
+    font-size: 34px;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    margin: 0 0 24px;
+    font-weight: 600;
+  }
+  .ch-body p {
+    color: var(--text-dim);
+    margin: 0 0 16px;
+    font-size: 16px;
+    line-height: 1.7;
+  }
+  .ch-body p strong { color: var(--text); font-weight: 600; }
+  .ch-body p em { color: var(--text); font-style: normal; border-bottom: 1px dotted var(--text-mute); }
+
+  .ch-body code {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 0.9em;
+  }
+
+  /* ------- Visual components ------- */
+  .pull-quote {
+    margin: 24px 0 8px;
+    padding: 20px 28px;
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+    border-radius: 0 6px 6px 0;
+    font-size: 19px;
+    line-height: 1.5;
+    color: var(--text);
+    font-weight: 500;
+  }
+  .pull-quote .src {
+    display: block;
+    font-size: 12px;
+    color: var(--text-mute);
+    margin-top: 8px;
+    font-weight: 400;
+    font-family: ui-monospace, monospace;
+  }
+
+  .tree {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 22px;
+    margin: 20px 0;
+    font-family: ui-monospace, monospace;
+    font-size: 12.5px;
+    line-height: 1.8;
+    color: var(--text-dim);
+    white-space: pre;
+    overflow-x: auto;
+  }
+  .tree .dir  { color: var(--accent); }
+  .tree .note { color: var(--text-mute); font-style: italic; }
+  .tree .hl   { color: var(--text); }
+  .tree .warn { color: var(--warn); }
+
+  .terminal {
+    background: #000;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 20px 0;
+    font-family: ui-monospace, monospace;
+    font-size: 13px;
+    line-height: 1.9;
+    color: var(--text);
+    overflow-x: auto;
+  }
+  .terminal .prompt { color: var(--accent); user-select: none; margin-right: 6px; }
+  .terminal .comment { color: var(--text-mute); }
+  .terminal .cmd-line { white-space: nowrap; }
+
+  .cards-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    margin: 20px 0;
+  }
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--text-dim);
+  }
+  .card .card-hd {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .card .card-num {
+    font-family: ui-monospace, monospace;
+    font-size: 10px;
+    color: var(--text-mute);
+  }
+  .card .card-tag {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+  .card-tag.research { background: rgba(210, 153, 34, 0.15); color: var(--research); }
+  .card-tag.feature  { background: rgba(88, 166, 255, 0.15); color: var(--feature); }
+  .card-tag.test     { background: rgba(63, 185, 80, 0.15);  color: var(--test); }
+  .card .card-title { font-weight: 500; color: var(--text); font-size: 13.5px; margin-bottom: 6px; }
+  .card .card-body { font-size: 12.5px; color: var(--text-dim); line-height: 1.55; }
+
+  .rhythm-bar {
+    display: grid;
+    grid-template-columns: repeat(26, 1fr);
+    gap: 3px;
+    margin: 24px 0 16px;
+  }
+  .rhythm-bar .cell {
+    height: 38px;
+    border-radius: 3px;
+    position: relative;
+  }
+  .rhythm-bar .cell.research { background: var(--research); }
+  .rhythm-bar .cell.feature  { background: var(--feature); }
+  .rhythm-bar .cell.test     { background: var(--test); }
+  .rhythm-bar .cell.wrapup   { background: var(--text-mute); }
+  .rhythm-bar .cell::after {
+    content: attr(data-n);
+    position: absolute;
+    bottom: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: ui-monospace, monospace;
+    font-size: 9px;
+    color: var(--text-mute);
+  }
+  .rhythm-legend {
+    display: flex;
+    gap: 18px;
+    margin-top: 28px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .rhythm-legend span b { color: var(--text); font-weight: 600; }
+  .rhythm-legend .sw {
+    display: inline-block;
+    width: 10px; height: 10px;
+    border-radius: 2px;
+    margin-right: 6px;
+    vertical-align: -1px;
+  }
+
+  .split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin: 20px 0;
+  }
+  .split .side {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+  }
+  .split .side .title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-mute);
+    margin-bottom: 8px;
+  }
+  .split .side p { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--text-dim); }
+  .split .side.before { border-top: 2px solid var(--warn); }
+  .split .side.after  { border-top: 2px solid var(--good); }
+
+  .states {
+    display: flex;
+    align-items: stretch;
+    gap: 6px;
+    margin: 24px 0 8px;
+  }
+  .states .st {
+    flex: 1;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 10px;
+    text-align: center;
+  }
+  .states .st .nm {
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--text);
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .states .st .ds {
+    font-size: 11px;
+    color: var(--text-mute);
+    line-height: 1.4;
+  }
+  .states .st.planned { border-top: 2px solid var(--text-mute); }
+  .states .st.prog    { border-top: 2px solid var(--feature); }
+  .states .st.blocked { border-top: 2px solid var(--warn); }
+  .states .st.soft    { border-top: 2px solid var(--research); }
+  .states .st.hard    { border-top: 2px solid var(--good); }
+
+  .gaps {
+    display: grid;
+    gap: 10px;
+    margin: 20px 0;
+  }
+  .gap {
+    display: grid;
+    grid-template-columns: 24px 1fr auto;
+    gap: 14px;
+    align-items: center;
+    padding: 14px 18px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .gap .bullet {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: rgba(249, 117, 131, 0.18);
+    color: var(--warn);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+    font-family: ui-monospace, monospace;
+  }
+  .gap .txt strong { color: var(--text); font-weight: 600; }
+  .gap .txt { color: var(--text-dim); font-size: 13.5px; line-height: 1.5; }
+  .gap .fix {
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--good);
+    white-space: nowrap;
+  }
+
+  .prompts {
+    display: grid;
+    gap: 10px;
+    margin: 16px 0 0;
+  }
+  .prompts .pr {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: start;
+  }
+  .prompts .pr .pr-text {
+    font-family: ui-monospace, monospace;
+    font-size: 12.5px;
+    color: var(--text-dim);
+    line-height: 1.55;
+  }
+  .prompts .pr button {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 6px 12px;
+    border-radius: 5px;
+    font-size: 11px;
+    cursor: pointer;
+    height: fit-content;
+    min-width: 64px;
+  }
+  .prompts .pr button:hover { border-color: var(--accent); color: var(--accent); }
+  .prompts .pr button.copied { border-color: var(--good); color: var(--good); }
+
+  /* ------- Floating HUD ------- */
+  .hud {
+    position: fixed;
+    right: 28px;
+    bottom: 28px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 6px 6px 6px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--text-dim);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    z-index: 10;
+    user-select: none;
+  }
+  .hud .counter { font-family: ui-monospace, monospace; min-width: 44px; text-align: center; }
+  .hud button {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .hud button:hover { color: var(--text); border-color: var(--text-mute); }
+  .hud button:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* Progress bar at top of main */
+  .progress {
+    position: fixed;
+    top: 0;
+    left: 240px;
+    right: 0;
+    height: 2px;
+    background: var(--border-soft);
+    z-index: 5;
+  }
+  .progress .fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.15s ease;
+  }
+
+  ::-webkit-scrollbar { width: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-mute); }
+
+  /* Responsive tweaks */
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; }
+    aside { display: none; }
+    .progress { left: 0; }
+    section.chapter { padding: 56px 28px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+<aside>
+  <div class="brand"><b>Workspace POC</b></div>
+  <div class="lede">A 12-chapter story of how OpenSpec got a persistent home for coordinating changes across a set of repos — without breaking single-repo use.</div>
+  <nav class="toc" id="toc"></nav>
+
+  <div class="toc-foot">
+    Shipped 2026-04-17 · 26 phases · PRD signed off.<br><br>
+    Use <kbd>↓</kbd> <kbd>↑</kbd> to step, <kbd>Space</kbd> for next, scroll for freeform.
+  </div>
+</aside>
+
+<main id="main">
+  <div class="progress"><div class="fill" id="progressFill"></div></div>
+
+  <!-- CHAPTER 01 -->
+  <section class="chapter" id="ch-01">
+    <div class="ch-label">Chapter 01 — The problem</div>
+    <h2 class="ch-title">OpenSpec assumed one repo.</h2>
+    <div class="ch-body">
+      <p>Every command asked the same implicit question: <em>which repo am I in?</em> Changes were authored under one repo, specs resolved locally, <code>apply</code> and <code>archive</code> were repo-local lifecycle steps. For normal single-repo work this was fine.</p>
+      <p>But real features don't always stay in one repo. A behavior change can span a service, a client, and a shared-contract repo. There was nowhere honest to write that one plan down. So it scattered — into Slack threads, side docs, and three half-plans in three repos, none of them the source of truth.</p>
+      <div class="split">
+        <div class="side before">
+          <div class="title">Before</div>
+          <p>One plan per repo. Either <em>one repo pretends to own it</em> — dishonest — or <em>three parallel plans drift</em>. The cross-repo change is legible nowhere.</p>
+        </div>
+        <div class="side after">
+          <div class="title">What was needed</div>
+          <p>A single planning home that doesn't collapse repo ownership. One place to see the whole thing, with each repo still the source of truth for its own specs and execution.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHAPTER 02 -->
+  <section class="chapter" id="ch-02">
+    <div class="ch-label">Chapter 02 — The bet</div>
+    <h2 class="ch-title">Plan centrally. Execute locally. Don't touch ownership.</h2>
+    <div class="ch-body">
+      <p>The POC committed to a small, opinionated thesis before any code got written:</p>
+      <div class="pull-quote">
+        The workspace is a persistent coordination home. Canonical specs stay in the owning repo. Repo-local execution stays repo-local. The primary user-facing primitive is still <em>change</em>. The methodology is still <em>spec-driven</em>.
+        <span class="src">WORKSPACE_POC_PRD.md — Core Principles</span>
+      </div>
+      <p>This ruled out some tempting shortcuts. <strong>No new primitive.</strong> Users still think in <code>change</code>, not some new "initiative" concept. <strong>No new methodology schema.</strong> Workspace behavior is a topology concern, not a fork of <code>spec-driven</code>. <strong>No fully multi-root-aware CLI across every command.</strong> Just the minimum surface to prove the idea.</p>
+    </div>
+  </section>
+
+  <!-- CHAPTER 03 -->
+  <section class="chapter" id="ch-03">
+    <div class="ch-label">Chapter 03 — The shape</div>
+    <h2 class="ch-title">A workspace is the set of repos, not a feature folder.</h2>
+    <div class="ch-body">
+      <p>The important mental model: one workspace holds <strong>many changes over time</strong>, across the same set of registered repos. You name a workspace after the coordination surface (a product, a team, a logical slice), not after an individual feature. Changes come and go inside it.</p>
+      <p>It lives in a managed location so users don't pick a home: <code>$XDG_DATA_HOME/openspec/workspaces/&lt;name&gt;</code>, or <code>~/.local/share/openspec/workspaces/&lt;name&gt;</code> as the Unix fallback. Inside, committed metadata is deliberately split from local paths:</p>
+      <div class="tree">
+<span class="hl">~/.local/share/openspec/workspaces/platform/</span>      <span class="note"># one workspace</span>
+├─ <span class="dir">.openspec/</span>
+│  ├─ workspace.yaml      <span class="note"># committed. aliases + optional owner/handoff</span>
+│  └─ local.yaml          <span class="note"># gitignored. machine-specific repo paths</span>
+└─ <span class="dir">changes/</span>                 <span class="note"># many changes live here over time</span>
+   ├─ <span class="dir">add-auth/</span>             <span class="note"># one cross-repo change</span>
+   │  ├─ proposal.md
+   │  ├─ design.md
+   │  ├─ <span class="dir">tasks/</span>coordination.md
+   │  └─ <span class="dir">targets/</span>
+   │     ├─ <span class="dir">app/</span>     (tasks.md, specs/)
+   │     └─ <span class="dir">api/</span>     (tasks.md, specs/)
+   ├─ <span class="dir">rotate-secrets/</span>       <span class="note"># another change, different targets</span>
+   └─ <span class="dir">rename-events/</span>        <span class="note"># another, maybe already archived</span>
+      </div>
+      <p>There's <strong>no inner <code>openspec/</code> directory</strong> and no repo-local state anywhere in the workspace. The workspace is a planning root, not a repo. Repo-local <code>openspec/changes/</code> only shows up inside a target repo once a change is materialized there.</p>
+    </div>
+  </section>
+
+  <!-- CHAPTER 04 -->
+  <section class="chapter" id="ch-04">
+    <div class="ch-label">Chapter 04 — The rhythm</div>
+    <h2 class="ch-title">26 phases. One day. A deliberate cadence.</h2>
+    <div class="ch-body">
+      <p>The POC shipped on <strong>2026-04-17</strong> across 26 numbered phases. The order is not an accident — you can read the rhythm off a bar:</p>
+      <div class="rhythm-bar" id="rhythmBar"></div>
+      <div class="rhythm-legend">
+        <span><span class="sw" style="background:var(--research)"></span><b>4 research</b> locked v0 contracts in DECISION.md <em>before</em> any code</span>
+        <span><span class="sw" style="background:var(--feature)"></span><b>11 features</b> shipped against those locked contracts</span>
+        <span><span class="sw" style="background:var(--test)"></span><b>10 test phases</b> followed feature phases directly</span>
+      </div>
+      <p style="margin-top: 24px;">Every feature had a test phase right after it. Every risky design decision had a research phase right before it. The four DECISION.md files (phases 07, 10, 13, 18) are short but load-bearing — they pin what's in and what's out of v0 so implementation doesn't drift.</p>
+    </div>
+  </section>
+
+  <!-- CHAPTER 05 -->
+  <section class="chapter" id="ch-05">
+    <div class="ch-label">Chapter 05 — Act I · Foundation (00–04)</div>
+    <h2 class="ch-title">The fixtures came before the feature.</h2>
+    <div class="ch-body">
+      <p>Phase 00 is the tell. Before any <code>workspace create</code> code existed, a <em>sandbox harness</em> shipped — a helper that clones workspace fixtures into temp roots and canonicalizes absolute paths at runtime. That one choice forced everything later to stay honest about what's committed vs. what's local.</p>
+      <p>Phases 01–04 built on top: <code>workspace create</code> (reusing the existing setup bootstrap instead of forking it), then <code>add-repo</code> and <code>doctor</code>. The registry split is the big idea:</p>
+      <div class="split">
+        <div class="side">
+          <div class="title">.openspec/workspace.yaml · committed</div>
+          <p class="mono" style="font-family: ui-monospace, monospace; font-size: 12px; white-space: pre;">version: 1
+name: platform
+repos:
+  app:
+    description: Application repo
+  api:
+    description: API repo
+  docs:
+    description: Docs repo</p>
+        </div>
+        <div class="side">
+          <div class="title">.openspec/local.yaml · gitignored</div>
+          <p class="mono" style="font-family: ui-monospace, monospace; font-size: 12px; white-space: pre;">version: 1
+repoPaths:
+  app: /Users/me/code/app
+  api: /Users/me/code/api
+  docs: /Users/me/code/docs</p>
+        </div>
+      </div>
+      <p><code>doctor</code> reports drift (missing mappings, stale paths, extra aliases) and exits non-zero — but never mutates files. The user fixes it.</p>
+    </div>
+  </section>
+
+  <!-- CHAPTER 06 -->
+  <section class="chapter" id="ch-06">
+    <div class="ch-label">Chapter 06 — Act II · One change, many targets (05–06)</div>
+    <h2 class="ch-title">The central command: <code>new change --targets</code>.</h2>
+    <div class="ch-body">
+      <p>Inside an existing workspace, <code>openspec new change add-auth --targets app,api</code> doesn't just create a change — it <em>partitions</em> it. You get a shared proposal and design at the top, plus a per-target slice underneath, ready to be worked independently. The change lives alongside any other changes already in the workspace.</p>
+      <div class="terminal">
+<span class="prompt">$</span> openspec new change add-auth --targets app,api
+<span class="comment">✓ created workspace change add-auth</span>
+<span class="comment">  targets: app, api  (aliases must exist in workspace.yaml)</span>
+<span class="comment">  ├─ proposal.md           (shared)</span>
+<span class="comment">  ├─ design.md             (shared)</span>
+<span class="comment">  ├─ tasks/coordination.md (shared)</span>
+<span class="comment">  ├─ targets/app/          (tasks.md, specs/)</span>
+<span class="comment">  └─ targets/api/          (tasks.md, specs/)</span>
+      </div>
+      <p>Key invariant: <strong>no repo-local <code>openspec/changes/</code> gets written yet.</strong> The target folders are planning drafts inside the workspace. The repos haven't been touched. That's important for the next act.</p>
+    </div>
+  </section>
+
+  <!-- CHAPTER 07 -->
+  <section class="chapter" id="ch-07">
+    <div class="ch-label">Chapter 07 — Act III · Materialization, the authority handoff (10–12)</div>
+    <h2 class="ch-title">When a target becomes a repo-local change.</h2>
+    <div class="ch-body">
+      <p>This is the most interesting decision in the POC. Phase 10 spent an entire research phase locking down the contract in a DECISION.md before any code:</p>
+      <div class="pull-quote">
+        <code>apply</code> is <em>create-only</em>. No overwrite. No refresh. Explicit failure on repeat-apply. A minimal sidecar trace in <code>.openspec.materialization.yaml</code> for later roll-up.
+        <span class="src">notes/workspace-poc/phase-10-materialization-contract-research/DECISION.md</span>
+      </div>
+      <p>Then phase 11 shipped it. <code>openspec apply --change add-auth --repo service-a</code> stages the bundle under <code>openspec/changes/</code> with an atomic rename, writes the sidecar, and says so explicitly in the CLI output. The handoff isn't implicit:</p>
+      <div class="split">
+        <div class="side before">
+          <div class="title">Before apply</div>
+          <p>The workspace target slice is the <strong>planning truth</strong> for that repo. Edits happen in <code>changes/add-auth/targets/service-a/</code>.</p>
+        </div>
+        <div class="side after">
+          <div class="title">After apply</div>
+          <p>The repo-local change is the <strong>execution truth</strong> for that repo. Edits happen in <code>service-a/openspec/changes/add-auth/</code>. The workspace slice is no longer authoritative.</p>
+        </div>
+      </div>
+      <p>Create-only is a <em>constraint, not a limitation</em>. It means v0 never has to answer "what gets overwritten and what gets preserved on refresh" — a question the team explicitly deferred until someone has used the create-only version first.</p>
+    </div>
+  </section>
+
+  <!-- CHAPTER 08 -->
+  <section class="chapter" id="ch-08">
+    <div class="ch-label">Chapter 08 — Act IV · Status, honestly (13–15)</div>
+    <h2 class="ch-title">Five states, derived from what's actually on disk.</h2>
+    <div class="ch-body">
+      <p>Phase 13's research made a contrarian call: <strong>don't reuse the artifact-graph status primitive</strong>. Workspace changes don't have repo-local artifact paths to infer from — you'd be making things up. Instead, derive state from two concrete signals: task checkboxes, and materialization provenance from the sidecar.</p>
+      <div class="states">
+        <div class="st planned"><div class="nm">planned</div><div class="ds">drafted, not applied</div></div>
+        <div class="st prog"><div class="nm">in-progress</div><div class="ds">some work done</div></div>
+        <div class="st blocked"><div class="nm">blocked</div><div class="ds">real issue detected</div></div>
+        <div class="st soft"><div class="nm">soft-done</div><div class="ds">all work complete</div></div>
+        <div class="st hard"><div class="nm">hard-done</div><div class="ds">explicitly archived</div></div>
+      </div>
+      <p><em>Blocked</em> is where the honesty lives. Missing overlay entries, stale repo paths, invalid materialization traces, unreadable task files — all reported. No "unknown" fallbacks that pretend things are fine.</p>
+      <p>And <em>soft-done</em> ≠ <em>hard-done</em> on purpose. Soft-done means the work <em>looks</em> finished. Hard-done requires an explicit human action. That action is the next chapter.</p>
+    </div>
+  </section>
+
+  <!-- CHAPTER 09 -->
+  <section class="chapter" id="ch-09">
+    <div class="ch-label">Chapter 09 — Act V · Archive, explicitly (16–17)</div>
+    <h2 class="ch-title">Hard-done is a marker, not an accumulation.</h2>
+    <div class="ch-body">
+      <p>A workspace change becomes hard-done when, and only when, the user runs <code>openspec archive &lt;id&gt; --workspace</code>. That writes a single field to the workspace change's metadata:</p>
+      <div class="terminal">
+<span class="prompt">$</span> openspec archive add-auth --workspace
+<span class="comment">✓ wrote workspaceArchivedAt: 2026-04-17T09:14:22Z</span>
+<span class="comment">  status(add-auth) → hard-done</span>
+      </div>
+      <p>Repo-local archive — running <code>archive</code> inside a target repo — has <strong>zero effect</strong> on workspace completion. Without that rule, hard-done would silently accumulate from repo-local actions taken by different people at different times. The workspace owner would lose the one place they can say "this cross-repo effort is done."</p>
+    </div>
+  </section>
+
+  <!-- CHAPTER 10 -->
+  <section class="chapter" id="ch-10">
+    <div class="ch-label">Chapter 10 — The twist</div>
+    <h2 class="ch-title">Phase 20 was an audit. It found three gaps.</h2>
+    <div class="ch-body">
+      <p>After Archive, it looked done. Phase 19 even ran a consolidated acceptance suite — happy path, interruption/re-entry, failure recovery — all passing. Signoff was next.</p>
+      <p>Instead, phase 20 audited the shipped POC against the PRD <em>line by line</em> and came back with three concrete product gaps:</p>
+      <div class="gaps">
+        <div class="gap">
+          <div class="bullet">1</div>
+          <div class="txt"><strong>Owners weren't visible.</strong> The PRD promises "identify affected repos, owners, and next actions" — but nothing recorded owners.</div>
+          <div class="fix">→ phase 21–22</div>
+        </div>
+        <div class="gap">
+          <div class="bullet">2</div>
+          <div class="txt"><strong>No workspace guidance in docs.</strong> The PRD expects users to "recognize when workspace mode is the right tool" — but nothing in the shipped docs told them.</div>
+          <div class="fix">→ phase 21–22</div>
+        </div>
+        <div class="gap">
+          <div class="bullet">3</div>
+          <div class="txt"><strong>No target-set adjustment post-creation.</strong> The PRD expects "adjusting targets and continuing" — but targets were locked at creation.</div>
+          <div class="fix">→ phase 23–24</div>
+        </div>
+      </div>
+      <p>Four remediation phases got inserted before sign-off: owner metadata + docs + an <code>update-repo</code> command (21–22), and <code>workspace targets --add/--remove</code> with a guardrail that blocks removal after repo-local execution (23–24). Phase 25 did the final audit and flipped the PRD from Draft to Signed Off.</p>
+    </div>
+  </section>
+
+  <!-- CHAPTER 11 -->
+  <section class="chapter wide" id="ch-11">
+    <div class="ch-label">Chapter 11 — The resulting CLI</div>
+    <h2 class="ch-title">Nine commands. One coherent flow.</h2>
+    <div class="ch-body">
+      <p>This is what a user actually types. The first three lines are <strong>one-time workspace setup</strong>. Everything after runs inside the same persistent workspace, and you'd run the <em>change → apply → status → archive</em> block again per cross-repo feature, reusing the same workspace over and over:</p>
+      <div class="terminal">
+<span class="comment"># ── one-time setup for this coordination scope ──</span>
+<span class="prompt">$</span> openspec workspace setup                                       <span class="comment"># guided: create + add-repo + doctor + pick agent</span>
+
+<span class="comment">  (manual equivalent, if you'd rather script it:)</span>
+<span class="prompt">$</span> openspec workspace create platform
+<span class="prompt">$</span> openspec workspace add-repo app ~/code/app --owner @alice
+<span class="prompt">$</span> openspec workspace add-repo api ~/code/api --handoff "see #1234"
+
+<span class="comment"># ── per cross-repo change, inside the same workspace ──</span>
+<span class="prompt">$</span> openspec new change add-auth --targets app,api                 <span class="comment"># partition one plan across targets</span>
+<span class="prompt">$</span> openspec workspace open --change add-auth --agent claude       <span class="comment"># or --agent codex | github-copilot</span>
+<span class="prompt">$</span> openspec workspace targets add-auth --add docs                 <span class="comment"># (optional) adjust target set later</span>
+<span class="prompt">$</span> openspec apply --change add-auth --repo app                    <span class="comment"># authority handoff: workspace → repo-local</span>
+<span class="prompt">$</span> openspec status --change add-auth                              <span class="comment"># roll-up across targets</span>
+<span class="prompt">$</span> openspec archive add-auth --workspace                          <span class="comment"># explicit hard-done for this change</span>
+
+<span class="comment"># ── next feature, same workspace ──</span>
+<span class="prompt">$</span> openspec new change rotate-secrets --targets api,docs
+<span class="comment">  ...</span>
+      </div>
+      <p>No new primitive. No new methodology. The <em>workspace</em> is the durable surface that knows how to coordinate a set of repos; <em>change</em> is still what the user reaches for, one per feature.</p>
+    </div>
+  </section>
+
+  <!-- CHAPTER 12 -->
+  <section class="chapter" id="ch-12">
+    <div class="ch-label">Chapter 12 — What's next, and how to dig in</div>
+    <h2 class="ch-title">The POC is signed off. Here's what was left open.</h2>
+    <div class="ch-body">
+      <p>Phase 18 deferred three real questions to post-POC work — shared-contract promotion, stable project IDs, team-shared workspaces — and designed a <strong>backward-compatible migration seam</strong> so v0's alias-keyed contract can grow into them later:</p>
+      <div class="tree">
+<span class="note"># future, additive. doesn't break shipped v0.</span>
+<span class="hl">.openspec/workspace.yaml</span>
+  repos:
+    app:
+      description: Application repo
+      <span class="dir">projectId: prj_abc123</span>    <span class="note"># optional, future</span>
+
+<span class="hl">.openspec/local.yaml</span>
+  repoPaths:
+    app: /Users/me/code/app       <span class="note"># v0 shape stays valid</span>
+  <span class="dir">projectBindings:</span>              <span class="note"># optional, future</span>
+    prj_abc123:
+      path: /Users/me/code/app
+      </div>
+      <p>If you want to go deeper, each take-away prompt below is a handoff back into Claude against this repo's actual notes:</p>
+      <div class="prompts" id="prompts">
+        <div class="pr">
+          <div class="pr-text">Walk me through the materialization contract locked in phase 10. Why create-only? What specifically did they defer by refusing to answer the refresh question in v0? Source: notes/workspace-poc/phase-10-materialization-contract-research/DECISION.md.</div>
+          <button data-copy>Copy</button>
+        </div>
+        <div class="pr">
+          <div class="pr-text">Explain how workspace status derives state from task checkboxes plus .openspec.materialization.yaml, and why phase 13 rejected reusing the artifact-graph status primitive. Source: notes/workspace-poc/phase-13-status-research/ and src/core/workspace/status.ts.</div>
+          <button data-copy>Copy</button>
+        </div>
+        <div class="pr">
+          <div class="pr-text">Replay the full CLI flow for a 3-repo cross-repo change (service-a, client-a, shared-contract) using the actual commands from the shipped POC. Include the authority handoff at apply and what soft-done vs hard-done look like.</div>
+          <button data-copy>Copy</button>
+        </div>
+        <div class="pr">
+          <div class="pr-text">Summarize the PRD audit in phase 20: the three gaps found, how phases 21–24 closed each one, and what that says about running a PRD audit before declaring a POC done. Source: notes/workspace-poc/phase-20-prd-audit/ through phase-25-prd-signoff/.</div>
+          <button data-copy>Copy</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+</div>
+
+<div class="hud">
+  <button id="prevBtn" aria-label="Previous">↑</button>
+  <span class="counter" id="counter">01 / 12</span>
+  <button id="nextBtn" aria-label="Next">↓</button>
+</div>
+
+<script>
+const CHAPTERS = [
+  { id: 'ch-01', title: 'The problem' },
+  { id: 'ch-02', title: 'The bet' },
+  { id: 'ch-03', title: 'The shape' },
+  { id: 'ch-04', title: 'The rhythm' },
+  { id: 'ch-05', title: 'Foundation' },
+  { id: 'ch-06', title: 'Targeted change' },
+  { id: 'ch-07', title: 'Materialization' },
+  { id: 'ch-08', title: 'Status, honestly' },
+  { id: 'ch-09', title: 'Archive, explicitly' },
+  { id: 'ch-10', title: 'The audit twist' },
+  { id: 'ch-11', title: 'The CLI surface' },
+  { id: 'ch-12', title: 'What\'s next' }
+];
+
+/* Build TOC */
+const toc = document.getElementById('toc');
+CHAPTERS.forEach((c, i) => {
+  const a = document.createElement('a');
+  a.href = `#${c.id}`;
+  a.dataset.idx = i;
+  a.innerHTML = `<span class="n">${String(i + 1).padStart(2, '0')}</span><span>${c.title}</span>`;
+  a.addEventListener('click', (e) => {
+    e.preventDefault();
+    goTo(i);
+  });
+  toc.appendChild(a);
+});
+
+/* Build rhythm bar — 26 cells, colored by phase kind */
+const PHASE_KINDS = [
+  'test','feature','test','feature','test',       // 00-04
+  'feature','test',                                // 05-06
+  'research','feature','test',                     // 07-09
+  'research','feature','test',                     // 10-12
+  'research','feature','test',                     // 13-15
+  'feature','test',                                // 16-17
+  'research','test','research',                    // 18-20
+  'feature','test','feature','test','wrapup'      // 21-25
+];
+const rhythmBar = document.getElementById('rhythmBar');
+PHASE_KINDS.forEach((k, i) => {
+  const c = document.createElement('div');
+  c.className = `cell ${k}`;
+  c.title = `phase-${String(i).padStart(2,'0')} · ${k}`;
+  if (i % 5 === 0) c.dataset.n = String(i).padStart(2, '0');
+  rhythmBar.appendChild(c);
+});
+
+/* Scroll state & navigation */
+const main = document.getElementById('main');
+const counter = document.getElementById('counter');
+const progressFill = document.getElementById('progressFill');
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+
+let current = 0;
+
+function setCurrent(i) {
+  current = Math.max(0, Math.min(CHAPTERS.length - 1, i));
+  document.querySelectorAll('.toc a').forEach((a, idx) => {
+    a.classList.toggle('current', idx === current);
+  });
+  counter.textContent = `${String(current + 1).padStart(2, '0')} / ${String(CHAPTERS.length).padStart(2, '0')}`;
+  progressFill.style.width = `${((current + 1) / CHAPTERS.length) * 100}%`;
+  prevBtn.disabled = current === 0;
+  nextBtn.disabled = current === CHAPTERS.length - 1;
+}
+
+function goTo(i) {
+  const target = document.getElementById(CHAPTERS[Math.max(0, Math.min(CHAPTERS.length - 1, i))].id);
+  if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* Detect current chapter on scroll */
+const observer = new IntersectionObserver((entries) => {
+  let best = null;
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      if (!best || e.intersectionRatio > best.intersectionRatio) best = e;
+    }
+  });
+  if (best) {
+    const idx = CHAPTERS.findIndex(c => c.id === best.target.id);
+    if (idx !== -1) setCurrent(idx);
+  }
+}, { root: main, threshold: [0.3, 0.5, 0.7] });
+
+CHAPTERS.forEach(c => {
+  const el = document.getElementById(c.id);
+  if (el) observer.observe(el);
+});
+
+/* Keyboard nav */
+window.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ' || e.key === 'j') {
+    e.preventDefault();
+    goTo(current + 1);
+  } else if (e.key === 'ArrowUp' || e.key === 'PageUp' || e.key === 'k') {
+    e.preventDefault();
+    goTo(current - 1);
+  } else if (e.key === 'Home') {
+    e.preventDefault();
+    goTo(0);
+  } else if (e.key === 'End') {
+    e.preventDefault();
+    goTo(CHAPTERS.length - 1);
+  }
+});
+
+prevBtn.addEventListener('click', () => goTo(current - 1));
+nextBtn.addEventListener('click', () => goTo(current + 1));
+
+/* Copy buttons on take-away prompts */
+document.querySelectorAll('[data-copy]').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const text = btn.closest('.pr').querySelector('.pr-text').textContent.trim();
+    try { await navigator.clipboard.writeText(text); }
+    catch (e) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+    const original = btn.textContent;
+    btn.textContent = 'Copied';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = original; btn.classList.remove('copied'); }, 1400);
+  });
+});
+
+/* Initialize */
+setCurrent(0);
+</script>
+</body>
+</html>

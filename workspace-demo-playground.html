@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Workspace Demo — Reference Guide</title>
+<style>
+  :root {
+    --bg: #0b0d10;
+    --bg-panel: #14171c;
+    --bg-panel-2: #1a1f26;
+    --bg-code: #0f1216;
+    --border: #232932;
+    --border-strong: #2e3542;
+    --text: #e5e9ef;
+    --text-dim: #9aa3b2;
+    --text-faint: #5e6773;
+    --accent: #7ec8ff;
+    --accent-2: #a78bfa;
+    --success: #6ee7a0;
+    --warn: #f4c56b;
+    --danger: #ff8585;
+    --info: #7ec8ff;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.55;
+  }
+  code, pre, .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+
+  .app {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+      "header header"
+      "sidebar main"
+      "prompt prompt";
+    height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
+  }
+
+  header.top {
+    grid-area: header;
+    padding: 14px 22px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-panel);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  header.top h1 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+  }
+  header.top .subtitle {
+    color: var(--text-dim);
+    font-size: 12px;
+  }
+  header.top .progress-meter {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  header.top .progress-bar {
+    width: 180px;
+    height: 6px;
+    background: var(--bg-code);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  header.top .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    transition: width 0.2s ease;
+  }
+  header.top button.reset {
+    background: transparent;
+    color: var(--text-faint);
+    border: 1px solid var(--border-strong);
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+  }
+  header.top button.reset:hover { color: var(--text); border-color: var(--danger); }
+
+  aside.sidebar {
+    grid-area: sidebar;
+    border-right: 1px solid var(--border);
+    background: var(--bg-panel);
+    overflow-y: auto;
+    padding: 16px 14px 20px;
+  }
+  .section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-faint);
+    margin: 18px 4px 8px;
+    font-weight: 600;
+  }
+  .section-title:first-child { margin-top: 4px; }
+
+  .config-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 10px;
+    padding: 0 4px;
+  }
+  .config-field label {
+    font-size: 11px;
+    color: var(--text-dim);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .config-field label .tag {
+    font-size: 9px;
+    padding: 1px 5px;
+    background: var(--border);
+    color: var(--text-faint);
+    border-radius: 3px;
+    font-weight: 500;
+  }
+  .config-field input {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 8px;
+    border-radius: 4px;
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    outline: none;
+  }
+  .config-field input:focus { border-color: var(--accent); }
+  .config-field .derived {
+    font-size: 11px;
+    color: var(--text-faint);
+    font-family: ui-monospace, monospace;
+    padding: 4px 0 0;
+    word-break: break-all;
+  }
+
+  .presets { display: flex; flex-direction: column; gap: 6px; padding: 0 4px; }
+  .preset-btn {
+    background: var(--bg-panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    text-align: left;
+    font-size: 12px;
+  }
+  .preset-btn:hover { border-color: var(--accent); }
+  .preset-btn.active { border-color: var(--accent-2); background: rgba(167,139,250,0.08); }
+  .preset-btn .preset-desc { display: block; color: var(--text-faint); font-size: 10px; margin-top: 2px; }
+
+  .steps-list { list-style: none; padding: 0; margin: 0; }
+  .steps-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-dim);
+    position: relative;
+  }
+  .steps-list li:hover { background: var(--bg-panel-2); color: var(--text); }
+  .steps-list li.current {
+    background: rgba(126,200,255,0.08);
+    color: var(--text);
+    border-left: 2px solid var(--accent);
+    padding-left: 6px;
+  }
+  .steps-list li.done { color: var(--text-faint); }
+  .steps-list li.done .step-title { text-decoration: line-through; text-decoration-color: var(--text-faint); }
+  .step-checkbox {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    border: 1.5px solid var(--border-strong);
+    border-radius: 3px;
+    margin-top: 2px;
+    display: grid;
+    place-items: center;
+    transition: all 0.15s;
+  }
+  .steps-list li.done .step-checkbox {
+    background: var(--success);
+    border-color: var(--success);
+  }
+  .steps-list li.done .step-checkbox::after {
+    content: "✓";
+    color: var(--bg);
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .step-number {
+    display: inline-block;
+    min-width: 22px;
+    color: var(--text-faint);
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+  }
+  .step-title { flex: 1; }
+  .step-optional {
+    font-size: 9px;
+    background: var(--border);
+    color: var(--text-faint);
+    padding: 1px 4px;
+    border-radius: 3px;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+
+  main.content {
+    grid-area: main;
+    overflow-y: auto;
+    padding: 28px 36px 40px;
+    max-width: 1000px;
+  }
+  .step-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .step-header .step-counter {
+    font-size: 11px;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .step-header .mark-done-btn {
+    background: transparent;
+    color: var(--text-dim);
+    border: 1px solid var(--border-strong);
+    padding: 5px 12px;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .step-header .mark-done-btn:hover { color: var(--success); border-color: var(--success); }
+  .step-header .mark-done-btn.done { color: var(--success); border-color: var(--success); }
+
+  h2.step-title-main {
+    font-size: 22px;
+    font-weight: 600;
+    margin: 2px 0 14px;
+    color: var(--text);
+  }
+  h2.step-title-main .optional-badge {
+    display: inline-block;
+    font-size: 10px;
+    background: var(--border);
+    color: var(--text-dim);
+    padding: 2px 6px;
+    border-radius: 3px;
+    vertical-align: middle;
+    margin-left: 10px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+  .step-body p { color: var(--text-dim); margin: 10px 0; }
+  .step-body p.lead { color: var(--text); font-size: 15px; }
+  .step-body h3 {
+    font-size: 14px;
+    margin: 22px 0 8px;
+    color: var(--text);
+    font-weight: 600;
+  }
+  .step-body ul { color: var(--text-dim); padding-left: 20px; }
+  .step-body ul li { margin: 3px 0; }
+  .step-body code {
+    background: var(--bg-code);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 12.5px;
+    color: var(--accent);
+  }
+
+  .cmd-block {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin: 10px 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .cmd-block .cmd-label {
+    padding: 6px 12px;
+    background: var(--bg-panel-2);
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-faint);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .cmd-block pre {
+    margin: 0;
+    padding: 12px 14px;
+    font-size: 12.5px;
+    line-height: 1.6;
+    overflow-x: auto;
+    color: var(--text);
+  }
+  .cmd-block pre .var {
+    color: var(--accent-2);
+    font-weight: 500;
+  }
+  .cmd-block pre .var-unset {
+    color: var(--danger);
+    text-decoration: underline dotted;
+  }
+  .cmd-block .copy-btn {
+    background: transparent;
+    color: var(--text-faint);
+    border: 1px solid var(--border-strong);
+    padding: 3px 9px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 10.5px;
+    transition: all 0.15s;
+  }
+  .cmd-block .copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .cmd-block .copy-btn.copied { color: var(--success); border-color: var(--success); }
+
+  .callout {
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--info);
+    background: var(--bg-panel-2);
+    padding: 12px 14px;
+    border-radius: 4px;
+    margin: 14px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); }
+  .callout.success { border-left-color: var(--success); }
+  .callout.danger { border-left-color: var(--danger); }
+  .callout-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--info);
+    font-weight: 600;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .callout.warn .callout-title { color: var(--warn); }
+  .callout.success .callout-title { color: var(--success); }
+  .callout.danger .callout-title { color: var(--danger); }
+  .callout ul { margin: 4px 0 0; padding-left: 18px; }
+  .callout ul li { color: var(--text); font-size: 13px; margin: 2px 0; }
+  .callout p { margin: 4px 0; color: var(--text); font-size: 13px; }
+
+  .step-nav {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 34px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+  .step-nav button {
+    background: var(--bg-panel-2);
+    color: var(--text);
+    border: 1px solid var(--border-strong);
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .step-nav button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .step-nav button:disabled { opacity: 0.3; cursor: not-allowed; }
+  .step-nav button.next { border-color: var(--accent); color: var(--accent); }
+
+  .prompt-bar {
+    grid-area: prompt;
+    background: var(--bg-panel);
+    border-top: 1px solid var(--border);
+    padding: 12px 22px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .prompt-bar .prompt-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-faint);
+    flex-shrink: 0;
+  }
+  .prompt-bar .prompt-text {
+    flex: 1;
+    background: var(--bg-code);
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .prompt-bar button {
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    padding: 7px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .prompt-bar button.copied { background: var(--success); }
+
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; grid-template-areas: "header" "main" "prompt"; }
+    aside.sidebar { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div>
+      <h1>Workspace Demo — Reference Guide</h1>
+      <div class="subtitle">Interactive companion for <code style="font-size:11px;color:var(--text-dim);">docs/workspace-demo.md</code></div>
+    </div>
+    <div class="progress-meter">
+      <span id="progress-text">0 / 14 steps</span>
+      <div class="progress-bar"><div class="progress-bar-fill" id="progress-fill" style="width:0%"></div></div>
+      <button class="reset" id="reset-btn" title="Reset progress and config">Reset</button>
+    </div>
+  </header>
+
+  <aside class="sidebar">
+    <div class="section-title">Config</div>
+    <div class="config-field">
+      <label>OPENSPEC_REPO <span class="tag">required</span></label>
+      <input type="text" id="var-openspec" placeholder="/path/to/openspec" />
+    </div>
+    <div class="config-field">
+      <label>WORKSPACE_NAME</label>
+      <input type="text" id="var-wsname" />
+    </div>
+    <div class="config-field">
+      <label>WORKSPACE_ROOT <span class="tag">derived</span></label>
+      <div class="derived mono" id="var-wsroot"></div>
+    </div>
+    <div class="config-field">
+      <label>CONSUMER_REPO <span class="tag">optional</span></label>
+      <input type="text" id="var-consumer" placeholder="/path/to/another/repo" />
+    </div>
+    <div class="config-field">
+      <label>DOCS_REPO <span class="tag">optional</span></label>
+      <input type="text" id="var-docs" placeholder="/path/to/another/repo" />
+    </div>
+    <div class="config-field">
+      <label>TARGETS <span class="tag">derived</span></label>
+      <div class="derived mono" id="var-targets"></div>
+    </div>
+
+    <div class="section-title">Presets</div>
+    <div class="presets" id="presets"></div>
+
+    <div class="section-title">Steps</div>
+    <ul class="steps-list" id="steps-list"></ul>
+  </aside>
+
+  <main class="content" id="main"></main>
+
+  <div class="prompt-bar">
+    <span class="prompt-label">Ask Claude</span>
+    <div class="prompt-text" id="prompt-text"></div>
+    <button id="prompt-copy">Copy</button>
+  </div>
+</div>
+
+<script>
+// ---------- State ----------
+const DEFAULTS = {
+  openspecRepo: "/path/to/openspec",
+  wsName: "openspec-dogfood",
+  consumerRepo: "",
+  docsRepo: "",
+  currentStep: 0,
+  done: {},
+  preset: "minimum"
+};
+
+const state = loadState();
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem("ws-demo-playground");
+    if (raw) return { ...DEFAULTS, ...JSON.parse(raw) };
+  } catch (e) {}
+  return { ...DEFAULTS };
+}
+
+function saveState() {
+  localStorage.setItem("ws-demo-playground", JSON.stringify(state));
+}
+
+// ---------- Variable substitution ----------
+function wsRoot() {
+  return `$HOME/.local/share/openspec/workspaces/${state.wsName || "<unset>"}`;
+}
+
+function targetsFor(preset) {
+  if (preset === "three") return "openspec,consumer,docs";
+  if (preset === "two") return "openspec,consumer";
+  return "openspec";
+}
+
+function currentTargets() {
+  return targetsFor(state.preset);
+}
+
+function substitute(cmd) {
+  // Returns HTML with spans for variables
+  const vars = {
+    "$OPENSPEC_REPO": { val: state.openspecRepo, unset: !state.openspecRepo || state.openspecRepo === DEFAULTS.openspecRepo },
+    "$WORKSPACE_NAME": { val: state.wsName, unset: !state.wsName },
+    "$WORKSPACE_ROOT": { val: wsRoot(), unset: !state.wsName },
+    "$CONSUMER_REPO": { val: state.consumerRepo, unset: !state.consumerRepo },
+    "$DOCS_REPO": { val: state.docsRepo, unset: !state.docsRepo },
+    "$TARGETS": { val: currentTargets(), unset: false }
+  };
+  let out = escapeHtml(cmd);
+  for (const [key, info] of Object.entries(vars)) {
+    const escKey = key.replace("$", "\\$");
+    const re = new RegExp(escKey + "(?![A-Z_])", "g");
+    const cls = info.unset ? "var var-unset" : "var";
+    const displayVal = info.unset ? key : escapeHtml(info.val);
+    out = out.replace(re, `<span class="${cls}" title="${info.unset ? 'Not configured' : key}">${displayVal}</span>`);
+  }
+  return out;
+}
+
+function substitutePlain(cmd) {
+  return cmd
+    .replace(/\$OPENSPEC_REPO/g, state.openspecRepo || "$OPENSPEC_REPO")
+    .replace(/\$WORKSPACE_NAME/g, state.wsName || "$WORKSPACE_NAME")
+    .replace(/\$WORKSPACE_ROOT/g, state.wsName ? wsRoot() : "$WORKSPACE_ROOT")
+    .replace(/\$CONSUMER_REPO/g, state.consumerRepo || "$CONSUMER_REPO")
+    .replace(/\$DOCS_REPO/g, state.docsRepo || "$DOCS_REPO")
+    .replace(/\$TARGETS/g, currentTargets());
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// ---------- Steps data ----------
+const STEPS = [
+  {
+    title: "Pick the real repos to coordinate",
+    optional: false,
+    lead: "Start in the root of this repo and set up environment variables. Minimum is just the openspec repo; optional extras make workspace mode much more interesting.",
+    blocks: [
+      { label: "Minimum setup", commands: [
+        `cd $OPENSPEC_REPO`,
+        `ops() { openspec "$@"; }`,
+        ``,
+        `export OPENSPEC_REPO="$(pwd)"`,
+        `export WORKSPACE_NAME="$WORKSPACE_NAME"`,
+        `export WORKSPACE_ROOT="$WORKSPACE_ROOT"`
+      ].join("\n") },
+      { label: "Optional extra repos", commands: [
+        `export CONSUMER_REPO="$CONSUMER_REPO"`,
+        `export DOCS_REPO="$DOCS_REPO"`
+      ].join("\n"), optional: true }
+    ],
+    callouts: [
+      { type: "info", title: "Notes", items: [
+        "OPENSPEC_REPO is the one repo this guide assumes you have.",
+        "CONSUMER_REPO and DOCS_REPO are optional but unlock multi-repo scenarios.",
+        "Any real repos work here — they don't have to relate to OpenSpec."
+      ]}
+    ]
+  },
+  {
+    title: "Make sure each repo has repo-local OpenSpec state",
+    optional: false,
+    lead: "workspace add-repo only accepts repos that already contain an openspec/ directory.",
+    blocks: [
+      { label: "Check openspec repo", commands: `test -d "$OPENSPEC_REPO/openspec" && echo "openspec repo is ready"` },
+      { label: "Initialize other repos if needed", optional: true, commands: [
+        `ops init "$CONSUMER_REPO" --tools none --force`,
+        `ops init "$DOCS_REPO" --tools none --force`
+      ].join("\n") }
+    ],
+    callouts: [
+      { type: "warn", title: "Skip if not needed", items: ["Only run init for repos that do not already have an openspec/ directory."] }
+    ]
+  },
+  {
+    title: "Use the setup wizard",
+    optional: false,
+    lead: "The recommended onboarding path — an interactive wizard.",
+    blocks: [
+      { label: "Run the wizard", commands: `ops workspace setup` },
+      { label: "Answers to use", commands: [
+        `Workspace name: $WORKSPACE_NAME`,
+        `Repo path: $OPENSPEC_REPO`,
+        `Repo alias: openspec`,
+        `Owner (optional): OpenSpec Core`,
+        `Handoff note (optional): Apply when the shared plan is ready`,
+        `Add another repo? n`,
+        `Open the workspace now? y`,
+        `Which agent should OpenSpec prepare for? codex`
+      ].join("\n") },
+      { label: "After the wizard, cd into the workspace", commands: [
+        `cd "$WORKSPACE_ROOT"`,
+        `pwd`
+      ].join("\n") },
+      { label: "Quick inspection", commands: [
+        `find . -maxdepth 2 -type f | sort`,
+        `sed -n '1,200p' .gitignore`
+      ].join("\n") },
+      { label: "Lower-level equivalent (skip if wizard worked)", optional: true, commands: [
+        `ops workspace create "$WORKSPACE_NAME"`,
+        `ops workspace add-repo openspec "$OPENSPEC_REPO" --owner "OpenSpec Core" --handoff "Apply when the shared plan is ready"`
+      ].join("\n") }
+    ],
+    callouts: [
+      { type: "success", title: "What to check", items: [
+        "You are now inside the managed workspace root.",
+        ".openspec/workspace.yaml exists.",
+        ".openspec/local.yaml exists.",
+        "changes/ directory exists."
+      ]},
+      { type: "info", title: "What to notice", items: [
+        "The workspace is separate from any one repo.",
+        ".openspec/local.yaml is machine-local state.",
+        "/.openspec/workspace-open/ is gitignored — workspace-open may generate local artifacts there."
+      ]}
+    ]
+  },
+  {
+    title: "Register additional real repos",
+    optional: true,
+    lead: "Skip this if you only want to test the single-repo flow (the wizard already registered openspec).",
+    blocks: [
+      { label: "Register extras", commands: [
+        `ops workspace add-repo consumer "$CONSUMER_REPO" --owner "Consumer Team" --handoff "Pick up once the core contract is stable"`,
+        `ops workspace add-repo docs "$DOCS_REPO" --owner "Docs Team" --handoff "Document the rollout after implementation lands"`
+      ].join("\n") },
+      { label: "Validate the registry", commands: [
+        `ops workspace doctor`,
+        `sed -n '1,200p' .openspec/workspace.yaml`,
+        `sed -n '1,200p' .openspec/local.yaml`
+      ].join("\n") }
+    ],
+    callouts: [
+      { type: "info", title: "What to notice", items: [
+        "workspace.yaml holds alias metadata you could share or commit.",
+        "local.yaml holds machine-local repo paths.",
+        "workspace doctor is the first thing to run if the registry feels wrong later."
+      ]}
+    ]
+  },
+  {
+    title: "Create a real workspace change",
+    optional: false,
+    lead: "Choose the target aliases you actually want to coordinate.",
+    blocks: [
+      { label: "Set targets (based on your preset)", commands: `export TARGETS="$TARGETS"` },
+      { label: "Create the change", commands: `ops new change workspace-dogfood --targets "$TARGETS"` },
+      { label: "Inspect what was created", commands: [
+        `find changes/workspace-dogfood -maxdepth 3 -type f | sort`,
+        `sed -n '1,200p' changes/workspace-dogfood/proposal.md`,
+        `sed -n '1,200p' changes/workspace-dogfood/design.md`,
+        `sed -n '1,200p' changes/workspace-dogfood/tasks/coordination.md`
+      ].join("\n") },
+      { label: "Inspect draft slices (if multi-target)", optional: true, commands: `find changes/workspace-dogfood/targets -maxdepth 2 -type f | sort` },
+      { label: "Confirm openspec repo is NOT yet materialized", commands: `test ! -e "$OPENSPEC_REPO/openspec/changes/workspace-dogfood" && echo "openspec repo not materialized yet"` }
+    ],
+    callouts: [
+      { type: "success", title: "What to notice", items: [
+        "The workspace owns the shared planning artifacts.",
+        "Target repo drafts live under targets/<alias>/.",
+        "No repo-local change exists yet in any repo."
+      ]}
+    ]
+  },
+  {
+    title: "Try workspace open in the order a real user would",
+    optional: false,
+    lead: "Four sub-flows: planning-only, change-scoped default, Codex, GitHub Copilot.",
+    blocks: [
+      { label: "6a. Planning-only open", commands: `ops workspace open` },
+      { label: "6b. Change-scoped open (default agent)", commands: `ops workspace open --change workspace-dogfood` },
+      { label: "6c. Change-scoped open for Codex", commands: `ops workspace open --change workspace-dogfood --agent codex` },
+      { label: "6d. Change-scoped open for GitHub Copilot", commands: `ops workspace open --change workspace-dogfood --agent github-copilot` },
+      { label: "Inspect Copilot artifacts", commands: [
+        `sed -n '1,200p' .github/prompts/opsx-workspace-open.prompt.md`,
+        `sed -n '1,200p' .openspec/workspace-open/github-copilot/workspace-dogfood.code-workspace`
+      ].join("\n") },
+      { label: "Launch the generated VS Code workspace", optional: true, commands: `code .openspec/workspace-open/github-copilot/workspace-dogfood.code-workspace` }
+    ],
+    callouts: [
+      { type: "info", title: "6a — look for", items: [
+        "Mode: planning-only",
+        "Attached repos: none",
+        "Right mode when you want to think in the coordination root only."
+      ]},
+      { type: "info", title: "6b — look for", items: [
+        "Only the targeted aliases appear.",
+        "Owner and handoff notes appear.",
+        "Non-targeted repos do not appear."
+      ]},
+      { type: "info", title: "6c — look for", items: [
+        "The prompt surface path points at your Codex prompt location.",
+        "The prompt is scoped to the workspace root plus targeted repos."
+      ]},
+      { type: "info", title: "6d — look for", items: [
+        "Prompt file lives under .github/prompts/.",
+        "VS Code workspace file lives under .openspec/workspace-open/github-copilot/.",
+        ".code-workspace includes the workspace root + only targeted repos."
+      ]}
+    ]
+  },
+  {
+    title: "Use status as your control plane",
+    optional: false,
+    lead: "The main command to re-enter an in-flight cross-repo change later.",
+    blocks: [
+      { label: "Human view", commands: `ops status --change workspace-dogfood` },
+      { label: "JSON view", commands: `ops status --change workspace-dogfood --json` }
+    ],
+    callouts: [
+      { type: "info", title: "What to look for", items: [
+        "Overall change state.",
+        "Target-by-target progress.",
+        "Owner and handoff notes.",
+        "The next recommended step."
+      ]}
+    ]
+  },
+  {
+    title: "Try target-set changes before apply",
+    optional: true,
+    lead: "Only interesting if you registered at least one repo that is NOT already in TARGETS.",
+    blocks: [
+      { label: "Add docs", commands: [
+        `ops workspace targets workspace-dogfood --add docs`,
+        `find changes/workspace-dogfood/targets -maxdepth 2 -type f | sort`,
+        `ops status --change workspace-dogfood`
+      ].join("\n") },
+      { label: "Remove docs again", commands: [
+        `ops workspace targets workspace-dogfood --remove docs`,
+        `find changes/workspace-dogfood/targets -maxdepth 2 -type f | sort`,
+        `ops status --change workspace-dogfood`
+      ].join("\n") }
+    ],
+    callouts: [
+      { type: "info", title: "What to notice", items: [
+        "The docs target draft gets scaffolded on add.",
+        "Status now includes docs while it is a target.",
+        "Removing an unmaterialized target is allowed.",
+        "Remaining targets stay intact."
+      ]}
+    ]
+  },
+  {
+    title: "Materialize one real repo (apply)",
+    optional: false,
+    lead: "Hand execution off into the openspec repo. This is the core handoff: plan centrally, execute locally.",
+    blocks: [
+      { label: "Apply and inspect", commands: [
+        `ops apply --change workspace-dogfood --repo openspec`,
+        `ops status --change workspace-dogfood`,
+        `find "$OPENSPEC_REPO/openspec/changes/workspace-dogfood" -maxdepth 3 -type f | sort`,
+        `sed -n '1,200p' "$OPENSPEC_REPO/openspec/changes/workspace-dogfood/tasks.md"`
+      ].join("\n") }
+    ],
+    callouts: [
+      { type: "success", title: "What to notice", items: [
+        "The workspace change still exists.",
+        "The openspec repo now has a repo-local change.",
+        "Source of truth for execution of that slice moved into the repo."
+      ]}
+    ]
+  },
+  {
+    title: "Trigger a guardrail after apply",
+    optional: true,
+    lead: "Once a repo has crossed into repo-local execution, try to remove it from the target set.",
+    blocks: [
+      { label: "This should fail", commands: `ops workspace targets workspace-dogfood --remove openspec` }
+    ],
+    callouts: [
+      { type: "danger", title: "Expected: error", items: [
+        "Workspace target mutation is only allowed while the alias is still workspace-owned.",
+        "After apply, the workspace refuses to silently rewrite the target set around a repo-local slice."
+      ]}
+    ]
+  },
+  {
+    title: "Continue from inside the real repo",
+    optional: false,
+    lead: "This is where you would do real implementation work.",
+    blocks: [
+      { label: "Switch into the openspec repo", commands: [
+        `cd "$OPENSPEC_REPO"`,
+        `find openspec/changes/workspace-dogfood -maxdepth 3 -type f | sort`,
+        `sed -n '1,200p' openspec/changes/workspace-dogfood/tasks.md`
+      ].join("\n") },
+      { label: "Return to workspace view", commands: [
+        `cd "$WORKSPACE_ROOT"`,
+        `ops status --change workspace-dogfood`
+      ].join("\n") }
+    ]
+  },
+  {
+    title: "Test workspace doctor on a broken path",
+    optional: true,
+    lead: "See the repair flow by temporarily breaking one alias in .openspec/local.yaml.",
+    blocks: [
+      { label: "Break it manually", commands: [
+        `# 1. Open .openspec/local.yaml`,
+        `# 2. Replace one repo path with /tmp/does-not-exist`,
+        `# 3. Run:`,
+        `ops workspace doctor`,
+        `ops status --change workspace-dogfood`
+      ].join("\n") },
+      { label: "Repair and re-check", commands: [
+        `# Restore the real path in .openspec/local.yaml, then:`,
+        `ops workspace doctor`
+      ].join("\n") }
+    ],
+    callouts: [
+      { type: "warn", title: "What to learn", items: [
+        "Broken local paths are a doctor problem.",
+        "The fix belongs in local.yaml, not in shared workspace metadata."
+      ]}
+    ]
+  },
+  {
+    title: "Complete and archive the full flow",
+    optional: true,
+    lead: "Exercise the whole lifecycle — finish tasks and archive both the repo-local change and the workspace change.",
+    blocks: [
+      { label: "In the openspec repo", commands: [
+        `cd "$OPENSPEC_REPO"`,
+        `perl -0pi -e 's/- \\[ \\]/- [x]/g' openspec/changes/workspace-dogfood/tasks.md`,
+        `ops archive workspace-dogfood --yes --skip-specs --no-validate`
+      ].join("\n") },
+      { label: "Back in the workspace", commands: [
+        `cd "$WORKSPACE_ROOT"`,
+        `perl -0pi -e 's/- \\[ \\]/- [x]/g' changes/workspace-dogfood/tasks/coordination.md`,
+        `ops status --change workspace-dogfood`,
+        `ops archive workspace-dogfood --workspace`,
+        `ops status --change workspace-dogfood`
+      ].join("\n") }
+    ],
+    callouts: [
+      { type: "success", title: "What to notice", items: [
+        "Repo-local archive and workspace archive are distinct.",
+        "The workspace archive is the explicit \"this cross-repo change is done\" step."
+      ]}
+    ]
+  },
+  {
+    title: "The re-entry flow you will actually use",
+    optional: false,
+    lead: "Once you have a real workspace in use, this is the normal re-entry sequence.",
+    blocks: [
+      { label: "Standard re-entry", commands: [
+        `cd "$WORKSPACE_ROOT"`,
+        `ops status --change workspace-dogfood`,
+        `ops workspace open --change workspace-dogfood`,
+        `ops workspace open --change workspace-dogfood --agent codex`,
+        `ops workspace open --change workspace-dogfood --agent github-copilot`
+      ].join("\n") },
+      { label: "Cleanup (discards workspace, not your repos)", optional: true, commands: [
+        `rm -rf "$WORKSPACE_ROOT"`
+      ].join("\n") }
+    ],
+    callouts: [
+      { type: "info", title: "Use", items: [
+        "status → understand current state and next action.",
+        "workspace open → rebuild the planning surface.",
+        "workspace doctor → if aliases or paths look stale.",
+        "apply → only when ready to hand execution into a repo."
+      ]}
+    ]
+  }
+];
+
+const PRESETS = [
+  { id: "minimum", name: "Minimum (openspec only)", desc: "Single repo — targets=openspec" },
+  { id: "two", name: "Two repos (openspec + consumer)", desc: "targets=openspec,consumer" },
+  { id: "three", name: "Three repos (all)", desc: "targets=openspec,consumer,docs" }
+];
+
+// ---------- Rendering ----------
+function renderConfig() {
+  document.getElementById("var-openspec").value = state.openspecRepo;
+  document.getElementById("var-wsname").value = state.wsName;
+  document.getElementById("var-consumer").value = state.consumerRepo;
+  document.getElementById("var-docs").value = state.docsRepo;
+  document.getElementById("var-wsroot").textContent = wsRoot();
+  document.getElementById("var-targets").textContent = currentTargets();
+}
+
+function renderPresets() {
+  const host = document.getElementById("presets");
+  host.innerHTML = "";
+  PRESETS.forEach(p => {
+    const btn = document.createElement("button");
+    btn.className = "preset-btn" + (state.preset === p.id ? " active" : "");
+    btn.innerHTML = `${p.name}<span class="preset-desc">${p.desc}</span>`;
+    btn.onclick = () => { state.preset = p.id; saveState(); updateAll(); };
+    host.appendChild(btn);
+  });
+}
+
+function renderStepsList() {
+  const list = document.getElementById("steps-list");
+  list.innerHTML = "";
+  STEPS.forEach((s, i) => {
+    const li = document.createElement("li");
+    li.className = "";
+    if (state.currentStep === i) li.classList.add("current");
+    if (state.done[i]) li.classList.add("done");
+    li.innerHTML = `
+      <div class="step-checkbox"></div>
+      <span class="step-number">${i + 1}.</span>
+      <span class="step-title">${s.title}${s.optional ? '<span class="step-optional">OPT</span>' : ''}</span>
+    `;
+    li.onclick = (e) => {
+      if (e.target.classList.contains("step-checkbox")) {
+        state.done[i] = !state.done[i];
+      } else {
+        state.currentStep = i;
+      }
+      saveState();
+      updateAll();
+    };
+    list.appendChild(li);
+  });
+}
+
+function renderProgress() {
+  const total = STEPS.length;
+  const done = Object.values(state.done).filter(Boolean).length;
+  document.getElementById("progress-text").textContent = `${done} / ${total} steps`;
+  document.getElementById("progress-fill").style.width = `${(done / total) * 100}%`;
+}
+
+function renderStep() {
+  const main = document.getElementById("main");
+  const idx = state.currentStep;
+  const s = STEPS[idx];
+  const isDone = !!state.done[idx];
+
+  main.innerHTML = "";
+
+  const header = document.createElement("div");
+  header.className = "step-header";
+  header.innerHTML = `
+    <div class="step-counter">Step ${idx + 1} of ${STEPS.length}${s.optional ? ' — optional' : ''}</div>
+    <button class="mark-done-btn ${isDone ? 'done' : ''}" id="toggle-done">
+      ${isDone ? '✓ Completed' : 'Mark as done'}
+    </button>
+  `;
+  main.appendChild(header);
+
+  const title = document.createElement("h2");
+  title.className = "step-title-main";
+  title.innerHTML = `${s.title}${s.optional ? '<span class="optional-badge">Optional</span>' : ''}`;
+  main.appendChild(title);
+
+  const body = document.createElement("div");
+  body.className = "step-body";
+  if (s.lead) {
+    const p = document.createElement("p");
+    p.className = "lead";
+    p.textContent = s.lead;
+    body.appendChild(p);
+  }
+
+  (s.blocks || []).forEach(b => {
+    const block = document.createElement("div");
+    block.className = "cmd-block";
+    if (b.optional) block.style.opacity = "0.85";
+    block.innerHTML = `
+      <div class="cmd-label">
+        <span>${b.label}${b.optional ? ' <span style="color:var(--text-faint);font-size:10px;">(optional)</span>' : ''}</span>
+        <button class="copy-btn">Copy</button>
+      </div>
+      <pre></pre>
+    `;
+    block.querySelector("pre").innerHTML = substitute(b.commands);
+    const btn = block.querySelector(".copy-btn");
+    btn.onclick = () => {
+      navigator.clipboard.writeText(substitutePlain(b.commands));
+      btn.textContent = "Copied!";
+      btn.classList.add("copied");
+      setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("copied"); }, 1400);
+    };
+    body.appendChild(block);
+  });
+
+  (s.callouts || []).forEach(c => {
+    const el = document.createElement("div");
+    el.className = `callout ${c.type || "info"}`;
+    const iconMap = { info: "ℹ", warn: "⚠", success: "✓", danger: "✗" };
+    let html = `<div class="callout-title">${iconMap[c.type] || "ℹ"} ${c.title}</div>`;
+    if (c.items) html += `<ul>${c.items.map(it => `<li>${escapeHtml(it)}</li>`).join("")}</ul>`;
+    if (c.text) html += `<p>${escapeHtml(c.text)}</p>`;
+    el.innerHTML = html;
+    body.appendChild(el);
+  });
+
+  main.appendChild(body);
+
+  const nav = document.createElement("div");
+  nav.className = "step-nav";
+  nav.innerHTML = `
+    <button id="prev" ${idx === 0 ? "disabled" : ""}>← Previous</button>
+    <button id="next" class="next" ${idx === STEPS.length - 1 ? "disabled" : ""}>Next →</button>
+  `;
+  main.appendChild(nav);
+
+  document.getElementById("prev").onclick = () => {
+    if (idx > 0) { state.currentStep = idx - 1; saveState(); updateAll(); main.scrollTop = 0; }
+  };
+  document.getElementById("next").onclick = () => {
+    if (idx < STEPS.length - 1) {
+      state.done[idx] = true;
+      state.currentStep = idx + 1;
+      saveState();
+      updateAll();
+      main.scrollTop = 0;
+    }
+  };
+  document.getElementById("toggle-done").onclick = () => {
+    state.done[idx] = !state.done[idx];
+    saveState();
+    updateAll();
+  };
+}
+
+function updatePrompt() {
+  const s = STEPS[state.currentStep];
+  const missing = [];
+  if (!state.openspecRepo || state.openspecRepo === DEFAULTS.openspecRepo) missing.push("OPENSPEC_REPO");
+  if (state.preset !== "minimum" && !state.consumerRepo) missing.push("CONSUMER_REPO");
+  if (state.preset === "three" && !state.docsRepo) missing.push("DOCS_REPO");
+
+  let prompt = `I'm working through the openspec workspace demo (docs/workspace-demo.md), currently on Step ${state.currentStep + 1}: "${s.title}". My setup: preset=${state.preset}, targets=${currentTargets()}, workspace=${state.wsName}.`;
+  if (missing.length) prompt += ` I still need to configure: ${missing.join(", ")}.`;
+  prompt += ` Help me with this step.`;
+
+  document.getElementById("prompt-text").textContent = prompt;
+  document.getElementById("prompt-text").dataset.full = prompt;
+}
+
+function updateAll() {
+  renderConfig();
+  renderPresets();
+  renderStepsList();
+  renderStep();
+  renderProgress();
+  updatePrompt();
+}
+
+// ---------- Wiring ----------
+document.getElementById("var-openspec").addEventListener("input", e => {
+  state.openspecRepo = e.target.value; saveState(); renderStep(); updatePrompt();
+  document.getElementById("var-wsroot").textContent = wsRoot();
+});
+document.getElementById("var-wsname").addEventListener("input", e => {
+  state.wsName = e.target.value; saveState(); renderStep(); updatePrompt();
+  document.getElementById("var-wsroot").textContent = wsRoot();
+});
+document.getElementById("var-consumer").addEventListener("input", e => {
+  state.consumerRepo = e.target.value; saveState(); renderStep(); updatePrompt();
+});
+document.getElementById("var-docs").addEventListener("input", e => {
+  state.docsRepo = e.target.value; saveState(); renderStep(); updatePrompt();
+});
+document.getElementById("prompt-copy").addEventListener("click", e => {
+  navigator.clipboard.writeText(document.getElementById("prompt-text").dataset.full || "");
+  e.target.textContent = "Copied!";
+  e.target.classList.add("copied");
+  setTimeout(() => { e.target.textContent = "Copy"; e.target.classList.remove("copied"); }, 1400);
+});
+document.getElementById("reset-btn").addEventListener("click", () => {
+  if (confirm("Reset all progress and config?")) {
+    localStorage.removeItem("ws-demo-playground");
+    Object.assign(state, DEFAULTS, { done: {} });
+    updateAll();
+  }
+});
+
+// ---------- Init ----------
+updateAll();
+</script>
+</body>
+</html>

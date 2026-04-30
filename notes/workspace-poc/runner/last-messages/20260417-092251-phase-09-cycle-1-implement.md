@@ -1,0 +1,9 @@
+Phase 09 is complete. I tightened the `workspace open` validation matrix in [test/core/workspace/open.test.ts](/Users/tabishbidiwale/fission/repos/openspec/test/core/workspace/open.test.ts), [test/commands/workspace/open.test.ts](/Users/tabishbidiwale/fission/repos/openspec/test/commands/workspace/open.test.ts), and [test/cli-e2e/workspace/workspace-open-cli.test.ts](/Users/tabishbidiwale/fission/repos/openspec/test/cli-e2e/workspace/workspace-open-cli.test.ts). The new coverage locks down planning-only vs change-scoped behavior, alias filtering, stale-target diagnostics, unsupported `--agent` handling, and the primary Claude demo path without relying on real multi-root writes or repo-local materialization.
+
+I also marked Phase 09 complete in [ROADMAP.md](/Users/tabishbidiwale/fission/repos/openspec/ROADMAP.md) and wrote the phase artifacts: [SUMMARY.md](/Users/tabishbidiwale/fission/repos/openspec/notes/workspace-poc/phase-09-test-workspace-open/SUMMARY.md), [VERIFY.md](/Users/tabishbidiwale/fission/repos/openspec/notes/workspace-poc/phase-09-test-workspace-open/VERIFY.md), and [MANUAL_TEST.md](/Users/tabishbidiwale/fission/repos/openspec/notes/workspace-poc/phase-09-test-workspace-open/MANUAL_TEST.md). No new follow-up phase was needed.
+
+Verification:
+- `pnpm run build`
+- `pnpm vitest run test/core/workspace/open.test.ts test/commands/workspace/open.test.ts test/cli-e2e/workspace/workspace-open-cli.test.ts` -> 12/12 passed
+- `pnpm vitest run test/core/workspace/*.test.ts test/commands/workspace/*.test.ts test/cli-e2e/workspace/*.test.ts` -> 42/42 passed
+- Fresh copied-fixture manual smoke with `node dist/cli/index.js ...` passed for planning-only, Claude change-scoped open, stale-target failure, and unsupported-agent failure

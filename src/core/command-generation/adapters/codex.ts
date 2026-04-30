@@ -27,6 +27,9 @@ function getCodexHome(): string {
  */
 export const codexAdapter: ToolCommandAdapter = {
   toolId: 'codex',
+  capabilities: {
+    supportsWorkspaceOpen: true,
+  },
 
   getFilePath(commandId: string): string {
     return path.join(getCodexHome(), 'prompts', `opsx-${commandId}.md`);

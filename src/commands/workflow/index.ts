@@ -10,6 +10,9 @@ export type { StatusOptions } from './status.js';
 export { instructionsCommand, applyInstructionsCommand } from './instructions.js';
 export type { InstructionsOptions } from './instructions.js';
 
+export { applyCommand } from './apply.js';
+export type { ApplyCommandOptions } from './apply.js';
+
 export { templatesCommand } from './templates.js';
 export type { TemplatesOptions } from './templates.js';
 

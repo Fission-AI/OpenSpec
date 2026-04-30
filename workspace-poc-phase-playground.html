@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Workspace POC Phase Playground</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --surface-2: #eef2f5;
+    --ink: #17202a;
+    --muted: #627181;
+    --faint: #8793a0;
+    --line: #d8dee6;
+    --line-strong: #bac4d0;
+    --foundation: #476582;
+    --planning: #2f7d69;
+    --session: #7b6042;
+    --handoff: #9b4f42;
+    --state: #3f6fb0;
+    --signoff: #6b5e9d;
+    --build: #2f7d69;
+    --test: #3f6fb0;
+    --research: #9b6a2f;
+    --radius: 8px;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.45;
+  }
+  button, input { font: inherit; }
+  code, .mono { font-family: var(--mono); }
+
+  .app {
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr) 360px;
+    grid-template-rows: auto 1fr;
+    min-height: 100vh;
+  }
+
+  header {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 18px 24px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+  }
+  .title h1 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 650;
+    letter-spacing: 0;
+  }
+  .title p {
+    margin: 3px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(80px, 1fr));
+    gap: 8px;
+    min-width: 430px;
+  }
+  .stat {
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    border-radius: var(--radius);
+    padding: 8px 10px;
+  }
+  .stat b {
+    display: block;
+    font-size: 16px;
+    line-height: 1.1;
+  }
+  .stat span {
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  aside {
+    background: var(--surface);
+    border-right: 1px solid var(--line);
+    padding: 18px 16px;
+    overflow-y: auto;
+  }
+  main {
+    min-width: 0;
+    padding: 18px;
+    overflow-y: auto;
+  }
+  .right {
+    background: var(--surface);
+    border-left: 1px solid var(--line);
+    padding: 18px 16px;
+    overflow-y: auto;
+  }
+
+  .section-label {
+    color: var(--faint);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    margin: 0 0 8px;
+    text-transform: uppercase;
+  }
+  .search {
+    width: 100%;
+    border: 1px solid var(--line-strong);
+    background: var(--surface);
+    border-radius: 6px;
+    color: var(--ink);
+    padding: 9px 10px;
+    outline: none;
+  }
+  .search:focus { border-color: var(--state); box-shadow: 0 0 0 2px rgba(63, 111, 176, .12); }
+
+  .filter-row, .tab-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 18px;
+  }
+  .chip, .tab {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .chip:hover, .tab:hover { border-color: var(--line-strong); color: var(--ink); }
+  .chip.active, .tab.active {
+    background: var(--ink);
+    color: white;
+    border-color: var(--ink);
+  }
+
+  .phase-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .phase-button {
+    width: 100%;
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--muted);
+    padding: 9px 10px;
+    cursor: pointer;
+    text-align: left;
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: start;
+  }
+  .phase-button:hover { background: var(--surface-2); color: var(--ink); }
+  .phase-button.active {
+    background: var(--surface-2);
+    color: var(--ink);
+    border-color: var(--line-strong);
+  }
+  .phase-no {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--faint);
+  }
+  .phase-name {
+    font-weight: 600;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+  }
+  .phase-meta {
+    color: var(--faint);
+    font-size: 11px;
+    margin-top: 2px;
+  }
+  .type-pill {
+    border-radius: 999px;
+    padding: 2px 7px;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+  }
+  .type-Build { background: var(--build); }
+  .type-Test { background: var(--test); }
+  .type-Research { background: var(--research); }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    margin-bottom: 14px;
+  }
+  .panel-head {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .panel-head h2, .panel-head h3 {
+    margin: 0;
+    font-size: 16px;
+    letter-spacing: 0;
+  }
+  .panel-head p {
+    margin: 3px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .panel-body { padding: 14px 16px; }
+
+  .timeline-grid {
+    display: grid;
+    grid-template-columns: repeat(13, minmax(38px, 1fr));
+    gap: 6px;
+  }
+  .timeline-phase {
+    min-height: 42px;
+    border: 1px solid var(--line);
+    background: #fbfcfd;
+    border-radius: 7px;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 6px 4px;
+    text-align: center;
+  }
+  .timeline-phase:hover { border-color: var(--line-strong); color: var(--ink); }
+  .timeline-phase.active {
+    border-color: var(--ink);
+    box-shadow: inset 0 0 0 1px var(--ink);
+    color: var(--ink);
+  }
+  .timeline-phase .num {
+    display: block;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .timeline-phase .kind {
+    display: block;
+    font-size: 9px;
+    margin-top: 2px;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  .phase-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(230px, .9fr);
+    gap: 14px;
+  }
+  .summary-text {
+    font-size: 15px;
+    margin: 0 0 12px;
+  }
+  .callout {
+    border-left: 4px solid var(--state);
+    background: #f1f5fa;
+    padding: 10px 12px;
+    border-radius: 0 var(--radius) var(--radius) 0;
+    color: #263747;
+  }
+  .callout strong { display: block; margin-bottom: 2px; }
+  .facts {
+    display: grid;
+    gap: 8px;
+  }
+  .fact {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 9px 10px;
+    background: #fbfcfd;
+  }
+  .fact span {
+    display: block;
+    color: var(--faint);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    margin-bottom: 2px;
+  }
+  .fact b { font-size: 13px; overflow-wrap: anywhere; }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  ul.clean {
+    margin: 0;
+    padding-left: 18px;
+  }
+  ul.clean li { margin: 6px 0; }
+
+  .flow {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(120px, 1fr));
+    gap: 8px;
+  }
+  .flow-step {
+    border: 1px solid var(--line);
+    background: #fbfcfd;
+    border-radius: var(--radius);
+    padding: 10px;
+    min-height: 92px;
+    position: relative;
+  }
+  .flow-step.active { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+  .flow-step .k {
+    color: var(--faint);
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+  .flow-step b { display: block; margin: 4px 0; font-size: 13px; }
+  .flow-step p { margin: 0; color: var(--muted); font-size: 12px; }
+
+  .stack {
+    display: grid;
+    gap: 8px;
+  }
+  .layer {
+    display: grid;
+    grid-template-columns: 86px minmax(0, 1fr);
+    gap: 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 10px;
+    background: #fbfcfd;
+  }
+  .layer.active { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+  .layer b { font-size: 13px; }
+  .layer p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+
+  .model-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .tree {
+    border: 1px solid var(--line);
+    background: #fbfcfd;
+    border-radius: var(--radius);
+    padding: 12px;
+    min-height: 230px;
+  }
+  .tree h4 {
+    margin: 0 0 8px;
+    font-size: 13px;
+  }
+  .tree-line {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    padding: 2px 0;
+    white-space: pre;
+  }
+  .tree-line.hot { color: var(--ink); font-weight: 700; }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-top: 10px;
+  }
+  .legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    display: inline-block;
+    background: var(--line-strong);
+  }
+
+  .source-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .source-links a {
+    color: var(--state);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 5px 8px;
+    text-decoration: none;
+    font-size: 12px;
+  }
+  .source-links a:hover { border-color: var(--state); background: #f1f5fa; }
+
+  .empty {
+    color: var(--muted);
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--radius);
+    padding: 12px;
+    text-align: center;
+  }
+
+  @media (max-width: 1180px) {
+    .app { grid-template-columns: 280px minmax(0, 1fr); }
+    .right { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--line); }
+    .flow { grid-template-columns: repeat(3, minmax(120px, 1fr)); }
+  }
+  @media (max-width: 780px) {
+    .app { display: block; }
+    header { display: block; }
+    .stats { min-width: 0; grid-template-columns: repeat(2, 1fr); margin-top: 12px; }
+    aside, main, .right { border: 0; border-bottom: 1px solid var(--line); }
+    .phase-hero, .two-col, .model-grid { grid-template-columns: 1fr; }
+    .flow { grid-template-columns: 1fr; }
+    .timeline-grid { grid-template-columns: repeat(4, minmax(48px, 1fr)); }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="title">
+      <h1>Workspace POC Phase Playground</h1>
+      <p>Explore what each phase added, what it proved, and how the signed-off POC fits together.</p>
+    </div>
+    <div class="stats" aria-label="POC summary statistics">
+      <div class="stat"><b>26</b><span>phases</span></div>
+      <div class="stat"><b>6</b><span>work streams</span></div>
+      <div class="stat"><b>3</b><span>research decisions</span></div>
+      <div class="stat"><b>Signed off</b><span>2026-04-17</span></div>
+    </div>
+  </header>
+
+  <aside>
+    <p class="section-label">Search</p>
+    <input id="search" class="search" type="search" placeholder="status, apply, owner, target..." />
+
+    <p class="section-label" style="margin-top:18px">Work Stream</p>
+    <div class="filter-row" id="trackFilters"></div>
+
+    <p class="section-label">Phase Type</p>
+    <div class="filter-row" id="typeFilters"></div>
+
+    <p class="section-label">Phases</p>
+    <div class="phase-list" id="phaseList"></div>
+  </aside>
+
+  <main>
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Phase Map</h2>
+          <p>Select any phase here or from the left rail. Colors follow the work stream.</p>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="timeline-grid" id="phaseTimeline"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 id="phaseTitle"></h2>
+          <p id="phaseSubtitle"></p>
+        </div>
+        <span id="phaseType" class="type-pill"></span>
+      </div>
+      <div class="panel-body phase-hero">
+        <div>
+          <p class="summary-text" id="phaseSummary"></p>
+          <div class="callout">
+            <strong>Why this phase mattered</strong>
+            <span id="phaseWhy"></span>
+          </div>
+        </div>
+        <div class="facts">
+          <div class="fact"><span>Outcome</span><b id="phaseOutcome"></b></div>
+          <div class="fact"><span>Track</span><b id="phaseTrack"></b></div>
+          <div class="fact"><span>Evidence</span><b id="phaseEvidenceShort"></b></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-row" role="tablist" aria-label="Detail view">
+      <button class="tab active" data-view="story">Story</button>
+      <button class="tab" data-view="evidence">Evidence</button>
+      <button class="tab" data-view="model">Model</button>
+    </div>
+
+    <section id="storyView">
+      <div class="panel">
+        <div class="panel-head"><h3>What Changed</h3></div>
+        <div class="panel-body two-col">
+          <div>
+            <p class="section-label">Shipped or decided</p>
+            <ul class="clean" id="changedList"></ul>
+          </div>
+          <div>
+            <p class="section-label">Guardrails</p>
+            <ul class="clean" id="guardrailList"></ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>POC Workflow Position</h3>
+            <p>The same phase viewed against the user-facing flow.</p>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="flow" id="workflowFlow"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="evidenceView" hidden>
+      <div class="panel">
+        <div class="panel-head"><h3>Verification Notes</h3></div>
+        <div class="panel-body two-col">
+          <div>
+            <p class="section-label">Evidence</p>
+            <ul class="clean" id="evidenceList"></ul>
+          </div>
+          <div>
+            <p class="section-label">Residual risk or next step</p>
+            <ul class="clean" id="riskList"></ul>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>Source Notes</h3></div>
+        <div class="panel-body">
+          <div class="source-links" id="sourceLinks"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="modelView" hidden>
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>Artifact Shape</h3>
+            <p>How the selected phase changes the workspace versus repo-local model.</p>
+          </div>
+        </div>
+        <div class="panel-body model-grid">
+          <div class="tree">
+            <h4>Workspace Root</h4>
+            <div id="workspaceTree"></div>
+          </div>
+          <div class="tree">
+            <h4>Target Repos</h4>
+            <div id="repoTree"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <section class="right">
+    <p class="section-label">Capability Stack</p>
+    <div class="stack" id="capabilityStack"></div>
+
+    <div class="panel" style="margin-top:14px">
+      <div class="panel-head">
+        <div>
+          <h3>Final Mental Model</h3>
+          <p>What the POC proved.</p>
+        </div>
+      </div>
+      <div class="panel-body">
+        <p style="margin-top:0">Plan centrally, execute locally, preserve repo ownership.</p>
+        <ul class="clean">
+          <li>The workspace is a persistent coordination home.</li>
+          <li>Canonical specs and implementation stay in owner repos.</li>
+          <li><code>apply --change --repo</code> is the explicit authority handoff.</li>
+          <li><code>status --change</code> is the recovery and coordination view.</li>
+          <li><code>archive --workspace</code> is the only hard-done signal.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+const tracks = [
+  { id: 'all', label: 'All' },
+  { id: 'foundation', label: 'Foundation' },
+  { id: 'planning', label: 'Planning' },
+  { id: 'session', label: 'Session' },
+  { id: 'handoff', label: 'Handoff' },
+  { id: 'state', label: 'State' },
+  { id: 'signoff', label: 'Signoff' }
+];
+
+const typeFilters = ['All', 'Build', 'Test', 'Research'];
+
+const capabilities = [
+  { id: 'foundation', title: 'Workspace Substrate', text: 'Managed root, fixture harness, repo registry, doctor diagnostics.' },
+  { id: 'planning', title: 'Central Planning', text: 'One workspace change with shared artifacts and per-target draft slices.' },
+  { id: 'session', title: 'Scoped Opening', text: 'Planning-only open or change-scoped open with only targeted repos.' },
+  { id: 'handoff', title: 'Materialization', text: 'Create-only apply writes one repo-local execution bundle.' },
+  { id: 'state', title: 'Roll-Up and Archive', text: 'Status derives planned, materialized, blocked, soft-done, and hard-done.' },
+  { id: 'signoff', title: 'Product Completeness', text: 'Guidance, owners, target adjustment, acceptance, and final PRD signoff.' }
+];
+
+const workflow = [
+  { id: 'create', label: 'Create workspace', text: 'Make a managed coordination root.' },
+  { id: 'register', label: 'Register repos', text: 'Aliases in committed metadata, paths in local overlay.' },
+  { id: 'plan', label: 'Create targeted change', text: 'Shared planning plus target-specific drafts.' },
+  { id: 'open', label: 'Open session', text: 'Root planning or change-scoped repo attachment.' },
+  { id: 'apply', label: 'Apply to repo', text: 'Materialize one execution surface.' },
+  { id: 'status', label: 'Status and archive', text: 'Roll up progress and mark hard-done explicitly.' }
+];
+
+const baseWorkspaceTree = [
+  '.openspec/',
+  '  workspace.yaml',
+  '  local.yaml',
+  'changes/',
+  '  <change>/',
+  '    .openspec.yaml',
+  '    proposal.md',
+  '    design.md',
+  '    tasks/coordination.md',
+  '    targets/<alias>/tasks.md',
+  '    targets/<alias>/specs/...'
+];
+
+const baseRepoTree = [
+  '<repo>/openspec/',
+  '  specs/',
+  '  changes/',
+  '    <change>/',
+  '      .openspec.yaml',
+  '      .openspec.materialization.yaml',
+  '      proposal.md',
+  '      design.md',
+  '      tasks.md',
+  '      specs/...'
+];
+
+const phases = [
+  {
+    n: 0, slug: 'phase-00-test-harness', name: 'Testing Infrastructure Foundation', type: 'Build', track: 'foundation', workflow: ['create', 'register'],
+    outcome: 'Reusable real-filesystem test harness and workspace fixtures.',
+    summary: 'The POC started by making workspace work testable with real temp directories, reusable fixtures, and invariant assertions.',
+    why: 'Every later phase depended on believable multi-root state, so the harness came before product behavior.',
+    changed: ['Added workspaceSandbox helper and fixture seeds for empty, happy-path, and dirty workspaces.', 'Added assertions for layout, path leakage, target membership, and materialization invariants.', 'Reserved test locations for core, command, and CLI workspace coverage.'],
+    guardrails: ['No nested repo-local openspec directory under a managed workspace root.', 'Committed fixtures do not embed absolute local paths.', 'CLI JSON output stays free of spinner noise.'],
+    evidence: ['Focused Phase 00 suite passed.', 'Manual smoke copied fixtures, mutated one copy, and proved isolation.', 'Direct CLI list JSON parsed cleanly from an attached repo fixture.'],
+    risks: ['No residual risk inside Phase 00 scope.', 'Command-specific workspace coverage was intentionally deferred to later phases.']
+  },
+  {
+    n: 1, slug: 'phase-01-workspace-create', name: 'Workspace Create Entrypoint', type: 'Build', track: 'foundation', workflow: ['create'],
+    outcome: 'Users can create a persistent workspace root with workspace create.',
+    summary: 'This phase introduced the first user-facing workspace command and the managed workspace filesystem shape.',
+    why: 'The POC needed a neutral planning home before repos, targets, or agent sessions could exist.',
+    changed: ['Added the workspace command group and create entrypoint.', 'Created .openspec/workspace.yaml, .openspec/local.yaml, .gitignore, and top-level changes/.', 'Validated workspace names and duplicate create attempts.'],
+    guardrails: ['Workspace root is distinct from repo-local openspec roots.', '.openspec/local.yaml is local-only state.', 'Invalid and duplicate names fail with actionable errors.'],
+    evidence: ['Build passed.', 'Fresh CLI smoke created a workspace in isolated XDG state.', 'Manual inspection confirmed the expected files and no inner openspec/.'],
+    risks: ['Automated command and CLI coverage was intentionally deferred to Phase 02.']
+  },
+  {
+    n: 2, slug: 'phase-02-test-workspace-create', name: 'Validate Workspace Create', type: 'Test', track: 'foundation', workflow: ['create'],
+    outcome: 'workspace create covered at unit, command, and CLI layers.',
+    summary: 'The create command was hardened with tests for layout, JSON output, duplicate handling, and help text.',
+    why: 'Later workspace behavior builds on create, so root creation needed permanent regression coverage.',
+    changed: ['Added core tests for managed path resolution and metadata initialization.', 'Added command tests for happy path, duplicates, invalid names, and JSON mode.', 'Added CLI e2e coverage for help, exit codes, layout, and duplicate safety.'],
+    guardrails: ['Successful create emits clean parseable JSON when requested.', 'Duplicate create attempts do not corrupt existing workspace files.', 'The workspace root has top-level changes/ and no openspec/changes.'],
+    evidence: ['Build passed.', 'Focused workspace-create suite passed with 15/15 tests.', 'Fresh CLI verification passed in isolated XDG roots.'],
+    risks: ['Future workspace commands should preserve the same stdout/stderr JSON discipline.']
+  },
+  {
+    n: 3, slug: 'phase-03-repo-registry', name: 'Repo Registry and Doctor', type: 'Build', track: 'foundation', workflow: ['register'],
+    outcome: 'Users can register repo aliases and validate local paths.',
+    summary: 'This phase connected a workspace to repos through stable aliases and machine-local path bindings.',
+    why: 'Cross-repo planning only works if the workspace can name repos portably and resolve them locally.',
+    changed: ['Implemented workspace add-repo with committed alias storage.', 'Stored absolute canonical repo paths in .openspec/local.yaml only.', 'Implemented workspace doctor for missing repos, missing openspec state, stale paths, and overlay drift.'],
+    guardrails: ['Committed workspace metadata stays path-safe.', 'Duplicate aliases and missing paths fail cleanly.', 'Doctor reports issues without mutating state.'],
+    evidence: ['Build passed.', 'Manual smoke registered app, api, and docs fixtures and verified doctor output.', 'No absolute paths leaked into committed workspace files.'],
+    risks: ['No blockers remained; validation matrix moved to Phase 04.']
+  },
+  {
+    n: 4, slug: 'phase-04-test-repo-registry', name: 'Validate Repo Registry and Doctor', type: 'Test', track: 'foundation', workflow: ['register'],
+    outcome: 'Repo registration became trustworthy for targeted planning and opening.',
+    summary: 'The registry and doctor paths received pure, command, and CLI coverage.',
+    why: 'Targeted changes and agent attachment would be misleading if alias resolution was weak.',
+    changed: ['Added tests for alias parsing, canonicalization, serialization, and diagnostics.', 'Added command tests using the workspace sandbox.', 'Added CLI e2e coverage for happy path and stale path scenarios.'],
+    guardrails: ['Doctor detects missing roots, missing openspec/, and alias/path drift.', 'Repairing local.yaml restores doctor success.', 'Multiple repo additions remain readable.'],
+    evidence: ['Build passed.', 'Phase 04 automated slice passed.', 'Broader workspace regression slice passed.'],
+    risks: ['No residual risk found in Phase 04 verification.']
+  },
+  {
+    n: 5, slug: 'phase-05-targeted-change-create', name: 'Target-Aware Workspace Change Creation', type: 'Build', track: 'planning', workflow: ['plan'],
+    outcome: 'Users can create one central cross-repo change with explicit targets.',
+    summary: 'This phase made new change workspace-aware and created the central planning topology.',
+    why: 'The POC promise depends on one change describing a cross-repo effort without writing into each repo immediately.',
+    changed: ['Added workspace-aware new change --targets handling.', 'Persisted exact target aliases in change metadata.', 'Scaffolded proposal, design, coordination tasks, and per-target draft task/spec folders.'],
+    guardrails: ['Targets are required inside a managed workspace.', 'Unknown and duplicate targets fail before writes.', 'No repo-local changes are created during planning.'],
+    evidence: ['Build passed.', 'Focused regression coverage passed with 51/51 tests.', 'Fresh CLI smoke confirmed workspace artifacts and untouched repos.'],
+    risks: ['Permanent targeted-create coverage was deferred to Phase 06.', 'Shared created date remained UTC-based existing behavior.']
+  },
+  {
+    n: 6, slug: 'phase-06-test-targeted-change-create', name: 'Validate Target-Aware Change Creation', type: 'Test', track: 'planning', workflow: ['plan'],
+    outcome: 'The central planning object was locked down before open and apply.',
+    summary: 'This phase expanded coverage for the targeted workspace change shape and fixed path resolution exposed by tests.',
+    why: 'Before agent-open or materialization, the change layout and metadata needed to be stable.',
+    changed: ['Added workspace change-container helpers and exact topology assertions.', 'Fixed status --change path lookup for workspace-created changes.', 'Added core, command, and CLI coverage for target creation and validation.'],
+    guardrails: ['Unknown targets fail with registered-alias guidance.', 'Workspace doctor remains healthy after targeted creation.', 'Attached repos remain untouched until apply.'],
+    evidence: ['Build passed.', 'Focused Phase 06 automated slice passed.', 'Manual smoke created a targeted change, parsed status JSON, and confirmed no repo-local directories.'],
+    risks: ['No residual risk found within Phase 06 scope.']
+  },
+  {
+    n: 7, slug: 'phase-07-open-contract-research', name: 'Research Minimum workspace open Contract', type: 'Research', track: 'session', workflow: ['open'],
+    outcome: 'Smallest honest v0 workspace-open contract was decided.',
+    summary: 'The team chose a narrow contract: planning-only root sessions and change-scoped attached roots, with Claude as the official v0 agent target.',
+    why: 'Agent multi-root support is uneven, so the POC needed a precise open contract before implementation.',
+    changed: ['Defined planning-only mode versus attached-roots mode.', 'Made attached mode all-targets-or-fail.', 'Recorded rejected alternatives including partial-open and broad multi-agent support.'],
+    guardrails: ['Repo attachment is change-scoped, not workspace-wide.', 'Unsupported agents are out of v0 scope.', 'Diagnostics name failing aliases and repair path.'],
+    evidence: ['Research decision was added and verified.', 'Focused checks against existing workspace and tool command surfaces passed.', 'Decision listed success and failure cases for implementation and testing.'],
+    risks: ['Phase 08 was instructed to implement only the decision record.']
+  },
+  {
+    n: 8, slug: 'phase-08-workspace-open', name: 'Workspace Open', type: 'Build', track: 'session', workflow: ['open'],
+    outcome: 'Users can open workspace-root or change-scoped sessions.',
+    summary: 'This phase implemented workspace open for planning-only root context and change-scoped target attachment.',
+    why: 'Users needed a way to resume planning with the right scope before materializing repo-local execution.',
+    changed: ['Added workspace open with --change, --agent, and --json surfaces.', 'Generated instruction content for workspace planning and targeted sessions.', 'Resolved target repos only for change-scoped opens.'],
+    guardrails: ['Planning-only open attaches no repos.', 'Change-scoped open attaches only targeted aliases.', 'Stale target aliases fail before launching an agent.'],
+    evidence: ['Build passed.', 'Focused Phase 08 suites passed.', 'Manual smoke proved planning-only, change-scoped, stale-target, unsupported-agent, and no-materialization behavior.'],
+    risks: ['v0 intentionally supported only Claude at this point; broader validation moved to Phase 09.']
+  },
+  {
+    n: 9, slug: 'phase-09-test-workspace-open', name: 'Validate Workspace Open', type: 'Test', track: 'session', workflow: ['open'],
+    outcome: 'workspace open contract pinned down with real fixture state.',
+    summary: 'The open behavior gained stronger tests for planning-only sessions, scoped attachment, failure diagnostics, and unsupported agents.',
+    why: 'Materialization would depend on the same target resolution rules, so open needed robust coverage first.',
+    changed: ['Added core, command, and CLI tests for workspace open.', 'Strengthened assertions that planning-only output leaks no repo roots.', 'Covered unsupported-agent behavior and targeted-only repo attachment.'],
+    guardrails: ['Unrelated registered repos are excluded from change-scoped open.', 'Stale overlays appear only as actionable failures.', 'Open remains session-prep only and does not write repo-local changes.'],
+    evidence: ['Build passed.', 'Focused Phase 09 validation passed with 12/12 tests.', 'Broader workspace regression coverage passed with 42/42 tests.'],
+    risks: ['No residual risk identified in Phase 09 scope.']
+  },
+  {
+    n: 10, slug: 'phase-10-materialization-contract-research', name: 'Research Materialization Contract', type: 'Research', track: 'handoff', workflow: ['apply'],
+    outcome: 'Create-only apply contract was defined before implementation.',
+    summary: 'The decision specified how a workspace target slice becomes one repo-local execution bundle.',
+    why: 'This is the authority handoff. Overwrite, refresh, or sync-back rules needed to be explicitly avoided in v0.',
+    changed: ['Chose openspec apply --change <id> --repo <alias> as a one-repo operation.', 'Defined repo-local bundle shape and .openspec.materialization.yaml sidecar.', 'Rejected refresh, overwrite, sync-back, and copying coordination tasks into repos.'],
+    guardrails: ['Validate all source and destination conditions before writing.', 'Create-only repeat apply fails for the same alias.', 'Workspace planning artifacts remain unchanged after apply.'],
+    evidence: ['Focused workspace tests passed with 19/19 tests.', 'Manual smoke confirmed planning and session prep created no repo-local changes.', 'Decision became the Phase 11 implementation contract.'],
+    risks: ['Phase 11 still needed to implement all-or-nothing materialization.']
+  },
+  {
+    n: 11, slug: 'phase-11-apply-materialization', name: 'Target Materialization via apply', type: 'Build', track: 'handoff', workflow: ['apply'],
+    outcome: 'A selected target can be materialized into its repo.',
+    summary: 'This phase implemented the real apply path from workspace planning to repo-local execution.',
+    why: 'It made the POC more than planning: implementation could now move into owner repos without losing traceability.',
+    changed: ['Added top-level openspec apply --change --repo.', 'Implemented create-only materialization into openspec/changes/<id>.', 'Wrote sidecar trace metadata and explicit success output describing authority handoff.'],
+    guardrails: ['Only the selected target repo is modified.', 'Repeat apply to the same alias fails instead of overwriting.', 'Untargeted or unknown aliases fail clearly.'],
+    evidence: ['Build passed.', 'Focused workspace regression slice passed with 23/23 tests.', 'Manual smoke succeeded for app, failed repeat apply, failed untargeted docs, and kept workspace drafts intact.'],
+    risks: ['Broader materialization matrix moved to Phase 12.']
+  },
+  {
+    n: 12, slug: 'phase-12-test-apply-materialization', name: 'Validate Materialization', type: 'Test', track: 'handoff', workflow: ['apply'],
+    outcome: 'Execution handoff proven before status semantics were layered on.',
+    summary: 'The materialization path gained focused coverage for selective writes and failure cases.',
+    why: 'Status and completion would later interpret materialized repos, so apply had to be deterministic.',
+    changed: ['Expanded apply tests around happy path and stale alias failures.', 'Verified destination bundle shape and trace sidecar.', 'Checked repeat, untargeted, and missing source/destination behavior.'],
+    guardrails: ['Selected repo only; non-target repos stay untouched.', 'Create-only collision protects repo-local execution.', 'Stale alias failures leave destination state absent.'],
+    evidence: ['Build passed.', 'Focused Phase 12 regression slice passed with 17/17 tests.', 'Manual smoke covered selective materialization and dirty-fixture stale alias failure.'],
+    risks: ['Status roll-up and completion semantics remained future work for Phase 13 onward.']
+  },
+  {
+    n: 13, slug: 'phase-13-status-research', name: 'Research Status Roll-Up and Reverse Links', type: 'Research', track: 'state', workflow: ['status'],
+    outcome: 'Workspace status model and reverse-link rule were decided.',
+    summary: 'The team defined workspace states, target states, coordination states, and the minimum JSON shape for status.',
+    why: 'Generic repo-local artifact status was not honest for workspace changes, so a custom roll-up model was needed.',
+    changed: ['Chose overall states: planned, in-progress, blocked, soft-done, hard-done.', 'Chose per-target states: planned, materialized, in-progress, blocked, complete.', 'Decided the materialization sidecar is the v0 reverse link.'],
+    guardrails: ['Progress derives from task checkboxes plus materialization provenance.', 'Workspace and repo-local inspection stay separate.', 'Hard-done cannot be inferred from repo-local state.'],
+    evidence: ['Build and focused validation passed.', 'Manual probe showed generic status was insufficient after apply.', 'Decision gave Phase 14 exact derivation rules and JSON fields.'],
+    risks: ['Phase 14 needed to implement only the custom roll-up described in DECISION.md.']
+  },
+  {
+    n: 14, slug: 'phase-14-workspace-status', name: 'Workspace Status Roll-Up', type: 'Build', track: 'state', workflow: ['status'],
+    outcome: 'Workspace status reports planned, materialized, active, blocked, complete, soft-done, and hard-done.',
+    summary: 'This phase added workspace-aware status and a stable JSON shape for coordination and target states.',
+    why: 'Users needed one place to understand a cross-repo change without inspecting every repo by hand.',
+    changed: ['Added src/core/workspace/status.ts.', 'Routed status --change to workspace roll-up for targeted workspace changes.', 'Derived target state from workspace draft tasks before apply and repo-local tasks after valid materialization.'],
+    guardrails: ['Blocked output reports stale paths, missing local overlay, missing openspec, invalid traces, and unreadable tasks.', 'JSON stays small and stable.', 'hard-done remains absent until explicit workspace archive.'],
+    evidence: ['Build passed.', 'Full Vitest suite passed with 1453/1453 tests.', 'Manual smoke confirmed planned, materialized, in-progress, blocked, and soft-done states with clean JSON.'],
+    risks: ['More status validation moved to Phase 15.']
+  },
+  {
+    n: 15, slug: 'phase-15-test-workspace-status', name: 'Validate Workspace Status', type: 'Test', track: 'state', workflow: ['status'],
+    outcome: 'Roll-up semantics verified through deterministic scenarios.',
+    summary: 'This phase widened status coverage for mixed target states, stale repos, archived repos, and raw JSON cleanliness.',
+    why: 'Status is the recovery surface. It had to survive partial rollout and dirty workspace conditions.',
+    changed: ['Expanded workspace status tests across core, command, and CLI layers.', 'Verified mixed planned/materialized/in-progress/blocked/archived states.', 'Locked JSON cleanliness outside Vitest.'],
+    guardrails: ['Archived repo-local targets are not misreported as planned.', 'Spinner and ANSI output do not contaminate JSON.', 'hard-done remains deferred to explicit workspace archive.'],
+    evidence: ['Build passed.', 'Focused Phase 15 regression slice passed.', 'Manual happy-path and dirty-fixture smokes reproduced mixed-state and interruption/resume scenarios.'],
+    risks: ['Explicit workspace completion and hard-done remained deferred to Phase 16.']
+  },
+  {
+    n: 16, slug: 'phase-16-workspace-archive', name: 'Workspace Completion and Archive Semantics', type: 'Build', track: 'state', workflow: ['status'],
+    outcome: 'Workspace hard-done requires explicit archive --workspace.',
+    summary: 'This phase separated repo-local archive from workspace-level completion.',
+    why: 'Repo owners can finish at different times; top-level workspace completion must remain an explicit coordination act.',
+    changed: ['Added openspec archive <id> --workspace.', 'Recorded workspaceArchivedAt in workspace change metadata.', 'Updated status so hard-done derives only from that marker.'],
+    guardrails: ['Repo-local archive behavior is unchanged outside --workspace.', 'Workspace archive does not move repo-local changes or touch canonical specs.', 'soft-done and hard-done stay separate.'],
+    evidence: ['Build passed.', 'Focused Phase 16 automated slice passed with 57/57 tests.', 'Manual smoke confirmed soft-done before archive --workspace and hard-done after it.'],
+    risks: ['Broader command and CLI matrix moved to Phase 17.']
+  },
+  {
+    n: 17, slug: 'phase-17-test-workspace-archive', name: 'Validate Workspace Completion and Archive', type: 'Test', track: 'state', workflow: ['status'],
+    outcome: 'Completion semantics proven without collapsing repo ownership.',
+    summary: 'This phase tested staggered archive, soft-done/hard-done boundaries, and standalone repo-local archive regressions.',
+    why: 'The POC needed confidence that workspace archive did not redefine repo-local archive semantics.',
+    changed: ['Added command and CLI coverage for workspace archive paths.', 'Covered staggered repo completion and explicit hard-done.', 'Protected standalone repo-local archive behavior.'],
+    guardrails: ['One repo archive does not force workspace done.', 'hard-done appears only after archive --workspace.', 'Repo-local archive still works outside workspace flows.'],
+    evidence: ['Build passed.', 'Focused Phase 17 validation passed.', 'Manual smoke covered staggered archive, hard-done transition, and standalone repo-local regression.'],
+    risks: ['No additional residual risk found in Phase 17 scope.']
+  },
+  {
+    n: 18, slug: 'phase-18-deferred-research', name: 'Deferred Research: Shared-Contract Promotion and Stable IDs', type: 'Research', track: 'signoff', workflow: ['status'],
+    outcome: 'Future questions captured without bloating the POC.',
+    summary: 'This phase preserved the shipped alias-based contract while documenting future promotion, stable IDs, and team-sharing work.',
+    why: 'The POC needed to avoid late redesign while still recording what should come next.',
+    changed: ['Kept alias-keyed workspace repo identity and local repoPaths as the baseline.', 'Recommended explicit shared-contract promotion later.', 'Recommended additive projectId support rather than a flag-day replacement.'],
+    guardrails: ['Do not auto-promote shared contracts during apply, status, or archive.', 'Do not turn the workspace into canonical spec storage.', 'Do not treat local overlays as shared execution surfaces.'],
+    evidence: ['Build and focused regression slice passed.', 'Decision was verified against current code and prior contracts.', 'Documentation wording was corrected to describe local.yaml accurately as alias-keyed repoPaths.'],
+    risks: ['Shared-contract promotion and stable IDs remain forward-looking design work.']
+  },
+  {
+    n: 19, slug: 'phase-19-e2e-acceptance', name: 'End-to-End POC Acceptance', type: 'Test', track: 'signoff', workflow: ['create', 'register', 'plan', 'open', 'apply', 'status'],
+    outcome: 'The whole POC was proven with realistic CLI scenarios.',
+    summary: 'This phase added the consolidated acceptance suite and next-step guidance in status and doctor output.',
+    why: 'The feature needed one cohesive proof, not only phase-by-phase slices.',
+    changed: ['Added actionable Next step guidance to status and workspace doctor text output.', 'Added workspace-poc-acceptance CLI suite.', 'Covered happy path, interruption/re-entry, and failure recovery.'],
+    guardrails: ['Failure cases preserve coherent workspace state.', 'Partial repo-local progress remains visible.', 'Repo-local archive stays under the owning repo.'],
+    evidence: ['Build passed.', 'Focused Phase 19 automated slice passed with 27/27 tests.', 'Manual smokes replayed happy path, stale-target re-entry, and failure recovery.'],
+    risks: ['Phase 20 could move to PRD audit instead of backfilling e2e coverage.']
+  },
+  {
+    n: 20, slug: 'phase-20-prd-audit', name: 'PRD Satisfaction Audit', type: 'Test', track: 'signoff', workflow: ['status'],
+    outcome: 'Implementation was checked directly against the PRD.',
+    summary: 'The audit found the shipped POC stable but not yet complete against PRD expectations.',
+    why: 'Roadmap completeness was not enough; the team needed to verify user and product promises.',
+    changed: ['Created Phase 20 audit artifacts.', 'Mapped current code, tests, docs, help, and CLI behavior to PRD criteria.', 'Inserted remediation phases 21 through 24 before final signoff.'],
+    guardrails: ['Known v0 non-goals stayed non-goals.', 'Remaining gaps were treated as concrete product omissions.', 'Final signoff was blocked until remediation landed.'],
+    evidence: ['Build passed.', 'Focused workspace automated slice passed.', 'Manual CLI smoke created a workspace, registered repos, created a targeted change, and inspected open/status JSON.'],
+    risks: ['Owner visibility, shipped guidance, and target-set adjustment blocked final signoff.']
+  },
+  {
+    n: 21, slug: 'phase-21-workspace-guidance-and-owners', name: 'Workspace Guidance and Owner Visibility', type: 'Build', track: 'signoff', workflow: ['register', 'open', 'status'],
+    outcome: 'Fresh users can see when to use workspace mode and who owns each repo slice.',
+    summary: 'This phase added owner and handoff metadata plus shipped docs for workspace usage and re-entry.',
+    why: 'The PRD required affected repos, owners, and next actions to be visible from the planning surface.',
+    changed: ['Added optional owner and handoff fields to committed workspace repo metadata.', 'Added workspace update-repo and owner/handoff options to add-repo.', 'Surfaced guidance in workspace open, generated instructions, and workspace-aware status.'],
+    guardrails: ['Existing ownerless workspaces remain readable.', 'Guidance updates do not touch local path overlay.', 'Local repo paths still live only in local.yaml.'],
+    evidence: ['Build passed.', 'Focused workspace regression slice passed with 77/77 tests.', 'Manual smoke created owner-visibility and confirmed open/status JSON included guidance.'],
+    risks: ['Phase 22 needed to validate guidance and owner visibility in fresh context.']
+  },
+  {
+    n: 22, slug: 'phase-22-test-workspace-guidance-and-owners', name: 'Validate Guidance and Owner Visibility', type: 'Test', track: 'signoff', workflow: ['register', 'open', 'status'],
+    outcome: 'Guidance and owner visibility proven backward-compatible.',
+    summary: 'This phase validated docs, help, owner/handoff metadata, and ownerless fixture compatibility.',
+    why: 'New guidance must help fresh users without breaking existing workspace metadata.',
+    changed: ['Added validation coverage for guidance surfaces.', 'Checked shipped docs and help text.', 'Exercised owner/handoff and ownerless workspace flows.'],
+    guardrails: ['Ownerless workspaces remain valid.', 'Guidance appears in both text and JSON surfaces.', 'Docs describe the same flow implemented by the CLI.'],
+    evidence: ['Build passed.', 'Focused Phase 22 validation passed.', 'Manual smoke covered help/docs, guided repo registration, update-repo, open, and status.'],
+    risks: ['No additional residual risk found in Phase 22.']
+  },
+  {
+    n: 23, slug: 'phase-23-workspace-target-set-adjustment', name: 'Workspace Target Set Adjustment', type: 'Build', track: 'signoff', workflow: ['plan', 'open', 'apply', 'status'],
+    outcome: 'Users can safely add or remove targets after change creation.',
+    summary: 'This phase added workspace targets <change> with guarded add/remove behavior.',
+    why: 'The PRD expected teams to adjust scope as repos move at different cadences.',
+    changed: ['Added openspec workspace targets <change> --add/--remove with JSON output.', 'Scaffolded added target slices and removed unmaterialized draft slices.', 'Blocked target mutations after same-ID repo-local execution or archive exists.'],
+    guardrails: ['No manual .openspec.yaml edits required.', 'Filesystem mutations roll back if metadata write fails.', 'Authority handoff prevents silent scope drift after materialization.'],
+    evidence: ['Build passed.', 'Focused Phase 23 slice passed with 32/32 tests.', 'Broader workspace regression slice passed with 98/98 tests plus manual add/remove smoke.'],
+    risks: ['No blockers remained; validation moved to Phase 24.']
+  },
+  {
+    n: 24, slug: 'phase-24-test-workspace-target-set-adjustment', name: 'Validate Target Set Adjustment', type: 'Test', track: 'signoff', workflow: ['plan', 'open', 'apply', 'status'],
+    outcome: 'Target-set edits proven safe under real workspace conditions.',
+    summary: 'This phase closed remaining coverage gaps for add/remove target behavior and authority-handoff guardrails.',
+    why: 'Target mutation is risky because it changes scope after planning, so tests needed to cover re-entry and materialized-state failures.',
+    changed: ['Extended target-set regression coverage at weak boundaries.', 'Added explicit proof that add-side mutations fail once same-ID repo-local execution exists.', 'Re-ran Phase 19 acceptance to prove no regression.'],
+    guardrails: ['Adjusted targets immediately affect open, apply, and status.', 'Materialized aliases cannot be silently removed or re-added around repo-local execution.', 'CLI-visible target set stays aligned with .openspec.yaml.'],
+    evidence: ['Build passed.', 'Focused Phase 24 automated slice passed with 55/55 tests.', 'Fresh manual smoke covered add, remove, re-entry, materialization, and guarded failure.'],
+    risks: ['No additional residual risk found in Phase 24.']
+  },
+  {
+    n: 25, slug: 'phase-25-prd-signoff', name: 'Final PRD Recheck and Signoff', type: 'Test', track: 'signoff', workflow: ['create', 'register', 'plan', 'open', 'apply', 'status'],
+    outcome: 'Workspace POC signed off against WORKSPACE_POC_PRD.md.',
+    summary: 'The final phase rechecked the PRD after remediation and marked the POC complete.',
+    why: 'Signoff needed to prove the final product, docs, tests, and roadmap all agreed.',
+    changed: ['Created final signoff artifacts.', 'Updated WORKSPACE_POC_PRD.md to Status: Signed Off.', 'Confirmed no incomplete required roadmap phases remained.'],
+    guardrails: ['Residual limits are explicit v0 scope boundaries.', 'apply remains create-only.', 'Shared-contract promotion, stable IDs, and broader lifecycle questions remain deferred.'],
+    evidence: ['Build passed.', 'Workspace regression slice passed with 103/103 tests.', 'Fresh manual signoff smoke passed through create, add-repo, targets, open, status, apply, and guarded target removal.'],
+    risks: ['No blocking PRD gaps remain.']
+  }
+];
+
+let selectedTrack = 'all';
+let selectedType = 'All';
+let selectedPhase = phases[25];
+let selectedView = 'story';
+
+const $ = id => document.getElementById(id);
+const cssTrack = id => `var(--${id})`;
+const escapeHtml = value => String(value)
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#39;');
+
+function phasePath(phase, file) {
+  return `notes/workspace-poc/${phase.slug}/${file}`;
+}
+
+function phaseSources(phase) {
+  const sources = [
+    ['SUMMARY.md', phasePath(phase, 'SUMMARY.md')],
+    ['VERIFY.md', phasePath(phase, 'VERIFY.md')],
+    ['MANUAL_TEST.md', phasePath(phase, 'MANUAL_TEST.md')]
+  ];
+  if (phase.type === 'Research') sources.splice(1, 0, ['DECISION.md', phasePath(phase, 'DECISION.md')]);
+  return sources;
+}
+
+function renderFilters() {
+  $('trackFilters').innerHTML = tracks.map(track => (
+    `<button class="chip ${selectedTrack === track.id ? 'active' : ''}" data-track="${track.id}">${track.label}</button>`
+  )).join('');
+  $('typeFilters').innerHTML = typeFilters.map(type => (
+    `<button class="chip ${selectedType === type ? 'active' : ''}" data-type="${type}">${type}</button>`
+  )).join('');
+
+  document.querySelectorAll('[data-track]').forEach(button => {
+    button.addEventListener('click', () => {
+      selectedTrack = button.dataset.track;
+      render();
+    });
+  });
+  document.querySelectorAll('[data-type]').forEach(button => {
+    button.addEventListener('click', () => {
+      selectedType = button.dataset.type;
+      render();
+    });
+  });
+}
+
+function getFilteredPhases() {
+  const query = $('search').value.trim().toLowerCase();
+  return phases.filter(phase => {
+    const trackOk = selectedTrack === 'all' || phase.track === selectedTrack;
+    const typeOk = selectedType === 'All' || phase.type === selectedType;
+    const text = [
+      phase.n.toString().padStart(2, '0'),
+      phase.name,
+      phase.type,
+      phase.track,
+      phase.outcome,
+      phase.summary,
+      phase.why,
+      ...phase.changed,
+      ...phase.guardrails,
+      ...phase.evidence
+    ].join(' ').toLowerCase();
+    return trackOk && typeOk && (!query || text.includes(query));
+  });
+}
+
+function renderPhaseList() {
+  const filtered = getFilteredPhases();
+  if (!filtered.includes(selectedPhase) && filtered.length > 0) {
+    selectedPhase = filtered[0];
+  }
+  $('phaseList').innerHTML = filtered.length
+    ? filtered.map(phase => `
+      <button class="phase-button ${selectedPhase === phase ? 'active' : ''}" data-phase="${phase.n}">
+        <span class="phase-no">${String(phase.n).padStart(2, '0')}</span>
+        <span>
+          <span class="phase-name">${escapeHtml(phase.name)}</span>
+          <span class="phase-meta">${escapeHtml(trackLabel(phase.track))} · ${escapeHtml(phase.outcome)}</span>
+        </span>
+        <span class="type-pill type-${phase.type}">${phase.type}</span>
+      </button>
+    `).join('')
+    : '<div class="empty">No phases match the current filters.</div>';
+
+  document.querySelectorAll('[data-phase]').forEach(button => {
+    button.addEventListener('click', () => {
+      selectedPhase = phases.find(phase => phase.n === Number(button.dataset.phase));
+      render();
+    });
+  });
+}
+
+function renderTimeline() {
+  $('phaseTimeline').innerHTML = phases.map(phase => `
+    <button
+      class="timeline-phase ${selectedPhase === phase ? 'active' : ''}"
+      data-timeline-phase="${phase.n}"
+      title="Phase ${String(phase.n).padStart(2, '0')} - ${escapeHtml(phase.name)}"
+      style="border-top: 4px solid ${cssTrack(phase.track)}"
+    >
+      <span class="num">${String(phase.n).padStart(2, '0')}</span>
+      <span class="kind">${phase.type}</span>
+    </button>
+  `).join('');
+
+  document.querySelectorAll('[data-timeline-phase]').forEach(button => {
+    button.addEventListener('click', () => {
+      selectedPhase = phases.find(phase => phase.n === Number(button.dataset.timelinePhase));
+      render();
+    });
+  });
+}
+
+function trackLabel(trackId) {
+  const match = tracks.find(track => track.id === trackId);
+  return match ? match.label : trackId;
+}
+
+function renderSelectedPhase() {
+  const phase = selectedPhase;
+  $('phaseTitle').textContent = `Phase ${String(phase.n).padStart(2, '0')} - ${phase.name}`;
+  $('phaseSubtitle').textContent = `${phase.type} phase · ${trackLabel(phase.track)} stream`;
+  $('phaseType').textContent = phase.type;
+  $('phaseType').className = `type-pill type-${phase.type}`;
+  $('phaseSummary').textContent = phase.summary;
+  $('phaseWhy').textContent = phase.why;
+  $('phaseOutcome').textContent = phase.outcome;
+  $('phaseTrack').textContent = trackLabel(phase.track);
+  $('phaseEvidenceShort').textContent = phase.evidence[0];
+  $('changedList').innerHTML = phase.changed.map(item => `<li>${escapeHtml(item)}</li>`).join('');
+  $('guardrailList').innerHTML = phase.guardrails.map(item => `<li>${escapeHtml(item)}</li>`).join('');
+  $('evidenceList').innerHTML = phase.evidence.map(item => `<li>${escapeHtml(item)}</li>`).join('');
+  $('riskList').innerHTML = phase.risks.map(item => `<li>${escapeHtml(item)}</li>`).join('');
+  $('sourceLinks').innerHTML = phaseSources(phase).map(([label, href]) => `<a href="${href}">${label}</a>`).join('');
+  renderWorkflow();
+  renderTrees();
+  renderCapabilities();
+}
+
+function renderWorkflow() {
+  $('workflowFlow').innerHTML = workflow.map(step => {
+    const active = selectedPhase.workflow.includes(step.id);
+    return `
+      <div class="flow-step ${active ? 'active' : ''}">
+        <span class="k">${step.id}</span>
+        <b>${step.label}</b>
+        <p>${step.text}</p>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderCapabilities() {
+  $('capabilityStack').innerHTML = capabilities.map(cap => {
+    const active = selectedPhase.track === cap.id;
+    return `
+      <div class="layer ${active ? 'active' : ''}">
+        <div>
+          <span class="dot" style="background:${cssTrack(cap.id)}"></span>
+        </div>
+        <div>
+          <b>${cap.title}</b>
+          <p>${cap.text}</p>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderTrees() {
+  const workspaceHot = new Set();
+  const repoHot = new Set();
+  if (selectedPhase.n <= 4) {
+    workspaceHot.add('.openspec/');
+    workspaceHot.add('  workspace.yaml');
+    workspaceHot.add('  local.yaml');
+  }
+  if (selectedPhase.n >= 5) {
+    workspaceHot.add('changes/');
+    workspaceHot.add('  <change>/');
+    workspaceHot.add('    .openspec.yaml');
+    workspaceHot.add('    targets/<alias>/tasks.md');
+  }
+  if (selectedPhase.n >= 10 && selectedPhase.n <= 12) {
+    repoHot.add('    <change>/');
+    repoHot.add('      .openspec.materialization.yaml');
+    repoHot.add('      tasks.md');
+  }
+  if (selectedPhase.n >= 13 && selectedPhase.n <= 17) {
+    workspaceHot.add('    tasks/coordination.md');
+    repoHot.add('      tasks.md');
+  }
+  if (selectedPhase.n >= 21) {
+    workspaceHot.add('  workspace.yaml');
+  }
+  if (selectedPhase.n >= 23) {
+    workspaceHot.add('    targets/<alias>/tasks.md');
+    workspaceHot.add('    targets/<alias>/specs/...');
+  }
+
+  $('workspaceTree').innerHTML = baseWorkspaceTree.map(line => (
+    `<div class="tree-line ${workspaceHot.has(line) ? 'hot' : ''}">${line}</div>`
+  )).join('');
+  $('repoTree').innerHTML = baseRepoTree.map(line => (
+    `<div class="tree-line ${repoHot.has(line) ? 'hot' : ''}">${line}</div>`
+  )).join('');
+}
+
+function renderTabs() {
+  document.querySelectorAll('.tab').forEach(button => {
+    button.classList.toggle('active', button.dataset.view === selectedView);
+    button.onclick = () => {
+      selectedView = button.dataset.view;
+      renderView();
+      renderTabs();
+    };
+  });
+}
+
+function renderView() {
+  $('storyView').hidden = selectedView !== 'story';
+  $('evidenceView').hidden = selectedView !== 'evidence';
+  $('modelView').hidden = selectedView !== 'model';
+}
+
+function render() {
+  renderFilters();
+  renderPhaseList();
+  renderTimeline();
+  renderSelectedPhase();
+  renderView();
+  renderTabs();
+}
+
+$('search').addEventListener('input', render);
+try {
+  render();
+} catch (error) {
+  const message = error && error.message ? error.message : String(error);
+  $('phaseList').innerHTML = `<div class="empty">Render error: ${escapeHtml(message)}</div>`;
+  $('phaseTimeline').innerHTML = `<div class="empty">Render error: ${escapeHtml(message)}</div>`;
+}
+</script>
+</body>
+</html>

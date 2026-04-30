@@ -16,16 +16,19 @@ import { CompletionCommand } from '../commands/completion.js';
 import { FeedbackCommand } from '../commands/feedback.js';
 import { registerConfigCommand } from '../commands/config.js';
 import { registerSchemaCommand } from '../commands/schema.js';
+import { registerWorkspaceCommand } from '../commands/workspace.js';
 import {
   statusCommand,
   instructionsCommand,
   applyInstructionsCommand,
+  applyCommand,
   templatesCommand,
   schemasCommand,
   newChangeCommand,
   DEFAULT_SCHEMA,
   type StatusOptions,
   type InstructionsOptions,
+  type ApplyCommandOptions,
   type TemplatesOptions,
   type SchemasOptions,
   type NewChangeOptions,
@@ -267,11 +270,12 @@ changeCmd
 
 program
   .command('archive [change-name]')
-  .description('Archive a completed change and update main specs')
+  .description('Archive a completed repo-local change, or explicitly mark a workspace change hard-done')
   .option('-y, --yes', 'Skip confirmation prompts')
   .option('--skip-specs', 'Skip spec update operations (useful for infrastructure, tooling, or doc-only changes)')
   .option('--no-validate', 'Skip validation (not recommended, requires confirmation)')
-  .action(async (changeName?: string, options?: { yes?: boolean; skipSpecs?: boolean; noValidate?: boolean; validate?: boolean }) => {
+  .option('--workspace', 'Archive a targeted workspace change at the workspace level without touching repo-local specs')
+  .action(async (changeName?: string, options?: { yes?: boolean; skipSpecs?: boolean; noValidate?: boolean; validate?: boolean; workspace?: boolean }) => {
     try {
       const archiveCommand = new ArchiveCommand();
       await archiveCommand.execute(changeName, options);
@@ -285,6 +289,7 @@ program
 registerSpecCommand(program);
 registerConfigCommand(program);
 registerSchemaCommand(program);
+registerWorkspaceCommand(program);
 
 // Top-level validate command
 program
@@ -458,6 +463,29 @@ program
     }
   });
 
+// Apply command
+program
+  .command('apply')
+  .description('Materialize a targeted workspace change into the selected repo')
+  .option('--change <id>', 'Workspace change name')
+  .option('--repo <alias>', 'Workspace repo alias to materialize into')
+  .option('--json', 'Output as JSON')
+  .action(async (options: ApplyCommandOptions) => {
+    try {
+      await applyCommand(options);
+    } catch (error) {
+      if (options.json) {
+        console.error(JSON.stringify({ error: (error as Error).message }, null, 2));
+        process.exit(1);
+        return;
+      }
+
+      console.log();
+      ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
 // Templates command
 program
   .command('templates')
@@ -495,8 +523,9 @@ const newCmd = program.command('new').description('Create new items');
 newCmd
   .command('change <name>')
   .description('Create a new change directory')
-  .option('--description <text>', 'Description to add to README.md')
+  .option('--description <text>', 'Description to seed the initial change artifact')
   .option('--schema <name>', `Workflow schema to use (default: ${DEFAULT_SCHEMA})`)
+  .option('--targets <aliases>', 'Comma-separated workspace repo aliases for a workspace change')
   .action(async (name: string, options: NewChangeOptions) => {
     try {
       await newChangeCommand(name, options);

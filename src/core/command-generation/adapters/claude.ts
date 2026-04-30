@@ -37,6 +37,9 @@ function formatTagsArray(tags: string[]): string {
  */
 export const claudeAdapter: ToolCommandAdapter = {
   toolId: 'claude',
+  capabilities: {
+    supportsWorkspaceOpen: true,
+  },
 
   getFilePath(commandId: string): string {
     return path.join('.claude', 'commands', 'opsx', `${commandId}.md`);

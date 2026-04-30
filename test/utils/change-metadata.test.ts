@@ -18,11 +18,15 @@ describe('ChangeMetadataSchema', () => {
       const result = ChangeMetadataSchema.safeParse({
         schema: 'spec-driven',
         created: '2025-01-05',
+        targets: ['app', 'api'],
+        workspaceArchivedAt: '2026-04-17T06:00:00.000Z',
       });
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.schema).toBe('spec-driven');
         expect(result.data.created).toBe('2025-01-05');
+        expect(result.data.targets).toEqual(['app', 'api']);
+        expect(result.data.workspaceArchivedAt).toBe('2026-04-17T06:00:00.000Z');
       }
     });
 
@@ -68,6 +72,14 @@ describe('ChangeMetadataSchema', () => {
       });
       expect(result.success).toBe(false);
     });
+
+    it('should reject duplicate targets', () => {
+      const result = ChangeMetadataSchema.safeParse({
+        schema: 'spec-driven',
+        targets: ['app', 'app'],
+      });
+      expect(result.success).toBe(false);
+    });
   });
 });
 
@@ -89,6 +101,8 @@ describe('writeChangeMetadata', () => {
     writeChangeMetadata(changeDir, {
       schema: 'spec-driven',
       created: '2025-01-05',
+      targets: ['app', 'api'],
+      workspaceArchivedAt: '2026-04-17T06:00:00.000Z',
     });
 
     const metaPath = path.join(changeDir, '.openspec.yaml');
@@ -96,6 +110,9 @@ describe('writeChangeMetadata', () => {
 
     expect(content).toContain('schema: spec-driven');
     expect(content).toContain('created: 2025-01-05');
+    expect(content).toContain('- app');
+    expect(content).toContain('- api');
+    expect(content).toContain('workspaceArchivedAt: 2026-04-17T06:00:00.000Z');
   });
 
   it('should throw error for unknown schema', () => {
@@ -131,7 +148,7 @@ describe('readChangeMetadata', () => {
     const metaPath = path.join(changeDir, '.openspec.yaml');
     await fs.writeFile(
       metaPath,
-      'schema: spec-driven\ncreated: "2025-01-05"\n',
+      'schema: spec-driven\ncreated: "2025-01-05"\ntargets:\n  - app\n  - api\nworkspaceArchivedAt: "2026-04-17T06:00:00.000Z"\n',
       'utf-8'
     );
 
@@ -139,6 +156,8 @@ describe('readChangeMetadata', () => {
     expect(result).toEqual({
       schema: 'spec-driven',
       created: '2025-01-05',
+      targets: ['app', 'api'],
+      workspaceArchivedAt: '2026-04-17T06:00:00.000Z',
     });
   });
 

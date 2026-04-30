@@ -1,0 +1,9 @@
+version: 1
+name: dirty-workspace
+repos:
+  app:
+    description: Application repo
+  api:
+    description: API repo
+  docs:
+    description: Docs repo with a stale local overlay entry
