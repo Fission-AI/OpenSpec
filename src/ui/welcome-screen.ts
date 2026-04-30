@@ -4,6 +4,7 @@
  */
 
 import chalk from 'chalk';
+import { UI_MESSAGES } from '../messages/index.js';
 import { WELCOME_ANIMATION } from './ascii-patterns.js';
 
 // Minimum terminal width for side-by-side layout
@@ -17,19 +18,19 @@ const ART_COLUMN_WIDTH = 24;
  */
 function getWelcomeText(): string[] {
   return [
-    chalk.white.bold('Welcome to OpenSpec'),
-    chalk.dim('A lightweight spec-driven framework'),
+    chalk.white.bold(UI_MESSAGES.welcomeTitle),
+    chalk.dim(UI_MESSAGES.welcomeSubtitle),
     '',
-    chalk.white('This setup will configure:'),
-    chalk.dim('  • Agent Skills for AI tools'),
-    chalk.dim('  • /opsx:* slash commands'),
+    chalk.white(UI_MESSAGES.setupWillConfigure),
+    chalk.dim(UI_MESSAGES.agentSkills),
+    chalk.dim(UI_MESSAGES.slashCommands),
     '',
-    chalk.white('Quick start after setup:'),
-    `  ${chalk.yellow('/opsx:new')}      ${chalk.dim('Create a change')}`,
-    `  ${chalk.yellow('/opsx:continue')} ${chalk.dim('Next artifact')}`,
-    `  ${chalk.yellow('/opsx:apply')}    ${chalk.dim('Implement tasks')}`,
+    chalk.white(UI_MESSAGES.quickStart),
+    `  ${chalk.yellow('/opsx:new')}      ${chalk.dim(UI_MESSAGES.cmdNewChange)}`,
+    `  ${chalk.yellow('/opsx:continue')} ${chalk.dim(UI_MESSAGES.cmdContinue)}`,
+    `  ${chalk.yellow('/opsx:apply')}    ${chalk.dim(UI_MESSAGES.cmdApply)}`,
     '',
-    chalk.cyan('Press Enter to select tools...'),
+    chalk.cyan(UI_MESSAGES.pressEnter),
   ];
 }
 

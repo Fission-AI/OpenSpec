@@ -9,244 +9,244 @@ import type { SkillTemplate, CommandTemplate } from '../types.js';
 export function getBulkArchiveChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-bulk-archive-change',
-    description: 'Archive multiple completed changes at once. Use when archiving several parallel changes.',
-    instructions: `Archive multiple completed changes in a single operation.
+    description: 'Arquiva múltiplas changes concluídas de uma vez. Use ao arquivar várias changes paralelas.',
+    instructions: `Arquiva múltiplas changes concluídas em uma única operação.
 
-This skill allows you to batch-archive changes, handling spec conflicts intelligently by checking the codebase to determine what's actually implemented.
+Esta skill permite arquivar changes em lote, tratando conflitos de specs de forma inteligente verificando a codebase para determinar o que está realmente implementado.
 
-**Input**: None required (prompts for selection)
+**Entrada**: Nenhuma necessária (solicita seleção)
 
-**Steps**
+**Passos**
 
-1. **Get active changes**
+1. **Obtenha as changes ativas**
 
-   Run \`openspec list --json\` to get all active changes.
+   Execute \`openspec list --json\` para obter todas as changes ativas.
 
-   If no active changes exist, inform user and stop.
+   Se não existirem changes ativas, informe o usuário e pare.
 
-2. **Prompt for change selection**
+2. **Solicite a seleção de changes**
 
-   Use **AskUserQuestion tool** with multi-select to let user choose changes:
-   - Show each change with its schema
-   - Include an option for "All changes"
-   - Allow any number of selections (1+ works, 2+ is the typical use case)
+   Use a ferramenta **AskUserQuestion** com multi-seleção para permitir que o usuário escolha as changes:
+   - Mostre cada change com seu schema
+   - Inclua uma opção para "Todas as changes"
+   - Permita qualquer número de seleções (1+ funciona, 2+ é o caso típico)
 
-   **IMPORTANT**: Do NOT auto-select. Always let the user choose.
+   **IMPORTANTE**: NÃO selecione automaticamente. Sempre deixe o usuário escolher.
 
-3. **Batch validation - gather status for all selected changes**
+3. **Validação em lote - colete o status de todas as changes selecionadas**
 
-   For each selected change, collect:
+   Para cada change selecionada, colete:
 
-   a. **Artifact status** - Run \`openspec status --change "<name>" --json\`
-      - Parse \`schemaName\` and \`artifacts\` list
-      - Note which artifacts are \`done\` vs other states
+   a. **Status dos artifacts** - Execute \`openspec status --change "<nome>" --json\`
+      - Analise \`schemaName\` e lista de \`artifacts\`
+      - Note quais artifacts estão \`done\` vs outros estados
 
-   b. **Task completion** - Read \`openspec/changes/<name>/tasks.md\`
-      - Count \`- [ ]\` (incomplete) vs \`- [x]\` (complete)
-      - If no tasks file exists, note as "No tasks"
+   b. **Conclusão de tarefas** - Leia \`openspec/changes/<nome>/tasks.md\`
+      - Conte \`- [ ]\` (incompleto) vs \`- [x]\` (concluído)
+      - Se não existir arquivo de tasks, note como "Sem tarefas"
 
-   c. **Delta specs** - Check \`openspec/changes/<name>/specs/\` directory
-      - List which capability specs exist
-      - For each, extract requirement names (lines matching \`### Requirement: <name>\`)
+   c. **Delta specs** - Verifique o diretório \`openspec/changes/<nome>/specs/\`
+      - Liste quais capability specs existem
+      - Para cada um, extraia os nomes dos requisitos (linhas correspondentes a \`### Requirement: <nome>\`)
 
-4. **Detect spec conflicts**
+4. **Detecte conflitos de specs**
 
-   Build a map of \`capability -> [changes that touch it]\`:
-
-   \`\`\`
-   auth -> [change-a, change-b]  <- CONFLICT (2+ changes)
-   api  -> [change-c]            <- OK (only 1 change)
-   \`\`\`
-
-   A conflict exists when 2+ selected changes have delta specs for the same capability.
-
-5. **Resolve conflicts agentically**
-
-   **For each conflict**, investigate the codebase:
-
-   a. **Read the delta specs** from each conflicting change to understand what each claims to add/modify
-
-   b. **Search the codebase** for implementation evidence:
-      - Look for code implementing requirements from each delta spec
-      - Check for related files, functions, or tests
-
-   c. **Determine resolution**:
-      - If only one change is actually implemented -> sync that one's specs
-      - If both implemented -> apply in chronological order (older first, newer overwrites)
-      - If neither implemented -> skip spec sync, warn user
-
-   d. **Record resolution** for each conflict:
-      - Which change's specs to apply
-      - In what order (if both)
-      - Rationale (what was found in codebase)
-
-6. **Show consolidated status table**
-
-   Display a table summarizing all changes:
+   Construa um mapa de \`capability -> [changes que a tocam]\`:
 
    \`\`\`
-   | Change              | Artifacts | Tasks | Specs   | Conflicts | Status |
-   |---------------------|-----------|-------|---------|-----------|--------|
-   | schema-management   | Done      | 5/5   | 2 delta | None      | Ready  |
-   | project-config      | Done      | 3/3   | 1 delta | None      | Ready  |
-   | add-oauth           | Done      | 4/4   | 1 delta | auth (!)  | Ready* |
-   | add-verify-skill    | 1 left    | 2/5   | None    | None      | Warn   |
+   auth -> [change-a, change-b]  <- CONFLITO (2+ changes)
+   api  -> [change-c]            <- OK (apenas 1 change)
    \`\`\`
 
-   For conflicts, show the resolution:
+   Um conflito existe quando 2+ changes selecionadas têm delta specs para a mesma capability.
+
+5. **Resolva conflitos de forma agentica**
+
+   **Para cada conflito**, investigue a codebase:
+
+   a. **Leia os delta specs** de cada change conflitante para entender o que cada uma pretende adicionar/modificar
+
+   b. **Pesquise a codebase** por evidências de implementação:
+      - Procure por código implementando requisitos de cada delta spec
+      - Verifique arquivos, funções ou testes relacionados
+
+   c. **Determine a resolução**:
+      - Se apenas uma change está realmente implementada -> sincronize os specs dessa
+      - Se ambas estão implementadas -> aplique em ordem cronológica (mais antiga primeiro, mais recente sobrescreve)
+      - Se nenhuma está implementada -> ignore o sync de specs, avise o usuário
+
+   d. **Registre a resolução** para cada conflito:
+      - Quais specs de qual change aplicar
+      - Em qual ordem (se ambas)
+      - Racional (o que foi encontrado na codebase)
+
+6. **Mostre a tabela de status consolidada**
+
+   Exiba uma tabela resumindo todas as changes:
+
    \`\`\`
-   * Conflict resolution:
-     - auth spec: Will apply add-oauth then add-jwt (both implemented, chronological order)
+   | Change              | Artifacts | Tarefas | Specs   | Conflitos | Status |
+   |---------------------|-----------|---------|---------|-----------|--------|
+   | schema-management   | Done      | 5/5     | 2 delta | Nenhum    | Pronto |
+   | project-config      | Done      | 3/3     | 1 delta | Nenhum    | Pronto |
+   | add-oauth           | Done      | 4/4     | 1 delta | auth (!)  | Pronto*|
+   | add-verify-skill    | 1 restante| 2/5     | Nenhum  | Nenhum    | Aviso  |
    \`\`\`
 
-   For incomplete changes, show warnings:
+   Para conflitos, mostre a resolução:
    \`\`\`
-   Warnings:
-   - add-verify-skill: 1 incomplete artifact, 3 incomplete tasks
+   * Resolução de conflito:
+     - auth spec: Aplicará add-oauth depois add-jwt (ambas implementadas, ordem cronológica)
    \`\`\`
 
-7. **Confirm batch operation**
+   Para changes incompletas, mostre avisos:
+   \`\`\`
+   Avisos:
+   - add-verify-skill: 1 artifact incompleto, 3 tarefas incompletas
+   \`\`\`
 
-   Use **AskUserQuestion tool** with a single confirmation:
+7. **Confirme a operação em lote**
 
-   - "Archive N changes?" with options based on status
-   - Options might include:
-     - "Archive all N changes"
-     - "Archive only N ready changes (skip incomplete)"
-     - "Cancel"
+   Use a ferramenta **AskUserQuestion** com uma única confirmação:
 
-   If there are incomplete changes, make clear they'll be archived with warnings.
+   - "Arquivar N changes?" com opções baseadas no status
+   - As opções podem incluir:
+     - "Arquivar todas as N changes"
+     - "Arquivar apenas as N changes prontas (ignorar incompletas)"
+     - "Cancelar"
 
-8. **Execute archive for each confirmed change**
+   Se houver changes incompletas, deixe claro que elas serão arquivadas com avisos.
 
-   Process changes in the determined order (respecting conflict resolution):
+8. **Execute o arquivamento para cada change confirmada**
 
-   a. **Sync specs** if delta specs exist:
-      - Use the openspec-sync-specs approach (agent-driven intelligent merge)
-      - For conflicts, apply in resolved order
-      - Track if sync was done
+   Processe as changes na ordem determinada (respeitando a resolução de conflitos):
 
-   b. **Perform the archive**:
+   a. **Sincronize specs** se delta specs existirem:
+      - Use a abordagem openspec-sync-specs (merge inteligente agent-driven)
+      - Para conflitos, aplique na ordem resolvida
+      - Rastreie se o sync foi feito
+
+   b. **Realize o arquivamento**:
       \`\`\`bash
       mkdir -p openspec/changes/archive
-      mv openspec/changes/<name> openspec/changes/archive/YYYY-MM-DD-<name>
+      mv openspec/changes/<nome> openspec/changes/archive/YYYY-MM-DD-<nome>
       \`\`\`
 
-   c. **Track outcome** for each change:
-      - Success: archived successfully
-      - Failed: error during archive (record error)
-      - Skipped: user chose not to archive (if applicable)
+   c. **Rastreie o resultado** para cada change:
+      - Sucesso: arquivado com sucesso
+      - Falha: erro durante o arquivamento (registre o erro)
+      - Ignorado: usuário escolheu não arquivar (se aplicável)
 
-9. **Display summary**
+9. **Exiba o resumo**
 
-   Show final results:
+   Mostre os resultados finais:
 
    \`\`\`
-   ## Bulk Archive Complete
+   ## Arquivamento em Lote Concluído
 
-   Archived 3 changes:
+   3 changes arquivadas:
    - schema-management-cli -> archive/2026-01-19-schema-management-cli/
    - project-config -> archive/2026-01-19-project-config/
    - add-oauth -> archive/2026-01-19-add-oauth/
 
-   Skipped 1 change:
-   - add-verify-skill (user chose not to archive incomplete)
+   1 change ignorada:
+   - add-verify-skill (usuário escolheu não arquivar incompleta)
 
-   Spec sync summary:
-   - 4 delta specs synced to main specs
-   - 1 conflict resolved (auth: applied both in chronological order)
+   Resumo de sync de specs:
+   - 4 delta specs sincronizados com os specs principais
+   - 1 conflito resolvido (auth: aplicadas ambas em ordem cronológica)
    \`\`\`
 
-   If any failures:
+   Se houver falhas:
    \`\`\`
-   Failed 1 change:
-   - some-change: Archive directory already exists
+   1 change falhou:
+   - some-change: O diretório de arquivo já existe
    \`\`\`
 
-**Conflict Resolution Examples**
+**Exemplos de Resolução de Conflitos**
 
-Example 1: Only one implemented
+Exemplo 1: Apenas uma implementada
 \`\`\`
-Conflict: specs/auth/spec.md touched by [add-oauth, add-jwt]
+Conflito: specs/auth/spec.md tocado por [add-oauth, add-jwt]
 
-Checking add-oauth:
-- Delta adds "OAuth Provider Integration" requirement
-- Searching codebase... found src/auth/oauth.ts implementing OAuth flow
+Verificando add-oauth:
+- Delta adiciona requisito "OAuth Provider Integration"
+- Pesquisando codebase... encontrado src/auth/oauth.ts implementando fluxo OAuth
 
-Checking add-jwt:
-- Delta adds "JWT Token Handling" requirement
-- Searching codebase... no JWT implementation found
+Verificando add-jwt:
+- Delta adiciona requisito "JWT Token Handling"
+- Pesquisando codebase... nenhuma implementação JWT encontrada
 
-Resolution: Only add-oauth is implemented. Will sync add-oauth specs only.
-\`\`\`
-
-Example 2: Both implemented
-\`\`\`
-Conflict: specs/api/spec.md touched by [add-rest-api, add-graphql]
-
-Checking add-rest-api (created 2026-01-10):
-- Delta adds "REST Endpoints" requirement
-- Searching codebase... found src/api/rest.ts
-
-Checking add-graphql (created 2026-01-15):
-- Delta adds "GraphQL Schema" requirement
-- Searching codebase... found src/api/graphql.ts
-
-Resolution: Both implemented. Will apply add-rest-api specs first,
-then add-graphql specs (chronological order, newer takes precedence).
+Resolução: Apenas add-oauth está implementada. Sincronizará apenas os specs de add-oauth.
 \`\`\`
 
-**Output On Success**
+Exemplo 2: Ambas implementadas
+\`\`\`
+Conflito: specs/api/spec.md tocado por [add-rest-api, add-graphql]
+
+Verificando add-rest-api (criada 2026-01-10):
+- Delta adiciona requisito "REST Endpoints"
+- Pesquisando codebase... encontrado src/api/rest.ts
+
+Verificando add-graphql (criada 2026-01-15):
+- Delta adiciona requisito "GraphQL Schema"
+- Pesquisando codebase... encontrado src/api/graphql.ts
+
+Resolução: Ambas implementadas. Aplicará specs de add-rest-api primeiro,
+depois specs de add-graphql (ordem cronológica, mais recente tem precedência).
+\`\`\`
+
+**Saída em Sucesso**
 
 \`\`\`
-## Bulk Archive Complete
+## Arquivamento em Lote Concluído
 
-Archived N changes:
+N changes arquivadas:
 - <change-1> -> archive/YYYY-MM-DD-<change-1>/
 - <change-2> -> archive/YYYY-MM-DD-<change-2>/
 
-Spec sync summary:
-- N delta specs synced to main specs
-- No conflicts (or: M conflicts resolved)
+Resumo de sync de specs:
+- N delta specs sincronizados com os specs principais
+- Nenhum conflito (ou: M conflitos resolvidos)
 \`\`\`
 
-**Output On Partial Success**
+**Saída em Sucesso Parcial**
 
 \`\`\`
-## Bulk Archive Complete (partial)
+## Arquivamento em Lote Concluído (parcial)
 
-Archived N changes:
+N changes arquivadas:
 - <change-1> -> archive/YYYY-MM-DD-<change-1>/
 
-Skipped M changes:
-- <change-2> (user chose not to archive incomplete)
+M changes ignoradas:
+- <change-2> (usuário escolheu não arquivar incompleta)
 
-Failed K changes:
-- <change-3>: Archive directory already exists
+K changes falharam:
+- <change-3>: O diretório de arquivo já existe
 \`\`\`
 
-**Output When No Changes**
+**Saída Quando Não Há Changes**
 
 \`\`\`
-## No Changes to Archive
+## Nenhuma Change para Arquivar
 
-No active changes found. Create a new change to get started.
+Nenhuma change ativa encontrada. Crie uma nova change para começar.
 \`\`\`
 
 **Guardrails**
-- Allow any number of changes (1+ is fine, 2+ is the typical use case)
-- Always prompt for selection, never auto-select
-- Detect spec conflicts early and resolve by checking codebase
-- When both changes are implemented, apply specs in chronological order
-- Skip spec sync only when implementation is missing (warn user)
-- Show clear per-change status before confirming
-- Use single confirmation for entire batch
-- Track and report all outcomes (success/skip/fail)
-- Preserve .openspec.yaml when moving to archive
-- Archive directory target uses current date: YYYY-MM-DD-<name>
-- If archive target exists, fail that change but continue with others`,
+- Permita qualquer número de changes (1+ está ok, 2+ é o caso típico)
+- Sempre solicite seleção, nunca selecione automaticamente
+- Detecte conflitos de specs cedo e resolva verificando a codebase
+- Quando ambas as changes estiverem implementadas, aplique specs em ordem cronológica
+- Ignore o sync de specs apenas quando a implementação estiver ausente (avise o usuário)
+- Mostre o status claro por change antes de confirmar
+- Use uma única confirmação para todo o lote
+- Rastreie e reporte todos os resultados (sucesso/ignorado/falha)
+- Preservar .openspec.yaml ao mover para o arquivo
+- O diretório de destino do arquivo usa a data atual: YYYY-MM-DD-<nome>
+- Se o destino do arquivo existir, falhe aquela change mas continue com as outras`,
     license: 'MIT',
-    compatibility: 'Requires openspec CLI.',
+    compatibility: 'Requer openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
   };
 }
@@ -254,243 +254,243 @@ No active changes found. Create a new change to get started.
 export function getOpsxBulkArchiveCommandTemplate(): CommandTemplate {
   return {
     name: 'OPSX: Bulk Archive',
-    description: 'Archive multiple completed changes at once',
+    description: 'Arquiva múltiplas changes concluídas de uma vez',
     category: 'Workflow',
     tags: ['workflow', 'archive', 'experimental', 'bulk'],
-    content: `Archive multiple completed changes in a single operation.
+    content: `Arquiva múltiplas changes concluídas em uma única operação.
 
-This skill allows you to batch-archive changes, handling spec conflicts intelligently by checking the codebase to determine what's actually implemented.
+Esta skill permite arquivar changes em lote, tratando conflitos de specs de forma inteligente verificando a codebase para determinar o que está realmente implementado.
 
-**Input**: None required (prompts for selection)
+**Entrada**: Nenhuma necessária (solicita seleção)
 
-**Steps**
+**Passos**
 
-1. **Get active changes**
+1. **Obtenha as changes ativas**
 
-   Run \`openspec list --json\` to get all active changes.
+   Execute \`openspec list --json\` para obter todas as changes ativas.
 
-   If no active changes exist, inform user and stop.
+   Se não existirem changes ativas, informe o usuário e pare.
 
-2. **Prompt for change selection**
+2. **Solicite a seleção de changes**
 
-   Use **AskUserQuestion tool** with multi-select to let user choose changes:
-   - Show each change with its schema
-   - Include an option for "All changes"
-   - Allow any number of selections (1+ works, 2+ is the typical use case)
+   Use a ferramenta **AskUserQuestion** com multi-seleção para permitir que o usuário escolha as changes:
+   - Mostre cada change com seu schema
+   - Inclua uma opção para "Todas as changes"
+   - Permita qualquer número de seleções (1+ funciona, 2+ é o caso típico)
 
-   **IMPORTANT**: Do NOT auto-select. Always let the user choose.
+   **IMPORTANTE**: NÃO selecione automaticamente. Sempre deixe o usuário escolher.
 
-3. **Batch validation - gather status for all selected changes**
+3. **Validação em lote - colete o status de todas as changes selecionadas**
 
-   For each selected change, collect:
+   Para cada change selecionada, colete:
 
-   a. **Artifact status** - Run \`openspec status --change "<name>" --json\`
-      - Parse \`schemaName\` and \`artifacts\` list
-      - Note which artifacts are \`done\` vs other states
+   a. **Status dos artifacts** - Execute \`openspec status --change "<nome>" --json\`
+      - Analise \`schemaName\` e lista de \`artifacts\`
+      - Note quais artifacts estão \`done\` vs outros estados
 
-   b. **Task completion** - Read \`openspec/changes/<name>/tasks.md\`
-      - Count \`- [ ]\` (incomplete) vs \`- [x]\` (complete)
-      - If no tasks file exists, note as "No tasks"
+   b. **Conclusão de tarefas** - Leia \`openspec/changes/<nome>/tasks.md\`
+      - Conte \`- [ ]\` (incompleto) vs \`- [x]\` (concluído)
+      - Se não existir arquivo de tasks, note como "Sem tarefas"
 
-   c. **Delta specs** - Check \`openspec/changes/<name>/specs/\` directory
-      - List which capability specs exist
-      - For each, extract requirement names (lines matching \`### Requirement: <name>\`)
+   c. **Delta specs** - Verifique o diretório \`openspec/changes/<nome>/specs/\`
+      - Liste quais capability specs existem
+      - Para cada um, extraia os nomes dos requisitos (linhas correspondentes a \`### Requirement: <nome>\`)
 
-4. **Detect spec conflicts**
+4. **Detecte conflitos de specs**
 
-   Build a map of \`capability -> [changes that touch it]\`:
-
-   \`\`\`
-   auth -> [change-a, change-b]  <- CONFLICT (2+ changes)
-   api  -> [change-c]            <- OK (only 1 change)
-   \`\`\`
-
-   A conflict exists when 2+ selected changes have delta specs for the same capability.
-
-5. **Resolve conflicts agentically**
-
-   **For each conflict**, investigate the codebase:
-
-   a. **Read the delta specs** from each conflicting change to understand what each claims to add/modify
-
-   b. **Search the codebase** for implementation evidence:
-      - Look for code implementing requirements from each delta spec
-      - Check for related files, functions, or tests
-
-   c. **Determine resolution**:
-      - If only one change is actually implemented -> sync that one's specs
-      - If both implemented -> apply in chronological order (older first, newer overwrites)
-      - If neither implemented -> skip spec sync, warn user
-
-   d. **Record resolution** for each conflict:
-      - Which change's specs to apply
-      - In what order (if both)
-      - Rationale (what was found in codebase)
-
-6. **Show consolidated status table**
-
-   Display a table summarizing all changes:
+   Construa um mapa de \`capability -> [changes que a tocam]\`:
 
    \`\`\`
-   | Change              | Artifacts | Tasks | Specs   | Conflicts | Status |
-   |---------------------|-----------|-------|---------|-----------|--------|
-   | schema-management   | Done      | 5/5   | 2 delta | None      | Ready  |
-   | project-config      | Done      | 3/3   | 1 delta | None      | Ready  |
-   | add-oauth           | Done      | 4/4   | 1 delta | auth (!)  | Ready* |
-   | add-verify-skill    | 1 left    | 2/5   | None    | None      | Warn   |
+   auth -> [change-a, change-b]  <- CONFLITO (2+ changes)
+   api  -> [change-c]            <- OK (apenas 1 change)
    \`\`\`
 
-   For conflicts, show the resolution:
+   Um conflito existe quando 2+ changes selecionadas têm delta specs para a mesma capability.
+
+5. **Resolva conflitos de forma agentica**
+
+   **Para cada conflito**, investigue a codebase:
+
+   a. **Leia os delta specs** de cada change conflitante para entender o que cada uma pretende adicionar/modificar
+
+   b. **Pesquise a codebase** por evidências de implementação:
+      - Procure por código implementando requisitos de cada delta spec
+      - Verifique arquivos, funções ou testes relacionados
+
+   c. **Determine a resolução**:
+      - Se apenas uma change está realmente implementada -> sincronize os specs dessa
+      - Se ambas estão implementadas -> aplique em ordem cronológica (mais antiga primeiro, mais recente sobrescreve)
+      - Se nenhuma está implementada -> ignore o sync de specs, avise o usuário
+
+   d. **Registre a resolução** para cada conflito:
+      - Quais specs de qual change aplicar
+      - Em qual ordem (se ambas)
+      - Racional (o que foi encontrado na codebase)
+
+6. **Mostre a tabela de status consolidada**
+
+   Exiba uma tabela resumindo todas as changes:
+
    \`\`\`
-   * Conflict resolution:
-     - auth spec: Will apply add-oauth then add-jwt (both implemented, chronological order)
+   | Change              | Artifacts | Tarefas | Specs   | Conflitos | Status |
+   |---------------------|-----------|---------|---------|-----------|--------|
+   | schema-management   | Done      | 5/5     | 2 delta | Nenhum    | Pronto |
+   | project-config      | Done      | 3/3     | 1 delta | Nenhum    | Pronto |
+   | add-oauth           | Done      | 4/4     | 1 delta | auth (!)  | Pronto*|
+   | add-verify-skill    | 1 restante| 2/5     | Nenhum  | Nenhum    | Aviso  |
    \`\`\`
 
-   For incomplete changes, show warnings:
+   Para conflitos, mostre a resolução:
    \`\`\`
-   Warnings:
-   - add-verify-skill: 1 incomplete artifact, 3 incomplete tasks
+   * Resolução de conflito:
+     - auth spec: Aplicará add-oauth depois add-jwt (ambas implementadas, ordem cronológica)
    \`\`\`
 
-7. **Confirm batch operation**
+   Para changes incompletas, mostre avisos:
+   \`\`\`
+   Avisos:
+   - add-verify-skill: 1 artifact incompleto, 3 tarefas incompletas
+   \`\`\`
 
-   Use **AskUserQuestion tool** with a single confirmation:
+7. **Confirme a operação em lote**
 
-   - "Archive N changes?" with options based on status
-   - Options might include:
-     - "Archive all N changes"
-     - "Archive only N ready changes (skip incomplete)"
-     - "Cancel"
+   Use a ferramenta **AskUserQuestion** com uma única confirmação:
 
-   If there are incomplete changes, make clear they'll be archived with warnings.
+   - "Arquivar N changes?" com opções baseadas no status
+   - As opções podem incluir:
+     - "Arquivar todas as N changes"
+     - "Arquivar apenas as N changes prontas (ignorar incompletas)"
+     - "Cancelar"
 
-8. **Execute archive for each confirmed change**
+   Se houver changes incompletas, deixe claro que elas serão arquivadas com avisos.
 
-   Process changes in the determined order (respecting conflict resolution):
+8. **Execute o arquivamento para cada change confirmada**
 
-   a. **Sync specs** if delta specs exist:
-      - Use the openspec-sync-specs approach (agent-driven intelligent merge)
-      - For conflicts, apply in resolved order
-      - Track if sync was done
+   Processe as changes na ordem determinada (respeitando a resolução de conflitos):
 
-   b. **Perform the archive**:
+   a. **Sincronize specs** se delta specs existirem:
+      - Use a abordagem openspec-sync-specs (merge inteligente agent-driven)
+      - Para conflitos, aplique na ordem resolvida
+      - Rastreie se o sync foi feito
+
+   b. **Realize o arquivamento**:
       \`\`\`bash
       mkdir -p openspec/changes/archive
-      mv openspec/changes/<name> openspec/changes/archive/YYYY-MM-DD-<name>
+      mv openspec/changes/<nome> openspec/changes/archive/YYYY-MM-DD-<nome>
       \`\`\`
 
-   c. **Track outcome** for each change:
-      - Success: archived successfully
-      - Failed: error during archive (record error)
-      - Skipped: user chose not to archive (if applicable)
+   c. **Rastreie o resultado** para cada change:
+      - Sucesso: arquivado com sucesso
+      - Falha: erro durante o arquivamento (registre o erro)
+      - Ignorado: usuário escolheu não arquivar (se aplicável)
 
-9. **Display summary**
+9. **Exiba o resumo**
 
-   Show final results:
+   Mostre os resultados finais:
 
    \`\`\`
-   ## Bulk Archive Complete
+   ## Arquivamento em Lote Concluído
 
-   Archived 3 changes:
+   3 changes arquivadas:
    - schema-management-cli -> archive/2026-01-19-schema-management-cli/
    - project-config -> archive/2026-01-19-project-config/
    - add-oauth -> archive/2026-01-19-add-oauth/
 
-   Skipped 1 change:
-   - add-verify-skill (user chose not to archive incomplete)
+   1 change ignorada:
+   - add-verify-skill (usuário escolheu não arquivar incompleta)
 
-   Spec sync summary:
-   - 4 delta specs synced to main specs
-   - 1 conflict resolved (auth: applied both in chronological order)
+   Resumo de sync de specs:
+   - 4 delta specs sincronizados com os specs principais
+   - 1 conflito resolvido (auth: aplicadas ambas em ordem cronológica)
    \`\`\`
 
-   If any failures:
+   Se houver falhas:
    \`\`\`
-   Failed 1 change:
-   - some-change: Archive directory already exists
+   1 change falhou:
+   - some-change: O diretório de arquivo já existe
    \`\`\`
 
-**Conflict Resolution Examples**
+**Exemplos de Resolução de Conflitos**
 
-Example 1: Only one implemented
+Exemplo 1: Apenas uma implementada
 \`\`\`
-Conflict: specs/auth/spec.md touched by [add-oauth, add-jwt]
+Conflito: specs/auth/spec.md tocado por [add-oauth, add-jwt]
 
-Checking add-oauth:
-- Delta adds "OAuth Provider Integration" requirement
-- Searching codebase... found src/auth/oauth.ts implementing OAuth flow
+Verificando add-oauth:
+- Delta adiciona requisito "OAuth Provider Integration"
+- Pesquisando codebase... encontrado src/auth/oauth.ts implementando fluxo OAuth
 
-Checking add-jwt:
-- Delta adds "JWT Token Handling" requirement
-- Searching codebase... no JWT implementation found
+Verificando add-jwt:
+- Delta adiciona requisito "JWT Token Handling"
+- Pesquisando codebase... nenhuma implementação JWT encontrada
 
-Resolution: Only add-oauth is implemented. Will sync add-oauth specs only.
-\`\`\`
-
-Example 2: Both implemented
-\`\`\`
-Conflict: specs/api/spec.md touched by [add-rest-api, add-graphql]
-
-Checking add-rest-api (created 2026-01-10):
-- Delta adds "REST Endpoints" requirement
-- Searching codebase... found src/api/rest.ts
-
-Checking add-graphql (created 2026-01-15):
-- Delta adds "GraphQL Schema" requirement
-- Searching codebase... found src/api/graphql.ts
-
-Resolution: Both implemented. Will apply add-rest-api specs first,
-then add-graphql specs (chronological order, newer takes precedence).
+Resolução: Apenas add-oauth está implementada. Sincronizará apenas os specs de add-oauth.
 \`\`\`
 
-**Output On Success**
+Exemplo 2: Ambas implementadas
+\`\`\`
+Conflito: specs/api/spec.md tocado por [add-rest-api, add-graphql]
+
+Verificando add-rest-api (criada 2026-01-10):
+- Delta adiciona requisito "REST Endpoints"
+- Pesquisando codebase... encontrado src/api/rest.ts
+
+Verificando add-graphql (criada 2026-01-15):
+- Delta adiciona requisito "GraphQL Schema"
+- Pesquisando codebase... encontrado src/api/graphql.ts
+
+Resolução: Ambas implementadas. Aplicará specs de add-rest-api primeiro,
+depois specs de add-graphql (ordem cronológica, mais recente tem precedência).
+\`\`\`
+
+**Saída em Sucesso**
 
 \`\`\`
-## Bulk Archive Complete
+## Arquivamento em Lote Concluído
 
-Archived N changes:
+N changes arquivadas:
 - <change-1> -> archive/YYYY-MM-DD-<change-1>/
 - <change-2> -> archive/YYYY-MM-DD-<change-2>/
 
-Spec sync summary:
-- N delta specs synced to main specs
-- No conflicts (or: M conflicts resolved)
+Resumo de sync de specs:
+- N delta specs sincronizados com os specs principais
+- Nenhum conflito (ou: M conflitos resolvidos)
 \`\`\`
 
-**Output On Partial Success**
+**Saída em Sucesso Parcial**
 
 \`\`\`
-## Bulk Archive Complete (partial)
+## Arquivamento em Lote Concluído (parcial)
 
-Archived N changes:
+N changes arquivadas:
 - <change-1> -> archive/YYYY-MM-DD-<change-1>/
 
-Skipped M changes:
-- <change-2> (user chose not to archive incomplete)
+M changes ignoradas:
+- <change-2> (usuário escolheu não arquivar incompleta)
 
-Failed K changes:
-- <change-3>: Archive directory already exists
+K changes falharam:
+- <change-3>: O diretório de arquivo já existe
 \`\`\`
 
-**Output When No Changes**
+**Saída Quando Não Há Changes**
 
 \`\`\`
-## No Changes to Archive
+## Nenhuma Change para Arquivar
 
-No active changes found. Create a new change to get started.
+Nenhuma change ativa encontrada. Crie uma nova change para começar.
 \`\`\`
 
 **Guardrails**
-- Allow any number of changes (1+ is fine, 2+ is the typical use case)
-- Always prompt for selection, never auto-select
-- Detect spec conflicts early and resolve by checking codebase
-- When both changes are implemented, apply specs in chronological order
-- Skip spec sync only when implementation is missing (warn user)
-- Show clear per-change status before confirming
-- Use single confirmation for entire batch
-- Track and report all outcomes (success/skip/fail)
-- Preserve .openspec.yaml when moving to archive
-- Archive directory target uses current date: YYYY-MM-DD-<name>
-- If archive target exists, fail that change but continue with others`
+- Permita qualquer número de changes (1+ está ok, 2+ é o caso típico)
+- Sempre solicite seleção, nunca selecione automaticamente
+- Detecte conflitos de specs cedo e resolva verificando a codebase
+- Quando ambas as changes estiverem implementadas, aplique specs em ordem cronológica
+- Ignore o sync de specs apenas quando a implementação estiver ausente (avise o usuário)
+- Mostre o status claro por change antes de confirmar
+- Use uma única confirmação para todo o lote
+- Rastreie e reporte todos os resultados (sucesso/ignorado/falha)
+- Preservar .openspec.yaml ao mover para o arquivo
+- O diretório de destino do arquivo usa a data atual: YYYY-MM-DD-<nome>
+- Se o destino do arquivo existir, falhe aquela change mas continue com as outras`
   };
 }

@@ -13,6 +13,7 @@ import {
 } from '../../core/artifact-graph/index.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import { validateSchemaExists, DEFAULT_SCHEMA } from './shared.js';
+import { WORKFLOW_MESSAGES } from '../../messages/index.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -34,7 +35,7 @@ export interface TemplateInfo {
 // -----------------------------------------------------------------------------
 
 export async function templatesCommand(options: TemplatesOptions): Promise<void> {
-  const spinner = options.json ? undefined : ora('Loading templates...').start();
+  const spinner = options.json ? undefined : ora(WORKFLOW_MESSAGES.loadingTemplates).start();
 
   try {
     const projectRoot = process.cwd();
@@ -86,8 +87,8 @@ export async function templatesCommand(options: TemplatesOptions): Promise<void>
       return;
     }
 
-    console.log(`Schema: ${schemaName}`);
-    console.log(`Source: ${source}`);
+    console.log(WORKFLOW_MESSAGES.schemaLabel3(schemaName));
+    console.log(WORKFLOW_MESSAGES.sourceLabel(source));
     console.log();
 
     for (const t of templates) {

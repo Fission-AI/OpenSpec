@@ -1,5 +1,6 @@
 import * as nodeFs from 'fs';
 import path from 'path';
+import { FILE_SYSTEM_MESSAGES } from '../messages/index.js';
 
 const fs = nodeFs.promises;
 const { constants: fsConstants } = nodeFs;
@@ -107,7 +108,7 @@ export class FileSystemUtils {
       return true;
     } catch (error: any) {
       if (error.code !== 'ENOENT') {
-        console.debug(`Unable to check if file exists at ${filePath}: ${error.message}`);
+        console.debug(FILE_SYSTEM_MESSAGES.unableToCheckFileExists(filePath, error.message));
       }
       return false;
     }
@@ -128,7 +129,7 @@ export class FileSystemUtils {
           return currentDir;
         }
         // Path component exists but is not a directory (edge case)
-        console.debug(`Path component ${currentDir} exists but is not a directory`);
+        console.debug(FILE_SYSTEM_MESSAGES.pathComponentNotDir(currentDir));
         return null;
       } catch (error: any) {
         if (error.code === 'ENOENT') {
@@ -141,7 +142,7 @@ export class FileSystemUtils {
           currentDir = parentDir;
         } else {
           // Unexpected error (permissions, I/O error, etc.)
-          console.debug(`Error checking directory ${currentDir}: ${error.message}`);
+          console.debug(FILE_SYSTEM_MESSAGES.errorCheckingDir(currentDir, error.message));
           return null;
         }
       }
@@ -184,7 +185,7 @@ export class FileSystemUtils {
         }
       }
 
-      console.debug(`Unable to determine write permissions for ${filePath}: ${error.message}`);
+      console.debug(FILE_SYSTEM_MESSAGES.unableToDetermineWritePermissions(filePath, error.message));
       return false;
     }
   }
@@ -195,7 +196,7 @@ export class FileSystemUtils {
       return stats.isDirectory();
     } catch (error: any) {
       if (error.code !== 'ENOENT') {
-        console.debug(`Unable to check if directory exists at ${dirPath}: ${error.message}`);
+        console.debug(FILE_SYSTEM_MESSAGES.unableToCheckDirExists(dirPath, error.message));
       }
       return false;
     }
@@ -230,7 +231,7 @@ export class FileSystemUtils {
       if (startIndex !== -1 && endIndex !== -1) {
         if (endIndex < startIndex) {
           throw new Error(
-            `Invalid marker state in ${filePath}. End marker appears before start marker.`
+            FILE_SYSTEM_MESSAGES.endMarkerBeforeStart(filePath)
           );
         }
 
@@ -240,7 +241,7 @@ export class FileSystemUtils {
       } else if (startIndex === -1 && endIndex === -1) {
         existingContent = startMarker + '\n' + content + '\n' + endMarker + '\n\n' + existingContent;
       } else {
-        throw new Error(`Invalid marker state in ${filePath}. Found start: ${startIndex !== -1}, Found end: ${endIndex !== -1}`);
+        throw new Error(FILE_SYSTEM_MESSAGES.invalidMarkerState(filePath, startIndex !== -1, endIndex !== -1));
       }
     } else {
       existingContent = startMarker + '\n' + content + '\n' + endMarker;
@@ -274,7 +275,7 @@ export class FileSystemUtils {
           if (attempt === maxRetries - 1) {
             // Last attempt failed, but we successfully wrote the file, so permissions are OK
             // Just log and continue - the temp file will be cleaned up eventually
-            console.debug(`Could not clean up test file ${testFile}: ${unlinkError.message}`);
+            console.debug(FILE_SYSTEM_MESSAGES.couldNotCleanUpTestFile(testFile, unlinkError.message));
           } else {
             // Wait briefly before retrying (Windows file lock release)
             await new Promise((resolve) => setTimeout(resolve, 50));
@@ -283,7 +284,7 @@ export class FileSystemUtils {
       }
       return true;
     } catch (error: any) {
-      console.debug(`Insufficient permissions to write to ${dirPath}: ${error.message}`);
+      console.debug(FILE_SYSTEM_MESSAGES.insufficientPermissions(dirPath, error.message));
       return false;
     }
   }

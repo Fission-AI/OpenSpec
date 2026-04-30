@@ -8,6 +8,7 @@ import ora from 'ora';
 import path from 'path';
 import { createChange, validateChangeName } from '../../utils/change-utils.js';
 import { validateSchemaExists } from './shared.js';
+import { WORKFLOW_MESSAGES } from '../../messages/index.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -24,7 +25,7 @@ export interface NewChangeOptions {
 
 export async function newChangeCommand(name: string | undefined, options: NewChangeOptions): Promise<void> {
   if (!name) {
-    throw new Error('Missing required argument <name>');
+    throw new Error(WORKFLOW_MESSAGES.missingNameArgument);
   }
 
   const validation = validateChangeName(name);
@@ -39,8 +40,8 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
     validateSchemaExists(options.schema, projectRoot);
   }
 
-  const schemaDisplay = options.schema ? ` with schema '${options.schema}'` : '';
-  const spinner = ora(`Creating change '${name}'${schemaDisplay}...`).start();
+  const schemaDisplay = options.schema ? ` com esquema '${options.schema}'` : '';
+  const spinner = ora(WORKFLOW_MESSAGES.creatingChange(name, schemaDisplay)).start();
 
   try {
     const result = await createChange(projectRoot, name, { schema: options.schema });
@@ -53,9 +54,9 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
       await fs.writeFile(readmePath, `# ${name}\n\n${options.description}\n`, 'utf-8');
     }
 
-    spinner.succeed(`Created change '${name}' at openspec/changes/${name}/ (schema: ${result.schema})`);
+    spinner.succeed(WORKFLOW_MESSAGES.createdChange(name, result.schema));
   } catch (error) {
-    spinner.fail(`Failed to create change '${name}'`);
+    spinner.fail(WORKFLOW_MESSAGES.failedToCreateChange(name));
     throw error;
   }
 }

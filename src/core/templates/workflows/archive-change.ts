@@ -9,112 +9,112 @@ import type { SkillTemplate, CommandTemplate } from '../types.js';
 export function getArchiveChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-archive-change',
-    description: 'Archive a completed change in the experimental workflow. Use when the user wants to finalize and archive a change after implementation is complete.',
-    instructions: `Archive a completed change in the experimental workflow.
+    description: 'Arquiva uma change concluída no workflow experimental. Use quando o usuário quiser finalizar e arquivar uma change após a implementação estar completa.',
+    instructions: `Arquiva uma change concluída no workflow experimental.
 
-**Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Entrada**: Opcionalmente especifique um nome de change. Se omitido, verifique se pode ser inferido do contexto da conversa. Se vago ou ambíguo, você DEVE solicitar as changes disponíveis.
 
-**Steps**
+**Passos**
 
-1. **If no change name provided, prompt for selection**
+1. **Se nenhum nome de change for fornecido, solicite a seleção**
 
-   Run \`openspec list --json\` to get available changes. Use the **AskUserQuestion tool** to let the user select.
+   Execute \`openspec list --json\` para obter as changes disponíveis. Use a ferramenta **AskUserQuestion** para permitir que o usuário selecione.
 
-   Show only active changes (not already archived).
-   Include the schema used for each change if available.
+   Mostre apenas as changes ativas (não arquivadas).
+   Inclua o schema usado para cada change, se disponível.
 
-   **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
+   **IMPORTANTE**: NÃO adivinhe ou selecione automaticamente uma change. Sempre deixe o usuário escolher.
 
-2. **Check artifact completion status**
+2. **Verifique o status de conclusão dos artifacts**
 
-   Run \`openspec status --change "<name>" --json\` to check artifact completion.
+   Execute \`openspec status --change "<nome>" --json\` para verificar a conclusão dos artifacts.
 
-   Parse the JSON to understand:
-   - \`schemaName\`: The workflow being used
-   - \`artifacts\`: List of artifacts with their status (\`done\` or other)
+   Analise o JSON para entender:
+   - \`schemaName\`: O workflow sendo usado
+   - \`artifacts\`: Lista de artifacts com seu status (\`done\` ou outro)
 
-   **If any artifacts are not \`done\`:**
-   - Display warning listing incomplete artifacts
-   - Use **AskUserQuestion tool** to confirm user wants to proceed
-   - Proceed if user confirms
+   **Se algum artifact não estiver \`done\`:**
+   - Exiba um aviso listando os artifacts incompletos
+   - Use a ferramenta **AskUserQuestion** para confirmar se o usuário deseja prosseguir
+   - Prossiga se o usuário confirmar
 
-3. **Check task completion status**
+3. **Verifique o status de conclusão das tarefas**
 
-   Read the tasks file (typically \`tasks.md\`) to check for incomplete tasks.
+   Leia o arquivo de tarefas (tipicamente \`tasks.md\`) para verificar tarefas incompletas.
 
-   Count tasks marked with \`- [ ]\` (incomplete) vs \`- [x]\` (complete).
+   Conte as tarefas marcadas com \`- [ ]\` (incompleto) vs \`- [x]\` (concluído).
 
-   **If incomplete tasks found:**
-   - Display warning showing count of incomplete tasks
-   - Use **AskUserQuestion tool** to confirm user wants to proceed
-   - Proceed if user confirms
+   **Se tarefas incompletas forem encontradas:**
+   - Exiba um aviso mostrando a quantidade de tarefas incompletas
+   - Use a ferramenta **AskUserQuestion** para confirmar se o usuário deseja prosseguir
+   - Prossiga se o usuário confirmar
 
-   **If no tasks file exists:** Proceed without task-related warning.
+   **Se não existir arquivo de tarefas:** Prossiga sem aviso relacionado a tarefas.
 
-4. **Assess delta spec sync state**
+4. **Avalie o estado de sincronização dos delta specs**
 
-   Check for delta specs at \`openspec/changes/<name>/specs/\`. If none exist, proceed without sync prompt.
+   Verifique se existem delta specs em \`openspec/changes/<nome>/specs/\`. Se não existirem, prossiga sem prompt de sync.
 
-   **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at \`openspec/specs/<capability>/spec.md\`
-   - Determine what changes would be applied (adds, modifications, removals, renames)
-   - Show a combined summary before prompting
+   **Se delta specs existirem:**
+   - Compare cada delta spec com seu spec principal correspondente em \`openspec/specs/<capability>/spec.md\`
+   - Determine quais alterações seriam aplicadas (adições, modificações, remoções, renomeações)
+   - Mostre um resumo combinado antes de solicitar
 
-   **Prompt options:**
-   - If changes needed: "Sync now (recommended)", "Archive without syncing"
-   - If already synced: "Archive now", "Sync anyway", "Cancel"
+   **Opções de prompt:**
+   - Se alterações forem necessárias: "Sincronizar agora (recomendado)", "Arquivar sem sincronizar"
+   - Se já estiver sincronizado: "Arquivar agora", "Sincronizar mesmo assim", "Cancelar"
 
-   If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
+   Se o usuário escolher sincronizar, use a ferramenta Task (subagent_type: "general-purpose", prompt: "Use a ferramenta Skill para invocar openspec-sync-specs para a change '<nome>'. Análise de delta spec: <inclua o resumo analisado do delta spec>"). Prossiga para o arquivamento independentemente da escolha.
 
-5. **Perform the archive**
+5. **Realize o arquivamento**
 
-   Create the archive directory if it doesn't exist:
+   Crie o diretório de arquivo se não existir:
    \`\`\`bash
    mkdir -p openspec/changes/archive
    \`\`\`
 
-   Generate target name using current date: \`YYYY-MM-DD-<change-name>\`
+   Gere o nome do destino usando a data atual: \`YYYY-MM-DD-<nome-change>\`
 
-   **Check if target already exists:**
-   - If yes: Fail with error, suggest renaming existing archive or using different date
-   - If no: Move the change directory to archive
+   **Verifique se o destino já existe:**
+   - Se sim: Falhe com erro, sugira renomear o arquivo existente ou usar uma data diferente
+   - Se não: Mova o diretório da change para o arquivo
 
    \`\`\`bash
-   mv openspec/changes/<name> openspec/changes/archive/YYYY-MM-DD-<name>
+   mv openspec/changes/<nome> openspec/changes/archive/YYYY-MM-DD-<nome>
    \`\`\`
 
-6. **Display summary**
+6. **Exiba o resumo**
 
-   Show archive completion summary including:
-   - Change name
-   - Schema that was used
-   - Archive location
-   - Whether specs were synced (if applicable)
-   - Note about any warnings (incomplete artifacts/tasks)
+   Mostre o resumo de conclusão do arquivamento incluindo:
+   - Nome da change
+   - Schema que foi usado
+   - Local do arquivo
+   - Se os specs foram sincronizados (se aplicável)
+   - Observação sobre quaisquer avisos (artifacts/tarefas incompletos)
 
-**Output On Success**
+**Saída em Sucesso**
 
 \`\`\`
-## Archive Complete
+## Arquivamento Concluído
 
-**Change:** <change-name>
-**Schema:** <schema-name>
-**Archived to:** openspec/changes/archive/YYYY-MM-DD-<name>/
-**Specs:** ✓ Synced to main specs (or "No delta specs" or "Sync skipped")
+**Change:** <nome-change>
+**Schema:** <nome-schema>
+**Arquivado em:** openspec/changes/archive/YYYY-MM-DD-<nome>/
+**Specs:** ✓ Sincronizados com os specs principais (ou "Sem delta specs" ou "Sincronização ignorada")
 
-All artifacts complete. All tasks complete.
+Todos os artifacts completos. Todas as tarefas completas.
 \`\`\`
 
 **Guardrails**
-- Always prompt for change selection if not provided
-- Use artifact graph (openspec status --json) for completion checking
-- Don't block archive on warnings - just inform and confirm
-- Preserve .openspec.yaml when moving to archive (it moves with the directory)
-- Show clear summary of what happened
-- If sync is requested, use openspec-sync-specs approach (agent-driven)
-- If delta specs exist, always run the sync assessment and show the combined summary before prompting`,
+- Sempre solicite a seleção da change se não fornecida
+- Use o grafo de artifacts (openspec status --json) para verificação de conclusão
+- Não bloqueie o arquivamento por avisos - apenas informe e confirme
+- Preservar .openspec.yaml ao mover para o arquivo (ele move com o diretório)
+- Mostre um resumo claro do que aconteceu
+- Se sync for solicitado, use a abordagem openspec-sync-specs (agent-driven)
+- Se delta specs existirem, sempre execute a avaliação de sync e mostre o resumo combinado antes de solicitar`,
     license: 'MIT',
-    compatibility: 'Requires openspec CLI.',
+    compatibility: 'Requer openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
   };
 }
@@ -122,158 +122,158 @@ All artifacts complete. All tasks complete.
 export function getOpsxArchiveCommandTemplate(): CommandTemplate {
   return {
     name: 'OPSX: Archive',
-    description: 'Archive a completed change in the experimental workflow',
+    description: 'Arquiva uma change concluída no workflow experimental',
     category: 'Workflow',
     tags: ['workflow', 'archive', 'experimental'],
-    content: `Archive a completed change in the experimental workflow.
+    content: `Arquiva uma change concluída no workflow experimental.
 
-**Input**: Optionally specify a change name after \`/opsx:archive\` (e.g., \`/opsx:archive add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Entrada**: Opcionalmente especifique um nome de change após \`/opsx:archive\` (por exemplo, \`/opsx:archive add-auth\`). Se omitido, verifique se pode ser inferido do contexto da conversa. Se vago ou ambíguo, você DEVE solicitar as changes disponíveis.
 
-**Steps**
+**Passos**
 
-1. **If no change name provided, prompt for selection**
+1. **Se nenhum nome de change for fornecido, solicite a seleção**
 
-   Run \`openspec list --json\` to get available changes. Use the **AskUserQuestion tool** to let the user select.
+   Execute \`openspec list --json\` para obter as changes disponíveis. Use a ferramenta **AskUserQuestion** para permitir que o usuário selecione.
 
-   Show only active changes (not already archived).
-   Include the schema used for each change if available.
+   Mostre apenas as changes ativas (não arquivadas).
+   Inclua o schema usado para cada change, se disponível.
 
-   **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
+   **IMPORTANTE**: NÃO adivinhe ou selecione automaticamente uma change. Sempre deixe o usuário escolher.
 
-2. **Check artifact completion status**
+2. **Verifique o status de conclusão dos artifacts**
 
-   Run \`openspec status --change "<name>" --json\` to check artifact completion.
+   Execute \`openspec status --change "<nome>" --json\` para verificar a conclusão dos artifacts.
 
-   Parse the JSON to understand:
-   - \`schemaName\`: The workflow being used
-   - \`artifacts\`: List of artifacts with their status (\`done\` or other)
+   Analise o JSON para entender:
+   - \`schemaName\`: O workflow sendo usado
+   - \`artifacts\`: Lista de artifacts com seu status (\`done\` ou outro)
 
-   **If any artifacts are not \`done\`:**
-   - Display warning listing incomplete artifacts
-   - Prompt user for confirmation to continue
-   - Proceed if user confirms
+   **Se algum artifact não estiver \`done\`:**
+   - Exiba um aviso listando os artifacts incompletos
+   - Solicite confirmação do usuário para continuar
+   - Prossiga se o usuário confirmar
 
-3. **Check task completion status**
+3. **Verifique o status de conclusão das tarefas**
 
-   Read the tasks file (typically \`tasks.md\`) to check for incomplete tasks.
+   Leia o arquivo de tarefas (tipicamente \`tasks.md\`) para verificar tarefas incompletas.
 
-   Count tasks marked with \`- [ ]\` (incomplete) vs \`- [x]\` (complete).
+   Conte as tarefas marcadas com \`- [ ]\` (incompleto) vs \`- [x]\` (concluído).
 
-   **If incomplete tasks found:**
-   - Display warning showing count of incomplete tasks
-   - Prompt user for confirmation to continue
-   - Proceed if user confirms
+   **Se tarefas incompletas forem encontradas:**
+   - Exiba um aviso mostrando a quantidade de tarefas incompletas
+   - Solicite confirmação do usuário para continuar
+   - Prossiga se o usuário confirmar
 
-   **If no tasks file exists:** Proceed without task-related warning.
+   **Se não existir arquivo de tarefas:** Prossiga sem aviso relacionado a tarefas.
 
-4. **Assess delta spec sync state**
+4. **Avalie o estado de sincronização dos delta specs**
 
-   Check for delta specs at \`openspec/changes/<name>/specs/\`. If none exist, proceed without sync prompt.
+   Verifique se existem delta specs em \`openspec/changes/<nome>/specs/\`. Se não existirem, prossiga sem prompt de sync.
 
-   **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at \`openspec/specs/<capability>/spec.md\`
-   - Determine what changes would be applied (adds, modifications, removals, renames)
-   - Show a combined summary before prompting
+   **Se delta specs existirem:**
+   - Compare cada delta spec com seu spec principal correspondente em \`openspec/specs/<capability>/spec.md\`
+   - Determine quais alterações seriam aplicadas (adições, modificações, remoções, renomeações)
+   - Mostre um resumo combinado antes de solicitar
 
-   **Prompt options:**
-   - If changes needed: "Sync now (recommended)", "Archive without syncing"
-   - If already synced: "Archive now", "Sync anyway", "Cancel"
+   **Opções de prompt:**
+   - Se alterações forem necessárias: "Sincronizar agora (recomendado)", "Arquivar sem sincronizar"
+   - Se já estiver sincronizado: "Arquivar agora", "Sincronizar mesmo assim", "Cancelar"
 
-   If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
+   Se o usuário escolher sincronizar, use a ferramenta Task (subagent_type: "general-purpose", prompt: "Use a ferramenta Skill para invocar openspec-sync-specs para a change '<nome>'. Análise de delta spec: <inclua o resumo analisado do delta spec>"). Prossiga para o arquivamento independentemente da escolha.
 
-5. **Perform the archive**
+5. **Realize o arquivamento**
 
-   Create the archive directory if it doesn't exist:
+   Crie o diretório de arquivo se não existir:
    \`\`\`bash
    mkdir -p openspec/changes/archive
    \`\`\`
 
-   Generate target name using current date: \`YYYY-MM-DD-<change-name>\`
+   Gere o nome do destino usando a data atual: \`YYYY-MM-DD-<nome-change>\`
 
-   **Check if target already exists:**
-   - If yes: Fail with error, suggest renaming existing archive or using different date
-   - If no: Move the change directory to archive
+   **Verifique se o destino já existe:**
+   - Se sim: Falhe com erro, sugira renomear o arquivo existente ou usar uma data diferente
+   - Se não: Mova o diretório da change para o arquivo
 
    \`\`\`bash
-   mv openspec/changes/<name> openspec/changes/archive/YYYY-MM-DD-<name>
+   mv openspec/changes/<nome> openspec/changes/archive/YYYY-MM-DD-<nome>
    \`\`\`
 
-6. **Display summary**
+6. **Exiba o resumo**
 
-   Show archive completion summary including:
-   - Change name
-   - Schema that was used
-   - Archive location
-   - Spec sync status (synced / sync skipped / no delta specs)
-   - Note about any warnings (incomplete artifacts/tasks)
+   Mostre o resumo de conclusão do arquivamento incluindo:
+   - Nome da change
+   - Schema que foi usado
+   - Local do arquivo
+   - Status de sincronização dos specs (sincronizado / sincronização ignorada / sem delta specs)
+   - Observação sobre quaisquer avisos (artifacts/tarefas incompletos)
 
-**Output On Success**
-
-\`\`\`
-## Archive Complete
-
-**Change:** <change-name>
-**Schema:** <schema-name>
-**Archived to:** openspec/changes/archive/YYYY-MM-DD-<name>/
-**Specs:** ✓ Synced to main specs
-
-All artifacts complete. All tasks complete.
-\`\`\`
-
-**Output On Success (No Delta Specs)**
+**Saída em Sucesso**
 
 \`\`\`
-## Archive Complete
+## Arquivamento Concluído
 
-**Change:** <change-name>
-**Schema:** <schema-name>
-**Archived to:** openspec/changes/archive/YYYY-MM-DD-<name>/
-**Specs:** No delta specs
+**Change:** <nome-change>
+**Schema:** <nome-schema>
+**Arquivado em:** openspec/changes/archive/YYYY-MM-DD-<nome>/
+**Specs:** ✓ Sincronizados com os specs principais
 
-All artifacts complete. All tasks complete.
+Todos os artifacts completos. Todas as tarefas completas.
 \`\`\`
 
-**Output On Success With Warnings**
+**Saída em Sucesso (Sem Delta Specs)**
 
 \`\`\`
-## Archive Complete (with warnings)
+## Arquivamento Concluído
 
-**Change:** <change-name>
-**Schema:** <schema-name>
-**Archived to:** openspec/changes/archive/YYYY-MM-DD-<name>/
-**Specs:** Sync skipped (user chose to skip)
+**Change:** <nome-change>
+**Schema:** <nome-schema>
+**Arquivado em:** openspec/changes/archive/YYYY-MM-DD-<nome>/
+**Specs:** Sem delta specs
 
-**Warnings:**
-- Archived with 2 incomplete artifacts
-- Archived with 3 incomplete tasks
-- Delta spec sync was skipped (user chose to skip)
-
-Review the archive if this was not intentional.
+Todos os artifacts completos. Todas as tarefas completas.
 \`\`\`
 
-**Output On Error (Archive Exists)**
+**Saída em Sucesso com Avisos**
 
 \`\`\`
-## Archive Failed
+## Arquivamento Concluído (com avisos)
 
-**Change:** <change-name>
-**Target:** openspec/changes/archive/YYYY-MM-DD-<name>/
+**Change:** <nome-change>
+**Schema:** <nome-schema>
+**Arquivado em:** openspec/changes/archive/YYYY-MM-DD-<nome>/
+**Specs:** Sincronização ignorada (usuário escolheu ignorar)
 
-Target archive directory already exists.
+**Avisos:**
+- Arquivado com 2 artifacts incompletos
+- Arquivado com 3 tarefas incompletas
+- Sincronização de delta spec foi ignorada (usuário escolheu ignorar)
 
-**Options:**
-1. Rename the existing archive
-2. Delete the existing archive if it's a duplicate
-3. Wait until a different date to archive
+Revise o arquivo se isso não foi intencional.
+\`\`\`
+
+**Saída em Erro (Arquivo Existe)**
+
+\`\`\`
+## Arquivamento Falhou
+
+**Change:** <nome-change>
+**Destino:** openspec/changes/archive/YYYY-MM-DD-<nome>/
+
+O diretório de arquivo de destino já existe.
+
+**Opções:**
+1. Renomear o arquivo existente
+2. Excluir o arquivo existente se for uma duplicata
+3. Aguardar até uma data diferente para arquivar
 \`\`\`
 
 **Guardrails**
-- Always prompt for change selection if not provided
-- Use artifact graph (openspec status --json) for completion checking
-- Don't block archive on warnings - just inform and confirm
-- Preserve .openspec.yaml when moving to archive (it moves with the directory)
-- Show clear summary of what happened
-- If sync is requested, use the Skill tool to invoke \`openspec-sync-specs\` (agent-driven)
-- If delta specs exist, always run the sync assessment and show the combined summary before prompting`
+- Sempre solicite a seleção da change se não fornecida
+- Use o grafo de artifacts (openspec status --json) para verificação de conclusão
+- Não bloqueie o arquivamento por avisos - apenas informe e confirme
+- Preservar .openspec.yaml ao mover para o arquivo (ele move com o diretório)
+- Mostre um resumo claro do que aconteceu
+- Se sync for solicitado, use a ferramenta Skill para invocar \`openspec-sync-specs\` (agent-driven)
+- Se delta specs existirem, sempre execute a avaliação de sync e mostre o resumo combinado antes de solicitar`
   };
 }

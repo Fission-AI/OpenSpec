@@ -9,110 +9,110 @@ import type { SkillTemplate, CommandTemplate } from '../types.js';
 export function getVerifyChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-verify-change',
-    description: 'Verify implementation matches change artifacts. Use when the user wants to validate that implementation is complete, correct, and coherent before archiving.',
-    instructions: `Verify that an implementation matches the change artifacts (specs, tasks, design).
+    description: 'Verifica se a implementação corresponde aos artifacts da change. Use quando o usuário quiser validar que a implementação está completa, correta e coerente antes de arquivar.',
+    instructions: `Verifica se uma implementação corresponde aos artifacts da change (specs, tasks, design).
 
-**Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Entrada**: Opcionalmente especifique um nome de change. Se omitido, verifique se pode ser inferido do contexto da conversa. Se vago ou ambíguo, você DEVE solicitar as changes disponíveis.
 
-**Steps**
+**Passos**
 
-1. **If no change name provided, prompt for selection**
+1. **Se nenhum nome de change for fornecido, solicite a seleção**
 
-   Run \`openspec list --json\` to get available changes. Use the **AskUserQuestion tool** to let the user select.
+   Execute \`openspec list --json\` para obter as changes disponíveis. Use a ferramenta **AskUserQuestion** para permitir que o usuário selecione.
 
-   Show changes that have implementation tasks (tasks artifact exists).
-   Include the schema used for each change if available.
-   Mark changes with incomplete tasks as "(In Progress)".
+   Mostre as changes que possuem tarefas de implementação (o artifact tasks existe).
+   Inclua o schema usado para cada change, se disponível.
+   Marque as changes com tarefas incompletas como "(Em Progresso)".
 
-   **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
+   **IMPORTANTE**: NÃO adivinhe ou selecione automaticamente uma change. Sempre deixe o usuário escolher.
 
-2. **Check status to understand the schema**
+2. **Verifique o status para entender o schema**
    \`\`\`bash
-   openspec status --change "<name>" --json
+   openspec status --change "<nome>" --json
    \`\`\`
-   Parse the JSON to understand:
-   - \`schemaName\`: The workflow being used (e.g., "spec-driven")
-   - Which artifacts exist for this change
+   Analise o JSON para entender:
+   - \`schemaName\`: O workflow sendo usado (por exemplo, "spec-driven")
+   - Quais artifacts existem para esta change
 
-3. **Get the change directory and load artifacts**
+3. **Obtenha o diretório da change e carregue os artifacts**
 
    \`\`\`bash
-   openspec instructions apply --change "<name>" --json
+   openspec instructions apply --change "<nome>" --json
    \`\`\`
 
-   This returns the change directory and \`contextFiles\` (artifact ID -> array of concrete file paths). Read all available artifacts from \`contextFiles\`.
+   Isso retorna o diretório da change e \`contextFiles\` (artifact ID -> array de caminhos de arquivos concretos). Leia todos os artifacts disponíveis de \`contextFiles\`.
 
-4. **Initialize verification report structure**
+4. **Inicialize a estrutura do relatório de verificação**
 
-   Create a report structure with three dimensions:
-   - **Completeness**: Track tasks and spec coverage
-   - **Correctness**: Track requirement implementation and scenario coverage
-   - **Coherence**: Track design adherence and pattern consistency
+   Crie uma estrutura de relatório com três dimensões:
+   - **Completeness**: Acompanhe tasks e cobertura de specs
+   - **Correctness**: Acompanhe implementação de requisitos e cobertura de cenários
+   - **Coherence**: Acompanhe aderência ao design e consistência de padrões
 
-   Each dimension can have CRITICAL, WARNING, or SUGGESTION issues.
+   Cada dimensão pode ter issues CRITICAL, WARNING ou SUGGESTION.
 
-5. **Verify Completeness**
+5. **Verifique Completeness**
 
-   **Task Completion**:
-   - If \`contextFiles.tasks\` exists, read every file path in it
-   - Parse checkboxes: \`- [ ]\` (incomplete) vs \`- [x]\` (complete)
-   - Count complete vs total tasks
-   - If incomplete tasks exist:
-     - Add CRITICAL issue for each incomplete task
-     - Recommendation: "Complete task: <description>" or "Mark as done if already implemented"
+   **Conclusão de Tasks**:
+   - Se \`contextFiles.tasks\` existir, leia cada caminho de arquivo nele
+   - Analise checkboxes: \`- [ ]\` (incompleto) vs \`- [x]\` (concluído)
+   - Conte tasks concluídas vs total
+   - Se houver tasks incompletas:
+     - Adicione issue CRITICAL para cada task incompleta
+     - Recomendação: "Complete task: <descrição>" ou "Mark as done if already implemented"
 
-   **Spec Coverage**:
-   - If delta specs exist in \`openspec/changes/<name>/specs/\`:
-     - Extract all requirements (marked with "### Requirement:")
-     - For each requirement:
-       - Search codebase for keywords related to the requirement
-       - Assess if implementation likely exists
-     - If requirements appear unimplemented:
-       - Add CRITICAL issue: "Requirement not found: <requirement name>"
-       - Recommendation: "Implement requirement X: <description>"
+   **Cobertura de Specs**:
+   - Se delta specs existirem em \`openspec/changes/<nome>/specs/\`:
+     - Extraia todos os requisitos (marcados com "### Requirement:")
+     - Para cada requisito:
+       - Procure no codebase por palavras-chave relacionadas ao requisito
+       - Avalie se a implementação provavelmente existe
+     - Se requisitos parecerem não implementados:
+       - Adicione issue CRITICAL: "Requirement not found: <nome do requisito>"
+       - Recomendação: "Implement requirement X: <descrição>"
 
-6. **Verify Correctness**
+6. **Verifique Correctness**
 
-   **Requirement Implementation Mapping**:
-   - For each requirement from delta specs:
-     - Search codebase for implementation evidence
-     - If found, note file paths and line ranges
-     - Assess if implementation matches requirement intent
-     - If divergence detected:
-       - Add WARNING: "Implementation may diverge from spec: <details>"
-       - Recommendation: "Review <file>:<lines> against requirement X"
+   **Mapeamento de Implementação de Requisitos**:
+   - Para cada requisito dos delta specs:
+     - Procure no codebase por evidências de implementação
+     - Se encontrado, anote os caminhos de arquivo e intervalos de linha
+     - Avalie se a implementação corresponde à intenção do requisito
+     - Se divergência for detectada:
+       - Adicione WARNING: "Implementation may diverge from spec: <detalhes>"
+       - Recomendação: "Review <arquivo>:<linhas> contra requirement X"
 
-   **Scenario Coverage**:
-   - For each scenario in delta specs (marked with "#### Scenario:"):
-     - Check if conditions are handled in code
-     - Check if tests exist covering the scenario
-     - If scenario appears uncovered:
-       - Add WARNING: "Scenario not covered: <scenario name>"
-       - Recommendation: "Add test or implementation for scenario: <description>"
+   **Cobertura de Cenários**:
+   - Para cada cenário nos delta specs (marcado com "#### Scenario:"):
+     - Verifique se as condições são tratadas no código
+     - Verifique se existem testes cobrindo o cenário
+     - Se o cenário parecer não coberto:
+       - Adicione WARNING: "Scenario not covered: <nome do cenário>"
+       - Recomendação: "Add test or implementation for scenario: <descrição>"
 
-7. **Verify Coherence**
+7. **Verifique Coherence**
 
-   **Design Adherence**:
-   - If \`contextFiles.design\` exists:
-     - Extract key decisions (look for sections like "Decision:", "Approach:", "Architecture:")
-     - Verify implementation follows those decisions
-     - If contradiction detected:
-       - Add WARNING: "Design decision not followed: <decision>"
-       - Recommendation: "Update implementation or revise design.md to match reality"
-   - If no design.md: Skip design adherence check, note "No design.md to verify against"
+   **Aderência ao Design**:
+   - Se \`contextFiles.design\` existir:
+     - Extraia decisões-chave (procure por seções como "Decision:", "Approach:", "Architecture:")
+     - Verifique se a implementação segue essas decisões
+     - Se contradição for detectada:
+       - Adicione WARNING: "Design decision not followed: <decisão>"
+       - Recomendação: "Update implementation or revise design.md to match reality"
+   - Se não houver design.md: Pule a verificação de aderência ao design, anote "No design.md to verify against"
 
-   **Code Pattern Consistency**:
-   - Review new code for consistency with project patterns
-   - Check file naming, directory structure, coding style
-   - If significant deviations found:
-     - Add SUGGESTION: "Code pattern deviation: <details>"
-     - Recommendation: "Consider following project pattern: <example>"
+   **Consistência de Padrões de Código**:
+   - Revise o novo código quanto à consistência com os padrões do projeto
+   - Verifique nomenclatura de arquivos, estrutura de diretórios, estilo de código
+   - Se houver desvios significativos:
+     - Adicione SUGGESTION: "Code pattern deviation: <detalhes>"
+     - Recomendação: "Consider following project pattern: <exemplo>"
 
-8. **Generate Verification Report**
+8. **Gere o Relatório de Verificação**
 
-   **Summary Scorecard**:
+   **Scorecard de Resumo**:
    \`\`\`
-   ## Verification Report: <change-name>
+   ## Verification Report: <nome-change>
 
    ### Summary
    | Dimension    | Status           |
@@ -122,53 +122,53 @@ export function getVerifyChangeSkillTemplate(): SkillTemplate {
    | Coherence    | Followed/Issues  |
    \`\`\`
 
-   **Issues by Priority**:
+   **Issues por Prioridade**:
 
-   1. **CRITICAL** (Must fix before archive):
-      - Incomplete tasks
-      - Missing requirement implementations
-      - Each with specific, actionable recommendation
+   1. **CRITICAL** (Deve corrigir antes de arquivar):
+      - Tasks incompletas
+      - Implementações de requisitos ausentes
+      - Cada uma com recomendação específica e acionável
 
-   2. **WARNING** (Should fix):
-      - Spec/design divergences
-      - Missing scenario coverage
-      - Each with specific recommendation
+   2. **WARNING** (Deveria corrigir):
+      - Divergências de spec/design
+      - Cobertura de cenário ausente
+      - Cada uma com recomendação específica
 
-   3. **SUGGESTION** (Nice to fix):
-      - Pattern inconsistencies
-      - Minor improvements
-      - Each with specific recommendation
+   3. **SUGGESTION** (Bom corrigir):
+      - Inconsistências de padrão
+      - Melhorias menores
+      - Cada uma com recomendação específica
 
-   **Final Assessment**:
-   - If CRITICAL issues: "X critical issue(s) found. Fix before archiving."
-   - If only warnings: "No critical issues. Y warning(s) to consider. Ready for archive (with noted improvements)."
-   - If all clear: "All checks passed. Ready for archive."
+   **Avaliação Final**:
+   - Se houver issues CRITICAL: "X critical issue(s) found. Fix before archiving."
+   - Se houver apenas warnings: "No critical issues. Y warning(s) to consider. Ready for archive (with noted improvements)."
+   - Se tudo estiver claro: "All checks passed. Ready for archive."
 
-**Verification Heuristics**
+**Heurísticas de Verificação**
 
-- **Completeness**: Focus on objective checklist items (checkboxes, requirements list)
-- **Correctness**: Use keyword search, file path analysis, reasonable inference - don't require perfect certainty
-- **Coherence**: Look for glaring inconsistencies, don't nitpick style
-- **False Positives**: When uncertain, prefer SUGGESTION over WARNING, WARNING over CRITICAL
-- **Actionability**: Every issue must have a specific recommendation with file/line references where applicable
+- **Completeness**: Foque em itens de checklist objetivos (checkboxes, lista de requisitos)
+- **Correctness**: Use busca por palavras-chave, análise de caminhos de arquivo, inferência razoável — não exija certeza perfeita
+- **Coherence**: Procure inconsistências gritantes, não seja meticuloso com estilo
+- **False Positives**: Quando incerto, prefira SUGGESTION ao invés de WARNING, WARNING ao invés de CRITICAL
+- **Actionability**: Cada issue deve ter uma recomendação específica com referências de arquivo/linha quando aplicável
 
-**Graceful Degradation**
+**Degradação Graciosa**
 
-- If only tasks.md exists: verify task completion only, skip spec/design checks
-- If tasks + specs exist: verify completeness and correctness, skip design
-- If full artifacts: verify all three dimensions
-- Always note which checks were skipped and why
+- Se apenas tasks.md existir: verifique apenas a conclusão de tasks, pule verificações de spec/design
+- Se tasks + specs existirem: verifique completeness e correctness, pule design
+- Se todos os artifacts existirem: verifique as três dimensões
+- Sempre anote quais verificações foram puladas e por quê
 
-**Output Format**
+**Formato de Saída**
 
-Use clear markdown with:
-- Table for summary scorecard
-- Grouped lists for issues (CRITICAL/WARNING/SUGGESTION)
-- Code references in format: \`file.ts:123\`
-- Specific, actionable recommendations
-- No vague suggestions like "consider reviewing"`,
+Use markdown claro com:
+- Tabela para scorecard de resumo
+- Listas agrupadas para issues (CRITICAL/WARNING/SUGGESTION)
+- Referências de código no formato: \`arquivo.ts:123\`
+- Recomendações específicas e acionáveis
+- Sem sugestões vagas como "consider reviewing"`,
     license: 'MIT',
-    compatibility: 'Requires openspec CLI.',
+    compatibility: 'Requer openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
   };
 }
@@ -176,112 +176,112 @@ Use clear markdown with:
 export function getOpsxVerifyCommandTemplate(): CommandTemplate {
   return {
     name: 'OPSX: Verify',
-    description: 'Verify implementation matches change artifacts before archiving',
+    description: 'Verifica se a implementação corresponde aos artifacts da change antes de arquivar',
     category: 'Workflow',
     tags: ['workflow', 'verify', 'experimental'],
-    content: `Verify that an implementation matches the change artifacts (specs, tasks, design).
+    content: `Verifica se uma implementação corresponde aos artifacts da change (specs, tasks, design).
 
-**Input**: Optionally specify a change name after \`/opsx:verify\` (e.g., \`/opsx:verify add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Entrada**: Opcionalmente especifique um nome de change após \`/opsx:verify\` (por exemplo, \`/opsx:verify add-auth\`). Se omitido, verifique se pode ser inferido do contexto da conversa. Se vago ou ambíguo, você DEVE solicitar as changes disponíveis.
 
-**Steps**
+**Passos**
 
-1. **If no change name provided, prompt for selection**
+1. **Se nenhum nome de change for fornecido, solicite a seleção**
 
-   Run \`openspec list --json\` to get available changes. Use the **AskUserQuestion tool** to let the user select.
+   Execute \`openspec list --json\` para obter as changes disponíveis. Use a ferramenta **AskUserQuestion** para permitir que o usuário selecione.
 
-   Show changes that have implementation tasks (tasks artifact exists).
-   Include the schema used for each change if available.
-   Mark changes with incomplete tasks as "(In Progress)".
+   Mostre as changes que possuem tarefas de implementação (o artifact tasks existe).
+   Inclua o schema usado para cada change, se disponível.
+   Marque as changes com tarefas incompletas como "(Em Progresso)".
 
-   **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
+   **IMPORTANTE**: NÃO adivinhe ou selecione automaticamente uma change. Sempre deixe o usuário escolher.
 
-2. **Check status to understand the schema**
+2. **Verifique o status para entender o schema**
    \`\`\`bash
-   openspec status --change "<name>" --json
+   openspec status --change "<nome>" --json
    \`\`\`
-   Parse the JSON to understand:
-   - \`schemaName\`: The workflow being used (e.g., "spec-driven")
-   - Which artifacts exist for this change
+   Analise o JSON para entender:
+   - \`schemaName\`: O workflow sendo usado (por exemplo, "spec-driven")
+   - Quais artifacts existem para esta change
 
-3. **Get the change directory and load artifacts**
+3. **Obtenha o diretório da change e carregue os artifacts**
 
    \`\`\`bash
-   openspec instructions apply --change "<name>" --json
+   openspec instructions apply --change "<nome>" --json
    \`\`\`
 
-   This returns the change directory and \`contextFiles\` (artifact ID -> array of concrete file paths). Read all available artifacts from \`contextFiles\`.
+   Isso retorna o diretório da change e \`contextFiles\` (artifact ID -> array de caminhos de arquivos concretos). Leia todos os artifacts disponíveis de \`contextFiles\`.
 
-4. **Initialize verification report structure**
+4. **Inicialize a estrutura do relatório de verificação**
 
-   Create a report structure with three dimensions:
-   - **Completeness**: Track tasks and spec coverage
-   - **Correctness**: Track requirement implementation and scenario coverage
-   - **Coherence**: Track design adherence and pattern consistency
+   Crie uma estrutura de relatório com três dimensões:
+   - **Completeness**: Acompanhe tasks e cobertura de specs
+   - **Correctness**: Acompanhe implementação de requisitos e cobertura de cenários
+   - **Coherence**: Acompanhe aderência ao design e consistência de padrões
 
-   Each dimension can have CRITICAL, WARNING, or SUGGESTION issues.
+   Cada dimensão pode ter issues CRITICAL, WARNING ou SUGGESTION.
 
-5. **Verify Completeness**
+5. **Verifique Completeness**
 
-   **Task Completion**:
-   - If \`contextFiles.tasks\` exists, read every file path in it
-   - Parse checkboxes: \`- [ ]\` (incomplete) vs \`- [x]\` (complete)
-   - Count complete vs total tasks
-   - If incomplete tasks exist:
-     - Add CRITICAL issue for each incomplete task
-     - Recommendation: "Complete task: <description>" or "Mark as done if already implemented"
+   **Conclusão de Tasks**:
+   - Se \`contextFiles.tasks\` existir, leia cada caminho de arquivo nele
+   - Analise checkboxes: \`- [ ]\` (incompleto) vs \`- [x]\` (concluído)
+   - Conte tasks concluídas vs total
+   - Se houver tasks incompletas:
+     - Adicione issue CRITICAL para cada task incompleta
+     - Recomendação: "Complete task: <descrição>" ou "Mark as done if already implemented"
 
-   **Spec Coverage**:
-   - If delta specs exist in \`openspec/changes/<name>/specs/\`:
-     - Extract all requirements (marked with "### Requirement:")
-     - For each requirement:
-       - Search codebase for keywords related to the requirement
-       - Assess if implementation likely exists
-     - If requirements appear unimplemented:
-       - Add CRITICAL issue: "Requirement not found: <requirement name>"
-       - Recommendation: "Implement requirement X: <description>"
+   **Cobertura de Specs**:
+   - Se delta specs existirem em \`openspec/changes/<nome>/specs/\`:
+     - Extraia todos os requisitos (marcados com "### Requirement:")
+     - Para cada requisito:
+       - Procure no codebase por palavras-chave relacionadas ao requisito
+       - Avalie se a implementação provavelmente existe
+     - Se requisitos parecerem não implementados:
+       - Adicione issue CRITICAL: "Requirement not found: <nome do requisito>"
+       - Recomendação: "Implement requirement X: <descrição>"
 
-6. **Verify Correctness**
+6. **Verifique Correctness**
 
-   **Requirement Implementation Mapping**:
-   - For each requirement from delta specs:
-     - Search codebase for implementation evidence
-     - If found, note file paths and line ranges
-     - Assess if implementation matches requirement intent
-     - If divergence detected:
-       - Add WARNING: "Implementation may diverge from spec: <details>"
-       - Recommendation: "Review <file>:<lines> against requirement X"
+   **Mapeamento de Implementação de Requisitos**:
+   - Para cada requisito dos delta specs:
+     - Procure no codebase por evidências de implementação
+     - Se encontrado, anote os caminhos de arquivo e intervalos de linha
+     - Avalie se a implementação corresponde à intenção do requisito
+     - Se divergência for detectada:
+       - Adicione WARNING: "Implementation may diverge from spec: <detalhes>"
+       - Recomendação: "Review <arquivo>:<linhas> contra requirement X"
 
-   **Scenario Coverage**:
-   - For each scenario in delta specs (marked with "#### Scenario:"):
-     - Check if conditions are handled in code
-     - Check if tests exist covering the scenario
-     - If scenario appears uncovered:
-       - Add WARNING: "Scenario not covered: <scenario name>"
-       - Recommendation: "Add test or implementation for scenario: <description>"
+   **Cobertura de Cenários**:
+   - Para cada cenário nos delta specs (marcado com "#### Scenario:"):
+     - Verifique se as condições são tratadas no código
+     - Verifique se existem testes cobrindo o cenário
+     - Se o cenário parecer não coberto:
+       - Adicione WARNING: "Scenario not covered: <nome do cenário>"
+       - Recomendação: "Add test or implementation for scenario: <descrição>"
 
-7. **Verify Coherence**
+7. **Verifique Coherence**
 
-   **Design Adherence**:
-   - If \`contextFiles.design\` exists:
-     - Extract key decisions (look for sections like "Decision:", "Approach:", "Architecture:")
-     - Verify implementation follows those decisions
-     - If contradiction detected:
-       - Add WARNING: "Design decision not followed: <decision>"
-       - Recommendation: "Update implementation or revise design.md to match reality"
-   - If no design.md: Skip design adherence check, note "No design.md to verify against"
+   **Aderência ao Design**:
+   - Se \`contextFiles.design\` existir:
+     - Extraia decisões-chave (procure por seções como "Decision:", "Approach:", "Architecture:")
+     - Verifique se a implementação segue essas decisões
+     - Se contradição for detectada:
+       - Adicione WARNING: "Design decision not followed: <decisão>"
+       - Recomendação: "Update implementation or revise design.md to match reality"
+   - Se não houver design.md: Pule a verificação de aderência ao design, anote "No design.md to verify against"
 
-   **Code Pattern Consistency**:
-   - Review new code for consistency with project patterns
-   - Check file naming, directory structure, coding style
-   - If significant deviations found:
-     - Add SUGGESTION: "Code pattern deviation: <details>"
-     - Recommendation: "Consider following project pattern: <example>"
+   **Consistência de Padrões de Código**:
+   - Revise o novo código quanto à consistência com os padrões do projeto
+   - Verifique nomenclatura de arquivos, estrutura de diretórios, estilo de código
+   - Se houver desvios significativos:
+     - Adicione SUGGESTION: "Code pattern deviation: <detalhes>"
+     - Recomendação: "Consider following project pattern: <exemplo>"
 
-8. **Generate Verification Report**
+8. **Gere o Relatório de Verificação**
 
-   **Summary Scorecard**:
+   **Scorecard de Resumo**:
    \`\`\`
-   ## Verification Report: <change-name>
+   ## Verification Report: <nome-change>
 
    ### Summary
    | Dimension    | Status           |
@@ -291,50 +291,50 @@ export function getOpsxVerifyCommandTemplate(): CommandTemplate {
    | Coherence    | Followed/Issues  |
    \`\`\`
 
-   **Issues by Priority**:
+   **Issues por Prioridade**:
 
-   1. **CRITICAL** (Must fix before archive):
-      - Incomplete tasks
-      - Missing requirement implementations
-      - Each with specific, actionable recommendation
+   1. **CRITICAL** (Deve corrigir antes de arquivar):
+      - Tasks incompletas
+      - Implementações de requisitos ausentes
+      - Cada uma com recomendação específica e acionável
 
-   2. **WARNING** (Should fix):
-      - Spec/design divergences
-      - Missing scenario coverage
-      - Each with specific recommendation
+   2. **WARNING** (Deveria corrigir):
+      - Divergências de spec/design
+      - Cobertura de cenário ausente
+      - Cada uma com recomendação específica
 
-   3. **SUGGESTION** (Nice to fix):
-      - Pattern inconsistencies
-      - Minor improvements
-      - Each with specific recommendation
+   3. **SUGGESTION** (Bom corrigir):
+      - Inconsistências de padrão
+      - Melhorias menores
+      - Cada uma com recomendação específica
 
-   **Final Assessment**:
-   - If CRITICAL issues: "X critical issue(s) found. Fix before archiving."
-   - If only warnings: "No critical issues. Y warning(s) to consider. Ready for archive (with noted improvements)."
-   - If all clear: "All checks passed. Ready for archive."
+   **Avaliação Final**:
+   - Se houver issues CRITICAL: "X critical issue(s) found. Fix before archiving."
+   - Se houver apenas warnings: "No critical issues. Y warning(s) to consider. Ready for archive (with noted improvements)."
+   - Se tudo estiver claro: "All checks passed. Ready for archive."
 
-**Verification Heuristics**
+**Heurísticas de Verificação**
 
-- **Completeness**: Focus on objective checklist items (checkboxes, requirements list)
-- **Correctness**: Use keyword search, file path analysis, reasonable inference - don't require perfect certainty
-- **Coherence**: Look for glaring inconsistencies, don't nitpick style
-- **False Positives**: When uncertain, prefer SUGGESTION over WARNING, WARNING over CRITICAL
-- **Actionability**: Every issue must have a specific recommendation with file/line references where applicable
+- **Completeness**: Foque em itens de checklist objetivos (checkboxes, lista de requisitos)
+- **Correctness**: Use busca por palavras-chave, análise de caminhos de arquivo, inferência razoável — não exija certeza perfeita
+- **Coherence**: Procure inconsistências gritantes, não seja meticuloso com estilo
+- **False Positives**: Quando incerto, prefira SUGGESTION ao invés de WARNING, WARNING ao invés de CRITICAL
+- **Actionability**: Cada issue deve ter uma recomendação específica com referências de arquivo/linha quando aplicável
 
-**Graceful Degradation**
+**Degradação Graciosa**
 
-- If only tasks.md exists: verify task completion only, skip spec/design checks
-- If tasks + specs exist: verify completeness and correctness, skip design
-- If full artifacts: verify all three dimensions
-- Always note which checks were skipped and why
+- Se apenas tasks.md existir: verifique apenas a conclusão de tasks, pule verificações de spec/design
+- Se tasks + specs existirem: verifique completeness e correctness, pule design
+- Se todos os artifacts existirem: verifique as três dimensões
+- Sempre anote quais verificações foram puladas e por quê
 
-**Output Format**
+**Formato de Saída**
 
-Use clear markdown with:
-- Table for summary scorecard
-- Grouped lists for issues (CRITICAL/WARNING/SUGGESTION)
-- Code references in format: \`file.ts:123\`
-- Specific, actionable recommendations
-- No vague suggestions like "consider reviewing"`
+Use markdown claro com:
+- Tabela para scorecard de resumo
+- Listas agrupadas para issues (CRITICAL/WARNING/SUGGESTION)
+- Referências de código no formato: \`arquivo.ts:123\`
+- Recomendações específicas e acionáveis
+- Sem sugestões vagas como "consider reviewing"`
   };
 }

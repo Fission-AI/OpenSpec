@@ -13,6 +13,7 @@ import {
 import { parseDeltaSpec, normalizeRequirementName } from '../parsers/requirement-blocks.js';
 import { findMainSpecStructureIssues } from '../parsers/spec-structure.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
+import { VALIDATOR_MESSAGES } from '../../messages/index.js';
 
 export class Validator {
   private strictMode: boolean;
@@ -39,7 +40,7 @@ export class Validator {
       issues.push(...this.applySpecRules(spec, content));
       
     } catch (error) {
-      const baseMessage = error instanceof Error ? error.message : 'Unknown error';
+      const baseMessage = error instanceof Error ? error.message : VALIDATOR_MESSAGES.unknownError;
       const enriched = this.enrichTopLevelError(specName, baseMessage);
       issues.push({
         level: 'ERROR',
@@ -157,19 +158,19 @@ export class Validator {
           const key = normalizeRequirementName(block.name);
           totalDeltas++;
           if (addedNames.has(key)) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `Duplicate requirement in ADDED: "${block.name}"` });
+            issues.push({ level: 'ERROR', path: entryPath, message: VALIDATOR_MESSAGES.duplicateRequirementAdded(block.name) });
           } else {
             addedNames.add(key);
           }
           const requirementText = this.extractRequirementText(block.raw);
           if (!requirementText) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `ADDED "${block.name}" is missing requirement text` });
+            issues.push({ level: 'ERROR', path: entryPath, message: VALIDATOR_MESSAGES.missingRequirementTextAdded(block.name) });
           } else if (!this.containsShallOrMust(requirementText)) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `ADDED "${block.name}" must contain SHALL or MUST` });
+            issues.push({ level: 'ERROR', path: entryPath, message: VALIDATOR_MESSAGES.missingShallOrMustAdded(block.name) });
           }
           const scenarioCount = this.countScenarios(block.raw);
           if (scenarioCount < 1) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `ADDED "${block.name}" must include at least one scenario` });
+            issues.push({ level: 'ERROR', path: entryPath, message: VALIDATOR_MESSAGES.missingScenarioAdded(block.name) });
           }
         }
 
@@ -178,19 +179,19 @@ export class Validator {
           const key = normalizeRequirementName(block.name);
           totalDeltas++;
           if (modifiedNames.has(key)) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `Duplicate requirement in MODIFIED: "${block.name}"` });
+            issues.push({ level: 'ERROR', path: entryPath, message: VALIDATOR_MESSAGES.duplicateRequirementModified(block.name) });
           } else {
             modifiedNames.add(key);
           }
           const requirementText = this.extractRequirementText(block.raw);
           if (!requirementText) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `MODIFIED "${block.name}" is missing requirement text` });
+            issues.push({ level: 'ERROR', path: entryPath, message: VALIDATOR_MESSAGES.missingRequirementTextModified(block.name) });
           } else if (!this.containsShallOrMust(requirementText)) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `MODIFIED "${block.name}" must contain SHALL or MUST` });
+            issues.push({ level: 'ERROR', path: entryPath, message: VALIDATOR_MESSAGES.missingShallOrMustModified(block.name) });
           }
           const scenarioCount = this.countScenarios(block.raw);
           if (scenarioCount < 1) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `MODIFIED "${block.name}" must include at least one scenario` });
+            issues.push({ level: 'ERROR', path: entryPath, message: VALIDATOR_MESSAGES.missingScenarioModified(block.name) });
           }
         }
 
@@ -199,7 +200,7 @@ export class Validator {
           const key = normalizeRequirementName(name);
           totalDeltas++;
           if (removedNames.has(key)) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `Duplicate requirement in REMOVED: "${name}"` });
+            issues.push({ level: 'ERROR', path: entryPath, message: VALIDATOR_MESSAGES.duplicateRequirementRemoved(name) });
           } else {
             removedNames.add(key);
           }
@@ -211,12 +212,12 @@ export class Validator {
           const toKey = normalizeRequirementName(to);
           totalDeltas++;
           if (renamedFrom.has(fromKey)) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `Duplicate FROM in RENAMED: "${from}"` });
+            issues.push({ level: 'ERROR', path: entryPath, message: VALIDATOR_MESSAGES.duplicateFromRenamed(from) });
           } else {
             renamedFrom.add(fromKey);
           }
           if (renamedTo.has(toKey)) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `Duplicate TO in RENAMED: "${to}"` });
+            issues.push({ level: 'ERROR', path: entryPath, message: VALIDATOR_MESSAGES.duplicateToRenamed(to) });
           } else {
             renamedTo.add(toKey);
           }
@@ -225,25 +226,25 @@ export class Validator {
         // Cross-section conflicts (within the same spec file)
         for (const n of modifiedNames) {
           if (removedNames.has(n)) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `Requirement present in both MODIFIED and REMOVED: "${n}"` });
+            issues.push({ level: 'ERROR', path: entryPath, message: VALIDATOR_MESSAGES.requirementInModifiedAndRemoved(n) });
           }
           if (addedNames.has(n)) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `Requirement present in both MODIFIED and ADDED: "${n}"` });
+            issues.push({ level: 'ERROR', path: entryPath, message: VALIDATOR_MESSAGES.requirementInModifiedAndAdded(n) });
           }
         }
         for (const n of addedNames) {
           if (removedNames.has(n)) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `Requirement present in both ADDED and REMOVED: "${n}"` });
+            issues.push({ level: 'ERROR', path: entryPath, message: VALIDATOR_MESSAGES.requirementInAddedAndRemoved(n) });
           }
         }
         for (const { from, to } of plan.renamed) {
           const fromKey = normalizeRequirementName(from);
           const toKey = normalizeRequirementName(to);
           if (modifiedNames.has(fromKey)) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `MODIFIED references old name from RENAMED. Use new header for "${to}"` });
+            issues.push({ level: 'ERROR', path: entryPath, message: VALIDATOR_MESSAGES.modifiedReferencesOldRenamed(to) });
           }
           if (addedNames.has(toKey)) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `RENAMED TO collides with ADDED for "${to}"` });
+            issues.push({ level: 'ERROR', path: entryPath, message: VALIDATOR_MESSAGES.renamedToCollidesAdded(to) });
           }
         }
       }
@@ -255,14 +256,14 @@ export class Validator {
       issues.push({
         level: 'ERROR',
         path: specPath,
-        message: `Delta sections ${this.formatSectionList(sections)} were found, but no requirement entries parsed. Ensure each section includes at least one "### Requirement:" block (REMOVED may use bullet list syntax).`,
+        message: VALIDATOR_MESSAGES.deltaSectionsEmpty(this.formatSectionList(sections)),
       });
     }
     for (const path of missingHeaderSpecs) {
       issues.push({
         level: 'ERROR',
         path,
-        message: 'No delta sections found. Add headers such as "## ADDED Requirements" or move non-delta notes outside specs/.',
+        message: VALIDATOR_MESSAGES.noDeltaSectionsFound,
       });
     }
 

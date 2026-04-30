@@ -9,22 +9,22 @@ import type { SkillTemplate, CommandTemplate } from '../types.js';
 export function getOnboardSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-onboard',
-    description: 'Guided onboarding for OpenSpec - walk through a complete workflow cycle with narration and real codebase work.',
+    description: 'Onboarding guiado para o OpenSpec - percorra um ciclo completo de workflow com narração e trabalho real na codebase.',
     instructions: getOnboardInstructions(),
     license: 'MIT',
-    compatibility: 'Requires openspec CLI.',
+    compatibility: 'Requer openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
   };
 }
 
 function getOnboardInstructions(): string {
-  return `Guide the user through their first complete OpenSpec workflow cycle. This is a teaching experience—you'll do real work in their codebase while explaining each step.
+  return `Guie o usuário através de seu primeiro ciclo completo de workflow do OpenSpec. Esta é uma experiência de ensino - você fará trabalho real na codebase dele enquanto explica cada passo.
 
 ---
 
-## Preflight
+## Pré-voo
 
-Before starting, check if the OpenSpec CLI is installed:
+Antes de começar, verifique se o CLI do OpenSpec está instalado:
 
 \`\`\`bash
 # Unix/macOS
@@ -33,540 +33,540 @@ openspec --version 2>&1 || echo "CLI_NOT_INSTALLED"
 # if (Get-Command openspec -ErrorAction SilentlyContinue) { openspec --version } else { echo "CLI_NOT_INSTALLED" }
 \`\`\`
 
-**If CLI not installed:**
-> OpenSpec CLI is not installed. Install it first, then come back to \`/opsx:onboard\`.
+**Se o CLI não estiver instalado:**
+> O CLI do OpenSpec não está instalado. Instale-o primeiro, depois volte para \`/opsx:onboard\`.
 
-Stop here if not installed.
-
----
-
-## Phase 1: Welcome
-
-Display:
-
-\`\`\`
-## Welcome to OpenSpec!
-
-I'll walk you through a complete change cycle—from idea to implementation—using a real task in your codebase. Along the way, you'll learn the workflow by doing it.
-
-**What we'll do:**
-1. Pick a small, real task in your codebase
-2. Explore the problem briefly
-3. Create a change (the container for our work)
-4. Build the artifacts: proposal → specs → design → tasks
-5. Implement the tasks
-6. Archive the completed change
-
-**Time:** ~15-20 minutes
-
-Let's start by finding something to work on.
-\`\`\`
+Pare aqui se não estiver instalado.
 
 ---
 
-## Phase 2: Task Selection
+## Fase 1: Boas-vindas
 
-### Codebase Analysis
+Exiba:
 
-Scan the codebase for small improvement opportunities. Look for:
+\`\`\`
+## Bem-vindo ao OpenSpec!
 
-1. **TODO/FIXME comments** - Search for \`TODO\`, \`FIXME\`, \`HACK\`, \`XXX\` in code files
-2. **Missing error handling** - \`catch\` blocks that swallow errors, risky operations without try-catch
-3. **Functions without tests** - Cross-reference \`src/\` with test directories
-4. **Type issues** - \`any\` types in TypeScript files (\`: any\`, \`as any\`)
-5. **Debug artifacts** - \`console.log\`, \`console.debug\`, \`debugger\` statements in non-debug code
-6. **Missing validation** - User input handlers without validation
+Eu vou te guiar através de um ciclo completo de change - da ideia à implementação - usando uma tarefa real na sua codebase. Ao longo do caminho, você aprenderá o workflow fazendo.
 
-Also check recent git activity:
+**O que faremos:**
+1. Escolher uma tarefa pequena e real na sua codebase
+2. Explorar o problema brevemente
+3. Criar uma change (o container para nosso trabalho)
+4. Construir os artifacts: proposal → specs → design → tasks
+5. Implementar as tarefas
+6. Arquivar a change concluída
+
+**Tempo:** ~15-20 minutos
+
+Vamos começar encontrando algo para trabalhar.
+\`\`\`
+
+---
+
+## Fase 2: Seleção de Tarefa
+
+### Análise da Codebase
+
+Escaneie a codebase em busca de pequenas oportunidades de melhoria. Procure por:
+
+1. **Comentários TODO/FIXME** - Pesquise por \`TODO\`, \`FIXME\`, \`HACK\`, \`XXX\` em arquivos de código
+2. **Tratamento de erros ausente** - Blocos \`catch\` que engolem erros, operações arriscadas sem try-catch
+3. **Funções sem testes** - Relacione \`src/\` com diretórios de teste
+4. **Problemas de tipos** - Tipos \`any\` em arquivos TypeScript (\`: any\`, \`as any\`)
+5. **Artifacts de debug** - Declarações \`console.log\`, \`console.debug\`, \`debugger\` em código não-debug
+6. **Validação ausente** - Handlers de entrada de usuário sem validação
+
+Verifique também a atividade recente do git:
 \`\`\`bash
 # Unix/macOS
-git log --oneline -10 2>/dev/null || echo "No git history"
+git log --oneline -10 2>/dev/null || echo "Sem histórico git"
 # Windows (PowerShell)
-# git log --oneline -10 2>$null; if ($LASTEXITCODE -ne 0) { echo "No git history" }
+# git log --oneline -10 2>$null; if ($LASTEXITCODE -ne 0) { echo "Sem histórico git" }
 \`\`\`
 
-### Present Suggestions
+### Apresente Sugestões
 
-From your analysis, present 3-4 specific suggestions:
-
-\`\`\`
-## Task Suggestions
-
-Based on scanning your codebase, here are some good starter tasks:
-
-**1. [Most promising task]**
-   Location: \`src/path/to/file.ts:42\`
-   Scope: ~1-2 files, ~20-30 lines
-   Why it's good: [brief reason]
-
-**2. [Second task]**
-   Location: \`src/another/file.ts\`
-   Scope: ~1 file, ~15 lines
-   Why it's good: [brief reason]
-
-**3. [Third task]**
-   Location: [location]
-   Scope: [estimate]
-   Why it's good: [brief reason]
-
-**4. Something else?**
-   Tell me what you'd like to work on.
-
-Which task interests you? (Pick a number or describe your own)
-\`\`\`
-
-**If nothing found:** Fall back to asking what the user wants to build:
-> I didn't find obvious quick wins in your codebase. What's something small you've been meaning to add or fix?
-
-### Scope Guardrail
-
-If the user picks or describes something too large (major feature, multi-day work):
+A partir da sua análise, apresente 3-4 sugestões específicas:
 
 \`\`\`
-That's a valuable task, but it's probably larger than ideal for your first OpenSpec run-through.
+## Sugestões de Tarefas
 
-For learning the workflow, smaller is better—it lets you see the full cycle without getting stuck in implementation details.
+Com base no escaneamento da sua codebase, aqui estão algumas boas tarefas iniciais:
 
-**Options:**
-1. **Slice it smaller** - What's the smallest useful piece of [their task]? Maybe just [specific slice]?
-2. **Pick something else** - One of the other suggestions, or a different small task?
-3. **Do it anyway** - If you really want to tackle this, we can. Just know it'll take longer.
+**1. [Tarefa mais promissora]**
+   Local: \`src/caminho/para/arquivo.ts:42\`
+   Escopo: ~1-2 arquivos, ~20-30 linhas
+   Por que é boa: [breve razão]
 
-What would you prefer?
+**2. [Segunda tarefa]**
+   Local: \`src/outro/arquivo.ts\`
+   Escopo: ~1 arquivo, ~15 linhas
+   Por que é boa: [breve razão]
+
+**3. [Terceira tarefa]**
+   Local: [local]
+   Escopo: [estimativa]
+   Por que é boa: [breve razão]
+
+**4. Outra coisa?**
+   Me diga no que você gostaria de trabalhar.
+
+Qual tarefa te interessa? (Escolha um número ou descreva a sua)
 \`\`\`
 
-Let the user override if they insist—this is a soft guardrail.
+**Se nada for encontrado:** Volte a perguntar o que o usuário quer construir:
+> Não encontrei vitórias rápidas óbvias na sua codebase. Qual é algo pequeno que você vem querendo adicionar ou corrigir?
+
+### Guardrail de Escopo
+
+Se o usuário escolher ou descrever algo muito grande (funcionalidade principal, trabalho de vários dias):
+
+\`\`\`
+Essa é uma tarefa valiosa, mas provavelmente maior do que o ideal para sua primeira execução do OpenSpec.
+
+Para aprender o workflow, menor é melhor - permite ver o ciclo completo sem ficar preso em detalhes de implementação.
+
+**Opções:**
+1. **Fatiar menor** - Qual é a menor peça útil de [tarefa dele]? Talvez apenas [fatia específica]?
+2. **Escolher outra coisa** - Uma das outras sugestões, ou uma tarefa pequena diferente?
+3. **Fazer assim mesmo** - Se você realmente quiser encarar isso, podemos. Só saiba que vai demorar mais.
+
+O que você prefere?
+\`\`\`
+
+Deixe o usuário sobrepor se insistir - este é um guardrail suave.
 
 ---
 
-## Phase 3: Explore Demo
+## Fase 3: Demonstração do Explore
 
-Once a task is selected, briefly demonstrate explore mode:
-
-\`\`\`
-Before we create a change, let me quickly show you **explore mode**—it's how you think through problems before committing to a direction.
-\`\`\`
-
-Spend 1-2 minutes investigating the relevant code:
-- Read the file(s) involved
-- Draw a quick ASCII diagram if it helps
-- Note any considerations
+Uma vez que uma tarefa seja selecionada, demonstre brevemente o modo explore:
 
 \`\`\`
-## Quick Exploration
+Antes de criarmos uma change, deixe-me rapidamente te mostrar o **modo explore** - é como você pensa sobre problemas antes de se comprometer com uma direção.
+\`\`\`
 
-[Your brief analysis—what you found, any considerations]
+Gaste 1-2 minutos investigando o código relevante:
+- Leia o(s) arquivo(s) envolvido(s)
+- Desenhe um diagrama ASCII rápido se ajudar
+- Note quaisquer considerações
+
+\`\`\`
+## Exploração Rápida
+
+[Sua breve análise - o que você encontrou, quaisquer considerações]
 
 ┌─────────────────────────────────────────┐
-│   [Optional: ASCII diagram if helpful]  │
+│   [Opcional: diagrama ASCII se útil]    │
 └─────────────────────────────────────────┘
 
-Explore mode (\`/opsx:explore\`) is for this kind of thinking—investigating before implementing. You can use it anytime you need to think through a problem.
+O modo explore (\`/opsx:explore\`) é para esse tipo de pensamento - investigar antes de implementar. Você pode usá-lo a qualquer momento que precisar pensar sobre um problema.
 
-Now let's create a change to hold our work.
+Agora vamos criar uma change para conter nosso trabalho.
 \`\`\`
 
-**PAUSE** - Wait for user acknowledgment before proceeding.
+**PAUSA** - Aguarde confirmação do usuário antes de prosseguir.
 
 ---
 
-## Phase 4: Create the Change
+## Fase 4: Criar a Change
 
-**EXPLAIN:**
+**EXPLIQUE:**
 \`\`\`
-## Creating a Change
+## Criando uma Change
 
-A "change" in OpenSpec is a container for all the thinking and planning around a piece of work. It lives in \`openspec/changes/<name>/\` and holds your artifacts—proposal, specs, design, tasks.
+Uma "change" no OpenSpec é um container para todo o pensamento e planejamento em torno de uma peça de trabalho. Ela fica em \`openspec/changes/<nome>/\` e armazena seus artifacts - proposal, specs, design, tasks.
 
-Let me create one for our task.
+Deixe-me criar uma para nossa tarefa.
 \`\`\`
 
-**DO:** Create the change with a derived kebab-case name:
+**FAÇA:** Crie a change com um nome kebab-case derivado:
 \`\`\`bash
-openspec new change "<derived-name>"
+openspec new change "<nome-derivado>"
 \`\`\`
 
-**SHOW:**
+**MOSTRE:**
 \`\`\`
-Created: \`openspec/changes/<name>/\`
+Criado: \`openspec/changes/<nome>/\`
 
-The folder structure:
+A estrutura de pastas:
 \`\`\`
-openspec/changes/<name>/
-├── proposal.md    ← Why we're doing this (empty, we'll fill it)
-├── design.md      ← How we'll build it (empty)
-├── specs/         ← Detailed requirements (empty)
-└── tasks.md       ← Implementation checklist (empty)
+openspec/changes/<nome>/
+├── proposal.md    ← Por que estamos fazendo isso (vazio, vamos preencher)
+├── design.md      ← Como vamos construir (vazio)
+├── specs/         ← Requisitos detalhados (vazio)
+└── tasks.md       ← Checklist de implementação (vazio)
 \`\`\`
 
-Now let's fill in the first artifact—the proposal.
+Agora vamos preencher o primeiro artifact - a proposal.
 \`\`\`
 
 ---
 
-## Phase 5: Proposal
+## Fase 5: Proposal
 
-**EXPLAIN:**
+**EXPLIQUE:**
 \`\`\`
-## The Proposal
+## A Proposal
 
-The proposal captures **why** we're making this change and **what** it involves at a high level. It's the "elevator pitch" for the work.
+A proposal captura **por que** estamos fazendo esta change e **o que** ela envolve em alto nível. É o "pitch de elevador" para o trabalho.
 
-I'll draft one based on our task.
+Vou elaborar uma com base na nossa tarefa.
 \`\`\`
 
-**DO:** Draft the proposal content (don't save yet):
+**FAÇA:** Elabore o conteúdo da proposal (ainda não salve):
 
 \`\`\`
-Here's a draft proposal:
+Aqui está um rascunho de proposal:
 
 ---
 
-## Why
+## Por Que
 
-[1-2 sentences explaining the problem/opportunity]
+[1-2 frases explicando o problema/oportunidade]
 
-## What Changes
+## O Que Muda
 
-[Bullet points of what will be different]
+[Bullet points do que será diferente]
 
 ## Capabilities
 
-### New Capabilities
-- \`<capability-name>\`: [brief description]
+### Novas Capabilities
+- \`<nome-capability>\`: [breve descrição]
 
-### Modified Capabilities
-<!-- If modifying existing behavior -->
+### Capabilities Modificadas
+<!-- Se modificar comportamento existente -->
 
-## Impact
+## Impacto
 
-- \`src/path/to/file.ts\`: [what changes]
-- [other files if applicable]
+- \`src/caminho/para/arquivo.ts\`: [o que muda]
+- [outros arquivos se aplicável]
 
 ---
 
-Does this capture the intent? I can adjust before we save it.
+Isso captura a intenção? Posso ajustar antes de salvá-la.
 \`\`\`
 
-**PAUSE** - Wait for user approval/feedback.
+**PAUSA** - Aguarde aprovação/feedback do usuário.
 
-After approval, save the proposal:
+Após aprovação, salve a proposal:
 \`\`\`bash
-openspec instructions proposal --change "<name>" --json
+openspec instructions proposal --change "<nome>" --json
 \`\`\`
-Then write the content to \`openspec/changes/<name>/proposal.md\`.
+Depois escreva o conteúdo em \`openspec/changes/<nome>/proposal.md\`.
 
 \`\`\`
-Proposal saved. This is your "why" document—you can always come back and refine it as understanding evolves.
+Proposal salva. Este é seu documento de "por que" - você sempre pode voltar e refiná-lo à medida que o entendimento evolui.
 
-Next up: specs.
+Próximo: specs.
 \`\`\`
 
 ---
 
-## Phase 6: Specs
+## Fase 6: Specs
 
-**EXPLAIN:**
+**EXPLIQUE:**
 \`\`\`
 ## Specs
 
-Specs define **what** we're building in precise, testable terms. They use a requirement/scenario format that makes expected behavior crystal clear.
+Os specs definem **o que** estamos construindo em termos precisos e testáveis. Eles usam um formato de requisito/cenário que torna o comportamento esperado cristalino.
 
-For a small task like this, we might only need one spec file.
+Para uma tarefa pequena como esta, talvez precisemos apenas de um arquivo spec.
 \`\`\`
 
-**DO:** Create the spec file:
+**FAÇA:** Crie o arquivo spec:
 \`\`\`bash
 # Unix/macOS
-mkdir -p openspec/changes/<name>/specs/<capability-name>
+mkdir -p openspec/changes/<nome>/specs/<nome-capability>
 # Windows (PowerShell)
-# New-Item -ItemType Directory -Force -Path "openspec/changes/<name>/specs/<capability-name>"
+# New-Item -ItemType Directory -Force -Path "openspec/changes/<nome>/specs/<nome-capability>"
 \`\`\`
 
-Draft the spec content:
+Elabore o conteúdo do spec:
 
 \`\`\`
-Here's the spec:
+Aqui está o spec:
 
 ---
 
-## ADDED Requirements
+## Requisitos ADICIONADOS
 
-### Requirement: <Name>
+### Requisito: <Nome>
 
-<Description of what the system should do>
+<Descrição do que o sistema deve fazer>
 
-#### Scenario: <Scenario name>
+#### Cenário: <Nome do cenário>
 
-- **WHEN** <trigger condition>
-- **THEN** <expected outcome>
-- **AND** <additional outcome if needed>
+- **QUANDO** <condição de gatilho>
+- **ENTÃO** <resultado esperado>
+- **E** <resultado adicional se necessário>
 
 ---
 
-This format—WHEN/THEN/AND—makes requirements testable. You can literally read them as test cases.
+Este formato - QUANDO/ENTÃO/E - torna os requisitos testáveis. Você pode literalmente lê-los como casos de teste.
 \`\`\`
 
-Save to \`openspec/changes/<name>/specs/<capability>/spec.md\`.
+Salve em \`openspec/changes/<nome>/specs/<capability>/spec.md\`.
 
 ---
 
-## Phase 7: Design
+## Fase 7: Design
 
-**EXPLAIN:**
+**EXPLIQUE:**
 \`\`\`
 ## Design
 
-The design captures **how** we'll build it—technical decisions, tradeoffs, approach.
+O design captura **como** vamos construir - decisões técnicas, tradeoffs, abordagem.
 
-For small changes, this might be brief. That's fine—not every change needs deep design discussion.
+Para changes pequenas, isto pode ser breve. Tudo bem - nem toda change precisa de discussão profunda de design.
 \`\`\`
 
-**DO:** Draft design.md:
+**FAÇA:** Elabore design.md:
 
 \`\`\`
-Here's the design:
+Aqui está o design:
 
 ---
 
-## Context
+## Contexto
 
-[Brief context about the current state]
+[Contexto breve sobre o estado atual]
 
-## Goals / Non-Goals
+## Objetivos / Não-Objetivos
 
-**Goals:**
-- [What we're trying to achieve]
+**Objetivos:**
+- [O que estamos tentando alcançar]
 
-**Non-Goals:**
-- [What's explicitly out of scope]
+**Não-Objetivos:**
+- [O que está explicitamente fora do escopo]
 
-## Decisions
+## Decisões
 
-### Decision 1: [Key decision]
+### Decisão 1: [Decisão-chave]
 
-[Explanation of approach and rationale]
+[Explicação da abordagem e racional]
 
 ---
 
-For a small task, this captures the key decisions without over-engineering.
+Para uma tarefa pequena, isto captura as decisões-chave sem over-engineering.
 \`\`\`
 
-Save to \`openspec/changes/<name>/design.md\`.
+Salve em \`openspec/changes/<nome>/design.md\`.
 
 ---
 
-## Phase 8: Tasks
+## Fase 8: Tasks
 
-**EXPLAIN:**
+**EXPLIQUE:**
 \`\`\`
 ## Tasks
 
-Finally, we break the work into implementation tasks—checkboxes that drive the apply phase.
+Finalmente, quebramos o trabalho em tarefas de implementação - checkboxes que impulsionam a fase de apply.
 
-These should be small, clear, and in logical order.
+Elas devem ser pequenas, claras e em ordem lógica.
 \`\`\`
 
-**DO:** Generate tasks based on specs and design:
+**FAÇA:** Gere tarefas baseadas nos specs e design:
 
 \`\`\`
-Here are the implementation tasks:
+Aqui estão as tarefas de implementação:
 
 ---
 
-## 1. [Category or file]
+## 1. [Categoria ou arquivo]
 
-- [ ] 1.1 [Specific task]
-- [ ] 1.2 [Specific task]
+- [ ] 1.1 [Tarefa específica]
+- [ ] 1.2 [Tarefa específica]
 
-## 2. Verify
+## 2. Verificar
 
-- [ ] 2.1 [Verification step]
-
----
-
-Each checkbox becomes a unit of work in the apply phase. Ready to implement?
-\`\`\`
-
-**PAUSE** - Wait for user to confirm they're ready to implement.
-
-Save to \`openspec/changes/<name>/tasks.md\`.
+- [ ] 2.1 [Etapa de verificação]
 
 ---
 
-## Phase 9: Apply (Implementation)
-
-**EXPLAIN:**
-\`\`\`
-## Implementation
-
-Now we implement each task, checking them off as we go. I'll announce each one and occasionally note how the specs/design informed the approach.
+Cada checkbox se torna uma unidade de trabalho na fase de apply. Pronto para implementar?
 \`\`\`
 
-**DO:** For each task:
+**PAUSA** - Aguarde o usuário confirmar que está pronto para implementar.
 
-1. Announce: "Working on task N: [description]"
-2. Implement the change in the codebase
-3. Reference specs/design naturally: "The spec says X, so I'm doing Y"
-4. Mark complete in tasks.md: \`- [ ]\` → \`- [x]\`
-5. Brief status: "✓ Task N complete"
+Salve em \`openspec/changes/<nome>/tasks.md\`.
 
-Keep narration light—don't over-explain every line of code.
+---
 
-After all tasks:
+## Fase 9: Apply (Implementação)
+
+**EXPLIQUE:**
+\`\`\`
+## Implementação
+
+Agora implementamos cada tarefa, marcando-as à medida que avançamos. Anunciarei cada uma e ocasionalmente notarei como os specs/design informaram a abordagem.
+\`\`\`
+
+**FAÇA:** Para cada tarefa:
+
+1. Anuncie: "Trabalhando na tarefa N: [descrição]"
+2. Implemente a mudança na codebase
+3. Referencie specs/design naturalmente: "O spec diz X, então estou fazendo Y"
+4. Marque como concluída em tasks.md: \`- [ ]\` → \`- [x]\`
+5. Breve status: "✓ Tarefa N concluída"
+
+Mantenha a narração leve - não explique cada linha de código.
+
+Após todas as tarefas:
 
 \`\`\`
-## Implementation Complete
+## Implementação Concluída
 
-All tasks done:
-- [x] Task 1
-- [x] Task 2
+Todas as tarefas concluídas:
+- [x] Tarefa 1
+- [x] Tarefa 2
 - [x] ...
 
-The change is implemented! One more step—let's archive it.
+A change está implementada! Mais um passo - vamos arquivá-la.
 \`\`\`
 
 ---
 
-## Phase 10: Archive
+## Fase 10: Archive
 
-**EXPLAIN:**
+**EXPLIQUE:**
 \`\`\`
-## Archiving
+## Arquivamento
 
-When a change is complete, we archive it. This moves it from \`openspec/changes/\` to \`openspec/changes/archive/YYYY-MM-DD-<name>/\`.
+Quando uma change está completa, nós a arquivamos. Isso a move de \`openspec/changes/\` para \`openspec/changes/archive/YYYY-MM-DD-<nome>/\`.
 
-Archived changes become your project's decision history—you can always find them later to understand why something was built a certain way.
+As changes arquivadas se tornam o histórico de decisões do seu projeto - você sempre pode encontrá-las depois para entender por que algo foi construído de certa forma.
 \`\`\`
 
-**DO:**
+**FAÇA:**
 \`\`\`bash
-openspec archive "<name>"
+openspec archive "<nome>"
 \`\`\`
 
-**SHOW:**
+**MOSTRE:**
 \`\`\`
-Archived to: \`openspec/changes/archive/YYYY-MM-DD-<name>/\`
+Arquivado em: \`openspec/changes/archive/YYYY-MM-DD-<nome>/\`
 
-The change is now part of your project's history. The code is in your codebase, the decision record is preserved.
-\`\`\`
-
----
-
-## Phase 11: Recap & Next Steps
-
-\`\`\`
-## Congratulations!
-
-You just completed a full OpenSpec cycle:
-
-1. **Explore** - Thought through the problem
-2. **New** - Created a change container
-3. **Proposal** - Captured WHY
-4. **Specs** - Defined WHAT in detail
-5. **Design** - Decided HOW
-6. **Tasks** - Broke it into steps
-7. **Apply** - Implemented the work
-8. **Archive** - Preserved the record
-
-This same rhythm works for any size change—a small fix or a major feature.
-
----
-
-## Command Reference
-
-**Core workflow:**
-
- | Command           | What it does                               |
- |-------------------|--------------------------------------------|
- | \`/opsx:propose\` | Create a change and generate all artifacts |
- | \`/opsx:explore\` | Think through problems before/during work  |
- | \`/opsx:apply\`   | Implement tasks from a change              |
- | \`/opsx:archive\` | Archive a completed change                 |
-
-**Additional commands:**
-
- | Command            | What it does                                             |
- |--------------------|----------------------------------------------------------|
- | \`/opsx:new\`      | Start a new change, step through artifacts one at a time |
- | \`/opsx:continue\` | Continue working on an existing change                   |
- | \`/opsx:ff\`       | Fast-forward: create all artifacts at once               |
- | \`/opsx:verify\`   | Verify implementation matches artifacts                  |
-
----
-
-## What's Next?
-
-Try \`/opsx:propose\` on something you actually want to build. You've got the rhythm now!
+A change agora faz parte do histórico do seu projeto. O código está na sua codebase, o registro de decisão está preservado.
 \`\`\`
 
 ---
 
-## Graceful Exit Handling
-
-### User wants to stop mid-way
-
-If the user says they need to stop, want to pause, or seem disengaged:
+## Fase 11: Recapitulação e Próximos Passos
 
 \`\`\`
-No problem! Your change is saved at \`openspec/changes/<name>/\`.
+## Parabéns!
 
-To pick up where we left off later:
-- \`/opsx:continue <name>\` - Resume artifact creation
-- \`/opsx:apply <name>\` - Jump to implementation (if tasks exist)
+Você acabou de completar um ciclo completo do OpenSpec:
 
-The work won't be lost. Come back whenever you're ready.
+1. **Explore** - Pensou sobre o problema
+2. **New** - Criou um container de change
+3. **Proposal** - Capturou POR QUE
+4. **Specs** - Definiu O QUE em detalhes
+5. **Design** - Decidiu COMO
+6. **Tasks** - Quebrou em passos
+7. **Apply** - Implementou o trabalho
+8. **Archive** - Preservou o registro
+
+Este mesmo ritmo funciona para qualquer tamanho de change - uma pequena correção ou uma funcionalidade principal.
+
+---
+
+## Referência de Comandos
+
+**Workflow principal:**
+
+ | Comando           | O que faz                                   |
+ |-------------------|---------------------------------------------|
+ | \`/opsx:propose\` | Cria uma change e gera todos os artifacts   |
+ | \`/opsx:explore\` | Pensa sobre problemas antes/durante o trabalho |
+ | \`/opsx:apply\`   | Implementa tarefas de uma change            |
+ | \`/opsx:archive\` | Arquiva uma change concluída                |
+
+**Comandos adicionais:**
+
+ | Comando            | O que faz                                              |
+ |--------------------|--------------------------------------------------------|
+ | \`/opsx:new\`      | Inicia uma nova change, passo a passo pelos artifacts  |
+ | \`/opsx:continue\` | Continua trabalhando em uma change existente           |
+ | \`/opsx:ff\`       | Fast-forward: cria todos os artifacts de uma vez       |
+ | \`/opsx:verify\`   | Verifica se implementação corresponde aos artifacts    |
+
+---
+
+## E Agora?
+
+Experimente \`/opsx:propose\` em algo que você realmente quer construir. Você já pegou o ritmo!
 \`\`\`
 
-Exit gracefully without pressure.
+---
 
-### User just wants command reference
+## Tratamento de Saída Graciosa
 
-If the user says they just want to see the commands or skip the tutorial:
+### Usuário quer parar no meio do caminho
+
+Se o usuário disser que precisa parar, quer pausar, ou parecer desengajado:
 
 \`\`\`
-## OpenSpec Quick Reference
+Sem problema! Sua change está salva em \`openspec/changes/<nome>/\`.
 
-**Core workflow:**
+Para retomar de onde paramos depois:
+- \`/opsx:continue <nome>\` - Retoma a criação de artifacts
+- \`/opsx:apply <nome>\` - Pula para implementação (se tasks existirem)
 
- | Command                  | What it does                               |
- |--------------------------|--------------------------------------------|
- | \`/opsx:propose <name>\` | Create a change and generate all artifacts |
- | \`/opsx:explore\`        | Think through problems (no code changes)   |
- | \`/opsx:apply <name>\`   | Implement tasks                            |
- | \`/opsx:archive <name>\` | Archive when done                          |
-
-**Additional commands:**
-
- | Command                   | What it does                        |
- |---------------------------|-------------------------------------|
- | \`/opsx:new <name>\`      | Start a new change, step by step    |
- | \`/opsx:continue <name>\` | Continue an existing change         |
- | \`/opsx:ff <name>\`       | Fast-forward: all artifacts at once |
- | \`/opsx:verify <name>\`   | Verify implementation               |
-
-Try \`/opsx:propose\` to start your first change.
+O trabalho não será perdido. Volte quando estiver pronto.
 \`\`\`
 
-Exit gracefully.
+Saia graciosamente sem pressão.
+
+### Usuário apenas quer a referência de comandos
+
+Se o usuário disser que apenas quer ver os comandos ou pular o tutorial:
+
+\`\`\`
+## Referência Rápida do OpenSpec
+
+**Workflow principal:**
+
+ | Comando                  | O que faz                                   |
+ |--------------------------|---------------------------------------------|
+ | \`/opsx:propose <nome>\` | Cria uma change e gera todos os artifacts   |
+ | \`/opsx:explore\`        | Pensa sobre problemas (sem mudanças de código) |
+ | \`/opsx:apply <nome>\`   | Implementa tarefas                          |
+ | \`/opsx:archive <nome>\` | Arquiva quando concluído                    |
+
+**Comandos adicionais:**
+
+ | Comando                   | O que faz                        |
+ |---------------------------|----------------------------------|
+ | \`/opsx:new <nome>\`      | Inicia uma nova change, passo a passo |
+ | \`/opsx:continue <nome>\` | Continua uma change existente    |
+ | \`/opsx:ff <nome>\`       | Fast-forward: todos os artifacts de uma vez |
+ | \`/opsx:verify <nome>\`   | Verifica implementação           |
+
+Experimente \`/opsx:propose\` para iniciar sua primeira change.
+\`\`\`
+
+Saia graciosamente.
 
 ---
 
 ## Guardrails
 
-- **Follow the EXPLAIN → DO → SHOW → PAUSE pattern** at key transitions (after explore, after proposal draft, after tasks, after archive)
-- **Keep narration light** during implementation—teach without lecturing
-- **Don't skip phases** even if the change is small—the goal is teaching the workflow
-- **Pause for acknowledgment** at marked points, but don't over-pause
-- **Handle exits gracefully**—never pressure the user to continue
-- **Use real codebase tasks**—don't simulate or use fake examples
-- **Adjust scope gently**—guide toward smaller tasks but respect user choice`;
+- **Siga o padrão EXPLICAR → FAZER → MOSTRAR → PAUSA** nas transições-chave (após explore, após rascunho de proposal, após tasks, após archive)
+- **Mantenha a narração leve** durante a implementação - ensine sem pregar
+- **Não pule fases** mesmo se a change for pequena - o objetivo é ensinar o workflow
+- **Pause para confirmação** nos pontos marcados, mas não exagere nas pausas
+- **Trate saídas graciosamente** - nunca pressione o usuário a continuar
+- **Use tarefas reais da codebase** - não simule ou use exemplos falsos
+- **Ajuste o escopo gentilmente** - guie para tarefas menores mas respeite a escolha do usuário`;
 }
 
 export function getOpsxOnboardCommandTemplate(): CommandTemplate {
   return {
     name: 'OPSX: Onboard',
-    description: 'Guided onboarding - walk through a complete OpenSpec workflow cycle with narration',
+    description: 'Onboarding guiado - percorra um ciclo completo de workflow do OpenSpec com narração',
     category: 'Workflow',
     tags: ['workflow', 'onboarding', 'tutorial', 'learning'],
     content: getOnboardInstructions(),

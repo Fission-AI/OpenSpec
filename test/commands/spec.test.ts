@@ -202,7 +202,7 @@ The system SHALL process credit card payments securely`;
           encoding: 'utf-8'
         });
         
-        expect(output).toContain("Specification 'auth' is valid");
+        expect(output).toContain("Especificação 'auth' é válida");
       } finally {
         process.chdir(originalCwd);
       }
@@ -302,7 +302,7 @@ This section has no actual requirements`;
       try {
         process.chdir(testDir);
         const output = execSync(`node ${openspecBin} spec list`, { encoding: 'utf-8' });
-        expect(output.trim()).toBe('No items found');
+        expect(output.trim()).toBe('Nenhum item encontrado.');
       } finally {
         process.chdir(originalCwd);
       }

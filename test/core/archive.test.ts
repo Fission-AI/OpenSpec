@@ -257,7 +257,7 @@ New feature description.
     it('should throw error if change does not exist', async () => {
       await expect(
         archiveCommand.execute('non-existent-change', { yes: true })
-      ).rejects.toThrow("Change 'non-existent-change' not found.");
+      ).rejects.toThrow("Alteração 'non-existent-change' não encontrada.");
     });
 
     it('should throw error if archive already exists', async () => {
@@ -801,7 +801,7 @@ E1 updated`);
       
       // Verify select was called with correct options (values matter, names may include progress)
       expect(mockSelect).toHaveBeenCalledWith(expect.objectContaining({
-        message: 'Select a change to archive',
+        message: 'Selecione uma alteração para arquivar',
         choices: expect.arrayContaining([
           expect.objectContaining({ value: change1 }),
           expect.objectContaining({ value: change2 })

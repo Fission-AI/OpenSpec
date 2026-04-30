@@ -22,6 +22,7 @@ import {
 import { CORE_WORKFLOWS, ALL_WORKFLOWS, getProfileWorkflows } from '../core/profiles.js';
 import { OPENSPEC_DIR_NAME } from '../core/config.js';
 import { hasProjectConfigDrift } from '../core/profile-sync-drift.js';
+import { CONFIG_MESSAGES, CLI_MESSAGES } from '../messages/index.js';
 
 type ProfileAction = 'both' | 'delivery' | 'workflows' | 'keep';
 
@@ -43,48 +44,48 @@ interface WorkflowPromptMeta {
 
 const WORKFLOW_PROMPT_META: Record<string, WorkflowPromptMeta> = {
   propose: {
-    name: 'Propose change',
-    description: 'Create proposal, design, and tasks from a request',
+    name: CONFIG_MESSAGES.workflowProposeName,
+    description: CONFIG_MESSAGES.workflowProposeDesc,
   },
   explore: {
-    name: 'Explore ideas',
-    description: 'Investigate a problem before implementation',
+    name: CONFIG_MESSAGES.workflowExploreName,
+    description: CONFIG_MESSAGES.workflowExploreDesc,
   },
   new: {
-    name: 'New change',
-    description: 'Create a new change scaffold quickly',
+    name: CONFIG_MESSAGES.workflowNewName,
+    description: CONFIG_MESSAGES.workflowNewDesc,
   },
   continue: {
-    name: 'Continue change',
-    description: 'Resume work on an existing change',
+    name: CONFIG_MESSAGES.workflowContinueName,
+    description: CONFIG_MESSAGES.workflowContinueDesc,
   },
   apply: {
-    name: 'Apply tasks',
-    description: 'Implement tasks from the current change',
+    name: CONFIG_MESSAGES.workflowApplyName,
+    description: CONFIG_MESSAGES.workflowApplyDesc,
   },
   ff: {
-    name: 'Fast-forward',
-    description: 'Run a faster implementation workflow',
+    name: CONFIG_MESSAGES.workflowFastForwardName,
+    description: CONFIG_MESSAGES.workflowFastForwardDesc,
   },
   sync: {
-    name: 'Sync specs',
-    description: 'Sync change artifacts with specs',
+    name: CONFIG_MESSAGES.workflowSyncName,
+    description: CONFIG_MESSAGES.workflowSyncDesc,
   },
   archive: {
-    name: 'Archive change',
-    description: 'Finalize and archive a completed change',
+    name: CONFIG_MESSAGES.workflowArchiveName,
+    description: CONFIG_MESSAGES.workflowArchiveDesc,
   },
   'bulk-archive': {
-    name: 'Bulk archive',
-    description: 'Archive multiple completed changes together',
+    name: CONFIG_MESSAGES.workflowBulkArchiveName,
+    description: CONFIG_MESSAGES.workflowBulkArchiveDesc,
   },
   verify: {
-    name: 'Verify change',
-    description: 'Run verification checks against a change',
+    name: CONFIG_MESSAGES.workflowVerifyName,
+    description: CONFIG_MESSAGES.workflowVerifyDesc,
   },
   onboard: {
-    name: 'Onboard',
-    description: 'Guided onboarding flow for OpenSpec',
+    name: CONFIG_MESSAGES.workflowOnboardName,
+    description: CONFIG_MESSAGES.workflowOnboardDesc,
   },
 };
 
@@ -198,7 +199,7 @@ function maybeWarnConfigDrift(
   if (!hasProjectConfigDrift(projectDir, state.workflows, state.delivery)) {
     return;
   }
-  console.log(colorize('Warning: Global config is not applied to this project. Run `openspec update` to sync.'));
+  console.log(colorize(CONFIG_MESSAGES.warningGlobalConfigNotApplied));
 }
 
 /**
@@ -209,12 +210,12 @@ function maybeWarnConfigDrift(
 export function registerConfigCommand(program: Command): void {
   const configCmd = program
     .command('config')
-    .description('View and modify global OpenSpec configuration')
-    .option('--scope <scope>', 'Config scope (only "global" supported currently)')
+    .description(CONFIG_MESSAGES.viewAndModify)
+    .option('--scope <scope>', CONFIG_MESSAGES.configScopeOption)
     .hook('preAction', (thisCommand) => {
       const opts = thisCommand.opts();
       if (opts.scope && opts.scope !== 'global') {
-        console.error('Error: Project-local config is not yet implemented');
+        console.error(CLI_MESSAGES.projectLocalNotImplemented);
         process.exit(1);
       }
     });
@@ -222,7 +223,7 @@ export function registerConfigCommand(program: Command): void {
   // config path
   configCmd
     .command('path')
-    .description('Show config file location')
+    .description(CONFIG_MESSAGES.showLocation)
     .action(() => {
       console.log(getGlobalConfigPath());
     });
@@ -230,8 +231,8 @@ export function registerConfigCommand(program: Command): void {
   // config list
   configCmd
     .command('list')
-    .description('Show all current settings')
-    .option('--json', 'Output as JSON')
+    .description(CONFIG_MESSAGES.showAllSettings)
+    .option('--json', CONFIG_MESSAGES.outputAsJson)
     .action((options: { json?: boolean }) => {
       const config = getGlobalConfig();
 
@@ -254,15 +255,15 @@ export function registerConfigCommand(program: Command): void {
         // Annotate profile settings
         const profileSource = rawConfig.profile !== undefined ? '(explicit)' : '(default)';
         const deliverySource = rawConfig.delivery !== undefined ? '(explicit)' : '(default)';
-        console.log(`\nProfile settings:`);
-        console.log(`  profile: ${config.profile} ${profileSource}`);
-        console.log(`  delivery: ${config.delivery} ${deliverySource}`);
+        console.log(`\n${CONFIG_MESSAGES.profileSettings}`);
+        console.log(`  perfil: ${config.profile} ${profileSource}`);
+        console.log(`  entrega: ${config.delivery} ${deliverySource}`);
         if (config.profile === 'core') {
-          console.log(`  workflows: ${CORE_WORKFLOWS.join(', ')} (from core profile)`);
+          console.log(`  fluxos: ${CORE_WORKFLOWS.join(', ')} (do perfil core)`);
         } else if (config.workflows && config.workflows.length > 0) {
-          console.log(`  workflows: ${config.workflows.join(', ')} (explicit)`);
+          console.log(`  fluxos: ${config.workflows.join(', ')} (explícito)`);
         } else {
-          console.log(`  workflows: (none)`);
+          console.log(`  fluxos: (nenhum)`);
         }
       }
     });
@@ -270,7 +271,7 @@ export function registerConfigCommand(program: Command): void {
   // config get
   configCmd
     .command('get <key>')
-    .description('Get a specific value (raw, scriptable)')
+    .description(CONFIG_MESSAGES.getValue)
     .action((key: string) => {
       const config = getGlobalConfig();
       const value = getNestedValue(config as Record<string, unknown>, key);
@@ -290,17 +291,17 @@ export function registerConfigCommand(program: Command): void {
   // config set
   configCmd
     .command('set <key> <value>')
-    .description('Set a value (auto-coerce types)')
-    .option('--string', 'Force value to be stored as string')
-    .option('--allow-unknown', 'Allow setting unknown keys')
+    .description(CONFIG_MESSAGES.setValue)
+    .option('--string', CONFIG_MESSAGES.forceStringOption)
+    .option('--allow-unknown', CONFIG_MESSAGES.allowUnknownOption)
     .action((key: string, value: string, options: { string?: boolean; allowUnknown?: boolean }) => {
       const allowUnknown = Boolean(options.allowUnknown);
       const keyValidation = validateConfigKeyPath(key);
       if (!keyValidation.valid && !allowUnknown) {
         const reason = keyValidation.reason ? ` ${keyValidation.reason}.` : '';
-        console.error(`Error: Invalid configuration key "${key}".${reason}`);
-        console.error('Use "openspec config list" to see available keys.');
-        console.error('Pass --allow-unknown to bypass this check.');
+        console.error(CONFIG_MESSAGES.invalidConfigKey(key, reason));
+        console.error(CONFIG_MESSAGES.useConfigList);
+        console.error(CONFIG_MESSAGES.passAllowUnknown);
         process.exitCode = 1;
         return;
       }
@@ -315,7 +316,7 @@ export function registerConfigCommand(program: Command): void {
       // Validate the new config
       const validation = validateConfig(newConfig);
       if (!validation.success) {
-        console.error(`Error: Invalid configuration - ${validation.error}`);
+        console.error(CONFIG_MESSAGES.invalidConfiguration(validation.error!));
         process.exitCode = 1;
         return;
       }
@@ -326,35 +327,35 @@ export function registerConfigCommand(program: Command): void {
 
       const displayValue =
         typeof coercedValue === 'string' ? `"${coercedValue}"` : String(coercedValue);
-      console.log(`Set ${key} = ${displayValue}`);
+      console.log(CONFIG_MESSAGES.setKeyValue(key, displayValue));
     });
 
   // config unset
   configCmd
     .command('unset <key>')
-    .description('Remove a key (revert to default)')
+    .description(CONFIG_MESSAGES.removeKey)
     .action((key: string) => {
       const config = getGlobalConfig() as Record<string, unknown>;
       const existed = deleteNestedValue(config, key);
 
       if (existed) {
         saveGlobalConfig(config as GlobalConfig);
-        console.log(`Unset ${key} (reverted to default)`);
+        console.log(CONFIG_MESSAGES.unsetKey(key));
       } else {
-        console.log(`Key "${key}" was not set`);
+        console.log(CONFIG_MESSAGES.keyNotSet(key));
       }
     });
 
   // config reset
   configCmd
     .command('reset')
-    .description('Reset configuration to defaults')
-    .option('--all', 'Reset all configuration (required)')
-    .option('-y, --yes', 'Skip confirmation prompts')
+    .description(CONFIG_MESSAGES.resetConfig)
+    .option('--all', CONFIG_MESSAGES.resetAllOption)
+    .option('-y, --yes', CONFIG_MESSAGES.skipConfirmationOption)
     .action(async (options: { all?: boolean; yes?: boolean }) => {
       if (!options.all) {
-        console.error('Error: --all flag is required for reset');
-        console.error('Usage: openspec config reset --all [-y]');
+        console.error(CONFIG_MESSAGES.resetAllRequired);
+        console.error(CONFIG_MESSAGES.resetUsage);
         process.exitCode = 1;
         return;
       }
@@ -364,12 +365,12 @@ export function registerConfigCommand(program: Command): void {
         let confirmed: boolean;
         try {
           confirmed = await confirm({
-            message: 'Reset all configuration to defaults?',
+            message: CONFIG_MESSAGES.resetConfirm,
             default: false,
           });
         } catch (error) {
           if (isPromptCancellationError(error)) {
-            console.log('Reset cancelled.');
+            console.log(CONFIG_MESSAGES.resetCancelled);
             process.exitCode = 130;
             return;
           }
@@ -377,26 +378,26 @@ export function registerConfigCommand(program: Command): void {
         }
 
         if (!confirmed) {
-          console.log('Reset cancelled.');
+          console.log(CONFIG_MESSAGES.resetCancelled);
           return;
         }
       }
 
       saveGlobalConfig({ ...DEFAULT_CONFIG });
-      console.log('Configuration reset to defaults');
+      console.log(CONFIG_MESSAGES.configurationReset);
     });
 
   // config edit
   configCmd
     .command('edit')
-    .description('Open config in $EDITOR')
+    .description(CONFIG_MESSAGES.openInEditor)
     .action(async () => {
       const editor = process.env.EDITOR || process.env.VISUAL;
 
       if (!editor) {
-        console.error('Error: No editor configured');
-        console.error('Set the EDITOR or VISUAL environment variable to your preferred editor');
-        console.error('Example: export EDITOR=vim');
+        console.error(CONFIG_MESSAGES.noEditorConfigured);
+        console.error(CONFIG_MESSAGES.setEditorEnv);
+        console.error(CONFIG_MESSAGES.editorExample);
         process.exitCode = 1;
         return;
       }
@@ -433,17 +434,17 @@ export function registerConfigCommand(program: Command): void {
         const validation = validateConfig(parsedConfig);
 
         if (!validation.success) {
-          console.error(`Error: Invalid configuration - ${validation.error}`);
+          console.error(CONFIG_MESSAGES.invalidConfiguration(validation.error!));
           process.exitCode = 1;
         }
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-          console.error(`Error: Config file not found at ${configPath}`);
+          console.error(CONFIG_MESSAGES.configFileNotFound(configPath));
         } else if (error instanceof SyntaxError) {
-          console.error(`Error: Invalid JSON in ${configPath}`);
+          console.error(CONFIG_MESSAGES.invalidJson(configPath));
           console.error(error.message);
         } else {
-          console.error(`Error: Unable to validate configuration - ${error instanceof Error ? error.message : String(error)}`);
+          console.error(CONFIG_MESSAGES.unableToValidateConfig(error instanceof Error ? error.message : String(error)));
         }
         process.exitCode = 1;
       }
@@ -452,7 +453,7 @@ export function registerConfigCommand(program: Command): void {
   // config profile [preset]
   configCmd
     .command('profile [preset]')
-    .description('Configure workflow profile (interactive picker or preset shortcut)')
+    .description(CONFIG_MESSAGES.configureProfile)
     .action(async (preset?: string) => {
       // Preset shortcut: `openspec config profile core`
       if (preset === 'core') {
@@ -461,19 +462,19 @@ export function registerConfigCommand(program: Command): void {
         config.workflows = [...CORE_WORKFLOWS];
         // Preserve delivery setting
         saveGlobalConfig(config);
-        console.log('Config updated. Run `openspec update` in your projects to apply.');
+        console.log(CONFIG_MESSAGES.configUpdated);
         return;
       }
 
       if (preset) {
-        console.error(`Error: Unknown profile preset "${preset}". Available presets: core`);
+        console.error(CONFIG_MESSAGES.unknownProfilePreset(preset));
         process.exitCode = 1;
         return;
       }
 
       // Non-interactive check
       if (!process.stdout.isTTY) {
-        console.error('Interactive mode required. Use `openspec config profile core` or set config via environment/flags.');
+        console.error(CONFIG_MESSAGES.interactiveModeRequired);
         process.exitCode = 1;
         return;
       }
@@ -486,41 +487,41 @@ export function registerConfigCommand(program: Command): void {
         const config = getGlobalConfig();
         const currentState = resolveCurrentProfileState(config);
 
-        console.log(chalk.bold('\nCurrent profile settings'));
-        console.log(`  Delivery: ${currentState.delivery}`);
-        console.log(`  Workflows: ${formatWorkflowSummary(currentState.workflows, currentState.profile)}`);
-        console.log(chalk.dim('  Delivery = where workflows are installed (skills, commands, or both)'));
-        console.log(chalk.dim('  Workflows = which actions are available (propose, explore, apply, etc.)'));
+        console.log(chalk.bold('\n' + CONFIG_MESSAGES.currentProfileSettings));
+        console.log(CONFIG_MESSAGES.deliveryLabel(currentState.delivery));
+        console.log(CONFIG_MESSAGES.workflowsLabel(formatWorkflowSummary(currentState.workflows, currentState.profile)));
+        console.log(chalk.dim(CONFIG_MESSAGES.deliveryHelp));
+        console.log(chalk.dim(CONFIG_MESSAGES.workflowsHelp));
         console.log();
 
         const action = await select<ProfileAction>({
-          message: 'What do you want to configure?',
+          message: CONFIG_MESSAGES.whatToConfigure,
           choices: [
             {
               value: 'both',
-              name: 'Delivery and workflows',
-              description: 'Update install mode and available actions together',
+              name: CONFIG_MESSAGES.deliveryAndWorkflows,
+              description: CONFIG_MESSAGES.deliveryAndWorkflowsDesc,
             },
             {
               value: 'delivery',
-              name: 'Delivery only',
-              description: 'Change where workflows are installed',
+              name: CONFIG_MESSAGES.deliveryOnly,
+              description: CONFIG_MESSAGES.deliveryOnlyDesc,
             },
             {
               value: 'workflows',
-              name: 'Workflows only',
-              description: 'Change which workflow actions are available',
+              name: CONFIG_MESSAGES.workflowsOnly,
+              description: CONFIG_MESSAGES.workflowsOnlyDesc,
             },
             {
               value: 'keep',
-              name: 'Keep current settings (exit)',
-              description: 'Leave configuration unchanged and exit',
+              name: CONFIG_MESSAGES.keepCurrentSettings,
+              description: CONFIG_MESSAGES.keepCurrentSettingsDesc,
             },
           ],
         });
 
         if (action === 'keep') {
-          console.log('No config changes.');
+          console.log(CONFIG_MESSAGES.noConfigChanges);
           maybeWarnConfigDrift(process.cwd(), currentState, chalk.yellow);
           return;
         }
@@ -535,28 +536,28 @@ export function registerConfigCommand(program: Command): void {
           const deliveryChoices: { value: Delivery; name: string; description: string }[] = [
             {
               value: 'both' as Delivery,
-              name: 'Both (skills + commands)',
-              description: 'Install workflows as both skills and slash commands',
+              name: CONFIG_MESSAGES.bothSkillsAndCommands,
+              description: CONFIG_MESSAGES.bothSkillsAndCommandsDesc,
             },
             {
               value: 'skills' as Delivery,
-              name: 'Skills only',
-              description: 'Install workflows only as skills',
+              name: CONFIG_MESSAGES.skillsOnly,
+              description: CONFIG_MESSAGES.skillsOnlyDesc,
             },
             {
               value: 'commands' as Delivery,
-              name: 'Commands only',
-              description: 'Install workflows only as slash commands',
+              name: CONFIG_MESSAGES.commandsOnly,
+              description: CONFIG_MESSAGES.commandsOnlyDesc,
             },
           ];
           for (const choice of deliveryChoices) {
             if (choice.value === currentState.delivery) {
-              choice.name += ' [current]';
+              choice.name += CONFIG_MESSAGES.currentSuffix;
             }
           }
 
           nextState.delivery = await select<Delivery>({
-            message: 'Delivery mode (how workflows are installed):',
+            message: CONFIG_MESSAGES.deliveryMode,
             choices: deliveryChoices,
             default: currentState.delivery,
           });
@@ -578,8 +579,8 @@ export function registerConfigCommand(program: Command): void {
           };
 
           const selectedWorkflows = await checkbox<string>({
-            message: 'Select workflows to make available:',
-            instructions: 'Space to toggle, Enter to confirm',
+            message: CONFIG_MESSAGES.selectWorkflows,
+            instructions: CONFIG_MESSAGES.spaceToToggle,
             pageSize: ALL_WORKFLOWS.length,
             theme: {
               icon: {
@@ -595,12 +596,12 @@ export function registerConfigCommand(program: Command): void {
 
         const diff = diffProfileState(currentState, nextState);
         if (!diff.hasChanges) {
-          console.log('No config changes.');
+          console.log(CONFIG_MESSAGES.noConfigChanges);
           maybeWarnConfigDrift(process.cwd(), nextState, chalk.yellow);
           return;
         }
 
-        console.log(chalk.bold('\nConfig changes:'));
+        console.log(chalk.bold('\n' + CONFIG_MESSAGES.configChanges));
         for (const line of diff.lines) {
           console.log(`  ${line}`);
         }
@@ -616,26 +617,26 @@ export function registerConfigCommand(program: Command): void {
         const openspecDir = path.join(projectDir, OPENSPEC_DIR_NAME);
         if (fs.existsSync(openspecDir)) {
           const applyNow = await confirm({
-            message: 'Apply changes to this project now?',
+            message: CONFIG_MESSAGES.applyChangesNow,
             default: true,
           });
 
           if (applyNow) {
             try {
               execSync('npx openspec update', { stdio: 'inherit', cwd: projectDir });
-              console.log('Run `openspec update` in your other projects to apply.');
+              console.log(CONFIG_MESSAGES.configUpdated);
             } catch {
-              console.error('`openspec update` failed. Please run it manually to apply the profile changes.');
+              console.error(CONFIG_MESSAGES.updateFailed);
               process.exitCode = 1;
             }
             return;
           }
         }
 
-        console.log('Config updated. Run `openspec update` in your projects to apply.');
+        console.log(CONFIG_MESSAGES.configUpdated);
       } catch (error) {
         if (isPromptCancellationError(error)) {
-          console.log('Config profile cancelled.');
+          console.log(CONFIG_MESSAGES.configProfileCancelled);
           process.exitCode = 130;
           return;
         }

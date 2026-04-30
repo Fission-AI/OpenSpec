@@ -18,6 +18,7 @@ import {
   getStatusIndicator,
   getStatusColor,
 } from './shared.js';
+import { WORKFLOW_MESSAGES } from '../../messages/index.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -34,7 +35,7 @@ export interface StatusOptions {
 // -----------------------------------------------------------------------------
 
 export async function statusCommand(options: StatusOptions): Promise<void> {
-  const spinner = options.json ? undefined : ora('Loading change status...').start();
+  const spinner = options.json ? undefined : ora(WORKFLOW_MESSAGES.loadingChangeStatus).start();
 
   try {
     const projectRoot = process.cwd();
@@ -46,16 +47,16 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
       if (available.length === 0) {
         spinner?.stop();
         if (options.json) {
-          console.log(JSON.stringify({ changes: [], message: 'No active changes.' }, null, 2));
+          console.log(JSON.stringify({ changes: [], message: WORKFLOW_MESSAGES.noActiveChanges }, null, 2));
           return;
         }
-        console.log('No active changes. Create one with: openspec new change <name>');
+        console.log(WORKFLOW_MESSAGES.noActiveChanges);
         return;
       }
       // Changes exist but --change not provided
       spinner?.stop();
       throw new Error(
-        `Missing required option --change. Available changes:\n  ${available.join('\n  ')}`
+        WORKFLOW_MESSAGES.missingChangeOption(available.join('\n  '))
       );
     }
 
@@ -88,9 +89,9 @@ export function printStatusText(status: ChangeStatus): void {
   const doneCount = status.artifacts.filter((a) => a.status === 'done').length;
   const total = status.artifacts.length;
 
-  console.log(`Change: ${status.changeName}`);
-  console.log(`Schema: ${status.schemaName}`);
-  console.log(`Progress: ${doneCount}/${total} artifacts complete`);
+  console.log(WORKFLOW_MESSAGES.changeLabel(status.changeName));
+  console.log(WORKFLOW_MESSAGES.schemaLabel2(status.schemaName));
+  console.log(WORKFLOW_MESSAGES.progressArtifacts(doneCount, total));
   console.log();
 
   for (const artifact of status.artifacts) {
@@ -99,7 +100,7 @@ export function printStatusText(status: ChangeStatus): void {
     let line = `${indicator} ${artifact.id}`;
 
     if (artifact.status === 'blocked' && artifact.missingDeps && artifact.missingDeps.length > 0) {
-      line += color(` (blocked by: ${artifact.missingDeps.join(', ')})`);
+      line += color(WORKFLOW_MESSAGES.blockedBy(artifact.missingDeps.join(', ')));
     }
 
     console.log(line);
@@ -107,6 +108,6 @@ export function printStatusText(status: ChangeStatus): void {
 
   if (status.isComplete) {
     console.log();
-    console.log(chalk.green('All artifacts complete!'));
+    console.log(chalk.green(WORKFLOW_MESSAGES.allArtifactsComplete));
   }
 }

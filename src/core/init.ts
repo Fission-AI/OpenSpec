@@ -19,6 +19,7 @@ import {
 } from './config.js';
 import { PALETTE } from './styles/palette.js';
 import { isInteractive } from '../utils/interactive.js';
+import { INIT_MESSAGES } from '../messages/index.js';
 import { serializeConfig } from './config-prompts.js';
 import {
   generateCommands,
@@ -157,7 +158,7 @@ export class InitCommand {
 
     // Check write permissions
     if (!(await FileSystemUtils.ensureWritePermissions(projectPath))) {
-      throw new Error(`Insufficient permissions to write to ${projectPath}`);
+      throw new Error(INIT_MESSAGES.insufficientPermissions(projectPath));
     }
     return extendMode;
   }
@@ -210,13 +211,13 @@ export class InitCommand {
     // Interactive mode: prompt for confirmation
     const { confirm } = await import('@inquirer/prompts');
     const shouldCleanup = await confirm({
-      message: 'Upgrade and clean up legacy files?',
+      message: INIT_MESSAGES.upgradeLegacyPrompt,
       default: true,
     });
 
     if (!shouldCleanup) {
-      console.log(chalk.dim('Initialization cancelled.'));
-      console.log(chalk.dim('Run with --force to skip this prompt, or manually remove legacy files.'));
+      console.log(chalk.dim(INIT_MESSAGES.initializationCancelled));
+      console.log(chalk.dim(INIT_MESSAGES.skipPromptHint));
       process.exit(0);
     }
 
@@ -224,11 +225,11 @@ export class InitCommand {
   }
 
   private async performLegacyCleanup(projectPath: string, detection: LegacyDetectionResult): Promise<void> {
-    const spinner = ora('Cleaning up legacy files...').start();
+    const spinner = ora(INIT_MESSAGES.cleaningLegacy).start();
 
     const result = await cleanupLegacyArtifacts(projectPath, detection);
 
-    spinner.succeed('Legacy files cleaned up');
+    spinner.succeed(INIT_MESSAGES.legacyCleaned);
 
     const summary = formatCleanupSummary(result);
     if (summary) {
@@ -271,13 +272,13 @@ export class InitCommand {
         return [...detectedToolIds];
       }
       throw new Error(
-        `No tools detected and no --tools flag provided. Valid tools:\n  ${validTools.join('\n  ')}\n\nUse --tools all, --tools none, or --tools claude,cursor,...`
+        INIT_MESSAGES.noToolsDetected(validTools.join('\n  '))
       );
     }
 
     if (validTools.length === 0) {
       throw new Error(
-        `No tools available for skill generation.`
+        INIT_MESSAGES.noToolsAvailable
       );
     }
 
@@ -314,7 +315,7 @@ export class InitCommand {
       .map((toolId) => AI_TOOLS.find((t) => t.value === toolId)?.name || toolId);
 
     if (configuredNames.length > 0) {
-      console.log(`OpenSpec configured: ${configuredNames.join(', ')} (pre-selected)`);
+      console.log(INIT_MESSAGES.configuredPreselected(configuredNames.join(', ')));
     }
 
     const detectedOnlyNames = detectedTools
@@ -323,20 +324,20 @@ export class InitCommand {
 
     if (detectedOnlyNames.length > 0) {
       const detectionLabel = shouldPreselectDetected
-        ? 'pre-selected for first-time setup'
-        : 'not pre-selected';
-      console.log(`Detected tool directories: ${detectedOnlyNames.join(', ')} (${detectionLabel})`);
+        ? INIT_MESSAGES.preselectedFirstTime
+        : INIT_MESSAGES.notPreselected;
+      console.log(INIT_MESSAGES.detectedToolsLabel(detectedOnlyNames.join(', '), detectionLabel));
     }
 
     const selectedTools = await searchableMultiSelect({
-      message: `Select tools to set up (${validTools.length} available)`,
+      message: INIT_MESSAGES.selectToolsPrompt(validTools.length),
       pageSize: 15,
       choices: sortedChoices,
-      validate: (selected: string[]) => selected.length > 0 || 'Select at least one tool',
+      validate: (selected: string[]) => selected.length > 0 || INIT_MESSAGES.selectAtLeastOneTool,
     });
 
     if (selectedTools.length === 0) {
-      throw new Error('At least one tool must be selected');
+      throw new Error(INIT_MESSAGES.atLeastOneToolRequired);
     }
 
     return selectedTools;
@@ -350,7 +351,7 @@ export class InitCommand {
     const raw = this.toolsArg.trim();
     if (raw.length === 0) {
       throw new Error(
-        'The --tools option requires a value. Use "all", "none", or a comma-separated list of tool IDs.'
+        INIT_MESSAGES.toolsOptionRequired
       );
     }
 
@@ -374,14 +375,14 @@ export class InitCommand {
 
     if (tokens.length === 0) {
       throw new Error(
-        'The --tools option requires at least one tool ID when not using "all" or "none".'
+        INIT_MESSAGES.toolsOptionRequiresToolId
       );
     }
 
     const normalizedTokens = tokens.map((token) => token.toLowerCase());
 
     if (normalizedTokens.some((token) => token === 'all' || token === 'none')) {
-      throw new Error('Cannot combine reserved values "all" or "none" with specific tool IDs.');
+      throw new Error(INIT_MESSAGES.cannotCombineReservedValues);
     }
 
     const invalidTokens = tokens.filter(
@@ -390,7 +391,7 @@ export class InitCommand {
 
     if (invalidTokens.length > 0) {
       throw new Error(
-        `Invalid tool(s): ${invalidTokens.join(', ')}. Available values: ${availableList}`
+        INIT_MESSAGES.invalidTools(invalidTokens.join(', '), availableList)
       );
     }
 
@@ -416,14 +417,14 @@ export class InitCommand {
       if (!tool) {
         const validToolIds = getToolsWithSkillsDir();
         throw new Error(
-          `Unknown tool '${toolId}'. Valid tools:\n  ${validToolIds.join('\n  ')}`
+          INIT_MESSAGES.unknownTool(toolId, validToolIds.join('\n  '))
         );
       }
 
       if (!tool.skillsDir) {
         const validToolsWithSkills = getToolsWithSkillsDir();
         throw new Error(
-          `Tool '${toolId}' does not support skill generation.\nTools with skill generation support:\n  ${validToolsWithSkills.join('\n  ')}`
+          INIT_MESSAGES.toolNoSkillSupport(toolId, validToolsWithSkills.join('\n  '))
         );
       }
 
@@ -459,7 +460,7 @@ export class InitCommand {
       return;
     }
 
-    const spinner = this.startSpinner('Creating OpenSpec structure...');
+    const spinner = this.startSpinner(INIT_MESSAGES.creatingStructure);
 
     const directories = [
       openspecPath,
@@ -474,7 +475,7 @@ export class InitCommand {
 
     spinner.stopAndPersist({
       symbol: PALETTE.white('▌'),
-      text: PALETTE.white('OpenSpec structure created'),
+      text: PALETTE.white(INIT_MESSAGES.structureCreated),
     });
   }
 
@@ -514,7 +515,7 @@ export class InitCommand {
 
     // Process each tool
     for (const tool of tools) {
-      const spinner = ora(`Setting up ${tool.name}...`).start();
+      const spinner = ora(INIT_MESSAGES.settingUp(tool.name)).start();
 
       try {
         // Generate skill files if delivery includes skills
@@ -559,7 +560,7 @@ export class InitCommand {
           removedCommandCount += await this.removeCommandFiles(projectPath, tool.value);
         }
 
-        spinner.succeed(`Setup complete for ${tool.name}`);
+        spinner.succeed(INIT_MESSAGES.setupComplete(tool.name));
 
         if (tool.wasConfigured) {
           refreshedTools.push(tool);
@@ -567,7 +568,7 @@ export class InitCommand {
           createdTools.push(tool);
         }
       } catch (error) {
-        spinner.fail(`Failed for ${tool.name}`);
+        spinner.fail(INIT_MESSAGES.setupFailed(tool.name));
         failedTools.push({ name: tool.name, error: error as Error });
       }
     }
@@ -628,15 +629,15 @@ export class InitCommand {
     configStatus: 'created' | 'exists' | 'skipped'
   ): void {
     console.log();
-    console.log(chalk.bold('OpenSpec Setup Complete'));
+    console.log(chalk.bold(INIT_MESSAGES.setupCompleteTitle));
     console.log();
 
     // Show created vs refreshed tools
     if (results.createdTools.length > 0) {
-      console.log(`Created: ${results.createdTools.map((t) => t.name).join(', ')}`);
+      console.log(INIT_MESSAGES.created(results.createdTools.map((t) => t.name).join(', ')));
     }
     if (results.refreshedTools.length > 0) {
-      console.log(`Refreshed: ${results.refreshedTools.map((t) => t.name).join(', ')}`);
+      console.log(INIT_MESSAGES.refreshed(results.refreshedTools.map((t) => t.name).join(', ')));
     }
 
     // Show counts (respecting profile filter)
@@ -660,31 +661,31 @@ export class InitCommand {
 
     // Show failures
     if (results.failedTools.length > 0) {
-      console.log(chalk.red(`Failed: ${results.failedTools.map((f) => `${f.name} (${f.error.message})`).join(', ')}`));
+      console.log(chalk.red(INIT_MESSAGES.failed(results.failedTools.map((f) => `${f.name} (${f.error.message})`).join(', '))));
     }
 
     // Show skipped commands
     if (results.commandsSkipped.length > 0) {
-      console.log(chalk.dim(`Commands skipped for: ${results.commandsSkipped.join(', ')} (no adapter)`));
+      console.log(chalk.dim(INIT_MESSAGES.commandsSkipped(results.commandsSkipped.join(', '))));
     }
     if (results.removedCommandCount > 0) {
-      console.log(chalk.dim(`Removed: ${results.removedCommandCount} command files (delivery: skills)`));
+      console.log(chalk.dim(INIT_MESSAGES.removedCommands(results.removedCommandCount)));
     }
     if (results.removedSkillCount > 0) {
-      console.log(chalk.dim(`Removed: ${results.removedSkillCount} skill directories (delivery: commands)`));
+      console.log(chalk.dim(INIT_MESSAGES.removedSkills(results.removedSkillCount)));
     }
 
     // Config status
     if (configStatus === 'created') {
-      console.log(`Config: openspec/config.yaml (schema: ${DEFAULT_SCHEMA})`);
+      console.log(INIT_MESSAGES.configCreated(DEFAULT_SCHEMA));
     } else if (configStatus === 'exists') {
       // Show actual filename (config.yaml or config.yml)
       const configYaml = path.join(projectPath, OPENSPEC_DIR_NAME, 'config.yaml');
       const configYml = path.join(projectPath, OPENSPEC_DIR_NAME, 'config.yml');
       const configName = fs.existsSync(configYaml) ? 'config.yaml' : fs.existsSync(configYml) ? 'config.yml' : 'config.yaml';
-      console.log(`Config: openspec/${configName} (exists)`);
+      console.log(INIT_MESSAGES.configExists(configName));
     } else {
-      console.log(chalk.dim(`Config: skipped (non-interactive mode)`));
+      console.log(chalk.dim(INIT_MESSAGES.configSkipped));
     }
 
     // Getting started (task 7.6: show propose if in profile)
@@ -693,24 +694,24 @@ export class InitCommand {
     const activeWorkflows = [...getProfileWorkflows(activeProfile, globalCfg.workflows)];
     console.log();
     if (activeWorkflows.includes('propose')) {
-      console.log(chalk.bold('Getting started:'));
-      console.log('  Start your first change: /opsx:propose "your idea"');
+      console.log(chalk.bold(INIT_MESSAGES.gettingStarted));
+      console.log(INIT_MESSAGES.startFirstChangePropose('/opsx:propose "sua ideia"'));
     } else if (activeWorkflows.includes('new')) {
-      console.log(chalk.bold('Getting started:'));
-      console.log('  Start your first change: /opsx:new "your idea"');
+      console.log(chalk.bold(INIT_MESSAGES.gettingStarted));
+      console.log(INIT_MESSAGES.startFirstChangeNew('/opsx:new "sua ideia"'));
     } else {
-      console.log("Done. Run 'openspec config profile' to configure your workflows.");
+      console.log(INIT_MESSAGES.configureWorkflowsHint);
     }
 
     // Links
     console.log();
-    console.log(`Learn more: ${chalk.cyan('https://github.com/fkmatsuda/BR-OpenSpec')}`);
-    console.log(`Feedback:   ${chalk.cyan('https://github.com/fkmatsuda/BR-OpenSpec/issues')}`);
+    console.log(INIT_MESSAGES.learnMore(chalk.cyan('https://github.com/fkmatsuda/BR-OpenSpec')));
+    console.log(INIT_MESSAGES.feedback(chalk.cyan('https://github.com/fkmatsuda/BR-OpenSpec/issues')));
 
     // Restart instruction if any tools were configured
     if (results.createdTools.length > 0 || results.refreshedTools.length > 0) {
       console.log();
-      console.log(chalk.white('Restart your IDE for slash commands to take effect.'));
+      console.log(chalk.white(INIT_MESSAGES.restartIDE));
     }
 
     console.log();

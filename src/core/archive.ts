@@ -3,6 +3,7 @@ import path from 'path';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
 import { Validator } from './validation/validator.js';
 import chalk from 'chalk';
+import { ARCHIVE_MESSAGES } from '../messages/index.js';
 import {
   findSpecUpdates,
   buildUpdatedSpec,
@@ -68,7 +69,7 @@ export class ArchiveCommand {
     if (!changeName) {
       const selectedChange = await this.selectChange(changesDir);
       if (!selectedChange) {
-        console.log('No change selected. Aborting.');
+        console.log(ARCHIVE_MESSAGES.noChangeSelected);
         return;
       }
       changeName = selectedChange;
@@ -80,10 +81,10 @@ export class ArchiveCommand {
     try {
       const stat = await fs.stat(changeDir);
       if (!stat.isDirectory()) {
-        throw new Error(`Change '${changeName}' not found.`);
+        throw new Error(ARCHIVE_MESSAGES.changeNotFound(changeName));
       }
     } catch {
-      throw new Error(`Change '${changeName}' not found.`);
+      throw new Error(ARCHIVE_MESSAGES.changeNotFound(changeName));
     }
 
     const skipValidation = options.validate === false || options.noValidate === true;
@@ -100,7 +101,7 @@ export class ArchiveCommand {
         const changeReport = await validator.validateChange(changeFile);
         // Proposal validation is informative only (do not block archive)
         if (!changeReport.valid) {
-          console.log(chalk.yellow(`\nProposal warnings in proposal.md (non-blocking):`));
+          console.log(chalk.yellow(`\n${ARCHIVE_MESSAGES.proposalWarnings}`));
           for (const issue of changeReport.issues) {
             const symbol = issue.level === 'ERROR' ? '⚠' : (issue.level === 'WARNING' ? '⚠' : 'ℹ');
             console.log(chalk.yellow(`  ${symbol} ${issue.message}`));
@@ -133,7 +134,7 @@ export class ArchiveCommand {
         const deltaReport = await validator.validateChangeDeltaSpecs(changeDir);
         if (!deltaReport.valid) {
           hasValidationErrors = true;
-          console.log(chalk.red(`\nValidation errors in change delta specs:`));
+          console.log(chalk.red(`\n${ARCHIVE_MESSAGES.validationErrorsInDeltas}`));
           for (const issue of deltaReport.issues) {
             if (issue.level === 'ERROR') {
               console.log(chalk.red(`  ✗ ${issue.message}`));
@@ -145,8 +146,8 @@ export class ArchiveCommand {
       }
 
       if (hasValidationErrors) {
-        console.log(chalk.red('\nValidation failed. Please fix the errors before archiving.'));
-        console.log(chalk.yellow('To skip validation (not recommended), use --no-validate flag.'));
+        console.log(chalk.red(`\n${ARCHIVE_MESSAGES.validationFailed}`));
+        console.log(chalk.yellow(ARCHIVE_MESSAGES.skipValidationHint));
         return;
       }
     } else {
@@ -156,67 +157,67 @@ export class ArchiveCommand {
       if (!options.yes) {
         const { confirm } = await import('@inquirer/prompts');
         const proceed = await confirm({
-          message: chalk.yellow('⚠️  WARNING: Skipping validation may archive invalid specs. Continue? (y/N)'),
+          message: chalk.yellow(ARCHIVE_MESSAGES.skipValidationWarning),
           default: false
         });
         if (!proceed) {
-          console.log('Archive cancelled.');
+          console.log(ARCHIVE_MESSAGES.archiveCancelled);
           return;
         }
       } else {
-        console.log(chalk.yellow(`\n⚠️  WARNING: Skipping validation may archive invalid specs.`));
+        console.log(chalk.yellow(`\n${ARCHIVE_MESSAGES.skipValidationFlagWarning}`));
       }
       
-      console.log(chalk.yellow(`[${timestamp}] Validation skipped for change: ${changeName}`));
-      console.log(chalk.yellow(`Affected files: ${changeDir}`));
+      console.log(chalk.yellow(ARCHIVE_MESSAGES.skipValidationLog(timestamp, changeName)));
+      console.log(chalk.yellow(ARCHIVE_MESSAGES.affectedFiles(changeDir)));
     }
 
     // Show progress and check for incomplete tasks
     const progress = await getTaskProgressForChange(changesDir, changeName);
     const status = formatTaskStatus(progress);
-    console.log(`Task status: ${status}`);
+    console.log(ARCHIVE_MESSAGES.taskStatus(status));
 
     const incompleteTasks = Math.max(progress.total - progress.completed, 0);
     if (incompleteTasks > 0) {
       if (!options.yes) {
         const { confirm } = await import('@inquirer/prompts');
         const proceed = await confirm({
-          message: `Warning: ${incompleteTasks} incomplete task(s) found. Continue?`,
+          message: ARCHIVE_MESSAGES.incompleteTasksWarning(incompleteTasks),
           default: false
         });
         if (!proceed) {
-          console.log('Archive cancelled.');
+          console.log(ARCHIVE_MESSAGES.archiveCancelled);
           return;
         }
       } else {
-        console.log(`Warning: ${incompleteTasks} incomplete task(s) found. Continuing due to --yes flag.`);
+        console.log(ARCHIVE_MESSAGES.incompleteTasksContinuing(incompleteTasks));
       }
     }
 
     // Handle spec updates unless skipSpecs flag is set
     if (options.skipSpecs) {
-      console.log('Skipping spec updates (--skip-specs flag provided).');
+      console.log(ARCHIVE_MESSAGES.skipSpecUpdates);
     } else {
       // Find specs to update
       const specUpdates = await findSpecUpdates(changeDir, mainSpecsDir);
       
       if (specUpdates.length > 0) {
-        console.log('\nSpecs to update:');
+        console.log(`\n${ARCHIVE_MESSAGES.specsToUpdate}`);
         for (const update of specUpdates) {
-          const status = update.exists ? 'update' : 'create';
+          const status = update.exists ? 'atualizar' : 'criar';
           const capability = path.basename(path.dirname(update.target));
-          console.log(`  ${capability}: ${status}`);
+          console.log(ARCHIVE_MESSAGES.specUpdateStatus(capability, status));
         }
 
         let shouldUpdateSpecs = true;
         if (!options.yes) {
           const { confirm } = await import('@inquirer/prompts');
           shouldUpdateSpecs = await confirm({
-            message: 'Proceed with spec updates?',
+            message: ARCHIVE_MESSAGES.proceedWithSpecUpdates,
             default: true
           });
           if (!shouldUpdateSpecs) {
-            console.log('Skipping spec updates. Proceeding with archive.');
+            console.log(ARCHIVE_MESSAGES.skipSpecUpdatesProceeding);
           }
         }
 
@@ -230,7 +231,7 @@ export class ArchiveCommand {
             }
           } catch (err: any) {
             console.log(String(err.message || err));
-            console.log('Aborted. No files were changed.');
+            console.log(ARCHIVE_MESSAGES.abortedNoChanges);
             return;
           }
 
@@ -241,12 +242,12 @@ export class ArchiveCommand {
             if (!skipValidation) {
               const report = await new Validator().validateSpecContent(specName, p.rebuilt);
               if (!report.valid) {
-                console.log(chalk.red(`\nValidation errors in rebuilt spec for ${specName} (will not write changes):`));
+                console.log(chalk.red(`\n${ARCHIVE_MESSAGES.validationErrorsInRebuiltSpec(specName)}`));
                 for (const issue of report.issues) {
                   if (issue.level === 'ERROR') console.log(chalk.red(`  ✗ ${issue.message}`));
                   else if (issue.level === 'WARNING') console.log(chalk.yellow(`  ⚠ ${issue.message}`));
                 }
-                console.log('Aborted. No files were changed.');
+                console.log(ARCHIVE_MESSAGES.abortedNoChanges);
                 return;
               }
             }
@@ -257,9 +258,9 @@ export class ArchiveCommand {
             totals.renamed += p.counts.renamed;
           }
           console.log(
-            `Totals: + ${totals.added}, ~ ${totals.modified}, - ${totals.removed}, → ${totals.renamed}`
+            ARCHIVE_MESSAGES.totals(totals.added, totals.modified, totals.removed, totals.renamed)
           );
-          console.log('Specs updated successfully.');
+          console.log(ARCHIVE_MESSAGES.specsUpdatedSuccessfully);
         }
       }
     }
@@ -271,7 +272,7 @@ export class ArchiveCommand {
     // Check if archive already exists
     try {
       await fs.access(archivePath);
-      throw new Error(`Archive '${archiveName}' already exists.`);
+      throw new Error(ARCHIVE_MESSAGES.archiveAlreadyExists(archiveName));
     } catch (error: any) {
       if (error.code !== 'ENOENT') {
         throw error;
@@ -284,7 +285,7 @@ export class ArchiveCommand {
     // Move change to archive (uses copy+remove on EPERM/EXDEV, e.g. Windows)
     await moveDirectory(changeDir, archivePath);
 
-    console.log(`Change '${changeName}' archived as '${archiveName}'.`);
+    console.log(ARCHIVE_MESSAGES.changeArchived(changeName, archiveName));
   }
 
   private async selectChange(changesDir: string): Promise<string | null> {
@@ -297,7 +298,7 @@ export class ArchiveCommand {
       .sort();
 
     if (changeDirs.length === 0) {
-      console.log('No active changes found.');
+      console.log(ARCHIVE_MESSAGES.noActiveChanges);
       return null;
     }
 
@@ -322,7 +323,7 @@ export class ArchiveCommand {
 
     try {
       const answer = await select({
-        message: 'Select a change to archive',
+        message: ARCHIVE_MESSAGES.selectChangeToArchive,
         choices
       });
       return answer;

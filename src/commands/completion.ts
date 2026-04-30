@@ -4,6 +4,7 @@ import { COMMAND_REGISTRY } from '../core/completions/command-registry.js';
 import { detectShell, SupportedShell } from '../utils/shell-detection.js';
 import { CompletionProvider } from '../core/completions/completion-provider.js';
 import { getArchivedChangeIds } from '../utils/item-discovery.js';
+import { COMPLETION_MESSAGES, CLI_MESSAGES } from '../messages/index.js';
 
 interface GenerateOptions {
   shell?: string;
@@ -51,21 +52,21 @@ export class CompletionCommand {
 
       // Shell was detected but not supported
       if (detectionResult.detected && !detectionResult.shell) {
-        console.error(`Error: Shell '${detectionResult.detected}' is not supported yet. Currently supported: ${CompletionFactory.getSupportedShells().join(', ')}`);
+        console.error(COMPLETION_MESSAGES.shellNotSupported(detectionResult.detected, CompletionFactory.getSupportedShells().join(', ')));
         process.exitCode = 1;
         return null;
       }
 
       // No shell specified and cannot auto-detect
-      console.error('Error: Could not auto-detect shell. Please specify shell explicitly.');
-      console.error(`Usage: openspec completion ${operationName} [shell]`);
-      console.error(`Currently supported: ${CompletionFactory.getSupportedShells().join(', ')}`);
+      console.error(COMPLETION_MESSAGES.couldNotDetectShell);
+      console.error(COMPLETION_MESSAGES.usageCompletion(operationName));
+      console.error(COMPLETION_MESSAGES.currentlySupported(CompletionFactory.getSupportedShells().join(', ')));
       process.exitCode = 1;
       return null;
     }
 
     if (!CompletionFactory.isSupported(normalizedShell)) {
-      console.error(`Error: Shell '${normalizedShell}' is not supported yet. Currently supported: ${CompletionFactory.getSupportedShells().join(', ')}`);
+      console.error(COMPLETION_MESSAGES.shellNotSupported(normalizedShell, CompletionFactory.getSupportedShells().join(', ')));
       process.exitCode = 1;
       return null;
     }
@@ -125,7 +126,7 @@ export class CompletionCommand {
     const generator = CompletionFactory.createGenerator(shell);
     const installer = CompletionFactory.createInstaller(shell);
 
-    const spinner = ora(`Installing ${shell} completion script...`).start();
+    const spinner = ora(COMPLETION_MESSAGES.installingCompletion(shell)).start();
 
     try {
       // Generate the completion script
@@ -137,12 +138,12 @@ export class CompletionCommand {
       spinner.stop();
 
       if (result.success) {
-        console.log(`✓ ${result.message}`);
+        console.log(COMPLETION_MESSAGES.installSuccess(result.message));
 
         if (verbose && result.installedPath) {
-          console.log(`  Installed to: ${result.installedPath}`);
+          console.log(COMPLETION_MESSAGES.installedTo(result.installedPath));
           if (result.backupPath) {
-            console.log(`  Backup created: ${result.backupPath}`);
+            console.log(COMPLETION_MESSAGES.backupCreated(result.backupPath));
           }
 
           // Check if any shell config was updated
@@ -156,7 +157,7 @@ export class CompletionCommand {
               powershell: '$PROFILE',
             };
             const configPath = configPaths[shell] || 'config file';
-            console.log(`  ${configPath} configured automatically`);
+            console.log(COMPLETION_MESSAGES.configFileConfigured(configPath));
           }
         }
 
@@ -190,16 +191,16 @@ export class CompletionCommand {
             };
             const reloadCmd = reloadCommands[shell] || `restart your ${shell} shell`;
 
-            console.log(`Restart your shell or run: ${reloadCmd}`);
+            console.log(COMPLETION_MESSAGES.restartShell(reloadCmd));
           }
         }
       } else {
-        console.error(`✗ ${result.message}`);
+        console.error(COMPLETION_MESSAGES.installFailed(result.message));
         process.exitCode = 1;
       }
     } catch (error) {
       spinner.stop();
-      console.error(`✗ Failed to install completion script: ${error instanceof Error ? error.message : String(error)}`);
+      console.error(COMPLETION_MESSAGES.failedToInstall(error instanceof Error ? error.message : String(error)));
       process.exitCode = 1;
     }
   }
@@ -224,17 +225,17 @@ export class CompletionCommand {
       const configPath = configPaths[shell] || `${shell} configuration`;
 
       const confirmed = await confirm({
-        message: `Remove OpenSpec configuration from ${configPath}?`,
+        message: COMPLETION_MESSAGES.removeConfigConfirm(configPath),
         default: false,
       });
 
       if (!confirmed) {
-        console.log('Uninstall cancelled.');
+        console.log(COMPLETION_MESSAGES.uninstallCancelled);
         return;
       }
     }
 
-    const spinner = ora(`Uninstalling ${shell} completion script...`).start();
+    const spinner = ora(COMPLETION_MESSAGES.uninstallingCompletion(shell)).start();
 
     try {
       const result = await installer.uninstall();
@@ -242,14 +243,14 @@ export class CompletionCommand {
       spinner.stop();
 
       if (result.success) {
-        console.log(`✓ ${result.message}`);
+        console.log(COMPLETION_MESSAGES.uninstallSuccess(result.message));
       } else {
-        console.error(`✗ ${result.message}`);
+        console.error(COMPLETION_MESSAGES.uninstallFailed(result.message));
         process.exitCode = 1;
       }
     } catch (error) {
       spinner.stop();
-      console.error(`✗ Failed to uninstall completion script: ${error instanceof Error ? error.message : String(error)}`);
+      console.error(COMPLETION_MESSAGES.failedToUninstall(error instanceof Error ? error.message : String(error)));
       process.exitCode = 1;
     }
   }
@@ -268,21 +269,21 @@ export class CompletionCommand {
         case 'changes': {
           const changeIds = await this.completionProvider.getChangeIds();
           for (const id of changeIds) {
-            console.log(`${id}\tactive change`);
+            console.log(`${id}\t${COMPLETION_MESSAGES.activeChange}`);
           }
           break;
         }
         case 'specs': {
           const specIds = await this.completionProvider.getSpecIds();
           for (const id of specIds) {
-            console.log(`${id}\tspecification`);
+            console.log(`${id}\t${COMPLETION_MESSAGES.specification}`);
           }
           break;
         }
         case 'archived-changes': {
           const archivedIds = await getArchivedChangeIds();
           for (const id of archivedIds) {
-            console.log(`${id}\tarchived change`);
+            console.log(`${id}\t${COMPLETION_MESSAGES.archivedChange}`);
           }
           break;
         }

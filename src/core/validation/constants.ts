@@ -14,35 +14,35 @@ export const MAX_DELTAS_PER_CHANGE = 10;
 // Validation messages
 export const VALIDATION_MESSAGES = {
   // Required content
-  SCENARIO_EMPTY: 'Scenario text cannot be empty',
-  REQUIREMENT_EMPTY: 'Requirement text cannot be empty',
-  REQUIREMENT_NO_SHALL: 'Requirement must contain SHALL or MUST keyword',
-  REQUIREMENT_NO_SCENARIOS: 'Requirement must have at least one scenario',
-  SPEC_NAME_EMPTY: 'Spec name cannot be empty',
-  SPEC_PURPOSE_EMPTY: 'Purpose section cannot be empty',
-  SPEC_NO_REQUIREMENTS: 'Spec must have at least one requirement',
-  CHANGE_NAME_EMPTY: 'Change name cannot be empty',
-  CHANGE_WHY_TOO_SHORT: `Why section must be at least ${MIN_WHY_SECTION_LENGTH} characters`,
-  CHANGE_WHY_TOO_LONG: `Why section should not exceed ${MAX_WHY_SECTION_LENGTH} characters`,
-  CHANGE_WHAT_EMPTY: 'What Changes section cannot be empty',
-  CHANGE_NO_DELTAS: 'Change must have at least one delta',
-  CHANGE_TOO_MANY_DELTAS: `Consider splitting changes with more than ${MAX_DELTAS_PER_CHANGE} deltas`,
-  DELTA_SPEC_EMPTY: 'Spec name cannot be empty',
-  DELTA_DESCRIPTION_EMPTY: 'Delta description cannot be empty',
-  
+  SCENARIO_EMPTY: 'O texto do cenário não pode estar vazio',
+  REQUIREMENT_EMPTY: 'O texto do requisito não pode estar vazio',
+  REQUIREMENT_NO_SHALL: 'O requisito deve conter as palavras-chave SHALL ou MUST',
+  REQUIREMENT_NO_SCENARIOS: 'O requisito deve ter pelo menos um cenário',
+  SPEC_NAME_EMPTY: 'O nome da especificação não pode estar vazio',
+  SPEC_PURPOSE_EMPTY: 'A seção Purpose não pode estar vazia',
+  SPEC_NO_REQUIREMENTS: 'A especificação deve ter pelo menos um requisito',
+  CHANGE_NAME_EMPTY: 'O nome da alteração não pode estar vazio',
+  CHANGE_WHY_TOO_SHORT: `A seção Why deve ter pelo menos ${MIN_WHY_SECTION_LENGTH} caracteres`,
+  CHANGE_WHY_TOO_LONG: `A seção Why não deve exceder ${MAX_WHY_SECTION_LENGTH} caracteres`,
+  CHANGE_WHAT_EMPTY: 'A seção What Changes não pode estar vazia',
+  CHANGE_NO_DELTAS: 'A alteração deve ter pelo menos um delta',
+  CHANGE_TOO_MANY_DELTAS: `Considere dividir alterações com mais de ${MAX_DELTAS_PER_CHANGE} deltas`,
+  DELTA_SPEC_EMPTY: 'O nome da especificação não pode estar vazio',
+  DELTA_DESCRIPTION_EMPTY: 'A descrição do delta não pode estar vazia',
+
   // Warnings
-  PURPOSE_TOO_BRIEF: `Purpose section is too brief (less than ${MIN_PURPOSE_LENGTH} characters)`,
-  REQUIREMENT_TOO_LONG: `Requirement text is very long (>${MAX_REQUIREMENT_TEXT_LENGTH} characters). Consider breaking it down.`,
-  DELTA_DESCRIPTION_TOO_BRIEF: 'Delta description is too brief',
-  DELTA_MISSING_REQUIREMENTS: 'Delta should include requirements',
-  
+  PURPOSE_TOO_BRIEF: `A seção Purpose é muito breve (menos de ${MIN_PURPOSE_LENGTH} caracteres)`,
+  REQUIREMENT_TOO_LONG: `O texto do requisito é muito longo (>${MAX_REQUIREMENT_TEXT_LENGTH} caracteres). Considere dividi-lo.`,
+  DELTA_DESCRIPTION_TOO_BRIEF: 'A descrição do delta é muito breve',
+  DELTA_MISSING_REQUIREMENTS: 'O delta deve incluir requisitos',
+
   // Guidance snippets (appended to primary messages for remediation)
   GUIDE_NO_DELTAS:
-    'No deltas found. Ensure your change has a specs/ directory with capability folders (e.g. specs/http-server/spec.md) containing .md files that use delta headers (## ADDED/MODIFIED/REMOVED/RENAMED Requirements) and that each requirement includes at least one "#### Scenario:" block. Tip: run "openspec change show <change-id> --json --deltas-only" to inspect parsed deltas.',
+    'Nenhum delta encontrado. Certifique-se de que a alteração possui um diretório specs/ com pastas de capacidade (ex: specs/http-server/spec.md) contendo arquivos .md que usam cabeçalhos de delta (## ADDED/MODIFIED/REMOVED/RENAMED Requirements) e que cada requisito inclui pelo menos um bloco "#### Scenario:". Dica: execute "openspec change show <change-id> --json --deltas-only" para inspecionar os deltas analisados.',
   GUIDE_MISSING_SPEC_SECTIONS:
-    'Missing required sections. Expected headers: "## Purpose" and "## Requirements". Example:\n## Purpose\n[brief purpose]\n\n## Requirements\n### Requirement: Clear requirement statement\nUsers SHALL ...\n\n#### Scenario: Descriptive name\n- **WHEN** ...\n- **THEN** ...',
+    'Seções obrigatórias ausentes. Cabeçalhos esperados: "## Purpose" e "## Requirements". Exemplo:\n## Purpose\n[breve propósito]\n\n## Requirements\n### Requirement: Declaração clara de requisito\nUsers SHALL ...\n\n#### Scenario: Nome descritivo\n- **WHEN** ...\n- **THEN** ...',
   GUIDE_MISSING_CHANGE_SECTIONS:
-    'Missing required sections. Expected headers: "## Why" and "## What Changes". Ensure deltas are documented in specs/ using delta headers.',
+    'Seções obrigatórias ausentes. Cabeçalhos esperados: "## Why" e "## What Changes". Certifique-se de que os deltas estão documentados em specs/ usando cabeçalhos de delta.',
   GUIDE_SCENARIO_FORMAT:
-    'Scenarios must use level-4 headers. Convert bullet lists into:\n#### Scenario: Short name\n- **WHEN** ...\n- **THEN** ...\n- **AND** ...',
+    'Os cenários devem usar cabeçalhos de nível 4. Converta listas em:\n#### Scenario: Nome curto\n- **WHEN** ...\n- **THEN** ...\n- **AND** ...',
 } as const;

@@ -4,6 +4,7 @@ import { getActiveChangeIds, getSpecIds } from '../utils/item-discovery.js';
 import { ChangeCommand } from './change.js';
 import { SpecCommand } from './spec.js';
 import { nearestMatches } from '../utils/match.js';
+import { SHOW_MESSAGES } from '../messages/index.js';
 
 type ItemType = 'change' | 'spec';
 
@@ -19,10 +20,10 @@ export class ShowCommand {
       if (interactive) {
         const { select } = await import('@inquirer/prompts');
         const type = await select<ItemType>({
-          message: 'What would you like to show?',
+          message: SHOW_MESSAGES.whatToShow,
           choices: [
-            { name: 'Change', value: 'change' as const },
-            { name: 'Spec', value: 'spec' as const },
+            { name: SHOW_MESSAGES.optionChange, value: 'change' as const },
+            { name: SHOW_MESSAGES.optionSpec, value: 'spec' as const },
           ],
         });
         await this.runInteractiveByType(type, options);
@@ -48,11 +49,11 @@ export class ShowCommand {
     if (type === 'change') {
       const changes = await getActiveChangeIds();
       if (changes.length === 0) {
-        console.error('No changes found.');
+        console.error(SHOW_MESSAGES.noChangesFound);
         process.exitCode = 1;
         return;
       }
-      const picked = await select<string>({ message: 'Pick a change', choices: changes.map(id => ({ name: id, value: id })) });
+      const picked = await select<string>({ message: SHOW_MESSAGES.pickChange, choices: changes.map(id => ({ name: id, value: id })) });
       const cmd = new ChangeCommand();
       await cmd.show(picked, options as any);
       return;
@@ -60,11 +61,11 @@ export class ShowCommand {
 
     const specs = await getSpecIds();
     if (specs.length === 0) {
-      console.error('No specs found.');
+      console.error(SHOW_MESSAGES.noSpecsFound);
       process.exitCode = 1;
       return;
     }
-    const picked = await select<string>({ message: 'Pick a spec', choices: specs.map(id => ({ name: id, value: id })) });
+    const picked = await select<string>({ message: SHOW_MESSAGES.pickSpec, choices: specs.map(id => ({ name: id, value: id })) });
     const cmd = new SpecCommand();
     await cmd.show(picked, options as any);
   }
@@ -90,16 +91,16 @@ export class ShowCommand {
     const resolvedType = params.typeOverride ?? (isChange ? 'change' : isSpec ? 'spec' : undefined);
 
     if (!resolvedType) {
-      console.error(`Unknown item '${itemName}'`);
+      console.error(SHOW_MESSAGES.unknownItem(itemName));
       const suggestions = nearestMatches(itemName, [...changes, ...specs]);
-      if (suggestions.length) console.error(`Did you mean: ${suggestions.join(', ')}?`);
+      if (suggestions.length) console.error(SHOW_MESSAGES.didYouMean(suggestions.join(', ')));
       process.exitCode = 1;
       return;
     }
 
     if (!params.typeOverride && isChange && isSpec) {
-      console.error(`Ambiguous item '${itemName}' matches both a change and a spec.`);
-      console.error('Pass --type change|spec, or use: openspec change show / openspec spec show');
+      console.error(SHOW_MESSAGES.ambiguousItem(itemName));
+      console.error(SHOW_MESSAGES.passTypeHint);
       process.exitCode = 1;
       return;
     }
@@ -115,11 +116,11 @@ export class ShowCommand {
   }
 
   private printNonInteractiveHint(): void {
-    console.error('Nothing to show. Try one of:');
-    console.error('  openspec show <item>');
-    console.error('  openspec change show');
-    console.error('  openspec spec show');
-    console.error('Or run in an interactive terminal.');
+    console.error(SHOW_MESSAGES.nothingToShow);
+    console.error(SHOW_MESSAGES.showItemHint);
+    console.error(SHOW_MESSAGES.showChangeHint);
+    console.error(SHOW_MESSAGES.showSpecHint);
+    console.error(SHOW_MESSAGES.runInteractiveHint);
   }
 
   private warnIrrelevantFlags(type: ItemType, options: { [k: string]: any }): boolean {
@@ -130,7 +131,7 @@ export class ShowCommand {
       for (const k of CHANGE_FLAG_KEYS) if (k in options) irrelevant.push(k);
     }
     if (irrelevant.length > 0) {
-      console.error(`Warning: Ignoring flags not applicable to ${type}: ${irrelevant.join(', ')}`);
+      console.error(SHOW_MESSAGES.ignoringFlags(type, irrelevant.join(', ')));
       return true;
     }
     return false;

@@ -9,116 +9,116 @@ import type { SkillTemplate, CommandTemplate } from '../types.js';
 export function getContinueChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-continue-change',
-    description: 'Continue working on an OpenSpec change by creating the next artifact. Use when the user wants to progress their change, create the next artifact, or continue their workflow.',
-    instructions: `Continue working on a change by creating the next artifact.
+    description: 'Continue trabalhando em uma change do OpenSpec criando o próximo artifact. Use quando o usuário quiser progredir sua change, criar o próximo artifact ou continuar seu workflow.',
+    instructions: `Continue trabalhando em uma change criando o próximo artifact.
 
-**Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Entrada**: Opcionalmente especifique um nome de change. Se omitido, verifique se pode ser inferido do contexto da conversa. Se vago ou ambíguo, você DEVE solicitar as changes disponíveis.
 
-**Steps**
+**Passos**
 
-1. **If no change name provided, prompt for selection**
+1. **Se nenhum nome de change for fornecido, solicite a seleção**
 
-   Run \`openspec list --json\` to get available changes sorted by most recently modified. Then use the **AskUserQuestion tool** to let the user select which change to work on.
+   Execute \`openspec list --json\` para obter as changes disponíveis ordenadas pela mais recentemente modificada. Depois use a ferramenta **AskUserQuestion** para permitir que o usuário selecione em qual change trabalhar.
 
-   Present the top 3-4 most recently modified changes as options, showing:
-   - Change name
-   - Schema (from \`schema\` field if present, otherwise "spec-driven")
-   - Status (e.g., "0/5 tasks", "complete", "no tasks")
-   - How recently it was modified (from \`lastModified\` field)
+   Apresente as 3-4 changes mais recentemente modificadas como opções, mostrando:
+   - Nome da change
+   - Schema (do campo \`schema\` se presente, caso contrário "spec-driven")
+   - Status (por exemplo, "0/5 tasks", "completo", "sem tarefas")
+   - Quão recentemente foi modificada (do campo \`lastModified\`)
 
-   Mark the most recently modified change as "(Recommended)" since it's likely what the user wants to continue.
+   Marque a change mais recentemente modificada como "(Recomendada)" já que é provavelmente o que o usuário quer continuar.
 
-   **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
+   **IMPORTANTE**: NÃO adivinhe ou selecione automaticamente uma change. Sempre deixe o usuário escolher.
 
-2. **Check current status**
+2. **Verifique o status atual**
    \`\`\`bash
-   openspec status --change "<name>" --json
+   openspec status --change "<nome>" --json
    \`\`\`
-   Parse the JSON to understand current state. The response includes:
-   - \`schemaName\`: The workflow schema being used (e.g., "spec-driven")
-   - \`artifacts\`: Array of artifacts with their status ("done", "ready", "blocked")
-   - \`isComplete\`: Boolean indicating if all artifacts are complete
+   Analise o JSON para entender o estado atual. A resposta inclui:
+   - \`schemaName\`: O schema de workflow sendo usado (por exemplo, "spec-driven")
+   - \`artifacts\`: Array de artifacts com seu status ("done", "ready", "blocked")
+   - \`isComplete\`: Booleano indicando se todos os artifacts estão completos
 
-3. **Act based on status**:
-
-   ---
-
-   **If all artifacts are complete (\`isComplete: true\`)**:
-   - Congratulate the user
-   - Show final status including the schema used
-   - Suggest: "All artifacts created! You can now implement this change or archive it."
-   - STOP
+3. **Aja com base no status**:
 
    ---
 
-   **If artifacts are ready to create** (status shows artifacts with \`status: "ready"\`):
-   - Pick the FIRST artifact with \`status: "ready"\` from the status output
-   - Get its instructions:
+   **Se todos os artifacts estão completos (\`isComplete: true\`)**:
+   - Parabenize o usuário
+   - Mostre o status final incluindo o schema usado
+   - Sugira: "Todos os artifacts criados! Agora você pode implementar esta change ou arquivá-la."
+   - PARE
+
+   ---
+
+   **Se os artifacts estão prontos para criar** (status mostra artifacts com \`status: "ready"\`):
+   - Escolha o PRIMEIRO artifact com \`status: "ready"\` da saída do status
+   - Obtenha suas instruções:
      \`\`\`bash
-     openspec instructions <artifact-id> --change "<name>" --json
+     openspec instructions <artifact-id> --change "<nome>" --json
      \`\`\`
-   - Parse the JSON. The key fields are:
-     - \`context\`: Project background (constraints for you - do NOT include in output)
-     - \`rules\`: Artifact-specific rules (constraints for you - do NOT include in output)
-     - \`template\`: The structure to use for your output file
-     - \`instruction\`: Schema-specific guidance
-     - \`outputPath\`: Where to write the artifact
-     - \`dependencies\`: Completed artifacts to read for context
-   - **Create the artifact file**:
-     - Read any completed dependency files for context
-     - Use \`template\` as the structure - fill in its sections
-     - Apply \`context\` and \`rules\` as constraints when writing - but do NOT copy them into the file
-     - Write to the output path specified in instructions
-   - Show what was created and what's now unlocked
-   - STOP after creating ONE artifact
+   - Analise o JSON. Os campos-chave são:
+     - \`context\`: Contexto do projeto (restrições para você - NÃO inclua na saída)
+     - \`rules\`: Regras específicas do artifact (restrições para você - NÃO inclua na saída)
+     - \`template\`: A estrutura a ser usada para seu arquivo de saída
+     - \`instruction\`: Orientação específica do schema
+     - \`outputPath\`: Onde escrever o artifact
+     - \`dependencies\`: Artifacts concluídos para ler como contexto
+   - **Crie o arquivo do artifact**:
+     - Leia quaisquer arquivos de dependências concluídos para contexto
+     - Use \`template\` como a estrutura - preencha suas seções
+     - Aplique \`context\` e \`rules\` como restrições ao escrever - mas NÃO copie-os para o arquivo
+     - Escreva no caminho de saída especificado nas instruções
+   - Mostre o que foi criado e o que agora está desbloqueado
+   - PARE após criar UM artifact
 
    ---
 
-   **If no artifacts are ready (all blocked)**:
-   - This shouldn't happen with a valid schema
-   - Show status and suggest checking for issues
+   **Se nenhum artifact estiver pronto (todos bloqueados)**:
+   - Isso não deveria acontecer com um schema válido
+   - Mostre o status e sugira verificar problemas
 
-4. **After creating an artifact, show progress**
+4. **Após criar um artifact, mostre o progresso**
    \`\`\`bash
-   openspec status --change "<name>"
+   openspec status --change "<nome>"
    \`\`\`
 
-**Output**
+**Saída**
 
-After each invocation, show:
-- Which artifact was created
-- Schema workflow being used
-- Current progress (N/M complete)
-- What artifacts are now unlocked
-- Prompt: "Want to continue? Just ask me to continue or tell me what to do next."
+Após cada invocação, mostre:
+- Qual artifact foi criado
+- Schema de workflow sendo usado
+- Progresso atual (N/M completos)
+- Quais artifacts agora estão desbloqueados
+- Prompt: "Quer continuar? Basta me pedir para continuar ou me dizer o que fazer em seguida."
 
-**Artifact Creation Guidelines**
+**Diretrizes de Criação de Artifacts**
 
-The artifact types and their purpose depend on the schema. Use the \`instruction\` field from the instructions output to understand what to create.
+Os tipos de artifact e sua finalidade dependem do schema. Use o campo \`instruction\` da saída das instruções para entender o que criar.
 
-Common artifact patterns:
+Padrões comuns de artifacts:
 
-**spec-driven schema** (proposal → specs → design → tasks):
-- **proposal.md**: Ask user about the change if not clear. Fill in Why, What Changes, Capabilities, Impact.
-  - The Capabilities section is critical - each capability listed will need a spec file.
-- **specs/<capability>/spec.md**: Create one spec per capability listed in the proposal's Capabilities section (use the capability name, not the change name).
-- **design.md**: Document technical decisions, architecture, and implementation approach.
-- **tasks.md**: Break down implementation into checkboxed tasks.
+**Schema spec-driven** (proposal → specs → design → tasks):
+- **proposal.md**: Pergunte ao usuário sobre a change se não estiver claro. Preencha Por Que, O Que Muda, Capabilities, Impacto.
+  - A seção Capabilities é crítica - cada capability listada precisará de um arquivo spec.
+- **specs/<capability>/spec.md**: Crie um spec por capability listada na seção Capabilities do proposal (use o nome da capability, não o nome da change).
+- **design.md**: Documente decisões técnicas, arquitetura e abordagem de implementação.
+- **tasks.md**: Divida a implementação em tarefas com checkbox.
 
-For other schemas, follow the \`instruction\` field from the CLI output.
+Para outros schemas, siga o campo \`instruction\` da saída do CLI.
 
 **Guardrails**
-- Create ONE artifact per invocation
-- Always read dependency artifacts before creating a new one
-- Never skip artifacts or create out of order
-- If context is unclear, ask the user before creating
-- Verify the artifact file exists after writing before marking progress
-- Use the schema's artifact sequence, don't assume specific artifact names
-- **IMPORTANT**: \`context\` and \`rules\` are constraints for YOU, not content for the file
-  - Do NOT copy \`<context>\`, \`<rules>\`, \`<project_context>\` blocks into the artifact
-  - These guide what you write, but should never appear in the output`,
+- Crie UM artifact por invocação
+- Sempre leia artifacts de dependência antes de criar um novo
+- Nunca pule artifacts ou crie fora de ordem
+- Se o contexto estiver incerto, pergunte ao usuário antes de criar
+- Verifique se o arquivo do artifact existe após escrever antes de marcar progresso
+- Use a sequência de artifacts do schema, não assuma nomes específicos de artifacts
+- **IMPORTANTE**: \`context\` e \`rules\` são restrições para VOCÊ, não conteúdo para o arquivo
+  - NÃO copie blocos \`<context>\`, \`<rules>\`, \`<project_context>\` para o artifact
+  - Eles guiam o que você escreve, mas nunca devem aparecer na saída`,
     license: 'MIT',
-    compatibility: 'Requires openspec CLI.',
+    compatibility: 'Requer openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
   };
 }
@@ -126,115 +126,115 @@ For other schemas, follow the \`instruction\` field from the CLI output.
 export function getOpsxContinueCommandTemplate(): CommandTemplate {
   return {
     name: 'OPSX: Continue',
-    description: 'Continue working on a change - create the next artifact (Experimental)',
+    description: 'Continue trabalhando em uma change - crie o próximo artifact (Experimental)',
     category: 'Workflow',
     tags: ['workflow', 'artifacts', 'experimental'],
-    content: `Continue working on a change by creating the next artifact.
+    content: `Continue trabalhando em uma change criando o próximo artifact.
 
-**Input**: Optionally specify a change name after \`/opsx:continue\` (e.g., \`/opsx:continue add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Entrada**: Opcionalmente especifique um nome de change após \`/opsx:continue\` (por exemplo, \`/opsx:continue add-auth\`). Se omitido, verifique se pode ser inferido do contexto da conversa. Se vago ou ambíguo, você DEVE solicitar as changes disponíveis.
 
-**Steps**
+**Passos**
 
-1. **If no change name provided, prompt for selection**
+1. **Se nenhum nome de change for fornecido, solicite a seleção**
 
-   Run \`openspec list --json\` to get available changes sorted by most recently modified. Then use the **AskUserQuestion tool** to let the user select which change to work on.
+   Execute \`openspec list --json\` para obter as changes disponíveis ordenadas pela mais recentemente modificada. Depois use a ferramenta **AskUserQuestion** para permitir que o usuário selecione em qual change trabalhar.
 
-   Present the top 3-4 most recently modified changes as options, showing:
-   - Change name
-   - Schema (from \`schema\` field if present, otherwise "spec-driven")
-   - Status (e.g., "0/5 tasks", "complete", "no tasks")
-   - How recently it was modified (from \`lastModified\` field)
+   Apresente as 3-4 changes mais recentemente modificadas como opções, mostrando:
+   - Nome da change
+   - Schema (do campo \`schema\` se presente, caso contrário "spec-driven")
+   - Status (por exemplo, "0/5 tasks", "completo", "sem tarefas")
+   - Quão recentemente foi modificada (do campo \`lastModified\`)
 
-   Mark the most recently modified change as "(Recommended)" since it's likely what the user wants to continue.
+   Marque a change mais recentemente modificada como "(Recomendada)" já que é provavelmente o que o usuário quer continuar.
 
-   **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
+   **IMPORTANTE**: NÃO adivinhe ou selecione automaticamente uma change. Sempre deixe o usuário escolher.
 
-2. **Check current status**
+2. **Verifique o status atual**
    \`\`\`bash
-   openspec status --change "<name>" --json
+   openspec status --change "<nome>" --json
    \`\`\`
-   Parse the JSON to understand current state. The response includes:
-   - \`schemaName\`: The workflow schema being used (e.g., "spec-driven")
-   - \`artifacts\`: Array of artifacts with their status ("done", "ready", "blocked")
-   - \`isComplete\`: Boolean indicating if all artifacts are complete
+   Analise o JSON para entender o estado atual. A resposta inclui:
+   - \`schemaName\`: O schema de workflow sendo usado (por exemplo, "spec-driven")
+   - \`artifacts\`: Array de artifacts com seu status ("done", "ready", "blocked")
+   - \`isComplete\`: Booleano indicando se todos os artifacts estão completos
 
-3. **Act based on status**:
-
-   ---
-
-   **If all artifacts are complete (\`isComplete: true\`)**:
-   - Congratulate the user
-   - Show final status including the schema used
-   - Suggest: "All artifacts created! You can now implement this change with \`/opsx:apply\` or archive it with \`/opsx:archive\`."
-   - STOP
+3. **Aja com base no status**:
 
    ---
 
-   **If artifacts are ready to create** (status shows artifacts with \`status: "ready"\`):
-   - Pick the FIRST artifact with \`status: "ready"\` from the status output
-   - Get its instructions:
+   **Se todos os artifacts estão completos (\`isComplete: true\`)**:
+   - Parabenize o usuário
+   - Mostre o status final incluindo o schema usado
+   - Sugira: "Todos os artifacts criados! Agora você pode implementar esta change com \`/opsx:apply\` ou arquivá-la com \`/opsx:archive\`."
+   - PARE
+
+   ---
+
+   **Se os artifacts estão prontos para criar** (status mostra artifacts com \`status: "ready"\`):
+   - Escolha o PRIMEIRO artifact com \`status: "ready"\` da saída do status
+   - Obtenha suas instruções:
      \`\`\`bash
-     openspec instructions <artifact-id> --change "<name>" --json
+     openspec instructions <artifact-id> --change "<nome>" --json
      \`\`\`
-   - Parse the JSON. The key fields are:
-     - \`context\`: Project background (constraints for you - do NOT include in output)
-     - \`rules\`: Artifact-specific rules (constraints for you - do NOT include in output)
-     - \`template\`: The structure to use for your output file
-     - \`instruction\`: Schema-specific guidance
-     - \`outputPath\`: Where to write the artifact
-     - \`dependencies\`: Completed artifacts to read for context
-   - **Create the artifact file**:
-     - Read any completed dependency files for context
-     - Use \`template\` as the structure - fill in its sections
-     - Apply \`context\` and \`rules\` as constraints when writing - but do NOT copy them into the file
-     - Write to the output path specified in instructions
-   - Show what was created and what's now unlocked
-   - STOP after creating ONE artifact
+   - Analise o JSON. Os campos-chave são:
+     - \`context\`: Contexto do projeto (restrições para você - NÃO inclua na saída)
+     - \`rules\`: Regras específicas do artifact (restrições para você - NÃO inclua na saída)
+     - \`template\`: A estrutura a ser usada para seu arquivo de saída
+     - \`instruction\`: Orientação específica do schema
+     - \`outputPath\`: Onde escrever o artifact
+     - \`dependencies\`: Artifacts concluídos para ler como contexto
+   - **Crie o arquivo do artifact**:
+     - Leia quaisquer arquivos de dependências concluídos para contexto
+     - Use \`template\` como a estrutura - preencha suas seções
+     - Aplique \`context\` e \`rules\` como restrições ao escrever - mas NÃO copie-os para o arquivo
+     - Escreva no caminho de saída especificado nas instruções
+   - Mostre o que foi criado e o que agora está desbloqueado
+   - PARE após criar UM artifact
 
    ---
 
-   **If no artifacts are ready (all blocked)**:
-   - This shouldn't happen with a valid schema
-   - Show status and suggest checking for issues
+   **Se nenhum artifact estiver pronto (todos bloqueados)**:
+   - Isso não deveria acontecer com um schema válido
+   - Mostre o status e sugira verificar problemas
 
-4. **After creating an artifact, show progress**
+4. **Após criar um artifact, mostre o progresso**
    \`\`\`bash
-   openspec status --change "<name>"
+   openspec status --change "<nome>"
    \`\`\`
 
-**Output**
+**Saída**
 
-After each invocation, show:
-- Which artifact was created
-- Schema workflow being used
-- Current progress (N/M complete)
-- What artifacts are now unlocked
-- Prompt: "Run \`/opsx:continue\` to create the next artifact"
+Após cada invocação, mostre:
+- Qual artifact foi criado
+- Schema de workflow sendo usado
+- Progresso atual (N/M completos)
+- Quais artifacts agora estão desbloqueados
+- Prompt: "Execute \`/opsx:continue\` para criar o próximo artifact"
 
-**Artifact Creation Guidelines**
+**Diretrizes de Criação de Artifacts**
 
-The artifact types and their purpose depend on the schema. Use the \`instruction\` field from the instructions output to understand what to create.
+Os tipos de artifact e sua finalidade dependem do schema. Use o campo \`instruction\` da saída das instruções para entender o que criar.
 
-Common artifact patterns:
+Padrões comuns de artifacts:
 
-**spec-driven schema** (proposal → specs → design → tasks):
-- **proposal.md**: Ask user about the change if not clear. Fill in Why, What Changes, Capabilities, Impact.
-  - The Capabilities section is critical - each capability listed will need a spec file.
-- **specs/<capability>/spec.md**: Create one spec per capability listed in the proposal's Capabilities section (use the capability name, not the change name).
-- **design.md**: Document technical decisions, architecture, and implementation approach.
-- **tasks.md**: Break down implementation into checkboxed tasks.
+**Schema spec-driven** (proposal → specs → design → tasks):
+- **proposal.md**: Pergunte ao usuário sobre a change se não estiver claro. Preencha Por Que, O Que Muda, Capabilities, Impacto.
+  - A seção Capabilities é crítica - cada capability listada precisará de um arquivo spec.
+- **specs/<capability>/spec.md**: Crie um spec por capability listada na seção Capabilities do proposal (use o nome da capability, não o nome da change).
+- **design.md**: Documente decisões técnicas, arquitetura e abordagem de implementação.
+- **tasks.md**: Divida a implementação em tarefas com checkbox.
 
-For other schemas, follow the \`instruction\` field from the CLI output.
+Para outros schemas, siga o campo \`instruction\` da saída do CLI.
 
 **Guardrails**
-- Create ONE artifact per invocation
-- Always read dependency artifacts before creating a new one
-- Never skip artifacts or create out of order
-- If context is unclear, ask the user before creating
-- Verify the artifact file exists after writing before marking progress
-- Use the schema's artifact sequence, don't assume specific artifact names
-- **IMPORTANT**: \`context\` and \`rules\` are constraints for YOU, not content for the file
-  - Do NOT copy \`<context>\`, \`<rules>\`, \`<project_context>\` blocks into the artifact
-  - These guide what you write, but should never appear in the output`
+- Crie UM artifact por invocação
+- Sempre leia artifacts de dependência antes de criar um novo
+- Nunca pule artifacts ou crie fora de ordem
+- Se o contexto estiver incerto, pergunte ao usuário antes de criar
+- Verifique se o arquivo do artifact existe após escrever antes de marcar progresso
+- Use a sequência de artifacts do schema, não assuma nomes específicos de artifacts
+- **IMPORTANTE**: \`context\` e \`rules\` são restrições para VOCÊ, não conteúdo para o arquivo
+  - NÃO copie blocos \`<context>\`, \`<rules>\`, \`<project_context>\` para o artifact
+  - Eles guiam o que você escreve, mas nunca devem aparecer na saída`
   };
 }

@@ -5,6 +5,7 @@
  * Called by both init and update commands before profile resolution.
  */
 
+import { MIGRATION_MESSAGES } from '../messages/index.js';
 import type { AIToolOption } from './config.js';
 import { getGlobalConfig, getGlobalConfigPath, saveGlobalConfig, type Delivery } from './global-config.js';
 import { CommandAdapterRegistry } from './command-generation/index.js';
@@ -126,6 +127,6 @@ export function migrateIfNeeded(projectPath: string, tools: AIToolOption[]): voi
   }
   saveGlobalConfig(config);
 
-  console.log(`Migrated: custom profile with ${installedWorkflows.length} workflows`);
-  console.log("New in this version: /opsx:propose. Try 'openspec config profile core' for the streamlined experience.");
+  console.log(MIGRATION_MESSAGES.migrated(installedWorkflows.length));
+  console.log(MIGRATION_MESSAGES.newInThisVersion);
 }

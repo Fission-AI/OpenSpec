@@ -21,6 +21,7 @@ import {
   type TaskItem,
   type ApplyInstructions,
 } from './shared.js';
+import { WORKFLOW_MESSAGES } from '../../messages/index.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -46,7 +47,7 @@ export async function instructionsCommand(
   artifactId: string | undefined,
   options: InstructionsOptions
 ): Promise<void> {
-  const spinner = options.json ? undefined : ora('Generating instructions...').start();
+  const spinner = options.json ? undefined : ora(WORKFLOW_MESSAGES.generatingInstructions).start();
 
   try {
     const projectRoot = process.cwd();
@@ -64,7 +65,7 @@ export async function instructionsCommand(
       spinner?.stop();
       const validIds = context.graph.getAllArtifacts().map((a) => a.id);
       throw new Error(
-        `Missing required argument <artifact>. Valid artifacts:\n  ${validIds.join('\n  ')}`
+        WORKFLOW_MESSAGES.missingArtifactArgument(validIds.join('\n  '))
       );
     }
 
@@ -74,7 +75,7 @@ export async function instructionsCommand(
       spinner?.stop();
       const validIds = context.graph.getAllArtifacts().map((a) => a.id);
       throw new Error(
-        `Artifact '${artifactId}' not found in schema '${context.schemaName}'. Valid artifacts:\n  ${validIds.join('\n  ')}`
+        WORKFLOW_MESSAGES.artifactNotFound(artifactId, context.schemaName, validIds.join('\n  '))
       );
     }
 
@@ -119,8 +120,8 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
   if (isBlocked) {
     const missing = dependencies.filter((d) => !d.done).map((d) => d.id);
     console.log('<warning>');
-    console.log('This artifact has unmet dependencies. Complete them first or proceed with caution.');
-    console.log(`Missing: ${missing.join(', ')}`);
+    console.log(WORKFLOW_MESSAGES.unmetDependenciesWarning);
+    console.log(WORKFLOW_MESSAGES.missingDependencies(missing.join(', ')));
     console.log('</warning>');
     console.log();
   }
@@ -155,7 +156,7 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
   // Dependencies (files to read for context)
   if (dependencies.length > 0) {
     console.log('<dependencies>');
-    console.log('Read these files for context before creating this artifact:');
+    console.log(WORKFLOW_MESSAGES.readFilesForContext);
     console.log();
     for (const dep of dependencies) {
       const status = dep.done ? 'done' : 'missing';
@@ -199,7 +200,7 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
   // Unlocks
   if (unlocks.length > 0) {
     console.log('<unlocks>');
-    console.log(`Completing this artifact enables: ${unlocks.join(', ')}`);
+    console.log(WORKFLOW_MESSAGES.unlocksArtifacts(unlocks.join(', ')));
     console.log('</unlocks>');
     console.log();
   }
@@ -303,27 +304,27 @@ export async function generateApplyInstructions(
 
   if (missingArtifacts.length > 0) {
     state = 'blocked';
-    instruction = `Cannot apply this change yet. Missing artifacts: ${missingArtifacts.join(', ')}.\nUse the openspec-continue-change skill to create the missing artifacts first.`;
+    instruction = WORKFLOW_MESSAGES.cannotApplyMissingArtifacts(missingArtifacts.join(', '));
   } else if (tracksFile && !tracksFileExists) {
     // Tracking file configured but doesn't exist yet
     const tracksFilename = path.basename(tracksFile);
     state = 'blocked';
-    instruction = `The ${tracksFilename} file is missing and must be created.\nUse openspec-continue-change to generate the tracking file.`;
+    instruction = WORKFLOW_MESSAGES.missingTrackingFile(tracksFilename);
   } else if (tracksFile && tracksFileExists && total === 0) {
     // Tracking file exists but contains no tasks
     const tracksFilename = path.basename(tracksFile);
     state = 'blocked';
-    instruction = `The ${tracksFilename} file exists but contains no tasks.\nAdd tasks to ${tracksFilename} or regenerate it with openspec-continue-change.`;
+    instruction = WORKFLOW_MESSAGES.trackingFileNoTasks(tracksFilename);
   } else if (tracksFile && remaining === 0 && total > 0) {
     state = 'all_done';
-    instruction = 'All tasks are complete! This change is ready to be archived.\nConsider running tests and reviewing the changes before archiving.';
+    instruction = WORKFLOW_MESSAGES.allTasksComplete;
   } else if (!tracksFile) {
     // No tracking file configured in schema - ready to apply
     state = 'ready';
-    instruction = schemaInstruction?.trim() ?? 'All required artifacts complete. Proceed with implementation.';
+    instruction = schemaInstruction?.trim() ?? WORKFLOW_MESSAGES.allArtifactsCompleteProceed;
   } else {
     state = 'ready';
-    instruction = schemaInstruction?.trim() ?? 'Read context files, work through pending tasks, mark complete as you go.\nPause if you hit blockers or need clarification.';
+    instruction = schemaInstruction?.trim() ?? WORKFLOW_MESSAGES.readContextAndWorkTasks;
   }
 
   return {
@@ -340,7 +341,7 @@ export async function generateApplyInstructions(
 }
 
 export async function applyInstructionsCommand(options: ApplyInstructionsOptions): Promise<void> {
-  const spinner = options.json ? undefined : ora('Generating apply instructions...').start();
+  const spinner = options.json ? undefined : ora(WORKFLOW_MESSAGES.generatingApplyInstructions).start();
 
   try {
     const projectRoot = process.cwd();
@@ -371,23 +372,23 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
 export function printApplyInstructionsText(instructions: ApplyInstructions): void {
   const { changeName, schemaName, contextFiles, progress, tasks, state, missingArtifacts, instruction } = instructions;
 
-  console.log(`## Apply: ${changeName}`);
-  console.log(`Schema: ${schemaName}`);
+  console.log(WORKFLOW_MESSAGES.applyTitle(changeName));
+  console.log(WORKFLOW_MESSAGES.schemaLabel(schemaName));
   console.log();
 
   // Warning for blocked state
   if (state === 'blocked' && missingArtifacts) {
-    console.log('### ⚠️ Blocked');
+    console.log(WORKFLOW_MESSAGES.blockedTitle);
     console.log();
-    console.log(`Missing artifacts: ${missingArtifacts.join(', ')}`);
-    console.log('Use the openspec-continue-change skill to create these first.');
+    console.log(WORKFLOW_MESSAGES.missingArtifactsLabel(missingArtifacts.join(', ')));
+    console.log(WORKFLOW_MESSAGES.createMissingFirst);
     console.log();
   }
 
   // Context files (dynamically from schema)
   const contextFileEntries = Object.entries(contextFiles);
   if (contextFileEntries.length > 0) {
-    console.log('### Context Files');
+    console.log(WORKFLOW_MESSAGES.contextFilesTitle);
     for (const [artifactId, filePaths] of contextFileEntries) {
       for (const filePath of filePaths) {
         console.log(`- ${artifactId}: ${filePath}`);
@@ -398,18 +399,18 @@ export function printApplyInstructionsText(instructions: ApplyInstructions): voi
 
   // Progress (only show if we have tracking)
   if (progress.total > 0 || tasks.length > 0) {
-    console.log('### Progress');
+    console.log(WORKFLOW_MESSAGES.progressTitle);
     if (state === 'all_done') {
-      console.log(`${progress.complete}/${progress.total} complete ✓`);
+      console.log(WORKFLOW_MESSAGES.progressCompleteWithCheck(progress.complete, progress.total));
     } else {
-      console.log(`${progress.complete}/${progress.total} complete`);
+      console.log(WORKFLOW_MESSAGES.progressComplete(progress.complete, progress.total));
     }
     console.log();
   }
 
   // Tasks
   if (tasks.length > 0) {
-    console.log('### Tasks');
+    console.log(WORKFLOW_MESSAGES.tasksTitle);
     for (const task of tasks) {
       const checkbox = task.done ? '[x]' : '[ ]';
       console.log(`- ${checkbox} ${task.description}`);
@@ -418,6 +419,6 @@ export function printApplyInstructionsText(instructions: ApplyInstructions): voi
   }
 
   // Instruction
-  console.log('### Instruction');
+  console.log(WORKFLOW_MESSAGES.instructionTitle);
   console.log(instruction);
 }

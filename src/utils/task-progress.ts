@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { TASK_PROGRESS_MESSAGES } from '../messages/index.js';
 
 const TASK_PATTERN = /^[-*]\s+\[[\sx]\]/i;
 const COMPLETED_TASK_PATTERN = /^[-*]\s+\[x\]/i;
@@ -35,9 +36,9 @@ export async function getTaskProgressForChange(changesDir: string, changeName: s
 }
 
 export function formatTaskStatus(progress: TaskProgress): string {
-  if (progress.total === 0) return 'No tasks';
-  if (progress.completed === progress.total) return '✓ Complete';
-  return `${progress.completed}/${progress.total} tasks`;
+  if (progress.total === 0) return TASK_PROGRESS_MESSAGES.noTasks;
+  if (progress.completed === progress.total) return TASK_PROGRESS_MESSAGES.complete;
+  return TASK_PROGRESS_MESSAGES.tasksCount(progress.completed, progress.total);
 }
 
 

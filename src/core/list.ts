@@ -4,6 +4,7 @@ import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progre
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { MarkdownParser } from './parsers/markdown-parser.js';
+import { LIST_MESSAGES } from '../messages/index.js';
 
 interface ChangeInfo {
   name: string;
@@ -64,13 +65,13 @@ function formatRelativeTime(date: Date): string {
   if (diffDays > 30) {
     return date.toLocaleDateString();
   } else if (diffDays > 0) {
-    return `${diffDays}d ago`;
+    return LIST_MESSAGES.relativeTime.daysAgo(diffDays);
   } else if (diffHours > 0) {
-    return `${diffHours}h ago`;
+    return LIST_MESSAGES.relativeTime.hoursAgo(diffHours);
   } else if (diffMins > 0) {
-    return `${diffMins}m ago`;
+    return LIST_MESSAGES.relativeTime.minutesAgo(diffMins);
   } else {
-    return 'just now';
+    return LIST_MESSAGES.relativeTime.justNow;
   }
 }
 
@@ -85,7 +86,7 @@ export class ListCommand {
       try {
         await fs.access(changesDir);
       } catch {
-        throw new Error("No OpenSpec changes directory found. Run 'openspec init' first.");
+        throw new Error(LIST_MESSAGES.noChangesDir);
       }
 
       // Get all directories in changes (excluding archive)
@@ -98,7 +99,7 @@ export class ListCommand {
         if (json) {
           console.log(JSON.stringify({ changes: [] }));
         } else {
-          console.log('No active changes found.');
+          console.log(LIST_MESSAGES.noActiveChanges);
         }
         return;
       }
@@ -139,7 +140,7 @@ export class ListCommand {
       }
 
       // Display results
-      console.log('Changes:');
+      console.log(LIST_MESSAGES.changesHeader);
       const padding = '  ';
       const nameWidth = Math.max(...changes.map(c => c.name.length));
       for (const change of changes) {
@@ -156,14 +157,14 @@ export class ListCommand {
     try {
       await fs.access(specsDir);
     } catch {
-      console.log('No specs found.');
+      console.log(LIST_MESSAGES.noSpecsFound);
       return;
     }
 
     const entries = await fs.readdir(specsDir, { withFileTypes: true });
     const specDirs = entries.filter(e => e.isDirectory()).map(e => e.name);
     if (specDirs.length === 0) {
-      console.log('No specs found.');
+      console.log(LIST_MESSAGES.noSpecsFound);
       return;
     }
 
@@ -183,7 +184,7 @@ export class ListCommand {
     }
 
     specs.sort((a, b) => a.id.localeCompare(b.id));
-    console.log('Specs:');
+    console.log(LIST_MESSAGES.specsHeader);
     const padding = '  ';
     const nameWidth = Math.max(...specs.map(s => s.id.length));
     for (const spec of specs) {

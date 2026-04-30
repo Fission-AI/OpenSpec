@@ -4,6 +4,7 @@ import ora from 'ora';
 import path from 'path';
 import { promises as fs } from 'fs';
 import { AI_TOOLS } from '../core/config.js';
+import { CLI_DESCRIPTIONS, CLI_MESSAGES, CONFIG_MESSAGES } from '../messages/index.js';
 import { UpdateCommand } from '../core/update.js';
 import { ListCommand } from '../core/list.js';
 import { ArchiveCommand } from '../core/archive.js';
@@ -59,11 +60,11 @@ function getCommandPath(command: Command): string {
 
 program
   .name('openspec')
-  .description('AI-native system for spec-driven development')
+  .description(CLI_DESCRIPTIONS.root)
   .version(version);
 
 // Global options
-program.option('--no-color', 'Disable color output');
+program.option('--no-color', CLI_DESCRIPTIONS.noColor);
 
 // Apply global flags and telemetry before any command runs
 // Note: preAction receives (thisCommand, actionCommand) where:
@@ -89,14 +90,14 @@ program.hook('postAction', async () => {
 });
 
 const availableToolIds = AI_TOOLS.filter((tool) => tool.skillsDir).map((tool) => tool.value);
-const toolsOptionDescription = `Configure AI tools non-interactively. Use "all", "none", or a comma-separated list of: ${availableToolIds.join(', ')}`;
+const toolsOptionDescription = `Configura ferramentas de IA não interativamente. Use "all", "none" ou uma lista separada por vírgula: ${availableToolIds.join(', ')}`;
 
 program
   .command('init [path]')
-  .description('Initialize OpenSpec in your project')
+  .description(CLI_DESCRIPTIONS.init)
   .option('--tools <tools>', toolsOptionDescription)
-  .option('--force', 'Auto-cleanup legacy files without prompting')
-  .option('--profile <profile>', 'Override global config profile (core or custom)')
+  .option('--force', CLI_DESCRIPTIONS.force)
+  .option('--profile <profile>', CLI_DESCRIPTIONS.profile)
   .action(async (targetPath = '.', options?: { tools?: string; force?: boolean; profile?: string }) => {
     try {
       // Validate that the path is a valid directory
@@ -105,16 +106,16 @@ program
       try {
         const stats = await fs.stat(resolvedPath);
         if (!stats.isDirectory()) {
-          throw new Error(`Path "${targetPath}" is not a directory`);
+          throw new Error(CLI_MESSAGES.notADirectory(targetPath));
         }
       } catch (error: any) {
         if (error.code === 'ENOENT') {
           // Directory doesn't exist, but we can create it
-          console.log(`Directory "${targetPath}" doesn't exist, it will be created.`);
+          console.log(CLI_MESSAGES.directoryWillBeCreated(targetPath));
         } else if (error.message && error.message.includes('not a directory')) {
           throw error;
         } else {
-          throw new Error(`Cannot access path "${targetPath}": ${error.message}`);
+          throw new Error(CLI_MESSAGES.cannotAccessPath(targetPath, error.message));
         }
       }
 
@@ -127,7 +128,7 @@ program
       await initCommand.execute(targetPath);
     } catch (error) {
       console.log(); // Empty line for spacing
-      ora().fail(`Error: ${(error as Error).message}`);
+      ora().fail(CLI_MESSAGES.error((error as Error).message));
       process.exit(1);
     }
   });
@@ -135,12 +136,12 @@ program
 // Hidden alias: 'experimental' -> 'init' for backwards compatibility
 program
   .command('experimental', { hidden: true })
-  .description('Alias for init (deprecated)')
+  .description(CLI_DESCRIPTIONS.experimental)
   .option('--tool <tool-id>', 'Target AI tool (maps to --tools)')
-  .option('--no-interactive', 'Disable interactive prompts')
+  .option('--no-interactive', 'Desativa prompts interativos')
   .action(async (options?: { tool?: string; noInteractive?: boolean }) => {
     try {
-      console.log('Note: "openspec experimental" is deprecated. Use "openspec init" instead.');
+      console.log(CLI_MESSAGES.experimentalDeprecated);
       const { InitCommand } = await import('../core/init.js');
       const initCommand = new InitCommand({
         tools: options?.tool,
@@ -149,15 +150,15 @@ program
       await initCommand.execute('.');
     } catch (error) {
       console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      ora().fail(CLI_MESSAGES.error((error as Error).message));
       process.exit(1);
     }
   });
 
 program
   .command('update [path]')
-  .description('Update OpenSpec instruction files')
-  .option('--force', 'Force update even when tools are up to date')
+  .description(CLI_DESCRIPTIONS.update)
+  .option('--force', 'Força atualização mesmo quando as ferramentas estão atualizadas')
   .action(async (targetPath = '.', options?: { force?: boolean }) => {
     try {
       const resolvedPath = path.resolve(targetPath);
@@ -165,18 +166,18 @@ program
       await updateCommand.execute(resolvedPath);
     } catch (error) {
       console.log(); // Empty line for spacing
-      ora().fail(`Error: ${(error as Error).message}`);
+      ora().fail(CLI_MESSAGES.error((error as Error).message));
       process.exit(1);
     }
   });
 
 program
   .command('list')
-  .description('List items (changes by default). Use --specs to list specs.')
-  .option('--specs', 'List specs instead of changes')
-  .option('--changes', 'List changes explicitly (default)')
-  .option('--sort <order>', 'Sort order: "recent" (default) or "name"', 'recent')
-  .option('--json', 'Output as JSON (for programmatic use)')
+  .description(CLI_DESCRIPTIONS.list)
+  .option('--specs', 'Lista especificações em vez de alterações')
+  .option('--changes', 'Lista alterações explicitamente (padrão)')
+  .option('--sort <order>', 'Ordem de classificação: "recent" (padrão) ou "name"', 'recent')
+  .option('--json', 'Saída como JSON (para uso programático)')
   .action(async (options?: { specs?: boolean; changes?: boolean; sort?: string; json?: boolean }) => {
     try {
       const listCommand = new ListCommand();
@@ -185,21 +186,21 @@ program
       await listCommand.execute('.', mode, { sort, json: options?.json });
     } catch (error) {
       console.log(); // Empty line for spacing
-      ora().fail(`Error: ${(error as Error).message}`);
+      ora().fail(CLI_MESSAGES.error((error as Error).message));
       process.exit(1);
     }
   });
 
 program
   .command('view')
-  .description('Display an interactive dashboard of specs and changes')
+  .description(CLI_DESCRIPTIONS.view)
   .action(async () => {
     try {
       const viewCommand = new ViewCommand();
       await viewCommand.execute('.');
     } catch (error) {
       console.log(); // Empty line for spacing
-      ora().fail(`Error: ${(error as Error).message}`);
+      ora().fail(CLI_MESSAGES.error((error as Error).message));
       process.exit(1);
     }
   });
@@ -207,51 +208,51 @@ program
 // Change command with subcommands
 const changeCmd = program
   .command('change')
-  .description('Manage OpenSpec change proposals');
+  .description(CLI_DESCRIPTIONS.change);
 
 // Deprecation notice for noun-based commands
 changeCmd.hook('preAction', () => {
-  console.error('Warning: The "openspec change ..." commands are deprecated. Prefer verb-first commands (e.g., "openspec list", "openspec validate --changes").');
+  console.error(CLI_MESSAGES.changeCommandsDeprecated);
 });
 
 changeCmd
   .command('show [change-name]')
-  .description('Show a change proposal in JSON or markdown format')
-  .option('--json', 'Output as JSON')
-  .option('--deltas-only', 'Show only deltas (JSON only)')
-  .option('--requirements-only', 'Alias for --deltas-only (deprecated)')
+  .description(CLI_DESCRIPTIONS.changeShow)
+  .option('--json', 'Saída como JSON')
+  .option('--deltas-only', 'Exibe apenas deltas (somente JSON)')
+  .option('--requirements-only', 'Alias para --deltas-only (descontinuado)')
   .option('--no-interactive', 'Disable interactive prompts')
   .action(async (changeName?: string, options?: { json?: boolean; requirementsOnly?: boolean; deltasOnly?: boolean; noInteractive?: boolean }) => {
     try {
       const changeCommand = new ChangeCommand();
       await changeCommand.show(changeName, options);
     } catch (error) {
-      console.error(`Error: ${(error as Error).message}`);
+      console.error(CLI_MESSAGES.error((error as Error).message));
       process.exitCode = 1;
     }
   });
 
 changeCmd
   .command('list')
-  .description('List all active changes (DEPRECATED: use "openspec list" instead)')
-  .option('--json', 'Output as JSON')
+  .description(CLI_DESCRIPTIONS.changeList)
+  .option('--json', 'Saída como JSON')
   .option('--long', 'Show id and title with counts')
   .action(async (options?: { json?: boolean; long?: boolean }) => {
     try {
-      console.error('Warning: "openspec change list" is deprecated. Use "openspec list".');
+      console.error(CLI_MESSAGES.changeListDeprecated);
       const changeCommand = new ChangeCommand();
       await changeCommand.list(options);
     } catch (error) {
-      console.error(`Error: ${(error as Error).message}`);
+      console.error(CLI_MESSAGES.error((error as Error).message));
       process.exitCode = 1;
     }
   });
 
 changeCmd
   .command('validate [change-name]')
-  .description('Validate a change proposal')
-  .option('--strict', 'Enable strict validation mode')
-  .option('--json', 'Output validation report as JSON')
+  .description(CLI_DESCRIPTIONS.changeValidate)
+  .option('--strict', 'Ativa modo de validação estrita')
+  .option('--json', 'Saída do relatório de validação como JSON')
   .option('--no-interactive', 'Disable interactive prompts')
   .action(async (changeName?: string, options?: { strict?: boolean; json?: boolean; noInteractive?: boolean }) => {
     try {
@@ -261,24 +262,24 @@ changeCmd
         process.exit(process.exitCode);
       }
     } catch (error) {
-      console.error(`Error: ${(error as Error).message}`);
+      console.error(CLI_MESSAGES.error((error as Error).message));
       process.exitCode = 1;
     }
   });
 
 program
   .command('archive [change-name]')
-  .description('Archive a completed change and update main specs')
-  .option('-y, --yes', 'Skip confirmation prompts')
-  .option('--skip-specs', 'Skip spec update operations (useful for infrastructure, tooling, or doc-only changes)')
-  .option('--no-validate', 'Skip validation (not recommended, requires confirmation)')
+  .description(CLI_DESCRIPTIONS.archive)
+  .option('-y, --yes', 'Pula confirmações interativas')
+  .option('--skip-specs', 'Ignora operações de atualização de especificação (útil para alterações de infraestrutura, ferramentas ou apenas documentação)')
+  .option('--no-validate', 'Ignora validação (não recomendado, requer confirmação)')
   .action(async (changeName?: string, options?: { yes?: boolean; skipSpecs?: boolean; noValidate?: boolean; validate?: boolean }) => {
     try {
       const archiveCommand = new ArchiveCommand();
       await archiveCommand.execute(changeName, options);
     } catch (error) {
       console.log(); // Empty line for spacing
-      ora().fail(`Error: ${(error as Error).message}`);
+      ora().fail(CLI_MESSAGES.error((error as Error).message));
       process.exit(1);
     }
   });
@@ -291,14 +292,14 @@ registerToolsCommand(program);
 // Top-level validate command
 program
   .command('validate [item-name]')
-  .description('Validate changes and specs')
-  .option('--all', 'Validate all changes and specs')
-  .option('--changes', 'Validate all changes')
-  .option('--specs', 'Validate all specs')
-  .option('--type <type>', 'Specify item type when ambiguous: change|spec')
-  .option('--strict', 'Enable strict validation mode')
-  .option('--json', 'Output validation results as JSON')
-  .option('--concurrency <n>', 'Max concurrent validations (defaults to env OPENSPEC_CONCURRENCY or 6)')
+  .description(CLI_DESCRIPTIONS.validate)
+  .option('--all', 'Valida todas as alterações e especificações')
+  .option('--changes', 'Valida todas as alterações')
+  .option('--specs', 'Valida todas as especificações')
+  .option('--type <type>', 'Especifica o tipo do item quando ambíguo: change|spec')
+  .option('--strict', 'Ativa modo de validação estrita')
+  .option('--json', 'Saída dos resultados de validação como JSON')
+  .option('--concurrency <n>', 'Máximo de validações concorrentes (padrão: env OPENSPEC_CONCURRENCY ou 6)')
   .option('--no-interactive', 'Disable interactive prompts')
   .action(async (itemName?: string, options?: { all?: boolean; changes?: boolean; specs?: boolean; type?: string; strict?: boolean; json?: boolean; noInteractive?: boolean; concurrency?: string }) => {
     try {
@@ -306,7 +307,7 @@ program
       await validateCommand.execute(itemName, options);
     } catch (error) {
       console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      ora().fail(CLI_MESSAGES.error((error as Error).message));
       process.exit(1);
     }
   });
@@ -314,17 +315,17 @@ program
 // Top-level show command
 program
   .command('show [item-name]')
-  .description('Show a change or spec')
-  .option('--json', 'Output as JSON')
-  .option('--type <type>', 'Specify item type when ambiguous: change|spec')
+  .description(CLI_DESCRIPTIONS.show)
+  .option('--json', 'Saída como JSON')
+  .option('--type <type>', 'Especifica o tipo do item quando ambíguo: change|spec')
   .option('--no-interactive', 'Disable interactive prompts')
   // change-only flags
-  .option('--deltas-only', 'Show only deltas (JSON only, change)')
-  .option('--requirements-only', 'Alias for --deltas-only (deprecated, change)')
+  .option('--deltas-only', 'Exibe apenas deltas (somente JSON, alteração)')
+  .option('--requirements-only', 'Alias para --deltas-only (descontinuado, alteração)')
   // spec-only flags
-  .option('--requirements', 'JSON only: Show only requirements (exclude scenarios)')
-  .option('--no-scenarios', 'JSON only: Exclude scenario content')
-  .option('-r, --requirement <id>', 'JSON only: Show specific requirement by ID (1-based)')
+  .option('--requirements', 'Somente JSON: Exibe apenas requisitos (exclui cenários)')
+  .option('--no-scenarios', 'Somente JSON: Exclui conteúdo de cenários')
+  .option('-r, --requirement <id>', 'Somente JSON: Exibe requisito específico pelo ID (base 1)')
   // allow unknown options to pass-through to underlying command implementation
   .allowUnknownOption(true)
   .action(async (itemName?: string, options?: { json?: boolean; type?: string; noInteractive?: boolean; [k: string]: any }) => {
@@ -333,7 +334,7 @@ program
       await showCommand.execute(itemName, options ?? {});
     } catch (error) {
       console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      ora().fail(CLI_MESSAGES.error((error as Error).message));
       process.exit(1);
     }
   });
@@ -341,15 +342,15 @@ program
 // Feedback command
 program
   .command('feedback <message>')
-  .description('Submit feedback about OpenSpec')
-  .option('--body <text>', 'Detailed description for the feedback')
+  .description(CLI_DESCRIPTIONS.feedback)
+  .option('--body <text>', 'Descrição detalhada do feedback')
   .action(async (message: string, options?: { body?: string }) => {
     try {
       const feedbackCommand = new FeedbackCommand();
       await feedbackCommand.execute(message, options);
     } catch (error) {
       console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      ora().fail(CLI_MESSAGES.error((error as Error).message));
       process.exit(1);
     }
   });
@@ -357,48 +358,48 @@ program
 // Completion command with subcommands
 const completionCmd = program
   .command('completion')
-  .description('Manage shell completions for OpenSpec CLI');
+  .description(CLI_DESCRIPTIONS.completion);
 
 completionCmd
   .command('generate [shell]')
-  .description('Generate completion script for a shell (outputs to stdout)')
+  .description(CLI_DESCRIPTIONS.completionGenerate)
   .action(async (shell?: string) => {
     try {
       const completionCommand = new CompletionCommand();
       await completionCommand.generate({ shell });
     } catch (error) {
       console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      ora().fail(CLI_MESSAGES.error((error as Error).message));
       process.exit(1);
     }
   });
 
 completionCmd
   .command('install [shell]')
-  .description('Install completion script for a shell')
-  .option('--verbose', 'Show detailed installation output')
+  .description(CLI_DESCRIPTIONS.completionInstall)
+  .option('--verbose', 'Mostra saída detalhada da instalação')
   .action(async (shell?: string, options?: { verbose?: boolean }) => {
     try {
       const completionCommand = new CompletionCommand();
       await completionCommand.install({ shell, verbose: options?.verbose });
     } catch (error) {
       console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      ora().fail(CLI_MESSAGES.error((error as Error).message));
       process.exit(1);
     }
   });
 
 completionCmd
   .command('uninstall [shell]')
-  .description('Uninstall completion script for a shell')
-  .option('-y, --yes', 'Skip confirmation prompts')
+  .description(CLI_DESCRIPTIONS.completionUninstall)
+  .option('-y, --yes', CONFIG_MESSAGES.skipConfirmationOption)
   .action(async (shell?: string, options?: { yes?: boolean }) => {
     try {
       const completionCommand = new CompletionCommand();
       await completionCommand.uninstall({ shell, yes: options?.yes });
     } catch (error) {
       console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      ora().fail(CLI_MESSAGES.error((error as Error).message));
       process.exit(1);
     }
   });
@@ -406,7 +407,7 @@ completionCmd
 // Hidden command for machine-readable completion data
 program
   .command('__complete <type>', { hidden: true })
-  .description('Output completion data in machine-readable format (internal use)')
+  .description(CLI_DESCRIPTIONS.__complete)
   .action(async (type: string) => {
     try {
       const completionCommand = new CompletionCommand();
@@ -424,16 +425,16 @@ program
 // Status command
 program
   .command('status')
-  .description('Display artifact completion status for a change')
-  .option('--change <id>', 'Change name to show status for')
-  .option('--schema <name>', 'Schema override (auto-detected from config.yaml)')
+  .description(CLI_DESCRIPTIONS.status)
+  .option('--change <id>', 'Nome da alteração para exibir o status')
+  .option('--schema <name>', 'Sobrescreve o esquema (auto-detectado do config.yaml)')
   .option('--json', 'Output as JSON')
   .action(async (options: StatusOptions) => {
     try {
       await statusCommand(options);
     } catch (error) {
       console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      ora().fail(CLI_MESSAGES.error((error as Error).message));
       process.exit(1);
     }
   });
@@ -441,9 +442,9 @@ program
 // Instructions command
 program
   .command('instructions [artifact]')
-  .description('Output enriched instructions for creating an artifact or applying tasks')
-  .option('--change <id>', 'Change name')
-  .option('--schema <name>', 'Schema override (auto-detected from config.yaml)')
+  .description(CLI_DESCRIPTIONS.instructions)
+  .option('--change <id>', 'Nome da alteração')
+  .option('--schema <name>', 'Sobrescreve o esquema (auto-detectado do config.yaml)')
   .option('--json', 'Output as JSON')
   .action(async (artifactId: string | undefined, options: InstructionsOptions) => {
     try {
@@ -455,7 +456,7 @@ program
       }
     } catch (error) {
       console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      ora().fail(CLI_MESSAGES.error((error as Error).message));
       process.exit(1);
     }
   });
@@ -463,15 +464,15 @@ program
 // Templates command
 program
   .command('templates')
-  .description('Show resolved template paths for all artifacts in a schema')
-  .option('--schema <name>', `Schema to use (default: ${DEFAULT_SCHEMA})`)
-  .option('--json', 'Output as JSON mapping artifact IDs to template paths')
+  .description(CLI_DESCRIPTIONS.templates)
+  .option('--schema <name>', `Esquema a usar (padrão: ${DEFAULT_SCHEMA})`)
+  .option('--json', 'Saída como JSON mapeando IDs de artefatos para caminhos de templates')
   .action(async (options: TemplatesOptions) => {
     try {
       await templatesCommand(options);
     } catch (error) {
       console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      ora().fail(CLI_MESSAGES.error((error as Error).message));
       process.exit(1);
     }
   });
@@ -479,32 +480,32 @@ program
 // Schemas command
 program
   .command('schemas')
-  .description('List available workflow schemas with descriptions')
-  .option('--json', 'Output as JSON (for agent use)')
+  .description(CLI_DESCRIPTIONS.schemas)
+  .option('--json', 'Saída como JSON (para uso por agentes)')
   .action(async (options: SchemasOptions) => {
     try {
       await schemasCommand(options);
     } catch (error) {
       console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      ora().fail(CLI_MESSAGES.error((error as Error).message));
       process.exit(1);
     }
   });
 
 // New command group with change subcommand
-const newCmd = program.command('new').description('Create new items');
+const newCmd = program.command('new').description(CLI_DESCRIPTIONS.new);
 
 newCmd
   .command('change <name>')
-  .description('Create a new change directory')
-  .option('--description <text>', 'Description to add to README.md')
-  .option('--schema <name>', `Workflow schema to use (default: ${DEFAULT_SCHEMA})`)
+  .description(CLI_DESCRIPTIONS.newChange)
+  .option('--description <text>', 'Descrição a adicionar ao README.md')
+  .option('--schema <name>', `Esquema de fluxo de trabalho a usar (padrão: ${DEFAULT_SCHEMA})`)
   .action(async (name: string, options: NewChangeOptions) => {
     try {
       await newChangeCommand(name, options);
     } catch (error) {
       console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
+      ora().fail(CLI_MESSAGES.error((error as Error).message));
       process.exit(1);
     }
   });

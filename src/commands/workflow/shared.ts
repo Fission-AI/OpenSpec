@@ -10,6 +10,7 @@ import path from 'path';
 import * as fs from 'fs';
 import { getSchemaDir, listSchemas } from '../../core/artifact-graph/index.js';
 import { validateChangeName } from '../../utils/change-utils.js';
+import { WORKFLOW_MESSAGES } from '../../messages/index.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -114,7 +115,7 @@ export async function validateChangeExists(
   if (!changeName) {
     const available = await getAvailableChanges(projectRoot);
     if (available.length === 0) {
-      throw new Error('No changes found. Create one with: openspec new change <name>');
+      throw new Error(WORKFLOW_MESSAGES.noChangesFound);
     }
     throw new Error(
       `Missing required option --change. Available changes:\n  ${available.join('\n  ')}`
@@ -124,7 +125,7 @@ export async function validateChangeExists(
   // Validate change name format to prevent path traversal
   const nameValidation = validateChangeName(changeName);
   if (!nameValidation.valid) {
-    throw new Error(`Invalid change name '${changeName}': ${nameValidation.error}`);
+    throw new Error(WORKFLOW_MESSAGES.invalidChangeName(changeName, nameValidation.error!));
   }
 
   // Check directory existence directly
@@ -135,7 +136,7 @@ export async function validateChangeExists(
     const available = await getAvailableChanges(projectRoot);
     if (available.length === 0) {
       throw new Error(
-        `Change '${changeName}' not found. No changes exist. Create one with: openspec new change <name>`
+        WORKFLOW_MESSAGES.changeNotFoundNoChanges(changeName)
       );
     }
     throw new Error(
@@ -157,7 +158,7 @@ export function validateSchemaExists(schemaName: string, projectRoot?: string): 
   if (!schemaDir) {
     const availableSchemas = listSchemas(projectRoot);
     throw new Error(
-      `Schema '${schemaName}' not found. Available schemas:\n  ${availableSchemas.join('\n  ')}`
+      WORKFLOW_MESSAGES.schemaNotFound(schemaName, availableSchemas.join('\n  '))
     );
   }
   return schemaName;

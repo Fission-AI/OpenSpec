@@ -1,6 +1,7 @@
 import { execSync, execFileSync } from 'child_process';
 import { createRequire } from 'module';
 import os from 'os';
+import { FEEDBACK_MESSAGES } from '../messages/index.js';
 
 const require = createRequire(import.meta.url);
 
@@ -65,17 +66,17 @@ function generateMetadata(): string {
   const timestamp = getTimestamp();
 
   return `---
-Submitted via OpenSpec CLI
-- Version: ${version}
-- Platform: ${platform}
-- Timestamp: ${timestamp}`;
+${FEEDBACK_MESSAGES.submittedVia}
+${FEEDBACK_MESSAGES.versionLabel(version)}
+${FEEDBACK_MESSAGES.platformLabel(platform)}
+${FEEDBACK_MESSAGES.timestampLabel(timestamp)}`;
 }
 
 /**
  * Format the feedback title
  */
 function formatTitle(message: string): string {
-  return `Feedback: ${message}`;
+  return FEEDBACK_MESSAGES.feedbackTitle(message);
 }
 
 /**
@@ -110,12 +111,12 @@ function generateManualSubmissionUrl(title: string, body: string): string {
  * Display formatted feedback content for manual submission
  */
 function displayFormattedFeedback(title: string, body: string): void {
-  console.log('\n--- FORMATTED FEEDBACK ---');
-  console.log(`Title: ${title}`);
-  console.log(`Labels: feedback`);
-  console.log('\nBody:');
+  console.log(FEEDBACK_MESSAGES.formattedFeedbackHeader);
+  console.log(FEEDBACK_MESSAGES.titleLabel(title));
+  console.log(FEEDBACK_MESSAGES.labelsFeedback);
+  console.log(FEEDBACK_MESSAGES.bodyLabel);
   console.log(body);
-  console.log('--- END FEEDBACK ---\n');
+  console.log(FEEDBACK_MESSAGES.endFeedback);
 }
 
 /**
@@ -142,8 +143,8 @@ function submitViaGhCli(title: string, body: string): void {
     );
 
     const issueUrl = result.trim();
-    console.log(`\n✓ Feedback submitted successfully!`);
-    console.log(`Issue URL: ${issueUrl}\n`);
+    console.log(FEEDBACK_MESSAGES.feedbackSubmitted);
+    console.log(FEEDBACK_MESSAGES.issueUrl(issueUrl));
   } catch (error: any) {
     // Display the error output from gh CLI
     if (error.stderr) {
@@ -162,19 +163,19 @@ function submitViaGhCli(title: string, body: string): void {
  */
 function handleFallback(title: string, body: string, reason: 'missing' | 'unauthenticated'): void {
   if (reason === 'missing') {
-    console.log('⚠️  GitHub CLI not found. Manual submission required.');
+    console.log(FEEDBACK_MESSAGES.githubCliNotFound);
   } else {
-    console.log('⚠️  GitHub authentication required. Manual submission required.');
+    console.log(FEEDBACK_MESSAGES.githubAuthRequired);
   }
 
   displayFormattedFeedback(title, body);
 
   const manualUrl = generateManualSubmissionUrl(title, body);
-  console.log('Please submit your feedback manually:');
+  console.log(FEEDBACK_MESSAGES.submitManually);
   console.log(manualUrl);
 
   if (reason === 'unauthenticated') {
-    console.log('\nTo auto-submit in the future: gh auth login');
+    console.log(FEEDBACK_MESSAGES.autoSubmitHint);
   }
 
   // Exit with success code (fallback is successful)

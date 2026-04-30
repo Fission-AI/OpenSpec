@@ -9,107 +9,107 @@ import type { SkillTemplate } from '../types.js';
 export function getFeedbackSkillTemplate(): SkillTemplate {
   return {
     name: 'feedback',
-    description: 'Collect and submit user feedback about OpenSpec with context enrichment and anonymization.',
-    instructions: `Help the user submit feedback about OpenSpec.
+    description: 'Colete e envie feedback do usuário sobre o OpenSpec com enriquecimento de contexto e anonimização.',
+    instructions: `Ajude o usuário a enviar feedback sobre o OpenSpec.
 
-**Goal**: Guide the user through collecting, enriching, and submitting feedback while ensuring privacy through anonymization.
+**Objetivo**: Guie o usuário através da coleta, enriquecimento e envio de feedback enquanto garante privacidade através de anonimização.
 
-**Process**
+**Processo**
 
-1. **Gather context from the conversation**
-   - Review recent conversation history for context
-   - Identify what task was being performed
-   - Note what worked well or poorly
-   - Capture specific friction points or praise
+1. **Reúna contexto da conversa**
+   - Revise o histórico recente da conversa para contexto
+   - Identifique qual tarefa estava sendo realizada
+   - Note o que funcionou bem ou mal
+   - Capture pontos de fricção específicos ou elogios
 
-2. **Draft enriched feedback**
-   - Create a clear, descriptive title (single sentence, no "Feedback:" prefix needed)
-   - Write a body that includes:
-     - What the user was trying to do
-     - What happened (good or bad)
-     - Relevant context from the conversation
-     - Any specific suggestions or requests
+2. **Elabore feedback enriquecido**
+   - Crie um título claro e descritivo (uma única frase, sem prefixo "Feedback:" necessário)
+   - Escreva um corpo que inclua:
+     - O que o usuário estava tentando fazer
+     - O que aconteceu (bom ou ruim)
+     - Contexto relevante da conversa
+     - Quaisquer sugestões ou pedidos específicos
 
-3. **Anonymize sensitive information**
-   - Replace file paths with \`<path>\` or generic descriptions
-   - Replace API keys, tokens, secrets with \`<redacted>\`
-   - Replace company/organization names with \`<company>\`
-   - Replace personal names with \`<user>\`
-   - Replace specific URLs with \`<url>\` unless public/relevant
-   - Keep technical details that help understand the issue
+3. **Anonimize informações sensíveis**
+   - Substitua caminhos de arquivo por \`<path>\` ou descrições genéricas
+   - Substitua chaves de API, tokens, segredos por \`<redacted>\`
+   - Substitua nomes de empresa/organização por \`<company>\`
+   - Substitua nomes pessoais por \`<user>\`
+   - Substitua URLs específicas por \`<url>\` a menos que sejam públicas/relevantes
+   - Mantenha detalhes técnicos que ajudam a entender o problema
 
-4. **Present draft for approval**
-   - Show the complete draft to the user
-   - Display both title and body clearly
-   - Ask for explicit approval before submitting
-   - Allow the user to request modifications
+4. **Apresente o rascunho para aprovação**
+   - Mostre o rascunho completo ao usuário
+   - Exiba tanto título quanto corpo claramente
+   - Peça aprovação explícita antes de enviar
+   - Permita que o usuário solicite modificações
 
-5. **Submit on confirmation**
-   - Use the \`openspec feedback\` command to submit
-   - Format: \`openspec feedback "title" --body "body content"\`
-   - The command will automatically add metadata (version, platform, timestamp)
+5. **Envie após confirmação**
+   - Use o comando \`openspec feedback\` para enviar
+   - Formato: \`openspec feedback "título" --body "conteúdo do corpo"\`
+   - O comando adicionará automaticamente metadados (versão, plataforma, timestamp)
 
-**Example Draft**
+**Exemplo de Rascunho**
 
 \`\`\`
-Title: Error handling in artifact workflow needs improvement
+Título: O tratamento de erros no workflow de artifacts precisa melhorar
 
-Body:
-I was working on creating a new change and encountered an issue with
-the artifact workflow. When I tried to continue after creating the
-proposal, the system didn't clearly indicate that I needed to complete
-the specs first.
+Corpo:
+Eu estava trabalhando na criação de uma nova change e encontrei um problema com
+o workflow de artifacts. Quando tentei continuar após criar a
+proposal, o sistema não indicou claramente que eu precisava completar
+os specs primeiro.
 
-Suggestion: Add clearer error messages that explain dependency chains
-in the artifact workflow. Something like "Cannot create design.md
-because specs are not complete (0/2 done)."
+Sugestão: Adicione mensagens de erro mais claras que expliquem as cadeias de dependência
+no workflow de artifacts. Algo como "Não é possível criar design.md
+porque os specs não estão completos (0/2 done)."
 
-Context: Using the spec-driven schema with <path>/my-project
+Contexto: Usando o schema spec-driven com <path>/my-project
 \`\`\`
 
-**Anonymization Examples**
+**Exemplos de Anonimização**
 
-Before:
+Antes:
 \`\`\`
-Working on /Users/john/mycompany/auth-service/src/oauth.ts
-Failed with API key: sk_live_abc123xyz
-Working at Acme Corp
+Trabalhando em /Users/john/mycompany/auth-service/src/oauth.ts
+Falhou com API key: sk_live_abc123xyz
+Trabalhando na Acme Corp
 \`\`\`
 
-After:
+Depois:
 \`\`\`
-Working on <path>/oauth.ts
-Failed with API key: <redacted>
-Working at <company>
+Trabalhando em <path>/oauth.ts
+Falhou com API key: <redacted>
+Trabalhando na <company>
 \`\`\`
 
 **Guardrails**
 
-- MUST show complete draft before submitting
-- MUST ask for explicit approval
-- MUST anonymize sensitive information
-- ALLOW user to modify draft before submitting
-- DO NOT submit without user confirmation
-- DO include relevant technical context
-- DO keep conversation-specific insights
+- DEVE mostrar o rascunho completo antes de enviar
+- DEVE pedir aprovação explícita
+- DEVE anonimizar informações sensíveis
+- PERMITE que o usuário modifique o rascunho antes de enviar
+- NÃO envie sem confirmação do usuário
+- INCLUA contexto técnico relevante
+- MANTENHA insights específicos da conversa
 
-**User Confirmation Required**
+**Confirmação do Usuário Necessária**
 
-Always ask:
+Sempre pergunte:
 \`\`\`
-Here's the feedback I've drafted:
+Aqui está o feedback que elaborei:
 
-Title: [title]
+Título: [título]
 
-Body:
-[body]
+Corpo:
+[corpo]
 
-Does this look good? I can modify it if you'd like, or submit it as-is.
+Parece bom? Posso modificá-lo se quiser, ou enviá-lo como está.
 \`\`\`
 
-Only proceed with submission after user confirms.`,
+Só prossiga com o envio após o usuário confirmar.`,
     license: 'MIT',
-    compatibility: 'Requires openspec CLI.',
+    compatibility: 'Requer openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
   };
 }

@@ -6,6 +6,7 @@ import { Validator } from '../core/validation/validator.js';
 import type { Spec } from '../core/schemas/index.js';
 import { isInteractive } from '../utils/interactive.js';
 import { getSpecIds } from '../utils/item-discovery.js';
+import { CLI_DESCRIPTIONS, CLI_MESSAGES, SPEC_MESSAGES } from '../messages/index.js';
 
 const SPECS_DIR = 'openspec/specs';
 
@@ -74,22 +75,22 @@ export class SpecCommand {
       if (canPrompt && specIds.length > 0) {
         const { select } = await import('@inquirer/prompts');
         specId = await select({
-          message: 'Select a spec to show',
+          message: SPEC_MESSAGES.selectSpecToShow,
           choices: specIds.map(id => ({ name: id, value: id })),
         });
       } else {
-        throw new Error('Missing required argument <spec-id>');
+        throw new Error(SPEC_MESSAGES.missingSpecId);
       }
     }
 
     const specPath = join(this.SPECS_DIR, specId, 'spec.md');
     if (!existsSync(specPath)) {
-      throw new Error(`Spec '${specId}' not found at openspec/specs/${specId}/spec.md`);
+      throw new Error(SPEC_MESSAGES.specNotFound(specId));
     }
 
     if (options.json) {
       if (options.requirements && options.requirement) {
-        throw new Error('Options --requirements and --requirement cannot be used together');
+        throw new Error(SPEC_MESSAGES.requirementsAndRequirementConflict);
       }
       const parsed = parseSpecFromFile(specPath, specId);
       const filtered = filterSpec(parsed, options);
@@ -111,40 +112,40 @@ export class SpecCommand {
 export function registerSpecCommand(rootProgram: typeof program) {
   const specCommand = rootProgram
     .command('spec')
-    .description('Manage and view OpenSpec specifications');
+    .description(CLI_DESCRIPTIONS.spec);
 
   // Deprecation notice for noun-based commands
   specCommand.hook('preAction', () => {
-    console.error('Warning: The "openspec spec ..." commands are deprecated. Prefer verb-first commands (e.g., "openspec show", "openspec validate --specs").');
+    console.error(CLI_MESSAGES.specCommandsDeprecated);
   });
 
   specCommand
     .command('show [spec-id]')
-    .description('Display a specific specification')
-    .option('--json', 'Output as JSON')
-    .option('--requirements', 'JSON only: Show only requirements (exclude scenarios)')
-    .option('--no-scenarios', 'JSON only: Exclude scenario content')
-    .option('-r, --requirement <id>', 'JSON only: Show specific requirement by ID (1-based)')
-    .option('--no-interactive', 'Disable interactive prompts')
+    .description(CLI_DESCRIPTIONS.specShow)
+    .option('--json', 'Saída como JSON')
+    .option('--requirements', 'Somente JSON: Exibe apenas requisitos (exclui cenários)')
+    .option('--no-scenarios', 'Somente JSON: Exclui conteúdo de cenários')
+    .option('-r, --requirement <id>', 'Somente JSON: Exibe requisito específico pelo ID (base 1)')
+    .option('--no-interactive', 'Desativa prompts interativos')
     .action(async (specId: string | undefined, options: ShowOptions & { noInteractive?: boolean }) => {
       try {
         const cmd = new SpecCommand();
         await cmd.show(specId, options as any);
       } catch (error) {
-        console.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        console.error(CLI_MESSAGES.error(error instanceof Error ? error.message : CLI_MESSAGES.unknownError));
         process.exitCode = 1;
       }
     });
 
   specCommand
     .command('list')
-    .description('List all available specifications')
-    .option('--json', 'Output as JSON')
-    .option('--long', 'Show id and title with counts')
+    .description(CLI_DESCRIPTIONS.specList)
+    .option('--json', 'Saída como JSON')
+    .option('--long', 'Exibe id e título com contagens')
     .action((options: { json?: boolean; long?: boolean }) => {
       try {
         if (!existsSync(SPECS_DIR)) {
-          console.log('No items found');
+          console.log(SPEC_MESSAGES.noItemsFound);
           return;
         }
 
@@ -178,7 +179,7 @@ export function registerSpecCommand(rootProgram: typeof program) {
           console.log(JSON.stringify(specs, null, 2));
         } else {
           if (specs.length === 0) {
-            console.log('No items found');
+            console.log(SPEC_MESSAGES.noItemsFound);
             return;
           }
           if (!options.long) {
@@ -186,21 +187,21 @@ export function registerSpecCommand(rootProgram: typeof program) {
             return;
           }
           specs.forEach(spec => {
-            console.log(`${spec.id}: ${spec.title} [requirements ${spec.requirementCount}]`);
+            console.log(`${spec.id}: ${spec.title} ${SPEC_MESSAGES.requirementCount(spec.requirementCount)}`);
           });
         }
       } catch (error) {
-        console.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        console.error(CLI_MESSAGES.error(error instanceof Error ? error.message : CLI_MESSAGES.unknownError));
         process.exitCode = 1;
       }
     });
 
   specCommand
     .command('validate [spec-id]')
-    .description('Validate a specification structure')
-    .option('--strict', 'Enable strict validation mode')
-    .option('--json', 'Output validation report as JSON')
-    .option('--no-interactive', 'Disable interactive prompts')
+    .description(CLI_DESCRIPTIONS.specValidate)
+    .option('--strict', 'Ativa modo de validação estrita')
+    .option('--json', 'Saída do relatório de validação como JSON')
+    .option('--no-interactive', 'Desativa prompts interativos')
     .action(async (specId: string | undefined, options: { strict?: boolean; json?: boolean; noInteractive?: boolean }) => {
       try {
         if (!specId) {
@@ -209,18 +210,18 @@ export function registerSpecCommand(rootProgram: typeof program) {
           if (canPrompt && specIds.length > 0) {
             const { select } = await import('@inquirer/prompts');
             specId = await select({
-              message: 'Select a spec to validate',
+              message: SPEC_MESSAGES.selectSpecToValidate,
               choices: specIds.map(id => ({ name: id, value: id })),
             });
           } else {
-            throw new Error('Missing required argument <spec-id>');
+            throw new Error(SPEC_MESSAGES.missingSpecId);
           }
         }
 
         const specPath = join(SPECS_DIR, specId, 'spec.md');
         
         if (!existsSync(specPath)) {
-          throw new Error(`Spec '${specId}' not found at openspec/specs/${specId}/spec.md`);
+          throw new Error(SPEC_MESSAGES.specNotFound(specId));
         }
 
         const validator = new Validator(options.strict);
@@ -230,9 +231,9 @@ export function registerSpecCommand(rootProgram: typeof program) {
           console.log(JSON.stringify(report, null, 2));
         } else {
           if (report.valid) {
-            console.log(`Specification '${specId}' is valid`);
+            console.log(SPEC_MESSAGES.specIsValid(specId));
           } else {
-            console.error(`Specification '${specId}' has issues`);
+            console.error(SPEC_MESSAGES.specHasIssues(specId));
             report.issues.forEach(issue => {
               const label = issue.level === 'ERROR' ? 'ERROR' : issue.level;
               const prefix = issue.level === 'ERROR' ? '✗' : issue.level === 'WARNING' ? '⚠' : 'ℹ';
@@ -242,7 +243,7 @@ export function registerSpecCommand(rootProgram: typeof program) {
         }
         process.exitCode = report.valid ? 0 : 1;
       } catch (error) {
-        console.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        console.error(CLI_MESSAGES.error(error instanceof Error ? error.message : CLI_MESSAGES.unknownError));
         process.exitCode = 1;
       }
     });

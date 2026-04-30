@@ -142,6 +142,6 @@ describe('top-level validate command', () => {
     });
     expect(result.exitCode).toBe(0);
     // Should complete without hanging and without prompts
-    expect(result.stderr).not.toContain('What would you like to validate?');
+    expect(result.stderr).not.toContain('O que você gostaria de validar?');
   });
 });

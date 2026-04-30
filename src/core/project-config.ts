@@ -1,3 +1,4 @@
+import { PROJECT_CONFIG_MESSAGES } from '../messages/index.js';
 import { existsSync, readFileSync, statSync } from 'fs';
 import path from 'path';
 import { parse as parseYaml } from 'yaml';
@@ -90,7 +91,7 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
     if (schemaResult.success) {
       config.schema = schemaResult.data;
     } else if (raw.schema !== undefined) {
-      console.warn(`Invalid 'schema' field in config (must be non-empty string)`);
+      console.warn(PROJECT_CONFIG_MESSAGES.invalidSchemaField);
     }
 
     // Parse context field with size limit
@@ -102,14 +103,14 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
         const contextSize = Buffer.byteLength(contextResult.data, 'utf-8');
         if (contextSize > MAX_CONTEXT_SIZE) {
           console.warn(
-            `Context too large (${(contextSize / 1024).toFixed(1)}KB, limit: ${MAX_CONTEXT_SIZE / 1024}KB)`
+            PROJECT_CONFIG_MESSAGES.contextTooLarge((contextSize / 1024).toFixed(1), String(MAX_CONTEXT_SIZE / 1024))
           );
-          console.warn(`Ignoring context field`);
+          console.warn(PROJECT_CONFIG_MESSAGES.ignoringContextField);
         } else {
           config.context = contextResult.data;
         }
       } else {
-        console.warn(`Invalid 'context' field in config (must be string)`);
+        console.warn(PROJECT_CONFIG_MESSAGES.invalidContextField);
       }
     }
 
@@ -134,12 +135,12 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
             }
             if (validRules.length < rulesArrayResult.data.length) {
               console.warn(
-                `Some rules for '${artifactId}' are empty strings, ignoring them`
+                PROJECT_CONFIG_MESSAGES.emptyRulesForArtifact(artifactId)
               );
             }
           } else {
             console.warn(
-              `Rules for '${artifactId}' must be an array of strings, ignoring this artifact's rules`
+              PROJECT_CONFIG_MESSAGES.rulesMustBeArrayOfStrings(artifactId)
             );
           }
         }
@@ -148,7 +149,7 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
           config.rules = parsedRules;
         }
       } else {
-        console.warn(`Invalid 'rules' field in config (must be object)`);
+        console.warn(PROJECT_CONFIG_MESSAGES.invalidRulesField);
       }
     }
 

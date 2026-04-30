@@ -4,6 +4,7 @@ import { Validator } from '../core/validation/validator.js';
 import { isInteractive, resolveNoInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds, getSpecIds } from '../utils/item-discovery.js';
 import { nearestMatches } from '../utils/match.js';
+import { VALIDATE_MESSAGES } from '../messages/index.js';
 
 type ItemType = 'change' | 'spec';
 
@@ -66,9 +67,12 @@ export class ValidateCommand {
   private async runInteractiveSelector(opts: { strict: boolean; json: boolean; concurrency?: string }): Promise<void> {
     const { select } = await import('@inquirer/prompts');
     const choice = await select({
-      message: 'What would you like to validate?',
+      message: VALIDATE_MESSAGES.whatToValidate,
       choices: [
-        { name: 'All (changes + specs)', value: 'all' },
+        { name: VALIDATE_MESSAGES.optionAll, value: 'all' },
+        { name: VALIDATE_MESSAGES.optionAllChanges, value: 'changes' },
+        { name: VALIDATE_MESSAGES.optionAllSpecs, value: 'specs' },
+        { name: VALIDATE_MESSAGES.optionPickOne, value: 'one' },
         { name: 'All changes', value: 'changes' },
         { name: 'All specs', value: 'specs' },
         { name: 'Pick a specific change or spec', value: 'one' },
@@ -85,21 +89,21 @@ export class ValidateCommand {
     items.push(...changes.map(id => ({ name: `change/${id}`, value: { type: 'change' as const, id } })));
     items.push(...specs.map(id => ({ name: `spec/${id}`, value: { type: 'spec' as const, id } })));
     if (items.length === 0) {
-      console.error('No items found to validate.');
+      console.error(VALIDATE_MESSAGES.noItemsToValidate);
       process.exitCode = 1;
       return;
     }
-    const picked = await select<{ type: ItemType; id: string }>({ message: 'Pick an item', choices: items });
+    const picked = await select<{ type: ItemType; id: string }>({ message: VALIDATE_MESSAGES.pickAnItem, choices: items });
     await this.validateByType(picked.type, picked.id, opts);
   }
 
   private printNonInteractiveHint(): void {
-    console.error('Nothing to validate. Try one of:');
-    console.error('  openspec validate --all');
-    console.error('  openspec validate --changes');
-    console.error('  openspec validate --specs');
-    console.error('  openspec validate <item-name>');
-    console.error('Or run in an interactive terminal.');
+    console.error(VALIDATE_MESSAGES.nothingToValidate);
+    console.error(VALIDATE_MESSAGES.validateAllHint);
+    console.error(VALIDATE_MESSAGES.validateChangesHint);
+    console.error(VALIDATE_MESSAGES.validateSpecsHint);
+    console.error(VALIDATE_MESSAGES.validateItemHint);
+    console.error(VALIDATE_MESSAGES.runInteractiveHint);
   }
 
   private async validateDirectItem(itemName: string, opts: { typeOverride?: ItemType; strict: boolean; json: boolean }): Promise<void> {
@@ -110,16 +114,16 @@ export class ValidateCommand {
     const type = opts.typeOverride ?? (isChange ? 'change' : isSpec ? 'spec' : undefined);
 
     if (!type) {
-      console.error(`Unknown item '${itemName}'`);
+      console.error(VALIDATE_MESSAGES.unknownItem(itemName));
       const suggestions = nearestMatches(itemName, [...changes, ...specs]);
-      if (suggestions.length) console.error(`Did you mean: ${suggestions.join(', ')}?`);
+      if (suggestions.length) console.error(VALIDATE_MESSAGES.didYouMean(suggestions.join(', ')));
       process.exitCode = 1;
       return;
     }
 
     if (!opts.typeOverride && isChange && isSpec) {
-      console.error(`Ambiguous item '${itemName}' matches both a change and a spec.`);
-      console.error('Pass --type change|spec, or use: openspec change validate / openspec spec validate');
+      console.error(VALIDATE_MESSAGES.ambiguousItem(itemName));
+      console.error(VALIDATE_MESSAGES.passTypeHint);
       process.exitCode = 1;
       return;
     }
@@ -154,9 +158,9 @@ export class ValidateCommand {
       return;
     }
     if (report.valid) {
-      console.log(`${type === 'change' ? 'Change' : 'Specification'} '${id}' is valid`);
+      console.log(type === 'change' ? VALIDATE_MESSAGES.changeIsValid(id) : VALIDATE_MESSAGES.specIsValid(id));
     } else {
-      console.error(`${type === 'change' ? 'Change' : 'Specification'} '${id}' has issues`);
+      console.error(type === 'change' ? VALIDATE_MESSAGES.changeHasIssues(id) : VALIDATE_MESSAGES.specHasIssues(id));
       for (const issue of report.issues) {
         const label = issue.level === 'ERROR' ? 'ERROR' : issue.level;
         const prefix = issue.level === 'ERROR' ? '✗' : issue.level === 'WARNING' ? '⚠' : 'ℹ';
@@ -169,20 +173,20 @@ export class ValidateCommand {
   private printNextSteps(type: ItemType): void {
     const bullets: string[] = [];
     if (type === 'change') {
-      bullets.push('- Ensure change has deltas in specs/: use headers ## ADDED/MODIFIED/REMOVED/RENAMED Requirements');
-      bullets.push('- Each requirement MUST include at least one #### Scenario: block');
-      bullets.push('- Debug parsed deltas: openspec change show <id> --json --deltas-only');
+      bullets.push(VALIDATE_MESSAGES.ensureDeltasInSpecs);
+      bullets.push(VALIDATE_MESSAGES.eachRequirementNeedsScenario);
+      bullets.push(VALIDATE_MESSAGES.debugParsedDeltas);
     } else {
-      bullets.push('- Ensure spec includes ## Purpose and ## Requirements sections');
+      bullets.push(VALIDATE_MESSAGES.ensurePurposeAndRequirements);
       bullets.push('- Each requirement MUST include at least one #### Scenario: block');
-      bullets.push('- Re-run with --json to see structured report');
+      bullets.push(VALIDATE_MESSAGES.rerunWithJson);
     }
-    console.error('Next steps:');
+    console.error(VALIDATE_MESSAGES.nextStepsChange);
     bullets.forEach(b => console.error(`  ${b}`));
   }
 
   private async runBulkValidation(scope: { changes: boolean; specs: boolean }, opts: { strict: boolean; json: boolean; concurrency?: string; noInteractive?: boolean }): Promise<void> {
-    const spinner = !opts.json && !opts.noInteractive ? ora('Validating...').start() : undefined;
+    const spinner = !opts.json && !opts.noInteractive ? ora(VALIDATE_MESSAGES.validating).start() : undefined;
     const [changeIds, specIds] = await Promise.all([
       scope.changes ? getActiveChangeIds() : Promise.resolve<string[]>([]),
       scope.specs ? getSpecIds() : Promise.resolve<string[]>([]),
@@ -228,7 +232,7 @@ export class ValidateCommand {
         const out = { items: [] as BulkItemResult[], summary, version: '1.0' };
         console.log(JSON.stringify(out, null, 2));
       } else {
-        console.log('No items found to validate.');
+        console.log(VALIDATE_MESSAGES.noItemsFoundToValidate);
       }
 
       process.exitCode = 0;
@@ -247,7 +251,7 @@ export class ValidateCommand {
           const currentIndex = index++;
           const task = queue[currentIndex];
           running++;
-          if (spinner) spinner.text = `Validating (${currentIndex + 1}/${queue.length})...`;
+          if (spinner) spinner.text = VALIDATE_MESSAGES.validatingProgress(currentIndex + 1, queue.length);
           task()
             .then(res => {
               results.push(res);
@@ -288,7 +292,7 @@ export class ValidateCommand {
         if (res.valid) console.log(`✓ ${res.type}/${res.id}`);
         else console.error(`✗ ${res.type}/${res.id}`);
       }
-      console.log(`Totals: ${summary.totals.passed} passed, ${summary.totals.failed} failed (${summary.totals.items} items)`);
+      console.log(VALIDATE_MESSAGES.totals(summary.totals.passed, summary.totals.failed, summary.totals.items));
     }
 
     process.exitCode = failed > 0 ? 1 : 0;

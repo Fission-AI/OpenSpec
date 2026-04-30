@@ -6,6 +6,7 @@ import { ChangeParser } from '../core/parsers/change-parser.js';
 import { Change } from '../core/schemas/index.js';
 import { isInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds } from '../utils/item-discovery.js';
+import { CHANGE_MESSAGES, UTILS_MESSAGES } from '../messages/index.js';
 
 // Constants for better maintainability
 const ARCHIVE_DIR = 'archive';
@@ -34,17 +35,17 @@ export class ChangeCommand {
       if (canPrompt && changes.length > 0) {
         const { select } = await import('@inquirer/prompts');
         const selected = await select({
-          message: 'Select a change to show',
+          message: CHANGE_MESSAGES.selectChangeToShow,
           choices: changes.map(id => ({ name: id, value: id })),
         });
         changeName = selected;
       } else {
         if (changes.length === 0) {
-          console.error('No change specified. No active changes found.');
+          console.error(CHANGE_MESSAGES.noChangeSpecifiedNoActive);
         } else {
-          console.error(`No change specified. Available IDs: ${changes.join(', ')}`);
+          console.error(CHANGE_MESSAGES.noChangeSpecifiedAvailable(changes.join(', ')));
         }
-        console.error('Hint: use "openspec change list" to view available changes.');
+        console.error(CHANGE_MESSAGES.hintViewChanges);
         process.exitCode = 1;
         return;
       }
@@ -55,14 +56,14 @@ export class ChangeCommand {
     try {
       await fs.access(proposalPath);
     } catch {
-      throw new Error(`Change "${changeName}" not found at ${proposalPath}`);
+      throw new Error(CHANGE_MESSAGES.changeNotFound(changeName, proposalPath));
     }
 
     if (options?.json) {
       const jsonOutput = await this.converter.convertChangeToJson(proposalPath);
 
       if (options.requirementsOnly) {
-        console.error('Flag --requirements-only is deprecated; use --deltas-only instead.');
+        console.error(CHANGE_MESSAGES.requirementsOnlyDeprecated);
       }
 
       const parsed: Change = JSON.parse(jsonOutput);
@@ -118,7 +119,7 @@ export class ChangeCommand {
             } catch (error) {
               // Tasks file may not exist, which is okay
               if (process.env.DEBUG) {
-                console.error(`Failed to read tasks file at ${tasksPath}:`, error);
+                console.error(UTILS_MESSAGES.failedToReadTasks(tasksPath, error));
               }
             }
             
@@ -143,7 +144,7 @@ export class ChangeCommand {
       console.log(JSON.stringify(sorted, null, 2));
     } else {
       if (changes.length === 0) {
-        console.log('No items found');
+        console.log(CHANGE_MESSAGES.noItemsFound);
         return;
       }
       const sorted = [...changes].sort();
@@ -167,16 +168,16 @@ export class ChangeCommand {
             taskStatusText = ` [tasks ${completed}/${total}]`;
           } catch (error) {
             if (process.env.DEBUG) {
-              console.error(`Failed to read tasks file at ${tasksPath}:`, error);
+              console.error(UTILS_MESSAGES.failedToReadTasks(tasksPath, error));
             }
           }
           const changeDir = path.join(changesPath, changeName);
           const parser = new ChangeParser(await fs.readFile(proposalPath, 'utf-8'), changeDir);
           const change = await parser.parseChangeWithDeltas(changeName);
-          const deltaCountText = ` [deltas ${change.deltas.length}]`;
+          const deltaCountText = CHANGE_MESSAGES.deltas(change.deltas.length);
           console.log(`${changeName}: ${title}${deltaCountText}${taskStatusText}`);
         } catch {
-          console.log(`${changeName}: (unable to read)`);
+          console.log(`${changeName}: ${CHANGE_MESSAGES.unableToRead}`);
         }
       }
     }
@@ -191,17 +192,17 @@ export class ChangeCommand {
       if (canPrompt && changes.length > 0) {
         const { select } = await import('@inquirer/prompts');
         const selected = await select({
-          message: 'Select a change to validate',
+          message: CHANGE_MESSAGES.selectChangeToValidate,
           choices: changes.map(id => ({ name: id, value: id })),
         });
         changeName = selected;
       } else {
         if (changes.length === 0) {
-          console.error('No change specified. No active changes found.');
+          console.error(CHANGE_MESSAGES.noChangeSpecifiedNoActive);
         } else {
-          console.error(`No change specified. Available IDs: ${changes.join(', ')}`);
+          console.error(CHANGE_MESSAGES.noChangeSpecifiedAvailable(changes.join(', ')));
         }
-        console.error('Hint: use "openspec change list" to view available changes.');
+        console.error(CHANGE_MESSAGES.hintViewChanges);
         process.exitCode = 1;
         return;
       }
@@ -212,7 +213,7 @@ export class ChangeCommand {
     try {
       await fs.access(changeDir);
     } catch {
-      throw new Error(`Change "${changeName}" not found at ${changeDir}`);
+      throw new Error(CHANGE_MESSAGES.changeNotFound(changeName, changeDir));
     }
     
     const validator = new Validator(options?.strict || false);
@@ -222,9 +223,9 @@ export class ChangeCommand {
       console.log(JSON.stringify(report, null, 2));
     } else {
       if (report.valid) {
-        console.log(`Change "${changeName}" is valid`);
+        console.log(CHANGE_MESSAGES.changeIsValid(changeName));
       } else {
-        console.error(`Change "${changeName}" has issues`);
+        console.error(CHANGE_MESSAGES.changeHasIssues(changeName));
         report.issues.forEach(issue => {
           const label = issue.level === 'ERROR' ? 'ERROR' : 'WARNING';
           const prefix = issue.level === 'ERROR' ? '✗' : '⚠';
@@ -283,10 +284,10 @@ export class ChangeCommand {
 
   private printNextSteps(): void {
     const bullets: string[] = [];
-    bullets.push('- Ensure change has deltas in specs/: use headers ## ADDED/MODIFIED/REMOVED/RENAMED Requirements');
-    bullets.push('- Each requirement MUST include at least one #### Scenario: block');
-    bullets.push('- Debug parsed deltas: openspec change show <id> --json --deltas-only');
-    console.error('Next steps:');
+    bullets.push(CHANGE_MESSAGES.ensureDeltasInSpecs);
+    bullets.push(CHANGE_MESSAGES.eachRequirementNeedsScenario);
+    bullets.push(CHANGE_MESSAGES.debugParsedDeltas);
+    console.error(CHANGE_MESSAGES.nextSteps);
     bullets.forEach(b => console.error(`  ${b}`));
   }
 }

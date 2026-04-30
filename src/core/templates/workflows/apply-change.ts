@@ -9,154 +9,154 @@ import type { SkillTemplate, CommandTemplate } from '../types.js';
 export function getApplyChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-apply-change',
-    description: 'Implement tasks from an OpenSpec change. Use when the user wants to start implementing, continue implementation, or work through tasks.',
-    instructions: `Implement tasks from an OpenSpec change.
+    description: 'Implementa tarefas de uma change do OpenSpec. Use quando o usuário quiser iniciar a implementação, continuar a implementação ou trabalhar nas tarefas.',
+    instructions: `Implementa tarefas de uma change do OpenSpec.
 
-**Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Entrada**: Opcionalmente especifique um nome de change. Se omitido, verifique se pode ser inferido do contexto da conversa. Se vago ou ambíguo, você DEVE solicitar as changes disponíveis.
 
-**Steps**
+**Passos**
 
-1. **Select the change**
+1. **Selecione a change**
 
-   If a name is provided, use it. Otherwise:
-   - Infer from conversation context if the user mentioned a change
-   - Auto-select if only one active change exists
-   - If ambiguous, run \`openspec list --json\` to get available changes and use the **AskUserQuestion tool** to let the user select
+   Se um nome for fornecido, use-o. Caso contrário:
+   - Infira do contexto da conversa se o usuário mencionou uma change
+   - Selecione automaticamente se existir apenas uma change ativa
+   - Se ambíguo, execute \`openspec list --json\` para obter as changes disponíveis e use a ferramenta **AskUserQuestion** para permitir que o usuário selecione
 
-   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:apply <other>\`).
+   Sempre anuncie: "Usando change: <nome>" e como substituir (por exemplo, \`/opsx:apply <outra>\`).
 
-2. **Check status to understand the schema**
+2. **Verifique o status para entender o schema**
    \`\`\`bash
-   openspec status --change "<name>" --json
+   openspec status --change "<nome>" --json
    \`\`\`
-   Parse the JSON to understand:
-   - \`schemaName\`: The workflow being used (e.g., "spec-driven")
-   - Which artifact contains the tasks (typically "tasks" for spec-driven, check status for others)
+   Analise o JSON para entender:
+   - \`schemaName\`: O workflow sendo usado (por exemplo, "spec-driven")
+   - Qual artifact contém as tarefas (tipicamente "tasks" para spec-driven, verifique o status para outros)
 
-3. **Get apply instructions**
+3. **Obtenha as instruções de apply**
 
    \`\`\`bash
-   openspec instructions apply --change "<name>" --json
+   openspec instructions apply --change "<nome>" --json
    \`\`\`
 
-   This returns:
-   - \`contextFiles\`: artifact ID -> array of concrete file paths (varies by schema - could be proposal/specs/design/tasks or spec/tests/implementation/docs)
-   - Progress (total, complete, remaining)
-   - Task list with status
-   - Dynamic instruction based on current state
+   Isso retorna:
+   - \`contextFiles\`: artifact ID -> array de caminhos de arquivos concretos (varia por schema - pode ser proposal/specs/design/tasks ou spec/tests/implementation/docs)
+   - Progresso (total, completo, restante)
+   - Lista de tarefas com status
+   - Instrução dinâmica baseada no estado atual
 
-   **Handle states:**
-   - If \`state: "blocked"\` (missing artifacts): show message, suggest using openspec-continue-change
-   - If \`state: "all_done"\`: congratulate, suggest archive
-   - Otherwise: proceed to implementation
+   **Trate os estados:**
+   - Se \`state: "blocked"\` (artifacts ausentes): exiba mensagem, sugira usar openspec-continue-change
+   - Se \`state: "all_done"\`: parabenize, sugira arquivar
+   - Caso contrário: prossiga para a implementação
 
-4. **Read context files**
+4. **Leia os arquivos de contexto**
 
-   Read every file path listed under \`contextFiles\` from the apply instructions output.
-   The files depend on the schema being used:
+   Leia cada caminho de arquivo listado em \`contextFiles\` da saída das instruções de apply.
+   Os arquivos dependem do schema sendo usado:
    - **spec-driven**: proposal, specs, design, tasks
-   - Other schemas: follow the contextFiles from CLI output
+   - Outros schemas: siga os contextFiles da saída do CLI
 
-5. **Show current progress**
+5. **Mostre o progresso atual**
 
-   Display:
-   - Schema being used
-   - Progress: "N/M tasks complete"
-   - Remaining tasks overview
-   - Dynamic instruction from CLI
+   Exiba:
+   - Schema sendo usado
+   - Progresso: "N/M tarefas concluídas"
+   - Visão geral das tarefas restantes
+   - Instrução dinâmica do CLI
 
-6. **Implement tasks (loop until done or blocked)**
+6. **Implemente as tarefas (loop até concluir ou bloquear)**
 
-   For each pending task:
-   - Show which task is being worked on
-   - Make the code changes required
-   - Keep changes minimal and focused
-   - Mark task complete in the tasks file: \`- [ ]\` → \`- [x]\`
-   - Continue to next task
+   Para cada tarefa pendente:
+   - Mostre qual tarefa está sendo trabalhada
+   - Faça as alterações de código necessárias
+   - Mantenha as alterações mínimas e focadas
+   - Marque a tarefa como concluída no arquivo de tasks: \`- [ ]\` → \`- [x]\`
+   - Continue para a próxima tarefa
 
-   **Pause if:**
-   - Task is unclear → ask for clarification
-   - Implementation reveals a design issue → suggest updating artifacts
-   - Error or blocker encountered → report and wait for guidance
-   - User interrupts
+   **Pare se:**
+   - A tarefa estiver incerta → peça esclarecimento
+   - A implementação revelar um problema de design → sugira atualizar artifacts
+   - Encontrar erro ou bloqueio → reporte e aguarde orientação
+   - O usuário interromper
 
-7. **On completion or pause, show status**
+7. **Ao concluir ou pausar, mostre o status**
 
-   Display:
-   - Tasks completed this session
-   - Overall progress: "N/M tasks complete"
-   - If all done: suggest archive
-   - If paused: explain why and wait for guidance
+   Exiba:
+   - Tarefas concluídas nesta sessão
+   - Progresso geral: "N/M tarefas concluídas"
+   - Se tudo concluído: sugira arquivar
+   - Se pausado: explique o porquê e aguarde orientação
 
-**Output During Implementation**
-
-\`\`\`
-## Implementing: <change-name> (schema: <schema-name>)
-
-Working on task 3/7: <task description>
-[...implementation happening...]
-✓ Task complete
-
-Working on task 4/7: <task description>
-[...implementation happening...]
-✓ Task complete
-\`\`\`
-
-**Output On Completion**
+**Saída Durante a Implementação**
 
 \`\`\`
-## Implementation Complete
+## Implementando: <nome-change> (schema: <nome-schema>)
 
-**Change:** <change-name>
-**Schema:** <schema-name>
-**Progress:** 7/7 tasks complete ✓
+Trabalhando na tarefa 3/7: <descrição da tarefa>
+[...implementação acontecendo...]
+✓ Tarefa concluída
 
-### Completed This Session
-- [x] Task 1
-- [x] Task 2
+Trabalhando na tarefa 4/7: <descrição da tarefa>
+[...implementação acontecendo...]
+✓ Tarefa concluída
+\`\`\`
+
+**Saída ao Concluir**
+
+\`\`\`
+## Implementação Concluída
+
+**Change:** <nome-change>
+**Schema:** <nome-schema>
+**Progresso:** 7/7 tarefas concluídas ✓
+
+### Concluídas Nesta Sessão
+- [x] Tarefa 1
+- [x] Tarefa 2
 ...
 
-All tasks complete! Ready to archive this change.
+Todas as tarefas concluídas! Pronto para arquivar esta change.
 \`\`\`
 
-**Output On Pause (Issue Encountered)**
+**Saída ao Pausar (Problema Encontrado)**
 
 \`\`\`
-## Implementation Paused
+## Implementação Pausada
 
-**Change:** <change-name>
-**Schema:** <schema-name>
-**Progress:** 4/7 tasks complete
+**Change:** <nome-change>
+**Schema:** <nome-schema>
+**Progresso:** 4/7 tarefas concluídas
 
-### Issue Encountered
-<description of the issue>
+### Problema Encontrado
+<descrição do problema>
 
-**Options:**
-1. <option 1>
-2. <option 2>
-3. Other approach
+**Opções:**
+1. <opção 1>
+2. <opção 2>
+3. Outra abordagem
 
-What would you like to do?
+O que você gostaria de fazer?
 \`\`\`
 
 **Guardrails**
-- Keep going through tasks until done or blocked
-- Always read context files before starting (from the apply instructions output)
-- If task is ambiguous, pause and ask before implementing
-- If implementation reveals issues, pause and suggest artifact updates
-- Keep code changes minimal and scoped to each task
-- Update task checkbox immediately after completing each task
-- Pause on errors, blockers, or unclear requirements - don't guess
-- Use contextFiles from CLI output, don't assume specific file names
+- Continue pelas tarefas até concluir ou bloquear
+- Sempre leia os arquivos de contexto antes de começar (da saída das instruções de apply)
+- Se a tarefa for ambígua, pause e pergunte antes de implementar
+- Se a implementação revelar problemas, pause e sugira atualizar artifacts
+- Mantenha as alterações de código mínimas e limitadas a cada tarefa
+- Atualize a checkbox da tarefa imediatamente após concluir cada tarefa
+- Pare em erros, bloqueios ou requisitos incertos - não adivinhe
+- Use os contextFiles da saída do CLI, não assuma nomes de arquivos específicos
 
-**Fluid Workflow Integration**
+**Integração com Fluxo Fluido**
 
-This skill supports the "actions on a change" model:
+Esta skill suporta o modelo de "ações em uma change":
 
-- **Can be invoked anytime**: Before all artifacts are done (if tasks exist), after partial implementation, interleaved with other actions
-- **Allows artifact updates**: If implementation reveals design issues, suggest updating artifacts - not phase-locked, work fluidly`,
+- **Pode ser invocada a qualquer momento**: Antes de todos os artifacts estarem prontos (se tasks existirem), após implementação parcial, intercalada com outras ações
+- **Permite atualizações de artifacts**: Se a implementação revelar problemas de design, sugira atualizar artifacts - não está travada em fases, trabalhe de forma fluida`,
     license: 'MIT',
-    compatibility: 'Requires openspec CLI.',
+    compatibility: 'Requer openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
   };
 }
@@ -164,153 +164,153 @@ This skill supports the "actions on a change" model:
 export function getOpsxApplyCommandTemplate(): CommandTemplate {
   return {
     name: 'OPSX: Apply',
-    description: 'Implement tasks from an OpenSpec change (Experimental)',
+    description: 'Implementa tarefas de uma change do OpenSpec (Experimental)',
     category: 'Workflow',
     tags: ['workflow', 'artifacts', 'experimental'],
-    content: `Implement tasks from an OpenSpec change.
+    content: `Implementa tarefas de uma change do OpenSpec.
 
-**Input**: Optionally specify a change name (e.g., \`/opsx:apply add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Entrada**: Opcionalmente especifique um nome de change (por exemplo, \`/opsx:apply add-auth\`). Se omitido, verifique se pode ser inferido do contexto da conversa. Se vago ou ambíguo, você DEVE solicitar as changes disponíveis.
 
-**Steps**
+**Passos**
 
-1. **Select the change**
+1. **Selecione a change**
 
-   If a name is provided, use it. Otherwise:
-   - Infer from conversation context if the user mentioned a change
-   - Auto-select if only one active change exists
-   - If ambiguous, run \`openspec list --json\` to get available changes and use the **AskUserQuestion tool** to let the user select
+   Se um nome for fornecido, use-o. Caso contrário:
+   - Infira do contexto da conversa se o usuário mencionou uma change
+   - Selecione automaticamente se existir apenas uma change ativa
+   - Se ambíguo, execute \`openspec list --json\` para obter as changes disponíveis e use a ferramenta **AskUserQuestion** para permitir que o usuário selecione
 
-   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:apply <other>\`).
+   Sempre anuncie: "Usando change: <nome>" e como substituir (por exemplo, \`/opsx:apply <outra>\`).
 
-2. **Check status to understand the schema**
+2. **Verifique o status para entender o schema**
    \`\`\`bash
-   openspec status --change "<name>" --json
+   openspec status --change "<nome>" --json
    \`\`\`
-   Parse the JSON to understand:
-   - \`schemaName\`: The workflow being used (e.g., "spec-driven")
-   - Which artifact contains the tasks (typically "tasks" for spec-driven, check status for others)
+   Analise o JSON para entender:
+   - \`schemaName\`: O workflow sendo usado (por exemplo, "spec-driven")
+   - Qual artifact contém as tarefas (tipicamente "tasks" para spec-driven, verifique o status para outros)
 
-3. **Get apply instructions**
+3. **Obtenha as instruções de apply**
 
    \`\`\`bash
-   openspec instructions apply --change "<name>" --json
+   openspec instructions apply --change "<nome>" --json
    \`\`\`
 
-   This returns:
-   - \`contextFiles\`: artifact ID -> array of concrete file paths (varies by schema)
-   - Progress (total, complete, remaining)
-   - Task list with status
-   - Dynamic instruction based on current state
+   Isso retorna:
+   - \`contextFiles\`: artifact ID -> array de caminhos de arquivos concretos (varia por schema)
+   - Progresso (total, completo, restante)
+   - Lista de tarefas com status
+   - Instrução dinâmica baseada no estado atual
 
-   **Handle states:**
-   - If \`state: "blocked"\` (missing artifacts): show message, suggest using \`/opsx:continue\`
-   - If \`state: "all_done"\`: congratulate, suggest archive
-   - Otherwise: proceed to implementation
+   **Trate os estados:**
+   - Se \`state: "blocked"\` (artifacts ausentes): exiba mensagem, sugira usar \`/opsx:continue\`
+   - Se \`state: "all_done"\`: parabenize, sugira arquivar
+   - Caso contrário: prossiga para a implementação
 
-4. **Read context files**
+4. **Leia os arquivos de contexto**
 
-   Read every file path listed under \`contextFiles\` from the apply instructions output.
-   The files depend on the schema being used:
+   Leia cada caminho de arquivo listado em \`contextFiles\` da saída das instruções de apply.
+   Os arquivos dependem do schema sendo usado:
    - **spec-driven**: proposal, specs, design, tasks
-   - Other schemas: follow the contextFiles from CLI output
+   - Outros schemas: siga os contextFiles da saída do CLI
 
-5. **Show current progress**
+5. **Mostre o progresso atual**
 
-   Display:
-   - Schema being used
-   - Progress: "N/M tasks complete"
-   - Remaining tasks overview
-   - Dynamic instruction from CLI
+   Exiba:
+   - Schema sendo usado
+   - Progresso: "N/M tarefas concluídas"
+   - Visão geral das tarefas restantes
+   - Instrução dinâmica do CLI
 
-6. **Implement tasks (loop until done or blocked)**
+6. **Implemente as tarefas (loop até concluir ou bloquear)**
 
-   For each pending task:
-   - Show which task is being worked on
-   - Make the code changes required
-   - Keep changes minimal and focused
-   - Mark task complete in the tasks file: \`- [ ]\` → \`- [x]\`
-   - Continue to next task
+   Para cada tarefa pendente:
+   - Mostre qual tarefa está sendo trabalhada
+   - Faça as alterações de código necessárias
+   - Mantenha as alterações mínimas e focadas
+   - Marque a tarefa como concluída no arquivo de tasks: \`- [ ]\` → \`- [x]\`
+   - Continue para a próxima tarefa
 
-   **Pause if:**
-   - Task is unclear → ask for clarification
-   - Implementation reveals a design issue → suggest updating artifacts
-   - Error or blocker encountered → report and wait for guidance
-   - User interrupts
+   **Pare se:**
+   - A tarefa estiver incerta → peça esclarecimento
+   - A implementação revelar um problema de design → sugira atualizar artifacts
+   - Encontrar erro ou bloqueio → reporte e aguarde orientação
+   - O usuário interromper
 
-7. **On completion or pause, show status**
+7. **Ao concluir ou pausar, mostre o status**
 
-   Display:
-   - Tasks completed this session
-   - Overall progress: "N/M tasks complete"
-   - If all done: suggest archive
-   - If paused: explain why and wait for guidance
+   Exiba:
+   - Tarefas concluídas nesta sessão
+   - Progresso geral: "N/M tarefas concluídas"
+   - Se tudo concluído: sugira arquivar
+   - Se pausado: explique o porquê e aguarde orientação
 
-**Output During Implementation**
-
-\`\`\`
-## Implementing: <change-name> (schema: <schema-name>)
-
-Working on task 3/7: <task description>
-[...implementation happening...]
-✓ Task complete
-
-Working on task 4/7: <task description>
-[...implementation happening...]
-✓ Task complete
-\`\`\`
-
-**Output On Completion**
+**Saída Durante a Implementação**
 
 \`\`\`
-## Implementation Complete
+## Implementando: <nome-change> (schema: <nome-schema>)
 
-**Change:** <change-name>
-**Schema:** <schema-name>
-**Progress:** 7/7 tasks complete ✓
+Trabalhando na tarefa 3/7: <descrição da tarefa>
+[...implementação acontecendo...]
+✓ Tarefa concluída
 
-### Completed This Session
-- [x] Task 1
-- [x] Task 2
+Trabalhando na tarefa 4/7: <descrição da tarefa>
+[...implementação acontecendo...]
+✓ Tarefa concluída
+\`\`\`
+
+**Saída ao Concluir**
+
+\`\`\`
+## Implementação Concluída
+
+**Change:** <nome-change>
+**Schema:** <nome-schema>
+**Progresso:** 7/7 tarefas concluídas ✓
+
+### Concluídas Nesta Sessão
+- [x] Tarefa 1
+- [x] Tarefa 2
 ...
 
-All tasks complete! You can archive this change with \`/opsx:archive\`.
+Todas as tarefas concluídas! Você pode arquivar esta change com \`/opsx:archive\`.
 \`\`\`
 
-**Output On Pause (Issue Encountered)**
+**Saída ao Pausar (Problema Encontrado)**
 
 \`\`\`
-## Implementation Paused
+## Implementação Pausada
 
-**Change:** <change-name>
-**Schema:** <schema-name>
-**Progress:** 4/7 tasks complete
+**Change:** <nome-change>
+**Schema:** <nome-schema>
+**Progresso:** 4/7 tarefas concluídas
 
-### Issue Encountered
-<description of the issue>
+### Problema Encontrado
+<descrição do problema>
 
-**Options:**
-1. <option 1>
-2. <option 2>
-3. Other approach
+**Opções:**
+1. <opção 1>
+2. <opção 2>
+3. Outra abordagem
 
-What would you like to do?
+O que você gostaria de fazer?
 \`\`\`
 
 **Guardrails**
-- Keep going through tasks until done or blocked
-- Always read context files before starting (from the apply instructions output)
-- If task is ambiguous, pause and ask before implementing
-- If implementation reveals issues, pause and suggest artifact updates
-- Keep code changes minimal and scoped to each task
-- Update task checkbox immediately after completing each task
-- Pause on errors, blockers, or unclear requirements - don't guess
-- Use contextFiles from CLI output, don't assume specific file names
+- Continue pelas tarefas até concluir ou bloquear
+- Sempre leia os arquivos de contexto antes de começar (da saída das instruções de apply)
+- Se a tarefa for ambígua, pause e pergunte antes de implementar
+- Se a implementação revelar problemas, pause e sugira atualizar artifacts
+- Mantenha as alterações de código mínimas e limitadas a cada tarefa
+- Atualize a checkbox da tarefa imediatamente após concluir cada tarefa
+- Pare em erros, bloqueios ou requisitos incertos - não adivinhe
+- Use os contextFiles da saída do CLI, não assuma nomes de arquivos específicos
 
-**Fluid Workflow Integration**
+**Integração com Fluxo Fluido**
 
-This skill supports the "actions on a change" model:
+Esta skill suporta o modelo de "ações em uma change":
 
-- **Can be invoked anytime**: Before all artifacts are done (if tasks exist), after partial implementation, interleaved with other actions
-- **Allows artifact updates**: If implementation reveals design issues, suggest updating artifacts - not phase-locked, work fluidly`
+- **Pode ser invocada a qualquer momento**: Antes de todos os artifacts estarem prontos (se tasks existirem), após implementação parcial, intercalada com outras ações
+- **Permite atualizações de artifacts**: Se a implementação revelar problemas de design, sugira atualizar artifacts - não está travada em fases, trabalhe de forma fluida`
   };
 }

@@ -167,7 +167,7 @@ describe('artifact-workflow CLI commands', () => {
       const result = await runCLI(['status', '--change', 'nonexistent'], { cwd: tempDir });
       expect(result.exitCode).toBe(1);
       const output = getOutput(result);
-      expect(output).toContain("Change 'nonexistent' not found");
+      expect(output).toContain("Alteração 'nonexistent' não encontrada");
       expect(output).toContain('existing-change');
     });
 
