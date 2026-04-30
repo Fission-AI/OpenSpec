@@ -2,6 +2,8 @@
 
 This change is the continuity layer for reimplementing workspace support across multiple sessions and branches.
 
+Root entry point for fresh agents: `WORKSPACE_REIMPLEMENTATION_START_HERE.md`.
+
 The user journey we are implementing is:
 
 ```text

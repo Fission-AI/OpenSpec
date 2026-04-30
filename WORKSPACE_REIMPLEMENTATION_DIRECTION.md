@@ -2,6 +2,8 @@
 
 Date: 2026-04-30
 
+Fresh-agent entry point: read `WORKSPACE_REIMPLEMENTATION_START_HERE.md` first, then return to this document for the full product direction.
+
 This document captures the intended direction for reimplementing OpenSpec workspace support from scratch, based on what we learned from the workspace POC.
 
 The reimplementation should be ordered around the path a real user takes through OpenSpec:
