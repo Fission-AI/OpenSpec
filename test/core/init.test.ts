@@ -561,21 +561,29 @@ describe('InitCommand - profile and detection features', () => {
   });
 
   it('should auto-cleanup legacy artifacts in non-interactive mode without --force', async () => {
-    // Create legacy OpenCode command files (singular 'command' path)
-    const legacyDir = path.join(testDir, '.opencode', 'command');
-    await fs.mkdir(legacyDir, { recursive: true });
-    await fs.writeFile(path.join(legacyDir, 'opsx-propose.md'), 'legacy content');
+    // Use a temp dir for OpenCode home to avoid writing to real home
+    const opencodeHome = path.join(os.tmpdir(), `openspec-opencode-home-${Date.now()}`);
+    process.env.OPENCODE_HOME = opencodeHome;
 
-    // Run init in non-interactive mode without --force
-    const initCommand = new InitCommand({ tools: 'opencode' });
-    await initCommand.execute(testDir);
+    try {
+      // Create legacy OpenCode command files (singular 'command' path)
+      const legacyDir = path.join(testDir, '.opencode', 'command');
+      await fs.mkdir(legacyDir, { recursive: true });
+      await fs.writeFile(path.join(legacyDir, 'opsx-propose.md'), 'legacy content');
 
-    // Legacy files should be cleaned up automatically
-    expect(await fileExists(path.join(legacyDir, 'opsx-propose.md'))).toBe(false);
+      // Run init in non-interactive mode without --force
+      const initCommand = new InitCommand({ tools: 'opencode' });
+      await initCommand.execute(testDir);
 
-    // New commands should be at the correct plural path
-    const newCommandsDir = path.join(testDir, '.opencode', 'commands');
-    expect(await directoryExists(newCommandsDir)).toBe(true);
+      // Legacy files should be cleaned up automatically
+      expect(await fileExists(path.join(legacyDir, 'opsx-propose.md'))).toBe(false);
+
+      // New commands should be at the global OpenCode path
+      const newCommandsDir = path.join(opencodeHome, 'commands');
+      expect(await directoryExists(newCommandsDir)).toBe(true);
+    } finally {
+      await fs.rm(opencodeHome, { recursive: true, force: true });
+    }
   });
 
   it('should preselect configured tools but not directory-detected tools in extend mode', async () => {

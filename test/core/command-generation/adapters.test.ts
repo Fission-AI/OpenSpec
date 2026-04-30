@@ -508,9 +508,43 @@ describe('command-generation/adapters', () => {
       expect(opencodeAdapter.toolId).toBe('opencode');
     });
 
-    it('should generate correct file path', () => {
+    it('should return an absolute path', () => {
       const filePath = opencodeAdapter.getFilePath('explore');
-      expect(filePath).toBe(path.join('.opencode', 'commands', 'opsx-explore.md'));
+      expect(path.isAbsolute(filePath)).toBe(true);
+    });
+
+    it('should generate path ending with correct structure', () => {
+      const filePath = opencodeAdapter.getFilePath('explore');
+      expect(filePath).toMatch(/commands[/\\]opsx-explore\.md$/);
+    });
+
+    it('should default to homedir/.config/opencode', () => {
+      const original = process.env.OPENCODE_HOME;
+      delete process.env.OPENCODE_HOME;
+      try {
+        const filePath = opencodeAdapter.getFilePath('explore');
+        const expected = path.join(os.homedir(), '.config', 'opencode', 'commands', 'opsx-explore.md');
+        expect(filePath).toBe(expected);
+      } finally {
+        if (original !== undefined) {
+          process.env.OPENCODE_HOME = original;
+        }
+      }
+    });
+
+    it('should respect OPENCODE_HOME env var', () => {
+      const original = process.env.OPENCODE_HOME;
+      process.env.OPENCODE_HOME = '/custom/opencode-home';
+      try {
+        const filePath = opencodeAdapter.getFilePath('explore');
+        expect(filePath).toBe(path.join(path.resolve('/custom/opencode-home'), 'commands', 'opsx-explore.md'));
+      } finally {
+        if (original !== undefined) {
+          process.env.OPENCODE_HOME = original;
+        } else {
+          delete process.env.OPENCODE_HOME;
+        }
+      }
     });
 
     it('should format file with description frontmatter', () => {
