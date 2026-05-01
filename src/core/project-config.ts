@@ -38,14 +38,40 @@ export const ProjectConfigSchema = z.object({
     )
     .optional()
     .describe('Per-artifact rules, keyed by artifact ID'),
+
+  // Optional: profile-related settings scoped to this project
+  profile: z
+    .enum(['core', 'custom'])
+    .optional()
+    .describe('Workflow profile override for this project'),
+
+  delivery: z
+    .enum(['both', 'skills', 'commands'])
+    .optional()
+    .describe('Workflow delivery override for this project'),
+
+  workflows: z
+    .array(z.string())
+    .optional()
+    .describe('Workflow selection override for this project'),
 });
 
+/**
+ * Runtime-validated project configuration shape.
+ */
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
 
+/**
+ * Project-scoped profile fields consumed by profile resolution.
+ */
+export type ProjectProfileConfig = Pick<ProjectConfig, 'profile' | 'delivery' | 'workflows'>;
+
 const MAX_CONTEXT_SIZE = 50 * 1024; // 50KB hard limit
+const AMBIGUOUS_PROJECT_CONFIG_ERROR =
+  'Both openspec/config.yaml and openspec/config.yml exist. Remove one to continue.';
 
 /**
- * Read and parse openspec/config.yaml from project root.
+ * Read and parse openspec/config.yaml or openspec/config.yml from project root.
  * Uses resilient parsing - validates each field independently using Zod safeParse.
  * Returns null if file doesn't exist.
  * Returns partial config if some fields are invalid (with warnings).
@@ -63,22 +89,28 @@ const MAX_CONTEXT_SIZE = 50 * 1024; // 50KB hard limit
  * @param projectRoot - The root directory of the project (where `openspec/` lives)
  * @returns Parsed config or null if file doesn't exist
  */
-export function readProjectConfig(projectRoot: string): ProjectConfig | null {
-  // Try both .yaml and .yml, prefer .yaml
-  let configPath = path.join(projectRoot, 'openspec', 'config.yaml');
-  if (!existsSync(configPath)) {
-    configPath = path.join(projectRoot, 'openspec', 'config.yml');
-    if (!existsSync(configPath)) {
-      return null; // No config is OK
-    }
+export function readProjectConfig(projectRoot: string): Partial<ProjectConfig> | null {
+  const yamlPath = path.join(projectRoot, 'openspec', 'config.yaml');
+  const ymlPath = path.join(projectRoot, 'openspec', 'config.yml');
+  const yamlExists = existsSync(yamlPath);
+  const ymlExists = existsSync(ymlPath);
+
+  if (yamlExists && ymlExists) {
+    throw new Error(AMBIGUOUS_PROJECT_CONFIG_ERROR);
   }
+
+  const configPath = yamlExists ? yamlPath : ymlExists ? ymlPath : null;
+  if (!configPath) {
+    return null;
+  }
+  const configDisplayPath = `openspec/${path.basename(configPath)}`;
 
   try {
     const content = readFileSync(configPath, 'utf-8');
     const raw = parseYaml(content);
 
     if (!raw || typeof raw !== 'object') {
-      console.warn(`openspec/config.yaml is not a valid YAML object`);
+      console.warn(`${configDisplayPath} is not a valid YAML object`);
       return null;
     }
 
@@ -152,10 +184,37 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
       }
     }
 
+    if (raw.profile !== undefined) {
+      const profileResult = z.enum(['core', 'custom']).safeParse(raw.profile);
+      if (profileResult.success) {
+        config.profile = profileResult.data;
+      } else {
+        console.warn(`Invalid 'profile' field in config (must be one of: core, custom)`);
+      }
+    }
+
+    if (raw.delivery !== undefined) {
+      const deliveryResult = z.enum(['both', 'skills', 'commands']).safeParse(raw.delivery);
+      if (deliveryResult.success) {
+        config.delivery = deliveryResult.data;
+      } else {
+        console.warn(`Invalid 'delivery' field in config (must be one of: both, skills, commands)`);
+      }
+    }
+
+    if (raw.workflows !== undefined) {
+      const workflowsResult = z.array(z.string()).safeParse(raw.workflows);
+      if (workflowsResult.success) {
+        config.workflows = workflowsResult.data;
+      } else {
+        console.warn(`Invalid 'workflows' field in config (must be an array of strings)`);
+      }
+    }
+
     // Return partial config even if some fields failed
-    return Object.keys(config).length > 0 ? (config as ProjectConfig) : null;
+    return Object.keys(config).length > 0 ? config : null;
   } catch (error) {
-    console.warn(`Failed to parse openspec/config.yaml:`, error);
+    console.warn(`Failed to parse ${configDisplayPath}:`, error);
     return null;
   }
 }

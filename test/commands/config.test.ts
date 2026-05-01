@@ -2,6 +2,15 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import { Command } from 'commander';
+import { parse as parseYaml } from 'yaml';
+
+async function runConfigCommand(args: string[]): Promise<void> {
+  const { registerConfigCommand } = await import('../../src/commands/config.js');
+  const program = new Command();
+  registerConfigCommand(program);
+  await program.parseAsync(['node', 'openspec', 'config', ...args]);
+}
 
 describe('config command integration', () => {
   // These tests use real file system operations with XDG_CONFIG_HOME override
@@ -91,13 +100,348 @@ describe('config command integration', () => {
   });
 });
 
+describe('config command project scope', () => {
+  let tempDir: string;
+  let originalEnv: NodeJS.ProcessEnv;
+  let originalCwd: string;
+  let originalExitCode: number | undefined;
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+  let consoleLogSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    tempDir = path.join(os.tmpdir(), `openspec-config-project-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    fs.mkdirSync(tempDir, { recursive: true });
+    originalEnv = { ...process.env };
+    originalCwd = process.cwd();
+    originalExitCode = process.exitCode;
+
+    process.env.XDG_CONFIG_HOME = tempDir;
+    process.chdir(tempDir);
+    process.exitCode = undefined;
+
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+    process.chdir(originalCwd);
+    process.exitCode = originalExitCode;
+    fs.rmSync(tempDir, { recursive: true, force: true });
+    consoleErrorSpy.mockRestore();
+    consoleLogSpy.mockRestore();
+    vi.resetModules();
+  });
+
+  it('set/get with --scope project writes project config without mutating global config', async () => {
+    const { getGlobalConfig } = await import('../../src/core/global-config.js');
+
+    await runConfigCommand(['--scope', 'project', 'set', 'profile', 'custom']);
+
+    const projectConfigPath = path.join(tempDir, 'openspec', 'config.yaml');
+    expect(fs.existsSync(projectConfigPath)).toBe(true);
+
+    const parsed = parseYaml(fs.readFileSync(projectConfigPath, 'utf-8')) as Record<string, unknown>;
+    expect(parsed).toMatchObject({
+      schema: 'spec-driven',
+      profile: 'custom',
+    });
+
+    expect(getGlobalConfig().profile).toBe('core');
+
+    consoleLogSpy.mockClear();
+    await runConfigCommand(['--scope', 'project', 'get', 'profile']);
+    expect(consoleLogSpy).toHaveBeenCalledWith('custom');
+  });
+
+  it('list --scope project --json includes raw and effective sections', async () => {
+    const { saveGlobalConfig } = await import('../../src/core/global-config.js');
+
+    saveGlobalConfig({
+      featureFlags: {},
+      profile: 'custom',
+      delivery: 'commands',
+      workflows: ['verify'],
+    });
+
+    fs.mkdirSync(path.join(tempDir, 'openspec'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'openspec', 'config.yaml'),
+      `schema: spec-driven
+profile: custom
+workflows:
+  - explore
+`
+    );
+
+    await runConfigCommand(['--scope', 'project', 'list', '--json']);
+
+    const payload = JSON.parse(consoleLogSpy.mock.calls[0]?.[0] as string) as {
+      raw: Record<string, unknown>;
+      effective: {
+        profile: string;
+        delivery: string;
+        workflows: string[];
+        sources: {
+          profile: string;
+          delivery: string;
+          workflows: string;
+        };
+      };
+    };
+
+    expect(payload.raw).toMatchObject({
+      schema: 'spec-driven',
+      profile: 'custom',
+      workflows: ['explore'],
+    });
+    expect(payload.effective).toEqual({
+      profile: 'custom',
+      delivery: 'commands',
+      workflows: ['explore'],
+      sources: {
+        profile: 'project',
+        delivery: 'global',
+        workflows: 'project',
+      },
+    });
+  });
+
+  it('project-scoped writes preserve existing schema/context/rules fields', async () => {
+    fs.mkdirSync(path.join(tempDir, 'openspec'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'openspec', 'config.yaml'),
+      `schema: spec-driven
+context: Keep me
+rules:
+  proposal:
+    - Keep this
+`
+    );
+
+    await runConfigCommand(['--scope', 'project', 'set', 'delivery', 'commands']);
+
+    const parsed = parseYaml(
+      fs.readFileSync(path.join(tempDir, 'openspec', 'config.yaml'), 'utf-8')
+    ) as Record<string, unknown>;
+
+    expect(parsed).toMatchObject({
+      schema: 'spec-driven',
+      context: 'Keep me',
+      delivery: 'commands',
+    });
+    expect(parsed.rules).toEqual({ proposal: ['Keep this'] });
+  });
+
+  it('project-scoped set preserves YAML comments and key order', async () => {
+    fs.mkdirSync(path.join(tempDir, 'openspec'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'openspec', 'config.yaml'),
+      `# Top-level comment
+schema: spec-driven # schema comment
+# delivery comment
+delivery: both
+`
+    );
+
+    await runConfigCommand(['--scope', 'project', 'set', 'profile', 'custom']);
+
+    const written = fs.readFileSync(path.join(tempDir, 'openspec', 'config.yaml'), 'utf-8');
+
+    expect(written).toContain('# Top-level comment');
+    expect(written).toContain('# schema comment');
+    expect(written).toContain('# delivery comment');
+
+    const schemaIndex = written.indexOf('schema: spec-driven');
+    const deliveryIndex = written.indexOf('delivery: both');
+    const profileIndex = written.indexOf('profile: custom');
+    expect(schemaIndex).toBeGreaterThanOrEqual(0);
+    expect(deliveryIndex).toBeGreaterThan(schemaIndex);
+    expect(profileIndex).toBeGreaterThan(deliveryIndex);
+  });
+
+  it('unset with --scope project removes key without mutating global config', async () => {
+    const { getGlobalConfig, saveGlobalConfig } = await import('../../src/core/global-config.js');
+    saveGlobalConfig({ featureFlags: {}, profile: 'custom', delivery: 'both', workflows: ['explore'] });
+
+    fs.mkdirSync(path.join(tempDir, 'openspec'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'openspec', 'config.yaml'),
+      `schema: spec-driven
+profile: custom
+`
+    );
+
+    await runConfigCommand(['--scope', 'project', 'unset', 'profile']);
+
+    const parsed = parseYaml(
+      fs.readFileSync(path.join(tempDir, 'openspec', 'config.yaml'), 'utf-8')
+    ) as Record<string, unknown>;
+    expect(parsed).toEqual({ schema: 'spec-driven' });
+    expect(getGlobalConfig().profile).toBe('custom');
+  });
+
+  it('project-scoped unset preserves comments on untouched keys', async () => {
+    fs.mkdirSync(path.join(tempDir, 'openspec'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'openspec', 'config.yaml'),
+      `# keep this
+schema: spec-driven # and this
+profile: custom
+delivery: both
+`
+    );
+
+    await runConfigCommand(['--scope', 'project', 'unset', 'profile']);
+
+    const written = fs.readFileSync(path.join(tempDir, 'openspec', 'config.yaml'), 'utf-8');
+    expect(written).toContain('# keep this');
+    expect(written).toContain('# and this');
+    expect(written).not.toContain('profile: custom');
+    expect(written).toContain('delivery: both');
+  });
+
+  it('rejects unsupported project-scoped keys', async () => {
+    await runConfigCommand(['--scope', 'project', 'set', 'schema', 'spec-driven']);
+
+    expect(process.exitCode).toBe(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Project scope only supports profile-related keys')
+    );
+  });
+
+  it('rejects malformed JSON array syntax for project-scoped workflows', async () => {
+    const projectConfigPath = path.join(tempDir, 'openspec', 'config.yaml');
+
+    await runConfigCommand(['--scope', 'project', 'set', 'workflows', '[propose, explore]']);
+
+    expect(process.exitCode).toBe(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Invalid JSON array for workflows'));
+    expect(fs.existsSync(projectConfigPath)).toBe(false);
+  });
+
+  it('accepts JSON array syntax for project-scoped workflows', async () => {
+    await runConfigCommand(['--scope', 'project', 'set', 'workflows', '["propose", "explore"]']);
+
+    expect(process.exitCode).toBeUndefined();
+    const parsed = parseYaml(
+      fs.readFileSync(path.join(tempDir, 'openspec', 'config.yaml'), 'utf-8')
+    ) as Record<string, unknown>;
+    expect(parsed.workflows).toEqual(['propose', 'explore']);
+  });
+
+  it('project scope get honors --allow-unknown for unknown keys', async () => {
+    await runConfigCommand(['--scope', 'project', 'set', 'custom.key', 'value', '--allow-unknown']);
+
+    process.exitCode = undefined;
+    consoleLogSpy.mockClear();
+
+    await runConfigCommand(['--scope', 'project', 'get', 'custom.key', '--allow-unknown']);
+
+    expect(process.exitCode).toBeUndefined();
+    expect(consoleLogSpy).toHaveBeenCalledWith('value');
+  });
+
+  it('project scope get rejects unknown keys without --allow-unknown', async () => {
+    await runConfigCommand(['--scope', 'project', 'set', 'custom.key', 'value', '--allow-unknown']);
+
+    process.exitCode = undefined;
+    consoleErrorSpy.mockClear();
+
+    await runConfigCommand(['--scope', 'project', 'get', 'custom.key']);
+
+    expect(process.exitCode).toBe(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Project scope only supports profile-related keys')
+    );
+    expect(consoleErrorSpy).toHaveBeenCalledWith('Pass --allow-unknown to bypass this check.');
+  });
+
+  it('project scope unset honors --allow-unknown for unknown keys', async () => {
+    await runConfigCommand(['--scope', 'project', 'set', 'custom.key', 'value', '--allow-unknown']);
+
+    process.exitCode = undefined;
+    consoleLogSpy.mockClear();
+
+    await runConfigCommand(['--scope', 'project', 'unset', 'custom.key', '--allow-unknown']);
+
+    expect(process.exitCode).toBeUndefined();
+    expect(consoleLogSpy).toHaveBeenCalledWith('Unset custom.key (reverted to fallback)');
+
+    const parsed = parseYaml(
+      fs.readFileSync(path.join(tempDir, 'openspec', 'config.yaml'), 'utf-8')
+    ) as Record<string, unknown>;
+    const custom = parsed.custom as Record<string, unknown> | undefined;
+    expect(custom?.key).toBeUndefined();
+  });
+
+  it('project scope unset rejects unknown keys without --allow-unknown', async () => {
+    await runConfigCommand(['--scope', 'project', 'set', 'custom.key', 'value', '--allow-unknown']);
+
+    process.exitCode = undefined;
+    consoleErrorSpy.mockClear();
+
+    await runConfigCommand(['--scope', 'project', 'unset', 'custom.key']);
+
+    expect(process.exitCode).toBe(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Project scope only supports profile-related keys')
+    );
+    expect(consoleErrorSpy).toHaveBeenCalledWith('Pass --allow-unknown to bypass this check.');
+  });
+
+  it.each([
+    ['path'],
+    ['list'],
+    ['get', 'profile'],
+    ['set', 'profile', 'custom'],
+    ['unset', 'profile'],
+    ['profile', 'core'],
+  ])('project scope %s fails when both config.yaml and config.yml exist', async (...commandArgs: string[]) => {
+    fs.mkdirSync(path.join(tempDir, 'openspec'), { recursive: true });
+    fs.writeFileSync(path.join(tempDir, 'openspec', 'config.yaml'), 'schema: spec-driven\n', 'utf-8');
+    fs.writeFileSync(path.join(tempDir, 'openspec', 'config.yml'), 'schema: spec-driven\n', 'utf-8');
+
+    process.exitCode = undefined;
+    consoleErrorSpy.mockClear();
+
+    await runConfigCommand(['--scope', 'project', ...commandArgs]);
+
+    expect(process.exitCode).toBe(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Both openspec/config.yaml and openspec/config.yml exist')
+    );
+  });
+
+  it('builds project config paths for windows-style roots without duplicated separators', async () => {
+    const { getProjectConfigFilePaths } = await import('../../src/commands/config.js');
+
+    const windowsLikeRootWithTrailingSlash = 'C:\\repo\\sample-project/';
+    const paths = getProjectConfigFilePaths(windowsLikeRootWithTrailingSlash);
+
+    const expectedYamlPath =
+      process.platform === 'win32'
+        ? 'C:\\repo\\sample-project\\openspec\\config.yaml'
+        : 'C:\\repo\\sample-project/openspec/config.yaml';
+    const expectedYmlPath =
+      process.platform === 'win32'
+        ? 'C:\\repo\\sample-project\\openspec\\config.yml'
+        : 'C:\\repo\\sample-project/openspec/config.yml';
+
+    expect(paths.yamlPath).toBe(expectedYamlPath);
+    expect(paths.ymlPath).toBe(expectedYmlPath);
+    expect(paths.yamlPath).not.toContain('//openspec');
+    expect(paths.ymlPath).not.toContain('//openspec');
+  });
+});
+
 describe('config command shell completion registry', () => {
   it('should have config command in registry', async () => {
     const { COMMAND_REGISTRY } = await import('../../src/core/completions/command-registry.js');
 
     const configCmd = COMMAND_REGISTRY.find((cmd) => cmd.name === 'config');
     expect(configCmd).toBeDefined();
-    expect(configCmd?.description).toBe('View and modify global OpenSpec configuration');
+    expect(configCmd?.description).toBe('View and modify OpenSpec configuration');
   });
 
   it('should have all config subcommands in registry', async () => {
@@ -136,6 +480,19 @@ describe('config command shell completion registry', () => {
     expect(flagNames).toContain('allow-unknown');
   });
 
+  it('should have --allow-unknown flag on get and unset subcommands', async () => {
+    const { COMMAND_REGISTRY } = await import('../../src/core/completions/command-registry.js');
+
+    const configCmd = COMMAND_REGISTRY.find((cmd) => cmd.name === 'config');
+    const getCmd = configCmd?.subcommands?.find((s) => s.name === 'get');
+    const unsetCmd = configCmd?.subcommands?.find((s) => s.name === 'unset');
+    const getFlagNames = getCmd?.flags?.map((f) => f.name) ?? [];
+    const unsetFlagNames = unsetCmd?.flags?.map((f) => f.name) ?? [];
+
+    expect(getFlagNames).toContain('allow-unknown');
+    expect(unsetFlagNames).toContain('allow-unknown');
+  });
+
   it('should have --all and -y flags on reset subcommand', async () => {
     const { COMMAND_REGISTRY } = await import('../../src/core/completions/command-registry.js');
 
@@ -151,9 +508,22 @@ describe('config command shell completion registry', () => {
     const { COMMAND_REGISTRY } = await import('../../src/core/completions/command-registry.js');
 
     const configCmd = COMMAND_REGISTRY.find((cmd) => cmd.name === 'config');
-    const flagNames = configCmd?.flags?.map((f) => f.name) ?? [];
+    const scopeFlag = configCmd?.flags?.find((f) => f.name === 'scope');
 
-    expect(flagNames).toContain('scope');
+    expect(scopeFlag).toBeDefined();
+    expect(scopeFlag?.values).toEqual(['global', 'project']);
+  });
+
+  it('should include update scope override flag in registry', async () => {
+    const { COMMAND_REGISTRY } = await import('../../src/core/completions/command-registry.js');
+
+    const updateCmd = COMMAND_REGISTRY.find((cmd) => cmd.name === 'update');
+    const scopeFlag = updateCmd?.flags?.find((f) => f.name === 'scope');
+    const forceFlag = updateCmd?.flags?.find((f) => f.name === 'force');
+
+    expect(forceFlag).toBeDefined();
+    expect(scopeFlag).toBeDefined();
+    expect(scopeFlag?.values).toEqual(['global', 'project']);
   });
 });
 
