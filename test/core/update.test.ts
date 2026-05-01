@@ -1427,6 +1427,41 @@ More user content after markers.
       )).toBe(false);
     });
 
+    it('should suggest core preset when custom profile preserves the old core workflow set', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'custom',
+        delivery: 'both',
+        workflows: ['propose', 'explore', 'apply', 'archive'],
+      });
+
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+      await initCommand.execute(testDir);
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      const calls = consoleSpy.mock.calls.map(call =>
+        call.map(arg => String(arg)).join(' ')
+      );
+      expect(calls.some(call =>
+        call.includes('The core profile now includes sync')
+      )).toBe(true);
+      expect(calls.some(call =>
+        call.includes('openspec config profile core') && call.includes('openspec update')
+      )).toBe(true);
+
+      expect(await FileSystemUtils.fileExists(
+        path.join(testDir, '.claude', 'skills', 'openspec-sync-specs', 'SKILL.md')
+      )).toBe(false);
+      expect(await FileSystemUtils.fileExists(
+        path.join(testDir, '.claude', 'commands', 'opsx', 'sync.md')
+      )).toBe(false);
+
+      consoleSpy.mockRestore();
+    });
+
     it('should respect skills-only delivery setting', async () => {
       setMockConfig({
         featureFlags: {},
