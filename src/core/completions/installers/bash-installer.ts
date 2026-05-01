@@ -2,6 +2,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
 import { FileSystemUtils } from '../../../utils/file-system.js';
+import { COMPLETION_MESSAGES } from '../../../messages/index.js';
 import { InstallationResult } from '../factory.js';
 
 /**
@@ -101,7 +102,7 @@ export class BashInstaller {
    */
   private generateBashrcConfig(completionsDir: string): string {
     return [
-      '# OpenSpec shell completions configuration',
+      '# BR-OpenSpec shell completions configuration',
       `if [ -d "${completionsDir}" ]; then`,
       `  for f in "${completionsDir}"/*; do`,
       '    [ -f "$f" ] && . "$f"',
@@ -260,13 +261,13 @@ export class BashInstaller {
       const warnings: string[] = [];
       if (!hasBashCompletion) {
         warnings.push(
-          '⚠️  Warning: bash-completion package not detected',
+          COMPLETION_MESSAGES.bashCompletionNotDetected,
           '',
-          'The completion script requires bash-completion to function.',
-          'Install it with:',
+          COMPLETION_MESSAGES.bashCompletionRequired,
+          COMPLETION_MESSAGES.installWith,
           '  brew install bash-completion@2',
           '',
-          'Then add to your ~/.bash_profile:',
+          COMPLETION_MESSAGES.addToBashProfile,
           '  [[ -r "/opt/homebrew/etc/profile.d/bash_completion.sh" ]] && . "/opt/homebrew/etc/profile.d/bash_completion.sh"'
         );
       }
@@ -314,7 +315,7 @@ export class BashInstaller {
       '',
       'To enable completions, add the following to your ~/.bashrc file:',
       '',
-      `  # Source OpenSpec completions`,
+      `  # Source BR-OpenSpec completions`,
       `  if [ -d "${completionsDir}" ]; then`,
       `    for f in "${completionsDir}"/*; do`,
       '      [ -f "$f" ] && . "$f"',

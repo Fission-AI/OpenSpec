@@ -32,7 +32,7 @@ function isGhAuthenticated(): boolean {
 }
 
 /**
- * Get OpenSpec version from package.json
+ * Get BR-OpenSpec version from package.json
  */
 function getVersion(): string {
   try {

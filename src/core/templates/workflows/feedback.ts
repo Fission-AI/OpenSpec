@@ -9,8 +9,8 @@ import type { SkillTemplate } from '../types.js';
 export function getFeedbackSkillTemplate(): SkillTemplate {
   return {
     name: 'feedback',
-    description: 'Colete e envie feedback do usuário sobre o OpenSpec com enriquecimento de contexto e anonimização.',
-    instructions: `Ajude o usuário a enviar feedback sobre o OpenSpec.
+    description: 'Colete e envie feedback do usuário sobre o BR-OpenSpec com enriquecimento de contexto e anonimização.',
+    instructions: `Ajude o usuário a enviar feedback sobre o BR-OpenSpec.
 
 **Objetivo**: Guie o usuário através da coleta, enriquecimento e envio de feedback enquanto garante privacidade através de anonimização.
 

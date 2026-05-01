@@ -35,7 +35,7 @@ describe('ListCommand', () => {
       const listCommand = new ListCommand();
       
       await expect(listCommand.execute(tempDir, 'changes')).rejects.toThrow(
-        "No OpenSpec changes directory found. Run 'openspec init' first."
+        "Diretório de alterações do BR-OpenSpec não encontrado. Execute 'openspec init' primeiro."
       );
     });
 
@@ -63,7 +63,7 @@ describe('ListCommand', () => {
       const listCommand = new ListCommand();
       await listCommand.execute(tempDir, 'changes');
 
-      expect(logOutput).toContain('Changes:');
+      expect(logOutput).toContain('Alterações:');
       expect(logOutput.some(line => line.includes('my-change'))).toBe(true);
       expect(logOutput.some(line => line.includes('archive'))).toBe(false);
     });
@@ -87,7 +87,7 @@ Regular text that should be ignored
       const listCommand = new ListCommand();
       await listCommand.execute(tempDir, 'changes');
 
-      expect(logOutput.some(line => line.includes('2/5 tasks'))).toBe(true);
+      expect(logOutput.some(line => line.includes('2/5 tarefas'))).toBe(true);
     });
 
     it('should show complete status for fully completed changes', async () => {
@@ -102,7 +102,7 @@ Regular text that should be ignored
       const listCommand = new ListCommand();
       await listCommand.execute(tempDir, 'changes');
 
-      expect(logOutput.some(line => line.includes('✓ Complete'))).toBe(true);
+      expect(logOutput.some(line => line.includes('✓ Concluído'))).toBe(true);
     });
 
     it('should handle changes without tasks.md', async () => {
@@ -112,7 +112,7 @@ Regular text that should be ignored
       const listCommand = new ListCommand();
       await listCommand.execute(tempDir, 'changes');
 
-      expect(logOutput.some(line => line.includes('no-tasks') && line.includes('No tasks'))).toBe(true);
+      expect(logOutput.some(line => line.includes('no-tasks') && line.includes('sem-tarefas'))).toBe(true);
     });
 
     it('should sort changes alphabetically when sort=name', async () => {
@@ -156,7 +156,7 @@ Regular text that should be ignored
       const listCommand = new ListCommand();
       await listCommand.execute(tempDir);
 
-      expect(logOutput).toContain('Changes:');
+      expect(logOutput).toContain('Alterações:');
       expect(logOutput.some(line => line.includes('completed') && line.includes('✓ Complete'))).toBe(true);
       expect(logOutput.some(line => line.includes('partial') && line.includes('1/3 tasks'))).toBe(true);
       expect(logOutput.some(line => line.includes('no-tasks') && line.includes('No tasks'))).toBe(true);

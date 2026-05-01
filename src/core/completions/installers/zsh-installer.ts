@@ -105,7 +105,7 @@ export class ZshInstaller {
    */
   private generateZshrcConfig(completionsDir: string): string {
     return [
-      '# OpenSpec shell completions configuration',
+      '# BR-OpenSpec shell completions configuration',
       `fpath=("${completionsDir}" $fpath)`,
       'autoload -Uz compinit',
       'compinit',
@@ -435,10 +435,10 @@ export class ZshInstaller {
 
       const messages: string[] = [];
       if (scriptRemoved) {
-        messages.push(`Completion script removed from ${targetPath}`);
+        messages.push(`Script de autocomplete removido de ${targetPath}`);
       }
       if (zshrcCleaned && !isOhMyZsh) {
-        messages.push('Removed OpenSpec configuration from ~/.zshrc');
+        messages.push('Removed BR-OpenSpec configuration from ~/.zshrc');
       }
 
       return {

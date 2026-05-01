@@ -41,7 +41,7 @@ describe('top-level show command', () => {
       expect(err).toBeDefined();
       expect(err.status).not.toBe(0);
       const stderr = err.stderr.toString();
-      expect(stderr).toContain('Nothing to show.');
+      expect(stderr).toContain('Nada para exibir.');
       expect(stderr).toContain('openspec show <item>');
       expect(stderr).toContain('openspec change show');
       expect(stderr).toContain('openspec spec show');
@@ -94,7 +94,7 @@ describe('top-level show command', () => {
       expect(err).toBeDefined();
       expect(err.status).not.toBe(0);
       const stderr = err.stderr.toString();
-      expect(stderr).toContain('Ambiguous item');
+      expect(stderr).toContain('é ambíguo');
       expect(stderr).toContain('--type change|spec');
     } finally {
       process.chdir(originalCwd);
@@ -112,8 +112,8 @@ describe('top-level show command', () => {
       expect(err).toBeDefined();
       expect(err.status).not.toBe(0);
       const stderr = err.stderr.toString();
-      expect(stderr).toContain("Unknown item 'unknown-item'");
-      expect(stderr).toContain('Did you mean:');
+      expect(stderr).toContain("Item desconhecido 'unknown-item'");
+      expect(stderr).toContain('Você quis dizer:');
     } finally {
       process.chdir(originalCwd);
     }

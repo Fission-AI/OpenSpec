@@ -11,24 +11,24 @@
 
 export const CLI_DESCRIPTIONS = {
   root: 'Sistema de desenvolvimento orientado a especificações com IA',
-  init: 'Inicializa o OpenSpec no seu projeto',
+  init: 'Inicializa o BR-OpenSpec no seu projeto',
   experimental: 'Alias para init (descontinuado)',
-  update: 'Atualiza os arquivos de instruções do OpenSpec',
+  update: 'Atualiza os arquivos de instruções do BR-OpenSpec',
   list: 'Lista itens (alterações por padrão). Use --specs para listar especificações.',
   view: 'Exibe um painel interativo de especificações e alterações',
-  change: 'Gerencia propostas de alteração do OpenSpec',
+  change: 'Gerencia propostas de alteração do BR-OpenSpec',
   changeShow: 'Exibe uma proposta de alteração em JSON ou markdown',
   changeList: 'Lista todas as alterações ativas (DESCONTINUADO: use "openspec list")',
   changeValidate: 'Valida uma proposta de alteração',
   archive: 'Arquiva uma alteração concluída e atualiza as especificações principais',
-  spec: 'Gerencia e visualiza especificações do OpenSpec',
+  spec: 'Gerencia e visualiza especificações do BR-OpenSpec',
   specShow: 'Exibe uma especificação específica',
   specList: 'Lista todas as especificações disponíveis',
   specValidate: 'Valida a estrutura de uma especificação',
   validate: 'Valida alterações e especificações',
   show: 'Exibe uma alteração ou especificação',
-  feedback: 'Envia feedback sobre o OpenSpec',
-  completion: 'Gerencia autocomplete do shell para a CLI do OpenSpec',
+  feedback: 'Envia feedback sobre o BR-OpenSpec',
+  completion: 'Gerencia autocomplete do shell para a CLI do BR-OpenSpec',
   completionGenerate: 'Gera script de autocomplete para um shell (saída no stdout)',
   completionInstall: 'Instala script de autocomplete para um shell',
   completionUninstall: 'Remove script de autocomplete de um shell',
@@ -172,7 +172,7 @@ export const VALIDATE_MESSAGES = {
 // ═══════════════════════════════════════════════════════════
 
 export const LIST_MESSAGES = {
-  noChangesDir: "Diretório de alterações do OpenSpec não encontrado. Execute 'openspec init' primeiro.",
+  noChangesDir: "Diretório de alterações do BR-OpenSpec não encontrado. Execute 'openspec init' primeiro.",
   noActiveChanges: 'Nenhuma alteração ativa encontrada.',
   noSpecsFound: 'Nenhuma especificação encontrada.',
   changesHeader: 'Alterações:',
@@ -197,7 +197,7 @@ export const LIST_MESSAGES = {
 
 export const VIEW_MESSAGES = {
   noOpenspecDir: 'Diretório openspec não encontrado',
-  dashboardTitle: 'Painel OpenSpec',
+  dashboardTitle: 'Painel BR-OpenSpec',
   draftChanges: 'Alterações em Rascunho',
   activeChanges: 'Alterações Ativas',
   completedChanges: 'Alterações Concluídas',
@@ -217,7 +217,7 @@ export const VIEW_MESSAGES = {
 // ═══════════════════════════════════════════════════════════
 
 export const ARCHIVE_MESSAGES = {
-  noChangesDir: "Diretório de alterações do OpenSpec não encontrado. Execute 'openspec init' primeiro.",
+  noChangesDir: "Diretório de alterações do BR-OpenSpec não encontrado. Execute 'openspec init' primeiro.",
   changeNotFound: (name: string) => `Alteração '${name}' não encontrada.`,
   noChangeSelected: 'Nenhuma alteração selecionada. Cancelando.',
   noActiveChanges: 'Nenhuma alteração ativa encontrada.',
@@ -244,7 +244,7 @@ export const ARCHIVE_MESSAGES = {
   totals: (added: number, modified: number, removed: number, renamed: number) =>
     `Totais: + ${added}, ~ ${modified}, - ${removed}, → ${renamed}`,
   specsUpdatedSuccessfully: 'Especificações atualizadas com sucesso.',
-  archiveAlreadyExists: (name: string) => `Arquivo '${name}' já existe.`,
+  archiveAlreadyExists: (name: string) => `O arquivamento '${name}' já existe.`,
   changeArchived: (changeName: string, archiveName: string) => `Alteração '${changeName}' arquivada como '${archiveName}'.`,
 };
 
@@ -253,7 +253,7 @@ export const ARCHIVE_MESSAGES = {
 // ═══════════════════════════════════════════════════════════
 
 export const INIT_MESSAGES = {
-  welcomeTitle: 'Bem-vindo ao OpenSpec',
+  welcomeTitle: 'Bem-vindo ao BR-OpenSpec',
   welcomeSubtitle: 'Um framework leve orientado a especificações',
   setupWillConfigure: 'Esta configuração irá configurar:',
   agentSkills: '  • Agent Skills para ferramentas de IA',
@@ -281,12 +281,12 @@ export const INIT_MESSAGES = {
   invalidTools: (invalid: string, available: string) => `Ferramenta(s) inválida(s): ${invalid}. Valores disponíveis: ${available}`,
   unknownTool: (toolId: string, validTools: string) => `Ferramenta desconhecida '${toolId}'. Ferramentas válidas:\n  ${validTools}`,
   toolNoSkillSupport: (toolId: string, validTools: string) => `Ferramenta '${toolId}' não suporta geração de skills.\nFerramentas com suporte a geração de skills:\n  ${validTools}`,
-  creatingStructure: 'Criando estrutura do OpenSpec...',
-  structureCreated: 'Estrutura do OpenSpec criada',
+  creatingStructure: 'Criando estrutura do BR-OpenSpec...',
+  structureCreated: 'Estrutura do BR-OpenSpec criada',
   settingUp: (name: string) => `Configurando ${name}...`,
   setupComplete: (name: string) => `Configuração concluída para ${name}`,
   setupFailed: (name: string) => `Falha na configuração de ${name}`,
-  setupCompleteTitle: 'Configuração do OpenSpec Concluída',
+  setupCompleteTitle: 'Configuração do BR-OpenSpec Concluída',
   created: (names: string) => `Criados: ${names}`,
   refreshed: (names: string) => `Atualizados: ${names}`,
   failed: (errors: string) => `Falhas: ${errors}`,
@@ -303,7 +303,7 @@ export const INIT_MESSAGES = {
   learnMore: (url: string) => `Saiba mais: ${url}`,
   feedback: (url: string) => `Feedback:   ${url}`,
   restartIDE: 'Reinicie sua IDE para que os comandos de barra tenham efeito.',
-  configuredPreselected: (names: string) => `OpenSpec configurado: ${names} (pré-selecionado)`,
+  configuredPreselected: (names: string) => `BR-OpenSpec configurado: ${names} (pré-selecionado)`,
   detectedToolsLabel: (names: string, label: string) => `Diretórios de ferramentas detectados: ${names} (${label})`,
   preselectedFirstTime: 'pré-selecionado para configuração inicial',
   notPreselected: 'não pré-selecionado',
@@ -314,7 +314,7 @@ export const INIT_MESSAGES = {
 // ═══════════════════════════════════════════════════════════
 
 export const TOOLS_MESSAGES = {
-  notInitialized: 'Este projeto não foi inicializado com o OpenSpec.\n  Execute `openspec init` primeiro.',
+  notInitialized: 'Este projeto não foi inicializado com o BR-OpenSpec.\n  Execute `openspec init` primeiro.',
   noToolsToAdd: 'Nenhuma ferramenta especificada para adicionar.',
   noToolsToRemove: 'Nenhuma ferramenta especificada para remover.',
   adding: (name: string) => `Adicionando ${name}...`,
@@ -337,6 +337,8 @@ export const TOOLS_MESSAGES = {
   removeOption: 'Remove ferramentas (IDs separados por vírgula ou "all")',
   cannotAddAndRemoveSame: (tools: string) => `Não é possível adicionar e remover as mesmas ferramentas: ${tools}`,
   noFlagNonInteractive: 'Nenhuma flag --add ou --remove foi fornecida e o terminal não é interativo.\n  Use --add <ferramentas> ou --remove <ferramentas> para operar não interativamente.',
+  cannotCombineReserved: 'Não é possível combinar valores reservados "all" ou "none" com IDs de ferramentas específicos.',
+  invalidTools: (invalid: string, available: string) => `Ferramenta(s) inválida(s): ${invalid}. Disponíveis: ${available}`,
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -344,7 +346,7 @@ export const TOOLS_MESSAGES = {
 // ═══════════════════════════════════════════════════════════
 
 export const CONFIG_MESSAGES = {
-  viewAndModify: 'Visualiza e modifica a configuração global do OpenSpec',
+  viewAndModify: 'Visualiza e modifica a configuração global do BR-OpenSpec',
   showLocation: 'Mostra o caminho do arquivo de configuração',
   showAllSettings: 'Mostra todas as configurações atuais',
   getValue: 'Obtém um valor específico (raw, scriptável)',
@@ -440,7 +442,7 @@ export const CONFIG_MESSAGES = {
   workflowVerifyName: 'Verificar alteração',
   workflowVerifyDesc: 'Executa verificações contra uma alteração',
   workflowOnboardName: 'Onboarding',
-  workflowOnboardDesc: 'Fluxo de onboarding guiado para o OpenSpec',
+  workflowOnboardDesc: 'Fluxo de onboarding guiado para o BR-OpenSpec',
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -526,7 +528,7 @@ export const SCHEMA_MESSAGES = {
 // ═══════════════════════════════════════════════════════════
 
 export const COMPLETION_MESSAGES = {
-  removeConfigConfirm: (path: string) => `Remover a configuração do OpenSpec de ${path}?`,
+  removeConfigConfirm: (path: string) => `Remover a configuração do BR-OpenSpec de ${path}?`,
   shellNotSupported: (shell: string, supported: string) => `Erro: Shell '${shell}' ainda não é suportado. Suportados atualmente: ${supported}`,
   couldNotDetectShell: 'Erro: Não foi possível detectar o shell automaticamente. Especifique o shell explicitamente.',
   usageCompletion: (operation: string) => `Uso: openspec completion ${operation} [shell]`,
@@ -547,6 +549,15 @@ export const COMPLETION_MESSAGES = {
   activeChange: 'alteração ativa',
   specification: 'especificação',
   archivedChange: 'alteração arquivada',
+  bashCompletionNotDetected: '⚠️  Aviso: pacote bash-completion não detectado',
+  bashCompletionRequired: 'O script de autocomplete requer bash-completion para funcionar.',
+  installWith: 'Instale-o com:',
+  addToBashProfile: 'Depois adicione ao seu ~/.bash_profile:',
+  warningSkippingProfile: (path: string, err: string) => `Aviso: Ignorando ${path}: ${err}`,
+  warningCouldNotConfigure: (path: string, err: string) => `Aviso: Não foi possível configurar ${path}: ${err}`,
+  warningCouldNotRead: (path: string, err: string) => `Aviso: Não foi possível ler ${path}: ${err}`,
+  warningStartMarkerWithoutEnd: (path: string) => `Aviso: Marcador de início encontrado mas sem marcador de fim em ${path}`,
+  warningCouldNotClean: (path: string, err: string) => `Aviso: Não foi possível limpar ${path}: ${err}`,
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -554,7 +565,7 @@ export const COMPLETION_MESSAGES = {
 // ═══════════════════════════════════════════════════════════
 
 export const FEEDBACK_MESSAGES = {
-  submitFeedback: 'Envia feedback sobre o OpenSpec',
+  submitFeedback: 'Envia feedback sobre o BR-OpenSpec',
   githubCliNotFound: '⚠️  GitHub CLI não encontrado. Submissão manual necessária.',
   githubAuthRequired: '⚠️  Autenticação do GitHub necessária. Submissão manual necessária.',
   formattedFeedbackHeader: '\n--- FEEDBACK FORMATADO ---',
@@ -567,7 +578,7 @@ export const FEEDBACK_MESSAGES = {
   feedbackSubmitted: '\n✓ Feedback enviado com sucesso!',
   issueUrl: (url: string) => `URL da Issue: ${url}\n`,
   feedbackTitle: (message: string) => `Feedback: ${message}`,
-  submittedVia: 'Enviado via OpenSpec CLI',
+  submittedVia: 'Enviado via BR-OpenSpec CLI',
   versionLabel: (version: string) => `- Versão: ${version}`,
   platformLabel: (platform: string) => `- Plataforma: ${platform}`,
   timestampLabel: (timestamp: string) => `- Timestamp: ${timestamp}`,
@@ -578,7 +589,7 @@ export const FEEDBACK_MESSAGES = {
 // ═══════════════════════════════════════════════════════════
 
 export const UI_MESSAGES = {
-  welcomeTitle: 'Bem-vindo ao OpenSpec',
+  welcomeTitle: 'Bem-vindo ao BR-OpenSpec',
   welcomeSubtitle: 'Um framework leve orientado a especificações',
   setupWillConfigure: 'Esta configuração irá configurar:',
   agentSkills: '  • Agent Skills para ferramentas de IA',
@@ -625,7 +636,7 @@ export const UTILS_MESSAGES = {
 // ═══════════════════════════════════════════════════════════
 
 export const UPDATE_MESSAGES = {
-  noOpenspecDir: "Diretório do OpenSpec não encontrado. Execute 'openspec init' primeiro.",
+  noOpenspecDir: "Diretório do BR-OpenSpec não encontrado. Execute 'openspec init' primeiro.",
   noConfiguredTools: 'Nenhuma ferramenta configurada encontrada.',
   runInitHint: 'Execute "openspec init" para configurar ferramentas.',
   forceUpdating: (count: number, tools: string) => `Forçando atualização de ${count} ferramenta(s): ${tools}`,

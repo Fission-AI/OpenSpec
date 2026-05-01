@@ -178,19 +178,19 @@ describe('config profile interactive flow', () => {
     await runConfigCommand(['profile']);
 
     const firstCall = select.mock.calls[0][0];
-    expect(firstCall.message).toBe('What do you want to configure?');
+    expect(firstCall.message).toBe('O que você deseja configurar?');
     expect(firstCall.choices).toEqual(expect.arrayContaining([
       expect.objectContaining({
         value: 'delivery',
-        description: 'Change where workflows are installed',
+        description: 'Altera onde os fluxos de trabalho são instalados',
       }),
       expect.objectContaining({
         value: 'workflows',
-        description: 'Change which workflow actions are available',
+        description: 'Altera quais ações de fluxo de trabalho estão disponíveis',
       }),
       expect.objectContaining({
         value: 'keep',
-        name: 'Keep current settings (exit)',
+        name: 'Manter configurações atuais (sair)',
       }),
     ]));
   });
@@ -236,7 +236,7 @@ describe('config profile interactive flow', () => {
     expect(select).toHaveBeenCalledTimes(2);
     const secondCall = select.mock.calls[1][0];
     expect(secondCall.choices).toEqual(expect.arrayContaining([
-      expect.objectContaining({ value: 'commands', name: 'Commands only [current]' }),
+      expect.objectContaining({ value: 'commands', name: 'Apenas commands [atual]' }),
     ]));
   });
 
@@ -251,17 +251,17 @@ describe('config profile interactive flow', () => {
     await runConfigCommand(['profile']);
 
     const checkboxCall = checkbox.mock.calls[0][0];
-    expect(checkboxCall.message).toBe('Select workflows to make available:');
+    expect(checkboxCall.message).toBe('Selecione os fluxos de trabalho a tornar disponíveis:');
     expect(checkboxCall.choices).toEqual(expect.arrayContaining([
       expect.objectContaining({
         value: 'propose',
-        name: 'Propose change',
-        description: 'Create proposal, design, and tasks from a request',
+        name: 'Propor alteração',
+        description: 'Cria proposta, design e tarefas a partir de uma solicitação',
       }),
       expect.objectContaining({
         value: 'verify',
-        name: 'Verify change',
-        description: 'Run verification checks against a change',
+        name: 'Verificar alteração',
+        description: 'Executa verificações contra uma alteração',
       }),
     ]));
   });
@@ -283,7 +283,7 @@ describe('config profile interactive flow', () => {
     const afterContent = fs.readFileSync(configPath, 'utf-8');
     expect(afterContent).toBe(beforeContent);
     expect(confirm).not.toHaveBeenCalled();
-    expect(consoleLogSpy).toHaveBeenCalledWith('No config changes.');
+    expect(consoleLogSpy).toHaveBeenCalledWith('Nenhuma alteração na configuração.');
   });
 
   it('keep action should warn when project files drift from global config', async () => {
@@ -296,8 +296,8 @@ describe('config profile interactive flow', () => {
 
     await runConfigCommand(['profile']);
 
-    expect(consoleLogSpy).toHaveBeenCalledWith('No config changes.');
-    expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Warning: Global config is not applied to this project.'));
+    expect(consoleLogSpy).toHaveBeenCalledWith('Nenhuma alteração na configuração.');
+    expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Aviso: A configuração global não foi aplicada a este projeto. Execute `openspec update` para sincronizar.'));
   });
 
   it('keep action should not warn when project files are already synced', async () => {
@@ -311,7 +311,7 @@ describe('config profile interactive flow', () => {
     await runConfigCommand(['profile']);
 
     const allLogs = consoleLogSpy.mock.calls.map((args) => args.map(String).join(' '));
-    expect(allLogs.some((line) => line.includes('Warning: Global config is not applied to this project.'))).toBe(false);
+    expect(allLogs.some((line) => line.includes('Aviso: A configuração global não foi aplicada a este projeto. Execute `openspec update` para sincronizar.'))).toBe(false);
   });
 
   it('effective no-op after prompts should warn when project files drift', async () => {
@@ -325,9 +325,9 @@ describe('config profile interactive flow', () => {
 
     await runConfigCommand(['profile']);
 
-    expect(consoleLogSpy).toHaveBeenCalledWith('No config changes.');
+    expect(consoleLogSpy).toHaveBeenCalledWith('Nenhuma alteração na configuração.');
     expect(confirm).not.toHaveBeenCalled();
-    expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Warning: Global config is not applied to this project.'));
+    expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Aviso: A configuração global não foi aplicada a este projeto. Execute `openspec update` para sincronizar.'));
   });
 
   it('keep action should warn when project has extra workflows beyond global config', async () => {
@@ -341,8 +341,8 @@ describe('config profile interactive flow', () => {
 
     await runConfigCommand(['profile']);
 
-    expect(consoleLogSpy).toHaveBeenCalledWith('No config changes.');
-    expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Warning: Global config is not applied to this project.'));
+    expect(consoleLogSpy).toHaveBeenCalledWith('Nenhuma alteração na configuração.');
+    expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Aviso: A configuração global não foi aplicada a este projeto. Execute `openspec update` para sincronizar.'));
   });
 
   it('changed config should save and ask apply when inside project', async () => {
@@ -360,7 +360,7 @@ describe('config profile interactive flow', () => {
 
     expect(getGlobalConfig().delivery).toBe('skills');
     expect(confirm).toHaveBeenCalledWith({
-      message: 'Apply changes to this project now?',
+      message: 'Aplicar alterações a este projeto agora?',
       default: true,
     });
   });
@@ -391,7 +391,7 @@ describe('config profile interactive flow', () => {
 
     await expect(runConfigCommand(['profile'])).resolves.toBeUndefined();
 
-    expect(consoleLogSpy).toHaveBeenCalledWith('Config profile cancelled.');
+    expect(consoleLogSpy).toHaveBeenCalledWith('Configuração de perfil cancelada.');
     expect(process.exitCode).toBe(130);
     expect(checkbox).not.toHaveBeenCalled();
     expect(confirm).not.toHaveBeenCalled();

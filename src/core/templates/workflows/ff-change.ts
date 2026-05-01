@@ -9,7 +9,7 @@ import type { SkillTemplate, CommandTemplate } from '../types.js';
 export function getFfChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-ff-change',
-    description: 'Avance rapidamente pela criação de artifacts do OpenSpec. Use quando o usuário quiser criar rapidamente todos os artifacts necessários para implementação sem passar por cada um individualmente.',
+    description: 'Avance rapidamente pela criação de artifacts do BR-BR-OpenSpec. Use quando o usuário quiser criar rapidamente todos os artifacts necessários para implementação sem passar por cada um individualmente.',
     instructions: `Avance rapidamente pela criação de artifacts - gere tudo o que é necessário para iniciar a implementação de uma vez só.
 
 **Entrada**: A solicitação do usuário deve incluir um nome de change (kebab-case) OU uma descrição do que ele quer construir.

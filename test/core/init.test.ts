@@ -212,7 +212,7 @@ describe('InitCommand', () => {
     it('should throw error for invalid tool names', async () => {
       const initCommand = new InitCommand({ tools: 'invalid-tool', force: true });
 
-      await expect(initCommand.execute(testDir)).rejects.toThrow(/Invalid tool\(s\): invalid-tool/);
+      await expect(initCommand.execute(testDir)).rejects.toThrow(/Ferramenta\(s\) inválida\(s\): invalid-tool/);
     });
 
     it('should handle comma-separated tool names with spaces', async () => {
@@ -231,7 +231,7 @@ describe('InitCommand', () => {
       const initCommand = new InitCommand({ tools: 'all,claude', force: true });
 
       await expect(initCommand.execute(testDir)).rejects.toThrow(
-        /Cannot combine reserved values "all" or "none" with specific tool IDs/
+        /Não é possível combinar valores reservados "all" ou "none" com IDs de ferramentas específicos/
       );
     });
 
@@ -320,8 +320,8 @@ describe('InitCommand', () => {
       const skillFile = path.join(testDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md');
       const content = await fs.readFile(skillFile, 'utf-8');
 
-      expect(content).toContain('Enter explore mode');
-      expect(content).toContain('thinking partner');
+      expect(content).toContain('Entre no modo explore');
+      expect(content).toContain('parceiro de pensamento');
     });
 
     it('should include propose skill instructions', async () => {
@@ -402,13 +402,13 @@ describe('InitCommand', () => {
       );
 
       const initCommand = new InitCommand({ tools: 'claude', force: true });
-      await expect(initCommand.execute(readOnlyDir)).rejects.toThrow(/Insufficient permissions/);
+      await expect(initCommand.execute(readOnlyDir)).rejects.toThrow(/Permissões insuficientes/);
     });
 
     it('should throw error in non-interactive mode without --tools flag and no detected tools', async () => {
       const initCommand = new InitCommand({ interactive: false });
 
-      await expect(initCommand.execute(testDir)).rejects.toThrow(/No tools detected and no --tools flag/);
+      await expect(initCommand.execute(testDir)).rejects.toThrow(/Nenhuma ferramenta detectada e nenhuma flag --tools/);
     });
   });
 

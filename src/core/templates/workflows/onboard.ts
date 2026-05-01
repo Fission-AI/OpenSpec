@@ -9,7 +9,7 @@ import type { SkillTemplate, CommandTemplate } from '../types.js';
 export function getOnboardSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-onboard',
-    description: 'Onboarding guiado para o OpenSpec - percorra um ciclo completo de workflow com narração e trabalho real na codebase.',
+    description: 'Onboarding guiado para o BR-OpenSpec - percorra um ciclo completo de workflow com narração e trabalho real na codebase.',
     instructions: getOnboardInstructions(),
     license: 'MIT',
     compatibility: 'Requer openspec CLI.',
@@ -18,13 +18,13 @@ export function getOnboardSkillTemplate(): SkillTemplate {
 }
 
 function getOnboardInstructions(): string {
-  return `Guie o usuário através de seu primeiro ciclo completo de workflow do OpenSpec. Esta é uma experiência de ensino - você fará trabalho real na codebase dele enquanto explica cada passo.
+  return `Guie o usuário através de seu primeiro ciclo completo de workflow do BR-BR-OpenSpec. Esta é uma experiência de ensino - você fará trabalho real na codebase dele enquanto explica cada passo.
 
 ---
 
 ## Pré-voo
 
-Antes de começar, verifique se o CLI do OpenSpec está instalado:
+Antes de começar, verifique se o CLI do BR-BR-OpenSpec está instalado:
 
 \`\`\`bash
 # Unix/macOS
@@ -34,7 +34,7 @@ openspec --version 2>&1 || echo "CLI_NOT_INSTALLED"
 \`\`\`
 
 **Se o CLI não estiver instalado:**
-> O CLI do OpenSpec não está instalado. Instale-o primeiro, depois volte para \`/opsx:onboard\`.
+> O CLI do BR-BR-OpenSpec não está instalado. Instale-o primeiro, depois volte para \`/opsx:onboard\`.
 
 Pare aqui se não estiver instalado.
 
@@ -45,7 +45,7 @@ Pare aqui se não estiver instalado.
 Exiba:
 
 \`\`\`
-## Bem-vindo ao OpenSpec!
+## Bem-vindo ao BR-OpenSpec!
 
 Eu vou te guiar através de um ciclo completo de change - da ideia à implementação - usando uma tarefa real na sua codebase. Ao longo do caminho, você aprenderá o workflow fazendo.
 
@@ -123,7 +123,7 @@ Qual tarefa te interessa? (Escolha um número ou descreva a sua)
 Se o usuário escolher ou descrever algo muito grande (funcionalidade principal, trabalho de vários dias):
 
 \`\`\`
-Essa é uma tarefa valiosa, mas provavelmente maior do que o ideal para sua primeira execução do OpenSpec.
+Essa é uma tarefa valiosa, mas provavelmente maior do que o ideal para sua primeira execução do BR-BR-OpenSpec.
 
 Para aprender o workflow, menor é melhor - permite ver o ciclo completo sem ficar preso em detalhes de implementação.
 
@@ -176,7 +176,7 @@ Agora vamos criar uma change para conter nosso trabalho.
 \`\`\`
 ## Criando uma Change
 
-Uma "change" no OpenSpec é um container para todo o pensamento e planejamento em torno de uma peça de trabalho. Ela fica em \`openspec/changes/<nome>/\` e armazena seus artifacts - proposal, specs, design, tasks.
+Uma "change" no BR-OpenSpec é um container para todo o pensamento e planejamento em torno de uma peça de trabalho. Ela fica em \`openspec/changes/<nome>/\` e armazena seus artifacts - proposal, specs, design, tasks.
 
 Deixe-me criar uma para nossa tarefa.
 \`\`\`
@@ -458,7 +458,7 @@ A change agora faz parte do histórico do seu projeto. O código está na sua co
 \`\`\`
 ## Parabéns!
 
-Você acabou de completar um ciclo completo do OpenSpec:
+Você acabou de completar um ciclo completo do BR-BR-OpenSpec:
 
 1. **Explore** - Pensou sobre o problema
 2. **New** - Criou um container de change
@@ -525,7 +525,7 @@ Saia graciosamente sem pressão.
 Se o usuário disser que apenas quer ver os comandos ou pular o tutorial:
 
 \`\`\`
-## Referência Rápida do OpenSpec
+## Referência Rápida do BR-BR-OpenSpec
 
 **Workflow principal:**
 
@@ -566,7 +566,7 @@ Saia graciosamente.
 export function getOpsxOnboardCommandTemplate(): CommandTemplate {
   return {
     name: 'OPSX: Onboard',
-    description: 'Onboarding guiado - percorra um ciclo completo de workflow do OpenSpec com narração',
+    description: 'Onboarding guiado - percorra um ciclo completo de workflow do BR-BR-OpenSpec com narração',
     category: 'Workflow',
     tags: ['workflow', 'onboarding', 'tutorial', 'learning'],
     content: getOnboardInstructions(),

@@ -24,14 +24,14 @@ describe('BashGenerator', () => {
       const commands: CommandDefinition[] = [
         {
           name: 'init',
-          description: 'Initialize OpenSpec',
+          description: 'Initialize BR-OpenSpec',
           flags: [],
         },
       ];
 
       const script = generator.generate(commands);
 
-      expect(script).toContain('# Bash completion script for OpenSpec CLI');
+      expect(script).toContain('# Bash completion script for BR-OpenSpec CLI');
       expect(script).toContain('_openspec_completion() {');
       expect(script).toContain('local cur prev words cword');
       expect(script).toContain('_init_completion -n : || return');
@@ -41,7 +41,7 @@ describe('BashGenerator', () => {
       const commands: CommandDefinition[] = [
         {
           name: 'init',
-          description: 'Initialize OpenSpec',
+          description: 'Initialize BR-OpenSpec',
           flags: [],
         },
         {
@@ -320,7 +320,7 @@ describe('BashGenerator', () => {
       const commands: CommandDefinition[] = [
         {
           name: 'init',
-          description: 'Initialize OpenSpec',
+          description: 'Initialize BR-OpenSpec',
           acceptsPositional: true,
           positionalType: 'path',
           flags: [],

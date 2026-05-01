@@ -2,6 +2,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
 import { FileSystemUtils } from '../../../utils/file-system.js';
+import { COMPLETION_MESSAGES } from '../../../messages/index.js';
 import { InstallationResult } from '../factory.js';
 
 /**
@@ -120,7 +121,7 @@ export class PowerShellInstaller {
   getInstallationPath(): string {
     const profilePath = this.getProfilePath();
     const profileDir = path.dirname(profilePath);
-    return path.join(profileDir, 'OpenSpecCompletion.ps1');
+    return path.join(profileDir, 'BROpenSpecCompletion.ps1');
   }
 
   /**
@@ -151,7 +152,7 @@ export class PowerShellInstaller {
    */
   private generateProfileConfig(scriptPath: string): string {
     return [
-      '# OpenSpec shell completions configuration',
+      '# BR-OpenSpec shell completions configuration',
       `if (Test-Path "${scriptPath}") {`,
       `    . "${scriptPath}"`,
       '}',
@@ -188,7 +189,7 @@ export class PowerShellInstaller {
           if (err?.code === 'ENOENT') {
             // keep defaults
           } else {
-            console.warn(`Warning: Skipping ${profilePath}: ${err?.message ?? String(err)}`);
+            console.warn(COMPLETION_MESSAGES.warningSkippingProfile(profilePath, err?.message ?? String(err)));
             continue;
           }
         }
@@ -202,7 +203,7 @@ export class PowerShellInstaller {
         // Add OpenSpec completion configuration with markers
         const openspecBlock = [
           '',
-          '# OPENSPEC:START - OpenSpec completion (managed block, do not edit manually)',
+          '# OPENSPEC:START - BR-OpenSpec completion (managed block, do not edit manually)',
           scriptLine,
           '# OPENSPEC:END',
           '',
@@ -213,7 +214,7 @@ export class PowerShellInstaller {
         anyConfigured = true;
       } catch (error) {
         // Continue to next profile if this one fails
-        console.warn(`Warning: Could not configure ${profilePath}: ${error}`);
+        console.warn(COMPLETION_MESSAGES.warningCouldNotConfigure(profilePath, String(error)));
       }
     }
 
@@ -245,7 +246,7 @@ export class PowerShellInstaller {
           if (err?.code === 'ENOENT') {
             continue; // Profile doesn't exist, nothing to remove
           }
-          console.warn(`Warning: Could not read ${profilePath}: ${err?.message ?? String(err)}`);
+          console.warn(COMPLETION_MESSAGES.warningCouldNotRead(profilePath, err?.message ?? String(err)));
           continue;
         }
 
@@ -260,7 +261,7 @@ export class PowerShellInstaller {
 
         const endIndex = profileContent.indexOf(endMarker, startIndex);
         if (endIndex === -1) {
-          console.warn(`Warning: Found start marker but no end marker in ${profilePath}`);
+          console.warn(COMPLETION_MESSAGES.warningStartMarkerWithoutEnd(profilePath));
           continue;
         }
 
@@ -274,7 +275,7 @@ export class PowerShellInstaller {
         await this.writeProfileFile(profilePath, newContent, fileEncoding, fileBom);
         anyRemoved = true;
       } catch (error) {
-        console.warn(`Warning: Could not clean ${profilePath}: ${error}`);
+        console.warn(COMPLETION_MESSAGES.warningCouldNotClean(profilePath, String(error)));
       }
     }
 
@@ -372,7 +373,7 @@ export class PowerShellInstaller {
       '',
       `To enable completions, add the following to your PowerShell profile (${profilePath}):`,
       '',
-      '  # Source OpenSpec completions',
+      '  # Source BR-OpenSpec completions',
       `  if (Test-Path "${installedPath}") {`,
       `      . "${installedPath}"`,
       '  }',

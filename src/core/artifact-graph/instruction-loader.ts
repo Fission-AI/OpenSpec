@@ -4,6 +4,7 @@ import { getSchemaDir, resolveSchema } from './resolver.js';
 import { ArtifactGraph } from './graph.js';
 import { detectCompleted } from './state.js';
 import { resolveSchemaForChange } from '../../utils/change-metadata.js';
+import { WORKFLOW_MESSAGES } from '../../messages/index.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import { readProjectConfig, validateConfigRules } from '../project-config.js';
 import type { Artifact, CompletedSet } from './types.js';
@@ -133,7 +134,7 @@ export function loadTemplate(
   const schemaDir = getSchemaDir(schemaName, projectRoot);
   if (!schemaDir) {
     throw new TemplateLoadError(
-      `Schema '${schemaName}' not found`,
+      WORKFLOW_MESSAGES.schemaNotFound(schemaName, ''),
       templatePath
     );
   }

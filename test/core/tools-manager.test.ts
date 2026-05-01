@@ -291,11 +291,11 @@ describe('tools-manager', () => {
     });
 
     it('throws for unknown tool IDs', () => {
-      expect(() => resolveToolsArg('totally-unknown-tool')).toThrow(/Invalid tool/);
+      expect(() => resolveToolsArg('totally-unknown-tool')).toThrow(/Ferramenta\(s\) inválida\(s\)/);
     });
 
     it('throws when mixing "all" with specific IDs', () => {
-      expect(() => resolveToolsArg('all,claude')).toThrow(/Cannot combine/);
+      expect(() => resolveToolsArg('all,claude')).toThrow(/Não é possível combinar/);
     });
 
     it('throws for empty string', () => {

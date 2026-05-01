@@ -3,7 +3,7 @@
  *
  * `openspec tools [path]`
  *
- * Add or remove IDE/Code Agent OpenSpec configuration files interactively.
+ * Add or remove IDE/Code Agent BR-OpenSpec configuration files interactively.
  * Requires the project to already be initialized with `openspec init`.
  */
 

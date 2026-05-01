@@ -2,7 +2,7 @@ import { CompletionGenerator, CommandDefinition, FlagDefinition } from '../types
 import { FISH_STATIC_HELPERS, FISH_DYNAMIC_HELPERS } from '../templates/fish-templates.js';
 
 /**
- * Generates Fish completion scripts for the OpenSpec CLI.
+ * Generates Fish completion scripts for the BR-OpenSpec CLI.
  * Follows Fish completion conventions using the complete command.
  */
 export class FishGenerator implements CompletionGenerator {
@@ -40,7 +40,7 @@ export class FishGenerator implements CompletionGenerator {
     const dynamicHelpers = FISH_DYNAMIC_HELPERS;
 
     // Assemble final script with template literal
-    return `# Fish completion script for OpenSpec CLI
+    return `# Fish completion script for BR-OpenSpec CLI
 # Auto-generated - do not edit manually
 
 ${helperFunctions}

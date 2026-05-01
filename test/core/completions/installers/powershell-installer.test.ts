@@ -74,13 +74,13 @@ describe('PowerShellInstaller', () => {
       });
 
       const result = installer.getInstallationPath();
-      expect(result).toBe(path.join(testHomeDir, '.config', 'powershell', 'OpenSpecCompletion.ps1'));
+      expect(result).toBe(path.join(testHomeDir, '.config', 'powershell', 'BROpenSpecCompletion.ps1'));
     });
 
     it('should work with custom PROFILE environment variable', () => {
       process.env.PROFILE = path.join(testHomeDir, 'custom', 'profile.ps1');
       const result = installer.getInstallationPath();
-      expect(result).toBe(path.join(testHomeDir, 'custom', 'OpenSpecCompletion.ps1'));
+      expect(result).toBe(path.join(testHomeDir, 'custom', 'BROpenSpecCompletion.ps1'));
     });
 
     it('should return Windows path when on Windows platform', () => {
@@ -90,7 +90,7 @@ describe('PowerShellInstaller', () => {
       });
 
       const result = installer.getInstallationPath();
-      expect(result).toBe(path.join(testHomeDir, 'Documents', 'PowerShell', 'OpenSpecCompletion.ps1'));
+      expect(result).toBe(path.join(testHomeDir, 'Documents', 'PowerShell', 'BROpenSpecCompletion.ps1'));
     });
   });
 
@@ -136,7 +136,7 @@ describe('PowerShellInstaller', () => {
   });
 
   describe('configureProfile', () => {
-    const mockScriptPath = '/path/to/OpenSpecCompletion.ps1';
+    const mockScriptPath = '/path/to/BROpenSpecCompletion.ps1';
 
     // Note: OPENSPEC_NO_AUTO_CONFIG check is now handled in the install() method,
     // not in configureProfile() itself
@@ -381,7 +381,7 @@ Register-ArgumentCompleter -CommandName openspec -ScriptBlock $openspecCompleter
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('installed');
-      expect(result.installedPath).toContain('OpenSpecCompletion.ps1');
+      expect(result.installedPath).toContain('BROpenSpecCompletion.ps1');
       expect(result.backupPath).toBeUndefined();
     });
 
@@ -545,7 +545,7 @@ Register-ArgumentCompleter -CommandName openspec -ScriptBlock $openspecCompleter
   });
 
   describe('encoding preservation', () => {
-    const mockScriptPath = '/path/to/OpenSpecCompletion.ps1';
+    const mockScriptPath = '/path/to/BROpenSpecCompletion.ps1';
     const utf16leBom = Buffer.from([0xff, 0xfe]);
     const utf8Bom = Buffer.from([0xef, 0xbb, 0xbf]);
 
@@ -597,7 +597,7 @@ Register-ArgumentCompleter -CommandName openspec -ScriptBlock $openspecCompleter
       const textWithBlock = [
         '. "C:\\Code\\profile.ps1"',
         '# OPENSPEC:START',
-        '. "/path/to/OpenSpecCompletion.ps1"',
+        '. "/path/to/BROpenSpecCompletion.ps1"',
         '# OPENSPEC:END',
         '',
       ].join('\n');

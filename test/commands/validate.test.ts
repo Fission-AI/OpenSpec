@@ -66,7 +66,7 @@ describe('top-level validate command', () => {
   it('prints a helpful hint when no args in non-interactive mode', async () => {
     const result = await runCLI(['validate'], { cwd: testDir });
     expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain('Nothing to validate. Try one of:');
+    expect(result.stderr).toContain('Nada para validar. Tente um dos seguintes:');
   });
 
   it('validates all with --all and outputs JSON summary', async () => {
@@ -92,7 +92,7 @@ describe('top-level validate command', () => {
   it('errors on ambiguous item names and suggests type override', async () => {
     const result = await runCLI(['validate', 'dup'], { cwd: testDir });
     expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain('Ambiguous item');
+    expect(result.stderr).toContain('é ambíguo');
   });
 
   it('accepts change proposals saved with CRLF line endings', async () => {

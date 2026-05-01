@@ -90,7 +90,7 @@ describe('ArchiveCommand', () => {
       
       // Verify warning was logged
       expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('Warning: 2 incomplete task(s) found')
+        expect.stringContaining('Aviso: 2 tarefa(s) incompleta(s) encontrada(s)')
       );
     });
 
@@ -204,7 +204,7 @@ Modified content.`;
       expect(console.log).toHaveBeenCalledWith(
         expect.stringContaining('new-capability: target spec does not exist; only ADDED requirements are allowed for new specs. MODIFIED and RENAMED operations require an existing spec.')
       );
-      expect(console.log).toHaveBeenCalledWith('Aborted. No files were changed.');
+      expect(console.log).toHaveBeenCalledWith('Abortado. Nenhum arquivo foi alterado.');
       
       // Verify spec was NOT created
       const mainSpecPath = path.join(tempDir, 'openspec', 'specs', 'new-capability', 'spec.md');
@@ -242,7 +242,7 @@ New feature description.
       expect(console.log).toHaveBeenCalledWith(
         expect.stringContaining('another-capability: target spec does not exist; only ADDED requirements are allowed for new specs. MODIFIED and RENAMED operations require an existing spec.')
       );
-      expect(console.log).toHaveBeenCalledWith('Aborted. No files were changed.');
+      expect(console.log).toHaveBeenCalledWith('Abortado. Nenhum arquivo foi alterado.');
       
       // Verify spec was NOT created
       const mainSpecPath = path.join(tempDir, 'openspec', 'specs', 'another-capability', 'spec.md');
@@ -273,7 +273,7 @@ New feature description.
       // Try to archive
       await expect(
         archiveCommand.execute(changeName, { yes: true })
-      ).rejects.toThrow(`Archive '${date}-${changeName}' already exists.`);
+      ).rejects.toThrow(`O arquivamento '${date}-${changeName}' já existe.`);
     });
 
     it('should handle changes without tasks.md', async () => {
@@ -329,7 +329,7 @@ New feature description.
       
       // Verify skip message was logged
       expect(console.log).toHaveBeenCalledWith(
-        'Skipping spec updates (--skip-specs flag provided).'
+        'Ignorando atualizações de especificação (flag --skip-specs fornecida).'
       );
       
       // Verify spec was NOT copied to main specs
@@ -416,7 +416,7 @@ Then expected result happens`;
       
       // Verify user was prompted about specs
       expect(mockConfirm).toHaveBeenCalledWith({
-        message: 'Proceed with spec updates?',
+        message: 'Prosseguir com as atualizações de especificação?',
         default: true
       });
       
@@ -613,7 +613,7 @@ The system SHALL do B differently.
       expect(console.log).toHaveBeenCalledWith(
         expect.stringContaining('Requirement header "### Requirement: B" appears outside the main ## Requirements section.')
       );
-      expect(console.log).toHaveBeenCalledWith('Aborted. No files were changed.');
+      expect(console.log).toHaveBeenCalledWith('Abortado. Nenhum arquivo foi alterado.');
 
       const still = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
       expect(still).toBe(malformedMain);
@@ -663,7 +663,7 @@ new body`;
         expect.stringContaining('delta validation failed')
       );
       expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('Aborted. No files were changed.')
+        expect.stringContaining('Abortado. Nenhum arquivo foi alterado.')
       );
 
       // Fix MODIFIED to reference New (should succeed)
@@ -766,7 +766,7 @@ E1 updated`);
 
       // Verify aggregated totals line was printed
       expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('Totals: + 1, ~ 1, - 0, → 1')
+        expect.stringContaining('Totais: + 1, ~ 1, - 0, → 1')
       );
     });
   });
@@ -834,7 +834,7 @@ E1 updated`);
       
       // Verify confirm was called
       expect(mockConfirm).toHaveBeenCalledWith({
-        message: 'Warning: 1 incomplete task(s) found. Continue?',
+        message: 'Aviso: 1 tarefa(s) incompleta(s) encontrada(s). Continuar?',
         default: false
       });
     });
@@ -860,7 +860,7 @@ E1 updated`);
       await archiveCommand.execute(changeName, { noValidate: true });
       
       // Verify archive was cancelled
-      expect(console.log).toHaveBeenCalledWith('Archive cancelled.');
+      expect(console.log).toHaveBeenCalledWith('Arquivamento cancelado.');
       
       // Verify change was not archived
       await expect(fs.access(changeDir)).resolves.not.toThrow();

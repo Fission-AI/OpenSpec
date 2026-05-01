@@ -118,7 +118,7 @@ export async function validateChangeExists(
       throw new Error(WORKFLOW_MESSAGES.noChangesFound);
     }
     throw new Error(
-      `Missing required option --change. Available changes:\n  ${available.join('\n  ')}`
+      WORKFLOW_MESSAGES.missingChangeOption(available.join('\n  '))
     );
   }
 

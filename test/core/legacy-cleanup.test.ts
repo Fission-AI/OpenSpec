@@ -204,7 +204,7 @@ After content`;
   });
 
   describe('detectLegacyConfigFiles', () => {
-    it('should detect CLAUDE.md with OpenSpec markers and put in update list', async () => {
+    it('should detect CLAUDE.md with BR-OpenSpec markers and put in update list', async () => {
       const claudePath = path.join(testDir, 'CLAUDE.md');
       await fs.writeFile(claudePath, `${OPENSPEC_MARKERS.start}
 OpenSpec content
@@ -228,7 +228,7 @@ ${OPENSPEC_MARKERS.end}`);
       expect(result.filesToUpdate).toContain('CLAUDE.md');
     });
 
-    it('should not detect files without OpenSpec markers', async () => {
+    it('should not detect files without BR-OpenSpec markers', async () => {
       const claudePath = path.join(testDir, 'CLAUDE.md');
       await fs.writeFile(claudePath, 'Plain instructions without markers');
 
@@ -383,7 +383,7 @@ ${OPENSPEC_MARKERS.end}`);
       expect(result.hasProjectMd).toBe(true);
     });
 
-    it('should detect root AGENTS.md with OpenSpec markers', async () => {
+    it('should detect root AGENTS.md with BR-OpenSpec markers', async () => {
       const agentsPath = path.join(testDir, 'AGENTS.md');
       await fs.writeFile(agentsPath, `${OPENSPEC_MARKERS.start}
 OpenSpec content
@@ -641,7 +641,7 @@ ${OPENSPEC_MARKERS.end}`);
       };
 
       const summary = formatCleanupSummary(result);
-      expect(summary).toContain('✓ Removed OpenSpec markers from AGENTS.md');
+      expect(summary).toContain('✓ Removed BR-OpenSpec markers from AGENTS.md');
     });
 
     it('should include migration hint for project.md', () => {
@@ -701,7 +701,7 @@ ${OPENSPEC_MARKERS.end}`);
       };
 
       const summary = formatDetectionSummary(detection);
-      expect(summary).toContain('Upgrading to the new OpenSpec');
+      expect(summary).toContain('Upgrading to the new BR-OpenSpec');
       expect(summary).toContain('agent skills');
       expect(summary).toContain('keeping everything working');
     });
@@ -895,7 +895,7 @@ ${OPENSPEC_MARKERS.end}`);
 
     it('should explain the new context section benefits', () => {
       const hint = formatProjectMdMigrationHint();
-      expect(hint).toContain('included in every OpenSpec request');
+      expect(hint).toContain('included in every BR-OpenSpec request');
       expect(hint).toContain('reliably');
     });
   });

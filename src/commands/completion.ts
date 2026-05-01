@@ -25,7 +25,7 @@ interface CompleteOptions {
 }
 
 /**
- * Command for managing shell completions for OpenSpec CLI
+ * Command for managing shell completions for BR-OpenSpec CLI
  */
 export class CompletionCommand {
   private completionProvider: CompletionProvider;

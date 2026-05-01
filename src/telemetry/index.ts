@@ -152,7 +152,7 @@ export async function maybeShowTelemetryNotice(): Promise<void> {
 
     // Display notice
     console.log(
-      'Note: OpenSpec collects anonymous usage stats. Opt out: OPENSPEC_TELEMETRY=0'
+      'Note: BR-OpenSpec collects anonymous usage stats. Opt out: OPENSPEC_TELEMETRY=0'
     );
 
     // Mark as seen
