@@ -16,7 +16,7 @@ export function normalizeRequirementName(name: string): string {
   return name.trim();
 }
 
-const REQUIREMENT_HEADER_REGEX = /^###\s*Requirement:\s*(.+)\s*$/;
+const REQUIREMENT_HEADER_REGEX = /^###\s*Requirement:\s*(.+)\s*$/i;
 
 /**
  * Extracts the Requirements section from a spec file and parses requirement blocks.
@@ -58,7 +58,7 @@ export function extractRequirementsSection(content: string): RequirementsSection
   let preambleLines: string[] = [];
 
   // Collect preamble lines until first requirement header
-  while (cursor < sectionBodyLines.length && !/^###\s+Requirement:/.test(sectionBodyLines[cursor])) {
+  while (cursor < sectionBodyLines.length && !REQUIREMENT_HEADER_REGEX.test(sectionBodyLines[cursor])) {
     preambleLines.push(sectionBodyLines[cursor]);
     cursor++;
   }
@@ -76,7 +76,7 @@ export function extractRequirementsSection(content: string): RequirementsSection
     cursor++;
     // Gather lines until next requirement header or end of section
     const bodyLines: string[] = [headerLineCandidate];
-    while (cursor < sectionBodyLines.length && !/^###\s+Requirement:/.test(sectionBodyLines[cursor]) && !/^##\s+/.test(sectionBodyLines[cursor])) {
+    while (cursor < sectionBodyLines.length && !REQUIREMENT_HEADER_REGEX.test(sectionBodyLines[cursor]) && !/^##\s+/.test(sectionBodyLines[cursor])) {
       bodyLines.push(sectionBodyLines[cursor]);
       cursor++;
     }
@@ -176,7 +176,7 @@ function parseRequirementBlocksFromSection(sectionBody: string): RequirementBloc
   let i = 0;
   while (i < lines.length) {
     // Seek next requirement header
-    while (i < lines.length && !/^###\s+Requirement:/.test(lines[i])) i++;
+    while (i < lines.length && !REQUIREMENT_HEADER_REGEX.test(lines[i])) i++;
     if (i >= lines.length) break;
     const headerLine = lines[i];
     const m = headerLine.match(REQUIREMENT_HEADER_REGEX);
@@ -184,7 +184,7 @@ function parseRequirementBlocksFromSection(sectionBody: string): RequirementBloc
     const name = normalizeRequirementName(m[1]);
     const buf: string[] = [headerLine];
     i++;
-    while (i < lines.length && !/^###\s+Requirement:/.test(lines[i]) && !/^##\s+/.test(lines[i])) {
+    while (i < lines.length && !REQUIREMENT_HEADER_REGEX.test(lines[i]) && !/^##\s+/.test(lines[i])) {
       buf.push(lines[i]);
       i++;
     }
