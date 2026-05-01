@@ -438,7 +438,7 @@ export class ZshInstaller {
         messages.push(`Script de autocomplete removido de ${targetPath}`);
       }
       if (zshrcCleaned && !isOhMyZsh) {
-        messages.push('Removed BR-OpenSpec configuration from ~/.zshrc');
+        messages.push('Configuração do BR-OpenSpec removida de ~/.zshrc');
       }
 
       return {

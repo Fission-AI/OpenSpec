@@ -190,3 +190,68 @@ docs/            # Markdown documentation (English + pt-BR)
 | `build.js` | Build script (tsc wrapper) |
 | `vitest.config.ts` | Test configuration |
 | `eslint.config.js` | ESLint configuration (typescript-eslint) |
+
+## Upstream Sync Strategy (BR-OpenSpec Fork)
+
+BR-OpenSpec is a fork of the original OpenSpec project. All user-facing messages, UI text, workflow templates, and command descriptions are maintained in Brazilian Portuguese (`pt-BR`). When syncing with upstream, follow this process:
+
+### 1. Setup
+
+Ensure the upstream remote is configured:
+```bash
+git remote add upstream https://github.com/original/openspec.git  # adjust URL as needed
+git fetch upstream
+```
+
+### 2. Create a Sync Branch
+
+```bash
+git checkout -b sync/upstream-$(date +%Y%m%d)
+git merge upstream/main --no-edit
+```
+
+### 3. Resolve Conflicts in Messages Catalog
+
+The central message catalog lives at `src/messages/index.ts`. When merging:
+- Preserve existing Portuguese translations
+- Add new English keys from upstream to the appropriate sections
+- Translate new keys to Brazilian Portuguese immediately
+- Maintain the existing domain-based organization (CLI_DESCRIPTIONS, CLI_MESSAGES, CHANGE_MESSAGES, etc.)
+
+### 4. Identify and Translate New User-Facing Strings
+
+After merge, find newly introduced hardcoded English strings:
+```bash
+git diff upstream/main..HEAD --name-only | grep "^src/"
+```
+
+Look for new occurrences of `console.log`, `console.error`, `console.warn`, `.description(`, and `message:` in modified files. Replace them with references to `src/messages/index.ts`.
+
+### 5. Update Project Name References
+
+New upstream code may reference "OpenSpec" instead of "BR-OpenSpec" in user-facing text. Update these in `src/messages/index.ts` and other user-facing locations. Do NOT change: `openspec` (CLI command), `openspec-` (prefixes), `OPENSPEC_` (constants), or technical URLs.
+
+### 6. Update Tests
+
+Run the full test suite:
+```bash
+pnpm test
+```
+
+Update test expectations in `test/` to match the Portuguese translations. Only change string assertions — never test logic.
+
+### 7. Validate
+
+```bash
+pnpm run build
+pnpm exec tsc --noEmit
+pnpm lint
+```
+
+### 8. Workflow Template
+
+An upstream sync workflow template is available at `src/core/templates/workflows/upstream-sync.ts` for agent-assisted syncs. It provides step-by-step instructions for the entire process.
+
+### Key Principle
+
+**Never leave English user-facing strings in `src/` after a sync.** All messages displayed to Brazilian users must be in `pt-BR`, centralized in `src/messages/index.ts`, and tested.

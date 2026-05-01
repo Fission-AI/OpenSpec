@@ -480,7 +480,7 @@ Old instructions content
 
       // Should detect and update Claude
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Updating 1 tool(s): claude')
+        expect.stringContaining('Atualizando 1 ferramenta(s): claude')
       );
 
       consoleSpy.mockRestore();
@@ -842,7 +842,7 @@ metadata:
 
       // Should show only Claude being updated
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Updating 1 tool(s)')
+        expect.stringContaining('Atualizando 1 ferramenta(s)')
       );
 
       // Should mention Cursor is already up to date
@@ -935,7 +935,7 @@ ${OPENSPEC_MARKERS.end}
 
       // Should show warning about --force
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Run with --force to auto-cleanup')
+        expect.stringContaining('Execute com --force para limpar automaticamente')
       );
 
       // Should continue with update

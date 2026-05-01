@@ -112,7 +112,7 @@ Regular text that should be ignored
       const listCommand = new ListCommand();
       await listCommand.execute(tempDir, 'changes');
 
-      expect(logOutput.some(line => line.includes('no-tasks') && line.includes('sem-tarefas'))).toBe(true);
+      expect(logOutput.some(line => line.includes('no-tasks') && line.includes('Sem tarefas'))).toBe(true);
     });
 
     it('should sort changes alphabetically when sort=name', async () => {
@@ -157,9 +157,9 @@ Regular text that should be ignored
       await listCommand.execute(tempDir);
 
       expect(logOutput).toContain('Alterações:');
-      expect(logOutput.some(line => line.includes('completed') && line.includes('✓ Complete'))).toBe(true);
-      expect(logOutput.some(line => line.includes('partial') && line.includes('1/3 tasks'))).toBe(true);
-      expect(logOutput.some(line => line.includes('no-tasks') && line.includes('No tasks'))).toBe(true);
+      expect(logOutput.some(line => line.includes('completed') && line.includes('✓ Concluído'))).toBe(true);
+      expect(logOutput.some(line => line.includes('partial') && line.includes('1/3 tarefas'))).toBe(true);
+      expect(logOutput.some(line => line.includes('no-tasks') && line.includes('Sem tarefas'))).toBe(true);
     });
   });
 });

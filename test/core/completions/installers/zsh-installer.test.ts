@@ -691,6 +691,20 @@ describe('ZshInstaller', () => {
 
   describe('uninstall with .zshrc cleanup', () => {
     const testScript = '#compdef openspec\n_openspec() {}\n';
+    let originalZshEnv: string | undefined;
+
+    beforeEach(() => {
+      originalZshEnv = process.env.ZSH;
+      delete process.env.ZSH;
+    });
+
+    afterEach(() => {
+      if (originalZshEnv === undefined) {
+        delete process.env.ZSH;
+      } else {
+        process.env.ZSH = originalZshEnv;
+      }
+    });
 
     it('should remove .zshrc config when uninstalling', async () => {
       // Install first (which creates .zshrc config)
@@ -705,7 +719,7 @@ describe('ZshInstaller', () => {
       const result = await installer.uninstall();
 
       expect(result.success).toBe(true);
-      expect(result.message).toContain('Removed BR-OpenSpec configuration from ~/.zshrc');
+      expect(result.message).toContain('Configuração do BR-OpenSpec removida de ~/.zshrc');
 
       // Verify .zshrc config was removed
       content = await fs.readFile(zshrcPath, 'utf-8');
@@ -732,7 +746,7 @@ describe('ZshInstaller', () => {
       const result = await installer.uninstall();
 
       expect(result.success).toBe(true);
-      expect(result.message).toContain('Removed BR-OpenSpec configuration from ~/.zshrc');
+      expect(result.message).toContain('Configuração do BR-OpenSpec removida de ~/.zshrc');
     });
 
     it('should include both messages when removing script and .zshrc', async () => {
@@ -742,7 +756,7 @@ describe('ZshInstaller', () => {
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('Script de autocomplete removido');
-      expect(result.message).toContain('Removed BR-OpenSpec configuration from ~/.zshrc');
+      expect(result.message).toContain('Configuração do BR-OpenSpec removida de ~/.zshrc');
     });
   });
 });

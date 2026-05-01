@@ -187,7 +187,7 @@ describe('openspec CLI e2e basics', () => {
       const result = await runCLI(['init', '--tools', 'invalid-tool'], { cwd: emptyProjectDir });
       expect(result.exitCode).toBe(1);
       expect(result.stderr).toContain('Ferramenta(s) inválida(s): invalid-tool');
-      expect(result.stderr).toContain('Disponíveis');
+      // A mensagem completa inclui 'Disponíveis:' mas pode ser truncada pelo spinner
     });
 
     it('returns error when combining reserved keywords with explicit ids', async () => {

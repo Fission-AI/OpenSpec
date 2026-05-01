@@ -90,7 +90,7 @@ rules:
           },
         });
         expect(consoleWarnSpy).toHaveBeenCalledWith(
-          expect.stringContaining("Invalid 'schema' field")
+          expect.stringContaining("Campo 'schema' inválido")
         );
       });
 
@@ -116,7 +116,7 @@ rules:
           },
         });
         expect(consoleWarnSpy).toHaveBeenCalledWith(
-          expect.stringContaining("Invalid 'context' field")
+          expect.stringContaining("Campo 'context' inválido")
         );
       });
 
@@ -138,7 +138,7 @@ rules: ["not", "an", "object"]
           context: 'Valid context',
         });
         expect(consoleWarnSpy).toHaveBeenCalledWith(
-          expect.stringContaining("Invalid 'rules' field")
+          expect.stringContaining("Campo 'rules' inválido")
         );
       });
 
@@ -162,7 +162,7 @@ rules:
           context: 'Valid context',
         });
         expect(consoleWarnSpy).toHaveBeenCalledWith(
-          expect.stringContaining("Invalid 'rules' field")
+          expect.stringContaining("Campo 'rules' inválido")
         );
       });
 
@@ -191,7 +191,7 @@ rules:
           },
         });
         expect(consoleWarnSpy).toHaveBeenCalledWith(
-          expect.stringContaining("Rules for 'specs' must be an array of strings")
+          expect.stringContaining("Regras para 'specs' devem ser um array de strings")
         );
       });
 
@@ -219,7 +219,7 @@ rules:
           },
         });
         expect(consoleWarnSpy).toHaveBeenCalledWith(
-          expect.stringContaining("Some rules for 'proposal' are empty strings")
+          expect.stringContaining("Algumas regras para 'proposal' são strings vazias")
         );
       });
 
@@ -300,7 +300,7 @@ rules:
 
         expect(config?.context).toBe(smallContext);
         expect(consoleWarnSpy).not.toHaveBeenCalledWith(
-          expect.stringContaining('Context too large')
+          expect.stringContaining('Contexto muito grande')
         );
       });
 
@@ -318,10 +318,10 @@ rules:
         expect(config).toEqual({ schema: 'spec-driven' });
         expect(config?.context).toBeUndefined();
         expect(consoleWarnSpy).toHaveBeenCalledWith(
-          expect.stringContaining('Context too large (51.0KB, limit: 50KB)')
+          expect.stringContaining('Contexto muito grande (51.0KB, limite: 50KB)')
         );
         expect(consoleWarnSpy).toHaveBeenCalledWith(
-          expect.stringContaining('Ignoring context field')
+          expect.stringContaining('Ignorando campo de contexto')
         );
       });
 
@@ -338,7 +338,7 @@ rules:
 
         expect(config?.context).toBe(exactContext);
         expect(consoleWarnSpy).not.toHaveBeenCalledWith(
-          expect.stringContaining('Context too large')
+          expect.stringContaining('Contexto muito grande')
         );
       });
 
@@ -359,7 +359,7 @@ context: |
 
         expect(config?.context).toBeUndefined();
         expect(consoleWarnSpy).toHaveBeenCalledWith(
-          expect.stringContaining('Context too large')
+          expect.stringContaining('Contexto muito grande')
         );
       });
     });

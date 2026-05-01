@@ -422,7 +422,7 @@ Then expected result happens`;
       
       // Verify skip message was logged
       expect(console.log).toHaveBeenCalledWith(
-        'Skipping spec updates. Proceeding with archive.'
+        'Ignorando atualizações de especificação. Prosseguindo com o arquivamento.'
       );
       
       // Verify spec was NOT copied to main specs
