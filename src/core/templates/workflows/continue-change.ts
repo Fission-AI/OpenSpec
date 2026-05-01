@@ -53,6 +53,11 @@ export function getContinueChangeSkillTemplate(): SkillTemplate {
 
    **If artifacts are ready to create** (status shows artifacts with \`status: "ready"\`):
    - Pick the FIRST artifact with \`status: "ready"\` from the status output
+   - **If the artifact is \`proposal\`**: Before creating it, discover existing specs first.
+     Use the **Agent tool** to spawn a sub-agent for spec discovery:
+     - **prompt**: "Run \`openspec list --specs --json --detail\` in the project directory. Parse the JSON output — each spec has id, title, overview, and requirementCount. The user wants to build: [describe the change]. Compare each spec's overview against this description and return ONLY the specs that are related. Format your response as a JSON array: [{id, overview, reason}]. Do not return unrelated specs."
+     - Use the sub-agent's results to classify the proposal's Capabilities section (New vs Modified).
+     - If sub-agents are unavailable, run \`openspec list --specs --json --detail\` directly.
    - Get its instructions:
      \`\`\`bash
      openspec instructions <artifact-id> --change "<name>" --json
@@ -100,6 +105,7 @@ Common artifact patterns:
 
 **spec-driven schema** (proposal → specs → design → tasks):
 - **proposal.md**: Ask user about the change if not clear. Fill in Why, What Changes, Capabilities, Impact.
+  - Before writing Capabilities, use the **Agent tool** to spawn a sub-agent for spec discovery: "Run \`openspec list --specs --json --detail\` and find specs related to [the proposed change]. Return a JSON array of related specs with id, overview, and reason." If sub-agents are unavailable, run the CLI directly.
   - The Capabilities section is critical - each capability listed will need a spec file.
 - **specs/<capability>/spec.md**: Create one spec per capability listed in the proposal's Capabilities section (use the capability name, not the change name).
 - **design.md**: Document technical decisions, architecture, and implementation approach.
@@ -172,6 +178,11 @@ export function getOpsxContinueCommandTemplate(): CommandTemplate {
 
    **If artifacts are ready to create** (status shows artifacts with \`status: "ready"\`):
    - Pick the FIRST artifact with \`status: "ready"\` from the status output
+   - **If the artifact is \`proposal\`**: Before creating it, discover existing specs first.
+     Use the **Agent tool** to spawn a sub-agent for spec discovery:
+     - **prompt**: "Run \`openspec list --specs --json --detail\` in the project directory. Parse the JSON output — each spec has id, title, overview, and requirementCount. The user wants to build: [describe the change]. Compare each spec's overview against this description and return ONLY the specs that are related. Format your response as a JSON array: [{id, overview, reason}]. Do not return unrelated specs."
+     - Use the sub-agent's results to classify the proposal's Capabilities section (New vs Modified).
+     - If sub-agents are unavailable, run \`openspec list --specs --json --detail\` directly.
    - Get its instructions:
      \`\`\`bash
      openspec instructions <artifact-id> --change "<name>" --json
@@ -219,6 +230,7 @@ Common artifact patterns:
 
 **spec-driven schema** (proposal → specs → design → tasks):
 - **proposal.md**: Ask user about the change if not clear. Fill in Why, What Changes, Capabilities, Impact.
+  - Before writing Capabilities, use the **Agent tool** to spawn a sub-agent for spec discovery: "Run \`openspec list --specs --json --detail\` and find specs related to [the proposed change]. Return a JSON array of related specs with id, overview, and reason." If sub-agents are unavailable, run the CLI directly.
   - The Capabilities section is critical - each capability listed will need a spec file.
 - **specs/<capability>/spec.md**: Create one spec per capability listed in the proposal's Capabilities section (use the capability name, not the change name).
 - **design.md**: Document technical decisions, architecture, and implementation approach.
