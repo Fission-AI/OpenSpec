@@ -155,10 +155,11 @@ Old instructions content
 
       await updateCommand.execute(testDir);
 
-      // Verify core profile skill files were created/updated (propose, explore, apply, archive)
+      // Verify core profile skill files were created/updated (propose, explore, apply, sync, archive)
       const coreSkillNames = [
         'openspec-explore',
         'openspec-apply-change',
+        'openspec-sync-specs',
         'openspec-archive-change',
         'openspec-propose',
       ];
@@ -179,7 +180,6 @@ Old instructions content
         'openspec-new-change',
         'openspec-continue-change',
         'openspec-ff-change',
-        'openspec-sync-specs',
         'openspec-bulk-archive-change',
         'openspec-verify-change',
       ];
@@ -233,8 +233,8 @@ Old instructions content
 
       await updateCommand.execute(testDir);
 
-      // Verify core profile commands were created (propose, explore, apply, archive)
-      const coreCommandIds = ['explore', 'apply', 'archive', 'propose'];
+      // Verify core profile commands were created (propose, explore, apply, sync, archive)
+      const coreCommandIds = ['explore', 'apply', 'sync', 'archive', 'propose'];
       const commandsDir = path.join(testDir, '.claude', 'commands', 'opsx');
       for (const cmdId of coreCommandIds) {
         const cmdFile = path.join(commandsDir, `${cmdId}.md`);
@@ -243,7 +243,7 @@ Old instructions content
       }
 
       // Verify non-core commands are NOT created
-      const nonCoreCommandIds = ['new', 'continue', 'ff', 'sync', 'bulk-archive', 'verify'];
+      const nonCoreCommandIds = ['new', 'continue', 'ff', 'bulk-archive', 'verify'];
       for (const cmdId of nonCoreCommandIds) {
         const cmdFile = path.join(commandsDir, `${cmdId}.md`);
         const exists = await FileSystemUtils.fileExists(cmdFile);
@@ -1324,6 +1324,7 @@ More user content after markers.
         'openspec-propose',
         'openspec-explore',
         'openspec-apply-change',
+        'openspec-sync-specs',
         'openspec-archive-change',
       ];
 
@@ -1424,6 +1425,41 @@ More user content after markers.
       expect(await FileSystemUtils.fileExists(
         path.join(skillsDir, 'openspec-propose', 'SKILL.md')
       )).toBe(false);
+    });
+
+    it('should suggest core preset when custom profile preserves the old core workflow set', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'custom',
+        delivery: 'both',
+        workflows: ['propose', 'explore', 'apply', 'archive'],
+      });
+
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+      await initCommand.execute(testDir);
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      const calls = consoleSpy.mock.calls.map(call =>
+        call.map(arg => String(arg)).join(' ')
+      );
+      expect(calls.some(call =>
+        call.includes('The core profile now includes sync')
+      )).toBe(true);
+      expect(calls.some(call =>
+        call.includes('openspec config profile core') && call.includes('openspec update')
+      )).toBe(true);
+
+      expect(await FileSystemUtils.fileExists(
+        path.join(testDir, '.claude', 'skills', 'openspec-sync-specs', 'SKILL.md')
+      )).toBe(false);
+      expect(await FileSystemUtils.fileExists(
+        path.join(testDir, '.claude', 'commands', 'opsx', 'sync.md')
+      )).toBe(false);
+
+      consoleSpy.mockRestore();
     });
 
     it('should respect skills-only delivery setting', async () => {
@@ -1569,7 +1605,7 @@ content
     });
 
     it('should remove workflows outside profile during update sync', async () => {
-      // Set core profile (propose, explore, apply, archive)
+      // Set core profile (propose, explore, apply, sync, archive)
       setMockConfig({
         featureFlags: {},
         profile: 'core',

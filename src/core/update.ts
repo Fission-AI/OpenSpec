@@ -34,7 +34,7 @@ import {
   type LegacyDetectionResult,
 } from './legacy-cleanup.js';
 import { isInteractive } from '../utils/interactive.js';
-import { getGlobalConfig, type Delivery } from './global-config.js';
+import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
 import { getProfileWorkflows, ALL_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
 import {
@@ -50,6 +50,7 @@ import {
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
+const OLD_CORE_WORKFLOWS = ['propose', 'explore', 'apply', 'archive'] as const;
 
 /**
  * Options for the update command.
@@ -155,6 +156,7 @@ export class UpdateCommand {
       // Still check for new tool directories and extra workflows
       this.detectNewTools(resolvedProjectPath, configuredTools);
       this.displayExtraWorkflowsNote(resolvedProjectPath, configuredTools, desiredWorkflows);
+      this.displayOldCoreCustomProfileNote(profile, globalConfig.workflows);
       return;
     }
 
@@ -282,6 +284,7 @@ export class UpdateCommand {
 
     // 14. Display note about extra workflows not in profile
     this.displayExtraWorkflowsNote(resolvedProjectPath, configuredAndNewTools, desiredWorkflows);
+    this.displayOldCoreCustomProfileNote(profile, globalConfig.workflows);
 
     // 15. List affected tools
     if (updatedTools.length > 0) {
@@ -367,6 +370,28 @@ export class UpdateCommand {
     if (extraWorkflows.length > 0) {
       console.log(chalk.dim(`Note: ${extraWorkflows.length} extra workflows not in profile (use \`openspec config profile\` to manage)`));
     }
+  }
+
+  /**
+   * Suggest opting back into core when a custom profile still matches the old
+   * pre-sync core set. Keep custom profiles user-owned; do not mutate them.
+   */
+  private displayOldCoreCustomProfileNote(profile: Profile, workflows?: readonly string[]): void {
+    if (profile !== 'custom' || !workflows) {
+      return;
+    }
+
+    const workflowSet = new Set(workflows);
+    const matchesOldCore =
+      workflowSet.size === OLD_CORE_WORKFLOWS.length &&
+      OLD_CORE_WORKFLOWS.every((workflow) => workflowSet.has(workflow));
+
+    if (!matchesOldCore) {
+      return;
+    }
+
+    console.log(chalk.dim('Note: The core profile now includes sync. Your custom profile is preserving the old core workflow set.'));
+    console.log(chalk.dim('Run `openspec config profile core` and then `openspec update` to add sync.'));
   }
 
   /**
