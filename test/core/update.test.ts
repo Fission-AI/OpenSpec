@@ -1137,12 +1137,13 @@ More user content after markers.
         expect.stringContaining('Claude Code')
       );
 
-      // Should show getting started message for newly configured tools
+      // Should show getting started message for newly configured tools.
+      // The shared onboarding helper shows /opsx:propose for the default core profile.
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining('Getting started')
       );
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('/opsx:new')
+        expect.stringContaining('/opsx:propose')
       );
 
       // Skills should be created
