@@ -83,8 +83,8 @@ describe('profile sync drift detection', () => {
   it('detects drift when extra workflows are installed for both delivery', () => {
     setupCoreSkills(tempDir);
     setupCoreCommands(tempDir);
-    writeSkill(tempDir, 'sync');
-    writeCommand(tempDir, 'sync');
+    writeSkill(tempDir, 'new');
+    writeCommand(tempDir, 'new');
 
     const hasDrift = hasProjectConfigDrift(tempDir, CORE_WORKFLOWS, 'both');
     expect(hasDrift).toBe(true);
