@@ -32,13 +32,13 @@ workspace-root/
 
 `changes/` is where workspace-level planning lives. `.openspec-workspace/` identifies the directory as an OpenSpec workspace and stores workspace state.
 
-OpenSpec-managed workspaces live in a standard location by default:
+OpenSpec-managed workspaces live in one standard location:
 
 ```text
 <global-data-dir>/workspaces/
 ```
 
-Most users should never need to choose that location. OpenSpec still shows the workspace path after setup so users know where planning files live. Advanced and test environments can set `OPENSPEC_WORKSPACES_HOME` to use a different base directory.
+Users should not need to choose that location. OpenSpec still shows the workspace path after setup so users know where planning files live. This foundation slice does not provide a workspace-specific environment-variable or configuration override for managed workspace storage.
 
 OpenSpec also keeps a lightweight local registry of known workspaces on the current machine. The registry powers global commands, pickers, and listing, but each workspace folder remains the source of truth.
 
@@ -94,13 +94,16 @@ Lessons to carry forward:
 
 - Workspace identity directory: `.openspec-workspace/`.
 - Workspace identity file: `.openspec-workspace/workspace.yaml`.
+- Workspace name: a valid folder name for the current OS, excluding empty names, `.`/`..`, and path separators.
+- Workspace name usage: stored in `workspace.yaml`, used as the default managed workspace folder name, and used as the local registry name.
 - Planning surface: top-level `changes/`.
 - Local machine state: `.openspec-workspace/local.yaml`.
+- Local machine state exclusion: OpenSpec-created workspaces exclude `.openspec-workspace/local.yaml` from portable collaboration state by default.
 - Local workspace registry: `<global-data-dir>/workspaces/registry.yaml`.
 - Default workspace base: `<global-data-dir>/workspaces/`.
-- Optional override: `OPENSPEC_WORKSPACES_HOME`.
 - Platform behavior: native Windows and WSL2 each use the path conventions of the runtime running OpenSpec.
 - Linked paths may be full repos, monorepo folders, or other existing folders.
+- Link names: non-empty stable names, unique within a workspace, excluding `.`/`..` and path separators.
 - Repo-local `openspec/` state is not required for workspace planning visibility.
 - Linking records the relationship only; it does not create, copy, move, initialize, or edit files in the linked repo or folder.
 
@@ -112,7 +115,7 @@ Planning dependency:
 
 - No complete `openspec workspace setup`, `openspec workspace link`, or `openspec workspace relink` flow yet.
 - No public `openspec workspace create` command in the first user-facing workspace flow.
-- No user-facing command for changing the standard workspace location.
+- No user-facing command, environment variable, or configuration setting for changing the standard workspace location.
 - No question that asks users where OpenSpec should store workspaces by default.
 - No automatic Windows-to-WSL or WSL-to-Windows path translation.
 - No workspace-open agent launch behavior.

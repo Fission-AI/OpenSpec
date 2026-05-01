@@ -46,6 +46,16 @@ repo-local project     -> repo-owned specs and implementation planning
 
 Users should not run repo-local `openspec init` inside the workspace root. A workspace is already an OpenSpec coordination surface; it is not a product repo adopting repo-local OpenSpec.
 
+## Workspace Names
+
+A workspace name is a simple folder-style identifier, not a display name.
+
+The name must be usable as a folder name in the current runtime. It must not be empty, must not be `.` or `..`, and must not contain path separators.
+
+OpenSpec should not maintain a cross-platform reserved-name list in this slice. Setup/create flows should let filesystem creation surface OS-specific invalid folder names, then report that failure clearly.
+
+The same workspace name is stored in `.openspec-workspace/workspace.yaml`, used as the default managed workspace folder name, and used as the local registry name.
+
 ## Shared And Local State
 
 Workspace state follows a simple sharing rule:
@@ -76,6 +86,8 @@ paths:
 
 Later slices can expand these shapes, but the product rule should stay stable: a shared workspace should not commit one user's absolute checkout paths.
 
+OpenSpec-created workspaces should include an ignore rule for `.openspec-workspace/local.yaml` so local checkout paths are not accidentally shared. `.openspec-workspace/workspace.yaml` remains the portable workspace identity and link-name state.
+
 ## Workspace Location
 
 OpenSpec should create managed workspaces in one standard place:
@@ -90,15 +102,7 @@ That reuses existing OpenSpec data-directory behavior:
 - `~/.local/share/openspec/workspaces` on Unix/macOS fallback
 - `%LOCALAPPDATA%\openspec\workspaces` on native Windows fallback
 
-For tests and advanced installs, `OPENSPEC_WORKSPACES_HOME` can override the standard workspace location.
-
-Precedence:
-
-```text
-1. explicit command path in later create flows
-2. OPENSPEC_WORKSPACES_HOME
-3. getGlobalDataDir()/workspaces
-```
+This slice intentionally does not define a workspace-specific environment-variable, command, or configuration override for managed workspace storage. Tests should rely on existing global data-directory controls and test helpers instead of a separate workspace-home override.
 
 This is deliberately quiet. The product should not ask most users where workspaces should live.
 
@@ -131,7 +135,6 @@ Path behavior is runtime-local:
 
 - PowerShell/native Windows uses Windows paths and Windows data-directory fallback.
 - WSL2 uses Linux paths and Linux/XDG fallback inside WSL.
-- `OPENSPEC_WORKSPACES_HOME` is read as a path for the current runtime.
 - Local repo paths are stored as the user supplied them for the current runtime.
 
 Examples:
@@ -139,11 +142,9 @@ Examples:
 ```text
 PowerShell:
   default base -> %LOCALAPPDATA%\openspec\workspaces
-  override     -> OPENSPEC_WORKSPACES_HOME=D:\openspec-workspaces
 
 WSL2:
   default base -> ~/.local/share/openspec/workspaces
-  override     -> OPENSPEC_WORKSPACES_HOME=/mnt/d/openspec-workspaces
 ```
 
 This slice should not translate between `D:\repo`, `/mnt/d/repo`, and `\\wsl$` paths. Cross-runtime translation can be reconsidered later if an agent-launch workflow requires it.
@@ -162,6 +163,8 @@ WSL2 path:        /mnt/d/repos/landing
 ```
 
 Later workflows should refer to `landing` in workspace planning, status, and apply context. The local path is only how the current machine finds that repo or folder.
+
+Link names are intentionally minimal: they must be non-empty, must not be `.` or `..`, must not contain path separators, and must be unique within the workspace.
 
 The owning repo or folder remains the home of canonical specs and implementation work. The workspace makes the cross-boundary plan legible; it does not take ownership away from the linked repos or folders.
 

@@ -20,6 +20,20 @@ OpenSpec SHALL give users and agents a recognizable workspace home for cross-rep
 - **THEN** it SHALL avoid treating that directory as a workspace
 - **AND** it SHALL enter workspace mode only when the workspace identity file is present
 
+### Requirement: Stable Workspace Name
+OpenSpec SHALL use one folder-style workspace name across workspace identity, managed storage, and the local registry.
+
+#### Scenario: Using one workspace name
+- **WHEN** OpenSpec creates or registers a managed workspace
+- **THEN** the workspace name SHALL be stored in `.openspec-workspace/workspace.yaml`
+- **AND** the same name SHALL be used as the default managed workspace folder name
+- **AND** the same name SHALL be used as the local registry name
+
+#### Scenario: Rejecting invalid folder-style names
+- **WHEN** OpenSpec accepts a workspace name
+- **THEN** it SHALL reject empty names, `.` or `..`, and names containing path separators
+- **AND** setup or create flows SHALL report OS-level folder creation failures clearly
+
 ### Requirement: Dedicated Workspace Identity
 OpenSpec SHALL distinguish a coordination workspace from a repo-local OpenSpec project.
 
@@ -56,29 +70,32 @@ OpenSpec SHALL keep shared workspace information separate from local machine pat
 - **THEN** it SHALL preserve path strings valid for the current runtime
 - **AND** it SHALL support native Windows paths and WSL2/Linux paths as local state values
 
+#### Scenario: Excluding local state from portable collaboration
+- **WHEN** OpenSpec creates a workspace
+- **THEN** it SHALL exclude `.openspec-workspace/local.yaml` from portable collaboration state by default
+- **AND** `.openspec-workspace/workspace.yaml` SHALL remain the portable workspace identity and link-name state
+
 ### Requirement: Standard Workspace Location
 OpenSpec SHALL use a standard location for OpenSpec-managed workspaces without asking most users to choose one.
 
 #### Scenario: Using the standard workspace location
 - **WHEN** OpenSpec needs the location for OpenSpec-managed workspaces
-- **AND** `OPENSPEC_WORKSPACES_HOME` is not set
 - **THEN** it SHALL use `<global-data-dir>/workspaces`
 - **AND** `<global-data-dir>` SHALL follow existing OpenSpec XDG and platform data directory behavior
 
-#### Scenario: Overriding the workspace location
-- **WHEN** `OPENSPEC_WORKSPACES_HOME` is set
-- **THEN** OpenSpec SHALL use that path as the workspace location
-- **AND** the override SHALL work without a user-facing configuration command
+#### Scenario: Avoiding workspace-specific storage overrides
+- **WHEN** OpenSpec resolves the location for OpenSpec-managed workspaces
+- **THEN** it SHALL not use a workspace-specific environment variable, command, or configuration setting in this slice
+- **AND** managed workspace storage SHALL remain under `<global-data-dir>/workspaces`
 
 #### Scenario: Running from native Windows
 - **WHEN** OpenSpec runs from native Windows shells such as PowerShell
-- **AND** neither `OPENSPEC_WORKSPACES_HOME` nor `XDG_DATA_HOME` is set
+- **AND** `XDG_DATA_HOME` is not set
 - **THEN** OpenSpec SHALL store managed workspaces under the Windows global data location
 - **AND** paths SHALL follow native Windows path behavior
 
 #### Scenario: Running from WSL2
 - **WHEN** OpenSpec runs from WSL2
-- **AND** `OPENSPEC_WORKSPACES_HOME` is not set
 - **THEN** OpenSpec SHALL store managed workspaces under the Linux/XDG data location inside WSL
 - **AND** paths SHALL follow Linux path behavior inside WSL
 
@@ -127,6 +144,11 @@ OpenSpec SHALL use stable link names to refer to repos and folders in workspace 
 - **WHEN** a workspace is used on another machine
 - **THEN** link names SHALL remain stable
 - **AND** local checkout paths MAY differ on that machine
+
+#### Scenario: Rejecting invalid link names
+- **WHEN** OpenSpec accepts a workspace link name
+- **THEN** it SHALL reject empty names, `.` or `..`, and names containing path separators
+- **AND** link names SHALL be unique within the workspace
 
 ### Requirement: Linked Repos And Folders
 OpenSpec SHALL allow workspace planning to include linked repos and folders before they have repo-local OpenSpec state.
