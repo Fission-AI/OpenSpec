@@ -63,27 +63,36 @@ export function getGlobalConfigDir(): string {
  * - Unix/macOS fallback: ~/.local/share/openspec/
  * - Windows fallback: %LOCALAPPDATA%/openspec/
  */
-export function getGlobalDataDir(): string {
+export interface GlobalDataDirOptions {
+  env?: NodeJS.ProcessEnv;
+  platform?: NodeJS.Platform;
+  homedir?: string;
+}
+
+export function getGlobalDataDir(options: GlobalDataDirOptions = {}): string {
+  const env = options.env ?? process.env;
+
   // XDG_DATA_HOME takes precedence on all platforms when explicitly set
-  const xdgDataHome = process.env.XDG_DATA_HOME;
+  const xdgDataHome = env.XDG_DATA_HOME;
   if (xdgDataHome) {
     return path.join(xdgDataHome, GLOBAL_DATA_DIR_NAME);
   }
 
-  const platform = os.platform();
+  const platform = options.platform ?? os.platform();
+  const homedir = options.homedir ?? os.homedir();
 
   if (platform === 'win32') {
     // Windows: use %LOCALAPPDATA%
-    const localAppData = process.env.LOCALAPPDATA;
+    const localAppData = env.LOCALAPPDATA;
     if (localAppData) {
-      return path.join(localAppData, GLOBAL_DATA_DIR_NAME);
+      return path.win32.join(localAppData, GLOBAL_DATA_DIR_NAME);
     }
     // Fallback for Windows if LOCALAPPDATA is not set
-    return path.join(os.homedir(), 'AppData', 'Local', GLOBAL_DATA_DIR_NAME);
+    return path.win32.join(homedir, 'AppData', 'Local', GLOBAL_DATA_DIR_NAME);
   }
 
   // Unix/macOS fallback: ~/.local/share
-  return path.join(os.homedir(), '.local', 'share', GLOBAL_DATA_DIR_NAME);
+  return path.join(homedir, '.local', 'share', GLOBAL_DATA_DIR_NAME);
 }
 
 /**

@@ -118,7 +118,7 @@ Focus on:
 - workspace root shape
 - metadata directory naming
 - local versus committed state
-- repo alias semantics
+- stable workspace name semantics
 
 Read:
 
@@ -140,8 +140,10 @@ Bring back:
 Focus on:
 
 - how a user creates a workspace
-- how repo aliases are registered
+- how repos or folders are linked
 - what `doctor` or equivalent status output should explain
+- how POC `create`/`add-repo` behavior maps to the target `setup`/`link`/`relink`/`doctor` flow before change creation
+- how planning-only repos and monorepo modules differ from implementation-ready repo-local OpenSpec projects
 
 Read:
 
@@ -156,14 +158,14 @@ Bring back:
 
 - expected commands
 - expected files
-- validation behavior for bad paths, duplicate aliases, and missing repos
+- validation behavior for bad paths, duplicate workspace names, missing paths, planning-only links, and duplicate link names
 
 ### `workspace-open-agent-context`
 
 Focus on:
 
 - what context the agent receives
-- how registered repos become visible
+- how linked repos or folders become visible
 - how one-session agent selection should work
 - what should be stable guidance versus dynamic launch context
 
