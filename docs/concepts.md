@@ -51,6 +51,8 @@ This separation is key. You can work on multiple changes in parallel without con
 
 ## Coordination Workspaces
 
+Workspace support is in beta. The concepts below describe the direction and foundation currently being implemented; commands and workflows may change, and some workspace commands may not be available in the current stable release yet.
+
 Repo-local OpenSpec projects are the right default when one repo owns the planning, implementation, and archive flow. Some work spans several repos or folders. For that case, an OpenSpec coordination workspace is the durable planning home.
 
 The workspace mental model is:
