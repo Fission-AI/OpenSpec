@@ -82,11 +82,12 @@ describe('InitCommand', () => {
 
       await initCommand.execute(testDir);
 
-      // Core profile: propose, explore, apply, archive
+      // Core profile: propose, explore, apply, sync, archive
       const coreSkillNames = [
         'openspec-propose',
         'openspec-explore',
         'openspec-apply-change',
+        'openspec-sync-specs',
         'openspec-archive-change',
       ];
 
@@ -105,7 +106,6 @@ describe('InitCommand', () => {
         'openspec-new-change',
         'openspec-continue-change',
         'openspec-ff-change',
-        'openspec-sync-specs',
         'openspec-bulk-archive-change',
         'openspec-verify-change',
       ];
@@ -121,11 +121,12 @@ describe('InitCommand', () => {
 
       await initCommand.execute(testDir);
 
-      // Core profile: propose, explore, apply, archive
+      // Core profile: propose, explore, apply, sync, archive
       const coreCommandNames = [
         'opsx/propose.md',
         'opsx/explore.md',
         'opsx/apply.md',
+        'opsx/sync.md',
         'opsx/archive.md',
       ];
 
@@ -139,7 +140,6 @@ describe('InitCommand', () => {
         'opsx/new.md',
         'opsx/continue.md',
         'opsx/ff.md',
-        'opsx/sync.md',
         'opsx/bulk-archive.md',
         'opsx/verify.md',
       ];
