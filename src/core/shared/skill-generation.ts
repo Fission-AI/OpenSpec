@@ -9,6 +9,7 @@ import {
   getNewChangeSkillTemplate,
   getContinueChangeSkillTemplate,
   getApplyChangeSkillTemplate,
+  getClarifyChangeSkillTemplate,
   getFfChangeSkillTemplate,
   getSyncSpecsSkillTemplate,
   getArchiveChangeSkillTemplate,
@@ -25,6 +26,7 @@ import {
   getOpsxArchiveCommandTemplate,
   getOpsxBulkArchiveCommandTemplate,
   getOpsxVerifyCommandTemplate,
+  getOpsxClarifyCommandTemplate,
   getOpsxOnboardCommandTemplate,
   getOpsxProposeCommandTemplate,
   type SkillTemplate,
@@ -64,6 +66,7 @@ export function getSkillTemplates(workflowFilter?: readonly string[]): SkillTemp
     { template: getArchiveChangeSkillTemplate(), dirName: 'openspec-archive-change', workflowId: 'archive' },
     { template: getBulkArchiveChangeSkillTemplate(), dirName: 'openspec-bulk-archive-change', workflowId: 'bulk-archive' },
     { template: getVerifyChangeSkillTemplate(), dirName: 'openspec-verify-change', workflowId: 'verify' },
+    { template: getClarifyChangeSkillTemplate(), dirName: 'openspec-clarify-change' },
     { template: getOnboardSkillTemplate(), dirName: 'openspec-onboard', workflowId: 'onboard' },
     { template: getOpsxProposeSkillTemplate(), dirName: 'openspec-propose', workflowId: 'propose' },
   ];
@@ -90,6 +93,7 @@ export function getCommandTemplates(workflowFilter?: readonly string[]): Command
     { template: getOpsxArchiveCommandTemplate(), id: 'archive' },
     { template: getOpsxBulkArchiveCommandTemplate(), id: 'bulk-archive' },
     { template: getOpsxVerifyCommandTemplate(), id: 'verify' },
+    { template: getOpsxClarifyCommandTemplate(), id: 'clarify' },
     { template: getOpsxOnboardCommandTemplate(), id: 'onboard' },
     { template: getOpsxProposeCommandTemplate(), id: 'propose' },
   ];
