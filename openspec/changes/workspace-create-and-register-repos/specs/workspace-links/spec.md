@@ -102,6 +102,14 @@ OpenSpec SHALL let workspace commands run from outside workspace directories.
 - **THEN** OpenSpec SHALL fail with a clear message
 - **AND** it SHALL suggest passing `--workspace <name>`
 
+#### Scenario: No known workspaces for a command that needs one
+- **GIVEN** no known workspaces exist in the local registry
+- **AND** the command is not running from a workspace root or subdirectory
+- **WHEN** `workspace link`, `workspace relink`, `workspace doctor`, or another command that needs one workspace runs without `--workspace <name>`
+- **THEN** OpenSpec SHALL fail without showing a picker regardless of interactive mode
+- **AND** it SHALL print `No known OpenSpec workspaces. Run 'openspec workspace setup' first.`
+- **AND** it SHALL explain that `--workspace <name>` can be used after at least one workspace is registered
+
 ### Requirement: Workspace Links
 OpenSpec SHALL let users link existing repos or folders to a workspace before creating a change.
 

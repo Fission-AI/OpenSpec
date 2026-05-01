@@ -5,7 +5,7 @@ The CLI artifact workflow SHALL expose workspace setup commands before change cr
 
 #### Scenario: Preparing workspace planning before a change
 - **WHEN** a user needs to prepare workspace planning across repos or folders
-- **THEN** the CLI SHALL provide commands to set up, list, link, relink, and check workspaces
+- **THEN** the CLI SHALL provide commands to set up, list, link, relink, and doctor workspaces
 - **AND** those commands SHALL not require an active workspace change
 
 #### Scenario: Listing workspaces with a short command

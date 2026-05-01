@@ -140,9 +140,9 @@ Bring back:
 Focus on:
 
 - how a user creates a workspace
-- how working-set entries are registered
+- how repos or folders are linked
 - what `doctor` or equivalent status output should explain
-- how `setup`, `list`, `create`, `add-repo`, and `doctor` fit together before change creation
+- how POC `create`/`add-repo` behavior maps to the target `setup`/`link`/`relink`/`doctor` flow before change creation
 - how planning-only repos and monorepo modules differ from implementation-ready repo-local OpenSpec projects
 
 Read:
@@ -158,14 +158,14 @@ Bring back:
 
 - expected commands
 - expected files
-- validation behavior for bad paths, duplicate workspace names, missing paths, planning-only entries, and duplicate working-set names
+- validation behavior for bad paths, duplicate workspace names, missing paths, planning-only links, and duplicate link names
 
 ### `workspace-open-agent-context`
 
 Focus on:
 
 - what context the agent receives
-- how working-set entries become visible
+- how linked repos or folders become visible
 - how one-session agent selection should work
 - what should be stable guidance versus dynamic launch context
 
