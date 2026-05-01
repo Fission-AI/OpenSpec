@@ -122,7 +122,7 @@ Requirement headers SHALL serve as unique identifiers for programmatic matching 
 
 ### Requirement: Change Storage Convention
 
-Change proposals SHALL store only the additions, modifications, and removals to specifications, not complete future states.
+Change proposals SHALL store additions, modifications, removals, renames, and purpose changes to specifications, not complete future states.
 
 #### Scenario: Creating change proposals with additions
 
@@ -147,9 +147,17 @@ Change proposals SHALL store only the additions, modifications, and removals to 
 - **AND** include reason for removal
 - **AND** document any migration path if applicable
 
+#### Scenario: Creating change proposals with purpose changes
+
+- **WHEN** creating a change proposal that modifies a spec's Purpose text
+- **THEN** include the new purpose under a `## Purpose` section in the delta spec
+- **AND** the validator SHALL accept purpose-only delta files (no requirement sections required)
+- **AND** the archive process SHALL replace the main spec's `## Purpose` section with the delta Purpose text
+- **AND** purpose changes MAY be combined with requirement changes in the same delta file
+
 The `changes/[name]/specs/` directory SHALL contain:
 - Delta files showing only what changes
-- Sections for ADDED, MODIFIED, REMOVED, and RENAMED requirements
+- Sections for ADDED, MODIFIED, REMOVED, RENAMED requirements, and/or Purpose
 - Normalized header matching for requirement identification
 - Complete requirements using the structured format
 - Clear indication of change type for each requirement
@@ -162,6 +170,7 @@ The `changes/[name]/specs/` directory SHALL contain:
   - `~` for MODIFIED (yellow)
   - `-` for REMOVED (red)
   - `→` for RENAMED (cyan)
+  - `📝` for PURPOSE_MODIFIED (blue)
 
 ### Requirement: Archive Process Enhancement
 

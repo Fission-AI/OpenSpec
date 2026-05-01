@@ -1,26 +1,6 @@
-# specs-sync-skill Specification
+# specs-sync-skill Delta Spec — PR #843
 
-## Purpose
-Defines the agent skill for syncing delta specs from changes to main specs.
-## Requirements
-### Requirement: Specs Sync Skill
-The system SHALL provide an `/opsx:sync` skill that syncs delta specs from a change to the main specs.
-
-#### Scenario: Sync delta specs to main specs
-- **WHEN** agent executes `/opsx:sync` with a change name
-- **THEN** the agent reads delta specs from `openspec/changes/<name>/specs/`
-- **AND** reads corresponding main specs from `openspec/specs/`
-- **AND** reconciles main specs to match what the deltas describe
-
-#### Scenario: Idempotent operation
-- **WHEN** agent executes `/opsx:sync` multiple times on the same change
-- **THEN** the result is the same as running it once
-- **AND** no duplicate requirements are created
-
-#### Scenario: Change selection prompt
-- **WHEN** agent executes `/opsx:sync` without specifying a change
-- **THEN** the agent prompts user to select from available changes
-- **AND** shows changes that have delta specs
+## MODIFIED Requirements
 
 ### Requirement: Delta Reconciliation Logic
 The agent SHALL reconcile main specs with delta specs using the delta operation headers and the Purpose section.
@@ -76,4 +56,3 @@ The skill SHALL provide clear feedback on what was applied.
 #### Scenario: No changes needed
 - **WHEN** main specs already match delta specs
 - **THEN** display "Specs already in sync - no changes needed"
-
