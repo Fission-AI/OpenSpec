@@ -20,6 +20,9 @@ importers:
       commander:
         specifier: ^14.0.0
         version: 14.0.0
+      diff:
+        specifier: ^9.0.0
+        version: 9.0.0
       fast-glob:
         specifier: ^3.3.3
         version: 3.3.3
@@ -860,6 +863,10 @@ packages:
   detect-indent@6.1.0:
     resolution: {integrity: sha512-reYkTUJAZb9gUuZ2RvVCNhVHdg62RHnJ7WJl8ftMi4diZ6NWlciOzQN88pUhSELEwflJht4oQDv0F0BMlwaYtA==}
     engines: {node: '>=8'}
+
+  diff@9.0.0:
+    resolution: {integrity: sha512-svtcdpS8CgJyqAjEQIXdb3OjhFVVYjzGAPO8WGCmRbrml64SPw/jJD4GoE98aR7r25A0XcgrK3F02yw9R/vhQw==}
+    engines: {node: '>=0.3.1'}
 
   dir-glob@3.0.1:
     resolution: {integrity: sha512-WkrWp9GR4KXfKGYzOLmTuGVi1UWFfws377n9cc55/tb6DuqyF6pcQ5AbiHEshaDpY9v6oaSr2XCDidGmMwdzIA==}
@@ -2439,6 +2446,8 @@ snapshots:
   deep-is@0.1.4: {}
 
   detect-indent@6.1.0: {}
+
+  diff@9.0.0: {}
 
   dir-glob@3.0.1:
     dependencies:
