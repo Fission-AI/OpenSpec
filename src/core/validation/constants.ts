@@ -16,7 +16,14 @@ export const VALIDATION_MESSAGES = {
   // Required content
   SCENARIO_EMPTY: 'Scenario text cannot be empty',
   REQUIREMENT_EMPTY: 'Requirement text cannot be empty',
-  REQUIREMENT_NO_SHALL: 'Requirement must contain SHALL or MUST keyword',
+  REQUIREMENT_NO_SHALL: (keywords: string[]) => {
+    const quoted = keywords.map(k => `"${k}"`);
+    if (quoted.length === 1) return `Requirement must contain ${quoted[0]} keyword`;
+    const last = quoted[quoted.length - 1];
+    const rest = quoted.slice(0, -1);
+    if (quoted.length === 2) return `Requirement must contain ${rest[0]} or ${last} keyword`;
+    return `Requirement must contain ${rest.join(', ')}, or ${last} keyword`;
+  },
   REQUIREMENT_NO_SCENARIOS: 'Requirement must have at least one scenario',
   SPEC_NAME_EMPTY: 'Spec name cannot be empty',
   SPEC_PURPOSE_EMPTY: 'Purpose section cannot be empty',
@@ -29,20 +36,20 @@ export const VALIDATION_MESSAGES = {
   CHANGE_TOO_MANY_DELTAS: `Consider splitting changes with more than ${MAX_DELTAS_PER_CHANGE} deltas`,
   DELTA_SPEC_EMPTY: 'Spec name cannot be empty',
   DELTA_DESCRIPTION_EMPTY: 'Delta description cannot be empty',
-  
+
   // Warnings
   PURPOSE_TOO_BRIEF: `Purpose section is too brief (less than ${MIN_PURPOSE_LENGTH} characters)`,
   REQUIREMENT_TOO_LONG: `Requirement text is very long (>${MAX_REQUIREMENT_TEXT_LENGTH} characters). Consider breaking it down.`,
   DELTA_DESCRIPTION_TOO_BRIEF: 'Delta description is too brief',
   DELTA_MISSING_REQUIREMENTS: 'Delta should include requirements',
-  
+
   // Guidance snippets (appended to primary messages for remediation)
   GUIDE_NO_DELTAS:
     'No deltas found. Ensure your change has a specs/ directory with capability folders (e.g. specs/http-server/spec.md) containing .md files that use delta headers (## ADDED/MODIFIED/REMOVED/RENAMED Requirements) and that each requirement includes at least one "#### Scenario:" block. Tip: run "openspec change show <change-id> --json --deltas-only" to inspect parsed deltas.',
-  GUIDE_MISSING_SPEC_SECTIONS:
-    'Missing required sections. Expected headers: "## Purpose" and "## Requirements". Example:\n## Purpose\n[brief purpose]\n\n## Requirements\n### Requirement: Clear requirement statement\nUsers SHALL ...\n\n#### Scenario: Descriptive name\n- **WHEN** ...\n- **THEN** ...',
+  GUIDE_MISSING_SPEC_SECTIONS: (keywords: string[]) =>
+    `Missing required sections. Expected headers: "## Purpose" and "## Requirements". Example:\n## Purpose\n[brief purpose]\n\n## Requirements\n### Requirement: Clear requirement statement\nUsers ${keywords[0]} ...\n\n#### Scenario: Descriptive name\n- **WHEN** ...\n- **THEN** ...`,
   GUIDE_MISSING_CHANGE_SECTIONS:
     'Missing required sections. Expected headers: "## Why" and "## What Changes". Ensure deltas are documented in specs/ using delta headers.',
-  GUIDE_SCENARIO_FORMAT:
-    'Scenarios must use level-4 headers. Convert bullet lists into:\n#### Scenario: Short name\n- **WHEN** ...\n- **THEN** ...\n- **AND** ...',
-} as const;
+  GUIDE_SCENARIO_FORMAT: (keywords: string[]) =>
+    `Scenarios must use level-4 headers. Ensure requirement text contains a normative keyword (${keywords.map(k => `"${k}"`).join(', ')}). Convert bullet lists into:\n#### Scenario: Short name\n- **WHEN** ...\n- **THEN** ...\n- **AND** ...`,
+};
