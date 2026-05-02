@@ -11,6 +11,7 @@ import * as fs from 'fs';
 import {
   loadChangeContext,
   generateInstructions,
+  loadInstruction,
   resolveSchema,
   resolveArtifactOutputs,
   type ArtifactInstructions,
@@ -260,7 +261,9 @@ export async function generateApplyInstructions(
   // Fallback: if no apply block, require all artifacts
   const requiredArtifactIds = applyConfig?.requires ?? schema.artifacts.map((a) => a.id);
   const tracksFile = applyConfig?.tracks ?? null;
-  const schemaInstruction = applyConfig?.instruction ?? null;
+  const schemaInstruction = applyConfig?.instructionFile
+    ? loadInstruction(context.schemaName, applyConfig.instructionFile, projectRoot)?.trim()
+    : applyConfig?.instruction?.trim() ?? null;
 
   // Check which required artifacts are missing
   const missingArtifacts: string[] = [];
@@ -320,7 +323,7 @@ export async function generateApplyInstructions(
   } else if (!tracksFile) {
     // No tracking file configured in schema - ready to apply
     state = 'ready';
-    instruction = schemaInstruction?.trim() ?? 'All required artifacts complete. Proceed with implementation.';
+    instruction = schemaInstruction ?? 'All required artifacts complete. Proceed with implementation.';
   } else {
     state = 'ready';
     instruction = schemaInstruction?.trim() ?? 'Read context files, work through pending tasks, mark complete as you go.\nPause if you hit blockers or need clarification.';

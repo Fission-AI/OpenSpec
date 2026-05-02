@@ -4,10 +4,12 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import {
   loadTemplate,
+  loadInstruction,
   loadChangeContext,
   generateInstructions,
   formatChangeStatus,
   TemplateLoadError,
+  InstructionLoadError,
 } from '../../../src/core/artifact-graph/instruction-loader.js';
 
 describe('instruction-loader', () => {
@@ -39,6 +41,85 @@ describe('instruction-loader', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(TemplateLoadError);
         expect((err as TemplateLoadError).templatePath).toContain('nonexistent.md');
+      }
+    });
+  });
+
+  describe('loadInstruction', () => {
+    let tempDir: string;
+    let schemaDir: string;
+
+    beforeEach(() => {
+      tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-test-'));
+
+      // Create a project-local test schema with instructions directory
+      const schemasDir = path.join(tempDir, 'openspec', 'schemas', 'test-instruction-schema');
+      const instructionsDir = path.join(schemasDir, 'instructions');
+      const templatesDir = path.join(schemasDir, 'templates');
+
+      fs.mkdirSync(instructionsDir, { recursive: true });
+      fs.mkdirSync(templatesDir, { recursive: true });
+
+      // Write schema.yaml
+      fs.writeFileSync(
+        path.join(schemasDir, 'schema.yaml'),
+        `name: test-instruction-schema
+version: 1
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Proposal
+    template: proposal.md
+    instructionFile: proposal.md
+    requires: []
+`
+      );
+
+      // Write instruction file
+      fs.writeFileSync(
+        path.join(instructionsDir, 'proposal.md'),
+        '# Proposal Instructions\nCreate the proposal document.'
+      );
+
+      // Write template file
+      fs.writeFileSync(
+        path.join(templatesDir, 'proposal.md'),
+        '## Why\n\n## What Changes'
+      );
+
+      schemaDir = schemasDir;
+    });
+
+    afterEach(() => {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    });
+
+    it('should load instruction file from schema instructions directory', () => {
+      const instruction = loadInstruction('test-instruction-schema', 'proposal.md', tempDir);
+
+      expect(instruction).toContain('Proposal Instructions');
+      expect(instruction).toContain('Create the proposal document');
+    });
+
+    it('should throw InstructionLoadError for non-existent instruction file', () => {
+      expect(() => loadInstruction('test-instruction-schema', 'nonexistent.md', tempDir)).toThrow(
+        InstructionLoadError
+      );
+    });
+
+    it('should throw InstructionLoadError for non-existent schema', () => {
+      expect(() => loadInstruction('nonexistent-schema', 'proposal.md', tempDir)).toThrow(
+        InstructionLoadError
+      );
+    });
+
+    it('should include instruction path in error', () => {
+      try {
+        loadInstruction('test-instruction-schema', 'nonexistent.md', tempDir);
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toBeInstanceOf(InstructionLoadError);
+        expect((err as InstructionLoadError).instructionPath).toContain('nonexistent.md');
       }
     });
   });
@@ -503,6 +584,110 @@ rules:
         generateInstructions(context, 'proposal', tempDir);
 
         expect(consoleWarnSpy).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('instructionFile resolution', () => {
+      let testDir: string;
+
+      beforeEach(() => {
+        testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-test-'));
+
+        // Create a project-local test schema with instructionFile
+        const schemasDir = path.join(testDir, 'openspec', 'schemas', 'test-if-schema');
+        const instructionsDir = path.join(schemasDir, 'instructions');
+        const templatesDir = path.join(schemasDir, 'templates');
+
+        fs.mkdirSync(instructionsDir, { recursive: true });
+        fs.mkdirSync(templatesDir, { recursive: true });
+
+        // Write schema.yaml with instructionFile
+        fs.writeFileSync(
+          path.join(schemasDir, 'schema.yaml'),
+          `name: test-if-schema
+version: 1
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Proposal artifact
+    template: proposal.md
+    instructionFile: proposal.md
+    requires: []
+  - id: design
+    generates: design.md
+    description: Design artifact
+    template: design.md
+    instruction: |
+      Create the design document (inline).
+    requires:
+      - proposal
+`
+        );
+
+        // Write instruction file for proposal (uses instructionFile)
+        fs.writeFileSync(
+          path.join(instructionsDir, 'proposal.md'),
+          'Create the proposal document (from file).'
+        );
+
+        // Write template files
+        fs.writeFileSync(
+          path.join(templatesDir, 'proposal.md'),
+          '## Why\n\n## What Changes'
+        );
+        fs.writeFileSync(
+          path.join(templatesDir, 'design.md'),
+          '## Context\n\n## Goals / Non-Goals'
+        );
+      });
+
+      afterEach(() => {
+        fs.rmSync(testDir, { recursive: true, force: true });
+      });
+
+      it('should resolve instructionFile content for artifact', () => {
+        const context = loadChangeContext(testDir, 'my-change', 'test-if-schema');
+        const instructions = generateInstructions(context, 'proposal', testDir);
+
+        // instruction should come from the external file
+        expect(instructions.instruction).toContain('Create the proposal document (from file)');
+      });
+
+      it('should fall back to inline instruction when instructionFile absent', () => {
+        const context = loadChangeContext(testDir, 'my-change', 'test-if-schema');
+        const instructions = generateInstructions(context, 'design', testDir);
+
+        // design uses inline instruction, no instructionFile
+        expect(instructions.instruction).toContain('Create the design document (inline)');
+      });
+
+      it('should return undefined instruction when neither field present', () => {
+        // Create a schema without instruction or instructionFile for an artifact
+        const schemasDir2 = path.join(testDir, 'openspec', 'schemas', 'test-no-instr');
+        const templatesDir2 = path.join(schemasDir2, 'templates');
+        fs.mkdirSync(templatesDir2, { recursive: true });
+
+        fs.writeFileSync(
+          path.join(schemasDir2, 'schema.yaml'),
+          `name: test-no-instr
+version: 1
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Proposal without instruction
+    template: proposal.md
+    requires: []
+`
+        );
+        fs.writeFileSync(
+          path.join(templatesDir2, 'proposal.md'),
+          '## Why'
+        );
+
+        const context = loadChangeContext(testDir, 'my-change', 'test-no-instr');
+        const instructions = generateInstructions(context, 'proposal', testDir);
+
+        expect(instructions.instruction).toBeUndefined();
       });
     });
   });

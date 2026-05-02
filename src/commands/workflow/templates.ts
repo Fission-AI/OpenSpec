@@ -26,6 +26,7 @@ export interface TemplatesOptions {
 export interface TemplateInfo {
   artifactId: string;
   templatePath: string;
+  instructionFilePath: string | null;
   source: 'project' | 'user' | 'package';
 }
 
@@ -67,20 +68,35 @@ export async function templatesCommand(options: TemplatesOptions): Promise<void>
       source = 'package';
     }
 
-    const templates: TemplateInfo[] = graph.getAllArtifacts().map((artifact) => ({
-      artifactId: artifact.id,
-      templatePath: FileSystemUtils.canonicalizeExistingPath(
-        path.join(schemaDir, 'templates', artifact.template)
-      ),
-      source,
-    }));
+    const templates: TemplateInfo[] = graph.getAllArtifacts().map((artifact) => {
+      const instructionFilePath = artifact.instructionFile
+        ? FileSystemUtils.canonicalizeExistingPath(
+            path.join(schemaDir, 'instructions', artifact.instructionFile)
+          )
+        : null;
+
+      return {
+        artifactId: artifact.id,
+        templatePath: FileSystemUtils.canonicalizeExistingPath(
+          path.join(schemaDir, 'templates', artifact.template)
+        ),
+        instructionFilePath,
+        source,
+      };
+    });
 
     spinner?.stop();
 
     if (options.json) {
-      const output: Record<string, { path: string; source: string }> = {};
+      const output: Record<string, { template: { path: string; source: string }; instructionFile?: { path: string } }> = {};
       for (const t of templates) {
-        output[t.artifactId] = { path: t.templatePath, source: t.source };
+        const entry: { template: { path: string; source: string }; instructionFile?: { path: string } } = {
+          template: { path: t.templatePath, source: t.source },
+        };
+        if (t.instructionFilePath) {
+          entry.instructionFile = { path: t.instructionFilePath };
+        }
+        output[t.artifactId] = entry;
       }
       console.log(JSON.stringify(output, null, 2));
       return;
@@ -92,7 +108,10 @@ export async function templatesCommand(options: TemplatesOptions): Promise<void>
 
     for (const t of templates) {
       console.log(`${t.artifactId}:`);
-      console.log(`  ${t.templatePath}`);
+      console.log(`  template:    ${t.templatePath}`);
+      if (t.instructionFilePath) {
+        console.log(`  instruction: ${t.instructionFilePath}`);
+      }
     }
   } catch (error) {
     spinner?.stop();

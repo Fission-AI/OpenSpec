@@ -7,6 +7,9 @@ export const ArtifactSchema = z.object({
   description: z.string(),
   template: z.string().min(1, { error: 'template field is required' }),
   instruction: z.string().optional(),
+  // External instruction file (relative to schema's instructions/ directory).
+  // Mutually exclusive with instruction — validated in parseSchema().
+  instructionFile: z.string().optional(),
   requires: z.array(z.string()).default([]),
 });
 
@@ -18,6 +21,9 @@ export const ApplyPhaseSchema = z.object({
   tracks: z.string().nullable().optional(),
   // Custom guidance for the apply phase
   instruction: z.string().optional(),
+  // External instruction file for apply phase (relative to schema's instructions/ directory).
+  // Mutually exclusive with instruction — validated in parseSchema().
+  instructionFile: z.string().optional(),
 });
 
 // Full schema YAML structure
