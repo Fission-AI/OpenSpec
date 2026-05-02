@@ -114,6 +114,22 @@ If you want the expanded workflow (`/opsx:new`, `/opsx:continue`, `/opsx:ff`, `/
 → **[Multi-Language](docs/multi-language.md)**: multi-language support<br>
 → **[Customization](docs/customization.md)**: make it yours
 
+## Integrations
+
+### LLM Wiki
+
+OpenSpec supports integration with LLM Wiki for knowledge management, creating a complete knowledge loop:
+
+**Query** (before work) → **Explore/Propose** → **Apply** → **Archive** → **Ingest** (after completion)
+
+Benefits:
+- Avoid duplicate discussions of solved problems
+- Leverage existing features and design decisions
+- Automatically accumulate knowledge over time
+- Maintain context across team members and sessions
+
+See [docs/guides/llm-wiki-integration.md](docs/guides/llm-wiki-integration.md) for setup instructions and examples.
+
 
 ## Why OpenSpec?
 
