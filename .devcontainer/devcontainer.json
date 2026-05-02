@@ -1,6 +1,6 @@
 {
   "name": "OpenSpec Development",
-  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-20-bookworm",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm",
 
   // Additional tools and features
   "features": {
