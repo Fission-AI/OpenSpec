@@ -215,7 +215,7 @@ jobs:
       - name: Test binary execution
         run: |
           VERSION=$(nix run . -- --version)
-          echo "OpenSpec version: $VERSION"
+          echo "BR-OpenSpec version: $VERSION"
           if [ -z "$VERSION" ]; then
             echo "Error: Version command returned empty output"
             exit 1
