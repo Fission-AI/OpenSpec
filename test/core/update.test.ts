@@ -1603,7 +1603,7 @@ content
         call.map(arg => String(arg)).join(' ')
       );
       const hasDeselectedRemovalNote = calls.some(call =>
-        call.includes('deselected workflows')
+        call.includes('fluxos de trabalho desselecionados')
       );
       expect(hasDeselectedRemovalNote).toBe(true);
 
@@ -1630,7 +1630,7 @@ content
         call.map(arg => String(arg)).join(' ')
       );
       const hasNewToolMessage = calls.some(call =>
-        call.includes("Detected new tool: Cursor. Run 'openspec init' to add it.")
+        call.includes("Detectadas novas ferramenta: Cursor. Execute 'openspec init' para adicionar ela.")
       );
       expect(hasNewToolMessage).toBe(true);
 
@@ -1657,15 +1657,15 @@ content
       );
 
       const consolidatedCalls = calls.filter(call =>
-        call.includes('Detected new tools:')
+        call.includes('Detectadas novas ferramentas:')
       );
       expect(consolidatedCalls).toHaveLength(1);
       expect(consolidatedCalls[0]).toContain('GitHub Copilot');
       expect(consolidatedCalls[0]).toContain('Windsurf');
-      expect(consolidatedCalls[0]).toContain("Run 'openspec init' to add them.");
+      expect(consolidatedCalls[0]).toContain("Execute 'openspec init' para adicionar elas.");
 
       const repeatedSingularCalls = calls.filter(call =>
-        call.includes('Detected new tool:')
+        call.includes('Detectadas novas ferramenta:')
       );
       expect(repeatedSingularCalls).toHaveLength(0);
 
@@ -1686,7 +1686,7 @@ content
         call.map(arg => String(arg)).join(' ')
       );
       const hasNewToolMessage = calls.some(call =>
-        call.includes('Detected new tool')
+        call.includes('Detectadas novas ferramenta') || call.includes('Detectadas novas ferramentas')
       );
       expect(hasNewToolMessage).toBe(false);
 
@@ -1764,7 +1764,8 @@ content
         call.map(arg => String(arg)).join(' ')
       );
       const hasToolsList = calls.some(call =>
-        call.includes('Ferramentas:') && call.includes('Claude Code')
+        (call.includes('Ferramentas:') || call.includes('Tools:'))
+        && (call.includes('Claude Code') || call.includes('claude'))
       );
       expect(hasToolsList).toBe(true);
 

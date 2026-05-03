@@ -274,7 +274,7 @@ describe('FeedbackCommand', () => {
         'gh',
         expect.arrayContaining([
           '--body',
-          expect.stringMatching(/Enviado via BR-OpenSpec CLI[\s\S]*Version:[\s\S]*Platform:[\s\S]*Timestamp:/),
+          expect.stringMatching(/Enviado via BR-OpenSpec CLI[\s\S]*Versão:[\s\S]*Plataforma:[\s\S]*Timestamp:/),
         ]),
         expect.any(Object)
       );
@@ -390,13 +390,13 @@ describe('FeedbackCommand', () => {
         expect.stringContaining('--- FEEDBACK FORMATADO ---')
       );
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Title: Feedback: Test message')
+        expect.stringContaining('Título: Feedback: Test message')
       );
       expect(consoleLogSpy).toHaveBeenCalledWith(
         expect.stringContaining('Labels: feedback')
       );
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('--- END FEEDBACK ---')
+        expect.stringContaining('--- FIM DO FEEDBACK ---')
       );
     });
 
