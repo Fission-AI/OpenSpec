@@ -24,12 +24,14 @@
 <p></p>
 Nossa filosofia:
 
+> Esta filosofia foi definida pelo projeto original [OpenSpec](https://github.com/tab-tools/openspec) e o BR-OpenSpec fará o possível para honrá-la em cada decisão.
+
 ```text
-→ fluid not rigid
-→ iterative not waterfall
-→ easy not complex
-→ built for brownfield not just greenfield
-→ scalable from personal projects to enterprises
+→ fluido, não rígido
+→ iterativo, não em cascata
+→ simples, não complexo
+→ feito para brownfield, não apenas greenfield
+→ escalável de projetos pessoais a empresas
 ```
 
 > [!TIP]

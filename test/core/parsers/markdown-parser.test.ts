@@ -90,7 +90,7 @@ When action
 Then result`;
 
       const parser = new MarkdownParser(content);
-      expect(() => parser.parseSpec('test')).toThrow('must have a Purpose section');
+      expect(() => parser.parseSpec('test')).toThrow('A especificação deve ter uma seção Purpose');
     });
 
     it('should throw error for missing requirements', () => {
@@ -100,7 +100,7 @@ Then result`;
 This is a test spec`;
 
       const parser = new MarkdownParser(content);
-      expect(() => parser.parseSpec('test')).toThrow('must have a Requirements section');
+      expect(() => parser.parseSpec('test')).toThrow('A especificação deve ter uma seção Requirements');
     });
 
     it('should ignore headings that appear inside fenced code blocks', () => {
@@ -206,7 +206,7 @@ We need to implement user authentication to secure the application and protect u
 - **test:** Add test`;
 
       const parser = new MarkdownParser(content);
-      expect(() => parser.parseChange('test')).toThrow('must have a Why section');
+      expect(() => parser.parseChange('test')).toThrow('A alteração deve ter uma seção Why');
     });
 
     it('should throw error for missing what changes section', () => {
@@ -216,7 +216,7 @@ We need to implement user authentication to secure the application and protect u
 Because we need it`;
 
       const parser = new MarkdownParser(content);
-      expect(() => parser.parseChange('test')).toThrow('must have a What Changes section');
+      expect(() => parser.parseChange('test')).toThrow('A alteração deve ter uma seção What Changes');
     });
 
     it('should handle changes without deltas', () => {

@@ -430,9 +430,9 @@ Old instructions content
 
       await updateCommand.execute(testDir);
 
-      // Cursor should still be updated - check the actual format from ora spinner
+      // Cursor should still be updated - check summary message
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Atualizado Cursor')
+        expect.stringContaining('Atualizados: Cursor')
       );
 
       // Claude should be reported as failed
@@ -717,7 +717,7 @@ Content
       const forceUpdateCommand = new UpdateCommand({ force: true });
       await forceUpdateCommand.execute(testDir);
 
-      // Should show "Force updating" message
+      // Should show "Forçando atualização" message
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining('Forçando atualização')
       );
@@ -791,7 +791,7 @@ metadata:
 
       // Should show both tools being force updated
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Force updating 2 tool(s)')
+        expect.stringContaining('Forçando atualização de 2 ferramenta(s)')
       );
 
       consoleSpy.mockRestore();
@@ -1129,7 +1129,7 @@ More user content after markers.
 
       // Should show detected tools message
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Tools detected from legacy artifacts')
+        expect.stringContaining('Ferramentas detectadas de artefatos legados')
       );
 
       // Should show Claude Code being set up
@@ -1139,7 +1139,7 @@ More user content after markers.
 
       // Should show getting started message for newly configured tools
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Getting started')
+        expect.stringContaining('Início rápido')
       );
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining('/opsx:new')
@@ -1179,7 +1179,7 @@ More user content after markers.
 
       // Should detect both tools
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Tools detected from legacy artifacts')
+        expect.stringContaining('Ferramentas detectadas de artefatos legados')
       );
 
       // Both tools should have skills created
@@ -1220,16 +1220,16 @@ More user content after markers.
         expect.stringContaining('Removed .claude/commands/openspec/')
       );
 
-      // Should NOT show "Tools detected from legacy artifacts" because claude is already configured
+      // Should NOT show "Ferramentas detectadas de artefatos legados" because claude is already configured
       const calls = consoleSpy.mock.calls.map(call =>
         call.map(arg => String(arg)).join(' ')
       );
       const hasDetectedMessage = calls.some(call =>
-        call.includes('Tools detected from legacy artifacts')
+        call.includes('Ferramentas detectadas de artefatos legados')
       );
       expect(hasDetectedMessage).toBe(false);
 
-      // Should update existing skills (not "Getting started" for newly configured)
+      // Should update existing skills (not "Início rápido" for newly configured)
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining('Atualizados: Claude Code')
       );
@@ -1267,16 +1267,16 @@ More user content after markers.
 
       // Should detect Cursor as a legacy tool to upgrade (but not Claude)
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Tools detected from legacy artifacts')
+        expect.stringContaining('Ferramentas detectadas de artefatos legados')
       );
 
       // Cursor skills should be created
       const cursorSkillFile = path.join(testDir, '.cursor', 'skills', 'openspec-explore', 'SKILL.md');
       expect(await FileSystemUtils.fileExists(cursorSkillFile)).toBe(true);
 
-      // Should show "Getting started" for newly configured Cursor
+      // Should show "Início rápido" for newly configured Cursor
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Getting started')
+        expect.stringContaining('Início rápido')
       );
 
       consoleSpy.mockRestore();
@@ -1295,12 +1295,12 @@ More user content after markers.
 
       await updateCommand.execute(testDir);
 
-      // Should NOT show "Getting started" message
+      // Should NOT show "Início rápido" message
       const calls = consoleSpy.mock.calls.map(call =>
         call.map(arg => String(arg)).join(' ')
       );
       const hasGettingStarted = calls.some(call =>
-        call.includes('Getting started')
+        call.includes('Início rápido')
       );
       expect(hasGettingStarted).toBe(false);
 

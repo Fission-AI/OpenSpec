@@ -8,8 +8,13 @@ import { ZshInstaller } from '../../../../src/core/completions/installers/zsh-in
 describe('ZshInstaller', () => {
   let testHomeDir: string;
   let installer: ZshInstaller;
+  let originalZshEnv: string | undefined;
 
   beforeEach(async () => {
+    // Save and clear ZSH env var to avoid detecting host Oh My Zsh
+    originalZshEnv = process.env.ZSH;
+    delete process.env.ZSH;
+
     // Create a temporary home directory for testing
     testHomeDir = path.join(os.tmpdir(), `openspec-zsh-test-${randomUUID()}`);
     await fs.mkdir(testHomeDir, { recursive: true });
@@ -19,6 +24,13 @@ describe('ZshInstaller', () => {
   afterEach(async () => {
     // Clean up test directory
     await fs.rm(testHomeDir, { recursive: true, force: true });
+
+    // Restore ZSH env var
+    if (originalZshEnv === undefined) {
+      delete process.env.ZSH;
+    } else {
+      process.env.ZSH = originalZshEnv;
+    }
   });
 
   describe('isOhMyZshInstalled', () => {
@@ -288,7 +300,7 @@ describe('ZshInstaller', () => {
       const result = await installer.uninstall();
 
       expect(result.success).toBe(true);
-      expect(result.message).toContain('removed');
+      expect(result.message).toContain('removido');
 
       // Verify it's gone
       const afterUninstall = await installer.isInstalled();
@@ -691,20 +703,6 @@ describe('ZshInstaller', () => {
 
   describe('uninstall with .zshrc cleanup', () => {
     const testScript = '#compdef openspec\n_openspec() {}\n';
-    let originalZshEnv: string | undefined;
-
-    beforeEach(() => {
-      originalZshEnv = process.env.ZSH;
-      delete process.env.ZSH;
-    });
-
-    afterEach(() => {
-      if (originalZshEnv === undefined) {
-        delete process.env.ZSH;
-      } else {
-        process.env.ZSH = originalZshEnv;
-      }
-    });
 
     it('should remove .zshrc config when uninstalling', async () => {
       // Install first (which creates .zshrc config)

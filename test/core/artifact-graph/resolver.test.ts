@@ -243,7 +243,7 @@ version: [[[invalid yaml
     });
 
     it('should throw when schema not found', () => {
-      expect(() => resolveSchema('nonexistent-schema')).toThrow(/not found/);
+      expect(() => resolveSchema('nonexistent-schema')).toThrow(/não encontrado/);
     });
 
     it('should list available schemas in error message', () => {

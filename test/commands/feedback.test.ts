@@ -144,7 +144,7 @@ describe('FeedbackCommand', () => {
 
       // Should show formatted feedback
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('--- FORMATTED FEEDBACK ---')
+        expect.stringContaining('--- FEEDBACK FORMATADO ---')
       );
     });
   });
@@ -387,7 +387,7 @@ describe('FeedbackCommand', () => {
 
       // Verify formatted output structure
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('--- FORMATTED FEEDBACK ---')
+        expect.stringContaining('--- FEEDBACK FORMATADO ---')
       );
       expect(consoleLogSpy).toHaveBeenCalledWith(
         expect.stringContaining('Title: Feedback: Test message')

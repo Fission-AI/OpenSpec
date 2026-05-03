@@ -30,7 +30,7 @@ There are changes proposed, but no delta specs provided yet.`;
     expect(report.valid).toBe(false);
     const msg = report.issues.map(i => i.message).join('\n');
     expect(msg).toContain('A alteração deve ter pelo menos um delta');
-    expect(msg).toContain('Certifique-se de que sua alteração tenha um diretório specs/');
+    expect(msg).toContain('Certifique-se de que a alteração possui um diretório specs/');
     expect(msg).toContain('## ADDED/MODIFIED/REMOVED/RENAMED Requirements');
   });
 
