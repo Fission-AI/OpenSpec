@@ -1,5 +1,6 @@
 import { CompletionGenerator, CommandDefinition, FlagDefinition } from '../types.js';
 import { POWERSHELL_DYNAMIC_HELPERS } from '../templates/powershell-templates.js';
+import { COMPLETION_MESSAGES } from '../../../messages/index.js';
 
 /**
  * Generates PowerShell completion scripts for the BR-OpenSpec CLI.
@@ -41,8 +42,8 @@ export class PowerShellGenerator implements CompletionGenerator {
     const helpers = POWERSHELL_DYNAMIC_HELPERS;
 
     // Assemble final script with template literal
-    return `# PowerShell completion script for BR-OpenSpec CLI
-# Auto-generated - do not edit manually
+    return `${COMPLETION_MESSAGES.powershellCompletionHeader}
+${COMPLETION_MESSAGES.powershellCompletionNote}
 
 ${helpers}
 $openspecCompleter = {

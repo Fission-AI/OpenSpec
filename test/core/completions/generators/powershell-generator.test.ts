@@ -31,7 +31,7 @@ describe('PowerShellGenerator', () => {
 
 			const script = generator.generate(commands);
 
-			expect(script).toContain('# PowerShell completion script for BR-OpenSpec CLI');
+			expect(script).toContain('# Script de autocompletar PowerShell para a CLI do BR-OpenSpec');
 			expect(script).toContain('$openspecCompleter = {');
 			expect(script).toContain('Register-ArgumentCompleter');
 		});
@@ -477,7 +477,7 @@ describe('PowerShellGenerator', () => {
 
 			const script = generator.generate(commands);
 
-			expect(script).toContain('# PowerShell completion script');
+			expect(script).toContain('# Script de autocompletar PowerShell');
 			expect(script).toContain('$openspecCompleter = {');
 			expect(script).toContain('Register-ArgumentCompleter');
 		});

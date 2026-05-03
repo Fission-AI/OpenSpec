@@ -2,6 +2,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
 import { FileSystemUtils } from '../../../utils/file-system.js';
+import { COMPLETION_MESSAGES } from '../../../messages/index.js';
 import { InstallationResult } from '../factory.js';
 
 /**
@@ -435,10 +436,10 @@ export class ZshInstaller {
 
       const messages: string[] = [];
       if (scriptRemoved) {
-        messages.push(`Script de autocomplete removido de ${targetPath}`);
+        messages.push(COMPLETION_MESSAGES.zshScriptRemoved(targetPath));
       }
       if (zshrcCleaned && !isOhMyZsh) {
-        messages.push('Configuração do BR-OpenSpec removida de ~/.zshrc');
+        messages.push(COMPLETION_MESSAGES.zshConfigRemoved);
       }
 
       return {
@@ -448,7 +449,7 @@ export class ZshInstaller {
     } catch (error) {
       return {
         success: false,
-        message: `Failed to uninstall completion script: ${error instanceof Error ? error.message : String(error)}`,
+        message: COMPLETION_MESSAGES.failedToUninstall(error instanceof Error ? error.message : String(error)),
       };
     }
   }

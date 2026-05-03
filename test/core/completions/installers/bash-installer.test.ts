@@ -148,7 +148,7 @@ describe('BashInstaller', () => {
       const result = await invalidInstaller.install(testScript);
 
       expect(result.success).toBe(false);
-      expect(result.message).toContain('Failed to install');
+      expect(result.message).toContain('Falha ao instalar');
     });
 
     it('should detect already-installed completion with identical content', async () => {
@@ -160,8 +160,8 @@ describe('BashInstaller', () => {
       const secondResult = await installer.install(testScript);
 
       expect(secondResult.success).toBe(true);
-      expect(secondResult.message).toContain('already installed');
-      expect(secondResult.message).toContain('up to date');
+      expect(secondResult.message).toContain('já está instalado');
+      expect(secondResult.message).toContain('atualizado');
       expect(secondResult.backupPath).toBeUndefined();
     });
 
@@ -176,7 +176,7 @@ describe('BashInstaller', () => {
       const secondResult = await installer.install(secondScript);
 
       expect(secondResult.success).toBe(true);
-      expect(secondResult.message).toContain('updated successfully');
+      expect(secondResult.message).toContain('atualizado com sucesso');
       expect(secondResult.backupPath).toBeDefined();
 
       // Verify new content was written
@@ -226,7 +226,7 @@ describe('BashInstaller', () => {
       const result = await installer.uninstall();
 
       expect(result.success).toBe(true);
-      expect(result.message).toContain('uninstalled successfully');
+      expect(result.message).toContain('desinstalado com sucesso');
 
       // Verify file is gone
       const targetPath = await installer.getInstallationPath();
@@ -238,7 +238,7 @@ describe('BashInstaller', () => {
       const result = await installer.uninstall();
 
       expect(result.success).toBe(false);
-      expect(result.message).toContain('not installed');
+      expect(result.message).toContain('não instalado');
     });
 
     it('should remove .bashrc configuration', async () => {

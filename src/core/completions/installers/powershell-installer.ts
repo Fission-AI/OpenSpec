@@ -319,6 +319,18 @@ export class PowerShellInstaller {
       const targetDir = path.dirname(targetPath);
       await fs.mkdir(targetDir, { recursive: true });
 
+      // Remove legacy OpenSpecCompletion.ps1 if it exists (idempotent)
+      const legacyPath = path.join(targetDir, 'OpenSpecCompletion.ps1');
+      try {
+        await fs.unlink(legacyPath);
+        console.debug(`Removed legacy completion file: ${legacyPath}`);
+      } catch (err: any) {
+        if (err?.code !== 'ENOENT') {
+          // Not a "file not found" error — log but continue
+          console.warn(`Warning: could not remove legacy file ${legacyPath}: ${err?.message ?? String(err)}`);
+        }
+      }
+
       // Backup existing file if updating
       const backupPath = isUpdate ? await this.backupExistingFile(targetPath) : undefined;
 

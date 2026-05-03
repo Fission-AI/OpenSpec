@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
+import { runCLI } from '../helpers/run-cli.js';
 
 // Note: We cannot truly simulate TTY prompts in this test runner easily.
 // Instead, we verify non-interactive fallback behavior and basic invocation.
@@ -10,8 +10,6 @@ describe('change validate (interactive behavior)', () => {
   const projectRoot = process.cwd();
   const testDir = path.join(projectRoot, 'test-change-validate-tmp');
   const changesDir = path.join(testDir, 'openspec', 'changes');
-  const bin = path.join(projectRoot, 'bin', 'openspec.js');
-
 
   beforeEach(async () => {
     await fs.mkdir(changesDir, { recursive: true });
@@ -24,24 +22,14 @@ describe('change validate (interactive behavior)', () => {
     await fs.rm(testDir, { recursive: true, force: true });
   });
 
-  it('prints list hint and exits non-zero when no arg and non-interactive', () => {
-    const originalCwd = process.cwd();
-    const originalEnv = { ...process.env };
-    try {
-      process.chdir(testDir);
-      process.env.OPEN_SPEC_INTERACTIVE = '0';
-      let err: any;
-      try {
-        execSync(`node ${bin} change validate`, { encoding: 'utf-8' });
-      } catch (e) { err = e; }
-      expect(err).toBeDefined();
-      expect(err.status).not.toBe(0);
-      expect(err.stderr.toString()).toContain('IDs disponíveis:');
-      expect(err.stderr.toString()).toContain('openspec list');
-    } finally {
-      process.chdir(originalCwd);
-      process.env = originalEnv;
-    }
+  it('prints list hint and exits non-zero when no arg and non-interactive', async () => {
+    const result = await runCLI(['change', 'validate'], {
+      cwd: testDir,
+      env: { OPENSPEC_INTERACTIVE: '0' },
+    });
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toContain('IDs disponíveis:');
+    expect(result.stderr).toContain('openspec list');
   });
 });
 

@@ -546,6 +546,19 @@ export const COMPLETION_MESSAGES = {
   uninstallSuccess: (message: string) => `✓ ${message}`,
   uninstallFailed: (message: string) => `✗ ${message}`,
   failedToUninstall: (error: string) => `✗ Falha ao desinstalar script de autocomplete: ${error}`,
+  zshScriptRemoved: (path: string) => `Script de autocomplete removido de ${path}`,
+  zshConfigRemoved: 'Configuração do BR-OpenSpec removida de ~/.zshrc',
+  bashAlreadyInstalled: 'O script de autocomplete já está instalado e atualizado',
+  bashAlreadyInstalledDetail: 'O script de autocomplete já está instalado e atualizado.',
+  bashAlreadyInstalledHint: 'Se o autocomplete não estiver funcionando, tente: exec bash',
+  bashUpdatedWithBackup: 'Script de autocomplete atualizado com sucesso (versão anterior salva em backup)',
+  bashUpdated: 'Script de autocomplete atualizado com sucesso',
+  bashInstalledWithBashrc: 'Script de autocomplete instalado e .bashrc configurado com sucesso',
+  bashInstalled: 'Script de autocomplete instalado com sucesso para Bash',
+  bashNotInstalled: 'Script de autocomplete não instalado',
+  bashUninstalled: 'Script de autocomplete desinstalado com sucesso',
+  bashFailedToInstall: (error: string) => `Falha ao instalar script de autocomplete: ${error}`,
+  bashFailedToUninstall: (error: string) => `Falha ao desinstalar script de autocomplete: ${error}`,
   activeChange: 'alteração ativa',
   specification: 'especificação',
   archivedChange: 'alteração arquivada',
@@ -558,6 +571,8 @@ export const COMPLETION_MESSAGES = {
   warningCouldNotRead: (path: string, err: string) => `Aviso: Não foi possível ler ${path}: ${err}`,
   warningStartMarkerWithoutEnd: (path: string) => `Aviso: Marcador de início encontrado mas sem marcador de fim em ${path}`,
   warningCouldNotClean: (path: string, err: string) => `Aviso: Não foi possível limpar ${path}: ${err}`,
+  powershellCompletionHeader: '# Script de autocompletar PowerShell para a CLI do BR-OpenSpec',
+  powershellCompletionNote: '# Gerado automaticamente - não edite manualmente',
 };
 
 // ═══════════════════════════════════════════════════════════
