@@ -175,7 +175,7 @@ Coordination workspaces are planning homes for work that spans multiple repos or
 
 Create a workspace in the standard OpenSpec workspace location and link at least one existing repo or folder.
 
-```
+```bash
 openspec workspace setup [options]
 ```
 
@@ -197,13 +197,13 @@ openspec workspace setup --no-interactive --name platform --link /repos/api --li
 openspec workspace setup --no-interactive --json --name checkout --link /repos/platform/apps/checkout
 ```
 
-Setup prints the workspace location, linked repos or folders, and a workspace check. It does not ask for a preferred agent or open the workspace.
+Setup prints the workspace location, planning path, linked repos or folders, and a workspace check. It does not ask for a preferred agent or open the workspace.
 
 ### `openspec workspace list`
 
 List known OpenSpec workspaces from the local registry.
 
-```
+```bash
 openspec workspace list [--json]
 openspec workspace ls [--json]
 ```
@@ -214,7 +214,7 @@ The list shows each workspace location and linked repos or folders. Stale regist
 
 Record an existing repo or folder for one workspace.
 
-```
+```bash
 openspec workspace link [name] <path> [options]
 ```
 
@@ -240,7 +240,7 @@ The path must already exist. Relative paths are resolved against the command's c
 
 Repair or change the local path for an existing link.
 
-```
+```bash
 openspec workspace relink <name> <path> [options]
 ```
 
@@ -250,7 +250,7 @@ The path must already exist. Relink updates only the machine-local path for the 
 
 Check what one workspace can resolve on the current machine.
 
-```
+```bash
 openspec workspace doctor [options]
 ```
 

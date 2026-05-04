@@ -827,6 +827,7 @@ paths:
     expect(setup.stdout).not.toContain('Root:');
     expect(setup.stdout).toContain('Linked repos or folders (1):');
     expect(setup.stdout).toContain(`api -> ${api}`);
+    expect(setup.stdout).toContain('Planning path:');
     expect(setup.stdout).toContain('Workspace check:');
     expect(setup.stdout).toContain('No workspace issues found.');
     expect(setup.stdout).toContain('Next useful commands:');

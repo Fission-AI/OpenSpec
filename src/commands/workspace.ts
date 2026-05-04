@@ -404,6 +404,8 @@ class WorkspaceCommand {
       console.log('');
       printWorkspaceListHuman([doctorResult.workspace]);
       console.log('');
+      console.log(`Planning path: ${doctorResult.workspace.planning_path}`);
+      console.log('');
       console.log('Workspace check:');
       printWorkspaceCheckSummaryHuman(doctorResult);
       console.log('');
