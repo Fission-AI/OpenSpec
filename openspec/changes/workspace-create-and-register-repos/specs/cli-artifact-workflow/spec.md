@@ -15,7 +15,7 @@ The CLI artifact workflow SHALL expose workspace setup commands before change cr
 
 #### Scenario: Keeping setup separate from agent launch
 - **WHEN** a user completes workspace setup
-- **THEN** the setup workflow SHALL leave agent launch and workspace-open behavior to a later workflow
+- **THEN** the setup workflow SHALL leave agent launch and workspace open behavior to a later workflow
 - **AND** setup SHALL not require a preferred agent choice
 
 #### Scenario: Avoiding public direct creation
