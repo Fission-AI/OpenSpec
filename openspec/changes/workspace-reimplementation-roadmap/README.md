@@ -42,9 +42,9 @@ OpenSpec currently discovers active changes as immediate directories under `open
 
 `workspace-foundation` establishes the storage, root detection, and naming model. Every later slice should build on that model instead of redefining workspace metadata.
 
-`workspace-create-and-register-repos` creates the workspace and makes linked repos or folders visible before a change exists. Linked items may be full repos, monorepo modules, or planning-only code areas. This preserves the product rule that workspace visibility is not change commitment.
+`workspace-create-and-register-repos` creates the workspace and makes linked repos or folders visible before a change exists. Linked items may be full repos, monorepo modules, or planning-only folders. This preserves the product rule that workspace visibility is not change commitment.
 
-`workspace-open-agent-context` gives the agent the workspace root, linked repos or folders, active changes, and selected change scope.
+`workspace-open-agent-context` gives the agent the workspace location, linked repos or folders, active changes, and selected change scope.
 
 `workspace-change-planning` creates the workspace-level planning commitment and identifies target repo slices.
 

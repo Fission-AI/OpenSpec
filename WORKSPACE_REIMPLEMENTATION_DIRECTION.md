@@ -9,10 +9,10 @@ This document captures the intended direction for reimplementing OpenSpec worksp
 The reimplementation should be ordered around the path a real user takes through OpenSpec:
 
 ```text
-create workspace
-  -> add repos
+set up workspace
+  -> link repos or folders
   -> open workspace
-  -> explore across repos
+  -> explore across repos or folders
   -> create proposal
   -> apply one repo slice
   -> verify
@@ -27,9 +27,9 @@ A user should think:
 
 ```text
 I have a multi-repo product goal.
-I create an OpenSpec workspace.
+I set up an OpenSpec workspace.
 I open it with my agent.
-The agent can see the registered repos.
+The agent can see the linked repos or folders.
 We explore until the scope is clear.
 Then we create a proposal.
 Then we implement one repo slice at a time.
@@ -40,63 +40,76 @@ They should not think:
 ```text
 I need to create a change so repos become visible.
 I need to materialize repo-local artifacts.
-I need to understand workspace overlays.
+I need to understand implementation-specific workspace machinery.
 I need to manage target metadata separately from proposal files.
 ```
 
 The core product rule is:
 
 ```text
-Repository visibility is not change commitment.
+Workspace visibility is not change commitment.
 ```
 
-Registered repos are the workspace working set. Creating a change is a planning commitment. Applying a change is an implementation workflow.
+Linked repos or folders are planning context. Creating a change is a planning commitment. Applying a change is an implementation workflow.
 
 ## Build Order
 
-### 1. Workspace Creation
+### 1. Workspace Setup And Links
 
-First make workspace creation boring and solid.
+First make workspace setup boring and solid.
 
 User goal:
 
 ```text
-Create a place where cross-repo planning lives.
+Create a planning home and link the repos or folders OpenSpec should know about.
 ```
 
 Expected surface:
 
 ```bash
-openspec workspace create my-workspace
-openspec workspace add-repo openspec /path/to/openspec
-openspec workspace add-repo landing /path/to/openspec-landing
+openspec workspace setup
+openspec workspace setup --no-interactive --name platform --link /path/to/api --link web=/path/to/web
+openspec workspace list
+openspec workspace ls
+openspec workspace link /path/to/api
+openspec workspace link api-service /path/to/api
+openspec workspace relink api /new/path/to/api
+openspec workspace doctor
 ```
 
 Expected outcome:
 
 ```text
-workspace/
-  AGENTS.md
+workspace-folder/
   changes/
   .openspec-workspace/
+    workspace.yaml
+    local.yaml
 ```
 
 Product decisions:
 
 - Use `.openspec-workspace/`, not `.openspec/`, for workspace metadata.
-- Keep `changes/` visible at the workspace root.
-- Treat registered repos as the workspace working set.
-- Make `doctor` show human-readable repo names and resolved paths.
+- Keep `changes/` visible in the workspace folder.
+- Keep setup as the only public creation path for the first release; do not expose `workspace create`.
+- Use `workspace link` and `workspace relink`, not POC-era `add-repo` or `update-repo`.
+- Allow linked repos or folders without repo-local `openspec/` state.
+- Keep stable link names in shared workspace state and local paths in machine-local state.
+- Make `doctor` show link names, resolved paths, repo-local specs paths when present, and suggested fixes.
 
 Defer:
 
+- Agent launch and workspace open behavior.
+- Preferred-agent prompts.
+- Owner or handoff metadata.
+- Workspace change creation or target selection.
 - Branches.
 - Worktrees.
 - Apply.
 - Archive.
 - Complex target lifecycle.
 
-Done when a user can create a workspace, register repos, and run `doctor` to see exactly what OpenSpec knows.
+Done when a user can set up a workspace, link repos or folders, list known workspaces, relink local paths, and run `doctor` to see exactly what OpenSpec can resolve.
 
 ### 2. Workspace Open
 
@@ -105,7 +118,7 @@ Next make the workspace openable in the way users expect.
 User goal:
 
 ```text
-Open this multi-repo working set with my coding agent.
+Open this multi-repo planning context with my coding agent.
 ```
 
 Expected surface:
@@ -118,7 +131,7 @@ openspec workspace open --agent github-copilot
 
 Product behavior:
 
-- `workspace open` opens the coordination workspace plus registered repos.
+- `workspace open` opens the coordination workspace plus linked repos or folders.
 - Repo visibility is default.
 - Change selection is optional focus, not the mechanism for repo access.
 - `--agent` should be a one-session override by default. Persisting the preferred agent should require an explicit preference-setting action.
@@ -126,12 +139,12 @@ Product behavior:
 For GitHub Copilot, generate or open a `.code-workspace` file with:
 
 ```text
-workspace root
-registered repo A
-registered repo B
+workspace folder
+linked repo or folder A
+linked repo or folder B
 ```
 
-For Claude and Codex, attach the registered repo directories through the agent's supported mechanism.
+For Claude and Codex, attach the linked repo or folder directories through the agent's supported mechanism.
 
 Defer:
 
@@ -139,7 +152,7 @@ Defer:
 - In-session upgrade flows.
 - Per-change attachment restrictions.
 
-Done when opening a workspace gives the agent visibility into the coordination root and all registered repos.
+Done when opening a workspace gives the agent visibility into the coordination root and all linked repos or folders.
 
 ### 3. Agent Guidance And Explore
 
@@ -155,13 +168,13 @@ Expected user prompt:
 
 ```text
 Explore how we should make the OpenSpec docs available on the landing page.
-Look across the registered repos, but do not implement yet.
+Look across the linked repos or folders, but do not implement yet.
 ```
 
 Agent behavior:
 
 - Understand it is in workspace mode.
-- Inspect registered repos.
+- Inspect linked repos or folders.
 - Explain likely affected repos.
 - Ask for clarification only when needed.
 - Avoid implementation edits during explore.
@@ -263,7 +276,7 @@ Status should also catch structural mistakes:
 - Unknown repo folder under `specs/`.
 - Missing tasks.
 - No confirmed affected repo.
-- Registered repo path missing.
+- Linked repo or folder path missing.
 
 Done when the agent and user can trust status before applying.
 
@@ -389,7 +402,8 @@ Behavior:
 Done when a user can complete the full lifecycle:
 
 ```text
-workspace create
+workspace setup
+  -> link repos or folders
   -> open
   -> explore
   -> propose
@@ -406,8 +420,8 @@ Build only the next user-visible step.
 The sequence should stay grounded in these questions:
 
 ```text
-1. Can I create the workspace?
-2. Can I see my repos?
+1. Can I set up the workspace?
+2. Can I see my linked repos or folders?
 3. Can my agent explore them?
 4. Can we capture a proposal?
 5. Can status tell us if it is ready?
@@ -436,10 +450,10 @@ The workspace should feel like OpenSpec's normal workflow stretched across multi
 The durable product model is:
 
 ```text
-workspace = central planning source of truth
-registered repos = visible working set
+workspace = durable planning home
+links = repos or folders visible for planning
 proposal = scoped planning commitment
-repo target = one affected repo in the plan
+repo slice = one affected repo or folder in the plan
 branch/worktree = implementation checkout
 /apply = implement one selected repo slice
 ```

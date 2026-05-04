@@ -353,6 +353,23 @@ describe('PowerShellGenerator', () => {
 			expect(script).toContain('"init"');
 		});
 
+		it('should handle positional arguments for schema names', () => {
+			const commands: CommandDefinition[] = [
+				{
+					name: 'schema',
+					description: 'Manage schemas',
+					acceptsPositional: true,
+					positionalType: 'schema-name',
+					flags: [],
+				},
+			];
+
+			const script = generator.generate(commands);
+
+			expect(script).toContain('Get-OpenSpecSchemas');
+			expect(script).toContain('openspec __complete schemas 2>$null');
+		});
+
 		it('should generate dynamic completion helper for changes', () => {
 			const commands: CommandDefinition[] = [
 				{

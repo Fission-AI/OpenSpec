@@ -7,6 +7,7 @@ The OpenSpec CLI (`openspec`) provides terminal commands for project setup, vali
 | Category | Commands | Purpose |
 |----------|----------|---------|
 | **Setup** | `init`, `update` | Initialize and update OpenSpec in your project |
+| **Workspaces (beta)** | `workspace setup`, `workspace list`, `workspace ls`, `workspace link`, `workspace relink`, `workspace doctor` | Set up planning across linked repos or folders |
 | **Browsing** | `list`, `view`, `show` | Explore changes and specs |
 | **Validation** | `validate` | Check changes and specs for issues |
 | **Lifecycle** | `archive` | Finalize completed changes |
@@ -46,6 +47,11 @@ These commands support `--json` output for programmatic use by AI agents and scr
 | `openspec instructions` | Get next steps | `--json` for agent instructions |
 | `openspec templates` | Find template paths | `--json` for path resolution |
 | `openspec schemas` | List available schemas | `--json` for schema discovery |
+| `openspec workspace setup --no-interactive` | Create a workspace with explicit inputs | `--json` for structured setup output |
+| `openspec workspace list` | Browse known workspaces | `--json` for typed workspace objects |
+| `openspec workspace link` | Link a repo or folder | `--json` for structured link output |
+| `openspec workspace relink` | Repair a linked path | `--json` for structured link output |
+| `openspec workspace doctor` | Check one workspace | `--json` for structured status output |
 
 ---
 
@@ -156,6 +162,103 @@ openspec update [path] [options]
 npm update @fission-ai/openspec
 openspec update
 ```
+
+---
+
+## Workspace Commands
+
+Workspace commands are under active development and are not ready for use yet. Do not build external automation, integrations, or long-lived workflows on top of this command surface; command behavior, state files, and JSON output can change at any point.
+
+Coordination workspaces are planning homes for work that spans multiple repos or folders. Workspace visibility is not change commitment: link the repos or folders OpenSpec should know about, then create changes when you are ready to plan specific work.
+
+### `openspec workspace setup`
+
+Create a workspace in the standard OpenSpec workspace location and link at least one existing repo or folder.
+
+```bash
+openspec workspace setup [options]
+```
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--name <name>` | Workspace name. Names must be kebab-case |
+| `--link <path>` | Link an existing repo or folder and infer the link name from the folder name |
+| `--link <name>=<path>` | Link an existing repo or folder with an explicit link name |
+| `--no-interactive` | Disable prompts; requires `--name` and at least one `--link` |
+| `--json` | Output JSON; requires `--no-interactive` |
+
+**Examples:**
+
+```bash
+openspec workspace setup
+openspec workspace setup --no-interactive --name platform --link /repos/api --link web=/repos/web
+openspec workspace setup --no-interactive --json --name checkout --link /repos/platform/apps/checkout
+```
+
+Setup prints the workspace location, planning path, linked repos or folders, and a workspace check. It does not ask for a preferred agent or open the workspace.
+
+### `openspec workspace list`
+
+List known OpenSpec workspaces from the local registry.
+
+```bash
+openspec workspace list [--json]
+openspec workspace ls [--json]
+```
+
+The list shows each workspace location and linked repos or folders. Stale registry records are reported but not changed.
+
+### `openspec workspace link`
+
+Record an existing repo or folder for one workspace.
+
+```bash
+openspec workspace link [name] <path> [options]
+```
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--workspace <name>` | Select a known workspace from the local registry |
+| `--json` | Output JSON |
+| `--no-interactive` | Disable workspace picker prompts |
+
+**Examples:**
+
+```bash
+openspec workspace link /repos/api
+openspec workspace link api-service /repos/api
+openspec workspace link --workspace platform /repos/platform/apps/checkout
+```
+
+The path must already exist. Relative paths are resolved against the command's current directory before OpenSpec stores the verified absolute path in machine-local workspace state. Linked paths can be full repos, packages, services, apps, or folders without repo-local `openspec/` state.
+
+### `openspec workspace relink`
+
+Repair or change the local path for an existing link.
+
+```bash
+openspec workspace relink <name> <path> [options]
+```
+
+The path must already exist. Relink updates only the machine-local path for the stable link name.
+
+### `openspec workspace doctor`
+
+Check what one workspace can resolve on the current machine.
+
+```bash
+openspec workspace doctor [options]
+```
+
+Doctor shows the workspace location, planning path, linked repos or folders, missing paths, repo-local specs paths when present, and suggested fixes. It reports issues only; it does not repair them automatically.
+
+Commands that need one workspace use the current workspace when run from inside a workspace folder or subdirectory. From elsewhere, pass `--workspace <name>`, select from the picker in an interactive terminal, or rely on the only known workspace when exactly one exists. In `--json` or `--no-interactive` mode, ambiguous selection fails with a structured status error and suggests `--workspace <name>`.
+
+JSON responses use typed objects plus `status` arrays. Primary data lives in `workspace`, `workspaces`, or `link`; warnings and errors live in `status`.
 
 ---
 

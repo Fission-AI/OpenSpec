@@ -265,7 +265,7 @@ OpenSpec conventions SHALL describe coordination workspaces in user-facing produ
 
 #### Scenario: Distinguishing workspace and repo-local surfaces
 - **WHEN** OpenSpec documentation compares workspace and repo-local flows
-- **THEN** it SHALL explain that workspace planning lives in the workspace root
+- **THEN** it SHALL explain that workspace planning lives in the workspace folder
 - **AND** it SHALL explain that repo-local specs and changes continue to live under each repo's `openspec/` directory
 
 #### Scenario: Sequencing the workspace roadmap

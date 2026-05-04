@@ -15,10 +15,10 @@ OpenSpec SHALL give users and agents a recognizable workspace home for cross-rep
 - **AND** the workspace SHALL be able to hold multiple changes over time
 
 #### Scenario: Working from inside a workspace
-- **GIVEN** a user runs OpenSpec from a workspace root or one of its subdirectories
+- **GIVEN** a user runs OpenSpec from a workspace folder or one of its subdirectories
 - **WHEN** OpenSpec resolves the current workspace
-- **THEN** it SHALL identify the workspace root
-- **AND** it SHALL use the workspace root's `changes/` directory as the workspace planning area
+- **THEN** it SHALL identify the workspace location
+- **AND** it SHALL use the workspace location's `changes/` directory as the workspace planning area
 
 #### Scenario: Avoiding accidental workspace mode
 - **GIVEN** a directory has `changes/` but is not an OpenSpec workspace
@@ -51,12 +51,12 @@ OpenSpec SHALL distinguish a coordination workspace from a repo-local OpenSpec p
 - **GIVEN** a repo-local OpenSpec project uses `openspec/`
 - **WHEN** that repo is linked to a workspace
 - **THEN** OpenSpec SHALL continue treating `openspec/` as that repo's local OpenSpec directory
-- **AND** workspace planning SHALL remain anchored in the workspace root
+- **AND** workspace planning SHALL remain anchored in the workspace folder
 
-#### Scenario: Avoiding repo-local initialization in the workspace root
-- **WHEN** a user is working from an OpenSpec workspace root
-- **THEN** OpenSpec SHALL treat that root as a workspace coordination surface
-- **AND** users SHALL not need to initialize a repo-local `openspec/` project inside the workspace root
+#### Scenario: Avoiding repo-local initialization in the workspace folder
+- **WHEN** a user is working from an OpenSpec workspace folder
+- **THEN** OpenSpec SHALL treat that folder as a workspace coordination surface
+- **AND** users SHALL not need to initialize a repo-local `openspec/` project inside the workspace folder
 
 ### Requirement: Safe Workspace Sharing
 OpenSpec SHALL keep shared workspace information separate from local machine paths.
@@ -72,7 +72,7 @@ OpenSpec SHALL keep shared workspace information separate from local machine pat
 - **AND** another machine MAY map the same link names to different local paths
 
 #### Scenario: Preserving runtime-local paths
-- **WHEN** OpenSpec reads or writes local workspace paths
+- **WHEN** OpenSpec reads or writes machine-local path state
 - **THEN** it SHALL preserve path strings valid for the current runtime
 - **AND** it SHALL support native Windows paths and WSL2/Linux paths as local state values
 
@@ -110,13 +110,13 @@ OpenSpec SHALL use a standard location for OpenSpec-managed workspaces without a
 - **THEN** it SHALL use the resolved workspace location by default
 - **AND** users SHALL be able to follow the normal workspace flow without choosing a storage location
 
-#### Scenario: Showing the workspace path
+#### Scenario: Showing the workspace location
 - **WHEN** OpenSpec creates a workspace in the standard workspace location
-- **THEN** it SHALL report the workspace path to the user
+- **THEN** it SHALL report the workspace location to the user
 - **AND** it SHALL not hide where planning files were created
 
 #### Scenario: Staying in the current runtime
-- **WHEN** OpenSpec resolves workspace paths or local repo paths
+- **WHEN** OpenSpec resolves workspace locations or local repo paths
 - **THEN** it SHALL interpret paths for the runtime running OpenSpec
 - **AND** Windows, UNC WSL, and WSL mount paths SHALL remain explicit user-provided paths
 
@@ -125,13 +125,13 @@ OpenSpec SHALL keep a lightweight local registry of known workspaces on the curr
 
 #### Scenario: Recording known workspaces
 - **WHEN** OpenSpec creates or learns about a managed workspace
-- **THEN** it SHALL be able to record the workspace name and path in a local registry
+- **THEN** it SHALL be able to record the workspace name and location in a local registry
 - **AND** the registry SHALL be machine-local state
 
 #### Scenario: Keeping workspace folders authoritative
 - **WHEN** OpenSpec reads workspace details
 - **THEN** each workspace folder's `.openspec-workspace/workspace.yaml` SHALL remain the source of truth for that workspace
-- **AND** the local registry SHALL act only as an index of known workspace paths
+- **AND** the local registry SHALL act only as an index of known workspace locations
 
 #### Scenario: Finding workspaces from anywhere
 - **WHEN** a later workspace command runs outside a workspace directory

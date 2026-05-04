@@ -28,7 +28,9 @@ import {
   parseWorkspaceLocalState,
   parseWorkspaceRegistryState,
   parseWorkspaceSharedState,
+  parseWorkspaceSetupLinkInput,
   readWorkspaceLocalState,
+  readOptionalWorkspaceLocalState,
   readWorkspaceRegistryState,
   readWorkspaceSharedState,
   serializeWorkspaceLocalState,
@@ -82,7 +84,7 @@ paths: {}
       expect(WORKSPACE_REGISTRY_FILE_NAME).toBe('registry.yaml');
     });
 
-    it('returns workspace paths using platform-aware path helpers', () => {
+    it('returns workspace file paths using platform-aware path helpers', () => {
       const workspaceRoot = path.join(tempDir, 'platform');
 
       expect(getWorkspaceMetadataDir(workspaceRoot)).toBe(
@@ -97,7 +99,7 @@ paths: {}
       expect(getWorkspaceChangesDir(workspaceRoot)).toBe(path.join(workspaceRoot, 'changes'));
     });
 
-    it('preserves Windows-style root strings when building workspace paths', () => {
+    it('preserves Windows-style location strings when building workspace file paths', () => {
       const workspaceRoot = 'D:\\repos\\platform-workspace';
 
       expect(getWorkspaceSharedStatePath(workspaceRoot)).toBe(
@@ -151,21 +153,40 @@ paths: {}
   });
 
   describe('name validation', () => {
-    it('accepts folder-style workspace and link names', () => {
+    it('accepts kebab-case workspace names and folder-style link names', () => {
       expect(isValidWorkspaceName('platform')).toBe(true);
+      expect(isValidWorkspaceName('checkout-web')).toBe(true);
+      expect(isValidWorkspaceName('api2')).toBe(true);
       expect(isValidWorkspaceLinkName('billing')).toBe(true);
+      expect(isValidWorkspaceLinkName('Checkout App')).toBe(true);
     });
 
-    it('rejects empty names, dot names, and path separators', () => {
-      for (const invalidName of ['', '.', '..', 'bad/name', 'bad\\name']) {
+    it('rejects invalid workspace names while keeping link names folder-style', () => {
+      for (const invalidName of [
+        '',
+        '.',
+        '..',
+        'bad/name',
+        'bad\\name',
+        'Checkout',
+        'checkout_app',
+        'checkout.app',
+        'checkout app',
+        '-checkout',
+        'checkout-',
+        'checkout--web',
+      ]) {
         expect(isValidWorkspaceName(invalidName)).toBe(false);
+      }
+
+      for (const invalidName of ['', '.', '..', 'bad/name', 'bad\\name']) {
         expect(isValidWorkspaceLinkName(invalidName)).toBe(false);
       }
     });
   });
 
-  describe('workspace root detection', () => {
-    it('detects a workspace root from the root and nested directories', async () => {
+  describe('workspace folder detection', () => {
+    it('detects a workspace folder from itself and nested directories', async () => {
       const workspaceRoot = createWorkspaceRoot();
       const nestedDir = path.join(workspaceRoot, 'changes', 'add-billing', 'specs');
       fs.mkdirSync(nestedDir, { recursive: true });
@@ -287,7 +308,7 @@ paths:
       );
     });
 
-    it('reads shared and local state from a workspace root', async () => {
+    it('reads shared and local state from a workspace folder', async () => {
       const workspaceRoot = createWorkspaceRoot();
 
       await expect(readWorkspaceSharedState(workspaceRoot)).resolves.toEqual({
@@ -298,6 +319,42 @@ paths:
       await expect(readWorkspaceLocalState(workspaceRoot)).resolves.toEqual({
         version: 1,
         paths: {},
+      });
+    });
+
+    it('returns null only when optional local state is absent', async () => {
+      const workspaceRoot = createWorkspaceRoot();
+      fs.rmSync(getWorkspaceLocalStatePath(workspaceRoot));
+
+      await expect(readOptionalWorkspaceLocalState(workspaceRoot)).resolves.toBeNull();
+    });
+
+    it('rejects invalid optional local state instead of treating it as missing', async () => {
+      const workspaceRoot = createWorkspaceRoot();
+      fs.writeFileSync(getWorkspaceLocalStatePath(workspaceRoot), 'version: 1\npaths: []\n');
+
+      await expect(readOptionalWorkspaceLocalState(workspaceRoot)).rejects.toThrow(
+        /Invalid workspace local state/
+      );
+    });
+  });
+
+  describe('workspace link input parsing', () => {
+    it('preserves an existing path with equals signs as an inferred-name link input', async () => {
+      const linkPath = path.join(tempDir, 'repos', 'foo=bar');
+      fs.mkdirSync(linkPath, { recursive: true });
+
+      await expect(parseWorkspaceSetupLinkInput(linkPath)).resolves.toEqual({
+        pathInput: linkPath,
+      });
+    });
+
+    it('parses explicit link names while preserving equals signs in the path', async () => {
+      const linkPath = path.join(tempDir, 'repos', 'foo=bar');
+
+      await expect(parseWorkspaceSetupLinkInput(`api=${linkPath}`)).resolves.toEqual({
+        name: 'api',
+        pathInput: linkPath,
       });
     });
   });

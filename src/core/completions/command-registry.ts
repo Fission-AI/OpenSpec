@@ -156,6 +156,106 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     ],
   },
   {
+    name: 'workspace',
+    description: 'Set up and inspect coordination workspaces',
+    flags: [],
+    subcommands: [
+      {
+        name: 'setup',
+        description: 'Set up a workspace and link existing repos or folders',
+        flags: [
+          {
+            name: 'name',
+            description: 'Workspace name',
+            takesValue: true,
+          },
+          {
+            name: 'link',
+            description: 'Repo or folder link. Use <path> or <name>=<path>',
+            takesValue: true,
+          },
+          COMMON_FLAGS.json,
+          COMMON_FLAGS.noInteractive,
+        ],
+      },
+      {
+        name: 'list',
+        description: 'List known OpenSpec workspaces',
+        flags: [
+          COMMON_FLAGS.json,
+        ],
+      },
+      {
+        name: 'ls',
+        description: 'List known OpenSpec workspaces',
+        flags: [
+          COMMON_FLAGS.json,
+        ],
+      },
+      {
+        name: 'link',
+        description: 'Link an existing repo or folder to a workspace',
+        acceptsPositional: true,
+        positionals: [
+          {
+            name: 'name-or-path',
+            type: 'path',
+            optional: true,
+          },
+          {
+            name: 'path',
+            type: 'path',
+          },
+        ],
+        flags: [
+          {
+            name: 'workspace',
+            description: 'Workspace name from the local workspace registry',
+            takesValue: true,
+          },
+          COMMON_FLAGS.json,
+          COMMON_FLAGS.noInteractive,
+        ],
+      },
+      {
+        name: 'relink',
+        description: 'Update the local path for an existing workspace link',
+        acceptsPositional: true,
+        positionals: [
+          {
+            name: 'name',
+          },
+          {
+            name: 'path',
+            type: 'path',
+          },
+        ],
+        flags: [
+          {
+            name: 'workspace',
+            description: 'Workspace name from the local workspace registry',
+            takesValue: true,
+          },
+          COMMON_FLAGS.json,
+          COMMON_FLAGS.noInteractive,
+        ],
+      },
+      {
+        name: 'doctor',
+        description: 'Check what a workspace can resolve on this machine',
+        flags: [
+          {
+            name: 'workspace',
+            description: 'Workspace name from the local workspace registry',
+            takesValue: true,
+          },
+          COMMON_FLAGS.json,
+          COMMON_FLAGS.noInteractive,
+        ],
+      },
+    ],
+  },
+  {
     name: 'feedback',
     description: 'Submit feedback about OpenSpec',
     acceptsPositional: true,

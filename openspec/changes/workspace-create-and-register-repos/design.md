@@ -30,6 +30,24 @@ The path may point at a full repo or a folder inside a large monorepo. It may po
 
 The product language should say "repos or folders". It should avoid "working set", "code area", "entry", "alias", and "local overlay" in user-facing output.
 
+Path handling should behave like a folder picker. The user may type a relative or absolute path, but OpenSpec should verify that it points to an existing folder, convert it to an absolute path relative to the command's current working directory when needed, and store that verified absolute path in local workspace state. OpenSpec should not store the raw string the user typed.
+
+Path conversion stays in the current runtime. Native Windows paths, WSL2 paths, and Unix paths should not be translated across runtimes. Where duplicate-path detection needs canonical comparisons, OpenSpec may compare canonical existing paths internally, but it should store and display the verified absolute path for the current runtime.
+
+## Names
+
+Workspace names should be kebab-case:
+
+```text
+platform
+checkout-web
+api2
+```
+
+Invalid workspace names include uppercase letters, underscores, dots, spaces, leading hyphens, trailing hyphens, empty names, dot names, and path separators. Interactive setup should explain the expected form and let the user retry. Non-interactive setup should fail with the same expectation in the error message.
+
+Link names should keep the folder-style validation from `workspace-foundation`: they must not be empty, must not be `.` or `..`, must not contain path separators, and must be unique inside the workspace. This lets inferred link names match existing folder basenames without forcing users to rename local folders for workspace planning.
+
 Link names are normally inferred from the folder basename:
 
 ```text
@@ -37,7 +55,23 @@ Link names are normally inferred from the folder basename:
 /repos/platform/apps/checkout      -> checkout
 ```
 
-If the inferred name conflicts, interactive flows should ask for a different name. Non-interactive flows should fail with a clear message.
+If the inferred name conflicts, interactive setup should show the conflicting name and the existing path it maps to, then ask for a different name. Non-interactive setup and direct `workspace link` should fail with a clear message instead of silently overwriting.
+
+Duplicate-name errors should be specific:
+
+```text
+Cannot use link name 'api' because another link already uses that name.
+Existing link:
+  api -> /repos/api
+
+Choose a different name:
+  openspec workspace link archived-api /archive/api
+
+If you meant to change the existing link path:
+  openspec workspace relink api /archive/api
+```
+
+This slice does not add a separate link-rename command. Renaming a link can be considered later if users need it, but v1 should keep the command model crisp: `link` adds a new link, and `relink` changes the local path for an existing link.
 
 ## Commands
 
@@ -50,9 +84,9 @@ Guided onboarding:
 - require at least one existing repo or folder path
 - infer link names from folder names
 - let the user add more repos or folders with a simple repeated prompt
-- register the workspace in the local workspace registry
+- record the workspace in the local workspace registry
 - run `workspace doctor`
-- print the workspace root, planning path, linked repos/folders, and next useful commands
+- print the workspace location, planning path, linked repos or folders, and next useful commands
 
 This slice should not ask for preferred agent or open the workspace with an agent. Those belong to `workspace-open-agent-context`.
 
@@ -77,20 +111,55 @@ The output should answer what exists and what each workspace links to:
 ```yaml
 workspaces:
   - name: platform
-    root: /.../openspec/workspaces/platform
+    location: /.../openspec/workspaces/platform
     links:
       - name: api
         path: /repos/api
       - name: web
         path: /repos/web
   - name: checkout
-    root: /.../openspec/workspaces/checkout
+    location: /.../openspec/workspaces/checkout
     links:
       - name: app
         path: /repos/platform/apps/checkout
 ```
 
-List should keep deep validation for `workspace doctor`. It can still report obviously stale workspace registry entries if a registered workspace path no longer exists.
+List should keep deep validation for `workspace doctor`. It can still report obviously stale workspace registry entries if a known workspace location no longer exists. Stale registry entries are report-only in this slice: `workspace list` should not delete, rewrite, or repair registry entries, and this slice should not add a `workspace forget` command.
+
+For JSON output, list should use typed workspace objects with a structured `status` array for issues:
+
+```json
+{
+  "workspaces": [
+    {
+      "name": "platform",
+      "root": "/.../openspec/workspaces/platform",
+      "links": [
+        {
+          "name": "api",
+          "path": "/repos/api",
+          "status": []
+        }
+      ],
+      "status": []
+    },
+    {
+      "name": "old-platform",
+      "root": "/.../openspec/workspaces/old-platform",
+      "links": [],
+      "status": [
+        {
+          "severity": "error",
+          "code": "workspace_root_missing",
+          "message": "Workspace location does not exist.",
+          "fix": "Remove or repair the local registry entry."
+        }
+      ]
+    }
+  ],
+  "status": []
+}
+```
 
 ### `workspace link [name] <path>`
 
@@ -111,6 +180,8 @@ The path must exist. The command should accept:
 - monorepo folders such as packages, services, and apps
 - repos or folders without repo-local `openspec/`
 
+If the user passes a relative path, OpenSpec should resolve it against the command's current working directory before writing local state.
+
 If the path has repo-local OpenSpec state, OpenSpec can report the repo specs path in doctor output. If it does not, OpenSpec should still allow workspace planning.
 
 `workspace link` only records the link. It must not create, copy, move, initialize, or edit files in the linked repo or folder.
@@ -119,13 +190,17 @@ If the path has repo-local OpenSpec state, OpenSpec can report the repo specs pa
 
 Repair or change the local path for an existing link.
 
-This slice should keep relink focused on path repair. It should not include owner/handoff metadata; that language was too process-heavy in the POC and can be revisited later if users need contact or notes fields.
+Relink should use the same path handling as link: require an existing folder, resolve relative inputs to absolute runtime-local paths, and store the verified path.
+
+This slice should keep relink focused on path repair. It should not include owner or handoff metadata; that language was too process-heavy in the POC and can be revisited later if users need contact or notes fields.
 
 ### `workspace doctor`
 
-Explain the current workspace from the user's machine:
+Explain one selected workspace from the user's machine. If the command is run from a workspace folder or subdirectory and `--workspace <name>` is not provided, doctor should use that current workspace. Otherwise it should follow the normal workspace-selection rules.
 
-- workspace root
+Doctor should inspect:
+
+- workspace location
 - workspace planning path
 - linked repos and folders
 - whether each local path exists
@@ -133,38 +208,51 @@ Explain the current workspace from the user's machine:
 - missing local paths
 - local names that are not in shared workspace state
 - shared link names that are missing local paths
-- stale local registry entries
 - suggested fixes for each issue
+
+Doctor should not scan every known workspace in the local registry by default. Broad registry visibility belongs to `workspace list`. A future `workspace doctor --all` can be considered later if users need global workspace diagnostics.
 
 Doctor should report issues and suggested fixes. It should not repair anything automatically.
 
-Human output should be YAML-like with snake_case keys:
+Registry cleanup remains out of scope. If doctor cannot inspect the selected workspace because the registry points at a missing or invalid workspace location, it should report that selected-workspace issue through status entries and stop before inspecting links. Other stale registry entries should be surfaced by `workspace list`, not by selected-workspace doctor.
 
-```yaml
-workspace:
-  name: platform
-  root: /.../openspec/workspaces/platform
-  planning_path: /.../openspec/workspaces/platform/changes
+Human output should be readable by default: a short workspace summary, linked repo or folder rows, and a clear issues section when anything needs attention. It should not be raw JSON or a rigid YAML dump.
 
-links:
-  - name: api
-    path: /repos/api
-    path_status: exists
-    repo_specs_path: /repos/api/openspec/specs
+JSON output should follow the object/status pattern: primary data lives in typed objects, and diagnostics live in `status` arrays. A healthy object has `status: []`. Status entries should include `severity`, `code`, `message`, and optional `target` and `fix` fields.
 
-  - name: web
-    path: /old/path/web
-    path_status: missing
-    repo_specs_path: null
-    issue: linked_path_missing
-    fix: openspec workspace relink web /path/to/web
-
-summary:
-  status: needs_attention
-  issues: 1
+```json
+{
+  "workspace": {
+    "name": "platform",
+    "root": "/.../openspec/workspaces/platform",
+    "planning_path": "/.../openspec/workspaces/platform/changes",
+    "links": [
+      {
+        "name": "api",
+        "path": "/repos/api",
+        "repo_specs_path": "/repos/api/openspec/specs",
+        "status": []
+      },
+      {
+        "name": "web",
+        "path": "/old/path/web",
+        "repo_specs_path": null,
+        "status": [
+          {
+            "severity": "error",
+            "code": "linked_path_missing",
+            "message": "Linked path does not exist.",
+            "target": "links.web.path",
+            "fix": "openspec workspace relink web /path/to/web"
+          }
+        ]
+      }
+    ],
+    "status": []
+  },
+  "status": []
+}
 ```
-
-JSON output can keep the same structure using JSON syntax.
 
 ## Workspace Selection
 
@@ -189,7 +277,23 @@ If the current command needs one workspace and `--workspace <name>` is not provi
 - otherwise select the only known workspace
 - otherwise explain that no workspaces exist and suggest `openspec workspace setup`
 
+The current workspace wins even if it is not in the local workspace registry. This supports manually created or shared workspace folders. In that case commands should continue and include a non-fatal warning status:
+
+```json
+{
+  "severity": "warning",
+  "code": "workspace_not_in_local_registry",
+  "message": "This workspace is not recorded in the local workspace registry.",
+  "target": "workspace.root",
+  "fix": "Run a mutating workspace command from this workspace, such as workspace link or workspace relink, to record it locally."
+}
+```
+
+For human output, this should be a short warning rather than a blocking error. Successful mutating commands that use an unregistered current workspace, such as `workspace link` or `workspace relink`, should record the workspace name and location in the local registry after the mutation succeeds. Non-mutating commands such as `workspace doctor` should not write registry state; they should only report the warning. This slice should not add a standalone `workspace register` or `workspace join` command.
+
 In non-interactive mode, commands that need one workspace should fail when selection is ambiguous and suggest `--workspace <name>`.
+
+`--json` should also suppress prompting for commands that need one workspace. If a command would otherwise show a picker, JSON mode should fail with a structured status error and suggest `--workspace <name>`.
 
 ## Machine-Local Files
 
@@ -207,7 +311,7 @@ The local workspace registry should also be machine-local:
 <global-data-dir>/workspaces/registry.yaml
 ```
 
-Generated agent-open surfaces can be ignored by `workspace-open-agent-context` when that slice creates them.
+Generated agent launch surfaces can be ignored by `workspace-open-agent-context` when that slice creates them.
 
 ## JSON Output
 
@@ -218,6 +322,16 @@ Interactive setup does not need JSON output as its primary contract. Non-interac
 - `workspace link --json`
 - `workspace relink --json`
 - `workspace doctor --json`
+
+`workspace setup --json` should require `--no-interactive`. If a user runs `workspace setup --json` without `--no-interactive`, setup should fail clearly because an interactive wizard cannot produce clean JSON. Direct commands such as `workspace list --json`, `workspace link --json`, `workspace relink --json`, and `workspace doctor --json` do not require `--no-interactive`, but JSON mode should disable prompts and fail on ambiguous workspace selection.
+
+JSON output should use object/status structure across commands:
+
+- primary entities such as `workspace`, `workspaces`, or `link` carry the durable data
+- `status` arrays carry warnings, errors, and suggested fixes
+- status entries use stable `code` values plus human-readable `message` text
+- command-level `status` describes the whole response
+- object-level `status` describes that specific workspace or link
 
 ## POC Adjustments
 
@@ -235,8 +349,8 @@ Change:
 - do not require repo-local OpenSpec state to link a repo or folder
 - use `workspace link` instead of `workspace add-repo`
 - use `workspace relink` instead of `workspace update-repo`
-- do not save preferred agent during setup
+- do not save a preferred agent during setup
 - do not offer to open the workspace from setup
 - require setup to link at least one existing repo or folder
-- keep update behavior focused on path repair rather than owner/handoff metadata
+- keep relink behavior focused on path repair rather than owner or handoff metadata
 - do not use "working set", "code area", "entry", "alias", or "local overlay" in human-facing output

@@ -106,7 +106,15 @@ function validateFolderStyleName(name: string, label: string): string {
 }
 
 export function validateWorkspaceName(name: string): string {
-  return validateFolderStyleName(name, 'Workspace name');
+  validateFolderStyleName(name, 'Workspace name');
+
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(name)) {
+    throw new Error(
+      'Workspace name must be kebab-case with lowercase letters, numbers, and single hyphen separators'
+    );
+  }
+
+  return name;
 }
 
 export function validateWorkspaceLinkName(name: string): string {
@@ -371,6 +379,29 @@ export async function readWorkspaceLocalState(workspaceRoot: string): Promise<Wo
   return parseWorkspaceLocalState(
     await fs.readFile(getWorkspaceLocalStatePath(workspaceRoot), 'utf-8')
   );
+}
+
+function isFileNotFoundError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as NodeJS.ErrnoException).code === 'ENOENT'
+  );
+}
+
+export async function readOptionalWorkspaceLocalState(
+  workspaceRoot: string
+): Promise<WorkspaceLocalState | null> {
+  try {
+    return await readWorkspaceLocalState(workspaceRoot);
+  } catch (error) {
+    if (isFileNotFoundError(error)) {
+      return null;
+    }
+
+    throw error;
+  }
 }
 
 export async function writeWorkspaceSharedState(

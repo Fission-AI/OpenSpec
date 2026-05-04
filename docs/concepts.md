@@ -51,7 +51,9 @@ This separation is key. You can work on multiple changes in parallel without con
 
 ## Coordination Workspaces
 
-Workspace support is in beta. The concepts below describe the direction and foundation currently being implemented; commands and workflows may change, and some workspace commands may not be available in the current stable release yet.
+Workspace support is under active development and is not ready for use yet. Do not build external automation, integrations, or long-lived workflows on top of workspace behavior; the commands, state files, and JSON output can change at any point.
+
+The commands below provide the first setup flow for planning across linked repos or folders.
 
 Repo-local OpenSpec projects are the right default when one repo owns the planning, implementation, and archive flow. Some work spans several repos or folders. For that case, an OpenSpec coordination workspace is the durable planning home.
 
@@ -66,7 +68,7 @@ change    = one feature, fix, project, or other planned piece of work
 A workspace has a different shape from a repo-local project:
 
 ```text
-workspace-root/
+workspace-folder/
 ├── changes/                       # Workspace-level planning
 └── .openspec-workspace/
     ├── workspace.yaml             # Shared workspace identity and link names
@@ -82,7 +84,7 @@ repo-root/
     └── changes/
 ```
 
-That distinction matters. The workspace root is a coordination surface for planning across linked repos or folders. Each repo's `openspec/` directory remains the home for repo-owned specs, repo-local changes, and implementation planning. Users do not need to run repo-local `openspec init` inside a workspace root.
+That distinction matters. The workspace folder is a coordination surface for planning across linked repos or folders. Each repo's `openspec/` directory remains the home for repo-owned specs, repo-local changes, and implementation planning. Users do not need to run repo-local `openspec init` inside a workspace folder.
 
 Stable link names are how workspace planning refers to repos and folders. The shared workspace state keeps names such as `api`, `web`, or `checkout`; each machine maps those names to its own local paths in `.openspec-workspace/local.yaml`.
 
@@ -131,9 +133,38 @@ OpenSpec also keeps a machine-local registry at:
 getGlobalDataDir()/workspaces/registry.yaml
 ```
 
-The registry maps workspace names to workspace roots so later global commands can list or select known workspaces from anywhere. It is only an index. Each workspace folder remains authoritative for its own `.openspec-workspace/workspace.yaml` and `.openspec-workspace/local.yaml`, so stale registry entries can be reported and repaired without redefining the workspace itself.
+The registry maps workspace names to workspace locations so later global commands can list or select known workspaces from anywhere. It is only an index. Each workspace folder remains authoritative for its own `.openspec-workspace/workspace.yaml` and `.openspec-workspace/local.yaml`, so stale registry records can be reported and repaired without redefining the workspace itself.
 
-This foundation intentionally stops before the full workspace workflow. Creation, link and relink commands, agent launch, workspace proposal creation, repo-slice apply, verify, and archive behavior are later slices built on this storage and naming contract.
+Workspace visibility is not change commitment. Set up a workspace when OpenSpec should know which repos or folders are relevant; create a change later when you are ready to plan a feature, fix, project, or other piece of work.
+
+Useful commands:
+
+```bash
+# Guided setup
+openspec workspace setup
+
+# Automation-friendly setup
+openspec workspace setup --no-interactive --name platform --link /repos/api --link web=/repos/web
+
+# See known workspaces from the local registry
+openspec workspace list
+openspec workspace ls
+
+# Add or repair links for the selected workspace
+openspec workspace link /repos/api
+openspec workspace link api-service /repos/api
+openspec workspace relink api-service /new/path/to/api
+
+# Check what this machine can resolve
+openspec workspace doctor
+openspec workspace doctor --workspace platform
+```
+
+`workspace setup` always creates the workspace in the standard workspace location, records it in the local registry, shows the workspace location, and requires at least one linked repo or folder. `workspace link` and `workspace relink` record existing folders only; they do not create, copy, move, initialize, or edit the linked repo or folder.
+
+Workspace commands that need one workspace can run from anywhere with `--workspace <name>`. If you run them inside a workspace folder or subdirectory, OpenSpec uses that current workspace. If several known workspaces are available and you do not pass `--workspace <name>`, human commands show a picker; `--json` and `--no-interactive` fail with a structured status error instead of prompting.
+
+Direct workspace commands support JSON output for scripts. JSON responses keep primary data in `workspace`, `workspaces`, or `link` objects and report warnings or errors in `status` arrays. Healthy objects use `status: []`.
 
 ## Specs
 
