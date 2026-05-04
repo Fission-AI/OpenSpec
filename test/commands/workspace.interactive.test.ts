@@ -179,6 +179,42 @@ describe('workspace command interactive flows', () => {
     });
   });
 
+  it('asks for a link name when the inferred basename is invalid', async () => {
+    const linkedRoot = path.parse(tempDir).root;
+    const { input, confirm } = await getPromptMocks();
+
+    input.mockImplementation(async (options: { message: string; validate?: (value: string) => true | string }) => {
+      if (options.message === 'Workspace name:') {
+        return 'platform';
+      }
+
+      if (options.message === 'Repo or folder path:') {
+        return linkedRoot;
+      }
+
+      if (options.message === 'Link name:') {
+        expect(options.validate?.('')).toBe('Workspace link name must not be empty');
+        expect(options.validate?.('root')).toBe(true);
+        return 'root';
+      }
+
+      throw new Error(`Unexpected input prompt: ${options.message}`);
+    });
+    confirm.mockResolvedValueOnce(false);
+
+    await runWorkspaceCommand(['setup']);
+
+    expect(process.exitCode).toBeUndefined();
+    expect(input.mock.calls.map((call) => call[0].message)).toEqual([
+      'Workspace name:',
+      'Repo or folder path:',
+      'Link name:',
+    ]);
+    expect(readLocalState('platform').paths).toEqual({
+      root: linkedRoot,
+    });
+  });
+
   it('shows an interactive workspace picker when multiple workspaces are known', async () => {
     const api = mkdir('repos/api');
     const web = mkdir('repos/web');

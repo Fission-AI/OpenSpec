@@ -1,15 +1,17 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
 import { COMMAND_REGISTRY } from '../../src/core/completions/command-registry.js';
+import { createManagedWorkspace } from '../../src/commands/workspace/operations.js';
 import {
   WORKSPACE_CHANGES_DIR_NAME,
   WORKSPACE_LOCAL_STATE_FILE_NAME,
   WORKSPACE_LOCAL_STATE_IGNORE_PATTERN,
   WORKSPACE_METADATA_DIR_NAME,
   WORKSPACE_SHARED_STATE_FILE_NAME,
+  getManagedWorkspaceRoot,
   getWorkspaceLocalStatePath,
   getWorkspaceRegistryPath,
   getWorkspaceSharedStatePath,
@@ -17,6 +19,7 @@ import {
   parseWorkspaceRegistryState,
   parseWorkspaceSharedState,
 } from '../../src/core/workspace/index.js';
+import { FileSystemUtils } from '../../src/utils/file-system.js';
 import { runCLI, type RunCLIResult } from '../helpers/run-cli.js';
 
 describe('workspace command', () => {
@@ -260,6 +263,34 @@ describe('workspace command', () => {
       })
     );
     expect(fs.existsSync(getWorkspaceRegistryPath({ globalDataDir: path.join(dataHome, 'openspec') }))).toBe(false);
+  });
+
+  it('removes a partially created workspace when setup fails after creating the root', async () => {
+    const api = mkdir('repos/api');
+    const originalDataHome = process.env.XDG_DATA_HOME;
+    process.env.XDG_DATA_HOME = dataHome;
+    const writeFileSpy = vi
+      .spyOn(FileSystemUtils, 'writeFile')
+      .mockRejectedValueOnce(new Error('disk full'));
+
+    try {
+      await expect(createManagedWorkspace('platform', { api })).rejects.toMatchObject({
+        status: {
+          code: 'workspace_create_failed',
+        },
+      });
+    } finally {
+      writeFileSpy.mockRestore();
+      if (originalDataHome === undefined) {
+        delete process.env.XDG_DATA_HOME;
+      } else {
+        process.env.XDG_DATA_HOME = originalDataHome;
+      }
+    }
+
+    const globalDataDir = path.join(dataHome, 'openspec');
+    expect(fs.existsSync(getManagedWorkspaceRoot('platform', { globalDataDir }))).toBe(false);
+    expect(fs.existsSync(getWorkspaceRegistryPath({ globalDataDir }))).toBe(false);
   });
 
   it('rejects existing workspace names without overwriting workspace state', async () => {
@@ -573,6 +604,11 @@ describe('workspace command', () => {
       })
     );
 
+    const humanList = await runCLI(['workspace', 'list'], { cwd: tempDir, env });
+    expect(humanList.exitCode).toBe(0);
+    expect(humanList.stdout).toContain('Linked repos or folders:');
+    expect(humanList.stdout).toContain('api -> (no local path recorded)');
+
     const doctor = await runCLI(
       ['workspace', 'doctor', '--workspace', 'doctor-local-invalid', '--json'],
       { cwd: tempDir, env }
@@ -819,6 +855,8 @@ paths:
 
   it('registers workspace subcommands for shell completions', () => {
     const workspace = COMMAND_REGISTRY.find((command) => command.name === 'workspace');
+    const link = workspace?.subcommands?.find((command) => command.name === 'link');
+    const relink = workspace?.subcommands?.find((command) => command.name === 'relink');
 
     expect(workspace?.subcommands?.map((command) => command.name)).toEqual([
       'setup',
@@ -827,6 +865,14 @@ paths:
       'link',
       'relink',
       'doctor',
+    ]);
+    expect(link?.positionals).toEqual([
+      { name: 'name-or-path', type: 'path', optional: true },
+      { name: 'path', type: 'path' },
+    ]);
+    expect(relink?.positionals).toEqual([
+      { name: 'name' },
+      { name: 'path', type: 'path' },
     ]);
   });
 });

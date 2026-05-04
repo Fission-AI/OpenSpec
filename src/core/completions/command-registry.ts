@@ -196,7 +196,17 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         name: 'link',
         description: 'Link an existing repo or folder to a workspace',
         acceptsPositional: true,
-        positionalType: 'path',
+        positionals: [
+          {
+            name: 'name-or-path',
+            type: 'path',
+            optional: true,
+          },
+          {
+            name: 'path',
+            type: 'path',
+          },
+        ],
         flags: [
           {
             name: 'workspace',
@@ -211,7 +221,15 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         name: 'relink',
         description: 'Update the local path for an existing workspace link',
         acceptsPositional: true,
-        positionalType: 'path',
+        positionals: [
+          {
+            name: 'name',
+          },
+          {
+            name: 'path',
+            type: 'path',
+          },
+        ],
         flags: [
           {
             name: 'workspace',

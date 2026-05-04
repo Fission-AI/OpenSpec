@@ -104,7 +104,11 @@ async function promptSetupLinks(): Promise<Record<string, string>> {
     );
     let linkName = inferLinkName(resolvedPath);
 
-    validateLinkNameForCommand(linkName);
+    try {
+      validateLinkNameForCommand(linkName);
+    } catch {
+      linkName = await promptLinkName(links);
+    }
 
     if (links[linkName]) {
       console.log(`Link name '${linkName}' is already linked to ${links[linkName]}.`);
@@ -306,7 +310,6 @@ class WorkspaceCommand {
               console.log(`    Fix: ${status.fix}`);
             }
           }
-          continue;
         }
         console.log('    Linked repos or folders:');
         if (workspace.links.length === 0) {

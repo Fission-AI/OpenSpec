@@ -273,9 +273,12 @@ export async function createManagedWorkspace(
     );
   }
 
+  let createdWorkspaceRoot = false;
+
   try {
     await FileSystemUtils.createDirectory(path.dirname(workspaceRoot));
     await fs.mkdir(workspaceRoot);
+    createdWorkspaceRoot = true;
     await FileSystemUtils.createDirectory(getWorkspaceChangesDir(workspaceRoot));
     await writeWorkspaceSharedState(workspaceRoot, {
       version: 1,
@@ -289,6 +292,14 @@ export async function createManagedWorkspace(
     await ensureWorkspaceGitignore(workspaceRoot);
     await recordWorkspaceInRegistry(workspaceName, workspaceRoot);
   } catch (error) {
+    if (createdWorkspaceRoot) {
+      try {
+        await fs.rm(workspaceRoot, { recursive: true, force: true });
+      } catch {
+        // Preserve the original creation failure; callers can retry or inspect the path.
+      }
+    }
+
     throw new WorkspaceCliError(
       `Could not create workspace '${workspaceName}': ${asErrorMessage(error)}`,
       'workspace_create_failed',
