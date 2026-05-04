@@ -228,6 +228,8 @@ compdef _openspec openspec
         return "'*: :_openspec_complete_specs'";
       case 'change-or-spec-id':
         return "'*: :_openspec_complete_items'";
+      case 'schema-name':
+        return "'*: :_openspec_complete_schemas'";
       case 'path':
         return "'*:path:_files'";
       case 'shell':
@@ -272,20 +274,23 @@ compdef _openspec openspec
     index: number
   ): string {
     const name = this.escapeDescription(positional.name);
+    const separator = positional.optional ? '::' : ':';
 
     switch (positional.type) {
       case 'change-id':
-        return `'${index}:${name}:_openspec_complete_changes'`;
+        return `'${index}${separator}${name}:_openspec_complete_changes'`;
       case 'spec-id':
-        return `'${index}:${name}:_openspec_complete_specs'`;
+        return `'${index}${separator}${name}:_openspec_complete_specs'`;
       case 'change-or-spec-id':
-        return `'${index}:${name}:_openspec_complete_items'`;
+        return `'${index}${separator}${name}:_openspec_complete_items'`;
+      case 'schema-name':
+        return `'${index}${separator}${name}:_openspec_complete_schemas'`;
       case 'path':
-        return `'${index}:${name}:_files'`;
+        return `'${index}${separator}${name}:_files'`;
       case 'shell':
-        return `'${index}:${name}:(zsh bash fish powershell)'`;
+        return `'${index}${separator}${name}:(zsh bash fish powershell)'`;
       default:
-        return `'${index}:${name}:'`;
+        return `'${index}${separator}${name}:'`;
     }
   }
 

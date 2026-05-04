@@ -33,4 +33,13 @@ _openspec_complete_items() {
     items+=("$id:$desc")
   done < <(openspec __complete specs 2>/dev/null)
   _describe "item" items
+}
+
+# Use openspec __complete to get available schemas
+_openspec_complete_schemas() {
+  local -a schemas
+  while IFS=$'\\t' read -r id desc; do
+    schemas+=("$id:$desc")
+  done < <(openspec __complete schemas 2>/dev/null)
+  _describe "schema" schemas
 }`;

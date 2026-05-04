@@ -184,6 +184,9 @@ complete -F _openspec_completion openspec
       case 'change-or-spec-id':
         lines.push(`${indent}_openspec_complete_items`);
         break;
+      case 'schema-name':
+        lines.push(`${indent}_openspec_complete_schemas`);
+        break;
       case 'shell':
         lines.push(`${indent}local shells="zsh bash fish powershell"`);
         lines.push(`${indent}COMPREPLY=($(compgen -W "$shells" -- "$cur"))`);

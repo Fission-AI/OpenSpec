@@ -278,6 +278,11 @@ Register-ArgumentCompleter -CommandName openspec -ScriptBlock $openspecCompleter
         lines.push(`${indent}    [System.Management.Automation.CompletionResult]::new($_, $_, "ParameterValue", $_)`);
         lines.push(`${indent}}`);
         break;
+      case 'schema-name':
+        lines.push(`${indent}Get-OpenSpecSchemas | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {`);
+        lines.push(`${indent}    [System.Management.Automation.CompletionResult]::new($_, $_, "ParameterValue", "Schema: $_")`);
+        lines.push(`${indent}}`);
+        break;
       case 'shell':
         lines.push(`${indent}$shells = @("zsh", "bash", "fish", "powershell")`);
         lines.push(`${indent}$shells | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {`);
