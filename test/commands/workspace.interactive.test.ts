@@ -114,7 +114,7 @@ describe('workspace command interactive flows', () => {
 
       throw new Error(`Unexpected input prompt: ${options.message}`);
     });
-    confirm.mockResolvedValueOnce(false);
+    select.mockResolvedValueOnce('finish');
 
     await runWorkspaceCommand(['setup']);
 
@@ -123,20 +123,44 @@ describe('workspace command interactive flows', () => {
       'Workspace name:',
       'Repo or folder path:',
     ]);
-    expect(confirm.mock.calls[0][0]).toEqual(
+    expect(input.mock.calls[0][0]).toEqual(
       expect.objectContaining({
-        message: 'Add another repo or folder?',
-        default: false,
+        theme: expect.objectContaining({ prefix: '' }),
       })
     );
-    expect(select).not.toHaveBeenCalled();
+    expect(confirm).not.toHaveBeenCalled();
+    expect(select.mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        message: 'Continue',
+        default: 'finish',
+        choices: expect.arrayContaining([
+          expect.objectContaining({ value: 'finish' }),
+          expect.objectContaining({ value: 'add' }),
+        ]),
+      })
+    );
     expect(readLocalState('platform').paths).toEqual({ api });
+  });
+
+  it('handles prompt cancellation without printing the raw SIGINT error', async () => {
+    const { input } = await getPromptMocks();
+    const cancellationError = new Error('User force closed the prompt with SIGINT');
+    cancellationError.name = 'ExitPromptError';
+    input.mockRejectedValueOnce(cancellationError);
+
+    await runWorkspaceCommand(['setup']);
+
+    expect(process.exitCode).toBe(130);
+    expect(consoleErrorSpy).toHaveBeenCalledWith('Cancelled.');
+    expect(consoleErrorSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining('User force closed the prompt with SIGINT')
+    );
   });
 
   it('lets users add another path and rename an inferred link-name conflict', async () => {
     const firstApi = mkdir('repos/current/api');
     const secondApi = mkdir('repos/archive/api');
-    const { input, confirm } = await getPromptMocks();
+    const { input, confirm, select } = await getPromptMocks();
 
     input.mockImplementation(async (options: { message: string; validate?: (value: string) => true | string }) => {
       if (options.message === 'Workspace name:') {
@@ -159,7 +183,7 @@ describe('workspace command interactive flows', () => {
 
       throw new Error(`Unexpected input prompt: ${options.message}`);
     });
-    confirm.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    select.mockResolvedValueOnce('add').mockResolvedValueOnce('finish');
 
     await runWorkspaceCommand(['setup']);
 
@@ -170,6 +194,7 @@ describe('workspace command interactive flows', () => {
       'Another repo or folder path:',
       'Link name:',
     ]);
+    expect(confirm).not.toHaveBeenCalled();
     expect(consoleLogSpy).toHaveBeenCalledWith(
       `Link name 'api' is already linked to ${firstApi}.`
     );
@@ -181,7 +206,7 @@ describe('workspace command interactive flows', () => {
 
   it('asks for a link name when the inferred basename is invalid', async () => {
     const linkedRoot = path.parse(tempDir).root;
-    const { input, confirm } = await getPromptMocks();
+    const { input, confirm, select } = await getPromptMocks();
 
     input.mockImplementation(async (options: { message: string; validate?: (value: string) => true | string }) => {
       if (options.message === 'Workspace name:') {
@@ -200,7 +225,7 @@ describe('workspace command interactive flows', () => {
 
       throw new Error(`Unexpected input prompt: ${options.message}`);
     });
-    confirm.mockResolvedValueOnce(false);
+    select.mockResolvedValueOnce('finish');
 
     await runWorkspaceCommand(['setup']);
 
@@ -210,6 +235,7 @@ describe('workspace command interactive flows', () => {
       'Repo or folder path:',
       'Link name:',
     ]);
+    expect(confirm).not.toHaveBeenCalled();
     expect(readLocalState('platform').paths).toEqual({
       root: linkedRoot,
     });

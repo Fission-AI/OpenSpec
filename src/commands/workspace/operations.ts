@@ -202,7 +202,7 @@ function localStateInvalidStatus(error: unknown): WorkspaceStatus {
   return makeStatus(
     'error',
     'workspace_local_state_invalid',
-    `Machine-local workspace paths could not be read: ${asErrorMessage(error)}`,
+    `Machine-local paths could not be read: ${asErrorMessage(error)}`,
     {
       target: 'workspace.local_state',
       fix: 'Repair or remove .openspec-workspace/local.yaml, then run openspec workspace relink <name> <path> for affected links.',
@@ -355,7 +355,7 @@ export async function loadWorkspaceForList(
       root: entry.workspaceRoot,
       links: [],
       status: [
-        makeStatus('error', 'workspace_root_missing', 'Workspace root does not exist.', {
+        makeStatus('error', 'workspace_root_missing', 'Workspace location does not exist.', {
           target: 'workspace.root',
           fix: 'Remove or repair the local registry record.',
         }),
@@ -419,7 +419,7 @@ export async function loadWorkspaceForDoctor(
           makeStatus(
             'error',
             'selected_workspace_root_missing',
-            'Selected workspace root does not exist or is not a valid workspace.',
+            'Selected workspace location does not exist or is not a valid workspace.',
             {
               target: 'workspace.root',
               fix: 'Repair the local workspace registry record or choose another workspace.',
@@ -469,7 +469,7 @@ export async function loadWorkspaceForDoctor(
         makeStatus(
           'warning',
           'workspace_local_state_missing',
-          'Machine-local workspace paths are not recorded yet.',
+          'Machine-local paths are not recorded yet.',
           {
             target: 'workspace.local_state',
             fix: 'Run openspec workspace relink <name> <path> for each linked repo or folder on this machine.',
@@ -576,7 +576,7 @@ async function readWorkspaceForMutation(
 ): Promise<{ sharedState: WorkspaceSharedState; localState: WorkspaceLocalState }> {
   if (!(await directoryExists(selected.root)) || !(await isWorkspaceRoot(selected.root))) {
     throw new WorkspaceCliError(
-      `Workspace root does not exist for '${selected.name}': ${selected.root}`,
+      `Workspace location does not exist for '${selected.name}': ${selected.root}`,
       'selected_workspace_root_missing',
       {
         target: 'workspace.root',

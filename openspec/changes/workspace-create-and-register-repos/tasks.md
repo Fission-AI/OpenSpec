@@ -16,7 +16,7 @@
 - [x] 2.5 Infer link names from folder basenames during setup
 - [x] 2.6 Let users add more repos or folders with a simple repeated prompt
 - [x] 2.7 Run `workspace doctor` after setup and show a readable summary
-- [x] 2.8 Print the workspace root, planning path, linked repos or folders, and next useful commands
+- [x] 2.8 Print the workspace location, planning path, linked repos or folders, and next useful commands
 - [x] 2.9 Keep preferred agent prompts and workspace opening out of this slice
 - [x] 2.10 Add `.gitignore` handling for machine-local workspace state
 - [x] 2.11 Record created workspaces in the local workspace registry
@@ -40,7 +40,7 @@
 - [x] 4.2 Add `workspace ls` as an alias for `workspace list`
 - [x] 4.3 List known OpenSpec-managed workspaces from the local workspace registry
 - [x] 4.4 Handle the no-workspaces case with a clear next step
-- [x] 4.5 Show each workspace path and linked repos or folders
+- [x] 4.5 Show each workspace location and linked repos or folders
 - [x] 4.6 Report stale registry entries with status entries without deleting, rewriting, or repairing registry state
 - [x] 4.7 Add JSON output with typed workspace objects and structured status arrays
 
@@ -85,9 +85,9 @@
 ## 8. Workspace Doctor
 
 - [x] 8.1 Implement `openspec workspace doctor` for one selected workspace only
-- [x] 8.2 Show the workspace root and workspace planning path
+- [x] 8.2 Show the workspace location and workspace planning path
 - [x] 8.3 Show linked repos or folders in readable human output with a clear issues section
-- [x] 8.4 Report missing local paths, missing filesystem paths, local-only names, and selected-workspace root problems
+- [x] 8.4 Report missing local paths, missing filesystem paths, local-only names, and selected-workspace location problems
 - [x] 8.5 Report `repo_specs_path` when repo-local `openspec/specs` exists and `null` otherwise
 - [x] 8.6 Include suggested fixes for each issue
 - [x] 8.7 Avoid automatic repair behavior
@@ -102,7 +102,7 @@
 - [x] 9.4 Avoid "working set", "code area", "entry", "alias", and "local overlay" in human-facing docs
 - [x] 9.5 Document JSON output support and the object/status response pattern for non-interactive/direct commands
 - [x] 9.6 Document global command behavior, workspace picker behavior, and `--workspace <name>`
-- [x] 9.7 Document that setup controls workspace storage and always shows the workspace path
+- [x] 9.7 Document that setup controls workspace storage and always shows the workspace location
 
 ## 10. Verification
 

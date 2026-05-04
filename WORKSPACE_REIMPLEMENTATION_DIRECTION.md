@@ -80,7 +80,7 @@ openspec workspace doctor
 Expected outcome:
 
 ```text
-workspace-root/
+workspace-folder/
   changes/
   .openspec-workspace/
     workspace.yaml
@@ -90,7 +90,7 @@ workspace-root/
 Product decisions:
 
 - Use `.openspec-workspace/`, not `.openspec/`, for workspace metadata.
-- Keep `changes/` visible at the workspace root.
+- Keep `changes/` visible in the workspace folder.
 - Keep setup as the only public creation path for the first release; do not expose `workspace create`.
 - Use `workspace link` and `workspace relink`, not POC-era `add-repo` or `update-repo`.
 - Allow linked repos or folders without repo-local `openspec/` state.
@@ -139,7 +139,7 @@ Product behavior:
 For GitHub Copilot, generate or open a `.code-workspace` file with:
 
 ```text
-workspace root
+workspace folder
 linked repo or folder A
 linked repo or folder B
 ```

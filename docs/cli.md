@@ -197,7 +197,7 @@ openspec workspace setup --no-interactive --name platform --link /repos/api --li
 openspec workspace setup --no-interactive --json --name checkout --link /repos/platform/apps/checkout
 ```
 
-Setup prints the workspace root, the planning path, linked repos or folders, and a workspace check. It does not ask for a preferred agent or open the workspace.
+Setup prints the workspace location, linked repos or folders, and a workspace check. It does not ask for a preferred agent or open the workspace.
 
 ### `openspec workspace list`
 
@@ -208,7 +208,7 @@ openspec workspace list [--json]
 openspec workspace ls [--json]
 ```
 
-The list shows each workspace path and linked repos or folders. Stale registry records are reported but not changed.
+The list shows each workspace location and linked repos or folders. Stale registry records are reported but not changed.
 
 ### `openspec workspace link`
 
@@ -254,9 +254,9 @@ Check what one workspace can resolve on the current machine.
 openspec workspace doctor [options]
 ```
 
-Doctor shows the workspace root, planning path, linked repos or folders, missing paths, repo-local specs paths when present, and suggested fixes. It reports issues only; it does not repair them automatically.
+Doctor shows the workspace location, planning path, linked repos or folders, missing paths, repo-local specs paths when present, and suggested fixes. It reports issues only; it does not repair them automatically.
 
-Commands that need one workspace use the current workspace when run from inside a workspace root or subdirectory. From elsewhere, pass `--workspace <name>`, select from the picker in an interactive terminal, or rely on the only known workspace when exactly one exists. In `--json` or `--no-interactive` mode, ambiguous selection fails with a structured status error and suggests `--workspace <name>`.
+Commands that need one workspace use the current workspace when run from inside a workspace folder or subdirectory. From elsewhere, pass `--workspace <name>`, select from the picker in an interactive terminal, or rely on the only known workspace when exactly one exists. In `--json` or `--no-interactive` mode, ambiguous selection fails with a structured status error and suggests `--workspace <name>`.
 
 JSON responses use typed objects plus `status` arrays. Primary data lives in `workspace`, `workspaces`, or `link`; warnings and errors live in `status`.
 

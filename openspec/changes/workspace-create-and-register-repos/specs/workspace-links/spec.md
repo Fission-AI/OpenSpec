@@ -74,7 +74,7 @@ OpenSpec SHALL provide a guided setup flow for users starting workspace planning
 
 #### Scenario: Finishing setup
 - **WHEN** setup finishes
-- **THEN** OpenSpec SHALL show the workspace root, planning path, and linked repos or folders
+- **THEN** OpenSpec SHALL show the workspace location, planning path, and linked repos or folders
 - **AND** it SHALL check what the current machine can resolve
 
 #### Scenario: Recording created workspaces locally
@@ -94,7 +94,7 @@ OpenSpec SHALL let users see the OpenSpec-managed workspaces available on the cu
 #### Scenario: Listing workspaces
 - **WHEN** a user runs `openspec workspace list`
 - **THEN** OpenSpec SHALL list known managed workspaces
-- **AND** each workspace SHALL include the workspace name, workspace path, and linked repos or folders
+- **AND** each workspace SHALL include the workspace name, workspace location, and linked repos or folders
 
 #### Scenario: Using the short list command
 - **WHEN** a user runs `openspec workspace ls`
@@ -107,7 +107,7 @@ OpenSpec SHALL let users see the OpenSpec-managed workspaces available on the cu
 - **AND** it SHALL show the user how to create one
 
 #### Scenario: Listing stale registry entries
-- **WHEN** the local registry contains a workspace path that no longer exists
+- **WHEN** the local registry contains a workspace location that no longer exists
 - **THEN** `workspace list` SHALL report the stale workspace entry
 - **AND** it SHALL avoid silently deleting registry state
 - **AND** it SHALL avoid rewriting or repairing registry state automatically
@@ -126,12 +126,12 @@ OpenSpec SHALL let workspace commands run from outside workspace directories.
 - **AND** it SHALL fail clearly if the workspace name is unknown
 
 #### Scenario: Using the current workspace
-- **GIVEN** the command runs from a workspace root or subdirectory
+- **GIVEN** the command runs from a workspace folder or subdirectory
 - **WHEN** the command needs one workspace and no `--workspace` flag is provided
 - **THEN** OpenSpec SHALL use the current workspace
 
 #### Scenario: Using an unregistered current workspace
-- **GIVEN** the command runs from a valid workspace root or subdirectory
+- **GIVEN** the command runs from a valid workspace folder or subdirectory
 - **AND** that workspace is not recorded in the local workspace registry
 - **WHEN** the command needs one workspace and no `--workspace <name>` flag is provided
 - **THEN** OpenSpec SHALL use the current workspace
@@ -141,7 +141,7 @@ OpenSpec SHALL let workspace commands run from outside workspace directories.
 #### Scenario: Recording an unregistered current workspace after mutation
 - **GIVEN** a mutating workspace command uses a valid current workspace that is not recorded in the local workspace registry
 - **WHEN** `workspace link` or `workspace relink` succeeds
-- **THEN** OpenSpec SHALL record the workspace name and root in the local workspace registry
+- **THEN** OpenSpec SHALL record the workspace name and location in the local workspace registry
 
 #### Scenario: Doctor does not register current workspaces
 - **GIVEN** `workspace doctor` uses a valid current workspace that is not recorded in the local workspace registry
@@ -170,7 +170,7 @@ OpenSpec SHALL let workspace commands run from outside workspace directories.
 
 #### Scenario: No known workspaces for a command that needs one
 - **GIVEN** no known workspaces exist in the local registry
-- **AND** the command is not running from a workspace root or subdirectory
+- **AND** the command is not running from a workspace folder or subdirectory
 - **WHEN** `workspace link`, `workspace relink`, `workspace doctor`, or another command that needs one workspace runs without `--workspace <name>`
 - **THEN** OpenSpec SHALL fail without showing a picker regardless of interactive mode
 - **AND** it SHALL print `No known OpenSpec workspaces. Run 'openspec workspace setup' first.`
@@ -274,18 +274,18 @@ OpenSpec SHALL explain what the current machine can resolve for a workspace.
 - **AND** it SHALL not scan every known workspace in the local registry by default
 
 #### Scenario: Doctor infers the current workspace
-- **GIVEN** the command runs from a workspace root or subdirectory
+- **GIVEN** the command runs from a workspace folder or subdirectory
 - **WHEN** the user runs `openspec workspace doctor` without `--workspace <name>`
 - **THEN** OpenSpec SHALL inspect the current workspace
 
 #### Scenario: Checking a healthy workspace
 - **WHEN** a user runs `openspec workspace doctor`
-- **THEN** OpenSpec SHALL show the workspace root and workspace planning path
+- **THEN** OpenSpec SHALL show the workspace location and workspace planning path
 - **AND** it SHALL show linked repos or folders and which paths resolve on the current machine
 
-#### Scenario: Selected workspace root is missing
+#### Scenario: Selected workspace location is missing
 - **GIVEN** the selected workspace comes from the local registry
-- **AND** the registered workspace root is missing or invalid
+- **AND** the registered workspace location is missing or invalid
 - **WHEN** a user runs `openspec workspace doctor`
 - **THEN** OpenSpec SHALL report a selected-workspace status error
 - **AND** it SHALL not attempt to inspect links for that workspace

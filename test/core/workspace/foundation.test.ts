@@ -84,7 +84,7 @@ paths: {}
       expect(WORKSPACE_REGISTRY_FILE_NAME).toBe('registry.yaml');
     });
 
-    it('returns workspace paths using platform-aware path helpers', () => {
+    it('returns workspace file paths using platform-aware path helpers', () => {
       const workspaceRoot = path.join(tempDir, 'platform');
 
       expect(getWorkspaceMetadataDir(workspaceRoot)).toBe(
@@ -99,7 +99,7 @@ paths: {}
       expect(getWorkspaceChangesDir(workspaceRoot)).toBe(path.join(workspaceRoot, 'changes'));
     });
 
-    it('preserves Windows-style root strings when building workspace paths', () => {
+    it('preserves Windows-style location strings when building workspace file paths', () => {
       const workspaceRoot = 'D:\\repos\\platform-workspace';
 
       expect(getWorkspaceSharedStatePath(workspaceRoot)).toBe(
@@ -185,8 +185,8 @@ paths: {}
     });
   });
 
-  describe('workspace root detection', () => {
-    it('detects a workspace root from the root and nested directories', async () => {
+  describe('workspace folder detection', () => {
+    it('detects a workspace folder from itself and nested directories', async () => {
       const workspaceRoot = createWorkspaceRoot();
       const nestedDir = path.join(workspaceRoot, 'changes', 'add-billing', 'specs');
       fs.mkdirSync(nestedDir, { recursive: true });
@@ -308,7 +308,7 @@ paths:
       );
     });
 
-    it('reads shared and local state from a workspace root', async () => {
+    it('reads shared and local state from a workspace folder', async () => {
       const workspaceRoot = createWorkspaceRoot();
 
       await expect(readWorkspaceSharedState(workspaceRoot)).resolves.toEqual({

@@ -86,7 +86,7 @@ Guided onboarding:
 - let the user add more repos or folders with a simple repeated prompt
 - record the workspace in the local workspace registry
 - run `workspace doctor`
-- print the workspace root, planning path, linked repos or folders, and next useful commands
+- print the workspace location, planning path, linked repos or folders, and next useful commands
 
 This slice should not ask for preferred agent or open the workspace with an agent. Those belong to `workspace-open-agent-context`.
 
@@ -111,20 +111,20 @@ The output should answer what exists and what each workspace links to:
 ```yaml
 workspaces:
   - name: platform
-    root: /.../openspec/workspaces/platform
+    location: /.../openspec/workspaces/platform
     links:
       - name: api
         path: /repos/api
       - name: web
         path: /repos/web
   - name: checkout
-    root: /.../openspec/workspaces/checkout
+    location: /.../openspec/workspaces/checkout
     links:
       - name: app
         path: /repos/platform/apps/checkout
 ```
 
-List should keep deep validation for `workspace doctor`. It can still report obviously stale workspace registry entries if a known workspace path no longer exists. Stale registry entries are report-only in this slice: `workspace list` should not delete, rewrite, or repair registry entries, and this slice should not add a `workspace forget` command.
+List should keep deep validation for `workspace doctor`. It can still report obviously stale workspace registry entries if a known workspace location no longer exists. Stale registry entries are report-only in this slice: `workspace list` should not delete, rewrite, or repair registry entries, and this slice should not add a `workspace forget` command.
 
 For JSON output, list should use typed workspace objects with a structured `status` array for issues:
 
@@ -151,7 +151,7 @@ For JSON output, list should use typed workspace objects with a structured `stat
         {
           "severity": "error",
           "code": "workspace_root_missing",
-          "message": "Workspace root does not exist.",
+          "message": "Workspace location does not exist.",
           "fix": "Remove or repair the local registry entry."
         }
       ]
@@ -196,11 +196,11 @@ This slice should keep relink focused on path repair. It should not include owne
 
 ### `workspace doctor`
 
-Explain one selected workspace from the user's machine. If the command is run from a workspace root or subdirectory and `--workspace <name>` is not provided, doctor should use that current workspace. Otherwise it should follow the normal workspace-selection rules.
+Explain one selected workspace from the user's machine. If the command is run from a workspace folder or subdirectory and `--workspace <name>` is not provided, doctor should use that current workspace. Otherwise it should follow the normal workspace-selection rules.
 
 Doctor should inspect:
 
-- workspace root
+- workspace location
 - workspace planning path
 - linked repos and folders
 - whether each local path exists
@@ -214,7 +214,7 @@ Doctor should not scan every known workspace in the local registry by default. B
 
 Doctor should report issues and suggested fixes. It should not repair anything automatically.
 
-Registry cleanup remains out of scope. If doctor cannot inspect the selected workspace because the registry points at a missing or invalid workspace root, it should report that selected-workspace issue through status entries and stop before inspecting links. Other stale registry entries should be surfaced by `workspace list`, not by selected-workspace doctor.
+Registry cleanup remains out of scope. If doctor cannot inspect the selected workspace because the registry points at a missing or invalid workspace location, it should report that selected-workspace issue through status entries and stop before inspecting links. Other stale registry entries should be surfaced by `workspace list`, not by selected-workspace doctor.
 
 Human output should be readable by default: a short workspace summary, linked repo or folder rows, and a clear issues section when anything needs attention. It should not be raw JSON or a rigid YAML dump.
 
@@ -289,7 +289,7 @@ The current workspace wins even if it is not in the local workspace registry. Th
 }
 ```
 
-For human output, this should be a short warning rather than a blocking error. Successful mutating commands that use an unregistered current workspace, such as `workspace link` or `workspace relink`, should record the workspace name and root in the local registry after the mutation succeeds. Non-mutating commands such as `workspace doctor` should not write registry state; they should only report the warning. This slice should not add a standalone `workspace register` or `workspace join` command.
+For human output, this should be a short warning rather than a blocking error. Successful mutating commands that use an unregistered current workspace, such as `workspace link` or `workspace relink`, should record the workspace name and location in the local registry after the mutation succeeds. Non-mutating commands such as `workspace doctor` should not write registry state; they should only report the warning. This slice should not add a standalone `workspace register` or `workspace join` command.
 
 In non-interactive mode, commands that need one workspace should fail when selection is ambiguous and suggest `--workspace <name>`.
 

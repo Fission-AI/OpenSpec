@@ -115,7 +115,7 @@ Put durable findings in the relevant OpenSpec proposal or design artifact. Do no
 
 Focus on:
 
-- workspace root shape
+- workspace folder shape
 - metadata directory naming
 - local versus committed state
 - stable workspace name semantics

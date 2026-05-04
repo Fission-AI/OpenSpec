@@ -1,4 +1,5 @@
 import { Command } from 'commander';
+import chalk from 'chalk';
 import * as nodeFs from 'node:fs';
 import * as path from 'node:path';
 
@@ -21,6 +22,7 @@ import { selectWorkspaceForCommand } from './workspace/selection.js';
 import {
   WorkspaceCliError,
   WorkspaceLinkMutationPayload,
+  WorkspaceListOutput,
   WorkspaceLinkOptions,
   WorkspaceListOptions,
   WorkspaceOutput,
@@ -35,6 +37,43 @@ function printJson(payload: unknown): void {
   console.log(JSON.stringify(payload, null, 2));
 }
 
+const workspacePromptTheme = {
+  prefix: '',
+  style: {
+    answer: (text: string) => chalk.cyan(text),
+    defaultAnswer: (text: string) => chalk.dim(text),
+    error: (text: string) => chalk.red(text),
+    help: (text: string) => chalk.dim(text),
+    highlight: (text: string) => chalk.cyan(text),
+    key: (text: string) => chalk.cyan(text),
+    message: (text: string) => chalk.bold(text),
+  },
+};
+
+const workspaceSelectTheme = {
+  ...workspacePromptTheme,
+  icon: {
+    cursor: chalk.cyan('>'),
+  },
+  style: {
+    ...workspacePromptTheme.style,
+    keysHelpTip: (keys: [key: string, action: string][]) =>
+      chalk.dim(keys.map(([key, action]) => `${key}: ${action}`).join(' | ')),
+  },
+};
+
+function printWorkspaceSetupIntro(): void {
+  console.log(chalk.bold('Workspace setup'));
+  console.log('');
+}
+
+function isPromptCancellationError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.name === 'ExitPromptError' || error.message.includes('force closed the prompt with SIGINT'))
+  );
+}
+
 async function promptWorkspaceName(initialName?: string): Promise<string> {
   if (initialName) {
     return validateWorkspaceNameForSetup(initialName);
@@ -42,8 +81,14 @@ async function promptWorkspaceName(initialName?: string): Promise<string> {
 
   const { input } = await import('@inquirer/prompts');
 
+  console.log(chalk.bold('[1/3] Name the workspace'));
+  console.log(chalk.dim('Use a stable name for the repo group, e.g. platform.'));
+  console.log('');
+
   return input({
     message: 'Workspace name:',
+    required: true,
+    theme: workspacePromptTheme,
     validate(value: string) {
       try {
         validateWorkspaceNameForSetup(value);
@@ -55,11 +100,15 @@ async function promptWorkspaceName(initialName?: string): Promise<string> {
   });
 }
 
-async function promptExistingPath(message: string): Promise<string> {
+async function promptExistingPath(message: string, defaultPath?: string): Promise<string> {
   const { input } = await import('@inquirer/prompts');
 
   const pathInput = await input({
     message,
+    default: defaultPath,
+    prefill: defaultPath ? 'editable' : undefined,
+    required: true,
+    theme: workspacePromptTheme,
     validate(value: string) {
       const resolvedPath = path.isAbsolute(value)
         ? path.resolve(value)
@@ -78,6 +127,8 @@ async function promptLinkName(existingLinks: Record<string, string>): Promise<st
 
   return input({
     message: 'Link name:',
+    required: true,
+    theme: workspacePromptTheme,
     validate(value: string) {
       try {
         validateLinkNameForCommand(value);
@@ -95,12 +146,19 @@ async function promptLinkName(existingLinks: Record<string, string>): Promise<st
 }
 
 async function promptSetupLinks(): Promise<Record<string, string>> {
-  const { confirm } = await import('@inquirer/prompts');
+  const { select } = await import('@inquirer/prompts');
   const links: Record<string, string> = {};
 
+  console.log('');
+  console.log(chalk.bold('[2/3] Link repos or folders'));
+  console.log(chalk.dim('Start with the current directory, or enter another repo path.'));
+  console.log('');
+
   while (true) {
+    const linkCount = Object.keys(links).length;
     const resolvedPath = await promptExistingPath(
-      Object.keys(links).length === 0 ? 'Repo or folder path:' : 'Another repo or folder path:'
+      linkCount === 0 ? 'Repo or folder path:' : 'Another repo or folder path:',
+      linkCount === 0 ? '.' : undefined
     );
     let linkName = inferLinkName(resolvedPath);
 
@@ -116,13 +174,30 @@ async function promptSetupLinks(): Promise<Record<string, string>> {
     }
 
     links[linkName] = resolvedPath;
+    console.log(chalk.green(`Added link '${linkName}'`));
+    console.log(chalk.dim(`  ${resolvedPath}`));
 
-    const addAnother = await confirm({
-      message: 'Add another repo or folder?',
-      default: false,
+    const nextAction = await select({
+      message: 'Continue',
+      default: 'finish',
+      choices: [
+        {
+          name: 'Create workspace files',
+          short: 'Create workspace files',
+          value: 'finish',
+          description: 'Run a workspace check after setup',
+        },
+        {
+          name: 'Add another repo or folder',
+          short: 'Add another',
+          value: 'add',
+          description: 'Include another local directory in this workspace',
+        },
+      ],
+      theme: workspaceSelectTheme,
     });
 
-    if (!addAnother) {
+    if (nextAction === 'finish') {
       return links;
     }
   }
@@ -153,9 +228,16 @@ function printLinksHuman(links: WorkspaceOutput['links']): void {
   }
 }
 
+function collectWorkspaceIssues(workspace: WorkspaceListOutput): WorkspaceStatus[] {
+  return [
+    ...workspace.status,
+    ...workspace.links.flatMap((link) => link.status),
+  ];
+}
+
 function printDoctorHuman(result: { workspace: WorkspaceOutput; status: WorkspaceStatus[] }): void {
   console.log(`Workspace: ${result.workspace.name}`);
-  console.log(`Root: ${result.workspace.root}`);
+  console.log(`Location: ${result.workspace.root}`);
   console.log(`Planning path: ${result.workspace.planning_path}`);
   console.log('');
   printStatusLines(result.status);
@@ -165,10 +247,7 @@ function printDoctorHuman(result: { workspace: WorkspaceOutput; status: Workspac
   console.log('Linked repos or folders:');
   printLinksHuman(result.workspace.links);
 
-  const issues = [
-    ...result.workspace.status,
-    ...result.workspace.links.flatMap((link) => link.status),
-  ];
+  const issues = collectWorkspaceIssues(result.workspace);
 
   if (issues.length === 0) {
     console.log('');
@@ -189,13 +268,60 @@ function printDoctorHuman(result: { workspace: WorkspaceOutput; status: Workspac
   }
 }
 
-function printWorkspaceSummaryHuman(workspace: WorkspaceOutput): void {
-  console.log(`Workspace: ${workspace.name}`);
-  console.log(`Root: ${workspace.root}`);
-  console.log(`Planning path: ${workspace.planning_path}`);
-  console.log('');
-  console.log('Linked repos or folders:');
-  printLinksHuman(workspace.links);
+function printWorkspaceListHuman(workspaces: WorkspaceListOutput[]): void {
+  console.log(chalk.bold(`OpenSpec workspaces (${workspaces.length})`));
+
+  for (const workspace of workspaces) {
+    console.log('');
+    console.log(chalk.bold(workspace.name));
+    console.log(`  Location: ${workspace.root}`);
+
+    if (workspace.status.length > 0) {
+      console.log('  Status:');
+      for (const status of workspace.status) {
+        const statusLabel = status.severity === 'warning' ? chalk.yellow('Warning') : chalk.red('Issue');
+        console.log(`    ${statusLabel}: ${status.message}`);
+        if (status.fix) {
+          console.log(`    Fix: ${status.fix}`);
+        }
+      }
+    }
+
+    console.log(`  Linked repos or folders (${workspace.links.length}):`);
+    if (workspace.links.length === 0) {
+      console.log(chalk.dim('    (none)'));
+      continue;
+    }
+
+    for (const link of workspace.links) {
+      const suffix = link.status.some((status) => status.severity === 'error') ? chalk.red(' [issue]') : '';
+      console.log(`    ${link.name} -> ${link.path ?? '(no local path recorded)'}${suffix}`);
+      if (link.repo_specs_path) {
+        console.log(chalk.dim(`      repo specs: ${link.repo_specs_path}`));
+      }
+    }
+  }
+}
+
+function printWorkspaceCheckSummaryHuman(result: { workspace: WorkspaceOutput; status: WorkspaceStatus[] }): void {
+  printStatusLines(result.status);
+  const issues = collectWorkspaceIssues(result.workspace);
+
+  if (issues.length === 0) {
+    console.log('  No workspace issues found.');
+    return;
+  }
+
+  console.log('  Issues:');
+  for (const issue of issues) {
+    console.log(`    - ${issue.message}`);
+    if (issue.target) {
+      console.log(`      Target: ${issue.target}`);
+    }
+    if (issue.fix) {
+      console.log(`      Fix: ${issue.fix}`);
+    }
+  }
 }
 
 function printLinkMutationHuman(
@@ -224,6 +350,10 @@ class WorkspaceCommand {
       }
 
       const interactive = !noInteractive && isInteractive(options);
+      if (interactive) {
+        printWorkspaceSetupIntro();
+      }
+
       if (!interactive && (!options.name || (options.link ?? []).length === 0)) {
         throw new WorkspaceCliError(
           'workspace setup --no-interactive requires --name <name> and at least one --link <path>.',
@@ -249,6 +379,11 @@ class WorkspaceCommand {
         );
       }
 
+      if (interactive) {
+        console.log('');
+        console.log(chalk.bold('[3/3] Create workspace files'));
+      }
+
       const workspace = await createManagedWorkspace(workspaceName, links);
       const doctorResult = await loadWorkspaceForDoctor({
         name: workspace.name,
@@ -265,12 +400,12 @@ class WorkspaceCommand {
         return;
       }
 
-      console.log('Workspace setup complete');
+      console.log(chalk.green('Workspace setup complete'));
       console.log('');
-      printWorkspaceSummaryHuman(workspace);
+      printWorkspaceListHuman([doctorResult.workspace]);
       console.log('');
       console.log('Workspace check:');
-      printDoctorHuman(doctorResult);
+      printWorkspaceCheckSummaryHuman(doctorResult);
       console.log('');
       console.log('Next useful commands:');
       console.log(`  openspec workspace doctor --workspace ${workspace.name}`);
@@ -297,29 +432,7 @@ class WorkspaceCommand {
         return;
       }
 
-      console.log('Known OpenSpec workspaces:');
-      for (const workspace of workspaces) {
-        console.log(`  ${workspace.name}`);
-        console.log(`    Root: ${workspace.root}`);
-        if (workspace.status.length > 0) {
-          for (const status of workspace.status) {
-            console.log(
-              `    ${status.severity === 'warning' ? 'Warning' : 'Issue'}: ${status.message}`
-            );
-            if (status.fix) {
-              console.log(`    Fix: ${status.fix}`);
-            }
-          }
-        }
-        console.log('    Linked repos or folders:');
-        if (workspace.links.length === 0) {
-          console.log('      (none)');
-        } else {
-          for (const link of workspace.links) {
-            console.log(`      ${link.name} -> ${link.path ?? '(no local path recorded)'}`);
-          }
-        }
-      }
+      printWorkspaceListHuman(workspaces);
     } catch (error) {
       this.handleFailure(options.json, { workspaces: [], status: [] }, error);
     }
@@ -406,6 +519,12 @@ class WorkspaceCommand {
     payload: T,
     error: unknown
   ): void {
+    if (!json && isPromptCancellationError(error)) {
+      console.error('Cancelled.');
+      process.exitCode = 130;
+      return;
+    }
+
     if (json) {
       printJson(appendStatus(payload, asStatus(error)));
       process.exitCode = 1;

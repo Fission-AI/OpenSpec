@@ -38,13 +38,13 @@ openspec workspace relink api /new/path/to/api
 openspec workspace doctor
 ```
 
-`workspace setup` is the creation path for users. It should ask for the workspace name first, create the workspace in the standard location, require at least one existing repo or folder path, infer link names from folder names, show the workspace path, and run a check at the end so the user knows what OpenSpec can see.
+`workspace setup` is the creation path for users. It should ask for the workspace name first, create the workspace in the standard location, require at least one existing repo or folder path, infer link names from folder names, show the workspace location, and run a check at the end so the user knows what OpenSpec can see.
 
 Workspace names should be kebab-case so they are clean managed-folder names and stable registry identifiers. Link names should keep the folder-style validation from `workspace-foundation` because they are often inferred directly from existing repo or folder basenames.
 
 `workspace setup --no-interactive` is the automation path. It should require enough flags to create a useful workspace, including a workspace name and at least one link.
 
-`workspace list` shows known OpenSpec-managed workspaces from the local workspace registry, including each workspace path and linked repos or folders.
+`workspace list` shows known OpenSpec-managed workspaces from the local workspace registry, including each workspace location and linked repos or folders.
 
 `workspace link` records an existing local repo or folder path for the selected workspace. It should support a simple form that infers the link name from the folder name and an explicit-name form for conflicts or clarity. Linking does not create, copy, move, initialize, or edit files in the linked repo or folder.
 
@@ -54,7 +54,7 @@ When a link name is already in use, OpenSpec should preserve the existing link a
 
 `workspace relink` lets users repair or change the local path for an existing link without recreating the workspace. It should not introduce owner or handoff metadata in this slice.
 
-`workspace doctor` explains what the current machine can resolve for one selected workspace: the workspace root, the workspace planning path, linked repos or folders, missing paths, repo-local specs paths when present, and suggested fixes. It should infer the current workspace when run from inside a workspace. It reports issues but does not repair them automatically.
+`workspace doctor` explains what the current machine can resolve for one selected workspace: the workspace location, the workspace planning path, linked repos or folders, missing paths, repo-local specs paths when present, and suggested fixes. It should infer the current workspace when run from inside a workspace. It reports issues but does not repair them automatically.
 
 Workspace commands should work globally. When a command needs one workspace and the user did not specify it, OpenSpec should use the local registry to show an interactive picker. In non-interactive mode, it should fail with a clear message and suggest `--workspace <name>`.
 

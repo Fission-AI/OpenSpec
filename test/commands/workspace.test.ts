@@ -606,7 +606,7 @@ describe('workspace command', () => {
 
     const humanList = await runCLI(['workspace', 'list'], { cwd: tempDir, env });
     expect(humanList.exitCode).toBe(0);
-    expect(humanList.stdout).toContain('Linked repos or folders:');
+    expect(humanList.stdout).toContain('Linked repos or folders (1):');
     expect(humanList.stdout).toContain('api -> (no local path recorded)');
 
     const doctor = await runCLI(
@@ -822,15 +822,22 @@ paths:
     );
     expect(setup.exitCode).toBe(0);
     expect(setup.stdout).toContain('Workspace setup complete');
+    expect(setup.stdout).toContain('OpenSpec workspaces (1)');
+    expect(setup.stdout).toContain('Location:');
+    expect(setup.stdout).not.toContain('Root:');
+    expect(setup.stdout).toContain('Linked repos or folders (1):');
+    expect(setup.stdout).toContain(`api -> ${api}`);
     expect(setup.stdout).toContain('Workspace check:');
     expect(setup.stdout).toContain('No workspace issues found.');
     expect(setup.stdout).toContain('Next useful commands:');
 
     const list = await runCLI(['workspace', 'list'], { cwd: tempDir, env });
     expect(list.exitCode).toBe(0);
-    expect(list.stdout).toContain('Known OpenSpec workspaces:');
+    expect(list.stdout).toContain('OpenSpec workspaces (1)');
     expect(list.stdout).toContain('platform');
-    expect(list.stdout).toContain('Linked repos or folders:');
+    expect(list.stdout).toContain('Location:');
+    expect(list.stdout).not.toContain('Root:');
+    expect(list.stdout).toContain('Linked repos or folders (1):');
     expect(list.stdout).toContain(`api -> ${api}`);
 
     const doctor = await runCLI(['workspace', 'doctor', '--workspace', 'platform'], {
@@ -839,6 +846,8 @@ paths:
     });
     expect(doctor.exitCode).toBe(0);
     expect(doctor.stdout).toContain('Workspace: platform');
+    expect(doctor.stdout).toContain('Location:');
+    expect(doctor.stdout).not.toContain('Root:');
     expect(doctor.stdout).toContain('Planning path:');
     expect(doctor.stdout).toContain('Linked repos or folders:');
     expect(doctor.stdout).toContain('No workspace issues found.');

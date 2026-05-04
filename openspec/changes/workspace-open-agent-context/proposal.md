@@ -10,7 +10,7 @@ Add the workspace-open experience:
 
 ```text
 Open this workspace with my agent.
-The agent sees the workspace root, registered repos, current changes, and relevant instructions.
+The agent sees the workspace location, registered repos, current changes, and relevant instructions.
 ```
 
 The launch context should separate stable guidance from dynamic runtime scope:
@@ -32,7 +32,7 @@ Planning dependency:
 
 ### Modified Capabilities
 
-- `context-injection`: Extends context construction to include workspace root, repo registry, active workspace changes, and selected change scope.
+- `context-injection`: Extends context construction to include workspace location, repo registry, active workspace changes, and selected change scope.
 
 ## Impact
 
