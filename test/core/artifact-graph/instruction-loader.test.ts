@@ -605,5 +605,43 @@ rules:
       expect(proposalIdx).toBeLessThan(specsIdx);
       expect(specsIdx).toBeLessThan(tasksIdx);
     });
+
+    it('should show specs as "skipped" when synthetically completed via config', () => {
+      const configDir = path.join(tempDir, 'openspec');
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(path.join(configDir, 'config.yaml'), 'schema: spec-driven\nrequireSpecDeltas: false\n');
+
+      const changeDir = path.join(tempDir, 'openspec', 'changes', 'my-change');
+      fs.mkdirSync(changeDir, { recursive: true });
+      fs.writeFileSync(path.join(changeDir, 'proposal.md'), '# Proposal');
+
+      const context = loadChangeContext(tempDir, 'my-change');
+      const status = formatChangeStatus(context);
+
+      const specs = status.artifacts.find(a => a.id === 'specs');
+      expect(specs?.status).toBe('skipped');
+
+      const proposal = status.artifacts.find(a => a.id === 'proposal');
+      expect(proposal?.status).toBe('done');
+    });
+
+    it('should count skipped artifacts toward completed total', () => {
+      const configDir = path.join(tempDir, 'openspec');
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(path.join(configDir, 'config.yaml'), 'schema: spec-driven\nrequireSpecDeltas: false\n');
+
+      const changeDir = path.join(tempDir, 'openspec', 'changes', 'my-change');
+      fs.mkdirSync(changeDir, { recursive: true });
+      fs.writeFileSync(path.join(changeDir, 'proposal.md'), '# Proposal');
+      fs.writeFileSync(path.join(changeDir, 'design.md'), '# Design');
+      fs.writeFileSync(path.join(changeDir, 'tasks.md'), '# Tasks');
+
+      const context = loadChangeContext(tempDir, 'my-change');
+      const status = formatChangeStatus(context);
+
+      const doneOrSkipped = status.artifacts.filter(a => a.status === 'done' || a.status === 'skipped');
+      expect(doneOrSkipped.length).toBe(4);
+      expect(status.isComplete).toBe(true);
+    });
   });
 });

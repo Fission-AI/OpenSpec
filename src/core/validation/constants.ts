@@ -35,6 +35,7 @@ export const VALIDATION_MESSAGES = {
   REQUIREMENT_TOO_LONG: `Requirement text is very long (>${MAX_REQUIREMENT_TEXT_LENGTH} characters). Consider breaking it down.`,
   DELTA_DESCRIPTION_TOO_BRIEF: 'Delta description is too brief',
   DELTA_MISSING_REQUIREMENTS: 'Delta should include requirements',
+  CHANGE_NO_DELTAS_ALLOWED: 'Change has no spec deltas (allowed by config)',
   
   // Guidance snippets (appended to primary messages for remediation)
   GUIDE_NO_DELTAS:

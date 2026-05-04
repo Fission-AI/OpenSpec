@@ -6,6 +6,7 @@ import { ChangeParser } from '../core/parsers/change-parser.js';
 import { Change } from '../core/schemas/index.js';
 import { isInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds } from '../utils/item-discovery.js';
+import { printReportIssues } from '../utils/report-printer.js';
 
 // Constants for better maintainability
 const ARCHIVE_DIR = 'archive';
@@ -215,26 +216,22 @@ export class ChangeCommand {
       throw new Error(`Change "${changeName}" not found at ${changeDir}`);
     }
     
-    const validator = new Validator(options?.strict || false);
+    const { readProjectConfig } = await import('../core/project-config.js');
+    const projectConfig = readProjectConfig(process.cwd());
+    const requireSpecDeltas = projectConfig?.requireSpecDeltas ?? 'error';
+    const validator = new Validator({ strictMode: options?.strict || false, requireSpecDeltas });
     const report = await validator.validateChangeDeltaSpecs(changeDir);
     
     if (options?.json) {
       console.log(JSON.stringify(report, null, 2));
+      if (!report.valid) {
+        process.exitCode = 1;
+      }
     } else {
-      if (report.valid) {
-        console.log(`Change "${changeName}" is valid`);
-      } else {
-        console.error(`Change "${changeName}" has issues`);
-        report.issues.forEach(issue => {
-          const label = issue.level === 'ERROR' ? 'ERROR' : 'WARNING';
-          const prefix = issue.level === 'ERROR' ? '✗' : '⚠';
-          console.error(`${prefix} [${label}] ${issue.path}: ${issue.message}`);
-        });
-        // Next steps footer to guide fixing issues
+      printReportIssues(`Change "${changeName}"`, report);
+      if (!report.valid) {
         this.printNextSteps();
-        if (!options?.json) {
-          process.exitCode = 1;
-        }
+        process.exitCode = 1;
       }
     }
   }

@@ -223,7 +223,7 @@ export function registerSpecCommand(rootProgram: typeof program) {
           throw new Error(`Spec '${specId}' not found at openspec/specs/${specId}/spec.md`);
         }
 
-        const validator = new Validator(options.strict);
+        const validator = new Validator({ strictMode: options.strict });
         const report = await validator.validateSpec(specPath);
 
         if (options.json) {
