@@ -3,6 +3,7 @@ import {
   listWorkspaceRegistryEntries,
   readWorkspaceSharedState,
 } from '../../core/workspace/index.js';
+import { FileSystemUtils } from '../../utils/file-system.js';
 import { isInteractive, resolveNoInteractive } from '../../utils/interactive.js';
 import { readRegistry, validateWorkspaceNameForSetup } from './operations.js';
 import {
@@ -11,6 +12,12 @@ import {
   WorkspaceSelectionOptions,
   makeStatus,
 } from './types.js';
+
+function normalizeRegistryRootForComparison(workspaceRoot: string): string {
+  return process.platform === 'win32'
+    ? FileSystemUtils.canonicalizeExistingPath(workspaceRoot)
+    : workspaceRoot;
+}
 
 export async function selectWorkspaceForCommand(
   options: WorkspaceSelectionOptions,
@@ -46,7 +53,9 @@ export async function selectWorkspaceForCommand(
   if (currentWorkspaceRoot) {
     const sharedState = await readWorkspaceSharedState(currentWorkspaceRoot);
     const registeredRoot = registry.workspaces[sharedState.name];
-    const isRegistered = registeredRoot === currentWorkspaceRoot;
+    const isRegistered =
+      registeredRoot !== undefined &&
+      normalizeRegistryRootForComparison(registeredRoot) === currentWorkspaceRoot;
     const warning = makeStatus(
       'warning',
       'workspace_not_in_local_registry',

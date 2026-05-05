@@ -4,7 +4,10 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 
 import { COMMAND_REGISTRY } from '../../src/core/completions/command-registry.js';
-import { createManagedWorkspace } from '../../src/commands/workspace/operations.js';
+import {
+  createManagedWorkspace,
+  resolveExistingDirectory,
+} from '../../src/commands/workspace/operations.js';
 import {
   WORKSPACE_CHANGES_DIR_NAME,
   WORKSPACE_LOCAL_STATE_FILE_NAME,
@@ -232,6 +235,25 @@ describe('workspace command', () => {
       api: path.join(resolvedProject, 'repos', 'api'),
       billing: path.join(resolvedProject, 'archive', 'billing'),
     });
+  });
+
+  it('canonicalizes existing link directories on Windows before storing local paths', async () => {
+    const api = mkdir('repos/api');
+    const canonicalApi = path.join(tempDir, 'canonical', 'api');
+    const originalPlatform = process.platform;
+    const canonicalize = vi
+      .spyOn(FileSystemUtils, 'canonicalizeExistingPath')
+      .mockImplementation((targetPath) => (targetPath === api ? canonicalApi : targetPath));
+
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+
+    try {
+      await expect(resolveExistingDirectory(api)).resolves.toBe(canonicalApi);
+      expect(canonicalize).toHaveBeenCalledWith(api);
+    } finally {
+      canonicalize.mockRestore();
+      Object.defineProperty(process, 'platform', { value: originalPlatform });
+    }
   });
 
   it('rejects duplicate setup link names without creating or rewriting a workspace', async () => {

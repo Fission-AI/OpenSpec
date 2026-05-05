@@ -49,11 +49,13 @@ export async function readRegistry(): Promise<WorkspaceRegistryState> {
 
 async function recordWorkspaceInRegistry(name: string, workspaceRoot: string): Promise<void> {
   const registry = await readRegistry();
+  const recordedWorkspaceRoot = normalizeExistingPathForStorage(workspaceRoot);
+
   await writeWorkspaceRegistryState({
     version: 1,
     workspaces: {
       ...registry.workspaces,
-      [name]: workspaceRoot,
+      [name]: recordedWorkspaceRoot,
     },
   });
 }
@@ -72,6 +74,12 @@ async function fileExists(filePath: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+function normalizeExistingPathForStorage(existingPath: string): string {
+  return process.platform === 'win32'
+    ? FileSystemUtils.canonicalizeExistingPath(existingPath)
+    : existingPath;
 }
 
 export async function resolveExistingDirectory(
@@ -100,7 +108,7 @@ export async function resolveExistingDirectory(
     );
   }
 
-  return resolvedPath;
+  return normalizeExistingPathForStorage(resolvedPath);
 }
 
 export function inferLinkName(absolutePath: string): string {
