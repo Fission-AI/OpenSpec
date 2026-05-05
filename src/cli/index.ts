@@ -16,6 +16,7 @@ import { CompletionCommand } from '../commands/completion.js';
 import { FeedbackCommand } from '../commands/feedback.js';
 import { registerConfigCommand } from '../commands/config.js';
 import { registerSchemaCommand } from '../commands/schema.js';
+import { registerWorkspaceCommand } from '../commands/workspace.js';
 import {
   statusCommand,
   instructionsCommand,
@@ -285,6 +286,7 @@ program
 registerSpecCommand(program);
 registerConfigCommand(program);
 registerSchemaCommand(program);
+registerWorkspaceCommand(program);
 
 // Top-level validate command
 program

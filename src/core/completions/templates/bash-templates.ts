@@ -21,4 +21,10 @@ _openspec_complete_items() {
   local items
   items=$(openspec __complete changes 2>/dev/null | cut -f1; openspec __complete specs 2>/dev/null | cut -f1)
   COMPREPLY=($(compgen -W "$items" -- "$cur"))
+}
+
+_openspec_complete_schemas() {
+  local schemas
+  schemas=$(openspec __complete schemas 2>/dev/null | cut -f1)
+  COMPREPLY=($(compgen -W "$schemas" -- "$cur"))
 }`;
