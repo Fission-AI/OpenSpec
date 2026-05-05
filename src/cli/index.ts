@@ -220,6 +220,7 @@ changeCmd
   .option('--json', 'Output as JSON')
   .option('--deltas-only', 'Show only deltas (JSON only)')
   .option('--requirements-only', 'Alias for --deltas-only (deprecated)')
+  .option('--diff', 'Show per-requirement diffs for delta specs')
   .option('--no-interactive', 'Disable interactive prompts')
   .action(async (changeName?: string, options?: { json?: boolean; requirementsOnly?: boolean; deltasOnly?: boolean; noInteractive?: boolean }) => {
     try {
@@ -321,6 +322,7 @@ program
   // change-only flags
   .option('--deltas-only', 'Show only deltas (JSON only, change)')
   .option('--requirements-only', 'Alias for --deltas-only (deprecated, change)')
+  .option('--diff', 'Show per-requirement diffs for delta specs (change)')
   // spec-only flags
   .option('--requirements', 'JSON only: Show only requirements (exclude scenarios)')
   .option('--no-scenarios', 'JSON only: Exclude scenario content')
