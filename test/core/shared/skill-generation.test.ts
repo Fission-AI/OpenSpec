@@ -225,6 +225,23 @@ describe('skill-generation', () => {
       expect(content).toContain('author: openspec');
       expect(content).toContain('version: "1.0"');
       expect(content).toContain('generatedBy: "0.24.0"');
+      expect(content).toContain('## OpenSpec CLI Visibility');
+      expect(content).toContain('OPENSPEC_BIN');
+    });
+
+    it('should prepend CLI visibility guidance for OpenSpec CLI skills', () => {
+      const template = {
+        name: 'cli-skill',
+        description: 'Uses the CLI',
+        instructions: 'Run openspec list.',
+        compatibility: 'Requires openspec CLI.',
+      };
+
+      const content = generateSkillContent(template, '0.24.0');
+
+      expect(content).toContain('## OpenSpec CLI Visibility');
+      expect(content).toContain('agent, GUI, and automation shells may inherit a different `PATH`');
+      expect(content).toContain('Run openspec list.');
     });
 
     it('should embed the provided version in generatedBy field', () => {
@@ -249,6 +266,7 @@ describe('skill-generation', () => {
         name: 'test',
         description: 'Test',
         instructions: 'Body content',
+        compatibility: 'Standalone test fixture',
       };
 
       const content = generateSkillContent(template, '0.23.0');

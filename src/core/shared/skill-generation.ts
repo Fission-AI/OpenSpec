@@ -31,6 +31,13 @@ import {
 } from '../templates/skill-templates.js';
 import type { CommandContent } from '../command-generation/index.js';
 
+const DEFAULT_COMPATIBILITY = 'Requires openspec CLI.';
+const OPENSPEC_CLI_VISIBILITY_GUIDANCE = `## OpenSpec CLI Visibility
+
+The workflow below uses the \`openspec\` command. If this agent shell cannot find it, do not assume OpenSpec is absent; editor, agent, GUI, and automation shells may inherit a different \`PATH\` than the user's terminal.
+
+Use \`OPENSPEC_BIN\` when it is set, otherwise start with \`openspec\`. If that command is not found, resolve the package-manager global bin directory or ask the user for the absolute executable path, then use that path for every \`openspec\` invocation in this workflow.`;
+
 /**
  * Skill template with directory name and workflow ID mapping.
  */
@@ -129,21 +136,25 @@ export function generateSkillContent(
   generatedByVersion: string,
   transformInstructions?: (instructions: string) => string
 ): string {
+  const compatibility = template.compatibility || DEFAULT_COMPATIBILITY;
   const instructions = transformInstructions
     ? transformInstructions(template.instructions)
     : template.instructions;
+  const body = compatibility.toLowerCase().includes('openspec cli')
+    ? `${OPENSPEC_CLI_VISIBILITY_GUIDANCE}\n\n${instructions}`
+    : instructions;
 
   return `---
 name: ${template.name}
 description: ${template.description}
 license: ${template.license || 'MIT'}
-compatibility: ${template.compatibility || 'Requires openspec CLI.'}
+compatibility: ${compatibility}
 metadata:
   author: ${template.metadata?.author || 'openspec'}
   version: "${template.metadata?.version || '1.0'}"
   generatedBy: "${generatedByVersion}"
 ---
 
-${instructions}
+${body}
 `;
 }

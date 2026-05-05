@@ -24,19 +24,26 @@ function getOnboardInstructions(): string {
 
 ## Preflight
 
-Before starting, check if the OpenSpec CLI is installed:
+Before starting, check whether the OpenSpec CLI is visible to this shell:
 
 \`\`\`bash
 # Unix/macOS
-openspec --version 2>&1 || echo "CLI_NOT_INSTALLED"
+OPENSPEC_CMD="\${OPENSPEC_BIN:-openspec}"
+if command -v "$OPENSPEC_CMD" >/dev/null 2>&1 || [ -x "$OPENSPEC_CMD" ]; then
+  "$OPENSPEC_CMD" --version
+else
+  echo "CLI_NOT_ON_PATH"
+fi
+
 # Windows (PowerShell)
-# if (Get-Command openspec -ErrorAction SilentlyContinue) { openspec --version } else { echo "CLI_NOT_INSTALLED" }
+# $OpenSpecCmd = if ($env:OPENSPEC_BIN) { $env:OPENSPEC_BIN } else { "openspec" }
+# if (Get-Command $OpenSpecCmd -ErrorAction SilentlyContinue) { & $OpenSpecCmd --version } else { echo "CLI_NOT_ON_PATH" }
 \`\`\`
 
-**If CLI not installed:**
-> OpenSpec CLI is not installed. Install it first, then come back to \`/opsx:onboard\`.
+**If CLI is not visible:**
+> OpenSpec CLI is not visible to this shell. If it is installed in another terminal, add its package-manager bin directory to the PATH used by this editor, agent, or automation, or set OPENSPEC_BIN to the absolute executable path.
 
-Stop here if not installed.
+Stop here if no usable CLI command can be found.
 
 ---
 
