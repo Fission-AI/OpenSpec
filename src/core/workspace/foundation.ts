@@ -15,6 +15,36 @@ export const WORKSPACE_CHANGES_DIR_NAME = 'changes';
 export const MANAGED_WORKSPACES_DIR_NAME = 'workspaces';
 export const WORKSPACE_REGISTRY_FILE_NAME = 'registry.yaml';
 export const WORKSPACE_LOCAL_STATE_IGNORE_PATTERN = `${WORKSPACE_METADATA_DIR_NAME}/${WORKSPACE_LOCAL_STATE_FILE_NAME}`;
+export const WORKSPACE_CODE_WORKSPACE_EXTENSION = '.code-workspace';
+
+export const WORKSPACE_SUPPORTED_OPENER_VALUES = [
+  'codex',
+  'claude',
+  'github-copilot',
+  'editor',
+] as const;
+
+export const WORKSPACE_AGENT_OPENER_IDS = [
+  'codex',
+  'claude',
+  'github-copilot',
+] as const;
+
+export const WORKSPACE_EDITOR_OPENER_IDS = ['vscode'] as const;
+
+export type WorkspaceSupportedOpenerValue = typeof WORKSPACE_SUPPORTED_OPENER_VALUES[number];
+export type WorkspaceAgentOpenerId = typeof WORKSPACE_AGENT_OPENER_IDS[number];
+export type WorkspaceEditorOpenerId = typeof WORKSPACE_EDITOR_OPENER_IDS[number];
+
+export type WorkspacePreferredOpener =
+  | {
+      kind: 'agent';
+      id: WorkspaceAgentOpenerId;
+    }
+  | {
+      kind: 'editor';
+      id: WorkspaceEditorOpenerId;
+    };
 
 export interface WorkspaceSharedState {
   version: 1;
@@ -27,6 +57,7 @@ export type WorkspaceLinkState = Record<string, unknown>;
 export interface WorkspaceLocalState {
   version: 1;
   paths: Record<string, string>;
+  preferred_opener?: WorkspacePreferredOpener;
 }
 
 export interface WorkspaceRegistryState {
@@ -85,8 +116,19 @@ export function getWorkspaceRegistryPath(options: WorkspacePathOptions = {}): st
   return joinWorkspacePath(getManagedWorkspacesDir(options), WORKSPACE_REGISTRY_FILE_NAME);
 }
 
-export function getWorkspacePortableIgnorePatterns(): string[] {
-  return [WORKSPACE_LOCAL_STATE_IGNORE_PATTERN];
+export function getWorkspaceCodeWorkspaceFileName(workspaceName: string): string {
+  validateWorkspaceName(workspaceName);
+  return `${workspaceName}${WORKSPACE_CODE_WORKSPACE_EXTENSION}`;
+}
+
+export function getWorkspaceCodeWorkspacePath(workspaceRoot: string, workspaceName: string): string {
+  return joinWorkspacePath(workspaceRoot, getWorkspaceCodeWorkspaceFileName(workspaceName));
+}
+
+export function getWorkspacePortableIgnorePatterns(workspaceName?: string): string[] {
+  return workspaceName
+    ? [WORKSPACE_LOCAL_STATE_IGNORE_PATTERN, getWorkspaceCodeWorkspaceFileName(workspaceName)]
+    : [WORKSPACE_LOCAL_STATE_IGNORE_PATTERN];
 }
 
 function validateFolderStyleName(name: string, label: string): string {
@@ -206,6 +248,13 @@ const SharedStateSchema = z.object({
 const LocalStateSchema = z.object({
   version: z.literal(1),
   paths: z.record(z.string(), z.string()),
+  preferred_opener: z
+    .object({
+      kind: z.enum(['agent', 'editor']),
+      id: z.string(),
+    })
+    .strict()
+    .optional(),
 }).strict();
 
 const RegistryStateSchema = z.object({
@@ -246,6 +295,56 @@ function assertValidMapKeys(
   }
 }
 
+function formatSupportedOpenerValues(): string {
+  return WORKSPACE_SUPPORTED_OPENER_VALUES.join(', ');
+}
+
+export function isWorkspaceAgentOpenerId(value: string): value is WorkspaceAgentOpenerId {
+  return (WORKSPACE_AGENT_OPENER_IDS as readonly string[]).includes(value);
+}
+
+export function isWorkspaceSupportedOpenerValue(
+  value: string
+): value is WorkspaceSupportedOpenerValue {
+  return (WORKSPACE_SUPPORTED_OPENER_VALUES as readonly string[]).includes(value);
+}
+
+export function parseWorkspacePreferredOpenerValue(value: string): WorkspacePreferredOpener {
+  if (value === 'editor') {
+    return {
+      kind: 'editor',
+      id: 'vscode',
+    };
+  }
+
+  if (isWorkspaceAgentOpenerId(value)) {
+    return {
+      kind: 'agent',
+      id: value,
+    };
+  }
+
+  throw new Error(
+    `Unsupported workspace opener '${value}'. Supported values: ${formatSupportedOpenerValues()}`
+  );
+}
+
+export function validateWorkspacePreferredOpener(
+  opener: WorkspacePreferredOpener
+): WorkspacePreferredOpener {
+  if (opener.kind === 'editor' && opener.id === 'vscode') {
+    return opener;
+  }
+
+  if (opener.kind === 'agent' && isWorkspaceAgentOpenerId(opener.id)) {
+    return opener;
+  }
+
+  throw new Error(
+    `Unsupported workspace opener '${opener.kind}:${opener.id}'. Supported values: ${formatSupportedOpenerValues()}`
+  );
+}
+
 export function parseWorkspaceSharedState(content: string): WorkspaceSharedState {
   const raw = parseYamlObject(content, 'workspace shared state');
   const result = SharedStateSchema.safeParse(raw);
@@ -282,9 +381,14 @@ export function parseWorkspaceLocalState(content: string): WorkspaceLocalState {
     'workspace local path name'
   );
 
+  const preferredOpener = result.data.preferred_opener
+    ? validateWorkspacePreferredOpener(result.data.preferred_opener as WorkspacePreferredOpener)
+    : undefined;
+
   return {
     version: 1,
     paths: result.data.paths,
+    ...(preferredOpener ? { preferred_opener: preferredOpener } : {}),
   };
 }
 
@@ -338,9 +442,14 @@ export function serializeWorkspaceLocalState(state: WorkspaceLocalState): string
     }
   }
 
+  const preferredOpener = state.preferred_opener
+    ? validateWorkspacePreferredOpener(state.preferred_opener)
+    : undefined;
+
   return stringifyYaml({
     version: 1,
     paths: state.paths,
+    ...(preferredOpener ? { preferred_opener: preferredOpener } : {}),
   });
 }
 

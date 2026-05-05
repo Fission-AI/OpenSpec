@@ -23,17 +23,17 @@ OpenSpec SHALL provide a `workspace open` command that opens an OpenSpec workspa
 - **GIVEN** workspaces named `platform` and `checkout` are known locally
 - **WHEN** the user runs `openspec workspace open platform --workspace checkout`
 - **THEN** OpenSpec SHALL fail with a clear conflict error
-- **AND** it SHALL avoid opening either workspace
+- **AND** the error SHALL name both conflicting selectors
 
-#### Scenario: Excluding preview and JSON modes
+#### Scenario: Handling unsupported preview and JSON flags
 - **WHEN** the user runs `openspec workspace open` with `--prepare-only` or `--json`
-- **THEN** OpenSpec SHALL fail because the root workspace open surface is a launching command
-- **AND** it SHALL avoid preparing hidden launch artifacts
+- **THEN** OpenSpec SHALL fail with a clear error that the root workspace open surface supports launching through a selected opener
+- **AND** the error SHALL direct preview or machine-readable context needs to a future context/query surface
 
-#### Scenario: Deferring change-scoped open
+#### Scenario: Handling change-scoped open before workspace planning
 - **WHEN** the user runs `openspec workspace open --change <id>`
-- **THEN** OpenSpec SHALL fail because change-scoped workspace open is not available in this slice
-- **AND** it SHALL avoid inventing target-based attachment behavior before workspace change planning exists
+- **THEN** OpenSpec SHALL fail with a clear error that this slice supports root workspace open
+- **AND** the error SHALL direct change-scoped open behavior to future workspace change planning
 
 ### Requirement: Workspace Selection For Open
 OpenSpec SHALL resolve the workspace to open using current workspace context, local registry state, and interactive selection.
@@ -45,13 +45,13 @@ OpenSpec SHALL resolve the workspace to open using current workspace context, lo
 - **THEN** OpenSpec SHALL open the current workspace
 
 #### Scenario: Auto-selecting the only known workspace
-- **GIVEN** the command does not run from inside a workspace
+- **GIVEN** the command runs outside a workspace
 - **AND** exactly one workspace is known locally
 - **WHEN** the user runs `openspec workspace open`
-- **THEN** OpenSpec SHALL open that known workspace without prompting
+- **THEN** OpenSpec SHALL open that known workspace directly
 
 #### Scenario: Picking from multiple workspaces
-- **GIVEN** the command does not run from inside a workspace
+- **GIVEN** the command runs outside a workspace
 - **AND** multiple workspaces are known locally
 - **AND** the terminal is interactive
 - **WHEN** the user runs `openspec workspace open`
@@ -59,7 +59,7 @@ OpenSpec SHALL resolve the workspace to open using current workspace context, lo
 - **AND** it SHALL open the workspace the user selects
 
 #### Scenario: Non-interactive ambiguous selection
-- **GIVEN** the command does not run from inside a workspace
+- **GIVEN** the command runs outside a workspace
 - **AND** multiple workspaces are known locally
 - **AND** the terminal is non-interactive
 - **WHEN** the user runs `openspec workspace open`
@@ -67,7 +67,7 @@ OpenSpec SHALL resolve the workspace to open using current workspace context, lo
 - **AND** it SHALL ask the user to pass a workspace name
 
 #### Scenario: No known workspace
-- **GIVEN** the command does not run from inside a workspace
+- **GIVEN** the command runs outside a workspace
 - **AND** no workspaces are known locally
 - **WHEN** the user runs `openspec workspace open`
 - **THEN** OpenSpec SHALL fail with a clear message
@@ -78,32 +78,32 @@ OpenSpec SHALL resolve the opener from command overrides, workspace-local prefer
 
 #### Scenario: Using the stored preferred opener
 - **GIVEN** the workspace has a machine-local preferred opener
-- **WHEN** the user runs `openspec workspace open` without an opener override
+- **WHEN** the user runs `openspec workspace open` using default opener resolution
 - **THEN** OpenSpec SHALL use the stored preferred opener
 
 #### Scenario: Overriding with an agent for one session
 - **GIVEN** the workspace has a stored preferred opener
 - **WHEN** the user runs `openspec workspace open --agent codex`
 - **THEN** OpenSpec SHALL use Codex for that open command
-- **AND** it SHALL not rewrite the stored preferred opener
+- **AND** it SHALL leave the stored preferred opener unchanged
 
 #### Scenario: Overriding with VS Code editor for one session
 - **GIVEN** the workspace has a stored preferred opener
 - **WHEN** the user runs `openspec workspace open --editor`
 - **THEN** OpenSpec SHALL open the workspace in VS Code editor mode
-- **AND** it SHALL not rewrite the stored preferred opener
+- **AND** it SHALL leave the stored preferred opener unchanged
 
 #### Scenario: Prompting when no opener is stored
 - **GIVEN** the workspace has no stored preferred opener
 - **AND** the terminal is interactive
-- **WHEN** the user runs `openspec workspace open` without an opener override
+- **WHEN** the user runs `openspec workspace open` using default opener resolution
 - **THEN** OpenSpec SHALL prompt the user to choose an opener
 - **AND** it SHALL order detected openers before unavailable openers
 
 #### Scenario: Failing when no opener is stored in non-interactive mode
 - **GIVEN** the workspace has no stored preferred opener
 - **AND** the terminal is non-interactive
-- **WHEN** the user runs `openspec workspace open` without an opener override
+- **WHEN** the user runs `openspec workspace open` using default opener resolution
 - **THEN** OpenSpec SHALL fail with a clear message
 - **AND** it SHALL ask the user to pass `--agent <tool>` or `--editor`
 
@@ -119,7 +119,7 @@ OpenSpec SHALL launch the selected opener using existing workspace files and lin
 - **GIVEN** the user selected `--agent github-copilot`
 - **WHEN** `code` is available on `PATH`
 - **THEN** OpenSpec SHALL open the workspace's maintained `.code-workspace` file with VS Code
-- **AND** it SHALL treat this as the VS Code Copilot experience rather than a CLI agent launch
+- **AND** it SHALL treat this as the VS Code Copilot experience
 
 #### Scenario: Opening Codex
 - **GIVEN** the user selected `--agent codex`
@@ -137,7 +137,7 @@ OpenSpec SHALL launch the selected opener using existing workspace files and lin
 - **GIVEN** the selected opener requires an executable that is not available on `PATH`
 - **WHEN** the user runs `openspec workspace open`
 - **THEN** OpenSpec SHALL fail with a clear error naming the missing executable
-- **AND** it SHALL not silently fall back to another opener
+- **AND** it SHALL keep the selected opener as the required opener
 
 #### Scenario: Missing VS Code executable
 - **GIVEN** the selected opener is VS Code editor or GitHub Copilot in VS Code
@@ -147,13 +147,13 @@ OpenSpec SHALL launch the selected opener using existing workspace files and lin
 - **AND** it SHALL include the maintained `.code-workspace` path so the user can open it manually
 
 ### Requirement: Linked Working Set Visibility
-OpenSpec SHALL make linked repos and folders visible for workspace exploration and planning without requiring change creation.
+OpenSpec SHALL make linked repos and folders visible for workspace exploration and planning before change creation.
 
 #### Scenario: Attaching valid linked paths
 - **GIVEN** a workspace has linked repos or folders with valid local paths
 - **WHEN** the user opens the workspace through an opener that supports linked directory attachment
 - **THEN** OpenSpec SHALL include every valid linked path in the opened working set
-- **AND** it SHALL not require a workspace change to exist first
+- **AND** it SHALL support opening before a workspace change exists
 
 #### Scenario: Skipping broken linked paths
 - **GIVEN** a workspace has at least one linked path that is missing or not recorded locally
@@ -162,20 +162,20 @@ OpenSpec SHALL make linked repos and folders visible for workspace exploration a
 - **AND** it SHALL report that the path was skipped with `openspec workspace doctor` as the repair path
 - **AND** it SHALL continue opening the workspace when the selected opener itself is available
 
-#### Scenario: Opening links without repo-local OpenSpec
-- **GIVEN** a linked repo or folder has no repo-local `openspec/` directory
+#### Scenario: Opening links with repo-local OpenSpec state absent
+- **GIVEN** a linked repo or folder has a valid local path and repo-local `openspec/` state is absent
 - **WHEN** the user opens the workspace
 - **THEN** OpenSpec SHALL include that link when its local path is valid
-- **AND** it SHALL treat missing repo-local OpenSpec state as an implementation-readiness concern for later workflows, not an open failure
+- **AND** it SHALL treat missing repo-local OpenSpec state as an implementation-readiness concern for later workflows while continuing open
 
 ### Requirement: Workspace Open Guidance
-OpenSpec SHALL rely on durable workspace guidance rather than generated launch prompts for root workspace open.
+OpenSpec SHALL use durable workspace guidance as the primary context source for root workspace open.
 
 #### Scenario: Launching with existing workspace guidance
 - **GIVEN** the workspace has OpenSpec-managed guidance in `AGENTS.md`
 - **WHEN** the user opens the workspace
 - **THEN** OpenSpec SHALL launch the selected opener against the existing workspace files
-- **AND** it SHALL not generate a large opener-specific prompt as the primary workspace-open artifact
+- **AND** it SHALL use existing workspace files as the primary workspace-open artifact
 
 #### Scenario: Minimal required launch prompt
 - **GIVEN** an opener requires an initial prompt argument

@@ -2,7 +2,7 @@
 
 After a user creates a workspace and links repos or folders, they need to open that workspace with their preferred agent or editor and have the working set available immediately.
 
-The user should not need to explain where every repo or folder lives, which link names matter, or whether they are currently planning versus implementing. The workspace should provide that context.
+The workspace should provide repo and folder locations, link names, and the context that distinguishes planning from implementation.
 
 ## What Changes
 
@@ -10,11 +10,11 @@ Add the workspace-open experience:
 
 ```text
 Open this workspace.
-Use my preferred opener unless I override it.
+Use my preferred opener by default and honor explicit opener overrides.
 The opener sees the workspace location, linked repos or folders, current changes, and relevant instructions.
 ```
 
-Links are the planning context. The local registry is only a workspace-discovery index for finding known workspaces on the current machine.
+Links are the planning context. The local registry serves as a workspace-discovery index for finding known workspaces on the current machine.
 
 Expected user surface:
 
@@ -28,19 +28,19 @@ openspec workspace open --editor
 
 `workspace open` should open the current workspace when run from inside one, auto-select the only known workspace when run outside a workspace, and present an interactive picker when multiple known workspaces are available. Users can pass a workspace name as the positional argument when they want to choose explicitly.
 
-Workspace setup should ask for and store a preferred opener in machine-local workspace state. `workspace open` uses that preference when no override is provided. `--agent <tool>` is a one-session override and does not change the saved preference.
+Workspace setup should ask for and store a preferred opener in machine-local workspace state. `workspace open` uses that preference by default. `--agent <tool>` is a one-session override that leaves the saved preference unchanged.
 
-`--editor` opens the workspace as an editor workspace rather than an agent session. This is related to, but distinct from, `--agent github-copilot`: GitHub Copilot needs editor workspace support plus agent prompt context, while plain editor open should focus on opening the linked working set.
+`--editor` opens the workspace as an editor workspace. This is related to, but distinct from, `--agent github-copilot`: GitHub Copilot needs editor workspace support plus agent prompt context, while plain editor open should focus on opening the linked working set.
 
 Workspace guidance should live in durable workspace files where possible:
 
 - stable behavior belongs in workspace-level `AGENTS.md`
-- opener-specific launch prompts should be minimal or absent
-- linked repos or folders should be visible even when no change is active
+- opener-specific launch prompts stay minimal when required
+- linked repos or folders are visible for exploration and planning before a change exists
 
-This slice should not add `--prepare-only` or `--json`. `workspace open` is a launching command, and we do not yet have a clear user need for public preview or machine-readable context modes.
+This slice supports root workspace launching through the documented opener forms. Public preview (`--prepare-only`) and machine-readable context (`--json`) surfaces belong in a future context/query design if a clear user need appears.
 
-This slice should also defer change-scoped open behavior. Change-scoped sessions need the target model from workspace change planning before they can be specified cleanly.
+This slice focuses on root workspace open behavior. Change-scoped sessions need the target model from workspace change planning before they can be specified cleanly.
 
 Planning dependency:
 

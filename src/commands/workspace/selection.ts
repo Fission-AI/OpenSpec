@@ -21,7 +21,8 @@ function normalizeRegistryRootForComparison(workspaceRoot: string): string {
 
 export async function selectWorkspaceForCommand(
   options: WorkspaceSelectionOptions,
-  commandName: string
+  commandName: string,
+  selectionOptions: { preferPositionalName?: boolean } = {}
 ): Promise<SelectedWorkspace> {
   const registry = await readRegistry();
 
@@ -99,12 +100,20 @@ export async function selectWorkspaceForCommand(
   }
 
   if (options.json || resolveNoInteractive(options) || !isInteractive(options)) {
+    const knownNames = entries.map((entry) => entry.name).join(', ');
+    const usesPositionalName = selectionOptions.preferPositionalName;
+    const fix = usesPositionalName
+      ? `openspec workspace ${commandName} <name>`
+      : `openspec workspace ${commandName} --workspace <name>`;
+
     throw new WorkspaceCliError(
-      'Multiple OpenSpec workspaces are known. Pass --workspace <name>.',
+      usesPositionalName
+        ? `Multiple OpenSpec workspaces are known. Known workspaces: ${knownNames}. Pass a workspace name.`
+        : `Multiple OpenSpec workspaces are known. Known workspaces: ${knownNames}. Pass --workspace <name>.`,
       'workspace_selection_ambiguous',
       {
         target: 'workspace.name',
-        fix: `openspec workspace ${commandName} --workspace <name>`,
+        fix,
       }
     );
   }

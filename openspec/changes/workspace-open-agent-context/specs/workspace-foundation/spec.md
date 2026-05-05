@@ -14,9 +14,9 @@ OpenSpec SHALL store a workspace's preferred opener in machine-local workspace s
 - **AND** it SHALL record `preferred_opener.id` as `codex`
 
 #### Scenario: Leaving opener unset during non-interactive setup
-- **WHEN** a non-interactive user runs `openspec workspace setup` without `--opener`
-- **THEN** OpenSpec SHALL avoid silently choosing an opener
-- **AND** it SHALL leave the workspace preferred opener unset
+- **WHEN** a non-interactive user runs `openspec workspace setup` with opener selection omitted
+- **THEN** OpenSpec SHALL leave the workspace preferred opener unset
+- **AND** the unset state SHALL allow `workspace open` to prompt later
 
 #### Scenario: Supported preferred opener values
 - **WHEN** OpenSpec accepts a preferred opener value
@@ -60,7 +60,7 @@ OpenSpec SHALL maintain files that make a workspace directly openable after setu
 #### Scenario: Ignoring the maintained VS Code workspace file
 - **WHEN** OpenSpec refreshes workspace ignore rules
 - **THEN** it SHALL ignore the specific maintained `<workspace-name>.code-workspace` file
-- **AND** it SHALL avoid ignoring all `*.code-workspace` files
+- **AND** user-authored `*.code-workspace` files SHALL remain eligible for tracking
 
 #### Scenario: Preserving user-authored AGENTS content
 - **GIVEN** `AGENTS.md` contains content outside the OpenSpec workspace guidance markers
@@ -69,7 +69,7 @@ OpenSpec SHALL maintain files that make a workspace directly openable after setu
 - **AND** it SHALL preserve content outside the markers
 
 #### Scenario: Appending AGENTS guidance when markers are missing
-- **GIVEN** `AGENTS.md` exists without OpenSpec workspace guidance markers
+- **GIVEN** `AGENTS.md` exists and OpenSpec workspace guidance markers are absent
 - **WHEN** OpenSpec refreshes workspace guidance
 - **THEN** it SHALL append the marked OpenSpec workspace guidance block
-- **AND** it SHALL avoid overwriting the existing file content
+- **AND** it SHALL preserve the existing file content
