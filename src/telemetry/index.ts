@@ -12,9 +12,8 @@ import { PostHog } from 'posthog-node';
 import { randomUUID } from 'crypto';
 import { getTelemetryConfig, updateTelemetryConfig } from './config.js';
 
-// PostHog API key - public key for client-side analytics
-// This is safe to embed as it only allows sending events, not reading data
-const POSTHOG_API_KEY = 'phc_Hthu8YvaIJ9QaFKyTG4TbVwkbd5ktcAFzVTKeMmoW2g';
+// PostHog API key - read from environment variable to avoid hardcoding secrets in source
+const POSTHOG_API_KEY = process.env.POSTHOG_API_KEY ?? 'phc_Hthu8YvaIJ9QaFKyTG4TbVwkbd5ktcAFzVTKeMmoW2g';
 // Using reverse proxy to avoid ad blockers and keep traffic on our domain
 const POSTHOG_HOST = 'https://edge.openspec.dev';
 const TELEMETRY_REQUEST_TIMEOUT_MS = 1000;
