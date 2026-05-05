@@ -175,7 +175,9 @@ export async function findWorkspaceRoot(startPath = process.cwd()): Promise<stri
 
   while (true) {
     if (await isWorkspaceRoot(currentDir)) {
-      return currentDir;
+      return process.platform === 'win32'
+        ? FileSystemUtils.canonicalizeExistingPath(currentDir)
+        : currentDir;
     }
 
     const parentDir = path.dirname(currentDir);

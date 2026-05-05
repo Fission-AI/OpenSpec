@@ -1,9 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
 import { getGlobalDataDir } from '../../../src/core/global-config.js';
+import { FileSystemUtils } from '../../../src/utils/file-system.js';
 import {
   MANAGED_WORKSPACES_DIR_NAME,
   WORKSPACE_CHANGES_DIR_NAME,
@@ -223,6 +224,27 @@ paths: {}
       fs.mkdirSync(linkedPath, { recursive: true });
 
       await expect(findWorkspaceRoot(linkedPath)).resolves.toBe(workspaceRoot);
+    });
+
+    it('canonicalizes detected workspace roots on Windows before returning them', async () => {
+      const workspaceRoot = createWorkspaceRoot();
+      const canonicalWorkspaceRoot = path.join(tempDir, 'canonical-platform');
+      const originalPlatform = process.platform;
+      const canonicalize = vi
+        .spyOn(FileSystemUtils, 'canonicalizeExistingPath')
+        .mockImplementation((targetPath) =>
+          targetPath === workspaceRoot ? canonicalWorkspaceRoot : targetPath
+        );
+
+      Object.defineProperty(process, 'platform', { value: 'win32' });
+
+      try {
+        await expect(findWorkspaceRoot(workspaceRoot)).resolves.toBe(canonicalWorkspaceRoot);
+        expect(canonicalize).toHaveBeenCalledWith(workspaceRoot);
+      } finally {
+        canonicalize.mockRestore();
+        Object.defineProperty(process, 'platform', { value: originalPlatform });
+      }
     });
   });
 
