@@ -32,7 +32,7 @@ bun add -g @fkmatsuda/br-openspec@latest
 
 ## Nix
 
-Run OpenSpec directly without installation:
+Run BR-OpenSpec directly without installation:
 
 ```bash
 nix run github:fkmatsuda/BR-OpenSpec -- init
@@ -69,7 +69,7 @@ openspec --version
 
 ## Next Steps
 
-After installing, initialize OpenSpec in your project:
+After installing, initialize BR-OpenSpec in your project:
 
 ```bash
 cd your-project

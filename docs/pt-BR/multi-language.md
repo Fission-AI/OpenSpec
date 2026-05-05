@@ -1,6 +1,6 @@
 # Guia Multi-Idioma
 
-Configure o OpenSpec para gerar artefatos em idiomas diferentes do inglês.
+Configure o BR-OpenSpec para gerar artefatos em idiomas diferentes do inglês.
 
 ## Configuração Rápida
 

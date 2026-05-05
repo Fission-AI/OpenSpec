@@ -1,6 +1,6 @@
 # Commands
 
-This is the reference for OpenSpec's slash commands. These commands are invoked in your AI coding assistant's chat interface (e.g., Claude Code, Cursor, Windsurf).
+This is the reference for BR-OpenSpec's slash commands. These commands are invoked in your AI coding assistant's chat interface (e.g., Claude Code, Cursor, Windsurf).
 
 For workflow patterns and when to use each command, see [Workflows](workflows.md). For CLI commands, see [CLI](cli.md).
 
@@ -550,7 +550,7 @@ AI:  ✓ Archived add-dark-mode
 
 ### `/opsx:onboard`
 
-Guided onboarding through the complete OpenSpec workflow. An interactive tutorial using your actual codebase.
+Guided onboarding through the complete BR-OpenSpec workflow. An interactive tutorial using your actual codebase.
 
 **Syntax:**
 ```
@@ -582,7 +582,7 @@ Guided onboarding through the complete OpenSpec workflow. An interactive tutoria
 ```
 You: /opsx:onboard
 
-AI:  Welcome to OpenSpec!
+AI:  Welcome to BR-OpenSpec!
 
      I'll walk you through the complete workflow using your actual codebase.
      We'll find something small to improve, create a proper change for it,
@@ -678,10 +678,10 @@ The specified schema doesn't exist.
 
 ### Commands not recognized
 
-The AI tool doesn't recognize OpenSpec commands.
+The AI tool doesn't recognize BR-OpenSpec commands.
 
 **Solutions:**
-- Ensure OpenSpec is initialized: `openspec init`
+- Ensure BR-OpenSpec is initialized: `openspec init`
 - Regenerate skills: `openspec update`
 - Check that `.claude/skills/` directory exists (for Claude Code)
 - Restart your AI tool to pick up new skills

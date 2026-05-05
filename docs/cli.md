@@ -1,12 +1,12 @@
 # CLI Reference
 
-The OpenSpec CLI (`openspec`) provides terminal commands for project setup, validation, status inspection, and management. These commands complement the AI slash commands (like `/opsx:propose`) documented in [Commands](commands.md).
+The BR-OpenSpec CLI (`openspec`) provides terminal commands for project setup, validation, status inspection, and management. These commands complement the AI slash commands (like `/opsx:propose`) documented in [Commands](commands.md).
 
 ## Summary
 
 | Category | Commands | Purpose |
 |----------|----------|---------|
-| **Setup** | `init`, `update` | Initialize and update OpenSpec in your project |
+| **Setup** | `init`, `update` | Initialize and update BR-OpenSpec in your project |
 | **Browsing** | `list`, `view`, `show` | Explore changes and specs |
 | **Validation** | `validate` | Check changes and specs for issues |
 | **Lifecycle** | `archive` | Finalize completed changes |
@@ -65,7 +65,7 @@ These options work with all commands:
 
 ### `openspec init`
 
-Initialize OpenSpec in your project. Creates the folder structure and configures AI tool integrations.
+Initialize BR-OpenSpec in your project. Creates the folder structure and configures AI tool integrations.
 
 Default behavior uses global config defaults: profile `core`, delivery `both`, workflows `propose, explore, apply, archive`.
 
@@ -131,7 +131,7 @@ openspec/
 
 ### `openspec update`
 
-Update OpenSpec instruction files after upgrading the CLI. Re-generates AI tool configuration files using your current global profile, selected workflows, and delivery mode.
+Update BR-OpenSpec instruction files after upgrading the CLI. Re-generates AI tool configuration files using your current global profile, selected workflows, and delivery mode.
 
 ```
 openspec update [path] [options]
@@ -758,7 +758,7 @@ spec-driven resolves from: package
 
 ### `openspec config`
 
-View and modify global OpenSpec configuration.
+View and modify global BR-OpenSpec configuration.
 
 ```
 openspec config <subcommand> [options]
@@ -818,7 +818,7 @@ openspec config profile core
 - Keep current settings (exit)
 
 If you keep current settings, no changes are written and no update prompt is shown.
-If there are no config changes but the current project files are out of sync with your global profile/delivery, OpenSpec will show a warning and suggest running `openspec update`.
+If there are no config changes but the current project files are out of sync with your global profile/delivery, BR-OpenSpec will show a warning and suggest running `openspec update`.
 Pressing `Ctrl+C` also cancels the flow cleanly (no stack trace) and exits with code `130`.
 In the workflow checklist, `[x]` means the workflow is selected in global config. To apply those selections to project files, run `openspec update` (or choose `Apply changes to this project now?` when prompted inside a project).
 
@@ -842,7 +842,7 @@ openspec config profile
 
 ### `openspec feedback`
 
-Submit feedback about OpenSpec. Creates a GitHub issue.
+Submit feedback about BR-OpenSpec. Creates a GitHub issue.
 
 ```
 openspec feedback <message> [options]
@@ -873,7 +873,7 @@ openspec feedback "Add support for custom artifact types" \
 
 ### `openspec completion`
 
-Manage shell completions for the OpenSpec CLI.
+Manage shell completions for the BR-OpenSpec CLI.
 
 ```
 openspec completion <subcommand> [shell]

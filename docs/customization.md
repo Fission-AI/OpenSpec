@@ -1,6 +1,6 @@
 # Customization
 
-OpenSpec provides three levels of customization:
+BR-OpenSpec provides three levels of customization:
 
 | Level | What it does | Best for |
 |-------|--------------|----------|
@@ -12,7 +12,7 @@ OpenSpec provides three levels of customization:
 
 ## Project Configuration
 
-The `openspec/config.yaml` file is the easiest way to customize OpenSpec for your team. It lets you:
+The `openspec/config.yaml` file is the easiest way to customize BR-OpenSpec for your team. It lets you:
 
 - **Set a default schema** - Skip `--schema` on every command
 - **Inject project context** - AI sees your tech stack, conventions, etc.
@@ -82,7 +82,7 @@ Tech stack: TypeScript, React, Node.js, PostgreSQL
 
 ### Schema Resolution Order
 
-When OpenSpec needs a schema, it checks in this order:
+When BR-OpenSpec needs a schema, it checks in this order:
 
 1. CLI flag: `--schema <name>`
 2. Change metadata (`.openspec.yaml` in the change folder)
@@ -269,7 +269,7 @@ Path: /path/to/project/openspec/schemas/my-workflow
 
 ---
 
-> **Note:** OpenSpec also supports user-level schemas at `~/.local/share/openspec/schemas/` for sharing across projects, but project-level schemas in `openspec/schemas/` are recommended since they're version-controlled with your code.
+> **Note:** BR-OpenSpec also supports user-level schemas at `~/.local/share/openspec/schemas/` for sharing across projects, but project-level schemas in `openspec/schemas/` are recommended since they're version-controlled with your code.
 
 ---
 

@@ -2,13 +2,13 @@
 
 ## O Que É?
 
-O OPSX é agora o fluxo de trabalho padrão do OpenSpec.
+O OPSX é agora o fluxo de trabalho padrão do BR-OpenSpec.
 
-É um **fluxo de trabalho fluido e iterativo** para mudanças no OpenSpec. Sem mais fases rígidas — apenas ações que você pode executar a qualquer momento.
+É um **fluxo de trabalho fluido e iterativo** para mudanças no BR-OpenSpec. Sem mais fases rígidas — apenas ações que você pode executar a qualquer momento.
 
 ## Por Que Existe
 
-O fluxo de trabalho legado do OpenSpec funciona, mas é **engessado**:
+O fluxo de trabalho legado do BR-OpenSpec funciona, mas é **engessado**:
 
 - **Instruções estão hardcoded** — enterradas no TypeScript, você não pode alterá-las
 - **Tudo ou nada** — um grande comando cria tudo, não dá para testar partes individuais
@@ -37,7 +37,7 @@ Legacy workflow:                      OPSX:
 **Isso é para todos:**
 - **Equipes** — crie fluxos de trabalho que correspondam à forma como você realmente trabalha
 - **Usuários avançados** — ajuste prompts para obter melhores saídas da IA para sua base de código
-- **Contribuidores do OpenSpec** — experimente novas abordagens sem precisar de releases
+- **Contribuidores do BR-OpenSpec** — experimente novas abordagens sem precisar de releases
 
 Ainda estamos aprendendo o que funciona melhor. O OPSX nos permite aprender juntos.
 
@@ -63,7 +63,7 @@ openspec init
 
 Isso cria skills em `.claude/skills/` (ou equivalente) que assistentes de codificação com IA detectam automaticamente.
 
-Por padrão, o OpenSpec usa o perfil de fluxo de trabalho `core` (`propose`, `explore`, `apply`, `archive`). Se você quiser os comandos de fluxo de trabalho expandido (`new`, `continue`, `ff`, `verify`, `sync`, `bulk-archive`, `onboard`), configure-os com `openspec config profile` e aplique com `openspec update`.
+Por padrão, o BR-OpenSpec usa o perfil de fluxo de trabalho `core` (`propose`, `explore`, `apply`, `archive`). Se você quiser os comandos de fluxo de trabalho expandido (`new`, `continue`, `ff`, `verify`, `sync`, `bulk-archive`, `onboard`), configure-os com `openspec config profile` e aplique com `openspec update`.
 
 Durante a configuração, você será solicitado a criar uma **configuração de projeto** (`openspec/config.yaml`). Isso é opcional, mas recomendado.
 

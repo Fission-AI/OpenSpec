@@ -1,15 +1,15 @@
 # Supported Tools
 
-OpenSpec works with many AI coding assistants. When you run `openspec init`, OpenSpec configures selected tools using your active profile/workflow selection and delivery mode.
+BR-OpenSpec works with many AI coding assistants. When you run `openspec init`, BR-OpenSpec configures selected tools using your active profile/workflow selection and delivery mode.
 
 ## How It Works
 
-For each selected tool, OpenSpec can install:
+For each selected tool, BR-OpenSpec can install:
 
 1. **Skills** (if delivery includes skills): `.../skills/openspec-*/SKILL.md`
 2. **Commands** (if delivery includes commands): tool-specific `opsx-*` command files
 
-By default, OpenSpec uses the `core` profile, which includes:
+By default, BR-OpenSpec uses the `core` profile, which includes:
 - `propose`
 - `explore`
 - `apply`
@@ -76,7 +76,7 @@ openspec init --profile core
 
 ## Workflow-Dependent Installation
 
-OpenSpec installs workflow artifacts based on selected workflows:
+BR-OpenSpec installs workflow artifacts based on selected workflows:
 
 - **Core profile (default):** `propose`, `explore`, `apply`, `archive`
 - **Custom selection:** any subset of all workflow IDs:
@@ -86,7 +86,7 @@ In other words, skill/command counts are profile-dependent and delivery-dependen
 
 ## Generated Skill Names
 
-When selected by profile/workflow config, OpenSpec generates these skills:
+When selected by profile/workflow config, BR-OpenSpec generates these skills:
 
 - `openspec-propose`
 - `openspec-explore`

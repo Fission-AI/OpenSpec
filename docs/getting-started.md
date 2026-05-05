@@ -1,10 +1,10 @@
 # Getting Started
 
-This guide explains how OpenSpec works after you've installed and initialized it. For installation instructions, see the [main README](../README.md#quick-start).
+This guide explains how BR-OpenSpec works after you've installed and initialized it. For installation instructions, see the [main README](../README.md#quick-start).
 
 ## How It Works
 
-OpenSpec helps you and your AI coding assistant agree on what to build before any code is written.
+BR-OpenSpec helps you and your AI coding assistant agree on what to build before any code is written.
 
 **Default quick path (core profile):**
 
@@ -20,7 +20,7 @@ OpenSpec helps you and your AI coding assistant agree on what to build before an
 
 The default global profile is `core`, which includes `propose`, `explore`, `apply`, and `archive`. You can enable the expanded workflow commands with `openspec config profile` and then `openspec update`.
 
-## What OpenSpec Creates
+## What BR-OpenSpec Creates
 
 After running `openspec init`, your project has this structure:
 
@@ -70,7 +70,7 @@ You can always go back and refine earlier artifacts as you learn more during imp
 
 ## How Delta Specs Work
 
-Delta specs are the key concept in OpenSpec. They show what's changing relative to your current specs.
+Delta specs are the key concept in BR-OpenSpec. They show what's changing relative to your current specs.
 
 ### The Format
 
@@ -250,4 +250,4 @@ openspec view
 - [Workflows](workflows.md) - Common patterns and when to use each command
 - [Commands](commands.md) - Full reference for all slash commands
 - [Concepts](concepts.md) - Deeper understanding of specs, changes, and schemas
-- [Customization](customization.md) - Make OpenSpec work your way
+- [Customization](customization.md) - Make BR-OpenSpec work your way

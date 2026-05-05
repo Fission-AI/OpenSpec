@@ -1,6 +1,6 @@
 # Migrating to OPSX
 
-This guide helps you transition from the legacy OpenSpec workflow to OPSX. The migration is designed to be smooth—your existing work is preserved, and the new system offers more flexibility.
+This guide helps you transition from the legacy BR-OpenSpec workflow to OPSX. The migration is designed to be smooth—your existing work is preserved, and the new system offers more flexibility.
 
 ## What's Changing?
 
@@ -27,17 +27,17 @@ The migration process is designed with preservation in mind:
 - **Active changes in `openspec/changes/`** — Completely preserved. You can continue them with OPSX commands.
 - **Archived changes** — Untouched. Your history remains intact.
 - **Main specs in `openspec/specs/`** — Untouched. These are your source of truth.
-- **Your content in CLAUDE.md, AGENTS.md, etc.** — Preserved. Only the OpenSpec marker blocks are removed; everything you wrote stays.
+- **Your content in CLAUDE.md, AGENTS.md, etc.** — Preserved. Only the BR-OpenSpec marker blocks are removed; everything you wrote stays.
 
 ### What Gets Removed
 
-Only OpenSpec-managed files that are being replaced:
+Only BR-OpenSpec-managed files that are being replaced:
 
 | What | Why |
 |------|-----|
 | Legacy slash command directories/files | Replaced by the new skills system |
 | `openspec/AGENTS.md` | Obsolete workflow trigger |
-| OpenSpec markers in `CLAUDE.md`, `AGENTS.md`, etc. | No longer needed |
+| BR-OpenSpec markers in `CLAUDE.md`, `AGENTS.md`, etc. | No longer needed |
 
 **Legacy command locations by tool** (examples—your tool may vary):
 
@@ -51,7 +51,7 @@ Only OpenSpec-managed files that are being replaced:
 
 The migration detects whichever tools you have configured and cleans up their legacy files.
 
-The removal list may seem long, but these are all files that OpenSpec originally created. Your own content is never deleted.
+The removal list may seem long, but these are all files that BR-OpenSpec originally created. Your own content is never deleted.
 
 ### What Needs Your Attention
 
@@ -67,7 +67,7 @@ One file requires manual migration:
 
 The old `project.md` was passive—agents might read it, might not, might forget what they read. We found reliability was inconsistent.
 
-The new `config.yaml` context is **actively injected into every OpenSpec planning request**. This means your project conventions, tech stack, and rules are always present when the AI is creating artifacts. Higher reliability.
+The new `config.yaml` context is **actively injected into every BR-OpenSpec planning request**. This means your project conventions, tech stack, and rules are always present when the AI is creating artifacts. Higher reliability.
 
 **The tradeoff:**
 
@@ -98,9 +98,9 @@ openspec init
 The init command detects legacy files and guides you through cleanup:
 
 ```
-Upgrading to the new OpenSpec
+Upgrading to the new BR-OpenSpec
 
-OpenSpec now uses agent skills, the emerging standard across coding
+BR-OpenSpec now uses agent skills, the emerging standard across coding
 agents. This simplifies your setup while keeping everything working
 as before.
 
@@ -110,7 +110,7 @@ No user content to preserve:
   • openspec/AGENTS.md
 
 Files to update
-OpenSpec markers will be removed, your content preserved:
+BR-OpenSpec markers will be removed, your content preserved:
   • CLAUDE.md
   • AGENTS.md
 
@@ -119,7 +119,7 @@ Needs your attention
     We won't delete this file. It may contain useful project context.
 
     The new openspec/config.yaml has a "context:" section for planning
-    context. This is included in every OpenSpec request and works more
+    context. This is included in every BR-OpenSpec request and works more
     reliably than the old project.md approach.
 
     Review project.md, move any useful content to config.yaml's context
@@ -131,7 +131,7 @@ Needs your attention
 **What happens when you say yes:**
 
 1. Legacy slash command directories are removed
-2. OpenSpec markers are stripped from `CLAUDE.md`, `AGENTS.md`, etc. (your content stays)
+2. BR-OpenSpec markers are stripped from `CLAUDE.md`, `AGENTS.md`, etc. (your content stays)
 3. `openspec/AGENTS.md` is deleted
 4. New skills are installed in `.claude/skills/`
 5. `openspec/config.yaml` is created with a default schema
@@ -260,7 +260,7 @@ When migrating, be selective. Ask yourself: "Does the AI need this for *every* p
 If you're unsure how to distill your project.md, ask your AI assistant:
 
 ```
-I'm migrating from OpenSpec's old project.md to the new config.yaml format.
+I'm migrating from BR-OpenSpec's old project.md to the new config.yaml format.
 
 Here's my current project.md:
 [paste your project.md content]
@@ -562,8 +562,8 @@ project/
 │       ├── openspec-explore/
 │       ├── openspec-apply-change/
 │       └── ...                   # expanded profile adds new/continue/ff/etc.
-├── CLAUDE.md                     # OpenSpec markers removed, your content preserved
-└── AGENTS.md                     # OpenSpec markers removed, your content preserved
+├── CLAUDE.md                     # BR-OpenSpec markers removed, your content preserved
+└── AGENTS.md                     # BR-OpenSpec markers removed, your content preserved
 ```
 
 ### What's Gone
@@ -571,7 +571,7 @@ project/
 - `.claude/commands/openspec/` — replaced by `.claude/skills/`
 - `openspec/AGENTS.md` — obsolete
 - `openspec/project.md` — migrate to `config.yaml`, then delete
-- OpenSpec marker blocks in `CLAUDE.md`, `AGENTS.md`, etc.
+- BR-OpenSpec marker blocks in `CLAUDE.md`, `AGENTS.md`, etc.
 
 ### Command Cheatsheet
 

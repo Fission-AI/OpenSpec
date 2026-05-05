@@ -18,13 +18,13 @@ export function getOnboardSkillTemplate(): SkillTemplate {
 }
 
 function getOnboardInstructions(): string {
-  return `Guie o usuário através de seu primeiro ciclo completo de workflow do BR-BR-OpenSpec. Esta é uma experiência de ensino - você fará trabalho real na codebase dele enquanto explica cada passo.
+  return `Guie o usuário através de seu primeiro ciclo completo de workflow do BR-OpenSpec. Esta é uma experiência de ensino - você fará trabalho real na codebase dele enquanto explica cada passo.
 
 ---
 
 ## Pré-voo
 
-Antes de começar, verifique se o CLI do BR-BR-OpenSpec está instalado:
+Antes de começar, verifique se o CLI do BR-OpenSpec está instalado:
 
 \`\`\`bash
 # Unix/macOS
@@ -34,7 +34,7 @@ openspec --version 2>&1 || echo "CLI_NOT_INSTALLED"
 \`\`\`
 
 **Se o CLI não estiver instalado:**
-> O CLI do BR-BR-OpenSpec não está instalado. Instale-o primeiro, depois volte para \`/opsx:onboard\`.
+> O CLI do BR-OpenSpec não está instalado. Instale-o primeiro, depois volte para \`/opsx:onboard\`.
 
 Pare aqui se não estiver instalado.
 
@@ -123,7 +123,7 @@ Qual tarefa te interessa? (Escolha um número ou descreva a sua)
 Se o usuário escolher ou descrever algo muito grande (funcionalidade principal, trabalho de vários dias):
 
 \`\`\`
-Essa é uma tarefa valiosa, mas provavelmente maior do que o ideal para sua primeira execução do BR-BR-OpenSpec.
+Essa é uma tarefa valiosa, mas provavelmente maior do que o ideal para sua primeira execução do BR-OpenSpec.
 
 Para aprender o workflow, menor é melhor - permite ver o ciclo completo sem ficar preso em detalhes de implementação.
 
@@ -458,7 +458,7 @@ A change agora faz parte do histórico do seu projeto. O código está na sua co
 \`\`\`
 ## Parabéns!
 
-Você acabou de completar um ciclo completo do BR-BR-OpenSpec:
+Você acabou de completar um ciclo completo do BR-OpenSpec:
 
 1. **Explore** - Pensou sobre o problema
 2. **New** - Criou um container de change
@@ -525,7 +525,7 @@ Saia graciosamente sem pressão.
 Se o usuário disser que apenas quer ver os comandos ou pular o tutorial:
 
 \`\`\`
-## Referência Rápida do BR-BR-OpenSpec
+## Referência Rápida do BR-OpenSpec
 
 **Workflow principal:**
 
@@ -566,7 +566,7 @@ Saia graciosamente.
 export function getOpsxOnboardCommandTemplate(): CommandTemplate {
   return {
     name: 'OPSX: Onboard',
-    description: 'Onboarding guiado - percorra um ciclo completo de workflow do BR-BR-OpenSpec com narração',
+    description: 'Onboarding guiado - percorra um ciclo completo de workflow do BR-OpenSpec com narração',
     category: 'Workflow',
     tags: ['workflow', 'onboarding', 'tutorial', 'learning'],
     content: getOnboardInstructions(),

@@ -1,6 +1,6 @@
 # Fluxos de Trabalho
 
-Este guia aborda os padrões de workflow mais comuns do OpenSpec e quando usar cada um. Para configuração básica, consulte [Primeiros Passos](getting-started.md). Para referência de comandos, consulte [Comandos](commands.md).
+Este guia aborda os padrões de workflow mais comuns do BR-OpenSpec e quando usar cada um. Para configuração básica, consulte [Primeiros Passos](getting-started.md). Para referência de comandos, consulte [Comandos](commands.md).
 
 ## Filosofia: Ações, Não Fases
 

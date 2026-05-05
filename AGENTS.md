@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-BR-OpenSpec is an AI-native system for spec-driven development. It is a Node.js CLI tool (published as `@fkmatsuda/br-openspec` on npm) that helps teams align on what to build before writing code. Each change gets its own folder with a proposal, specs, design, and tasks. OpenSpec generates AI assistant integrations (skills, slash commands, and config files) for 25+ tools including Claude Code, Cursor, GitHub Copilot, Gemini CLI, Codex, and many others.
+BR-OpenSpec is an AI-native system for spec-driven development. It is a Node.js CLI tool (published as `@fkmatsuda/br-openspec` on npm) that helps teams align on what to build before writing code. Each change gets its own folder with a proposal, specs, design, and tasks. BR-OpenSpec generates AI assistant integrations (skills, slash commands, and config files) for 25+ tools including Claude Code, Cursor, GitHub Copilot, Gemini CLI, Codex, and many others.
 
 The project uses its own spec-driven workflow. You will find active changes under `openspec/changes/` and archived changes under `openspec/changes/archive/`. The project's own specs live in `openspec/specs/`.
 
@@ -89,7 +89,7 @@ openspec/        # The project's own spec-driven content
   changes/       # Active and archived change proposals
   explorations/  # Design explorations
   specs/         # Living specifications
-  config.yaml    # Project-level OpenSpec config
+  config.yaml    # Project-level BR-OpenSpec config
 schemas/         # Built-in workflow schemas (e.g., spec-driven)
 docs/            # Markdown documentation (English + pt-BR)
 ```

@@ -1,10 +1,10 @@
 # Conceitos
 
-Este guia explica as ideias centrais do OpenSpec e como elas se encaixam. Para uso prático, consulte [Primeiros Passos](getting-started.md) e [Fluxos de Trabalho](workflows.md).
+Este guia explica as ideias centrais do BR-OpenSpec e como elas se encaixam. Para uso prático, consulte [Primeiros Passos](getting-started.md) e [Fluxos de Trabalho](workflows.md).
 
 ## Filosofia
 
-O OpenSpec é construído em torno de quatro princípios:
+O BR-OpenSpec é construído em torno de quatro princípios:
 
 ```
 fluid not rigid         — no phase gates, work on what makes sense
@@ -15,17 +15,17 @@ brownfield-first        — works with existing codebases, not just greenfield
 
 ### Por Que Esses Princípios Importam
 
-**Fluido, não rígido.** Sistemas de spec tradicionais prendem você em fases: primeiro você planeja, depois implementa, depois termina. O OpenSpec é mais flexível — você pode criar artefatos em qualquer ordem que faça sentido para o seu trabalho.
+**Fluido, não rígido.** Sistemas de spec tradicionais prendem você em fases: primeiro você planeja, depois implementa, depois termina. O BR-OpenSpec é mais flexível — você pode criar artefatos em qualquer ordem que faça sentido para o seu trabalho.
 
-**Iterativo, não waterfall.** Os requisitos mudam. O entendimento se aprofunda. O que parecia uma boa abordagem no início pode não se sustentar após você ver o código. O OpenSpec abraça essa realidade.
+**Iterativo, não waterfall.** Os requisitos mudam. O entendimento se aprofunda. O que parecia uma boa abordagem no início pode não se sustentar após você ver o código. O BR-OpenSpec abraça essa realidade.
 
-**Fácil, não complexo.** Alguns frameworks de spec exigem configuração extensa, formatos rígidos ou processos pesados. O OpenSpec fica fora do seu caminho. Inicialize em segundos, comece a trabalhar imediatamente, personalize apenas se precisar.
+**Fácil, não complexo.** Alguns frameworks de spec exigem configuração extensa, formatos rígidos ou processos pesados. O BR-OpenSpec fica fora do seu caminho. Inicialize em segundos, comece a trabalhar imediatamente, personalize apenas se precisar.
 
-**Brownfield-first.** A maior parte do trabalho de software não é construir do zero — é modificar sistemas existentes. A abordagem baseada em deltas do OpenSpec facilita a especificação de mudanças no comportamento existente, não apenas a descrição de novos sistemas.
+**Brownfield-first.** A maior parte do trabalho de software não é construir do zero — é modificar sistemas existentes. A abordagem baseada em deltas do BR-OpenSpec facilita a especificação de mudanças no comportamento existente, não apenas a descrição de novos sistemas.
 
 ## O Panorama Geral
 
-O OpenSpec organiza seu trabalho em duas áreas principais:
+O BR-OpenSpec organiza seu trabalho em duas áreas principais:
 
 ```
 ┌────────────────────────────────────────────────────────────────────┐
@@ -154,7 +154,7 @@ Teste rápido:
 
 ### Mantenha Leve: Rigor Progressivo
 
-O OpenSpec visa evitar burocracia. Use o nível mais leve que ainda torne a mudança verificável.
+O BR-OpenSpec visa evitar burocracia. Use o nível mais leve que ainda torne a mudança verificável.
 
 **Spec lite (padrão):**
 - Requisitos curtos com foco no comportamento
@@ -345,7 +345,7 @@ Tarefas são o **checklist de implementação** — passos concretos com caixas 
 
 ## Delta Specs
 
-Delta specs são o conceito-chave que faz o OpenSpec funcionar para desenvolvimento brownfield. Elas descrevem **o que está mudando** em vez de repetir toda a spec.
+Delta specs são o conceito-chave que faz o BR-OpenSpec funcionar para desenvolvimento brownfield. Elas descrevem **o que está mudando** em vez de repetir toda a spec.
 
 ### O Formato
 

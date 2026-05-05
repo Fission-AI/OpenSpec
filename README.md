@@ -70,7 +70,7 @@ AI:  Archived to openspec/changes/archive/2025-01-23-add-dark-mode/
 ```
 
 <details>
-<summary><strong>OpenSpec Dashboard</strong></summary>
+<summary><strong>BR-OpenSpec Dashboard</strong></summary>
 
 <p align="center">
   <img src="assets/openspec_dashboard.png" alt="OpenSpec dashboard preview" width="90%">

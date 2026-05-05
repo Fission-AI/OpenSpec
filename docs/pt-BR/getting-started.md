@@ -1,10 +1,10 @@
 # Primeiros Passos
 
-Este guia explica como o OpenSpec funciona após você tê-lo instalado e inicializado. Para instruções de instalação, consulte o [README principal](../../README.pt-BR.md#quick-start).
+Este guia explica como o BR-OpenSpec funciona após você tê-lo instalado e inicializado. Para instruções de instalação, consulte o [README principal](../../README.pt-BR.md#quick-start).
 
 ## Como Funciona
 
-O OpenSpec ajuda você e seu assistente de codificação com IA a chegarem a um acordo sobre o que construir antes de qualquer código ser escrito.
+O BR-OpenSpec ajuda você e seu assistente de codificação com IA a chegarem a um acordo sobre o que construir antes de qualquer código ser escrito.
 
 **Caminho rápido padrão (perfil `core`):**
 
@@ -20,7 +20,7 @@ O OpenSpec ajuda você e seu assistente de codificação com IA a chegarem a um 
 
 O perfil global padrão é `core`, que inclui `propose`, `explore`, `apply` e `archive`. Você pode habilitar os comandos de workflow expandido com `openspec config profile` e depois `openspec update`.
 
-## O Que o OpenSpec Cria
+## O Que o BR-OpenSpec Cria
 
 Após executar `openspec init`, seu projeto terá esta estrutura:
 
@@ -70,7 +70,7 @@ Você sempre pode voltar e refinar artefatos anteriores à medida que aprende ma
 
 ## Como as Delta Specs Funcionam
 
-As delta specs são o conceito central do OpenSpec. Elas mostram o que está mudando em relação às suas specs atuais.
+As delta specs são o conceito central do BR-OpenSpec. Elas mostram o que está mudando em relação às suas specs atuais.
 
 ### O Formato
 
@@ -250,4 +250,4 @@ openspec view
 - [Fluxos de Trabalho](workflows.md) — Padrões comuns e quando usar cada comando
 - [Comandos](commands.md) — Referência completa de todos os comandos slash
 - [Conceitos](concepts.md) — Compreensão mais profunda de specs, mudanças e schemas
-- [Personalização](customization.md) — Faça o OpenSpec funcionar do seu jeito
+- [Personalização](customization.md) — Faça o BR-OpenSpec funcionar do seu jeito

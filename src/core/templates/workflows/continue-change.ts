@@ -9,7 +9,7 @@ import type { SkillTemplate, CommandTemplate } from '../types.js';
 export function getContinueChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-continue-change',
-    description: 'Continue trabalhando em uma change do BR-BR-OpenSpec criando o próximo artifact. Use quando o usuário quiser progredir sua change, criar o próximo artifact ou continuar seu workflow.',
+    description: 'Continue trabalhando em uma change do BR-OpenSpec criando o próximo artifact. Use quando o usuário quiser progredir sua change, criar o próximo artifact ou continuar seu workflow.',
     instructions: `Continue trabalhando em uma change criando o próximo artifact.
 
 **Entrada**: Opcionalmente especifique um nome de change. Se omitido, verifique se pode ser inferido do contexto da conversa. Se vago ou ambíguo, você DEVE solicitar as changes disponíveis.

@@ -9,8 +9,8 @@ import type { SkillTemplate, CommandTemplate } from '../types.js';
 export function getApplyChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-apply-change',
-    description: 'Implementa tarefas de uma change do BR-BR-OpenSpec. Use quando o usuário quiser iniciar a implementação, continuar a implementação ou trabalhar nas tarefas.',
-    instructions: `Implementa tarefas de uma change do BR-BR-OpenSpec.
+    description: 'Implementa tarefas de uma change do BR-OpenSpec. Use quando o usuário quiser iniciar a implementação, continuar a implementação ou trabalhar nas tarefas.',
+    instructions: `Implementa tarefas de uma change do BR-OpenSpec.
 
 **Entrada**: Opcionalmente especifique um nome de change. Se omitido, verifique se pode ser inferido do contexto da conversa. Se vago ou ambíguo, você DEVE solicitar as changes disponíveis.
 
@@ -164,10 +164,10 @@ Esta skill suporta o modelo de "ações em uma change":
 export function getOpsxApplyCommandTemplate(): CommandTemplate {
   return {
     name: 'OPSX: Apply',
-    description: 'Implementa tarefas de uma change do BR-BR-OpenSpec (Experimental)',
+    description: 'Implementa tarefas de uma change do BR-OpenSpec (Experimental)',
     category: 'Workflow',
     tags: ['workflow', 'artifacts', 'experimental'],
-    content: `Implementa tarefas de uma change do BR-BR-OpenSpec.
+    content: `Implementa tarefas de uma change do BR-OpenSpec.
 
 **Entrada**: Opcionalmente especifique um nome de change (por exemplo, \`/opsx:apply add-auth\`). Se omitido, verifique se pode ser inferido do contexto da conversa. Se vago ou ambíguo, você DEVE solicitar as changes disponíveis.
 

@@ -1,15 +1,15 @@
 # Ferramentas Suportadas
 
-O OpenSpec funciona com muitos assistentes de codificação com IA. Quando você executa `openspec init`, o OpenSpec configura as ferramentas selecionadas usando o perfil/seleção de fluxo de trabalho ativo e o modo de entrega.
+O BR-OpenSpec funciona com muitos assistentes de codificação com IA. Quando você executa `openspec init`, o BR-OpenSpec configura as ferramentas selecionadas usando o perfil/seleção de fluxo de trabalho ativo e o modo de entrega.
 
 ## Como Funciona
 
-Para cada ferramenta selecionada, o OpenSpec pode instalar:
+Para cada ferramenta selecionada, o BR-OpenSpec pode instalar:
 
 1. **Skills** (se a entrega incluir skills): `.../skills/openspec-*/SKILL.md`
 2. **Comandos** (se a entrega incluir comandos): arquivos de comando `opsx-*` específicos da ferramenta
 
-Por padrão, o OpenSpec usa o perfil `core`, que inclui:
+Por padrão, o BR-OpenSpec usa o perfil `core`, que inclui:
 - `propose`
 - `explore`
 - `apply`
@@ -76,7 +76,7 @@ openspec init --profile core
 
 ## Instalação Dependente de Fluxo de Trabalho
 
-O OpenSpec instala artefatos de fluxo de trabalho com base nos fluxos selecionados:
+O BR-OpenSpec instala artefatos de fluxo de trabalho com base nos fluxos selecionados:
 
 - **Perfil core (padrão):** `propose`, `explore`, `apply`, `archive`
 - **Seleção personalizada:** qualquer subconjunto de todos os IDs de fluxo de trabalho:
@@ -86,7 +86,7 @@ Em outras palavras, a quantidade de skills/comandos depende do perfil e do modo 
 
 ## Nomes de Skills Geradas
 
-Quando selecionadas pela configuração de perfil/fluxo de trabalho, o OpenSpec gera estas skills:
+Quando selecionadas pela configuração de perfil/fluxo de trabalho, o BR-OpenSpec gera estas skills:
 
 - `openspec-propose`
 - `openspec-explore`

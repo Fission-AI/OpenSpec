@@ -35,7 +35,7 @@ Nossa filosofia:
 ```
 
 > [!TIP]
-> **Novo fluxo de trabalho disponível!** Reconstruímos o OpenSpec com um novo fluxo de trabalho guiado por artefatos.
+> **Novo fluxo de trabalho disponível!** Reconstruímos o BR-OpenSpec com um novo fluxo de trabalho guiado por artefatos.
 >
 > Execute `/opsx:propose "sua ideia"` para começar. → [Saiba mais aqui](docs/pt-BR/opsx.md)
 
@@ -70,7 +70,7 @@ IA:   Arquivado em openspec/changes/archive/2025-01-23-add-dark-mode/
 ```
 
 <details>
-<summary><strong>Dashboard do OpenSpec</strong></summary>
+<summary><strong>Dashboard do BR-OpenSpec</strong></summary>
 
 <p align="center">
   <img src="assets/openspec_dashboard.png" alt="OpenSpec dashboard preview" width="90%">
@@ -82,7 +82,7 @@ IA:   Arquivado em openspec/changes/archive/2025-01-23-add-dark-mode/
 
 **Requer Node.js 20.19.0 ou superior.**
 
-Instale o OpenSpec globalmente:
+Instale o BR-OpenSpec globalmente:
 
 ```bash
 npm install -g @fkmatsuda/br-openspec@latest
@@ -116,9 +116,11 @@ Se você quiser o fluxo de trabalho expandido (`/opsx:new`, `/opsx:continue`, `/
 → **[Personalização](docs/pt-BR/customization.md)**: faça do seu jeito
 
 
-## Por que o OpenSpec?
+## Por que o BR-OpenSpec?
 
-Assistentes de codificação com IA são poderosos, mas imprevisíveis quando os requisitos vivem apenas no histórico do chat. O OpenSpec adiciona uma camada leve de especificação para que você concorde sobre o que construir antes de qualquer código ser escrito.
+Assistentes de codificação com IA são poderosos, mas imprevisíveis quando os requisitos vivem apenas no histórico do chat. O BR-OpenSpec adiciona uma camada leve de especificação para que você concorde sobre o que construir antes de qualquer código ser escrito.
+
+> **Por que este fork?** O BR-OpenSpec é mantido em **Português Brasileiro** e destina-se a quem implementa e mantém projetos com domínios de negócio primariamente em pt-BR, bem como a quem não tem o inglês como língua nativa. Ter specs, propostas e tarefas no idioma do time e do negócio reduz o risco de interpretações erradas e acelera o alinhamento entre humanos e IA.
 
 - **Alinhe antes de construir** — humano e IA alinham as specs antes de o código ser escrito
 - **Mantenha-se organizado** — cada mudança tem sua própria pasta com proposta, specs, design e tarefas
@@ -127,13 +129,13 @@ Assistentes de codificação com IA são poderosos, mas imprevisíveis quando os
 
 ### Como nos comparamos
 
-**vs. [Spec Kit](https://github.com/github/spec-kit)** (GitHub) — Completo, mas pesado. Fases rígidas, muito Markdown, configuração em Python. O OpenSpec é mais leve e permite iterar livremente.
+**vs. [Spec Kit](https://github.com/github/spec-kit)** (GitHub) — Completo, mas pesado. Fases rígidas, muito Markdown, configuração em Python. O BR-OpenSpec é mais leve e permite iterar livremente.
 
-**vs. [Kiro](https://kiro.dev)** (AWS) — Poderoso, mas você fica preso à IDE deles e limitado aos modelos Claude. O OpenSpec funciona com as ferramentas que você já usa.
+**vs. [Kiro](https://kiro.dev)** (AWS) — Poderoso, mas você fica preso à IDE deles e limitado aos modelos Claude. O BR-OpenSpec funciona com as ferramentas que você já usa.
 
-**vs. nada** — Codificação com IA sem specs significa prompts vagos e resultados imprevisíveis. O OpenSpec traz previsibilidade sem a burocracia.
+**vs. nada** — Codificação com IA sem specs significa prompts vagos e resultados imprevisíveis. O BR-OpenSpec traz previsibilidade sem a burocracia.
 
-## Atualizando o OpenSpec
+## Atualizando o BR-OpenSpec
 
 **Atualize o pacote**
 
@@ -161,17 +163,17 @@ openspec tools --remove windsurf
 
 ## Notas de Uso
 
-**Seleção de modelo**: O OpenSpec funciona melhor com modelos de alto raciocínio. Recomendamos Opus 4.5 e GPT 5.2 tanto para planejamento quanto para implementação.
+**Seleção de modelo**: O BR-OpenSpec funciona melhor com modelos de alto raciocínio. Recomendamos Opus 4.5 e GPT 5.2 tanto para planejamento quanto para implementação.
 
-**Higiene de contexto**: O OpenSpec se beneficia de uma janela de contexto limpa. Limpe seu contexto antes de iniciar a implementação e mantenha uma boa higiene de contexto ao longo da sua sessão.
+**Higiene de contexto**: O BR-OpenSpec se beneficia de uma janela de contexto limpa. Limpe seu contexto antes de iniciar a implementação e mantenha uma boa higiene de contexto ao longo da sua sessão.
 
 ## Contribuindo
 
 **Pequenas correções** — Correções de bugs, erros de digitação e melhorias menores podem ser enviadas diretamente como PRs.
 
-**Mudanças maiores** — Para novas funcionalidades, refatorações significativas ou mudanças arquiteturais, envie primeiro uma proposta de mudança do OpenSpec para que possamos alinhar a intenção e os objetivos antes de começar a implementação.
+**Mudanças maiores** — Para novas funcionalidades, refatorações significativas ou mudanças arquiteturais, envie primeiro uma proposta de mudança do BR-OpenSpec para que possamos alinhar a intenção e os objetivos antes de começar a implementação.
 
-Ao escrever propostas, tenha em mente a filosofia do OpenSpec: servimos a uma grande variedade de usuários em diferentes agentes de codificação, modelos e casos de uso. As mudanças devem funcionar bem para todos.
+Ao escrever propostas, tenha em mente a filosofia do BR-OpenSpec: servimos a uma grande variedade de usuários em diferentes agentes de codificação, modelos e casos de uso. As mudanças devem funcionar bem para todos.
 
 **Código gerado por IA é bem-vindo** — desde que tenha sido testado e verificado. PRs contendo código gerado por IA devem mencionar o agente de codificação e o modelo usado (ex.: "Gerado com Claude Code usando claude-opus-4-5-20251101").
 
@@ -188,7 +190,7 @@ Ao escrever propostas, tenha em mente a filosofia do OpenSpec: servimos a uma gr
 <details>
 <summary><strong>Telemetria</strong></summary>
 
-O OpenSpec coleta estatísticas de uso anônimas.
+O BR-OpenSpec coleta estatísticas de uso anônimas.
 
 Coletamos apenas nomes de comandos e versão para entender padrões de uso. Sem argumentos, caminhos, conteúdo ou PII. Desativado automaticamente em CI.
 

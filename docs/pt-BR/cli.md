@@ -1,12 +1,12 @@
 # Referência da CLI
 
-A CLI do OpenSpec (`openspec`) fornece comandos de terminal para configuração de projetos, validação, inspeção de status e gerenciamento. Esses comandos complementam os comandos AI com barra (como `/opsx:propose`) documentados em [Comandos](commands.md).
+A CLI do BR-OpenSpec (`openspec`) fornece comandos de terminal para configuração de projetos, validação, inspeção de status e gerenciamento. Esses comandos complementam os comandos AI com barra (como `/opsx:propose`) documentados em [Comandos](commands.md).
 
 ## Resumo
 
 | Categoria | Comandos | Finalidade |
 |-----------|----------|------------|
-| **Configuração** | `init`, `update` | Inicializar e atualizar o OpenSpec no seu projeto |
+| **Configuração** | `init`, `update` | Inicializar e atualizar o BR-OpenSpec no seu projeto |
 | **Navegação** | `list`, `view`, `show` | Explorar mudanças e specs |
 | **Validação** | `validate` | Verificar mudanças e specs em busca de problemas |
 | **Ciclo de vida** | `archive` | Finalizar mudanças concluídas |
@@ -65,7 +65,7 @@ Estas opções funcionam com todos os comandos:
 
 ### `openspec init`
 
-Inicializar o OpenSpec no seu projeto. Cria a estrutura de pastas e configura as integrações com ferramentas de IA.
+Inicializar o BR-OpenSpec no seu projeto. Cria a estrutura de pastas e configura as integrações com ferramentas de IA.
 
 O comportamento padrão usa os valores globais de configuração: perfil `core`, entrega `both`, fluxos de trabalho `propose, explore, apply, archive`.
 
@@ -131,7 +131,7 @@ openspec/
 
 ### `openspec update`
 
-Atualizar os arquivos de instrução do OpenSpec após atualizar a CLI. Regenera os arquivos de configuração de ferramentas de IA usando seu perfil global atual, fluxos de trabalho selecionados e modo de entrega.
+Atualizar os arquivos de instrução do BR-OpenSpec após atualizar a CLI. Regenera os arquivos de configuração de ferramentas de IA usando seu perfil global atual, fluxos de trabalho selecionados e modo de entrega.
 
 ```
 openspec update [path] [options]
@@ -758,7 +758,7 @@ spec-driven resolves from: package
 
 ### `openspec config`
 
-Visualizar e modificar a configuração global do OpenSpec.
+Visualizar e modificar a configuração global do BR-OpenSpec.
 
 ```
 openspec config <subcommand> [options]
@@ -818,7 +818,7 @@ openspec config profile core
 - Manter as configurações atuais (sair)
 
 Se você mantiver as configurações atuais, nenhuma alteração é salva e nenhum prompt de atualização é exibido.
-Se não houver alterações de configuração, mas os arquivos do projeto atual estiverem fora de sincronia com o seu perfil/entrega global, o OpenSpec exibirá um aviso e sugerirá executar `openspec update`.
+Se não houver alterações de configuração, mas os arquivos do projeto atual estiverem fora de sincronia com o seu perfil/entrega global, o BR-OpenSpec exibirá um aviso e sugerirá executar `openspec update`.
 Pressionar `Ctrl+C` também cancela o fluxo de forma limpa (sem rastreamento de pilha) e sai com o código `130`.
 Na lista de verificação de fluxos de trabalho, `[x]` significa que o fluxo de trabalho está selecionado na configuração global. Para aplicar essas seleções aos arquivos do projeto, execute `openspec update` (ou escolha `Apply changes to this project now?` quando solicitado dentro de um projeto).
 
@@ -842,7 +842,7 @@ openspec config profile
 
 ### `openspec feedback`
 
-Enviar feedback sobre o OpenSpec. Cria uma issue no GitHub.
+Enviar feedback sobre o BR-OpenSpec. Cria uma issue no GitHub.
 
 ```
 openspec feedback <message> [options]
@@ -873,7 +873,7 @@ openspec feedback "Add support for custom artifact types" \
 
 ### `openspec completion`
 
-Gerenciar completions do shell para a CLI do OpenSpec.
+Gerenciar completions do shell para a CLI do BR-OpenSpec.
 
 ```
 openspec completion <subcommand> [shell]

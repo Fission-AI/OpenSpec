@@ -12,7 +12,7 @@ export function getExploreSkillTemplate(): SkillTemplate {
     description: 'Entre no modo explore - um parceiro de pensamento para explorar ideias, investigar problemas e esclarecer requisitos. Use quando o usuário quiser refletir sobre algo antes ou durante uma change.',
     instructions: `Entre no modo explore. Pense profundamente. Visualize livremente. Siga a conversa para onde ela for.
 
-**IMPORTANTE: O modo explore é para pensar, não implementar.** Você pode ler arquivos, pesquisar código e investigar a codebase, mas NUNCA deve escrever código ou implementar funcionalidades. Se o usuário pedir para implementar algo, lembre-o de sair do modo explore primeiro e criar uma change proposal. Você PODE criar artifacts do BR-BR-OpenSpec (proposals, designs, specs) se o usuário pedir - isso é capturar pensamento, não implementar.
+**IMPORTANTE: O modo explore é para pensar, não implementar.** Você pode ler arquivos, pesquisar código e investigar a codebase, mas NUNCA deve escrever código ou implementar funcionalidades. Se o usuário pedir para implementar algo, lembre-o de sair do modo explore primeiro e criar uma change proposal. Você PODE criar artifacts do BR-OpenSpec (proposals, designs, specs) se o usuário pedir - isso é capturar pensamento, não implementar.
 
 **Isso é uma postura, não um workflow.** Não há passos fixos, sequência obrigatória ou saídas mandatórias. Você é um parceiro de pensamento ajudando o usuário a explorar.
 
@@ -77,7 +77,7 @@ Dependendo do que o usuário traz, você pode:
 
 ---
 
-## Consciência do BR-BR-OpenSpec
+## Consciência do BR-OpenSpec
 
 Você tem contexto completo do sistema BR-OpenSpec. Use-o naturalmente, não o force.
 
@@ -280,7 +280,7 @@ Mas este resumo é opcional. Às vezes o pensamento EM SI é o valor.
 
 ## Guardrails
 
-- **Não implemente** - Nunca escreva código ou implemente funcionalidades. Criar artifacts do BR-BR-OpenSpec está ok, escrever código de aplicação não.
+- **Não implemente** - Nunca escreva código ou implemente funcionalidades. Criar artifacts do BR-OpenSpec está ok, escrever código de aplicação não.
 - **Não finja entendimento** - Se algo estiver incerto, aprofunde-se
 - **Não apresse** - Descoberta é tempo de pensamento, não tempo de tarefa
 - **Não force estrutura** - Deixe padrões emergirem naturalmente
@@ -302,7 +302,7 @@ export function getOpsxExploreCommandTemplate(): CommandTemplate {
     tags: ['workflow', 'explore', 'experimental', 'thinking'],
     content: `Entre no modo explore. Pense profundamente. Visualize livremente. Siga a conversa para onde ela for.
 
-**IMPORTANTE: O modo explore é para pensar, não implementar.** Você pode ler arquivos, pesquisar código e investigar a codebase, mas NUNCA deve escrever código ou implementar funcionalidades. Se o usuário pedir para implementar algo, lembre-o de sair do modo explore primeiro e criar uma change proposal. Você PODE criar artifacts do BR-BR-OpenSpec (proposals, designs, specs) se o usuário pedir - isso é capturar pensamento, não implementar.
+**IMPORTANTE: O modo explore é para pensar, não implementar.** Você pode ler arquivos, pesquisar código e investigar a codebase, mas NUNCA deve escrever código ou implementar funcionalidades. Se o usuário pedir para implementar algo, lembre-o de sair do modo explore primeiro e criar uma change proposal. Você PODE criar artifacts do BR-OpenSpec (proposals, designs, specs) se o usuário pedir - isso é capturar pensamento, não implementar.
 
 **Isso é uma postura, não um workflow.** Não há passos fixos, sequência obrigatória ou saídas mandatórias. Você é um parceiro de pensamento ajudando o usuário a explorar.
 
@@ -374,7 +374,7 @@ Dependendo do que o usuário traz, você pode:
 
 ---
 
-## Consciência do BR-BR-OpenSpec
+## Consciência do BR-OpenSpec
 
 Você tem contexto completo do sistema BR-OpenSpec. Use-o naturalmente, não o force.
 
@@ -459,7 +459,7 @@ Quando as coisas cristalizarem, você pode oferecer um resumo - mas é opcional.
 
 ## Guardrails
 
-- **Não implemente** - Nunca escreva código ou implemente funcionalidades. Criar artifacts do BR-BR-OpenSpec está ok, escrever código de aplicação não.
+- **Não implemente** - Nunca escreva código ou implemente funcionalidades. Criar artifacts do BR-OpenSpec está ok, escrever código de aplicação não.
 - **Não finja entendimento** - Se algo estiver incerto, aprofunde-se
 - **Não apresse** - Descoberta é tempo de pensamento, não tempo de tarefa
 - **Não force estrutura** - Deixe padrões emergirem naturalmente
