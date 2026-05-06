@@ -174,6 +174,12 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             description: 'Repo or folder link. Use <path> or <name>=<path>',
             takesValue: true,
           },
+          {
+            name: 'opener',
+            description: 'Preferred opener: codex, claude, github-copilot, or editor',
+            takesValue: true,
+            values: ['codex', 'claude', 'github-copilot', 'editor'],
+          },
           COMMON_FLAGS.json,
           COMMON_FLAGS.noInteractive,
         ],
@@ -250,6 +256,35 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             takesValue: true,
           },
           COMMON_FLAGS.json,
+          COMMON_FLAGS.noInteractive,
+        ],
+      },
+      {
+        name: 'open',
+        description: 'Open a workspace in an agent or VS Code editor',
+        acceptsPositional: true,
+        positionals: [
+          {
+            name: 'name',
+            optional: true,
+          },
+        ],
+        flags: [
+          {
+            name: 'workspace',
+            description: 'Workspace name from the local workspace registry',
+            takesValue: true,
+          },
+          {
+            name: 'agent',
+            description: 'Use an agent for this session: codex, claude, or github-copilot',
+            takesValue: true,
+            values: ['codex', 'claude', 'github-copilot'],
+          },
+          {
+            name: 'editor',
+            description: 'Open the workspace in VS Code editor mode',
+          },
           COMMON_FLAGS.noInteractive,
         ],
       },

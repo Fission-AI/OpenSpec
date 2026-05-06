@@ -13,9 +13,14 @@ import {
   WORKSPACE_METADATA_DIR_NAME,
   WORKSPACE_REGISTRY_FILE_NAME,
   WORKSPACE_SHARED_STATE_FILE_NAME,
+  applyWorkspaceGuidanceBlock,
+  buildWorkspaceCodeWorkspaceContent,
+  buildWorkspaceGuidanceBlock,
   findWorkspaceRoot,
   getManagedWorkspaceRoot,
   getManagedWorkspacesDir,
+  getWorkspaceCodeWorkspaceFileName,
+  getWorkspaceCodeWorkspacePath,
   getWorkspaceChangesDir,
   getWorkspaceLocalStatePath,
   getWorkspaceMetadataDir,
@@ -25,8 +30,11 @@ import {
   isValidWorkspaceLinkName,
   isValidWorkspaceName,
   isWorkspaceRoot,
+  isWorkspaceExecutableAvailable,
   listWorkspaceRegistryEntries,
+  listWorkspaceOpenerChoices,
   parseWorkspaceLocalState,
+  parseWorkspacePreferredOpenerValue,
   parseWorkspaceRegistryState,
   parseWorkspaceSharedState,
   parseWorkspaceSetupLinkInput,
@@ -35,6 +43,7 @@ import {
   readWorkspaceRegistryState,
   readWorkspaceSharedState,
   serializeWorkspaceLocalState,
+  syncWorkspaceOpenSurface,
   workspaceChangesDirExists,
   writeWorkspaceLocalState,
   writeWorkspaceRegistryState,
@@ -102,6 +111,10 @@ paths: {}
         path.join(workspaceRoot, '.openspec-workspace', 'local.yaml')
       );
       expect(getWorkspaceChangesDir(workspaceRoot)).toBe(path.join(workspaceRoot, 'changes'));
+      expect(getWorkspaceCodeWorkspaceFileName('platform')).toBe('platform.code-workspace');
+      expect(getWorkspaceCodeWorkspacePath(workspaceRoot, 'platform')).toBe(
+        path.join(workspaceRoot, 'platform.code-workspace')
+      );
     });
 
     it('preserves Windows-style location strings when building workspace file paths', () => {
@@ -154,6 +167,10 @@ paths: {}
     it('exposes the portable collaboration ignore rule for local state', () => {
       expect(WORKSPACE_LOCAL_STATE_IGNORE_PATTERN).toBe('.openspec-workspace/local.yaml');
       expect(getWorkspacePortableIgnorePatterns()).toEqual(['.openspec-workspace/local.yaml']);
+      expect(getWorkspacePortableIgnorePatterns('platform')).toEqual([
+        '.openspec-workspace/local.yaml',
+        'platform.code-workspace',
+      ]);
     });
   });
 
@@ -306,6 +323,37 @@ paths:
       expect(state.paths.linux).toBe('/home/tabish/repos/api');
     });
 
+    it('parses and serializes structured preferred openers while accepting older local state', () => {
+      expect(parseWorkspaceLocalState('version: 1\npaths: {}\n')).toEqual({
+        version: 1,
+        paths: {},
+      });
+
+      const codexState = parseWorkspaceLocalState(`version: 1
+paths:
+  api: /repo/api
+preferred_opener:
+  kind: agent
+  id: codex
+`);
+
+      expect(codexState.preferred_opener).toEqual({
+        kind: 'agent',
+        id: 'codex',
+      });
+      expect(parseWorkspaceLocalState(serializeWorkspaceLocalState(codexState))).toEqual(
+        codexState
+      );
+      expect(parseWorkspacePreferredOpenerValue('editor')).toEqual({
+        kind: 'editor',
+        id: 'vscode',
+      });
+      expect(parseWorkspacePreferredOpenerValue('github-copilot')).toEqual({
+        kind: 'agent',
+        id: 'github-copilot',
+      });
+    });
+
     it('serializes and writes local state without normalizing runtime-local paths', async () => {
       const workspaceRoot = path.join(tempDir, 'roundtrip');
       const localState = {
@@ -337,6 +385,14 @@ paths:
       );
       expect(() => parseWorkspaceLocalState('version: 1\npaths: []\n')).toThrow(
         /Invalid workspace local state/
+      );
+      expect(() =>
+        parseWorkspaceLocalState(
+          'version: 1\npaths: {}\npreferred_opener:\n  kind: agent\n  id: editor\n'
+        )
+      ).toThrow(/Unsupported workspace opener/);
+      expect(() => parseWorkspacePreferredOpenerValue('cursor')).toThrow(
+        /Unsupported workspace opener/
       );
     });
 
@@ -388,6 +444,131 @@ paths:
         name: 'api',
         pathInput: linkPath,
       });
+    });
+  });
+
+  describe('open surface sync', () => {
+    it('builds and refreshes managed workspace guidance while preserving user content', () => {
+      const existing = `# Team Notes
+
+Keep this.
+
+${buildWorkspaceGuidanceBlock()}
+
+After block.
+`;
+
+      const refreshed = applyWorkspaceGuidanceBlock(existing);
+
+      expect(refreshed).toContain('# Team Notes');
+      expect(refreshed).toContain('Keep this.');
+      expect(refreshed).toContain('After block.');
+      expect(refreshed.match(/OPENSPEC:WORKSPACE-GUIDANCE:START/gu)).toHaveLength(1);
+      expect(applyWorkspaceGuidanceBlock('# Team Notes\n')).toContain(
+        '<!-- OPENSPEC:WORKSPACE-GUIDANCE:START -->'
+      );
+    });
+
+    it('builds VS Code workspace content with stable root and linked paths', () => {
+      const content = buildWorkspaceCodeWorkspaceContent([
+        {
+          name: 'api',
+          path: '/repos/api',
+        },
+        {
+          name: 'windows',
+          path: 'D:\\repos\\web',
+        },
+      ]);
+      const payload = JSON.parse(content);
+
+      expect(payload.folders).toEqual([
+        {
+          path: '.',
+        },
+        {
+          name: 'api',
+          path: '/repos/api',
+        },
+        {
+          name: 'windows',
+          path: 'D:\\repos\\web',
+        },
+      ]);
+    });
+
+    it('syncs AGENTS, the maintained code-workspace file, and scoped ignore rules', async () => {
+      const workspaceRoot = createWorkspaceRoot();
+      const api = path.join(tempDir, 'api');
+      const missing = path.join(tempDir, 'missing');
+      fs.mkdirSync(api, { recursive: true });
+      fs.writeFileSync(path.join(workspaceRoot, 'AGENTS.md'), '# Existing\n');
+      fs.writeFileSync(path.join(workspaceRoot, '.gitignore'), '*.code-workspace\n');
+      const sharedState = {
+        version: 1 as const,
+        name: 'platform',
+        links: {
+          api: {},
+          missing: {},
+          noPath: {},
+        },
+      };
+      const localState = {
+        version: 1 as const,
+        paths: {
+          api,
+          missing,
+        },
+      };
+
+      const result = await syncWorkspaceOpenSurface(workspaceRoot, sharedState, localState);
+
+      expect(result.links).toEqual([{ name: 'api', path: api }]);
+      expect(result.skipped).toEqual([
+        { name: 'missing', path: missing, reason: 'path-missing' },
+        { name: 'noPath', path: null, reason: 'missing-local-path' },
+      ]);
+      expect(fs.readFileSync(path.join(workspaceRoot, 'AGENTS.md'), 'utf-8')).toContain(
+        'Make implementation edits after the user explicitly asks'
+      );
+      expect(JSON.parse(fs.readFileSync(getWorkspaceCodeWorkspacePath(workspaceRoot, 'platform'), 'utf-8')).folders).toEqual([
+        {
+          path: '.',
+        },
+        {
+          name: 'api',
+          path: api,
+        },
+      ]);
+      expect(fs.readFileSync(path.join(workspaceRoot, '.gitignore'), 'utf-8')).toContain(
+        '*.code-workspace\n.openspec-workspace/local.yaml\nplatform.code-workspace\n'
+      );
+    });
+  });
+
+  describe('opener detection', () => {
+    it('detects simple opener executables and orders available choices first', () => {
+      const binDir = path.join(tempDir, 'bin');
+      fs.mkdirSync(binDir, { recursive: true });
+      const codePath = path.join(binDir, process.platform === 'win32' ? 'code.cmd' : 'code');
+      fs.writeFileSync(codePath, '');
+      fs.chmodSync(codePath, 0o755);
+      const env = {
+        PATH: binDir,
+        PATHEXT: '.CMD',
+      };
+
+      expect(isWorkspaceExecutableAvailable('code', { env, platform: process.platform })).toBe(true);
+      expect(isWorkspaceExecutableAvailable('codex', { env, platform: process.platform })).toBe(false);
+
+      const choices = listWorkspaceOpenerChoices({ env, platform: process.platform });
+      expect(choices.slice(0, 2).map((choice) => choice.value).sort()).toEqual([
+        'editor',
+        'github-copilot',
+      ]);
+      expect(choices.find((choice) => choice.value === 'codex')?.unavailableNote).toContain(
+        'codex not found on PATH'
+      );
     });
   });
 

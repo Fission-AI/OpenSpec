@@ -145,6 +145,7 @@ openspec workspace setup
 
 # Automation-friendly setup
 openspec workspace setup --no-interactive --name platform --link /repos/api --link web=/repos/web
+openspec workspace setup --no-interactive --name platform --link /repos/api --opener codex
 
 # See known workspaces from the local registry
 openspec workspace list
@@ -158,9 +159,22 @@ openspec workspace relink api-service /new/path/to/api
 # Check what this machine can resolve
 openspec workspace doctor
 openspec workspace doctor --workspace platform
+
+# Open the linked working set
+openspec workspace open
+openspec workspace open platform --agent github-copilot
+openspec workspace open --editor
 ```
 
-`workspace setup` always creates the workspace in the standard workspace location, records it in the local registry, shows the workspace location, and requires at least one linked repo or folder. `workspace link` and `workspace relink` record existing folders only; they do not create, copy, move, initialize, or edit the linked repo or folder.
+`workspace setup` always creates the workspace in the standard workspace location, records it in the local registry, shows the workspace location, and requires at least one linked repo or folder. Interactive setup asks for a preferred opener. Non-interactive setup stores one only when `--opener codex`, `--opener claude`, `--opener github-copilot`, or `--opener editor` is provided.
+
+OpenSpec also maintains root workspace open files: an OpenSpec-managed guidance block in `AGENTS.md`, a machine-local `<workspace-name>.code-workspace` file for VS Code and GitHub Copilot-in-VS-Code opens, and a specific ignore entry for that maintained `.code-workspace` file. User-authored `*.code-workspace` files remain trackable because the ignore rule targets only the maintained file.
+
+The maintained VS Code workspace includes the coordination root as `.` plus valid linked repos or folders as additional roots. VS Code displays those entries as a multi-root workspace.
+
+`workspace open` opens the linked working set with the stored preferred opener unless `--agent <tool>` or `--editor` is passed for that one session. Passing both opener overrides is an error. Root workspace open makes linked repos and folders visible for exploration and planning; implementation starts after the user explicitly asks for implementation work.
+
+`workspace link` and `workspace relink` record existing folders only; they do not create, copy, move, initialize, or edit the linked repo or folder. After a successful link or relink, OpenSpec refreshes the managed guidance, VS Code workspace file, and ignore rule.
 
 Workspace commands that need one workspace can run from anywhere with `--workspace <name>`. If you run them inside a workspace folder or subdirectory, OpenSpec uses that current workspace. If several known workspaces are available and you do not pass `--workspace <name>`, human commands show a picker; `--json` and `--no-interactive` fail with a structured status error instead of prompting.
 

@@ -119,7 +119,7 @@ describe('workspace command interactive flows', () => {
 
       throw new Error(`Unexpected input prompt: ${options.message}`);
     });
-    select.mockResolvedValueOnce('finish');
+    select.mockResolvedValueOnce('finish').mockResolvedValueOnce('editor');
 
     await runWorkspaceCommand(['setup']);
 
@@ -162,6 +162,55 @@ describe('workspace command interactive flows', () => {
     );
   });
 
+  it('asks for a preferred opener after links and records the selected opener', async () => {
+    const api = mkdir('repos/api');
+    const binDir = mkdir('bin');
+    const codePath = path.join(binDir, process.platform === 'win32' ? 'code.cmd' : 'code');
+    fs.writeFileSync(codePath, '');
+    fs.chmodSync(codePath, 0o755);
+    process.env.PATH = binDir;
+    const { input, confirm, select } = await getPromptMocks();
+
+    input.mockImplementation(async (options: { message: string }) => {
+      if (options.message === 'Workspace name:') {
+        return 'platform';
+      }
+
+      if (options.message === 'Repo or folder path:') {
+        return api;
+      }
+
+      throw new Error(`Unexpected input prompt: ${options.message}`);
+    });
+    select.mockImplementation(async (options: { message: string; choices?: Array<{ name: string; value: string }> }) => {
+      if (options.message === 'Continue') {
+        return 'finish';
+      }
+
+      if (options.message === 'Preferred opener:') {
+        expect(options.choices?.slice(0, 2).map((choice) => choice.value).sort()).toEqual([
+          'editor',
+          'github-copilot',
+        ]);
+        expect(options.choices?.find((choice) => choice.value === 'codex')?.name).toContain(
+          'codex not found on PATH'
+        );
+        return 'github-copilot';
+      }
+
+      throw new Error(`Unexpected select prompt: ${options.message}`);
+    });
+
+    await runWorkspaceCommand(['setup']);
+
+    expect(process.exitCode).toBeUndefined();
+    expect(confirm).not.toHaveBeenCalled();
+    expect(readLocalState('platform').preferred_opener).toEqual({
+      kind: 'agent',
+      id: 'github-copilot',
+    });
+  });
+
   it('lets users add another path and rename an inferred link-name conflict', async () => {
     const firstApi = mkdir('repos/current/api');
     const secondApi = mkdir('repos/archive/api');
@@ -192,7 +241,7 @@ describe('workspace command interactive flows', () => {
 
       throw new Error(`Unexpected input prompt: ${options.message}`);
     });
-    select.mockResolvedValueOnce('add').mockResolvedValueOnce('finish');
+    select.mockResolvedValueOnce('add').mockResolvedValueOnce('finish').mockResolvedValueOnce('editor');
 
     await runWorkspaceCommand(['setup']);
 
@@ -235,7 +284,7 @@ describe('workspace command interactive flows', () => {
 
       throw new Error(`Unexpected input prompt: ${options.message}`);
     });
-    select.mockResolvedValueOnce('finish');
+    select.mockResolvedValueOnce('finish').mockResolvedValueOnce('editor');
 
     await runWorkspaceCommand(['setup']);
 
@@ -282,5 +331,102 @@ describe('workspace command interactive flows', () => {
       })
     );
     expect(consoleLogSpy).toHaveBeenCalledWith('Workspace: checkout-web');
+  });
+
+  it('prompts for an opener during workspace open when no preference is stored', async () => {
+    const api = mkdir('repos/api');
+    const binDir = mkdir('bin');
+    const codePath = path.join(binDir, process.platform === 'win32' ? 'code.cmd' : 'code');
+    fs.writeFileSync(
+      codePath,
+      process.platform === 'win32' ? '@echo off\r\nexit /B 0\r\n' : '#!/bin/sh\nexit 0\n'
+    );
+    fs.chmodSync(codePath, 0o755);
+    process.env.PATH = binDir;
+    const { select } = await getPromptMocks();
+
+    await runWorkspaceCommand(['setup', '--no-interactive', '--name', 'platform', '--link', `api=${api}`]);
+    consoleLogSpy.mockClear();
+    select.mockResolvedValueOnce('editor');
+
+    await runWorkspaceCommand(['open']);
+
+    expect(process.exitCode).toBeUndefined();
+    expect(select).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'Open with:',
+      })
+    );
+    const openerPrompt = select.mock.calls.find(([options]) => options.message === 'Open with:')?.[0];
+    expect(openerPrompt?.choices.map((choice: { value: string }) => choice.value).sort()).toEqual([
+      'editor',
+      'github-copilot',
+    ]);
+    expect(consoleLogSpy).toHaveBeenCalledWith('Opening workspace: platform');
+    expect(readLocalState('platform').preferred_opener).toBeUndefined();
+  });
+
+  it('fails workspace open without prompting when no opener is available', async () => {
+    const api = mkdir('repos/api');
+    const { select } = await getPromptMocks();
+    process.env.PATH = '';
+
+    await runWorkspaceCommand(['setup', '--no-interactive', '--name', 'platform', '--link', `api=${api}`]);
+    consoleErrorSpy.mockClear();
+
+    await runWorkspaceCommand(['open']);
+
+    expect(process.exitCode).toBe(1);
+    expect(select).not.toHaveBeenCalled();
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('No supported workspace opener is available on PATH.')
+    );
+  });
+
+  it('shows the workspace picker for workspace open when multiple workspaces are known', async () => {
+    const api = mkdir('repos/api');
+    const web = mkdir('repos/web');
+    const binDir = mkdir('bin');
+    const codePath = path.join(binDir, process.platform === 'win32' ? 'code.cmd' : 'code');
+    fs.writeFileSync(
+      codePath,
+      process.platform === 'win32' ? '@echo off\r\nexit /B 0\r\n' : '#!/bin/sh\nexit 0\n'
+    );
+    fs.chmodSync(codePath, 0o755);
+    process.env.PATH = `${binDir}${path.delimiter}${process.env.PATH ?? ''}`;
+    const { select } = await getPromptMocks();
+
+    await runWorkspaceCommand([
+      'setup',
+      '--no-interactive',
+      '--name',
+      'platform',
+      '--link',
+      `api=${api}`,
+      '--opener',
+      'editor',
+    ]);
+    await runWorkspaceCommand([
+      'setup',
+      '--no-interactive',
+      '--name',
+      'checkout-web',
+      '--link',
+      `web=${web}`,
+      '--opener',
+      'editor',
+    ]);
+    consoleLogSpy.mockClear();
+    select.mockResolvedValueOnce('checkout-web');
+
+    await runWorkspaceCommand(['open']);
+
+    expect(process.exitCode).toBeUndefined();
+    expect(select).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'Select workspace:',
+      })
+    );
+    expect(consoleLogSpy).toHaveBeenCalledWith('Opening workspace: checkout-web');
   });
 });

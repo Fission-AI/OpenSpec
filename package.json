@@ -74,6 +74,7 @@
     "@inquirer/prompts": "^7.8.0",
     "chalk": "^5.5.0",
     "commander": "^14.0.0",
+    "cross-spawn": "7.0.6",
     "fast-glob": "^3.3.3",
     "ora": "^8.2.0",
     "posthog-node": "^5.20.0",
