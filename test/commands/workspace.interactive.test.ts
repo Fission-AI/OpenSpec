@@ -9,6 +9,7 @@ import {
   getWorkspaceLocalStatePath,
   parseWorkspaceLocalState,
 } from '../../src/core/workspace/index.js';
+import { expectedExistingPath } from '../helpers/workspace-paths.js';
 
 vi.mock('@inquirer/prompts', () => ({
   input: vi.fn(),
@@ -86,10 +87,6 @@ describe('workspace command interactive flows', () => {
     const dir = path.join(tempDir, relativePath);
     fs.mkdirSync(dir, { recursive: true });
     return dir;
-  }
-
-  function expectedExistingPath(existingPath: string): string {
-    return process.platform === 'win32' ? fs.realpathSync.native(existingPath) : existingPath;
   }
 
   function readLocalState(workspaceName: string) {
