@@ -50,6 +50,10 @@ describe('workspace command', () => {
     return dir;
   }
 
+  function expectedExistingPath(existingPath: string): string {
+    return process.platform === 'win32' ? fs.realpathSync.native(existingPath) : existingPath;
+  }
+
   function parseJson(result: RunCLIResult): any {
     try {
       return JSON.parse(result.stdout);
@@ -85,27 +89,30 @@ describe('workspace command', () => {
     const api = mkdir('repos/api');
     mkdir('repos/api/openspec/specs');
     const checkout = mkdir('repos/platform/apps/checkout');
+    const expectedApi = expectedExistingPath(api);
+    const expectedCheckout = expectedExistingPath(checkout);
 
     const setup = await setupWorkspace('platform', [`api=${api}`, checkout]);
+    const workspaceRoot = setup.workspace.root;
+    const expectedWorkspaceRoot = expectedExistingPath(workspaceRoot);
 
     expect(setup.status).toEqual([]);
     expect(setup.workspace.name).toBe('platform');
     expect(setup.workspace.links).toEqual([
       expect.objectContaining({
         name: 'api',
-        path: api,
-        repo_specs_path: path.join(api, 'openspec', 'specs'),
+        path: expectedApi,
+        repo_specs_path: path.join(expectedApi, 'openspec', 'specs'),
         status: [],
       }),
       expect.objectContaining({
         name: 'checkout',
-        path: checkout,
+        path: expectedCheckout,
         repo_specs_path: null,
         status: [],
       }),
     ]);
 
-    const workspaceRoot = setup.workspace.root;
     const sharedState = parseWorkspaceSharedState(
       fs.readFileSync(getWorkspaceSharedStatePath(workspaceRoot), 'utf-8')
     );
@@ -128,10 +135,10 @@ describe('workspace command', () => {
       },
     });
     expect(localState.paths).toEqual({
-      api,
-      checkout,
+      api: expectedApi,
+      checkout: expectedCheckout,
     });
-    expect(registry.workspaces.platform).toBe(workspaceRoot);
+    expect(registry.workspaces.platform).toBe(expectedWorkspaceRoot);
     expect(fs.readFileSync(path.join(workspaceRoot, '.gitignore'), 'utf-8')).toContain(
       WORKSPACE_LOCAL_STATE_IGNORE_PATTERN
     );
@@ -142,10 +149,10 @@ describe('workspace command', () => {
     expect(listPayload.workspaces).toEqual([
       expect.objectContaining({
         name: 'platform',
-        root: workspaceRoot,
+        root: expectedWorkspaceRoot,
         links: [
-          expect.objectContaining({ name: 'api', path: api, status: [] }),
-          expect.objectContaining({ name: 'checkout', path: checkout, status: [] }),
+          expect.objectContaining({ name: 'api', path: expectedApi, status: [] }),
+          expect.objectContaining({ name: 'checkout', path: expectedCheckout, status: [] }),
         ],
         status: [],
       }),
@@ -155,18 +162,20 @@ describe('workspace command', () => {
   it('preserves equals signs in inferred and explicit setup link paths', async () => {
     const inferred = mkdir('repos/foo=bar');
     const explicit = mkdir('repos/api=service');
+    const expectedInferred = expectedExistingPath(inferred);
+    const expectedExplicit = expectedExistingPath(explicit);
 
     const setup = await setupWorkspace('equals-paths', [inferred, `api=${explicit}`]);
 
     expect(setup.workspace.links).toEqual([
       expect.objectContaining({
         name: 'api',
-        path: explicit,
+        path: expectedExplicit,
         status: [],
       }),
       expect.objectContaining({
         name: 'foo=bar',
-        path: inferred,
+        path: expectedInferred,
         status: [],
       }),
     ]);
@@ -175,8 +184,8 @@ describe('workspace command', () => {
       fs.readFileSync(getWorkspaceLocalStatePath(setup.workspace.root), 'utf-8')
     );
     expect(localState.paths).toEqual({
-      api: explicit,
-      'foo=bar': inferred,
+      api: expectedExplicit,
+      'foo=bar': expectedInferred,
     });
   });
 
@@ -259,6 +268,7 @@ describe('workspace command', () => {
   it('rejects duplicate setup link names without creating or rewriting a workspace', async () => {
     const firstApi = mkdir('repos/current/api');
     const secondApi = mkdir('repos/archive/api');
+    const expectedFirstApi = expectedExistingPath(firstApi);
 
     const duplicate = await runCLI(
       [
@@ -280,7 +290,7 @@ describe('workspace command', () => {
     expect(parseJson(duplicate).status[0]).toEqual(
       expect.objectContaining({
         code: 'duplicate_link_name',
-        message: expect.stringContaining(firstApi),
+        message: expect.stringContaining(expectedFirstApi),
         fix: expect.stringContaining('--link api-alt='),
       })
     );
@@ -465,6 +475,8 @@ describe('workspace command', () => {
     const billing = mkdir('repos/platform/services/billing');
     const billingNew = mkdir('repos/archive/billing');
     const duplicate = mkdir('repos/duplicate-billing');
+    const expectedBilling = expectedExistingPath(billing);
+    const expectedBillingNew = expectedExistingPath(billingNew);
 
     await setupWorkspace('platform', [`api=${api}`]);
 
@@ -473,7 +485,7 @@ describe('workspace command', () => {
     expect(parseJson(link).link).toEqual(
       expect.objectContaining({
         name: 'billing',
-        path: billing,
+        path: expectedBilling,
         status: [],
       })
     );
@@ -498,7 +510,7 @@ describe('workspace command', () => {
     expect(parseJson(relink).link).toEqual(
       expect.objectContaining({
         name: 'billing',
-        path: billingNew,
+        path: expectedBillingNew,
       })
     );
 
@@ -517,6 +529,7 @@ describe('workspace command', () => {
   it('links monorepo folders without editing the linked folder', async () => {
     const api = mkdir('repos/api');
     const packageDir = mkdir('monorepo/apps/checkout');
+    const expectedPackageDir = expectedExistingPath(packageDir);
     const sentinelPath = path.join(packageDir, 'package.json');
     fs.writeFileSync(sentinelPath, '{"name":"checkout"}\n');
     const entriesBefore = fs.readdirSync(packageDir).sort();
@@ -532,7 +545,7 @@ describe('workspace command', () => {
     expect(parseJson(link).link).toEqual(
       expect.objectContaining({
         name: 'checkout',
-        path: packageDir,
+        path: expectedPackageDir,
       })
     );
     expect(fs.readFileSync(sentinelPath, 'utf-8')).toBe('{"name":"checkout"}\n');
@@ -801,7 +814,7 @@ paths:
     expect(parseJson(doctor).workspace).toEqual(
       expect.objectContaining({
         name: 'checkout-web',
-        root: checkout.workspace.root,
+        root: expectedExistingPath(checkout.workspace.root),
       })
     );
 
@@ -837,6 +850,7 @@ paths:
 
   it('prints readable human output for setup, list, and doctor', async () => {
     const api = mkdir('repos/api');
+    const expectedApi = expectedExistingPath(api);
 
     const setup = await runCLI(
       ['workspace', 'setup', '--no-interactive', '--name', 'platform', '--link', `api=${api}`],
@@ -848,7 +862,7 @@ paths:
     expect(setup.stdout).toContain('Location:');
     expect(setup.stdout).not.toContain('Root:');
     expect(setup.stdout).toContain('Linked repos or folders (1):');
-    expect(setup.stdout).toContain(`api -> ${api}`);
+    expect(setup.stdout).toContain(`api -> ${expectedApi}`);
     expect(setup.stdout).toContain('Planning path:');
     expect(setup.stdout).toContain('Workspace check:');
     expect(setup.stdout).toContain('No workspace issues found.');
@@ -861,7 +875,7 @@ paths:
     expect(list.stdout).toContain('Location:');
     expect(list.stdout).not.toContain('Root:');
     expect(list.stdout).toContain('Linked repos or folders (1):');
-    expect(list.stdout).toContain(`api -> ${api}`);
+    expect(list.stdout).toContain(`api -> ${expectedApi}`);
 
     const doctor = await runCLI(['workspace', 'doctor', '--workspace', 'platform'], {
       cwd: tempDir,
