@@ -991,7 +991,7 @@ paths:
       fs.realpathSync.native(setup.workspace.root)
     );
     expect(editorLaunch.args).toEqual([
-      getWorkspaceCodeWorkspacePath(setup.workspace.root, 'platform'),
+      getWorkspaceCodeWorkspacePath(expectedExistingPath(setup.workspace.root), 'platform'),
     ]);
 
     const currentWorkspaceOpen = await runCLI(['workspace', 'open', '--editor', '--no-interactive'], {
@@ -1014,7 +1014,11 @@ paths:
     expect(fs.realpathSync.native(codexLaunch.cwd)).toBe(
       fs.realpathSync.native(setup.workspace.root)
     );
-    expect(codexLaunch.args).toEqual(['--add-dir', api, 'Open this OpenSpec workspace.']);
+    expect(codexLaunch.args).toEqual([
+      '--add-dir',
+      expectedApi,
+      'Open this OpenSpec workspace.',
+    ]);
     expect(readLocalState(setup.workspace.root).preferred_opener).toEqual({
       kind: 'editor',
       id: 'vscode',
