@@ -84,6 +84,10 @@ paths: {}
     return workspaceRoot;
   }
 
+  function expectedExistingPath(existingPath: string): string {
+    return process.platform === 'win32' ? fs.realpathSync.native(existingPath) : existingPath;
+  }
+
   describe('path helpers', () => {
     it('exposes the workspace constants', () => {
       expect(WORKSPACE_METADATA_DIR_NAME).toBe('.openspec-workspace');
@@ -210,8 +214,12 @@ paths: {}
       fs.mkdirSync(nestedDir, { recursive: true });
 
       await expect(isWorkspaceRoot(workspaceRoot)).resolves.toBe(true);
-      await expect(findWorkspaceRoot(workspaceRoot)).resolves.toBe(workspaceRoot);
-      await expect(findWorkspaceRoot(nestedDir)).resolves.toBe(workspaceRoot);
+      await expect(findWorkspaceRoot(workspaceRoot)).resolves.toBe(
+        expectedExistingPath(workspaceRoot)
+      );
+      await expect(findWorkspaceRoot(nestedDir)).resolves.toBe(
+        expectedExistingPath(workspaceRoot)
+      );
       await expect(workspaceChangesDirExists(workspaceRoot)).resolves.toBe(true);
     });
 
@@ -240,7 +248,9 @@ paths: {}
       const linkedPath = path.join(workspaceRoot, 'external-folder');
       fs.mkdirSync(linkedPath, { recursive: true });
 
-      await expect(findWorkspaceRoot(linkedPath)).resolves.toBe(workspaceRoot);
+      await expect(findWorkspaceRoot(linkedPath)).resolves.toBe(
+        expectedExistingPath(workspaceRoot)
+      );
     });
 
     it('canonicalizes detected workspace roots on Windows before returning them', async () => {
