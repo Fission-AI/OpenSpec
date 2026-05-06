@@ -80,9 +80,9 @@ describe('workspace open launchers', () => {
       )
     ).toThrow(/code.*not found on PATH/);
 
-    const calls: Array<{ command: string; args: string[]; cwd: string }> = [];
-    const fakeSpawn = ((command: string, args: string[], options: { cwd?: string }) => {
-      calls.push({ command, args, cwd: options.cwd ?? '' });
+    const calls: Array<{ command: string; args: string[]; cwd: string; shell: boolean | string | undefined }> = [];
+    const fakeSpawn = ((command: string, args: string[], options: { cwd?: string; shell?: boolean | string }) => {
+      calls.push({ command, args, cwd: options.cwd ?? '', shell: options.shell });
       return {
         on(event: string, callback: (code?: number | null) => void) {
           if (event === 'close') {
@@ -99,13 +99,14 @@ describe('workspace open launchers', () => {
       ['/repos/api']
     );
 
-    await launchWorkspaceOpenCommand(command, { spawn: fakeSpawn });
+    await launchWorkspaceOpenCommand(command, { spawn: fakeSpawn, platform: 'win32' });
 
     expect(calls).toEqual([
       {
         command: 'codex',
         args: ['--add-dir', '/repos/api', 'Open this OpenSpec workspace.'],
         cwd: '/workspace',
+        shell: true,
       },
     ]);
   });

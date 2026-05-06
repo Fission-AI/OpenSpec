@@ -222,9 +222,11 @@ function formatOpenerChoiceName(choice: ReturnType<typeof listWorkspaceOpenerCho
   return choice.unavailableNote ? `${choice.label} (${choice.unavailableNote})` : choice.label;
 }
 
-async function promptPreferredOpener(message: string): Promise<WorkspacePreferredOpener> {
+async function promptPreferredOpener(
+  message: string,
+  openerChoices = listWorkspaceOpenerChoices()
+): Promise<WorkspacePreferredOpener> {
   const { select } = await import('@inquirer/prompts');
-  const openerChoices = listWorkspaceOpenerChoices();
   const selectedValue = await select({
     message,
     default: getDefaultWorkspaceOpenerChoiceValue(openerChoices),
@@ -432,7 +434,19 @@ async function resolveWorkspaceOpenOpener(
   }
 
   if (!resolveNoInteractive(options) && isInteractive(options)) {
-    return promptPreferredOpener('Open with:');
+    const openerChoices = listWorkspaceOpenerChoices().filter((choice) => choice.available);
+    if (openerChoices.length === 0) {
+      throw new WorkspaceCliError(
+        'No supported workspace opener is available on PATH.',
+        'workspace_no_available_openers',
+        {
+          target: 'workspace.opener',
+          fix: "Install VS Code ('code'), Codex ('codex'), or Claude ('claude'), then retry.",
+        }
+      );
+    }
+
+    return promptPreferredOpener('Open with:', openerChoices);
   }
 
   throw new WorkspaceCliError(

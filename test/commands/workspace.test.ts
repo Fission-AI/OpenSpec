@@ -192,7 +192,6 @@ describe('workspace command', () => {
     );
     expect(JSON.parse(fs.readFileSync(getWorkspaceCodeWorkspacePath(workspaceRoot, 'platform'), 'utf-8')).folders).toEqual([
       {
-        name: 'OpenSpec Workspace',
         path: '.',
       },
       {
@@ -947,7 +946,9 @@ paths:
 
   it('opens a workspace through VS Code editor and agent overrides without changing stored preference', async () => {
     const api = mkdir('repos/api');
-    const setup = await setupWorkspace('platform', [`api=${api}`], ['--opener', 'editor']);
+    const web = mkdir('repos/web');
+    const setup = await setupWorkspace('platform', [`api=${api}`, `web=${web}`], ['--opener', 'editor']);
+    fs.rmSync(web, { recursive: true, force: true });
     const code = createFakeExecutable('code');
 
     const editorOpen = await runCLI(['workspace', 'open', 'platform', '--no-interactive'], {
@@ -958,6 +959,19 @@ paths:
     expect(editorOpen.exitCode).toBe(0);
     expect(editorOpen.stdout).toContain('Opening workspace: platform');
     expect(editorOpen.stdout).toContain('Opener: VS Code editor');
+    expect(editorOpen.stdout).toContain('web ->');
+    const workspaceFolders = JSON.parse(
+      fs.readFileSync(getWorkspaceCodeWorkspacePath(setup.workspace.root, 'platform'), 'utf-8')
+    ).folders;
+    expect(workspaceFolders).toEqual([
+      {
+        path: '.',
+      },
+      {
+        name: 'api',
+        path: api,
+      },
+    ]);
     const editorLaunch = readLaunchLog(code.logPath);
     expect(fs.realpathSync.native(editorLaunch.cwd)).toBe(
       fs.realpathSync.native(setup.workspace.root)
@@ -1054,6 +1068,16 @@ paths:
     expect(unset.exitCode).toBe(1);
     expect(unset.stderr).toContain('does not have a preferred opener');
 
+    const openerConflict = await runCLI(
+      ['workspace', 'open', 'platform', '--agent', 'codex', '--editor', '--no-interactive'],
+      {
+        cwd: tempDir,
+        env,
+      }
+    );
+    expect(openerConflict.exitCode).toBe(1);
+    expect(openerConflict.stderr).toContain('either --agent <tool> or --editor');
+
     fs.writeFileSync(
       getWorkspaceLocalStatePath(platform.workspace.root),
       `version: 1
@@ -1145,6 +1169,12 @@ preferred_opener:
       'open',
     ]);
     expect(setup?.flags?.some((flag) => flag.name === 'opener')).toBe(true);
+    expect(setup?.flags?.find((flag) => flag.name === 'opener')?.values).toEqual([
+      'codex',
+      'claude',
+      'github-copilot',
+      'editor',
+    ]);
     expect(link?.positionals).toEqual([
       { name: 'name-or-path', type: 'path', optional: true },
       { name: 'path', type: 'path' },
@@ -1155,6 +1185,11 @@ preferred_opener:
     ]);
     expect(open?.positionals).toEqual([
       { name: 'name', optional: true },
+    ]);
+    expect(open?.flags?.find((flag) => flag.name === 'agent')?.values).toEqual([
+      'codex',
+      'claude',
+      'github-copilot',
     ]);
     expect(open?.flags?.map((flag) => flag.name)).toEqual([
       'workspace',

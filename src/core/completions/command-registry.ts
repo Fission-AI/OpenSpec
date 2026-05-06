@@ -178,6 +178,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             name: 'opener',
             description: 'Preferred opener: codex, claude, github-copilot, or editor',
             takesValue: true,
+            values: ['codex', 'claude', 'github-copilot', 'editor'],
           },
           COMMON_FLAGS.json,
           COMMON_FLAGS.noInteractive,
@@ -278,6 +279,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             name: 'agent',
             description: 'Use an agent for this session: codex, claude, or github-copilot',
             takesValue: true,
+            values: ['codex', 'claude', 'github-copilot'],
           },
           {
             name: 'editor',

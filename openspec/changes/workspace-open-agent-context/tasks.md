@@ -80,7 +80,7 @@
 
 ## 8. Verification
 
-- [x] 8.1 Run `openspec validate workspace-open-agent-context --strict`
+- [x] 8.1 Run `node bin/openspec.js validate workspace-open-agent-context --strict`
 - [x] 8.2 Run targeted workspace command tests
 - [x] 8.3 Run targeted workspace foundation tests
 - [x] 8.4 Run command-generation or launcher tests that cover Codex, Claude, GitHub Copilot, and VS Code editor paths

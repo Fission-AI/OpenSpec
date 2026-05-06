@@ -9,12 +9,12 @@ OpenSpec SHALL store a workspace's preferred opener in machine-local workspace s
 - **AND** the stored value SHALL use a structured `preferred_opener` object with `kind` and `id`
 
 #### Scenario: Recording a non-interactive setup opener choice
-- **WHEN** a non-interactive user runs `openspec workspace setup --opener codex`
+- **WHEN** a non-interactive user runs `openspec workspace setup --no-interactive --opener codex`
 - **THEN** OpenSpec SHALL record `preferred_opener.kind` as `agent`
 - **AND** it SHALL record `preferred_opener.id` as `codex`
 
 #### Scenario: Leaving opener unset during non-interactive setup
-- **WHEN** a non-interactive user runs `openspec workspace setup` with opener selection omitted
+- **WHEN** a non-interactive user runs `openspec workspace setup --no-interactive` with opener selection omitted
 - **THEN** OpenSpec SHALL leave the workspace preferred opener unset
 - **AND** the unset state SHALL allow `workspace open` to prompt later
 
@@ -54,6 +54,7 @@ OpenSpec SHALL maintain files that make a workspace directly openable after setu
 #### Scenario: Building the VS Code workspace file
 - **WHEN** OpenSpec refreshes `<workspace-name>.code-workspace`
 - **THEN** the file SHALL include the workspace root
+- **AND** the workspace root folder entry SHALL use the root path without a synthetic display name
 - **AND** it SHALL include every linked repo or folder with a valid local path
 - **AND** it SHALL omit linked repos or folders whose local paths are missing or invalid
 

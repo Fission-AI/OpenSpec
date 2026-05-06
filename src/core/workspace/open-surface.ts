@@ -106,6 +106,13 @@ export function buildWorkspaceCodeWorkspaceContent(
   return `${JSON.stringify({ folders }, null, 2)}\n`;
 }
 
+export async function writeWorkspaceCodeWorkspaceFile(
+  codeWorkspacePath: string,
+  links: WorkspaceOpenLink[]
+): Promise<void> {
+  await FileSystemUtils.writeFile(codeWorkspacePath, buildWorkspaceCodeWorkspaceContent(links));
+}
+
 export async function resolveWorkspaceOpenLinks(
   sharedState: WorkspaceSharedState,
   localState: WorkspaceLocalState
@@ -157,9 +164,9 @@ async function syncWorkspaceCodeWorkspace(
   sharedState: WorkspaceSharedState,
   links: WorkspaceOpenLink[]
 ): Promise<void> {
-  await FileSystemUtils.writeFile(
+  await writeWorkspaceCodeWorkspaceFile(
     getWorkspaceCodeWorkspacePath(workspaceRoot, sharedState.name),
-    buildWorkspaceCodeWorkspaceContent(links)
+    links
   );
 }
 

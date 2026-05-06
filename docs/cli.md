@@ -199,7 +199,7 @@ openspec workspace setup --no-interactive --name platform --link /repos/api --op
 openspec workspace setup --no-interactive --json --name checkout --link /repos/platform/apps/checkout
 ```
 
-Interactive setup asks for a preferred opener and stores it in machine-local workspace state. Non-interactive setup stores a preferred opener only when `--opener` is provided; otherwise `workspace open` prompts later in interactive terminals or asks scripts to pass `--agent <tool>` or `--editor`.
+Interactive setup asks for a preferred opener and stores it in machine-local workspace state. Non-interactive setup stores a preferred opener only when `--opener` is provided; otherwise `workspace open` prompts later in interactive terminals when a supported opener is available, or asks scripts to pass `--agent <tool>` or `--editor`.
 
 ### `openspec workspace list`
 
@@ -289,9 +289,11 @@ openspec workspace open --agent codex
 openspec workspace open --editor
 ```
 
-`workspace open` uses the current workspace when run inside one, auto-selects the only known workspace when run elsewhere, and asks the user to choose when multiple workspaces are known. `--agent` and `--editor` do not change the stored preferred opener.
+`workspace open` uses the current workspace when run inside one, auto-selects the only known workspace when run elsewhere, and asks the user to choose when multiple workspaces are known. `--agent` and `--editor` do not change the stored preferred opener. Passing both opener overrides is an error; choose either `--agent <tool>` or `--editor`.
 
 OpenSpec maintains `<workspace-name>.code-workspace` at the workspace root for VS Code editor and GitHub Copilot-in-VS-Code opens. That file is machine-local and ignored by default with a specific `<workspace-name>.code-workspace` `.gitignore` entry, so user-authored `*.code-workspace` files remain eligible for tracking.
+
+The maintained VS Code workspace includes the coordination root as `.` plus valid linked repos or folders as additional roots. VS Code displays those entries as a multi-root workspace.
 
 Root workspace open supports exploration and planning across linked repos or folders. Implementation edits should start only after an explicit user request and a normal OpenSpec implementation workflow.
 

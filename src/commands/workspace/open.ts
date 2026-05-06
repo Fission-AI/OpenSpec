@@ -11,6 +11,7 @@ import {
   readWorkspaceLocalState,
   readWorkspaceSharedState,
   resolveWorkspaceOpenLinks,
+  writeWorkspaceCodeWorkspaceFile,
 } from '../../core/workspace/index.js';
 import { SelectedWorkspace, WorkspaceCliError, asErrorMessage } from './types.js';
 
@@ -34,6 +35,7 @@ export type WorkspaceOpenSpawn = typeof spawn;
 export interface WorkspaceOpenLaunchOptions {
   spawn?: WorkspaceOpenSpawn;
   isExecutableAvailable?: (executable: string) => boolean;
+  platform?: NodeJS.Platform;
 }
 
 export async function readWorkspaceOpenState(
@@ -113,6 +115,7 @@ export async function buildWorkspaceOpenCommandForState(
   skipped: Awaited<ReturnType<typeof resolveWorkspaceOpenLinks>>['skipped'];
 }> {
   const openLinks = await resolveWorkspaceOpenLinks(state.sharedState, state.localState);
+  await writeWorkspaceCodeWorkspaceFile(state.codeWorkspacePath, openLinks.links);
 
   return {
     command: buildWorkspaceOpenLaunchCommand(
@@ -130,11 +133,13 @@ export async function launchWorkspaceOpenCommand(
   options: WorkspaceOpenLaunchOptions = {}
 ): Promise<void> {
   const spawnCommand = options.spawn ?? spawn;
+  const platform = options.platform ?? process.platform;
 
   await new Promise<void>((resolve, reject) => {
     const child = spawnCommand(command.executable, command.args, {
       cwd: command.cwd,
       stdio: 'inherit',
+      shell: platform === 'win32',
     });
 
     child.on('error', (error) => {

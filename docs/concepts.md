@@ -170,7 +170,9 @@ openspec workspace open --editor
 
 OpenSpec also maintains root workspace open files: an OpenSpec-managed guidance block in `AGENTS.md`, a machine-local `<workspace-name>.code-workspace` file for VS Code and GitHub Copilot-in-VS-Code opens, and a specific ignore entry for that maintained `.code-workspace` file. User-authored `*.code-workspace` files remain trackable because the ignore rule targets only the maintained file.
 
-`workspace open` opens the linked working set with the stored preferred opener unless `--agent <tool>` or `--editor` is passed for that one session. Root workspace open makes linked repos and folders visible for exploration and planning; implementation starts after the user explicitly asks for implementation work.
+The maintained VS Code workspace includes the coordination root as `.` plus valid linked repos or folders as additional roots. VS Code displays those entries as a multi-root workspace.
+
+`workspace open` opens the linked working set with the stored preferred opener unless `--agent <tool>` or `--editor` is passed for that one session. Passing both opener overrides is an error. Root workspace open makes linked repos and folders visible for exploration and planning; implementation starts after the user explicitly asks for implementation work.
 
 `workspace link` and `workspace relink` record existing folders only; they do not create, copy, move, initialize, or edit the linked repo or folder. After a successful link or relink, OpenSpec refreshes the managed guidance, VS Code workspace file, and ignore rule.
 

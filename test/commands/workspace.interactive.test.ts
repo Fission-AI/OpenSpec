@@ -332,7 +332,7 @@ describe('workspace command interactive flows', () => {
       process.platform === 'win32' ? '@echo off\r\nexit /B 0\r\n' : '#!/bin/sh\nexit 0\n'
     );
     fs.chmodSync(codePath, 0o755);
-    process.env.PATH = `${binDir}${path.delimiter}${process.env.PATH ?? ''}`;
+    process.env.PATH = binDir;
     const { select } = await getPromptMocks();
 
     await runWorkspaceCommand(['setup', '--no-interactive', '--name', 'platform', '--link', `api=${api}`]);
@@ -347,8 +347,30 @@ describe('workspace command interactive flows', () => {
         message: 'Open with:',
       })
     );
+    const openerPrompt = select.mock.calls.find(([options]) => options.message === 'Open with:')?.[0];
+    expect(openerPrompt?.choices.map((choice: { value: string }) => choice.value).sort()).toEqual([
+      'editor',
+      'github-copilot',
+    ]);
     expect(consoleLogSpy).toHaveBeenCalledWith('Opening workspace: platform');
     expect(readLocalState('platform').preferred_opener).toBeUndefined();
+  });
+
+  it('fails workspace open without prompting when no opener is available', async () => {
+    const api = mkdir('repos/api');
+    const { select } = await getPromptMocks();
+    process.env.PATH = '';
+
+    await runWorkspaceCommand(['setup', '--no-interactive', '--name', 'platform', '--link', `api=${api}`]);
+    consoleErrorSpy.mockClear();
+
+    await runWorkspaceCommand(['open']);
+
+    expect(process.exitCode).toBe(1);
+    expect(select).not.toHaveBeenCalled();
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('No supported workspace opener is available on PATH.')
+    );
   });
 
   it('shows the workspace picker for workspace open when multiple workspaces are known', async () => {

@@ -76,6 +76,12 @@ OpenSpec SHALL resolve the workspace to open using current workspace context, lo
 ### Requirement: Opener Resolution
 OpenSpec SHALL resolve the opener from command overrides, workspace-local preference, or an interactive prompt.
 
+#### Scenario: Conflicting opener overrides
+- **WHEN** the user runs `openspec workspace open --agent codex --editor`
+- **THEN** OpenSpec SHALL fail with a clear conflict error naming `--agent` and `--editor`
+- **AND** it SHALL avoid launching any opener
+- **AND** it SHALL leave the stored preferred opener unchanged
+
 #### Scenario: Using the stored preferred opener
 - **GIVEN** the workspace has a machine-local preferred opener
 - **WHEN** the user runs `openspec workspace open` using default opener resolution
@@ -98,7 +104,15 @@ OpenSpec SHALL resolve the opener from command overrides, workspace-local prefer
 - **AND** the terminal is interactive
 - **WHEN** the user runs `openspec workspace open` using default opener resolution
 - **THEN** OpenSpec SHALL prompt the user to choose an opener
-- **AND** it SHALL order detected openers before unavailable openers
+- **AND** it SHALL only offer openers with detected executables
+
+#### Scenario: Failing when no opener can be prompted
+- **GIVEN** the workspace has no stored preferred opener
+- **AND** the terminal is interactive
+- **AND** no supported opener executable is available on `PATH`
+- **WHEN** the user runs `openspec workspace open` using default opener resolution
+- **THEN** OpenSpec SHALL fail with a clear message that no supported opener is available
+- **AND** it SHALL avoid prompting with unlaunchable choices
 
 #### Scenario: Failing when no opener is stored in non-interactive mode
 - **GIVEN** the workspace has no stored preferred opener
@@ -174,8 +188,9 @@ OpenSpec SHALL use durable workspace guidance as the primary context source for 
 #### Scenario: Launching with existing workspace guidance
 - **GIVEN** the workspace has OpenSpec-managed guidance in `AGENTS.md`
 - **WHEN** the user opens the workspace
-- **THEN** OpenSpec SHALL launch the selected opener against the existing workspace files
-- **AND** it SHALL use existing workspace files as the primary workspace-open artifact
+- **THEN** OpenSpec SHALL refresh the maintained `.code-workspace` from current linked path state
+- **AND** it SHALL launch the selected opener against refreshed workspace files
+- **AND** it SHALL use durable workspace files as the primary workspace-open artifact
 
 #### Scenario: Minimal required launch prompt
 - **GIVEN** an opener requires an initial prompt argument
