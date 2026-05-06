@@ -474,7 +474,6 @@ After block.
 
       expect(payload.folders).toEqual([
         {
-          name: 'OpenSpec Workspace',
           path: '.',
         },
         {
@@ -524,7 +523,6 @@ After block.
       );
       expect(JSON.parse(fs.readFileSync(getWorkspaceCodeWorkspacePath(workspaceRoot, 'platform'), 'utf-8')).folders).toEqual([
         {
-          name: 'OpenSpec Workspace',
           path: '.',
         },
         {

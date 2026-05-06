@@ -94,7 +94,6 @@ export function buildWorkspaceCodeWorkspaceContent(
 ): string {
   const folders = [
     {
-      name: 'OpenSpec Workspace',
       path: '.',
     },
     ...links.map((link) => ({
