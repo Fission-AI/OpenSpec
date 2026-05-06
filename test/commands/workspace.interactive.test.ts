@@ -88,6 +88,10 @@ describe('workspace command interactive flows', () => {
     return dir;
   }
 
+  function expectedExistingPath(existingPath: string): string {
+    return process.platform === 'win32' ? fs.realpathSync.native(existingPath) : existingPath;
+  }
+
   function readLocalState(workspaceName: string) {
     const workspaceRoot = getManagedWorkspaceRoot(workspaceName);
     return parseWorkspaceLocalState(
@@ -97,6 +101,7 @@ describe('workspace command interactive flows', () => {
 
   it('asks for the workspace name first and validates kebab-case before asking for links', async () => {
     const api = mkdir('repos/api');
+    const expectedApi = expectedExistingPath(api);
     const { input, confirm, select } = await getPromptMocks();
 
     input.mockImplementation(async (options: { message: string; validate?: (value: string) => true | string }) => {
@@ -139,7 +144,7 @@ describe('workspace command interactive flows', () => {
         ]),
       })
     );
-    expect(readLocalState('platform').paths).toEqual({ api });
+    expect(readLocalState('platform').paths).toEqual({ api: expectedApi });
   });
 
   it('handles prompt cancellation without printing the raw SIGINT error', async () => {
@@ -160,6 +165,8 @@ describe('workspace command interactive flows', () => {
   it('lets users add another path and rename an inferred link-name conflict', async () => {
     const firstApi = mkdir('repos/current/api');
     const secondApi = mkdir('repos/archive/api');
+    const expectedFirstApi = expectedExistingPath(firstApi);
+    const expectedSecondApi = expectedExistingPath(secondApi);
     const { input, confirm, select } = await getPromptMocks();
 
     input.mockImplementation(async (options: { message: string; validate?: (value: string) => true | string }) => {
@@ -176,7 +183,9 @@ describe('workspace command interactive flows', () => {
       }
 
       if (options.message === 'Link name:') {
-        expect(options.validate?.('api')).toBe(`Link name 'api' is already linked to ${firstApi}.`);
+        expect(options.validate?.('api')).toBe(
+          `Link name 'api' is already linked to ${expectedFirstApi}.`
+        );
         expect(options.validate?.('api-archive')).toBe(true);
         return 'api-archive';
       }
@@ -196,16 +205,17 @@ describe('workspace command interactive flows', () => {
     ]);
     expect(confirm).not.toHaveBeenCalled();
     expect(consoleLogSpy).toHaveBeenCalledWith(
-      `Link name 'api' is already linked to ${firstApi}.`
+      `Link name 'api' is already linked to ${expectedFirstApi}.`
     );
     expect(readLocalState('platform').paths).toEqual({
-      api: firstApi,
-      'api-archive': secondApi,
+      api: expectedFirstApi,
+      'api-archive': expectedSecondApi,
     });
   });
 
   it('asks for a link name when the inferred basename is invalid', async () => {
     const linkedRoot = path.parse(tempDir).root;
+    const expectedLinkedRoot = expectedExistingPath(linkedRoot);
     const { input, confirm, select } = await getPromptMocks();
 
     input.mockImplementation(async (options: { message: string; validate?: (value: string) => true | string }) => {
@@ -237,7 +247,7 @@ describe('workspace command interactive flows', () => {
     ]);
     expect(confirm).not.toHaveBeenCalled();
     expect(readLocalState('platform').paths).toEqual({
-      root: linkedRoot,
+      root: expectedLinkedRoot,
     });
   });
 
