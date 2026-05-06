@@ -96,17 +96,23 @@ describe('workspace open launchers', () => {
       { kind: 'agent', id: 'codex' },
       '/workspace',
       '/workspace/platform.code-workspace',
-      ['/repos/api']
+      ['/repos/api', 'C:\\Program Files\\repo']
     );
 
-    await launchWorkspaceOpenCommand(command, { spawn: fakeSpawn, platform: 'win32' });
+    await launchWorkspaceOpenCommand(command, { spawn: fakeSpawn });
 
     expect(calls).toEqual([
       {
         command: 'codex',
-        args: ['--add-dir', '/repos/api', 'Open this OpenSpec workspace.'],
+        args: [
+          '--add-dir',
+          '/repos/api',
+          '--add-dir',
+          'C:\\Program Files\\repo',
+          'Open this OpenSpec workspace.',
+        ],
         cwd: '/workspace',
-        shell: true,
+        shell: false,
       },
     ]);
   });

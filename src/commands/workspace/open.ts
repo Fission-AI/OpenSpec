@@ -1,4 +1,5 @@
-import { spawn } from 'node:child_process';
+import { spawn as nodeSpawn } from 'node:child_process';
+import { createRequire } from 'node:module';
 
 import {
   WorkspaceLocalState,
@@ -16,6 +17,8 @@ import {
 import { SelectedWorkspace, WorkspaceCliError, asErrorMessage } from './types.js';
 
 export const WORKSPACE_OPEN_MINIMAL_PROMPT = 'Open this OpenSpec workspace.';
+const require = createRequire(import.meta.url);
+const spawn = require('cross-spawn') as typeof nodeSpawn;
 
 export interface WorkspaceOpenState {
   sharedState: WorkspaceSharedState;
@@ -30,12 +33,11 @@ export interface WorkspaceOpenLaunchCommand {
   openerLabel: string;
 }
 
-export type WorkspaceOpenSpawn = typeof spawn;
+export type WorkspaceOpenSpawn = typeof nodeSpawn;
 
 export interface WorkspaceOpenLaunchOptions {
   spawn?: WorkspaceOpenSpawn;
   isExecutableAvailable?: (executable: string) => boolean;
-  platform?: NodeJS.Platform;
 }
 
 export async function readWorkspaceOpenState(
@@ -133,13 +135,12 @@ export async function launchWorkspaceOpenCommand(
   options: WorkspaceOpenLaunchOptions = {}
 ): Promise<void> {
   const spawnCommand = options.spawn ?? spawn;
-  const platform = options.platform ?? process.platform;
 
   await new Promise<void>((resolve, reject) => {
     const child = spawnCommand(command.executable, command.args, {
       cwd: command.cwd,
       stdio: 'inherit',
-      shell: platform === 'win32',
+      shell: false,
     });
 
     child.on('error', (error) => {
