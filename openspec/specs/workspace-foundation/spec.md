@@ -27,18 +27,19 @@ OpenSpec SHALL give users and agents a recognizable workspace home for cross-rep
 - **AND** it SHALL enter workspace mode only when the workspace identity file is present
 
 ### Requirement: Stable Workspace Name
-OpenSpec SHALL use one folder-style workspace name across workspace identity, managed storage, and the local registry.
+OpenSpec SHALL use one kebab-case workspace name across workspace identity, managed storage, and the local registry.
 
 #### Scenario: Using one workspace name
-- **WHEN** OpenSpec creates or registers a managed workspace
+- **WHEN** OpenSpec creates or records a managed workspace
 - **THEN** the workspace name SHALL be stored in `.openspec-workspace/workspace.yaml`
 - **AND** the same name SHALL be used as the default managed workspace folder name
 - **AND** the same name SHALL be used as the local registry name
 
-#### Scenario: Rejecting invalid folder-style names
+#### Scenario: Rejecting invalid workspace names
 - **WHEN** OpenSpec accepts a workspace name
-- **THEN** it SHALL reject empty names, `.` or `..`, and names containing path separators
-- **AND** setup or create flows SHALL report OS-level folder creation failures clearly
+- **THEN** it SHALL require kebab-case names using lowercase letters, numbers, and single hyphen separators
+- **AND** it SHALL reject empty names, dot names, names with leading or trailing hyphens, names with repeated hyphens, uppercase letters, spaces, underscores, dots, and path separators
+- **AND** setup flows SHALL report OS-level folder creation failures clearly
 
 ### Requirement: Dedicated Workspace Identity
 OpenSpec SHALL distinguish a coordination workspace from a repo-local OpenSpec project.
@@ -139,7 +140,7 @@ OpenSpec SHALL keep a lightweight local registry of known workspaces on the curr
 - **AND** commands that need one workspace MAY use the registry to support an interactive picker
 
 ### Requirement: Stable Link Names
-OpenSpec SHALL use stable link names to refer to repos and folders in workspace planning.
+OpenSpec SHALL use stable folder-style link names to refer to repos and folders in workspace planning.
 
 #### Scenario: Referring to a repo or folder in workspace planning
 - **WHEN** workspace state or later workspace planning artifacts refer to a linked repo or folder
@@ -155,6 +156,7 @@ OpenSpec SHALL use stable link names to refer to repos and folders in workspace 
 - **WHEN** OpenSpec accepts a workspace link name
 - **THEN** it SHALL reject empty names, `.` or `..`, and names containing path separators
 - **AND** link names SHALL be unique within the workspace
+- **AND** link names SHALL not be required to use workspace-name kebab-case
 
 ### Requirement: Linked Repos And Folders
 OpenSpec SHALL allow workspace planning to include linked repos and folders before they have repo-local OpenSpec state.
