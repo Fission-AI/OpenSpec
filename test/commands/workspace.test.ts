@@ -203,11 +203,11 @@ describe('workspace command', () => {
       },
       {
         name: 'api',
-        path: api,
+        path: expectedApi,
       },
       {
         name: 'checkout',
-        path: checkout,
+        path: expectedCheckout,
       },
     ]);
 
@@ -959,6 +959,7 @@ paths:
 
   it('opens a workspace through VS Code editor and agent overrides without changing stored preference', async () => {
     const api = mkdir('repos/api');
+    const expectedApi = expectedExistingPath(api);
     const web = mkdir('repos/web');
     const setup = await setupWorkspace('platform', [`api=${api}`, `web=${web}`], ['--opener', 'editor']);
     fs.rmSync(web, { recursive: true, force: true });
@@ -982,7 +983,7 @@ paths:
       },
       {
         name: 'api',
-        path: api,
+        path: expectedApi,
       },
     ]);
     const editorLaunch = readLaunchLog(code.logPath);
@@ -1111,7 +1112,7 @@ preferred_opener:
     expect(unavailable.exitCode).toBe(1);
     expect(unavailable.stderr).toContain("'code' was not found on PATH");
     expect(unavailable.stderr).toContain(
-      getWorkspaceCodeWorkspacePath(platform.workspace.root, 'platform')
+      getWorkspaceCodeWorkspacePath(expectedExistingPath(platform.workspace.root), 'platform')
     );
   });
 

@@ -342,7 +342,8 @@ describe('workspace command interactive flows', () => {
       process.platform === 'win32' ? '@echo off\r\nexit /B 0\r\n' : '#!/bin/sh\nexit 0\n'
     );
     fs.chmodSync(codePath, 0o755);
-    process.env.PATH = binDir;
+    const pathKey = Object.keys(process.env).find((key) => key.toLowerCase() === 'path') ?? 'PATH';
+    process.env[pathKey] = `${binDir}${path.delimiter}${process.env[pathKey] ?? ''}`;
     const { select } = await getPromptMocks();
 
     await runWorkspaceCommand(['setup', '--no-interactive', '--name', 'platform', '--link', `api=${api}`]);
@@ -358,10 +359,10 @@ describe('workspace command interactive flows', () => {
       })
     );
     const openerPrompt = select.mock.calls.find(([options]) => options.message === 'Open with:')?.[0];
-    expect(openerPrompt?.choices.map((choice: { value: string }) => choice.value).sort()).toEqual([
-      'editor',
-      'github-copilot',
-    ]);
+    expect(openerPrompt?.default).toBe('editor');
+    expect(openerPrompt?.choices.map((choice: { value: string }) => choice.value)).toEqual(
+      expect.arrayContaining(['editor', 'github-copilot'])
+    );
     expect(consoleLogSpy).toHaveBeenCalledWith('Opening workspace: platform');
     expect(readLocalState('platform').preferred_opener).toBeUndefined();
   });
