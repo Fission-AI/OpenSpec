@@ -16,3 +16,7 @@ export { FileSystemUtils, removeMarkerBlock } from './file-system.js';
 
 // Command reference utilities
 export { transformToHyphenCommands } from './command-references.js';
+
+// Report printing utilities
+export { printReportIssues, issueSeverityPrefix } from './report-printer.js';
+export type { ReportIssue } from './report-printer.js';

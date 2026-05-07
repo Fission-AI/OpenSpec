@@ -170,5 +170,68 @@ describe('artifact-graph/state', () => {
       expect(completed.has('design')).toBe(false);
       expect(completed.has('tasks')).toBe(false);
     });
+
+    it('should synthetically complete specs when requireSpecDeltas is false', () => {
+      const schema = createSchema([
+        { id: 'proposal', generates: 'proposal.md', description: 'Proposal', template: 't.md', requires: [] },
+        { id: 'specs', generates: 'specs/**/*.md', description: 'Specs', template: 't.md', requires: ['proposal'] },
+        { id: 'tasks', generates: 'tasks.md', description: 'Tasks', template: 't.md', requires: ['specs'] },
+      ]);
+      const graph = ArtifactGraph.fromSchema(schema);
+
+      fs.writeFileSync(path.join(tempDir, 'proposal.md'), 'content');
+
+      const completed = detectCompleted(graph, tempDir, { requireSpecDeltas: false });
+
+      expect(completed.has('proposal')).toBe(true);
+      expect(completed.has('specs')).toBe(true);
+    });
+
+    it('should synthetically complete specs when requireSpecDeltas is "warn"', () => {
+      const schema = createSchema([
+        { id: 'specs', generates: 'specs/**/*.md', description: 'Specs', template: 't.md', requires: [] },
+      ]);
+      const graph = ArtifactGraph.fromSchema(schema);
+
+      const completed = detectCompleted(graph, tempDir, { requireSpecDeltas: 'warn' });
+
+      expect(completed.has('specs')).toBe(true);
+    });
+
+    it('should not synthetically complete specs when requireSpecDeltas is "error"', () => {
+      const schema = createSchema([
+        { id: 'specs', generates: 'specs/**/*.md', description: 'Specs', template: 't.md', requires: [] },
+      ]);
+      const graph = ArtifactGraph.fromSchema(schema);
+
+      const completed = detectCompleted(graph, tempDir, { requireSpecDeltas: 'error' });
+
+      expect(completed.has('specs')).toBe(false);
+    });
+
+    it('should not synthetically complete specs when requireSpecDeltas is undefined (default)', () => {
+      const schema = createSchema([
+        { id: 'specs', generates: 'specs/**/*.md', description: 'Specs', template: 't.md', requires: [] },
+      ]);
+      const graph = ArtifactGraph.fromSchema(schema);
+
+      const completed = detectCompleted(graph, tempDir);
+
+      expect(completed.has('specs')).toBe(false);
+    });
+
+    it('should mark specs as complete from files regardless of requireSpecDeltas', () => {
+      const schema = createSchema([
+        { id: 'specs', generates: 'specs/**/*.md', description: 'Specs', template: 't.md', requires: [] },
+      ]);
+      const graph = ArtifactGraph.fromSchema(schema);
+
+      fs.mkdirSync(path.join(tempDir, 'specs', 'test'), { recursive: true });
+      fs.writeFileSync(path.join(tempDir, 'specs', 'test', 'spec.md'), 'content');
+
+      const completed = detectCompleted(graph, tempDir, { requireSpecDeltas: 'error' });
+
+      expect(completed.has('specs')).toBe(true);
+    });
   });
 });

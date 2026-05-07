@@ -16,6 +16,14 @@ import { z } from 'zod';
  * - Single source of truth for type and validation
  * - Consistent with other OpenSpec schemas
  */
+
+export const RequireSpecDeltasSchema = z.union([
+  z.enum(['error', 'warn']),
+  z.literal(false),
+]);
+
+export type RequireSpecDeltas = z.infer<typeof RequireSpecDeltasSchema>;
+
 export const ProjectConfigSchema = z.object({
   // Required: which schema to use (e.g., "spec-driven", or project-local schema name)
   schema: z
@@ -38,6 +46,12 @@ export const ProjectConfigSchema = z.object({
     )
     .optional()
     .describe('Per-artifact rules, keyed by artifact ID'),
+
+  // Optional: whether spec deltas are required for changes
+  // "error" (default) = hard-fail, "warn" = warning only, false = silent
+  requireSpecDeltas: RequireSpecDeltasSchema
+    .optional()
+    .describe('Whether changes must include spec deltas: "error" | "warn" | false'),
 });
 
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
@@ -149,6 +163,16 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
         }
       } else {
         console.warn(`Invalid 'rules' field in config (must be object)`);
+      }
+    }
+
+    // Parse requireSpecDeltas field
+    if (raw.requireSpecDeltas !== undefined) {
+      const result = RequireSpecDeltasSchema.safeParse(raw.requireSpecDeltas);
+      if (result.success) {
+        config.requireSpecDeltas = result.data;
+      } else {
+        console.warn(`Invalid 'requireSpecDeltas' field in config (must be "error", "warn", or false)`);
       }
     }
 

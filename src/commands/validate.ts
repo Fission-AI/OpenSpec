@@ -1,9 +1,11 @@
 import ora from 'ora';
 import path from 'path';
 import { Validator } from '../core/validation/validator.js';
+import { readProjectConfig } from '../core/project-config.js';
 import { isInteractive, resolveNoInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds, getSpecIds } from '../utils/item-discovery.js';
 import { nearestMatches } from '../utils/match.js';
+import { printReportIssues } from '../utils/report-printer.js';
 
 type ItemType = 'change' | 'spec';
 
@@ -128,15 +130,15 @@ export class ValidateCommand {
   }
 
   private async validateByType(type: ItemType, id: string, opts: { strict: boolean; json: boolean }): Promise<void> {
-    const validator = new Validator(opts.strict);
+    const projectConfig = readProjectConfig(process.cwd());
+    const requireSpecDeltas = projectConfig?.requireSpecDeltas ?? 'error';
+    const validator = new Validator({ strictMode: opts.strict, requireSpecDeltas });
     if (type === 'change') {
       const changeDir = path.join(process.cwd(), 'openspec', 'changes', id);
       const start = Date.now();
       const report = await validator.validateChangeDeltaSpecs(changeDir);
       const durationMs = Date.now() - start;
       this.printReport('change', id, report, durationMs, opts.json);
-      // Non-zero exit if invalid (keeps enriched output test semantics)
-      process.exitCode = report.valid ? 0 : 1;
       return;
     }
     const file = path.join(process.cwd(), 'openspec', 'specs', id, 'spec.md');
@@ -144,24 +146,22 @@ export class ValidateCommand {
     const report = await validator.validateSpec(file);
     const durationMs = Date.now() - start;
     this.printReport('spec', id, report, durationMs, opts.json);
-    process.exitCode = report.valid ? 0 : 1;
   }
 
   private printReport(type: ItemType, id: string, report: { valid: boolean; issues: any[] }, durationMs: number, json: boolean): void {
+    if (!report.valid) {
+      process.exitCode = 1;
+    }
+
     if (json) {
       const out = { items: [{ id, type, valid: report.valid, issues: report.issues, durationMs }], summary: { totals: { items: 1, passed: report.valid ? 1 : 0, failed: report.valid ? 0 : 1 }, byType: { [type]: { items: 1, passed: report.valid ? 1 : 0, failed: report.valid ? 0 : 1 } } }, version: '1.0' };
       console.log(JSON.stringify(out, null, 2));
       return;
     }
-    if (report.valid) {
-      console.log(`${type === 'change' ? 'Change' : 'Specification'} '${id}' is valid`);
-    } else {
-      console.error(`${type === 'change' ? 'Change' : 'Specification'} '${id}' has issues`);
-      for (const issue of report.issues) {
-        const label = issue.level === 'ERROR' ? 'ERROR' : issue.level;
-        const prefix = issue.level === 'ERROR' ? '✗' : issue.level === 'WARNING' ? '⚠' : 'ℹ';
-        console.error(`${prefix} [${label}] ${issue.path}: ${issue.message}`);
-      }
+
+    const label = type === 'change' ? 'Change' : 'Specification';
+    printReportIssues(`${label} '${id}'`, report);
+    if (!report.valid) {
       this.printNextSteps(type);
     }
   }
@@ -191,7 +191,9 @@ export class ValidateCommand {
     const DEFAULT_CONCURRENCY = 6;
     const maxSuggestions = 5; // used by nearestMatches
     const concurrency = normalizeConcurrency(opts.concurrency) ?? normalizeConcurrency(process.env.OPENSPEC_CONCURRENCY) ?? DEFAULT_CONCURRENCY;
-    const validator = new Validator(opts.strict);
+    const projectConfig = readProjectConfig(process.cwd());
+    const requireSpecDeltas = projectConfig?.requireSpecDeltas ?? 'error';
+    const validator = new Validator({ strictMode: opts.strict, requireSpecDeltas });
     const queue: Array<() => Promise<BulkItemResult>> = [];
 
     for (const id of changeIds) {

@@ -85,7 +85,7 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
 }
 
 export function printStatusText(status: ChangeStatus): void {
-  const doneCount = status.artifacts.filter((a) => a.status === 'done').length;
+  const doneCount = status.artifacts.filter((a) => a.status === 'done' || a.status === 'skipped').length;
   const total = status.artifacts.length;
 
   console.log(`Change: ${status.changeName}`);

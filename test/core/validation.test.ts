@@ -412,7 +412,7 @@ Then result`;
       const specPath = path.join(testDir, 'spec.md');
       await fs.writeFile(specPath, specContent);
 
-      const validator = new Validator(true); // strict mode
+      const validator = new Validator({ strictMode: true }); // strict mode
       const report = await validator.validateSpec(specPath);
 
       expect(report.valid).toBe(false); // Should fail due to brief overview warning
@@ -436,7 +436,7 @@ Then result`;
       const specPath = path.join(testDir, 'spec.md');
       await fs.writeFile(specPath, specContent);
 
-      const validator = new Validator(false); // non-strict mode
+      const validator = new Validator({ strictMode: false }); // non-strict mode
       const report = await validator.validateSpec(specPath);
 
       expect(report.valid).toBe(true); // Should pass despite warnings
@@ -468,7 +468,7 @@ The system MUST implement a circuit breaker with three states.
       const specPath = path.join(specsDir, 'spec.md');
       await fs.writeFile(specPath, deltaSpec);
 
-      const validator = new Validator(true);
+      const validator = new Validator({ strictMode: true });
       const report = await validator.validateChangeDeltaSpecs(changeDir);
 
       expect(report.valid).toBe(true);
@@ -498,7 +498,7 @@ The system SHALL handle all errors gracefully.
       const specPath = path.join(specsDir, 'spec.md');
       await fs.writeFile(specPath, deltaSpec);
 
-      const validator = new Validator(true);
+      const validator = new Validator({ strictMode: true });
       const report = await validator.validateChangeDeltaSpecs(changeDir);
 
       expect(report.valid).toBe(true);
@@ -527,7 +527,7 @@ The system will log all events.
       const specPath = path.join(specsDir, 'spec.md');
       await fs.writeFile(specPath, deltaSpec);
 
-      const validator = new Validator(true);
+      const validator = new Validator({ strictMode: true });
       const report = await validator.validateChangeDeltaSpecs(changeDir);
 
       expect(report.valid).toBe(false);
@@ -555,7 +555,7 @@ The system SHALL implement this feature.
       const specPath = path.join(specsDir, 'spec.md');
       await fs.writeFile(specPath, deltaSpec);
 
-      const validator = new Validator(true);
+      const validator = new Validator({ strictMode: true });
       const report = await validator.validateChangeDeltaSpecs(changeDir);
 
       expect(report.valid).toBe(true);
@@ -582,13 +582,77 @@ The system MUST support mixed case delta headers.
       const specPath = path.join(specsDir, 'spec.md');
       await fs.writeFile(specPath, deltaSpec);
 
-      const validator = new Validator(true);
+      const validator = new Validator({ strictMode: true });
       const report = await validator.validateChangeDeltaSpecs(changeDir);
 
       expect(report.valid).toBe(true);
       expect(report.summary.errors).toBe(0);
       expect(report.summary.warnings).toBe(0);
       expect(report.summary.info).toBe(0);
+    });
+  });
+
+  describe('requireSpecDeltas config', () => {
+    it('should emit ERROR when requireSpecDeltas is "error" (default) and no deltas', async () => {
+      const changeDir = path.join(testDir, 'empty-change');
+      await fs.mkdir(changeDir, { recursive: true });
+
+      const validator = new Validator({ requireSpecDeltas: 'error' });
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(false);
+      expect(report.summary.errors).toBeGreaterThan(0);
+      expect(report.issues.some(i => i.level === 'ERROR' && i.message.includes('at least one delta'))).toBe(true);
+    });
+
+    it('should emit ERROR by default when requireSpecDeltas not specified', async () => {
+      const changeDir = path.join(testDir, 'empty-change-default');
+      await fs.mkdir(changeDir, { recursive: true });
+
+      const validator = new Validator();
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(false);
+      expect(report.summary.errors).toBeGreaterThan(0);
+    });
+
+    it('should emit WARNING when requireSpecDeltas is "warn" and no deltas', async () => {
+      const changeDir = path.join(testDir, 'warn-change');
+      await fs.mkdir(changeDir, { recursive: true });
+
+      const validator = new Validator({ requireSpecDeltas: 'warn' });
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(true);
+      expect(report.summary.errors).toBe(0);
+      expect(report.summary.warnings).toBe(1);
+      expect(report.issues[0].level).toBe('WARNING');
+      expect(report.issues[0].message).toContain('allowed by config');
+    });
+
+    it('should fail in strict mode when requireSpecDeltas is "warn" and no deltas', async () => {
+      const changeDir = path.join(testDir, 'warn-strict-change');
+      await fs.mkdir(changeDir, { recursive: true });
+
+      const validator = new Validator({ strictMode: true, requireSpecDeltas: 'warn' });
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(false);
+      expect(report.summary.errors).toBe(0);
+      expect(report.summary.warnings).toBe(1);
+    });
+
+    it('should emit no issues when requireSpecDeltas is false and no deltas', async () => {
+      const changeDir = path.join(testDir, 'silent-change');
+      await fs.mkdir(changeDir, { recursive: true });
+
+      const validator = new Validator({ requireSpecDeltas: false });
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(true);
+      expect(report.summary.errors).toBe(0);
+      expect(report.summary.warnings).toBe(0);
+      expect(report.issues).toHaveLength(0);
     });
   });
 });

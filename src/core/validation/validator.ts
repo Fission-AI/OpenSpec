@@ -14,11 +14,20 @@ import { parseDeltaSpec, normalizeRequirementName } from '../parsers/requirement
 import { findMainSpecStructureIssues } from '../parsers/spec-structure.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 
+import type { RequireSpecDeltas } from '../project-config.js';
+
+export interface ValidatorConfig {
+  strictMode?: boolean;
+  requireSpecDeltas?: RequireSpecDeltas;
+}
+
 export class Validator {
   private strictMode: boolean;
+  private requireSpecDeltas: RequireSpecDeltas;
 
-  constructor(strictMode: boolean = false) {
-    this.strictMode = strictMode;
+  constructor(config: ValidatorConfig = {}) {
+    this.strictMode = config.strictMode ?? false;
+    this.requireSpecDeltas = config.requireSpecDeltas ?? 'error';
   }
 
   async validateSpec(filePath: string): Promise<ValidationReport> {
@@ -267,7 +276,11 @@ export class Validator {
     }
 
     if (totalDeltas === 0) {
-      issues.push({ level: 'ERROR', path: 'file', message: this.enrichTopLevelError('change', VALIDATION_MESSAGES.CHANGE_NO_DELTAS) });
+      if (this.requireSpecDeltas === 'error') {
+        issues.push({ level: 'ERROR', path: 'file', message: this.enrichTopLevelError('change', VALIDATION_MESSAGES.CHANGE_NO_DELTAS) });
+      } else if (this.requireSpecDeltas === 'warn') {
+        issues.push({ level: 'WARNING', path: 'file', message: VALIDATION_MESSAGES.CHANGE_NO_DELTAS_ALLOWED });
+      }
     }
 
     return this.createReport(issues);
