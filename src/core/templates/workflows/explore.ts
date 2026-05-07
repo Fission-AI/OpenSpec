@@ -53,21 +53,28 @@ Depending on what the user brings, you might:
 
 **Visualize**
 \`\`\`
-┌─────────────────────────────────────────┐
-│     Use ASCII diagrams liberally        │
-├─────────────────────────────────────────┤
-│                                         │
-│      ┌────────┐         ┌────────┐      │
-│      │ State  │────────▶│ State  │      │
-│      │   A    │         │   B    │      │
-│      └────────┘         └────────┘      │
-│                                         │
-│   System diagrams, state machines,      │
-│   data flows, architecture sketches,    │
-│   dependency graphs, comparison tables  │
-│                                         │
-└─────────────────────────────────────────┘
++------------------------------------------+
+|     Use ASCII diagrams liberally         |
++------------------------------------------+
+|                                          |
+|   [State A] -------> [State B]           |
+|       |                                  |
+|       v                                  |
+|   [State C]                              |
+|                                          |
+|   System diagrams, state machines,       |
+|   data flows, architecture sketches,     |
+|   dependency graphs, comparison tables   |
+|                                          |
++------------------------------------------+
 \`\`\`
+
+**Important — use plain ASCII for all diagram characters:**
+- Box borders: \`+\`, \`-\`, \`|\` instead of \`┌\`, \`─\`, \`│\`
+- Arrows: \`-->\`, \`<--\`, \`^\`, \`v\` instead of \`→\`, \`←\`, \`↑\`, \`↓\`
+- Connections: \`|\` instead of \`│\`
+
+Unicode box-drawing and arrow characters (→, ←, ─, │, ┌, etc.) are "Ambiguous Width" in the Unicode standard — they render as double-width columns in many terminal configurations. Inside fixed-width padded boxes this causes the right border to appear misaligned or detached, since lines with different numbers of these characters end up at different visual widths.
 
 **Surface risks and unknowns**
 - Identify what could go wrong
@@ -153,17 +160,17 @@ User: I'm thinking about adding real-time collaboration
 You: Real-time collab is a big space. Let me think about this...
 
       COLLABORATION SPECTRUM
-      ════════════════════════════════════════════
+      ============================================
 
       Awareness          Coordination         Sync
-          │                   │                 │
-          ▼                   ▼                 ▼
-      ┌────────┐         ┌────────┐        ┌────────┐
-      │Presence│         │Cursors │        │  CRDT  │
-      │  "3    │         │ Multi  │        │Conflict│
-      │online" │         │ select │        │  free  │
-      └────────┘         └────────┘        └────────┘
-          │                   │                 │
+          |                   |                 |
+          v                   v                 v
+      +--------+         +--------+        +--------+
+      |Presence|         |Cursors |        |  CRDT  |
+      |  "3    |         | Multi  |        |Conflict|
+      |online" |         | select |        |  free  |
+      +--------+         +--------+        +--------+
+          |                   |                 |
        trivial            moderate           complex
 
       Where's your head at?
@@ -175,27 +182,27 @@ User: The auth system is a mess
 
 You: [reads codebase]
 
-     ┌─────────────────────────────────────────────┐
-     │              CURRENT AUTH FLOW              │
-     └─────────────────────────────────────────────┘
-                        │
-          ┌─────────────┼─────────────┐
-          ▼             ▼             ▼
-     ┌─────────┐  ┌─────────┐  ┌─────────┐
-     │ Google  │  │  GitHub │  │  Email  │
-     │  OAuth  │  │  OAuth  │  │  Magic  │
-     └────┬────┘  └────┬────┘  └────┬────┘
-          │             │             │
-          └─────────────┼─────────────┘
-                        ▼
-                  ┌───────────┐
-                  │  Session  │
-                  └─────┬─────┘
-                        │
-                        ▼
-                  ┌───────────┐
-                  │   Perms   │
-                  └───────────┘
+     +---------------------------------------------+
+     |              CURRENT AUTH FLOW              |
+     +---------------------------------------------+
+                        |
+          +-------------+-------------+
+          v             v             v
+     +---------+  +---------+  +---------+
+     | Google  |  |  GitHub |  |  Email  |
+     |  OAuth  |  |  OAuth  |  |  Magic  |
+     +----+----+  +----+----+  +----+----+
+          |             |             |
+          +-------------+-------------+
+                        v
+                  +-----------+
+                  |  Session  |
+                  +-----+-----+
+                        |
+                        v
+                  +-----------+
+                  |   Perms   |
+                  +-----------+
 
      I see three tangles. Which one's burning?
 \`\`\`
@@ -227,9 +234,9 @@ User: A CLI tool that tracks local dev environments
 
 You: That changes everything.
 
-     ┌─────────────────────────────────────────────────┐
-     │          CLI TOOL DATA STORAGE                  │
-     └─────────────────────────────────────────────────┘
+     +-------------------------------------------------+
+     |          CLI TOOL DATA STORAGE                  |
+     +-------------------------------------------------+
 
      Key constraints:
      • No daemon running
@@ -349,21 +356,28 @@ Depending on what the user brings, you might:
 
 **Visualize**
 \`\`\`
-┌─────────────────────────────────────────┐
-│     Use ASCII diagrams liberally        │
-├─────────────────────────────────────────┤
-│                                         │
-│      ┌────────┐         ┌────────┐      │
-│      │ State  │────────▶│ State  │      │
-│      │   A    │         │   B    │      │
-│      └────────┘         └────────┘      │
-│                                         │
-│   System diagrams, state machines,      │
-│   data flows, architecture sketches,    │
-│   dependency graphs, comparison tables  │
-│                                         │
-└─────────────────────────────────────────┘
++------------------------------------------+
+|     Use ASCII diagrams liberally         |
++------------------------------------------+
+|                                          |
+|   [State A] -------> [State B]           |
+|       |                                  |
+|       v                                  |
+|   [State C]                              |
+|                                          |
+|   System diagrams, state machines,       |
+|   data flows, architecture sketches,     |
+|   dependency graphs, comparison tables   |
+|                                          |
++------------------------------------------+
 \`\`\`
+
+**Important — use plain ASCII for all diagram characters:**
+- Box borders: \`+\`, \`-\`, \`|\` instead of \`┌\`, \`─\`, \`│\`
+- Arrows: \`-->\`, \`<--\`, \`^\`, \`v\` instead of \`→\`, \`←\`, \`↑\`, \`↓\`
+- Connections: \`|\` instead of \`│\`
+
+Unicode box-drawing and arrow characters (→, ←, ─, │, ┌, etc.) are "Ambiguous Width" in the Unicode standard — they render as double-width columns in many terminal configurations. Inside fixed-width padded boxes this causes the right border to appear misaligned or detached, since lines with different numbers of these characters end up at different visual widths.
 
 **Surface risks and unknowns**
 - Identify what could go wrong
