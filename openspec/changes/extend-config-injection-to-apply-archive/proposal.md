@@ -12,6 +12,20 @@ We should reuse the existing config model so project-level guidance stays availa
 - Preserve the current archive command safety checks and prompts; this change is about instruction surfaces, not new archive command enforcement semantics.
 - Do not expand this change to `verify` or `sync`; this proposal only covers `apply` and `archive`.
 
+### Config Structure
+
+- Continue using the existing top-level `context` field, and inject that project context into `apply` and `archive` instruction surfaces in addition to artifact instructions.
+- Reserve `rules.apply` for workflow guidance injected into `/opsx:apply` instructions.
+- Reserve `rules.archive` for workflow guidance injected into `/opsx:archive` instructions.
+- Keep existing artifact keys such as `rules.specs`, `rules.design`, and `rules.tasks` unchanged for backward compatibility.
+
+### Validation and Error Handling
+
+- Extend config validation so reserved workflow targets are accepted alongside artifact keys.
+- Keep malformed or unknown rule targets as validation errors with actionable messages so users can correct `openspec/config.yaml` before running workflow instructions.
+- Apply artifact rules only to matching artifact instructions, and apply workflow rules only to their corresponding workflow instruction surfaces.
+- Surface validation failures to callers of apply/archive instruction generation and cover those cases with unit and integration tests.
+
 ## Capabilities
 
 ### New Capabilities
@@ -28,4 +42,5 @@ We should reuse the existing config model so project-level guidance stays availa
 - `src/core/project-config.ts` and related validation will need to recognize workflow targets while remaining backward compatible for artifact keys.
 - `src/commands/workflow/instructions.ts` and related types will need to surface injected context/rules for apply instructions.
 - Archive workflow templates and supporting generation paths will need to consume injected context/rules for `/opsx:archive` guidance.
-- `src/core/config-prompts.ts`, config docs, and relevant specs/tests will need updates so the documented behavior matches the new instruction surfaces.
+- `src/core/config-prompts.ts`, `docs/opsx.md`, config examples, and relevant specs/tests will need updates so the documented behavior matches the new instruction surfaces.
+- User-facing docs should include examples showing `rules.apply` and `rules.archive` alongside existing artifact rules, plus migration guidance for teams deciding when to keep artifact-specific guidance versus move workflow guidance into phase-specific targets.
