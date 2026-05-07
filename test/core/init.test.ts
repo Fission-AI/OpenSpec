@@ -192,6 +192,71 @@ describe('InitCommand', () => {
       ).toBe(true);
     });
 
+    it('should support DeepSeek TUI as an adapterless skills-only tool', async () => {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'both',
+      });
+
+      const initCommand = new InitCommand({ tools: 'deepseek', force: true });
+      await initCommand.execute(testDir);
+
+      const skillFile = path.join(testDir, '.deepseek', 'skills', 'openspec-explore', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
+
+      const commandsDir = path.join(testDir, '.deepseek', 'commands');
+      expect(await directoryExists(commandsDir)).toBe(false);
+
+      const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+      expect(
+        logCalls.some(
+          (entry) => entry.includes('Commands skipped for: deepseek') && entry.includes('(no adapter)'),
+        ),
+      ).toBe(true);
+    });
+
+    it.each([
+      { tool: 'cursor', skillsDir: '.cursor', commandPath: ['.cursor', 'commands', 'opsx-explore.md'], hasCommands: true },
+      { tool: 'kimi', skillsDir: '.kimi', commandPath: ['.kimi', 'commands'], hasCommands: false },
+      { tool: 'deepseek', skillsDir: '.deepseek', commandPath: ['.deepseek', 'commands'], hasCommands: false },
+    ])(
+      'should keep init parity semantics for $tool',
+      async ({ tool, skillsDir, commandPath, hasCommands }) => {
+        const initCommand = new InitCommand({ tools: tool, force: true });
+        await initCommand.execute(testDir);
+
+        const skillFile = path.join(testDir, skillsDir, 'skills', 'openspec-explore', 'SKILL.md');
+        expect(await fileExists(skillFile)).toBe(true);
+
+        const commandTarget = path.join(testDir, ...commandPath);
+        if (hasCommands) {
+          expect(await fileExists(commandTarget)).toBe(true);
+        } else {
+          expect(await directoryExists(commandTarget)).toBe(false);
+        }
+      },
+    );
+
+    it('should not apply OpenCode/Pi command transforms to DeepSeek skills', async () => {
+      const initCommand = new InitCommand({ tools: 'claude,deepseek', force: true });
+      await initCommand.execute(testDir);
+
+      const claudeSkill = await fs.readFile(
+        path.join(testDir, '.claude', 'skills', 'openspec-propose', 'SKILL.md'),
+        'utf-8',
+      );
+      const deepseekSkill = await fs.readFile(
+        path.join(testDir, '.deepseek', 'skills', 'openspec-propose', 'SKILL.md'),
+        'utf-8',
+      );
+
+      // DeepSeek should share the standard skill template output (same as Claude)
+      // and must not receive tool-specific command transforms used by OpenCode/Pi.
+      expect(deepseekSkill).toBe(claudeSkill);
+      expect(deepseekSkill).toContain('/opsx:apply');
+    });
+
     it('should create skills for multiple tools at once', async () => {
       const initCommand = new InitCommand({ tools: 'claude,cursor', force: true });
 

@@ -48,6 +48,7 @@ describe('tool-detection', () => {
       const tools = getToolsWithSkillsDir();
       expect(tools).toContain('claude');
       expect(tools).toContain('cursor');
+      expect(tools).toContain('deepseek');
       expect(tools).toContain('windsurf');
       expect(tools.length).toBeGreaterThan(0);
     });
