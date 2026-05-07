@@ -23,6 +23,7 @@ For workflow patterns and when to use each command, see [Workflows](workflows.md
 | `/opsx:new` | Start a new change scaffold |
 | `/opsx:continue` | Create the next artifact based on dependencies |
 | `/opsx:ff` | Fast-forward: create all planning artifacts at once |
+| `/opsx:refine` | Review artifact quality and cross-artifact consistency |
 | `/opsx:verify` | Validate implementation matches artifacts |
 | `/opsx:bulk-archive` | Archive multiple changes at once |
 | `/opsx:onboard` | Guided tutorial through the complete workflow |
@@ -312,6 +313,64 @@ AI:  Implementing add-dark-mode...
 - Can resume where you left off if interrupted
 - Use for parallel changes by specifying the change name
 - Completion state is tracked in `tasks.md` checkboxes
+
+---
+
+### `/opsx:refine`
+
+Review and refine change artifacts for cross-artifact consistency, best-practice alignment, and implementation readiness. Uses a scratchpad file to track issues per change.
+
+**Syntax:**
+```text
+/opsx:refine [change-name]
+```
+
+**Arguments:**
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `change-name` | No | Which change to refine (prompted if not provided) |
+
+**What it does:**
+- Cross-checks artifacts against each other (proposal ↔ specs ↔ design ↔ tasks)
+- Validates best practices (acceptance criteria, measurable scenarios, rationale)
+- Creates a prioritized scratchpad (`scratchpad.md`) in the change directory
+- Walks through issues one at a time for user review
+- Commits scratchpad + artifact updates together for convergence traceability
+
+**Example:**
+```text
+You: /opsx:refine add-dark-mode
+
+AI:  Refining add-dark-mode...
+
+     Loading artifacts: proposal.md, specs/, design.md, tasks.md
+
+     Created scratchpad.md with 5 issues:
+     - P0(1): Spec requires "system preference detection" but design has no mention
+     - P1(1): Task 1.3 has no acceptance criteria
+     - P1(2): design.md says CSS variables, tasks reference Tailwind
+     - P2(1): No error state for localStorage unavailable
+     - P2(2): Scenario "first visit" lacks Given/When/Then
+
+     Starting with P0(1)...
+
+     Spec requirement "System Preference Detection" (specs/ui/spec.md:42)
+     has no corresponding section in design.md.
+
+     Proposed fix: Add "System Preference Detection" section to design.md
+     with prefers-color-scheme media query approach.
+
+     Apply this fix?
+```
+
+**Tips:**
+- Run after `/opsx:propose` or `/opsx:ff` and before `/opsx:apply`
+- The scratchpad persists across sessions — resume where you left off
+- Committing the scratchpad with each fix creates a history of how specs converged
+- Works with partial artifacts (graceful degradation)
+
+**Prior art:** Inspired by [@demianmnave's nhc-opsx-refine command](https://github.com/NaveHaus/NhcAgentConfig/blob/main/.opencode/command/nhc-opsx-refine.md) ([#783](https://github.com/Fission-AI/OpenSpec/issues/783)).
 
 ---
 
