@@ -7,6 +7,7 @@
 import ora from 'ora';
 import path from 'path';
 import { createChange, validateChangeName } from '../../utils/change-utils.js';
+import { isGitRepository, createAndCheckoutBranch, getBranchNameForChange } from '../../utils/git-utils.js';
 import { validateSchemaExists } from './shared.js';
 
 // -----------------------------------------------------------------------------
@@ -16,6 +17,7 @@ import { validateSchemaExists } from './shared.js';
 export interface NewChangeOptions {
   description?: string;
   schema?: string;
+  branch?: boolean;
 }
 
 // -----------------------------------------------------------------------------
@@ -54,6 +56,30 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
     }
 
     spinner.succeed(`Created change '${name}' at openspec/changes/${name}/ (schema: ${result.schema})`);
+
+    if (options.branch) {
+      const branchName = getBranchNameForChange(name);
+      const branchSpinner = ora(`Creating branch '${branchName}'...`).start();
+      try {
+        if (!isGitRepository(projectRoot)) {
+          branchSpinner.warn(`Branch not created: '${projectRoot}' is not a git repository`);
+          process.exitCode = 1;
+          return;
+        }
+        createAndCheckoutBranch(projectRoot, branchName);
+        branchSpinner.succeed(`Created and checked out branch '${branchName}'`);
+      } catch (error) {
+        const message = (error as Error).message ?? String(error);
+        if (message.includes('already exists')) {
+          branchSpinner.warn(`Branch '${branchName}' already exists`);
+        } else if (message.includes('not found') || message.includes('ENOENT')) {
+          branchSpinner.warn(`Branch not created: git not found on PATH`);
+        } else {
+          branchSpinner.warn(`Branch not created: ${message}`);
+        }
+        process.exitCode = 1;
+      }
+    }
   } catch (error) {
     spinner.fail(`Failed to create change '${name}'`);
     throw error;
