@@ -209,7 +209,7 @@ Creates all planning artifacts at once. Use when you have a clear picture of wha
 Works through tasks, checking them off as you go. If you're juggling multiple changes, you can run `/opsx:apply <name>`; otherwise it should infer from the conversation and prompt you to choose if it can't tell.
 
 ### Sync delta specs
-```
+```text
 /opsx:sync
 ```
 Merges delta specs from the current change into main specs. Optional—archive will prompt to sync if needed.
