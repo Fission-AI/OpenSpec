@@ -164,7 +164,7 @@ rules:
 | `/opsx:ff` | Fast-forward planning artifacts (expanded workflow) |
 | `/opsx:apply` | Implement tasks, updating artifacts as needed |
 | `/opsx:verify` | Validate implementation against artifacts (expanded workflow) |
-| `/opsx:sync` | Sync delta specs to main (default workflow, optional) |
+| `/opsx:sync` | Merge delta specs into main specs (optional) |
 | `/opsx:archive` | Archive when done |
 | `/opsx:bulk-archive` | Archive multiple completed changes (expanded workflow) |
 | `/opsx:onboard` | Guided walkthrough of an end-to-end change (expanded workflow) |
@@ -207,6 +207,22 @@ Creates all planning artifacts at once. Use when you have a clear picture of wha
 /opsx:apply
 ```
 Works through tasks, checking them off as you go. If you're juggling multiple changes, you can run `/opsx:apply <name>`; otherwise it should infer from the conversation and prompt you to choose if it can't tell.
+
+### Sync delta specs
+```
+/opsx:sync
+```
+Merges delta specs from the current change into main specs. Optional—archive will prompt to sync if needed.
+
+**What it does:**
+- Reads delta specs from change folder
+- Merges changes into main `openspec/specs/` directory
+- Does not archive the change (remains active)
+
+**When to use:**
+- You want to update main specs before archiving
+- Multiple changes need to see each other's specs
+- You're iterating on specs and want to test integration
 
 ### Finish up
 ```
