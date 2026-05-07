@@ -38,6 +38,13 @@ export const ProjectConfigSchema = z.object({
     )
     .optional()
     .describe('Per-artifact rules, keyed by artifact ID'),
+
+  // Optional: whether the project is a monorepo (affects front matter sync behavior)
+  // Set to false to skip monorepo-related prompts (e.g., app label in spec front matter)
+  monorepo: z
+    .boolean()
+    .optional()
+    .describe('Set to false to opt out of monorepo front matter conventions'),
 });
 
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
@@ -149,6 +156,17 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
         }
       } else {
         console.warn(`Invalid 'rules' field in config (must be object)`);
+      }
+    }
+
+    // Parse monorepo field using Zod
+    if (raw.monorepo !== undefined) {
+      const monorepoField = z.boolean();
+      const monorepoResult = monorepoField.safeParse(raw.monorepo);
+      if (monorepoResult.success) {
+        config.monorepo = monorepoResult.data;
+      } else {
+        console.warn(`Invalid 'monorepo' field in config (must be boolean)`);
       }
     }
 

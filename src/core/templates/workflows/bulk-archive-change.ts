@@ -125,6 +125,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - Use the openspec-sync-specs approach (agent-driven intelligent merge)
       - For conflicts, apply in resolved order
       - Track if sync was done
+      - Ensure front matter consistency on newly synced specs (see sync-specs step 3e)
 
    b. **Perform the archive**:
       \`\`\`bash
@@ -372,6 +373,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - Use the openspec-sync-specs approach (agent-driven intelligent merge)
       - For conflicts, apply in resolved order
       - Track if sync was done
+      - Ensure front matter consistency on newly synced specs (see sync-specs step 3e)
 
    b. **Perform the archive**:
       \`\`\`bash
