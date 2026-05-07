@@ -14,6 +14,7 @@ import {
   normalizeRequirementName,
   type RequirementBlock,
 } from './parsers/requirement-blocks.js';
+import { findMainSpecStructureIssues } from './parsers/spec-structure.js';
 import { Validator } from './validation/validator.js';
 
 // -----------------------------------------------------------------------------
@@ -223,6 +224,16 @@ export async function buildUpdatedSpec(
     targetContent = buildSpecSkeleton(specName, changeName);
   }
 
+  const structureIssues = findMainSpecStructureIssues(targetContent);
+  if (structureIssues.length > 0) {
+    const details = structureIssues
+      .map(issue => `line ${issue.line}: ${issue.message}`)
+      .join('\n');
+    throw new Error(
+      `${specName}: target spec is structurally invalid and cannot be updated until fixed:\n${details}`
+    );
+  }
+
   // Extract requirements section and build name->block map
   const parts = extractRequirementsSection(targetContent);
   const nameToBlock = new Map<string, RequirementBlock>();
@@ -276,7 +287,7 @@ export async function buildUpdatedSpec(
       throw new Error(`${specName} MODIFIED failed for header "### Requirement: ${mod.name}" - not found`);
     }
     // Replace block with provided raw (ensure header line matches key)
-    const modHeaderMatch = mod.raw.split('\n')[0].match(/^###\s*Requirement:\s*(.+)\s*$/);
+    const modHeaderMatch = mod.raw.split('\n')[0].match(/^###\s*Requirement:\s*(.+)\s*$/i);
     if (!modHeaderMatch || normalizeRequirementName(modHeaderMatch[1]) !== key) {
       throw new Error(
         `${specName} MODIFIED failed for header "### Requirement: ${mod.name}" - header mismatch in content`

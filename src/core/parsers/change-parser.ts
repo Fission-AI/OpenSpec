@@ -179,17 +179,21 @@ export class ChangeParser extends MarkdownParser {
   private parseSectionsFromContent(content: string): Section[] {
     const normalizedContent = ChangeParser.normalizeContent(content);
     const lines = normalizedContent.split('\n');
+    const codeFenceLineMask = ChangeParser.buildCodeFenceMask(lines);
     const sections: Section[] = [];
     const stack: Section[] = [];
     
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
+      if (codeFenceLineMask[i]) {
+        continue;
+      }
       const headerMatch = line.match(/^(#{1,6})\s+(.+)$/);
       
       if (headerMatch) {
         const level = headerMatch[1].length;
         const title = headerMatch[2].trim();
-        const contentLines = this.getContentUntilNextHeaderFromLines(lines, i + 1, level);
+        const contentLines = this.getContentUntilNextHeaderFromLines(lines, codeFenceLineMask, i + 1, level);
         
         const section = {
           level,
@@ -215,12 +219,17 @@ export class ChangeParser extends MarkdownParser {
     return sections;
   }
 
-  private getContentUntilNextHeaderFromLines(lines: string[], startLine: number, currentLevel: number): string[] {
+  private getContentUntilNextHeaderFromLines(
+    lines: string[],
+    codeFenceLineMask: boolean[],
+    startLine: number,
+    currentLevel: number
+  ): string[] {
     const contentLines: string[] = [];
     
     for (let i = startLine; i < lines.length; i++) {
       const line = lines[i];
-      const headerMatch = line.match(/^(#{1,6})\s+/);
+      const headerMatch = codeFenceLineMask[i] ? null : line.match(/^(#{1,6})\s+/);
       
       if (headerMatch && headerMatch[1].length <= currentLevel) {
         break;

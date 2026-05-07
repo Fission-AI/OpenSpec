@@ -477,21 +477,21 @@ This same rhythm works for any size change—a small fix or a major feature.
 
 **Core workflow:**
 
-| Command | What it does |
-|---------|--------------|
-| \`/opsx:propose\` | Create a change and generate all artifacts |
-| \`/opsx:explore\` | Think through problems before/during work |
-| \`/opsx:apply\` | Implement tasks from a change |
-| \`/opsx:archive\` | Archive a completed change |
+ | Command           | What it does                               |
+ |-------------------|--------------------------------------------|
+ | \`/opsx:propose\` | Create a change and generate all artifacts |
+ | \`/opsx:explore\` | Think through problems before/during work  |
+ | \`/opsx:apply\`   | Implement tasks from a change              |
+ | \`/opsx:archive\` | Archive a completed change                 |
 
 **Additional commands:**
 
-| Command | What it does |
-|---------|--------------|
-| \`/opsx:new\` | Start a new change, step through artifacts one at a time |
-| \`/opsx:continue\` | Continue working on an existing change |
-| \`/opsx:ff\` | Fast-forward: create all artifacts at once |
-| \`/opsx:verify\` | Verify implementation matches artifacts |
+ | Command            | What it does                                             |
+ |--------------------|----------------------------------------------------------|
+ | \`/opsx:new\`      | Start a new change, step through artifacts one at a time |
+ | \`/opsx:continue\` | Continue working on an existing change                   |
+ | \`/opsx:ff\`       | Fast-forward: create all artifacts at once               |
+ | \`/opsx:verify\`   | Verify implementation matches artifacts                  |
 
 ---
 
@@ -529,21 +529,21 @@ If the user says they just want to see the commands or skip the tutorial:
 
 **Core workflow:**
 
-| Command | What it does |
-|---------|--------------|
-| \`/opsx:propose <name>\` | Create a change and generate all artifacts |
-| \`/opsx:explore\` | Think through problems (no code changes) |
-| \`/opsx:apply <name>\` | Implement tasks |
-| \`/opsx:archive <name>\` | Archive when done |
+ | Command                  | What it does                               |
+ |--------------------------|--------------------------------------------|
+ | \`/opsx:propose <name>\` | Create a change and generate all artifacts |
+ | \`/opsx:explore\`        | Think through problems (no code changes)   |
+ | \`/opsx:apply <name>\`   | Implement tasks                            |
+ | \`/opsx:archive <name>\` | Archive when done                          |
 
 **Additional commands:**
 
-| Command | What it does |
-|---------|--------------|
-| \`/opsx:new <name>\` | Start a new change, step by step |
-| \`/opsx:continue <name>\` | Continue an existing change |
-| \`/opsx:ff <name>\` | Fast-forward: all artifacts at once |
-| \`/opsx:verify <name>\` | Verify implementation |
+ | Command                   | What it does                        |
+ |---------------------------|-------------------------------------|
+ | \`/opsx:new <name>\`      | Start a new change, step by step    |
+ | \`/opsx:continue <name>\` | Continue an existing change         |
+ | \`/opsx:ff <name>\`       | Fast-forward: all artifacts at once |
+ | \`/opsx:verify <name>\`   | Verify implementation               |
 
 Try \`/opsx:propose\` to start your first change.
 \`\`\`

@@ -20,6 +20,9 @@ importers:
       commander:
         specifier: ^14.0.0
         version: 14.0.0
+      cross-spawn:
+        specifier: 7.0.6
+        version: 7.0.6
       fast-glob:
         specifier: ^3.3.3
         version: 3.3.3

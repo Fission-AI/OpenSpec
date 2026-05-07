@@ -544,6 +544,173 @@ Register-ArgumentCompleter -CommandName openspec -ScriptBlock $openspecCompleter
     });
   });
 
+  describe('encoding preservation', () => {
+    const mockScriptPath = '/path/to/OpenSpecCompletion.ps1';
+    const utf16leBom = Buffer.from([0xff, 0xfe]);
+    const utf8Bom = Buffer.from([0xef, 0xbb, 0xbf]);
+
+    /**
+     * Helper: write a file in UTF-16 LE with BOM, the way Windows PowerShell does.
+     */
+    function writeUtf16LeFile(filePath: string, text: string): Promise<void> {
+      const body = Buffer.from(text, 'utf16le');
+      return fs.writeFile(filePath, Buffer.concat([utf16leBom, body]));
+    }
+
+    /**
+     * Helper: write a file in UTF-8 with BOM.
+     */
+    function writeUtf8BomFile(filePath: string, text: string): Promise<void> {
+      const body = Buffer.from(text, 'utf-8');
+      return fs.writeFile(filePath, Buffer.concat([utf8Bom, body]));
+    }
+
+    it('should preserve UTF-16 LE BOM when configuring profile', async () => {
+      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      const profilePath = installer.getProfilePath();
+      await fs.mkdir(path.dirname(profilePath), { recursive: true });
+
+      const originalText = '. "C:\\Code\\SystemConfig\\Powershell\\profile.ps1"\r\n';
+      await writeUtf16LeFile(profilePath, originalText);
+
+      const result = await installer.configureProfile(mockScriptPath);
+      expect(result).toBe(true);
+
+      // Read back raw bytes and verify BOM is preserved
+      const raw = await fs.readFile(profilePath);
+      expect(raw[0]).toBe(0xff);
+      expect(raw[1]).toBe(0xfe);
+
+      // Decode and verify content is intact
+      const content = raw.subarray(2).toString('utf16le');
+      expect(content).toContain('. "C:\\Code\\SystemConfig\\Powershell\\profile.ps1"');
+      expect(content).toContain('# OPENSPEC:START');
+      expect(content).toContain(`. "${mockScriptPath}"`);
+      expect(content).toContain('# OPENSPEC:END');
+    });
+
+    it('should preserve UTF-16 LE BOM when removing profile config', async () => {
+      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      const profilePath = installer.getProfilePath();
+      await fs.mkdir(path.dirname(profilePath), { recursive: true });
+
+      const textWithBlock = [
+        '. "C:\\Code\\profile.ps1"',
+        '# OPENSPEC:START',
+        '. "/path/to/OpenSpecCompletion.ps1"',
+        '# OPENSPEC:END',
+        '',
+      ].join('\n');
+      await writeUtf16LeFile(profilePath, textWithBlock);
+
+      const result = await installer.removeProfileConfig();
+      expect(result).toBe(true);
+
+      // Verify BOM is preserved
+      const raw = await fs.readFile(profilePath);
+      expect(raw[0]).toBe(0xff);
+      expect(raw[1]).toBe(0xfe);
+
+      // Verify content: original line kept, OpenSpec block removed
+      const content = raw.subarray(2).toString('utf16le');
+      expect(content).toContain('. "C:\\Code\\profile.ps1"');
+      expect(content).not.toContain('# OPENSPEC:START');
+      expect(content).not.toContain('# OPENSPEC:END');
+    });
+
+    it('should preserve UTF-8 BOM when configuring profile', async () => {
+      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      const profilePath = installer.getProfilePath();
+      await fs.mkdir(path.dirname(profilePath), { recursive: true });
+
+      await writeUtf8BomFile(profilePath, '# My profile\n');
+
+      const result = await installer.configureProfile(mockScriptPath);
+      expect(result).toBe(true);
+
+      const raw = await fs.readFile(profilePath);
+      expect(raw[0]).toBe(0xef);
+      expect(raw[1]).toBe(0xbb);
+      expect(raw[2]).toBe(0xbf);
+
+      const content = raw.subarray(3).toString('utf-8');
+      expect(content).toContain('# My profile');
+      expect(content).toContain('# OPENSPEC:START');
+    });
+
+    it('should skip UTF-16 BE profile and leave it unchanged', async () => {
+      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      process.env.PROFILE = path.join(testHomeDir, 'custom-profile.ps1');
+      const profilePath = installer.getProfilePath();
+      await fs.mkdir(path.dirname(profilePath), { recursive: true });
+
+      // Write a fake UTF-16 BE file (FE FF BOM + some bytes)
+      const utf16beBom = Buffer.from([0xfe, 0xff]);
+      const body = Buffer.from([0x00, 0x23]); // '#' in UTF-16 BE
+      const originalBytes = Buffer.concat([utf16beBom, body]);
+      await fs.writeFile(profilePath, originalBytes);
+
+      const result = await installer.configureProfile(mockScriptPath);
+      expect(result).toBe(false);
+
+      // File should be untouched
+      const raw = await fs.readFile(profilePath);
+      expect(Buffer.compare(raw, originalBytes)).toBe(0);
+    });
+
+    it('should handle plain UTF-8 files without BOM (no regression)', async () => {
+      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      const profilePath = installer.getProfilePath();
+      await fs.mkdir(path.dirname(profilePath), { recursive: true });
+
+      await fs.writeFile(profilePath, '# Plain UTF-8\n', 'utf-8');
+
+      const result = await installer.configureProfile(mockScriptPath);
+      expect(result).toBe(true);
+
+      const raw = await fs.readFile(profilePath);
+      // Should NOT have any BOM
+      expect(raw[0]).not.toBe(0xff);
+      expect(raw[0]).not.toBe(0xfe);
+      expect(raw[0]).not.toBe(0xef);
+
+      const content = raw.toString('utf-8');
+      expect(content).toContain('# Plain UTF-8');
+      expect(content).toContain('# OPENSPEC:START');
+    });
+
+    it('should round-trip UTF-16 LE through install → uninstall without corruption', async () => {
+      delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      const profilePath = installer.getProfilePath();
+      await fs.mkdir(path.dirname(profilePath), { recursive: true });
+
+      const originalText = '. "C:\\Code\\SystemConfig\\Powershell\\profile.ps1"\r\n';
+      await writeUtf16LeFile(profilePath, originalText);
+
+      // Install adds the OpenSpec block
+      const mockScript = '# completion script';
+      await installer.install(mockScript);
+
+      // Verify the profile was modified but encoding preserved
+      let raw = await fs.readFile(profilePath);
+      expect(raw[0]).toBe(0xff);
+      expect(raw[1]).toBe(0xfe);
+      let content = raw.subarray(2).toString('utf16le');
+      expect(content).toContain('# OPENSPEC:START');
+      expect(content).toContain(originalText.trimEnd());
+
+      // Uninstall removes the OpenSpec block
+      await installer.uninstall();
+
+      raw = await fs.readFile(profilePath);
+      expect(raw[0]).toBe(0xff);
+      expect(raw[1]).toBe(0xfe);
+      content = raw.subarray(2).toString('utf16le');
+      expect(content).not.toContain('# OPENSPEC:START');
+      expect(content).toContain('. "C:\\Code\\SystemConfig\\Powershell\\profile.ps1"');
+    });
+  });
+
   describe('uninstall', () => {
     const mockCompletionScript = `# PowerShell completion script
 $openspecCompleter = {}

@@ -537,8 +537,8 @@ export class InitCommand {
             const skillFile = path.join(skillDir, 'SKILL.md');
 
             // Generate SKILL.md content with YAML frontmatter including generatedBy
-            // Use hyphen-based command references for OpenCode
-            const transformer = tool.value === 'opencode' ? transformToHyphenCommands : undefined;
+            // Use hyphen-based command references for tools where filename = command name
+            const transformer = (tool.value === 'opencode' || tool.value === 'pi') ? transformToHyphenCommands : undefined;
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
 
             // Write the skill file

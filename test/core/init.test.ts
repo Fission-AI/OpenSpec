@@ -82,11 +82,12 @@ describe('InitCommand', () => {
 
       await initCommand.execute(testDir);
 
-      // Core profile: propose, explore, apply, archive
+      // Core profile: propose, explore, apply, sync, archive
       const coreSkillNames = [
         'openspec-propose',
         'openspec-explore',
         'openspec-apply-change',
+        'openspec-sync-specs',
         'openspec-archive-change',
       ];
 
@@ -105,7 +106,6 @@ describe('InitCommand', () => {
         'openspec-new-change',
         'openspec-continue-change',
         'openspec-ff-change',
-        'openspec-sync-specs',
         'openspec-bulk-archive-change',
         'openspec-verify-change',
       ];
@@ -121,11 +121,12 @@ describe('InitCommand', () => {
 
       await initCommand.execute(testDir);
 
-      // Core profile: propose, explore, apply, archive
+      // Core profile: propose, explore, apply, sync, archive
       const coreCommandNames = [
         'opsx/propose.md',
         'opsx/explore.md',
         'opsx/apply.md',
+        'opsx/sync.md',
         'opsx/archive.md',
       ];
 
@@ -139,7 +140,6 @@ describe('InitCommand', () => {
         'opsx/new.md',
         'opsx/continue.md',
         'opsx/ff.md',
-        'opsx/sync.md',
         'opsx/bulk-archive.md',
         'opsx/verify.md',
       ];
@@ -166,6 +166,30 @@ describe('InitCommand', () => {
 
       const skillFile = path.join(testDir, '.windsurf', 'skills', 'openspec-explore', 'SKILL.md');
       expect(await fileExists(skillFile)).toBe(true);
+    });
+
+    it('should support Kimi CLI as an adapterless skills-only tool', async () => {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'both',
+      });
+
+      const initCommand = new InitCommand({ tools: 'kimi', force: true });
+      await initCommand.execute(testDir);
+
+      const skillFile = path.join(testDir, '.kimi', 'skills', 'openspec-explore', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
+
+      const commandsDir = path.join(testDir, '.kimi', 'commands');
+      expect(await directoryExists(commandsDir)).toBe(false);
+
+      const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+      expect(
+        logCalls.some(
+          (entry) => entry.includes('Commands skipped for: kimi') && entry.includes('(no adapter)'),
+        ),
+      ).toBe(true);
     });
 
     it('should create skills for multiple tools at once', async () => {
@@ -565,6 +589,7 @@ describe('InitCommand - profile and detection features', () => {
 
     // Directory detected only (not configured with OpenSpec)
     await fs.mkdir(path.join(testDir, '.github'), { recursive: true });
+    await fs.writeFile(path.join(testDir, '.github', 'copilot-instructions.md'), '');
 
     searchableMultiSelectMock.mockResolvedValue(['claude']);
 
@@ -587,6 +612,7 @@ describe('InitCommand - profile and detection features', () => {
   it('should preselect detected tools for first-time interactive setup', async () => {
     // First-time init: no openspec/ directory and no configured OpenSpec skills.
     await fs.mkdir(path.join(testDir, '.github'), { recursive: true });
+    await fs.writeFile(path.join(testDir, '.github', 'copilot-instructions.md'), '');
 
     searchableMultiSelectMock.mockResolvedValue(['github-copilot']);
 

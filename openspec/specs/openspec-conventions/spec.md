@@ -245,6 +245,34 @@ OpenSpec CLI design SHALL use verbs as top-level commands with nouns provided as
 - **THEN** `openspec show` and `openspec validate` SHALL accept `--type spec|change`
 - **AND** the help text SHALL document this clearly
 
+### Requirement: Workspace Product Language
+OpenSpec conventions SHALL describe coordination workspaces in user-facing product terms.
+
+#### Scenario: Describing workspace structure
+- **WHEN** OpenSpec documentation describes workspace support
+- **THEN** it SHALL present a workspace as the planning home for work across linked repos or folders
+- **AND** it SHALL describe `changes/` as the workspace planning area
+
+#### Scenario: Avoiding internal workspace vocabulary
+- **WHEN** OpenSpec documentation explains what a workspace includes
+- **THEN** it SHALL prefer plain product language such as "repos or folders"
+- **AND** it SHALL avoid user-facing reliance on terms such as "working set", "code area", "entry", "alias", or "local overlay"
+
+#### Scenario: Distinguishing workspaces from changes
+- **WHEN** OpenSpec documentation explains workspace planning
+- **THEN** it SHALL describe a workspace as a durable planning home
+- **AND** it SHALL describe individual features, fixes, and projects as changes inside the workspace
+
+#### Scenario: Distinguishing workspace and repo-local surfaces
+- **WHEN** OpenSpec documentation compares workspace and repo-local flows
+- **THEN** it SHALL explain that workspace planning lives in the workspace folder
+- **AND** it SHALL explain that repo-local specs and changes continue to live under each repo's `openspec/` directory
+
+#### Scenario: Sequencing the workspace roadmap
+- **WHEN** workspace reimplementation work is split across multiple active changes
+- **THEN** conventions SHALL allow those changes to remain flat siblings under `openspec/changes/`
+- **AND** dependency order MAY be documented in proposal prose until formal change stacking metadata is available
+
 ## Core Principles
 
 The system SHALL follow these principles:
@@ -255,7 +283,7 @@ The system SHALL follow these principles:
 
 ## Directory Structure
 
-### Requirement: Project Structure
+### Project Structure
 
 An OpenSpec project SHALL maintain a consistent directory structure for specifications and changes.
 
@@ -285,7 +313,7 @@ openspec/
 
 ## Specification Format
 
-### Requirement: Structured Format for Behavioral Specs
+### Behavioral Spec Format
 
 Behavioral specifications SHALL use a structured format with consistent section headers and keywords to ensure visual consistency and parseability.
 
@@ -316,7 +344,7 @@ Behavioral specifications SHALL use a structured format with consistent section 
 
 ## Change Storage Convention
 
-### Requirement: Header-Based Requirement Identification
+### Header-Based Requirement Identification
 
 Requirement headers SHALL serve as unique identifiers for programmatic matching between current specs and proposed changes.
 
@@ -345,7 +373,7 @@ Requirement headers SHALL serve as unique identifiers for programmatic matching 
 - **THEN** ensure no duplicate headers exist within a spec
 - **AND** validation tools SHALL flag duplicate headers as errors
 
-### Requirement: Change Storage Convention
+### Change Storage Convention
 
 Change proposals SHALL store only the additions, modifications, and removals to specifications, not complete future states.
 
@@ -388,7 +416,7 @@ The `changes/[name]/specs/` directory SHALL contain:
   - `-` for REMOVED (red)
   - `→` for RENAMED (cyan)
 
-### Requirement: Archive Process Enhancement
+### Archive Process Enhancement
 
 The archive process SHALL programmatically apply delta changes to current specifications using header-based matching.
 
@@ -411,7 +439,7 @@ The archive process SHALL programmatically apply delta changes to current specif
 - **AND** require manual resolution before proceeding
 - **AND** provide clear guidance on resolving conflicts
 
-### Requirement: Proposal Format
+### Proposal Format
 
 Proposals SHALL explicitly document all changes with clear from/to comparisons.
 
@@ -444,7 +472,7 @@ The change process SHALL follow these states:
 
 ## Viewing Changes
 
-### Requirement: Change Review
+### Change Review
 
 The system SHALL support multiple methods for reviewing proposed changes.
 

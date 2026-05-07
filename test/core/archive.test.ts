@@ -561,6 +561,68 @@ new text
       await expect(fs.access(changeDir)).resolves.not.toThrow();
     });
 
+    it('should abort with a structural error when target spec hides requirements outside ## Requirements', async () => {
+      const changeName = 'hidden-requirement-target';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'delta-target');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'delta-target');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const malformedMain = `# delta-target Specification
+
+## Purpose
+Delta target purpose.
+
+## Requirements
+
+### Requirement: A
+The system SHALL do A.
+
+#### Scenario: A works
+- **WHEN** foo
+- **THEN** bar
+
+## Edge Cases
+
+### Requirement: B
+The system SHALL do B.
+
+#### Scenario: B works
+- **WHEN** baz
+- **THEN** qux`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), malformedMain);
+
+      const deltaContent = `# Delta Target Changes
+
+## MODIFIED Requirements
+
+### Requirement: B
+The system SHALL do B differently.
+
+#### Scenario: B changes
+- **WHEN** baz changes
+- **THEN** qux changes`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('delta-target: target spec is structurally invalid and cannot be updated until fixed:')
+      );
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('Requirement header "### Requirement: B" appears outside the main ## Requirements section.')
+      );
+      expect(console.log).toHaveBeenCalledWith('Aborted. No files were changed.');
+
+      const still = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      expect(still).toBe(malformedMain);
+
+      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archives = await fs.readdir(archiveDir);
+      expect(archives.some(a => a.includes(changeName))).toBe(false);
+    });
+
     it('should require MODIFIED to reference the NEW header when a rename exists (error format)', async () => {
       const changeName = 'rename-modify-new-header';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);

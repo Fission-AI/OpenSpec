@@ -102,6 +102,70 @@ This is a test spec`;
       const parser = new MarkdownParser(content);
       expect(() => parser.parseSpec('test')).toThrow('must have a Requirements section');
     });
+
+    it('should ignore headings that appear inside fenced code blocks', () => {
+      const content = `# Test Spec
+
+## Purpose
+This spec documents delta syntax with a fenced example.
+
+## Requirements
+
+### Requirement: Explain delta syntax
+The system SHALL allow quoted markdown examples without changing parsed structure.
+
+\`\`\`markdown
+## ADDED Requirements
+
+### Requirement: Example
+The system SHALL ...
+\`\`\`
+
+#### Scenario: reader follows the example
+- **WHEN** a reader reviews the documentation
+- **THEN** the fenced heading stays part of the example`;
+
+      const parser = new MarkdownParser(content);
+      const spec = parser.parseSpec('test');
+
+      expect(spec.requirements).toHaveLength(1);
+      expect(spec.requirements[0].text).toBe(
+        'The system SHALL allow quoted markdown examples without changing parsed structure.'
+      );
+      expect(spec.requirements[0].scenarios).toHaveLength(1);
+      expect(spec.requirements[0].scenarios[0].rawText).toContain('- **WHEN** a reader reviews the documentation');
+    });
+
+    it('should not treat fence-like lines with trailing content as closing fences', () => {
+      const content = `# Test Spec
+
+## Purpose
+This spec includes a fence-like line with trailing content inside a fenced block.
+
+## Requirements
+
+### Requirement: Explain fence parsing
+The system SHALL keep fenced examples isolated until a real closing fence appears.
+
+\`\`\`markdown
+\`\`\` still inside the example
+## ADDED Requirements
+
+### Requirement: Example
+The system SHALL remain part of the example.
+\`\`\`
+
+#### Scenario: reader follows the example
+- **WHEN** a reader reviews the documentation
+- **THEN** the parser ignores headings until the real closing fence`;
+
+      const parser = new MarkdownParser(content);
+      const spec = parser.parseSpec('test');
+
+      expect(spec.requirements).toHaveLength(1);
+      expect(spec.requirements[0].scenarios).toHaveLength(1);
+      expect(spec.requirements[0].scenarios[0].rawText).toContain('parser ignores headings until the real closing fence');
+    });
   });
 
   describe('parseChange', () => {

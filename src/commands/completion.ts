@@ -279,6 +279,13 @@ export class CompletionCommand {
           }
           break;
         }
+        case 'schemas': {
+          const schemaNames = await this.completionProvider.getSchemaNames();
+          for (const name of schemaNames) {
+            console.log(`${name}\tschema`);
+          }
+          break;
+        }
         case 'archived-changes': {
           const archivedIds = await getArchivedChangeIds();
           for (const id of archivedIds) {

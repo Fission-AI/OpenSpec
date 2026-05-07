@@ -1,4 +1,9 @@
-import { CompletionGenerator, CommandDefinition, FlagDefinition } from '../types.js';
+import {
+  CompletionGenerator,
+  CommandDefinition,
+  FlagDefinition,
+  PositionalDefinition,
+} from '../types.js';
 import { ZSH_DYNAMIC_HELPERS } from '../templates/zsh-templates.js';
 
 /**
@@ -139,16 +144,7 @@ compdef _openspec openspec
         lines.push('    ' + this.generateFlagSpec(flag) + ' \\');
       }
 
-      // Add positional argument completion
-      if (cmd.acceptsPositional) {
-        const positionalSpec = this.generatePositionalSpec(cmd.positionalType);
-        lines.push('    ' + positionalSpec);
-      } else {
-        // Remove trailing backslash from last flag
-        if (lines[lines.length - 1].endsWith(' \\')) {
-          lines[lines.length - 1] = lines[lines.length - 1].slice(0, -2);
-        }
-      }
+      this.appendPositionalSpecs(lines, cmd);
     }
 
     lines.push('}');
@@ -179,16 +175,7 @@ compdef _openspec openspec
       lines.push('    ' + this.generateFlagSpec(flag) + ' \\');
     }
 
-    // Add positional argument completion
-    if (subcmd.acceptsPositional) {
-      const positionalSpec = this.generatePositionalSpec(subcmd.positionalType);
-      lines.push('    ' + positionalSpec);
-    } else {
-      // Remove trailing backslash from last flag
-      if (lines[lines.length - 1].endsWith(' \\')) {
-        lines[lines.length - 1] = lines[lines.length - 1].slice(0, -2);
-      }
-    }
+    this.appendPositionalSpecs(lines, subcmd);
 
     lines.push('}');
 
@@ -241,12 +228,69 @@ compdef _openspec openspec
         return "'*: :_openspec_complete_specs'";
       case 'change-or-spec-id':
         return "'*: :_openspec_complete_items'";
+      case 'schema-name':
+        return "'*: :_openspec_complete_schemas'";
       case 'path':
         return "'*:path:_files'";
       case 'shell':
         return "'*:shell:(zsh bash fish powershell)'";
       default:
         return "'*: :_default'";
+    }
+  }
+
+  private appendPositionalSpecs(lines: string[], cmd: CommandDefinition): void {
+    const positionalSpecs = this.generatePositionalSpecs(cmd);
+
+    if (positionalSpecs.length === 0) {
+      if (lines[lines.length - 1].endsWith(' \\')) {
+        lines[lines.length - 1] = lines[lines.length - 1].slice(0, -2);
+      }
+      return;
+    }
+
+    for (const [index, spec] of positionalSpecs.entries()) {
+      const suffix = index === positionalSpecs.length - 1 ? '' : ' \\';
+      lines.push('    ' + spec + suffix);
+    }
+  }
+
+  private generatePositionalSpecs(cmd: CommandDefinition): string[] {
+    if (cmd.positionals && cmd.positionals.length > 0) {
+      return cmd.positionals.map((positional, index) =>
+        this.generateIndexedPositionalSpec(positional, index + 1)
+      );
+    }
+
+    if (cmd.acceptsPositional) {
+      return [this.generatePositionalSpec(cmd.positionalType)];
+    }
+
+    return [];
+  }
+
+  private generateIndexedPositionalSpec(
+    positional: PositionalDefinition,
+    index: number
+  ): string {
+    const name = this.escapeDescription(positional.name);
+    const separator = positional.optional ? '::' : ':';
+
+    switch (positional.type) {
+      case 'change-id':
+        return `'${index}${separator}${name}:_openspec_complete_changes'`;
+      case 'spec-id':
+        return `'${index}${separator}${name}:_openspec_complete_specs'`;
+      case 'change-or-spec-id':
+        return `'${index}${separator}${name}:_openspec_complete_items'`;
+      case 'schema-name':
+        return `'${index}${separator}${name}:_openspec_complete_schemas'`;
+      case 'path':
+        return `'${index}${separator}${name}:_files'`;
+      case 'shell':
+        return `'${index}${separator}${name}:(zsh bash fish powershell)'`;
+      default:
+        return `'${index}${separator}${name}:'`;
     }
   }
 

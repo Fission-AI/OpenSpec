@@ -24,6 +24,49 @@ export class PowerShellInstaller {
   }
 
   /**
+   * Detect the encoding of a file by inspecting its BOM (Byte Order Mark).
+   * Returns the Node.js BufferEncoding and the raw BOM bytes to preserve on write.
+   */
+  private detectEncoding(buffer: Buffer): { encoding: BufferEncoding; bom: Buffer } {
+    // UTF-16 LE BOM: FF FE
+    if (buffer.length >= 2 && buffer[0] === 0xff && buffer[1] === 0xfe) {
+      return { encoding: 'utf16le', bom: Buffer.from([0xff, 0xfe]) };
+    }
+    // UTF-16 BE BOM: FE FF — not natively supported by Node
+    if (buffer.length >= 2 && buffer[0] === 0xfe && buffer[1] === 0xff) {
+      throw new Error(
+        'File is encoded as UTF-16 BE which is not supported. ' +
+          'Please re-save as UTF-8 or UTF-16 LE, then retry.',
+      );
+    }
+    // UTF-8 BOM: EF BB BF
+    if (buffer.length >= 3 && buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf) {
+      return { encoding: 'utf-8', bom: Buffer.from([0xef, 0xbb, 0xbf]) };
+    }
+    // No BOM → default UTF-8
+    return { encoding: 'utf-8', bom: Buffer.alloc(0) };
+  }
+
+  /**
+   * Read a profile file, preserving its encoding metadata for round-trip writes.
+   * Throws if the file uses UTF-16 BE (unsupported by Node).
+   */
+  private async readProfileFile(filePath: string): Promise<{ content: string; encoding: BufferEncoding; bom: Buffer }> {
+    const raw = await fs.readFile(filePath);
+    const { encoding, bom } = this.detectEncoding(raw);
+    const content = raw.subarray(bom.length).toString(encoding);
+    return { content, encoding, bom };
+  }
+
+  /**
+   * Write a profile file, preserving the original BOM and encoding.
+   */
+  private async writeProfileFile(filePath: string, content: string, encoding: BufferEncoding, bom: Buffer): Promise<void> {
+    const body = Buffer.from(content, encoding);
+    await fs.writeFile(filePath, Buffer.concat([bom, body]));
+  }
+
+  /**
    * Get PowerShell profile path
    * Prefers $PROFILE environment variable, falls back to platform defaults
    *
@@ -132,10 +175,22 @@ export class PowerShellInstaller {
         await fs.mkdir(profileDir, { recursive: true });
 
         let profileContent = '';
+        let fileEncoding: BufferEncoding = 'utf-8';
+        let fileBom: Buffer = Buffer.alloc(0);
         try {
-          profileContent = await fs.readFile(profilePath, 'utf-8');
-        } catch {
-          // Profile doesn't exist yet, that's fine
+          const file = await this.readProfileFile(profilePath);
+          profileContent = file.content;
+          fileEncoding = file.encoding;
+          fileBom = file.bom;
+        } catch (err: any) {
+          // If the file doesn't exist that's fine — we'll create it as UTF-8.
+          // Any other read error (permissions, unsupported encoding, etc.) → skip this profile.
+          if (err?.code === 'ENOENT') {
+            // keep defaults
+          } else {
+            console.warn(`Warning: Skipping ${profilePath}: ${err?.message ?? String(err)}`);
+            continue;
+          }
         }
 
         // Check if already configured
@@ -154,7 +209,7 @@ export class PowerShellInstaller {
         ].join('\n');
 
         const newContent = profileContent + openspecBlock;
-        await fs.writeFile(profilePath, newContent, 'utf-8');
+        await this.writeProfileFile(profilePath, newContent, fileEncoding, fileBom);
         anyConfigured = true;
       } catch (error) {
         // Continue to next profile if this one fails
@@ -177,12 +232,21 @@ export class PowerShellInstaller {
 
     for (const profilePath of profilePaths) {
       try {
-        // Read profile content
+        // Read profile content with encoding detection
         let profileContent: string;
+        let fileEncoding: BufferEncoding = 'utf-8';
+        let fileBom: Buffer = Buffer.alloc(0);
         try {
-          profileContent = await fs.readFile(profilePath, 'utf-8');
-        } catch {
-          continue; // Profile doesn't exist, nothing to remove
+          const file = await this.readProfileFile(profilePath);
+          profileContent = file.content;
+          fileEncoding = file.encoding;
+          fileBom = file.bom;
+        } catch (err: any) {
+          if (err?.code === 'ENOENT') {
+            continue; // Profile doesn't exist, nothing to remove
+          }
+          console.warn(`Warning: Could not read ${profilePath}: ${err?.message ?? String(err)}`);
+          continue;
         }
 
         // Remove OPENSPEC:START -> OPENSPEC:END block
@@ -207,7 +271,7 @@ export class PowerShellInstaller {
         // Clean up extra newlines
         const newContent = (beforeBlock.trimEnd() + '\n' + afterBlock.trimStart()).trim() + '\n';
 
-        await fs.writeFile(profilePath, newContent, 'utf-8');
+        await this.writeProfileFile(profilePath, newContent, fileEncoding, fileBom);
         anyRemoved = true;
       } catch (error) {
         console.warn(`Warning: Could not clean ${profilePath}: ${error}`);

@@ -7,6 +7,7 @@ The OpenSpec CLI (`openspec`) provides terminal commands for project setup, vali
 | Category | Commands | Purpose |
 |----------|----------|---------|
 | **Setup** | `init`, `update` | Initialize and update OpenSpec in your project |
+| **Workspaces (beta)** | `workspace setup`, `workspace list`, `workspace ls`, `workspace link`, `workspace relink`, `workspace doctor`, `workspace open` | Set up planning across linked repos or folders |
 | **Browsing** | `list`, `view`, `show` | Explore changes and specs |
 | **Validation** | `validate` | Check changes and specs for issues |
 | **Lifecycle** | `archive` | Finalize completed changes |
@@ -46,6 +47,11 @@ These commands support `--json` output for programmatic use by AI agents and scr
 | `openspec instructions` | Get next steps | `--json` for agent instructions |
 | `openspec templates` | Find template paths | `--json` for path resolution |
 | `openspec schemas` | List available schemas | `--json` for schema discovery |
+| `openspec workspace setup --no-interactive` | Create a workspace with explicit inputs | `--json` for structured setup output |
+| `openspec workspace list` | Browse known workspaces | `--json` for typed workspace objects |
+| `openspec workspace link` | Link a repo or folder | `--json` for structured link output |
+| `openspec workspace relink` | Repair a linked path | `--json` for structured link output |
+| `openspec workspace doctor` | Check one workspace | `--json` for structured status output |
 
 ---
 
@@ -67,7 +73,7 @@ These options work with all commands:
 
 Initialize OpenSpec in your project. Creates the folder structure and configures AI tool integrations.
 
-Default behavior uses global config defaults: profile `core`, delivery `both`, workflows `propose, explore, apply, archive`.
+Default behavior uses global config defaults: profile `core`, delivery `both`, workflows `propose, explore, apply, sync, archive`.
 
 ```
 openspec init [path] [options]
@@ -89,7 +95,7 @@ openspec init [path] [options]
 
 `--profile custom` uses whatever workflows are currently selected in global config (`openspec config profile`).
 
-**Supported tool IDs (`--tools`):** `amazon-q`, `antigravity`, `auggie`, `claude`, `cline`, `codex`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `iflow`, `kilocode`, `kiro`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `windsurf`
+**Supported tool IDs (`--tools`):** `amazon-q`, `antigravity`, `auggie`, `bob`, `claude`, `cline`, `codex`, `forgecode`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `opencode`, `pi`, `qoder`, `lingma`, `qwen`, `roocode`, `trae`, `windsurf`
 
 **Examples:**
 
@@ -156,6 +162,140 @@ openspec update [path] [options]
 npm update @fission-ai/openspec
 openspec update
 ```
+
+---
+
+## Workspace Commands
+
+Workspace commands are under active development and are not ready for use yet. Do not build external automation, integrations, or long-lived workflows on top of this command surface; command behavior, state files, and JSON output can change at any point.
+
+Coordination workspaces are planning homes for work that spans multiple repos or folders. Workspace visibility is not change commitment: link the repos or folders OpenSpec should know about, then create changes when you are ready to plan specific work.
+
+### `openspec workspace setup`
+
+Create a workspace in the standard OpenSpec workspace location and link at least one existing repo or folder.
+
+```bash
+openspec workspace setup [options]
+```
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--name <name>` | Workspace name. Names must be kebab-case |
+| `--link <path>` | Link an existing repo or folder and infer the link name from the folder name |
+| `--link <name>=<path>` | Link an existing repo or folder with an explicit link name |
+| `--opener <id>` | Store a preferred opener during non-interactive setup: `codex`, `claude`, `github-copilot`, or `editor` |
+| `--no-interactive` | Disable prompts; requires `--name` and at least one `--link` |
+| `--json` | Output JSON; requires `--no-interactive` |
+
+**Examples:**
+
+```bash
+openspec workspace setup
+openspec workspace setup --no-interactive --name platform --link /repos/api --link web=/repos/web
+openspec workspace setup --no-interactive --name platform --link /repos/api --opener codex
+openspec workspace setup --no-interactive --json --name checkout --link /repos/platform/apps/checkout
+```
+
+Interactive setup asks for a preferred opener and stores it in machine-local workspace state. Non-interactive setup stores a preferred opener only when `--opener` is provided; otherwise `workspace open` prompts later in interactive terminals when a supported opener is available, or asks scripts to pass `--agent <tool>` or `--editor`.
+
+### `openspec workspace list`
+
+List known OpenSpec workspaces from the local registry.
+
+```bash
+openspec workspace list [--json]
+openspec workspace ls [--json]
+```
+
+The list shows each workspace location and linked repos or folders. Stale registry records are reported but not changed.
+
+### `openspec workspace link`
+
+Record an existing repo or folder for one workspace.
+
+```bash
+openspec workspace link [name] <path> [options]
+```
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--workspace <name>` | Select a known workspace from the local registry |
+| `--json` | Output JSON |
+| `--no-interactive` | Disable workspace picker prompts |
+
+**Examples:**
+
+```bash
+openspec workspace link /repos/api
+openspec workspace link api-service /repos/api
+openspec workspace link --workspace platform /repos/platform/apps/checkout
+```
+
+The path must already exist. Relative paths are resolved against the command's current directory before OpenSpec stores the verified absolute path in machine-local workspace state. Linked paths can be full repos, packages, services, apps, or folders without repo-local `openspec/` state.
+
+### `openspec workspace relink`
+
+Repair or change the local path for an existing link.
+
+```bash
+openspec workspace relink <name> <path> [options]
+```
+
+The path must already exist. Relink updates only the machine-local path for the stable link name.
+
+### `openspec workspace doctor`
+
+Check what one workspace can resolve on the current machine.
+
+```bash
+openspec workspace doctor [options]
+```
+
+Doctor shows the workspace location, planning path, linked repos or folders, missing paths, repo-local specs paths when present, and suggested fixes. It reports issues only; it does not repair them automatically.
+
+Commands that need one workspace use the current workspace when run from inside a workspace folder or subdirectory. From elsewhere, pass `--workspace <name>`, select from the picker in an interactive terminal, or rely on the only known workspace when exactly one exists. In `--json` or `--no-interactive` mode, ambiguous selection fails with a structured status error and suggests `--workspace <name>`.
+
+JSON responses use typed objects plus `status` arrays. Primary data lives in `workspace`, `workspaces`, or `link`; warnings and errors live in `status`.
+
+### `openspec workspace open`
+
+Open a workspace working set through the stored preferred opener, a one-session agent override, or VS Code editor mode.
+
+```bash
+openspec workspace open [name] [options]
+```
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--workspace <name>` | Alias for the positional workspace name |
+| `--agent <tool>` | One-session agent override: `codex`, `claude`, or `github-copilot` |
+| `--editor` | Open the maintained VS Code workspace file as a normal editor workspace |
+| `--no-interactive` | Disable workspace and opener picker prompts |
+
+**Examples:**
+
+```bash
+openspec workspace open
+openspec workspace open platform
+openspec workspace open platform --agent github-copilot
+openspec workspace open --agent codex
+openspec workspace open --editor
+```
+
+`workspace open` uses the current workspace when run inside one, auto-selects the only known workspace when run elsewhere, and asks the user to choose when multiple workspaces are known. `--agent` and `--editor` do not change the stored preferred opener. Passing both opener overrides is an error; choose either `--agent <tool>` or `--editor`.
+
+OpenSpec maintains `<workspace-name>.code-workspace` at the workspace root for VS Code editor and GitHub Copilot-in-VS-Code opens. That file is machine-local and ignored by default with a specific `<workspace-name>.code-workspace` `.gitignore` entry, so user-authored `*.code-workspace` files remain eligible for tracking.
+
+The maintained VS Code workspace includes the coordination root as `.` plus valid linked repos or folders as additional roots. VS Code displays those entries as a multi-root workspace.
+
+Root workspace open supports exploration and planning across linked repos or folders. Implementation edits should start only after an explicit user request and a normal OpenSpec implementation workflow.
 
 ---
 
@@ -920,6 +1060,8 @@ openspec completion uninstall
 
 | Variable | Description |
 |----------|-------------|
+| `OPENSPEC_TELEMETRY` | Set to `0` to disable telemetry |
+| `DO_NOT_TRACK` | Set to `1` to disable telemetry (standard DNT signal) |
 | `OPENSPEC_CONCURRENCY` | Default concurrency for bulk validation (default: 6) |
 | `EDITOR` or `VISUAL` | Editor for `openspec config edit` |
 | `NO_COLOR` | Disable color output when set |
