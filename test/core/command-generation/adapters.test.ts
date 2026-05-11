@@ -24,6 +24,7 @@ import { qoderAdapter } from '../../../src/core/command-generation/adapters/qode
 import { qwenAdapter } from '../../../src/core/command-generation/adapters/qwen.js';
 import { roocodeAdapter } from '../../../src/core/command-generation/adapters/roocode.js';
 import { windsurfAdapter } from '../../../src/core/command-generation/adapters/windsurf.js';
+import { gsdAdapter } from '../../../src/core/command-generation/adapters/gsd.js';
 import type { CommandContent } from '../../../src/core/command-generation/types.js';
 
 describe('command-generation/adapters', () => {
@@ -673,6 +674,36 @@ describe('command-generation/adapters', () => {
     });
   });
 
+  describe('gsdAdapter', () => {
+    it('should have correct toolId', () => {
+      expect(gsdAdapter.toolId).toBe('gsd');
+    });
+
+    it('should generate correct file path', () => {
+      const filePath = gsdAdapter.getFilePath('explore');
+      expect(filePath).toBe(path.join('.gsd', 'agents', 'opsx-explore.md'));
+    });
+
+    it('should format file with YAML frontmatter', () => {
+      const output = gsdAdapter.formatFile(sampleContent);
+      expect(output).toContain('---');
+      expect(output).toContain('name: OpenSpec Explore');
+      expect(output).toContain('description: Enter explore mode for thinking');
+      expect(output).toContain('This is the command body.');
+    });
+
+    it('should quote YAML values containing special characters', () => {
+      const contentWithSpecial: CommandContent = {
+        ...sampleContent,
+        name: 'Test: special',
+        description: 'Has #hash and "quotes"',
+      };
+      const output = gsdAdapter.formatFile(contentWithSpecial);
+      expect(output).toContain('name: "Test: special"');
+      expect(output).toContain('description: "Has #hash and \\"quotes\\""');
+    });
+  });
+
   describe('cross-platform path handling', () => {
     it('Claude adapter uses path.join for paths', () => {
       // path.join handles platform-specific separators
@@ -698,7 +729,7 @@ describe('command-generation/adapters', () => {
         codexAdapter, codebuddyAdapter, continueAdapter, costrictAdapter,
         crushAdapter, factoryAdapter, geminiAdapter, githubCopilotAdapter,
         iflowAdapter, kilocodeAdapter, opencodeAdapter, piAdapter, qoderAdapter,
-        qwenAdapter, roocodeAdapter
+        qwenAdapter, roocodeAdapter, gsdAdapter
       ];
       for (const adapter of adapters) {
         const filePath = adapter.getFilePath('test');

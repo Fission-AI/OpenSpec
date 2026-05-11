@@ -32,6 +32,7 @@ import { lingmaAdapter } from './adapters/lingma.js';
 import { qwenAdapter } from './adapters/qwen.js';
 import { roocodeAdapter } from './adapters/roocode.js';
 import { windsurfAdapter } from './adapters/windsurf.js';
+import { gsdAdapter } from './adapters/gsd.js';
 
 /**
  * Registry for looking up tool command adapters.
@@ -67,6 +68,7 @@ export class CommandAdapterRegistry {
     CommandAdapterRegistry.register(qwenAdapter);
     CommandAdapterRegistry.register(roocodeAdapter);
     CommandAdapterRegistry.register(windsurfAdapter);
+    CommandAdapterRegistry.register(gsdAdapter);
   }
 
   /**
