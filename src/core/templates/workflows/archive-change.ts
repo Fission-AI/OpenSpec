@@ -16,9 +16,11 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
 
 **Steps**
 
-1. **If no change name provided, prompt for selection**
+1. **Determine the change**
 
-   Run \`openspec list --json\` to get available changes. Use the **AskUserQuestion tool** to let the user select.
+   If a change name was provided, use it directly.
+
+   Otherwise, run \`openspec list --json\` to get available changes. Use the **AskUserQuestion tool** to let the user select.
 
    Show only active changes (not already archived).
    Include the schema used for each change if available.
@@ -51,7 +53,16 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
 
    **If no tasks file exists:** Proceed without task-related warning.
 
-4. **Assess delta spec sync state**
+4. **Fetch archive instructions**
+
+   Run:
+   \`\`\`bash
+   openspec instructions archive --json
+   \`\`\`
+
+   Parse the JSON. If a \`context\` field is present, apply it as project background knowledge for the remaining steps. If a \`rules\` field is present, apply those rules as additional behavioral constraints throughout. Do NOT copy \`context\` or \`rules\` content into any output.
+
+5. **Assess delta spec sync state**
 
    Check for delta specs at \`openspec/changes/<name>/specs/\`. If none exist, proceed without sync prompt.
 
@@ -66,7 +77,7 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
 
    If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
 
-5. **Perform the archive**
+6. **Perform the archive**
 
    Create the archive directory if it doesn't exist:
    \`\`\`bash
@@ -83,7 +94,7 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
    mv openspec/changes/<name> openspec/changes/archive/YYYY-MM-DD-<name>
    \`\`\`
 
-6. **Display summary**
+7. **Display summary**
 
    Show archive completion summary including:
    - Change name
@@ -166,7 +177,16 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
 
    **If no tasks file exists:** Proceed without task-related warning.
 
-4. **Assess delta spec sync state**
+4. **Fetch archive instructions**
+
+   Run:
+   \`\`\`bash
+   openspec instructions archive --json
+   \`\`\`
+
+   Parse the JSON. If a \`context\` field is present, apply it as project background knowledge for the remaining steps. If a \`rules\` field is present, apply those rules as additional behavioral constraints throughout. Do NOT copy \`context\` or \`rules\` content into any output.
+
+5. **Assess delta spec sync state**
 
    Check for delta specs at \`openspec/changes/<name>/specs/\`. If none exist, proceed without sync prompt.
 
@@ -181,7 +201,7 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
 
    If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
 
-5. **Perform the archive**
+6. **Perform the archive**
 
    Create the archive directory if it doesn't exist:
    \`\`\`bash
@@ -198,7 +218,7 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
    mv openspec/changes/<name> openspec/changes/archive/YYYY-MM-DD-<name>
    \`\`\`
 
-6. **Display summary**
+7. **Display summary**
 
    Show archive completion summary including:
    - Change name

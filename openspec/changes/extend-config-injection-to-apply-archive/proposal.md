@@ -29,18 +29,21 @@ We should reuse the existing config model so project-level guidance stays availa
 ## Capabilities
 
 ### New Capabilities
-<!-- None -->
+- `cli-archive-instructions`: `openspec instructions archive` becomes a valid CLI call, returning a JSON object with `template`, `context`, and `rules` fields analogous to apply instructions.
 
 ### Modified Capabilities
 - `context-injection`: extend project context injection from artifact-only instructions to apply and archive instruction surfaces
-- `rules-injection`: extend the existing rules model so it can guide apply and archive in addition to matching artifacts
-- `cli-artifact-workflow`: include injected context and rules in apply instruction output
+- `rules-injection`: extend the existing rules model so it can guide apply and archive in addition to matching artifacts; update generated config examples to document `rules.apply` and `rules.archive` as valid targets
+- `cli-artifact-workflow`: include injected context and rules in apply instruction output; update apply skill template to consume and apply context/rules from instruction JSON
 - `opsx-archive-skill`: include injected context and rules in archive workflow guidance while preserving current archive readiness checks and prompts
+- `opsx-bulk-archive-skill`: fetch archive instructions once at workflow start to obtain project context and rules as constraints for the entire batch
 
 ## Impact
 
 - `src/core/project-config.ts` and related validation will need to recognize workflow targets while remaining backward compatible for artifact keys.
-- `src/commands/workflow/instructions.ts` and related types will need to surface injected context/rules for apply instructions.
-- Archive workflow templates and supporting generation paths will need to consume injected context/rules for `/opsx:archive` guidance.
-- `src/core/config-prompts.ts`, `docs/opsx.md`, config examples, and relevant specs/tests will need updates so the documented behavior matches the new instruction surfaces.
+- `src/commands/workflow/instructions.ts` and related types will need to surface injected context/rules for apply instructions, and a new archive instruction generation path will be added.
+- `src/cli/index.ts` will need an `archive` branch in the `instructions` command handler to route to the new archive instruction path.
+- `src/core/templates/workflows/apply-change.ts`, `archive-change.ts`, and `bulk-archive-change.ts` will need to consume `context` and `rules` from instruction output and treat them as AI constraints.
+- `src/core/config-prompts.ts` will need updated comments and examples to show `rules.apply` and `rules.archive` as valid targets alongside artifact keys.
+- `docs/opsx.md`, config examples, and relevant specs/tests will need updates so the documented behavior matches the new instruction surfaces.
 - User-facing docs should include examples showing `rules.apply` and `rules.archive` alongside existing artifact rules, plus migration guidance for teams deciding when to keep artifact-specific guidance versus move workflow guidance into phase-specific targets.

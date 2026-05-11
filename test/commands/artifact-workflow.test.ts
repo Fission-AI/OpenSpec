@@ -634,6 +634,165 @@ artifacts:
     });
   });
 
+  describe('instructions apply with config injection', () => {
+    it('includes context in JSON output when config.yaml has context field', async () => {
+      await createTestChange('apply-ctx-test', ['proposal', 'design', 'specs', 'tasks']);
+      const configDir = path.join(tempDir, 'openspec');
+      await fs.mkdir(configDir, { recursive: true });
+      await fs.writeFile(
+        path.join(configDir, 'config.yaml'),
+        'schema: spec-driven\ncontext: My project context\n'
+      );
+
+      const result = await runCLI(
+        ['instructions', 'apply', '--change', 'apply-ctx-test', '--json'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).toBe(0);
+      const json = JSON.parse(result.stdout);
+      expect(json.context).toBe('My project context');
+    });
+
+    it('includes rules in JSON output when config.yaml has rules.apply', async () => {
+      await createTestChange('apply-rules-test', ['proposal', 'design', 'specs', 'tasks']);
+      const configDir = path.join(tempDir, 'openspec');
+      await fs.mkdir(configDir, { recursive: true });
+      await fs.writeFile(
+        path.join(configDir, 'config.yaml'),
+        'schema: spec-driven\nrules:\n  apply:\n    - Run tests first\n    - Keep PRs small\n'
+      );
+
+      const result = await runCLI(
+        ['instructions', 'apply', '--change', 'apply-rules-test', '--json'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).toBe(0);
+      const json = JSON.parse(result.stdout);
+      expect(json.rules).toEqual(['Run tests first', 'Keep PRs small']);
+    });
+
+    it('omits context and rules fields from JSON when not configured', async () => {
+      await createTestChange('apply-noconfig-test', ['proposal', 'design', 'specs', 'tasks']);
+
+      const result = await runCLI(
+        ['instructions', 'apply', '--change', 'apply-noconfig-test', '--json'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).toBe(0);
+      const json = JSON.parse(result.stdout);
+      expect(json).not.toHaveProperty('context');
+      expect(json).not.toHaveProperty('rules');
+    });
+
+    it('rules.apply and rules.archive produce no validation warnings', async () => {
+      await createTestChange('apply-wf-rules-test', ['proposal', 'design', 'specs', 'tasks']);
+      const configDir = path.join(tempDir, 'openspec');
+      await fs.mkdir(configDir, { recursive: true });
+      await fs.writeFile(
+        path.join(configDir, 'config.yaml'),
+        'schema: spec-driven\nrules:\n  apply:\n    - Apply rule\n  archive:\n    - Archive rule\n'
+      );
+
+      const result = await runCLI(
+        ['instructions', 'apply', '--change', 'apply-wf-rules-test', '--json'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).not.toContain('Unknown artifact ID');
+    });
+  });
+
+  describe('instructions archive command', () => {
+    it('outputs JSON with template field', async () => {
+      await createTestChange('archive-json-test', ['proposal', 'design', 'specs', 'tasks']);
+
+      const result = await runCLI(
+        ['instructions', 'archive', '--change', 'archive-json-test', '--json'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toBe('');
+      const json = JSON.parse(result.stdout);
+      expect(json.template).toBeTruthy();
+    });
+
+    it('includes context in JSON when config.yaml has context field', async () => {
+      await createTestChange('archive-ctx-test', ['proposal', 'design', 'specs', 'tasks']);
+      const configDir = path.join(tempDir, 'openspec');
+      await fs.mkdir(configDir, { recursive: true });
+      await fs.writeFile(
+        path.join(configDir, 'config.yaml'),
+        'schema: spec-driven\ncontext: Archive project context\n'
+      );
+
+      const result = await runCLI(
+        ['instructions', 'archive', '--change', 'archive-ctx-test', '--json'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).toBe(0);
+      const json = JSON.parse(result.stdout);
+      expect(json.context).toBe('Archive project context');
+    });
+
+    it('includes rules in JSON when config.yaml has rules.archive', async () => {
+      await createTestChange('archive-rules-test', ['proposal', 'design', 'specs', 'tasks']);
+      const configDir = path.join(tempDir, 'openspec');
+      await fs.mkdir(configDir, { recursive: true });
+      await fs.writeFile(
+        path.join(configDir, 'config.yaml'),
+        'schema: spec-driven\nrules:\n  archive:\n    - Verify specs synced\n'
+      );
+
+      const result = await runCLI(
+        ['instructions', 'archive', '--change', 'archive-rules-test', '--json'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).toBe(0);
+      const json = JSON.parse(result.stdout);
+      expect(json.rules).toEqual(['Verify specs synced']);
+    });
+
+    it('omits rules field when config has only artifact rules but no rules.archive', async () => {
+      await createTestChange('archive-noarch-rules', ['proposal', 'design', 'specs', 'tasks']);
+      const configDir = path.join(tempDir, 'openspec');
+      await fs.mkdir(configDir, { recursive: true });
+      await fs.writeFile(
+        path.join(configDir, 'config.yaml'),
+        'schema: spec-driven\nrules:\n  specs:\n    - Artifact rule only\n'
+      );
+
+      const result = await runCLI(
+        ['instructions', 'archive', '--change', 'archive-noarch-rules', '--json'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).toBe(0);
+      const json = JSON.parse(result.stdout);
+      expect(json).not.toHaveProperty('rules');
+    });
+
+    it('renders text output with template content', async () => {
+      await createTestChange('archive-text-test', ['proposal', 'design', 'specs', 'tasks']);
+
+      const result = await runCLI(
+        ['instructions', 'archive', '--change', 'archive-text-test'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Archive');
+    });
+  });
+
+  describe('openspec init generates config with workflow rule examples', () => {
+    it('generated config.yaml includes rules.apply and rules.archive examples', async () => {
+      const { serializeConfig } = await import('../../src/core/config-prompts.js');
+      const yaml = serializeConfig({ schema: 'spec-driven' });
+      expect(yaml).toContain('apply:');
+      expect(yaml).toContain('archive:');
+      expect(yaml).toContain('Run tests before marking tasks done');
+      expect(yaml).toContain('Verify specs are synced before archiving');
+    });
+  });
+
   describe('help text', () => {
     it('status command help shows description', async () => {
       const result = await runCLI(['status', '--help']);

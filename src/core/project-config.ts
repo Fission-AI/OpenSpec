@@ -2,6 +2,7 @@ import { existsSync, readFileSync, statSync } from 'fs';
 import path from 'path';
 import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
+import type { WorkflowId } from './profiles.js';
 
 /**
  * Zod schema for project configuration.
@@ -41,6 +42,12 @@ export const ProjectConfigSchema = z.object({
 });
 
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
+
+/**
+ * Workflow rule targets that are valid in the `rules` config key but are not artifact IDs.
+ * Filtered out before passing rules to validateConfigRules() so the validator only sees artifact keys.
+ */
+export const WORKFLOW_RULE_TARGETS = new Set<WorkflowId>(['apply', 'archive']);
 
 const MAX_CONTEXT_SIZE = 50 * 1024; // 50KB hard limit
 

@@ -21,6 +21,8 @@ import {
   type TaskItem,
   type ApplyInstructions,
 } from './shared.js';
+import { readProjectConfig } from '../../core/project-config.js';
+import { getArchiveChangeSkillTemplate } from '../../core/templates/workflows/archive-change.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -326,6 +328,12 @@ export async function generateApplyInstructions(
     instruction = schemaInstruction?.trim() ?? 'Read context files, work through pending tasks, mark complete as you go.\nPause if you hit blockers or need clarification.';
   }
 
+  // Read project config for context and rules.apply
+  const projectConfig = readProjectConfig(projectRoot);
+  const configContext = projectConfig?.context?.trim() || undefined;
+  const applyRules = projectConfig?.rules?.['apply'];
+  const configRules = applyRules && applyRules.length > 0 ? applyRules : undefined;
+
   return {
     changeName,
     changeDir,
@@ -336,6 +344,8 @@ export async function generateApplyInstructions(
     state,
     missingArtifacts: missingArtifacts.length > 0 ? missingArtifacts : undefined,
     instruction,
+    ...(configContext !== undefined && { context: configContext }),
+    ...(configRules !== undefined && { rules: configRules }),
   };
 }
 
@@ -369,7 +379,7 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
 }
 
 export function printApplyInstructionsText(instructions: ApplyInstructions): void {
-  const { changeName, schemaName, contextFiles, progress, tasks, state, missingArtifacts, instruction } = instructions;
+  const { changeName, schemaName, contextFiles, progress, tasks, state, missingArtifacts, instruction, context, rules } = instructions;
 
   console.log(`## Apply: ${changeName}`);
   console.log(`Schema: ${schemaName}`);
@@ -420,4 +430,114 @@ export function printApplyInstructionsText(instructions: ApplyInstructions): voi
   // Instruction
   console.log('### Instruction');
   console.log(instruction);
+  console.log();
+
+  // Project context (AI constraint - do not include in output)
+  if (context) {
+    console.log('<project_context>');
+    console.log('<!-- This is background information for you. Do NOT include this in your output. -->');
+    console.log(context);
+    console.log('</project_context>');
+    console.log();
+  }
+
+  // Rules (AI constraint - do not include in output)
+  if (rules && rules.length > 0) {
+    console.log('<rules>');
+    console.log('<!-- These are constraints for you to follow. Do NOT include this in your output. -->');
+    for (const rule of rules) {
+      console.log(`- ${rule}`);
+    }
+    console.log('</rules>');
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Archive Instructions Command
+// -----------------------------------------------------------------------------
+
+export interface ArchiveInstructions {
+  template: string;
+  /** Project context from config (AI constraint, not to be included in output) */
+  context?: string;
+  /** Workflow rules from rules.archive in config (AI constraints, not to be included in output) */
+  rules?: string[];
+}
+
+export interface ArchiveInstructionsOptions {
+  change?: string;
+  json?: boolean;
+}
+
+/**
+ * Generates archive instructions including injected project context and rules.archive.
+ */
+export async function generateArchiveInstructions(
+  projectRoot: string
+): Promise<ArchiveInstructions> {
+  const template = getArchiveChangeSkillTemplate().instructions;
+
+  const projectConfig = readProjectConfig(projectRoot);
+  const configContext = projectConfig?.context?.trim() || undefined;
+  const archiveRules = projectConfig?.rules?.['archive'];
+  const configRules = archiveRules && archiveRules.length > 0 ? archiveRules : undefined;
+
+  return {
+    template,
+    ...(configContext !== undefined && { context: configContext }),
+    ...(configRules !== undefined && { rules: configRules }),
+  };
+}
+
+export async function archiveInstructionsCommand(options: ArchiveInstructionsOptions): Promise<void> {
+  const spinner = options.json ? undefined : ora('Generating archive instructions...').start();
+
+  try {
+    const projectRoot = process.cwd();
+    if (options.change) {
+      await validateChangeExists(options.change, projectRoot);
+    }
+
+    const instructions = await generateArchiveInstructions(projectRoot);
+
+    spinner?.stop();
+
+    if (options.json) {
+      console.log(JSON.stringify(instructions, null, 2));
+      return;
+    }
+
+    printArchiveInstructionsText(instructions);
+  } catch (error) {
+    spinner?.stop();
+    throw error;
+  }
+}
+
+export function printArchiveInstructionsText(instructions: ArchiveInstructions): void {
+  const { template, context, rules } = instructions;
+
+  // Template content (built-in archive workflow steps)
+  console.log(template.trim());
+  console.log();
+
+  // Project context (AI constraint - do not include in output)
+  if (context) {
+    console.log('<project_context>');
+    console.log('<!-- This is background information for you. Do NOT include this in your output. -->');
+    console.log(context);
+    console.log('</project_context>');
+    console.log();
+  }
+
+  // Rules (AI constraint - do not include in output)
+  if (rules && rules.length > 0) {
+    console.log('<rules>');
+    console.log('<!-- These are constraints for you to follow. Do NOT include this in your output. -->');
+    for (const rule of rules) {
+      console.log(`- ${rule}`);
+    }
+    console.log('</rules>');
+    console.log();
+  }
 }
