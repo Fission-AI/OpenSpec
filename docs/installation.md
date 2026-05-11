@@ -24,6 +24,17 @@ pnpm add -g @fission-ai/openspec@latest
 yarn global add @fission-ai/openspec@latest
 ```
 
+### deno
+
+Deno sometimes has issues parsing the @latest tag, so we can specify a version while installing.
+If that happens, you could try to change @latest tag with the version, something like `@^1.3.1`
+
+```bash
+deno install --global --allow-all npm:@fission-ai/openspec@latest
+# or
+deno install --global --allow-all npm:@fission-ai/openspec@^1.3.1
+```
+
 ### bun
 
 Bun can install OpenSpec globally, but OpenSpec currently runs on Node.js.
