@@ -245,7 +245,7 @@ export function generateInstructions(
     const validArtifactIds = new Set(context.graph.getAllArtifacts().map((a) => a.id));
     // Strip workflow-reserved keys before artifact ID validation so rules.apply/archive don't warn
     const artifactOnlyRules = Object.fromEntries(
-      Object.entries(projectConfig.rules).filter(([key]) => !(WORKFLOW_RULE_TARGETS as Set<string>).has(key))
+      Object.entries(projectConfig.rules).filter(([key]) => !WORKFLOW_RULE_TARGETS.has(key))
     );
     const warnings = validateConfigRules(
       artifactOnlyRules,

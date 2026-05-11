@@ -495,6 +495,7 @@ export async function archiveInstructionsCommand(options: ArchiveInstructionsOpt
   try {
     const projectRoot = process.cwd();
     if (options.change) {
+      // Validate the optional change name so archive instructions aren't requested for a nonexistent change.
       await validateChangeExists(options.change, projectRoot);
     }
 
