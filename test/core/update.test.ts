@@ -311,22 +311,32 @@ Old instructions content
         path.join(qwenSkillsDir, 'openspec-explore', 'SKILL.md'),
         'old'
       );
-
-      await updateCommand.execute(testDir);
-
-      // Check Qwen command format (TOML) - Qwen uses flat path structure: opsx-<id>.toml
-      const qwenCmd = path.join(
+      const oldQwenCmd = path.join(
         testDir,
         '.qwen',
         'commands',
         'opsx-explore.toml'
       );
+      await fs.mkdir(path.dirname(oldQwenCmd), { recursive: true });
+      await fs.writeFile(oldQwenCmd, 'description = "old"\nprompt = "old"\n');
+
+      await updateCommand.execute(testDir);
+
+      // Check Qwen command format (Markdown) - Qwen uses flat path structure: opsx-<id>.md
+      const qwenCmd = path.join(
+        testDir,
+        '.qwen',
+        'commands',
+        'opsx-explore.md'
+      );
       const exists = await FileSystemUtils.fileExists(qwenCmd);
       expect(exists).toBe(true);
 
       const content = await fs.readFile(qwenCmd, 'utf-8');
-      expect(content).toContain('description =');
-      expect(content).toContain('prompt =');
+      expect(content).toContain('---\n');
+      expect(content).toContain('description:');
+      expect(content).toContain('---\n\n');
+      expect(await FileSystemUtils.fileExists(oldQwenCmd)).toBe(false);
     });
 
     it('should update Windsurf tool with correct command format', async () => {
