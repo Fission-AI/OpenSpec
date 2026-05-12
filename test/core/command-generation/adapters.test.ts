@@ -611,6 +611,16 @@ describe('command-generation/adapters', () => {
       const output = qwenAdapter.formatFile(contentWithSpecialChars);
       expect(output).toContain('description: "Fix: regression in \\"auth\\" feature"');
     });
+
+    it('should escape carriage returns in description', () => {
+      const contentWithCarriageReturn: CommandContent = {
+        ...sampleContent,
+        description: 'Line 1\rLine 2',
+      };
+
+      const output = qwenAdapter.formatFile(contentWithCarriageReturn);
+      expect(output).toContain('description: "Line 1\\rLine 2"');
+    });
   });
 
   describe('piAdapter', () => {
