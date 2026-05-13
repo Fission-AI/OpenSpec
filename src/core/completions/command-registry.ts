@@ -265,6 +265,31 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         ],
       },
       {
+        name: 'update',
+        description: 'Refresh workspace-local OpenSpec agent skills from the active global profile',
+        acceptsPositional: true,
+        positionals: [
+          {
+            name: 'name',
+            optional: true,
+          },
+        ],
+        flags: [
+          {
+            name: 'workspace',
+            description: 'Workspace name from the local workspace registry',
+            takesValue: true,
+          },
+          {
+            name: 'tools',
+            description: 'Select agents for workspace skills; global profile selects workflows',
+            takesValue: true,
+          },
+          COMMON_FLAGS.json,
+          COMMON_FLAGS.noInteractive,
+        ],
+      },
+      {
         name: 'open',
         description: 'Open a workspace in an agent or VS Code editor',
         acceptsPositional: true,

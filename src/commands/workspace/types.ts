@@ -49,6 +49,10 @@ export interface WorkspaceSelectionOptions {
 
 export type WorkspaceLinkOptions = WorkspaceSelectionOptions;
 
+export interface WorkspaceUpdateOptions extends WorkspaceSelectionOptions {
+  tools?: string;
+}
+
 export interface WorkspaceOpenOptions extends WorkspaceSelectionOptions {
   agent?: string;
   editor?: boolean;

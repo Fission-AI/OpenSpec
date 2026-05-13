@@ -16,6 +16,7 @@ import {
   listWorkspaceOpenerChoices,
   parseWorkspacePreferredOpenerValue,
   parseWorkspaceSkillToolsValue,
+  updateWorkspaceAgentSkills,
   listWorkspaceRegistryEntries,
   readOptionalWorkspaceLocalState,
   writeWorkspaceLocalState,
@@ -28,7 +29,9 @@ import {
   loadWorkspaceForDoctor,
   loadWorkspaceForList,
   parseSetupLinks,
+  readWorkspaceForMutation,
   readRegistry,
+  recordSelectedWorkspaceAfterMutation,
   resolveExistingDirectory,
   updateWorkspaceLink,
   validateLinkNameForCommand,
@@ -51,6 +54,7 @@ import {
   WorkspaceOutput,
   WorkspaceSetupOptions,
   WorkspaceStatus,
+  WorkspaceUpdateOptions,
   appendStatus,
   asErrorMessage,
   asStatus,
@@ -276,6 +280,17 @@ function parseSetupToolsOption(tools: string): string[] {
   }
 }
 
+function parseUpdateToolsOption(tools: string): string[] {
+  try {
+    return parseWorkspaceSkillToolsValue(tools);
+  } catch (error) {
+    throw new WorkspaceCliError(asErrorMessage(error), 'invalid_workspace_update_tools', {
+      target: 'workspace.skills',
+      fix: `Use --tools all, --tools none, or one of: ${getWorkspaceSkillToolIds().join(', ')}`,
+    });
+  }
+}
+
 function getPreferredWorkspaceSkillAgentId(
   preferredOpener: WorkspacePreferredOpener | undefined
 ): string | null {
@@ -475,6 +490,12 @@ function formatWorkspaceSkillAgentResult(result: { name: string; workflow_ids?: 
   return `${result.name} (${workflowLabel})`;
 }
 
+function formatWorkspaceSkillRemovedResult(result: { name: string; workflow_ids?: string[] }): string {
+  const workflowCount = result.workflow_ids?.length ?? 0;
+  const workflowLabel = workflowCount === 1 ? '1 workflow' : `${workflowCount} workflows`;
+  return `${result.name} (${workflowLabel} removed)`;
+}
+
 function printWorkspaceSkillReportHuman(report: WorkspaceSkillInstallationReport): void {
   console.log('Agent skills:');
   console.log(`  Profile: ${report.profile}`);
@@ -486,8 +507,16 @@ function printWorkspaceSkillReportHuman(report: WorkspaceSkillInstallationReport
     console.log(`  Generated: ${report.generated.map(formatWorkspaceSkillAgentResult).join(', ')}`);
   }
 
+  if (report.added.length > 0) {
+    console.log(`  Added: ${report.added.map(formatWorkspaceSkillAgentResult).join(', ')}`);
+  }
+
   if (report.refreshed.length > 0) {
     console.log(`  Refreshed: ${report.refreshed.map(formatWorkspaceSkillAgentResult).join(', ')}`);
+  }
+
+  if (report.removed.length > 0) {
+    console.log(`  Removed: ${report.removed.map(formatWorkspaceSkillRemovedResult).join(', ')}`);
   }
 
   if (report.skipped.length > 0) {
@@ -623,6 +652,24 @@ function assertWorkspaceOpenSupportedOptions(options: WorkspaceOpenOptions): voi
 function resolveOpenWorkspaceName(
   positionalName: string | undefined,
   options: WorkspaceOpenOptions
+): string | undefined {
+  if (positionalName && options.workspace && positionalName !== options.workspace) {
+    throw new WorkspaceCliError(
+      `Conflicting workspace selectors: positional '${positionalName}' and --workspace '${options.workspace}'.`,
+      'workspace_selection_conflict',
+      {
+        target: 'workspace.name',
+        fix: 'Use either the positional workspace name or --workspace with the same value.',
+      }
+    );
+  }
+
+  return positionalName ?? options.workspace;
+}
+
+function resolveUpdateWorkspaceName(
+  positionalName: string | undefined,
+  options: WorkspaceUpdateOptions
 ): string | undefined {
   if (positionalName && options.workspace && positionalName !== options.workspace) {
     throw new WorkspaceCliError(
@@ -878,6 +925,70 @@ class WorkspaceCommand {
     }
   }
 
+  async update(
+    positionalName: string | undefined,
+    options: WorkspaceUpdateOptions = {}
+  ): Promise<void> {
+    try {
+      const workspaceName = resolveUpdateWorkspaceName(positionalName, options);
+      const selected = await selectWorkspaceForCommand(
+        {
+          ...options,
+          workspace: workspaceName,
+        },
+        'update',
+        { preferPositionalName: Boolean(positionalName) }
+      );
+      const { localState } = await readWorkspaceForMutation(selected);
+      const hasExplicitToolSelection = options.tools !== undefined;
+      const selectedAgentIds = hasExplicitToolSelection
+        ? parseUpdateToolsOption(options.tools ?? '')
+        : localState.workspace_skills?.selected_agents ?? [];
+      const previousSkillState =
+        hasExplicitToolSelection
+          ? localState.workspace_skills ?? { selected_agents: [] }
+          : localState.workspace_skills;
+      const skillReport = await updateWorkspaceAgentSkills(
+        selected.root,
+        selectedAgentIds,
+        previousSkillState
+      );
+      const shouldStoreSelection = hasExplicitToolSelection || Boolean(localState.workspace_skills);
+
+      if (shouldStoreSelection) {
+        await writeWorkspaceSkillState(selected.root, selectedAgentIds, skillReport);
+        await recordSelectedWorkspaceAfterMutation(selected);
+      }
+
+      const doctorResult = await loadWorkspaceForDoctor(selected);
+
+      if (options.json) {
+        printJson({
+          workspace: doctorResult.workspace,
+          workspace_skills: skillReport,
+          status: doctorResult.status,
+        });
+        return;
+      }
+
+      console.log(chalk.green('Workspace update complete'));
+      console.log(`Workspace: ${doctorResult.workspace.name}`);
+      console.log(`Location: ${doctorResult.workspace.root}`);
+      console.log('');
+      printStatusLines(doctorResult.status);
+      if (doctorResult.status.length > 0) {
+        console.log('');
+      }
+      printWorkspaceSkillReportHuman(skillReport);
+      console.log('');
+      console.log('Next useful commands:');
+      console.log(`  openspec workspace doctor --workspace ${doctorResult.workspace.name}`);
+      console.log(`  openspec workspace update --workspace ${doctorResult.workspace.name} --tools <ids>`);
+    } catch (error) {
+      this.handleFailure(options.json, { workspace: null, workspace_skills: null, status: [] }, error);
+    }
+  }
+
   async open(
     positionalName: string | undefined,
     options: WorkspaceOpenOptions = {}
@@ -1023,6 +1134,20 @@ export function registerWorkspaceCommand(program: Command): void {
   ).action(async (options: WorkspaceLinkOptions) => {
     await workspaceCommand.doctor(options);
   });
+
+  workspace
+    .command('update [name]')
+    .description('Refresh workspace-local OpenSpec agent skills from the active global profile')
+    .option('--workspace <name>', 'Workspace name from the local workspace registry')
+    .option(
+      '--tools <tools>',
+      `Select agents for workspace skills. Use "all", "none", or a comma-separated list of: ${getWorkspaceSkillToolIds().join(', ')}. Global profile selects workflows; --tools selects agents.`
+    )
+    .option('--json', 'Output as JSON')
+    .option('--no-interactive', 'Disable prompts')
+    .action(async (name: string | undefined, options: WorkspaceUpdateOptions) => {
+      await workspaceCommand.update(name, options);
+    });
 
   workspace
     .command('open [name]')

@@ -20,18 +20,18 @@ User-testable outcome: A user can run workspace setup, choose which agents get t
 
 User-testable outcome: A user can change the global profile, run workspace update in an existing workspace, and see workspace-local skills refresh to the selected workflows with clear human and JSON output.
 
-- [ ] 2.1 Add a workspace update flow that refreshes, adds, or removes OpenSpec agent skills in an existing workspace.
-- [ ] 2.2 Let `openspec workspace update` resolve the current workspace when run from inside a workspace.
-- [ ] 2.3 Support named and selected-workspace update forms such as `openspec workspace update platform` and `openspec workspace update --workspace platform`.
-- [ ] 2.4 Support non-interactive update forms such as `openspec workspace update platform --tools codex,claude`.
-- [ ] 2.5 Remove only known OpenSpec-managed workflow skill directories for agents that are no longer selected.
-- [ ] 2.6 Sync workspace-local workflow skill directories to the current global profile selection.
-- [ ] 2.7 Keep workspace update skills-only for this slice; do not generate slash commands or global command files even when global delivery includes commands.
-- [ ] 2.8 Define how update reports refreshed, added, removed, skipped, failed, and skills-only delivery work in human and JSON output.
-- [ ] 2.9 Use stored selected agents when workspace update runs without `--tools`, and update that stored selection when `--tools` is passed.
-- [ ] 2.10 Detect workspace-local skill drift from the active global profile and report `openspec workspace update` guidance.
-- [ ] 2.11 Manually run workspace update for refresh, add, remove, no-op, omitted-`--tools`, and profile-change cases and verify linked repos remain unchanged.
-- [ ] 2.12 Review the update UX: command forms, current-workspace detection, profile/delivery messaging, drift messaging, removal messaging, and JSON output are understandable.
+- [x] 2.1 Add a workspace update flow that refreshes, adds, or removes OpenSpec agent skills in an existing workspace.
+- [x] 2.2 Let `openspec workspace update` resolve the current workspace when run from inside a workspace.
+- [x] 2.3 Support named and selected-workspace update forms such as `openspec workspace update platform` and `openspec workspace update --workspace platform`.
+- [x] 2.4 Support non-interactive update forms such as `openspec workspace update platform --tools codex,claude`.
+- [x] 2.5 Remove only known OpenSpec-managed workflow skill directories for agents that are no longer selected.
+- [x] 2.6 Sync workspace-local workflow skill directories to the current global profile selection.
+- [x] 2.7 Keep workspace update skills-only for this slice; do not generate slash commands or global command files even when global delivery includes commands.
+- [x] 2.8 Define how update reports refreshed, added, removed, skipped, failed, and skills-only delivery work in human and JSON output.
+- [x] 2.9 Use stored selected agents when workspace update runs without `--tools`, and update that stored selection when `--tools` is passed.
+- [x] 2.10 Detect workspace-local skill drift from the active global profile and report `openspec workspace update` guidance.
+- [x] 2.11 Manually run workspace update for refresh, add, remove, no-op, omitted-`--tools`, and profile-change cases and verify linked repos remain unchanged.
+- [x] 2.12 Review the update UX: command forms, current-workspace detection, profile/delivery messaging, drift messaging, removal messaging, and JSON output are understandable.
 
 ## Phase 3: Config Profile Workspace Apply
 
