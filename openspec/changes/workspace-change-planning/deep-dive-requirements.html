@@ -1,0 +1,1660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Deep Dive: Workspace Change Planning Requirements</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans+Code:wght@400;500&family=Source+Sans+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,600;1,8..60,300;1,8..60,400&display=swap">
+<style>
+  :root {
+    --sans:  'Source Sans Pro', system-ui, sans-serif;
+    --serif: 'Source Serif 4', Georgia, serif;
+    --mono:  'Google Sans Code', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    --bg:            #faf9f7;
+    --surface:       #f2f0eb;
+    --surface-2:     #ece9e2;
+    --border:        #e3e0d8;
+    --border-strong: #ccc9bf;
+    --ink:    #1a1917;
+    --ink-2:  #4a4843;
+    --ink-3:  #8a8780;
+
+    --accent:       #c4580a;
+    --accent-hover: #a84908;
+    --accent-bg:    #fdf1e8;
+
+    --sage:        #7a8f4a;
+    --sage-bg:     #f3f5ea;
+
+    --dark:           #18171a;
+    --dark-ink:       #f0ede8;
+    --dark-ink-muted: #c3c2b1;
+    --dark-border:    #332f3e;
+
+    /* Legacy alias kept so the JS inline() code-block style continues to read */
+    --code-bg: var(--surface);
+
+    --radius: 4px;
+    --rule: 1px solid var(--border);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  html { font-size: 20px; background: var(--bg); color: var(--ink); }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-weight: 300;
+    font-size: 0.8rem; /* 16px effective base for app chrome */
+    line-height: 1.6;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection { background: var(--accent-bg); color: var(--ink); }
+
+  /* ---------- Eyebrow + section-rule patterns ---------- */
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    line-height: 1;
+  }
+  .eyebrow::after {
+    content: "";
+    display: block;
+    width: 2.5rem;
+    height: 1px;
+    background: var(--accent);
+    opacity: 0.5;
+  }
+  .section-rule {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ink-3);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 0 0 1rem;
+  }
+  .section-rule::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ---------- Header ---------- */
+  header {
+    padding: 0.7rem 1.25rem;
+    border-bottom: var(--rule);
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-shrink: 0;
+  }
+  .title-block { display: flex; flex-direction: column; gap: 4px; }
+  .title-block h1 {
+    margin: 0;
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: 1rem;
+    letter-spacing: -0.005em;
+    line-height: 1.2;
+    color: var(--ink);
+  }
+  .title-block .sub {
+    color: var(--ink-3);
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+  }
+
+  .nav-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .nav-btn {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--ink-2);
+    padding: 6px 12px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    line-height: 1;
+    transition: color 0.12s, border-color 0.12s, background 0.12s;
+  }
+  .nav-btn:hover:not(:disabled) {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-bg);
+  }
+  .nav-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .nav-counter {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    padding: 0 4px;
+    min-width: 64px;
+    text-align: center;
+    letter-spacing: 0.05em;
+  }
+  .progress-track {
+    width: 140px;
+    height: 2px;
+    background: var(--border);
+    border-radius: 0;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    transition: width 0.25s;
+  }
+  .progress-label {
+    font-size: 10px;
+    color: var(--ink-3);
+    margin-left: 6px;
+    font-family: var(--mono);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .copy-all-btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    padding: 9px 14px;
+    background: var(--accent);
+    color: #fff;
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    cursor: pointer;
+    line-height: 1;
+    transition: background 0.12s, border-color 0.12s;
+  }
+  .copy-all-btn:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+  /* ---------- Main layout ---------- */
+  .main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 270px 1fr;
+    min-height: 0;
+  }
+
+  /* ---------- Sidebar (req list) ---------- */
+  .sidebar {
+    background: var(--bg);
+    border-right: var(--rule);
+    overflow-y: auto;
+    padding: 1.25rem 0 1rem;
+  }
+  .sidebar-head {
+    padding: 0 1.1rem 0.85rem;
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .sidebar-head::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--accent);
+    opacity: 0.5;
+  }
+
+  /* Sidebar row: hairline top + mono number + serif name + arrow */
+  .req-item {
+    border-top: var(--rule);
+    display: grid;
+    grid-template-columns: 38px 1fr 16px;
+    column-gap: 0.6rem;
+    align-items: center;
+    padding: 0.85rem 1.1rem;
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+    position: relative;
+    transition: background 0.12s;
+  }
+  .req-item:hover { background: var(--surface); }
+  .req-item:hover .req-arr { color: var(--accent); transform: translateX(3px); }
+  .req-item::after {
+    /* sliding arrow */
+    content: "→";
+    grid-column: 3;
+    font-family: var(--mono);
+    color: var(--border-strong);
+    font-size: 14px;
+    transition: color 0.12s, transform 0.15s;
+  }
+  .req-item:hover::after { color: var(--accent); transform: translateX(3px); }
+  .req-item.active { background: var(--accent-bg); }
+  .req-item.active::after { color: var(--accent); }
+  .req-item.active .req-name { color: var(--ink); }
+  .req-item.active .req-num  { color: var(--accent); }
+
+  /* Status dot anchored as a tiny corner mark, doesn't fight the row grid */
+  .req-dot {
+    position: absolute;
+    left: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: transparent;
+  }
+  .req-dot.clear      { background: var(--sage); }
+  .req-dot.needs-work { background: var(--accent); }
+  .req-dot.unclear    { background: var(--border-strong); }
+  .req-dot.reject     { background: var(--ink); }
+
+  .req-num {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    text-align: right;
+    letter-spacing: 0.05em;
+    align-self: center;
+  }
+  .req-name {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: 0.9rem;
+    line-height: 1.3;
+    color: var(--ink-2);
+  }
+
+  /* ---------- Content panel ---------- */
+  .content {
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+  }
+  .content-inner {
+    max-width: 820px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 2.5rem 2.2rem 2.5rem;
+  }
+  .req-header {
+    margin-bottom: 1.75rem;
+    padding-bottom: 1.5rem;
+    border-bottom: var(--rule);
+  }
+  .req-eyebrow {
+    /* same as .eyebrow but standalone block */
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    line-height: 1;
+  }
+  .req-eyebrow::after {
+    content: "";
+    display: block;
+    width: 2.5rem;
+    height: 1px;
+    background: var(--accent);
+    opacity: 0.5;
+  }
+  .req-title {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-variation-settings: "opsz" 60;
+    font-size: clamp(2rem, 4.6vw, 3rem);
+    line-height: 1.05;
+    letter-spacing: -0.015em;
+    margin: 0 0 0.9rem;
+    color: var(--ink);
+  }
+  .req-meta {
+    font-family: var(--mono);
+    color: var(--ink-3);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+  }
+
+  /* ---------- Tabs (joined-segment chips) ---------- */
+  .tabs {
+    display: flex;
+    gap: 0;
+    margin: 0 0 1.5rem;
+    flex-wrap: wrap;
+  }
+  .tab {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-right: none;
+    padding: 9px 13px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    line-height: 1;
+    transition: color 0.12s, background 0.12s;
+    position: relative;
+  }
+  .tab:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+  .tab:last-child  { border-right: 1px solid var(--border); border-radius: 0 var(--radius) var(--radius) 0; }
+  .tab:hover { color: var(--ink); background: var(--surface); }
+  .tab.active {
+    color: var(--accent);
+    background: var(--accent-bg);
+  }
+  .tab.active::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: -1px;
+    height: 2px;
+    background: var(--accent);
+  }
+  .tab .badge {
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 500;
+    color: var(--ink-3);
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+    letter-spacing: 0.05em;
+    min-width: 12px;
+    text-align: center;
+  }
+  .tab.active .badge { color: var(--accent); }
+  .kbd {
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 400;
+    color: var(--ink-3);
+    background: transparent;
+    padding: 0;
+    border: none;
+    margin-left: 2px;
+    opacity: 0.7;
+  }
+  .tab.active .kbd { color: var(--accent); opacity: 0.8; }
+
+  /* ---------- Tab panels ---------- */
+  .tab-panel {
+    padding: 0;
+    display: none;
+    animation: fadeIn 0.18s ease-out;
+  }
+  .tab-panel.active { display: block; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(3px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  /* Statement panel — mono on cream surface card with hairline */
+  .statement-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.4rem 1.6rem;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.75;
+    color: var(--ink-2);
+    white-space: pre-wrap;
+  }
+  .statement-block .src {
+    font-family: var(--mono);
+    color: var(--ink-3);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    display: block;
+    margin-top: 1.1rem;
+    padding-top: 0.9rem;
+    border-top: var(--rule);
+  }
+
+  /* Plain English panel — pull quote with 2px left rule, italic serif */
+  .plain-block {
+    padding: 0.25rem 0 0.25rem 1.6rem;
+    border-left: 2px solid var(--border-strong);
+    font-family: var(--serif);
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(1.05rem, 2.4vw, 1.35rem);
+    line-height: 1.55;
+    color: var(--ink-2);
+  }
+
+  /* Scenarios panel — two cards side by side, hairline borders, low-sat accents */
+  .scenarios {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.1rem;
+  }
+  .scenario-card {
+    border-radius: var(--radius);
+    padding: 1.2rem 1.3rem 1.3rem;
+    border: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .scenario-card.compliant { border-color: var(--border); }
+  .scenario-card.violation { border-color: var(--border); }
+
+  .scenario-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-bottom: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--ink-3);
+  }
+  .scenario-label::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .scenario-card.compliant .scenario-label { color: var(--sage); }
+  .scenario-card.compliant .scenario-label::after { background: var(--sage); opacity: 0.4; }
+  .scenario-card.violation .scenario-label { color: var(--accent); }
+  .scenario-card.violation .scenario-label::after { background: var(--accent); opacity: 0.4; }
+
+  .scenario-body {
+    font-family: var(--sans);
+    font-weight: 300;
+    font-size: 0.82rem;
+    line-height: 1.65;
+    color: var(--ink-2);
+  }
+
+  /* Question / Implication lists — editorial row pattern */
+  .item-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .item-list li {
+    border-top: var(--rule);
+    padding: 1rem 0.25rem 1rem 0;
+    font-family: var(--serif);
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.55;
+    color: var(--ink-2);
+    display: grid;
+    grid-template-columns: 38px 1fr;
+    column-gap: 1rem;
+    align-items: baseline;
+  }
+  .item-list li:last-child { border-bottom: var(--rule); }
+  .item-list li .idx {
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-align: right;
+  }
+  /* No more colored left bars — keep variants but neutralize */
+  .item-list.implications li,
+  .item-list.questions li { border-left: none; background: transparent; }
+
+  /* Tensions — hairline card, mono "with" header rule, italic serif body */
+  .tension-card {
+    border-top: var(--rule);
+    padding: 1.1rem 0;
+  }
+  .tension-card:last-child { border-bottom: var(--rule); }
+  .tension-with {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    margin-bottom: 0.7rem;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-3);
+  }
+  .tension-arrow {
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .tension-link {
+    background: transparent;
+    color: var(--accent);
+    padding: 0;
+    border-radius: 0;
+    font-size: 10px;
+    cursor: pointer;
+    border: none;
+    border-bottom: 1px solid var(--accent);
+    font-family: var(--mono);
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    line-height: 1;
+    padding-bottom: 2px;
+    transition: color 0.12s, border-color 0.12s;
+  }
+  .tension-link:hover { color: var(--accent-hover); border-bottom-color: var(--accent-hover); }
+  .tension-link.unknown {
+    color: var(--ink-3);
+    border-bottom-color: var(--border-strong);
+    cursor: default;
+  }
+  .tension-link.unknown:hover {
+    color: var(--ink-3);
+    border-bottom-color: var(--border-strong);
+  }
+  .tension-body {
+    font-family: var(--serif);
+    font-size: 0.95rem;
+    font-weight: 400;
+    line-height: 1.6;
+    color: var(--ink-2);
+  }
+
+  /* Acceptance — pull quote */
+  .acceptance-block {
+    padding: 0.25rem 0 0.25rem 1.6rem;
+    border-left: 2px solid var(--border-strong);
+  }
+  .acceptance-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .acceptance-label::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--accent);
+    opacity: 0.5;
+  }
+  #panel-acceptance {
+    font-family: var(--serif);
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(1rem, 2.2vw, 1.25rem);
+    line-height: 1.55;
+    color: var(--ink-2);
+  }
+
+  /* ---------- Review bar ---------- */
+  .review-bar {
+    background: var(--bg);
+    border-top: var(--rule);
+    padding: 0.9rem 1.5rem;
+    flex-shrink: 0;
+  }
+  .review-row {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    max-width: 1100px;
+    margin: 0 auto;
+    flex-wrap: wrap;
+  }
+  .review-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .review-label::after {
+    content: "";
+    display: block;
+    width: 1.5rem;
+    height: 1px;
+    background: var(--accent);
+    opacity: 0.5;
+  }
+
+  /* Status group — joined-segment chips */
+  .status-group {
+    display: flex;
+    gap: 0;
+  }
+  .status-btn {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-right: none;
+    color: var(--ink-3);
+    padding: 7px 12px;
+    border-radius: 0;
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    line-height: 1;
+    position: relative;
+    transition: color 0.12s, background 0.12s;
+  }
+  .status-btn:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+  .status-btn:last-child  { border-right: 1px solid var(--border); border-radius: 0 var(--radius) var(--radius) 0; }
+  .status-btn::before {
+    /* indicator dot per status */
+    content: "";
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--border-strong);
+  }
+  .status-btn[data-status="clear"]::before      { background: var(--sage); }
+  .status-btn[data-status="needs-work"]::before { background: var(--accent); }
+  .status-btn[data-status="unclear"]::before    { background: var(--border-strong); }
+  .status-btn[data-status="reject"]::before     { background: var(--ink); }
+
+  .status-btn:hover { color: var(--ink); background: var(--surface); }
+  .status-btn.active {
+    color: var(--accent);
+    background: var(--accent-bg);
+  }
+  .status-btn.active::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: -1px;
+    height: 2px;
+    background: var(--accent);
+  }
+
+  .review-notes {
+    flex: 1;
+    min-width: 220px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--ink);
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    font-family: var(--serif);
+    font-style: italic;
+    font-weight: 400;
+    font-size: 0.85rem;
+    line-height: 1.4;
+  }
+  .review-notes::placeholder {
+    color: var(--ink-3);
+    font-style: italic;
+    font-family: var(--serif);
+  }
+  .review-notes:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .copy-one-btn {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--ink-2);
+    padding: 8px 14px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    line-height: 1;
+    transition: color 0.12s, border-color 0.12s, background 0.12s;
+  }
+  .copy-one-btn:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-bg);
+  }
+
+  /* ---------- Toast ---------- */
+  .toast {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--bg);
+    color: var(--ink);
+    padding: 0.7rem 1rem 0.7rem 1.1rem;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius);
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+    z-index: 100;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ---------- Hint footer ---------- */
+  .hint {
+    font-size: 10px;
+    color: var(--ink-3);
+    margin-left: auto;
+    font-family: var(--mono);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  /* Inline code injected by JS picks up var(--code-bg) which we mapped to surface.
+     Re-style it to feel at home in the cream palette. */
+  .scenario-body code,
+  .item-list code,
+  .tension-body code,
+  #panel-acceptance code,
+  .plain-block code {
+    background: var(--surface) !important;
+    color: var(--accent) !important;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0 5px !important;
+    font-family: var(--mono) !important;
+    font-size: 0.88em !important;
+    font-style: normal;
+  }
+
+  @media (max-width: 1000px) {
+    .scenarios { grid-template-columns: 1fr; }
+    .main { grid-template-columns: 220px 1fr; }
+    .content-inner { padding: 1.6rem 1.2rem 1.8rem; }
+  }
+  @media (max-width: 720px) {
+    .main { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="title-block">
+    <h1>Workspace Change Planning — Deep Dive</h1>
+    <div class="sub">openspec/changes/workspace-change-planning/candidate-requirements.md · 12 requirements</div>
+  </div>
+  <div class="nav-controls">
+    <button class="nav-btn" id="prevBtn">← Prev</button>
+    <div class="nav-counter" id="navCounter">1 / 12</div>
+    <button class="nav-btn" id="nextBtn">Next →</button>
+    <div class="progress-track" title="Reviewed"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    <span class="progress-label" id="progressLabel">0/12 reviewed</span>
+    <button class="copy-all-btn" id="copyAllBtn">Copy All Reviews</button>
+  </div>
+</header>
+
+<div class="main">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-head">Requirements</div>
+  </aside>
+
+  <section class="content" id="content">
+    <div class="content-inner">
+      <div class="req-header">
+        <div class="req-eyebrow" id="reqEyebrow">Requirement 1 of 12</div>
+        <h2 class="req-title" id="reqTitle"></h2>
+        <div class="req-meta" id="reqMeta"></div>
+      </div>
+
+      <div class="tabs" id="tabs">
+        <button class="tab active" data-tab="statement">Statement <span class="kbd">1</span></button>
+        <button class="tab" data-tab="plain">Plain English <span class="kbd">2</span></button>
+        <button class="tab" data-tab="scenarios">Scenarios <span class="kbd">3</span></button>
+        <button class="tab" data-tab="questions">Open Questions <span class="badge" id="badge-q">0</span><span class="kbd">4</span></button>
+        <button class="tab" data-tab="implications">Implications <span class="badge" id="badge-i">0</span><span class="kbd">5</span></button>
+        <button class="tab" data-tab="tensions">Tensions <span class="badge" id="badge-t">0</span><span class="kbd">6</span></button>
+        <button class="tab" data-tab="acceptance">Acceptance <span class="kbd">7</span></button>
+      </div>
+
+      <div class="tab-panel active" data-panel="statement">
+        <div class="statement-block" id="panel-statement"></div>
+      </div>
+      <div class="tab-panel" data-panel="plain">
+        <div class="plain-block" id="panel-plain"></div>
+      </div>
+      <div class="tab-panel" data-panel="scenarios">
+        <div class="scenarios" id="panel-scenarios"></div>
+      </div>
+      <div class="tab-panel" data-panel="questions">
+        <ol class="item-list questions" id="panel-questions"></ol>
+      </div>
+      <div class="tab-panel" data-panel="implications">
+        <ol class="item-list implications" id="panel-implications"></ol>
+      </div>
+      <div class="tab-panel" data-panel="tensions">
+        <div id="panel-tensions"></div>
+      </div>
+      <div class="tab-panel" data-panel="acceptance">
+        <div class="acceptance-block">
+          <div class="acceptance-label">Acceptance Signal</div>
+          <div id="panel-acceptance"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="review-bar">
+  <div class="review-row">
+    <span class="review-label">Your read</span>
+    <div class="status-group" id="statusGroup">
+      <button class="status-btn" data-status="clear">Clear</button>
+      <button class="status-btn" data-status="needs-work">Needs work</button>
+      <button class="status-btn" data-status="unclear">Unclear</button>
+      <button class="status-btn" data-status="reject">Reject</button>
+    </div>
+    <input class="review-notes" id="reviewNotes" placeholder="Your notes on this requirement…" />
+    <button class="copy-one-btn" id="copyOneBtn">Copy this review</button>
+    <span class="hint">← → nav · 1-7 tabs · esc to clear note</span>
+  </div>
+</div>
+
+<div class="toast" id="toast">Copied!</div>
+
+<script>
+  // ---- Data: 12 requirements with deep analysis ----
+  const REQUIREMENTS = [
+    {
+      id: 1,
+      name: "Clear Workspace Planning Framing",
+      lineRef: "Lines 7–18",
+      statement: `## Requirement: Clear Workspace Planning Framing
+
+Workspace change planning should be framed around helping users and agents plan work across linked repos or folders.
+
+The user should understand:
+
+- where to stand
+- what the workspace can see
+- where the plan will be captured
+- when implementation begins
+
+The feature should be described by the planning experience it enables, not primarily by the POC behavior it avoids.`,
+      plainEnglish: "When someone enters workspace mode, the product should immediately make sense as a place to plan work that touches multiple repos or folders — not as a mysterious new sub-product. People should be able to tell, without guessing, where they are, what the workspace knows about, where their plan will be saved, and at what point they stop planning and start coding. The story should be told in terms of the planning they can do, not in terms of which POC behaviors are being avoided.",
+      scenarios: {
+        compliant: "Maya opens a workspace for the first time. The agent greets her with a one-screen orientation: 'You're in the workspace root at ~/work/payments-ws. I can see three attached repos: api, web, billing. Your plan will live at workspace/changes/<id>/proposal.md. Implementation starts when you run /apply and pick an area.' Maya feels grounded and starts describing her cross-repo goal without asking what a workspace is.",
+        violation: "Devon opens the workspace and sees a README that says 'Workspace mode no longer immediately materializes repo-local artifacts and supersedes the previous --targets-first POC behavior.' He has no idea what materialization is, can't tell where his proposal will be written, and ends up cd'ing into a repo and running `openspec new change` the old way because the workspace experience never told him what it was for."
+      },
+      openQuestions: [
+        "What surface does this framing live on — the CLI welcome banner, an agent intro turn, a docs page, or all three?",
+        "How explicitly should 'where to stand' be shown — a printed path, an inferred cwd indicator, or a status command users have to run?",
+        "What signal tells the user that implementation has begun versus that planning is still active?",
+        "Should the framing differ for a first-time workspace user versus a returning one who already knows the model?"
+      ],
+      implications: [
+        "The `openspec status` output (and/or a workspace welcome path) must surface the workspace root, attached repos, plan artifact location, and the implementation handoff moment as first-class fields.",
+        "Documentation under `docs/workspace.md` (or its successor) must be rewritten in planning-experience language, dropping POC-era phrases like 'without immediately materializing repo-local artifacts.'",
+        "Agent skills like `openspec-explore` and `openspec-propose` need a workspace-mode preamble that names the four orientation points before any planning question is asked.",
+        "The proposal.md for this change needs its 'Why' section rewritten to describe the planning experience rather than contrast against the POC."
+      ],
+      tensions: [
+        {with: "Preserve The Familiar OpenSpec Workflow", explanation: "Introducing fresh framing about 'where to stand' and 'where the plan is captured' risks adding workspace-specific concepts that compete with the explore/propose/apply/verify/archive vocabulary users already know."},
+        {with: "Use Plain Action Language", explanation: "Both requirements push for human language, but this one introduces four orientation concepts (where to stand, what it sees, where the plan lives, when implementation begins) that must be named without slipping into jargon like 'coordination root' or 'edit roots.'"}
+      ],
+      acceptanceSignal: "We'll know this is met when the first agent turn or first CLI output a user sees in a fresh workspace names the workspace root path, lists the attached repos, points to the plan file path, and states the action that begins implementation — without using the word 'materialization.'"
+    },
+    {
+      id: 2,
+      name: "Workspace As Planning Home",
+      lineRef: "Lines 20–32",
+      statement: `## Requirement: Workspace As Planning Home
+
+A workspace change should capture the shared plan for a cross-area effort.
+
+The workspace should provide a planning home for:
+
+- goals
+- decisions
+- coordination tasks
+- affected areas
+- cross-area risks and dependencies
+
+Repo-local execution should begin only when the user or agent moves into an implementation workflow for a selected area.`,
+      plainEnglish: "A workspace change is the single shared document where a cross-repo effort gets thought through — the place that holds the goal, the decisions, the coordination to-dos, the list of affected areas, and the risks that cross repo boundaries. None of the repos should start getting actual code edits or repo-local change folders just because a workspace plan exists; that only happens once a person or agent deliberately moves to implementing one area.",
+      scenarios: {
+        compliant: "Maya creates workspace change `add-3ds` from the workspace root. The agent writes a single `workspace/changes/add-3ds/proposal.md` capturing the goal, lists `api`, `web`, and `billing` as affected areas, and adds a coordination task about contract alignment between api and billing. No `openspec/changes/add-3ds/` folder appears inside any of the three repos. When Maya later says '/apply, start with api,' that's when the api repo first gets a repo-local change folder.",
+        violation: "Devon runs `openspec new change add-3ds --targets api,web,billing` and the command immediately creates `openspec/changes/add-3ds/` folders inside all three repos with stub proposals and tasks. He hasn't decided anything yet, but three repos now show pending OpenSpec changes that need to be either filled in or cleaned up, and the 'plan' is scattered across four locations instead of living in one workspace home."
+      },
+      openQuestions: [
+        "Where exactly does the workspace plan file tree live — top-level `workspace/changes/<id>/`, `openspec/workspace/changes/<id>/`, or somewhere else?",
+        "Are affected areas declared up front, or derived from the proposal/design content as it evolves?",
+        "What's the minimum artifact set seeded at creation — just `.openspec.yaml`, or also a stub `proposal.md` and `tasks.md`?",
+        "What is the precise event that 'moves into implementation' — running `/apply`, opening a repo, or an explicit transition command?"
+      ],
+      implications: [
+        "`openspec new change` invoked from a workspace root must write only workspace-level files and must not touch any registered repo's filesystem.",
+        "A workspace-level artifact schema is needed for goals, decisions, coordination tasks, affected areas, and cross-area risks/dependencies — likely shaping `proposal.md`, `design.md`, and a coordination `tasks.md`.",
+        "Tests must assert that creating a workspace change leaves all registered repos untouched.",
+        "The `/apply` skill needs an explicit handoff step that's the first thing to write into a repo, so the 'planning home stays clean until implementation' invariant is enforced."
+      ],
+      tensions: [
+        {with: "Apply Means Implement", explanation: "This requirement says repo-local execution begins only when implementation starts; Apply Means Implement defines that exact transition — they must agree on the trigger and the moment repo-local artifacts first appear."},
+        {with: "Area Means Ownership Or Execution Boundary", explanation: "The planning home must list 'affected areas,' but areas might be derived rather than declared — so the workspace plan needs a representation of areas that doesn't lock users into the old `--targets` bookkeeping."}
+      ],
+      acceptanceSignal: "We'll know this is met when creating a workspace change writes files only under the workspace planning tree, a `git status` inside every registered repo shows zero new files, and the workspace proposal contains named sections for goals, decisions, coordination tasks, affected areas, and cross-area risks."
+    },
+    {
+      id: 3,
+      name: "Preserve The Familiar OpenSpec Workflow",
+      lineRef: "Lines 34–46",
+      statement: `## Requirement: Preserve The Familiar OpenSpec Workflow
+
+Workspace mode should preserve the familiar OpenSpec workflow vocabulary.
+
+Users should still be able to think in terms of:
+
+- explore
+- propose
+- apply
+- verify
+- archive
+
+Workspace context should change paths, scope, and allowed actions, not require a separate user-facing workflow family.`,
+      plainEnglish: "People who already use OpenSpec shouldn't have to learn a new vocabulary just because they opened a workspace. The same five verbs they know — explore, propose, apply, verify, archive — should still describe what they're doing; workspace mode just changes which files those verbs read and write and which folders they're allowed to edit in. There should not be a parallel set of 'workspace-explore' or 'workspace-apply' commands or skills.",
+      scenarios: {
+        compliant: "Maya, who has used OpenSpec for repo-local work for a year, opens a workspace and types `/explore`. The same skill loads, but its first message says 'I can see api, web, and billing — what cross-repo goal do you want to think through?' She later runs `/apply`, picks `api`, and the same `/apply` skill scopes edits to that repo. She never needed to learn a new command name.",
+        violation: "Devon's agent setup ships separate skills called `openspec-workspace-propose`, `openspec-workspace-apply`, and `openspec-workspace-verify` alongside the originals. When he opens a workspace, the agent tells him 'you're in workspace mode, please use the workspace-* skills now.' He has to remember which variant to invoke based on where he is, and the two skill families slowly drift in behavior."
+      },
+      openQuestions: [
+        "Does every existing workflow skill (explore/propose/apply/verify/archive) need updates simultaneously, or can they be migrated one at a time?",
+        "How does each skill detect workspace mode — by inspecting cwd, by calling `openspec status --json`, or by an injected context flag?",
+        "What happens to `bulk-archive` and other less-central skills — do they stay repo-local-only until workspace archive semantics settle?",
+        "If workspace mode changes 'allowed actions,' how should a skill communicate that an action is blocked (e.g., editing outside the selected area) without inventing new error vocabulary?"
+      ],
+      implications: [
+        "Each shipped skill (`openspec-propose`, `openspec-explore`, `openspec-apply-change`, `openspec-verify-change`, `openspec-archive-change`) must add a mode-detection step at its start, likely calling `openspec status --change <id> --json`.",
+        "No new top-level skill names with a `workspace-` prefix should be introduced; the skill registry should remain mode-agnostic in its naming.",
+        "The CLI must expose mode, allowed edit roots, and scoped artifact paths via status JSON so skills can branch behavior without duplicating themselves.",
+        "Skill documentation needs a 'when running in workspace mode' subsection per skill, rather than a separate workspace skill set."
+      ],
+      tensions: [
+        {with: "Avoid Workspace-Specific Skill Duplication", explanation: "These two requirements are mutually reinforcing — preserving the workflow vocabulary is the user-facing rationale, while avoiding duplicate skills is the architectural mechanism; they can also collapse if not distinguished carefully in the spec."},
+        {with: "Status JSON Provides Agent Context", explanation: "Keeping one skill per workflow only works if status JSON reliably tells each skill what mode it's in, where artifacts live, and what's allowed — so this requirement is load-bearing on the status contract being rich enough."},
+        {with: "Clear Workspace Planning Framing", explanation: "The framing requirement wants users to know 'when implementation begins' as a distinct moment, but this one says workspace mode shouldn't introduce new user-facing concepts — the transition must be expressed using existing verbs like /apply rather than a new mode-switch action."}
+      ],
+      acceptanceSignal: "We'll know this is met when the shipped skill list contains exactly one skill per workflow verb (no `workspace-*` duplicates), and running `/explore`, `/propose`, `/apply`, `/verify`, and `/archive` from a workspace root each behaves correctly by branching on `openspec status --json` rather than dispatching to a workspace-only variant."
+    },
+    {
+      id: 4,
+      name: "Avoid Workspace-Specific Skill Duplication",
+      lineRef: "Lines 48–62",
+      statement: `## Requirement: Avoid Workspace-Specific Skill Duplication
+
+OpenSpec should not require separate workspace-specific versions of every workflow skill.
+
+OpenSpec should maintain one conceptual workflow skill per workflow, such as:
+
+- \`openspec-propose\`
+- \`openspec-explore\`
+- \`openspec-apply-change\`
+- \`openspec-verify-change\`
+- \`openspec-archive-change\`
+
+Each workflow skill should discover whether it is operating in repo-local or workspace mode instead of being duplicated by mode.
+
+Workspace-specific behavior should come from CLI-reported context, not from a parallel set of workspace-only skills.`,
+      plainEnglish: "OpenSpec should keep one set of workflow skills (propose, explore, apply, verify, archive) rather than maintaining a parallel 'workspace-flavored' copy of each. The same skill should figure out at runtime whether it's working on a single repo or a cross-repo workspace plan, and behave accordingly. The signal for which mode applies should come from what the CLI reports, not from the skill file the agent loaded.",
+      scenarios: {
+        compliant: "Sasha is inside a workspace coordination root and types '/apply' to continue an in-flight cross-repo change. The same openspec-apply-change skill that runs in a normal repo loads, calls 'openspec status --change add-3ds --json', sees mode=workspace plus a list of areas, and asks Sasha which area to implement. No 'openspec-workspace-apply-change' skill exists anywhere on disk.",
+        violation: "A maintainer ships 'openspec-workspace-propose', 'openspec-workspace-apply-change', and 'openspec-workspace-verify-change' alongside the repo-local versions, and the agent dispatch logic picks one based on cwd. Six months later a third mode (e.g. monorepo subproject) lands and the team has to fork every skill again, with subtle drift between the duplicates."
+      },
+      openQuestions: [
+        "How exactly does the skill 'discover' its mode at the start of a run — does it always shell out to 'openspec status --json' first, or is there an environment hint?",
+        "What does the skill do if the CLI is too old to report workspace context — fall back to repo-local assumptions, or fail loudly?",
+        "When a workspace change is selected but cwd is inside one of its registered repos, which mode wins, and who decides?",
+        "Should the single skill be allowed to delegate to internal sub-prompts per mode, or must the prose itself branch?"
+      ],
+      implications: [
+        "Every workflow skill grows a mandatory 'first, run openspec status --change <id> --json' preamble that gates downstream prose on the returned mode/paths.",
+        "The skill generator (openspec init / openspec update) must stop emitting any per-mode variants and instead emit one file per workflow regardless of repo vs. workspace.",
+        "Tests need a matrix that runs each skill against both a repo-local fixture and a workspace fixture using the same skill file.",
+        "Skill prose must be written to read paths from JSON rather than hardcoding 'openspec/changes/<id>/', which means existing skills need a rewrite pass."
+      ],
+      tensions: [
+        {with: "Status JSON Provides Agent Context", explanation: "This requirement only works if the status JSON is rich and reliable enough to drive branching inside one skill — so requirement 4 fully depends on requirement 6 being met first."},
+        {with: "Separate Agent Affordances From Workflow Semantics", explanation: "Pushing all variation into a single workflow skill increases pressure to factor out agent-specific bits, otherwise the one skill bloats with both mode-branches and agent-branches."},
+        {with: "Apply Means Implement", explanation: "A unified /apply skill must internally know to ask for an area in workspace mode but not in repo-local mode, which concentrates conditional behavior in one place that could become hard to reason about."}
+      ],
+      acceptanceSignal: "We'll know this is met when the skills directory contains exactly one file per workflow (no '-workspace' suffixes), and a test agent successfully completes /propose, /apply, and /verify in both a repo-local fixture and a workspace fixture using those same skill files unmodified."
+    },
+    {
+      id: 5,
+      name: "Separate Agent Affordances From Workflow Semantics",
+      lineRef: "Lines 64–76",
+      statement: `## Requirement: Separate Agent Affordances From Workflow Semantics
+
+OpenSpec workflow instructions should describe the OpenSpec product workflow.
+
+Agent-specific instructions should describe how the current coding agent performs common actions, such as:
+
+- asking the user questions
+- tracking todos
+- delegating to subagents
+- attaching directories
+- handling agent-specific session constraints
+
+Workflow skills should reference or use an agent affordance layer instead of repeating agent-specific instructions in every workflow.`,
+      plainEnglish: "The instructions that describe what OpenSpec the product does (propose a change, apply tasks, verify a spec) should be kept separate from the instructions that describe how a particular coding agent does generic things like ask questions, track todos, or attach a directory. Workflow skills should reference a shared 'how this agent works' layer instead of each skill repeating Claude-specific or Cursor-specific boilerplate. The goal is that swapping coding agents doesn't require editing every workflow file.",
+      scenarios: {
+        compliant: "The openspec-apply-change skill says 'ask the user to choose an area' as a workflow step. It delegates the 'how to actually ask' to an agent-affordance reference — in Claude Code that resolves to a TodoWrite + question prompt pattern, in another agent it resolves to that agent's prompt convention. When a new agent integration ships, only the affordance profile is added; openspec-apply-change is untouched.",
+        violation: "Every workflow skill file embeds 'Use TodoWrite to track each task. When asking the user a question, use the AskUserQuestion tool. When attaching a directory, use the @-mention syntax.' six times across propose/explore/apply/verify/archive. Adding Cursor support means search-replacing five files and risking drift where one skill forgets to switch."
+      },
+      openQuestions: [
+        "Where does the affordance layer physically live — a separate skill file, a fragment included via templating, an OpenSpec-managed system prompt section, or per-agent build output?",
+        "Who owns the affordance profile for a given agent: OpenSpec itself, the agent vendor, or the user's local config?",
+        "How does a workflow skill reference an affordance generically (e.g. 'agent.askUserQuestion') without leaking the abstraction into user-visible language?",
+        "What happens when an agent simply has no equivalent for an affordance (e.g. no native todo tracker)?"
+      ],
+      implications: [
+        "OpenSpec needs to define a small, stable vocabulary of agent affordances (ask, track-todos, delegate-subagent, attach-dir, etc.) that workflow skills can call out to.",
+        "Generated skills must be split into 'workflow body' + 'affordance binding' at build time, or use a runtime indirection.",
+        "Per-agent integration becomes a separate adapter rather than a fork of the whole skill tree, changing how 'openspec init --agent <name>' is implemented.",
+        "Documentation needs a section explaining the separation so contributors don't paste agent-specific instructions back into workflow skills."
+      ],
+      tensions: [
+        {with: "Use Plain Action Language", explanation: "Requirement 7 explicitly bans 'workflow affordances' from user-facing docs and JSON — so this requirement's core term is contested and must stay internal-only, complicating how contributors talk about it."},
+        {with: "Avoid Workspace-Specific Skill Duplication", explanation: "Both requirements share the same motivation (avoid combinatorial skill explosion across workflow × agent × mode), so they reinforce each other but also concentrate complexity in two coupled abstractions that must evolve together."},
+        {with: "Preserve The Familiar OpenSpec Workflow", explanation: "Extracting affordances risks making workflow skills feel more abstract or templated, which could fight the goal of keeping the explore/propose/apply/verify/archive vocabulary feeling concrete and familiar."}
+      ],
+      acceptanceSignal: "We'll know this is met when adding support for a new coding agent requires creating exactly one new affordance profile and zero edits to any openspec-* workflow skill, and the same workflow skills produce identical OpenSpec outcomes across at least two agents."
+    },
+    {
+      id: 6,
+      name: "Status JSON Provides Agent Context",
+      lineRef: "Lines 78–93",
+      statement: `## Requirement: Status JSON Provides Agent Context
+
+\`openspec status --change <id> --json\` should provide enough context for an agent to understand the current change and act safely.
+
+Status JSON should tell the agent:
+
+- whether the change is repo-local or workspace-scoped
+- where the change artifacts live
+- which artifact paths are relevant
+- what should happen next
+- which areas are affected or unresolved
+- which edit roots are allowed for implementation
+- whether the next action needs an area selection
+
+Agents should not need to assume that changes always live under \`openspec/changes/<id>/\`.`,
+      plainEnglish: "When an agent runs 'openspec status --change <id> --json', the output should be the single source of truth for what to do next and where to do it — including whether this is a single-repo or cross-repo change, where the artifacts live, which areas are affected, and where edits are allowed. The agent shouldn't have to guess paths, scan folders, or assume changes always live in 'openspec/changes/'. This makes status JSON the contract that lets one skill handle many modes safely.",
+      scenarios: {
+        compliant: "An agent picks up a workspace change with two affected areas (api, web) and no area selected yet. It runs status --json once, gets mode='workspace', a list of artifact paths rooted at the workspace, an unresolved-area flag, and a nextSteps array saying 'ask user to pick an area before implementing'. The agent asks the question, runs status --json again with --area api, gets a single allowed edit root scoped to the api repo, and starts work without ever guessing a path.",
+        violation: "Status JSON returns only the change id, title, and task counts. The agent infers that artifacts live under 'openspec/changes/<id>/', writes a new tasks.md there, and corrupts a workspace-scoped change whose real artifacts lived under 'workspace/changes/<id>/'. Worse, the JSON had no field saying 'this is a workspace change', so the agent had no way to know it guessed wrong."
+      },
+      openQuestions: [
+        "What is the canonical schema and version field — and how does it evolve without breaking older skill prose that reads specific keys?",
+        "When no change is selected (just 'openspec status --json'), what's the minimal shape — a list of active changes plus per-change summary, or an error?",
+        "For a multi-area change, does status return all areas in one call (and the agent picks), or does the agent have to re-invoke with --area to get scoped edit roots?",
+        "How are 'allowed edit roots' expressed when an area is a folder inside a repo vs. an entire registered repo — absolute paths, repo-alias-relative paths, or both?",
+        "Should the JSON include the actual artifact contents (or hashes) to save a follow-up file read, or stay strictly metadata?"
+      ],
+      implications: [
+        "A versioned JSON schema for status output must be defined, documented, and snapshot-tested so skills can rely on field names.",
+        "The CLI gains a notion of 'change scope' (repo-local vs workspace) that it can detect from where the change lives, and must expose it as a stable enum.",
+        "'openspec status' grows new optional flags like --area and possibly --slice so agents can narrow context after an initial broad call.",
+        "The skill prose must standardize on 'call status first, read paths from JSON' as the canonical opener, replacing any hardcoded path conventions in existing skills."
+      ],
+      tensions: [
+        {with: "Use Plain Action Language", explanation: "Requirement 7 dictates the field names (nextSteps, actionContext) and bans implementation-flavored terms, so requirement 6's schema design is constrained by requirement 7's vocabulary rules."},
+        {with: "Avoid Workspace-Specific Skill Duplication", explanation: "Requirement 4 is only feasible if status JSON is expressive enough to drive all mode-specific branching — so requirement 6 effectively gates requirement 4."},
+        {with: "Apply Means Implement", explanation: "Requirement 8 says /apply must ask which area to implement when ambiguous; status JSON has to surface 'needs area selection' as a first-class signal for that handshake to work."},
+        {with: "Area Means Ownership Or Execution Boundary", explanation: "The JSON must express 'affected areas' without forcing them to be delivery slices, which means the schema needs distinct fields for areas vs. slices even when only areas are present."}
+      ],
+      acceptanceSignal: "We'll know this is met when a test agent given only the output of 'openspec status --change <id> --json' (plus the ability to re-invoke it with flags) completes a full /apply cycle for a 3-area workspace change — selecting an area, editing only inside the reported edit root, and updating task progress — without reading any file outside the artifact paths the JSON listed."
+    },
+    {
+      id: 7,
+      name: "Use Plain Action Language",
+      lineRef: "Lines 94–103",
+      statement: `## Requirement: Use Plain Action Language
+
+OpenSpec should use simple terms for agent-facing action context.
+
+Preferred terms:
+
+- \`nextSteps\`: what should happen next
+- \`actionContext\`: paths, areas, and constraints needed to act
+
+Avoid exposing implementation-oriented terms such as "workflow affordances" in user-facing docs or JSON fields.`,
+      plainEnglish: "Talk to agents and users using simple, action-oriented words instead of insider jargon. Prefer names like 'nextSteps' and 'actionContext' over terms that describe how the system is built internally, such as 'workflow affordances'.",
+      scenarios: {
+        compliant: "A developer runs `openspec status --change add-3ds --json` to see what's next. The output contains a `nextSteps` array with entries like 'Pick an affected area, then implement inside it' and an `actionContext` block listing the allowed edit roots. The developer immediately understands what to do without consulting a glossary.",
+        violation: "The same status command instead returns a `workflowAffordances` object containing an `agentSurfaceMode` field set to `repoLocalScopedExecution`. The developer has to read the OpenSpec source to figure out which field tells the agent where to edit, and the field names show up verbatim in the docs."
+      },
+      openQuestions: [
+        "Where is the canonical list of approved terms maintained, and how are new candidate terms reviewed?",
+        "Does this rule apply only to JSON field names, or also to CLI flag names, error messages, and skill prose?",
+        "Are existing terms like 'affordance' or 'edit root' grandfathered, or do they need to be renamed in this same change?",
+        "How do we handle technically precise terms (e.g., 'spec delta') that have no plain-English equivalent?"
+      ],
+      implications: [
+        "Status JSON schema must use `nextSteps` and `actionContext` instead of internal-sounding keys; a schema test should fail on banned terms.",
+        "A short style guide section in `openspec/AGENTS.md` or contributor docs must list the preferred vocabulary and the banned list.",
+        "The 'Separate Agent Affordances From Workflow Semantics' requirement needs a renaming because 'agent affordance layer' violates this rule in user-facing prose.",
+        "Skill descriptions for `openspec-apply-change`, `openspec-propose`, etc. must be audited for jargon before they ship."
+      ],
+      tensions: [
+        {with: "Separate Agent Affordances From Workflow Semantics", explanation: "That requirement names the very layer as 'agent affordance layer', which is exactly the implementation-oriented phrasing this requirement asks us to avoid in user-facing surfaces."},
+        {with: "Status JSON Provides Agent Context", explanation: "Status JSON lists many distinct concepts (edit roots, unresolved areas, area selection) that pressure the schema toward precise technical names rather than plain ones."}
+      ],
+      acceptanceSignal: "We'll know this is met when a fresh contributor can read the `openspec status --json` output and the top-level skill descriptions and explain what to do next without asking what any field name means."
+    },
+    {
+      id: 8,
+      name: "Apply Means Implement",
+      lineRef: "Lines 106–125",
+      statement: `## Requirement: Apply Means Implement
+
+\`/apply\` should start or continue implementation work for an already planned change.
+
+In repo-local mode, \`/apply\` should:
+
+- read the repo-local change artifacts
+- identify pending implementation tasks
+- implement the pending tasks in that repo
+- update task progress as implementation work is completed
+
+In workspace mode, \`/apply\` should:
+
+- select or confirm one affected area when needed
+- read the workspace planning context for that area
+- identify the implementation root for that area
+- implement only inside the allowed repo or folder
+- update the relevant task progress as work is completed
+
+If a workspace change has multiple affected areas and the user did not specify one, \`/apply\` should ask which area to implement.`,
+      plainEnglish: "`/apply` is the moment work actually gets built, not the moment planning files appear. Whether the change lives in one repo or spans a workspace, apply reads the existing plan, picks the right place to edit, writes code there, and ticks off tasks as it goes.",
+      scenarios: {
+        compliant: "A user has already proposed a workspace change `add-3ds` affecting `api` and `web`. They run `/apply add-3ds --area api`. The agent reads the api-scoped tasks, opens the api repo as the only allowed edit root, implements the next pending task, and updates the api task list. No new planning artifacts are scaffolded by `/apply` itself.",
+        violation: "A user runs `/apply add-3ds` on a freshly created workspace change that has no proposal yet. The command silently materializes per-area folders, drafts placeholder tasks, and edits files in every registered repo because it treated apply as 'set up the change'. The user now has touched repos they did not intend to edit."
+      },
+      openQuestions: [
+        "If a workspace change has multiple affected areas but only one has pending tasks, should `/apply` skip the area-selection prompt and proceed directly?",
+        "What does 'identify pending implementation tasks' mean when tasks live in per-area task files — is the union computed at the change level or per area?",
+        "If the user passes an `--area` that is not in the affected list, does apply refuse, suggest a close match, or offer to add the area?",
+        "When only one area exists on the change, should `/apply` still confirm it, or proceed silently with that area as the implicit choice?",
+        "How does apply behave on a slice that has tasks but no area has been resolved yet?"
+      ],
+      implications: [
+        "`/apply` must call `openspec status --change <id> --json` and respect its `actionContext` rather than hardcoding `openspec/changes/<id>/tasks.md`.",
+        "A new area-selection prompt is needed inside the `openspec-apply-change` skill, gated on the status JSON saying area selection is required.",
+        "An `--area` (or equivalent plain-language flag) must be added to the apply CLI surface for non-interactive use.",
+        "Apply must enforce an allowed edit root: writes outside the area's repo or folder should be blocked, not silently permitted.",
+        "Workspace `/apply` must explicitly not scaffold planning files; that responsibility belongs to proposal/explore flows."
+      ],
+      tensions: [
+        {with: "Slice Means Delivery Increment", explanation: "If implementation is sliced, `/apply` may need to ask for a slice too, not just an area, complicating the area-only selection prompt this requirement describes."},
+        {with: "Avoid Workspace-Specific Skill Duplication", explanation: "A single `openspec-apply-change` skill must internally branch between repo-local and workspace flows, which puts pressure on keeping it from forking into two skills."}
+      ],
+      acceptanceSignal: "We'll know this is met when running `/apply` on a multi-area workspace change with no area specified produces an area-selection prompt and never writes outside the chosen area's edit root."
+    },
+    {
+      id: 9,
+      name: "Slice Means Delivery Increment",
+      lineRef: "Lines 127–138",
+      statement: `## Requirement: Slice Means Delivery Increment
+
+\`slice\` should refer to a delivery increment inside a larger change.
+
+A slice should help users split a large effort into smaller planned parts that can be:
+
+- designed
+- implemented
+- reviewed
+- verified
+- shipped
+
+Repo or folder ownership should use a different term so delivery breakdown and ownership boundaries remain distinct.`,
+      plainEnglish: "A 'slice' is a chunk of work you can ship on its own — design it, build it, review it, verify it, release it. It is about delivery rhythm, not about which repo or team owns code. Repo or folder ownership uses a different word so the two ideas stay separate.",
+      scenarios: {
+        compliant: "A large change `workspace-reimplementation` is broken into slices named `setup`, `open`, `change-planning`, `apply`, `verify-archive`. Each slice has its own tasks and can be reviewed and shipped on its own timeline, while areas (`cli`, `agent-skills`, `docs`) describe which parts of the codebase each slice touches. `openspec status --change workspace-reimplementation --json` reports `slices` and `areas` as separate top-level fields.",
+        violation: "A change creates a `slices/` folder with `api/`, `web/`, and `contracts/` underneath because those are the repos affected. The system now uses 'slice' to mean both 'delivery increment' and 'ownership boundary'. A user asking 'which slice ships next?' gets back a repo name, not a deliverable."
+      },
+      openQuestions: [
+        "What creates a slice — a folder under `slices/`, a section in `tasks.md`, a metadata entry, or a CLI command like `openspec new slice`?",
+        "Who labels a slice as the current one in progress, and how does that propagate to `/apply` and verify?",
+        "How does a slice appear in `openspec status --json` — as an array of `{id, name, status, areas}` objects, or as a flat list of ids?",
+        "Can a slice exist without explicit areas (a single implicit area), and how is that rendered without confusing users?",
+        "Is slice naming free-form, or constrained by a schema (kebab-case, unique within change, etc.)?"
+      ],
+      implications: [
+        "Status JSON gains a `slices` collection that is distinct from `areas`, with its own lifecycle states (planned, in-progress, shipped).",
+        "Change folder shapes must reserve a `slices/` directory and document that it is for delivery increments, not ownership.",
+        "Skills like `openspec-propose` and `openspec-apply-change` need prose explaining when to introduce a slice and when a change can stay slice-implicit.",
+        "Validation must reject changes that try to use a single name for both a slice and an area, to keep the two namespaces disjoint."
+      ],
+      tensions: [
+        {with: "Area Means Ownership Or Execution Boundary", explanation: "Slices and areas must stay distinct, but a small change has one implicit slice and several areas — the UI must communicate that without making slice feel mandatory."},
+        {with: "Apply Means Implement", explanation: "`/apply` currently asks for an area; if slices are introduced, it may also need to ask for a slice, which expands the selection surface this requirement leaves unspecified."}
+      ],
+      acceptanceSignal: "We'll know this is met when `openspec status --change <id> --json` reports `slices` and `areas` as two separate fields, and at least one example change in the docs uses slices for delivery breakdown while reserving `areas` for repo or folder ownership."
+    },
+    {
+      id: 10,
+      name: "Area Means Ownership Or Execution Boundary",
+      lineRef: "Lines 140–157",
+      statement: `## Requirement: Area Means Ownership Or Execution Boundary
+
+\`area\` should describe where ownership or implementation happens.
+
+Examples of areas:
+
+- repo
+- package
+- folder
+- service
+- app
+- docs site
+
+A small workspace change may have several areas and one implicit slice.
+
+A large workspace change may have several slices, and each slice may affect one or more areas.
+
+OpenSpec should be able to report affected areas without forcing users to think of those areas as delivery slices.`,
+      plainEnglish: "An 'area' is a place where work actually gets done or where someone owns the code — like a repo, a folder, a package, a service, or a docs site. A change can touch several areas, but those areas don't necessarily mean it should be broken into delivery chunks. OpenSpec should be able to say which areas a change affects without forcing the user to label them as delivery slices.",
+      scenarios: {
+        compliant: "A product lead creates a workspace change called 'add-3ds' that touches the contracts repo, the billing service, and the web app. OpenSpec reports three affected areas, treats the change as having one implicit delivery slice, and lets `/apply` ask 'which area do you want to implement?' without ever asking the user to define delivery increments.",
+        violation: "A user creates a small workspace change affecting two repos. OpenSpec forces them to define each repo as a 'slice' before they can proceed, conflating where the code lives with how the work will be sequenced for delivery, and producing per-slice planning artifacts neither the user nor the agent wanted."
+      },
+      openQuestions: [
+        "Should an area always correspond to a registered workspace repo alias, or can it be a sub-folder, package, or logical service?",
+        "How does OpenSpec discover affected areas — from folder structure, from explicit metadata, from artifact contents, or some combination?",
+        "When a change has multiple areas but only one implicit slice, how is that surfaced in `openspec status --json`?",
+        "Can an area exist outside any registered repo (e.g. a shared docs site that isn't a workspace repo), and if so how is its edit root expressed?"
+      ],
+      implications: [
+        "`openspec status --change <id> --json` needs an `affectedAreas` field distinct from any slice field, with each area carrying an identifier and an allowed edit root.",
+        "`/apply` must be able to prompt for an area selection when more than one area is affected (already called out in 'Apply Means Implement').",
+        "The on-disk file shape needs to support area-scoped artifacts (e.g. `areas/<area-id>/tasks.md`) without requiring slice nesting for the small case.",
+        "Docs and skill instructions need to teach the area-vs-slice distinction so agents stop using 'target' or 'slice' as a synonym for repo."
+      ],
+      tensions: [
+        {with: "Slice Means Delivery Increment", explanation: "Area and slice are the load-bearing terminology pair; if either definition drifts they collapse back into the ambiguous 'target' concept the POC suffered from."},
+        {with: "Workspace As Planning Home", explanation: "Areas imply repo-local edit roots, which pushes against the rule that planning stays at the workspace level and implementation only begins on entry into an area."}
+      ],
+      acceptanceSignal: "We'll know this is met when `openspec status --change <id> --json` reports affected areas and an implicit-slice indicator separately, and an agent can plan a workspace change touching three repos without ever creating a slice artifact."
+    },
+    {
+      id: 11,
+      name: "Keep Unsettled Direction In Exploratory Notes",
+      lineRef: "Lines 159–166",
+      statement: `## Requirement: Keep Unsettled Direction In Exploratory Notes
+
+Open questions and unsettled direction should live in exploratory notes until they are ready to become proposal, design, or spec content.
+
+\`proposal.md\` should be updated when the scope and intended behavior are clear enough to propose.
+
+\`design.md\` should be created or updated when technical decisions are selected, not while the team is still comparing models.`,
+      plainEnglish: "While the team is still comparing options, that thinking belongs in exploratory notes — not in proposal.md or design.md. Promote content into the proposal only once the scope and intended behavior are clear, and into design.md only once the technical approach is actually chosen.",
+      scenarios: {
+        compliant: "Mid-discussion, the team is still weighing whether 'targets' should exist at all. That open question stays in `exploration-summary.md` under 'Open Questions'. `proposal.md` is left untouched until the team agrees the workspace change captures a cross-area plan and identifies affected areas, at which point only the settled framing is promoted.",
+        violation: "A contributor writes the in-flight terminology debate (slice vs area vs target vs unit) directly into `design.md` while the team is still arguing about the naming. A later reader assumes design.md represents a chosen direction and starts implementing against ambiguous decisions."
+      },
+      openQuestions: [
+        "Which file is the canonical home for exploratory notes — `exploration-summary.md`, `candidate-requirements.md`, or both serving different roles?",
+        "What is the promotion ritual that moves a candidate requirement out of `candidate-requirements.md` into `proposal.md` or a spec delta?",
+        "Should `openspec validate` warn when `design.md` contains language signalling unsettled comparison ('option A vs option B', 'TBD', 'we are still deciding')?",
+        "Who decides a question is 'settled enough' to promote — the user, the agent via heuristic, or an explicit confirmation step?"
+      ],
+      implications: [
+        "OpenSpec needs a documented convention for an `exploration/` area or specific exploratory files (today the directory carries both `exploration-summary.md` and `candidate-requirements.md` with overlapping purpose — that overlap needs to be named or collapsed).",
+        "Skill instructions for `openspec-explore` and `openspec-propose` need explicit guidance: write here while unsettled, promote here when settled.",
+        "`proposal.md` and `design.md` need clearer 'definition of ready' wording so contributors can tell when promotion is appropriate.",
+        "Templates or scaffolding for new changes may need to seed an exploratory-notes file alongside proposal/design."
+      ],
+      tensions: [
+        {with: "Preserve Exploration Context", explanation: "Keeping unsettled material out of proposal/design implies it lives somewhere, but requirement 12 lists six content types without saying whether they share one file or many — this requirement can't be enforced until that shape is decided."},
+        {with: "Clear Workspace Planning Framing", explanation: "The proposal is supposed to describe the planning experience, but if a lot of framing is still unsettled, proposal.md may stay sparse for a long time."}
+      ],
+      acceptanceSignal: "We'll know this is met when a contributor can point at every open question or comparison in the change folder and find it in an exploratory notes file rather than in `proposal.md` or `design.md`."
+    },
+    {
+      id: 12,
+      name: "Preserve Exploration Context",
+      lineRef: "Lines 168–178",
+      statement: `## Requirement: Preserve Exploration Context
+
+The workspace change planning exploration should preserve:
+
+- key findings
+- candidate requirements
+- open questions
+- candidate terminology
+- POC lessons
+- rejected or risky directions
+
+Future work on \`workspace-change-planning\` should be able to use these notes without mistaking them for final requirements.`,
+      plainEnglish: "When a workspace change planning session ends, the thinking that produced it shouldn't evaporate. Six kinds of content — key findings, candidate requirements, open questions, candidate terminology, POC lessons, and rejected or risky directions — need to be saved somewhere a future reader can find them, and clearly marked so they aren't mistaken for finalized requirements.",
+      scenarios: {
+        compliant: "Six months later, a new contributor opens `workspace-change-planning/` and finds the POC lessons (materialization-first was too early), the candidate terminology (change/slice/area/unit/artifact), the rejected directions (required `--targets` flag), and the still-open questions (should targets exist at all) all preserved with clear 'exploratory, not final' status markers. They can pick the thread up without re-running the discussion.",
+        violation: "Someone tidies up the change folder by deleting `exploration-summary.md` once `proposal.md` is written. The reasoning behind why `area` and `slice` are separate concepts is lost, and a later contributor reintroduces 'targets' as a synonym for area because the rejected-direction history is gone."
+      },
+      openQuestions: [
+        "Should all six content types live in one file (today `exploration-summary.md` carries findings, POC lessons, terminology, open questions, and rejected directions — but candidate requirements live in a separate `candidate-requirements.md`), or should each have a dedicated file?",
+        "How are these notes preserved when a change is archived — copied into the archive, left in place, or summarized into a decision record?",
+        "Should there be a required status banner ('exploratory notes, not final') at the top of each file, and should `openspec validate` enforce it?",
+        "How long do exploratory notes live — through archive, indefinitely in the repo history, or extracted into longer-term docs once the change ships?"
+      ],
+      implications: [
+        "OpenSpec needs a named convention for exploratory artifacts inside a change folder; the current directory already shows the split (`exploration-summary.md` for narrative + open questions + rejected directions, `candidate-requirements.md` for requirement drafts) but that split is conventional, not specified.",
+        "Archive flow (`openspec-archive-change`) must decide whether exploratory notes travel with the archived change or stay accessible.",
+        "Validation rules need to allow these files to exist without treating them as proposal/design/spec content.",
+        "Skill instructions for `openspec-explore` need to specify which of the six content types go where, so future explorations produce comparable structure."
+      ],
+      tensions: [
+        {with: "Keep Unsettled Direction In Exploratory Notes", explanation: "Requirement 11 says unsettled material lives in exploratory notes, and this requirement enumerates six categories of such material — but neither requirement specifies whether those six categories share one file or split across many, leaving the on-disk shape ambiguous."},
+        {with: "Preserve The Familiar OpenSpec Workflow", explanation: "The standard workflow (explore, propose, apply, verify, archive) doesn't currently have a named slot for 'preserved exploration context' — adding it may require a new conceptual artifact alongside proposal/design/spec/tasks."}
+      ],
+      acceptanceSignal: "We'll know this is met when a contributor opening any past `workspace-change-planning`-style change folder can locate all six content types (findings, candidate requirements, open questions, terminology, POC lessons, rejected directions) in clearly-marked exploratory files, distinct from proposal.md and design.md."
+    }
+  ];
+
+  // ---- App state ----
+  const reviews = {};
+  REQUIREMENTS.forEach(r => { reviews[r.id] = { status: null, notes: "" }; });
+  let current = 1;
+  let activeTab = "statement";
+
+  // ---- Render helpers ----
+  function esc(s) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  function inline(s) {
+    let t = esc(s);
+    t = t.replace(/`([^`]+)`/g, "<code style='background:var(--code-bg);color:#ffa657;padding:1px 5px;border-radius:3px;font-family:var(--mono);font-size:0.9em'>$1</code>");
+    t = t.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    return t;
+  }
+  function findIdByName(name) {
+    const r = REQUIREMENTS.find(x => x.name === name);
+    return r ? r.id : null;
+  }
+
+  // ---- Sidebar ----
+  function renderSidebar() {
+    const side = document.getElementById("sidebar");
+    side.innerHTML = `<div class="sidebar-head">Requirements</div>`;
+    REQUIREMENTS.forEach(r => {
+      const item = document.createElement("div");
+      item.className = "req-item" + (r.id === current ? " active" : "");
+      const status = reviews[r.id].status;
+      item.innerHTML = `
+        <span class="req-dot ${status || ''}"></span>
+        <span class="req-num">${r.id.toString().padStart(2, "0")}</span>
+        <span class="req-name">${esc(r.name)}</span>
+      `;
+      item.addEventListener("click", () => { goTo(r.id); });
+      side.appendChild(item);
+    });
+  }
+
+  // ---- Tabs ----
+  function setTab(tab) {
+    activeTab = tab;
+    document.querySelectorAll(".tab").forEach(t => {
+      t.classList.toggle("active", t.dataset.tab === tab);
+    });
+    document.querySelectorAll(".tab-panel").forEach(p => {
+      p.classList.toggle("active", p.dataset.panel === tab);
+    });
+  }
+  document.querySelectorAll(".tab").forEach(t => {
+    t.addEventListener("click", () => setTab(t.dataset.tab));
+  });
+
+  // ---- Render current requirement ----
+  function renderRequirement() {
+    const r = REQUIREMENTS.find(x => x.id === current);
+    if (!r) return;
+    document.getElementById("reqEyebrow").textContent = `Requirement ${r.id} of ${REQUIREMENTS.length}`;
+    document.getElementById("reqTitle").textContent = r.name;
+    document.getElementById("reqMeta").textContent = r.lineRef;
+    document.getElementById("navCounter").textContent = `${r.id} / ${REQUIREMENTS.length}`;
+    document.getElementById("prevBtn").disabled = r.id === 1;
+    document.getElementById("nextBtn").disabled = r.id === REQUIREMENTS.length;
+
+    // Badges
+    document.getElementById("badge-q").textContent = r.openQuestions.length;
+    document.getElementById("badge-i").textContent = r.implications.length;
+    document.getElementById("badge-t").textContent = r.tensions.length;
+
+    // Statement
+    document.getElementById("panel-statement").innerHTML =
+      esc(r.statement) + `<span class="src">${r.lineRef} · candidate-requirements.md</span>`;
+
+    // Plain English
+    document.getElementById("panel-plain").textContent = r.plainEnglish;
+
+    // Scenarios
+    document.getElementById("panel-scenarios").innerHTML = `
+      <div class="scenario-card compliant">
+        <div class="scenario-label">✓ Compliant</div>
+        <div class="scenario-body">${inline(r.scenarios.compliant)}</div>
+      </div>
+      <div class="scenario-card violation">
+        <div class="scenario-label">✗ Violation</div>
+        <div class="scenario-body">${inline(r.scenarios.violation)}</div>
+      </div>
+    `;
+
+    // Questions
+    document.getElementById("panel-questions").innerHTML = r.openQuestions
+      .map((q, i) => `<li><span class="idx">${i + 1}.</span><span>${inline(q)}</span></li>`)
+      .join("");
+
+    // Implications
+    document.getElementById("panel-implications").innerHTML = r.implications
+      .map((q, i) => `<li><span class="idx">${i + 1}.</span><span>${inline(q)}</span></li>`)
+      .join("");
+
+    // Tensions
+    document.getElementById("panel-tensions").innerHTML = r.tensions.map(t => {
+      const targetId = findIdByName(t.with);
+      const linkClass = targetId ? "tension-link" : "tension-link unknown";
+      const linkAttr = targetId ? `data-jump="${targetId}"` : "";
+      return `
+        <div class="tension-card">
+          <div class="tension-with">
+            <span class="tension-arrow">↔</span>
+            <button class="${linkClass}" ${linkAttr}>${esc(t.with)}</button>
+          </div>
+          <div class="tension-body">${inline(t.explanation)}</div>
+        </div>
+      `;
+    }).join("") || `<div style="color:var(--muted);padding:20px;text-align:center;">No cross-requirement tensions identified.</div>`;
+    document.querySelectorAll("[data-jump]").forEach(el => {
+      el.addEventListener("click", (e) => {
+        const id = parseInt(e.currentTarget.dataset.jump);
+        goTo(id);
+      });
+    });
+
+    // Acceptance
+    document.getElementById("panel-acceptance").innerHTML = inline(r.acceptanceSignal);
+
+    // Review state
+    const rv = reviews[r.id];
+    document.querySelectorAll(".status-btn").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.status === rv.status);
+    });
+    document.getElementById("reviewNotes").value = rv.notes;
+
+    // Progress
+    const reviewedCount = Object.values(reviews).filter(x => x.status).length;
+    const pct = (reviewedCount / REQUIREMENTS.length) * 100;
+    document.getElementById("progressFill").style.width = pct + "%";
+    document.getElementById("progressLabel").textContent =
+      `${reviewedCount}/${REQUIREMENTS.length} reviewed`;
+
+    renderSidebar();
+    document.getElementById("content").scrollTop = 0;
+  }
+
+  // ---- Navigation ----
+  function goTo(id) {
+    if (id < 1 || id > REQUIREMENTS.length) return;
+    current = id;
+    setTab("statement");
+    renderRequirement();
+  }
+  document.getElementById("prevBtn").addEventListener("click", () => goTo(current - 1));
+  document.getElementById("nextBtn").addEventListener("click", () => goTo(current + 1));
+
+  // ---- Review actions ----
+  document.querySelectorAll(".status-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const s = btn.dataset.status;
+      reviews[current].status = (reviews[current].status === s) ? null : s;
+      renderRequirement();
+    });
+  });
+  document.getElementById("reviewNotes").addEventListener("input", (e) => {
+    reviews[current].notes = e.target.value;
+  });
+
+  // ---- Keyboard ----
+  document.addEventListener("keydown", (e) => {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") {
+      if (e.key === "Escape") { e.target.blur(); }
+      return;
+    }
+    const tabKeys = { "1": "statement", "2": "plain", "3": "scenarios", "4": "questions", "5": "implications", "6": "tensions", "7": "acceptance" };
+    if (e.key === "ArrowRight") { goTo(current + 1); e.preventDefault(); }
+    else if (e.key === "ArrowLeft") { goTo(current - 1); e.preventDefault(); }
+    else if (tabKeys[e.key]) { setTab(tabKeys[e.key]); e.preventDefault(); }
+  });
+
+  // ---- Toast + Copy ----
+  function showToast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 1400);
+  }
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast("Copied!");
+    } catch (err) {
+      showToast("Copy failed — select manually");
+    }
+  }
+  function buildReviewText(id) {
+    const r = REQUIREMENTS.find(x => x.id === id);
+    const rv = reviews[id];
+    let s = `### Requirement ${id}: ${r.name}\n`;
+    s += `Source: ${r.lineRef} (candidate-requirements.md)\n`;
+    s += `Status: ${rv.status || "not yet reviewed"}\n`;
+    if (rv.notes.trim()) s += `Notes: ${rv.notes.trim()}\n`;
+    return s;
+  }
+  document.getElementById("copyOneBtn").addEventListener("click", () => {
+    copyText(buildReviewText(current));
+  });
+  document.getElementById("copyAllBtn").addEventListener("click", () => {
+    const reviewed = REQUIREMENTS.filter(r => reviews[r.id].status || reviews[r.id].notes.trim());
+    if (reviewed.length === 0) {
+      showToast("Nothing reviewed yet");
+      return;
+    }
+    let s = `# Review: candidate-requirements.md\n\n`;
+    s += `Reviewed ${reviewed.length} of ${REQUIREMENTS.length} requirements.\n\n`;
+    const byStatus = { clear: [], "needs-work": [], unclear: [], reject: [] };
+    reviewed.forEach(r => {
+      const status = reviews[r.id].status;
+      if (status) byStatus[status].push(r);
+    });
+    ["clear", "needs-work", "unclear", "reject"].forEach(st => {
+      if (byStatus[st].length === 0) return;
+      const label = { clear: "Clear", "needs-work": "Needs Work", unclear: "Unclear", reject: "Reject" }[st];
+      s += `## ${label} (${byStatus[st].length})\n\n`;
+      byStatus[st].forEach(r => {
+        s += `- **R${r.id}** ${r.name}`;
+        if (reviews[r.id].notes.trim()) s += ` — ${reviews[r.id].notes.trim()}`;
+        s += `\n`;
+      });
+      s += `\n`;
+    });
+    const notesOnly = reviewed.filter(r => !reviews[r.id].status && reviews[r.id].notes.trim());
+    if (notesOnly.length > 0) {
+      s += `## Notes only (no status set)\n\n`;
+      notesOnly.forEach(r => {
+        s += `- **R${r.id}** ${r.name} — ${reviews[r.id].notes.trim()}\n`;
+      });
+    }
+    copyText(s);
+  });
+
+  // ---- Initial render ----
+  renderRequirement();
+</script>
+</body>
+</html>
