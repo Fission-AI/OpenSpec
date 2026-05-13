@@ -37,7 +37,10 @@ import {
   validateLinkNameForCommand,
   validateWorkspaceNameForSetup,
 } from './workspace/operations.js';
-import { selectWorkspaceForCommand } from './workspace/selection.js';
+import {
+  selectWorkspaceForCommand,
+  selectWorkspaceRootForCommand,
+} from './workspace/selection.js';
 import {
   assertWorkspaceOpenerAvailable,
   buildWorkspaceOpenCommandForState,
@@ -52,6 +55,7 @@ import {
   WorkspaceListOptions,
   WorkspaceOpenOptions,
   WorkspaceOutput,
+  SelectedWorkspace,
   WorkspaceSetupOptions,
   WorkspaceStatus,
   WorkspaceUpdateOptions,
@@ -539,6 +543,16 @@ function printWorkspaceSkillReportHuman(report: WorkspaceSkillInstallationReport
   }
 }
 
+function hasWorkspaceSkillFailures(report: WorkspaceSkillInstallationReport): boolean {
+  return report.failed.length > 0;
+}
+
+function setWorkspaceSkillFailureExitCode(report: WorkspaceSkillInstallationReport): void {
+  if (hasWorkspaceSkillFailures(report)) {
+    process.exitCode = 1;
+  }
+}
+
 async function writeWorkspaceSkillState(
   workspaceRoot: string,
   selectedAgentIds: string[],
@@ -786,7 +800,7 @@ class WorkspaceCommand {
             )
           : await generateWorkspaceAgentSkills(workspace.root, selectedWorkspaceSkillAgents);
 
-      if (selectedWorkspaceSkillAgents !== undefined) {
+      if (selectedWorkspaceSkillAgents !== undefined && !hasWorkspaceSkillFailures(skillReport)) {
         await writeWorkspaceSkillState(workspace.root, selectedWorkspaceSkillAgents, skillReport);
       }
 
@@ -803,6 +817,7 @@ class WorkspaceCommand {
           workspace_skills: skillReport,
           status: doctorResult.status,
         });
+        setWorkspaceSkillFailureExitCode(skillReport);
         return;
       }
 
@@ -821,6 +836,8 @@ class WorkspaceCommand {
       console.log(`  openspec workspace doctor --workspace ${workspace.name}`);
       console.log(`  openspec workspace update --workspace ${workspace.name} --tools <ids>`);
       console.log('  openspec workspace list');
+
+      setWorkspaceSkillFailureExitCode(skillReport);
     } catch (error) {
       this.handleFailure(options.json, { workspace: null, status: [] }, error);
     }
@@ -939,54 +956,73 @@ class WorkspaceCommand {
         'update',
         { preferPositionalName: Boolean(positionalName) }
       );
-      const { localState } = await readWorkspaceForMutation(selected);
-      const hasExplicitToolSelection = options.tools !== undefined;
-      const selectedAgentIds = hasExplicitToolSelection
-        ? parseUpdateToolsOption(options.tools ?? '')
-        : localState.workspace_skills?.selected_agents ?? [];
-      const previousSkillState =
-        hasExplicitToolSelection
-          ? localState.workspace_skills ?? { selected_agents: [] }
-          : localState.workspace_skills;
-      const skillReport = await updateWorkspaceAgentSkills(
-        selected.root,
-        selectedAgentIds,
-        previousSkillState
-      );
-      const shouldStoreSelection = hasExplicitToolSelection || Boolean(localState.workspace_skills);
-
-      if (shouldStoreSelection) {
-        await writeWorkspaceSkillState(selected.root, selectedAgentIds, skillReport);
-        await recordSelectedWorkspaceAfterMutation(selected);
-      }
-
-      const doctorResult = await loadWorkspaceForDoctor(selected);
-
-      if (options.json) {
-        printJson({
-          workspace: doctorResult.workspace,
-          workspace_skills: skillReport,
-          status: doctorResult.status,
-        });
-        return;
-      }
-
-      console.log(chalk.green('Workspace update complete'));
-      console.log(`Workspace: ${doctorResult.workspace.name}`);
-      console.log(`Location: ${doctorResult.workspace.root}`);
-      console.log('');
-      printStatusLines(doctorResult.status);
-      if (doctorResult.status.length > 0) {
-        console.log('');
-      }
-      printWorkspaceSkillReportHuman(skillReport);
-      console.log('');
-      console.log('Next useful commands:');
-      console.log(`  openspec workspace doctor --workspace ${doctorResult.workspace.name}`);
-      console.log(`  openspec workspace update --workspace ${doctorResult.workspace.name} --tools <ids>`);
+      await this.updateSelected(selected, options);
     } catch (error) {
       this.handleFailure(options.json, { workspace: null, workspace_skills: null, status: [] }, error);
     }
+  }
+
+  async updateRoot(workspaceRoot: string, options: WorkspaceUpdateOptions = {}): Promise<void> {
+    try {
+      const selected = await selectWorkspaceRootForCommand(workspaceRoot);
+      await this.updateSelected(selected, options);
+    } catch (error) {
+      this.handleFailure(options.json, { workspace: null, workspace_skills: null, status: [] }, error);
+    }
+  }
+
+  private async updateSelected(
+    selected: SelectedWorkspace,
+    options: WorkspaceUpdateOptions
+  ): Promise<void> {
+    const { localState } = await readWorkspaceForMutation(selected);
+    const hasExplicitToolSelection = options.tools !== undefined;
+    const selectedAgentIds = hasExplicitToolSelection
+      ? parseUpdateToolsOption(options.tools ?? '')
+      : localState.workspace_skills?.selected_agents ?? [];
+    const previousSkillState =
+      hasExplicitToolSelection
+        ? localState.workspace_skills ?? { selected_agents: [] }
+        : localState.workspace_skills;
+    const skillReport = await updateWorkspaceAgentSkills(
+      selected.root,
+      selectedAgentIds,
+      previousSkillState
+    );
+    const shouldStoreSelection = hasExplicitToolSelection || Boolean(localState.workspace_skills);
+
+    if (shouldStoreSelection && !hasWorkspaceSkillFailures(skillReport)) {
+      await writeWorkspaceSkillState(selected.root, selectedAgentIds, skillReport);
+      await recordSelectedWorkspaceAfterMutation(selected);
+    }
+
+    const doctorResult = await loadWorkspaceForDoctor(selected);
+
+    if (options.json) {
+      printJson({
+        workspace: doctorResult.workspace,
+        workspace_skills: skillReport,
+        status: doctorResult.status,
+      });
+      setWorkspaceSkillFailureExitCode(skillReport);
+      return;
+    }
+
+    console.log(chalk.green('Workspace update complete'));
+    console.log(`Workspace: ${doctorResult.workspace.name}`);
+    console.log(`Location: ${doctorResult.workspace.root}`);
+    console.log('');
+    printStatusLines(doctorResult.status);
+    if (doctorResult.status.length > 0) {
+      console.log('');
+    }
+    printWorkspaceSkillReportHuman(skillReport);
+    console.log('');
+    console.log('Next useful commands:');
+    console.log(`  openspec workspace doctor --workspace ${doctorResult.workspace.name}`);
+    console.log(`  openspec workspace update --workspace ${doctorResult.workspace.name} --tools <ids>`);
+
+    setWorkspaceSkillFailureExitCode(skillReport);
   }
 
   async open(
@@ -1060,6 +1096,14 @@ export async function runWorkspaceUpdate(
 ): Promise<void> {
   const workspaceCommand = new WorkspaceCommand();
   await workspaceCommand.update(positionalName, options);
+}
+
+export async function runWorkspaceUpdateForRoot(
+  workspaceRoot: string,
+  options: WorkspaceUpdateOptions = {}
+): Promise<void> {
+  const workspaceCommand = new WorkspaceCommand();
+  await workspaceCommand.updateRoot(workspaceRoot, options);
 }
 
 function collectOption(value: string, previous: string[]): string[] {

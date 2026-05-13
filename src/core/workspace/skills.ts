@@ -11,6 +11,7 @@ import {
   getSkillTemplates,
   getToolSkillStatus,
   getToolsWithSkillsDir,
+  extractGeneratedByVersion,
 } from '../shared/index.js';
 import type { WorkspaceLocalState, WorkspaceSkillState } from './foundation.js';
 
@@ -265,6 +266,11 @@ async function pathExists(targetPath: string): Promise<boolean> {
   }
 }
 
+function isOpenSpecManagedSkillDir(skillDir: string): boolean {
+  const skillFile = FileSystemUtils.joinPath(skillDir, 'SKILL.md');
+  return extractGeneratedByVersion(skillFile) !== null;
+}
+
 async function removeManagedWorkflowSkillDirs(
   workspaceRoot: string,
   tool: WorkspaceSkillCapableTool,
@@ -282,6 +288,10 @@ async function removeManagedWorkflowSkillDirs(
 
     const skillDir = FileSystemUtils.joinPath(skillsDir, dirName);
     if (!(await pathExists(skillDir))) {
+      continue;
+    }
+
+    if (!isOpenSpecManagedSkillDir(skillDir)) {
       continue;
     }
 

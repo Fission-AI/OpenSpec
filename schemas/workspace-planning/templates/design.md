@@ -5,7 +5,7 @@ Summarize the workspace planning context, relevant linked areas, and constraints
 ## Goals / Non-Goals
 
 **Goals:**
-- 
+-
 
 **Non-Goals:**
 - Creating repo-local implementation artifacts before an affected area is selected.
@@ -30,4 +30,4 @@ Alternative considered: <alternative and why it was not chosen>
 
 ## Open Questions
 
-- 
+-

@@ -16,7 +16,10 @@ import { CompletionCommand } from '../commands/completion.js';
 import { FeedbackCommand } from '../commands/feedback.js';
 import { registerConfigCommand } from '../commands/config.js';
 import { registerSchemaCommand } from '../commands/schema.js';
-import { registerWorkspaceCommand, runWorkspaceUpdate } from '../commands/workspace.js';
+import {
+  registerWorkspaceCommand,
+  runWorkspaceUpdateForRoot,
+} from '../commands/workspace.js';
 import { findWorkspaceRoot } from '../core/workspace/index.js';
 import {
   statusCommand,
@@ -164,7 +167,7 @@ program
       const resolvedPath = path.resolve(targetPath);
       const workspaceRoot = await findWorkspaceRoot(resolvedPath);
       if (workspaceRoot) {
-        await runWorkspaceUpdate(undefined, {});
+        await runWorkspaceUpdateForRoot(workspaceRoot, {});
         return;
       }
 

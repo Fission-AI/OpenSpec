@@ -4,7 +4,7 @@ Describe the shared product goal, problem, or opportunity that makes this worksp
 
 ## What Changes
 
-- 
+-
 
 ## Affected Areas
 
@@ -15,11 +15,11 @@ Describe the shared product goal, problem, or opportunity that makes this worksp
 
 ### New Capabilities
 
-- 
+-
 
 ### Modified Capabilities
 
-- 
+-
 
 ## Impact
 

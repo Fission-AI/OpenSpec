@@ -495,6 +495,35 @@ describe('workspace command', () => {
     expect(fs.existsSync(path.join(api, '.codex'))).toBe(false);
   });
 
+  it('updates the workspace passed to openspec update even when another workspace is known', async () => {
+    const firstApi = mkdir('repos/first-api');
+    const secondApi = mkdir('repos/second-api');
+    writeGlobalConfig({
+      profile: 'custom',
+      delivery: 'commands',
+      workflows: ['apply'],
+    });
+    const first = await setupWorkspace('target-first', [`api=${firstApi}`], ['--tools', 'codex']);
+    const second = await setupWorkspace('target-second', [`api=${secondApi}`], ['--tools', 'codex']);
+
+    writeGlobalConfig({
+      profile: 'core',
+      delivery: 'commands',
+    });
+
+    const update = await runCLI(
+      ['update', path.join(first.workspace.root, WORKSPACE_CHANGES_DIR_NAME)],
+      { cwd: tempDir, env }
+    );
+
+    expect(update.exitCode).toBe(0);
+    expect(update.stdout).toContain('Workspace update complete');
+    expect(update.stdout).toContain('target-first');
+    expect(update.stdout).not.toContain('Multiple OpenSpec workspaces are known');
+    expect(fs.existsSync(path.join(first.workspace.root, '.codex', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(second.workspace.root, '.codex', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(false);
+  });
+
   it('supports named and flag-selected workspace updates with explicit agent changes', async () => {
     const api = mkdir('repos/api');
     writeGlobalConfig({
@@ -542,6 +571,66 @@ describe('workspace command', () => {
     expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'openspec-apply-change'))).toBe(false);
     expect(fs.existsSync(path.join(userSkillDir, 'SKILL.md'))).toBe(true);
     expect(readLocalState(workspaceRoot).workspace_skills?.selected_agents).toEqual(['claude']);
+  });
+
+  it('does not remove unmanaged skill directories that collide with OpenSpec workflow names', async () => {
+    const api = mkdir('repos/api');
+    writeGlobalConfig({
+      profile: 'custom',
+      delivery: 'skills',
+      workflows: ['verify'],
+    });
+    const setup = await setupWorkspace('unmanaged-collision', [`api=${api}`], ['--tools', 'codex']);
+    const workspaceRoot = setup.workspace.root;
+    const collidingSkillDir = path.join(workspaceRoot, '.codex', 'skills', 'openspec-verify-change');
+    fs.writeFileSync(path.join(collidingSkillDir, 'SKILL.md'), 'name: user-owned-verify\n');
+
+    const update = await runCLI(
+      ['workspace', 'update', '--workspace', 'unmanaged-collision', '--tools', 'none', '--json'],
+      { cwd: tempDir, env }
+    );
+
+    expect(update.exitCode).toBe(0);
+    expect(parseJson(update).workspace_skills.removed).toEqual([]);
+    expect(fs.existsSync(path.join(collidingSkillDir, 'SKILL.md'))).toBe(true);
+    expect(readLocalState(workspaceRoot).workspace_skills?.selected_agents).toEqual([]);
+  });
+
+  it('does not record workspace skills as applied when an update fails', async () => {
+    const api = mkdir('repos/api');
+    writeGlobalConfig({
+      profile: 'custom',
+      delivery: 'skills',
+      workflows: ['apply'],
+    });
+    const setup = await setupWorkspace('failed-update-state', [`api=${api}`], ['--tools', 'codex']);
+    const workspaceRoot = setup.workspace.root;
+    const blockingSkillPath = path.join(workspaceRoot, '.codex', 'skills', 'openspec-propose');
+    fs.writeFileSync(blockingSkillPath, 'blocks generated skill directory\n');
+
+    writeGlobalConfig({
+      profile: 'core',
+      delivery: 'skills',
+    });
+
+    const update = await runCLI(
+      ['workspace', 'update', '--workspace', 'failed-update-state', '--json'],
+      { cwd: tempDir, env }
+    );
+
+    expect(update.exitCode).toBe(1);
+    expect(parseJson(update).workspace_skills.failed).toEqual([
+      expect.objectContaining({
+        tool_id: 'codex',
+      }),
+    ]);
+    expect(readLocalState(workspaceRoot).workspace_skills).toEqual(
+      expect.objectContaining({
+        selected_agents: ['codex'],
+        last_applied_profile: 'custom',
+        last_applied_workflow_ids: ['apply'],
+      })
+    );
   });
 
   it('reports a no-op workspace update when no stored skill selection exists', async () => {
