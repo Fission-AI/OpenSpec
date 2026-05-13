@@ -37,15 +37,15 @@ User-testable outcome: A user can change the global profile, run workspace updat
 
 User-testable outcome: A user can run `openspec config profile` inside a workspace and choose whether to apply the changed global profile to that workspace now.
 
-- [ ] 3.1 Detect when `openspec config profile` runs from inside an OpenSpec workspace.
-- [ ] 3.2 After an actual profile or delivery change inside a workspace, prompt to apply changes to the current workspace now.
-- [ ] 3.3 When confirmed, run `openspec workspace update` for the current workspace instead of repo-local `openspec update`.
-- [ ] 3.4 When declined, report that global config changed and that `openspec workspace update` applies it later.
-- [ ] 3.5 Preserve existing repo-local `openspec config profile` apply behavior outside workspaces.
-- [ ] 3.6 Keep `openspec config profile core` non-interactive, but print workspace-specific `openspec workspace update` guidance when run inside a workspace.
-- [ ] 3.7 Warn on no-op config profile inside a workspace when workspace-local skills drift from the active global profile.
-- [ ] 3.8 Manually run `openspec config profile` inside a workspace for confirm, decline, no-op, drift-warning, and `core` preset paths.
-- [ ] 3.9 Review the config-profile UX: prompt wording, project/workspace distinction, no-op behavior, preset guidance, and follow-up guidance are clear.
+- [x] 3.1 Detect when `openspec config profile` runs from inside an OpenSpec workspace.
+- [x] 3.2 After an actual profile or delivery change inside a workspace, prompt to apply changes to the current workspace now.
+- [x] 3.3 When confirmed, run `openspec workspace update` for the current workspace instead of repo-local `openspec update`.
+- [x] 3.4 When declined, report that global config changed and that `openspec workspace update` applies it later.
+- [x] 3.5 Preserve existing repo-local `openspec config profile` apply behavior outside workspaces.
+- [x] 3.6 Keep `openspec config profile core` non-interactive, but print workspace-specific `openspec workspace update` guidance when run inside a workspace.
+- [x] 3.7 Warn on no-op config profile inside a workspace when workspace-local skills drift from the active global profile.
+- [x] 3.8 Manually run `openspec config profile` inside a workspace for confirm, decline, no-op, drift-warning, and `core` preset paths.
+- [x] 3.9 Review the config-profile UX: prompt wording, project/workspace distinction, no-op behavior, preset guidance, and follow-up guidance are clear.
 
 ## Phase 4: Workspace Change Creation
 
