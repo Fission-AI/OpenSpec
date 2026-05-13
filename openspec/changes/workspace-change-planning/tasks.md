@@ -79,13 +79,13 @@ User-testable outcome: A user can run status and instructions for repo-local and
 
 User-testable outcome: A user can inspect regenerated workflow skills and verify they are path-agnostic and tell agents to use CLI-reported artifact paths.
 
-- [ ] 6.1 Update generated workflow skill templates to run `openspec status --change <id> --json` before artifact work and trust returned planning context.
-- [ ] 6.2 Update generated workflow skill templates to run `openspec instructions <artifact> --change <id> --json` before writing artifacts and use the resolved output path.
-- [ ] 6.3 Audit source workflow templates for hardcoded `openspec/changes/<name>` assumptions and replace them with CLI-reported path guidance.
-- [ ] 6.4 Keep a separate artifact-context command out of this slice unless enriched status/instructions prove insufficient during implementation.
-- [ ] 6.5 Manually regenerate or inspect installed workflow skills and verify they follow CLI-reported artifact paths in a workspace change.
-- [ ] 6.6 Guard profile-selected workflow skills whose workspace behavior is not implemented yet so they do not fall back to repo-local paths or edit linked repos.
-- [ ] 6.7 Review the agent-instruction UX: instructions are concise, path-agnostic, safe for unsupported workspace workflows, and practical for both repo-local and workspace planning.
+- [x] 6.1 Update generated workflow skill templates to run `openspec status --change <id> --json` before artifact work and trust returned planning context.
+- [x] 6.2 Update generated workflow skill templates to run `openspec instructions <artifact> --change <id> --json` before writing artifacts and use the resolved output path.
+- [x] 6.3 Audit source workflow templates for hardcoded `openspec/changes/<name>` assumptions and replace them with CLI-reported path guidance.
+- [x] 6.4 Keep a separate artifact-context command out of this slice unless enriched status/instructions prove insufficient during implementation.
+- [x] 6.5 Manually regenerate or inspect installed workflow skills and verify they follow CLI-reported artifact paths in a workspace change.
+- [x] 6.6 Guard profile-selected workflow skills whose workspace behavior is not implemented yet so they do not fall back to repo-local paths or edit linked repos.
+- [x] 6.7 Review the agent-instruction UX: instructions are concise, path-agnostic, safe for unsupported workspace workflows, and practical for both repo-local and workspace planning.
 
 ## Phase 7: Verification
 

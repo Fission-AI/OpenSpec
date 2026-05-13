@@ -38,6 +38,7 @@ export function getContinueChangeSkillTemplate(): SkillTemplate {
    - \`schemaName\`: The workflow schema being used (e.g., "spec-driven")
    - \`artifacts\`: Array of artifacts with their status ("done", "ready", "blocked")
    - \`isComplete\`: Boolean indicating if all artifacts are complete
+   - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context. Use these instead of assuming repo-local paths.
 
 3. **Act based on status**:
 
@@ -62,13 +63,13 @@ export function getContinueChangeSkillTemplate(): SkillTemplate {
      - \`rules\`: Artifact-specific rules (constraints for you - do NOT include in output)
      - \`template\`: The structure to use for your output file
      - \`instruction\`: Schema-specific guidance
-     - \`outputPath\`: Where to write the artifact
+     - \`resolvedOutputPath\`: Resolved path or pattern to write the artifact
      - \`dependencies\`: Completed artifacts to read for context
    - **Create the artifact file**:
      - Read any completed dependency files for context
      - Use \`template\` as the structure - fill in its sections
      - Apply \`context\` and \`rules\` as constraints when writing - but do NOT copy them into the file
-     - Write to the output path specified in instructions
+     - Write to the \`resolvedOutputPath\` specified in instructions. If it is a glob pattern, choose the concrete file path using the schema instruction and workspace planning context
    - Show what was created and what's now unlocked
    - STOP after creating ONE artifact
 
@@ -157,6 +158,7 @@ export function getOpsxContinueCommandTemplate(): CommandTemplate {
    - \`schemaName\`: The workflow schema being used (e.g., "spec-driven")
    - \`artifacts\`: Array of artifacts with their status ("done", "ready", "blocked")
    - \`isComplete\`: Boolean indicating if all artifacts are complete
+   - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context. Use these instead of assuming repo-local paths.
 
 3. **Act based on status**:
 
@@ -181,13 +183,13 @@ export function getOpsxContinueCommandTemplate(): CommandTemplate {
      - \`rules\`: Artifact-specific rules (constraints for you - do NOT include in output)
      - \`template\`: The structure to use for your output file
      - \`instruction\`: Schema-specific guidance
-     - \`outputPath\`: Where to write the artifact
+     - \`resolvedOutputPath\`: Resolved path or pattern to write the artifact
      - \`dependencies\`: Completed artifacts to read for context
    - **Create the artifact file**:
      - Read any completed dependency files for context
      - Use \`template\` as the structure - fill in its sections
      - Apply \`context\` and \`rules\` as constraints when writing - but do NOT copy them into the file
-     - Write to the output path specified in instructions
+     - Write to the \`resolvedOutputPath\` specified in instructions. If it is a glob pattern, choose the concrete file path using the schema instruction and workspace planning context
    - Show what was created and what's now unlocked
    - STOP after creating ONE artifact
 
