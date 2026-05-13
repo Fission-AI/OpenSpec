@@ -67,13 +67,13 @@ User-testable outcome: A user can create a workspace-level change from the coord
 
 User-testable outcome: A user can run status and instructions for repo-local and workspace changes and see the resolved planning home, artifact paths, affected areas, constraints, and next steps.
 
-- [ ] 5.1 Introduce a shared planning-home resolver that identifies repo-local versus workspace planning homes.
-- [ ] 5.2 Enrich `openspec status --change <id> --json` with planning home, change root, relevant artifact paths, affected areas, next steps, and action context.
-- [ ] 5.3 Enrich `openspec instructions <artifact> --change <id> --json` with resolved artifact paths for repo-local and workspace-scoped changes.
-- [ ] 5.4 Keep workspace-level planning as the source of truth until an explicit implementation workflow selects an affected area.
-- [ ] 5.5 Preserve nested workspace spec paths in status and instructions output without flattening them into repo-local capability paths.
-- [ ] 5.6 Manually run status and instructions for both repo-local and workspace-scoped changes and verify paths and action context are correct.
-- [ ] 5.7 Review the planning-context UX: human output, JSON field names, and next-step guidance are easy for users and agents to follow.
+- [x] 5.1 Introduce a shared planning-home resolver that identifies repo-local versus workspace planning homes.
+- [x] 5.2 Enrich `openspec status --change <id> --json` with planning home, change root, relevant artifact paths, affected areas, next steps, and action context.
+- [x] 5.3 Enrich `openspec instructions <artifact> --change <id> --json` with resolved artifact paths for repo-local and workspace-scoped changes.
+- [x] 5.4 Keep workspace-level planning as the source of truth until an explicit implementation workflow selects an affected area.
+- [x] 5.5 Preserve nested workspace spec paths in status and instructions output without flattening them into repo-local capability paths.
+- [x] 5.6 Manually run status and instructions for both repo-local and workspace-scoped changes and verify paths and action context are correct.
+- [x] 5.7 Review the planning-context UX: human output, JSON field names, and next-step guidance are easy for users and agents to follow.
 
 ## Phase 6: Workflow Skill Instructions
 
