@@ -1,15 +1,16 @@
 {
   "name": "anchorspec",
   "version": "1.3.1",
-  "description": "AI-native system for spec-driven development",
+  "description": "AI-native system for spec-driven development, minimally forked from OpenSpec",
   "keywords": [
+    "anchorspec",
     "openspec",
     "specs",
     "cli",
     "ai",
     "development"
   ],
-  "homepage": "https://github.com/AnchorSpec/AnchorSpec",
+  "homepage": "https://www.anchorspec.com",
   "repository": {
     "type": "git",
     "url": "https://github.com/AnchorSpec/AnchorSpec"
