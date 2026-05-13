@@ -51,17 +51,17 @@ User-testable outcome: A user can run `openspec config profile` inside a workspa
 
 User-testable outcome: A user can create a workspace-level change from the coordination root, inspect its workspace planning artifacts, and confirm linked repos were not edited.
 
-- [ ] 4.1 Add a built-in `workspace-planning` schema and templates that keep the normal proposal/specs/design/tasks artifact shape.
-- [ ] 4.2 Define the workspace-planning specs artifact with nested `specs/**/*.md` output support and instructions for `specs/<area-or-repo>/<capability>/spec.md`.
-- [ ] 4.3 Add workspace-aware change creation from the workspace coordination root.
-- [ ] 4.4 Default workspace-scoped change creation to the `workspace-planning` schema.
-- [ ] 4.5 Store workspace-level changes under the workspace planning path rather than under linked repos or folders.
-- [ ] 4.6 Capture the product goal once at the workspace change level.
-- [ ] 4.7 Record or validate affected area names through workspace-scoped specs or task sections using registered workspace link names where applicable.
-- [ ] 4.8 Ensure creating a workspace change does not create repo-local OpenSpec artifacts or edit linked repos.
-- [ ] 4.9 Preserve repo-local change creation behavior outside workspaces.
-- [ ] 4.10 Manually create a workspace change from a coordination root and verify the generated artifacts, workspace-scoped specs/tasks, affected areas, and untouched linked repos.
-- [ ] 4.11 Review the change creation UX: goal capture, affected-area identification, artifact paths, and next-step guidance feel clear.
+- [x] 4.1 Add a built-in `workspace-planning` schema and templates that keep the normal proposal/specs/design/tasks artifact shape.
+- [x] 4.2 Define the workspace-planning specs artifact with nested `specs/**/*.md` output support and instructions for `specs/<area-or-repo>/<capability>/spec.md`.
+- [x] 4.3 Add workspace-aware change creation from the workspace coordination root.
+- [x] 4.4 Default workspace-scoped change creation to the `workspace-planning` schema.
+- [x] 4.5 Store workspace-level changes under the workspace planning path rather than under linked repos or folders.
+- [x] 4.6 Capture the product goal once at the workspace change level.
+- [x] 4.7 Record or validate affected area names through workspace-scoped specs or task sections using registered workspace link names where applicable.
+- [x] 4.8 Ensure creating a workspace change does not create repo-local OpenSpec artifacts or edit linked repos.
+- [x] 4.9 Preserve repo-local change creation behavior outside workspaces.
+- [x] 4.10 Manually create a workspace change from a coordination root and verify the generated artifacts, workspace-scoped specs/tasks, affected areas, and untouched linked repos.
+- [x] 4.11 Review the change creation UX: goal capture, affected-area identification, artifact paths, and next-step guidance feel clear.
 
 ## Phase 5: Planning Home And Agent Context
 
