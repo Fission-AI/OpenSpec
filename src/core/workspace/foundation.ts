@@ -58,6 +58,15 @@ export interface WorkspaceLocalState {
   version: 1;
   paths: Record<string, string>;
   preferred_opener?: WorkspacePreferredOpener;
+  workspace_skills?: WorkspaceSkillState;
+}
+
+export interface WorkspaceSkillState {
+  selected_agents: string[];
+  last_applied_profile?: 'core' | 'custom';
+  last_applied_delivery?: 'both' | 'skills' | 'commands';
+  last_applied_workflow_ids?: string[];
+  last_applied_at?: string;
 }
 
 export interface WorkspaceRegistryState {
@@ -255,6 +264,16 @@ const LocalStateSchema = z.object({
     })
     .strict()
     .optional(),
+  workspace_skills: z
+    .object({
+      selected_agents: z.array(z.string()),
+      last_applied_profile: z.enum(['core', 'custom']).optional(),
+      last_applied_delivery: z.enum(['both', 'skills', 'commands']).optional(),
+      last_applied_workflow_ids: z.array(z.string()).optional(),
+      last_applied_at: z.string().optional(),
+    })
+    .strict()
+    .optional(),
 }).strict();
 
 const RegistryStateSchema = z.object({
@@ -389,6 +408,7 @@ export function parseWorkspaceLocalState(content: string): WorkspaceLocalState {
     version: 1,
     paths: result.data.paths,
     ...(preferredOpener ? { preferred_opener: preferredOpener } : {}),
+    ...(result.data.workspace_skills ? { workspace_skills: result.data.workspace_skills } : {}),
   };
 }
 
@@ -450,6 +470,7 @@ export function serializeWorkspaceLocalState(state: WorkspaceLocalState): string
     version: 1,
     paths: state.paths,
     ...(preferredOpener ? { preferred_opener: preferredOpener } : {}),
+    ...(state.workspace_skills ? { workspace_skills: state.workspace_skills } : {}),
   });
 }
 

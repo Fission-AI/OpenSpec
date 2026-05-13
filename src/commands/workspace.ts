@@ -5,12 +5,20 @@ import * as path from 'node:path';
 
 import {
   WorkspacePreferredOpener,
+  WorkspaceSkillInstallationReport,
+  createWorkspaceSkillSkippedReport,
+  generateWorkspaceAgentSkills,
   getDefaultWorkspaceOpenerChoiceValue,
+  getWorkspaceSkillCapableTools,
+  getWorkspaceSkillToolIds,
   getWorkspaceOpenerLabel,
   isWorkspaceAgentOpenerId,
   listWorkspaceOpenerChoices,
   parseWorkspacePreferredOpenerValue,
+  parseWorkspaceSkillToolsValue,
   listWorkspaceRegistryEntries,
+  readOptionalWorkspaceLocalState,
+  writeWorkspaceLocalState,
 } from '../core/workspace/index.js';
 import { isInteractive, resolveNoInteractive } from '../utils/interactive.js';
 import {
@@ -96,7 +104,7 @@ async function promptWorkspaceName(initialName?: string): Promise<string> {
 
   const { input } = await import('@inquirer/prompts');
 
-  console.log(chalk.bold('[1/4] Name the workspace'));
+  console.log(chalk.bold('[1/5] Name the workspace'));
   console.log(chalk.dim('Use a stable name for the repo group, e.g. platform.'));
   console.log('');
 
@@ -165,7 +173,7 @@ async function promptSetupLinks(): Promise<Record<string, string>> {
   const links: Record<string, string> = {};
 
   console.log('');
-  console.log(chalk.bold('[2/4] Link repos or folders'));
+  console.log(chalk.bold('[2/5] Link repos or folders'));
   console.log(chalk.dim('Start with the current directory, or enter another repo path.'));
   console.log('');
 
@@ -255,6 +263,61 @@ function parseSetupOpenerOption(opener: string | undefined): WorkspacePreferredO
       fix: 'Use --opener codex, --opener claude, --opener github-copilot, or --opener editor.',
     });
   }
+}
+
+function parseSetupToolsOption(tools: string): string[] {
+  try {
+    return parseWorkspaceSkillToolsValue(tools);
+  } catch (error) {
+    throw new WorkspaceCliError(asErrorMessage(error), 'invalid_workspace_setup_tools', {
+      target: 'workspace.skills',
+      fix: `Use --tools all, --tools none, or one of: ${getWorkspaceSkillToolIds().join(', ')}`,
+    });
+  }
+}
+
+function getPreferredWorkspaceSkillAgentId(
+  preferredOpener: WorkspacePreferredOpener | undefined
+): string | null {
+  if (!preferredOpener || preferredOpener.kind !== 'agent') {
+    return null;
+  }
+
+  return getWorkspaceSkillToolIds().includes(preferredOpener.id) ? preferredOpener.id : null;
+}
+
+async function promptWorkspaceSkillAgents(
+  preferredOpener: WorkspacePreferredOpener | undefined
+): Promise<string[]> {
+  const { searchableMultiSelect } = await import('../prompts/searchable-multi-select.js');
+  const preferredAgentId = getPreferredWorkspaceSkillAgentId(preferredOpener);
+  const tools = getWorkspaceSkillCapableTools();
+  const sortedChoices = tools
+    .map((tool) => ({
+      name: tool.name,
+      value: tool.value,
+      preSelected: tool.value === preferredAgentId,
+    }))
+    .sort((a, b) => {
+      if (a.preSelected !== b.preSelected) {
+        return a.preSelected ? -1 : 1;
+      }
+
+      return a.name.localeCompare(b.name);
+    });
+
+  if (preferredAgentId) {
+    const preferredTool = tools.find((tool) => tool.value === preferredAgentId);
+    if (preferredTool) {
+      console.log(`${preferredTool.name} matches your preferred opener and is pre-selected.`);
+    }
+  }
+
+  return searchableMultiSelect({
+    message: 'Which agents should get OpenSpec skills in this workspace?',
+    pageSize: 15,
+    choices: sortedChoices,
+  });
 }
 
 function parseAgentOverride(agent: string): WorkspacePreferredOpener {
@@ -404,6 +467,69 @@ function printLinkMutationHuman(
   console.log(heading);
   console.log(`  ${payload.link.name} -> ${payload.link.path}`);
   console.log(`Workspace: ${payload.workspace.name}`);
+}
+
+function formatWorkspaceSkillAgentResult(result: { name: string; workflow_ids?: string[] }): string {
+  const workflowCount = result.workflow_ids?.length ?? 0;
+  const workflowLabel = workflowCount === 1 ? '1 workflow' : `${workflowCount} workflows`;
+  return `${result.name} (${workflowLabel})`;
+}
+
+function printWorkspaceSkillReportHuman(report: WorkspaceSkillInstallationReport): void {
+  console.log('Agent skills:');
+  console.log(`  Profile: ${report.profile}`);
+  console.log(
+    `  Workflows: ${report.workflow_ids.length > 0 ? report.workflow_ids.join(', ') : '(none selected)'}`
+  );
+
+  if (report.generated.length > 0) {
+    console.log(`  Generated: ${report.generated.map(formatWorkspaceSkillAgentResult).join(', ')}`);
+  }
+
+  if (report.refreshed.length > 0) {
+    console.log(`  Refreshed: ${report.refreshed.map(formatWorkspaceSkillAgentResult).join(', ')}`);
+  }
+
+  if (report.skipped.length > 0) {
+    for (const skipped of report.skipped) {
+      const prefix = skipped.name ? `${skipped.name}: ` : '';
+      console.log(`  Skipped: ${prefix}${skipped.message}`);
+    }
+  }
+
+  if (report.failed.length > 0) {
+    console.log(
+      chalk.red(
+        `  Failed: ${report.failed.map((failure) => `${failure.name} (${failure.error})`).join(', ')}`
+      )
+    );
+  }
+
+  if (report.delivery_notice) {
+    console.log(chalk.dim(`  ${report.delivery_notice}`));
+  }
+}
+
+async function writeWorkspaceSkillState(
+  workspaceRoot: string,
+  selectedAgentIds: string[],
+  report: WorkspaceSkillInstallationReport
+): Promise<void> {
+  const localState = (await readOptionalWorkspaceLocalState(workspaceRoot)) ?? {
+    version: 1 as const,
+    paths: {},
+  };
+
+  await writeWorkspaceLocalState(workspaceRoot, {
+    ...localState,
+    workspace_skills: {
+      selected_agents: selectedAgentIds,
+      last_applied_profile: report.profile,
+      last_applied_delivery: report.delivery,
+      last_applied_workflow_ids: report.workflow_ids,
+      last_applied_at: new Date().toISOString(),
+    },
+  });
 }
 
 async function resolveWorkspaceOpenOpener(
@@ -571,11 +697,23 @@ class WorkspaceCommand {
       const links = interactive ? await promptSetupLinks() : await parseSetupLinks(options.link);
       if (interactive) {
         console.log('');
-        console.log(chalk.bold('[3/4] Choose preferred opener'));
+        console.log(chalk.bold('[3/5] Choose preferred opener'));
       }
       const preferredOpener = interactive
         ? await promptPreferredOpener('Preferred opener:')
         : parseSetupOpenerOption(options.opener);
+
+      let selectedWorkspaceSkillAgents: string[] | undefined;
+      if (options.tools !== undefined) {
+        selectedWorkspaceSkillAgents = parseSetupToolsOption(options.tools);
+      } else if (interactive) {
+        console.log('');
+        console.log(chalk.bold('[4/5] Install agent skills'));
+        console.log(chalk.dim('Choose which coding agents should get OpenSpec skills in this workspace.'));
+        console.log(chalk.dim('Press Enter with no agents selected to skip skill installation for now.'));
+        console.log('');
+        selectedWorkspaceSkillAgents = await promptWorkspaceSkillAgents(preferredOpener);
+      }
 
       if (Object.keys(links).length === 0) {
         throw new WorkspaceCliError(
@@ -589,10 +727,22 @@ class WorkspaceCommand {
 
       if (interactive) {
         console.log('');
-        console.log(chalk.bold('[4/4] Create workspace files'));
+        console.log(chalk.bold('[5/5] Create workspace files'));
       }
 
       const workspace = await createManagedWorkspace(workspaceName, links, preferredOpener);
+      const skillReport =
+        selectedWorkspaceSkillAgents === undefined
+          ? createWorkspaceSkillSkippedReport(
+              'tools_omitted',
+              'No workspace skills were installed. Run openspec workspace update --tools <ids> to install them later.'
+            )
+          : await generateWorkspaceAgentSkills(workspace.root, selectedWorkspaceSkillAgents);
+
+      if (selectedWorkspaceSkillAgents !== undefined) {
+        await writeWorkspaceSkillState(workspace.root, selectedWorkspaceSkillAgents, skillReport);
+      }
+
       const doctorResult = await loadWorkspaceForDoctor({
         name: workspace.name,
         root: workspace.root,
@@ -603,6 +753,7 @@ class WorkspaceCommand {
       if (options.json) {
         printJson({
           workspace: doctorResult.workspace,
+          workspace_skills: skillReport,
           status: doctorResult.status,
         });
         return;
@@ -617,8 +768,11 @@ class WorkspaceCommand {
       console.log('Workspace check:');
       printWorkspaceCheckSummaryHuman(doctorResult);
       console.log('');
+      printWorkspaceSkillReportHuman(skillReport);
+      console.log('');
       console.log('Next useful commands:');
       console.log(`  openspec workspace doctor --workspace ${workspace.name}`);
+      console.log(`  openspec workspace update --workspace ${workspace.name} --tools <ids>`);
       console.log('  openspec workspace list');
     } catch (error) {
       this.handleFailure(options.json, { workspace: null, status: [] }, error);
@@ -812,6 +966,10 @@ export function registerWorkspaceCommand(program: Command): void {
     .option('--name <name>', 'Workspace name')
     .option('--link <link>', 'Repo or folder link. Use <path> or <name>=<path>.', collectOption, [])
     .option('--opener <id>', 'Preferred opener: codex, claude, github-copilot, or editor')
+    .option(
+      '--tools <tools>',
+      `Install OpenSpec skills for agents. Use "all", "none", or a comma-separated list of: ${getWorkspaceSkillToolIds().join(', ')}`
+    )
     .option('--json', 'Output as JSON')
     .option('--no-interactive', 'Disable prompts')
     .action(async (options: WorkspaceSetupOptions) => {

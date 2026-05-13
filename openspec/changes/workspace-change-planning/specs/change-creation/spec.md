@@ -11,11 +11,18 @@ Change creation SHALL support both repo-local and workspace planning homes.
 - **AND** it SHALL use the `workspace-planning` schema when no explicit schema is provided
 
 #### Scenario: Creating a change from inside a workspace
-- **GIVEN** the command runs from a subdirectory of an OpenSpec workspace
+- **GIVEN** the command runs from a subdirectory of an OpenSpec workspace planning home
 - **WHEN** the user creates a new change
 - **THEN** OpenSpec SHALL resolve the current workspace as the planning home
 - **AND** it SHALL create the change under that workspace's planning path
 - **AND** it SHALL use the `workspace-planning` schema when no explicit schema is provided
+
+#### Scenario: Creating a change from inside a linked repo
+- **GIVEN** a repo or folder is registered as a workspace link
+- **AND** the command runs from inside that linked repo or folder rather than from the workspace planning home
+- **WHEN** the user creates a new change without explicitly selecting a workspace
+- **THEN** OpenSpec SHALL preserve repo-local change creation behavior for that location
+- **AND** it SHALL not create a workspace-scoped change merely because the location is registered as a workspace link
 
 #### Scenario: Preserving repo-local change creation
 - **GIVEN** the command runs outside an OpenSpec workspace

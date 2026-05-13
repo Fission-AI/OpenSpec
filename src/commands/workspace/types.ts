@@ -34,6 +34,7 @@ export interface WorkspaceSetupOptions {
   name?: string;
   link?: string[];
   opener?: string;
+  tools?: string;
   json?: boolean;
   noInteractive?: boolean;
   interactive?: boolean;

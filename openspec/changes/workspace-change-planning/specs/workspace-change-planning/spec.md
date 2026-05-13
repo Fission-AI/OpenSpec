@@ -13,8 +13,9 @@ OpenSpec SHALL support workspace-level changes whose shared plan lives in the wo
 #### Scenario: Workspace planning artifact structure
 - **GIVEN** a workspace change uses the workspace planning schema
 - **WHEN** OpenSpec reports or creates planning artifacts for that change
-- **THEN** it SHALL use workspace-level artifacts for proposal, affected areas, cross-area design, and coordination tasks
+- **THEN** it SHALL use workspace-level artifacts for proposal, specs, cross-area design, and coordination tasks
 - **AND** those artifacts SHALL live under the workspace change root
+- **AND** it SHALL not require an additional area manifest outside those normal planning artifacts
 
 #### Scenario: Capturing the shared goal once
 - **WHEN** a workspace change is proposed
@@ -38,7 +39,14 @@ OpenSpec SHALL represent ownership or implementation boundaries in a workspace c
 #### Scenario: Planning before all areas are known
 - **WHEN** a user is still exploring a workspace change
 - **THEN** OpenSpec SHALL allow the shared plan to exist before all affected areas are finalized
-- **AND** it SHALL keep unresolved affected area state visible to agents
+- **AND** it SHALL keep unresolved affected area questions visible in the normal planning artifacts and status output
+
+#### Scenario: Organizing requirements by area
+- **GIVEN** a workspace change has requirements owned by one or more affected areas
+- **WHEN** OpenSpec reports or creates workspace-scoped specs
+- **THEN** it SHALL allow area-specific requirements to be organized under `specs/<area-or-repo>/<capability>/spec.md`
+- **AND** it SHALL not require separate area folders outside the normal `specs/` artifact tree
+- **AND** it SHALL preserve the area-or-repo path segment as workspace planning context rather than flattening it into a repo-local capability name
 
 #### Scenario: Separating areas from delivery slices
 - **WHEN** a workspace change reports affected areas

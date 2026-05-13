@@ -12,12 +12,13 @@ The status command SHALL provide machine-readable planning context for repo-loca
 - **WHEN** a user runs `openspec status --change <id> --json`
 - **THEN** the output SHALL include concrete paths for existing artifacts
 - **AND** agents SHALL be able to read those paths without assuming `openspec/changes/<id>/`
+- **AND** workspace-scoped nested spec paths SHALL be reported without flattening the area or capability path
 
 #### Scenario: Reporting workspace affected areas
 - **GIVEN** the change is workspace-scoped
 - **WHEN** a user runs `openspec status --change <id> --json`
 - **THEN** the output SHALL include known affected areas
-- **AND** it SHALL indicate when affected areas are unresolved
+- **AND** it SHALL indicate when affected areas remain unresolved without requiring an additional area manifest artifact
 
 #### Scenario: Reporting next steps
 - **WHEN** a user runs `openspec status --change <id> --json`
@@ -75,6 +76,13 @@ Generated workflow skills SHALL use OpenSpec CLI output as the source of truth f
 - **THEN** they SHALL avoid hardcoded examples that require changes to live under `openspec/changes/<id>/`
 - **AND** any examples SHALL defer to CLI-reported paths for repo-local and workspace-scoped changes
 
+#### Scenario: Skills guard unsupported workspace workflows
+- **GIVEN** a generated workflow skill is selected by the global profile
+- **AND** the workflow does not yet have full workspace-scoped behavior in this slice
+- **WHEN** the skill is used for a workspace-scoped change
+- **THEN** it SHALL tell the agent that the workspace action is not supported yet
+- **AND** it SHALL not instruct the agent to fall back to repo-local paths or edit linked repos without an explicit allowed edit root
+
 ### Requirement: Workspace schema instructions
 Workflow commands SHALL use the workspace planning schema instructions for workspace-scoped changes that use that schema.
 
@@ -82,10 +90,11 @@ Workflow commands SHALL use the workspace planning schema instructions for works
 - **GIVEN** a workspace-scoped change uses schema `workspace-planning`
 - **WHEN** a user runs `openspec status --change <id> --json`
 - **THEN** the artifact list SHALL reflect the workspace planning schema
-- **AND** it SHALL include the affected areas artifact
+- **AND** it SHALL include the normal proposal, specs, design, and tasks artifacts
 
-#### Scenario: Workspace areas instructions
+#### Scenario: Workspace specs instructions
 - **GIVEN** a workspace-scoped change uses schema `workspace-planning`
-- **WHEN** a user requests instructions for the affected areas artifact
-- **THEN** instruction output SHALL guide the agent to capture known, suspected, and unresolved affected areas
+- **WHEN** a user requests instructions for the specs artifact
+- **THEN** instruction output SHALL guide the agent to organize area-specific requirements under workspace-scoped `specs/` paths
 - **AND** it SHALL not require all affected areas to be finalized before planning can continue
+- **AND** it SHALL not instruct the agent to create repo-local spec files while the change is still in workspace planning

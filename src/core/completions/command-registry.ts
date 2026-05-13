@@ -180,6 +180,11 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             takesValue: true,
             values: ['codex', 'claude', 'github-copilot', 'editor'],
           },
+          {
+            name: 'tools',
+            description: 'Install OpenSpec skills for agents (all, none, or comma-separated tool IDs)',
+            takesValue: true,
+          },
           COMMON_FLAGS.json,
           COMMON_FLAGS.noInteractive,
         ],
