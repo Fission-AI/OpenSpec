@@ -1,4 +1,3 @@
-import * as path from 'node:path';
 import * as nodeFs from 'node:fs';
 import { createRequire } from 'node:module';
 
@@ -229,6 +228,17 @@ function getWorkspaceSkillTool(toolId: string): WorkspaceSkillCapableTool {
   return tool;
 }
 
+function getWorkspaceSkillDirectoryForTool(
+  workspaceRoot: string,
+  tool: WorkspaceSkillCapableTool
+): string {
+  return FileSystemUtils.joinPath(workspaceRoot, tool.skillsDir, 'skills');
+}
+
+export function getWorkspaceSkillDirectory(workspaceRoot: string, toolId: string): string {
+  return getWorkspaceSkillDirectoryForTool(workspaceRoot, getWorkspaceSkillTool(toolId));
+}
+
 function makeAgentResult(
   workspaceRoot: string,
   tool: WorkspaceSkillCapableTool,
@@ -237,7 +247,7 @@ function makeAgentResult(
   return {
     tool_id: tool.value,
     name: tool.name,
-    skills_path: path.join(workspaceRoot, tool.skillsDir, 'skills'),
+    skills_path: getWorkspaceSkillDirectoryForTool(workspaceRoot, tool),
     workflow_ids: workflowIds,
   };
 }
@@ -262,7 +272,7 @@ async function removeManagedWorkflowSkillDirs(
   reason: WorkspaceSkillRemovedResult['reason']
 ): Promise<WorkspaceSkillRemovedResult | null> {
   const desiredSet = new Set(desiredWorkflowIds);
-  const skillsDir = path.join(workspaceRoot, tool.skillsDir, 'skills');
+  const skillsDir = getWorkspaceSkillDirectoryForTool(workspaceRoot, tool);
   const removedWorkflowIds: string[] = [];
 
   for (const { workflowId, dirName } of getManagedWorkspaceSkillEntries()) {
@@ -270,7 +280,7 @@ async function removeManagedWorkflowSkillDirs(
       continue;
     }
 
-    const skillDir = path.join(skillsDir, dirName);
+    const skillDir = FileSystemUtils.joinPath(skillsDir, dirName);
     if (!(await pathExists(skillDir))) {
       continue;
     }
@@ -324,12 +334,12 @@ export async function generateWorkspaceAgentSkills(
     const wasConfigured = getToolSkillStatus(workspaceRoot, tool.value).configured;
 
     try {
-      const skillsDir = path.join(workspaceRoot, tool.skillsDir, 'skills');
+      const skillsDir = getWorkspaceSkillDirectoryForTool(workspaceRoot, tool);
       const transformer =
         tool.value === 'opencode' || tool.value === 'pi' ? transformToHyphenCommands : undefined;
 
       for (const { template, dirName } of skillTemplates) {
-        const skillFile = path.join(skillsDir, dirName, 'SKILL.md');
+        const skillFile = FileSystemUtils.joinPath(skillsDir, dirName, 'SKILL.md');
         const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
         await FileSystemUtils.writeFile(skillFile, skillContent);
       }
@@ -436,12 +446,12 @@ export async function updateWorkspaceAgentSkills(
     const tool = getWorkspaceSkillTool(toolId);
 
     try {
-      const skillsDir = path.join(workspaceRoot, tool.skillsDir, 'skills');
+      const skillsDir = getWorkspaceSkillDirectoryForTool(workspaceRoot, tool);
       const transformer =
         tool.value === 'opencode' || tool.value === 'pi' ? transformToHyphenCommands : undefined;
 
       for (const { template, dirName } of skillTemplates) {
-        const skillFile = path.join(skillsDir, dirName, 'SKILL.md');
+        const skillFile = FileSystemUtils.joinPath(skillsDir, dirName, 'SKILL.md');
         const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
         await FileSystemUtils.writeFile(skillFile, skillContent);
       }

@@ -16,7 +16,8 @@ import { CompletionCommand } from '../commands/completion.js';
 import { FeedbackCommand } from '../commands/feedback.js';
 import { registerConfigCommand } from '../commands/config.js';
 import { registerSchemaCommand } from '../commands/schema.js';
-import { registerWorkspaceCommand } from '../commands/workspace.js';
+import { registerWorkspaceCommand, runWorkspaceUpdate } from '../commands/workspace.js';
+import { findWorkspaceRoot } from '../core/workspace/index.js';
 import {
   statusCommand,
   instructionsCommand,
@@ -161,6 +162,12 @@ program
   .action(async (targetPath = '.', options?: { force?: boolean }) => {
     try {
       const resolvedPath = path.resolve(targetPath);
+      const workspaceRoot = await findWorkspaceRoot(resolvedPath);
+      if (workspaceRoot) {
+        await runWorkspaceUpdate(undefined, {});
+        return;
+      }
+
       const updateCommand = new UpdateCommand({ force: options?.force });
       await updateCommand.execute(resolvedPath);
     } catch (error) {

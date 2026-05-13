@@ -1054,6 +1054,14 @@ class WorkspaceCommand {
   }
 }
 
+export async function runWorkspaceUpdate(
+  positionalName: string | undefined,
+  options: WorkspaceUpdateOptions = {}
+): Promise<void> {
+  const workspaceCommand = new WorkspaceCommand();
+  await workspaceCommand.update(positionalName, options);
+}
+
 function collectOption(value: string, previous: string[]): string[] {
   return [...previous, value];
 }

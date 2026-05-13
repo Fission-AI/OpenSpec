@@ -91,20 +91,20 @@ User-testable outcome: A user can inspect regenerated workflow skills and verify
 
 User-testable outcome: A user or reviewer can run the full manual checklist from a clean workspace and compare expected versus actual evidence for every earlier phase.
 
-- [ ] 7.1 Add tests that workspace setup installs skills in the workspace root and leaves linked repos unchanged.
-- [ ] 7.2 Add tests that workspace update refreshes, adds, and removes only managed workspace skill directories.
-- [ ] 7.3 Add tests that workspace setup/update use the current global profile for workflow skill selection while keeping workspace delivery skills-only.
-- [ ] 7.4 Add tests that `openspec config profile` inside a workspace can apply changes through `openspec workspace update`.
-- [ ] 7.5 Add tests for stored workspace skill agent selection, omitted-`--tools` behavior, and profile drift reporting.
-- [ ] 7.6 Add tests that `openspec update` from a workspace planning home redirects to `openspec workspace update`.
-- [ ] 7.7 Add tests that unsupported workspace workflow skills are guarded and do not instruct repo-local fallback edits.
-- [ ] 7.8 Add tests that registered repos are visible before change creation.
-- [ ] 7.9 Add tests that workspace change creation does not imply repo-local artifact creation.
-- [ ] 7.10 Add tests that the workspace-planning schema resolves nested `specs/<area-or-repo>/<capability>/spec.md` files as workspace-scoped specs.
-- [ ] 7.11 Add cross-platform path tests for workspace-root skill paths and workspace change paths.
-- [ ] 7.12 Update CLI docs, command help, and shell completion coverage for `workspace update`, `--tools`, profile behavior, and workspace skills-only delivery.
-- [ ] 7.13 Run `openspec validate workspace-change-planning --strict`.
-- [ ] 7.14 Run the full manual acceptance checklist across setup, update, config profile, change creation, planning context, and workflow skills before marking the change complete.
-- [ ] 7.15 Complete a final UX review across the whole workflow and record any follow-up fixes or intentional deferrals.
-- [ ] 7.16 Before implementation sign-off, record the manual commands or interaction paths, expected observations, and actual observations for each phase.
-- [ ] 7.17 Have a separate reviewer or fresh agent context rerun the manual acceptance and UX checklist when available; otherwise rerun it from a clean temporary workspace and report the evidence.
+- [x] 7.1 Add tests that workspace setup installs skills in the workspace root and leaves linked repos unchanged.
+- [x] 7.2 Add tests that workspace update refreshes, adds, and removes only managed workspace skill directories.
+- [x] 7.3 Add tests that workspace setup/update use the current global profile for workflow skill selection while keeping workspace delivery skills-only.
+- [x] 7.4 Add tests that `openspec config profile` inside a workspace can apply changes through `openspec workspace update`.
+- [x] 7.5 Add tests for stored workspace skill agent selection, omitted-`--tools` behavior, and profile drift reporting.
+- [x] 7.6 Add tests that `openspec update` from a workspace planning home redirects to `openspec workspace update`.
+- [x] 7.7 Add tests that unsupported workspace workflow skills are guarded and do not instruct repo-local fallback edits.
+- [x] 7.8 Add tests that registered repos are visible before change creation.
+- [x] 7.9 Add tests that workspace change creation does not imply repo-local artifact creation.
+- [x] 7.10 Add tests that the workspace-planning schema resolves nested `specs/<area-or-repo>/<capability>/spec.md` files as workspace-scoped specs.
+- [x] 7.11 Add cross-platform path tests for workspace-root skill paths and workspace change paths.
+- [x] 7.12 Update CLI docs, command help, and shell completion coverage for `workspace update`, `--tools`, profile behavior, and workspace skills-only delivery.
+- [x] 7.13 Run `openspec validate workspace-change-planning --strict`.
+- [x] 7.14 Run the full manual acceptance checklist across setup, update, config profile, change creation, planning context, and workflow skills before marking the change complete.
+- [x] 7.15 Complete a final UX review across the whole workflow and record any follow-up fixes or intentional deferrals.
+- [x] 7.16 Before implementation sign-off, record the manual commands or interaction paths, expected observations, and actual observations for each phase.
+- [x] 7.17 Have a separate reviewer or fresh agent context rerun the manual acceptance and UX checklist when available; otherwise rerun it from a clean temporary workspace and report the evidence.

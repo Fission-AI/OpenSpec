@@ -282,7 +282,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
           },
           {
             name: 'tools',
-            description: 'Select agents for workspace skills; global profile selects workflows',
+            description: 'Select agents for workspace skills-only delivery; global profile selects workflows',
             takesValue: true,
           },
           COMMON_FLAGS.json,

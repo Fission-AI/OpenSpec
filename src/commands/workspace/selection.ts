@@ -14,9 +14,11 @@ import {
 } from './types.js';
 
 function normalizeRegistryRootForComparison(workspaceRoot: string): string {
-  return process.platform === 'win32'
-    ? FileSystemUtils.canonicalizeExistingPath(workspaceRoot)
-    : workspaceRoot;
+  try {
+    return FileSystemUtils.canonicalizeExistingPath(workspaceRoot);
+  } catch {
+    return workspaceRoot;
+  }
 }
 
 export async function selectWorkspaceForCommand(

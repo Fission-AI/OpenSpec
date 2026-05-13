@@ -95,6 +95,18 @@ function countPathSegments(candidatePath: string): number {
   return path.resolve(candidatePath).split(path.sep).filter(Boolean).length;
 }
 
+function isWindowsLikePath(candidatePath: string): boolean {
+  return /^[A-Za-z]:[\\/]/.test(candidatePath) || candidatePath.startsWith('\\\\');
+}
+
+function relativePlanningPath(fromPath: string, toPath: string): string {
+  if (isWindowsLikePath(fromPath) || isWindowsLikePath(toPath)) {
+    return path.win32.relative(path.win32.normalize(fromPath), path.win32.normalize(toPath));
+  }
+
+  return path.posix.relative(fromPath.replace(/\\/g, '/'), toPath.replace(/\\/g, '/'));
+}
+
 function readWorkspaceSharedStateSync(workspaceRoot: string): WorkspaceSharedState | null {
   try {
     return parseWorkspaceSharedState(
@@ -155,11 +167,11 @@ export function resolveCurrentPlanningHomeSync(
 }
 
 export function getChangeDir(planningHome: PlanningHome, changeName: string): string {
-  return path.join(planningHome.changesDir, changeName);
+  return FileSystemUtils.joinPath(planningHome.changesDir, changeName);
 }
 
 export function formatChangeLocation(planningHome: PlanningHome, changeName: string): string {
   const changeDir = getChangeDir(planningHome, changeName);
-  const relative = path.relative(planningHome.root, changeDir);
+  const relative = relativePlanningPath(planningHome.root, changeDir);
   return relative.length > 0 ? relative : changeDir;
 }

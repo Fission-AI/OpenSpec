@@ -150,4 +150,23 @@ describe('skill templates split parity', () => {
 
     expect(actualHashes).toEqual(EXPECTED_GENERATED_SKILL_CONTENT_HASHES);
   });
+
+  it('guards unsupported workspace workflows from repo-local fallback edits', () => {
+    const guardedSkills: Array<[string, () => SkillTemplate, string]> = [
+      ['openspec-apply-change', getApplyChangeSkillTemplate, 'full workspace apply is not supported'],
+      ['openspec-sync-specs', getSyncSpecsSkillTemplate, 'workspace spec sync is not supported'],
+      ['openspec-archive-change', getArchiveChangeSkillTemplate, 'workspace archive is not supported'],
+      ['openspec-bulk-archive-change', getBulkArchiveChangeSkillTemplate, 'workspace bulk archive is not supported'],
+      ['openspec-verify-change', getVerifyChangeSkillTemplate, 'full workspace implementation verification is not supported'],
+    ];
+
+    for (const [dirName, createTemplate, guardText] of guardedSkills) {
+      const content = generateSkillContent(createTemplate(), 'PARITY-BASELINE');
+
+      expect(content, dirName).toContain('actionContext.mode: "workspace-planning"');
+      expect(content, dirName).toContain(guardText);
+      expect(content, dirName).not.toContain('openspec/changes/<name>');
+      expect(content, dirName).not.toContain('mv openspec/changes');
+    }
+  });
 });
