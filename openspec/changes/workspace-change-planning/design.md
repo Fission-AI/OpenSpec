@@ -215,6 +215,17 @@ When practical, a separate reviewer or fresh agent context should run the manual
 
 Alternative considered: rely on automated tests plus the implementer's final review. Automated tests are necessary, but this change is workflow-heavy and agent-facing, so independent evidence is more useful than confidence alone.
 
+## Deferred Direction
+
+The earlier product notes pointed at a richer workspace model than this slice ships. Keep that direction as follow-up material, not competing current scope.
+
+- Full workspace apply should select or confirm one work focus before implementation. The first work focus should be an affected area with an allowed edit root; later work may add an optional delivery phase when a large change needs sequencing. Until that model exists, workspace apply/verify/archive skills remain guarded.
+- Workspace verify and archive should wait for a clear model of partial area completion, final whole-change completion, and how workspace-scoped specs become repo-local canonical specs.
+- Scoped plan files may eventually attach at the change, phase, affected-area, or work-focus level. This slice intentionally keeps the first workspace schema close to normal OpenSpec artifacts: proposal, specs, design, and tasks.
+- Affected areas can start as registered workspace link names, but future flows may refine or derive them from planning artifacts. That derivation should avoid reintroducing target-first or repo-slice language.
+- Workflow skills may later separate generic OpenSpec workflow semantics from agent-specific affordances such as asking questions, tracking todos, or delegating work. This slice only makes generated workflow skills path-agnostic.
+- OpenSpec may need a named exploratory-notes convention for preserving unsettled thinking before it is promoted into proposal, design, specs, or tasks. This cleanup keeps the current change folder focused on standard artifacts.
+
 ## Risks / Trade-offs
 
 - Skill generation logic may drift from `init/update` → share the same template generation and tool validation helpers where practical.

@@ -108,3 +108,26 @@ User-testable outcome: A user or reviewer can run the full manual checklist from
 - [x] 7.15 Complete a final UX review across the whole workflow and record any follow-up fixes or intentional deferrals.
 - [x] 7.16 Before implementation sign-off, record the manual commands or interaction paths, expected observations, and actual observations for each phase.
 - [x] 7.17 Have a separate reviewer or fresh agent context rerun the manual acceptance and UX checklist when available; otherwise rerun it from a clean temporary workspace and report the evidence.
+
+## Verification Evidence
+
+Completion evidence was recorded on 2026-05-14.
+
+Automated checks:
+
+```bash
+pnpm run build
+pnpm vitest run test/commands/workspace.test.ts test/commands/artifact-workflow.test.ts test/core/workspace/skills.test.ts test/core/planning-home.test.ts test/core/templates/skill-templates-parity.test.ts
+node dist/cli/index.js validate workspace-change-planning --strict
+git diff --check
+```
+
+Clean workspace rerun covered non-interactive workspace setup, workspace doctor, config profile update guidance, workspace update redirection, workspace change creation with `--areas api,web`, status/instructions JSON for nested workspace specs, linked repo cleanliness, and guarded unsupported workflow skills.
+
+Observed results:
+
+- Build, targeted tests, strict validation, and whitespace checks passed.
+- Workspace setup/update generated skills only in the workspace root and left linked repos untouched.
+- Workspace change creation used schema `workspace-planning`, reported affected areas `api` and `web`, preserved nested `specs/api/login/spec.md`, and kept `actionContext.allowedEditRoots` empty during planning.
+- Generated workflow skills used CLI-reported paths and workspace guards rather than hardcoded `openspec/changes/<name>` paths.
+- Fresh-agent rerun was not available; the clean temporary workspace rerun served as the fallback independent acceptance pass.
