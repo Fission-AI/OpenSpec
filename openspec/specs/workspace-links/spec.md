@@ -443,6 +443,12 @@ OpenSpec SHALL provide a workspace update flow for refreshing agent skills after
 - **AND** it SHALL remove OpenSpec-managed workflow skill directories for agents that are no longer selected
 - **AND** it SHALL update the stored workspace-local selected agent list
 
+#### Scenario: Identifying managed workflow skill directories
+- **WHEN** workspace update evaluates a workflow skill directory for removal
+- **THEN** OpenSpec SHALL treat it as OpenSpec-managed only when the directory name matches a known generated workflow skill directory and its `SKILL.md` contains OpenSpec generated metadata
+- **AND** generated metadata SHALL include the `generatedBy` marker written by OpenSpec skill generation
+- **AND** OpenSpec SHALL not remove directories that are missing the generated metadata, even when their names match known workflow skill directory names
+
 #### Scenario: Updating profile-selected workflows
 - **GIVEN** global config resolves to a workflow profile
 - **WHEN** workspace update refreshes workspace-local skills

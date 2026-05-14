@@ -167,7 +167,7 @@ program
       const resolvedPath = path.resolve(targetPath);
       const workspaceRoot = await findWorkspaceRoot(resolvedPath);
       if (workspaceRoot) {
-        await runWorkspaceUpdateForRoot(workspaceRoot, {});
+        await runWorkspaceUpdateForRoot(workspaceRoot, { force: options?.force });
         return;
       }
 

@@ -51,6 +51,7 @@ export type WorkspaceLinkOptions = WorkspaceSelectionOptions;
 
 export interface WorkspaceUpdateOptions extends WorkspaceSelectionOptions {
   tools?: string;
+  force?: boolean;
 }
 
 export interface WorkspaceOpenOptions extends WorkspaceSelectionOptions {
