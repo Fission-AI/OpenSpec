@@ -99,11 +99,19 @@ export function getCurrentWorkspaceSkillProfileSelection(): {
 }
 
 function arraysEqual(left: readonly string[] | undefined, right: readonly string[]): boolean {
-  if (!left || left.length !== right.length) {
+  const leftValues = left ?? [];
+  if (leftValues.length !== right.length) {
     return false;
   }
 
-  return left.every((value, index) => value === right[index]);
+  const leftSet = new Set(leftValues);
+  const rightSet = new Set(right);
+
+  if (leftSet.size !== rightSet.size) {
+    return false;
+  }
+
+  return [...leftSet].every((value) => rightSet.has(value));
 }
 
 export function hasWorkspaceSkillProfileDrift(
