@@ -1,7 +1,8 @@
 # workspace-change-planning Specification
 
 ## Purpose
-TBD - created by archiving change workspace-change-planning. Update Purpose after archive.
+Define how OpenSpec creates, tracks, and guides workspace-level changes whose planning artifacts coordinate multiple linked repos or folders before implementation ownership is finalized.
+
 ## Requirements
 ### Requirement: Workspace change planning home
 OpenSpec SHALL support workspace-level changes whose shared plan lives in the workspace planning home.
