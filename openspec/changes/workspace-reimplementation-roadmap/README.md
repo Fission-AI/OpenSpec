@@ -33,8 +33,9 @@ Implement the flat sibling changes in this order:
 2. `workspace-create-and-register-repos`
 3. `workspace-open-agent-context`
 4. `workspace-change-planning`
-5. `workspace-apply-repo-slice`
-6. `workspace-verify-and-archive`
+5. `workspace-agent-guidance`
+6. `workspace-apply-repo-slice`
+7. `workspace-verify-and-archive`
 
 OpenSpec currently discovers active changes as immediate directories under `openspec/changes/`, and change names are kebab-case identifiers. Keep these changes as flat siblings until formal change-stacking metadata is available.
 
@@ -47,6 +48,8 @@ OpenSpec currently discovers active changes as immediate directories under `open
 `workspace-open-agent-context` gives the agent the workspace location, linked repos or folders, active changes, and selected change scope.
 
 `workspace-change-planning` creates the workspace-level planning commitment and identifies target repo slices.
+
+`workspace-agent-guidance` makes workspace-local workflow skills use the planning model deliberately: inspect linked context, seed workspace changes with goal and known affected areas, and preserve linked repos as read-only planning context until apply selects an edit root.
 
 `workspace-apply-repo-slice` treats apply as implementation of one selected repo slice, not materialization of workspace planning files.
 

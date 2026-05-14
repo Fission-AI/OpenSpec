@@ -29,7 +29,7 @@ export function getFfChangeSkillTemplate(): SkillTemplate {
    \`\`\`bash
    openspec new change "<name>"
    \`\`\`
-   This creates a scaffolded change at \`openspec/changes/<name>/\`.
+   This creates a scaffolded change in the planning home resolved by the CLI.
 
 3. **Get the artifact build order**
    \`\`\`bash
@@ -38,6 +38,7 @@ export function getFfChangeSkillTemplate(): SkillTemplate {
    Parse the JSON to get:
    - \`applyRequires\`: array of artifact IDs needed before implementation (e.g., \`["tasks"]\`)
    - \`artifacts\`: list of all artifacts with their status and dependencies
+   - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context. Use these instead of assuming repo-local paths.
 
 4. **Create artifacts in sequence until apply-ready**
 
@@ -55,10 +56,10 @@ export function getFfChangeSkillTemplate(): SkillTemplate {
         - \`rules\`: Artifact-specific rules (constraints for you - do NOT include in output)
         - \`template\`: The structure to use for your output file
         - \`instruction\`: Schema-specific guidance for this artifact type
-        - \`outputPath\`: Where to write the artifact
+        - \`resolvedOutputPath\`: Resolved path or pattern to write the artifact
         - \`dependencies\`: Completed artifacts to read for context
       - Read any completed dependency files for context
-      - Create the artifact file using \`template\` as the structure
+      - Create the artifact file using \`template\` as the structure and write it to \`resolvedOutputPath\`
       - Apply \`context\` and \`rules\` as constraints - but do NOT copy them into the file
       - Show brief progress: "✓ Created <artifact-id>"
 
@@ -131,7 +132,7 @@ export function getOpsxFfCommandTemplate(): CommandTemplate {
    \`\`\`bash
    openspec new change "<name>"
    \`\`\`
-   This creates a scaffolded change at \`openspec/changes/<name>/\`.
+   This creates a scaffolded change in the planning home resolved by the CLI.
 
 3. **Get the artifact build order**
    \`\`\`bash
@@ -140,6 +141,7 @@ export function getOpsxFfCommandTemplate(): CommandTemplate {
    Parse the JSON to get:
    - \`applyRequires\`: array of artifact IDs needed before implementation (e.g., \`["tasks"]\`)
    - \`artifacts\`: list of all artifacts with their status and dependencies
+   - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context. Use these instead of assuming repo-local paths.
 
 4. **Create artifacts in sequence until apply-ready**
 
@@ -157,10 +159,10 @@ export function getOpsxFfCommandTemplate(): CommandTemplate {
         - \`rules\`: Artifact-specific rules (constraints for you - do NOT include in output)
         - \`template\`: The structure to use for your output file
         - \`instruction\`: Schema-specific guidance for this artifact type
-        - \`outputPath\`: Where to write the artifact
+        - \`resolvedOutputPath\`: Resolved path or pattern to write the artifact
         - \`dependencies\`: Completed artifacts to read for context
       - Read any completed dependency files for context
-      - Create the artifact file using \`template\` as the structure
+      - Create the artifact file using \`template\` as the structure and write it to \`resolvedOutputPath\`
       - Apply \`context\` and \`rules\` as constraints - but do NOT copy them into the file
       - Show brief progress: "✓ Created <artifact-id>"
 

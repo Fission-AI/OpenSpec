@@ -180,6 +180,11 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             takesValue: true,
             values: ['codex', 'claude', 'github-copilot', 'editor'],
           },
+          {
+            name: 'tools',
+            description: 'Install OpenSpec skills for agents (all, none, or comma-separated tool IDs)',
+            takesValue: true,
+          },
           COMMON_FLAGS.json,
           COMMON_FLAGS.noInteractive,
         ],
@@ -253,6 +258,31 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
           {
             name: 'workspace',
             description: 'Workspace name from the local workspace registry',
+            takesValue: true,
+          },
+          COMMON_FLAGS.json,
+          COMMON_FLAGS.noInteractive,
+        ],
+      },
+      {
+        name: 'update',
+        description: 'Refresh workspace-local OpenSpec agent skills from the active global profile',
+        acceptsPositional: true,
+        positionals: [
+          {
+            name: 'name',
+            optional: true,
+          },
+        ],
+        flags: [
+          {
+            name: 'workspace',
+            description: 'Workspace name from the local workspace registry',
+            takesValue: true,
+          },
+          {
+            name: 'tools',
+            description: 'Select agents for workspace skills-only delivery; global profile selects workflows',
             takesValue: true,
           },
           COMMON_FLAGS.json,

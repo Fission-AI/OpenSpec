@@ -7,7 +7,7 @@ The OpenSpec CLI (`openspec`) provides terminal commands for project setup, vali
 | Category | Commands | Purpose |
 |----------|----------|---------|
 | **Setup** | `init`, `update` | Initialize and update OpenSpec in your project |
-| **Workspaces (beta)** | `workspace setup`, `workspace list`, `workspace ls`, `workspace link`, `workspace relink`, `workspace doctor`, `workspace open` | Set up planning across linked repos or folders |
+| **Workspaces (beta)** | `workspace setup`, `workspace list`, `workspace ls`, `workspace link`, `workspace relink`, `workspace doctor`, `workspace update`, `workspace open` | Set up planning across linked repos or folders |
 | **Browsing** | `list`, `view`, `show` | Explore changes and specs |
 | **Validation** | `validate` | Check changes and specs for issues |
 | **Lifecycle** | `archive` | Finalize completed changes |
@@ -52,6 +52,7 @@ These commands support `--json` output for programmatic use by AI agents and scr
 | `openspec workspace link` | Link a repo or folder | `--json` for structured link output |
 | `openspec workspace relink` | Repair a linked path | `--json` for structured link output |
 | `openspec workspace doctor` | Check one workspace | `--json` for structured status output |
+| `openspec workspace update` | Refresh workspace-local agent skills | `--tools` selects agents; profile selects workflows |
 
 ---
 
@@ -187,6 +188,7 @@ openspec workspace setup [options]
 | `--link <path>` | Link an existing repo or folder and infer the link name from the folder name |
 | `--link <name>=<path>` | Link an existing repo or folder with an explicit link name |
 | `--opener <id>` | Store a preferred opener during non-interactive setup: `codex`, `claude`, `github-copilot`, or `editor` |
+| `--tools <tools>` | Install workspace-local OpenSpec skills for agents. Use `all`, `none`, or comma-separated tool IDs |
 | `--no-interactive` | Disable prompts; requires `--name` and at least one `--link` |
 | `--json` | Output JSON; requires `--no-interactive` |
 
@@ -196,10 +198,13 @@ openspec workspace setup [options]
 openspec workspace setup
 openspec workspace setup --no-interactive --name platform --link /repos/api --link web=/repos/web
 openspec workspace setup --no-interactive --name platform --link /repos/api --opener codex
+openspec workspace setup --no-interactive --name platform --link /repos/api --tools codex,claude
 openspec workspace setup --no-interactive --json --name checkout --link /repos/platform/apps/checkout
 ```
 
-Interactive setup asks for a preferred opener and stores it in machine-local workspace state. Non-interactive setup stores a preferred opener only when `--opener` is provided; otherwise `workspace open` prompts later in interactive terminals when a supported opener is available, or asks scripts to pass `--agent <tool>` or `--editor`.
+Interactive setup asks for a preferred opener and can install workspace-local OpenSpec skills for selected agents. Non-interactive setup stores a preferred opener only when `--opener` is provided; otherwise `workspace open` prompts later in interactive terminals when a supported opener is available, or asks scripts to pass `--agent <tool>` or `--editor`.
+
+Workspace skill installation is skills-only in this beta slice: even if global delivery is `commands` or `both`, workspace setup writes agent skill folders in the workspace root and does not create slash command files. The active global profile chooses which workflow skills are installed; `--tools` chooses which agents receive them. If `--tools` is omitted in non-interactive setup, no skills are installed and `workspace update --tools <ids>` can add them later.
 
 ### `openspec workspace list`
 
@@ -261,6 +266,36 @@ Doctor shows the workspace location, planning path, linked repos or folders, mis
 Commands that need one workspace use the current workspace when run from inside a workspace folder or subdirectory. From elsewhere, pass `--workspace <name>`, select from the picker in an interactive terminal, or rely on the only known workspace when exactly one exists. In `--json` or `--no-interactive` mode, ambiguous selection fails with a structured status error and suggests `--workspace <name>`.
 
 JSON responses use typed objects plus `status` arrays. Primary data lives in `workspace`, `workspaces`, or `link`; warnings and errors live in `status`.
+
+### `openspec workspace update`
+
+Refresh workspace-local OpenSpec skills from the active global profile.
+
+```bash
+openspec workspace update [name] [options]
+```
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--workspace <name>` | Select a known workspace from the local registry |
+| `--tools <tools>` | Select agents for workspace skills. Use `all`, `none`, or comma-separated tool IDs |
+| `--json` | Output JSON |
+| `--no-interactive` | Disable workspace picker prompts |
+
+**Examples:**
+
+```bash
+openspec workspace update
+openspec workspace update platform
+openspec workspace update --workspace platform --tools codex,claude
+openspec workspace update --workspace platform --tools none
+```
+
+`workspace update` reuses the stored workspace skill agent selection when `--tools` is omitted. Passing `--tools` replaces that stored selection. It refreshes only OpenSpec-managed workflow skill directories in the workspace root, removes deselected managed workflow skills, and leaves linked repos and folders untouched.
+
+Running `openspec update` from inside a workspace planning home redirects to `openspec workspace update`; run `openspec update` inside repo-local projects when you want repo-owned tool files updated.
 
 ### `openspec workspace open`
 
@@ -958,9 +993,9 @@ openspec config profile core
 - Keep current settings (exit)
 
 If you keep current settings, no changes are written and no update prompt is shown.
-If there are no config changes but the current project files are out of sync with your global profile/delivery, OpenSpec will show a warning and suggest running `openspec update`.
+If there are no config changes but the current project or workspace files are out of sync with your global profile/delivery, OpenSpec will show a warning and suggest `openspec update` for repo-local projects or `openspec workspace update` for workspace-local skills.
 Pressing `Ctrl+C` also cancels the flow cleanly (no stack trace) and exits with code `130`.
-In the workflow checklist, `[x]` means the workflow is selected in global config. To apply those selections to project files, run `openspec update` (or choose `Apply changes to this project now?` when prompted inside a project).
+In the workflow checklist, `[x]` means the workflow is selected in global config. To apply those selections to project files, run `openspec update` (or choose `Apply changes to this project now?` when prompted inside a project). From inside a workspace, use `openspec workspace update` to refresh workspace-local skills; this remains skills-only and does not generate workspace slash commands.
 
 **Interactive examples:**
 

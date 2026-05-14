@@ -161,10 +161,11 @@ export function readChangeMetadata(
  */
 export function resolveSchemaForChange(
   changeDir: string,
-  explicitSchema?: string
+  explicitSchema?: string,
+  projectRootOverride?: string
 ): string {
   // Derive project root from changeDir (changeDir is typically projectRoot/openspec/changes/change-name)
-  const projectRoot = path.resolve(changeDir, '../../..');
+  const projectRoot = projectRootOverride ?? path.resolve(changeDir, '../../..');
 
   // 1. Explicit override wins
   if (explicitSchema) {

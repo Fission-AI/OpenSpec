@@ -10,10 +10,17 @@ import {
   parseWorkspaceLocalState,
 } from '../../src/core/workspace/index.js';
 
+const searchableMultiSelectMock = vi.hoisted(() => vi.fn(async () => []));
+
 vi.mock('@inquirer/prompts', () => ({
   input: vi.fn(),
   confirm: vi.fn(),
   select: vi.fn(),
+}));
+
+vi.mock('../../src/prompts/searchable-multi-select.js', () => ({
+  default: searchableMultiSelectMock,
+  searchableMultiSelect: searchableMultiSelectMock,
 }));
 
 async function runWorkspaceCommand(args: string[]): Promise<void> {
@@ -39,6 +46,7 @@ async function getPromptMocks(): Promise<{
 describe('workspace command interactive flows', () => {
   let tempDir: string;
   let dataHome: string;
+  let configHome: string;
   let originalEnv: NodeJS.ProcessEnv;
   let originalCwd: string;
   let originalStdinTTY: boolean | undefined;
@@ -51,6 +59,7 @@ describe('workspace command interactive flows', () => {
 
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-workspace-interactive-'));
     dataHome = path.join(tempDir, 'data');
+    configHome = path.join(tempDir, 'config');
     originalEnv = { ...process.env };
     originalCwd = process.cwd();
     originalStdinTTY = (process.stdin as NodeJS.ReadStream & { isTTY?: boolean }).isTTY;
@@ -59,6 +68,7 @@ describe('workspace command interactive flows', () => {
     process.env = {
       ...process.env,
       XDG_DATA_HOME: dataHome,
+      XDG_CONFIG_HOME: configHome,
       OPENSPEC_TELEMETRY: '0',
     };
     delete process.env.CI;
@@ -69,6 +79,8 @@ describe('workspace command interactive flows', () => {
 
     consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    searchableMultiSelectMock.mockReset();
+    searchableMultiSelectMock.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -209,6 +221,59 @@ describe('workspace command interactive flows', () => {
       kind: 'agent',
       id: 'github-copilot',
     });
+  });
+
+  it('asks which agents get OpenSpec skills and preselects the preferred opener', async () => {
+    const api = mkdir('repos/api');
+    const binDir = mkdir('bin');
+    const codexPath = path.join(binDir, process.platform === 'win32' ? 'codex.cmd' : 'codex');
+    fs.writeFileSync(codexPath, '');
+    fs.chmodSync(codexPath, 0o755);
+    process.env.PATH = binDir;
+    const { input, select } = await getPromptMocks();
+
+    input.mockImplementation(async (options: { message: string }) => {
+      if (options.message === 'Workspace name:') {
+        return 'platform';
+      }
+
+      if (options.message === 'Repo or folder path:') {
+        return api;
+      }
+
+      throw new Error(`Unexpected input prompt: ${options.message}`);
+    });
+    select.mockImplementation(async (options: { message: string }) => {
+      if (options.message === 'Continue') {
+        return 'finish';
+      }
+
+      if (options.message === 'Preferred opener:') {
+        return 'codex';
+      }
+
+      throw new Error(`Unexpected select prompt: ${options.message}`);
+    });
+    searchableMultiSelectMock.mockImplementationOnce(async (options: {
+      message: string;
+      choices: Array<{ value: string; preSelected?: boolean }>;
+    }) => {
+      expect(options.message).toBe('Which agents should get OpenSpec skills in this workspace?');
+      expect(options.choices.find((choice) => choice.value === 'codex')?.preSelected).toBe(true);
+      expect(options.choices.find((choice) => choice.value === 'claude')?.preSelected).toBe(false);
+      return ['codex', 'claude'];
+    });
+
+    await runWorkspaceCommand(['setup']);
+
+    expect(process.exitCode).toBeUndefined();
+    expect(searchableMultiSelectMock).toHaveBeenCalledTimes(1);
+    expect(readLocalState('platform').workspace_skills).toEqual(
+      expect.objectContaining({
+        selected_agents: ['codex', 'claude'],
+        last_applied_workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive'],
+      })
+    );
   });
 
   it('lets users add another path and rename an inferred link-name conflict', async () => {
