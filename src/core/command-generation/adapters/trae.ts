@@ -12,6 +12,9 @@ import type { CommandContent, ToolCommandAdapter } from '../types.js';
  * Quotes the string if it contains special YAML characters.
  */
 function escapeYamlValue(value: string): string {
+  if (value === '') {
+    return '""';
+  }
   // Check if value needs quoting (contains special YAML characters or starts/ends with whitespace)
   const needsQuoting = /[:\n\r#{}[\],&*!|>'"%@`]|^\s|\s$/.test(value);
   if (needsQuoting) {

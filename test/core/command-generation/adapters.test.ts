@@ -732,7 +732,7 @@ describe('command-generation/adapters', () => {
         description: '',
       };
       const output = traeAdapter.formatFile(contentEmptyDesc);
-      expect(output).toContain('description: \n');
+      expect(output).toContain('description: ""');
     });
 
     it('should escape carriage returns in description', () => {
