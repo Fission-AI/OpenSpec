@@ -40,3 +40,36 @@ export function resolveArtifactOutputs(changeDir: string, generates: string): st
 export function artifactOutputExists(changeDir: string, generates: string): boolean {
   return resolveArtifactOutputs(changeDir, generates).length > 0;
 }
+
+/**
+ * Checks if all resolved artifact output files contain meaningful content.
+ */
+export function artifactOutputContentValid(changeDir: string, generates: string): boolean {
+  const outputs = resolveArtifactOutputs(changeDir, generates);
+
+  return outputs.length > 0 && outputs.every(isArtifactOutputFileContentValid);
+}
+
+/**
+ * Checks if an artifact has resolved output files and each contains meaningful content.
+ */
+export function artifactOutputComplete(changeDir: string, generates: string): boolean {
+  return artifactOutputExists(changeDir, generates)
+    && artifactOutputContentValid(changeDir, generates);
+}
+
+function isArtifactOutputFileContentValid(filePath: string): boolean {
+  try {
+    const content = fs.readFileSync(filePath, 'utf8');
+
+    return content
+      .split(/\r?\n/)
+      .some((line) => {
+        const trimmed = line.trim();
+
+        return trimmed.length > 0 && !trimmed.startsWith('<!--');
+      });
+  } catch {
+    return false;
+  }
+}
