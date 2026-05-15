@@ -33,7 +33,7 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getExploreSkillTemplate: 'e2765fae6c2e960f4ce07058cfdaa547ff3435d454eacd5e924e38139e97ad52',
   getNewChangeSkillTemplate: 'b0c26f0b65380062e586505c08c72230e59dccea89e6acca7b673f01cba70d5a',
   getContinueChangeSkillTemplate: 'fbc6c379ed3dd39f59f52b10584b8df5b1dc08b5422bcf1c6d6255a944d22a11',
-  getApplyChangeSkillTemplate: 'e746f230c2513a5fd40842bde494bb3cdb3c5f7c1bcece101f92090983d4ff55',
+  getApplyChangeSkillTemplate: 'e74d0e69c66427cd6f4787fd5e1007f817a8d47aac8d6ea2d27a81f80942054b',
   getFfChangeSkillTemplate: '50e68fbb49b76d2690b614bffa9e6210e45539fb74419fc2e4311158b6d38485',
   getSyncSpecsSkillTemplate: '9f02b41227db70875b89eefeb275c769142607dc5b2593f4e606794aed2fdbad',
   getOnboardSkillTemplate: '4f4b60fea6e3fc7d2185815b2808fad51535fdd00cd4401b32d1536f32fa2b6d',
@@ -59,7 +59,7 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-explore': '28d900ef82b325beb65e69ee6435949adcfdf14a4314638e7006e6dc359b92d4',
   'openspec-new-change': 'c99989810f982d72eefc74a35f2282b71f1956f23f61b83aaa58fa3dd921716f',
   'openspec-continue-change': 'c00e2a60f79cd60197094cc59762babe5ee6a2dc1e859a0ede3f436a775ccecf',
-  'openspec-apply-change': 'd849442efd925b9247651e254a5cd696945321610cca5a9432ad420430554548',
+  'openspec-apply-change': 'f016c33de813c9a6838869dd80af492e1051461b9cc3934954d0dd25ea98ec2b',
   'openspec-ff-change': '9d9b1995b6f4adb3da570676f7d11fee4cd1cf6c5df8ec83c033e02783a544df',
   'openspec-sync-specs': '2e0f67ec6fadffc6107b4b1a28eef23a99a6649e5fae706897ea1dd9deb852a8',
   'openspec-archive-change': '8d14af2c8b2e4358308ac9fc14f75db42a4b41a07e175825035852a82479793e',
@@ -168,5 +168,12 @@ describe('skill templates split parity', () => {
       expect(content, dirName).not.toContain('openspec/changes/<name>');
       expect(content, dirName).not.toContain('mv openspec/changes');
     }
+  });
+
+  it('keeps apply blocked-state guidance profile-agnostic', () => {
+    const content = generateSkillContent(getApplyChangeSkillTemplate(), 'PARITY-BASELINE');
+
+    expect(content).toContain('suggest continuing work on the missing artifacts before re-running apply');
+    expect(content).not.toContain('openspec-continue-change');
   });
 });
