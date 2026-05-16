@@ -39,6 +39,8 @@ deno install --global \
   npm:@fission-ai/openspec@^1.3.1
 ```
 
+Note: If your subcommands launch external tools, like config edit, feedback, or workspace open, you may need a scoped --allow-run=<program>.
+
 ### bun
 
 Bun can install OpenSpec globally, but OpenSpec currently runs on Node.js.
