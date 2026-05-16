@@ -52,10 +52,12 @@ export function artifactOutputContentValid(changeDir: string, generates: string)
 
 /**
  * Checks if an artifact has resolved output files and each contains meaningful content.
+ * Resolves outputs once and reuses the result for both checks.
  */
 export function artifactOutputComplete(changeDir: string, generates: string): boolean {
-  return artifactOutputExists(changeDir, generates)
-    && artifactOutputContentValid(changeDir, generates);
+  const outputs = resolveArtifactOutputs(changeDir, generates);
+
+  return outputs.length > 0 && outputs.every(isArtifactOutputFileContentValid);
 }
 
 function isArtifactOutputFileContentValid(filePath: string): boolean {
