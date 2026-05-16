@@ -634,10 +634,10 @@ export class InitCommand {
 
   private displaySuccessMessage(
     projectPath: string,
-    tools: Array<{ value: string; name: string; skillsDir: string; wasConfigured: boolean }>,
+    tools: SelectedTool[],
     results: {
-      createdTools: typeof tools;
-      refreshedTools: typeof tools;
+      createdTools: SelectedTool[];
+      refreshedTools: SelectedTool[];
       failedTools: Array<{ name: string; error: Error }>;
       commandsSkipped: string[];
       removedCommandCount: number;
