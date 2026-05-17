@@ -31,7 +31,10 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
 
    Parse the JSON to understand:
    - \`schemaName\`: The workflow being used
+   - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context
    - \`artifacts\`: List of artifacts with their status (\`done\` or other)
+
+   If status reports \`actionContext.mode: "workspace-planning"\`, explain that workspace archive is not supported in this slice and STOP. Do not move workspace changes into repo-local archives or edit linked repos.
 
    **If any artifacts are not \`done\`:**
    - Display warning listing incomplete artifacts
@@ -53,7 +56,7 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
 
 4. **Assess delta spec sync state**
 
-   Check for delta specs at \`openspec/changes/<name>/specs/\`. If none exist, proceed without sync prompt.
+   Use \`artifactPaths.specs.existingOutputPaths\` from status JSON to check for delta specs. If none exist, proceed without sync prompt.
 
    **If delta specs exist:**
    - Compare each delta spec with its corresponding main spec at \`openspec/specs/<capability>/spec.md\`
@@ -68,19 +71,19 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
 
 5. **Perform the archive**
 
-   Create the archive directory if it doesn't exist:
+   Create an \`archive\` directory under \`planningHome.changesDir\` if it doesn't exist:
    \`\`\`bash
-   mkdir -p openspec/changes/archive
+   mkdir -p "<planningHome.changesDir>/archive"
    \`\`\`
 
    Generate target name using current date: \`YYYY-MM-DD-<change-name>\`
 
    **Check if target already exists:**
    - If yes: Fail with error, suggest renaming existing archive or using different date
-   - If no: Move the change directory to archive
+   - If no: Move \`changeRoot\` to the archive directory
 
    \`\`\`bash
-   mv openspec/changes/<name> openspec/changes/archive/YYYY-MM-DD-<name>
+   mv "<changeRoot>" "<planningHome.changesDir>/archive/YYYY-MM-DD-<name>"
    \`\`\`
 
 6. **Display summary**
@@ -99,7 +102,7 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
 
 **Change:** <change-name>
 **Schema:** <schema-name>
-**Archived to:** openspec/changes/archive/YYYY-MM-DD-<name>/
+**Archived to:** the archive path derived from \`planningHome.changesDir\`/YYYY-MM-DD-<name>/
 **Specs:** ✓ Synced to main specs (or "No delta specs" or "Sync skipped")
 
 All artifacts complete. All tasks complete.
@@ -146,7 +149,10 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
 
    Parse the JSON to understand:
    - \`schemaName\`: The workflow being used
+   - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context
    - \`artifacts\`: List of artifacts with their status (\`done\` or other)
+
+   If status reports \`actionContext.mode: "workspace-planning"\`, explain that workspace archive is not supported in this slice and STOP. Do not move workspace changes into repo-local archives or edit linked repos.
 
    **If any artifacts are not \`done\`:**
    - Display warning listing incomplete artifacts
@@ -168,7 +174,7 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
 
 4. **Assess delta spec sync state**
 
-   Check for delta specs at \`openspec/changes/<name>/specs/\`. If none exist, proceed without sync prompt.
+   Use \`artifactPaths.specs.existingOutputPaths\` from status JSON to check for delta specs. If none exist, proceed without sync prompt.
 
    **If delta specs exist:**
    - Compare each delta spec with its corresponding main spec at \`openspec/specs/<capability>/spec.md\`
@@ -183,19 +189,19 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
 
 5. **Perform the archive**
 
-   Create the archive directory if it doesn't exist:
+   Create an \`archive\` directory under \`planningHome.changesDir\` if it doesn't exist:
    \`\`\`bash
-   mkdir -p openspec/changes/archive
+   mkdir -p "<planningHome.changesDir>/archive"
    \`\`\`
 
    Generate target name using current date: \`YYYY-MM-DD-<change-name>\`
 
    **Check if target already exists:**
    - If yes: Fail with error, suggest renaming existing archive or using different date
-   - If no: Move the change directory to archive
+   - If no: Move \`changeRoot\` to the archive directory
 
    \`\`\`bash
-   mv openspec/changes/<name> openspec/changes/archive/YYYY-MM-DD-<name>
+   mv "<changeRoot>" "<planningHome.changesDir>/archive/YYYY-MM-DD-<name>"
    \`\`\`
 
 6. **Display summary**
@@ -214,7 +220,7 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
 
 **Change:** <change-name>
 **Schema:** <schema-name>
-**Archived to:** openspec/changes/archive/YYYY-MM-DD-<name>/
+**Archived to:** the archive path derived from \`planningHome.changesDir\`/YYYY-MM-DD-<name>/
 **Specs:** ✓ Synced to main specs
 
 All artifacts complete. All tasks complete.
@@ -227,7 +233,7 @@ All artifacts complete. All tasks complete.
 
 **Change:** <change-name>
 **Schema:** <schema-name>
-**Archived to:** openspec/changes/archive/YYYY-MM-DD-<name>/
+**Archived to:** the archive path derived from \`planningHome.changesDir\`/YYYY-MM-DD-<name>/
 **Specs:** No delta specs
 
 All artifacts complete. All tasks complete.
@@ -240,7 +246,7 @@ All artifacts complete. All tasks complete.
 
 **Change:** <change-name>
 **Schema:** <schema-name>
-**Archived to:** openspec/changes/archive/YYYY-MM-DD-<name>/
+**Archived to:** the archive path derived from \`planningHome.changesDir\`/YYYY-MM-DD-<name>/
 **Specs:** Sync skipped (user chose to skip)
 
 **Warnings:**
@@ -257,7 +263,7 @@ Review the archive if this was not intentional.
 ## Archive Failed
 
 **Change:** <change-name>
-**Target:** openspec/changes/archive/YYYY-MM-DD-<name>/
+**Target:** the archive path derived from \`planningHome.changesDir\`/YYYY-MM-DD-<name>/
 
 Target archive directory already exists.
 

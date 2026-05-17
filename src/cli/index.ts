@@ -16,7 +16,11 @@ import { CompletionCommand } from '../commands/completion.js';
 import { FeedbackCommand } from '../commands/feedback.js';
 import { registerConfigCommand } from '../commands/config.js';
 import { registerSchemaCommand } from '../commands/schema.js';
-import { registerWorkspaceCommand } from '../commands/workspace.js';
+import {
+  registerWorkspaceCommand,
+  runWorkspaceUpdateForRoot,
+} from '../commands/workspace.js';
+import { findWorkspaceRoot } from '../core/workspace/index.js';
 import {
   statusCommand,
   instructionsCommand,
@@ -161,6 +165,12 @@ program
   .action(async (targetPath = '.', options?: { force?: boolean }) => {
     try {
       const resolvedPath = path.resolve(targetPath);
+      const workspaceRoot = await findWorkspaceRoot(resolvedPath);
+      if (workspaceRoot) {
+        await runWorkspaceUpdateForRoot(workspaceRoot, { force: options?.force });
+        return;
+      }
+
       const updateCommand = new UpdateCommand({ force: options?.force });
       await updateCommand.execute(resolvedPath);
     } catch (error) {
@@ -498,6 +508,8 @@ newCmd
   .command('change <name>')
   .description('Create a new change directory')
   .option('--description <text>', 'Description to add to README.md')
+  .option('--goal <text>', 'Workspace product goal to store with the change')
+  .option('--areas <names>', 'Comma-separated affected workspace link names')
   .option('--schema <name>', `Workflow schema to use (default: ${DEFAULT_SCHEMA})`)
   .action(async (name: string, options: NewChangeOptions) => {
     try {

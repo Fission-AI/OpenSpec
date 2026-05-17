@@ -34,6 +34,7 @@ export interface WorkspaceSetupOptions {
   name?: string;
   link?: string[];
   opener?: string;
+  tools?: string;
   json?: boolean;
   noInteractive?: boolean;
   interactive?: boolean;
@@ -47,6 +48,11 @@ export interface WorkspaceSelectionOptions {
 }
 
 export type WorkspaceLinkOptions = WorkspaceSelectionOptions;
+
+export interface WorkspaceUpdateOptions extends WorkspaceSelectionOptions {
+  tools?: string;
+  force?: boolean;
+}
 
 export interface WorkspaceOpenOptions extends WorkspaceSelectionOptions {
   agent?: string;

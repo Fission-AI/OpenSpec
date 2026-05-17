@@ -39,8 +39,9 @@ Implement these flat OpenSpec changes in order:
 2. `workspace-create-and-register-repos`
 3. `workspace-open-agent-context`
 4. `workspace-change-planning`
-5. `workspace-apply-repo-slice`
-6. `workspace-verify-and-archive`
+5. `workspace-agent-guidance`
+6. `workspace-apply-repo-slice`
+7. `workspace-verify-and-archive`
 
 `workspace-reimplementation-roadmap` is the continuity and reference container for the plan.
 

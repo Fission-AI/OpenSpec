@@ -160,13 +160,19 @@ openspec workspace relink api-service /new/path/to/api
 openspec workspace doctor
 openspec workspace doctor --workspace platform
 
+# Refresh workspace-local agent skills from the active global profile
+openspec workspace update
+openspec workspace update --workspace platform --tools codex,claude
+
 # Open the linked working set
 openspec workspace open
 openspec workspace open platform --agent github-copilot
 openspec workspace open --editor
 ```
 
-`workspace setup` always creates the workspace in the standard workspace location, records it in the local registry, shows the workspace location, and requires at least one linked repo or folder. Interactive setup asks for a preferred opener. Non-interactive setup stores one only when `--opener codex`, `--opener claude`, `--opener github-copilot`, or `--opener editor` is provided.
+`workspace setup` always creates the workspace in the standard workspace location, records it in the local registry, shows the workspace location, and requires at least one linked repo or folder. Interactive setup asks for a preferred opener and can install OpenSpec skills for selected agents. Non-interactive setup stores one only when `--opener codex`, `--opener claude`, `--opener github-copilot`, or `--opener editor` is provided.
+
+Workspace skills are installed only in the workspace root. The active global profile selects which workflow skills are generated; `--tools` selects which agents receive them. Workspace setup and update are skills-only in this beta slice, so they do not create slash command files even when global delivery includes commands. Run `openspec workspace update` after changing the global profile to refresh, add, or remove managed workspace-local skill directories without editing linked repos or folders.
 
 OpenSpec also maintains root workspace open files: an OpenSpec-managed guidance block in `AGENTS.md`, a machine-local `<workspace-name>.code-workspace` file for VS Code and GitHub Copilot-in-VS-Code opens, and a specific ignore entry for that maintained `.code-workspace` file. User-authored `*.code-workspace` files remain trackable because the ignore rule targets only the maintained file.
 

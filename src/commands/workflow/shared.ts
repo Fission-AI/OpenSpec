@@ -90,8 +90,11 @@ export function getStatusIndicator(status: 'done' | 'ready' | 'blocked'): string
  * Returns the list of available change directory names under openspec/changes/.
  * Excludes the archive directory and hidden directories.
  */
-export async function getAvailableChanges(projectRoot: string): Promise<string[]> {
-  const changesPath = path.join(projectRoot, 'openspec', 'changes');
+export async function getAvailableChanges(
+  projectRoot: string,
+  changesDir = path.join(projectRoot, 'openspec', 'changes')
+): Promise<string[]> {
+  const changesPath = changesDir;
   try {
     const entries = await fs.promises.readdir(changesPath, { withFileTypes: true });
     return entries
@@ -109,10 +112,11 @@ export async function getAvailableChanges(projectRoot: string): Promise<string[]
  */
 export async function validateChangeExists(
   changeName: string | undefined,
-  projectRoot: string
+  projectRoot: string,
+  changesDir = path.join(projectRoot, 'openspec', 'changes')
 ): Promise<string> {
   if (!changeName) {
-    const available = await getAvailableChanges(projectRoot);
+    const available = await getAvailableChanges(projectRoot, changesDir);
     if (available.length === 0) {
       throw new Error('No changes found. Create one with: openspec new change <name>');
     }
@@ -128,11 +132,11 @@ export async function validateChangeExists(
   }
 
   // Check directory existence directly
-  const changePath = path.join(projectRoot, 'openspec', 'changes', changeName);
+  const changePath = path.join(changesDir, changeName);
   const exists = fs.existsSync(changePath) && fs.statSync(changePath).isDirectory();
 
   if (!exists) {
-    const available = await getAvailableChanges(projectRoot);
+    const available = await getAvailableChanges(projectRoot, changesDir);
     if (available.length === 0) {
       throw new Error(
         `Change '${changeName}' not found. No changes exist. Create one with: openspec new change <name>`
