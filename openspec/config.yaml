@@ -39,5 +39,3 @@ rules:
     - Pause if you hit blockers or need clarification
   archive:
     - Verify specs are synced before archiving
-  sync:
-    - xxxx
