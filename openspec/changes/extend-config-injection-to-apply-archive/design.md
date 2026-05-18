@@ -22,13 +22,19 @@ Rule target validation runs in `validateConfigRules()` (`project-config.ts`), wh
 
 ## Decisions
 
-### D1: Filter workflow keys before artifact rule validation
+### D1: Extend validateConfigRules and introduce emitConfigRuleWarnings
 
-Define `WORKFLOW_RULE_TARGETS = new Set<WorkflowId>(['apply', 'archive'])` in `project-config.ts`, importing `WorkflowId` from `profiles.ts`. At the `validateConfigRules()` call site in `instruction-loader.ts`, strip workflow keys from `rules` before passing the map to the validator, so only artifact-targeted keys are checked against schema artifact IDs.
+Update `validateConfigRules()` and introduce `emitConfigRuleWarnings()` in `project-config.ts`, both with the signature `(rules, validArtifactIds, schemaName)`. `WORKFLOW_RULE_TARGETS` is a module-level constant in `project-config.ts`; both functions reference it directly rather than accepting it as a parameter. A key is valid if it appears in either `validArtifactIds` or `WORKFLOW_RULE_TARGETS`; only keys absent from both produce a warning. The warning message lists all valid keys — workflow targets and artifact IDs together — so users see the full picture in one message.
 
-`validateConfigRules()` itself is unchanged and never receives workflow keys. The `WorkflowId` type parameter gives compile-time safety: if `'apply'` or `'archive'` is ever removed or renamed in `ALL_WORKFLOWS`, the Set initializer becomes a type error.
+`emitConfigRuleWarnings()` calls `validateConfigRules()`, deduplicates warnings against a module-level `shownWarnings` `Set<string>`, and emits each new warning via `console.warn`. Moving the session-level cache into `project-config.ts` means all call sites — artifact, apply, and archive — share one cache, so the same warning is never shown twice regardless of which instruction path runs first.
 
-*Alternative considered:* adding `'apply'` and `'archive'` into `validArtifactIds` at the call site. Rejected — `validArtifactIds` becomes a misnomer and the validator's error message would list workflow phases as if they were artifacts.
+The `instruction-loader.ts` call site is simplified: remove the old filter-then-call behavior and call `emitConfigRuleWarnings` directly with `(rules, validArtifactIds, schemaName)`. Validation for workflow targets now happens inside `validateConfigRules()` via the shared `WORKFLOW_RULE_TARGETS` constant.
+
+`generateApplyInstructions()` and `generateArchiveInstructions()` call `emitConfigRuleWarnings` after reading config, using artifact IDs from the already-loaded schema.
+
+*Alternative considered:* keeping the filter-then-call pattern and adding separate per-path validation. Rejected — duplicates the dedup logic, risks the session cache diverging between modules, and produces context-inappropriate "Unknown artifact ID" messages in workflow paths.
+
+*Alternative considered:* passing `WORKFLOW_RULE_TARGETS` as a parameter to both functions. Rejected — `WORKFLOW_RULE_TARGETS` is not runtime-variable; it is a fixed protocol constant defined in the same module. Accepting it as a parameter implies caller-controlled flexibility that does not exist and creates unnecessary coupling.
 
 ### D2: Extend apply instructions to carry context and rules
 
@@ -46,13 +52,15 @@ The full apply instruction path has three layers that all need updating:
 
 `openspec instructions archive` currently falls into the CLI handler's else branch and calls `instructionsCommand('archive', ...)`, which looks for an artifact named `archive` in the schema and fails. Archive needs its own generation path analogous to apply:
 
-1. **CLI handler** — add an `archive` branch alongside the existing `apply` branch, routing to a new `archiveInstructionsCommand()`.
+1. **CLI handler** — add an `archive` branch alongside the existing `apply` branch, routing to a new `archiveInstructionsCommand()`. The `--change` option is required for archive instructions so the schema can be resolved for full rule key validation.
 
-2. **`generateArchiveInstructions(projectRoot)`** — reads project config, retrieves the static archive template via `getArchiveChangeSkillTemplate()`, and returns `{ template, context?, rules? }` with `context` and `rules.archive` as separate fields. No `changeName` parameter is needed because the output depends only on the project config, not on any specific change.
+2. **`generateArchiveInstructions(projectRoot, changeName)`** — accepts a required `changeName`, loads the change context to resolve the schema and artifact IDs, reads project config, retrieves the static archive template via `getArchiveChangeSkillTemplate()`, calls `emitConfigRuleWarnings`, and returns `{ template, context?, rules? }` with `context` and `rules.archive` as separate fields.
 
 3. **`archiveInstructionsCommand()`** — mirrors `applyInstructionsCommand()`: calls `generateArchiveInstructions()`, serializes to JSON with `--json`, or calls `printArchiveInstructionsText()` for text output.
 
 4. **`printArchiveInstructionsText()`** — renders the static template content followed by `<project_context>` and `<rules>` blocks, keeping the built-in template text as the leading section.
+
+*Alternative considered:* making `--change` optional and skipping artifact ID validation when absent. Rejected — archive is always scoped to a specific change, requiring `--change` is consistent with the apply command and enables complete validation without special-casing.
 
 *Alternative considered:* embed placeholders inside the static template string. Rejected — brittle string interpolation in a long template is harder to test and couples the template to the injection mechanism.
 
@@ -68,8 +76,8 @@ Built-in behavior (archive readiness checks in `ArchiveCommand.execute()`, apply
 The three workflow skill templates need to tell the AI agent what to do with the `context` and `rules` fields returned by instruction commands. The templates are the authoritative source of agent behavior — generated command files are derived from them.
 
 - **`apply-change.ts`** — add `context` and `rules` to the Step 3 JSON field list so the agent knows to expect them; add a constraint stating the agent must apply them as behavioral guidance without copying their content into any output file.
-- **`archive-change.ts`** — add a new step before the main archive steps: call `openspec instructions archive --json` and consume the returned `context` and `rules` as constraints for the entire workflow. Built-in readiness checks (artifact completion, task completion, spec sync) are still executed regardless.
-- **`bulk-archive-change.ts`** — add a one-time call to `openspec instructions archive --json` at the start of the batch; apply the returned `context` and `rules` as constraints across all changes. Call is made once, not once per change.
+- **`archive-change.ts`** — add a new step before the main archive steps: call `openspec instructions archive --change "<name>" --json` and consume the returned `context` and `rules` as constraints for the entire workflow. Built-in readiness checks (artifact completion, task completion, spec sync) are still executed regardless.
+- **`bulk-archive-change.ts`** — add a one-time call to `openspec instructions archive --change "<first-change>" --json` at the start of the batch; any change name in the batch may be used since archive instructions depend only on project-level config; apply the returned `context` and `rules` as constraints across all changes. Call is made once, not once per change.
 
 *Alternative considered:* patch generated command files directly. Rejected — generated files are overwritten by `openspec sync` and would lose the changes.
 
@@ -81,11 +89,9 @@ The same comment block is the single place to update; no separate documentation 
 
 ## Risks / Trade-offs
 
-**Validation warning surfacing for apply/archive** — the proposal requires validation failures to be surfaced to callers of apply/archive instruction generation. For artifacts, `generateInstructions()` logs warnings via `console.warn` and continues. The same approach applies here: `generateApplyInstructions()` and `generateArchiveInstructions()` log warnings for malformed rule values (e.g., non-array entries) and continue with the valid subset. Truly unknown rule keys (not artifact IDs and not workflow targets) are caught upstream at the `validateConfigRules()` call in `instruction-loader.ts` and do not reach apply/archive generation.
-→ No new warning mechanism needed; reuse existing `console.warn` pattern.
+**Validation warning surfacing for apply/archive** — `generateApplyInstructions()` and `generateArchiveInstructions()` now call `emitConfigRuleWarnings()` directly after reading config. Both paths have the schema loaded (apply already loaded it; archive loads it via the required `changeName`), so artifact IDs are always available for complete validation. The shared `shownWarnings` cache in `project-config.ts` prevents duplicate warnings across paths in the same session.
 
-**`validateConfigRules` call site timing** — validation currently runs at instruction-generation time when artifact IDs are known. Passing `WORKFLOW_RULE_TARGETS` into the same call is sufficient; no config-read-time validation change is needed.
-→ No mitigation needed beyond the constant.
+**`validateConfigRules` call site timing** — validation runs at instruction-generation time when both artifact IDs (from schema) and workflow targets (`WORKFLOW_RULE_TARGETS`) are known. All three paths (artifact, apply, archive) call `emitConfigRuleWarnings` at that point; no earlier validation stage is needed.
 
 **`readProjectConfig` called independently for apply and archive** — config is read per instruction generation call. Two separate invocations each read the file; this matches existing artifact behavior and is acceptable for typical usage.
 → No change needed.

@@ -9,6 +9,7 @@ import {
   generateArchiveInstructions,
   printArchiveInstructionsText,
 } from '../../src/commands/workflow/instructions.js';
+import { loadChangeContext, generateInstructions } from '../../src/core/artifact-graph/instruction-loader.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -128,6 +129,63 @@ describe('generateApplyInstructions', () => {
     expect(json.context).toBe('My context');
     expect(json.rules).toEqual(['My rule']);
   });
+
+  it('emits warning for unknown rule key', async () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await createProjectConfig(
+        tempDir,
+        'schema: spec-driven\nrules:\n  aply:\n    - Typo rule\n'
+      );
+
+      await generateApplyInstructions(tempDir, 'my-change');
+
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Unknown key in rules: "aply"')
+      );
+    } finally {
+      consoleWarnSpy.mockRestore();
+    }
+  });
+
+  it('does not warn for valid artifact IDs or workflow targets', async () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await createProjectConfig(
+        tempDir,
+        'schema: spec-driven\nrules:\n  proposal:\n    - Artifact rule\n  apply:\n    - Apply rule\n  archive:\n    - Archive rule\n'
+      );
+
+      await generateApplyInstructions(tempDir, 'my-change');
+
+      expect(consoleWarnSpy).not.toHaveBeenCalled();
+    } finally {
+      consoleWarnSpy.mockRestore();
+    }
+  });
+
+  it('suppresses duplicate warnings across artifact, apply, and archive paths', async () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await createProjectConfig(
+        tempDir,
+        'schema: spec-driven\nrules:\n  aply-cross-path-unique:\n    - Typo rule\n'
+      );
+
+      const context = loadChangeContext(tempDir, 'my-change');
+      generateInstructions(context, 'proposal', tempDir);
+      await generateApplyInstructions(tempDir, 'my-change');
+      await generateArchiveInstructions(tempDir, 'my-change');
+
+      const matchingWarnings = consoleWarnSpy.mock.calls.filter(([message]) =>
+        typeof message === 'string' && message.includes('Unknown key in rules: "aply-cross-path-unique"')
+      );
+
+      expect(matchingWarnings).toHaveLength(1);
+    } finally {
+      consoleWarnSpy.mockRestore();
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -221,6 +279,7 @@ describe('generateArchiveInstructions', () => {
 
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-test-archive-'));
+    await createChange(tempDir, 'my-change');
   });
 
   afterEach(async () => {
@@ -228,7 +287,7 @@ describe('generateArchiveInstructions', () => {
   });
 
   it('returns template content when no config exists', async () => {
-    const result = await generateArchiveInstructions(tempDir);
+    const result = await generateArchiveInstructions(tempDir, 'my-change');
 
     expect(result.template).toBeTruthy();
     expect(result.context).toBeUndefined();
@@ -241,7 +300,7 @@ describe('generateArchiveInstructions', () => {
       'schema: spec-driven\ncontext: Archive context\n'
     );
 
-    const result = await generateArchiveInstructions(tempDir);
+    const result = await generateArchiveInstructions(tempDir, 'my-change');
 
     expect(result.context).toBe('Archive context');
   });
@@ -252,7 +311,7 @@ describe('generateArchiveInstructions', () => {
       'schema: spec-driven\nrules:\n  archive:\n    - Verify specs are synced\n    - Check task completion\n'
     );
 
-    const result = await generateArchiveInstructions(tempDir);
+    const result = await generateArchiveInstructions(tempDir, 'my-change');
 
     expect(result.rules).toEqual(['Verify specs are synced', 'Check task completion']);
   });
@@ -263,7 +322,7 @@ describe('generateArchiveInstructions', () => {
       'schema: spec-driven\ncontext: My project\nrules:\n  archive:\n    - Rule 1\n'
     );
 
-    const result = await generateArchiveInstructions(tempDir);
+    const result = await generateArchiveInstructions(tempDir, 'my-change');
 
     expect(result.context).toBe('My project');
     expect(result.rules).toEqual(['Rule 1']);
@@ -275,7 +334,7 @@ describe('generateArchiveInstructions', () => {
       'schema: spec-driven\nrules:\n  specs:\n    - Artifact rule\n'
     );
 
-    const result = await generateArchiveInstructions(tempDir);
+    const result = await generateArchiveInstructions(tempDir, 'my-change');
 
     expect(result.rules).toBeUndefined();
   });
@@ -286,17 +345,51 @@ describe('generateArchiveInstructions', () => {
       'schema: spec-driven\nrules:\n  apply:\n    - Apply rule\n'
     );
 
-    const result = await generateArchiveInstructions(tempDir);
+    const result = await generateArchiveInstructions(tempDir, 'my-change');
 
     expect(result.rules).toBeUndefined();
   });
 
   it('omits context and rules fields from JSON when absent', async () => {
-    const result = await generateArchiveInstructions(tempDir);
+    const result = await generateArchiveInstructions(tempDir, 'my-change');
     const json = JSON.parse(JSON.stringify(result));
 
     expect(Object.prototype.hasOwnProperty.call(json, 'context')).toBe(false);
     expect(Object.prototype.hasOwnProperty.call(json, 'rules')).toBe(false);
+  });
+
+  it('emits warning for unknown rule key', async () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await createProjectConfig(
+        tempDir,
+        'schema: spec-driven\nrules:\n  archve:\n    - Typo rule\n'
+      );
+
+      await generateArchiveInstructions(tempDir, 'my-change');
+
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Unknown key in rules: "archve"')
+      );
+    } finally {
+      consoleWarnSpy.mockRestore();
+    }
+  });
+
+  it('does not warn for valid artifact IDs or workflow targets', async () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await createProjectConfig(
+        tempDir,
+        'schema: spec-driven\nrules:\n  proposal:\n    - Artifact rule\n  apply:\n    - Apply rule\n  archive:\n    - Archive rule\n'
+      );
+
+      await generateArchiveInstructions(tempDir, 'my-change');
+
+      expect(consoleWarnSpy).not.toHaveBeenCalled();
+    } finally {
+      consoleWarnSpy.mockRestore();
+    }
   });
 });
 

@@ -22,7 +22,7 @@ import {
   type TaskItem,
   type ApplyInstructions,
 } from './shared.js';
-import { readProjectConfig } from '../../core/project-config.js';
+import { readProjectConfig, emitConfigRuleWarnings } from '../../core/project-config.js';
 import { getArchiveChangeSkillTemplate } from '../../core/templates/workflows/archive-change.js';
 
 // -----------------------------------------------------------------------------
@@ -341,8 +341,12 @@ export async function generateApplyInstructions(
     instruction = schemaInstruction?.trim() ?? 'Read context files, work through pending tasks, mark complete as you go.\nPause if you hit blockers or need clarification.';
   }
 
-  // Read project config for context and rules.apply
+  // Read project config for context and rules.apply; validate all rule keys
   const projectConfig = readProjectConfig(projectRoot);
+  if (projectConfig?.rules) {
+    const validArtifactIds = new Set(schema.artifacts.map((a) => a.id));
+    emitConfigRuleWarnings(projectConfig.rules, validArtifactIds, context.schemaName);
+  }
   const configContext = projectConfig?.context?.trim() || undefined;
   const applyRules = projectConfig?.rules?.['apply'];
   const configRules = applyRules && applyRules.length > 0 ? applyRules : undefined;
@@ -494,13 +498,25 @@ export interface ArchiveInstructionsOptions {
 
 /**
  * Generates archive instructions including injected project context and rules.archive.
+ * Requires changeName to load the schema for complete rule key validation.
  */
 export async function generateArchiveInstructions(
-  projectRoot: string
+  projectRoot: string,
+  changeName: string,
+  planningHome = resolveCurrentPlanningHomeSync({ startPath: projectRoot })
 ): Promise<ArchiveInstructions> {
   const template = getArchiveChangeSkillTemplate().instructions;
 
+  const context = loadChangeContext(projectRoot, changeName, undefined, {
+    changeDir: getChangeDir(planningHome, changeName),
+    planningHome,
+  });
+
   const projectConfig = readProjectConfig(projectRoot);
+  if (projectConfig?.rules) {
+    const validArtifactIds = new Set(context.graph.getAllArtifacts().map((a) => a.id));
+    emitConfigRuleWarnings(projectConfig.rules, validArtifactIds, context.schemaName);
+  }
   const configContext = projectConfig?.context?.trim() || undefined;
   const archiveRules = projectConfig?.rules?.['archive'];
   const configRules = archiveRules && archiveRules.length > 0 ? archiveRules : undefined;
@@ -516,13 +532,11 @@ export async function archiveInstructionsCommand(options: ArchiveInstructionsOpt
   const spinner = options.json ? undefined : ora('Generating archive instructions...').start();
 
   try {
-    const projectRoot = process.cwd();
-    if (options.change) {
-      // Validate the optional change name so archive instructions aren't requested for a nonexistent change.
-      await validateChangeExists(options.change, projectRoot);
-    }
+    const planningHome = resolveCurrentPlanningHomeSync();
+    const projectRoot = planningHome.root;
+    const changeName = await validateChangeExists(options.change, projectRoot, planningHome.changesDir);
 
-    const instructions = await generateArchiveInstructions(projectRoot);
+    const instructions = await generateArchiveInstructions(projectRoot, changeName, planningHome);
 
     spinner?.stop();
 

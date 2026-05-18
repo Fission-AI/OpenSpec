@@ -147,7 +147,7 @@ These keys do not generate "unknown artifact" warnings. The workflow agent reads
 
 ```bash
 openspec instructions apply --change "<name>" --json
-openspec instructions archive --json
+openspec instructions archive --change "<name>" --json
 ```
 
 Both commands return a JSON object with optional `context` and `rules` fields alongside the phase-specific template. When present, the agent applies them as behavioral constraints without copying them into any output file.

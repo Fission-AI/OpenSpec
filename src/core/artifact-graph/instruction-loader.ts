@@ -6,12 +6,9 @@ import { detectCompleted } from './state.js';
 import { resolveArtifactOutputs } from './outputs.js';
 import { readChangeMetadata, resolveSchemaForChange } from '../../utils/change-metadata.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
-import { readProjectConfig, validateConfigRules, WORKFLOW_RULE_TARGETS } from '../project-config.js';
+import { readProjectConfig, emitConfigRuleWarnings } from '../project-config.js';
 import type { PlanningHome } from '../planning-home.js';
 import type { Artifact, CompletedSet } from './types.js';
-
-// Session-level cache for validation warnings (avoid repeating same warnings)
-const shownWarnings = new Set<string>();
 
 /**
  * Error thrown when loading a template fails.
@@ -299,26 +296,10 @@ export function generateInstructions(
     }
   }
 
-  // Validate rules artifact IDs if config has rules (only once per session)
+  // Validate rule keys if config has rules (only once per session, shared cache in project-config.ts)
   if (projectConfig?.rules) {
     const validArtifactIds = new Set(context.graph.getAllArtifacts().map((a) => a.id));
-    // Strip workflow-reserved keys before artifact ID validation so rules.apply/archive don't warn
-    const artifactOnlyRules = Object.fromEntries(
-      Object.entries(projectConfig.rules).filter(([key]) => !WORKFLOW_RULE_TARGETS.has(key))
-    );
-    const warnings = validateConfigRules(
-      artifactOnlyRules,
-      validArtifactIds,
-      context.schemaName
-    );
-
-    // Show each unique warning only once per session
-    for (const warning of warnings) {
-      if (!shownWarnings.has(warning)) {
-        console.warn(warning);
-        shownWarnings.add(warning);
-      }
-    }
+    emitConfigRuleWarnings(projectConfig.rules, validArtifactIds, context.schemaName);
   }
 
   // Extract context and rules as separate fields (not prepended to template)

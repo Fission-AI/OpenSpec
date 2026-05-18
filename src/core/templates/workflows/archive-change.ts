@@ -60,7 +60,7 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
 
    Run:
    \`\`\`bash
-   openspec instructions archive --json
+   openspec instructions archive --change "<name>" --json
    \`\`\`
 
    Parse the JSON. If a \`context\` field is present, apply it as project background knowledge for the remaining steps. If a \`rules\` field is present, apply those rules as additional behavioral constraints throughout. Do NOT copy \`context\` or \`rules\` content into any output.
@@ -187,7 +187,7 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
 
    Run:
    \`\`\`bash
-   openspec instructions archive --json
+   openspec instructions archive --change "<name>" --json
    \`\`\`
 
    Parse the JSON. If a \`context\` field is present, apply it as project background knowledge for the remaining steps. If a \`rules\` field is present, apply those rules as additional behavioral constraints throughout. Do NOT copy \`context\` or \`rules\` content into any output.

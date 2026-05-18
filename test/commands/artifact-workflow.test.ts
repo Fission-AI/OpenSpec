@@ -824,7 +824,7 @@ artifacts:
         { cwd: tempDir }
       );
       expect(result.exitCode).toBe(0);
-      expect(result.stderr).not.toContain('Unknown artifact ID');
+      expect(result.stderr).not.toContain('Unknown key in rules');
     });
   });
 

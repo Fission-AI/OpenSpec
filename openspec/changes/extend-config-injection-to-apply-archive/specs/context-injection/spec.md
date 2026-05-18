@@ -26,12 +26,12 @@ The system SHALL inject the context field from project config into instructions 
 
 #### Scenario: Context applied to apply instruction surface
 
-- **WHEN** user runs `openspec instructions apply --change <id>`
+- **WHEN** user runs `openspec instructions apply --change "<name>"`
 - **AND** config contains a `context` field
 - **THEN** apply instruction output includes the context in a `<project_context>` section
 
 #### Scenario: Context applied to archive instruction surface
 
-- **WHEN** user runs `openspec instructions archive`
+- **WHEN** user runs `openspec instructions archive --change "<name>"`
 - **AND** config contains a `context` field
 - **THEN** archive instruction output includes the context in a `<project_context>` section

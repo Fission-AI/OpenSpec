@@ -55,10 +55,10 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    Run:
    \`\`\`bash
-   openspec instructions archive --json
+   openspec instructions archive --change "<first-change>" --json
    \`\`\`
 
-   Parse the JSON once. If a \`context\` field is present, apply it as project background knowledge for the entire batch. If a \`rules\` field is present, apply those rules as behavioral constraints across all changes. Do NOT copy \`context\` or \`rules\` content into any output.
+   Use any change from the batch — archive instructions depend only on project-level config, so all changes produce identical output. Parse the JSON once. If a \`context\` field is present, apply it as project background knowledge for the entire batch. If a \`rules\` field is present, apply those rules as behavioral constraints across all changes. Do NOT copy \`context\` or \`rules\` content into any output.
 
    This call is made **once** at the start, not once per change. The same context and rules apply to every change in the batch. If neither field is present, proceed normally.
 
@@ -315,10 +315,10 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    Run:
    \`\`\`bash
-   openspec instructions archive --json
+   openspec instructions archive --change "<first-change>" --json
    \`\`\`
 
-   Parse the JSON once. If a \`context\` field is present, apply it as project background knowledge for the entire batch. If a \`rules\` field is present, apply those rules as behavioral constraints across all changes. Do NOT copy \`context\` or \`rules\` content into any output.
+   Use any change from the batch — archive instructions depend only on project-level config, so all changes produce identical output. Parse the JSON once. If a \`context\` field is present, apply it as project background knowledge for the entire batch. If a \`rules\` field is present, apply those rules as behavioral constraints across all changes. Do NOT copy \`context\` or \`rules\` content into any output.
 
    This call is made **once** at the start, not once per change. The same context and rules apply to every change in the batch. If neither field is present, proceed normally.
 

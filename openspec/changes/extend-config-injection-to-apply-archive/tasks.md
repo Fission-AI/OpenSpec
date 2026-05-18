@@ -1,8 +1,11 @@
 ## 1. Validation Layer (D1)
 
 - [x] 1.1 In `src/core/project-config.ts`, define and export `WORKFLOW_RULE_TARGETS = new Set<WorkflowId>(['apply', 'archive'])`, importing `WorkflowId` from `profiles.ts`
-- [x] 1.2 In `src/core/artifact-graph/instruction-loader.ts`, strip keys present in `WORKFLOW_RULE_TARGETS` from `projectConfig.rules` before passing the map to `validateConfigRules()`
-- [x] 1.3 Write unit tests for the call site confirming `apply` and `archive` keys in `rules` produce no validation warning, and that unknown keys still do
+- [x] 1.2 Extend `validateConfigRules()` in `src/core/project-config.ts` to accept `validWorkflowTargets: Set<string>` alongside `validArtifactIds`; a key is valid if it appears in either set; update the warning message to list all valid keys (artifact IDs and workflow targets together)
+- [x] 1.3 Add `emitConfigRuleWarnings(rules, validArtifactIds, validWorkflowTargets, schemaName)` in `src/core/project-config.ts`; move the session-level `shownWarnings` Set from `instruction-loader.ts` into this module; the function calls `validateConfigRules`, deduplicates against the shared cache, and emits via `console.warn`
+- [x] 1.4 In `src/core/artifact-graph/instruction-loader.ts`, replace the filter-then-call pattern with a direct call to `emitConfigRuleWarnings`, passing `WORKFLOW_RULE_TARGETS` as the workflow targets argument
+- [x] 1.5 In `generateApplyInstructions()`, call `emitConfigRuleWarnings` after reading config, using artifact IDs from the already-loaded schema
+- [x] 1.6 Write unit tests covering: unknown key warns in artifact path, apply path, and archive path; valid artifact ID and workflow target produce no warning; shared cache suppresses duplicate warnings across paths
 
 ## 2. Apply Instruction Extension (D2)
 
@@ -17,14 +20,15 @@
 - [x] 3.2 Add `archiveInstructionsCommand(options)`: call `generateArchiveInstructions()`, serialize to JSON with `--json`, or call `printArchiveInstructionsText()` for text
 - [x] 3.3 Add `printArchiveInstructionsText()`: render template content followed by `<project_context>` and `<rules>` blocks
 - [x] 3.4 In `src/cli/index.ts`, add an `archive` branch alongside the existing `apply` branch in the `instructions` command handler, routing to `archiveInstructionsCommand()`
-- [x] 3.5 Write unit tests for `generateArchiveInstructions()`: no config, context only, `rules.archive` only, both; confirm `rules` is absent when only artifact keys exist in config
-- [x] 3.6 Write integration test for `openspec instructions archive --json` end-to-end
+- [x] 3.5 Update `generateArchiveInstructions` to accept a required `changeName` parameter; load change context to resolve schema and artifact IDs; call `emitConfigRuleWarnings` after reading config
+- [x] 3.6 Update `archiveInstructionsCommand` and the CLI handler to require `--change`; pass `changeName` through to `generateArchiveInstructions`
+- [x] 3.7 Update unit tests for `generateArchiveInstructions()` to pass `changeName`; add scenario confirming unknown rule key warning is emitted; update integration test for `openspec instructions archive --change "<name>" --json`
 
 ## 4. Skill Template Updates (D5)
 
 - [x] 4.1 In `src/core/templates/workflows/apply-change.ts`, add `context` and `rules` to the Step 3 JSON field list and add a constraint that the agent must apply them as behavioral guidance without copying them into any output file
-- [x] 4.2 In `src/core/templates/workflows/archive-change.ts`, add a new step before the main workflow steps: call `openspec instructions archive --json` and consume returned `context` and `rules` as constraints; note that built-in readiness checks run regardless
-- [x] 4.3 In `src/core/templates/workflows/bulk-archive-change.ts`, add a one-time call to `openspec instructions archive --json` at the start of the batch; apply returned `context` and `rules` as constraints for all changes (single call, not once per change)
+- [x] 4.2 In `src/core/templates/workflows/archive-change.ts`, add a new step before the main workflow steps: call `openspec instructions archive --change "<name>" --json` and consume returned `context` and `rules` as constraints; note that built-in readiness checks run regardless
+- [x] 4.3 In `src/core/templates/workflows/bulk-archive-change.ts`, add a one-time call to `openspec instructions archive --change "<first-change>" --json` at the start of the batch; any change in the batch may be used since archive instructions depend only on project-level config; apply returned `context` and `rules` as constraints for all changes (single call, not once per change)
 - [x] 4.4 Run `openspec sync` to regenerate `.claude/commands/opsx/*.md` from the updated templates; verify generated files reflect template changes
 
 ## 5. Config Documentation (D6)

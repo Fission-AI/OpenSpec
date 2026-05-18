@@ -6,13 +6,13 @@ The system SHALL inject rules from `rules.apply` in project config into apply in
 
 #### Scenario: Rules exist for apply workflow
 
-- **WHEN** running `openspec instructions apply --change <id>`
+- **WHEN** running `openspec instructions apply --change "<name>"`
 - **AND** config has `rules: { apply: ["Run tests before marking tasks done"] }`
 - **THEN** apply instruction output includes a `<rules>` section with that rule
 
 #### Scenario: No rules for apply workflow
 
-- **WHEN** running `openspec instructions apply --change <id>`
+- **WHEN** running `openspec instructions apply --change "<name>"`
 - **AND** config has no `rules.apply` key
 - **THEN** apply instruction output does not include a `<rules>` section
 
@@ -27,13 +27,13 @@ The system SHALL inject rules from `rules.archive` in project config into archiv
 
 #### Scenario: Rules exist for archive workflow
 
-- **WHEN** running `openspec instructions archive`
+- **WHEN** running `openspec instructions archive --change "<name>"`
 - **AND** config has `rules: { archive: [...] }`
 - **THEN** archive instruction output includes a `<rules>` section with that rule
 
 #### Scenario: No rules for archive workflow
 
-- **WHEN** running `openspec instructions archive`
+- **WHEN** running `openspec instructions archive --change "<name>"`
 - **AND** config has no `rules.archive` key
 - **THEN** archive instruction output does not include a `<rules>` section
 
@@ -58,31 +58,43 @@ The system SHALL include `rules.apply` and `rules.archive` as commented examples
 
 ## MODIFIED Requirements
 
-### Requirement: Validate artifact IDs during instruction loading
+### Requirement: Validate rule keys during instruction loading
 
-The system SHALL validate artifact IDs in rules against the schema when instructions are loaded and emit warnings for unknown IDs. Reserved workflow targets (`apply`, `archive`) SHALL be accepted without warning.
+The system SHALL validate all keys in `rules` against both the schema's artifact IDs and the reserved workflow targets when any instruction path runs, and emit warnings for unknown keys. Both artifact IDs and workflow targets (`apply`, `archive`) SHALL be accepted without warning.
 
-#### Scenario: All artifact IDs are valid
+#### Scenario: All rule keys are valid artifact IDs
 
 - **WHEN** instructions loaded and config has `rules: { proposal: [...], specs: [...] }` for schema with those artifacts
 - **THEN** no validation warnings are emitted
 
-#### Scenario: Unknown artifact ID in rules
-
-- **WHEN** instructions loaded and config has `rules: { unknownartifact: [...] }`
-- **THEN** warning emitted: "Unknown artifact ID in rules: 'unknownartifact'. Valid IDs for schema 'spec-driven': design, proposal, specs, tasks"
-
-#### Scenario: Workflow targets are not treated as unknown artifact IDs
+#### Scenario: All rule keys are valid workflow targets
 
 - **WHEN** instructions loaded and config has `rules: { apply: [...], archive: [...] }`
 - **THEN** no validation warning is emitted for `apply` or `archive`
 
-#### Scenario: Multiple unknown artifact IDs
+#### Scenario: Unknown key in rules
 
-- **WHEN** instructions loaded and config has multiple unknown artifact IDs
-- **THEN** separate warning emitted for each unknown artifact ID
+- **WHEN** any instruction path (artifact, apply, or archive) runs and config has `rules: { unknownkey: [...] }`
+- **THEN** warning emitted: "Unknown key in rules: 'unknownkey'. Valid keys for schema 'spec-driven': apply, archive (workflow), design, proposal, specs, tasks (artifact)"
+
+#### Scenario: Typo of workflow target detected in apply path
+
+- **WHEN** running `openspec instructions apply --change "<name>"`
+- **AND** config has `rules: { aply: [...] }`
+- **THEN** warning emitted identifying `aply` as an unknown key
+
+#### Scenario: Typo of workflow target detected in archive path
+
+- **WHEN** running `openspec instructions archive --change "<name>"`
+- **AND** config has `rules: { archve: [...] }`
+- **THEN** warning emitted identifying `archve` as an unknown key
+
+#### Scenario: Multiple unknown keys
+
+- **WHEN** instructions loaded and config has multiple unknown keys in rules
+- **THEN** separate warning emitted for each unknown key
 
 #### Scenario: Validation warnings shown once per session
 
-- **WHEN** instructions loaded multiple times in same CLI session
-- **THEN** each unique validation warning is shown only once (cached)
+- **WHEN** instruction paths run multiple times in same CLI session
+- **THEN** each unique validation warning is shown only once across all paths (shared session cache)
