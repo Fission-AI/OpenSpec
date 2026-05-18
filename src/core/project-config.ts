@@ -47,7 +47,7 @@ export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
  * Workflow rule targets that are valid in the `rules` config key but are not artifact IDs.
  * validateConfigRules() accepts these keys directly alongside artifact IDs.
  */
-export const WORKFLOW_RULE_TARGETS = new Set<string>([
+const WORKFLOW_RULE_TARGETS = new Set<string>([
   'apply',
   'archive',
 ] as const satisfies readonly WorkflowId[]);

@@ -75,7 +75,7 @@ The system SHALL validate all keys in `rules` against both the schema's artifact
 #### Scenario: Unknown key in rules
 
 - **WHEN** any instruction path (artifact, apply, or archive) runs and config has `rules: { unknownkey: [...] }`
-- **THEN** warning emitted: "Unknown key in rules: 'unknownkey'. Valid keys for schema 'spec-driven': apply, archive (workflow), design, proposal, specs, tasks (artifact)"
+- **THEN** warning emitted: "Unknown key in rules: \"unknownkey\". Valid keys for schema \"spec-driven\": apply, archive (workflow), design, proposal, specs, tasks (artifact)"
 
 #### Scenario: Typo of workflow target detected in apply path
 
