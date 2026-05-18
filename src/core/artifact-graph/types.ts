@@ -49,6 +49,12 @@ export const ChangeMetadataSchema = z.object({
       message: 'created must be YYYY-MM-DD format',
     })
     .optional(),
+
+  // Optional workspace planning metadata. These fields are intentionally
+  // lightweight and do not replace the normal proposal/specs/design/tasks
+  // artifacts as the source of planning detail.
+  goal: z.string().min(1).optional(),
+  affected_areas: z.array(z.string().min(1)).optional(),
 });
 
 export type ChangeMetadata = z.infer<typeof ChangeMetadataSchema>;
@@ -62,4 +68,3 @@ export type CompletedSet = Set<string>;
 export interface BlockedArtifacts {
   [artifactId: string]: string[];
 }
-

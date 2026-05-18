@@ -8,6 +8,7 @@ import {
   WorkspaceRegistryState,
   WorkspaceSharedState,
   getManagedWorkspaceRoot,
+  hasWorkspaceSkillProfileDrift,
   getWorkspaceChangesDir,
   isWorkspaceRoot,
   parseWorkspaceSetupLinkInput,
@@ -211,6 +212,28 @@ function localStateInvalidStatus(error: unknown): WorkspaceStatus {
   );
 }
 
+function workspaceSkillDriftStatus(workspaceName: string): WorkspaceStatus {
+  return makeStatus(
+    'warning',
+    'workspace_skills_out_of_sync',
+    'Workspace-local agent skills are out of sync with the active global profile.',
+    {
+      target: 'workspace.skills',
+      fix: `openspec workspace update --workspace ${workspaceName}`,
+    }
+  );
+}
+
+function appendWorkspaceSkillDriftStatus(
+  statuses: WorkspaceStatus[],
+  workspaceName: string,
+  localState: WorkspaceLocalState | null
+): void {
+  if (hasWorkspaceSkillProfileDrift(localState)) {
+    statuses.push(workspaceSkillDriftStatus(workspaceName));
+  }
+}
+
 async function readLocalStateForMutation(workspaceRoot: string): Promise<WorkspaceLocalState> {
   try {
     return (await readOptionalWorkspaceLocalState(workspaceRoot)) ?? emptyLocalState();
@@ -375,6 +398,8 @@ export async function loadWorkspaceForList(
     workspaceStatus.push(localStateInvalidStatus(error));
   }
 
+  appendWorkspaceSkillDriftStatus(workspaceStatus, sharedState.name, localState);
+
   return {
     name: sharedState.name,
     root: entry.workspaceRoot,
@@ -465,6 +490,10 @@ export async function loadWorkspaceForDoctor(
     workspaceStatus.push(localStateInvalidStatus(error));
   }
 
+  if (!localStateInvalid) {
+    appendWorkspaceSkillDriftStatus(workspaceStatus, sharedState.name, localState);
+  }
+
   if (!(await directoryExists(planningPath))) {
     workspaceStatus.push(
       makeStatus(
@@ -553,7 +582,7 @@ export async function loadWorkspaceForDoctor(
   };
 }
 
-async function readWorkspaceForMutation(
+export async function readWorkspaceForMutation(
   selected: SelectedWorkspace
 ): Promise<{ sharedState: WorkspaceSharedState; localState: WorkspaceLocalState }> {
   if (!(await directoryExists(selected.root)) || !(await isWorkspaceRoot(selected.root))) {
@@ -573,7 +602,7 @@ async function readWorkspaceForMutation(
   };
 }
 
-async function recordSelectedWorkspaceAfterMutation(selected: SelectedWorkspace): Promise<void> {
+export async function recordSelectedWorkspaceAfterMutation(selected: SelectedWorkspace): Promise<void> {
   if (selected.unregisteredCurrentWorkspace) {
     await recordWorkspaceInRegistry(selected.name, selected.root);
   }

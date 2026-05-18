@@ -15,6 +15,7 @@ import {
   resolveArtifactOutputs,
   type ArtifactInstructions,
 } from '../../core/artifact-graph/index.js';
+import { getChangeDir, resolveCurrentPlanningHomeSync } from '../../core/planning-home.js';
 import {
   validateChangeExists,
   validateSchemaExists,
@@ -51,8 +52,13 @@ export async function instructionsCommand(
   const spinner = options.json ? undefined : ora('Generating instructions...').start();
 
   try {
-    const projectRoot = process.cwd();
-    const changeName = await validateChangeExists(options.change, projectRoot);
+    const planningHome = resolveCurrentPlanningHomeSync();
+    const projectRoot = planningHome.root;
+    const changeName = await validateChangeExists(
+      options.change,
+      projectRoot,
+      planningHome.changesDir
+    );
 
     // Validate schema if explicitly provided
     if (options.schema) {
@@ -60,7 +66,10 @@ export async function instructionsCommand(
     }
 
     // loadChangeContext will auto-detect schema from metadata if not provided
-    const context = loadChangeContext(projectRoot, changeName, options.schema);
+    const context = loadChangeContext(projectRoot, changeName, options.schema, {
+      changeDir: getChangeDir(planningHome, changeName),
+      planningHome,
+    });
 
     if (!artifactId) {
       spinner?.stop();
@@ -103,7 +112,7 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
     changeName,
     schemaName,
     changeDir,
-    outputPath,
+    resolvedOutputPath,
     description,
     instruction,
     context,
@@ -173,7 +182,7 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
 
   // Output location
   console.log('<output>');
-  console.log(`Write to: ${path.join(changeDir, outputPath)}`);
+  console.log(`Write to: ${resolvedOutputPath}`);
   console.log('</output>');
   console.log();
 
@@ -248,10 +257,14 @@ function parseTasksFile(content: string): TaskItem[] {
 export async function generateApplyInstructions(
   projectRoot: string,
   changeName: string,
-  schemaName?: string
+  schemaName?: string,
+  planningHome = resolveCurrentPlanningHomeSync({ startPath: projectRoot })
 ): Promise<ApplyInstructions> {
   // loadChangeContext will auto-detect schema from metadata if not provided
-  const context = loadChangeContext(projectRoot, changeName, schemaName);
+  const context = loadChangeContext(projectRoot, changeName, schemaName, {
+    changeDir: getChangeDir(planningHome, changeName),
+    planningHome,
+  });
   const changeDir = context.changeDir;
 
   // Get the full schema to access the apply phase configuration
@@ -353,8 +366,13 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
   const spinner = options.json ? undefined : ora('Generating apply instructions...').start();
 
   try {
-    const projectRoot = process.cwd();
-    const changeName = await validateChangeExists(options.change, projectRoot);
+    const planningHome = resolveCurrentPlanningHomeSync();
+    const projectRoot = planningHome.root;
+    const changeName = await validateChangeExists(
+      options.change,
+      projectRoot,
+      planningHome.changesDir
+    );
 
     // Validate schema if explicitly provided
     if (options.schema) {
@@ -362,7 +380,12 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
     }
 
     // generateApplyInstructions uses loadChangeContext which auto-detects schema
-    const instructions = await generateApplyInstructions(projectRoot, changeName, options.schema);
+    const instructions = await generateApplyInstructions(
+      projectRoot,
+      changeName,
+      options.schema,
+      planningHome
+    );
 
     spinner?.stop();
 

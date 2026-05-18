@@ -13,3 +13,4 @@ export {
 } from './global-config.js';
 
 export * from './workspace/index.js';
+export * from './planning-home.js';

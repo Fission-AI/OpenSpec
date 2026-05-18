@@ -10,13 +10,75 @@ import {
   SelectedWorkspace,
   WorkspaceCliError,
   WorkspaceSelectionOptions,
+  WorkspaceStatus,
   makeStatus,
 } from './types.js';
 
 function normalizeRegistryRootForComparison(workspaceRoot: string): string {
-  return process.platform === 'win32'
-    ? FileSystemUtils.canonicalizeExistingPath(workspaceRoot)
-    : workspaceRoot;
+  try {
+    return FileSystemUtils.canonicalizeExistingPath(workspaceRoot);
+  } catch {
+    return workspaceRoot;
+  }
+}
+
+function workspaceNotInRegistryWarning(): WorkspaceStatus {
+  return makeStatus(
+    'warning',
+    'workspace_not_in_local_registry',
+    'This workspace is not recorded in the local workspace registry.',
+    {
+      target: 'workspace.root',
+      fix: 'Run a mutating workspace command from this workspace, such as workspace link or workspace relink, to record it locally.',
+    }
+  );
+}
+
+function isRegisteredWorkspaceRoot(
+  registryRoot: string | undefined,
+  currentWorkspaceRoot: string
+): boolean {
+  return (
+    registryRoot !== undefined &&
+    normalizeRegistryRootForComparison(registryRoot) ===
+      normalizeRegistryRootForComparison(currentWorkspaceRoot)
+  );
+}
+
+async function selectedWorkspaceFromRoot(
+  currentWorkspaceRoot: string,
+  registry: Awaited<ReturnType<typeof readRegistry>>
+): Promise<SelectedWorkspace> {
+  const sharedState = await readWorkspaceSharedState(currentWorkspaceRoot);
+  const registeredRoot = registry.workspaces[sharedState.name];
+  const isRegistered = isRegisteredWorkspaceRoot(registeredRoot, currentWorkspaceRoot);
+
+  return {
+    name: sharedState.name,
+    root: currentWorkspaceRoot,
+    status: isRegistered ? [] : [workspaceNotInRegistryWarning()],
+    unregisteredCurrentWorkspace: !isRegistered,
+  };
+}
+
+export async function selectWorkspaceRootForCommand(
+  workspaceRoot: string
+): Promise<SelectedWorkspace> {
+  const registry = await readRegistry();
+  const currentWorkspaceRoot = await findWorkspaceRoot(workspaceRoot);
+
+  if (!currentWorkspaceRoot) {
+    throw new WorkspaceCliError(
+      `No OpenSpec workspace found at '${workspaceRoot}'.`,
+      'workspace_not_found',
+      {
+        target: 'workspace.root',
+        fix: 'Pass a path inside an OpenSpec workspace.',
+      }
+    );
+  }
+
+  return selectedWorkspaceFromRoot(currentWorkspaceRoot, registry);
 }
 
 export async function selectWorkspaceForCommand(
@@ -52,27 +114,7 @@ export async function selectWorkspaceForCommand(
   const currentWorkspaceRoot = await findWorkspaceRoot(process.cwd());
 
   if (currentWorkspaceRoot) {
-    const sharedState = await readWorkspaceSharedState(currentWorkspaceRoot);
-    const registeredRoot = registry.workspaces[sharedState.name];
-    const isRegistered =
-      registeredRoot !== undefined &&
-      normalizeRegistryRootForComparison(registeredRoot) === currentWorkspaceRoot;
-    const warning = makeStatus(
-      'warning',
-      'workspace_not_in_local_registry',
-      'This workspace is not recorded in the local workspace registry.',
-      {
-        target: 'workspace.root',
-        fix: 'Run a mutating workspace command from this workspace, such as workspace link or workspace relink, to record it locally.',
-      }
-    );
-
-    return {
-      name: sharedState.name,
-      root: currentWorkspaceRoot,
-      status: isRegistered ? [] : [warning],
-      unregisteredCurrentWorkspace: !isRegistered,
-    };
+    return selectedWorkspaceFromRoot(currentWorkspaceRoot, registry);
   }
 
   const entries = listWorkspaceRegistryEntries(registry);

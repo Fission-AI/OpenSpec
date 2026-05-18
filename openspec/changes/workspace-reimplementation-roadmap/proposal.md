@@ -20,6 +20,7 @@ Add a lightweight roadmap for reimplementing workspace support as a stack of fla
 - `workspace-create-and-register-repos`
 - `workspace-open-agent-context`
 - `workspace-change-planning`
+- `workspace-agent-guidance`
 - `workspace-apply-repo-slice`
 - `workspace-verify-and-archive`
 
@@ -32,6 +33,7 @@ workspace-foundation
   -> workspace-create-and-register-repos
   -> workspace-open-agent-context
   -> workspace-change-planning
+  -> workspace-agent-guidance
   -> workspace-apply-repo-slice
   -> workspace-verify-and-archive
 ```
@@ -49,5 +51,5 @@ workspace-foundation
 ## Impact
 
 - Planning only in this PR.
-- Future changes will affect workspace metadata, workspace CLI flows, agent context construction, workspace change planning, repo-slice application, verification, and archive behavior.
+- Future changes will affect workspace metadata, workspace CLI flows, agent context construction, workspace change planning, workspace-local agent guidance, repo-slice application, verification, and archive behavior.
 - No runtime behavior changes are introduced by this roadmap proposal.
