@@ -78,7 +78,7 @@
     "fast-glob": "^3.3.3",
     "ora": "^8.2.0",
     "posthog-node": "^5.20.0",
-    "yaml": "^2.8.2",
+    "yaml": "^2.8.3",
     "zod": "^4.0.17"
   },
   "pnpm": {
@@ -87,11 +87,10 @@
       "rollup": ">=4.59.0",
       "flatted": ">=3.4.2",
       "postcss": ">=8.5.10",
-      "yaml": ">=2.8.3",
       "minimatch>brace-expansion": ">=2.0.3",
       "@eslint/config-array>minimatch": ">=9.0.7",
       "@typescript-eslint/typescript-estree>minimatch": ">=9.0.7",
-      "micromatch>picomatch": ">=4.0.4"
+      "picomatch": ">=4.0.4"
     }
   }
 }
