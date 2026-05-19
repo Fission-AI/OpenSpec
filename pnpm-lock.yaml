@@ -14,7 +14,6 @@ overrides:
   '@eslint/config-array>minimatch': '>=9.0.7'
   '@typescript-eslint/typescript-estree>minimatch': '>=9.0.7'
   micromatch>picomatch: '>=4.0.4'
-  '@inquirer/editor>tmp': '>=0.2.4'
 
 importers:
 
