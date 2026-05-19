@@ -53,18 +53,51 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
 
 4. **Assess delta spec sync state**
 
-   Check for delta specs at \`openspec/changes/<name>/specs/\`. If none exist, proceed without sync prompt.
+   Resolve the **changes path** first. Read \`openspec/config.yaml\` for the \`changesDir\` setting; if present, use that path. Otherwise default to \`openspec/changes/\`. The change's delta specs live at \`<changesDir>/<name>/specs/\`. If no \`specs/\` directory exists, skip the sync step (no delta to sync).
 
    **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at \`openspec/specs/<capability>/spec.md\`
-   - Determine what changes would be applied (adds, modifications, removals, renames)
+   - For each \`<changesDir>/<name>/specs/<capability>/spec.md\`:
+     - Check whether the corresponding main spec exists at \`openspec/specs/<capability>/spec.md\` (project-local, what the openspec CLI reads — distinct from \`changesDir\`)
+     - If both exist: diff to determine what changes would be applied (adds, modifications, removals, renames)
+     - If only delta exists: this is a NEW capability; the sync will be a create
    - Show a combined summary before prompting
 
    **Prompt options:**
    - If changes needed: "Sync now (recommended)", "Archive without syncing"
    - If already synced: "Archive now", "Sync anyway", "Cancel"
 
-   If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
+   **If user chooses sync, perform the delta→main transformation inline** (the legacy \`openspec-sync-specs\` skill is not installed in most setups; do the work directly):
+
+   For each capability in the change's \`specs/\`:
+
+   a. **Read the delta spec** at \`<changesDir>/<name>/specs/<capability>/spec.md\`. The delta uses headers like \`## ADDED Requirements\`, \`## MODIFIED Requirements\`, \`## REMOVED Requirements\`.
+
+   b. **Determine the target shape** based on whether \`openspec/specs/<capability>/spec.md\` already exists:
+
+      - **NEW capability (no existing main spec)**: synthesise the main spec from the delta by:
+        - Replacing the title line with \`# <capability> Specification\`
+        - Inserting a frontmatter block at the top with \`type: capability\`, the source \`module\` (carried over from the delta frontmatter when present), and a \`sources:\` list whose only entry is \`<change-name> (archived <YYYY-MM-DD>)\`
+        - Inserting a \`## Purpose\` section after the title — a 1-2 paragraph plain-language summary derived from the proposal's \`## Why\` (if available) or from the delta requirement texts
+        - Collapsing \`## ADDED Requirements\` and \`## MODIFIED Requirements\` (treat both as flat for a fresh spec) into a single \`## Requirements\` section
+        - Dropping \`## REMOVED Requirements\` entirely (nothing to remove from a non-existent main spec)
+        - Keeping every \`### Requirement: ...\` block and \`#### Scenario: ...\` block intact
+
+      - **EXISTING capability (main spec already exists)**: merge inline
+        - For each \`### Requirement:\` under \`## ADDED Requirements\` → append to the main spec's \`## Requirements\` section
+        - For each \`### Requirement:\` under \`## MODIFIED Requirements\` → locate the matching requirement in the main spec by title and overwrite its body + scenarios
+        - For each \`### Requirement:\` under \`## REMOVED Requirements\` → delete that requirement block from the main spec
+        - Preserve the main spec's existing frontmatter, \`## Purpose\`, and any sections other than \`## Requirements\`
+        - Append the change name to the \`sources:\` list in frontmatter (create the list if missing)
+
+   c. **Write the result** to \`openspec/specs/<capability>/spec.md\` (creating the directory if needed). This is the project-local path the openspec CLI reads.
+
+   d. **Validate**: run \`openspec validate --specs\` and confirm the capability shows up with \`requirements N\` > 0 and no parse errors. If validation fails, surface the diff to the user and ask whether to roll back or proceed.
+
+   e. **Stage for commit (advisory)**: report the file paths so the user can include them in their next commit; do NOT commit on the user's behalf.
+
+   (Project overlays may mirror the synthesised spec to a long-term spec store such as an Obsidian vault — see schema-/plugin-level overlay docs.)
+
+   Proceed to archive regardless of whether sync succeeded or was skipped. Sync failures are recorded as warnings; the archive itself still completes (the user can re-run sync later).
 
 5. **Check for schema-level archive definition**
 
@@ -124,7 +157,7 @@ All artifacts complete. All tasks complete.
 - Don't block archive on warnings - just inform and confirm
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
 - Show clear summary of what happened
-- If sync is requested, use openspec-sync-specs approach (agent-driven)
+- If sync is requested, perform delta→main transformation inline per step 4 (the legacy \`openspec-sync-specs\` skill is not installed in most setups)
 - If delta specs exist, always run the sync assessment and show the combined summary before prompting
 - If schema defines archive hooks, run \`openspec run start --phase archive --json\` to trigger them`,
     license: 'MIT',
@@ -182,18 +215,51 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
 
 4. **Assess delta spec sync state**
 
-   Check for delta specs at \`openspec/changes/<name>/specs/\`. If none exist, proceed without sync prompt.
+   Resolve the **changes path** first. Read \`openspec/config.yaml\` for the \`changesDir\` setting; if present, use that path. Otherwise default to \`openspec/changes/\`. The change's delta specs live at \`<changesDir>/<name>/specs/\`. If no \`specs/\` directory exists, skip the sync step (no delta to sync).
 
    **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at \`openspec/specs/<capability>/spec.md\`
-   - Determine what changes would be applied (adds, modifications, removals, renames)
+   - For each \`<changesDir>/<name>/specs/<capability>/spec.md\`:
+     - Check whether the corresponding main spec exists at \`openspec/specs/<capability>/spec.md\` (project-local, what the openspec CLI reads — distinct from \`changesDir\`)
+     - If both exist: diff to determine what changes would be applied (adds, modifications, removals, renames)
+     - If only delta exists: this is a NEW capability; the sync will be a create
    - Show a combined summary before prompting
 
    **Prompt options:**
    - If changes needed: "Sync now (recommended)", "Archive without syncing"
    - If already synced: "Archive now", "Sync anyway", "Cancel"
 
-   If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
+   **If user chooses sync, perform the delta→main transformation inline** (the legacy \`openspec-sync-specs\` skill is not installed in most setups; do the work directly):
+
+   For each capability in the change's \`specs/\`:
+
+   a. **Read the delta spec** at \`<changesDir>/<name>/specs/<capability>/spec.md\`. The delta uses headers like \`## ADDED Requirements\`, \`## MODIFIED Requirements\`, \`## REMOVED Requirements\`.
+
+   b. **Determine the target shape** based on whether \`openspec/specs/<capability>/spec.md\` already exists:
+
+      - **NEW capability (no existing main spec)**: synthesise the main spec from the delta by:
+        - Replacing the title line with \`# <capability> Specification\`
+        - Inserting a frontmatter block at the top with \`type: capability\`, the source \`module\` (carried over from the delta frontmatter when present), and a \`sources:\` list whose only entry is \`<change-name> (archived <YYYY-MM-DD>)\`
+        - Inserting a \`## Purpose\` section after the title — a 1-2 paragraph plain-language summary derived from the proposal's \`## Why\` (if available) or from the delta requirement texts
+        - Collapsing \`## ADDED Requirements\` and \`## MODIFIED Requirements\` (treat both as flat for a fresh spec) into a single \`## Requirements\` section
+        - Dropping \`## REMOVED Requirements\` entirely (nothing to remove from a non-existent main spec)
+        - Keeping every \`### Requirement: ...\` block and \`#### Scenario: ...\` block intact
+
+      - **EXISTING capability (main spec already exists)**: merge inline
+        - For each \`### Requirement:\` under \`## ADDED Requirements\` → append to the main spec's \`## Requirements\` section
+        - For each \`### Requirement:\` under \`## MODIFIED Requirements\` → locate the matching requirement in the main spec by title and overwrite its body + scenarios
+        - For each \`### Requirement:\` under \`## REMOVED Requirements\` → delete that requirement block from the main spec
+        - Preserve the main spec's existing frontmatter, \`## Purpose\`, and any sections other than \`## Requirements\`
+        - Append the change name to the \`sources:\` list in frontmatter (create the list if missing)
+
+   c. **Write the result** to \`openspec/specs/<capability>/spec.md\` (creating the directory if needed). This is the project-local path the openspec CLI reads.
+
+   d. **Validate**: run \`openspec validate --specs\` and confirm the capability shows up with \`requirements N\` > 0 and no parse errors. If validation fails, surface the diff to the user and ask whether to roll back or proceed.
+
+   e. **Stage for commit (advisory)**: report the file paths so the user can include them in their next commit; do NOT commit on the user's behalf.
+
+   (Project overlays may mirror the synthesised spec to a long-term spec store such as an Obsidian vault — see schema-/plugin-level overlay docs.)
+
+   Proceed to archive regardless of whether sync succeeded or was skipped. Sync failures are recorded as warnings; the archive itself still completes (the user can re-run sync later).
 
 5. **Check for schema-level archive definition**
 
@@ -300,7 +366,7 @@ Target archive directory already exists.
 - Don't block archive on warnings - just inform and confirm
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
 - Show clear summary of what happened
-- If sync is requested, use the Skill tool to invoke \`openspec-sync-specs\` (agent-driven)
+- If sync is requested, perform delta→main transformation inline per step 4 (the legacy \`openspec-sync-specs\` skill is not installed in most setups)
 - If delta specs exist, always run the sync assessment and show the combined summary before prompting
 - If schema defines archive hooks, run \`openspec run start --phase archive --json\` to trigger them`
   };
