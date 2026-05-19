@@ -34,3 +34,15 @@ rules:
     - Use existing constants and lists - don't invent detection mechanisms
     - Prefer explicit lookups over pattern matching or regex
     - If we generate it, we track it by name in a constant
+
+checks:
+  - name: "TypeScript type check"
+    command: "pnpm exec tsc --noEmit"
+  - name: "ESLint"
+    command: "pnpm exec eslint src/ --ext .ts"
+    files:
+      - "src/**/*.ts"
+  - name: "Prettier format check"
+    command: "pnpm exec prettier --check src/"
+    files:
+      - "src/**/*.ts"

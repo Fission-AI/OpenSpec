@@ -11,6 +11,7 @@ import { ViewCommand } from '../core/view.js';
 import { registerSpecCommand } from '../commands/spec.js';
 import { ChangeCommand } from '../commands/change.js';
 import { ValidateCommand } from '../commands/validate.js';
+import { CheckCommand } from '../commands/check.js';
 import { ShowCommand } from '../commands/show.js';
 import { CompletionCommand } from '../commands/completion.js';
 import { FeedbackCommand } from '../commands/feedback.js';
@@ -314,6 +315,28 @@ program
     try {
       const validateCommand = new ValidateCommand();
       await validateCommand.execute(itemName, options);
+    } catch (error) {
+      console.log();
+      ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+// Top-level check command
+program
+  .command('check [change-name]')
+  .description('Run static checks (lint, type-check) against the implementation')
+  .option('--json', 'Output results as JSON')
+  .option('--concurrency <n>', 'Max concurrent checks', '3')
+  .option('--no-interactive', 'Disable interactive prompts')
+  .action(async (changeName?: string, options?: { json?: boolean; concurrency?: string; noInteractive?: boolean }) => {
+    try {
+      const checkCommand = new CheckCommand();
+      await checkCommand.execute(changeName, {
+        json: options?.json,
+        concurrency: options?.concurrency,
+        noInteractive: options?.noInteractive,
+      });
     } catch (error) {
       console.log();
       ora().fail(`Error: ${(error as Error).message}`);
