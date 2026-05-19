@@ -35,6 +35,11 @@ import {
   type SchemasOptions,
   type NewChangeOptions,
 } from '../commands/workflow/index.js';
+import {
+  readProjectConfig,
+  VALID_HOOK_EVENTS,
+  type HookEvent,
+} from '../core/project-config.js';
 import { maybeShowTelemetryNotice, trackCommand, shutdown } from '../telemetry/index.js';
 
 const program = new Command();
@@ -514,6 +519,50 @@ newCmd
   .action(async (name: string, options: NewChangeOptions) => {
     try {
       await newChangeCommand(name, options);
+    } catch (error) {
+      console.log();
+      ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+// Hooks command group
+const hooksCmd = program
+  .command('hooks')
+  .description('Query lifecycle hook configuration from openspec/config.yaml');
+
+hooksCmd
+  .command('get <event>')
+  .description('Get hook configuration for a specific lifecycle event')
+  .option('--json', 'Output as JSON')
+  .action(async (event: string, options: { json?: boolean }) => {
+    try {
+      const validEventSet = new Set<string>(VALID_HOOK_EVENTS);
+      if (!validEventSet.has(event)) {
+        console.error(`Invalid hook event: "${event}"`);
+        console.error(`Valid events: ${VALID_HOOK_EVENTS.join(', ')}`);
+        process.exit(1);
+      }
+
+      const projectRoot = path.resolve('.');
+      const config = readProjectConfig(projectRoot);
+      const hookEntry = config?.hooks?.[event as HookEvent] ?? null;
+      const instruction = hookEntry != null ? (hookEntry.instruction ?? null) : null;
+      const run = hookEntry != null ? (hookEntry.run ?? null) : null;
+      const exists = instruction !== null || run !== null;
+
+      const result = { event, instruction, run, exists };
+
+      if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
+      } else {
+        if (exists) {
+          if (instruction) console.log(`instruction: ${instruction}`);
+          if (run) console.log(`run: ${run}`);
+        } else {
+          console.log(`No hook configured for "${event}"`);
+        }
+      }
     } catch (error) {
       console.log();
       ora().fail(`Error: ${(error as Error).message}`);

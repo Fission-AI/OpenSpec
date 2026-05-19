@@ -108,6 +108,37 @@ The system SHALL NOT validate artifact IDs in rules during config load time. Val
 - **WHEN** instructions are loaded for any artifact and config has unknown artifact IDs in rules
 - **THEN** warnings are emitted about unknown artifact IDs (see rules-injection spec for details)
 
+### Requirement: Parse hooks field from openspec/config.yaml
+
+The system SHALL parse the `hooks` top-level field from `openspec/config.yaml` using the same resilient field-by-field parsing pattern applied to `schema`, `context`, and `rules`.
+
+#### Scenario: Hooks field is valid object
+- **WHEN** config contains a valid `hooks` object with recognized event keys
+- **THEN** the parsed config includes the hooks object with all valid entries
+
+#### Scenario: Hooks field is present but wrong type
+- **WHEN** config contains `hooks: "some string"`
+- **THEN** a warning is logged and the hooks field is excluded from the returned config
+- **AND** all other valid fields are still returned
+
+#### Scenario: Hooks field is absent
+- **WHEN** config does not contain a `hooks` key
+- **THEN** the parsed config is returned with `hooks` as undefined and no warning
+
+#### Scenario: Mix of valid and invalid hook entries
+- **WHEN** the hooks object contains some valid entries and some entries with unrecognized keys
+- **THEN** valid entries are included in the returned config
+- **AND** warnings are logged for unrecognized entries
+- **AND** parsing continues to completion
+
+### Requirement: Expose hooks on ProjectConfig type
+
+The `ProjectConfig` TypeScript type SHALL include an optional `hooks` field typed as `HooksConfig`.
+
+#### Scenario: TypeScript callers access hooks
+- **WHEN** code calls `readProjectConfig(projectRoot)` and hooks are configured
+- **THEN** `config.hooks` is typed as `HooksConfig | undefined` and accessible without a cast
+
 ### Requirement: Gracefully handle config errors without halting
 
 The system SHALL continue operation with default values when config loading or parsing fails.

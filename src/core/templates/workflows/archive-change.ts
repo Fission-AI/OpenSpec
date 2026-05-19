@@ -16,6 +16,17 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
 
 **Steps**
 
+0. **Check for project pre-hook**
+
+   \`\`\`bash
+   openspec hooks get pre-archive --json
+   \`\`\`
+
+   Parse the JSON result:
+   - If \`exists: false\` or if the command is unavailable (non-zero exit) — proceed normally.
+   - If \`exists: true\` and \`run\` is set — execute the \`run\` command via Bash. If it exits with a non-zero code, **HALT**: report "pre-archive hook failed (exit code N): <stderr>" and do NOT continue.
+   - If \`exists: true\` and \`instruction\` is set — treat the instruction text as a binding directive for this archive operation (e.g., verify specific conditions before proceeding).
+
 1. **If no change name provided, prompt for selection**
 
    Run \`openspec list --json\` to get available changes. Use the **AskUserQuestion tool** to let the user select.
@@ -108,6 +119,19 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
 All artifacts complete. All tasks complete.
 \`\`\`
 
+**Post-Hook**
+
+After displaying the archive summary (step 6), run:
+
+\`\`\`bash
+openspec hooks get post-archive --json
+\`\`\`
+
+Parse the JSON result:
+- If \`exists: false\` or if the command is unavailable — conclude normally.
+- If \`exists: true\` and \`instruction\` is set — follow the instruction as a post-archive action (e.g., consolidate error logs, review the archived change).
+- If \`exists: true\` and \`run\` is set — execute the \`run\` command via Bash. If it exits with a non-zero code, surface a warning: "post-archive hook exited with code N: <stderr>". Do NOT fail the archive.
+
 **Guardrails**
 - Always prompt for change selection if not provided
 - Use artifact graph (openspec status --json) for completion checking
@@ -133,6 +157,17 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
 **Input**: Optionally specify a change name after \`/opsx:archive\` (e.g., \`/opsx:archive add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
+
+0. **Check for project pre-hook**
+
+   \`\`\`bash
+   openspec hooks get pre-archive --json
+   \`\`\`
+
+   Parse the JSON result:
+   - If \`exists: false\` or if the command is unavailable (non-zero exit) — proceed normally.
+   - If \`exists: true\` and \`run\` is set — execute the \`run\` command via Bash. If it exits with a non-zero code, **HALT**: report "pre-archive hook failed (exit code N): <stderr>" and do NOT continue.
+   - If \`exists: true\` and \`instruction\` is set — treat the instruction text as a binding directive for this archive operation (e.g., verify specific conditions before proceeding).
 
 1. **If no change name provided, prompt for selection**
 
@@ -272,6 +307,19 @@ Target archive directory already exists.
 2. Delete the existing archive if it's a duplicate
 3. Wait until a different date to archive
 \`\`\`
+
+**Post-Hook**
+
+After displaying the archive summary (step 6), run:
+
+\`\`\`bash
+openspec hooks get post-archive --json
+\`\`\`
+
+Parse the JSON result:
+- If \`exists: false\` or if the command is unavailable — conclude normally.
+- If \`exists: true\` and \`instruction\` is set — follow the instruction as a post-archive action (e.g., consolidate error logs, review the archived change).
+- If \`exists: true\` and \`run\` is set — execute the \`run\` command via Bash. If it exits with a non-zero code, surface a warning: "post-archive hook exited with code N: <stderr>". Do NOT fail the archive.
 
 **Guardrails**
 - Always prompt for change selection if not provided

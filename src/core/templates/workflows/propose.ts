@@ -25,6 +25,17 @@ When ready to implement, run /opsx:apply
 
 **Steps**
 
+0. **Check for project pre-hook**
+
+   \`\`\`bash
+   openspec hooks get pre-propose --json
+   \`\`\`
+
+   Parse the JSON result:
+   - If \`exists: false\` or if the command is unavailable (non-zero exit) — proceed normally.
+   - If \`exists: true\` and \`run\` is set — execute the \`run\` command via Bash. If it exits with a non-zero code, **HALT**: report "pre-propose hook failed (exit code N): <stderr>" and do NOT continue.
+   - If \`exists: true\` and \`instruction\` is set — treat the instruction text as a binding directive for this entire workflow.
+
 1. **If no clear input provided, ask what they want to build**
 
    Use the **AskUserQuestion tool** (open-ended, no preset options) to ask:
@@ -104,6 +115,19 @@ After completing all artifacts, summarize:
   - Do NOT copy \`<context>\`, \`<rules>\`, \`<project_context>\` blocks into the artifact
   - These guide what you write, but should never appear in the output
 
+**Post-Hook**
+
+After completing all artifacts, run:
+
+\`\`\`bash
+openspec hooks get post-propose --json
+\`\`\`
+
+Parse the JSON result:
+- If \`exists: false\` or if the command is unavailable — report success normally.
+- If \`exists: true\` and \`instruction\` is set — follow the instruction as a post-workflow action (e.g., review output, write a summary).
+- If \`exists: true\` and \`run\` is set — execute the \`run\` command via Bash. If it exits with a non-zero code, surface a warning: "post-propose hook exited with code N: <stderr>". Do NOT fail the workflow.
+
 **Guardrails**
 - Create ALL artifacts needed for implementation (as defined by schema's \`apply.requires\`)
 - Always read dependency artifacts before creating a new one
@@ -136,6 +160,17 @@ When ready to implement, run /opsx:apply
 **Input**: The argument after \`/opsx:propose\` is the change name (kebab-case), OR a description of what the user wants to build.
 
 **Steps**
+
+0. **Check for project pre-hook**
+
+   \`\`\`bash
+   openspec hooks get pre-propose --json
+   \`\`\`
+
+   Parse the JSON result:
+   - If \`exists: false\` or if the command is unavailable (non-zero exit) — proceed normally.
+   - If \`exists: true\` and \`run\` is set — execute the \`run\` command via Bash. If it exits with a non-zero code, **HALT**: report "pre-propose hook failed (exit code N): <stderr>" and do NOT continue.
+   - If \`exists: true\` and \`instruction\` is set — treat the instruction text as a binding directive for this entire workflow.
 
 1. **If no input provided, ask what they want to build**
 
@@ -215,6 +250,19 @@ After completing all artifacts, summarize:
 - **IMPORTANT**: \`context\` and \`rules\` are constraints for YOU, not content for the file
   - Do NOT copy \`<context>\`, \`<rules>\`, \`<project_context>\` blocks into the artifact
   - These guide what you write, but should never appear in the output
+
+**Post-Hook**
+
+After completing all artifacts, run:
+
+\`\`\`bash
+openspec hooks get post-propose --json
+\`\`\`
+
+Parse the JSON result:
+- If \`exists: false\` or if the command is unavailable — report success normally.
+- If \`exists: true\` and \`instruction\` is set — follow the instruction as a post-workflow action (e.g., review output, write a summary).
+- If \`exists: true\` and \`run\` is set — execute the \`run\` command via Bash. If it exits with a non-zero code, surface a warning: "post-propose hook exited with code N: <stderr>". Do NOT fail the workflow.
 
 **Guardrails**
 - Create ALL artifacts needed for implementation (as defined by schema's \`apply.requires\`)

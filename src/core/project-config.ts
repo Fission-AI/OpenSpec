@@ -3,6 +3,26 @@ import path from 'path';
 import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
 
+export const VALID_HOOK_EVENTS = [
+  'pre-propose',
+  'post-propose',
+  'pre-explore',
+  'post-explore',
+  'pre-apply',
+  'post-apply',
+  'pre-archive',
+  'post-archive',
+] as const;
+
+export type HookEvent = (typeof VALID_HOOK_EVENTS)[number];
+
+export interface HookEntry {
+  instruction?: string;
+  run?: string;
+}
+
+export type HooksConfig = Partial<Record<HookEvent, HookEntry | null>>;
+
 /**
  * Zod schema for project configuration.
  *
@@ -40,7 +60,8 @@ export const ProjectConfigSchema = z.object({
     .describe('Per-artifact rules, keyed by artifact ID'),
 });
 
-export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
+type _ProjectConfigBase = z.infer<typeof ProjectConfigSchema>;
+export type ProjectConfig = _ProjectConfigBase & { hooks?: HooksConfig };
 
 const MAX_CONTEXT_SIZE = 50 * 1024; // 50KB hard limit
 
@@ -152,12 +173,85 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
       }
     }
 
+    // Parse hooks field
+    if (raw.hooks !== undefined) {
+      const parsedHooks = parseHooksField(raw.hooks);
+      if (parsedHooks !== null) {
+        config.hooks = parsedHooks;
+      }
+    }
+
     // Return partial config even if some fields failed
     return Object.keys(config).length > 0 ? (config as ProjectConfig) : null;
   } catch (error) {
     console.warn(`Failed to parse openspec/config.yaml:`, error);
     return null;
   }
+}
+
+/**
+ * Parse the `hooks` field from raw config with resilient field-by-field validation.
+ * Returns null (and logs warnings) on type errors; unknown event keys are warned and skipped.
+ */
+export function parseHooksField(raw: unknown): HooksConfig | null {
+  if (raw === null || raw === undefined) return null;
+
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    console.warn(`Invalid 'hooks' field in config (must be object)`);
+    return null;
+  }
+
+  const validEventSet = new Set<string>(VALID_HOOK_EVENTS);
+  const result: HooksConfig = {};
+  let hasValid = false;
+
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!validEventSet.has(key)) {
+      console.warn(
+        `Unknown hook event key '${key}' in config. Valid keys: ${VALID_HOOK_EVENTS.join(', ')}`
+      );
+      continue;
+    }
+
+    const event = key as HookEvent;
+
+    if (value === null || value === undefined) {
+      result[event] = null;
+      hasValid = true;
+      continue;
+    }
+
+    if (typeof value !== 'object' || Array.isArray(value)) {
+      console.warn(
+        `Hook entry '${key}' must be null or an object with optional 'instruction' and 'run' fields`
+      );
+      continue;
+    }
+
+    const v = value as Record<string, unknown>;
+    const entry: HookEntry = {};
+
+    if (v.instruction !== undefined) {
+      if (typeof v.instruction === 'string') {
+        entry.instruction = v.instruction;
+      } else {
+        console.warn(`Hook entry '${key}.instruction' must be a string`);
+      }
+    }
+
+    if (v.run !== undefined) {
+      if (typeof v.run === 'string') {
+        entry.run = v.run;
+      } else {
+        console.warn(`Hook entry '${key}.run' must be a string`);
+      }
+    }
+
+    result[event] = entry;
+    hasValid = true;
+  }
+
+  return hasValid ? result : null;
 }
 
 /**

@@ -12,6 +12,17 @@ export function getExploreSkillTemplate(): SkillTemplate {
     description: 'Enter explore mode - a thinking partner for exploring ideas, investigating problems, and clarifying requirements. Use when the user wants to think through something before or during a change.',
     instructions: `Enter explore mode. Think deeply. Visualize freely. Follow the conversation wherever it goes.
 
+**Before starting exploration, check for project pre-hook:**
+
+\`\`\`bash
+openspec hooks get pre-explore --json
+\`\`\`
+
+Parse the JSON result:
+- If \`exists: false\` or if the command is unavailable (non-zero exit) — proceed normally.
+- If \`exists: true\` and \`run\` is set — execute the \`run\` command via Bash. If it exits with a non-zero code, **HALT**: report "pre-explore hook failed (exit code N): <stderr>" and do NOT continue.
+- If \`exists: true\` and \`instruction\` is set — treat the instruction text as a binding directive throughout this explore session.
+
 **IMPORTANT: Explore mode is for thinking, not implementing.** You may read files, search code, and investigate the codebase, but you must NEVER write code or implement features. If the user asks you to implement something, remind them to exit explore mode first and create a change proposal. You MAY create OpenSpec artifacts (proposals, designs, specs) if the user asks—that's capturing thinking, not implementing.
 
 **This is a stance, not a workflow.** There are no fixed steps, no required sequence, no mandatory outputs. You're a thinking partner helping the user explore.
@@ -276,6 +287,17 @@ But this summary is optional. Sometimes the thinking IS the value.
 
 ---
 
+**After the explore session ends, check for post-hook:**
+
+\`\`\`bash
+openspec hooks get post-explore --json
+\`\`\`
+
+Parse the JSON result:
+- If \`exists: false\` or if the command is unavailable — conclude normally.
+- If \`exists: true\` and \`instruction\` is set — follow the instruction as a post-session action (e.g., write a summary, capture decisions).
+- If \`exists: true\` and \`run\` is set — execute the \`run\` command via Bash. If it exits with a non-zero code, surface a warning: "post-explore hook exited with code N: <stderr>". Do NOT fail the session.
+
 ## Guardrails
 
 - **Don't implement** - Never write code or implement features. Creating OpenSpec artifacts is fine, writing application code is not.
@@ -299,6 +321,17 @@ export function getOpsxExploreCommandTemplate(): CommandTemplate {
     category: 'Workflow',
     tags: ['workflow', 'explore', 'experimental', 'thinking'],
     content: `Enter explore mode. Think deeply. Visualize freely. Follow the conversation wherever it goes.
+
+**Before starting exploration, check for project pre-hook:**
+
+\`\`\`bash
+openspec hooks get pre-explore --json
+\`\`\`
+
+Parse the JSON result:
+- If \`exists: false\` or if the command is unavailable (non-zero exit) — proceed normally.
+- If \`exists: true\` and \`run\` is set — execute the \`run\` command via Bash. If it exits with a non-zero code, **HALT**: report "pre-explore hook failed (exit code N): <stderr>" and do NOT continue.
+- If \`exists: true\` and \`instruction\` is set — treat the instruction text as a binding directive throughout this explore session.
 
 **IMPORTANT: Explore mode is for thinking, not implementing.** You may read files, search code, and investigate the codebase, but you must NEVER write code or implement features. If the user asks you to implement something, remind them to exit explore mode first and create a change proposal. You MAY create OpenSpec artifacts (proposals, designs, specs) if the user asks—that's capturing thinking, not implementing.
 
@@ -452,6 +485,17 @@ There's no required ending. Discovery might:
 When things crystallize, you might offer a summary - but it's optional. Sometimes the thinking IS the value.
 
 ---
+
+**After the explore session ends, check for post-hook:**
+
+\`\`\`bash
+openspec hooks get post-explore --json
+\`\`\`
+
+Parse the JSON result:
+- If \`exists: false\` or if the command is unavailable — conclude normally.
+- If \`exists: true\` and \`instruction\` is set — follow the instruction as a post-session action (e.g., write a summary, capture decisions).
+- If \`exists: true\` and \`run\` is set — execute the \`run\` command via Bash. If it exits with a non-zero code, surface a warning: "post-explore hook exited with code N: <stderr>". Do NOT fail the session.
 
 ## Guardrails
 

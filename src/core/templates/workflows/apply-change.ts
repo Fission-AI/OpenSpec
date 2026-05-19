@@ -16,6 +16,17 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
 
 **Steps**
 
+0. **Check for project pre-hook**
+
+   \`\`\`bash
+   openspec hooks get pre-apply --json
+   \`\`\`
+
+   Parse the JSON result:
+   - If \`exists: false\` or if the command is unavailable (non-zero exit) — proceed normally.
+   - If \`exists: true\` and \`run\` is set — execute the \`run\` command via Bash. If it exits with a non-zero code, **HALT**: report "pre-apply hook failed (exit code N): <stderr>" and do NOT continue.
+   - If \`exists: true\` and \`instruction\` is set — treat the instruction text as a binding directive throughout this implementation session.
+
 1. **Select the change**
 
    If a name is provided, use it. Otherwise:
@@ -142,6 +153,19 @@ All tasks complete! Ready to archive this change.
 What would you like to do?
 \`\`\`
 
+**Post-Hook**
+
+After completing all tasks (or when pausing), run:
+
+\`\`\`bash
+openspec hooks get post-apply --json
+\`\`\`
+
+Parse the JSON result:
+- If \`exists: false\` or if the command is unavailable — report status normally.
+- If \`exists: true\` and \`instruction\` is set — follow the instruction as a post-workflow action (e.g., run a review, write a summary).
+- If \`exists: true\` and \`run\` is set — execute the \`run\` command via Bash. If it exits with a non-zero code, surface a warning: "post-apply hook exited with code N: <stderr>". Do NOT fail the workflow.
+
 **Guardrails**
 - Keep going through tasks until done or blocked
 - Always read context files before starting (from the apply instructions output)
@@ -175,6 +199,17 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
 **Input**: Optionally specify a change name (e.g., \`/opsx:apply add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
+
+0. **Check for project pre-hook**
+
+   \`\`\`bash
+   openspec hooks get pre-apply --json
+   \`\`\`
+
+   Parse the JSON result:
+   - If \`exists: false\` or if the command is unavailable (non-zero exit) — proceed normally.
+   - If \`exists: true\` and \`run\` is set — execute the \`run\` command via Bash. If it exits with a non-zero code, **HALT**: report "pre-apply hook failed (exit code N): <stderr>" and do NOT continue.
+   - If \`exists: true\` and \`instruction\` is set — treat the instruction text as a binding directive throughout this implementation session.
 
 1. **Select the change**
 
@@ -301,6 +336,19 @@ All tasks complete! You can archive this change with \`/opsx:archive\`.
 
 What would you like to do?
 \`\`\`
+
+**Post-Hook**
+
+After completing all tasks (or when pausing), run:
+
+\`\`\`bash
+openspec hooks get post-apply --json
+\`\`\`
+
+Parse the JSON result:
+- If \`exists: false\` or if the command is unavailable — report status normally.
+- If \`exists: true\` and \`instruction\` is set — follow the instruction as a post-workflow action (e.g., run a review, write a summary).
+- If \`exists: true\` and \`run\` is set — execute the \`run\` command via Bash. If it exits with a non-zero code, surface a warning: "post-apply hook exited with code N: <stderr>". Do NOT fail the workflow.
 
 **Guardrails**
 - Keep going through tasks until done or blocked
