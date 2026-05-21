@@ -14,11 +14,51 @@ import { parseDeltaSpec, normalizeRequirementName } from '../parsers/requirement
 import { findMainSpecStructureIssues } from '../parsers/spec-structure.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 
+export interface ValidatorOptions {
+  /**
+   * Strict mode promotes structural-completeness WARNINGs to ERRORs (no
+   * change to MODIFIED-base cross-references — see acceptCrossChangeBase).
+   */
+  strictMode?: boolean;
+  /**
+   * Accept a MODIFIED / REMOVED / RENAMED-from reference whose target
+   * Requirement is NOT present in the canonical spec (`openspec/specs/
+   * <cap>/spec.md`) IF the same header appears in a sister change at
+   * `openspec/changes/<other>/specs/<cap>/spec.md`.
+   *
+   * Default false: write-time validate matches archive-time semantics
+   * (the canonical spec is the only legitimate base) so authoring bugs
+   * surface immediately instead of at archive time.
+   *
+   * Set to true (typically via `openspec validate --accept-cross-change-base`)
+   * to opt into cross-change MODIFIED authoring. The user is signalling
+   * they will either archive the sister change first OR fold the work
+   * into that sister change before this change's own archive. Archive-
+   * time checking remains strict; this flag affects ONLY write-time
+   * validate.
+   */
+  acceptCrossChangeBase?: boolean;
+}
+
 export class Validator {
   private strictMode: boolean;
+  private acceptCrossChangeBase: boolean;
 
-  constructor(strictMode: boolean = false) {
-    this.strictMode = strictMode;
+  /**
+   * @param strictModeOrOptions Either a boolean (legacy, equivalent to
+   *   `{ strictMode }`) or a full `ValidatorOptions` object. The two-
+   *   argument constructor signature is preserved for backward
+   *   compatibility with existing callers that pass just a strictMode
+   *   boolean.
+   */
+  constructor(strictModeOrOptions: boolean | ValidatorOptions = false) {
+    if (typeof strictModeOrOptions === 'boolean') {
+      this.strictMode = strictModeOrOptions;
+      this.acceptCrossChangeBase = false;
+    } else {
+      this.strictMode = strictModeOrOptions.strictMode ?? false;
+      this.acceptCrossChangeBase = strictModeOrOptions.acceptCrossChangeBase ?? false;
+    }
   }
 
   async validateSpec(filePath: string): Promise<ValidationReport> {
@@ -221,6 +261,29 @@ export class Validator {
             renamedTo.add(toKey);
           }
         }
+
+        // Canonical-base cross-reference check.
+        // MODIFIED / REMOVED / RENAMED-from must point at a Requirement
+        // that already exists in the canonical spec at
+        // `openspec/specs/<specName>/spec.md`. Mirrors the strict check
+        // `specs-apply.ts` runs at archive time, but here so authoring
+        // bugs surface immediately rather than days later when the
+        // change is being archived.
+        //
+        // With `acceptCrossChangeBase` set (CLI flag
+        // `--accept-cross-change-base`), the check also looks in
+        // sister-pending changes (`openspec/changes/<other>/specs/
+        // <specName>/spec.md`). The user opts into cross-change
+        // authoring; they must either archive the sister change first
+        // OR fold this change into it before this change's own archive
+        // succeeds (archive remains strict, no override).
+        await this.checkDeltaAgainstCanonicalBase({
+          changeDir,
+          specName,
+          entryPath,
+          plan,
+          issues,
+        });
 
         // Cross-section conflicts (within the same spec file)
         for (const n of modifiedNames) {
@@ -455,5 +518,118 @@ export class Validator {
     const head = sections.slice(0, -1);
     const last = sections[sections.length - 1];
     return `${head.join(', ')} and ${last}`;
+  }
+
+  /**
+   * Walk a spec file's content and collect normalized `### Requirement:
+   * <name>` header names. Used to build the cross-reference set for
+   * MODIFIED / REMOVED / RENAMED-from checks. Works on both canonical
+   * specs and delta specs since both use the same `### Requirement:`
+   * header syntax.
+   */
+  private extractRequirementHeaderNames(content: string): Set<string> {
+    const names = new Set<string>();
+    const re = /^###\s+Requirement:\s+(.+?)\s*$/gm;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(content)) !== null) {
+      names.add(normalizeRequirementName(m[1]));
+    }
+    return names;
+  }
+
+  /**
+   * Cross-reference MODIFIED / REMOVED / RENAMED-from delta operations
+   * against the canonical spec (and optionally sister-pending changes
+   * when `acceptCrossChangeBase` is set). Pushes ERROR-level issues
+   * into the provided `issues` array.
+   */
+  private async checkDeltaAgainstCanonicalBase(args: {
+    changeDir: string;
+    specName: string;
+    entryPath: string;
+    plan: ReturnType<typeof parseDeltaSpec>;
+    issues: ValidationIssue[];
+  }): Promise<void> {
+    const { changeDir, specName, entryPath, plan, issues } = args;
+
+    // Targets that must reference an existing-in-base Requirement.
+    type Target = { kind: 'MODIFIED' | 'REMOVED' | 'RENAMED'; raw: string; normalized: string };
+    const targets: Target[] = [
+      ...plan.modified.map(b => ({ kind: 'MODIFIED' as const, raw: b.name, normalized: normalizeRequirementName(b.name) })),
+      ...plan.removed.map(n => ({ kind: 'REMOVED' as const, raw: n, normalized: normalizeRequirementName(n) })),
+      ...plan.renamed.map(r => ({ kind: 'RENAMED' as const, raw: r.from, normalized: normalizeRequirementName(r.from) })),
+    ];
+    if (targets.length === 0) return;
+
+    // Canonical lookup.
+    const openspecRoot = path.resolve(changeDir, '..', '..');
+    const canonicalSpecPath = path.join(openspecRoot, 'specs', specName, 'spec.md');
+    let canonicalNames: Set<string> | null = null;
+    try {
+      const c = await fs.readFile(canonicalSpecPath, 'utf-8');
+      canonicalNames = this.extractRequirementHeaderNames(c);
+    } catch {
+      canonicalNames = null;
+    }
+
+    // Sister-pending lookup (lazy — only built if needed by acceptCrossChangeBase).
+    let sisterNames: Set<string> | null = null;
+    const buildSisterNames = async (): Promise<Set<string>> => {
+      if (sisterNames !== null) return sisterNames;
+      const acc = new Set<string>();
+      const selfChange = path.basename(changeDir);
+      const changesDir = path.dirname(changeDir);
+      try {
+        const entries = await fs.readdir(changesDir, { withFileTypes: true });
+        for (const entry of entries) {
+          if (!entry.isDirectory()) continue;
+          if (entry.name === selfChange) continue;
+          if (entry.name === 'archive') continue;
+          const p = path.join(changesDir, entry.name, 'specs', specName, 'spec.md');
+          try {
+            const c = await fs.readFile(p, 'utf-8');
+            for (const n of this.extractRequirementHeaderNames(c)) acc.add(n);
+          } catch { /* sister doesn't touch this capability */ }
+        }
+      } catch { /* no changes dir (unlikely from within validateChangeDeltaSpecs) */ }
+      sisterNames = acc;
+      return sisterNames;
+    };
+
+    // CREATE shape: canonical spec does not exist.
+    if (canonicalNames === null) {
+      for (const t of targets) {
+        if (this.acceptCrossChangeBase) {
+          const sis = await buildSisterNames();
+          if (sis.has(t.normalized)) continue;
+        }
+        const fix = this.acceptCrossChangeBase
+          ? 'No canonical spec, and no sister-pending change defines this Requirement either. Either change this to ADDED, or author the sister change first.'
+          : `${t.kind} requires an existing canonical spec at \`openspec/specs/${specName}/spec.md\`. Either change this to ADDED, or — if a sister change is creating this capability — re-run with \`--accept-cross-change-base\` (note: archive remains strict; you must archive the sister change first OR fold this change into it before archive succeeds).`;
+        issues.push({
+          level: 'ERROR',
+          path: entryPath,
+          message: `${t.kind} "${t.raw}": canonical spec \`openspec/specs/${specName}/spec.md\` does not exist. ${fix}`,
+        });
+      }
+      return;
+    }
+
+    // Canonical exists: each target must be present by exact header match.
+    for (const t of targets) {
+      if (canonicalNames.has(t.normalized)) continue;
+      if (this.acceptCrossChangeBase) {
+        const sis = await buildSisterNames();
+        if (sis.has(t.normalized)) continue;
+      }
+      const fix = this.acceptCrossChangeBase
+        ? 'Not found in canonical AND not found in any sister-pending change. Did you mean ADDED with a new name? Or did you typo the header?'
+        : `Not found in canonical \`openspec/specs/${specName}/spec.md\`. Common causes: (a) the Requirement is genuinely new — use ADDED instead; (b) you typo'd the header (whitespace-insensitive match); (c) a sister change in \`openspec/changes/<other>/\` defines it and hasn't been archived — re-run with \`--accept-cross-change-base\` to opt into cross-change MODIFIED (archive remains strict, no override).`;
+      issues.push({
+        level: 'ERROR',
+        path: entryPath,
+        message: `${t.kind} "${t.raw}": header not found in base. ${fix}`,
+      });
+    }
   }
 }
