@@ -1,47 +1,23 @@
 # OpenSpec Test Guidance
 
-Scope: this file applies to tests under `test/`. Keep it focused on test-writing
-habits and recurring CI failure modes.
+Applies to tests under `test/`.
 
 ## Running Tests
 
 - Focused file: `pnpm exec vitest run test/path/to/file.test.ts`
 - Focused case: `pnpm exec vitest run test/path/to/file.test.ts -t "case name"`
 - Full suite: `pnpm test`
-- CLI integration tests use the built CLI through `test/helpers/run-cli.ts`. Run
-  `pnpm run build` before focused CLI tests when the implementation changed and
-  `dist/` may be stale.
+- Run `pnpm run build` before focused CLI tests when implementation changes may leave `dist/` stale.
 
 ## Path Canonicalization
 
-Path identity bugs are a recurring CI failure mode. The same existing directory can be
-observed through different spellings:
+Path identity is a recurring CI failure mode: Windows short/long paths, symlink or
+junction aliases, and case-insensitive file systems can spell the same existing
+directory differently.
 
-- Windows short paths such as `C:\Users\RUNNER~1\...`
-- Windows long paths such as `C:\Users\runneradmin\...`
-- symlink or junction aliases
-- case differences on case-insensitive file systems
+When asserting existing filesystem paths as identities, canonicalize both actual
+and expected paths first. Prefer `FileSystemUtils.canonicalizeExistingPath()` in
+project code and `fs.realpathSync.native()` in test-only expectations.
 
-When tests compare, store, or assert existing filesystem paths as identities,
-canonicalize every side of the comparison first. Prefer
-`FileSystemUtils.canonicalizeExistingPath()` for project code paths; it uses
-`fs.realpathSync.native()` first so Windows short-path aliases expand
-consistently. In tests where importing the helper is not useful, compute expected
-existing paths with `fs.realpathSync.native()`.
-
-High-risk surfaces:
-
-- workspace roots and linked workspace paths
-- artifact output paths returned by glob resolution
-- CLI `cwd` values when the implementation may canonicalize internally
-- registry or local-state paths that are later compared to paths found by walking ancestors
-
-Regression guidance:
-
-- Add at least one alias-path regression when touching path identity logic. Symlinks or
-  junctions usually reproduce the same class of bug on non-Windows systems.
-- If a test asserts a path that the implementation canonicalizes, compute the expectation
-  with `FileSystemUtils.canonicalizeExistingPath()` or `fs.realpathSync.native()` rather
-  than raw `path.join(...)`.
-- If preserving the user's typed path spelling is intentional, assert that explicitly and
-  keep it separate from identity comparisons.
+Add an alias-path regression when touching path identity logic. If preserving
+user-typed path spelling is intentional, assert it separately from identity comparisons.
