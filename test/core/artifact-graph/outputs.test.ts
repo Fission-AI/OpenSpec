@@ -60,6 +60,13 @@ describe('artifact-graph/outputs', () => {
     expect(artifactOutputComplete(tempDir, 'proposal.md')).toBe(false);
   });
 
+  it('rejects multi-line comment-only artifact output content', () => {
+    fs.writeFileSync(path.join(tempDir, 'proposal.md'), '<!--\nplaceholder\n-->\n');
+
+    expect(artifactOutputContentValid(tempDir, 'proposal.md')).toBe(false);
+    expect(artifactOutputComplete(tempDir, 'proposal.md')).toBe(false);
+  });
+
   it('accepts a non-empty heading as meaningful artifact output content', () => {
     fs.writeFileSync(path.join(tempDir, 'proposal.md'), '# Proposal\n');
 

@@ -116,6 +116,19 @@ describe('artifact-graph/state', () => {
       expect(completed.has('proposal')).toBe(false);
     });
 
+    it('should not mark artifact complete when file only contains a multi-line HTML comment', () => {
+      const schema = createSchema([
+        { id: 'proposal', generates: 'proposal.md', description: 'Proposal', template: 't.md', requires: [] },
+      ]);
+      const graph = ArtifactGraph.fromSchema(schema);
+
+      fs.writeFileSync(path.join(tempDir, 'proposal.md'), '<!--\nplaceholder\n-->\n');
+
+      const completed = detectCompleted(graph, tempDir);
+
+      expect(completed.has('proposal')).toBe(false);
+    });
+
     it('should not mark artifact complete when file does not exist', () => {
       const schema = createSchema([
         { id: 'proposal', generates: 'proposal.md', description: 'Proposal', template: 't.md', requires: [] },

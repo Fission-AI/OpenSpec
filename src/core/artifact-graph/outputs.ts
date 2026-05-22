@@ -63,14 +63,11 @@ export function artifactOutputComplete(changeDir: string, generates: string): bo
 function isArtifactOutputFileContentValid(filePath: string): boolean {
   try {
     const content = fs.readFileSync(filePath, 'utf8');
+    const withoutHtmlComments = content.replace(/<!--[\s\S]*?(-->|$)/g, '');
 
-    return content
+    return withoutHtmlComments
       .split(/\r?\n/)
-      .some((line) => {
-        const trimmed = line.trim();
-
-        return trimmed.length > 0 && !trimmed.startsWith('<!--');
-      });
+      .some((line) => line.trim().length > 0);
   } catch {
     return false;
   }
