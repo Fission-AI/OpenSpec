@@ -56,6 +56,8 @@ describe('openspec CLI e2e basics', () => {
     expect(normalizedOutput).toContain(
       `Use "all", "none", or a comma-separated list of: ${expectedTools}`
     );
+    expect(normalizedOutput).toContain('--schema <name>');
+    expect(normalizedOutput).toContain('--schema-source <dir>');
   });
 
   it('reports the package version', async () => {
@@ -179,6 +181,64 @@ describe('openspec CLI e2e basics', () => {
 
       expect(await fileExists(claudeSkillPath)).toBe(false);
       expect(await fileExists(cursorSkillPath)).toBe(false);
+    });
+
+    it('initializes with --schema option', async () => {
+      const projectDir = await prepareFixture('tmp-init');
+      const emptyProjectDir = path.join(projectDir, '..', 'empty-project');
+      await fs.mkdir(emptyProjectDir, { recursive: true });
+
+      const result = await runCLI(
+        ['init', '--tools', 'none', '--schema', 'workspace-planning'],
+        { cwd: emptyProjectDir }
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('OpenSpec Setup Complete');
+      expect(result.stdout).toContain('schema: workspace-planning');
+
+      const configPath = path.join(emptyProjectDir, 'openspec', 'config.yaml');
+      const content = await fs.readFile(configPath, 'utf-8');
+      expect(content).toContain('schema: workspace-planning');
+    });
+
+    it('initializes with --schema-source option', async () => {
+      const projectDir = await prepareFixture('tmp-init');
+      const emptyProjectDir = path.join(projectDir, '..', 'empty-project');
+      const sourceDir = path.join(projectDir, '..', 'omnidev-flow');
+      await fs.mkdir(path.join(emptyProjectDir), { recursive: true });
+      await fs.mkdir(path.join(sourceDir, 'templates'), { recursive: true });
+      await fs.writeFile(
+        path.join(sourceDir, 'schema.yaml'),
+        `name: omnidev-flow
+version: 1
+description: Omnidev workflow
+artifacts:
+  - id: proposal
+    description: Proposal
+    generates: proposal.md
+    template: proposal.md
+    requires: []
+`
+      );
+      await fs.writeFile(path.join(sourceDir, 'templates', 'proposal.md'), '# Proposal\n');
+
+      const result = await runCLI(
+        ['init', '--tools', 'none', '--schema-source', sourceDir],
+        { cwd: emptyProjectDir }
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('schema: omnidev-flow');
+
+      const configPath = path.join(emptyProjectDir, 'openspec', 'config.yaml');
+      const importedSchemaPath = path.join(
+        emptyProjectDir,
+        'openspec',
+        'schemas',
+        'omnidev-flow',
+        'schema.yaml'
+      );
+      expect(await fs.readFile(configPath, 'utf-8')).toContain('schema: omnidev-flow');
+      expect(await fileExists(importedSchemaPath)).toBe(true);
     });
 
     it('returns error for invalid tool names', async () => {

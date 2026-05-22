@@ -93,8 +93,13 @@ openspec init [path] [options]
 | `--tools <list>` | Configure AI tools non-interactively. Use `all`, `none`, or comma-separated list |
 | `--force` | Auto-cleanup legacy files without prompting |
 | `--profile <profile>` | Override global profile for this init run (`core` or `custom`) |
+| `--schema <name>` | Write the named workflow schema to `openspec/config.yaml` |
+| `--schema-source <dir>` | Import a schema bundle directory |
 
 `--profile custom` uses whatever workflows are currently selected in global config (`openspec config profile`).
+`--schema-source` copies the schema bundle directory into `openspec/schemas/<name>/` and
+uses the source `schema.yaml` `name` field unless `--schema <name>` is provided.
+When both are provided, the names must match.
 
 **Supported tool IDs (`--tools`):** `amazon-q`, `antigravity`, `auggie`, `bob`, `claude`, `cline`, `codex`, `forgecode`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `opencode`, `pi`, `qoder`, `lingma`, `qwen`, `roocode`, `trae`, `windsurf`
 
@@ -109,6 +114,12 @@ openspec init ./my-project
 
 # Non-interactive: configure for Claude and Cursor
 openspec init --tools claude,cursor
+
+# Initialize with a custom schema already available to OpenSpec
+openspec init --schema my-workflow
+
+# Import a schema bundle into the project during initialization
+openspec init --schema-source ../omnidev/schemas/my-workflow
 
 # Configure for all supported tools
 openspec init --tools all

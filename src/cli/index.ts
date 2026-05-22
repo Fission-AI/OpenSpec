@@ -101,7 +101,12 @@ program
   .option('--tools <tools>', toolsOptionDescription)
   .option('--force', 'Auto-cleanup legacy files without prompting')
   .option('--profile <profile>', 'Override global config profile (core or custom)')
-  .action(async (targetPath = '.', options?: { tools?: string; force?: boolean; profile?: string }) => {
+  .option('--schema <name>', 'Workflow schema to write to openspec/config.yaml')
+  .option('--schema-source <dir>', 'Import a schema bundle directory')
+  .action(async (
+    targetPath = '.',
+    options?: { tools?: string; force?: boolean; profile?: string; schema?: string; schemaSource?: string }
+  ) => {
     try {
       // Validate that the path is a valid directory
       const resolvedPath = path.resolve(targetPath);
@@ -127,6 +132,8 @@ program
         tools: options?.tools,
         force: options?.force,
         profile: options?.profile,
+        schema: options?.schema,
+        schemaSource: options?.schemaSource,
       });
       await initCommand.execute(targetPath);
     } catch (error) {
