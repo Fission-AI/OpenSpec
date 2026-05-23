@@ -45,6 +45,7 @@ import { getGlobalConfig, type Delivery, type Profile } from './global-config.js
 import { getProfileWorkflows, CORE_WORKFLOWS, ALL_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
 import { migrateIfNeeded } from './migration.js';
+import { parseSchema, resolveSchema, type SchemaYaml } from './artifact-graph/index.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
@@ -83,6 +84,15 @@ type InitCommandOptions = {
   force?: boolean;
   interactive?: boolean;
   profile?: string;
+  schema?: string;
+  schemaSource?: string;
+};
+
+type SchemaSetupPlan = {
+  name: string;
+  importSourceDir?: string;
+  importDestinationDir?: string;
+  shouldImport?: boolean;
 };
 
 // -----------------------------------------------------------------------------
@@ -94,12 +104,16 @@ export class InitCommand {
   private readonly force: boolean;
   private readonly interactiveOption?: boolean;
   private readonly profileOverride?: string;
+  private readonly schemaOverride?: string;
+  private readonly schemaSource?: string;
 
   constructor(options: InitCommandOptions = {}) {
     this.toolsArg = options.tools;
     this.force = options.force ?? false;
     this.interactiveOption = options.interactive;
     this.profileOverride = options.profile;
+    this.schemaOverride = options.schema;
+    this.schemaSource = options.schemaSource;
   }
 
   async execute(targetPath: string): Promise<void> {
@@ -109,6 +123,10 @@ export class InitCommand {
 
     // Validation happens silently in the background
     const extendMode = await this.validate(projectPath, openspecPath);
+
+    // Validate explicit overrides early so invalid values fail before setup changes files.
+    this.resolveProfileOverride();
+    const schemaPlan = this.resolveSchemaSetupPlan(projectPath, openspecPath);
 
     // Check for legacy artifacts and handle cleanup
     await this.handleLegacyCleanup(projectPath, extendMode);
@@ -128,10 +146,6 @@ export class InitCommand {
       await showWelcomeScreen();
     }
 
-    // Validate profile override early so invalid values fail before tool setup.
-    // The resolved value is consumed later when generation reads effective config.
-    this.resolveProfileOverride();
-
     // Get tool states before processing
     const toolStates = getToolStates(projectPath);
 
@@ -144,14 +158,17 @@ export class InitCommand {
     // Create directory structure and config
     await this.createDirectoryStructure(openspecPath, extendMode);
 
+    // Import schema before generating tool files so invalid import destinations fail early.
+    await this.importSchemaSource(schemaPlan);
+
     // Generate skills and commands for each tool
     const results = await this.generateSkillsAndCommands(projectPath, validatedTools);
 
     // Create config.yaml if needed
-    const configStatus = await this.createConfig(openspecPath, extendMode);
+    const configStatus = await this.createConfig(openspecPath, schemaPlan.name);
 
     // Display success message
-    this.displaySuccessMessage(projectPath, validatedTools, results, configStatus);
+    this.displaySuccessMessage(projectPath, validatedTools, results, configStatus, schemaPlan.name);
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -187,6 +204,189 @@ export class InitCommand {
     }
 
     throw new Error(`Invalid profile "${this.profileOverride}". Available profiles: core, custom`);
+  }
+
+  /**
+   * Resolves the schema name and optional import operation for initialization.
+   */
+  private resolveSchemaSetupPlan(projectPath: string, openspecPath: string): SchemaSetupPlan {
+    const schemaOverride = this.normalizeOptionalSchemaName(this.schemaOverride);
+
+    if (this.schemaSource === undefined) {
+      const schemaName = schemaOverride ?? DEFAULT_SCHEMA;
+      if (schemaOverride) {
+        resolveSchema(schemaName, projectPath);
+      }
+      return { name: schemaName };
+    }
+
+    const source = this.resolveSchemaSource(this.schemaSource);
+    const sourceSchema = this.loadSchemaFromSource(source.schemaPath);
+    const sourceSchemaName = this.validateSchemaName(sourceSchema.name, 'schema source name');
+    const schemaName = schemaOverride ?? sourceSchemaName;
+
+    if (schemaOverride && schemaOverride !== sourceSchemaName) {
+      throw new Error(
+        `Schema source declares name '${sourceSchemaName}', but --schema was '${schemaOverride}'. ` +
+        'Use a matching schema name or update the source schema.yaml.'
+      );
+    }
+
+    this.validateSchemaSourceTemplates(source.sourceDir, sourceSchema);
+
+    const destinationDir = path.join(openspecPath, 'schemas', schemaName);
+    const sourceDir = FileSystemUtils.canonicalizeExistingPath(source.sourceDir);
+    const destinationExists = fs.existsSync(destinationDir);
+    const destinationDirResolved = destinationExists
+      ? FileSystemUtils.canonicalizeExistingPath(destinationDir)
+      : path.resolve(destinationDir);
+    const shouldImport = sourceDir !== destinationDirResolved;
+
+    if (destinationExists && shouldImport && !this.force) {
+      throw new Error(
+        `Schema '${schemaName}' already exists at ${destinationDir}. Use --force to overwrite it.`
+      );
+    }
+
+    if (shouldImport && this.isSameOrDescendant(destinationDirResolved, sourceDir)) {
+      throw new Error('Cannot import schema because the source is inside the destination directory.');
+    }
+    if (shouldImport && this.isSameOrDescendant(sourceDir, destinationDirResolved)) {
+      throw new Error('Cannot import schema because the destination is inside the source directory.');
+    }
+
+    return {
+      name: schemaName,
+      importSourceDir: sourceDir,
+      importDestinationDir: destinationDir,
+      shouldImport,
+    };
+  }
+
+  /**
+   * Normalizes an optional CLI schema name while preserving resolver-compatible names.
+   */
+  private normalizeOptionalSchemaName(schemaName: string | undefined): string | undefined {
+    if (schemaName === undefined) {
+      return undefined;
+    }
+
+    const normalized = schemaName.trim().replace(/\.ya?ml$/, '');
+    if (normalized.length === 0) {
+      throw new Error('The --schema option requires a non-empty schema name.');
+    }
+    return normalized;
+  }
+
+  /**
+   * Validates schema names that will be used as project-local directory names.
+   */
+  private validateSchemaName(schemaName: string, label: string): string {
+    const normalized = schemaName.trim();
+    if (normalized.length === 0) {
+      throw new Error(`The ${label} must not be empty.`);
+    }
+    if (!/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(normalized)) {
+      throw new Error(`Invalid ${label} '${schemaName}'. Use kebab-case (e.g., my-workflow).`);
+    }
+    return normalized;
+  }
+
+  /**
+   * Resolves a schema bundle directory and its required schema.yaml file.
+   */
+  private resolveSchemaSource(sourcePath: string): { sourceDir: string; schemaPath: string } {
+    const resolvedPath = path.resolve(sourcePath);
+
+    if (!fs.existsSync(resolvedPath)) {
+      throw new Error(`Schema source not found: ${sourcePath}`);
+    }
+
+    const stats = fs.statSync(resolvedPath);
+    if (!stats.isDirectory()) {
+      throw new Error(`Schema source must be a directory containing schema.yaml: ${sourcePath}`);
+    }
+
+    const schemaPath = path.join(resolvedPath, 'schema.yaml');
+    if (!fs.existsSync(schemaPath)) {
+      throw new Error(`Schema source directory must contain schema.yaml: ${sourcePath}`);
+    }
+
+    return { sourceDir: resolvedPath, schemaPath };
+  }
+
+  /**
+   * Loads and validates a schema.yaml file from a schema source bundle.
+   */
+  private loadSchemaFromSource(schemaPath: string): SchemaYaml {
+    try {
+      return parseSchema(fs.readFileSync(schemaPath, 'utf-8'));
+    } catch (error) {
+      throw new Error(`Invalid schema source at ${schemaPath}: ${(error as Error).message}`);
+    }
+  }
+
+  /**
+   * Ensures every artifact template referenced by the schema source exists within the bundle.
+   */
+  private validateSchemaSourceTemplates(
+    sourceDir: string,
+    schema: SchemaYaml
+  ): void {
+    const canonicalSourceDir = FileSystemUtils.canonicalizeExistingPath(sourceDir);
+
+    for (const artifact of schema.artifacts) {
+      const templatePathInTemplates = path.resolve(sourceDir, 'templates', artifact.template);
+      const templatePathInRoot = path.resolve(sourceDir, artifact.template);
+      const templatePaths = [templatePathInTemplates, templatePathInRoot];
+
+      if (templatePaths.some((templatePath) => !this.isSameOrDescendant(sourceDir, templatePath))) {
+        throw new Error(
+          `Schema source template '${artifact.template}' for artifact '${artifact.id}' must stay within the schema source directory.`
+        );
+      }
+
+      const existingTemplatePaths = templatePaths.filter((templatePath) => fs.existsSync(templatePath));
+
+      if (existingTemplatePaths.length === 0) {
+        throw new Error(
+          `Schema source is missing template '${artifact.template}' for artifact '${artifact.id}'.`
+        );
+      }
+
+      if (existingTemplatePaths.some((templatePath) => {
+        const canonicalTemplatePath = FileSystemUtils.canonicalizeExistingPath(templatePath);
+        return !this.isSameOrDescendant(canonicalSourceDir, canonicalTemplatePath);
+      })) {
+        throw new Error(
+          `Schema source template '${artifact.template}' for artifact '${artifact.id}' must stay within the schema source directory.`
+        );
+      }
+    }
+  }
+
+  /**
+   * Checks whether one path is equal to or nested under another path.
+   */
+  private isSameOrDescendant(parentPath: string, candidatePath: string): boolean {
+    const relative = path.relative(parentPath, candidatePath);
+    return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+  }
+
+  /**
+   * Copies an external schema bundle into the project-local schemas directory.
+   */
+  private async importSchemaSource(plan: SchemaSetupPlan): Promise<void> {
+    if (!plan.importSourceDir || !plan.importDestinationDir || !plan.shouldImport) {
+      return;
+    }
+
+    if (fs.existsSync(plan.importDestinationDir)) {
+      await fs.promises.rm(plan.importDestinationDir, { recursive: true, force: true });
+    }
+
+    await fs.promises.mkdir(path.dirname(plan.importDestinationDir), { recursive: true });
+    await fs.promises.cp(plan.importSourceDir, plan.importDestinationDir, { recursive: true });
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -595,7 +795,7 @@ export class InitCommand {
   // CONFIG FILE
   // ═══════════════════════════════════════════════════════════
 
-  private async createConfig(openspecPath: string, extendMode: boolean): Promise<'created' | 'exists' | 'skipped'> {
+  private async createConfig(openspecPath: string, schemaName: string): Promise<'created' | 'exists' | 'skipped'> {
     const configPath = path.join(openspecPath, 'config.yaml');
     const configYmlPath = path.join(openspecPath, 'config.yml');
     const configYamlExists = fs.existsSync(configPath);
@@ -605,13 +805,19 @@ export class InitCommand {
       return 'exists';
     }
 
-    // In non-interactive mode without --force, skip config creation
-    if (!this.canPromptInteractively() && !this.force) {
+    // In non-interactive mode without --force, keep the historical skip behavior
+    // unless the user explicitly requested a schema to persist.
+    if (
+      !this.canPromptInteractively() &&
+      !this.force &&
+      this.schemaOverride === undefined &&
+      this.schemaSource === undefined
+    ) {
       return 'skipped';
     }
 
     try {
-      const yamlContent = serializeConfig({ schema: DEFAULT_SCHEMA });
+      const yamlContent = serializeConfig({ schema: schemaName });
       await FileSystemUtils.writeFile(configPath, yamlContent);
       return 'created';
     } catch {
@@ -634,7 +840,8 @@ export class InitCommand {
       removedCommandCount: number;
       removedSkillCount: number;
     },
-    configStatus: 'created' | 'exists' | 'skipped'
+    configStatus: 'created' | 'exists' | 'skipped',
+    schemaName: string
   ): void {
     console.log();
     console.log(chalk.bold('OpenSpec Setup Complete'));
@@ -685,7 +892,7 @@ export class InitCommand {
 
     // Config status
     if (configStatus === 'created') {
-      console.log(`Config: openspec/config.yaml (schema: ${DEFAULT_SCHEMA})`);
+      console.log(`Config: openspec/config.yaml (schema: ${schemaName})`);
     } else if (configStatus === 'exists') {
       // Show actual filename (config.yaml or config.yml)
       const configYaml = path.join(projectPath, OPENSPEC_DIR_NAME, 'config.yaml');

@@ -77,6 +77,226 @@ describe('InitCommand', () => {
       expect(content).toContain('schema: spec-driven');
     });
 
+    it('should create config.yaml with a specified built-in schema', async () => {
+      const initCommand = new InitCommand({
+        tools: 'none',
+        force: true,
+        schema: 'workspace-planning',
+      });
+
+      await initCommand.execute(testDir);
+
+      const configPath = path.join(testDir, 'openspec', 'config.yaml');
+      const content = await fs.readFile(configPath, 'utf-8');
+      expect(content).toContain('schema: workspace-planning');
+    });
+
+    it('should create config.yaml for explicit schema in non-interactive mode without force', async () => {
+      const initCommand = new InitCommand({
+        tools: 'none',
+        schema: 'workspace-planning',
+      });
+
+      await initCommand.execute(testDir);
+
+      const configPath = path.join(testDir, 'openspec', 'config.yaml');
+      const content = await fs.readFile(configPath, 'utf-8');
+      expect(content).toContain('schema: workspace-planning');
+    });
+
+    it('should create config.yaml with a specified project-local schema', async () => {
+      const schemaDir = path.join(testDir, 'openspec', 'schemas', 'team-flow');
+      await fs.mkdir(schemaDir, { recursive: true });
+      await fs.writeFile(
+        path.join(schemaDir, 'schema.yaml'),
+        `name: team-flow
+version: 1
+description: Team workflow
+artifacts:
+  - id: proposal
+    description: Proposal
+    generates: proposal.md
+    template: proposal.md
+    requires: []
+`
+      );
+
+      const initCommand = new InitCommand({
+        tools: 'none',
+        force: true,
+        schema: 'team-flow',
+      });
+
+      await initCommand.execute(testDir);
+
+      const configPath = path.join(testDir, 'openspec', 'config.yaml');
+      const content = await fs.readFile(configPath, 'utf-8');
+      expect(content).toContain('schema: team-flow');
+    });
+
+    it('should import schema source directory and infer schema name', async () => {
+      const sourceDir = path.join(testDir, 'external-schemas', 'team-flow');
+      await createSchemaBundle(sourceDir, 'team-flow');
+
+      const initCommand = new InitCommand({
+        tools: 'none',
+        schemaSource: sourceDir,
+      });
+
+      await initCommand.execute(testDir);
+
+      const importedSchemaPath = path.join(testDir, 'openspec', 'schemas', 'team-flow', 'schema.yaml');
+      const importedTemplatePath = path.join(testDir, 'openspec', 'schemas', 'team-flow', 'templates', 'proposal.md');
+      const configPath = path.join(testDir, 'openspec', 'config.yaml');
+
+      expect(await fileExists(importedSchemaPath)).toBe(true);
+      expect(await fileExists(importedTemplatePath)).toBe(true);
+      expect(await fs.readFile(configPath, 'utf-8')).toContain('schema: team-flow');
+    });
+
+    it('should reject schema source when path is not a directory', async () => {
+      const sourceDir = path.join(testDir, 'external-schemas', 'file-flow');
+      await createSchemaBundle(sourceDir, 'file-flow');
+
+      const initCommand = new InitCommand({
+        tools: 'none',
+        schemaSource: path.join(sourceDir, 'schema.yaml'),
+      });
+
+      await expect(initCommand.execute(testDir)).rejects.toThrow(
+        /Schema source must be a directory containing schema.yaml/
+      );
+      expect(await directoryExists(path.join(testDir, 'openspec'))).toBe(false);
+    });
+
+    it('should reject schema source when explicit schema name does not match', async () => {
+      const sourceDir = path.join(testDir, 'external-schemas', 'team-flow');
+      await createSchemaBundle(sourceDir, 'team-flow');
+
+      const initCommand = new InitCommand({
+        tools: 'none',
+        force: true,
+        schema: 'other-flow',
+        schemaSource: sourceDir,
+      });
+
+      await expect(initCommand.execute(testDir)).rejects.toThrow(
+        /Schema source declares name 'team-flow', but --schema was 'other-flow'/
+      );
+      expect(await directoryExists(path.join(testDir, 'openspec'))).toBe(false);
+    });
+
+    it('should reject schema source with missing templates', async () => {
+      const sourceDir = path.join(testDir, 'external-schemas', 'broken-flow');
+      await fs.mkdir(sourceDir, { recursive: true });
+      await fs.writeFile(
+        path.join(sourceDir, 'schema.yaml'),
+        `name: broken-flow
+version: 1
+description: Broken workflow
+artifacts:
+  - id: proposal
+    description: Proposal
+    generates: proposal.md
+    template: proposal.md
+    requires: []
+`
+      );
+
+      const initCommand = new InitCommand({
+        tools: 'none',
+        force: true,
+        schemaSource: sourceDir,
+      });
+
+      await expect(initCommand.execute(testDir)).rejects.toThrow(
+        /Schema source is missing template 'proposal.md'/
+      );
+      expect(await directoryExists(path.join(testDir, 'openspec'))).toBe(false);
+    });
+
+    it('should reject schema source template paths outside the bundle root', async () => {
+      const sourceDir = path.join(testDir, 'external-schemas', 'escaping-flow');
+      const sharedDir = path.join(testDir, 'external-schemas', 'shared');
+      await fs.mkdir(sourceDir, { recursive: true });
+      await fs.mkdir(sharedDir, { recursive: true });
+      await fs.writeFile(path.join(sharedDir, 'proposal.md'), '# Shared Proposal\n');
+      await fs.writeFile(
+        path.join(sourceDir, 'schema.yaml'),
+        `name: escaping-flow
+version: 1
+description: Escaping workflow
+artifacts:
+  - id: proposal
+    description: Proposal
+    generates: proposal.md
+    template: ../shared/proposal.md
+    requires: []
+`
+      );
+
+      const initCommand = new InitCommand({
+        tools: 'none',
+        force: true,
+        schemaSource: sourceDir,
+      });
+
+      await expect(initCommand.execute(testDir)).rejects.toThrow(
+        /must stay within the schema source directory/
+      );
+      expect(await directoryExists(path.join(testDir, 'openspec'))).toBe(false);
+    });
+
+    it.skipIf(process.platform === 'win32')('should reject schema source template symlinks outside the bundle root', async () => {
+      const sourceDir = path.join(testDir, 'external-schemas', 'symlink-flow');
+      const sharedDir = path.join(testDir, 'external-schemas', 'shared');
+      const templatesDir = path.join(sourceDir, 'templates');
+      await fs.mkdir(templatesDir, { recursive: true });
+      await fs.mkdir(sharedDir, { recursive: true });
+      await fs.writeFile(path.join(sharedDir, 'proposal.md'), '# Shared Proposal\n');
+      await fs.symlink(
+        path.join(sharedDir, 'proposal.md'),
+        path.join(templatesDir, 'proposal.md')
+      );
+      await fs.writeFile(
+        path.join(sourceDir, 'schema.yaml'),
+        `name: symlink-flow
+version: 1
+description: Symlink workflow
+artifacts:
+  - id: proposal
+    description: Proposal
+    generates: proposal.md
+    template: proposal.md
+    requires: []
+`
+      );
+
+      const initCommand = new InitCommand({
+        tools: 'none',
+        force: true,
+        schemaSource: sourceDir,
+      });
+
+      await expect(initCommand.execute(testDir)).rejects.toThrow(
+        /must stay within the schema source directory/
+      );
+      expect(await directoryExists(path.join(testDir, 'openspec'))).toBe(false);
+    });
+
+    it('should reject an unknown schema', async () => {
+      const initCommand = new InitCommand({
+        tools: 'none',
+        force: true,
+        schema: 'missing-schema',
+      });
+
+      await expect(initCommand.execute(testDir)).rejects.toThrow(
+        /Schema 'missing-schema' not found/
+      );
+      expect(await directoryExists(path.join(testDir, 'openspec'))).toBe(false);
+    });
+
     it('should create core profile skills for Claude Code by default', async () => {
       const initCommand = new InitCommand({ tools: 'claude', force: true });
 
@@ -774,6 +994,24 @@ async function fileExists(filePath: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+async function createSchemaBundle(schemaDir: string, name: string): Promise<void> {
+  await fs.mkdir(path.join(schemaDir, 'templates'), { recursive: true });
+  await fs.writeFile(
+    path.join(schemaDir, 'schema.yaml'),
+    `name: ${name}
+version: 1
+description: Test workflow
+artifacts:
+  - id: proposal
+    description: Proposal
+    generates: proposal.md
+    template: proposal.md
+    requires: []
+`
+  );
+  await fs.writeFile(path.join(schemaDir, 'templates', 'proposal.md'), '# Proposal\n');
 }
 
 async function directoryExists(dirPath: string): Promise<boolean> {

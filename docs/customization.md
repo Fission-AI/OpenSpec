@@ -24,7 +24,20 @@ The `openspec/config.yaml` file is the easiest way to customize OpenSpec for you
 openspec init
 ```
 
-This walks you through creating a config interactively. Or create one manually:
+This creates `openspec/config.yaml` with the default schema. If your team schema
+is already available to OpenSpec, initialize with it directly:
+
+```bash
+openspec init --schema my-workflow
+```
+
+If your schema lives outside the project, import it during initialization:
+
+```bash
+openspec init --schema-source ../omnidev/schemas/my-workflow
+```
+
+Or create one manually:
 
 ```yaml
 # openspec/config.yaml

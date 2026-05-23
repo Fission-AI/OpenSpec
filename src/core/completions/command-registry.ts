@@ -44,6 +44,26 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         description: 'Configure AI tools non-interactively (e.g., "all", "none", or comma-separated tool IDs)',
         takesValue: true,
       },
+      {
+        name: 'force',
+        description: 'Auto-cleanup legacy files without prompting',
+      },
+      {
+        name: 'profile',
+        description: 'Override global config profile for this init run',
+        takesValue: true,
+        values: ['core', 'custom'],
+      },
+      {
+        name: 'schema',
+        description: 'Workflow schema to write to openspec/config.yaml',
+        takesValue: true,
+      },
+      {
+        name: 'schema-source',
+        description: 'Import a schema bundle directory',
+        takesValue: true,
+      },
     ],
   },
   {
