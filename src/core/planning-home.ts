@@ -51,7 +51,8 @@ function getSearchStartDirectory(startPath: string): string {
 
   try {
     const stats = fs.statSync(resolved);
-    return stats.isDirectory() ? resolved : path.dirname(resolved);
+    const searchStart = stats.isDirectory() ? resolved : path.dirname(resolved);
+    return FileSystemUtils.canonicalizeExistingPath(searchStart);
   } catch {
     return resolved;
   }

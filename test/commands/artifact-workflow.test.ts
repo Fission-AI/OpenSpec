@@ -384,7 +384,7 @@ describe('artifact-workflow CLI commands', () => {
       expect(create.exitCode).toBe(0);
       const createOutput = getOutput(create);
       expect(createOutput).toContain('workspace change');
-      expect(createOutput).toContain('changes/cross-repo-login');
+      expect(normalizePaths(createOutput)).toContain('changes/cross-repo-login');
 
       const changeDir = path.join(workspaceRoot, 'changes', 'cross-repo-login');
       const metadata = await fs.readFile(path.join(changeDir, '.openspec.yaml'), 'utf-8');
