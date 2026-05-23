@@ -48,6 +48,7 @@ interface WorkflowPromptMeta {
 
 interface WorkspaceConfigProfileContext {
   root: string;
+  commandCwd: string;
 }
 
 const WORKFLOW_PROMPT_META: Record<string, WorkflowPromptMeta> = {
@@ -205,6 +206,7 @@ async function resolveWorkspaceConfigProfileContext(
 
   return {
     root: workspaceRoot,
+    commandCwd: cwd,
   };
 }
 
@@ -680,7 +682,7 @@ export function registerConfigCommand(program: Command): void {
             try {
               execSync('npx openspec workspace update', {
                 stdio: 'inherit',
-                cwd: workspaceContext.root,
+                cwd: workspaceContext.commandCwd,
               });
               console.log('Run `openspec workspace update` in your other workspaces to apply.');
             } catch {
