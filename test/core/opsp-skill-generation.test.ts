@@ -90,13 +90,15 @@ describe('OPSP skill generation', () => {
       expect(review!.template.instructions).toContain('git diff');
     });
 
-    it('should have opsp-apply instructions with branch management and pause checkpoints', () => {
+    it('should have opsp-apply instructions with worktree management and pause checkpoints', () => {
       const templates = getOpspSkillTemplates();
       const apply = templates.find(t => t.workflowId === 'opsp-apply');
       expect(apply).toBeDefined();
-      expect(apply!.template.instructions).toContain('git checkout -b opsp/');
-      expect(apply!.template.instructions).toContain('git checkout -b opsx/');
+      expect(apply!.template.instructions).toContain('git worktree add');
+      expect(apply!.template.instructions).toContain('opsp/<initiative-name>');
+      expect(apply!.template.instructions).toContain('opsx/<initiative-name>/<change-name>');
       expect(apply!.template.instructions).toContain('git merge opsx/');
+      expect(apply!.template.instructions).toContain('git worktree remove');
       expect(apply!.template.instructions).toContain('review mode');
       expect(apply!.template.instructions).toContain('Per-milestone');
       expect(apply!.template.instructions).toContain('Per-change');

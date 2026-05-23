@@ -1,35 +1,13 @@
-/**
- * OPSP Archive Workflow Template
- *
- * Compiles architecture.md from driver-specs + ADRs + decision-map,
- * marks initiative as completed.
- */
-import type { SkillTemplate, CommandTemplate } from '../types.js';
+---
+name: "OPSP: Archive"
+description: Archive an initiative — compile architecture.md from current architectural state
+category: Workflow
+tags: [workflow, opsp, archive, initiative, architecture]
+---
 
-export function getOpspArchiveSkillTemplate(): SkillTemplate {
-  return {
-    name: 'opensprint-archive',
-    description: 'Archive an initiative — compile all active driver-specs, ADRs, and the decision tree into architecture.md, capturing the complete current architectural state.',
-    instructions: OPSP_ARCHIVE_INSTRUCTIONS,
-    license: 'MIT',
-    compatibility: 'Requires openspec CLI.',
-    metadata: { author: 'opensprint', version: '1.0' },
-  };
-}
+Archive a completed initiative by compiling the current architectural state into `opensprint/architecture.md`.
 
-export function getOpspArchiveCommandTemplate(): CommandTemplate {
-  return {
-    name: 'OPSP: Archive',
-    description: 'Archive an initiative — compile architecture.md from current architectural state',
-    category: 'Workflow',
-    tags: ['workflow', 'opsp', 'archive', 'initiative', 'architecture'],
-    content: OPSP_ARCHIVE_INSTRUCTIONS,
-  };
-}
-
-const OPSP_ARCHIVE_INSTRUCTIONS = `Archive a completed initiative by compiling the current architectural state into \`opensprint/architecture.md\`.
-
-**Input**: Specify the initiative name after \`/opsp:archive\` (e.g., \`/opsp:archive migrate-to-serverless\`). If omitted, list active initiatives.
+**Input**: Specify the initiative name after `/opsp:archive` (e.g., `/opsp:archive migrate-to-serverless`). If omitted, list active initiatives.
 
 ---
 
@@ -37,18 +15,18 @@ const OPSP_ARCHIVE_INSTRUCTIONS = `Archive a completed initiative by compiling t
 
 ### 1. Verify Initiative Completion
 
-Read \`opensprint/initiatives/<name>.md\` and check:
+Read `opensprint/initiatives/<name>.md` and check:
 - Are all milestones marked as done?
 - If not, warn the operator and ask for confirmation to proceed
 
 ### 2. Compile architecture.md
 
 Read all source materials:
-- \`opensprint/driver-specs/*.md\` — all active driver specs
-- \`opensprint/ADRs/*.md\` — all active/accepted ADRs
-- \`opensprint/DECISION-MAP.md\` — the decision tree
+- `opensprint/driver-specs/*.md` — all active driver specs
+- `opensprint/ADRs/*.md` — all active/accepted ADRs
+- `opensprint/DECISION-MAP.md` — the decision tree
 
-Then **rewrite** \`opensprint/architecture.md\` with these sections:
+Then **rewrite** `opensprint/architecture.md` with these sections:
 
 #### System Overview
 Synthesize from driver-specs: what is this system, what does it do, why does it exist?
@@ -70,7 +48,7 @@ This should be derivable from the decisions but stated concretely:
 "The system consists of: Auth Service (Lambda), Payment API (Lambda), ..."
 
 Use ASCII diagrams where they help:
-\`\`\`
+```
 ┌──────────┐     ┌──────────┐     ┌──────────┐
 │   Auth   │────▶│   API    │────▶│   Jobs   │
 │ Service  │     │ Gateway  │     │ Service  │
@@ -80,7 +58,7 @@ Use ASCII diagrams where they help:
                  ┌──────────┐
                  │ DynamoDB │
                  └──────────┘
-\`\`\`
+```
 
 #### Constraints & Non-Negotiables
 Extract from driver-specs the hard constraints that bound all implementation:
@@ -93,37 +71,37 @@ Extract from driver-specs the hard constraints that bound all implementation:
 
 Remove any remaining worktrees created during the initiative. Change worktrees are normally pruned at merge, but any still present (e.g., from an interrupted run) should be cleaned up now.
 
-\`\`\`bash
+```bash
 git worktree list
-\`\`\`
+```
 
 For each opsp or opsx worktree listed that belongs to this initiative:
-\`\`\`bash
+```bash
 git worktree remove <path>
-\`\`\`
+```
 
 Then prune stale references:
-\`\`\`bash
+```bash
 git worktree prune
-\`\`\`
+```
 
 If any worktree contains uncommitted changes, pause and present them to the operator before removing. Do NOT silently discard uncommitted work.
 
 After cleanup, remove the initiative worktree itself (it is no longer needed once the initiative branch is merged to main or otherwise resolved):
-\`\`\`bash
+```bash
 git worktree remove ../<repo>-opsp-<initiative-name>
-\`\`\`
+```
 
 ### 4. Mark Initiative Completed
 
 Update the initiative descriptor:
-- Set \`status: completed\`
-- Add \`completed: <YYYY-MM-DD>\` to frontmatter
+- Set `status: completed`
+- Add `completed: <YYYY-MM-DD>` to frontmatter
 - Ensure all opsx change references are listed
 
 ### 5. Display Summary
 
-\`\`\`
+```
 ## Archive Complete
 
 **Initiative:** migrate-to-serverless
@@ -135,7 +113,7 @@ Update the initiative descriptor:
 
 The architectural state of the solution has been compiled.
 Review opensprint/architecture.md for the complete picture.
-\`\`\`
+```
 
 ---
 
@@ -156,5 +134,5 @@ Review opensprint/architecture.md for the complete picture.
 - **Use path.join()** — Construct all file paths cross-platform
 - **Preserve ADRs** — Never modify or delete ADRs during archive. They are the permanent trail.
 - **Check for uncommitted work** — Before removing any worktree, verify it has no uncommitted changes. Pause if it does.
-- **Prune after remove** — Run \`git worktree prune\` after removing worktrees to clean any stale git references.
-`;
+- **Prune after remove** — Run `git worktree prune` after removing worktrees to clean any stale git references.
+

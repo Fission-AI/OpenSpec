@@ -1,10 +1,4 @@
-# Git Branching and Worktree Specification
-
-## Purpose
-
-Manage git worktree and branch lifecycle during initiative execution. Each initiative and change gets its own sibling worktree so the operator's main checkout is never disturbed by agent activity.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Initiative worktree creation
 The `/opsp:apply` skill SHALL create a dedicated git worktree for the initiative branch before processing any milestones, leaving the operator's main checkout untouched.
@@ -84,6 +78,8 @@ All branches and worktrees created by opsp/opsx workflows SHALL follow a namespa
 - **AND** initiative worktrees SHALL use the path `../<repo>-opsp-<initiative-name>`
 - **AND** change worktrees SHALL use the path `../<repo>-opsx-<initiative-name>-<change-name>`
 - **AND** `<repo>` SHALL be the basename of the main checkout's directory
+
+## ADDED Requirements
 
 ### Requirement: Working-directory discipline
 The `/opsp:apply` skill SHALL maintain explicit awareness of the current worktree at every step, since switching worktrees requires an explicit `cd` rather than the implicit ref swap that `git checkout` provides.

@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm exec *)",
+      "Bash(node bin/openspec.js validate migrate-opsp-to-worktrees)",
+      "Bash(node bin/openspec.js status --change \"migrate-opsp-to-worktrees\" --json)",
+      "Bash(node bin/openspec.js instructions apply --change \"migrate-opsp-to-worktrees\" --json)",
+      "Bash(mktemp -d)",
+      "Bash(node bin/openspec.js init --tools claude --force)",
+      "Bash(openspec status *)"
+    ]
+  }
+}

@@ -1,49 +1,31 @@
-/**
- * OPSP Apply Workflow Template
- *
- * Orchestrates multiple opsx cycles per milestone, with surrogate-based
- * question resolution and operator escalation.
- */
-import type { SkillTemplate, CommandTemplate } from '../types.js';
+---
+name: opensprint-apply
+description: Execute an initiative — orchestrate opsx cycles for each milestone, auto-resolve questions via surrogate (driver-specs + ADRs + architecture.md), escalate to operator only when surrogate cannot answer.
+license: MIT
+compatibility: Requires openspec CLI.
+metadata:
+  author: opensprint
+  version: "1.0"
+  generatedBy: "0.0.6"
+---
 
-export function getOpspApplySkillTemplate(): SkillTemplate {
-  return {
-    name: 'opensprint-apply',
-    description: 'Execute an initiative — orchestrate opsx cycles for each milestone, auto-resolve questions via surrogate (driver-specs + ADRs + architecture.md), escalate to operator only when surrogate cannot answer.',
-    instructions: OPSP_APPLY_INSTRUCTIONS,
-    license: 'MIT',
-    compatibility: 'Requires openspec CLI.',
-    metadata: { author: 'opensprint', version: '1.0' },
-  };
-}
+Execute an initiative by orchestrating opsx cycles for each milestone, with git worktree management and milestone review checkpoints.
 
-export function getOpspApplyCommandTemplate(): CommandTemplate {
-  return {
-    name: 'OPSP: Apply',
-    description: 'Execute an initiative — orchestrate opsx cycles with surrogate-based resolution',
-    category: 'Workflow',
-    tags: ['workflow', 'opsp', 'apply', 'initiative', 'orchestration'],
-    content: OPSP_APPLY_INSTRUCTIONS,
-  };
-}
-
-const OPSP_APPLY_INSTRUCTIONS = `Execute an initiative by orchestrating opsx cycles for each milestone, with git worktree management and milestone review checkpoints.
-
-**Input**: Specify the initiative name after \`/opsp:apply\` (e.g., \`/opsp:apply migrate-to-serverless\`). If omitted, list active initiatives and let the operator choose.
+**Input**: Specify the initiative name after `/opsp:apply` (e.g., `/opsp:apply migrate-to-serverless`). If omitted, list active initiatives and let the operator choose.
 
 ---
 
 ## Phase 1: Load Context & Setup
 
-1. **Read the initiative** at \`opensprint/initiatives/<name>.md\`
+1. **Read the initiative** at `opensprint/initiatives/<name>.md`
    - Get the milestone list and their completion status
    - Identify the next incomplete milestone
 
 2. **Load the operator surrogate** — read ALL of these:
-   - \`opensprint/driver-specs/*.md\` — external constraints
-   - \`opensprint/ADRs/*.md\` — architectural decisions
-   - \`opensprint/architecture.md\` — current architectural state
-   - \`opensprint/DECISION-MAP.md\` — decision tree
+   - `opensprint/driver-specs/*.md` — external constraints
+   - `opensprint/ADRs/*.md` — architectural decisions
+   - `opensprint/architecture.md` — current architectural state
+   - `opensprint/DECISION-MAP.md` — decision tree
 
    This is your "brain" for resolving questions during opsx execution.
    Think of it as: "what would the operator say?"
@@ -51,32 +33,32 @@ const OPSP_APPLY_INSTRUCTIONS = `Execute an initiative by orchestrating opsx cyc
 3. **Create initiative worktree**:
 
    Determine the repo name:
-   \`\`\`bash
+   ```bash
    basename $(git rev-parse --show-toplevel)
-   \`\`\`
+   ```
 
    **If neither the branch nor a worktree exists** — create fresh:
-   \`\`\`bash
+   ```bash
    git worktree add ../<repo>-opsp-<initiative-name> -b opsp/<initiative-name>
    cd ../<repo>-opsp-<initiative-name>
-   \`\`\`
-   Verify with \`pwd\` and \`git branch --show-current\`.
+   ```
+   Verify with `pwd` and `git branch --show-current`.
 
    **If the branch exists but no worktree references it** — ask the operator:
    > "Initiative branch opsp/<initiative-name> already exists. Resume from this branch or create a new one?"
 
    If resuming:
-   \`\`\`bash
+   ```bash
    git worktree add ../<repo>-opsp-<initiative-name> opsp/<initiative-name>
    cd ../<repo>-opsp-<initiative-name>
-   \`\`\`
-   Verify with \`pwd\` and \`git branch --show-current\`.
+   ```
+   Verify with `pwd` and `git branch --show-current`.
 
-   **If the worktree already exists** at \`../<repo>-opsp-<initiative-name>\`:
-   \`\`\`bash
+   **If the worktree already exists** at `../<repo>-opsp-<initiative-name>`:
+   ```bash
    cd ../<repo>-opsp-<initiative-name>
-   \`\`\`
-   Verify with \`pwd\` and \`git branch --show-current\`.
+   ```
+   Verify with `pwd` and `git branch --show-current`.
 
    **The operator's main checkout is not modified.**
 
@@ -86,7 +68,7 @@ const OPSP_APPLY_INSTRUCTIONS = `Execute an initiative by orchestrating opsx cyc
    - **Continuous** — run all milestones without pause (only pause for surrogate escalations)
 
 5. **Display progress**:
-   \`\`\`
+   ```
    Initiative: migrate-to-serverless
    Worktree: ../<repo>-opsp-migrate-to-serverless
    Branch: opsp/migrate-to-serverless
@@ -96,7 +78,7 @@ const OPSP_APPLY_INSTRUCTIONS = `Execute an initiative by orchestrating opsx cyc
    ✓ extract-auth-service
    → migrate-payment-endpoints (next)
      deprecate-monolith-routes
-   \`\`\`
+   ```
 
 ## Phase 2: Execute Milestone (OPSX Cycle)
 
@@ -110,19 +92,19 @@ Think through the milestone at feature level. You already have the architect-lev
 
 ### Step 2b: OPSX Propose
 Create an opsx change:
-\`\`\`bash
+```bash
 openspec new change "<milestone-name>"
-\`\`\`
+```
 Then generate the artifacts (proposal.md, specs, design.md, tasks.md) using the opsx workflow. The proposal should reference the parent initiative and relevant driver-specs/ADRs.
 
 ### Step 2c: OPSX Apply
 
 **Create a change worktree** before implementing:
-\`\`\`bash
+```bash
 git worktree add ../<repo>-opsx-<initiative-name>-<change-name> -b opsx/<initiative-name>/<change-name> opsp/<initiative-name>
 cd ../<repo>-opsx-<initiative-name>-<change-name>
-\`\`\`
-Verify with \`pwd\` and \`git branch --show-current\`.
+```
+Verify with `pwd` and `git branch --show-current`.
 
 All implementation, edits, and test runs happen inside this change worktree. Do not read or write files outside of it during implementation.
 
@@ -141,14 +123,14 @@ When you encounter ambiguity during implementation:
 
    But do NOT ask the raw implementation question. Reformulate it as a higher-level question whose answer enriches the surrogate:
 
-   \`\`\`
+   ```
    BAD:  "Should I use Express or Fastify for this endpoint?"
    GOOD: "The initiative requires API endpoints for payment processing.
           Current architecture uses Express (from the monolith).
           Should we standardize on Express for all new services,
           or adopt a different framework for serverless functions?
           This decision will affect all future service milestones."
-   \`\`\`
+   ```
 
    When the operator answers:
    - Classify the answer: new ADR? new driver-spec? update to existing?
@@ -160,19 +142,19 @@ When you encounter ambiguity during implementation:
 After all tasks are complete:
 1. Archive the opsx change (sync delta specs to main specs if applicable, move to archive)
 2. **Merge the change branch into the initiative worktree, then prune the change worktree**:
-   \`\`\`bash
+   ```bash
    cd ../<repo>-opsp-<initiative-name>
-   \`\`\`
-   Verify with \`pwd\`.
-   \`\`\`bash
+   ```
+   Verify with `pwd`.
+   ```bash
    git merge opsx/<initiative-name>/<change-name>
-   \`\`\`
+   ```
    Verify the merge succeeded (exit code 0).
 
    On success, remove the change worktree:
-   \`\`\`bash
+   ```bash
    git worktree remove ../<repo>-opsx-<initiative-name>-<change-name>
-   \`\`\`
+   ```
    The change branch ref is preserved for history inspection. If a correction is needed later, raise a change request — this creates a new opsx change with a fresh worktree. Do not re-attach a worktree to a merged change branch.
 
    **If merge conflict occurs**: PAUSE and present the conflict files to the operator. Do NOT auto-resolve merge conflicts. Do NOT remove the change worktree until the conflict is resolved. Wait for the operator to resolve them before continuing.
@@ -180,7 +162,7 @@ After all tasks are complete:
 3. **Per-change checkpoint** (if review mode is per-change):
    Display a checkpoint with:
    - Change name and summary of what was built
-   - Branch for review: \`opsx/<initiative-name>/<change-name>\`
+   - Branch for review: `opsx/<initiative-name>/<change-name>`
    - Remaining changes in current milestone
    - Remaining milestones
 
@@ -203,7 +185,7 @@ After the milestone's opsx cycle completes:
 Display:
 - Milestone name and summary of what was built
 - OPSX changes completed in this milestone
-- Branch for review: \`opsp/<initiative-name>\`
+- Branch for review: `opsp/<initiative-name>`
 - Count of new commits since last milestone
 - Remaining milestones
 
@@ -232,7 +214,7 @@ Present two options:
 ### Path A: Direct Propose (operator knows the fix)
 
 1. Ask the operator to describe what needs to change and why
-2. Run \`/opsx:propose\` inline with the operator's description
+2. Run `/opsx:propose` inline with the operator's description
    - The corrective change proposal MUST explicitly note any surrogate artifacts (ADRs/driver-specs) that need updating
    - If the issue traces back to a bad ADR, the change tasks should include superseding that ADR and creating a corrected one
    - If the issue traces back to a missing or wrong driver-spec, the change tasks should include updating or creating the driver-spec
@@ -241,7 +223,7 @@ Present two options:
 
 ### Path B: Explore First (operator needs clarification)
 
-1. Enter an \`/opsx:explore\` session inline
+1. Enter an `/opsx:explore` session inline
    - The exploration has access to the full surrogate context and the current milestone's artifacts
    - Act as a thinking partner — help the operator reason through what went wrong and why
 2. When the exploration concludes, ask the operator:
@@ -252,10 +234,10 @@ Present two options:
 
 After any corrective opsx change is archived:
 1. **Reload the full surrogate** — re-read ALL of:
-   - \`opensprint/driver-specs/*.md\`
-   - \`opensprint/ADRs/*.md\`
-   - \`opensprint/architecture.md\`
-   - \`opensprint/DECISION-MAP.md\`
+   - `opensprint/driver-specs/*.md`
+   - `opensprint/ADRs/*.md`
+   - `opensprint/architecture.md`
+   - `opensprint/DECISION-MAP.md`
 2. **Return to the same checkpoint** with the updated surrogate context
 3. The operator can now:
    - **Approve and continue** — satisfied with the correction
@@ -269,7 +251,7 @@ This creates a natural feedback loop: checkpoint → change request → correcti
 - If more milestones remain → return to Phase 2 for the next one
 - If all milestones done → display completion summary:
 
-\`\`\`
+```
 ## Initiative Complete: migrate-to-serverless
 
 Worktree: ../<repo>-opsp-migrate-to-serverless
@@ -280,23 +262,23 @@ New ADRs: DEC-003 (Express for serverless), DEC-004 (DynamoDB for sessions)
 New Driver Specs: DS-LATENCY (sub-200ms API response)
 
 The initiative worktree contains all changes.
-Review with \`/opsp:review migrate-to-serverless\` or merge the initiative branch to main when ready.
-Ready to compile architectural state. Run \`/opsp:archive migrate-to-serverless\`.
-\`\`\`
+Review with `/opsp:review migrate-to-serverless` or merge the initiative branch to main when ready.
+Ready to compile architectural state. Run `/opsp:archive migrate-to-serverless`.
+```
 
 ---
 
 ## Worktree & Branch Management
 
 Branch naming convention:
-- **Initiative branches**: \`opsp/<initiative-name>\` (created once at start)
-- **Change branches**: \`opsx/<initiative-name>/<change-name>\` (created per opsx change)
+- **Initiative branches**: `opsp/<initiative-name>` (created once at start)
+- **Change branches**: `opsx/<initiative-name>/<change-name>` (created per opsx change)
 
 Worktree path convention (siblings of the main checkout):
-- **Initiative worktrees**: \`../<repo>-opsp-<initiative-name>\`
-- **Change worktrees**: \`../<repo>-opsx-<initiative-name>-<change-name>\`
+- **Initiative worktrees**: `../<repo>-opsp-<initiative-name>`
+- **Change worktrees**: `../<repo>-opsx-<initiative-name>-<change-name>`
 
-Where \`<repo>\` is the basename of the main checkout directory (from \`basename $(git rev-parse --show-toplevel)\`).
+Where `<repo>` is the basename of the main checkout directory (from `basename $(git rev-parse --show-toplevel)`).
 
 Git uses forward slashes for branch names on all platforms (including Windows). Worktree filesystem paths use hyphens to avoid the slash restriction on Windows paths.
 
@@ -325,10 +307,10 @@ When processing multiple milestones, context window may get long. To manage this
 - **Update initiative** — Keep the initiative descriptor current after each milestone
 - **Don't skip archive** — Each opsx cycle must be properly archived before moving on
 - **Worktree per change** — Always create a change worktree before implementing, prune it after merge
-- **Verify cwd before file operations** — After every \`cd\`, run \`pwd\` and \`git branch --show-current\` before any reads, writes, or git mutations
+- **Verify cwd before file operations** — After every `cd`, run `pwd` and `git branch --show-current` before any reads, writes, or git mutations
 - **Pause at checkpoints** — Respect the operator's chosen review mode for pausing
 - **Approve explicitly** — Log approvals in the initiative descriptor for audit trail
 - **Change requests fix the surrogate** — When the operator raises a change request, ensure corrective changes update the root cause (ADRs/driver-specs), not just the symptoms (code)
 - **Reload after correction** — Always reload the full surrogate after a corrective change before returning to the checkpoint
 - **Corrections create new worktrees** — Never re-attach a worktree to a merged change branch; raise a change request to get a fresh worktree
-`;
+
