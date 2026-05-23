@@ -13,7 +13,7 @@ Applies to tests under `test/`.
 
 - Do not hard-code Unix path separators in CLI output expectations unless the implementation intentionally emits POSIX paths.
 - For filesystem paths, build expected values with `path.join(...)`, `path.relative(...)`, or `FileSystemUtils.joinPath(...)`.
-- For human-readable output, either assert a deliberately normalized display format or normalize both actual and expected strings before comparing.
+- For human-readable output, either assert a deliberately normalized display format or normalize both actual and expected strings before comparing, for example with `FileSystemUtils.toPosixPath()` to convert backslashes to forward slashes for cross-platform consistency.
 - When touching path behavior, add coverage that would fail on Windows path separators.
 
 ## Path Canonicalization
