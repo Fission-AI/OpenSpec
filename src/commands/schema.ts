@@ -957,6 +957,7 @@ function createDefaultTemplate(artifactId: string): string {
 Description of the requirement.
 
 #### Scenario: Example scenario
+- **GIVEN** some initial state
 - **WHEN** some condition
 - **THEN** some outcome
 `;

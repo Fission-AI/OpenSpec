@@ -4,5 +4,6 @@
 <!-- requirement text -->
 
 #### Scenario: <!-- scenario name -->
-- **WHEN** <!-- condition -->
+- **GIVEN** <!-- initial state or precondition -->
+- **WHEN** <!-- action or trigger -->
 - **THEN** <!-- expected outcome -->
