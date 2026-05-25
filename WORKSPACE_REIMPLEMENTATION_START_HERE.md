@@ -1,6 +1,29 @@
 # Workspace Reimplementation Start Here
 
-This is the grep-friendly entry point for agents working on the workspace reimplementation.
+This is the grep-friendly historical entry point for agents working on the
+workspace reimplementation.
+
+## Current Status
+
+The original workspace lifecycle roadmap has been reframed by the context store
+and initiatives direction. Fresh agents should treat this document and the POC
+materials as reference for preserved local-view infrastructure, not as the next
+implementation queue.
+
+Current product authority lives in:
+
+1. `openspec/initiatives/context-store-and-initiatives/direction.md`
+2. `openspec/initiatives/context-store-and-initiatives/roadmap.md`
+
+The locked boundary is:
+
+```text
+Context stores sync truth.
+Collections shape truth.
+Initiatives coordinate work.
+Workspaces open local views.
+Changes implement repo-owned slices.
+```
 
 Useful search terms:
 
@@ -18,10 +41,11 @@ start here
 
 Read these files in order:
 
-1. `WORKSPACE_REIMPLEMENTATION_DIRECTION.md`
-2. `openspec/changes/workspace-reimplementation-roadmap/README.md`
-3. `openspec/changes/workspace-reimplementation-roadmap/POC_REFERENCE_GUIDE.md`
-4. The proposal for the next implementation slice
+1. `openspec/initiatives/context-store-and-initiatives/direction.md`
+2. `openspec/initiatives/context-store-and-initiatives/roadmap.md`
+3. `WORKSPACE_REIMPLEMENTATION_DIRECTION.md`
+4. `openspec/changes/workspace-reimplementation-roadmap/README.md`
+5. `openspec/changes/workspace-reimplementation-roadmap/POC_REFERENCE_GUIDE.md`
 
 The POC reference commit is:
 
@@ -29,11 +53,13 @@ The POC reference commit is:
 workspace-poc @ 79a45ac043f414e63d13e08b9da83b135cb20a39
 ```
 
-Use the POC as research material. Do not merge it into an implementation branch. Do not preserve its architecture unless a slice proposal or design explicitly decides to do so.
+Use the POC as research material. Do not merge it into an implementation branch.
+Do not preserve its architecture unless a later initiative or repo-local change
+design explicitly decides to do so.
 
-## Implementation Order
+## Historical Implementation Order
 
-Implement these flat OpenSpec changes in order:
+The original flat OpenSpec order was:
 
 1. `workspace-foundation`
 2. `workspace-create-and-register-repos`
@@ -43,7 +69,17 @@ Implement these flat OpenSpec changes in order:
 6. `workspace-apply-repo-slice`
 7. `workspace-verify-and-archive`
 
-`workspace-reimplementation-roadmap` is the continuity and reference container for the plan.
+Current disposition:
+
+- Keep setup, link, relink, list, open, update, and doctor as beta local-view
+  infrastructure.
+- Treat workspace planning as legacy or transitional behavior, not the durable
+  cross-repo source of truth.
+- Do not implement `workspace-apply-repo-slice` or
+  `workspace-verify-and-archive` as first-class workspace lifecycle commands
+  until initiative-linked repo-local changes exist.
+- Use `workspace-reimplementation-roadmap` as continuity and reference, not as
+  the active shipping sequence.
 
 ## Before Editing
 
@@ -65,4 +101,5 @@ Open design questions:
 - ...
 ```
 
-Capture durable findings in the relevant OpenSpec artifact so future sessions do not depend on chat history.
+Capture durable findings in the relevant initiative, context-store, or
+repo-local OpenSpec artifact so future sessions do not depend on chat history.

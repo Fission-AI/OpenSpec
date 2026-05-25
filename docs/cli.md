@@ -7,7 +7,7 @@ The OpenSpec CLI (`openspec`) provides terminal commands for project setup, vali
 | Category | Commands | Purpose |
 |----------|----------|---------|
 | **Setup** | `init`, `update` | Initialize and update OpenSpec in your project |
-| **Workspaces (beta)** | `workspace setup`, `workspace list`, `workspace ls`, `workspace link`, `workspace relink`, `workspace doctor`, `workspace update`, `workspace open` | Set up planning across linked repos or folders |
+| **Workspaces (beta)** | `workspace setup`, `workspace list`, `workspace ls`, `workspace link`, `workspace relink`, `workspace doctor`, `workspace update`, `workspace open` | Set up local views over linked repos or folders |
 | **Browsing** | `list`, `view`, `show` | Explore changes and specs |
 | **Validation** | `validate` | Check changes and specs for issues |
 | **Lifecycle** | `archive` | Finalize completed changes |
@@ -52,7 +52,7 @@ These commands support `--json` output for programmatic use by AI agents and scr
 | `openspec workspace link` | Link a repo or folder | `--json` for structured link output |
 | `openspec workspace relink` | Repair a linked path | `--json` for structured link output |
 | `openspec workspace doctor` | Check one workspace | `--json` for structured status output |
-| `openspec workspace update` | Refresh workspace-local agent skills | `--tools` selects agents; profile selects workflows |
+| `openspec workspace update` | Refresh workspace-local guidance and agent skills | `--tools` selects agents; profile selects workflows |
 
 ---
 
@@ -170,7 +170,7 @@ openspec update
 
 Workspace commands are under active development and are not ready for use yet. Do not build external automation, integrations, or long-lived workflows on top of this command surface; command behavior, state files, and JSON output can change at any point.
 
-Coordination workspaces are planning homes for work that spans multiple repos or folders. Workspace visibility is not change commitment: link the repos or folders OpenSpec should know about, then create changes when you are ready to plan specific work.
+Coordination workspaces are machine-local views over linked repos or folders. Workspace visibility is not change commitment: link the repos or folders OpenSpec should know about, then create changes when you are ready to plan specific work.
 
 ### `openspec workspace setup`
 
@@ -269,7 +269,7 @@ JSON responses use typed objects plus `status` arrays. Primary data lives in `wo
 
 ### `openspec workspace update`
 
-Refresh workspace-local OpenSpec skills from the active global profile.
+Refresh workspace-local OpenSpec guidance and agent skills.
 
 ```bash
 openspec workspace update [name] [options]
@@ -293,9 +293,9 @@ openspec workspace update --workspace platform --tools codex,claude
 openspec workspace update --workspace platform --tools none
 ```
 
-`workspace update` reuses the stored workspace skill agent selection when `--tools` is omitted. Passing `--tools` replaces that stored selection. It refreshes only OpenSpec-managed workflow skill directories in the workspace root, removes deselected managed workflow skills, and leaves linked repos and folders untouched.
+`workspace update` refreshes the generated workspace guidance block and local open surface. For agent skills, it reuses the stored workspace skill agent selection when `--tools` is omitted. Passing `--tools` replaces that stored selection. It refreshes only OpenSpec-managed workflow skill directories in the workspace root, removes deselected managed workflow skills, and leaves linked repos and folders untouched.
 
-Running `openspec update` from inside a workspace planning home redirects to `openspec workspace update`; run `openspec update` inside repo-local projects when you want repo-owned tool files updated.
+Running `openspec update` from inside a workspace redirects to `openspec workspace update`; run `openspec update` inside repo-local projects when you want repo-owned tool files updated.
 
 ### `openspec workspace open`
 
@@ -330,7 +330,7 @@ OpenSpec maintains `<workspace-name>.code-workspace` at the workspace root for V
 
 The maintained VS Code workspace includes the coordination root as `.` plus valid linked repos or folders as additional roots. VS Code displays those entries as a multi-root workspace.
 
-Root workspace open supports exploration and planning across linked repos or folders. Implementation edits should start only after an explicit user request and a normal OpenSpec implementation workflow.
+Root workspace open makes linked repos or folders visible for exploration and context. Implementation edits should start only after an explicit user request and a normal OpenSpec implementation workflow.
 
 ---
 
@@ -993,9 +993,9 @@ openspec config profile core
 - Keep current settings (exit)
 
 If you keep current settings, no changes are written and no update prompt is shown.
-If there are no config changes but the current project or workspace files are out of sync with your global profile/delivery, OpenSpec will show a warning and suggest `openspec update` for repo-local projects or `openspec workspace update` for workspace-local skills.
+If there are no config changes but the current project or workspace files are out of sync with your global profile/delivery, OpenSpec will show a warning and suggest `openspec update` for repo-local projects or `openspec workspace update` for workspace-local guidance and skills.
 Pressing `Ctrl+C` also cancels the flow cleanly (no stack trace) and exits with code `130`.
-In the workflow checklist, `[x]` means the workflow is selected in global config. To apply those selections to project files, run `openspec update` (or choose `Apply changes to this project now?` when prompted inside a project). From inside a workspace, use `openspec workspace update` to refresh workspace-local skills; this remains skills-only and does not generate workspace slash commands.
+In the workflow checklist, `[x]` means the workflow is selected in global config. To apply those selections to project files, run `openspec update` (or choose `Apply changes to this project now?` when prompted inside a project). From inside a workspace, use `openspec workspace update` to refresh workspace-local guidance and skills; this remains skills-only for generated agent workflow files and does not generate workspace slash commands.
 
 **Interactive examples:**
 

@@ -1,5 +1,15 @@
 ## Why
 
+Status: deferred by the context-store-and-initiatives direction. Per-repo
+progress visibility remains important, but verify/archive should be redesigned
+around initiative status and linked repo-local OpenSpec changes, not around
+workspace-owned final archive state. Do not implement this as a first-class
+workspace lifecycle command until that linkage exists.
+
+The remaining sections preserve the original workspace verify/archive direction
+for later reference. This work is still expected to matter after initiatives and
+initiative-linked repo-local changes exist; it is not the immediate next focus.
+
 Users need to know whether a cross-repo workspace change is complete without flattening all repo progress into one ambiguous done state.
 
 The desired lifecycle is:

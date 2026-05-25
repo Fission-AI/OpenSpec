@@ -2,9 +2,39 @@
 
 Date: 2026-04-30
 
+## Status
+
+This document is historical product direction from the workspace POC follow-up.
+It remains useful for preserved workspace setup, link, open, update, doctor, and
+agent-visibility decisions.
+
+It no longer defines the durable coordination model. The current authority is
+`openspec/initiatives/context-store-and-initiatives/direction.md`, which locks
+this boundary:
+
+```text
+Context stores sync truth.
+Collections shape truth.
+Initiatives coordinate work.
+Workspaces open local views.
+Changes implement repo-owned slices.
+```
+
+Superseded here: workspace as the durable planning home, workspace-level
+planning artifacts as the canonical shared cross-repo plan, and workspace
+apply/verify/archive as the next first-class lifecycle commands.
+
+Deferred here: apply, verify, archive, branch/worktree orchestration,
+cross-repo validation, dependency graph enforcement, and governance flows until
+initiative-linked repo-local changes exist.
+
 Fresh-agent entry point: read `WORKSPACE_REIMPLEMENTATION_START_HERE.md` first, then return to this document for the full product direction.
 
 This document captures the intended direction for reimplementing OpenSpec workspace support from scratch, based on what we learned from the workspace POC.
+
+The sections below are historical POC follow-up direction. Use them for lessons
+and preserved local-view behavior only. Do not treat later workspace lifecycle
+sections as active implementation guidance.
 
 The reimplementation should be ordered around the path a real user takes through OpenSpec:
 
@@ -443,14 +473,16 @@ Do not start with:
 
 Those may matter later, but they should not define the first reimplementation path.
 
-## Product Shape
+## Historical Product Shape
 
-The workspace should feel like OpenSpec's normal workflow stretched across multiple repos, not a second product with its own lifecycle.
+This was the older workspace product shape. It is preserved here so POC lessons
+remain understandable, but it is superseded by the context-store-and-initiatives
+direction for durable coordination.
 
-The durable product model is:
+The historical durable product model was:
 
 ```text
-workspace = durable planning home
+workspace = planning home
 links = repos or folders visible for planning
 proposal = scoped planning commitment
 repo slice = one affected repo or folder in the plan
@@ -458,7 +490,16 @@ branch/worktree = implementation checkout
 /apply = implement one selected repo slice
 ```
 
-Keep the user journey simple:
+The current durable product model is:
+
+```text
+context store = synced shared truth
+initiative = durable coordination object
+workspace = local opened view
+repo change = repo-owned implementation plan
+```
+
+The historical user journey was:
 
 ```text
 Open the workspace.
