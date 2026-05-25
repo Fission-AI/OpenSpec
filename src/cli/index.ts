@@ -20,6 +20,8 @@ import {
   registerWorkspaceCommand,
   runWorkspaceUpdateForRoot,
 } from '../commands/workspace.js';
+import { registerContextStoreCommand } from '../commands/context-store.js';
+import { registerInitiativeCommand } from '../commands/initiative.js';
 import { findWorkspaceRoot } from '../core/workspace/index.js';
 import {
   statusCommand,
@@ -28,12 +30,14 @@ import {
   templatesCommand,
   schemasCommand,
   newChangeCommand,
+  setChangeCommand,
   DEFAULT_SCHEMA,
   type StatusOptions,
   type InstructionsOptions,
   type TemplatesOptions,
   type SchemasOptions,
   type NewChangeOptions,
+  type SetChangeOptions,
 } from '../commands/workflow/index.js';
 import { maybeShowTelemetryNotice, trackCommand, shutdown } from '../telemetry/index.js';
 
@@ -297,6 +301,8 @@ registerSpecCommand(program);
 registerConfigCommand(program);
 registerSchemaCommand(program);
 registerWorkspaceCommand(program);
+registerContextStoreCommand(program);
+registerInitiativeCommand(program);
 
 // Top-level validate command
 program
@@ -510,10 +516,34 @@ newCmd
   .option('--description <text>', 'Description to add to README.md')
   .option('--goal <text>', 'Workspace product goal to store with the change')
   .option('--areas <names>', 'Comma-separated affected workspace link names')
+  .option('--initiative <id>', 'Link the repo-local change to an initiative')
+  .option('--store <id>', 'Context store id for --initiative')
+  .option('--store-path <path>', 'Existing local context store root for --initiative')
   .option('--schema <name>', `Workflow schema to use (default: ${DEFAULT_SCHEMA})`)
+  .option('--json', 'Output as JSON')
   .action(async (name: string, options: NewChangeOptions) => {
     try {
       await newChangeCommand(name, options);
+    } catch (error) {
+      console.log();
+      ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+// Set command group
+const setCmd = program.command('set').description('Set checked-in OpenSpec metadata');
+
+setCmd
+  .command('change <name>')
+  .description('Set repo-local change metadata')
+  .option('--initiative <id>', 'Link the repo-local change to an initiative')
+  .option('--store <id>', 'Context store id for --initiative')
+  .option('--store-path <path>', 'Existing local context store root for --initiative')
+  .option('--json', 'Output as JSON')
+  .action(async (name: string, options: SetChangeOptions) => {
+    try {
+      await setChangeCommand(name, options);
     } catch (error) {
       console.log();
       ora().fail(`Error: ${(error as Error).message}`);

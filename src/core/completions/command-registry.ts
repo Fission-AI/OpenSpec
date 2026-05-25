@@ -221,7 +221,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         flags: [
           {
             name: 'workspace',
-            description: 'Workspace name from the local workspace registry',
+            description: 'Workspace name from local workspace views',
             takesValue: true,
           },
           COMMON_FLAGS.json,
@@ -244,7 +244,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         flags: [
           {
             name: 'workspace',
-            description: 'Workspace name from the local workspace registry',
+            description: 'Workspace name from local workspace views',
             takesValue: true,
           },
           COMMON_FLAGS.json,
@@ -257,7 +257,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         flags: [
           {
             name: 'workspace',
-            description: 'Workspace name from the local workspace registry',
+            description: 'Workspace name from local workspace views',
             takesValue: true,
           },
           COMMON_FLAGS.json,
@@ -266,7 +266,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
       },
       {
         name: 'update',
-        description: 'Refresh workspace-local OpenSpec agent skills from the active global profile',
+        description: 'Refresh workspace-local OpenSpec guidance and agent skills',
         acceptsPositional: true,
         positionals: [
           {
@@ -277,7 +277,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         flags: [
           {
             name: 'workspace',
-            description: 'Workspace name from the local workspace registry',
+            description: 'Workspace name from local workspace views',
             takesValue: true,
           },
           {
@@ -302,7 +302,22 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         flags: [
           {
             name: 'workspace',
-            description: 'Workspace name from the local workspace registry',
+            description: 'Workspace name from local workspace views',
+            takesValue: true,
+          },
+          {
+            name: 'initiative',
+            description: 'Open an initiative as a local workspace view',
+            takesValue: true,
+          },
+          {
+            name: 'store',
+            description: 'Context store id for --initiative',
+            takesValue: true,
+          },
+          {
+            name: 'store-path',
+            description: 'Existing local context store root for --initiative',
             takesValue: true,
           },
           {
@@ -315,7 +330,105 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             name: 'editor',
             description: 'Open the workspace in VS Code editor mode',
           },
+          COMMON_FLAGS.json,
           COMMON_FLAGS.noInteractive,
+        ],
+      },
+    ],
+  },
+  {
+    name: 'initiative',
+    description: 'Create and list coordinated initiatives',
+    flags: [],
+    subcommands: [
+      {
+        name: 'create',
+        description: 'Create an initiative in a context store',
+        acceptsPositional: true,
+        positionals: [
+          {
+            name: 'id',
+          },
+        ],
+        flags: [
+          {
+            name: 'store',
+            description: 'Context store id from the local context-store registry',
+            takesValue: true,
+          },
+          {
+            name: 'store-path',
+            description: 'Existing local context store root',
+            takesValue: true,
+          },
+          {
+            name: 'title',
+            description: 'Initiative title',
+            takesValue: true,
+          },
+          {
+            name: 'summary',
+            description: 'Initiative summary',
+            takesValue: true,
+          },
+          COMMON_FLAGS.json,
+        ],
+      },
+      {
+        name: 'show',
+        description: 'Show where an initiative lives and how to read it',
+        acceptsPositional: true,
+        positionals: [
+          {
+            name: 'id',
+          },
+        ],
+        flags: [
+          {
+            name: 'store',
+            description: 'Context store id from the local context-store registry',
+            takesValue: true,
+          },
+          {
+            name: 'store-path',
+            description: 'Existing local context store root',
+            takesValue: true,
+          },
+          COMMON_FLAGS.json,
+        ],
+      },
+      {
+        name: 'list',
+        description: 'List initiatives across registered context stores',
+        flags: [
+          {
+            name: 'store',
+            description: 'Context store id from the local context-store registry',
+            takesValue: true,
+          },
+          {
+            name: 'store-path',
+            description: 'Existing local context store root',
+            takesValue: true,
+          },
+          COMMON_FLAGS.json,
+        ],
+      },
+      {
+        name: 'ls',
+        description: 'List initiatives across registered context stores',
+        flags: [
+          {
+            name: 'store',
+            description: 'Context store id from the local context-store registry',
+            takesValue: true,
+          },
+          {
+            name: 'store-path',
+            description: 'Existing local context store root',
+            takesValue: true,
+          },
+          COMMON_FLAGS.json,
         ],
       },
     ],

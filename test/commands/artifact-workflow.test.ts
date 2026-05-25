@@ -450,8 +450,17 @@ describe('artifact-workflow CLI commands', () => {
       expect(statusJson.actionContext).toEqual(
         expect.objectContaining({
           mode: 'workspace-planning',
+          sourceOfTruth: 'workspace-local',
           allowedEditRoots: [],
+          constraints: expect.arrayContaining([
+            'Treat workspace-local planning artifacts as compatibility context for this local view.',
+            'Use initiatives for durable coordination when initiative context exists.',
+            'Treat linked repos and folders as context until an explicit edit root is selected.',
+          ]),
         })
+      );
+      expect(statusJson.actionContext.constraints).not.toContain(
+        'Use workspace-level planning artifacts as the source of truth.'
       );
       expect(statusJson.artifactPaths.specs.existingOutputPaths).toEqual([canonical(specPath)]);
 

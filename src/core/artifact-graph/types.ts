@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { validateInitiativeId } from '../collections/initiatives/schema.js';
+import { validateContextStoreId } from '../context-store/foundation.js';
 
 // Artifact definition schema
 export const ArtifactSchema = z.object({
@@ -30,10 +32,38 @@ export const SchemaYamlSchema = z.object({
   apply: ApplyPhaseSchema.optional(),
 });
 
+const ContextStoreIdSchema = z.string().superRefine((value, ctx) => {
+  try {
+    validateContextStoreId(value);
+  } catch (error) {
+    ctx.addIssue({
+      code: 'custom',
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+const InitiativeIdSchema = z.string().superRefine((value, ctx) => {
+  try {
+    validateInitiativeId(value);
+  } catch (error) {
+    ctx.addIssue({
+      code: 'custom',
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+export const InitiativeLinkSchema = z.object({
+  store: ContextStoreIdSchema,
+  id: InitiativeIdSchema,
+}).strict();
+
 // Derived TypeScript types
 export type Artifact = z.infer<typeof ArtifactSchema>;
 export type ApplyPhase = z.infer<typeof ApplyPhaseSchema>;
 export type SchemaYaml = z.infer<typeof SchemaYamlSchema>;
+export type InitiativeLink = z.infer<typeof InitiativeLinkSchema>;
 
 // Per-change metadata schema
 // Note: schema field is validated at parse time against available schemas
@@ -55,6 +85,11 @@ export const ChangeMetadataSchema = z.object({
   // artifacts as the source of planning detail.
   goal: z.string().min(1).optional(),
   affected_areas: z.array(z.string().min(1)).optional(),
+
+  // Optional portable link to shared initiative context. This intentionally
+  // stores only stable identifiers; local paths and copied initiative content
+  // remain out of repo-local change metadata.
+  initiative: InitiativeLinkSchema.optional(),
 });
 
 export type ChangeMetadata = z.infer<typeof ChangeMetadataSchema>;

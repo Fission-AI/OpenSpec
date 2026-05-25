@@ -36,6 +36,24 @@ describe('ChangeMetadataSchema', () => {
         expect(result.data.created).toBeUndefined();
       }
     });
+
+    it('should accept a portable initiative link', () => {
+      const result = ChangeMetadataSchema.safeParse({
+        schema: 'spec-driven',
+        initiative: {
+          store: 'platform',
+          id: 'billing-launch',
+        },
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.initiative).toEqual({
+          store: 'platform',
+          id: 'billing-launch',
+        });
+      }
+    });
   });
 
   describe('invalid metadata', () => {
@@ -67,6 +85,36 @@ describe('ChangeMetadataSchema', () => {
         created: '2025-1-5', // Missing leading zeros
       });
       expect(result.success).toBe(false);
+    });
+
+    it('should reject initiative links with local paths or copied content', () => {
+      const result = ChangeMetadataSchema.safeParse({
+        schema: 'spec-driven',
+        initiative: {
+          store: 'platform',
+          id: 'billing-launch',
+          path: '/tmp/context-store/initiatives/billing-launch',
+          summary: 'Copied initiative prose',
+        },
+      });
+
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject unsafe initiative link identifiers', () => {
+      for (const initiative of [
+        { store: '/tmp/platform', id: 'billing-launch' },
+        { store: 'platform', id: 'billing/launch' },
+        { store: 'Platform', id: 'billing-launch' },
+        { store: 'platform', id: 'billing launch' },
+      ]) {
+        const result = ChangeMetadataSchema.safeParse({
+          schema: 'spec-driven',
+          initiative,
+        });
+
+        expect(result.success).toBe(false);
+      }
     });
   });
 });
@@ -139,6 +187,27 @@ describe('readChangeMetadata', () => {
     expect(result).toEqual({
       schema: 'spec-driven',
       created: '2025-01-05',
+    });
+  });
+
+  it('should read portable initiative metadata', async () => {
+    const metaPath = path.join(changeDir, '.openspec.yaml');
+    await fs.writeFile(
+      metaPath,
+      [
+        'schema: spec-driven',
+        'initiative:',
+        '  store: platform',
+        '  id: billing-launch',
+        '',
+      ].join('\n'),
+      'utf-8'
+    );
+
+    const result = readChangeMetadata(changeDir);
+    expect(result?.initiative).toEqual({
+      store: 'platform',
+      id: 'billing-launch',
     });
   });
 

@@ -8,7 +8,7 @@ import { readChangeMetadata, resolveSchemaForChange } from '../../utils/change-m
 import { FileSystemUtils } from '../../utils/file-system.js';
 import { readProjectConfig, validateConfigRules } from '../project-config.js';
 import type { PlanningHome } from '../planning-home.js';
-import type { Artifact, CompletedSet } from './types.js';
+import type { Artifact, ChangeMetadata, CompletedSet, InitiativeLink } from './types.js';
 
 // Session-level cache for validation warnings (avoid repeating same warnings)
 const shownWarnings = new Set<string>();
@@ -44,6 +44,10 @@ export interface ChangeContext {
   projectRoot: string;
   /** Resolved planning home for this change */
   planningHome?: PlanningHome;
+  /** Parsed change metadata, when present */
+  metadata?: ChangeMetadata;
+  /** Stored initiative link, when this change is linked to shared context */
+  initiative?: InitiativeLink;
 }
 
 export interface LoadChangeContextOptions {
@@ -65,6 +69,8 @@ export interface ArtifactInstructions {
   changeDir: string;
   /** Resolved planning home for this change */
   planningHome?: PlanningHomeSummary;
+  /** Stored initiative link, when this change is linked to shared context */
+  initiative?: InitiativeLink;
   /** Output path pattern (e.g., "proposal.md") */
   outputPath: string;
   /** Absolute output path or glob pattern resolved under the change directory */
@@ -125,6 +131,8 @@ export interface ChangeStatus {
   schemaName: string;
   /** Resolved planning home for this change */
   planningHome?: PlanningHomeSummary;
+  /** Stored initiative link, when this change is linked to shared context */
+  initiative?: InitiativeLink;
   /** Full path to the change root */
   changeRoot: string;
   /** Absolute artifact path details keyed by artifact ID */
@@ -132,7 +140,7 @@ export interface ChangeStatus {
   /** Workspace affected-area summary, when available */
   affectedAreas?: AffectedAreasSummary;
   /** Plain-language next steps for users and agents */
-  nextSteps: string[];
+  nextSteps?: string[];
   /** Machine-readable action constraints for agents */
   actionContext: ActionContext;
   /** Whether all artifacts are complete */
@@ -165,7 +173,7 @@ export interface AffectedAreasSummary {
 
 export interface ActionContext {
   mode: 'repo-local' | 'workspace-planning';
-  sourceOfTruth: 'repo' | 'workspace';
+  sourceOfTruth: 'repo' | 'workspace-local';
   planningArtifacts: string[];
   linkedContext: Array<{ name: string }>;
   allowedEditRoots: string[];
@@ -242,6 +250,12 @@ export function loadChangeContext(
 
   // Resolve schema: explicit > metadata > default
   const resolvedSchemaName = resolveSchemaForChange(changeDir, schemaName, projectRoot);
+  let metadata: ChangeMetadata | undefined;
+  try {
+    metadata = readChangeMetadata(changeDir, projectRoot) ?? undefined;
+  } catch {
+    metadata = undefined;
+  }
 
   const schema = resolveSchema(resolvedSchemaName, projectRoot);
   const graph = ArtifactGraph.fromSchema(schema);
@@ -255,6 +269,8 @@ export function loadChangeContext(
     changeDir,
     projectRoot,
     ...(options.planningHome ? { planningHome: options.planningHome } : {}),
+    ...(metadata ? { metadata } : {}),
+    ...(metadata?.initiative ? { initiative: metadata.initiative } : {}),
   };
 }
 
@@ -328,6 +344,7 @@ export function generateInstructions(
     schemaName: context.schemaName,
     changeDir: context.changeDir,
     planningHome: summarizePlanningHome(context.planningHome),
+    ...(context.initiative ? { initiative: context.initiative } : {}),
     outputPath: artifact.generates,
     resolvedOutputPath: path.join(context.changeDir, artifact.generates),
     existingOutputPaths: resolveArtifactOutputs(context.changeDir, artifact.generates),
@@ -411,7 +428,7 @@ function getAffectedAreasSummary(context: ChangeContext): AffectedAreasSummary |
     return undefined;
   }
 
-  const metadata = readChangeMetadata(context.changeDir, context.projectRoot);
+  const metadata = context.metadata ?? readChangeMetadata(context.changeDir, context.projectRoot);
   const known = Array.from(
     new Set([...(metadata?.affected_areas ?? []), ...getWorkspaceSpecAreaSegments(context)])
   ).sort((a, b) => a.localeCompare(b));
@@ -429,14 +446,15 @@ function buildActionContext(context: ChangeContext, artifactIds: string[]): Acti
   if (context.planningHome?.kind === 'workspace') {
     return {
       mode: 'workspace-planning',
-      sourceOfTruth: 'workspace',
+      sourceOfTruth: 'workspace-local',
       planningArtifacts: artifactIds,
       linkedContext: (context.planningHome.workspace?.links ?? []).map((name) => ({ name })),
       allowedEditRoots: [],
       requiresAffectedAreaSelection: true,
       constraints: [
-        'Use workspace-level planning artifacts as the source of truth.',
-        'Treat linked repos and folders as exploration context until an affected area is selected.',
+        'Treat workspace-local planning artifacts as compatibility context for this local view.',
+        'Use initiatives for durable coordination when initiative context exists.',
+        'Treat linked repos and folders as context until an explicit edit root is selected.',
         'Do not make implementation edits without an explicit allowed edit root.',
       ],
     };
@@ -536,12 +554,13 @@ export function formatChangeStatus(context: ChangeContext): ChangeStatus {
     changeName: context.changeName,
     schemaName: context.schemaName,
     planningHome: summarizePlanningHome(context.planningHome),
+    ...(context.initiative ? { initiative: context.initiative } : {}),
     changeRoot: context.changeDir,
     artifactPaths,
     affectedAreas,
     isComplete: context.graph.isComplete(context.completed),
     applyRequires,
-    nextSteps: buildNextSteps(context, artifactStatuses, affectedAreas),
+    ...(context.initiative ? {} : { nextSteps: buildNextSteps(context, artifactStatuses, affectedAreas) }),
     actionContext: buildActionContext(context, artifactStatuses.map((artifact) => artifact.id)),
     artifacts: artifactStatuses,
   };
