@@ -3,6 +3,7 @@ import * as path from 'node:path';
 
 import {
   getWorkspaceChangesDir,
+  getWorkspaceLegacySharedStatePath,
   getWorkspaceSharedStatePath,
   parseWorkspaceSharedState,
   type WorkspaceSharedState,
@@ -77,7 +78,8 @@ function findNearestAncestor(startPath: string, predicate: (dirPath: string) => 
 
 export function findWorkspacePlanningRootSync(startPath = process.cwd()): string | null {
   return findNearestAncestor(startPath, (dirPath) =>
-    pathExistsAsFile(getWorkspaceSharedStatePath(dirPath))
+    pathExistsAsFile(getWorkspaceSharedStatePath(dirPath)) ||
+    pathExistsAsFile(getWorkspaceLegacySharedStatePath(dirPath))
   );
 }
 
@@ -109,13 +111,18 @@ function relativePlanningPath(fromPath: string, toPath: string): string {
 }
 
 function readWorkspaceSharedStateSync(workspaceRoot: string): WorkspaceSharedState | null {
-  try {
-    return parseWorkspaceSharedState(
-      fs.readFileSync(getWorkspaceSharedStatePath(workspaceRoot), 'utf-8')
-    );
-  } catch {
-    return null;
+  for (const statePath of [
+    getWorkspaceSharedStatePath(workspaceRoot),
+    getWorkspaceLegacySharedStatePath(workspaceRoot),
+  ]) {
+    try {
+      return parseWorkspaceSharedState(fs.readFileSync(statePath, 'utf-8'));
+    } catch {
+      // Try the next supported workspace state location.
+    }
   }
+
+  return null;
 }
 
 function workspacePlanningHome(workspaceRoot: string): PlanningHome {
