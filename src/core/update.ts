@@ -43,6 +43,11 @@ import {
   getConfiguredToolsForProfileSync,
   getToolsNeedingProfileSync,
 } from './profile-sync-drift.js';
+import { readProjectConfig } from './project-config.js';
+import {
+  resolveEffectiveProfileSettings,
+  type ConfigScope,
+} from './profile-resolution.js';
 import {
   scanInstalledWorkflows as scanInstalledWorkflowsShared,
   migrateIfNeeded as migrateIfNeededShared,
@@ -58,6 +63,8 @@ const OLD_CORE_WORKFLOWS = ['propose', 'explore', 'apply', 'archive'] as const;
 export interface UpdateCommandOptions {
   /** Force update even when tools are up to date */
   force?: boolean;
+  /** Optional config-scope override for effective profile resolution */
+  scope?: ConfigScope;
 }
 
 /**
@@ -75,9 +82,11 @@ export function scanInstalledWorkflows(projectPath: string, toolIds: string[]): 
 
 export class UpdateCommand {
   private readonly force: boolean;
+  private readonly scope?: ConfigScope;
 
   constructor(options: UpdateCommandOptions = {}) {
     this.force = options.force ?? false;
+    this.scope = options.scope;
   }
 
   async execute(projectPath: string): Promise<void> {
@@ -94,12 +103,16 @@ export class UpdateCommand {
     const detectedTools = getAvailableTools(resolvedProjectPath);
     migrateIfNeededShared(resolvedProjectPath, detectedTools);
 
-    // 3. Read global config for profile/delivery
+    // 3. Resolve effective profile/delivery/workflows by scope-aware precedence
     const globalConfig = getGlobalConfig();
-    const profile = globalConfig.profile ?? 'core';
-    const delivery: Delivery = globalConfig.delivery ?? 'both';
-    const profileWorkflows = getProfileWorkflows(profile, globalConfig.workflows);
-    const desiredWorkflows = profileWorkflows.filter((workflow): workflow is (typeof ALL_WORKFLOWS)[number] =>
+    const effective = resolveEffectiveProfileSettings({
+      scopeOverride: this.scope,
+      globalConfig,
+      projectConfig: readProjectConfig(resolvedProjectPath),
+    });
+    const profile = effective.profile;
+    const delivery: Delivery = effective.delivery;
+    const desiredWorkflows = effective.workflows.filter((workflow): workflow is (typeof ALL_WORKFLOWS)[number] =>
       (ALL_WORKFLOWS as readonly string[]).includes(workflow)
     );
     const shouldGenerateSkills = delivery !== 'commands';
