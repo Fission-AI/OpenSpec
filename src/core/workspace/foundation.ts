@@ -9,8 +9,10 @@ import { FileSystemUtils } from '../../utils/file-system.js';
 const fs = nodeFs.promises;
 
 export const WORKSPACE_METADATA_DIR_NAME = '.openspec-workspace';
-export const WORKSPACE_SHARED_STATE_FILE_NAME = 'workspace.yaml';
+export const WORKSPACE_VIEW_STATE_FILE_NAME = 'workspace.yaml';
+export const WORKSPACE_SHARED_STATE_FILE_NAME = WORKSPACE_VIEW_STATE_FILE_NAME;
 export const WORKSPACE_LOCAL_STATE_FILE_NAME = 'local.yaml';
+export const WORKSPACE_LEGACY_LOCAL_STATE_FILE_NAME = 'local.yaml';
 export const WORKSPACE_CHANGES_DIR_NAME = 'changes';
 export const MANAGED_WORKSPACES_DIR_NAME = 'workspaces';
 export const WORKSPACE_REGISTRY_FILE_NAME = 'registry.yaml';
@@ -46,9 +48,25 @@ export type WorkspacePreferredOpener =
       id: WorkspaceEditorOpenerId;
     };
 
+export interface WorkspaceContextState {
+  store: string;
+  initiative: string;
+}
+
+export interface WorkspaceViewState {
+  version: 1;
+  name: string;
+  context: WorkspaceContextState | null;
+  links: Record<string, string>;
+  preferred_opener?: WorkspacePreferredOpener;
+  tools?: string[];
+  workspace_skills?: WorkspaceSkillState;
+}
+
 export interface WorkspaceSharedState {
   version: 1;
   name: string;
+  context: WorkspaceContextState | null;
   links: Record<string, WorkspaceLinkState>;
 }
 
@@ -58,6 +76,7 @@ export interface WorkspaceLocalState {
   version: 1;
   paths: Record<string, string>;
   preferred_opener?: WorkspacePreferredOpener;
+  tools?: string[];
   workspace_skills?: WorkspaceSkillState;
 }
 
@@ -91,18 +110,30 @@ export function getWorkspaceMetadataDir(workspaceRoot: string): string {
   return joinWorkspacePath(workspaceRoot, WORKSPACE_METADATA_DIR_NAME);
 }
 
-export function getWorkspaceSharedStatePath(workspaceRoot: string): string {
+export function getWorkspaceViewStatePath(workspaceRoot: string): string {
+  return joinWorkspacePath(workspaceRoot, WORKSPACE_VIEW_STATE_FILE_NAME);
+}
+
+export function getWorkspaceLegacySharedStatePath(workspaceRoot: string): string {
   return joinWorkspacePath(
     getWorkspaceMetadataDir(workspaceRoot),
-    WORKSPACE_SHARED_STATE_FILE_NAME
+    WORKSPACE_VIEW_STATE_FILE_NAME
   );
 }
 
-export function getWorkspaceLocalStatePath(workspaceRoot: string): string {
+export function getWorkspaceLegacyLocalStatePath(workspaceRoot: string): string {
   return joinWorkspacePath(
     getWorkspaceMetadataDir(workspaceRoot),
-    WORKSPACE_LOCAL_STATE_FILE_NAME
+    WORKSPACE_LEGACY_LOCAL_STATE_FILE_NAME
   );
+}
+
+export function getWorkspaceSharedStatePath(workspaceRoot: string): string {
+  return getWorkspaceViewStatePath(workspaceRoot);
+}
+
+export function getWorkspaceLocalStatePath(workspaceRoot: string): string {
+  return getWorkspaceViewStatePath(workspaceRoot);
 }
 
 export function getWorkspaceChangesDir(workspaceRoot: string): string {
@@ -135,9 +166,7 @@ export function getWorkspaceCodeWorkspacePath(workspaceRoot: string, workspaceNa
 }
 
 export function getWorkspacePortableIgnorePatterns(workspaceName?: string): string[] {
-  return workspaceName
-    ? [WORKSPACE_LOCAL_STATE_IGNORE_PATTERN, getWorkspaceCodeWorkspaceFileName(workspaceName)]
-    : [WORKSPACE_LOCAL_STATE_IGNORE_PATTERN];
+  return workspaceName ? [getWorkspaceCodeWorkspaceFileName(workspaceName)] : [];
 }
 
 function validateFolderStyleName(name: string, label: string): string {
@@ -207,7 +236,10 @@ async function pathIsDirectory(dirPath: string): Promise<boolean> {
 }
 
 export async function isWorkspaceRoot(candidateRoot: string): Promise<boolean> {
-  return pathIsFile(getWorkspaceSharedStatePath(candidateRoot));
+  return (
+    (await pathIsFile(getWorkspaceViewStatePath(candidateRoot))) ||
+    (await pathIsFile(getWorkspaceLegacySharedStatePath(candidateRoot)))
+  );
 }
 
 async function getSearchStartDirectory(startPath: string): Promise<string> {
@@ -248,32 +280,55 @@ const PlainObjectSchema = z.custom<Record<string, unknown>>(isPlainObject, {
   message: 'must be an object',
 });
 
+const WorkspaceContextSchema = z
+  .object({
+    store: z.string(),
+    initiative: z.string(),
+  })
+  .strict();
+
+const WorkspaceSkillStateSchema = z
+  .object({
+    selected_agents: z.array(z.string()),
+    last_applied_profile: z.enum(['core', 'custom']).optional(),
+    last_applied_delivery: z.enum(['both', 'skills', 'commands']).optional(),
+    last_applied_workflow_ids: z.array(z.string()).optional(),
+    last_applied_at: z.string().optional(),
+  })
+  .strict();
+
+const PreferredOpenerSchema = z
+  .object({
+    kind: z.enum(['agent', 'editor']),
+    id: z.string(),
+  })
+  .strict();
+
+const ViewStateSchema = z
+  .object({
+    version: z.literal(1),
+    name: z.string(),
+    context: WorkspaceContextSchema.nullable(),
+    links: z.record(z.string(), z.string()),
+    preferred_opener: PreferredOpenerSchema.optional(),
+    tools: z.array(z.string()).optional(),
+    workspace_skills: WorkspaceSkillStateSchema.optional(),
+  })
+  .strict();
+
 const SharedStateSchema = z.object({
   version: z.literal(1),
   name: z.string(),
+  context: WorkspaceContextSchema.nullable().optional(),
   links: z.record(z.string(), PlainObjectSchema),
 }).strict();
 
 const LocalStateSchema = z.object({
   version: z.literal(1),
   paths: z.record(z.string(), z.string()),
-  preferred_opener: z
-    .object({
-      kind: z.enum(['agent', 'editor']),
-      id: z.string(),
-    })
-    .strict()
-    .optional(),
-  workspace_skills: z
-    .object({
-      selected_agents: z.array(z.string()),
-      last_applied_profile: z.enum(['core', 'custom']).optional(),
-      last_applied_delivery: z.enum(['both', 'skills', 'commands']).optional(),
-      last_applied_workflow_ids: z.array(z.string()).optional(),
-      last_applied_at: z.string().optional(),
-    })
-    .strict()
-    .optional(),
+  preferred_opener: PreferredOpenerSchema.optional(),
+  tools: z.array(z.string()).optional(),
+  workspace_skills: WorkspaceSkillStateSchema.optional(),
 }).strict();
 
 const RegistryStateSchema = z.object({
@@ -364,8 +419,93 @@ export function validateWorkspacePreferredOpener(
   );
 }
 
+export function workspaceViewToSharedState(state: WorkspaceViewState): WorkspaceSharedState {
+  return {
+    version: 1,
+    name: state.name,
+    context: state.context,
+    links: Object.fromEntries(Object.keys(state.links).map((linkName) => [linkName, {}])),
+  };
+}
+
+export function workspaceViewToLocalState(state: WorkspaceViewState): WorkspaceLocalState {
+  return {
+    version: 1,
+    paths: state.links,
+    ...(state.preferred_opener ? { preferred_opener: state.preferred_opener } : {}),
+    ...(state.tools ? { tools: state.tools } : {}),
+    ...(state.workspace_skills ? { workspace_skills: state.workspace_skills } : {}),
+  };
+}
+
+export function workspaceStatePartsToViewState(
+  sharedState: WorkspaceSharedState,
+  localState: WorkspaceLocalState | null
+): WorkspaceViewState {
+  const linkNames = new Set([
+    ...Object.keys(sharedState.links),
+    ...Object.keys(localState?.paths ?? {}),
+  ]);
+  const links = Object.fromEntries(
+    [...linkNames]
+      .sort((a, b) => a.localeCompare(b))
+      .flatMap((linkName) => {
+        const localPath = localState?.paths[linkName];
+        return localPath ? [[linkName, localPath] as const] : [];
+      })
+  );
+
+  return {
+    version: 1,
+    name: sharedState.name,
+    context: sharedState.context ?? null,
+    links,
+    ...(localState?.preferred_opener ? { preferred_opener: localState.preferred_opener } : {}),
+    ...(localState?.tools ? { tools: localState.tools } : {}),
+    ...(localState?.workspace_skills ? { workspace_skills: localState.workspace_skills } : {}),
+  };
+}
+
+export function parseWorkspaceViewState(content: string): WorkspaceViewState {
+  const raw = parseYamlObject(content, 'workspace state');
+  const result = ViewStateSchema.safeParse(raw);
+
+  if (!result.success) {
+    throw new Error(`Invalid workspace state: ${formatZodIssues(result.error)}`);
+  }
+
+  validateWorkspaceName(result.data.name);
+  assertValidMapKeys(
+    Object.keys(result.data.links),
+    validateWorkspaceLinkName,
+    'workspace link name'
+  );
+
+  const preferredOpener = result.data.preferred_opener
+    ? validateWorkspacePreferredOpener(result.data.preferred_opener as WorkspacePreferredOpener)
+    : undefined;
+
+  return {
+    version: 1,
+    name: result.data.name,
+    context: result.data.context,
+    links: result.data.links,
+    ...(preferredOpener ? { preferred_opener: preferredOpener } : {}),
+    ...(result.data.tools ? { tools: result.data.tools } : {}),
+    ...(result.data.workspace_skills
+      ? { workspace_skills: result.data.workspace_skills }
+      : {}),
+  };
+}
+
 export function parseWorkspaceSharedState(content: string): WorkspaceSharedState {
   const raw = parseYamlObject(content, 'workspace shared state');
+  const viewResult = ViewStateSchema.safeParse(raw);
+
+  if (viewResult.success) {
+    return workspaceViewToSharedState(parseWorkspaceViewState(content));
+  }
+
   const result = SharedStateSchema.safeParse(raw);
 
   if (!result.success) {
@@ -382,12 +522,19 @@ export function parseWorkspaceSharedState(content: string): WorkspaceSharedState
   return {
     version: 1,
     name: result.data.name,
+    context: result.data.context ?? null,
     links: result.data.links,
   };
 }
 
 export function parseWorkspaceLocalState(content: string): WorkspaceLocalState {
   const raw = parseYamlObject(content, 'workspace local state');
+  const viewResult = ViewStateSchema.safeParse(raw);
+
+  if (viewResult.success) {
+    return workspaceViewToLocalState(parseWorkspaceViewState(content));
+  }
+
   const result = LocalStateSchema.safeParse(raw);
 
   if (!result.success) {
@@ -408,6 +555,7 @@ export function parseWorkspaceLocalState(content: string): WorkspaceLocalState {
     version: 1,
     paths: result.data.paths,
     ...(preferredOpener ? { preferred_opener: preferredOpener } : {}),
+    ...(result.data.tools ? { tools: result.data.tools } : {}),
     ...(result.data.workspace_skills ? { workspace_skills: result.data.workspace_skills } : {}),
   };
 }
@@ -432,6 +580,31 @@ export function parseWorkspaceRegistryState(content: string): WorkspaceRegistryS
   };
 }
 
+export function serializeWorkspaceViewState(state: WorkspaceViewState): string {
+  validateWorkspaceName(state.name);
+  assertValidMapKeys(Object.keys(state.links), validateWorkspaceLinkName, 'workspace link name');
+
+  for (const [linkName, localPath] of Object.entries(state.links)) {
+    if (typeof localPath !== 'string') {
+      throw new Error(`Invalid workspace link '${linkName}': path must be a string`);
+    }
+  }
+
+  const preferredOpener = state.preferred_opener
+    ? validateWorkspacePreferredOpener(state.preferred_opener)
+    : undefined;
+
+  return stringifyYaml({
+    version: 1,
+    name: state.name,
+    context: state.context ?? null,
+    links: state.links,
+    ...(preferredOpener ? { preferred_opener: preferredOpener } : {}),
+    ...(state.tools ? { tools: state.tools } : {}),
+    ...(state.workspace_skills ? { workspace_skills: state.workspace_skills } : {}),
+  });
+}
+
 export function serializeWorkspaceSharedState(state: WorkspaceSharedState): string {
   validateWorkspaceName(state.name);
   assertValidMapKeys(Object.keys(state.links), validateWorkspaceLinkName, 'workspace link name');
@@ -445,6 +618,7 @@ export function serializeWorkspaceSharedState(state: WorkspaceSharedState): stri
   return stringifyYaml({
     version: 1,
     name: state.name,
+    context: state.context ?? null,
     links: state.links,
   });
 }
@@ -470,6 +644,7 @@ export function serializeWorkspaceLocalState(state: WorkspaceLocalState): string
     version: 1,
     paths: state.paths,
     ...(preferredOpener ? { preferred_opener: preferredOpener } : {}),
+    ...(state.tools ? { tools: state.tools } : {}),
     ...(state.workspace_skills ? { workspace_skills: state.workspace_skills } : {}),
   });
 }
@@ -501,16 +676,60 @@ export function listWorkspaceRegistryEntries(
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+export async function listKnownWorkspaceEntries(
+  options: WorkspacePathOptions = {}
+): Promise<WorkspaceRegistryEntry[]> {
+  const legacyRegistry = await readWorkspaceRegistryState(options);
+  const workspaces = new Map<string, string>(Object.entries(legacyRegistry?.workspaces ?? {}));
+
+  for (const entry of await listManagedWorkspaceEntries(options)) {
+    workspaces.set(entry.name, entry.workspaceRoot);
+  }
+
+  return [...workspaces.entries()]
+    .map(([name, workspaceRoot]) => ({ name, workspaceRoot }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function listManagedWorkspaceEntries(
+  options: WorkspacePathOptions = {}
+): Promise<WorkspaceRegistryEntry[]> {
+  const workspacesDir = getManagedWorkspacesDir(options);
+
+  if (!(await pathIsDirectory(workspacesDir))) {
+    return [];
+  }
+
+  const entries = await fs.readdir(workspacesDir, { withFileTypes: true });
+  const workspaces: WorkspaceRegistryEntry[] = [];
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+
+    const workspaceRoot = joinWorkspacePath(workspacesDir, entry.name);
+    if (!(await isWorkspaceRoot(workspaceRoot))) {
+      continue;
+    }
+
+    try {
+      const state = await readWorkspaceViewState(workspaceRoot);
+      workspaces.push({ name: state.name, workspaceRoot });
+    } catch {
+      workspaces.push({ name: entry.name, workspaceRoot });
+    }
+  }
+
+  return workspaces.sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export async function readWorkspaceSharedState(workspaceRoot: string): Promise<WorkspaceSharedState> {
-  return parseWorkspaceSharedState(
-    await fs.readFile(getWorkspaceSharedStatePath(workspaceRoot), 'utf-8')
-  );
+  return workspaceViewToSharedState(await readWorkspaceViewState(workspaceRoot));
 }
 
 export async function readWorkspaceLocalState(workspaceRoot: string): Promise<WorkspaceLocalState> {
-  return parseWorkspaceLocalState(
-    await fs.readFile(getWorkspaceLocalStatePath(workspaceRoot), 'utf-8')
-  );
+  return workspaceViewToLocalState(await readWorkspaceViewState(workspaceRoot));
 }
 
 function isFileNotFoundError(error: unknown): boolean {
@@ -536,13 +755,53 @@ export async function readOptionalWorkspaceLocalState(
   }
 }
 
+export async function readWorkspaceViewState(workspaceRoot: string): Promise<WorkspaceViewState> {
+  const viewStatePath = getWorkspaceViewStatePath(workspaceRoot);
+
+  if (await pathIsFile(viewStatePath)) {
+    return parseWorkspaceViewState(await fs.readFile(viewStatePath, 'utf-8'));
+  }
+
+  const legacySharedState = parseWorkspaceSharedState(
+    await fs.readFile(getWorkspaceLegacySharedStatePath(workspaceRoot), 'utf-8')
+  );
+  let legacyLocalState: WorkspaceLocalState | null = null;
+
+  try {
+    legacyLocalState = parseWorkspaceLocalState(
+      await fs.readFile(getWorkspaceLegacyLocalStatePath(workspaceRoot), 'utf-8')
+    );
+  } catch (error) {
+    if (!isFileNotFoundError(error)) {
+      throw error;
+    }
+  }
+
+  return workspaceStatePartsToViewState(legacySharedState, legacyLocalState);
+}
+
+export async function readOptionalWorkspaceViewState(
+  workspaceRoot: string
+): Promise<WorkspaceViewState | null> {
+  try {
+    return await readWorkspaceViewState(workspaceRoot);
+  } catch (error) {
+    if (isFileNotFoundError(error)) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
 export async function writeWorkspaceSharedState(
   workspaceRoot: string,
   state: WorkspaceSharedState
 ): Promise<void> {
-  await FileSystemUtils.writeFile(
-    getWorkspaceSharedStatePath(workspaceRoot),
-    serializeWorkspaceSharedState(state)
+  const existing = await readOptionalWorkspaceViewState(workspaceRoot);
+  await writeWorkspaceViewState(
+    workspaceRoot,
+    workspaceStatePartsToViewState(state, existing ? workspaceViewToLocalState(existing) : null)
   );
 }
 
@@ -550,9 +809,26 @@ export async function writeWorkspaceLocalState(
   workspaceRoot: string,
   state: WorkspaceLocalState
 ): Promise<void> {
+  const existing = await readOptionalWorkspaceViewState(workspaceRoot);
+  const sharedState = existing
+    ? workspaceViewToSharedState(existing)
+    : {
+        version: 1 as const,
+        name: validateWorkspaceName(path.basename(workspaceRoot)),
+        context: null,
+        links: {},
+      };
+
+  await writeWorkspaceViewState(workspaceRoot, workspaceStatePartsToViewState(sharedState, state));
+}
+
+export async function writeWorkspaceViewState(
+  workspaceRoot: string,
+  state: WorkspaceViewState
+): Promise<void> {
   await FileSystemUtils.writeFile(
-    getWorkspaceLocalStatePath(workspaceRoot),
-    serializeWorkspaceLocalState(state)
+    getWorkspaceViewStatePath(workspaceRoot),
+    serializeWorkspaceViewState(state)
   );
 }
 

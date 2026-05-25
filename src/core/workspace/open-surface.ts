@@ -16,14 +16,29 @@ export const WORKSPACE_GUIDANCE_END_MARKER = '<!-- OPENSPEC:WORKSPACE-GUIDANCE:E
 
 export const WORKSPACE_GUIDANCE_BODY = `# OpenSpec Workspace Guidance
 
-This directory is an OpenSpec workspace for planning across linked repos or folders.
+This directory is an OpenSpec workspace: a local working view over context stores, initiatives, repos, and folders.
 
-- Use \`changes/\` for workspace-level planning.
-- Linked repos and folders are available for exploration and planning.
-- Repo or folder visibility supports exploration and planning.
-- Make implementation edits after the user explicitly asks for implementation work.
-- Treat linked repos and folders as the implementation homes for their owned code.
-- Use OpenSpec workspace commands instead of hand-editing \`.openspec-workspace/*.yaml\`.`;
+- Use this workspace to open the local view of coordinated work.
+- Use initiatives for durable cross-team or cross-repo intent, decisions, requirements, and coordination context.
+- Use repo-local OpenSpec changes for implementation plans owned by a repo or team.
+- Use linked repos and folders to inspect context, understand ownership, and make edits in the place that owns the work.
+- Keep workspace-local files focused on local paths, opener state, agent setup, and other machine-specific view state.
+- Use OpenSpec workspace commands instead of hand-editing \`workspace.yaml\`.
+- If this workspace contains legacy or beta workspace-level planning files, treat them as compatibility context unless the user explicitly asks to use that beta flow.`;
+
+export interface WorkspaceOpenResolvedContext {
+  contextStore: {
+    id: string;
+    root: string;
+  };
+  initiative: {
+    id: string;
+    title: string;
+    root: string;
+    metadataPath: string;
+    storePath: string;
+  };
+}
 
 export interface WorkspaceOpenLink {
   name: string;
@@ -39,6 +54,11 @@ export interface WorkspaceSkippedOpenLink {
 export interface WorkspaceOpenSurfaceLinks {
   links: WorkspaceOpenLink[];
   skipped: WorkspaceSkippedOpenLink[];
+}
+
+export interface WorkspaceOpenSurfaceGeneration {
+  agentsPath: string;
+  codeWorkspacePath: string;
 }
 
 async function fileExists(filePath: string): Promise<boolean> {
@@ -57,14 +77,84 @@ async function directoryExists(dirPath: string): Promise<boolean> {
   }
 }
 
-export function buildWorkspaceGuidanceBlock(): string {
+function formatGuidancePathList(items: Array<{ label: string; path: string }>): string {
+  if (items.length === 0) {
+    return '- None selected yet.';
+  }
+
+  return items.map((item) => `- ${item.label}: ${item.path}`).join('\n');
+}
+
+function buildWorkspaceContextGuidance(
+  sharedState: WorkspaceSharedState,
+  localState: WorkspaceLocalState,
+  resolvedContext?: WorkspaceOpenResolvedContext | null
+): string {
+  const linkedRoots = Object.entries(localState.paths)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([name, linkPath]) => ({ label: name, path: linkPath }));
+
+  if (!sharedState.context) {
+    return `## Local View
+
+This workspace is not bound to an initiative. It is still a first-class local view over selected repos or folders.
+
+## Linked Implementation Context
+
+${formatGuidancePathList(linkedRoots)}`;
+  }
+
+  const contextLines = resolvedContext
+    ? [
+        `- Context store: ${resolvedContext.contextStore.id} (${resolvedContext.contextStore.root})`,
+        `- Initiative: ${resolvedContext.initiative.id} (${resolvedContext.initiative.root})`,
+        `- Initiative title: ${resolvedContext.initiative.title}`,
+        `- Initiative metadata: ${resolvedContext.initiative.metadataPath}`,
+        '- Broader context may exist in the context store, but this workspace opens the selected initiative by default.',
+      ].join('\n')
+    : [
+        `- Context store: ${sharedState.context.store}`,
+        `- Initiative: ${sharedState.context.initiative}`,
+        '- Run `openspec workspace open --json` to refresh resolved local paths for this view.',
+      ].join('\n');
+
+  return `## Selected Initiative Context
+
+${contextLines}
+
+## Advisory Edit Boundaries
+
+- Treat initiative and context-store files as shared coordination context.
+- Treat linked repos and folders as local implementation context when the user has selected them.
+- These boundaries are advisory in this OpenSpec version; use judgment and repo ownership when editing.
+
+## Linked Implementation Context
+
+${formatGuidancePathList(linkedRoots)}`;
+}
+
+export function buildWorkspaceGuidanceBlock(
+  sharedState?: WorkspaceSharedState,
+  localState?: WorkspaceLocalState,
+  resolvedContext?: WorkspaceOpenResolvedContext | null
+): string {
+  const contextGuidance =
+    sharedState && localState
+      ? `\n\n${buildWorkspaceContextGuidance(sharedState, localState, resolvedContext)}`
+      : '';
+
   return `${WORKSPACE_GUIDANCE_START_MARKER}
-${WORKSPACE_GUIDANCE_BODY}
+${WORKSPACE_GUIDANCE_BODY}${contextGuidance}
 ${WORKSPACE_GUIDANCE_END_MARKER}`;
 }
 
-export function applyWorkspaceGuidanceBlock(existingContent: string): string {
-  const block = buildWorkspaceGuidanceBlock();
+export function applyWorkspaceGuidanceBlock(
+  existingContent: string,
+  sharedState?: WorkspaceSharedState,
+  localState?: WorkspaceLocalState,
+  resolvedContext?: WorkspaceOpenResolvedContext | null
+): string {
+  const block = buildWorkspaceGuidanceBlock(sharedState, localState, resolvedContext);
   const startIndex = existingContent.indexOf(WORKSPACE_GUIDANCE_START_MARKER);
   const endIndex = existingContent.indexOf(WORKSPACE_GUIDANCE_END_MARKER);
 
@@ -90,12 +180,21 @@ export function applyWorkspaceGuidanceBlock(existingContent: string): string {
 }
 
 export function buildWorkspaceCodeWorkspaceContent(
-  links: WorkspaceOpenLink[]
+  links: WorkspaceOpenLink[],
+  resolvedContext?: WorkspaceOpenResolvedContext | null
 ): string {
   const folders = [
     {
       path: '.',
     },
+    ...(resolvedContext
+      ? [
+          {
+            name: `initiative:${resolvedContext.initiative.id}`,
+            path: resolvedContext.initiative.root,
+          },
+        ]
+      : []),
     ...links.map((link) => ({
       name: link.name,
       path: link.path,
@@ -107,9 +206,13 @@ export function buildWorkspaceCodeWorkspaceContent(
 
 export async function writeWorkspaceCodeWorkspaceFile(
   codeWorkspacePath: string,
-  links: WorkspaceOpenLink[]
+  links: WorkspaceOpenLink[],
+  resolvedContext?: WorkspaceOpenResolvedContext | null
 ): Promise<void> {
-  await FileSystemUtils.writeFile(codeWorkspacePath, buildWorkspaceCodeWorkspaceContent(links));
+  await FileSystemUtils.writeFile(
+    codeWorkspacePath,
+    buildWorkspaceCodeWorkspaceContent(links, resolvedContext)
+  );
 }
 
 export async function resolveWorkspaceOpenLinks(
@@ -149,24 +252,35 @@ export async function resolveWorkspaceOpenLinks(
   return { links, skipped };
 }
 
-async function syncWorkspaceGuidance(workspaceRoot: string): Promise<void> {
+async function syncWorkspaceGuidance(
+  workspaceRoot: string,
+  sharedState: WorkspaceSharedState,
+  localState: WorkspaceLocalState,
+  resolvedContext?: WorkspaceOpenResolvedContext | null
+): Promise<string> {
   const agentsPath = path.join(workspaceRoot, 'AGENTS.md');
   const existingContent = (await fileExists(agentsPath))
     ? await fs.readFile(agentsPath, 'utf-8')
     : '';
 
-  await FileSystemUtils.writeFile(agentsPath, applyWorkspaceGuidanceBlock(existingContent));
+  await FileSystemUtils.writeFile(
+    agentsPath,
+    applyWorkspaceGuidanceBlock(existingContent, sharedState, localState, resolvedContext)
+  );
+
+  return agentsPath;
 }
 
 async function syncWorkspaceCodeWorkspace(
   workspaceRoot: string,
   sharedState: WorkspaceSharedState,
-  links: WorkspaceOpenLink[]
-): Promise<void> {
-  await writeWorkspaceCodeWorkspaceFile(
-    getWorkspaceCodeWorkspacePath(workspaceRoot, sharedState.name),
-    links
-  );
+  links: WorkspaceOpenLink[],
+  resolvedContext?: WorkspaceOpenResolvedContext | null
+): Promise<string> {
+  const codeWorkspacePath = getWorkspaceCodeWorkspacePath(workspaceRoot, sharedState.name);
+  await writeWorkspaceCodeWorkspaceFile(codeWorkspacePath, links, resolvedContext);
+
+  return codeWorkspacePath;
 }
 
 async function syncWorkspaceIgnoreRules(
@@ -200,13 +314,30 @@ async function syncWorkspaceIgnoreRules(
 export async function syncWorkspaceOpenSurface(
   workspaceRoot: string,
   sharedState: WorkspaceSharedState,
-  localState: WorkspaceLocalState
-): Promise<WorkspaceOpenSurfaceLinks> {
+  localState: WorkspaceLocalState,
+  resolvedContext?: WorkspaceOpenResolvedContext | null
+): Promise<WorkspaceOpenSurfaceLinks & { generated: WorkspaceOpenSurfaceGeneration }> {
   const openLinks = await resolveWorkspaceOpenLinks(sharedState, localState);
+  const agentsPath = await syncWorkspaceGuidance(
+    workspaceRoot,
+    sharedState,
+    localState,
+    resolvedContext
+  );
+  const codeWorkspacePath = await syncWorkspaceCodeWorkspace(
+    workspaceRoot,
+    sharedState,
+    openLinks.links,
+    resolvedContext
+  );
 
-  await syncWorkspaceGuidance(workspaceRoot);
-  await syncWorkspaceCodeWorkspace(workspaceRoot, sharedState, openLinks.links);
   await syncWorkspaceIgnoreRules(workspaceRoot, sharedState.name);
 
-  return openLinks;
+  return {
+    ...openLinks,
+    generated: {
+      agentsPath,
+      codeWorkspacePath,
+    },
+  };
 }

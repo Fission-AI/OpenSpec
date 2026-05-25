@@ -5,22 +5,25 @@ import {
   WorkspaceLocalState,
   WorkspacePreferredOpener,
   WorkspaceRegistryEntry,
-  WorkspaceRegistryState,
   WorkspaceSharedState,
+  WorkspaceContextState,
+  WorkspaceViewState,
   getManagedWorkspaceRoot,
   hasWorkspaceSkillProfileDrift,
   getWorkspaceChangesDir,
+  getWorkspaceViewStatePath,
   isWorkspaceRoot,
+  listKnownWorkspaceEntries,
   parseWorkspaceSetupLinkInput,
   readOptionalWorkspaceLocalState,
-  readWorkspaceRegistryState,
   readWorkspaceSharedState,
+  readWorkspaceViewState,
   syncWorkspaceOpenSurface,
   validateWorkspaceLinkName,
   validateWorkspaceName,
-  writeWorkspaceLocalState,
-  writeWorkspaceRegistryState,
-  writeWorkspaceSharedState,
+  writeWorkspaceViewState,
+  workspaceViewToLocalState,
+  workspaceViewToSharedState,
 } from '../../core/workspace/index.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import {
@@ -34,32 +37,12 @@ import {
   asErrorMessage,
   makeStatus,
 } from './types.js';
+import { collectWorkspaceContextStatuses } from './context-status.js';
 
 const fs = nodeFs.promises;
 
-function emptyRegistry(): WorkspaceRegistryState {
-  return { version: 1, workspaces: {} };
-}
-
 function emptyLocalState(): WorkspaceLocalState {
   return { version: 1, paths: {} };
-}
-
-export async function readRegistry(): Promise<WorkspaceRegistryState> {
-  return (await readWorkspaceRegistryState()) ?? emptyRegistry();
-}
-
-async function recordWorkspaceInRegistry(name: string, workspaceRoot: string): Promise<void> {
-  const registry = await readRegistry();
-  const recordedWorkspaceRoot = normalizeExistingPathForStorage(workspaceRoot);
-
-  await writeWorkspaceRegistryState({
-    version: 1,
-    workspaces: {
-      ...registry.workspaces,
-      [name]: recordedWorkspaceRoot,
-    },
-  });
 }
 
 export async function directoryExists(dirPath: string): Promise<boolean> {
@@ -207,7 +190,7 @@ function localStateInvalidStatus(error: unknown): WorkspaceStatus {
     `Machine-local paths could not be read: ${asErrorMessage(error)}`,
     {
       target: 'workspace.local_state',
-      fix: 'Repair or remove .openspec-workspace/local.yaml, then run openspec workspace relink <name> <path> for affected links.',
+      fix: 'Repair workspace.yaml, then run openspec workspace relink <name> <path> for affected links.',
     }
   );
 }
@@ -234,43 +217,22 @@ function appendWorkspaceSkillDriftStatus(
   }
 }
 
-async function readLocalStateForMutation(workspaceRoot: string): Promise<WorkspaceLocalState> {
-  try {
-    return (await readOptionalWorkspaceLocalState(workspaceRoot)) ?? emptyLocalState();
-  } catch (error) {
-    const status = localStateInvalidStatus(error);
-    throw new WorkspaceCliError(status.message, status.code, {
-      target: status.target,
-      fix: status.fix,
-    });
-  }
-}
-
 export async function createManagedWorkspace(
   name: string,
   links: Record<string, string>,
-  preferredOpener?: WorkspacePreferredOpener
+  preferredOpener?: WorkspacePreferredOpener,
+  context: WorkspaceContextState | null = null,
+  tools?: string[]
 ): Promise<WorkspaceOutput> {
   const workspaceName = validateWorkspaceNameForSetup(name);
   const workspaceRoot = getManagedWorkspaceRoot(workspaceName);
-  const registry = await readRegistry();
-
-  if (registry.workspaces[workspaceName]) {
-    throw new WorkspaceCliError(
-      `Workspace '${workspaceName}' is already recorded in the local workspace registry at ${registry.workspaces[workspaceName]}.`,
-      'workspace_already_exists',
-      {
-        target: 'workspace.name',
-      }
-    );
-  }
 
   if (await directoryExists(workspaceRoot)) {
     throw new WorkspaceCliError(
       `Workspace '${workspaceName}' already exists at ${workspaceRoot}.`,
       'workspace_already_exists',
       {
-        target: 'workspace.root',
+        target: 'workspace.name',
       }
     );
   }
@@ -282,20 +244,20 @@ export async function createManagedWorkspace(
     await fs.mkdir(workspaceRoot);
     createdWorkspaceRoot = true;
     await FileSystemUtils.createDirectory(getWorkspaceChangesDir(workspaceRoot));
-    const sharedState: WorkspaceSharedState = {
+    const viewState: WorkspaceViewState = {
       version: 1,
       name: workspaceName,
-      links: Object.fromEntries(Object.keys(links).map((linkName) => [linkName, {}])),
-    };
-    const localState: WorkspaceLocalState = {
-      version: 1,
-      paths: links,
+      context,
+      links,
       ...(preferredOpener ? { preferred_opener: preferredOpener } : {}),
+      ...(tools ? { tools } : {}),
     };
-    await writeWorkspaceSharedState(workspaceRoot, sharedState);
-    await writeWorkspaceLocalState(workspaceRoot, localState);
-    await syncWorkspaceOpenSurface(workspaceRoot, sharedState, localState);
-    await recordWorkspaceInRegistry(workspaceName, workspaceRoot);
+    await writeWorkspaceViewState(workspaceRoot, viewState);
+    await syncWorkspaceOpenSurface(
+      workspaceRoot,
+      workspaceViewToSharedState(viewState),
+      workspaceViewToLocalState(viewState)
+    );
   } catch (error) {
     if (createdWorkspaceRoot) {
       try {
@@ -318,6 +280,8 @@ export async function createManagedWorkspace(
     name: workspaceName,
     root: workspaceRoot,
     planning_path: getWorkspaceChangesDir(workspaceRoot),
+    state_path: getWorkspaceViewStatePath(workspaceRoot),
+    context,
     links: Object.entries(links)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([linkName, linkPath]) => ({
@@ -358,11 +322,12 @@ export async function loadWorkspaceForList(
     return {
       name: entry.name,
       root: entry.workspaceRoot,
+      context: null,
       links: [],
       status: [
         makeStatus('error', 'workspace_root_missing', 'Workspace location does not exist.', {
           target: 'workspace.root',
-          fix: 'Remove or repair the local registry record.',
+          fix: 'Remove or repair the local workspace view.',
         }),
       ],
     };
@@ -377,6 +342,7 @@ export async function loadWorkspaceForList(
     return {
       name: entry.name,
       root: entry.workspaceRoot,
+      context: null,
       links: [],
       status: [
         makeStatus(
@@ -399,10 +365,12 @@ export async function loadWorkspaceForList(
   }
 
   appendWorkspaceSkillDriftStatus(workspaceStatus, sharedState.name, localState);
+  workspaceStatus.push(...(await collectWorkspaceContextStatuses(sharedState.context)));
 
   return {
     name: sharedState.name,
     root: entry.workspaceRoot,
+    context: sharedState.context,
     links: normalizeLinksForOutput(sharedState, localState),
     status: workspaceStatus,
   };
@@ -421,6 +389,8 @@ export async function loadWorkspaceForDoctor(
         name: selected.name,
         root: selected.root,
         planning_path: planningPath,
+        state_path: getWorkspaceViewStatePath(selected.root),
+        context: null,
         links: [],
         status: [
           makeStatus(
@@ -429,7 +399,7 @@ export async function loadWorkspaceForDoctor(
             'Selected workspace location does not exist or is not a valid workspace.',
             {
               target: 'workspace.root',
-              fix: 'Repair the local workspace registry record or choose another workspace.',
+              fix: 'Repair the local workspace view or choose another workspace.',
             }
           ),
         ],
@@ -450,6 +420,8 @@ export async function loadWorkspaceForDoctor(
         name: selected.name,
         root: selected.root,
         planning_path: planningPath,
+        state_path: getWorkspaceViewStatePath(selected.root),
+        context: null,
         links: [],
         status: [
           makeStatus(
@@ -493,20 +465,7 @@ export async function loadWorkspaceForDoctor(
   if (!localStateInvalid) {
     appendWorkspaceSkillDriftStatus(workspaceStatus, sharedState.name, localState);
   }
-
-  if (!(await directoryExists(planningPath))) {
-    workspaceStatus.push(
-      makeStatus(
-        'error',
-        'workspace_planning_path_missing',
-        'Workspace planning path does not exist.',
-        {
-          target: 'workspace.planning_path',
-          fix: `Create ${planningPath} or recreate the workspace with openspec workspace setup.`,
-        }
-      )
-    );
-  }
+  workspaceStatus.push(...(await collectWorkspaceContextStatuses(sharedState.context)));
 
   const sharedNames = new Set(Object.keys(sharedState.links));
   const localNames = new Set(Object.keys(localState.paths));
@@ -528,7 +487,7 @@ export async function loadWorkspaceForDoctor(
           'Local path is recorded without a shared workspace link.',
           {
             target: `links.${linkName}`,
-            fix: `Add a shared link with openspec workspace link ${linkName} ${localPath ?? '/path/to/folder'} or remove the local-only path from .openspec-workspace/local.yaml.`,
+            fix: `Add a shared link with openspec workspace link ${linkName} ${localPath ?? '/path/to/folder'} or remove the local-only path from workspace.yaml.`,
           }
         )
       );
@@ -575,6 +534,8 @@ export async function loadWorkspaceForDoctor(
       name: sharedState.name,
       root: selected.root,
       planning_path: planningPath,
+      state_path: getWorkspaceViewStatePath(selected.root),
+      context: sharedState.context,
       links,
       status: workspaceStatus,
     },
@@ -582,9 +543,7 @@ export async function loadWorkspaceForDoctor(
   };
 }
 
-export async function readWorkspaceForMutation(
-  selected: SelectedWorkspace
-): Promise<{ sharedState: WorkspaceSharedState; localState: WorkspaceLocalState }> {
+async function readWorkspaceViewForMutation(selected: SelectedWorkspace): Promise<WorkspaceViewState> {
   if (!(await directoryExists(selected.root)) || !(await isWorkspaceRoot(selected.root))) {
     throw new WorkspaceCliError(
       `Workspace location does not exist for '${selected.name}': ${selected.root}`,
@@ -596,16 +555,28 @@ export async function readWorkspaceForMutation(
     );
   }
 
-  return {
-    sharedState: await readWorkspaceSharedState(selected.root),
-    localState: await readLocalStateForMutation(selected.root),
-  };
+  try {
+    return await readWorkspaceViewState(selected.root);
+  } catch (error) {
+    throw new WorkspaceCliError(
+      `Workspace state could not be read: ${asErrorMessage(error)}`,
+      'workspace_state_invalid',
+      {
+        target: 'workspace.state',
+        fix: 'Repair workspace.yaml before using this workspace.',
+      }
+    );
+  }
 }
 
-export async function recordSelectedWorkspaceAfterMutation(selected: SelectedWorkspace): Promise<void> {
-  if (selected.unregisteredCurrentWorkspace) {
-    await recordWorkspaceInRegistry(selected.name, selected.root);
-  }
+export async function readWorkspaceForMutation(
+  selected: SelectedWorkspace
+): Promise<{ sharedState: WorkspaceSharedState; localState: WorkspaceLocalState }> {
+  const viewState = await readWorkspaceViewForMutation(selected);
+  return {
+    sharedState: workspaceViewToSharedState(viewState),
+    localState: workspaceViewToLocalState(viewState),
+  };
 }
 
 function buildLinkMutationPayload(
@@ -620,6 +591,8 @@ function buildLinkMutationPayload(
       name: sharedState.name,
       root: selected.root,
       planning_path: getWorkspaceChangesDir(selected.root),
+      state_path: getWorkspaceViewStatePath(selected.root),
+      context: sharedState.context,
       links: normalizeLinksForOutput(sharedState, localState),
       status: [],
     },
@@ -641,31 +614,24 @@ export async function addWorkspaceLink(
   const pathInput = linkPath ?? nameOrPath;
   const resolvedPath = await resolveExistingDirectory(pathInput);
   const linkName = validateLinkNameForCommand(explicitName ?? inferLinkName(resolvedPath));
-  const { sharedState, localState } = await readWorkspaceForMutation(selected);
+  const viewState = await readWorkspaceViewForMutation(selected);
 
-  if (sharedState.links[linkName]) {
-    throw duplicateLinkError(linkName, localState.paths[linkName] ?? null, resolvedPath);
+  if (viewState.links[linkName]) {
+    throw duplicateLinkError(linkName, viewState.links[linkName], resolvedPath);
   }
 
-  const updatedSharedState: WorkspaceSharedState = {
-    ...sharedState,
+  const updatedViewState: WorkspaceViewState = {
+    ...viewState,
     links: {
-      ...sharedState.links,
-      [linkName]: {},
-    },
-  };
-  const updatedLocalState: WorkspaceLocalState = {
-    ...localState,
-    paths: {
-      ...localState.paths,
+      ...viewState.links,
       [linkName]: resolvedPath,
     },
   };
+  const updatedSharedState = workspaceViewToSharedState(updatedViewState);
+  const updatedLocalState = workspaceViewToLocalState(updatedViewState);
 
-  await writeWorkspaceSharedState(selected.root, updatedSharedState);
-  await writeWorkspaceLocalState(selected.root, updatedLocalState);
+  await writeWorkspaceViewState(selected.root, updatedViewState);
   await syncWorkspaceOpenSurface(selected.root, updatedSharedState, updatedLocalState);
-  await recordSelectedWorkspaceAfterMutation(selected);
 
   return buildLinkMutationPayload(
     selected,
@@ -683,26 +649,213 @@ export async function updateWorkspaceLink(
 ): Promise<WorkspaceLinkMutationPayload> {
   const linkName = validateLinkNameForCommand(linkNameInput);
   const resolvedPath = await resolveExistingDirectory(linkPath);
-  const { sharedState, localState } = await readWorkspaceForMutation(selected);
+  const viewState = await readWorkspaceViewForMutation(selected);
 
-  if (!sharedState.links[linkName]) {
+  if (!viewState.links[linkName]) {
     throw new WorkspaceCliError(`Unknown workspace link '${linkName}'.`, 'unknown_link_name', {
       target: `links.${linkName}`,
       fix: 'Run openspec workspace doctor to see linked repos or folders.',
     });
   }
 
-  const updatedLocalState: WorkspaceLocalState = {
-    ...localState,
-    paths: {
-      ...localState.paths,
+  const updatedViewState: WorkspaceViewState = {
+    ...viewState,
+    links: {
+      ...viewState.links,
       [linkName]: resolvedPath,
     },
   };
+  const updatedSharedState = workspaceViewToSharedState(updatedViewState);
+  const updatedLocalState = workspaceViewToLocalState(updatedViewState);
 
-  await writeWorkspaceLocalState(selected.root, updatedLocalState);
-  await syncWorkspaceOpenSurface(selected.root, sharedState, updatedLocalState);
-  await recordSelectedWorkspaceAfterMutation(selected);
+  await writeWorkspaceViewState(selected.root, updatedViewState);
+  await syncWorkspaceOpenSurface(selected.root, updatedSharedState, updatedLocalState);
 
-  return buildLinkMutationPayload(selected, sharedState, updatedLocalState, linkName, resolvedPath);
+  return buildLinkMutationPayload(selected, updatedSharedState, updatedLocalState, linkName, resolvedPath);
+}
+
+function sameWorkspaceContext(
+  left: WorkspaceContextState | null,
+  right: WorkspaceContextState
+): boolean {
+  return left?.store === right.store && left.initiative === right.initiative;
+}
+
+function formatWorkspaceContext(context: WorkspaceContextState | null): string {
+  return context ? `${context.store}/${context.initiative}` : 'no initiative context';
+}
+
+export function deriveWorkspaceNameForInitiative(initiativeId: string): string {
+  return validateWorkspaceNameForSetup(initiativeId);
+}
+
+async function readExistingManagedWorkspaceView(
+  workspaceName: string
+): Promise<{ root: string; state: WorkspaceViewState } | null> {
+  const workspaceRoot = getManagedWorkspaceRoot(workspaceName);
+
+  if (!(await directoryExists(workspaceRoot))) {
+    return null;
+  }
+
+  if (!(await isWorkspaceRoot(workspaceRoot))) {
+    throw new WorkspaceCliError(
+      `Workspace name '${workspaceName}' collides with a non-workspace directory at ${workspaceRoot}.`,
+      'workspace_name_collision',
+      {
+        target: 'workspace.name',
+        fix: 'Choose an explicit unused workspace name.',
+      }
+    );
+  }
+
+  return {
+    root: workspaceRoot,
+    state: await readWorkspaceViewState(workspaceRoot),
+  };
+}
+
+function selectedWorkspaceFromManagedView(
+  root: string,
+  state: WorkspaceViewState
+): SelectedWorkspace {
+  return {
+    name: state.name,
+    root,
+    status: [],
+    unregisteredCurrentWorkspace: false,
+  };
+}
+
+export async function selectOrCreateWorkspaceForInitiativeOpen(input: {
+  workspaceName?: string;
+  context: WorkspaceContextState;
+  preferredOpener?: WorkspacePreferredOpener;
+}): Promise<{ selected: SelectedWorkspace; created: boolean; state: WorkspaceViewState }> {
+  if (input.workspaceName) {
+    const workspaceName = validateWorkspaceNameForSetup(input.workspaceName);
+    const existing = await readExistingManagedWorkspaceView(workspaceName);
+
+    if (!existing) {
+      const workspace = await createManagedWorkspace(
+        workspaceName,
+        {},
+        input.preferredOpener,
+        input.context
+      );
+      return {
+        selected: {
+          name: workspace.name,
+          root: workspace.root,
+          status: [],
+          unregisteredCurrentWorkspace: false,
+        },
+        created: true,
+        state: await readWorkspaceViewState(workspace.root),
+      };
+    }
+
+    if (sameWorkspaceContext(existing.state.context, input.context)) {
+      return {
+        selected: selectedWorkspaceFromManagedView(existing.root, existing.state),
+        created: false,
+        state: existing.state,
+      };
+    }
+
+    if (!existing.state.context) {
+      throw new WorkspaceCliError(
+        `Workspace '${workspaceName}' is not bound to an initiative.`,
+        'workspace_context_bind_required',
+        {
+          target: 'workspace.context',
+          fix: 'Choose a new workspace name for this initiative or use a future workspace rebind/update surface.',
+        }
+      );
+    }
+
+    throw new WorkspaceCliError(
+      `Workspace '${workspaceName}' is already bound to ${formatWorkspaceContext(existing.state.context)}.`,
+      'workspace_context_conflict',
+      {
+        target: 'workspace.context',
+        fix: 'Choose a different workspace name or open the initiative already bound to this workspace.',
+      }
+    );
+  }
+
+  const matches: Array<{ root: string; state: WorkspaceViewState }> = [];
+
+  for (const entry of await listKnownWorkspaceEntries()) {
+    try {
+      const state = await readWorkspaceViewState(entry.workspaceRoot);
+      if (sameWorkspaceContext(state.context, input.context)) {
+        matches.push({ root: entry.workspaceRoot, state });
+      }
+    } catch {
+      // Broken workspaces are surfaced by list/doctor; initiative open should not
+      // guess through unreadable local view records.
+    }
+  }
+
+  if (matches.length === 1) {
+    const [match] = matches;
+    return {
+      selected: selectedWorkspaceFromManagedView(match.root, match.state),
+      created: false,
+      state: match.state,
+    };
+  }
+
+  if (matches.length > 1) {
+    const names = matches.map((match) => match.state.name).sort((a, b) => a.localeCompare(b));
+    throw new WorkspaceCliError(
+      `Multiple workspaces are already bound to ${input.context.store}/${input.context.initiative}: ${names.join(', ')}.`,
+      'workspace_initiative_selection_ambiguous',
+      {
+        target: 'workspace.name',
+        fix: 'Retry with an explicit workspace name.',
+      }
+    );
+  }
+
+  const derivedName = deriveWorkspaceNameForInitiative(input.context.initiative);
+  const existingDerived = await readExistingManagedWorkspaceView(derivedName);
+
+  if (existingDerived) {
+    if (sameWorkspaceContext(existingDerived.state.context, input.context)) {
+      return {
+        selected: selectedWorkspaceFromManagedView(existingDerived.root, existingDerived.state),
+        created: false,
+        state: existingDerived.state,
+      };
+    }
+
+    throw new WorkspaceCliError(
+      `Default workspace name '${derivedName}' is already used by a workspace with ${formatWorkspaceContext(existingDerived.state.context)}.`,
+      'workspace_name_collision',
+      {
+        target: 'workspace.name',
+        fix: `Retry with an explicit workspace name: openspec workspace open <name> --initiative ${input.context.store}/${input.context.initiative}`,
+      }
+    );
+  }
+
+  const workspace = await createManagedWorkspace(
+    derivedName,
+    {},
+    input.preferredOpener,
+    input.context
+  );
+
+  return {
+    selected: {
+      name: workspace.name,
+      root: workspace.root,
+      status: [],
+      unregisteredCurrentWorkspace: false,
+    },
+    created: true,
+    state: await readWorkspaceViewState(workspace.root),
+  };
 }

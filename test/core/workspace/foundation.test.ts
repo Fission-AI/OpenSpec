@@ -65,19 +65,13 @@ describe('workspace foundation', () => {
 
   function createWorkspaceRoot(name = 'platform'): string {
     const workspaceRoot = path.join(tempDir, name);
-    fs.mkdirSync(path.join(workspaceRoot, WORKSPACE_METADATA_DIR_NAME), { recursive: true });
-    fs.mkdirSync(path.join(workspaceRoot, WORKSPACE_CHANGES_DIR_NAME), { recursive: true });
+    fs.mkdirSync(workspaceRoot, { recursive: true });
     fs.writeFileSync(
-      path.join(workspaceRoot, WORKSPACE_METADATA_DIR_NAME, WORKSPACE_SHARED_STATE_FILE_NAME),
+      getWorkspaceSharedStatePath(workspaceRoot),
       `version: 1
 name: ${name}
+context: null
 links: {}
-`
-    );
-    fs.writeFileSync(
-      path.join(workspaceRoot, WORKSPACE_METADATA_DIR_NAME, WORKSPACE_LOCAL_STATE_FILE_NAME),
-      `version: 1
-paths: {}
 `
     );
 
@@ -105,10 +99,10 @@ paths: {}
         path.join(workspaceRoot, '.openspec-workspace')
       );
       expect(getWorkspaceSharedStatePath(workspaceRoot)).toBe(
-        path.join(workspaceRoot, '.openspec-workspace', 'workspace.yaml')
+        path.join(workspaceRoot, 'workspace.yaml')
       );
       expect(getWorkspaceLocalStatePath(workspaceRoot)).toBe(
-        path.join(workspaceRoot, '.openspec-workspace', 'local.yaml')
+        path.join(workspaceRoot, 'workspace.yaml')
       );
       expect(getWorkspaceChangesDir(workspaceRoot)).toBe(path.join(workspaceRoot, 'changes'));
       expect(getWorkspaceCodeWorkspaceFileName('platform')).toBe('platform.code-workspace');
@@ -121,10 +115,10 @@ paths: {}
       const workspaceRoot = 'D:\\repos\\platform-workspace';
 
       expect(getWorkspaceSharedStatePath(workspaceRoot)).toBe(
-        'D:\\repos\\platform-workspace\\.openspec-workspace\\workspace.yaml'
+        'D:\\repos\\platform-workspace\\workspace.yaml'
       );
       expect(getWorkspaceLocalStatePath(workspaceRoot)).toBe(
-        'D:\\repos\\platform-workspace\\.openspec-workspace\\local.yaml'
+        'D:\\repos\\platform-workspace\\workspace.yaml'
       );
     });
 
@@ -166,9 +160,8 @@ paths: {}
 
     it('exposes the portable collaboration ignore rule for local state', () => {
       expect(WORKSPACE_LOCAL_STATE_IGNORE_PATTERN).toBe('.openspec-workspace/local.yaml');
-      expect(getWorkspacePortableIgnorePatterns()).toEqual(['.openspec-workspace/local.yaml']);
+      expect(getWorkspacePortableIgnorePatterns()).toEqual([]);
       expect(getWorkspacePortableIgnorePatterns('platform')).toEqual([
-        '.openspec-workspace/local.yaml',
         'platform.code-workspace',
       ]);
     });
@@ -288,6 +281,7 @@ links:
       expect(state).toEqual({
         version: 1,
         name: 'platform',
+        context: null,
         links: {
           api: {},
           web: { note: 'planning only' },
@@ -402,6 +396,7 @@ preferred_opener:
       await expect(readWorkspaceSharedState(workspaceRoot)).resolves.toEqual({
         version: 1,
         name: 'platform',
+        context: null,
         links: {},
       });
       await expect(readWorkspaceLocalState(workspaceRoot)).resolves.toEqual({
@@ -410,11 +405,13 @@ preferred_opener:
       });
     });
 
-    it('returns null only when optional local state is absent', async () => {
+    it('returns root view paths for optional local state', async () => {
       const workspaceRoot = createWorkspaceRoot();
-      fs.rmSync(getWorkspaceLocalStatePath(workspaceRoot));
 
-      await expect(readOptionalWorkspaceLocalState(workspaceRoot)).resolves.toBeNull();
+      await expect(readOptionalWorkspaceLocalState(workspaceRoot)).resolves.toEqual({
+        version: 1,
+        paths: {},
+      });
     });
 
     it('rejects invalid optional local state instead of treating it as missing', async () => {
@@ -422,7 +419,7 @@ preferred_opener:
       fs.writeFileSync(getWorkspaceLocalStatePath(workspaceRoot), 'version: 1\npaths: []\n');
 
       await expect(readOptionalWorkspaceLocalState(workspaceRoot)).rejects.toThrow(
-        /Invalid workspace local state/
+        /Invalid workspace state/
       );
     });
   });
@@ -507,6 +504,7 @@ After block.
       const sharedState = {
         version: 1 as const,
         name: 'platform',
+        context: null,
         links: {
           api: {},
           missing: {},
@@ -529,7 +527,7 @@ After block.
         { name: 'noPath', path: null, reason: 'missing-local-path' },
       ]);
       expect(fs.readFileSync(path.join(workspaceRoot, 'AGENTS.md'), 'utf-8')).toContain(
-        'Make implementation edits after the user explicitly asks'
+        'Use initiatives for durable cross-team or cross-repo intent'
       );
       expect(JSON.parse(fs.readFileSync(getWorkspaceCodeWorkspacePath(workspaceRoot, 'platform'), 'utf-8')).folders).toEqual([
         {
@@ -541,7 +539,7 @@ After block.
         },
       ]);
       expect(fs.readFileSync(path.join(workspaceRoot, '.gitignore'), 'utf-8')).toContain(
-        '*.code-workspace\n.openspec-workspace/local.yaml\nplatform.code-workspace\n'
+        '*.code-workspace\nplatform.code-workspace\n'
       );
     });
   });
