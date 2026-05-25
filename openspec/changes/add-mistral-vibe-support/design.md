@@ -53,9 +53,9 @@ Unlike command-based tools (Claude Code, Cursor, etc.), Mistral Vibe is **skill-
 
 ### Decision: Alphabetical Placement
 
-**Chosen**: Insert Mistral Vibe after 'windsurf' in the AI_TOOLS array
+**Chosen**: Insert Mistral Vibe after 'Lingma' and before 'OpenCode' in the AI_TOOLS array
 
-**Rationale**: Maintains alphabetical ordering by `value` field for consistency.
+**Rationale**: Maintains alphabetical ordering by `name` field for consistency ('Mistral Vibe' comes after 'Lingma' and before 'OpenCode').
 
 ## Risks / Trade-offs
 
