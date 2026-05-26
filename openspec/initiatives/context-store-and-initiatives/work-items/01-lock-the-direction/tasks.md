@@ -11,8 +11,8 @@
 
 - [x] Add locked disposition to `roadmap.md`.
 - [x] Add locked product boundary to `direction.md`.
-- [x] Mark `WORKSPACE_REIMPLEMENTATION_START_HERE.md` as historical reference.
-- [x] Mark `WORKSPACE_REIMPLEMENTATION_DIRECTION.md` as historical reference.
+- [x] Mark `openspec/changes/workspace-reimplementation-roadmap/START_HERE.md` as historical reference.
+- [x] Mark `openspec/changes/workspace-reimplementation-roadmap/HISTORICAL_DIRECTION.md` as historical reference.
 - [x] Mark `workspace-reimplementation-roadmap` as historical reference.
 - [x] Mark `workspace-apply-repo-slice` as deferred.
 - [x] Mark `workspace-verify-and-archive` as deferred.

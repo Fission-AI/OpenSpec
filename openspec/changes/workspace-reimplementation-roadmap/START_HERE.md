@@ -43,7 +43,7 @@ Read these files in order:
 
 1. `openspec/initiatives/context-store-and-initiatives/direction.md`
 2. `openspec/initiatives/context-store-and-initiatives/roadmap.md`
-3. `WORKSPACE_REIMPLEMENTATION_DIRECTION.md`
+3. `openspec/changes/workspace-reimplementation-roadmap/HISTORICAL_DIRECTION.md`
 4. `openspec/changes/workspace-reimplementation-roadmap/README.md`
 5. `openspec/changes/workspace-reimplementation-roadmap/POC_REFERENCE_GUIDE.md`
 

@@ -52,7 +52,7 @@ Fresh-agent rule:
 
 - Start from `openspec/initiatives/context-store-and-initiatives/direction.md`
   for product authority.
-- Treat `WORKSPACE_REIMPLEMENTATION_DIRECTION.md` and
+- Treat `openspec/changes/workspace-reimplementation-roadmap/HISTORICAL_DIRECTION.md` and
   `openspec/changes/workspace-reimplementation-roadmap/` as historical reference
   material for preserved local-view behavior and POC lessons.
 - Do not pick up `workspace-apply-repo-slice` or

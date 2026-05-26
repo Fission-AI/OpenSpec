@@ -55,8 +55,8 @@ Supersede:
 
 - `openspec/initiatives/context-store-and-initiatives/*.md`
 - `openspec/initiatives/context-store-and-initiatives/work-items/**/*.md`
-- `WORKSPACE_REIMPLEMENTATION_START_HERE.md`
-- `WORKSPACE_REIMPLEMENTATION_DIRECTION.md`
+- `openspec/changes/workspace-reimplementation-roadmap/START_HERE.md`
+- `openspec/changes/workspace-reimplementation-roadmap/HISTORICAL_DIRECTION.md`
 - `openspec/changes/workspace-reimplementation-roadmap/*`
 - active `openspec/changes/workspace-*` proposals
 - `docs/cli.md`

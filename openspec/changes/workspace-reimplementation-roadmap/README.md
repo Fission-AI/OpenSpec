@@ -31,7 +31,7 @@ Defer:
 Do not pick up the next unfinished flat sibling change from this roadmap unless
 a later initiative-linked repo-change design explicitly reactivates it.
 
-Root entry point for fresh agents: `WORKSPACE_REIMPLEMENTATION_START_HERE.md`.
+Root entry point for fresh agents: `START_HERE.md`.
 
 The user journey this historical roadmap was implementing is:
 
@@ -50,7 +50,7 @@ The POC branch is reference material only:
 workspace-poc @ 79a45ac043f414e63d13e08b9da83b135cb20a39
 ```
 
-Use it to understand behavior, tests, and lessons learned. Do not merge it or preserve its architecture by default. The full source direction document from that branch is copied at the repository root as `WORKSPACE_REIMPLEMENTATION_DIRECTION.md`.
+Use it to understand behavior, tests, and lessons learned. Do not merge it or preserve its architecture by default. The full source direction document from that branch is captured in `HISTORICAL_DIRECTION.md`.
 
 Fresh agents should read `POC_REFERENCE_GUIDE.md` before implementing any slice. That guide explains how to inspect the pinned POC commit, which files to read for each slice, and what findings to bring back into the OpenSpec artifacts.
 
@@ -92,7 +92,9 @@ Use this prompt at the start of future implementation sessions:
 Continue the context-store-and-initiatives direction. Read
 openspec/initiatives/context-store-and-initiatives/direction.md and
 openspec/initiatives/context-store-and-initiatives/roadmap.md first. Use
+openspec/changes/workspace-reimplementation-roadmap/START_HERE.md,
 openspec/changes/workspace-reimplementation-roadmap/README.md,
+openspec/changes/workspace-reimplementation-roadmap/HISTORICAL_DIRECTION.md,
 openspec/changes/workspace-reimplementation-roadmap/POC_REFERENCE_GUIDE.md, and
 workspace-poc at 79a45ac043f414e63d13e08b9da83b135cb20a39 as historical
 reference material only. Preserve useful local-view workspace behavior, but do

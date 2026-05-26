@@ -6,8 +6,8 @@ Completed before this work item folder was created:
 
 - Added locked disposition to `roadmap.md`.
 - Added locked product boundary to `direction.md`.
-- Marked `WORKSPACE_REIMPLEMENTATION_START_HERE.md` as historical reference.
-- Marked `WORKSPACE_REIMPLEMENTATION_DIRECTION.md` as historical reference.
+- Marked `openspec/changes/workspace-reimplementation-roadmap/START_HERE.md` as historical reference.
+- Marked `openspec/changes/workspace-reimplementation-roadmap/HISTORICAL_DIRECTION.md` as historical reference.
 - Marked `openspec/changes/workspace-reimplementation-roadmap/` as historical
   reference.
 - Marked `workspace-apply-repo-slice` and `workspace-verify-and-archive` as
@@ -52,13 +52,14 @@ source-of-intent review complete.
 
 Reviewed the historical workspace reimplementation entry points:
 
-- `WORKSPACE_REIMPLEMENTATION_START_HERE.md`
-- `WORKSPACE_REIMPLEMENTATION_DIRECTION.md`
+- `openspec/changes/workspace-reimplementation-roadmap/START_HERE.md`
+- `openspec/changes/workspace-reimplementation-roadmap/HISTORICAL_DIRECTION.md`
 - `openspec/changes/workspace-reimplementation-roadmap/README.md`
 - `openspec/changes/workspace-reimplementation-roadmap/proposal.md`
 - `openspec/changes/workspace-reimplementation-roadmap/POC_REFERENCE_GUIDE.md`
 
-Added a guard near the top of `WORKSPACE_REIMPLEMENTATION_DIRECTION.md` stating
+Added a guard near the top of
+`openspec/changes/workspace-reimplementation-roadmap/HISTORICAL_DIRECTION.md` stating
 that the remaining sections are historical POC follow-up direction and should
 not be treated as active implementation guidance.
 

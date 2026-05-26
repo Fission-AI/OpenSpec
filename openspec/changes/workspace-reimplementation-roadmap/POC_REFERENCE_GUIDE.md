@@ -2,7 +2,7 @@
 
 This guide is for a fresh agent starting a new session with no prior context about the workspace POC.
 
-Root entry point: `WORKSPACE_REIMPLEMENTATION_START_HERE.md`.
+Root entry point: `START_HERE.md`.
 
 The goal is not to continue the POC. The goal is to use it as research material
 before preserving or replacing specific behavior from the current base.

@@ -28,7 +28,7 @@ Deferred here: apply, verify, archive, branch/worktree orchestration,
 cross-repo validation, dependency graph enforcement, and governance flows until
 initiative-linked repo-local changes exist.
 
-Fresh-agent entry point: read `WORKSPACE_REIMPLEMENTATION_START_HERE.md` first, then return to this document for the full product direction.
+Fresh-agent entry point: read `openspec/changes/workspace-reimplementation-roadmap/START_HERE.md` first, then return to this document for the full product direction.
 
 This document captures the intended direction for reimplementing OpenSpec workspace support from scratch, based on what we learned from the workspace POC.
 
