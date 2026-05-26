@@ -75,7 +75,7 @@ describe('planning home paths', () => {
     fs.mkdirSync(path.join(workspaceRoot, '.openspec-workspace'), { recursive: true });
     fs.writeFileSync(
       path.join(workspaceRoot, 'workspace.yaml'),
-      'version: 1\nname: bad/name\nlinks: {}\n',
+      'version: 1\nname: bad/name\ncontext: null\nlinks: {}\n',
       'utf-8'
     );
     fs.writeFileSync(

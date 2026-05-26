@@ -304,12 +304,12 @@ export async function prepareWorkspaceOpen(
         { preferPositionalName: true }
       );
   const state = await readWorkspaceOpenState(selected);
-  const stored = !requestedInitiative && state.sharedState.context
-    ? await resolveStoredWorkspaceInitiative(state.sharedState.context)
+  const stored = !requestedInitiative && state.viewState.context
+    ? await resolveStoredWorkspaceInitiative(state.viewState.context)
     : null;
   const initiative = requestedInitiative ?? stored?.initiative ?? null;
   const resolvedContext = initiative ? toWorkspaceOpenResolvedContext(initiative) : null;
-  const opener = await resolveWorkspaceOpenOpener(state.localState, options);
+  const opener = await resolveWorkspaceOpenOpener(state.viewState, options);
 
   assertWorkspaceOpenerAvailable(opener, state.codeWorkspacePath);
 
@@ -325,7 +325,7 @@ export async function prepareWorkspaceOpen(
     selected,
     opener,
     initiative,
-    workspaceContext: state.sharedState.context,
+    workspaceContext: state.viewState.context,
     warnings: [
       ...selected.status,
       ...(stored?.warnings ?? []),

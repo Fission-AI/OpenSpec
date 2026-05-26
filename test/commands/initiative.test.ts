@@ -223,7 +223,9 @@ describe('initiative command', () => {
     expect(create.stdout).toContain('Created initiative');
     expect(create.stdout).toContain('ID: launch-billing-flow');
     expect(create.stdout).toContain('Context store: team-context');
-    expect(create.stdout).toContain(`Location: ${initiativeRoot(storeRoot, 'launch-billing-flow')}`);
+    expect(create.stdout).toContain(
+      `Location: ${expectedExistingPath(initiativeRoot(storeRoot, 'launch-billing-flow'))}`
+    );
     expect(create.stdout).toContain('Created files (6):');
     expect(create.stdout).toContain('openspec initiative list --store team-context');
 
@@ -236,7 +238,7 @@ describe('initiative command', () => {
     expect(list.stdout).toContain('OpenSpec initiatives in team-context (1)');
     expect(list.stdout).toContain('launch-billing-flow');
     expect(list.stdout).not.toContain('Status: exploring');
-    expect(list.stdout).toContain(`Location: ${storeRoot}`);
+    expect(list.stdout).toContain(`Location: ${expectedExistingPath(storeRoot)}`);
   });
 
   it('lists initiatives across registered context stores by default', async () => {
@@ -445,9 +447,10 @@ describe('initiative command', () => {
     expect(show.stdout).toContain('ID: billing-launch');
     expect(show.stdout).toContain('Summary: Coordinate billing launch work.');
     expect(show.stdout).toContain('Context store: platform');
-    expect(show.stdout).toContain(`Location: ${initiativeRoot(storeRoot, 'billing-launch')}`);
+    const expectedInitiativeRoot = expectedExistingPath(initiativeRoot(storeRoot, 'billing-launch'));
+    expect(show.stdout).toContain(`Location: ${expectedInitiativeRoot}`);
     expect(show.stdout).toContain(
-      `Metadata: ${path.join(initiativeRoot(storeRoot, 'billing-launch'), 'initiative.yaml')}`
+      `Metadata: ${path.join(expectedInitiativeRoot, 'initiative.yaml')}`
     );
     expect(show.stdout).not.toContain('Status:');
     expect(show.stdout).not.toContain('Owners:');
@@ -606,6 +609,38 @@ describe('initiative command', () => {
         code: 'invalid_initiative',
       })
     );
+
+    await writeContextStoreRegistryState(
+      {
+        version: 1,
+        stores: {
+          platform: {
+            backend: {
+              type: 'git',
+              local_path: storeRoot,
+            },
+          },
+          'missing-context': {
+            backend: {
+              type: 'git',
+              local_path: path.join(tempDir, 'missing-context'),
+            },
+          },
+        },
+      },
+      { globalDataDir }
+    );
+    const invalidWithUnreadableStore = await runCLI(['initiative', 'show', 'broken-launch', '--json'], {
+      cwd: tempDir,
+      env,
+    });
+    expect(invalidWithUnreadableStore.exitCode).toBe(1);
+    expect(parseJson(invalidWithUnreadableStore).status[0]).toEqual(
+      expect.objectContaining({
+        code: 'invalid_initiative',
+        target: 'initiative',
+      })
+    );
   });
 
   it('reports all-store empty and partial-read initiative list states', async () => {
@@ -663,7 +698,47 @@ describe('initiative command', () => {
       })
     );
 
+    const invalidRoot = await setupRegisteredStore('invalid-context');
+    writeInvalidInitiative(invalidRoot, 'broken-launch');
+    const invalidPartial = await runCLI(['initiative', 'list', '--json'], { cwd: tempDir, env });
+    expect(invalidPartial.exitCode).toBe(0);
+    const invalidPartialPayload = parseJson(invalidPartial);
+    expect(invalidPartialPayload.initiatives.map((initiative: any) => initiative.id)).toEqual([
+      'billing-launch',
+    ]);
+    expect(invalidPartialPayload.status).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'context_stores_partially_unreadable',
+        }),
+        expect.objectContaining({
+          code: 'initiative_collections_partially_invalid',
+          fix: 'Fix the invalid initiative folder state and retry.',
+        }),
+      ])
+    );
+    const invalidStore = invalidPartialPayload.context_stores.find(
+      (store: any) => store.context_store.id === 'invalid-context'
+    );
+    expect(invalidStore?.status[0]).toEqual(
+      expect.objectContaining({
+        code: 'invalid_initiative',
+        target: 'initiative',
+      })
+    );
+
     fs.rmSync(readableRoot, { recursive: true, force: true });
+    const allInvalid = await runCLI(['initiative', 'list', '--json'], { cwd: tempDir, env });
+    expect(allInvalid.exitCode).toBe(1);
+    expect(parseJson(allInvalid).status[0]).toEqual(
+      expect.objectContaining({
+        code: 'initiative_collections_invalid',
+        target: 'initiative',
+        fix: 'Fix the invalid initiative folder state and retry.',
+      })
+    );
+
+    fs.rmSync(invalidRoot, { recursive: true, force: true });
     const allUnreadable = await runCLI(['initiative', 'list', '--json'], { cwd: tempDir, env });
     expect(allUnreadable.exitCode).toBe(1);
     expect(parseJson(allUnreadable).status[0]).toEqual(
@@ -808,6 +883,7 @@ describe('initiative command', () => {
     expect(create?.positionals).toEqual([
       {
         name: 'id',
+        optional: true,
       },
     ]);
     expect(create?.flags?.map((flag) => flag.name)).toEqual([

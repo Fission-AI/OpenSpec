@@ -2,7 +2,6 @@
 
 ## Open
 
-- What is the first concrete context store command surface?
 - Should the user-facing command vocabulary say `context`, `store`, or
   something more product-facing?
 - What migration or compatibility path should existing workspace-planning
@@ -18,3 +17,7 @@
 - Workspaces should not be the durable shared planning object.
 - Initiative roadmap implementation should be tracked inside the initiative
   until repo-owned implementation changes are needed.
+- The first concrete context store command surface is `context-store setup`,
+  `context-store register`, `context-store list`/`ls`, and
+  `context-store doctor`. Sync, push/pull, remotes, and conflict handling are
+  future work.

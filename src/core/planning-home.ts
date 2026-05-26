@@ -3,10 +3,8 @@ import * as path from 'node:path';
 
 import {
   getWorkspaceChangesDir,
-  getWorkspaceLegacySharedStatePath,
-  getWorkspaceSharedStatePath,
-  parseWorkspaceSharedState,
-  type WorkspaceSharedState,
+  readWorkspaceViewStateSync,
+  workspaceStateFileExistsSync,
 } from './workspace/index.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 
@@ -39,23 +37,6 @@ function pathExistsAsDirectory(candidatePath: string): boolean {
   }
 }
 
-function pathExistsAsFile(candidatePath: string): boolean {
-  try {
-    return fs.statSync(candidatePath).isFile();
-  } catch {
-    return false;
-  }
-}
-
-function isFileNotFoundError(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as NodeJS.ErrnoException).code === 'ENOENT'
-  );
-}
-
 function getSearchStartDirectory(startPath: string): string {
   const resolved = path.resolve(startPath);
 
@@ -86,10 +67,7 @@ function findNearestAncestor(startPath: string, predicate: (dirPath: string) => 
 }
 
 export function findWorkspacePlanningRootSync(startPath = process.cwd()): string | null {
-  return findNearestAncestor(startPath, (dirPath) =>
-    pathExistsAsFile(getWorkspaceSharedStatePath(dirPath)) ||
-    pathExistsAsFile(getWorkspaceLegacySharedStatePath(dirPath))
-  );
+  return findNearestAncestor(startPath, workspaceStateFileExistsSync);
 }
 
 export function findRepoPlanningRootSync(startPath = process.cwd()): string | null {
@@ -119,28 +97,8 @@ function relativePlanningPath(fromPath: string, toPath: string): string {
   return path.posix.relative(fromPath.replace(/\\/g, '/'), toPath.replace(/\\/g, '/'));
 }
 
-function readWorkspaceSharedStateSync(workspaceRoot: string): WorkspaceSharedState | null {
-  for (const statePath of [
-    getWorkspaceSharedStatePath(workspaceRoot),
-    getWorkspaceLegacySharedStatePath(workspaceRoot),
-  ]) {
-    try {
-      return parseWorkspaceSharedState(fs.readFileSync(statePath, 'utf-8'));
-    } catch (error) {
-      if (isFileNotFoundError(error)) {
-        // Try the next supported workspace state location.
-        continue;
-      }
-
-      throw error;
-    }
-  }
-
-  return null;
-}
-
 function workspacePlanningHome(workspaceRoot: string): PlanningHome {
-  const sharedState = readWorkspaceSharedStateSync(workspaceRoot);
+  const viewState = readWorkspaceViewStateSync(workspaceRoot);
 
   return {
     kind: 'workspace',
@@ -148,8 +106,8 @@ function workspacePlanningHome(workspaceRoot: string): PlanningHome {
     changesDir: getWorkspaceChangesDir(workspaceRoot),
     defaultSchema: WORKSPACE_DEFAULT_SCHEMA,
     workspace: {
-      name: sharedState?.name ?? path.basename(workspaceRoot),
-      links: Object.keys(sharedState?.links ?? {}).sort((a, b) => a.localeCompare(b)),
+      name: viewState?.name ?? path.basename(workspaceRoot),
+      links: Object.keys(viewState?.links ?? {}).sort((a, b) => a.localeCompare(b)),
     },
   };
 }

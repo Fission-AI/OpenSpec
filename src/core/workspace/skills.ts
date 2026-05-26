@@ -13,7 +13,7 @@ import {
   getToolsWithSkillsDir,
   extractGeneratedByVersion,
 } from '../shared/index.js';
-import type { WorkspaceLocalState, WorkspaceSkillState } from './foundation.js';
+import type { WorkspaceSkillState } from './foundation.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../../package.json');
@@ -115,9 +115,9 @@ function arraysEqual(left: readonly string[] | undefined, right: readonly string
 }
 
 export function hasWorkspaceSkillProfileDrift(
-  localState: Pick<WorkspaceLocalState, 'workspace_skills'> | null | undefined
+  state: { workspace_skills?: WorkspaceSkillState } | null | undefined
 ): boolean {
-  const workspaceSkills = localState?.workspace_skills;
+  const workspaceSkills = state?.workspace_skills;
 
   if (!workspaceSkills) {
     return false;

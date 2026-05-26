@@ -51,7 +51,7 @@ This separation is key. You can work on multiple changes in parallel without con
 
 ## Coordination Workspaces
 
-Workspace support is under active development and is not ready for use yet. Do not build external automation, integrations, or long-lived workflows on top of workspace behavior; the commands, state files, and JSON output can change at any point.
+Workspace support is in beta. The local-view model below is the current direction, but external automation, integrations, and long-lived workflows should still treat command behavior, state files, and JSON output as evolving.
 
 The commands below provide the first setup flow for opening local views over linked repos or folders.
 

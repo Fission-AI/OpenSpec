@@ -2,9 +2,8 @@ import { spawn as nodeSpawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 
 import {
-  WorkspaceLocalState,
   WorkspacePreferredOpener,
-  WorkspaceSharedState,
+  WorkspaceViewState,
   WorkspaceOpenResolvedContext,
   WorkspaceOpenSurfaceGeneration,
   WorkspaceSkippedOpenLink,
@@ -12,9 +11,7 @@ import {
   getWorkspaceOpenerExecutable,
   getWorkspaceOpenerLabel,
   isWorkspaceExecutableAvailable,
-  readWorkspaceLocalState,
-  readWorkspaceSharedState,
-  resolveWorkspaceOpenLinks,
+  readWorkspaceViewState,
   syncWorkspaceOpenSurface,
 } from '../../core/workspace/index.js';
 import { SelectedWorkspace, WorkspaceCliError, asErrorMessage } from './types.js';
@@ -24,8 +21,7 @@ const require = createRequire(import.meta.url);
 const spawn = require('cross-spawn') as typeof nodeSpawn;
 
 export interface WorkspaceOpenState {
-  sharedState: WorkspaceSharedState;
-  localState: WorkspaceLocalState;
+  viewState: WorkspaceViewState;
   codeWorkspacePath: string;
 }
 
@@ -60,13 +56,11 @@ export interface WorkspaceOpenLaunchOptions {
 export async function readWorkspaceOpenState(
   selected: SelectedWorkspace
 ): Promise<WorkspaceOpenState> {
-  const sharedState = await readWorkspaceSharedState(selected.root);
-  const localState = await readWorkspaceLocalState(selected.root);
+  const viewState = await readWorkspaceViewState(selected.root);
 
   return {
-    sharedState,
-    localState,
-    codeWorkspacePath: getWorkspaceCodeWorkspacePath(selected.root, sharedState.name),
+    viewState,
+    codeWorkspacePath: getWorkspaceCodeWorkspacePath(selected.root, viewState.name),
   };
 }
 
@@ -133,8 +127,7 @@ export async function buildWorkspaceOpenCommandForState(
 ): Promise<WorkspaceOpenCommandBuildResult> {
   const openSurface = await syncWorkspaceOpenSurface(
     workspaceRoot,
-    state.sharedState,
-    state.localState,
+    state.viewState,
     resolvedContext
   );
   const openedRoots = [

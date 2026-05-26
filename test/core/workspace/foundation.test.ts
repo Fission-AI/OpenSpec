@@ -8,11 +8,9 @@ import { FileSystemUtils } from '../../../src/utils/file-system.js';
 import {
   MANAGED_WORKSPACES_DIR_NAME,
   WORKSPACE_CHANGES_DIR_NAME,
-  WORKSPACE_LOCAL_STATE_FILE_NAME,
-  WORKSPACE_LOCAL_STATE_IGNORE_PATTERN,
   WORKSPACE_METADATA_DIR_NAME,
   WORKSPACE_REGISTRY_FILE_NAME,
-  WORKSPACE_SHARED_STATE_FILE_NAME,
+  WORKSPACE_VIEW_STATE_FILE_NAME,
   applyWorkspaceGuidanceBlock,
   buildWorkspaceCodeWorkspaceContent,
   buildWorkspaceGuidanceBlock,
@@ -22,38 +20,28 @@ import {
   getWorkspaceCodeWorkspaceFileName,
   getWorkspaceCodeWorkspacePath,
   getWorkspaceChangesDir,
-  getWorkspaceLocalStatePath,
   getWorkspaceMetadataDir,
   getWorkspacePortableIgnorePatterns,
   getWorkspaceRegistryPath,
-  getWorkspaceSharedStatePath,
+  getWorkspaceViewStatePath,
   isValidWorkspaceLinkName,
   isValidWorkspaceName,
   isWorkspaceRoot,
   isWorkspaceExecutableAvailable,
   listWorkspaceRegistryEntries,
   listWorkspaceOpenerChoices,
-  parseWorkspaceLocalState,
   parseWorkspacePreferredOpenerValue,
   parseWorkspaceRegistryState,
-  parseWorkspaceSharedState,
   parseWorkspaceSetupLinkInput,
   parseWorkspaceViewState,
-  readWorkspaceLocalState,
-  readOptionalWorkspaceLocalState,
   readWorkspaceRegistryState,
-  readWorkspaceSharedState,
-  serializeWorkspaceLocalState,
+  readWorkspaceViewState,
   serializeWorkspaceViewState,
   syncWorkspaceOpenSurface,
-  workspaceStatePartsToViewState,
   workspaceChangesDirExists,
-  workspaceViewToLocalState,
-  workspaceViewToSharedState,
-  writeWorkspaceLocalState,
+  writeWorkspaceViewState,
   writeWorkspaceRegistryState,
 } from '../../../src/core/workspace/index.js';
-
 describe('workspace foundation', () => {
   let tempDir: string;
   let originalEnv: NodeJS.ProcessEnv;
@@ -72,7 +60,7 @@ describe('workspace foundation', () => {
     const workspaceRoot = path.join(tempDir, name);
     fs.mkdirSync(workspaceRoot, { recursive: true });
     fs.writeFileSync(
-      getWorkspaceSharedStatePath(workspaceRoot),
+      getWorkspaceViewStatePath(workspaceRoot),
       `version: 1
 name: ${name}
 context: null
@@ -95,8 +83,7 @@ links: {}
   describe('path helpers', () => {
     it('exposes the workspace constants', () => {
       expect(WORKSPACE_METADATA_DIR_NAME).toBe('.openspec-workspace');
-      expect(WORKSPACE_SHARED_STATE_FILE_NAME).toBe('workspace.yaml');
-      expect(WORKSPACE_LOCAL_STATE_FILE_NAME).toBe('local.yaml');
+      expect(WORKSPACE_VIEW_STATE_FILE_NAME).toBe('workspace.yaml');
       expect(WORKSPACE_CHANGES_DIR_NAME).toBe('changes');
       expect(MANAGED_WORKSPACES_DIR_NAME).toBe('workspaces');
       expect(WORKSPACE_REGISTRY_FILE_NAME).toBe('registry.yaml');
@@ -108,10 +95,7 @@ links: {}
       expect(getWorkspaceMetadataDir(workspaceRoot)).toBe(
         path.join(workspaceRoot, '.openspec-workspace')
       );
-      expect(getWorkspaceSharedStatePath(workspaceRoot)).toBe(
-        path.join(workspaceRoot, 'workspace.yaml')
-      );
-      expect(getWorkspaceLocalStatePath(workspaceRoot)).toBe(
+      expect(getWorkspaceViewStatePath(workspaceRoot)).toBe(
         path.join(workspaceRoot, 'workspace.yaml')
       );
       expect(getWorkspaceChangesDir(workspaceRoot)).toBe(path.join(workspaceRoot, 'changes'));
@@ -124,10 +108,7 @@ links: {}
     it('preserves Windows-style location strings when building workspace file paths', () => {
       const workspaceRoot = 'D:\\repos\\platform-workspace';
 
-      expect(getWorkspaceSharedStatePath(workspaceRoot)).toBe(
-        'D:\\repos\\platform-workspace\\workspace.yaml'
-      );
-      expect(getWorkspaceLocalStatePath(workspaceRoot)).toBe(
+      expect(getWorkspaceViewStatePath(workspaceRoot)).toBe(
         'D:\\repos\\platform-workspace\\workspace.yaml'
       );
     });
@@ -169,7 +150,6 @@ links: {}
     });
 
     it('exposes the portable collaboration ignore rule for local state', () => {
-      expect(WORKSPACE_LOCAL_STATE_IGNORE_PATTERN).toBe('.openspec-workspace/local.yaml');
       expect(getWorkspacePortableIgnorePatterns()).toEqual([]);
       expect(getWorkspacePortableIgnorePatterns('platform')).toEqual([
         'platform.code-workspace',
@@ -262,36 +242,27 @@ links: {}
       );
     });
 
-    it('canonicalizes detected workspace roots on Windows before returning them', async () => {
+    it('canonicalizes detected workspace roots before returning them', async () => {
       const workspaceRoot = createWorkspaceRoot();
-      const canonicalWorkspaceRoot = path.join(tempDir, 'canonical-platform');
-      const originalPlatform = process.platform;
-      const canonicalize = vi
-        .spyOn(FileSystemUtils, 'canonicalizeExistingPath')
-        .mockImplementation((targetPath) =>
-          targetPath === workspaceRoot ? canonicalWorkspaceRoot : targetPath
-        );
-
-      Object.defineProperty(process, 'platform', { value: 'win32' });
+      const canonicalize = vi.spyOn(FileSystemUtils, 'canonicalizeExistingPath');
 
       try {
-        await expect(findWorkspaceRoot(workspaceRoot)).resolves.toBe(canonicalWorkspaceRoot);
+        await expect(findWorkspaceRoot(workspaceRoot)).resolves.toBe(expectedExistingPath(workspaceRoot));
         expect(canonicalize).toHaveBeenCalledWith(workspaceRoot);
       } finally {
         canonicalize.mockRestore();
-        Object.defineProperty(process, 'platform', { value: originalPlatform });
       }
     });
   });
 
   describe('state parsing', () => {
-    it('parses shared workspace state with stable link names', () => {
-      const state = parseWorkspaceSharedState(`version: 1
+    it('parses canonical workspace state with stable link names and paths', () => {
+      const state = parseWorkspaceViewState(`version: 1
 name: platform
+context: null
 links:
-  api: {}
-  web:
-    note: planning only
+  api: /repos/api
+  web: null
 `);
 
       expect(state).toEqual({
@@ -299,8 +270,8 @@ links:
         name: 'platform',
         context: null,
         links: {
-          api: {},
-          web: { note: 'planning only' },
+          api: '/repos/api',
+          web: null,
         },
       });
     });
@@ -350,55 +321,22 @@ links: {}
       ).toThrow(/Invalid workspace state/);
     });
 
-    it('rejects invalid shared-state versions, names, and link maps', () => {
-      expect(() => parseWorkspaceSharedState('version: 2\nname: platform\nlinks: {}\n')).toThrow(
-        /Invalid workspace shared state/
-      );
-      expect(() => parseWorkspaceSharedState('version: 1\nname: bad/name\nlinks: {}\n')).toThrow(
-        /Workspace name/
-      );
-      expect(() =>
-        parseWorkspaceSharedState('version: 1\nname: platform\nlinks:\n  bad/name: {}\n')
-      ).toThrow(/workspace link name/);
-      expect(() =>
-        parseWorkspaceSharedState('version: 1\nname: platform\nlinks:\n  api: nope\n')
-      ).toThrow(/Invalid workspace shared state/);
-    });
-
-    it('parses local state while preserving native Windows and WSL2-style paths', () => {
-      const state = parseWorkspaceLocalState(String.raw`version: 1
-paths:
-  windows: D:\repos\api
-  wsl: /mnt/d/repos/api
-  linux: /home/tabish/repos/api
-`);
-
-      expect(state.paths.windows).toBe('D:\\repos\\api');
-      expect(state.paths.wsl).toBe('/mnt/d/repos/api');
-      expect(state.paths.linux).toBe('/home/tabish/repos/api');
-    });
-
-    it('parses and serializes structured preferred openers while accepting older local state', () => {
-      expect(parseWorkspaceLocalState('version: 1\npaths: {}\n')).toEqual({
-        version: 1,
-        paths: {},
-      });
-
-      const codexState = parseWorkspaceLocalState(`version: 1
-paths:
+    it('parses and serializes structured preferred openers in canonical state', () => {
+      const state = parseWorkspaceViewState(`version: 1
+name: platform
+context: null
+links:
   api: /repo/api
 preferred_opener:
   kind: agent
   id: codex
 `);
 
-      expect(codexState.preferred_opener).toEqual({
+      expect(state.preferred_opener).toEqual({
         kind: 'agent',
         id: 'codex',
       });
-      expect(parseWorkspaceLocalState(serializeWorkspaceLocalState(codexState))).toEqual(
-        codexState
-      );
+      expect(parseWorkspaceViewState(serializeWorkspaceViewState(state))).toEqual(state);
       expect(parseWorkspacePreferredOpenerValue('editor')).toEqual({
         kind: 'editor',
         id: 'vscode',
@@ -409,41 +347,39 @@ preferred_opener:
       });
     });
 
-    it('serializes and writes local state without normalizing runtime-local paths', async () => {
+    it('writes canonical view state without normalizing paths', async () => {
       const workspaceRoot = path.join(tempDir, 'roundtrip');
-      const localState = {
+      const viewState = {
         version: 1 as const,
-        paths: {
+        name: 'roundtrip',
+        context: null,
+        links: {
           windows: 'D:\\repos\\api',
           wsl: '/mnt/d/repos/api',
         },
       };
 
-      expect(parseWorkspaceLocalState(serializeWorkspaceLocalState(localState))).toEqual(
-        localState
-      );
+      await writeWorkspaceViewState(workspaceRoot, viewState);
 
-      await writeWorkspaceLocalState(workspaceRoot, localState);
-
-      await expect(readWorkspaceLocalState(workspaceRoot)).resolves.toEqual(localState);
+      await expect(readWorkspaceViewState(workspaceRoot)).resolves.toEqual(viewState);
     });
 
-    it('rejects invalid local-state versions, link names, and path maps', () => {
-      expect(() => parseWorkspaceLocalState('version: 2\npaths: {}\n')).toThrow(
-        /Invalid workspace local state/
-      );
-      expect(() => parseWorkspaceLocalState('version: 1\npaths:\n  ../api: /repo\n')).toThrow(
-        /workspace local path name/
-      );
-      expect(() => parseWorkspaceLocalState('version: 1\npaths:\n  api: 42\n')).toThrow(
-        /Invalid workspace local state/
-      );
-      expect(() => parseWorkspaceLocalState('version: 1\npaths: []\n')).toThrow(
-        /Invalid workspace local state/
-      );
+    it('rejects invalid canonical state versions, link names, paths, and openers', () => {
       expect(() =>
-        parseWorkspaceLocalState(
-          'version: 1\npaths: {}\npreferred_opener:\n  kind: agent\n  id: editor\n'
+        parseWorkspaceViewState('version: 2\nname: platform\ncontext: null\nlinks: {}\n')
+      ).toThrow(/Invalid workspace state/);
+      expect(() =>
+        parseWorkspaceViewState('version: 1\nname: bad/name\ncontext: null\nlinks: {}\n')
+      ).toThrow(/Workspace name/);
+      expect(() =>
+        parseWorkspaceViewState('version: 1\nname: platform\ncontext: null\nlinks:\n  bad/name: /repo\n')
+      ).toThrow(/workspace link name/);
+      expect(() =>
+        parseWorkspaceViewState('version: 1\nname: platform\ncontext: null\nlinks:\n  api: 42\n')
+      ).toThrow(/Invalid workspace state/);
+      expect(() =>
+        parseWorkspaceViewState(
+          'version: 1\nname: platform\ncontext: null\nlinks: {}\npreferred_opener:\n  kind: agent\n  id: editor\n'
         )
       ).toThrow(/Unsupported workspace opener/);
       expect(() => parseWorkspacePreferredOpenerValue('cursor')).toThrow(
@@ -451,68 +387,11 @@ preferred_opener:
       );
     });
 
-    it('preserves shared-only links when converting legacy shared and local state', () => {
-      const state = workspaceStatePartsToViewState(
-        {
-          version: 1,
-          name: 'platform',
-          context: null,
-          links: {
-            api: {},
-            web: {},
-          },
-        },
-        {
-          version: 1,
-          paths: {
-            api: '/repos/api',
-          },
-        }
-      );
-
-      expect(state.links).toEqual({
-        api: '/repos/api',
-        web: null,
-      });
-      expect(parseWorkspaceViewState(serializeWorkspaceViewState(state))).toEqual(state);
-      expect(workspaceViewToSharedState(state).links).toEqual({
-        api: {},
-        web: {},
-      });
-      expect(workspaceViewToLocalState(state).paths).toEqual({
-        api: '/repos/api',
-      });
-    });
-
-    it('reads shared and local state from a workspace folder', async () => {
+    it('rejects invalid canonical state instead of treating it as missing', async () => {
       const workspaceRoot = createWorkspaceRoot();
+      fs.writeFileSync(getWorkspaceViewStatePath(workspaceRoot), 'version: 1\npaths: []\n');
 
-      await expect(readWorkspaceSharedState(workspaceRoot)).resolves.toEqual({
-        version: 1,
-        name: 'platform',
-        context: null,
-        links: {},
-      });
-      await expect(readWorkspaceLocalState(workspaceRoot)).resolves.toEqual({
-        version: 1,
-        paths: {},
-      });
-    });
-
-    it('returns root view paths for optional local state', async () => {
-      const workspaceRoot = createWorkspaceRoot();
-
-      await expect(readOptionalWorkspaceLocalState(workspaceRoot)).resolves.toEqual({
-        version: 1,
-        paths: {},
-      });
-    });
-
-    it('rejects invalid optional local state instead of treating it as missing', async () => {
-      const workspaceRoot = createWorkspaceRoot();
-      fs.writeFileSync(getWorkspaceLocalStatePath(workspaceRoot), 'version: 1\npaths: []\n');
-
-      await expect(readOptionalWorkspaceLocalState(workspaceRoot)).rejects.toThrow(
+      await expect(readWorkspaceViewState(workspaceRoot)).rejects.toThrow(
         /Invalid workspace state/
       );
     });
@@ -595,25 +474,21 @@ After block.
       fs.mkdirSync(api, { recursive: true });
       fs.writeFileSync(path.join(workspaceRoot, 'AGENTS.md'), '# Existing\n');
       fs.writeFileSync(path.join(workspaceRoot, '.gitignore'), '*.code-workspace\n');
-      const sharedState = {
+      const workspaceState = {
         version: 1 as const,
         name: 'platform',
         context: null,
         links: {
-          api: {},
-          missing: {},
-          noPath: {},
-        },
-      };
-      const localState = {
-        version: 1 as const,
-        paths: {
           api,
           missing,
+          noPath: null,
         },
       };
 
-      const result = await syncWorkspaceOpenSurface(workspaceRoot, sharedState, localState);
+      const result = await syncWorkspaceOpenSurface(
+        workspaceRoot,
+        workspaceState
+      );
 
       expect(result.links).toEqual([{ name: 'api', path: api }]);
       expect(result.skipped).toEqual([

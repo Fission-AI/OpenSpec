@@ -189,6 +189,11 @@ initiatives/
     tasks.md
 ```
 
+This describes the runtime initiative collection shape in context stores. This
+roadmap folder may still contain legacy `.initiative.yaml` progress metadata
+while the initiative itself is being used to manage the migration; that legacy
+tracker is not the model new context-store initiatives should copy.
+
 The default structure should be opinionated for the enterprise design
 partnership, but the collection system should allow other structures later.
 

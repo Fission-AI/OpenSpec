@@ -10,7 +10,7 @@ import {
   validateSchemaName,
   ChangeMetadataError,
 } from '../../src/utils/change-metadata.js';
-import { ChangeMetadataSchema } from '../../src/core/artifact-graph/types.js';
+import { ChangeMetadataSchema } from '../../src/core/change-metadata/index.js';
 
 describe('ChangeMetadataSchema', () => {
   describe('valid metadata', () => {
@@ -269,14 +269,12 @@ describe('resolveSchemaForChange', () => {
     expect(result).toBe('spec-driven');
   });
 
-  it('should return default when metadata read fails', async () => {
+  it('should fail when metadata exists but cannot be read', async () => {
     // Create an invalid metadata file
     const metaPath = path.join(changeDir, '.openspec.yaml');
     await fs.writeFile(metaPath, '{ invalid yaml', 'utf-8');
 
-    // Should fall back to default, not throw
-    const result = resolveSchemaForChange(changeDir);
-    expect(result).toBe('spec-driven');
+    expect(() => resolveSchemaForChange(changeDir)).toThrow(ChangeMetadataError);
   });
 
   it('should use project config schema when no metadata exists', async () => {

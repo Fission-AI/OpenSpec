@@ -82,21 +82,23 @@ Done when:
 
 ## 3. Add Context Store Foundation
 
-Goal: create the generic synced container that can later hold initiatives and
-other shared context collections.
+Goal: create the generic local context-store foundation that can later hold
+initiatives and other shared context collections. Sync/watch behavior remains a
+future hardening slice.
 
 Ship:
 
-- A context store abstraction with generic operations: read, write, delete,
-  list, sync, and optionally watch.
-- A first Git-backed backend that can use a local clone as the store.
+- A context store abstraction with generic local operations: read, write,
+  delete, and list.
+- A first Git-shaped backend model that can point at a local store root.
 - A test/memory backend for fast tests and prototypes.
 - A store configuration model that does not contain initiative-specific logic.
 
 Done when:
 
-- OpenSpec can create and manipulate files inside a synced context store without
-  the core store layer knowing what those files mean.
+- OpenSpec can create and manipulate files inside a local context store without
+  the core store layer knowing what those files mean. Pull, push, watch,
+  remote creation, and conflict handling are tracked as future sync work.
 
 ## 4. Add Collection Foundation
 

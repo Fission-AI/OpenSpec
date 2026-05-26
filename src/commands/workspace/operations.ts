@@ -2,10 +2,8 @@ import * as nodeFs from 'node:fs';
 import * as path from 'node:path';
 
 import {
-  WorkspaceLocalState,
   WorkspacePreferredOpener,
   WorkspaceRegistryEntry,
-  WorkspaceSharedState,
   WorkspaceContextState,
   WorkspaceViewState,
   getWorkspaceContextInitiativeId,
@@ -17,15 +15,11 @@ import {
   isWorkspaceRoot,
   listKnownWorkspaceEntries,
   parseWorkspaceSetupLinkInput,
-  readOptionalWorkspaceLocalState,
-  readWorkspaceSharedState,
   readWorkspaceViewState,
   syncWorkspaceOpenSurface,
   validateWorkspaceLinkName,
   validateWorkspaceName,
   writeWorkspaceViewState,
-  workspaceViewToLocalState,
-  workspaceViewToSharedState,
 } from '../../core/workspace/index.js';
 import {
   formatContextStoreBinding,
@@ -48,10 +42,6 @@ import { collectWorkspaceContextStatuses } from './context-status.js';
 
 const fs = nodeFs.promises;
 
-function emptyLocalState(): WorkspaceLocalState {
-  return { version: 1, paths: {} };
-}
-
 export async function directoryExists(dirPath: string): Promise<boolean> {
   try {
     return (await fs.stat(dirPath)).isDirectory();
@@ -61,9 +51,7 @@ export async function directoryExists(dirPath: string): Promise<boolean> {
 }
 
 function normalizeExistingPathForStorage(existingPath: string): string {
-  return process.platform === 'win32'
-    ? FileSystemUtils.canonicalizeExistingPath(existingPath)
-    : existingPath;
+  return FileSystemUtils.canonicalizeExistingPath(existingPath);
 }
 
 export async function resolveExistingDirectory(
@@ -100,14 +88,13 @@ export function inferLinkName(absolutePath: string): string {
 }
 
 function normalizeLinksForOutput(
-  sharedState: WorkspaceSharedState,
-  localState: WorkspaceLocalState | null
+  viewState: WorkspaceViewState
 ): WorkspaceLinkOutput[] {
-  return Object.keys(sharedState.links)
+  return Object.keys(viewState.links)
     .sort((a, b) => a.localeCompare(b))
     .map((name) => ({
       name,
-      path: localState?.paths[name] ?? null,
+      path: viewState.links[name] ?? null,
       status: [],
     }));
 }
@@ -238,9 +225,9 @@ function workspaceSkillDriftStatus(workspaceName: string): WorkspaceStatus {
 function appendWorkspaceSkillDriftStatus(
   statuses: WorkspaceStatus[],
   workspaceName: string,
-  localState: WorkspaceLocalState | null
+  viewState: WorkspaceViewState | null
 ): void {
-  if (hasWorkspaceSkillProfileDrift(localState)) {
+  if (hasWorkspaceSkillProfileDrift(viewState)) {
     statuses.push(workspaceSkillDriftStatus(workspaceName));
   }
 }
@@ -253,11 +240,12 @@ export async function createManagedWorkspace(
   tools?: string[]
 ): Promise<WorkspaceOutput> {
   const workspaceName = validateWorkspaceNameForSetup(name);
-  const workspaceRoot = getManagedWorkspaceRoot(workspaceName);
+  const targetWorkspaceRoot = getManagedWorkspaceRoot(workspaceName);
+  let workspaceRoot = targetWorkspaceRoot;
 
-  if (await directoryExists(workspaceRoot)) {
+  if (await directoryExists(targetWorkspaceRoot)) {
     throw new WorkspaceCliError(
-      `Workspace '${workspaceName}' already exists at ${workspaceRoot}.`,
+      `Workspace '${workspaceName}' already exists at ${targetWorkspaceRoot}.`,
       'workspace_already_exists',
       {
         target: 'workspace.name',
@@ -268,9 +256,10 @@ export async function createManagedWorkspace(
   let createdWorkspaceRoot = false;
 
   try {
-    await FileSystemUtils.createDirectory(path.dirname(workspaceRoot));
-    await fs.mkdir(workspaceRoot);
+    await FileSystemUtils.createDirectory(path.dirname(targetWorkspaceRoot));
+    await fs.mkdir(targetWorkspaceRoot);
     createdWorkspaceRoot = true;
+    workspaceRoot = FileSystemUtils.canonicalizeExistingPath(targetWorkspaceRoot);
     await FileSystemUtils.createDirectory(getWorkspaceChangesDir(workspaceRoot));
     const viewState: WorkspaceViewState = {
       version: 1,
@@ -281,15 +270,11 @@ export async function createManagedWorkspace(
       ...(tools ? { tools } : {}),
     };
     await writeWorkspaceViewState(workspaceRoot, viewState);
-    await syncWorkspaceOpenSurface(
-      workspaceRoot,
-      workspaceViewToSharedState(viewState),
-      workspaceViewToLocalState(viewState)
-    );
+    await syncWorkspaceOpenSurface(workspaceRoot, viewState);
   } catch (error) {
     if (createdWorkspaceRoot) {
       try {
-        await fs.rm(workspaceRoot, { recursive: true, force: true });
+        await fs.rm(targetWorkspaceRoot, { recursive: true, force: true });
       } catch {
         // Preserve the original creation failure; callers can retry or inspect the path.
       }
@@ -361,11 +346,10 @@ export async function loadWorkspaceForList(
     };
   }
 
-  let sharedState: WorkspaceSharedState;
-  let localState: WorkspaceLocalState | null = null;
+  let viewState: WorkspaceViewState;
 
   try {
-    sharedState = await readWorkspaceSharedState(entry.workspaceRoot);
+    viewState = await readWorkspaceViewState(entry.workspaceRoot);
   } catch (error) {
     return {
       name: entry.name,
@@ -386,20 +370,14 @@ export async function loadWorkspaceForList(
     };
   }
 
-  try {
-    localState = await readOptionalWorkspaceLocalState(entry.workspaceRoot);
-  } catch (error) {
-    workspaceStatus.push(localStateInvalidStatus(error));
-  }
-
-  appendWorkspaceSkillDriftStatus(workspaceStatus, sharedState.name, localState);
-  workspaceStatus.push(...(await collectWorkspaceContextStatuses(sharedState.context)));
+  appendWorkspaceSkillDriftStatus(workspaceStatus, viewState.name, viewState);
+  workspaceStatus.push(...(await collectWorkspaceContextStatuses(viewState.context)));
 
   return {
-    name: sharedState.name,
+    name: viewState.name,
     root: entry.workspaceRoot,
-    context: workspaceContextToOutput(sharedState.context),
-    links: normalizeLinksForOutput(sharedState, localState),
+    context: workspaceContextToOutput(viewState.context),
+    links: normalizeLinksForOutput(viewState),
     status: workspaceStatus,
   };
 }
@@ -436,12 +414,10 @@ export async function loadWorkspaceForDoctor(
     };
   }
 
-  let sharedState: WorkspaceSharedState;
-  let localState: WorkspaceLocalState;
-  let localStateInvalid = false;
+  let viewState: WorkspaceViewState;
 
   try {
-    sharedState = await readWorkspaceSharedState(selected.root);
+    viewState = await readWorkspaceViewState(selected.root);
   } catch (error) {
     return {
       workspace: {
@@ -467,61 +443,18 @@ export async function loadWorkspaceForDoctor(
     };
   }
 
-  try {
-    const optionalLocalState = await readOptionalWorkspaceLocalState(selected.root);
-    localState = optionalLocalState ?? emptyLocalState();
+  appendWorkspaceSkillDriftStatus(workspaceStatus, viewState.name, viewState);
+  workspaceStatus.push(...(await collectWorkspaceContextStatuses(viewState.context)));
 
-    if (!optionalLocalState) {
-      workspaceStatus.push(
-        makeStatus(
-          'warning',
-          'workspace_local_state_missing',
-          'Machine-local paths are not recorded yet.',
-          {
-            target: 'workspace.local_state',
-            fix: 'Run openspec workspace relink <name> <path> for each linked repo or folder on this machine.',
-          }
-        )
-      );
-    }
-  } catch (error) {
-    localState = emptyLocalState();
-    localStateInvalid = true;
-    workspaceStatus.push(localStateInvalidStatus(error));
-  }
-
-  if (!localStateInvalid) {
-    appendWorkspaceSkillDriftStatus(workspaceStatus, sharedState.name, localState);
-  }
-  workspaceStatus.push(...(await collectWorkspaceContextStatuses(sharedState.context)));
-
-  const sharedNames = new Set(Object.keys(sharedState.links));
-  const localNames = new Set(Object.keys(localState.paths));
-  const linkNames = [...new Set([...sharedNames, ...localNames])].sort((a, b) =>
-    a.localeCompare(b)
-  );
+  const linkNames = Object.keys(viewState.links).sort((a, b) => a.localeCompare(b));
   const links: WorkspaceLinkOutput[] = [];
 
   for (const linkName of linkNames) {
     const linkStatus: WorkspaceStatus[] = [];
-    const localPath = localState.paths[linkName] ?? null;
+    const localPath = viewState.links[linkName] ?? null;
     let repoSpecsPath: string | null = null;
 
-    if (!sharedNames.has(linkName)) {
-      linkStatus.push(
-        makeStatus(
-          'warning',
-          'local_path_without_shared_link',
-          'Local path is recorded without a shared workspace link.',
-          {
-            target: `links.${linkName}`,
-            fix: `Add a shared link with openspec workspace link ${linkName} ${localPath ?? '/path/to/folder'} or remove the local-only path from workspace.yaml.`,
-          }
-        )
-      );
-    }
-
-    if (sharedNames.has(linkName) && !localPath && !localStateInvalid) {
+    if (!localPath) {
       linkStatus.push(
         makeStatus(
           'error',
@@ -559,11 +492,11 @@ export async function loadWorkspaceForDoctor(
 
   return {
     workspace: {
-      name: sharedState.name,
+      name: viewState.name,
       root: selected.root,
       planning_path: planningPath,
       state_path: getWorkspaceViewStatePath(selected.root),
-      context: workspaceContextToOutput(sharedState.context),
+      context: workspaceContextToOutput(viewState.context),
       links,
       status: workspaceStatus,
     },
@@ -599,29 +532,24 @@ async function readWorkspaceViewForMutation(selected: SelectedWorkspace): Promis
 
 export async function readWorkspaceForMutation(
   selected: SelectedWorkspace
-): Promise<{ sharedState: WorkspaceSharedState; localState: WorkspaceLocalState }> {
-  const viewState = await readWorkspaceViewForMutation(selected);
-  return {
-    sharedState: workspaceViewToSharedState(viewState),
-    localState: workspaceViewToLocalState(viewState),
-  };
+): Promise<WorkspaceViewState> {
+  return readWorkspaceViewForMutation(selected);
 }
 
 function buildLinkMutationPayload(
   selected: SelectedWorkspace,
-  sharedState: WorkspaceSharedState,
-  localState: WorkspaceLocalState,
+  viewState: WorkspaceViewState,
   linkName: string,
   linkPath: string
 ): WorkspaceLinkMutationPayload {
   return {
     workspace: {
-      name: sharedState.name,
+      name: viewState.name,
       root: selected.root,
       planning_path: getWorkspaceChangesDir(selected.root),
       state_path: getWorkspaceViewStatePath(selected.root),
-      context: workspaceContextToOutput(sharedState.context),
-      links: normalizeLinksForOutput(sharedState, localState),
+      context: workspaceContextToOutput(viewState.context),
+      links: normalizeLinksForOutput(viewState),
       status: [],
     },
     link: {
@@ -655,16 +583,12 @@ export async function addWorkspaceLink(
       [linkName]: resolvedPath,
     },
   };
-  const updatedSharedState = workspaceViewToSharedState(updatedViewState);
-  const updatedLocalState = workspaceViewToLocalState(updatedViewState);
-
   await writeWorkspaceViewState(selected.root, updatedViewState);
-  await syncWorkspaceOpenSurface(selected.root, updatedSharedState, updatedLocalState);
+  await syncWorkspaceOpenSurface(selected.root, updatedViewState);
 
   return buildLinkMutationPayload(
     selected,
-    updatedSharedState,
-    updatedLocalState,
+    updatedViewState,
     linkName,
     resolvedPath
   );
@@ -693,13 +617,10 @@ export async function updateWorkspaceLink(
       [linkName]: resolvedPath,
     },
   };
-  const updatedSharedState = workspaceViewToSharedState(updatedViewState);
-  const updatedLocalState = workspaceViewToLocalState(updatedViewState);
-
   await writeWorkspaceViewState(selected.root, updatedViewState);
-  await syncWorkspaceOpenSurface(selected.root, updatedSharedState, updatedLocalState);
+  await syncWorkspaceOpenSurface(selected.root, updatedViewState);
 
-  return buildLinkMutationPayload(selected, updatedSharedState, updatedLocalState, linkName, resolvedPath);
+  return buildLinkMutationPayload(selected, updatedViewState, linkName, resolvedPath);
 }
 
 function sameWorkspaceContext(

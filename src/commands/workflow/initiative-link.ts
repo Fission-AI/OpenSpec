@@ -1,5 +1,8 @@
 import type { PlanningHome } from '../../core/planning-home.js';
-import { initiativeDiagnosticFromError, type InitiativeLinkReference } from '../initiative.js';
+import {
+  InitiativeResolutionError,
+  type InitiativeLinkReference,
+} from '../../core/collections/initiatives/index.js';
 
 export interface ChangeCommandStatus {
   severity: 'error' | 'warning';
@@ -24,12 +27,17 @@ export function printJson(payload: unknown): void {
 }
 
 export function statusFromError(
-  error: unknown,
-  preferInitiativeDiagnostic = false
+  error: unknown
 ): ChangeCommandStatus {
-  if (preferInitiativeDiagnostic) {
-    const { fix: _fix, ...diagnostic } = initiativeDiagnosticFromError(error);
-    return diagnostic;
+  if (error instanceof InitiativeResolutionError) {
+    return {
+      severity: 'error',
+      code: error.code,
+      message: error.message,
+      ...(error.target ? { target: error.target } : {}),
+      ...(error.fix ? { fix: error.fix } : {}),
+      ...(error.details ? { details: error.details } : {}),
+    };
   }
 
   return {

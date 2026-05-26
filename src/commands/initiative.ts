@@ -3,34 +3,21 @@ import chalk from 'chalk';
 import {
   createInitiative,
   INITIATIVE_FILE_NAMES,
-  InitiativeResolutionError,
   type InitiativeResolutionDetails,
   type InitiativeSelectorOptions,
   type InitiativeViewReference,
   type ContextStoreSelectorSource,
-  listInitiatives,
+  listInitiativeViewReferences,
   mountInitiativesCollection,
+  initiativeDiagnosticFromError as coreInitiativeDiagnosticFromError,
   resolveInitiativeViewReference as resolveCoreInitiativeViewReference,
-  resolveRegisteredInitiativeContextStore,
   selectContextStoreForInitiative,
+  type ListedInitiativeReference,
   type SelectedContextStore,
   type InitiativeState,
+  type InitiativeDiagnostic,
   formatContextStoreSelector,
 } from '../core/collections/initiatives/index.js';
-import {
-  listRegisteredContextStores,
-} from '../core/context-store/index.js';
-
-type InitiativeDiagnosticSeverity = 'error' | 'warning';
-
-interface InitiativeDiagnostic {
-  severity: InitiativeDiagnosticSeverity;
-  code: string;
-  message: string;
-  target?: string;
-  fix?: string;
-  details?: InitiativeResolutionDetails;
-}
 
 interface ContextStoreOutput {
   id: string;
@@ -86,11 +73,6 @@ interface InitiativeShowOutput {
   status: InitiativeDiagnostic[];
 }
 
-export interface InitiativeLinkReference {
-  store: string;
-  id: string;
-}
-
 interface InitiativeCreateOptions extends InitiativeSelectorOptions {
   title?: string;
   summary?: string;
@@ -121,61 +103,12 @@ function printJson(payload: unknown): void {
   console.log(JSON.stringify(payload, null, 2));
 }
 
-function asErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
-function makeDiagnostic(
-  severity: InitiativeDiagnosticSeverity,
-  code: string,
-  message: string,
-  options: { target?: string; fix?: string; details?: InitiativeResolutionDetails } = {}
-): InitiativeDiagnostic {
-  return {
-    severity,
-    code,
-    message,
-    ...options,
-  };
-}
-
 export function initiativeDiagnosticFromError(error: unknown): InitiativeDiagnostic {
   if (error instanceof InitiativeCliError) {
     return error.diagnostic;
   }
 
-  if (error instanceof InitiativeResolutionError) {
-    return makeDiagnostic('error', error.code, error.message, {
-      target: error.target,
-      fix: error.fix,
-      details: error.details,
-    });
-  }
-
-  const message = asErrorMessage(error);
-
-  if (/Initiative '.+' already exists/u.test(message)) {
-    return makeDiagnostic('error', 'initiative_already_exists', message, {
-      target: 'initiative.id',
-      fix: 'Choose a new initiative id or list existing initiatives first.',
-    });
-  }
-
-  if (message.startsWith('Initiative id ')) {
-    return makeDiagnostic('error', 'invalid_initiative_id', message, {
-      target: 'initiative.id',
-      fix: 'Use kebab-case with lowercase letters, numbers, and single hyphen separators.',
-    });
-  }
-
-  if (message.startsWith('Invalid initiative')) {
-    return makeDiagnostic('error', 'invalid_initiative', message, {
-      target: 'initiative',
-      fix: 'Fix the initiative folder state and retry.',
-    });
-  }
-
-  return makeDiagnostic('error', 'initiative_error', message);
+  return coreInitiativeDiagnosticFromError(error);
 }
 
 function appendDiagnostic<T extends { status: InitiativeDiagnostic[] }>(
@@ -237,6 +170,24 @@ function toInitiativeOutput(
     store: selected.id,
     root: collection.resolvePath(state.id),
     store_path: collection.toStorePath(state.id),
+  };
+}
+
+function listedInitiativeToOutput(
+  initiative: ListedInitiativeReference
+): InitiativeOutput {
+  return {
+    version: 1,
+    id: initiative.id,
+    title: initiative.title,
+    summary: initiative.summary,
+    status: initiative.status,
+    created: initiative.created,
+    owners: initiative.owners,
+    metadata: initiative.metadata,
+    store: initiative.store,
+    root: initiative.root,
+    store_path: initiative.storePath,
   };
 }
 
@@ -459,72 +410,18 @@ class InitiativeCommand {
   }
 
   private async buildListPayload(options: InitiativeListOptions): Promise<InitiativeListOutput> {
-    if (options.store !== undefined || options.storePath !== undefined) {
-      const selected = await selectContextStoreForInitiative(options, 'list');
-      const listed = await this.listSelectedStore(selected);
-
-      return {
-        context_store: listed.context_store,
-        context_stores: [listed],
-        initiatives: listed.initiatives,
-        status: [],
-      };
-    }
-
-    const registeredStores = await listRegisteredContextStores();
-    if (registeredStores.length === 0) {
-      return {
-        context_store: null,
-        context_stores: [],
-        initiatives: [],
-        status: [],
-      };
-    }
-
-    const contextStores: ContextStoreInitiativeOutput[] = [];
-    let unreadableCount = 0;
-
-    for (const entry of registeredStores) {
-      try {
-        const selected = await resolveRegisteredInitiativeContextStore(entry.id);
-        contextStores.push(await this.listSelectedStore(selected));
-      } catch {
-        unreadableCount++;
-      }
-    }
-
-    if (contextStores.length === 0) {
-      throw new InitiativeCliError(
-        'No initiatives could be read from registered context stores.',
-        'context_stores_unreadable',
-        {
-          target: 'context_store',
-          fix: 'openspec context-store doctor',
-        }
-      );
-    }
-
-    const status = unreadableCount > 0
-      ? [
-          makeDiagnostic(
-            'warning',
-            'context_stores_partially_unreadable',
-            'Some registered context stores could not be read.',
-            {
-              target: 'context_store',
-              fix: 'openspec context-store doctor',
-            }
-          ),
-        ]
-      : [];
+    const listed = await listInitiativeViewReferences(options);
+    const contextStores = listed.contextStores.map((store) => ({
+      context_store: toContextStoreOutput(store.contextStore),
+      initiatives: store.initiatives.map(listedInitiativeToOutput),
+      status: store.status,
+    }));
 
     return {
-      context_store: null,
+      context_store: listed.contextStore ? toContextStoreOutput(listed.contextStore) : null,
       context_stores: contextStores,
-      initiatives: contextStores
-        .flatMap((store) => store.initiatives)
-        .sort((left, right) => left.store.localeCompare(right.store) || left.id.localeCompare(right.id)),
-      status,
+      initiatives: listed.initiatives.map(listedInitiativeToOutput),
+      status: listed.status,
     };
   }
 
@@ -539,17 +436,6 @@ class InitiativeCommand {
         root: reference.storeRoot,
       },
       initiative: initiativeReferenceToShowOutput(reference),
-      status: [],
-    };
-  }
-
-  private async listSelectedStore(selected: SelectedContextStore): Promise<ContextStoreInitiativeOutput> {
-    const collection = mountInitiativesCollection(selected.root);
-    const initiatives = await listInitiatives({ collection });
-
-    return {
-      context_store: toContextStoreOutput(selected),
-      initiatives: initiatives.map((initiative) => toInitiativeOutput(selected, initiative)),
       status: [],
     };
   }
@@ -574,18 +460,6 @@ class InitiativeCommand {
     }
     process.exitCode = 1;
   }
-}
-
-export async function resolveInitiativeLinkReference(
-  reference: string | undefined,
-  options: InitiativeSelectorOptions = {}
-): Promise<InitiativeLinkReference> {
-  const initiative = await resolveCoreInitiativeViewReference(reference, options);
-
-  return {
-    store: initiative.store,
-    id: initiative.id,
-  };
 }
 
 function addContextStoreSelectorOptions(command: Command): Command {

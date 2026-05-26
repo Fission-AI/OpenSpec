@@ -56,14 +56,15 @@
 - Empty states should stay simple: no stores registered for `context-store list`
   and `doctor`; no initiatives found because no stores are registered for
   `initiative list`.
-- Do not add shell completion metadata in this slice.
+- Static shell completion metadata is now part of the shipped command surface;
+  dynamic store-id and initiative-id completions remain deferred.
 
 ## Risks To Check Before Implementation
 
 - Existing command naming conventions may prefer verb-first flows, while
   context-store commands are naturally noun namespaced.
-- Shell completions are manually registered; this slice intentionally defers
-  completion metadata to keep scope small.
+- Shell completions are manually registered; keep future command additions in
+  `src/core/completions/command-registry.ts` with focused registry tests.
 - Human output should match existing compact CLI output patterns.
 - JSON output should be stable enough for agents without over-modeling future
   sync or remote behavior.
@@ -78,6 +79,8 @@
 - `src/commands/initiative.ts` now lets `initiative list` search all registered
   stores by default, keeps `--store` as a filter, preserves `--store-path`, and
   reports all-store partial success with warning diagnostics.
+- `src/core/completions/command-registry.ts` registers static completion
+  metadata for the context-store command surface.
 - `test/commands/context-store.test.ts` covers setup, register, list, doctor,
   conflict handling, non-empty setup rejection, and interactive Git init.
 - `test/commands/initiative.test.ts` covers all-store initiative listing,

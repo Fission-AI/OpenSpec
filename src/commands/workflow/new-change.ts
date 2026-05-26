@@ -16,7 +16,7 @@ import { validateSchemaExists } from './shared.js';
 import {
   resolveInitiativeLinkReference,
   type InitiativeLinkReference,
-} from '../initiative.js';
+} from '../../core/collections/initiatives/index.js';
 import {
   assertInitiativeSelectorsHaveReference,
   assertRepoLocalInitiativeLinkPlanningHome,
@@ -115,7 +115,6 @@ function printCreatedChangeHuman(payload: NewChangeOutput, planningHome: Plannin
 }
 
 export async function newChangeCommand(name: string | undefined, options: NewChangeOptions): Promise<void> {
-  let resolvingInitiative = false;
   const spinner = options.json ? undefined : ora();
 
   try {
@@ -139,12 +138,10 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
     if (options.initiative !== undefined) {
       assertRepoLocalInitiativeLinkPlanningHome(planningHome);
 
-      resolvingInitiative = true;
       initiative = await resolveInitiativeLinkReference(options.initiative, {
         store: options.store,
         storePath: options.storePath,
       });
-      resolvingInitiative = false;
     }
 
     // Validate schema if provided
@@ -192,7 +189,7 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
       if (affectedAreas.length > 0) {
         console.log(`Affected areas: ${affectedAreas.join(', ')}`);
       } else {
-        console.log('Affected areas: unresolved; identify them in workspace specs or tasks as planning continues.');
+        console.log('Affected areas: unresolved; identify them in change metadata or coordination tasks as planning continues.');
       }
       console.log('Next: run openspec status --change "' + name + '" to inspect workspace planning artifacts.');
     }
@@ -201,7 +198,7 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
     if (options.json) {
       printJson({
         change: null,
-        status: [statusFromError(error, resolvingInitiative)],
+        status: [statusFromError(error)],
       });
       process.exitCode = 1;
       return;

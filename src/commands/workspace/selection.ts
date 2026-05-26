@@ -1,7 +1,7 @@
 import {
   findWorkspaceRoot,
   listKnownWorkspaceEntries,
-  readWorkspaceSharedState,
+  readWorkspaceViewState,
   type WorkspaceRegistryEntry,
 } from '../../core/workspace/index.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
@@ -57,12 +57,12 @@ async function selectedWorkspaceFromRoot(
   currentWorkspaceRoot: string,
   entries: WorkspaceRegistryEntry[]
 ): Promise<SelectedWorkspace> {
-  const sharedState = await readWorkspaceSharedState(currentWorkspaceRoot);
-  const knownRoot = findKnownWorkspaceByName(entries, sharedState.name)?.workspaceRoot;
+  const viewState = await readWorkspaceViewState(currentWorkspaceRoot);
+  const knownRoot = findKnownWorkspaceByName(entries, viewState.name)?.workspaceRoot;
   const isKnown = sameWorkspaceRoot(knownRoot, currentWorkspaceRoot);
 
   return {
-    name: sharedState.name,
+    name: viewState.name,
     root: currentWorkspaceRoot,
     status: isKnown ? [] : [workspaceNotInKnownViewsWarning()],
     unregisteredCurrentWorkspace: !isKnown,

@@ -2,7 +2,8 @@
 
 ## Status
 
-Decision pass in progress. Implementation not started.
+Implemented. The original decision text below is preserved as design record;
+current completion evidence lives in `tasks.md` and `evidence.md`.
 
 ## Source Of Truth
 
@@ -272,8 +273,7 @@ None. Decision pass complete; confirm the decisions before implementation.
 
 ## Latest Suggested Resolutions
 
-These are not implemented yet. They capture the current suggested answers for a
-fresh thread to confirm before implementation:
+These were the suggested answers carried into implementation:
 
 - Surface the stored initiative link in status and instructions without reading
   or displaying the initiative itself.

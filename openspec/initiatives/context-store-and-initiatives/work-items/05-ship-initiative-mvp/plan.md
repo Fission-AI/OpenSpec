@@ -60,8 +60,10 @@ initiatives/<id>/
 
 - Put initiative code under `src/core/collections/initiatives/`.
 - Export initiatives from `src/core/index.ts` only after a real API exists.
-- Use visible `initiative.yaml`, not hidden `.initiative.yaml`, for the new
-  initiative model.
+- Use visible `initiative.yaml`, not hidden `.initiative.yaml`, for the runtime
+  context-store initiative model. Existing roadmap folders may still carry
+  legacy `.initiative.yaml` progress metadata until that tracker is migrated or
+  retired.
 - Use strict YAML parsing and validation, following the existing foundation
   patterns.
 - Do not create `links.yaml` in the initiative MVP. Repo-change wiring belongs

@@ -18,7 +18,7 @@ import { validateChangeExists } from './shared.js';
 import {
   resolveInitiativeLinkReference,
   type InitiativeLinkReference,
-} from '../initiative.js';
+} from '../../core/collections/initiatives/index.js';
 import {
   assertInitiativeReference,
   assertRepoLocalInitiativeLinkPlanningHome,
@@ -80,8 +80,6 @@ export async function setChangeCommand(
   name: string | undefined,
   options: SetChangeOptions
 ): Promise<void> {
-  let resolvingInitiative = false;
-
   try {
     if (!name) {
       throw new Error('Missing required argument <name>');
@@ -96,16 +94,14 @@ export async function setChangeCommand(
     const changeName = await validateChangeExists(name, projectRoot, planningHome.changesDir);
     const changeDir = getChangeDir(planningHome, changeName);
 
-    resolvingInitiative = true;
     const initiative = await resolveInitiativeLinkReference(options.initiative, {
       store: options.store,
       storePath: options.storePath,
     });
-    resolvingInitiative = false;
 
     const existingMetadata = readChangeMetadata(changeDir, projectRoot);
     const metadata = existingMetadata ?? {
-      schema: resolveSchemaForChange(changeDir, undefined, projectRoot),
+      schema: resolveSchemaForChange(changeDir, undefined, projectRoot, { metadata: null }),
     };
 
     if (sameInitiativeLink(metadata.initiative, initiative)) {
@@ -141,7 +137,7 @@ export async function setChangeCommand(
     if (options.json) {
       printJson({
         change: null,
-        status: [statusFromError(error, resolvingInitiative)],
+        status: [statusFromError(error)],
       });
       process.exitCode = 1;
       return;

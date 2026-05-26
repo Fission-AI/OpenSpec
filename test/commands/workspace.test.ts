@@ -10,20 +10,20 @@ import {
 } from '../../src/commands/workspace/operations.js';
 import {
   WORKSPACE_CHANGES_DIR_NAME,
-  WORKSPACE_LOCAL_STATE_FILE_NAME,
-  WORKSPACE_LOCAL_STATE_IGNORE_PATTERN,
   WORKSPACE_GUIDANCE_END_MARKER,
   WORKSPACE_GUIDANCE_START_MARKER,
   WORKSPACE_METADATA_DIR_NAME,
-  WORKSPACE_SHARED_STATE_FILE_NAME,
   getWorkspaceCodeWorkspacePath,
   getManagedWorkspaceRoot,
-  getWorkspaceLocalStatePath,
   getWorkspaceRegistryPath,
-  getWorkspaceSharedStatePath,
-  parseWorkspaceLocalState,
-  parseWorkspaceSharedState,
+  getWorkspaceViewStatePath,
+  parseWorkspaceViewState,
 } from '../../src/core/workspace/index.js';
+import {
+  WORKSPACE_LEGACY_LOCAL_STATE_FILE_NAME,
+  WORKSPACE_LEGACY_LOCAL_STATE_IGNORE_PATTERN,
+  WORKSPACE_LEGACY_SHARED_STATE_FILE_NAME,
+} from '../../src/core/workspace/legacy-state.js';
 import { FileSystemUtils } from '../../src/utils/file-system.js';
 import { runCLI, type RunCLIResult } from '../helpers/run-cli.js';
 
@@ -56,7 +56,7 @@ describe('workspace command', () => {
   }
 
   function expectedExistingPath(existingPath: string): string {
-    return process.platform === 'win32' ? fs.realpathSync.native(existingPath) : existingPath;
+    return fs.realpathSync.native(existingPath);
   }
 
   function expectSameExistingPath(actualPath: string | null, expectedPath: string): void {
@@ -130,22 +130,14 @@ describe('workspace command', () => {
     return parseJson(result);
   }
 
-  function readLocalState(workspaceRoot: string) {
-    return parseWorkspaceLocalState(
-      fs.readFileSync(getWorkspaceLocalStatePath(workspaceRoot), 'utf-8')
-    );
+  function readWorkspaceState(workspaceRoot: string) {
+    return parseWorkspaceViewState(fs.readFileSync(getWorkspaceViewStatePath(workspaceRoot), 'utf-8'));
   }
 
   function writeGlobalConfig(config: Record<string, unknown>): void {
     const configDir = path.join(configHome, 'openspec');
     fs.mkdirSync(configDir, { recursive: true });
     fs.writeFileSync(path.join(configDir, 'config.json'), `${JSON.stringify(config, null, 2)}\n`);
-  }
-
-  function readSharedState(workspaceRoot: string) {
-    return parseWorkspaceSharedState(
-      fs.readFileSync(getWorkspaceSharedStatePath(workspaceRoot), 'utf-8')
-    );
   }
 
   it('sets up a workspace with required links, records local state, and lists it through ls', async () => {
@@ -176,30 +168,21 @@ describe('workspace command', () => {
       }),
     ]);
 
-    const sharedState = parseWorkspaceSharedState(
-      fs.readFileSync(getWorkspaceSharedStatePath(workspaceRoot), 'utf-8')
-    );
-    const localState = parseWorkspaceLocalState(
-      fs.readFileSync(getWorkspaceLocalStatePath(workspaceRoot), 'utf-8')
-    );
+    const workspaceState = readWorkspaceState(workspaceRoot);
 
-    expect(sharedState).toEqual({
+    expect(workspaceState).toEqual({
       version: 1,
       name: 'platform',
       context: null,
       links: {
-        api: {},
-        checkout: {},
+        api: expectedApi,
+        checkout: expectedCheckout,
       },
     });
-    expect(localState.paths).toEqual({
-      api: expectedApi,
-      checkout: expectedCheckout,
-    });
-    expect(localState.preferred_opener).toBeUndefined();
+    expect(workspaceState.preferred_opener).toBeUndefined();
     expect(fs.existsSync(getWorkspaceRegistryPath({ globalDataDir: path.join(dataHome, 'openspec') }))).toBe(false);
     expect(fs.readFileSync(path.join(workspaceRoot, '.gitignore'), 'utf-8')).not.toContain(
-      WORKSPACE_LOCAL_STATE_IGNORE_PATTERN
+      WORKSPACE_LEGACY_LOCAL_STATE_IGNORE_PATTERN
     );
     expect(fs.readFileSync(path.join(workspaceRoot, '.gitignore'), 'utf-8')).toContain(
       'platform.code-workspace'
@@ -265,7 +248,7 @@ describe('workspace command', () => {
         ],
       })
     );
-    expect(readLocalState(setup.workspace.root).workspace_skills).toBeUndefined();
+    expect(readWorkspaceState(setup.workspace.root).workspace_skills).toBeUndefined();
     expect(fs.existsSync(path.join(setup.workspace.root, '.codex'))).toBe(false);
   });
 
@@ -332,7 +315,7 @@ describe('workspace command', () => {
     expect(fs.readdirSync(api).sort()).toEqual(linkedEntriesBefore);
     expect(fs.existsSync(path.join(api, '.codex'))).toBe(false);
 
-    expect(readLocalState(workspaceRoot).workspace_skills).toEqual(
+    expect(readWorkspaceState(workspaceRoot).workspace_skills).toEqual(
       expect.objectContaining({
         selected_agents: ['codex'],
         last_applied_profile: 'custom',
@@ -360,7 +343,7 @@ describe('workspace command', () => {
         ],
       })
     );
-    expect(readLocalState(setup.workspace.root).workspace_skills).toEqual(
+    expect(readWorkspaceState(setup.workspace.root).workspace_skills).toEqual(
       expect.objectContaining({
         selected_agents: [],
         last_applied_workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive'],
@@ -443,7 +426,7 @@ describe('workspace command', () => {
     expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'prompts'))).toBe(false);
     expect(fs.readdirSync(api).sort()).toEqual(linkedEntriesBefore);
     expect(fs.existsSync(path.join(api, '.codex'))).toBe(false);
-    expect(readLocalState(workspaceRoot).workspace_skills).toEqual(
+    expect(readWorkspaceState(workspaceRoot).workspace_skills).toEqual(
       expect.objectContaining({
         selected_agents: ['codex'],
         last_applied_profile: 'core',
@@ -551,7 +534,7 @@ describe('workspace command', () => {
       expect.objectContaining({ tool_id: 'claude', workflow_ids: ['apply'] }),
     ]);
     expect(fs.existsSync(path.join(workspaceRoot, '.claude', 'skills', 'openspec-apply-change', 'SKILL.md'))).toBe(true);
-    expect(readLocalState(workspaceRoot).workspace_skills?.selected_agents).toEqual(['codex', 'claude']);
+    expect(readWorkspaceState(workspaceRoot).workspace_skills?.selected_agents).toEqual(['codex', 'claude']);
 
     const removeAgent = await runCLI(
       ['workspace', 'update', '--workspace', 'agent-change', '--tools', 'claude', '--json'],
@@ -571,7 +554,7 @@ describe('workspace command', () => {
     ]);
     expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'openspec-apply-change'))).toBe(false);
     expect(fs.existsSync(path.join(userSkillDir, 'SKILL.md'))).toBe(true);
-    expect(readLocalState(workspaceRoot).workspace_skills?.selected_agents).toEqual(['claude']);
+    expect(readWorkspaceState(workspaceRoot).workspace_skills?.selected_agents).toEqual(['claude']);
   });
 
   it('does not remove unmanaged skill directories that collide with OpenSpec workflow names', async () => {
@@ -594,7 +577,7 @@ describe('workspace command', () => {
     expect(update.exitCode).toBe(0);
     expect(parseJson(update).workspace_skills.removed).toEqual([]);
     expect(fs.existsSync(path.join(collidingSkillDir, 'SKILL.md'))).toBe(true);
-    expect(readLocalState(workspaceRoot).workspace_skills?.selected_agents).toEqual([]);
+    expect(readWorkspaceState(workspaceRoot).workspace_skills?.selected_agents).toEqual([]);
   });
 
   it('does not record workspace skills as applied when an update fails', async () => {
@@ -625,7 +608,7 @@ describe('workspace command', () => {
         tool_id: 'codex',
       }),
     ]);
-    expect(readLocalState(workspaceRoot).workspace_skills).toEqual(
+    expect(readWorkspaceState(workspaceRoot).workspace_skills).toEqual(
       expect.objectContaining({
         selected_agents: ['codex'],
         last_applied_profile: 'custom',
@@ -679,7 +662,7 @@ ${WORKSPACE_GUIDANCE_END_MARKER}
     );
     expect(agentsContent).not.toContain('Use `changes/` for workspace-level planning');
     expect(fs.readdirSync(api).sort()).toEqual(linkedEntriesBefore);
-    expect(readLocalState(setup.workspace.root).workspace_skills).toBeUndefined();
+    expect(readWorkspaceState(setup.workspace.root).workspace_skills).toBeUndefined();
     expect(fs.existsSync(path.join(setup.workspace.root, '.codex'))).toBe(false);
   });
 
@@ -731,7 +714,7 @@ ${WORKSPACE_GUIDANCE_END_MARKER}
         message: expect.stringContaining('not-real'),
       })
     );
-    expect(readLocalState(setup.workspace.root).workspace_skills).toBeUndefined();
+    expect(readWorkspaceState(setup.workspace.root).workspace_skills).toBeUndefined();
   });
 
   it('preserves equals signs in inferred and explicit setup link paths', async () => {
@@ -755,10 +738,8 @@ ${WORKSPACE_GUIDANCE_END_MARKER}
       }),
     ]);
 
-    const localState = parseWorkspaceLocalState(
-      fs.readFileSync(getWorkspaceLocalStatePath(setup.workspace.root), 'utf-8')
-    );
-    expect(localState.paths).toEqual({
+    const workspaceState = readWorkspaceState(setup.workspace.root);
+    expect(workspaceState.links).toEqual({
       api: expectedExplicit,
       'foo=bar': expectedInferred,
     });
@@ -770,15 +751,15 @@ ${WORKSPACE_GUIDANCE_END_MARKER}
     const editor = await setupWorkspace('editor-workspace', [`api=${api}`], ['--opener', 'editor']);
     const unset = await setupWorkspace('unset-workspace', [`api=${api}`]);
 
-    expect(readLocalState(codex.workspace.root).preferred_opener).toEqual({
+    expect(readWorkspaceState(codex.workspace.root).preferred_opener).toEqual({
       kind: 'agent',
       id: 'codex',
     });
-    expect(readLocalState(editor.workspace.root).preferred_opener).toEqual({
+    expect(readWorkspaceState(editor.workspace.root).preferred_opener).toEqual({
       kind: 'editor',
       id: 'vscode',
     });
-    expect(readLocalState(unset.workspace.root).preferred_opener).toBeUndefined();
+    expect(readWorkspaceState(unset.workspace.root).preferred_opener).toBeUndefined();
 
     const invalid = await runCLI(
       [
@@ -809,7 +790,6 @@ ${WORKSPACE_GUIDANCE_END_MARKER}
     fs.mkdirSync(path.join(project, 'repos', 'api'), { recursive: true });
     fs.mkdirSync(path.join(project, 'services', 'billing'), { recursive: true });
     fs.mkdirSync(path.join(project, 'archive', 'billing'), { recursive: true });
-    const resolvedProject = fs.realpathSync.native(project);
 
     const setup = await runCLI(
       [
@@ -827,8 +807,9 @@ ${WORKSPACE_GUIDANCE_END_MARKER}
     expect(setup.exitCode).toBe(0);
 
     const setupPayload = parseJson(setup);
-    expect(readLocalState(setupPayload.workspace.root).paths.api).toBe(
-      path.join(resolvedProject, 'repos', 'api')
+    expectSameExistingPath(
+      readWorkspaceState(setupPayload.workspace.root).links.api ?? null,
+      path.join(project, 'repos', 'api')
     );
 
     const link = await runCLI(['workspace', 'link', 'services/billing', '--json'], {
@@ -836,29 +817,33 @@ ${WORKSPACE_GUIDANCE_END_MARKER}
       env,
     });
     expect(link.exitCode).toBe(0);
-    expect(parseJson(link).link).toEqual(
+    const linkPayload = parseJson(link).link;
+    expect(linkPayload).toEqual(
       expect.objectContaining({
         name: 'billing',
-        path: path.join(resolvedProject, 'services', 'billing'),
+        path: expect.any(String),
       })
     );
+    expectSameExistingPath(linkPayload.path, path.join(project, 'services', 'billing'));
 
     const relink = await runCLI(
       ['workspace', 'relink', 'billing', 'archive/billing', '--json'],
       { cwd: project, env }
     );
     expect(relink.exitCode).toBe(0);
-    expect(parseJson(relink).link).toEqual(
+    const relinkPayload = parseJson(relink).link;
+    expect(relinkPayload).toEqual(
       expect.objectContaining({
         name: 'billing',
-        path: path.join(resolvedProject, 'archive', 'billing'),
+        path: expect.any(String),
       })
     );
+    expectSameExistingPath(relinkPayload.path, path.join(project, 'archive', 'billing'));
 
-    expect(readLocalState(setupPayload.workspace.root).paths).toEqual({
-      api: path.join(resolvedProject, 'repos', 'api'),
-      billing: path.join(resolvedProject, 'archive', 'billing'),
-    });
+    const workspaceLinks = readWorkspaceState(setupPayload.workspace.root).links;
+    expect(Object.keys(workspaceLinks).sort()).toEqual(['api', 'billing']);
+    expectSameExistingPath(workspaceLinks.api ?? null, path.join(project, 'repos', 'api'));
+    expectSameExistingPath(workspaceLinks.billing ?? null, path.join(project, 'archive', 'billing'));
   });
 
   it('canonicalizes existing link directories on Windows before storing local paths', async () => {
@@ -945,8 +930,7 @@ ${WORKSPACE_GUIDANCE_END_MARKER}
     const web = mkdir('repos/web');
     const setup = await setupWorkspace('platform', [`api=${api}`]);
     const workspaceRoot = setup.workspace.root;
-    const sharedBefore = fs.readFileSync(getWorkspaceSharedStatePath(workspaceRoot), 'utf-8');
-    const localBefore = fs.readFileSync(getWorkspaceLocalStatePath(workspaceRoot), 'utf-8');
+    const viewBefore = fs.readFileSync(getWorkspaceViewStatePath(workspaceRoot), 'utf-8');
     const markerPath = path.join(workspaceRoot, WORKSPACE_CHANGES_DIR_NAME, 'sentinel.txt');
     fs.writeFileSync(markerPath, 'keep me');
 
@@ -971,8 +955,7 @@ ${WORKSPACE_GUIDANCE_END_MARKER}
         target: 'workspace.name',
       })
     );
-    expect(fs.readFileSync(getWorkspaceSharedStatePath(workspaceRoot), 'utf-8')).toBe(sharedBefore);
-    expect(fs.readFileSync(getWorkspaceLocalStatePath(workspaceRoot), 'utf-8')).toBe(localBefore);
+    expect(fs.readFileSync(getWorkspaceViewStatePath(workspaceRoot), 'utf-8')).toBe(viewBefore);
     expect(fs.readFileSync(markerPath, 'utf-8')).toBe('keep me');
   });
 
@@ -1169,14 +1152,13 @@ ${WORKSPACE_GUIDANCE_END_MARKER}
     expect(fs.existsSync(path.join(packageDir, WORKSPACE_METADATA_DIR_NAME))).toBe(false);
   });
 
-  it('fails link and relink without rewriting malformed local state', async () => {
+  it('fails link and relink without rewriting malformed workspace state', async () => {
     const api = mkdir('repos/api');
     const billing = mkdir('repos/billing');
     const setup = await setupWorkspace('broken-local', [`api=${api}`]);
-    const sharedPath = getWorkspaceSharedStatePath(setup.workspace.root);
-    const localPath = getWorkspaceLocalStatePath(setup.workspace.root);
-    const malformedLocalState = 'version: 1\npaths: []\n';
-    fs.writeFileSync(localPath, malformedLocalState);
+    const statePath = getWorkspaceViewStatePath(setup.workspace.root);
+    const malformedState = 'version: 1\npaths: []\n';
+    fs.writeFileSync(statePath, malformedState);
 
     const link = await runCLI(
       ['workspace', 'link', 'billing', billing, '--workspace', 'broken-local', '--json'],
@@ -1189,8 +1171,7 @@ ${WORKSPACE_GUIDANCE_END_MARKER}
         target: 'workspace.state',
       })
     );
-    expect(fs.readFileSync(sharedPath, 'utf-8')).toBe(malformedLocalState);
-    expect(fs.readFileSync(localPath, 'utf-8')).toBe(malformedLocalState);
+    expect(fs.readFileSync(statePath, 'utf-8')).toBe(malformedState);
 
     const relink = await runCLI(
       ['workspace', 'relink', 'api', billing, '--workspace', 'broken-local', '--json'],
@@ -1203,8 +1184,7 @@ ${WORKSPACE_GUIDANCE_END_MARKER}
         target: 'workspace.state',
       })
     );
-    expect(fs.readFileSync(sharedPath, 'utf-8')).toBe(malformedLocalState);
-    expect(fs.readFileSync(localPath, 'utf-8')).toBe(malformedLocalState);
+    expect(fs.readFileSync(statePath, 'utf-8')).toBe(malformedState);
   });
 
   it('drops deleted managed workspace roots from scanned workspace selection', async () => {
@@ -1232,14 +1212,14 @@ ${WORKSPACE_GUIDANCE_END_MARKER}
     expect(fs.existsSync(registryPath)).toBe(false);
   });
 
-  it('reports malformed local state in list and doctor without rewriting files', async () => {
+  it('reports malformed workspace state in list and doctor without rewriting files', async () => {
     const api = mkdir('repos/api');
     const setup = await setupWorkspace('doctor-local-invalid', [`api=${api}`]);
-    const localPath = getWorkspaceLocalStatePath(setup.workspace.root);
+    const statePath = getWorkspaceViewStatePath(setup.workspace.root);
     const registryPath = getWorkspaceRegistryPath({ globalDataDir: path.join(dataHome, 'openspec') });
-    const malformedLocalState = 'version: 1\npaths: []\n';
+    const malformedState = 'version: 1\npaths: []\n';
     expect(fs.existsSync(registryPath)).toBe(false);
-    fs.writeFileSync(localPath, malformedLocalState);
+    fs.writeFileSync(statePath, malformedState);
 
     const list = await runCLI(['workspace', 'list', '--json'], { cwd: tempDir, env });
     expect(list.exitCode).toBe(0);
@@ -1266,7 +1246,7 @@ ${WORKSPACE_GUIDANCE_END_MARKER}
       })
     );
     expect(doctorPayload.workspace.links).toEqual([]);
-    expect(fs.readFileSync(localPath, 'utf-8')).toBe(malformedLocalState);
+    expect(fs.readFileSync(statePath, 'utf-8')).toBe(malformedState);
     expect(fs.existsSync(registryPath)).toBe(false);
   });
 
@@ -1284,7 +1264,7 @@ links:
   api: ${missingApiPath}
   local-only: ${localOnly}
 `;
-    fs.writeFileSync(getWorkspaceSharedStatePath(workspaceRoot), viewState);
+    fs.writeFileSync(getWorkspaceViewStatePath(workspaceRoot), viewState);
     fs.rmSync(path.join(workspaceRoot, WORKSPACE_CHANGES_DIR_NAME), { recursive: true, force: true });
     expect(fs.existsSync(registryPath)).toBe(false);
 
@@ -1317,7 +1297,7 @@ links:
       payload.workspace.links.find((link: any) => link.name === 'local-only')?.path ?? null,
       localOnly
     );
-    expect(fs.readFileSync(getWorkspaceSharedStatePath(workspaceRoot), 'utf-8')).toBe(viewState);
+    expect(fs.readFileSync(getWorkspaceViewStatePath(workspaceRoot), 'utf-8')).toBe(viewState);
     expect(fs.existsSync(registryPath)).toBe(false);
   });
 
@@ -1329,11 +1309,11 @@ links:
     fs.mkdirSync(path.join(manualRoot, WORKSPACE_METADATA_DIR_NAME), { recursive: true });
     fs.mkdirSync(nested, { recursive: true });
     fs.writeFileSync(
-      path.join(manualRoot, WORKSPACE_METADATA_DIR_NAME, WORKSPACE_SHARED_STATE_FILE_NAME),
+      path.join(manualRoot, WORKSPACE_METADATA_DIR_NAME, WORKSPACE_LEGACY_SHARED_STATE_FILE_NAME),
       'version: 1\nname: manual-workspace\nlinks: {}\n'
     );
     fs.writeFileSync(
-      path.join(manualRoot, WORKSPACE_METADATA_DIR_NAME, WORKSPACE_LOCAL_STATE_FILE_NAME),
+      path.join(manualRoot, WORKSPACE_METADATA_DIR_NAME, WORKSPACE_LEGACY_LOCAL_STATE_FILE_NAME),
       'version: 1\npaths: {}\n'
     );
 
@@ -1491,7 +1471,7 @@ links:
       expectedApi,
       'Open this OpenSpec workspace.',
     ]);
-    expect(readLocalState(setup.workspace.root).preferred_opener).toEqual({
+    expect(readWorkspaceState(setup.workspace.root).preferred_opener).toEqual({
       kind: 'editor',
       id: 'vscode',
     });
@@ -1569,7 +1549,7 @@ links:
     expect(openerConflict.stderr).toContain('either --agent <tool> or --editor');
 
     fs.writeFileSync(
-      getWorkspaceLocalStatePath(platform.workspace.root),
+      getWorkspaceViewStatePath(platform.workspace.root),
       `version: 1
 name: platform
 context: null
@@ -1683,7 +1663,7 @@ preferred_opener:
     ]);
     expect(link?.positionals).toEqual([
       { name: 'name-or-path', type: 'path', optional: true },
-      { name: 'path', type: 'path' },
+      { name: 'path', type: 'path', optional: true },
     ]);
     expect(relink?.positionals).toEqual([
       { name: 'name' },
@@ -1720,7 +1700,9 @@ preferred_opener:
       'store-path',
       'agent',
       'editor',
+      'prepare-only',
       'json',
+      'change',
       'no-interactive',
     ]);
   });

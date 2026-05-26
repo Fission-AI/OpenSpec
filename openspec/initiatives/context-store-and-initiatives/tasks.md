@@ -80,7 +80,7 @@ Work item: `work-items/06-add-minimal-context-store-ux/`
 - [x] Decide `initiative list` partial-success behavior across registered
   stores.
 - [x] Decide final Item 6 edge cases: id inference, non-empty setup folders,
-  registry conflicts, empty states, JSON exit behavior, and no completions.
+  registry conflicts, empty states, JSON exit behavior, and static completions.
 - [x] Update `initiative list` to default across registered stores, with
   `--store` as a filter and `--store-path` as an escape hatch.
 - [x] Add focused tests and verification for context-store CLI behavior.

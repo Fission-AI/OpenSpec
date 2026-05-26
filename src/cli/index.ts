@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import { createRequire } from 'module';
 import ora from 'ora';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { promises as fs } from 'fs';
 import { AI_TOOLS } from '../core/config.js';
 import { UpdateCommand } from '../core/update.js';
@@ -551,4 +552,12 @@ setCmd
     }
   });
 
-program.parse();
+export { program };
+
+export function runCli(argv = process.argv): void {
+  program.parse(argv);
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  runCli();
+}

@@ -20,7 +20,8 @@
 - [x] Decide setup rejects non-empty folders without context-store metadata.
 - [x] Decide registry path/id conflicts fail for now.
 - [x] Decide empty states for list, doctor, and initiative list.
-- [x] Decide not to add completion metadata in this slice.
+- [x] Initially defer completion metadata; later add static metadata with the
+  rest of the shipped command surface.
 - [x] Finalize exact JSON payload fields for setup, register, list, doctor, and
   all-store initiative list.
 - [x] Implement `context-store setup/register/list/doctor`.

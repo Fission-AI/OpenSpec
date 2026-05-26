@@ -5,6 +5,7 @@ import {
   validateContextStoreId,
   type ContextStorePathOptions,
 } from './foundation.js';
+import { ContextStoreError } from './errors.js';
 import {
   resolveRegisteredContextStore,
   type ResolvedContextStore,
@@ -20,6 +21,19 @@ export type ContextStoreSelector =
       path: string;
       observed_id?: string;
     };
+
+export type ContextStoreSelectorSource = 'registry' | 'path';
+
+export interface ContextStoreSelectorOptions {
+  store?: string;
+  storePath?: string;
+}
+
+export interface SelectedContextStore {
+  id: string;
+  root: string;
+  source: ContextStoreSelectorSource;
+}
 
 export interface ContextStoreBinding {
   id: string;
@@ -141,6 +155,129 @@ export function formatContextStoreBindingSelector(binding: ContextStoreBinding):
   return normalized.selector.kind === 'registry'
     ? `--store ${normalized.selector.id}`
     : `--store-path ${normalized.selector.path}`;
+}
+
+export function formatContextStoreSelector(selected: SelectedContextStore): string {
+  return selected.source === 'registry'
+    ? `--store ${selected.id}`
+    : `--store-path ${selected.root}`;
+}
+
+export function createContextStoreBindingFromSelected(
+  selected: SelectedContextStore
+): ContextStoreBinding {
+  return selected.source === 'registry'
+    ? createRegisteredContextStoreBinding(selected.id)
+    : createPathContextStoreBinding({
+        id: selected.id,
+        path: selected.root,
+      });
+}
+
+function validateSelectorConflict(
+  options: ContextStoreSelectorOptions,
+  commandName: string
+): void {
+  if (options.store !== undefined && options.storePath !== undefined) {
+    throw new ContextStoreError(
+      'Pass either --store <id> or --store-path <path>, not both.',
+      'context_store_selector_conflict',
+      {
+        target: 'context_store',
+        fix: `openspec ${commandName} --store <id>`,
+      }
+    );
+  }
+}
+
+export function requireContextStoreSelector(
+  options: ContextStoreSelectorOptions,
+  commandName: string
+): void {
+  validateSelectorConflict(options, commandName);
+
+  if (options.store === undefined && options.storePath === undefined) {
+    throw new ContextStoreError(
+      'Pass --store <id> or --store-path <path>.',
+      'context_store_required',
+      {
+        target: 'context_store',
+        fix: `openspec ${commandName} --store <id>`,
+      }
+    );
+  }
+}
+
+export async function resolveSelectedContextStore(
+  options: ContextStoreSelectorOptions,
+  commandName: string,
+  pathOptions: ContextStorePathOptions = {}
+): Promise<SelectedContextStore> {
+  requireContextStoreSelector(options, commandName);
+
+  if (options.store !== undefined) {
+    const resolved = await resolveRegisteredContextStore({
+      id: options.store,
+      globalDataDir: pathOptions.globalDataDir,
+    });
+
+    return {
+      id: resolved.id,
+      root: resolved.storeRoot,
+      source: 'registry',
+    };
+  }
+
+  const storePath = options.storePath ?? '';
+  let root: string;
+
+  try {
+    const backend = await resolveGitContextStoreBackendConfig({
+      localPath: storePath,
+    });
+    root = backend.local_path;
+  } catch (error) {
+    throw new ContextStoreError(
+      error instanceof Error ? error.message : String(error),
+      'invalid_context_store_path',
+      {
+        target: 'context_store.path',
+        fix: 'Pass an existing context store root.',
+      }
+    );
+  }
+
+  let metadata: Awaited<ReturnType<typeof readOptionalContextStoreMetadataState>>;
+
+  try {
+    metadata = await readOptionalContextStoreMetadataState(root);
+  } catch (error) {
+    throw new ContextStoreError(
+      error instanceof Error ? error.message : String(error),
+      'invalid_context_store_metadata',
+      {
+        target: 'context_store.metadata',
+        fix: `Fix ${getContextStoreMetadataPath(root)} before using this store.`,
+      }
+    );
+  }
+
+  if (!metadata) {
+    throw new ContextStoreError(
+      `Context store metadata not found at ${getContextStoreMetadataPath(root)}`,
+      'context_store_metadata_not_found',
+      {
+        target: 'context_store.metadata',
+        fix: 'Pass a context store root that contains .openspec-store/store.yaml.',
+      }
+    );
+  }
+
+  return {
+    id: metadata.id,
+    root,
+    source: 'path',
+  };
 }
 
 export async function resolveContextStoreBinding(

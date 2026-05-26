@@ -794,23 +794,23 @@ class WorkspaceCommand {
     selected: SelectedWorkspace,
     options: WorkspaceUpdateOptions
   ): Promise<void> {
-    const { sharedState, localState } = await readWorkspaceForMutation(selected);
-    await syncWorkspaceOpenSurface(selected.root, sharedState, localState);
+    const viewState = await readWorkspaceForMutation(selected);
+    await syncWorkspaceOpenSurface(selected.root, viewState);
 
     const hasExplicitToolSelection = options.tools !== undefined;
     const selectedAgentIds = hasExplicitToolSelection
       ? parseUpdateToolsOption(options.tools ?? '')
-      : localState.workspace_skills?.selected_agents ?? [];
+      : viewState.workspace_skills?.selected_agents ?? [];
     const previousSkillState =
       hasExplicitToolSelection
-        ? localState.workspace_skills ?? { selected_agents: [] }
-        : localState.workspace_skills;
+        ? viewState.workspace_skills ?? { selected_agents: [] }
+        : viewState.workspace_skills;
     const skillReport = await updateWorkspaceAgentSkills(
       selected.root,
       selectedAgentIds,
       previousSkillState
     );
-    const shouldStoreSelection = hasExplicitToolSelection || Boolean(localState.workspace_skills);
+    const shouldStoreSelection = hasExplicitToolSelection || Boolean(viewState.workspace_skills);
 
     if (shouldStoreSelection && !hasWorkspaceSkillFailures(skillReport)) {
       await writeWorkspaceSkillState(selected.root, selectedAgentIds, skillReport);

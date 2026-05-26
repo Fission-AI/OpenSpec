@@ -6,8 +6,8 @@ import * as path from 'node:path';
 
 import {
   getManagedWorkspaceRoot,
-  getWorkspaceLocalStatePath,
-  parseWorkspaceLocalState,
+  getWorkspaceViewStatePath,
+  parseWorkspaceViewState,
 } from '../../src/core/workspace/index.js';
 
 const searchableMultiSelectMock = vi.hoisted(() => vi.fn(async () => []));
@@ -101,14 +101,12 @@ describe('workspace command interactive flows', () => {
   }
 
   function expectedExistingPath(existingPath: string): string {
-    return process.platform === 'win32' ? fs.realpathSync.native(existingPath) : existingPath;
+    return fs.realpathSync.native(existingPath);
   }
 
-  function readLocalState(workspaceName: string) {
+  function readWorkspaceState(workspaceName: string) {
     const workspaceRoot = getManagedWorkspaceRoot(workspaceName);
-    return parseWorkspaceLocalState(
-      fs.readFileSync(getWorkspaceLocalStatePath(workspaceRoot), 'utf-8')
-    );
+    return parseWorkspaceViewState(fs.readFileSync(getWorkspaceViewStatePath(workspaceRoot), 'utf-8'));
   }
 
   it('asks for the workspace name first and validates kebab-case before asking for links', async () => {
@@ -156,7 +154,7 @@ describe('workspace command interactive flows', () => {
         ]),
       })
     );
-    expect(readLocalState('platform').paths).toEqual({ api: expectedApi });
+    expect(readWorkspaceState('platform').links).toEqual({ api: expectedApi });
   });
 
   it('handles prompt cancellation without printing the raw SIGINT error', async () => {
@@ -217,7 +215,7 @@ describe('workspace command interactive flows', () => {
 
     expect(process.exitCode).toBeUndefined();
     expect(confirm).not.toHaveBeenCalled();
-    expect(readLocalState('platform').preferred_opener).toEqual({
+    expect(readWorkspaceState('platform').preferred_opener).toEqual({
       kind: 'agent',
       id: 'github-copilot',
     });
@@ -268,7 +266,7 @@ describe('workspace command interactive flows', () => {
 
     expect(process.exitCode).toBeUndefined();
     expect(searchableMultiSelectMock).toHaveBeenCalledTimes(1);
-    expect(readLocalState('platform').workspace_skills).toEqual(
+    expect(readWorkspaceState('platform').workspace_skills).toEqual(
       expect.objectContaining({
         selected_agents: ['codex', 'claude'],
         last_applied_workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive'],
@@ -321,7 +319,7 @@ describe('workspace command interactive flows', () => {
     expect(consoleLogSpy).toHaveBeenCalledWith(
       `Link name 'api' is already linked to ${expectedFirstApi}.`
     );
-    expect(readLocalState('platform').paths).toEqual({
+    expect(readWorkspaceState('platform').links).toEqual({
       api: expectedFirstApi,
       'api-archive': expectedSecondApi,
     });
@@ -360,7 +358,7 @@ describe('workspace command interactive flows', () => {
       'Link name:',
     ]);
     expect(confirm).not.toHaveBeenCalled();
-    expect(readLocalState('platform').paths).toEqual({
+    expect(readWorkspaceState('platform').links).toEqual({
       root: expectedLinkedRoot,
     });
   });
@@ -429,7 +427,7 @@ describe('workspace command interactive flows', () => {
       expect.arrayContaining(['editor', 'github-copilot'])
     );
     expect(consoleLogSpy).toHaveBeenCalledWith('Opening workspace: platform');
-    expect(readLocalState('platform').preferred_opener).toBeUndefined();
+    expect(readWorkspaceState('platform').preferred_opener).toBeUndefined();
   });
 
   it('fails workspace open without prompting when no opener is available', async () => {

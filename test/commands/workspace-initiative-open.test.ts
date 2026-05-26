@@ -544,7 +544,7 @@ describe('workspace open initiative views', () => {
     );
     expect(open.exitCode).toBe(0);
 
-    const expectedRepo = repo;
+    const expectedRepo = expectedExistingPath(repo);
     const link = await runCLI(
       ['workspace', 'link', 'api', repo, '--workspace', 'team-billing', '--json'],
       { cwd: tempDir, env }

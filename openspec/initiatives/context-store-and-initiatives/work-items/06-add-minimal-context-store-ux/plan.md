@@ -316,7 +316,8 @@ returns exit code 0 with warning diagnostics; total failure returns nonzero.
 
 - Added `openspec context-store setup/register/list/doctor`.
 - Registered the `context-store` command from the top-level CLI.
-- Kept shell completion metadata out of scope for this slice.
+- Initially kept shell completion metadata out of scope; static metadata was
+  added later with the shipped command surface.
 - Implemented strict CLI registration policy without changing the permissive
   lower-level registry facade.
 - Added setup behavior for default `./<id>`, explicit `--path .`, interactive

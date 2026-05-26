@@ -3,8 +3,7 @@ import * as path from 'node:path';
 
 import { FileSystemUtils } from '../../utils/file-system.js';
 import {
-  WorkspaceLocalState,
-  WorkspaceSharedState,
+  WorkspaceViewState,
   getWorkspaceContextInitiativeId,
   getWorkspaceCodeWorkspacePath,
   getWorkspacePortableIgnorePatterns,
@@ -87,15 +86,15 @@ function formatGuidancePathList(items: Array<{ label: string; path: string }>): 
 }
 
 function buildWorkspaceContextGuidance(
-  sharedState: WorkspaceSharedState,
-  localState: WorkspaceLocalState,
+  viewState: WorkspaceViewState,
   resolvedContext?: WorkspaceOpenResolvedContext | null
 ): string {
-  const linkedRoots = Object.entries(localState.paths)
+  const linkedRoots = Object.entries(viewState.links)
+    .filter((entry): entry is [string, string] => typeof entry[1] === 'string')
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([name, linkPath]) => ({ label: name, path: linkPath }));
 
-  if (!sharedState.context) {
+  if (!viewState.context) {
     return `## Local View
 
 This workspace is not bound to an initiative. It is still a first-class local view over selected repos or folders.
@@ -105,14 +104,14 @@ This workspace is not bound to an initiative. It is still a first-class local vi
 ${formatGuidancePathList(linkedRoots)}`;
   }
 
-  const storedContextSelector = sharedState.context?.store.selector;
-  const storedContextStore = sharedState.context
+  const storedContextSelector = viewState.context.store.selector;
+  const storedContextStore = viewState.context
     ? storedContextSelector?.kind === 'path'
-      ? `${sharedState.context.store.id} via ${storedContextSelector.path}`
-      : sharedState.context.store.id
+      ? `${viewState.context.store.id} via ${storedContextSelector.path}`
+      : viewState.context.store.id
     : null;
-  const storedInitiativeId = sharedState.context
-    ? getWorkspaceContextInitiativeId(sharedState.context)
+  const storedInitiativeId = viewState.context
+    ? getWorkspaceContextInitiativeId(viewState.context)
     : null;
   const contextLines = resolvedContext
     ? [
@@ -144,13 +143,12 @@ ${formatGuidancePathList(linkedRoots)}`;
 }
 
 export function buildWorkspaceGuidanceBlock(
-  sharedState?: WorkspaceSharedState,
-  localState?: WorkspaceLocalState,
+  viewState?: WorkspaceViewState,
   resolvedContext?: WorkspaceOpenResolvedContext | null
 ): string {
   const contextGuidance =
-    sharedState && localState
-      ? `\n\n${buildWorkspaceContextGuidance(sharedState, localState, resolvedContext)}`
+    viewState
+      ? `\n\n${buildWorkspaceContextGuidance(viewState, resolvedContext)}`
       : '';
 
   return `${WORKSPACE_GUIDANCE_START_MARKER}
@@ -160,11 +158,10 @@ ${WORKSPACE_GUIDANCE_END_MARKER}`;
 
 export function applyWorkspaceGuidanceBlock(
   existingContent: string,
-  sharedState?: WorkspaceSharedState,
-  localState?: WorkspaceLocalState,
+  viewState?: WorkspaceViewState,
   resolvedContext?: WorkspaceOpenResolvedContext | null
 ): string {
-  const block = buildWorkspaceGuidanceBlock(sharedState, localState, resolvedContext);
+  const block = buildWorkspaceGuidanceBlock(viewState, resolvedContext);
   const startIndex = existingContent.indexOf(WORKSPACE_GUIDANCE_START_MARKER);
   const endIndex = existingContent.indexOf(WORKSPACE_GUIDANCE_END_MARKER);
 
@@ -226,14 +223,13 @@ export async function writeWorkspaceCodeWorkspaceFile(
 }
 
 export async function resolveWorkspaceOpenLinks(
-  sharedState: WorkspaceSharedState,
-  localState: WorkspaceLocalState
+  viewState: WorkspaceViewState
 ): Promise<WorkspaceOpenSurfaceLinks> {
   const links: WorkspaceOpenLink[] = [];
   const skipped: WorkspaceSkippedOpenLink[] = [];
 
-  for (const linkName of Object.keys(sharedState.links).sort((a, b) => a.localeCompare(b))) {
-    const localPath = localState.paths[linkName] ?? null;
+  for (const linkName of Object.keys(viewState.links).sort((a, b) => a.localeCompare(b))) {
+    const localPath = viewState.links[linkName] ?? null;
 
     if (!localPath) {
       skipped.push({
@@ -264,8 +260,7 @@ export async function resolveWorkspaceOpenLinks(
 
 async function syncWorkspaceGuidance(
   workspaceRoot: string,
-  sharedState: WorkspaceSharedState,
-  localState: WorkspaceLocalState,
+  viewState: WorkspaceViewState,
   resolvedContext?: WorkspaceOpenResolvedContext | null
 ): Promise<string> {
   const agentsPath = path.join(workspaceRoot, 'AGENTS.md');
@@ -275,7 +270,7 @@ async function syncWorkspaceGuidance(
 
   await FileSystemUtils.writeFile(
     agentsPath,
-    applyWorkspaceGuidanceBlock(existingContent, sharedState, localState, resolvedContext)
+    applyWorkspaceGuidanceBlock(existingContent, viewState, resolvedContext)
   );
 
   return agentsPath;
@@ -283,11 +278,11 @@ async function syncWorkspaceGuidance(
 
 async function syncWorkspaceCodeWorkspace(
   workspaceRoot: string,
-  sharedState: WorkspaceSharedState,
+  viewState: WorkspaceViewState,
   links: WorkspaceOpenLink[],
   resolvedContext?: WorkspaceOpenResolvedContext | null
 ): Promise<string> {
-  const codeWorkspacePath = getWorkspaceCodeWorkspacePath(workspaceRoot, sharedState.name);
+  const codeWorkspacePath = getWorkspaceCodeWorkspacePath(workspaceRoot, viewState.name);
   await writeWorkspaceCodeWorkspaceFile(codeWorkspacePath, links, resolvedContext);
 
   return codeWorkspacePath;
@@ -323,25 +318,23 @@ async function syncWorkspaceIgnoreRules(
 
 export async function syncWorkspaceOpenSurface(
   workspaceRoot: string,
-  sharedState: WorkspaceSharedState,
-  localState: WorkspaceLocalState,
+  viewState: WorkspaceViewState,
   resolvedContext?: WorkspaceOpenResolvedContext | null
 ): Promise<WorkspaceOpenSurfaceLinks & { generated: WorkspaceOpenSurfaceGeneration }> {
-  const openLinks = await resolveWorkspaceOpenLinks(sharedState, localState);
+  const openLinks = await resolveWorkspaceOpenLinks(viewState);
   const agentsPath = await syncWorkspaceGuidance(
     workspaceRoot,
-    sharedState,
-    localState,
+    viewState,
     resolvedContext
   );
   const codeWorkspacePath = await syncWorkspaceCodeWorkspace(
     workspaceRoot,
-    sharedState,
+    viewState,
     openLinks.links,
     resolvedContext
   );
 
-  await syncWorkspaceIgnoreRules(workspaceRoot, sharedState.name);
+  await syncWorkspaceIgnoreRules(workspaceRoot, viewState.name);
 
   return {
     ...openLinks,

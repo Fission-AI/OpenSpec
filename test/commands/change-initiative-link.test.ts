@@ -244,7 +244,7 @@ describe('repo-local change initiative links', () => {
     const payload = parseJson(result);
     expect(payload.change).toBeNull();
     expect(payload.status[0]).toEqual(expect.objectContaining({ code: 'initiative_not_found' }));
-    expect(payload.status[0]).not.toHaveProperty('fix');
+    expect(payload.status[0].fix).toBe('openspec initiative list');
     expect(fs.existsSync(changeDir('missing-linked-change'))).toBe(false);
   });
 
@@ -312,7 +312,7 @@ describe('repo-local change initiative links', () => {
     expect(missing.exitCode).toBe(1);
     const missingPayload = parseJson(missing);
     expect(missingPayload.status[0]).toEqual(expect.objectContaining({ code: 'initiative_not_found' }));
-    expect(missingPayload.status[0]).not.toHaveProperty('fix');
+    expect(missingPayload.status[0].fix).toBe('openspec initiative list');
     expect(fs.readFileSync(metadataPath('set-lookup-failure'), 'utf-8')).toBe(before);
 
     await createInitiative('billing-launch', ['--store', 'platform']);
@@ -372,7 +372,9 @@ describe('repo-local change initiative links', () => {
     expect(parseJson(ambiguous).status[0]).toEqual(
       expect.objectContaining({ code: 'initiative_ambiguous' })
     );
-    expect(parseJson(ambiguous).status[0]).not.toHaveProperty('fix');
+    expect(parseJson(ambiguous).status[0].fix).toBe(
+      'openspec initiative show billing-launch --store <store>'
+    );
     expect(fs.readFileSync(metadataPath('set-lookup-failure'), 'utf-8')).toBe(before);
   });
 
@@ -446,8 +448,8 @@ describe('repo-local change initiative links', () => {
       store: 'scratch-context',
       id: 'scratch-launch',
     });
-    expect(statusPayload).not.toHaveProperty('nextSteps');
-    expect(JSON.stringify(statusPayload).toLowerCase()).not.toContain('next');
+    expect(statusPayload.nextSteps).toEqual(expect.any(Array));
+    expect(statusPayload.nextSteps.length).toBeGreaterThan(0);
 
     const humanStatus = await runCLI(['status', '--change', 'recover-linked-change'], {
       cwd: tempDir,
