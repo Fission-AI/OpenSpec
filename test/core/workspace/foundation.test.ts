@@ -250,6 +250,18 @@ links: {}
       expectSameExistingPath(await findWorkspaceRoot(linkedPath), workspaceRoot);
     });
 
+    it('keeps detected workspace roots comparable through symlink or junction aliases', async () => {
+      const workspaceRoot = createWorkspaceRoot('real-platform');
+      const aliasRoot = path.join(tempDir, 'alias-platform');
+      fs.symlinkSync(workspaceRoot, aliasRoot, process.platform === 'win32' ? 'junction' : 'dir');
+
+      expectSameExistingPath(await findWorkspaceRoot(aliasRoot), workspaceRoot);
+      expectSameExistingPath(
+        await findWorkspaceRoot(path.join(aliasRoot, 'changes', 'add-billing')),
+        workspaceRoot
+      );
+    });
+
     it('canonicalizes detected workspace roots on Windows before returning them', async () => {
       const workspaceRoot = createWorkspaceRoot();
       const canonicalWorkspaceRoot = path.join(tempDir, 'canonical-platform');

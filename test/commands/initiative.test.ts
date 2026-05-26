@@ -283,16 +283,21 @@ describe('initiative command', () => {
     ]);
     expect(payload.initiatives[0]).toEqual(
       expect.objectContaining({
-        root: initiativeRoot(platformRoot, 'billing-launch'),
+        root: expect.any(String),
         store_path: 'initiatives/billing-launch',
       })
     );
     expect(payload.initiatives[1]).toEqual(
       expect.objectContaining({
-        root: initiativeRoot(teamRoot, 'alpha-launch'),
+        root: expect.any(String),
         store_path: 'initiatives/alpha-launch',
       })
     );
+    expectSameExistingPath(
+      payload.initiatives[0].root,
+      initiativeRoot(platformRoot, 'billing-launch')
+    );
+    expectSameExistingPath(payload.initiatives[1].root, initiativeRoot(teamRoot, 'alpha-launch'));
   });
 
   it('prints compact all-store human output without initiative statuses', async () => {
@@ -513,14 +518,22 @@ describe('initiative command', () => {
         details: {
           matches: [
             expect.objectContaining({
-              context_store: { id: 'finance', root: financeRoot },
+              context_store: { id: 'finance', root: expect.any(String) },
             }),
             expect.objectContaining({
-              context_store: { id: 'platform', root: platformRoot },
+              context_store: { id: 'platform', root: expect.any(String) },
             }),
           ],
         },
       })
+    );
+    expectSameExistingPath(
+      ambiguousPayload.status[0].details.matches[0].context_store.root,
+      financeRoot
+    );
+    expectSameExistingPath(
+      ambiguousPayload.status[0].details.matches[1].context_store.root,
+      platformRoot
     );
 
     await writeContextStoreRegistryState(
@@ -556,11 +569,15 @@ describe('initiative command', () => {
         details: {
           matches: [
             expect.objectContaining({
-              context_store: { id: 'platform', root: platformRoot },
+              context_store: { id: 'platform', root: expect.any(String) },
             }),
           ],
         },
       })
+    );
+    expectSameExistingPath(
+      incompletePayload.status[0].details.matches[0].context_store.root,
+      platformRoot
     );
   });
 

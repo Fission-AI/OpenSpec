@@ -168,9 +168,14 @@ describe('workspace open initiative views', () => {
     expectSameExistingPath(payload.context.context_store.root, initiative.storeRoot);
     expectSameExistingPath(payload.context.initiative.root, initiative.initiativeRoot);
     expect(payload.generated_files).toEqual({
-      agents: path.join(workspaceRoot, 'AGENTS.md'),
-      code_workspace: getWorkspaceCodeWorkspacePath(workspaceRoot, 'billing-launch'),
+      agents: expect.any(String),
+      code_workspace: expect.any(String),
     });
+    expectSameExistingPath(payload.generated_files.agents, path.join(workspaceRoot, 'AGENTS.md'));
+    expectSameExistingPath(
+      payload.generated_files.code_workspace,
+      getWorkspaceCodeWorkspacePath(workspaceRoot, 'billing-launch')
+    );
     expect(payload.opened_roots).toEqual([
       {
         kind: 'workspace',
@@ -245,7 +250,11 @@ describe('workspace open initiative views', () => {
 
     const launch = readLaunchLog(code.logPath);
     expect(fs.realpathSync.native(launch.cwd)).toBe(fs.realpathSync.native(workspaceRoot));
-    expect(launch.args).toEqual([getWorkspaceCodeWorkspacePath(workspaceRoot, 'billing-launch')]);
+    expect(launch.args).toHaveLength(1);
+    expectSameExistingPath(
+      launch.args[0],
+      getWorkspaceCodeWorkspacePath(workspaceRoot, 'billing-launch')
+    );
   });
 
   it('persists a path-bound context store and reopens without registry registration', async () => {

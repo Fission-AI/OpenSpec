@@ -212,9 +212,10 @@ describe('context-store command', () => {
     });
   });
 
-  it('rejects registry id and path conflicts', async () => {
+  it('rejects registry id and alias path conflicts', async () => {
     const firstRoot = mkdir('first/team-context');
     const secondRoot = mkdir('second/team-context');
+    const aliasRoot = path.join(tempDir, 'alias-team-context');
     await writeContextStoreMetadataState(firstRoot, { version: 1, id: 'team-context' });
     await writeContextStoreRegistryState(
       {
@@ -243,8 +244,9 @@ describe('context-store command', () => {
     );
 
     fs.rmSync(path.join(firstRoot, '.openspec-store'), { recursive: true, force: true });
+    fs.symlinkSync(firstRoot, aliasRoot, process.platform === 'win32' ? 'junction' : 'dir');
     const samePath = await runCLI(
-      ['context-store', 'register', firstRoot, '--id', 'other-context', '--json'],
+      ['context-store', 'register', aliasRoot, '--id', 'other-context', '--json'],
       { cwd: tempDir, env }
     );
     expect(samePath.exitCode).toBe(1);
