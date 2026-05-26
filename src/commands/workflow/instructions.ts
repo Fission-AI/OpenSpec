@@ -484,6 +484,7 @@ export function printApplyInstructionsText(instructions: ApplyInstructions): voi
 // -----------------------------------------------------------------------------
 
 export interface ArchiveInstructions {
+  /** Built-in archive workflow instructions for text output only. Omitted from JSON output. */
   template: string;
   /** Project context from config (AI constraint, not to be included in output) */
   context?: string;
@@ -541,7 +542,14 @@ export async function archiveInstructionsCommand(options: ArchiveInstructionsOpt
     spinner?.stop();
 
     if (options.json) {
-      console.log(JSON.stringify(instructions, null, 2));
+      const jsonOutput: Omit<ArchiveInstructions, 'template'> = {};
+      if (instructions.context !== undefined) {
+        jsonOutput.context = instructions.context;
+      }
+      if (instructions.rules !== undefined) {
+        jsonOutput.rules = instructions.rules;
+      }
+      console.log(JSON.stringify(jsonOutput, null, 2));
       return;
     }
 

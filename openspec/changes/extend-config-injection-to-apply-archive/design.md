@@ -54,15 +54,17 @@ The full apply instruction path has three layers that all need updating:
 
 1. **CLI handler** — add an `archive` branch alongside the existing `apply` branch, routing to a new `archiveInstructionsCommand()`. The `--change` option is required for archive instructions so the schema can be resolved for full rule key validation.
 
-2. **`generateArchiveInstructions(projectRoot, changeName)`** — accepts a required `changeName`, loads the change context to resolve the schema and artifact IDs, reads project config, retrieves the static archive template via `getArchiveChangeSkillTemplate()`, calls `emitConfigRuleWarnings`, and returns `{ template, context?, rules? }` with `context` and `rules.archive` as separate fields.
+2. **`generateArchiveInstructions(projectRoot, changeName)`** — accepts a required `changeName`, loads the change context to resolve the schema and artifact IDs, reads project config, retrieves the static archive template via `getArchiveChangeSkillTemplate()` for text rendering only, calls `emitConfigRuleWarnings`, and returns archive instructions with `context` and `rules.archive` as separate optional fields.
 
-3. **`archiveInstructionsCommand()`** — mirrors `applyInstructionsCommand()`: calls `generateArchiveInstructions()`, serializes to JSON with `--json`, or calls `printArchiveInstructionsText()` for text output.
+3. **`archiveInstructionsCommand()`** — mirrors `applyInstructionsCommand()` for config injection, but treats archive JSON as a machine-facing config payload: with `--json`, it serializes only `context` and `rules` when present; for text output, it calls `printArchiveInstructionsText()`.
 
 4. **`printArchiveInstructionsText()`** — renders the static template content followed by `<project_context>` and `<rules>` blocks, keeping the built-in template text as the leading section.
 
 *Alternative considered:* making `--change` optional and skipping artifact ID validation when absent. Rejected — archive is always scoped to a specific change, requiring `--change` is consistent with the apply command and enables complete validation without special-casing.
 
 *Alternative considered:* embed placeholders inside the static template string. Rejected — brittle string interpolation in a long template is harder to test and couples the template to the injection mechanism.
+
+*Alternative considered:* include the static archive workflow template in `--json` output. Rejected — the archive and bulk-archive skills already contain the workflow template and only consume `context` and `rules` from this command; returning the template in JSON duplicates a large static prompt and adds noise to agent-consumed output.
 
 ### D4: Config guidance placement preserves built-in priority
 

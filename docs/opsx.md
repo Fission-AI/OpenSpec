@@ -150,7 +150,7 @@ openspec instructions apply --change "<name>" --json
 openspec instructions archive --change "<name>" --json
 ```
 
-Both commands return a JSON object with optional `context` and `rules` fields alongside the phase-specific template. When present, the agent applies them as behavioral constraints without copying them into any output file.
+Both commands return a JSON object with optional `context` and `rules` fields. `openspec instructions apply --json` also includes apply-phase state, progress, and context file metadata; `openspec instructions archive --json` intentionally omits the static archive workflow template and returns only injected config fields. When present, the agent applies `context` and `rules` as behavioral constraints without copying them into any output file.
 
 ### Config Validation
 

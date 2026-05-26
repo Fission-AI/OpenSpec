@@ -16,8 +16,8 @@
 
 ## 3. Archive Instruction Generation (D3)
 
-- [x] 3.1 Add `generateArchiveInstructions(projectRoot)` in `src/commands/workflow/instructions.ts`: read project config, call `getArchiveChangeSkillTemplate()`, return `{ template, context?, rules? }` using `path.join()` / `path.resolve()` for all path operations
-- [x] 3.2 Add `archiveInstructionsCommand(options)`: call `generateArchiveInstructions()`, serialize to JSON with `--json`, or call `printArchiveInstructionsText()` for text
+- [x] 3.1 Add `generateArchiveInstructions(projectRoot)` in `src/commands/workflow/instructions.ts`: read project config, call `getArchiveChangeSkillTemplate()` for text rendering, return archive instructions with optional `context` and `rules` using `path.join()` / `path.resolve()` for all path operations
+- [x] 3.2 Add `archiveInstructionsCommand(options)`: call `generateArchiveInstructions()`, serialize only injected config fields to JSON with `--json`, or call `printArchiveInstructionsText()` for text
 - [x] 3.3 Add `printArchiveInstructionsText()`: render template content followed by `<project_context>` and `<rules>` blocks
 - [x] 3.4 In `src/cli/index.ts`, add an `archive` branch alongside the existing `apply` branch in the `instructions` command handler, routing to `archiveInstructionsCommand()`
 - [x] 3.5 Update `generateArchiveInstructions` to accept a required `changeName` parameter; load change context to resolve schema and artifact IDs; call `emitConfigRuleWarnings` after reading config
@@ -44,3 +44,10 @@
 ## 7. Docs
 
 - [x] 7.1 Update `docs/opsx.md` to document `openspec instructions archive` as a valid command and show `rules.apply` / `rules.archive` alongside existing artifact rule examples
+
+## 8. Archive JSON Contract Refinement
+
+- [x] 8.1 Update change artifacts so `openspec instructions archive --json` omits the static archive workflow template and returns only injected config fields
+- [x] 8.2 Update archive instruction implementation so JSON output excludes `template` while text output still renders the archive workflow instructions
+- [x] 8.3 Update unit and integration tests for the refined archive JSON contract
+- [x] 8.4 Update docs to describe archive JSON as a config-only payload

@@ -29,7 +29,7 @@ We should reuse the existing config model so project-level guidance stays availa
 ## Capabilities
 
 ### New Capabilities
-- `cli-archive-instructions`: `openspec instructions archive` becomes a valid CLI call, returning a JSON object with `template`, `context`, and `rules` fields analogous to apply instructions.
+- `cli-archive-instructions`: `openspec instructions archive` becomes a valid CLI call. Text output includes archive workflow instructions plus injected config sections; JSON output returns only the injected `context` and `rules` fields when present, omitting the static workflow template to keep agent-consumed output focused.
 
 ### Modified Capabilities
 - `context-injection`: extend project context injection from artifact-only instructions to apply and archive instruction surfaces

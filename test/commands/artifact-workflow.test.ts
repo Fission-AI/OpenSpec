@@ -829,7 +829,7 @@ artifacts:
   });
 
   describe('instructions archive command', () => {
-    it('outputs JSON with template field', async () => {
+    it('outputs JSON without template field when no config is injected', async () => {
       await createTestChange('archive-json-test', ['proposal', 'design', 'specs', 'tasks']);
 
       const result = await runCLI(
@@ -839,7 +839,8 @@ artifacts:
       expect(result.exitCode).toBe(0);
       expect(result.stderr).toBe('');
       const json = JSON.parse(result.stdout);
-      expect(json.template).toBeTruthy();
+      expect(json).toEqual({});
+      expect(json).not.toHaveProperty('template');
     });
 
     it('includes context in JSON when config.yaml has context field', async () => {
@@ -858,6 +859,7 @@ artifacts:
       expect(result.exitCode).toBe(0);
       const json = JSON.parse(result.stdout);
       expect(json.context).toBe('Archive project context');
+      expect(json).not.toHaveProperty('template');
     });
 
     it('includes rules in JSON when config.yaml has rules.archive', async () => {
@@ -876,6 +878,7 @@ artifacts:
       expect(result.exitCode).toBe(0);
       const json = JSON.parse(result.stdout);
       expect(json.rules).toEqual(['Verify specs synced']);
+      expect(json).not.toHaveProperty('template');
     });
 
     it('omits rules field when config has only artifact rules but no rules.archive', async () => {
@@ -894,6 +897,7 @@ artifacts:
       expect(result.exitCode).toBe(0);
       const json = JSON.parse(result.stdout);
       expect(json).not.toHaveProperty('rules');
+      expect(json).not.toHaveProperty('template');
     });
 
     it('renders text output with template content', async () => {

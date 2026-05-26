@@ -26,9 +26,9 @@ The system SHALL accept `archive` as a valid subcommand of `openspec instruction
 
 - **WHEN** user runs `openspec instructions archive --change "<name>" --json`
 - **THEN** the system outputs JSON with:
-  - `template`: the archive workflow instruction text
   - `context`: project context string if present in config, omitted otherwise
   - `rules`: array of rule strings from `rules.archive` if present, omitted otherwise
+- **AND** the JSON output omits the static archive workflow template
 
 #### Scenario: Archive instructions JSON with no workflow rules
 
@@ -41,6 +41,13 @@ The system SHALL accept `archive` as a valid subcommand of `openspec instruction
 - **WHEN** user runs `openspec instructions archive --change "<name>" --json`
 - **AND** config has no `context` field
 - **THEN** JSON output omits the `context` field
+
+#### Scenario: Archive instructions JSON with no injected config
+
+- **WHEN** user runs `openspec instructions archive --change "<name>" --json`
+- **AND** config has no `context` field
+- **AND** config has no `rules.archive`
+- **THEN** JSON output is an empty object
 
 #### Scenario: Unknown rule key warning during archive instructions
 
