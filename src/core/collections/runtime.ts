@@ -216,10 +216,11 @@ function isRelativePathAbsolute(value: string, windowsLike: boolean): boolean {
 function isSameOrDescendant(rootPath: string, candidatePath: string): boolean {
   const windowsLike = isWindowsLikePath(rootPath) || isWindowsLikePath(candidatePath);
   const relative = relativePath(rootPath, candidatePath);
+  const escapesRoot = /^\.\.(?:[\\/]|$)/u.test(relative);
 
   return (
     relative === '' ||
-    (!relative.startsWith('..') && !isRelativePathAbsolute(relative, windowsLike))
+    (!escapesRoot && !isRelativePathAbsolute(relative, windowsLike))
   );
 }
 

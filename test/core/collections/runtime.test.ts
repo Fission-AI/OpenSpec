@@ -139,6 +139,9 @@ describe('collection runtime', () => {
       expect(initiatives.resolvePath('launch-billing-flow/initiative.yaml')).toBe(
         path.join(storeRoot, 'initiatives', 'launch-billing-flow', 'initiative.yaml')
       );
+      expect(initiatives.resolvePath('..draft/notes.md')).toBe(
+        path.join(storeRoot, 'initiatives', '..draft', 'notes.md')
+      );
       expect(initiatives.resolvePath()).toBe(path.join(storeRoot, 'initiatives'));
       expect(initiatives.toStorePath('launch-billing-flow/initiative.yaml')).toBe(
         'initiatives/launch-billing-flow/initiative.yaml'

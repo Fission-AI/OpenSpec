@@ -21,7 +21,7 @@ describe('repo-local change initiative links', () => {
 
   beforeEach(async () => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-change-initiative-link-'));
-    tempDir = fs.realpathSync(tempDir);
+    tempDir = fs.realpathSync.native(tempDir);
     dataHome = path.join(tempDir, 'data');
     configHome = path.join(tempDir, 'config');
     env = {
@@ -52,6 +52,14 @@ describe('repo-local change initiative links', () => {
     const dir = path.join(tempDir, relativePath);
     fs.mkdirSync(dir, { recursive: true });
     return dir;
+  }
+
+  function canonicalPath(existingPath: string): string {
+    return fs.realpathSync.native(existingPath);
+  }
+
+  function expectSameExistingPath(actualPath: string, expectedPath: string): void {
+    expect(canonicalPath(actualPath)).toBe(canonicalPath(expectedPath));
   }
 
   async function setupRegisteredStore(store = 'platform'): Promise<string> {
@@ -135,8 +143,8 @@ describe('repo-local change initiative links', () => {
     expect(payload).toEqual({
       change: {
         id: 'add-billing-api',
-        path: changeDir('add-billing-api'),
-        metadataPath: metadataPath('add-billing-api'),
+        path: expect.any(String),
+        metadataPath: expect.any(String),
         schema: 'spec-driven',
       },
       initiative: {
@@ -144,6 +152,8 @@ describe('repo-local change initiative links', () => {
         id: 'billing-launch',
       },
     });
+    expectSameExistingPath(payload.change.path, changeDir('add-billing-api'));
+    expectSameExistingPath(payload.change.metadataPath, metadataPath('add-billing-api'));
     expect(JSON.stringify(payload).toLowerCase()).not.toContain('next');
     expectStoredLinkOnly('add-billing-api', 'platform', 'billing-launch', storeRoot);
     expect(fs.existsSync(path.join(storeRoot, 'initiatives', 'billing-launch', 'links.yaml'))).toBe(false);

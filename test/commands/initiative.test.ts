@@ -45,7 +45,11 @@ describe('initiative command', () => {
   }
 
   function expectedExistingPath(existingPath: string): string {
-    return process.platform === 'win32' ? fs.realpathSync.native(existingPath) : existingPath;
+    return fs.realpathSync.native(existingPath);
+  }
+
+  function expectSameExistingPath(actualPath: string, expectedPath: string): void {
+    expect(fs.realpathSync.native(actualPath)).toBe(expectedExistingPath(expectedPath));
   }
 
   function parseJson(result: RunCLIResult): any {
@@ -65,7 +69,7 @@ describe('initiative command', () => {
       localPath: storeRoot,
       globalDataDir,
     });
-    return expectedExistingPath(storeRoot);
+    return storeRoot;
   }
 
   async function setupUnregisteredStore(id = 'scratch-context'): Promise<string> {
@@ -74,7 +78,7 @@ describe('initiative command', () => {
       version: 1,
       id,
     });
-    return expectedExistingPath(storeRoot);
+    return storeRoot;
   }
 
   function initiativeRoot(storeRoot: string, id: string): string {
@@ -121,9 +125,10 @@ describe('initiative command', () => {
     expect(payload.status).toEqual([]);
     expect(payload.context_store).toEqual({
       id: 'team-context',
-      root: storeRoot,
+      root: expect.any(String),
       source: 'registry',
     });
+    expectSameExistingPath(payload.context_store.root, storeRoot);
     expect(payload.initiative).toEqual(
       expect.objectContaining({
         id: 'launch-billing-flow',
@@ -132,10 +137,11 @@ describe('initiative command', () => {
         status: 'exploring',
         owners: [],
         metadata: {},
-        root: initiativeRoot(storeRoot, 'launch-billing-flow'),
+        root: expect.any(String),
         store_path: 'initiatives/launch-billing-flow',
       })
     );
+    expectSameExistingPath(payload.initiative.root, initiativeRoot(storeRoot, 'launch-billing-flow'));
     expect(payload.initiative.created).toMatch(/^\d{4}-\d{2}-\d{2}$/u);
     expect(payload.created_files).toEqual([...INITIATIVE_FILE_NAMES]);
 
@@ -185,9 +191,10 @@ describe('initiative command', () => {
     expect(payload.status).toEqual([]);
     expect(payload.context_store).toEqual({
       id: 'scratch-context',
-      root: storeRoot,
+      root: expect.any(String),
       source: 'path',
     });
+    expectSameExistingPath(payload.context_store.root, storeRoot);
     expect(payload.initiatives.map((initiative: any) => initiative.id)).toEqual([
       'alpha-launch',
       'zeta-launch',
@@ -349,7 +356,7 @@ describe('initiative command', () => {
     expect(payload).toEqual({
       context_store: {
         id: 'platform',
-        root: storeRoot,
+        root: expect.any(String),
       },
       initiative: {
         version: 1,
@@ -357,12 +364,18 @@ describe('initiative command', () => {
         title: 'Billing Launch',
         summary: 'Coordinate billing launch work.',
         created: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/u),
-        root: initiativeRoot(storeRoot, 'billing-launch'),
+        root: expect.any(String),
         store_path: 'initiatives/billing-launch',
-        metadata_path: path.join(initiativeRoot(storeRoot, 'billing-launch'), 'initiative.yaml'),
+        metadata_path: expect.any(String),
       },
       status: [],
     });
+    expectSameExistingPath(payload.context_store.root, storeRoot);
+    expectSameExistingPath(payload.initiative.root, initiativeRoot(storeRoot, 'billing-launch'));
+    expectSameExistingPath(
+      payload.initiative.metadata_path,
+      path.join(initiativeRoot(storeRoot, 'billing-launch'), 'initiative.yaml')
+    );
     expect(payload.initiative).not.toHaveProperty('status');
     expect(payload.initiative).not.toHaveProperty('owners');
     expect(payload.initiative).not.toHaveProperty('metadata');
@@ -398,8 +411,9 @@ describe('initiative command', () => {
     expect(show.exitCode).toBe(0);
     expect(parseJson(show).context_store).toEqual({
       id: 'scratch-context',
-      root: storeRoot,
+      root: expect.any(String),
     });
+    expectSameExistingPath(parseJson(show).context_store.root, storeRoot);
   });
 
   it('prints compact human output for initiative show', async () => {

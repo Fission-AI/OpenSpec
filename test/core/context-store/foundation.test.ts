@@ -44,7 +44,11 @@ describe('context store foundation', () => {
   });
 
   function expectedExistingPath(existingPath: string): string {
-    return process.platform === 'win32' ? fs.realpathSync.native(existingPath) : existingPath;
+    return fs.realpathSync.native(existingPath);
+  }
+
+  function expectSameExistingPath(actualPath: string, expectedPath: string): void {
+    expect(fs.realpathSync.native(actualPath)).toBe(expectedExistingPath(expectedPath));
   }
 
   describe('path helpers', () => {
@@ -321,10 +325,11 @@ local_path: /repos/acme
 
       expect(backend).toEqual({
         type: 'git',
-        local_path: expectedExistingPath(localPath),
+        local_path: expect.any(String),
         remote: 'git@github.com:acme/context.git',
         branch: 'main',
       });
+      expectSameExistingPath(backend.local_path, localPath);
       expect(fs.readdirSync(localPath)).toEqual([]);
     });
 

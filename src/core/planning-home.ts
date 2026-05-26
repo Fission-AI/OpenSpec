@@ -47,6 +47,15 @@ function pathExistsAsFile(candidatePath: string): boolean {
   }
 }
 
+function isFileNotFoundError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as NodeJS.ErrnoException).code === 'ENOENT'
+  );
+}
+
 function getSearchStartDirectory(startPath: string): string {
   const resolved = path.resolve(startPath);
 
@@ -117,8 +126,13 @@ function readWorkspaceSharedStateSync(workspaceRoot: string): WorkspaceSharedSta
   ]) {
     try {
       return parseWorkspaceSharedState(fs.readFileSync(statePath, 'utf-8'));
-    } catch {
-      // Try the next supported workspace state location.
+    } catch (error) {
+      if (isFileNotFoundError(error)) {
+        // Try the next supported workspace state location.
+        continue;
+      }
+
+      throw error;
     }
   }
 

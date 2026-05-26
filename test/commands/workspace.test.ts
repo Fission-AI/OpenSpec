@@ -59,6 +59,11 @@ describe('workspace command', () => {
     return process.platform === 'win32' ? fs.realpathSync.native(existingPath) : existingPath;
   }
 
+  function expectSameExistingPath(actualPath: string | null, expectedPath: string): void {
+    expect(actualPath).not.toBeNull();
+    expect(fs.realpathSync.native(actualPath as string)).toBe(fs.realpathSync.native(expectedPath));
+  }
+
   function parseJson(result: RunCLIResult): any {
     try {
       return JSON.parse(result.stdout);
@@ -1304,10 +1309,14 @@ links:
       }),
       expect.objectContaining({
         name: 'local-only',
-        path: localOnly,
+        path: expect.any(String),
         status: [],
       }),
     ]);
+    expectSameExistingPath(
+      payload.workspace.links.find((link: any) => link.name === 'local-only')?.path ?? null,
+      localOnly
+    );
     expect(fs.readFileSync(getWorkspaceSharedStatePath(workspaceRoot), 'utf-8')).toBe(viewState);
     expect(fs.existsSync(registryPath)).toBe(false);
   });
