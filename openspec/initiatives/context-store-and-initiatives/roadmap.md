@@ -341,8 +341,9 @@ Local view record decision:
 
 - Use one private local view record for initiative-aware local views.
 - Store initiative-view state in the root `workspace.yaml` file.
-- The record stores selected store, initiative, local links, opener, and
-  selected tools.
+- The record stores selected context-store binding, initiative, local links,
+  opener, and selected tools. The binding may preserve a registry selector or a
+  runtime-local path selector.
 - The context binding is optional, so a workspace can also be a custom local view
   with linked folders and no initiative.
 
@@ -532,7 +533,7 @@ These are important, but should wait until the initiative model has real usage:
 6. Add minimal context-store UX.
 7. Add agent-first initiative discovery.
 8. Link repo-local changes to initiatives.
-9. Add initiative local resolution.
+9. Keep initiative resolve rejected; use workspace local-view mapping instead.
 10. Pending discussion: optionally add initiative next / agent handoff UX.
 11. Let workspaces open initiatives.
 12. Add local-to-initiative escalation UX.

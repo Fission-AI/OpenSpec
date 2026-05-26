@@ -8,6 +8,8 @@ import {
   WorkspaceSharedState,
   WorkspaceContextState,
   WorkspaceViewState,
+  getWorkspaceContextInitiativeId,
+  getWorkspaceContextStoreId,
   getManagedWorkspaceRoot,
   hasWorkspaceSkillProfileDrift,
   getWorkspaceChangesDir,
@@ -25,10 +27,15 @@ import {
   workspaceViewToLocalState,
   workspaceViewToSharedState,
 } from '../../core/workspace/index.js';
+import {
+  formatContextStoreBinding,
+  sameContextStoreBinding,
+} from '../../core/context-store/index.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import {
   SelectedWorkspace,
   WorkspaceCliError,
+  WorkspaceContextOutput,
   WorkspaceLinkMutationPayload,
   WorkspaceLinkOutput,
   WorkspaceListOutput,
@@ -105,6 +112,20 @@ function normalizeLinksForOutput(
     }));
 }
 
+function workspaceContextToOutput(
+  context: WorkspaceContextState | null
+): WorkspaceContextOutput | null {
+  if (!context) {
+    return null;
+  }
+
+  return {
+    store: getWorkspaceContextStoreId(context),
+    initiative: getWorkspaceContextInitiativeId(context),
+    store_selector: context.store.selector,
+  };
+}
+
 function formatDuplicateLinkMessage(
   linkName: string,
   existingPath: string | null,
@@ -136,6 +157,13 @@ function duplicateLinkError(
       fix: `Choose a different link name or run 'openspec workspace relink ${linkName} ${replacementPath}'.`,
     }
   );
+}
+
+function hasWorkspaceLink(
+  links: Record<string, string | null>,
+  linkName: string
+): boolean {
+  return Object.prototype.hasOwnProperty.call(links, linkName);
 }
 
 function duplicateSetupLinkError(
@@ -281,7 +309,7 @@ export async function createManagedWorkspace(
     root: workspaceRoot,
     planning_path: getWorkspaceChangesDir(workspaceRoot),
     state_path: getWorkspaceViewStatePath(workspaceRoot),
-    context,
+    context: workspaceContextToOutput(context),
     links: Object.entries(links)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([linkName, linkPath]) => ({
@@ -370,7 +398,7 @@ export async function loadWorkspaceForList(
   return {
     name: sharedState.name,
     root: entry.workspaceRoot,
-    context: sharedState.context,
+    context: workspaceContextToOutput(sharedState.context),
     links: normalizeLinksForOutput(sharedState, localState),
     status: workspaceStatus,
   };
@@ -535,7 +563,7 @@ export async function loadWorkspaceForDoctor(
       root: selected.root,
       planning_path: planningPath,
       state_path: getWorkspaceViewStatePath(selected.root),
-      context: sharedState.context,
+      context: workspaceContextToOutput(sharedState.context),
       links,
       status: workspaceStatus,
     },
@@ -592,7 +620,7 @@ function buildLinkMutationPayload(
       root: selected.root,
       planning_path: getWorkspaceChangesDir(selected.root),
       state_path: getWorkspaceViewStatePath(selected.root),
-      context: sharedState.context,
+      context: workspaceContextToOutput(sharedState.context),
       links: normalizeLinksForOutput(sharedState, localState),
       status: [],
     },
@@ -616,8 +644,8 @@ export async function addWorkspaceLink(
   const linkName = validateLinkNameForCommand(explicitName ?? inferLinkName(resolvedPath));
   const viewState = await readWorkspaceViewForMutation(selected);
 
-  if (viewState.links[linkName]) {
-    throw duplicateLinkError(linkName, viewState.links[linkName], resolvedPath);
+  if (hasWorkspaceLink(viewState.links, linkName)) {
+    throw duplicateLinkError(linkName, viewState.links[linkName] ?? null, resolvedPath);
   }
 
   const updatedViewState: WorkspaceViewState = {
@@ -651,7 +679,7 @@ export async function updateWorkspaceLink(
   const resolvedPath = await resolveExistingDirectory(linkPath);
   const viewState = await readWorkspaceViewForMutation(selected);
 
-  if (!viewState.links[linkName]) {
+  if (!hasWorkspaceLink(viewState.links, linkName)) {
     throw new WorkspaceCliError(`Unknown workspace link '${linkName}'.`, 'unknown_link_name', {
       target: `links.${linkName}`,
       fix: 'Run openspec workspace doctor to see linked repos or folders.',
@@ -678,11 +706,17 @@ function sameWorkspaceContext(
   left: WorkspaceContextState | null,
   right: WorkspaceContextState
 ): boolean {
-  return left?.store === right.store && left.initiative === right.initiative;
+  return (
+    left !== null &&
+    sameContextStoreBinding(left.store, right.store) &&
+    getWorkspaceContextInitiativeId(left) === getWorkspaceContextInitiativeId(right)
+  );
 }
 
 function formatWorkspaceContext(context: WorkspaceContextState | null): string {
-  return context ? `${context.store}/${context.initiative}` : 'no initiative context';
+  return context
+    ? `${formatContextStoreBinding(context.store)}/${getWorkspaceContextInitiativeId(context)}`
+    : 'no initiative context';
 }
 
 export function deriveWorkspaceNameForInitiative(initiativeId: string): string {
@@ -810,7 +844,7 @@ export async function selectOrCreateWorkspaceForInitiativeOpen(input: {
   if (matches.length > 1) {
     const names = matches.map((match) => match.state.name).sort((a, b) => a.localeCompare(b));
     throw new WorkspaceCliError(
-      `Multiple workspaces are already bound to ${input.context.store}/${input.context.initiative}: ${names.join(', ')}.`,
+      `Multiple workspaces are already bound to ${formatWorkspaceContext(input.context)}: ${names.join(', ')}.`,
       'workspace_initiative_selection_ambiguous',
       {
         target: 'workspace.name',
@@ -819,7 +853,7 @@ export async function selectOrCreateWorkspaceForInitiativeOpen(input: {
     );
   }
 
-  const derivedName = deriveWorkspaceNameForInitiative(input.context.initiative);
+  const derivedName = deriveWorkspaceNameForInitiative(getWorkspaceContextInitiativeId(input.context));
   const existingDerived = await readExistingManagedWorkspaceView(derivedName);
 
   if (existingDerived) {
@@ -836,7 +870,7 @@ export async function selectOrCreateWorkspaceForInitiativeOpen(input: {
       'workspace_name_collision',
       {
         target: 'workspace.name',
-        fix: `Retry with an explicit workspace name: openspec workspace open <name> --initiative ${input.context.store}/${input.context.initiative}`,
+        fix: `Retry with an explicit workspace name: openspec workspace open <name> --initiative ${getWorkspaceContextStoreId(input.context)}/${getWorkspaceContextInitiativeId(input.context)}`,
       }
     );
   }

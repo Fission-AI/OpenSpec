@@ -3,10 +3,25 @@ import {
   readInitiative,
 } from '../../core/collections/initiatives/index.js';
 import {
-  resolveRegisteredContextStore,
+  formatContextStoreBinding,
+  formatContextStoreBindingSelector,
+  resolveContextStoreBinding,
+  type ContextStoreBindingWarning,
 } from '../../core/context-store/index.js';
-import type { WorkspaceContextState } from '../../core/workspace/index.js';
+import {
+  getWorkspaceContextInitiativeId,
+  type WorkspaceContextState,
+} from '../../core/workspace/index.js';
 import { WorkspaceStatus, asErrorMessage, makeStatus } from './types.js';
+
+function contextStoreBindingWarningToStatus(
+  warning: ContextStoreBindingWarning
+): WorkspaceStatus {
+  return makeStatus('warning', warning.code, warning.message, {
+    target: warning.target ? `workspace.context.store.${warning.target}` : 'workspace.context.store',
+    ...(warning.fix ? { fix: warning.fix } : {}),
+  });
+}
 
 export async function collectWorkspaceContextStatuses(
   context: WorkspaceContextState | null
@@ -15,37 +30,62 @@ export async function collectWorkspaceContextStatuses(
     return [];
   }
 
+  const initiativeId = getWorkspaceContextInitiativeId(context);
+  const contextStoreLabel = formatContextStoreBinding(context.store);
+  const selector = formatContextStoreBindingSelector(context.store);
+  let resolvedStore: Awaited<ReturnType<typeof resolveContextStoreBinding>>;
   try {
-    const resolvedStore = await resolveRegisteredContextStore({ id: context.store });
-    const initiative = await readInitiative({
-      collection: mountInitiativesCollection(resolvedStore.storeRoot),
-      id: context.initiative,
-    });
-
-    if (!initiative) {
-      return [
-        makeStatus(
-          'error',
-          'workspace_initiative_missing',
-          `Workspace initiative '${context.store}/${context.initiative}' was not found.`,
-          {
-            target: 'workspace.context.initiative',
-            fix: `openspec initiative show ${context.initiative} --store ${context.store}`,
-          }
-        ),
-      ];
-    }
-
-    return [];
+    resolvedStore = await resolveContextStoreBinding(context.store);
   } catch (error) {
     return [
       makeStatus(
         'error',
         'workspace_context_store_unavailable',
-        `Workspace context store '${context.store}' could not be read: ${asErrorMessage(error)}`,
+        `Workspace context store '${contextStoreLabel}' could not be read: ${asErrorMessage(error)}`,
         {
           target: 'workspace.context.store',
-          fix: 'openspec context-store doctor',
+          fix: context.store.selector.kind === 'registry'
+            ? 'openspec context-store doctor'
+            : `Check the path in workspace.yaml or run openspec initiative show ${initiativeId} ${selector}`,
+        }
+      ),
+    ];
+  }
+
+  const statuses = resolvedStore.warnings.map(contextStoreBindingWarningToStatus);
+
+  try {
+    const initiative = await readInitiative({
+      collection: mountInitiativesCollection(resolvedStore.root),
+      id: initiativeId,
+    });
+
+    if (!initiative) {
+      return [
+        ...statuses,
+        makeStatus(
+          'error',
+          'workspace_initiative_missing',
+          `Workspace initiative '${contextStoreLabel}/${initiativeId}' was not found.`,
+          {
+            target: 'workspace.context.initiative',
+            fix: `openspec initiative show ${initiativeId} ${selector}`,
+          }
+        ),
+      ];
+    }
+
+    return statuses;
+  } catch (error) {
+    return [
+      ...statuses,
+      makeStatus(
+        'error',
+        'workspace_initiative_unavailable',
+        `Workspace initiative '${contextStoreLabel}/${initiativeId}' could not be read: ${asErrorMessage(error)}`,
+        {
+          target: 'workspace.context.initiative',
+          fix: `openspec initiative show ${initiativeId} ${selector}`,
         }
       ),
     ];

@@ -3,6 +3,11 @@ import * as path from 'node:path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { z } from 'zod';
 
+import {
+  normalizeContextStoreBinding,
+  type ContextStoreBinding,
+  type ContextStoreSelector,
+} from '../context-store/index.js';
 import { getGlobalDataDir } from '../global-config.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 
@@ -49,15 +54,18 @@ export type WorkspacePreferredOpener =
     };
 
 export interface WorkspaceContextState {
-  store: string;
-  initiative: string;
+  kind: 'initiative';
+  store: ContextStoreBinding;
+  initiative: {
+    id: string;
+  };
 }
 
 export interface WorkspaceViewState {
   version: 1;
   name: string;
   context: WorkspaceContextState | null;
-  links: Record<string, string>;
+  links: Record<string, string | null>;
   preferred_opener?: WorkspacePreferredOpener;
   tools?: string[];
   workspace_skills?: WorkspaceSkillState;
@@ -280,12 +288,42 @@ const PlainObjectSchema = z.custom<Record<string, unknown>>(isPlainObject, {
   message: 'must be an object',
 });
 
-const WorkspaceContextSchema = z
+const ContextStoreSelectorSchema = z.union([
+  z
+    .object({
+      kind: z.literal('registry'),
+      id: z.string(),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('path'),
+      path: z.string(),
+      observed_id: z.string().optional(),
+    })
+    .strict(),
+]);
+
+const ContextStoreBindingSchema = z
   .object({
-    store: z.string(),
-    initiative: z.string(),
+    id: z.string(),
+    selector: ContextStoreSelectorSchema,
   })
   .strict();
+
+const WorkspaceInitiativeContextSchema = z
+  .object({
+    kind: z.literal('initiative'),
+    store: ContextStoreBindingSchema,
+    initiative: z
+      .object({
+        id: z.string(),
+      })
+      .strict(),
+  })
+  .strict();
+
+const WorkspaceContextSchema = WorkspaceInitiativeContextSchema;
 
 const WorkspaceSkillStateSchema = z
   .object({
@@ -309,7 +347,7 @@ const ViewStateSchema = z
     version: z.literal(1),
     name: z.string(),
     context: WorkspaceContextSchema.nullable(),
-    links: z.record(z.string(), z.string()),
+    links: z.record(z.string(), z.string().nullable()),
     preferred_opener: PreferredOpenerSchema.optional(),
     tools: z.array(z.string()).optional(),
     workspace_skills: WorkspaceSkillStateSchema.optional(),
@@ -419,6 +457,52 @@ export function validateWorkspacePreferredOpener(
   );
 }
 
+function normalizeWorkspaceContextState(
+  context: z.infer<typeof WorkspaceContextSchema>
+): WorkspaceContextState {
+  return createWorkspaceInitiativeContext(
+    normalizeContextStoreBinding(context.store as ContextStoreBinding),
+    context.initiative.id
+  );
+}
+
+function normalizeOptionalWorkspaceContextState(
+  context: z.infer<typeof WorkspaceContextSchema> | null | undefined
+): WorkspaceContextState | null {
+  return context ? normalizeWorkspaceContextState(context) : null;
+}
+
+export function createWorkspaceInitiativeContext(
+  store: ContextStoreBinding,
+  initiativeId: string
+): WorkspaceContextState {
+  if (initiativeId.length === 0) {
+    throw new Error('Workspace initiative id must not be empty.');
+  }
+
+  return {
+    kind: 'initiative',
+    store: normalizeContextStoreBinding(store),
+    initiative: {
+      id: initiativeId,
+    },
+  };
+}
+
+export function getWorkspaceContextStoreId(context: WorkspaceContextState): string {
+  return context.store.id;
+}
+
+export function getWorkspaceContextStoreSelector(
+  context: WorkspaceContextState
+): ContextStoreSelector {
+  return context.store.selector;
+}
+
+export function getWorkspaceContextInitiativeId(context: WorkspaceContextState): string {
+  return context.initiative.id;
+}
+
 export function workspaceViewToSharedState(state: WorkspaceViewState): WorkspaceSharedState {
   return {
     version: 1,
@@ -431,7 +515,11 @@ export function workspaceViewToSharedState(state: WorkspaceViewState): Workspace
 export function workspaceViewToLocalState(state: WorkspaceViewState): WorkspaceLocalState {
   return {
     version: 1,
-    paths: state.links,
+    paths: Object.fromEntries(
+      Object.entries(state.links).filter((entry): entry is [string, string] =>
+        typeof entry[1] === 'string'
+      )
+    ),
     ...(state.preferred_opener ? { preferred_opener: state.preferred_opener } : {}),
     ...(state.tools ? { tools: state.tools } : {}),
     ...(state.workspace_skills ? { workspace_skills: state.workspace_skills } : {}),
@@ -449,16 +537,13 @@ export function workspaceStatePartsToViewState(
   const links = Object.fromEntries(
     [...linkNames]
       .sort((a, b) => a.localeCompare(b))
-      .flatMap((linkName) => {
-        const localPath = localState?.paths[linkName];
-        return localPath ? [[linkName, localPath] as const] : [];
-      })
+      .map((linkName) => [linkName, localState?.paths[linkName] ?? null] as const)
   );
 
   return {
     version: 1,
     name: sharedState.name,
-    context: sharedState.context ?? null,
+    context: sharedState.context,
     links,
     ...(localState?.preferred_opener ? { preferred_opener: localState.preferred_opener } : {}),
     ...(localState?.tools ? { tools: localState.tools } : {}),
@@ -488,7 +573,7 @@ export function parseWorkspaceViewState(content: string): WorkspaceViewState {
   return {
     version: 1,
     name: result.data.name,
-    context: result.data.context,
+    context: normalizeOptionalWorkspaceContextState(result.data.context),
     links: result.data.links,
     ...(preferredOpener ? { preferred_opener: preferredOpener } : {}),
     ...(result.data.tools ? { tools: result.data.tools } : {}),
@@ -522,7 +607,7 @@ export function parseWorkspaceSharedState(content: string): WorkspaceSharedState
   return {
     version: 1,
     name: result.data.name,
-    context: result.data.context ?? null,
+    context: normalizeOptionalWorkspaceContextState(result.data.context),
     links: result.data.links,
   };
 }
@@ -585,8 +670,8 @@ export function serializeWorkspaceViewState(state: WorkspaceViewState): string {
   assertValidMapKeys(Object.keys(state.links), validateWorkspaceLinkName, 'workspace link name');
 
   for (const [linkName, localPath] of Object.entries(state.links)) {
-    if (typeof localPath !== 'string') {
-      throw new Error(`Invalid workspace link '${linkName}': path must be a string`);
+    if (localPath !== null && typeof localPath !== 'string') {
+      throw new Error(`Invalid workspace link '${linkName}': path must be a string or null`);
     }
   }
 
@@ -597,7 +682,7 @@ export function serializeWorkspaceViewState(state: WorkspaceViewState): string {
   return stringifyYaml({
     version: 1,
     name: state.name,
-    context: state.context ?? null,
+    context: state.context ? normalizeWorkspaceContextState(state.context) : null,
     links: state.links,
     ...(preferredOpener ? { preferred_opener: preferredOpener } : {}),
     ...(state.tools ? { tools: state.tools } : {}),
@@ -618,7 +703,7 @@ export function serializeWorkspaceSharedState(state: WorkspaceSharedState): stri
   return stringifyYaml({
     version: 1,
     name: state.name,
-    context: state.context ?? null,
+    context: state.context ? normalizeWorkspaceContextState(state.context) : null,
     links: state.links,
   });
 }

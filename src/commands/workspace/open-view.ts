@@ -2,10 +2,22 @@ import {
   InitiativeResolutionError,
   InitiativeViewReference,
   resolveInitiativeViewReference,
+  resolveSelectedInitiativeViewReference,
 } from '../../core/collections/initiatives/index.js';
 import {
+  createPathContextStoreBinding,
+  createRegisteredContextStoreBinding,
+  formatContextStoreBinding,
+  resolveContextStoreBinding,
+  type ContextStoreBinding,
+  type ContextStoreBindingWarning,
+} from '../../core/context-store/index.js';
+import {
+  WorkspaceContextState,
   WorkspacePreferredOpener,
   WorkspaceOpenResolvedContext,
+  createWorkspaceInitiativeContext,
+  getWorkspaceContextInitiativeId,
   getWorkspaceOpenerLabel,
 } from '../../core/workspace/index.js';
 import {
@@ -36,6 +48,7 @@ export interface PreparedWorkspaceOpen extends WorkspaceOpenCommandBuildResult {
   selected: SelectedWorkspace;
   opener: WorkspacePreferredOpener;
   initiative: InitiativeViewReference | null;
+  workspaceContext: WorkspaceContextState | null;
   warnings: WorkspaceStatus[];
 }
 
@@ -49,6 +62,7 @@ export interface WorkspaceOpenJsonPayload {
     context_store: {
       id: string;
       root: string;
+      selector?: ContextStoreBinding['selector'];
     };
     initiative: {
       id: string;
@@ -168,14 +182,62 @@ async function resolveWorkspaceOpenInitiative(
 }
 
 async function resolveStoredWorkspaceInitiative(
-  store: string,
-  initiative: string
-): Promise<InitiativeViewReference> {
+  context: WorkspaceContextState
+): Promise<{ initiative: InitiativeViewReference; warnings: WorkspaceStatus[] }> {
+  const initiativeId = getWorkspaceContextInitiativeId(context);
+
   try {
-    return await resolveInitiativeViewReference(initiative, { store });
+    const resolvedStore = await resolveContextStoreBinding(context.store);
+    const selected = {
+      id: resolvedStore.id,
+      root: resolvedStore.root,
+      source: resolvedStore.source,
+    };
+    const initiative = await resolveSelectedInitiativeViewReference(selected, initiativeId);
+
+    return {
+      initiative,
+      warnings: resolvedStore.warnings.map(contextStoreBindingWarningToStatus),
+    };
   } catch (error) {
-    throw initiativeErrorAsWorkspaceError(error);
+    if (error instanceof InitiativeResolutionError) {
+      throw initiativeErrorAsWorkspaceError(error);
+    }
+
+    throw new WorkspaceCliError(
+      `Workspace context store '${formatContextStoreBinding(context.store)}' could not be read: ${asErrorMessage(error)}`,
+      'workspace_context_store_unavailable',
+      {
+        target: 'workspace.context.store',
+        fix: context.store.selector.kind === 'registry'
+          ? 'openspec context-store doctor'
+          : 'Check the path in workspace.yaml.',
+      }
+    );
   }
+}
+
+function contextStoreBindingWarningToStatus(
+  warning: ContextStoreBindingWarning
+): WorkspaceStatus {
+  return {
+    severity: 'warning',
+    code: warning.code,
+    message: warning.message,
+    target: warning.target ? `workspace.context.store.${warning.target}` : 'workspace.context.store',
+    ...(warning.fix ? { fix: warning.fix } : {}),
+  };
+}
+
+function contextStoreBindingFromInitiative(
+  initiative: InitiativeViewReference
+): ContextStoreBinding {
+  return initiative.storeSource === 'path'
+    ? createPathContextStoreBinding({
+        id: initiative.store,
+        path: initiative.storeRoot,
+      })
+    : createRegisteredContextStoreBinding(initiative.store);
 }
 
 function toWorkspaceOpenResolvedContext(
@@ -219,14 +281,17 @@ export async function prepareWorkspaceOpen(
 
   const workspaceName = resolveOpenWorkspaceName(positionalName, options);
   const requestedInitiative = await resolveWorkspaceOpenInitiative(options);
-  const selected = requestedInitiative
+  const requestedContext = requestedInitiative
+    ? createWorkspaceInitiativeContext(
+        contextStoreBindingFromInitiative(requestedInitiative),
+        requestedInitiative.id
+      )
+    : null;
+  const selected = requestedContext
     ? (
         await selectOrCreateWorkspaceForInitiativeOpen({
           workspaceName,
-          context: {
-            store: requestedInitiative.store,
-            initiative: requestedInitiative.id,
-          },
+          context: requestedContext,
           preferredOpener: resolveWorkspaceOpenOpenerOverride(options),
         })
       ).selected
@@ -239,13 +304,10 @@ export async function prepareWorkspaceOpen(
         { preferPositionalName: true }
       );
   const state = await readWorkspaceOpenState(selected);
-  const storedInitiative = !requestedInitiative && state.sharedState.context
-    ? await resolveStoredWorkspaceInitiative(
-        state.sharedState.context.store,
-        state.sharedState.context.initiative
-      )
+  const stored = !requestedInitiative && state.sharedState.context
+    ? await resolveStoredWorkspaceInitiative(state.sharedState.context)
     : null;
-  const initiative = requestedInitiative ?? storedInitiative;
+  const initiative = requestedInitiative ?? stored?.initiative ?? null;
   const resolvedContext = initiative ? toWorkspaceOpenResolvedContext(initiative) : null;
   const opener = await resolveWorkspaceOpenOpener(state.localState, options);
 
@@ -263,7 +325,12 @@ export async function prepareWorkspaceOpen(
     selected,
     opener,
     initiative,
-    warnings: [...selected.status, ...buildSkippedRootWarnings(buildResult.skipped)],
+    workspaceContext: state.sharedState.context,
+    warnings: [
+      ...selected.status,
+      ...(stored?.warnings ?? []),
+      ...buildSkippedRootWarnings(buildResult.skipped),
+    ],
   };
 }
 
@@ -285,6 +352,9 @@ export function buildWorkspaceOpenJsonPayload(
           context_store: {
             id: prepared.initiative.store,
             root: prepared.initiative.storeRoot,
+            ...(prepared.workspaceContext
+              ? { selector: prepared.workspaceContext.store.selector }
+              : {}),
           },
           initiative: {
             id: prepared.initiative.id,

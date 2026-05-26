@@ -152,8 +152,14 @@ Use one private local view record: the root `workspace.yaml` file.
 version: 1
 name: billing-launch
 context:
-  store: platform
-  initiative: billing-launch
+  kind: initiative
+  store:
+    id: platform
+    selector:
+      kind: registry
+      id: platform
+  initiative:
+    id: billing-launch
 links:
   repo-a: /Users/me/repos/repo-a
   repo-b: /Users/me/repos/repo-b
@@ -164,6 +170,22 @@ tools:
 
 This decision covers the conceptual record shape and the fact that generated
 runtime files are not durable state.
+
+If the user selected a context store by local path, the private workspace record
+can keep that runtime-local selector without changing checked-in repo metadata:
+
+```yaml
+context:
+  kind: initiative
+  store:
+    id: platform
+    selector:
+      kind: path
+      path: /Users/me/context/platform
+      observed_id: platform
+  initiative:
+    id: billing-launch
+```
 
 The context binding is optional. A user can also create a workspace that is not
 linked to any initiative:

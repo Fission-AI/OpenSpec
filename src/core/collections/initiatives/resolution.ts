@@ -60,6 +60,7 @@ export class InitiativeResolutionError extends Error {
 
 export interface InitiativeViewReference {
   store: string;
+  storeSource: ContextStoreSelectorSource;
   storeRoot: string;
   id: string;
   title: string;
@@ -281,6 +282,7 @@ function toInitiativeViewReference(
 
   return {
     store: selected.id,
+    storeSource: selected.source,
     storeRoot: selected.root,
     id: state.id,
     title: state.title,

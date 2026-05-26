@@ -305,8 +305,10 @@ function printDoctorHuman(result: { workspace: WorkspaceOutput; status: Workspac
   console.log(`Workspace: ${result.workspace.name}`);
   console.log(`Location: ${result.workspace.root}`);
   if (result.workspace.context) {
+    const selector = result.workspace.context.store_selector;
+    const suffix = selector.kind === 'path' ? ` via ${selector.path}` : '';
     console.log(
-      `Context: ${result.workspace.context.store}/${result.workspace.context.initiative}`
+      `Context: ${result.workspace.context.store}/${result.workspace.context.initiative}${suffix}`
     );
   } else {
     console.log('Context: (none)');

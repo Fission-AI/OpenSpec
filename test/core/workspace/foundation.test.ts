@@ -38,13 +38,18 @@ import {
   parseWorkspaceRegistryState,
   parseWorkspaceSharedState,
   parseWorkspaceSetupLinkInput,
+  parseWorkspaceViewState,
   readWorkspaceLocalState,
   readOptionalWorkspaceLocalState,
   readWorkspaceRegistryState,
   readWorkspaceSharedState,
   serializeWorkspaceLocalState,
+  serializeWorkspaceViewState,
   syncWorkspaceOpenSurface,
+  workspaceStatePartsToViewState,
   workspaceChangesDirExists,
+  workspaceViewToLocalState,
+  workspaceViewToSharedState,
   writeWorkspaceLocalState,
   writeWorkspaceRegistryState,
 } from '../../../src/core/workspace/index.js';
@@ -79,7 +84,12 @@ links: {}
   }
 
   function expectedExistingPath(existingPath: string): string {
-    return process.platform === 'win32' ? fs.realpathSync.native(existingPath) : existingPath;
+    return fs.realpathSync.native(existingPath);
+  }
+
+  function expectSameExistingPath(actualPath: string | null, expectedPath: string): void {
+    expect(actualPath).not.toBeNull();
+    expect(fs.realpathSync.native(actualPath as string)).toBe(expectedExistingPath(expectedPath));
   }
 
   describe('path helpers', () => {
@@ -207,12 +217,8 @@ links: {}
       fs.mkdirSync(nestedDir, { recursive: true });
 
       await expect(isWorkspaceRoot(workspaceRoot)).resolves.toBe(true);
-      await expect(findWorkspaceRoot(workspaceRoot)).resolves.toBe(
-        expectedExistingPath(workspaceRoot)
-      );
-      await expect(findWorkspaceRoot(nestedDir)).resolves.toBe(
-        expectedExistingPath(workspaceRoot)
-      );
+      expectSameExistingPath(await findWorkspaceRoot(workspaceRoot), workspaceRoot);
+      expectSameExistingPath(await findWorkspaceRoot(nestedDir), workspaceRoot);
       await expect(workspaceChangesDirExists(workspaceRoot)).resolves.toBe(true);
     });
 
@@ -241,9 +247,7 @@ links: {}
       const linkedPath = path.join(workspaceRoot, 'external-folder');
       fs.mkdirSync(linkedPath, { recursive: true });
 
-      await expect(findWorkspaceRoot(linkedPath)).resolves.toBe(
-        expectedExistingPath(workspaceRoot)
-      );
+      expectSameExistingPath(await findWorkspaceRoot(linkedPath), workspaceRoot);
     });
 
     it('canonicalizes detected workspace roots on Windows before returning them', async () => {
@@ -287,6 +291,51 @@ links:
           web: { note: 'planning only' },
         },
       });
+    });
+
+    it('parses path-bound initiative context in workspace state', () => {
+      const state = parseWorkspaceViewState(`version: 1
+name: scratch-launch
+context:
+  kind: initiative
+  store:
+    id: scratch-context
+    selector:
+      kind: path
+      path: /Users/me/context/scratch
+      observed_id: scratch-context
+  initiative:
+    id: scratch-launch
+links: {}
+`);
+
+      expect(state.context).toEqual({
+        kind: 'initiative',
+        store: {
+          id: 'scratch-context',
+          selector: {
+            kind: 'path',
+            path: '/Users/me/context/scratch',
+            observed_id: 'scratch-context',
+          },
+        },
+        initiative: {
+          id: 'scratch-launch',
+        },
+      });
+      expect(parseWorkspaceViewState(serializeWorkspaceViewState(state))).toEqual(state);
+    });
+
+    it('rejects the unshipped flat initiative context shape', () => {
+      expect(() =>
+        parseWorkspaceViewState(`version: 1
+name: billing-launch
+context:
+  store: platform
+  initiative: billing-launch
+links: {}
+`)
+      ).toThrow(/Invalid workspace state/);
     });
 
     it('rejects invalid shared-state versions, names, and link maps', () => {
@@ -388,6 +437,39 @@ preferred_opener:
       expect(() => parseWorkspacePreferredOpenerValue('cursor')).toThrow(
         /Unsupported workspace opener/
       );
+    });
+
+    it('preserves shared-only links when converting legacy shared and local state', () => {
+      const state = workspaceStatePartsToViewState(
+        {
+          version: 1,
+          name: 'platform',
+          context: null,
+          links: {
+            api: {},
+            web: {},
+          },
+        },
+        {
+          version: 1,
+          paths: {
+            api: '/repos/api',
+          },
+        }
+      );
+
+      expect(state.links).toEqual({
+        api: '/repos/api',
+        web: null,
+      });
+      expect(parseWorkspaceViewState(serializeWorkspaceViewState(state))).toEqual(state);
+      expect(workspaceViewToSharedState(state).links).toEqual({
+        api: {},
+        web: {},
+      });
+      expect(workspaceViewToLocalState(state).paths).toEqual({
+        api: '/repos/api',
+      });
     });
 
     it('reads shared and local state from a workspace folder', async () => {

@@ -5,10 +5,13 @@ import * as path from 'node:path';
 
 import {
   getContextStoreMetadataPath,
+  createPathContextStoreBinding,
+  createRegisteredContextStoreBinding,
   mountInitiativesCollection,
   readContextStoreMetadataState,
   readContextStoreRegistryState,
   registerContextStore,
+  resolveContextStoreBinding,
   resolveRegisteredContextStore,
   listRegisteredContextStores,
   writeContextStoreMetadataState,
@@ -32,51 +35,62 @@ describe('context store registry facade', () => {
     return dirPath;
   }
 
-  function expectedExistingPath(existingPath: string): string {
-    return process.platform === 'win32' ? fs.realpathSync.native(existingPath) : existingPath;
+  function canonicalPath(existingPath: string): string {
+    return fs.realpathSync.native(existingPath);
+  }
+
+  function expectSameExistingPath(actualPath: string, expectedPath: string): void {
+    expect(canonicalPath(actualPath)).toBe(canonicalPath(expectedPath));
   }
 
   it('registers a local Git context store by writing metadata and registry state', async () => {
     const storesDir = mkdir('stores');
     const storeRoot = mkdir('stores/acme-context');
 
-    await expect(
-      registerContextStore({
-        id: 'acme-context',
-        localPath: 'acme-context',
-        remote: 'git@github.com:acme/context.git',
-        branch: 'main',
-        cwd: storesDir,
-        globalDataDir: tempDir,
-      })
-    ).resolves.toEqual({
+    const registered = await registerContextStore({
       id: 'acme-context',
-      storeRoot: expectedExistingPath(storeRoot),
+      localPath: 'acme-context',
+      remote: 'git@github.com:acme/context.git',
+      branch: 'main',
+      cwd: storesDir,
+      globalDataDir: tempDir,
+    });
+
+    expect(registered).toEqual({
+      id: 'acme-context',
+      storeRoot: expect.any(String),
       backend: {
         type: 'git',
-        local_path: expectedExistingPath(storeRoot),
+        local_path: expect.any(String),
         remote: 'git@github.com:acme/context.git',
         branch: 'main',
       },
     });
+    expectSameExistingPath(registered.storeRoot, storeRoot);
+    expectSameExistingPath(registered.backend.local_path, storeRoot);
 
     await expect(readContextStoreMetadataState(storeRoot)).resolves.toEqual({
       version: 1,
       id: 'acme-context',
     });
-    await expect(readContextStoreRegistryState({ globalDataDir: tempDir })).resolves.toEqual({
+    const registry = await readContextStoreRegistryState({ globalDataDir: tempDir });
+    expect(registry).toEqual({
       version: 1,
       stores: {
         'acme-context': {
           backend: {
             type: 'git',
-            local_path: expectedExistingPath(storeRoot),
+            local_path: expect.any(String),
             remote: 'git@github.com:acme/context.git',
             branch: 'main',
           },
         },
       },
     });
+    expectSameExistingPath(
+      registry?.stores['acme-context'].backend.local_path ?? '',
+      storeRoot
+    );
   });
 
   it('merges registry entries and updates the registered path for an existing id', async () => {
@@ -112,13 +126,14 @@ describe('context store registry facade', () => {
       globalDataDir: tempDir,
     });
 
-    await expect(listRegisteredContextStores({ globalDataDir: tempDir })).resolves.toEqual([
+    const stores = await listRegisteredContextStores({ globalDataDir: tempDir });
+    expect(stores).toEqual([
       {
         id: 'acme-context',
-        storeRoot: expectedExistingPath(newRoot),
+        storeRoot: expect.any(String),
         backend: {
           type: 'git',
-          local_path: expectedExistingPath(newRoot),
+          local_path: expect.any(String),
         },
       },
       {
@@ -130,6 +145,10 @@ describe('context store registry facade', () => {
         },
       },
     ]);
+    expectSameExistingPath(stores[0].storeRoot, newRoot);
+    expectSameExistingPath(stores[0].backend.local_path, newRoot);
+    expectSameExistingPath(stores[1].storeRoot, zetaRoot);
+    expectSameExistingPath(stores[1].backend.local_path, zetaRoot);
   });
 
   it('rejects registration when existing store metadata has a different id', async () => {
@@ -245,6 +264,86 @@ describe('context store registry facade', () => {
         local_path: storeRoot,
       },
     });
+  });
+
+  it('resolves registry and path context store bindings', async () => {
+    const registeredRoot = mkdir('registered-context');
+    const pathRoot = mkdir('path-context');
+    await writeContextStoreMetadataState(registeredRoot, {
+      version: 1,
+      id: 'registered-context',
+    });
+    await writeContextStoreMetadataState(pathRoot, {
+      version: 1,
+      id: 'path-context',
+    });
+    await writeContextStoreRegistryState(
+      {
+        version: 1,
+        stores: {
+          'registered-context': {
+            backend: {
+              type: 'git',
+              local_path: registeredRoot,
+            },
+          },
+        },
+      },
+      { globalDataDir: tempDir }
+    );
+
+    const registered = await resolveContextStoreBinding(
+      createRegisteredContextStoreBinding('registered-context'),
+      { globalDataDir: tempDir }
+    );
+    expect(registered).toEqual(
+      expect.objectContaining({
+        id: 'registered-context',
+        root: registeredRoot,
+        source: 'registry',
+        warnings: [],
+      })
+    );
+
+    const pathBound = await resolveContextStoreBinding(
+      createPathContextStoreBinding({
+        id: 'path-context',
+        path: pathRoot,
+      }),
+      { globalDataDir: tempDir }
+    );
+    expect(pathBound).toEqual(
+      expect.objectContaining({
+        id: 'path-context',
+        root: pathRoot,
+        source: 'path',
+        warnings: [],
+      })
+    );
+  });
+
+  it('warns when a path binding resolves to a different metadata id', async () => {
+    const storeRoot = mkdir('renamed-context');
+    await writeContextStoreMetadataState(storeRoot, {
+      version: 1,
+      id: 'new-context',
+    });
+
+    const resolved = await resolveContextStoreBinding({
+      id: 'old-context',
+      selector: {
+        kind: 'path',
+        path: storeRoot,
+        observed_id: 'old-context',
+      },
+    });
+
+    expect(resolved.id).toBe('new-context');
+    expect(resolved.warnings).toEqual([
+      expect.objectContaining({
+        code: 'context_store_binding_id_changed',
+      }),
+    ]);
   });
 
   it('rejects missing registry entries and bad registered metadata', async () => {

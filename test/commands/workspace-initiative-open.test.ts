@@ -12,6 +12,7 @@ import {
   mountInitiativesCollection,
   parseWorkspaceViewState,
   registerContextStore,
+  writeContextStoreMetadataState,
 } from '../../src/core/index.js';
 import { runCLI, type RunCLIResult } from '../helpers/run-cli.js';
 
@@ -46,7 +47,11 @@ describe('workspace open initiative views', () => {
   }
 
   function expectedExistingPath(existingPath: string): string {
-    return process.platform === 'win32' ? fs.realpathSync.native(existingPath) : existingPath;
+    return fs.realpathSync.native(existingPath);
+  }
+
+  function expectSameExistingPath(actualPath: string, expectedPath: string): void {
+    expect(fs.realpathSync.native(actualPath)).toBe(expectedExistingPath(expectedPath));
   }
 
   function parseJson(result: RunCLIResult): any {
@@ -67,7 +72,7 @@ describe('workspace open initiative views', () => {
       globalDataDir,
     });
     const state = await createInitiative({
-      collection: mountInitiativesCollection(expectedExistingPath(storeRoot)),
+      collection: mountInitiativesCollection(storeRoot),
       id: initiativeId,
       title: 'Billing Launch',
       summary: 'Coordinate the billing launch.',
@@ -75,9 +80,9 @@ describe('workspace open initiative views', () => {
 
     return {
       storeId,
-      storeRoot: expectedExistingPath(storeRoot),
+      storeRoot,
       initiativeId,
-      initiativeRoot: path.join(expectedExistingPath(storeRoot), 'initiatives', initiativeId),
+      initiativeRoot: path.join(storeRoot, 'initiatives', initiativeId),
       state,
     };
   }
@@ -142,19 +147,26 @@ describe('workspace open initiative views', () => {
 
     expect(payload.workspace).toEqual({
       name: 'billing-launch',
-      root: workspaceRoot,
+      root: expect.any(String),
     });
+    expectSameExistingPath(payload.workspace.root, workspaceRoot);
     expect(payload.context).toEqual({
       context_store: {
         id: 'platform',
-        root: initiative.storeRoot,
+        root: expect.any(String),
+        selector: {
+          kind: 'registry',
+          id: 'platform',
+        },
       },
       initiative: expect.objectContaining({
         id: 'billing-launch',
         title: 'Billing Launch',
-        root: initiative.initiativeRoot,
+        root: expect.any(String),
       }),
     });
+    expectSameExistingPath(payload.context.context_store.root, initiative.storeRoot);
+    expectSameExistingPath(payload.context.initiative.root, initiative.initiativeRoot);
     expect(payload.generated_files).toEqual({
       agents: path.join(workspaceRoot, 'AGENTS.md'),
       code_workspace: getWorkspaceCodeWorkspacePath(workspaceRoot, 'billing-launch'),
@@ -162,20 +174,26 @@ describe('workspace open initiative views', () => {
     expect(payload.opened_roots).toEqual([
       {
         kind: 'workspace',
-        path: workspaceRoot,
+        path: expect.any(String),
       },
       {
         kind: 'initiative',
         name: 'billing-launch',
-        path: initiative.initiativeRoot,
+        path: expect.any(String),
       },
     ]);
+    expectSameExistingPath(payload.opened_roots[0].path, workspaceRoot);
+    expectSameExistingPath(payload.opened_roots[1].path, initiative.initiativeRoot);
     expect(payload.skipped_roots).toEqual([]);
     expect(payload.advisory_edit_boundaries).toEqual({
       allowed_edit_roots: [],
-      coordination_roots: [initiative.initiativeRoot],
+      coordination_roots: [expect.any(String)],
       enforcement: 'advisory',
     });
+    expectSameExistingPath(
+      payload.advisory_edit_boundaries.coordination_roots[0],
+      initiative.initiativeRoot
+    );
     expect(payload.launch).toEqual({
       attempted: true,
       status: 'succeeded',
@@ -189,8 +207,17 @@ describe('workspace open initiative views', () => {
         version: 1,
         name: 'billing-launch',
         context: {
-          store: 'platform',
-          initiative: 'billing-launch',
+          kind: 'initiative',
+          store: {
+            id: 'platform',
+            selector: {
+              kind: 'registry',
+              id: 'platform',
+            },
+          },
+          initiative: {
+            id: 'billing-launch',
+          },
         },
         links: {},
         preferred_opener: {
@@ -208,13 +235,206 @@ describe('workspace open initiative views', () => {
       { path: '.' },
       {
         name: 'initiative:billing-launch',
-        path: initiative.initiativeRoot,
+        path: expect.any(String),
       },
     ]);
+    const codeWorkspaceFolders = JSON.parse(
+      fs.readFileSync(getWorkspaceCodeWorkspacePath(workspaceRoot, 'billing-launch'), 'utf-8')
+    ).folders;
+    expectSameExistingPath(codeWorkspaceFolders[1].path, initiative.initiativeRoot);
 
     const launch = readLaunchLog(code.logPath);
     expect(fs.realpathSync.native(launch.cwd)).toBe(fs.realpathSync.native(workspaceRoot));
     expect(launch.args).toEqual([getWorkspaceCodeWorkspacePath(workspaceRoot, 'billing-launch')]);
+  });
+
+  it('persists a path-bound context store and reopens without registry registration', async () => {
+    const storeRoot = mkdir('stores/scratch-context');
+    const initiativeId = 'scratch-launch';
+    await writeContextStoreMetadataState(storeRoot, {
+      version: 1,
+      id: 'scratch-context',
+    });
+    await createInitiative({
+      collection: mountInitiativesCollection(storeRoot),
+      id: initiativeId,
+      title: 'Scratch Launch',
+      summary: 'Coordinate local scratch work.',
+    });
+    const code = createFakeExecutable('code');
+
+    const open = await runCLI(
+      [
+        'workspace',
+        'open',
+        '--initiative',
+        initiativeId,
+        '--store-path',
+        storeRoot,
+        '--editor',
+        '--json',
+        '--no-interactive',
+      ],
+      { cwd: tempDir, env: envWithFakeExecutable(code) }
+    );
+
+    expect(open.exitCode).toBe(0);
+    const payload = parseJson(open);
+    expect(payload.context.context_store).toEqual({
+      id: 'scratch-context',
+      root: expect.any(String),
+      selector: {
+        kind: 'path',
+        path: expect.any(String),
+        observed_id: 'scratch-context',
+      },
+    });
+    expectSameExistingPath(payload.context.context_store.root, storeRoot);
+    expectSameExistingPath(payload.context.context_store.selector.path, storeRoot);
+
+    const workspaceRoot = getManagedWorkspaceRoot(initiativeId, { globalDataDir });
+    const viewState = parseWorkspaceViewState(
+      fs.readFileSync(getWorkspaceViewStatePath(workspaceRoot), 'utf-8')
+    );
+    expect(viewState.context).toEqual({
+      kind: 'initiative',
+      store: {
+        id: 'scratch-context',
+        selector: {
+          kind: 'path',
+          path: expect.any(String),
+          observed_id: 'scratch-context',
+        },
+      },
+      initiative: {
+        id: initiativeId,
+      },
+    });
+    const storedSelector = viewState.context?.store.selector;
+    expect(storedSelector?.kind).toBe('path');
+    expectSameExistingPath(storedSelector?.kind === 'path' ? storedSelector.path : '', storeRoot);
+
+    const reopen = await runCLI(
+      ['workspace', 'open', initiativeId, '--editor', '--json', '--no-interactive'],
+      { cwd: tempDir, env: envWithFakeExecutable(code) }
+    );
+
+    expect(reopen.exitCode).toBe(0);
+    const reopenedPayload = parseJson(reopen);
+    expect(reopenedPayload.status).toEqual([]);
+    expectSameExistingPath(reopenedPayload.context.context_store.root, storeRoot);
+    expectSameExistingPath(reopenedPayload.context.context_store.selector.path, storeRoot);
+
+    const doctor = await runCLI(
+      ['workspace', 'doctor', '--workspace', initiativeId, '--json'],
+      { cwd: tempDir, env }
+    );
+
+    expect(doctor.exitCode).toBe(0);
+    expect(parseJson(doctor).workspace.status).toEqual([]);
+  });
+
+  it('reports path-bound context store id drift in workspace doctor', async () => {
+    const storeRoot = mkdir('stores/drift-context');
+    const initiativeId = 'drift-launch';
+    await writeContextStoreMetadataState(storeRoot, {
+      version: 1,
+      id: 'drift-context',
+    });
+    await createInitiative({
+      collection: mountInitiativesCollection(storeRoot),
+      id: initiativeId,
+      title: 'Drift Launch',
+      summary: 'Coordinate local drift work.',
+    });
+    const code = createFakeExecutable('code');
+
+    const open = await runCLI(
+      [
+        'workspace',
+        'open',
+        '--initiative',
+        initiativeId,
+        '--store-path',
+        storeRoot,
+        '--editor',
+        '--json',
+        '--no-interactive',
+      ],
+      { cwd: tempDir, env: envWithFakeExecutable(code) }
+    );
+    expect(open.exitCode).toBe(0);
+
+    await writeContextStoreMetadataState(storeRoot, {
+      version: 1,
+      id: 'renamed-context',
+    });
+
+    const doctor = await runCLI(
+      ['workspace', 'doctor', '--workspace', initiativeId, '--json'],
+      { cwd: tempDir, env }
+    );
+
+    expect(doctor.exitCode).toBe(0);
+    expect(parseJson(doctor).workspace.status).toContainEqual(
+      expect.objectContaining({
+        severity: 'warning',
+        code: 'context_store_binding_id_changed',
+        target: 'workspace.context.store.metadata.id',
+      })
+    );
+  });
+
+  it('does not conflate registry and path bindings that share a store id', async () => {
+    const registered = await setupInitiative('platform', 'billing-launch');
+    const pathStoreRoot = mkdir('stores/platform-copy');
+    await writeContextStoreMetadataState(pathStoreRoot, {
+      version: 1,
+      id: 'platform',
+    });
+    await createInitiative({
+      collection: mountInitiativesCollection(pathStoreRoot),
+      id: registered.initiativeId,
+      title: 'Billing Launch Copy',
+      summary: 'Coordinate a local copy.',
+    });
+    const code = createFakeExecutable('code');
+
+    const registryOpen = await runCLI(
+      [
+        'workspace',
+        'open',
+        '--initiative',
+        `${registered.storeId}/${registered.initiativeId}`,
+        '--editor',
+        '--json',
+        '--no-interactive',
+      ],
+      { cwd: tempDir, env: envWithFakeExecutable(code) }
+    );
+    expect(registryOpen.exitCode).toBe(0);
+
+    const pathOpen = await runCLI(
+      [
+        'workspace',
+        'open',
+        '--initiative',
+        registered.initiativeId,
+        '--store-path',
+        pathStoreRoot,
+        '--editor',
+        '--json',
+        '--no-interactive',
+      ],
+      { cwd: tempDir, env: envWithFakeExecutable(code) }
+    );
+
+    expect(pathOpen.exitCode).toBe(1);
+    expect(parseJson(pathOpen).status[0]).toEqual(
+      expect.objectContaining({
+        code: 'workspace_name_collision',
+      })
+    );
   });
 
   it('refuses to silently bind an existing non-initiative workspace', async () => {
@@ -259,6 +479,43 @@ describe('workspace open initiative views', () => {
     );
   });
 
+  it('reports initiative read failures separately from context store failures', async () => {
+    const initiative = await setupInitiative();
+    const code = createFakeExecutable('code');
+    const open = await runCLI(
+      [
+        'workspace',
+        'open',
+        '--initiative',
+        `${initiative.storeId}/${initiative.initiativeId}`,
+        '--editor',
+        '--json',
+        '--no-interactive',
+      ],
+      { cwd: tempDir, env: envWithFakeExecutable(code) }
+    );
+    expect(open.exitCode).toBe(0);
+
+    fs.writeFileSync(
+      path.join(initiative.initiativeRoot, 'initiative.yaml'),
+      'version: 1\nid: Invalid\n',
+      'utf-8'
+    );
+
+    const doctor = await runCLI(
+      ['workspace', 'doctor', '--workspace', initiative.initiativeId, '--json'],
+      { cwd: tempDir, env }
+    );
+
+    expect(doctor.exitCode).toBe(0);
+    expect(parseJson(doctor).workspace.status[0]).toEqual(
+      expect.objectContaining({
+        code: 'workspace_initiative_unavailable',
+        target: 'workspace.context.initiative',
+      })
+    );
+  });
+
   it('warns and skips missing linked roots while opening stored initiative context', async () => {
     const initiative = await setupInitiative();
     const code = createFakeExecutable('code');
@@ -278,7 +535,7 @@ describe('workspace open initiative views', () => {
     );
     expect(open.exitCode).toBe(0);
 
-    const expectedRepo = expectedExistingPath(repo);
+    const expectedRepo = repo;
     const link = await runCLI(
       ['workspace', 'link', 'api', repo, '--workspace', 'team-billing', '--json'],
       { cwd: tempDir, env }
@@ -296,14 +553,19 @@ describe('workspace open initiative views', () => {
     expect(payload.opened_roots).toEqual([
       {
         kind: 'workspace',
-        path: getManagedWorkspaceRoot('team-billing', { globalDataDir }),
+        path: expect.any(String),
       },
       {
         kind: 'initiative',
         name: initiative.initiativeId,
-        path: initiative.initiativeRoot,
+        path: expect.any(String),
       },
     ]);
+    expectSameExistingPath(
+      payload.opened_roots[0].path,
+      getManagedWorkspaceRoot('team-billing', { globalDataDir })
+    );
+    expectSameExistingPath(payload.opened_roots[1].path, initiative.initiativeRoot);
     expect(payload.skipped_roots).toEqual([
       {
         kind: 'link',

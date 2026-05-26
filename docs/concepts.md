@@ -60,19 +60,20 @@ Repo-local OpenSpec projects are the right default when one repo owns the planni
 The workspace mental model is:
 
 ```text
-workspace = local view over related repos or folders
-link      = a stable name for a repo or folder the workspace can resolve locally
-change    = one planned piece of work; implementation belongs in the owning repo
+workspace     = private local view over context stores, initiatives, repos, and folders
+context store = durable shared context container
+initiative    = durable coordination context inside a context store
+link          = a stable name for a repo or folder the workspace can resolve locally
+change        = one planned piece of work; implementation belongs in the owning repo
 ```
 
 A workspace has a different shape from a repo-local project:
 
 ```text
-workspace-folder/
-├── changes/                       # Beta workspace-local planning artifacts
-└── .openspec-workspace/
-    ├── workspace.yaml             # Shared workspace identity and link names
-    └── local.yaml                 # This machine's local paths
+getGlobalDataDir()/workspaces/<workspace-name>/
+├── workspace.yaml                 # Private local view record
+├── AGENTS.md                      # Generated runtime guidance
+└── <workspace-name>.code-workspace # Generated editor workspace file
 ```
 
 Repo-local OpenSpec state keeps the existing shape:
@@ -86,26 +87,31 @@ repo-root/
 
 That distinction matters. The workspace folder is a local coordination surface for opening and inspecting linked repos or folders. Each repo's `openspec/` directory remains the home for repo-owned specs, repo-local changes, and implementation planning. Users do not need to run repo-local `openspec init` inside a workspace folder.
 
-Stable link names are how a workspace refers to repos and folders. The shared workspace state keeps names such as `api`, `web`, or `checkout`; each machine maps those names to its own local paths in `.openspec-workspace/local.yaml`.
+Stable link names are how a workspace refers to repos and folders. The private workspace record keeps names such as `api`, `web`, or `checkout` and maps them to this runtime's local paths.
 
 ```yaml
-# .openspec-workspace/workspace.yaml
+# workspace.yaml
 version: 1
 name: platform
+context: null
 links:
-  api: {}
-  web: {}
-```
-
-```yaml
-# .openspec-workspace/local.yaml
-version: 1
-paths:
   api: /repos/api
   web: /repos/web
 ```
 
-OpenSpec-created workspaces exclude `.openspec-workspace/local.yaml` from portable collaboration state by default. `.openspec-workspace/workspace.yaml` remains portable because it stores the workspace name and stable link names, not one user's absolute checkout paths.
+When a workspace opens an initiative, `context` records the selected context-store binding and initiative id. Registry-selected stores stay portable by id; path-selected stores intentionally preserve the runtime-local path because `workspace.yaml` is private local state.
+
+```yaml
+context:
+  kind: initiative
+  store:
+    id: platform
+    selector:
+      kind: registry
+      id: platform
+  initiative:
+    id: billing-launch
+```
 
 Linked paths can be full repos, folders inside a large monorepo, or other existing folders. They do not need repo-local `openspec/` state before they can participate in workspace planning. Later implementation, verify, or archive workflows may require more repo readiness, but planning visibility starts with the link.
 
@@ -127,13 +133,7 @@ getGlobalDataDir()/workspaces
 
 That means `$XDG_DATA_HOME/openspec/workspaces` when `XDG_DATA_HOME` is set, `~/.local/share/openspec/workspaces` on Unix-style fallback, and `%LOCALAPPDATA%\openspec\workspaces` on native Windows fallback. Native Windows shells, PowerShell, and WSL2 each keep the path strings for the runtime running OpenSpec. This foundation does not translate between `D:\repo`, `/mnt/d/repo`, and UNC WSL paths.
 
-OpenSpec also keeps a machine-local registry at:
-
-```text
-getGlobalDataDir()/workspaces/registry.yaml
-```
-
-The registry maps workspace names to workspace locations so later global commands can list or select known workspaces from anywhere. It is only an index. Each workspace folder remains authoritative for its own `.openspec-workspace/workspace.yaml` and `.openspec-workspace/local.yaml`, so stale registry records can be reported and repaired without redefining the workspace itself.
+OpenSpec can still read older beta workspace roots as compatibility inputs, but managed workspaces now use the root `workspace.yaml` record above. The workspace folder remains authoritative for its own private local view.
 
 Workspace visibility is not change commitment. Set up a workspace when OpenSpec should know which repos or folders are relevant; create a change later when you are ready to plan a feature, fix, project, or other piece of work.
 
@@ -168,6 +168,10 @@ openspec workspace update --workspace platform --tools codex,claude
 openspec workspace open
 openspec workspace open platform --agent github-copilot
 openspec workspace open --editor
+
+# Open an initiative as a local workspace view
+openspec workspace open --initiative billing-launch --store platform
+openspec workspace open --initiative billing-launch --store-path /repos/platform-context
 ```
 
 `workspace setup` always creates the workspace in the standard workspace location, records it in the local registry, shows the workspace location, and requires at least one linked repo or folder. Interactive setup asks for a preferred opener and can install OpenSpec skills for selected agents. Non-interactive setup stores one only when `--opener codex`, `--opener claude`, `--opener github-copilot`, or `--opener editor` is provided.

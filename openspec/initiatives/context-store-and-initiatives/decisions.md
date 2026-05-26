@@ -142,6 +142,9 @@ Implications:
 
 - Persist only tiny private local view choices: selected store, selected
   initiative, selected local links, opener, and selected tools.
+- Preserve the selected context-store selector inside the private workspace
+  record, so a runtime-local `--store-path` open can be reopened without writing
+  machine-local paths into checked-in repo metadata.
 - Generate agent guidance, skills, launch prompts, and editor workspace files as
   runtime support when opening or preparing a view.
 - Open existing local paths only; do not clone, branch, create worktrees, use
@@ -166,6 +169,9 @@ store and initiative would overfit the filesystem layout to one workflow.
 Implications:
 
 - Keep initiative references optional inside `workspace.yaml`.
+- Store initiative context with an explicit context-store binding rather than a
+  flat store id, because workspace state may need to remember a registry selector
+  or a runtime-local path selector.
 - Generate `AGENTS.md`, opener workspace files, and tool-specific skills at the
   managed workspace root.
 - Keep `workspace.yaml` as the only view file for Item 10; do not add a separate

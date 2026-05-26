@@ -5,6 +5,7 @@ import { FileSystemUtils } from '../../utils/file-system.js';
 import {
   WorkspaceLocalState,
   WorkspaceSharedState,
+  getWorkspaceContextInitiativeId,
   getWorkspaceCodeWorkspacePath,
   getWorkspacePortableIgnorePatterns,
 } from './foundation.js';
@@ -104,6 +105,15 @@ This workspace is not bound to an initiative. It is still a first-class local vi
 ${formatGuidancePathList(linkedRoots)}`;
   }
 
+  const storedContextSelector = sharedState.context?.store.selector;
+  const storedContextStore = sharedState.context
+    ? storedContextSelector?.kind === 'path'
+      ? `${sharedState.context.store.id} via ${storedContextSelector.path}`
+      : sharedState.context.store.id
+    : null;
+  const storedInitiativeId = sharedState.context
+    ? getWorkspaceContextInitiativeId(sharedState.context)
+    : null;
   const contextLines = resolvedContext
     ? [
         `- Context store: ${resolvedContext.contextStore.id} (${resolvedContext.contextStore.root})`,
@@ -113,8 +123,8 @@ ${formatGuidancePathList(linkedRoots)}`;
         '- Broader context may exist in the context store, but this workspace opens the selected initiative by default.',
       ].join('\n')
     : [
-        `- Context store: ${sharedState.context.store}`,
-        `- Initiative: ${sharedState.context.initiative}`,
+        `- Context store: ${storedContextStore}`,
+        `- Initiative: ${storedInitiativeId}`,
         '- Run `openspec workspace open --json` to refresh resolved local paths for this view.',
       ].join('\n');
 
