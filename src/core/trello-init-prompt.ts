@@ -12,6 +12,7 @@ import { stringify as stringifyYaml } from 'yaml';
 import * as fs from 'fs';
 import * as path from 'path';
 import { PASTELSDD_DIR_NAME } from './config.js';
+import { DEFAULT_LABEL_DEFINITIONS, type TrelloLabelKey } from './trello-config.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Stage definitions
@@ -26,8 +27,7 @@ export interface StageDefinition {
 }
 
 export const ALL_STAGES: StageDefinition[] = [
-  { key: 'draft',      defaultName: 'Para Explorar',      emoji: '🧠', description: 'Ideias e rascunhos' },
-  { key: 'backlog',    defaultName: 'Backlog',             emoji: '📋', description: 'Tarefas pré-refinadas', required: true },
+  { key: 'backlog',    defaultName: 'Backlog',             emoji: '📋', description: 'Ideias, rascunhos e tarefas pré-refinadas', required: true },
   { key: 'refining',   defaultName: 'Em Refinamento',      emoji: '🔍', description: 'Em discussão/especificação' },
   { key: 'ready',      defaultName: 'Ready to Dev',        emoji: '✅', description: 'Aprovadas para desenvolvimento' },
   { key: 'developing', defaultName: 'Em Desenvolvimento',  emoji: '🚧', description: 'Em implementação' },
@@ -41,6 +41,13 @@ export const ALL_STAGES: StageDefinition[] = [
 // Partial config types (saved by CLI, completed by /pastel:trello-setup)
 // ─────────────────────────────────────────────────────────────────────────────
 
+export interface PendingLabelsConfig {
+  /** Se o usuário optou por usar labels */
+  enabled: boolean;
+  /** Chaves das labels selecionadas (subconjunto de DEFAULT_LABEL_DEFINITIONS) */
+  selected?: TrelloLabelKey[];
+}
+
 export interface TrelloPendingConfig {
   /** Always false when saved by CLI init — completed by /pastel:trello-setup */
   configured: false;
@@ -52,6 +59,8 @@ export interface TrelloPendingConfig {
   stages: string[];
   /** Custom names for each selected stage (overrides defaults) */
   stageNames: Record<string, string>;
+  /** Labels/etiquetas — presente quando o usuário optou por configurar labels */
+  labels?: PendingLabelsConfig;
 }
 
 export interface TrelloCompleteConfig {
@@ -59,6 +68,10 @@ export interface TrelloCompleteConfig {
   boardId: string;
   boardName?: string;
   lists: Record<string, { id: string; name: string }>;
+  labels?: {
+    enabled: boolean;
+    items?: Record<string, { id: string; name: string; color: string }>;
+  };
 }
 
 export type TrelloYamlConfig = TrelloPendingConfig | TrelloCompleteConfig;
@@ -179,13 +192,48 @@ export async function runTrelloInitPrompt(pastelsddPath: string): Promise<boolea
     }
   }
 
-  // ── Step 5: save partial config ────────────────────────────────────────────
+  // ── Step 5: labels/etiquetas ───────────────────────────────────────────────
+  console.log();
+  console.log(chalk.dim('  Labels categorizam cada card automaticamente (ex: BUG, IMPLEMENTAÇÃO).'));
+  console.log(chalk.dim('  O agente analisa o contexto e aplica a label correta ao criar o card.'));
+  console.log();
+
+  const wantsLabels = await confirm({
+    message: 'Usar labels/etiquetas nos cards? (o agente categoriza automaticamente)',
+    default: true,
+  });
+
+  let labels: PendingLabelsConfig;
+
+  if (wantsLabels) {
+    const selectedLabelKeys = await checkbox({
+      message: 'Quais labels deseja usar?',
+      choices: DEFAULT_LABEL_DEFINITIONS.map((l) => ({
+        value: l.key,
+        name: `${l.emoji} ${l.name.padEnd(20)} — ${l.description}`,
+        checked: true,   // todas pré-selecionadas
+      })),
+    });
+
+    const resolvedKeys = (
+      selectedLabelKeys.length > 0
+        ? selectedLabelKeys
+        : DEFAULT_LABEL_DEFINITIONS.map((l) => l.key)
+    ) as TrelloLabelKey[];
+
+    labels = { enabled: true, selected: resolvedKeys };
+  } else {
+    labels = { enabled: false };
+  }
+
+  // ── Step 6: save partial config ────────────────────────────────────────────
   const pendingConfig: TrelloPendingConfig = {
     configured: false,
     hasExistingBoard: boardChoice === 'existing',
     ...(boardId ? { boardId } : {}),
     stages,
     stageNames,
+    labels,
   };
 
   fs.mkdirSync(pastelsddPath, { recursive: true });

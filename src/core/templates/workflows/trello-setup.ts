@@ -4,6 +4,7 @@
  * Guides the user through configuring Trello integration for their
  * pastelsdd workflow. Creates `pastelsdd/trello.yaml` with the board
  * and list IDs derived from an existing board or a newly created one.
+ * Also handles optional label/etiqueta creation on the board.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 
@@ -24,7 +25,7 @@ function getTrelloSetupInstructions(): string {
 
 This skill writes \`pastelsdd/trello.yaml\` — a small config file that all Trello-aware commands
 (\`/pastel:task\`, \`/pastel:draft\`, \`/pastel:propose\`, \`/pastel:apply\`, \`/pastel:archive\`) read at
-runtime to know which Trello list corresponds to each workflow stage.
+runtime to know which Trello list corresponds to each workflow stage and which labels are available.
 
 ---
 
@@ -69,6 +70,7 @@ Extract the following fields:
 - \`boardId\` → string (only if hasExistingBoard = true)
 - \`stages\` → array of selected stage keys
 - \`stageNames\` → map of stage key → display name
+- \`labels\` → \`{ enabled: bool, selected?: string[] }\`
 
 Display:
 \`\`\`
@@ -79,12 +81,14 @@ Detectei preferências salvas durante o \`pastelsdd init\`:
   Quadro existente: <Sim/Não>
   \${hasExistingBoard ? 'Board ID: <boardId>' : 'Criar novo quadro'}
   Estágios selecionados: <stage1>, <stage2>, ...
+  Labels: \${labels?.enabled ? (labels.selected ?? ['bug','implementacao','melhoria','debito-tecnico']).join(', ') : 'desativadas'}
 
   ✓ Pulando perguntas já respondidas — indo direto para conexão das listas.
 \`\`\`
 
 Skip Steps 3A/3B and go directly to **Step 3C** (connect lists for existing board)
 or **Step 3D** (create board for new board).
+Then proceed to **Step 3E** (create labels) if \`labels.enabled = true\`.
 
 ### C) "NO_CONFIG" — fresh setup, no preferences saved yet
 
@@ -106,7 +110,6 @@ Then ask which columns the user wants using **AskUserQuestion** with \`multiSele
 
 | Estágio    | Coluna sugerida        |
 |------------|------------------------|
-| draft      | 🧠 Para Explorar        |
 | backlog ✱  | 📋 Backlog              |
 | refining   | 🔍 Em Refinamento       |
 | ready      | ✅ Ready to Dev         |
@@ -122,6 +125,19 @@ At minimum, require **backlog** and **done**.
 
 Optionally ask for custom column names.
 
+Then ask about labels using **AskUserQuestion**:
+> "Deseja usar labels/etiquetas para categorizar os cards automaticamente?"
+> - Sim — o agente analisa o contexto e aplica a label correta (BUG, IMPLEMENTAÇÃO, MELHORIA, DÉBITO TÉCNICO)
+> - Não — sem labels
+
+If "Sim", ask which labels to enable (multiSelect):
+- 🐛 BUG — Erro ou comportamento incorreto
+- ⚙️ IMPLEMENTAÇÃO — Nova funcionalidade desenvolvida do zero
+- ✨ MELHORIA — Aperfeiçoamento ou otimização de algo existente
+- 💳 DÉBITO TÉCNICO — Refatoração, limpeza de código ou resolução de dívida técnica
+
+Save the chosen label keys as \`labelsToCreate\` (defaults: all four if none unchecked).
+
 ---
 
 ## Step 3C — Connect lists for existing board
@@ -135,7 +151,7 @@ Optionally ask for custom column names.
 
 2. For each selected stage, use **AskUserQuestion** to let the user match a Trello list.
    Show the lists returned above. Group the questions:
-   - Group 1 (discovery): draft, backlog, refining
+   - Group 1 (discovery): backlog, refining
    - Group 2 (execution): ready, developing, testing
    - Group 3 (closure): deploy, done, cancelled
 
@@ -173,25 +189,47 @@ Optionally ask for custom column names.
 
 ---
 
+## Step 3E — Create labels on the board
+
+**(Run after Step 3C or 3D, only if labels are enabled)**
+
+The canonical label definitions are:
+
+| Chave           | Nome            | Cor    |
+|-----------------|-----------------|--------|
+| bug             | BUG             | red    |
+| implementacao   | IMPLEMENTAÇÃO   | blue   |
+| melhoria        | MELHORIA        | green  |
+| debito-tecnico  | DÉBITO TÉCNICO  | orange |
+
+**For each label key in \`labelsToCreate\`:**
+
+1. First, check existing labels on the board to avoid duplicates:
+   \`\`\`tool
+   mcp__claude_ai_Trello_Custom__get_board_labels  { board_id: "<boardId>" }
+   \`\`\`
+
+2. For each label key that does NOT already exist (match by name, case-insensitive):
+   \`\`\`tool
+   mcp__claude_ai_Trello_Custom__create_label  { board_id: "<boardId>", name: "<name>", color: "<color>" }
+   \`\`\`
+
+3. Collect and save each label: \`{ id: "<returnedId>", name: "<name>", color: "<color>" }\`
+   If the label already existed, use its existing \`id\` and \`color\`.
+
+If any \`create_label\` call fails, log the error and continue — labels are auxiliary, never blocking.
+
+---
+
 ## Step 4 — Write final configuration
 
-Assemble and write \`pastelsdd/trello.yaml\` with \`configured: true\`:
+Assemble and write \`pastelsdd/trello.yaml\` with \`configured: true\`.
+
+Use the **Write tool** (NOT a shell command) to write the file — it is cross-platform and works on Windows, macOS, and Linux.
+
+**Full YAML structure when labels are enabled:**
 
 \`\`\`yaml
-configured: true
-boardId: "<boardId>"
-boardName: "<boardName>"
-lists:
-  <stage>:
-    id: "<id>"
-    name: "<name>"
-  # only the stages that were mapped
-\`\`\`
-
-Write it:
-
-\`\`\`bash
-cat > pastelsdd/trello.yaml << 'YAML'
 configured: true
 boardId: "<boardId>"
 boardName: "<boardName>"
@@ -199,11 +237,38 @@ lists:
   backlog:
     id: "<id>"
     name: "<name>"
-  done:
-    id: "<id>"
-    name: "<name>"
+  # ... only the stages that were mapped
+labels:
+  enabled: true
+  items:
+    bug:
+      id: "<labelId>"
+      name: "BUG"
+      color: "red"
+    implementacao:
+      id: "<labelId>"
+      name: "IMPLEMENTAÇÃO"
+      color: "blue"
+    melhoria:
+      id: "<labelId>"
+      name: "MELHORIA"
+      color: "green"
+    debito-tecnico:
+      id: "<labelId>"
+      name: "DÉBITO TÉCNICO"
+      color: "orange"
+\`\`\`
+
+**When labels are disabled:**
+
+\`\`\`yaml
+configured: true
+boardId: "<boardId>"
+boardName: "<boardName>"
+lists:
   # ...
-YAML
+labels:
+  enabled: false
 \`\`\`
 
 ---
@@ -217,15 +282,21 @@ YAML
 **Arquivo:** pastelsdd/trello.yaml
 
 **Estágios configurados:**
-  🧠 draft       → <name>
   📋 backlog     → <name>
   ...
 
+**Labels configuradas:**          ← apenas se labels.enabled = true
+  🐛 BUG
+  ⚙️  IMPLEMENTAÇÃO
+  ✨ MELHORIA
+  💳 DÉBITO TÉCNICO
+
 A partir de agora, todos os comandos Pastelsdd irão sincronizar cards automaticamente.
+O agente irá tentar categorizar cada card com a label adequada ao criá-lo.
 
 **Próximos passos:**
+  /pastel:draft    → Registrar uma ideia no Backlog (frictionless)
   /pastel:task     → Adicionar tarefa ao Backlog
-  /pastel:draft    → Registrar uma ideia em Para Explorar
   /pastel:propose  → Propor uma change (cria card no Trello)
 \`\`\`
 
@@ -240,6 +311,8 @@ A partir de agora, todos os comandos Pastelsdd irão sincronizar cards automatic
 - **Todos os nomes em português** por padrão, respeitando o que o usuário escolheu no init
 - **Se qualquer chamada MCP falhar**, exibir o erro e perguntar se deseja tentar novamente
 - **Não sobrescrever config \`configured: true\` sem confirmação explícita**
+- **Labels são opcionais** — se criação de label falhar, continuar normalmente sem labels
+- **Não duplicar labels** — verificar labels existentes no board antes de criar novas
 `;
 }
 

@@ -35,6 +35,8 @@ I'll create a change with artifacts:
 - design.md (how)
 - tasks.md (implementation steps)
 
+After artifacts are created, a **refinement validation loop** runs: the user reviews the plan, gives feedback, and when satisfied the Trello card is moved to Ready to Dev.
+
 When ready to implement, run /pastel:apply
 
 ---
@@ -64,9 +66,31 @@ When ready to implement, run /pastel:apply
    The Read tool is cross-platform and works on Windows, macOS, and Linux — never use \`cat\` or shell commands to read this file.
    If the Read tool returns an error (file not found), skip all Trello steps and continue to Step 4.
 
-   Otherwise, parse the YAML and extract \`boardId\`, \`lists.backlog\`, and \`lists.refining\`.
+   Otherwise, parse the YAML and extract \`boardId\`, \`lists.backlog\`, \`lists.refining\`, \`lists.ready\`, and \`labels\`.
 
-   **Sync Trello card:**
+   **3a. Detect label (if labels enabled)**
+
+   If \`labels.enabled = true\` and \`labels.items\` is present, determine which label to apply based on the change description provided by the user.
+   Use these classification rules:
+
+   | Label           | Quando usar                                                                  |
+   |-----------------|------------------------------------------------------------------------------|
+   | 🐛 BUG          | Menciona erro, falha, bug, quebrado, não funciona, comportamento incorreto    |
+   | ⚙️ IMPLEMENTAÇÃO | Nova feature, adicionar, criar, implementar algo que não existe ainda         |
+   | ✨ MELHORIA      | Melhorar, otimizar, refinar, aprimorar, performance de algo que já existe    |
+   | 💳 DÉBITO TÉCNICO | Refatorar, limpar, reorganizar, remover código legado, dívida técnica        |
+
+   - If the change clearly matches one label (>80% confidence) → use it silently, without asking.
+   - If ambiguous → use **AskUserQuestion**:
+     > "Que tipo de change é essa?"
+     > - 🐛 BUG — Erro ou comportamento incorreto
+     > - ⚙️ IMPLEMENTAÇÃO — Nova funcionalidade
+     > - ✨ MELHORIA — Aperfeiçoamento de algo existente
+     > - 💳 DÉBITO TÉCNICO — Refatoração e limpeza de código
+     > - Sem label — Não categorizar
+   - Save as \`chosenLabel\` (or \`null\`). Only use label keys present in \`labels.items\`.
+
+   **3b. Sync Trello card:**
 
    a. If \`lists.backlog\` is configured, search for an existing card by name (case-insensitive, partial match):
       \`\`\`tool
@@ -94,7 +118,15 @@ When ready to implement, run /pastel:apply
 
    e. **If no card found and no refining list:** create in backlog. Save \`cardId\`.
 
-   f. **Assign the current user:**
+   f. **Apply label (if resolved):**
+      If \`chosenLabel\` is not null and \`cardId\` is saved:
+      \`\`\`tool
+      mcp__claude_ai_Trello_Custom__add_label_to_card
+        card_id: "<cardId>"
+        label_id: "<chosenLabel.id>"
+      \`\`\`
+
+   g. **Assign the current user:**
       \`\`\`tool
       mcp__claude_ai_Trello_Custom__get_me
       mcp__claude_ai_Trello_Custom__add_card_member  { card_id: "<cardId>", member_id: "<me.id>" }
@@ -143,36 +175,174 @@ When ready to implement, run /pastel:apply
       - Use **AskUserQuestion tool** to clarify
       - Then continue with creation
 
-6. **Trello comment (optional)**
-
-   If \`cardId\` was saved in Step 3, add a comment in Portuguese:
-   \`\`\`tool
-   mcp__claude_ai_Trello_Custom__add_comment
-     card_id: "<cardId>"
-     text: |
-       Proposta gerada via /pastel:propose
-
-       Change: <changeRoot>
-       Artefatos criados: proposal.md, design.md, tasks.md
-
-       <2-3 line summary of what will be built>
-
-       Proximo passo: /pastel:apply <name> para iniciar a implementacao.
-   \`\`\`
-
-7. **Show final status**
+6. **Show final status**
    \`\`\`bash
    pastelsdd status --change "<name>"
    \`\`\`
 
-**Output**
+---
 
-After completing all artifacts, summarize:
-- Change name and location
-- List of artifacts created with brief descriptions
-- "All artifacts created! Ready for implementation."
-- Prompt: "Run \`/pastel:apply\` to start implementing."
-- If Trello was used: mention which list the card is in
+## Refinement Validation Loop
+
+After all artifacts are created, enter the **refinement validation loop**. This loop runs until the user approves the plan or explicitly cancels.
+
+### Step R1 — Show Refinement Summary
+
+Present the following structured summary to the user. Read \`proposal.md\`, \`design.md\`, and \`tasks.md\` from the change directory to extract the relevant information.
+
+\`\`\`markdown
+## 🔍 Refinamento da Proposta — <name>
+
+**Objetivo:** <1-2 sentences summarizing what will be built, from proposal.md>
+
+### O que será implementado
+<3-5 bullet points extracted from design.md / tasks.md describing the main implementation steps>
+
+### Escopo e decisões técnicas
+<2-3 key technical decisions or constraints from design.md>
+
+### Tarefas geradas
+<numbered list of tasks from tasks.md (brief, one line each)>
+
+---
+Para iniciar a implementação quando aprovado:
+\`\`\`
+/pastel:apply <name>
+\`\`\`
+\`\`\`
+
+---
+
+### Step R2 — Update Trello card description (if cardId exists)
+
+If \`cardId\` was saved in Step 3, update the card description with the refined summary in Portuguese.
+Build the description from the artifacts already read in Step R1:
+
+\`\`\`tool
+mcp__claude_ai_Trello_Custom__update_card
+  card_id: "<cardId>"
+  desc: |
+    **Objetivo:** <summary from proposal.md>
+
+    **O que será implementado:**
+    <bullet list from design.md / tasks.md>
+
+    **Decisões técnicas:**
+    <key decisions from design.md>
+
+    **Artefatos:** pastelsdd/changes/<name>/
+\`\`\`
+
+---
+
+### Step R3 — Add Trello comment with the implementation command (if cardId exists)
+
+Add a comment in Portuguese using proper Markdown so the command is clearly formatted:
+
+\`\`\`tool
+mcp__claude_ai_Trello_Custom__add_comment
+  card_id: "<cardId>"
+  text: |
+    ## Proposta refinada ✓
+
+    **Change:** \`<name>\`
+    **Artefatos gerados:** proposal.md · design.md · tasks.md
+
+    ### Resumo
+    <2-3 line summary of what will be built>
+
+    ### Para iniciar a implementação
+    \`\`\`
+    /pastel:apply <name>
+    \`\`\`
+
+    _Aguardando aprovação para mover para Ready to Dev._
+\`\`\`
+
+---
+
+### Step R4 — Ask for user approval
+
+Use **AskUserQuestion** to ask:
+
+> "A implementação e o planejamento estão de acordo com o esperado?"
+
+Options:
+- ✅ Sim, mover para Ready to Dev
+- 🔄 Não, quero ajustar o plano
+- ❌ Cancelar (manter em refinamento)
+
+---
+
+### Step R4a — If APPROVED (Sim, mover para Ready to Dev)
+
+1. **Move the Trello card to the ready list** (if \`lists.ready\` is configured and \`cardId\` exists):
+   \`\`\`tool
+   mcp__claude_ai_Trello_Custom__update_card
+     card_id: "<cardId>"
+     list_id: "<lists.ready.id>"
+   \`\`\`
+
+2. **Add a final Trello comment** (if cardId exists):
+   \`\`\`tool
+   mcp__claude_ai_Trello_Custom__add_comment
+     card_id: "<cardId>"
+     text: |
+       ## ✅ Aprovado para Ready to Dev
+
+       O planejamento foi revisado e aprovado.
+
+       ### Próximo passo
+       \`\`\`
+       /pastel:apply <name>
+       \`\`\`
+   \`\`\`
+
+3. **Show success message:**
+   \`\`\`markdown
+   ## ✅ Pronto para desenvolvimento!
+
+   **Change:** <name>
+   **Card movido para:** <lists.ready.name>
+
+   Quando quiser iniciar a implementação:
+   \`\`\`
+   /pastel:apply <name>
+   \`\`\`
+   \`\`\`
+
+---
+
+### Step R4b — If NOT APPROVED (Quero ajustar o plano)
+
+1. **Ask what needs to change** using **AskUserQuestion**:
+   > "O que você gostaria de ajustar no plano? Descreva as mudanças necessárias."
+
+2. **Apply the requested changes** to the relevant artifacts:
+   - Changes to scope or requirements → update \`proposal.md\`
+   - Changes to technical approach → update \`design.md\`
+   - Changes to tasks → update \`tasks.md\`
+
+3. **Update the Trello card description** with the revised plan (repeat Step R2 with updated content).
+
+4. **Go back to Step R1** and show the updated refinement summary.
+   Keep looping until the user approves or cancels.
+
+---
+
+### Step R4c — If CANCELLED
+
+Show:
+\`\`\`markdown
+## ⏸ Refinamento pausado
+
+O card permanece em **<current list name>**.
+Retome o refinamento quando quiser com \`/pastel:explore <name>\`.
+\`\`\`
+
+Do NOT move the card. Stop the loop.
+
+---
 
 **Artifact Creation Guidelines**
 
@@ -189,5 +359,7 @@ After completing all artifacts, summarize:
 - Verify each artifact file exists after writing before proceeding to next
 - If Trello tools fail, continue normally — Trello is auxiliary, not blocking
 - All content written to Trello must be in Portuguese
+- **The refinement loop is mandatory** — never skip it even if the user didn't mention Trello; the approval question must always be asked
+- **Preserve the loop** — do not exit until the user explicitly approves (moves to Ready to Dev) or cancels
 `;
 }

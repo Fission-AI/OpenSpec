@@ -276,6 +276,152 @@ But this summary is optional. Sometimes the thinking IS the value.
 
 ---
 
+## After the First Propose — Refinement Validation Loop
+
+When exploration leads to a \`/pastel:propose\` being executed (or when the user asks to formalize the idea into a proposal), the following **refinement validation loop** must run after all artifacts are generated. This is mandatory — do not skip it.
+
+### Step RF1 — Show Refinement Summary
+
+After the proposal artifacts (proposal.md, design.md, tasks.md) are created, immediately present a structured refinement summary. Read the generated files to extract the content:
+
+\`\`\`markdown
+## 🔍 Refinamento da Proposta — <change-name>
+
+**Objetivo:** <1-2 sentences from proposal.md>
+
+### O que será implementado
+<3-5 bullet points from design.md / tasks.md>
+
+### Escopo e decisões técnicas
+<2-3 key technical decisions from design.md>
+
+### Tarefas geradas
+<numbered list from tasks.md>
+
+---
+Para iniciar a implementação quando aprovado:
+\`\`\`
+/pastel:apply <change-name>
+\`\`\`
+\`\`\`
+
+---
+
+### Step RF2 — Sync Trello (if configured)
+
+If \`pastelsdd/trello.yaml\` exists and a Trello card was created or found during propose:
+
+**a. Update the card description** with the refined summary:
+\`\`\`tool
+mcp__claude_ai_Trello_Custom__update_card
+  card_id: "<cardId>"
+  desc: |
+    **Objetivo:** <summary>
+
+    **O que será implementado:**
+    <bullet list>
+
+    **Decisões técnicas:**
+    <key decisions>
+
+    **Artefatos:** pastelsdd/changes/<name>/
+\`\`\`
+
+**b. Add a comment with the implementation command in Markdown:**
+\`\`\`tool
+mcp__claude_ai_Trello_Custom__add_comment
+  card_id: "<cardId>"
+  text: |
+    ## Refinamento concluído via /pastel:explore ✓
+
+    **Change:** \`<name>\`
+    **Artefatos:** proposal.md · design.md · tasks.md
+
+    ### Resumo
+    <2-3 line summary>
+
+    ### Para iniciar a implementação
+    \`\`\`
+    /pastel:apply <name>
+    \`\`\`
+
+    _Aguardando aprovação para mover para Ready to Dev._
+\`\`\`
+
+---
+
+### Step RF3 — Ask for Approval
+
+Use **AskUserQuestion** to ask:
+
+> "A implementação e o planejamento estão de acordo com o esperado?"
+
+Options:
+- ✅ Sim, mover para Ready to Dev
+- 🔄 Não, quero ajustar o plano
+- ❌ Cancelar (manter em refinamento)
+
+---
+
+### Step RF3a — If APPROVED
+
+1. Move the Trello card to \`lists.ready\` (if configured):
+   \`\`\`tool
+   mcp__claude_ai_Trello_Custom__update_card
+     card_id: "<cardId>"
+     list_id: "<lists.ready.id>"
+   \`\`\`
+
+2. Add final comment:
+   \`\`\`tool
+   mcp__claude_ai_Trello_Custom__add_comment
+     card_id: "<cardId>"
+     text: |
+       ## ✅ Aprovado para Ready to Dev
+
+       O planejamento foi revisado e aprovado durante o /pastel:explore.
+
+       ### Próximo passo
+       \`\`\`
+       /pastel:apply <name>
+       \`\`\`
+   \`\`\`
+
+3. Show success:
+   \`\`\`
+   ## ✅ Pronto para desenvolvimento!
+
+   Change: <name>
+   Card movido para: <lists.ready.name>
+
+   /pastel:apply <name>
+   \`\`\`
+
+---
+
+### Step RF3b — If NOT APPROVED (loop)
+
+1. Ask what needs to change.
+2. Update the relevant artifacts (proposal.md / design.md / tasks.md).
+3. Update the Trello card description with the revised plan.
+4. **Go back to Step RF1** — show the updated summary and ask again.
+5. **Keep looping** until the user approves or cancels.
+
+---
+
+### Step RF3c — If CANCELLED
+
+Show:
+\`\`\`
+⏸ Refinamento pausado.
+O card permanece em <current list>.
+Retome com /pastel:explore <name> quando quiser.
+\`\`\`
+
+Do NOT move the card. End the loop.
+
+---
+
 ## Guardrails
 
 - **Don't implement** - Never write code or implement features. Creating Pastelsdd artifacts is fine, writing application code is not.
@@ -285,7 +431,9 @@ But this summary is optional. Sometimes the thinking IS the value.
 - **Don't auto-capture** - Offer to save insights, don't just do it
 - **Do visualize** - A good diagram is worth many paragraphs
 - **Do explore the codebase** - Ground discussions in reality
-- **Do question assumptions** - Including the user's and your own`,
+- **Do question assumptions** - Including the user's and your own
+- **Always run the refinement loop after propose** - When exploration leads to a proposal, the refinement validation loop (Steps RF1–RF3) is mandatory, not optional
+- **Preserve the loop** - Do not exit until the user explicitly approves or cancels`,
     license: 'MIT',
     compatibility: 'Requires pastelsdd CLI.',
     metadata: { author: 'pastelsdd', version: '1.0' },
@@ -453,6 +601,152 @@ When things crystallize, you might offer a summary - but it's optional. Sometime
 
 ---
 
+## After the First Propose — Refinement Validation Loop
+
+When exploration leads to a \`/pastel:propose\` being executed (or when the user asks to formalize the idea into a proposal), the following **refinement validation loop** must run after all artifacts are generated. This is mandatory — do not skip it.
+
+### Step RF1 — Show Refinement Summary
+
+After the proposal artifacts (proposal.md, design.md, tasks.md) are created, immediately present a structured refinement summary. Read the generated files to extract the content:
+
+\`\`\`markdown
+## 🔍 Refinamento da Proposta — <change-name>
+
+**Objetivo:** <1-2 sentences from proposal.md>
+
+### O que será implementado
+<3-5 bullet points from design.md / tasks.md>
+
+### Escopo e decisões técnicas
+<2-3 key technical decisions from design.md>
+
+### Tarefas geradas
+<numbered list from tasks.md>
+
+---
+Para iniciar a implementação quando aprovado:
+\`\`\`
+/pastel:apply <change-name>
+\`\`\`
+\`\`\`
+
+---
+
+### Step RF2 — Sync Trello (if configured)
+
+If \`pastelsdd/trello.yaml\` exists and a Trello card was created or found during propose:
+
+**a. Update the card description** with the refined summary:
+\`\`\`tool
+mcp__claude_ai_Trello_Custom__update_card
+  card_id: "<cardId>"
+  desc: |
+    **Objetivo:** <summary>
+
+    **O que será implementado:**
+    <bullet list>
+
+    **Decisões técnicas:**
+    <key decisions>
+
+    **Artefatos:** pastelsdd/changes/<name>/
+\`\`\`
+
+**b. Add a comment with the implementation command in Markdown:**
+\`\`\`tool
+mcp__claude_ai_Trello_Custom__add_comment
+  card_id: "<cardId>"
+  text: |
+    ## Refinamento concluído via /pastel:explore ✓
+
+    **Change:** \`<name>\`
+    **Artefatos:** proposal.md · design.md · tasks.md
+
+    ### Resumo
+    <2-3 line summary>
+
+    ### Para iniciar a implementação
+    \`\`\`
+    /pastel:apply <name>
+    \`\`\`
+
+    _Aguardando aprovação para mover para Ready to Dev._
+\`\`\`
+
+---
+
+### Step RF3 — Ask for Approval
+
+Use **AskUserQuestion** to ask:
+
+> "A implementação e o planejamento estão de acordo com o esperado?"
+
+Options:
+- ✅ Sim, mover para Ready to Dev
+- 🔄 Não, quero ajustar o plano
+- ❌ Cancelar (manter em refinamento)
+
+---
+
+### Step RF3a — If APPROVED
+
+1. Move the Trello card to \`lists.ready\` (if configured):
+   \`\`\`tool
+   mcp__claude_ai_Trello_Custom__update_card
+     card_id: "<cardId>"
+     list_id: "<lists.ready.id>"
+   \`\`\`
+
+2. Add final comment:
+   \`\`\`tool
+   mcp__claude_ai_Trello_Custom__add_comment
+     card_id: "<cardId>"
+     text: |
+       ## ✅ Aprovado para Ready to Dev
+
+       O planejamento foi revisado e aprovado durante o /pastel:explore.
+
+       ### Próximo passo
+       \`\`\`
+       /pastel:apply <name>
+       \`\`\`
+   \`\`\`
+
+3. Show success:
+   \`\`\`
+   ## ✅ Pronto para desenvolvimento!
+
+   Change: <name>
+   Card movido para: <lists.ready.name>
+
+   /pastel:apply <name>
+   \`\`\`
+
+---
+
+### Step RF3b — If NOT APPROVED (loop)
+
+1. Ask what needs to change.
+2. Update the relevant artifacts (proposal.md / design.md / tasks.md).
+3. Update the Trello card description with the revised plan.
+4. **Go back to Step RF1** — show the updated summary and ask again.
+5. **Keep looping** until the user approves or cancels.
+
+---
+
+### Step RF3c — If CANCELLED
+
+Show:
+\`\`\`
+⏸ Refinamento pausado.
+O card permanece em <current list>.
+Retome com /pastel:explore <name> quando quiser.
+\`\`\`
+
+Do NOT move the card. End the loop.
+
+---
+
 ## Guardrails
 
 - **Don't implement** - Never write code or implement features. Creating Pastelsdd artifacts is fine, writing application code is not.
@@ -462,6 +756,8 @@ When things crystallize, you might offer a summary - but it's optional. Sometime
 - **Don't auto-capture** - Offer to save insights, don't just do it
 - **Do visualize** - A good diagram is worth many paragraphs
 - **Do explore the codebase** - Ground discussions in reality
-- **Do question assumptions** - Including the user's and your own`
+- **Do question assumptions** - Including the user's and your own
+- **Always run the refinement loop after propose** - When exploration leads to a proposal, the refinement validation loop (Steps RF1–RF3) is mandatory, not optional
+- **Preserve the loop** - Do not exit until the user explicitly approves or cancels`
   };
 }

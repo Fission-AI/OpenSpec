@@ -24,9 +24,7 @@ export interface TrelloListEntry {
  * Not all stages need to be configured — unused stages are omitted.
  */
 export interface TrelloListMap {
-  /** Ideas, rascunhos, brainstorm — "Para Explorar" */
-  draft?: TrelloListEntry;
-  /** Pré-refinadas, prontas para estimativa — "Backlog" */
+  /** Ideias, rascunhos e tarefas pré-refinadas — "Backlog" */
   backlog?: TrelloListEntry;
   /** Em discussão / especificação — "Em Refinamento" */
   refining?: TrelloListEntry;
@@ -44,6 +42,76 @@ export interface TrelloListMap {
   cancelled?: TrelloListEntry;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Labels / Etiquetas
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Chaves de label predefinidas no Pastelsdd.
+ */
+export type TrelloLabelKey = 'bug' | 'implementacao' | 'melhoria' | 'debito-tecnico';
+
+export interface TrelloLabelEntry {
+  /** ID da etiqueta no Trello (obtido após criação via MCP) */
+  id: string;
+  /** Nome exibido na etiqueta */
+  name: string;
+  /** Cor da etiqueta no Trello (red, blue, green, orange, …) */
+  color: string;
+}
+
+/** Configuração de labels — presente quando o usuário optou por usá-las. */
+export interface TrelloLabelsConfig {
+  /** Se false, o agente não aplica labels nos cards. */
+  enabled: boolean;
+  /** Map de chave semântica → entrada de label no Trello. */
+  items?: Partial<Record<TrelloLabelKey, TrelloLabelEntry>>;
+}
+
+/** Definição estática de cada label padrão do Pastelsdd. */
+export interface LabelDefinition {
+  key: TrelloLabelKey;
+  name: string;
+  color: string;
+  emoji: string;
+  description: string;
+}
+
+/**
+ * Definições canônicas das labels do Pastelsdd.
+ * Usadas tanto na CLI (trello-init-prompt) quanto nos templates de skill.
+ */
+export const DEFAULT_LABEL_DEFINITIONS: LabelDefinition[] = [
+  {
+    key: 'bug',
+    name: 'BUG',
+    color: 'red',
+    emoji: '🐛',
+    description: 'Erro ou comportamento incorreto que precisa ser corrigido',
+  },
+  {
+    key: 'implementacao',
+    name: 'IMPLEMENTAÇÃO',
+    color: 'blue',
+    emoji: '⚙️',
+    description: 'Nova funcionalidade desenvolvida do zero',
+  },
+  {
+    key: 'melhoria',
+    name: 'MELHORIA',
+    color: 'green',
+    emoji: '✨',
+    description: 'Aperfeiçoamento ou otimização de algo existente',
+  },
+  {
+    key: 'debito-tecnico',
+    name: 'DÉBITO TÉCNICO',
+    color: 'orange',
+    emoji: '💳',
+    description: 'Refatoração, limpeza de código ou resolução de dívida técnica',
+  },
+];
+
 export interface TrelloConfig {
   /** Trello board ID */
   boardId: string;
@@ -51,6 +119,8 @@ export interface TrelloConfig {
   boardName?: string;
   /** List ID map keyed by semantic stage */
   lists: TrelloListMap;
+  /** Labels/etiquetas configuradas no board — presente quando o usuário optou por usá-las */
+  labels?: TrelloLabelsConfig;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

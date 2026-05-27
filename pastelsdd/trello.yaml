@@ -2,9 +2,6 @@ configured: true
 boardId: "6a1737fef386f0d5548128db"
 boardName: "pastelsdd"
 lists:
-  draft:
-    id: "6a173808a67668c13fbe0ff6"
-    name: "🧠 Para Explorar"
   backlog:
     id: "6a17380b9a1cde7b5f6c5b08"
     name: "📋 Backlog"
