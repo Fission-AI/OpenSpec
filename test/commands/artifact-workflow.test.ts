@@ -857,17 +857,17 @@ artifacts:
       expect(content).toContain('name: /pastel-explore');
     });
 
-    it('creates skills for Windsurf tool', async () => {
-      const result = await runCLI(['experimental', '--tool', 'windsurf'], {
+    it('creates skills for Gemini tool', async () => {
+      const result = await runCLI(['experimental', '--tool', 'gemini'], {
         cwd: tempDir,
       });
       expect(result.exitCode).toBe(0);
       const output = normalizePaths(getOutput(result));
-      expect(output).toContain('Windsurf');
-      expect(output).toContain('.windsurf/');
+      expect(output).toContain('Gemini');
+      expect(output).toContain('.gemini/');
 
       // Verify skill files were created
-      const skillFile = path.join(tempDir, '.windsurf', 'skills', 'pastelsdd-explore', 'SKILL.md');
+      const skillFile = path.join(tempDir, '.gemini', 'skills', 'pastelsdd-explore', 'SKILL.md');
       const stat = await fs.stat(skillFile);
       expect(stat.isFile()).toBe(true);
     });

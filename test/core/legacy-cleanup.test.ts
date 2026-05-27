@@ -237,18 +237,16 @@ ${PASTELSDD_MARKERS.end}`);
     });
 
     it('should detect multiple config files', async () => {
-      // Create multiple config files with markers
+      // Create config files with markers (only CLAUDE.md and AGENTS.md remain in LEGACY_CONFIG_FILES)
       await fs.writeFile(path.join(testDir, 'CLAUDE.md'), `${PASTELSDD_MARKERS.start}\nContent\n${PASTELSDD_MARKERS.end}`);
-      await fs.writeFile(path.join(testDir, 'CLINE.md'), `${PASTELSDD_MARKERS.start}\nContent\n${PASTELSDD_MARKERS.end}`);
-      await fs.writeFile(path.join(testDir, 'QODER.md'), `${PASTELSDD_MARKERS.start}\nContent\n${PASTELSDD_MARKERS.end}`);
+      await fs.writeFile(path.join(testDir, 'AGENTS.md'), `${PASTELSDD_MARKERS.start}\nContent\n${PASTELSDD_MARKERS.end}`);
 
       const result = await detectLegacyConfigFiles(testDir);
-      expect(result.allFiles).toHaveLength(3);
+      expect(result.allFiles).toHaveLength(2);
       expect(result.allFiles).toContain('CLAUDE.md');
-      expect(result.allFiles).toContain('CLINE.md');
-      expect(result.allFiles).toContain('QODER.md');
+      expect(result.allFiles).toContain('AGENTS.md');
       // All should be in update list, none deleted
-      expect(result.filesToUpdate).toHaveLength(3);
+      expect(result.filesToUpdate).toHaveLength(2);
     });
 
     it('should handle non-existent files gracefully', async () => {
@@ -279,19 +277,19 @@ ${PASTELSDD_MARKERS.end}`);
       expect(result.files).toContain('.cursor/commands/pastelsdd-apply.md');
     });
 
-    it('should detect legacy Windsurf workflow files', async () => {
-      const dirPath = path.join(testDir, '.windsurf', 'workflows');
+    it('should detect legacy Gemini command directory', async () => {
+      const dirPath = path.join(testDir, '.gemini', 'commands', 'pastelsdd');
       await fs.mkdir(dirPath, { recursive: true });
-      await fs.writeFile(path.join(dirPath, 'pastelsdd-archive.md'), 'content');
+      await fs.writeFile(path.join(dirPath, 'archive.toml'), 'content');
 
       const result = await detectLegacySlashCommands(testDir);
-      expect(result.files).toContain('.windsurf/workflows/pastelsdd-archive.md');
+      expect(result.directories).toContain('.gemini/commands/pastelsdd');
     });
 
     it('should detect multiple tool directories and files', async () => {
       // Create directory-based
       await fs.mkdir(path.join(testDir, '.claude', 'commands', 'pastelsdd'), { recursive: true });
-      await fs.mkdir(path.join(testDir, '.qoder', 'commands', 'pastelsdd'), { recursive: true });
+      await fs.mkdir(path.join(testDir, '.gemini', 'commands', 'pastelsdd'), { recursive: true });
 
       // Create file-based
       await fs.mkdir(path.join(testDir, '.cursor', 'commands'), { recursive: true });
@@ -299,7 +297,7 @@ ${PASTELSDD_MARKERS.end}`);
 
       const result = await detectLegacySlashCommands(testDir);
       expect(result.directories).toContain('.claude/commands/pastelsdd');
-      expect(result.directories).toContain('.qoder/commands/pastelsdd');
+      expect(result.directories).toContain('.gemini/commands/pastelsdd');
       expect(result.files).toContain('.cursor/commands/pastelsdd-proposal.md');
     });
 
@@ -318,51 +316,22 @@ ${PASTELSDD_MARKERS.end}`);
       expect(result.files).toHaveLength(0);
     });
 
-    it('should detect TOML-based slash commands for Qwen', async () => {
-      const dirPath = path.join(testDir, '.qwen', 'commands');
+    it('should detect GitHub Copilot legacy prompt files', async () => {
+      const dirPath = path.join(testDir, '.github', 'prompts');
       await fs.mkdir(dirPath, { recursive: true });
-      await fs.writeFile(path.join(dirPath, 'pastelsdd-proposal.toml'), 'content');
+      await fs.writeFile(path.join(dirPath, 'pastelsdd-apply.prompt.md'), 'content');
 
       const result = await detectLegacySlashCommands(testDir);
-      expect(result.files).toContain('.qwen/commands/pastelsdd-proposal.toml');
+      expect(result.files).toContain('.github/prompts/pastelsdd-apply.prompt.md');
     });
 
-    it('should detect Continue prompt files', async () => {
-      const dirPath = path.join(testDir, '.continue', 'prompts');
+    it('should detect legacy Codex prompt files', async () => {
+      const dirPath = path.join(testDir, '.codex', 'prompts');
       await fs.mkdir(dirPath, { recursive: true });
-      await fs.writeFile(path.join(dirPath, 'pastelsdd-apply.prompt'), 'content');
+      await fs.writeFile(path.join(dirPath, 'pastelsdd-propose.md'), 'content');
 
       const result = await detectLegacySlashCommands(testDir);
-      expect(result.files).toContain('.continue/prompts/pastelsdd-apply.prompt');
-    });
-
-    it('should detect legacy OpenCode pastel-* command files', async () => {
-      const dirPath = path.join(testDir, '.opencode', 'command');
-      await fs.mkdir(dirPath, { recursive: true });
-      await fs.writeFile(path.join(dirPath, 'pastel-propose.md'), 'content');
-
-      const result = await detectLegacySlashCommands(testDir);
-      expect(result.files).toContain('.opencode/command/pastel-propose.md');
-    });
-
-    it('should detect legacy OpenCode pastelsdd-* command files', async () => {
-      const dirPath = path.join(testDir, '.opencode', 'command');
-      await fs.mkdir(dirPath, { recursive: true });
-      await fs.writeFile(path.join(dirPath, 'pastelsdd-new.md'), 'content');
-
-      const result = await detectLegacySlashCommands(testDir);
-      expect(result.files).toContain('.opencode/command/pastelsdd-new.md');
-    });
-
-    it('should detect both pastel-* and pastelsdd-* OpenCode command files', async () => {
-      const dirPath = path.join(testDir, '.opencode', 'command');
-      await fs.mkdir(dirPath, { recursive: true });
-      await fs.writeFile(path.join(dirPath, 'pastel-propose.md'), 'content');
-      await fs.writeFile(path.join(dirPath, 'pastelsdd-new.md'), 'content');
-
-      const result = await detectLegacySlashCommands(testDir);
-      expect(result.files).toContain('.opencode/command/pastel-propose.md');
-      expect(result.files).toContain('.opencode/command/pastelsdd-new.md');
+      expect(result.files).toContain('.codex/prompts/pastelsdd-propose.md');
     });
   });
 
@@ -903,21 +872,24 @@ ${PASTELSDD_MARKERS.end}`);
   describe('LEGACY_CONFIG_FILES', () => {
     it('should include expected config file names', () => {
       expect(LEGACY_CONFIG_FILES).toContain('CLAUDE.md');
-      expect(LEGACY_CONFIG_FILES).toContain('CLINE.md');
-      expect(LEGACY_CONFIG_FILES).toContain('CODEBUDDY.md');
-      expect(LEGACY_CONFIG_FILES).toContain('COSTRICT.md');
-      expect(LEGACY_CONFIG_FILES).toContain('QODER.md');
-      expect(LEGACY_CONFIG_FILES).toContain('IFLOW.md');
       expect(LEGACY_CONFIG_FILES).toContain('AGENTS.md');
-      expect(LEGACY_CONFIG_FILES).toContain('QWEN.md');
+    });
+
+    it('should contain exactly 2 entries', () => {
+      expect(LEGACY_CONFIG_FILES).toHaveLength(2);
     });
   });
 
   describe('LEGACY_SLASH_COMMAND_PATHS', () => {
-    it('should include expected tool patterns', () => {
+    it('should include all 5 supported tool patterns', () => {
       expect(LEGACY_SLASH_COMMAND_PATHS['claude']).toEqual({
         type: 'directory',
         path: '.claude/commands/pastelsdd',
+      });
+
+      expect(LEGACY_SLASH_COMMAND_PATHS['gemini']).toEqual({
+        type: 'directory',
+        path: '.gemini/commands/pastelsdd',
       });
 
       expect(LEGACY_SLASH_COMMAND_PATHS['cursor']).toEqual({
@@ -925,22 +897,29 @@ ${PASTELSDD_MARKERS.end}`);
         pattern: '.cursor/commands/pastelsdd-*.md',
       });
 
-      expect(LEGACY_SLASH_COMMAND_PATHS['windsurf']).toEqual({
+      expect(LEGACY_SLASH_COMMAND_PATHS['github-copilot']).toEqual({
         type: 'files',
-        pattern: '.windsurf/workflows/pastelsdd-*.md',
+        pattern: '.github/prompts/pastelsdd-*.prompt.md',
+      });
+
+      expect(LEGACY_SLASH_COMMAND_PATHS['codex']).toEqual({
+        type: 'files',
+        pattern: '.codex/prompts/pastelsdd-*.md',
       });
     });
 
     it('should only include legacy tool IDs that are present in the CommandAdapterRegistry', () => {
       const registeredTools = new Set(CommandAdapterRegistry.getAll().map(adapter => adapter.toolId));
 
-      // Verify all legacy map entries correspond to known adapters
       for (const tool of Object.keys(LEGACY_SLASH_COMMAND_PATHS)) {
         expect(registeredTools.has(tool)).toBe(true);
       }
+    });
 
-      // Pi was never a pre-1.0 legacy tool
-      expect(LEGACY_SLASH_COMMAND_PATHS).not.toHaveProperty('pi');
+    it('should not contain removed tools', () => {
+      expect(LEGACY_SLASH_COMMAND_PATHS).not.toHaveProperty('windsurf');
+      expect(LEGACY_SLASH_COMMAND_PATHS).not.toHaveProperty('cline');
+      expect(LEGACY_SLASH_COMMAND_PATHS).not.toHaveProperty('opencode');
     });
   });
 
@@ -983,8 +962,8 @@ ${PASTELSDD_MARKERS.end}`);
       const detection = {
         configFiles: [],
         configFilesToUpdate: [],
-        slashCommandDirs: ['.claude/commands/pastelsdd', '.qoder/commands/pastelsdd'],
-        slashCommandFiles: ['.cursor/commands/pastelsdd-apply.md', '.windsurf/workflows/pastelsdd-archive.md'],
+        slashCommandDirs: ['.claude/commands/pastelsdd', '.gemini/commands/pastelsdd'],
+        slashCommandFiles: ['.cursor/commands/pastelsdd-apply.md', '.github/prompts/pastelsdd-archive.prompt.md'],
         hasOpenspecAgents: false,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,
@@ -993,9 +972,9 @@ ${PASTELSDD_MARKERS.end}`);
 
       const tools = getToolsFromLegacyArtifacts(detection);
       expect(tools).toContain('claude');
-      expect(tools).toContain('qoder');
+      expect(tools).toContain('gemini');
       expect(tools).toContain('cursor');
-      expect(tools).toContain('windsurf');
+      expect(tools).toContain('github-copilot');
       expect(tools).toHaveLength(4);
     });
 
@@ -1036,12 +1015,12 @@ ${PASTELSDD_MARKERS.end}`);
       expect(tools).toHaveLength(0);
     });
 
-    it('should handle qwen TOML-based legacy files', () => {
+    it('should handle gemini legacy command directory', () => {
       const detection = {
         configFiles: [],
         configFilesToUpdate: [],
-        slashCommandDirs: [],
-        slashCommandFiles: ['.qwen/commands/pastelsdd-proposal.toml'],
+        slashCommandDirs: ['.gemini/commands/pastelsdd'],
+        slashCommandFiles: [],
         hasOpenspecAgents: false,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,
@@ -1049,24 +1028,7 @@ ${PASTELSDD_MARKERS.end}`);
       };
 
       const tools = getToolsFromLegacyArtifacts(detection);
-      expect(tools).toContain('qwen');
-      expect(tools).toHaveLength(1);
-    });
-
-    it('should handle continue prompt files', () => {
-      const detection = {
-        configFiles: [],
-        configFilesToUpdate: [],
-        slashCommandDirs: [],
-        slashCommandFiles: ['.continue/prompts/pastelsdd-apply.prompt'],
-        hasOpenspecAgents: false,
-        hasProjectMd: false,
-        hasRootAgentsWithMarkers: false,
-        hasLegacyArtifacts: true,
-      };
-
-      const tools = getToolsFromLegacyArtifacts(detection);
-      expect(tools).toContain('continue');
+      expect(tools).toContain('gemini');
       expect(tools).toHaveLength(1);
     });
 
@@ -1087,12 +1049,12 @@ ${PASTELSDD_MARKERS.end}`);
       expect(tools).toHaveLength(1);
     });
 
-    it('should handle opencode pastel-* legacy files', () => {
+    it('should handle codex legacy prompt files', () => {
       const detection = {
         configFiles: [],
         configFilesToUpdate: [],
         slashCommandDirs: [],
-        slashCommandFiles: ['.opencode/command/pastel-propose.md'],
+        slashCommandFiles: ['.codex/prompts/pastelsdd-propose.md'],
         hasOpenspecAgents: false,
         hasProjectMd: false,
         hasRootAgentsWithMarkers: false,
@@ -1100,35 +1062,19 @@ ${PASTELSDD_MARKERS.end}`);
       };
 
       const tools = getToolsFromLegacyArtifacts(detection);
-      expect(tools).toContain('opencode');
+      expect(tools).toContain('codex');
       expect(tools).toHaveLength(1);
     });
 
-    it('should handle opencode pastelsdd-* legacy files', () => {
-      const detection = {
-        configFiles: [],
-        configFilesToUpdate: [],
-        slashCommandDirs: [],
-        slashCommandFiles: ['.opencode/command/pastelsdd-new.md'],
-        hasOpenspecAgents: false,
-        hasProjectMd: false,
-        hasRootAgentsWithMarkers: false,
-        hasLegacyArtifacts: true,
-      };
-
-      const tools = getToolsFromLegacyArtifacts(detection);
-      expect(tools).toContain('opencode');
-      expect(tools).toHaveLength(1);
-    });
-
-    it('should deduplicate opencode when both pastel-* and pastelsdd-* files exist', () => {
+    it('should not extract removed tools from legacy paths', () => {
       const detection = {
         configFiles: [],
         configFilesToUpdate: [],
         slashCommandDirs: [],
         slashCommandFiles: [
           '.opencode/command/pastel-propose.md',
-          '.opencode/command/pastelsdd-new.md',
+          '.continue/prompts/pastelsdd-apply.prompt',
+          '.qwen/commands/pastelsdd-proposal.toml',
         ],
         hasOpenspecAgents: false,
         hasProjectMd: false,
@@ -1137,8 +1083,11 @@ ${PASTELSDD_MARKERS.end}`);
       };
 
       const tools = getToolsFromLegacyArtifacts(detection);
-      expect(tools).toContain('opencode');
-      expect(tools).toHaveLength(1);
+      // Removed tools should not appear — paths don't match any LEGACY_SLASH_COMMAND_PATHS entry
+      expect(tools).not.toContain('opencode');
+      expect(tools).not.toContain('continue');
+      expect(tools).not.toContain('qwen');
+      expect(tools).toHaveLength(0);
     });
 
     it('should not extract tools from config files only', () => {

@@ -301,60 +301,46 @@ Old instructions content
       consoleSpy.mockRestore();
     });
 
-    it('should update Qwen tool with correct command format', async () => {
-      // Set up Qwen
-      const qwenSkillsDir = path.join(testDir, '.qwen', 'skills');
-      await fs.mkdir(path.join(qwenSkillsDir, 'pastelsdd-explore'), {
+    it('should update Gemini tool with correct TOML command format', async () => {
+      const geminiSkillsDir = path.join(testDir, '.gemini', 'skills');
+      await fs.mkdir(path.join(geminiSkillsDir, 'pastelsdd-explore'), {
         recursive: true,
       });
       await fs.writeFile(
-        path.join(qwenSkillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(geminiSkillsDir, 'pastelsdd-explore', 'SKILL.md'),
         'old'
       );
 
       await updateCommand.execute(testDir);
 
-      // Check Qwen command format (TOML) - Qwen uses flat path structure: pastel-<id>.toml
-      const qwenCmd = path.join(
-        testDir,
-        '.qwen',
-        'commands',
-        'pastel-explore.toml'
-      );
-      const exists = await FileSystemUtils.fileExists(qwenCmd);
+      const geminiCmd = path.join(testDir, '.gemini', 'commands', 'pastel', 'explore.toml');
+      const exists = await FileSystemUtils.fileExists(geminiCmd);
       expect(exists).toBe(true);
 
-      const content = await fs.readFile(qwenCmd, 'utf-8');
+      const content = await fs.readFile(geminiCmd, 'utf-8');
       expect(content).toContain('description =');
       expect(content).toContain('prompt =');
     });
 
-    it('should update Windsurf tool with correct command format', async () => {
-      // Set up Windsurf
-      const windsurfSkillsDir = path.join(testDir, '.windsurf', 'skills');
-      await fs.mkdir(path.join(windsurfSkillsDir, 'pastelsdd-explore'), {
+    it('should update GitHub Copilot tool with correct command format', async () => {
+      const ghSkillsDir = path.join(testDir, '.github', 'skills');
+      await fs.mkdir(path.join(ghSkillsDir, 'pastelsdd-explore'), {
         recursive: true,
       });
       await fs.writeFile(
-        path.join(windsurfSkillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(ghSkillsDir, 'pastelsdd-explore', 'SKILL.md'),
         'old'
       );
 
       await updateCommand.execute(testDir);
 
-      // Check Windsurf command format
-      const windsurfCmd = path.join(
-        testDir,
-        '.windsurf',
-        'workflows',
-        'pastel-explore.md'
-      );
-      const exists = await FileSystemUtils.fileExists(windsurfCmd);
+      const ghCmd = path.join(testDir, '.github', 'prompts', 'pastel-explore.prompt.md');
+      const exists = await FileSystemUtils.fileExists(ghCmd);
       expect(exists).toBe(true);
 
-      const content = await fs.readFile(windsurfCmd, 'utf-8');
+      const content = await fs.readFile(ghCmd, 'utf-8');
       expect(content).toContain('---');
-      expect(content).toContain('name:');
+      expect(content).toContain('description:');
     });
   });
 
@@ -687,8 +673,8 @@ Old version content
         'utf-8'
       );
 
-      // Should contain generatedBy field
-      expect(updatedContent).toMatch(/generatedBy:\s*["']\d+\.\d+\.\d+["']/);
+      // Should contain generatedBy field (allow pre-release like 1.0.0-beta.1)
+      expect(updatedContent).toMatch(/generatedBy:\s*["']\d+\.\d+\.\d+[^"']*["']/);
     });
   });
 
@@ -1512,27 +1498,22 @@ More user content after markers.
       )).toBe(false);
     });
 
-    it('should remove skills for configured tools without command adapters in commands-only delivery', async () => {
+    it('should remove skills for configured Claude tool in commands-only delivery', async () => {
+      // All 5 supported tools now have command adapters, so this test verifies
+      // that skills are removed when delivery mode is 'commands' for any configured tool.
       setMockConfig({
         featureFlags: {},
         profile: 'core',
         delivery: 'commands',
       });
 
-      const { AI_TOOLS } = await import('../../src/core/config.js');
-      const { CommandAdapterRegistry } = await import('../../src/core/command-generation/index.js');
-      const adapterlessTool = AI_TOOLS.find((tool) => tool.skillsDir && !CommandAdapterRegistry.get(tool.value));
-      expect(adapterlessTool).toBeDefined();
-      if (!adapterlessTool?.skillsDir) {
-        return;
-      }
-
-      const skillsDir = path.join(testDir, adapterlessTool.skillsDir, 'skills');
+      const skillsDir = path.join(testDir, '.claude', 'skills');
       await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), { recursive: true });
       await fs.writeFile(path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'), 'old');
 
       await expect(updateCommand.execute(testDir)).resolves.toBeUndefined();
 
+      // Skills should be removed since delivery is commands-only
       expect(await FileSystemUtils.fileExists(
         path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md')
       )).toBe(false);
@@ -1547,14 +1528,13 @@ More user content after markers.
 
       const skillsDir = path.join(testDir, '.claude', 'skills');
       await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), { recursive: true });
-      const packageJsonPath = path.join(process.cwd(), 'package.json');
-      const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf-8')) as { version: string };
+      const { version: currentVersion } = await import('../../package.json');
       await fs.writeFile(
         path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'),
         `---
 name: pastelsdd-explore
 metadata:
-  generatedBy: "${packageJson.version}"
+  generatedBy: "${currentVersion}"
 ---
 content
 `
@@ -1679,10 +1659,9 @@ content
       await fs.mkdir(path.join(claudeSkillsDir, 'pastelsdd-explore'), { recursive: true });
       await fs.writeFile(path.join(claudeSkillsDir, 'pastelsdd-explore', 'SKILL.md'), 'old');
 
-      // Create two unconfigured tool directories
-      await fs.mkdir(path.join(testDir, '.github'), { recursive: true });
-      await fs.writeFile(path.join(testDir, '.github', 'copilot-instructions.md'), '');
-      await fs.mkdir(path.join(testDir, '.windsurf'), { recursive: true });
+      // Create two unconfigured tool directories using simple skillsDir detection
+      await fs.mkdir(path.join(testDir, '.cursor'), { recursive: true });
+      await fs.mkdir(path.join(testDir, '.gemini'), { recursive: true });
 
       const consoleSpy = vi.spyOn(console, 'log');
 
@@ -1692,12 +1671,13 @@ content
         call.map(arg => String(arg)).join(' ')
       );
 
+      // Both tools should be consolidated into a single "Detected new tools:" message
       const consolidatedCalls = calls.filter(call =>
         call.includes('Detected new tools:')
       );
       expect(consolidatedCalls).toHaveLength(1);
-      expect(consolidatedCalls[0]).toContain('GitHub Copilot');
-      expect(consolidatedCalls[0]).toContain('Windsurf');
+      expect(consolidatedCalls[0]).toContain('Cursor');
+      expect(consolidatedCalls[0]).toContain('Gemini CLI');
       expect(consolidatedCalls[0]).toContain("Run 'pastelsdd init' to add them.");
 
       const repeatedSingularCalls = calls.filter(call =>

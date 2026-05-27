@@ -15,16 +15,28 @@ describe('command-generation/registry', () => {
       expect(adapter?.toolId).toBe('cursor');
     });
 
-    it('should return Windsurf adapter for "windsurf"', () => {
-      const adapter = CommandAdapterRegistry.get('windsurf');
+    it('should return Codex adapter for "codex"', () => {
+      const adapter = CommandAdapterRegistry.get('codex');
       expect(adapter).toBeDefined();
-      expect(adapter?.toolId).toBe('windsurf');
+      expect(adapter?.toolId).toBe('codex');
     });
 
-    it('should return Junie adapter for "junie"', () => {
-      const adapter = CommandAdapterRegistry.get('junie');
+    it('should return Gemini adapter for "gemini"', () => {
+      const adapter = CommandAdapterRegistry.get('gemini');
       expect(adapter).toBeDefined();
-      expect(adapter?.toolId).toBe('junie');
+      expect(adapter?.toolId).toBe('gemini');
+    });
+
+    it('should return GitHub Copilot adapter for "github-copilot"', () => {
+      const adapter = CommandAdapterRegistry.get('github-copilot');
+      expect(adapter).toBeDefined();
+      expect(adapter?.toolId).toBe('github-copilot');
+    });
+
+    it('should return undefined for removed tools', () => {
+      expect(CommandAdapterRegistry.get('windsurf')).toBeUndefined();
+      expect(CommandAdapterRegistry.get('cline')).toBeUndefined();
+      expect(CommandAdapterRegistry.get('opencode')).toBeUndefined();
     });
 
     it('should return undefined for unregistered tool', () => {
@@ -39,31 +51,35 @@ describe('command-generation/registry', () => {
   });
 
   describe('getAll', () => {
-    it('should return array of all registered adapters', () => {
+    it('should return exactly 5 adapters', () => {
       const adapters = CommandAdapterRegistry.getAll();
-      expect(Array.isArray(adapters)).toBe(true);
-      expect(adapters.length).toBeGreaterThanOrEqual(3); // At least Claude, Cursor, Windsurf
+      expect(adapters.length).toBe(5);
     });
 
-    it('should include Claude, Cursor, and Windsurf adapters', () => {
+    it('should include all 5 supported tools', () => {
       const adapters = CommandAdapterRegistry.getAll();
       const toolIds = adapters.map((a) => a.toolId);
 
       expect(toolIds).toContain('claude');
+      expect(toolIds).toContain('codex');
       expect(toolIds).toContain('cursor');
-      expect(toolIds).toContain('windsurf');
+      expect(toolIds).toContain('gemini');
+      expect(toolIds).toContain('github-copilot');
     });
   });
 
   describe('has', () => {
-    it('should return true for registered tools', () => {
+    it('should return true for all 5 supported tools', () => {
       expect(CommandAdapterRegistry.has('claude')).toBe(true);
+      expect(CommandAdapterRegistry.has('codex')).toBe(true);
       expect(CommandAdapterRegistry.has('cursor')).toBe(true);
-      expect(CommandAdapterRegistry.has('windsurf')).toBe(true);
-      expect(CommandAdapterRegistry.has('junie')).toBe(true);
+      expect(CommandAdapterRegistry.has('gemini')).toBe(true);
+      expect(CommandAdapterRegistry.has('github-copilot')).toBe(true);
     });
 
-    it('should return false for unregistered tools', () => {
+    it('should return false for removed or unknown tools', () => {
+      expect(CommandAdapterRegistry.has('windsurf')).toBe(false);
+      expect(CommandAdapterRegistry.has('cline')).toBe(false);
       expect(CommandAdapterRegistry.has('unknown')).toBe(false);
       expect(CommandAdapterRegistry.has('')).toBe(false);
     });
@@ -71,13 +87,10 @@ describe('command-generation/registry', () => {
 
   describe('adapter functionality', () => {
     it('registered adapters should have working getFilePath', () => {
-      const claudeAdapter = CommandAdapterRegistry.get('claude');
-      const cursorAdapter = CommandAdapterRegistry.get('cursor');
-      const windsurfAdapter = CommandAdapterRegistry.get('windsurf');
-
-      expect(claudeAdapter?.getFilePath('test')).toContain('.claude');
-      expect(cursorAdapter?.getFilePath('test')).toContain('.cursor');
-      expect(windsurfAdapter?.getFilePath('test')).toContain('.windsurf');
+      expect(CommandAdapterRegistry.get('claude')?.getFilePath('test')).toContain('.claude');
+      expect(CommandAdapterRegistry.get('cursor')?.getFilePath('test')).toContain('.cursor');
+      expect(CommandAdapterRegistry.get('gemini')?.getFilePath('test')).toContain('.gemini');
+      expect(CommandAdapterRegistry.get('github-copilot')?.getFilePath('test')).toContain('.github');
     });
 
     it('registered adapters should have working formatFile', () => {
@@ -90,15 +103,13 @@ describe('command-generation/registry', () => {
         body: 'Body content',
       };
 
-      // Tools that don't use YAML frontmatter (markdown headers or TOML or plain)
-      const noYamlFrontmatter = ['cline', 'kilocode', 'roocode', 'gemini', 'qwen'];
+      // Tools that don't use standard YAML frontmatter
+      const noYamlFrontmatter = ['gemini'];
 
       const adapters = CommandAdapterRegistry.getAll();
       for (const adapter of adapters) {
         const output = adapter.formatFile(content);
-        // All adapters should include the body content
         expect(output).toContain('Body content');
-        // Only check for YAML frontmatter for tools that use it
         if (!noYamlFrontmatter.includes(adapter.toolId)) {
           expect(output).toContain('---');
         }

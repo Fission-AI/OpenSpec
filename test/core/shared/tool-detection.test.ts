@@ -48,8 +48,17 @@ describe('tool-detection', () => {
       const tools = getToolsWithSkillsDir();
       expect(tools).toContain('claude');
       expect(tools).toContain('cursor');
-      expect(tools).toContain('windsurf');
-      expect(tools.length).toBeGreaterThan(0);
+      expect(tools).toContain('gemini');
+      expect(tools).toContain('github-copilot');
+      expect(tools).toContain('codex');
+      expect(tools).toHaveLength(5);
+    });
+
+    it('should not include removed tools', () => {
+      const tools = getToolsWithSkillsDir();
+      expect(tools).not.toContain('windsurf');
+      expect(tools).not.toContain('cline');
+      expect(tools).not.toContain('opencode');
     });
   });
 

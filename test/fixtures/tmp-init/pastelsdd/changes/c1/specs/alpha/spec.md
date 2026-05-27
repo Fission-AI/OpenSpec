@@ -1,4 +1,4 @@
-﻿## ADDED Requirements
+## ADDED Requirements
 ### Requirement: Parser SHALL accept CRLF change proposals
 The parser SHALL accept CRLF change proposals without manual edits.
 

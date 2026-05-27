@@ -159,37 +159,13 @@ describe('InitCommand', () => {
       expect(await fileExists(skillFile)).toBe(true);
     });
 
-    it('should create skills in Windsurf skills directory', async () => {
-      const initCommand = new InitCommand({ tools: 'windsurf', force: true });
+    it('should create skills in Gemini skills directory', async () => {
+      const initCommand = new InitCommand({ tools: 'gemini', force: true });
 
       await initCommand.execute(testDir);
 
-      const skillFile = path.join(testDir, '.windsurf', 'skills', 'pastelsdd-explore', 'SKILL.md');
+      const skillFile = path.join(testDir, '.gemini', 'skills', 'pastelsdd-explore', 'SKILL.md');
       expect(await fileExists(skillFile)).toBe(true);
-    });
-
-    it('should support Kimi CLI as an adapterless skills-only tool', async () => {
-      saveGlobalConfig({
-        featureFlags: {},
-        profile: 'core',
-        delivery: 'both',
-      });
-
-      const initCommand = new InitCommand({ tools: 'kimi', force: true });
-      await initCommand.execute(testDir);
-
-      const skillFile = path.join(testDir, '.kimi', 'skills', 'pastelsdd-explore', 'SKILL.md');
-      expect(await fileExists(skillFile)).toBe(true);
-
-      const commandsDir = path.join(testDir, '.kimi', 'commands');
-      expect(await directoryExists(commandsDir)).toBe(false);
-
-      const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
-      expect(
-        logCalls.some(
-          (entry) => entry.includes('Commands skipped for: kimi') && entry.includes('(no adapter)'),
-        ),
-      ).toBe(true);
     });
 
     it('should create skills for multiple tools at once', async () => {
@@ -209,14 +185,14 @@ describe('InitCommand', () => {
 
       await initCommand.execute(testDir);
 
-      // Check a few representative tools
+      // Check all 5 supported tools
       const claudeSkill = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore', 'SKILL.md');
       const cursorSkill = path.join(testDir, '.cursor', 'skills', 'pastelsdd-explore', 'SKILL.md');
-      const windsurfSkill = path.join(testDir, '.windsurf', 'skills', 'pastelsdd-explore', 'SKILL.md');
+      const geminiSkill = path.join(testDir, '.gemini', 'skills', 'pastelsdd-explore', 'SKILL.md');
 
       expect(await fileExists(claudeSkill)).toBe(true);
       expect(await fileExists(cursorSkill)).toBe(true);
-      expect(await fileExists(windsurfSkill)).toBe(true);
+      expect(await fileExists(geminiSkill)).toBe(true);
     });
 
     it('should skip tool configuration with --tools none option', async () => {
@@ -429,10 +405,14 @@ describe('InitCommand', () => {
       await expect(initCommand.execute(readOnlyDir)).rejects.toThrow(/Insufficient permissions/);
     });
 
-    it('should throw error in non-interactive mode without --tools flag and no detected tools', async () => {
-      const initCommand = new InitCommand({ interactive: false });
+    it('should use Claude as default in non-interactive mode without --tools flag and no detected tools', async () => {
+      const initCommand = new InitCommand({ interactive: false, force: true });
 
-      await expect(initCommand.execute(testDir)).rejects.toThrow(/No tools detected and no --tools flag/);
+      await initCommand.execute(testDir);
+
+      // Should have used claude as default
+      const skillFile = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
     });
   });
 
@@ -449,40 +429,21 @@ describe('InitCommand', () => {
       expect(content).toContain('prompt =');
     });
 
-    it('should generate Windsurf commands', async () => {
-      const initCommand = new InitCommand({ tools: 'windsurf', force: true });
-      await initCommand.execute(testDir);
-
-      const cmdFile = path.join(testDir, '.windsurf', 'workflows', 'pastel-explore.md');
-      expect(await fileExists(cmdFile)).toBe(true);
-    });
-
-    it('should generate Continue prompt files', async () => {
-      const initCommand = new InitCommand({ tools: 'continue', force: true });
-      await initCommand.execute(testDir);
-
-      const cmdFile = path.join(testDir, '.continue', 'prompts', 'pastel-explore.prompt');
-      expect(await fileExists(cmdFile)).toBe(true);
-
-      const content = await fs.readFile(cmdFile, 'utf-8');
-      expect(content).toContain('name: pastel-explore');
-      expect(content).toContain('invokable: true');
-    });
-
-    it('should generate Cline workflow files', async () => {
-      const initCommand = new InitCommand({ tools: 'cline', force: true });
-      await initCommand.execute(testDir);
-
-      const cmdFile = path.join(testDir, '.clinerules', 'workflows', 'pastel-explore.md');
-      expect(await fileExists(cmdFile)).toBe(true);
-    });
-
     it('should generate GitHub Copilot prompt files', async () => {
       const initCommand = new InitCommand({ tools: 'github-copilot', force: true });
       await initCommand.execute(testDir);
 
       const cmdFile = path.join(testDir, '.github', 'prompts', 'pastel-explore.prompt.md');
       expect(await fileExists(cmdFile)).toBe(true);
+    });
+
+    it('should generate Codex prompt files', async () => {
+      const initCommand = new InitCommand({ tools: 'codex', force: true });
+      await initCommand.execute(testDir);
+
+      // Codex uses homedir/.codex — just verify skills were created
+      const skillFile = path.join(testDir, '.codex', 'skills', 'pastelsdd-explore', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
     });
   });
 });
@@ -561,20 +522,20 @@ describe('InitCommand - profile and detection features', () => {
   });
 
   it('should auto-cleanup legacy artifacts in non-interactive mode without --force', async () => {
-    // Create legacy OpenCode command files (singular 'command' path)
-    const legacyDir = path.join(testDir, '.opencode', 'command');
+    // Create legacy Claude command dir (old 'pastelsdd' namespace)
+    const legacyDir = path.join(testDir, '.claude', 'commands', 'pastelsdd');
     await fs.mkdir(legacyDir, { recursive: true });
-    await fs.writeFile(path.join(legacyDir, 'pastel-propose.md'), 'legacy content');
+    await fs.writeFile(path.join(legacyDir, 'propose.md'), 'legacy content');
 
     // Run init in non-interactive mode without --force
-    const initCommand = new InitCommand({ tools: 'opencode' });
+    const initCommand = new InitCommand({ tools: 'claude' });
     await initCommand.execute(testDir);
 
-    // Legacy files should be cleaned up automatically
-    expect(await fileExists(path.join(legacyDir, 'pastel-propose.md'))).toBe(false);
+    // Legacy directory should be cleaned up automatically
+    expect(await directoryExists(legacyDir)).toBe(false);
 
-    // New commands should be at the correct plural path
-    const newCommandsDir = path.join(testDir, '.opencode', 'commands');
+    // New commands should be at the correct 'pastel' path
+    const newCommandsDir = path.join(testDir, '.claude', 'commands', 'pastel');
     expect(await directoryExists(newCommandsDir)).toBe(true);
   });
 

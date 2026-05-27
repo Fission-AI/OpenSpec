@@ -15,13 +15,7 @@ import { PASTELSDD_MARKERS } from './config.js';
  */
 export const LEGACY_CONFIG_FILES = [
   'CLAUDE.md',
-  'CLINE.md',
-  'CODEBUDDY.md',
-  'COSTRICT.md',
-  'QODER.md',
-  'IFLOW.md',
   'AGENTS.md', // root AGENTS.md (not pastelsdd/AGENTS.md)
-  'QWEN.md',
 ] as const;
 
 /**
@@ -32,30 +26,11 @@ export const LEGACY_CONFIG_FILES = [
 export const LEGACY_SLASH_COMMAND_PATHS: Record<string, LegacySlashCommandPattern> = {
   // Directory-based: .tooldir/commands/pastelsdd/ or .tooldir/commands/pastelsdd/*.md
   'claude': { type: 'directory', path: '.claude/commands/pastelsdd' },
-  'codebuddy': { type: 'directory', path: '.codebuddy/commands/pastelsdd' },
-  'qoder': { type: 'directory', path: '.qoder/commands/pastelsdd' },
-  'lingma': { type: 'directory', path: '.lingma/commands/pastelsdd' },
-  'crush': { type: 'directory', path: '.crush/commands/pastelsdd' },
   'gemini': { type: 'directory', path: '.gemini/commands/pastelsdd' },
-  'costrict': { type: 'directory', path: '.cospec/pastelsdd/commands' },
 
   // File-based: individual pastelsdd-*.md files in a commands/workflows/prompts folder
   'cursor': { type: 'files', pattern: '.cursor/commands/pastelsdd-*.md' },
-  'windsurf': { type: 'files', pattern: '.windsurf/workflows/pastelsdd-*.md' },
-  'kilocode': { type: 'files', pattern: '.kilocode/workflows/pastelsdd-*.md' },
-  'kiro': { type: 'files', pattern: '.kiro/prompts/pastelsdd-*.prompt.md' },
   'github-copilot': { type: 'files', pattern: '.github/prompts/pastelsdd-*.prompt.md' },
-  'amazon-q': { type: 'files', pattern: '.amazonq/prompts/pastelsdd-*.md' },
-  'cline': { type: 'files', pattern: '.clinerules/workflows/pastelsdd-*.md' },
-  'roocode': { type: 'files', pattern: '.roo/commands/pastelsdd-*.md' },
-  'auggie': { type: 'files', pattern: '.augment/commands/pastelsdd-*.md' },
-  'factory': { type: 'files', pattern: '.factory/commands/pastelsdd-*.md' },
-  'opencode': { type: 'files', pattern: ['.opencode/command/pastel-*.md', '.opencode/command/pastelsdd-*.md'] },
-  'continue': { type: 'files', pattern: '.continue/prompts/pastelsdd-*.prompt' },
-  'antigravity': { type: 'files', pattern: '.agent/workflows/pastelsdd-*.md' },
-  'iflow': { type: 'files', pattern: '.iflow/commands/pastelsdd-*.md' },
-  'junie': { type: 'files', pattern: ['.junie/commands/pastel-*.md', '.junie/commands/pastelsdd-*.md'] },
-  'qwen': { type: 'files', pattern: '.qwen/commands/pastelsdd-*.toml' },
   'codex': { type: 'files', pattern: '.codex/prompts/pastelsdd-*.md' },
 };
 

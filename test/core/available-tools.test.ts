@@ -36,14 +36,24 @@ describe('available-tools', () => {
     it('should detect multiple tool directories', async () => {
       await fs.mkdir(path.join(testDir, '.claude'), { recursive: true });
       await fs.mkdir(path.join(testDir, '.cursor'), { recursive: true });
-      await fs.mkdir(path.join(testDir, '.windsurf'), { recursive: true });
+      await fs.mkdir(path.join(testDir, '.gemini'), { recursive: true });
 
       const tools = getAvailableTools(testDir);
       const toolValues = tools.map((t) => t.value);
       expect(toolValues).toContain('claude');
       expect(toolValues).toContain('cursor');
-      expect(toolValues).toContain('windsurf');
+      expect(toolValues).toContain('gemini');
       expect(tools).toHaveLength(3);
+    });
+
+    it('should not detect removed tools (windsurf, cline, etc)', async () => {
+      await fs.mkdir(path.join(testDir, '.windsurf'), { recursive: true });
+      await fs.mkdir(path.join(testDir, '.clinerules'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).not.toContain('windsurf');
+      expect(toolValues).not.toContain('cline');
     });
 
     it('should ignore files that are not directories', async () => {

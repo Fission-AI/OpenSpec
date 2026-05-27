@@ -32,6 +32,12 @@ import {
   type LegacyDetectionResult,
 } from './legacy-cleanup.js';
 import {
+  detectOpenspecArtifacts,
+  migrateFromOpenspec,
+  formatOpenspecDetectionSummary,
+  formatOpenspecMigrationSummary,
+} from './openspec-migration.js';
+import {
   SKILL_NAMES,
   getToolsWithSkillsDir,
   getToolSkillStatus,
@@ -110,6 +116,9 @@ export class InitCommand {
     // Validation happens silently in the background
     const extendMode = await this.validate(projectPath, pastelsddPath);
 
+    // Check for openspec migration first (before legacy cleanup)
+    await this.handleOpenspecMigration(projectPath);
+
     // Check for legacy artifacts and handle cleanup
     await this.handleLegacyCleanup(projectPath, extendMode);
 
@@ -187,6 +196,62 @@ export class InitCommand {
     }
 
     throw new Error(`Invalid profile "${this.profileOverride}". Available profiles: core, custom`);
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // OPENSPEC MIGRATION
+  // ═══════════════════════════════════════════════════════════
+
+  private async handleOpenspecMigration(projectPath: string): Promise<void> {
+    const detection = await detectOpenspecArtifacts(projectPath);
+
+    if (!detection.hasOpenspecArtifacts) {
+      return;
+    }
+
+    console.log();
+    console.log(formatOpenspecDetectionSummary(detection));
+    console.log();
+
+    const canPrompt = this.canPromptInteractively();
+
+    if (this.force || !canPrompt) {
+      // Non-interactive or --force: migrate automatically
+      await this.performOpenspecMigration(projectPath, detection);
+      return;
+    }
+
+    const { confirm } = await import('@inquirer/prompts');
+    const shouldMigrate = await confirm({
+      message: 'Migrate from OpenSpec to Pastelsdd?',
+      default: true,
+    });
+
+    if (!shouldMigrate) {
+      console.log(chalk.dim('Migration cancelled. Re-run with --force to skip this prompt.'));
+      process.exit(0);
+    }
+
+    await this.performOpenspecMigration(projectPath, detection);
+  }
+
+  private async performOpenspecMigration(
+    projectPath: string,
+    detection: Awaited<ReturnType<typeof detectOpenspecArtifacts>>
+  ): Promise<void> {
+    const spinner = ora('Migrating from OpenSpec...').start();
+
+    const result = await migrateFromOpenspec(projectPath, detection);
+
+    spinner.succeed('OpenSpec migration complete');
+
+    const summary = formatOpenspecMigrationSummary(result);
+    if (summary) {
+      console.log();
+      console.log(summary);
+    }
+
+    console.log();
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -274,14 +339,13 @@ export class InitCommand {
     const shouldPreselectDetected = !extendMode && configuredToolIds.size === 0;
     const canPrompt = this.canPromptInteractively();
 
-    // Non-interactive mode: use detected tools as fallback (task 7.8)
+    // Non-interactive mode: use detected tools, fallback to Claude if nothing detected
     if (!canPrompt) {
       if (detectedToolIds.size > 0) {
         return [...detectedToolIds];
       }
-      throw new Error(
-        `No tools detected and no --tools flag provided. Valid tools:\n  ${validTools.join('\n  ')}\n\nUse --tools all, --tools none, or --tools claude,cursor,...`
-      );
+      // Default to Claude Code when no tools detected and no --tools flag
+      return ['claude'];
     }
 
     if (validTools.length === 0) {
@@ -603,11 +667,6 @@ export class InitCommand {
 
     if (configYamlExists || configYmlExists) {
       return 'exists';
-    }
-
-    // In non-interactive mode without --force, skip config creation
-    if (!this.canPromptInteractively() && !this.force) {
-      return 'skipped';
     }
 
     try {

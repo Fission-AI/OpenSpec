@@ -60,7 +60,8 @@ describe('pastelsdd CLI e2e basics', () => {
 
   it('reports the package version', async () => {
     const pkgRaw = await fs.readFile(path.join(cliProjectRoot, 'package.json'), 'utf-8');
-    const pkg = JSON.parse(pkgRaw);
+    // Strip UTF-8 BOM if present (Windows may add it)
+    const pkg = JSON.parse(pkgRaw.replace(/^﻿/, ''));
     const result = await runCLI(['--version']);
     expect(result.exitCode).toBe(0);
     expect(result.stdout.trim()).toBe(pkg.version);
