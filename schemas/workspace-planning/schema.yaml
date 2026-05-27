@@ -1,0 +1,72 @@
+name: workspace-planning
+version: 1
+description: Workspace planning workflow for cross-area changes
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Shared workspace proposal with the product goal, scope, affected areas, and impact
+    template: proposal.md
+    instruction: |
+      Create the workspace-level proposal that captures the shared product goal once.
+
+      Sections:
+      - **Why**: Explain the product goal or problem in 1-2 concise paragraphs.
+      - **What Changes**: List the cross-area behavior, workflow, or capability changes.
+      - **Affected Areas**: Name known affected areas using registered workspace link names where applicable. If scope is still being explored, say what remains unresolved.
+      - **Capabilities**: Identify workspace-scoped capabilities that need specs. Area-specific requirements should later live under `specs/<area-or-repo>/<capability>/spec.md`.
+      - **Impact**: Summarize user-facing impact, planning impact, and likely implementation homes without creating repo-local artifacts.
+
+      Keep linked repos and folders as exploration context until an explicit implementation workflow selects an affected area.
+    requires: []
+
+  - id: specs
+    generates: "specs/**/*.md"
+    description: Workspace-scoped specs organized by affected area and capability
+    template: spec.md
+    instruction: |
+      Create workspace-scoped specification files that define WHAT should change.
+
+      Use `specs/<area-or-repo>/<capability>/spec.md` for area-specific requirements. The first path segment should be a registered workspace link name when a registered area owns the requirement. If the area is unresolved, use an exploratory area name and make the unresolved question explicit in the requirement or scenario.
+
+      These specs are planning artifacts under the workspace change root. Do not create repo-local spec files in linked repos during workspace planning.
+
+      Delta operations (use ## headers):
+      - **ADDED Requirements**: New workspace-scoped behavior.
+      - **MODIFIED Requirements**: Changed behavior; include the full updated requirement.
+      - **REMOVED Requirements**: Deprecated behavior with Reason and Migration.
+      - **RENAMED Requirements**: Name changes only; use FROM:/TO: format.
+
+      Each requirement must use SHALL/MUST language and include at least one `#### Scenario:` block.
+    requires:
+      - proposal
+
+  - id: design
+    generates: design.md
+    description: Cross-area technical design and coordination decisions
+    template: design.md
+    instruction: |
+      Create the cross-area design document for workspace planning.
+
+      Focus on decisions that affect multiple areas, handoffs between areas, shared constraints, sequencing risks, and how the workspace plan should stay the source of truth. Avoid line-by-line implementation details and do not instruct agents to edit linked repos until an explicit implementation workflow provides an allowed edit root.
+    requires:
+      - proposal
+
+  - id: tasks
+    generates: tasks.md
+    description: Coordination checklist for workspace planning and later affected-area implementation
+    template: tasks.md
+    instruction: |
+      Create the workspace coordination task list.
+
+      Group tasks by phase or affected area as useful. Each actionable item must be a checkbox using `- [ ]`. When implementation tasks are area-specific, name the affected area and keep the task at planning granularity until a later implementation workflow selects an allowed edit root.
+    requires:
+      - specs
+      - design
+
+apply:
+  requires: [tasks]
+  tracks: tasks.md
+  instruction: |
+    Read the workspace planning context from status and instructions output before applying.
+    Select an affected area and confirm an allowed edit root before making implementation edits.
+    Until an explicit implementation context is available, treat linked repos and folders as read-only exploration context.

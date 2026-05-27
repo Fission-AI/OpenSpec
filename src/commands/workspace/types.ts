@@ -1,3 +1,5 @@
+import type { ContextStoreSelector } from '../../core/context-store/index.js';
+
 export type StatusSeverity = 'error' | 'warning';
 
 export interface WorkspaceStatus {
@@ -6,6 +8,7 @@ export interface WorkspaceStatus {
   message: string;
   target?: string;
   fix?: string;
+  details?: Record<string, unknown>;
 }
 
 export interface WorkspaceLinkOutput {
@@ -15,10 +18,18 @@ export interface WorkspaceLinkOutput {
   status: WorkspaceStatus[];
 }
 
+export interface WorkspaceContextOutput {
+  store: string;
+  initiative: string;
+  store_selector: ContextStoreSelector;
+}
+
 export interface WorkspaceOutput {
   name: string;
   root: string;
   planning_path: string;
+  state_path?: string;
+  context?: WorkspaceContextOutput | null;
   links: WorkspaceLinkOutput[];
   status: WorkspaceStatus[];
 }
@@ -26,6 +37,7 @@ export interface WorkspaceOutput {
 export interface WorkspaceListOutput {
   name: string;
   root: string;
+  context?: WorkspaceContextOutput | null;
   links: WorkspaceLinkOutput[];
   status: WorkspaceStatus[];
 }
@@ -34,6 +46,7 @@ export interface WorkspaceSetupOptions {
   name?: string;
   link?: string[];
   opener?: string;
+  tools?: string;
   json?: boolean;
   noInteractive?: boolean;
   interactive?: boolean;
@@ -48,11 +61,19 @@ export interface WorkspaceSelectionOptions {
 
 export type WorkspaceLinkOptions = WorkspaceSelectionOptions;
 
+export interface WorkspaceUpdateOptions extends WorkspaceSelectionOptions {
+  tools?: string;
+  force?: boolean;
+}
+
 export interface WorkspaceOpenOptions extends WorkspaceSelectionOptions {
   agent?: string;
   editor?: boolean;
   prepareOnly?: boolean;
   change?: string;
+  initiative?: string;
+  store?: string;
+  storePath?: string;
 }
 
 export interface WorkspaceListOptions {
@@ -79,7 +100,11 @@ export interface WorkspaceLinkMutationPayload {
 export class WorkspaceCliError extends Error {
   readonly status: WorkspaceStatus;
 
-  constructor(message: string, code: string, options: { target?: string; fix?: string } = {}) {
+  constructor(
+    message: string,
+    code: string,
+    options: { target?: string; fix?: string; details?: Record<string, unknown> } = {}
+  ) {
     super(message);
     this.status = {
       severity: 'error',
@@ -94,7 +119,7 @@ export function makeStatus(
   severity: StatusSeverity,
   code: string,
   message: string,
-  options: { target?: string; fix?: string } = {}
+  options: { target?: string; fix?: string; details?: Record<string, unknown> } = {}
 ): WorkspaceStatus {
   return {
     severity,

@@ -1,0 +1,21 @@
+# Ship Initiative MVP Tasks
+
+- [x] Create Item 5 work-item tracking notes.
+- [x] Research initiative shape, API, module placement, and first slice.
+- [x] Decide where initiative code lives.
+- [x] Decide required `initiative.yaml` metadata.
+- [x] Decide no initiative `links.yaml` in the MVP.
+- [x] Decide first coding slice starts with initiative schema/templates before operations.
+- [x] Add initiative schema helpers and tests.
+- [x] Add default initiative templates.
+- [x] Run targeted verification for schema/templates.
+- [x] Decide create/list-only operation slice.
+- [x] Add create/list mounted initiative operations and tests.
+- [x] Run targeted verification for operations.
+- [x] Research initiative CLI adapter gaps.
+- [x] Decide explicit context-store selection for first CLI slice.
+- [x] Document noun-command and manual-completion tradeoffs.
+- [x] Add `openspec initiative create/list` CLI adapter.
+- [x] Register static shell completions for initiative commands.
+- [x] Add focused CLI tests for create/list, selection errors, and completions.
+- [x] Run targeted verification for the initiative CLI adapter.

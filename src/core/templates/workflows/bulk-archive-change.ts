@@ -38,14 +38,16 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
    For each selected change, collect:
 
    a. **Artifact status** - Run \`openspec status --change "<name>" --json\`
-      - Parse \`schemaName\` and \`artifacts\` list
+      - Parse \`schemaName\`, \`artifacts\`, \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`
       - Note which artifacts are \`done\` vs other states
 
-   b. **Task completion** - Read \`openspec/changes/<name>/tasks.md\`
+      If any selected change reports \`actionContext.mode: "workspace-planning"\`, explain that workspace bulk archive is not supported in this slice and STOP before syncing specs or moving changes. Do not fall back to repo-local paths or edit linked repos.
+
+   b. **Task completion** - Read \`artifactPaths.tasks.existingOutputPaths\` from status JSON
       - Count \`- [ ]\` (incomplete) vs \`- [x]\` (complete)
       - If no tasks file exists, note as "No tasks"
 
-   c. **Delta specs** - Check \`openspec/changes/<name>/specs/\` directory
+   c. **Delta specs** - Check \`artifactPaths.specs.existingOutputPaths\` from status JSON
       - List which capability specs exist
       - For each, extract requirement names (lines matching \`### Requirement: <name>\`)
 
@@ -128,8 +130,8 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    b. **Perform the archive**:
       \`\`\`bash
-      mkdir -p openspec/changes/archive
-      mv openspec/changes/<name> openspec/changes/archive/YYYY-MM-DD-<name>
+      mkdir -p "<planningHome.changesDir>/archive"
+      mv "<changeRoot>" "<planningHome.changesDir>/archive/YYYY-MM-DD-<name>"
       \`\`\`
 
    c. **Track outcome** for each change:
@@ -285,14 +287,16 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
    For each selected change, collect:
 
    a. **Artifact status** - Run \`openspec status --change "<name>" --json\`
-      - Parse \`schemaName\` and \`artifacts\` list
+      - Parse \`schemaName\`, \`artifacts\`, \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`
       - Note which artifacts are \`done\` vs other states
 
-   b. **Task completion** - Read \`openspec/changes/<name>/tasks.md\`
+      If any selected change reports \`actionContext.mode: "workspace-planning"\`, explain that workspace bulk archive is not supported in this slice and STOP before syncing specs or moving changes. Do not fall back to repo-local paths or edit linked repos.
+
+   b. **Task completion** - Read \`artifactPaths.tasks.existingOutputPaths\` from status JSON
       - Count \`- [ ]\` (incomplete) vs \`- [x]\` (complete)
       - If no tasks file exists, note as "No tasks"
 
-   c. **Delta specs** - Check \`openspec/changes/<name>/specs/\` directory
+   c. **Delta specs** - Check \`artifactPaths.specs.existingOutputPaths\` from status JSON
       - List which capability specs exist
       - For each, extract requirement names (lines matching \`### Requirement: <name>\`)
 
@@ -375,8 +379,8 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    b. **Perform the archive**:
       \`\`\`bash
-      mkdir -p openspec/changes/archive
-      mv openspec/changes/<name> openspec/changes/archive/YYYY-MM-DD-<name>
+      mkdir -p "<planningHome.changesDir>/archive"
+      mv "<changeRoot>" "<planningHome.changesDir>/archive/YYYY-MM-DD-<name>"
       \`\`\`
 
    c. **Track outcome** for each change:

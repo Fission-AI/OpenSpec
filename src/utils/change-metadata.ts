@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as yaml from 'yaml';
-import { ChangeMetadataSchema, type ChangeMetadata } from '../core/artifact-graph/types.js';
+import { ChangeMetadataSchema, type ChangeMetadata } from '../core/change-metadata/index.js';
 import { listSchemas } from '../core/artifact-graph/resolver.js';
 import { readProjectConfig } from '../core/project-config.js';
 
@@ -146,6 +146,10 @@ export function readChangeMetadata(
   return parseResult.data;
 }
 
+export interface ResolveSchemaForChangeOptions {
+  metadata?: ChangeMetadata | null;
+}
+
 /**
  * Resolves the schema for a change, with explicit override taking precedence.
  *
@@ -161,27 +165,25 @@ export function readChangeMetadata(
  */
 export function resolveSchemaForChange(
   changeDir: string,
-  explicitSchema?: string
+  explicitSchema?: string,
+  projectRootOverride?: string,
+  options: ResolveSchemaForChangeOptions = {}
 ): string {
   // Derive project root from changeDir (changeDir is typically projectRoot/openspec/changes/change-name)
-  const projectRoot = path.resolve(changeDir, '../../..');
+  const projectRoot = projectRootOverride ?? path.resolve(changeDir, '../../..');
 
   // 1. Explicit override wins
   if (explicitSchema) {
     return explicitSchema;
   }
 
-  // 2. Try reading from metadata
-  try {
-    const metadata = readChangeMetadata(changeDir, projectRoot);
-    if (metadata?.schema) {
-      return metadata.schema;
-    }
-  } catch {
-    // If metadata read fails, continue to next option
+  const metadata =
+    options.metadata !== undefined ? options.metadata : readChangeMetadata(changeDir, projectRoot);
+  if (metadata?.schema) {
+    return metadata.schema;
   }
 
-  // 3. Try reading from project config
+  // 3. Try reading from project config when metadata is absent.
   try {
     const config = readProjectConfig(projectRoot);
     if (config?.schema) {
