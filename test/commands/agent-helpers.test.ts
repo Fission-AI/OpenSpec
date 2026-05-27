@@ -6,9 +6,9 @@ import { runCLI } from '../helpers/run-cli.js';
 
 /**
  * End-to-end coverage for the three agent-facing helper commands:
- *   - openspec resolve-change
- *   - openspec next-artifact
- *   - openspec mark-task-done
+ *   - openspec agent resolve-change
+ *   - openspec agent next-artifact
+ *   - openspec agent mark-task-done
  *
  * Plus enrichment cases for the existing `instructions apply --json`
  * payload (numericId / nextPendingId on tasks).
@@ -74,7 +74,7 @@ describe('agent helper CLI commands', () => {
   // ---------------------------------------------------------------------------
   describe('resolve-change command', () => {
     it('prints empty list when no changes exist', async () => {
-      const result = await runCLI(['resolve-change'], { cwd: tempDir });
+      const result = await runCLI(['agent', 'resolve-change'], { cwd: tempDir });
       expect(result.exitCode).toBe(0);
       const json = JSON.parse(result.stdout);
       expect(json.changes).toEqual([]);
@@ -84,7 +84,7 @@ describe('agent helper CLI commands', () => {
       await makeChange('alpha');
       await makeChange('beta');
 
-      const result = await runCLI(['resolve-change'], { cwd: tempDir });
+      const result = await runCLI(['agent', 'resolve-change'], { cwd: tempDir });
       expect(result.exitCode).toBe(0);
       const json = JSON.parse(result.stdout);
       expect(json.changes.map((c: { name: string }) => c.name).sort()).toEqual(['alpha', 'beta']);
@@ -92,34 +92,34 @@ describe('agent helper CLI commands', () => {
 
     it('echoes the name when a valid change is supplied', async () => {
       await makeChange('alpha');
-      const result = await runCLI(['resolve-change', 'alpha'], { cwd: tempDir });
+      const result = await runCLI(['agent', 'resolve-change', 'alpha'], { cwd: tempDir });
       expect(result.exitCode).toBe(0);
       expect(result.stdout.trim()).toBe('alpha');
     });
 
     it('exits 2 when the named change does not exist', async () => {
       await makeChange('alpha');
-      const result = await runCLI(['resolve-change', 'bogus'], { cwd: tempDir });
+      const result = await runCLI(['agent', 'resolve-change', 'bogus'], { cwd: tempDir });
       expect(result.exitCode).toBe(2);
       expect(getOutput(result)).toContain("Change 'bogus' is not active");
       expect(getOutput(result)).toContain('alpha');
     });
 
     it('exits 2 with an invalid change name (path traversal)', async () => {
-      const result = await runCLI(['resolve-change', '../etc'], { cwd: tempDir });
+      const result = await runCLI(['agent', 'resolve-change', '../etc'], { cwd: tempDir });
       expect(result.exitCode).toBe(2);
       expect(getOutput(result)).toContain('Invalid change name');
     });
 
     it('--auto exits 1 when no changes exist', async () => {
-      const result = await runCLI(['resolve-change', '--auto'], { cwd: tempDir });
+      const result = await runCLI(['agent', 'resolve-change', '--auto'], { cwd: tempDir });
       expect(result.exitCode).toBe(1);
       expect(getOutput(result)).toContain('No active changes');
     });
 
     it('--auto echoes the only active change', async () => {
       await makeChange('only-one');
-      const result = await runCLI(['resolve-change', '--auto'], { cwd: tempDir });
+      const result = await runCLI(['agent', 'resolve-change', '--auto'], { cwd: tempDir });
       expect(result.exitCode).toBe(0);
       expect(result.stdout.trim()).toBe('only-one');
     });
@@ -127,7 +127,7 @@ describe('agent helper CLI commands', () => {
     it('--auto exits 3 with a distinct message when multiple changes are active', async () => {
       await makeChange('alpha');
       await makeChange('beta');
-      const result = await runCLI(['resolve-change', '--auto'], { cwd: tempDir });
+      const result = await runCLI(['agent', 'resolve-change', '--auto'], { cwd: tempDir });
       expect(result.exitCode).toBe(3);
       const out = getOutput(result);
       expect(out).toContain('Multiple active changes');
@@ -137,7 +137,7 @@ describe('agent helper CLI commands', () => {
 
     it('--json with a named change emits structured payload', async () => {
       await makeChange('alpha');
-      const result = await runCLI(['resolve-change', 'alpha', '--json'], { cwd: tempDir });
+      const result = await runCLI(['agent', 'resolve-change', 'alpha', '--json'], { cwd: tempDir });
       expect(result.exitCode).toBe(0);
       const json = JSON.parse(result.stdout);
       expect(json.name).toBe('alpha');
@@ -154,7 +154,7 @@ describe('agent helper CLI commands', () => {
       const changeDir = path.join(changesDir, 'scaffolded');
       await fs.mkdir(changeDir, { recursive: true });
 
-      const result = await runCLI(['next-artifact', '--change', 'scaffolded'], { cwd: tempDir });
+      const result = await runCLI(['agent', 'next-artifact', '--change', 'scaffolded'], { cwd: tempDir });
       expect(result.exitCode).toBe(0);
       const json = JSON.parse(result.stdout);
       expect(json.done).toBe(false);
@@ -168,7 +168,7 @@ describe('agent helper CLI commands', () => {
       // by design).
       await makeChange('mid-stream', ['proposal', 'design']);
 
-      const result = await runCLI(['next-artifact', '--change', 'mid-stream'], { cwd: tempDir });
+      const result = await runCLI(['agent', 'next-artifact', '--change', 'mid-stream'], { cwd: tempDir });
       expect(result.exitCode).toBe(0);
       const json = JSON.parse(result.stdout);
       expect(json.done).toBe(false);
@@ -179,7 +179,7 @@ describe('agent helper CLI commands', () => {
 
     it('emits { done: true } when every artifact is complete', async () => {
       await makeChange('all-done', ['proposal', 'design', 'specs', 'tasks']);
-      const result = await runCLI(['next-artifact', '--change', 'all-done'], { cwd: tempDir });
+      const result = await runCLI(['agent', 'next-artifact', '--change', 'all-done'], { cwd: tempDir });
       expect(result.exitCode).toBe(0);
       expect(JSON.parse(result.stdout)).toEqual({ done: true });
     });
@@ -188,7 +188,7 @@ describe('agent helper CLI commands', () => {
       const changeDir = path.join(changesDir, 'humanmode');
       await fs.mkdir(changeDir, { recursive: true });
 
-      const result = await runCLI(['next-artifact', '--change', 'humanmode', '--no-json'], {
+      const result = await runCLI(['agent', 'next-artifact', '--change', 'humanmode', '--no-json'], {
         cwd: tempDir,
       });
       expect(result.exitCode).toBe(0);
@@ -198,7 +198,7 @@ describe('agent helper CLI commands', () => {
 
     it('errors with a helpful message when --change is omitted', async () => {
       await makeChange('something');
-      const result = await runCLI(['next-artifact'], { cwd: tempDir });
+      const result = await runCLI(['agent', 'next-artifact'], { cwd: tempDir });
       expect(result.exitCode).toBe(1);
       expect(getOutput(result)).toContain('Missing required option --change');
     });
@@ -222,7 +222,7 @@ describe('agent helper CLI commands', () => {
       );
 
       const result = await runCLI(
-        ['mark-task-done', '--change', 'flipme', '1.1', '--json'],
+        ['agent', 'mark-task-done', '--change', 'flipme', '1.1', '--json'],
         { cwd: tempDir }
       );
       expect(result.exitCode).toBe(0);
@@ -243,7 +243,7 @@ describe('agent helper CLI commands', () => {
       );
 
       const result = await runCLI(
-        ['mark-task-done', '--change', 'already-done', '1.1', '--json'],
+        ['agent', 'mark-task-done', '--change', 'already-done', '1.1', '--json'],
         { cwd: tempDir }
       );
       expect(result.exitCode).toBe(0);
@@ -260,7 +260,7 @@ describe('agent helper CLI commands', () => {
 
       // Mark 1.1; 1.10 must stay unchecked.
       const r1 = await runCLI(
-        ['mark-task-done', '--change', 'boundary', '1.1'],
+        ['agent', 'mark-task-done', '--change', 'boundary', '1.1'],
         { cwd: tempDir }
       );
       expect(r1.exitCode).toBe(0);
@@ -271,7 +271,7 @@ describe('agent helper CLI commands', () => {
 
       // Now mark 1.10; 1.1 stays as it was.
       const r2 = await runCLI(
-        ['mark-task-done', '--change', 'boundary', '1.10'],
+        ['agent', 'mark-task-done', '--change', 'boundary', '1.10'],
         { cwd: tempDir }
       );
       expect(r2.exitCode).toBe(0);
@@ -284,7 +284,7 @@ describe('agent helper CLI commands', () => {
       await writeTasks('nomatch', '## Tasks\n- [ ] 1.1 Only one\n');
 
       const result = await runCLI(
-        ['mark-task-done', '--change', 'nomatch', '9.9'],
+        ['agent', 'mark-task-done', '--change', 'nomatch', '9.9'],
         { cwd: tempDir }
       );
       expect(result.exitCode).toBe(2);
@@ -299,7 +299,7 @@ describe('agent helper CLI commands', () => {
       await fs.writeFile(tasksPath, crlfBody);
 
       const result = await runCLI(
-        ['mark-task-done', '--change', 'crlf', '1.1'],
+        ['agent', 'mark-task-done', '--change', 'crlf', '1.1'],
         { cwd: tempDir }
       );
       expect(result.exitCode).toBe(0);
@@ -340,7 +340,7 @@ apply:
       await fs.writeFile(path.join(changeDir, 'proposal.md'), '# Proposal\n');
 
       const result = await runCLI(
-        ['mark-task-done', '--change', 'no-tracks-change', '1.1'],
+        ['agent', 'mark-task-done', '--change', 'no-tracks-change', '1.1'],
         { cwd: tempDir }
       );
       expect(result.exitCode).toBe(2);

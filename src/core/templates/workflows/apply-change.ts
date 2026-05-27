@@ -20,10 +20,10 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
 
    If a name is provided, use it. Otherwise resolve via:
    \`\`\`bash
-   openspec resolve-change --auto
+   openspec agent resolve-change --auto
    \`\`\`
    - Exits 0 with the change name when exactly one active change exists.
-   - Exits 1 (none) or 3 (ambiguous). On ambiguity, run \`openspec resolve-change --json\` and use the **AskUserQuestion tool** to let the user select.
+   - Exits 1 (none) or 3 (ambiguous). On ambiguity, run \`openspec agent resolve-change --json\` and use the **AskUserQuestion tool** to let the user select.
 
    Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:apply <other>\`).
 
@@ -56,7 +56,7 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
    - Make the code changes required (keep changes minimal and focused)
    - Mark the task complete via the CLI — idempotent, anchored on the task id so \`1.1\` does not match \`1.10\`:
      \`\`\`bash
-     openspec mark-task-done --change "<name>" "<task-id>"
+     openspec agent mark-task-done --change "<name>" "<task-id>"
      \`\`\`
      where \`<task-id>\` is the task's \`numericId\` (e.g., \`1.1\`). For tasks without a \`numericId\`, edit the file directly (\`- [ ]\` → \`- [x]\`).
    - Re-run \`openspec instructions apply --change "<name>" --json\` to refresh \`nextPendingId\` and continue.
@@ -164,10 +164,10 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
 
    If a name is provided, use it. Otherwise resolve via:
    \`\`\`bash
-   openspec resolve-change --auto
+   openspec agent resolve-change --auto
    \`\`\`
    - Exits 0 with the change name when exactly one active change exists.
-   - Exits 1 (none) or 3 (ambiguous). On ambiguity, run \`openspec resolve-change --json\` and use the **AskUserQuestion tool** to let the user select.
+   - Exits 1 (none) or 3 (ambiguous). On ambiguity, run \`openspec agent resolve-change --json\` and use the **AskUserQuestion tool** to let the user select.
 
    Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:apply <other>\`).
 
@@ -200,7 +200,7 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
    - Make the code changes required (keep changes minimal and focused)
    - Mark the task complete via the CLI — idempotent, anchored on the task id so \`1.1\` does not match \`1.10\`:
      \`\`\`bash
-     openspec mark-task-done --change "<name>" "<task-id>"
+     openspec agent mark-task-done --change "<name>" "<task-id>"
      \`\`\`
      where \`<task-id>\` is the task's \`numericId\` (e.g., \`1.1\`). For tasks without a \`numericId\`, edit the file directly (\`- [ ]\` → \`- [x]\`).
    - Re-run \`openspec instructions apply --change "<name>" --json\` to refresh \`nextPendingId\` and continue.

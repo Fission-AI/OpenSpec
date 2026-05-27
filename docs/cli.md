@@ -46,9 +46,9 @@ These commands support `--json` output for programmatic use by AI agents and scr
 | `openspec validate` | Check for issues | `--all --json` for bulk validation |
 | `openspec status` | See artifact progress | `--json` for structured status |
 | `openspec instructions` | Get next steps | `--json` for agent instructions |
-| `openspec resolve-change` | Locate active change | `--auto`/`--json` to drive skills without prompts |
-| `openspec next-artifact` | One-call propose loop | JSON by default; bundles status + instructions |
-| `openspec mark-task-done` | Tick off an applied task | Anchored, idempotent flipping by `numericId` |
+| `openspec agent resolve-change` | Locate active change | `--auto`/`--json` to drive skills without prompts |
+| `openspec agent next-artifact` | One-call propose loop | JSON by default; bundles status + instructions |
+| `openspec agent mark-task-done` | Tick off an applied task | Anchored, idempotent flipping by `numericId` |
 | `openspec templates` | Find template paths | `--json` for path resolution |
 | `openspec schemas` | List available schemas | `--json` for schema discovery |
 | `openspec workspace setup --no-interactive` | Create a workspace with explicit inputs | `--json` for structured setup output |
@@ -866,11 +866,11 @@ returned `tasks` array also carries a `numericId` field whenever the tracking
 file uses numbered tasks (e.g. `- [ ] 1.1 Wire foo` → `numericId: "1.1"`). The
 top-level payload also includes `nextPendingId`: the first unchecked task with a
 `numericId`, or `null` when no such task exists. Use this with
-`openspec mark-task-done` to drive an apply loop without re-parsing tasks.md.
+`openspec agent mark-task-done` to drive an apply loop without re-parsing tasks.md.
 
 ---
 
-### `openspec resolve-change`
+### `openspec agent resolve-change`
 
 Agent helper: resolve which active change to operate on. Lists every active
 change, validates a supplied name, or auto-selects when exactly one change
@@ -878,7 +878,7 @@ exists. Useful at the top of every workflow skill where the change identity is
 the first question to answer.
 
 ```
-openspec resolve-change [name] [options]
+openspec agent resolve-change [name] [options]
 ```
 
 **Arguments:**
@@ -898,13 +898,13 @@ openspec resolve-change [name] [options]
 
 ```bash
 # List every active change as JSON (default when no name and no --auto)
-openspec resolve-change
+openspec agent resolve-change
 
 # Validate a specific name (exit 2 on miss)
-openspec resolve-change add-dark-mode
+openspec agent resolve-change add-dark-mode
 
 # Auto-pick the only active change
-openspec resolve-change --auto
+openspec agent resolve-change --auto
 ```
 
 **Exit codes:**
@@ -918,7 +918,7 @@ openspec resolve-change --auto
 
 ---
 
-### `openspec next-artifact`
+### `openspec agent next-artifact`
 
 Agent helper: return the next ready artifact for a change, bundled with the
 full instructions payload for that artifact. Replaces the
@@ -927,7 +927,7 @@ call. JSON is the default since agents are the primary consumers; pass
 `--no-json` for a human summary.
 
 ```
-openspec next-artifact --change <name> [options]
+openspec agent next-artifact --change <name> [options]
 ```
 
 **Options:**
@@ -942,10 +942,10 @@ openspec next-artifact --change <name> [options]
 
 ```bash
 # Get the next ready artifact and its instructions (JSON, default)
-openspec next-artifact --change add-dark-mode
+openspec agent next-artifact --change add-dark-mode
 
 # Compact human summary
-openspec next-artifact --change add-dark-mode --no-json
+openspec agent next-artifact --change add-dark-mode --no-json
 ```
 
 **Output (JSON):**
@@ -980,7 +980,7 @@ openspec next-artifact --change add-dark-mode --no-json
 
 ---
 
-### `openspec mark-task-done`
+### `openspec agent mark-task-done`
 
 Agent helper: flip a single checkbox in the change's tracking file (usually
 `tasks.md`) from `- [ ]` to `- [x]`. The target line is identified by the
@@ -990,7 +990,7 @@ CRLF vs LF line endings; anchored matching ensures `1.1` does not match
 `1.10`.
 
 ```
-openspec mark-task-done <task-id> --change <name> [options]
+openspec agent mark-task-done <task-id> --change <name> [options]
 ```
 
 **Arguments:**
@@ -1011,11 +1011,11 @@ openspec mark-task-done <task-id> --change <name> [options]
 
 ```bash
 # Mark task 1.1 done
-openspec mark-task-done --change add-dark-mode 1.1
+openspec agent mark-task-done --change add-dark-mode 1.1
 
 # Inside an apply loop, driven by nextPendingId from `instructions apply --json`
 TASK=$(openspec instructions apply --change add-dark-mode --json | jq -r .nextPendingId)
-openspec mark-task-done --change add-dark-mode "$TASK"
+openspec agent mark-task-done --change add-dark-mode "$TASK"
 ```
 
 **Exit codes:**

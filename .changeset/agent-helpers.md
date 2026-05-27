@@ -4,20 +4,22 @@
 
 ### Added
 
-- **`openspec resolve-change [name] [--auto] [--json]`** — agent helper that
-  resolves which active change to operate on. Lists every active change,
-  validates a supplied name, or auto-selects when exactly one exists. Distinct
-  exit codes (`0` ok, `1` none, `2` not found, `3` ambiguous) let skills branch
-  without parsing stderr.
-- **`openspec next-artifact --change <name>`** — agent helper that returns the
-  next ready artifact bundled with its full `instructions` payload. Replaces
-  the two-call `status --json` + `instructions <artifact> --json` pattern with
-  one call. JSON by default; pass `--no-json` for a human summary. Emits
-  `{ "done": true }` once every artifact is complete.
-- **`openspec mark-task-done <task-id> --change <name>`** — agent helper that
-  flips a single checkbox in the change's tracking file (typically `tasks.md`)
-  from `- [ ]` to `- [x]`. Idempotent on already-checked lines, preserves
-  CRLF/LF endings, and uses anchored matching so `1.1` does not match `1.10`.
+- **`openspec agent` command group** — namespaced helpers for AI skills and
+  scripts, kept separate from the human-facing top-level surface.
+  - **`openspec agent resolve-change [name] [--auto] [--json]`** — resolves
+    which active change to operate on. Lists every active change, validates a
+    supplied name, or auto-selects when exactly one exists. Distinct exit
+    codes (`0` ok, `1` none, `2` not found, `3` ambiguous) let skills branch
+    without parsing stderr.
+  - **`openspec agent next-artifact --change <name>`** — returns the next
+    ready artifact bundled with its full `instructions` payload. Replaces the
+    two-call `status --json` + `instructions <artifact> --json` pattern with
+    one call. JSON by default; pass `--no-json` for a human summary. Emits
+    `{ "done": true }` once every artifact is complete.
+  - **`openspec agent mark-task-done <task-id> --change <name>`** — flips a
+    single checkbox in the change's tracking file (typically `tasks.md`) from
+    `- [ ]` to `- [x]`. Idempotent on already-checked lines, preserves CRLF/LF
+    endings, and uses anchored matching so `1.1` does not match `1.10`.
 
 ### Changed
 

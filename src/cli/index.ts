@@ -538,9 +538,15 @@ newCmd
     }
   });
 
-// Resolve-change command (agent helper: locate active change by name or
-// auto-select when unambiguous)
-program
+// Agent command group (subcommands intended for AI skills and scripts, not
+// direct human use). Grouping them under a dedicated namespace keeps the
+// top-level CLI surface focused on human workflows; agents call
+// `openspec agent <subcommand>` explicitly.
+const agentCmd = program
+  .command('agent')
+  .description('Helpers for AI skills and scripts (not intended for direct human use)');
+
+agentCmd
   .command('resolve-change [name]')
   .description('Resolve an active change by name, list active changes, or auto-select the only one')
   .option('--auto', 'Succeed only when exactly one active change exists')
@@ -555,10 +561,9 @@ program
     }
   });
 
-// Next-artifact command (agent helper: bundle "what is the next ready
-// artifact?" with its full instructions payload). JSON is the default since
-// agents are the primary consumers; pass --no-json for the human summary.
-program
+// JSON is the default for next-artifact since agents are the primary
+// consumers; pass --no-json for the human summary.
+agentCmd
   .command('next-artifact')
   .description('Return the next ready artifact for a change, bundled with its instructions (JSON by default)')
   .option('--change <id>', 'Change name')
@@ -574,9 +579,7 @@ program
     }
   });
 
-// Mark-task-done command (agent helper: flip a tracked tasks.md checkbox by
-// numeric task id)
-program
+agentCmd
   .command('mark-task-done <task-id>')
   .description('Mark a task complete in the change\'s tracking file (idempotent)')
   .option('--change <id>', 'Change name')

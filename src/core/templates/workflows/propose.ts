@@ -46,7 +46,7 @@ When ready to implement, run /opsx:apply
 
    Repeat until \`{ "done": true }\`:
    \`\`\`bash
-   openspec next-artifact --change "<name>"
+   openspec agent next-artifact --change "<name>"
    \`\`\`
 
    Each non-done response returns the JSON instructions payload for exactly one ready artifact:
@@ -60,7 +60,7 @@ When ready to implement, run /opsx:apply
    1. Read any \`dependencies\` files for context
    2. Write the artifact file (use \`template\` as the structure, write to \`resolvedOutputPath\`)
    3. Show brief progress: "Created <artifact-id>"
-   4. Re-invoke \`openspec next-artifact --change "<name>"\` and continue
+   4. Re-invoke \`openspec agent next-artifact --change "<name>"\` and continue
 
    If an artifact requires user input (context unclear), use the **AskUserQuestion tool** to clarify, then continue.
 
@@ -141,7 +141,7 @@ When ready to implement, run /opsx:apply
 
    Repeat until \`{ "done": true }\`:
    \`\`\`bash
-   openspec next-artifact --change "<name>"
+   openspec agent next-artifact --change "<name>"
    \`\`\`
 
    Each non-done response returns the JSON instructions payload for exactly one ready artifact:
@@ -155,7 +155,7 @@ When ready to implement, run /opsx:apply
    1. Read any \`dependencies\` files for context
    2. Write the artifact file (use \`template\` as the structure, write to \`resolvedOutputPath\`)
    3. Show brief progress: "Created <artifact-id>"
-   4. Re-invoke \`openspec next-artifact --change "<name>"\` and continue
+   4. Re-invoke \`openspec agent next-artifact --change "<name>"\` and continue
 
    If an artifact requires user input (context unclear), use the **AskUserQuestion tool** to clarify, then continue.
 
