@@ -10,6 +10,7 @@
 import os from 'os';
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
+import { transformCodexRuntimeToolReferences } from '../../../utils/command-references.js';
 
 /**
  * Returns the Codex home directory.
@@ -33,12 +34,14 @@ export const codexAdapter: ToolCommandAdapter = {
   },
 
   formatFile(content: CommandContent): string {
+    const transformedBody = transformCodexRuntimeToolReferences(content.body);
+
     return `---
 description: ${content.description}
 argument-hint: command arguments
 ---
 
-${content.body}
+${transformedBody}
 `;
   },
 };

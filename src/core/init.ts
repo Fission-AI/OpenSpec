@@ -11,7 +11,10 @@ import ora from 'ora';
 import * as fs from 'fs';
 import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { transformToHyphenCommands } from '../utils/command-references.js';
+import {
+  transformCodexRuntimeToolReferences,
+  transformToHyphenCommands,
+} from '../utils/command-references.js';
 import {
   AI_TOOLS,
   OPENSPEC_DIR_NAME,
@@ -537,8 +540,13 @@ export class InitCommand {
             const skillFile = path.join(skillDir, 'SKILL.md');
 
             // Generate SKILL.md content with YAML frontmatter including generatedBy
-            // Use hyphen-based command references for tools where filename = command name
-            const transformer = (tool.value === 'opencode' || tool.value === 'pi') ? transformToHyphenCommands : undefined;
+            // Apply tool-specific rewrites for generated skill content.
+            const transformer =
+              tool.value === 'codex'
+                ? transformCodexRuntimeToolReferences
+                : tool.value === 'opencode' || tool.value === 'pi'
+                  ? transformToHyphenCommands
+                  : undefined;
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
 
             // Write the skill file
