@@ -25,7 +25,7 @@ import { hasProjectConfigDrift } from '../core/profile-sync-drift.js';
 import {
   findWorkspaceRoot,
   hasWorkspaceSkillProfileDrift,
-  readOptionalWorkspaceLocalState,
+  readOptionalWorkspaceViewState,
 } from '../core/workspace/index.js';
 
 type ProfileAction = 'both' | 'delivery' | 'workflows' | 'keep';
@@ -231,14 +231,14 @@ async function maybeWarnConfigDrift(
 ): Promise<void> {
   const workspaceContext = await resolveWorkspaceConfigProfileContext();
   if (workspaceContext) {
-    let localState = null;
+    let viewState = null;
     try {
-      localState = await readOptionalWorkspaceLocalState(workspaceContext.root);
+      viewState = await readOptionalWorkspaceViewState(workspaceContext.root);
     } catch {
       return;
     }
 
-    if (hasWorkspaceSkillProfileDrift(localState)) {
+    if (hasWorkspaceSkillProfileDrift(viewState)) {
       console.log(
         colorize(
           'Warning: Workspace-local agent skills are out of sync with the active global profile. Run `openspec workspace update` to sync.'

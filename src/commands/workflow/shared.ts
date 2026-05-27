@@ -9,6 +9,7 @@ import chalk from 'chalk';
 import path from 'path';
 import * as fs from 'fs';
 import { getSchemaDir, listSchemas } from '../../core/artifact-graph/index.js';
+import type { InitiativeLink } from '../../core/change-metadata/index.js';
 import { validateChangeName } from '../../utils/change-utils.js';
 
 // -----------------------------------------------------------------------------
@@ -25,6 +26,7 @@ export interface ApplyInstructions {
   changeName: string;
   changeDir: string;
   schemaName: string;
+  initiative?: InitiativeLink;
   contextFiles: Record<string, string[]>;
   progress: {
     total: number;
