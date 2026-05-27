@@ -114,6 +114,9 @@ function makeDiagnostic(
   };
 }
 
+const INITIATIVE_ALREADY_EXISTS_PREFIX = "Initiative '";
+const INITIATIVE_ALREADY_EXISTS_MARKER = "' already exists";
+
 export function initiativeDiagnosticFromError(error: unknown): InitiativeDiagnostic {
   if (error instanceof InitiativeResolutionError) {
     return makeDiagnostic('error', error.code, error.message, {
@@ -125,7 +128,13 @@ export function initiativeDiagnosticFromError(error: unknown): InitiativeDiagnos
 
   const message = asErrorMessage(error);
 
-  if (/Initiative '.+' already exists/u.test(message)) {
+  if (
+    message.startsWith(INITIATIVE_ALREADY_EXISTS_PREFIX) &&
+    message.includes(
+      INITIATIVE_ALREADY_EXISTS_MARKER,
+      INITIATIVE_ALREADY_EXISTS_PREFIX.length
+    )
+  ) {
     return makeDiagnostic('error', 'initiative_already_exists', message, {
       target: 'initiative.id',
       fix: 'Choose a new initiative id or list existing initiatives first.',
