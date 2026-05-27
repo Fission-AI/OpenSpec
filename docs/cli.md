@@ -877,7 +877,7 @@ change, validates a supplied name, or auto-selects when exactly one change
 exists. Useful at the top of every workflow skill where the change identity is
 the first question to answer.
 
-```
+```bash
 openspec agent resolve-change [name] [options]
 ```
 
@@ -926,7 +926,7 @@ full instructions payload for that artifact. Replaces the
 call. JSON is the default since agents are the primary consumers; pass
 `--no-json` for a human summary.
 
-```
+```bash
 openspec agent next-artifact --change <name> [options]
 ```
 
@@ -989,7 +989,7 @@ leading numeric task id (`1`, `1.1`, `2.3.4`) captured by
 CRLF vs LF line endings; anchored matching ensures `1.1` does not match
 `1.10`.
 
-```
+```bash
 openspec agent mark-task-done <task-id> --change <name> [options]
 ```
 

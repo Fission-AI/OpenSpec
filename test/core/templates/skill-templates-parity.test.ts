@@ -33,7 +33,7 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getExploreSkillTemplate: 'e2765fae6c2e960f4ce07058cfdaa547ff3435d454eacd5e924e38139e97ad52',
   getNewChangeSkillTemplate: 'b0c26f0b65380062e586505c08c72230e59dccea89e6acca7b673f01cba70d5a',
   getContinueChangeSkillTemplate: 'fbc6c379ed3dd39f59f52b10584b8df5b1dc08b5422bcf1c6d6255a944d22a11',
-  getApplyChangeSkillTemplate: '6eea8bcae4b506497e606e6885fc24ff2be92c9ab38de0e594a194993d741362',
+  getApplyChangeSkillTemplate: '6ca19d19d3598a9740eb5fa6852c96869aa56310a13531712328cb867ebc6385',
   getFfChangeSkillTemplate: '50e68fbb49b76d2690b614bffa9e6210e45539fb74419fc2e4311158b6d38485',
   getSyncSpecsSkillTemplate: '9f02b41227db70875b89eefeb275c769142607dc5b2593f4e606794aed2fdbad',
   getOnboardSkillTemplate: '4f4b60fea6e3fc7d2185815b2808fad51535fdd00cd4401b32d1536f32fa2b6d',
@@ -50,8 +50,8 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getOpsxOnboardCommandTemplate: '57c1f3e2590bda8f47818bab1d528456c1b8a9a7501f63ab9e2115e0cfaf6f35',
   getOpsxBulkArchiveCommandTemplate: 'b76c421023ccb5a12867c349f27cdb186234b692c1811980fb94127567bdabda',
   getOpsxVerifyCommandTemplate: '9a7a3f9e5bc3d0c0878b1a4493efbbb38729597d9b9be78f63284cc2da7c20c3',
-  getOpsxProposeSkillTemplate: '8af192d385c9470887b53b330169828ebd133a0958ba98290a3d4e7a53de9a2d',
-  getOpsxProposeCommandTemplate: '67a9c4881a5602d915375dfc1c9f73e8815b05b9cf84d2bf0babbe70a1da1f41',
+  getOpsxProposeSkillTemplate: '9091e6152e115407cc5de214b4cafbcc52c980e9614c1cdb6d20ca4dc80935a0',
+  getOpsxProposeCommandTemplate: '946adc8ed51a9e3c110799ced6b5c3e8a84996c140e53fa04d1c0b067943c732',
   getFeedbackSkillTemplate: 'd7d83c5f7fc2b92fe8f4588a5bf2d9cb315e4c73ec19bcd5ef28270906319a0d',
 };
 
@@ -59,14 +59,14 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-explore': '28d900ef82b325beb65e69ee6435949adcfdf14a4314638e7006e6dc359b92d4',
   'openspec-new-change': 'c99989810f982d72eefc74a35f2282b71f1956f23f61b83aaa58fa3dd921716f',
   'openspec-continue-change': 'c00e2a60f79cd60197094cc59762babe5ee6a2dc1e859a0ede3f436a775ccecf',
-  'openspec-apply-change': '92988c93603f89e433f23394902dbcb82e756c40393053c989f661183ae937ea',
+  'openspec-apply-change': '48951bbbe390ed7821463f3345a1049667a10e58a696c3f1d8b9312f1acd12eb',
   'openspec-ff-change': '9d9b1995b6f4adb3da570676f7d11fee4cd1cf6c5df8ec83c033e02783a544df',
   'openspec-sync-specs': '2e0f67ec6fadffc6107b4b1a28eef23a99a6649e5fae706897ea1dd9deb852a8',
   'openspec-archive-change': '8d14af2c8b2e4358308ac9fc14f75db42a4b41a07e175825035852a82479793e',
   'openspec-bulk-archive-change': '16207683996b1952559cd4e33463f28fb097761f2c5d912107733d01a90d3f2f',
   'openspec-verify-change': 'a2acecd0c2b4e57080a314e5e7a093e0688293c37e446eb45d378f5050058550',
   'openspec-onboard': 'b924ea3c97543ebb7ee82c5f194afe7ce87a521c32b85616f445240ab33a02ab',
-  'openspec-propose': '5158482fdc1b42577e24554d90adf4dda258cab7a4d86564c0fa651f6dd083ee',
+  'openspec-propose': 'c945e3bb576a63a967e030637a2197396dac6a7b599e5e905676b64824d14b8f',
 };
 
 function stableStringify(value: unknown): string {

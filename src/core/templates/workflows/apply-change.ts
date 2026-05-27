@@ -36,7 +36,7 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
    - \`schemaName\`: the workflow being used (e.g., "spec-driven")
    - \`contextFiles\`: artifact ID → array of file paths (varies by schema — proposal/specs/design/tasks for spec-driven)
    - \`progress\` (total / complete / remaining), \`tasks\` (with \`numericId\` when the file uses numbered tasks), \`nextPendingId\` (the first unchecked task with a \`numericId\`)
-   - \`state\`: \`"blocked"\` (missing artifacts → suggest openspec-continue-change), \`"all_done"\` (congratulate, suggest archive), or \`"ready"\` (proceed)
+   - \`state\`: \`"blocked"\` (missing artifacts → suggest the \`openspec-continue-change\` skill), \`"all_done"\` (congratulate, suggest archive), or \`"ready"\` (proceed)
    - \`instruction\`: dynamic guidance based on current state
 
    **Workspace guard:** If \`openspec status --change "<name>" --json\` reports \`actionContext.mode: "workspace-planning"\` and \`allowedEditRoots\` is empty, explain that full workspace apply is not supported in this slice. Treat linked repos and folders as read-only context, ask the user to select an affected area through an explicit implementation workflow, and STOP before editing files.
