@@ -85,11 +85,9 @@ function getApplyInstructions(): string {
 
 6. **Trello Integration — move card to "Em Desenvolvimento" (optional)**
 
-   \`\`\`bash
-   cat pastelsdd/trello.yaml 2>/dev/null || echo "NO_TRELLO_CONFIG"
-   \`\`\`
-
-   If "NO_TRELLO_CONFIG", skip all Trello steps.
+   Use the **Read tool** (NOT a shell command) to read \`pastelsdd/trello.yaml\` from the current working directory.
+   The Read tool is cross-platform and works on Windows, macOS, and Linux — never use \`cat\` or shell commands to read this file.
+   If the Read tool returns an error (file not found), skip all Trello steps.
 
    Otherwise parse and extract \`boardId\`, \`lists.refining\`, \`lists.ready\`, \`lists.developing\`, and \`lists.testing\`.
 
@@ -147,12 +145,12 @@ function getApplyInstructions(): string {
       mcp__claude_ai_Trello_Custom__add_comment
         card_id: "<cardId>"
         text: |
-          🔨 Implementação concluída via /pastel:apply
+          Implementacao concluida via /pastel:apply
 
-          **Change:** <change-name>
-          **Tasks:** <N>/<N> concluídas ✓
+          Change: <change-name>
+          Tasks: <N>/<N> concluidas
 
-          Pronto para teste/revisão. Para arquivar: \`/pastel:archive <name>\`
+          Proximo passo: /pastel:archive <name> para arquivar a change.
       \`\`\`
 
 9. **On completion or pause, show status**

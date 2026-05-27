@@ -51,11 +51,11 @@ Stop here if MCP is unavailable.
 
 ## Step 2 — Read existing config
 
-\`\`\`bash
-cat pastelsdd/trello.yaml 2>/dev/null || echo "NO_CONFIG"
-\`\`\`
+Use the **Read tool** (NOT a shell command) to read \`pastelsdd/trello.yaml\` from the current working directory.
+The Read tool is cross-platform and works on Windows, macOS, and Linux — never use \`cat\` or shell commands to read this file.
+If the Read tool returns an error (file not found), treat it as state C (no config).
 
-Parse the YAML output. Three possible states:
+Parse the file content. Three possible states:
 
 ### A) \`configured: true\` — already fully configured
 Display the current configuration and ask: "Reconfigurar a integração Trello?" (Sim / Não).

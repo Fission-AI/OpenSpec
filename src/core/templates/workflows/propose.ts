@@ -60,11 +60,9 @@ When ready to implement, run /pastel:apply
 
 3. **Trello Integration (optional)**
 
-   \`\`\`bash
-   cat pastelsdd/trello.yaml 2>/dev/null || echo "NO_TRELLO_CONFIG"
-   \`\`\`
-
-   If output is "NO_TRELLO_CONFIG", skip all Trello steps and continue to Step 4.
+   Use the **Read tool** (NOT a shell command) to read \`pastelsdd/trello.yaml\` from the current working directory.
+   The Read tool is cross-platform and works on Windows, macOS, and Linux — never use \`cat\` or shell commands to read this file.
+   If the Read tool returns an error (file not found), skip all Trello steps and continue to Step 4.
 
    Otherwise, parse the YAML and extract \`boardId\`, \`lists.backlog\`, and \`lists.refining\`.
 
@@ -152,14 +150,14 @@ When ready to implement, run /pastel:apply
    mcp__claude_ai_Trello_Custom__add_comment
      card_id: "<cardId>"
      text: |
-       📋 Proposta gerada via /pastel:propose
+       Proposta gerada via /pastel:propose
 
-       **Change:** <changeRoot>
-       **Artefatos criados:** proposal.md, design.md, tasks.md
+       Change: <changeRoot>
+       Artefatos criados: proposal.md, design.md, tasks.md
 
        <2-3 line summary of what will be built>
 
-       Para implementar: \`/pastel:apply <name>\`
+       Proximo passo: /pastel:apply <name> para iniciar a implementacao.
    \`\`\`
 
 7. **Show final status**

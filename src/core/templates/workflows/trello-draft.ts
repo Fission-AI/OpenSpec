@@ -32,11 +32,11 @@ This command is intentionally frictionless. Unlike \`/pastel:task\`, it does min
 
 ## Step 1 — Read Trello config
 
-\`\`\`bash
-cat pastelsdd/trello.yaml 2>/dev/null || echo "NO_TRELLO_CONFIG"
-\`\`\`
+Use the **Read tool** (NOT a shell command) to read \`pastelsdd/trello.yaml\` from the current working directory.
+The Read tool is cross-platform and works on Windows, macOS, and Linux — never use \`cat\` or shell commands to read this file.
+If the Read tool returns an error (file not found), treat it as "NO_TRELLO_CONFIG".
 
-**If output is "NO_TRELLO_CONFIG":**
+**If file not found:**
 > ⚠️ Trello não está configurado neste projeto.
 > Execute \`/pastel:trello-setup\` para configurar a integração antes de usar este comando.
 
@@ -74,7 +74,7 @@ Produce:
 
 **a. \`title\`** — The idea in up to ~80 chars, starting with a noun or verb.
   - Keep the user's original wording as much as possible
-  - Prefix with an emoji that fits: 💡 (ideia), 🔬 (investigar), 🎨 (design), ⚡ (melhoria), 🐛 (problema)
+  - **No emojis** in the title
 
 **b. \`context\`** (optional, 1–2 sentences max) — Only add if there's obvious project context to attach.
   If the idea is self-contained or opaque, leave blank.
@@ -83,17 +83,23 @@ Produce:
 
 ## Step 4 — Assemble the card description
 
+**No emojis anywhere in the description.**
+
 If context is present:
 \`\`\`
 <context>
 
 ---
-🗒️ *Ideia original:* "<raw input verbatim>"
+Ideia original: "<raw input verbatim>"
+
+Proximo passo: /pastel:propose para refinar e gerar os artefatos da change.
 \`\`\`
 
 If no context:
 \`\`\`
-🗒️ *Ideia original:* "<raw input verbatim>"
+Ideia original: "<raw input verbatim>"
+
+Proximo passo: /pastel:propose para refinar e gerar os artefatos da change.
 \`\`\`
 
 ---

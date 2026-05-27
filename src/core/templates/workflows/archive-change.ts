@@ -106,11 +106,9 @@ function getArchiveInstructions(): string {
 
 6. **Trello Integration — move card to "Concluído" (optional)**
 
-   \`\`\`bash
-   cat pastelsdd/trello.yaml 2>/dev/null || echo "NO_TRELLO_CONFIG"
-   \`\`\`
-
-   If "NO_TRELLO_CONFIG", skip all Trello steps.
+   Use the **Read tool** (NOT a shell command) to read \`pastelsdd/trello.yaml\` from the current working directory.
+   The Read tool is cross-platform and works on Windows, macOS, and Linux — never use \`cat\` or shell commands to read this file.
+   If the Read tool returns an error (file not found), skip all Trello steps.
 
    Otherwise parse and extract \`boardId\`, \`lists.done\` (and optionally \`lists.testing\`, \`lists.deploy\`, \`lists.developing\`, \`lists.ready\`, \`lists.refining\`, \`lists.backlog\`).
 
@@ -152,13 +150,15 @@ function getArchiveInstructions(): string {
    mcp__claude_ai_Trello_Custom__add_comment
      card_id: "<cardId>"
      text: |
-       ✅ Change arquivada via /pastel:archive
+       Change arquivada via /pastel:archive
 
-       **Change:** <change-name>
-       **Schema:** <schema-name>
-       **Arquivada em:** <archive-path>
-       **Specs:** <sincronizado / sem delta specs / sync pulado>
-       **Tasks:** <N>/<N> concluídas
+       Change: <change-name>
+       Schema: <schema-name>
+       Arquivada em: <archive-path>
+       Specs: <sincronizado / sem delta specs / sync pulado>
+       Tasks: <N>/<N> concluidas
+
+       Fluxo encerrado. Nenhuma acao adicional necessaria.
    \`\`\`
 
    If any Trello call fails, continue — Trello is auxiliary, never blocking.
