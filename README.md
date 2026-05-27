@@ -138,5 +138,5 @@ pastelsdd update
 ## Links
 
 - [npm](https://www.npmjs.com/package/@thiagodiogo/pastelsdd)
-- [Repository](https://github.com/thiagodiogo/pastelsdd)
-- [Issues / Feedback](https://github.com/thiagodiogo/pastelsdd/issues)
+- [Repository](https://github.com/eipastel/pastelsdd)
+- [Issues / Feedback](https://github.com/eipastel/pastelsdd/issues)
