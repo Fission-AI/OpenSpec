@@ -1,5 +1,5 @@
 ﻿<p align="center">
-  <a href="https://github.com/Fission-AI/Pastelsdd">
+  <a href="https://github.com/thiagodiogo/Pastelsdd">
     <picture>
       <source srcset="assets/pastelsdd_pixel_dark.svg" media="(prefers-color-scheme: dark)">
       <source srcset="assets/pastelsdd_pixel_light.svg" media="(prefers-color-scheme: light)">
@@ -10,9 +10,9 @@
 </p>
 <p align="center">Spec-driven development for AI coding assistants.</p>
 <p align="center">
-  <a href="https://github.com/Fission-AI/Pastelsdd/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Fission-AI/Pastelsdd/actions/workflows/ci.yml/badge.svg" /></a>
-  <a href="https://www.npmjs.com/package/@fission-ai/pastelsdd"><img alt="npm version" src="https://img.shields.io/npm/v/@fission-ai/pastelsdd?style=flat-square" /></a>
-  <a href="https://nodejs.org/"><img alt="node version" src="https://img.shields.io/node/v/@fission-ai/pastelsdd?style=flat-square" /></a>
+  <a href="https://github.com/thiagodiogo/Pastelsdd/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/thiagodiogo/Pastelsdd/actions/workflows/ci.yml/badge.svg" /></a>
+  <a href="https://www.npmjs.com/package/@thiagodiogo/pastelsdd"><img alt="npm version" src="https://img.shields.io/npm/v/@thiagodiogo/pastelsdd?style=flat-square" /></a>
+  <a href="https://nodejs.org/"><img alt="node version" src="https://img.shields.io/node/v/@thiagodiogo/pastelsdd?style=flat-square" /></a>
   <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" /></a>
   <a href="https://conventionalcommits.org"><img alt="Conventional Commits" src="https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg?style=flat-square" /></a>
   <a href="https://discord.gg/YctCnvvshC"><img alt="Discord" src="https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?logo=discord&logoColor=white&style=flat-square" /></a>
@@ -143,7 +143,7 @@ These tools automatically read workflow instructions from `pastelsdd/AGENTS.md`.
 **Option A: Using npm**
 
 ```bash
-npm install -g @fission-ai/pastelsdd@latest
+npm install -g @thiagodiogo/pastelsdd@latest
 ```
 
 Verify installation:
@@ -155,12 +155,12 @@ pastelsdd --version
 
 Run Pastelsdd directly without installation:
 ```bash
-nix run github:Fission-AI/Pastelsdd -- init
+nix run github:thiagodiogo/Pastelsdd -- init
 ```
 
 Or install to your profile:
 ```bash
-nix profile install github:Fission-AI/Pastelsdd
+nix profile install github:thiagodiogo/Pastelsdd
 ```
 
 Or add to your development environment in `flake.nix`:
@@ -168,7 +168,7 @@ Or add to your development environment in `flake.nix`:
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    pastelsdd.url = "github:Fission-AI/Pastelsdd";
+    pastelsdd.url = "github:thiagodiogo/Pastelsdd";
   };
 
   outputs = { nixpkgs, pastelsdd, ... }: {
@@ -403,7 +403,7 @@ Run `pastelsdd update` whenever someone switches tools so your agents pick up th
 
 1. **Upgrade the package**
    ```bash
-   npm install -g @fission-ai/pastelsdd@latest
+   npm install -g @thiagodiogo/pastelsdd@latest
    ```
 2. **Refresh agent instructions**
    - Run `pastelsdd update` inside each project to regenerate AI guidance and ensure the latest slash commands are active.

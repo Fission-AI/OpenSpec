@@ -167,7 +167,7 @@ pastelsdd update [path] [options]
 
 ```bash
 # Update instruction files after npm upgrade
-npm update @fission-ai/pastelsdd
+npm update @thiagodiogo/pastelsdd
 pastelsdd update
 ```
 
@@ -1090,7 +1090,7 @@ pastelsdd schema which spec-driven
 
 ```
 spec-driven resolves from: package
-  Source: /usr/local/lib/node_modules/@fission-ai/pastelsdd/schemas/spec-driven
+  Source: /usr/local/lib/node_modules/@thiagodiogo/pastelsdd/schemas/spec-driven
 ```
 
 **Schema precedence:**

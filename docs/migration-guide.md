@@ -592,5 +592,5 @@ project/
 ## Getting Help
 
 - **Discord**: [discord.gg/YctCnvvshC](https://discord.gg/YctCnvvshC)
-- **GitHub Issues**: [github.com/Fission-AI/Pastelsdd/issues](https://github.com/Fission-AI/Pastelsdd/issues)
+- **GitHub Issues**: [github.com/thiagodiogo/Pastelsdd/issues](https://github.com/thiagodiogo/Pastelsdd/issues)
 - **Documentation**: [docs/pastel.md](pastel.md) for the full OPSX reference

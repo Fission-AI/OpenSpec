@@ -1,5 +1,5 @@
 ﻿---
-"@fission-ai/pastelsdd": minor
+"@thiagodiogo/pastelsdd": minor
 ---
 
 ### New Features

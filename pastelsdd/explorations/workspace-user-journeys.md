@@ -324,12 +324,12 @@ For multi-repo work, durable identifiers should not be raw paths.
 
 Stable project identifiers should look like:
 
-- `github.com/Fission-AI/web-client`
-- `github.com/Fission-AI/contracts`
+- `github.com/thiagodiogo/web-client`
+- `github.com/thiagodiogo/contracts`
 
 User shorthand may be accepted:
 
-- `Fission-AI/web-client`
+- `thiagodiogo/web-client`
 - `fission/web-client`
 
 Pastelsdd resolves these to local paths using this order:
@@ -1152,10 +1152,10 @@ Pastelsdd interrupts the default single-repo flow and says:
 
 ```text
 This work spans multiple owning roots:
-- github.com/Fission-AI/contracts
-- github.com/Fission-AI/billing-service
-- github.com/Fission-AI/web-client
-- github.com/Fission-AI/ios-client
+- github.com/thiagodiogo/contracts
+- github.com/thiagodiogo/billing-service
+- github.com/thiagodiogo/web-client
+- github.com/thiagodiogo/ios-client
 
 For cross-repo work, Pastelsdd recommends creating a coordination workspace.
 
@@ -1194,10 +1194,10 @@ Pastelsdd writes:
 
 Pastelsdd now resolves local paths for:
 
-- `github.com/Fission-AI/contracts`
-- `github.com/Fission-AI/billing-service`
-- `github.com/Fission-AI/web-client`
-- `github.com/Fission-AI/ios-client`
+- `github.com/thiagodiogo/contracts`
+- `github.com/thiagodiogo/billing-service`
+- `github.com/thiagodiogo/web-client`
+- `github.com/thiagodiogo/ios-client`
 
 Using:
 
@@ -1302,10 +1302,10 @@ Which repos or scopes are involved?
 
 The user enters:
 
-- `github.com/Fission-AI/contracts`
-- `github.com/Fission-AI/billing-service`
-- `github.com/Fission-AI/web-client`
-- `github.com/Fission-AI/ios-client`
+- `github.com/thiagodiogo/contracts`
+- `github.com/thiagodiogo/billing-service`
+- `github.com/thiagodiogo/web-client`
+- `github.com/thiagodiogo/ios-client`
 
 Pastelsdd resolves local clones and writes the workspace files.
 
@@ -1367,7 +1367,7 @@ They create or choose a shared coordination repo, for example:
 Or a team-owned repo such as:
 
 ```text
-github.com/Fission-AI/initiatives
+github.com/thiagodiogo/initiatives
 ```
 
 Inside it, Pastelsdd creates:
@@ -1399,8 +1399,8 @@ The team commits:
 
 Each teammate keeps local path mappings outside the shared repo, for example in Pastelsdd local config/data:
 
-- `github.com/Fission-AI/contracts` -> `/Users/alice/src/contracts`
-- `github.com/Fission-AI/contracts` -> `/home/bob/work/contracts`
+- `github.com/thiagodiogo/contracts` -> `/Users/alice/src/contracts`
+- `github.com/thiagodiogo/contracts` -> `/home/bob/work/contracts`
 
 ### Teammate workflow
 
@@ -1546,15 +1546,15 @@ The coordination workspace may contain unresolved links such as:
 
 ```yaml
 projects:
-  - id: github.com/Fission-AI/contracts
+  - id: github.com/thiagodiogo/contracts
     path: /Users/me/work/contracts
     status: resolved
-  - id: github.com/Fission-AI/billing-service
+  - id: github.com/thiagodiogo/billing-service
     status: unresolved
-  - id: github.com/Fission-AI/web-client
+  - id: github.com/thiagodiogo/web-client
     path: /Users/me/work/web-client
     status: resolved
-  - id: github.com/Fission-AI/ios-client
+  - id: github.com/thiagodiogo/ios-client
     status: unresolved
 ```
 
@@ -1619,8 +1619,8 @@ References should appear like:
 
 ```text
 Related references:
-- github.com/Fission-AI/contracts: pastelsdd/specs/checkout/spec.md
-- github.com/Fission-AI/web-client: pastelsdd/specs/checkout/web/spec.md
+- github.com/thiagodiogo/contracts: pastelsdd/specs/checkout/spec.md
+- github.com/thiagodiogo/web-client: pastelsdd/specs/checkout/web/spec.md
 ```
 
 The agent can use them as navigation hints.
@@ -2005,8 +2005,8 @@ Resolved roots:
 - /Users/me/work/web-client
 
 Unresolved roots:
-- github.com/Fission-AI/billing-service
-- github.com/Fission-AI/ios-client
+- github.com/thiagodiogo/billing-service
+- github.com/thiagodiogo/ios-client
 
 Ownership:
 - contracts owns shared checkout contract

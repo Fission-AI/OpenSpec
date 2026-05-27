@@ -25,12 +25,12 @@ The system SHALL provide a Nix flake that builds Pastelsdd for multiple platform
 The system SHALL allow users to run Pastelsdd directly from GitHub without installing.
 
 #### Scenario: Run init command from GitHub
-- **WHEN** user runs `nix run github:Fission-AI/Pastelsdd -- init`
+- **WHEN** user runs `nix run github:thiagodiogo/Pastelsdd -- init`
 - **THEN** system downloads and builds Pastelsdd
 - **AND** executes `pastelsdd init` command
 
 #### Scenario: Run any Pastelsdd command
-- **WHEN** user runs `nix run github:Fission-AI/Pastelsdd -- <command> <args>`
+- **WHEN** user runs `nix run github:thiagodiogo/Pastelsdd -- <command> <args>`
 - **THEN** system executes `pastelsdd <command> <args>`
 
 ### Requirement: pnpm dependency management

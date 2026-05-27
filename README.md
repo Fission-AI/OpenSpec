@@ -1,5 +1,5 @@
 ﻿<p align="center">
-  <a href="https://github.com/Fission-AI/Pastelsdd">
+  <a href="https://github.com/thiagodiogo/Pastelsdd">
     <picture>
       <source srcset="assets/pastelsdd_bg.png">
       <img src="assets/pastelsdd_bg.png" alt="Pastelsdd logo">
@@ -8,8 +8,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Fission-AI/Pastelsdd/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Fission-AI/Pastelsdd/actions/workflows/ci.yml/badge.svg" /></a>
-  <a href="https://www.npmjs.com/package/@fission-ai/pastelsdd"><img alt="npm version" src="https://img.shields.io/npm/v/@fission-ai/pastelsdd?style=flat-square" /></a>
+  <a href="https://github.com/thiagodiogo/Pastelsdd/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/thiagodiogo/Pastelsdd/actions/workflows/ci.yml/badge.svg" /></a>
+  <a href="https://www.npmjs.com/package/@thiagodiogo/pastelsdd"><img alt="npm version" src="https://img.shields.io/npm/v/@thiagodiogo/pastelsdd?style=flat-square" /></a>
   <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" /></a>
   <a href="https://discord.gg/YctCnvvshC"><img alt="Discord" src="https://img.shields.io/discord/1411657095639601154?style=flat-square&logo=discord&logoColor=white&label=Discord&suffix=%20online" /></a>
 </p>
@@ -17,9 +17,9 @@
 <details>
 <summary><strong>The most loved spec framework.</strong></summary>
 
-[![Stars](https://img.shields.io/github/stars/Fission-AI/Pastelsdd?style=flat-square&label=Stars)](https://github.com/Fission-AI/Pastelsdd/stargazers)
-[![Downloads](https://img.shields.io/npm/dm/@fission-ai/pastelsdd?style=flat-square&label=Downloads/mo)](https://www.npmjs.com/package/@fission-ai/pastelsdd)
-[![Contributors](https://img.shields.io/github/contributors/Fission-AI/Pastelsdd?style=flat-square&label=Contributors)](https://github.com/Fission-AI/Pastelsdd/graphs/contributors)
+[![Stars](https://img.shields.io/github/stars/thiagodiogo/Pastelsdd?style=flat-square&label=Stars)](https://github.com/thiagodiogo/Pastelsdd/stargazers)
+[![Downloads](https://img.shields.io/npm/dm/@thiagodiogo/pastelsdd?style=flat-square&label=Downloads/mo)](https://www.npmjs.com/package/@thiagodiogo/pastelsdd)
+[![Contributors](https://img.shields.io/github/contributors/thiagodiogo/Pastelsdd?style=flat-square&label=Contributors)](https://github.com/thiagodiogo/Pastelsdd/graphs/contributors)
 
 </details>
 <p></p>
@@ -84,7 +84,7 @@ AI:  Archived to pastelsdd/changes/archive/2025-01-23-add-dark-mode/
 Install Pastelsdd globally:
 
 ```bash
-npm install -g @fission-ai/pastelsdd@latest
+npm install -g @thiagodiogo/pastelsdd@latest
 ```
 
 Then navigate to your project directory and initialize:
@@ -144,7 +144,7 @@ AI coding assistants are powerful but unpredictable when requirements live only 
 **Upgrade the package**
 
 ```bash
-npm install -g @fission-ai/pastelsdd@latest
+npm install -g @thiagodiogo/pastelsdd@latest
 ```
 
 **Refresh agent instructions**

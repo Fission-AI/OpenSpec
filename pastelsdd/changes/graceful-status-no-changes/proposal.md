@@ -1,6 +1,6 @@
 ﻿## Why
 
-When `pastelsdd status` is called without `--change` and no changes exist (e.g., during onboarding on a freshly initialized project), the CLI throws a fatal error: `No changes found. Create one with: pastelsdd new change <name>`. This breaks the onboarding flow because AI agents may call `pastelsdd status` before any change has been created, causing the agent to halt or report failure. Fixes [#714](https://github.com/Fission-AI/Pastelsdd/issues/714).
+When `pastelsdd status` is called without `--change` and no changes exist (e.g., during onboarding on a freshly initialized project), the CLI throws a fatal error: `No changes found. Create one with: pastelsdd new change <name>`. This breaks the onboarding flow because AI agents may call `pastelsdd status` before any change has been created, causing the agent to halt or report failure. Fixes [#714](https://github.com/thiagodiogo/Pastelsdd/issues/714).
 
 ## What Changes
 

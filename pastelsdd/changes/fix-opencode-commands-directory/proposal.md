@@ -1,6 +1,6 @@
 ﻿## Why
 
-The OpenCode adapter uses `.opencode/command/` (singular) for its commands directory, but OpenCode's official documentation specifies `.opencode/commands/` (plural). Every other adapter in the codebase also uses plural directory names (`.claude/commands/`, `.cursor/commands/`, `.factory/commands/`, etc.). This inconsistency was introduced in Oct 2025 without documented rationale. Fixes [#748](https://github.com/Fission-AI/Pastelsdd/issues/748).
+The OpenCode adapter uses `.opencode/command/` (singular) for its commands directory, but OpenCode's official documentation specifies `.opencode/commands/` (plural). Every other adapter in the codebase also uses plural directory names (`.claude/commands/`, `.cursor/commands/`, `.factory/commands/`, etc.). This inconsistency was introduced in Oct 2025 without documented rationale. Fixes [#748](https://github.com/thiagodiogo/Pastelsdd/issues/748).
 
 ## What Changes
 

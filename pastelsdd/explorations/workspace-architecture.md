@@ -647,7 +647,7 @@ To avoid losing this in exploration notes, codify it in:
 
 ## Part 10: Design Decisions (April 2026)
 
-After evaluating the models above against real multi-repo use cases (see [#725](https://github.com/Fission-AI/Pastelsdd/issues/725)), we converged on the following design direction.
+After evaluating the models above against real multi-repo use cases (see [#725](https://github.com/thiagodiogo/Pastelsdd/issues/725)), we converged on the following design direction.
 
 ### Core Insight
 

@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   prepare:
-    if: github.repository == 'Fission-AI/Pastelsdd'
+    if: github.repository == 'thiagodiogo/Pastelsdd'
     runs-on: ubuntu-latest
     steps:
       # Generate GitHub App token first - used for checkout and changesets

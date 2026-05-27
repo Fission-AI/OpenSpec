@@ -1,4 +1,4 @@
-{
+﻿{
   description = "OpenSpec - AI-native system for spec-driven development";
 
   inputs = {
@@ -73,7 +73,7 @@
 
             meta = with pkgs.lib; {
               description = "AI-native system for spec-driven development";
-              homepage = "https://github.com/Fission-AI/OpenSpec";
+              homepage = "https://github.com/thiagodiogo/OpenSpec";
               license = licenses.mit;
               maintainers = [ ];
               mainProgram = "openspec";

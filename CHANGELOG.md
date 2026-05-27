@@ -1,10 +1,10 @@
-﻿# @fission-ai/pastelsdd
+﻿# @thiagodiogo/pastelsdd
 
 ## 1.3.1
 
 ### Patch Changes
 
-- [#995](https://github.com/Fission-AI/Pastelsdd/pull/995) [`d1f3861`](https://github.com/Fission-AI/Pastelsdd/commit/d1f3861d9ec694cc924b042b5da01963dcf93137) Thanks [@TabishB](https://github.com/TabishB)! - ### Bug Fixes
+- [#995](https://github.com/thiagodiogo/Pastelsdd/pull/995) [`d1f3861`](https://github.com/thiagodiogo/Pastelsdd/commit/d1f3861d9ec694cc924b042b5da01963dcf93137) Thanks [@TabishB](https://github.com/TabishB)! - ### Bug Fixes
 
   - **Canonical artifact paths** — Workflow artifact paths are now resolved via the native `realpath`, so symlinks and case-insensitive filesystems no longer cause path mismatches during apply and archive.
   - **Glob apply instructions** — Apply instructions with glob artifact outputs now resolve correctly, and literal artifact outputs are enforced to be file paths.
@@ -16,7 +16,7 @@
 
 ### Minor Changes
 
-- [#952](https://github.com/Fission-AI/Pastelsdd/pull/952) [`cce787e`](https://github.com/Fission-AI/Pastelsdd/commit/cce787ec4083da2b27781f6786f5ce0002909a7b) Thanks [@TabishB](https://github.com/TabishB)! - ### New Features
+- [#952](https://github.com/thiagodiogo/Pastelsdd/pull/952) [`cce787e`](https://github.com/thiagodiogo/Pastelsdd/commit/cce787ec4083da2b27781f6786f5ce0002909a7b) Thanks [@TabishB](https://github.com/TabishB)! - ### New Features
 
   - **Junie support** — Added tool and command generation for JetBrains Junie
   - **Lingma IDE support** — Added configuration support for Lingma IDE
@@ -31,15 +31,15 @@
 
 ### Patch Changes
 
-- [#760](https://github.com/Fission-AI/Pastelsdd/pull/760) [`61eb999`](https://github.com/Fission-AI/Pastelsdd/commit/61eb999f7c6c0fc98d2e7f3678756fce6a3f4378) Thanks [@fsilvaortiz](https://github.com/fsilvaortiz)! - fix: OpenCode adapter now uses `.opencode/commands/` (plural) to match OpenCode's official directory convention. Fixes #748.
+- [#760](https://github.com/thiagodiogo/Pastelsdd/pull/760) [`61eb999`](https://github.com/thiagodiogo/Pastelsdd/commit/61eb999f7c6c0fc98d2e7f3678756fce6a3f4378) Thanks [@fsilvaortiz](https://github.com/fsilvaortiz)! - fix: OpenCode adapter now uses `.opencode/commands/` (plural) to match OpenCode's official directory convention. Fixes #748.
 
-- [#759](https://github.com/Fission-AI/Pastelsdd/pull/759) [`afdca0d`](https://github.com/Fission-AI/Pastelsdd/commit/afdca0d5dab1aa109cfd8848b2512333ccad60c3) Thanks [@fsilvaortiz](https://github.com/fsilvaortiz)! - fix: `pastelsdd status` now exits gracefully when no changes exist instead of throwing a fatal error. Fixes #714.
+- [#759](https://github.com/thiagodiogo/Pastelsdd/pull/759) [`afdca0d`](https://github.com/thiagodiogo/Pastelsdd/commit/afdca0d5dab1aa109cfd8848b2512333ccad60c3) Thanks [@fsilvaortiz](https://github.com/fsilvaortiz)! - fix: `pastelsdd status` now exits gracefully when no changes exist instead of throwing a fatal error. Fixes #714.
 
 ## 1.2.0
 
 ### Minor Changes
 
-- [#747](https://github.com/Fission-AI/Pastelsdd/pull/747) [`1e94443`](https://github.com/Fission-AI/Pastelsdd/commit/1e94443a3551b228eecbc89e95d96d3b9600a192) Thanks [@TabishB](https://github.com/TabishB)! - ### New Features
+- [#747](https://github.com/thiagodiogo/Pastelsdd/pull/747) [`1e94443`](https://github.com/thiagodiogo/Pastelsdd/commit/1e94443a3551b228eecbc89e95d96d3b9600a192) Thanks [@TabishB](https://github.com/TabishB)! - ### New Features
 
   - **Profile system** — Choose between `core` (4 essential workflows) and `custom` (pick any subset) profiles to control which skills get installed. Manage profiles with the new `pastelsdd config profile` command
   - **Propose workflow** — New one-step workflow creates a complete change proposal with design, specs, and tasks from a single request — no need to run `new` then `ff` separately
@@ -59,7 +59,7 @@
 
 ### Patch Changes
 
-- [#627](https://github.com/Fission-AI/Pastelsdd/pull/627) [`afb73cf`](https://github.com/Fission-AI/Pastelsdd/commit/afb73cf9ec59c6f8b26d0c538c0218c203ba3c56) Thanks [@TabishB](https://github.com/TabishB)! - ### Bug Fixes
+- [#627](https://github.com/thiagodiogo/Pastelsdd/pull/627) [`afb73cf`](https://github.com/thiagodiogo/Pastelsdd/commit/afb73cf9ec59c6f8b26d0c538c0218c203ba3c56) Thanks [@TabishB](https://github.com/TabishB)! - ### Bug Fixes
 
   - **OpenCode command references** — Command references in generated files now use the correct `/pastel-` hyphen format instead of `/pastel:` colon format, ensuring commands work properly in OpenCode
 
@@ -67,7 +67,7 @@
 
 ### Minor Changes
 
-- [#625](https://github.com/Fission-AI/Pastelsdd/pull/625) [`53081fb`](https://github.com/Fission-AI/Pastelsdd/commit/53081fb2a26ec66d2950ae0474b9a56cbc5b5a76) Thanks [@TabishB](https://github.com/TabishB)! - ### Bug Fixes
+- [#625](https://github.com/thiagodiogo/Pastelsdd/pull/625) [`53081fb`](https://github.com/thiagodiogo/Pastelsdd/commit/53081fb2a26ec66d2950ae0474b9a56cbc5b5a76) Thanks [@TabishB](https://github.com/TabishB)! - ### Bug Fixes
 
   - **Codex global path support** — Codex adapter now resolves global paths correctly, fixing workflow file generation when run outside the project directory (#622)
   - **Archive operations on cross-device or restricted paths** — Archive now falls back to copy+remove when rename fails with EPERM or EXDEV errors, fixing failures on networked/external drives (#605)
@@ -76,7 +76,7 @@
 
 ### Patch Changes
 
-- [#550](https://github.com/Fission-AI/Pastelsdd/pull/550) [`86d2e04`](https://github.com/Fission-AI/Pastelsdd/commit/86d2e04cae76a999dbd1b4571f52fa720036be0c) Thanks [@jerome-benoit](https://github.com/jerome-benoit)! - ### Improvements
+- [#550](https://github.com/thiagodiogo/Pastelsdd/pull/550) [`86d2e04`](https://github.com/thiagodiogo/Pastelsdd/commit/86d2e04cae76a999dbd1b4571f52fa720036be0c) Thanks [@jerome-benoit](https://github.com/jerome-benoit)! - ### Improvements
 
   - **Nix flake maintenance** — Version now read dynamically from package.json, reducing manual sync issues
   - **Nix build optimization** — Source filtering excludes node_modules and artifacts, improving build times
@@ -90,7 +90,7 @@
 
 ### Patch Changes
 
-- [#596](https://github.com/Fission-AI/Pastelsdd/pull/596) [`e91568d`](https://github.com/Fission-AI/Pastelsdd/commit/e91568deb948073f3e9d9bb2d2ab5bf8080d6cf4) Thanks [@TabishB](https://github.com/TabishB)! - ### Bug Fixes
+- [#596](https://github.com/thiagodiogo/Pastelsdd/pull/596) [`e91568d`](https://github.com/thiagodiogo/Pastelsdd/commit/e91568deb948073f3e9d9bb2d2ab5bf8080d6cf4) Thanks [@TabishB](https://github.com/TabishB)! - ### Bug Fixes
 
   - Clarified spec naming convention — Specs should be named after capabilities (`specs/<capability>/spec.md`), not changes
   - Fixed task checkbox format guidance — Tasks now clearly require `- [ ]` checkbox format for apply phase tracking
@@ -99,7 +99,7 @@
 
 ### Patch Changes
 
-- [#587](https://github.com/Fission-AI/Pastelsdd/pull/587) [`943e0d4`](https://github.com/Fission-AI/Pastelsdd/commit/943e0d41026d034de66b9442d1276c01b293eb2b) Thanks [@TabishB](https://github.com/TabishB)! - ### Bug Fixes
+- [#587](https://github.com/thiagodiogo/Pastelsdd/pull/587) [`943e0d4`](https://github.com/thiagodiogo/Pastelsdd/commit/943e0d41026d034de66b9442d1276c01b293eb2b) Thanks [@TabishB](https://github.com/TabishB)! - ### Bug Fixes
 
   - Fixed incorrect archive path in onboarding documentation — the template now shows the correct path `pastelsdd/changes/archive/YYYY-MM-DD-<name>/` instead of the incorrect `pastelsdd/archive/YYYY-MM-DD--<name>/`
 
@@ -107,7 +107,7 @@
 
 ### Major Changes
 
-- [#578](https://github.com/Fission-AI/Pastelsdd/pull/578) [`0cc9d90`](https://github.com/Fission-AI/Pastelsdd/commit/0cc9d9025af367faa1688a7b2606a2549053cd3f) Thanks [@TabishB](https://github.com/TabishB)! - ## Pastelsdd 1.0 — The OPSX Release
+- [#578](https://github.com/thiagodiogo/Pastelsdd/pull/578) [`0cc9d90`](https://github.com/thiagodiogo/Pastelsdd/commit/0cc9d9025af367faa1688a7b2606a2549053cd3f) Thanks [@TabishB](https://github.com/TabishB)! - ## Pastelsdd 1.0 — The OPSX Release
 
   The workflow has been rebuilt from the ground up. OPSX replaces the old phase-locked `/pastelsdd:*` commands with an action-based system where AI understands what artifacts exist, what's ready to create, and what each action unlocks.
 
@@ -193,7 +193,7 @@
 
 ### Minor Changes
 
-- [#540](https://github.com/Fission-AI/Pastelsdd/pull/540) [`c4cfdc7`](https://github.com/Fission-AI/Pastelsdd/commit/c4cfdc7c499daef30d8a218f5f59b8d9e5adb754) Thanks [@TabishB](https://github.com/TabishB)! - ### New Features
+- [#540](https://github.com/thiagodiogo/Pastelsdd/pull/540) [`c4cfdc7`](https://github.com/thiagodiogo/Pastelsdd/commit/c4cfdc7c499daef30d8a218f5f59b8d9e5adb754) Thanks [@TabishB](https://github.com/TabishB)! - ### New Features
 
   - **Bulk archive skill** — Archive multiple completed changes in a single operation with `/pastel:bulk-archive`. Includes batch validation, spec conflict detection, and consolidated confirmation
 
@@ -205,7 +205,7 @@
 
 ### Minor Changes
 
-- [#530](https://github.com/Fission-AI/Pastelsdd/pull/530) [`33466b1`](https://github.com/Fission-AI/Pastelsdd/commit/33466b1e2a6798bdd6d0e19149173585b0612e6f) Thanks [@TabishB](https://github.com/TabishB)! - Add project-level configuration, project-local schemas, and schema management commands
+- [#530](https://github.com/thiagodiogo/Pastelsdd/pull/530) [`33466b1`](https://github.com/thiagodiogo/Pastelsdd/commit/33466b1e2a6798bdd6d0e19149173585b0612e6f) Thanks [@TabishB](https://github.com/TabishB)! - Add project-level configuration, project-local schemas, and schema management commands
 
   **New Features**
 
@@ -221,7 +221,7 @@
 
 ### Minor Changes
 
-- [#516](https://github.com/Fission-AI/Pastelsdd/pull/516) [`b5a8847`](https://github.com/Fission-AI/Pastelsdd/commit/b5a884748be6156a7bb140b4941cfec4f20a9fc8) Thanks [@TabishB](https://github.com/TabishB)! - Add feedback command and Nix flake support
+- [#516](https://github.com/thiagodiogo/Pastelsdd/pull/516) [`b5a8847`](https://github.com/thiagodiogo/Pastelsdd/commit/b5a884748be6156a7bb140b4941cfec4f20a9fc8) Thanks [@TabishB](https://github.com/TabishB)! - Add feedback command and Nix flake support
 
   **New Features**
 
@@ -241,7 +241,7 @@
 
 ### Minor Changes
 
-- [#502](https://github.com/Fission-AI/Pastelsdd/pull/502) [`9db74aa`](https://github.com/Fission-AI/Pastelsdd/commit/9db74aa5ac6547efadaed795217cfa17444f2004) Thanks [@TabishB](https://github.com/TabishB)! - Add `/pastel:verify` command and fix vitest process storms
+- [#502](https://github.com/thiagodiogo/Pastelsdd/pull/502) [`9db74aa`](https://github.com/thiagodiogo/Pastelsdd/commit/9db74aa5ac6547efadaed795217cfa17444f2004) Thanks [@TabishB](https://github.com/TabishB)! - Add `/pastel:verify` command and fix vitest process storms
 
   **New Features**
 

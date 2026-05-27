@@ -274,7 +274,7 @@ export class UpdateCommand {
       console.log('  /pastel:continue  Create the next artifact');
       console.log('  /pastel:apply     Implement tasks');
       console.log();
-      console.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/Pastelsdd')}`);
+      console.log(`Learn more: ${chalk.cyan('https://github.com/thiagodiogo/Pastelsdd')}`);
     }
 
     const configuredAndNewTools = [...new Set([...configuredTools, ...newlyConfiguredTools])];

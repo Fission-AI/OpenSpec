@@ -24,7 +24,7 @@ Use this structure for your changeset content:
 
 ```markdown
 ---
-"@fission-ai/pastelsdd": patch
+"@thiagodiogo/pastelsdd": patch
 ---
 
 ### New Features

@@ -9,19 +9,19 @@
 ### npm
 
 ```bash
-npm install -g @fission-ai/pastelsdd@latest
+npm install -g @thiagodiogo/pastelsdd@latest
 ```
 
 ### pnpm
 
 ```bash
-pnpm add -g @fission-ai/pastelsdd@latest
+pnpm add -g @thiagodiogo/pastelsdd@latest
 ```
 
 ### yarn
 
 ```bash
-yarn global add @fission-ai/pastelsdd@latest
+yarn global add @thiagodiogo/pastelsdd@latest
 ```
 
 ### bun
@@ -30,7 +30,7 @@ Bun can install Pastelsdd globally, but Pastelsdd currently runs on Node.js.
 You still need Node.js 20.19.0 or higher available on `PATH`.
 
 ```bash
-bun add -g @fission-ai/pastelsdd@latest
+bun add -g @thiagodiogo/pastelsdd@latest
 ```
 
 ## Nix
@@ -38,13 +38,13 @@ bun add -g @fission-ai/pastelsdd@latest
 Run Pastelsdd directly without installation:
 
 ```bash
-nix run github:Fission-AI/Pastelsdd -- init
+nix run github:thiagodiogo/Pastelsdd -- init
 ```
 
 Or install to your profile:
 
 ```bash
-nix profile install github:Fission-AI/Pastelsdd
+nix profile install github:thiagodiogo/Pastelsdd
 ```
 
 Or add to your development environment in `flake.nix`:
@@ -53,7 +53,7 @@ Or add to your development environment in `flake.nix`:
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    pastelsdd.url = "github:Fission-AI/Pastelsdd";
+    pastelsdd.url = "github:thiagodiogo/Pastelsdd";
   };
 
   outputs = { nixpkgs, pastelsdd, ... }: {

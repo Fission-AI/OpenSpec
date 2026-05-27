@@ -1,6 +1,6 @@
 ﻿## Why
 
-Pastelsdd users on NixOS or using the Nix package manager cannot easily install or run Pastelsdd without going through npm. Adding a Nix flake makes Pastelsdd a first-class citizen in the Nix ecosystem, enabling users to run `nix run github:Fission-AI/Pastelsdd -- init` or include Pastelsdd in their development environments declaratively.
+Pastelsdd users on NixOS or using the Nix package manager cannot easily install or run Pastelsdd without going through npm. Adding a Nix flake makes Pastelsdd a first-class citizen in the Nix ecosystem, enabling users to run `nix run github:thiagodiogo/Pastelsdd -- init` or include Pastelsdd in their development environments declaratively.
 
 ## What Changes
 

@@ -1,5 +1,5 @@
 ﻿---
-"@fission-ai/pastelsdd": patch
+"@thiagodiogo/pastelsdd": patch
 ---
 
 ### Fixed
