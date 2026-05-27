@@ -48,6 +48,7 @@ import {
   writeWorkspaceLocalState,
   writeWorkspaceRegistryState,
 } from '../../../src/core/workspace/index.js';
+import { expectedExistingPath } from '../../helpers/workspace-paths.js';
 
 describe('workspace foundation', () => {
   let tempDir: string;
@@ -82,10 +83,6 @@ paths: {}
     );
 
     return workspaceRoot;
-  }
-
-  function expectedExistingPath(existingPath: string): string {
-    return process.platform === 'win32' ? fs.realpathSync.native(existingPath) : existingPath;
   }
 
   describe('path helpers', () => {

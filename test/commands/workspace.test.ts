@@ -25,6 +25,12 @@ import {
 } from '../../src/core/workspace/index.js';
 import { FileSystemUtils } from '../../src/utils/file-system.js';
 import { runCLI, type RunCLIResult } from '../helpers/run-cli.js';
+import {
+  expectedExistingPath,
+  expectedWorkspaceCodeWorkspacePath,
+  expectedWorkspaceFolders,
+  expectWorkspaceLaunchLog,
+} from '../helpers/workspace-paths.js';
 
 describe('workspace command', () => {
   let tempDir: string;
@@ -52,10 +58,6 @@ describe('workspace command', () => {
     const dir = path.join(tempDir, relativePath);
     fs.mkdirSync(dir, { recursive: true });
     return dir;
-  }
-
-  function expectedExistingPath(existingPath: string): string {
-    return process.platform === 'win32' ? fs.realpathSync.native(existingPath) : existingPath;
   }
 
   function parseJson(result: RunCLIResult): any {
@@ -206,19 +208,21 @@ describe('workspace command', () => {
     expect(fs.readFileSync(path.join(workspaceRoot, 'AGENTS.md'), 'utf-8')).toContain(
       'OpenSpec Workspace Guidance'
     );
-    expect(JSON.parse(fs.readFileSync(getWorkspaceCodeWorkspacePath(workspaceRoot, 'platform'), 'utf-8')).folders).toEqual([
-      {
-        path: '.',
-      },
-      {
-        name: 'api',
-        path: expectedApi,
-      },
-      {
-        name: 'checkout',
-        path: expectedCheckout,
-      },
-    ]);
+    expect(JSON.parse(fs.readFileSync(getWorkspaceCodeWorkspacePath(workspaceRoot, 'platform'), 'utf-8')).folders).toEqual(
+      expectedWorkspaceFolders([
+        {
+          path: '.',
+        },
+        {
+          name: 'api',
+          path: api,
+        },
+        {
+          name: 'checkout',
+          path: checkout,
+        },
+      ])
+    );
 
     const list = await runCLI(['workspace', 'ls', '--json'], { cwd: tempDir, env });
     expect(list.exitCode).toBe(0);
@@ -1445,7 +1449,6 @@ paths:
 
   it('opens a workspace through VS Code editor and agent overrides without changing stored preference', async () => {
     const api = mkdir('repos/api');
-    const expectedApi = expectedExistingPath(api);
     const web = mkdir('repos/web');
     const setup = await setupWorkspace('platform', [`api=${api}`, `web=${web}`], ['--opener', 'editor']);
     fs.rmSync(web, { recursive: true, force: true });
@@ -1463,22 +1466,22 @@ paths:
     const workspaceFolders = JSON.parse(
       fs.readFileSync(getWorkspaceCodeWorkspacePath(setup.workspace.root, 'platform'), 'utf-8')
     ).folders;
-    expect(workspaceFolders).toEqual([
-      {
-        path: '.',
-      },
-      {
-        name: 'api',
-        path: expectedApi,
-      },
-    ]);
-    const editorLaunch = readLaunchLog(code.logPath);
-    expect(fs.realpathSync.native(editorLaunch.cwd)).toBe(
-      fs.realpathSync.native(setup.workspace.root)
+    expect(workspaceFolders).toEqual(
+      expectedWorkspaceFolders([
+        {
+          path: '.',
+        },
+        {
+          name: 'api',
+          path: api,
+        },
+      ])
     );
-    expect(editorLaunch.args).toEqual([
-      getWorkspaceCodeWorkspacePath(expectedExistingPath(setup.workspace.root), 'platform'),
-    ]);
+    const editorLaunch = readLaunchLog(code.logPath);
+    expectWorkspaceLaunchLog(editorLaunch, {
+      cwd: setup.workspace.root,
+      args: [{ workspaceFile: { root: setup.workspace.root, name: 'platform' } }],
+    });
 
     const currentWorkspaceOpen = await runCLI(['workspace', 'open', '--editor', '--no-interactive'], {
       cwd: path.join(setup.workspace.root, WORKSPACE_CHANGES_DIR_NAME),
@@ -1497,14 +1500,10 @@ paths:
 
     expect(codexOpen.exitCode).toBe(0);
     const codexLaunch = readLaunchLog(codex.logPath);
-    expect(fs.realpathSync.native(codexLaunch.cwd)).toBe(
-      fs.realpathSync.native(setup.workspace.root)
-    );
-    expect(codexLaunch.args).toEqual([
-      '--add-dir',
-      expectedApi,
-      'Open this OpenSpec workspace.',
-    ]);
+    expectWorkspaceLaunchLog(codexLaunch, {
+      cwd: setup.workspace.root,
+      args: ['--add-dir', { existingPath: api }, 'Open this OpenSpec workspace.'],
+    });
     expect(readLocalState(setup.workspace.root).preferred_opener).toEqual({
       kind: 'editor',
       id: 'vscode',
@@ -1602,7 +1601,7 @@ preferred_opener:
     expect(unavailable.exitCode).toBe(1);
     expect(unavailable.stderr).toContain("'code' was not found on PATH");
     expect(unavailable.stderr).toContain(
-      getWorkspaceCodeWorkspacePath(expectedExistingPath(platform.workspace.root), 'platform')
+      expectedWorkspaceCodeWorkspacePath(platform.workspace.root, 'platform')
     );
   });
 
