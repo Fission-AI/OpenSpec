@@ -152,15 +152,62 @@ function getApplyInstructions(): string {
           Change: <change-name>
           Tasks: <N>/<N> concluidas
 
+          Aguardando validacao antes de mover para Ready to Deploy.
+      \`\`\`
+
+   If any Trello call fails, continue — Trello is auxiliary, never blocking.
+
+9. **Fase de Testes — validar implementação**
+
+   After completing all tasks (and moving the card to "Em Teste" if Trello is configured),
+   use the **AskUserQuestion tool** to ask how the user wants to proceed with validation:
+
+   - **"Vou testar eu mesmo"** — user will test independently; wait for them to report back
+   - **"Quero que você teste"** — Claude should invoke the \`verify\` skill to validate the implementation
+   - **"Já testei, está funcionando"** — user already confirmed; proceed to move card to "Ready to Deploy"
+
+   **If user chooses "Vou testar eu mesmo":**
+   - Tell them to test and come back when ready (e.g., saying "está funcionando" or "encontrei um problema")
+   - Wait — do NOT proceed until the user responds
+
+   **If user chooses to have Claude test:**
+   - Use the **Skill tool** to invoke the \`verify\` skill, which runs the app and observes the change
+   - Report the findings clearly to the user
+   - Ask: "A implementação está funcionando como esperado?" (Sim / Não, encontrei um problema)
+
+   **When the user confirms it's working** (any path above):
+
+   If Trello is configured, \`cardId\` was saved, and \`lists.deploy\` is configured:
+   a. Move the card to "Ready to Deploy":
+      \`\`\`tool
+      mcp__claude_ai_Trello_Custom__update_card  { card_id: "<cardId>", list_id: "<lists.deploy.id>" }
+      \`\`\`
+   b. Add a comment in Portuguese:
+      \`\`\`tool
+      mcp__claude_ai_Trello_Custom__add_comment
+        card_id: "<cardId>"
+        text: |
+          Implementacao validada e aprovada para deploy.
+
+          Testado por: <usuario / Claude>
+          Status: Funcionando
+
           Proximo passo: /pstl:archive <name> para arquivar a change.
       \`\`\`
 
-9. **On completion or pause, show status**
+   If any Trello call fails, continue — Trello is auxiliary, never blocking.
+
+   **If user reports a problem:**
+   - Acknowledge the issue and ask for details
+   - Resume implementation to fix the problem (loop back to step 7)
+   - Do NOT move the card to "Ready to Deploy" until the user confirms it's working
+
+10. **On completion or pause, show status**
 
    Display:
    - Tasks completed this session
    - Overall progress: "N/M tasks complete"
-   - If all done: suggest \`/pstl:archive\` + mention Trello card stage if applicable
+   - If all done and approved: mention Trello stage (Em Teste or Ready to Deploy) and suggest \`/pstl:archive\`
    - If paused: explain why and wait for guidance
 
 **Output During Implementation**
@@ -177,7 +224,7 @@ Working on task 4/7: <task description>
 ✓ Task complete
 \`\`\`
 
-**Output On Completion**
+**Output On Completion (aguardando testes)**
 
 \`\`\`
 ## Implementation Complete
@@ -192,7 +239,18 @@ Working on task 4/7: <task description>
 - [x] Task 2
 ...
 
-All tasks complete! Archive with \`/pstl:archive\`.
+All tasks complete! How would you like to validate the implementation?
+\`\`\`
+
+**Output After Validation Approved**
+
+\`\`\`
+## Validation Approved ✅
+
+**Change:** <change-name>
+**Trello:** Card moved to 🚀 Ready to Deploy  ← only shown if lists.deploy is configured
+
+Ready to archive with \`/pstl:archive\`.
 \`\`\`
 
 **Output On Pause (Issue Encountered)**
@@ -226,6 +284,9 @@ What would you like to do?
 - Use contextFiles from CLI output, don't assume specific file names
 - If Trello tools fail, continue normally — Trello is auxiliary, not blocking
 - All content written to Trello must be in Portuguese
+- Never move the card to "Ready to Deploy" without explicit user confirmation that the implementation is working
+- If the user reports a problem during testing, loop back to fix before asking again
+- Offer to invoke the \`verify\` skill when the user wants Claude to test — don't skip straight to archive
 
 **Fluid Workflow Integration**
 
