@@ -320,6 +320,19 @@ describe('command-generation/adapters', () => {
       expect(output).toContain('---\n\n');
       expect(output).toContain('This is the command body.');
     });
+
+    it('should replace unsupported runtime tool references', () => {
+      const output = codexAdapter.formatFile({
+        ...sampleContent,
+        body: 'Use the **AskUserQuestion tool** to clarify.\nUse the **TodoWrite tool** to track progress.\nUse Task tool (subagent_type: "general-purpose", prompt: "sync").',
+      });
+
+      expect(output).not.toContain('AskUserQuestion');
+      expect(output).not.toContain('TodoWrite');
+      expect(output).not.toContain('Task tool');
+      expect(output).not.toContain('subagent_type');
+      expect(output).toContain('Ask the user in chat and wait for their reply');
+    });
   });
 
   describe('codebuddyAdapter', () => {
