@@ -107,9 +107,9 @@ After completing all artifacts, summarize:
   };
 }
 
-export function getOpsxFfCommandTemplate(): CommandTemplate {
+export function getPastelFfCommandTemplate(): CommandTemplate {
   return {
-    name: 'OPSX: Fast Forward',
+    name: 'Pastel: Fast Forward',
     description: 'Create a change and generate all artifacts needed for implementation in one go',
     category: 'Workflow',
     tags: ['workflow', 'artifacts', 'experimental'],

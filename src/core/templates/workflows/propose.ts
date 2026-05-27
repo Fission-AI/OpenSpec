@@ -6,11 +6,29 @@
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 
-export function getOpsxProposeSkillTemplate(): SkillTemplate {
+export function getProposeSkillTemplate(): SkillTemplate {
   return {
     name: 'pastelsdd-propose',
     description: 'Propose a new change with all artifacts generated in one step. Use when the user wants to quickly describe what they want to build and get a complete proposal with design, specs, and tasks ready for implementation.',
-    instructions: `Propose a new change - create the change and generate all artifacts in one step.
+    instructions: getProposeInstructions(),
+    license: 'MIT',
+    compatibility: 'Requires pastelsdd CLI.',
+    metadata: { author: 'pastelsdd', version: '1.0' },
+  };
+}
+
+export function getPastelProposeCommandTemplate(): CommandTemplate {
+  return {
+    name: 'Pastel: Propose',
+    description: 'Propose a new change - create it and generate all artifacts in one step',
+    category: 'Workflow',
+    tags: ['workflow', 'artifacts', 'propose'],
+    content: getProposeInstructions(),
+  };
+}
+
+function getProposeInstructions(): string {
+  return `Propose a new change - create the change and generate all artifacts in one step.
 
 I'll create a change with artifacts:
 - proposal.md (what & why)
@@ -40,20 +58,66 @@ When ready to implement, run /pastel:apply
    \`\`\`
    This creates a scaffolded change in the planning home resolved by the CLI with \`.pastelsdd.yaml\`.
 
-3. **Get the artifact build order**
+3. **Trello Integration (optional)**
+
+   \`\`\`bash
+   cat pastelsdd/trello.yaml 2>/dev/null || echo "NO_TRELLO_CONFIG"
+   \`\`\`
+
+   If output is "NO_TRELLO_CONFIG", skip all Trello steps and continue to Step 4.
+
+   Otherwise, parse the YAML and extract \`boardId\`, \`lists.backlog\`, and \`lists.refining\`.
+
+   **Sync Trello card:**
+
+   a. If \`lists.backlog\` is configured, search for an existing card by name (case-insensitive, partial match):
+      \`\`\`tool
+      mcp__claude_ai_Trello_Custom__get_cards  { list_id: "<lists.backlog.id>" }
+      \`\`\`
+
+   b. **If card found in backlog AND \`lists.refining\` is configured:**
+      Move it to the refining list:
+      \`\`\`tool
+      mcp__claude_ai_Trello_Custom__update_card  { card_id: "<id>", list_id: "<lists.refining.id>" }
+      \`\`\`
+      Save \`cardId\`.
+
+   c. **If card found but no refining list configured:** keep card in backlog, save \`cardId\`.
+
+   d. **If no card found AND \`lists.refining\` is configured:**
+      Create a new card directly in the refining list:
+      \`\`\`tool
+      mcp__claude_ai_Trello_Custom__create_card
+        list_id: "<lists.refining.id>"
+        name: "<human-readable change name in Portuguese>"
+        desc: "Change iniciada via /pastel:propose"
+      \`\`\`
+      Save \`cardId\`.
+
+   e. **If no card found and no refining list:** create in backlog. Save \`cardId\`.
+
+   f. **Assign the current user:**
+      \`\`\`tool
+      mcp__claude_ai_Trello_Custom__get_me
+      mcp__claude_ai_Trello_Custom__add_card_member  { card_id: "<cardId>", member_id: "<me.id>" }
+      \`\`\`
+
+   If any Trello call fails, log the error and continue — Trello is auxiliary, never blocking.
+
+4. **Get the artifact build order**
    \`\`\`bash
    pastelsdd status --change "<name>" --json
    \`\`\`
    Parse the JSON to get:
-   - \`applyRequires\`: array of artifact IDs needed before implementation (e.g., \`["tasks"]\`)
+   - \`applyRequires\`: array of artifact IDs needed before implementation
    - \`artifacts\`: list of all artifacts with their status and dependencies
-   - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context. Use these instead of assuming repo-local paths.
+   - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context
 
-4. **Create artifacts in sequence until apply-ready**
+5. **Create artifacts in sequence until apply-ready**
 
    Use the **TodoWrite tool** to track progress through the artifacts.
 
-   Loop through artifacts in dependency order (artifacts with no pending dependencies first):
+   Loop through artifacts in dependency order:
 
    a. **For each artifact that is \`ready\` (dependencies satisfied)**:
       - Get instructions:
@@ -69,19 +133,36 @@ When ready to implement, run /pastel:apply
         - \`dependencies\`: Completed artifacts to read for context
       - Read any completed dependency files for context
       - Create the artifact file using \`template\` as the structure and write it to \`resolvedOutputPath\`
-      - Apply \`context\` and \`rules\` as constraints - but do NOT copy them into the file
+      - Apply \`context\` and \`rules\` as constraints — do NOT copy them into the file
       - Show brief progress: "Created <artifact-id>"
 
    b. **Continue until all \`applyRequires\` artifacts are complete**
       - After creating each artifact, re-run \`pastelsdd status --change "<name>" --json\`
-      - Check if every artifact ID in \`applyRequires\` has \`status: "done"\` in the artifacts array
+      - Check if every artifact ID in \`applyRequires\` has \`status: "done"\`
       - Stop when all \`applyRequires\` artifacts are done
 
    c. **If an artifact requires user input** (unclear context):
       - Use **AskUserQuestion tool** to clarify
       - Then continue with creation
 
-5. **Show final status**
+6. **Trello comment (optional)**
+
+   If \`cardId\` was saved in Step 3, add a comment in Portuguese:
+   \`\`\`tool
+   mcp__claude_ai_Trello_Custom__add_comment
+     card_id: "<cardId>"
+     text: |
+       📋 Proposta gerada via /pastel:propose
+
+       **Change:** <changeRoot>
+       **Artefatos criados:** proposal.md, design.md, tasks.md
+
+       <2-3 line summary of what will be built>
+
+       Para implementar: \`/pastel:apply <name>\`
+   \`\`\`
+
+7. **Show final status**
    \`\`\`bash
    pastelsdd status --change "<name>"
    \`\`\`
@@ -91,136 +172,24 @@ When ready to implement, run /pastel:apply
 After completing all artifacts, summarize:
 - Change name and location
 - List of artifacts created with brief descriptions
-- What's ready: "All artifacts created! Ready for implementation."
-- Prompt: "Run \`/pastel:apply\` or ask me to implement to start working on the tasks."
-
-**Artifact Creation Guidelines**
-
-- Follow the \`instruction\` field from \`pastelsdd instructions\` for each artifact type
-- The schema defines what each artifact should contain - follow it
-- Read dependency artifacts for context before creating new ones
-- Use \`template\` as the structure for your output file - fill in its sections
-- **IMPORTANT**: \`context\` and \`rules\` are constraints for YOU, not content for the file
-  - Do NOT copy \`<context>\`, \`<rules>\`, \`<project_context>\` blocks into the artifact
-  - These guide what you write, but should never appear in the output
-
-**Guardrails**
-- Create ALL artifacts needed for implementation (as defined by schema's \`apply.requires\`)
-- Always read dependency artifacts before creating a new one
-- If context is critically unclear, ask the user - but prefer making reasonable decisions to keep momentum
-- If a change with that name already exists, ask if user wants to continue it or create a new one
-- Verify each artifact file exists after writing before proceeding to next`,
-    license: 'MIT',
-    compatibility: 'Requires pastelsdd CLI.',
-    metadata: { author: 'pastelsdd', version: '1.0' },
-  };
-}
-
-export function getOpsxProposeCommandTemplate(): CommandTemplate {
-  return {
-    name: 'OPSX: Propose',
-    description: 'Propose a new change - create it and generate all artifacts in one step',
-    category: 'Workflow',
-    tags: ['workflow', 'artifacts', 'experimental'],
-    content: `Propose a new change - create the change and generate all artifacts in one step.
-
-I'll create a change with artifacts:
-- proposal.md (what & why)
-- design.md (how)
-- tasks.md (implementation steps)
-
-When ready to implement, run /pastel:apply
-
----
-
-**Input**: The argument after \`/pastel:propose\` is the change name (kebab-case), OR a description of what the user wants to build.
-
-**Steps**
-
-1. **If no input provided, ask what they want to build**
-
-   Use the **AskUserQuestion tool** (open-ended, no preset options) to ask:
-   > "What change do you want to work on? Describe what you want to build or fix."
-
-   From their description, derive a kebab-case name (e.g., "add user authentication" → \`add-user-auth\`).
-
-   **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
-
-2. **Create the change directory**
-   \`\`\`bash
-   pastelsdd new change "<name>"
-   \`\`\`
-   This creates a scaffolded change in the planning home resolved by the CLI with \`.pastelsdd.yaml\`.
-
-3. **Get the artifact build order**
-   \`\`\`bash
-   pastelsdd status --change "<name>" --json
-   \`\`\`
-   Parse the JSON to get:
-   - \`applyRequires\`: array of artifact IDs needed before implementation (e.g., \`["tasks"]\`)
-   - \`artifacts\`: list of all artifacts with their status and dependencies
-   - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context. Use these instead of assuming repo-local paths.
-
-4. **Create artifacts in sequence until apply-ready**
-
-   Use the **TodoWrite tool** to track progress through the artifacts.
-
-   Loop through artifacts in dependency order (artifacts with no pending dependencies first):
-
-   a. **For each artifact that is \`ready\` (dependencies satisfied)**:
-      - Get instructions:
-        \`\`\`bash
-        pastelsdd instructions <artifact-id> --change "<name>" --json
-        \`\`\`
-      - The instructions JSON includes:
-        - \`context\`: Project background (constraints for you - do NOT include in output)
-        - \`rules\`: Artifact-specific rules (constraints for you - do NOT include in output)
-        - \`template\`: The structure to use for your output file
-        - \`instruction\`: Schema-specific guidance for this artifact type
-        - \`resolvedOutputPath\`: Resolved path or pattern to write the artifact
-        - \`dependencies\`: Completed artifacts to read for context
-      - Read any completed dependency files for context
-      - Create the artifact file using \`template\` as the structure and write it to \`resolvedOutputPath\`
-      - Apply \`context\` and \`rules\` as constraints - but do NOT copy them into the file
-      - Show brief progress: "Created <artifact-id>"
-
-   b. **Continue until all \`applyRequires\` artifacts are complete**
-      - After creating each artifact, re-run \`pastelsdd status --change "<name>" --json\`
-      - Check if every artifact ID in \`applyRequires\` has \`status: "done"\` in the artifacts array
-      - Stop when all \`applyRequires\` artifacts are done
-
-   c. **If an artifact requires user input** (unclear context):
-      - Use **AskUserQuestion tool** to clarify
-      - Then continue with creation
-
-5. **Show final status**
-   \`\`\`bash
-   pastelsdd status --change "<name>"
-   \`\`\`
-
-**Output**
-
-After completing all artifacts, summarize:
-- Change name and location
-- List of artifacts created with brief descriptions
-- What's ready: "All artifacts created! Ready for implementation."
+- "All artifacts created! Ready for implementation."
 - Prompt: "Run \`/pastel:apply\` to start implementing."
+- If Trello was used: mention which list the card is in
 
 **Artifact Creation Guidelines**
 
 - Follow the \`instruction\` field from \`pastelsdd instructions\` for each artifact type
-- The schema defines what each artifact should contain - follow it
 - Read dependency artifacts for context before creating new ones
-- Use \`template\` as the structure for your output file - fill in its sections
+- Use \`template\` as the structure — fill in its sections
 - **IMPORTANT**: \`context\` and \`rules\` are constraints for YOU, not content for the file
-  - Do NOT copy \`<context>\`, \`<rules>\`, \`<project_context>\` blocks into the artifact
-  - These guide what you write, but should never appear in the output
 
 **Guardrails**
 - Create ALL artifacts needed for implementation (as defined by schema's \`apply.requires\`)
 - Always read dependency artifacts before creating a new one
-- If context is critically unclear, ask the user - but prefer making reasonable decisions to keep momentum
+- If context is critically unclear, ask the user — but prefer reasonable decisions to keep momentum
 - If a change with that name already exists, ask if user wants to continue it or create a new one
-- Verify each artifact file exists after writing before proceeding to next`
-  };
+- Verify each artifact file exists after writing before proceeding to next
+- If Trello tools fail, continue normally — Trello is auxiliary, not blocking
+- All content written to Trello must be in Portuguese
+`;
 }

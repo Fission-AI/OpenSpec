@@ -28,6 +28,9 @@ export const ALL_WORKFLOWS = [
   'bulk-archive',
   'verify',
   'onboard',
+  // Trello-specific workflows
+  'trello-setup',
+  'draft',
 ] as const;
 
 export type WorkflowId = (typeof ALL_WORKFLOWS)[number];

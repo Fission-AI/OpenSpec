@@ -253,9 +253,9 @@ No active changes found. Create a new change to get started.
   };
 }
 
-export function getOpsxBulkArchiveCommandTemplate(): CommandTemplate {
+export function getPastelBulkArchiveCommandTemplate(): CommandTemplate {
   return {
-    name: 'OPSX: Bulk Archive',
+    name: 'Pastel: Bulk Archive',
     description: 'Archive multiple completed changes at once',
     category: 'Workflow',
     tags: ['workflow', 'archive', 'experimental', 'bulk'],

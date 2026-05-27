@@ -1,6 +1,6 @@
-﻿{
+{
   "name": "@thiagodiogo/pastelsdd",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "description": "AI-native system for spec-driven development",
   "keywords": [
     "pastelsdd",
@@ -72,6 +72,7 @@
   "dependencies": {
     "@inquirer/core": "^10.2.2",
     "@inquirer/prompts": "^7.8.0",
+    "@thiagodiogo/pastelsdd": "file:thiagodiogo-pastelsdd-1.0.0-beta.1.tgz",
     "chalk": "^5.5.0",
     "commander": "^14.0.0",
     "cross-spawn": "7.0.6",

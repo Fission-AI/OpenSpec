@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Skill Generation Utilities
  *
  * Shared utilities for generating skill and command files.
@@ -15,18 +15,22 @@ import {
   getBulkArchiveChangeSkillTemplate,
   getVerifyChangeSkillTemplate,
   getOnboardSkillTemplate,
-  getOpsxProposeSkillTemplate,
-  getOpsxExploreCommandTemplate,
-  getOpsxNewCommandTemplate,
-  getOpsxContinueCommandTemplate,
-  getOpsxApplyCommandTemplate,
-  getOpsxFfCommandTemplate,
-  getOpsxSyncCommandTemplate,
-  getOpsxArchiveCommandTemplate,
-  getOpsxBulkArchiveCommandTemplate,
-  getOpsxVerifyCommandTemplate,
-  getOpsxOnboardCommandTemplate,
-  getOpsxProposeCommandTemplate,
+  getProposeSkillTemplate,
+  getTrelloSetupSkillTemplate,
+  getTrelloDraftSkillTemplate,
+  getPastelExploreCommandTemplate,
+  getPastelNewCommandTemplate,
+  getPastelContinueCommandTemplate,
+  getPastelApplyCommandTemplate,
+  getPastelFfCommandTemplate,
+  getPastelSyncCommandTemplate,
+  getPastelArchiveCommandTemplate,
+  getPastelBulkArchiveCommandTemplate,
+  getPastelVerifyCommandTemplate,
+  getPastelOnboardCommandTemplate,
+  getPastelProposeCommandTemplate,
+  getTrelloSetupCommandTemplate,
+  getTrelloDraftCommandTemplate,
   type SkillTemplate,
 } from '../templates/skill-templates.js';
 import type { CommandContent } from '../command-generation/index.js';
@@ -44,7 +48,7 @@ export interface SkillTemplateEntry {
  * Command template with ID mapping.
  */
 export interface CommandTemplateEntry {
-  template: ReturnType<typeof getOpsxExploreCommandTemplate>;
+  template: ReturnType<typeof getPastelExploreCommandTemplate>;
   id: string;
 }
 
@@ -65,7 +69,10 @@ export function getSkillTemplates(workflowFilter?: readonly string[]): SkillTemp
     { template: getBulkArchiveChangeSkillTemplate(), dirName: 'pastelsdd-bulk-archive-change', workflowId: 'bulk-archive' },
     { template: getVerifyChangeSkillTemplate(), dirName: 'pastelsdd-verify-change', workflowId: 'verify' },
     { template: getOnboardSkillTemplate(), dirName: 'pastelsdd-onboard', workflowId: 'onboard' },
-    { template: getOpsxProposeSkillTemplate(), dirName: 'pastelsdd-propose', workflowId: 'propose' },
+    { template: getProposeSkillTemplate(), dirName: 'pastelsdd-propose', workflowId: 'propose' },
+    // Trello-specific workflows
+    { template: getTrelloSetupSkillTemplate(), dirName: 'pastelsdd-trello-setup', workflowId: 'trello-setup' },
+    { template: getTrelloDraftSkillTemplate(), dirName: 'pastelsdd-trello-draft', workflowId: 'draft' },
   ];
 
   if (!workflowFilter) return all;
@@ -81,17 +88,20 @@ export function getSkillTemplates(workflowFilter?: readonly string[]): SkillTemp
  */
 export function getCommandTemplates(workflowFilter?: readonly string[]): CommandTemplateEntry[] {
   const all: CommandTemplateEntry[] = [
-    { template: getOpsxExploreCommandTemplate(), id: 'explore' },
-    { template: getOpsxNewCommandTemplate(), id: 'new' },
-    { template: getOpsxContinueCommandTemplate(), id: 'continue' },
-    { template: getOpsxApplyCommandTemplate(), id: 'apply' },
-    { template: getOpsxFfCommandTemplate(), id: 'ff' },
-    { template: getOpsxSyncCommandTemplate(), id: 'sync' },
-    { template: getOpsxArchiveCommandTemplate(), id: 'archive' },
-    { template: getOpsxBulkArchiveCommandTemplate(), id: 'bulk-archive' },
-    { template: getOpsxVerifyCommandTemplate(), id: 'verify' },
-    { template: getOpsxOnboardCommandTemplate(), id: 'onboard' },
-    { template: getOpsxProposeCommandTemplate(), id: 'propose' },
+    { template: getPastelExploreCommandTemplate(), id: 'explore' },
+    { template: getPastelNewCommandTemplate(), id: 'new' },
+    { template: getPastelContinueCommandTemplate(), id: 'continue' },
+    { template: getPastelApplyCommandTemplate(), id: 'apply' },
+    { template: getPastelFfCommandTemplate(), id: 'ff' },
+    { template: getPastelSyncCommandTemplate(), id: 'sync' },
+    { template: getPastelArchiveCommandTemplate(), id: 'archive' },
+    { template: getPastelBulkArchiveCommandTemplate(), id: 'bulk-archive' },
+    { template: getPastelVerifyCommandTemplate(), id: 'verify' },
+    { template: getPastelOnboardCommandTemplate(), id: 'onboard' },
+    { template: getPastelProposeCommandTemplate(), id: 'propose' },
+    // Trello-specific workflows
+    { template: getTrelloSetupCommandTemplate(), id: 'trello-setup' },
+    { template: getTrelloDraftCommandTemplate(), id: 'draft' },
   ];
 
   if (!workflowFilter) return all;

@@ -36,7 +36,9 @@ import {
   migrateFromOpenspec,
   formatOpenspecDetectionSummary,
   formatOpenspecMigrationSummary,
+  pastelsddDirExists,
 } from './openspec-migration.js';
+import { runTrelloInitPrompt } from './trello-init-prompt.js';
 import {
   SKILL_NAMES,
   getToolsWithSkillsDir,
@@ -78,6 +80,9 @@ const WORKFLOW_TO_SKILL_DIR: Record<string, string> = {
   'verify': 'pastelsdd-verify-change',
   'onboard': 'pastelsdd-onboard',
   'propose': 'pastelsdd-propose',
+  // Trello-specific workflows
+  'trello-setup': 'pastelsdd-trello-setup',
+  'draft': 'pastelsdd-trello-draft',
 };
 
 // -----------------------------------------------------------------------------
@@ -153,6 +158,9 @@ export class InitCommand {
     // Create directory structure and config
     await this.createDirectoryStructure(pastelsddPath, extendMode);
 
+    // Trello integration setup (interactive mode only)
+    const trelloConfigured = await this.handleTrelloSetup(pastelsddPath);
+
     // Generate skills and commands for each tool
     const results = await this.generateSkillsAndCommands(projectPath, validatedTools);
 
@@ -160,7 +168,7 @@ export class InitCommand {
     const configStatus = await this.createConfig(pastelsddPath, extendMode);
 
     // Display success message
-    this.displaySuccessMessage(projectPath, validatedTools, results, configStatus);
+    this.displaySuccessMessage(projectPath, validatedTools, results, configStatus, trelloConfigured);
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -209,8 +217,11 @@ export class InitCommand {
       return;
     }
 
+    // Determine whether pastelsdd/ already exists so we can show the right summary
+    const alreadyExists = await pastelsddDirExists(projectPath);
+
     console.log();
-    console.log(formatOpenspecDetectionSummary(detection));
+    console.log(formatOpenspecDetectionSummary(detection, alreadyExists));
     console.log();
 
     const canPrompt = this.canPromptInteractively();
@@ -222,8 +233,13 @@ export class InitCommand {
     }
 
     const { confirm } = await import('@inquirer/prompts');
+    const dirName = detection.openspecDirName;
+    const migrateLabel = alreadyExists
+      ? `Merge ${dirName}/ into pastelsdd/ and complete the migration?`
+      : `Migrate this project from OpenSpec to Pastelsdd?`;
+
     const shouldMigrate = await confirm({
-      message: 'Migrate from OpenSpec to Pastelsdd?',
+      message: migrateLabel,
       default: true,
     });
 
@@ -357,6 +373,9 @@ export class InitCommand {
     // Interactive mode: show searchable multi-select
     const { searchableMultiSelect } = await import('../prompts/searchable-multi-select.js');
 
+    // Claude is pre-selected by default when nothing is configured or detected yet
+    const shouldPreselectClaude = !extendMode && configuredToolIds.size === 0 && detectedToolIds.size === 0;
+
     // Build choices: pre-select configured tools; keep detected tools visible but unselected.
     const sortedChoices = validTools
       .map((toolId) => {
@@ -364,13 +383,14 @@ export class InitCommand {
         const status = toolStates.get(toolId);
         const configured = status?.configured ?? false;
         const detected = detectedToolIds.has(toolId);
+        const isClaudeDefault = toolId === 'claude' && shouldPreselectClaude;
 
         return {
           name: tool?.name || toolId,
           value: toolId,
           configured,
           detected: detected && !configured,
-          preSelected: configured || (shouldPreselectDetected && detected && !configured),
+          preSelected: configured || (shouldPreselectDetected && detected && !configured) || isClaudeDefault,
         };
       })
       .sort((a, b) => {
@@ -513,6 +533,23 @@ export class InitCommand {
   }
 
   // ═══════════════════════════════════════════════════════════
+  // TRELLO SETUP
+  // ═══════════════════════════════════════════════════════════
+
+  private async handleTrelloSetup(pastelsddPath: string): Promise<boolean> {
+    if (!this.canPromptInteractively()) {
+      return false;
+    }
+
+    try {
+      return await runTrelloInitPrompt(pastelsddPath);
+    } catch {
+      // Non-fatal — Trello setup is optional
+      return false;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
   // DIRECTORY STRUCTURE
   // ═══════════════════════════════════════════════════════════
 
@@ -577,7 +614,13 @@ export class InitCommand {
     const globalConfig = getGlobalConfig();
     const profile: Profile = this.resolveProfileOverride() ?? globalConfig.profile ?? 'core';
     const delivery: Delivery = globalConfig.delivery ?? 'both';
-    const workflows = getProfileWorkflows(profile, globalConfig.workflows);
+    const profileWorkflows = getProfileWorkflows(profile, globalConfig.workflows);
+
+    // Trello workflows are always generated regardless of profile, so users can
+    // run /pastel:trello-setup to configure the integration at any time.
+    const TRELLO_WORKFLOWS = ['trello-setup', 'task', 'draft'] as const;
+    const workflowsSet = new Set([...profileWorkflows, ...TRELLO_WORKFLOWS]);
+    const workflows = [...workflowsSet];
 
     // Get skill and command templates filtered by profile workflows
     const shouldGenerateSkills = delivery !== 'commands';
@@ -693,7 +736,8 @@ export class InitCommand {
       removedCommandCount: number;
       removedSkillCount: number;
     },
-    configStatus: 'created' | 'exists' | 'skipped'
+    configStatus: 'created' | 'exists' | 'skipped',
+    trelloConfigured = false
   ): void {
     console.log();
     console.log(chalk.bold('Pastelsdd Setup Complete'));
@@ -707,13 +751,15 @@ export class InitCommand {
       console.log(`Refreshed: ${results.refreshedTools.map((t) => t.name).join(', ')}`);
     }
 
-    // Show counts (respecting profile filter)
+    // Show counts (respecting profile filter + trello workflows always included)
     const successfulTools = [...results.createdTools, ...results.refreshedTools];
     if (successfulTools.length > 0) {
       const globalConfig = getGlobalConfig();
       const profile: Profile = (this.profileOverride as Profile) ?? globalConfig.profile ?? 'core';
       const delivery: Delivery = globalConfig.delivery ?? 'both';
-      const workflows = getProfileWorkflows(profile, globalConfig.workflows);
+      const profileWorkflows = getProfileWorkflows(profile, globalConfig.workflows);
+      const TRELLO_WORKFLOWS = ['trello-setup', 'task', 'draft'];
+      const workflows = [...new Set([...profileWorkflows, ...TRELLO_WORKFLOWS])];
       const toolDirs = [...new Set(successfulTools.map((t) => t.skillsDir))].join(', ');
       const skillCount = delivery !== 'commands' ? getSkillTemplates(workflows).length : 0;
       const commandCount = delivery !== 'skills' ? getCommandContents(workflows).length : 0;
@@ -768,6 +814,14 @@ export class InitCommand {
       console.log('  Start your first change: /pastel:new "your idea"');
     } else {
       console.log("Done. Run 'pastelsdd config profile' to configure your workflows.");
+    }
+
+    // Trello status
+    if (trelloConfigured) {
+      console.log();
+      console.log(chalk.bold('Trello Integration'));
+      console.log(`  Preferences saved to ${chalk.cyan('pastelsdd/trello.yaml')}`);
+      console.log(`  Run ${chalk.cyan('/pastel:trello-setup')} in Claude Code to connect your Trello lists.`);
     }
 
     // Links

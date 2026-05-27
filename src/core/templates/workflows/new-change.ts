@@ -79,9 +79,9 @@ After completing the steps, summarize:
   };
 }
 
-export function getOpsxNewCommandTemplate(): CommandTemplate {
+export function getPastelNewCommandTemplate(): CommandTemplate {
   return {
-    name: 'OPSX: New',
+    name: 'Pastel: New',
     description: 'Start a new change using the experimental artifact workflow (OPSX)',
     category: 'Workflow',
     tags: ['workflow', 'artifacts', 'experimental'],

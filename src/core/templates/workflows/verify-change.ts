@@ -176,9 +176,9 @@ Use clear markdown with:
   };
 }
 
-export function getOpsxVerifyCommandTemplate(): CommandTemplate {
+export function getPastelVerifyCommandTemplate(): CommandTemplate {
   return {
-    name: 'OPSX: Verify',
+    name: 'Pastel: Verify',
     description: 'Verify implementation matches change artifacts before archiving',
     category: 'Workflow',
     tags: ['workflow', 'verify', 'experimental'],

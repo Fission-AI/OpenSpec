@@ -292,9 +292,9 @@ But this summary is optional. Sometimes the thinking IS the value.
   };
 }
 
-export function getOpsxExploreCommandTemplate(): CommandTemplate {
+export function getPastelExploreCommandTemplate(): CommandTemplate {
   return {
-    name: 'OPSX: Explore',
+    name: 'Pastel: Explore',
     description: 'Enter explore mode - think through ideas, investigate problems, clarify requirements',
     category: 'Workflow',
     tags: ['workflow', 'explore', 'experimental', 'thinking'],

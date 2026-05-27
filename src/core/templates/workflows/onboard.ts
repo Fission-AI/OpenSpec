@@ -451,7 +451,43 @@ The change is now part of your project's history. The code is in your codebase, 
 
 ---
 
-## Phase 11: Recap & Next Steps
+## Phase 11: Trello Integration (optional)
+
+After the core workflow is complete, check if the Trello MCP server is available:
+
+\`\`\`tool
+mcp__claude_ai_Trello_Custom__get_me
+\`\`\`
+
+**If the call succeeds** (Trello MCP is available):
+
+\`\`\`
+## 🎉 Trello disponível!
+
+Detectei que o servidor MCP do Trello está ativo. O Pastelsdd pode sincronizar
+automaticamente cards no Trello conforme você avança nas suas changes.
+
+**Benefícios da integração:**
+- /pastel:task   → adiciona tarefa ao Backlog do Trello
+- /pastel:draft  → registra ideias em "Para Explorar"
+- /pastel:propose → move card para "Em Refinamento"
+- /pastel:apply  → move card para "Em Desenvolvimento" e depois "Em Teste"
+- /pastel:archive → move card para "Concluído"
+
+Deseja configurar agora?
+\`\`\`
+
+Use **AskUserQuestion** to ask: "Configurar integração com Trello agora?" (Sim, configurar agora / Não, depois).
+
+If "Sim": invoke \`/pastel:trello-setup\` instructions directly (run the trello-setup skill inline).
+
+If "Não": mention they can run \`/pastel:trello-setup\` at any time.
+
+**If the call fails** (Trello MCP not available): skip this phase silently.
+
+---
+
+## Phase 12: Recap & Next Steps
 
 \`\`\`
 ## Congratulations!
@@ -475,21 +511,29 @@ This same rhythm works for any size change—a small fix or a major feature.
 
 **Core workflow:**
 
- | Command           | What it does                               |
- |-------------------|--------------------------------------------|
- | \`/pastel:propose\` | Create a change and generate all artifacts |
- | \`/pastel:explore\` | Think through problems before/during work  |
- | \`/pastel:apply\`   | Implement tasks from a change              |
- | \`/pastel:archive\` | Archive a completed change                 |
+ | Command                | What it does                               |
+ |------------------------|--------------------------------------------|
+ | \`/pastel:propose\`     | Create a change and generate all artifacts |
+ | \`/pastel:explore\`     | Think through problems before/during work  |
+ | \`/pastel:apply\`       | Implement tasks from a change              |
+ | \`/pastel:archive\`     | Archive a completed change                 |
 
 **Additional commands:**
 
- | Command            | What it does                                             |
- |--------------------|----------------------------------------------------------|
- | \`/pastel:new\`      | Start a new change, step through artifacts one at a time |
- | \`/pastel:continue\` | Continue working on an existing change                   |
- | \`/pastel:ff\`       | Fast-forward: create all artifacts at once               |
- | \`/pastel:verify\`   | Verify implementation matches artifacts                  |
+ | Command                | What it does                                             |
+ |------------------------|----------------------------------------------------------|
+ | \`/pastel:new\`         | Start a new change, step through artifacts one at a time |
+ | \`/pastel:continue\`    | Continue working on an existing change                   |
+ | \`/pastel:ff\`          | Fast-forward: create all artifacts at once               |
+ | \`/pastel:verify\`      | Verify implementation matches artifacts                  |
+
+**Trello integration (if configured):**
+
+ | Command                | What it does                                             |
+ |------------------------|----------------------------------------------------------|
+ | \`/pastel:task\`        | Add an ownerless task to the Trello Backlog              |
+ | \`/pastel:draft\`       | Capture a raw idea in "Para Explorar"                    |
+ | \`/pastel:trello-setup\`| Configure or reconfigure Trello integration              |
 
 ---
 
@@ -561,9 +605,9 @@ Exit gracefully.
 - **Adjust scope gently**—guide toward smaller tasks but respect user choice`;
 }
 
-export function getOpsxOnboardCommandTemplate(): CommandTemplate {
+export function getPastelOnboardCommandTemplate(): CommandTemplate {
   return {
-    name: 'OPSX: Onboard',
+    name: 'Pastel: Onboard',
     description: 'Guided onboarding - walk through a complete Pastelsdd workflow cycle with narration',
     category: 'Workflow',
     tags: ['workflow', 'onboarding', 'tutorial', 'learning'],

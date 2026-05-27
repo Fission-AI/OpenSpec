@@ -23,6 +23,9 @@ export const WORKFLOW_TO_SKILL_DIR: Record<WorkflowId, string> = {
   'verify': 'pastelsdd-verify-change',
   'onboard': 'pastelsdd-onboard',
   'propose': 'pastelsdd-propose',
+  // Trello-specific workflows
+  'trello-setup': 'pastelsdd-trello-setup',
+  'draft': 'pastelsdd-trello-draft',
 };
 
 function toKnownWorkflows(workflows: readonly string[]): WorkflowId[] {

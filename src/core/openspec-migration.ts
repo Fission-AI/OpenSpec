@@ -12,7 +12,7 @@
  */
 
 import path from 'path';
-import { promises as fs } from 'fs';
+import { promises as fs, type Dirent } from 'fs';
 import chalk from 'chalk';
 import { AI_TOOLS } from './config.js';
 import { CommandAdapterRegistry } from './command-generation/index.js';
@@ -23,8 +23,11 @@ import { FileSystemUtils } from '../utils/file-system.js';
 // Constants
 // ---------------------------------------------------------------------------
 
-/** Directory name used by the old openspec tool */
-const OPENSPEC_DIR = '.openspec';
+/**
+ * Candidate directory names used by the old openspec tool.
+ * Check both "openspec" (without dot) and ".openspec" (with dot).
+ */
+const OPENSPEC_DIR_CANDIDATES = ['openspec', '.openspec'];
 
 /** Old skill prefix used by openspec */
 const OPENSPEC_SKILL_PREFIX = 'opsx-';
@@ -40,10 +43,12 @@ const OPENSPEC_COMMAND_DIR = 'openspec';
 // ---------------------------------------------------------------------------
 
 export interface OpenspecDetectionResult {
-  /** Whether an .openspec/ directory was found */
+  /** Whether an openspec/ or .openspec/ directory was found */
   hasOpenspecDir: boolean;
-  /** Full path to the .openspec/ directory */
+  /** Full path to the openspec/ (or .openspec/) directory that was found */
   openspecDirPath: string;
+  /** Directory name as it appears on disk ("openspec" or ".openspec") */
+  openspecDirName: string;
   /** Old opsx-* skill files found across all tool dirs */
   legacySkillFiles: string[];
   /** Old opsx-* / openspec command files found across all tool dirs */
@@ -53,12 +58,18 @@ export interface OpenspecDetectionResult {
 }
 
 export interface OpenspecMigrationResult {
-  /** Whether .openspec/ was renamed to pastelsdd/ */
+  /** Whether openspec/ (or .openspec/) was renamed to pastelsdd/ */
   renamedDir: boolean;
+  /** Whether openspec/ (or .openspec/) content was merged into an existing pastelsdd/ */
+  mergedDir: boolean;
+  /** The directory name that was migrated ("openspec" or ".openspec") */
+  sourceDirName: string;
   /** Skill files deleted */
   deletedSkills: string[];
   /** Command files/dirs deleted */
   deletedCommands: string[];
+  /** Files copied during merge (relative to project root) */
+  mergedFiles: string[];
   /** Errors that occurred */
   errors: string[];
 }
@@ -69,12 +80,25 @@ export interface OpenspecMigrationResult {
 
 /**
  * Detects openspec artifacts in a project.
+ * Checks for both "openspec/" and ".openspec/" directory names.
  */
 export async function detectOpenspecArtifacts(
   projectPath: string
 ): Promise<OpenspecDetectionResult> {
-  const openspecDirPath = path.join(projectPath, OPENSPEC_DIR);
-  const hasOpenspecDir = await FileSystemUtils.directoryExists(openspecDirPath);
+  // Find whichever openspec directory exists (prefer "openspec" over ".openspec")
+  let openspecDirName = OPENSPEC_DIR_CANDIDATES[0];
+  let openspecDirPath = path.join(projectPath, openspecDirName);
+  let hasOpenspecDir = false;
+
+  for (const candidate of OPENSPEC_DIR_CANDIDATES) {
+    const candidatePath = path.join(projectPath, candidate);
+    if (await FileSystemUtils.directoryExists(candidatePath)) {
+      openspecDirName = candidate;
+      openspecDirPath = candidatePath;
+      hasOpenspecDir = true;
+      break;
+    }
+  }
 
   const legacySkillFiles: string[] = [];
   const legacyCommandFiles: string[] = [];
@@ -139,6 +163,7 @@ export async function detectOpenspecArtifacts(
   return {
     hasOpenspecDir,
     openspecDirPath,
+    openspecDirName,
     legacySkillFiles,
     legacyCommandFiles,
     hasOpenspecArtifacts,
@@ -151,25 +176,38 @@ export async function detectOpenspecArtifacts(
 
 /**
  * Formats a human-readable summary of what was detected.
+ * @param pastelsddAlreadyExists - when true, shows merge instead of rename
  */
 export function formatOpenspecDetectionSummary(
-  detection: OpenspecDetectionResult
+  detection: OpenspecDetectionResult,
+  pastelsddAlreadyExists = false
 ): string {
   const lines: string[] = [];
 
-  lines.push(chalk.bold('OpenSpec project detected'));
+  lines.push(chalk.bold('This project uses the OpenSpec framework'));
   lines.push('');
-  lines.push('This project was set up with the old openspec tool.');
-  lines.push('Pastelsdd will:');
+  lines.push('OpenSpec and Pastelsdd share the same workflow philosophy, but Pastelsdd');
+  lines.push('is the evolution of the framework — with better tooling, more AI integrations,');
+  lines.push('and active development going forward.');
+  lines.push('');
+  lines.push('Migrating will:');
   lines.push('');
 
   if (detection.hasOpenspecDir) {
-    lines.push(`  • Rename ${chalk.cyan(OPENSPEC_DIR + '/')} → ${chalk.cyan('pastelsdd/')}`);
+    const dirName = detection.openspecDirName;
+    if (pastelsddAlreadyExists) {
+      lines.push(
+        `  • Merge ${chalk.cyan(dirName + '/changes')} and ${chalk.cyan(dirName + '/specs')} into ${chalk.cyan('pastelsdd/')} — your work stays intact`
+      );
+      lines.push(`  • Remove ${chalk.cyan(dirName + '/')} after merge`);
+    } else {
+      lines.push(`  • Move ${chalk.cyan(dirName + '/')} → ${chalk.cyan('pastelsdd/')} — all your changes and specs come along`);
+    }
   }
 
   if (detection.legacySkillFiles.length > 0) {
     lines.push(
-      `  • Delete ${detection.legacySkillFiles.length} old opsx-* skill director${detection.legacySkillFiles.length === 1 ? 'y' : 'ies'}`
+      `  • Remove ${detection.legacySkillFiles.length} old opsx-* skill director${detection.legacySkillFiles.length === 1 ? 'y' : 'ies'}`
     );
     for (const f of detection.legacySkillFiles) {
       lines.push(`      ${chalk.dim(f + '/')}`);
@@ -178,7 +216,7 @@ export function formatOpenspecDetectionSummary(
 
   if (detection.legacyCommandFiles.length > 0) {
     lines.push(
-      `  • Delete ${detection.legacyCommandFiles.length} old openspec command file${detection.legacyCommandFiles.length === 1 ? '' : 's'}`
+      `  • Remove ${detection.legacyCommandFiles.length} old openspec command file${detection.legacyCommandFiles.length === 1 ? '' : 's'}`
     );
     for (const f of detection.legacyCommandFiles) {
       lines.push(`      ${chalk.dim(f)}`);
@@ -186,7 +224,7 @@ export function formatOpenspecDetectionSummary(
   }
 
   lines.push('');
-  lines.push(chalk.dim('Fresh Pastelsdd skills and commands will be installed afterwards.'));
+  lines.push(chalk.dim('Fresh Pastelsdd skills and commands will be installed right after.'));
 
   return lines.join('\n');
 }
@@ -200,7 +238,14 @@ export function formatOpenspecMigrationSummary(
   const lines: string[] = [];
 
   if (result.renamedDir) {
-    lines.push(`  ✓ Renamed ${OPENSPEC_DIR}/ → pastelsdd/`);
+    lines.push(`  ✓ Renamed ${result.sourceDirName}/ → pastelsdd/`);
+  }
+
+  if (result.mergedDir) {
+    lines.push(`  ✓ Merged ${result.sourceDirName}/ content into pastelsdd/`);
+    for (const f of result.mergedFiles) {
+      lines.push(`      ${chalk.dim(f)}`);
+    }
   }
 
   for (const f of result.deletedSkills) {
@@ -222,11 +267,62 @@ export function formatOpenspecMigrationSummary(
 // Migration
 // ---------------------------------------------------------------------------
 
+/** Subdirectories inside .openspec/ that carry user data worth migrating. */
+const OPENSPEC_DATA_DIRS = ['changes', 'specs'];
+
+/**
+ * Recursively copies files from `src` into `dst`.
+ * Existing destination files are never overwritten (skip-if-exists strategy).
+ * Returns the list of relative paths (relative to `src`) that were copied.
+ */
+async function mergeDirectoryInto(
+  src: string,
+  dst: string,
+  baseRel = ''
+): Promise<string[]> {
+  const copied: string[] = [];
+
+  let entries: Dirent[];
+  try {
+    entries = await fs.readdir(src, { withFileTypes: true });
+  } catch {
+    return copied; // src doesn't exist or can't be read
+  }
+
+  await fs.mkdir(dst, { recursive: true });
+
+  for (const entry of entries) {
+    const rel = baseRel ? `${baseRel}/${entry.name}` : entry.name;
+    const srcPath = path.join(src, entry.name);
+    const dstPath = path.join(dst, entry.name);
+
+    if (entry.isDirectory()) {
+      const sub = await mergeDirectoryInto(srcPath, dstPath, rel);
+      copied.push(...sub);
+    } else {
+      // Skip if destination already exists
+      const dstExists = await fs.stat(dstPath).then(() => true).catch(() => false);
+      if (!dstExists) {
+        try {
+          await fs.copyFile(srcPath, dstPath);
+          copied.push(rel);
+        } catch {
+          // best-effort
+        }
+      }
+    }
+  }
+
+  return copied;
+}
+
 /**
  * Runs the openspec → pastelsdd migration.
  * - Deletes old opsx-* skill directories
  * - Deletes old openspec command files/directories
- * - Renames .openspec/ → pastelsdd/ (only if pastelsdd/ doesn't already exist)
+ * - If pastelsdd/ doesn't exist: renames .openspec/ → pastelsdd/
+ * - If pastelsdd/ already exists: merges changes/ and specs/ from .openspec/
+ *   into pastelsdd/ (existing files are never overwritten), then removes .openspec/
  */
 export async function migrateFromOpenspec(
   projectPath: string,
@@ -234,8 +330,11 @@ export async function migrateFromOpenspec(
 ): Promise<OpenspecMigrationResult> {
   const result: OpenspecMigrationResult = {
     renamedDir: false,
+    mergedDir: false,
+    sourceDirName: detection.openspecDirName,
     deletedSkills: [],
     deletedCommands: [],
+    mergedFiles: [],
     errors: [],
   };
 
@@ -266,30 +365,44 @@ export async function migrateFromOpenspec(
     }
   }
 
-  // 3. Rename .openspec/ → pastelsdd/ (only if pastelsdd/ doesn't already exist)
+  // 3. Migrate .openspec/ directory
   if (detection.hasOpenspecDir) {
     const pastelsddPath = path.join(projectPath, 'pastelsdd');
     const pastelsddExists = await FileSystemUtils.directoryExists(pastelsddPath);
 
     if (pastelsddExists) {
-      // pastelsdd/ already exists — just remove .openspec/
+      // pastelsdd/ already exists — merge user data subdirectories, then remove .openspec/
+      for (const subDir of OPENSPEC_DATA_DIRS) {
+        const srcSub = path.join(detection.openspecDirPath, subDir);
+        const dstSub = path.join(pastelsddPath, subDir);
+        const copied = await mergeDirectoryInto(srcSub, dstSub, subDir);
+        result.mergedFiles.push(...copied);
+      }
+
       try {
         await fs.rm(detection.openspecDirPath, { recursive: true, force: true });
-        result.errors.push(
-          `pastelsdd/ already exists — removed .openspec/ without merging. Review manually if needed.`
-        );
+        result.mergedDir = true;
       } catch (err: any) {
-        result.errors.push(`Could not remove .openspec/: ${err.message}`);
+        result.errors.push(`Could not remove ${detection.openspecDirName}/ after merge: ${err.message}`);
       }
     } else {
+      // pastelsdd/ doesn't exist yet — simple rename
       try {
         await fs.rename(detection.openspecDirPath, pastelsddPath);
         result.renamedDir = true;
       } catch (err: any) {
-        result.errors.push(`Could not rename .openspec/ → pastelsdd/: ${err.message}`);
+        result.errors.push(`Could not rename ${detection.openspecDirName}/ → pastelsdd/: ${err.message}`);
       }
     }
   }
 
   return result;
+}
+
+/**
+ * Returns true when a `pastelsdd/` directory already exists at the given project path.
+ * Used by the init command to pass the correct context to formatOpenspecDetectionSummary.
+ */
+export async function pastelsddDirExists(projectPath: string): Promise<boolean> {
+  return FileSystemUtils.directoryExists(path.join(projectPath, 'pastelsdd'));
 }
