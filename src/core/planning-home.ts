@@ -3,9 +3,8 @@ import * as path from 'node:path';
 
 import {
   getWorkspaceChangesDir,
-  getWorkspaceSharedStatePath,
-  parseWorkspaceSharedState,
-  type WorkspaceSharedState,
+  readWorkspaceViewStateSync,
+  workspaceStateFileExistsSync,
 } from './workspace/index.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 
@@ -33,14 +32,6 @@ const WORKSPACE_DEFAULT_SCHEMA = 'workspace-planning';
 function pathExistsAsDirectory(candidatePath: string): boolean {
   try {
     return fs.statSync(candidatePath).isDirectory();
-  } catch {
-    return false;
-  }
-}
-
-function pathExistsAsFile(candidatePath: string): boolean {
-  try {
-    return fs.statSync(candidatePath).isFile();
   } catch {
     return false;
   }
@@ -76,9 +67,7 @@ function findNearestAncestor(startPath: string, predicate: (dirPath: string) => 
 }
 
 export function findWorkspacePlanningRootSync(startPath = process.cwd()): string | null {
-  return findNearestAncestor(startPath, (dirPath) =>
-    pathExistsAsFile(getWorkspaceSharedStatePath(dirPath))
-  );
+  return findNearestAncestor(startPath, workspaceStateFileExistsSync);
 }
 
 export function findRepoPlanningRootSync(startPath = process.cwd()): string | null {
@@ -108,18 +97,8 @@ function relativePlanningPath(fromPath: string, toPath: string): string {
   return path.posix.relative(fromPath.replace(/\\/g, '/'), toPath.replace(/\\/g, '/'));
 }
 
-function readWorkspaceSharedStateSync(workspaceRoot: string): WorkspaceSharedState | null {
-  try {
-    return parseWorkspaceSharedState(
-      fs.readFileSync(getWorkspaceSharedStatePath(workspaceRoot), 'utf-8')
-    );
-  } catch {
-    return null;
-  }
-}
-
 function workspacePlanningHome(workspaceRoot: string): PlanningHome {
-  const sharedState = readWorkspaceSharedStateSync(workspaceRoot);
+  const viewState = readWorkspaceViewStateSync(workspaceRoot);
 
   return {
     kind: 'workspace',
@@ -127,8 +106,8 @@ function workspacePlanningHome(workspaceRoot: string): PlanningHome {
     changesDir: getWorkspaceChangesDir(workspaceRoot),
     defaultSchema: WORKSPACE_DEFAULT_SCHEMA,
     workspace: {
-      name: sharedState?.name ?? path.basename(workspaceRoot),
-      links: Object.keys(sharedState?.links ?? {}).sort((a, b) => a.localeCompare(b)),
+      name: viewState?.name ?? path.basename(workspaceRoot),
+      links: Object.keys(viewState?.links ?? {}).sort((a, b) => a.localeCompare(b)),
     },
   };
 }

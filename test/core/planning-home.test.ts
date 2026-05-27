@@ -66,4 +66,29 @@ describe('planning home paths', () => {
     expect(planningHome.kind).toBe('workspace');
     expect(planningHome.root).toBe(fs.realpathSync.native(realWorkspaceRoot));
   });
+
+  it('surfaces invalid current workspace state instead of falling back to legacy state', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-planning-home-'));
+    tempDirs.push(tempDir);
+    const workspaceRoot = path.join(tempDir, 'workspace');
+
+    fs.mkdirSync(path.join(workspaceRoot, '.openspec-workspace'), { recursive: true });
+    fs.writeFileSync(
+      path.join(workspaceRoot, 'workspace.yaml'),
+      'version: 1\nname: bad/name\ncontext: null\nlinks: {}\n',
+      'utf-8'
+    );
+    fs.writeFileSync(
+      path.join(workspaceRoot, '.openspec-workspace', 'workspace.yaml'),
+      'version: 1\nname: legacy-platform\nlinks: {}\n',
+      'utf-8'
+    );
+
+    expect(() =>
+      resolveCurrentPlanningHomeSync({
+        startPath: workspaceRoot,
+        allowImplicitRepoRoot: false,
+      })
+    ).toThrow(/Workspace name/u);
+  });
 });

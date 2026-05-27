@@ -99,6 +99,9 @@ export function printStatusText(status: ChangeStatus): void {
 
   console.log(`Change: ${status.changeName}`);
   console.log(`Schema: ${status.schemaName}`);
+  if (status.initiative) {
+    console.log(`Initiative: ${status.initiative.store}/${status.initiative.id}`);
+  }
   if (status.planningHome) {
     const label = status.planningHome.kind === 'workspace'
       ? `workspace${status.planningHome.workspaceName ? ` (${status.planningHome.workspaceName})` : ''}`

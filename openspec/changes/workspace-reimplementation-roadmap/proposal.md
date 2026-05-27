@@ -2,6 +2,13 @@
 
 Workspace support needs to be reimplemented as a user-facing workflow, not carried forward as a direct port of the proof of concept.
 
+Status: this roadmap is now historical reference. The active product direction is
+the context-store-and-initiatives initiative, where initiatives coordinate
+durable cross-repo work, workspaces open local views, and repo-local changes own
+implementation. Keep workspace setup/open/update/doctor infrastructure, but do
+not treat workspace apply, verify, or archive as the next shipping sequence
+until initiative-linked repo-local changes exist.
+
 A user should be able to say they have a multi-repo product goal, create a workspace, add the relevant repos, open that workspace with an agent, plan the change, implement one repo slice at a time, verify it, and archive it. The POC branch captured useful behavior and discovery, but its implementation should remain reference material rather than the base architecture.
 
 This roadmap also needs to survive multiple sessions and branches. Current OpenSpec change discovery treats active changes as flat immediate directories under `openspec/changes/`, and change names are kebab-case identifiers rather than nested paths. This change is therefore a flat planning container with sibling proposal changes instead of nested child changes.

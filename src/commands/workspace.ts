@@ -8,18 +8,15 @@ import {
   WorkspaceSkillInstallationReport,
   createWorkspaceSkillSkippedReport,
   generateWorkspaceAgentSkills,
-  getDefaultWorkspaceOpenerChoiceValue,
   getWorkspaceSkillCapableTools,
   getWorkspaceSkillToolIds,
   getWorkspaceOpenerLabel,
-  isWorkspaceAgentOpenerId,
-  listWorkspaceOpenerChoices,
-  parseWorkspacePreferredOpenerValue,
   parseWorkspaceSkillToolsValue,
   updateWorkspaceAgentSkills,
-  listWorkspaceRegistryEntries,
-  readOptionalWorkspaceLocalState,
-  writeWorkspaceLocalState,
+  listKnownWorkspaceEntries,
+  readWorkspaceViewState,
+  syncWorkspaceOpenSurface,
+  writeWorkspaceViewState,
 } from '../core/workspace/index.js';
 import { isInteractive, resolveNoInteractive } from '../utils/interactive.js';
 import {
@@ -30,8 +27,6 @@ import {
   loadWorkspaceForList,
   parseSetupLinks,
   readWorkspaceForMutation,
-  readRegistry,
-  recordSelectedWorkspaceAfterMutation,
   resolveExistingDirectory,
   updateWorkspaceLink,
   validateLinkNameForCommand,
@@ -42,11 +37,20 @@ import {
   selectWorkspaceRootForCommand,
 } from './workspace/selection.js';
 import {
-  assertWorkspaceOpenerAvailable,
-  buildWorkspaceOpenCommandForState,
   launchWorkspaceOpenCommand,
-  readWorkspaceOpenState,
 } from './workspace/open.js';
+import {
+  buildWorkspaceOpenJsonPayload,
+  prepareWorkspaceOpen,
+  type PreparedWorkspaceOpen,
+} from './workspace/open-view.js';
+import {
+  getPreferredWorkspaceSkillAgentId,
+  parseSetupOpenerOption,
+  promptPreferredOpener,
+} from './workspace/opener-selection.js';
+import { workspacePromptTheme, workspaceSelectTheme } from './workspace/prompt-theme.js';
+import { registerWorkspaceCommandWith } from './workspace/registration.js';
 import {
   WorkspaceCliError,
   WorkspaceLinkMutationPayload,
@@ -67,31 +71,6 @@ import {
 function printJson(payload: unknown): void {
   console.log(JSON.stringify(payload, null, 2));
 }
-
-const workspacePromptTheme = {
-  prefix: '',
-  style: {
-    answer: (text: string) => chalk.cyan(text),
-    defaultAnswer: (text: string) => chalk.dim(text),
-    error: (text: string) => chalk.red(text),
-    help: (text: string) => chalk.dim(text),
-    highlight: (text: string) => chalk.cyan(text),
-    key: (text: string) => chalk.cyan(text),
-    message: (text: string) => chalk.bold(text),
-  },
-};
-
-const workspaceSelectTheme = {
-  ...workspacePromptTheme,
-  icon: {
-    cursor: chalk.cyan('>'),
-  },
-  style: {
-    ...workspacePromptTheme.style,
-    keysHelpTip: (keys: [key: string, action: string][]) =>
-      chalk.dim(keys.map(([key, action]) => `${key}: ${action}`).join(' | ')),
-  },
-};
 
 function printWorkspaceSetupIntro(): void {
   console.log(chalk.bold('Workspace setup'));
@@ -234,45 +213,6 @@ async function promptSetupLinks(): Promise<Record<string, string>> {
   }
 }
 
-function formatOpenerChoiceName(choice: ReturnType<typeof listWorkspaceOpenerChoices>[number]): string {
-  return choice.unavailableNote ? `${choice.label} (${choice.unavailableNote})` : choice.label;
-}
-
-async function promptPreferredOpener(
-  message: string,
-  openerChoices = listWorkspaceOpenerChoices()
-): Promise<WorkspacePreferredOpener> {
-  const { select } = await import('@inquirer/prompts');
-  const selectedValue = await select({
-    message,
-    default: getDefaultWorkspaceOpenerChoiceValue(openerChoices),
-    choices: openerChoices.map((choice) => ({
-      name: formatOpenerChoiceName(choice),
-      short: choice.label,
-      value: choice.value,
-      description: choice.unavailableNote ?? `Use ${choice.label}`,
-    })),
-    theme: workspaceSelectTheme,
-  });
-
-  return parseWorkspacePreferredOpenerValue(selectedValue);
-}
-
-function parseSetupOpenerOption(opener: string | undefined): WorkspacePreferredOpener | undefined {
-  if (!opener) {
-    return undefined;
-  }
-
-  try {
-    return parseWorkspacePreferredOpenerValue(opener);
-  } catch (error) {
-    throw new WorkspaceCliError(asErrorMessage(error), 'unsupported_workspace_opener', {
-      target: 'workspace.opener',
-      fix: 'Use --opener codex, --opener claude, --opener github-copilot, or --opener editor.',
-    });
-  }
-}
-
 function parseSetupToolsOption(tools: string): string[] {
   try {
     return parseWorkspaceSkillToolsValue(tools);
@@ -293,16 +233,6 @@ function parseUpdateToolsOption(tools: string): string[] {
       fix: `Use --tools all, --tools none, or one of: ${getWorkspaceSkillToolIds().join(', ')}`,
     });
   }
-}
-
-function getPreferredWorkspaceSkillAgentId(
-  preferredOpener: WorkspacePreferredOpener | undefined
-): string | null {
-  if (!preferredOpener || preferredOpener.kind !== 'agent') {
-    return null;
-  }
-
-  return getWorkspaceSkillToolIds().includes(preferredOpener.id) ? preferredOpener.id : null;
 }
 
 async function promptWorkspaceSkillAgents(
@@ -337,24 +267,6 @@ async function promptWorkspaceSkillAgents(
     pageSize: 15,
     choices: sortedChoices,
   });
-}
-
-function parseAgentOverride(agent: string): WorkspacePreferredOpener {
-  if (!isWorkspaceAgentOpenerId(agent)) {
-    throw new WorkspaceCliError(
-      `Unsupported workspace agent '${agent}'. Supported agents: codex, claude, github-copilot.`,
-      'unsupported_workspace_agent',
-      {
-        target: 'workspace.opener',
-        fix: 'Use --agent codex, --agent claude, or --agent github-copilot.',
-      }
-    );
-  }
-
-  return {
-    kind: 'agent',
-    id: agent,
-  };
 }
 
 function printStatusLines(statuses: WorkspaceStatus[]): void {
@@ -392,6 +304,15 @@ function collectWorkspaceIssues(workspace: WorkspaceListOutput): WorkspaceStatus
 function printDoctorHuman(result: { workspace: WorkspaceOutput; status: WorkspaceStatus[] }): void {
   console.log(`Workspace: ${result.workspace.name}`);
   console.log(`Location: ${result.workspace.root}`);
+  if (result.workspace.context) {
+    const selector = result.workspace.context.store_selector;
+    const suffix = selector.kind === 'path' ? ` via ${selector.path}` : '';
+    console.log(
+      `Context: ${result.workspace.context.store}/${result.workspace.context.initiative}${suffix}`
+    );
+  } else {
+    console.log('Context: (none)');
+  }
   console.log(`Planning path: ${result.workspace.planning_path}`);
   console.log('');
   printStatusLines(result.status);
@@ -402,6 +323,15 @@ function printDoctorHuman(result: { workspace: WorkspaceOutput; status: Workspac
   printLinksHuman(result.workspace.links);
 
   const issues = collectWorkspaceIssues(result.workspace);
+
+  console.log('');
+  console.log('Advisory edit boundaries:');
+  if (result.workspace.context) {
+    console.log('  Initiative/context-store files are shared coordination context.');
+  } else {
+    console.log('  No initiative coordination context is attached.');
+  }
+  console.log('  Linked repos and folders are local implementation context when selected.');
 
   if (issues.length === 0) {
     console.log('');
@@ -558,13 +488,10 @@ async function writeWorkspaceSkillState(
   selectedAgentIds: string[],
   report: WorkspaceSkillInstallationReport
 ): Promise<void> {
-  const localState = (await readOptionalWorkspaceLocalState(workspaceRoot)) ?? {
-    version: 1 as const,
-    paths: {},
-  };
+  const viewState = await readWorkspaceViewState(workspaceRoot);
 
-  await writeWorkspaceLocalState(workspaceRoot, {
-    ...localState,
+  await writeWorkspaceViewState(workspaceRoot, {
+    ...viewState,
     workspace_skills: {
       selected_agents: selectedAgentIds,
       last_applied_profile: report.profile,
@@ -573,112 +500,6 @@ async function writeWorkspaceSkillState(
       last_applied_at: new Date().toISOString(),
     },
   });
-}
-
-async function resolveWorkspaceOpenOpener(
-  localState: { preferred_opener?: WorkspacePreferredOpener },
-  options: WorkspaceOpenOptions
-): Promise<WorkspacePreferredOpener> {
-  if (options.agent && options.editor) {
-    throw new WorkspaceCliError(
-      'workspace open accepts either --agent <tool> or --editor, not both.',
-      'workspace_opener_conflict',
-      {
-        target: 'workspace.opener',
-        fix: 'Choose one opener override.',
-      }
-    );
-  }
-
-  if (options.agent) {
-    return parseAgentOverride(options.agent);
-  }
-
-  if (options.editor) {
-    return parseWorkspacePreferredOpenerValue('editor');
-  }
-
-  if (localState.preferred_opener) {
-    return localState.preferred_opener;
-  }
-
-  if (!resolveNoInteractive(options) && isInteractive(options)) {
-    const openerChoices = listWorkspaceOpenerChoices().filter((choice) => choice.available);
-    if (openerChoices.length === 0) {
-      throw new WorkspaceCliError(
-        'No supported workspace opener is available on PATH.',
-        'workspace_no_available_openers',
-        {
-          target: 'workspace.opener',
-          fix: "Install VS Code ('code'), Codex ('codex'), or Claude ('claude'), then retry.",
-        }
-      );
-    }
-
-    return promptPreferredOpener('Open with:', openerChoices);
-  }
-
-  throw new WorkspaceCliError(
-    'This workspace does not have a preferred opener yet.',
-    'workspace_opener_unset',
-    {
-      target: 'workspace.opener',
-      fix: 'Pass --agent <tool> or --editor, or run workspace setup interactively to choose a default opener.',
-    }
-  );
-}
-
-function assertWorkspaceOpenSupportedOptions(options: WorkspaceOpenOptions): void {
-  if (options.prepareOnly) {
-    throw new WorkspaceCliError(
-      'workspace open supports launching through a selected opener; preview output is reserved for a future context/query surface.',
-      'workspace_open_prepare_only_unsupported',
-      {
-        target: 'workspace.open',
-        fix: 'Run openspec workspace open with --agent <tool> or --editor.',
-      }
-    );
-  }
-
-  if (options.json) {
-    throw new WorkspaceCliError(
-      'workspace open supports launching through a selected opener; machine-readable context is reserved for a future context/query surface.',
-      'workspace_open_json_unsupported',
-      {
-        target: 'workspace.open',
-        fix: 'Use openspec workspace doctor --json for current workspace status.',
-      }
-    );
-  }
-
-  if (options.change) {
-    throw new WorkspaceCliError(
-      'workspace open currently supports root workspace open only; change-scoped open belongs to future workspace change planning.',
-      'workspace_open_change_unsupported',
-      {
-        target: 'workspace.change',
-        fix: 'Open the root workspace, then start implementation from an explicit change workflow.',
-      }
-    );
-  }
-}
-
-function resolveOpenWorkspaceName(
-  positionalName: string | undefined,
-  options: WorkspaceOpenOptions
-): string | undefined {
-  if (positionalName && options.workspace && positionalName !== options.workspace) {
-    throw new WorkspaceCliError(
-      `Conflicting workspace selectors: positional '${positionalName}' and --workspace '${options.workspace}'.`,
-      'workspace_selection_conflict',
-      {
-        target: 'workspace.name',
-        fix: 'Use either the positional workspace name or --workspace with the same value.',
-      }
-    );
-  }
-
-  return positionalName ?? options.workspace;
 }
 
 function resolveUpdateWorkspaceName(
@@ -699,23 +520,22 @@ function resolveUpdateWorkspaceName(
   return positionalName ?? options.workspace;
 }
 
-function printWorkspaceOpenHuman(
-  selectedName: string,
-  selectedRoot: string,
-  opener: WorkspacePreferredOpener,
-  skipped: Awaited<ReturnType<typeof buildWorkspaceOpenCommandForState>>['skipped']
-): void {
-  console.log(`Opening workspace: ${selectedName}`);
-  console.log(`Location: ${selectedRoot}`);
-  console.log(`Opener: ${getWorkspaceOpenerLabel(opener)}`);
+function printWorkspaceOpenHuman(prepared: PreparedWorkspaceOpen): void {
+  console.log(`Opening workspace: ${prepared.selected.name}`);
+  console.log(`Location: ${prepared.selected.root}`);
+  if (prepared.initiative) {
+    console.log(`Initiative: ${prepared.initiative.store}/${prepared.initiative.id}`);
+    console.log(`Initiative path: ${prepared.initiative.root}`);
+  }
+  console.log(`Opener: ${getWorkspaceOpenerLabel(prepared.opener)}`);
 
-  if (skipped.length === 0) {
+  if (prepared.skipped.length === 0) {
     return;
   }
 
   console.log('');
   console.log('Skipped linked repos or folders:');
-  for (const link of skipped) {
+  for (const link of prepared.skipped) {
     const location = link.path ?? '(no local path recorded)';
     console.log(`  ${link.name} -> ${location}`);
   }
@@ -845,8 +665,7 @@ class WorkspaceCommand {
 
   async list(options: WorkspaceListOptions = {}): Promise<void> {
     try {
-      const registry = await readRegistry();
-      const entries = listWorkspaceRegistryEntries(registry);
+      const entries = await listKnownWorkspaceEntries();
       const workspaces = await Promise.all(entries.map((entry) => loadWorkspaceForList(entry)));
       const payload = { workspaces, status: [] as WorkspaceStatus[] };
 
@@ -975,25 +794,26 @@ class WorkspaceCommand {
     selected: SelectedWorkspace,
     options: WorkspaceUpdateOptions
   ): Promise<void> {
-    const { localState } = await readWorkspaceForMutation(selected);
+    const viewState = await readWorkspaceForMutation(selected);
+    await syncWorkspaceOpenSurface(selected.root, viewState);
+
     const hasExplicitToolSelection = options.tools !== undefined;
     const selectedAgentIds = hasExplicitToolSelection
       ? parseUpdateToolsOption(options.tools ?? '')
-      : localState.workspace_skills?.selected_agents ?? [];
+      : viewState.workspace_skills?.selected_agents ?? [];
     const previousSkillState =
       hasExplicitToolSelection
-        ? localState.workspace_skills ?? { selected_agents: [] }
-        : localState.workspace_skills;
+        ? viewState.workspace_skills ?? { selected_agents: [] }
+        : viewState.workspace_skills;
     const skillReport = await updateWorkspaceAgentSkills(
       selected.root,
       selectedAgentIds,
       previousSkillState
     );
-    const shouldStoreSelection = hasExplicitToolSelection || Boolean(localState.workspace_skills);
+    const shouldStoreSelection = hasExplicitToolSelection || Boolean(viewState.workspace_skills);
 
     if (shouldStoreSelection && !hasWorkspaceSkillFailures(skillReport)) {
       await writeWorkspaceSkillState(selected.root, selectedAgentIds, skillReport);
-      await recordSelectedWorkspaceAfterMutation(selected);
     }
 
     const doctorResult = await loadWorkspaceForDoctor(selected);
@@ -1030,35 +850,23 @@ class WorkspaceCommand {
     options: WorkspaceOpenOptions = {}
   ): Promise<void> {
     try {
-      assertWorkspaceOpenSupportedOptions(options);
+      const prepared = await prepareWorkspaceOpen(positionalName, options);
 
-      const workspaceName = resolveOpenWorkspaceName(positionalName, options);
-      const selected = await selectWorkspaceForCommand(
-        {
-          ...options,
-          workspace: workspaceName,
-        },
-        'open',
-        { preferPositionalName: true }
-      );
-      const state = await readWorkspaceOpenState(selected);
-      const opener = await resolveWorkspaceOpenOpener(state.localState, options);
-
-      assertWorkspaceOpenerAvailable(opener, state.codeWorkspacePath);
-
-      const { command, skipped } = await buildWorkspaceOpenCommandForState(
-        opener,
-        selected.root,
-        state
-      );
-
-      printStatusLines(selected.status);
-      if (selected.status.length > 0) {
-        console.log('');
+      if (!options.json) {
+        printStatusLines(prepared.selected.status);
+        if (prepared.selected.status.length > 0) {
+          console.log('');
+        }
+        printWorkspaceOpenHuman(prepared);
       }
-      printWorkspaceOpenHuman(selected.name, selected.root, opener, skipped);
 
-      await launchWorkspaceOpenCommand(command);
+      await launchWorkspaceOpenCommand(prepared.command, {
+        stdio: options.json ? 'ignore' : 'inherit',
+      });
+
+      if (options.json) {
+        printJson(buildWorkspaceOpenJsonPayload(prepared));
+      }
     } catch (error) {
       this.handleFailure(options.json, { workspace: null, status: [] }, error);
     }
@@ -1106,114 +914,6 @@ export async function runWorkspaceUpdateForRoot(
   await workspaceCommand.updateRoot(workspaceRoot, options);
 }
 
-function collectOption(value: string, previous: string[]): string[] {
-  return [...previous, value];
-}
-
-function addWorkspaceSelectionOptions(command: Command): Command {
-  return command
-    .option('--workspace <name>', 'Workspace name from the local workspace registry')
-    .option('--json', 'Output as JSON')
-    .option('--no-interactive', 'Disable prompts');
-}
-
 export function registerWorkspaceCommand(program: Command): void {
-  const workspaceCommand = new WorkspaceCommand();
-  const workspace = program
-    .command('workspace')
-    .description('Set up and inspect coordination workspaces');
-
-  workspace
-    .command('setup')
-    .description('Set up a workspace and link existing repos or folders')
-    .option('--name <name>', 'Workspace name')
-    .option('--link <link>', 'Repo or folder link. Use <path> or <name>=<path>.', collectOption, [])
-    .option('--opener <id>', 'Preferred opener: codex, claude, github-copilot, or editor')
-    .option(
-      '--tools <tools>',
-      `Install OpenSpec skills for agents. Use "all", "none", or a comma-separated list of: ${getWorkspaceSkillToolIds().join(', ')}`
-    )
-    .option('--json', 'Output as JSON')
-    .option('--no-interactive', 'Disable prompts')
-    .action(async (options: WorkspaceSetupOptions) => {
-      await workspaceCommand.setup(options);
-    });
-
-  workspace
-    .command('list')
-    .description('List known OpenSpec workspaces')
-    .option('--json', 'Output as JSON')
-    .action(async (options: WorkspaceListOptions) => {
-      await workspaceCommand.list(options);
-    });
-
-  workspace
-    .command('ls')
-    .description('List known OpenSpec workspaces')
-    .option('--json', 'Output as JSON')
-    .action(async (options: WorkspaceListOptions) => {
-      await workspaceCommand.list(options);
-    });
-
-  addWorkspaceSelectionOptions(
-    workspace
-      .command('link [nameOrPath] [path]')
-      .description('Link an existing repo or folder to a workspace')
-  ).action(async (
-    nameOrPath: string | undefined,
-    linkPath: string | undefined,
-    options: WorkspaceLinkOptions
-  ) => {
-    await workspaceCommand.link(nameOrPath, linkPath, options);
-  });
-
-  addWorkspaceSelectionOptions(
-    workspace
-      .command('relink <name> <path>')
-      .description('Update the local path for an existing workspace link')
-  ).action(async (
-    linkName: string | undefined,
-    linkPath: string | undefined,
-    options: WorkspaceLinkOptions
-  ) => {
-    await workspaceCommand.relink(linkName, linkPath, options);
-  });
-
-  addWorkspaceSelectionOptions(
-    workspace
-      .command('doctor')
-      .description('Check what a workspace can resolve on this machine')
-  ).action(async (options: WorkspaceLinkOptions) => {
-    await workspaceCommand.doctor(options);
-  });
-
-  workspace
-    .command('update [name]')
-    .description('Refresh workspace-local OpenSpec agent skills from the active global profile')
-    .option('--workspace <name>', 'Workspace name from the local workspace registry')
-    .option(
-      '--tools <tools>',
-      `Select agents for workspace skills. Use "all", "none", or a comma-separated list of: ${getWorkspaceSkillToolIds().join(', ')}. Global profile selects workflows; --tools selects agents.`
-    )
-    .option('--json', 'Output as JSON')
-    .option('--no-interactive', 'Disable prompts')
-    .action(async (name: string | undefined, options: WorkspaceUpdateOptions) => {
-      await workspaceCommand.update(name, options);
-    });
-
-  workspace
-    .command('open [name]')
-    .description('Open a workspace in an agent or VS Code editor')
-    .option('--workspace <name>', 'Workspace name from the local workspace registry')
-    .option('--agent <tool>', 'Use an agent for this session: codex, claude, or github-copilot')
-    .option('--editor', 'Open the workspace in VS Code editor mode')
-    .option('--prepare-only', 'Unsupported: preview surfaces belong to a future context/query command')
-    .option('--json', 'Unsupported: machine-readable context belongs to a future context/query command')
-    .option('--change <id>', 'Unsupported: change-scoped open belongs to future workspace change planning')
-    .option('--no-interactive', 'Disable prompts')
-    .action(async (name: string | undefined, options: WorkspaceOpenOptions) => {
-      await workspaceCommand.open(name, options);
-    });
-
-  // Intentionally no public `workspace create` command in this slice.
+  registerWorkspaceCommandWith(program, new WorkspaceCommand());
 }
