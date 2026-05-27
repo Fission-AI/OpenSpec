@@ -18,64 +18,48 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
 
 1. **Select the change**
 
-   If a name is provided, use it. Otherwise:
-   - Infer from conversation context if the user mentioned a change
-   - Auto-select if only one active change exists
-   - If ambiguous, run \`openspec list --json\` to get available changes and use the **AskUserQuestion tool** to let the user select
+   If a name is provided, use it. Otherwise resolve via:
+   \`\`\`bash
+   openspec resolve-change --auto
+   \`\`\`
+   - Exits 0 with the change name when exactly one active change exists.
+   - Exits 1 (none) or 3 (ambiguous). On ambiguity, run \`openspec resolve-change --json\` and use the **AskUserQuestion tool** to let the user select.
 
    Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:apply <other>\`).
 
-2. **Check status to understand the schema**
-   \`\`\`bash
-   openspec status --change "<name>" --json
-   \`\`\`
-   Parse the JSON to understand:
-   - \`schemaName\`: The workflow being used (e.g., "spec-driven")
-   - \`planningHome\`, \`changeRoot\`, and \`actionContext\`: planning scope and edit constraints
-   - Which artifact contains the tasks (typically "tasks" for spec-driven, check status for others)
-
-3. **Get apply instructions**
-
+2. **Load apply context (status + tasks + instruction in one call)**
    \`\`\`bash
    openspec instructions apply --change "<name>" --json
    \`\`\`
 
-   This returns:
-   - \`contextFiles\`: artifact ID -> array of concrete file paths (varies by schema - could be proposal/specs/design/tasks or spec/tests/implementation/docs)
-   - Progress (total, complete, remaining)
-   - Task list with status
-   - Dynamic instruction based on current state
+   Use the returned JSON:
+   - \`schemaName\`: the workflow being used (e.g., "spec-driven")
+   - \`contextFiles\`: artifact ID → array of file paths (varies by schema — proposal/specs/design/tasks for spec-driven)
+   - \`progress\` (total / complete / remaining), \`tasks\` (with \`numericId\` when the file uses numbered tasks), \`nextPendingId\` (the first unchecked task with a \`numericId\`)
+   - \`state\`: \`"blocked"\` (missing artifacts → suggest openspec-continue-change), \`"all_done"\` (congratulate, suggest archive), or \`"ready"\` (proceed)
+   - \`instruction\`: dynamic guidance based on current state
 
-   **Handle states:**
-   - If \`state: "blocked"\` (missing artifacts): show message, suggest using openspec-continue-change
-   - If \`state: "all_done"\`: congratulate, suggest archive
-   - Otherwise: proceed to implementation
+   **Workspace guard:** If \`openspec status --change "<name>" --json\` reports \`actionContext.mode: "workspace-planning"\` and \`allowedEditRoots\` is empty, explain that full workspace apply is not supported in this slice. Treat linked repos and folders as read-only context, ask the user to select an affected area through an explicit implementation workflow, and STOP before editing files.
 
-   **Workspace guard:** If status JSON reports \`actionContext.mode: "workspace-planning"\` and \`allowedEditRoots\` is empty, explain that full workspace apply is not supported in this slice. Treat linked repos and folders as read-only context, ask the user to select an affected area through an explicit implementation workflow, and STOP before editing files.
+3. **Read context files**
 
-4. **Read context files**
+   Read every file path listed under \`contextFiles\`.
 
-   Read every file path listed under \`contextFiles\` from the apply instructions output.
-   The files depend on the schema being used:
-   - **spec-driven**: proposal, specs, design, tasks
-   - Other schemas: follow the contextFiles from CLI output
+4. **Show current progress**
 
-5. **Show current progress**
+   Display schema, "N/M tasks complete", remaining tasks overview, and the dynamic \`instruction\`.
 
-   Display:
-   - Schema being used
-   - Progress: "N/M tasks complete"
-   - Remaining tasks overview
-   - Dynamic instruction from CLI
+5. **Implement tasks (loop until done or blocked)**
 
-6. **Implement tasks (loop until done or blocked)**
-
-   For each pending task:
+   For each pending task (drive by \`nextPendingId\`, or by document order for non-numeric tasks):
    - Show which task is being worked on
-   - Make the code changes required
-   - Keep changes minimal and focused
-   - Mark task complete in the tasks file: \`- [ ]\` → \`- [x]\`
-   - Continue to next task
+   - Make the code changes required (keep changes minimal and focused)
+   - Mark the task complete via the CLI — idempotent, anchored on the task id so \`1.1\` does not match \`1.10\`:
+     \`\`\`bash
+     openspec mark-task-done --change "<name>" "<task-id>"
+     \`\`\`
+     where \`<task-id>\` is the task's \`numericId\` (e.g., \`1.1\`). For tasks without a \`numericId\`, edit the file directly (\`- [ ]\` → \`- [x]\`).
+   - Re-run \`openspec instructions apply --change "<name>" --json\` to refresh \`nextPendingId\` and continue.
 
    **Pause if:**
    - Task is unclear → ask for clarification
@@ -83,7 +67,7 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
    - Error or blocker encountered → report and wait for guidance
    - User interrupts
 
-7. **On completion or pause, show status**
+6. **On completion or pause, show status**
 
    Display:
    - Tasks completed this session
@@ -178,64 +162,48 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
 
 1. **Select the change**
 
-   If a name is provided, use it. Otherwise:
-   - Infer from conversation context if the user mentioned a change
-   - Auto-select if only one active change exists
-   - If ambiguous, run \`openspec list --json\` to get available changes and use the **AskUserQuestion tool** to let the user select
+   If a name is provided, use it. Otherwise resolve via:
+   \`\`\`bash
+   openspec resolve-change --auto
+   \`\`\`
+   - Exits 0 with the change name when exactly one active change exists.
+   - Exits 1 (none) or 3 (ambiguous). On ambiguity, run \`openspec resolve-change --json\` and use the **AskUserQuestion tool** to let the user select.
 
    Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:apply <other>\`).
 
-2. **Check status to understand the schema**
-   \`\`\`bash
-   openspec status --change "<name>" --json
-   \`\`\`
-   Parse the JSON to understand:
-   - \`schemaName\`: The workflow being used (e.g., "spec-driven")
-   - \`planningHome\`, \`changeRoot\`, and \`actionContext\`: planning scope and edit constraints
-   - Which artifact contains the tasks (typically "tasks" for spec-driven, check status for others)
-
-3. **Get apply instructions**
-
+2. **Load apply context (status + tasks + instruction in one call)**
    \`\`\`bash
    openspec instructions apply --change "<name>" --json
    \`\`\`
 
-   This returns:
-   - \`contextFiles\`: artifact ID -> array of concrete file paths (varies by schema)
-   - Progress (total, complete, remaining)
-   - Task list with status
-   - Dynamic instruction based on current state
+   Use the returned JSON:
+   - \`schemaName\`: the workflow being used (e.g., "spec-driven")
+   - \`contextFiles\`: artifact ID → array of file paths (varies by schema)
+   - \`progress\` (total / complete / remaining), \`tasks\` (with \`numericId\` when the file uses numbered tasks), \`nextPendingId\` (the first unchecked task with a \`numericId\`)
+   - \`state\`: \`"blocked"\` (missing artifacts → suggest \`/opsx:continue\`), \`"all_done"\` (congratulate, suggest archive), or \`"ready"\` (proceed)
+   - \`instruction\`: dynamic guidance based on current state
 
-   **Handle states:**
-   - If \`state: "blocked"\` (missing artifacts): show message, suggest using \`/opsx:continue\`
-   - If \`state: "all_done"\`: congratulate, suggest archive
-   - Otherwise: proceed to implementation
+   **Workspace guard:** If \`openspec status --change "<name>" --json\` reports \`actionContext.mode: "workspace-planning"\` and \`allowedEditRoots\` is empty, explain that full workspace apply is not supported in this slice. Treat linked repos and folders as read-only context, ask the user to select an affected area through an explicit implementation workflow, and STOP before editing files.
 
-   **Workspace guard:** If status JSON reports \`actionContext.mode: "workspace-planning"\` and \`allowedEditRoots\` is empty, explain that full workspace apply is not supported in this slice. Treat linked repos and folders as read-only context, ask the user to select an affected area through an explicit implementation workflow, and STOP before editing files.
+3. **Read context files**
 
-4. **Read context files**
+   Read every file path listed under \`contextFiles\`.
 
-   Read every file path listed under \`contextFiles\` from the apply instructions output.
-   The files depend on the schema being used:
-   - **spec-driven**: proposal, specs, design, tasks
-   - Other schemas: follow the contextFiles from CLI output
+4. **Show current progress**
 
-5. **Show current progress**
+   Display schema, "N/M tasks complete", remaining tasks overview, and the dynamic \`instruction\`.
 
-   Display:
-   - Schema being used
-   - Progress: "N/M tasks complete"
-   - Remaining tasks overview
-   - Dynamic instruction from CLI
+5. **Implement tasks (loop until done or blocked)**
 
-6. **Implement tasks (loop until done or blocked)**
-
-   For each pending task:
+   For each pending task (drive by \`nextPendingId\`, or by document order for non-numeric tasks):
    - Show which task is being worked on
-   - Make the code changes required
-   - Keep changes minimal and focused
-   - Mark task complete in the tasks file: \`- [ ]\` → \`- [x]\`
-   - Continue to next task
+   - Make the code changes required (keep changes minimal and focused)
+   - Mark the task complete via the CLI — idempotent, anchored on the task id so \`1.1\` does not match \`1.10\`:
+     \`\`\`bash
+     openspec mark-task-done --change "<name>" "<task-id>"
+     \`\`\`
+     where \`<task-id>\` is the task's \`numericId\` (e.g., \`1.1\`). For tasks without a \`numericId\`, edit the file directly (\`- [ ]\` → \`- [x]\`).
+   - Re-run \`openspec instructions apply --change "<name>" --json\` to refresh \`nextPendingId\` and continue.
 
    **Pause if:**
    - Task is unclear → ask for clarification
@@ -243,7 +211,7 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
    - Error or blocker encountered → report and wait for guidance
    - User interrupts
 
-7. **On completion or pause, show status**
+6. **On completion or pause, show status**
 
    Display:
    - Tasks completed this session
