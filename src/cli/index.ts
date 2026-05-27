@@ -32,6 +32,9 @@ import {
   schemasCommand,
   newChangeCommand,
   setChangeCommand,
+  resolveChangeCommand,
+  nextArtifactCommand,
+  markTaskDoneCommand,
   DEFAULT_SCHEMA,
   type StatusOptions,
   type InstructionsOptions,
@@ -39,6 +42,9 @@ import {
   type SchemasOptions,
   type NewChangeOptions,
   type SetChangeOptions,
+  type ResolveChangeOptions,
+  type NextArtifactOptions,
+  type MarkTaskDoneOptions,
 } from '../commands/workflow/index.js';
 import { maybeShowTelemetryNotice, trackCommand, shutdown } from '../telemetry/index.js';
 
@@ -525,6 +531,60 @@ newCmd
   .action(async (name: string, options: NewChangeOptions) => {
     try {
       await newChangeCommand(name, options);
+    } catch (error) {
+      console.log();
+      ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+// Resolve-change command (agent helper: locate active change by name or
+// auto-select when unambiguous)
+program
+  .command('resolve-change [name]')
+  .description('Resolve an active change by name, list active changes, or auto-select the only one')
+  .option('--auto', 'Succeed only when exactly one active change exists')
+  .option('--json', 'Output as JSON')
+  .action(async (name: string | undefined, options: ResolveChangeOptions) => {
+    try {
+      await resolveChangeCommand(name, options);
+    } catch (error) {
+      console.log();
+      ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+// Next-artifact command (agent helper: bundle "what is the next ready
+// artifact?" with its full instructions payload). JSON is the default since
+// agents are the primary consumers; pass --no-json for the human summary.
+program
+  .command('next-artifact')
+  .description('Return the next ready artifact for a change, bundled with its instructions (JSON by default)')
+  .option('--change <id>', 'Change name')
+  .option('--schema <name>', 'Schema override (auto-detected from config.yaml)')
+  .option('--no-json', 'Print a human-readable summary instead of JSON')
+  .action(async (options: NextArtifactOptions) => {
+    try {
+      await nextArtifactCommand(options);
+    } catch (error) {
+      console.log();
+      ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+// Mark-task-done command (agent helper: flip a tracked tasks.md checkbox by
+// numeric task id)
+program
+  .command('mark-task-done <task-id>')
+  .description('Mark a task complete in the change\'s tracking file (idempotent)')
+  .option('--change <id>', 'Change name')
+  .option('--schema <name>', 'Schema override (auto-detected from config.yaml)')
+  .option('--json', 'Output as JSON')
+  .action(async (taskId: string, options: MarkTaskDoneOptions) => {
+    try {
+      await markTaskDoneCommand(taskId, options);
     } catch (error) {
       console.log();
       ora().fail(`Error: ${(error as Error).message}`);

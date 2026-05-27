@@ -20,6 +20,13 @@ export interface TaskItem {
   id: string;
   description: string;
   done: boolean;
+  /**
+   * Hierarchical task id captured from the start of the description when the
+   * tasks file uses numbered tasks (e.g. `- [ ] 1.1 Wire foo`). Useful for
+   * agents that mark tasks complete by author-supplied id rather than by
+   * position. Absent when the line has no leading `N(.N)*` token.
+   */
+  numericId?: string;
 }
 
 export interface ApplyInstructions {
@@ -37,6 +44,13 @@ export interface ApplyInstructions {
   state: 'blocked' | 'all_done' | 'ready';
   missingArtifacts?: string[];
   instruction: string;
+  /**
+   * First unchecked task that has a `numericId` (in document order). Lets
+   * agents drive `openspec mark-task-done` without parsing the tasks list
+   * themselves. `null` when no such task exists (all done, or no task uses
+   * numeric ids).
+   */
+  nextPendingId: string | null;
 }
 
 // -----------------------------------------------------------------------------
