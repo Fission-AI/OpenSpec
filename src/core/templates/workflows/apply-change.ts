@@ -43,47 +43,9 @@ function getApplyInstructions(): string {
 
    Always announce: "Using change: <name>" and how to override (e.g., \`/pstl:apply <other>\`).
 
-2. **Check status to understand the schema**
-   \`\`\`bash
-   pastelsdd status --change "<name>" --json
-   \`\`\`
-   Parse the JSON to understand:
-   - \`schemaName\`: The workflow being used (e.g., "spec-driven")
-   - \`planningHome\`, \`changeRoot\`, and \`actionContext\`: planning scope and edit constraints
-   - Which artifact contains the tasks (typically "tasks" for spec-driven, check status for others)
+2. **Trello Integration — move card to "Em Desenvolvimento" (optional)**
 
-3. **Get apply instructions**
-
-   \`\`\`bash
-   pastelsdd instructions apply --change "<name>" --json
-   \`\`\`
-
-   This returns:
-   - \`contextFiles\`: artifact ID -> array of concrete file paths (varies by schema)
-   - Progress (total, complete, remaining)
-   - Task list with status
-   - Dynamic instruction based on current state
-
-   **Handle states:**
-   - If \`state: "blocked"\` (missing artifacts): show message, suggest using \`/pstl:continue\`
-   - If \`state: "all_done"\`: congratulate, suggest archive
-   - Otherwise: proceed to implementation
-
-   **Workspace guard:** If status JSON reports \`actionContext.mode: "workspace-planning"\` and \`allowedEditRoots\` is empty, explain that full workspace apply is not supported in this slice. Treat linked repos and folders as read-only context, ask the user to select an affected area, and STOP before editing files.
-
-4. **Read context files**
-
-   Read every file path listed under \`contextFiles\` from the apply instructions output.
-
-5. **Show current progress**
-
-   Display:
-   - Schema being used
-   - Progress: "N/M tasks complete"
-   - Remaining tasks overview
-   - Dynamic instruction from CLI
-
-6. **Trello Integration — move card to "Em Desenvolvimento" (optional)**
+   This is the FIRST action after selecting the change — signal immediately that development has started.
 
    Use the **Read tool** (NOT a shell command) to read \`pastelsdd/trello.yaml\` from the current working directory.
    The Read tool is cross-platform and works on Windows, macOS, and Linux — never use \`cat\` or shell commands to read this file.
@@ -113,6 +75,46 @@ function getApplyInstructions(): string {
    Save \`cardId\` for the completion step.
 
    If any Trello call fails, continue — Trello is auxiliary, never blocking.
+
+3. **Check status to understand the schema**
+   \`\`\`bash
+   pastelsdd status --change "<name>" --json
+   \`\`\`
+   Parse the JSON to understand:
+   - \`schemaName\`: The workflow being used (e.g., "spec-driven")
+   - \`planningHome\`, \`changeRoot\`, and \`actionContext\`: planning scope and edit constraints
+   - Which artifact contains the tasks (typically "tasks" for spec-driven, check status for others)
+
+4. **Get apply instructions**
+
+   \`\`\`bash
+   pastelsdd instructions apply --change "<name>" --json
+   \`\`\`
+
+   This returns:
+   - \`contextFiles\`: artifact ID -> array of concrete file paths (varies by schema)
+   - Progress (total, complete, remaining)
+   - Task list with status
+   - Dynamic instruction based on current state
+
+   **Handle states:**
+   - If \`state: "blocked"\` (missing artifacts): show message, suggest using \`/pstl:continue\`
+   - If \`state: "all_done"\`: congratulate, suggest archive
+   - Otherwise: proceed to implementation
+
+   **Workspace guard:** If status JSON reports \`actionContext.mode: "workspace-planning"\` and \`allowedEditRoots\` is empty, explain that full workspace apply is not supported in this slice. Treat linked repos and folders as read-only context, ask the user to select an affected area, and STOP before editing files.
+
+5. **Read context files**
+
+   Read every file path listed under \`contextFiles\` from the apply instructions output.
+
+6. **Show current progress**
+
+   Display:
+   - Schema being used
+   - Progress: "N/M tasks complete"
+   - Remaining tasks overview
+   - Dynamic instruction from CLI
 
 7. **Implement tasks (loop until done or blocked)**
 

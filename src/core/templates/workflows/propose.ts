@@ -213,77 +213,69 @@ Para iniciar a implementação quando aprovado:
 
 ---
 
-### Step R2 — Update Trello card description (if cardId exists)
-
-If \`cardId\` was saved in Step 3, update the card description with the refined summary in Portuguese.
-Build the description from the artifacts already read in Step R1:
-
-\`\`\`tool
-mcp__claude_ai_Trello_Custom__update_card
-  card_id: "<cardId>"
-  desc: |
-    **Objetivo:** <summary from proposal.md>
-
-    **O que será implementado:**
-    <bullet list from design.md / tasks.md>
-
-    **Decisões técnicas:**
-    <key decisions from design.md>
-
-    **Artefatos:** pastelsdd/changes/<name>/
-\`\`\`
-
----
-
-### Step R3 — Add Trello comment with the implementation command (if cardId exists)
-
-Add a comment in Portuguese using proper Markdown so the command is clearly formatted:
-
-\`\`\`tool
-mcp__claude_ai_Trello_Custom__add_comment
-  card_id: "<cardId>"
-  text: |
-    ## Proposta refinada ✓
-
-    **Change:** \`<name>\`
-    **Artefatos gerados:** proposal.md · design.md · tasks.md
-
-    ### Resumo
-    <2-3 line summary of what will be built>
-
-    ### Para iniciar a implementação
-    \`\`\`
-    /pstl:apply <name>
-    \`\`\`
-
-    _Aguardando aprovação para mover para Ready to Dev._
-\`\`\`
-
----
-
-### Step R4 — Ask for user approval
+### Step R2 — Ask for user approval
 
 Use **AskUserQuestion** to ask:
 
 > "A implementação e o planejamento estão de acordo com o esperado?"
 
 Options:
-- ✅ Sim, mover para Ready to Dev
+- ✅ Sim, está refinada — mover para Ready to Dev
 - 🔄 Não, quero ajustar o plano
 - ❌ Cancelar (manter em refinamento)
 
+**Do NOT update the Trello card description or add any comment before the user approves.**
+
 ---
 
-### Step R4a — If APPROVED (Sim, mover para Ready to Dev)
+### Step R2a — If APPROVED (Sim, está refinada)
 
-1. **Move the Trello card to the ready list** (if \`lists.ready\` is configured and \`cardId\` exists):
+1. **Update Trello card description** (if \`cardId\` exists):
+   Build the description from the artifacts already read in Step R1:
+   \`\`\`tool
+   mcp__claude_ai_Trello_Custom__update_card
+     card_id: "<cardId>"
+     desc: |
+       **Objetivo:** <summary from proposal.md>
+
+       **O que será implementado:**
+       <bullet list from design.md / tasks.md>
+
+       **Decisões técnicas:**
+       <key decisions from design.md>
+
+       **Artefatos:** pastelsdd/changes/<name>/
+   \`\`\`
+
+2. **Add a comment** in Portuguese (if \`cardId\` exists):
+   \`\`\`tool
+   mcp__claude_ai_Trello_Custom__add_comment
+     card_id: "<cardId>"
+     text: |
+       ## Proposta refinada ✓
+
+       **Change:** \`<name>\`
+       **Artefatos gerados:** proposal.md · design.md · tasks.md
+
+       ### Resumo
+       <2-3 line summary of what will be built>
+
+       ### Para iniciar a implementação
+       \`\`\`
+       /pstl:apply <name>
+       \`\`\`
+
+       _Aguardando aprovação para mover para Ready to Dev._
+   \`\`\`
+
+3. **Move the Trello card to the ready list** (if \`lists.ready\` is configured and \`cardId\` exists):
    \`\`\`tool
    mcp__claude_ai_Trello_Custom__update_card
      card_id: "<cardId>"
      list_id: "<lists.ready.id>"
    \`\`\`
 
-2. **Add a final Trello comment** (if cardId exists):
+4. **Add a final Trello comment** (if cardId exists):
    \`\`\`tool
    mcp__claude_ai_Trello_Custom__add_comment
      card_id: "<cardId>"
@@ -298,7 +290,7 @@ Options:
        \`\`\`
    \`\`\`
 
-3. **Show success message:**
+5. **Show success message:**
    \`\`\`markdown
    ## ✅ Pronto para desenvolvimento!
 
@@ -313,7 +305,7 @@ Options:
 
 ---
 
-### Step R4b — If NOT APPROVED (Quero ajustar o plano)
+### Step R2b — If NOT APPROVED (Quero ajustar o plano)
 
 1. **Ask what needs to change** using **AskUserQuestion**:
    > "O que você gostaria de ajustar no plano? Descreva as mudanças necessárias."
@@ -323,14 +315,13 @@ Options:
    - Changes to technical approach → update \`design.md\`
    - Changes to tasks → update \`tasks.md\`
 
-3. **Update the Trello card description** with the revised plan (repeat Step R2 with updated content).
-
-4. **Go back to Step R1** and show the updated refinement summary.
+3. **Go back to Step R1** and show the updated refinement summary.
    Keep looping until the user approves or cancels.
+   **Do NOT update the Trello description or add comments until the user approves.**
 
 ---
 
-### Step R4c — If CANCELLED
+### Step R2c — If CANCELLED
 
 Show:
 \`\`\`markdown
