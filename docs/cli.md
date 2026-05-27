@@ -1,6 +1,6 @@
 ﻿# CLI Reference
 
-The Pastelsdd CLI (`pastelsdd`) provides terminal commands for project setup, validation, status inspection, and management. These commands complement the AI slash commands (like `/pastel:propose`) documented in [Commands](commands.md).
+The Pastelsdd CLI (`pastelsdd`) provides terminal commands for project setup, validation, status inspection, and management. These commands complement the AI slash commands (like `/pstl:propose`) documented in [Commands](commands.md).
 
 ## Summary
 
@@ -1277,7 +1277,7 @@ pastelsdd completion uninstall
 
 ## Related Documentation
 
-- [Commands](commands.md) - AI slash commands (`/pastel:propose`, `/pastel:apply`, etc.)
+- [Commands](commands.md) - AI slash commands (`/pstl:propose`, `/pstl:apply`, etc.)
 - [Workflows](workflows.md) - Common patterns and when to use each command
 - [Customization](customization.md) - Create custom schemas and templates
 - [Getting Started](getting-started.md) - First-time setup guide

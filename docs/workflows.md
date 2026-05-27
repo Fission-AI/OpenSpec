@@ -33,21 +33,21 @@ OPSX (fluid actions):
 ### Default Quick Path (`core` profile)
 
 New installs default to `core`, which provides:
-- `/pastel:propose`
-- `/pastel:explore`
-- `/pastel:apply`
-- `/pastel:sync`
-- `/pastel:archive`
+- `/pstl:propose`
+- `/pstl:explore`
+- `/pstl:apply`
+- `/pstl:sync`
+- `/pstl:archive`
 
 Typical flow:
 
 ```text
-/pastel:propose ──► /pastel:apply ──► /pastel:sync ──► /pastel:archive
+/pstl:propose ──► /pstl:apply ──► /pstl:sync ──► /pstl:archive
 ```
 
 ### Expanded/Full Workflow (custom selection)
 
-If you want explicit scaffold-and-build commands (`/pastel:new`, `/pastel:continue`, `/pastel:ff`, `/pastel:verify`, `/pastel:bulk-archive`, `/pastel:onboard`), enable them with:
+If you want explicit scaffold-and-build commands (`/pstl:new`, `/pstl:continue`, `/pstl:ff`, `/pstl:verify`, `/pstl:bulk-archive`, `/pstl:onboard`), enable them with:
 
 ```bash
 pastelsdd config profile
@@ -61,18 +61,18 @@ pastelsdd update
 When you know what you want to build and just need to execute:
 
 ```text
-/pastel:new ──► /pastel:ff ──► /pastel:apply ──► /pastel:verify ──► /pastel:archive
+/pstl:new ──► /pstl:ff ──► /pstl:apply ──► /pstl:verify ──► /pstl:archive
 ```
 
 **Example conversation:**
 
 ```text
-You: /pastel:new add-logout-button
+You: /pstl:new add-logout-button
 
 AI:  Created pastelsdd/changes/add-logout-button/
      Ready to create: proposal
 
-You: /pastel:ff
+You: /pstl:ff
 
 AI:  Creating all planning artifacts...
      ✓ proposal.md
@@ -81,7 +81,7 @@ AI:  Creating all planning artifacts...
      ✓ tasks.md
      Ready for implementation!
 
-You: /pastel:apply
+You: /pstl:apply
 
 AI:  Working through tasks...
      ✓ Added logout button to header
@@ -89,7 +89,7 @@ AI:  Working through tasks...
      ✓ Added confirmation dialog
      All tasks complete!
 
-You: /pastel:archive
+You: /pstl:archive
 
 AI:  ✓ Merged specs
      ✓ Archived change
@@ -102,13 +102,13 @@ AI:  ✓ Merged specs
 When requirements are unclear or you need to investigate first:
 
 ```text
-/pastel:explore ──► /pastel:new ──► /pastel:continue ──► ... ──► /pastel:apply
+/pstl:explore ──► /pstl:new ──► /pstl:continue ──► ... ──► /pstl:apply
 ```
 
 **Example conversation:**
 
 ```text
-You: /pastel:explore
+You: /pstl:explore
 
 AI:  What would you like to explore?
 
@@ -128,11 +128,11 @@ AI:  Let me help investigate...
 
 You: Let's tackle the data fetching issue.
 
-You: /pastel:new optimize-product-list-fetching
+You: /pstl:new optimize-product-list-fetching
 
 AI:  Created change. Ready to create: proposal
 
-You: /pastel:continue
+You: /pstl:continue
 
 AI:  Creating proposal based on our exploration...
      [Writes proposal incorporating investigation insights]
@@ -140,7 +140,7 @@ AI:  Creating proposal based on our exploration...
      Ready to create: specs, design
      Which would you like next?
 
-You: /pastel:continue
+You: /pstl:continue
 
 AI:  Creating specs...
 ```
@@ -152,11 +152,11 @@ AI:  Creating specs...
 Work on multiple changes at once:
 
 ```text
-Change A: /pastel:new ──► /pastel:ff ──► /pastel:apply (in progress)
+Change A: /pstl:new ──► /pstl:ff ──► /pstl:apply (in progress)
                                          │
                                     context switch
                                          │
-Change B: /pastel:new ──► /pastel:ff ──────► /pastel:apply
+Change B: /pstl:new ──► /pstl:ff ──────► /pstl:apply
 ```
 
 **Example conversation:**
@@ -164,27 +164,27 @@ Change B: /pastel:new ──► /pastel:ff ──────► /pastel:apply
 ```text
 You: I'm working on add-dark-mode but got pulled into a bug fix
 
-You: /pastel:new fix-login-redirect
+You: /pstl:new fix-login-redirect
 
 AI:  Created pastelsdd/changes/fix-login-redirect/
 
-You: /pastel:ff
+You: /pstl:ff
 
 AI:  ✓ Created planning artifacts
 
-You: /pastel:apply
+You: /pstl:apply
 
 AI:  Working on fix-login-redirect...
      [Implements the fix]
      All tasks complete!
 
-You: /pastel:archive
+You: /pstl:archive
 
 AI:  ✓ Archived fix-login-redirect
 
 You: Let's get back to dark mode
 
-You: /pastel:apply add-dark-mode
+You: /pstl:apply add-dark-mode
 
 AI:  Resuming add-dark-mode...
      Picking up at task 2.3: Update Header...
@@ -192,10 +192,10 @@ AI:  Resuming add-dark-mode...
 
 **Best for:** Parallel work streams, urgent interrupts, team collaboration.
 
-When you have multiple completed changes, use `/pastel:bulk-archive`:
+When you have multiple completed changes, use `/pstl:bulk-archive`:
 
 ```text
-You: /pastel:bulk-archive
+You: /pstl:bulk-archive
 
 AI:  Found 3 completed changes:
      - add-dark-mode (all tasks done)
@@ -225,7 +225,7 @@ Bulk archive detects when multiple changes touch the same specs and resolves con
 The recommended completion flow:
 
 ```text
-/pastel:apply ──► /pastel:verify ──► /pastel:archive
+/pstl:apply ──► /pstl:verify ──► /pstl:archive
                     │                 │
               validates          prompts to sync
               implementation     if needed
@@ -233,10 +233,10 @@ The recommended completion flow:
 
 #### Verify: Check Your Work
 
-`/pastel:verify` validates implementation against your artifacts across three dimensions:
+`/pstl:verify` validates implementation against your artifacts across three dimensions:
 
 ```text
-You: /pastel:verify
+You: /pstl:verify
 
 AI:  Verifying add-auth...
 
@@ -278,10 +278,10 @@ Verify won't block archive, but it surfaces issues you might want to address fir
 
 #### Archive: Finalize the Change
 
-`/pastel:archive` completes the change and moves it to the archive:
+`/pstl:archive` completes the change and moves it to the archive:
 
 ```text
-You: /pastel:archive
+You: /pstl:archive
 
 AI:  Archiving add-auth...
 
@@ -306,17 +306,17 @@ Archive will prompt if specs aren't synced. It won't block on incomplete tasks, 
 
 ## When to Use What
 
-### `/pastel:ff` vs `/pastel:continue`
+### `/pstl:ff` vs `/pstl:continue`
 
 | Situation | Use |
 |-----------|-----|
-| Clear requirements, ready to build | `/pastel:ff` |
-| Exploring, want to review each step | `/pastel:continue` |
-| Want to iterate on proposal before specs | `/pastel:continue` |
-| Time pressure, need to move fast | `/pastel:ff` |
-| Complex change, want control | `/pastel:continue` |
+| Clear requirements, ready to build | `/pstl:ff` |
+| Exploring, want to review each step | `/pstl:continue` |
+| Want to iterate on proposal before specs | `/pstl:continue` |
+| Time pressure, need to move fast | `/pstl:ff` |
+| Complex change, want control | `/pstl:continue` |
 
-**Rule of thumb:** If you can describe the full scope upfront, use `/pastel:ff`. If you're figuring it out as you go, use `/pastel:continue`.
+**Rule of thumb:** If you can describe the full scope upfront, use `/pstl:ff`. If you're figuring it out as you go, use `/pstl:continue`.
 
 ### When to Update vs Start Fresh
 
@@ -374,12 +374,12 @@ One logical unit of work per change. If you're doing "add feature X and also ref
 - Can ship independently
 - Simpler rollback if needed
 
-### Use `/pastel:explore` for Unclear Requirements
+### Use `/pstl:explore` for Unclear Requirements
 
 Before committing to a change, explore the problem space:
 
 ```text
-You: /pastel:explore
+You: /pstl:explore
 
 AI:  What would you like to explore?
 
@@ -400,10 +400,10 @@ Exploration clarifies thinking before you create artifacts.
 
 ### Verify Before Archiving
 
-Use `/pastel:verify` to check implementation matches artifacts:
+Use `/pstl:verify` to check implementation matches artifacts:
 
 ```text
-You: /pastel:verify
+You: /pstl:verify
 
 AI:  Verifying add-dark-mode...
 
@@ -434,16 +434,16 @@ For full command details and options, see [Commands](commands.md).
 
 | Command | Purpose | When to Use |
 |---------|---------|-------------|
-| `/pastel:propose` | Create change + planning artifacts | Fast default path (`core` profile) |
-| `/pastel:explore` | Think through ideas | Unclear requirements, investigation |
-| `/pastel:new` | Start a change scaffold | Expanded mode, explicit artifact control |
-| `/pastel:continue` | Create next artifact | Expanded mode, step-by-step artifact creation |
-| `/pastel:ff` | Create all planning artifacts | Expanded mode, clear scope |
-| `/pastel:apply` | Implement tasks | Ready to write code |
-| `/pastel:verify` | Validate implementation | Expanded mode, before archiving |
-| `/pastel:sync` | Merge delta specs | Expanded mode, optional |
-| `/pastel:archive` | Complete the change | All work finished |
-| `/pastel:bulk-archive` | Archive multiple changes | Expanded mode, parallel work |
+| `/pstl:propose` | Create change + planning artifacts | Fast default path (`core` profile) |
+| `/pstl:explore` | Think through ideas | Unclear requirements, investigation |
+| `/pstl:new` | Start a change scaffold | Expanded mode, explicit artifact control |
+| `/pstl:continue` | Create next artifact | Expanded mode, step-by-step artifact creation |
+| `/pstl:ff` | Create all planning artifacts | Expanded mode, clear scope |
+| `/pstl:apply` | Implement tasks | Ready to write code |
+| `/pstl:verify` | Validate implementation | Expanded mode, before archiving |
+| `/pstl:sync` | Merge delta specs | Expanded mode, optional |
+| `/pstl:archive` | Complete the change | All work finished |
+| `/pstl:bulk-archive` | Archive multiple changes | Expanded mode, parallel work |
 
 ## Next Steps
 

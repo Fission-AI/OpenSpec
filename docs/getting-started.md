@@ -9,13 +9,13 @@ Pastelsdd helps you and your AI coding assistant agree on what to build before a
 **Default quick path (core profile):**
 
 ```text
-/pastel:propose ──► /pastel:apply ──► /pastel:sync ──► /pastel:archive
+/pstl:propose ──► /pstl:apply ──► /pstl:sync ──► /pstl:archive
 ```
 
 **Expanded path (custom workflow selection):**
 
 ```text
-/pastel:new ──► /pastel:ff or /pastel:continue ──► /pastel:apply ──► /pastel:verify ──► /pastel:archive
+/pstl:new ──► /pstl:ff or /pstl:continue ──► /pstl:apply ──► /pstl:verify ──► /pstl:archive
 ```
 
 The default global profile is `core`, which includes `propose`, `explore`, `apply`, `sync`, and `archive`. You can enable the expanded workflow commands with `pastelsdd config profile` and then `pastelsdd update`.
@@ -123,7 +123,7 @@ Let's walk through adding dark mode to an application.
 ### 1. Start the Change (Default)
 
 ```text
-You: /pastel:propose add-dark-mode
+You: /pstl:propose add-dark-mode
 
 AI:  Created pastelsdd/changes/add-dark-mode/
      ✓ proposal.md — why we're doing this, what's changing
@@ -133,7 +133,7 @@ AI:  Created pastelsdd/changes/add-dark-mode/
      Ready for implementation!
 ```
 
-If you've enabled the expanded workflow profile, you can also do this as two steps: `/pastel:new` then `/pastel:ff` (or `/pastel:continue` incrementally).
+If you've enabled the expanded workflow profile, you can also do this as two steps: `/pstl:new` then `/pstl:ff` (or `/pstl:continue` incrementally).
 
 ### 2. What Gets Created
 
@@ -201,7 +201,7 @@ The system SHALL allow users to choose between light and dark themes.
 ### 3. Implement
 
 ```
-You: /pastel:apply
+You: /pstl:apply
 
 AI:  Working through tasks...
      ✓ 1.1 Created ThemeContext with light/dark state
@@ -217,7 +217,7 @@ During implementation, if you discover the design needs adjustment, just update 
 ### 4. Archive
 
 ```
-You: /pastel:archive
+You: /pstl:archive
 
 AI:  Archiving add-dark-mode...
      ✓ Merged specs into pastelsdd/specs/ui/spec.md

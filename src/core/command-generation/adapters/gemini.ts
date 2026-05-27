@@ -9,14 +9,14 @@ import type { CommandContent, ToolCommandAdapter } from '../types.js';
 
 /**
  * Gemini adapter for command generation.
- * File path: .gemini/commands/pastel/<id>.toml
+ * File path: .gemini/commands/pstl/<id>.toml
  * Format: TOML with description and prompt fields
  */
 export const geminiAdapter: ToolCommandAdapter = {
   toolId: 'gemini',
 
   getFilePath(commandId: string): string {
-    return path.join('.gemini', 'commands', 'pastel', `${commandId}.toml`);
+    return path.join('.gemini', 'commands', 'pstl', `${commandId}.toml`);
   },
 
   formatFile(content: CommandContent): string {

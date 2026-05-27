@@ -37,7 +37,7 @@ I'll create a change with artifacts:
 
 After artifacts are created, a **refinement validation loop** runs: the user reviews the plan, gives feedback, and when satisfied the Trello card is moved to Ready to Dev.
 
-When ready to implement, run /pastel:apply
+When ready to implement, run /pstl:apply
 
 ---
 
@@ -112,7 +112,7 @@ When ready to implement, run /pastel:apply
       mcp__claude_ai_Trello_Custom__create_card
         list_id: "<lists.refining.id>"
         name: "<human-readable change name in Portuguese>"
-        desc: "Change iniciada via /pastel:propose"
+        desc: "Change iniciada via /pstl:propose"
       \`\`\`
       Save \`cardId\`.
 
@@ -207,7 +207,7 @@ Present the following structured summary to the user. Read \`proposal.md\`, \`de
 ---
 Para iniciar a implementação quando aprovado:
 \`\`\`
-/pastel:apply <name>
+/pstl:apply <name>
 \`\`\`
 \`\`\`
 
@@ -253,7 +253,7 @@ mcp__claude_ai_Trello_Custom__add_comment
 
     ### Para iniciar a implementação
     \`\`\`
-    /pastel:apply <name>
+    /pstl:apply <name>
     \`\`\`
 
     _Aguardando aprovação para mover para Ready to Dev._
@@ -294,7 +294,7 @@ Options:
 
        ### Próximo passo
        \`\`\`
-       /pastel:apply <name>
+       /pstl:apply <name>
        \`\`\`
    \`\`\`
 
@@ -307,7 +307,7 @@ Options:
 
    Quando quiser iniciar a implementação:
    \`\`\`
-   /pastel:apply <name>
+   /pstl:apply <name>
    \`\`\`
    \`\`\`
 
@@ -337,7 +337,7 @@ Show:
 ## ⏸ Refinamento pausado
 
 O card permanece em **<current list name>**.
-Retome o refinamento quando quiser com \`/pastel:explore <name>\`.
+Retome o refinamento quando quiser com \`/pstl:explore <name>\`.
 \`\`\`
 
 Do NOT move the card. Stop the loop.

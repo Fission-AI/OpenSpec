@@ -422,7 +422,7 @@ export function formatCleanupSummary(result: CleanupResult): string {
     }
 
     for (const dir of result.deletedDirs) {
-      lines.push(`  ✓ Removed ${dir}/ (replaced by /pastel:*)`);
+      lines.push(`  ✓ Removed ${dir}/ (replaced by /pstl:*)`);
     }
 
     for (const file of result.modifiedFiles) {

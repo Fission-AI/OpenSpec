@@ -8,7 +8,7 @@ OPSX replaces the old phase-locked workflow with a fluid, action-based approach.
 
 | Aspect | Legacy | OPSX |
 |--------|--------|------|
-| **Commands** | `/pastelsdd:proposal`, `/pastelsdd:apply`, `/pastelsdd:archive` | Default: `/pastel:propose`, `/pastel:apply`, `/pastel:sync`, `/pastel:archive` (expanded workflow commands optional) |
+| **Commands** | `/pastelsdd:proposal`, `/pastelsdd:apply`, `/pastelsdd:archive` | Default: `/pstl:propose`, `/pstl:apply`, `/pstl:sync`, `/pstl:archive` (expanded workflow commands optional) |
 | **Workflow** | Create all artifacts at once | Create incrementally or all at once—your choice |
 | **Going back** | Awkward phase gates | Natural—update any artifact anytime |
 | **Customization** | Fixed structure | Schema-driven, fully hackable |
@@ -284,22 +284,22 @@ Command availability is profile-dependent:
 
 | Command | Purpose |
 |---------|---------|
-| `/pastel:propose` | Create a change and generate planning artifacts in one step |
-| `/pastel:explore` | Think through ideas with no structure |
-| `/pastel:apply` | Implement tasks from tasks.md |
-| `/pastel:archive` | Finalize and archive the change |
+| `/pstl:propose` | Create a change and generate planning artifacts in one step |
+| `/pstl:explore` | Think through ideas with no structure |
+| `/pstl:apply` | Implement tasks from tasks.md |
+| `/pstl:archive` | Finalize and archive the change |
 
 **Expanded workflow (custom selection):**
 
 | Command | Purpose |
 |---------|---------|
-| `/pastel:new` | Start a new change scaffold |
-| `/pastel:continue` | Create the next artifact (one at a time) |
-| `/pastel:ff` | Fast-forward—create planning artifacts at once |
-| `/pastel:verify` | Validate implementation matches specs |
-| `/pastel:sync` | Merge delta specs into main specs |
-| `/pastel:bulk-archive` | Archive multiple changes at once |
-| `/pastel:onboard` | Guided end-to-end onboarding workflow |
+| `/pstl:new` | Start a new change scaffold |
+| `/pstl:continue` | Create the next artifact (one at a time) |
+| `/pstl:ff` | Fast-forward—create planning artifacts at once |
+| `/pstl:verify` | Validate implementation matches specs |
+| `/pstl:sync` | Merge delta specs into main specs |
+| `/pstl:bulk-archive` | Archive multiple changes at once |
+| `/pstl:onboard` | Guided end-to-end onboarding workflow |
 
 Enable expanded commands with `pastelsdd config profile`, then run `pastelsdd update`.
 
@@ -307,9 +307,9 @@ Enable expanded commands with `pastelsdd config profile`, then run `pastelsdd up
 
 | Legacy | OPSX Equivalent |
 |--------|-----------------|
-| `/pastelsdd:proposal` | `/pastel:propose` (default) or `/pastel:new` then `/pastel:ff` (expanded) |
-| `/pastelsdd:apply` | `/pastel:apply` |
-| `/pastelsdd:archive` | `/pastel:archive` |
+| `/pastelsdd:proposal` | `/pstl:propose` (default) or `/pstl:new` then `/pstl:ff` (expanded) |
+| `/pastelsdd:apply` | `/pstl:apply` |
+| `/pastelsdd:archive` | `/pstl:archive` |
 
 ### New Capabilities
 
@@ -317,13 +317,13 @@ These capabilities are part of the expanded workflow command set.
 
 **Granular artifact creation:**
 ```
-/pastel:continue
+/pstl:continue
 ```
 Creates one artifact at a time based on dependencies. Use this when you want to review each step.
 
 **Exploration mode:**
 ```
-/pastel:explore
+/pstl:explore
 ```
 Think through ideas with a partner before committing to a change.
 
@@ -381,7 +381,7 @@ Artifacts form a directed graph. Dependencies are enablers, not gates:
                      specs, design)
 ```
 
-When you run `/pastel:continue`, it checks what's ready and offers the next artifact. You can also create multiple ready artifacts in any order.
+When you run `/pstl:continue`, it checks what's ready and offers the next artifact. You can also create multiple ready artifacts in any order.
 
 ### Skills vs Commands
 
@@ -416,7 +416,7 @@ Your in-progress changes work seamlessly with OPSX commands.
 **Have an active change from the legacy workflow?**
 
 ```
-/pastel:apply add-my-feature
+/pstl:apply add-my-feature
 ```
 
 OPSX reads the existing artifacts and continues from where you left off.
@@ -424,7 +424,7 @@ OPSX reads the existing artifacts and continues from where you left off.
 **Want to add more artifacts to an existing change?**
 
 ```
-/pastel:continue add-my-feature
+/pstl:continue add-my-feature
 ```
 
 Shows what's ready to create based on what already exists.
@@ -577,14 +577,14 @@ project/
 ### Command Cheatsheet
 
 ```text
-/pastel:propose      Start quickly (default core profile)
-/pastel:apply        Implement tasks
-/pastel:archive      Finish and archive
+/pstl:propose      Start quickly (default core profile)
+/pstl:apply        Implement tasks
+/pstl:archive      Finish and archive
 
 # Expanded workflow (if enabled):
-/pastel:new          Scaffold a change
-/pastel:continue     Create next artifact
-/pastel:ff           Create planning artifacts
+/pstl:new          Scaffold a change
+/pstl:continue     Create next artifact
+/pstl:ff           Create planning artifacts
 ```
 
 ---

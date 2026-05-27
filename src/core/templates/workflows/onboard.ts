@@ -34,7 +34,7 @@ pastelsdd --version 2>&1 || echo "CLI_NOT_INSTALLED"
 \`\`\`
 
 **If CLI not installed:**
-> Pastelsdd CLI is not installed. Install it first, then come back to \`/pastel:onboard\`.
+> Pastelsdd CLI is not installed. Install it first, then come back to \`/pstl:onboard\`.
 
 Stop here if not installed.
 
@@ -161,7 +161,7 @@ Spend 1-2 minutes investigating the relevant code:
 │   [Optional: ASCII diagram if helpful]  │
 └─────────────────────────────────────────┘
 
-Explore mode (\`/pastel:explore\`) is for this kind of thinking—investigating before implementing. You can use it anytime you need to think through a problem.
+Explore mode (\`/pstl:explore\`) is for this kind of thinking—investigating before implementing. You can use it anytime you need to think through a problem.
 
 Now let's create a change to hold our work.
 \`\`\`
@@ -468,20 +468,20 @@ Detectei que o servidor MCP do Trello está ativo. O Pastelsdd pode sincronizar
 automaticamente cards no Trello conforme você avança nas suas changes.
 
 **Benefícios da integração:**
-- /pastel:task   → adiciona tarefa ao Backlog do Trello
-- /pastel:draft  → registra ideias em "Para Explorar"
-- /pastel:propose → move card para "Em Refinamento"
-- /pastel:apply  → move card para "Em Desenvolvimento" e depois "Em Teste"
-- /pastel:archive → move card para "Concluído"
+- /pstl:task   → adiciona tarefa ao Backlog do Trello
+- /pstl:draft  → registra ideias em "Para Explorar"
+- /pstl:propose → move card para "Em Refinamento"
+- /pstl:apply  → move card para "Em Desenvolvimento" e depois "Em Teste"
+- /pstl:archive → move card para "Concluído"
 
 Deseja configurar agora?
 \`\`\`
 
 Use **AskUserQuestion** to ask: "Configurar integração com Trello agora?" (Sim, configurar agora / Não, depois).
 
-If "Sim": invoke \`/pastel:trello-setup\` instructions directly (run the trello-setup skill inline).
+If "Sim": invoke \`/pstl:trello-setup\` instructions directly (run the trello-setup skill inline).
 
-If "Não": mention they can run \`/pastel:trello-setup\` at any time.
+If "Não": mention they can run \`/pstl:trello-setup\` at any time.
 
 **If the call fails** (Trello MCP not available): skip this phase silently.
 
@@ -513,33 +513,33 @@ This same rhythm works for any size change—a small fix or a major feature.
 
  | Command                | What it does                               |
  |------------------------|--------------------------------------------|
- | \`/pastel:propose\`     | Create a change and generate all artifacts |
- | \`/pastel:explore\`     | Think through problems before/during work  |
- | \`/pastel:apply\`       | Implement tasks from a change              |
- | \`/pastel:archive\`     | Archive a completed change                 |
+ | \`/pstl:propose\`     | Create a change and generate all artifacts |
+ | \`/pstl:explore\`     | Think through problems before/during work  |
+ | \`/pstl:apply\`       | Implement tasks from a change              |
+ | \`/pstl:archive\`     | Archive a completed change                 |
 
 **Additional commands:**
 
  | Command                | What it does                                             |
  |------------------------|----------------------------------------------------------|
- | \`/pastel:new\`         | Start a new change, step through artifacts one at a time |
- | \`/pastel:continue\`    | Continue working on an existing change                   |
- | \`/pastel:ff\`          | Fast-forward: create all artifacts at once               |
- | \`/pastel:verify\`      | Verify implementation matches artifacts                  |
+ | \`/pstl:new\`         | Start a new change, step through artifacts one at a time |
+ | \`/pstl:continue\`    | Continue working on an existing change                   |
+ | \`/pstl:ff\`          | Fast-forward: create all artifacts at once               |
+ | \`/pstl:verify\`      | Verify implementation matches artifacts                  |
 
 **Trello integration (if configured):**
 
  | Command                | What it does                                             |
  |------------------------|----------------------------------------------------------|
- | \`/pastel:task\`        | Add an ownerless task to the Trello Backlog              |
- | \`/pastel:draft\`       | Capture a raw idea in "Para Explorar"                    |
- | \`/pastel:trello-setup\`| Configure or reconfigure Trello integration              |
+ | \`/pstl:task\`        | Add an ownerless task to the Trello Backlog              |
+ | \`/pstl:draft\`       | Capture a raw idea in "Para Explorar"                    |
+ | \`/pstl:trello-setup\`| Configure or reconfigure Trello integration              |
 
 ---
 
 ## What's Next?
 
-Try \`/pastel:propose\` on something you actually want to build. You've got the rhythm now!
+Try \`/pstl:propose\` on something you actually want to build. You've got the rhythm now!
 \`\`\`
 
 ---
@@ -554,8 +554,8 @@ If the user says they need to stop, want to pause, or seem disengaged:
 No problem! Your change is saved at the \`changeRoot\` reported by \`pastelsdd status --change "<name>" --json\`.
 
 To pick up where we left off later:
-- \`/pastel:continue <name>\` - Resume artifact creation
-- \`/pastel:apply <name>\` - Jump to implementation (if tasks exist)
+- \`/pstl:continue <name>\` - Resume artifact creation
+- \`/pstl:apply <name>\` - Jump to implementation (if tasks exist)
 
 The work won't be lost. Come back whenever you're ready.
 \`\`\`
@@ -573,21 +573,21 @@ If the user says they just want to see the commands or skip the tutorial:
 
  | Command                  | What it does                               |
  |--------------------------|--------------------------------------------|
- | \`/pastel:propose <name>\` | Create a change and generate all artifacts |
- | \`/pastel:explore\`        | Think through problems (no code changes)   |
- | \`/pastel:apply <name>\`   | Implement tasks                            |
- | \`/pastel:archive <name>\` | Archive when done                          |
+ | \`/pstl:propose <name>\` | Create a change and generate all artifacts |
+ | \`/pstl:explore\`        | Think through problems (no code changes)   |
+ | \`/pstl:apply <name>\`   | Implement tasks                            |
+ | \`/pstl:archive <name>\` | Archive when done                          |
 
 **Additional commands:**
 
  | Command                   | What it does                        |
  |---------------------------|-------------------------------------|
- | \`/pastel:new <name>\`      | Start a new change, step by step    |
- | \`/pastel:continue <name>\` | Continue an existing change         |
- | \`/pastel:ff <name>\`       | Fast-forward: all artifacts at once |
- | \`/pastel:verify <name>\`   | Verify implementation               |
+ | \`/pstl:new <name>\`      | Start a new change, step by step    |
+ | \`/pstl:continue <name>\` | Continue an existing change         |
+ | \`/pstl:ff <name>\`       | Fast-forward: all artifacts at once |
+ | \`/pstl:verify <name>\`   | Verify implementation               |
 
-Try \`/pastel:propose\` to start your first change.
+Try \`/pstl:propose\` to start your first change.
 \`\`\`
 
 Exit gracefully.

@@ -1,7 +1,7 @@
 ﻿/**
  * Init Command
  *
- * Sets up Pastelsdd with Agent Skills and /pastel:* slash commands.
+ * Sets up Pastelsdd with Agent Skills and /pstl:* slash commands.
  * This is the unified setup command that replaces both the old init and experimental commands.
  */
 
@@ -32,11 +32,12 @@ import {
   type LegacyDetectionResult,
 } from './legacy-cleanup.js';
 import {
-  detectOpenspecArtifacts,
-  migrateFromOpenspec,
-  formatOpenspecDetectionSummary,
-  formatOpenspecMigrationSummary,
+  detectLegacyToolArtifacts,
+  runLegacyToolMigration,
+  formatLegacyToolDetectionSummary,
+  formatLegacyToolMigrationSummary,
   pastelsddDirExists,
+  type LegacyToolDetectionResult,
 } from './openspec-migration.js';
 import { runTrelloInitPrompt } from './trello-init-prompt.js';
 import {
@@ -121,8 +122,8 @@ export class InitCommand {
     // Validation happens silently in the background
     const extendMode = await this.validate(projectPath, pastelsddPath);
 
-    // Check for openspec migration first (before legacy cleanup)
-    await this.handleOpenspecMigration(projectPath);
+    // Check for legacy tool migration first (before legacy cleanup)
+    await this.handleLegacyToolMigration(projectPath);
 
     // Check for legacy artifacts and handle cleanup
     await this.handleLegacyCleanup(projectPath, extendMode);
@@ -207,13 +208,13 @@ export class InitCommand {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // OPENSPEC MIGRATION
+  // LEGACY TOOL MIGRATION
   // ═══════════════════════════════════════════════════════════
 
-  private async handleOpenspecMigration(projectPath: string): Promise<void> {
-    const detection = await detectOpenspecArtifacts(projectPath);
+  private async handleLegacyToolMigration(projectPath: string): Promise<void> {
+    const detection = await detectLegacyToolArtifacts(projectPath);
 
-    if (!detection.hasOpenspecArtifacts) {
+    if (!detection.hasLegacyArtifacts) {
       return;
     }
 
@@ -221,22 +222,22 @@ export class InitCommand {
     const alreadyExists = await pastelsddDirExists(projectPath);
 
     console.log();
-    console.log(formatOpenspecDetectionSummary(detection, alreadyExists));
+    console.log(formatLegacyToolDetectionSummary(detection, alreadyExists));
     console.log();
 
     const canPrompt = this.canPromptInteractively();
 
     if (this.force || !canPrompt) {
       // Non-interactive or --force: migrate automatically
-      await this.performOpenspecMigration(projectPath, detection);
+      await this.performLegacyToolMigration(projectPath, detection);
       return;
     }
 
     const { confirm } = await import('@inquirer/prompts');
-    const dirName = detection.openspecDirName;
+    const dirName = detection.legacyDirName;
     const migrateLabel = alreadyExists
       ? `Merge ${dirName}/ into pastelsdd/ and complete the migration?`
-      : `Migrate this project from OpenSpec to Pastelsdd?`;
+      : `Migrate this project from the legacy tool to Pastelsdd?`;
 
     const shouldMigrate = await confirm({
       message: migrateLabel,
@@ -248,20 +249,20 @@ export class InitCommand {
       process.exit(0);
     }
 
-    await this.performOpenspecMigration(projectPath, detection);
+    await this.performLegacyToolMigration(projectPath, detection);
   }
 
-  private async performOpenspecMigration(
+  private async performLegacyToolMigration(
     projectPath: string,
-    detection: Awaited<ReturnType<typeof detectOpenspecArtifacts>>
+    detection: LegacyToolDetectionResult
   ): Promise<void> {
-    const spinner = ora('Migrating from OpenSpec...').start();
+    const spinner = ora('Migrating from legacy tool...').start();
 
-    const result = await migrateFromOpenspec(projectPath, detection);
+    const result = await runLegacyToolMigration(projectPath, detection);
 
-    spinner.succeed('OpenSpec migration complete');
+    spinner.succeed('Migration to Pastelsdd complete');
 
-    const summary = formatOpenspecMigrationSummary(result);
+    const summary = formatLegacyToolMigrationSummary(result);
     if (summary) {
       console.log();
       console.log(summary);
@@ -617,7 +618,7 @@ export class InitCommand {
     const profileWorkflows = getProfileWorkflows(profile, globalConfig.workflows);
 
     // Trello workflows are always generated regardless of profile, so users can
-    // run /pastel:trello-setup to configure the integration at any time.
+    // run /pstl:trello-setup to configure the integration at any time.
     const TRELLO_WORKFLOWS = ['trello-setup', 'task', 'draft'] as const;
     const workflowsSet = new Set([...profileWorkflows, ...TRELLO_WORKFLOWS]);
     const workflows = [...workflowsSet];
@@ -808,10 +809,10 @@ export class InitCommand {
     console.log();
     if (activeWorkflows.includes('propose')) {
       console.log(chalk.bold('Getting started:'));
-      console.log('  Start your first change: /pastel:propose "your idea"');
+      console.log('  Start your first change: /pstl:propose "your idea"');
     } else if (activeWorkflows.includes('new')) {
       console.log(chalk.bold('Getting started:'));
-      console.log('  Start your first change: /pastel:new "your idea"');
+      console.log('  Start your first change: /pstl:new "your idea"');
     } else {
       console.log("Done. Run 'pastelsdd config profile' to configure your workflows.");
     }
@@ -821,7 +822,7 @@ export class InitCommand {
       console.log();
       console.log(chalk.bold('Trello Integration'));
       console.log(`  Preferences saved to ${chalk.cyan('pastelsdd/trello.yaml')}`);
-      console.log(`  Run ${chalk.cyan('/pastel:trello-setup')} in Claude Code to connect your Trello lists.`);
+      console.log(`  Run ${chalk.cyan('/pstl:trello-setup')} in Claude Code to connect your Trello lists.`);
     }
 
     // Links

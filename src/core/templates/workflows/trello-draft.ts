@@ -1,10 +1,10 @@
-/**
+﻿/**
  * Trello Draft Skill / Command Template
  *
  * Quickly captures an idea, insight, or rough concept into the Backlog
  * Trello list. No refinement required — this is for raw thoughts.
  *
- * Requires `pastelsdd/trello.yaml` to be present (created by /pastel:trello-setup).
+ * Requires `pastelsdd/trello.yaml` to be present (created by /pstl:trello-setup).
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 
@@ -15,7 +15,7 @@ export function getTrelloDraftSkillTemplate(): SkillTemplate {
       'Capture a raw idea or concept into the Backlog Trello list. Use when the user wants to quickly record something without refining it into a task yet.',
     instructions: getTrelloDraftInstructions(),
     license: 'MIT',
-    compatibility: 'Requires pastelsdd CLI and Trello MCP server configured via /pastel:trello-setup.',
+    compatibility: 'Requires pastelsdd CLI and Trello MCP server configured via /pstl:trello-setup.',
     metadata: { author: 'pastelsdd', version: '1.0' },
   };
 }
@@ -23,10 +23,10 @@ export function getTrelloDraftSkillTemplate(): SkillTemplate {
 function getTrelloDraftInstructions(): string {
   return `Capture uma ideia ou conceito bruto diretamente no Backlog do Trello.
 
-**Input**: Texto após \`/pastel:draft\` é a descrição da ideia (pode ser bem rascunho — palavras soltas, fragmentos, intuições vagas).
+**Input**: Texto após \`/pstl:draft\` é a descrição da ideia (pode ser bem rascunho — palavras soltas, fragmentos, intuições vagas).
 Se omitido, perguntar ao usuário.
 
-Este comando é intencionalmente sem atrito. Diferente de \`/pastel:task\`, faz estruturação mínima — o objetivo é velocidade de captura, não clareza.
+Este comando é intencionalmente sem atrito. Diferente de \`/pstl:task\`, faz estruturação mínima — o objetivo é velocidade de captura, não clareza.
 
 ---
 
@@ -38,7 +38,7 @@ If the Read tool returns an error (file not found), treat it as "NO_TRELLO_CONFI
 
 **If file not found:**
 > ⚠️ Trello não está configurado neste projeto.
-> Execute \`/pastel:trello-setup\` para configurar a integração antes de usar este comando.
+> Execute \`/pstl:trello-setup\` para configurar a integração antes de usar este comando.
 
 Stop here if no config.
 
@@ -51,7 +51,7 @@ Parse the YAML and extract:
 **If \`lists.backlog\` is not configured:**
 > ⚠️ Estágio "backlog" não está configurado em \`pastelsdd/trello.yaml\`.
 >
-> Execute \`/pastel:trello-setup\` para configurar a integração.
+> Execute \`/pstl:trello-setup\` para configurar a integração.
 
 Stop here if backlog list is missing.
 
@@ -123,14 +123,14 @@ If context is present:
 ---
 Ideia original: "<raw input verbatim>"
 
-Proximo passo: /pastel:propose para refinar e gerar os artefatos da change.
+Proximo passo: /pstl:propose para refinar e gerar os artefatos da change.
 \`\`\`
 
 If no context:
 \`\`\`
 Ideia original: "<raw input verbatim>"
 
-Proximo passo: /pastel:propose para refinar e gerar os artefatos da change.
+Proximo passo: /pstl:propose para refinar e gerar os artefatos da change.
 \`\`\`
 
 ---
@@ -175,8 +175,8 @@ If this call fails, log the error and continue — label is auxiliary, never blo
 **Card:** <cardUrl>
 
 Sem responsável atribuído.
-Quando quiser refinar: \`/pastel:explore\` ou \`/pastel:task\`
-Quando quiser propor diretamente: \`/pastel:propose\`
+Quando quiser refinar: \`/pstl:explore\` ou \`/pstl:task\`
+Quando quiser propor diretamente: \`/pstl:propose\`
 \`\`\`
 
 ---

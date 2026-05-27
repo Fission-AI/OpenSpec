@@ -264,28 +264,28 @@ describe('skill-generation', () => {
       const template = {
         name: 'transform-test',
         description: 'Test transform callback',
-        instructions: 'Use /pastel:new to start and /pastel:apply to implement.',
+        instructions: 'Use /pstl:new to start and /pstl:apply to implement.',
       };
 
-      const transformer = (text: string) => text.replace(/\/pastel:/g, '/pastel-');
+      const transformer = (text: string) => text.replace(/\/pstl:/g, '/pstl-');
       const content = generateSkillContent(template, '0.23.0', transformer);
 
-      expect(content).toContain('/pastel-new');
-      expect(content).toContain('/pastel-apply');
-      expect(content).not.toContain('/pastel:new');
-      expect(content).not.toContain('/pastel:apply');
+      expect(content).toContain('/pstl-new');
+      expect(content).toContain('/pstl-apply');
+      expect(content).not.toContain('/pstl:new');
+      expect(content).not.toContain('/pstl:apply');
     });
 
     it('should not transform instructions when callback is undefined', () => {
       const template = {
         name: 'no-transform-test',
         description: 'Test without transform',
-        instructions: 'Use /pastel:new to start.',
+        instructions: 'Use /pstl:new to start.',
       };
 
       const content = generateSkillContent(template, '0.23.0', undefined);
 
-      expect(content).toContain('/pastel:new');
+      expect(content).toContain('/pstl:new');
     });
 
     it('should support custom transformInstructions logic', () => {

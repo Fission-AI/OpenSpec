@@ -270,9 +270,9 @@ export class UpdateCommand {
     if (newlyConfiguredTools.length > 0) {
       console.log();
       console.log(chalk.bold('Getting started:'));
-      console.log('  /pastel:new       Start a new change');
-      console.log('  /pastel:continue  Create the next artifact');
-      console.log('  /pastel:apply     Implement tasks');
+      console.log('  /pstl:new       Start a new change');
+      console.log('  /pstl:continue  Create the next artifact');
+      console.log('  /pstl:apply     Implement tasks');
       console.log();
       console.log(`Learn more: ${chalk.cyan('https://github.com/thiagodiogo/Pastelsdd')}`);
     }

@@ -28,9 +28,9 @@ describe('command-generation/generator', () => {
       const result = generateCommand(sampleContent, cursorAdapter);
 
       expect(result.path).toContain('.cursor');
-      expect(result.path).toContain('pastel-explore.md');
-      expect(result.fileContent).toContain('name: /pastel-explore');
-      expect(result.fileContent).toContain('id: pastel-explore');
+      expect(result.path).toContain('pstl-explore.md');
+      expect(result.fileContent).toContain('name: /pstl-explore');
+      expect(result.fileContent).toContain('id: pstl-explore');
       expect(result.fileContent).toContain('Command body here.');
     });
 

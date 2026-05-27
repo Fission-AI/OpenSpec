@@ -852,9 +852,9 @@ artifacts:
       expect(stat.isFile()).toBe(true);
 
       // Verify commands were created with Cursor format
-      const commandFile = path.join(tempDir, '.cursor', 'commands', 'pastel-explore.md');
+      const commandFile = path.join(tempDir, '.cursor', 'commands', 'pstl-explore.md');
       const content = await fs.readFile(commandFile, 'utf-8');
-      expect(content).toContain('name: /pastel-explore');
+      expect(content).toContain('name: /pstl-explore');
     });
 
     it('creates skills for Gemini tool', async () => {

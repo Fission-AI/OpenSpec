@@ -83,7 +83,7 @@ After completing all artifacts, summarize:
 - Change name and location
 - List of artifacts created with brief descriptions
 - What's ready: "All artifacts created! Ready for implementation."
-- Prompt: "Run \`/pastel:apply\` or ask me to implement to start working on the tasks."
+- Prompt: "Run \`/pstl:apply\` or ask me to implement to start working on the tasks."
 
 **Artifact Creation Guidelines**
 
@@ -115,7 +115,7 @@ export function getPastelFfCommandTemplate(): CommandTemplate {
     tags: ['workflow', 'artifacts', 'experimental'],
     content: `Fast-forward through artifact creation - generate everything needed to start implementation.
 
-**Input**: The argument after \`/pastel:ff\` is the change name (kebab-case), OR a description of what the user wants to build.
+**Input**: The argument after \`/pstl:ff\` is the change name (kebab-case), OR a description of what the user wants to build.
 
 **Steps**
 
@@ -186,7 +186,7 @@ After completing all artifacts, summarize:
 - Change name and location
 - List of artifacts created with brief descriptions
 - What's ready: "All artifacts created! Ready for implementation."
-- Prompt: "Run \`/pastel:apply\` to start implementing."
+- Prompt: "Run \`/pstl:apply\` to start implementing."
 
 **Artifact Creation Guidelines**
 

@@ -157,60 +157,60 @@ rules:
 
 | Command | What it does |
 |---------|--------------|
-| `/pastel:propose` | Create a change and generate planning artifacts in one step (default quick path) |
-| `/pastel:explore` | Think through ideas, investigate problems, clarify requirements |
-| `/pastel:new` | Start a new change scaffold (expanded workflow) |
-| `/pastel:continue` | Create the next artifact (expanded workflow) |
-| `/pastel:ff` | Fast-forward planning artifacts (expanded workflow) |
-| `/pastel:apply` | Implement tasks, updating artifacts as needed |
-| `/pastel:verify` | Validate implementation against artifacts (expanded workflow) |
-| `/pastel:sync` | Sync delta specs to main (default workflow, optional) |
-| `/pastel:archive` | Archive when done |
-| `/pastel:bulk-archive` | Archive multiple completed changes (expanded workflow) |
-| `/pastel:onboard` | Guided walkthrough of an end-to-end change (expanded workflow) |
+| `/pstl:propose` | Create a change and generate planning artifacts in one step (default quick path) |
+| `/pstl:explore` | Think through ideas, investigate problems, clarify requirements |
+| `/pstl:new` | Start a new change scaffold (expanded workflow) |
+| `/pstl:continue` | Create the next artifact (expanded workflow) |
+| `/pstl:ff` | Fast-forward planning artifacts (expanded workflow) |
+| `/pstl:apply` | Implement tasks, updating artifacts as needed |
+| `/pstl:verify` | Validate implementation against artifacts (expanded workflow) |
+| `/pstl:sync` | Sync delta specs to main (default workflow, optional) |
+| `/pstl:archive` | Archive when done |
+| `/pstl:bulk-archive` | Archive multiple completed changes (expanded workflow) |
+| `/pstl:onboard` | Guided walkthrough of an end-to-end change (expanded workflow) |
 
 ## Usage
 
 ### Explore an idea
 ```
-/pastel:explore
+/pstl:explore
 ```
-Think through ideas, investigate problems, compare options. No structure required - just a thinking partner. When insights crystallize, transition to `/pastel:propose` (default) or `/pastel:new`/`/pastel:ff` (expanded).
+Think through ideas, investigate problems, compare options. No structure required - just a thinking partner. When insights crystallize, transition to `/pstl:propose` (default) or `/pstl:new`/`/pstl:ff` (expanded).
 
 ### Start a new change
 ```
-/pastel:propose
+/pstl:propose
 ```
 Creates the change and generates planning artifacts needed before implementation.
 
 If you've enabled expanded workflows, you can instead use:
 
 ```text
-/pastel:new        # scaffold only
-/pastel:continue   # create one artifact at a time
-/pastel:ff         # create all planning artifacts at once
+/pstl:new        # scaffold only
+/pstl:continue   # create one artifact at a time
+/pstl:ff         # create all planning artifacts at once
 ```
 
 ### Create artifacts
 ```
-/pastel:continue
+/pstl:continue
 ```
 Shows what's ready to create based on dependencies, then creates one artifact. Use repeatedly to build up your change incrementally.
 
 ```
-/pastel:ff add-dark-mode
+/pstl:ff add-dark-mode
 ```
 Creates all planning artifacts at once. Use when you have a clear picture of what you're building.
 
 ### Implement (the fluid part)
 ```
-/pastel:apply
+/pstl:apply
 ```
-Works through tasks, checking them off as you go. If you're juggling multiple changes, you can run `/pastel:apply <name>`; otherwise it should infer from the conversation and prompt you to choose if it can't tell.
+Works through tasks, checking them off as you go. If you're juggling multiple changes, you can run `/pstl:apply <name>`; otherwise it should infer from the conversation and prompt you to choose if it can't tell.
 
 ### Finish up
 ```
-/pastel:archive   # Move to archive when done (prompts to sync specs if needed)
+/pstl:archive   # Move to archive when done (prompts to sync specs if needed)
 ```
 
 ## When to Update vs. Start Fresh
@@ -301,7 +301,7 @@ Think of it like git branches:
 
 ## What's Different?
 
-| | Legacy (`/pastelsdd:proposal`) | OPSX (`/pastel:*`) |
+| | Legacy (`/pastelsdd:proposal`) | OPSX (`/pstl:*`) |
 |---|---|---|
 | **Structure** | One big proposal document | Discrete artifacts with dependencies |
 | **Workflow** | Linear phases: plan → implement → archive | Fluid actions — do anything anytime |
@@ -484,7 +484,7 @@ Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, no
 **OPSX** — agent queries for rich context:
 
 ```
-  User: "/pastel:continue"
+  User: "/pstl:continue"
            │
            ▼
   ┌──────────────────────────────────────────────────────────────────────────┐
@@ -541,7 +541,7 @@ Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, no
 **OPSX** — natural iteration:
 
 ```
-  /pastel:new ───► /pastel:continue ───► /pastel:apply ───► /pastel:archive
+  /pstl:new ───► /pstl:continue ───► /pstl:apply ───► /pstl:archive
       │                │                  │
       │                │                  ├── "The design is wrong"
       │                │                  │
@@ -550,7 +550,7 @@ Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, no
       │                │            and continue!
       │                │                  │
       │                │                  ▼
-      │                │         /pastel:apply picks up
+      │                │         /pstl:apply picks up
       │                │         where you left off
       │                │
       │                └── Creates ONE artifact, shows what's unlocked
@@ -646,9 +646,9 @@ pastelsdd schema validate my-workflow
 
 ## Tips
 
-- Use `/pastel:explore` to think through an idea before committing to a change
-- `/pastel:ff` when you know what you want, `/pastel:continue` when exploring
-- During `/pastel:apply`, if something's wrong — fix the artifact, then continue
+- Use `/pstl:explore` to think through an idea before committing to a change
+- `/pstl:ff` when you know what you want, `/pstl:continue` when exploring
+- During `/pstl:apply`, if something's wrong — fix the artifact, then continue
 - Tasks track progress via checkboxes in `tasks.md`
 - Check status anytime: `pastelsdd status --change "name"`
 

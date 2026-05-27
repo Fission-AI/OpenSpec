@@ -207,7 +207,7 @@ Old instructions content
       await updateCommand.execute(testDir);
 
       // Check pastel command files were created
-      const commandsDir = path.join(testDir, '.claude', 'commands', 'pastel');
+      const commandsDir = path.join(testDir, '.claude', 'commands', 'pstl');
       const exploreCmd = path.join(commandsDir, 'explore.md');
       const exists = await FileSystemUtils.fileExists(exploreCmd);
       expect(exists).toBe(true);
@@ -235,7 +235,7 @@ Old instructions content
 
       // Verify core profile commands were created (propose, explore, apply, sync, archive)
       const coreCommandIds = ['explore', 'apply', 'sync', 'archive', 'propose'];
-      const commandsDir = path.join(testDir, '.claude', 'commands', 'pastel');
+      const commandsDir = path.join(testDir, '.claude', 'commands', 'pstl');
       for (const cmdId of coreCommandIds) {
         const cmdFile = path.join(commandsDir, `${cmdId}.md`);
         const exists = await FileSystemUtils.fileExists(cmdFile);
@@ -313,7 +313,7 @@ Old instructions content
 
       await updateCommand.execute(testDir);
 
-      const geminiCmd = path.join(testDir, '.gemini', 'commands', 'pastel', 'explore.toml');
+      const geminiCmd = path.join(testDir, '.gemini', 'commands', 'pstl', 'explore.toml');
       const exists = await FileSystemUtils.fileExists(geminiCmd);
       expect(exists).toBe(true);
 
@@ -334,7 +334,7 @@ Old instructions content
 
       await updateCommand.execute(testDir);
 
-      const ghCmd = path.join(testDir, '.github', 'prompts', 'pastel-explore.prompt.md');
+      const ghCmd = path.join(testDir, '.github', 'prompts', 'pstl-explore.prompt.md');
       const exists = await FileSystemUtils.fileExists(ghCmd);
       expect(exists).toBe(true);
 
@@ -1128,7 +1128,7 @@ More user content after markers.
         expect.stringContaining('Getting started')
       );
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('/pastel:new')
+        expect.stringContaining('/pstl:new')
       );
 
       // Skills should be created
@@ -1338,7 +1338,7 @@ More user content after markers.
       await forceUpdateCommand.execute(testDir);
 
       // New pastel commands should be created
-      const commandsDir = path.join(testDir, '.claude', 'commands', 'pastel');
+      const commandsDir = path.join(testDir, '.claude', 'commands', 'pstl');
       const exploreCmd = path.join(commandsDir, 'explore.md');
       const exists = await FileSystemUtils.fileExists(exploreCmd);
       expect(exists).toBe(true);
@@ -1369,7 +1369,7 @@ More user content after markers.
         path.join(skillsDir, 'pastelsdd-propose', 'SKILL.md')
       )).toBe(false);
 
-      const commandsDir = path.join(testDir, '.claude', 'commands', 'pastel');
+      const commandsDir = path.join(testDir, '.claude', 'commands', 'pstl');
       expect(await FileSystemUtils.fileExists(
         path.join(commandsDir, 'explore.md')
       )).toBe(true);
@@ -1442,7 +1442,7 @@ More user content after markers.
         path.join(testDir, '.claude', 'skills', 'pastelsdd-sync-specs', 'SKILL.md')
       )).toBe(false);
       expect(await FileSystemUtils.fileExists(
-        path.join(testDir, '.claude', 'commands', 'pastel', 'sync.md')
+        path.join(testDir, '.claude', 'commands', 'pstl', 'sync.md')
       )).toBe(false);
 
       consoleSpy.mockRestore();
@@ -1467,7 +1467,7 @@ More user content after markers.
       )).toBe(true);
 
       // Commands should NOT be created
-      const commandsDir = path.join(testDir, '.claude', 'commands', 'pastel');
+      const commandsDir = path.join(testDir, '.claude', 'commands', 'pstl');
       expect(await FileSystemUtils.fileExists(
         path.join(commandsDir, 'explore.md')
       )).toBe(false);
@@ -1487,7 +1487,7 @@ More user content after markers.
       await updateCommand.execute(testDir);
 
       // Commands should be created
-      const commandsDir = path.join(testDir, '.claude', 'commands', 'pastel');
+      const commandsDir = path.join(testDir, '.claude', 'commands', 'pstl');
       expect(await FileSystemUtils.fileExists(
         path.join(commandsDir, 'explore.md')
       )).toBe(true);
@@ -1540,7 +1540,7 @@ content
 `
       );
 
-      const commandsDir = path.join(testDir, '.claude', 'commands', 'pastel');
+      const commandsDir = path.join(testDir, '.claude', 'commands', 'pstl');
       await fs.mkdir(commandsDir, { recursive: true });
       await fs.writeFile(path.join(commandsDir, 'explore.md'), 'old command');
 
@@ -1559,7 +1559,7 @@ content
         delivery: 'commands',
       });
 
-      const commandsDir = path.join(testDir, '.claude', 'commands', 'pastel');
+      const commandsDir = path.join(testDir, '.claude', 'commands', 'pstl');
       await fs.mkdir(commandsDir, { recursive: true });
       await fs.writeFile(path.join(commandsDir, 'explore.md'), 'existing command');
 
@@ -1600,7 +1600,7 @@ content
       // Add a non-core workflow
       await fs.mkdir(path.join(skillsDir, 'pastelsdd-new-change'), { recursive: true });
       await fs.writeFile(path.join(skillsDir, 'pastelsdd-new-change', 'SKILL.md'), 'old');
-      const extraCommandFile = path.join(testDir, '.claude', 'commands', 'pastel', 'new.md');
+      const extraCommandFile = path.join(testDir, '.claude', 'commands', 'pstl', 'new.md');
       await fs.mkdir(path.dirname(extraCommandFile), { recursive: true });
       await fs.writeFile(extraCommandFile, 'old');
 
@@ -1757,7 +1757,7 @@ content
     });
 
     it('should detect installed workflows from managed command files', async () => {
-      const commandsDir = path.join(testDir, '.claude', 'commands', 'pastel');
+      const commandsDir = path.join(testDir, '.claude', 'commands', 'pstl');
       await fs.mkdir(commandsDir, { recursive: true });
       await fs.writeFile(path.join(commandsDir, 'explore.md'), 'content');
 

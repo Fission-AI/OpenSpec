@@ -597,7 +597,7 @@ ${PASTELSDD_MARKERS.end}`);
       };
 
       const summary = formatCleanupSummary(result);
-      expect(summary).toContain('✓ Removed .claude/commands/pastelsdd/ (replaced by /pastel:*)');
+      expect(summary).toContain('✓ Removed .claude/commands/pastelsdd/ (replaced by /pstl:*)');
     });
 
     it('should format modified files', () => {

@@ -1,4 +1,4 @@
-# pastelsdd
+﻿# pastelsdd
 
 > Spec-driven, AI-native development workflow CLI
 
@@ -47,10 +47,10 @@ pastelsdd/
 Once initialized, use slash commands in your AI agent:
 
 ```
-/pastel:propose "add dark mode"   ← creates a new change
-/pastel:continue                  ← advances to the next artifact
-/pastel:apply                     ← applies pending tasks
-/pastel:archive                   ← archives a completed change
+/pstl:propose "add dark mode"   ← creates a new change
+/pstl:continue                  ← advances to the next artifact
+/pstl:apply                     ← applies pending tasks
+/pstl:archive                   ← archives a completed change
 ```
 
 ---

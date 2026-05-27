@@ -201,7 +201,7 @@ You: [reads codebase]
 
 **User is stuck mid-implementation:**
 \`\`\`
-User: /pastel:explore add-auth-system
+User: /pstl:explore add-auth-system
       The OAuth integration is more complex than expected
 
 You: [reads change artifacts]
@@ -278,7 +278,7 @@ But this summary is optional. Sometimes the thinking IS the value.
 
 ## After the First Propose — Refinement Validation Loop
 
-When exploration leads to a \`/pastel:propose\` being executed (or when the user asks to formalize the idea into a proposal), the following **refinement validation loop** must run after all artifacts are generated. This is mandatory — do not skip it.
+When exploration leads to a \`/pstl:propose\` being executed (or when the user asks to formalize the idea into a proposal), the following **refinement validation loop** must run after all artifacts are generated. This is mandatory — do not skip it.
 
 ### Step RF1 — Show Refinement Summary
 
@@ -301,7 +301,7 @@ After the proposal artifacts (proposal.md, design.md, tasks.md) are created, imm
 ---
 Para iniciar a implementação quando aprovado:
 \`\`\`
-/pastel:apply <change-name>
+/pstl:apply <change-name>
 \`\`\`
 \`\`\`
 
@@ -332,7 +332,7 @@ mcp__claude_ai_Trello_Custom__update_card
 mcp__claude_ai_Trello_Custom__add_comment
   card_id: "<cardId>"
   text: |
-    ## Refinamento concluído via /pastel:explore ✓
+    ## Refinamento concluído via /pstl:explore ✓
 
     **Change:** \`<name>\`
     **Artefatos:** proposal.md · design.md · tasks.md
@@ -342,7 +342,7 @@ mcp__claude_ai_Trello_Custom__add_comment
 
     ### Para iniciar a implementação
     \`\`\`
-    /pastel:apply <name>
+    /pstl:apply <name>
     \`\`\`
 
     _Aguardando aprovação para mover para Ready to Dev._
@@ -379,11 +379,11 @@ Options:
      text: |
        ## ✅ Aprovado para Ready to Dev
 
-       O planejamento foi revisado e aprovado durante o /pastel:explore.
+       O planejamento foi revisado e aprovado durante o /pstl:explore.
 
        ### Próximo passo
        \`\`\`
-       /pastel:apply <name>
+       /pstl:apply <name>
        \`\`\`
    \`\`\`
 
@@ -394,7 +394,7 @@ Options:
    Change: <name>
    Card movido para: <lists.ready.name>
 
-   /pastel:apply <name>
+   /pstl:apply <name>
    \`\`\`
 
 ---
@@ -415,7 +415,7 @@ Show:
 \`\`\`
 ⏸ Refinamento pausado.
 O card permanece em <current list>.
-Retome com /pastel:explore <name> quando quiser.
+Retome com /pstl:explore <name> quando quiser.
 \`\`\`
 
 Do NOT move the card. End the loop.
@@ -452,7 +452,7 @@ export function getPastelExploreCommandTemplate(): CommandTemplate {
 
 **This is a stance, not a workflow.** There are no fixed steps, no required sequence, no mandatory outputs. You're a thinking partner helping the user explore.
 
-**Input**: The argument after \`/pastel:explore\` is whatever the user wants to think about. Could be:
+**Input**: The argument after \`/pstl:explore\` is whatever the user wants to think about. Could be:
 - A vague idea: "real-time collaboration"
 - A specific problem: "the auth system is getting unwieldy"
 - A change name: "add-dark-mode" (to explore in context of that change)
@@ -603,7 +603,7 @@ When things crystallize, you might offer a summary - but it's optional. Sometime
 
 ## After the First Propose — Refinement Validation Loop
 
-When exploration leads to a \`/pastel:propose\` being executed (or when the user asks to formalize the idea into a proposal), the following **refinement validation loop** must run after all artifacts are generated. This is mandatory — do not skip it.
+When exploration leads to a \`/pstl:propose\` being executed (or when the user asks to formalize the idea into a proposal), the following **refinement validation loop** must run after all artifacts are generated. This is mandatory — do not skip it.
 
 ### Step RF1 — Show Refinement Summary
 
@@ -626,7 +626,7 @@ After the proposal artifacts (proposal.md, design.md, tasks.md) are created, imm
 ---
 Para iniciar a implementação quando aprovado:
 \`\`\`
-/pastel:apply <change-name>
+/pstl:apply <change-name>
 \`\`\`
 \`\`\`
 
@@ -657,7 +657,7 @@ mcp__claude_ai_Trello_Custom__update_card
 mcp__claude_ai_Trello_Custom__add_comment
   card_id: "<cardId>"
   text: |
-    ## Refinamento concluído via /pastel:explore ✓
+    ## Refinamento concluído via /pstl:explore ✓
 
     **Change:** \`<name>\`
     **Artefatos:** proposal.md · design.md · tasks.md
@@ -667,7 +667,7 @@ mcp__claude_ai_Trello_Custom__add_comment
 
     ### Para iniciar a implementação
     \`\`\`
-    /pastel:apply <name>
+    /pstl:apply <name>
     \`\`\`
 
     _Aguardando aprovação para mover para Ready to Dev._
@@ -704,11 +704,11 @@ Options:
      text: |
        ## ✅ Aprovado para Ready to Dev
 
-       O planejamento foi revisado e aprovado durante o /pastel:explore.
+       O planejamento foi revisado e aprovado durante o /pstl:explore.
 
        ### Próximo passo
        \`\`\`
-       /pastel:apply <name>
+       /pstl:apply <name>
        \`\`\`
    \`\`\`
 
@@ -719,7 +719,7 @@ Options:
    Change: <name>
    Card movido para: <lists.ready.name>
 
-   /pastel:apply <name>
+   /pstl:apply <name>
    \`\`\`
 
 ---
@@ -740,7 +740,7 @@ Show:
 \`\`\`
 ⏸ Refinamento pausado.
 O card permanece em <current list>.
-Retome com /pastel:explore <name> quando quiser.
+Retome com /pstl:explore <name> quando quiser.
 \`\`\`
 
 Do NOT move the card. End the loop.

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Trello Setup Skill / Command Template
  *
  * Guides the user through configuring Trello integration for their
@@ -24,7 +24,7 @@ function getTrelloSetupInstructions(): string {
   return `Configure Trello integration for your Pastelsdd workflow.
 
 This skill writes \`pastelsdd/trello.yaml\` — a small config file that all Trello-aware commands
-(\`/pastel:task\`, \`/pastel:draft\`, \`/pastel:propose\`, \`/pastel:apply\`, \`/pastel:archive\`) read at
+(\`/pstl:task\`, \`/pstl:draft\`, \`/pstl:propose\`, \`/pstl:apply\`, \`/pstl:archive\`) read at
 runtime to know which Trello list corresponds to each workflow stage and which labels are available.
 
 ---
@@ -44,7 +44,7 @@ mcp__claude_ai_Trello_Custom__get_me
 > \`\`\`
 > claude mcp add trello <server-url>
 > \`\`\`
-> Then restart Claude Code and re-run \`/pastel:trello-setup\`.
+> Then restart Claude Code and re-run \`/pstl:trello-setup\`.
 
 Stop here if MCP is unavailable.
 
@@ -295,9 +295,9 @@ A partir de agora, todos os comandos Pastelsdd irão sincronizar cards automatic
 O agente irá tentar categorizar cada card com a label adequada ao criá-lo.
 
 **Próximos passos:**
-  /pastel:draft    → Registrar uma ideia no Backlog (frictionless)
-  /pastel:task     → Adicionar tarefa ao Backlog
-  /pastel:propose  → Propor uma change (cria card no Trello)
+  /pstl:draft    → Registrar uma ideia no Backlog (frictionless)
+  /pstl:task     → Adicionar tarefa ao Backlog
+  /pstl:propose  → Propor uma change (cria card no Trello)
 \`\`\`
 
 ---

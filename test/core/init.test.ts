@@ -123,11 +123,11 @@ describe('InitCommand', () => {
 
       // Core profile: propose, explore, apply, sync, archive
       const coreCommandNames = [
-        'pastel/propose.md',
-        'pastel/explore.md',
-        'pastel/apply.md',
-        'pastel/sync.md',
-        'pastel/archive.md',
+        'pstl/propose.md',
+        'pstl/explore.md',
+        'pstl/apply.md',
+        'pstl/sync.md',
+        'pstl/archive.md',
       ];
 
       for (const cmdName of coreCommandNames) {
@@ -137,11 +137,11 @@ describe('InitCommand', () => {
 
       // Non-core commands should NOT be created
       const nonCoreCommandNames = [
-        'pastel/new.md',
-        'pastel/continue.md',
-        'pastel/ff.md',
-        'pastel/bulk-archive.md',
-        'pastel/verify.md',
+        'pstl/new.md',
+        'pstl/continue.md',
+        'pstl/ff.md',
+        'pstl/bulk-archive.md',
+        'pstl/verify.md',
       ];
 
       for (const cmdName of nonCoreCommandNames) {
@@ -361,7 +361,7 @@ describe('InitCommand', () => {
       const initCommand = new InitCommand({ tools: 'claude', force: true });
       await initCommand.execute(testDir);
 
-      const cmdFile = path.join(testDir, '.claude', 'commands', 'pastel', 'explore.md');
+      const cmdFile = path.join(testDir, '.claude', 'commands', 'pstl', 'explore.md');
       const content = await fs.readFile(cmdFile, 'utf-8');
 
       // Claude commands use YAML frontmatter
@@ -374,7 +374,7 @@ describe('InitCommand', () => {
       const initCommand = new InitCommand({ tools: 'cursor', force: true });
       await initCommand.execute(testDir);
 
-      const cmdFile = path.join(testDir, '.cursor', 'commands', 'pastel-explore.md');
+      const cmdFile = path.join(testDir, '.cursor', 'commands', 'pstl-explore.md');
       expect(await fileExists(cmdFile)).toBe(true);
 
       const content = await fs.readFile(cmdFile, 'utf-8');
@@ -421,7 +421,7 @@ describe('InitCommand', () => {
       const initCommand = new InitCommand({ tools: 'gemini', force: true });
       await initCommand.execute(testDir);
 
-      const cmdFile = path.join(testDir, '.gemini', 'commands', 'pastel', 'explore.toml');
+      const cmdFile = path.join(testDir, '.gemini', 'commands', 'pstl', 'explore.toml');
       expect(await fileExists(cmdFile)).toBe(true);
 
       const content = await fs.readFile(cmdFile, 'utf-8');
@@ -433,7 +433,7 @@ describe('InitCommand', () => {
       const initCommand = new InitCommand({ tools: 'github-copilot', force: true });
       await initCommand.execute(testDir);
 
-      const cmdFile = path.join(testDir, '.github', 'prompts', 'pastel-explore.prompt.md');
+      const cmdFile = path.join(testDir, '.github', 'prompts', 'pstl-explore.prompt.md');
       expect(await fileExists(cmdFile)).toBe(true);
     });
 
@@ -535,7 +535,7 @@ describe('InitCommand - profile and detection features', () => {
     expect(await directoryExists(legacyDir)).toBe(false);
 
     // New commands should be at the correct 'pastel' path
-    const newCommandsDir = path.join(testDir, '.claude', 'commands', 'pastel');
+    const newCommandsDir = path.join(testDir, '.claude', 'commands', 'pstl');
     expect(await directoryExists(newCommandsDir)).toBe(true);
   });
 
@@ -613,8 +613,8 @@ describe('InitCommand - profile and detection features', () => {
 
   it('should migrate commands-only extend mode to custom profile without injecting propose', async () => {
     await fs.mkdir(path.join(testDir, 'pastelsdd'), { recursive: true });
-    await fs.mkdir(path.join(testDir, '.claude', 'commands', 'pastel'), { recursive: true });
-    await fs.writeFile(path.join(testDir, '.claude', 'commands', 'pastel', 'explore.md'), '# explore\n');
+    await fs.mkdir(path.join(testDir, '.claude', 'commands', 'pstl'), { recursive: true });
+    await fs.writeFile(path.join(testDir, '.claude', 'commands', 'pstl', 'explore.md'), '# explore\n');
 
     const initCommand = new InitCommand({ tools: 'claude', force: true });
     await initCommand.execute(testDir);
@@ -624,8 +624,8 @@ describe('InitCommand - profile and detection features', () => {
     expect(config.delivery).toBe('commands');
     expect(config.workflows).toEqual(['explore']);
 
-    const exploreCommand = path.join(testDir, '.claude', 'commands', 'pastel', 'explore.md');
-    const proposeCommand = path.join(testDir, '.claude', 'commands', 'pastel', 'propose.md');
+    const exploreCommand = path.join(testDir, '.claude', 'commands', 'pstl', 'explore.md');
+    const proposeCommand = path.join(testDir, '.claude', 'commands', 'pstl', 'propose.md');
     expect(await fileExists(exploreCommand)).toBe(true);
     expect(await fileExists(proposeCommand)).toBe(false);
 
@@ -676,7 +676,7 @@ describe('InitCommand - profile and detection features', () => {
     expect(await fileExists(skillFile)).toBe(true);
 
     // Commands should NOT exist
-    const cmdFile = path.join(testDir, '.claude', 'commands', 'pastel', 'explore.md');
+    const cmdFile = path.join(testDir, '.claude', 'commands', 'pstl', 'explore.md');
     expect(await fileExists(cmdFile)).toBe(false);
   });
 
@@ -695,7 +695,7 @@ describe('InitCommand - profile and detection features', () => {
     expect(await fileExists(skillFile)).toBe(false);
 
     // Commands should exist
-    const cmdFile = path.join(testDir, '.claude', 'commands', 'pastel', 'explore.md');
+    const cmdFile = path.join(testDir, '.claude', 'commands', 'pstl', 'explore.md');
     expect(await fileExists(cmdFile)).toBe(true);
   });
 
@@ -709,7 +709,7 @@ describe('InitCommand - profile and detection features', () => {
     const initCommand1 = new InitCommand({ tools: 'claude', force: true });
     await initCommand1.execute(testDir);
 
-    const cmdFile = path.join(testDir, '.claude', 'commands', 'pastel', 'explore.md');
+    const cmdFile = path.join(testDir, '.claude', 'commands', 'pstl', 'explore.md');
     expect(await fileExists(cmdFile)).toBe(true);
 
     saveGlobalConfig({

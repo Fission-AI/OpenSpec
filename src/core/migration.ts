@@ -127,5 +127,5 @@ export function migrateIfNeeded(projectPath: string, tools: AIToolOption[]): voi
   saveGlobalConfig(config);
 
   console.log(`Migrated: custom profile with ${installedWorkflows.length} workflows`);
-  console.log("New in this version: /pastel:propose. Try 'pastelsdd config profile core' for the streamlined experience.");
+  console.log("New in this version: /pstl:propose. Try 'pastelsdd config profile core' for the streamlined experience.");
 }
