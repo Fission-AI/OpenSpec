@@ -14,9 +14,6 @@ importers:
       '@inquirer/prompts':
         specifier: ^7.8.0
         version: 7.8.0(@types/node@24.2.0)
-      '@thiagodiogo/pastelsdd':
-        specifier: file:thiagodiogo-pastelsdd-1.0.0-beta.1.tgz
-        version: file:thiagodiogo-pastelsdd-1.0.0-beta.1.tgz(@types/node@24.2.0)
       chalk:
         specifier: ^5.5.0
         version: 5.5.0
@@ -615,12 +612,6 @@ packages:
     resolution: {integrity: sha512-CvUo2ixeIQGtF6WvuB87XWqPQkoFAFqW+HUo/WzHwuHDvIwZCtjdWXoYCcr06iKGydiqTclC4jU/TNObC/xKZg==}
     cpu: [x64]
     os: [win32]
-
-  '@thiagodiogo/pastelsdd@file:thiagodiogo-pastelsdd-1.0.0-beta.1.tgz':
-    resolution: {integrity: sha512-dLANStuH81Nljmvr83V6eL2Lz/rFHB+7EVVDJIRRnm7butlVZHJT5x1hrEiSBrXI4Logr2Z5B1tF7f+E2HxldA==, tarball: file:thiagodiogo-pastelsdd-1.0.0-beta.1.tgz}
-    version: 1.0.0-beta.1
-    engines: {node: '>=20.19.0'}
-    hasBin: true
 
   '@types/chai@5.2.2':
     resolution: {integrity: sha512-8kB30R7Hwqf40JPiKhVzodJs2Qc1ZJ5zuT3uzw5Hq/dhNCl3G3l83jfpdI1e20BP348+fV7VIL/+FxaXkqBmWg==}
@@ -2183,21 +2174,6 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.46.2':
     optional: true
-
-  '@thiagodiogo/pastelsdd@file:thiagodiogo-pastelsdd-1.0.0-beta.1.tgz(@types/node@24.2.0)':
-    dependencies:
-      '@inquirer/core': 10.2.2(@types/node@24.2.0)
-      '@inquirer/prompts': 7.8.0(@types/node@24.2.0)
-      chalk: 5.5.0
-      commander: 14.0.0
-      cross-spawn: 7.0.6
-      fast-glob: 3.3.3
-      ora: 8.2.0
-      posthog-node: 5.20.0
-      yaml: 2.8.2
-      zod: 4.0.17
-    transitivePeerDependencies:
-      - '@types/node'
 
   '@types/chai@5.2.2':
     dependencies:
