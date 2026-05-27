@@ -1,0 +1,31 @@
+configured: true
+boardId: "6a1737fef386f0d5548128db"
+boardName: "pastelsdd"
+lists:
+  draft:
+    id: "6a173808a67668c13fbe0ff6"
+    name: "🧠 Para Explorar"
+  backlog:
+    id: "6a17380b9a1cde7b5f6c5b08"
+    name: "📋 Backlog"
+  refining:
+    id: "6a17380efd4250dea1876989"
+    name: "🔍 Em Refinamento"
+  ready:
+    id: "6a173811f5055fa875b87caf"
+    name: "✅ Ready to Dev"
+  developing:
+    id: "6a173814f642702dcfeae7a9"
+    name: "🚧 Em Desenvolvimento"
+  testing:
+    id: "6a173817c02ec9721b9d133f"
+    name: "🧪 Em Teste"
+  deploy:
+    id: "6a17381aab64021c09926f4d"
+    name: "🚀 Ready to Deploy"
+  done:
+    id: "6a17381d860f2dbdcbe1fe26"
+    name: "✅ Concluído"
+  cancelled:
+    id: "6a173820f69ea384c7449f32"
+    name: "❌ Cancelado"
