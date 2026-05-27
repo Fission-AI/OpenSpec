@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Tool Detection Utilities
  *
  * Shared utilities for detecting tool configurations and version status.
@@ -9,26 +9,26 @@ import * as fs from 'fs';
 import { AI_TOOLS } from '../config.js';
 
 /**
- * Names of skill directories created by openspec init.
+ * Names of skill directories created by pastelsdd init.
  */
 export const SKILL_NAMES = [
-  'openspec-explore',
-  'openspec-new-change',
-  'openspec-continue-change',
-  'openspec-apply-change',
-  'openspec-ff-change',
-  'openspec-sync-specs',
-  'openspec-archive-change',
-  'openspec-bulk-archive-change',
-  'openspec-verify-change',
-  'openspec-onboard',
-  'openspec-propose',
+  'pastelsdd-explore',
+  'pastelsdd-new-change',
+  'pastelsdd-continue-change',
+  'pastelsdd-apply-change',
+  'pastelsdd-ff-change',
+  'pastelsdd-sync-specs',
+  'pastelsdd-archive-change',
+  'pastelsdd-bulk-archive-change',
+  'pastelsdd-verify-change',
+  'pastelsdd-onboard',
+  'pastelsdd-propose',
 ] as const;
 
 export type SkillName = (typeof SKILL_NAMES)[number];
 
 /**
- * IDs of command templates created by openspec init.
+ * IDs of command templates created by pastelsdd init.
  */
 export const COMMAND_IDS = [
   'explore',
@@ -138,7 +138,7 @@ export function extractGeneratedByVersion(skillFilePath: string): string | null 
     // ---
     // ...
     // metadata:
-    //   author: openspec
+    //   author: pastelsdd
     //   version: "1.0"
     //   generatedBy: "0.23.0"
     // ---

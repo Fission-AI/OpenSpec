@@ -1,16 +1,16 @@
-# OPSX Workflow
+﻿# OPSX Workflow
 
 > Feedback welcome on [Discord](https://discord.gg/YctCnvvshC).
 
 ## What Is It?
 
-OPSX is now the standard workflow for OpenSpec.
+OPSX is now the standard workflow for Pastelsdd.
 
-It's a **fluid, iterative workflow** for OpenSpec changes. No more rigid phases — just actions you can take anytime.
+It's a **fluid, iterative workflow** for Pastelsdd changes. No more rigid phases — just actions you can take anytime.
 
 ## Why This Exists
 
-The legacy OpenSpec workflow works, but it's **locked down**:
+The legacy Pastelsdd workflow works, but it's **locked down**:
 
 - **Instructions are hardcoded** — buried in TypeScript, you can't change them
 - **All-or-nothing** — one big command creates everything, can't test individual pieces
@@ -39,7 +39,7 @@ Legacy workflow:                      OPSX:
 **This is for everyone:**
 - **Teams** — create workflows that match how you actually work
 - **Power users** — tweak prompts to get better AI outputs for your codebase
-- **OpenSpec contributors** — experiment with new approaches without releases
+- **Pastelsdd contributors** — experiment with new approaches without releases
 
 We're all still learning what works best. OPSX lets us learn together.
 
@@ -59,15 +59,15 @@ You're "in planning phase", then "in implementation phase", then "done". But rea
 ## Setup
 
 ```bash
-# Make sure you have openspec installed — skills are automatically generated
-openspec init
+# Make sure you have pastelsdd installed — skills are automatically generated
+pastelsdd init
 ```
 
 This creates skills in `.claude/skills/` (or equivalent) that AI coding assistants auto-detect.
 
-By default, OpenSpec uses the `core` workflow profile (`propose`, `explore`, `apply`, `sync`, `archive`). If you want the expanded workflow commands (`new`, `continue`, `ff`, `verify`, `bulk-archive`, `onboard`), configure them with `openspec config profile` and apply with `openspec update`.
+By default, Pastelsdd uses the `core` workflow profile (`propose`, `explore`, `apply`, `sync`, `archive`). If you want the expanded workflow commands (`new`, `continue`, `ff`, `verify`, `bulk-archive`, `onboard`), configure them with `pastelsdd config profile` and apply with `pastelsdd update`.
 
-During setup, you'll be prompted to create a **project config** (`openspec/config.yaml`). This is optional but recommended.
+During setup, you'll be prompted to create a **project config** (`pastelsdd/config.yaml`). This is optional but recommended.
 
 ## Project Configuration
 
@@ -75,10 +75,10 @@ Project config lets you set defaults and inject project-specific context into al
 
 ### Creating Config
 
-Config is created during `openspec init`, or manually:
+Config is created during `pastelsdd init`, or manually:
 
 ```yaml
-# openspec/config.yaml
+# pastelsdd/config.yaml
 schema: spec-driven
 
 context: |
@@ -109,8 +109,8 @@ rules:
 
 **Schema precedence** (highest to lowest):
 1. CLI flag (`--schema <name>`)
-2. Change metadata (`.openspec.yaml` in change directory)
-3. Project config (`openspec/config.yaml`)
+2. Change metadata (`.pastelsdd.yaml` in change directory)
+3. Project config (`pastelsdd/config.yaml`)
 4. Default (`spec-driven`)
 
 **Context injection:**
@@ -142,10 +142,10 @@ rules:
 
 **"Unknown artifact ID in rules: X"**
 - Check artifact IDs match your schema (see list above)
-- Run `openspec schemas --json` to see artifact IDs for each schema
+- Run `pastelsdd schemas --json` to see artifact IDs for each schema
 
 **Config not being applied:**
-- Ensure file is at `openspec/config.yaml` (not `.yml`)
+- Ensure file is at `pastelsdd/config.yaml` (not `.yml`)
 - Check YAML syntax with a validator
 - Config changes take effect immediately (no restart needed)
 
@@ -157,60 +157,60 @@ rules:
 
 | Command | What it does |
 |---------|--------------|
-| `/opsx:propose` | Create a change and generate planning artifacts in one step (default quick path) |
-| `/opsx:explore` | Think through ideas, investigate problems, clarify requirements |
-| `/opsx:new` | Start a new change scaffold (expanded workflow) |
-| `/opsx:continue` | Create the next artifact (expanded workflow) |
-| `/opsx:ff` | Fast-forward planning artifacts (expanded workflow) |
-| `/opsx:apply` | Implement tasks, updating artifacts as needed |
-| `/opsx:verify` | Validate implementation against artifacts (expanded workflow) |
-| `/opsx:sync` | Sync delta specs to main (default workflow, optional) |
-| `/opsx:archive` | Archive when done |
-| `/opsx:bulk-archive` | Archive multiple completed changes (expanded workflow) |
-| `/opsx:onboard` | Guided walkthrough of an end-to-end change (expanded workflow) |
+| `/pastel:propose` | Create a change and generate planning artifacts in one step (default quick path) |
+| `/pastel:explore` | Think through ideas, investigate problems, clarify requirements |
+| `/pastel:new` | Start a new change scaffold (expanded workflow) |
+| `/pastel:continue` | Create the next artifact (expanded workflow) |
+| `/pastel:ff` | Fast-forward planning artifacts (expanded workflow) |
+| `/pastel:apply` | Implement tasks, updating artifacts as needed |
+| `/pastel:verify` | Validate implementation against artifacts (expanded workflow) |
+| `/pastel:sync` | Sync delta specs to main (default workflow, optional) |
+| `/pastel:archive` | Archive when done |
+| `/pastel:bulk-archive` | Archive multiple completed changes (expanded workflow) |
+| `/pastel:onboard` | Guided walkthrough of an end-to-end change (expanded workflow) |
 
 ## Usage
 
 ### Explore an idea
 ```
-/opsx:explore
+/pastel:explore
 ```
-Think through ideas, investigate problems, compare options. No structure required - just a thinking partner. When insights crystallize, transition to `/opsx:propose` (default) or `/opsx:new`/`/opsx:ff` (expanded).
+Think through ideas, investigate problems, compare options. No structure required - just a thinking partner. When insights crystallize, transition to `/pastel:propose` (default) or `/pastel:new`/`/pastel:ff` (expanded).
 
 ### Start a new change
 ```
-/opsx:propose
+/pastel:propose
 ```
 Creates the change and generates planning artifacts needed before implementation.
 
 If you've enabled expanded workflows, you can instead use:
 
 ```text
-/opsx:new        # scaffold only
-/opsx:continue   # create one artifact at a time
-/opsx:ff         # create all planning artifacts at once
+/pastel:new        # scaffold only
+/pastel:continue   # create one artifact at a time
+/pastel:ff         # create all planning artifacts at once
 ```
 
 ### Create artifacts
 ```
-/opsx:continue
+/pastel:continue
 ```
 Shows what's ready to create based on dependencies, then creates one artifact. Use repeatedly to build up your change incrementally.
 
 ```
-/opsx:ff add-dark-mode
+/pastel:ff add-dark-mode
 ```
 Creates all planning artifacts at once. Use when you have a clear picture of what you're building.
 
 ### Implement (the fluid part)
 ```
-/opsx:apply
+/pastel:apply
 ```
-Works through tasks, checking them off as you go. If you're juggling multiple changes, you can run `/opsx:apply <name>`; otherwise it should infer from the conversation and prompt you to choose if it can't tell.
+Works through tasks, checking them off as you go. If you're juggling multiple changes, you can run `/pastel:apply <name>`; otherwise it should infer from the conversation and prompt you to choose if it can't tell.
 
 ### Finish up
 ```
-/opsx:archive   # Move to archive when done (prompts to sync specs if needed)
+/pastel:archive   # Move to archive when done (prompts to sync specs if needed)
 ```
 
 ## When to Update vs. Start Fresh
@@ -301,7 +301,7 @@ Think of it like git branches:
 
 ## What's Different?
 
-| | Legacy (`/openspec:proposal`) | OPSX (`/opsx:*`) |
+| | Legacy (`/pastelsdd:proposal`) | OPSX (`/pastel:*`) |
 |---|---|---|
 | **Structure** | One big proposal document | Discrete artifacts with dependencies |
 | **Workflow** | Linear phases: plan → implement → archive | Fluid actions — do anything anytime |
@@ -329,7 +329,7 @@ Examples in this section use the expanded command set (`new`, `continue`, etc.);
 │   └──────────────┘      └──────────────┘      └──────────────┘             │
 │         │                     │                     │                       │
 │         ▼                     ▼                     ▼                       │
-│   /openspec:proposal   /openspec:apply      /openspec:archive              │
+│   /pastelsdd:proposal   /pastelsdd:apply      /pastelsdd:archive              │
 │                                                                             │
 │   • Creates ALL artifacts at once                                          │
 │   • Can't go back to update specs during implementation                    │
@@ -374,7 +374,7 @@ Examples in this section use the expanded command set (`new`, `continue`, etc.);
 │   Tool-specific configurators/adapters                                      │
 │                    │                                                        │
 │                    ▼                                                        │
-│   Generated Command Files (.claude/commands/openspec/*.md)                  │
+│   Generated Command Files (.claude/commands/pastelsdd/*.md)                  │
 │                                                                             │
 │   • Fixed structure, no artifact awareness                                  │
 │   • Change requires code modification + rebuild                             │
@@ -410,7 +410,7 @@ Examples in this section use the expanded command set (`new`, `continue`, etc.);
 │   └─────────────────────────────────────────────────────────────────────┘   │
 │                    │                                                        │
 │                    ▼                                                        │
-│   Skill Files (.claude/skills/openspec-*/SKILL.md)                          │
+│   Skill Files (.claude/skills/pastelsdd-*/SKILL.md)                          │
 │                                                                             │
 │   • Cross-editor compatible (Claude Code, Cursor, Windsurf)                 │
 │   • Skills query CLI for structured data                                    │
@@ -463,7 +463,7 @@ Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, no
 **Legacy workflow** — agent receives static instructions:
 
 ```
-  User: "/openspec:proposal"
+  User: "/pastelsdd:proposal"
            │
            ▼
   ┌─────────────────────────────────────────┐
@@ -484,13 +484,13 @@ Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, no
 **OPSX** — agent queries for rich context:
 
 ```
-  User: "/opsx:continue"
+  User: "/pastel:continue"
            │
            ▼
   ┌──────────────────────────────────────────────────────────────────────────┐
   │  Step 1: Query current state                                             │
   │  ┌────────────────────────────────────────────────────────────────────┐  │
-  │  │  $ openspec status --change "add-auth" --json                      │  │
+  │  │  $ pastelsdd status --change "add-auth" --json                      │  │
   │  │                                                                    │  │
   │  │  {                                                                 │  │
   │  │    "artifacts": [                                                  │  │
@@ -504,7 +504,7 @@ Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, no
   │                                                                          │
   │  Step 2: Get rich instructions for ready artifact                        │
   │  ┌────────────────────────────────────────────────────────────────────┐  │
-  │  │  $ openspec instructions specs --change "add-auth" --json          │  │
+  │  │  $ pastelsdd instructions specs --change "add-auth" --json          │  │
   │  │                                                                    │  │
   │  │  {                                                                 │  │
   │  │    "template": "# Specification\n\n## ADDED Requirements...",      │  │
@@ -541,7 +541,7 @@ Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, no
 **OPSX** — natural iteration:
 
 ```
-  /opsx:new ───► /opsx:continue ───► /opsx:apply ───► /opsx:archive
+  /pastel:new ───► /pastel:continue ───► /pastel:apply ───► /pastel:archive
       │                │                  │
       │                │                  ├── "The design is wrong"
       │                │                  │
@@ -550,7 +550,7 @@ Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, no
       │                │            and continue!
       │                │                  │
       │                │                  ▼
-      │                │         /opsx:apply picks up
+      │                │         /pastel:apply picks up
       │                │         where you left off
       │                │
       │                └── Creates ONE artifact, shows what's unlocked
@@ -564,23 +564,23 @@ Create custom workflows using the schema management commands:
 
 ```bash
 # Create a new schema from scratch (interactive)
-openspec schema init my-workflow
+pastelsdd schema init my-workflow
 
 # Or fork an existing schema as a starting point
-openspec schema fork spec-driven my-workflow
+pastelsdd schema fork spec-driven my-workflow
 
 # Validate your schema structure
-openspec schema validate my-workflow
+pastelsdd schema validate my-workflow
 
 # See where a schema resolves from (useful for debugging)
-openspec schema which my-workflow
+pastelsdd schema which my-workflow
 ```
 
-Schemas are stored in `openspec/schemas/` (project-local, version controlled) or `~/.local/share/openspec/schemas/` (user global).
+Schemas are stored in `pastelsdd/schemas/` (project-local, version controlled) or `~/.local/share/pastelsdd/schemas/` (user global).
 
 **Schema structure:**
 ```
-openspec/schemas/research-first/
+pastelsdd/schemas/research-first/
 ├── schema.yaml
 └── templates/
     ├── research.md
@@ -629,31 +629,31 @@ Schemas define what artifacts exist and their dependencies. Currently available:
 
 ```bash
 # List available schemas
-openspec schemas
+pastelsdd schemas
 
 # See all schemas with their resolution sources
-openspec schema which --all
+pastelsdd schema which --all
 
 # Create a new schema interactively
-openspec schema init my-workflow
+pastelsdd schema init my-workflow
 
 # Fork an existing schema for customization
-openspec schema fork spec-driven my-workflow
+pastelsdd schema fork spec-driven my-workflow
 
 # Validate schema structure before use
-openspec schema validate my-workflow
+pastelsdd schema validate my-workflow
 ```
 
 ## Tips
 
-- Use `/opsx:explore` to think through an idea before committing to a change
-- `/opsx:ff` when you know what you want, `/opsx:continue` when exploring
-- During `/opsx:apply`, if something's wrong — fix the artifact, then continue
+- Use `/pastel:explore` to think through an idea before committing to a change
+- `/pastel:ff` when you know what you want, `/pastel:continue` when exploring
+- During `/pastel:apply`, if something's wrong — fix the artifact, then continue
 - Tasks track progress via checkboxes in `tasks.md`
-- Check status anytime: `openspec status --change "name"`
+- Check status anytime: `pastelsdd status --change "name"`
 
 ## Feedback
 
 This is rough. That's intentional — we're learning what works.
 
-Found a bug? Have ideas? Join us on [Discord](https://discord.gg/YctCnvvshC) or open an issue on [GitHub](https://github.com/Fission-AI/openspec/issues).
+Found a bug? Have ideas? Join us on [Discord](https://discord.gg/YctCnvvshC) or open an issue on [GitHub](https://github.com/Fission-AI/pastelsdd/issues).

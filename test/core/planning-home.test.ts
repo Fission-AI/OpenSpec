@@ -1,4 +1,4 @@
-import * as fs from 'node:fs';
+﻿import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
@@ -41,14 +41,14 @@ describe('planning home paths', () => {
   });
 
   it('keeps a canonical workspace root comparable with an aliased start path', () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-planning-home-'));
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pastelsdd-planning-home-'));
     tempDirs.push(tempDir);
     const realWorkspaceRoot = path.join(tempDir, 'real-workspace');
     const aliasWorkspaceRoot = path.join(tempDir, 'alias-workspace');
 
-    fs.mkdirSync(path.join(realWorkspaceRoot, '.openspec-workspace'), { recursive: true });
+    fs.mkdirSync(path.join(realWorkspaceRoot, '.pastelsdd-workspace'), { recursive: true });
     fs.writeFileSync(
-      path.join(realWorkspaceRoot, '.openspec-workspace', 'workspace.yaml'),
+      path.join(realWorkspaceRoot, '.pastelsdd-workspace', 'workspace.yaml'),
       'version: 1\nname: platform\nlinks: {}\n',
       'utf-8'
     );
@@ -68,18 +68,18 @@ describe('planning home paths', () => {
   });
 
   it('surfaces invalid current workspace state instead of falling back to legacy state', () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-planning-home-'));
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pastelsdd-planning-home-'));
     tempDirs.push(tempDir);
     const workspaceRoot = path.join(tempDir, 'workspace');
 
-    fs.mkdirSync(path.join(workspaceRoot, '.openspec-workspace'), { recursive: true });
+    fs.mkdirSync(path.join(workspaceRoot, '.pastelsdd-workspace'), { recursive: true });
     fs.writeFileSync(
       path.join(workspaceRoot, 'workspace.yaml'),
       'version: 1\nname: bad/name\ncontext: null\nlinks: {}\n',
       'utf-8'
     );
     fs.writeFileSync(
-      path.join(workspaceRoot, '.openspec-workspace', 'workspace.yaml'),
+      path.join(workspaceRoot, '.pastelsdd-workspace', 'workspace.yaml'),
       'version: 1\nname: legacy-platform\nlinks: {}\n',
       'utf-8'
     );

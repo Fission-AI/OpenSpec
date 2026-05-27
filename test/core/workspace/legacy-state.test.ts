@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+﻿import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -30,7 +30,7 @@ describe('workspace legacy state compatibility', () => {
   let tempDir: string;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-workspace-legacy-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pastelsdd-workspace-legacy-'));
   });
 
   afterEach(() => {
@@ -57,15 +57,15 @@ links: {}
 
     expect(WORKSPACE_LEGACY_SHARED_STATE_FILE_NAME).toBe('workspace.yaml');
     expect(WORKSPACE_LEGACY_LOCAL_STATE_FILE_NAME).toBe('local.yaml');
-    expect(WORKSPACE_LEGACY_LOCAL_STATE_IGNORE_PATTERN).toBe('.openspec-workspace/local.yaml');
+    expect(WORKSPACE_LEGACY_LOCAL_STATE_IGNORE_PATTERN).toBe('.pastelsdd-workspace/local.yaml');
     expect(getWorkspaceLegacySharedStatePath(workspaceRoot)).toBe(
-      path.join(workspaceRoot, '.openspec-workspace', 'workspace.yaml')
+      path.join(workspaceRoot, '.pastelsdd-workspace', 'workspace.yaml')
     );
     expect(getWorkspaceLegacyLocalStatePath(workspaceRoot)).toBe(
-      path.join(workspaceRoot, '.openspec-workspace', 'local.yaml')
+      path.join(workspaceRoot, '.pastelsdd-workspace', 'local.yaml')
     );
     expect(getWorkspaceLegacyLocalStatePath('D:\\repos\\platform-workspace')).toBe(
-      'D:\\repos\\platform-workspace\\.openspec-workspace\\local.yaml'
+      'D:\\repos\\platform-workspace\\.pastelsdd-workspace\\local.yaml'
     );
   });
 

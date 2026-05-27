@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+﻿import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
@@ -12,8 +12,8 @@ describe('artifact-workflow CLI commands', () => {
   const canonical = (targetPath: string): string => FileSystemUtils.canonicalizeExistingPath(targetPath);
 
   beforeEach(async () => {
-    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-artifact-workflow-'));
-    changesDir = path.join(tempDir, 'openspec', 'changes');
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pastelsdd-artifact-workflow-'));
+    changesDir = path.join(tempDir, 'pastelsdd', 'changes');
     await fs.mkdir(changesDir, { recursive: true });
   });
 
@@ -139,7 +139,7 @@ describe('artifact-workflow CLI commands', () => {
       const result = await runCLI(['status'], { cwd: tempDir });
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('No active changes');
-      expect(result.stdout).toContain('openspec new change');
+      expect(result.stdout).toContain('pastelsdd new change');
     });
 
     it('exits gracefully with JSON when no changes exist', async () => {
@@ -347,10 +347,10 @@ describe('artifact-workflow CLI commands', () => {
         XDG_DATA_HOME: path.join(tempDir, 'data'),
         XDG_CONFIG_HOME: path.join(tempDir, 'config'),
         OPEN_SPEC_INTERACTIVE: '0',
-        OPENSPEC_TELEMETRY: '0',
+        PASTELSDD_TELEMETRY: '0',
       };
       const api = path.join(tempDir, 'linked-api');
-      await fs.mkdir(path.join(api, 'openspec', 'specs'), { recursive: true });
+      await fs.mkdir(path.join(api, 'pastelsdd', 'specs'), { recursive: true });
       const apiEntriesBefore = (await fs.readdir(api)).sort();
 
       const setup = await runCLI(
@@ -387,13 +387,13 @@ describe('artifact-workflow CLI commands', () => {
       expect(normalizePaths(createOutput)).toContain('changes/cross-repo-login');
 
       const changeDir = path.join(workspaceRoot, 'changes', 'cross-repo-login');
-      const metadata = await fs.readFile(path.join(changeDir, '.openspec.yaml'), 'utf-8');
+      const metadata = await fs.readFile(path.join(changeDir, '.pastelsdd.yaml'), 'utf-8');
       expect(metadata).toContain('schema: workspace-planning');
       expect(metadata).toContain('goal: Unify login across API and web');
       expect(metadata).toContain('affected_areas:');
       expect(metadata).toContain('- api');
       expect((await fs.readdir(api)).sort()).toEqual(apiEntriesBefore);
-      await expect(fs.stat(path.join(api, 'openspec', 'changes'))).rejects.toMatchObject({
+      await expect(fs.stat(path.join(api, 'pastelsdd', 'changes'))).rejects.toMatchObject({
         code: 'ENOENT',
       });
     });
@@ -403,7 +403,7 @@ describe('artifact-workflow CLI commands', () => {
         XDG_DATA_HOME: path.join(tempDir, 'data'),
         XDG_CONFIG_HOME: path.join(tempDir, 'config'),
         OPEN_SPEC_INTERACTIVE: '0',
-        OPENSPEC_TELEMETRY: '0',
+        PASTELSDD_TELEMETRY: '0',
       };
       const api = path.join(tempDir, 'linked-api');
       await fs.mkdir(api, { recursive: true });
@@ -561,7 +561,7 @@ describe('artifact-workflow CLI commands', () => {
     });
 
     it('resolves single-star glob artifacts consistently between status and apply', async () => {
-      const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'glob-test');
+      const schemaDir = path.join(tempDir, 'pastelsdd', 'schemas', 'glob-test');
       const templatesDir = path.join(schemaDir, 'templates');
       await fs.mkdir(templatesDir, { recursive: true });
 
@@ -586,7 +586,7 @@ apply:
       const changeDir = path.join(changesDir, 'single-star-glob');
       const specPath = path.join(changeDir, 'specs', 'single-star-glob', 'spec.md');
       await fs.mkdir(path.dirname(specPath), { recursive: true });
-      await fs.writeFile(path.join(changeDir, '.openspec.yaml'), 'schema: glob-test\n');
+      await fs.writeFile(path.join(changeDir, '.pastelsdd.yaml'), 'schema: glob-test\n');
       await fs.writeFile(specPath, '# Nested spec\n');
 
       const statusResult = await runCLI(['status', '--change', 'single-star-glob', '--json'], {
@@ -679,7 +679,7 @@ apply:
     it('fallback: requires all artifacts when schema has no apply block', async () => {
       // Create a minimal schema without an apply block in user schemas dir
       const userDataDir = path.join(tempDir, 'user-data');
-      const noApplySchemaDir = path.join(userDataDir, 'openspec', 'schemas', 'no-apply');
+      const noApplySchemaDir = path.join(userDataDir, 'pastelsdd', 'schemas', 'no-apply');
       const templatesDir = path.join(noApplySchemaDir, 'templates');
       await fs.mkdir(templatesDir, { recursive: true });
 
@@ -729,7 +729,7 @@ artifacts:
     it('fallback: ready when all artifacts exist for schema without apply block', async () => {
       // Create a minimal schema without an apply block
       const userDataDir = path.join(tempDir, 'user-data-2');
-      const noApplySchemaDir = path.join(userDataDir, 'openspec', 'schemas', 'no-apply-full');
+      const noApplySchemaDir = path.join(userDataDir, 'pastelsdd', 'schemas', 'no-apply-full');
       const templatesDir = path.join(noApplySchemaDir, 'templates');
       await fs.mkdir(templatesDir, { recursive: true });
 
@@ -832,7 +832,7 @@ artifacts:
       expect(output).toContain('.claude/');
 
       // Verify skill files were created
-      const skillFile = path.join(tempDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md');
+      const skillFile = path.join(tempDir, '.claude', 'skills', 'pastelsdd-explore', 'SKILL.md');
       const stat = await fs.stat(skillFile);
       expect(stat.isFile()).toBe(true);
     });
@@ -847,14 +847,14 @@ artifacts:
       expect(output).toContain('.cursor/');
 
       // Verify skill files were created
-      const skillFile = path.join(tempDir, '.cursor', 'skills', 'openspec-explore', 'SKILL.md');
+      const skillFile = path.join(tempDir, '.cursor', 'skills', 'pastelsdd-explore', 'SKILL.md');
       const stat = await fs.stat(skillFile);
       expect(stat.isFile()).toBe(true);
 
       // Verify commands were created with Cursor format
-      const commandFile = path.join(tempDir, '.cursor', 'commands', 'opsx-explore.md');
+      const commandFile = path.join(tempDir, '.cursor', 'commands', 'pastel-explore.md');
       const content = await fs.readFile(commandFile, 'utf-8');
-      expect(content).toContain('name: /opsx-explore');
+      expect(content).toContain('name: /pastel-explore');
     });
 
     it('creates skills for Windsurf tool', async () => {
@@ -867,7 +867,7 @@ artifacts:
       expect(output).toContain('.windsurf/');
 
       // Verify skill files were created
-      const skillFile = path.join(tempDir, '.windsurf', 'skills', 'openspec-explore', 'SKILL.md');
+      const skillFile = path.join(tempDir, '.windsurf', 'skills', 'pastelsdd-explore', 'SKILL.md');
       const stat = await fs.stat(skillFile);
       expect(stat.isFile()).toBe(true);
     });
@@ -877,9 +877,9 @@ artifacts:
     describe('new change uses config schema', () => {
       it('creates change with schema from project config', async () => {
         // Create project config with spec-driven schema
-        // Note: changesDir is already at tempDir/openspec/changes (created in beforeEach)
+        // Note: changesDir is already at tempDir/pastelsdd/changes (created in beforeEach)
         await fs.writeFile(
-          path.join(tempDir, 'openspec', 'config.yaml'),
+          path.join(tempDir, 'pastelsdd', 'config.yaml'),
           'schema: spec-driven\n'
         );
 
@@ -888,16 +888,16 @@ artifacts:
         expect(result.exitCode).toBe(0);
 
         // Verify the change was created with spec-driven schema
-        const metadataPath = path.join(changesDir, 'test-change', '.openspec.yaml');
+        const metadataPath = path.join(changesDir, 'test-change', '.pastelsdd.yaml');
         const metadata = await fs.readFile(metadataPath, 'utf-8');
         expect(metadata).toContain('schema: spec-driven');
       }, 60000);
 
       it('CLI schema overrides config schema', async () => {
         // Create project config with spec-driven schema
-        // Note: openspec directory already exists (from changesDir creation in beforeEach)
+        // Note: pastelsdd directory already exists (from changesDir creation in beforeEach)
         await fs.writeFile(
-          path.join(tempDir, 'openspec', 'config.yaml'),
+          path.join(tempDir, 'pastelsdd', 'config.yaml'),
           'schema: spec-driven\n'
         );
 
@@ -909,7 +909,7 @@ artifacts:
         expect(result.exitCode).toBe(0);
 
         // Verify the change uses the CLI-specified schema
-        const metadataPath = path.join(changesDir, 'override-test', '.openspec.yaml');
+        const metadataPath = path.join(changesDir, 'override-test', '.pastelsdd.yaml');
         const metadata = await fs.readFile(metadataPath, 'utf-8');
         expect(metadata).toContain('schema: spec-driven');
       }, 60000);
@@ -918,9 +918,9 @@ artifacts:
     describe('instructions command with config', () => {
       it('injects context and rules from config into instructions', async () => {
         // Create project config with context and rules
-        // Note: openspec directory already exists (from changesDir creation in beforeEach)
+        // Note: pastelsdd directory already exists (from changesDir creation in beforeEach)
         await fs.writeFile(
-          path.join(tempDir, 'openspec', 'config.yaml'),
+          path.join(tempDir, 'pastelsdd', 'config.yaml'),
           `schema: spec-driven
 context: |
   Tech stack: TypeScript, React
@@ -953,9 +953,9 @@ rules:
 
       it('does not inject rules for non-matching artifact', async () => {
         // Create project config with rules only for proposal
-        // Note: openspec directory already exists (from changesDir creation in beforeEach)
+        // Note: pastelsdd directory already exists (from changesDir creation in beforeEach)
         await fs.writeFile(
-          path.join(tempDir, 'openspec', 'config.yaml'),
+          path.join(tempDir, 'pastelsdd', 'config.yaml'),
           `schema: spec-driven
 rules:
   proposal:
@@ -1005,7 +1005,7 @@ rules:
         // Create change with explicit schema in metadata
         const changeDir = await createTestChange('metadata-only-change');
         await fs.writeFile(
-          path.join(changeDir, '.openspec.yaml'),
+          path.join(changeDir, '.pastelsdd.yaml'),
           'schema: spec-driven\ncreated: "2025-01-05"\n'
         );
 
@@ -1022,9 +1022,9 @@ rules:
     describe('config changes reflected immediately', () => {
       it('config changes are reflected without restart', async () => {
         // Create initial config
-        // Note: openspec directory already exists (from changesDir creation in beforeEach)
+        // Note: pastelsdd directory already exists (from changesDir creation in beforeEach)
         await fs.writeFile(
-          path.join(tempDir, 'openspec', 'config.yaml'),
+          path.join(tempDir, 'pastelsdd', 'config.yaml'),
           `schema: spec-driven
 context: Initial context
 `
@@ -1043,7 +1043,7 @@ context: Initial context
 
         // Update config
         await fs.writeFile(
-          path.join(tempDir, 'openspec', 'config.yaml'),
+          path.join(tempDir, 'pastelsdd', 'config.yaml'),
           `schema: spec-driven
 context: Updated context
 `

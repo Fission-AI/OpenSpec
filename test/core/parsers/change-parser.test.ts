@@ -1,11 +1,11 @@
-import { describe, it, expect } from 'vitest';
+﻿import { describe, it, expect } from 'vitest';
 import path from 'path';
 import { promises as fs } from 'fs';
 import os from 'os';
 import { ChangeParser } from '../../../src/core/parsers/change-parser.js';
 
 async function withTempDir(run: (dir: string) => Promise<void>) {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-change-parser-'));
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'pastelsdd-change-parser-'));
   try {
     await run(dir);
   } finally {

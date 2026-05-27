@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+﻿import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -34,7 +34,7 @@ describe('context store foundation', () => {
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-context-store-foundation-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pastelsdd-context-store-foundation-'));
     originalEnv = { ...process.env };
   });
 
@@ -53,7 +53,7 @@ describe('context store foundation', () => {
 
   describe('path helpers', () => {
     it('exposes context store constants', () => {
-      expect(CONTEXT_STORE_METADATA_DIR_NAME).toBe('.openspec-store');
+      expect(CONTEXT_STORE_METADATA_DIR_NAME).toBe('.pastelsdd-store');
       expect(CONTEXT_STORE_METADATA_FILE_NAME).toBe('store.yaml');
       expect(CONTEXT_STORES_DIR_NAME).toBe('context-stores');
       expect(CONTEXT_STORE_REGISTRY_FILE_NAME).toBe('registry.yaml');
@@ -63,15 +63,15 @@ describe('context store foundation', () => {
       process.env.XDG_DATA_HOME = tempDir;
       const storeRoot = path.join(tempDir, 'acme-context');
 
-      expect(getContextStoresDir()).toBe(path.join(tempDir, 'openspec', 'context-stores'));
+      expect(getContextStoresDir()).toBe(path.join(tempDir, 'pastelsdd', 'context-stores'));
       expect(getContextStoreRegistryPath()).toBe(
-        path.join(tempDir, 'openspec', 'context-stores', 'registry.yaml')
+        path.join(tempDir, 'pastelsdd', 'context-stores', 'registry.yaml')
       );
       expect(getContextStoreMetadataDir(storeRoot)).toBe(
-        path.join(storeRoot, '.openspec-store')
+        path.join(storeRoot, '.pastelsdd-store')
       );
       expect(getContextStoreMetadataPath(storeRoot)).toBe(
-        path.join(storeRoot, '.openspec-store', 'store.yaml')
+        path.join(storeRoot, '.pastelsdd-store', 'store.yaml')
       );
     });
 
@@ -83,16 +83,16 @@ describe('context store foundation', () => {
       });
 
       expect(getContextStoresDir({ globalDataDir: dataDir })).toBe(
-        '/home/tabish/.local/share/openspec/context-stores'
+        '/home/tabish/.local/share/pastelsdd/context-stores'
       );
       expect(getContextStoreRegistryPath({ globalDataDir: dataDir })).toBe(
-        '/home/tabish/.local/share/openspec/context-stores/registry.yaml'
+        '/home/tabish/.local/share/pastelsdd/context-stores/registry.yaml'
       );
     });
 
     it('preserves Windows-style store root strings when building metadata paths', () => {
       expect(getContextStoreMetadataPath('D:\\repos\\acme-context')).toBe(
-        'D:\\repos\\acme-context\\.openspec-store\\store.yaml'
+        'D:\\repos\\acme-context\\.pastelsdd-store\\store.yaml'
       );
     });
   });

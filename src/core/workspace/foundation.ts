@@ -1,4 +1,4 @@
-import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+﻿import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { z } from 'zod';
 
 import {
@@ -8,7 +8,7 @@ import {
 } from '../context-store/index.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 
-export const WORKSPACE_METADATA_DIR_NAME = '.openspec-workspace';
+export const WORKSPACE_METADATA_DIR_NAME = '.pastelsdd-workspace';
 export const WORKSPACE_VIEW_STATE_FILE_NAME = 'workspace.yaml';
 export const WORKSPACE_CHANGES_DIR_NAME = 'changes';
 export const WORKSPACE_CODE_WORKSPACE_EXTENSION = '.code-workspace';

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+﻿import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -25,7 +25,7 @@ describe('context store registry facade', () => {
   let tempDir: string;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-context-store-registry-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pastelsdd-context-store-registry-'));
   });
 
   afterEach(() => {

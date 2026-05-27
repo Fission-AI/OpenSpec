@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Global configuration for telemetry state.
  * Stores anonymous ID and notice-seen flag in the platform-appropriate config directory.
  */
@@ -124,9 +124,9 @@ async function migrateLegacyTelemetryConfig(
  * Get the path to the global config file.
  * Follows XDG Base Directory Specification and platform conventions.
  *
- * - All platforms: $XDG_CONFIG_HOME/openspec/ if XDG_CONFIG_HOME is set
- * - Unix/macOS fallback: ~/.config/openspec/
- * - Windows fallback: %APPDATA%/openspec/
+ * - All platforms: $XDG_CONFIG_HOME/pastelsdd/ if XDG_CONFIG_HOME is set
+ * - Unix/macOS fallback: ~/.config/pastelsdd/
+ * - Windows fallback: %APPDATA%/pastelsdd/
  */
 export function getConfigPath(): string {
   const configDir = getConfigDir();

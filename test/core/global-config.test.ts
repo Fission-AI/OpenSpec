@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+﻿import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -21,7 +21,7 @@ describe('global-config', () => {
 
   beforeEach(() => {
     // Create temp directory for tests
-    tempDir = path.join(os.tmpdir(), `openspec-global-config-test-${Date.now()}`);
+    tempDir = path.join(os.tmpdir(), `pastelsdd-global-config-test-${Date.now()}`);
     fs.mkdirSync(tempDir, { recursive: true });
 
     // Save original env
@@ -44,7 +44,7 @@ describe('global-config', () => {
 
   describe('constants', () => {
     it('should export correct directory name', () => {
-      expect(GLOBAL_CONFIG_DIR_NAME).toBe('openspec');
+      expect(GLOBAL_CONFIG_DIR_NAME).toBe('pastelsdd');
     });
 
     it('should export correct file name', () => {
@@ -58,7 +58,7 @@ describe('global-config', () => {
 
       const result = getGlobalConfigDir();
 
-      expect(result).toBe(path.join(tempDir, 'openspec'));
+      expect(result).toBe(path.join(tempDir, 'pastelsdd'));
     });
 
     it('should fall back to ~/.config on Unix/macOS without XDG_CONFIG_HOME', () => {
@@ -66,9 +66,9 @@ describe('global-config', () => {
 
       const result = getGlobalConfigDir();
 
-      // On non-Windows, should use ~/.config/openspec
+      // On non-Windows, should use ~/.config/pastelsdd
       if (os.platform() !== 'win32') {
-        expect(result).toBe(path.join(os.homedir(), '.config', 'openspec'));
+        expect(result).toBe(path.join(os.homedir(), '.config', 'pastelsdd'));
       }
     });
 
@@ -80,7 +80,7 @@ describe('global-config', () => {
         const appData = process.env.APPDATA;
         if (appData) {
           const result = getGlobalConfigDir();
-          expect(result).toBe(path.join(appData, 'openspec'));
+          expect(result).toBe(path.join(appData, 'pastelsdd'));
         }
       }
     });
@@ -92,7 +92,7 @@ describe('global-config', () => {
 
       const result = getGlobalConfigPath();
 
-      expect(result).toBe(path.join(tempDir, 'openspec', 'config.json'));
+      expect(result).toBe(path.join(tempDir, 'pastelsdd', 'config.json'));
     });
   });
 
@@ -104,7 +104,7 @@ describe('global-config', () => {
           platform: 'linux',
           homedir: '/home/tabish',
         })
-      ).toBe('/home/tabish/.local/share/openspec');
+      ).toBe('/home/tabish/.local/share/pastelsdd');
 
       expect(
         getGlobalDataDir({
@@ -112,7 +112,7 @@ describe('global-config', () => {
           platform: 'darwin',
           homedir: '/Users/tabish',
         })
-      ).toBe('/var/data/openspec');
+      ).toBe('/var/data/pastelsdd');
     });
 
     it('should use Windows separators for native Windows platform overrides', () => {
@@ -122,7 +122,7 @@ describe('global-config', () => {
           platform: 'win32',
           homedir: 'C:\\Users\\Tabish',
         })
-      ).toBe('C:\\Users\\Tabish\\AppData\\Local\\openspec');
+      ).toBe('C:\\Users\\Tabish\\AppData\\Local\\pastelsdd');
 
       expect(
         getGlobalDataDir({
@@ -130,7 +130,7 @@ describe('global-config', () => {
           platform: 'win32',
           homedir: 'C:\\Users\\Tabish',
         })
-      ).toBe('D:\\Users\\Tabish\\AppData\\Local\\openspec');
+      ).toBe('D:\\Users\\Tabish\\AppData\\Local\\pastelsdd');
     });
   });
 
@@ -145,7 +145,7 @@ describe('global-config', () => {
 
     it('should not create directory when reading non-existent config', () => {
       process.env.XDG_CONFIG_HOME = tempDir;
-      const configDir = path.join(tempDir, 'openspec');
+      const configDir = path.join(tempDir, 'pastelsdd');
 
       getGlobalConfig();
 
@@ -154,7 +154,7 @@ describe('global-config', () => {
 
     it('should load valid config from file', () => {
       process.env.XDG_CONFIG_HOME = tempDir;
-      const configDir = path.join(tempDir, 'openspec');
+      const configDir = path.join(tempDir, 'pastelsdd');
       const configPath = path.join(configDir, 'config.json');
 
       fs.mkdirSync(configDir, { recursive: true });
@@ -169,7 +169,7 @@ describe('global-config', () => {
 
     it('should return defaults for invalid JSON', () => {
       process.env.XDG_CONFIG_HOME = tempDir;
-      const configDir = path.join(tempDir, 'openspec');
+      const configDir = path.join(tempDir, 'pastelsdd');
       const configPath = path.join(configDir, 'config.json');
 
       fs.mkdirSync(configDir, { recursive: true });
@@ -182,7 +182,7 @@ describe('global-config', () => {
 
     it('should log warning for invalid JSON', () => {
       process.env.XDG_CONFIG_HOME = tempDir;
-      const configDir = path.join(tempDir, 'openspec');
+      const configDir = path.join(tempDir, 'pastelsdd');
       const configPath = path.join(configDir, 'config.json');
 
       fs.mkdirSync(configDir, { recursive: true });
@@ -197,7 +197,7 @@ describe('global-config', () => {
 
     it('should preserve unknown fields from config file', () => {
       process.env.XDG_CONFIG_HOME = tempDir;
-      const configDir = path.join(tempDir, 'openspec');
+      const configDir = path.join(tempDir, 'pastelsdd');
       const configPath = path.join(configDir, 'config.json');
 
       fs.mkdirSync(configDir, { recursive: true });
@@ -215,7 +215,7 @@ describe('global-config', () => {
 
     it('should merge loaded config with defaults', () => {
       process.env.XDG_CONFIG_HOME = tempDir;
-      const configDir = path.join(tempDir, 'openspec');
+      const configDir = path.join(tempDir, 'pastelsdd');
       const configPath = path.join(configDir, 'config.json');
 
       // Config with only some fields
@@ -233,7 +233,7 @@ describe('global-config', () => {
     describe('schema evolution', () => {
       it('should add default profile and delivery when loading old config without them', () => {
         process.env.XDG_CONFIG_HOME = tempDir;
-        const configDir = path.join(tempDir, 'openspec');
+        const configDir = path.join(tempDir, 'pastelsdd');
         const configPath = path.join(configDir, 'config.json');
 
         // Simulate a pre-existing config that only has featureFlags
@@ -252,7 +252,7 @@ describe('global-config', () => {
 
       it('should preserve explicit profile and delivery values from config', () => {
         process.env.XDG_CONFIG_HOME = tempDir;
-        const configDir = path.join(tempDir, 'openspec');
+        const configDir = path.join(tempDir, 'pastelsdd');
         const configPath = path.join(configDir, 'config.json');
 
         fs.mkdirSync(configDir, { recursive: true });
@@ -289,7 +289,7 @@ describe('global-config', () => {
 
       it('should default workflows to undefined when not in config', () => {
         process.env.XDG_CONFIG_HOME = tempDir;
-        const configDir = path.join(tempDir, 'openspec');
+        const configDir = path.join(tempDir, 'pastelsdd');
         const configPath = path.join(configDir, 'config.json');
 
         fs.mkdirSync(configDir, { recursive: true });
@@ -309,7 +309,7 @@ describe('global-config', () => {
   describe('saveGlobalConfig', () => {
     it('should create directory if it does not exist', () => {
       process.env.XDG_CONFIG_HOME = tempDir;
-      const configDir = path.join(tempDir, 'openspec');
+      const configDir = path.join(tempDir, 'pastelsdd');
 
       saveGlobalConfig({ featureFlags: { test: true } });
 
@@ -318,7 +318,7 @@ describe('global-config', () => {
 
     it('should write config to file', () => {
       process.env.XDG_CONFIG_HOME = tempDir;
-      const configPath = path.join(tempDir, 'openspec', 'config.json');
+      const configPath = path.join(tempDir, 'pastelsdd', 'config.json');
 
       saveGlobalConfig({ featureFlags: { myFlag: true } });
 
@@ -329,7 +329,7 @@ describe('global-config', () => {
 
     it('should overwrite existing config file', () => {
       process.env.XDG_CONFIG_HOME = tempDir;
-      const configDir = path.join(tempDir, 'openspec');
+      const configDir = path.join(tempDir, 'pastelsdd');
       const configPath = path.join(configDir, 'config.json');
 
       // Create initial config
@@ -347,7 +347,7 @@ describe('global-config', () => {
 
     it('should write formatted JSON with trailing newline', () => {
       process.env.XDG_CONFIG_HOME = tempDir;
-      const configPath = path.join(tempDir, 'openspec', 'config.json');
+      const configPath = path.join(tempDir, 'pastelsdd', 'config.json');
 
       saveGlobalConfig({ featureFlags: {} });
 

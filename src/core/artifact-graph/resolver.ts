@@ -1,4 +1,4 @@
-import * as fs from 'node:fs';
+﻿import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getGlobalDataDir } from '../global-config.js';
@@ -42,15 +42,15 @@ export function getUserSchemasDir(): string {
  * @returns The path to the project's schemas directory
  */
 export function getProjectSchemasDir(projectRoot: string): string {
-  return path.join(projectRoot, 'openspec', 'schemas');
+  return path.join(projectRoot, 'pastelsdd', 'schemas');
 }
 
 /**
  * Resolves a schema name to its directory path.
  *
  * Resolution order (when projectRoot is provided):
- * 1. Project-local: <projectRoot>/openspec/schemas/<name>/schema.yaml
- * 2. User override: ${XDG_DATA_HOME}/openspec/schemas/<name>/schema.yaml
+ * 1. Project-local: <projectRoot>/pastelsdd/schemas/<name>/schema.yaml
+ * 2. User override: ${XDG_DATA_HOME}/pastelsdd/schemas/<name>/schema.yaml
  * 3. Package built-in: <package>/schemas/<name>/schema.yaml
  *
  * When projectRoot is not provided, only user override and package built-in are checked
@@ -94,8 +94,8 @@ export function getSchemaDir(
  * Resolves a schema name to a SchemaYaml object.
  *
  * Resolution order (when projectRoot is provided):
- * 1. Project-local: <projectRoot>/openspec/schemas/<name>/schema.yaml
- * 2. User override: ${XDG_DATA_HOME}/openspec/schemas/<name>/schema.yaml
+ * 1. Project-local: <projectRoot>/pastelsdd/schemas/<name>/schema.yaml
+ * 2. User override: ${XDG_DATA_HOME}/pastelsdd/schemas/<name>/schema.yaml
  * 3. Package built-in: <package>/schemas/<name>/schema.yaml
  *
  * When projectRoot is not provided, only user override and package built-in are checked

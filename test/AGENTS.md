@@ -1,4 +1,4 @@
-# OpenSpec Test Guidance
+﻿# Pastelsdd Test Guidance
 
 Applies to tests under `test/`.
 

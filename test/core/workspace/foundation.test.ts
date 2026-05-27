@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+﻿import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -47,7 +47,7 @@ describe('workspace foundation', () => {
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-workspace-foundation-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pastelsdd-workspace-foundation-'));
     originalEnv = { ...process.env };
   });
 
@@ -82,7 +82,7 @@ links: {}
 
   describe('path helpers', () => {
     it('exposes the workspace constants', () => {
-      expect(WORKSPACE_METADATA_DIR_NAME).toBe('.openspec-workspace');
+      expect(WORKSPACE_METADATA_DIR_NAME).toBe('.pastelsdd-workspace');
       expect(WORKSPACE_VIEW_STATE_FILE_NAME).toBe('workspace.yaml');
       expect(WORKSPACE_CHANGES_DIR_NAME).toBe('changes');
       expect(MANAGED_WORKSPACES_DIR_NAME).toBe('workspaces');
@@ -93,7 +93,7 @@ links: {}
       const workspaceRoot = path.join(tempDir, 'platform');
 
       expect(getWorkspaceMetadataDir(workspaceRoot)).toBe(
-        path.join(workspaceRoot, '.openspec-workspace')
+        path.join(workspaceRoot, '.pastelsdd-workspace')
       );
       expect(getWorkspaceViewStatePath(workspaceRoot)).toBe(
         path.join(workspaceRoot, 'workspace.yaml')
@@ -116,12 +116,12 @@ links: {}
     it('uses getGlobalDataDir for managed workspace and registry locations', () => {
       process.env.XDG_DATA_HOME = tempDir;
 
-      expect(getManagedWorkspacesDir()).toBe(path.join(tempDir, 'openspec', 'workspaces'));
+      expect(getManagedWorkspacesDir()).toBe(path.join(tempDir, 'pastelsdd', 'workspaces'));
       expect(getManagedWorkspaceRoot('platform')).toBe(
-        path.join(tempDir, 'openspec', 'workspaces', 'platform')
+        path.join(tempDir, 'pastelsdd', 'workspaces', 'platform')
       );
       expect(getWorkspaceRegistryPath()).toBe(
-        path.join(tempDir, 'openspec', 'workspaces', 'registry.yaml')
+        path.join(tempDir, 'pastelsdd', 'workspaces', 'registry.yaml')
       );
     });
 
@@ -133,7 +133,7 @@ links: {}
       });
 
       expect(getManagedWorkspacesDir({ globalDataDir: dataDir })).toBe(
-        '/home/tabish/.local/share/openspec/workspaces'
+        '/home/tabish/.local/share/pastelsdd/workspaces'
       );
     });
 
@@ -145,7 +145,7 @@ links: {}
       });
 
       expect(getManagedWorkspacesDir({ globalDataDir: dataDir })).toBe(
-        'C:\\Users\\Tabish\\AppData\\Local\\openspec\\workspaces'
+        'C:\\Users\\Tabish\\AppData\\Local\\pastelsdd\\workspaces'
       );
     });
 
@@ -210,19 +210,19 @@ links: {}
       await expect(findWorkspaceRoot(path.join(notWorkspace, 'changes'))).resolves.toBe(null);
     });
 
-    it('does not mistake repo-local openspec projects for coordination workspaces', async () => {
+    it('does not mistake repo-local pastelsdd projects for coordination workspaces', async () => {
       const repoRoot = path.join(tempDir, 'repo');
-      fs.mkdirSync(path.join(repoRoot, 'openspec', 'changes', 'add-feature'), {
+      fs.mkdirSync(path.join(repoRoot, 'pastelsdd', 'changes', 'add-feature'), {
         recursive: true,
       });
-      fs.mkdirSync(path.join(repoRoot, 'openspec', 'specs'), { recursive: true });
+      fs.mkdirSync(path.join(repoRoot, 'pastelsdd', 'specs'), { recursive: true });
 
-      await expect(findWorkspaceRoot(path.join(repoRoot, 'openspec', 'changes'))).resolves.toBe(
+      await expect(findWorkspaceRoot(path.join(repoRoot, 'pastelsdd', 'changes'))).resolves.toBe(
         null
       );
     });
 
-    it('detects a workspace even when a linked path has no repo-local openspec state', async () => {
+    it('detects a workspace even when a linked path has no repo-local pastelsdd state', async () => {
       const workspaceRoot = createWorkspaceRoot();
       const linkedPath = path.join(workspaceRoot, 'external-folder');
       fs.mkdirSync(linkedPath, { recursive: true });
@@ -433,9 +433,9 @@ After block.
       expect(refreshed).toContain('# Team Notes');
       expect(refreshed).toContain('Keep this.');
       expect(refreshed).toContain('After block.');
-      expect(refreshed.match(/OPENSPEC:WORKSPACE-GUIDANCE:START/gu)).toHaveLength(1);
+      expect(refreshed.match(/PASTELSDD:WORKSPACE-GUIDANCE:START/gu)).toHaveLength(1);
       expect(applyWorkspaceGuidanceBlock('# Team Notes\n')).toContain(
-        '<!-- OPENSPEC:WORKSPACE-GUIDANCE:START -->'
+        '<!-- PASTELSDD:WORKSPACE-GUIDANCE:START -->'
       );
     });
 
@@ -568,7 +568,7 @@ workspaces:
     });
 
     it('reads the local registry from the standard registry path', async () => {
-      const globalDataDir = path.join(tempDir, 'data', 'openspec');
+      const globalDataDir = path.join(tempDir, 'data', 'pastelsdd');
       const registryPath = getWorkspaceRegistryPath({ globalDataDir });
       fs.mkdirSync(path.dirname(registryPath), { recursive: true });
       fs.writeFileSync(
@@ -588,7 +588,7 @@ workspaces:
     });
 
     it('writes the local registry to the standard registry path', async () => {
-      const globalDataDir = path.join(tempDir, 'data', 'openspec');
+      const globalDataDir = path.join(tempDir, 'data', 'pastelsdd');
       const registry = {
         version: 1 as const,
         workspaces: {

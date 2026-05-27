@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Lingma Command Adapter
  *
  * Formats commands for Lingma following its frontmatter specification.
@@ -9,14 +9,14 @@ import type { CommandContent, ToolCommandAdapter } from '../types.js';
 
 /**
  * Lingma adapter for command generation.
- * File path: .lingma/commands/opsx/<id>.md
+ * File path: .lingma/commands/pastel/<id>.md
  * Frontmatter: name, description, category, tags
  */
 export const lingmaAdapter: ToolCommandAdapter = {
   toolId: 'lingma',
 
   getFilePath(commandId: string): string {
-    return path.join('.lingma', 'commands', 'opsx', `${commandId}.md`);
+    return path.join('.lingma', 'commands', 'pastel', `${commandId}.md`);
   },
 
   formatFile(content: CommandContent): string {

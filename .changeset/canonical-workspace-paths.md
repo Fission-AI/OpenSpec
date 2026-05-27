@@ -1,5 +1,5 @@
----
-"@fission-ai/openspec": patch
+﻿---
+"@fission-ai/pastelsdd": patch
 ---
 
 ### Fixed

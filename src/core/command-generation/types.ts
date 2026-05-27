@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Command Generation Types
  *
  * Tool-agnostic interfaces for command generation.
@@ -12,7 +12,7 @@
 export interface CommandContent {
   /** Command identifier (e.g., 'explore', 'apply', 'new') */
   id: string;
-  /** Human-readable name (e.g., 'OpenSpec Explore') */
+  /** Human-readable name (e.g., 'Pastelsdd Explore') */
   name: string;
   /** Brief description of command purpose */
   description: string;
@@ -35,7 +35,7 @@ export interface ToolCommandAdapter {
   /**
    * Returns the file path for a command.
    * @param commandId - The command identifier (e.g., 'explore')
-   * @returns Path from project root (e.g., '.claude/commands/opsx/explore.md').
+   * @returns Path from project root (e.g., '.claude/commands/pastel/explore.md').
    *          May be absolute for tools with global-scoped prompts (e.g., Codex).
    */
   getFilePath(commandId: string): string;

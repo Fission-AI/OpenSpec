@@ -1,4 +1,4 @@
-/**
+﻿/**
  * RooCode Command Adapter
  *
  * Formats commands for RooCode following its workflow specification.
@@ -10,14 +10,14 @@ import type { CommandContent, ToolCommandAdapter } from '../types.js';
 
 /**
  * RooCode adapter for command generation.
- * File path: .roo/commands/opsx-<id>.md
+ * File path: .roo/commands/pastel-<id>.md
  * Format: Markdown header with description
  */
 export const roocodeAdapter: ToolCommandAdapter = {
   toolId: 'roocode',
 
   getFilePath(commandId: string): string {
-    return path.join('.roo', 'commands', `opsx-${commandId}.md`);
+    return path.join('.roo', 'commands', `pastel-${commandId}.md`);
   },
 
   formatFile(content: CommandContent): string {

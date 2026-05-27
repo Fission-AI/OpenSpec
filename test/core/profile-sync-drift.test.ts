@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+﻿import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -41,8 +41,8 @@ describe('profile sync drift detection', () => {
   let tempDir: string;
 
   beforeEach(() => {
-    tempDir = path.join(os.tmpdir(), `openspec-profile-sync-drift-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-    fs.mkdirSync(path.join(tempDir, 'openspec'), { recursive: true });
+    tempDir = path.join(os.tmpdir(), `pastelsdd-profile-sync-drift-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    fs.mkdirSync(path.join(tempDir, 'pastelsdd'), { recursive: true });
   });
 
   afterEach(() => {

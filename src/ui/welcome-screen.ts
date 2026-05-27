@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Animated welcome screen for the experimental artifact workflow setup.
  * Shows side-by-side layout with animated ASCII art on left and welcome text on right.
  */
@@ -17,17 +17,17 @@ const ART_COLUMN_WIDTH = 24;
  */
 function getWelcomeText(): string[] {
   return [
-    chalk.white.bold('Welcome to OpenSpec'),
+    chalk.white.bold('Welcome to Pastelsdd'),
     chalk.dim('A lightweight spec-driven framework'),
     '',
     chalk.white('This setup will configure:'),
     chalk.dim('  • Agent Skills for AI tools'),
-    chalk.dim('  • /opsx:* slash commands'),
+    chalk.dim('  • /pastel:* slash commands'),
     '',
     chalk.white('Quick start after setup:'),
-    `  ${chalk.yellow('/opsx:new')}      ${chalk.dim('Create a change')}`,
-    `  ${chalk.yellow('/opsx:continue')} ${chalk.dim('Next artifact')}`,
-    `  ${chalk.yellow('/opsx:apply')}    ${chalk.dim('Implement tasks')}`,
+    `  ${chalk.yellow('/pastel:new')}      ${chalk.dim('Create a change')}`,
+    `  ${chalk.yellow('/pastel:continue')} ${chalk.dim('Next artifact')}`,
+    `  ${chalk.yellow('/pastel:apply')}    ${chalk.dim('Implement tasks')}`,
     '',
     chalk.cyan('Press Enter to select tools...'),
   ];

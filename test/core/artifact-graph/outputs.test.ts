@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+﻿import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -11,7 +11,7 @@ describe('artifact-graph/outputs', () => {
   const canonical = (targetPath: string): string => FileSystemUtils.canonicalizeExistingPath(targetPath);
 
   beforeEach(() => {
-    tempDir = path.join(os.tmpdir(), `openspec-outputs-test-${Date.now()}`);
+    tempDir = path.join(os.tmpdir(), `pastelsdd-outputs-test-${Date.now()}`);
     fs.mkdirSync(tempDir, { recursive: true });
   });
 

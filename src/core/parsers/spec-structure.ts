@@ -1,4 +1,4 @@
-const REQUIREMENTS_SECTION_HEADER = /^##\s+Requirements\s*$/i;
+﻿const REQUIREMENTS_SECTION_HEADER = /^##\s+Requirements\s*$/i;
 const TOP_LEVEL_SECTION_HEADER = /^##\s+/;
 const DELTA_HEADER = /^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements\s*$/i;
 const REQUIREMENT_HEADER = /^###\s+Requirement:\s*(.+)\s*$/i;
@@ -42,7 +42,7 @@ export function findMainSpecStructureIssues(content: string): MainSpecStructureI
         header: trimmed,
         message:
           `Main spec contains delta header "${trimmed}". ` +
-          'Delta headers are only valid inside openspec/changes/<name>/specs/<capability>/spec.md ' +
+          'Delta headers are only valid inside pastelsdd/changes/<name>/specs/<capability>/spec.md ' +
           'and truncate the parsed ## Requirements section.',
       });
       continue;

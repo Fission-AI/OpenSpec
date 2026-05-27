@@ -1,4 +1,4 @@
-# Changesets
+﻿# Changesets
 
 This directory is managed by [Changesets](https://github.com/changesets/changesets).
 
@@ -24,7 +24,7 @@ Use this structure for your changeset content:
 
 ```markdown
 ---
-"@fission-ai/openspec": patch
+"@fission-ai/pastelsdd": patch
 ---
 
 ### New Features

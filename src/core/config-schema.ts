@@ -1,7 +1,7 @@
-import { z } from 'zod';
+﻿import { z } from 'zod';
 
 /**
- * Zod schema for global OpenSpec configuration.
+ * Zod schema for global Pastelsdd configuration.
  * Uses passthrough() to preserve unknown fields for forward compatibility.
  */
 export const GlobalConfigSchema = z

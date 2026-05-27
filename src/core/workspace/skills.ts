@@ -1,4 +1,4 @@
-import * as nodeFs from 'node:fs';
+﻿import * as nodeFs from 'node:fs';
 import { createRequire } from 'node:module';
 
 import { FileSystemUtils } from '../../utils/file-system.js';
@@ -16,7 +16,7 @@ import {
 import type { WorkspaceSkillState } from './foundation.js';
 
 const require = createRequire(import.meta.url);
-const { version: OPENSPEC_VERSION } = require('../../../package.json');
+const { version: PASTELSDD_VERSION } = require('../../../package.json');
 const fs = nodeFs.promises;
 
 export interface WorkspaceSkillAgentResult {
@@ -274,7 +274,7 @@ async function pathExists(targetPath: string): Promise<boolean> {
   }
 }
 
-function isOpenSpecManagedSkillDir(skillDir: string): boolean {
+function isPastelsddManagedSkillDir(skillDir: string): boolean {
   const skillFile = FileSystemUtils.joinPath(skillDir, 'SKILL.md');
   return extractGeneratedByVersion(skillFile) !== null;
 }
@@ -299,7 +299,7 @@ async function removeManagedWorkflowSkillDirs(
       continue;
     }
 
-    if (!isOpenSpecManagedSkillDir(skillDir)) {
+    if (!isPastelsddManagedSkillDir(skillDir)) {
       continue;
     }
 
@@ -358,7 +358,7 @@ export async function generateWorkspaceAgentSkills(
 
       for (const { template, dirName } of skillTemplates) {
         const skillFile = FileSystemUtils.joinPath(skillsDir, dirName, 'SKILL.md');
-        const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
+        const skillContent = generateSkillContent(template, PASTELSDD_VERSION, transformer);
         await FileSystemUtils.writeFile(skillFile, skillContent);
       }
 
@@ -470,7 +470,7 @@ export async function updateWorkspaceAgentSkills(
 
       for (const { template, dirName } of skillTemplates) {
         const skillFile = FileSystemUtils.joinPath(skillsDir, dirName, 'SKILL.md');
-        const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
+        const skillContent = generateSkillContent(template, PASTELSDD_VERSION, transformer);
         await FileSystemUtils.writeFile(skillFile, skillContent);
       }
 

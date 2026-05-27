@@ -1,4 +1,4 @@
-// Core OpenSpec logic will be implemented here
+﻿// Core Pastelsdd logic will be implemented here
 export {
   GLOBAL_CONFIG_DIR_NAME,
   GLOBAL_CONFIG_FILE_NAME,

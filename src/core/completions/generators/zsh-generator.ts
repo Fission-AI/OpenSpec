@@ -1,4 +1,4 @@
-import {
+﻿import {
   CompletionGenerator,
   CommandDefinition,
   FlagDefinition,
@@ -7,8 +7,8 @@ import {
 import { ZSH_DYNAMIC_HELPERS } from '../templates/zsh-templates.js';
 
 /**
- * Generates Zsh completion scripts for the OpenSpec CLI.
- * Follows Zsh completion system conventions using the _openspec function.
+ * Generates Zsh completion scripts for the Pastelsdd CLI.
+ * Follows Zsh completion system conventions using the _pastelsdd function.
  */
 export class ZshGenerator implements CompletionGenerator {
   readonly shell = 'zsh' as const;
@@ -32,7 +32,7 @@ export class ZshGenerator implements CompletionGenerator {
     const commandCaseLines: string[] = [];
     for (const cmd of commands) {
       commandCaseLines.push(`        ${cmd.name})`);
-      commandCaseLines.push(`          _openspec_${this.sanitizeFunctionName(cmd.name)}`);
+      commandCaseLines.push(`          _pastelsdd_${this.sanitizeFunctionName(cmd.name)}`);
       commandCaseLines.push('          ;;');
     }
     const commandCases = commandCaseLines.join('\n');
@@ -49,12 +49,12 @@ export class ZshGenerator implements CompletionGenerator {
     const helpers = ZSH_DYNAMIC_HELPERS;
 
     // Assemble final script with template literal
-    return `#compdef openspec
+    return `#compdef pastelsdd
 
-# Zsh completion script for OpenSpec CLI
+# Zsh completion script for Pastelsdd CLI
 # Auto-generated - do not edit manually
 
-_openspec() {
+_pastelsdd() {
   local context state line
   typeset -A opt_args
 
@@ -69,7 +69,7 @@ ${commandList}
 
   case $state in
     command)
-      _describe "openspec command" commands
+      _describe "pastelsdd command" commands
       ;;
     args)
       case $words[1] in
@@ -81,7 +81,7 @@ ${commandCases}
 
 ${commandFunctions}
 ${helpers}
-compdef _openspec openspec
+compdef _pastelsdd pastelsdd
 `;
   }
 
@@ -89,7 +89,7 @@ compdef _openspec openspec
    * Generate completion function for a specific command
    */
   private generateCommandFunction(cmd: CommandDefinition): string[] {
-    const funcName = `_openspec_${this.sanitizeFunctionName(cmd.name)}`;
+    const funcName = `_pastelsdd_${this.sanitizeFunctionName(cmd.name)}`;
     const lines: string[] = [];
 
     lines.push(`${funcName}() {`);
@@ -128,7 +128,7 @@ compdef _openspec openspec
 
       for (const subcmd of cmd.subcommands) {
         lines.push(`        ${subcmd.name})`);
-        lines.push(`          _openspec_${this.sanitizeFunctionName(cmd.name)}_${this.sanitizeFunctionName(subcmd.name)}`);
+        lines.push(`          _pastelsdd_${this.sanitizeFunctionName(cmd.name)}_${this.sanitizeFunctionName(subcmd.name)}`);
         lines.push('          ;;');
       }
 
@@ -164,7 +164,7 @@ compdef _openspec openspec
    * Generate completion function for a subcommand
    */
   private generateSubcommandFunction(parentName: string, subcmd: CommandDefinition): string[] {
-    const funcName = `_openspec_${this.sanitizeFunctionName(parentName)}_${this.sanitizeFunctionName(subcmd.name)}`;
+    const funcName = `_pastelsdd_${this.sanitizeFunctionName(parentName)}_${this.sanitizeFunctionName(subcmd.name)}`;
     const lines: string[] = [];
 
     lines.push(`${funcName}() {`);
@@ -223,13 +223,13 @@ compdef _openspec openspec
   private generatePositionalSpec(positionalType?: string): string {
     switch (positionalType) {
       case 'change-id':
-        return "'*: :_openspec_complete_changes'";
+        return "'*: :_pastelsdd_complete_changes'";
       case 'spec-id':
-        return "'*: :_openspec_complete_specs'";
+        return "'*: :_pastelsdd_complete_specs'";
       case 'change-or-spec-id':
-        return "'*: :_openspec_complete_items'";
+        return "'*: :_pastelsdd_complete_items'";
       case 'schema-name':
-        return "'*: :_openspec_complete_schemas'";
+        return "'*: :_pastelsdd_complete_schemas'";
       case 'path':
         return "'*:path:_files'";
       case 'shell':
@@ -278,13 +278,13 @@ compdef _openspec openspec
 
     switch (positional.type) {
       case 'change-id':
-        return `'${index}${separator}${name}:_openspec_complete_changes'`;
+        return `'${index}${separator}${name}:_pastelsdd_complete_changes'`;
       case 'spec-id':
-        return `'${index}${separator}${name}:_openspec_complete_specs'`;
+        return `'${index}${separator}${name}:_pastelsdd_complete_specs'`;
       case 'change-or-spec-id':
-        return `'${index}${separator}${name}:_openspec_complete_items'`;
+        return `'${index}${separator}${name}:_pastelsdd_complete_items'`;
       case 'schema-name':
-        return `'${index}${separator}${name}:_openspec_complete_schemas'`;
+        return `'${index}${separator}${name}:_pastelsdd_complete_schemas'`;
       case 'path':
         return `'${index}${separator}${name}:_files'`;
       case 'shell':

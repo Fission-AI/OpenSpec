@@ -1,4 +1,4 @@
-import { Command } from 'commander';
+﻿import { Command } from 'commander';
 
 import {
   ContextStoreError,
@@ -198,12 +198,12 @@ function printListHuman(payload: ContextStoreListOutput): void {
     console.log('No context stores registered.');
     console.log('');
     console.log('Next:');
-    console.log('  openspec context-store setup team-context');
-    console.log('  openspec context-store register /path/to/context-store');
+    console.log('  pastelsdd context-store setup team-context');
+    console.log('  pastelsdd context-store register /path/to/context-store');
     return;
   }
 
-  console.log(`OpenSpec context stores (${payload.context_stores.length})`);
+  console.log(`Pastelsdd context stores (${payload.context_stores.length})`);
   console.log('');
   console.log(`${'ID'.padEnd(16)}Location`);
   for (const store of payload.context_stores) {

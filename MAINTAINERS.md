@@ -1,6 +1,6 @@
-# Maintainers
+﻿# Maintainers
 
-People who maintain and guide OpenSpec.
+People who maintain and guide Pastelsdd.
 
 ## Core Maintainers
 

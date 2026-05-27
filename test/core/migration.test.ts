@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+﻿import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import path from 'path';
 import os from 'os';
 import { randomUUID } from 'crypto';
@@ -47,8 +47,8 @@ describe('migration', () => {
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(async () => {
-    projectDir = path.join(os.tmpdir(), `openspec-migration-project-${randomUUID()}`);
-    configHome = path.join(os.tmpdir(), `openspec-migration-config-${randomUUID()}`);
+    projectDir = path.join(os.tmpdir(), `pastelsdd-migration-project-${randomUUID()}`);
+    configHome = path.join(os.tmpdir(), `pastelsdd-migration-config-${randomUUID()}`);
     await fsp.mkdir(projectDir, { recursive: true });
     await fsp.mkdir(configHome, { recursive: true });
     originalEnv = { ...process.env };
@@ -62,8 +62,8 @@ describe('migration', () => {
   });
 
   it('migrates to custom skills delivery when only managed skills are detected', async () => {
-    await writeSkill(projectDir, 'openspec-explore');
-    await writeSkill(projectDir, 'openspec-apply-change');
+    await writeSkill(projectDir, 'pastelsdd-explore');
+    await writeSkill(projectDir, 'pastelsdd-apply-change');
 
     migrateIfNeeded(projectDir, [ensureClaudeTool()]);
 
@@ -86,7 +86,7 @@ describe('migration', () => {
   });
 
   it('migrates to custom both delivery when managed skills and commands are detected', async () => {
-    await writeSkill(projectDir, 'openspec-explore');
+    await writeSkill(projectDir, 'pastelsdd-explore');
     await writeManagedCommand(projectDir, 'apply');
 
     migrateIfNeeded(projectDir, [ensureClaudeTool()]);
@@ -103,7 +103,7 @@ describe('migration', () => {
       profile: 'core',
       delivery: 'both',
     });
-    await writeSkill(projectDir, 'openspec-explore');
+    await writeSkill(projectDir, 'pastelsdd-explore');
 
     migrateIfNeeded(projectDir, [ensureClaudeTool()]);
 
@@ -119,7 +119,7 @@ describe('migration', () => {
       featureFlags: {},
       delivery: 'both',
     });
-    await writeSkill(projectDir, 'openspec-explore');
+    await writeSkill(projectDir, 'pastelsdd-explore');
 
     migrateIfNeeded(projectDir, [ensureClaudeTool()]);
 
@@ -137,7 +137,7 @@ describe('migration', () => {
 
   it('ignores unknown custom skill and command files when scanning workflows', async () => {
     await writeSkill(projectDir, 'my-custom-skill');
-    const customCommandPath = path.join(projectDir, '.claude', 'commands', 'opsx', 'my-custom.md');
+    const customCommandPath = path.join(projectDir, '.claude', 'commands', 'pastel', 'my-custom.md');
     await fsp.mkdir(path.dirname(customCommandPath), { recursive: true });
     await fsp.writeFile(customCommandPath, '# custom\n', 'utf-8');
 

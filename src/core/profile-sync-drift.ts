@@ -1,4 +1,4 @@
-import path from 'path';
+﻿import path from 'path';
 import * as fs from 'fs';
 import { AI_TOOLS } from './config.js';
 import type { Delivery } from './global-config.js';
@@ -12,17 +12,17 @@ type WorkflowId = (typeof ALL_WORKFLOWS)[number];
  * Maps workflow IDs to their skill directory names.
  */
 export const WORKFLOW_TO_SKILL_DIR: Record<WorkflowId, string> = {
-  'explore': 'openspec-explore',
-  'new': 'openspec-new-change',
-  'continue': 'openspec-continue-change',
-  'apply': 'openspec-apply-change',
-  'ff': 'openspec-ff-change',
-  'sync': 'openspec-sync-specs',
-  'archive': 'openspec-archive-change',
-  'bulk-archive': 'openspec-bulk-archive-change',
-  'verify': 'openspec-verify-change',
-  'onboard': 'openspec-onboard',
-  'propose': 'openspec-propose',
+  'explore': 'pastelsdd-explore',
+  'new': 'pastelsdd-new-change',
+  'continue': 'pastelsdd-continue-change',
+  'apply': 'pastelsdd-apply-change',
+  'ff': 'pastelsdd-ff-change',
+  'sync': 'pastelsdd-sync-specs',
+  'archive': 'pastelsdd-archive-change',
+  'bulk-archive': 'pastelsdd-bulk-archive-change',
+  'verify': 'pastelsdd-verify-change',
+  'onboard': 'pastelsdd-onboard',
+  'propose': 'pastelsdd-propose',
 };
 
 function toKnownWorkflows(workflows: readonly string[]): WorkflowId[] {
@@ -33,7 +33,7 @@ function toKnownWorkflows(workflows: readonly string[]): WorkflowId[] {
 }
 
 /**
- * Checks whether a tool has at least one generated OpenSpec command file.
+ * Checks whether a tool has at least one generated Pastelsdd command file.
  */
 export function toolHasAnyConfiguredCommand(projectPath: string, toolId: string): boolean {
   const adapter = CommandAdapterRegistry.get(toolId);

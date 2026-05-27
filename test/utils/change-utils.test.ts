@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+﻿import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
@@ -112,7 +112,7 @@ describe('createChange', () => {
   let testDir: string;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
+    testDir = path.join(os.tmpdir(), `pastelsdd-test-${randomUUID()}`);
     await fs.mkdir(testDir, { recursive: true });
   });
 
@@ -124,24 +124,24 @@ describe('createChange', () => {
     it('should create change directory', async () => {
       await createChange(testDir, 'add-auth');
 
-      const changeDir = path.join(testDir, 'openspec', 'changes', 'add-auth');
+      const changeDir = path.join(testDir, 'pastelsdd', 'changes', 'add-auth');
       const stats = await fs.stat(changeDir);
       expect(stats.isDirectory()).toBe(true);
     });
 
-    it('should create .openspec.yaml metadata file with default schema', async () => {
+    it('should create .pastelsdd.yaml metadata file with default schema', async () => {
       await createChange(testDir, 'add-auth');
 
-      const metaPath = path.join(testDir, 'openspec', 'changes', 'add-auth', '.openspec.yaml');
+      const metaPath = path.join(testDir, 'pastelsdd', 'changes', 'add-auth', '.pastelsdd.yaml');
       const content = await fs.readFile(metaPath, 'utf-8');
       expect(content).toContain('schema: spec-driven');
       expect(content).toMatch(/created: \d{4}-\d{2}-\d{2}/);
     });
 
-    it('should create .openspec.yaml with custom schema', async () => {
+    it('should create .pastelsdd.yaml with custom schema', async () => {
       await createChange(testDir, 'add-auth', { schema: 'spec-driven' });
 
-      const metaPath = path.join(testDir, 'openspec', 'changes', 'add-auth', '.openspec.yaml');
+      const metaPath = path.join(testDir, 'pastelsdd', 'changes', 'add-auth', '.pastelsdd.yaml');
       const content = await fs.readFile(metaPath, 'utf-8');
       expect(content).toContain('schema: spec-driven');
     });
@@ -186,14 +186,14 @@ describe('createChange', () => {
   });
 
   describe('creates parent directories if needed', () => {
-    it('should create openspec/changes/ directories if they do not exist', async () => {
+    it('should create pastelsdd/changes/ directories if they do not exist', async () => {
       const newProjectDir = path.join(testDir, 'new-project');
       await fs.mkdir(newProjectDir);
 
-      // openspec/changes/ does not exist yet
+      // pastelsdd/changes/ does not exist yet
       await createChange(newProjectDir, 'add-auth');
 
-      const changeDir = path.join(newProjectDir, 'openspec', 'changes', 'add-auth');
+      const changeDir = path.join(newProjectDir, 'pastelsdd', 'changes', 'add-auth');
       const stats = await fs.stat(changeDir);
       expect(stats.isDirectory()).toBe(true);
     });

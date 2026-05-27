@@ -1,4 +1,4 @@
-name: Release (prepare)
+﻿name: Release (prepare)
 
 on:
   push:
@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   prepare:
-    if: github.repository == 'Fission-AI/OpenSpec'
+    if: github.repository == 'Fission-AI/Pastelsdd'
     runs-on: ubuntu-latest
     steps:
       # Generate GitHub App token first - used for checkout and changesets

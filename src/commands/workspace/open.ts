@@ -1,4 +1,4 @@
-import { spawn as nodeSpawn } from 'node:child_process';
+﻿import { spawn as nodeSpawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 
 import {
@@ -16,7 +16,7 @@ import {
 } from '../../core/workspace/index.js';
 import { SelectedWorkspace, WorkspaceCliError, asErrorMessage } from './types.js';
 
-export const WORKSPACE_OPEN_MINIMAL_PROMPT = 'Open this OpenSpec workspace.';
+export const WORKSPACE_OPEN_MINIMAL_PROMPT = 'Open this Pastelsdd workspace.';
 const require = createRequire(import.meta.url);
 const spawn = require('cross-spawn') as typeof nodeSpawn;
 

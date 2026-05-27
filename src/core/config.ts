@@ -1,11 +1,11 @@
-export const OPENSPEC_DIR_NAME = 'openspec';
+﻿export const PASTELSDD_DIR_NAME = 'pastelsdd';
 
-export const OPENSPEC_MARKERS = {
-  start: '<!-- OPENSPEC:START -->',
-  end: '<!-- OPENSPEC:END -->'
+export const PASTELSDD_MARKERS = {
+  start: '<!-- PASTELSDD:START -->',
+  end: '<!-- PASTELSDD:END -->'
 };
 
-export interface OpenSpecConfig {
+export interface PastelsddConfig {
   aiTools: string[];
 }
 

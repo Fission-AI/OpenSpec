@@ -1,6 +1,6 @@
-# Dev Container Setup
+﻿# Dev Container Setup
 
-This directory contains the VS Code dev container configuration for OpenSpec development.
+This directory contains the VS Code dev container configuration for Pastelsdd development.
 
 ## What's Included
 

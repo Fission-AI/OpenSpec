@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Bob Shell Command Adapter
  *
  * Formats commands for Bob Shell following its markdown specification.
@@ -26,14 +26,14 @@ function escapeYamlValue(value: string): string {
 
 /**
  * Bob Shell adapter for command generation.
- * File path: .bob/commands/opsx-<id>.md
+ * File path: .bob/commands/pastel-<id>.md
  * Frontmatter: description, argument-hint
  */
 export const bobAdapter: ToolCommandAdapter = {
   toolId: 'bob',
 
   getFilePath(commandId: string): string {
-    return path.join('.bob', 'commands', `opsx-${commandId}.md`);
+    return path.join('.bob', 'commands', `pastel-${commandId}.md`);
   },
 
   formatFile(content: CommandContent): string {

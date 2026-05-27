@@ -1,4 +1,4 @@
-import ora from 'ora';
+﻿import ora from 'ora';
 import { CompletionFactory } from '../core/completions/factory.js';
 import { COMMAND_REGISTRY } from '../core/completions/command-registry.js';
 import { detectShell, SupportedShell } from '../utils/shell-detection.js';
@@ -24,7 +24,7 @@ interface CompleteOptions {
 }
 
 /**
- * Command for managing shell completions for OpenSpec CLI
+ * Command for managing shell completions for Pastelsdd CLI
  */
 export class CompletionCommand {
   private completionProvider: CompletionProvider;
@@ -58,7 +58,7 @@ export class CompletionCommand {
 
       // No shell specified and cannot auto-detect
       console.error('Error: Could not auto-detect shell. Please specify shell explicitly.');
-      console.error(`Usage: openspec completion ${operationName} [shell]`);
+      console.error(`Usage: pastelsdd completion ${operationName} [shell]`);
       console.error(`Currently supported: ${CompletionFactory.getSupportedShells().join(', ')}`);
       process.exitCode = 1;
       return null;
@@ -224,7 +224,7 @@ export class CompletionCommand {
       const configPath = configPaths[shell] || `${shell} configuration`;
 
       const confirmed = await confirm({
-        message: `Remove OpenSpec configuration from ${configPath}?`,
+        message: `Remove Pastelsdd configuration from ${configPath}?`,
         default: false,
       });
 

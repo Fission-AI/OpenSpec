@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+﻿import { describe, it, expect } from 'vitest';
 import { generateCommand, generateCommands } from '../../../src/core/command-generation/generator.js';
 import { claudeAdapter } from '../../../src/core/command-generation/adapters/claude.js';
 import { cursorAdapter } from '../../../src/core/command-generation/adapters/cursor.js';
@@ -7,7 +7,7 @@ import type { CommandContent, ToolCommandAdapter } from '../../../src/core/comma
 describe('command-generation/generator', () => {
   const sampleContent: CommandContent = {
     id: 'explore',
-    name: 'OpenSpec Explore',
+    name: 'Pastelsdd Explore',
     description: 'Enter explore mode',
     category: 'Workflow',
     tags: ['workflow'],
@@ -20,7 +20,7 @@ describe('command-generation/generator', () => {
 
       expect(result.path).toContain('.claude');
       expect(result.path).toContain('explore.md');
-      expect(result.fileContent).toContain('name: OpenSpec Explore');
+      expect(result.fileContent).toContain('name: Pastelsdd Explore');
       expect(result.fileContent).toContain('Command body here.');
     });
 
@@ -28,9 +28,9 @@ describe('command-generation/generator', () => {
       const result = generateCommand(sampleContent, cursorAdapter);
 
       expect(result.path).toContain('.cursor');
-      expect(result.path).toContain('opsx-explore.md');
-      expect(result.fileContent).toContain('name: /opsx-explore');
-      expect(result.fileContent).toContain('id: opsx-explore');
+      expect(result.path).toContain('pastel-explore.md');
+      expect(result.fileContent).toContain('name: /pastel-explore');
+      expect(result.fileContent).toContain('id: pastel-explore');
       expect(result.fileContent).toContain('Command body here.');
     });
 
@@ -51,7 +51,7 @@ describe('command-generation/generator', () => {
       const result = generateCommand(sampleContent, customAdapter);
 
       expect(result.path).toBe('.custom/explore.txt');
-      expect(result.fileContent).toBe('# OpenSpec Explore\n\nCommand body here.');
+      expect(result.fileContent).toBe('# Pastelsdd Explore\n\nCommand body here.');
     });
   });
 

@@ -1,4 +1,4 @@
-import * as nodeFs from 'node:fs';
+﻿import * as nodeFs from 'node:fs';
 import * as path from 'node:path';
 
 import { FileSystemUtils } from '../../utils/file-system.js';
@@ -11,19 +11,19 @@ import {
 
 const fs = nodeFs.promises;
 
-export const WORKSPACE_GUIDANCE_START_MARKER = '<!-- OPENSPEC:WORKSPACE-GUIDANCE:START -->';
-export const WORKSPACE_GUIDANCE_END_MARKER = '<!-- OPENSPEC:WORKSPACE-GUIDANCE:END -->';
+export const WORKSPACE_GUIDANCE_START_MARKER = '<!-- PASTELSDD:WORKSPACE-GUIDANCE:START -->';
+export const WORKSPACE_GUIDANCE_END_MARKER = '<!-- PASTELSDD:WORKSPACE-GUIDANCE:END -->';
 
-export const WORKSPACE_GUIDANCE_BODY = `# OpenSpec Workspace Guidance
+export const WORKSPACE_GUIDANCE_BODY = `# Pastelsdd Workspace Guidance
 
-This directory is an OpenSpec workspace: a local working view over context stores, initiatives, repos, and folders.
+This directory is an Pastelsdd workspace: a local working view over context stores, initiatives, repos, and folders.
 
 - Use this workspace to open the local view of coordinated work.
 - Use initiatives for durable cross-team or cross-repo intent, decisions, requirements, and coordination context.
-- Use repo-local OpenSpec changes for implementation plans owned by a repo or team.
+- Use repo-local Pastelsdd changes for implementation plans owned by a repo or team.
 - Use linked repos and folders to inspect context, understand ownership, and make edits in the place that owns the work.
 - Keep workspace-local files focused on local paths, opener state, agent setup, and other machine-specific view state.
-- Use OpenSpec workspace commands instead of hand-editing \`workspace.yaml\`.
+- Use Pastelsdd workspace commands instead of hand-editing \`workspace.yaml\`.
 - If this workspace contains legacy or beta workspace-level planning files, treat them as compatibility context unless the user explicitly asks to use that beta flow.`;
 
 export interface WorkspaceOpenResolvedContext {
@@ -124,7 +124,7 @@ ${formatGuidancePathList(linkedRoots)}`;
     : [
         `- Context store: ${storedContextStore}`,
         `- Initiative: ${storedInitiativeId}`,
-        '- Run `openspec workspace open --json` to refresh resolved local paths for this view.',
+        '- Run `pastelsdd workspace open --json` to refresh resolved local paths for this view.',
       ].join('\n');
 
   return `## Selected Initiative Context
@@ -135,7 +135,7 @@ ${contextLines}
 
 - Treat initiative and context-store files as shared coordination context.
 - Treat linked repos and folders as local implementation context when the user has selected them.
-- These boundaries are advisory in this OpenSpec version; use judgment and repo ownership when editing.
+- These boundaries are advisory in this Pastelsdd version; use judgment and repo ownership when editing.
 
 ## Linked Implementation Context
 
@@ -167,7 +167,7 @@ export function applyWorkspaceGuidanceBlock(
 
   if (startIndex !== -1 || endIndex !== -1) {
     if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) {
-      throw new Error('Invalid OpenSpec workspace guidance marker state in AGENTS.md.');
+      throw new Error('Invalid Pastelsdd workspace guidance marker state in AGENTS.md.');
     }
 
     const before = existingContent.slice(0, startIndex).trimEnd();

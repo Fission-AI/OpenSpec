@@ -1,4 +1,4 @@
-import { Command } from 'commander';
+﻿import { Command } from 'commander';
 
 import { getWorkspaceSkillToolIds } from '../../core/workspace/index.js';
 import {
@@ -60,7 +60,7 @@ export function registerWorkspaceCommandWith(
     .option('--opener <id>', 'Preferred opener: codex, claude, github-copilot, or editor')
     .option(
       '--tools <tools>',
-      `Install OpenSpec skills for agents. Use "all", "none", or a comma-separated list of: ${getWorkspaceSkillToolIds().join(', ')}`
+      `Install Pastelsdd skills for agents. Use "all", "none", or a comma-separated list of: ${getWorkspaceSkillToolIds().join(', ')}`
     )
     .option('--json', 'Output as JSON')
     .option('--no-interactive', 'Disable prompts')
@@ -70,7 +70,7 @@ export function registerWorkspaceCommandWith(
 
   workspace
     .command('list')
-    .description('List known OpenSpec workspaces')
+    .description('List known Pastelsdd workspaces')
     .option('--json', 'Output as JSON')
     .action(async (options: WorkspaceListOptions) => {
       await workspaceCommand.list(options);
@@ -78,7 +78,7 @@ export function registerWorkspaceCommandWith(
 
   workspace
     .command('ls')
-    .description('List known OpenSpec workspaces')
+    .description('List known Pastelsdd workspaces')
     .option('--json', 'Output as JSON')
     .action(async (options: WorkspaceListOptions) => {
       await workspaceCommand.list(options);
@@ -118,7 +118,7 @@ export function registerWorkspaceCommandWith(
 
   workspace
     .command('update [name]')
-    .description('Refresh workspace-local OpenSpec guidance and agent skills')
+    .description('Refresh workspace-local Pastelsdd guidance and agent skills')
     .option('--workspace <name>', 'Workspace name from known local workspace views')
     .option(
       '--tools <tools>',
