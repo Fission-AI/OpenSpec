@@ -18,6 +18,8 @@ getting started before deeper model work:
    initiatives.
 6. Items 16-18: leave escalation, team hardening, and initiative-hosted
    target-bound changes until after the onboarding path feels sane.
+7. Item 19: review beta workspace compatibility near the end, before workspace
+   behavior becomes public/stable.
 
 ## 1. Lock The Direction
 
@@ -289,3 +291,18 @@ Work item: `work-items/18-explore-initiative-hosted-target-bound-change-artifact
 - [ ] Record compatibility behavior for existing repo-local and
   workspace-local changes.
 - [ ] Identify follow-on implementation slices and risks.
+
+## 19. Review Workspace Beta Compatibility Before Public Release
+
+Work item:
+`work-items/19-review-workspace-beta-compatibility-before-public-release/`
+
+- [ ] Inventory workspace beta compatibility code and tests.
+- [ ] Decide which beta-only compatibility paths should be removed before
+  public release.
+- [ ] Decide which compatibility paths need explicit migration behavior or
+  release notes.
+- [ ] Remove low-value shims that only support unpublished beta workspace
+  shapes.
+- [ ] Update docs, tests, and agent guidance to match the chosen public
+  workspace compatibility contract.

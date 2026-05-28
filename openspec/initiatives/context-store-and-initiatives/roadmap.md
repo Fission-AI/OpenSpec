@@ -32,6 +32,10 @@ Escalation UX, team-sharing hardening, and initiative-hosted target-bound
 changes remain important, but they should wait until the first-run path feels
 boring in the good way.
 
+Before workspaces become public/stable, run Item 19 as a late beta cleanup pass
+so beta compatibility code is reviewed intentionally instead of treated as a
+permanent contract.
+
 ## 1. Lock The Direction
 
 Goal: make the workspace-to-initiative pivot explicit so future workspace work
@@ -679,6 +683,43 @@ Done when:
 - The initiative has a concrete recommendation, opt-in/config examples, affected
   command list, and go/no-go criteria for implementation.
 
+## 19. Review Workspace Beta Compatibility Before Public Release
+
+Goal: decide which workspace beta compatibility behavior should survive into the
+public workspace contract, and remove or migrate the rest while workspaces are
+still unpublished.
+
+Work item:
+`work-items/19-review-workspace-beta-compatibility-before-public-release/`
+
+Why this is late:
+
+- Workspaces are still beta and not public/stable yet.
+- We do not need to preserve every intermediate beta file shape forever.
+- Early cleanup risks churn while first-run UX and initiative behavior are still
+  changing.
+- The right compatibility contract is easier to define after manual beta usage
+  shows which local workspace artifacts real users have actually created.
+
+Ship:
+
+- Inventory workspace compatibility code, including legacy split state readers,
+  registry fallbacks, `codex` to `codex-cli` aliases, generated `.gitignore`
+  cleanup, and empty compatibility shims.
+- Classify each path as public contract, beta migration, test-only shim, or
+  removable dead weight.
+- Remove beta-only shims that only support unpublished intermediate workspace
+  shapes.
+- Define any migration behavior worth keeping for people who tried the beta.
+- Update docs, tests, generated guidance, and release notes so the public
+  workspace compatibility promise is explicit.
+
+Done when:
+
+- The workspace compatibility surface is intentionally small.
+- Public docs do not imply support for beta-only workspace internals.
+- Any remaining migration code has a clear owner, reason, and removal policy.
+
 ## Later, Not First
 
 These are important, but should wait until the initiative model has real usage:
@@ -712,6 +753,7 @@ These are important, but should wait until the initiative model has real usage:
 16. Add local-to-initiative escalation UX.
 17. Harden team-shared coordination.
 18. Explore initiative-hosted target-bound change artifacts.
+19. Review workspace beta compatibility before public release.
 
 Pending discussion: optionally add initiative next / agent handoff UX before or
 alongside the handoff polish work.
