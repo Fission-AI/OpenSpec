@@ -498,6 +498,28 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         ],
       },
       {
+        name: 'unregister',
+        description: 'Forget a local context-store registration without deleting files',
+        acceptsPositional: true,
+        positionals: [{ name: 'id' }],
+        flags: [
+          COMMON_FLAGS.json,
+        ],
+      },
+      {
+        name: 'remove',
+        description: 'Forget a local context-store registration and delete its local folder',
+        acceptsPositional: true,
+        positionals: [{ name: 'id' }],
+        flags: [
+          {
+            name: 'yes',
+            description: 'Confirm local context-store folder deletion',
+          },
+          COMMON_FLAGS.json,
+        ],
+      },
+      {
         name: 'list',
         description: 'List registered context stores',
         flags: [

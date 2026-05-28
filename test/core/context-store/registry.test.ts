@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -9,14 +9,17 @@ import {
   createPathContextStoreBinding,
   createRegisteredContextStoreBinding,
   mountInitiativesCollection,
+  prepareContextStoreCleanup,
   prepareContextStoreSetup,
   readContextStoreMetadataState,
   readContextStoreRegistryState,
   registerContextStore,
+  removeContextStore,
   resolveContextStoreBinding,
   resolveRegisteredContextStore,
   listRegisteredContextStores,
   setupPreparedContextStore,
+  unregisterContextStoreRegistration,
   writeContextStoreMetadataState,
   writeContextStoreRegistryState,
 } from '../../../src/core/index.js';
@@ -447,6 +450,140 @@ describe('context store registry facade', () => {
     await expect(
       resolveRegisteredContextStore({ id: 'mismatched', globalDataDir: tempDir })
     ).rejects.toThrow(/does not match registered id/u);
+  });
+
+  it('refuses a prepared remove when the registry entry changes before deletion', async () => {
+    const firstRoot = mkdir('first/team-context');
+    const secondRoot = mkdir('second/team-context');
+    await writeContextStoreMetadataState(firstRoot, { version: 1, id: 'team-context' });
+    await writeContextStoreMetadataState(secondRoot, { version: 1, id: 'team-context' });
+    await writeContextStoreRegistryState(
+      {
+        version: 1,
+        stores: {
+          'team-context': {
+            backend: {
+              type: 'git',
+              local_path: firstRoot,
+            },
+          },
+        },
+      },
+      { globalDataDir: tempDir }
+    );
+    const prepared = await prepareContextStoreCleanup({
+      id: 'team-context',
+      globalDataDir: tempDir,
+    });
+
+    await writeContextStoreRegistryState(
+      {
+        version: 1,
+        stores: {
+          'team-context': {
+            backend: {
+              type: 'git',
+              local_path: secondRoot,
+            },
+          },
+        },
+      },
+      { globalDataDir: tempDir }
+    );
+
+    await expect(removeContextStore(prepared)).rejects.toThrow(/changed before cleanup/u);
+    expect(fs.existsSync(firstRoot)).toBe(true);
+    expect(fs.existsSync(secondRoot)).toBe(true);
+    const registry = await readContextStoreRegistryState({ globalDataDir: tempDir });
+    expectSameExistingPath(registry?.stores['team-context'].backend.local_path ?? '', secondRoot);
+  });
+
+  it('matches prepared cleanup backends by canonical local path', async () => {
+    const storeRoot = mkdir('team-context');
+    const spelledStoreRoot = `${tempDir}${path.sep}.${path.sep}team-context`;
+    await writeContextStoreMetadataState(storeRoot, { version: 1, id: 'team-context' });
+    await writeContextStoreRegistryState(
+      {
+        version: 1,
+        stores: {
+          'team-context': {
+            backend: {
+              type: 'git',
+              local_path: spelledStoreRoot,
+            },
+          },
+        },
+      },
+      { globalDataDir: tempDir }
+    );
+    const prepared = await prepareContextStoreCleanup({
+      id: 'team-context',
+      globalDataDir: tempDir,
+    });
+
+    await writeContextStoreRegistryState(
+      {
+        version: 1,
+        stores: {
+          'team-context': {
+            backend: {
+              type: 'git',
+              local_path: storeRoot,
+            },
+          },
+        },
+      },
+      { globalDataDir: tempDir }
+    );
+
+    const unregistered = await unregisterContextStoreRegistration({
+      id: 'team-context',
+      expectedBackend: prepared.backend,
+      globalDataDir: tempDir,
+    });
+
+    expect(unregistered.id).toBe('team-context');
+    expectSameExistingPath(unregistered.storeRoot, storeRoot);
+    await expect(readContextStoreRegistryState({ globalDataDir: tempDir })).resolves.toEqual({
+      version: 1,
+      stores: {},
+    });
+  });
+
+  it('keeps the registry entry when prepared remove fails to delete files', async () => {
+    const storeRoot = mkdir('team-context');
+    await writeContextStoreMetadataState(storeRoot, { version: 1, id: 'team-context' });
+    await writeContextStoreRegistryState(
+      {
+        version: 1,
+        stores: {
+          'team-context': {
+            backend: {
+              type: 'git',
+              local_path: storeRoot,
+            },
+          },
+        },
+      },
+      { globalDataDir: tempDir }
+    );
+    const prepared = await prepareContextStoreCleanup({
+      id: 'team-context',
+      globalDataDir: tempDir,
+    });
+    const rmSpy = vi
+      .spyOn(fs.promises, 'rm')
+      .mockRejectedValueOnce(new Error('simulated delete failure'));
+
+    try {
+      await expect(removeContextStore(prepared)).rejects.toThrow(/simulated delete failure/u);
+    } finally {
+      rmSpy.mockRestore();
+    }
+
+    const registry = await readContextStoreRegistryState({ globalDataDir: tempDir });
+    expectSameExistingPath(registry?.stores['team-context'].backend.local_path ?? '', storeRoot);
+    expect(fs.existsSync(getContextStoreMetadataPath(storeRoot))).toBe(true);
   });
 
   it('mounts the initiatives collection for a resolved store root', async () => {

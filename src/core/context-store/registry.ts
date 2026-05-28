@@ -31,6 +31,16 @@ export interface ResolveRegisteredContextStoreInput extends ContextStorePathOpti
   id: string;
 }
 
+export interface GetRegisteredContextStoreInput extends ResolveRegisteredContextStoreInput {
+  expectedBackend?: ContextStoreGitBackendConfig;
+}
+
+export interface UnregisterContextStoreInput extends ContextStorePathOptions {
+  id: string;
+  expectedBackend?: ContextStoreGitBackendConfig;
+  beforeCommit?: (entry: RegisteredContextStoreEntry) => Promise<void>;
+}
+
 export type ListRegisteredContextStoresOptions = ContextStorePathOptions;
 
 export interface RegisteredContextStoreEntry extends ContextStoreRegistryEntry {
@@ -125,6 +135,75 @@ function withRegisteredStore(
     stores: Object.fromEntries(
       Object.entries(stores).sort(([leftId], [rightId]) => leftId.localeCompare(rightId))
     ),
+  };
+}
+
+function getRegisteredStoreOrThrow(
+  registry: ContextStoreRegistryState | null,
+  id: string
+): ContextStoreRegistryEntry {
+  const entry = registry?.stores[id];
+  if (!entry) {
+    throw new ContextStoreError(`Unknown context store '${id}'`, 'context_store_not_found', {
+      target: 'context_store.id',
+      fix: 'Run openspec context-store list to see registered stores.',
+    });
+  }
+
+  return {
+    id,
+    backend: entry.backend,
+  };
+}
+
+function contextStoreBackendsMatch(
+  actual: ContextStoreGitBackendConfig,
+  expected: ContextStoreGitBackendConfig
+): boolean {
+  return (
+    actual.type === expected.type &&
+    normalizePathForComparison(actual.local_path) ===
+      normalizePathForComparison(expected.local_path) &&
+    actual.remote === expected.remote &&
+    actual.branch === expected.branch
+  );
+}
+
+function assertExpectedRegisteredBackend(
+  id: string,
+  actual: ContextStoreGitBackendConfig,
+  expected: ContextStoreGitBackendConfig | undefined
+): void {
+  if (!expected || contextStoreBackendsMatch(actual, expected)) return;
+
+  throw new ContextStoreError(
+    `Context store '${id}' changed before cleanup completed.`,
+    'context_store_registry_changed',
+    {
+      target: 'context_store.registry',
+      fix: 'Retry the cleanup command after reviewing the current context-store registration.',
+    }
+  );
+}
+
+function withoutRegisteredStore(
+  registry: ContextStoreRegistryState | null,
+  id: string,
+  expectedBackend?: ContextStoreGitBackendConfig
+): { next: ContextStoreRegistryState; removed: ContextStoreRegistryEntry } {
+  const removed = getRegisteredStoreOrThrow(registry, id);
+  assertExpectedRegisteredBackend(id, removed.backend, expectedBackend);
+  const stores = { ...(registry?.stores ?? {}) };
+  delete stores[id];
+
+  return {
+    removed,
+    next: {
+      version: 1,
+      stores: Object.fromEntries(
+        Object.entries(stores).sort(([leftId], [rightId]) => leftId.localeCompare(rightId))
+      ),
+    },
   };
 }
 
@@ -244,6 +323,55 @@ export async function listRegisteredContextStores(
   }));
 }
 
+export async function getRegisteredContextStore(
+  input: GetRegisteredContextStoreInput
+): Promise<RegisteredContextStoreEntry> {
+  const id = validateContextStoreId(input.id);
+  const registry = await readContextStoreRegistryState({
+    globalDataDir: input.globalDataDir,
+  });
+  const entry = getRegisteredStoreOrThrow(registry, id);
+  assertExpectedRegisteredBackend(id, entry.backend, input.expectedBackend);
+
+  return {
+    ...entry,
+    storeRoot: getStoreRootForBackend(entry.backend),
+  };
+}
+
+export async function unregisterContextStoreRegistration(
+  input: UnregisterContextStoreInput
+): Promise<RegisteredContextStoreEntry> {
+  const id = validateContextStoreId(input.id);
+  let removed: ContextStoreRegistryEntry | undefined;
+
+  await updateContextStoreRegistryState(
+    async (registry) => {
+      const result = withoutRegisteredStore(registry, id, input.expectedBackend);
+      const removedEntry = {
+        ...result.removed,
+        storeRoot: getStoreRootForBackend(result.removed.backend),
+      };
+      await input.beforeCommit?.(removedEntry);
+      removed = result.removed;
+      return result.next;
+    },
+    { globalDataDir: input.globalDataDir }
+  );
+
+  if (!removed) {
+    throw new ContextStoreError(`Unknown context store '${id}'`, 'context_store_not_found', {
+      target: 'context_store.id',
+      fix: 'Run openspec context-store list to see registered stores.',
+    });
+  }
+
+  return {
+    ...removed,
+    storeRoot: getStoreRootForBackend(removed.backend),
+  };
+}
+
 export async function resolveRegisteredContextStore(
   input: ResolveRegisteredContextStoreInput
 ): Promise<ResolvedContextStore> {
@@ -259,14 +387,7 @@ export async function resolveRegisteredContextStore(
     });
   }
 
-  const entry = registry.stores[id];
-  if (!entry) {
-    throw new ContextStoreError(`Unknown context store '${id}'`, 'context_store_not_found', {
-      target: 'context_store.id',
-      fix: 'Run openspec context-store list to see registered stores.',
-    });
-  }
-
+  const entry = getRegisteredStoreOrThrow(registry, id);
   const backend = entry.backend;
   const storeRoot = getStoreRootForBackend(backend);
   await ensureStoreMetadata(storeRoot, id, { writeIfMissing: false });

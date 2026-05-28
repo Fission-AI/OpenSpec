@@ -8,7 +8,7 @@ The OpenSpec CLI (`openspec`) provides terminal commands for project setup, vali
 |----------|----------|---------|
 | **Setup** | `init`, `update` | Initialize and update OpenSpec in your project |
 | **Workspaces (beta)** | `workspace setup`, `workspace list`, `workspace ls`, `workspace link`, `workspace relink`, `workspace doctor`, `workspace update`, `workspace open` | Set up local views over linked repos or folders |
-| **Shared context (beta)** | `context-store setup`, `context-store register`, `context-store list`, `context-store doctor`, `initiative create`, `initiative show`, `initiative list` | Manage local context-store registrations and durable initiative context |
+| **Shared context (beta)** | `context-store setup`, `context-store register`, `context-store unregister`, `context-store remove`, `context-store list`, `context-store doctor`, `initiative create`, `initiative show`, `initiative list` | Manage local context-store registrations and durable initiative context |
 | **Browsing** | `list`, `view`, `show` | Explore changes and specs |
 | **Validation** | `validate` | Check changes and specs for issues |
 | **Lifecycle** | `archive` | Finalize completed changes |
@@ -54,6 +54,10 @@ These commands support `--json` output for programmatic use by AI agents and scr
 | `openspec workspace relink` | Repair a linked path | `--json` for structured link output |
 | `openspec workspace doctor` | Check one workspace | `--json` for structured status output |
 | `openspec workspace update` | Refresh workspace-local guidance and agent skills | `--tools` selects agents; profile selects workflows |
+| `openspec context-store setup <id>` | Create a local context store | `--json` with explicit inputs for structured setup output |
+| `openspec context-store register <path>` | Register an existing context store | `--json` for structured registration output |
+| `openspec context-store unregister <id>` | Forget a local context-store registration | `--json` for structured cleanup output |
+| `openspec context-store remove <id>` | Delete a registered local context-store folder | `--yes --json` for non-interactive deletion |
 | `openspec context-store list` | Browse registered context stores | `--json` for structured registrations |
 | `openspec context-store doctor` | Check local store setup | `--json` for structured diagnostics |
 | `openspec initiative list` | Browse shared initiatives | `--json` for structured initiative records |
@@ -354,7 +358,9 @@ Context stores and initiatives are beta coordination surfaces. A context store i
 
 ### `openspec context-store setup`
 
-Create and register a local context store.
+Create and register a local context store. With no arguments in a terminal,
+OpenSpec guides the user through setup. Agents and scripts should pass explicit
+inputs and use `--json`.
 
 ```bash
 openspec context-store setup [id] [options]
@@ -374,6 +380,7 @@ When `--path` is omitted, setup creates the store under `getGlobalDataDir()/cont
 Examples:
 
 ```bash
+openspec context-store setup
 openspec context-store setup team-context
 openspec context-store setup team-context --path /repos/team-context --no-init-git
 openspec context-store setup team-context --json --no-init-git
@@ -393,6 +400,30 @@ openspec context-store register [path] [options]
 |--------|-------------|
 | `--id <id>` | Context store id; defaults to store metadata or folder name |
 | `--json` | Output JSON |
+
+### `openspec context-store unregister`
+
+Forget a local context-store registration without deleting files.
+
+```bash
+openspec context-store unregister <id> [--json]
+```
+
+Use this when a store was moved, cloned somewhere else, or should no longer be
+shown by OpenSpec on this machine.
+
+### `openspec context-store remove`
+
+Forget a local context-store registration and delete its local folder.
+
+```bash
+openspec context-store remove <id> [--yes] [--json]
+```
+
+`remove` shows the exact folder before deleting in an interactive terminal.
+Agents, scripts, and JSON callers must pass `--yes` to confirm deletion.
+OpenSpec refuses to delete a folder that does not contain matching
+context-store metadata.
 
 ### `openspec context-store list`
 
