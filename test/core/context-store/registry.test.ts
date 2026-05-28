@@ -536,16 +536,14 @@ describe('context store registry facade', () => {
       { globalDataDir: tempDir }
     );
 
-    await expect(
-      unregisterContextStoreRegistration({
-        id: 'team-context',
-        expectedBackend: prepared.backend,
-        globalDataDir: tempDir,
-      })
-    ).resolves.toEqual(expect.objectContaining({
+    const unregistered = await unregisterContextStoreRegistration({
       id: 'team-context',
-      storeRoot,
-    }));
+      expectedBackend: prepared.backend,
+      globalDataDir: tempDir,
+    });
+
+    expect(unregistered.id).toBe('team-context');
+    expectSameExistingPath(unregistered.storeRoot, storeRoot);
     await expect(readContextStoreRegistryState({ globalDataDir: tempDir })).resolves.toEqual({
       version: 1,
       stores: {},
