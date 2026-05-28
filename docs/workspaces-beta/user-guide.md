@@ -6,12 +6,12 @@ manages the OpenSpec work.
 ## 1. Create The Shared Place
 
 ```bash
-openspec context-store setup team-context --init-git
+openspec context-store setup
 ```
 
-This creates a local context store. Add `--path <folder>` if you want it
-somewhere specific; otherwise OpenSpec keeps it in its managed local data
-directory.
+OpenSpec asks for the context store name, where to put it, and whether to
+initialize Git. Press Enter for the managed local data directory unless you
+want the store somewhere specific.
 
 ## 2. Ask Your Agent To Create The Initiative
 

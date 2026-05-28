@@ -1,24 +1,23 @@
 # Context Store First-Run And Cleanup UX Tasks
 
-- [ ] Decide exact no-argument `context-store setup` behavior for TTY,
+- [x] Decide exact no-argument `context-store setup` behavior for TTY,
       non-TTY, and `--json` invocations.
-- [ ] Design the interactive setup prompts for store id, target path, and Git
+- [x] Design the interactive setup prompts for store id, target path, and Git
       initialization.
-- [ ] Define target-path safety behavior for managed defaults, explicit paths,
+- [x] Define target-path safety behavior for managed defaults, explicit paths,
       paths inside existing Git repos, and non-empty directories.
-- [ ] Implement the interactive setup flow without changing deterministic
+- [x] Implement the interactive setup flow without changing deterministic
       non-interactive behavior.
-- [ ] Decide whether the cleanup surface is `unregister`, `remove`, or both.
-- [ ] Define cleanup semantics for "forget local registration" versus "delete
+- [x] Decide whether the cleanup surface is `unregister`, `remove`, or both.
+- [x] Define cleanup semantics for "forget local registration" versus "delete
       local files too".
-- [ ] Implement local registry cleanup with explicit confirmation before file
+- [x] Implement local registry cleanup with explicit confirmation before file
       deletion.
-- [ ] Add human and JSON output that reports store root, metadata path, registry
-      state, created files, and next commands.
-- [ ] Add setup guidance for initialized Git stores that explains uncommitted
-      shared files without auto-staging, committing, pushing, or creating a
-      remote.
-- [ ] Add focused tests for setup prompts, non-interactive failures, path
+- [x] Add human output that stays small and JSON output that reports exact setup
+      and cleanup state without `next_commands`.
+- [x] Keep Git initialization scoped to local `git init` with no auto-staging,
+      committing, pushing, remote creation, or team policy.
+- [x] Add focused tests for setup prompts, non-interactive failures, path
       safety, registry cleanup, and JSON output.
-- [ ] Update beta docs and agent playbook references for first-run setup and
+- [x] Update beta docs and agent playbook references for first-run setup and
       cleanup.

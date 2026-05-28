@@ -19,6 +19,20 @@ local view. Use `workspace doctor --json` to read linked repos/folders and the
 selected initiative. Do not assume the current directory is the repo that should
 own implementation artifacts.
 
+## Set Up Context Stores Non-Interactively
+
+Humans can run `openspec context-store setup` and answer prompts. Agents should
+pass the setup inputs explicitly.
+
+```bash
+openspec context-store setup team-context --no-init-git --json
+openspec context-store setup team-context --path /path/to/team-context --init-git --json
+```
+
+Use `context-store unregister <id> --json` to forget a local registration while
+leaving files alone. Use `context-store remove <id> --yes --json` only when the
+user explicitly asks to delete the local context-store folder.
+
 ## Create Initiatives In Context Stores
 
 Create shared coordination context in a context store.

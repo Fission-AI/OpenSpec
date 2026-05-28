@@ -187,13 +187,13 @@ Work item: `work-items/11-manual-beta-reality-pass/`
 
 Work item: `work-items/12-context-store-first-run-and-cleanup-ux/`
 
-- [ ] Decide and implement interactive no-argument `context-store setup`.
-- [ ] Define target-path safety behavior for managed defaults, explicit paths,
+- [x] Decide and implement interactive no-argument `context-store setup`.
+- [x] Define target-path safety behavior for managed defaults, explicit paths,
   Git repos, and non-empty directories.
-- [ ] Add local cleanup support for unregistering or removing a context store.
-- [ ] Make setup and cleanup output report store root, registry state, Git
-  state, created files, and next commands.
-- [ ] Update docs and tests for first-run setup and cleanup behavior.
+- [x] Add local cleanup support for unregistering or removing a context store.
+- [x] Make setup and cleanup output report the agreed human-facing summary and
+  exact JSON state without workflow `next_commands`.
+- [x] Update docs and tests for first-run setup and cleanup behavior.
 
 ## 13. Agent Handoff Output And Delivery Polish
 
