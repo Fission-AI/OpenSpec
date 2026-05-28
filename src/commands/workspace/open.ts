@@ -17,6 +17,7 @@ import {
 import { SelectedWorkspace, WorkspaceCliError, asErrorMessage } from './types.js';
 
 export const WORKSPACE_OPEN_MINIMAL_PROMPT = 'Open this OpenSpec workspace.';
+const CODEX_CLI_WRITABLE_ROOT_SANDBOX_ARGS = ['--sandbox', 'workspace-write'] as const;
 const require = createRequire(import.meta.url);
 const spawn = require('cross-spawn') as typeof nodeSpawn;
 
@@ -53,6 +54,11 @@ export interface WorkspaceOpenLaunchOptions {
   stdio?: 'inherit' | 'ignore';
 }
 
+function isCodexCliOpener(opener: WorkspacePreferredOpener): boolean {
+  const openerId = opener.id as string;
+  return opener.kind === 'agent' && (openerId === 'codex-cli' || openerId === 'codex');
+}
+
 export async function readWorkspaceOpenState(
   selected: SelectedWorkspace
 ): Promise<WorkspaceOpenState> {
@@ -85,6 +91,9 @@ export function buildWorkspaceOpenLaunchCommand(
   return {
     executable,
     args: [
+      ...(isCodexCliOpener(opener) && attachedPaths.length > 0
+        ? CODEX_CLI_WRITABLE_ROOT_SANDBOX_ARGS
+        : []),
       ...attachedPaths.flatMap((linkedPath) => ['--add-dir', linkedPath]),
       WORKSPACE_OPEN_MINIMAL_PROMPT,
     ],

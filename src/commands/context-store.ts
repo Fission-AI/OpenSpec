@@ -366,7 +366,7 @@ export function registerContextStoreCommand(program: Command): void {
   contextStore
     .command('setup [id]')
     .description('Create and register a local context store')
-    .option('--path <path>', 'Context store folder path; defaults to ./<id>')
+    .option('--path <path>', 'Context store folder path; defaults to OpenSpec managed local data')
     .option('--init-git', 'Initialize a Git repository in the context store')
     .option('--no-init-git', 'Do not initialize a Git repository')
     .option('--json', 'Output as JSON')

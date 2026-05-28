@@ -5,6 +5,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 
 import {
+  getDefaultContextStoreRoot,
   getGlobalDataDir,
   getContextStoreMetadataPath,
   readContextStoreMetadataState,
@@ -99,13 +100,13 @@ describe('context-store command', () => {
     }
   }
 
-  it('sets up a context store at ./<id> without Git in non-interactive JSON mode', async () => {
+  it('sets up a context store in the managed local data directory without Git in non-interactive JSON mode', async () => {
     const result = await runCLI(
       ['context-store', 'setup', 'team-context', '--no-init-git', '--json'],
       { cwd: tempDir, env }
     );
 
-    const storeRoot = expectedExistingPath(path.join(tempDir, 'team-context'));
+    const storeRoot = expectedExistingPath(getDefaultContextStoreRoot('team-context', { globalDataDir }));
 
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe('');
@@ -378,7 +379,7 @@ describe('context-store command', () => {
 
     await runContextStoreCommand(['setup', 'interactive-context']);
 
-    const storeRoot = path.join(tempDir, 'interactive-context');
+    const storeRoot = getDefaultContextStoreRoot('interactive-context', { globalDataDir });
     expect(confirm).toHaveBeenCalledWith({
       message: 'Initialize Git repository?',
       default: true,

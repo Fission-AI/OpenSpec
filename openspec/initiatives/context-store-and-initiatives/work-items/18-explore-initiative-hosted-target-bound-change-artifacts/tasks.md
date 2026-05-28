@@ -1,7 +1,7 @@
 # Explore Initiative-Hosted Target-Bound Change Artifacts Tasks
 
-- [x] Create Item 13 work-item tracking notes.
-- [x] Reframe Item 13 from generic change-home configuration to
+- [x] Create Item 18 work-item tracking notes.
+- [x] Reframe Item 18 from generic change-home configuration to
   initiative-hosted target-bound change artifacts.
 - [ ] Audit commands, templates, validation, archive, apply, completion, and
   docs for repo-local `openspec/changes/` assumptions.

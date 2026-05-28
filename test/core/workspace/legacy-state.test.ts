@@ -122,7 +122,7 @@ preferred_opener:
 `);
     expect(codexState.preferred_opener).toEqual({
       kind: 'agent',
-      id: 'codex',
+      id: 'codex-cli',
     });
     expect(parseWorkspaceLocalState(serializeWorkspaceLocalState(codexState))).toEqual(
       codexState

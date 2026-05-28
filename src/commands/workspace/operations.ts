@@ -260,7 +260,6 @@ export async function createManagedWorkspace(
     await fs.mkdir(targetWorkspaceRoot);
     createdWorkspaceRoot = true;
     workspaceRoot = FileSystemUtils.canonicalizeExistingPath(targetWorkspaceRoot);
-    await FileSystemUtils.createDirectory(getWorkspaceChangesDir(workspaceRoot));
     const viewState: WorkspaceViewState = {
       version: 1,
       name: workspaceName,
@@ -686,15 +685,17 @@ export async function selectOrCreateWorkspaceForInitiativeOpen(input: {
   workspaceName?: string;
   context: WorkspaceContextState;
   preferredOpener?: WorkspacePreferredOpener;
+  linksForNewWorkspace?: () => Promise<Record<string, string>>;
 }): Promise<{ selected: SelectedWorkspace; created: boolean; state: WorkspaceViewState }> {
   if (input.workspaceName) {
     const workspaceName = validateWorkspaceNameForSetup(input.workspaceName);
     const existing = await readExistingManagedWorkspaceView(workspaceName);
 
     if (!existing) {
+      const links = input.linksForNewWorkspace ? await input.linksForNewWorkspace() : {};
       const workspace = await createManagedWorkspace(
         workspaceName,
-        {},
+        links,
         input.preferredOpener,
         input.context
       );
@@ -798,7 +799,7 @@ export async function selectOrCreateWorkspaceForInitiativeOpen(input: {
 
   const workspace = await createManagedWorkspace(
     derivedName,
-    {},
+    input.linksForNewWorkspace ? await input.linksForNewWorkspace() : {},
     input.preferredOpener,
     input.context
   );

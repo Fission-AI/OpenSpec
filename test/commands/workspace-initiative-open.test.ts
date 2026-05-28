@@ -14,6 +14,7 @@ import {
   registerContextStore,
   writeContextStoreMetadataState,
 } from '../../src/core/index.js';
+import { withPrependedPathEnv } from '../helpers/path-env.js';
 import { runCLI, type RunCLIResult } from '../helpers/run-cli.js';
 
 describe('workspace open initiative views', () => {
@@ -110,8 +111,7 @@ describe('workspace open initiative views', () => {
 
   function envWithFakeExecutable(fake: { binDir: string; logPath: string }): NodeJS.ProcessEnv {
     return {
-      ...env,
-      PATH: `${fake.binDir}${path.delimiter}${process.env.PATH ?? ''}`,
+      ...withPrependedPathEnv(env, fake.binDir),
       OPENSPEC_FAKE_OPEN_RECORDER: path.join(fake.binDir, 'record-launch.cjs'),
       OPENSPEC_FAKE_OPEN_LOG: fake.logPath,
     };
@@ -237,16 +237,19 @@ describe('workspace open initiative views', () => {
       'Initiative title: Billing Launch'
     );
     expect(JSON.parse(fs.readFileSync(getWorkspaceCodeWorkspacePath(workspaceRoot, 'billing-launch'), 'utf-8')).folders).toEqual([
-      { path: '.' },
       {
-        name: 'initiative:billing-launch',
+        name: 'Initiative context',
         path: expect.any(String),
+      },
+      {
+        name: 'OpenSpec workspace',
+        path: '.',
       },
     ]);
     const codeWorkspaceFolders = JSON.parse(
       fs.readFileSync(getWorkspaceCodeWorkspacePath(workspaceRoot, 'billing-launch'), 'utf-8')
     ).folders;
-    expectSameExistingPath(codeWorkspaceFolders[1].path, initiative.initiativeRoot);
+    expectSameExistingPath(codeWorkspaceFolders[0].path, initiative.initiativeRoot);
 
     const launch = readLaunchLog(code.logPath);
     expect(fs.realpathSync.native(launch.cwd)).toBe(fs.realpathSync.native(workspaceRoot));

@@ -2,7 +2,6 @@ import {
   WorkspacePreferredOpener,
   getDefaultWorkspaceOpenerChoiceValue,
   getWorkspaceSkillToolIds,
-  isWorkspaceAgentOpenerId,
   listWorkspaceOpenerChoices,
   parseWorkspacePreferredOpenerValue,
 } from '../../core/workspace/index.js';
@@ -46,27 +45,31 @@ export function parseSetupOpenerOption(
   } catch (error) {
     throw new WorkspaceCliError(asErrorMessage(error), 'unsupported_workspace_opener', {
       target: 'workspace.opener',
-      fix: 'Use --opener codex, --opener claude, --opener github-copilot, or --opener editor.',
+      fix: 'Use --opener codex-cli, --opener claude, --opener github-copilot, or --opener editor.',
     });
   }
 }
 
 export function parseWorkspaceAgentOverride(agent: string): WorkspacePreferredOpener {
-  if (!isWorkspaceAgentOpenerId(agent)) {
+  let opener: WorkspacePreferredOpener | null = null;
+  try {
+    opener = parseWorkspacePreferredOpenerValue(agent);
+  } catch {
+    opener = null;
+  }
+
+  if (!opener || opener.kind !== 'agent') {
     throw new WorkspaceCliError(
-      `Unsupported workspace agent '${agent}'. Supported agents: codex, claude, github-copilot.`,
+      `Unsupported workspace agent '${agent}'. Supported agents: codex-cli, claude, github-copilot.`,
       'unsupported_workspace_agent',
       {
         target: 'workspace.opener',
-        fix: 'Use --agent codex, --agent claude, or --agent github-copilot.',
+        fix: 'Use --agent codex-cli, --agent claude, or --agent github-copilot.',
       }
     );
   }
 
-  return {
-    kind: 'agent',
-    id: agent,
-  };
+  return opener;
 }
 
 export function getPreferredWorkspaceSkillAgentId(
@@ -76,7 +79,8 @@ export function getPreferredWorkspaceSkillAgentId(
     return null;
   }
 
-  return getWorkspaceSkillToolIds().includes(preferredOpener.id) ? preferredOpener.id : null;
+  const toolId = preferredOpener.id === 'codex-cli' ? 'codex' : preferredOpener.id;
+  return getWorkspaceSkillToolIds().includes(toolId) ? toolId : null;
 }
 
 export function resolveWorkspaceOpenOpenerOverride(
@@ -125,7 +129,7 @@ export async function resolveWorkspaceOpenOpener(
         'workspace_no_available_openers',
         {
           target: 'workspace.opener',
-          fix: "Install VS Code ('code'), Codex ('codex'), or Claude ('claude'), then retry.",
+          fix: "Install VS Code ('code'), codex-cli ('codex'), or Claude ('claude'), then retry.",
         }
       );
     }
