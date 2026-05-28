@@ -268,7 +268,7 @@ Check what one workspace can resolve on the current machine.
 openspec workspace doctor [options]
 ```
 
-Doctor shows the workspace location, planning path, linked repos or folders, missing paths, repo-local specs paths when present, and suggested fixes. It reports issues only; it does not repair them automatically.
+Doctor shows the workspace location, linked repos or folders, missing paths, repo-local specs paths when present, and suggested fixes. JSON output also includes the workspace planning path for compatibility. It reports issues only; it does not repair them automatically.
 
 Commands that need one workspace use the current workspace when run from inside a workspace folder or subdirectory. From elsewhere, pass `--workspace <name>`, select from the picker in an interactive terminal, or rely on the only known workspace when exactly one exists. In `--json` or `--no-interactive` mode, ambiguous selection fails with a structured status error and suggests `--workspace <name>`.
 

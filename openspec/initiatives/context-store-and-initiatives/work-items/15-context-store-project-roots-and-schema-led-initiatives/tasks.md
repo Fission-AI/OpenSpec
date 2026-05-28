@@ -37,4 +37,3 @@
       initiative markdown file immediately after creation.
 - [ ] Record migration behavior and a note that Item 5's six-file MVP shape has
       been superseded by this schema-led sparse model.
-

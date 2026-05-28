@@ -149,7 +149,7 @@ links: {}
       );
     });
 
-    it('does not add portable collaboration ignore rules for local workspace files', () => {
+    it('keeps legacy portable ignore helper as an empty compatibility shim', () => {
       expect(getWorkspacePortableIgnorePatterns()).toEqual([]);
       expect(getWorkspacePortableIgnorePatterns('platform')).toEqual([]);
     });
@@ -513,7 +513,7 @@ After block.
       expect(fs.existsSync(path.join(workspaceRoot, '.gitignore'))).toBe(false);
     });
 
-    it('removes the legacy generated code-workspace ignore rule without touching user rules', async () => {
+    it('leaves legacy code-workspace ignore rules when .gitignore has user rules', async () => {
       const workspaceRoot = createWorkspaceRoot();
       fs.writeFileSync(
         path.join(workspaceRoot, '.gitignore'),
@@ -529,7 +529,7 @@ After block.
       await syncWorkspaceOpenSurface(workspaceRoot, workspaceState);
 
       expect(fs.readFileSync(path.join(workspaceRoot, '.gitignore'), 'utf-8')).toBe(
-        '*.code-workspace\n'
+        '*.code-workspace\nplatform.code-workspace\n'
       );
     });
 

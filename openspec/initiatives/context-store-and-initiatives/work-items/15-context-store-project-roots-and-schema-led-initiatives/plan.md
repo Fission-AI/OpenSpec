@@ -342,4 +342,3 @@ Likely docs to update:
 - Existing MVP initiatives continue to list and show.
 - Docs describe initiative artifacts as reviewed, iterative context rather than
   files to fill in immediately.
-

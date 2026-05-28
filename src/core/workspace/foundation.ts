@@ -93,6 +93,11 @@ export function getWorkspaceCodeWorkspacePath(workspaceRoot: string, workspaceNa
   return joinWorkspacePath(workspaceRoot, getWorkspaceCodeWorkspaceFileName(workspaceName));
 }
 
+/**
+ * @deprecated Managed workspaces no longer create portable ignore rules.
+ * This compatibility shim remains for callers that still ask which ignore
+ * patterns OpenSpec owns for workspace-local generated files.
+ */
 export function getWorkspacePortableIgnorePatterns(_workspaceName?: string): string[] {
   return [];
 }

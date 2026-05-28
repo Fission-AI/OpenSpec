@@ -533,6 +533,7 @@ describe('workspace command interactive flows', () => {
     fs.chmodSync(codePath, 0o755);
     prependProcessPathEnv(binDir);
     const { input, select } = await getPromptMocks();
+    let continuePromptCount = 0;
 
     input.mockImplementation(async (options: { message: string }) => {
       if (options.message === 'Repo or folder path:') {
@@ -555,7 +556,8 @@ describe('workspace command interactive flows', () => {
       }
 
       if (options.message === 'Continue') {
-        return 'finish';
+        continuePromptCount += 1;
+        return continuePromptCount === 1 ? 'add' : 'finish';
       }
 
       throw new Error(`Unexpected select prompt: ${options.message}`);
@@ -598,5 +600,97 @@ describe('workspace command interactive flows', () => {
       },
     });
     expect(workspaceState.links).toEqual({ api: expectedApi });
+  });
+
+  it('can create an initiative workspace view without linked repos from the picker', async () => {
+    const initiative = await setupInitiative('team-context', 'context-only-launch');
+    const binDir = mkdir('bin');
+    const codePath = path.join(binDir, process.platform === 'win32' ? 'code.cmd' : 'code');
+    fs.writeFileSync(
+      codePath,
+      process.platform === 'win32' ? '@echo off\r\nexit /B 0\r\n' : '#!/bin/sh\nexit 0\n'
+    );
+    fs.chmodSync(codePath, 0o755);
+    prependProcessPathEnv(binDir);
+    const { input, select } = await getPromptMocks();
+
+    select.mockImplementation(async (options: { message: string; choices?: Array<{ name: string; value: unknown }> }) => {
+      if (options.message === 'Select workspace or initiative:') {
+        const choice = options.choices?.find((candidate) =>
+          candidate.name.includes('Initiative: team-context/context-only-launch')
+        );
+        if (!choice) {
+          throw new Error('Expected initiative choice to be present');
+        }
+        return choice.value;
+      }
+
+      if (options.message === 'Continue') {
+        expect(options.choices).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              name: 'Create without linked repos',
+              value: 'finish',
+            }),
+            expect.objectContaining({
+              name: 'Add a repo or folder',
+              value: 'add',
+            }),
+          ])
+        );
+        return 'finish';
+      }
+
+      throw new Error(`Unexpected select prompt: ${options.message}`);
+    });
+
+    await runWorkspaceCommand(['open', '--editor']);
+
+    expect(process.exitCode).toBeUndefined();
+    expect(input).not.toHaveBeenCalled();
+    expect(consoleLogSpy).toHaveBeenCalledWith('Opening workspace: context-only-launch');
+    const workspaceState = readWorkspaceState('context-only-launch');
+    expect(workspaceState.context).toEqual({
+      kind: 'initiative',
+      store: {
+        id: initiative.storeId,
+        selector: {
+          kind: 'registry',
+          id: initiative.storeId,
+        },
+      },
+      initiative: {
+        id: initiative.initiativeId,
+      },
+    });
+    expect(workspaceState.links).toEqual({});
+  });
+
+  it('does not prompt for initiative workspace links when JSON output is requested', async () => {
+    const initiative = await setupInitiative('team-context', 'json-launch');
+    const binDir = mkdir('bin');
+    const codePath = path.join(binDir, process.platform === 'win32' ? 'code.cmd' : 'code');
+    fs.writeFileSync(
+      codePath,
+      process.platform === 'win32' ? '@echo off\r\nexit /B 0\r\n' : '#!/bin/sh\nexit 0\n'
+    );
+    fs.chmodSync(codePath, 0o755);
+    prependProcessPathEnv(binDir);
+    const { input, select } = await getPromptMocks();
+
+    await runWorkspaceCommand([
+      'open',
+      '--initiative',
+      initiative.initiativeId,
+      '--store',
+      initiative.storeId,
+      '--editor',
+      '--json',
+    ]);
+
+    expect(process.exitCode).toBeUndefined();
+    expect(input).not.toHaveBeenCalled();
+    expect(select).not.toHaveBeenCalled();
+    expect(readWorkspaceState('json-launch').links).toEqual({});
   });
 });

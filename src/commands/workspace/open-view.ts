@@ -285,7 +285,10 @@ export async function prepareWorkspaceOpen(
   const target = requestedInitiative
     ? { kind: 'initiative' as const, initiative: requestedInitiative, status: [] }
     : await selectWorkspaceOpenTarget(workspaceName, options);
-  const interactiveCreate = target.kind === 'initiative' && !resolveNoInteractive(options) && isInteractive(options);
+  const interactiveCreate = target.kind === 'initiative'
+    && !options.json
+    && !resolveNoInteractive(options)
+    && isInteractive(options);
 
   const baseSelected = target.kind === 'initiative'
     ? (
@@ -299,7 +302,11 @@ export async function prepareWorkspaceOpen(
           linksForNewWorkspace: interactiveCreate
             ? () => promptSetupLinks({
                 heading: 'Link repos or folders for this workspace',
-                intro: 'Choose local repos or folders to include when opening this initiative.',
+                intro: 'Choose local repos or folders to include when opening this initiative, or create the view without links for now.',
+                allowEmpty: true,
+                emptyName: 'Create without linked repos',
+                emptyShort: 'Create without links',
+                emptyDescription: 'Create the local workspace view and add repos or folders later',
                 finishName: 'Create and open workspace',
                 finishShort: 'Create and open',
                 finishDescription: 'Create the local workspace view and continue opening it',

@@ -15,10 +15,16 @@ const fs = nodeFs;
 export interface PromptSetupLinksOptions {
   heading?: string;
   intro?: string;
+  allowEmpty?: boolean;
+  emptyName?: string;
+  emptyShort?: string;
+  emptyDescription?: string;
   finishName?: string;
   finishShort?: string;
   finishDescription?: string;
 }
+
+type LinkPromptAction = 'finish' | 'add';
 
 async function promptExistingPath(message: string, defaultPath?: string): Promise<string> {
   const { input } = await import('@inquirer/prompts');
@@ -80,6 +86,32 @@ export async function promptSetupLinks(
 
   while (true) {
     const linkCount = Object.keys(links).length;
+    if (linkCount === 0 && options.allowEmpty) {
+      const firstAction = await select<LinkPromptAction>({
+        message: 'Continue',
+        default: 'finish',
+        choices: [
+          {
+            name: options.emptyName ?? options.finishName ?? 'Create workspace files',
+            short: options.emptyShort ?? options.finishShort ?? 'Create workspace files',
+            value: 'finish',
+            description: options.emptyDescription ?? 'Create the workspace without linked repos or folders',
+          },
+          {
+            name: 'Add a repo or folder',
+            short: 'Add repo',
+            value: 'add',
+            description: 'Include local implementation context in this workspace',
+          },
+        ],
+        theme: workspaceSelectTheme,
+      });
+
+      if (firstAction === 'finish') {
+        return links;
+      }
+    }
+
     const resolvedPath = await promptExistingPath(
       linkCount === 0 ? 'Repo or folder path:' : 'Another repo or folder path:',
       linkCount === 0 ? '.' : undefined
@@ -101,7 +133,7 @@ export async function promptSetupLinks(
     console.log(chalk.green(`Added link '${linkName}'`));
     console.log(chalk.dim(`  ${resolvedPath}`));
 
-    const nextAction = await select({
+    const nextAction = await select<LinkPromptAction>({
       message: 'Continue',
       default: 'finish',
       choices: [

@@ -304,30 +304,15 @@ async function cleanupLegacyWorkspaceIgnoreRules(
   const legacyGeneratedPattern = getWorkspaceCodeWorkspaceFileName(workspaceName);
   const existingContent = await fs.readFile(gitignorePath, 'utf-8');
   const existingLines = existingContent.split(/\r?\n/u);
-  let removedLegacyPattern = false;
-  const keptLines = existingLines.filter((line) => {
-    if (line.trim() === legacyGeneratedPattern) {
-      removedLegacyPattern = true;
-      return false;
-    }
+  const nonEmptyLines = existingLines.filter((line) => line.trim().length > 0);
+  const isPureLegacyGeneratedFile =
+    nonEmptyLines.length === 1 && nonEmptyLines[0]?.trim() === legacyGeneratedPattern;
 
-    return true;
-  });
-
-  if (!removedLegacyPattern) {
+  if (!isPureLegacyGeneratedFile) {
     return;
   }
 
-  while (keptLines.length > 0 && keptLines[keptLines.length - 1]?.trim().length === 0) {
-    keptLines.pop();
-  }
-
-  if (keptLines.every((line) => line.trim().length === 0)) {
-    await fs.rm(gitignorePath, { force: true });
-    return;
-  }
-
-  await FileSystemUtils.writeFile(gitignorePath, `${keptLines.join('\n')}\n`);
+  await fs.rm(gitignorePath, { force: true });
 }
 
 export async function syncWorkspaceOpenSurface(
