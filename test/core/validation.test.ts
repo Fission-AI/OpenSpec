@@ -591,4 +591,312 @@ The system MUST support mixed case delta headers.
       expect(report.summary.info).toBe(0);
     });
   });
+
+  // MODIFIED/REMOVED/RENAMED canonical-base cross-reference check.
+  // Previously this check existed only inside `openspec archive`, so
+  // authoring bugs (MODIFIED title that doesn't appear in the base
+  // spec) didn't surface until archive time — often days after the
+  // implementation had shipped. These tests pin that the same check
+  // now runs inside `Validator.validateChangeDeltaSpecs`, with an
+  // opt-in `acceptCrossChangeBase` for cross-change MODIFIED that
+  // covers a known legitimate use case (sister change creating the
+  // capability).
+  describe('validateChangeDeltaSpecs canonical-base cross-reference', () => {
+    async function writeChange(testDir: string, name: string, specName: string, delta: string): Promise<string> {
+      const changeDir = path.join(testDir, 'openspec', 'changes', name);
+      const specsDir = path.join(changeDir, 'specs', specName);
+      await fs.mkdir(specsDir, { recursive: true });
+      await fs.writeFile(path.join(specsDir, 'spec.md'), delta);
+      return changeDir;
+    }
+
+    async function writeCanonical(testDir: string, specName: string, body: string): Promise<void> {
+      const dir = path.join(testDir, 'openspec', 'specs', specName);
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(path.join(dir, 'spec.md'), body);
+    }
+
+    it('errors when MODIFIED header is absent from canonical spec', async () => {
+      const changeDir = await writeChange(testDir, 'session-text-drafts', 'reply-marks', `
+## MODIFIED Requirements
+
+### Requirement: Mark inline editor — no Save button, auto-save every keystroke
+
+The system SHALL render the editor without a Save button.
+
+#### Scenario: foo
+- **WHEN** user types
+- **THEN** auto-save fires
+`);
+      await writeCanonical(testDir, 'reply-marks', `# Reply Marks
+
+## Purpose
+The marks system.
+
+## Requirements
+
+### Requirement: Selection toolbar on agent messages
+
+The system SHALL show a toolbar.
+
+#### Scenario: foo
+- **WHEN** user selects
+- **THEN** toolbar appears
+`);
+
+      const validator = new Validator();
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(false);
+      expect(report.issues.some(i =>
+        i.message.includes('Mark inline editor') && i.message.includes('header not found in base')
+      )).toBe(true);
+    });
+
+    it('errors when canonical spec does not exist and delta uses MODIFIED', async () => {
+      const changeDir = await writeChange(testDir, 'composer-session-isolation', 'composer-drafts', `
+## MODIFIED Requirements
+
+### Requirement: No active sessionId — composer text is ephemeral within the current draft shape
+
+The system SHALL clear local state on transition.
+
+#### Scenario: foo
+- **WHEN** user clicks new chat
+- **THEN** composer clears
+`);
+      // No canonical openspec/specs/composer-drafts/spec.md exists.
+
+      const validator = new Validator();
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(false);
+      expect(report.issues.some(i =>
+        i.message.includes('canonical spec') && i.message.includes('does not exist')
+      )).toBe(true);
+    });
+
+    it('passes when MODIFIED header matches canonical spec exactly', async () => {
+      const changeDir = await writeChange(testDir, 'my-change', 'foo', `
+## MODIFIED Requirements
+
+### Requirement: Existing thing
+
+The system SHALL do an updated thing.
+
+#### Scenario: foo
+- **WHEN** user does X
+- **THEN** Y happens
+`);
+      await writeCanonical(testDir, 'foo', `# Foo
+
+## Purpose
+Foo capability.
+
+## Requirements
+
+### Requirement: Existing thing
+
+The system SHALL do a thing.
+
+#### Scenario: bar
+- **WHEN** something
+- **THEN** something else
+`);
+
+      const validator = new Validator();
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(true);
+      expect(report.summary.errors).toBe(0);
+    });
+
+    it('errors by default when MODIFIED header lives in a sister-pending change', async () => {
+      // Sister change "session-text-drafts" CREATES the composer-drafts
+      // capability with `Per-session composer draft persistence`.
+      await writeChange(testDir, 'session-text-drafts', 'composer-drafts', `
+## ADDED Requirements
+
+### Requirement: Per-session composer draft persistence
+
+The system SHALL persist drafts per session.
+
+#### Scenario: foo
+- **WHEN** user types
+- **THEN** draft saved
+`);
+      // My change MODIFIES the sister-pending requirement.
+      const changeDir = await writeChange(testDir, 'composer-session-isolation', 'composer-drafts', `
+## MODIFIED Requirements
+
+### Requirement: Per-session composer draft persistence
+
+The system SHALL persist drafts per session, and ALSO clear on Queue.
+
+#### Scenario: foo
+- **WHEN** user queues
+- **THEN** draft deleted
+`);
+      // No canonical composer-drafts spec yet.
+
+      const validator = new Validator();
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(false);
+      expect(report.issues.some(i =>
+        i.message.includes('canonical spec') && i.message.includes('does not exist')
+      )).toBe(true);
+    });
+
+    it('accepts MODIFIED against a sister-pending change when acceptCrossChangeBase=true', async () => {
+      // Same setup as the prior test.
+      await writeChange(testDir, 'session-text-drafts', 'composer-drafts', `
+## ADDED Requirements
+
+### Requirement: Per-session composer draft persistence
+
+The system SHALL persist drafts per session.
+
+#### Scenario: foo
+- **WHEN** user types
+- **THEN** draft saved
+`);
+      const changeDir = await writeChange(testDir, 'composer-session-isolation', 'composer-drafts', `
+## MODIFIED Requirements
+
+### Requirement: Per-session composer draft persistence
+
+The system SHALL persist drafts per session, and ALSO clear on Queue.
+
+#### Scenario: foo
+- **WHEN** user queues
+- **THEN** draft deleted
+`);
+
+      const validator = new Validator({ acceptCrossChangeBase: true });
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(true);
+      expect(report.summary.errors).toBe(0);
+    });
+
+    it('still errors with acceptCrossChangeBase=true when no canonical AND no sister defines the header', async () => {
+      // Sister change exists but for a DIFFERENT requirement name.
+      await writeChange(testDir, 'session-text-drafts', 'composer-drafts', `
+## ADDED Requirements
+
+### Requirement: Per-session composer draft persistence
+
+The system SHALL persist drafts.
+
+#### Scenario: foo
+- **WHEN** user types
+- **THEN** draft saved
+`);
+      // My change MODIFIES a NAME that exists nowhere.
+      const changeDir = await writeChange(testDir, 'composer-session-isolation', 'composer-drafts', `
+## MODIFIED Requirements
+
+### Requirement: Some completely new requirement that no one defined
+
+The system SHALL do new things.
+
+#### Scenario: foo
+- **WHEN** user does X
+- **THEN** Y
+`);
+
+      const validator = new Validator({ acceptCrossChangeBase: true });
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(false);
+      expect(report.issues.some(i =>
+        i.message.includes('canonical spec') && i.message.includes('does not exist')
+      )).toBe(true);
+    });
+
+    it('errors on REMOVED header not found in canonical', async () => {
+      const changeDir = await writeChange(testDir, 'my-change', 'foo', `
+## REMOVED Requirements
+
+- ### Requirement: Nonexistent thing
+`);
+      await writeCanonical(testDir, 'foo', `# Foo
+
+## Purpose
+Foo.
+
+## Requirements
+
+### Requirement: Existing thing
+
+The system SHALL do a thing.
+
+#### Scenario: foo
+- **WHEN** X
+- **THEN** Y
+`);
+
+      const validator = new Validator();
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(false);
+      expect(report.issues.some(i =>
+        i.message.includes('REMOVED') && i.message.includes('header not found in base')
+      )).toBe(true);
+    });
+
+    it('errors on RENAMED-from header not found in canonical', async () => {
+      const changeDir = await writeChange(testDir, 'my-change', 'foo', `
+## RENAMED Requirements
+
+- FROM: \`### Requirement: Old name that does not exist\`
+  TO: \`### Requirement: New name\`
+`);
+      await writeCanonical(testDir, 'foo', `# Foo
+
+## Purpose
+Foo.
+
+## Requirements
+
+### Requirement: Something else
+
+The system SHALL do a thing.
+
+#### Scenario: foo
+- **WHEN** X
+- **THEN** Y
+`);
+
+      const validator = new Validator();
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(false);
+      expect(report.issues.some(i =>
+        i.message.includes('RENAMED') && i.message.includes('header not found in base')
+      )).toBe(true);
+    });
+
+    it('backward compat: legacy `new Validator(true)` constructor still works (strict, no acceptCrossChangeBase)', async () => {
+      const changeDir = await writeChange(testDir, 'my-change', 'foo', `
+## MODIFIED Requirements
+
+### Requirement: Bogus header
+
+The system SHALL do nothing.
+
+#### Scenario: foo
+- **WHEN** X
+- **THEN** Y
+`);
+      // No canonical.
+
+      const validator = new Validator(true); // legacy boolean constructor
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(false);
+      expect(report.issues.some(i => i.message.includes('canonical spec') && i.message.includes('does not exist'))).toBe(true);
+    });
+  });
 });

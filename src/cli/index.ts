@@ -314,10 +314,11 @@ program
   .option('--specs', 'Validate all specs')
   .option('--type <type>', 'Specify item type when ambiguous: change|spec')
   .option('--strict', 'Enable strict validation mode')
+  .option('--accept-cross-change-base', 'Allow MODIFIED/REMOVED/RENAMED-from in a change delta to reference a Requirement that lives in a sister-pending change (`openspec/changes/<other>/specs/<cap>/spec.md`) rather than the canonical spec. Default: false (matches archive-time strictness). When set, the user opts into cross-change authoring; they must archive the sister change first OR fold this change into it before this change can itself be archived (archive remains strict; this flag affects ONLY write-time validate).')
   .option('--json', 'Output validation results as JSON')
   .option('--concurrency <n>', 'Max concurrent validations (defaults to env OPENSPEC_CONCURRENCY or 6)')
   .option('--no-interactive', 'Disable interactive prompts')
-  .action(async (itemName?: string, options?: { all?: boolean; changes?: boolean; specs?: boolean; type?: string; strict?: boolean; json?: boolean; noInteractive?: boolean; concurrency?: string }) => {
+  .action(async (itemName?: string, options?: { all?: boolean; changes?: boolean; specs?: boolean; type?: string; strict?: boolean; acceptCrossChangeBase?: boolean; json?: boolean; noInteractive?: boolean; concurrency?: string }) => {
     try {
       const validateCommand = new ValidateCommand();
       await validateCommand.execute(itemName, options);
