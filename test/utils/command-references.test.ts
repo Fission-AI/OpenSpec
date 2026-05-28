@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { transformToHyphenCommands } from '../../src/utils/command-references.js';
+import {
+  transformCodexRuntimeToolReferences,
+  transformToHyphenCommands,
+} from '../../src/utils/command-references.js';
 
 describe('transformToHyphenCommands', () => {
   describe('basic transformations', () => {
@@ -79,5 +82,23 @@ Finally /opsx-apply to implement`;
         expect(transformToHyphenCommands(`/opsx:${cmd}`)).toBe(`/opsx-${cmd}`);
       });
     }
+  });
+});
+
+describe('transformCodexRuntimeToolReferences', () => {
+  it('should replace Claude-style tool references with Codex-safe instructions', () => {
+    const input = `Use the **AskUserQuestion tool** (open-ended, no preset options) to ask:
+Use the **TodoWrite tool** to track progress through the artifacts.
+If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.`;
+
+    const output = transformCodexRuntimeToolReferences(input);
+
+    expect(output).toContain('Ask the user in chat and wait for their reply:');
+    expect(output).toContain("Track progress using Codex's native plan/checklist mechanism");
+    expect(output).toContain('invoke openspec-sync-specs');
+    expect(output).not.toContain('AskUserQuestion');
+    expect(output).not.toContain('TodoWrite');
+    expect(output).not.toContain('Task tool');
+    expect(output).not.toContain('subagent_type');
   });
 });
