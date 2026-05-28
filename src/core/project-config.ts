@@ -1,7 +1,8 @@
-import { existsSync, readFileSync, statSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import path from 'path';
 import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
+import type { CheckEntry } from './code-checker/types.js';
 
 /**
  * Zod schema for project configuration.
@@ -38,9 +39,23 @@ export const ProjectConfigSchema = z.object({
     )
     .optional()
     .describe('Per-artifact rules, keyed by artifact ID'),
+
+  // Optional: static analysis checks to run against implementation
+  checks: z
+    .array(
+      z.object({
+        name: z.string().min(1),
+        command: z.string().min(1),
+        files: z.array(z.string()).optional(),
+      })
+    )
+    .optional()
+    .describe('Static analysis checks (lint, type-check, etc.)'),
 });
 
-export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
+export type ProjectConfig = z.infer<typeof ProjectConfigSchema> & {
+  checks?: CheckEntry[];
+};
 
 const MAX_CONTEXT_SIZE = 50 * 1024; // 50KB hard limit
 
@@ -149,6 +164,34 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
         }
       } else {
         console.warn(`Invalid 'rules' field in config (must be object)`);
+      }
+    }
+
+    // Parse checks field using Zod — validate entries individually so one
+    // malformed item doesn't discard the whole array
+    if (raw.checks !== undefined) {
+      if (!Array.isArray(raw.checks)) {
+        console.warn(`Invalid 'checks' field in config (must be an array of {name, command, files?})`);
+      } else {
+        const checkEntryField = z.object({
+          name: z.string().trim().min(1),
+          command: z.string().trim().min(1),
+          files: z.array(z.string().trim().min(1)).optional(),
+        });
+
+        const validChecks: CheckEntry[] = [];
+        raw.checks.forEach((candidate: unknown, index: number) => {
+          const parsed = checkEntryField.safeParse(candidate);
+          if (parsed.success) {
+            validChecks.push(parsed.data);
+          } else {
+            console.warn(`Invalid check at index ${index}, ignoring this check`);
+          }
+        });
+
+        if (validChecks.length > 0) {
+          config.checks = validChecks;
+        }
       }
     }
 
