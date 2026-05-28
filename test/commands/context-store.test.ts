@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Command } from 'commander';
+import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -16,6 +17,7 @@ import {
 import { runCLI, type RunCLIResult } from '../helpers/run-cli.js';
 
 vi.mock('@inquirer/prompts', () => ({
+  input: vi.fn(),
   confirm: vi.fn(),
 }));
 
@@ -27,10 +29,12 @@ async function runContextStoreCommand(args: string[]): Promise<void> {
 }
 
 async function getPromptMocks(): Promise<{
+  input: ReturnType<typeof vi.fn>;
   confirm: ReturnType<typeof vi.fn>;
 }> {
   const prompts = await import('@inquirer/prompts');
   return {
+    input: prompts.input as unknown as ReturnType<typeof vi.fn>,
     confirm: prompts.confirm as unknown as ReturnType<typeof vi.fn>,
   };
 }
@@ -140,6 +144,60 @@ describe('context-store command', () => {
     expect(fs.existsSync(path.join(storeRoot, '.git'))).toBe(false);
   });
 
+  it('runs guided setup when no args are passed in an interactive terminal', async () => {
+    process.env = {
+      ...process.env,
+      XDG_DATA_HOME: dataHome,
+      XDG_CONFIG_HOME: configHome,
+      OPENSPEC_TELEMETRY: '0',
+    };
+    delete process.env.OPEN_SPEC_INTERACTIVE;
+    delete process.env.CI;
+    process.chdir(tempDir);
+    (process.stdin as NodeJS.ReadStream & { isTTY?: boolean }).isTTY = true;
+    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { input, confirm } = await getPromptMocks();
+    input.mockImplementation(async (options: { message: string; default?: string }) => {
+      if (options.message === 'Context store name') return 'guided-context';
+      return options.default;
+    });
+    confirm.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+
+    await runContextStoreCommand(['setup']);
+
+    const storeRoot = getDefaultContextStoreRoot('guided-context', { globalDataDir });
+    expect(input).toHaveBeenCalledWith(expect.objectContaining({
+      message: 'Context store name',
+    }));
+    expect(input).toHaveBeenCalledWith(expect.objectContaining({
+      message: 'Where should this context store live?',
+      default: storeRoot,
+    }));
+    expect(confirm).toHaveBeenNthCalledWith(1, {
+      message: 'Initialize Git in this context store?',
+      default: true,
+    });
+    expect(confirm).toHaveBeenNthCalledWith(2, {
+      message: 'Create this context store?',
+      default: true,
+    });
+    expect(fs.existsSync(getContextStoreMetadataPath(storeRoot))).toBe(true);
+    expect(fs.existsSync(path.join(storeRoot, '.git'))).toBe(false);
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it('requires a setup id for non-interactive JSON setup', async () => {
+    const result = await runCLI(['context-store', 'setup', '--json'], { cwd: tempDir, env });
+
+    expect(result.exitCode).toBe(1);
+    expect(parseJson(result).status[0]).toEqual(
+      expect.objectContaining({
+        code: 'context_store_setup_id_required',
+      })
+    );
+  });
+
   it('supports explicit current-directory setup', async () => {
     const storeRoot = mkdir('team-context');
 
@@ -150,6 +208,81 @@ describe('context-store command', () => {
 
     expect(result.exitCode).toBe(0);
     expect(parseJson(result).context_store.root).toBe(expectedExistingPath(storeRoot));
+  });
+
+  it('rejects explicit setup paths inside an existing Git repo in non-interactive mode', async () => {
+    const repoRoot = mkdir('repo');
+    execFileSync('git', ['init'], { cwd: repoRoot, stdio: 'ignore' });
+    const storeRoot = path.join(repoRoot, 'team-context');
+
+    const result = await runCLI(
+      ['context-store', 'setup', 'team-context', '--path', storeRoot, '--no-init-git', '--json'],
+      { cwd: tempDir, env }
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(parseJson(result).status[0]).toEqual(
+      expect.objectContaining({
+        code: 'context_store_setup_inside_git_repo',
+      })
+    );
+    expect(fs.existsSync(getContextStoreMetadataPath(storeRoot))).toBe(false);
+  });
+
+  it('rejects setup paths inside git-like parents when git cannot resolve the repo', async () => {
+    const repoRoot = mkdir('repo');
+    fs.writeFileSync(path.join(repoRoot, '.git'), `gitdir: ${path.join(tempDir, 'missing-gitdir')}\n`);
+    const storeRoot = path.join(repoRoot, 'team-context');
+
+    const result = await runCLI(
+      ['context-store', 'setup', 'team-context', '--path', storeRoot, '--no-init-git', '--json'],
+      { cwd: tempDir, env }
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(parseJson(result).status[0]).toEqual(
+      expect.objectContaining({
+        code: 'context_store_setup_inside_git_repo',
+      })
+    );
+    expect(fs.existsSync(getContextStoreMetadataPath(storeRoot))).toBe(false);
+  });
+
+  it('requires confirmation before interactive setup uses a path inside an existing Git repo', async () => {
+    process.env = {
+      ...process.env,
+      XDG_DATA_HOME: dataHome,
+      XDG_CONFIG_HOME: configHome,
+      OPENSPEC_TELEMETRY: '0',
+    };
+    delete process.env.OPEN_SPEC_INTERACTIVE;
+    delete process.env.CI;
+    process.chdir(tempDir);
+    (process.stdin as NodeJS.ReadStream & { isTTY?: boolean }).isTTY = true;
+    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { confirm } = await getPromptMocks();
+    const repoRoot = mkdir('repo');
+    execFileSync('git', ['init'], { cwd: repoRoot, stdio: 'ignore' });
+    const storeRoot = path.join(repoRoot, 'team-context');
+    confirm.mockResolvedValueOnce(true).mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+
+    await runContextStoreCommand(['setup', 'team-context', '--path', storeRoot]);
+
+    expect(confirm).toHaveBeenNthCalledWith(1, {
+      message: expect.stringContaining('inside another Git repository'),
+      default: false,
+    });
+    expect(confirm).toHaveBeenNthCalledWith(2, {
+      message: 'Initialize Git in this context store?',
+      default: true,
+    });
+    expect(confirm).toHaveBeenNthCalledWith(3, {
+      message: 'Create this context store?',
+      default: true,
+    });
+    expect(fs.existsSync(getContextStoreMetadataPath(storeRoot))).toBe(true);
+    expect(process.exitCode).toBeUndefined();
   });
 
   it('rejects non-empty setup folders without context-store metadata', async () => {
@@ -298,6 +431,171 @@ describe('context-store command', () => {
     });
   });
 
+  it('unregisters a context store without deleting local files', async () => {
+    const storeRoot = mkdir('team-context');
+    const canonicalStoreRoot = expectedExistingPath(storeRoot);
+    await writeContextStoreMetadataState(storeRoot, { version: 1, id: 'team-context' });
+    await writeContextStoreRegistryState(
+      {
+        version: 1,
+        stores: {
+          'team-context': {
+            backend: {
+              type: 'git',
+              local_path: canonicalStoreRoot,
+            },
+          },
+        },
+      },
+      { globalDataDir }
+    );
+
+    const result = await runCLI(
+      ['context-store', 'unregister', 'team-context', '--json'],
+      { cwd: tempDir, env }
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(parseJson(result)).toEqual(expect.objectContaining({
+      context_store: expect.objectContaining({
+        id: 'team-context',
+        root: canonicalStoreRoot,
+      }),
+      registry: expect.objectContaining({
+        removed: true,
+      }),
+      files: expect.objectContaining({
+        deleted: false,
+        left_on_disk: canonicalStoreRoot,
+      }),
+    }));
+    await expect(readContextStoreRegistryState({ globalDataDir })).resolves.toEqual({
+      version: 1,
+      stores: {},
+    });
+    expect(fs.existsSync(getContextStoreMetadataPath(storeRoot))).toBe(true);
+  });
+
+  it('requires explicit confirmation before removing files non-interactively', async () => {
+    const storeRoot = mkdir('team-context');
+    await writeContextStoreMetadataState(storeRoot, { version: 1, id: 'team-context' });
+    await writeContextStoreRegistryState(
+      {
+        version: 1,
+        stores: {
+          'team-context': {
+            backend: {
+              type: 'git',
+              local_path: storeRoot,
+            },
+          },
+        },
+      },
+      { globalDataDir }
+    );
+
+    const result = await runCLI(
+      ['context-store', 'remove', 'team-context', '--json'],
+      { cwd: tempDir, env }
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(parseJson(result).status[0]).toEqual(
+      expect.objectContaining({
+        code: 'context_store_remove_confirmation_required',
+      })
+    );
+    expect(fs.existsSync(getContextStoreMetadataPath(storeRoot))).toBe(true);
+  });
+
+  it('removes a context store after explicit non-interactive confirmation', async () => {
+    const storeRoot = mkdir('team-context');
+    const canonicalStoreRoot = expectedExistingPath(storeRoot);
+    await writeContextStoreMetadataState(storeRoot, { version: 1, id: 'team-context' });
+    await writeContextStoreRegistryState(
+      {
+        version: 1,
+        stores: {
+          'team-context': {
+            backend: {
+              type: 'git',
+              local_path: canonicalStoreRoot,
+            },
+          },
+        },
+      },
+      { globalDataDir }
+    );
+
+    const result = await runCLI(
+      ['context-store', 'remove', 'team-context', '--yes', '--json'],
+      { cwd: tempDir, env }
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(parseJson(result)).toEqual(expect.objectContaining({
+      context_store: expect.objectContaining({
+        id: 'team-context',
+        root: canonicalStoreRoot,
+      }),
+      registry: expect.objectContaining({
+        removed: true,
+      }),
+      files: expect.objectContaining({
+        deleted: true,
+        deleted_path: canonicalStoreRoot,
+      }),
+    }));
+    await expect(readContextStoreRegistryState({ globalDataDir })).resolves.toEqual({
+      version: 1,
+      stores: {},
+    });
+    expect(fs.existsSync(storeRoot)).toBe(false);
+  });
+
+  it('refuses to remove files when the folder lacks matching context-store metadata', async () => {
+    const storeRoot = mkdir('team-context');
+    const canonicalStoreRoot = expectedExistingPath(storeRoot);
+    await writeContextStoreRegistryState(
+      {
+        version: 1,
+        stores: {
+          'team-context': {
+            backend: {
+              type: 'git',
+              local_path: canonicalStoreRoot,
+            },
+          },
+        },
+      },
+      { globalDataDir }
+    );
+
+    const result = await runCLI(
+      ['context-store', 'remove', 'team-context', '--yes', '--json'],
+      { cwd: tempDir, env }
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(parseJson(result).status[0]).toEqual(
+      expect.objectContaining({
+        code: 'context_store_remove_metadata_missing',
+      })
+    );
+    expect(fs.existsSync(storeRoot)).toBe(true);
+    await expect(readContextStoreRegistryState({ globalDataDir })).resolves.toEqual({
+      version: 1,
+      stores: {
+        'team-context': {
+          backend: {
+            type: 'git',
+            local_path: canonicalStoreRoot,
+          },
+        },
+      },
+    });
+  });
+
   it('rejects an explicit blank doctor id', async () => {
     const result = await runCLI(['context-store', 'doctor', '', '--json'], { cwd: tempDir, env });
 
@@ -380,8 +678,12 @@ describe('context-store command', () => {
     await runContextStoreCommand(['setup', 'interactive-context']);
 
     const storeRoot = getDefaultContextStoreRoot('interactive-context', { globalDataDir });
-    expect(confirm).toHaveBeenCalledWith({
-      message: 'Initialize Git repository?',
+    expect(confirm).toHaveBeenNthCalledWith(1, {
+      message: 'Initialize Git in this context store?',
+      default: true,
+    });
+    expect(confirm).toHaveBeenNthCalledWith(2, {
+      message: 'Create this context store?',
       default: true,
     });
     expect(fs.existsSync(path.join(storeRoot, '.git'))).toBe(true);

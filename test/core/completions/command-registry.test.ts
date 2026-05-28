@@ -177,6 +177,8 @@ describe('command completion registry', () => {
     expect(contextStore?.subcommands?.map((entry) => entry.name)).toEqual([
       'setup',
       'register',
+      'unregister',
+      'remove',
       'list',
       'ls',
       'doctor',
@@ -187,6 +189,12 @@ describe('command completion registry', () => {
       'path',
       'init-git',
       'no-init-git',
+      'json',
+    ]);
+
+    const remove = contextStore?.subcommands?.find((entry) => entry.name === 'remove');
+    expect(remove?.flags.map((flag) => flag.name)).toEqual([
+      'yes',
       'json',
     ]);
   });

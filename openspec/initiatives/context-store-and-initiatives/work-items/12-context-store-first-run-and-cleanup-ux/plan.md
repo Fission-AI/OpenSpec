@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed from the manual beta reality pass.
+Implemented.
 
 This work item covers the context-store setup and cleanup gaps that were not
 fully captured by later docs, schema, or handoff work.
@@ -43,8 +43,8 @@ stores as normal local workflow.
 - Make the target store path explicit before creation.
 - Provide a supported local cleanup command for removing or unregistering a
   context store from this machine.
-- Explain the Git/stage/commit state after initializing a shared store, without
-  pushing, committing, or creating remotes automatically.
+- Keep Git setup limited to optional local initialization, without staging,
+  committing, pushing, creating remotes, or choosing team workflow.
 
 ## Non-Goals
 
@@ -54,6 +54,42 @@ stores as normal local workflow.
 - Do not make context stores implementation repos.
 
 ## UX Direction
+
+Locked decisions from the product pass:
+
+- `openspec context-store setup` with no arguments should start a guided setup
+  when run in an interactive terminal. Agents, scripts, CI, and `--json` callers
+  should pass the equivalent explicit inputs instead of relying on prompts.
+- The guided setup should ask only for values that map to existing setup flags:
+  context store id, context store path, and whether to initialize Git.
+- User-facing prompt copy should stay direct:
+  `Context store name`, `Where should this context store live?`,
+  `Initialize Git in this context store?`, then a final
+  `Create this context store?` confirmation after showing the resolved summary.
+- The default location should be the managed OpenSpec context-store directory,
+  not the current working directory. Users can still choose any explicit safe
+  local path; OpenSpec stores that machine-local path in the local registry, not
+  in shared context-store metadata.
+- Setup should be protective around risky paths: create missing paths, accept
+  empty directories, treat matching context-store metadata as idempotent, stop
+  on metadata/id conflicts, stop on files, and stop or explicitly warn before
+  using a non-empty unmarked directory or a path inside another Git repository.
+- Cleanup should expose two explicit intents: `context-store unregister <id>`
+  forgets the machine-local registry entry and leaves files alone, while
+  `context-store remove <id>` unregisters the store and deletes the local folder
+  only after showing the exact path and receiving confirmation.
+- Happy-path human output should stay small: show the context store id, its
+  location, and the next user-facing step. Do not show Git state, metadata
+  paths, registry paths, or created-file lists unless there is a warning,
+  failure, `--json`, or `context-store doctor` output.
+- JSON output should report exact resulting state, not workflow guidance. Include
+  ids, roots, metadata paths, registry state, Git facts, created/deleted files,
+  and warnings/errors where present, but do not include `next_commands`. Empty
+  `status: []` can be preserved where existing JSON compatibility needs it, but
+  new behavior should not rely on blank status arrays for meaning.
+- Git initialization is an optional local convenience only. When requested,
+  OpenSpec may run `git init`, but it must not stage, commit, push, create
+  remotes, create branches, or define team Git policy.
 
 Interactive setup should cover the minimum choices:
 
@@ -75,14 +111,14 @@ openspec context-store unregister team-context
 openspec context-store remove team-context
 ```
 
-The exact command names are open, but the user intent must be explicit:
+The command names are explicit because the user intents are different:
 
 - forget this local registry entry only
 - delete this local context-store folder too
 
-If a Git-backed context store was initialized, setup output should say that the
-store now has uncommitted files and that the user or agent should review,
-stage, commit, and push according to their team's normal Git workflow.
+If Git initialization fails, setup should explain that the user can install Git
+or rerun setup without Git. Successful Git initialization stays out of the
+happy-path human output.
 
 ## Agent / JSON Contract
 
@@ -94,8 +130,6 @@ JSON setup output should report:
 - whether Git was initialized
 - whether files were created or already existed
 - local registry path or registry entry identity
-- next commands for listing, doctor, and initiative creation
-- advisory Git status summary when available
 
 JSON cleanup output should report:
 

@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
 import * as nodeFs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
 
@@ -14,6 +15,7 @@ import {
   resolveGitContextStoreBackendConfig,
   validateContextStoreId,
   type ContextStoreGitBackendConfig,
+  type ContextStorePathOptions,
   type ContextStoreRegistryState,
 } from './foundation.js';
 import { ContextStoreError, type ContextStoreDiagnostic, makeContextStoreDiagnostic } from './errors.js';
@@ -21,7 +23,9 @@ import {
   getStoreRootForBackend,
   assertNoRegisteredStoreConflict,
   commitContextStoreRegistration,
+  getRegisteredContextStore,
   listRegisteredContextStores,
+  unregisterContextStoreRegistration,
 } from './registry.js';
 
 const fs = nodeFs.promises;
@@ -45,6 +49,20 @@ export interface ContextStoreMutationResult {
     initialized: boolean;
   };
   createdArtifacts: string[];
+}
+
+export interface ContextStoreCleanupResult {
+  store: ContextStoreInfo;
+  registryCommit: {
+    path: string;
+    removed: boolean;
+  };
+  files: {
+    deleted: boolean;
+    deletedPath?: string;
+    leftOnDisk?: string;
+  };
+  diagnostics: ContextStoreDiagnostic[];
 }
 
 export interface ContextStoreListResult {
@@ -72,11 +90,20 @@ export interface SetupContextStoreInput {
   id?: string;
   path?: string;
   initGit?: boolean;
+  allowInsideGitRepository?: boolean;
 }
 
 export interface RegisterExistingContextStoreInput {
   path?: string;
   id?: string;
+}
+
+export interface CleanupContextStoreInput extends ContextStorePathOptions {
+  id: string;
+}
+
+export interface PreparedContextStoreCleanup extends ContextStoreInfo, ContextStorePathOptions {
+  backend: ContextStoreGitBackendConfig;
 }
 
 export interface PreparedContextStoreSetup {
@@ -139,6 +166,78 @@ async function isGitRepositoryAtRoot(storeRoot: string): Promise<boolean> {
   return kind === 'directory' || kind === 'file';
 }
 
+async function nearestExistingDirectory(targetPath: string): Promise<string | null> {
+  let current = path.resolve(targetPath);
+
+  while (true) {
+    const kind = await pathKind(current);
+    if (kind === 'directory') return current;
+    if (kind !== 'missing') return null;
+
+    const parent = path.dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
+}
+
+async function findContainingGitRepositoryRoot(storeRoot: string): Promise<string | null> {
+  const resolvedStoreRoot = path.resolve(storeRoot);
+  const nearestParent = await nearestExistingDirectory(path.dirname(resolvedStoreRoot));
+  if (!nearestParent) return null;
+  const comparableStoreRoot = path.resolve(
+    FileSystemUtils.canonicalizeExistingPath(nearestParent),
+    path.relative(nearestParent, resolvedStoreRoot)
+  );
+
+  const gitRootContainsStore = (gitRoot: string): string | null => {
+    const normalizedGitRoot = FileSystemUtils.canonicalizeExistingPath(gitRoot);
+    const relative = path.relative(normalizedGitRoot, comparableStoreRoot);
+    return relative.length > 0 && !relative.startsWith('..') && !path.isAbsolute(relative)
+      ? normalizedGitRoot
+      : null;
+  };
+
+  try {
+    const { stdout } = await execFileAsync('git', [
+      '-C',
+      nearestParent,
+      'rev-parse',
+      '--show-toplevel',
+    ]);
+    return gitRootContainsStore(stdout.trim());
+  } catch {
+    let current = nearestParent;
+    while (true) {
+      if (await isGitRepositoryAtRoot(current)) {
+        return gitRootContainsStore(current);
+      }
+
+      const parent = path.dirname(current);
+      if (parent === current) return null;
+      current = parent;
+    }
+  }
+}
+
+async function assertSetupPathIsNotNestedInGitRepo(
+  storeRoot: string,
+  options: { allowInsideGitRepository?: boolean }
+): Promise<void> {
+  if (options.allowInsideGitRepository) return;
+
+  const containingGitRoot = await findContainingGitRepositoryRoot(storeRoot);
+  if (!containingGitRoot) return;
+
+  throw new ContextStoreError(
+    `Context store setup path is inside another Git repository: ${containingGitRoot}`,
+    'context_store_setup_inside_git_repo',
+    {
+      target: 'context_store.root',
+      fix: 'Choose the managed OpenSpec location, choose a path outside that Git repository, or rerun setup interactively to confirm this location.',
+    }
+  );
+}
+
 async function initGitRepository(storeRoot: string): Promise<boolean> {
   if (await isGitRepositoryAtRoot(storeRoot)) {
     return false;
@@ -160,6 +259,16 @@ async function initGitRepository(storeRoot: string): Promise<boolean> {
   return true;
 }
 
+function expandUserPath(inputPath: string): string {
+  const trimmed = inputPath.trim();
+  if (trimmed === '~') return os.homedir();
+  if (trimmed.startsWith('~/') || trimmed.startsWith('~\\')) {
+    return path.join(os.homedir(), trimmed.slice(2));
+  }
+
+  return trimmed;
+}
+
 function resolveSetupRoot(id: string, inputPath: string | undefined): string {
   if (inputPath !== undefined && inputPath.trim().length === 0) {
     throw new ContextStoreError('Pass a non-empty --path value.', 'context_store_path_required', {
@@ -169,7 +278,7 @@ function resolveSetupRoot(id: string, inputPath: string | undefined): string {
   }
 
   if (inputPath !== undefined) {
-    return path.resolve(inputPath);
+    return path.resolve(expandUserPath(inputPath));
   }
 
   return getDefaultContextStoreRoot(id);
@@ -183,7 +292,7 @@ function resolveRegisterRoot(inputPath: string | undefined): string {
     });
   }
 
-  return path.resolve(inputPath);
+  return path.resolve(expandUserPath(inputPath));
 }
 
 function inferStoreIdFromPath(storeRoot: string): string {
@@ -214,7 +323,7 @@ function mutationPayload(
 }
 
 async function prepareSetupPlan(
-  input: Pick<SetupContextStoreInput, 'id' | 'path'>
+  input: Pick<SetupContextStoreInput, 'id' | 'path' | 'allowInsideGitRepository'>
 ): Promise<ContextStoreSetupPlan> {
   const id = validateContextStoreId(input.id ?? '');
   const storeRoot = resolveSetupRoot(id, input.path);
@@ -230,6 +339,12 @@ async function prepareSetupPlan(
       }
     );
   }
+
+  // Context stores may be Git-backed, but creating one inside an implementation
+  // repo is almost always an accidental nested-repo setup.
+  await assertSetupPathIsNotNestedInGitRepo(storeRoot, {
+    allowInsideGitRepository: input.allowInsideGitRepository,
+  });
 
   let metadata: Awaited<ReturnType<typeof readStoreMetadataForOperation>> = null;
   let backend: ContextStoreGitBackendConfig | undefined;
@@ -280,7 +395,7 @@ async function prepareSetupPlan(
 }
 
 export async function prepareContextStoreSetup(
-  input: Pick<SetupContextStoreInput, 'id' | 'path'>
+  input: Pick<SetupContextStoreInput, 'id' | 'path' | 'allowInsideGitRepository'>
 ): Promise<PreparedContextStoreSetup> {
   const plan = await prepareSetupPlan(input);
 
@@ -411,6 +526,144 @@ export async function registerExistingContextStore(
     isRepository: await isGitRepositoryAtRoot(registered.storeRoot),
     initialized: false,
   }, createdFiles);
+}
+
+function cleanupStoreOutput(id: string, storeRoot: string): ContextStoreInfo {
+  return {
+    id,
+    root: storeRoot,
+    metadataPath: getContextStoreMetadataPath(storeRoot),
+  };
+}
+
+export async function prepareContextStoreCleanup(
+  input: CleanupContextStoreInput
+): Promise<PreparedContextStoreCleanup> {
+  const id = validateContextStoreId(input.id);
+  const entry = await getRegisteredContextStore({
+    id,
+    globalDataDir: input.globalDataDir,
+  });
+
+  return {
+    ...cleanupStoreOutput(entry.id, entry.storeRoot),
+    backend: entry.backend,
+    ...(input.globalDataDir ? { globalDataDir: input.globalDataDir } : {}),
+  };
+}
+
+export async function unregisterContextStore(
+  input: CleanupContextStoreInput
+): Promise<ContextStoreCleanupResult> {
+  const target = await prepareContextStoreCleanup(input);
+  const removed = await unregisterContextStoreRegistration({
+    id: target.id,
+    expectedBackend: target.backend,
+    globalDataDir: target.globalDataDir,
+  });
+
+  return {
+    store: cleanupStoreOutput(removed.id, removed.storeRoot),
+    registryCommit: {
+      path: getContextStoreRegistryPath({ globalDataDir: target.globalDataDir }),
+      removed: true,
+    },
+    files: {
+      deleted: false,
+      leftOnDisk: removed.storeRoot,
+    },
+    diagnostics: [],
+  };
+}
+
+async function assertSafeToDeleteContextStoreRoot(storeRoot: string, id: string): Promise<{
+  exists: boolean;
+}> {
+  const kind = await pathKind(storeRoot);
+
+  if (kind === 'missing') {
+    return { exists: false };
+  }
+
+  if (kind !== 'directory') {
+    throw new ContextStoreError(
+      `Context store path is not a directory: ${storeRoot}`,
+      'context_store_remove_path_not_directory',
+      {
+        target: 'context_store.root',
+        fix: 'Run context-store unregister if you only want to forget this local registry entry.',
+      }
+    );
+  }
+
+  const metadata = await readStoreMetadataForOperation(storeRoot);
+  if (!metadata) {
+    throw new ContextStoreError(
+      'Context store remove refuses to delete a folder without context-store metadata.',
+      'context_store_remove_metadata_missing',
+      {
+        target: 'context_store.metadata',
+        fix: 'Run context-store unregister if you only want to forget this local registry entry.',
+      }
+    );
+  }
+
+  if (metadata.id !== id) {
+    throw new ContextStoreError(
+      `Context store metadata id '${metadata.id}' does not match requested id '${id}'.`,
+      'context_store_metadata_id_mismatch',
+      {
+        target: 'context_store.metadata',
+        fix: 'Repair the registry or run context-store unregister instead of deleting this folder.',
+      }
+    );
+  }
+
+  return { exists: true };
+}
+
+export async function removeContextStore(
+  target: PreparedContextStoreCleanup
+): Promise<ContextStoreCleanupResult> {
+  const id = validateContextStoreId(target.id);
+  const diagnostics: ContextStoreDiagnostic[] = [];
+  let deleted = false;
+
+  const removed = await unregisterContextStoreRegistration({
+    id,
+    expectedBackend: target.backend,
+    globalDataDir: target.globalDataDir,
+    beforeCommit: async (entry) => {
+      const safeTarget = await assertSafeToDeleteContextStoreRoot(entry.storeRoot, id);
+      if (!safeTarget.exists) {
+        diagnostics.push(makeContextStoreDiagnostic(
+          'warning',
+          'context_store_root_missing',
+          'Context store files were already missing.',
+          {
+            target: 'context_store.root',
+          }
+        ));
+        return;
+      }
+
+      await fs.rm(entry.storeRoot, { recursive: true, force: true });
+      deleted = true;
+    },
+  });
+
+  return {
+    store: cleanupStoreOutput(removed.id, removed.storeRoot),
+    registryCommit: {
+      path: getContextStoreRegistryPath({ globalDataDir: target.globalDataDir }),
+      removed: true,
+    },
+    files: {
+      deleted,
+      ...(deleted ? { deletedPath: removed.storeRoot } : {}),
+    },
+    diagnostics,
+  };
 }
 
 export async function listContextStores(): Promise<ContextStoreListResult> {
