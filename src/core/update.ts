@@ -99,7 +99,10 @@ export class UpdateCommand {
     const profile = globalConfig.profile ?? 'core';
     const delivery: Delivery = globalConfig.delivery ?? 'both';
     const profileWorkflows = getProfileWorkflows(profile, globalConfig.workflows);
-    const desiredWorkflows = profileWorkflows.filter((workflow): workflow is (typeof ALL_WORKFLOWS)[number] =>
+    // Trello workflows are always included regardless of profile, mirroring InitCommand behavior.
+    const TRELLO_WORKFLOWS = ['trello-setup', 'task', 'draft'] as const;
+    const workflowsSet = new Set([...profileWorkflows, ...TRELLO_WORKFLOWS]);
+    const desiredWorkflows = [...workflowsSet].filter((workflow): workflow is (typeof ALL_WORKFLOWS)[number] =>
       (ALL_WORKFLOWS as readonly string[]).includes(workflow)
     );
     const shouldGenerateSkills = delivery !== 'commands';
