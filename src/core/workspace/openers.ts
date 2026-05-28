@@ -29,8 +29,8 @@ const WORKSPACE_OPENER_CHOICE_DEFINITIONS: Array<{
     executable: 'code',
   },
   {
-    value: 'codex',
-    label: 'Codex',
+    value: 'codex-cli',
+    label: 'codex-cli',
     executable: 'codex',
   },
   {
@@ -108,28 +108,34 @@ export function isWorkspaceExecutableAvailable(
 }
 
 export function getWorkspaceOpenerExecutable(opener: WorkspacePreferredOpener): string {
+  const openerId = opener.id as string;
   if (opener.kind === 'editor') {
     return 'code';
   }
 
-  if (opener.id === 'github-copilot') {
+  if (openerId === 'github-copilot') {
     return 'code';
+  }
+
+  if (openerId === 'codex-cli' || openerId === 'codex') {
+    return 'codex';
   }
 
   return opener.id;
 }
 
 export function getWorkspaceOpenerLabel(opener: WorkspacePreferredOpener): string {
+  const openerId = opener.id as string;
   if (opener.kind === 'editor') {
     return 'VS Code editor';
   }
 
-  if (opener.id === 'github-copilot') {
+  if (openerId === 'github-copilot') {
     return 'GitHub Copilot in VS Code';
   }
 
-  if (opener.id === 'codex') {
-    return 'Codex';
+  if (openerId === 'codex-cli' || openerId === 'codex') {
+    return 'codex-cli';
   }
 
   return 'Claude';

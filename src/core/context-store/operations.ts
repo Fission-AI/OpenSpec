@@ -5,6 +5,7 @@ import { promisify } from 'node:util';
 
 import { FileSystemUtils } from '../../utils/file-system.js';
 import {
+  getDefaultContextStoreRoot,
   getContextStoreMetadataPath,
   getContextStoreRegistryPath,
   listContextStoreRegistryEntries,
@@ -163,11 +164,15 @@ function resolveSetupRoot(id: string, inputPath: string | undefined): string {
   if (inputPath !== undefined && inputPath.trim().length === 0) {
     throw new ContextStoreError('Pass a non-empty --path value.', 'context_store_path_required', {
       target: 'context_store.root',
-      fix: `openspec context-store setup ${id} --path ./team-context`,
+      fix: `openspec context-store setup ${id} --path /path/to/context-store`,
     });
   }
 
-  return path.resolve(inputPath ?? id);
+  if (inputPath !== undefined) {
+    return path.resolve(inputPath);
+  }
+
+  return getDefaultContextStoreRoot(id);
 }
 
 function resolveRegisterRoot(inputPath: string | undefined): string {
@@ -221,7 +226,7 @@ async function prepareSetupPlan(
       'context_store_setup_path_not_directory',
       {
         target: 'context_store.root',
-        fix: 'Choose an empty directory or omit --path to use ./<id>.',
+        fix: 'Choose an empty directory or omit --path to use the managed OpenSpec context-store location.',
       }
     );
   }

@@ -40,7 +40,7 @@ graduate into executable changes only after they are bound to an implementation
 target.
 
 Repo-local changes remain the default executable implementation artifact. Item
-13 should decide if, when, and how a context-store-hosted artifact can safely be
+18 should decide if, when, and how a context-store-hosted artifact can safely be
 treated as a change.
 
 The answer should preserve three boundaries:
