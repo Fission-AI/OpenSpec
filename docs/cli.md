@@ -194,7 +194,7 @@ openspec workspace setup [options]
 | `--name <name>` | Workspace name. Names must be kebab-case |
 | `--link <path>` | Link an existing repo or folder and infer the link name from the folder name |
 | `--link <name>=<path>` | Link an existing repo or folder with an explicit link name |
-| `--opener <id>` | Store a preferred opener during non-interactive setup: `codex`, `claude`, `github-copilot`, or `editor` |
+| `--opener <id>` | Store a preferred opener during non-interactive setup: `codex-cli`, `claude`, `github-copilot`, or `editor` |
 | `--tools <tools>` | Install workspace-local OpenSpec skills for agents. Use `all`, `none`, or comma-separated tool IDs |
 | `--no-interactive` | Disable prompts; requires `--name` and at least one `--link` |
 | `--json` | Output JSON; requires `--no-interactive` |
@@ -204,7 +204,7 @@ openspec workspace setup [options]
 ```bash
 openspec workspace setup
 openspec workspace setup --no-interactive --name platform --link /repos/api --link web=/repos/web
-openspec workspace setup --no-interactive --name platform --link /repos/api --opener codex
+openspec workspace setup --no-interactive --name platform --link /repos/api --opener codex-cli
 openspec workspace setup --no-interactive --name platform --link /repos/api --tools codex,claude
 openspec workspace setup --no-interactive --json --name checkout --link /repos/platform/apps/checkout
 ```
@@ -268,7 +268,7 @@ Check what one workspace can resolve on the current machine.
 openspec workspace doctor [options]
 ```
 
-Doctor shows the workspace location, planning path, linked repos or folders, missing paths, repo-local specs paths when present, and suggested fixes. It reports issues only; it does not repair them automatically.
+Doctor shows the workspace location, linked repos or folders, missing paths, repo-local specs paths when present, and suggested fixes. JSON output also includes the workspace planning path for compatibility. It reports issues only; it does not repair them automatically.
 
 Commands that need one workspace use the current workspace when run from inside a workspace folder or subdirectory. From elsewhere, pass `--workspace <name>`, select from the picker in an interactive terminal, or rely on the only known workspace when exactly one exists. In `--json` or `--no-interactive` mode, ambiguous selection fails with a structured status error and suggests `--workspace <name>`.
 
@@ -320,7 +320,7 @@ openspec workspace open [name] [options]
 | `--initiative <id>` | Open an initiative as a local workspace view. Accepts `<id>` or `<store>/<id>` |
 | `--store <id>` | Registered context store id for `--initiative` |
 | `--store-path <path>` | Existing local context store root for `--initiative` |
-| `--agent <tool>` | One-session agent override: `codex`, `claude`, or `github-copilot` |
+| `--agent <tool>` | One-session agent override: `codex-cli`, `claude`, or `github-copilot` |
 | `--editor` | Open the maintained VS Code workspace file as a normal editor workspace |
 | `--no-interactive` | Disable workspace and opener picker prompts |
 
@@ -330,7 +330,7 @@ openspec workspace open [name] [options]
 openspec workspace open
 openspec workspace open platform
 openspec workspace open platform --agent github-copilot
-openspec workspace open --agent codex
+openspec workspace open --agent codex-cli
 openspec workspace open --editor
 openspec workspace open --initiative billing-launch --store platform
 openspec workspace open --initiative platform/billing-launch
@@ -340,9 +340,9 @@ openspec workspace open --initiative platform/billing-launch
 
 When `--initiative` is used, OpenSpec prepares or selects a private local workspace view for that initiative. Registry-selected stores are stored by id; `--store-path` stores a runtime-local path selector because workspace views are private local state.
 
-OpenSpec maintains `<workspace-name>.code-workspace` at the workspace root for VS Code editor and GitHub Copilot-in-VS-Code opens. That file is machine-local and ignored by default with a specific `<workspace-name>.code-workspace` `.gitignore` entry, so user-authored `*.code-workspace` files remain eligible for tracking.
+OpenSpec maintains `<workspace-name>.code-workspace` at the workspace root for VS Code editor and GitHub Copilot-in-VS-Code opens. That file is machine-local workspace view state.
 
-The maintained VS Code workspace includes the coordination root as `.` plus valid linked repos or folders as additional roots. VS Code displays those entries as a multi-root workspace.
+The maintained VS Code workspace lists valid linked repos or folders first, then initiative context when attached, then the OpenSpec workspace files. VS Code displays those entries as a multi-root workspace.
 
 Root workspace open makes linked repos or folders visible for exploration and context. Implementation edits should start only after an explicit user request and a normal OpenSpec implementation workflow.
 
@@ -364,10 +364,12 @@ openspec context-store setup [id] [options]
 
 | Option | Description |
 |--------|-------------|
-| `--path <path>` | Context store folder path; defaults to `./<id>` |
+| `--path <path>` | Context store folder path; defaults to OpenSpec's managed local data directory |
 | `--init-git` | Initialize a Git repository in the context store |
 | `--no-init-git` | Do not initialize a Git repository |
 | `--json` | Output JSON |
+
+When `--path` is omitted, setup creates the store under `getGlobalDataDir()/context-stores/<id>`: `$XDG_DATA_HOME/openspec/context-stores/<id>` when `XDG_DATA_HOME` is set, or `~/.local/share/openspec/context-stores/<id>` on Unix-style fallbacks. Pass `--path` when you want the store in a visible clone or team-specific folder.
 
 Examples:
 

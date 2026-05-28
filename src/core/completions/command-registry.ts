@@ -309,9 +309,9 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
           },
           {
             name: 'opener',
-            description: 'Preferred opener: codex, claude, github-copilot, or editor',
+            description: 'Preferred opener: codex-cli, claude, github-copilot, or editor',
             takesValue: true,
-            values: ['codex', 'claude', 'github-copilot', 'editor'],
+            values: ['codex-cli', 'claude', 'github-copilot', 'editor'],
           },
           {
             name: 'tools',
@@ -433,9 +433,9 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
           },
           {
             name: 'agent',
-            description: 'Use an agent for this session: codex, claude, or github-copilot',
+            description: 'Use an agent for this session: codex-cli, claude, or github-copilot',
             takesValue: true,
-            values: ['codex', 'claude', 'github-copilot'],
+            values: ['codex-cli', 'claude', 'github-copilot'],
           },
           {
             name: 'editor',

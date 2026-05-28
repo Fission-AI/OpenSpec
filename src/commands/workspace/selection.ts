@@ -53,7 +53,16 @@ function findKnownWorkspaceByName(
   return entries.find((entry) => entry.name === workspaceName);
 }
 
-async function selectedWorkspaceFromRoot(
+export function selectedWorkspaceFromEntry(entry: WorkspaceRegistryEntry): SelectedWorkspace {
+  return {
+    name: entry.name,
+    root: entry.workspaceRoot,
+    status: [],
+    unregisteredCurrentWorkspace: false,
+  };
+}
+
+export async function selectedWorkspaceFromRoot(
   currentWorkspaceRoot: string,
   entries: WorkspaceRegistryEntry[]
 ): Promise<SelectedWorkspace> {
@@ -111,12 +120,7 @@ export async function selectWorkspaceForCommand(
       );
     }
 
-    return {
-      name: workspaceName,
-      root: entry.workspaceRoot,
-      status: [],
-      unregisteredCurrentWorkspace: false,
-    };
+    return selectedWorkspaceFromEntry(entry);
   }
 
   const currentWorkspaceRoot = await findWorkspaceRoot(process.cwd());
@@ -139,12 +143,7 @@ export async function selectWorkspaceForCommand(
   if (entries.length === 1) {
     const [entry] = entries;
 
-    return {
-      name: entry.name,
-      root: entry.workspaceRoot,
-      status: [],
-      unregisteredCurrentWorkspace: false,
-    };
+    return selectedWorkspaceFromEntry(entry);
   }
 
   if (options.json || resolveNoInteractive(options) || !isInteractive(options)) {
@@ -187,10 +186,5 @@ export async function selectWorkspaceForCommand(
     );
   }
 
-  return {
-    name: selectedName,
-    root: selectedEntry.workspaceRoot,
-    status: [],
-    unregisteredCurrentWorkspace: false,
-  };
+  return selectedWorkspaceFromEntry(selectedEntry);
 }

@@ -20,6 +20,7 @@ import {
   getWorkspaceContextInitiativeId,
   getWorkspaceOpenerLabel,
 } from '../../core/workspace/index.js';
+import { isInteractive, resolveNoInteractive } from '../../utils/interactive.js';
 import {
   assertWorkspaceOpenerAvailable,
   buildWorkspaceOpenCommandForState,
@@ -29,9 +30,7 @@ import {
 import {
   selectOrCreateWorkspaceForInitiativeOpen,
 } from './operations.js';
-import {
-  selectWorkspaceForCommand,
-} from './selection.js';
+import { selectWorkspaceOpenTarget } from './open-target-selection.js';
 import {
   SelectedWorkspace,
   WorkspaceCliError,
@@ -43,6 +42,7 @@ import {
   resolveWorkspaceOpenOpener,
   resolveWorkspaceOpenOpenerOverride,
 } from './opener-selection.js';
+import { promptSetupLinks } from './setup-prompts.js';
 
 export interface PreparedWorkspaceOpen extends WorkspaceOpenCommandBuildResult {
   selected: SelectedWorkspace;
@@ -282,33 +282,49 @@ export async function prepareWorkspaceOpen(
   const workspaceName = resolveOpenWorkspaceName(positionalName, options);
   const openerOverride = resolveWorkspaceOpenOpenerOverride(options);
   const requestedInitiative = await resolveWorkspaceOpenInitiative(options);
-  const requestedContext = requestedInitiative
-    ? createWorkspaceInitiativeContext(
-        contextStoreBindingFromInitiative(requestedInitiative),
-        requestedInitiative.id
-      )
-    : null;
-  const selected = requestedContext
+  const target = requestedInitiative
+    ? { kind: 'initiative' as const, initiative: requestedInitiative, status: [] }
+    : await selectWorkspaceOpenTarget(workspaceName, options);
+  const interactiveCreate = target.kind === 'initiative'
+    && !options.json
+    && !resolveNoInteractive(options)
+    && isInteractive(options);
+
+  const baseSelected = target.kind === 'initiative'
     ? (
         await selectOrCreateWorkspaceForInitiativeOpen({
           workspaceName,
-          context: requestedContext,
+          context: createWorkspaceInitiativeContext(
+            contextStoreBindingFromInitiative(target.initiative),
+            target.initiative.id
+          ),
           preferredOpener: openerOverride,
+          linksForNewWorkspace: interactiveCreate
+            ? () => promptSetupLinks({
+                heading: 'Link repos or folders for this workspace',
+                intro: 'Choose local repos or folders to include when opening this initiative, or create the view without links for now.',
+                allowEmpty: true,
+                emptyName: 'Create without linked repos',
+                emptyShort: 'Create without links',
+                emptyDescription: 'Create the local workspace view and add repos or folders later',
+                finishName: 'Create and open workspace',
+                finishShort: 'Create and open',
+                finishDescription: 'Create the local workspace view and continue opening it',
+              })
+            : undefined,
         })
       ).selected
-    : await selectWorkspaceForCommand(
-        {
-          ...options,
-          workspace: workspaceName,
-        },
-        'open',
-        { preferPositionalName: true }
-      );
+    : target.selected;
+  const selected: SelectedWorkspace = {
+    ...baseSelected,
+    status: [...baseSelected.status, ...target.status],
+  };
+
   const state = await readWorkspaceOpenState(selected);
-  const stored = !requestedInitiative && state.viewState.context
+  const stored = target.kind === 'workspace' && state.viewState.context
     ? await resolveStoredWorkspaceInitiative(state.viewState.context)
     : null;
-  const initiative = requestedInitiative ?? stored?.initiative ?? null;
+  const initiative = target.kind === 'initiative' ? target.initiative : stored?.initiative ?? null;
   const resolvedContext = initiative ? toWorkspaceOpenResolvedContext(initiative) : null;
   const opener = await resolveWorkspaceOpenOpener(state.viewState, options);
 

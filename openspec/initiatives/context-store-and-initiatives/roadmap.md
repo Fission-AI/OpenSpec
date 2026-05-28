@@ -12,6 +12,30 @@ Workspaces open local views.
 Changes implement repo-owned slices.
 ```
 
+## Current Beta Priority
+
+The manual beta pass should pull first-run friction forward. Work in this order
+before investing in deeper schema or lifecycle machinery:
+
+1. Finish the manual beta reality pass enough to keep the next slices grounded.
+2. Item 12, context-store first-run and cleanup UX: interactive no-argument setup,
+   target-path safety, and a supported unregister/remove path.
+3. Item 13, agent handoff output and delivery polish: "Next for your agent" blocks,
+   direct JSON paths, and baseline OpenSpec guidance even when workflow
+   entrypoints are commands-oriented.
+4. Item 14, workspaces beta guide split: make user docs match the interactive
+   setup path and keep exact flags in the agent playbook.
+5. Item 15, context store project roots and schema-led initiatives: sparse initiative
+   creation and store-local schemas.
+
+Escalation UX, team-sharing hardening, and initiative-hosted target-bound
+changes remain important, but they should wait until the first-run path feels
+boring in the good way.
+
+Before workspaces become public/stable, run Item 19 as a late beta cleanup pass
+so beta compatibility code is reviewed intentionally instead of treated as a
+permanent contract.
+
 ## 1. Lock The Direction
 
 Goal: make the workspace-to-initiative pivot explicit so future workspace work
@@ -417,10 +441,151 @@ Done when:
 - Generated runtime files are clearly derived and can be regenerated without
   losing the user's local view choices.
 
-## 11. Add Escalation UX
+## 11. Manual Beta Reality Pass
+
+Status: proposed immediate beta-learning item.
+
+Goal: manually run what exists and use the friction to update initiative notes
+before designing more surface area.
+
+Ship:
+
+- A fresh-user walkthrough of context-store setup, initiative creation,
+  workspace opening, repo linking, doctor output, and repo-local linked change
+  creation.
+- Notes on what felt clear, what felt odd, where prompts were missing, and where
+  docs pushed too many flags onto the user.
+- A short disposition that separates docs-only fixes from follow-on
+  implementation slices.
+
+Done when:
+
+- The initiative contains concrete notes from trying the current beta flow by
+  hand.
+- The next implementation or docs slice is grounded in observed friction rather
+  than guessed workflow shape.
+
+## 12. Context Store First-Run And Cleanup UX
+
+Goal: make context-store setup and cleanup feel like a normal local workflow,
+without adding sync, remote, or governance automation.
+
+Work item:
+`work-items/12-context-store-first-run-and-cleanup-ux/`
+
+Ship:
+
+- Interactive no-argument `context-store setup` for terminal users.
+- Deterministic non-interactive and JSON behavior when required setup choices
+  are missing.
+- Target-path safety output for managed defaults, explicit paths, existing Git
+  repos, and non-empty directories.
+- A supported local cleanup path for unregistering or removing a context store
+  without hand-editing the registry.
+- Setup output that explains local registry state and Git state, including
+  uncommitted shared-store files after `--init-git`.
+
+Done when:
+
+- A fresh user can set up or clean up a local context store without knowing
+  hidden registry paths, environment variables, or manual file edits.
+
+## 13. Agent Handoff Output And Delivery Polish
+
+Goal: make existing command output and delivery choices enough for a fresh
+agent to continue safely, before adding any broader `initiative next` command.
+
+Work item:
+`work-items/13-agent-handoff-output-and-delivery-polish/`
+
+Ship:
+
+- "Next for your agent" handoff guidance in the command outputs where first-run
+  flow otherwise depends on pasted beta knowledge.
+- JSON output with direct created artifact paths where agents need to write
+  files, while preserving existing relative fields for compatibility.
+- Clear delivery wording that separates baseline OpenSpec guidance from
+  workflow entrypoints such as skills or slash commands.
+- Warnings when a selected tool cannot receive workflow slash commands.
+
+Done when:
+
+- A coding agent can continue from setup or initiative creation output without
+  guessing command names, reconstructing writable paths, or losing baseline
+  OpenSpec guidance because the user chose commands-oriented delivery.
+
+## 14. Workspaces Beta Guide Split
+
+Status: proposed immediate beta-learning item.
+
+Goal: make the beta docs reflect the intended division of labor:
+
+```text
+Users make local choices.
+Agents run OpenSpec work commands.
+```
+
+Ship:
+
+- A user-facing guide that prefers interactive terminal setup for local choices
+  such as context-store location, opener, and local repo paths.
+- An agent-facing CLI playbook that keeps explicit commands, JSON output,
+  current-directory rules, and caveats.
+- A clear rule for which flags are normal user-facing escape hatches and which
+  are mostly agent-facing precision.
+
+Done when:
+
+- A new user can get to a working beta setup without reading a flag-heavy CLI
+  tutorial.
+- A coding agent can still find the exact commands needed to create initiatives,
+  link repo-local changes, and inspect state safely.
+
+## 15. Context Store Project Roots And Schema-Led Initiatives
+
+Goal: let context stores behave like OpenSpec roots for shared planning config
+and schemas, while keeping implementation changes repo-owned by default.
+
+Work item:
+`work-items/15-context-store-project-roots-and-schema-led-initiatives/`
+
+Product decision to confirm:
+
+- A context store can have `openspec/config.yaml` and `openspec/schemas/` like a
+  repo after `openspec init`.
+- That project-like shape is for shared context configuration and initiative
+  schemas. It must not silently make the context store an implementation repo.
+- `initiative create` should create a sparse shell and let reviewed initiative
+  artifacts grow through schema-led status/instructions.
+
+Ship:
+
+- Context-store setup that creates or supports store-local OpenSpec config.
+- A default initiative schema for high-level requirements and design artifacts.
+- Sparse initiative creation: `initiative.yaml` plus a short `brief.md`, with no
+  `TBD` placeholders and no default `tasks.md`.
+- Initiative artifact status and instructions output rooted in the initiative
+  directory.
+- Guardrails so `openspec new change` does not accidentally create executable
+  repo-local changes inside a context store just because the store has an
+  `openspec/` directory.
+- Compatibility for existing six-file MVP initiatives.
+
+Done when:
+
+- A context store can resolve store-local initiative schemas.
+- Agents can iteratively create initiative requirements and design artifacts
+  from CLI instructions.
+- Existing MVP initiatives continue to list and show.
+- Docs stop presenting initiative creation as "fill every markdown file now."
+
+## 16. Add Escalation UX
 
 Goal: let users start locally and upgrade only when coordination is actually
 needed.
+
+Work item:
+`work-items/16-add-escalation-ux/`
 
 Ship:
 
@@ -443,10 +608,13 @@ Done when:
 - Coordinated planning feels like a continuation of local planning, not a
   workflow restart.
 
-## 12. Harden Team-Shared Coordination
+## 17. Harden Team-Shared Coordination
 
 Goal: make initiatives practical for teams without turning setup into an admin
 ceremony.
+
+Work item:
+`work-items/17-harden-team-shared-coordination/`
 
 Ship:
 
@@ -469,12 +637,15 @@ Done when:
 - Several teammates can share the same initiative while each keeps their own
   local checkout layout.
 
-## 13. Explore Initiative-Hosted Target-Bound Change Artifacts
+## 18. Explore Initiative-Hosted Target-Bound Change Artifacts
 
 Goal: decide whether shared initiative artifacts can graduate into executable
 OpenSpec changes only after they are bound to a target repo or spec root,
 without blurring initiative coordination, repo ownership, and workspace
 local-view boundaries.
+
+Work item:
+`work-items/18-explore-initiative-hosted-target-bound-change-artifacts/`
 
 Discussion points to confirm before exploration:
 
@@ -512,6 +683,43 @@ Done when:
 - The initiative has a concrete recommendation, opt-in/config examples, affected
   command list, and go/no-go criteria for implementation.
 
+## 19. Review Workspace Beta Compatibility Before Public Release
+
+Goal: decide which workspace beta compatibility behavior should survive into the
+public workspace contract, and remove or migrate the rest while workspaces are
+still unpublished.
+
+Work item:
+`work-items/19-review-workspace-beta-compatibility-before-public-release/`
+
+Why this is late:
+
+- Workspaces are still beta and not public/stable yet.
+- We do not need to preserve every intermediate beta file shape forever.
+- Early cleanup risks churn while first-run UX and initiative behavior are still
+  changing.
+- The right compatibility contract is easier to define after manual beta usage
+  shows which local workspace artifacts real users have actually created.
+
+Ship:
+
+- Inventory workspace compatibility code, including legacy split state readers,
+  registry fallbacks, `codex` to `codex-cli` aliases, generated `.gitignore`
+  cleanup, and empty compatibility shims.
+- Classify each path as public contract, beta migration, test-only shim, or
+  removable dead weight.
+- Remove beta-only shims that only support unpublished intermediate workspace
+  shapes.
+- Define any migration behavior worth keeping for people who tried the beta.
+- Update docs, tests, generated guidance, and release notes so the public
+  workspace compatibility promise is explicit.
+
+Done when:
+
+- The workspace compatibility surface is intentionally small.
+- Public docs do not imply support for beta-only workspace internals.
+- Any remaining migration code has a clear owner, reason, and removal policy.
+
 ## Later, Not First
 
 These are important, but should wait until the initiative model has real usage:
@@ -536,8 +744,16 @@ These are important, but should wait until the initiative model has real usage:
 7. Add agent-first initiative discovery.
 8. Link repo-local changes to initiatives.
 9. Keep initiative resolve rejected; use workspace local-view mapping instead.
-10. Pending discussion: optionally add initiative next / agent handoff UX.
-11. Let workspaces open initiatives.
-12. Add local-to-initiative escalation UX.
-13. Harden team-shared coordination.
-14. Explore configurable change homes.
+10. Let workspaces open initiatives.
+11. Manual beta reality pass.
+12. Context store first-run and cleanup UX.
+13. Agent handoff output and delivery polish.
+14. Workspaces beta guide split.
+15. Context store project roots and schema-led initiatives.
+16. Add local-to-initiative escalation UX.
+17. Harden team-shared coordination.
+18. Explore initiative-hosted target-bound change artifacts.
+19. Review workspace beta compatibility before public release.
+
+Pending discussion: optionally add initiative next / agent handoff UX before or
+alongside the handoff polish work.
