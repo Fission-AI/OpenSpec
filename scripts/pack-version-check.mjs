@@ -20,8 +20,13 @@ function log(msg) {
   console.log(msg);
 }
 
+const isWindows = process.platform === 'win32';
+
 function run(cmd, args, opts = {}) {
-  return execFileSync(cmd, args, { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'], ...opts });
+  // On Windows, npm is a .cmd batch file and requires shell: true to be found.
+  // Do NOT use shell: true for node (process.execPath) as it breaks paths with spaces.
+  const useShell = isWindows && cmd === 'npm';
+  return execFileSync(cmd, args, { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'], shell: useShell, ...opts });
 }
 
 function npmPack() {
@@ -53,12 +58,12 @@ function main() {
   let tgzPath;
 
   try {
-    log(`Packing @thiagodiogo/openspec@${expected}...`);
+    log(`Packing @thiagodiogo/pastelsdd@${expected}...`);
     const filename = npmPack();
     tgzPath = path.resolve(filename);
     log(`Created: ${tgzPath}`);
 
-    work = mkdtempSync(path.join(tmpdir(), 'openspec-pack-check-'));
+    work = mkdtempSync(path.join(tmpdir(), 'pastelsdd-pack-check-'));
     log(`Temp dir: ${work}`);
 
     // Make a tiny project
@@ -80,7 +85,7 @@ function main() {
     run('npm', ['install', tgzPath, '--silent', '--no-audit', '--no-fund'], { cwd: work, env });
 
     // Run the installed CLI via Node to avoid bin resolution/platform issues
-    const binRel = path.join('node_modules', '@thiagodiogo', 'openspec', 'bin', 'openspec.js');
+    const binRel = path.join('node_modules', '@thiagodiogo', 'pastelsdd', 'bin', 'pastelsdd.js');
     const actual = run(process.execPath, [binRel, '--version'], { cwd: work }).trim();
 
     if (actual !== expected) {
