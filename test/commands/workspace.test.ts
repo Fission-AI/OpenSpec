@@ -1477,7 +1477,7 @@ links:
     });
   });
 
-  it('reports workspace open selection, unsupported flag, unset opener, and unavailable opener errors', async () => {
+  it('reports workspace open selection errors', async () => {
     const api = mkdir('repos/api');
     const web = mkdir('repos/web');
 
@@ -1488,7 +1488,7 @@ links:
     expect(noKnown.exitCode).toBe(1);
     expect(noKnown.stderr).toContain("No known OpenSpec workspaces. Run 'openspec workspace setup' first.");
 
-    const platform = await setupWorkspace('platform', [`api=${api}`]);
+    await setupWorkspace('platform', [`api=${api}`]);
     await setupWorkspace('checkout-web', [`web=${web}`]);
 
     const conflict = await runCLI(
@@ -1506,13 +1506,6 @@ links:
     expect(ambiguous.exitCode).toBe(1);
     expect(ambiguous.stderr).toContain('Known workspaces: checkout-web, platform');
 
-    const unsupported = await runCLI(['workspace', 'open', '--prepare-only'], {
-      cwd: tempDir,
-      env,
-    });
-    expect(unsupported.exitCode).toBe(1);
-    expect(unsupported.stderr).toContain('future context/query surface');
-
     const jsonAmbiguous = await runCLI(['workspace', 'open', '--json'], {
       cwd: tempDir,
       env,
@@ -1523,6 +1516,15 @@ links:
         code: 'workspace_selection_ambiguous',
       })
     );
+  });
+
+  it('reports unsupported workspace open options before workspace selection', async () => {
+    const unsupported = await runCLI(['workspace', 'open', '--prepare-only'], {
+      cwd: tempDir,
+      env,
+    });
+    expect(unsupported.exitCode).toBe(1);
+    expect(unsupported.stderr).toContain('future context/query surface');
 
     const changeUnsupported = await runCLI(['workspace', 'open', '--change', 'add-api'], {
       cwd: tempDir,
@@ -1530,13 +1532,6 @@ links:
     });
     expect(changeUnsupported.exitCode).toBe(1);
     expect(changeUnsupported.stderr).toContain('root workspace open only');
-
-    const unset = await runCLI(['workspace', 'open', 'platform', '--no-interactive'], {
-      cwd: tempDir,
-      env,
-    });
-    expect(unset.exitCode).toBe(1);
-    expect(unset.stderr).toContain('does not have a preferred opener');
 
     const openerConflict = await runCLI(
       ['workspace', 'open', 'platform', '--agent', 'codex', '--editor', '--no-interactive'],
@@ -1547,6 +1542,18 @@ links:
     );
     expect(openerConflict.exitCode).toBe(1);
     expect(openerConflict.stderr).toContain('either --agent <tool> or --editor');
+  });
+
+  it('reports unset and unavailable workspace opener errors', async () => {
+    const api = mkdir('repos/api');
+    const platform = await setupWorkspace('platform', [`api=${api}`]);
+
+    const unset = await runCLI(['workspace', 'open', 'platform', '--no-interactive'], {
+      cwd: tempDir,
+      env,
+    });
+    expect(unset.exitCode).toBe(1);
+    expect(unset.stderr).toContain('does not have a preferred opener');
 
     fs.writeFileSync(
       getWorkspaceViewStatePath(platform.workspace.root),
