@@ -1,6 +1,6 @@
 {
   "name": "@thiagodiogo/pastelsdd",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "AI-native system for spec-driven development",
   "keywords": [
     "pastelsdd",
@@ -72,7 +72,7 @@
   "dependencies": {
     "@inquirer/core": "^10.2.2",
     "@inquirer/prompts": "^7.8.0",
-"chalk": "^5.5.0",
+    "chalk": "^5.5.0",
     "commander": "^14.0.0",
     "cross-spawn": "7.0.6",
     "fast-glob": "^3.3.3",

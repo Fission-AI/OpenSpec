@@ -1,5 +1,11 @@
 ﻿# @thiagodiogo/pastelsdd
 
+## 1.0.3
+
+### Patch Changes
+
+- Fix update command triggering false config-sync when trello workflows are installed
+
 ## 1.3.1
 
 ### Patch Changes
@@ -135,8 +141,8 @@
 
   **Now:** Flexible actions on a change. Edit any artifact anytime. The artifact graph tracks state automatically.
 
-  | Command              | What it does                                         |
-  | -------------------- | ---------------------------------------------------- |
+  | Command                | What it does                                         |
+  | ---------------------- | ---------------------------------------------------- |
   | `/pastel:explore`      | Think through ideas before committing to a change    |
   | `/pastel:new`          | Start a new change                                   |
   | `/pastel:continue`     | Create one artifact at a time (step-through)         |
