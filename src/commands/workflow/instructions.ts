@@ -229,11 +229,22 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
 
 /**
  * Parses tasks.md content and extracts task items with their completion status.
+ *
+ * When a line begins with a `N` or `N.N(.N)*` token (e.g. `1`, `2.3`, `1.10.4`),
+ * that token is captured as `numericId` and the leading whitespace/punctuation
+ * after it is stripped from `description`. Lines without such a token still
+ * parse, and only get a positional `id`. The positional `id` is always set so
+ * existing callers keep working.
  */
 function parseTasksFile(content: string): TaskItem[] {
   const tasks: TaskItem[] = [];
   const lines = content.split('\n');
   let taskIndex = 0;
+
+  // Capture leading task numbers like `1`, `1.1`, `1.10.4`. Followed by a
+  // separator (space, dot, colon, paren, dash) to anchor against descriptions
+  // that just happen to start with a digit.
+  const numericIdRe = /^(\d+(?:\.\d+)*)(?:[.:)\]-]?\s+|\s+)(.*)$/;
 
   for (const line of lines) {
     // Match checkbox patterns: - [ ] or - [x] or - [X]
@@ -241,16 +252,33 @@ function parseTasksFile(content: string): TaskItem[] {
     if (checkboxMatch) {
       taskIndex++;
       const done = checkboxMatch[1].toLowerCase() === 'x';
-      const description = checkboxMatch[2].trim();
-      tasks.push({
+      const rawDescription = checkboxMatch[2].trim();
+      const numericMatch = rawDescription.match(numericIdRe);
+      const task: TaskItem = {
         id: `${taskIndex}`,
-        description,
+        description: numericMatch ? numericMatch[2].trim() : rawDescription,
         done,
-      });
+      };
+      if (numericMatch) {
+        task.numericId = numericMatch[1];
+      }
+      tasks.push(task);
     }
   }
 
   return tasks;
+}
+
+/**
+ * Picks the first unchecked task with a `numericId` (document order). Returns
+ * `null` if no task qualifies. Mirrors what agent skills need to drive
+ * `openspec mark-task-done` without re-parsing the list.
+ */
+function pickNextPendingId(tasks: TaskItem[]): string | null {
+  for (const t of tasks) {
+    if (!t.done && t.numericId) return t.numericId;
+  }
+  return null;
 }
 
 /**
@@ -356,6 +384,7 @@ export async function generateApplyInstructions(
     state,
     missingArtifacts: missingArtifacts.length > 0 ? missingArtifacts : undefined,
     instruction,
+    nextPendingId: pickNextPendingId(tasks),
   };
 }
 
