@@ -38,6 +38,7 @@ export interface GetRegisteredContextStoreInput extends ResolveRegisteredContext
 export interface UnregisterContextStoreInput extends ContextStorePathOptions {
   id: string;
   expectedBackend?: ContextStoreGitBackendConfig;
+  beforeCommit?: (entry: RegisteredContextStoreEntry) => Promise<void>;
 }
 
 export type ListRegisteredContextStoresOptions = ContextStorePathOptions;
@@ -161,7 +162,8 @@ function contextStoreBackendsMatch(
 ): boolean {
   return (
     actual.type === expected.type &&
-    actual.local_path === expected.local_path &&
+    normalizePathForComparison(actual.local_path) ===
+      normalizePathForComparison(expected.local_path) &&
     actual.remote === expected.remote &&
     actual.branch === expected.branch
   );
@@ -344,8 +346,13 @@ export async function unregisterContextStoreRegistration(
   let removed: ContextStoreRegistryEntry | undefined;
 
   await updateContextStoreRegistryState(
-    (registry) => {
+    async (registry) => {
       const result = withoutRegisteredStore(registry, id, input.expectedBackend);
+      const removedEntry = {
+        ...result.removed,
+        storeRoot: getStoreRootForBackend(result.removed.backend),
+      };
+      await input.beforeCommit?.(removedEntry);
       removed = result.removed;
       return result.next;
     },

@@ -189,6 +189,14 @@ async function findContainingGitRepositoryRoot(storeRoot: string): Promise<strin
     path.relative(nearestParent, resolvedStoreRoot)
   );
 
+  const gitRootContainsStore = (gitRoot: string): string | null => {
+    const normalizedGitRoot = FileSystemUtils.canonicalizeExistingPath(gitRoot);
+    const relative = path.relative(normalizedGitRoot, comparableStoreRoot);
+    return relative.length > 0 && !relative.startsWith('..') && !path.isAbsolute(relative)
+      ? normalizedGitRoot
+      : null;
+  };
+
   try {
     const { stdout } = await execFileAsync('git', [
       '-C',
@@ -196,13 +204,18 @@ async function findContainingGitRepositoryRoot(storeRoot: string): Promise<strin
       'rev-parse',
       '--show-toplevel',
     ]);
-    const gitRoot = FileSystemUtils.canonicalizeExistingPath(stdout.trim());
-    const relative = path.relative(gitRoot, comparableStoreRoot);
-    return relative.length > 0 && !relative.startsWith('..') && !path.isAbsolute(relative)
-      ? gitRoot
-      : null;
+    return gitRootContainsStore(stdout.trim());
   } catch {
-    return null;
+    let current = nearestParent;
+    while (true) {
+      if (await isGitRepositoryAtRoot(current)) {
+        return gitRootContainsStore(current);
+      }
+
+      const parent = path.dirname(current);
+      if (parent === current) return null;
+      current = parent;
+    }
   }
 }
 
@@ -614,49 +627,29 @@ export async function removeContextStore(
 ): Promise<ContextStoreCleanupResult> {
   const id = validateContextStoreId(target.id);
   const diagnostics: ContextStoreDiagnostic[] = [];
-  const safeTarget = await assertSafeToDeleteContextStoreRoot(target.root, id);
-
-  await getRegisteredContextStore({
-    id,
-    expectedBackend: target.backend,
-    globalDataDir: target.globalDataDir,
-  });
-
-  if (!safeTarget.exists) {
-    diagnostics.push(makeContextStoreDiagnostic(
-      'warning',
-      'context_store_root_missing',
-      'Context store files were already missing.',
-      {
-        target: 'context_store.root',
-      }
-    ));
-
-    const removed = await unregisterContextStoreRegistration({
-      id,
-      expectedBackend: target.backend,
-      globalDataDir: target.globalDataDir,
-    });
-
-    return {
-      store: cleanupStoreOutput(removed.id, removed.storeRoot),
-      registryCommit: {
-        path: getContextStoreRegistryPath({ globalDataDir: target.globalDataDir }),
-        removed: true,
-      },
-      files: {
-        deleted: false,
-      },
-      diagnostics,
-    };
-  }
-
-  await fs.rm(target.root, { recursive: true, force: true });
+  let deleted = false;
 
   const removed = await unregisterContextStoreRegistration({
     id,
     expectedBackend: target.backend,
     globalDataDir: target.globalDataDir,
+    beforeCommit: async (entry) => {
+      const safeTarget = await assertSafeToDeleteContextStoreRoot(entry.storeRoot, id);
+      if (!safeTarget.exists) {
+        diagnostics.push(makeContextStoreDiagnostic(
+          'warning',
+          'context_store_root_missing',
+          'Context store files were already missing.',
+          {
+            target: 'context_store.root',
+          }
+        ));
+        return;
+      }
+
+      await fs.rm(entry.storeRoot, { recursive: true, force: true });
+      deleted = true;
+    },
   });
 
   return {
@@ -666,8 +659,8 @@ export async function removeContextStore(
       removed: true,
     },
     files: {
-      deleted: true,
-      deletedPath: removed.storeRoot,
+      deleted,
+      ...(deleted ? { deletedPath: removed.storeRoot } : {}),
     },
     diagnostics,
   };

@@ -229,6 +229,25 @@ describe('context-store command', () => {
     expect(fs.existsSync(getContextStoreMetadataPath(storeRoot))).toBe(false);
   });
 
+  it('rejects setup paths inside git-like parents when git cannot resolve the repo', async () => {
+    const repoRoot = mkdir('repo');
+    fs.writeFileSync(path.join(repoRoot, '.git'), `gitdir: ${path.join(tempDir, 'missing-gitdir')}\n`);
+    const storeRoot = path.join(repoRoot, 'team-context');
+
+    const result = await runCLI(
+      ['context-store', 'setup', 'team-context', '--path', storeRoot, '--no-init-git', '--json'],
+      { cwd: tempDir, env }
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(parseJson(result).status[0]).toEqual(
+      expect.objectContaining({
+        code: 'context_store_setup_inside_git_repo',
+      })
+    );
+    expect(fs.existsSync(getContextStoreMetadataPath(storeRoot))).toBe(false);
+  });
+
   it('requires confirmation before interactive setup uses a path inside an existing Git repo', async () => {
     process.env = {
       ...process.env,
@@ -414,6 +433,7 @@ describe('context-store command', () => {
 
   it('unregisters a context store without deleting local files', async () => {
     const storeRoot = mkdir('team-context');
+    const canonicalStoreRoot = expectedExistingPath(storeRoot);
     await writeContextStoreMetadataState(storeRoot, { version: 1, id: 'team-context' });
     await writeContextStoreRegistryState(
       {
@@ -422,7 +442,7 @@ describe('context-store command', () => {
           'team-context': {
             backend: {
               type: 'git',
-              local_path: storeRoot,
+              local_path: canonicalStoreRoot,
             },
           },
         },
@@ -439,14 +459,14 @@ describe('context-store command', () => {
     expect(parseJson(result)).toEqual(expect.objectContaining({
       context_store: expect.objectContaining({
         id: 'team-context',
-        root: storeRoot,
+        root: canonicalStoreRoot,
       }),
       registry: expect.objectContaining({
         removed: true,
       }),
       files: expect.objectContaining({
         deleted: false,
-        left_on_disk: storeRoot,
+        left_on_disk: canonicalStoreRoot,
       }),
     }));
     await expect(readContextStoreRegistryState({ globalDataDir })).resolves.toEqual({
@@ -490,6 +510,7 @@ describe('context-store command', () => {
 
   it('removes a context store after explicit non-interactive confirmation', async () => {
     const storeRoot = mkdir('team-context');
+    const canonicalStoreRoot = expectedExistingPath(storeRoot);
     await writeContextStoreMetadataState(storeRoot, { version: 1, id: 'team-context' });
     await writeContextStoreRegistryState(
       {
@@ -498,7 +519,7 @@ describe('context-store command', () => {
           'team-context': {
             backend: {
               type: 'git',
-              local_path: storeRoot,
+              local_path: canonicalStoreRoot,
             },
           },
         },
@@ -515,14 +536,14 @@ describe('context-store command', () => {
     expect(parseJson(result)).toEqual(expect.objectContaining({
       context_store: expect.objectContaining({
         id: 'team-context',
-        root: storeRoot,
+        root: canonicalStoreRoot,
       }),
       registry: expect.objectContaining({
         removed: true,
       }),
       files: expect.objectContaining({
         deleted: true,
-        deleted_path: storeRoot,
+        deleted_path: canonicalStoreRoot,
       }),
     }));
     await expect(readContextStoreRegistryState({ globalDataDir })).resolves.toEqual({
@@ -534,6 +555,7 @@ describe('context-store command', () => {
 
   it('refuses to remove files when the folder lacks matching context-store metadata', async () => {
     const storeRoot = mkdir('team-context');
+    const canonicalStoreRoot = expectedExistingPath(storeRoot);
     await writeContextStoreRegistryState(
       {
         version: 1,
@@ -541,7 +563,7 @@ describe('context-store command', () => {
           'team-context': {
             backend: {
               type: 'git',
-              local_path: storeRoot,
+              local_path: canonicalStoreRoot,
             },
           },
         },
@@ -567,7 +589,7 @@ describe('context-store command', () => {
         'team-context': {
           backend: {
             type: 'git',
-            local_path: storeRoot,
+            local_path: canonicalStoreRoot,
           },
         },
       },

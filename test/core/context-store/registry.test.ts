@@ -19,6 +19,7 @@ import {
   resolveRegisteredContextStore,
   listRegisteredContextStores,
   setupPreparedContextStore,
+  unregisterContextStoreRegistration,
   writeContextStoreMetadataState,
   writeContextStoreRegistryState,
 } from '../../../src/core/index.js';
@@ -495,6 +496,60 @@ describe('context store registry facade', () => {
     expect(fs.existsSync(secondRoot)).toBe(true);
     const registry = await readContextStoreRegistryState({ globalDataDir: tempDir });
     expectSameExistingPath(registry?.stores['team-context'].backend.local_path ?? '', secondRoot);
+  });
+
+  it('matches prepared cleanup backends by canonical local path', async () => {
+    const storeRoot = mkdir('team-context');
+    const spelledStoreRoot = `${tempDir}${path.sep}.${path.sep}team-context`;
+    await writeContextStoreMetadataState(storeRoot, { version: 1, id: 'team-context' });
+    await writeContextStoreRegistryState(
+      {
+        version: 1,
+        stores: {
+          'team-context': {
+            backend: {
+              type: 'git',
+              local_path: spelledStoreRoot,
+            },
+          },
+        },
+      },
+      { globalDataDir: tempDir }
+    );
+    const prepared = await prepareContextStoreCleanup({
+      id: 'team-context',
+      globalDataDir: tempDir,
+    });
+
+    await writeContextStoreRegistryState(
+      {
+        version: 1,
+        stores: {
+          'team-context': {
+            backend: {
+              type: 'git',
+              local_path: storeRoot,
+            },
+          },
+        },
+      },
+      { globalDataDir: tempDir }
+    );
+
+    await expect(
+      unregisterContextStoreRegistration({
+        id: 'team-context',
+        expectedBackend: prepared.backend,
+        globalDataDir: tempDir,
+      })
+    ).resolves.toEqual(expect.objectContaining({
+      id: 'team-context',
+      storeRoot,
+    }));
+    await expect(readContextStoreRegistryState({ globalDataDir: tempDir })).resolves.toEqual({
+      version: 1,
+      stores: {},
+    });
   });
 
   it('keeps the registry entry when prepared remove fails to delete files', async () => {

@@ -54,6 +54,10 @@ These commands support `--json` output for programmatic use by AI agents and scr
 | `openspec workspace relink` | Repair a linked path | `--json` for structured link output |
 | `openspec workspace doctor` | Check one workspace | `--json` for structured status output |
 | `openspec workspace update` | Refresh workspace-local guidance and agent skills | `--tools` selects agents; profile selects workflows |
+| `openspec context-store setup <id>` | Create a local context store | `--json` with explicit inputs for structured setup output |
+| `openspec context-store register <path>` | Register an existing context store | `--json` for structured registration output |
+| `openspec context-store unregister <id>` | Forget a local context-store registration | `--json` for structured cleanup output |
+| `openspec context-store remove <id>` | Delete a registered local context-store folder | `--yes --json` for non-interactive deletion |
 | `openspec context-store list` | Browse registered context stores | `--json` for structured registrations |
 | `openspec context-store doctor` | Check local store setup | `--json` for structured diagnostics |
 | `openspec initiative list` | Browse shared initiatives | `--json` for structured initiative records |

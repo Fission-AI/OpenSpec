@@ -401,7 +401,9 @@ async function acquireContextStoreRegistryLock(
 }
 
 export async function updateContextStoreRegistryState(
-  updater: (state: ContextStoreRegistryState | null) => ContextStoreRegistryState,
+  updater: (
+    state: ContextStoreRegistryState | null
+  ) => ContextStoreRegistryState | Promise<ContextStoreRegistryState>,
   options: ContextStorePathOptions = {}
 ): Promise<ContextStoreRegistryState> {
   const registryPath = getContextStoreRegistryPath(options);
@@ -409,7 +411,7 @@ export async function updateContextStoreRegistryState(
   const lock = await acquireContextStoreRegistryLock(options);
 
   try {
-    const next = updater(await readContextStoreRegistryState(options));
+    const next = await updater(await readContextStoreRegistryState(options));
     await writeContextStoreRegistryState(next, options);
     return next;
   } finally {
