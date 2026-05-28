@@ -1,5 +1,27 @@
 # @fission-ai/openspec
 
+## 1.4.0
+
+### Minor Changes
+
+- [#1003](https://github.com/Fission-AI/OpenSpec/pull/1003) [`342ed43`](https://github.com/Fission-AI/OpenSpec/commit/342ed43e694abba65a3ea275f94ba3b77df85da3) Thanks [@Miss-you](https://github.com/Miss-you)! - ### New Features
+
+  - **Kimi CLI support** — OpenSpec can now initialize Kimi CLI as a supported skills-only tool using `.kimi/skills/`
+
+  ### Other
+
+  - Added Kimi-specific docs and init coverage aligned with skill-based `/skill:openspec-*` usage
+
+- [#1030](https://github.com/Fission-AI/OpenSpec/pull/1030) [`485c97e`](https://github.com/Fission-AI/OpenSpec/commit/485c97e97d766e35dd16c02370baee2044abc4f4) Thanks [@TabishB](https://github.com/TabishB)! - ### New Features
+
+  - Include the sync workflow in the default core profile so new installs generate `/opsx:sync` skills and commands by default.
+
+### Patch Changes
+
+- [#1111](https://github.com/Fission-AI/OpenSpec/pull/1111) [`7fdb177`](https://github.com/Fission-AI/OpenSpec/commit/7fdb1771585b1688597d73dde5a8bc906084d0de) Thanks [@TabishB](https://github.com/TabishB)! - ### Fixed
+
+  - Preserve workspace planning detection when Windows short paths or symlink aliases resolve to a canonical workspace root.
+
 ## 1.3.1
 
 ### Patch Changes
