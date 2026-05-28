@@ -280,6 +280,7 @@ export async function prepareWorkspaceOpen(
   assertWorkspaceOpenSupportedOptions(options);
 
   const workspaceName = resolveOpenWorkspaceName(positionalName, options);
+  const openerOverride = resolveWorkspaceOpenOpenerOverride(options);
   const requestedInitiative = await resolveWorkspaceOpenInitiative(options);
   const requestedContext = requestedInitiative
     ? createWorkspaceInitiativeContext(
@@ -292,7 +293,7 @@ export async function prepareWorkspaceOpen(
         await selectOrCreateWorkspaceForInitiativeOpen({
           workspaceName,
           context: requestedContext,
-          preferredOpener: resolveWorkspaceOpenOpenerOverride(options),
+          preferredOpener: openerOverride,
         })
       ).selected
     : await selectWorkspaceForCommand(
