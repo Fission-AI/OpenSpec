@@ -42,6 +42,12 @@ The `AI_TOOLS` array SHALL include `skillsDir` for tools that support the Agent 
 - **WHEN** looking up the `kimi` tool
 - **THEN** `skillsDir` SHALL be `.kimi`
 
+#### Scenario: Mistral Vibe paths defined
+
+- **WHEN** looking up the `vibe` tool
+- **THEN** `skillsDir` SHALL be `.vibe`
+- **AND** `detectionPaths` SHALL include `['.vibe/skills']`
+
 #### Scenario: Tools without skillsDir
 
 - **WHEN** a tool has no `skillsDir` defined
