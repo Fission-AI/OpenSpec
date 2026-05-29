@@ -45,6 +45,8 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
    - Progress (total, complete, remaining)
    - Task list with status
    - Dynamic instruction based on current state
+   - \`context\`: project background (if present in config) — apply as background knowledge, do NOT copy to any output file
+   - \`rules\`: workflow constraints (if present in config) — apply as behavioral guidance, do NOT copy to any output file
 
    **Handle states:**
    - If \`state: "blocked"\` (missing artifacts): show message, suggest using openspec-continue-change
@@ -205,6 +207,8 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
    - Progress (total, complete, remaining)
    - Task list with status
    - Dynamic instruction based on current state
+   - \`context\`: project background (if present in config) — apply as background knowledge, do NOT copy to any output file
+   - \`rules\`: workflow constraints (if present in config) — apply as behavioral guidance, do NOT copy to any output file
 
    **Handle states:**
    - If \`state: "blocked"\` (missing artifacts): show message, suggest using \`/opsx:continue\`

@@ -25,8 +25,10 @@ export function serializeConfig(config: Partial<ProjectConfig>): string {
   lines.push('');
 
   // Rules section with comments
-  lines.push('# Per-artifact rules (optional)');
-  lines.push('# Add custom rules for specific artifacts.');
+  lines.push('# Per-artifact and workflow rules (optional)');
+  lines.push('# Add custom rules for specific artifacts or workflow phases.');
+  lines.push('# Artifact keys (e.g. proposal, specs, design, tasks) apply during artifact creation.');
+  lines.push('# Workflow keys (apply, archive) apply during those workflow phases.');
   lines.push('# Example:');
   lines.push('#   rules:');
   lines.push('#     proposal:');
@@ -34,6 +36,10 @@ export function serializeConfig(config: Partial<ProjectConfig>): string {
   lines.push('#       - Always include a "Non-goals" section');
   lines.push('#     tasks:');
   lines.push('#       - Break tasks into chunks of max 2 hours');
+  lines.push('#     apply:');
+  lines.push('#       - Run tests before marking tasks done');
+  lines.push('#     archive:');
+  lines.push('#       - Verify specs are synced before archiving');
 
   return lines.join('\n') + '\n';
 }

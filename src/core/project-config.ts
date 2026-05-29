@@ -2,6 +2,7 @@ import { existsSync, readFileSync, statSync } from 'fs';
 import path from 'path';
 import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
+import type { WorkflowId } from './profiles.js';
 
 /**
  * Zod schema for project configuration.
@@ -41,6 +42,15 @@ export const ProjectConfigSchema = z.object({
 });
 
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
+
+/**
+ * Workflow rule targets that are valid in the `rules` config key but are not artifact IDs.
+ * validateConfigRules() accepts these keys directly alongside artifact IDs.
+ */
+const WORKFLOW_RULE_TARGETS = new Set<string>([
+  'apply',
+  'archive',
+] as const satisfies readonly WorkflowId[]);
 
 const MAX_CONTEXT_SIZE = 50 * 1024; // 50KB hard limit
 
@@ -161,14 +171,14 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
 }
 
 /**
- * Validate artifact IDs in rules against a schema's artifacts.
+ * Validate keys in rules against a schema's artifacts and known workflow targets.
  * Called during instruction loading (when schema is known).
- * Returns warnings for unknown artifact IDs.
+ * Returns warnings for unknown keys — keys absent from both artifact IDs and WORKFLOW_RULE_TARGETS.
  *
  * @param rules - The rules object from config
  * @param validArtifactIds - Set of valid artifact IDs from the schema
  * @param schemaName - Name of the schema for error messages
- * @returns Array of warning messages for unknown artifact IDs
+ * @returns Array of warning messages for unknown keys
  */
 export function validateConfigRules(
   rules: Record<string, string[]>,
@@ -177,17 +187,44 @@ export function validateConfigRules(
 ): string[] {
   const warnings: string[] = [];
 
-  for (const artifactId of Object.keys(rules)) {
-    if (!validArtifactIds.has(artifactId)) {
-      const validIds = Array.from(validArtifactIds).sort().join(', ');
+  for (const key of Object.keys(rules)) {
+    if (!validArtifactIds.has(key) && !WORKFLOW_RULE_TARGETS.has(key)) {
+      const workflowKeys = Array.from(WORKFLOW_RULE_TARGETS).sort().join(', ');
+      const artifactIds = Array.from(validArtifactIds).sort().join(', ');
       warnings.push(
-        `Unknown artifact ID in rules: "${artifactId}". ` +
-          `Valid IDs for schema "${schemaName}": ${validIds}`
+        `Unknown key in rules: "${key}". ` +
+          `Valid keys for schema "${schemaName}": ${workflowKeys} (workflow), ${artifactIds} (artifact)`
       );
     }
   }
 
   return warnings;
+}
+
+// Session-level cache for validation warnings (shared across all instruction paths)
+const shownWarnings = new Set<string>();
+
+/**
+ * Validate rule keys and emit warnings for unknown keys via console.warn.
+ * Deduplicates warnings within a session — each unique warning is shown only once
+ * regardless of which instruction path (artifact, apply, archive) triggers it.
+ *
+ * @param rules - The rules object from config
+ * @param validArtifactIds - Set of valid artifact IDs from the schema
+ * @param schemaName - Name of the schema for error messages
+ */
+export function emitConfigRuleWarnings(
+  rules: Record<string, string[]>,
+  validArtifactIds: Set<string>,
+  schemaName: string
+): void {
+  const warnings = validateConfigRules(rules, validArtifactIds, schemaName);
+  for (const warning of warnings) {
+    if (!shownWarnings.has(warning)) {
+      console.warn(warning);
+      shownWarnings.add(warning);
+    }
+  }
 }
 
 /**

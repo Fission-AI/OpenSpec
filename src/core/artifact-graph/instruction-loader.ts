@@ -7,21 +7,18 @@ import { resolveArtifactOutputs } from './outputs.js';
 import { readChangeMetadata, resolveSchemaForChange } from '../../utils/change-metadata.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import {
-  buildActionContext,
-  buildNextSteps,
-  summarizeAffectedAreas,
-  summarizePlanningHome,
-  type ActionContext,
-  type AffectedAreasSummary,
-  type PlanningHomeSummary,
+    buildActionContext,
+    buildNextSteps,
+    summarizeAffectedAreas,
+    summarizePlanningHome,
+    type ActionContext,
+    type AffectedAreasSummary,
+    type PlanningHomeSummary,
 } from '../change-status-policy.js';
-import { readProjectConfig, validateConfigRules } from '../project-config.js';
+import { readProjectConfig, validateConfigRules, emitConfigRuleWarnings } from '../project-config.js';
 import type { PlanningHome } from '../planning-home.js';
 import type { ChangeMetadata, InitiativeLink } from '../change-metadata/index.js';
 import type { Artifact, CompletedSet } from './types.js';
-
-// Session-level cache for validation warnings (avoid repeating same warnings)
-const shownWarnings = new Set<string>();
 
 /**
  * Error thrown when loading a template fails.
@@ -297,22 +294,10 @@ export function generateInstructions(
     }
   }
 
-  // Validate rules artifact IDs if config has rules (only once per session)
+  // Validate rule keys if config has rules (only once per session, shared cache in project-config.ts)
   if (projectConfig?.rules) {
     const validArtifactIds = new Set(context.graph.getAllArtifacts().map((a) => a.id));
-    const warnings = validateConfigRules(
-      projectConfig.rules,
-      validArtifactIds,
-      context.schemaName
-    );
-
-    // Show each unique warning only once per session
-    for (const warning of warnings) {
-      if (!shownWarnings.has(warning)) {
-        console.warn(warning);
-        shownWarnings.add(warning);
-      }
-    }
+    emitConfigRuleWarnings(projectConfig.rules, validArtifactIds, context.schemaName);
   }
 
   // Extract context and rules as separate fields (not prepended to template)

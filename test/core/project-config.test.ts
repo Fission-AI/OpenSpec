@@ -507,9 +507,9 @@ rules:
       const warnings = validateConfigRules(rules, validIds, 'spec-driven');
 
       expect(warnings).toHaveLength(2);
-      expect(warnings[0]).toContain('Unknown artifact ID in rules: "testplan"');
-      expect(warnings[0]).toContain('Valid IDs for schema "spec-driven": design, proposal, specs, tasks');
-      expect(warnings[1]).toContain('Unknown artifact ID in rules: "documentation"');
+      expect(warnings[0]).toContain('Unknown key in rules: "testplan"');
+      expect(warnings[0]).toContain('Valid keys for schema "spec-driven": apply, archive (workflow), design, proposal, specs, tasks (artifact)');
+      expect(warnings[1]).toContain('Unknown key in rules: "documentation"');
     });
 
     it('should return warnings for all unknown artifact IDs', () => {

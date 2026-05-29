@@ -51,7 +51,18 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - List which capability specs exist
       - For each, extract requirement names (lines matching \`### Requirement: <name>\`)
 
-4. **Detect spec conflicts**
+4. **Fetch archive instructions (once, before processing any changes)**
+
+   Run:
+   \`\`\`bash
+   openspec instructions archive --change "<first-change>" --json
+   \`\`\`
+
+   Use any change from the batch — archive instructions depend only on project-level config, so all changes produce identical output. Parse the JSON once. If a \`context\` field is present, apply it as project background knowledge for the entire batch. If a \`rules\` field is present, apply those rules as behavioral constraints across all changes. Do NOT copy \`context\` or \`rules\` content into any output.
+
+   This call is made **once** at the start, not once per change. The same context and rules apply to every change in the batch. If neither field is present, proceed normally.
+
+5. **Detect spec conflicts**
 
    Build a map of \`capability -> [changes that touch it]\`:
 
@@ -62,7 +73,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    A conflict exists when 2+ selected changes have delta specs for the same capability.
 
-5. **Resolve conflicts agentically**
+6. **Resolve conflicts agentically**
 
    **For each conflict**, investigate the codebase:
 
@@ -82,7 +93,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - In what order (if both)
       - Rationale (what was found in codebase)
 
-6. **Show consolidated status table**
+7. **Show consolidated status table**
 
    Display a table summarizing all changes:
 
@@ -107,7 +118,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
    - add-verify-skill: 1 incomplete artifact, 3 incomplete tasks
    \`\`\`
 
-7. **Confirm batch operation**
+8. **Confirm batch operation**
 
    Use **AskUserQuestion tool** with a single confirmation:
 
@@ -119,7 +130,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    If there are incomplete changes, make clear they'll be archived with warnings.
 
-8. **Execute archive for each confirmed change**
+9. **Execute archive for each confirmed change**
 
    Process changes in the determined order (respecting conflict resolution):
 
@@ -139,7 +150,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - Failed: error during archive (record error)
       - Skipped: user chose not to archive (if applicable)
 
-9. **Display summary**
+10. **Display summary**
 
    Show final results:
 
@@ -300,7 +311,18 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - List which capability specs exist
       - For each, extract requirement names (lines matching \`### Requirement: <name>\`)
 
-4. **Detect spec conflicts**
+4. **Fetch archive instructions (once, before processing any changes)**
+
+   Run:
+   \`\`\`bash
+   openspec instructions archive --change "<first-change>" --json
+   \`\`\`
+
+   Use any change from the batch — archive instructions depend only on project-level config, so all changes produce identical output. Parse the JSON once. If a \`context\` field is present, apply it as project background knowledge for the entire batch. If a \`rules\` field is present, apply those rules as behavioral constraints across all changes. Do NOT copy \`context\` or \`rules\` content into any output.
+
+   This call is made **once** at the start, not once per change. The same context and rules apply to every change in the batch. If neither field is present, proceed normally.
+
+5. **Detect spec conflicts**
 
    Build a map of \`capability -> [changes that touch it]\`:
 
@@ -311,7 +333,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    A conflict exists when 2+ selected changes have delta specs for the same capability.
 
-5. **Resolve conflicts agentically**
+6. **Resolve conflicts agentically**
 
    **For each conflict**, investigate the codebase:
 
@@ -331,7 +353,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - In what order (if both)
       - Rationale (what was found in codebase)
 
-6. **Show consolidated status table**
+7. **Show consolidated status table**
 
    Display a table summarizing all changes:
 
@@ -356,7 +378,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
    - add-verify-skill: 1 incomplete artifact, 3 incomplete tasks
    \`\`\`
 
-7. **Confirm batch operation**
+8. **Confirm batch operation**
 
    Use **AskUserQuestion tool** with a single confirmation:
 
@@ -368,7 +390,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    If there are incomplete changes, make clear they'll be archived with warnings.
 
-8. **Execute archive for each confirmed change**
+9. **Execute archive for each confirmed change**
 
    Process changes in the determined order (respecting conflict resolution):
 
@@ -388,7 +410,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - Failed: error during archive (record error)
       - Skipped: user chose not to archive (if applicable)
 
-9. **Display summary**
+10. **Display summary**
 
    Show final results:
 

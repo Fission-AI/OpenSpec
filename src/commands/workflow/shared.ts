@@ -37,6 +37,10 @@ export interface ApplyInstructions {
   state: 'blocked' | 'all_done' | 'ready';
   missingArtifacts?: string[];
   instruction: string;
+  /** Project context from config (AI constraint, not to be included in output) */
+  context?: string;
+  /** Workflow rules from rules.apply in config (AI constraints, not to be included in output) */
+  rules?: string[];
 }
 
 // -----------------------------------------------------------------------------
