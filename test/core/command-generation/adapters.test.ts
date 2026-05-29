@@ -18,6 +18,7 @@ import { geminiAdapter } from '../../../src/core/command-generation/adapters/gem
 import { githubCopilotAdapter } from '../../../src/core/command-generation/adapters/github-copilot.js';
 import { iflowAdapter } from '../../../src/core/command-generation/adapters/iflow.js';
 import { kilocodeAdapter } from '../../../src/core/command-generation/adapters/kilocode.js';
+import { ohMyPiAdapter } from '../../../src/core/command-generation/adapters/oh-my-pi.js';
 import { opencodeAdapter } from '../../../src/core/command-generation/adapters/opencode.js';
 import { piAdapter } from '../../../src/core/command-generation/adapters/pi.js';
 import { qoderAdapter } from '../../../src/core/command-generation/adapters/qoder.js';
@@ -653,6 +654,56 @@ describe('command-generation/adapters', () => {
       expect(output).toContain('description: "Line 1\\nLine 2"');
     });
   });
+  describe('ohMyPiAdapter', () => {
+    it('should have correct toolId', () => {
+      expect(ohMyPiAdapter.toolId).toBe('oh-my-pi');
+    });
+
+    it('should generate correct file path', () => {
+      const filePath = ohMyPiAdapter.getFilePath('explore');
+      expect(filePath).toBe(path.join('.omp', 'commands', 'opsx-explore.md'));
+    });
+
+    it('should generate correct file paths for different commands', () => {
+      expect(ohMyPiAdapter.getFilePath('new')).toBe(path.join('.omp', 'commands', 'opsx-new.md'));
+      expect(ohMyPiAdapter.getFilePath('bulk-archive')).toBe(path.join('.omp', 'commands', 'opsx-bulk-archive.md'));
+    });
+
+    it('should format file with description frontmatter', () => {
+      const output = ohMyPiAdapter.formatFile(sampleContent);
+      expect(output).toContain('---\n');
+      expect(output).toContain('description: Enter explore mode for thinking');
+      expect(output).toContain('---\n\n');
+      expect(output).toContain('This is the command body.');
+    });
+
+    it('should transform command references from colon to hyphen format', () => {
+      const contentWithRefs: CommandContent = {
+        ...sampleContent,
+        body: 'Run /opsx:apply to implement. Then /opsx:archive when done.',
+      };
+
+      const output = ohMyPiAdapter.formatFile(contentWithRefs);
+      expect(output).toContain('/opsx-apply');
+      expect(output).toContain('/opsx-archive');
+      expect(output).not.toContain('/opsx:apply');
+    });
+
+    it('should handle multiple command references in body', () => {
+      const contentWithMultipleCommands: CommandContent = {
+        ...sampleContent,
+        body: `/opsx:explore for ideas
+/opsx:new to create
+/opsx:continue to proceed
+/opsx:apply to implement`,
+      };
+      const output = ohMyPiAdapter.formatFile(contentWithMultipleCommands);
+      expect(output).toContain('/opsx-explore');
+      expect(output).toContain('/opsx-new');
+      expect(output).toContain('/opsx-continue');
+      expect(output).toContain('/opsx-apply');
+    });
+  });
 
   describe('roocodeAdapter', () => {
     it('should have correct toolId', () => {
@@ -697,7 +748,7 @@ describe('command-generation/adapters', () => {
         amazonQAdapter, antigravityAdapter, auggieAdapter, bobAdapter, clineAdapter,
         codexAdapter, codebuddyAdapter, continueAdapter, costrictAdapter,
         crushAdapter, factoryAdapter, geminiAdapter, githubCopilotAdapter,
-        iflowAdapter, kilocodeAdapter, opencodeAdapter, piAdapter, qoderAdapter,
+        iflowAdapter, kilocodeAdapter, ohMyPiAdapter, opencodeAdapter, piAdapter, qoderAdapter,
         qwenAdapter, roocodeAdapter
       ];
       for (const adapter of adapters) {

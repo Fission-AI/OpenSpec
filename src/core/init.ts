@@ -315,7 +315,7 @@ export class InitCommand {
         if (!a.configured && b.configured) return 1;
         if (a.detected && !b.detected) return -1;
         if (!a.detected && b.detected) return 1;
-        return 0;
+        return a.name.localeCompare(b.name);
       });
 
     const configuredNames = validTools
@@ -538,7 +538,7 @@ export class InitCommand {
 
             // Generate SKILL.md content with YAML frontmatter including generatedBy
             // Use hyphen-based command references for tools where filename = command name
-            const transformer = (tool.value === 'opencode' || tool.value === 'pi') ? transformToHyphenCommands : undefined;
+            const transformer = (tool.value === 'opencode' || tool.value === 'pi' || tool.value === 'oh-my-pi') ? transformToHyphenCommands : undefined;
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
 
             // Write the skill file
