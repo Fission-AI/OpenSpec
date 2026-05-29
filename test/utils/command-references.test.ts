@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { transformToHyphenCommands } from '../../src/utils/command-references.js';
+import { transformToHyphenCommands, transformToSkillReferences } from '../../src/utils/command-references.js';
+import { WORKFLOW_TO_SKILL_DIR } from '../../src/core/profile-sync-drift.js';
 
 describe('transformToHyphenCommands', () => {
   describe('basic transformations', () => {
@@ -79,5 +80,79 @@ Finally /opsx-apply to implement`;
         expect(transformToHyphenCommands(`/opsx:${cmd}`)).toBe(`/opsx-${cmd}`);
       });
     }
+  });
+});
+
+describe('transformToSkillReferences', () => {
+  describe('all 11 workflow mappings', () => {
+    const mappings: [string, string][] = [
+      ['explore', 'openspec-explore'],
+      ['new', 'openspec-new-change'],
+      ['continue', 'openspec-continue-change'],
+      ['apply', 'openspec-apply-change'],
+      ['ff', 'openspec-ff-change'],
+      ['sync', 'openspec-sync-specs'],
+      ['archive', 'openspec-archive-change'],
+      ['bulk-archive', 'openspec-bulk-archive-change'],
+      ['verify', 'openspec-verify-change'],
+      ['onboard', 'openspec-onboard'],
+      ['propose', 'openspec-propose'],
+    ];
+
+    for (const [workflow, skillName] of mappings) {
+      it(`should transform /opsx:${workflow} to /${skillName}`, () => {
+        expect(transformToSkillReferences(`/opsx:${workflow}`)).toBe(`/${skillName}`);
+      });
+    }
+  });
+
+  describe('unknown patterns pass through', () => {
+    it('should not transform unknown /opsx: references', () => {
+      expect(transformToSkillReferences('/opsx:unknown')).toBe('/opsx:unknown');
+    });
+
+    it('should not transform non-matching patterns', () => {
+      const input = '/ops:new opsx: /other:command';
+      expect(transformToSkillReferences(input)).toBe(input);
+    });
+  });
+
+  describe('multiple references', () => {
+    it('should transform multiple references in one text', () => {
+      const input = 'Run `/opsx:apply` then `/opsx:archive`';
+      const expected = 'Run `/openspec-apply-change` then `/openspec-archive-change`';
+      expect(transformToSkillReferences(input)).toBe(expected);
+    });
+
+    it('should handle multiline content', () => {
+      const input = `Use /opsx:explore to investigate
+Then /opsx:propose to create a change
+Finally /opsx:apply to implement`;
+      const expected = `Use /openspec-explore to investigate
+Then /openspec-propose to create a change
+Finally /openspec-apply-change to implement`;
+      expect(transformToSkillReferences(input)).toBe(expected);
+    });
+  });
+
+  describe('edge cases', () => {
+    it('should return empty string unchanged', () => {
+      expect(transformToSkillReferences('')).toBe('');
+    });
+
+    it('should return text without commands unchanged', () => {
+      const input = 'This is plain text without commands';
+      expect(transformToSkillReferences(input)).toBe(input);
+    });
+  });
+
+  describe('mapping sync with WORKFLOW_TO_SKILL_DIR', () => {
+    it('should cover every workflow in WORKFLOW_TO_SKILL_DIR', () => {
+      for (const [workflow, skillDir] of Object.entries(WORKFLOW_TO_SKILL_DIR)) {
+        const input = `/opsx:${workflow}`;
+        const expected = `/${skillDir}`;
+        expect(transformToSkillReferences(input), `missing mapping for workflow "${workflow}"`).toBe(expected);
+      }
+    });
   });
 });
