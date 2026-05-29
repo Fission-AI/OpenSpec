@@ -30,3 +30,4 @@ export { lingmaAdapter } from './lingma.js';
 export { qwenAdapter } from './qwen.js';
 export { roocodeAdapter } from './roocode.js';
 export { windsurfAdapter } from './windsurf.js';
+export { gsdAdapter } from './gsd.js';
