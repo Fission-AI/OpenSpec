@@ -70,7 +70,7 @@ describe('ArchiveCommand', () => {
       const archives = await fs.readdir(archiveDir);
       
       expect(archives.length).toBe(1);
-      expect(archives[0]).toMatch(new RegExp(`\\d{4}-\\d{2}-\\d{2}-${changeName}`));
+      expect(archives[0]).toMatch(new RegExp(`\\d{3}-${changeName}`));
       
       // Verify original change directory no longer exists
       await expect(fs.access(changeDir)).rejects.toThrow();
@@ -265,15 +265,15 @@ New feature description.
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
       await fs.mkdir(changeDir, { recursive: true });
       
-      // Create existing archive with same date
-      const date = new Date().toISOString().split('T')[0];
-      const archivePath = path.join(tempDir, 'openspec', 'changes', 'archive', `${date}-${changeName}`);
+      // Create existing archive with sequence number prefix
+      const archivePath = path.join(tempDir, 'openspec', 'changes', 'archive', `001-${changeName}`);
       await fs.mkdir(archivePath, { recursive: true });
       
-      // Try to archive
-      await expect(
-        archiveCommand.execute(changeName, { yes: true })
-      ).rejects.toThrow(`Archive '${date}-${changeName}' already exists.`);
+      // Try to archive — next sequence is 002 so no collision
+      await archiveCommand.execute(changeName, { yes: true });
+      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const archives = await fs.readdir(archiveDir);
+      expect(archives).toContain(`002-${changeName}`);
     });
 
     it('should handle changes without tasks.md', async () => {
@@ -293,6 +293,23 @@ New feature description.
       const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
       const archives = await fs.readdir(archiveDir);
       expect(archives.length).toBe(1);
+    });
+
+    it('should use monotonically increasing sequence numbers for archive names', async () => {
+      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+
+      // Archive first change
+      const change1 = 'first-feature';
+      await fs.mkdir(path.join(tempDir, 'openspec', 'changes', change1), { recursive: true });
+      await archiveCommand.execute(change1, { yes: true });
+
+      // Archive second change
+      const change2 = 'second-feature';
+      await fs.mkdir(path.join(tempDir, 'openspec', 'changes', change2), { recursive: true });
+      await archiveCommand.execute(change2, { yes: true });
+
+      const archives = (await fs.readdir(archiveDir)).sort();
+      expect(archives).toEqual([`001-${change1}`, `002-${change2}`]);
     });
 
     it('should handle changes without specs', async () => {
@@ -340,7 +357,7 @@ New feature description.
       const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
       const archives = await fs.readdir(archiveDir);
       expect(archives.length).toBe(1);
-      expect(archives[0]).toMatch(new RegExp(`\\d{4}-\\d{2}-\\d{2}-${changeName}`));
+      expect(archives[0]).toMatch(new RegExp(`\\d{3}-${changeName}`));
     });
 
     it('should skip validation when commander sets validate to false (--no-validate)', async () => {
@@ -376,7 +393,7 @@ The system will log all events.
         const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
         const archives = await fs.readdir(archiveDir);
         expect(archives.length).toBe(1);
-        expect(archives[0]).toMatch(new RegExp(`\\d{4}-\\d{2}-\\d{2}-${changeName}`));
+        expect(archives[0]).toMatch(new RegExp(`\\d{3}-${changeName}`));
       } finally {
         deltaSpy.mockRestore();
         specContentSpy.mockRestore();
@@ -433,7 +450,7 @@ Then expected result happens`;
       const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
       const archives = await fs.readdir(archiveDir);
       expect(archives.length).toBe(1);
-      expect(archives[0]).toMatch(new RegExp(`\\d{4}-\\d{2}-\\d{2}-${changeName}`));
+      expect(archives[0]).toMatch(new RegExp(`\\d{3}-${changeName}`));
     });
 
     it('should support header trim-only normalization for matching', async () => {
