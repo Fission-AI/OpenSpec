@@ -12,6 +12,12 @@
 npm install -g @fission-ai/openspec@latest
 ```
 
+### Homebrew (macOS / Linux)
+
+```bash
+brew install openspec
+```
+
 ### pnpm
 
 ```bash
