@@ -351,42 +351,74 @@ export function registerConfigCommand(program: Command): void {
     .command('set <key> <value>')
     .description('Set a value (auto-coerce types)')
     .option('--string', 'Force value to be stored as string')
+    .option('--json', 'Parse value as JSON (use for arrays/objects)')
     .option('--allow-unknown', 'Allow setting unknown keys')
-    .action((key: string, value: string, options: { string?: boolean; allowUnknown?: boolean }) => {
-      const allowUnknown = Boolean(options.allowUnknown);
-      const keyValidation = validateConfigKeyPath(key);
-      if (!keyValidation.valid && !allowUnknown) {
-        const reason = keyValidation.reason ? ` ${keyValidation.reason}.` : '';
-        console.error(`Error: Invalid configuration key "${key}".${reason}`);
-        console.error('Use "openspec config list" to see available keys.');
-        console.error('Pass --allow-unknown to bypass this check.');
-        process.exitCode = 1;
-        return;
+    .action(
+      (
+        key: string,
+        value: string,
+        options: { string?: boolean; json?: boolean; allowUnknown?: boolean }
+      ) => {
+        const allowUnknown = Boolean(options.allowUnknown);
+        const keyValidation = validateConfigKeyPath(key);
+        if (!keyValidation.valid && !allowUnknown) {
+          const reason = keyValidation.reason ? ` ${keyValidation.reason}.` : '';
+          console.error(`Error: Invalid configuration key "${key}".${reason}`);
+          console.error('Use "openspec config list" to see available keys.');
+          console.error('Pass --allow-unknown to bypass this check.');
+          process.exitCode = 1;
+          return;
+        }
+
+        if (options.string && options.json) {
+          console.error('Error: --string and --json cannot be combined.');
+          process.exitCode = 1;
+          return;
+        }
+
+        let parsedValue: unknown;
+        if (options.json) {
+          try {
+            parsedValue = JSON.parse(value);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            console.error(`Error: --json was provided but value is not valid JSON: ${message}`);
+            process.exitCode = 1;
+            return;
+          }
+        } else {
+          parsedValue = coerceValue(value, options.string || false);
+        }
+
+        const config = getGlobalConfig() as Record<string, unknown>;
+
+        // Create a copy to validate before saving
+        const newConfig = JSON.parse(JSON.stringify(config));
+        setNestedValue(newConfig, key, parsedValue);
+
+        // Validate the new config
+        const validation = validateConfig(newConfig);
+        if (!validation.success) {
+          console.error(`Error: Invalid configuration - ${validation.error}`);
+          process.exitCode = 1;
+          return;
+        }
+
+        // Apply changes and save
+        setNestedValue(config, key, parsedValue);
+        saveGlobalConfig(config as GlobalConfig);
+
+        let displayValue: string;
+        if (typeof parsedValue === 'string') {
+          displayValue = `"${parsedValue}"`;
+        } else if (typeof parsedValue === 'object' && parsedValue !== null) {
+          displayValue = JSON.stringify(parsedValue);
+        } else {
+          displayValue = String(parsedValue);
+        }
+        console.log(`Set ${key} = ${displayValue}`);
       }
-
-      const config = getGlobalConfig() as Record<string, unknown>;
-      const coercedValue = coerceValue(value, options.string || false);
-
-      // Create a copy to validate before saving
-      const newConfig = JSON.parse(JSON.stringify(config));
-      setNestedValue(newConfig, key, coercedValue);
-
-      // Validate the new config
-      const validation = validateConfig(newConfig);
-      if (!validation.success) {
-        console.error(`Error: Invalid configuration - ${validation.error}`);
-        process.exitCode = 1;
-        return;
-      }
-
-      // Apply changes and save
-      setNestedValue(config, key, coercedValue);
-      saveGlobalConfig(config as GlobalConfig);
-
-      const displayValue =
-        typeof coercedValue === 'string' ? `"${coercedValue}"` : String(coercedValue);
-      console.log(`Set ${key} = ${displayValue}`);
-    });
+    );
 
   // config unset
   configCmd
