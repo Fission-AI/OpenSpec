@@ -1,0 +1,9 @@
+---
+name: openspec-wiki-ingest
+description: Ingest documentation into LLM Wiki, automatically maintaining the knowledge base
+license: MIT
+compatibility: Works with any project using OpenSpec + LLM Wiki integration
+metadata:
+  author: openspec-community
+  version: "1.0"
+---
