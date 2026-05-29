@@ -296,13 +296,14 @@ Here's the spec:
 
 #### Scenario: <Scenario name>
 
+- **GIVEN** <initial state or precondition>
 - **WHEN** <trigger condition>
 - **THEN** <expected outcome>
 - **AND** <additional outcome if needed>
 
 ---
 
-This format—WHEN/THEN/AND—makes requirements testable. You can literally read them as test cases.
+This format—GIVEN/WHEN/THEN/AND—makes requirements testable. You can literally read them as test cases.
 \`\`\`
 
 Save to the concrete file path chosen from \`resolvedOutputPath\`.

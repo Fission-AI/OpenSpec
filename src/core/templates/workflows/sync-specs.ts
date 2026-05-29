@@ -95,6 +95,7 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 The system SHALL do something new.
 
 #### Scenario: Basic case
+- **GIVEN** relevant preconditions are met
 - **WHEN** user does X
 - **THEN** system does Y
 
@@ -102,6 +103,7 @@ The system SHALL do something new.
 
 ### Requirement: Existing Feature
 #### Scenario: New scenario to add
+- **GIVEN** relevant preconditions are met
 - **WHEN** user does A
 - **THEN** system does B
 
@@ -243,6 +245,7 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 The system SHALL do something new.
 
 #### Scenario: Basic case
+- **GIVEN** relevant preconditions are met
 - **WHEN** user does X
 - **THEN** system does Y
 
@@ -250,6 +253,7 @@ The system SHALL do something new.
 
 ### Requirement: Existing Feature
 #### Scenario: New scenario to add
+- **GIVEN** relevant preconditions are met
 - **WHEN** user does A
 - **THEN** system does B
 
