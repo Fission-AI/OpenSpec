@@ -38,6 +38,14 @@ export const ProjectConfigSchema = z.object({
     )
     .optional()
     .describe('Per-artifact rules, keyed by artifact ID'),
+
+  // Optional: ISO 639-1 language code for normative keywords (e.g., "en", "es")
+  // Determines which normative keywords the validator accepts (MUST/SHALL vs DEBE/DEBERÁ)
+  language: z
+    .string()
+    .min(1)
+    .optional()
+    .describe('Language code for normative keyword validation (e.g., "en", "es")'),
 });
 
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
@@ -149,6 +157,17 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
         }
       } else {
         console.warn(`Invalid 'rules' field in config (must be object)`);
+      }
+    }
+
+    // Parse language field using Zod
+    if (raw.language !== undefined) {
+      const languageField = z.string().min(1);
+      const languageResult = languageField.safeParse(raw.language);
+      if (languageResult.success) {
+        config.language = languageResult.data;
+      } else {
+        console.warn(`Invalid 'language' field in config (must be non-empty string)`);
       }
     }
 

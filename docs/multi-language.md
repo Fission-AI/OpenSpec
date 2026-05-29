@@ -69,6 +69,31 @@ context: |
   Alle Artefakte müssen auf Deutsch verfasst werden.
 ```
 
+## Normative Keywords
+
+OpenSpec validates that every requirement contains a normative keyword (e.g., `MUST`, `SHALL`). For non-English projects, set the `language` field to validate against localized keywords:
+
+```yaml
+schema: spec-driven
+language: es
+
+context: |
+  Idioma: Español
+  Todos los artefactos deben escribirse en español.
+  Use DEBE, DEBERA, or DEBERÁ as normative keywords in requirements.
+```
+
+**Supported languages:**
+
+| Language | Code | Keywords |
+|----------|------|----------|
+| English  | `en` | `MUST`, `SHALL` |
+| Spanish  | `es` | `DEBE`, `DEBERA`, `DEBERÁ` |
+
+When no `language` is set, English keywords are used by default. An unknown language code falls back to English with a warning.
+
+Note: The `language` field controls which normative keywords the validator accepts. To write artifacts in a different language, use the `context` field as shown in the examples above.
+
 ## Tips
 
 ### Handle Technical Terms
