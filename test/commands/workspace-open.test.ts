@@ -7,7 +7,7 @@ import {
 } from '../../src/commands/workspace/open.js';
 
 describe('workspace open launchers', () => {
-  it('builds launcher commands for VS Code, GitHub Copilot, Codex, and Claude', () => {
+  it('builds launcher commands for VS Code, GitHub Copilot, codex-cli, and Claude', () => {
     expect(
       buildWorkspaceOpenLaunchCommand(
         { kind: 'editor', id: 'vscode' },
@@ -38,7 +38,7 @@ describe('workspace open launchers', () => {
 
     expect(
       buildWorkspaceOpenLaunchCommand(
-        { kind: 'agent', id: 'codex' },
+        { kind: 'agent', id: 'codex-cli' },
         '/workspace',
         '/workspace/platform.code-workspace',
         ['/repos/api', '/repos/web']
@@ -46,6 +46,8 @@ describe('workspace open launchers', () => {
     ).toEqual({
       executable: 'codex',
       args: [
+        '--sandbox',
+        'workspace-write',
         '--add-dir',
         '/repos/api',
         '--add-dir',
@@ -53,7 +55,7 @@ describe('workspace open launchers', () => {
         'Open this OpenSpec workspace.',
       ],
       cwd: '/workspace',
-      openerLabel: 'Codex',
+      openerLabel: 'codex-cli',
     });
 
     expect(
@@ -93,7 +95,7 @@ describe('workspace open launchers', () => {
       };
     }) as any;
     const command = buildWorkspaceOpenLaunchCommand(
-      { kind: 'agent', id: 'codex' },
+      { kind: 'agent', id: 'codex-cli' },
       '/workspace',
       '/workspace/platform.code-workspace',
       ['/repos/api', 'C:\\Program Files\\repo']
@@ -105,6 +107,8 @@ describe('workspace open launchers', () => {
       {
         command: 'codex',
         args: [
+          '--sandbox',
+          'workspace-write',
           '--add-dir',
           '/repos/api',
           '--add-dir',

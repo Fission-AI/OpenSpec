@@ -2,27 +2,27 @@ import { spawn as nodeSpawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 
 import {
-  WorkspaceLocalState,
   WorkspacePreferredOpener,
-  WorkspaceSharedState,
+  WorkspaceViewState,
+  WorkspaceOpenResolvedContext,
+  WorkspaceOpenSurfaceGeneration,
+  WorkspaceSkippedOpenLink,
   getWorkspaceCodeWorkspacePath,
   getWorkspaceOpenerExecutable,
   getWorkspaceOpenerLabel,
   isWorkspaceExecutableAvailable,
-  readWorkspaceLocalState,
-  readWorkspaceSharedState,
-  resolveWorkspaceOpenLinks,
-  writeWorkspaceCodeWorkspaceFile,
+  readWorkspaceViewState,
+  syncWorkspaceOpenSurface,
 } from '../../core/workspace/index.js';
 import { SelectedWorkspace, WorkspaceCliError, asErrorMessage } from './types.js';
 
 export const WORKSPACE_OPEN_MINIMAL_PROMPT = 'Open this OpenSpec workspace.';
+const CODEX_CLI_WRITABLE_ROOT_SANDBOX_ARGS = ['--sandbox', 'workspace-write'] as const;
 const require = createRequire(import.meta.url);
 const spawn = require('cross-spawn') as typeof nodeSpawn;
 
 export interface WorkspaceOpenState {
-  sharedState: WorkspaceSharedState;
-  localState: WorkspaceLocalState;
+  viewState: WorkspaceViewState;
   codeWorkspacePath: string;
 }
 
@@ -33,23 +33,40 @@ export interface WorkspaceOpenLaunchCommand {
   openerLabel: string;
 }
 
+export type WorkspaceOpenedRoot = {
+  kind: 'workspace' | 'initiative' | 'link';
+  name?: string;
+  path: string;
+};
+
+export interface WorkspaceOpenCommandBuildResult {
+  command: WorkspaceOpenLaunchCommand;
+  skipped: WorkspaceSkippedOpenLink[];
+  generated: WorkspaceOpenSurfaceGeneration;
+  openedRoots: WorkspaceOpenedRoot[];
+}
+
 export type WorkspaceOpenSpawn = typeof nodeSpawn;
 
 export interface WorkspaceOpenLaunchOptions {
   spawn?: WorkspaceOpenSpawn;
   isExecutableAvailable?: (executable: string) => boolean;
+  stdio?: 'inherit' | 'ignore';
+}
+
+function isCodexCliOpener(opener: WorkspacePreferredOpener): boolean {
+  const openerId = opener.id as string;
+  return opener.kind === 'agent' && (openerId === 'codex-cli' || openerId === 'codex');
 }
 
 export async function readWorkspaceOpenState(
   selected: SelectedWorkspace
 ): Promise<WorkspaceOpenState> {
-  const sharedState = await readWorkspaceSharedState(selected.root);
-  const localState = await readWorkspaceLocalState(selected.root);
+  const viewState = await readWorkspaceViewState(selected.root);
 
   return {
-    sharedState,
-    localState,
-    codeWorkspacePath: getWorkspaceCodeWorkspacePath(selected.root, sharedState.name),
+    viewState,
+    codeWorkspacePath: getWorkspaceCodeWorkspacePath(selected.root, viewState.name),
   };
 }
 
@@ -57,7 +74,7 @@ export function buildWorkspaceOpenLaunchCommand(
   opener: WorkspacePreferredOpener,
   workspaceRoot: string,
   codeWorkspacePath: string,
-  linkedPaths: string[]
+  attachedPaths: string[]
 ): WorkspaceOpenLaunchCommand {
   const executable = getWorkspaceOpenerExecutable(opener);
   const openerLabel = getWorkspaceOpenerLabel(opener);
@@ -74,7 +91,10 @@ export function buildWorkspaceOpenLaunchCommand(
   return {
     executable,
     args: [
-      ...linkedPaths.flatMap((linkedPath) => ['--add-dir', linkedPath]),
+      ...(isCodexCliOpener(opener) && attachedPaths.length > 0
+        ? CODEX_CLI_WRITABLE_ROOT_SANDBOX_ARGS
+        : []),
+      ...attachedPaths.flatMap((linkedPath) => ['--add-dir', linkedPath]),
       WORKSPACE_OPEN_MINIMAL_PROMPT,
     ],
     cwd: workspaceRoot,
@@ -111,22 +131,44 @@ export function assertWorkspaceOpenerAvailable(
 export async function buildWorkspaceOpenCommandForState(
   opener: WorkspacePreferredOpener,
   workspaceRoot: string,
-  state: WorkspaceOpenState
-): Promise<{
-  command: WorkspaceOpenLaunchCommand;
-  skipped: Awaited<ReturnType<typeof resolveWorkspaceOpenLinks>>['skipped'];
-}> {
-  const openLinks = await resolveWorkspaceOpenLinks(state.sharedState, state.localState);
-  await writeWorkspaceCodeWorkspaceFile(state.codeWorkspacePath, openLinks.links);
+  state: WorkspaceOpenState,
+  resolvedContext?: WorkspaceOpenResolvedContext | null
+): Promise<WorkspaceOpenCommandBuildResult> {
+  const openSurface = await syncWorkspaceOpenSurface(
+    workspaceRoot,
+    state.viewState,
+    resolvedContext
+  );
+  const openedRoots = [
+    { kind: 'workspace' as const, path: workspaceRoot },
+    ...(resolvedContext
+      ? [
+          {
+            kind: 'initiative' as const,
+            name: resolvedContext.initiative.id,
+            path: resolvedContext.initiative.root,
+          },
+        ]
+      : []),
+    ...openSurface.links.map((link) => ({
+      kind: 'link' as const,
+      name: link.name,
+      path: link.path,
+    })),
+  ];
 
   return {
     command: buildWorkspaceOpenLaunchCommand(
       opener,
       workspaceRoot,
       state.codeWorkspacePath,
-      openLinks.links.map((link) => link.path)
+      openedRoots
+        .filter((root) => root.kind !== 'workspace')
+        .map((root) => root.path)
     ),
-    skipped: openLinks.skipped,
+    skipped: openSurface.skipped,
+    generated: openSurface.generated,
+    openedRoots,
   };
 }
 
@@ -139,7 +181,7 @@ export async function launchWorkspaceOpenCommand(
   await new Promise<void>((resolve, reject) => {
     const child = spawnCommand(command.executable, command.args, {
       cwd: command.cwd,
-      stdio: 'inherit',
+      stdio: options.stdio ?? 'inherit',
       shell: false,
     });
 
