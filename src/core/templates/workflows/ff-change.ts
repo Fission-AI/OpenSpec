@@ -31,7 +31,18 @@ export function getFfChangeSkillTemplate(): SkillTemplate {
    \`\`\`
    This creates a scaffolded change in the planning home resolved by the CLI.
 
-3. **Get the artifact build order**
+3. **Discover existing specs (via sub-agent)**
+   Use the **Agent tool** to spawn a sub-agent for spec discovery. This keeps the catalog analysis in a separate context:
+   - **prompt**: "Run \`openspec list --specs --json --detail\` in the project directory. Parse the JSON output — each spec has id, title, overview, and requirementCount. The user wants to build: [paste the user's description here]. Compare each spec's overview against this description and return ONLY the specs that are related. Format your response as a JSON array: [{id, overview, reason}]. Do not return unrelated specs."
+   - The sub-agent analyzes all specs in its own context window and returns only the relevant ones.
+   - Use the sub-agent's results to classify the proposal's Capabilities section (New vs Modified).
+
+   If your tool does not support sub-agents, run the CLI directly instead:
+   \`\`\`bash
+   openspec list --specs --json --detail
+   \`\`\`
+
+4. **Get the artifact build order**
    \`\`\`bash
    openspec status --change "<name>" --json
    \`\`\`
@@ -40,7 +51,7 @@ export function getFfChangeSkillTemplate(): SkillTemplate {
    - \`artifacts\`: list of all artifacts with their status and dependencies
    - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context. Use these instead of assuming repo-local paths.
 
-4. **Create artifacts in sequence until apply-ready**
+5. **Create artifacts in sequence until apply-ready**
 
    Use the **TodoWrite tool** to track progress through the artifacts.
 
@@ -134,7 +145,18 @@ export function getOpsxFfCommandTemplate(): CommandTemplate {
    \`\`\`
    This creates a scaffolded change in the planning home resolved by the CLI.
 
-3. **Get the artifact build order**
+3. **Discover existing specs (via sub-agent)**
+   Use the **Agent tool** to spawn a sub-agent for spec discovery. This keeps the catalog analysis in a separate context:
+   - **prompt**: "Run \`openspec list --specs --json --detail\` in the project directory. Parse the JSON output — each spec has id, title, overview, and requirementCount. The user wants to build: [paste the user's description here]. Compare each spec's overview against this description and return ONLY the specs that are related. Format your response as a JSON array: [{id, overview, reason}]. Do not return unrelated specs."
+   - The sub-agent analyzes all specs in its own context window and returns only the relevant ones.
+   - Use the sub-agent's results to classify the proposal's Capabilities section (New vs Modified).
+
+   If your tool does not support sub-agents, run the CLI directly instead:
+   \`\`\`bash
+   openspec list --specs --json --detail
+   \`\`\`
+
+4. **Get the artifact build order**
    \`\`\`bash
    openspec status --change "<name>" --json
    \`\`\`
@@ -143,7 +165,7 @@ export function getOpsxFfCommandTemplate(): CommandTemplate {
    - \`artifacts\`: list of all artifacts with their status and dependencies
    - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context. Use these instead of assuming repo-local paths.
 
-4. **Create artifacts in sequence until apply-ready**
+5. **Create artifacts in sequence until apply-ready**
 
    Use the **TodoWrite tool** to track progress through the artifacts.
 
