@@ -85,6 +85,14 @@ type InitCommandOptions = {
   profile?: string;
 };
 
+type SelectedTool = {
+  value: string;
+  name: string;
+  skillsDir: string;
+  wasConfigured: boolean;
+  requiresIdeRestart?: boolean;
+};
+
 // -----------------------------------------------------------------------------
 // Init Command Class
 // -----------------------------------------------------------------------------
@@ -417,8 +425,8 @@ export class InitCommand {
   private validateTools(
     toolIds: string[],
     toolStates: Map<string, ToolSkillStatus>
-  ): Array<{ value: string; name: string; skillsDir: string; wasConfigured: boolean }> {
-    const validatedTools: Array<{ value: string; name: string; skillsDir: string; wasConfigured: boolean }> = [];
+  ): SelectedTool[] {
+    const validatedTools: SelectedTool[] = [];
 
     for (const toolId of toolIds) {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
@@ -442,6 +450,7 @@ export class InitCommand {
         name: tool.name,
         skillsDir: tool.skillsDir,
         wasConfigured: preState?.configured ?? false,
+        requiresIdeRestart: tool.requiresIdeRestart,
       });
     }
 
@@ -493,7 +502,7 @@ export class InitCommand {
 
   private async generateSkillsAndCommands(
     projectPath: string,
-    tools: Array<{ value: string; name: string; skillsDir: string; wasConfigured: boolean }>
+    tools: SelectedTool[]
   ): Promise<{
     createdTools: typeof tools;
     refreshedTools: typeof tools;
@@ -625,10 +634,10 @@ export class InitCommand {
 
   private displaySuccessMessage(
     projectPath: string,
-    tools: Array<{ value: string; name: string; skillsDir: string; wasConfigured: boolean }>,
+    tools: SelectedTool[],
     results: {
-      createdTools: typeof tools;
-      refreshedTools: typeof tools;
+      createdTools: SelectedTool[];
+      refreshedTools: SelectedTool[];
       failedTools: Array<{ name: string; error: Error }>;
       commandsSkipped: string[];
       removedCommandCount: number;
@@ -716,8 +725,9 @@ export class InitCommand {
     console.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
     console.log(`Feedback:   ${chalk.cyan('https://github.com/Fission-AI/OpenSpec/issues')}`);
 
-    // Restart instruction if any tools were configured
-    if (results.createdTools.length > 0 || results.refreshedTools.length > 0) {
+    // Restart instruction for tools whose slash commands are loaded by an IDE/editor
+    const configuredTools = [...results.createdTools, ...results.refreshedTools];
+    if (configuredTools.some((tool) => tool.requiresIdeRestart)) {
       console.log();
       console.log(chalk.white('Restart your IDE for slash commands to take effect.'));
     }
