@@ -37,6 +37,19 @@ export class TemplateLoadError extends Error {
 }
 
 /**
+ * Error thrown when loading an instruction file fails.
+ */
+export class InstructionLoadError extends Error {
+  constructor(
+    message: string,
+    public readonly instructionPath: string
+  ) {
+    super(message);
+    this.name = 'InstructionLoadError';
+  }
+}
+
+/**
  * Change context containing graph, completion state, and metadata.
  */
 export interface ChangeContext {
@@ -212,6 +225,53 @@ export function loadTemplate(
 }
 
 /**
+ * Loads an instruction file from a schema's instructions directory.
+ *
+ * Mirrors loadTemplate() — resolves the file relative to
+ * <schemaDir>/instructions/<instructionPath>.
+ *
+ * @param schemaName - Schema name (e.g., "spec-driven")
+ * @param instructionPath - Relative path within the instructions directory (e.g., "requirements.md")
+ * @param projectRoot - Optional project root for project-local schema resolution
+ * @returns The instruction content
+ * @throws InstructionLoadError if the instruction file cannot be loaded
+ */
+export function loadInstruction(
+  schemaName: string,
+  instructionPath: string,
+  projectRoot?: string
+): string {
+  const schemaDir = getSchemaDir(schemaName, projectRoot);
+  if (!schemaDir) {
+    throw new InstructionLoadError(
+      `Schema '${schemaName}' not found`,
+      instructionPath
+    );
+  }
+
+  const instructionPathOnDisk = path.join(schemaDir, 'instructions', instructionPath);
+
+  if (!fs.existsSync(instructionPathOnDisk)) {
+    throw new InstructionLoadError(
+      `Instruction file not found: ${instructionPathOnDisk}`,
+      instructionPathOnDisk
+    );
+  }
+
+  const fullPath = FileSystemUtils.canonicalizeExistingPath(instructionPathOnDisk);
+
+  try {
+    return fs.readFileSync(fullPath, 'utf-8');
+  } catch (err) {
+    const ioError = err instanceof Error ? err : new Error(String(err));
+    throw new InstructionLoadError(
+      `Failed to read instruction file: ${ioError.message}`,
+      fullPath
+    );
+  }
+}
+
+/**
  * Loads change context combining graph and completion state.
  *
  * Schema resolution order:
@@ -281,6 +341,12 @@ export function generateInstructions(
   }
 
   const templateContent = loadTemplate(context.schemaName, artifact.template, context.projectRoot);
+
+  // Resolve instruction: external file (instructionFile) takes priority over inline (instruction)
+  const instructionContent = artifact.instructionFile
+    ? loadInstruction(context.schemaName, artifact.instructionFile, context.projectRoot)
+    : artifact.instruction;
+
   const dependencies = getDependencyInfo(artifact, context.graph, context.completed);
   const unlocks = getUnlockedArtifacts(context.graph, artifactId);
 
@@ -331,7 +397,7 @@ export function generateInstructions(
     resolvedOutputPath: path.join(context.changeDir, artifact.generates),
     existingOutputPaths: resolveArtifactOutputs(context.changeDir, artifact.generates),
     description: artifact.description,
-    instruction: artifact.instruction,
+    instruction: instructionContent,
     context: configContext,
     rules: configRules,
     template: templateContent,

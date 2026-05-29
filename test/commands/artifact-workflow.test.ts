@@ -318,8 +318,10 @@ describe('artifact-workflow CLI commands', () => {
 
       const json = JSON.parse(result.stdout);
       expect(json.proposal).toBeDefined();
-      expect(json.proposal.path).toContain('proposal.md');
-      expect(json.proposal.source).toBe('package');
+      expect(json.proposal.template.path).toContain('proposal.md');
+      expect(json.proposal.template.source).toBe('package');
+      // spec-driven schema uses inline instruction, so no instructionFile
+      expect(json.proposal.instructionFile).toBeUndefined();
     });
 
     it('errors for unknown schema', async () => {

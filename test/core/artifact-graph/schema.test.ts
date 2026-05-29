@@ -203,5 +203,107 @@ artifacts:
       const schema = parseSchema(yaml);
       expect(schema.artifacts[0].requires).toEqual([]);
     });
+
+    it('should accept instructionFile as optional field', () => {
+      const yaml = `
+name: test
+version: 1
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Proposal
+    template: templates/proposal.md
+    instructionFile: instructions/proposal.md
+`;
+      const schema = parseSchema(yaml);
+      expect(schema.artifacts[0].instructionFile).toBe('instructions/proposal.md');
+      expect(schema.artifacts[0].instruction).toBeUndefined();
+    });
+
+    it('should accept instruction as optional field (backward compat)', () => {
+      const yaml = `
+name: test
+version: 1
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Proposal
+    template: templates/proposal.md
+    instruction: |
+      Create the proposal document.
+`;
+      const schema = parseSchema(yaml);
+      expect(schema.artifacts[0].instruction).toContain('Create the proposal document');
+      expect(schema.artifacts[0].instructionFile).toBeUndefined();
+    });
+
+    it('should accept neither instruction nor instructionFile', () => {
+      const yaml = `
+name: test
+version: 1
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Proposal
+    template: templates/proposal.md
+`;
+      const schema = parseSchema(yaml);
+      expect(schema.artifacts[0].instruction).toBeUndefined();
+      expect(schema.artifacts[0].instructionFile).toBeUndefined();
+    });
+
+    it('should throw when artifact has both instruction and instructionFile', () => {
+      const yaml = `
+name: test
+version: 1
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Proposal
+    template: templates/proposal.md
+    instruction: Create the proposal
+    instructionFile: instructions/proposal.md
+`;
+      expect(() => parseSchema(yaml)).toThrow(SchemaValidationError);
+      expect(() => parseSchema(yaml)).toThrow(/cannot have both 'instruction' and 'instructionFile'/);
+    });
+
+    it('should throw when apply phase has both instruction and instructionFile', () => {
+      const yaml = `
+name: test
+version: 1
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Proposal
+    template: templates/proposal.md
+apply:
+  requires: [proposal]
+  tracks: tasks.md
+  instruction: Implement the tasks
+  instructionFile: instructions/apply.md
+`;
+      expect(() => parseSchema(yaml)).toThrow(SchemaValidationError);
+      expect(() => parseSchema(yaml)).toThrow(/Apply phase cannot have both 'instruction' and 'instructionFile'/);
+    });
+
+    it('should accept apply instructionFile alone', () => {
+      const yaml = `
+name: test
+version: 1
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Proposal
+    template: templates/proposal.md
+apply:
+  requires: [proposal]
+  tracks: tasks.md
+  instructionFile: instructions/apply.md
+`;
+      const schema = parseSchema(yaml);
+      expect(schema.apply?.instructionFile).toBe('instructions/apply.md');
+      expect(schema.apply?.instruction).toBeUndefined();
+    });
   });
 });
