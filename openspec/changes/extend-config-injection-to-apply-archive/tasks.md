@@ -1,9 +1,9 @@
 ## 1. Validation Layer (D1)
 
-- [x] 1.1 In `src/core/project-config.ts`, define and export `WORKFLOW_RULE_TARGETS = new Set<WorkflowId>(['apply', 'archive'])`, importing `WorkflowId` from `profiles.ts`
-- [x] 1.2 Extend `validateConfigRules()` in `src/core/project-config.ts` to accept `validWorkflowTargets: Set<string>` alongside `validArtifactIds`; a key is valid if it appears in either set; update the warning message to list all valid keys (artifact IDs and workflow targets together)
-- [x] 1.3 Add `emitConfigRuleWarnings(rules, validArtifactIds, validWorkflowTargets, schemaName)` in `src/core/project-config.ts`; move the session-level `shownWarnings` Set from `instruction-loader.ts` into this module; the function calls `validateConfigRules`, deduplicates against the shared cache, and emits via `console.warn`
-- [x] 1.4 In `src/core/artifact-graph/instruction-loader.ts`, replace the filter-then-call pattern with a direct call to `emitConfigRuleWarnings`, passing `WORKFLOW_RULE_TARGETS` as the workflow targets argument
+- [x] 1.1 In `src/core/project-config.ts`, define module-level `WORKFLOW_RULE_TARGETS = new Set<WorkflowId>(['apply', 'archive'])`, importing `WorkflowId` from `profiles.ts`
+- [x] 1.2 Extend `validateConfigRules()` in `src/core/project-config.ts` so a key is valid if it appears in either `validArtifactIds` or module-level `WORKFLOW_RULE_TARGETS`; update the warning message to list all valid keys (artifact IDs and workflow targets together)
+- [x] 1.3 Add `emitConfigRuleWarnings(rules, validArtifactIds, schemaName)` in `src/core/project-config.ts`; move the session-level `shownWarnings` Set from `instruction-loader.ts` into this module; the function calls `validateConfigRules()`, deduplicates against the shared cache, and emits via `console.warn`
+- [x] 1.4 In `src/core/artifact-graph/instruction-loader.ts`, replace the filter-then-call pattern with a direct call to `emitConfigRuleWarnings()`, relying on `project-config.ts` to validate workflow targets via `WORKFLOW_RULE_TARGETS`
 - [x] 1.5 In `generateApplyInstructions()`, call `emitConfigRuleWarnings` after reading config, using artifact IDs from the already-loaded schema
 - [x] 1.6 Write unit tests covering: unknown key warns in artifact path, apply path, and archive path; valid artifact ID and workflow target produce no warning; shared cache suppresses duplicate warnings across paths
 
