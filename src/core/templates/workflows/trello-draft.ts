@@ -150,7 +150,29 @@ Save the returned card \`id\` as \`cardId\` and \`url\` as \`cardUrl\`.
 
 ---
 
-## Step 7 — Apply label (if resolved)
+## Step 7 — Add next-step comment
+
+Add a comment to the card with the command to take this task to the next stage,
+formatted in Markdown so it is easy to copy and paste.
+
+\`\`\`tool
+mcp__claude_ai_Trello_Custom__add_comment
+  card_id: "<cardId>"
+  text: |
+    ## Próximo passo
+
+    Para refinar e gerar os artefatos da change, rode:
+
+    \`\`\`
+    /pstl:propose
+    \`\`\`
+\`\`\`
+
+If this call fails, log the error and continue — the comment is auxiliary, never blocking.
+
+---
+
+## Step 8 — Apply label (if resolved)
 
 **Only if \`chosenLabel\` is not null:**
 
@@ -164,7 +186,7 @@ If this call fails, log the error and continue — label is auxiliary, never blo
 
 ---
 
-## Step 8 — Show summary
+## Step 9 — Show summary
 
 \`\`\`
 ## Ideia registrada ✓
@@ -174,6 +196,7 @@ If this call fails, log the error and continue — label is auxiliary, never blo
 **Label:** <chosenLabel emoji + name> (ou "sem label" se não aplicada)
 **Card:** <cardUrl>
 
+Comando da próxima etapa adicionado nos comentários do card.
 Sem responsável atribuído.
 Quando quiser refinar: \`/pstl:explore\` ou \`/pstl:task\`
 Quando quiser propor diretamente: \`/pstl:propose\`
@@ -190,6 +213,7 @@ Quando quiser propor diretamente: \`/pstl:propose\`
 - **Se MCP falhar**, exibir o conteúdo no chat para registro manual
 - **Título em português** por padrão, mas se o usuário escreveu em inglês, manter em inglês
 - **Labels são opcionais** — se \`labels.enabled = false\` ou o call MCP falhar, continuar sem label
+- **Comentário com o comando da próxima etapa é auxiliar** — se o MCP falhar ao comentar, não bloquear a criação do card
 - **Perguntar sobre label apenas quando ambíguo** — para ideias claras, classificar silenciosamente
 `;
 }
