@@ -1638,7 +1638,7 @@ preferred_opener:
     expect(updateHelp.stdout).toContain('guidance and agent skills');
     expect(updateHelp.stdout).toContain('--workspace');
     expect(updateHelp.stdout).toContain('--tools');
-    expect(updateHelp.stdout).toMatch(/Global profile\s+selects workflows/u);
+    expect(updateHelp.stdout).toMatch(/Global\s+profile\s+selects workflows/u);
   });
 
   it('registers workspace subcommands for shell completions', () => {
