@@ -476,23 +476,22 @@ describe('InitCommand - profile and detection features', () => {
   });
 
   it('should use --profile flag to override global config', async () => {
-    // Set global config to custom profile
+    // Set global config to dixi profile
     saveGlobalConfig({
       featureFlags: {},
-      profile: 'custom',
+      profile: 'dixi',
       delivery: 'both',
-      workflows: ['explore', 'new', 'apply'],
     });
 
-    // Override with --profile core
-    const initCommand = new InitCommand({ tools: 'claude', force: true, profile: 'core' });
+    // Override with --profile standard
+    const initCommand = new InitCommand({ tools: 'claude', force: true, profile: 'standard' });
     await initCommand.execute(testDir);
 
-    // Core profile skills should be created
+    // Standard profile skills should be created
     const proposeSkill = path.join(testDir, '.claude', 'skills', 'pscode-propose', 'SKILL.md');
     expect(await fileExists(proposeSkill)).toBe(true);
 
-    // Non-core skills (from the custom profile) should NOT be created
+    // Non-standard skills should NOT be created
     const newChangeSkill = path.join(testDir, '.claude', 'skills', 'pscode-new-change', 'SKILL.md');
     expect(await fileExists(newChangeSkill)).toBe(false);
   });
@@ -592,7 +591,7 @@ describe('InitCommand - profile and detection features', () => {
   it('should respect active profile from global config', async () => {
     saveGlobalConfig({
       featureFlags: {},
-      profile: 'core',
+      profile: 'standard',
       delivery: 'both',
     });
 
@@ -613,13 +612,13 @@ describe('InitCommand - profile and detection features', () => {
   it('should use the active profile when extending an existing project', async () => {
     await fs.mkdir(path.join(testDir, 'pscode'), { recursive: true });
 
-    saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both' });
+    saveGlobalConfig({ featureFlags: {}, profile: 'standard', delivery: 'both' });
 
     const initCommand = new InitCommand({ tools: 'claude', force: true });
     await initCommand.execute(testDir);
 
     const config = getGlobalConfig();
-    expect(config.profile).toBe('core');
+    expect(config.profile).toBe('standard');
     expect(config.delivery).toBe('both');
 
     const exploreSkill = path.join(testDir, '.claude', 'skills', 'pscode-explore', 'SKILL.md');
@@ -631,7 +630,7 @@ describe('InitCommand - profile and detection features', () => {
   it('should not prompt for confirmation when applying profile in interactive init', async () => {
     saveGlobalConfig({
       featureFlags: {},
-      profile: 'core',
+      profile: 'standard',
       delivery: 'both',
     });
 
@@ -653,7 +652,7 @@ describe('InitCommand - profile and detection features', () => {
   it('should respect delivery=skills setting (no commands)', async () => {
     saveGlobalConfig({
       featureFlags: {},
-      profile: 'core',
+      profile: 'standard',
       delivery: 'skills',
     });
 
@@ -672,7 +671,7 @@ describe('InitCommand - profile and detection features', () => {
   it('should respect delivery=commands setting (no skills)', async () => {
     saveGlobalConfig({
       featureFlags: {},
-      profile: 'core',
+      profile: 'standard',
       delivery: 'commands',
     });
 
@@ -691,7 +690,7 @@ describe('InitCommand - profile and detection features', () => {
   it('should remove commands on re-init when delivery changes to skills', async () => {
     saveGlobalConfig({
       featureFlags: {},
-      profile: 'core',
+      profile: 'standard',
       delivery: 'both',
     });
 
@@ -703,7 +702,7 @@ describe('InitCommand - profile and detection features', () => {
 
     saveGlobalConfig({
       featureFlags: {},
-      profile: 'core',
+      profile: 'standard',
       delivery: 'skills',
     });
 

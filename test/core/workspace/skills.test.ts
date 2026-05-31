@@ -12,7 +12,7 @@ import {
 } from '../../../src/core/workspace/skills.js';
 import { PROFILES } from '../../../src/core/profiles.js';
 
-const CORE_WORKFLOWS = PROFILES.core.workflows;
+const CORE_WORKFLOWS = PROFILES.standard.workflows;
 
 function withDefaultGlobalConfig<T>(callback: () => T): T {
   const previousConfigHome = process.env.XDG_CONFIG_HOME;
@@ -60,7 +60,7 @@ describe('workspace skill helpers', () => {
         hasWorkspaceSkillProfileDrift({
           workspace_skills: {
             selected_agents: ['codex'],
-            last_applied_profile: 'core',
+            last_applied_profile: 'standard',
             last_applied_delivery: 'both',
             last_applied_workflow_ids: [...CORE_WORKFLOWS].reverse(),
           },

@@ -13,7 +13,7 @@ import { randomUUID } from 'crypto';
 const mockState = {
   config: {
     featureFlags: {},
-    profile: 'core' as const,
+    profile: 'standard' as const,
     delivery: 'both' as const,
   } as GlobalConfig,
 };
@@ -35,7 +35,7 @@ function setMockConfig(config: GlobalConfig) {
 }
 
 function resetMockConfig() {
-  mockState.config = { featureFlags: {}, profile: 'core', delivery: 'both' };
+  mockState.config = { featureFlags: {}, profile: 'standard', delivery: 'both' };
 }
 
 describe('UpdateCommand', () => {
@@ -1347,7 +1347,7 @@ More user content after markers.
     it('should generate active profile workflows when upgrading legacy tools', async () => {
       setMockConfig({
         featureFlags: {},
-        profile: 'core',
+        profile: 'standard',
         delivery: 'both',
       });
 
@@ -1379,7 +1379,7 @@ More user content after markers.
     it('should generate only the active profile workflows', async () => {
       setMockConfig({
         featureFlags: {},
-        profile: 'core',
+        profile: 'standard',
         delivery: 'both',
       });
 
@@ -1409,7 +1409,7 @@ More user content after markers.
     it('should use the core profile by default and include sync workflow', async () => {
       setMockConfig({
         featureFlags: {},
-        profile: 'core',
+        profile: 'standard',
         delivery: 'both',
       });
 
@@ -1430,7 +1430,7 @@ More user content after markers.
     it('should respect skills-only delivery setting', async () => {
       setMockConfig({
         featureFlags: {},
-        profile: 'core',
+        profile: 'standard',
         delivery: 'skills',
       });
 
@@ -1455,7 +1455,7 @@ More user content after markers.
     it('should respect commands-only delivery setting', async () => {
       setMockConfig({
         featureFlags: {},
-        profile: 'core',
+        profile: 'standard',
         delivery: 'commands',
       });
 
@@ -1482,7 +1482,7 @@ More user content after markers.
       // that skills are removed when delivery mode is 'commands' for any configured tool.
       setMockConfig({
         featureFlags: {},
-        profile: 'core',
+        profile: 'standard',
         delivery: 'commands',
       });
 
@@ -1501,7 +1501,7 @@ More user content after markers.
     it('should apply config sync when templates are up to date', async () => {
       setMockConfig({
         featureFlags: {},
-        profile: 'core',
+        profile: 'standard',
         delivery: 'skills',
       });
 
@@ -1534,7 +1534,7 @@ content
     it('should detect commands-only tool configuration', async () => {
       setMockConfig({
         featureFlags: {},
-        profile: 'core',
+        profile: 'standard',
         delivery: 'commands',
       });
 
@@ -1567,7 +1567,7 @@ content
       // Set core profile (propose, explore, apply, sync, archive)
       setMockConfig({
         featureFlags: {},
-        profile: 'core',
+        profile: 'standard',
         delivery: 'both',
       });
 

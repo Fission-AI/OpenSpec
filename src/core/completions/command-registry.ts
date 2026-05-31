@@ -19,9 +19,9 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
       },
       {
         name: 'profile',
-        description: 'Override global config profile (core or custom)',
+        description: 'Override global config profile (standard or dixi)',
         takesValue: true,
-        values: ['core', 'custom'],
+        values: ['standard', 'dixi'],
       },
     ],
   },

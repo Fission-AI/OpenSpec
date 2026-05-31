@@ -40,18 +40,18 @@ describe('diffProfileState', () => {
   it('detects profile change', async () => {
     const { diffProfileState } = await import('../../src/commands/config.js');
     const diff = diffProfileState(
-      { profile: 'core', delivery: 'both' },
-      { profile: 'full', delivery: 'both' },
+      { profile: 'standard', delivery: 'both' },
+      { profile: 'dixi', delivery: 'both' },
     );
     expect(diff.hasChanges).toBe(true);
-    expect(diff.lines).toEqual(['profile: core -> full']);
+    expect(diff.lines).toEqual(['profile: standard -> dixi']);
   });
 
   it('detects delivery change', async () => {
     const { diffProfileState } = await import('../../src/commands/config.js');
     const diff = diffProfileState(
-      { profile: 'core', delivery: 'both' },
-      { profile: 'core', delivery: 'skills' },
+      { profile: 'standard', delivery: 'both' },
+      { profile: 'standard', delivery: 'skills' },
     );
     expect(diff.hasChanges).toBe(true);
     expect(diff.lines).toEqual(['delivery: both -> skills']);
@@ -60,8 +60,8 @@ describe('diffProfileState', () => {
   it('reports no changes when identical', async () => {
     const { diffProfileState } = await import('../../src/commands/config.js');
     const diff = diffProfileState(
-      { profile: 'core', delivery: 'both' },
-      { profile: 'core', delivery: 'both' },
+      { profile: 'standard', delivery: 'both' },
+      { profile: 'standard', delivery: 'both' },
     );
     expect(diff.hasChanges).toBe(false);
     expect(diff.lines).toEqual([]);
@@ -128,7 +128,7 @@ describe('config profile interactive flow', () => {
           'workspace_skills:',
           '  selected_agents:',
           '    - codex',
-          '  last_applied_profile: full',
+          '  last_applied_profile: dixi',
           '  last_applied_delivery: both',
           '  last_applied_workflow_ids:',
           '    - explore',
@@ -137,7 +137,7 @@ describe('config profile interactive flow', () => {
           'workspace_skills:',
           '  selected_agents:',
           '    - codex',
-          '  last_applied_profile: core',
+          '  last_applied_profile: standard',
           '  last_applied_delivery: both',
           '  last_applied_workflow_ids:',
           '    - propose',
@@ -191,7 +191,7 @@ describe('config profile interactive flow', () => {
     const { saveGlobalConfig, getGlobalConfig } = await import('../../src/core/global-config.js');
     const { select } = await getPromptMocks();
 
-    saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both' });
+    saveGlobalConfig({ featureFlags: {}, profile: 'standard', delivery: 'both' });
     select.mockResolvedValueOnce('delivery');
     select.mockResolvedValueOnce('skills');
 
@@ -205,7 +205,7 @@ describe('config profile interactive flow', () => {
     const { saveGlobalConfig } = await import('../../src/core/global-config.js');
     const { select } = await getPromptMocks();
 
-    saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both' });
+    saveGlobalConfig({ featureFlags: {}, profile: 'standard', delivery: 'both' });
     select.mockResolvedValueOnce('keep');
 
     await runConfigCommand(['profile']);
@@ -223,21 +223,21 @@ describe('config profile interactive flow', () => {
     const { saveGlobalConfig, getGlobalConfig } = await import('../../src/core/global-config.js');
     const { select } = await getPromptMocks();
 
-    saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both' });
+    saveGlobalConfig({ featureFlags: {}, profile: 'standard', delivery: 'both' });
     select.mockResolvedValueOnce('profile');
-    select.mockResolvedValueOnce('full');
+    select.mockResolvedValueOnce('dixi');
 
     await runConfigCommand(['profile']);
 
     expect(select).toHaveBeenCalledTimes(2);
-    expect(getGlobalConfig().profile).toBe('full');
+    expect(getGlobalConfig().profile).toBe('dixi');
   });
 
   it('selecting current values only should be a no-op and should not ask apply', async () => {
     const { saveGlobalConfig, getGlobalConfigPath } = await import('../../src/core/global-config.js');
     const { select, confirm } = await getPromptMocks();
 
-    saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both' });
+    saveGlobalConfig({ featureFlags: {}, profile: 'standard', delivery: 'both' });
     const configPath = getGlobalConfigPath();
     const beforeContent = fs.readFileSync(configPath, 'utf-8');
 
@@ -257,7 +257,7 @@ describe('config profile interactive flow', () => {
     const { saveGlobalConfig } = await import('../../src/core/global-config.js');
     const { select } = await getPromptMocks();
 
-    saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both' });
+    saveGlobalConfig({ featureFlags: {}, profile: 'standard', delivery: 'both' });
     setupDriftedProjectArtifacts(tempDir);
     select.mockResolvedValueOnce('keep');
 
@@ -271,7 +271,7 @@ describe('config profile interactive flow', () => {
     const { saveGlobalConfig } = await import('../../src/core/global-config.js');
     const { select } = await getPromptMocks();
 
-    saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both' });
+    saveGlobalConfig({ featureFlags: {}, profile: 'standard', delivery: 'both' });
     setupSyncedCoreBothArtifacts(tempDir);
     select.mockResolvedValueOnce('keep');
 
@@ -285,7 +285,7 @@ describe('config profile interactive flow', () => {
     const { saveGlobalConfig } = await import('../../src/core/global-config.js');
     const { select, confirm } = await getPromptMocks();
 
-    saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both' });
+    saveGlobalConfig({ featureFlags: {}, profile: 'standard', delivery: 'both' });
     setupDriftedProjectArtifacts(tempDir);
     select.mockResolvedValueOnce('delivery');
     select.mockResolvedValueOnce('both');
@@ -301,7 +301,7 @@ describe('config profile interactive flow', () => {
     const { saveGlobalConfig } = await import('../../src/core/global-config.js');
     const { select } = await getPromptMocks();
 
-    saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both' });
+    saveGlobalConfig({ featureFlags: {}, profile: 'standard', delivery: 'both' });
     setupSyncedCoreBothArtifacts(tempDir);
     addExtraVerifyWorkflowArtifacts(tempDir);
     select.mockResolvedValueOnce('keep');
@@ -316,7 +316,7 @@ describe('config profile interactive flow', () => {
     const { saveGlobalConfig, getGlobalConfig } = await import('../../src/core/global-config.js');
     const { select, confirm } = await getPromptMocks();
 
-    saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both' });
+    saveGlobalConfig({ featureFlags: {}, profile: 'standard', delivery: 'both' });
     fs.mkdirSync(path.join(tempDir, 'pscode'), { recursive: true });
 
     select.mockResolvedValueOnce('delivery');
@@ -337,7 +337,7 @@ describe('config profile interactive flow', () => {
     const { select, confirm } = await getPromptMocks();
 
     setupWorkspaceState(tempDir);
-    saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both' });
+    saveGlobalConfig({ featureFlags: {}, profile: 'standard', delivery: 'both' });
 
     select.mockResolvedValueOnce('delivery');
     select.mockResolvedValueOnce('skills');
@@ -360,7 +360,7 @@ describe('config profile interactive flow', () => {
 
     setupWorkspaceState(tempDir);
     fs.mkdirSync(path.join(tempDir, 'pscode'), { recursive: true });
-    saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both' });
+    saveGlobalConfig({ featureFlags: {}, profile: 'standard', delivery: 'both' });
 
     select.mockResolvedValueOnce('delivery');
     select.mockResolvedValueOnce('skills');
@@ -380,7 +380,7 @@ describe('config profile interactive flow', () => {
     const { select, confirm } = await getPromptMocks();
 
     setupWorkspaceState(tempDir, { driftedSkills: true });
-    saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both' });
+    saveGlobalConfig({ featureFlags: {}, profile: 'standard', delivery: 'both' });
 
     select.mockResolvedValueOnce('delivery');
     select.mockResolvedValueOnce('both');
@@ -397,12 +397,12 @@ describe('config profile interactive flow', () => {
     const { saveGlobalConfig, getGlobalConfig } = await import('../../src/core/global-config.js');
     const { select, confirm } = await getPromptMocks();
 
-    saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'skills' });
+    saveGlobalConfig({ featureFlags: {}, profile: 'standard', delivery: 'skills' });
 
-    await runConfigCommand(['profile', 'full']);
+    await runConfigCommand(['profile', 'dixi']);
 
     const config = getGlobalConfig();
-    expect(config.profile).toBe('full');
+    expect(config.profile).toBe('dixi');
     expect(config.delivery).toBe('skills');
     expect((config as Record<string, unknown>).workflows).toBeUndefined();
     expect(select).not.toHaveBeenCalled();
@@ -420,12 +420,12 @@ describe('config profile interactive flow', () => {
     const { select, confirm } = await getPromptMocks();
 
     setupWorkspaceState(tempDir, { driftedSkills: true });
-    saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'skills' });
+    saveGlobalConfig({ featureFlags: {}, profile: 'standard', delivery: 'skills' });
 
-    await runConfigCommand(['profile', 'trello']);
+    await runConfigCommand(['profile', 'dixi']);
 
     const config = getGlobalConfig();
-    expect(config.profile).toBe('trello');
+    expect(config.profile).toBe('dixi');
     expect(config.delivery).toBe('skills');
     expect(select).not.toHaveBeenCalled();
     expect(confirm).not.toHaveBeenCalled();

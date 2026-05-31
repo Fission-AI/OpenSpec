@@ -1,0 +1,47 @@
+configured: true
+boardId: "6a1ca8808a85e1cb0bdd1f12"
+boardName: "pscode"
+lists:
+  backlog:
+    id: "6a1ca894634029054c300a2f"
+    name: "📋 Backlog"
+  refining:
+    id: "6a1ca89705c00f7083b90caf"
+    name: "🔍 Em Refinamento"
+  ready:
+    id: "6a1ca89a00e46a11b8e2b51c"
+    name: "✅ Ready to Dev"
+  developing:
+    id: "6a1ca8a397912362e14cde1a"
+    name: "🚧 Em Desenvolvimento"
+  testing:
+    id: "6a1ca8a66501809792536387"
+    name: "🧪 Em Teste"
+  deploy:
+    id: "6a1ca8aa26705aa85d3118e1"
+    name: "🚀 Ready to Deploy"
+  done:
+    id: "6a1ca8ae4eb7fddc4b93d0d8"
+    name: "✅ Concluído"
+  cancelled:
+    id: "6a1ca8b14cf194402962d8b6"
+    name: "❌ Cancelado"
+labels:
+  enabled: true
+  items:
+    bug:
+      id: "6a1ca8c29a649375b4d0dca6"
+      name: "BUG"
+      color: "red"
+    implementacao:
+      id: "6a1ca8c255572d92e7c20be6"
+      name: "IMPLEMENTAÇÃO"
+      color: "blue"
+    melhoria:
+      id: "6a1ca8c3bd1130932d5858d6"
+      name: "MELHORIA"
+      color: "green"
+    debito-tecnico:
+      id: "6a1ca8c40ca4545f67a03bbd"
+      name: "DÉBITO TÉCNICO"
+      color: "orange"

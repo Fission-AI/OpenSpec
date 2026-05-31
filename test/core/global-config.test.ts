@@ -140,7 +140,7 @@ describe('global-config', () => {
 
       const config = getGlobalConfig();
 
-      expect(config).toEqual({ featureFlags: {}, profile: 'core', delivery: 'both' });
+      expect(config).toEqual({ featureFlags: {}, profile: 'standard', delivery: 'both' });
     });
 
     it('should not create directory when reading non-existent config', () => {
@@ -177,7 +177,7 @@ describe('global-config', () => {
 
       const config = getGlobalConfig();
 
-      expect(config).toEqual({ featureFlags: {}, profile: 'core', delivery: 'both' });
+      expect(config).toEqual({ featureFlags: {}, profile: 'standard', delivery: 'both' });
     });
 
     it('should log warning for invalid JSON', () => {
@@ -243,7 +243,7 @@ describe('global-config', () => {
 
         const config = getGlobalConfig();
 
-        expect(config.profile).toBe('core');
+        expect(config.profile).toBe('standard');
         expect(config.delivery).toBe('both');
         expect(config.featureFlags?.existingFlag).toBe(true);
       });
@@ -256,13 +256,13 @@ describe('global-config', () => {
         fs.mkdirSync(configDir, { recursive: true });
         fs.writeFileSync(configPath, JSON.stringify({
           featureFlags: {},
-          profile: 'full',
+          profile: 'dixi',
           delivery: 'skills',
         }));
 
         const config = getGlobalConfig();
 
-        expect(config.profile).toBe('full');
+        expect(config.profile).toBe('dixi');
         expect(config.delivery).toBe('skills');
       });
 
@@ -270,14 +270,14 @@ describe('global-config', () => {
         process.env.XDG_CONFIG_HOME = tempDir;
         const originalConfig = {
           featureFlags: { flag1: true },
-          profile: 'trello',
+          profile: 'dixi',
           delivery: 'commands' as Delivery,
         };
 
         saveGlobalConfig(originalConfig);
         const loadedConfig = getGlobalConfig();
 
-        expect(loadedConfig.profile).toBe('trello');
+        expect(loadedConfig.profile).toBe('dixi');
         expect(loadedConfig.delivery).toBe('commands');
       });
     });

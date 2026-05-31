@@ -74,7 +74,7 @@ const PreferredOpenerSchema = z
 const WorkspaceSkillStateSchema = z
   .object({
     selected_agents: z.array(z.string()),
-    last_applied_profile: z.enum(['core', 'custom']).optional(),
+    last_applied_profile: z.enum(['standard', 'dixi']).optional(),
     last_applied_delivery: z.enum(['both', 'skills', 'commands']).optional(),
     last_applied_workflow_ids: z.array(z.string()).optional(),
     last_applied_at: z.string().optional(),

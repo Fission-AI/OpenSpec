@@ -8,7 +8,7 @@ import {
 } from '../../src/core/profile-sync-drift.js';
 import { PROFILES } from '../../src/core/profiles.js';
 
-const CORE_WORKFLOWS = PROFILES.core.workflows;
+const CORE_WORKFLOWS = PROFILES.standard.workflows;
 import { CommandAdapterRegistry } from '../../src/core/command-generation/index.js';
 
 function writeSkill(projectDir: string, workflowId: string): void {

@@ -25,10 +25,9 @@ describe('profiles', () => {
   });
 
   describe('PROFILES', () => {
-    it('should define at least core, full, and trello profiles', () => {
-      expect(PROFILES).toHaveProperty('core');
-      expect(PROFILES).toHaveProperty('full');
-      expect(PROFILES).toHaveProperty('trello');
+    it('should define standard and dixi profiles', () => {
+      expect(PROFILES).toHaveProperty('standard');
+      expect(PROFILES).toHaveProperty('dixi');
     });
 
     it('each profile should have a description and non-empty workflows list', () => {
@@ -38,12 +37,8 @@ describe('profiles', () => {
       }
     });
 
-    it('core profile should contain the standard 5 workflows', () => {
-      expect([...PROFILES.core.workflows]).toEqual(['propose', 'explore', 'apply', 'sync', 'archive']);
-    });
-
-    it('full profile should contain all workflows', () => {
-      expect(PROFILES.full.workflows).toHaveLength(ALL_WORKFLOWS.length);
+    it('standard profile should contain the 5 base workflows', () => {
+      expect([...PROFILES.standard.workflows]).toEqual(['propose', 'explore', 'apply', 'sync', 'archive']);
     });
 
     it('all profile workflows should be valid workflow IDs', () => {
@@ -55,31 +50,26 @@ describe('profiles', () => {
     });
   });
 
-describe('getProfileWorkflows', () => {
-    it('should return the workflows for the core profile', () => {
-      const result = getProfileWorkflows('core');
-      expect([...result]).toEqual([...PROFILES.core.workflows]);
+  describe('getProfileWorkflows', () => {
+    it('should return the workflows for the standard profile', () => {
+      const result = getProfileWorkflows('standard');
+      expect([...result]).toEqual([...PROFILES.standard.workflows]);
     });
 
-    it('should return the workflows for the full profile', () => {
-      const result = getProfileWorkflows('full');
-      expect([...result]).toEqual([...PROFILES.full.workflows]);
-    });
-
-    it('should return the workflows for the trello profile', () => {
-      const result = getProfileWorkflows('trello');
-      expect([...result]).toEqual([...PROFILES.trello.workflows]);
+    it('should return the workflows for the dixi profile', () => {
+      const result = getProfileWorkflows('dixi');
+      expect([...result]).toEqual([...PROFILES.dixi.workflows]);
     });
   });
 
   describe('isValidProfile', () => {
     it('returns true for defined profile names', () => {
-      expect(isValidProfile('core')).toBe(true);
-      expect(isValidProfile('full')).toBe(true);
-      expect(isValidProfile('trello')).toBe(true);
+      expect(isValidProfile('standard')).toBe(true);
+      expect(isValidProfile('dixi')).toBe(true);
     });
 
     it('returns false for unknown names', () => {
+      expect(isValidProfile('core')).toBe(false);
       expect(isValidProfile('custom')).toBe(false);
       expect(isValidProfile('')).toBe(false);
       expect(isValidProfile('unknown')).toBe(false);

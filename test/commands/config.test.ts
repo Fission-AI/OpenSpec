@@ -209,36 +209,36 @@ describe('config profile command', () => {
   it('profile preset should set profile and preserve delivery', async () => {
     const { getGlobalConfig, saveGlobalConfig } = await import('../../src/core/global-config.js');
 
-    saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'skills' });
+    saveGlobalConfig({ featureFlags: {}, profile: 'standard', delivery: 'skills' });
 
     const config = getGlobalConfig();
-    config.profile = 'full';
+    config.profile = 'dixi';
     saveGlobalConfig(config);
 
     const result = getGlobalConfig();
-    expect(result.profile).toBe('full');
+    expect(result.profile).toBe('dixi');
     expect(result.delivery).toBe('skills');
   });
 
   it('switching to a different predefined profile should update profile name', async () => {
     const { getGlobalConfig, saveGlobalConfig } = await import('../../src/core/global-config.js');
 
-    saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both' });
+    saveGlobalConfig({ featureFlags: {}, profile: 'standard', delivery: 'both' });
 
     const config = getGlobalConfig();
-    config.profile = 'trello';
+    config.profile = 'dixi';
     saveGlobalConfig(config);
 
     const result = getGlobalConfig();
-    expect(result.profile).toBe('trello');
+    expect(result.profile).toBe('dixi');
   });
 
   it('isValidProfile should identify predefined profiles correctly', async () => {
     const { isValidProfile } = await import('../../src/core/profiles.js');
 
-    expect(isValidProfile('core')).toBe(true);
-    expect(isValidProfile('full')).toBe(true);
-    expect(isValidProfile('trello')).toBe(true);
+    expect(isValidProfile('standard')).toBe(true);
+    expect(isValidProfile('dixi')).toBe(true);
+    expect(isValidProfile('core')).toBe(false);
     expect(isValidProfile('custom')).toBe(false);
     expect(isValidProfile('unknown')).toBe(false);
   });
@@ -246,9 +246,8 @@ describe('config profile command', () => {
   it('config schema should validate profile and delivery values', async () => {
     const { validateConfig } = await import('../../src/core/config-schema.js');
 
-    expect(validateConfig({ featureFlags: {}, profile: 'core', delivery: 'both' }).success).toBe(true);
-    expect(validateConfig({ featureFlags: {}, profile: 'full', delivery: 'skills' }).success).toBe(true);
-    expect(validateConfig({ featureFlags: {}, profile: 'trello', delivery: 'commands' }).success).toBe(true);
+    expect(validateConfig({ featureFlags: {}, profile: 'standard', delivery: 'both' }).success).toBe(true);
+    expect(validateConfig({ featureFlags: {}, profile: 'dixi', delivery: 'skills' }).success).toBe(true);
   });
 
   it('config schema should accept any string as profile value', async () => {

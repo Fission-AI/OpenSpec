@@ -30,27 +30,19 @@ export interface ProfileDefinition {
 }
 
 export const PROFILES = {
-  core: {
-    description: 'Essencial — propose, explore, apply, sync, archive',
+  standard: {
+    description: 'Padrão — propose, explore, apply, sync, archive',
     workflows: ['propose', 'explore', 'apply', 'sync', 'archive'],
   },
-  full: {
-    description: 'Completo — todos os workflows disponíveis',
-    workflows: [
-      'propose', 'explore', 'new', 'continue', 'apply', 'ff',
-      'sync', 'archive', 'bulk-archive', 'verify', 'onboard',
-      'trello-setup', 'draft',
-    ],
-  },
-  trello: {
-    description: 'Core + integração com Trello (trello-setup, draft)',
-    workflows: ['propose', 'explore', 'apply', 'sync', 'archive', 'trello-setup', 'draft'],
+  dixi: {
+    description: 'Dixi — padrões e workflows da consultoria Dixi',
+    workflows: ['propose', 'explore', 'apply', 'sync', 'archive'],
   },
 } as const satisfies Record<string, ProfileDefinition>;
 
 export type ProfileName = keyof typeof PROFILES;
 
-export const DEFAULT_PROFILE: ProfileName = 'core';
+export const DEFAULT_PROFILE: ProfileName = 'standard';
 
 export function getProfileWorkflows(profile: ProfileName): readonly WorkflowId[] {
   return PROFILES[profile].workflows;

@@ -19,7 +19,7 @@ export interface GlobalConfig {
 
 const DEFAULT_CONFIG: GlobalConfig = {
   featureFlags: {},
-  profile: 'core',
+  profile: 'standard',
   delivery: 'both',
 };
 

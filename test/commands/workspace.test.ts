@@ -257,7 +257,7 @@ describe('workspace command', () => {
     const linkedEntriesBefore = fs.readdirSync(api).sort();
     const codexHome = path.join(tempDir, 'codex-home');
     writeGlobalConfig({
-      profile: 'core',
+      profile: 'standard',
       delivery: 'commands',
     });
 
@@ -290,7 +290,7 @@ describe('workspace command', () => {
     const workspaceRoot = payload.workspace.root;
     expect(payload.workspace_skills).toEqual(
       expect.objectContaining({
-        profile: 'core',
+        profile: 'standard',
         delivery: 'commands',
         workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive'],
         selected_agents: ['codex'],
@@ -317,7 +317,7 @@ describe('workspace command', () => {
     expect(readWorkspaceState(workspaceRoot).workspace_skills).toEqual(
       expect.objectContaining({
         selected_agents: ['codex'],
-        last_applied_profile: 'core',
+        last_applied_profile: 'standard',
         last_applied_delivery: 'commands',
         last_applied_workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive'],
         last_applied_at: expect.any(String),
@@ -354,7 +354,7 @@ describe('workspace command', () => {
     const api = mkdir('repos/api');
     const linkedEntriesBefore = fs.readdirSync(api).sort();
     writeGlobalConfig({
-      profile: 'full',
+      profile: 'dixi',
       delivery: 'commands',
     });
     const setup = await setupWorkspace('profile-sync', [`api=${api}`], ['--tools', 'codex']);
@@ -364,11 +364,9 @@ describe('workspace command', () => {
     fs.writeFileSync(path.join(customSkillDir, 'README.md'), 'user-owned\n');
 
     expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pscode-apply-change', 'SKILL.md'))).toBe(true);
-    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pscode-verify-change', 'SKILL.md'))).toBe(true);
-    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pscode-new-change', 'SKILL.md'))).toBe(true);
 
     writeGlobalConfig({
-      profile: 'core',
+      profile: 'standard',
       delivery: 'commands',
     });
 
@@ -394,7 +392,7 @@ describe('workspace command', () => {
     expect(payload.workspace.name).toBe('profile-sync');
     expect(payload.workspace_skills).toEqual(
       expect.objectContaining({
-        profile: 'core',
+        profile: 'standard',
         delivery: 'commands',
         workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive'],
         selected_agents: ['codex'],
@@ -406,12 +404,7 @@ describe('workspace command', () => {
             workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive'],
           }),
         ],
-        removed: [
-          expect.objectContaining({
-            tool_id: 'codex',
-            reason: 'workflow_unselected',
-          }),
-        ],
+        removed: [],
         failed: [],
       })
     );
@@ -427,7 +420,7 @@ describe('workspace command', () => {
     expect(readWorkspaceState(workspaceRoot).workspace_skills).toEqual(
       expect.objectContaining({
         selected_agents: ['codex'],
-        last_applied_profile: 'core',
+        last_applied_profile: 'standard',
         last_applied_delivery: 'commands',
         last_applied_workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive'],
       })
@@ -449,7 +442,7 @@ describe('workspace command', () => {
     const api = mkdir('repos/api');
     const linkedEntriesBefore = fs.readdirSync(api).sort();
     writeGlobalConfig({
-      profile: 'core',
+      profile: 'standard',
       delivery: 'commands',
     });
     const setup = await setupWorkspace('update-redirect', [`api=${api}`], ['--tools', 'codex']);
@@ -458,7 +451,7 @@ describe('workspace command', () => {
     expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pscode-propose', 'SKILL.md'))).toBe(true);
 
     writeGlobalConfig({
-      profile: 'core',
+      profile: 'standard',
       delivery: 'commands',
     });
 
@@ -480,14 +473,14 @@ describe('workspace command', () => {
     const firstApi = mkdir('repos/first-api');
     const secondApi = mkdir('repos/second-api');
     writeGlobalConfig({
-      profile: 'core',
+      profile: 'standard',
       delivery: 'commands',
     });
     const first = await setupWorkspace('target-first', [`api=${firstApi}`], ['--tools', 'codex']);
     const second = await setupWorkspace('target-second', [`api=${secondApi}`], ['--tools', 'codex']);
 
     writeGlobalConfig({
-      profile: 'core',
+      profile: 'standard',
       delivery: 'commands',
     });
 
@@ -508,7 +501,7 @@ describe('workspace command', () => {
   it('supports named and flag-selected workspace updates with explicit agent changes', async () => {
     const api = mkdir('repos/api');
     writeGlobalConfig({
-      profile: 'core',
+      profile: 'standard',
       delivery: 'skills',
     });
     const setup = await setupWorkspace('agent-change', [`api=${api}`], ['--tools', 'codex']);
@@ -555,12 +548,13 @@ describe('workspace command', () => {
   it('does not remove unmanaged skill directories that collide with Pscode workflow names', async () => {
     const api = mkdir('repos/api');
     writeGlobalConfig({
-      profile: 'full',
+      profile: 'dixi',
       delivery: 'skills',
     });
     const setup = await setupWorkspace('unmanaged-collision', [`api=${api}`], ['--tools', 'codex']);
     const workspaceRoot = setup.workspace.root;
     const collidingSkillDir = path.join(workspaceRoot, '.codex', 'skills', 'pscode-verify-change');
+    fs.mkdirSync(collidingSkillDir, { recursive: true });
     fs.writeFileSync(path.join(collidingSkillDir, 'SKILL.md'), 'name: user-owned-verify\n');
 
     const update = await runCLI(
@@ -578,7 +572,7 @@ describe('workspace command', () => {
   it('does not record workspace skills as applied when an update fails', async () => {
     const api = mkdir('repos/api');
     writeGlobalConfig({
-      profile: 'core',
+      profile: 'standard',
       delivery: 'skills',
     });
     const setup = await setupWorkspace('failed-update-state', [`api=${api}`], ['--tools', 'codex']);
@@ -602,7 +596,7 @@ describe('workspace command', () => {
     expect(readWorkspaceState(workspaceRoot).workspace_skills).toEqual(
       expect.objectContaining({
         selected_agents: ['codex'],
-        last_applied_profile: 'core',
+        last_applied_profile: 'standard',
         last_applied_workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive'],
       })
     );
