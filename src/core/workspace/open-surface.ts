@@ -6,13 +6,15 @@ import {
   WorkspaceViewState,
   getWorkspaceContextInitiativeId,
   getWorkspaceCodeWorkspacePath,
-  getWorkspacePortableIgnorePatterns,
+  getWorkspaceCodeWorkspaceFileName,
 } from './foundation.js';
 
 const fs = nodeFs.promises;
 
 export const WORKSPACE_GUIDANCE_START_MARKER = '<!-- OPENSPEC:WORKSPACE-GUIDANCE:START -->';
 export const WORKSPACE_GUIDANCE_END_MARKER = '<!-- OPENSPEC:WORKSPACE-GUIDANCE:END -->';
+export const WORKSPACE_OPEN_ROOT_FOLDER_LABEL = 'OpenSpec workspace';
+export const WORKSPACE_OPEN_INITIATIVE_FOLDER_LABEL = 'Initiative context';
 
 export const WORKSPACE_GUIDANCE_BODY = `# OpenSpec Workspace Guidance
 
@@ -191,21 +193,22 @@ export function buildWorkspaceCodeWorkspaceContent(
   resolvedContext?: WorkspaceOpenResolvedContext | null
 ): string {
   const folders = [
-    {
-      path: '.',
-    },
-    ...(resolvedContext
-      ? [
-          {
-            name: `initiative:${resolvedContext.initiative.id}`,
-            path: resolvedContext.initiative.root,
-          },
-        ]
-      : []),
     ...links.map((link) => ({
       name: link.name,
       path: link.path,
     })),
+    ...(resolvedContext
+      ? [
+          {
+            name: WORKSPACE_OPEN_INITIATIVE_FOLDER_LABEL,
+            path: resolvedContext.initiative.root,
+          },
+        ]
+      : []),
+    {
+      name: WORKSPACE_OPEN_ROOT_FOLDER_LABEL,
+      path: '.',
+    },
   ];
 
   return `${JSON.stringify({ folders }, null, 2)}\n`;
@@ -288,32 +291,28 @@ async function syncWorkspaceCodeWorkspace(
   return codeWorkspacePath;
 }
 
-async function syncWorkspaceIgnoreRules(
+async function cleanupLegacyWorkspaceIgnoreRules(
   workspaceRoot: string,
   workspaceName: string
 ): Promise<void> {
   const gitignorePath = path.join(workspaceRoot, '.gitignore');
-  const patterns = getWorkspacePortableIgnorePatterns(workspaceName);
-  const existingContent = (await fileExists(gitignorePath))
-    ? await fs.readFile(gitignorePath, 'utf-8')
-    : '';
-  const existingLines = new Set(
-    existingContent
-      .split(/\r?\n/u)
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0)
-  );
-  const missingPatterns = patterns.filter((pattern) => !existingLines.has(pattern));
 
-  if (missingPatterns.length === 0) {
+  if (!(await fileExists(gitignorePath))) {
     return;
   }
 
-  const prefix = existingContent.length > 0 && !existingContent.endsWith('\n') ? '\n' : '';
-  await FileSystemUtils.writeFile(
-    gitignorePath,
-    `${existingContent}${prefix}${missingPatterns.join('\n')}\n`
-  );
+  const legacyGeneratedPattern = getWorkspaceCodeWorkspaceFileName(workspaceName);
+  const existingContent = await fs.readFile(gitignorePath, 'utf-8');
+  const existingLines = existingContent.split(/\r?\n/u);
+  const nonEmptyLines = existingLines.filter((line) => line.trim().length > 0);
+  const isPureLegacyGeneratedFile =
+    nonEmptyLines.length === 1 && nonEmptyLines[0]?.trim() === legacyGeneratedPattern;
+
+  if (!isPureLegacyGeneratedFile) {
+    return;
+  }
+
+  await fs.rm(gitignorePath, { force: true });
 }
 
 export async function syncWorkspaceOpenSurface(
@@ -334,7 +333,7 @@ export async function syncWorkspaceOpenSurface(
     resolvedContext
   );
 
-  await syncWorkspaceIgnoreRules(workspaceRoot, viewState.name);
+  await cleanupLegacyWorkspaceIgnoreRules(workspaceRoot, viewState.name);
 
   return {
     ...openLinks,

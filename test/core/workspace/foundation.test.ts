@@ -149,11 +149,9 @@ links: {}
       );
     });
 
-    it('exposes the portable collaboration ignore rule for local state', () => {
+    it('keeps legacy portable ignore helper as an empty compatibility shim', () => {
       expect(getWorkspacePortableIgnorePatterns()).toEqual([]);
-      expect(getWorkspacePortableIgnorePatterns('platform')).toEqual([
-        'platform.code-workspace',
-      ]);
+      expect(getWorkspacePortableIgnorePatterns('platform')).toEqual([]);
     });
   });
 
@@ -334,7 +332,7 @@ preferred_opener:
 
       expect(state.preferred_opener).toEqual({
         kind: 'agent',
-        id: 'codex',
+        id: 'codex-cli',
       });
       expect(parseWorkspaceViewState(serializeWorkspaceViewState(state))).toEqual(state);
       expect(parseWorkspacePreferredOpenerValue('editor')).toEqual({
@@ -344,6 +342,10 @@ preferred_opener:
       expect(parseWorkspacePreferredOpenerValue('github-copilot')).toEqual({
         kind: 'agent',
         id: 'github-copilot',
+      });
+      expect(parseWorkspacePreferredOpenerValue('codex')).toEqual({
+        kind: 'agent',
+        id: 'codex-cli',
       });
     });
 
@@ -439,7 +441,7 @@ After block.
       );
     });
 
-    it('builds VS Code workspace content with stable root and linked paths', () => {
+    it('builds VS Code workspace content with linked paths before workspace files', () => {
       const content = buildWorkspaceCodeWorkspaceContent([
         {
           name: 'api',
@@ -454,9 +456,6 @@ After block.
 
       expect(payload.folders).toEqual([
         {
-          path: '.',
-        },
-        {
           name: 'api',
           path: '/repos/api',
         },
@@ -464,16 +463,19 @@ After block.
           name: 'windows',
           path: 'D:\\repos\\web',
         },
+        {
+          name: 'OpenSpec workspace',
+          path: '.',
+        },
       ]);
     });
 
-    it('syncs AGENTS, the maintained code-workspace file, and scoped ignore rules', async () => {
+    it('syncs AGENTS and the maintained code-workspace file without creating repo-shaped files', async () => {
       const workspaceRoot = createWorkspaceRoot();
       const api = path.join(tempDir, 'api');
       const missing = path.join(tempDir, 'missing');
       fs.mkdirSync(api, { recursive: true });
       fs.writeFileSync(path.join(workspaceRoot, 'AGENTS.md'), '# Existing\n');
-      fs.writeFileSync(path.join(workspaceRoot, '.gitignore'), '*.code-workspace\n');
       const workspaceState = {
         version: 1 as const,
         name: 'platform',
@@ -500,16 +502,50 @@ After block.
       );
       expect(JSON.parse(fs.readFileSync(getWorkspaceCodeWorkspacePath(workspaceRoot, 'platform'), 'utf-8')).folders).toEqual([
         {
-          path: '.',
-        },
-        {
           name: 'api',
           path: api,
         },
+        {
+          name: 'OpenSpec workspace',
+          path: '.',
+        },
       ]);
-      expect(fs.readFileSync(path.join(workspaceRoot, '.gitignore'), 'utf-8')).toContain(
+      expect(fs.existsSync(path.join(workspaceRoot, '.gitignore'))).toBe(false);
+    });
+
+    it('leaves legacy code-workspace ignore rules when .gitignore has user rules', async () => {
+      const workspaceRoot = createWorkspaceRoot();
+      fs.writeFileSync(
+        path.join(workspaceRoot, '.gitignore'),
         '*.code-workspace\nplatform.code-workspace\n'
       );
+      const workspaceState = {
+        version: 1 as const,
+        name: 'platform',
+        context: null,
+        links: {},
+      };
+
+      await syncWorkspaceOpenSurface(workspaceRoot, workspaceState);
+
+      expect(fs.readFileSync(path.join(workspaceRoot, '.gitignore'), 'utf-8')).toBe(
+        '*.code-workspace\nplatform.code-workspace\n'
+      );
+    });
+
+    it('deletes the legacy generated .gitignore when it has no user rules', async () => {
+      const workspaceRoot = createWorkspaceRoot();
+      fs.writeFileSync(path.join(workspaceRoot, '.gitignore'), 'platform.code-workspace\n');
+      const workspaceState = {
+        version: 1 as const,
+        name: 'platform',
+        context: null,
+        links: {},
+      };
+
+      await syncWorkspaceOpenSurface(workspaceRoot, workspaceState);
+
+      expect(fs.existsSync(path.join(workspaceRoot, '.gitignore'))).toBe(false);
     });
   });
 
@@ -533,7 +569,7 @@ After block.
         'editor',
         'github-copilot',
       ]);
-      expect(choices.find((choice) => choice.value === 'codex')?.unavailableNote).toContain(
+      expect(choices.find((choice) => choice.value === 'codex-cli')?.unavailableNote).toContain(
         'codex not found on PATH'
       );
     });

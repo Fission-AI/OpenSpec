@@ -76,10 +76,10 @@ OpenSpec SHALL keep shared workspace information separate from local machine pat
 - **THEN** it SHALL preserve path strings valid for the current runtime
 - **AND** it SHALL support native Windows paths and WSL2/Linux paths as local state values
 
-#### Scenario: Excluding local state from portable collaboration
-- **WHEN** OpenSpec creates a workspace
-- **THEN** it SHALL exclude `.openspec-workspace/local.yaml` from portable collaboration state by default
-- **AND** `.openspec-workspace/workspace.yaml` SHALL remain the portable workspace identity and link-name state
+#### Scenario: Keeping managed workspace view state local
+- **WHEN** OpenSpec creates a managed workspace
+- **THEN** it SHALL write `workspace.yaml` in the workspace root as private local view state
+- **AND** the file SHALL preserve stable link names and local path values for the current machine
 
 ### Requirement: Standard Workspace Location
 OpenSpec SHALL use a standard location for OpenSpec-managed workspaces without asking most users to choose one.
@@ -242,31 +242,29 @@ OpenSpec SHALL maintain files that make a workspace directly openable after setu
 - **WHEN** `openspec workspace setup` creates a workspace
 - **THEN** OpenSpec SHALL create or refresh `AGENTS.md`
 - **AND** it SHALL create or refresh `<workspace-name>.code-workspace`
-- **AND** it SHALL create or refresh workspace ignore rules for machine-local open files
+- **AND** it SHALL not create workspace ignore rules for machine-local open files by default
 
 #### Scenario: Refreshing the open surface after linking
 - **WHEN** `openspec workspace link` succeeds
 - **THEN** OpenSpec SHALL refresh `AGENTS.md`
 - **AND** it SHALL refresh `<workspace-name>.code-workspace`
-- **AND** it SHALL refresh workspace ignore rules for machine-local open files
 
 #### Scenario: Refreshing the open surface after relinking
 - **WHEN** `openspec workspace relink` succeeds
 - **THEN** OpenSpec SHALL refresh `AGENTS.md`
 - **AND** it SHALL refresh `<workspace-name>.code-workspace`
-- **AND** it SHALL refresh workspace ignore rules for machine-local open files
 
 #### Scenario: Building the VS Code workspace file
 - **WHEN** OpenSpec refreshes `<workspace-name>.code-workspace`
-- **THEN** the file SHALL include the workspace root
-- **AND** the workspace root folder entry SHALL use the root path without a synthetic display name
-- **AND** it SHALL include every linked repo or folder with a valid local path
+- **THEN** the file SHALL include every linked repo or folder with a valid local path before workspace-local files
+- **AND** it SHALL include attached initiative context when available
+- **AND** it SHALL include the workspace root as `OpenSpec workspace`
 - **AND** it SHALL omit linked repos or folders whose local paths are missing or invalid
 
-#### Scenario: Ignoring the maintained VS Code workspace file
-- **WHEN** OpenSpec refreshes workspace ignore rules
-- **THEN** it SHALL ignore the specific maintained `<workspace-name>.code-workspace` file
-- **AND** user-authored `*.code-workspace` files SHALL remain eligible for tracking
+#### Scenario: Cleaning legacy workspace ignore rules
+- **WHEN** OpenSpec refreshes the workspace open surface
+- **THEN** it SHALL remove the legacy ignore rule for the maintained `<workspace-name>.code-workspace` file when present
+- **AND** it SHALL preserve unrelated user-authored ignore rules
 
 #### Scenario: Preserving user-authored AGENTS content
 - **GIVEN** `AGENTS.md` contains content outside the OpenSpec workspace guidance markers
@@ -279,4 +277,3 @@ OpenSpec SHALL maintain files that make a workspace directly openable after setu
 - **WHEN** OpenSpec refreshes workspace guidance
 - **THEN** it SHALL append the marked OpenSpec workspace guidance block
 - **AND** it SHALL preserve the existing file content
-

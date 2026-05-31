@@ -111,7 +111,7 @@ Workspace context:
 
 Use for shared initiative planning before repo ownership or implementation
 targets are clear. These should be called initiative work items, planning
-briefs, or proposals, not executable OpenSpec changes, until Item 13 defines a
+briefs, or proposals, not executable OpenSpec changes, until Item 18 defines a
 full lifecycle for context-store-backed changes.
 
 Workspace-local changes:
@@ -256,7 +256,7 @@ Keep Item 8 narrow:
   backbone.
 - Do not implement context-store-backed OpenSpec changes in Item 8.
 
-Use Item 13 to decide the larger model:
+Use Item 18 to decide the larger model:
 
 - Whether initiative work items should become a first-class artifact.
 - Whether "change home" remains internal language.
@@ -273,10 +273,10 @@ Question explored:
 
 ```text
 Given the product tension around central versus repo-local change storage, how
-should Item 13 be reframed before implementation work begins?
+should Item 18 be reframed before implementation work begins?
 ```
 
-Three subagent passes reviewed Item 13 from product semantics, agent-first UX,
+Three subagent passes reviewed Item 18 from product semantics, agent-first UX,
 and lifecycle/implementation angles.
 
 ### Product Semantics Findings
@@ -374,7 +374,7 @@ Keep Item 8 narrow:
 - Add JSON output for the agent handoff.
 - Do not implement context-store-hosted executable changes in Item 8.
 
-Use Item 13 to answer the bigger question:
+Use Item 18 to answer the bigger question:
 
 - What initiative-hosted artifacts exist before an implementation target is
   known?

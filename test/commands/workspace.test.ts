@@ -21,10 +21,10 @@ import {
 } from '../../src/core/workspace/index.js';
 import {
   WORKSPACE_LEGACY_LOCAL_STATE_FILE_NAME,
-  WORKSPACE_LEGACY_LOCAL_STATE_IGNORE_PATTERN,
   WORKSPACE_LEGACY_SHARED_STATE_FILE_NAME,
 } from '../../src/core/workspace/legacy-state.js';
 import { FileSystemUtils } from '../../src/utils/file-system.js';
+import { withPrependedPathEnv } from '../helpers/path-env.js';
 import { runCLI, type RunCLIResult } from '../helpers/run-cli.js';
 
 describe('workspace command', () => {
@@ -97,8 +97,7 @@ describe('workspace command', () => {
 
   function envWithFakeExecutable(fake: { binDir: string; logPath: string }): NodeJS.ProcessEnv {
     return {
-      ...env,
-      PATH: `${fake.binDir}${path.delimiter}${process.env.PATH ?? ''}`,
+      ...withPrependedPathEnv(env, fake.binDir),
       OPENSPEC_FAKE_OPEN_RECORDER: path.join(fake.binDir, 'record-launch.cjs'),
       OPENSPEC_FAKE_OPEN_LOG: fake.logPath,
     };
@@ -181,19 +180,12 @@ describe('workspace command', () => {
     });
     expect(workspaceState.preferred_opener).toBeUndefined();
     expect(fs.existsSync(getWorkspaceRegistryPath({ globalDataDir: path.join(dataHome, 'openspec') }))).toBe(false);
-    expect(fs.readFileSync(path.join(workspaceRoot, '.gitignore'), 'utf-8')).not.toContain(
-      WORKSPACE_LEGACY_LOCAL_STATE_IGNORE_PATTERN
-    );
-    expect(fs.readFileSync(path.join(workspaceRoot, '.gitignore'), 'utf-8')).toContain(
-      'platform.code-workspace'
-    );
+    expect(fs.existsSync(path.join(workspaceRoot, '.gitignore'))).toBe(false);
+    expect(fs.existsSync(path.join(workspaceRoot, WORKSPACE_CHANGES_DIR_NAME))).toBe(false);
     expect(fs.readFileSync(path.join(workspaceRoot, 'AGENTS.md'), 'utf-8')).toContain(
       'OpenSpec Workspace Guidance'
     );
     expect(JSON.parse(fs.readFileSync(getWorkspaceCodeWorkspacePath(workspaceRoot, 'platform'), 'utf-8')).folders).toEqual([
-      {
-        path: '.',
-      },
       {
         name: 'api',
         path: expectedApi,
@@ -201,6 +193,10 @@ describe('workspace command', () => {
       {
         name: 'checkout',
         path: expectedCheckout,
+      },
+      {
+        name: 'OpenSpec workspace',
+        path: '.',
       },
     ]);
 
@@ -386,7 +382,7 @@ describe('workspace command', () => {
     );
 
     const update = await runCLI(['workspace', 'update', '--json'], {
-      cwd: path.join(workspaceRoot, WORKSPACE_CHANGES_DIR_NAME),
+      cwd: workspaceRoot,
       env,
     });
     expect(update.exitCode).toBe(0);
@@ -447,7 +443,7 @@ describe('workspace command', () => {
     );
   });
 
-  it('redirects openspec update from a workspace planning home to workspace update', async () => {
+  it('redirects openspec update from a workspace root to workspace update', async () => {
     const api = mkdir('repos/api');
     const linkedEntriesBefore = fs.readdirSync(api).sort();
     writeGlobalConfig({
@@ -466,7 +462,7 @@ describe('workspace command', () => {
     });
 
     const update = await runCLI(['update'], {
-      cwd: path.join(workspaceRoot, WORKSPACE_CHANGES_DIR_NAME),
+      cwd: workspaceRoot,
       env,
     });
     expect(update.exitCode).toBe(0);
@@ -496,7 +492,7 @@ describe('workspace command', () => {
     });
 
     const update = await runCLI(
-      ['update', path.join(first.workspace.root, WORKSPACE_CHANGES_DIR_NAME)],
+      ['update', first.workspace.root],
       { cwd: tempDir, env }
     );
 
@@ -747,13 +743,18 @@ ${WORKSPACE_GUIDANCE_END_MARKER}
 
   it('stores non-interactive preferred openers only when --opener is provided', async () => {
     const api = mkdir('repos/api');
-    const codex = await setupWorkspace('codex-workspace', [`api=${api}`], ['--opener', 'codex']);
+    const codex = await setupWorkspace('codex-workspace', [`api=${api}`], ['--opener', 'codex-cli']);
+    const legacyCodex = await setupWorkspace('legacy-codex-workspace', [`api=${api}`], ['--opener', 'codex']);
     const editor = await setupWorkspace('editor-workspace', [`api=${api}`], ['--opener', 'editor']);
     const unset = await setupWorkspace('unset-workspace', [`api=${api}`]);
 
     expect(readWorkspaceState(codex.workspace.root).preferred_opener).toEqual({
       kind: 'agent',
-      id: 'codex',
+      id: 'codex-cli',
+    });
+    expect(readWorkspaceState(legacyCodex.workspace.root).preferred_opener).toEqual({
+      kind: 'agent',
+      id: 'codex-cli',
     });
     expect(readWorkspaceState(editor.workspace.root).preferred_opener).toEqual({
       kind: 'editor',
@@ -931,7 +932,7 @@ ${WORKSPACE_GUIDANCE_END_MARKER}
     const setup = await setupWorkspace('platform', [`api=${api}`]);
     const workspaceRoot = setup.workspace.root;
     const viewBefore = fs.readFileSync(getWorkspaceViewStatePath(workspaceRoot), 'utf-8');
-    const markerPath = path.join(workspaceRoot, WORKSPACE_CHANGES_DIR_NAME, 'sentinel.txt');
+    const markerPath = path.join(workspaceRoot, 'sentinel.txt');
     fs.writeFileSync(markerPath, 'keep me');
 
     const duplicate = await runCLI(
@@ -1265,7 +1266,6 @@ links:
   local-only: ${localOnly}
 `;
     fs.writeFileSync(getWorkspaceViewStatePath(workspaceRoot), viewState);
-    fs.rmSync(path.join(workspaceRoot, WORKSPACE_CHANGES_DIR_NAME), { recursive: true, force: true });
     expect(fs.existsSync(registryPath)).toBe(false);
 
     const doctor = await runCLI(['workspace', 'doctor', '--workspace', 'platform', '--json'], {
@@ -1431,11 +1431,12 @@ links:
     ).folders;
     expect(workspaceFolders).toEqual([
       {
-        path: '.',
-      },
-      {
         name: 'api',
         path: expectedApi,
+      },
+      {
+        name: 'OpenSpec workspace',
+        path: '.',
       },
     ]);
     const editorLaunch = readLaunchLog(code.logPath);
@@ -1447,7 +1448,7 @@ links:
     ]);
 
     const currentWorkspaceOpen = await runCLI(['workspace', 'open', '--editor', '--no-interactive'], {
-      cwd: path.join(setup.workspace.root, WORKSPACE_CHANGES_DIR_NAME),
+      cwd: setup.workspace.root,
       env: envWithFakeExecutable(code),
     });
     expect(currentWorkspaceOpen.exitCode).toBe(0);
@@ -1467,6 +1468,8 @@ links:
       fs.realpathSync.native(setup.workspace.root)
     );
     expect(codexLaunch.args).toEqual([
+      '--sandbox',
+      'workspace-write',
       '--add-dir',
       expectedApi,
       'Open this OpenSpec workspace.',
@@ -1534,7 +1537,7 @@ links:
     expect(changeUnsupported.stderr).toContain('root workspace open only');
 
     const openerConflict = await runCLI(
-      ['workspace', 'open', 'platform', '--agent', 'codex', '--editor', '--no-interactive'],
+      ['workspace', 'open', 'platform', '--agent', 'codex-cli', '--editor', '--no-interactive'],
       {
         cwd: tempDir,
         env,
@@ -1596,7 +1599,6 @@ preferred_opener:
     expect(setup.stdout).not.toContain('Root:');
     expect(setup.stdout).toContain('Linked repos or folders (1):');
     expect(setup.stdout).toContain(`api -> ${expectedApi}`);
-    expect(setup.stdout).toContain('Planning path:');
     expect(setup.stdout).toContain('Workspace check:');
     expect(setup.stdout).toContain('No workspace issues found.');
     expect(setup.stdout).toContain('Next useful commands:');
@@ -1618,7 +1620,6 @@ preferred_opener:
     expect(doctor.stdout).toContain('Workspace: platform');
     expect(doctor.stdout).toContain('Location:');
     expect(doctor.stdout).not.toContain('Root:');
-    expect(doctor.stdout).toContain('Planning path:');
     expect(doctor.stdout).toContain('Linked repos or folders:');
     expect(doctor.stdout).toContain('No workspace issues found.');
   });
@@ -1663,7 +1664,7 @@ preferred_opener:
       'Install OpenSpec skills'
     );
     expect(setup?.flags?.find((flag) => flag.name === 'opener')?.values).toEqual([
-      'codex',
+      'codex-cli',
       'claude',
       'github-copilot',
       'editor',
@@ -1696,7 +1697,7 @@ preferred_opener:
       { name: 'name', optional: true },
     ]);
     expect(open?.flags?.find((flag) => flag.name === 'agent')?.values).toEqual([
-      'codex',
+      'codex-cli',
       'claude',
       'github-copilot',
     ]);

@@ -8,7 +8,7 @@ The OpenSpec CLI (`openspec`) provides terminal commands for project setup, vali
 |----------|----------|---------|
 | **Setup** | `init`, `update` | Initialize and update OpenSpec in your project |
 | **Workspaces (beta)** | `workspace setup`, `workspace list`, `workspace ls`, `workspace link`, `workspace relink`, `workspace doctor`, `workspace update`, `workspace open` | Set up local views over linked repos or folders |
-| **Shared context (beta)** | `context-store setup`, `context-store register`, `context-store list`, `context-store doctor`, `initiative create`, `initiative show`, `initiative list` | Manage local context-store registrations and durable initiative context |
+| **Shared context (beta)** | `context-store setup`, `context-store register`, `context-store unregister`, `context-store remove`, `context-store list`, `context-store doctor`, `initiative create`, `initiative show`, `initiative list` | Manage local context-store registrations and durable initiative context |
 | **Browsing** | `list`, `view`, `show` | Explore changes and specs |
 | **Validation** | `validate` | Check changes and specs for issues |
 | **Lifecycle** | `archive` | Finalize completed changes |
@@ -54,6 +54,10 @@ These commands support `--json` output for programmatic use by AI agents and scr
 | `openspec workspace relink` | Repair a linked path | `--json` for structured link output |
 | `openspec workspace doctor` | Check one workspace | `--json` for structured status output |
 | `openspec workspace update` | Refresh workspace-local guidance and agent skills | `--tools` selects agents; profile selects workflows |
+| `openspec context-store setup <id>` | Create a local context store | `--json` with explicit inputs for structured setup output |
+| `openspec context-store register <path>` | Register an existing context store | `--json` for structured registration output |
+| `openspec context-store unregister <id>` | Forget a local context-store registration | `--json` for structured cleanup output |
+| `openspec context-store remove <id>` | Delete a registered local context-store folder | `--yes --json` for non-interactive deletion |
 | `openspec context-store list` | Browse registered context stores | `--json` for structured registrations |
 | `openspec context-store doctor` | Check local store setup | `--json` for structured diagnostics |
 | `openspec initiative list` | Browse shared initiatives | `--json` for structured initiative records |
@@ -194,7 +198,7 @@ openspec workspace setup [options]
 | `--name <name>` | Workspace name. Names must be kebab-case |
 | `--link <path>` | Link an existing repo or folder and infer the link name from the folder name |
 | `--link <name>=<path>` | Link an existing repo or folder with an explicit link name |
-| `--opener <id>` | Store a preferred opener during non-interactive setup: `codex`, `claude`, `github-copilot`, or `editor` |
+| `--opener <id>` | Store a preferred opener during non-interactive setup: `codex-cli`, `claude`, `github-copilot`, or `editor` |
 | `--tools <tools>` | Install workspace-local OpenSpec skills for agents. Use `all`, `none`, or comma-separated tool IDs |
 | `--no-interactive` | Disable prompts; requires `--name` and at least one `--link` |
 | `--json` | Output JSON; requires `--no-interactive` |
@@ -204,7 +208,7 @@ openspec workspace setup [options]
 ```bash
 openspec workspace setup
 openspec workspace setup --no-interactive --name platform --link /repos/api --link web=/repos/web
-openspec workspace setup --no-interactive --name platform --link /repos/api --opener codex
+openspec workspace setup --no-interactive --name platform --link /repos/api --opener codex-cli
 openspec workspace setup --no-interactive --name platform --link /repos/api --tools codex,claude
 openspec workspace setup --no-interactive --json --name checkout --link /repos/platform/apps/checkout
 ```
@@ -268,7 +272,7 @@ Check what one workspace can resolve on the current machine.
 openspec workspace doctor [options]
 ```
 
-Doctor shows the workspace location, planning path, linked repos or folders, missing paths, repo-local specs paths when present, and suggested fixes. It reports issues only; it does not repair them automatically.
+Doctor shows the workspace location, linked repos or folders, missing paths, repo-local specs paths when present, and suggested fixes. JSON output also includes the workspace planning path for compatibility. It reports issues only; it does not repair them automatically.
 
 Commands that need one workspace use the current workspace when run from inside a workspace folder or subdirectory. From elsewhere, pass `--workspace <name>`, select from the picker in an interactive terminal, or rely on the only known workspace when exactly one exists. In `--json` or `--no-interactive` mode, ambiguous selection fails with a structured status error and suggests `--workspace <name>`.
 
@@ -320,7 +324,7 @@ openspec workspace open [name] [options]
 | `--initiative <id>` | Open an initiative as a local workspace view. Accepts `<id>` or `<store>/<id>` |
 | `--store <id>` | Registered context store id for `--initiative` |
 | `--store-path <path>` | Existing local context store root for `--initiative` |
-| `--agent <tool>` | One-session agent override: `codex`, `claude`, or `github-copilot` |
+| `--agent <tool>` | One-session agent override: `codex-cli`, `claude`, or `github-copilot` |
 | `--editor` | Open the maintained VS Code workspace file as a normal editor workspace |
 | `--no-interactive` | Disable workspace and opener picker prompts |
 
@@ -330,7 +334,7 @@ openspec workspace open [name] [options]
 openspec workspace open
 openspec workspace open platform
 openspec workspace open platform --agent github-copilot
-openspec workspace open --agent codex
+openspec workspace open --agent codex-cli
 openspec workspace open --editor
 openspec workspace open --initiative billing-launch --store platform
 openspec workspace open --initiative platform/billing-launch
@@ -340,9 +344,9 @@ openspec workspace open --initiative platform/billing-launch
 
 When `--initiative` is used, OpenSpec prepares or selects a private local workspace view for that initiative. Registry-selected stores are stored by id; `--store-path` stores a runtime-local path selector because workspace views are private local state.
 
-OpenSpec maintains `<workspace-name>.code-workspace` at the workspace root for VS Code editor and GitHub Copilot-in-VS-Code opens. That file is machine-local and ignored by default with a specific `<workspace-name>.code-workspace` `.gitignore` entry, so user-authored `*.code-workspace` files remain eligible for tracking.
+OpenSpec maintains `<workspace-name>.code-workspace` at the workspace root for VS Code editor and GitHub Copilot-in-VS-Code opens. That file is machine-local workspace view state.
 
-The maintained VS Code workspace includes the coordination root as `.` plus valid linked repos or folders as additional roots. VS Code displays those entries as a multi-root workspace.
+The maintained VS Code workspace lists valid linked repos or folders first, then initiative context when attached, then the OpenSpec workspace files. VS Code displays those entries as a multi-root workspace.
 
 Root workspace open makes linked repos or folders visible for exploration and context. Implementation edits should start only after an explicit user request and a normal OpenSpec implementation workflow.
 
@@ -354,7 +358,9 @@ Context stores and initiatives are beta coordination surfaces. A context store i
 
 ### `openspec context-store setup`
 
-Create and register a local context store.
+Create and register a local context store. With no arguments in a terminal,
+OpenSpec guides the user through setup. Agents and scripts should pass explicit
+inputs and use `--json`.
 
 ```bash
 openspec context-store setup [id] [options]
@@ -364,14 +370,17 @@ openspec context-store setup [id] [options]
 
 | Option | Description |
 |--------|-------------|
-| `--path <path>` | Context store folder path; defaults to `./<id>` |
+| `--path <path>` | Context store folder path; defaults to OpenSpec's managed local data directory |
 | `--init-git` | Initialize a Git repository in the context store |
 | `--no-init-git` | Do not initialize a Git repository |
 | `--json` | Output JSON |
 
+When `--path` is omitted, setup creates the store under `getGlobalDataDir()/context-stores/<id>`: `$XDG_DATA_HOME/openspec/context-stores/<id>` when `XDG_DATA_HOME` is set, or `~/.local/share/openspec/context-stores/<id>` on Unix-style fallbacks. Pass `--path` when you want the store in a visible clone or team-specific folder.
+
 Examples:
 
 ```bash
+openspec context-store setup
 openspec context-store setup team-context
 openspec context-store setup team-context --path /repos/team-context --no-init-git
 openspec context-store setup team-context --json --no-init-git
@@ -391,6 +400,30 @@ openspec context-store register [path] [options]
 |--------|-------------|
 | `--id <id>` | Context store id; defaults to store metadata or folder name |
 | `--json` | Output JSON |
+
+### `openspec context-store unregister`
+
+Forget a local context-store registration without deleting files.
+
+```bash
+openspec context-store unregister <id> [--json]
+```
+
+Use this when a store was moved, cloned somewhere else, or should no longer be
+shown by OpenSpec on this machine.
+
+### `openspec context-store remove`
+
+Forget a local context-store registration and delete its local folder.
+
+```bash
+openspec context-store remove <id> [--yes] [--json]
+```
+
+`remove` shows the exact folder before deleting in an interactive terminal.
+Agents, scripts, and JSON callers must pass `--yes` to confirm deletion.
+OpenSpec refuses to delete a folder that does not contain matching
+context-store metadata.
 
 ### `openspec context-store list`
 

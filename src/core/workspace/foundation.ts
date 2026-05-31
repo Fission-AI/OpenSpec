@@ -14,14 +14,14 @@ export const WORKSPACE_CHANGES_DIR_NAME = 'changes';
 export const WORKSPACE_CODE_WORKSPACE_EXTENSION = '.code-workspace';
 
 export const WORKSPACE_SUPPORTED_OPENER_VALUES = [
-  'codex',
+  'codex-cli',
   'claude',
   'github-copilot',
   'editor',
 ] as const;
 
 export const WORKSPACE_AGENT_OPENER_IDS = [
-  'codex',
+  'codex-cli',
   'claude',
   'github-copilot',
 ] as const;
@@ -93,8 +93,13 @@ export function getWorkspaceCodeWorkspacePath(workspaceRoot: string, workspaceNa
   return joinWorkspacePath(workspaceRoot, getWorkspaceCodeWorkspaceFileName(workspaceName));
 }
 
-export function getWorkspacePortableIgnorePatterns(workspaceName?: string): string[] {
-  return workspaceName ? [getWorkspaceCodeWorkspaceFileName(workspaceName)] : [];
+/**
+ * @deprecated Managed workspaces no longer create portable ignore rules.
+ * This compatibility shim remains for callers that still ask which ignore
+ * patterns OpenSpec owns for workspace-local generated files.
+ */
+export function getWorkspacePortableIgnorePatterns(_workspaceName?: string): string[] {
+  return [];
 }
 
 function validateFolderStyleName(name: string, label: string): string {
@@ -250,6 +255,18 @@ function formatSupportedOpenerValues(): string {
   return WORKSPACE_SUPPORTED_OPENER_VALUES.join(', ');
 }
 
+function normalizeWorkspaceAgentOpenerId(value: string): WorkspaceAgentOpenerId | null {
+  if (value === 'codex') {
+    return 'codex-cli';
+  }
+
+  if (isWorkspaceAgentOpenerId(value)) {
+    return value;
+  }
+
+  return null;
+}
+
 export function isWorkspaceAgentOpenerId(value: string): value is WorkspaceAgentOpenerId {
   return (WORKSPACE_AGENT_OPENER_IDS as readonly string[]).includes(value);
 }
@@ -268,10 +285,11 @@ export function parseWorkspacePreferredOpenerValue(value: string): WorkspacePref
     };
   }
 
-  if (isWorkspaceAgentOpenerId(value)) {
+  const agentId = normalizeWorkspaceAgentOpenerId(value);
+  if (agentId) {
     return {
       kind: 'agent',
-      id: value,
+      id: agentId,
     };
   }
 
@@ -287,8 +305,14 @@ export function validateWorkspacePreferredOpener(
     return opener;
   }
 
-  if (opener.kind === 'agent' && isWorkspaceAgentOpenerId(opener.id)) {
-    return opener;
+  if (opener.kind === 'agent') {
+    const agentId = normalizeWorkspaceAgentOpenerId(opener.id);
+    if (agentId) {
+      return {
+        kind: 'agent',
+        id: agentId,
+      };
+    }
   }
 
   throw new Error(

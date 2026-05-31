@@ -309,9 +309,9 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
           },
           {
             name: 'opener',
-            description: 'Preferred opener: codex, claude, github-copilot, or editor',
+            description: 'Preferred opener: codex-cli, claude, github-copilot, or editor',
             takesValue: true,
-            values: ['codex', 'claude', 'github-copilot', 'editor'],
+            values: ['codex-cli', 'claude', 'github-copilot', 'editor'],
           },
           {
             name: 'tools',
@@ -433,9 +433,9 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
           },
           {
             name: 'agent',
-            description: 'Use an agent for this session: codex, claude, or github-copilot',
+            description: 'Use an agent for this session: codex-cli, claude, or github-copilot',
             takesValue: true,
-            values: ['codex', 'claude', 'github-copilot'],
+            values: ['codex-cli', 'claude', 'github-copilot'],
           },
           {
             name: 'editor',
@@ -493,6 +493,28 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             name: 'id',
             description: 'Context store id',
             takesValue: true,
+          },
+          COMMON_FLAGS.json,
+        ],
+      },
+      {
+        name: 'unregister',
+        description: 'Forget a local context-store registration without deleting files',
+        acceptsPositional: true,
+        positionals: [{ name: 'id' }],
+        flags: [
+          COMMON_FLAGS.json,
+        ],
+      },
+      {
+        name: 'remove',
+        description: 'Forget a local context-store registration and delete its local folder',
+        acceptsPositional: true,
+        positionals: [{ name: 'id' }],
+        flags: [
+          {
+            name: 'yes',
+            description: 'Confirm local context-store folder deletion',
           },
           COMMON_FLAGS.json,
         ],
