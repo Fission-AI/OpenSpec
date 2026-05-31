@@ -581,7 +581,7 @@ Old instructions content
       await updateCommand.execute(testDir);
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Restart your IDE')
+        expect.stringContaining('Restart your IDE or agent')
       );
 
       consoleSpy.mockRestore();

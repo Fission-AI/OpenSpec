@@ -1,10 +1,9 @@
 /**
- * Codex Command Adapter
+ * Codex Legacy Prompt Adapter
  *
- * Formats commands for Codex following its frontmatter specification.
- * Codex custom prompts live in the global home directory (~/.codex/prompts/)
- * and are not shared through the repository. The CODEX_HOME env var can
- * override the default ~/.codex location.
+ * Codex custom prompts are deprecated and are no longer generated for new
+ * setups. This adapter is kept so update/init can find and remove previously
+ * generated opsx prompt files from the global Codex home.
  */
 
 import os from 'os';
@@ -21,7 +20,7 @@ function getCodexHome(): string {
 }
 
 /**
- * Codex adapter for command generation.
+ * Codex adapter for legacy prompt cleanup.
  * File path: <CODEX_HOME>/prompts/opsx-<id>.md (absolute, global)
  * Frontmatter: description, argument-hint
  */

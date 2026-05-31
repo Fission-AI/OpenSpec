@@ -168,6 +168,28 @@ describe('InitCommand', () => {
       expect(await fileExists(skillFile)).toBe(true);
     });
 
+    it('should install Codex skills without generating deprecated prompt commands', async () => {
+      const codexHome = path.join(testDir, 'codex-home');
+      process.env.CODEX_HOME = codexHome;
+
+      const legacyPrompt = path.join(codexHome, 'prompts', 'opsx-apply.md');
+      await fs.mkdir(path.dirname(legacyPrompt), { recursive: true });
+      await fs.writeFile(legacyPrompt, 'legacy prompt');
+
+      const initCommand = new InitCommand({ tools: 'codex', force: true });
+      await initCommand.execute(testDir);
+
+      const skillFile = path.join(testDir, '.codex', 'skills', 'openspec-propose', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
+
+      const content = await fs.readFile(skillFile, 'utf-8');
+      expect(content).toContain('$openspec-apply-change');
+      expect(content).not.toContain('/opsx:');
+      expect(content).not.toContain('/opsx-');
+      expect(await fileExists(legacyPrompt)).toBe(false);
+      expect(await directoryExists(path.join(codexHome, 'prompts'))).toBe(true);
+    });
+
     it('should support Kimi CLI as an adapterless skills-only tool', async () => {
       saveGlobalConfig({
         featureFlags: {},

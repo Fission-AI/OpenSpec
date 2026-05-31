@@ -1,7 +1,7 @@
 /**
  * Init Command
  *
- * Sets up OpenSpec with Agent Skills and /opsx:* slash commands.
+ * Sets up OpenSpec with Agent Skills and supported tool command surfaces.
  * This is the unified setup command that replaces both the old init and experimental commands.
  */
 
@@ -11,12 +11,16 @@ import ora from 'ora';
 import * as fs from 'fs';
 import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { transformToHyphenCommands } from '../utils/command-references.js';
 import {
   AI_TOOLS,
   OPENSPEC_DIR_NAME,
   AIToolOption,
 } from './config.js';
+import {
+  getSkillInstructionTransformer,
+  shouldGenerateCommandsForTool,
+  shouldGenerateSkillsForTool,
+} from './tool-delivery.js';
 import { PALETTE } from './styles/palette.js';
 import { isInteractive } from '../utils/interactive.js';
 import { serializeConfig } from './config-prompts.js';
@@ -516,18 +520,19 @@ export class InitCommand {
     const workflows = getProfileWorkflows(profile, globalConfig.workflows);
 
     // Get skill and command templates filtered by profile workflows
-    const shouldGenerateSkills = delivery !== 'commands';
-    const shouldGenerateCommands = delivery !== 'skills';
-    const skillTemplates = shouldGenerateSkills ? getSkillTemplates(workflows) : [];
-    const commandContents = shouldGenerateCommands ? getCommandContents(workflows) : [];
+    const skillTemplates = getSkillTemplates(workflows);
+    const commandContents = getCommandContents(workflows);
 
     // Process each tool
     for (const tool of tools) {
       const spinner = ora(`Setting up ${tool.name}...`).start();
 
       try {
+        const toolShouldGenerateSkills = shouldGenerateSkillsForTool(tool.value, delivery);
+        const toolShouldGenerateCommands = shouldGenerateCommandsForTool(tool.value, delivery);
+
         // Generate skill files if delivery includes skills
-        if (shouldGenerateSkills) {
+        if (toolShouldGenerateSkills) {
           // Use tool-specific skillsDir
           const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
 
@@ -537,21 +542,20 @@ export class InitCommand {
             const skillFile = path.join(skillDir, 'SKILL.md');
 
             // Generate SKILL.md content with YAML frontmatter including generatedBy
-            // Use hyphen-based command references for tools where filename = command name
-            const transformer = (tool.value === 'opencode' || tool.value === 'pi') ? transformToHyphenCommands : undefined;
+            const transformer = getSkillInstructionTransformer(tool.value);
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
 
             // Write the skill file
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
         }
-        if (!shouldGenerateSkills) {
+        if (!toolShouldGenerateSkills) {
           const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
           removedSkillCount += await this.removeSkillDirs(skillsDir);
         }
 
         // Generate commands if delivery includes commands
-        if (shouldGenerateCommands) {
+        if (toolShouldGenerateCommands) {
           const adapter = CommandAdapterRegistry.get(tool.value);
           if (adapter) {
             const generatedCommands = generateCommands(commandContents, adapter);
@@ -564,7 +568,7 @@ export class InitCommand {
             commandsSkipped.push(tool.value);
           }
         }
-        if (!shouldGenerateCommands) {
+        if (!toolShouldGenerateCommands) {
           removedCommandCount += await this.removeCommandFiles(projectPath, tool.value);
         }
 
@@ -656,8 +660,14 @@ export class InitCommand {
       const delivery: Delivery = globalConfig.delivery ?? 'both';
       const workflows = getProfileWorkflows(profile, globalConfig.workflows);
       const toolDirs = [...new Set(successfulTools.map((t) => t.skillsDir))].join(', ');
-      const skillCount = delivery !== 'commands' ? getSkillTemplates(workflows).length : 0;
-      const commandCount = delivery !== 'skills' ? getCommandContents(workflows).length : 0;
+      const hasSkillGeneratingTool = successfulTools.some((tool) =>
+        shouldGenerateSkillsForTool(tool.value, delivery)
+      );
+      const hasCommandGeneratingTool = successfulTools.some((tool) =>
+        shouldGenerateCommandsForTool(tool.value, delivery)
+      );
+      const skillCount = hasSkillGeneratingTool ? getSkillTemplates(workflows).length : 0;
+      const commandCount = hasCommandGeneratingTool ? getCommandContents(workflows).length : 0;
       if (skillCount > 0 && commandCount > 0) {
         console.log(`${skillCount} skills and ${commandCount} commands in ${toolDirs}/`);
       } else if (skillCount > 0) {
@@ -700,13 +710,19 @@ export class InitCommand {
     const globalCfg = getGlobalConfig();
     const activeProfile: Profile = (this.profileOverride as Profile) ?? globalCfg.profile ?? 'core';
     const activeWorkflows = [...getProfileWorkflows(activeProfile, globalCfg.workflows)];
+    const gettingStartedTools = [...results.createdTools, ...results.refreshedTools];
+    const hasCommandSurface = gettingStartedTools.some((tool) =>
+      shouldGenerateCommandsForTool(tool.value, globalCfg.delivery ?? 'both')
+    );
+    const commandPrefix = hasCommandSurface ? '/opsx:' : '$openspec-';
+    const newInvocation = hasCommandSurface ? '/opsx:new' : '$openspec-new-change';
     console.log();
-    if (activeWorkflows.includes('propose')) {
+    if (gettingStartedTools.length > 0 && activeWorkflows.includes('propose')) {
       console.log(chalk.bold('Getting started:'));
-      console.log('  Start your first change: /opsx:propose "your idea"');
-    } else if (activeWorkflows.includes('new')) {
+      console.log(`  Start your first change: ${commandPrefix}propose "your idea"`);
+    } else if (gettingStartedTools.length > 0 && activeWorkflows.includes('new')) {
       console.log(chalk.bold('Getting started:'));
-      console.log('  Start your first change: /opsx:new "your idea"');
+      console.log(`  Start your first change: ${newInvocation} "your idea"`);
     } else {
       console.log("Done. Run 'openspec config profile' to configure your workflows.");
     }
@@ -719,7 +735,7 @@ export class InitCommand {
     // Restart instruction if any tools were configured
     if (results.createdTools.length > 0 || results.refreshedTools.length > 0) {
       console.log();
-      console.log(chalk.white('Restart your IDE for slash commands to take effect.'));
+      console.log(chalk.white('Restart your IDE or agent for generated guidance to take effect.'));
     }
 
     console.log();
