@@ -257,10 +257,10 @@ export class UpdateCommand {
       console.log(chalk.red(`✗ Failed: ${failedTools.map(f => `${f.name} (${f.error})`).join(', ')}`));
     }
     if (removedCommandCount > 0) {
-      console.log(chalk.dim(`Removed: ${removedCommandCount} command files (delivery: skills)`));
+      console.log(chalk.dim(`Removed: ${removedCommandCount} command files (commands disabled for selected tools)`));
     }
     if (removedSkillCount > 0) {
-      console.log(chalk.dim(`Removed: ${removedSkillCount} skill directories (delivery: commands)`));
+      console.log(chalk.dim(`Removed: ${removedSkillCount} skill directories (skills disabled for selected tools)`));
     }
     if (removedDeselectedCommandCount > 0) {
       console.log(chalk.dim(`Removed: ${removedDeselectedCommandCount} command files (deselected workflows)`));
@@ -271,11 +271,26 @@ export class UpdateCommand {
 
     // 12. Show onboarding message for newly configured tools from legacy upgrade
     if (newlyConfiguredTools.length > 0) {
+      const hasCommandSurface = newlyConfiguredTools.some((toolId) =>
+        shouldGenerateCommandsForTool(toolId, delivery)
+      );
+      const hasSkillOnlySurface = newlyConfiguredTools.some((toolId) =>
+        shouldGenerateSkillsForTool(toolId, delivery) &&
+        !shouldGenerateCommandsForTool(toolId, delivery)
+      );
+
       console.log();
       console.log(chalk.bold('Getting started:'));
-      console.log('  /opsx:new       Start a new change');
-      console.log('  /opsx:continue  Create the next artifact');
-      console.log('  /opsx:apply     Implement tasks');
+      if (hasCommandSurface) {
+        console.log('  /opsx:new       Start a new change');
+        console.log('  /opsx:continue  Create the next artifact');
+        console.log('  /opsx:apply     Implement tasks');
+      }
+      if (hasSkillOnlySurface) {
+        console.log('  $openspec-new-change       Start a new change');
+        console.log('  $openspec-continue-change  Create the next artifact');
+        console.log('  $openspec-apply-change     Implement tasks');
+      }
       console.log();
       console.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
     }

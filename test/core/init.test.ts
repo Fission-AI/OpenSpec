@@ -190,6 +190,20 @@ describe('InitCommand', () => {
       expect(await directoryExists(path.join(codexHome, 'prompts'))).toBe(true);
     });
 
+    it('should show both command and skill invocations when mixed tools have different surfaces', async () => {
+      const codexHome = path.join(testDir, 'codex-home');
+      process.env.CODEX_HOME = codexHome;
+
+      const initCommand = new InitCommand({ tools: 'claude,codex', force: true });
+      await initCommand.execute(testDir);
+
+      const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+      expect(logCalls).toEqual(expect.arrayContaining([
+        expect.stringContaining('/opsx:propose "your idea"'),
+        expect.stringContaining('$openspec-propose "your idea"'),
+      ]));
+    });
+
     it('should support Kimi CLI as an adapterless skills-only tool', async () => {
       saveGlobalConfig({
         featureFlags: {},

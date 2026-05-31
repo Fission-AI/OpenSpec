@@ -687,10 +687,10 @@ export class InitCommand {
       console.log(chalk.dim(`Commands skipped for: ${results.commandsSkipped.join(', ')} (no adapter)`));
     }
     if (results.removedCommandCount > 0) {
-      console.log(chalk.dim(`Removed: ${results.removedCommandCount} command files (delivery: skills)`));
+      console.log(chalk.dim(`Removed: ${results.removedCommandCount} command files (commands disabled for selected tools)`));
     }
     if (results.removedSkillCount > 0) {
-      console.log(chalk.dim(`Removed: ${results.removedSkillCount} skill directories (delivery: commands)`));
+      console.log(chalk.dim(`Removed: ${results.removedSkillCount} skill directories (skills disabled for selected tools)`));
     }
 
     // Config status
@@ -714,15 +714,31 @@ export class InitCommand {
     const hasCommandSurface = gettingStartedTools.some((tool) =>
       shouldGenerateCommandsForTool(tool.value, globalCfg.delivery ?? 'both')
     );
-    const commandPrefix = hasCommandSurface ? '/opsx:' : '$openspec-';
-    const newInvocation = hasCommandSurface ? '/opsx:new' : '$openspec-new-change';
+    const hasSkillOnlySurface = gettingStartedTools.some((tool) =>
+      shouldGenerateSkillsForTool(tool.value, globalCfg.delivery ?? 'both') &&
+      !shouldGenerateCommandsForTool(tool.value, globalCfg.delivery ?? 'both')
+    );
     console.log();
     if (gettingStartedTools.length > 0 && activeWorkflows.includes('propose')) {
       console.log(chalk.bold('Getting started:'));
-      console.log(`  Start your first change: ${commandPrefix}propose "your idea"`);
+      if (hasCommandSurface && hasSkillOnlySurface) {
+        console.log(`  Start your first change: /opsx:propose "your idea"`);
+        console.log(`  Or with skills: $openspec-propose "your idea"`);
+      } else if (hasCommandSurface) {
+        console.log(`  Start your first change: /opsx:propose "your idea"`);
+      } else {
+        console.log(`  Start your first change: $openspec-propose "your idea"`);
+      }
     } else if (gettingStartedTools.length > 0 && activeWorkflows.includes('new')) {
       console.log(chalk.bold('Getting started:'));
-      console.log(`  Start your first change: ${newInvocation} "your idea"`);
+      if (hasCommandSurface && hasSkillOnlySurface) {
+        console.log(`  Start your first change: /opsx:new "your idea"`);
+        console.log(`  Or with skills: $openspec-new-change "your idea"`);
+      } else if (hasCommandSurface) {
+        console.log(`  Start your first change: /opsx:new "your idea"`);
+      } else {
+        console.log(`  Start your first change: $openspec-new-change "your idea"`);
+      }
     } else {
       console.log("Done. Run 'openspec config profile' to configure your workflows.");
     }

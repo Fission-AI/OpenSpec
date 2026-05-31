@@ -149,7 +149,7 @@ npm install -g @fission-ai/openspec@latest
 
 **Refresh agent instructions**
 
-Run this inside each project to regenerate AI guidance and ensure the latest skills and slash commands are active:
+Run this inside each project to regenerate AI guidance and ensure the latest skills and/or slash commands (tool-dependent) are active:
 
 ```bash
 openspec update
