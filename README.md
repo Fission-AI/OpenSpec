@@ -155,6 +155,11 @@ Run this inside each project to regenerate AI guidance and ensure the latest ski
 openspec update
 ```
 
+After refresh, use the invocation style for your tool:
+
+- Codex skills: `$openspec-propose "your idea"`
+- Non-Codex slash-command tools: `/opsx:propose "your idea"`
+
 ## Usage Notes
 
 **Model selection**: OpenSpec works best with high-reasoning models. We recommend Codex 5.5 and Opus 4.7 for both planning and implementation.

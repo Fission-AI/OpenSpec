@@ -1197,34 +1197,43 @@ More user content after markers.
     });
 
     it('should show Codex skill invocations when upgrading legacy Codex artifacts', async () => {
-      await fs.mkdir(path.join(testDir, '.codex', 'prompts'), { recursive: true });
-      await fs.writeFile(
-        path.join(testDir, '.codex', 'prompts', 'openspec-new.md'),
-        'old codex prompt'
-      );
-
+      const previousCodexHome = process.env.CODEX_HOME;
+      const codexHome = path.join(testDir, 'codex-home');
+      process.env.CODEX_HOME = codexHome;
       const consoleSpy = vi.spyOn(console, 'log');
 
-      const forceUpdateCommand = new UpdateCommand({ force: true });
-      await forceUpdateCommand.execute(testDir);
+      try {
+        const legacyPrompt = path.join(codexHome, 'prompts', 'opsx-new.md');
+        await fs.mkdir(path.dirname(legacyPrompt), { recursive: true });
+        await fs.writeFile(legacyPrompt, 'old codex prompt');
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Getting started')
-      );
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('$openspec-new-change')
-      );
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('$openspec-continue-change')
-      );
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('$openspec-apply-change')
-      );
-      expect(consoleSpy).not.toHaveBeenCalledWith(
-        expect.stringContaining('/opsx:new')
-      );
+        const forceUpdateCommand = new UpdateCommand({ force: true });
+        await forceUpdateCommand.execute(testDir);
 
-      consoleSpy.mockRestore();
+        expect(await FileSystemUtils.fileExists(legacyPrompt)).toBe(false);
+        expect(consoleSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Getting started')
+        );
+        expect(consoleSpy).toHaveBeenCalledWith(
+          expect.stringContaining('$openspec-new-change')
+        );
+        expect(consoleSpy).toHaveBeenCalledWith(
+          expect.stringContaining('$openspec-continue-change')
+        );
+        expect(consoleSpy).toHaveBeenCalledWith(
+          expect.stringContaining('$openspec-apply-change')
+        );
+        expect(consoleSpy).not.toHaveBeenCalledWith(
+          expect.stringContaining('/opsx:new')
+        );
+      } finally {
+        consoleSpy.mockRestore();
+        if (previousCodexHome === undefined) {
+          delete process.env.CODEX_HOME;
+        } else {
+          process.env.CODEX_HOME = previousCodexHome;
+        }
+      }
     });
 
     it('should upgrade multiple legacy tools with --force', async () => {

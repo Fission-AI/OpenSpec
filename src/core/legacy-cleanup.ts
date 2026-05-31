@@ -4,6 +4,7 @@
  */
 
 import path from 'path';
+import os from 'os';
 import { promises as fs } from 'fs';
 import chalk from 'chalk';
 import { FileSystemUtils, removeMarkerBlock as removeMarkerBlockUtil } from '../utils/file-system.js';
@@ -202,7 +203,35 @@ export async function detectLegacySlashCommands(
     }
   }
 
+  files.push(...await findLegacyCodexPromptFiles());
+
   return { directories, files };
+}
+
+/**
+ * Returns the Codex home directory.
+ * Respects the CODEX_HOME env var, defaulting to ~/.codex.
+ */
+function getCodexHome(): string {
+  const envHome = process.env.CODEX_HOME?.trim();
+  return path.resolve(envHome ? envHome : path.join(os.homedir(), '.codex'));
+}
+
+async function findLegacyCodexPromptFiles(): Promise<string[]> {
+  const promptsDir = path.join(getCodexHome(), 'prompts');
+
+  if (!(await FileSystemUtils.directoryExists(promptsDir))) {
+    return [];
+  }
+
+  try {
+    const entries = await fs.readdir(promptsDir);
+    return entries
+      .filter((entry) => /^opsx-.*\.md$/.test(entry))
+      .map((entry) => path.join(promptsDir, entry));
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -401,7 +430,9 @@ export async function cleanupLegacyArtifacts(
 
   // Delete legacy slash command files (these are 100% OpenSpec-managed)
   for (const filePath of detection.slashCommandFiles) {
-    const fullPath = FileSystemUtils.joinPath(projectPath, filePath);
+    const fullPath = path.isAbsolute(filePath)
+      ? filePath
+      : FileSystemUtils.joinPath(projectPath, filePath);
     try {
       await fs.unlink(fullPath);
       result.deletedFiles.push(filePath);
@@ -590,6 +621,7 @@ export function formatDetectionSummary(detection: LegacyDetectionResult): string
  */
 export function getToolsFromLegacyArtifacts(detection: LegacyDetectionResult): string[] {
   const tools = new Set<string>();
+  const codexPromptsDir = path.join(getCodexHome(), 'prompts').replace(/\\/g, '/');
 
   // Match directories to tool IDs
   for (const dir of detection.slashCommandDirs) {
@@ -605,6 +637,15 @@ export function getToolsFromLegacyArtifacts(detection: LegacyDetectionResult): s
   for (const file of detection.slashCommandFiles) {
     // Normalize file path to use forward slashes for consistent matching (Windows compatibility)
     const normalizedFile = file.replace(/\\/g, '/');
+    if (
+      path.isAbsolute(file) &&
+      normalizedFile.startsWith(`${codexPromptsDir}/`) &&
+      /^opsx-.*\.md$/.test(path.basename(file))
+    ) {
+      tools.add('codex');
+      continue;
+    }
+
     for (const [toolId, pattern] of Object.entries(LEGACY_SLASH_COMMAND_PATHS)) {
       if (pattern.type === 'files' && pattern.pattern) {
         // Convert glob pattern to regex for matching
