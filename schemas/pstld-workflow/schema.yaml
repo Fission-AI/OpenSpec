@@ -1,0 +1,67 @@
+name: pstld-workflow
+version: 1
+description: Dixi workflow - rfc → design → tasks
+artifacts:
+  - id: rfc
+    generates: rfc.md
+    description: Request for Comments document defining the problem and proposed solution
+    template: rfc.md
+    instruction: |
+      Create the RFC document that establishes WHAT needs to be built and WHY.
+
+      Sections:
+      - **Context**: Background, current state, and constraints that motivate this change
+      - **Problem**: Clear statement of the problem being solved
+      - **Proposed Solution**: Description of the solution approach at a conceptual level
+      - **Alternatives Considered**: Other approaches evaluated and why they were rejected
+      - **Architectural Impact**: Effects on existing architecture, dependencies, or interfaces
+      - **Acceptance Criteria**: Verifiable conditions that define when this RFC is satisfied
+
+      Keep the RFC focused on the WHAT and WHY — leave implementation details for design.md.
+      Acceptance Criteria should be specific enough to derive test cases.
+    requires: []
+
+  - id: design
+    generates: design.md
+    description: Technical design document with implementation approach and decisions
+    template: design.md
+    instruction: |
+      Create the design document that explains HOW to implement the RFC.
+
+      Sections:
+      - **Affected Components**: List of modules, services, or layers touched by this change
+      - **Interface Contracts**: APIs, function signatures, data shapes, or protocol changes
+      - **Test Plan**: What to test, at which layer (unit/integration/e2e), and key scenarios
+      - **Security Considerations**: Authentication, authorization, input validation, data exposure risks
+
+      Reference the RFC for motivation and acceptance criteria.
+      Focus on concrete technical decisions and their rationale.
+    requires:
+      - rfc
+
+  - id: tasks
+    generates: tasks.md
+    description: Implementation checklist derived from RFC and design
+    template: tasks.md
+    instruction: |
+      Create the task list that breaks down the implementation work.
+
+      Guidelines:
+      - Group related tasks under ## numbered headings
+      - Each task MUST be a checkbox: `- [ ] X.Y Task description`
+      - Tasks should be small enough to complete in one session
+      - Order tasks by dependency (what must be done first?)
+      - End with a Definition of Done section
+
+      Reference the RFC acceptance criteria and design decisions.
+      Each task should be verifiable — you know when it's done.
+    requires:
+      - rfc
+      - design
+
+apply:
+  requires: [tasks]
+  tracks: tasks.md
+  instruction: |
+    Read context files, work through pending tasks, mark complete as you go.
+    Pause if you hit blockers or need clarification.
