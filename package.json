@@ -1,18 +1,18 @@
 {
-  "name": "@thiagodiogo/pastelsdd",
-  "version": "1.0.3",
+  "name": "@thiagodiogo/pscode",
+  "version": "1.0.0",
   "description": "AI-native system for spec-driven development",
   "keywords": [
-    "pastelsdd",
+    "pscode",
     "specs",
     "cli",
     "ai",
     "development"
   ],
-  "homepage": "https://github.com/eipastel/pastelsdd",
+  "homepage": "https://github.com/eipastel/pscode",
   "repository": {
     "type": "git",
-    "url": "https://github.com/eipastel/pastelsdd"
+    "url": "git+https://github.com/eipastel/pscode.git"
   },
   "license": "MIT",
   "author": "thiagodiogo",
@@ -27,7 +27,7 @@
     }
   },
   "bin": {
-    "pastelsdd": "./bin/pastelsdd.js"
+    "pscode": "bin/pscode.js"
   },
   "files": [
     "dist",
@@ -42,7 +42,7 @@
     "lint": "eslint src/",
     "build": "node build.js",
     "dev": "tsc --watch",
-    "dev:cli": "pnpm build && node bin/pastelsdd.js",
+    "dev:cli": "pnpm build && node bin/pscode.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",

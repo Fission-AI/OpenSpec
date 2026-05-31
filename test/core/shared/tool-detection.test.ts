@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
@@ -18,7 +18,7 @@ describe('tool-detection', () => {
   let testDir: string;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `pastelsdd-test-${randomUUID()}`);
+    testDir = path.join(os.tmpdir(), `pscode-test-${randomUUID()}`);
     await fs.mkdir(testDir, { recursive: true });
   });
 
@@ -29,17 +29,17 @@ describe('tool-detection', () => {
   describe('SKILL_NAMES', () => {
     it('should contain all skill names matching COMMAND_IDS', () => {
       expect(SKILL_NAMES).toHaveLength(11);
-      expect(SKILL_NAMES).toContain('pastelsdd-explore');
-      expect(SKILL_NAMES).toContain('pastelsdd-new-change');
-      expect(SKILL_NAMES).toContain('pastelsdd-continue-change');
-      expect(SKILL_NAMES).toContain('pastelsdd-apply-change');
-      expect(SKILL_NAMES).toContain('pastelsdd-ff-change');
-      expect(SKILL_NAMES).toContain('pastelsdd-sync-specs');
-      expect(SKILL_NAMES).toContain('pastelsdd-archive-change');
-      expect(SKILL_NAMES).toContain('pastelsdd-bulk-archive-change');
-      expect(SKILL_NAMES).toContain('pastelsdd-verify-change');
-      expect(SKILL_NAMES).toContain('pastelsdd-onboard');
-      expect(SKILL_NAMES).toContain('pastelsdd-propose');
+      expect(SKILL_NAMES).toContain('pscode-explore');
+      expect(SKILL_NAMES).toContain('pscode-new-change');
+      expect(SKILL_NAMES).toContain('pscode-continue-change');
+      expect(SKILL_NAMES).toContain('pscode-apply-change');
+      expect(SKILL_NAMES).toContain('pscode-ff-change');
+      expect(SKILL_NAMES).toContain('pscode-sync-specs');
+      expect(SKILL_NAMES).toContain('pscode-archive-change');
+      expect(SKILL_NAMES).toContain('pscode-bulk-archive-change');
+      expect(SKILL_NAMES).toContain('pscode-verify-change');
+      expect(SKILL_NAMES).toContain('pscode-onboard');
+      expect(SKILL_NAMES).toContain('pscode-propose');
     });
   });
 
@@ -78,7 +78,7 @@ describe('tool-detection', () => {
     });
 
     it('should detect when one skill exists', async () => {
-      const skillDir = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore');
+      const skillDir = path.join(testDir, '.claude', 'skills', 'pscode-explore');
       await fs.mkdir(skillDir, { recursive: true });
       await fs.writeFile(path.join(skillDir, 'SKILL.md'), 'test content');
 
@@ -113,7 +113,7 @@ describe('tool-detection', () => {
     });
 
     it('should detect configured tools', async () => {
-      const skillDir = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore');
+      const skillDir = path.join(testDir, '.claude', 'skills', 'pscode-explore');
       await fs.mkdir(skillDir, { recursive: true });
       await fs.writeFile(path.join(skillDir, 'SKILL.md'), 'test content');
 
@@ -132,9 +132,9 @@ describe('tool-detection', () => {
     it('should return null when generatedBy is not present', async () => {
       const filePath = path.join(testDir, 'skill.md');
       await fs.writeFile(filePath, `---
-name: pastelsdd-explore
+name: pscode-explore
 metadata:
-  author: pastelsdd
+  author: pscode
   version: "1.0"
 ---
 
@@ -148,9 +148,9 @@ Content here
     it('should extract generatedBy version with double quotes', async () => {
       const filePath = path.join(testDir, 'skill.md');
       await fs.writeFile(filePath, `---
-name: pastelsdd-explore
+name: pscode-explore
 metadata:
-  author: pastelsdd
+  author: pscode
   version: "1.0"
   generatedBy: "0.23.0"
 ---
@@ -165,7 +165,7 @@ Content here
     it('should extract generatedBy version with single quotes', async () => {
       const filePath = path.join(testDir, 'skill.md');
       await fs.writeFile(filePath, `---
-name: pastelsdd-explore
+name: pscode-explore
 metadata:
   generatedBy: '0.24.0'
 ---
@@ -180,7 +180,7 @@ Content here
     it('should extract generatedBy version without quotes', async () => {
       const filePath = path.join(testDir, 'skill.md');
       await fs.writeFile(filePath, `---
-name: pastelsdd-explore
+name: pscode-explore
 metadata:
   generatedBy: 0.25.0
 ---
@@ -209,12 +209,12 @@ Content here
     });
 
     it('should detect needsUpdate when generatedBy is missing', async () => {
-      const skillDir = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore');
+      const skillDir = path.join(testDir, '.claude', 'skills', 'pscode-explore');
       await fs.mkdir(skillDir, { recursive: true });
       await fs.writeFile(path.join(skillDir, 'SKILL.md'), `---
-name: pastelsdd-explore
+name: pscode-explore
 metadata:
-  author: pastelsdd
+  author: pscode
   version: "1.0"
 ---
 
@@ -228,12 +228,12 @@ Content here
     });
 
     it('should detect needsUpdate when version differs', async () => {
-      const skillDir = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore');
+      const skillDir = path.join(testDir, '.claude', 'skills', 'pscode-explore');
       await fs.mkdir(skillDir, { recursive: true });
       await fs.writeFile(path.join(skillDir, 'SKILL.md'), `---
-name: pastelsdd-explore
+name: pscode-explore
 metadata:
-  author: pastelsdd
+  author: pscode
   version: "1.0"
   generatedBy: "0.22.0"
 ---
@@ -248,12 +248,12 @@ Content here
     });
 
     it('should not need update when version matches', async () => {
-      const skillDir = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore');
+      const skillDir = path.join(testDir, '.claude', 'skills', 'pscode-explore');
       await fs.mkdir(skillDir, { recursive: true });
       await fs.writeFile(path.join(skillDir, 'SKILL.md'), `---
-name: pastelsdd-explore
+name: pscode-explore
 metadata:
-  author: pastelsdd
+  author: pscode
   version: "1.0"
   generatedBy: "0.23.0"
 ---
@@ -268,7 +268,7 @@ Content here
     });
 
     it('should include tool name in status', async () => {
-      const skillDir = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore');
+      const skillDir = path.join(testDir, '.claude', 'skills', 'pscode-explore');
       await fs.mkdir(skillDir, { recursive: true });
       await fs.writeFile(path.join(skillDir, 'SKILL.md'), 'content');
 
@@ -286,12 +286,12 @@ Content here
 
     it('should return configured tools', async () => {
       // Setup Claude
-      const claudeSkillDir = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore');
+      const claudeSkillDir = path.join(testDir, '.claude', 'skills', 'pscode-explore');
       await fs.mkdir(claudeSkillDir, { recursive: true });
       await fs.writeFile(path.join(claudeSkillDir, 'SKILL.md'), 'content');
 
       // Setup Cursor
-      const cursorSkillDir = path.join(testDir, '.cursor', 'skills', 'pastelsdd-explore');
+      const cursorSkillDir = path.join(testDir, '.cursor', 'skills', 'pscode-explore');
       await fs.mkdir(cursorSkillDir, { recursive: true });
       await fs.writeFile(path.join(cursorSkillDir, 'SKILL.md'), 'content');
 
@@ -310,7 +310,7 @@ Content here
 
     it('should return version status for all configured tools', async () => {
       // Setup Claude with old version
-      const claudeSkillDir = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore');
+      const claudeSkillDir = path.join(testDir, '.claude', 'skills', 'pscode-explore');
       await fs.mkdir(claudeSkillDir, { recursive: true });
       await fs.writeFile(path.join(claudeSkillDir, 'SKILL.md'), `---
 metadata:
@@ -319,7 +319,7 @@ metadata:
 `);
 
       // Setup Cursor with current version
-      const cursorSkillDir = path.join(testDir, '.cursor', 'skills', 'pastelsdd-explore');
+      const cursorSkillDir = path.join(testDir, '.cursor', 'skills', 'pscode-explore');
       await fs.mkdir(cursorSkillDir, { recursive: true });
       await fs.writeFile(path.join(cursorSkillDir, 'SKILL.md'), `---
 metadata:

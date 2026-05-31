@@ -1,4 +1,4 @@
-﻿import path from 'path';
+import path from 'path';
 import { isInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds, getSpecIds } from '../utils/item-discovery.js';
 import { ChangeCommand } from './change.js';
@@ -99,7 +99,7 @@ export class ShowCommand {
 
     if (!params.typeOverride && isChange && isSpec) {
       console.error(`Ambiguous item '${itemName}' matches both a change and a spec.`);
-      console.error('Pass --type change|spec, or use: pastelsdd change show / pastelsdd spec show');
+      console.error('Pass --type change|spec, or use: pscode change show / pscode spec show');
       process.exitCode = 1;
       return;
     }
@@ -116,9 +116,9 @@ export class ShowCommand {
 
   private printNonInteractiveHint(): void {
     console.error('Nothing to show. Try one of:');
-    console.error('  pastelsdd show <item>');
-    console.error('  pastelsdd change show');
-    console.error('  pastelsdd spec show');
+    console.error('  pscode show <item>');
+    console.error('  pscode change show');
+    console.error('  pscode spec show');
     console.error('Or run in an interactive terminal.');
   }
 

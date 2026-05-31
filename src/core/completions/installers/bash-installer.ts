@@ -1,4 +1,4 @@
-﻿import { promises as fs } from 'fs';
+import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
 import { FileSystemUtils } from '../../../utils/file-system.js';
@@ -15,8 +15,8 @@ export class BashInstaller {
    * Markers for .bashrc configuration management
    */
   private readonly BASHRC_MARKERS = {
-    start: '# PASTELSDD:START',
-    end: '# PASTELSDD:END',
+    start: '# PSCODE:START',
+    end: '# PSCODE:END',
   };
 
   constructor(homeDir: string = os.homedir()) {
@@ -61,7 +61,7 @@ export class BashInstaller {
     const localCompletionDir = path.join(this.homeDir, '.local', 'share', 'bash-completion', 'completions');
 
     // For user installation, use local directory
-    return path.join(localCompletionDir, 'pastelsdd');
+    return path.join(localCompletionDir, 'pscode');
   }
 
   /**
@@ -101,7 +101,7 @@ export class BashInstaller {
    */
   private generateBashrcConfig(completionsDir: string): string {
     return [
-      '# Pastelsdd shell completions configuration',
+      '# Pscode shell completions configuration',
       `if [ -d "${completionsDir}" ]; then`,
       `  for f in "${completionsDir}"/*; do`,
       '    [ -f "$f" ] && . "$f"',
@@ -118,7 +118,7 @@ export class BashInstaller {
    */
   async configureBashrc(completionsDir: string): Promise<boolean> {
     // Check if auto-configuration is disabled
-    if (process.env.PASTELSDD_NO_AUTO_CONFIG === '1') {
+    if (process.env.PSCODE_NO_AUTO_CONFIG === '1') {
       return false;
     }
 
@@ -314,7 +314,7 @@ export class BashInstaller {
       '',
       'To enable completions, add the following to your ~/.bashrc file:',
       '',
-      `  # Source Pastelsdd completions`,
+      `  # Source Pscode completions`,
       `  if [ -d "${completionsDir}" ]; then`,
       `    for f in "${completionsDir}"/*; do`,
       '      [ -f "$f" ] && . "$f"',

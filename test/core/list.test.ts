@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
@@ -11,7 +11,7 @@ describe('ListCommand', () => {
 
   beforeEach(async () => {
     // Create temp directory
-    tempDir = path.join(os.tmpdir(), `pastelsdd-list-test-${Date.now()}`);
+    tempDir = path.join(os.tmpdir(), `pscode-list-test-${Date.now()}`);
     await fs.mkdir(tempDir, { recursive: true });
 
     // Mock console.log to capture output
@@ -31,16 +31,16 @@ describe('ListCommand', () => {
   });
 
   describe('execute', () => {
-    it('should handle missing pastelsdd/changes directory', async () => {
+    it('should handle missing pscode/changes directory', async () => {
       const listCommand = new ListCommand();
       
       await expect(listCommand.execute(tempDir, 'changes')).rejects.toThrow(
-        "No Pastelsdd changes directory found. Run 'pastelsdd init' first."
+        "No Pscode changes directory found. Run 'pscode init' first."
       );
     });
 
     it('should handle empty changes directory', async () => {
-      const changesDir = path.join(tempDir, 'pastelsdd', 'changes');
+      const changesDir = path.join(tempDir, 'pscode', 'changes');
       await fs.mkdir(changesDir, { recursive: true });
 
       const listCommand = new ListCommand();
@@ -50,7 +50,7 @@ describe('ListCommand', () => {
     });
 
     it('should exclude archive directory', async () => {
-      const changesDir = path.join(tempDir, 'pastelsdd', 'changes');
+      const changesDir = path.join(tempDir, 'pscode', 'changes');
       await fs.mkdir(path.join(changesDir, 'archive'), { recursive: true });
       await fs.mkdir(path.join(changesDir, 'my-change'), { recursive: true });
       
@@ -69,7 +69,7 @@ describe('ListCommand', () => {
     });
 
     it('should count tasks correctly', async () => {
-      const changesDir = path.join(tempDir, 'pastelsdd', 'changes');
+      const changesDir = path.join(tempDir, 'pscode', 'changes');
       await fs.mkdir(path.join(changesDir, 'test-change'), { recursive: true });
       
       await fs.writeFile(
@@ -91,7 +91,7 @@ Regular text that should be ignored
     });
 
     it('should show complete status for fully completed changes', async () => {
-      const changesDir = path.join(tempDir, 'pastelsdd', 'changes');
+      const changesDir = path.join(tempDir, 'pscode', 'changes');
       await fs.mkdir(path.join(changesDir, 'completed-change'), { recursive: true });
       
       await fs.writeFile(
@@ -106,7 +106,7 @@ Regular text that should be ignored
     });
 
     it('should handle changes without tasks.md', async () => {
-      const changesDir = path.join(tempDir, 'pastelsdd', 'changes');
+      const changesDir = path.join(tempDir, 'pscode', 'changes');
       await fs.mkdir(path.join(changesDir, 'no-tasks'), { recursive: true });
 
       const listCommand = new ListCommand();
@@ -116,7 +116,7 @@ Regular text that should be ignored
     });
 
     it('should sort changes alphabetically when sort=name', async () => {
-      const changesDir = path.join(tempDir, 'pastelsdd', 'changes');
+      const changesDir = path.join(tempDir, 'pscode', 'changes');
       await fs.mkdir(path.join(changesDir, 'zebra'), { recursive: true });
       await fs.mkdir(path.join(changesDir, 'alpha'), { recursive: true });
       await fs.mkdir(path.join(changesDir, 'middle'), { recursive: true });
@@ -134,7 +134,7 @@ Regular text that should be ignored
     });
 
     it('should handle multiple changes with various states', async () => {
-      const changesDir = path.join(tempDir, 'pastelsdd', 'changes');
+      const changesDir = path.join(tempDir, 'pscode', 'changes');
       
       // Complete change
       await fs.mkdir(path.join(changesDir, 'completed'), { recursive: true });

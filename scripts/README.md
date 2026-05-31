@@ -1,4 +1,4 @@
-﻿# Pastelsdd Scripts
+# Pastelsdd Scripts
 
 Utility scripts for Pastelsdd maintenance and development.
 

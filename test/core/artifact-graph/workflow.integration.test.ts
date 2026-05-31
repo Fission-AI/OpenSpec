@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -24,7 +24,7 @@ describe('artifact-graph workflow integration', () => {
 
   beforeEach(() => {
     // Use a unique temp directory for each test
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pastelsdd-workflow-test-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pscode-workflow-test-'));
   });
 
   afterEach(() => {

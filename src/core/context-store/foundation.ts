@@ -1,4 +1,4 @@
-﻿import * as nodeFs from 'node:fs';
+import * as nodeFs from 'node:fs';
 import * as path from 'node:path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { z } from 'zod';
@@ -9,7 +9,7 @@ import { ContextStoreError } from './errors.js';
 
 const fs = nodeFs.promises;
 
-export const CONTEXT_STORE_METADATA_DIR_NAME = '.pastelsdd-store';
+export const CONTEXT_STORE_METADATA_DIR_NAME = '.pscode-store';
 export const CONTEXT_STORE_METADATA_FILE_NAME = 'store.yaml';
 export const CONTEXT_STORES_DIR_NAME = 'context-stores';
 export const CONTEXT_STORE_REGISTRY_FILE_NAME = 'registry.yaml';
@@ -204,7 +204,7 @@ function contextStoreStateDiagnostic(label: string): {
     return {
       code: 'invalid_context_store_metadata',
       target: 'context_store.metadata',
-      fix: 'Repair .pastelsdd-store/store.yaml.',
+      fix: 'Repair .pscode-store/store.yaml.',
     };
   }
 

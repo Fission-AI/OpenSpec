@@ -1,4 +1,4 @@
-﻿import { Command } from 'commander';
+import { Command } from 'commander';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import ora from 'ora';
@@ -710,11 +710,11 @@ export function registerSchemaCommand(program: Command): void {
               console.log(JSON.stringify({
                 created: false,
                 error: `Schema '${name}' already exists`,
-                suggestion: 'Use --force to overwrite or "pastelsdd schema fork" to copy',
+                suggestion: 'Use --force to overwrite or "pscode schema fork" to copy',
               }, null, 2));
             } else {
               console.error(`Error: Schema '${name}' already exists at ${schemaDir}`);
-              console.error('Use --force to overwrite or "pastelsdd schema fork" to copy');
+              console.error('Use --force to overwrite or "pscode schema fork" to copy');
             }
             process.exitCode = 1;
             return;
@@ -868,7 +868,7 @@ export function registerSchemaCommand(program: Command): void {
 
         // Update config if --default
         if (options?.default) {
-          const configPath = path.join(projectRoot, 'pastelsdd', 'config.yaml');
+          const configPath = path.join(projectRoot, 'pscode', 'config.yaml');
 
           if (fs.existsSync(configPath)) {
             const { parse: parseYaml, stringify: stringifyYaml2 } = await import('yaml');
@@ -905,7 +905,7 @@ export function registerSchemaCommand(program: Command): void {
           console.log(`\nNext steps:`);
           console.log(`  1. Edit ${schemaDir}/schema.yaml to customize artifacts`);
           console.log(`  2. Modify templates in the schema directory`);
-          console.log(`  3. Use with: pastelsdd new --schema ${name}`);
+          console.log(`  3. Use with: pscode new --schema ${name}`);
         }
       } catch (error) {
         if (spinner) spinner.fail(`Creation failed`);

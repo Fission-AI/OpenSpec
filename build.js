@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 
 import { execFileSync } from 'child_process';
 import { existsSync, rmSync } from 'fs';
@@ -11,7 +11,7 @@ const runTsc = (args = []) => {
   execFileSync(process.execPath, [tscPath, ...args], { stdio: 'inherit' });
 };
 
-console.log('🔨 Building Pastelsdd...\n');
+console.log('🔨 Building Pscode...\n');
 
 // Clean dist directory
 if (existsSync('dist')) {

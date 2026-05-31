@@ -1,4 +1,4 @@
-﻿import { getActiveChangeIds, getSpecIds } from '../../utils/item-discovery.js';
+import { getActiveChangeIds, getSpecIds } from '../../utils/item-discovery.js';
 import { listSchemas } from '../artifact-graph/index.js';
 
 /**
@@ -10,7 +10,7 @@ interface CacheEntry<T> {
 }
 
 /**
- * Provides dynamic completion suggestions for Pastelsdd items (changes and specs).
+ * Provides dynamic completion suggestions for Pscode items (changes and specs).
  * Implements a 2-second cache to avoid excessive file system operations during
  * tab completion.
  */

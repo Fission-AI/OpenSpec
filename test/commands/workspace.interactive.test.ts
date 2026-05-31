@@ -1,4 +1,4 @@
-﻿import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Command } from 'commander';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -27,7 +27,7 @@ async function runWorkspaceCommand(args: string[]): Promise<void> {
   const { registerWorkspaceCommand } = await import('../../src/commands/workspace.js');
   const program = new Command();
   registerWorkspaceCommand(program);
-  await program.parseAsync(['node', 'pastelsdd', 'workspace', ...args]);
+  await program.parseAsync(['node', 'pscode', 'workspace', ...args]);
 }
 
 async function getPromptMocks(): Promise<{
@@ -57,7 +57,7 @@ describe('workspace command interactive flows', () => {
   beforeEach(() => {
     vi.resetModules();
 
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pastelsdd-workspace-interactive-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pscode-workspace-interactive-'));
     dataHome = path.join(tempDir, 'data');
     configHome = path.join(tempDir, 'config');
     originalEnv = { ...process.env };
@@ -69,7 +69,7 @@ describe('workspace command interactive flows', () => {
       ...process.env,
       XDG_DATA_HOME: dataHome,
       XDG_CONFIG_HOME: configHome,
-      PASTELSDD_TELEMETRY: '0',
+      PSCODE_TELEMETRY: '0',
     };
     delete process.env.CI;
     delete process.env.OPEN_SPEC_INTERACTIVE;
@@ -221,7 +221,7 @@ describe('workspace command interactive flows', () => {
     });
   });
 
-  it('asks which agents get Pastelsdd skills and preselects the preferred opener', async () => {
+  it('asks which agents get Pscode skills and preselects the preferred opener', async () => {
     const api = mkdir('repos/api');
     const binDir = mkdir('bin');
     const codexPath = path.join(binDir, process.platform === 'win32' ? 'codex.cmd' : 'codex');
@@ -256,7 +256,7 @@ describe('workspace command interactive flows', () => {
       message: string;
       choices: Array<{ value: string; preSelected?: boolean }>;
     }) => {
-      expect(options.message).toBe('Which agents should get Pastelsdd skills in this workspace?');
+      expect(options.message).toBe('Which agents should get Pscode skills in this workspace?');
       expect(options.choices.find((choice) => choice.value === 'codex')?.preSelected).toBe(true);
       expect(options.choices.find((choice) => choice.value === 'claude')?.preSelected).toBe(false);
       return ['codex', 'claude'];

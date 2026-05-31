@@ -1,7 +1,7 @@
-﻿import { z } from 'zod';
+import { z } from 'zod';
 
 /**
- * Zod schema for global Pastelsdd configuration.
+ * Zod schema for global Pscode configuration.
  * Uses passthrough() to preserve unknown fields for forward compatibility.
  */
 export const GlobalConfigSchema = z
@@ -11,16 +11,13 @@ export const GlobalConfigSchema = z
       .optional()
       .default({}),
     profile: z
-      .enum(['core', 'custom'])
+      .string()
       .optional()
       .default('core'),
     delivery: z
       .enum(['both', 'skills', 'commands'])
       .optional()
       .default('both'),
-    workflows: z
-      .array(z.string())
-      .optional(),
   })
   .passthrough();
 
@@ -35,7 +32,7 @@ export const DEFAULT_CONFIG: GlobalConfigType = {
   delivery: 'both',
 };
 
-const KNOWN_TOP_LEVEL_KEYS = new Set([...Object.keys(DEFAULT_CONFIG), 'workflows']);
+const KNOWN_TOP_LEVEL_KEYS = new Set([...Object.keys(DEFAULT_CONFIG)]);
 
 /**
  * Validate a config key path for CLI set operations.

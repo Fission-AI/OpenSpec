@@ -1,44 +1,44 @@
-﻿/**
+/**
  * Trello Draft Skill / Command Template
  *
  * Quickly captures an idea, insight, or rough concept into the Backlog
  * Trello list. No refinement required — this is for raw thoughts.
  *
- * Requires `pastelsdd/trello.yaml` to be present (created by /pstl:trello-setup).
+ * Requires `pscode/trello.yaml` to be present (created by /ps:trello-setup).
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 
 export function getTrelloDraftSkillTemplate(): SkillTemplate {
   return {
-    name: 'pastelsdd-trello-draft',
+    name: 'pscode-trello-draft',
     description:
       'Capture a raw idea or concept into the Backlog Trello list. Use when the user wants to quickly record something without refining it into a task yet.',
     instructions: getTrelloDraftInstructions(),
     license: 'MIT',
-    compatibility: 'Requires pastelsdd CLI and Trello MCP server configured via /pstl:trello-setup.',
-    metadata: { author: 'pastelsdd', version: '1.0' },
+    compatibility: 'Requires pscode CLI and Trello MCP server configured via /ps:trello-setup.',
+    metadata: { author: 'pscode', version: '1.0' },
   };
 }
 
 function getTrelloDraftInstructions(): string {
   return `Capture uma ideia ou conceito bruto diretamente no Backlog do Trello.
 
-**Input**: Texto após \`/pstl:draft\` é a descrição da ideia (pode ser bem rascunho — palavras soltas, fragmentos, intuições vagas).
+**Input**: Texto após \`/ps:draft\` é a descrição da ideia (pode ser bem rascunho — palavras soltas, fragmentos, intuições vagas).
 Se omitido, perguntar ao usuário.
 
-Este comando é intencionalmente sem atrito. Diferente de \`/pstl:task\`, faz estruturação mínima — o objetivo é velocidade de captura, não clareza.
+Este comando é intencionalmente sem atrito. Diferente de \`/ps:task\`, faz estruturação mínima — o objetivo é velocidade de captura, não clareza.
 
 ---
 
 ## Step 1 — Read Trello config
 
-Use the **Read tool** (NOT a shell command) to read \`pastelsdd/trello.yaml\` from the current working directory.
+Use the **Read tool** (NOT a shell command) to read \`pscode/trello.yaml\` from the current working directory.
 The Read tool is cross-platform and works on Windows, macOS, and Linux — never use \`cat\` or shell commands to read this file.
 If the Read tool returns an error (file not found), treat it as "NO_TRELLO_CONFIG".
 
 **If file not found:**
 > ⚠️ Trello não está configurado neste projeto.
-> Execute \`/pstl:trello-setup\` para configurar a integração antes de usar este comando.
+> Execute \`/ps:trello-setup\` para configurar a integração antes de usar este comando.
 
 Stop here if no config.
 
@@ -49,9 +49,9 @@ Parse the YAML and extract:
 - \`labels\` → \`{ enabled: bool, items?: { bug, implementacao, melhoria, debito-tecnico } }\`
 
 **If \`lists.backlog\` is not configured:**
-> ⚠️ Estágio "backlog" não está configurado em \`pastelsdd/trello.yaml\`.
+> ⚠️ Estágio "backlog" não está configurado em \`pscode/trello.yaml\`.
 >
-> Execute \`/pstl:trello-setup\` para configurar a integração.
+> Execute \`/ps:trello-setup\` para configurar a integração.
 
 Stop here if backlog list is missing.
 
@@ -123,14 +123,14 @@ If context is present:
 ---
 Ideia original: "<raw input verbatim>"
 
-Proximo passo: /pstl:propose para refinar e gerar os artefatos da change.
+Proximo passo: /ps:propose para refinar e gerar os artefatos da change.
 \`\`\`
 
 If no context:
 \`\`\`
 Ideia original: "<raw input verbatim>"
 
-Proximo passo: /pstl:propose para refinar e gerar os artefatos da change.
+Proximo passo: /ps:propose para refinar e gerar os artefatos da change.
 \`\`\`
 
 ---
@@ -164,7 +164,7 @@ mcp__claude_ai_Trello_Custom__add_comment
     Para refinar e gerar os artefatos da change, rode:
 
     \`\`\`
-    /pstl:propose
+    /ps:propose
     \`\`\`
 \`\`\`
 
@@ -198,8 +198,8 @@ If this call fails, log the error and continue — label is auxiliary, never blo
 
 Comando da próxima etapa adicionado nos comentários do card.
 Sem responsável atribuído.
-Quando quiser refinar: \`/pstl:explore\` ou \`/pstl:task\`
-Quando quiser propor diretamente: \`/pstl:propose\`
+Quando quiser refinar: \`/ps:explore\` ou \`/ps:task\`
+Quando quiser propor diretamente: \`/ps:propose\`
 \`\`\`
 
 ---
@@ -209,7 +209,7 @@ Quando quiser propor diretamente: \`/pstl:propose\`
 - **Mínima intervenção** — o valor deste comando é a velocidade de captura; não refinar demais
 - **Preservar o texto original** verbatim na descrição
 - **Nunca atribuir membro** — cards de draft são sempre sem dono
-- **Nunca criar change** (\`pastelsdd new change\`) — este comando é apenas Trello
+- **Nunca criar change** (\`pscode new change\`) — este comando é apenas Trello
 - **Se MCP falhar**, exibir o conteúdo no chat para registro manual
 - **Título em português** por padrão, mas se o usuário escreveu em inglês, manter em inglês
 - **Labels são opcionais** — se \`labels.enabled = false\` ou o call MCP falhar, continuar sem label
@@ -220,7 +220,7 @@ Quando quiser propor diretamente: \`/pstl:propose\`
 
 export function getTrelloDraftCommandTemplate(): CommandTemplate {
   return {
-    name: 'Pastel: Draft',
+    name: 'PS: Draft',
     description: 'Capture a raw idea or concept into the Backlog Trello list — frictionless, no refinement required',
     category: 'Workflow',
     tags: ['trello', 'draft', 'ideias', 'backlog', 'workflow'],

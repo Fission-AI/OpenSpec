@@ -1,15 +1,15 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 
 /**
  * Postinstall script that hints about shell completions
  *
  * Completion installation is opt-in: the user must run
- * `pastelsdd completion install` explicitly. This script only
+ * `pscode completion install` explicitly. This script only
  * prints a one-line tip after npm install.
  *
  * The tip is suppressed when:
  * - CI=true environment variable is set
- * - PASTELSDD_NO_COMPLETIONS=1 environment variable is set
+ * - PSCODE_NO_COMPLETIONS=1 environment variable is set
  * - dist/ directory doesn't exist (dev setup scenario)
  *
  * The script never fails npm install - all errors are caught and handled gracefully.
@@ -32,8 +32,8 @@ function shouldSkipInstallation() {
   }
 
   // Skip if user opted out
-  if (process.env.PASTELSDD_NO_COMPLETIONS === '1') {
-    return { skip: true, reason: 'PASTELSDD_NO_COMPLETIONS=1 set' };
+  if (process.env.PSCODE_NO_COMPLETIONS === '1') {
+    return { skip: true, reason: 'PSCODE_NO_COMPLETIONS=1 set' };
   }
 
   return { skip: false };
@@ -70,7 +70,7 @@ async function main() {
     }
 
     // Completions are opt-in — just print a hint
-    console.log(`\nTip: Run 'pastelsdd completion install' for shell completions`);
+    console.log(`\nTip: Run 'pscode completion install' for shell completions`);
   } catch (error) {
     // Fail gracefully - never break npm install
   }

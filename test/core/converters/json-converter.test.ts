@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { JsonConverter } from '../../../src/core/converters/json-converter.js';
@@ -43,7 +43,7 @@ Then they are authenticated`;
       expect(parsed.requirements).toHaveLength(1);
       expect(parsed.requirements[0].scenarios).toHaveLength(1);
       expect(parsed.metadata).toBeDefined();
-      expect(parsed.metadata.format).toBe('pastelsdd');
+      expect(parsed.metadata.format).toBe('pscode');
       expect(parsed.metadata.sourcePath).toBe(specPath);
     });
 
@@ -98,7 +98,7 @@ We need to implement user authentication to secure the application and protect u
       expect(parsed.deltas[0].spec).toBe('user-auth');
       expect(parsed.deltas[0].operation).toBe('ADDED');
       expect(parsed.metadata).toBeDefined();
-      expect(parsed.metadata.format).toBe('pastelsdd-change');
+      expect(parsed.metadata.format).toBe('pscode-change');
       expect(parsed.metadata.sourcePath).toBe(changePath);
     });
 

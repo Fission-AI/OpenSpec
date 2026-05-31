@@ -1,4 +1,4 @@
-﻿import { promises as fs } from 'fs';
+import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
 import { InstallationResult } from '../factory.js';
@@ -20,7 +20,7 @@ export class FishInstaller {
    * @returns Installation path
    */
   getInstallationPath(): string {
-    return path.join(this.homeDir, '.config', 'fish', 'completions', 'pastelsdd.fish');
+    return path.join(this.homeDir, '.config', 'fish', 'completions', 'pscode.fish');
   }
 
   /**

@@ -1,4 +1,4 @@
-﻿# Installation
+# Installation
 
 ## Prerequisites
 
@@ -9,42 +9,42 @@
 ### npm
 
 ```bash
-npm install -g @thiagodiogo/pastelsdd@latest
+npm install -g @thiagodiogo/pscode@latest
 ```
 
 ### pnpm
 
 ```bash
-pnpm add -g @thiagodiogo/pastelsdd@latest
+pnpm add -g @thiagodiogo/pscode@latest
 ```
 
 ### yarn
 
 ```bash
-yarn global add @thiagodiogo/pastelsdd@latest
+yarn global add @thiagodiogo/pscode@latest
 ```
 
 ### bun
 
-Bun can install Pastelsdd globally, but Pastelsdd currently runs on Node.js.
+Bun can install Pscode globally, but Pscode currently runs on Node.js.
 You still need Node.js 20.19.0 or higher available on `PATH`.
 
 ```bash
-bun add -g @thiagodiogo/pastelsdd@latest
+bun add -g @thiagodiogo/pscode@latest
 ```
 
 ## Nix
 
-Run Pastelsdd directly without installation:
+Run Pscode directly without installation:
 
 ```bash
-nix run github:thiagodiogo/Pastelsdd -- init
+nix run github:thiagodiogo/Pscode -- init
 ```
 
 Or install to your profile:
 
 ```bash
-nix profile install github:thiagodiogo/Pastelsdd
+nix profile install github:thiagodiogo/Pscode
 ```
 
 Or add to your development environment in `flake.nix`:
@@ -53,12 +53,12 @@ Or add to your development environment in `flake.nix`:
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    pastelsdd.url = "github:thiagodiogo/Pastelsdd";
+    pscode.url = "github:thiagodiogo/Pscode";
   };
 
-  outputs = { nixpkgs, pastelsdd, ... }: {
+  outputs = { nixpkgs, pscode, ... }: {
     devShells.x86_64-linux.default = nixpkgs.legacyPackages.x86_64-linux.mkShell {
-      buildInputs = [ pastelsdd.packages.x86_64-linux.default ];
+      buildInputs = [ pscode.packages.x86_64-linux.default ];
     };
   };
 }
@@ -67,16 +67,16 @@ Or add to your development environment in `flake.nix`:
 ## Verify Installation
 
 ```bash
-pastelsdd --version
+pscode --version
 ```
 
 ## Next Steps
 
-After installing, initialize Pastelsdd in your project:
+After installing, initialize Pscode in your project:
 
 ```bash
 cd your-project
-pastelsdd init
+pscode init
 ```
 
 See [Getting Started](getting-started.md) for a full walkthrough.

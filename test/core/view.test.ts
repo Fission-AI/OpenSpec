@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
@@ -12,7 +12,7 @@ describe('ViewCommand', () => {
   let logOutput: string[] = [];
 
   beforeEach(async () => {
-    tempDir = path.join(os.tmpdir(), `pastelsdd-view-test-${Date.now()}`);
+    tempDir = path.join(os.tmpdir(), `pscode-view-test-${Date.now()}`);
     await fs.mkdir(tempDir, { recursive: true });
 
     originalLog = console.log;
@@ -29,7 +29,7 @@ describe('ViewCommand', () => {
   });
 
   it('shows changes with no tasks in Draft section, not Completed', async () => {
-    const changesDir = path.join(tempDir, 'pastelsdd', 'changes');
+    const changesDir = path.join(tempDir, 'pscode', 'changes');
     await fs.mkdir(changesDir, { recursive: true });
 
     // Empty change (no tasks.md) - should show in Draft
@@ -79,7 +79,7 @@ describe('ViewCommand', () => {
   });
 
   it('sorts active changes by completion percentage ascending with deterministic tie-breakers', async () => {
-    const changesDir = path.join(tempDir, 'pastelsdd', 'changes');
+    const changesDir = path.join(tempDir, 'pscode', 'changes');
     await fs.mkdir(changesDir, { recursive: true });
 
     await fs.mkdir(path.join(changesDir, 'gamma-change'), { recursive: true });

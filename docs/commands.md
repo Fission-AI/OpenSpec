@@ -1,6 +1,6 @@
-﻿# Commands
+# Commands
 
-This is the reference for Pastelsdd's slash commands. These commands are invoked in your AI coding assistant's chat interface (e.g., Claude Code, Cursor, Windsurf).
+This is the reference for Pscode's slash commands. These commands are invoked in your AI coding assistant's chat interface (e.g., Claude Code, Cursor, Windsurf).
 
 For workflow patterns and when to use each command, see [Workflows](workflows.md). For CLI commands, see [CLI](cli.md).
 
@@ -10,36 +10,36 @@ For workflow patterns and when to use each command, see [Workflows](workflows.md
 
 | Command | Purpose |
 |---------|---------|
-| `/pstl:propose` | Create a change and generate planning artifacts in one step |
-| `/pstl:explore` | Think through ideas before committing to a change |
-| `/pstl:apply` | Implement tasks from the change |
-| `/pstl:sync` | Merge delta specs into main specs |
-| `/pstl:archive` | Archive a completed change |
+| `/ps:propose` | Create a change and generate planning artifacts in one step |
+| `/ps:explore` | Think through ideas before committing to a change |
+| `/ps:apply` | Implement tasks from the change |
+| `/ps:sync` | Merge delta specs into main specs |
+| `/ps:archive` | Archive a completed change |
 
 ### Expanded Workflow Commands (custom workflow selection)
 
 | Command | Purpose |
 |---------|---------|
-| `/pstl:new` | Start a new change scaffold |
-| `/pstl:continue` | Create the next artifact based on dependencies |
-| `/pstl:ff` | Fast-forward: create all planning artifacts at once |
-| `/pstl:verify` | Validate implementation matches artifacts |
-| `/pstl:bulk-archive` | Archive multiple changes at once |
-| `/pstl:onboard` | Guided tutorial through the complete workflow |
+| `/ps:new` | Start a new change scaffold |
+| `/ps:continue` | Create the next artifact based on dependencies |
+| `/ps:ff` | Fast-forward: create all planning artifacts at once |
+| `/ps:verify` | Validate implementation matches artifacts |
+| `/ps:bulk-archive` | Archive multiple changes at once |
+| `/ps:onboard` | Guided tutorial through the complete workflow |
 
-The default global profile is `core`. To enable expanded workflow commands, run `pastelsdd config profile`, select workflows, then run `pastelsdd update` in your project.
+The default global profile is `core`. To enable expanded workflow commands, run `pscode config profile`, select workflows, then run `pscode update` in your project.
 
 ---
 
 ## Command Reference
 
-### `/pstl:propose`
+### `/ps:propose`
 
 Create a new change and generate planning artifacts in one step. This is the default start command in the `core` profile.
 
 **Syntax:**
 ```text
-/pstl:propose [change-name-or-description]
+/ps:propose [change-name-or-description]
 ```
 
 **Arguments:**
@@ -48,35 +48,35 @@ Create a new change and generate planning artifacts in one step. This is the def
 | `change-name-or-description` | No | Kebab-case name or plain-language change description |
 
 **What it does:**
-- Creates `pastelsdd/changes/<change-name>/`
+- Creates `pscode/changes/<change-name>/`
 - Generates artifacts needed before implementation (for `spec-driven`: proposal, specs, design, tasks)
-- Stops when the change is ready for `/pstl:apply`
+- Stops when the change is ready for `/ps:apply`
 
 **Example:**
 ```text
-You: /pstl:propose add-dark-mode
+You: /ps:propose add-dark-mode
 
-AI:  Created pastelsdd/changes/add-dark-mode/
+AI:  Created pscode/changes/add-dark-mode/
      ✓ proposal.md
      ✓ specs/ui/spec.md
      ✓ design.md
      ✓ tasks.md
-     Ready for implementation. Run /pstl:apply.
+     Ready for implementation. Run /ps:apply.
 ```
 
 **Tips:**
 - Use this for the fastest end-to-end path
-- If you want step-by-step artifact control, enable expanded workflows and use `/pstl:new` + `/pstl:continue`
+- If you want step-by-step artifact control, enable expanded workflows and use `/ps:new` + `/ps:continue`
 
 ---
 
-### `/pstl:explore`
+### `/ps:explore`
 
 Think through ideas, investigate problems, and clarify requirements before committing to a change.
 
 **Syntax:**
 ```
-/pstl:explore [topic]
+/ps:explore [topic]
 ```
 
 **Arguments:**
@@ -89,11 +89,11 @@ Think through ideas, investigate problems, and clarify requirements before commi
 - Investigates the codebase to answer questions
 - Compares options and approaches
 - Creates visual diagrams to clarify thinking
-- Can transition to `/pstl:propose` (default) or `/pstl:new` (expanded workflow) when insights crystallize
+- Can transition to `/ps:propose` (default) or `/ps:new` (expanded workflow) when insights crystallize
 
 **Example:**
 ```text
-You: /pstl:explore
+You: /ps:explore
 
 AI:  What would you like to explore?
 
@@ -113,7 +113,7 @@ AI:  Let me investigate your current auth setup...
 
 You: Let's go with JWT. Can we start a change for that?
 
-AI:  Ready when you are. Run /pstl:propose add-jwt-auth to begin.
+AI:  Ready when you are. Run /ps:propose add-jwt-auth to begin.
 ```
 
 **Tips:**
@@ -124,15 +124,15 @@ AI:  Ready when you are. Run /pstl:propose add-jwt-auth to begin.
 
 ---
 
-### `/pstl:new`
+### `/ps:new`
 
-Start a new change scaffold. Creates the change folder and waits for you to generate artifacts with `/pstl:continue` or `/pstl:ff`.
+Start a new change scaffold. Creates the change folder and waits for you to generate artifacts with `/ps:continue` or `/ps:ff`.
 
 This command is part of the expanded workflow set (not included in the default `core` profile).
 
 **Syntax:**
 ```
-/pstl:new [change-name] [--schema <schema-name>]
+/ps:new [change-name] [--schema <schema-name>]
 ```
 
 **Arguments:**
@@ -142,42 +142,42 @@ This command is part of the expanded workflow set (not included in the default `
 | `--schema` | No | Workflow schema to use (default: from config or `spec-driven`) |
 
 **What it does:**
-- Creates `pastelsdd/changes/<change-name>/` directory
-- Creates `.pastelsdd.yaml` metadata file in the change folder
+- Creates `pscode/changes/<change-name>/` directory
+- Creates `.pscode.yaml` metadata file in the change folder
 - Shows the first artifact template ready for creation
 - Prompts for change name and schema if not provided
 
 **What it creates:**
 ```
-pastelsdd/changes/<change-name>/
-└── .pastelsdd.yaml    # Change metadata (schema, created date)
+pscode/changes/<change-name>/
+└── .pscode.yaml    # Change metadata (schema, created date)
 ```
 
 **Example:**
 ```
-You: /pstl:new add-dark-mode
+You: /ps:new add-dark-mode
 
-AI:  Created pastelsdd/changes/add-dark-mode/
+AI:  Created pscode/changes/add-dark-mode/
      Schema: spec-driven
 
      Ready to create: proposal
-     Use /pstl:continue to create it, or /pstl:ff to create all artifacts.
+     Use /ps:continue to create it, or /ps:ff to create all artifacts.
 ```
 
 **Tips:**
 - Use descriptive names: `add-feature`, `fix-bug`, `refactor-module`
 - Avoid generic names like `update`, `changes`, `wip`
-- Schema can also be set in project config (`pastelsdd/config.yaml`)
+- Schema can also be set in project config (`pscode/config.yaml`)
 
 ---
 
-### `/pstl:continue`
+### `/ps:continue`
 
 Create the next artifact in the dependency chain. Creates one artifact at a time for incremental progress.
 
 **Syntax:**
 ```
-/pstl:continue [change-name]
+/ps:continue [change-name]
 ```
 
 **Arguments:**
@@ -194,7 +194,7 @@ Create the next artifact in the dependency chain. Creates one artifact at a time
 
 **Example:**
 ```
-You: /pstl:continue
+You: /ps:continue
 
 AI:  Change: add-dark-mode
 
@@ -208,10 +208,10 @@ AI:  Change: add-dark-mode
 
      [Reads proposal.md, creates specs based on requirements]
 
-     ✓ Created pastelsdd/changes/add-dark-mode/specs/ui/spec.md
+     ✓ Created pscode/changes/add-dark-mode/specs/ui/spec.md
 
      Now available: tasks
-     Run /pstl:continue to create the next artifact.
+     Run /ps:continue to create the next artifact.
 ```
 
 **Tips:**
@@ -222,13 +222,13 @@ AI:  Change: add-dark-mode
 
 ---
 
-### `/pstl:ff`
+### `/ps:ff`
 
 Fast-forward through artifact creation. Creates all planning artifacts at once.
 
 **Syntax:**
 ```
-/pstl:ff [change-name]
+/ps:ff [change-name]
 ```
 
 **Arguments:**
@@ -244,7 +244,7 @@ Fast-forward through artifact creation. Creates all planning artifacts at once.
 
 **Example:**
 ```
-You: /pstl:ff add-dark-mode
+You: /ps:ff add-dark-mode
 
 AI:  Fast-forwarding add-dark-mode...
 
@@ -254,24 +254,24 @@ AI:  Fast-forwarding add-dark-mode...
      ✓ Creating tasks.md
 
      All planning artifacts complete!
-     Ready for implementation. Run /pstl:apply to begin.
+     Ready for implementation. Run /ps:apply to begin.
 ```
 
 **Tips:**
 - Use when you have a clear picture of what you're building
-- Faster than `/pstl:continue` for straightforward changes
+- Faster than `/ps:continue` for straightforward changes
 - You can still edit artifacts afterward
 - Good for small to medium features
 
 ---
 
-### `/pstl:apply`
+### `/ps:apply`
 
 Implement tasks from the change. Works through the task list, writing code and checking off items.
 
 **Syntax:**
 ```
-/pstl:apply [change-name]
+/ps:apply [change-name]
 ```
 
 **Arguments:**
@@ -287,7 +287,7 @@ Implement tasks from the change. Works through the task list, writing code and c
 
 **Example:**
 ```
-You: /pstl:apply
+You: /ps:apply
 
 AI:  Implementing add-dark-mode...
 
@@ -315,13 +315,13 @@ AI:  Implementing add-dark-mode...
 
 ---
 
-### `/pstl:verify`
+### `/ps:verify`
 
 Validate that implementation matches your change artifacts. Checks completeness, correctness, and coherence.
 
 **Syntax:**
 ```
-/pstl:verify [change-name]
+/ps:verify [change-name]
 ```
 
 **Arguments:**
@@ -345,7 +345,7 @@ Validate that implementation matches your change artifacts. Checks completeness,
 
 **Example:**
 ```
-You: /pstl:verify
+You: /ps:verify
 
 AI:  Verifying add-dark-mode...
 
@@ -383,13 +383,13 @@ AI:  Verifying add-dark-mode...
 
 ---
 
-### `/pstl:sync`
+### `/ps:sync`
 
 **Optional command.** Merge delta specs from a change into main specs. Archive will prompt to sync if needed, so you typically don't need to run this manually.
 
 **Syntax:**
 ```
-/pstl:sync [change-name]
+/ps:sync [change-name]
 ```
 
 **Arguments:**
@@ -400,27 +400,27 @@ AI:  Verifying add-dark-mode...
 **What it does:**
 - Reads delta specs from change folder
 - Parses ADDED/MODIFIED/REMOVED/RENAMED sections
-- Merges changes into main `pastelsdd/specs/` directory
+- Merges changes into main `pscode/specs/` directory
 - Preserves existing content not mentioned in delta
 - Does not archive the change (remains active)
 
 **Example:**
 ```text
-You: /pstl:sync
+You: /ps:sync
 
 AI:  Syncing add-dark-mode delta specs...
 
-     Reading: pastelsdd/changes/add-dark-mode/specs/ui/spec.md
-     Target:  pastelsdd/specs/ui/spec.md
+     Reading: pscode/changes/add-dark-mode/specs/ui/spec.md
+     Target:  pscode/specs/ui/spec.md
 
      Changes to apply:
      ✓ ADDED: Theme Selection requirement (2 scenarios)
      ✓ ADDED: Accessibility requirement (1 scenario)
 
      Merging...
-     ✓ pastelsdd/specs/ui/spec.md updated
+     ✓ pscode/specs/ui/spec.md updated
 
-     Change remains active. Run /pstl:archive when ready to complete.
+     Change remains active. Run /ps:archive when ready to complete.
 ```
 
 **When to use manually:**
@@ -440,13 +440,13 @@ AI:  Syncing add-dark-mode delta specs...
 
 ---
 
-### `/pstl:archive`
+### `/ps:archive`
 
 Archive a completed change. Finalizes the change and moves it to the archive folder.
 
 **Syntax:**
 ```
-/pstl:archive [change-name]
+/ps:archive [change-name]
 ```
 
 **Arguments:**
@@ -458,12 +458,12 @@ Archive a completed change. Finalizes the change and moves it to the archive fol
 - Checks artifact completion status
 - Checks task completion (warns if incomplete)
 - Offers to sync delta specs if not already synced
-- Moves change folder to `pastelsdd/changes/archive/YYYY-MM-DD-<name>/`
+- Moves change folder to `pscode/changes/archive/YYYY-MM-DD-<name>/`
 - Preserves all artifacts for audit trail
 
 **Example:**
 ```text
-You: /pstl:archive
+You: /ps:archive
 
 AI:  Archiving add-dark-mode...
 
@@ -478,8 +478,8 @@ AI:  Archiving add-dark-mode...
 
 You: Yes
 
-AI:  ✓ Synced specs to pastelsdd/specs/ui/spec.md
-     ✓ Moved to pastelsdd/changes/archive/2025-01-24-add-dark-mode/
+AI:  ✓ Synced specs to pscode/specs/ui/spec.md
+     ✓ Moved to pscode/changes/archive/2025-01-24-add-dark-mode/
 
      Change archived successfully.
 ```
@@ -488,17 +488,17 @@ AI:  ✓ Synced specs to pastelsdd/specs/ui/spec.md
 - Archive won't block on incomplete tasks, but will warn
 - Delta specs can be synced during archive or beforehand
 - Archived changes are preserved for history
-- Use `/pstl:verify` first to catch issues
+- Use `/ps:verify` first to catch issues
 
 ---
 
-### `/pstl:bulk-archive`
+### `/ps:bulk-archive`
 
 Archive multiple completed changes at once. Handles spec conflicts between changes.
 
 **Syntax:**
 ```
-/pstl:bulk-archive [change-names...]
+/ps:bulk-archive [change-names...]
 ```
 
 **Arguments:**
@@ -515,7 +515,7 @@ Archive multiple completed changes at once. Handles spec conflicts between chang
 
 **Example:**
 ```
-You: /pstl:bulk-archive
+You: /ps:bulk-archive
 
 AI:  Found 3 completed changes:
      - add-dark-mode (8/8 tasks complete)
@@ -548,13 +548,13 @@ AI:  ✓ Archived add-dark-mode
 
 ---
 
-### `/pstl:onboard`
+### `/ps:onboard`
 
-Guided onboarding through the complete Pastelsdd workflow. An interactive tutorial using your actual codebase.
+Guided onboarding through the complete Pscode workflow. An interactive tutorial using your actual codebase.
 
 **Syntax:**
 ```
-/pstl:onboard
+/ps:onboard
 ```
 
 **What it does:**
@@ -568,21 +568,21 @@ Guided onboarding through the complete Pastelsdd workflow. An interactive tutori
 **Phases:**
 1. Welcome and codebase analysis
 2. Finding an improvement opportunity
-3. Creating a change (`/pstl:new`)
+3. Creating a change (`/ps:new`)
 4. Writing the proposal
 5. Creating specs
 6. Writing the design
 7. Creating tasks
-8. Implementing tasks (`/pstl:apply`)
+8. Implementing tasks (`/ps:apply`)
 9. Verifying implementation
 10. Archiving the change
 11. Summary and next steps
 
 **Example:**
 ```
-You: /pstl:onboard
+You: /ps:onboard
 
-AI:  Welcome to Pastelsdd!
+AI:  Welcome to Pscode!
 
      I'll walk you through the complete workflow using your actual codebase.
      We'll find something small to improve, create a proper change for it,
@@ -614,12 +614,12 @@ Different AI tools use slightly different command syntax. Use the format that ma
 
 | Tool | Syntax Example |
 |------|----------------|
-| Claude Code | `/pstl:propose`, `/pstl:apply` |
+| Claude Code | `/ps:propose`, `/ps:apply` |
 | Cursor | `/pastel-propose`, `/pastel-apply` |
 | Windsurf | `/pastel-propose`, `/pastel-apply` |
 | Copilot (IDE) | `/pastel-propose`, `/pastel-apply` |
-| Kimi CLI | Skill-based invocations such as `/skill:pastelsdd-propose`, `/skill:pastelsdd-apply-change` (no generated `pastel-*` command files) |
-| Trae | Skill-based invocations such as `/pastelsdd-propose`, `/pastelsdd-apply-change` (no generated `pastel-*` command files) |
+| Kimi CLI | Skill-based invocations such as `/skill:pscode-propose`, `/skill:pscode-apply-change` (no generated `pastel-*` command files) |
+| Trae | Skill-based invocations such as `/pscode-propose`, `/pscode-apply-change` (no generated `pastel-*` command files) |
 
 The intent is the same across tools, but how commands are surfaced can differ by integration.
 
@@ -633,9 +633,9 @@ These commands use the older "all-at-once" workflow. They still work but OPSX co
 
 | Command | What it does |
 |---------|--------------|
-| `/pastelsdd:proposal` | Create all artifacts at once (proposal, specs, design, tasks) |
-| `/pastelsdd:apply` | Implement the change |
-| `/pastelsdd:archive` | Archive the change |
+| `/pscode:proposal` | Create all artifacts at once (proposal, specs, design, tasks) |
+| `/pscode:apply` | Implement the change |
+| `/pscode:archive` | Archive the change |
 
 **When to use legacy commands:**
 - Existing projects using the old workflow
@@ -654,8 +654,8 @@ Legacy changes can be continued with OPSX commands. The artifact structure is co
 The command couldn't identify which change to work on.
 
 **Solutions:**
-- Specify the change name explicitly: `/pstl:apply add-dark-mode`
-- Check that the change folder exists: `pastelsdd list`
+- Specify the change name explicitly: `/ps:apply add-dark-mode`
+- Check that the change folder exists: `pscode list`
 - Verify you're in the right project directory
 
 ### "No artifacts ready"
@@ -663,7 +663,7 @@ The command couldn't identify which change to work on.
 All artifacts are either complete or blocked by missing dependencies.
 
 **Solutions:**
-- Run `pastelsdd status --change <name>` to see what's blocking
+- Run `pscode status --change <name>` to see what's blocking
 - Check if required artifacts exist
 - Create missing dependency artifacts first
 
@@ -672,17 +672,17 @@ All artifacts are either complete or blocked by missing dependencies.
 The specified schema doesn't exist.
 
 **Solutions:**
-- List available schemas: `pastelsdd schemas`
+- List available schemas: `pscode schemas`
 - Check spelling of schema name
-- Create the schema if it's custom: `pastelsdd schema init <name>`
+- Create the schema if it's custom: `pscode schema init <name>`
 
 ### Commands not recognized
 
-The AI tool doesn't recognize Pastelsdd commands.
+The AI tool doesn't recognize Pscode commands.
 
 **Solutions:**
-- Ensure Pastelsdd is initialized: `pastelsdd init`
-- Regenerate skills: `pastelsdd update`
+- Ensure Pscode is initialized: `pscode init`
+- Regenerate skills: `pscode update`
 - Check that `.claude/skills/` directory exists (for Claude Code)
 - Restart your AI tool to pick up new skills
 
@@ -691,10 +691,10 @@ The AI tool doesn't recognize Pastelsdd commands.
 The AI creates incomplete or incorrect artifacts.
 
 **Solutions:**
-- Add project context in `pastelsdd/config.yaml`
+- Add project context in `pscode/config.yaml`
 - Add per-artifact rules for specific guidance
 - Provide more detail in your change description
-- Use `/pstl:continue` instead of `/pstl:ff` for more control
+- Use `/ps:continue` instead of `/ps:ff` for more control
 
 ---
 

@@ -1,14 +1,14 @@
-﻿import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { isInteractive, resolveNoInteractive, InteractiveOptions } from '../../src/utils/interactive.js';
 
 describe('interactive utilities', () => {
-  let originalPastelsddInteractive: string | undefined;
+  let originalPscodeInteractive: string | undefined;
   let originalCI: string | undefined;
   let originalStdinIsTTY: boolean | undefined;
 
   beforeEach(() => {
     // Save original environment
-    originalPastelsddInteractive = process.env.OPEN_SPEC_INTERACTIVE;
+    originalPscodeInteractive = process.env.OPEN_SPEC_INTERACTIVE;
     originalCI = process.env.CI;
     originalStdinIsTTY = process.stdin.isTTY;
 
@@ -19,8 +19,8 @@ describe('interactive utilities', () => {
 
   afterEach(() => {
     // Restore original environment
-    if (originalPastelsddInteractive !== undefined) {
-      process.env.OPEN_SPEC_INTERACTIVE = originalPastelsddInteractive;
+    if (originalPscodeInteractive !== undefined) {
+      process.env.OPEN_SPEC_INTERACTIVE = originalPscodeInteractive;
     } else {
       delete process.env.OPEN_SPEC_INTERACTIVE;
     }

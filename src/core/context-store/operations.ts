@@ -1,4 +1,4 @@
-﻿import { execFile } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import * as nodeFs from 'node:fs';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
@@ -163,7 +163,7 @@ function resolveSetupRoot(id: string, inputPath: string | undefined): string {
   if (inputPath !== undefined && inputPath.trim().length === 0) {
     throw new ContextStoreError('Pass a non-empty --path value.', 'context_store_path_required', {
       target: 'context_store.root',
-      fix: `pastelsdd context-store setup ${id} --path ./team-context`,
+      fix: `pscode context-store setup ${id} --path ./team-context`,
     });
   }
 
@@ -174,7 +174,7 @@ function resolveRegisterRoot(inputPath: string | undefined): string {
   if (inputPath === undefined || inputPath.trim().length === 0) {
     throw new ContextStoreError('Pass a context store path.', 'context_store_path_required', {
       target: 'context_store.root',
-      fix: 'pastelsdd context-store register /path/to/context-store',
+      fix: 'pscode context-store register /path/to/context-store',
     });
   }
 
@@ -320,7 +320,7 @@ export async function setupPreparedContextStore(
       writeMetadataIfMissing: true,
     });
     if (registered.metadataCreated) {
-      createdFiles.push('.pastelsdd-store/store.yaml');
+      createdFiles.push('.pscode-store/store.yaml');
     }
     const isRepository = await isGitRepositoryAtRoot(registered.storeRoot);
 
@@ -399,7 +399,7 @@ export async function registerExistingContextStore(
     writeMetadataIfMissing: true,
   });
   if (registered.metadataCreated) {
-    createdFiles.push('.pastelsdd-store/store.yaml');
+    createdFiles.push('.pscode-store/store.yaml');
   }
 
   return mutationPayload(id, registered.storeRoot, {
@@ -463,7 +463,7 @@ async function inspectContextStore(entry: {
       'Context store location does not exist.',
       {
         target: 'context_store.root',
-        fix: `Run pastelsdd context-store register /path/to/${entry.id} --id ${entry.id}.`,
+        fix: `Run pscode context-store register /path/to/${entry.id} --id ${entry.id}.`,
       }
     ));
   } else if (kind !== 'directory') {
@@ -537,7 +537,7 @@ export async function doctorContextStores(id?: string): Promise<ContextStoreDoct
     if (selectedId !== undefined) {
       throw new ContextStoreError(`Unknown context store '${selectedId}'.`, 'context_store_not_found', {
         target: 'context_store.id',
-        fix: 'Run pastelsdd context-store list to see registered stores.',
+        fix: 'Run pscode context-store list to see registered stores.',
       });
     }
 
@@ -552,7 +552,7 @@ export async function doctorContextStores(id?: string): Promise<ContextStoreDoct
   if (selectedId && selected.length === 0) {
     throw new ContextStoreError(`Unknown context store '${selectedId}'.`, 'context_store_not_found', {
       target: 'context_store.id',
-      fix: 'Run pastelsdd context-store list to see registered stores.',
+      fix: 'Run pscode context-store list to see registered stores.',
     });
   }
 

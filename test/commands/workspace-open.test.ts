@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import {
   assertWorkspaceOpenerAvailable,
@@ -50,7 +50,7 @@ describe('workspace open launchers', () => {
         '/repos/api',
         '--add-dir',
         '/repos/web',
-        'Open this Pastelsdd workspace.',
+        'Open this Pscode workspace.',
       ],
       cwd: '/workspace',
       openerLabel: 'Codex',
@@ -65,7 +65,7 @@ describe('workspace open launchers', () => {
       )
     ).toEqual({
       executable: 'claude',
-      args: ['--add-dir', '/repos/api', 'Open this Pastelsdd workspace.'],
+      args: ['--add-dir', '/repos/api', 'Open this Pscode workspace.'],
       cwd: '/workspace',
       openerLabel: 'Claude',
     });
@@ -109,7 +109,7 @@ describe('workspace open launchers', () => {
           '/repos/api',
           '--add-dir',
           'C:\\Program Files\\repo',
-          'Open this Pastelsdd workspace.',
+          'Open this Pscode workspace.',
         ],
         cwd: '/workspace',
         shell: false,

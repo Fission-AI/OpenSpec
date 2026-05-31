@@ -1,4 +1,4 @@
-﻿import {
+import {
   getContextStoreMetadataPath,
   readOptionalContextStoreMetadataState,
   resolveGitContextStoreBackendConfig,
@@ -184,7 +184,7 @@ function validateSelectorConflict(
       'context_store_selector_conflict',
       {
         target: 'context_store',
-        fix: `pastelsdd ${commandName} --store <id>`,
+        fix: `pscode ${commandName} --store <id>`,
       }
     );
   }
@@ -202,7 +202,7 @@ export function requireContextStoreSelector(
       'context_store_required',
       {
         target: 'context_store',
-        fix: `pastelsdd ${commandName} --store <id>`,
+        fix: `pscode ${commandName} --store <id>`,
       }
     );
   }
@@ -268,7 +268,7 @@ export async function resolveSelectedContextStore(
       'context_store_metadata_not_found',
       {
         target: 'context_store.metadata',
-        fix: 'Pass a context store root that contains .pastelsdd-store/store.yaml.',
+        fix: 'Pass a context store root that contains .pscode-store/store.yaml.',
       }
     );
   }

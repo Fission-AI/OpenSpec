@@ -1,10 +1,10 @@
-﻿# Multi-Language Guide
+# Multi-Language Guide
 
-Configure Pastelsdd to generate artifacts in languages other than English.
+Configure Pscode to generate artifacts in languages other than English.
 
 ## Quick Setup
 
-Add a language instruction to your `pastelsdd/config.yaml`:
+Add a language instruction to your `pscode/config.yaml`:
 
 ```yaml
 schema: spec-driven
@@ -104,7 +104,7 @@ To verify your language config is working:
 
 ```bash
 # Check the instructions - should show your language context
-pastelsdd instructions proposal --change my-change
+pscode instructions proposal --change my-change
 
 # Output will include your language context
 ```

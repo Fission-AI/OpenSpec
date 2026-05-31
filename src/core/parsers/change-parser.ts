@@ -1,4 +1,4 @@
-﻿import { MarkdownParser, Section } from './markdown-parser.js';
+import { MarkdownParser, Section } from './markdown-parser.js';
 import { Change, Delta, DeltaOperation, Requirement } from '../schemas/index.js';
 import path from 'path';
 import { promises as fs } from 'fs';
@@ -47,7 +47,7 @@ export class ChangeParser extends MarkdownParser {
       deltas,
       metadata: {
         version: '1.0.0',
-        format: 'pastelsdd-change',
+        format: 'pscode-change',
       },
     };
   }

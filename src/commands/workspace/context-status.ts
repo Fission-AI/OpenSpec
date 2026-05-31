@@ -1,4 +1,4 @@
-﻿import {
+import {
   mountInitiativesCollection,
   readInitiative,
 } from '../../core/collections/initiatives/index.js';
@@ -45,8 +45,8 @@ export async function collectWorkspaceContextStatuses(
         {
           target: 'workspace.context.store',
           fix: context.store.selector.kind === 'registry'
-            ? 'pastelsdd context-store doctor'
-            : `Check the path in workspace.yaml or run pastelsdd initiative show ${initiativeId} ${selector}`,
+            ? 'pscode context-store doctor'
+            : `Check the path in workspace.yaml or run pscode initiative show ${initiativeId} ${selector}`,
         }
       ),
     ];
@@ -69,7 +69,7 @@ export async function collectWorkspaceContextStatuses(
           `Workspace initiative '${contextStoreLabel}/${initiativeId}' was not found.`,
           {
             target: 'workspace.context.initiative',
-            fix: `pastelsdd initiative show ${initiativeId} ${selector}`,
+            fix: `pscode initiative show ${initiativeId} ${selector}`,
           }
         ),
       ];
@@ -85,7 +85,7 @@ export async function collectWorkspaceContextStatuses(
         `Workspace initiative '${contextStoreLabel}/${initiativeId}' could not be read: ${asErrorMessage(error)}`,
         {
           target: 'workspace.context.initiative',
-          fix: `pastelsdd initiative show ${initiativeId} ${selector}`,
+          fix: `pscode initiative show ${initiativeId} ${selector}`,
         }
       ),
     ];

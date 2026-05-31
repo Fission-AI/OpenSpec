@@ -1,4 +1,4 @@
-﻿# Pastelsdd Test Guidance
+# Pscode Test Guidance
 
 Applies to tests under `test/`.
 

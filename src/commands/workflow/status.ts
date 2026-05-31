@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Status Command
  *
  * Displays artifact completion status for a change.
@@ -51,7 +51,7 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
           console.log(JSON.stringify({ changes: [], message: 'No active changes.' }, null, 2));
           return;
         }
-        console.log('No active changes. Create one with: pastelsdd new change <name>');
+        console.log('No active changes. Create one with: pscode new change <name>');
         return;
       }
       // Changes exist but --change not provided

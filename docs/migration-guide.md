@@ -1,6 +1,6 @@
-﻿# Migrating to OPSX
+# Migrating to OPSX
 
-This guide helps you transition from the legacy Pastelsdd workflow to OPSX. The migration is designed to be smooth—your existing work is preserved, and the new system offers more flexibility.
+This guide helps you transition from the legacy Pscode workflow to OPSX. The migration is designed to be smooth—your existing work is preserved, and the new system offers more flexibility.
 
 ## What's Changing?
 
@@ -8,11 +8,11 @@ OPSX replaces the old phase-locked workflow with a fluid, action-based approach.
 
 | Aspect | Legacy | OPSX |
 |--------|--------|------|
-| **Commands** | `/pastelsdd:proposal`, `/pastelsdd:apply`, `/pastelsdd:archive` | Default: `/pstl:propose`, `/pstl:apply`, `/pstl:sync`, `/pstl:archive` (expanded workflow commands optional) |
+| **Commands** | `/pscode:proposal`, `/pscode:apply`, `/pscode:archive` | Default: `/ps:propose`, `/ps:apply`, `/ps:sync`, `/ps:archive` (expanded workflow commands optional) |
 | **Workflow** | Create all artifacts at once | Create incrementally or all at once—your choice |
 | **Going back** | Awkward phase gates | Natural—update any artifact anytime |
 | **Customization** | Fixed structure | Schema-driven, fully hackable |
-| **Configuration** | `CLAUDE.md` with markers + `project.md` | Clean config in `pastelsdd/config.yaml` |
+| **Configuration** | `CLAUDE.md` with markers + `project.md` | Clean config in `pscode/config.yaml` |
 
 **The philosophy change:** Work isn't linear. OPSX stops pretending it is.
 
@@ -24,50 +24,50 @@ OPSX replaces the old phase-locked workflow with a fluid, action-based approach.
 
 The migration process is designed with preservation in mind:
 
-- **Active changes in `pastelsdd/changes/`** — Completely preserved. You can continue them with OPSX commands.
+- **Active changes in `pscode/changes/`** — Completely preserved. You can continue them with OPSX commands.
 - **Archived changes** — Untouched. Your history remains intact.
-- **Main specs in `pastelsdd/specs/`** — Untouched. These are your source of truth.
-- **Your content in CLAUDE.md, AGENTS.md, etc.** — Preserved. Only the Pastelsdd marker blocks are removed; everything you wrote stays.
+- **Main specs in `pscode/specs/`** — Untouched. These are your source of truth.
+- **Your content in CLAUDE.md, AGENTS.md, etc.** — Preserved. Only the Pscode marker blocks are removed; everything you wrote stays.
 
 ### What Gets Removed
 
-Only Pastelsdd-managed files that are being replaced:
+Only Pscode-managed files that are being replaced:
 
 | What | Why |
 |------|-----|
 | Legacy slash command directories/files | Replaced by the new skills system |
-| `pastelsdd/AGENTS.md` | Obsolete workflow trigger |
-| Pastelsdd markers in `CLAUDE.md`, `AGENTS.md`, etc. | No longer needed |
+| `pscode/AGENTS.md` | Obsolete workflow trigger |
+| Pscode markers in `CLAUDE.md`, `AGENTS.md`, etc. | No longer needed |
 
 **Legacy command locations by tool** (examples—your tool may vary):
 
-- Claude Code: `.claude/commands/pastelsdd/`
-- Cursor: `.cursor/commands/pastelsdd-*.md`
-- Windsurf: `.windsurf/workflows/pastelsdd-*.md`
-- Cline: `.clinerules/workflows/pastelsdd-*.md`
-- Roo: `.roo/commands/pastelsdd-*.md`
-- GitHub Copilot: `.github/prompts/pastelsdd-*.prompt.md` (IDE extensions only; not supported in Copilot CLI)
+- Claude Code: `.claude/commands/pscode/`
+- Cursor: `.cursor/commands/pscode-*.md`
+- Windsurf: `.windsurf/workflows/pscode-*.md`
+- Cline: `.clinerules/workflows/pscode-*.md`
+- Roo: `.roo/commands/pscode-*.md`
+- GitHub Copilot: `.github/prompts/pscode-*.prompt.md` (IDE extensions only; not supported in Copilot CLI)
 - And others (Augment, Continue, Amazon Q, etc.)
 
 The migration detects whichever tools you have configured and cleans up their legacy files.
 
-The removal list may seem long, but these are all files that Pastelsdd originally created. Your own content is never deleted.
+The removal list may seem long, but these are all files that Pscode originally created. Your own content is never deleted.
 
 ### What Needs Your Attention
 
 One file requires manual migration:
 
-**`pastelsdd/project.md`** — This file isn't deleted automatically because it may contain project context you've written. You'll need to:
+**`pscode/project.md`** — This file isn't deleted automatically because it may contain project context you've written. You'll need to:
 
 1. Review its contents
-2. Move useful context to `pastelsdd/config.yaml` (see guidance below)
+2. Move useful context to `pscode/config.yaml` (see guidance below)
 3. Delete the file when ready
 
 **Why we made this change:**
 
 The old `project.md` was passive—agents might read it, might not, might forget what they read. We found reliability was inconsistent.
 
-The new `config.yaml` context is **actively injected into every Pastelsdd planning request**. This means your project conventions, tech stack, and rules are always present when the AI is creating artifacts. Higher reliability.
+The new `config.yaml` context is **actively injected into every Pscode planning request**. This means your project conventions, tech stack, and rules are always present when the AI is creating artifacts. Higher reliability.
 
 **The tradeoff:**
 
@@ -82,44 +82,44 @@ Don't worry about getting it perfect. We're still learning what works best here,
 
 ## Running the Migration
 
-Both `pastelsdd init` and `pastelsdd update` detect legacy files and guide you through the same cleanup process. Use whichever fits your situation:
+Both `pscode init` and `pscode update` detect legacy files and guide you through the same cleanup process. Use whichever fits your situation:
 
 - New installs default to profile `core` (`propose`, `explore`, `apply`, `sync`, `archive`).
 - Migrated installs preserve your previously installed workflows by writing a `custom` profile when needed.
 
-### Using `pastelsdd init`
+### Using `pscode init`
 
 Run this if you want to add new tools or reconfigure which tools are set up:
 
 ```bash
-pastelsdd init
+pscode init
 ```
 
 The init command detects legacy files and guides you through cleanup:
 
 ```
-Upgrading to the new Pastelsdd
+Upgrading to the new Pscode
 
-Pastelsdd now uses agent skills, the emerging standard across coding
+Pscode now uses agent skills, the emerging standard across coding
 agents. This simplifies your setup while keeping everything working
 as before.
 
 Files to remove
 No user content to preserve:
-  • .claude/commands/pastelsdd/
-  • pastelsdd/AGENTS.md
+  • .claude/commands/pscode/
+  • pscode/AGENTS.md
 
 Files to update
-Pastelsdd markers will be removed, your content preserved:
+Pscode markers will be removed, your content preserved:
   • CLAUDE.md
   • AGENTS.md
 
 Needs your attention
-  • pastelsdd/project.md
+  • pscode/project.md
     We won't delete this file. It may contain useful project context.
 
-    The new pastelsdd/config.yaml has a "context:" section for planning
-    context. This is included in every Pastelsdd request and works more
+    The new pscode/config.yaml has a "context:" section for planning
+    context. This is included in every Pscode request and works more
     reliably than the old project.md approach.
 
     Review project.md, move any useful content to config.yaml's context
@@ -131,17 +131,17 @@ Needs your attention
 **What happens when you say yes:**
 
 1. Legacy slash command directories are removed
-2. Pastelsdd markers are stripped from `CLAUDE.md`, `AGENTS.md`, etc. (your content stays)
-3. `pastelsdd/AGENTS.md` is deleted
+2. Pscode markers are stripped from `CLAUDE.md`, `AGENTS.md`, etc. (your content stays)
+3. `pscode/AGENTS.md` is deleted
 4. New skills are installed in `.claude/skills/`
-5. `pastelsdd/config.yaml` is created with a default schema
+5. `pscode/config.yaml` is created with a default schema
 
-### Using `pastelsdd update`
+### Using `pscode update`
 
 Run this if you just want to migrate and refresh your existing tools to the latest version:
 
 ```bash
-pastelsdd update
+pscode update
 ```
 
 The update command also detects and cleans up legacy artifacts, then refreshes generated skills/commands to match your current profile and delivery settings.
@@ -151,7 +151,7 @@ The update command also detects and cleans up legacy artifacts, then refreshes g
 For scripted migrations:
 
 ```bash
-pastelsdd init --force --tools claude
+pscode init --force --tools claude
 ```
 
 The `--force` flag skips prompts and auto-accepts cleanup.
@@ -160,7 +160,7 @@ The `--force` flag skips prompts and auto-accepts cleanup.
 
 ## Migrating project.md to config.yaml
 
-The old `pastelsdd/project.md` was a freeform markdown file for project context. The new `pastelsdd/config.yaml` is structured and—critically—**injected into every planning request** so your conventions are always present when the AI works.
+The old `pscode/project.md` was a freeform markdown file for project context. The new `pscode/config.yaml` is structured and—critically—**injected into every planning request** so your conventions are always present when the AI works.
 
 ### Before (project.md)
 
@@ -260,7 +260,7 @@ When migrating, be selective. Ask yourself: "Does the AI need this for *every* p
 If you're unsure how to distill your project.md, ask your AI assistant:
 
 ```
-I'm migrating from Pastelsdd's old project.md to the new config.yaml format.
+I'm migrating from Pscode's old project.md to the new config.yaml format.
 
 Here's my current project.md:
 [paste your project.md content]
@@ -284,32 +284,32 @@ Command availability is profile-dependent:
 
 | Command | Purpose |
 |---------|---------|
-| `/pstl:propose` | Create a change and generate planning artifacts in one step |
-| `/pstl:explore` | Think through ideas with no structure |
-| `/pstl:apply` | Implement tasks from tasks.md |
-| `/pstl:archive` | Finalize and archive the change |
+| `/ps:propose` | Create a change and generate planning artifacts in one step |
+| `/ps:explore` | Think through ideas with no structure |
+| `/ps:apply` | Implement tasks from tasks.md |
+| `/ps:archive` | Finalize and archive the change |
 
 **Expanded workflow (custom selection):**
 
 | Command | Purpose |
 |---------|---------|
-| `/pstl:new` | Start a new change scaffold |
-| `/pstl:continue` | Create the next artifact (one at a time) |
-| `/pstl:ff` | Fast-forward—create planning artifacts at once |
-| `/pstl:verify` | Validate implementation matches specs |
-| `/pstl:sync` | Merge delta specs into main specs |
-| `/pstl:bulk-archive` | Archive multiple changes at once |
-| `/pstl:onboard` | Guided end-to-end onboarding workflow |
+| `/ps:new` | Start a new change scaffold |
+| `/ps:continue` | Create the next artifact (one at a time) |
+| `/ps:ff` | Fast-forward—create planning artifacts at once |
+| `/ps:verify` | Validate implementation matches specs |
+| `/ps:sync` | Merge delta specs into main specs |
+| `/ps:bulk-archive` | Archive multiple changes at once |
+| `/ps:onboard` | Guided end-to-end onboarding workflow |
 
-Enable expanded commands with `pastelsdd config profile`, then run `pastelsdd update`.
+Enable expanded commands with `pscode config profile`, then run `pscode update`.
 
 ### Command Mapping from Legacy
 
 | Legacy | OPSX Equivalent |
 |--------|-----------------|
-| `/pastelsdd:proposal` | `/pstl:propose` (default) or `/pstl:new` then `/pstl:ff` (expanded) |
-| `/pastelsdd:apply` | `/pstl:apply` |
-| `/pastelsdd:archive` | `/pstl:archive` |
+| `/pscode:proposal` | `/ps:propose` (default) or `/ps:new` then `/ps:ff` (expanded) |
+| `/pscode:apply` | `/ps:apply` |
+| `/pscode:archive` | `/ps:archive` |
 
 ### New Capabilities
 
@@ -317,13 +317,13 @@ These capabilities are part of the expanded workflow command set.
 
 **Granular artifact creation:**
 ```
-/pstl:continue
+/ps:continue
 ```
 Creates one artifact at a time based on dependencies. Use this when you want to review each step.
 
 **Exploration mode:**
 ```
-/pstl:explore
+/ps:explore
 ```
 Think through ideas with a partner before committing to a change.
 
@@ -381,14 +381,14 @@ Artifacts form a directed graph. Dependencies are enablers, not gates:
                      specs, design)
 ```
 
-When you run `/pstl:continue`, it checks what's ready and offers the next artifact. You can also create multiple ready artifacts in any order.
+When you run `/ps:continue`, it checks what's ready and offers the next artifact. You can also create multiple ready artifacts in any order.
 
 ### Skills vs Commands
 
 The legacy system used tool-specific command files:
 
 ```
-.claude/commands/pastelsdd/
+.claude/commands/pscode/
 ├── proposal.md
 ├── apply.md
 └── archive.md
@@ -398,10 +398,10 @@ OPSX uses the emerging **skills** standard:
 
 ```
 .claude/skills/
-├── pastelsdd-explore/SKILL.md
-├── pastelsdd-new-change/SKILL.md
-├── pastelsdd-continue-change/SKILL.md
-├── pastelsdd-apply-change/SKILL.md
+├── pscode-explore/SKILL.md
+├── pscode-new-change/SKILL.md
+├── pscode-continue-change/SKILL.md
+├── pscode-apply-change/SKILL.md
 └── ...
 ```
 
@@ -416,7 +416,7 @@ Your in-progress changes work seamlessly with OPSX commands.
 **Have an active change from the legacy workflow?**
 
 ```
-/pstl:apply add-my-feature
+/ps:apply add-my-feature
 ```
 
 OPSX reads the existing artifacts and continues from where you left off.
@@ -424,7 +424,7 @@ OPSX reads the existing artifacts and continues from where you left off.
 **Want to add more artifacts to an existing change?**
 
 ```
-/pstl:continue add-my-feature
+/ps:continue add-my-feature
 ```
 
 Shows what's ready to create based on what already exists.
@@ -432,7 +432,7 @@ Shows what's ready to create based on what already exists.
 **Need to see status?**
 
 ```bash
-pastelsdd status --change add-my-feature
+pscode status --change add-my-feature
 ```
 
 ---
@@ -469,8 +469,8 @@ rules:
 When determining which schema to use, OPSX checks in order:
 
 1. **CLI flag**: `--schema <name>` (highest priority)
-2. **Change metadata**: `.pastelsdd.yaml` in the change directory
-3. **Project config**: `pastelsdd/config.yaml`
+2. **Change metadata**: `.pscode.yaml` in the change directory
+3. **Project config**: `pscode/config.yaml`
 4. **Default**: `spec-driven`
 
 ### Available Schemas
@@ -482,7 +482,7 @@ When determining which schema to use, OPSX checks in order:
 List all available schemas:
 
 ```bash
-pastelsdd schemas
+pscode schemas
 ```
 
 ### Custom Schemas
@@ -490,13 +490,13 @@ pastelsdd schemas
 Create your own workflow:
 
 ```bash
-pastelsdd schema init my-workflow
+pscode schema init my-workflow
 ```
 
 Or fork an existing one:
 
 ```bash
-pastelsdd schema fork spec-driven my-workflow
+pscode schema fork spec-driven my-workflow
 ```
 
 See [Customization](customization.md) for details.
@@ -510,7 +510,7 @@ See [Customization](customization.md) for details.
 You're running in a CI or non-interactive environment. Use:
 
 ```bash
-pastelsdd init --force
+pscode init --force
 ```
 
 ### Commands not appearing after migration
@@ -526,12 +526,12 @@ Check that your `rules:` keys match your schema's artifact IDs:
 Run this to see valid artifact IDs:
 
 ```bash
-pastelsdd schemas --json
+pscode schemas --json
 ```
 
 ### Config not being applied
 
-1. Ensure the file is at `pastelsdd/config.yaml` (not `.yml`)
+1. Ensure the file is at `pscode/config.yaml` (not `.yml`)
 2. Validate YAML syntax
 3. Config changes take effect immediately—no restart needed
 
@@ -551,40 +551,40 @@ Run init and decline the cleanup prompt—you'll see the full detection summary 
 
 ```
 project/
-├── pastelsdd/
+├── pscode/
 │   ├── specs/                    # Unchanged
 │   ├── changes/                  # Unchanged
 │   │   └── archive/              # Unchanged
 │   └── config.yaml               # NEW: Project configuration
 ├── .claude/
 │   └── skills/                   # NEW: OPSX skills
-│       ├── pastelsdd-propose/     # default core profile
-│       ├── pastelsdd-explore/
-│       ├── pastelsdd-apply-change/
-│       ├── pastelsdd-sync-specs/
+│       ├── pscode-propose/     # default core profile
+│       ├── pscode-explore/
+│       ├── pscode-apply-change/
+│       ├── pscode-sync-specs/
 │       └── ...                   # expanded profile adds new/continue/ff/etc.
-├── CLAUDE.md                     # Pastelsdd markers removed, your content preserved
-└── AGENTS.md                     # Pastelsdd markers removed, your content preserved
+├── CLAUDE.md                     # Pscode markers removed, your content preserved
+└── AGENTS.md                     # Pscode markers removed, your content preserved
 ```
 
 ### What's Gone
 
-- `.claude/commands/pastelsdd/` — replaced by `.claude/skills/`
-- `pastelsdd/AGENTS.md` — obsolete
-- `pastelsdd/project.md` — migrate to `config.yaml`, then delete
-- Pastelsdd marker blocks in `CLAUDE.md`, `AGENTS.md`, etc.
+- `.claude/commands/pscode/` — replaced by `.claude/skills/`
+- `pscode/AGENTS.md` — obsolete
+- `pscode/project.md` — migrate to `config.yaml`, then delete
+- Pscode marker blocks in `CLAUDE.md`, `AGENTS.md`, etc.
 
 ### Command Cheatsheet
 
 ```text
-/pstl:propose      Start quickly (default core profile)
-/pstl:apply        Implement tasks
-/pstl:archive      Finish and archive
+/ps:propose      Start quickly (default core profile)
+/ps:apply        Implement tasks
+/ps:archive      Finish and archive
 
 # Expanded workflow (if enabled):
-/pstl:new          Scaffold a change
-/pstl:continue     Create next artifact
-/pstl:ff           Create planning artifacts
+/ps:new          Scaffold a change
+/ps:continue     Create next artifact
+/ps:ff           Create planning artifacts
 ```
 
 ---
@@ -592,5 +592,5 @@ project/
 ## Getting Help
 
 - **Discord**: [discord.gg/YctCnvvshC](https://discord.gg/YctCnvvshC)
-- **GitHub Issues**: [github.com/thiagodiogo/Pastelsdd/issues](https://github.com/thiagodiogo/Pastelsdd/issues)
+- **GitHub Issues**: [github.com/thiagodiogo/Pscode/issues](https://github.com/thiagodiogo/Pscode/issues)
 - **Documentation**: [docs/pastel.md](pastel.md) for the full OPSX reference

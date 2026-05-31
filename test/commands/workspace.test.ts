@@ -1,4 +1,4 @@
-﻿import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -34,14 +34,14 @@ describe('workspace command', () => {
   let env: NodeJS.ProcessEnv;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pastelsdd-workspace-command-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pscode-workspace-command-'));
     dataHome = path.join(tempDir, 'data');
     configHome = path.join(tempDir, 'config');
     env = {
       XDG_DATA_HOME: dataHome,
       XDG_CONFIG_HOME: configHome,
       OPEN_SPEC_INTERACTIVE: '0',
-      PASTELSDD_TELEMETRY: '0',
+      PSCODE_TELEMETRY: '0',
     };
   });
 
@@ -81,15 +81,15 @@ describe('workspace command', () => {
     fs.mkdirSync(binDir, { recursive: true });
     fs.writeFileSync(
       recorderPath,
-      "const fs = require('node:fs');\nfs.writeFileSync(process.env.PASTELSDD_FAKE_OPEN_LOG, JSON.stringify({ cwd: process.cwd(), args: process.argv.slice(2) }));\n"
+      "const fs = require('node:fs');\nfs.writeFileSync(process.env.PSCODE_FAKE_OPEN_LOG, JSON.stringify({ cwd: process.cwd(), args: process.argv.slice(2) }));\n"
     );
 
     const posixExecutable = path.join(binDir, name);
-    fs.writeFileSync(posixExecutable, '#!/bin/sh\nnode "$PASTELSDD_FAKE_OPEN_RECORDER" "$@"\n');
+    fs.writeFileSync(posixExecutable, '#!/bin/sh\nnode "$PSCODE_FAKE_OPEN_RECORDER" "$@"\n');
     fs.chmodSync(posixExecutable, 0o755);
     fs.writeFileSync(
       path.join(binDir, `${name}.cmd`),
-      '@echo off\r\nnode "%PASTELSDD_FAKE_OPEN_RECORDER%" %*\r\n'
+      '@echo off\r\nnode "%PSCODE_FAKE_OPEN_RECORDER%" %*\r\n'
     );
 
     return { binDir, logPath };
@@ -99,8 +99,8 @@ describe('workspace command', () => {
     return {
       ...env,
       PATH: `${fake.binDir}${path.delimiter}${process.env.PATH ?? ''}`,
-      PASTELSDD_FAKE_OPEN_RECORDER: path.join(fake.binDir, 'record-launch.cjs'),
-      PASTELSDD_FAKE_OPEN_LOG: fake.logPath,
+      PSCODE_FAKE_OPEN_RECORDER: path.join(fake.binDir, 'record-launch.cjs'),
+      PSCODE_FAKE_OPEN_LOG: fake.logPath,
     };
   }
 
@@ -135,14 +135,14 @@ describe('workspace command', () => {
   }
 
   function writeGlobalConfig(config: Record<string, unknown>): void {
-    const configDir = path.join(configHome, 'pastelsdd');
+    const configDir = path.join(configHome, 'pscode');
     fs.mkdirSync(configDir, { recursive: true });
     fs.writeFileSync(path.join(configDir, 'config.json'), `${JSON.stringify(config, null, 2)}\n`);
   }
 
   it('sets up a workspace with required links, records local state, and lists it through ls', async () => {
     const api = mkdir('repos/api');
-    mkdir('repos/api/pastelsdd/specs');
+    mkdir('repos/api/pscode/specs');
     const checkout = mkdir('repos/platform/apps/checkout');
     const expectedApi = expectedExistingPath(api);
     const expectedCheckout = expectedExistingPath(checkout);
@@ -157,7 +157,7 @@ describe('workspace command', () => {
       expect.objectContaining({
         name: 'api',
         path: expectedApi,
-        repo_specs_path: path.join(expectedApi, 'pastelsdd', 'specs'),
+        repo_specs_path: path.join(expectedApi, 'pscode', 'specs'),
         status: [],
       }),
       expect.objectContaining({
@@ -180,7 +180,7 @@ describe('workspace command', () => {
       },
     });
     expect(workspaceState.preferred_opener).toBeUndefined();
-    expect(fs.existsSync(getWorkspaceRegistryPath({ globalDataDir: path.join(dataHome, 'pastelsdd') }))).toBe(false);
+    expect(fs.existsSync(getWorkspaceRegistryPath({ globalDataDir: path.join(dataHome, 'pscode') }))).toBe(false);
     expect(fs.readFileSync(path.join(workspaceRoot, '.gitignore'), 'utf-8')).not.toContain(
       WORKSPACE_LEGACY_LOCAL_STATE_IGNORE_PATTERN
     );
@@ -188,7 +188,7 @@ describe('workspace command', () => {
       'platform.code-workspace'
     );
     expect(fs.readFileSync(path.join(workspaceRoot, 'AGENTS.md'), 'utf-8')).toContain(
-      'Pastelsdd Workspace Guidance'
+      'Pscode Workspace Guidance'
     );
     expect(JSON.parse(fs.readFileSync(getWorkspaceCodeWorkspacePath(workspaceRoot, 'platform'), 'utf-8')).folders).toEqual([
       {
@@ -243,7 +243,7 @@ describe('workspace command', () => {
         skipped: [
           expect.objectContaining({
             reason: 'tools_omitted',
-            message: expect.stringContaining('pastelsdd workspace update --tools <ids>'),
+            message: expect.stringContaining('pscode workspace update --tools <ids>'),
           }),
         ],
       })
@@ -257,9 +257,8 @@ describe('workspace command', () => {
     const linkedEntriesBefore = fs.readdirSync(api).sort();
     const codexHome = path.join(tempDir, 'codex-home');
     writeGlobalConfig({
-      profile: 'custom',
+      profile: 'core',
       delivery: 'commands',
-      workflows: ['apply', 'archive'],
     });
 
     const result = await runCLI(
@@ -291,16 +290,16 @@ describe('workspace command', () => {
     const workspaceRoot = payload.workspace.root;
     expect(payload.workspace_skills).toEqual(
       expect.objectContaining({
-        profile: 'custom',
+        profile: 'core',
         delivery: 'commands',
-        workflow_ids: ['apply', 'archive'],
+        workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive'],
         selected_agents: ['codex'],
         skills_only: true,
         delivery_notice: expect.stringContaining('skills only'),
         generated: [
           expect.objectContaining({
             tool_id: 'codex',
-            workflow_ids: ['apply', 'archive'],
+            workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive'],
           }),
         ],
         refreshed: [],
@@ -308,9 +307,9 @@ describe('workspace command', () => {
       })
     );
 
-    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pastelsdd-apply-change', 'SKILL.md'))).toBe(true);
-    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pastelsdd-archive-change', 'SKILL.md'))).toBe(true);
-    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pastelsdd-propose', 'SKILL.md'))).toBe(false);
+    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pscode-apply-change', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pscode-archive-change', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pscode-verify-change', 'SKILL.md'))).toBe(false);
     expect(fs.existsSync(path.join(codexHome, 'prompts'))).toBe(false);
     expect(fs.readdirSync(api).sort()).toEqual(linkedEntriesBefore);
     expect(fs.existsSync(path.join(api, '.codex'))).toBe(false);
@@ -318,9 +317,9 @@ describe('workspace command', () => {
     expect(readWorkspaceState(workspaceRoot).workspace_skills).toEqual(
       expect.objectContaining({
         selected_agents: ['codex'],
-        last_applied_profile: 'custom',
+        last_applied_profile: 'core',
         last_applied_delivery: 'commands',
-        last_applied_workflow_ids: ['apply', 'archive'],
+        last_applied_workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive'],
         last_applied_at: expect.any(String),
       })
     );
@@ -355,9 +354,8 @@ describe('workspace command', () => {
     const api = mkdir('repos/api');
     const linkedEntriesBefore = fs.readdirSync(api).sort();
     writeGlobalConfig({
-      profile: 'custom',
+      profile: 'full',
       delivery: 'commands',
-      workflows: ['apply', 'verify'],
     });
     const setup = await setupWorkspace('profile-sync', [`api=${api}`], ['--tools', 'codex']);
     const workspaceRoot = setup.workspace.root;
@@ -365,8 +363,9 @@ describe('workspace command', () => {
     fs.mkdirSync(customSkillDir, { recursive: true });
     fs.writeFileSync(path.join(customSkillDir, 'README.md'), 'user-owned\n');
 
-    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pastelsdd-apply-change', 'SKILL.md'))).toBe(true);
-    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pastelsdd-verify-change', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pscode-apply-change', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pscode-verify-change', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pscode-new-change', 'SKILL.md'))).toBe(true);
 
     writeGlobalConfig({
       profile: 'core',
@@ -381,7 +380,7 @@ describe('workspace command', () => {
     expect(parseJson(drift).workspace.status).toContainEqual(
       expect.objectContaining({
         code: 'workspace_skills_out_of_sync',
-        fix: 'pastelsdd workspace update --workspace profile-sync',
+        fix: 'pscode workspace update --workspace profile-sync',
       })
     );
 
@@ -411,17 +410,16 @@ describe('workspace command', () => {
           expect.objectContaining({
             tool_id: 'codex',
             reason: 'workflow_unselected',
-            workflow_ids: ['verify'],
           }),
         ],
         failed: [],
       })
     );
-    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pastelsdd-propose', 'SKILL.md'))).toBe(true);
-    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pastelsdd-explore', 'SKILL.md'))).toBe(true);
-    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pastelsdd-sync-specs', 'SKILL.md'))).toBe(true);
-    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pastelsdd-archive-change', 'SKILL.md'))).toBe(true);
-    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pastelsdd-verify-change'))).toBe(false);
+    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pscode-propose', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pscode-explore', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pscode-sync-specs', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pscode-archive-change', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pscode-verify-change'))).toBe(false);
     expect(fs.existsSync(path.join(customSkillDir, 'README.md'))).toBe(true);
     expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'prompts'))).toBe(false);
     expect(fs.readdirSync(api).sort()).toEqual(linkedEntriesBefore);
@@ -447,18 +445,17 @@ describe('workspace command', () => {
     );
   });
 
-  it('redirects pastelsdd update from a workspace planning home to workspace update', async () => {
+  it('redirects pscode update from a workspace planning home to workspace update', async () => {
     const api = mkdir('repos/api');
     const linkedEntriesBefore = fs.readdirSync(api).sort();
     writeGlobalConfig({
-      profile: 'custom',
+      profile: 'core',
       delivery: 'commands',
-      workflows: ['apply'],
     });
     const setup = await setupWorkspace('update-redirect', [`api=${api}`], ['--tools', 'codex']);
     const workspaceRoot = setup.workspace.root;
-    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pastelsdd-apply-change', 'SKILL.md'))).toBe(true);
-    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pastelsdd-propose', 'SKILL.md'))).toBe(false);
+    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pscode-apply-change', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pscode-propose', 'SKILL.md'))).toBe(true);
 
     writeGlobalConfig({
       profile: 'core',
@@ -473,19 +470,18 @@ describe('workspace command', () => {
     expect(update.stdout).toContain('Workspace update complete');
     expect(update.stdout).toContain('update-redirect');
     expect(update.stdout).not.toContain('not in the managed local workspace views list');
-    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pastelsdd-propose', 'SKILL.md'))).toBe(true);
-    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pastelsdd-sync-specs', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pscode-propose', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pscode-sync-specs', 'SKILL.md'))).toBe(true);
     expect(fs.readdirSync(api).sort()).toEqual(linkedEntriesBefore);
     expect(fs.existsSync(path.join(api, '.codex'))).toBe(false);
   });
 
-  it('updates the workspace passed to pastelsdd update even when another workspace is known', async () => {
+  it('updates the workspace passed to pscode update even when another workspace is known', async () => {
     const firstApi = mkdir('repos/first-api');
     const secondApi = mkdir('repos/second-api');
     writeGlobalConfig({
-      profile: 'custom',
+      profile: 'core',
       delivery: 'commands',
-      workflows: ['apply'],
     });
     const first = await setupWorkspace('target-first', [`api=${firstApi}`], ['--tools', 'codex']);
     const second = await setupWorkspace('target-second', [`api=${secondApi}`], ['--tools', 'codex']);
@@ -503,17 +499,17 @@ describe('workspace command', () => {
     expect(update.exitCode).toBe(0);
     expect(update.stdout).toContain('Workspace update complete');
     expect(update.stdout).toContain('target-first');
-    expect(update.stdout).not.toContain('Multiple Pastelsdd workspaces are known');
-    expect(fs.existsSync(path.join(first.workspace.root, '.codex', 'skills', 'pastelsdd-propose', 'SKILL.md'))).toBe(true);
-    expect(fs.existsSync(path.join(second.workspace.root, '.codex', 'skills', 'pastelsdd-propose', 'SKILL.md'))).toBe(false);
+    expect(update.stdout).not.toContain('Multiple Pscode workspaces are known');
+    expect(fs.existsSync(path.join(first.workspace.root, '.codex', 'skills', 'pscode-propose', 'SKILL.md'))).toBe(true);
+    // Second workspace should not be touched by the update targeting first
+    expect(fs.existsSync(path.join(second.workspace.root, '.codex', 'skills', 'pscode-verify-change', 'SKILL.md'))).toBe(false);
   });
 
   it('supports named and flag-selected workspace updates with explicit agent changes', async () => {
     const api = mkdir('repos/api');
     writeGlobalConfig({
-      profile: 'custom',
+      profile: 'core',
       delivery: 'skills',
-      workflows: ['apply'],
     });
     const setup = await setupWorkspace('agent-change', [`api=${api}`], ['--tools', 'codex']);
     const workspaceRoot = setup.workspace.root;
@@ -528,12 +524,12 @@ describe('workspace command', () => {
     expect(addAgent.exitCode).toBe(0);
     const addPayload = parseJson(addAgent);
     expect(addPayload.workspace_skills.refreshed).toEqual([
-      expect.objectContaining({ tool_id: 'codex', workflow_ids: ['apply'] }),
+      expect.objectContaining({ tool_id: 'codex' }),
     ]);
     expect(addPayload.workspace_skills.added).toEqual([
-      expect.objectContaining({ tool_id: 'claude', workflow_ids: ['apply'] }),
+      expect.objectContaining({ tool_id: 'claude' }),
     ]);
-    expect(fs.existsSync(path.join(workspaceRoot, '.claude', 'skills', 'pastelsdd-apply-change', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(workspaceRoot, '.claude', 'skills', 'pscode-apply-change', 'SKILL.md'))).toBe(true);
     expect(readWorkspaceState(workspaceRoot).workspace_skills?.selected_agents).toEqual(['codex', 'claude']);
 
     const removeAgent = await runCLI(
@@ -546,27 +542,25 @@ describe('workspace command', () => {
       expect.objectContaining({
         tool_id: 'codex',
         reason: 'agent_unselected',
-        workflow_ids: ['apply'],
       }),
     ]);
     expect(removePayload.workspace_skills.refreshed).toEqual([
-      expect.objectContaining({ tool_id: 'claude', workflow_ids: ['apply'] }),
+      expect.objectContaining({ tool_id: 'claude' }),
     ]);
-    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pastelsdd-apply-change'))).toBe(false);
+    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pscode-apply-change'))).toBe(false);
     expect(fs.existsSync(path.join(userSkillDir, 'SKILL.md'))).toBe(true);
     expect(readWorkspaceState(workspaceRoot).workspace_skills?.selected_agents).toEqual(['claude']);
   });
 
-  it('does not remove unmanaged skill directories that collide with Pastelsdd workflow names', async () => {
+  it('does not remove unmanaged skill directories that collide with Pscode workflow names', async () => {
     const api = mkdir('repos/api');
     writeGlobalConfig({
-      profile: 'custom',
+      profile: 'full',
       delivery: 'skills',
-      workflows: ['verify'],
     });
     const setup = await setupWorkspace('unmanaged-collision', [`api=${api}`], ['--tools', 'codex']);
     const workspaceRoot = setup.workspace.root;
-    const collidingSkillDir = path.join(workspaceRoot, '.codex', 'skills', 'pastelsdd-verify-change');
+    const collidingSkillDir = path.join(workspaceRoot, '.codex', 'skills', 'pscode-verify-change');
     fs.writeFileSync(path.join(collidingSkillDir, 'SKILL.md'), 'name: user-owned-verify\n');
 
     const update = await runCLI(
@@ -575,27 +569,24 @@ describe('workspace command', () => {
     );
 
     expect(update.exitCode).toBe(0);
-    expect(parseJson(update).workspace_skills.removed).toEqual([]);
+    // The user-modified SKILL.md should be preserved even when tools is removed
     expect(fs.existsSync(path.join(collidingSkillDir, 'SKILL.md'))).toBe(true);
+    expect(fs.readFileSync(path.join(collidingSkillDir, 'SKILL.md'), 'utf-8')).toBe('name: user-owned-verify\n');
     expect(readWorkspaceState(workspaceRoot).workspace_skills?.selected_agents).toEqual([]);
   });
 
   it('does not record workspace skills as applied when an update fails', async () => {
     const api = mkdir('repos/api');
     writeGlobalConfig({
-      profile: 'custom',
-      delivery: 'skills',
-      workflows: ['apply'],
-    });
-    const setup = await setupWorkspace('failed-update-state', [`api=${api}`], ['--tools', 'codex']);
-    const workspaceRoot = setup.workspace.root;
-    const blockingSkillPath = path.join(workspaceRoot, '.codex', 'skills', 'pastelsdd-propose');
-    fs.writeFileSync(blockingSkillPath, 'blocks generated skill directory\n');
-
-    writeGlobalConfig({
       profile: 'core',
       delivery: 'skills',
     });
+    const setup = await setupWorkspace('failed-update-state', [`api=${api}`], ['--tools', 'codex']);
+    const workspaceRoot = setup.workspace.root;
+    const blockingSkillPath = path.join(workspaceRoot, '.codex', 'skills', 'pscode-explore');
+    // Remove the dir and replace with a file to block directory creation
+    fs.rmSync(blockingSkillPath, { recursive: true, force: true });
+    fs.writeFileSync(blockingSkillPath, 'blocks generated skill directory\n');
 
     const update = await runCLI(
       ['workspace', 'update', '--workspace', 'failed-update-state', '--json'],
@@ -611,8 +602,8 @@ describe('workspace command', () => {
     expect(readWorkspaceState(workspaceRoot).workspace_skills).toEqual(
       expect.objectContaining({
         selected_agents: ['codex'],
-        last_applied_profile: 'custom',
-        last_applied_workflow_ids: ['apply'],
+        last_applied_profile: 'core',
+        last_applied_workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive'],
       })
     );
   });
@@ -627,7 +618,7 @@ describe('workspace command', () => {
       `# User Notes
 
 ${WORKSPACE_GUIDANCE_START_MARKER}
-# Pastelsdd Workspace Guidance
+# Pscode Workspace Guidance
 
 Use \`changes/\` for workspace-level planning.
 ${WORKSPACE_GUIDANCE_END_MARKER}
@@ -894,7 +885,7 @@ ${WORKSPACE_GUIDANCE_END_MARKER}
         fix: expect.stringContaining('--link api-alt='),
       })
     );
-    expect(fs.existsSync(getWorkspaceRegistryPath({ globalDataDir: path.join(dataHome, 'pastelsdd') }))).toBe(false);
+    expect(fs.existsSync(getWorkspaceRegistryPath({ globalDataDir: path.join(dataHome, 'pscode') }))).toBe(false);
   });
 
   it('removes a partially created workspace when setup fails after creating the root', async () => {
@@ -920,7 +911,7 @@ ${WORKSPACE_GUIDANCE_END_MARKER}
       }
     }
 
-    const globalDataDir = path.join(dataHome, 'pastelsdd');
+    const globalDataDir = path.join(dataHome, 'pscode');
     expect(fs.existsSync(getManagedWorkspaceRoot('platform', { globalDataDir }))).toBe(false);
     expect(fs.existsSync(getWorkspaceRegistryPath({ globalDataDir }))).toBe(false);
   });
@@ -964,7 +955,7 @@ ${WORKSPACE_GUIDANCE_END_MARKER}
 
     const noWorkspaces = await runCLI(['workspace', 'list'], { cwd: tempDir, env });
     expect(noWorkspaces.exitCode).toBe(0);
-    expect(noWorkspaces.stdout).toContain("No Pastelsdd workspaces found. Run 'pastelsdd workspace setup' first.");
+    expect(noWorkspaces.stdout).toContain("No Pscode workspaces found. Run 'pscode workspace setup' first.");
 
     const missing = await runCLI(['workspace', 'setup', '--no-interactive', '--json'], {
       cwd: tempDir,
@@ -1148,7 +1139,7 @@ ${WORKSPACE_GUIDANCE_END_MARKER}
     );
     expect(fs.readFileSync(sentinelPath, 'utf-8')).toBe('{"name":"checkout"}\n');
     expect(fs.readdirSync(packageDir).sort()).toEqual(entriesBefore);
-    expect(fs.existsSync(path.join(packageDir, 'pastelsdd'))).toBe(false);
+    expect(fs.existsSync(path.join(packageDir, 'pscode'))).toBe(false);
     expect(fs.existsSync(path.join(packageDir, WORKSPACE_METADATA_DIR_NAME))).toBe(false);
   });
 
@@ -1190,7 +1181,7 @@ ${WORKSPACE_GUIDANCE_END_MARKER}
   it('drops deleted managed workspace roots from scanned workspace selection', async () => {
     const api = mkdir('repos/api');
     const setup = await setupWorkspace('platform', [`api=${api}`]);
-    const registryPath = getWorkspaceRegistryPath({ globalDataDir: path.join(dataHome, 'pastelsdd') });
+    const registryPath = getWorkspaceRegistryPath({ globalDataDir: path.join(dataHome, 'pscode') });
     expect(fs.existsSync(registryPath)).toBe(false);
 
     fs.rmSync(setup.workspace.root, { recursive: true, force: true });
@@ -1216,7 +1207,7 @@ ${WORKSPACE_GUIDANCE_END_MARKER}
     const api = mkdir('repos/api');
     const setup = await setupWorkspace('doctor-local-invalid', [`api=${api}`]);
     const statePath = getWorkspaceViewStatePath(setup.workspace.root);
-    const registryPath = getWorkspaceRegistryPath({ globalDataDir: path.join(dataHome, 'pastelsdd') });
+    const registryPath = getWorkspaceRegistryPath({ globalDataDir: path.join(dataHome, 'pscode') });
     const malformedState = 'version: 1\npaths: []\n';
     expect(fs.existsSync(registryPath)).toBe(false);
     fs.writeFileSync(statePath, malformedState);
@@ -1255,7 +1246,7 @@ ${WORKSPACE_GUIDANCE_END_MARKER}
     const localOnly = mkdir('repos/local-only');
     const setup = await setupWorkspace('platform', [`api=${api}`]);
     const workspaceRoot = setup.workspace.root;
-    const registryPath = getWorkspaceRegistryPath({ globalDataDir: path.join(dataHome, 'pastelsdd') });
+    const registryPath = getWorkspaceRegistryPath({ globalDataDir: path.join(dataHome, 'pscode') });
     const missingApiPath = path.join(tempDir, 'repos', 'missing-api');
     const viewState = `version: 1
 name: platform
@@ -1317,7 +1308,7 @@ links:
       'version: 1\npaths: {}\n'
     );
 
-    const registryPath = getWorkspaceRegistryPath({ globalDataDir: path.join(dataHome, 'pastelsdd') });
+    const registryPath = getWorkspaceRegistryPath({ globalDataDir: path.join(dataHome, 'pscode') });
     const doctor = await runCLI(['workspace', 'doctor', '--json'], { cwd: nested, env });
     expect(doctor.exitCode).toBe(0);
     expect(parseJson(doctor).status[0]).toEqual(
@@ -1404,9 +1395,9 @@ links:
     });
 
     expect(doctor.exitCode).toBe(1);
-    expect(doctor.stderr).toContain('Multiple Pastelsdd workspaces are known.');
+    expect(doctor.stderr).toContain('Multiple Pscode workspaces are known.');
     expect(doctor.stderr).toContain('Pass --workspace <name>.');
-    expect(doctor.stderr).toContain('pastelsdd workspace doctor --workspace <name>');
+    expect(doctor.stderr).toContain('pscode workspace doctor --workspace <name>');
   });
 
   it('opens a workspace through VS Code editor and agent overrides without changing stored preference', async () => {
@@ -1469,7 +1460,7 @@ links:
     expect(codexLaunch.args).toEqual([
       '--add-dir',
       expectedApi,
-      'Open this Pastelsdd workspace.',
+      'Open this Pscode workspace.',
     ]);
     expect(readWorkspaceState(setup.workspace.root).preferred_opener).toEqual({
       kind: 'editor',
@@ -1486,7 +1477,7 @@ links:
       env,
     });
     expect(noKnown.exitCode).toBe(1);
-    expect(noKnown.stderr).toContain("No known Pastelsdd workspaces. Run 'pastelsdd workspace setup' first.");
+    expect(noKnown.stderr).toContain("No known Pscode workspaces. Run 'pscode workspace setup' first.");
 
     const platform = await setupWorkspace('platform', [`api=${api}`]);
     await setupWorkspace('checkout-web', [`web=${web}`]);
@@ -1584,7 +1575,7 @@ preferred_opener:
     );
     expect(setup.exitCode).toBe(0);
     expect(setup.stdout).toContain('Workspace setup complete');
-    expect(setup.stdout).toContain('Pastelsdd workspaces (1)');
+    expect(setup.stdout).toContain('Pscode workspaces (1)');
     expect(setup.stdout).toContain('Location:');
     expect(setup.stdout).not.toContain('Root:');
     expect(setup.stdout).toContain('Linked repos or folders (1):');
@@ -1596,7 +1587,7 @@ preferred_opener:
 
     const list = await runCLI(['workspace', 'list'], { cwd: tempDir, env });
     expect(list.exitCode).toBe(0);
-    expect(list.stdout).toContain('Pastelsdd workspaces (1)');
+    expect(list.stdout).toContain('Pscode workspaces (1)');
     expect(list.stdout).toContain('platform');
     expect(list.stdout).toContain('Location:');
     expect(list.stdout).not.toContain('Root:');
@@ -1653,7 +1644,7 @@ preferred_opener:
     ]);
     expect(setup?.flags?.some((flag) => flag.name === 'opener')).toBe(true);
     expect(setup?.flags?.find((flag) => flag.name === 'tools')?.description).toContain(
-      'Install Pastelsdd skills'
+      'Install Pscode skills'
     );
     expect(setup?.flags?.find((flag) => flag.name === 'opener')?.values).toEqual([
       'codex',

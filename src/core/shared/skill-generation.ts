@@ -18,17 +18,17 @@ import {
   getProposeSkillTemplate,
   getTrelloSetupSkillTemplate,
   getTrelloDraftSkillTemplate,
-  getPastelExploreCommandTemplate,
-  getPastelNewCommandTemplate,
-  getPastelContinueCommandTemplate,
-  getPastelApplyCommandTemplate,
-  getPastelFfCommandTemplate,
-  getPastelSyncCommandTemplate,
-  getPastelArchiveCommandTemplate,
-  getPastelBulkArchiveCommandTemplate,
-  getPastelVerifyCommandTemplate,
-  getPastelOnboardCommandTemplate,
-  getPastelProposeCommandTemplate,
+  getPsExploreCommandTemplate,
+  getPsNewCommandTemplate,
+  getPsContinueCommandTemplate,
+  getPsApplyCommandTemplate,
+  getPsFfCommandTemplate,
+  getPsSyncCommandTemplate,
+  getPsArchiveCommandTemplate,
+  getPsBulkArchiveCommandTemplate,
+  getPsVerifyCommandTemplate,
+  getPsOnboardCommandTemplate,
+  getPsProposeCommandTemplate,
   getTrelloSetupCommandTemplate,
   getTrelloDraftCommandTemplate,
   type SkillTemplate,
@@ -48,7 +48,7 @@ export interface SkillTemplateEntry {
  * Command template with ID mapping.
  */
 export interface CommandTemplateEntry {
-  template: ReturnType<typeof getPastelExploreCommandTemplate>;
+  template: ReturnType<typeof getPsExploreCommandTemplate>;
   id: string;
 }
 
@@ -59,20 +59,20 @@ export interface CommandTemplateEntry {
  */
 export function getSkillTemplates(workflowFilter?: readonly string[]): SkillTemplateEntry[] {
   const all: SkillTemplateEntry[] = [
-    { template: getExploreSkillTemplate(), dirName: 'pastelsdd-explore', workflowId: 'explore' },
-    { template: getNewChangeSkillTemplate(), dirName: 'pastelsdd-new-change', workflowId: 'new' },
-    { template: getContinueChangeSkillTemplate(), dirName: 'pastelsdd-continue-change', workflowId: 'continue' },
-    { template: getApplyChangeSkillTemplate(), dirName: 'pastelsdd-apply-change', workflowId: 'apply' },
-    { template: getFfChangeSkillTemplate(), dirName: 'pastelsdd-ff-change', workflowId: 'ff' },
-    { template: getSyncSpecsSkillTemplate(), dirName: 'pastelsdd-sync-specs', workflowId: 'sync' },
-    { template: getArchiveChangeSkillTemplate(), dirName: 'pastelsdd-archive-change', workflowId: 'archive' },
-    { template: getBulkArchiveChangeSkillTemplate(), dirName: 'pastelsdd-bulk-archive-change', workflowId: 'bulk-archive' },
-    { template: getVerifyChangeSkillTemplate(), dirName: 'pastelsdd-verify-change', workflowId: 'verify' },
-    { template: getOnboardSkillTemplate(), dirName: 'pastelsdd-onboard', workflowId: 'onboard' },
-    { template: getProposeSkillTemplate(), dirName: 'pastelsdd-propose', workflowId: 'propose' },
+    { template: getExploreSkillTemplate(), dirName: 'pscode-explore', workflowId: 'explore' },
+    { template: getNewChangeSkillTemplate(), dirName: 'pscode-new-change', workflowId: 'new' },
+    { template: getContinueChangeSkillTemplate(), dirName: 'pscode-continue-change', workflowId: 'continue' },
+    { template: getApplyChangeSkillTemplate(), dirName: 'pscode-apply-change', workflowId: 'apply' },
+    { template: getFfChangeSkillTemplate(), dirName: 'pscode-ff-change', workflowId: 'ff' },
+    { template: getSyncSpecsSkillTemplate(), dirName: 'pscode-sync-specs', workflowId: 'sync' },
+    { template: getArchiveChangeSkillTemplate(), dirName: 'pscode-archive-change', workflowId: 'archive' },
+    { template: getBulkArchiveChangeSkillTemplate(), dirName: 'pscode-bulk-archive-change', workflowId: 'bulk-archive' },
+    { template: getVerifyChangeSkillTemplate(), dirName: 'pscode-verify-change', workflowId: 'verify' },
+    { template: getOnboardSkillTemplate(), dirName: 'pscode-onboard', workflowId: 'onboard' },
+    { template: getProposeSkillTemplate(), dirName: 'pscode-propose', workflowId: 'propose' },
     // Trello-specific workflows
-    { template: getTrelloSetupSkillTemplate(), dirName: 'pastelsdd-trello-setup', workflowId: 'trello-setup' },
-    { template: getTrelloDraftSkillTemplate(), dirName: 'pastelsdd-trello-draft', workflowId: 'draft' },
+    { template: getTrelloSetupSkillTemplate(), dirName: 'pscode-trello-setup', workflowId: 'trello-setup' },
+    { template: getTrelloDraftSkillTemplate(), dirName: 'pscode-trello-draft', workflowId: 'draft' },
   ];
 
   if (!workflowFilter) return all;
@@ -88,17 +88,17 @@ export function getSkillTemplates(workflowFilter?: readonly string[]): SkillTemp
  */
 export function getCommandTemplates(workflowFilter?: readonly string[]): CommandTemplateEntry[] {
   const all: CommandTemplateEntry[] = [
-    { template: getPastelExploreCommandTemplate(), id: 'explore' },
-    { template: getPastelNewCommandTemplate(), id: 'new' },
-    { template: getPastelContinueCommandTemplate(), id: 'continue' },
-    { template: getPastelApplyCommandTemplate(), id: 'apply' },
-    { template: getPastelFfCommandTemplate(), id: 'ff' },
-    { template: getPastelSyncCommandTemplate(), id: 'sync' },
-    { template: getPastelArchiveCommandTemplate(), id: 'archive' },
-    { template: getPastelBulkArchiveCommandTemplate(), id: 'bulk-archive' },
-    { template: getPastelVerifyCommandTemplate(), id: 'verify' },
-    { template: getPastelOnboardCommandTemplate(), id: 'onboard' },
-    { template: getPastelProposeCommandTemplate(), id: 'propose' },
+    { template: getPsExploreCommandTemplate(), id: 'explore' },
+    { template: getPsNewCommandTemplate(), id: 'new' },
+    { template: getPsContinueCommandTemplate(), id: 'continue' },
+    { template: getPsApplyCommandTemplate(), id: 'apply' },
+    { template: getPsFfCommandTemplate(), id: 'ff' },
+    { template: getPsSyncCommandTemplate(), id: 'sync' },
+    { template: getPsArchiveCommandTemplate(), id: 'archive' },
+    { template: getPsBulkArchiveCommandTemplate(), id: 'bulk-archive' },
+    { template: getPsVerifyCommandTemplate(), id: 'verify' },
+    { template: getPsOnboardCommandTemplate(), id: 'onboard' },
+    { template: getPsProposeCommandTemplate(), id: 'propose' },
     // Trello-specific workflows
     { template: getTrelloSetupCommandTemplate(), id: 'trello-setup' },
     { template: getTrelloDraftCommandTemplate(), id: 'draft' },
@@ -131,7 +131,7 @@ export function getCommandContents(workflowFilter?: readonly string[]): CommandC
  * Generates skill file content with YAML frontmatter.
  *
  * @param template - The skill template
- * @param generatedByVersion - The Pastelsdd version to embed in the file
+ * @param generatedByVersion - The Pscode version to embed in the file
  * @param transformInstructions - Optional callback to transform the instructions content
  */
 export function generateSkillContent(
@@ -147,9 +147,9 @@ export function generateSkillContent(
 name: ${template.name}
 description: ${template.description}
 license: ${template.license || 'MIT'}
-compatibility: ${template.compatibility || 'Requires pastelsdd CLI.'}
+compatibility: ${template.compatibility || 'Requires pscode CLI.'}
 metadata:
-  author: ${template.metadata?.author || 'pastelsdd'}
+  author: ${template.metadata?.author || 'pscode'}
   version: "${template.metadata?.version || '1.0'}"
   generatedBy: "${generatedByVersion}"
 ---

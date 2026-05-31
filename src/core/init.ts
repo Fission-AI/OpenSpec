@@ -1,7 +1,7 @@
-﻿/**
+/**
  * Init Command
  *
- * Sets up Pastelsdd with Agent Skills and /pstl:* slash commands.
+ * Sets up Pscode with Agent Skills and /ps:* slash commands.
  * This is the unified setup command that replaces both the old init and experimental commands.
  */
 
@@ -14,7 +14,7 @@ import { FileSystemUtils } from '../utils/file-system.js';
 import { transformToHyphenCommands } from '../utils/command-references.js';
 import {
   AI_TOOLS,
-  PASTELSDD_DIR_NAME,
+  PSCODE_DIR_NAME,
   AIToolOption,
 } from './config.js';
 import { PALETTE } from './styles/palette.js';
@@ -36,7 +36,7 @@ import {
   runLegacyToolMigration,
   formatLegacyToolDetectionSummary,
   formatLegacyToolMigrationSummary,
-  pastelsddDirExists,
+  pscodeDirExists,
   type LegacyToolDetectionResult,
 } from './openspec-migration.js';
 import { runTrelloInitPrompt } from './trello-init-prompt.js';
@@ -50,13 +50,13 @@ import {
   generateSkillContent,
   type ToolSkillStatus,
 } from './shared/index.js';
-import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
-import { getProfileWorkflows, CORE_WORKFLOWS, ALL_WORKFLOWS } from './profiles.js';
+import { getGlobalConfig, type Delivery } from './global-config.js';
+import { getProfileWorkflows, isValidProfile, DEFAULT_PROFILE, type ProfileName, PROFILES, ALL_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
 import { migrateIfNeeded } from './migration.js';
 
 const require = createRequire(import.meta.url);
-const { version: PASTELSDD_VERSION } = require('../../package.json');
+const { version: PSCODE_VERSION } = require('../../package.json');
 
 // -----------------------------------------------------------------------------
 // Constants
@@ -70,20 +70,20 @@ const PROGRESS_SPINNER = {
 };
 
 const WORKFLOW_TO_SKILL_DIR: Record<string, string> = {
-  'explore': 'pastelsdd-explore',
-  'new': 'pastelsdd-new-change',
-  'continue': 'pastelsdd-continue-change',
-  'apply': 'pastelsdd-apply-change',
-  'ff': 'pastelsdd-ff-change',
-  'sync': 'pastelsdd-sync-specs',
-  'archive': 'pastelsdd-archive-change',
-  'bulk-archive': 'pastelsdd-bulk-archive-change',
-  'verify': 'pastelsdd-verify-change',
-  'onboard': 'pastelsdd-onboard',
-  'propose': 'pastelsdd-propose',
+  'explore': 'pscode-explore',
+  'new': 'pscode-new-change',
+  'continue': 'pscode-continue-change',
+  'apply': 'pscode-apply-change',
+  'ff': 'pscode-ff-change',
+  'sync': 'pscode-sync-specs',
+  'archive': 'pscode-archive-change',
+  'bulk-archive': 'pscode-bulk-archive-change',
+  'verify': 'pscode-verify-change',
+  'onboard': 'pscode-onboard',
+  'propose': 'pscode-propose',
   // Trello-specific workflows
-  'trello-setup': 'pastelsdd-trello-setup',
-  'draft': 'pastelsdd-trello-draft',
+  'trello-setup': 'pscode-trello-setup',
+  'draft': 'pscode-trello-draft',
 };
 
 // -----------------------------------------------------------------------------
@@ -116,11 +116,11 @@ export class InitCommand {
 
   async execute(targetPath: string): Promise<void> {
     const projectPath = path.resolve(targetPath);
-    const pastelsddDir = PASTELSDD_DIR_NAME;
-    const pastelsddPath = path.join(projectPath, pastelsddDir);
+    const pscodeDir = PSCODE_DIR_NAME;
+    const pscodePath = path.join(projectPath, pscodeDir);
 
     // Validation happens silently in the background
-    const extendMode = await this.validate(projectPath, pastelsddPath);
+    const extendMode = await this.validate(projectPath, pscodePath);
 
     // Check for legacy tool migration first (before legacy cleanup)
     await this.handleLegacyToolMigration(projectPath);
@@ -157,16 +157,16 @@ export class InitCommand {
     const validatedTools = this.validateTools(selectedToolIds, toolStates);
 
     // Create directory structure and config
-    await this.createDirectoryStructure(pastelsddPath, extendMode);
+    await this.createDirectoryStructure(pscodePath, extendMode);
 
     // Trello integration setup (interactive mode only)
-    const trelloConfigured = await this.handleTrelloSetup(pastelsddPath);
+    const trelloConfigured = await this.handleTrelloSetup(pscodePath);
 
     // Generate skills and commands for each tool
     const results = await this.generateSkillsAndCommands(projectPath, validatedTools);
 
     // Create config.yaml if needed
-    const configStatus = await this.createConfig(pastelsddPath, extendMode);
+    const configStatus = await this.createConfig(pscodePath, extendMode);
 
     // Display success message
     this.displaySuccessMessage(projectPath, validatedTools, results, configStatus, trelloConfigured);
@@ -178,9 +178,9 @@ export class InitCommand {
 
   private async validate(
     projectPath: string,
-    pastelsddPath: string
+    pscodePath: string
   ): Promise<boolean> {
-    const extendMode = await FileSystemUtils.directoryExists(pastelsddPath);
+    const extendMode = await FileSystemUtils.directoryExists(pscodePath);
 
     // Check write permissions
     if (!(await FileSystemUtils.ensureWritePermissions(projectPath))) {
@@ -195,16 +195,17 @@ export class InitCommand {
     return isInteractive({ interactive: this.interactiveOption });
   }
 
-  private resolveProfileOverride(): Profile | undefined {
+  private resolveProfileOverride(): ProfileName | undefined {
     if (this.profileOverride === undefined) {
       return undefined;
     }
 
-    if (this.profileOverride === 'core' || this.profileOverride === 'custom') {
+    if (isValidProfile(this.profileOverride)) {
       return this.profileOverride;
     }
 
-    throw new Error(`Invalid profile "${this.profileOverride}". Available profiles: core, custom`);
+    const available = Object.keys(PROFILES).join(', ');
+    throw new Error(`Invalid profile "${this.profileOverride}". Available profiles: ${available}`);
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -218,8 +219,8 @@ export class InitCommand {
       return;
     }
 
-    // Determine whether pastelsdd/ already exists so we can show the right summary
-    const alreadyExists = await pastelsddDirExists(projectPath);
+    // Determine whether pscode/ already exists so we can show the right summary
+    const alreadyExists = await pscodeDirExists(projectPath);
 
     console.log();
     console.log(formatLegacyToolDetectionSummary(detection, alreadyExists));
@@ -236,8 +237,8 @@ export class InitCommand {
     const { confirm } = await import('@inquirer/prompts');
     const dirName = detection.legacyDirName;
     const migrateLabel = alreadyExists
-      ? `Merge ${dirName}/ into pastelsdd/ and complete the migration?`
-      : `Migrate this project from the legacy tool to Pastelsdd?`;
+      ? `Merge ${dirName}/ into pscode/ and complete the migration?`
+      : `Migrate this project from the legacy tool to Pscode?`;
 
     const shouldMigrate = await confirm({
       message: migrateLabel,
@@ -260,7 +261,7 @@ export class InitCommand {
 
     const result = await runLegacyToolMigration(projectPath, detection);
 
-    spinner.succeed('Migration to Pastelsdd complete');
+    spinner.succeed('Migration to Pscode complete');
 
     const summary = formatLegacyToolMigrationSummary(result);
     if (summary) {
@@ -292,7 +293,7 @@ export class InitCommand {
 
     if (this.force || !canPrompt) {
       // --force flag or non-interactive mode: proceed with cleanup automatically.
-      // Legacy slash commands are 100% Pastelsdd-managed, and config file cleanup
+      // Legacy slash commands are 100% Pscode-managed, and config file cleanup
       // only removes markers (never deletes files), so auto-cleanup is safe.
       await this.performLegacyCleanup(projectPath, detection);
       return;
@@ -408,7 +409,7 @@ export class InitCommand {
       .map((toolId) => AI_TOOLS.find((t) => t.value === toolId)?.name || toolId);
 
     if (configuredNames.length > 0) {
-      console.log(`Pastelsdd configured: ${configuredNames.join(', ')} (pre-selected)`);
+      console.log(`Pscode configured: ${configuredNames.join(', ')} (pre-selected)`);
     }
 
     const detectedOnlyNames = detectedTools
@@ -537,13 +538,13 @@ export class InitCommand {
   // TRELLO SETUP
   // ═══════════════════════════════════════════════════════════
 
-  private async handleTrelloSetup(pastelsddPath: string): Promise<boolean> {
+  private async handleTrelloSetup(pscodePath: string): Promise<boolean> {
     if (!this.canPromptInteractively()) {
       return false;
     }
 
     try {
-      return await runTrelloInitPrompt(pastelsddPath);
+      return await runTrelloInitPrompt(pscodePath);
     } catch {
       // Non-fatal — Trello setup is optional
       return false;
@@ -554,14 +555,14 @@ export class InitCommand {
   // DIRECTORY STRUCTURE
   // ═══════════════════════════════════════════════════════════
 
-  private async createDirectoryStructure(pastelsddPath: string, extendMode: boolean): Promise<void> {
+  private async createDirectoryStructure(pscodePath: string, extendMode: boolean): Promise<void> {
     if (extendMode) {
       // In extend mode, just ensure directories exist without spinner
       const directories = [
-        pastelsddPath,
-        path.join(pastelsddPath, 'specs'),
-        path.join(pastelsddPath, 'changes'),
-        path.join(pastelsddPath, 'changes', 'archive'),
+        pscodePath,
+        path.join(pscodePath, 'specs'),
+        path.join(pscodePath, 'changes'),
+        path.join(pscodePath, 'changes', 'archive'),
       ];
 
       for (const dir of directories) {
@@ -570,13 +571,13 @@ export class InitCommand {
       return;
     }
 
-    const spinner = this.startSpinner('Creating Pastelsdd structure...');
+    const spinner = this.startSpinner('Creating Pscode structure...');
 
     const directories = [
-      pastelsddPath,
-      path.join(pastelsddPath, 'specs'),
-      path.join(pastelsddPath, 'changes'),
-      path.join(pastelsddPath, 'changes', 'archive'),
+      pscodePath,
+      path.join(pscodePath, 'specs'),
+      path.join(pscodePath, 'changes'),
+      path.join(pscodePath, 'changes', 'archive'),
     ];
 
     for (const dir of directories) {
@@ -585,7 +586,7 @@ export class InitCommand {
 
     spinner.stopAndPersist({
       symbol: PALETTE.white('▌'),
-      text: PALETTE.white('Pastelsdd structure created'),
+      text: PALETTE.white('Pscode structure created'),
     });
   }
 
@@ -613,15 +614,9 @@ export class InitCommand {
 
     // Read global config for profile and delivery settings (use --profile override if set)
     const globalConfig = getGlobalConfig();
-    const profile: Profile = this.resolveProfileOverride() ?? globalConfig.profile ?? 'core';
+    const profile: ProfileName = this.resolveProfileOverride() ?? (isValidProfile(globalConfig.profile ?? '') ? globalConfig.profile as ProfileName : DEFAULT_PROFILE);
     const delivery: Delivery = globalConfig.delivery ?? 'both';
-    const profileWorkflows = getProfileWorkflows(profile, globalConfig.workflows);
-
-    // Trello workflows are always generated regardless of profile, so users can
-    // run /pstl:trello-setup to configure the integration at any time.
-    const TRELLO_WORKFLOWS = ['trello-setup', 'task', 'draft'] as const;
-    const workflowsSet = new Set([...profileWorkflows, ...TRELLO_WORKFLOWS]);
-    const workflows = [...workflowsSet];
+    const workflows = [...getProfileWorkflows(profile)];
 
     // Get skill and command templates filtered by profile workflows
     const shouldGenerateSkills = delivery !== 'commands';
@@ -647,7 +642,7 @@ export class InitCommand {
             // Generate SKILL.md content with YAML frontmatter including generatedBy
             // Use hyphen-based command references for tools where filename = command name
             const transformer = (tool.value === 'opencode' || tool.value === 'pi') ? transformToHyphenCommands : undefined;
-            const skillContent = generateSkillContent(template, PASTELSDD_VERSION, transformer);
+            const skillContent = generateSkillContent(template, PSCODE_VERSION, transformer);
 
             // Write the skill file
             await FileSystemUtils.writeFile(skillFile, skillContent);
@@ -703,9 +698,9 @@ export class InitCommand {
   // CONFIG FILE
   // ═══════════════════════════════════════════════════════════
 
-  private async createConfig(pastelsddPath: string, extendMode: boolean): Promise<'created' | 'exists' | 'skipped'> {
-    const configPath = path.join(pastelsddPath, 'config.yaml');
-    const configYmlPath = path.join(pastelsddPath, 'config.yml');
+  private async createConfig(pscodePath: string, extendMode: boolean): Promise<'created' | 'exists' | 'skipped'> {
+    const configPath = path.join(pscodePath, 'config.yaml');
+    const configYmlPath = path.join(pscodePath, 'config.yml');
     const configYamlExists = fs.existsSync(configPath);
     const configYmlExists = fs.existsSync(configYmlPath);
 
@@ -741,7 +736,7 @@ export class InitCommand {
     trelloConfigured = false
   ): void {
     console.log();
-    console.log(chalk.bold('Pastelsdd Setup Complete'));
+    console.log(chalk.bold('Pscode Setup Complete'));
     console.log();
 
     // Show created vs refreshed tools
@@ -752,15 +747,13 @@ export class InitCommand {
       console.log(`Refreshed: ${results.refreshedTools.map((t) => t.name).join(', ')}`);
     }
 
-    // Show counts (respecting profile filter + trello workflows always included)
+    // Show counts
     const successfulTools = [...results.createdTools, ...results.refreshedTools];
     if (successfulTools.length > 0) {
       const globalConfig = getGlobalConfig();
-      const profile: Profile = (this.profileOverride as Profile) ?? globalConfig.profile ?? 'core';
+      const profile: ProfileName = this.resolveProfileOverride() ?? (isValidProfile(globalConfig.profile ?? '') ? globalConfig.profile as ProfileName : DEFAULT_PROFILE);
       const delivery: Delivery = globalConfig.delivery ?? 'both';
-      const profileWorkflows = getProfileWorkflows(profile, globalConfig.workflows);
-      const TRELLO_WORKFLOWS = ['trello-setup', 'task', 'draft'];
-      const workflows = [...new Set([...profileWorkflows, ...TRELLO_WORKFLOWS])];
+      const workflows = [...getProfileWorkflows(profile)];
       const toolDirs = [...new Set(successfulTools.map((t) => t.skillsDir))].join(', ');
       const skillCount = delivery !== 'commands' ? getSkillTemplates(workflows).length : 0;
       const commandCount = delivery !== 'skills' ? getCommandContents(workflows).length : 0;
@@ -791,44 +784,44 @@ export class InitCommand {
 
     // Config status
     if (configStatus === 'created') {
-      console.log(`Config: pastelsdd/config.yaml (schema: ${DEFAULT_SCHEMA})`);
+      console.log(`Config: pscode/config.yaml (schema: ${DEFAULT_SCHEMA})`);
     } else if (configStatus === 'exists') {
       // Show actual filename (config.yaml or config.yml)
-      const configYaml = path.join(projectPath, PASTELSDD_DIR_NAME, 'config.yaml');
-      const configYml = path.join(projectPath, PASTELSDD_DIR_NAME, 'config.yml');
+      const configYaml = path.join(projectPath, PSCODE_DIR_NAME, 'config.yaml');
+      const configYml = path.join(projectPath, PSCODE_DIR_NAME, 'config.yml');
       const configName = fs.existsSync(configYaml) ? 'config.yaml' : fs.existsSync(configYml) ? 'config.yml' : 'config.yaml';
-      console.log(`Config: pastelsdd/${configName} (exists)`);
+      console.log(`Config: pscode/${configName} (exists)`);
     } else {
       console.log(chalk.dim(`Config: skipped (non-interactive mode)`));
     }
 
-    // Getting started (task 7.6: show propose if in profile)
+    // Getting started
     const globalCfg = getGlobalConfig();
-    const activeProfile: Profile = (this.profileOverride as Profile) ?? globalCfg.profile ?? 'core';
-    const activeWorkflows = [...getProfileWorkflows(activeProfile, globalCfg.workflows)];
+    const activeProfile: ProfileName = this.resolveProfileOverride() ?? (isValidProfile(globalCfg.profile ?? '') ? globalCfg.profile as ProfileName : DEFAULT_PROFILE);
+    const activeWorkflows = [...getProfileWorkflows(activeProfile)];
     console.log();
     if (activeWorkflows.includes('propose')) {
       console.log(chalk.bold('Getting started:'));
-      console.log('  Start your first change: /pstl:propose "your idea"');
+      console.log('  Start your first change: /ps:propose "your idea"');
     } else if (activeWorkflows.includes('new')) {
       console.log(chalk.bold('Getting started:'));
-      console.log('  Start your first change: /pstl:new "your idea"');
+      console.log('  Start your first change: /ps:new "your idea"');
     } else {
-      console.log("Done. Run 'pastelsdd config profile' to configure your workflows.");
+      console.log("Done. Run 'pscode config profile' to switch profiles.");
     }
 
     // Trello status
     if (trelloConfigured) {
       console.log();
       console.log(chalk.bold('Trello Integration'));
-      console.log(`  Preferences saved to ${chalk.cyan('pastelsdd/trello.yaml')}`);
-      console.log(`  Run ${chalk.cyan('/pstl:trello-setup')} in Claude Code to connect your Trello lists.`);
+      console.log(`  Preferences saved to ${chalk.cyan('pscode/trello.yaml')}`);
+      console.log(`  Run ${chalk.cyan('/ps:trello-setup')} in Claude Code to connect your Trello lists.`);
     }
 
     // Links
     console.log();
-    console.log(`Learn more: ${chalk.cyan('https://github.com/thiagodiogo/Pastelsdd')}`);
-    console.log(`Feedback:   ${chalk.cyan('https://github.com/thiagodiogo/Pastelsdd/issues')}`);
+    console.log(`Learn more: ${chalk.cyan('https://github.com/thiagodiogo/Pscode')}`);
+    console.log(`Feedback:   ${chalk.cyan('https://github.com/thiagodiogo/Pscode/issues')}`);
 
     // Restart instruction if any tools were configured
     if (results.createdTools.length > 0 || results.refreshedTools.length > 0) {

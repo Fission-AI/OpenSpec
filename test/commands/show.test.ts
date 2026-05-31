@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
@@ -6,9 +6,9 @@ import { execSync } from 'child_process';
 describe('top-level show command', () => {
   const projectRoot = process.cwd();
   const testDir = path.join(projectRoot, 'test-show-command-tmp');
-  const changesDir = path.join(testDir, 'pastelsdd', 'changes');
-  const specsDir = path.join(testDir, 'pastelsdd', 'specs');
-  const pastelsddBin = path.join(projectRoot, 'bin', 'pastelsdd.js');
+  const changesDir = path.join(testDir, 'pscode', 'changes');
+  const specsDir = path.join(testDir, 'pscode', 'specs');
+  const pscodeBin = path.join(projectRoot, 'bin', 'pscode.js');
 
 
   beforeEach(async () => {
@@ -36,15 +36,15 @@ describe('top-level show command', () => {
       process.env.OPEN_SPEC_INTERACTIVE = '0';
       let err: any;
       try {
-        execSync(`node ${pastelsddBin} show`, { encoding: 'utf-8' });
+        execSync(`node ${pscodeBin} show`, { encoding: 'utf-8' });
       } catch (e) { err = e; }
       expect(err).toBeDefined();
       expect(err.status).not.toBe(0);
       const stderr = err.stderr.toString();
       expect(stderr).toContain('Nothing to show.');
-      expect(stderr).toContain('pastelsdd show <item>');
-      expect(stderr).toContain('pastelsdd change show');
-      expect(stderr).toContain('pastelsdd spec show');
+      expect(stderr).toContain('pscode show <item>');
+      expect(stderr).toContain('pscode change show');
+      expect(stderr).toContain('pscode spec show');
     } finally {
       process.chdir(originalCwd);
       process.env = originalEnv;
@@ -55,7 +55,7 @@ describe('top-level show command', () => {
     const originalCwd = process.cwd();
     try {
       process.chdir(testDir);
-      const output = execSync(`node ${pastelsddBin} show demo --json`, { encoding: 'utf-8' });
+      const output = execSync(`node ${pscodeBin} show demo --json`, { encoding: 'utf-8' });
       const json = JSON.parse(output);
       expect(json.id).toBe('demo');
       expect(Array.isArray(json.deltas)).toBe(true);
@@ -68,7 +68,7 @@ describe('top-level show command', () => {
     const originalCwd = process.cwd();
     try {
       process.chdir(testDir);
-      const output = execSync(`node ${pastelsddBin} show auth --json --requirements`, { encoding: 'utf-8' });
+      const output = execSync(`node ${pscodeBin} show auth --json --requirements`, { encoding: 'utf-8' });
       const json = JSON.parse(output);
       expect(json.id).toBe('auth');
       expect(Array.isArray(json.requirements)).toBe(true);
@@ -89,7 +89,7 @@ describe('top-level show command', () => {
       process.chdir(testDir);
       let err: any;
       try {
-        execSync(`node ${pastelsddBin} show foo`, { encoding: 'utf-8' });
+        execSync(`node ${pscodeBin} show foo`, { encoding: 'utf-8' });
       } catch (e) { err = e; }
       expect(err).toBeDefined();
       expect(err.status).not.toBe(0);
@@ -107,7 +107,7 @@ describe('top-level show command', () => {
       process.chdir(testDir);
       let err: any;
       try {
-        execSync(`node ${pastelsddBin} show unknown-item`, { encoding: 'utf-8' });
+        execSync(`node ${pscodeBin} show unknown-item`, { encoding: 'utf-8' });
       } catch (e) { err = e; }
       expect(err).toBeDefined();
       expect(err.status).not.toBe(0);

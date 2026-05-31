@@ -1,6 +1,6 @@
-﻿# Workflows
+# Workflows
 
-This guide covers common workflow patterns for Pastelsdd and when to use each one. For basic setup, see [Getting Started](getting-started.md). For command reference, see [Commands](commands.md).
+This guide covers common workflow patterns for Pscode and when to use each one. For basic setup, see [Getting Started](getting-started.md). For command reference, see [Commands](commands.md).
 
 ## Philosophy: Actions, Not Phases
 
@@ -33,25 +33,25 @@ OPSX (fluid actions):
 ### Default Quick Path (`core` profile)
 
 New installs default to `core`, which provides:
-- `/pstl:propose`
-- `/pstl:explore`
-- `/pstl:apply`
-- `/pstl:sync`
-- `/pstl:archive`
+- `/ps:propose`
+- `/ps:explore`
+- `/ps:apply`
+- `/ps:sync`
+- `/ps:archive`
 
 Typical flow:
 
 ```text
-/pstl:propose ──► /pstl:apply ──► /pstl:sync ──► /pstl:archive
+/ps:propose ──► /ps:apply ──► /ps:sync ──► /ps:archive
 ```
 
 ### Expanded/Full Workflow (custom selection)
 
-If you want explicit scaffold-and-build commands (`/pstl:new`, `/pstl:continue`, `/pstl:ff`, `/pstl:verify`, `/pstl:bulk-archive`, `/pstl:onboard`), enable them with:
+If you want explicit scaffold-and-build commands (`/ps:new`, `/ps:continue`, `/ps:ff`, `/ps:verify`, `/ps:bulk-archive`, `/ps:onboard`), enable them with:
 
 ```bash
-pastelsdd config profile
-pastelsdd update
+pscode config profile
+pscode update
 ```
 
 ## Workflow Patterns (Expanded Mode)
@@ -61,18 +61,18 @@ pastelsdd update
 When you know what you want to build and just need to execute:
 
 ```text
-/pstl:new ──► /pstl:ff ──► /pstl:apply ──► /pstl:verify ──► /pstl:archive
+/ps:new ──► /ps:ff ──► /ps:apply ──► /ps:verify ──► /ps:archive
 ```
 
 **Example conversation:**
 
 ```text
-You: /pstl:new add-logout-button
+You: /ps:new add-logout-button
 
-AI:  Created pastelsdd/changes/add-logout-button/
+AI:  Created pscode/changes/add-logout-button/
      Ready to create: proposal
 
-You: /pstl:ff
+You: /ps:ff
 
 AI:  Creating all planning artifacts...
      ✓ proposal.md
@@ -81,7 +81,7 @@ AI:  Creating all planning artifacts...
      ✓ tasks.md
      Ready for implementation!
 
-You: /pstl:apply
+You: /ps:apply
 
 AI:  Working through tasks...
      ✓ Added logout button to header
@@ -89,7 +89,7 @@ AI:  Working through tasks...
      ✓ Added confirmation dialog
      All tasks complete!
 
-You: /pstl:archive
+You: /ps:archive
 
 AI:  ✓ Merged specs
      ✓ Archived change
@@ -102,13 +102,13 @@ AI:  ✓ Merged specs
 When requirements are unclear or you need to investigate first:
 
 ```text
-/pstl:explore ──► /pstl:new ──► /pstl:continue ──► ... ──► /pstl:apply
+/ps:explore ──► /ps:new ──► /ps:continue ──► ... ──► /ps:apply
 ```
 
 **Example conversation:**
 
 ```text
-You: /pstl:explore
+You: /ps:explore
 
 AI:  What would you like to explore?
 
@@ -128,11 +128,11 @@ AI:  Let me help investigate...
 
 You: Let's tackle the data fetching issue.
 
-You: /pstl:new optimize-product-list-fetching
+You: /ps:new optimize-product-list-fetching
 
 AI:  Created change. Ready to create: proposal
 
-You: /pstl:continue
+You: /ps:continue
 
 AI:  Creating proposal based on our exploration...
      [Writes proposal incorporating investigation insights]
@@ -140,7 +140,7 @@ AI:  Creating proposal based on our exploration...
      Ready to create: specs, design
      Which would you like next?
 
-You: /pstl:continue
+You: /ps:continue
 
 AI:  Creating specs...
 ```
@@ -152,11 +152,11 @@ AI:  Creating specs...
 Work on multiple changes at once:
 
 ```text
-Change A: /pstl:new ──► /pstl:ff ──► /pstl:apply (in progress)
+Change A: /ps:new ──► /ps:ff ──► /ps:apply (in progress)
                                          │
                                     context switch
                                          │
-Change B: /pstl:new ──► /pstl:ff ──────► /pstl:apply
+Change B: /ps:new ──► /ps:ff ──────► /ps:apply
 ```
 
 **Example conversation:**
@@ -164,27 +164,27 @@ Change B: /pstl:new ──► /pstl:ff ──────► /pstl:apply
 ```text
 You: I'm working on add-dark-mode but got pulled into a bug fix
 
-You: /pstl:new fix-login-redirect
+You: /ps:new fix-login-redirect
 
-AI:  Created pastelsdd/changes/fix-login-redirect/
+AI:  Created pscode/changes/fix-login-redirect/
 
-You: /pstl:ff
+You: /ps:ff
 
 AI:  ✓ Created planning artifacts
 
-You: /pstl:apply
+You: /ps:apply
 
 AI:  Working on fix-login-redirect...
      [Implements the fix]
      All tasks complete!
 
-You: /pstl:archive
+You: /ps:archive
 
 AI:  ✓ Archived fix-login-redirect
 
 You: Let's get back to dark mode
 
-You: /pstl:apply add-dark-mode
+You: /ps:apply add-dark-mode
 
 AI:  Resuming add-dark-mode...
      Picking up at task 2.3: Update Header...
@@ -192,10 +192,10 @@ AI:  Resuming add-dark-mode...
 
 **Best for:** Parallel work streams, urgent interrupts, team collaboration.
 
-When you have multiple completed changes, use `/pstl:bulk-archive`:
+When you have multiple completed changes, use `/ps:bulk-archive`:
 
 ```text
-You: /pstl:bulk-archive
+You: /ps:bulk-archive
 
 AI:  Found 3 completed changes:
      - add-dark-mode (all tasks done)
@@ -225,7 +225,7 @@ Bulk archive detects when multiple changes touch the same specs and resolves con
 The recommended completion flow:
 
 ```text
-/pstl:apply ──► /pstl:verify ──► /pstl:archive
+/ps:apply ──► /ps:verify ──► /ps:archive
                     │                 │
               validates          prompts to sync
               implementation     if needed
@@ -233,10 +233,10 @@ The recommended completion flow:
 
 #### Verify: Check Your Work
 
-`/pstl:verify` validates implementation against your artifacts across three dimensions:
+`/ps:verify` validates implementation against your artifacts across three dimensions:
 
 ```text
-You: /pstl:verify
+You: /ps:verify
 
 AI:  Verifying add-auth...
 
@@ -278,10 +278,10 @@ Verify won't block archive, but it surfaces issues you might want to address fir
 
 #### Archive: Finalize the Change
 
-`/pstl:archive` completes the change and moves it to the archive:
+`/ps:archive` completes the change and moves it to the archive:
 
 ```text
-You: /pstl:archive
+You: /ps:archive
 
 AI:  Archiving add-auth...
 
@@ -296,8 +296,8 @@ AI:  Archiving add-auth...
 
 You: Yes
 
-AI:  ✓ Synced specs to pastelsdd/specs/auth/spec.md
-     ✓ Moved to pastelsdd/changes/archive/2025-01-24-add-auth/
+AI:  ✓ Synced specs to pscode/specs/auth/spec.md
+     ✓ Moved to pscode/changes/archive/2025-01-24-add-auth/
 
      Change archived successfully.
 ```
@@ -306,17 +306,17 @@ Archive will prompt if specs aren't synced. It won't block on incomplete tasks, 
 
 ## When to Use What
 
-### `/pstl:ff` vs `/pstl:continue`
+### `/ps:ff` vs `/ps:continue`
 
 | Situation | Use |
 |-----------|-----|
-| Clear requirements, ready to build | `/pstl:ff` |
-| Exploring, want to review each step | `/pstl:continue` |
-| Want to iterate on proposal before specs | `/pstl:continue` |
-| Time pressure, need to move fast | `/pstl:ff` |
-| Complex change, want control | `/pstl:continue` |
+| Clear requirements, ready to build | `/ps:ff` |
+| Exploring, want to review each step | `/ps:continue` |
+| Want to iterate on proposal before specs | `/ps:continue` |
+| Time pressure, need to move fast | `/ps:ff` |
+| Complex change, want control | `/ps:continue` |
 
-**Rule of thumb:** If you can describe the full scope upfront, use `/pstl:ff`. If you're figuring it out as you go, use `/pstl:continue`.
+**Rule of thumb:** If you can describe the full scope upfront, use `/ps:ff`. If you're figuring it out as you go, use `/ps:continue`.
 
 ### When to Update vs Start Fresh
 
@@ -374,12 +374,12 @@ One logical unit of work per change. If you're doing "add feature X and also ref
 - Can ship independently
 - Simpler rollback if needed
 
-### Use `/pstl:explore` for Unclear Requirements
+### Use `/ps:explore` for Unclear Requirements
 
 Before committing to a change, explore the problem space:
 
 ```text
-You: /pstl:explore
+You: /ps:explore
 
 AI:  What would you like to explore?
 
@@ -400,10 +400,10 @@ Exploration clarifies thinking before you create artifacts.
 
 ### Verify Before Archiving
 
-Use `/pstl:verify` to check implementation matches artifacts:
+Use `/ps:verify` to check implementation matches artifacts:
 
 ```text
-You: /pstl:verify
+You: /ps:verify
 
 AI:  Verifying add-dark-mode...
 
@@ -418,7 +418,7 @@ Catches mismatches before you close out the change.
 
 ### Name Changes Clearly
 
-Good names make `pastelsdd list` useful:
+Good names make `pscode list` useful:
 
 ```text
 Good:                          Avoid:
@@ -434,16 +434,16 @@ For full command details and options, see [Commands](commands.md).
 
 | Command | Purpose | When to Use |
 |---------|---------|-------------|
-| `/pstl:propose` | Create change + planning artifacts | Fast default path (`core` profile) |
-| `/pstl:explore` | Think through ideas | Unclear requirements, investigation |
-| `/pstl:new` | Start a change scaffold | Expanded mode, explicit artifact control |
-| `/pstl:continue` | Create next artifact | Expanded mode, step-by-step artifact creation |
-| `/pstl:ff` | Create all planning artifacts | Expanded mode, clear scope |
-| `/pstl:apply` | Implement tasks | Ready to write code |
-| `/pstl:verify` | Validate implementation | Expanded mode, before archiving |
-| `/pstl:sync` | Merge delta specs | Expanded mode, optional |
-| `/pstl:archive` | Complete the change | All work finished |
-| `/pstl:bulk-archive` | Archive multiple changes | Expanded mode, parallel work |
+| `/ps:propose` | Create change + planning artifacts | Fast default path (`core` profile) |
+| `/ps:explore` | Think through ideas | Unclear requirements, investigation |
+| `/ps:new` | Start a change scaffold | Expanded mode, explicit artifact control |
+| `/ps:continue` | Create next artifact | Expanded mode, step-by-step artifact creation |
+| `/ps:ff` | Create all planning artifacts | Expanded mode, clear scope |
+| `/ps:apply` | Implement tasks | Ready to write code |
+| `/ps:verify` | Validate implementation | Expanded mode, before archiving |
+| `/ps:sync` | Merge delta specs | Expanded mode, optional |
+| `/ps:archive` | Complete the change | All work finished |
+| `/ps:bulk-archive` | Archive multiple changes | Expanded mode, parallel work |
 
 ## Next Steps
 

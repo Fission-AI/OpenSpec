@@ -1,4 +1,4 @@
-﻿import { promises as fs } from 'fs';
+import { promises as fs } from 'fs';
 import path from 'path';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
 import { Validator } from './validation/validator.js';
@@ -53,15 +53,15 @@ export class ArchiveCommand {
     options: { yes?: boolean; skipSpecs?: boolean; noValidate?: boolean; validate?: boolean } = {}
   ): Promise<void> {
     const targetPath = '.';
-    const changesDir = path.join(targetPath, 'pastelsdd', 'changes');
+    const changesDir = path.join(targetPath, 'pscode', 'changes');
     const archiveDir = path.join(changesDir, 'archive');
-    const mainSpecsDir = path.join(targetPath, 'pastelsdd', 'specs');
+    const mainSpecsDir = path.join(targetPath, 'pscode', 'specs');
 
     // Check if changes directory exists
     try {
       await fs.access(changesDir);
     } catch {
-      throw new Error("No Pastelsdd changes directory found. Run 'pastelsdd init' first.");
+      throw new Error("No Pscode changes directory found. Run 'pscode init' first.");
     }
 
     // Get change name interactively if not provided

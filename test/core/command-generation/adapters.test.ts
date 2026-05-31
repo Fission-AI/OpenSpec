@@ -11,7 +11,7 @@ import type { CommandContent } from '../../../src/core/command-generation/types.
 describe('command-generation/adapters', () => {
   const sampleContent: CommandContent = {
     id: 'explore',
-    name: 'Pastelsdd Explore',
+    name: 'Pscode Explore',
     description: 'Enter explore mode for thinking',
     category: 'Workflow',
     tags: ['workflow', 'explore', 'experimental'],
@@ -25,19 +25,19 @@ describe('command-generation/adapters', () => {
 
     it('should generate correct file path', () => {
       const filePath = claudeAdapter.getFilePath('explore');
-      expect(filePath).toBe(path.join('.claude', 'commands', 'pstl', 'explore.md'));
+      expect(filePath).toBe(path.join('.claude', 'commands', 'ps', 'explore.md'));
     });
 
     it('should generate correct file path for different command IDs', () => {
-      expect(claudeAdapter.getFilePath('new')).toBe(path.join('.claude', 'commands', 'pstl', 'new.md'));
-      expect(claudeAdapter.getFilePath('bulk-archive')).toBe(path.join('.claude', 'commands', 'pstl', 'bulk-archive.md'));
+      expect(claudeAdapter.getFilePath('new')).toBe(path.join('.claude', 'commands', 'ps', 'new.md'));
+      expect(claudeAdapter.getFilePath('bulk-archive')).toBe(path.join('.claude', 'commands', 'ps', 'bulk-archive.md'));
     });
 
     it('should format file with correct YAML frontmatter', () => {
       const output = claudeAdapter.formatFile(sampleContent);
 
       expect(output).toContain('---\n');
-      expect(output).toContain('name: Pastelsdd Explore');
+      expect(output).toContain('name: Pscode Explore');
       expect(output).toContain('description: Enter explore mode for thinking');
       expect(output).toContain('category: Workflow');
       expect(output).toContain('tags: [workflow, explore, experimental]');
@@ -64,7 +64,7 @@ describe('command-generation/adapters', () => {
 
     it('should generate path ending with correct structure', () => {
       const filePath = codexAdapter.getFilePath('explore');
-      expect(filePath).toMatch(/prompts[/\\]pstl-explore\.md$/);
+      expect(filePath).toMatch(/prompts[/\\]ps-explore\.md$/);
     });
 
     it('should default to homedir/.codex', () => {
@@ -72,7 +72,7 @@ describe('command-generation/adapters', () => {
       delete process.env.CODEX_HOME;
       try {
         const filePath = codexAdapter.getFilePath('explore');
-        const expected = path.join(os.homedir(), '.codex', 'prompts', 'pstl-explore.md');
+        const expected = path.join(os.homedir(), '.codex', 'prompts', 'ps-explore.md');
         expect(filePath).toBe(expected);
       } finally {
         if (original !== undefined) {
@@ -86,7 +86,7 @@ describe('command-generation/adapters', () => {
       process.env.CODEX_HOME = '/custom/codex-home';
       try {
         const filePath = codexAdapter.getFilePath('explore');
-        expect(filePath).toBe(path.join(path.resolve('/custom/codex-home'), 'prompts', 'pstl-explore.md'));
+        expect(filePath).toBe(path.join(path.resolve('/custom/codex-home'), 'prompts', 'ps-explore.md'));
       } finally {
         if (original !== undefined) {
           process.env.CODEX_HOME = original;
@@ -111,22 +111,22 @@ describe('command-generation/adapters', () => {
       expect(cursorAdapter.toolId).toBe('cursor');
     });
 
-    it('should generate correct file path with pstl- prefix', () => {
+    it('should generate correct file path with ps- prefix', () => {
       const filePath = cursorAdapter.getFilePath('explore');
-      expect(filePath).toBe(path.join('.cursor', 'commands', 'pstl-explore.md'));
+      expect(filePath).toBe(path.join('.cursor', 'commands', 'ps-explore.md'));
     });
 
     it('should generate correct file paths for different commands', () => {
-      expect(cursorAdapter.getFilePath('new')).toBe(path.join('.cursor', 'commands', 'pstl-new.md'));
-      expect(cursorAdapter.getFilePath('bulk-archive')).toBe(path.join('.cursor', 'commands', 'pstl-bulk-archive.md'));
+      expect(cursorAdapter.getFilePath('new')).toBe(path.join('.cursor', 'commands', 'ps-new.md'));
+      expect(cursorAdapter.getFilePath('bulk-archive')).toBe(path.join('.cursor', 'commands', 'ps-bulk-archive.md'));
     });
 
     it('should format file with Cursor-specific frontmatter', () => {
       const output = cursorAdapter.formatFile(sampleContent);
 
       expect(output).toContain('---\n');
-      expect(output).toContain('name: /pstl-explore');
-      expect(output).toContain('id: pstl-explore');
+      expect(output).toContain('name: /ps-explore');
+      expect(output).toContain('id: ps-explore');
       expect(output).toContain('category: Workflow');
       expect(output).toContain('description: Enter explore mode for thinking');
       expect(output).toContain('---\n\n');
@@ -146,7 +146,7 @@ describe('command-generation/adapters', () => {
 
     it('should generate correct file path with .toml extension', () => {
       const filePath = geminiAdapter.getFilePath('explore');
-      expect(filePath).toBe(path.join('.gemini', 'commands', 'pstl', 'explore.toml'));
+      expect(filePath).toBe(path.join('.gemini', 'commands', 'ps', 'explore.toml'));
     });
 
     it('should format file in TOML format', () => {
@@ -165,7 +165,7 @@ describe('command-generation/adapters', () => {
 
     it('should generate correct file path with .prompt.md extension', () => {
       const filePath = githubCopilotAdapter.getFilePath('explore');
-      expect(filePath).toBe(path.join('.github', 'prompts', 'pstl-explore.prompt.md'));
+      expect(filePath).toBe(path.join('.github', 'prompts', 'ps-explore.prompt.md'));
     });
 
     it('should format file with description frontmatter', () => {
@@ -180,12 +180,12 @@ describe('command-generation/adapters', () => {
   describe('cross-platform path handling', () => {
     it('Claude adapter uses path.join for paths', () => {
       const filePath = claudeAdapter.getFilePath('test');
-      expect(filePath.split(path.sep)).toEqual(['.claude', 'commands', 'pstl', 'test.md']);
+      expect(filePath.split(path.sep)).toEqual(['.claude', 'commands', 'ps', 'test.md']);
     });
 
     it('Cursor adapter uses path.join for paths', () => {
       const filePath = cursorAdapter.getFilePath('test');
-      expect(filePath.split(path.sep)).toEqual(['.cursor', 'commands', 'pstl-test.md']);
+      expect(filePath.split(path.sep)).toEqual(['.cursor', 'commands', 'ps-test.md']);
     });
 
     it('All adapters produce valid paths', () => {

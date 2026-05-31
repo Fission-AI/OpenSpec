@@ -1,31 +1,31 @@
-﻿# Getting Started
+# Getting Started
 
-This guide explains how Pastelsdd works after you've installed and initialized it. For installation instructions, see the [main README](../README.md#quick-start).
+This guide explains how Pscode works after you've installed and initialized it. For installation instructions, see the [main README](../README.md#quick-start).
 
 ## How It Works
 
-Pastelsdd helps you and your AI coding assistant agree on what to build before any code is written.
+Pscode helps you and your AI coding assistant agree on what to build before any code is written.
 
 **Default quick path (core profile):**
 
 ```text
-/pstl:propose ──► /pstl:apply ──► /pstl:sync ──► /pstl:archive
+/ps:propose ──► /ps:apply ──► /ps:sync ──► /ps:archive
 ```
 
 **Expanded path (custom workflow selection):**
 
 ```text
-/pstl:new ──► /pstl:ff or /pstl:continue ──► /pstl:apply ──► /pstl:verify ──► /pstl:archive
+/ps:new ──► /ps:ff or /ps:continue ──► /ps:apply ──► /ps:verify ──► /ps:archive
 ```
 
-The default global profile is `core`, which includes `propose`, `explore`, `apply`, `sync`, and `archive`. You can enable the expanded workflow commands with `pastelsdd config profile` and then `pastelsdd update`.
+The default global profile is `core`, which includes `propose`, `explore`, `apply`, `sync`, and `archive`. You can enable the expanded workflow commands with `pscode config profile` and then `pscode update`.
 
-## What Pastelsdd Creates
+## What Pscode Creates
 
-After running `pastelsdd init`, your project has this structure:
+After running `pscode init`, your project has this structure:
 
 ```
-pastelsdd/
+pscode/
 ├── specs/              # Source of truth (your system's behavior)
 │   └── <domain>/
 │       └── spec.md
@@ -70,7 +70,7 @@ You can always go back and refine earlier artifacts as you learn more during imp
 
 ## How Delta Specs Work
 
-Delta specs are the key concept in Pastelsdd. They show what's changing relative to your current specs.
+Delta specs are the key concept in Pscode. They show what's changing relative to your current specs.
 
 ### The Format
 
@@ -114,7 +114,7 @@ When you archive a change:
 2. **MODIFIED** requirements replace the existing version
 3. **REMOVED** requirements are deleted from the main spec
 
-The change folder moves to `pastelsdd/changes/archive/` for audit history.
+The change folder moves to `pscode/changes/archive/` for audit history.
 
 ## Example: Your First Change
 
@@ -123,9 +123,9 @@ Let's walk through adding dark mode to an application.
 ### 1. Start the Change (Default)
 
 ```text
-You: /pstl:propose add-dark-mode
+You: /ps:propose add-dark-mode
 
-AI:  Created pastelsdd/changes/add-dark-mode/
+AI:  Created pscode/changes/add-dark-mode/
      ✓ proposal.md — why we're doing this, what's changing
      ✓ specs/       — requirements and scenarios
      ✓ design.md    — technical approach
@@ -133,7 +133,7 @@ AI:  Created pastelsdd/changes/add-dark-mode/
      Ready for implementation!
 ```
 
-If you've enabled the expanded workflow profile, you can also do this as two steps: `/pstl:new` then `/pstl:ff` (or `/pstl:continue` incrementally).
+If you've enabled the expanded workflow profile, you can also do this as two steps: `/ps:new` then `/ps:ff` (or `/ps:continue` incrementally).
 
 ### 2. What Gets Created
 
@@ -201,7 +201,7 @@ The system SHALL allow users to choose between light and dark themes.
 ### 3. Implement
 
 ```
-You: /pstl:apply
+You: /ps:apply
 
 AI:  Working through tasks...
      ✓ 1.1 Created ThemeContext with light/dark state
@@ -217,11 +217,11 @@ During implementation, if you discover the design needs adjustment, just update 
 ### 4. Archive
 
 ```
-You: /pstl:archive
+You: /ps:archive
 
 AI:  Archiving add-dark-mode...
-     ✓ Merged specs into pastelsdd/specs/ui/spec.md
-     ✓ Moved to pastelsdd/changes/archive/2025-01-24-add-dark-mode/
+     ✓ Merged specs into pscode/specs/ui/spec.md
+     ✓ Moved to pscode/changes/archive/2025-01-24-add-dark-mode/
      Done! Ready for the next feature.
 ```
 
@@ -233,16 +233,16 @@ Use the CLI to check on your changes:
 
 ```bash
 # List active changes
-pastelsdd list
+pscode list
 
 # View change details
-pastelsdd show add-dark-mode
+pscode show add-dark-mode
 
 # Validate spec formatting
-pastelsdd validate add-dark-mode
+pscode validate add-dark-mode
 
 # Interactive dashboard
-pastelsdd view
+pscode view
 ```
 
 ## Next Steps
@@ -250,4 +250,4 @@ pastelsdd view
 - [Workflows](workflows.md) - Common patterns and when to use each command
 - [Commands](commands.md) - Full reference for all slash commands
 - [Concepts](concepts.md) - Deeper understanding of specs, changes, and schemas
-- [Customization](customization.md) - Make Pastelsdd work your way
+- [Customization](customization.md) - Make Pscode work your way

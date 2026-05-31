@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { FeedbackCommand } from '../../src/commands/feedback.js';
 import { execSync, execFileSync } from 'child_process';
 
@@ -46,7 +46,7 @@ describe('FeedbackCommand', () => {
         return '';
       });
 
-      mockExecFileSync.mockReturnValue('https://github.com/thiagodiogo/Pastelsdd/issues/123\n');
+      mockExecFileSync.mockReturnValue('https://github.com/thiagodiogo/Pscode/issues/123\n');
 
       await feedbackCommand.execute('Test');
 
@@ -72,7 +72,7 @@ describe('FeedbackCommand', () => {
         return '';
       });
 
-      mockExecFileSync.mockReturnValue('https://github.com/thiagodiogo/Pastelsdd/issues/123\n');
+      mockExecFileSync.mockReturnValue('https://github.com/thiagodiogo/Pscode/issues/123\n');
 
       await feedbackCommand.execute('Test');
 
@@ -110,7 +110,7 @@ describe('FeedbackCommand', () => {
 
       // Should show manual submission URL
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('https://github.com/thiagodiogo/Pastelsdd/issues/new')
+        expect.stringContaining('https://github.com/thiagodiogo/Pscode/issues/new')
       );
     });
 
@@ -151,7 +151,7 @@ describe('FeedbackCommand', () => {
 
   describe('successful feedback submission', () => {
     it('should submit feedback via gh CLI when authenticated', async () => {
-      const issueUrl = 'https://github.com/thiagodiogo/Pastelsdd/issues/123';
+      const issueUrl = 'https://github.com/thiagodiogo/Pscode/issues/123';
 
       // Simulate gh installed and authenticated
       mockExecSync.mockImplementation((cmd: string, options?: any) => {
@@ -175,11 +175,11 @@ describe('FeedbackCommand', () => {
           'issue',
           'create',
           '--repo',
-          'thiagodiogo/Pastelsdd',
+          'thiagodiogo/Pscode',
           '--title',
           'Feedback: Great tool!',
           '--body',
-          expect.stringContaining('Submitted via Pastelsdd CLI'),
+          expect.stringContaining('Submitted via Pscode CLI'),
           '--label',
           'feedback',
         ],
@@ -201,7 +201,7 @@ describe('FeedbackCommand', () => {
     });
 
     it('should include --body flag when body is provided', async () => {
-      const issueUrl = 'https://github.com/thiagodiogo/Pastelsdd/issues/124';
+      const issueUrl = 'https://github.com/thiagodiogo/Pscode/issues/124';
 
       mockExecSync.mockImplementation((cmd: string, options?: any) => {
         if (cmd === 'which gh' || cmd === 'where gh') {
@@ -239,7 +239,7 @@ describe('FeedbackCommand', () => {
         return '';
       });
 
-      mockExecFileSync.mockReturnValue('https://github.com/thiagodiogo/Pastelsdd/issues/125\n');
+      mockExecFileSync.mockReturnValue('https://github.com/thiagodiogo/Pscode/issues/125\n');
 
       await feedbackCommand.execute('Test message');
 
@@ -265,7 +265,7 @@ describe('FeedbackCommand', () => {
         return '';
       });
 
-      mockExecFileSync.mockReturnValue('https://github.com/thiagodiogo/Pastelsdd/issues/126\n');
+      mockExecFileSync.mockReturnValue('https://github.com/thiagodiogo/Pscode/issues/126\n');
 
       await feedbackCommand.execute('Test', { body: 'Body text' });
 
@@ -274,7 +274,7 @@ describe('FeedbackCommand', () => {
         'gh',
         expect.arrayContaining([
           '--body',
-          expect.stringMatching(/Submitted via Pastelsdd CLI[\s\S]*Version:[\s\S]*Platform:[\s\S]*Timestamp:/),
+          expect.stringMatching(/Submitted via Pscode CLI[\s\S]*Version:[\s\S]*Platform:[\s\S]*Timestamp:/),
         ]),
         expect.any(Object)
       );
@@ -291,7 +291,7 @@ describe('FeedbackCommand', () => {
         return '';
       });
 
-      mockExecFileSync.mockReturnValue('https://github.com/thiagodiogo/Pastelsdd/issues/127\n');
+      mockExecFileSync.mockReturnValue('https://github.com/thiagodiogo/Pscode/issues/127\n');
 
       await feedbackCommand.execute('Test');
 
@@ -351,7 +351,7 @@ describe('FeedbackCommand', () => {
         return '';
       });
 
-      mockExecFileSync.mockReturnValue('https://github.com/thiagodiogo/Pastelsdd/issues/128\n');
+      mockExecFileSync.mockReturnValue('https://github.com/thiagodiogo/Pscode/issues/128\n');
 
       await feedbackCommand.execute('Test with "quotes"', {
         body: 'Body with "quotes"',
@@ -415,7 +415,7 @@ describe('FeedbackCommand', () => {
 
       // Verify URL is shown
       const urlCall = consoleLogSpy.mock.calls.find((call: any[]) =>
-        call[0]?.includes('https://github.com/thiagodiogo/Pastelsdd/issues/new')
+        call[0]?.includes('https://github.com/thiagodiogo/Pscode/issues/new')
       );
       expect(urlCall).toBeDefined();
 

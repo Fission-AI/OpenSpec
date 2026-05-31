@@ -1,10 +1,10 @@
-﻿/**
+/**
  * Telemetry module for anonymous usage analytics.
  *
  * Privacy-first design:
  * - Only tracks command name and version
  * - No arguments, file paths, or content
- * - Opt-out via PASTELSDD_TELEMETRY=0 or DO_NOT_TRACK=1
+ * - Opt-out via PSCODE_TELEMETRY=0 or DO_NOT_TRACK=1
  * - Auto-disabled in CI environments
  * - Anonymous ID is a random UUID with no relation to the user
  */
@@ -16,7 +16,7 @@ import { getTelemetryConfig, updateTelemetryConfig } from './config.js';
 // This is safe to embed as it only allows sending events, not reading data
 const POSTHOG_API_KEY = 'phc_Hthu8YvaIJ9QaFKyTG4TbVwkbd5ktcAFzVTKeMmoW2g';
 // Using reverse proxy to avoid ad blockers and keep traffic on our domain
-const POSTHOG_HOST = 'https://edge.pastelsdd.dev';
+const POSTHOG_HOST = 'https://edge.pscode.dev';
 const TELEMETRY_REQUEST_TIMEOUT_MS = 1000;
 
 let posthogClient: PostHog | null = null;
@@ -39,13 +39,13 @@ async function safeTelemetryFetch(url: string, options: RequestInit): Promise<Re
  * Check if telemetry is enabled.
  *
  * Disabled when:
- * - PASTELSDD_TELEMETRY=0
+ * - PSCODE_TELEMETRY=0
  * - DO_NOT_TRACK=1
  * - CI=true (any CI environment)
  */
 export function isTelemetryEnabled(): boolean {
   // Check explicit opt-out
-  if (process.env.PASTELSDD_TELEMETRY === '0') {
+  if (process.env.PSCODE_TELEMETRY === '0') {
     return false;
   }
 
@@ -110,7 +110,7 @@ function getClient(): PostHog {
  * Track a command execution.
  *
  * @param commandName - The command name (e.g., 'init', 'change:apply')
- * @param version - The Pastelsdd version
+ * @param version - The Pscode version
  */
 export async function trackCommand(commandName: string, version: string): Promise<void> {
   if (!isTelemetryEnabled()) {
@@ -152,7 +152,7 @@ export async function maybeShowTelemetryNotice(): Promise<void> {
 
     // Display notice
     console.log(
-      'Note: Pastelsdd collects anonymous usage stats. Opt out: PASTELSDD_TELEMETRY=0'
+      'Note: Pscode collects anonymous usage stats. Opt out: PSCODE_TELEMETRY=0'
     );
 
     // Mark as seen

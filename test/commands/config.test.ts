@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -11,7 +11,7 @@ describe('config command integration', () => {
 
   beforeEach(() => {
     // Create unique temp directory for each test
-    tempDir = path.join(os.tmpdir(), `pastelsdd-config-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    tempDir = path.join(os.tmpdir(), `pscode-config-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     fs.mkdirSync(tempDir, { recursive: true });
 
     // Save original env and set XDG_CONFIG_HOME
@@ -39,7 +39,7 @@ describe('config command integration', () => {
   it('should use XDG_CONFIG_HOME for config path', async () => {
     const { getGlobalConfigPath } = await import('../../src/core/global-config.js');
     const configPath = getGlobalConfigPath();
-    expect(configPath).toBe(path.join(tempDir, 'pastelsdd', 'config.json'));
+    expect(configPath).toBe(path.join(tempDir, 'pscode', 'config.json'));
   });
 
   it('should save and load config correctly', async () => {
@@ -97,7 +97,7 @@ describe('config command shell completion registry', () => {
 
     const configCmd = COMMAND_REGISTRY.find((cmd) => cmd.name === 'config');
     expect(configCmd).toBeDefined();
-    expect(configCmd?.description).toBe('View and modify global Pastelsdd configuration');
+    expect(configCmd?.description).toBe('View and modify global Pscode configuration');
   });
 
   it('should have all config subcommands in registry', async () => {
@@ -183,9 +183,9 @@ describe('config key validation', () => {
     expect(validateConfigKeyPath('delivery').valid).toBe(true);
   });
 
-  it('allows workflows key', async () => {
+  it('allows profile key', async () => {
     const { validateConfigKeyPath } = await import('../../src/core/config-schema.js');
-    expect(validateConfigKeyPath('workflows').valid).toBe(true);
+    expect(validateConfigKeyPath('profile').valid).toBe(true);
   });
 });
 
@@ -194,7 +194,7 @@ describe('config profile command', () => {
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(() => {
-    tempDir = path.join(os.tmpdir(), `pastelsdd-profile-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    tempDir = path.join(os.tmpdir(), `pscode-profile-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     fs.mkdirSync(tempDir, { recursive: true });
     originalEnv = { ...process.env };
     process.env.XDG_CONFIG_HOME = tempDir;
@@ -206,74 +206,56 @@ describe('config profile command', () => {
     vi.resetModules();
   });
 
-  it('core preset should set profile to core and preserve delivery', async () => {
+  it('profile preset should set profile and preserve delivery', async () => {
     const { getGlobalConfig, saveGlobalConfig } = await import('../../src/core/global-config.js');
 
-    // Set initial config with custom delivery
-    saveGlobalConfig({ featureFlags: {}, profile: 'custom', delivery: 'skills', workflows: ['explore'] });
+    saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'skills' });
 
-    // Simulate the core preset logic
     const config = getGlobalConfig();
-    const { CORE_WORKFLOWS } = await import('../../src/core/profiles.js');
-    config.profile = 'core';
-    config.workflows = [...CORE_WORKFLOWS];
-    // Delivery should be preserved
+    config.profile = 'full';
     saveGlobalConfig(config);
 
     const result = getGlobalConfig();
-    expect(result.profile).toBe('core');
-    expect(result.delivery).toBe('skills'); // preserved
-    expect(result.workflows).toEqual(['propose', 'explore', 'apply', 'sync', 'archive']);
+    expect(result.profile).toBe('full');
+    expect(result.delivery).toBe('skills');
   });
 
-  it('custom workflow selection should set profile to custom', async () => {
+  it('switching to a different predefined profile should update profile name', async () => {
     const { getGlobalConfig, saveGlobalConfig } = await import('../../src/core/global-config.js');
-    const { CORE_WORKFLOWS } = await import('../../src/core/profiles.js');
 
-    // Simulate custom selection that differs from core
-    const selectedWorkflows = ['explore', 'new', 'apply', 'ff', 'verify'];
-    const isCoreMatch =
-      selectedWorkflows.length === CORE_WORKFLOWS.length &&
-      CORE_WORKFLOWS.every((w: string) => selectedWorkflows.includes(w));
+    saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both' });
 
-    expect(isCoreMatch).toBe(false);
-
-    saveGlobalConfig({
-      featureFlags: {},
-      profile: isCoreMatch ? 'core' : 'custom',
-      delivery: 'both',
-      workflows: selectedWorkflows,
-    });
+    const config = getGlobalConfig();
+    config.profile = 'trello';
+    saveGlobalConfig(config);
 
     const result = getGlobalConfig();
-    expect(result.profile).toBe('custom');
-    expect(result.workflows).toEqual(selectedWorkflows);
+    expect(result.profile).toBe('trello');
   });
 
-  it('selecting exactly core workflows should set profile to core', async () => {
-    const { CORE_WORKFLOWS } = await import('../../src/core/profiles.js');
+  it('isValidProfile should identify predefined profiles correctly', async () => {
+    const { isValidProfile } = await import('../../src/core/profiles.js');
 
-    const selectedWorkflows = [...CORE_WORKFLOWS];
-    const isCoreMatch =
-      selectedWorkflows.length === CORE_WORKFLOWS.length &&
-      CORE_WORKFLOWS.every((w: string) => selectedWorkflows.includes(w));
-
-    expect(isCoreMatch).toBe(true);
+    expect(isValidProfile('core')).toBe(true);
+    expect(isValidProfile('full')).toBe(true);
+    expect(isValidProfile('trello')).toBe(true);
+    expect(isValidProfile('custom')).toBe(false);
+    expect(isValidProfile('unknown')).toBe(false);
   });
 
   it('config schema should validate profile and delivery values', async () => {
     const { validateConfig } = await import('../../src/core/config-schema.js');
 
     expect(validateConfig({ featureFlags: {}, profile: 'core', delivery: 'both' }).success).toBe(true);
-    expect(validateConfig({ featureFlags: {}, profile: 'custom', delivery: 'skills' }).success).toBe(true);
-    expect(validateConfig({ featureFlags: {}, profile: 'custom', delivery: 'commands', workflows: ['explore'] }).success).toBe(true);
+    expect(validateConfig({ featureFlags: {}, profile: 'full', delivery: 'skills' }).success).toBe(true);
+    expect(validateConfig({ featureFlags: {}, profile: 'trello', delivery: 'commands' }).success).toBe(true);
   });
 
-  it('config schema should reject invalid profile values', async () => {
+  it('config schema should accept any string as profile value', async () => {
     const { validateConfig } = await import('../../src/core/config-schema.js');
 
-    const result = validateConfig({ featureFlags: {}, profile: 'invalid' });
-    expect(result.success).toBe(false);
+    const result = validateConfig({ featureFlags: {}, profile: 'any-string' });
+    expect(result.success).toBe(true);
   });
 
   it('config schema should reject invalid delivery values', async () => {

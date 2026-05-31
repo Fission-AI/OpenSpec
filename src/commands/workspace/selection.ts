@@ -1,4 +1,4 @@
-﻿import {
+import {
   findWorkspaceRoot,
   listKnownWorkspaceEntries,
   readWorkspaceViewState,
@@ -30,7 +30,7 @@ function workspaceNotInKnownViewsWarning(): WorkspaceStatus {
     'This workspace is not in the managed local workspace views list.',
     {
       target: 'workspace.root',
-      fix: 'Use pastelsdd workspace list to inspect managed workspace views.',
+      fix: 'Use pscode workspace list to inspect managed workspace views.',
     }
   );
 }
@@ -77,11 +77,11 @@ export async function selectWorkspaceRootForCommand(
 
   if (!currentWorkspaceRoot) {
     throw new WorkspaceCliError(
-      `No Pastelsdd workspace found at '${workspaceRoot}'.`,
+      `No Pscode workspace found at '${workspaceRoot}'.`,
       'workspace_not_found',
       {
         target: 'workspace.root',
-        fix: 'Pass a path inside an Pastelsdd workspace.',
+        fix: 'Pass a path inside an Pscode workspace.',
       }
     );
   }
@@ -102,11 +102,11 @@ export async function selectWorkspaceForCommand(
 
     if (!entry) {
       throw new WorkspaceCliError(
-        `Unknown Pastelsdd workspace '${workspaceName}'.`,
+        `Unknown Pscode workspace '${workspaceName}'.`,
         'workspace_not_found',
         {
           target: 'workspace.name',
-          fix: 'Run pastelsdd workspace list to see known workspaces.',
+          fix: 'Run pscode workspace list to see known workspaces.',
         }
       );
     }
@@ -127,11 +127,11 @@ export async function selectWorkspaceForCommand(
 
   if (entries.length === 0) {
     throw new WorkspaceCliError(
-      "No known Pastelsdd workspaces. Run 'pastelsdd workspace setup' first.\nAfter at least one workspace is known locally, you can also pass --workspace <name>.",
+      "No known Pscode workspaces. Run 'pscode workspace setup' first.\nAfter at least one workspace is known locally, you can also pass --workspace <name>.",
       'no_known_workspaces',
       {
         target: 'workspace.name',
-        fix: 'pastelsdd workspace setup',
+        fix: 'pscode workspace setup',
       }
     );
   }
@@ -151,13 +151,13 @@ export async function selectWorkspaceForCommand(
     const knownNames = entries.map((entry) => entry.name).join(', ');
     const usesPositionalName = selectionOptions.preferPositionalName;
     const fix = usesPositionalName
-      ? `pastelsdd workspace ${commandName} <name>`
-      : `pastelsdd workspace ${commandName} --workspace <name>`;
+      ? `pscode workspace ${commandName} <name>`
+      : `pscode workspace ${commandName} --workspace <name>`;
 
     throw new WorkspaceCliError(
       usesPositionalName
-        ? `Multiple Pastelsdd workspaces are known. Known workspaces: ${knownNames}. Pass a workspace name.`
-        : `Multiple Pastelsdd workspaces are known. Known workspaces: ${knownNames}. Pass --workspace <name>.`,
+        ? `Multiple Pscode workspaces are known. Known workspaces: ${knownNames}. Pass a workspace name.`
+        : `Multiple Pscode workspaces are known. Known workspaces: ${knownNames}. Pass --workspace <name>.`,
       'workspace_selection_ambiguous',
       {
         target: 'workspace.name',
@@ -178,11 +178,11 @@ export async function selectWorkspaceForCommand(
 
   if (!selectedEntry) {
     throw new WorkspaceCliError(
-      `Unknown Pastelsdd workspace '${selectedName}'.`,
+      `Unknown Pscode workspace '${selectedName}'.`,
       'workspace_not_found',
       {
         target: 'workspace.name',
-        fix: 'Run pastelsdd workspace list to see known workspaces.',
+        fix: 'Run pscode workspace list to see known workspaces.',
       }
     );
   }

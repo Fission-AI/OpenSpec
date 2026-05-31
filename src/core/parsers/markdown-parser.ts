@@ -1,4 +1,4 @@
-﻿import { Spec, Change, Requirement, Scenario, Delta, DeltaOperation } from '../schemas/index.js';
+import { Spec, Change, Requirement, Scenario, Delta, DeltaOperation } from '../schemas/index.js';
 
 export interface Section {
   level: number;
@@ -93,7 +93,7 @@ export class MarkdownParser {
       requirements,
       metadata: {
         version: '1.0.0',
-        format: 'pastelsdd',
+        format: 'pscode',
       },
     };
   }
@@ -120,7 +120,7 @@ export class MarkdownParser {
       deltas,
       metadata: {
         version: '1.0.0',
-        format: 'pastelsdd-change',
+        format: 'pscode-change',
       },
     };
   }

@@ -1,7 +1,7 @@
-﻿/**
+/**
  * Update Command
  *
- * Refreshes Pastelsdd skills and commands for configured tools.
+ * Refreshes Pscode skills and commands for configured tools.
  * Supports profile-aware updates, delivery changes, migration, and smart update detection.
  */
 
@@ -12,7 +12,7 @@ import * as fs from 'fs';
 import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { transformToHyphenCommands } from '../utils/command-references.js';
-import { AI_TOOLS, PASTELSDD_DIR_NAME } from './config.js';
+import { AI_TOOLS, PSCODE_DIR_NAME } from './config.js';
 import {
   generateCommands,
   CommandAdapterRegistry,
@@ -34,8 +34,8 @@ import {
   type LegacyDetectionResult,
 } from './legacy-cleanup.js';
 import { isInteractive } from '../utils/interactive.js';
-import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
-import { getProfileWorkflows, ALL_WORKFLOWS } from './profiles.js';
+import { getGlobalConfig, type Delivery } from './global-config.js';
+import { getProfileWorkflows, isValidProfile, DEFAULT_PROFILE, type ProfileName, PROFILES, ALL_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
 import {
   WORKFLOW_TO_SKILL_DIR,
@@ -49,8 +49,7 @@ import {
 } from './migration.js';
 
 const require = createRequire(import.meta.url);
-const { version: PASTELSDD_VERSION } = require('../../package.json');
-const OLD_CORE_WORKFLOWS = ['propose', 'explore', 'apply', 'archive'] as const;
+const { version: PSCODE_VERSION } = require('../../package.json');
 
 /**
  * Options for the update command.
@@ -82,11 +81,11 @@ export class UpdateCommand {
 
   async execute(projectPath: string): Promise<void> {
     const resolvedProjectPath = path.resolve(projectPath);
-    const pastelsddPath = path.join(resolvedProjectPath, PASTELSDD_DIR_NAME);
+    const pscodePath = path.join(resolvedProjectPath, PSCODE_DIR_NAME);
 
-    // 1. Check pastelsdd directory exists
-    if (!await FileSystemUtils.directoryExists(pastelsddPath)) {
-      throw new Error(`No Pastelsdd directory found. Run 'pastelsdd init' first.`);
+    // 1. Check pscode directory exists
+    if (!await FileSystemUtils.directoryExists(pscodePath)) {
+      throw new Error(`No Pscode directory found. Run 'pscode init' first.`);
     }
 
     // 2. Perform one-time migration if needed before any legacy upgrade generation.
@@ -96,15 +95,9 @@ export class UpdateCommand {
 
     // 3. Read global config for profile/delivery
     const globalConfig = getGlobalConfig();
-    const profile = globalConfig.profile ?? 'core';
+    const profile: ProfileName = isValidProfile(globalConfig.profile ?? '') ? globalConfig.profile as ProfileName : DEFAULT_PROFILE;
     const delivery: Delivery = globalConfig.delivery ?? 'both';
-    const profileWorkflows = getProfileWorkflows(profile, globalConfig.workflows);
-    // Trello workflows are always included regardless of profile, mirroring InitCommand behavior.
-    const TRELLO_WORKFLOWS = ['trello-setup', 'task', 'draft'] as const;
-    const workflowsSet = new Set([...profileWorkflows, ...TRELLO_WORKFLOWS]);
-    const desiredWorkflows = [...workflowsSet].filter((workflow): workflow is (typeof ALL_WORKFLOWS)[number] =>
-      (ALL_WORKFLOWS as readonly string[]).includes(workflow)
-    );
+    const desiredWorkflows = [...getProfileWorkflows(profile)];
     const shouldGenerateSkills = delivery !== 'commands';
     const shouldGenerateCommands = delivery !== 'skills';
 
@@ -120,7 +113,7 @@ export class UpdateCommand {
 
     if (configuredTools.length === 0 && newlyConfiguredTools.length === 0) {
       console.log(chalk.yellow('No configured tools found.'));
-      console.log(chalk.dim('Run "pastelsdd init" to set up tools.'));
+      console.log(chalk.dim('Run "pscode init" to set up tools.'));
       return;
     }
 
@@ -128,7 +121,7 @@ export class UpdateCommand {
     const commandConfiguredTools = getCommandConfiguredTools(resolvedProjectPath);
     const commandConfiguredSet = new Set(commandConfiguredTools);
     const toolStatuses = configuredTools.map((toolId) => {
-      const status = getToolVersionStatus(resolvedProjectPath, toolId, PASTELSDD_VERSION);
+      const status = getToolVersionStatus(resolvedProjectPath, toolId, PSCODE_VERSION);
       if (!status.configured && commandConfiguredSet.has(toolId)) {
         return { ...status, configured: true };
       }
@@ -159,7 +152,6 @@ export class UpdateCommand {
       // Still check for new tool directories and extra workflows
       this.detectNewTools(resolvedProjectPath, configuredTools);
       this.displayExtraWorkflowsNote(resolvedProjectPath, configuredTools, desiredWorkflows);
-      this.displayOldCoreCustomProfileNote(profile, globalConfig.workflows);
       return;
     }
 
@@ -201,7 +193,7 @@ export class UpdateCommand {
 
             // Use hyphen-based command references for OpenCode
             const transformer = (tool.value === 'opencode' || tool.value === 'pi') ? transformToHyphenCommands : undefined;
-            const skillContent = generateSkillContent(template, PASTELSDD_VERSION, transformer);
+            const skillContent = generateSkillContent(template, PSCODE_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
 
@@ -251,7 +243,7 @@ export class UpdateCommand {
     // 11. Summary
     console.log();
     if (updatedTools.length > 0) {
-      console.log(chalk.green(`✓ Updated: ${updatedTools.join(', ')} (v${PASTELSDD_VERSION})`));
+      console.log(chalk.green(`✓ Updated: ${updatedTools.join(', ')} (v${PSCODE_VERSION})`));
     }
     if (failedTools.length > 0) {
       console.log(chalk.red(`✗ Failed: ${failedTools.map(f => `${f.name} (${f.error})`).join(', ')}`));
@@ -273,11 +265,11 @@ export class UpdateCommand {
     if (newlyConfiguredTools.length > 0) {
       console.log();
       console.log(chalk.bold('Getting started:'));
-      console.log('  /pstl:new       Start a new change');
-      console.log('  /pstl:continue  Create the next artifact');
-      console.log('  /pstl:apply     Implement tasks');
+      console.log('  /ps:new       Start a new change');
+      console.log('  /ps:continue  Create the next artifact');
+      console.log('  /ps:apply     Implement tasks');
       console.log();
-      console.log(`Learn more: ${chalk.cyan('https://github.com/thiagodiogo/Pastelsdd')}`);
+      console.log(`Learn more: ${chalk.cyan('https://github.com/thiagodiogo/Pscode')}`);
     }
 
     const configuredAndNewTools = [...new Set([...configuredTools, ...newlyConfiguredTools])];
@@ -287,7 +279,6 @@ export class UpdateCommand {
 
     // 14. Display note about extra workflows not in profile
     this.displayExtraWorkflowsNote(resolvedProjectPath, configuredAndNewTools, desiredWorkflows);
-    this.displayOldCoreCustomProfileNote(profile, globalConfig.workflows);
 
     // 15. List affected tools
     if (updatedTools.length > 0) {
@@ -304,7 +295,7 @@ export class UpdateCommand {
    */
   private displayUpToDateMessage(toolStatuses: ToolVersionStatus[]): void {
     const toolNames = toolStatuses.map((s) => s.toolId);
-    console.log(chalk.green(`✓ All ${toolStatuses.length} tool(s) up to date (v${PASTELSDD_VERSION})`));
+    console.log(chalk.green(`✓ All ${toolStatuses.length} tool(s) up to date (v${PSCODE_VERSION})`));
     console.log(chalk.dim(`  Tools: ${toolNames.join(', ')}`));
     console.log();
     console.log(chalk.dim('Use --force to refresh files anyway.'));
@@ -322,7 +313,7 @@ export class UpdateCommand {
       const status = statusByTool.get(toolId);
       if (status?.needsUpdate) {
         const fromVersion = status.generatedByVersion ?? 'unknown';
-        return `${status.toolId} (${fromVersion} → ${PASTELSDD_VERSION})`;
+        return `${status.toolId} (${fromVersion} → ${PSCODE_VERSION})`;
       }
       return `${toolId} (config sync)`;
     });
@@ -352,14 +343,14 @@ export class UpdateCommand {
       console.log();
       console.log(
         chalk.yellow(
-          `Detected new ${toolNoun}: ${newToolNames.join(', ')}. Run 'pastelsdd init' to add ${pronoun}.`
+          `Detected new ${toolNoun}: ${newToolNames.join(', ')}. Run 'pscode init' to add ${pronoun}.`
         )
       );
     }
   }
 
   /**
-   * Displays a note about extra workflows installed that aren't in the current profile.
+   * Displays a note about extra workflows installed that aren't in the active profile.
    */
   private displayExtraWorkflowsNote(
     projectPath: string,
@@ -371,30 +362,8 @@ export class UpdateCommand {
     const extraWorkflows = installedWorkflows.filter((w) => !profileSet.has(w));
 
     if (extraWorkflows.length > 0) {
-      console.log(chalk.dim(`Note: ${extraWorkflows.length} extra workflows not in profile (use \`pastelsdd config profile\` to manage)`));
+      console.log(chalk.dim(`Note: ${extraWorkflows.length} extra workflows not in profile (use \`pscode config profile\` to switch profiles)`));
     }
-  }
-
-  /**
-   * Suggest opting back into core when a custom profile still matches the old
-   * pre-sync core set. Keep custom profiles user-owned; do not mutate them.
-   */
-  private displayOldCoreCustomProfileNote(profile: Profile, workflows?: readonly string[]): void {
-    if (profile !== 'custom' || !workflows) {
-      return;
-    }
-
-    const workflowSet = new Set(workflows);
-    const matchesOldCore =
-      workflowSet.size === OLD_CORE_WORKFLOWS.length &&
-      OLD_CORE_WORKFLOWS.every((workflow) => workflowSet.has(workflow));
-
-    if (!matchesOldCore) {
-      return;
-    }
-
-    console.log(chalk.dim('Note: The core profile now includes sync. Your custom profile is preserving the old core workflow set.'));
-    console.log(chalk.dim('Run `pastelsdd config profile core` and then `pastelsdd update` to add sync.'));
   }
 
   /**
@@ -517,7 +486,7 @@ export class UpdateCommand {
   }
 
   /**
-   * Detect and handle legacy Pastelsdd artifacts.
+   * Detect and handle legacy Pscode artifacts.
    * Unlike init, update warns but continues if legacy files found in non-interactive mode.
    * Returns array of tool IDs that were newly configured during legacy upgrade.
    */
@@ -695,7 +664,7 @@ export class UpdateCommand {
 
             // Use hyphen-based command references for OpenCode
             const transformer = (tool.value === 'opencode' || tool.value === 'pi') ? transformToHyphenCommands : undefined;
-            const skillContent = generateSkillContent(template, PASTELSDD_VERSION, transformer);
+            const skillContent = generateSkillContent(template, PSCODE_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
         }

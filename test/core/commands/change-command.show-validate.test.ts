@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { ChangeCommand } from '../../../src/commands/change.js';
 import path from 'path';
 import { promises as fs } from 'fs';
@@ -13,8 +13,8 @@ describe('ChangeCommand.show/validate', () => {
   beforeAll(async () => {
     cmd = new ChangeCommand();
     originalCwd = process.cwd();
-    tempRoot = path.join(os.tmpdir(), `pastelsdd-change-command-${Date.now()}`);
-    const changesDir = path.join(tempRoot, 'pastelsdd', 'changes', 'sample-change');
+    tempRoot = path.join(os.tmpdir(), `pscode-change-command-${Date.now()}`);
+    const changesDir = path.join(tempRoot, 'pscode', 'changes', 'sample-change');
     await fs.mkdir(changesDir, { recursive: true });
     const proposal = `# Change: Sample Change\n\n## Why\nConsistency in tests.\n\n## What Changes\n- **auth:** Add requirement`;
     await fs.writeFile(path.join(changesDir, 'proposal.md'), proposal, 'utf-8');

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Claude Code Command Adapter
  *
  * Formats commands for Claude Code following its frontmatter specification.
@@ -32,14 +32,14 @@ function formatTagsArray(tags: string[]): string {
 
 /**
  * Claude Code adapter for command generation.
- * File path: .claude/commands/pstl/<id>.md
+ * File path: .claude/commands/ps/<id>.md
  * Frontmatter: name, description, category, tags
  */
 export const claudeAdapter: ToolCommandAdapter = {
   toolId: 'claude',
 
   getFilePath(commandId: string): string {
-    return path.join('.claude', 'commands', 'pstl', `${commandId}.md`);
+    return path.join('.claude', 'commands', 'ps', `${commandId}.md`);
   },
 
   formatFile(content: CommandContent): string {

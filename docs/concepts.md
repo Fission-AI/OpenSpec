@@ -1,10 +1,10 @@
-﻿# Concepts
+# Concepts
 
-This guide explains the core ideas behind Pastelsdd and how they fit together. For practical usage, see [Getting Started](getting-started.md) and [Workflows](workflows.md).
+This guide explains the core ideas behind Pscode and how they fit together. For practical usage, see [Getting Started](getting-started.md) and [Workflows](workflows.md).
 
 ## Philosophy
 
-Pastelsdd is built around four principles:
+Pscode is built around four principles:
 
 ```
 fluid not rigid         — no phase gates, work on what makes sense
@@ -15,21 +15,21 @@ brownfield-first        — works with existing codebases, not just greenfield
 
 ### Why These Principles Matter
 
-**Fluid not rigid.** Traditional spec systems lock you into phases: first you plan, then you implement, then you're done. Pastelsdd is more flexible — you can create artifacts in any order that makes sense for your work.
+**Fluid not rigid.** Traditional spec systems lock you into phases: first you plan, then you implement, then you're done. Pscode is more flexible — you can create artifacts in any order that makes sense for your work.
 
-**Iterative not waterfall.** Requirements change. Understanding deepens. What seemed like a good approach at the start might not hold up after you see the codebase. Pastelsdd embraces this reality.
+**Iterative not waterfall.** Requirements change. Understanding deepens. What seemed like a good approach at the start might not hold up after you see the codebase. Pscode embraces this reality.
 
-**Easy not complex.** Some spec frameworks require extensive setup, rigid formats, or heavyweight processes. Pastelsdd stays out of your way. Initialize in seconds, start working immediately, customize only if you need to.
+**Easy not complex.** Some spec frameworks require extensive setup, rigid formats, or heavyweight processes. Pscode stays out of your way. Initialize in seconds, start working immediately, customize only if you need to.
 
-**Brownfield-first.** Most software work isn't building from scratch — it's modifying existing systems. Pastelsdd's delta-based approach makes it easy to specify changes to existing behavior, not just describe new systems.
+**Brownfield-first.** Most software work isn't building from scratch — it's modifying existing systems. Pscode's delta-based approach makes it easy to specify changes to existing behavior, not just describe new systems.
 
 ## The Big Picture
 
-Pastelsdd organizes your work into two main areas:
+Pscode organizes your work into two main areas:
 
 ```
 ┌────────────────────────────────────────────────────────────────────┐
-│                        pastelsdd/                                   │
+│                        pscode/                                   │
 │                                                                    │
 │   ┌─────────────────────┐      ┌───────────────────────────────┐   │
 │   │       specs/        │      │         changes/              │   │
@@ -55,7 +55,7 @@ Workspace support is in beta. The local-view model below is the current directio
 
 The commands below provide the first setup flow for opening local views over linked repos or folders.
 
-Repo-local Pastelsdd projects are the right default when one repo owns the planning, implementation, and archive flow. Some work spans several repos or folders. For that case, an Pastelsdd coordination workspace is a machine-local view that keeps linked paths, opener state, and agent setup together.
+Repo-local Pscode projects are the right default when one repo owns the planning, implementation, and archive flow. Some work spans several repos or folders. For that case, an Pscode coordination workspace is a machine-local view that keeps linked paths, opener state, and agent setup together.
 
 The workspace mental model is:
 
@@ -76,16 +76,16 @@ getGlobalDataDir()/workspaces/<workspace-name>/
 └── <workspace-name>.code-workspace # Generated editor workspace file
 ```
 
-Repo-local Pastelsdd state keeps the existing shape:
+Repo-local Pscode state keeps the existing shape:
 
 ```text
 repo-root/
-└── pastelsdd/
+└── pscode/
     ├── specs/
     └── changes/
 ```
 
-That distinction matters. The workspace folder is a local coordination surface for opening and inspecting linked repos or folders. Each repo's `pastelsdd/` directory remains the home for repo-owned specs, repo-local changes, and implementation planning. Users do not need to run repo-local `pastelsdd init` inside a workspace folder.
+That distinction matters. The workspace folder is a local coordination surface for opening and inspecting linked repos or folders. Each repo's `pscode/` directory remains the home for repo-owned specs, repo-local changes, and implementation planning. Users do not need to run repo-local `pscode init` inside a workspace folder.
 
 Stable link names are how a workspace refers to repos and folders. The private workspace record keeps names such as `api`, `web`, or `checkout` and maps them to this runtime's local paths.
 
@@ -113,7 +113,7 @@ context:
     id: billing-launch
 ```
 
-Linked paths can be full repos, folders inside a large monorepo, or other existing folders. They do not need repo-local `pastelsdd/` state before they can participate in workspace planning. Later implementation, verify, or archive workflows may require more repo readiness, but planning visibility starts with the link.
+Linked paths can be full repos, folders inside a large monorepo, or other existing folders. They do not need repo-local `pscode/` state before they can participate in workspace planning. Later implementation, verify, or archive workflows may require more repo readiness, but planning visibility starts with the link.
 
 ```text
 multi-repo:
@@ -125,68 +125,68 @@ large monorepo:
   checkout -> /repos/platform/apps/checkout
 ```
 
-Managed workspaces live under the standard Pastelsdd data directory:
+Managed workspaces live under the standard Pscode data directory:
 
 ```text
 getGlobalDataDir()/workspaces
 ```
 
-That means `$XDG_DATA_HOME/pastelsdd/workspaces` when `XDG_DATA_HOME` is set, `~/.local/share/pastelsdd/workspaces` on Unix-style fallback, and `%LOCALAPPDATA%\pastelsdd\workspaces` on native Windows fallback. Native Windows shells, PowerShell, and WSL2 each keep the path strings for the runtime running Pastelsdd. This foundation does not translate between `D:\repo`, `/mnt/d/repo`, and UNC WSL paths.
+That means `$XDG_DATA_HOME/pscode/workspaces` when `XDG_DATA_HOME` is set, `~/.local/share/pscode/workspaces` on Unix-style fallback, and `%LOCALAPPDATA%\pscode\workspaces` on native Windows fallback. Native Windows shells, PowerShell, and WSL2 each keep the path strings for the runtime running Pscode. This foundation does not translate between `D:\repo`, `/mnt/d/repo`, and UNC WSL paths.
 
-Pastelsdd can still read older beta workspace roots as compatibility inputs, but managed workspaces now use the root `workspace.yaml` record above. The workspace folder remains authoritative for its own private local view.
+Pscode can still read older beta workspace roots as compatibility inputs, but managed workspaces now use the root `workspace.yaml` record above. The workspace folder remains authoritative for its own private local view.
 
-Workspace visibility is not change commitment. Set up a workspace when Pastelsdd should know which repos or folders are relevant; create a change later when you are ready to plan a feature, fix, project, or other piece of work.
+Workspace visibility is not change commitment. Set up a workspace when Pscode should know which repos or folders are relevant; create a change later when you are ready to plan a feature, fix, project, or other piece of work.
 
 Useful commands:
 
 ```bash
 # Guided setup
-pastelsdd workspace setup
+pscode workspace setup
 
 # Automation-friendly setup
-pastelsdd workspace setup --no-interactive --name platform --link /repos/api --link web=/repos/web
-pastelsdd workspace setup --no-interactive --name platform --link /repos/api --opener codex
+pscode workspace setup --no-interactive --name platform --link /repos/api --link web=/repos/web
+pscode workspace setup --no-interactive --name platform --link /repos/api --opener codex
 
 # See known workspaces from the local registry
-pastelsdd workspace list
-pastelsdd workspace ls
+pscode workspace list
+pscode workspace ls
 
 # Add or repair links for the selected workspace
-pastelsdd workspace link /repos/api
-pastelsdd workspace link api-service /repos/api
-pastelsdd workspace relink api-service /new/path/to/api
+pscode workspace link /repos/api
+pscode workspace link api-service /repos/api
+pscode workspace relink api-service /new/path/to/api
 
 # Check what this machine can resolve
-pastelsdd workspace doctor
-pastelsdd workspace doctor --workspace platform
+pscode workspace doctor
+pscode workspace doctor --workspace platform
 
 # Refresh workspace-local guidance and agent skills
-pastelsdd workspace update
-pastelsdd workspace update --workspace platform --tools codex,claude
+pscode workspace update
+pscode workspace update --workspace platform --tools codex,claude
 
 # Open the linked working set
-pastelsdd workspace open
-pastelsdd workspace open platform --agent github-copilot
-pastelsdd workspace open --editor
+pscode workspace open
+pscode workspace open platform --agent github-copilot
+pscode workspace open --editor
 
 # Open an initiative as a local workspace view
-pastelsdd workspace open --initiative billing-launch --store platform
-pastelsdd workspace open --initiative billing-launch --store-path /repos/platform-context
+pscode workspace open --initiative billing-launch --store platform
+pscode workspace open --initiative billing-launch --store-path /repos/platform-context
 ```
 
-`workspace setup` always creates the workspace in the standard workspace location, records it in the local registry, shows the workspace location, and requires at least one linked repo or folder. Interactive setup asks for a preferred opener and can install Pastelsdd skills for selected agents. Non-interactive setup stores one only when `--opener codex`, `--opener claude`, `--opener github-copilot`, or `--opener editor` is provided.
+`workspace setup` always creates the workspace in the standard workspace location, records it in the local registry, shows the workspace location, and requires at least one linked repo or folder. Interactive setup asks for a preferred opener and can install Pscode skills for selected agents. Non-interactive setup stores one only when `--opener codex`, `--opener claude`, `--opener github-copilot`, or `--opener editor` is provided.
 
-Workspace skills are installed only in the workspace root. The active global profile selects which workflow skills are generated; `--tools` selects which agents receive them. Workspace setup and update do not create slash command files even when global delivery includes commands. Run `pastelsdd workspace update` to refresh workspace-local guidance and add, refresh, or remove managed workspace-local skill directories without editing linked repos or folders.
+Workspace skills are installed only in the workspace root. The active global profile selects which workflow skills are generated; `--tools` selects which agents receive them. Workspace setup and update do not create slash command files even when global delivery includes commands. Run `pscode workspace update` to refresh workspace-local guidance and add, refresh, or remove managed workspace-local skill directories without editing linked repos or folders.
 
-Pastelsdd also maintains root workspace open files: an Pastelsdd-managed guidance block in `AGENTS.md`, a machine-local `<workspace-name>.code-workspace` file for VS Code and GitHub Copilot-in-VS-Code opens, and a specific ignore entry for that maintained `.code-workspace` file. User-authored `*.code-workspace` files remain trackable because the ignore rule targets only the maintained file.
+Pscode also maintains root workspace open files: an Pscode-managed guidance block in `AGENTS.md`, a machine-local `<workspace-name>.code-workspace` file for VS Code and GitHub Copilot-in-VS-Code opens, and a specific ignore entry for that maintained `.code-workspace` file. User-authored `*.code-workspace` files remain trackable because the ignore rule targets only the maintained file.
 
 The maintained VS Code workspace includes the coordination root as `.` plus valid linked repos or folders as additional roots. VS Code displays those entries as a multi-root workspace.
 
 `workspace open` opens the linked working set with the stored preferred opener unless `--agent <tool>` or `--editor` is passed for that one session. Passing both opener overrides is an error. Root workspace open makes linked repos and folders visible for exploration and context; implementation starts after the user explicitly asks for implementation work.
 
-`workspace link` and `workspace relink` record existing folders only; they do not create, copy, move, initialize, or edit the linked repo or folder. After a successful link or relink, Pastelsdd refreshes the managed guidance, VS Code workspace file, and ignore rule.
+`workspace link` and `workspace relink` record existing folders only; they do not create, copy, move, initialize, or edit the linked repo or folder. After a successful link or relink, Pscode refreshes the managed guidance, VS Code workspace file, and ignore rule.
 
-Workspace commands that need one workspace can run from anywhere with `--workspace <name>`. If you run them inside a workspace folder or subdirectory, Pastelsdd uses that current workspace. If several known workspaces are available and you do not pass `--workspace <name>`, human commands show a picker; `--json` and `--no-interactive` fail with a structured status error instead of prompting.
+Workspace commands that need one workspace can run from anywhere with `--workspace <name>`. If you run them inside a workspace folder or subdirectory, Pscode uses that current workspace. If several known workspaces are available and you do not pass `--workspace <name>`, human commands show a picker; `--json` and `--no-interactive` fail with a structured status error instead of prompting.
 
 Direct workspace commands support JSON output for scripts. JSON responses keep primary data in `workspace`, `workspaces`, or `link` objects and report warnings or errors in `status` arrays. Healthy objects use `status: []`.
 
@@ -197,7 +197,7 @@ Specs describe your system's behavior using structured requirements and scenario
 ### Structure
 
 ```
-pastelsdd/specs/
+pscode/specs/
 ├── auth/
 │   └── spec.md           # Authentication behavior
 ├── payments/
@@ -295,7 +295,7 @@ Quick test:
 
 ### Keep It Lightweight: Progressive Rigor
 
-Pastelsdd aims to avoid bureaucracy. Use the lightest level that still makes the change verifiable.
+Pscode aims to avoid bureaucracy. Use the lightest level that still makes the change verifiable.
 
 **Lite spec (default):**
 - Short behavior-first requirements
@@ -327,11 +327,11 @@ A change is a proposed modification to your system, packaged as a folder with ev
 ### Change Structure
 
 ```
-pastelsdd/changes/add-dark-mode/
+pscode/changes/add-dark-mode/
 ├── proposal.md           # Why and what
 ├── design.md             # How (technical approach)
 ├── tasks.md              # Implementation checklist
-├── .pastelsdd.yaml        # Change metadata (optional)
+├── .pscode.yaml        # Change metadata (optional)
 └── specs/                # Delta specs
     └── ui/
         └── spec.md       # What's changing in ui/spec.md
@@ -486,7 +486,7 @@ Tasks are the **implementation checklist** — concrete steps with checkboxes.
 
 ## Delta Specs
 
-Delta specs are the key concept that makes Pastelsdd work for brownfield development. They describe **what's changing** rather than restating the entire spec.
+Delta specs are the key concept that makes Pscode work for brownfield development. They describe **what's changing** rather than restating the entire spec.
 
 ### The Format
 
@@ -552,7 +552,7 @@ Schemas define the artifact types and their dependencies for a workflow.
 ### How Schemas Work
 
 ```yaml
-# pastelsdd/schemas/spec-driven/schema.yaml
+# pscode/schemas/spec-driven/schema.yaml
 name: spec-driven
 artifacts:
   - id: proposal
@@ -613,16 +613,16 @@ Create custom schemas for your team's workflow:
 
 ```bash
 # Create from scratch
-pastelsdd schema init research-first
+pscode schema init research-first
 
 # Or fork an existing one
-pastelsdd schema fork spec-driven research-first
+pscode schema fork spec-driven research-first
 ```
 
 **Example custom schema:**
 
 ```yaml
-# pastelsdd/schemas/research-first/schema.yaml
+# pscode/schemas/research-first/schema.yaml
 name: research-first
 artifacts:
   - id: research
@@ -649,7 +649,7 @@ Archiving completes a change by merging its delta specs into the main specs and 
 ```
 Before archive:
 
-pastelsdd/
+pscode/
 ├── specs/
 │   └── auth/
 │       └── spec.md ◄────────────────┐
@@ -665,7 +665,7 @@ pastelsdd/
 
 After archive:
 
-pastelsdd/
+pscode/
 ├── specs/
 │   └── auth/
 │       └── spec.md        # Now includes 2FA requirements
@@ -700,30 +700,30 @@ pastelsdd/
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                              PASTELSDD FLOW                                   │
+│                              PSCODE FLOW                                   │
 │                                                                              │
 │   ┌────────────────┐                                                         │
-│   │  1. START      │  /pstl:propose (core) or /pstl:new (expanded)           │
+│   │  1. START      │  /ps:propose (core) or /ps:new (expanded)           │
 │   │     CHANGE     │                                                         │
 │   └───────┬────────┘                                                         │
 │           │                                                                  │
 │           ▼                                                                  │
 │   ┌────────────────┐                                                         │
-│   │  2. CREATE     │  /pstl:ff or /pstl:continue (expanded workflow)         │
+│   │  2. CREATE     │  /ps:ff or /ps:continue (expanded workflow)         │
 │   │     ARTIFACTS  │  Creates proposal → specs → design → tasks              │
 │   │                │  (based on schema dependencies)                         │
 │   └───────┬────────┘                                                         │
 │           │                                                                  │
 │           ▼                                                                  │
 │   ┌────────────────┐                                                         │
-│   │  3. IMPLEMENT  │  /pstl:apply                                            │
+│   │  3. IMPLEMENT  │  /ps:apply                                            │
 │   │     TASKS      │  Work through tasks, checking them off                  │
 │   │                │◄──── Update artifacts as you learn                      │
 │   └───────┬────────┘                                                         │
 │           │                                                                  │
 │           ▼                                                                  │
 │   ┌────────────────┐                                                         │
-│   │  4. VERIFY     │  /pstl:verify (optional)                                │
+│   │  4. VERIFY     │  /ps:verify (optional)                                │
 │   │     WORK       │  Check implementation matches specs                     │
 │   └───────┬────────┘                                                         │
 │           │                                                                  │
@@ -759,7 +759,7 @@ pastelsdd/
 | **Scenario** | A concrete example of a requirement, typically in Given/When/Then format |
 | **Schema** | A definition of artifact types and their dependencies |
 | **Spec** | A specification describing system behavior, containing requirements and scenarios |
-| **Source of truth** | The `pastelsdd/specs/` directory, containing the current agreed-upon behavior |
+| **Source of truth** | The `pscode/specs/` directory, containing the current agreed-upon behavior |
 
 ## Next Steps
 

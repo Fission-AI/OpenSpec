@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { PowerShellInstaller } from '../../../../src/core/completions/installers/powershell-installer.js';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -12,7 +12,7 @@ describe('PowerShellInstaller', () => {
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(async () => {
-    testHomeDir = path.join(os.tmpdir(), `pastelsdd-powershell-test-${randomUUID()}`);
+    testHomeDir = path.join(os.tmpdir(), `pscode-powershell-test-${randomUUID()}`);
     await fs.mkdir(testHomeDir, { recursive: true });
     installer = new PowerShellInstaller(testHomeDir);
     originalPlatform = process.platform;
@@ -74,13 +74,13 @@ describe('PowerShellInstaller', () => {
       });
 
       const result = installer.getInstallationPath();
-      expect(result).toBe(path.join(testHomeDir, '.config', 'powershell', 'PastelsddCompletion.ps1'));
+      expect(result).toBe(path.join(testHomeDir, '.config', 'powershell', 'PscodeCompletion.ps1'));
     });
 
     it('should work with custom PROFILE environment variable', () => {
       process.env.PROFILE = path.join(testHomeDir, 'custom', 'profile.ps1');
       const result = installer.getInstallationPath();
-      expect(result).toBe(path.join(testHomeDir, 'custom', 'PastelsddCompletion.ps1'));
+      expect(result).toBe(path.join(testHomeDir, 'custom', 'PscodeCompletion.ps1'));
     });
 
     it('should return Windows path when on Windows platform', () => {
@@ -90,7 +90,7 @@ describe('PowerShellInstaller', () => {
       });
 
       const result = installer.getInstallationPath();
-      expect(result).toBe(path.join(testHomeDir, 'Documents', 'PowerShell', 'PastelsddCompletion.ps1'));
+      expect(result).toBe(path.join(testHomeDir, 'Documents', 'PowerShell', 'PscodeCompletion.ps1'));
     });
   });
 
@@ -136,26 +136,26 @@ describe('PowerShellInstaller', () => {
   });
 
   describe('configureProfile', () => {
-    const mockScriptPath = '/path/to/PastelsddCompletion.ps1';
+    const mockScriptPath = '/path/to/PscodeCompletion.ps1';
 
-    // Note: PASTELSDD_NO_AUTO_CONFIG check is now handled in the install() method,
+    // Note: PSCODE_NO_AUTO_CONFIG check is now handled in the install() method,
     // not in configureProfile() itself
 
     it('should create profile with markers when file does not exist', async () => {
-      delete process.env.PASTELSDD_NO_AUTO_CONFIG;
+      delete process.env.PSCODE_NO_AUTO_CONFIG;
       const profilePath = installer.getProfilePath();
 
       const result = await installer.configureProfile(mockScriptPath);
 
       expect(result).toBe(true);
       const content = await fs.readFile(profilePath, 'utf-8');
-      expect(content).toContain('# PASTELSDD:START');
-      expect(content).toContain('# PASTELSDD:END');
+      expect(content).toContain('# PSCODE:START');
+      expect(content).toContain('# PSCODE:END');
       expect(content).toContain(`. "${mockScriptPath}"`);
     });
 
     it('should prepend markers and config when file exists without markers', async () => {
-      delete process.env.PASTELSDD_NO_AUTO_CONFIG;
+      delete process.env.PSCODE_NO_AUTO_CONFIG;
       const profilePath = installer.getProfilePath();
       await fs.mkdir(path.dirname(profilePath), { recursive: true });
       await fs.writeFile(profilePath, '# My custom PowerShell config\nWrite-Host "Hello"');
@@ -164,8 +164,8 @@ describe('PowerShellInstaller', () => {
 
       expect(result).toBe(true);
       const content = await fs.readFile(profilePath, 'utf-8');
-      expect(content).toContain('# PASTELSDD:START');
-      expect(content).toContain('# PASTELSDD:END');
+      expect(content).toContain('# PSCODE:START');
+      expect(content).toContain('# PSCODE:END');
       expect(content).toContain(mockScriptPath);
       expect(content).toContain('# My custom PowerShell config');
       expect(content).toContain('Write-Host "Hello"');
@@ -174,14 +174,14 @@ describe('PowerShellInstaller', () => {
     // Skip on Windows: Windows has dual profile paths (PowerShell Core + Windows PowerShell 5.1),
     // so even if one profile is already configured, the second one will be configured and return true
     it.skipIf(process.platform === 'win32')('should skip configuration when script line already exists', async () => {
-      delete process.env.PASTELSDD_NO_AUTO_CONFIG;
+      delete process.env.PSCODE_NO_AUTO_CONFIG;
       const profilePath = installer.getProfilePath();
       await fs.mkdir(path.dirname(profilePath), { recursive: true });
 
       const initialContent = [
-        '# PASTELSDD:START - Pastelsdd completion (managed block, do not edit manually)',
+        '# PSCODE:START - Pscode completion (managed block, do not edit manually)',
         `. "${mockScriptPath}"`,
-        '# PASTELSDD:END',
+        '# PSCODE:END',
         '',
         '# My custom config',
         'Write-Host "Custom"',
@@ -199,7 +199,7 @@ describe('PowerShellInstaller', () => {
     });
 
     it('should preserve user content outside markers', async () => {
-      delete process.env.PASTELSDD_NO_AUTO_CONFIG;
+      delete process.env.PSCODE_NO_AUTO_CONFIG;
       const profilePath = installer.getProfilePath();
       await fs.mkdir(path.dirname(profilePath), { recursive: true });
 
@@ -207,9 +207,9 @@ describe('PowerShellInstaller', () => {
         '# User config before',
         'Set-Variable -Name "test" -Value "before"',
         '',
-        '# PASTELSDD:START',
+        '# PSCODE:START',
         '# Old config',
-        '# PASTELSDD:END',
+        '# PSCODE:END',
         '',
         '# User config after',
         'Set-Variable -Name "test" -Value "after"',
@@ -228,21 +228,21 @@ describe('PowerShellInstaller', () => {
     });
 
     it('should generate correct PowerShell syntax in config', async () => {
-      delete process.env.PASTELSDD_NO_AUTO_CONFIG;
+      delete process.env.PSCODE_NO_AUTO_CONFIG;
       const profilePath = installer.getProfilePath();
 
       await installer.configureProfile(mockScriptPath);
 
       const content = await fs.readFile(profilePath, 'utf-8');
-      expect(content).toContain('# PASTELSDD:START');
+      expect(content).toContain('# PSCODE:START');
       expect(content).toContain(`. "${mockScriptPath}"`);
-      expect(content).toContain('# PASTELSDD:END');
+      expect(content).toContain('# PSCODE:END');
     });
 
     // Skip on Windows: fs.chmod() doesn't reliably restrict write access on Windows
     // (admin users can bypass read-only attribute, and CI runners often have elevated privileges)
     it.skipIf(process.platform === 'win32')('should return false on write permission error', async () => {
-      delete process.env.PASTELSDD_NO_AUTO_CONFIG;
+      delete process.env.PSCODE_NO_AUTO_CONFIG;
       const profilePath = installer.getProfilePath();
       await fs.mkdir(path.dirname(profilePath), { recursive: true });
       await fs.writeFile(profilePath, '# Test');
@@ -282,12 +282,12 @@ describe('PowerShellInstaller', () => {
       await fs.mkdir(path.dirname(profilePath), { recursive: true });
 
       const initialContent = [
-        '# PASTELSDD:START',
-        '# Pastelsdd completions',
+        '# PSCODE:START',
+        '# Pscode completions',
         'if (Test-Path "/path") {',
         '    . "/path"',
         '}',
-        '# PASTELSDD:END',
+        '# PSCODE:END',
         '',
         '# My config',
       ].join('\n');
@@ -298,9 +298,9 @@ describe('PowerShellInstaller', () => {
 
       expect(result).toBe(true);
       const content = await fs.readFile(profilePath, 'utf-8');
-      expect(content).not.toContain('# PASTELSDD:START');
-      expect(content).not.toContain('# PASTELSDD:END');
-      expect(content).not.toContain('# Pastelsdd completions');
+      expect(content).not.toContain('# PSCODE:START');
+      expect(content).not.toContain('# PSCODE:END');
+      expect(content).not.toContain('# Pscode completions');
       expect(content).toContain('# My config');
     });
 
@@ -310,9 +310,9 @@ describe('PowerShellInstaller', () => {
 
       const initialContent = [
         '# User config',
-        '# PASTELSDD:START',
+        '# PSCODE:START',
         '# Config',
-        '# PASTELSDD:END',
+        '# PSCODE:END',
         '',
         '',
       ].join('\n');
@@ -332,9 +332,9 @@ describe('PowerShellInstaller', () => {
 
       const initialContent = [
         '# Before',
-        '# PASTELSDD:START',
-        '# Pastelsdd',
-        '# PASTELSDD:END',
+        '# PSCODE:START',
+        '# Pscode',
+        '# PSCODE:END',
         '# After',
       ].join('\n');
 
@@ -353,9 +353,9 @@ describe('PowerShellInstaller', () => {
       await fs.mkdir(path.dirname(profilePath), { recursive: true });
 
       const initialContent = [
-        '# PASTELSDD:END',
+        '# PSCODE:END',
         '# Config',
-        '# PASTELSDD:START',
+        '# PSCODE:START',
       ].join('\n');
 
       await fs.writeFile(profilePath, initialContent);
@@ -367,26 +367,26 @@ describe('PowerShellInstaller', () => {
   });
 
   describe('install', () => {
-    const mockCompletionScript = `# PowerShell completion script for Pastelsdd
-$pastelsddCompleter = {
+    const mockCompletionScript = `# PowerShell completion script for Pscode
+$pscodeCompleter = {
     param($wordToComplete, $commandAst, $cursorPosition)
     # Completion logic here
 }
-Register-ArgumentCompleter -CommandName pastelsdd -ScriptBlock $pastelsddCompleter
+Register-ArgumentCompleter -CommandName pscode -ScriptBlock $pscodeCompleter
 `;
 
     it('should install completion script for the first time', async () => {
-      delete process.env.PASTELSDD_NO_AUTO_CONFIG;
+      delete process.env.PSCODE_NO_AUTO_CONFIG;
       const result = await installer.install(mockCompletionScript);
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('installed');
-      expect(result.installedPath).toContain('PastelsddCompletion.ps1');
+      expect(result.installedPath).toContain('PscodeCompletion.ps1');
       expect(result.backupPath).toBeUndefined();
     });
 
     it('should create parent directories if they do not exist', async () => {
-      delete process.env.PASTELSDD_NO_AUTO_CONFIG;
+      delete process.env.PSCODE_NO_AUTO_CONFIG;
       const result = await installer.install(mockCompletionScript);
 
       expect(result.success).toBe(true);
@@ -396,7 +396,7 @@ Register-ArgumentCompleter -CommandName pastelsdd -ScriptBlock $pastelsddComplet
     });
 
     it('should write completion script content correctly', async () => {
-      delete process.env.PASTELSDD_NO_AUTO_CONFIG;
+      delete process.env.PSCODE_NO_AUTO_CONFIG;
       await installer.install(mockCompletionScript);
 
       const targetPath = installer.getInstallationPath();
@@ -405,7 +405,7 @@ Register-ArgumentCompleter -CommandName pastelsdd -ScriptBlock $pastelsddComplet
     });
 
     it('should detect when already installed with same content', async () => {
-      delete process.env.PASTELSDD_NO_AUTO_CONFIG;
+      delete process.env.PSCODE_NO_AUTO_CONFIG;
       await installer.install(mockCompletionScript);
 
       const result = await installer.install(mockCompletionScript);
@@ -416,7 +416,7 @@ Register-ArgumentCompleter -CommandName pastelsdd -ScriptBlock $pastelsddComplet
     });
 
     it('should update when content is different', async () => {
-      delete process.env.PASTELSDD_NO_AUTO_CONFIG;
+      delete process.env.PSCODE_NO_AUTO_CONFIG;
       await installer.install(mockCompletionScript);
 
       const updatedScript = mockCompletionScript + '\n# Updated version';
@@ -428,7 +428,7 @@ Register-ArgumentCompleter -CommandName pastelsdd -ScriptBlock $pastelsddComplet
     });
 
     it('should create backup when updating existing installation', async () => {
-      delete process.env.PASTELSDD_NO_AUTO_CONFIG;
+      delete process.env.PSCODE_NO_AUTO_CONFIG;
       await installer.install(mockCompletionScript);
 
       const updatedScript = mockCompletionScript + '\n# Updated';
@@ -443,7 +443,7 @@ Register-ArgumentCompleter -CommandName pastelsdd -ScriptBlock $pastelsddComplet
     });
 
     it('should configure PowerShell profile when not disabled', async () => {
-      delete process.env.PASTELSDD_NO_AUTO_CONFIG;
+      delete process.env.PSCODE_NO_AUTO_CONFIG;
       const result = await installer.install(mockCompletionScript);
 
       expect(result.success).toBe(true);
@@ -452,13 +452,13 @@ Register-ArgumentCompleter -CommandName pastelsdd -ScriptBlock $pastelsddComplet
       expect(result.instructions).toBeUndefined();
     });
 
-    // Note: PASTELSDD_NO_AUTO_CONFIG support was removed from PowerShell installer
+    // Note: PSCODE_NO_AUTO_CONFIG support was removed from PowerShell installer
     // Profile is now always auto-configured if possible
 
     // Skip on Windows: fs.chmod() doesn't reliably restrict write access on Windows
     // (admin users can bypass read-only attribute, and CI runners often have elevated privileges)
     it.skipIf(process.platform === 'win32')('should provide instructions when profile cannot be configured', async () => {
-      delete process.env.PASTELSDD_NO_AUTO_CONFIG;
+      delete process.env.PSCODE_NO_AUTO_CONFIG;
       // Make profile directory read-only to prevent configuration
       const profilePath = installer.getProfilePath();
       await fs.mkdir(path.dirname(profilePath), { recursive: true });
@@ -477,7 +477,7 @@ Register-ArgumentCompleter -CommandName pastelsdd -ScriptBlock $pastelsddComplet
     });
 
     it('should include backup path in message when updating', async () => {
-      delete process.env.PASTELSDD_NO_AUTO_CONFIG;
+      delete process.env.PSCODE_NO_AUTO_CONFIG;
       await installer.install(mockCompletionScript);
 
       const updatedScript = mockCompletionScript + '\n# Updated';
@@ -489,14 +489,14 @@ Register-ArgumentCompleter -CommandName pastelsdd -ScriptBlock $pastelsddComplet
     });
 
     it('should handle installation with paths containing spaces', async () => {
-      const spacedHomeDir = path.join(os.tmpdir(), `pastelsdd powershell test ${randomUUID()}`);
+      const spacedHomeDir = path.join(os.tmpdir(), `pscode powershell test ${randomUUID()}`);
       await fs.mkdir(spacedHomeDir, { recursive: true });
 
       const spacedInstaller = new PowerShellInstaller(spacedHomeDir);
       const result = await spacedInstaller.install(mockCompletionScript);
 
       expect(result.success).toBe(true);
-      expect(result.installedPath).toContain('pastelsdd powershell test');
+      expect(result.installedPath).toContain('pscode powershell test');
 
       // Cleanup
       await fs.rm(spacedHomeDir, { recursive: true, force: true });
@@ -522,7 +522,7 @@ Register-ArgumentCompleter -CommandName pastelsdd -ScriptBlock $pastelsddComplet
     });
 
     it('should handle empty completion script', async () => {
-      delete process.env.PASTELSDD_NO_AUTO_CONFIG;
+      delete process.env.PSCODE_NO_AUTO_CONFIG;
       const result = await installer.install('');
 
       expect(result.success).toBe(true);
@@ -532,7 +532,7 @@ Register-ArgumentCompleter -CommandName pastelsdd -ScriptBlock $pastelsddComplet
     });
 
     it('should handle completion script with special characters', async () => {
-      delete process.env.PASTELSDD_NO_AUTO_CONFIG;
+      delete process.env.PSCODE_NO_AUTO_CONFIG;
       const specialScript = `# PowerShell with special chars: ' " \` $ @\n$test = "value"`;
 
       const result = await installer.install(specialScript);
@@ -545,7 +545,7 @@ Register-ArgumentCompleter -CommandName pastelsdd -ScriptBlock $pastelsddComplet
   });
 
   describe('encoding preservation', () => {
-    const mockScriptPath = '/path/to/PastelsddCompletion.ps1';
+    const mockScriptPath = '/path/to/PscodeCompletion.ps1';
     const utf16leBom = Buffer.from([0xff, 0xfe]);
     const utf8Bom = Buffer.from([0xef, 0xbb, 0xbf]);
 
@@ -566,7 +566,7 @@ Register-ArgumentCompleter -CommandName pastelsdd -ScriptBlock $pastelsddComplet
     }
 
     it('should preserve UTF-16 LE BOM when configuring profile', async () => {
-      delete process.env.PASTELSDD_NO_AUTO_CONFIG;
+      delete process.env.PSCODE_NO_AUTO_CONFIG;
       const profilePath = installer.getProfilePath();
       await fs.mkdir(path.dirname(profilePath), { recursive: true });
 
@@ -584,21 +584,21 @@ Register-ArgumentCompleter -CommandName pastelsdd -ScriptBlock $pastelsddComplet
       // Decode and verify content is intact
       const content = raw.subarray(2).toString('utf16le');
       expect(content).toContain('. "C:\\Code\\SystemConfig\\Powershell\\profile.ps1"');
-      expect(content).toContain('# PASTELSDD:START');
+      expect(content).toContain('# PSCODE:START');
       expect(content).toContain(`. "${mockScriptPath}"`);
-      expect(content).toContain('# PASTELSDD:END');
+      expect(content).toContain('# PSCODE:END');
     });
 
     it('should preserve UTF-16 LE BOM when removing profile config', async () => {
-      delete process.env.PASTELSDD_NO_AUTO_CONFIG;
+      delete process.env.PSCODE_NO_AUTO_CONFIG;
       const profilePath = installer.getProfilePath();
       await fs.mkdir(path.dirname(profilePath), { recursive: true });
 
       const textWithBlock = [
         '. "C:\\Code\\profile.ps1"',
-        '# PASTELSDD:START',
-        '. "/path/to/PastelsddCompletion.ps1"',
-        '# PASTELSDD:END',
+        '# PSCODE:START',
+        '. "/path/to/PscodeCompletion.ps1"',
+        '# PSCODE:END',
         '',
       ].join('\n');
       await writeUtf16LeFile(profilePath, textWithBlock);
@@ -611,15 +611,15 @@ Register-ArgumentCompleter -CommandName pastelsdd -ScriptBlock $pastelsddComplet
       expect(raw[0]).toBe(0xff);
       expect(raw[1]).toBe(0xfe);
 
-      // Verify content: original line kept, Pastelsdd block removed
+      // Verify content: original line kept, Pscode block removed
       const content = raw.subarray(2).toString('utf16le');
       expect(content).toContain('. "C:\\Code\\profile.ps1"');
-      expect(content).not.toContain('# PASTELSDD:START');
-      expect(content).not.toContain('# PASTELSDD:END');
+      expect(content).not.toContain('# PSCODE:START');
+      expect(content).not.toContain('# PSCODE:END');
     });
 
     it('should preserve UTF-8 BOM when configuring profile', async () => {
-      delete process.env.PASTELSDD_NO_AUTO_CONFIG;
+      delete process.env.PSCODE_NO_AUTO_CONFIG;
       const profilePath = installer.getProfilePath();
       await fs.mkdir(path.dirname(profilePath), { recursive: true });
 
@@ -635,11 +635,11 @@ Register-ArgumentCompleter -CommandName pastelsdd -ScriptBlock $pastelsddComplet
 
       const content = raw.subarray(3).toString('utf-8');
       expect(content).toContain('# My profile');
-      expect(content).toContain('# PASTELSDD:START');
+      expect(content).toContain('# PSCODE:START');
     });
 
     it('should skip UTF-16 BE profile and leave it unchanged', async () => {
-      delete process.env.PASTELSDD_NO_AUTO_CONFIG;
+      delete process.env.PSCODE_NO_AUTO_CONFIG;
       process.env.PROFILE = path.join(testHomeDir, 'custom-profile.ps1');
       const profilePath = installer.getProfilePath();
       await fs.mkdir(path.dirname(profilePath), { recursive: true });
@@ -659,7 +659,7 @@ Register-ArgumentCompleter -CommandName pastelsdd -ScriptBlock $pastelsddComplet
     });
 
     it('should handle plain UTF-8 files without BOM (no regression)', async () => {
-      delete process.env.PASTELSDD_NO_AUTO_CONFIG;
+      delete process.env.PSCODE_NO_AUTO_CONFIG;
       const profilePath = installer.getProfilePath();
       await fs.mkdir(path.dirname(profilePath), { recursive: true });
 
@@ -676,18 +676,18 @@ Register-ArgumentCompleter -CommandName pastelsdd -ScriptBlock $pastelsddComplet
 
       const content = raw.toString('utf-8');
       expect(content).toContain('# Plain UTF-8');
-      expect(content).toContain('# PASTELSDD:START');
+      expect(content).toContain('# PSCODE:START');
     });
 
     it('should round-trip UTF-16 LE through install → uninstall without corruption', async () => {
-      delete process.env.PASTELSDD_NO_AUTO_CONFIG;
+      delete process.env.PSCODE_NO_AUTO_CONFIG;
       const profilePath = installer.getProfilePath();
       await fs.mkdir(path.dirname(profilePath), { recursive: true });
 
       const originalText = '. "C:\\Code\\SystemConfig\\Powershell\\profile.ps1"\r\n';
       await writeUtf16LeFile(profilePath, originalText);
 
-      // Install adds the Pastelsdd block
+      // Install adds the Pscode block
       const mockScript = '# completion script';
       await installer.install(mockScript);
 
@@ -696,29 +696,29 @@ Register-ArgumentCompleter -CommandName pastelsdd -ScriptBlock $pastelsddComplet
       expect(raw[0]).toBe(0xff);
       expect(raw[1]).toBe(0xfe);
       let content = raw.subarray(2).toString('utf16le');
-      expect(content).toContain('# PASTELSDD:START');
+      expect(content).toContain('# PSCODE:START');
       expect(content).toContain(originalText.trimEnd());
 
-      // Uninstall removes the Pastelsdd block
+      // Uninstall removes the Pscode block
       await installer.uninstall();
 
       raw = await fs.readFile(profilePath);
       expect(raw[0]).toBe(0xff);
       expect(raw[1]).toBe(0xfe);
       content = raw.subarray(2).toString('utf16le');
-      expect(content).not.toContain('# PASTELSDD:START');
+      expect(content).not.toContain('# PSCODE:START');
       expect(content).toContain('. "C:\\Code\\SystemConfig\\Powershell\\profile.ps1"');
     });
   });
 
   describe('uninstall', () => {
     const mockCompletionScript = `# PowerShell completion script
-$pastelsddCompleter = {}
-Register-ArgumentCompleter -CommandName pastelsdd -ScriptBlock $pastelsddCompleter
+$pscodeCompleter = {}
+Register-ArgumentCompleter -CommandName pscode -ScriptBlock $pscodeCompleter
 `;
 
     it('should successfully uninstall when completion script exists', async () => {
-      delete process.env.PASTELSDD_NO_AUTO_CONFIG;
+      delete process.env.PSCODE_NO_AUTO_CONFIG;
       await installer.install(mockCompletionScript);
 
       const result = await installer.uninstall();
@@ -728,7 +728,7 @@ Register-ArgumentCompleter -CommandName pastelsdd -ScriptBlock $pastelsddComplet
     });
 
     it('should remove the completion file', async () => {
-      delete process.env.PASTELSDD_NO_AUTO_CONFIG;
+      delete process.env.PSCODE_NO_AUTO_CONFIG;
       await installer.install(mockCompletionScript);
       const targetPath = installer.getInstallationPath();
 
@@ -739,15 +739,15 @@ Register-ArgumentCompleter -CommandName pastelsdd -ScriptBlock $pastelsddComplet
     });
 
     it('should remove profile configuration', async () => {
-      delete process.env.PASTELSDD_NO_AUTO_CONFIG;
+      delete process.env.PSCODE_NO_AUTO_CONFIG;
       await installer.install(mockCompletionScript);
       const profilePath = installer.getProfilePath();
 
       await installer.uninstall();
 
       const content = await fs.readFile(profilePath, 'utf-8');
-      expect(content).not.toContain('# PASTELSDD:START');
-      expect(content).not.toContain('# PASTELSDD:END');
+      expect(content).not.toContain('# PSCODE:START');
+      expect(content).not.toContain('# PSCODE:END');
     });
 
     it('should return failure when completion script is not installed', async () => {
@@ -758,7 +758,7 @@ Register-ArgumentCompleter -CommandName pastelsdd -ScriptBlock $pastelsddComplet
     });
 
     it('should accept yes option parameter', async () => {
-      delete process.env.PASTELSDD_NO_AUTO_CONFIG;
+      delete process.env.PSCODE_NO_AUTO_CONFIG;
       await installer.install(mockCompletionScript);
 
       const result = await installer.uninstall({ yes: true });
@@ -768,7 +768,7 @@ Register-ArgumentCompleter -CommandName pastelsdd -ScriptBlock $pastelsddComplet
     });
 
     it('should handle both script and config removal', async () => {
-      delete process.env.PASTELSDD_NO_AUTO_CONFIG;
+      delete process.env.PSCODE_NO_AUTO_CONFIG;
       await installer.install(mockCompletionScript);
 
       const targetPath = installer.getInstallationPath();
@@ -778,7 +778,7 @@ Register-ArgumentCompleter -CommandName pastelsdd -ScriptBlock $pastelsddComplet
       const scriptExists = await fs.access(targetPath).then(() => true).catch(() => false);
       const profileContent = await fs.readFile(profilePath, 'utf-8');
       expect(scriptExists).toBe(true);
-      expect(profileContent).toContain('# PASTELSDD:START');
+      expect(profileContent).toContain('# PSCODE:START');
 
       await installer.uninstall();
 
@@ -786,13 +786,13 @@ Register-ArgumentCompleter -CommandName pastelsdd -ScriptBlock $pastelsddComplet
       const scriptExistsAfter = await fs.access(targetPath).then(() => true).catch(() => false);
       const profileContentAfter = await fs.readFile(profilePath, 'utf-8');
       expect(scriptExistsAfter).toBe(false);
-      expect(profileContentAfter).not.toContain('# PASTELSDD:START');
+      expect(profileContentAfter).not.toContain('# PSCODE:START');
     });
 
     // Skip on Windows: fs.chmod() on directories doesn't restrict write access on Windows
     // Windows uses ACLs which Node.js chmod doesn't control
     it.skipIf(process.platform === 'win32')('should return failure on permission error', async () => {
-      delete process.env.PASTELSDD_NO_AUTO_CONFIG;
+      delete process.env.PSCODE_NO_AUTO_CONFIG;
       await installer.install(mockCompletionScript);
       const targetPath = installer.getInstallationPath();
       const parentDir = path.dirname(targetPath);

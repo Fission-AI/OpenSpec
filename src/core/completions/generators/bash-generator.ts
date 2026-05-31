@@ -1,4 +1,4 @@
-﻿import {
+import {
   CompletionGenerator,
   CommandDefinition,
   FlagDefinition,
@@ -7,7 +7,7 @@
 import { BASH_DYNAMIC_HELPERS } from '../templates/bash-templates.js';
 
 /**
- * Generates Bash completion scripts for the Pastelsdd CLI.
+ * Generates Bash completion scripts for the Pscode CLI.
  * Follows Bash completion conventions using complete builtin and COMPREPLY array.
  */
 export class BashGenerator implements CompletionGenerator {
@@ -36,10 +36,10 @@ export class BashGenerator implements CompletionGenerator {
     const helpers = BASH_DYNAMIC_HELPERS;
 
     // Assemble final script with template literal
-    return `# Bash completion script for Pastelsdd CLI
+    return `# Bash completion script for Pscode CLI
 # Auto-generated - do not edit manually
 
-_pastelsdd_completion() {
+_pscode_completion() {
   local cur prev words cword
 
   # Use _init_completion if available (from bash-completion package)
@@ -76,7 +76,7 @@ ${commandCases}
 }
 
 ${helpers}
-complete -F _pastelsdd_completion pastelsdd
+complete -F _pscode_completion pscode
 `;
   }
 
@@ -176,16 +176,16 @@ complete -F _pastelsdd_completion pastelsdd
 
     switch (positionalType) {
       case 'change-id':
-        lines.push(`${indent}_pastelsdd_complete_changes`);
+        lines.push(`${indent}_pscode_complete_changes`);
         break;
       case 'spec-id':
-        lines.push(`${indent}_pastelsdd_complete_specs`);
+        lines.push(`${indent}_pscode_complete_specs`);
         break;
       case 'change-or-spec-id':
-        lines.push(`${indent}_pastelsdd_complete_items`);
+        lines.push(`${indent}_pscode_complete_items`);
         break;
       case 'schema-name':
-        lines.push(`${indent}_pastelsdd_complete_schemas`);
+        lines.push(`${indent}_pscode_complete_schemas`);
         break;
       case 'shell':
         lines.push(`${indent}local shells="zsh bash fish powershell"`);

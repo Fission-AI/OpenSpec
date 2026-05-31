@@ -1,4 +1,4 @@
-﻿import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import type { CommandContent, ToolCommandAdapter, GeneratedCommand } from '../../../src/core/command-generation/types.js';
 
 describe('command-generation/types', () => {
@@ -6,7 +6,7 @@ describe('command-generation/types', () => {
     it('should allow creating valid command content', () => {
       const content: CommandContent = {
         id: 'explore',
-        name: 'Pastelsdd Explore',
+        name: 'Pscode Explore',
         description: 'Enter explore mode for thinking',
         category: 'Workflow',
         tags: ['workflow', 'explore'],
@@ -14,7 +14,7 @@ describe('command-generation/types', () => {
       };
 
       expect(content.id).toBe('explore');
-      expect(content.name).toBe('Pastelsdd Explore');
+      expect(content.name).toBe('Pscode Explore');
       expect(content.description).toBe('Enter explore mode for thinking');
       expect(content.category).toBe('Workflow');
       expect(content.tags).toEqual(['workflow', 'explore']);
@@ -68,11 +68,11 @@ describe('command-generation/types', () => {
   describe('GeneratedCommand interface', () => {
     it('should represent generated command output', () => {
       const generated: GeneratedCommand = {
-        path: '.claude/commands/pstl/explore.md',
+        path: '.claude/commands/ps/explore.md',
         fileContent: '---\nname: Test\n---\n\nBody\n',
       };
 
-      expect(generated.path).toBe('.claude/commands/pstl/explore.md');
+      expect(generated.path).toBe('.claude/commands/ps/explore.md');
       expect(generated.fileContent).toContain('name: Test');
     });
   });

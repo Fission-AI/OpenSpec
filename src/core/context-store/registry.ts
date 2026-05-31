@@ -1,4 +1,4 @@
-﻿import * as fs from 'node:fs/promises';
+import * as fs from 'node:fs/promises';
 
 import {
   getContextStoreMetadataPath,
@@ -263,7 +263,7 @@ export async function resolveRegisteredContextStore(
   if (!entry) {
     throw new ContextStoreError(`Unknown context store '${id}'`, 'context_store_not_found', {
       target: 'context_store.id',
-      fix: 'Run pastelsdd context-store list to see registered stores.',
+      fix: 'Run pscode context-store list to see registered stores.',
     });
   }
 

@@ -1,11 +1,11 @@
-﻿import * as nodeFs from 'node:fs';
+import * as nodeFs from 'node:fs';
 import { createRequire } from 'node:module';
 
 import { FileSystemUtils } from '../../utils/file-system.js';
 import { transformToHyphenCommands } from '../../utils/command-references.js';
 import { AI_TOOLS, type AIToolOption } from '../config.js';
-import { getGlobalConfig, type Delivery, type Profile } from '../global-config.js';
-import { getProfileWorkflows } from '../profiles.js';
+import { getGlobalConfig, type Delivery } from '../global-config.js';
+import { getProfileWorkflows, isValidProfile, DEFAULT_PROFILE, type ProfileName } from '../profiles.js';
 import {
   generateSkillContent,
   getSkillTemplates,
@@ -16,7 +16,7 @@ import {
 import type { WorkspaceSkillState } from './foundation.js';
 
 const require = createRequire(import.meta.url);
-const { version: PASTELSDD_VERSION } = require('../../../package.json');
+const { version: PSCODE_VERSION } = require('../../../package.json');
 const fs = nodeFs.promises;
 
 export interface WorkspaceSkillAgentResult {
@@ -44,7 +44,7 @@ export interface WorkspaceSkillFailedResult {
 }
 
 export interface WorkspaceSkillInstallationReport {
-  profile: Profile;
+  profile: ProfileName;
   delivery: Delivery;
   workflow_ids: string[];
   selected_agents: string[];
@@ -59,7 +59,7 @@ export interface WorkspaceSkillInstallationReport {
 }
 
 interface WorkspaceSkillProfileContext {
-  profile: Profile;
+  profile: ProfileName;
   delivery: Delivery;
   workflowIds: string[];
   deliveryNotice: string | null;
@@ -69,9 +69,9 @@ type WorkspaceSkillCapableTool = AIToolOption & { skillsDir: string };
 
 function resolveWorkspaceSkillProfileContext(): WorkspaceSkillProfileContext {
   const globalConfig = getGlobalConfig();
-  const profile = globalConfig.profile ?? 'core';
+  const profile: ProfileName = isValidProfile(globalConfig.profile ?? '') ? globalConfig.profile as ProfileName : DEFAULT_PROFILE;
   const delivery = globalConfig.delivery ?? 'both';
-  const workflowIds = [...getProfileWorkflows(profile, globalConfig.workflows)];
+  const workflowIds = [...getProfileWorkflows(profile)];
   const deliveryNotice =
     delivery === 'skills'
       ? null
@@ -86,7 +86,7 @@ function resolveWorkspaceSkillProfileContext(): WorkspaceSkillProfileContext {
 }
 
 export function getCurrentWorkspaceSkillProfileSelection(): {
-  profile: Profile;
+  profile: ProfileName;
   delivery: Delivery;
   workflow_ids: string[];
 } {
@@ -274,7 +274,7 @@ async function pathExists(targetPath: string): Promise<boolean> {
   }
 }
 
-function isPastelsddManagedSkillDir(skillDir: string): boolean {
+function isPscodeManagedSkillDir(skillDir: string): boolean {
   const skillFile = FileSystemUtils.joinPath(skillDir, 'SKILL.md');
   return extractGeneratedByVersion(skillFile) !== null;
 }
@@ -299,7 +299,7 @@ async function removeManagedWorkflowSkillDirs(
       continue;
     }
 
-    if (!isPastelsddManagedSkillDir(skillDir)) {
+    if (!isPscodeManagedSkillDir(skillDir)) {
       continue;
     }
 
@@ -358,7 +358,7 @@ export async function generateWorkspaceAgentSkills(
 
       for (const { template, dirName } of skillTemplates) {
         const skillFile = FileSystemUtils.joinPath(skillsDir, dirName, 'SKILL.md');
-        const skillContent = generateSkillContent(template, PASTELSDD_VERSION, transformer);
+        const skillContent = generateSkillContent(template, PSCODE_VERSION, transformer);
         await FileSystemUtils.writeFile(skillFile, skillContent);
       }
 
@@ -470,7 +470,7 @@ export async function updateWorkspaceAgentSkills(
 
       for (const { template, dirName } of skillTemplates) {
         const skillFile = FileSystemUtils.joinPath(skillsDir, dirName, 'SKILL.md');
-        const skillContent = generateSkillContent(template, PASTELSDD_VERSION, transformer);
+        const skillContent = generateSkillContent(template, PSCODE_VERSION, transformer);
         await FileSystemUtils.writeFile(skillFile, skillContent);
       }
 

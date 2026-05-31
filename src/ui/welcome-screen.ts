@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Animated welcome screen for the experimental artifact workflow setup.
  * Shows side-by-side layout with animated ASCII art on left and welcome text on right.
  */
@@ -17,17 +17,17 @@ const ART_COLUMN_WIDTH = 24;
  */
 function getWelcomeText(): string[] {
   return [
-    chalk.white.bold('Welcome to Pastelsdd'),
+    chalk.white.bold('Welcome to Pscode'),
     chalk.dim('A lightweight spec-driven framework'),
     '',
     chalk.white('This setup will configure:'),
     chalk.dim('  • Agent Skills for AI tools'),
-    chalk.dim('  • /pstl:* slash commands'),
+    chalk.dim('  • /ps:* slash commands'),
     '',
     chalk.white('Quick start after setup:'),
-    `  ${chalk.yellow('/pstl:new')}      ${chalk.dim('Create a change')}`,
-    `  ${chalk.yellow('/pstl:continue')} ${chalk.dim('Next artifact')}`,
-    `  ${chalk.yellow('/pstl:apply')}    ${chalk.dim('Implement tasks')}`,
+    `  ${chalk.yellow('/ps:new')}      ${chalk.dim('Create a change')}`,
+    `  ${chalk.yellow('/ps:continue')} ${chalk.dim('Next artifact')}`,
+    `  ${chalk.yellow('/ps:apply')}    ${chalk.dim('Implement tasks')}`,
     '',
     chalk.cyan('Press Enter to select tools...'),
   ];

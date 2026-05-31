@@ -1,4 +1,4 @@
-﻿## Why
+## Why
 
 <!-- Explain the motivation for this change. What problem does this solve? Why now? -->
 
@@ -15,7 +15,7 @@
 ### Modified Capabilities
 <!-- Existing capabilities whose REQUIREMENTS are changing (not just implementation).
      Only list here if spec-level behavior changes. Each needs a delta spec file.
-     Use existing spec names from pastelsdd/specs/. Leave empty if no requirement changes. -->
+     Use existing spec names from pscode/specs/. Leave empty if no requirement changes. -->
 - `<existing-name>`: <what requirement is changing>
 
 ## Impact

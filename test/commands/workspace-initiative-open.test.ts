@@ -1,4 +1,4 @@
-﻿import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -24,14 +24,14 @@ describe('workspace open initiative views', () => {
   let env: NodeJS.ProcessEnv;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pastelsdd-workspace-initiative-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pscode-workspace-initiative-'));
     dataHome = path.join(tempDir, 'data');
     configHome = path.join(tempDir, 'config');
     env = {
       XDG_DATA_HOME: dataHome,
       XDG_CONFIG_HOME: configHome,
       OPEN_SPEC_INTERACTIVE: '0',
-      PASTELSDD_TELEMETRY: '0',
+      PSCODE_TELEMETRY: '0',
     };
     globalDataDir = getGlobalDataDir({ env });
   });
@@ -94,15 +94,15 @@ describe('workspace open initiative views', () => {
     fs.mkdirSync(binDir, { recursive: true });
     fs.writeFileSync(
       recorderPath,
-      "const fs = require('node:fs');\nfs.writeFileSync(process.env.PASTELSDD_FAKE_OPEN_LOG, JSON.stringify({ cwd: process.cwd(), args: process.argv.slice(2) }));\n"
+      "const fs = require('node:fs');\nfs.writeFileSync(process.env.PSCODE_FAKE_OPEN_LOG, JSON.stringify({ cwd: process.cwd(), args: process.argv.slice(2) }));\n"
     );
 
     const posixExecutable = path.join(binDir, name);
-    fs.writeFileSync(posixExecutable, '#!/bin/sh\nnode "$PASTELSDD_FAKE_OPEN_RECORDER" "$@"\n');
+    fs.writeFileSync(posixExecutable, '#!/bin/sh\nnode "$PSCODE_FAKE_OPEN_RECORDER" "$@"\n');
     fs.chmodSync(posixExecutable, 0o755);
     fs.writeFileSync(
       path.join(binDir, `${name}.cmd`),
-      '@echo off\r\nnode "%PASTELSDD_FAKE_OPEN_RECORDER%" %*\r\n'
+      '@echo off\r\nnode "%PSCODE_FAKE_OPEN_RECORDER%" %*\r\n'
     );
 
     return { binDir, logPath };
@@ -112,8 +112,8 @@ describe('workspace open initiative views', () => {
     return {
       ...env,
       PATH: `${fake.binDir}${path.delimiter}${process.env.PATH ?? ''}`,
-      PASTELSDD_FAKE_OPEN_RECORDER: path.join(fake.binDir, 'record-launch.cjs'),
-      PASTELSDD_FAKE_OPEN_LOG: fake.logPath,
+      PSCODE_FAKE_OPEN_RECORDER: path.join(fake.binDir, 'record-launch.cjs'),
+      PSCODE_FAKE_OPEN_LOG: fake.logPath,
     };
   }
 
@@ -231,7 +231,7 @@ describe('workspace open initiative views', () => {
         },
       })
     );
-    expect(fs.existsSync(path.join(workspaceRoot, '.pastelsdd-workspace'))).toBe(false);
+    expect(fs.existsSync(path.join(workspaceRoot, '.pscode-workspace'))).toBe(false);
     expect(fs.existsSync(path.join(globalDataDir, 'workspaces', 'registry.yaml'))).toBe(false);
     expect(fs.readFileSync(path.join(workspaceRoot, 'AGENTS.md'), 'utf-8')).toContain(
       'Initiative title: Billing Launch'

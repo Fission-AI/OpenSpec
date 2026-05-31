@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Set Change Command
  *
  * Mutates checked-in repo-local change metadata.
@@ -57,7 +57,7 @@ function outputForSetChange(
     change: {
       id,
       path: changeDir,
-      metadataPath: path.join(changeDir, '.pastelsdd.yaml'),
+      metadataPath: path.join(changeDir, '.pscode.yaml'),
       schema,
     },
     initiative,

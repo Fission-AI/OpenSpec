@@ -1,4 +1,4 @@
-﻿import { promises as fs } from 'fs';
+import { promises as fs } from 'fs';
 import path from 'path';
 import { JsonConverter } from '../core/converters/json-converter.js';
 import { Validator } from '../core/validation/validator.js';
@@ -26,7 +26,7 @@ export class ChangeCommand {
    *   Note: --requirements-only is deprecated alias for --deltas-only
    */
   async show(changeName?: string, options?: { json?: boolean; requirementsOnly?: boolean; deltasOnly?: boolean; noInteractive?: boolean }): Promise<void> {
-    const changesPath = path.join(process.cwd(), 'pastelsdd', 'changes');
+    const changesPath = path.join(process.cwd(), 'pscode', 'changes');
 
     if (!changeName) {
       const canPrompt = isInteractive(options);
@@ -44,7 +44,7 @@ export class ChangeCommand {
         } else {
           console.error(`No change specified. Available IDs: ${changes.join(', ')}`);
         }
-        console.error('Hint: use "pastelsdd change list" to view available changes.');
+        console.error('Hint: use "pscode change list" to view available changes.');
         process.exitCode = 1;
         return;
       }
@@ -95,7 +95,7 @@ export class ChangeCommand {
    * - JSON: array of { id, title, deltaCount, taskStatus }, sorted by id
    */
   async list(options?: { json?: boolean; long?: boolean }): Promise<void> {
-    const changesPath = path.join(process.cwd(), 'pastelsdd', 'changes');
+    const changesPath = path.join(process.cwd(), 'pscode', 'changes');
     
     const changes = await this.getActiveChanges(changesPath);
     
@@ -183,7 +183,7 @@ export class ChangeCommand {
   }
 
   async validate(changeName?: string, options?: { strict?: boolean; json?: boolean; noInteractive?: boolean }): Promise<void> {
-    const changesPath = path.join(process.cwd(), 'pastelsdd', 'changes');
+    const changesPath = path.join(process.cwd(), 'pscode', 'changes');
     
     if (!changeName) {
       const canPrompt = isInteractive(options);
@@ -201,7 +201,7 @@ export class ChangeCommand {
         } else {
           console.error(`No change specified. Available IDs: ${changes.join(', ')}`);
         }
-        console.error('Hint: use "pastelsdd change list" to view available changes.');
+        console.error('Hint: use "pscode change list" to view available changes.');
         process.exitCode = 1;
         return;
       }
@@ -285,7 +285,7 @@ export class ChangeCommand {
     const bullets: string[] = [];
     bullets.push('- Ensure change has deltas in specs/: use headers ## ADDED/MODIFIED/REMOVED/RENAMED Requirements');
     bullets.push('- Each requirement MUST include at least one #### Scenario: block');
-    bullets.push('- Debug parsed deltas: pastelsdd change show <id> --json --deltas-only');
+    bullets.push('- Debug parsed deltas: pscode change show <id> --json --deltas-only');
     console.error('Next steps:');
     bullets.forEach(b => console.error(`  ${b}`));
   }

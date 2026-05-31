@@ -1,12 +1,12 @@
-﻿# pastelsdd
+# pscode
 
 > Spec-driven, AI-native development workflow CLI
 
-[![npm](https://img.shields.io/npm/v/@thiagodiogo/pastelsdd)](https://www.npmjs.com/package/@thiagodiogo/pastelsdd)
-[![license](https://img.shields.io/npm/l/@thiagodiogo/pastelsdd)](LICENSE)
-[![node](https://img.shields.io/node/v/@thiagodiogo/pastelsdd)](https://nodejs.org)
+[![npm](https://img.shields.io/npm/v/@thiagodiogo/pscode)](https://www.npmjs.com/package/@thiagodiogo/pscode)
+[![license](https://img.shields.io/npm/l/@thiagodiogo/pscode)](LICENSE)
+[![node](https://img.shields.io/node/v/@thiagodiogo/pscode)](https://nodejs.org)
 
-Pastelsdd installs a planning pipeline inside your repo. Every feature goes through **proposal → specs → design → tasks → apply**, tracked as versioned files and exposed as slash commands to your AI agent.
+Pscode installs a planning pipeline inside your repo. Every feature goes through **proposal → specs → design → tasks → apply**, tracked as versioned files and exposed as slash commands to your AI agent.
 
 ---
 
@@ -20,9 +20,9 @@ Pastelsdd installs a planning pipeline inside your repo. Every feature goes thro
 ## Install
 
 ```bash
-npm install -g @thiagodiogo/pastelsdd
+npm install -g @thiagodiogo/pscode
 # or
-pnpm add -g @thiagodiogo/pastelsdd
+pnpm add -g @thiagodiogo/pscode
 ```
 
 ---
@@ -31,13 +31,13 @@ pnpm add -g @thiagodiogo/pastelsdd
 
 ```bash
 cd your-project
-pastelsdd init
+pscode init
 ```
 
 The init wizard auto-detects which AI tools you have (`.claude/`, `.cursor/`, etc.), installs skill files and slash commands, and creates the planning folder:
 
 ```
-pastelsdd/
+pscode/
 ├── changes/        ← one subfolder per active change
 │   └── archive/    ← completed changes
 ├── specs/          ← project capability specs
@@ -47,20 +47,20 @@ pastelsdd/
 Once initialized, use slash commands in your AI agent:
 
 ```
-/pstl:propose "add dark mode"   ← creates a new change
-/pstl:continue                  ← advances to the next artifact
-/pstl:apply                     ← applies pending tasks
-/pstl:archive                   ← archives a completed change
+/ps:propose "add dark mode"   ← creates a new change
+/ps:continue                  ← advances to the next artifact
+/ps:apply                     ← applies pending tasks
+/ps:archive                   ← archives a completed change
 ```
 
 ---
 
 ## How It Works
 
-Each change lives in `pastelsdd/changes/<name>/` and follows a DAG of artifacts defined by a workflow schema:
+Each change lives in `pscode/changes/<name>/` and follows a DAG of artifacts defined by a workflow schema:
 
 ```
-pastelsdd/changes/dark-mode/
+pscode/changes/dark-mode/
 ├── proposal.md    ← why this change
 ├── specs/         ← what the system must do
 ├── design.md      ← how to implement it
@@ -75,21 +75,21 @@ The AI agent reads these files at each step and generates the next artifact usin
 
 | Command | Description |
 |---------|-------------|
-| `pastelsdd init [path]` | Initialize Pastelsdd in a project |
-| `pastelsdd update [path]` | Regenerate skill/command files after an upgrade |
-| `pastelsdd list` | List active changes |
-| `pastelsdd list --specs` | List project specs |
-| `pastelsdd status` | Show artifact completion for the current change |
-| `pastelsdd instructions [artifact]` | Print enriched instructions for an artifact |
-| `pastelsdd validate [name]` | Validate a change or spec |
-| `pastelsdd validate --all` | Validate everything |
-| `pastelsdd show [name]` | Display a change or spec |
-| `pastelsdd archive [name]` | Archive a completed change |
-| `pastelsdd new change <name>` | Create a new change directory |
-| `pastelsdd schemas` | List available workflow schemas |
-| `pastelsdd view` | Interactive dashboard |
-| `pastelsdd feedback <message>` | Submit feedback |
-| `pastelsdd completion install` | Install shell completions |
+| `pscode init [path]` | Initialize Pscode in a project |
+| `pscode update [path]` | Regenerate skill/command files after an upgrade |
+| `pscode list` | List active changes |
+| `pscode list --specs` | List project specs |
+| `pscode status` | Show artifact completion for the current change |
+| `pscode instructions [artifact]` | Print enriched instructions for an artifact |
+| `pscode validate [name]` | Validate a change or spec |
+| `pscode validate --all` | Validate everything |
+| `pscode show [name]` | Display a change or spec |
+| `pscode archive [name]` | Archive a completed change |
+| `pscode new change <name>` | Create a new change directory |
+| `pscode schemas` | List available workflow schemas |
+| `pscode view` | Interactive dashboard |
+| `pscode feedback <message>` | Submit feedback |
+| `pscode completion install` | Install shell completions |
 
 ### `init` options
 
@@ -102,7 +102,7 @@ The AI agent reads these files at each step and generates the next artifact usin
 **Non-interactive example:**
 
 ```bash
-pastelsdd init --tools claude --force
+pscode init --tools claude --force
 ```
 
 ---
@@ -121,22 +121,22 @@ pastelsdd init --tools claude --force
 
 ## Migrating from OpenSpec
 
-If your project used the old `openspec` tool, `pastelsdd init` detects `.openspec/` automatically and offers to migrate your changes and specs — no manual steps needed.
+If your project used the old `openspec` tool, `pscode init` detects `.openspec/` automatically and offers to migrate your changes and specs — no manual steps needed.
 
 ---
 
 ## After Upgrading
 
-Re-run `pastelsdd init` (or `pastelsdd update`) to regenerate skill files with the latest instructions:
+Re-run `pscode init` (or `pscode update`) to regenerate skill files with the latest instructions:
 
 ```bash
-pastelsdd update
+pscode update
 ```
 
 ---
 
 ## Links
 
-- [npm](https://www.npmjs.com/package/@thiagodiogo/pastelsdd)
-- [Repository](https://github.com/eipastel/pastelsdd)
-- [Issues / Feedback](https://github.com/eipastel/pastelsdd/issues)
+- [npm](https://www.npmjs.com/package/@thiagodiogo/pscode)
+- [Repository](https://github.com/eipastel/pscode)
+- [Issues / Feedback](https://github.com/eipastel/pscode/issues)

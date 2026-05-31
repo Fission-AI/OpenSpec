@@ -1,4 +1,4 @@
-﻿import type { ChangeMetadata } from './change-metadata/index.js';
+import type { ChangeMetadata } from './change-metadata/index.js';
 import type { PlanningHome } from './planning-home.js';
 
 export interface PlanningHomeSummary {
@@ -118,7 +118,7 @@ export function buildNextSteps(input: ChangeNextStepsInput): string[] {
 
   if (readyArtifact) {
     steps.push(
-      `Run pastelsdd instructions ${readyArtifact.id} --change "${input.changeName}" --json before writing that artifact.`
+      `Run pscode instructions ${readyArtifact.id} --change "${input.changeName}" --json before writing that artifact.`
     );
   } else if (input.allArtifactsComplete) {
     steps.push('All planning artifacts are complete; review tasks before implementation.');

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Cursor Command Adapter
  *
  * Formats commands for Cursor following its frontmatter specification.
@@ -25,20 +25,20 @@ function escapeYamlValue(value: string): string {
 
 /**
  * Cursor adapter for command generation.
- * File path: .cursor/commands/pstl-<id>.md
- * Frontmatter: name (as /pstl-<id>), id, category, description
+ * File path: .cursor/commands/ps-<id>.md
+ * Frontmatter: name (as /ps-<id>), id, category, description
  */
 export const cursorAdapter: ToolCommandAdapter = {
   toolId: 'cursor',
 
   getFilePath(commandId: string): string {
-    return path.join('.cursor', 'commands', `pstl-${commandId}.md`);
+    return path.join('.cursor', 'commands', `ps-${commandId}.md`);
   },
 
   formatFile(content: CommandContent): string {
     return `---
-name: /pstl-${content.id}
-id: pstl-${content.id}
+name: /ps-${content.id}
+id: ps-${content.id}
 category: ${escapeYamlValue(content.category)}
 description: ${escapeYamlValue(content.description)}
 ---

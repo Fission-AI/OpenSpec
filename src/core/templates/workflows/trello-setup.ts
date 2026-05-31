@@ -1,8 +1,8 @@
-﻿/**
+/**
  * Trello Setup Skill / Command Template
  *
  * Guides the user through configuring Trello integration for their
- * pastelsdd workflow. Creates `pastelsdd/trello.yaml` with the board
+ * pscode workflow. Creates `pscode/trello.yaml` with the board
  * and list IDs derived from an existing board or a newly created one.
  * Also handles optional label/etiqueta creation on the board.
  */
@@ -10,21 +10,21 @@ import type { SkillTemplate, CommandTemplate } from '../types.js';
 
 export function getTrelloSetupSkillTemplate(): SkillTemplate {
   return {
-    name: 'pastelsdd-trello-setup',
+    name: 'pscode-trello-setup',
     description:
-      'Configure Trello integration for your Pastelsdd workflow. Checks MCP availability, reads or creates a Trello board, and writes pastelsdd/trello.yaml with your stage-to-list mapping.',
+      'Configure Trello integration for your Pscode workflow. Checks MCP availability, reads or creates a Trello board, and writes pscode/trello.yaml with your stage-to-list mapping.',
     instructions: getTrelloSetupInstructions(),
     license: 'MIT',
-    compatibility: 'Requires pastelsdd CLI and the Trello MCP server.',
-    metadata: { author: 'pastelsdd', version: '1.0' },
+    compatibility: 'Requires pscode CLI and the Trello MCP server.',
+    metadata: { author: 'pscode', version: '1.0' },
   };
 }
 
 function getTrelloSetupInstructions(): string {
-  return `Configure Trello integration for your Pastelsdd workflow.
+  return `Configure Trello integration for your Pscode workflow.
 
-This skill writes \`pastelsdd/trello.yaml\` — a small config file that all Trello-aware commands
-(\`/pstl:task\`, \`/pstl:draft\`, \`/pstl:propose\`, \`/pstl:apply\`, \`/pstl:archive\`) read at
+This skill writes \`pscode/trello.yaml\` — a small config file that all Trello-aware commands
+(\`/ps:task\`, \`/ps:draft\`, \`/ps:propose\`, \`/ps:apply\`, \`/ps:archive\`) read at
 runtime to know which Trello list corresponds to each workflow stage and which labels are available.
 
 ---
@@ -44,7 +44,7 @@ mcp__claude_ai_Trello_Custom__get_me
 > \`\`\`
 > claude mcp add trello <server-url>
 > \`\`\`
-> Then restart Claude Code and re-run \`/pstl:trello-setup\`.
+> Then restart Claude Code and re-run \`/ps:trello-setup\`.
 
 Stop here if MCP is unavailable.
 
@@ -52,7 +52,7 @@ Stop here if MCP is unavailable.
 
 ## Step 2 — Read existing config
 
-Use the **Read tool** (NOT a shell command) to read \`pastelsdd/trello.yaml\` from the current working directory.
+Use the **Read tool** (NOT a shell command) to read \`pscode/trello.yaml\` from the current working directory.
 The Read tool is cross-platform and works on Windows, macOS, and Linux — never use \`cat\` or shell commands to read this file.
 If the Read tool returns an error (file not found), treat it as state C (no config).
 
@@ -62,7 +62,7 @@ Parse the file content. Three possible states:
 Display the current configuration and ask: "Reconfigurar a integração Trello?" (Sim / Não).
 If "Não", stop here.
 
-### B) \`configured: false\` — partial config saved by \`pastelsdd init\`
+### B) \`configured: false\` — partial config saved by \`pscode init\`
 
 This means the user already answered the preference questions in the CLI.
 Extract the following fields:
@@ -76,7 +76,7 @@ Display:
 \`\`\`
 ## Continuando configuração do Trello
 
-Detectei preferências salvas durante o \`pastelsdd init\`:
+Detectei preferências salvas durante o \`pscode init\`:
 
   Quadro existente: <Sim/Não>
   \${hasExistingBoard ? 'Board ID: <boardId>' : 'Criar novo quadro'}
@@ -164,7 +164,7 @@ Save the chosen label keys as \`labelsToCreate\` (defaults: all four if none unc
 **(Used when \`hasExistingBoard: false\`)**
 
 1. Use **AskUserQuestion** to ask for a board name
-   (default: "Pastelsdd — <project-name inferred from directory>").
+   (default: "Pscode — <project-name inferred from directory>").
 
 2. Create the Trello board:
    \`\`\`tool
@@ -223,7 +223,7 @@ If any \`create_label\` call fails, log the error and continue — labels are au
 
 ## Step 4 — Write final configuration
 
-Assemble and write \`pastelsdd/trello.yaml\` with \`configured: true\`.
+Assemble and write \`pscode/trello.yaml\` with \`configured: true\`.
 
 Use the **Write tool** (NOT a shell command) to write the file — it is cross-platform and works on Windows, macOS, and Linux.
 
@@ -279,7 +279,7 @@ labels:
 ## ✅ Trello configurado com sucesso!
 
 **Board:** <boardName>
-**Arquivo:** pastelsdd/trello.yaml
+**Arquivo:** pscode/trello.yaml
 
 **Estágios configurados:**
   📋 backlog     → <name>
@@ -291,13 +291,13 @@ labels:
   ✨ MELHORIA
   💳 DÉBITO TÉCNICO
 
-A partir de agora, todos os comandos Pastelsdd irão sincronizar cards automaticamente.
+A partir de agora, todos os comandos Pscode irão sincronizar cards automaticamente.
 O agente irá tentar categorizar cada card com a label adequada ao criá-lo.
 
 **Próximos passos:**
-  /pstl:draft    → Registrar uma ideia no Backlog (frictionless)
-  /pstl:task     → Adicionar tarefa ao Backlog
-  /pstl:propose  → Propor uma change (cria card no Trello)
+  /ps:draft    → Registrar uma ideia no Backlog (frictionless)
+  /ps:task     → Adicionar tarefa ao Backlog
+  /ps:propose  → Propor uma change (cria card no Trello)
 \`\`\`
 
 ---
@@ -318,8 +318,8 @@ O agente irá tentar categorizar cada card com a label adequada ao criá-lo.
 
 export function getTrelloSetupCommandTemplate(): CommandTemplate {
   return {
-    name: 'Pastel: Trello Setup',
-    description: 'Configure Trello integration for your Pastelsdd workflow — checks MCP, reads or creates a board, and writes pastelsdd/trello.yaml',
+    name: 'PS: Trello Setup',
+    description: 'Configure Trello integration for your Pscode workflow — checks MCP, reads or creates a board, and writes pscode/trello.yaml',
     category: 'Setup',
     tags: ['trello', 'setup', 'integration', 'config'],
     content: getTrelloSetupInstructions(),

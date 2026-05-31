@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -26,7 +26,7 @@ describe('telemetry/index', () => {
 
   beforeEach(() => {
     // Create unique temp directory for each test using UUID
-    tempDir = path.join(os.tmpdir(), `pastelsdd-telemetry-test-${randomUUID()}`);
+    tempDir = path.join(os.tmpdir(), `pscode-telemetry-test-${randomUUID()}`);
     fs.mkdirSync(tempDir, { recursive: true });
 
     // Save original env
@@ -61,8 +61,8 @@ describe('telemetry/index', () => {
   });
 
   describe('isTelemetryEnabled', () => {
-    it('should return false when PASTELSDD_TELEMETRY=0', () => {
-      process.env.PASTELSDD_TELEMETRY = '0';
+    it('should return false when PSCODE_TELEMETRY=0', () => {
+      process.env.PSCODE_TELEMETRY = '0';
       expect(isTelemetryEnabled()).toBe(false);
     });
 
@@ -77,14 +77,14 @@ describe('telemetry/index', () => {
     });
 
     it('should return true when no opt-out is set', () => {
-      delete process.env.PASTELSDD_TELEMETRY;
+      delete process.env.PSCODE_TELEMETRY;
       delete process.env.DO_NOT_TRACK;
       delete process.env.CI;
       expect(isTelemetryEnabled()).toBe(true);
     });
 
-    it('should prioritize PASTELSDD_TELEMETRY=0 over other settings', () => {
-      process.env.PASTELSDD_TELEMETRY = '0';
+    it('should prioritize PSCODE_TELEMETRY=0 over other settings', () => {
+      process.env.PSCODE_TELEMETRY = '0';
       delete process.env.DO_NOT_TRACK;
       delete process.env.CI;
       expect(isTelemetryEnabled()).toBe(false);
@@ -93,7 +93,7 @@ describe('telemetry/index', () => {
 
   describe('maybeShowTelemetryNotice', () => {
     it('should not show notice when telemetry is disabled', async () => {
-      process.env.PASTELSDD_TELEMETRY = '0';
+      process.env.PSCODE_TELEMETRY = '0';
 
       await maybeShowTelemetryNotice();
 
@@ -103,7 +103,7 @@ describe('telemetry/index', () => {
 
   describe('trackCommand', () => {
     it('should not track when telemetry is disabled', async () => {
-      process.env.PASTELSDD_TELEMETRY = '0';
+      process.env.PSCODE_TELEMETRY = '0';
 
       await trackCommand('test', '1.0.0');
 
@@ -111,7 +111,7 @@ describe('telemetry/index', () => {
     });
 
     it('should track when telemetry is enabled', async () => {
-      delete process.env.PASTELSDD_TELEMETRY;
+      delete process.env.PSCODE_TELEMETRY;
       delete process.env.DO_NOT_TRACK;
       delete process.env.CI;
 
@@ -121,7 +121,7 @@ describe('telemetry/index', () => {
     });
 
     it('should construct PostHog with bounded silent-failure settings', async () => {
-      delete process.env.PASTELSDD_TELEMETRY;
+      delete process.env.PSCODE_TELEMETRY;
       delete process.env.DO_NOT_TRACK;
       delete process.env.CI;
 
@@ -130,7 +130,7 @@ describe('telemetry/index', () => {
       expect(PostHog).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          host: 'https://edge.pastelsdd.dev',
+          host: 'https://edge.pscode.dev',
           flushAt: 1,
           flushInterval: 0,
           fetchRetryCount: 0,
@@ -144,7 +144,7 @@ describe('telemetry/index', () => {
     });
 
     it('should return a synthetic success response when fetch throws a network error', async () => {
-      delete process.env.PASTELSDD_TELEMETRY;
+      delete process.env.PSCODE_TELEMETRY;
       delete process.env.DO_NOT_TRACK;
       delete process.env.CI;
       await trackCommand('test', '1.0.0');
@@ -152,13 +152,13 @@ describe('telemetry/index', () => {
       const fetchFn = (PostHog as any).mock.calls[0][1].fetch as typeof fetch;
       fetchSpy.mockRejectedValueOnce(new Error('network down'));
 
-      const response = await fetchFn('https://edge.pastelsdd.dev/batch/', { method: 'POST' });
+      const response = await fetchFn('https://edge.pscode.dev/batch/', { method: 'POST' });
 
       expect(response.status).toBe(204);
     });
 
     it('should return a synthetic success response when fetch aborts', async () => {
-      delete process.env.PASTELSDD_TELEMETRY;
+      delete process.env.PSCODE_TELEMETRY;
       delete process.env.DO_NOT_TRACK;
       delete process.env.CI;
       await trackCommand('test', '1.0.0');
@@ -166,13 +166,13 @@ describe('telemetry/index', () => {
       const fetchFn = (PostHog as any).mock.calls[0][1].fetch as typeof fetch;
       fetchSpy.mockRejectedValueOnce(new DOMException('This operation was aborted', 'AbortError'));
 
-      const response = await fetchFn('https://edge.pastelsdd.dev/batch/', { method: 'POST' });
+      const response = await fetchFn('https://edge.pscode.dev/batch/', { method: 'POST' });
 
       expect(response.status).toBe(204);
     });
 
     it('should return a synthetic success response for non-2xx responses', async () => {
-      delete process.env.PASTELSDD_TELEMETRY;
+      delete process.env.PSCODE_TELEMETRY;
       delete process.env.DO_NOT_TRACK;
       delete process.env.CI;
       await trackCommand('test', '1.0.0');
@@ -180,13 +180,13 @@ describe('telemetry/index', () => {
       const fetchFn = (PostHog as any).mock.calls[0][1].fetch as typeof fetch;
       fetchSpy.mockResolvedValueOnce(new Response('forbidden', { status: 403 }));
 
-      const response = await fetchFn('https://edge.pastelsdd.dev/batch/', { method: 'POST' });
+      const response = await fetchFn('https://edge.pscode.dev/batch/', { method: 'POST' });
 
       expect(response.status).toBe(204);
     });
 
     it('should pass through successful responses from fetch', async () => {
-      delete process.env.PASTELSDD_TELEMETRY;
+      delete process.env.PSCODE_TELEMETRY;
       delete process.env.DO_NOT_TRACK;
       delete process.env.CI;
       await trackCommand('test', '1.0.0');
@@ -195,7 +195,7 @@ describe('telemetry/index', () => {
       const expectedResponse = new Response(null, { status: 200 });
       fetchSpy.mockResolvedValueOnce(expectedResponse);
 
-      const response = await fetchFn('https://edge.pastelsdd.dev/batch/', { method: 'POST' });
+      const response = await fetchFn('https://edge.pscode.dev/batch/', { method: 'POST' });
 
       expect(response).toBe(expectedResponse);
     });

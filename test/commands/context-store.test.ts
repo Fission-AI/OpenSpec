@@ -1,4 +1,4 @@
-﻿import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Command } from 'commander';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -22,7 +22,7 @@ async function runContextStoreCommand(args: string[]): Promise<void> {
   const { registerContextStoreCommand } = await import('../../src/commands/context-store.js');
   const program = new Command();
   registerContextStoreCommand(program);
-  await program.parseAsync(['node', 'pastelsdd', 'context-store', ...args]);
+  await program.parseAsync(['node', 'pscode', 'context-store', ...args]);
 }
 
 async function getPromptMocks(): Promise<{
@@ -50,14 +50,14 @@ describe('context-store command', () => {
   beforeEach(() => {
     vi.resetModules();
 
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pastelsdd-context-store-command-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pscode-context-store-command-'));
     dataHome = path.join(tempDir, 'data');
     configHome = path.join(tempDir, 'config');
     env = {
       XDG_DATA_HOME: dataHome,
       XDG_CONFIG_HOME: configHome,
       OPEN_SPEC_INTERACTIVE: '0',
-      PASTELSDD_TELEMETRY: '0',
+      PSCODE_TELEMETRY: '0',
     };
     globalDataDir = getGlobalDataDir({ env });
 
@@ -119,7 +119,7 @@ describe('context-store command', () => {
       is_repository: false,
       initialized: false,
     });
-    expect(payload.created_files).toEqual(['.pastelsdd-store/store.yaml']);
+    expect(payload.created_files).toEqual(['.pscode-store/store.yaml']);
     expect(payload.status).toEqual([]);
     await expect(readContextStoreMetadataState(storeRoot)).resolves.toEqual({
       version: 1,
@@ -174,7 +174,7 @@ describe('context-store command', () => {
       ...process.env,
       XDG_DATA_HOME: dataHome,
       XDG_CONFIG_HOME: configHome,
-      PASTELSDD_TELEMETRY: '0',
+      PSCODE_TELEMETRY: '0',
     };
     delete process.env.OPEN_SPEC_INTERACTIVE;
     delete process.env.CI;
@@ -205,7 +205,7 @@ describe('context-store command', () => {
     expect(result.exitCode).toBe(0);
     const payload = parseJson(result);
     expect(payload.context_store.id).toBe('team-context');
-    expect(payload.created_files).toEqual(['.pastelsdd-store/store.yaml']);
+    expect(payload.created_files).toEqual(['.pscode-store/store.yaml']);
     await expect(readContextStoreMetadataState(storeRoot)).resolves.toEqual({
       version: 1,
       id: 'team-context',
@@ -243,7 +243,7 @@ describe('context-store command', () => {
       })
     );
 
-    fs.rmSync(path.join(firstRoot, '.pastelsdd-store'), { recursive: true, force: true });
+    fs.rmSync(path.join(firstRoot, '.pscode-store'), { recursive: true, force: true });
     fs.symlinkSync(firstRoot, aliasRoot, process.platform === 'win32' ? 'junction' : 'dir');
     const samePath = await runCLI(
       ['context-store', 'register', aliasRoot, '--id', 'other-context', '--json'],
@@ -365,7 +365,7 @@ describe('context-store command', () => {
       ...process.env,
       XDG_DATA_HOME: dataHome,
       XDG_CONFIG_HOME: configHome,
-      PASTELSDD_TELEMETRY: '0',
+      PSCODE_TELEMETRY: '0',
     };
     delete process.env.OPEN_SPEC_INTERACTIVE;
     delete process.env.CI;

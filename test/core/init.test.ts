@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
@@ -29,11 +29,11 @@ describe('InitCommand', () => {
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `pastelsdd-init-test-${Date.now()}`);
+    testDir = path.join(os.tmpdir(), `pscode-init-test-${Date.now()}`);
     await fs.mkdir(testDir, { recursive: true });
     originalEnv = { ...process.env };
     // Use a temp dir for global config to avoid reading real config
-    configTempDir = path.join(os.tmpdir(), `pastelsdd-config-init-${Date.now()}`);
+    configTempDir = path.join(os.tmpdir(), `pscode-config-init-${Date.now()}`);
     await fs.mkdir(configTempDir, { recursive: true });
     process.env.XDG_CONFIG_HOME = configTempDir;
 
@@ -53,16 +53,16 @@ describe('InitCommand', () => {
   });
 
   describe('execute with --tools flag', () => {
-    it('should create Pastelsdd directory structure', async () => {
+    it('should create Pscode directory structure', async () => {
       const initCommand = new InitCommand({ tools: 'claude', force: true });
 
       await initCommand.execute(testDir);
 
-      const pastelsddPath = path.join(testDir, 'pastelsdd');
-      expect(await directoryExists(pastelsddPath)).toBe(true);
-      expect(await directoryExists(path.join(pastelsddPath, 'specs'))).toBe(true);
-      expect(await directoryExists(path.join(pastelsddPath, 'changes'))).toBe(true);
-      expect(await directoryExists(path.join(pastelsddPath, 'changes', 'archive'))).toBe(true);
+      const pscodePath = path.join(testDir, 'pscode');
+      expect(await directoryExists(pscodePath)).toBe(true);
+      expect(await directoryExists(path.join(pscodePath, 'specs'))).toBe(true);
+      expect(await directoryExists(path.join(pscodePath, 'changes'))).toBe(true);
+      expect(await directoryExists(path.join(pscodePath, 'changes', 'archive'))).toBe(true);
     });
 
     it('should create config.yaml with default schema', async () => {
@@ -70,7 +70,7 @@ describe('InitCommand', () => {
 
       await initCommand.execute(testDir);
 
-      const configPath = path.join(testDir, 'pastelsdd', 'config.yaml');
+      const configPath = path.join(testDir, 'pscode', 'config.yaml');
       expect(await fileExists(configPath)).toBe(true);
 
       const content = await fs.readFile(configPath, 'utf-8');
@@ -84,11 +84,11 @@ describe('InitCommand', () => {
 
       // Core profile: propose, explore, apply, sync, archive
       const coreSkillNames = [
-        'pastelsdd-propose',
-        'pastelsdd-explore',
-        'pastelsdd-apply-change',
-        'pastelsdd-sync-specs',
-        'pastelsdd-archive-change',
+        'pscode-propose',
+        'pscode-explore',
+        'pscode-apply-change',
+        'pscode-sync-specs',
+        'pscode-archive-change',
       ];
 
       for (const skillName of coreSkillNames) {
@@ -103,11 +103,11 @@ describe('InitCommand', () => {
 
       // Non-core skills should NOT be created
       const nonCoreSkillNames = [
-        'pastelsdd-new-change',
-        'pastelsdd-continue-change',
-        'pastelsdd-ff-change',
-        'pastelsdd-bulk-archive-change',
-        'pastelsdd-verify-change',
+        'pscode-new-change',
+        'pscode-continue-change',
+        'pscode-ff-change',
+        'pscode-bulk-archive-change',
+        'pscode-verify-change',
       ];
 
       for (const skillName of nonCoreSkillNames) {
@@ -123,11 +123,11 @@ describe('InitCommand', () => {
 
       // Core profile: propose, explore, apply, sync, archive
       const coreCommandNames = [
-        'pstl/propose.md',
-        'pstl/explore.md',
-        'pstl/apply.md',
-        'pstl/sync.md',
-        'pstl/archive.md',
+        'ps/propose.md',
+        'ps/explore.md',
+        'ps/apply.md',
+        'ps/sync.md',
+        'ps/archive.md',
       ];
 
       for (const cmdName of coreCommandNames) {
@@ -137,11 +137,11 @@ describe('InitCommand', () => {
 
       // Non-core commands should NOT be created
       const nonCoreCommandNames = [
-        'pstl/new.md',
-        'pstl/continue.md',
-        'pstl/ff.md',
-        'pstl/bulk-archive.md',
-        'pstl/verify.md',
+        'ps/new.md',
+        'ps/continue.md',
+        'ps/ff.md',
+        'ps/bulk-archive.md',
+        'ps/verify.md',
       ];
 
       for (const cmdName of nonCoreCommandNames) {
@@ -155,7 +155,7 @@ describe('InitCommand', () => {
 
       await initCommand.execute(testDir);
 
-      const skillFile = path.join(testDir, '.cursor', 'skills', 'pastelsdd-explore', 'SKILL.md');
+      const skillFile = path.join(testDir, '.cursor', 'skills', 'pscode-explore', 'SKILL.md');
       expect(await fileExists(skillFile)).toBe(true);
     });
 
@@ -164,7 +164,7 @@ describe('InitCommand', () => {
 
       await initCommand.execute(testDir);
 
-      const skillFile = path.join(testDir, '.gemini', 'skills', 'pastelsdd-explore', 'SKILL.md');
+      const skillFile = path.join(testDir, '.gemini', 'skills', 'pscode-explore', 'SKILL.md');
       expect(await fileExists(skillFile)).toBe(true);
     });
 
@@ -173,8 +173,8 @@ describe('InitCommand', () => {
 
       await initCommand.execute(testDir);
 
-      const claudeSkill = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore', 'SKILL.md');
-      const cursorSkill = path.join(testDir, '.cursor', 'skills', 'pastelsdd-explore', 'SKILL.md');
+      const claudeSkill = path.join(testDir, '.claude', 'skills', 'pscode-explore', 'SKILL.md');
+      const cursorSkill = path.join(testDir, '.cursor', 'skills', 'pscode-explore', 'SKILL.md');
 
       expect(await fileExists(claudeSkill)).toBe(true);
       expect(await fileExists(cursorSkill)).toBe(true);
@@ -186,9 +186,9 @@ describe('InitCommand', () => {
       await initCommand.execute(testDir);
 
       // Check all 5 supported tools
-      const claudeSkill = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore', 'SKILL.md');
-      const cursorSkill = path.join(testDir, '.cursor', 'skills', 'pastelsdd-explore', 'SKILL.md');
-      const geminiSkill = path.join(testDir, '.gemini', 'skills', 'pastelsdd-explore', 'SKILL.md');
+      const claudeSkill = path.join(testDir, '.claude', 'skills', 'pscode-explore', 'SKILL.md');
+      const cursorSkill = path.join(testDir, '.cursor', 'skills', 'pscode-explore', 'SKILL.md');
+      const geminiSkill = path.join(testDir, '.gemini', 'skills', 'pscode-explore', 'SKILL.md');
 
       expect(await fileExists(claudeSkill)).toBe(true);
       expect(await fileExists(cursorSkill)).toBe(true);
@@ -200,9 +200,9 @@ describe('InitCommand', () => {
 
       await initCommand.execute(testDir);
 
-      // Should create Pastelsdd structure but no skills
-      const pastelsddPath = path.join(testDir, 'pastelsdd');
-      expect(await directoryExists(pastelsddPath)).toBe(true);
+      // Should create Pscode structure but no skills
+      const pscodePath = path.join(testDir, 'pscode');
+      expect(await directoryExists(pscodePath)).toBe(true);
 
       // No tool-specific directories should be created
       const claudeSkillsDir = path.join(testDir, '.claude', 'skills');
@@ -220,8 +220,8 @@ describe('InitCommand', () => {
 
       await initCommand.execute(testDir);
 
-      const claudeSkill = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore', 'SKILL.md');
-      const cursorSkill = path.join(testDir, '.cursor', 'skills', 'pastelsdd-explore', 'SKILL.md');
+      const claudeSkill = path.join(testDir, '.claude', 'skills', 'pscode-explore', 'SKILL.md');
+      const cursorSkill = path.join(testDir, '.cursor', 'skills', 'pscode-explore', 'SKILL.md');
 
       expect(await fileExists(claudeSkill)).toBe(true);
       expect(await fileExists(cursorSkill)).toBe(true);
@@ -237,9 +237,9 @@ describe('InitCommand', () => {
 
     it('should not create config.yaml if it already exists', async () => {
       // Pre-create config.yaml
-      const pastelsddDir = path.join(testDir, 'pastelsdd');
-      await fs.mkdir(pastelsddDir, { recursive: true });
-      const configPath = path.join(pastelsddDir, 'config.yaml');
+      const pscodeDir = path.join(testDir, 'pscode');
+      await fs.mkdir(pscodeDir, { recursive: true });
+      const configPath = path.join(pscodeDir, 'config.yaml');
       const existingContent = 'schema: custom-schema\n';
       await fs.writeFile(configPath, existingContent);
 
@@ -256,8 +256,8 @@ describe('InitCommand', () => {
 
       await initCommand.execute(newDir);
 
-      const pastelsddPath = path.join(newDir, 'pastelsdd');
-      expect(await directoryExists(pastelsddPath)).toBe(true);
+      const pscodePath = path.join(newDir, 'pscode');
+      expect(await directoryExists(pscodePath)).toBe(true);
     });
 
     it('should work in extend mode (re-running init)', async () => {
@@ -269,8 +269,8 @@ describe('InitCommand', () => {
       await initCommand2.execute(testDir);
 
       // Both tools should have skills
-      const claudeSkill = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore', 'SKILL.md');
-      const cursorSkill = path.join(testDir, '.cursor', 'skills', 'pastelsdd-explore', 'SKILL.md');
+      const claudeSkill = path.join(testDir, '.claude', 'skills', 'pscode-explore', 'SKILL.md');
+      const cursorSkill = path.join(testDir, '.cursor', 'skills', 'pscode-explore', 'SKILL.md');
 
       expect(await fileExists(claudeSkill)).toBe(true);
       expect(await fileExists(cursorSkill)).toBe(true);
@@ -280,7 +280,7 @@ describe('InitCommand', () => {
       const initCommand1 = new InitCommand({ tools: 'claude', force: true });
       await initCommand1.execute(testDir);
 
-      const skillFile = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore', 'SKILL.md');
+      const skillFile = path.join(testDir, '.claude', 'skills', 'pscode-explore', 'SKILL.md');
       const originalContent = await fs.readFile(skillFile, 'utf-8');
 
       // Modify the file
@@ -300,12 +300,12 @@ describe('InitCommand', () => {
       const initCommand = new InitCommand({ tools: 'claude', force: true });
       await initCommand.execute(testDir);
 
-      const skillFile = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore', 'SKILL.md');
+      const skillFile = path.join(testDir, '.claude', 'skills', 'pscode-explore', 'SKILL.md');
       const content = await fs.readFile(skillFile, 'utf-8');
 
       // Should have YAML frontmatter
       expect(content).toMatch(/^---\n/);
-      expect(content).toContain('name: pastelsdd-explore');
+      expect(content).toContain('name: pscode-explore');
       expect(content).toContain('description:');
       expect(content).toContain('license:');
       expect(content).toContain('compatibility:');
@@ -317,7 +317,7 @@ describe('InitCommand', () => {
       const initCommand = new InitCommand({ tools: 'claude', force: true });
       await initCommand.execute(testDir);
 
-      const skillFile = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore', 'SKILL.md');
+      const skillFile = path.join(testDir, '.claude', 'skills', 'pscode-explore', 'SKILL.md');
       const content = await fs.readFile(skillFile, 'utf-8');
 
       expect(content).toContain('Enter explore mode');
@@ -328,27 +328,27 @@ describe('InitCommand', () => {
       const initCommand = new InitCommand({ tools: 'claude', force: true });
       await initCommand.execute(testDir);
 
-      const skillFile = path.join(testDir, '.claude', 'skills', 'pastelsdd-propose', 'SKILL.md');
+      const skillFile = path.join(testDir, '.claude', 'skills', 'pscode-propose', 'SKILL.md');
       const content = await fs.readFile(skillFile, 'utf-8');
 
-      expect(content).toContain('name: pastelsdd-propose');
+      expect(content).toContain('name: pscode-propose');
     });
 
     it('should include apply-change skill instructions', async () => {
       const initCommand = new InitCommand({ tools: 'claude', force: true });
       await initCommand.execute(testDir);
 
-      const skillFile = path.join(testDir, '.claude', 'skills', 'pastelsdd-apply-change', 'SKILL.md');
+      const skillFile = path.join(testDir, '.claude', 'skills', 'pscode-apply-change', 'SKILL.md');
       const content = await fs.readFile(skillFile, 'utf-8');
 
-      expect(content).toContain('name: pastelsdd-apply-change');
+      expect(content).toContain('name: pscode-apply-change');
     });
 
     it('should embed generatedBy version in skill files', async () => {
       const initCommand = new InitCommand({ tools: 'claude', force: true });
       await initCommand.execute(testDir);
 
-      const skillFile = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore', 'SKILL.md');
+      const skillFile = path.join(testDir, '.claude', 'skills', 'pscode-explore', 'SKILL.md');
       const content = await fs.readFile(skillFile, 'utf-8');
 
       // Should contain generatedBy field with a version string
@@ -361,7 +361,7 @@ describe('InitCommand', () => {
       const initCommand = new InitCommand({ tools: 'claude', force: true });
       await initCommand.execute(testDir);
 
-      const cmdFile = path.join(testDir, '.claude', 'commands', 'pstl', 'explore.md');
+      const cmdFile = path.join(testDir, '.claude', 'commands', 'ps', 'explore.md');
       const content = await fs.readFile(cmdFile, 'utf-8');
 
       // Claude commands use YAML frontmatter
@@ -374,7 +374,7 @@ describe('InitCommand', () => {
       const initCommand = new InitCommand({ tools: 'cursor', force: true });
       await initCommand.execute(testDir);
 
-      const cmdFile = path.join(testDir, '.cursor', 'commands', 'pstl-explore.md');
+      const cmdFile = path.join(testDir, '.cursor', 'commands', 'ps-explore.md');
       expect(await fileExists(cmdFile)).toBe(true);
 
       const content = await fs.readFile(cmdFile, 'utf-8');
@@ -393,7 +393,7 @@ describe('InitCommand', () => {
         async (filePath: any, ...args: any[]) => {
           if (
             typeof filePath === 'string' &&
-            filePath.includes('.pastelsdd-test-')
+            filePath.includes('.pscode-test-')
           ) {
             throw new Error('EACCES: permission denied');
           }
@@ -411,7 +411,7 @@ describe('InitCommand', () => {
       await initCommand.execute(testDir);
 
       // Should have used claude as default
-      const skillFile = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore', 'SKILL.md');
+      const skillFile = path.join(testDir, '.claude', 'skills', 'pscode-explore', 'SKILL.md');
       expect(await fileExists(skillFile)).toBe(true);
     });
   });
@@ -421,7 +421,7 @@ describe('InitCommand', () => {
       const initCommand = new InitCommand({ tools: 'gemini', force: true });
       await initCommand.execute(testDir);
 
-      const cmdFile = path.join(testDir, '.gemini', 'commands', 'pstl', 'explore.toml');
+      const cmdFile = path.join(testDir, '.gemini', 'commands', 'ps', 'explore.toml');
       expect(await fileExists(cmdFile)).toBe(true);
 
       const content = await fs.readFile(cmdFile, 'utf-8');
@@ -433,7 +433,7 @@ describe('InitCommand', () => {
       const initCommand = new InitCommand({ tools: 'github-copilot', force: true });
       await initCommand.execute(testDir);
 
-      const cmdFile = path.join(testDir, '.github', 'prompts', 'pstl-explore.prompt.md');
+      const cmdFile = path.join(testDir, '.github', 'prompts', 'ps-explore.prompt.md');
       expect(await fileExists(cmdFile)).toBe(true);
     });
 
@@ -442,7 +442,7 @@ describe('InitCommand', () => {
       await initCommand.execute(testDir);
 
       // Codex uses homedir/.codex — just verify skills were created
-      const skillFile = path.join(testDir, '.codex', 'skills', 'pastelsdd-explore', 'SKILL.md');
+      const skillFile = path.join(testDir, '.codex', 'skills', 'pscode-explore', 'SKILL.md');
       expect(await fileExists(skillFile)).toBe(true);
     });
   });
@@ -454,11 +454,11 @@ describe('InitCommand - profile and detection features', () => {
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `pastelsdd-init-profile-test-${Date.now()}`);
+    testDir = path.join(os.tmpdir(), `pscode-init-profile-test-${Date.now()}`);
     await fs.mkdir(testDir, { recursive: true });
     originalEnv = { ...process.env };
     // Use a temp dir for global config to avoid polluting real config
-    configTempDir = path.join(os.tmpdir(), `pastelsdd-config-test-${Date.now()}`);
+    configTempDir = path.join(os.tmpdir(), `pscode-config-test-${Date.now()}`);
     await fs.mkdir(configTempDir, { recursive: true });
     process.env.XDG_CONFIG_HOME = configTempDir;
     vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -489,11 +489,11 @@ describe('InitCommand - profile and detection features', () => {
     await initCommand.execute(testDir);
 
     // Core profile skills should be created
-    const proposeSkill = path.join(testDir, '.claude', 'skills', 'pastelsdd-propose', 'SKILL.md');
+    const proposeSkill = path.join(testDir, '.claude', 'skills', 'pscode-propose', 'SKILL.md');
     expect(await fileExists(proposeSkill)).toBe(true);
 
     // Non-core skills (from the custom profile) should NOT be created
-    const newChangeSkill = path.join(testDir, '.claude', 'skills', 'pastelsdd-new-change', 'SKILL.md');
+    const newChangeSkill = path.join(testDir, '.claude', 'skills', 'pscode-new-change', 'SKILL.md');
     expect(await fileExists(newChangeSkill)).toBe(false);
   });
 
@@ -517,13 +517,13 @@ describe('InitCommand - profile and detection features', () => {
     await initCommand.execute(testDir);
 
     // Should have used claude (detected)
-    const skillFile = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore', 'SKILL.md');
+    const skillFile = path.join(testDir, '.claude', 'skills', 'pscode-explore', 'SKILL.md');
     expect(await fileExists(skillFile)).toBe(true);
   });
 
   it('should auto-cleanup legacy artifacts in non-interactive mode without --force', async () => {
-    // Create legacy Claude command dir (old 'pastelsdd' namespace)
-    const legacyDir = path.join(testDir, '.claude', 'commands', 'pastelsdd');
+    // Create legacy Claude command dir (old 'pscode' namespace)
+    const legacyDir = path.join(testDir, '.claude', 'commands', 'pscode');
     await fs.mkdir(legacyDir, { recursive: true });
     await fs.writeFile(path.join(legacyDir, 'propose.md'), 'legacy content');
 
@@ -535,20 +535,20 @@ describe('InitCommand - profile and detection features', () => {
     expect(await directoryExists(legacyDir)).toBe(false);
 
     // New commands should be at the correct 'pastel' path
-    const newCommandsDir = path.join(testDir, '.claude', 'commands', 'pstl');
+    const newCommandsDir = path.join(testDir, '.claude', 'commands', 'ps');
     expect(await directoryExists(newCommandsDir)).toBe(true);
   });
 
   it('should preselect configured tools but not directory-detected tools in extend mode', async () => {
-    // Simulate existing Pastelsdd project (extend mode).
-    await fs.mkdir(path.join(testDir, 'pastelsdd'), { recursive: true });
+    // Simulate existing Pscode project (extend mode).
+    await fs.mkdir(path.join(testDir, 'pscode'), { recursive: true });
 
-    // Configured with Pastelsdd
-    const claudeSkillDir = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore');
+    // Configured with Pscode
+    const claudeSkillDir = path.join(testDir, '.claude', 'skills', 'pscode-explore');
     await fs.mkdir(claudeSkillDir, { recursive: true });
     await fs.writeFile(path.join(claudeSkillDir, 'SKILL.md'), 'configured');
 
-    // Directory detected only (not configured with Pastelsdd)
+    // Directory detected only (not configured with Pscode)
     await fs.mkdir(path.join(testDir, '.github'), { recursive: true });
     await fs.writeFile(path.join(testDir, '.github', 'copilot-instructions.md'), '');
 
@@ -571,7 +571,7 @@ describe('InitCommand - profile and detection features', () => {
   });
 
   it('should preselect detected tools for first-time interactive setup', async () => {
-    // First-time init: no pastelsdd/ directory and no configured Pastelsdd skills.
+    // First-time init: no pscode/ directory and no configured Pscode skills.
     await fs.mkdir(path.join(testDir, '.github'), { recursive: true });
     await fs.writeFile(path.join(testDir, '.github', 'copilot-instructions.md'), '');
 
@@ -589,58 +589,50 @@ describe('InitCommand - profile and detection features', () => {
     expect(githubCopilot?.preSelected).toBe(true);
   });
 
-  it('should respect custom profile from global config', async () => {
+  it('should respect active profile from global config', async () => {
     saveGlobalConfig({
       featureFlags: {},
-      profile: 'custom',
+      profile: 'core',
       delivery: 'both',
-      workflows: ['explore', 'new'],
     });
 
     const initCommand = new InitCommand({ tools: 'claude', force: true });
     await initCommand.execute(testDir);
 
-    // Custom profile skills should be created
-    const exploreSkill = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore', 'SKILL.md');
-    const newChangeSkill = path.join(testDir, '.claude', 'skills', 'pastelsdd-new-change', 'SKILL.md');
+    // Core profile skills should be created
+    const exploreSkill = path.join(testDir, '.claude', 'skills', 'pscode-explore', 'SKILL.md');
+    const proposeSkill = path.join(testDir, '.claude', 'skills', 'pscode-propose', 'SKILL.md');
     expect(await fileExists(exploreSkill)).toBe(true);
-    expect(await fileExists(newChangeSkill)).toBe(true);
+    expect(await fileExists(proposeSkill)).toBe(true);
 
-    // Non-selected skills should NOT be created
-    const proposeSkill = path.join(testDir, '.claude', 'skills', 'pastelsdd-propose', 'SKILL.md');
-    expect(await fileExists(proposeSkill)).toBe(false);
+    // Non-core skills should NOT be created
+    const newChangeSkill = path.join(testDir, '.claude', 'skills', 'pscode-new-change', 'SKILL.md');
+    expect(await fileExists(newChangeSkill)).toBe(false);
   });
 
-  it('should migrate commands-only extend mode to custom profile without injecting propose', async () => {
-    await fs.mkdir(path.join(testDir, 'pastelsdd'), { recursive: true });
-    await fs.mkdir(path.join(testDir, '.claude', 'commands', 'pstl'), { recursive: true });
-    await fs.writeFile(path.join(testDir, '.claude', 'commands', 'pstl', 'explore.md'), '# explore\n');
+  it('should use the active profile when extending an existing project', async () => {
+    await fs.mkdir(path.join(testDir, 'pscode'), { recursive: true });
+
+    saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both' });
 
     const initCommand = new InitCommand({ tools: 'claude', force: true });
     await initCommand.execute(testDir);
 
     const config = getGlobalConfig();
-    expect(config.profile).toBe('custom');
-    expect(config.delivery).toBe('commands');
-    expect(config.workflows).toEqual(['explore']);
+    expect(config.profile).toBe('core');
+    expect(config.delivery).toBe('both');
 
-    const exploreCommand = path.join(testDir, '.claude', 'commands', 'pstl', 'explore.md');
-    const proposeCommand = path.join(testDir, '.claude', 'commands', 'pstl', 'propose.md');
-    expect(await fileExists(exploreCommand)).toBe(true);
-    expect(await fileExists(proposeCommand)).toBe(false);
-
-    const exploreSkill = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore', 'SKILL.md');
-    const proposeSkill = path.join(testDir, '.claude', 'skills', 'pastelsdd-propose', 'SKILL.md');
-    expect(await fileExists(exploreSkill)).toBe(false);
-    expect(await fileExists(proposeSkill)).toBe(false);
+    const exploreSkill = path.join(testDir, '.claude', 'skills', 'pscode-explore', 'SKILL.md');
+    const proposeSkill = path.join(testDir, '.claude', 'skills', 'pscode-propose', 'SKILL.md');
+    expect(await fileExists(exploreSkill)).toBe(true);
+    expect(await fileExists(proposeSkill)).toBe(true);
   });
 
-  it('should not prompt for confirmation when applying custom profile in interactive init', async () => {
+  it('should not prompt for confirmation when applying profile in interactive init', async () => {
     saveGlobalConfig({
       featureFlags: {},
-      profile: 'custom',
+      profile: 'core',
       delivery: 'both',
-      workflows: ['explore', 'new'],
     });
 
     const initCommand = new InitCommand({ force: true });
@@ -652,13 +644,10 @@ describe('InitCommand - profile and detection features', () => {
     expect(showWelcomeScreenMock).toHaveBeenCalled();
     expect(confirmMock).not.toHaveBeenCalled();
 
-    const exploreSkill = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore', 'SKILL.md');
-    const newChangeSkill = path.join(testDir, '.claude', 'skills', 'pastelsdd-new-change', 'SKILL.md');
+    const exploreSkill = path.join(testDir, '.claude', 'skills', 'pscode-explore', 'SKILL.md');
+    const proposeSkill = path.join(testDir, '.claude', 'skills', 'pscode-propose', 'SKILL.md');
     expect(await fileExists(exploreSkill)).toBe(true);
-    expect(await fileExists(newChangeSkill)).toBe(true);
-
-    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
-    expect(logCalls.some((entry) => entry.includes('Applying custom profile'))).toBe(false);
+    expect(await fileExists(proposeSkill)).toBe(true);
   });
 
   it('should respect delivery=skills setting (no commands)', async () => {
@@ -672,11 +661,11 @@ describe('InitCommand - profile and detection features', () => {
     await initCommand.execute(testDir);
 
     // Skills should exist
-    const skillFile = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore', 'SKILL.md');
+    const skillFile = path.join(testDir, '.claude', 'skills', 'pscode-explore', 'SKILL.md');
     expect(await fileExists(skillFile)).toBe(true);
 
     // Commands should NOT exist
-    const cmdFile = path.join(testDir, '.claude', 'commands', 'pstl', 'explore.md');
+    const cmdFile = path.join(testDir, '.claude', 'commands', 'ps', 'explore.md');
     expect(await fileExists(cmdFile)).toBe(false);
   });
 
@@ -691,11 +680,11 @@ describe('InitCommand - profile and detection features', () => {
     await initCommand.execute(testDir);
 
     // Skills should NOT exist
-    const skillFile = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore', 'SKILL.md');
+    const skillFile = path.join(testDir, '.claude', 'skills', 'pscode-explore', 'SKILL.md');
     expect(await fileExists(skillFile)).toBe(false);
 
     // Commands should exist
-    const cmdFile = path.join(testDir, '.claude', 'commands', 'pstl', 'explore.md');
+    const cmdFile = path.join(testDir, '.claude', 'commands', 'ps', 'explore.md');
     expect(await fileExists(cmdFile)).toBe(true);
   });
 
@@ -709,7 +698,7 @@ describe('InitCommand - profile and detection features', () => {
     const initCommand1 = new InitCommand({ tools: 'claude', force: true });
     await initCommand1.execute(testDir);
 
-    const cmdFile = path.join(testDir, '.claude', 'commands', 'pstl', 'explore.md');
+    const cmdFile = path.join(testDir, '.claude', 'commands', 'ps', 'explore.md');
     expect(await fileExists(cmdFile)).toBe(true);
 
     saveGlobalConfig({
@@ -723,7 +712,7 @@ describe('InitCommand - profile and detection features', () => {
 
     expect(await fileExists(cmdFile)).toBe(false);
 
-    const skillFile = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore', 'SKILL.md');
+    const skillFile = path.join(testDir, '.claude', 'skills', 'pscode-explore', 'SKILL.md');
     expect(await fileExists(skillFile)).toBe(true);
   });
 });

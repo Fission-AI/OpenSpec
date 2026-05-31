@@ -1,8 +1,8 @@
-﻿import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { UpdateCommand, scanInstalledWorkflows } from '../../src/core/update.js';
 import { InitCommand } from '../../src/core/init.js';
 import { FileSystemUtils } from '../../src/utils/file-system.js';
-import { PASTELSDD_MARKERS } from '../../src/core/config.js';
+import { PSCODE_MARKERS } from '../../src/core/config.js';
 import type { GlobalConfig } from '../../src/core/global-config.js';
 import path from 'path';
 import fs from 'fs/promises';
@@ -44,12 +44,12 @@ describe('UpdateCommand', () => {
 
   beforeEach(async () => {
     // Create a temporary test directory
-    testDir = path.join(os.tmpdir(), `pastelsdd-test-${randomUUID()}`);
+    testDir = path.join(os.tmpdir(), `pscode-test-${randomUUID()}`);
     await fs.mkdir(testDir, { recursive: true });
 
-    // Create pastelsdd directory
-    const pastelsddDir = path.join(testDir, 'pastelsdd');
-    await fs.mkdir(pastelsddDir, { recursive: true });
+    // Create pscode directory
+    const pscodeDir = path.join(testDir, 'pscode');
+    await fs.mkdir(pscodeDir, { recursive: true });
 
     updateCommand = new UpdateCommand();
 
@@ -69,15 +69,15 @@ describe('UpdateCommand', () => {
   });
 
   describe('basic validation', () => {
-    it('should throw error if pastelsdd directory does not exist', async () => {
-      // Remove pastelsdd directory
-      await fs.rm(path.join(testDir, 'pastelsdd'), {
+    it('should throw error if pscode directory does not exist', async () => {
+      // Remove pscode directory
+      await fs.rm(path.join(testDir, 'pscode'), {
         recursive: true,
         force: true,
       });
 
       await expect(updateCommand.execute(testDir)).rejects.toThrow(
-        "No Pastelsdd directory found. Run 'pastelsdd init' first."
+        "No Pscode directory found. Run 'pscode init' first."
       );
     });
 
@@ -98,17 +98,17 @@ describe('UpdateCommand', () => {
     it('should update skill files for configured Claude tool', async () => {
       // Set up a configured Claude tool by creating skill directories
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      const exploreSkillDir = path.join(skillsDir, 'pastelsdd-explore');
+      const exploreSkillDir = path.join(skillsDir, 'pscode-explore');
       await fs.mkdir(exploreSkillDir, { recursive: true });
 
       // Create an existing skill file
       const oldSkillContent = `---
-name: pastelsdd-explore (old)
+name: pscode-explore (old)
 description: Old description
 license: MIT
-compatibility: Requires pastelsdd CLI.
+compatibility: Requires pscode CLI.
 metadata:
-  author: pastelsdd
+  author: pscode
   version: "0.9"
 ---
 
@@ -128,7 +128,7 @@ Old instructions content
         path.join(exploreSkillDir, 'SKILL.md'),
         'utf-8'
       );
-      expect(updatedSkill).toContain('name: pastelsdd-explore');
+      expect(updatedSkill).toContain('name: pscode-explore');
       expect(updatedSkill).not.toContain('Old instructions content');
       expect(updatedSkill).toContain('license: MIT');
 
@@ -145,11 +145,11 @@ Old instructions content
       const skillsDir = path.join(testDir, '.claude', 'skills');
 
       // Create at least one skill to mark tool as configured
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), {
+      await fs.mkdir(path.join(skillsDir, 'pscode-explore'), {
         recursive: true,
       });
       await fs.writeFile(
-        path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(skillsDir, 'pscode-explore', 'SKILL.md'),
         'old content'
       );
 
@@ -157,11 +157,11 @@ Old instructions content
 
       // Verify core profile skill files were created/updated (propose, explore, apply, sync, archive)
       const coreSkillNames = [
-        'pastelsdd-explore',
-        'pastelsdd-apply-change',
-        'pastelsdd-sync-specs',
-        'pastelsdd-archive-change',
-        'pastelsdd-propose',
+        'pscode-explore',
+        'pscode-apply-change',
+        'pscode-sync-specs',
+        'pscode-archive-change',
+        'pscode-propose',
       ];
 
       for (const skillName of coreSkillNames) {
@@ -177,11 +177,11 @@ Old instructions content
 
       // Verify non-core skills are NOT created
       const nonCoreSkillNames = [
-        'pastelsdd-new-change',
-        'pastelsdd-continue-change',
-        'pastelsdd-ff-change',
-        'pastelsdd-bulk-archive-change',
-        'pastelsdd-verify-change',
+        'pscode-new-change',
+        'pscode-continue-change',
+        'pscode-ff-change',
+        'pscode-bulk-archive-change',
+        'pscode-verify-change',
       ];
 
       for (const skillName of nonCoreSkillNames) {
@@ -196,18 +196,18 @@ Old instructions content
     it('should update pastel commands for configured Claude tool', async () => {
       // Set up a configured Claude tool
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), {
+      await fs.mkdir(path.join(skillsDir, 'pscode-explore'), {
         recursive: true,
       });
       await fs.writeFile(
-        path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(skillsDir, 'pscode-explore', 'SKILL.md'),
         'old content'
       );
 
       await updateCommand.execute(testDir);
 
       // Check pastel command files were created
-      const commandsDir = path.join(testDir, '.claude', 'commands', 'pstl');
+      const commandsDir = path.join(testDir, '.claude', 'commands', 'ps');
       const exploreCmd = path.join(commandsDir, 'explore.md');
       const exists = await FileSystemUtils.fileExists(exploreCmd);
       expect(exists).toBe(true);
@@ -223,11 +223,11 @@ Old instructions content
     it('should update core profile pastel commands when tool is configured', async () => {
       // Set up a configured tool
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), {
+      await fs.mkdir(path.join(skillsDir, 'pscode-explore'), {
         recursive: true,
       });
       await fs.writeFile(
-        path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(skillsDir, 'pscode-explore', 'SKILL.md'),
         'old content'
       );
 
@@ -235,7 +235,7 @@ Old instructions content
 
       // Verify core profile commands were created (propose, explore, apply, sync, archive)
       const coreCommandIds = ['explore', 'apply', 'sync', 'archive', 'propose'];
-      const commandsDir = path.join(testDir, '.claude', 'commands', 'pstl');
+      const commandsDir = path.join(testDir, '.claude', 'commands', 'ps');
       for (const cmdId of coreCommandIds) {
         const cmdFile = path.join(commandsDir, `${cmdId}.md`);
         const exists = await FileSystemUtils.fileExists(cmdFile);
@@ -257,21 +257,21 @@ Old instructions content
     it('should update multiple configured tools', async () => {
       // Set up Claude
       const claudeSkillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(claudeSkillsDir, 'pastelsdd-explore'), {
+      await fs.mkdir(path.join(claudeSkillsDir, 'pscode-explore'), {
         recursive: true,
       });
       await fs.writeFile(
-        path.join(claudeSkillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(claudeSkillsDir, 'pscode-explore', 'SKILL.md'),
         'old'
       );
 
       // Set up Cursor
       const cursorSkillsDir = path.join(testDir, '.cursor', 'skills');
-      await fs.mkdir(path.join(cursorSkillsDir, 'pastelsdd-explore'), {
+      await fs.mkdir(path.join(cursorSkillsDir, 'pscode-explore'), {
         recursive: true,
       });
       await fs.writeFile(
-        path.join(cursorSkillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(cursorSkillsDir, 'pscode-explore', 'SKILL.md'),
         'old'
       );
 
@@ -286,34 +286,34 @@ Old instructions content
 
       // Verify Claude skills updated
       const claudeSkill = await fs.readFile(
-        path.join(claudeSkillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(claudeSkillsDir, 'pscode-explore', 'SKILL.md'),
         'utf-8'
       );
-      expect(claudeSkill).toContain('name: pastelsdd-explore');
+      expect(claudeSkill).toContain('name: pscode-explore');
 
       // Verify Cursor skills updated
       const cursorSkill = await fs.readFile(
-        path.join(cursorSkillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(cursorSkillsDir, 'pscode-explore', 'SKILL.md'),
         'utf-8'
       );
-      expect(cursorSkill).toContain('name: pastelsdd-explore');
+      expect(cursorSkill).toContain('name: pscode-explore');
 
       consoleSpy.mockRestore();
     });
 
     it('should update Gemini tool with correct TOML command format', async () => {
       const geminiSkillsDir = path.join(testDir, '.gemini', 'skills');
-      await fs.mkdir(path.join(geminiSkillsDir, 'pastelsdd-explore'), {
+      await fs.mkdir(path.join(geminiSkillsDir, 'pscode-explore'), {
         recursive: true,
       });
       await fs.writeFile(
-        path.join(geminiSkillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(geminiSkillsDir, 'pscode-explore', 'SKILL.md'),
         'old'
       );
 
       await updateCommand.execute(testDir);
 
-      const geminiCmd = path.join(testDir, '.gemini', 'commands', 'pstl', 'explore.toml');
+      const geminiCmd = path.join(testDir, '.gemini', 'commands', 'ps', 'explore.toml');
       const exists = await FileSystemUtils.fileExists(geminiCmd);
       expect(exists).toBe(true);
 
@@ -324,17 +324,17 @@ Old instructions content
 
     it('should update GitHub Copilot tool with correct command format', async () => {
       const ghSkillsDir = path.join(testDir, '.github', 'skills');
-      await fs.mkdir(path.join(ghSkillsDir, 'pastelsdd-explore'), {
+      await fs.mkdir(path.join(ghSkillsDir, 'pscode-explore'), {
         recursive: true,
       });
       await fs.writeFile(
-        path.join(ghSkillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(ghSkillsDir, 'pscode-explore', 'SKILL.md'),
         'old'
       );
 
       await updateCommand.execute(testDir);
 
-      const ghCmd = path.join(testDir, '.github', 'prompts', 'pstl-explore.prompt.md');
+      const ghCmd = path.join(testDir, '.github', 'prompts', 'ps-explore.prompt.md');
       const exists = await FileSystemUtils.fileExists(ghCmd);
       expect(exists).toBe(true);
 
@@ -348,11 +348,11 @@ Old instructions content
     it('should handle tool update failures gracefully', async () => {
       // Set up a configured tool
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), {
+      await fs.mkdir(path.join(skillsDir, 'pscode-explore'), {
         recursive: true,
       });
       await fs.writeFile(
-        path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(skillsDir, 'pscode-explore', 'SKILL.md'),
         'old'
       );
 
@@ -384,20 +384,20 @@ Old instructions content
     it('should continue updating other tools when one fails', async () => {
       // Set up Claude and Cursor
       const claudeSkillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(claudeSkillsDir, 'pastelsdd-explore'), {
+      await fs.mkdir(path.join(claudeSkillsDir, 'pscode-explore'), {
         recursive: true,
       });
       await fs.writeFile(
-        path.join(claudeSkillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(claudeSkillsDir, 'pscode-explore', 'SKILL.md'),
         'old'
       );
 
       const cursorSkillsDir = path.join(testDir, '.cursor', 'skills');
-      await fs.mkdir(path.join(cursorSkillsDir, 'pastelsdd-explore'), {
+      await fs.mkdir(path.join(cursorSkillsDir, 'pscode-explore'), {
         recursive: true,
       });
       await fs.writeFile(
-        path.join(cursorSkillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(cursorSkillsDir, 'pscode-explore', 'SKILL.md'),
         'old'
       );
 
@@ -455,7 +455,7 @@ Old instructions content
         testDir,
         '.claude',
         'skills',
-        'pastelsdd-archive-change'
+        'pscode-archive-change'
       );
       await fs.mkdir(skillDir, { recursive: true });
       await fs.writeFile(path.join(skillDir, 'SKILL.md'), 'old');
@@ -477,18 +477,18 @@ Old instructions content
     it('should generate valid YAML frontmatter in skill files', async () => {
       // Set up a configured tool
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), {
+      await fs.mkdir(path.join(skillsDir, 'pscode-explore'), {
         recursive: true,
       });
       await fs.writeFile(
-        path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(skillsDir, 'pscode-explore', 'SKILL.md'),
         'old'
       );
 
       await updateCommand.execute(testDir);
 
       const skillContent = await fs.readFile(
-        path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(skillsDir, 'pscode-explore', 'SKILL.md'),
         'utf-8'
       );
 
@@ -507,18 +507,18 @@ Old instructions content
     it('should include proper instructions in skill files', async () => {
       // Set up a configured tool with apply-change skill (which is in core profile)
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-apply-change'), {
+      await fs.mkdir(path.join(skillsDir, 'pscode-apply-change'), {
         recursive: true,
       });
       await fs.writeFile(
-        path.join(skillsDir, 'pastelsdd-apply-change', 'SKILL.md'),
+        path.join(skillsDir, 'pscode-apply-change', 'SKILL.md'),
         'old'
       );
 
       await updateCommand.execute(testDir);
 
       const skillContent = await fs.readFile(
-        path.join(skillsDir, 'pastelsdd-apply-change', 'SKILL.md'),
+        path.join(skillsDir, 'pscode-apply-change', 'SKILL.md'),
         'utf-8'
       );
 
@@ -531,11 +531,11 @@ Old instructions content
     it('should display success message with tool name', async () => {
       // Set up a configured tool
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), {
+      await fs.mkdir(path.join(skillsDir, 'pscode-explore'), {
         recursive: true,
       });
       await fs.writeFile(
-        path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(skillsDir, 'pscode-explore', 'SKILL.md'),
         'old'
       );
 
@@ -554,11 +554,11 @@ Old instructions content
     it('should suggest IDE restart after update', async () => {
       // Set up a configured tool
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), {
+      await fs.mkdir(path.join(skillsDir, 'pscode-explore'), {
         recursive: true,
       });
       await fs.writeFile(
-        path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(skillsDir, 'pscode-explore', 'SKILL.md'),
         'old'
       );
 
@@ -597,15 +597,15 @@ Old instructions content
     it('should detect update needed when generatedBy is missing', async () => {
       // Set up a configured tool without generatedBy
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), {
+      await fs.mkdir(path.join(skillsDir, 'pscode-explore'), {
         recursive: true,
       });
       await fs.writeFile(
-        path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(skillsDir, 'pscode-explore', 'SKILL.md'),
         `---
-name: pastelsdd-explore
+name: pscode-explore
 metadata:
-  author: pastelsdd
+  author: pscode
   version: "1.0"
 ---
 
@@ -628,13 +628,13 @@ Legacy content without generatedBy
     it('should detect update needed when version differs', async () => {
       // Set up a configured tool with old version
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), {
+      await fs.mkdir(path.join(skillsDir, 'pscode-explore'), {
         recursive: true,
       });
       await fs.writeFile(
-        path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(skillsDir, 'pscode-explore', 'SKILL.md'),
         `---
-name: pastelsdd-explore
+name: pscode-explore
 metadata:
   generatedBy: "0.1.0"
 ---
@@ -658,18 +658,18 @@ Old version content
     it('should embed generatedBy in updated skill files', async () => {
       // Set up a configured tool without generatedBy
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), {
+      await fs.mkdir(path.join(skillsDir, 'pscode-explore'), {
         recursive: true,
       });
       await fs.writeFile(
-        path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(skillsDir, 'pscode-explore', 'SKILL.md'),
         'old content without version'
       );
 
       await updateCommand.execute(testDir);
 
       const updatedContent = await fs.readFile(
-        path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(skillsDir, 'pscode-explore', 'SKILL.md'),
         'utf-8'
       );
 
@@ -682,13 +682,13 @@ Old version content
     it('should update when force is true even if up to date', async () => {
       // Set up a configured tool with current version
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), {
+      await fs.mkdir(path.join(skillsDir, 'pscode-explore'), {
         recursive: true,
       });
 
       const { version } = await import('../../package.json');
       await fs.writeFile(
-        path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(skillsDir, 'pscode-explore', 'SKILL.md'),
         `---
 metadata:
   generatedBy: "${version}"
@@ -719,11 +719,11 @@ Content
     it('should not show --force hint when force is used', async () => {
       // Set up a configured tool
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), {
+      await fs.mkdir(path.join(skillsDir, 'pscode-explore'), {
         recursive: true,
       });
       await fs.writeFile(
-        path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(skillsDir, 'pscode-explore', 'SKILL.md'),
         'old content'
       );
 
@@ -747,7 +747,7 @@ Content
     it('should update all tools when force is used with mixed versions', async () => {
       // Set up Claude with current version
       const { version } = await import('../../package.json');
-      const claudeSkillDir = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore');
+      const claudeSkillDir = path.join(testDir, '.claude', 'skills', 'pscode-explore');
       await fs.mkdir(claudeSkillDir, { recursive: true });
       await fs.writeFile(
         path.join(claudeSkillDir, 'SKILL.md'),
@@ -759,7 +759,7 @@ metadata:
       );
 
       // Set up Cursor with old version
-      const cursorSkillDir = path.join(testDir, '.cursor', 'skills', 'pastelsdd-explore');
+      const cursorSkillDir = path.join(testDir, '.cursor', 'skills', 'pscode-explore');
       await fs.mkdir(cursorSkillDir, { recursive: true });
       await fs.writeFile(
         path.join(cursorSkillDir, 'SKILL.md'),
@@ -788,11 +788,11 @@ metadata:
     it('should show version in success message', async () => {
       // Set up a configured tool
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), {
+      await fs.mkdir(path.join(skillsDir, 'pscode-explore'), {
         recursive: true,
       });
       await fs.writeFile(
-        path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(skillsDir, 'pscode-explore', 'SKILL.md'),
         'old'
       );
 
@@ -815,7 +815,7 @@ metadata:
       await initCommand.execute(testDir);
 
       // Make Claude stale to force a version update.
-      const claudeSkillFile = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore', 'SKILL.md');
+      const claudeSkillFile = path.join(testDir, '.claude', 'skills', 'pscode-explore', 'SKILL.md');
       const claudeContent = await fs.readFile(claudeSkillFile, 'utf-8');
       await fs.writeFile(
         claudeSkillFile,
@@ -844,20 +844,20 @@ metadata:
     it('should detect and auto-cleanup legacy files with --force flag', async () => {
       // Set up a configured tool
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), {
+      await fs.mkdir(path.join(skillsDir, 'pscode-explore'), {
         recursive: true,
       });
       await fs.writeFile(
-        path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(skillsDir, 'pscode-explore', 'SKILL.md'),
         'old'
       );
 
-      // Create legacy CLAUDE.md with Pastelsdd markers
-      const legacyContent = `${PASTELSDD_MARKERS.start}
-# Pastelsdd Instructions
+      // Create legacy CLAUDE.md with Pscode markers
+      const legacyContent = `${PSCODE_MARKERS.start}
+# Pscode Instructions
 
 These instructions are for AI assistants.
-${PASTELSDD_MARKERS.end}
+${PSCODE_MARKERS.end}
 `;
       await fs.writeFile(path.join(testDir, 'CLAUDE.md'), legacyContent);
 
@@ -869,12 +869,12 @@ ${PASTELSDD_MARKERS.end}
 
       // Should show v1 upgrade message
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Upgrading to the new Pastelsdd')
+        expect.stringContaining('Upgrading to the new Pscode')
       );
 
       // Should show marker removal message (config files are never deleted, only have markers removed)
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Removed Pastelsdd markers from CLAUDE.md')
+        expect.stringContaining('Removed Pscode markers from CLAUDE.md')
       );
 
       // Config file should still exist (never deleted)
@@ -885,8 +885,8 @@ ${PASTELSDD_MARKERS.end}
 
       // File should have markers removed
       const content = await fs.readFile(path.join(testDir, 'CLAUDE.md'), 'utf-8');
-      expect(content).not.toContain(PASTELSDD_MARKERS.start);
-      expect(content).not.toContain(PASTELSDD_MARKERS.end);
+      expect(content).not.toContain(PSCODE_MARKERS.start);
+      expect(content).not.toContain(PSCODE_MARKERS.end);
 
       consoleSpy.mockRestore();
     });
@@ -894,18 +894,18 @@ ${PASTELSDD_MARKERS.end}
     it('should warn but continue with update when legacy files found in non-interactive mode', async () => {
       // Set up a configured tool
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), {
+      await fs.mkdir(path.join(skillsDir, 'pscode-explore'), {
         recursive: true,
       });
       await fs.writeFile(
-        path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(skillsDir, 'pscode-explore', 'SKILL.md'),
         'old'
       );
 
-      // Create legacy CLAUDE.md with Pastelsdd markers
-      const legacyContent = `${PASTELSDD_MARKERS.start}
-# Pastelsdd Instructions
-${PASTELSDD_MARKERS.end}
+      // Create legacy CLAUDE.md with Pscode markers
+      const legacyContent = `${PSCODE_MARKERS.start}
+# Pscode Instructions
+${PSCODE_MARKERS.end}
 `;
       await fs.writeFile(path.join(testDir, 'CLAUDE.md'), legacyContent);
 
@@ -916,7 +916,7 @@ ${PASTELSDD_MARKERS.end}
 
       // Should show v1 upgrade message
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Upgrading to the new Pastelsdd')
+        expect.stringContaining('Upgrading to the new Pscode')
       );
 
       // Should show warning about --force
@@ -941,16 +941,16 @@ ${PASTELSDD_MARKERS.end}
     it('should cleanup legacy slash command directories with --force', async () => {
       // Set up a configured tool
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), {
+      await fs.mkdir(path.join(skillsDir, 'pscode-explore'), {
         recursive: true,
       });
       await fs.writeFile(
-        path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(skillsDir, 'pscode-explore', 'SKILL.md'),
         'old'
       );
 
       // Create legacy slash command directory
-      const legacyCommandDir = path.join(testDir, '.claude', 'commands', 'pastelsdd');
+      const legacyCommandDir = path.join(testDir, '.claude', 'commands', 'pscode');
       await fs.mkdir(legacyCommandDir, { recursive: true });
       await fs.writeFile(
         path.join(legacyCommandDir, 'old-command.md'),
@@ -965,7 +965,7 @@ ${PASTELSDD_MARKERS.end}
 
       // Should show cleanup message for directory
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Removed .claude/commands/pastelsdd/')
+        expect.stringContaining('Removed .claude/commands/pscode/')
       );
 
       // Legacy directory should be deleted
@@ -975,20 +975,20 @@ ${PASTELSDD_MARKERS.end}
       consoleSpy.mockRestore();
     });
 
-    it('should cleanup legacy pastelsdd/AGENTS.md with --force', async () => {
+    it('should cleanup legacy pscode/AGENTS.md with --force', async () => {
       // Set up a configured tool
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), {
+      await fs.mkdir(path.join(skillsDir, 'pscode-explore'), {
         recursive: true,
       });
       await fs.writeFile(
-        path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(skillsDir, 'pscode-explore', 'SKILL.md'),
         'old'
       );
 
-      // Create legacy pastelsdd/AGENTS.md
+      // Create legacy pscode/AGENTS.md
       await fs.writeFile(
-        path.join(testDir, 'pastelsdd', 'AGENTS.md'),
+        path.join(testDir, 'pscode', 'AGENTS.md'),
         '# Old AGENTS.md content'
       );
 
@@ -1000,12 +1000,12 @@ ${PASTELSDD_MARKERS.end}
 
       // Should show cleanup message
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Removed pastelsdd/AGENTS.md')
+        expect.stringContaining('Removed pscode/AGENTS.md')
       );
 
       // Legacy file should be deleted
       const legacyExists = await FileSystemUtils.fileExists(
-        path.join(testDir, 'pastelsdd', 'AGENTS.md')
+        path.join(testDir, 'pscode', 'AGENTS.md')
       );
       expect(legacyExists).toBe(false);
 
@@ -1015,11 +1015,11 @@ ${PASTELSDD_MARKERS.end}
     it('should not show legacy cleanup messages when no legacy files exist', async () => {
       // Set up a configured tool with no legacy files
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), {
+      await fs.mkdir(path.join(skillsDir, 'pscode-explore'), {
         recursive: true,
       });
       await fs.writeFile(
-        path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(skillsDir, 'pscode-explore', 'SKILL.md'),
         'old'
       );
 
@@ -1032,34 +1032,34 @@ ${PASTELSDD_MARKERS.end}
         call.map(arg => String(arg)).join(' ')
       );
       const hasLegacyMessage = calls.some(call =>
-        call.includes('Upgrading to the new Pastelsdd')
+        call.includes('Upgrading to the new Pscode')
       );
       expect(hasLegacyMessage).toBe(false);
 
       consoleSpy.mockRestore();
     });
 
-    it('should remove Pastelsdd marker block from mixed content files', async () => {
+    it('should remove Pscode marker block from mixed content files', async () => {
       // Set up a configured tool
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), {
+      await fs.mkdir(path.join(skillsDir, 'pscode-explore'), {
         recursive: true,
       });
       await fs.writeFile(
-        path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(skillsDir, 'pscode-explore', 'SKILL.md'),
         'old'
       );
 
-      // Create CLAUDE.md with mixed content (user content + Pastelsdd markers)
+      // Create CLAUDE.md with mixed content (user content + Pscode markers)
       const mixedContent = `# My Project
 
 Some user-defined instructions here.
 
-${PASTELSDD_MARKERS.start}
-# Pastelsdd Instructions
+${PSCODE_MARKERS.start}
+# Pscode Instructions
 
 These instructions are for AI assistants.
-${PASTELSDD_MARKERS.end}
+${PSCODE_MARKERS.end}
 
 More user content after markers.
 `;
@@ -1073,7 +1073,7 @@ More user content after markers.
 
       // Should show marker removal message
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Removed Pastelsdd markers from CLAUDE.md')
+        expect.stringContaining('Removed Pscode markers from CLAUDE.md')
       );
 
       // File should still exist
@@ -1090,8 +1090,8 @@ More user content after markers.
       expect(updatedContent).toContain('# My Project');
       expect(updatedContent).toContain('Some user-defined instructions here');
       expect(updatedContent).toContain('More user content after markers');
-      expect(updatedContent).not.toContain(PASTELSDD_MARKERS.start);
-      expect(updatedContent).not.toContain(PASTELSDD_MARKERS.end);
+      expect(updatedContent).not.toContain(PSCODE_MARKERS.start);
+      expect(updatedContent).not.toContain(PSCODE_MARKERS.end);
 
       consoleSpy.mockRestore();
     });
@@ -1100,7 +1100,7 @@ More user content after markers.
   describe('legacy tool upgrade', () => {
     it('should upgrade legacy tools to new skills with --force', async () => {
       // Create legacy slash command directory (no skills exist yet)
-      const legacyCommandDir = path.join(testDir, '.claude', 'commands', 'pastelsdd');
+      const legacyCommandDir = path.join(testDir, '.claude', 'commands', 'pscode');
       await fs.mkdir(legacyCommandDir, { recursive: true });
       await fs.writeFile(
         path.join(legacyCommandDir, 'proposal.md'),
@@ -1128,11 +1128,11 @@ More user content after markers.
         expect.stringContaining('Getting started')
       );
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('/pstl:new')
+        expect.stringContaining('/ps:new')
       );
 
       // Skills should be created
-      const skillFile = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore', 'SKILL.md');
+      const skillFile = path.join(testDir, '.claude', 'skills', 'pscode-explore', 'SKILL.md');
       const skillExists = await FileSystemUtils.fileExists(skillFile);
       expect(skillExists).toBe(true);
 
@@ -1145,15 +1145,15 @@ More user content after markers.
 
     it('should upgrade multiple legacy tools with --force', async () => {
       // Create legacy command directories for Claude and Cursor
-      await fs.mkdir(path.join(testDir, '.claude', 'commands', 'pastelsdd'), { recursive: true });
+      await fs.mkdir(path.join(testDir, '.claude', 'commands', 'pscode'), { recursive: true });
       await fs.writeFile(
-        path.join(testDir, '.claude', 'commands', 'pastelsdd', 'proposal.md'),
+        path.join(testDir, '.claude', 'commands', 'pscode', 'proposal.md'),
         'content'
       );
 
       await fs.mkdir(path.join(testDir, '.cursor', 'commands'), { recursive: true });
       await fs.writeFile(
-        path.join(testDir, '.cursor', 'commands', 'pastelsdd-proposal.md'),
+        path.join(testDir, '.cursor', 'commands', 'pscode-proposal.md'),
         'content'
       );
 
@@ -1169,8 +1169,8 @@ More user content after markers.
       );
 
       // Both tools should have skills created
-      const claudeSkillFile = path.join(testDir, '.claude', 'skills', 'pastelsdd-explore', 'SKILL.md');
-      const cursorSkillFile = path.join(testDir, '.cursor', 'skills', 'pastelsdd-explore', 'SKILL.md');
+      const claudeSkillFile = path.join(testDir, '.claude', 'skills', 'pscode-explore', 'SKILL.md');
+      const cursorSkillFile = path.join(testDir, '.cursor', 'skills', 'pscode-explore', 'SKILL.md');
 
       expect(await FileSystemUtils.fileExists(claudeSkillFile)).toBe(true);
       expect(await FileSystemUtils.fileExists(cursorSkillFile)).toBe(true);
@@ -1181,14 +1181,14 @@ More user content after markers.
     it('should not upgrade legacy tools already configured', async () => {
       // Set up a configured Claude tool with skills
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), { recursive: true });
+      await fs.mkdir(path.join(skillsDir, 'pscode-explore'), { recursive: true });
       await fs.writeFile(
-        path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(skillsDir, 'pscode-explore', 'SKILL.md'),
         'existing skill'
       );
 
       // Also create legacy directory (simulating partial upgrade)
-      const legacyCommandDir = path.join(testDir, '.claude', 'commands', 'pastelsdd');
+      const legacyCommandDir = path.join(testDir, '.claude', 'commands', 'pscode');
       await fs.mkdir(legacyCommandDir, { recursive: true });
       await fs.writeFile(
         path.join(legacyCommandDir, 'proposal.md'),
@@ -1203,7 +1203,7 @@ More user content after markers.
 
       // Legacy cleanup should happen
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Removed .claude/commands/pastelsdd/')
+        expect.stringContaining('Removed .claude/commands/pscode/')
       );
 
       // Should NOT show "Tools detected from legacy artifacts" because claude is already configured
@@ -1226,22 +1226,22 @@ More user content after markers.
     it('should upgrade only unconfigured legacy tools when mixed', async () => {
       // Set up configured Claude tool with skills
       const claudeSkillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(claudeSkillsDir, 'pastelsdd-explore'), { recursive: true });
+      await fs.mkdir(path.join(claudeSkillsDir, 'pscode-explore'), { recursive: true });
       await fs.writeFile(
-        path.join(claudeSkillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(claudeSkillsDir, 'pscode-explore', 'SKILL.md'),
         'existing skill'
       );
 
       // Create legacy commands for both Claude (configured) and Cursor (not configured)
-      await fs.mkdir(path.join(testDir, '.claude', 'commands', 'pastelsdd'), { recursive: true });
+      await fs.mkdir(path.join(testDir, '.claude', 'commands', 'pscode'), { recursive: true });
       await fs.writeFile(
-        path.join(testDir, '.claude', 'commands', 'pastelsdd', 'proposal.md'),
+        path.join(testDir, '.claude', 'commands', 'pscode', 'proposal.md'),
         'content'
       );
 
       await fs.mkdir(path.join(testDir, '.cursor', 'commands'), { recursive: true });
       await fs.writeFile(
-        path.join(testDir, '.cursor', 'commands', 'pastelsdd-proposal.md'),
+        path.join(testDir, '.cursor', 'commands', 'pscode-proposal.md'),
         'content'
       );
 
@@ -1257,7 +1257,7 @@ More user content after markers.
       );
 
       // Cursor skills should be created
-      const cursorSkillFile = path.join(testDir, '.cursor', 'skills', 'pastelsdd-explore', 'SKILL.md');
+      const cursorSkillFile = path.join(testDir, '.cursor', 'skills', 'pscode-explore', 'SKILL.md');
       expect(await FileSystemUtils.fileExists(cursorSkillFile)).toBe(true);
 
       // Should show "Getting started" for newly configured Cursor
@@ -1271,9 +1271,9 @@ More user content after markers.
     it('should not show getting started message when no new tools configured', async () => {
       // Set up a configured tool (no legacy artifacts)
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), { recursive: true });
+      await fs.mkdir(path.join(skillsDir, 'pscode-explore'), { recursive: true });
       await fs.writeFile(
-        path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(skillsDir, 'pscode-explore', 'SKILL.md'),
         'old skill'
       );
 
@@ -1295,9 +1295,9 @@ More user content after markers.
 
     it('should create only effective profile skills when upgrading legacy tools', async () => {
       // Create legacy command directory
-      await fs.mkdir(path.join(testDir, '.claude', 'commands', 'pastelsdd'), { recursive: true });
+      await fs.mkdir(path.join(testDir, '.claude', 'commands', 'pscode'), { recursive: true });
       await fs.writeFile(
-        path.join(testDir, '.claude', 'commands', 'pastelsdd', 'proposal.md'),
+        path.join(testDir, '.claude', 'commands', 'pscode', 'proposal.md'),
         'content'
       );
 
@@ -1307,11 +1307,11 @@ More user content after markers.
 
       // Default profile is core, so only core workflows should be generated.
       const skillNames = [
-        'pastelsdd-propose',
-        'pastelsdd-explore',
-        'pastelsdd-apply-change',
-        'pastelsdd-sync-specs',
-        'pastelsdd-archive-change',
+        'pscode-propose',
+        'pscode-explore',
+        'pscode-apply-change',
+        'pscode-sync-specs',
+        'pscode-archive-change',
       ];
 
       const skillsDir = path.join(testDir, '.claude', 'skills');
@@ -1321,15 +1321,15 @@ More user content after markers.
         expect(exists).toBe(true);
       }
 
-      const nonCoreSkill = path.join(skillsDir, 'pastelsdd-new-change', 'SKILL.md');
+      const nonCoreSkill = path.join(skillsDir, 'pscode-new-change', 'SKILL.md');
       expect(await FileSystemUtils.fileExists(nonCoreSkill)).toBe(false);
     });
 
     it('should create commands when upgrading legacy tools', async () => {
       // Create legacy command directory
-      await fs.mkdir(path.join(testDir, '.claude', 'commands', 'pastelsdd'), { recursive: true });
+      await fs.mkdir(path.join(testDir, '.claude', 'commands', 'pscode'), { recursive: true });
       await fs.writeFile(
-        path.join(testDir, '.claude', 'commands', 'pastelsdd', 'proposal.md'),
+        path.join(testDir, '.claude', 'commands', 'pscode', 'proposal.md'),
         'content'
       );
 
@@ -1338,23 +1338,22 @@ More user content after markers.
       await forceUpdateCommand.execute(testDir);
 
       // New pastel commands should be created
-      const commandsDir = path.join(testDir, '.claude', 'commands', 'pstl');
+      const commandsDir = path.join(testDir, '.claude', 'commands', 'ps');
       const exploreCmd = path.join(commandsDir, 'explore.md');
       const exists = await FileSystemUtils.fileExists(exploreCmd);
       expect(exists).toBe(true);
     });
 
-    it('should not inject non-profile workflows when upgrading legacy tools', async () => {
+    it('should generate active profile workflows when upgrading legacy tools', async () => {
       setMockConfig({
         featureFlags: {},
-        profile: 'custom',
+        profile: 'core',
         delivery: 'both',
-        workflows: ['explore'],
       });
 
-      await fs.mkdir(path.join(testDir, '.claude', 'commands', 'pastelsdd'), { recursive: true });
+      await fs.mkdir(path.join(testDir, '.claude', 'commands', 'pscode'), { recursive: true });
       await fs.writeFile(
-        path.join(testDir, '.claude', 'commands', 'pastelsdd', 'proposal.md'),
+        path.join(testDir, '.claude', 'commands', 'pscode', 'proposal.md'),
         'content'
       );
 
@@ -1363,89 +1362,69 @@ More user content after markers.
 
       const skillsDir = path.join(testDir, '.claude', 'skills');
       expect(await FileSystemUtils.fileExists(
-        path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md')
+        path.join(skillsDir, 'pscode-explore', 'SKILL.md')
       )).toBe(true);
       expect(await FileSystemUtils.fileExists(
-        path.join(skillsDir, 'pastelsdd-propose', 'SKILL.md')
-      )).toBe(false);
+        path.join(skillsDir, 'pscode-propose', 'SKILL.md')
+      )).toBe(true);
 
-      const commandsDir = path.join(testDir, '.claude', 'commands', 'pstl');
+      // Non-core skills should NOT be created
       expect(await FileSystemUtils.fileExists(
-        path.join(commandsDir, 'explore.md')
-      )).toBe(true);
-      expect(await FileSystemUtils.fileExists(
-        path.join(commandsDir, 'propose.md')
+        path.join(skillsDir, 'pscode-new-change', 'SKILL.md')
       )).toBe(false);
     });
   });
 
   describe('profile-aware updates', () => {
-    it('should generate only profile workflows when custom profile is set', async () => {
-      // Set custom profile with only explore and new
+    it('should generate only the active profile workflows', async () => {
       setMockConfig({
         featureFlags: {},
-        profile: 'custom',
+        profile: 'core',
         delivery: 'both',
-        workflows: ['explore', 'new'],
       });
 
-      // Set up a configured tool
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), { recursive: true });
-      await fs.writeFile(path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'), 'old');
+      await fs.mkdir(path.join(skillsDir, 'pscode-explore'), { recursive: true });
+      await fs.writeFile(path.join(skillsDir, 'pscode-explore', 'SKILL.md'), 'old');
 
       await updateCommand.execute(testDir);
 
-      // Should create explore and new skills
+      // Core profile skills should be created
       expect(await FileSystemUtils.fileExists(
-        path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md')
+        path.join(skillsDir, 'pscode-explore', 'SKILL.md')
       )).toBe(true);
       expect(await FileSystemUtils.fileExists(
-        path.join(skillsDir, 'pastelsdd-new-change', 'SKILL.md')
+        path.join(skillsDir, 'pscode-propose', 'SKILL.md')
       )).toBe(true);
 
-      // Should NOT create non-profile skills
+      // Non-core skills should NOT be created
       expect(await FileSystemUtils.fileExists(
-        path.join(skillsDir, 'pastelsdd-apply-change', 'SKILL.md')
+        path.join(skillsDir, 'pscode-new-change', 'SKILL.md')
       )).toBe(false);
       expect(await FileSystemUtils.fileExists(
-        path.join(skillsDir, 'pastelsdd-propose', 'SKILL.md')
+        path.join(skillsDir, 'pscode-verify-change', 'SKILL.md')
       )).toBe(false);
     });
 
-    it('should suggest core preset when custom profile preserves the old core workflow set', async () => {
+    it('should use the core profile by default and include sync workflow', async () => {
       setMockConfig({
         featureFlags: {},
-        profile: 'custom',
+        profile: 'core',
         delivery: 'both',
-        workflows: ['propose', 'explore', 'apply', 'archive'],
       });
 
       const initCommand = new InitCommand({ tools: 'claude', force: true });
       await initCommand.execute(testDir);
 
-      const consoleSpy = vi.spyOn(console, 'log');
-
       await updateCommand.execute(testDir);
 
-      const calls = consoleSpy.mock.calls.map(call =>
-        call.map(arg => String(arg)).join(' ')
-      );
-      expect(calls.some(call =>
-        call.includes('The core profile now includes sync')
-      )).toBe(true);
-      expect(calls.some(call =>
-        call.includes('pastelsdd config profile core') && call.includes('pastelsdd update')
-      )).toBe(true);
-
+      // Core includes sync
       expect(await FileSystemUtils.fileExists(
-        path.join(testDir, '.claude', 'skills', 'pastelsdd-sync-specs', 'SKILL.md')
-      )).toBe(false);
+        path.join(testDir, '.claude', 'skills', 'pscode-sync-specs', 'SKILL.md')
+      )).toBe(true);
       expect(await FileSystemUtils.fileExists(
-        path.join(testDir, '.claude', 'commands', 'pstl', 'sync.md')
-      )).toBe(false);
-
-      consoleSpy.mockRestore();
+        path.join(testDir, '.claude', 'commands', 'ps', 'sync.md')
+      )).toBe(true);
     });
 
     it('should respect skills-only delivery setting', async () => {
@@ -1456,18 +1435,18 @@ More user content after markers.
       });
 
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), { recursive: true });
-      await fs.writeFile(path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'), 'old');
+      await fs.mkdir(path.join(skillsDir, 'pscode-explore'), { recursive: true });
+      await fs.writeFile(path.join(skillsDir, 'pscode-explore', 'SKILL.md'), 'old');
 
       await updateCommand.execute(testDir);
 
       // Skills should be created
       expect(await FileSystemUtils.fileExists(
-        path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md')
+        path.join(skillsDir, 'pscode-explore', 'SKILL.md')
       )).toBe(true);
 
       // Commands should NOT be created
-      const commandsDir = path.join(testDir, '.claude', 'commands', 'pstl');
+      const commandsDir = path.join(testDir, '.claude', 'commands', 'ps');
       expect(await FileSystemUtils.fileExists(
         path.join(commandsDir, 'explore.md')
       )).toBe(false);
@@ -1481,20 +1460,20 @@ More user content after markers.
       });
 
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), { recursive: true });
-      await fs.writeFile(path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'), 'old');
+      await fs.mkdir(path.join(skillsDir, 'pscode-explore'), { recursive: true });
+      await fs.writeFile(path.join(skillsDir, 'pscode-explore', 'SKILL.md'), 'old');
 
       await updateCommand.execute(testDir);
 
       // Commands should be created
-      const commandsDir = path.join(testDir, '.claude', 'commands', 'pstl');
+      const commandsDir = path.join(testDir, '.claude', 'commands', 'ps');
       expect(await FileSystemUtils.fileExists(
         path.join(commandsDir, 'explore.md')
       )).toBe(true);
 
       // Skills should be removed for commands-only delivery
       expect(await FileSystemUtils.fileExists(
-        path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md')
+        path.join(skillsDir, 'pscode-explore', 'SKILL.md')
       )).toBe(false);
     });
 
@@ -1508,14 +1487,14 @@ More user content after markers.
       });
 
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), { recursive: true });
-      await fs.writeFile(path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'), 'old');
+      await fs.mkdir(path.join(skillsDir, 'pscode-explore'), { recursive: true });
+      await fs.writeFile(path.join(skillsDir, 'pscode-explore', 'SKILL.md'), 'old');
 
       await expect(updateCommand.execute(testDir)).resolves.toBeUndefined();
 
       // Skills should be removed since delivery is commands-only
       expect(await FileSystemUtils.fileExists(
-        path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md')
+        path.join(skillsDir, 'pscode-explore', 'SKILL.md')
       )).toBe(false);
     });
 
@@ -1527,12 +1506,12 @@ More user content after markers.
       });
 
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), { recursive: true });
+      await fs.mkdir(path.join(skillsDir, 'pscode-explore'), { recursive: true });
       const { version: currentVersion } = await import('../../package.json');
       await fs.writeFile(
-        path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'),
+        path.join(skillsDir, 'pscode-explore', 'SKILL.md'),
         `---
-name: pastelsdd-explore
+name: pscode-explore
 metadata:
   generatedBy: "${currentVersion}"
 ---
@@ -1540,7 +1519,7 @@ content
 `
       );
 
-      const commandsDir = path.join(testDir, '.claude', 'commands', 'pstl');
+      const commandsDir = path.join(testDir, '.claude', 'commands', 'ps');
       await fs.mkdir(commandsDir, { recursive: true });
       await fs.writeFile(path.join(commandsDir, 'explore.md'), 'old command');
 
@@ -1559,7 +1538,7 @@ content
         delivery: 'commands',
       });
 
-      const commandsDir = path.join(testDir, '.claude', 'commands', 'pstl');
+      const commandsDir = path.join(testDir, '.claude', 'commands', 'ps');
       await fs.mkdir(commandsDir, { recursive: true });
       await fs.writeFile(path.join(commandsDir, 'explore.md'), 'existing command');
 
@@ -1594,13 +1573,13 @@ content
 
       // Set up tool with extra workflows beyond core profile
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), { recursive: true });
-      await fs.writeFile(path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'), 'old');
+      await fs.mkdir(path.join(skillsDir, 'pscode-explore'), { recursive: true });
+      await fs.writeFile(path.join(skillsDir, 'pscode-explore', 'SKILL.md'), 'old');
 
       // Add a non-core workflow
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-new-change'), { recursive: true });
-      await fs.writeFile(path.join(skillsDir, 'pastelsdd-new-change', 'SKILL.md'), 'old');
-      const extraCommandFile = path.join(testDir, '.claude', 'commands', 'pstl', 'new.md');
+      await fs.mkdir(path.join(skillsDir, 'pscode-new-change'), { recursive: true });
+      await fs.writeFile(path.join(skillsDir, 'pscode-new-change', 'SKILL.md'), 'old');
+      const extraCommandFile = path.join(testDir, '.claude', 'commands', 'ps', 'new.md');
       await fs.mkdir(path.dirname(extraCommandFile), { recursive: true });
       await fs.writeFile(extraCommandFile, 'old');
 
@@ -1610,7 +1589,7 @@ content
 
       // Deselected workflow artifacts should be removed for both delivery surfaces.
       expect(await FileSystemUtils.fileExists(
-        path.join(skillsDir, 'pastelsdd-new-change', 'SKILL.md')
+        path.join(skillsDir, 'pscode-new-change', 'SKILL.md')
       )).toBe(false);
       expect(await FileSystemUtils.fileExists(extraCommandFile)).toBe(false);
 
@@ -1631,8 +1610,8 @@ content
     it('should detect new tool directories not currently configured', async () => {
       // Set up a configured Claude tool
       const claudeSkillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(claudeSkillsDir, 'pastelsdd-explore'), { recursive: true });
-      await fs.writeFile(path.join(claudeSkillsDir, 'pastelsdd-explore', 'SKILL.md'), 'old');
+      await fs.mkdir(path.join(claudeSkillsDir, 'pscode-explore'), { recursive: true });
+      await fs.writeFile(path.join(claudeSkillsDir, 'pscode-explore', 'SKILL.md'), 'old');
 
       // Create a Cursor directory (not configured — no skills)
       await fs.mkdir(path.join(testDir, '.cursor'), { recursive: true });
@@ -1646,7 +1625,7 @@ content
         call.map(arg => String(arg)).join(' ')
       );
       const hasNewToolMessage = calls.some(call =>
-        call.includes("Detected new tool: Cursor. Run 'pastelsdd init' to add it.")
+        call.includes("Detected new tool: Cursor. Run 'pscode init' to add it.")
       );
       expect(hasNewToolMessage).toBe(true);
 
@@ -1656,8 +1635,8 @@ content
     it('should consolidate multiple new tools into one message', async () => {
       // Set up a configured Claude tool
       const claudeSkillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(claudeSkillsDir, 'pastelsdd-explore'), { recursive: true });
-      await fs.writeFile(path.join(claudeSkillsDir, 'pastelsdd-explore', 'SKILL.md'), 'old');
+      await fs.mkdir(path.join(claudeSkillsDir, 'pscode-explore'), { recursive: true });
+      await fs.writeFile(path.join(claudeSkillsDir, 'pscode-explore', 'SKILL.md'), 'old');
 
       // Create two unconfigured tool directories using simple skillsDir detection
       await fs.mkdir(path.join(testDir, '.cursor'), { recursive: true });
@@ -1678,7 +1657,7 @@ content
       expect(consolidatedCalls).toHaveLength(1);
       expect(consolidatedCalls[0]).toContain('Cursor');
       expect(consolidatedCalls[0]).toContain('Gemini CLI');
-      expect(consolidatedCalls[0]).toContain("Run 'pastelsdd init' to add them.");
+      expect(consolidatedCalls[0]).toContain("Run 'pscode init' to add them.");
 
       const repeatedSingularCalls = calls.filter(call =>
         call.includes('Detected new tool:')
@@ -1691,8 +1670,8 @@ content
     it('should not show new tool message when no new tools detected', async () => {
       // Set up a configured tool (only Claude, no other tool directories)
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), { recursive: true });
-      await fs.writeFile(path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'), 'old');
+      await fs.mkdir(path.join(skillsDir, 'pscode-explore'), { recursive: true });
+      await fs.writeFile(path.join(skillsDir, 'pscode-explore', 'SKILL.md'), 'old');
 
       const consoleSpy = vi.spyOn(console, 'log');
 
@@ -1714,10 +1693,10 @@ content
     it('should detect installed workflows across tools', async () => {
       // Create skills for Claude
       const claudeSkillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(claudeSkillsDir, 'pastelsdd-explore'), { recursive: true });
-      await fs.writeFile(path.join(claudeSkillsDir, 'pastelsdd-explore', 'SKILL.md'), 'content');
-      await fs.mkdir(path.join(claudeSkillsDir, 'pastelsdd-apply-change'), { recursive: true });
-      await fs.writeFile(path.join(claudeSkillsDir, 'pastelsdd-apply-change', 'SKILL.md'), 'content');
+      await fs.mkdir(path.join(claudeSkillsDir, 'pscode-explore'), { recursive: true });
+      await fs.writeFile(path.join(claudeSkillsDir, 'pscode-explore', 'SKILL.md'), 'content');
+      await fs.mkdir(path.join(claudeSkillsDir, 'pscode-apply-change'), { recursive: true });
+      await fs.writeFile(path.join(claudeSkillsDir, 'pscode-apply-change', 'SKILL.md'), 'content');
 
       const workflows = scanInstalledWorkflows(testDir, ['claude']);
       expect(workflows).toContain('explore');
@@ -1728,13 +1707,13 @@ content
     it('should return union of workflows across multiple tools', async () => {
       // Claude has explore
       const claudeSkillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(claudeSkillsDir, 'pastelsdd-explore'), { recursive: true });
-      await fs.writeFile(path.join(claudeSkillsDir, 'pastelsdd-explore', 'SKILL.md'), 'content');
+      await fs.mkdir(path.join(claudeSkillsDir, 'pscode-explore'), { recursive: true });
+      await fs.writeFile(path.join(claudeSkillsDir, 'pscode-explore', 'SKILL.md'), 'content');
 
       // Cursor has apply
       const cursorSkillsDir = path.join(testDir, '.cursor', 'skills');
-      await fs.mkdir(path.join(cursorSkillsDir, 'pastelsdd-apply-change'), { recursive: true });
-      await fs.writeFile(path.join(cursorSkillsDir, 'pastelsdd-apply-change', 'SKILL.md'), 'content');
+      await fs.mkdir(path.join(cursorSkillsDir, 'pscode-apply-change'), { recursive: true });
+      await fs.writeFile(path.join(cursorSkillsDir, 'pscode-apply-change', 'SKILL.md'), 'content');
 
       const workflows = scanInstalledWorkflows(testDir, ['claude', 'cursor']);
       expect(workflows).toContain('explore');
@@ -1757,7 +1736,7 @@ content
     });
 
     it('should detect installed workflows from managed command files', async () => {
-      const commandsDir = path.join(testDir, '.claude', 'commands', 'pstl');
+      const commandsDir = path.join(testDir, '.claude', 'commands', 'ps');
       await fs.mkdir(commandsDir, { recursive: true });
       await fs.writeFile(path.join(commandsDir, 'explore.md'), 'content');
 
@@ -1769,8 +1748,8 @@ content
   describe('tools output', () => {
     it('should list affected tools in output', async () => {
       const skillsDir = path.join(testDir, '.claude', 'skills');
-      await fs.mkdir(path.join(skillsDir, 'pastelsdd-explore'), { recursive: true });
-      await fs.writeFile(path.join(skillsDir, 'pastelsdd-explore', 'SKILL.md'), 'old');
+      await fs.mkdir(path.join(skillsDir, 'pscode-explore'), { recursive: true });
+      await fs.writeFile(path.join(skillsDir, 'pscode-explore', 'SKILL.md'), 'old');
 
       const consoleSpy = vi.spyOn(console, 'log');
 

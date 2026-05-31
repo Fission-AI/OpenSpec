@@ -1,16 +1,16 @@
-﻿# OPSX Workflow
+# OPSX Workflow
 
 > Feedback welcome on [Discord](https://discord.gg/YctCnvvshC).
 
 ## What Is It?
 
-OPSX is now the standard workflow for Pastelsdd.
+OPSX is now the standard workflow for Pscode.
 
-It's a **fluid, iterative workflow** for Pastelsdd changes. No more rigid phases — just actions you can take anytime.
+It's a **fluid, iterative workflow** for Pscode changes. No more rigid phases — just actions you can take anytime.
 
 ## Why This Exists
 
-The legacy Pastelsdd workflow works, but it's **locked down**:
+The legacy Pscode workflow works, but it's **locked down**:
 
 - **Instructions are hardcoded** — buried in TypeScript, you can't change them
 - **All-or-nothing** — one big command creates everything, can't test individual pieces
@@ -39,7 +39,7 @@ Legacy workflow:                      OPSX:
 **This is for everyone:**
 - **Teams** — create workflows that match how you actually work
 - **Power users** — tweak prompts to get better AI outputs for your codebase
-- **Pastelsdd contributors** — experiment with new approaches without releases
+- **Pscode contributors** — experiment with new approaches without releases
 
 We're all still learning what works best. OPSX lets us learn together.
 
@@ -59,15 +59,15 @@ You're "in planning phase", then "in implementation phase", then "done". But rea
 ## Setup
 
 ```bash
-# Make sure you have pastelsdd installed — skills are automatically generated
-pastelsdd init
+# Make sure you have pscode installed — skills are automatically generated
+pscode init
 ```
 
 This creates skills in `.claude/skills/` (or equivalent) that AI coding assistants auto-detect.
 
-By default, Pastelsdd uses the `core` workflow profile (`propose`, `explore`, `apply`, `sync`, `archive`). If you want the expanded workflow commands (`new`, `continue`, `ff`, `verify`, `bulk-archive`, `onboard`), configure them with `pastelsdd config profile` and apply with `pastelsdd update`.
+By default, Pscode uses the `core` workflow profile (`propose`, `explore`, `apply`, `sync`, `archive`). If you want the expanded workflow commands (`new`, `continue`, `ff`, `verify`, `bulk-archive`, `onboard`), configure them with `pscode config profile` and apply with `pscode update`.
 
-During setup, you'll be prompted to create a **project config** (`pastelsdd/config.yaml`). This is optional but recommended.
+During setup, you'll be prompted to create a **project config** (`pscode/config.yaml`). This is optional but recommended.
 
 ## Project Configuration
 
@@ -75,10 +75,10 @@ Project config lets you set defaults and inject project-specific context into al
 
 ### Creating Config
 
-Config is created during `pastelsdd init`, or manually:
+Config is created during `pscode init`, or manually:
 
 ```yaml
-# pastelsdd/config.yaml
+# pscode/config.yaml
 schema: spec-driven
 
 context: |
@@ -109,8 +109,8 @@ rules:
 
 **Schema precedence** (highest to lowest):
 1. CLI flag (`--schema <name>`)
-2. Change metadata (`.pastelsdd.yaml` in change directory)
-3. Project config (`pastelsdd/config.yaml`)
+2. Change metadata (`.pscode.yaml` in change directory)
+3. Project config (`pscode/config.yaml`)
 4. Default (`spec-driven`)
 
 **Context injection:**
@@ -142,10 +142,10 @@ rules:
 
 **"Unknown artifact ID in rules: X"**
 - Check artifact IDs match your schema (see list above)
-- Run `pastelsdd schemas --json` to see artifact IDs for each schema
+- Run `pscode schemas --json` to see artifact IDs for each schema
 
 **Config not being applied:**
-- Ensure file is at `pastelsdd/config.yaml` (not `.yml`)
+- Ensure file is at `pscode/config.yaml` (not `.yml`)
 - Check YAML syntax with a validator
 - Config changes take effect immediately (no restart needed)
 
@@ -157,60 +157,60 @@ rules:
 
 | Command | What it does |
 |---------|--------------|
-| `/pstl:propose` | Create a change and generate planning artifacts in one step (default quick path) |
-| `/pstl:explore` | Think through ideas, investigate problems, clarify requirements |
-| `/pstl:new` | Start a new change scaffold (expanded workflow) |
-| `/pstl:continue` | Create the next artifact (expanded workflow) |
-| `/pstl:ff` | Fast-forward planning artifacts (expanded workflow) |
-| `/pstl:apply` | Implement tasks, updating artifacts as needed |
-| `/pstl:verify` | Validate implementation against artifacts (expanded workflow) |
-| `/pstl:sync` | Sync delta specs to main (default workflow, optional) |
-| `/pstl:archive` | Archive when done |
-| `/pstl:bulk-archive` | Archive multiple completed changes (expanded workflow) |
-| `/pstl:onboard` | Guided walkthrough of an end-to-end change (expanded workflow) |
+| `/ps:propose` | Create a change and generate planning artifacts in one step (default quick path) |
+| `/ps:explore` | Think through ideas, investigate problems, clarify requirements |
+| `/ps:new` | Start a new change scaffold (expanded workflow) |
+| `/ps:continue` | Create the next artifact (expanded workflow) |
+| `/ps:ff` | Fast-forward planning artifacts (expanded workflow) |
+| `/ps:apply` | Implement tasks, updating artifacts as needed |
+| `/ps:verify` | Validate implementation against artifacts (expanded workflow) |
+| `/ps:sync` | Sync delta specs to main (default workflow, optional) |
+| `/ps:archive` | Archive when done |
+| `/ps:bulk-archive` | Archive multiple completed changes (expanded workflow) |
+| `/ps:onboard` | Guided walkthrough of an end-to-end change (expanded workflow) |
 
 ## Usage
 
 ### Explore an idea
 ```
-/pstl:explore
+/ps:explore
 ```
-Think through ideas, investigate problems, compare options. No structure required - just a thinking partner. When insights crystallize, transition to `/pstl:propose` (default) or `/pstl:new`/`/pstl:ff` (expanded).
+Think through ideas, investigate problems, compare options. No structure required - just a thinking partner. When insights crystallize, transition to `/ps:propose` (default) or `/ps:new`/`/ps:ff` (expanded).
 
 ### Start a new change
 ```
-/pstl:propose
+/ps:propose
 ```
 Creates the change and generates planning artifacts needed before implementation.
 
 If you've enabled expanded workflows, you can instead use:
 
 ```text
-/pstl:new        # scaffold only
-/pstl:continue   # create one artifact at a time
-/pstl:ff         # create all planning artifacts at once
+/ps:new        # scaffold only
+/ps:continue   # create one artifact at a time
+/ps:ff         # create all planning artifacts at once
 ```
 
 ### Create artifacts
 ```
-/pstl:continue
+/ps:continue
 ```
 Shows what's ready to create based on dependencies, then creates one artifact. Use repeatedly to build up your change incrementally.
 
 ```
-/pstl:ff add-dark-mode
+/ps:ff add-dark-mode
 ```
 Creates all planning artifacts at once. Use when you have a clear picture of what you're building.
 
 ### Implement (the fluid part)
 ```
-/pstl:apply
+/ps:apply
 ```
-Works through tasks, checking them off as you go. If you're juggling multiple changes, you can run `/pstl:apply <name>`; otherwise it should infer from the conversation and prompt you to choose if it can't tell.
+Works through tasks, checking them off as you go. If you're juggling multiple changes, you can run `/ps:apply <name>`; otherwise it should infer from the conversation and prompt you to choose if it can't tell.
 
 ### Finish up
 ```
-/pstl:archive   # Move to archive when done (prompts to sync specs if needed)
+/ps:archive   # Move to archive when done (prompts to sync specs if needed)
 ```
 
 ## When to Update vs. Start Fresh
@@ -301,7 +301,7 @@ Think of it like git branches:
 
 ## What's Different?
 
-| | Legacy (`/pastelsdd:proposal`) | OPSX (`/pstl:*`) |
+| | Legacy (`/pscode:proposal`) | OPSX (`/ps:*`) |
 |---|---|---|
 | **Structure** | One big proposal document | Discrete artifacts with dependencies |
 | **Workflow** | Linear phases: plan → implement → archive | Fluid actions — do anything anytime |
@@ -329,7 +329,7 @@ Examples in this section use the expanded command set (`new`, `continue`, etc.);
 │   └──────────────┘      └──────────────┘      └──────────────┘             │
 │         │                     │                     │                       │
 │         ▼                     ▼                     ▼                       │
-│   /pastelsdd:proposal   /pastelsdd:apply      /pastelsdd:archive              │
+│   /pscode:proposal   /pscode:apply      /pscode:archive              │
 │                                                                             │
 │   • Creates ALL artifacts at once                                          │
 │   • Can't go back to update specs during implementation                    │
@@ -374,7 +374,7 @@ Examples in this section use the expanded command set (`new`, `continue`, etc.);
 │   Tool-specific configurators/adapters                                      │
 │                    │                                                        │
 │                    ▼                                                        │
-│   Generated Command Files (.claude/commands/pastelsdd/*.md)                  │
+│   Generated Command Files (.claude/commands/pscode/*.md)                  │
 │                                                                             │
 │   • Fixed structure, no artifact awareness                                  │
 │   • Change requires code modification + rebuild                             │
@@ -410,7 +410,7 @@ Examples in this section use the expanded command set (`new`, `continue`, etc.);
 │   └─────────────────────────────────────────────────────────────────────┘   │
 │                    │                                                        │
 │                    ▼                                                        │
-│   Skill Files (.claude/skills/pastelsdd-*/SKILL.md)                          │
+│   Skill Files (.claude/skills/pscode-*/SKILL.md)                          │
 │                                                                             │
 │   • Cross-editor compatible (Claude Code, Cursor, Windsurf)                 │
 │   • Skills query CLI for structured data                                    │
@@ -463,7 +463,7 @@ Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, no
 **Legacy workflow** — agent receives static instructions:
 
 ```
-  User: "/pastelsdd:proposal"
+  User: "/pscode:proposal"
            │
            ▼
   ┌─────────────────────────────────────────┐
@@ -484,13 +484,13 @@ Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, no
 **OPSX** — agent queries for rich context:
 
 ```
-  User: "/pstl:continue"
+  User: "/ps:continue"
            │
            ▼
   ┌──────────────────────────────────────────────────────────────────────────┐
   │  Step 1: Query current state                                             │
   │  ┌────────────────────────────────────────────────────────────────────┐  │
-  │  │  $ pastelsdd status --change "add-auth" --json                      │  │
+  │  │  $ pscode status --change "add-auth" --json                      │  │
   │  │                                                                    │  │
   │  │  {                                                                 │  │
   │  │    "artifacts": [                                                  │  │
@@ -504,7 +504,7 @@ Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, no
   │                                                                          │
   │  Step 2: Get rich instructions for ready artifact                        │
   │  ┌────────────────────────────────────────────────────────────────────┐  │
-  │  │  $ pastelsdd instructions specs --change "add-auth" --json          │  │
+  │  │  $ pscode instructions specs --change "add-auth" --json          │  │
   │  │                                                                    │  │
   │  │  {                                                                 │  │
   │  │    "template": "# Specification\n\n## ADDED Requirements...",      │  │
@@ -541,7 +541,7 @@ Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, no
 **OPSX** — natural iteration:
 
 ```
-  /pstl:new ───► /pstl:continue ───► /pstl:apply ───► /pstl:archive
+  /ps:new ───► /ps:continue ───► /ps:apply ───► /ps:archive
       │                │                  │
       │                │                  ├── "The design is wrong"
       │                │                  │
@@ -550,7 +550,7 @@ Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, no
       │                │            and continue!
       │                │                  │
       │                │                  ▼
-      │                │         /pstl:apply picks up
+      │                │         /ps:apply picks up
       │                │         where you left off
       │                │
       │                └── Creates ONE artifact, shows what's unlocked
@@ -564,23 +564,23 @@ Create custom workflows using the schema management commands:
 
 ```bash
 # Create a new schema from scratch (interactive)
-pastelsdd schema init my-workflow
+pscode schema init my-workflow
 
 # Or fork an existing schema as a starting point
-pastelsdd schema fork spec-driven my-workflow
+pscode schema fork spec-driven my-workflow
 
 # Validate your schema structure
-pastelsdd schema validate my-workflow
+pscode schema validate my-workflow
 
 # See where a schema resolves from (useful for debugging)
-pastelsdd schema which my-workflow
+pscode schema which my-workflow
 ```
 
-Schemas are stored in `pastelsdd/schemas/` (project-local, version controlled) or `~/.local/share/pastelsdd/schemas/` (user global).
+Schemas are stored in `pscode/schemas/` (project-local, version controlled) or `~/.local/share/pscode/schemas/` (user global).
 
 **Schema structure:**
 ```
-pastelsdd/schemas/research-first/
+pscode/schemas/research-first/
 ├── schema.yaml
 └── templates/
     ├── research.md
@@ -629,31 +629,31 @@ Schemas define what artifacts exist and their dependencies. Currently available:
 
 ```bash
 # List available schemas
-pastelsdd schemas
+pscode schemas
 
 # See all schemas with their resolution sources
-pastelsdd schema which --all
+pscode schema which --all
 
 # Create a new schema interactively
-pastelsdd schema init my-workflow
+pscode schema init my-workflow
 
 # Fork an existing schema for customization
-pastelsdd schema fork spec-driven my-workflow
+pscode schema fork spec-driven my-workflow
 
 # Validate schema structure before use
-pastelsdd schema validate my-workflow
+pscode schema validate my-workflow
 ```
 
 ## Tips
 
-- Use `/pstl:explore` to think through an idea before committing to a change
-- `/pstl:ff` when you know what you want, `/pstl:continue` when exploring
-- During `/pstl:apply`, if something's wrong — fix the artifact, then continue
+- Use `/ps:explore` to think through an idea before committing to a change
+- `/ps:ff` when you know what you want, `/ps:continue` when exploring
+- During `/ps:apply`, if something's wrong — fix the artifact, then continue
 - Tasks track progress via checkboxes in `tasks.md`
-- Check status anytime: `pastelsdd status --change "name"`
+- Check status anytime: `pscode status --change "name"`
 
 ## Feedback
 
 This is rough. That's intentional — we're learning what works.
 
-Found a bug? Have ideas? Join us on [Discord](https://discord.gg/YctCnvvshC) or open an issue on [GitHub](https://github.com/thiagodiogo/pastelsdd/issues).
+Found a bug? Have ideas? Join us on [Discord](https://discord.gg/YctCnvvshC) or open an issue on [GitHub](https://github.com/thiagodiogo/pscode/issues).

@@ -1,8 +1,8 @@
-﻿/**
+/**
  * Trello Configuration
  *
- * Types and utilities for reading the optional `pastelsdd/trello.yaml`
- * integration file. This file is created by /pstl:trello-setup and
+ * Types and utilities for reading the optional `pscode/trello.yaml`
+ * integration file. This file is created by /ps:trello-setup and
  * consumed at runtime by all Trello-aware skills and commands.
  */
 
@@ -47,7 +47,7 @@ export interface TrelloListMap {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Chaves de label predefinidas no Pastelsdd.
+ * Chaves de label predefinidas no Pscode.
  */
 export type TrelloLabelKey = 'bug' | 'implementacao' | 'melhoria' | 'debito-tecnico';
 
@@ -68,7 +68,7 @@ export interface TrelloLabelsConfig {
   items?: Partial<Record<TrelloLabelKey, TrelloLabelEntry>>;
 }
 
-/** Definição estática de cada label padrão do Pastelsdd. */
+/** Definição estática de cada label padrão do Pscode. */
 export interface LabelDefinition {
   key: TrelloLabelKey;
   name: string;
@@ -78,7 +78,7 @@ export interface LabelDefinition {
 }
 
 /**
- * Definições canônicas das labels do Pastelsdd.
+ * Definições canônicas das labels do Pscode.
  * Usadas tanto na CLI (trello-init-prompt) quanto nos templates de skill.
  */
 export const DEFAULT_LABEL_DEFINITIONS: LabelDefinition[] = [
@@ -130,10 +130,10 @@ export interface TrelloConfig {
 export const TRELLO_CONFIG_FILENAME = 'trello.yaml';
 
 /**
- * Returns the expected path for `pastelsdd/trello.yaml` relative to a project root.
+ * Returns the expected path for `pscode/trello.yaml` relative to a project root.
  */
 export function getTrelloConfigPath(projectPath: string): string {
-  return path.join(projectPath, 'pastelsdd', TRELLO_CONFIG_FILENAME);
+  return path.join(projectPath, 'pscode', TRELLO_CONFIG_FILENAME);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -141,7 +141,7 @@ export function getTrelloConfigPath(projectPath: string): string {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Reads `pastelsdd/trello.yaml` from the given project root.
+ * Reads `pscode/trello.yaml` from the given project root.
  * Returns `null` if the file does not exist or is unparseable.
  */
 export function readTrelloConfig(projectPath: string): TrelloConfig | null {
@@ -159,7 +159,7 @@ export function readTrelloConfig(projectPath: string): TrelloConfig | null {
 }
 
 /**
- * Writes a `TrelloConfig` to `pastelsdd/trello.yaml`.
+ * Writes a `TrelloConfig` to `pscode/trello.yaml`.
  */
 export function writeTrelloConfig(projectPath: string, config: TrelloConfig): void {
   const configPath = getTrelloConfigPath(projectPath);

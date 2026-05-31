@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -16,7 +16,7 @@ describe('artifact-graph/state', () => {
   });
 
   beforeEach(() => {
-    tempDir = path.join(os.tmpdir(), `pastelsdd-state-test-${Date.now()}`);
+    tempDir = path.join(os.tmpdir(), `pscode-state-test-${Date.now()}`);
     fs.mkdirSync(tempDir, { recursive: true });
   });
 

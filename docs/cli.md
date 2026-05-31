@@ -1,12 +1,12 @@
-﻿# CLI Reference
+# CLI Reference
 
-The Pastelsdd CLI (`pastelsdd`) provides terminal commands for project setup, validation, status inspection, and management. These commands complement the AI slash commands (like `/pstl:propose`) documented in [Commands](commands.md).
+The Pscode CLI (`pscode`) provides terminal commands for project setup, validation, status inspection, and management. These commands complement the AI slash commands (like `/ps:propose`) documented in [Commands](commands.md).
 
 ## Summary
 
 | Category | Commands | Purpose |
 |----------|----------|---------|
-| **Setup** | `init`, `update` | Initialize and update Pastelsdd in your project |
+| **Setup** | `init`, `update` | Initialize and update Pscode in your project |
 | **Workspaces (beta)** | `workspace setup`, `workspace list`, `workspace ls`, `workspace link`, `workspace relink`, `workspace doctor`, `workspace update`, `workspace open` | Set up local views over linked repos or folders |
 | **Shared context (beta)** | `context-store setup`, `context-store register`, `context-store list`, `context-store doctor`, `initiative create`, `initiative show`, `initiative list` | Manage local context-store registrations and durable initiative context |
 | **Browsing** | `list`, `view`, `show` | Explore changes and specs |
@@ -29,11 +29,11 @@ These commands are interactive and designed for terminal use:
 
 | Command | Purpose |
 |---------|---------|
-| `pastelsdd init` | Initialize project (interactive prompts) |
-| `pastelsdd view` | Interactive dashboard |
-| `pastelsdd config edit` | Open config in editor |
-| `pastelsdd feedback` | Submit feedback via GitHub |
-| `pastelsdd completion install` | Install shell completions |
+| `pscode init` | Initialize project (interactive prompts) |
+| `pscode view` | Interactive dashboard |
+| `pscode config edit` | Open config in editor |
+| `pscode feedback` | Submit feedback via GitHub |
+| `pscode completion install` | Install shell completions |
 
 ### Agent-Compatible Commands
 
@@ -41,25 +41,25 @@ These commands support `--json` output for programmatic use by AI agents and scr
 
 | Command | Human Use | Agent Use |
 |---------|-----------|-----------|
-| `pastelsdd list` | Browse changes/specs | `--json` for structured data |
-| `pastelsdd show <item>` | Read content | `--json` for parsing |
-| `pastelsdd validate` | Check for issues | `--all --json` for bulk validation |
-| `pastelsdd status` | See artifact progress | `--json` for structured status |
-| `pastelsdd instructions` | Get next steps | `--json` for agent instructions |
-| `pastelsdd templates` | Find template paths | `--json` for path resolution |
-| `pastelsdd schemas` | List available schemas | `--json` for schema discovery |
-| `pastelsdd workspace setup --no-interactive` | Create a workspace with explicit inputs | `--json` for structured setup output |
-| `pastelsdd workspace list` | Browse known workspaces | `--json` for typed workspace objects |
-| `pastelsdd workspace link` | Link a repo or folder | `--json` for structured link output |
-| `pastelsdd workspace relink` | Repair a linked path | `--json` for structured link output |
-| `pastelsdd workspace doctor` | Check one workspace | `--json` for structured status output |
-| `pastelsdd workspace update` | Refresh workspace-local guidance and agent skills | `--tools` selects agents; profile selects workflows |
-| `pastelsdd context-store list` | Browse registered context stores | `--json` for structured registrations |
-| `pastelsdd context-store doctor` | Check local store setup | `--json` for structured diagnostics |
-| `pastelsdd initiative list` | Browse shared initiatives | `--json` for structured initiative records |
-| `pastelsdd initiative show <id>` | Resolve an initiative | `--json` for canonical paths and metadata |
-| `pastelsdd new change <id>` | Create repo-local change scaffolding | `--json`, plus `--initiative` for shared coordination links |
-| `pastelsdd set change <id>` | Update checked-in change metadata | `--json`, plus `--initiative` for shared coordination links |
+| `pscode list` | Browse changes/specs | `--json` for structured data |
+| `pscode show <item>` | Read content | `--json` for parsing |
+| `pscode validate` | Check for issues | `--all --json` for bulk validation |
+| `pscode status` | See artifact progress | `--json` for structured status |
+| `pscode instructions` | Get next steps | `--json` for agent instructions |
+| `pscode templates` | Find template paths | `--json` for path resolution |
+| `pscode schemas` | List available schemas | `--json` for schema discovery |
+| `pscode workspace setup --no-interactive` | Create a workspace with explicit inputs | `--json` for structured setup output |
+| `pscode workspace list` | Browse known workspaces | `--json` for typed workspace objects |
+| `pscode workspace link` | Link a repo or folder | `--json` for structured link output |
+| `pscode workspace relink` | Repair a linked path | `--json` for structured link output |
+| `pscode workspace doctor` | Check one workspace | `--json` for structured status output |
+| `pscode workspace update` | Refresh workspace-local guidance and agent skills | `--tools` selects agents; profile selects workflows |
+| `pscode context-store list` | Browse registered context stores | `--json` for structured registrations |
+| `pscode context-store doctor` | Check local store setup | `--json` for structured diagnostics |
+| `pscode initiative list` | Browse shared initiatives | `--json` for structured initiative records |
+| `pscode initiative show <id>` | Resolve an initiative | `--json` for canonical paths and metadata |
+| `pscode new change <id>` | Create repo-local change scaffolding | `--json`, plus `--initiative` for shared coordination links |
+| `pscode set change <id>` | Update checked-in change metadata | `--json`, plus `--initiative` for shared coordination links |
 
 ---
 
@@ -77,14 +77,14 @@ These options work with all commands:
 
 ## Setup Commands
 
-### `pastelsdd init`
+### `pscode init`
 
-Initialize Pastelsdd in your project. Creates the folder structure and configures AI tool integrations.
+Initialize Pscode in your project. Creates the folder structure and configures AI tool integrations.
 
 Default behavior uses global config defaults: profile `core`, delivery `both`, workflows `propose, explore, apply, sync, archive`.
 
 ```
-pastelsdd init [path] [options]
+pscode init [path] [options]
 ```
 
 **Arguments:**
@@ -101,7 +101,7 @@ pastelsdd init [path] [options]
 | `--force` | Auto-cleanup legacy files without prompting |
 | `--profile <profile>` | Override global profile for this init run (`core` or `custom`) |
 
-`--profile custom` uses whatever workflows are currently selected in global config (`pastelsdd config profile`).
+`--profile custom` uses whatever workflows are currently selected in global config (`pscode config profile`).
 
 **Supported tool IDs (`--tools`):** `amazon-q`, `antigravity`, `auggie`, `bob`, `claude`, `cline`, `codex`, `forgecode`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `opencode`, `pi`, `qoder`, `lingma`, `qwen`, `roocode`, `trae`, `windsurf`
 
@@ -109,28 +109,28 @@ pastelsdd init [path] [options]
 
 ```bash
 # Interactive initialization
-pastelsdd init
+pscode init
 
 # Initialize in a specific directory
-pastelsdd init ./my-project
+pscode init ./my-project
 
 # Non-interactive: configure for Claude and Cursor
-pastelsdd init --tools claude,cursor
+pscode init --tools claude,cursor
 
 # Configure for all supported tools
-pastelsdd init --tools all
+pscode init --tools all
 
 # Override profile for this run
-pastelsdd init --profile core
+pscode init --profile core
 
 # Skip prompts and auto-cleanup legacy files
-pastelsdd init --force
+pscode init --force
 ```
 
 **What it creates:**
 
 ```
-pastelsdd/
+pscode/
 ├── specs/              # Your specifications (source of truth)
 ├── changes/            # Proposed changes
 └── config.yaml         # Project configuration
@@ -143,12 +143,12 @@ pastelsdd/
 
 ---
 
-### `pastelsdd update`
+### `pscode update`
 
-Update Pastelsdd instruction files after upgrading the CLI. Re-generates AI tool configuration files using your current global profile, selected workflows, and delivery mode.
+Update Pscode instruction files after upgrading the CLI. Re-generates AI tool configuration files using your current global profile, selected workflows, and delivery mode.
 
 ```
-pastelsdd update [path] [options]
+pscode update [path] [options]
 ```
 
 **Arguments:**
@@ -167,8 +167,8 @@ pastelsdd update [path] [options]
 
 ```bash
 # Update instruction files after npm upgrade
-npm update @thiagodiogo/pastelsdd
-pastelsdd update
+npm update @thiagodiogo/pscode
+pscode update
 ```
 
 ---
@@ -177,14 +177,14 @@ pastelsdd update
 
 Workspace commands are in beta. The local-view model below is the current direction, but external automation, integrations, and long-lived workflows should still treat command behavior, state files, and JSON output as evolving.
 
-Coordination workspaces are machine-local views over linked repos or folders. Workspace visibility is not change commitment: link the repos or folders Pastelsdd should know about, then create changes when you are ready to plan specific work.
+Coordination workspaces are machine-local views over linked repos or folders. Workspace visibility is not change commitment: link the repos or folders Pscode should know about, then create changes when you are ready to plan specific work.
 
-### `pastelsdd workspace setup`
+### `pscode workspace setup`
 
-Create a workspace in the standard Pastelsdd workspace location and link at least one existing repo or folder.
+Create a workspace in the standard Pscode workspace location and link at least one existing repo or folder.
 
 ```bash
-pastelsdd workspace setup [options]
+pscode workspace setup [options]
 ```
 
 **Options:**
@@ -195,41 +195,41 @@ pastelsdd workspace setup [options]
 | `--link <path>` | Link an existing repo or folder and infer the link name from the folder name |
 | `--link <name>=<path>` | Link an existing repo or folder with an explicit link name |
 | `--opener <id>` | Store a preferred opener during non-interactive setup: `codex`, `claude`, `github-copilot`, or `editor` |
-| `--tools <tools>` | Install workspace-local Pastelsdd skills for agents. Use `all`, `none`, or comma-separated tool IDs |
+| `--tools <tools>` | Install workspace-local Pscode skills for agents. Use `all`, `none`, or comma-separated tool IDs |
 | `--no-interactive` | Disable prompts; requires `--name` and at least one `--link` |
 | `--json` | Output JSON; requires `--no-interactive` |
 
 **Examples:**
 
 ```bash
-pastelsdd workspace setup
-pastelsdd workspace setup --no-interactive --name platform --link /repos/api --link web=/repos/web
-pastelsdd workspace setup --no-interactive --name platform --link /repos/api --opener codex
-pastelsdd workspace setup --no-interactive --name platform --link /repos/api --tools codex,claude
-pastelsdd workspace setup --no-interactive --json --name checkout --link /repos/platform/apps/checkout
+pscode workspace setup
+pscode workspace setup --no-interactive --name platform --link /repos/api --link web=/repos/web
+pscode workspace setup --no-interactive --name platform --link /repos/api --opener codex
+pscode workspace setup --no-interactive --name platform --link /repos/api --tools codex,claude
+pscode workspace setup --no-interactive --json --name checkout --link /repos/platform/apps/checkout
 ```
 
-Interactive setup asks for a preferred opener and can install workspace-local Pastelsdd skills for selected agents. Non-interactive setup stores a preferred opener only when `--opener` is provided; otherwise `workspace open` prompts later in interactive terminals when a supported opener is available, or asks scripts to pass `--agent <tool>` or `--editor`.
+Interactive setup asks for a preferred opener and can install workspace-local Pscode skills for selected agents. Non-interactive setup stores a preferred opener only when `--opener` is provided; otherwise `workspace open` prompts later in interactive terminals when a supported opener is available, or asks scripts to pass `--agent <tool>` or `--editor`.
 
 Workspace skill installation is skills-only in this beta slice: even if global delivery is `commands` or `both`, workspace setup writes agent skill folders in the workspace root and does not create slash command files. The active global profile chooses which workflow skills are installed; `--tools` chooses which agents receive them. If `--tools` is omitted in non-interactive setup, no skills are installed and `workspace update --tools <ids>` can add them later.
 
-### `pastelsdd workspace list`
+### `pscode workspace list`
 
-List known Pastelsdd workspaces from the local registry.
+List known Pscode workspaces from the local registry.
 
 ```bash
-pastelsdd workspace list [--json]
-pastelsdd workspace ls [--json]
+pscode workspace list [--json]
+pscode workspace ls [--json]
 ```
 
 The list shows each workspace location and linked repos or folders. Stale registry records are reported but not changed.
 
-### `pastelsdd workspace link`
+### `pscode workspace link`
 
 Record an existing repo or folder for one workspace.
 
 ```bash
-pastelsdd workspace link [name] <path> [options]
+pscode workspace link [name] <path> [options]
 ```
 
 **Options:**
@@ -243,29 +243,29 @@ pastelsdd workspace link [name] <path> [options]
 **Examples:**
 
 ```bash
-pastelsdd workspace link /repos/api
-pastelsdd workspace link api-service /repos/api
-pastelsdd workspace link --workspace platform /repos/platform/apps/checkout
+pscode workspace link /repos/api
+pscode workspace link api-service /repos/api
+pscode workspace link --workspace platform /repos/platform/apps/checkout
 ```
 
-The path must already exist. Relative paths are resolved against the command's current directory before Pastelsdd stores the verified absolute path in machine-local workspace state. Linked paths can be full repos, packages, services, apps, or folders without repo-local `pastelsdd/` state.
+The path must already exist. Relative paths are resolved against the command's current directory before Pscode stores the verified absolute path in machine-local workspace state. Linked paths can be full repos, packages, services, apps, or folders without repo-local `pscode/` state.
 
-### `pastelsdd workspace relink`
+### `pscode workspace relink`
 
 Repair or change the local path for an existing link.
 
 ```bash
-pastelsdd workspace relink <name> <path> [options]
+pscode workspace relink <name> <path> [options]
 ```
 
 The path must already exist. Relink updates only the machine-local path for the stable link name.
 
-### `pastelsdd workspace doctor`
+### `pscode workspace doctor`
 
 Check what one workspace can resolve on the current machine.
 
 ```bash
-pastelsdd workspace doctor [options]
+pscode workspace doctor [options]
 ```
 
 Doctor shows the workspace location, planning path, linked repos or folders, missing paths, repo-local specs paths when present, and suggested fixes. It reports issues only; it does not repair them automatically.
@@ -274,12 +274,12 @@ Commands that need one workspace use the current workspace when run from inside 
 
 JSON responses use typed objects plus `status` arrays. Primary data lives in `workspace`, `workspaces`, or `link`; warnings and errors live in `status`.
 
-### `pastelsdd workspace update`
+### `pscode workspace update`
 
-Refresh workspace-local Pastelsdd guidance and agent skills.
+Refresh workspace-local Pscode guidance and agent skills.
 
 ```bash
-pastelsdd workspace update [name] [options]
+pscode workspace update [name] [options]
 ```
 
 **Options:**
@@ -294,22 +294,22 @@ pastelsdd workspace update [name] [options]
 **Examples:**
 
 ```bash
-pastelsdd workspace update
-pastelsdd workspace update platform
-pastelsdd workspace update --workspace platform --tools codex,claude
-pastelsdd workspace update --workspace platform --tools none
+pscode workspace update
+pscode workspace update platform
+pscode workspace update --workspace platform --tools codex,claude
+pscode workspace update --workspace platform --tools none
 ```
 
-`workspace update` refreshes the generated workspace guidance block and local open surface. For agent skills, it reuses the stored workspace skill agent selection when `--tools` is omitted. Passing `--tools` replaces that stored selection. It refreshes only Pastelsdd-managed workflow skill directories in the workspace root, removes deselected managed workflow skills, and leaves linked repos and folders untouched.
+`workspace update` refreshes the generated workspace guidance block and local open surface. For agent skills, it reuses the stored workspace skill agent selection when `--tools` is omitted. Passing `--tools` replaces that stored selection. It refreshes only Pscode-managed workflow skill directories in the workspace root, removes deselected managed workflow skills, and leaves linked repos and folders untouched.
 
-Running `pastelsdd update` from inside a workspace redirects to `pastelsdd workspace update`; run `pastelsdd update` inside repo-local projects when you want repo-owned tool files updated.
+Running `pscode update` from inside a workspace redirects to `pscode workspace update`; run `pscode update` inside repo-local projects when you want repo-owned tool files updated.
 
-### `pastelsdd workspace open`
+### `pscode workspace open`
 
 Open a workspace working set through the stored preferred opener, a one-session agent override, or VS Code editor mode.
 
 ```bash
-pastelsdd workspace open [name] [options]
+pscode workspace open [name] [options]
 ```
 
 **Options:**
@@ -327,24 +327,24 @@ pastelsdd workspace open [name] [options]
 **Examples:**
 
 ```bash
-pastelsdd workspace open
-pastelsdd workspace open platform
-pastelsdd workspace open platform --agent github-copilot
-pastelsdd workspace open --agent codex
-pastelsdd workspace open --editor
-pastelsdd workspace open --initiative billing-launch --store platform
-pastelsdd workspace open --initiative platform/billing-launch
+pscode workspace open
+pscode workspace open platform
+pscode workspace open platform --agent github-copilot
+pscode workspace open --agent codex
+pscode workspace open --editor
+pscode workspace open --initiative billing-launch --store platform
+pscode workspace open --initiative platform/billing-launch
 ```
 
 `workspace open` uses the current workspace when run inside one, auto-selects the only known workspace when run elsewhere, and asks the user to choose when multiple workspaces are known. `--agent` and `--editor` do not change the stored preferred opener. Passing both opener overrides is an error; choose either `--agent <tool>` or `--editor`.
 
-When `--initiative` is used, Pastelsdd prepares or selects a private local workspace view for that initiative. Registry-selected stores are stored by id; `--store-path` stores a runtime-local path selector because workspace views are private local state.
+When `--initiative` is used, Pscode prepares or selects a private local workspace view for that initiative. Registry-selected stores are stored by id; `--store-path` stores a runtime-local path selector because workspace views are private local state.
 
-Pastelsdd maintains `<workspace-name>.code-workspace` at the workspace root for VS Code editor and GitHub Copilot-in-VS-Code opens. That file is machine-local and ignored by default with a specific `<workspace-name>.code-workspace` `.gitignore` entry, so user-authored `*.code-workspace` files remain eligible for tracking.
+Pscode maintains `<workspace-name>.code-workspace` at the workspace root for VS Code editor and GitHub Copilot-in-VS-Code opens. That file is machine-local and ignored by default with a specific `<workspace-name>.code-workspace` `.gitignore` entry, so user-authored `*.code-workspace` files remain eligible for tracking.
 
 The maintained VS Code workspace includes the coordination root as `.` plus valid linked repos or folders as additional roots. VS Code displays those entries as a multi-root workspace.
 
-Root workspace open makes linked repos or folders visible for exploration and context. Implementation edits should start only after an explicit user request and a normal Pastelsdd implementation workflow.
+Root workspace open makes linked repos or folders visible for exploration and context. Implementation edits should start only after an explicit user request and a normal Pscode implementation workflow.
 
 ---
 
@@ -352,12 +352,12 @@ Root workspace open makes linked repos or folders visible for exploration and co
 
 Context stores and initiatives are beta coordination surfaces. A context store is a local registration for durable shared context, usually a Git-backed folder or clone. An initiative is shared coordination context inside a context store; repo-local changes can link to it without copying the shared plan into every repo.
 
-### `pastelsdd context-store setup`
+### `pscode context-store setup`
 
 Create and register a local context store.
 
 ```bash
-pastelsdd context-store setup [id] [options]
+pscode context-store setup [id] [options]
 ```
 
 **Options:**
@@ -372,17 +372,17 @@ pastelsdd context-store setup [id] [options]
 Examples:
 
 ```bash
-pastelsdd context-store setup team-context
-pastelsdd context-store setup team-context --path /repos/team-context --no-init-git
-pastelsdd context-store setup team-context --json --no-init-git
+pscode context-store setup team-context
+pscode context-store setup team-context --path /repos/team-context --no-init-git
+pscode context-store setup team-context --json --no-init-git
 ```
 
-### `pastelsdd context-store register`
+### `pscode context-store register`
 
 Register an existing local context store folder.
 
 ```bash
-pastelsdd context-store register [path] [options]
+pscode context-store register [path] [options]
 ```
 
 **Options:**
@@ -392,31 +392,31 @@ pastelsdd context-store register [path] [options]
 | `--id <id>` | Context store id; defaults to store metadata or folder name |
 | `--json` | Output JSON |
 
-### `pastelsdd context-store list`
+### `pscode context-store list`
 
 List locally registered context stores.
 
 ```bash
-pastelsdd context-store list [--json]
-pastelsdd context-store ls [--json]
+pscode context-store list [--json]
+pscode context-store ls [--json]
 ```
 
-### `pastelsdd context-store doctor`
+### `pscode context-store doctor`
 
 Check local context-store registration, metadata, and Git presence.
 
 ```bash
-pastelsdd context-store doctor [id] [--json]
+pscode context-store doctor [id] [--json]
 ```
 
 Doctor is diagnostic-only; it reports missing roots, metadata mismatches, and invalid local registry state without modifying the store.
 
-### `pastelsdd initiative create`
+### `pscode initiative create`
 
 Create an initiative in a context store.
 
 ```bash
-pastelsdd initiative create <id> --title <title> --summary <summary> [options]
+pscode initiative create <id> --title <title> --summary <summary> [options]
 ```
 
 **Options:**
@@ -429,13 +429,13 @@ pastelsdd initiative create <id> --title <title> --summary <summary> [options]
 | `--summary <summary>` | Initiative summary |
 | `--json` | Output JSON |
 
-### `pastelsdd initiative list`
+### `pscode initiative list`
 
 List initiatives. Without a selector, this searches all registered context stores and reports partial-read warnings in `status`.
 
 ```bash
-pastelsdd initiative list [options]
-pastelsdd initiative ls [options]
+pscode initiative list [options]
+pscode initiative ls [options]
 ```
 
 **Options:**
@@ -446,27 +446,27 @@ pastelsdd initiative ls [options]
 | `--store-path <path>` | List one existing local context store root |
 | `--json` | Output JSON |
 
-### `pastelsdd initiative show`
+### `pscode initiative show`
 
 Resolve an initiative and print its canonical location.
 
 ```bash
-pastelsdd initiative show <id> [options]
-pastelsdd initiative show <store>/<id> [options]
+pscode initiative show <id> [options]
+pscode initiative show <store>/<id> [options]
 ```
 
-Without `--store`, Pastelsdd searches registered context stores. If the same initiative id exists in multiple stores, pass `--store <id>` or use the `<store>/<id>` form.
+Without `--store`, Pscode searches registered context stores. If the same initiative id exists in multiple stores, pass `--store <id>` or use the `<store>/<id>` form.
 
 ---
 
 ## Browsing Commands
 
-### `pastelsdd list`
+### `pscode list`
 
 List changes or specs in your project.
 
 ```
-pastelsdd list [options]
+pscode list [options]
 ```
 
 **Options:**
@@ -482,13 +482,13 @@ pastelsdd list [options]
 
 ```bash
 # List all active changes
-pastelsdd list
+pscode list
 
 # List all specs
-pastelsdd list --specs
+pscode list --specs
 
 # JSON output for scripts
-pastelsdd list --json
+pscode list --json
 ```
 
 **Output (text):**
@@ -501,24 +501,24 @@ Active changes:
 
 ---
 
-### `pastelsdd view`
+### `pscode view`
 
 Display an interactive dashboard for exploring specs and changes.
 
 ```
-pastelsdd view
+pscode view
 ```
 
 Opens a terminal-based interface for navigating your project's specifications and changes.
 
 ---
 
-### `pastelsdd show`
+### `pscode show`
 
 Display details of a change or spec.
 
 ```
-pastelsdd show [item-name] [options]
+pscode show [item-name] [options]
 ```
 
 **Arguments:**
@@ -553,28 +553,28 @@ pastelsdd show [item-name] [options]
 
 ```bash
 # Interactive selection
-pastelsdd show
+pscode show
 
 # Show a specific change
-pastelsdd show add-dark-mode
+pscode show add-dark-mode
 
 # Show a specific spec
-pastelsdd show auth --type spec
+pscode show auth --type spec
 
 # JSON output for parsing
-pastelsdd show add-dark-mode --json
+pscode show add-dark-mode --json
 ```
 
 ---
 
 ## Validation Commands
 
-### `pastelsdd validate`
+### `pscode validate`
 
 Validate changes and specs for structural issues.
 
 ```
-pastelsdd validate [item-name] [options]
+pscode validate [item-name] [options]
 ```
 
 **Arguments:**
@@ -593,26 +593,26 @@ pastelsdd validate [item-name] [options]
 | `--type <type>` | Specify type when name is ambiguous: `change` or `spec` |
 | `--strict` | Enable strict validation mode |
 | `--json` | Output as JSON |
-| `--concurrency <n>` | Max parallel validations (default: 6, or `PASTELSDD_CONCURRENCY` env) |
+| `--concurrency <n>` | Max parallel validations (default: 6, or `PSCODE_CONCURRENCY` env) |
 | `--no-interactive` | Disable prompts |
 
 **Examples:**
 
 ```bash
 # Interactive validation
-pastelsdd validate
+pscode validate
 
 # Validate a specific change
-pastelsdd validate add-dark-mode
+pscode validate add-dark-mode
 
 # Validate all changes
-pastelsdd validate --changes
+pscode validate --changes
 
 # Validate everything with JSON output (for CI/scripts)
-pastelsdd validate --all --json
+pscode validate --all --json
 
 # Strict validation with increased parallelism
-pastelsdd validate --all --strict --concurrency 12
+pscode validate --all --strict --concurrency 12
 ```
 
 **Output (text):**
@@ -652,12 +652,12 @@ Validating add-dark-mode...
 
 ## Lifecycle Commands
 
-### `pastelsdd archive`
+### `pscode archive`
 
 Archive a completed change and merge delta specs into main specs.
 
 ```
-pastelsdd archive [change-name] [options]
+pscode archive [change-name] [options]
 ```
 
 **Arguments:**
@@ -678,24 +678,24 @@ pastelsdd archive [change-name] [options]
 
 ```bash
 # Interactive archive
-pastelsdd archive
+pscode archive
 
 # Archive specific change
-pastelsdd archive add-dark-mode
+pscode archive add-dark-mode
 
 # Archive without prompts (CI/scripts)
-pastelsdd archive add-dark-mode --yes
+pscode archive add-dark-mode --yes
 
 # Archive a tooling change that doesn't affect specs
-pastelsdd archive update-ci-config --skip-specs
+pscode archive update-ci-config --skip-specs
 ```
 
 **What it does:**
 
 1. Validates the change (unless `--no-validate`)
 2. Prompts for confirmation (unless `--yes`)
-3. Merges delta specs into `pastelsdd/specs/`
-4. Moves change folder to `pastelsdd/changes/archive/YYYY-MM-DD-<name>/`
+3. Merges delta specs into `pscode/specs/`
+4. Moves change folder to `pscode/changes/archive/YYYY-MM-DD-<name>/`
 
 ---
 
@@ -703,12 +703,12 @@ pastelsdd archive update-ci-config --skip-specs
 
 These commands support the artifact-driven OPSX workflow. They're useful for both humans checking progress and agents determining next steps.
 
-### `pastelsdd new change`
+### `pscode new change`
 
 Create a repo-local change directory and optional checked-in metadata.
 
 ```bash
-pastelsdd new change <name> [options]
+pscode new change <name> [options]
 ```
 
 **Options:**
@@ -727,16 +727,16 @@ pastelsdd new change <name> [options]
 Examples:
 
 ```bash
-pastelsdd new change add-billing-api --initiative billing-launch --store platform
-pastelsdd new change add-billing-api --initiative platform/billing-launch --json
+pscode new change add-billing-api --initiative billing-launch --store platform
+pscode new change add-billing-api --initiative platform/billing-launch --json
 ```
 
-### `pastelsdd set change`
+### `pscode set change`
 
 Update checked-in repo-local change metadata without recreating the change.
 
 ```bash
-pastelsdd set change <name> [options]
+pscode set change <name> [options]
 ```
 
 **Options:**
@@ -750,12 +750,12 @@ pastelsdd set change <name> [options]
 
 `set change --initiative` is idempotent when the requested link already exists and refuses to replace a different existing initiative link.
 
-### `pastelsdd status`
+### `pscode status`
 
 Display artifact completion status for a change.
 
 ```
-pastelsdd status [options]
+pscode status [options]
 ```
 
 **Options:**
@@ -770,13 +770,13 @@ pastelsdd status [options]
 
 ```bash
 # Interactive status check
-pastelsdd status
+pscode status
 
 # Status for specific change
-pastelsdd status --change add-dark-mode
+pscode status --change add-dark-mode
 
 # JSON for agent use
-pastelsdd status --change add-dark-mode --json
+pscode status --change add-dark-mode --json
 ```
 
 **Output (text):**
@@ -811,12 +811,12 @@ Progress: 2/4 artifacts complete
 
 ---
 
-### `pastelsdd instructions`
+### `pscode instructions`
 
 Get enriched instructions for creating an artifact or applying tasks. Used by AI agents to understand what to create next.
 
 ```
-pastelsdd instructions [artifact] [options]
+pscode instructions [artifact] [options]
 ```
 
 **Arguments:**
@@ -839,16 +839,16 @@ pastelsdd instructions [artifact] [options]
 
 ```bash
 # Get instructions for next artifact
-pastelsdd instructions --change add-dark-mode
+pscode instructions --change add-dark-mode
 
 # Get specific artifact instructions
-pastelsdd instructions design --change add-dark-mode
+pscode instructions design --change add-dark-mode
 
 # Get apply/implementation instructions
-pastelsdd instructions apply --change add-dark-mode
+pscode instructions apply --change add-dark-mode
 
 # JSON for agent consumption
-pastelsdd instructions design --change add-dark-mode --json
+pscode instructions design --change add-dark-mode --json
 ```
 
 **Output includes:**
@@ -860,12 +860,12 @@ pastelsdd instructions design --change add-dark-mode --json
 
 ---
 
-### `pastelsdd templates`
+### `pscode templates`
 
 Show resolved template paths for all artifacts in a schema.
 
 ```
-pastelsdd templates [options]
+pscode templates [options]
 ```
 
 **Options:**
@@ -879,13 +879,13 @@ pastelsdd templates [options]
 
 ```bash
 # Show template paths for default schema
-pastelsdd templates
+pscode templates
 
 # Show templates for custom schema
-pastelsdd templates --schema my-workflow
+pscode templates --schema my-workflow
 
 # JSON for programmatic use
-pastelsdd templates --json
+pscode templates --json
 ```
 
 **Output (text):**
@@ -894,20 +894,20 @@ pastelsdd templates --json
 Schema: spec-driven
 
 Templates:
-  proposal  → ~/.pastelsdd/schemas/spec-driven/templates/proposal.md
-  specs     → ~/.pastelsdd/schemas/spec-driven/templates/specs.md
-  design    → ~/.pastelsdd/schemas/spec-driven/templates/design.md
-  tasks     → ~/.pastelsdd/schemas/spec-driven/templates/tasks.md
+  proposal  → ~/.pscode/schemas/spec-driven/templates/proposal.md
+  specs     → ~/.pscode/schemas/spec-driven/templates/specs.md
+  design    → ~/.pscode/schemas/spec-driven/templates/design.md
+  tasks     → ~/.pscode/schemas/spec-driven/templates/tasks.md
 ```
 
 ---
 
-### `pastelsdd schemas`
+### `pscode schemas`
 
 List available workflow schemas with their descriptions and artifact flows.
 
 ```
-pastelsdd schemas [options]
+pscode schemas [options]
 ```
 
 **Options:**
@@ -919,7 +919,7 @@ pastelsdd schemas [options]
 **Example:**
 
 ```bash
-pastelsdd schemas
+pscode schemas
 ```
 
 **Output:**
@@ -942,12 +942,12 @@ Available schemas:
 
 Commands for creating and managing custom workflow schemas.
 
-### `pastelsdd schema init`
+### `pscode schema init`
 
 Create a new project-local schema.
 
 ```
-pastelsdd schema init <name> [options]
+pscode schema init <name> [options]
 ```
 
 **Arguments:**
@@ -971,10 +971,10 @@ pastelsdd schema init <name> [options]
 
 ```bash
 # Interactive schema creation
-pastelsdd schema init research-first
+pscode schema init research-first
 
 # Non-interactive with specific artifacts
-pastelsdd schema init rapid \
+pscode schema init rapid \
   --description "Rapid iteration workflow" \
   --artifacts "proposal,tasks" \
   --default
@@ -983,7 +983,7 @@ pastelsdd schema init rapid \
 **What it creates:**
 
 ```
-pastelsdd/schemas/<name>/
+pscode/schemas/<name>/
 ├── schema.yaml           # Schema definition
 └── templates/
     ├── proposal.md       # Template for each artifact
@@ -994,12 +994,12 @@ pastelsdd/schemas/<name>/
 
 ---
 
-### `pastelsdd schema fork`
+### `pscode schema fork`
 
 Copy an existing schema to your project for customization.
 
 ```
-pastelsdd schema fork <source> [name] [options]
+pscode schema fork <source> [name] [options]
 ```
 
 **Arguments:**
@@ -1020,17 +1020,17 @@ pastelsdd schema fork <source> [name] [options]
 
 ```bash
 # Fork the built-in spec-driven schema
-pastelsdd schema fork spec-driven my-workflow
+pscode schema fork spec-driven my-workflow
 ```
 
 ---
 
-### `pastelsdd schema validate`
+### `pscode schema validate`
 
 Validate a schema's structure and templates.
 
 ```
-pastelsdd schema validate [name] [options]
+pscode schema validate [name] [options]
 ```
 
 **Arguments:**
@@ -1050,20 +1050,20 @@ pastelsdd schema validate [name] [options]
 
 ```bash
 # Validate a specific schema
-pastelsdd schema validate my-workflow
+pscode schema validate my-workflow
 
 # Validate all schemas
-pastelsdd schema validate
+pscode schema validate
 ```
 
 ---
 
-### `pastelsdd schema which`
+### `pscode schema which`
 
 Show where a schema resolves from (useful for debugging precedence).
 
 ```
-pastelsdd schema which [name] [options]
+pscode schema which [name] [options]
 ```
 
 **Arguments:**
@@ -1083,32 +1083,32 @@ pastelsdd schema which [name] [options]
 
 ```bash
 # Check where a schema comes from
-pastelsdd schema which spec-driven
+pscode schema which spec-driven
 ```
 
 **Output:**
 
 ```
 spec-driven resolves from: package
-  Source: /usr/local/lib/node_modules/@thiagodiogo/pastelsdd/schemas/spec-driven
+  Source: /usr/local/lib/node_modules/@thiagodiogo/pscode/schemas/spec-driven
 ```
 
 **Schema precedence:**
 
-1. Project: `pastelsdd/schemas/<name>/`
-2. User: `~/.local/share/pastelsdd/schemas/<name>/`
+1. Project: `pscode/schemas/<name>/`
+2. User: `~/.local/share/pscode/schemas/<name>/`
 3. Package: Built-in schemas
 
 ---
 
 ## Configuration Commands
 
-### `pastelsdd config`
+### `pscode config`
 
-View and modify global Pastelsdd configuration.
+View and modify global Pscode configuration.
 
 ```
-pastelsdd config <subcommand> [options]
+pscode config <subcommand> [options]
 ```
 
 **Subcommands:**
@@ -1128,57 +1128,57 @@ pastelsdd config <subcommand> [options]
 
 ```bash
 # Show config file path
-pastelsdd config path
+pscode config path
 
 # List all settings
-pastelsdd config list
+pscode config list
 
 # Get a specific value
-pastelsdd config get telemetry.enabled
+pscode config get telemetry.enabled
 
 # Set a value
-pastelsdd config set telemetry.enabled false
+pscode config set telemetry.enabled false
 
 # Set a string value explicitly
-pastelsdd config set user.name "My Name" --string
+pscode config set user.name "My Name" --string
 
 # Remove a custom setting
-pastelsdd config unset user.name
+pscode config unset user.name
 
 # Reset all configuration
-pastelsdd config reset --all --yes
+pscode config reset --all --yes
 
 # Edit config in your editor
-pastelsdd config edit
+pscode config edit
 
 # Configure profile with action-based wizard
-pastelsdd config profile
+pscode config profile
 
 # Fast preset: switch workflows to core (keeps delivery mode)
-pastelsdd config profile core
+pscode config profile core
 ```
 
-`pastelsdd config profile` starts with a current-state summary, then lets you choose:
+`pscode config profile` starts with a current-state summary, then lets you choose:
 - Change delivery + workflows
 - Change delivery only
 - Change workflows only
 - Keep current settings (exit)
 
 If you keep current settings, no changes are written and no update prompt is shown.
-If there are no config changes but the current project or workspace files are out of sync with your global profile/delivery, Pastelsdd will show a warning and suggest `pastelsdd update` for repo-local projects or `pastelsdd workspace update` for workspace-local guidance and skills.
+If there are no config changes but the current project or workspace files are out of sync with your global profile/delivery, Pscode will show a warning and suggest `pscode update` for repo-local projects or `pscode workspace update` for workspace-local guidance and skills.
 Pressing `Ctrl+C` also cancels the flow cleanly (no stack trace) and exits with code `130`.
-In the workflow checklist, `[x]` means the workflow is selected in global config. To apply those selections to project files, run `pastelsdd update` (or choose `Apply changes to this project now?` when prompted inside a project). From inside a workspace, use `pastelsdd workspace update` to refresh workspace-local guidance and skills; this remains skills-only for generated agent workflow files and does not generate workspace slash commands.
+In the workflow checklist, `[x]` means the workflow is selected in global config. To apply those selections to project files, run `pscode update` (or choose `Apply changes to this project now?` when prompted inside a project). From inside a workspace, use `pscode workspace update` to refresh workspace-local guidance and skills; this remains skills-only for generated agent workflow files and does not generate workspace slash commands.
 
 **Interactive examples:**
 
 ```bash
 # Delivery-only update
-pastelsdd config profile
+pscode config profile
 # choose: Change delivery only
 # choose delivery: Skills only
 
 # Workflows-only update
-pastelsdd config profile
+pscode config profile
 # choose: Change workflows only
 # toggle workflows in the checklist, then confirm
 ```
@@ -1187,12 +1187,12 @@ pastelsdd config profile
 
 ## Utility Commands
 
-### `pastelsdd feedback`
+### `pscode feedback`
 
-Submit feedback about Pastelsdd. Creates a GitHub issue.
+Submit feedback about Pscode. Creates a GitHub issue.
 
 ```
-pastelsdd feedback <message> [options]
+pscode feedback <message> [options]
 ```
 
 **Arguments:**
@@ -1212,18 +1212,18 @@ pastelsdd feedback <message> [options]
 **Example:**
 
 ```bash
-pastelsdd feedback "Add support for custom artifact types" \
+pscode feedback "Add support for custom artifact types" \
   --body "I'd like to define my own artifact types beyond the built-in ones."
 ```
 
 ---
 
-### `pastelsdd completion`
+### `pscode completion`
 
-Manage shell completions for the Pastelsdd CLI.
+Manage shell completions for the Pscode CLI.
 
 ```
-pastelsdd completion <subcommand> [shell]
+pscode completion <subcommand> [shell]
 ```
 
 **Subcommands:**
@@ -1240,16 +1240,16 @@ pastelsdd completion <subcommand> [shell]
 
 ```bash
 # Install completions (auto-detects shell)
-pastelsdd completion install
+pscode completion install
 
 # Install for specific shell
-pastelsdd completion install zsh
+pscode completion install zsh
 
 # Generate script for manual installation
-pastelsdd completion generate bash > ~/.bash_completion.d/pastelsdd
+pscode completion generate bash > ~/.bash_completion.d/pscode
 
 # Uninstall
-pastelsdd completion uninstall
+pscode completion uninstall
 ```
 
 ---
@@ -1267,17 +1267,17 @@ pastelsdd completion uninstall
 
 | Variable | Description |
 |----------|-------------|
-| `PASTELSDD_TELEMETRY` | Set to `0` to disable telemetry |
+| `PSCODE_TELEMETRY` | Set to `0` to disable telemetry |
 | `DO_NOT_TRACK` | Set to `1` to disable telemetry (standard DNT signal) |
-| `PASTELSDD_CONCURRENCY` | Default concurrency for bulk validation (default: 6) |
-| `EDITOR` or `VISUAL` | Editor for `pastelsdd config edit` |
+| `PSCODE_CONCURRENCY` | Default concurrency for bulk validation (default: 6) |
+| `EDITOR` or `VISUAL` | Editor for `pscode config edit` |
 | `NO_COLOR` | Disable color output when set |
 
 ---
 
 ## Related Documentation
 
-- [Commands](commands.md) - AI slash commands (`/pstl:propose`, `/pstl:apply`, etc.)
+- [Commands](commands.md) - AI slash commands (`/ps:propose`, `/ps:apply`, etc.)
 - [Workflows](workflows.md) - Common patterns and when to use each command
 - [Customization](customization.md) - Create custom schemas and templates
 - [Getting Started](getting-started.md) - First-time setup guide

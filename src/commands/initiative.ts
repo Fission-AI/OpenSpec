@@ -1,4 +1,4 @@
-﻿import { Command } from 'commander';
+import { Command } from 'commander';
 import chalk from 'chalk';
 import {
   createInitiative,
@@ -130,7 +130,7 @@ function requireNonBlankOption(
   if (value === undefined || value.trim().length === 0) {
     throw new InitiativeCliError(`Pass --${flagName} <value>.`, code, {
       target,
-      fix: `pastelsdd initiative create <id> --${flagName} <value>`,
+      fix: `pscode initiative create <id> --${flagName} <value>`,
     });
   }
 
@@ -144,7 +144,7 @@ function requireInitiativeId(
   if (id === undefined || id.trim().length === 0) {
     throw new InitiativeCliError('Pass an initiative id.', 'initiative_id_required', {
       target: 'initiative.id',
-      fix: `pastelsdd initiative ${commandName} <id>`,
+      fix: `pscode initiative ${commandName} <id>`,
     });
   }
 
@@ -224,7 +224,7 @@ function printCreateHuman(payload: InitiativeCreateOutput): void {
   }
   console.log('');
   console.log('Next useful commands:');
-  console.log(`  pastelsdd initiative list ${formatContextStoreSelector(payload.context_store)}`);
+  console.log(`  pscode initiative list ${formatContextStoreSelector(payload.context_store)}`);
 }
 
 function printTableHeader(includeStore: boolean): void {
@@ -255,7 +255,7 @@ function printListStatuses(statuses: InitiativeDiagnostic[]): void {
 
 function printListHuman(payload: InitiativeListOutput): void {
   if (payload.context_store) {
-    console.log(`Pastelsdd initiatives in ${payload.context_store.id} (${payload.initiatives.length})`);
+    console.log(`Pscode initiatives in ${payload.context_store.id} (${payload.initiatives.length})`);
 
     if (payload.initiatives.length === 0) {
       console.log('');
@@ -287,7 +287,7 @@ function printListHuman(payload: InitiativeListOutput): void {
   }
 
   console.log(
-    `Pastelsdd initiatives (${payload.initiatives.length} across ${payload.context_stores.length} stores)`
+    `Pscode initiatives (${payload.initiatives.length} across ${payload.context_stores.length} stores)`
   );
   console.log('');
   printTableHeader(true);
@@ -302,7 +302,7 @@ function printShowHuman(payload: InitiativeShowOutput): void {
     return;
   }
 
-  console.log(`Pastelsdd initiative: ${payload.initiative.title}`);
+  console.log(`Pscode initiative: ${payload.initiative.title}`);
   console.log('');
   console.log(`ID: ${payload.initiative.id}`);
   console.log(`Summary: ${payload.initiative.summary}`);

@@ -1,4 +1,4 @@
-﻿import { Command } from 'commander';
+import { Command } from 'commander';
 import { createRequire } from 'module';
 import ora from 'ora';
 import path from 'path';
@@ -56,18 +56,18 @@ function getCommandPath(command: Command): string {
 
   while (current) {
     const name = current.name();
-    // Skip the root 'pastelsdd' command
-    if (name && name !== 'pastelsdd') {
+    // Skip the root 'pscode' command
+    if (name && name !== 'pscode') {
       names.unshift(name);
     }
     current = current.parent;
   }
 
-  return names.join(':') || 'pastelsdd';
+  return names.join(':') || 'pscode';
 }
 
 program
-  .name('pastelsdd')
+  .name('pscode')
   .description('AI-native system for spec-driven development')
   .version(version);
 
@@ -102,10 +102,10 @@ const toolsOptionDescription = `Configure AI tools non-interactively. Use "all",
 
 program
   .command('init [path]')
-  .description('Initialize Pastelsdd in your project')
+  .description('Initialize Pscode in your project')
   .option('--tools <tools>', toolsOptionDescription)
   .option('--force', 'Auto-cleanup legacy files without prompting')
-  .option('--profile <profile>', 'Override global config profile (core or custom)')
+  .option('--profile <profile>', 'Workflow profile to use (core, full, trello)')
   .action(async (targetPath = '.', options?: { tools?: string; force?: boolean; profile?: string }) => {
     try {
       // Validate that the path is a valid directory
@@ -149,7 +149,7 @@ program
   .option('--no-interactive', 'Disable interactive prompts')
   .action(async (options?: { tool?: string; noInteractive?: boolean }) => {
     try {
-      console.log('Note: "pastelsdd experimental" is deprecated. Use "pastelsdd init" instead.');
+      console.log('Note: "pscode experimental" is deprecated. Use "pscode init" instead.');
       const { InitCommand } = await import('../core/init.js');
       const initCommand = new InitCommand({
         tools: options?.tool,
@@ -165,7 +165,7 @@ program
 
 program
   .command('update [path]')
-  .description('Update Pastelsdd instruction files')
+  .description('Update Pscode instruction files')
   .option('--force', 'Force update even when tools are up to date')
   .action(async (targetPath = '.', options?: { force?: boolean }) => {
     try {
@@ -222,11 +222,11 @@ program
 // Change command with subcommands
 const changeCmd = program
   .command('change')
-  .description('Manage Pastelsdd change proposals');
+  .description('Manage Pscode change proposals');
 
 // Deprecation notice for noun-based commands
 changeCmd.hook('preAction', () => {
-  console.error('Warning: The "pastelsdd change ..." commands are deprecated. Prefer verb-first commands (e.g., "pastelsdd list", "pastelsdd validate --changes").');
+  console.error('Warning: The "pscode change ..." commands are deprecated. Prefer verb-first commands (e.g., "pscode list", "pscode validate --changes").');
 });
 
 changeCmd
@@ -248,12 +248,12 @@ changeCmd
 
 changeCmd
   .command('list')
-  .description('List all active changes (DEPRECATED: use "pastelsdd list" instead)')
+  .description('List all active changes (DEPRECATED: use "pscode list" instead)')
   .option('--json', 'Output as JSON')
   .option('--long', 'Show id and title with counts')
   .action(async (options?: { json?: boolean; long?: boolean }) => {
     try {
-      console.error('Warning: "pastelsdd change list" is deprecated. Use "pastelsdd list".');
+      console.error('Warning: "pscode change list" is deprecated. Use "pscode list".');
       const changeCommand = new ChangeCommand();
       await changeCommand.list(options);
     } catch (error) {
@@ -315,7 +315,7 @@ program
   .option('--type <type>', 'Specify item type when ambiguous: change|spec')
   .option('--strict', 'Enable strict validation mode')
   .option('--json', 'Output validation results as JSON')
-  .option('--concurrency <n>', 'Max concurrent validations (defaults to env PASTELSDD_CONCURRENCY or 6)')
+  .option('--concurrency <n>', 'Max concurrent validations (defaults to env PSCODE_CONCURRENCY or 6)')
   .option('--no-interactive', 'Disable interactive prompts')
   .action(async (itemName?: string, options?: { all?: boolean; changes?: boolean; specs?: boolean; type?: string; strict?: boolean; json?: boolean; noInteractive?: boolean; concurrency?: string }) => {
     try {
@@ -358,7 +358,7 @@ program
 // Feedback command
 program
   .command('feedback <message>')
-  .description('Submit feedback about Pastelsdd')
+  .description('Submit feedback about Pscode')
   .option('--body <text>', 'Detailed description for the feedback')
   .action(async (message: string, options?: { body?: string }) => {
     try {
@@ -374,7 +374,7 @@ program
 // Completion command with subcommands
 const completionCmd = program
   .command('completion')
-  .description('Manage shell completions for Pastelsdd CLI');
+  .description('Manage shell completions for Pscode CLI');
 
 completionCmd
   .command('generate [shell]')
@@ -533,7 +533,7 @@ newCmd
   });
 
 // Set command group
-const setCmd = program.command('set').description('Set checked-in Pastelsdd metadata');
+const setCmd = program.command('set').description('Set checked-in Pscode metadata');
 
 setCmd
   .command('change <name>')

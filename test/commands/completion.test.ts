@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { CompletionCommand } from '../../src/commands/completion.js';
 import * as shellDetection from '../../src/utils/shell-detection.js';
 
@@ -12,7 +12,7 @@ vi.mock('../../src/core/completions/installers/zsh-installer.js', () => ({
   ZshInstaller: vi.fn().mockImplementation(() => ({
     install: vi.fn().mockResolvedValue({
       success: true,
-      installedPath: '/home/user/.oh-my-zsh/completions/_pastelsdd',
+      installedPath: '/home/user/.oh-my-zsh/completions/_pscode',
       isOhMyZsh: true,
       message: 'Completion script installed successfully for Oh My Zsh',
       instructions: [
@@ -23,7 +23,7 @@ vi.mock('../../src/core/completions/installers/zsh-installer.js', () => ({
     }),
     uninstall: vi.fn().mockResolvedValue({
       success: true,
-      message: 'Completion script removed from /home/user/.oh-my-zsh/completions/_pastelsdd',
+      message: 'Completion script removed from /home/user/.oh-my-zsh/completions/_pscode',
     }),
   })),
 }));
@@ -52,8 +52,8 @@ describe('CompletionCommand', () => {
 
       expect(consoleLogSpy).toHaveBeenCalled();
       const output = consoleLogSpy.mock.calls[0][0];
-      expect(output).toContain('#compdef pastelsdd');
-      expect(output).toContain('_pastelsdd() {');
+      expect(output).toContain('#compdef pscode');
+      expect(output).toContain('_pscode() {');
     });
 
     it('should auto-detect Zsh shell when no shell specified', async () => {
@@ -63,7 +63,7 @@ describe('CompletionCommand', () => {
 
       expect(consoleLogSpy).toHaveBeenCalled();
       const output = consoleLogSpy.mock.calls[0][0];
-      expect(output).toContain('#compdef pastelsdd');
+      expect(output).toContain('#compdef pscode');
     });
 
     it('should show error when shell cannot be auto-detected', async () => {
@@ -91,7 +91,7 @@ describe('CompletionCommand', () => {
 
       expect(consoleLogSpy).toHaveBeenCalled();
       const output = consoleLogSpy.mock.calls[0][0];
-      expect(output).toContain('#compdef pastelsdd');
+      expect(output).toContain('#compdef pscode');
     });
   });
 
@@ -272,7 +272,7 @@ describe('CompletionCommand', () => {
 
       expect(consoleLogSpy).toHaveBeenCalled();
       const output = consoleLogSpy.mock.calls[0][0];
-      expect(output).toContain('#compdef pastelsdd');
+      expect(output).toContain('#compdef pscode');
     });
   });
 });

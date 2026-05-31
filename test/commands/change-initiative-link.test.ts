@@ -1,4 +1,4 @@
-﻿import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -20,7 +20,7 @@ describe('repo-local change initiative links', () => {
   let env: NodeJS.ProcessEnv;
 
   beforeEach(async () => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pastelsdd-change-initiative-link-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pscode-change-initiative-link-'));
     tempDir = fs.realpathSync.native(tempDir);
     dataHome = path.join(tempDir, 'data');
     configHome = path.join(tempDir, 'config');
@@ -28,10 +28,10 @@ describe('repo-local change initiative links', () => {
       XDG_DATA_HOME: dataHome,
       XDG_CONFIG_HOME: configHome,
       OPEN_SPEC_INTERACTIVE: '0',
-      PASTELSDD_TELEMETRY: '0',
+      PSCODE_TELEMETRY: '0',
     };
     globalDataDir = getGlobalDataDir({ env });
-    fs.mkdirSync(path.join(tempDir, 'pastelsdd', 'changes'), { recursive: true });
+    fs.mkdirSync(path.join(tempDir, 'pscode', 'changes'), { recursive: true });
   });
 
   afterEach(() => {
@@ -104,11 +104,11 @@ describe('repo-local change initiative links', () => {
   }
 
   function changeDir(id: string): string {
-    return path.join(tempDir, 'pastelsdd', 'changes', id);
+    return path.join(tempDir, 'pscode', 'changes', id);
   }
 
   function metadataPath(id: string): string {
-    return path.join(changeDir(id), '.pastelsdd.yaml');
+    return path.join(changeDir(id), '.pscode.yaml');
   }
 
   function expectStoredLinkOnly(changeId: string, store: string, initiativeId: string, storeRoot: string): void {
@@ -244,7 +244,7 @@ describe('repo-local change initiative links', () => {
     const payload = parseJson(result);
     expect(payload.change).toBeNull();
     expect(payload.status[0]).toEqual(expect.objectContaining({ code: 'initiative_not_found' }));
-    expect(payload.status[0].fix).toBe('pastelsdd initiative list');
+    expect(payload.status[0].fix).toBe('pscode initiative list');
     expect(fs.existsSync(changeDir('missing-linked-change'))).toBe(false);
   });
 
@@ -312,7 +312,7 @@ describe('repo-local change initiative links', () => {
     expect(missing.exitCode).toBe(1);
     const missingPayload = parseJson(missing);
     expect(missingPayload.status[0]).toEqual(expect.objectContaining({ code: 'initiative_not_found' }));
-    expect(missingPayload.status[0].fix).toBe('pastelsdd initiative list');
+    expect(missingPayload.status[0].fix).toBe('pscode initiative list');
     expect(fs.readFileSync(metadataPath('set-lookup-failure'), 'utf-8')).toBe(before);
 
     await createInitiative('billing-launch', ['--store', 'platform']);
@@ -373,7 +373,7 @@ describe('repo-local change initiative links', () => {
       expect.objectContaining({ code: 'initiative_ambiguous' })
     );
     expect(parseJson(ambiguous).status[0].fix).toBe(
-      'pastelsdd initiative show billing-launch --store <store>'
+      'pscode initiative show billing-launch --store <store>'
     );
     expect(fs.readFileSync(metadataPath('set-lookup-failure'), 'utf-8')).toBe(before);
   });

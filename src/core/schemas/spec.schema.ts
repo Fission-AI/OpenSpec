@@ -1,4 +1,4 @@
-﻿import { z } from 'zod';
+import { z } from 'zod';
 import { RequirementSchema } from './base.schema.js';
 import { VALIDATION_MESSAGES } from '../validation/constants.js';
 
@@ -9,7 +9,7 @@ export const SpecSchema = z.object({
     .min(1, VALIDATION_MESSAGES.SPEC_NO_REQUIREMENTS),
   metadata: z.object({
     version: z.string().default('1.0.0'),
-    format: z.literal('pastelsdd'),
+    format: z.literal('pscode'),
     sourcePath: z.string().optional(),
   }).optional(),
 });

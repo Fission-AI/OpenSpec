@@ -1,4 +1,4 @@
-﻿import * as fs from 'node:fs';
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getSchemaDir, resolveSchema } from './resolver.js';
 import { ArtifactGraph } from './graph.js';
@@ -216,7 +216,7 @@ export function loadTemplate(
  *
  * Schema resolution order:
  * 1. Explicit schemaName parameter (if provided)
- * 2. Schema from .pastelsdd.yaml metadata (if exists in change directory)
+ * 2. Schema from .pscode.yaml metadata (if exists in change directory)
  * 3. Default 'spec-driven'
  *
  * @param projectRoot - Project root directory
@@ -231,7 +231,7 @@ export function loadChangeContext(
   options: LoadChangeContextOptions = {}
 ): ChangeContext {
   const changeDir = FileSystemUtils.canonicalizeExistingPath(
-    options.changeDir ?? path.join(projectRoot, 'pastelsdd', 'changes', changeName)
+    options.changeDir ?? path.join(projectRoot, 'pscode', 'changes', changeName)
   );
 
   const metadata = readChangeMetadata(changeDir, projectRoot) ?? undefined;

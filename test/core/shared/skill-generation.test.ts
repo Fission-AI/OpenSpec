@@ -1,4 +1,4 @@
-﻿import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   getSkillTemplates,
   getCommandTemplates,
@@ -24,19 +24,19 @@ describe('skill-generation', () => {
       const templates = getSkillTemplates();
       const dirNames = templates.map(t => t.dirName);
 
-      expect(dirNames).toContain('pastelsdd-explore');
-      expect(dirNames).toContain('pastelsdd-new-change');
-      expect(dirNames).toContain('pastelsdd-continue-change');
-      expect(dirNames).toContain('pastelsdd-apply-change');
-      expect(dirNames).toContain('pastelsdd-ff-change');
-      expect(dirNames).toContain('pastelsdd-sync-specs');
-      expect(dirNames).toContain('pastelsdd-archive-change');
-      expect(dirNames).toContain('pastelsdd-bulk-archive-change');
-      expect(dirNames).toContain('pastelsdd-verify-change');
-      expect(dirNames).toContain('pastelsdd-onboard');
-      expect(dirNames).toContain('pastelsdd-propose');
-      expect(dirNames).toContain('pastelsdd-trello-setup');
-      expect(dirNames).toContain('pastelsdd-trello-draft');
+      expect(dirNames).toContain('pscode-explore');
+      expect(dirNames).toContain('pscode-new-change');
+      expect(dirNames).toContain('pscode-continue-change');
+      expect(dirNames).toContain('pscode-apply-change');
+      expect(dirNames).toContain('pscode-ff-change');
+      expect(dirNames).toContain('pscode-sync-specs');
+      expect(dirNames).toContain('pscode-archive-change');
+      expect(dirNames).toContain('pscode-bulk-archive-change');
+      expect(dirNames).toContain('pscode-verify-change');
+      expect(dirNames).toContain('pscode-onboard');
+      expect(dirNames).toContain('pscode-propose');
+      expect(dirNames).toContain('pscode-trello-setup');
+      expect(dirNames).toContain('pscode-trello-draft');
     });
 
     it('should have valid template structure', () => {
@@ -85,7 +85,7 @@ describe('skill-generation', () => {
       const filtered = getSkillTemplates(['propose']);
       expect(filtered).toHaveLength(1);
       expect(filtered[0].workflowId).toBe('propose');
-      expect(filtered[0].dirName).toBe('pastelsdd-propose');
+      expect(filtered[0].dirName).toBe('pscode-propose');
     });
   });
 
@@ -225,8 +225,8 @@ describe('skill-generation', () => {
       const content = generateSkillContent(template, '0.24.0');
 
       expect(content).toContain('license: MIT');
-      expect(content).toContain('compatibility: Requires pastelsdd CLI.');
-      expect(content).toContain('author: pastelsdd');
+      expect(content).toContain('compatibility: Requires pscode CLI.');
+      expect(content).toContain('author: pscode');
       expect(content).toContain('version: "1.0"');
       expect(content).toContain('generatedBy: "0.24.0"');
     });
@@ -264,28 +264,28 @@ describe('skill-generation', () => {
       const template = {
         name: 'transform-test',
         description: 'Test transform callback',
-        instructions: 'Use /pstl:new to start and /pstl:apply to implement.',
+        instructions: 'Use /ps:new to start and /ps:apply to implement.',
       };
 
-      const transformer = (text: string) => text.replace(/\/pstl:/g, '/pstl-');
+      const transformer = (text: string) => text.replace(/\/ps:/g, '/ps-');
       const content = generateSkillContent(template, '0.23.0', transformer);
 
-      expect(content).toContain('/pstl-new');
-      expect(content).toContain('/pstl-apply');
-      expect(content).not.toContain('/pstl:new');
-      expect(content).not.toContain('/pstl:apply');
+      expect(content).toContain('/ps-new');
+      expect(content).toContain('/ps-apply');
+      expect(content).not.toContain('/ps:new');
+      expect(content).not.toContain('/ps:apply');
     });
 
     it('should not transform instructions when callback is undefined', () => {
       const template = {
         name: 'no-transform-test',
         description: 'Test without transform',
-        instructions: 'Use /pstl:new to start.',
+        instructions: 'Use /ps:new to start.',
       };
 
       const content = generateSkillContent(template, '0.23.0', undefined);
 
-      expect(content).toContain('/pstl:new');
+      expect(content).toContain('/ps:new');
     });
 
     it('should support custom transformInstructions logic', () => {

@@ -1,4 +1,4 @@
-﻿import { z } from 'zod';
+import { z } from 'zod';
 import { RequirementSchema } from './base.schema.js';
 import { 
   MIN_WHY_SECTION_LENGTH,
@@ -32,7 +32,7 @@ export const ChangeSchema = z.object({
     .max(MAX_DELTAS_PER_CHANGE, VALIDATION_MESSAGES.CHANGE_TOO_MANY_DELTAS),
   metadata: z.object({
     version: z.string().default('1.0.0'),
-    format: z.literal('pastelsdd-change'),
+    format: z.literal('pscode-change'),
     sourcePath: z.string().optional(),
   }).optional(),
 });

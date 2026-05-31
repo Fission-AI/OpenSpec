@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
@@ -6,8 +6,8 @@ import { execSync } from 'child_process';
 describe('spec validate (interactive behavior)', () => {
   const projectRoot = process.cwd();
   const testDir = path.join(projectRoot, 'test-spec-validate-tmp');
-  const specsDir = path.join(testDir, 'pastelsdd', 'specs');
-  const bin = path.join(projectRoot, 'bin', 'pastelsdd.js');
+  const specsDir = path.join(testDir, 'pscode', 'specs');
+  const bin = path.join(projectRoot, 'bin', 'pscode.js');
 
 
   beforeEach(async () => {

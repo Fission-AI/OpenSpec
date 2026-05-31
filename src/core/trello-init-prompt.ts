@@ -1,9 +1,9 @@
-﻿/**
+/**
  * Trello Init Prompt
  *
- * Handles the interactive Trello setup questions during `pastelsdd init`.
- * Saves a partial `pastelsdd/trello.yaml` with `configured: false` so that
- * `/pstl:trello-setup` (in Claude Code) can pick up where the CLI left off
+ * Handles the interactive Trello setup questions during `pscode init`.
+ * Saves a partial `pscode/trello.yaml` with `configured: false` so that
+ * `/ps:trello-setup` (in Claude Code) can pick up where the CLI left off
  * and only needs to perform the MCP-dependent steps (list lookup/creation).
  */
 
@@ -11,7 +11,7 @@ import chalk from 'chalk';
 import { stringify as stringifyYaml } from 'yaml';
 import * as fs from 'fs';
 import * as path from 'path';
-import { PASTELSDD_DIR_NAME } from './config.js';
+import { PSCODE_DIR_NAME } from './config.js';
 import { DEFAULT_LABEL_DEFINITIONS, type TrelloLabelKey } from './trello-config.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -38,7 +38,7 @@ export const ALL_STAGES: StageDefinition[] = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Partial config types (saved by CLI, completed by /pstl:trello-setup)
+// Partial config types (saved by CLI, completed by /ps:trello-setup)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface PendingLabelsConfig {
@@ -49,7 +49,7 @@ export interface PendingLabelsConfig {
 }
 
 export interface TrelloPendingConfig {
-  /** Always false when saved by CLI init — completed by /pstl:trello-setup */
+  /** Always false when saved by CLI init — completed by /ps:trello-setup */
   configured: false;
   /** Whether the user indicated they already have a Trello board */
   hasExistingBoard: boolean;
@@ -81,11 +81,11 @@ export type TrelloYamlConfig = TrelloPendingConfig | TrelloCompleteConfig;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Runs the interactive Trello setup questions during `pastelsdd init`.
+ * Runs the interactive Trello setup questions during `pscode init`.
  * Returns whether the user chose to set up Trello.
  */
-export async function runTrelloInitPrompt(pastelsddPath: string): Promise<boolean> {
-  const configPath = path.join(pastelsddPath, 'trello.yaml');
+export async function runTrelloInitPrompt(pscodePath: string): Promise<boolean> {
+  const configPath = path.join(pscodePath, 'trello.yaml');
 
   // If already configured (completed), skip silently
   if (fs.existsSync(configPath)) {
@@ -123,7 +123,7 @@ export async function runTrelloInitPrompt(pastelsddPath: string): Promise<boolea
     message: 'Do you have a Trello board already set up for this project?',
     choices: [
       { value: 'existing', name: 'Yes, I have an existing board' },
-      { value: 'new',      name: 'No, create a new board when I run /pstl:trello-setup' },
+      { value: 'new',      name: 'No, create a new board when I run /ps:trello-setup' },
     ],
   });
 
@@ -236,7 +236,7 @@ export async function runTrelloInitPrompt(pastelsddPath: string): Promise<boolea
     labels,
   };
 
-  fs.mkdirSync(pastelsddPath, { recursive: true });
+  fs.mkdirSync(pscodePath, { recursive: true });
   fs.writeFileSync(configPath, stringifyYaml(pendingConfig, { lineWidth: 0 }), 'utf-8');
 
   return true;

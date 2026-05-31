@@ -1,4 +1,4 @@
-﻿import { execSync, execFileSync } from 'child_process';
+import { execSync, execFileSync } from 'child_process';
 import { createRequire } from 'module';
 import os from 'os';
 
@@ -31,7 +31,7 @@ function isGhAuthenticated(): boolean {
 }
 
 /**
- * Get Pastelsdd version from package.json
+ * Get Pscode version from package.json
  */
 function getVersion(): string {
   try {
@@ -65,7 +65,7 @@ function generateMetadata(): string {
   const timestamp = getTimestamp();
 
   return `---
-Submitted via Pastelsdd CLI
+Submitted via Pscode CLI
 - Version: ${version}
 - Platform: ${platform}
 - Timestamp: ${timestamp}`;
@@ -98,7 +98,7 @@ function formatBody(bodyText?: string): string {
  * Generate a pre-filled GitHub issue URL for manual submission
  */
 function generateManualSubmissionUrl(title: string, body: string): string {
-  const repo = 'thiagodiogo/Pastelsdd';
+  const repo = 'thiagodiogo/Pscode';
   const encodedTitle = encodeURIComponent(title);
   const encodedBody = encodeURIComponent(body);
   const encodedLabels = encodeURIComponent('feedback');
@@ -130,7 +130,7 @@ function submitViaGhCli(title: string, body: string): void {
         'issue',
         'create',
         '--repo',
-        'thiagodiogo/Pastelsdd',
+        'thiagodiogo/Pscode',
         '--title',
         title,
         '--body',

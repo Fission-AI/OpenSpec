@@ -1,4 +1,4 @@
-﻿import * as nodeFs from 'node:fs';
+import * as nodeFs from 'node:fs';
 import * as path from 'node:path';
 
 import {
@@ -124,10 +124,10 @@ function formatDuplicateLinkMessage(
     `  ${linkName} -> ${existingPath ?? '(no local path recorded)'}`,
     '',
     'Choose a different link name:',
-    `  pastelsdd workspace link archived-${linkName} ${replacementPath}`,
+    `  pscode workspace link archived-${linkName} ${replacementPath}`,
     '',
     'If you meant to change the existing link path:',
-    `  pastelsdd workspace relink ${linkName} ${replacementPath}`,
+    `  pscode workspace relink ${linkName} ${replacementPath}`,
   ].join('\n');
 }
 
@@ -141,7 +141,7 @@ function duplicateLinkError(
     'duplicate_link_name',
     {
       target: `links.${linkName}`,
-      fix: `Choose a different link name or run 'pastelsdd workspace relink ${linkName} ${replacementPath}'.`,
+      fix: `Choose a different link name or run 'pscode workspace relink ${linkName} ${replacementPath}'.`,
     }
   );
 }
@@ -205,7 +205,7 @@ function localStateInvalidStatus(error: unknown): WorkspaceStatus {
     `Machine-local paths could not be read: ${asErrorMessage(error)}`,
     {
       target: 'workspace.local_state',
-      fix: 'Repair workspace.yaml, then run pastelsdd workspace relink <name> <path> for affected links.',
+      fix: 'Repair workspace.yaml, then run pscode workspace relink <name> <path> for affected links.',
     }
   );
 }
@@ -217,7 +217,7 @@ function workspaceSkillDriftStatus(workspaceName: string): WorkspaceStatus {
     'Workspace-local agent skills are out of sync with the active global profile.',
     {
       target: 'workspace.skills',
-      fix: `pastelsdd workspace update --workspace ${workspaceName}`,
+      fix: `pscode workspace update --workspace ${workspaceName}`,
     }
   );
 }
@@ -434,7 +434,7 @@ export async function loadWorkspaceForDoctor(
             `Workspace state could not be read: ${asErrorMessage(error)}`,
             {
               target: 'workspace.root',
-              fix: 'Repair .pastelsdd-workspace/workspace.yaml before using this workspace.',
+              fix: 'Repair .pscode-workspace/workspace.yaml before using this workspace.',
             }
           ),
         ],
@@ -462,7 +462,7 @@ export async function loadWorkspaceForDoctor(
           'Shared link does not have a local path on this machine.',
           {
             target: `links.${linkName}.path`,
-            fix: `pastelsdd workspace relink ${linkName} /path/to/${linkName}`,
+            fix: `pscode workspace relink ${linkName} /path/to/${linkName}`,
           }
         )
       );
@@ -470,13 +470,13 @@ export async function loadWorkspaceForDoctor(
 
     if (localPath) {
       if (await directoryExists(localPath)) {
-        const candidateSpecsPath = path.join(localPath, 'pastelsdd', 'specs');
+        const candidateSpecsPath = path.join(localPath, 'pscode', 'specs');
         repoSpecsPath = (await directoryExists(candidateSpecsPath)) ? candidateSpecsPath : null;
       } else {
         linkStatus.push(
           makeStatus('error', 'linked_path_missing', 'Linked path does not exist.', {
             target: `links.${linkName}.path`,
-            fix: `pastelsdd workspace relink ${linkName} /path/to/${linkName}`,
+            fix: `pscode workspace relink ${linkName} /path/to/${linkName}`,
           })
         );
       }
@@ -511,7 +511,7 @@ async function readWorkspaceViewForMutation(selected: SelectedWorkspace): Promis
       'selected_workspace_root_missing',
       {
         target: 'workspace.root',
-        fix: 'Run pastelsdd workspace list to inspect known workspaces.',
+        fix: 'Run pscode workspace list to inspect known workspaces.',
       }
     );
   }
@@ -606,7 +606,7 @@ export async function updateWorkspaceLink(
   if (!hasWorkspaceLink(viewState.links, linkName)) {
     throw new WorkspaceCliError(`Unknown workspace link '${linkName}'.`, 'unknown_link_name', {
       target: `links.${linkName}`,
-      fix: 'Run pastelsdd workspace doctor to see linked repos or folders.',
+      fix: 'Run pscode workspace doctor to see linked repos or folders.',
     });
   }
 
@@ -791,7 +791,7 @@ export async function selectOrCreateWorkspaceForInitiativeOpen(input: {
       'workspace_name_collision',
       {
         target: 'workspace.name',
-        fix: `Retry with an explicit workspace name: pastelsdd workspace open <name> --initiative ${getWorkspaceContextStoreId(input.context)}/${getWorkspaceContextInitiativeId(input.context)}`,
+        fix: `Retry with an explicit workspace name: pscode workspace open <name> --initiative ${getWorkspaceContextStoreId(input.context)}/${getWorkspaceContextInitiativeId(input.context)}`,
       }
     );
   }

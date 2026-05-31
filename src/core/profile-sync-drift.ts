@@ -1,4 +1,4 @@
-﻿import path from 'path';
+import path from 'path';
 import * as fs from 'fs';
 import { AI_TOOLS } from './config.js';
 import type { Delivery } from './global-config.js';
@@ -12,20 +12,20 @@ type WorkflowId = (typeof ALL_WORKFLOWS)[number];
  * Maps workflow IDs to their skill directory names.
  */
 export const WORKFLOW_TO_SKILL_DIR: Record<WorkflowId, string> = {
-  'explore': 'pastelsdd-explore',
-  'new': 'pastelsdd-new-change',
-  'continue': 'pastelsdd-continue-change',
-  'apply': 'pastelsdd-apply-change',
-  'ff': 'pastelsdd-ff-change',
-  'sync': 'pastelsdd-sync-specs',
-  'archive': 'pastelsdd-archive-change',
-  'bulk-archive': 'pastelsdd-bulk-archive-change',
-  'verify': 'pastelsdd-verify-change',
-  'onboard': 'pastelsdd-onboard',
-  'propose': 'pastelsdd-propose',
+  'explore': 'pscode-explore',
+  'new': 'pscode-new-change',
+  'continue': 'pscode-continue-change',
+  'apply': 'pscode-apply-change',
+  'ff': 'pscode-ff-change',
+  'sync': 'pscode-sync-specs',
+  'archive': 'pscode-archive-change',
+  'bulk-archive': 'pscode-bulk-archive-change',
+  'verify': 'pscode-verify-change',
+  'onboard': 'pscode-onboard',
+  'propose': 'pscode-propose',
   // Trello-specific workflows
-  'trello-setup': 'pastelsdd-trello-setup',
-  'draft': 'pastelsdd-trello-draft',
+  'trello-setup': 'pscode-trello-setup',
+  'draft': 'pscode-trello-draft',
 };
 
 function toKnownWorkflows(workflows: readonly string[]): WorkflowId[] {
@@ -36,7 +36,7 @@ function toKnownWorkflows(workflows: readonly string[]): WorkflowId[] {
 }
 
 /**
- * Checks whether a tool has at least one generated Pastelsdd command file.
+ * Checks whether a tool has at least one generated Pscode command file.
  */
 export function toolHasAnyConfiguredCommand(projectPath: string, toolId: string): boolean {
   const adapter = CommandAdapterRegistry.get(toolId);

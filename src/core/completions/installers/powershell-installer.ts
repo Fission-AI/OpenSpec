@@ -1,4 +1,4 @@
-﻿import { promises as fs } from 'fs';
+import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
 import { FileSystemUtils } from '../../../utils/file-system.js';
@@ -15,8 +15,8 @@ export class PowerShellInstaller {
    * Markers for PowerShell profile configuration management
    */
   private readonly PROFILE_MARKERS = {
-    start: '# PASTELSDD:START',
-    end: '# PASTELSDD:END',
+    start: '# PSCODE:START',
+    end: '# PSCODE:END',
   };
 
   constructor(homeDir: string = os.homedir()) {
@@ -120,7 +120,7 @@ export class PowerShellInstaller {
   getInstallationPath(): string {
     const profilePath = this.getProfilePath();
     const profileDir = path.dirname(profilePath);
-    return path.join(profileDir, 'PastelsddCompletion.ps1');
+    return path.join(profileDir, 'PscodeCompletion.ps1');
   }
 
   /**
@@ -151,7 +151,7 @@ export class PowerShellInstaller {
    */
   private generateProfileConfig(scriptPath: string): string {
     return [
-      '# Pastelsdd shell completions configuration',
+      '# Pscode shell completions configuration',
       `if (Test-Path "${scriptPath}") {`,
       `    . "${scriptPath}"`,
       '}',
@@ -199,16 +199,16 @@ export class PowerShellInstaller {
           continue; // Already configured, skip
         }
 
-        // Add Pastelsdd completion configuration with markers
-        const pastelsddBlock = [
+        // Add Pscode completion configuration with markers
+        const pscodeBlock = [
           '',
-          '# PASTELSDD:START - Pastelsdd completion (managed block, do not edit manually)',
+          '# PSCODE:START - Pscode completion (managed block, do not edit manually)',
           scriptLine,
-          '# PASTELSDD:END',
+          '# PSCODE:END',
           '',
         ].join('\n');
 
-        const newContent = profileContent + pastelsddBlock;
+        const newContent = profileContent + pscodeBlock;
         await this.writeProfileFile(profilePath, newContent, fileEncoding, fileBom);
         anyConfigured = true;
       } catch (error) {
@@ -249,13 +249,13 @@ export class PowerShellInstaller {
           continue;
         }
 
-        // Remove PASTELSDD:START -> PASTELSDD:END block
-        const startMarker = '# PASTELSDD:START';
-        const endMarker = '# PASTELSDD:END';
+        // Remove PSCODE:START -> PSCODE:END block
+        const startMarker = '# PSCODE:START';
+        const endMarker = '# PSCODE:END';
         const startIndex = profileContent.indexOf(startMarker);
 
         if (startIndex === -1) {
-          continue; // No Pastelsdd block found
+          continue; // No Pscode block found
         }
 
         const endIndex = profileContent.indexOf(endMarker, startIndex);
@@ -372,7 +372,7 @@ export class PowerShellInstaller {
       '',
       `To enable completions, add the following to your PowerShell profile (${profilePath}):`,
       '',
-      '  # Source Pastelsdd completions',
+      '  # Source Pscode completions',
       `  if (Test-Path "${installedPath}") {`,
       `      . "${installedPath}"`,
       '  }',

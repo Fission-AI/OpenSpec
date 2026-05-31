@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 // Guard: Ensure the packed tarball's CLI `--version` matches package.json.
 //
 // Notes:
@@ -58,12 +58,12 @@ function main() {
   let tgzPath;
 
   try {
-    log(`Packing @thiagodiogo/pastelsdd@${expected}...`);
+    log(`Packing @thiagodiogo/pscode@${expected}...`);
     const filename = npmPack();
     tgzPath = path.resolve(filename);
     log(`Created: ${tgzPath}`);
 
-    work = mkdtempSync(path.join(tmpdir(), 'pastelsdd-pack-check-'));
+    work = mkdtempSync(path.join(tmpdir(), 'pscode-pack-check-'));
     log(`Temp dir: ${work}`);
 
     // Make a tiny project
@@ -85,7 +85,7 @@ function main() {
     run('npm', ['install', tgzPath, '--silent', '--no-audit', '--no-fund'], { cwd: work, env });
 
     // Run the installed CLI via Node to avoid bin resolution/platform issues
-    const binRel = path.join('node_modules', '@thiagodiogo', 'pastelsdd', 'bin', 'pastelsdd.js');
+    const binRel = path.join('node_modules', '@thiagodiogo', 'pscode', 'bin', 'pscode.js');
     const actual = run(process.execPath, [binRel, '--version'], { cwd: work }).trim();
 
     if (actual !== expected) {

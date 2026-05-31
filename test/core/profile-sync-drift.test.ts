@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -6,7 +6,9 @@ import {
   hasProjectConfigDrift,
   WORKFLOW_TO_SKILL_DIR,
 } from '../../src/core/profile-sync-drift.js';
-import { CORE_WORKFLOWS } from '../../src/core/profiles.js';
+import { PROFILES } from '../../src/core/profiles.js';
+
+const CORE_WORKFLOWS = PROFILES.core.workflows;
 import { CommandAdapterRegistry } from '../../src/core/command-generation/index.js';
 
 function writeSkill(projectDir: string, workflowId: string): void {
@@ -41,8 +43,8 @@ describe('profile sync drift detection', () => {
   let tempDir: string;
 
   beforeEach(() => {
-    tempDir = path.join(os.tmpdir(), `pastelsdd-profile-sync-drift-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-    fs.mkdirSync(path.join(tempDir, 'pastelsdd'), { recursive: true });
+    tempDir = path.join(os.tmpdir(), `pscode-profile-sync-drift-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    fs.mkdirSync(path.join(tempDir, 'pscode'), { recursive: true });
   });
 
   afterEach(() => {

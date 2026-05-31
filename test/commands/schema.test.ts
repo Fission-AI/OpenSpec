@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -14,12 +14,12 @@ describe('schema command', () => {
     // Create unique temp directory for each test
     tempDir = path.join(
       os.tmpdir(),
-      `pastelsdd-schema-test-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      `pscode-schema-test-${Date.now()}-${Math.random().toString(36).slice(2)}`
     );
     fs.mkdirSync(tempDir, { recursive: true });
 
-    // Create pastelsdd directory structure
-    fs.mkdirSync(path.join(tempDir, 'pastelsdd', 'schemas'), { recursive: true });
+    // Create pscode directory structure
+    fs.mkdirSync(path.join(tempDir, 'pscode', 'schemas'), { recursive: true });
 
     // Save original cwd and env
     originalCwd = process.cwd();
@@ -70,7 +70,7 @@ describe('schema command', () => {
 
     it('should detect project schema shadowing package', async () => {
       // Create a project-local spec-driven schema
-      const projectSchemaDir = path.join(tempDir, 'pastelsdd', 'schemas', 'spec-driven');
+      const projectSchemaDir = path.join(tempDir, 'pscode', 'schemas', 'spec-driven');
       fs.mkdirSync(projectSchemaDir, { recursive: true });
       fs.writeFileSync(
         path.join(projectSchemaDir, 'schema.yaml'),
@@ -105,7 +105,7 @@ artifacts:
   describe('schema validate', () => {
     it('should validate a valid schema', async () => {
       // Create a valid project schema
-      const schemaDir = path.join(tempDir, 'pastelsdd', 'schemas', 'test-schema');
+      const schemaDir = path.join(tempDir, 'pscode', 'schemas', 'test-schema');
       fs.mkdirSync(schemaDir, { recursive: true });
       fs.writeFileSync(
         path.join(schemaDir, 'schema.yaml'),
@@ -130,7 +130,7 @@ artifacts:
     });
 
     it('should detect missing template file', async () => {
-      const schemaDir = path.join(tempDir, 'pastelsdd', 'schemas', 'bad-schema');
+      const schemaDir = path.join(tempDir, 'pscode', 'schemas', 'bad-schema');
       fs.mkdirSync(schemaDir, { recursive: true });
       fs.writeFileSync(
         path.join(schemaDir, 'schema.yaml'),
@@ -208,7 +208,7 @@ artifacts:
       expect(sourceDir).not.toBeNull();
 
       // Copy manually to simulate fork
-      const destDir = path.join(tempDir, 'pastelsdd', 'schemas', 'my-custom');
+      const destDir = path.join(tempDir, 'pscode', 'schemas', 'my-custom');
       fs.mkdirSync(destDir, { recursive: true });
 
       // Copy files
@@ -246,7 +246,7 @@ artifacts:
 
   describe('schema init', () => {
     it('should create schema directory with schema.yaml', async () => {
-      const schemaDir = path.join(tempDir, 'pastelsdd', 'schemas', 'new-schema');
+      const schemaDir = path.join(tempDir, 'pscode', 'schemas', 'new-schema');
       fs.mkdirSync(schemaDir, { recursive: true });
 
       const { stringify: stringifyYaml } = await import('yaml');

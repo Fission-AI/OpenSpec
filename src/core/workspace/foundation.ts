@@ -1,4 +1,4 @@
-﻿import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { z } from 'zod';
 
 import {
@@ -8,7 +8,7 @@ import {
 } from '../context-store/index.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 
-export const WORKSPACE_METADATA_DIR_NAME = '.pastelsdd-workspace';
+export const WORKSPACE_METADATA_DIR_NAME = '.pscode-workspace';
 export const WORKSPACE_VIEW_STATE_FILE_NAME = 'workspace.yaml';
 export const WORKSPACE_CHANGES_DIR_NAME = 'changes';
 export const WORKSPACE_CODE_WORKSPACE_EXTENSION = '.code-workspace';
@@ -62,7 +62,7 @@ export interface WorkspaceViewState {
 
 export interface WorkspaceSkillState {
   selected_agents: string[];
-  last_applied_profile?: 'core' | 'custom';
+  last_applied_profile?: string;
   last_applied_delivery?: 'both' | 'skills' | 'commands';
   last_applied_workflow_ids?: string[];
   last_applied_at?: string;
@@ -187,7 +187,7 @@ const WorkspaceContextSchema = WorkspaceInitiativeContextSchema;
 const WorkspaceSkillStateSchema = z
   .object({
     selected_agents: z.array(z.string()),
-    last_applied_profile: z.enum(['core', 'custom']).optional(),
+    last_applied_profile: z.string().optional(),
     last_applied_delivery: z.enum(['both', 'skills', 'commands']).optional(),
     last_applied_workflow_ids: z.array(z.string()).optional(),
     last_applied_at: z.string().optional(),

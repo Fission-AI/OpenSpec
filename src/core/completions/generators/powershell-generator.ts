@@ -1,4 +1,4 @@
-﻿import {
+import {
   CompletionGenerator,
   CommandDefinition,
   FlagDefinition,
@@ -7,7 +7,7 @@
 import { POWERSHELL_DYNAMIC_HELPERS } from '../templates/powershell-templates.js';
 
 /**
- * Generates PowerShell completion scripts for the Pastelsdd CLI.
+ * Generates PowerShell completion scripts for the Pscode CLI.
  * Uses Register-ArgumentCompleter for command completion.
  */
 export class PowerShellGenerator implements CompletionGenerator {
@@ -46,11 +46,11 @@ export class PowerShellGenerator implements CompletionGenerator {
     const helpers = POWERSHELL_DYNAMIC_HELPERS;
 
     // Assemble final script with template literal
-    return `# PowerShell completion script for Pastelsdd CLI
+    return `# PowerShell completion script for Pscode CLI
 # Auto-generated - do not edit manually
 
 ${helpers}
-$pastelsddCompleter = {
+$pscodeCompleter = {
     param($wordToComplete, $commandAst, $cursorPosition)
 
     $tokens = $commandAst.ToString() -split "\\s+"
@@ -74,7 +74,7 @@ ${commandCases}
     }
 }
 
-Register-ArgumentCompleter -CommandName pastelsdd -ScriptBlock $pastelsddCompleter
+Register-ArgumentCompleter -CommandName pscode -ScriptBlock $pscodeCompleter
 `;
   }
 
@@ -263,23 +263,23 @@ Register-ArgumentCompleter -CommandName pastelsdd -ScriptBlock $pastelsddComplet
 
     switch (positionalType) {
       case 'change-id':
-        lines.push(`${indent}Get-PastelsddChanges | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {`);
+        lines.push(`${indent}Get-PscodeChanges | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {`);
         lines.push(`${indent}    [System.Management.Automation.CompletionResult]::new($_, $_, "ParameterValue", "Change: $_")`);
         lines.push(`${indent}}`);
         break;
       case 'spec-id':
-        lines.push(`${indent}Get-PastelsddSpecs | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {`);
+        lines.push(`${indent}Get-PscodeSpecs | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {`);
         lines.push(`${indent}    [System.Management.Automation.CompletionResult]::new($_, $_, "ParameterValue", "Spec: $_")`);
         lines.push(`${indent}}`);
         break;
       case 'change-or-spec-id':
-        lines.push(`${indent}$items = @(Get-PastelsddChanges) + @(Get-PastelsddSpecs)`);
+        lines.push(`${indent}$items = @(Get-PscodeChanges) + @(Get-PscodeSpecs)`);
         lines.push(`${indent}$items | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {`);
         lines.push(`${indent}    [System.Management.Automation.CompletionResult]::new($_, $_, "ParameterValue", $_)`);
         lines.push(`${indent}}`);
         break;
       case 'schema-name':
-        lines.push(`${indent}Get-PastelsddSchemas | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {`);
+        lines.push(`${indent}Get-PscodeSchemas | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {`);
         lines.push(`${indent}    [System.Management.Automation.CompletionResult]::new($_, $_, "ParameterValue", "Schema: $_")`);
         lines.push(`${indent}}`);
         break;

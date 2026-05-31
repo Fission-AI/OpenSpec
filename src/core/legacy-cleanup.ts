@@ -1,5 +1,5 @@
-﻿/**
- * Legacy cleanup module for detecting and removing Pastelsdd artifacts
+/**
+ * Legacy cleanup module for detecting and removing Pscode artifacts
  * from previous init versions during the migration to the skill-based workflow.
  */
 
@@ -7,15 +7,15 @@ import path from 'path';
 import { promises as fs } from 'fs';
 import chalk from 'chalk';
 import { FileSystemUtils, removeMarkerBlock as removeMarkerBlockUtil } from '../utils/file-system.js';
-import { PASTELSDD_MARKERS } from './config.js';
+import { PSCODE_MARKERS } from './config.js';
 
 /**
  * Legacy config file names from the old ToolRegistry.
- * These were config files created at project root with Pastelsdd markers.
+ * These were config files created at project root with Pscode markers.
  */
 export const LEGACY_CONFIG_FILES = [
   'CLAUDE.md',
-  'AGENTS.md', // root AGENTS.md (not pastelsdd/AGENTS.md)
+  'AGENTS.md', // root AGENTS.md (not pscode/AGENTS.md)
 ] as const;
 
 /**
@@ -24,14 +24,14 @@ export const LEGACY_CONFIG_FILES = [
  * Some tools used a directory structure, others used individual files.
  */
 export const LEGACY_SLASH_COMMAND_PATHS: Record<string, LegacySlashCommandPattern> = {
-  // Directory-based: .tooldir/commands/pastelsdd/ or .tooldir/commands/pastelsdd/*.md
-  'claude': { type: 'directory', path: '.claude/commands/pastelsdd' },
-  'gemini': { type: 'directory', path: '.gemini/commands/pastelsdd' },
+  // Directory-based: .tooldir/commands/pscode/ or .tooldir/commands/pscode/*.md
+  'claude': { type: 'directory', path: '.claude/commands/pscode' },
+  'gemini': { type: 'directory', path: '.gemini/commands/pscode' },
 
-  // File-based: individual pastelsdd-*.md files in a commands/workflows/prompts folder
-  'cursor': { type: 'files', pattern: '.cursor/commands/pastelsdd-*.md' },
-  'github-copilot': { type: 'files', pattern: '.github/prompts/pastelsdd-*.prompt.md' },
-  'codex': { type: 'files', pattern: '.codex/prompts/pastelsdd-*.md' },
+  // File-based: individual pscode-*.md files in a commands/workflows/prompts folder
+  'cursor': { type: 'files', pattern: '.cursor/commands/pscode-*.md' },
+  'github-copilot': { type: 'files', pattern: '.github/prompts/pscode-*.prompt.md' },
+  'codex': { type: 'files', pattern: '.codex/prompts/pscode-*.md' },
 };
 
 /**
@@ -47,7 +47,7 @@ export interface LegacySlashCommandPattern {
  * Result of legacy artifact detection
  */
 export interface LegacyDetectionResult {
-  /** Config files with Pastelsdd markers detected */
+  /** Config files with Pscode markers detected */
   configFiles: string[];
   /** Config files to update (remove markers only, never delete) */
   configFilesToUpdate: string[];
@@ -55,18 +55,18 @@ export interface LegacyDetectionResult {
   slashCommandDirs: string[];
   /** Legacy slash command files found (for file-based tools) */
   slashCommandFiles: string[];
-  /** Whether pastelsdd/AGENTS.md exists */
+  /** Whether pscode/AGENTS.md exists */
   hasOpenspecAgents: boolean;
-  /** Whether pastelsdd/project.md exists (preserved, migration hint only) */
+  /** Whether pscode/project.md exists (preserved, migration hint only) */
   hasProjectMd: boolean;
-  /** Whether root AGENTS.md has Pastelsdd markers */
+  /** Whether root AGENTS.md has Pscode markers */
   hasRootAgentsWithMarkers: boolean;
   /** Whether any legacy artifacts were found */
   hasLegacyArtifacts: boolean;
 }
 
 /**
- * Detects all legacy Pastelsdd artifacts in a project.
+ * Detects all legacy Pscode artifacts in a project.
  *
  * @param projectPath - The root path of the project
  * @returns Detection result with all found legacy artifacts
@@ -114,7 +114,7 @@ export async function detectLegacyArtifacts(
 }
 
 /**
- * Detects legacy config files with Pastelsdd markers.
+ * Detects legacy config files with Pscode markers.
  * All config files with markers are candidates for update (marker removal only).
  * Config files are NEVER deleted - they belong to the user's project root.
  *
@@ -136,7 +136,7 @@ export async function detectLegacyConfigFiles(
     if (await FileSystemUtils.fileExists(filePath)) {
       const content = await FileSystemUtils.readFile(filePath);
 
-      if (hasPastelsddMarkers(content)) {
+      if (hasPscodeMarkers(content)) {
         allFiles.push(fileName);
         filesToUpdate.push(fileName); // Always update, never delete config files
       }
@@ -184,7 +184,7 @@ export async function detectLegacySlashCommands(
  * Finds legacy slash command files matching a glob pattern.
  *
  * @param projectPath - The root path of the project
- * @param pattern - Glob pattern like '.cursor/commands/pastelsdd-*.md'
+ * @param pattern - Glob pattern like '.cursor/commands/pscode-*.md'
  * @returns Array of matching file paths relative to projectPath
  */
 async function findLegacySlashCommandFiles(
@@ -211,9 +211,9 @@ async function findLegacySlashCommandFiles(
     const entries = await fs.readdir(dirPath);
 
     // Convert glob pattern to regex
-    // pastelsdd-*.md -> /^pastelsdd-.*\.md$/
-    // pastelsdd-*.prompt.md -> /^pastelsdd-.*\.prompt\.md$/
-    // pastelsdd-*.toml -> /^pastelsdd-.*\.toml$/
+    // pscode-*.md -> /^pscode-.*\.md$/
+    // pscode-*.prompt.md -> /^pscode-.*\.prompt\.md$/
+    // pscode-*.toml -> /^pscode-.*\.toml$/
     const regexPattern = filePart
       .replace(/[.+^${}()|[\]\\]/g, '\\$&') // Escape regex special chars except *
       .replace(/\*/g, '.*'); // Replace * with .*
@@ -234,7 +234,7 @@ async function findLegacySlashCommandFiles(
 }
 
 /**
- * Detects legacy Pastelsdd structure files (AGENTS.md and project.md).
+ * Detects legacy Pscode structure files (AGENTS.md and project.md).
  *
  * @param projectPath - The root path of the project
  * @returns Object with detection results for structure files
@@ -250,66 +250,66 @@ export async function detectLegacyStructureFiles(
   let hasProjectMd = false;
   let hasRootAgentsWithMarkers = false;
 
-  // Check for pastelsdd/AGENTS.md
-  const pastelsddAgentsPath = FileSystemUtils.joinPath(projectPath, 'pastelsdd', 'AGENTS.md');
-  hasOpenspecAgents = await FileSystemUtils.fileExists(pastelsddAgentsPath);
+  // Check for pscode/AGENTS.md
+  const pscodeAgentsPath = FileSystemUtils.joinPath(projectPath, 'pscode', 'AGENTS.md');
+  hasOpenspecAgents = await FileSystemUtils.fileExists(pscodeAgentsPath);
 
-  // Check for pastelsdd/project.md (for migration messaging, not deleted)
-  const projectMdPath = FileSystemUtils.joinPath(projectPath, 'pastelsdd', 'project.md');
+  // Check for pscode/project.md (for migration messaging, not deleted)
+  const projectMdPath = FileSystemUtils.joinPath(projectPath, 'pscode', 'project.md');
   hasProjectMd = await FileSystemUtils.fileExists(projectMdPath);
 
-  // Check for root AGENTS.md with Pastelsdd markers
+  // Check for root AGENTS.md with Pscode markers
   const rootAgentsPath = FileSystemUtils.joinPath(projectPath, 'AGENTS.md');
   if (await FileSystemUtils.fileExists(rootAgentsPath)) {
     const content = await FileSystemUtils.readFile(rootAgentsPath);
-    hasRootAgentsWithMarkers = hasPastelsddMarkers(content);
+    hasRootAgentsWithMarkers = hasPscodeMarkers(content);
   }
 
   return { hasOpenspecAgents, hasProjectMd, hasRootAgentsWithMarkers };
 }
 
 /**
- * Checks if content contains Pastelsdd markers.
+ * Checks if content contains Pscode markers.
  *
  * @param content - File content to check
  * @returns True if both start and end markers are present
  */
-export function hasPastelsddMarkers(content: string): boolean {
+export function hasPscodeMarkers(content: string): boolean {
   return (
-    content.includes(PASTELSDD_MARKERS.start) && content.includes(PASTELSDD_MARKERS.end)
+    content.includes(PSCODE_MARKERS.start) && content.includes(PSCODE_MARKERS.end)
   );
 }
 
 /**
- * Checks if file content is 100% Pastelsdd content (only markers and whitespace outside).
+ * Checks if file content is 100% Pscode content (only markers and whitespace outside).
  *
  * @param content - File content to check
  * @returns True if content outside markers is only whitespace
  */
-export function isOnlyPastelsddContent(content: string): boolean {
-  const startIndex = content.indexOf(PASTELSDD_MARKERS.start);
-  const endIndex = content.indexOf(PASTELSDD_MARKERS.end);
+export function isOnlyPscodeContent(content: string): boolean {
+  const startIndex = content.indexOf(PSCODE_MARKERS.start);
+  const endIndex = content.indexOf(PSCODE_MARKERS.end);
 
   if (startIndex === -1 || endIndex === -1 || endIndex <= startIndex) {
     return false;
   }
 
   const before = content.substring(0, startIndex);
-  const after = content.substring(endIndex + PASTELSDD_MARKERS.end.length);
+  const after = content.substring(endIndex + PSCODE_MARKERS.end.length);
 
   return before.trim() === '' && after.trim() === '';
 }
 
 /**
- * Removes the Pastelsdd marker block from file content.
+ * Removes the Pscode marker block from file content.
  * Only removes markers that are on their own lines (ignores inline mentions).
  * Cleans up double blank lines that may result from removal.
  *
- * @param content - File content with Pastelsdd markers
+ * @param content - File content with Pscode markers
  * @returns Content with marker block removed
  */
 export function removeMarkerBlock(content: string): string {
-  return removeMarkerBlockUtil(content, PASTELSDD_MARKERS.start, PASTELSDD_MARKERS.end);
+  return removeMarkerBlockUtil(content, PSCODE_MARKERS.start, PSCODE_MARKERS.end);
 }
 
 /**
@@ -329,8 +329,8 @@ export interface CleanupResult {
 }
 
 /**
- * Cleans up legacy Pastelsdd artifacts from a project.
- * Preserves pastelsdd/project.md (shows migration hint instead of deleting).
+ * Cleans up legacy Pscode artifacts from a project.
+ * Preserves pscode/project.md (shows migration hint instead of deleting).
  *
  * @param projectPath - The root path of the project
  * @param detection - Detection result from detectLegacyArtifacts
@@ -363,7 +363,7 @@ export async function cleanupLegacyArtifacts(
     }
   }
 
-  // Delete legacy slash command directories (these are 100% Pastelsdd-managed)
+  // Delete legacy slash command directories (these are 100% Pscode-managed)
   for (const dirPath of detection.slashCommandDirs) {
     const fullPath = FileSystemUtils.joinPath(projectPath, dirPath);
     try {
@@ -374,7 +374,7 @@ export async function cleanupLegacyArtifacts(
     }
   }
 
-  // Delete legacy slash command files (these are 100% Pastelsdd-managed)
+  // Delete legacy slash command files (these are 100% Pscode-managed)
   for (const filePath of detection.slashCommandFiles) {
     const fullPath = FileSystemUtils.joinPath(projectPath, filePath);
     try {
@@ -385,20 +385,20 @@ export async function cleanupLegacyArtifacts(
     }
   }
 
-  // Delete pastelsdd/AGENTS.md (this is inside pastelsdd/, it's Pastelsdd-managed)
+  // Delete pscode/AGENTS.md (this is inside pscode/, it's Pscode-managed)
   if (detection.hasOpenspecAgents) {
-    const agentsPath = FileSystemUtils.joinPath(projectPath, 'pastelsdd', 'AGENTS.md');
+    const agentsPath = FileSystemUtils.joinPath(projectPath, 'pscode', 'AGENTS.md');
     if (await FileSystemUtils.fileExists(agentsPath)) {
       try {
         await fs.unlink(agentsPath);
-        result.deletedFiles.push('pastelsdd/AGENTS.md');
+        result.deletedFiles.push('pscode/AGENTS.md');
       } catch (error: any) {
-        result.errors.push(`Failed to delete pastelsdd/AGENTS.md: ${error.message}`);
+        result.errors.push(`Failed to delete pscode/AGENTS.md: ${error.message}`);
       }
     }
   }
 
-  // Handle root AGENTS.md with Pastelsdd markers - remove markers only, NEVER delete
+  // Handle root AGENTS.md with Pscode markers - remove markers only, NEVER delete
   // Note: Root AGENTS.md is handled via configFilesToUpdate above (it's in LEGACY_CONFIG_FILES)
   // This hasRootAgentsWithMarkers flag is just for detection, cleanup happens via configFilesToUpdate
 
@@ -422,11 +422,11 @@ export function formatCleanupSummary(result: CleanupResult): string {
     }
 
     for (const dir of result.deletedDirs) {
-      lines.push(`  ✓ Removed ${dir}/ (replaced by /pstl:*)`);
+      lines.push(`  ✓ Removed ${dir}/ (replaced by /ps:*)`);
     }
 
     for (const file of result.modifiedFiles) {
-      lines.push(`  ✓ Removed Pastelsdd markers from ${file}`);
+      lines.push(`  ✓ Removed Pscode markers from ${file}`);
     }
   }
 
@@ -452,7 +452,7 @@ export function formatCleanupSummary(result: CleanupResult): string {
 
 /**
  * Build list of files to be removed with explanations.
- * Only includes Pastelsdd-managed files (slash commands, pastelsdd/AGENTS.md).
+ * Only includes Pscode-managed files (slash commands, pscode/AGENTS.md).
  * Config files like CLAUDE.md, AGENTS.md are NEVER deleted.
  *
  * @param detection - Detection result from detectLegacyArtifacts
@@ -461,21 +461,21 @@ export function formatCleanupSummary(result: CleanupResult): string {
 function buildRemovalsList(detection: LegacyDetectionResult): Array<{ path: string; explanation: string }> {
   const removals: Array<{ path: string; explanation: string }> = [];
 
-  // Slash command directories (these are 100% Pastelsdd-managed)
+  // Slash command directories (these are 100% Pscode-managed)
   for (const dir of detection.slashCommandDirs) {
     // Split on both forward and backward slashes for Windows compatibility
     const toolDir = dir.split(/[\/\\]/)[0];
     removals.push({ path: dir + '/', explanation: `replaced by ${toolDir}/skills/` });
   }
 
-  // Slash command files (these are 100% Pastelsdd-managed)
+  // Slash command files (these are 100% Pscode-managed)
   for (const file of detection.slashCommandFiles) {
     removals.push({ path: file, explanation: 'replaced by skills/' });
   }
 
-  // pastelsdd/AGENTS.md (inside pastelsdd/, it's Pastelsdd-managed)
+  // pscode/AGENTS.md (inside pscode/, it's Pscode-managed)
   if (detection.hasOpenspecAgents) {
-    removals.push({ path: 'pastelsdd/AGENTS.md', explanation: 'obsolete workflow file' });
+    removals.push({ path: 'pscode/AGENTS.md', explanation: 'obsolete workflow file' });
   }
 
   // Note: Config files (CLAUDE.md, AGENTS.md, etc.) are NEVER in the removals list
@@ -496,7 +496,7 @@ function buildUpdatesList(detection: LegacyDetectionResult): Array<{ path: strin
 
   // All config files with markers get updated (markers removed, file preserved)
   for (const file of detection.configFilesToUpdate) {
-    updates.push({ path: file, explanation: 'removing Pastelsdd markers' });
+    updates.push({ path: file, explanation: 'removing Pscode markers' });
   }
 
   return updates;
@@ -521,9 +521,9 @@ export function formatDetectionSummary(detection: LegacyDetectionResult): string
   }
 
   // Header - welcoming upgrade message
-  lines.push(chalk.bold('Upgrading to the new Pastelsdd'));
+  lines.push(chalk.bold('Upgrading to the new Pscode'));
   lines.push('');
-  lines.push('Pastelsdd now uses agent skills, the emerging standard across coding');
+  lines.push('Pscode now uses agent skills, the emerging standard across coding');
   lines.push('agents. This simplifies your setup while keeping everything working');
   lines.push('as before.');
   lines.push('');
@@ -541,7 +541,7 @@ export function formatDetectionSummary(detection: LegacyDetectionResult): string
   if (updates.length > 0) {
     if (removals.length > 0) lines.push('');
     lines.push(chalk.bold('Files to update'));
-    lines.push(chalk.dim('Pastelsdd markers will be removed, your content preserved:'));
+    lines.push(chalk.dim('Pscode markers will be removed, your content preserved:'));
     for (const { path } of updates) {
       lines.push(`  • ${path}`);
     }
@@ -583,7 +583,7 @@ export function getToolsFromLegacyArtifacts(detection: LegacyDetectionResult): s
     for (const [toolId, pattern] of Object.entries(LEGACY_SLASH_COMMAND_PATHS)) {
       if (pattern.type === 'files' && pattern.pattern) {
         // Convert glob pattern to regex for matching
-        // e.g., '.cursor/commands/pastelsdd-*.md' -> /^\.cursor\/commands\/pastelsdd-.*\.md$/
+        // e.g., '.cursor/commands/pscode-*.md' -> /^\.cursor\/commands\/pscode-.*\.md$/
         const patterns = Array.isArray(pattern.pattern) ? pattern.pattern : [pattern.pattern];
         let matched = false;
         for (const p of patterns) {
@@ -614,11 +614,11 @@ export function getToolsFromLegacyArtifacts(detection: LegacyDetectionResult): s
 export function formatProjectMdMigrationHint(): string {
   const lines: string[] = [];
   lines.push(chalk.yellow.bold('Needs your attention'));
-  lines.push('  • pastelsdd/project.md');
+  lines.push('  • pscode/project.md');
   lines.push(chalk.dim('    We won\'t delete this file. It may contain useful project context.'));
   lines.push('');
-  lines.push(chalk.dim('    The new pastelsdd/config.yaml has a "context:" section for planning'));
-  lines.push(chalk.dim('    context. This is included in every Pastelsdd request and works more'));
+  lines.push(chalk.dim('    The new pscode/config.yaml has a "context:" section for planning'));
+  lines.push(chalk.dim('    context. This is included in every Pscode request and works more'));
   lines.push(chalk.dim('    reliably than the old project.md approach.'));
   lines.push('');
   lines.push(chalk.dim('    Review project.md, move any useful content to config.yaml\'s context'));

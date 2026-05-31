@@ -1,4 +1,4 @@
-﻿import { describe, expect, it, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import * as nodeFs from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
@@ -22,7 +22,7 @@ describe('initiative operations', () => {
   let tempDir: string;
 
   beforeEach(() => {
-    tempDir = nodeFs.mkdtempSync(path.join(os.tmpdir(), 'pastelsdd-initiatives-operations-'));
+    tempDir = nodeFs.mkdtempSync(path.join(os.tmpdir(), 'pscode-initiatives-operations-'));
   });
 
   afterEach(() => {

@@ -1,4 +1,4 @@
-﻿import * as fs from 'node:fs';
+import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
@@ -10,11 +10,13 @@ import {
   hasWorkspaceSkillProfileDrift,
   parseWorkspaceSkillToolsValue,
 } from '../../../src/core/workspace/skills.js';
-import { CORE_WORKFLOWS } from '../../../src/core/profiles.js';
+import { PROFILES } from '../../../src/core/profiles.js';
+
+const CORE_WORKFLOWS = PROFILES.core.workflows;
 
 function withDefaultGlobalConfig<T>(callback: () => T): T {
   const previousConfigHome = process.env.XDG_CONFIG_HOME;
-  const configHome = fs.mkdtempSync(path.join(os.tmpdir(), 'pastelsdd-workspace-skills-'));
+  const configHome = fs.mkdtempSync(path.join(os.tmpdir(), 'pscode-workspace-skills-'));
 
   process.env.XDG_CONFIG_HOME = configHome;
 

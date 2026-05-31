@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
@@ -6,8 +6,8 @@ import { execSync } from 'child_process';
 describe('change show (interactive behavior)', () => {
   const projectRoot = process.cwd();
   const testDir = path.join(projectRoot, 'test-change-show-tmp');
-  const changesDir = path.join(testDir, 'pastelsdd', 'changes');
-  const bin = path.join(projectRoot, 'bin', 'pastelsdd.js');
+  const changesDir = path.join(testDir, 'pscode', 'changes');
+  const bin = path.join(projectRoot, 'bin', 'pscode.js');
 
 
   beforeEach(async () => {
@@ -34,7 +34,7 @@ describe('change show (interactive behavior)', () => {
       expect(err).toBeDefined();
       expect(err.status).not.toBe(0);
       expect(err.stderr.toString()).toContain('Available IDs:');
-      expect(err.stderr.toString()).toContain('pastelsdd change list');
+      expect(err.stderr.toString()).toContain('pscode change list');
     } finally {
       process.chdir(originalCwd);
       process.env = originalEnv;

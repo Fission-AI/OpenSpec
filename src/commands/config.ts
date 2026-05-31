@@ -1,4 +1,4 @@
-﻿import { Command } from 'commander';
+import { Command } from 'commander';
 import { spawn, execSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -8,7 +8,7 @@ import {
   saveGlobalConfig,
   GlobalConfig,
 } from '../core/global-config.js';
-import type { Profile, Delivery } from '../core/global-config.js';
+import type { Delivery } from '../core/global-config.js';
 import {
   getNestedValue,
   setNestedValue,
@@ -19,8 +19,8 @@ import {
   validateConfig,
   DEFAULT_CONFIG,
 } from '../core/config-schema.js';
-import { CORE_WORKFLOWS, ALL_WORKFLOWS, getProfileWorkflows } from '../core/profiles.js';
-import { PASTELSDD_DIR_NAME } from '../core/config.js';
+import { PROFILES, getProfileWorkflows, isValidProfile, DEFAULT_PROFILE, type ProfileName } from '../core/profiles.js';
+import { PSCODE_DIR_NAME } from '../core/config.js';
 import { hasProjectConfigDrift } from '../core/profile-sync-drift.js';
 import {
   findWorkspaceRoot,
@@ -28,12 +28,11 @@ import {
   readOptionalWorkspaceViewState,
 } from '../core/workspace/index.js';
 
-type ProfileAction = 'both' | 'delivery' | 'workflows' | 'keep';
+type ProfileAction = 'profile' | 'delivery' | 'both' | 'keep';
 
 interface ProfileState {
-  profile: Profile;
+  profile: ProfileName;
   delivery: Delivery;
-  workflows: string[];
 }
 
 interface ProfileStateDiff {
@@ -41,62 +40,10 @@ interface ProfileStateDiff {
   lines: string[];
 }
 
-interface WorkflowPromptMeta {
-  name: string;
-  description: string;
-}
-
 interface WorkspaceConfigProfileContext {
   root: string;
   commandCwd: string;
 }
-
-const WORKFLOW_PROMPT_META: Record<string, WorkflowPromptMeta> = {
-  propose: {
-    name: 'Propose change',
-    description: 'Create proposal, design, and tasks from a request',
-  },
-  explore: {
-    name: 'Explore ideas',
-    description: 'Investigate a problem before implementation',
-  },
-  new: {
-    name: 'New change',
-    description: 'Create a new change scaffold quickly',
-  },
-  continue: {
-    name: 'Continue change',
-    description: 'Resume work on an existing change',
-  },
-  apply: {
-    name: 'Apply tasks',
-    description: 'Implement tasks from the current change',
-  },
-  ff: {
-    name: 'Fast-forward',
-    description: 'Run a faster implementation workflow',
-  },
-  sync: {
-    name: 'Sync specs',
-    description: 'Sync change artifacts with specs',
-  },
-  archive: {
-    name: 'Archive change',
-    description: 'Finalize and archive a completed change',
-  },
-  'bulk-archive': {
-    name: 'Bulk archive',
-    description: 'Archive multiple completed changes together',
-  },
-  verify: {
-    name: 'Verify change',
-    description: 'Run verification checks against a change',
-  },
-  onboard: {
-    name: 'Onboard',
-    description: 'Guided onboarding flow for Pastelsdd',
-  },
-};
 
 function isPromptCancellationError(error: unknown): boolean {
   return (
@@ -106,55 +53,12 @@ function isPromptCancellationError(error: unknown): boolean {
 }
 
 /**
- * Resolve the effective current profile state from global config defaults.
+ * Resolve the effective current profile state from global config.
  */
 export function resolveCurrentProfileState(config: GlobalConfig): ProfileState {
-  const profile = config.profile || 'core';
-  const delivery = config.delivery || 'both';
-  const workflows = [
-    ...getProfileWorkflows(profile, config.workflows ? [...config.workflows] : undefined),
-  ];
-  return { profile, delivery, workflows };
-}
-
-/**
- * Derive profile type from selected workflows.
- */
-export function deriveProfileFromWorkflowSelection(selectedWorkflows: string[]): Profile {
-  const isCoreMatch =
-    selectedWorkflows.length === CORE_WORKFLOWS.length &&
-    CORE_WORKFLOWS.every((w) => selectedWorkflows.includes(w));
-  return isCoreMatch ? 'core' : 'custom';
-}
-
-/**
- * Format a compact workflow summary for the profile header.
- */
-export function formatWorkflowSummary(workflows: readonly string[], profile: Profile): string {
-  return `${workflows.length} selected (${profile})`;
-}
-
-function stableWorkflowOrder(workflows: readonly string[]): string[] {
-  const seen = new Set<string>();
-  const ordered: string[] = [];
-
-  for (const workflow of ALL_WORKFLOWS) {
-    if (workflows.includes(workflow) && !seen.has(workflow)) {
-      ordered.push(workflow);
-      seen.add(workflow);
-    }
-  }
-
-  const extras = workflows.filter((w) => !ALL_WORKFLOWS.includes(w as (typeof ALL_WORKFLOWS)[number]));
-  extras.sort();
-  for (const extra of extras) {
-    if (!seen.has(extra)) {
-      ordered.push(extra);
-      seen.add(extra);
-    }
-  }
-
-  return ordered;
+  const profile: ProfileName = isValidProfile(config.profile ?? '') ? config.profile as ProfileName : DEFAULT_PROFILE;
+  const delivery: Delivery = config.delivery ?? 'both';
+  return { profile, delivery };
 }
 
 /**
@@ -163,37 +67,14 @@ function stableWorkflowOrder(workflows: readonly string[]): string[] {
 export function diffProfileState(before: ProfileState, after: ProfileState): ProfileStateDiff {
   const lines: string[] = [];
 
+  if (before.profile !== after.profile) {
+    lines.push(`profile: ${before.profile} -> ${after.profile}`);
+  }
   if (before.delivery !== after.delivery) {
     lines.push(`delivery: ${before.delivery} -> ${after.delivery}`);
   }
 
-  if (before.profile !== after.profile) {
-    lines.push(`profile: ${before.profile} -> ${after.profile}`);
-  }
-
-  const beforeOrdered = stableWorkflowOrder(before.workflows);
-  const afterOrdered = stableWorkflowOrder(after.workflows);
-  const beforeSet = new Set(beforeOrdered);
-  const afterSet = new Set(afterOrdered);
-
-  const added = afterOrdered.filter((w) => !beforeSet.has(w));
-  const removed = beforeOrdered.filter((w) => !afterSet.has(w));
-
-  if (added.length > 0 || removed.length > 0) {
-    const tokens: string[] = [];
-    if (added.length > 0) {
-      tokens.push(`added ${added.join(', ')}`);
-    }
-    if (removed.length > 0) {
-      tokens.push(`removed ${removed.join(', ')}`);
-    }
-    lines.push(`workflows: ${tokens.join('; ')}`);
-  }
-
-  return {
-    hasChanges: lines.length > 0,
-    lines,
-  };
+  return { hasChanges: lines.length > 0, lines };
 }
 
 async function resolveWorkspaceConfigProfileContext(
@@ -215,14 +96,14 @@ function maybeWarnProjectConfigDrift(
   state: ProfileState,
   colorize: (message: string) => string
 ): void {
-  const pastelsddDir = path.join(projectDir, PASTELSDD_DIR_NAME);
-  if (!fs.existsSync(pastelsddDir)) {
+  const pscodeDir = path.join(projectDir, PSCODE_DIR_NAME);
+  if (!fs.existsSync(pscodeDir)) {
     return;
   }
-  if (!hasProjectConfigDrift(projectDir, state.workflows, state.delivery)) {
+  if (!hasProjectConfigDrift(projectDir, [...getProfileWorkflows(state.profile)], state.delivery)) {
     return;
   }
-  console.log(colorize('Warning: Global config is not applied to this project. Run `pastelsdd update` to sync.'));
+  console.log(colorize('Warning: Global config is not applied to this project. Run `pscode update` to sync.'));
 }
 
 async function maybeWarnConfigDrift(
@@ -241,7 +122,7 @@ async function maybeWarnConfigDrift(
     if (hasWorkspaceSkillProfileDrift(viewState)) {
       console.log(
         colorize(
-          'Warning: Workspace-local agent skills are out of sync with the active global profile. Run `pastelsdd workspace update` to sync.'
+          'Warning: Workspace-local agent skills are out of sync with the active global profile. Run `pscode workspace update` to sync.'
         )
       );
     }
@@ -249,15 +130,16 @@ async function maybeWarnConfigDrift(
   }
 
   maybeWarnProjectConfigDrift(process.cwd(), state, colorize);
+
 }
 
 function printConfigProfileApplyGuidance(workspaceContext: WorkspaceConfigProfileContext | null): void {
   if (workspaceContext) {
-    console.log('Config updated. Run `pastelsdd workspace update` to apply it to workspace-local skills.');
+    console.log('Config updated. Run `pscode workspace update` to apply it to workspace-local skills.');
     return;
   }
 
-  console.log('Config updated. Run `pastelsdd update` in your projects to apply.');
+  console.log('Config updated. Run `pscode update` in your projects to apply.');
 }
 
 /**
@@ -268,7 +150,7 @@ function printConfigProfileApplyGuidance(workspaceContext: WorkspaceConfigProfil
 export function registerConfigCommand(program: Command): void {
   const configCmd = program
     .command('config')
-    .description('View and modify global Pastelsdd configuration')
+    .description('View and modify global Pscode configuration')
     .option('--scope <scope>', 'Config scope (only "global" supported currently)')
     .hook('preAction', (thisCommand) => {
       const opts = thisCommand.opts();
@@ -311,18 +193,13 @@ export function registerConfigCommand(program: Command): void {
         console.log(formatValueYaml(config));
 
         // Annotate profile settings
+        const profileName: ProfileName = isValidProfile(config.profile ?? '') ? config.profile as ProfileName : DEFAULT_PROFILE;
         const profileSource = rawConfig.profile !== undefined ? '(explicit)' : '(default)';
         const deliverySource = rawConfig.delivery !== undefined ? '(explicit)' : '(default)';
         console.log(`\nProfile settings:`);
-        console.log(`  profile: ${config.profile} ${profileSource}`);
-        console.log(`  delivery: ${config.delivery} ${deliverySource}`);
-        if (config.profile === 'core') {
-          console.log(`  workflows: ${CORE_WORKFLOWS.join(', ')} (from core profile)`);
-        } else if (config.workflows && config.workflows.length > 0) {
-          console.log(`  workflows: ${config.workflows.join(', ')} (explicit)`);
-        } else {
-          console.log(`  workflows: (none)`);
-        }
+        console.log(`  profile: ${profileName} ${profileSource} — ${PROFILES[profileName].description}`);
+        console.log(`  delivery: ${config.delivery ?? 'both'} ${deliverySource}`);
+        console.log(`  workflows: ${getProfileWorkflows(profileName).join(', ')}`);
       }
     });
 
@@ -358,7 +235,7 @@ export function registerConfigCommand(program: Command): void {
       if (!keyValidation.valid && !allowUnknown) {
         const reason = keyValidation.reason ? ` ${keyValidation.reason}.` : '';
         console.error(`Error: Invalid configuration key "${key}".${reason}`);
-        console.error('Use "pastelsdd config list" to see available keys.');
+        console.error('Use "pscode config list" to see available keys.');
         console.error('Pass --allow-unknown to bypass this check.');
         process.exitCode = 1;
         return;
@@ -413,7 +290,7 @@ export function registerConfigCommand(program: Command): void {
     .action(async (options: { all?: boolean; yes?: boolean }) => {
       if (!options.all) {
         console.error('Error: --all flag is required for reset');
-        console.error('Usage: pastelsdd config reset --all [-y]');
+        console.error('Usage: pscode config reset --all [-y]');
         process.exitCode = 1;
         return;
       }
@@ -508,159 +385,106 @@ export function registerConfigCommand(program: Command): void {
       }
     });
 
-  // config profile [preset]
+  // config profile [name]
   configCmd
-    .command('profile [preset]')
-    .description('Configure workflow profile (interactive picker or preset shortcut)')
-    .action(async (preset?: string) => {
-      // Preset shortcut: `pastelsdd config profile core`
-      if (preset === 'core') {
+    .command('profile [name]')
+    .description(`Switch workflow profile. Available: ${Object.keys(PROFILES).join(', ')}`)
+    .action(async (name?: string) => {
+      const availableNames = Object.keys(PROFILES).join(', ');
+
+      // Direct selection via argument
+      if (name) {
+        if (!isValidProfile(name)) {
+          console.error(`Error: Unknown profile "${name}". Available: ${availableNames}`);
+          process.exitCode = 1;
+          return;
+        }
         const config = getGlobalConfig();
-        config.profile = 'core';
-        config.workflows = [...CORE_WORKFLOWS];
-        // Preserve delivery setting
+        config.profile = name;
+        delete (config as Record<string, unknown>).workflows;
         saveGlobalConfig(config);
+        const workflows = getProfileWorkflows(name as ProfileName);
+        console.log(`Profile set to "${name}" (${PROFILES[name as ProfileName].description})`);
+        console.log(`Workflows: ${workflows.join(', ')}`);
         const workspaceContext = await resolveWorkspaceConfigProfileContext();
         printConfigProfileApplyGuidance(workspaceContext);
         return;
       }
 
-      if (preset) {
-        console.error(`Error: Unknown profile preset "${preset}". Available presets: core`);
-        process.exitCode = 1;
-        return;
-      }
-
-      // Non-interactive check
+      // Non-interactive fallback
       if (!process.stdout.isTTY) {
-        console.error('Interactive mode required. Use `pastelsdd config profile core` or set config via environment/flags.');
+        console.error(`Interactive mode required. Use: pscode config profile <name>`);
+        console.error(`Available profiles: ${availableNames}`);
         process.exitCode = 1;
         return;
       }
 
       // Interactive picker
-      const { select, checkbox, confirm } = await import('@inquirer/prompts');
+      const { select, confirm } = await import('@inquirer/prompts');
       const chalk = (await import('chalk')).default;
 
       try {
         const config = getGlobalConfig();
         const currentState = resolveCurrentProfileState(config);
 
-        console.log(chalk.bold('\nCurrent profile settings'));
-        console.log(`  Delivery: ${currentState.delivery}`);
-        console.log(`  Workflows: ${formatWorkflowSummary(currentState.workflows, currentState.profile)}`);
-        console.log(chalk.dim('  Delivery = where workflows are installed (skills, commands, or both)'));
-        console.log(chalk.dim('  Workflows = which actions are available (propose, explore, apply, etc.)'));
+        console.log(chalk.bold('\nCurrent profile:'), `${currentState.profile} — ${PROFILES[currentState.profile].description}`);
+        console.log(chalk.dim(`Workflows: ${getProfileWorkflows(currentState.profile).join(', ')}`));
         console.log();
 
         const action = await select<ProfileAction>({
           message: 'What do you want to configure?',
           choices: [
-            {
-              value: 'both',
-              name: 'Delivery and workflows',
-              description: 'Update install mode and available actions together',
-            },
-            {
-              value: 'delivery',
-              name: 'Delivery only',
-              description: 'Change where workflows are installed',
-            },
-            {
-              value: 'workflows',
-              name: 'Workflows only',
-              description: 'Change which workflow actions are available',
-            },
-            {
-              value: 'keep',
-              name: 'Keep current settings (exit)',
-              description: 'Leave configuration unchanged and exit',
-            },
+            { value: 'profile', name: 'Switch profile', description: 'Choose a different workflow set' },
+            { value: 'delivery', name: 'Change delivery', description: 'Skills, commands, or both' },
+            { value: 'both', name: 'Profile + delivery', description: 'Change both at once' },
+            { value: 'keep', name: 'Keep current (exit)', description: 'Leave unchanged' },
           ],
         });
 
         if (action === 'keep') {
-          console.log('No config changes.');
+          console.log('No changes.');
           await maybeWarnConfigDrift(currentState, chalk.yellow);
           return;
         }
 
-        const nextState: ProfileState = {
-          profile: currentState.profile,
-          delivery: currentState.delivery,
-          workflows: [...currentState.workflows],
-        };
+        const nextState: ProfileState = { ...currentState };
 
-        if (action === 'both' || action === 'delivery') {
+        if (action === 'profile' || action === 'both') {
+          const profileChoices = Object.entries(PROFILES).map(([key, def]) => ({
+            value: key as ProfileName,
+            name: key,
+            description: `${def.description} | workflows: ${def.workflows.join(', ')}`,
+          }));
+
+          nextState.profile = await select<ProfileName>({
+            message: 'Select profile:',
+            choices: profileChoices,
+            default: currentState.profile,
+          });
+        }
+
+        if (action === 'delivery' || action === 'both') {
           const deliveryChoices: { value: Delivery; name: string; description: string }[] = [
-            {
-              value: 'both' as Delivery,
-              name: 'Both (skills + commands)',
-              description: 'Install workflows as both skills and slash commands',
-            },
-            {
-              value: 'skills' as Delivery,
-              name: 'Skills only',
-              description: 'Install workflows only as skills',
-            },
-            {
-              value: 'commands' as Delivery,
-              name: 'Commands only',
-              description: 'Install workflows only as slash commands',
-            },
+            { value: 'both', name: 'Both (skills + commands)', description: 'Install as both skills and slash commands' },
+            { value: 'skills', name: 'Skills only', description: 'Install only as agent skills' },
+            { value: 'commands', name: 'Commands only', description: 'Install only as slash commands' },
           ];
-          for (const choice of deliveryChoices) {
-            if (choice.value === currentState.delivery) {
-              choice.name += ' [current]';
-            }
-          }
 
           nextState.delivery = await select<Delivery>({
-            message: 'Delivery mode (how workflows are installed):',
+            message: 'Delivery mode:',
             choices: deliveryChoices,
             default: currentState.delivery,
           });
         }
 
-        if (action === 'both' || action === 'workflows') {
-          const formatWorkflowChoice = (workflow: string) => {
-            const metadata = WORKFLOW_PROMPT_META[workflow] ?? {
-              name: workflow,
-              description: `Workflow: ${workflow}`,
-            };
-            return {
-              value: workflow,
-              name: metadata.name,
-              description: metadata.description,
-              short: metadata.name,
-              checked: currentState.workflows.includes(workflow),
-            };
-          };
-
-          const selectedWorkflows = await checkbox<string>({
-            message: 'Select workflows to make available:',
-            instructions: 'Space to toggle, Enter to confirm',
-            pageSize: ALL_WORKFLOWS.length,
-            theme: {
-              icon: {
-                checked: '[x]',
-                unchecked: '[ ]',
-              },
-            },
-            choices: ALL_WORKFLOWS.map(formatWorkflowChoice),
-          });
-          nextState.workflows = selectedWorkflows;
-          nextState.profile = deriveProfileFromWorkflowSelection(selectedWorkflows);
-        }
-
         const diff = diffProfileState(currentState, nextState);
         if (!diff.hasChanges) {
-          console.log('No config changes.');
-          await maybeWarnConfigDrift(nextState, chalk.yellow);
+          console.log('No changes.');
+          await maybeWarnConfigDrift(currentState, chalk.yellow);
           return;
         }
 
-        console.log(chalk.bold('\nConfig changes:'));
+        console.log(chalk.bold('\nChanges:'));
         for (const line of diff.lines) {
           console.log(`  ${line}`);
         }
@@ -668,49 +492,34 @@ export function registerConfigCommand(program: Command): void {
 
         config.profile = nextState.profile;
         config.delivery = nextState.delivery;
-        config.workflows = nextState.workflows;
+        delete (config as Record<string, unknown>).workflows;
         saveGlobalConfig(config);
 
         const workspaceContext = await resolveWorkspaceConfigProfileContext();
         if (workspaceContext) {
-          const applyNow = await confirm({
-            message: 'Apply changes to this workspace now?',
-            default: true,
-          });
-
+          const applyNow = await confirm({ message: 'Apply to this workspace now?', default: true });
           if (applyNow) {
             try {
-              execSync('npx pastelsdd workspace update', {
-                stdio: 'inherit',
-                cwd: workspaceContext.commandCwd,
-              });
-              console.log('Run `pastelsdd workspace update` in your other workspaces to apply.');
+              execSync('npx pscode workspace update', { stdio: 'inherit', cwd: workspaceContext.commandCwd });
             } catch {
-              console.error('`pastelsdd workspace update` failed. Please run it manually to apply the profile changes.');
+              console.error('`pscode workspace update` failed. Run it manually.');
               process.exitCode = 1;
             }
             return;
           }
-
           printConfigProfileApplyGuidance(workspaceContext);
           return;
         }
 
-        // Check if inside an Pastelsdd project
         const projectDir = process.cwd();
-        const pastelsddDir = path.join(projectDir, PASTELSDD_DIR_NAME);
-        if (fs.existsSync(pastelsddDir)) {
-          const applyNow = await confirm({
-            message: 'Apply changes to this project now?',
-            default: true,
-          });
-
+        const pscodeDir = path.join(projectDir, PSCODE_DIR_NAME);
+        if (fs.existsSync(pscodeDir)) {
+          const applyNow = await confirm({ message: 'Apply to this project now?', default: true });
           if (applyNow) {
             try {
-              execSync('npx pastelsdd update', { stdio: 'inherit', cwd: projectDir });
-              console.log('Run `pastelsdd update` in your other projects to apply.');
+              execSync('npx pscode update', { stdio: 'inherit', cwd: projectDir });
             } catch {
-              console.error('`pastelsdd update` failed. Please run it manually to apply the profile changes.');
+              console.error('`pscode update` failed. Run it manually.');
               process.exitCode = 1;
             }
             return;
@@ -720,7 +529,7 @@ export function registerConfigCommand(program: Command): void {
         printConfigProfileApplyGuidance(null);
       } catch (error) {
         if (isPromptCancellationError(error)) {
-          console.log('Config profile cancelled.');
+          console.log('Cancelled.');
           process.exitCode = 130;
           return;
         }

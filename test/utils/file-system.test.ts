@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as nodeFs from 'fs';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -10,7 +10,7 @@ describe('FileSystemUtils', () => {
   let testDir: string;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `pastelsdd-test-${randomUUID()}`);
+    testDir = path.join(os.tmpdir(), `pscode-test-${randomUUID()}`);
     await fs.mkdir(testDir, { recursive: true });
   });
 
@@ -276,46 +276,46 @@ describe('FileSystemUtils', () => {
     it('should join POSIX-style paths', () => {
       const result = FileSystemUtils.joinPath(
         '/tmp/project',
-        '.claude/commands/pastelsdd/proposal.md'
+        '.claude/commands/pscode/proposal.md'
       );
-      expect(result).toBe('/tmp/project/.claude/commands/pastelsdd/proposal.md');
+      expect(result).toBe('/tmp/project/.claude/commands/pscode/proposal.md');
     });
 
     it('should join Linux home directory paths', () => {
       const result = FileSystemUtils.joinPath(
-        '/home/dev/workspace/pastelsdd',
+        '/home/dev/workspace/pscode',
         '.cursor/commands/install.md'
       );
-      expect(result).toBe('/home/dev/workspace/pastelsdd/.cursor/commands/install.md');
+      expect(result).toBe('/home/dev/workspace/pscode/.cursor/commands/install.md');
     });
 
     it('should join Windows drive-letter paths with backslashes', () => {
       const result = FileSystemUtils.joinPath(
         'C:\\Users\\dev\\project',
-        '.claude/commands/pastelsdd/proposal.md'
+        '.claude/commands/pscode/proposal.md'
       );
       expect(result).toBe(
-        'C:\\Users\\dev\\project\\.claude\\commands\\pastelsdd\\proposal.md'
+        'C:\\Users\\dev\\project\\.claude\\commands\\pscode\\proposal.md'
       );
     });
 
     it('should join Windows paths that use forward slashes', () => {
       const result = FileSystemUtils.joinPath(
         'D:/workspace/app',
-        '.cursor/commands/pastelsdd-apply.md'
+        '.cursor/commands/pscode-apply.md'
       );
       expect(result).toBe(
-        'D:\\workspace\\app\\.cursor\\commands\\pastelsdd-apply.md'
+        'D:\\workspace\\app\\.cursor\\commands\\pscode-apply.md'
       );
     });
 
     it('should join UNC-style Windows paths', () => {
       const result = FileSystemUtils.joinPath(
         '\\server\\share\\repo',
-        '.windsurf/workflows/pastelsdd-archive.md'
+        '.windsurf/workflows/pscode-archive.md'
       );
       expect(result).toBe(
-        '\\server\\share\\repo\\.windsurf\\workflows\\pastelsdd-archive.md'
+        '\\server\\share\\repo\\.windsurf\\workflows\\pscode-archive.md'
       );
     });
   });

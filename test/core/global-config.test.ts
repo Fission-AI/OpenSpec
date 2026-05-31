@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -12,7 +12,7 @@ import {
   GLOBAL_CONFIG_DIR_NAME,
   GLOBAL_CONFIG_FILE_NAME
 } from '../../src/core/global-config.js';
-import type { Profile, Delivery } from '../../src/core/global-config.js';
+import type { Delivery } from '../../src/core/global-config.js';
 
 describe('global-config', () => {
   let tempDir: string;
@@ -21,7 +21,7 @@ describe('global-config', () => {
 
   beforeEach(() => {
     // Create temp directory for tests
-    tempDir = path.join(os.tmpdir(), `pastelsdd-global-config-test-${Date.now()}`);
+    tempDir = path.join(os.tmpdir(), `pscode-global-config-test-${Date.now()}`);
     fs.mkdirSync(tempDir, { recursive: true });
 
     // Save original env
@@ -44,7 +44,7 @@ describe('global-config', () => {
 
   describe('constants', () => {
     it('should export correct directory name', () => {
-      expect(GLOBAL_CONFIG_DIR_NAME).toBe('pastelsdd');
+      expect(GLOBAL_CONFIG_DIR_NAME).toBe('pscode');
     });
 
     it('should export correct file name', () => {
@@ -58,7 +58,7 @@ describe('global-config', () => {
 
       const result = getGlobalConfigDir();
 
-      expect(result).toBe(path.join(tempDir, 'pastelsdd'));
+      expect(result).toBe(path.join(tempDir, 'pscode'));
     });
 
     it('should fall back to ~/.config on Unix/macOS without XDG_CONFIG_HOME', () => {
@@ -66,9 +66,9 @@ describe('global-config', () => {
 
       const result = getGlobalConfigDir();
 
-      // On non-Windows, should use ~/.config/pastelsdd
+      // On non-Windows, should use ~/.config/pscode
       if (os.platform() !== 'win32') {
-        expect(result).toBe(path.join(os.homedir(), '.config', 'pastelsdd'));
+        expect(result).toBe(path.join(os.homedir(), '.config', 'pscode'));
       }
     });
 
@@ -80,7 +80,7 @@ describe('global-config', () => {
         const appData = process.env.APPDATA;
         if (appData) {
           const result = getGlobalConfigDir();
-          expect(result).toBe(path.join(appData, 'pastelsdd'));
+          expect(result).toBe(path.join(appData, 'pscode'));
         }
       }
     });
@@ -92,7 +92,7 @@ describe('global-config', () => {
 
       const result = getGlobalConfigPath();
 
-      expect(result).toBe(path.join(tempDir, 'pastelsdd', 'config.json'));
+      expect(result).toBe(path.join(tempDir, 'pscode', 'config.json'));
     });
   });
 
@@ -104,7 +104,7 @@ describe('global-config', () => {
           platform: 'linux',
           homedir: '/home/tabish',
         })
-      ).toBe('/home/tabish/.local/share/pastelsdd');
+      ).toBe('/home/tabish/.local/share/pscode');
 
       expect(
         getGlobalDataDir({
@@ -112,7 +112,7 @@ describe('global-config', () => {
           platform: 'darwin',
           homedir: '/Users/tabish',
         })
-      ).toBe('/var/data/pastelsdd');
+      ).toBe('/var/data/pscode');
     });
 
     it('should use Windows separators for native Windows platform overrides', () => {
@@ -122,7 +122,7 @@ describe('global-config', () => {
           platform: 'win32',
           homedir: 'C:\\Users\\Tabish',
         })
-      ).toBe('C:\\Users\\Tabish\\AppData\\Local\\pastelsdd');
+      ).toBe('C:\\Users\\Tabish\\AppData\\Local\\pscode');
 
       expect(
         getGlobalDataDir({
@@ -130,7 +130,7 @@ describe('global-config', () => {
           platform: 'win32',
           homedir: 'C:\\Users\\Tabish',
         })
-      ).toBe('D:\\Users\\Tabish\\AppData\\Local\\pastelsdd');
+      ).toBe('D:\\Users\\Tabish\\AppData\\Local\\pscode');
     });
   });
 
@@ -145,7 +145,7 @@ describe('global-config', () => {
 
     it('should not create directory when reading non-existent config', () => {
       process.env.XDG_CONFIG_HOME = tempDir;
-      const configDir = path.join(tempDir, 'pastelsdd');
+      const configDir = path.join(tempDir, 'pscode');
 
       getGlobalConfig();
 
@@ -154,7 +154,7 @@ describe('global-config', () => {
 
     it('should load valid config from file', () => {
       process.env.XDG_CONFIG_HOME = tempDir;
-      const configDir = path.join(tempDir, 'pastelsdd');
+      const configDir = path.join(tempDir, 'pscode');
       const configPath = path.join(configDir, 'config.json');
 
       fs.mkdirSync(configDir, { recursive: true });
@@ -169,7 +169,7 @@ describe('global-config', () => {
 
     it('should return defaults for invalid JSON', () => {
       process.env.XDG_CONFIG_HOME = tempDir;
-      const configDir = path.join(tempDir, 'pastelsdd');
+      const configDir = path.join(tempDir, 'pscode');
       const configPath = path.join(configDir, 'config.json');
 
       fs.mkdirSync(configDir, { recursive: true });
@@ -182,7 +182,7 @@ describe('global-config', () => {
 
     it('should log warning for invalid JSON', () => {
       process.env.XDG_CONFIG_HOME = tempDir;
-      const configDir = path.join(tempDir, 'pastelsdd');
+      const configDir = path.join(tempDir, 'pscode');
       const configPath = path.join(configDir, 'config.json');
 
       fs.mkdirSync(configDir, { recursive: true });
@@ -197,7 +197,7 @@ describe('global-config', () => {
 
     it('should preserve unknown fields from config file', () => {
       process.env.XDG_CONFIG_HOME = tempDir;
-      const configDir = path.join(tempDir, 'pastelsdd');
+      const configDir = path.join(tempDir, 'pscode');
       const configPath = path.join(configDir, 'config.json');
 
       fs.mkdirSync(configDir, { recursive: true });
@@ -215,7 +215,7 @@ describe('global-config', () => {
 
     it('should merge loaded config with defaults', () => {
       process.env.XDG_CONFIG_HOME = tempDir;
-      const configDir = path.join(tempDir, 'pastelsdd');
+      const configDir = path.join(tempDir, 'pscode');
       const configPath = path.join(configDir, 'config.json');
 
       // Config with only some fields
@@ -233,10 +233,9 @@ describe('global-config', () => {
     describe('schema evolution', () => {
       it('should add default profile and delivery when loading old config without them', () => {
         process.env.XDG_CONFIG_HOME = tempDir;
-        const configDir = path.join(tempDir, 'pastelsdd');
+        const configDir = path.join(tempDir, 'pscode');
         const configPath = path.join(configDir, 'config.json');
 
-        // Simulate a pre-existing config that only has featureFlags
         fs.mkdirSync(configDir, { recursive: true });
         fs.writeFileSync(configPath, JSON.stringify({
           featureFlags: { existingFlag: true }
@@ -246,62 +245,40 @@ describe('global-config', () => {
 
         expect(config.profile).toBe('core');
         expect(config.delivery).toBe('both');
-        expect(config.workflows).toBeUndefined();
         expect(config.featureFlags?.existingFlag).toBe(true);
       });
 
       it('should preserve explicit profile and delivery values from config', () => {
         process.env.XDG_CONFIG_HOME = tempDir;
-        const configDir = path.join(tempDir, 'pastelsdd');
+        const configDir = path.join(tempDir, 'pscode');
         const configPath = path.join(configDir, 'config.json');
 
         fs.mkdirSync(configDir, { recursive: true });
         fs.writeFileSync(configPath, JSON.stringify({
           featureFlags: {},
-          profile: 'custom',
+          profile: 'full',
           delivery: 'skills',
-          workflows: ['propose', 'review']
         }));
 
         const config = getGlobalConfig();
 
-        expect(config.profile).toBe('custom');
+        expect(config.profile).toBe('full');
         expect(config.delivery).toBe('skills');
-        expect(config.workflows).toEqual(['propose', 'review']);
       });
 
-      it('should round-trip new fields correctly', () => {
+      it('should round-trip profile and delivery correctly', () => {
         process.env.XDG_CONFIG_HOME = tempDir;
         const originalConfig = {
           featureFlags: { flag1: true },
-          profile: 'custom' as Profile,
+          profile: 'trello',
           delivery: 'commands' as Delivery,
-          workflows: ['propose']
         };
 
         saveGlobalConfig(originalConfig);
         const loadedConfig = getGlobalConfig();
 
-        expect(loadedConfig.profile).toBe('custom');
+        expect(loadedConfig.profile).toBe('trello');
         expect(loadedConfig.delivery).toBe('commands');
-        expect(loadedConfig.workflows).toEqual(['propose']);
-      });
-
-      it('should default workflows to undefined when not in config', () => {
-        process.env.XDG_CONFIG_HOME = tempDir;
-        const configDir = path.join(tempDir, 'pastelsdd');
-        const configPath = path.join(configDir, 'config.json');
-
-        fs.mkdirSync(configDir, { recursive: true });
-        fs.writeFileSync(configPath, JSON.stringify({
-          featureFlags: {},
-          profile: 'core',
-          delivery: 'both'
-        }));
-
-        const config = getGlobalConfig();
-
-        expect(config.workflows).toBeUndefined();
       });
     });
   });
@@ -309,7 +286,7 @@ describe('global-config', () => {
   describe('saveGlobalConfig', () => {
     it('should create directory if it does not exist', () => {
       process.env.XDG_CONFIG_HOME = tempDir;
-      const configDir = path.join(tempDir, 'pastelsdd');
+      const configDir = path.join(tempDir, 'pscode');
 
       saveGlobalConfig({ featureFlags: { test: true } });
 
@@ -318,7 +295,7 @@ describe('global-config', () => {
 
     it('should write config to file', () => {
       process.env.XDG_CONFIG_HOME = tempDir;
-      const configPath = path.join(tempDir, 'pastelsdd', 'config.json');
+      const configPath = path.join(tempDir, 'pscode', 'config.json');
 
       saveGlobalConfig({ featureFlags: { myFlag: true } });
 
@@ -329,7 +306,7 @@ describe('global-config', () => {
 
     it('should overwrite existing config file', () => {
       process.env.XDG_CONFIG_HOME = tempDir;
-      const configDir = path.join(tempDir, 'pastelsdd');
+      const configDir = path.join(tempDir, 'pscode');
       const configPath = path.join(configDir, 'config.json');
 
       // Create initial config
@@ -347,7 +324,7 @@ describe('global-config', () => {
 
     it('should write formatted JSON with trailing newline', () => {
       process.env.XDG_CONFIG_HOME = tempDir;
-      const configPath = path.join(tempDir, 'pastelsdd', 'config.json');
+      const configPath = path.join(tempDir, 'pscode', 'config.json');
 
       saveGlobalConfig({ featureFlags: {} });
 

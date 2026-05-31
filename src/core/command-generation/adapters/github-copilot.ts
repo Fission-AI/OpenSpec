@@ -1,4 +1,4 @@
-﻿/**
+/**
  * GitHub Copilot Command Adapter
  *
  * Formats commands for GitHub Copilot following its .prompt.md specification.
@@ -9,14 +9,14 @@ import type { CommandContent, ToolCommandAdapter } from '../types.js';
 
 /**
  * GitHub Copilot adapter for command generation.
- * File path: .github/prompts/pstl-<id>.prompt.md
+ * File path: .github/prompts/ps-<id>.prompt.md
  * Frontmatter: description
  */
 export const githubCopilotAdapter: ToolCommandAdapter = {
   toolId: 'github-copilot',
 
   getFilePath(commandId: string): string {
-    return path.join('.github', 'prompts', `pstl-${commandId}.prompt.md`);
+    return path.join('.github', 'prompts', `ps-${commandId}.prompt.md`);
   },
 
   formatFile(content: CommandContent): string {

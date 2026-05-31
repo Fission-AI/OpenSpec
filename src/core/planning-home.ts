@@ -1,4 +1,4 @@
-﻿import * as fs from 'node:fs';
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 import {
@@ -72,7 +72,7 @@ export function findWorkspacePlanningRootSync(startPath = process.cwd()): string
 
 export function findRepoPlanningRootSync(startPath = process.cwd()): string | null {
   return findNearestAncestor(startPath, (dirPath) =>
-    pathExistsAsDirectory(path.join(dirPath, 'pastelsdd'))
+    pathExistsAsDirectory(path.join(dirPath, 'pscode'))
   );
 }
 
@@ -116,7 +116,7 @@ function repoPlanningHome(repoRoot: string): PlanningHome {
   return {
     kind: 'repo',
     root: repoRoot,
-    changesDir: path.join(repoRoot, 'pastelsdd', 'changes'),
+    changesDir: path.join(repoRoot, 'pscode', 'changes'),
     defaultSchema: REPO_DEFAULT_SCHEMA,
   };
 }
@@ -140,7 +140,7 @@ export function resolveCurrentPlanningHomeSync(
   }
 
   if (options.allowImplicitRepoRoot === false) {
-    throw new Error('No Pastelsdd planning home found from the current directory.');
+    throw new Error('No Pscode planning home found from the current directory.');
   }
 
   return repoPlanningHome(FileSystemUtils.canonicalizeExistingPath(searchStart));

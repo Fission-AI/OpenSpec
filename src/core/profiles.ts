@@ -1,21 +1,11 @@
 /**
- * Profile System
+ * Predefined Workflow Profiles
  *
- * Defines workflow profiles that control which workflows are installed.
- * Profiles determine WHICH workflows; delivery (in global config) determines HOW.
+ * Add, remove or edit profiles here. Users select a profile via
+ * `pscode init --profile <name>` or `pscode config profile <name>`.
+ * The workflow lists are fixed in code — users cannot customise them.
  */
 
-import type { Profile } from './global-config.js';
-
-/**
- * Core workflows included in the 'core' profile.
- * These provide the streamlined experience for new users.
- */
-export const CORE_WORKFLOWS = ['propose', 'explore', 'apply', 'sync', 'archive'] as const;
-
-/**
- * All available workflows in the system.
- */
 export const ALL_WORKFLOWS = [
   'propose',
   'explore',
@@ -28,26 +18,44 @@ export const ALL_WORKFLOWS = [
   'bulk-archive',
   'verify',
   'onboard',
-  // Trello-specific workflows
   'trello-setup',
   'draft',
 ] as const;
 
 export type WorkflowId = (typeof ALL_WORKFLOWS)[number];
-export type CoreWorkflowId = (typeof CORE_WORKFLOWS)[number];
 
-/**
- * Resolves which workflows should be active for a given profile configuration.
- *
- * - 'core' profile always returns CORE_WORKFLOWS
- * - 'custom' profile returns the provided customWorkflows, or empty array if not provided
- */
-export function getProfileWorkflows(
-  profile: Profile,
-  customWorkflows?: string[]
-): readonly string[] {
-  if (profile === 'custom') {
-    return customWorkflows ?? [];
-  }
-  return CORE_WORKFLOWS;
+export interface ProfileDefinition {
+  description: string;
+  workflows: readonly WorkflowId[];
+}
+
+export const PROFILES = {
+  core: {
+    description: 'Essencial — propose, explore, apply, sync, archive',
+    workflows: ['propose', 'explore', 'apply', 'sync', 'archive'],
+  },
+  full: {
+    description: 'Completo — todos os workflows disponíveis',
+    workflows: [
+      'propose', 'explore', 'new', 'continue', 'apply', 'ff',
+      'sync', 'archive', 'bulk-archive', 'verify', 'onboard',
+      'trello-setup', 'draft',
+    ],
+  },
+  trello: {
+    description: 'Core + integração com Trello (trello-setup, draft)',
+    workflows: ['propose', 'explore', 'apply', 'sync', 'archive', 'trello-setup', 'draft'],
+  },
+} as const satisfies Record<string, ProfileDefinition>;
+
+export type ProfileName = keyof typeof PROFILES;
+
+export const DEFAULT_PROFILE: ProfileName = 'core';
+
+export function getProfileWorkflows(profile: ProfileName): readonly WorkflowId[] {
+  return PROFILES[profile].workflows;
+}
+
+export function isValidProfile(name: string): name is ProfileName {
+  return name in PROFILES;
 }

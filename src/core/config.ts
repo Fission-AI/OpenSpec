@@ -1,11 +1,11 @@
-export const PASTELSDD_DIR_NAME = 'pastelsdd';
+export const PSCODE_DIR_NAME = 'pscode';
 
-export const PASTELSDD_MARKERS = {
-  start: '<!-- PASTELSDD:START -->',
-  end: '<!-- PASTELSDD:END -->'
+export const PSCODE_MARKERS = {
+  start: '<!-- PSCODE:START -->',
+  end: '<!-- PSCODE:END -->'
 };
 
-export interface PastelsddConfig {
+export interface PscodeConfig {
   aiTools: string[];
 }
 
