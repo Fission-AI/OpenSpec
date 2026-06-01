@@ -1,5 +1,109 @@
 ﻿# @thiagodiogo/pastelsdd
 
+## 2.0.0
+
+### Major Changes
+
+- 4afd62b: O comando `pscode archive` foi renomeado para `pscode complete`. O slash command `/ps:archive` foi renomeado para `/ps:complete`. Nenhuma mudança de comportamento.
+
+  **Migration:** Substitua `pscode archive` por `pscode complete` e `/ps:archive` por `/ps:complete` em seus scripts e atalhos. Execute `pscode update` para atualizar os arquivos de skill e comando gerados.
+
+### Minor Changes
+
+- 7485989: Add 5 `/pstld:*` slash commands installed by the `dixi` profile
+
+  The `dixi` profile now installs 5 Claude Code slash commands into `.claude/commands/pstld/` during `pscode init --profile dixi`:
+
+  - `/pstld:rfc` — structured RFC flow referencing `pastelsdd/context/dev-flow.md`
+  - `/pstld:arch-check` — architecture conformance check (hexagonal for Java, feature-sliced for React)
+  - `/pstld:adr` — generates a structured Architecture Decision Record
+  - `/pstld:jira-sync` — verifies JIRA integration via MCP Atlassian and `pastelsdd/jira.yaml`
+  - `/pstld:dod` — checks Definition of Done criteria from `pastelsdd/context/dod.md`
+
+  Commands are stack-agnostic at install time and adapt their output at runtime by reading `.pscode-dixi.yaml`.
+
+- 7485989: Adiciona 3 skills auto-invocadas pstld-\* para o profile dixi com suporte a Java e React/Next.
+
+  - `pstld-arch-guardian`: monitora edições em camadas arquiteturais, bloqueia violações hexagonais (Java) e de feature-sliced (React/Next)
+  - `pstld-commit-crafter`: monta mensagem Conventional Commits com escopo por stack e ticket JIRA obrigatório
+  - `pstld-jira-context`: injeta contexto de tickets JIRA no prompt via MCP Atlassian quando chave `[A-Z]+-\d+` é detectada
+  - `installDixiExtras` atualizado para copiar as skills para `.claude/skills/pstld-*/SKILL.md` no projeto do cliente
+
+- ae29efe: Adiciona dois hooks Claude Code ao perfil `dixi`:
+
+  - **`arch-guard.mjs`** (`PreToolUse`): bloqueia (`exit 2`) imports diretos de `domain/` em `infrastructure/` (Java/hexagonal) e importações cruzadas entre features (React/feature-sliced); emite warning (`exit 1`) para uso combinado de `useState`+`useEffect` em `pages/app`. Gate via `.pscode-dixi.yaml` — projetos não-Dixi nunca são afetados.
+
+  - **`jira-context.mjs`** (`UserPromptSubmit`): detecta tickets JIRA (`[A-Z]+-\d+`) no prompt e injeta contexto de `pastelsdd/jira.yaml` (project_key, board_url) quando configurado. Agnóstico de stack.
+
+  `installDixiExtras` atualizado para copiar ambos os hooks para `.claude/hooks/` (brownfield-safe: não sobrescreve arquivos existentes) e fazer merge em `.claude/settings.json` sem duplicar entradas.
+
+- ae29efe: Adiciona kit SDLC Dixi com variantes por stack (Java/Spring e React/Next.js):
+
+  - **Kit shared** (instalado para qualquer stack): `.commitlintrc.yml` com conventional commits + warning JIRA via `commitlint-plugin-jira-rules`; `.github/pull_request_template.md` com seções padronizadas (sempre sobrescrito).
+
+  - **Kit Java** (`family: java`): `.editorconfig` (indent=4, LF para Java/XML/properties); `.husky/commit-msg`; `.github/workflows/ci-java.yml` com jobs `build → test → archunit → coverage` (Jacoco, Java 21 Temurin, Maven cache).
+
+  - **Kit React** (`family: react`): `.editorconfig` (indent=2 para TS/CSS/JSON); `.husky/commit-msg` + `.husky/pre-commit`; `lint-staged.config.mjs`; `.github/workflows/ci-react.yml` com jobs `typecheck → lint → test → build → e2e` (e2e condicional via `hashFiles('playwright.config.ts')`).
+
+  `installDixiExtras` estendido com `copyKitFiles` (brownfield-safe: não sobrescreve arquivos existentes, exceto `pull_request_template.md`). Exibe mensagem pós-instalação com dependências npm/Maven necessárias.
+
+- ae29efe: feat(dixi): add architectural skeleton for Java (hexagonal) and React (feature-sliced) profiles
+
+  `pscode init --profile dixi` now creates an opinionated project structure based on detected stack:
+
+  - **Java/Maven**: 10 hexagonal directories with `.gitkeep` (`domain/model`, `domain/port/in`, `domain/port/out`, `application/usecase`, `infrastructure/adapter/in/rest`, `infrastructure/adapter/out/persistence`, `infrastructure/config` + test equivalents) plus `ArchitectureTest.java` pre-configured with 3 ArchUnit rules
+  - **React/Next**: 7 feature-sliced directories (`shared/components/ui`, `shared/hooks`, `shared/services`, `shared/types`, `shared/utils`, `entities`, `features`) with `features/README.md` documenting conventions and `eslint-architecture.mjs` template with `no-restricted-imports` rules
+
+  All operations are brownfield-safe (skip if already exists). The `basePackage` for Java is auto-detected from `pom.xml` with fallback to `com.example.app`.
+
+- b97a408: feat(dixi): complete dixi profile with 8 real workflows and JIRA MCP integration on init
+
+  `profiles.ts` and `init.ts` updated for the `dixi` profile:
+
+  - **`ALL_WORKFLOWS`** gains 7 new IDs: `rfc`, `design`, `tasks`, `arch-check`, `adr`, `jira-sync`, `dod`
+  - **`PROFILES.dixi`** now has the correct description and 8 workflows: `rfc`, `design`, `tasks`, `apply`, `arch-check`, `adr`, `jira-sync`, `dod`
+  - **`WORKFLOW_TO_SKILL_DIR`** in both `init.ts` and `profile-sync-drift.ts` maps all 7 new IDs to `pscode-dixi-*` directories
+  - **`pscode init --profile dixi`** now generates `pastelsdd/jira.yaml` (with `project_key`, `board_url`, `configured: false`) and merges `.mcp.json` with the Atlassian MCP server entry — both operations are idempotent
+
+- b97a408: Adiciona integração JIRA completa ao profile dixi (Batch K):
+
+  - Novos slash commands `/pstld:jira-draft` e `/pstld:jira-setup` instalados pelo `installDixiExtras` (total: 7 comandos pstld)
+  - Campo opcional `jiraIssueKey` no `.pscode.yaml` para vincular uma change a uma issue JIRA
+  - `pscode archive` detecta `jiraIssueKey` e `transitions.done` de `pastelsdd/jira.yaml`, informando a transição pendente (non-fatal)
+  - Template `pastelsdd/jira.yaml` gerado pelo `pscode init --profile dixi` inclui campo `transitions.done`
+
+- 7485989: Adiciona fundação do profile dixi com detecção automática de stack
+
+  Introduz `src/core/presets/dixi.ts` com os tipos `DixiStack`/`DixiStackFamily` e as funções `detectDixiStack`, `getDixiStackFamily`, `getDixiStackLabel` e `installDixiExtras`. Quando `pscode init --profile dixi` é executado, a stack do projeto é detectada automaticamente (Java/Maven, Java/Gradle, Next.js, React, Node.js, Python) e o arquivo `.pscode-dixi.yaml` é gravado na raiz do projeto com os campos `stack`, `family` e `detectedAt`. A função `installDixiExtras` é um placeholder extensível pelos batches C–J.
+
+- 7485989: Adiciona 10 docs de referência técnica para o perfil Dixi (`pscode/content/dixi/context/`) e a lógica de instalação brownfield-safe em `installDixiExtras`.
+
+  - 4 docs compartilhados: `commits.md`, `dod.md`, `dev-flow.md`, `pr-flow.md`
+  - 3 docs Java/Spring: `architecture.md` (hexagonal), `testing.md` (JUnit/Testcontainers/RestAssured), `naming.md`
+  - 3 docs React/Next.js: `architecture.md` (feature-sliced), `testing.md` (Vitest/RTL/Playwright), `naming.md`
+  - Nova função `copyContextDocs(destRoot, srcDir)` com brownfield-safe (skip se arquivo existir)
+  - `installDixiExtras` agora copia `shared/` sempre + `java/` ou `react/` conforme stack detectada
+  - Os docs são instalados em `pastelsdd/context/` no repo do cliente via `pscode init --profile dixi`
+
+- 7485989: dixi: instalar CLAUDE.md constitucional via pscode init --profile dixi (Batch D)
+- 1a7ebd6: **BREAKING**: Remove o comando `pscode sync` e o workflow `/ps:sync`.
+
+  O comando `pscode sync` era um passo intermediário que propagava delta specs para as specs principais. Ele foi removido porque o `pscode complete` já executa esse sync automaticamente ao final, sem prompts ou flags opcionais — eliminando a ambiguidade de quando rodar o sync.
+
+  **Mudanças:**
+
+  - `pscode sync` não existe mais; scripts que chamam esse comando vão quebrar
+  - `pscode complete` agora sincroniza specs automaticamente sempre ao final (log "Sincronizando specs...")
+  - A opção `--skip-specs` foi removida do `pscode complete`
+  - O workflow `sync` foi removido de `ALL_WORKFLOWS` e de todos os profiles
+  - Os arquivos de skill `sync.md` nos adapters (claude, cursor, codex, gemini, github-copilot) não são mais gerados pelo `pscode update`
+
+  **Migração:** Use `pscode complete` — o sync de specs agora ocorre automaticamente, sem nenhum passo adicional.
+
+### Patch Changes
+
+- 99b0ffc: Add `pstld-workflow` schema with RFC → Design → Tasks DAG for Dixi profile projects
+
 ## 1.0.3
 
 ### Patch Changes
