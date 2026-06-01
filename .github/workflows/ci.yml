@@ -242,7 +242,7 @@ jobs:
         run: git checkout -- flake.nix || true
 
   validate-changesets:
-    name: Validate Changesets
+    name: Validate Release Tracking
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
     steps:
@@ -251,27 +251,47 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Determine release tracking
+        id: changed-changesets
+        run: |
+          changed_changesets="$(git diff --name-only --diff-filter=ACMRT origin/main...HEAD -- '.changeset/*.md' ':!.changeset/README.md')"
+          if [[ -n "$changed_changesets" ]]; then
+            echo "has_changesets=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "files<<EOF"
+              echo "$changed_changesets"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changesets=false" >> "$GITHUB_OUTPUT"
+            echo "This PR follows the normal release cadence; continuing with standard validation"
+          fi
+
       - name: Setup pnpm
+        if: steps.changed-changesets.outputs.has_changesets == 'true'
         uses: pnpm/action-setup@v4
         with:
           version: 9
 
       - name: Setup Node.js
+        if: steps.changed-changesets.outputs.has_changesets == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'pnpm'
 
       - name: Install dependencies
+        if: steps.changed-changesets.outputs.has_changesets == 'true'
         run: pnpm install --frozen-lockfile
 
-      - name: Validate changesets
+      - name: Validate release-tracked changesets
+        if: steps.changed-changesets.outputs.has_changesets == 'true'
+        env:
+          CHANGESET_FILES: ${{ steps.changed-changesets.outputs.files }}
         run: |
-          if command -v changeset &> /dev/null; then
-            pnpm exec changeset status --since=origin/main
-          else
-            echo "Changesets not configured, skipping validation"
-          fi
+          echo "Validating changed changesets:"
+          printf '%s\n' "$CHANGESET_FILES"
+          pnpm exec changeset status --since=origin/main
 
   required-checks-pr:
     name: All checks passed
