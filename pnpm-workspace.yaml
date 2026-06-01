@@ -1,3 +1,5 @@
+packages:
+  - '.'
 allowBuilds:
   '@thiagodiogo/pastelsdd': false
   esbuild: true
