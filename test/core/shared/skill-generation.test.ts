@@ -8,9 +8,9 @@ import {
 
 describe('skill-generation', () => {
   describe('getSkillTemplates', () => {
-    it('should return all 13 skill templates', () => {
+    it('should return all 12 skill templates', () => {
       const templates = getSkillTemplates();
-      expect(templates).toHaveLength(13);
+      expect(templates).toHaveLength(12);
     });
 
     it('should have unique directory names', () => {
@@ -29,7 +29,6 @@ describe('skill-generation', () => {
       expect(dirNames).toContain('pscode-continue-change');
       expect(dirNames).toContain('pscode-apply-change');
       expect(dirNames).toContain('pscode-ff-change');
-      expect(dirNames).toContain('pscode-sync-specs');
       expect(dirNames).toContain('pscode-archive-change');
       expect(dirNames).toContain('pscode-bulk-archive-change');
       expect(dirNames).toContain('pscode-verify-change');
@@ -90,9 +89,9 @@ describe('skill-generation', () => {
   });
 
   describe('getCommandTemplates', () => {
-    it('should return all 13 command templates', () => {
+    it('should return all 12 command templates', () => {
       const templates = getCommandTemplates();
-      expect(templates).toHaveLength(13);
+      expect(templates).toHaveLength(12);
     });
 
     it('should have unique IDs', () => {
@@ -111,7 +110,6 @@ describe('skill-generation', () => {
       expect(ids).toContain('continue');
       expect(ids).toContain('apply');
       expect(ids).toContain('ff');
-      expect(ids).toContain('sync');
       expect(ids).toContain('complete');
       expect(ids).toContain('bulk-archive');
       expect(ids).toContain('verify');
@@ -146,9 +144,9 @@ describe('skill-generation', () => {
   });
 
   describe('getCommandContents', () => {
-    it('should return all 13 command contents', () => {
+    it('should return all 12 command contents', () => {
       const contents = getCommandContents();
-      expect(contents).toHaveLength(13);
+      expect(contents).toHaveLength(12);
     });
 
     it('should have valid content structure', () => {

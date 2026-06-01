@@ -20,11 +20,9 @@ import {
   getPsFfCommandTemplate,
   getPsNewCommandTemplate,
   getPsOnboardCommandTemplate,
-  getPsSyncCommandTemplate,
   getPsProposeCommandTemplate,
   getProposeSkillTemplate,
   getPsVerifyCommandTemplate,
-  getSyncSpecsSkillTemplate,
   getVerifyChangeSkillTemplate,
 } from '../../../src/core/templates/skill-templates.js';
 import { generateSkillContent } from '../../../src/core/shared/skill-generation.js';
@@ -49,9 +47,7 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getPsNewCommandTemplate: 'fdb348e81411ff65d722ab90a218155ed301712ef44b6621124dbad726959895',
   getPsOnboardCommandTemplate: 'f01a5baae071c51e5991e10024abef089a35c222c0bbc8be3c2f8dd580d48091',
   getPsProposeCommandTemplate: '9951b03992681834c3aa054f4888b295a9c99d34bfea1d89d158247e9df0faa9',
-  getPsSyncCommandTemplate: '7e24aaf6b126cb256ab76d802877adbbe12d2cf8e6c60310fc40ff64c2ad852b',
   getPsVerifyCommandTemplate: 'ff5444b1f84b2de82e3c56b105f384bdd61e58251257b183087c5c92a608e7ec',
-  getSyncSpecsSkillTemplate: 'c3a49701bdd4a7501df454dac72b19faa4104cee3a01851dc91dd7d55ec63127',
   getVerifyChangeSkillTemplate: '75cb3e3bfbeca4402f70a552444c7c7f246e215f1997fc6c545bfda2a3b93179',
 };
 
@@ -65,7 +61,6 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'pscode-new-change': 'de4831901162220364af0992ae500cd0f840d521122b0fb963403857dcaba2e9',
   'pscode-onboard': '619da33e386c2c41e3d0ddafc94572b39f1163050a50d89268e08b31a6b1d1e1',
   'pscode-propose': 'eb5650d788bdac6920c2f538806d9af0274dac8c7431d2283e0efdba300c3e45',
-  'pscode-sync-specs': '1d82a2661add555ac0517b0f9109a5432a7733d5c2820389252f3deebe22065d',
   'pscode-verify-change': '0bfe7b51d85a62b8229c12d30405d1070a6e27ecfa636e525eb7508e0cddcb4a',
 };
 
@@ -97,7 +92,6 @@ describe('skill templates split parity', () => {
       getContinueChangeSkillTemplate,
       getApplyChangeSkillTemplate,
       getFfChangeSkillTemplate,
-      getSyncSpecsSkillTemplate,
       getOnboardSkillTemplate,
       getPsExploreCommandTemplate,
       getPsNewCommandTemplate,
@@ -106,7 +100,6 @@ describe('skill templates split parity', () => {
       getPsFfCommandTemplate,
       getCompleteChangeSkillTemplate,
       getBulkArchiveChangeSkillTemplate,
-      getPsSyncCommandTemplate,
       getVerifyChangeSkillTemplate,
       getPsCompleteCommandTemplate,
       getPsOnboardCommandTemplate,
@@ -133,7 +126,6 @@ describe('skill templates split parity', () => {
       ['pscode-continue-change', getContinueChangeSkillTemplate],
       ['pscode-apply-change', getApplyChangeSkillTemplate],
       ['pscode-ff-change', getFfChangeSkillTemplate],
-      ['pscode-sync-specs', getSyncSpecsSkillTemplate],
       ['pscode-archive-change', getCompleteChangeSkillTemplate],
       ['pscode-bulk-archive-change', getBulkArchiveChangeSkillTemplate],
       ['pscode-verify-change', getVerifyChangeSkillTemplate],
@@ -154,7 +146,6 @@ describe('skill templates split parity', () => {
   it('guards unsupported workspace workflows from repo-local fallback edits', () => {
     const guardedSkills: Array<[string, () => SkillTemplate, string]> = [
       ['pscode-apply-change', getApplyChangeSkillTemplate, 'full workspace apply is not supported'],
-      ['pscode-sync-specs', getSyncSpecsSkillTemplate, 'workspace spec sync is not supported'],
       ['pscode-archive-change', getCompleteChangeSkillTemplate, 'workspace archive is not supported'],
       ['pscode-bulk-archive-change', getBulkArchiveChangeSkillTemplate, 'workspace bulk archive is not supported'],
       ['pscode-verify-change', getVerifyChangeSkillTemplate, 'full workspace implementation verification is not supported'],

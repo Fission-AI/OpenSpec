@@ -155,11 +155,10 @@ Old instructions content
 
       await updateCommand.execute(testDir);
 
-      // Verify core profile skill files were created/updated (propose, explore, apply, sync, archive)
+      // Verify core profile skill files were created/updated (propose, explore, apply, complete)
       const coreSkillNames = [
         'pscode-explore',
         'pscode-apply-change',
-        'pscode-sync-specs',
         'pscode-archive-change',
         'pscode-propose',
       ];
@@ -180,6 +179,7 @@ Old instructions content
         'pscode-new-change',
         'pscode-continue-change',
         'pscode-ff-change',
+        'pscode-sync-specs',
         'pscode-bulk-archive-change',
         'pscode-verify-change',
       ];
@@ -233,8 +233,8 @@ Old instructions content
 
       await updateCommand.execute(testDir);
 
-      // Verify core profile commands were created (propose, explore, apply, sync, complete)
-      const coreCommandIds = ['explore', 'apply', 'sync', 'complete', 'propose'];
+      // Verify core profile commands were created (propose, explore, apply, complete)
+      const coreCommandIds = ['explore', 'apply', 'complete', 'propose'];
       const commandsDir = path.join(testDir, '.claude', 'commands', 'ps');
       for (const cmdId of coreCommandIds) {
         const cmdFile = path.join(commandsDir, `${cmdId}.md`);
@@ -243,7 +243,7 @@ Old instructions content
       }
 
       // Verify non-core commands are NOT created
-      const nonCoreCommandIds = ['new', 'continue', 'ff', 'bulk-archive', 'verify'];
+      const nonCoreCommandIds = ['new', 'continue', 'ff', 'sync', 'bulk-archive', 'verify'];
       for (const cmdId of nonCoreCommandIds) {
         const cmdFile = path.join(commandsDir, `${cmdId}.md`);
         const exists = await FileSystemUtils.fileExists(cmdFile);
@@ -1310,7 +1310,6 @@ More user content after markers.
         'pscode-propose',
         'pscode-explore',
         'pscode-apply-change',
-        'pscode-sync-specs',
         'pscode-archive-change',
       ];
 
@@ -1406,7 +1405,7 @@ More user content after markers.
       )).toBe(false);
     });
 
-    it('should use the core profile by default and include sync workflow', async () => {
+    it('should use the standard profile by default and not include sync workflow', async () => {
       setMockConfig({
         featureFlags: {},
         profile: 'standard',
@@ -1418,13 +1417,21 @@ More user content after markers.
 
       await updateCommand.execute(testDir);
 
-      // Core includes sync
+      // Standard profile includes apply and complete
+      expect(await FileSystemUtils.fileExists(
+        path.join(testDir, '.claude', 'skills', 'pscode-apply-change', 'SKILL.md')
+      )).toBe(true);
+      expect(await FileSystemUtils.fileExists(
+        path.join(testDir, '.claude', 'commands', 'ps', 'complete.md')
+      )).toBe(true);
+
+      // sync should NOT be included
       expect(await FileSystemUtils.fileExists(
         path.join(testDir, '.claude', 'skills', 'pscode-sync-specs', 'SKILL.md')
-      )).toBe(true);
+      )).toBe(false);
       expect(await FileSystemUtils.fileExists(
         path.join(testDir, '.claude', 'commands', 'ps', 'sync.md')
-      )).toBe(true);
+      )).toBe(false);
     });
 
     it('should respect skills-only delivery setting', async () => {

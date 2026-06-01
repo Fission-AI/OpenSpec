@@ -11,7 +11,6 @@ export { getNewChangeSkillTemplate, getPsNewCommandTemplate } from './workflows/
 export { getContinueChangeSkillTemplate, getPsContinueCommandTemplate } from './workflows/continue-change.js';
 export { getApplyChangeSkillTemplate, getPsApplyCommandTemplate } from './workflows/apply-change.js';
 export { getFfChangeSkillTemplate, getPsFfCommandTemplate } from './workflows/ff-change.js';
-export { getSyncSpecsSkillTemplate, getPsSyncCommandTemplate } from './workflows/sync-specs.js';
 export { getCompleteChangeSkillTemplate, getPsCompleteCommandTemplate } from './workflows/archive-change.js';
 export { getBulkArchiveChangeSkillTemplate, getPsBulkArchiveCommandTemplate } from './workflows/bulk-archive-change.js';
 export { getVerifyChangeSkillTemplate, getPsVerifyCommandTemplate } from './workflows/verify-change.js';

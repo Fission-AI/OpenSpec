@@ -13,7 +13,6 @@ export const ALL_WORKFLOWS = [
   'continue',
   'apply',
   'ff',
-  'sync',
   'complete',
   'bulk-archive',
   'verify',
@@ -38,8 +37,8 @@ export interface ProfileDefinition {
 
 export const PROFILES = {
   standard: {
-    description: 'Padrão — propose, explore, apply, sync, complete',
-    workflows: ['propose', 'explore', 'apply', 'sync', 'complete'],
+    description: 'Padrão — propose, explore, apply, complete',
+    workflows: ['propose', 'explore', 'apply', 'complete'],
   },
   dixi: {
     description: 'Dixi — RFC→Design→Tasks→Apply com guardrails para Java/Spring e React/Next.js',

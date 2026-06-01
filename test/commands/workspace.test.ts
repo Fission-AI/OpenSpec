@@ -292,14 +292,14 @@ describe('workspace command', () => {
       expect.objectContaining({
         profile: 'standard',
         delivery: 'commands',
-        workflow_ids: ['propose', 'explore', 'apply', 'sync', 'complete'],
+        workflow_ids: ['propose', 'explore', 'apply', 'complete'],
         selected_agents: ['codex'],
         skills_only: true,
         delivery_notice: expect.stringContaining('skills only'),
         generated: [
           expect.objectContaining({
             tool_id: 'codex',
-            workflow_ids: ['propose', 'explore', 'apply', 'sync', 'complete'],
+            workflow_ids: ['propose', 'explore', 'apply', 'complete'],
           }),
         ],
         refreshed: [],
@@ -319,7 +319,7 @@ describe('workspace command', () => {
         selected_agents: ['codex'],
         last_applied_profile: 'standard',
         last_applied_delivery: 'commands',
-        last_applied_workflow_ids: ['propose', 'explore', 'apply', 'sync', 'complete'],
+        last_applied_workflow_ids: ['propose', 'explore', 'apply', 'complete'],
         last_applied_at: expect.any(String),
       })
     );
@@ -345,7 +345,7 @@ describe('workspace command', () => {
     expect(readWorkspaceState(setup.workspace.root).workspace_skills).toEqual(
       expect.objectContaining({
         selected_agents: [],
-        last_applied_workflow_ids: ['propose', 'explore', 'apply', 'sync', 'complete'],
+        last_applied_workflow_ids: ['propose', 'explore', 'apply', 'complete'],
       })
     );
   });
@@ -394,14 +394,14 @@ describe('workspace command', () => {
       expect.objectContaining({
         profile: 'standard',
         delivery: 'commands',
-        workflow_ids: ['propose', 'explore', 'apply', 'sync', 'complete'],
+        workflow_ids: ['propose', 'explore', 'apply', 'complete'],
         selected_agents: ['codex'],
         skills_only: true,
         delivery_notice: expect.stringContaining('skills only'),
         refreshed: [
           expect.objectContaining({
             tool_id: 'codex',
-            workflow_ids: ['propose', 'explore', 'apply', 'sync', 'complete'],
+            workflow_ids: ['propose', 'explore', 'apply', 'complete'],
           }),
         ],
         removed: [],
@@ -410,7 +410,7 @@ describe('workspace command', () => {
     );
     expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pscode-propose', 'SKILL.md'))).toBe(true);
     expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pscode-explore', 'SKILL.md'))).toBe(true);
-    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pscode-sync-specs', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pscode-sync-specs', 'SKILL.md'))).toBe(false);
     expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pscode-archive-change', 'SKILL.md'))).toBe(true);
     expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pscode-verify-change'))).toBe(false);
     expect(fs.existsSync(path.join(customSkillDir, 'README.md'))).toBe(true);
@@ -422,7 +422,7 @@ describe('workspace command', () => {
         selected_agents: ['codex'],
         last_applied_profile: 'standard',
         last_applied_delivery: 'commands',
-        last_applied_workflow_ids: ['propose', 'explore', 'apply', 'sync', 'complete'],
+        last_applied_workflow_ids: ['propose', 'explore', 'apply', 'complete'],
       })
     );
 
@@ -464,7 +464,7 @@ describe('workspace command', () => {
     expect(update.stdout).toContain('update-redirect');
     expect(update.stdout).not.toContain('not in the managed local workspace views list');
     expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pscode-propose', 'SKILL.md'))).toBe(true);
-    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pscode-sync-specs', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'pscode-sync-specs', 'SKILL.md'))).toBe(false);
     expect(fs.readdirSync(api).sort()).toEqual(linkedEntriesBefore);
     expect(fs.existsSync(path.join(api, '.codex'))).toBe(false);
   });
@@ -597,7 +597,7 @@ describe('workspace command', () => {
       expect.objectContaining({
         selected_agents: ['codex'],
         last_applied_profile: 'standard',
-        last_applied_workflow_ids: ['propose', 'explore', 'apply', 'sync', 'complete'],
+        last_applied_workflow_ids: ['propose', 'explore', 'apply', 'complete'],
       })
     );
   });

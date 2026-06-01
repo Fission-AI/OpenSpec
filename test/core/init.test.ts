@@ -82,12 +82,11 @@ describe('InitCommand', () => {
 
       await initCommand.execute(testDir);
 
-      // Core profile: propose, explore, apply, sync, archive
+      // Core profile: propose, explore, apply, complete
       const coreSkillNames = [
         'pscode-propose',
         'pscode-explore',
         'pscode-apply-change',
-        'pscode-sync-specs',
         'pscode-archive-change',
       ];
 
@@ -106,6 +105,7 @@ describe('InitCommand', () => {
         'pscode-new-change',
         'pscode-continue-change',
         'pscode-ff-change',
+        'pscode-sync-specs',
         'pscode-bulk-archive-change',
         'pscode-verify-change',
       ];
@@ -121,12 +121,11 @@ describe('InitCommand', () => {
 
       await initCommand.execute(testDir);
 
-      // Core profile: propose, explore, apply, sync, complete
+      // Core profile: propose, explore, apply, complete
       const coreCommandNames = [
         'ps/propose.md',
         'ps/explore.md',
         'ps/apply.md',
-        'ps/sync.md',
         'ps/complete.md',
       ];
 
@@ -140,6 +139,7 @@ describe('InitCommand', () => {
         'ps/new.md',
         'ps/continue.md',
         'ps/ff.md',
+        'ps/sync.md',
         'ps/bulk-archive.md',
         'ps/verify.md',
       ];

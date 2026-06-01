@@ -285,9 +285,8 @@ program
   .command('complete [change-name]')
   .description('Complete a change and update main specs')
   .option('-y, --yes', 'Skip confirmation prompts')
-  .option('--skip-specs', 'Skip spec update operations (useful for infrastructure, tooling, or doc-only changes)')
   .option('--no-validate', 'Skip validation (not recommended, requires confirmation)')
-  .action(async (changeName?: string, options?: { yes?: boolean; skipSpecs?: boolean; noValidate?: boolean; validate?: boolean }) => {
+  .action(async (changeName?: string, options?: { yes?: boolean; noValidate?: boolean; validate?: boolean }) => {
     try {
       const completeCommand = new CompleteCommand();
       await completeCommand.execute(changeName, options);

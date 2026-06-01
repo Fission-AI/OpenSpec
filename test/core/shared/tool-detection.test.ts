@@ -28,18 +28,18 @@ describe('tool-detection', () => {
 
   describe('SKILL_NAMES', () => {
     it('should contain all skill names matching COMMAND_IDS', () => {
-      expect(SKILL_NAMES).toHaveLength(11);
+      expect(SKILL_NAMES).toHaveLength(10);
       expect(SKILL_NAMES).toContain('pscode-explore');
       expect(SKILL_NAMES).toContain('pscode-new-change');
       expect(SKILL_NAMES).toContain('pscode-continue-change');
       expect(SKILL_NAMES).toContain('pscode-apply-change');
       expect(SKILL_NAMES).toContain('pscode-ff-change');
-      expect(SKILL_NAMES).toContain('pscode-sync-specs');
       expect(SKILL_NAMES).toContain('pscode-archive-change');
       expect(SKILL_NAMES).toContain('pscode-bulk-archive-change');
       expect(SKILL_NAMES).toContain('pscode-verify-change');
       expect(SKILL_NAMES).toContain('pscode-onboard');
       expect(SKILL_NAMES).toContain('pscode-propose');
+      expect(SKILL_NAMES).not.toContain('pscode-sync-specs');
     });
   });
 

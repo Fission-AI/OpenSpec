@@ -141,10 +141,6 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         description: 'Skip confirmation prompts',
       },
       {
-        name: 'skip-specs',
-        description: 'Skip spec update operations',
-      },
-      {
         name: 'no-validate',
         description: 'Skip validation (not recommended)',
       },

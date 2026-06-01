@@ -17,7 +17,6 @@ export const WORKFLOW_TO_SKILL_DIR: Record<WorkflowId, string> = {
   'continue': 'pscode-continue-change',
   'apply': 'pscode-apply-change',
   'ff': 'pscode-ff-change',
-  'sync': 'pscode-sync-specs',
   'complete': 'pscode-archive-change',
   'bulk-archive': 'pscode-bulk-archive-change',
   'verify': 'pscode-verify-change',

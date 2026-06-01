@@ -269,7 +269,7 @@ describe('workspace command interactive flows', () => {
     expect(readWorkspaceState('platform').workspace_skills).toEqual(
       expect.objectContaining({
         selected_agents: ['codex', 'claude'],
-        last_applied_workflow_ids: ['propose', 'explore', 'apply', 'sync', 'complete'],
+        last_applied_workflow_ids: ['propose', 'explore', 'apply', 'complete'],
       })
     );
   });

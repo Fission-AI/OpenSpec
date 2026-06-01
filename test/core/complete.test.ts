@@ -327,35 +327,6 @@ New feature description.
       expect(archives.length).toBe(1);
     });
 
-    it('should skip spec updates when --skip-specs flag is used', async () => {
-      const changeName = 'skip-specs-feature';
-      const changeDir = path.join(tempDir, 'pscode', 'changes', changeName);
-      const changeSpecDir = path.join(changeDir, 'specs', 'test-capability');
-      await fs.mkdir(changeSpecDir, { recursive: true });
-      
-      // Create spec in change
-      const specContent = '# Test Capability Spec\n\nTest content';
-      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), specContent);
-      
-      // Execute archive with --skip-specs flag and noValidate to skip validation
-      await completeCommand.execute(changeName, { yes: true, skipSpecs: true, noValidate: true });
-      
-      // Verify skip message was logged
-      expect(console.log).toHaveBeenCalledWith(
-        'Skipping spec updates (--skip-specs flag provided).'
-      );
-      
-      // Verify spec was NOT copied to main specs
-      const mainSpecPath = path.join(tempDir, 'pscode', 'specs', 'test-capability', 'spec.md');
-      await expect(fs.access(mainSpecPath)).rejects.toThrow();
-      
-      // Verify change was still archived
-      const archiveDir = path.join(tempDir, 'pscode', 'changes', 'archive');
-      const archives = await fs.readdir(archiveDir);
-      expect(archives.length).toBe(1);
-      expect(archives[0]).toMatch(new RegExp(`\\d{4}-\\d{2}-\\d{2}-${changeName}`));
-    });
-
     it('should skip validation when commander sets validate to false (--no-validate)', async () => {
       const changeName = 'skip-validation-flag';
       const changeDir = path.join(tempDir, 'pscode', 'changes', changeName);
@@ -381,7 +352,7 @@ The system will log all events.
       const specContentSpy = vi.spyOn(Validator.prototype, 'validateSpecContent');
 
       try {
-        await completeCommand.execute(changeName, { yes: true, skipSpecs: true, validate: false });
+        await completeCommand.execute(changeName, { yes: true, validate: false });
 
         expect(deltaSpy).not.toHaveBeenCalled();
         expect(specContentSpy).not.toHaveBeenCalled();
@@ -396,53 +367,36 @@ The system will log all events.
       }
     });
 
-    it('should proceed with archive when user declines spec updates', async () => {
-      const { confirm } = await import('@inquirer/prompts');
-      const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
-      
-      const changeName = 'decline-specs-feature';
+    it('should automatically sync delta specs during archive without prompting', async () => {
+      const changeName = 'auto-sync-specs-feature';
       const changeDir = path.join(tempDir, 'pscode', 'changes', changeName);
-      const changeSpecDir = path.join(changeDir, 'specs', 'test-capability');
+      const changeSpecDir = path.join(changeDir, 'specs', 'auto-capability');
       await fs.mkdir(changeSpecDir, { recursive: true });
-      
-      // Create valid spec in change
-      const specContent = `# Test Capability Spec
 
-## Purpose
-This is a test capability specification.
+      const specContent = `# Auto Capability - Changes
 
-## Requirements
+## ADDED Requirements
 
-### The system SHALL provide test capability
+### Requirement: The system SHALL auto-sync specs
+Auto-sync during archive.
 
-#### Scenario: Basic test
-Given a test condition
-When an action occurs
-Then expected result happens`;
+#### Scenario: Sync on archive
+- **WHEN** the user runs pscode complete
+- **THEN** specs are synced automatically`;
       await fs.writeFile(path.join(changeSpecDir, 'spec.md'), specContent);
-      
-      // Mock confirm to return false (decline spec updates)
-      mockConfirm.mockResolvedValueOnce(false);
-      
-      // Execute archive without --yes flag
-      await completeCommand.execute(changeName);
-      
-      // Verify user was prompted about specs
-      expect(mockConfirm).toHaveBeenCalledWith({
-        message: 'Proceed with spec updates?',
-        default: true
-      });
-      
-      // Verify skip message was logged
-      expect(console.log).toHaveBeenCalledWith(
-        'Skipping spec updates. Proceeding with archive.'
-      );
-      
-      // Verify spec was NOT copied to main specs
-      const mainSpecPath = path.join(tempDir, 'pscode', 'specs', 'test-capability', 'spec.md');
-      await expect(fs.access(mainSpecPath)).rejects.toThrow();
-      
-      // Verify change was still archived
+
+      // Execute archive — no prompt for specs; sync happens automatically
+      await completeCommand.execute(changeName, { yes: true, noValidate: true });
+
+      // Verify informative log was shown
+      expect(console.log).toHaveBeenCalledWith('\nSincronizando specs...');
+
+      // Verify spec was created in main specs
+      const mainSpecPath = path.join(tempDir, 'pscode', 'specs', 'auto-capability', 'spec.md');
+      const updatedContent = await fs.readFile(mainSpecPath, 'utf-8');
+      expect(updatedContent).toContain('### Requirement: The system SHALL auto-sync specs');
+
+      // Verify change was archived
       const archiveDir = path.join(tempDir, 'pscode', 'changes', 'archive');
       const archives = await fs.readdir(archiveDir);
       expect(archives.length).toBe(1);

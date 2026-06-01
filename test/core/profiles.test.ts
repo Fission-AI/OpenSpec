@@ -10,18 +10,22 @@ import {
 
 describe('profiles', () => {
   describe('ALL_WORKFLOWS', () => {
-    it('should contain all 20 workflows', () => {
-      expect(ALL_WORKFLOWS).toHaveLength(20);
+    it('should contain all 19 workflows', () => {
+      expect(ALL_WORKFLOWS).toHaveLength(19);
     });
 
     it('should contain expected workflow IDs', () => {
       const expected = [
         'propose', 'explore', 'new', 'continue', 'apply',
-        'ff', 'sync', 'complete', 'bulk-archive', 'verify', 'onboard',
+        'ff', 'complete', 'bulk-archive', 'verify', 'onboard',
         'trello-setup', 'draft',
         'rfc', 'design', 'tasks', 'arch-check', 'adr', 'jira-sync', 'dod',
       ];
       expect([...ALL_WORKFLOWS]).toEqual(expected);
+    });
+
+    it('should not contain the removed sync workflow', () => {
+      expect(ALL_WORKFLOWS).not.toContain('sync');
     });
 
     it('should contain the 7 new dixi workflow IDs', () => {
@@ -45,8 +49,12 @@ describe('profiles', () => {
       }
     });
 
-    it('standard profile should contain the 5 base workflows', () => {
-      expect([...PROFILES.standard.workflows]).toEqual(['propose', 'explore', 'apply', 'sync', 'complete']);
+    it('standard profile should contain the 4 base workflows', () => {
+      expect([...PROFILES.standard.workflows]).toEqual(['propose', 'explore', 'apply', 'complete']);
+    });
+
+    it('standard profile should not contain sync', () => {
+      expect(PROFILES.standard.workflows).not.toContain('sync');
     });
 
     it('all profile workflows should be valid workflow IDs', () => {
