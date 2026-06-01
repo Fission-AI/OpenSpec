@@ -50,7 +50,7 @@ Once initialized, use slash commands in your AI agent:
 /ps:propose "add dark mode"   ← creates a new change
 /ps:continue                  ← advances to the next artifact
 /ps:apply                     ← applies pending tasks
-/ps:archive                   ← archives a completed change
+/ps:complete                  ← completes a change
 ```
 
 ---
@@ -84,7 +84,7 @@ The AI agent reads these files at each step and generates the next artifact usin
 | `pscode validate [name]` | Validate a change or spec |
 | `pscode validate --all` | Validate everything |
 | `pscode show [name]` | Display a change or spec |
-| `pscode archive [name]` | Archive a completed change |
+| `pscode complete [name]` | Complete a change |
 | `pscode new change <name>` | Create a new change directory |
 | `pscode schemas` | List available workflow schemas |
 | `pscode view` | Interactive dashboard |

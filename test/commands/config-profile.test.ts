@@ -99,7 +99,7 @@ describe('config profile interactive flow', () => {
       fs.writeFileSync(skillPath, `name: ${dirName}\n`, 'utf-8');
     }
 
-    const coreCommands = ['propose', 'explore', 'apply', 'sync', 'archive'];
+    const coreCommands = ['propose', 'explore', 'apply', 'sync', 'complete'];
     for (const commandId of coreCommands) {
       const commandPath = path.join(projectDir, '.claude', 'commands', 'ps', `${commandId}.md`);
       fs.mkdirSync(path.dirname(commandPath), { recursive: true });

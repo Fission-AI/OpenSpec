@@ -14,7 +14,7 @@ For workflow patterns and when to use each command, see [Workflows](workflows.md
 | `/ps:explore` | Think through ideas before committing to a change |
 | `/ps:apply` | Implement tasks from the change |
 | `/ps:sync` | Merge delta specs into main specs |
-| `/ps:archive` | Archive a completed change |
+| `/ps:complete` | Archive a completed change |
 
 ### Expanded Workflow Commands (custom workflow selection)
 
@@ -420,7 +420,7 @@ AI:  Syncing add-dark-mode delta specs...
      Merging...
      ✓ pscode/specs/ui/spec.md updated
 
-     Change remains active. Run /ps:archive when ready to complete.
+     Change remains active. Run /ps:complete when ready to complete.
 ```
 
 **When to use manually:**
@@ -440,13 +440,13 @@ AI:  Syncing add-dark-mode delta specs...
 
 ---
 
-### `/ps:archive`
+### `/ps:complete`
 
 Archive a completed change. Finalizes the change and moves it to the archive folder.
 
 **Syntax:**
 ```
-/ps:archive [change-name]
+/ps:complete [change-name]
 ```
 
 **Arguments:**
@@ -463,7 +463,7 @@ Archive a completed change. Finalizes the change and moves it to the archive fol
 
 **Example:**
 ```text
-You: /ps:archive
+You: /ps:complete
 
 AI:  Archiving add-dark-mode...
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { ArchiveCommand } from '../../src/core/archive.js';
+import { CompleteCommand } from '../../src/core/complete.js';
 import { Validator } from '../../src/core/validation/validator.js';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -24,14 +24,14 @@ vi.mock('../../src/core/jira-transition.js', () => ({
   tryTransitionJiraIssue: tryTransitionJiraIssueMock,
 }));
 
-describe('ArchiveCommand', () => {
+describe('CompleteCommand', () => {
   let tempDir: string;
-  let archiveCommand: ArchiveCommand;
+  let completeCommand: CompleteCommand;
   const originalConsoleLog = console.log;
 
   beforeEach(async () => {
     // Create temp directory
-    tempDir = path.join(os.tmpdir(), `pscode-archive-test-${Date.now()}`);
+    tempDir = path.join(os.tmpdir(), `pscode-complete-test-${Date.now()}`);
     await fs.mkdir(tempDir, { recursive: true });
     
     // Change to temp directory
@@ -46,7 +46,7 @@ describe('ArchiveCommand', () => {
     // Suppress console.log during tests
     console.log = vi.fn();
     
-    archiveCommand = new ArchiveCommand();
+    completeCommand = new CompleteCommand();
   });
 
   afterEach(async () => {
@@ -76,7 +76,7 @@ describe('ArchiveCommand', () => {
       await fs.writeFile(path.join(changeDir, 'tasks.md'), tasksContent);
       
       // Execute archive with --yes flag
-      await archiveCommand.execute(changeName, { yes: true });
+      await completeCommand.execute(changeName, { yes: true });
       
       // Check that change was moved to archive
       const archiveDir = path.join(tempDir, 'pscode', 'changes', 'archive');
@@ -99,7 +99,7 @@ describe('ArchiveCommand', () => {
       await fs.writeFile(path.join(changeDir, 'tasks.md'), tasksContent);
       
       // Execute archive with --yes flag
-      await archiveCommand.execute(changeName, { yes: true });
+      await completeCommand.execute(changeName, { yes: true });
       
       // Verify warning was logged
       expect(console.log).toHaveBeenCalledWith(
@@ -127,7 +127,7 @@ Then expected result happens`;
       await fs.writeFile(path.join(changeSpecDir, 'spec.md'), specContent);
       
       // Execute archive with --yes flag and skip validation for speed
-      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+      await completeCommand.execute(changeName, { yes: true, noValidate: true });
       
       // Verify spec was created from skeleton and ADDED requirement applied
       const mainSpecPath = path.join(tempDir, 'pscode', 'specs', 'test-capability', 'spec.md');
@@ -166,7 +166,7 @@ The system SHALL support logo and backgroundColor fields for gift cards.
       await fs.writeFile(path.join(changeSpecDir, 'spec.md'), specContent);
       
       // Execute archive - should succeed with warning about REMOVED requirements
-      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+      await completeCommand.execute(changeName, { yes: true, noValidate: true });
       
       // Verify warning was logged about REMOVED requirements being ignored
       expect(console.log).toHaveBeenCalledWith(
@@ -211,7 +211,7 @@ Modified content.`;
       await fs.writeFile(path.join(changeSpecDir, 'spec.md'), specContent);
       
       // Execute archive - should abort with error message (not throw, but log and return)
-      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+      await completeCommand.execute(changeName, { yes: true, noValidate: true });
       
       // Verify error message mentions MODIFIED not allowed for new specs
       expect(console.log).toHaveBeenCalledWith(
@@ -249,7 +249,7 @@ New feature description.
       await fs.writeFile(path.join(changeSpecDir, 'spec.md'), specContent);
       
       // Execute archive - should abort with error message (not throw, but log and return)
-      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+      await completeCommand.execute(changeName, { yes: true, noValidate: true });
       
       // Verify error message mentions RENAMED not allowed for new specs
       expect(console.log).toHaveBeenCalledWith(
@@ -269,7 +269,7 @@ New feature description.
 
     it('should throw error if change does not exist', async () => {
       await expect(
-        archiveCommand.execute('non-existent-change', { yes: true })
+        completeCommand.execute('non-existent-change', { yes: true })
       ).rejects.toThrow("Change 'non-existent-change' not found.");
     });
 
@@ -285,7 +285,7 @@ New feature description.
       
       // Try to archive
       await expect(
-        archiveCommand.execute(changeName, { yes: true })
+        completeCommand.execute(changeName, { yes: true })
       ).rejects.toThrow(`Archive '${date}-${changeName}' already exists.`);
     });
 
@@ -295,7 +295,7 @@ New feature description.
       await fs.mkdir(changeDir, { recursive: true });
       
       // Execute archive without tasks.md
-      await archiveCommand.execute(changeName, { yes: true });
+      await completeCommand.execute(changeName, { yes: true });
       
       // Should complete without warnings
       expect(console.log).not.toHaveBeenCalledWith(
@@ -314,7 +314,7 @@ New feature description.
       await fs.mkdir(changeDir, { recursive: true });
       
       // Execute archive without specs
-      await archiveCommand.execute(changeName, { yes: true });
+      await completeCommand.execute(changeName, { yes: true });
       
       // Should complete without spec updates
       expect(console.log).not.toHaveBeenCalledWith(
@@ -338,7 +338,7 @@ New feature description.
       await fs.writeFile(path.join(changeSpecDir, 'spec.md'), specContent);
       
       // Execute archive with --skip-specs flag and noValidate to skip validation
-      await archiveCommand.execute(changeName, { yes: true, skipSpecs: true, noValidate: true });
+      await completeCommand.execute(changeName, { yes: true, skipSpecs: true, noValidate: true });
       
       // Verify skip message was logged
       expect(console.log).toHaveBeenCalledWith(
@@ -381,7 +381,7 @@ The system will log all events.
       const specContentSpy = vi.spyOn(Validator.prototype, 'validateSpecContent');
 
       try {
-        await archiveCommand.execute(changeName, { yes: true, skipSpecs: true, validate: false });
+        await completeCommand.execute(changeName, { yes: true, skipSpecs: true, validate: false });
 
         expect(deltaSpy).not.toHaveBeenCalled();
         expect(specContentSpy).not.toHaveBeenCalled();
@@ -425,7 +425,7 @@ Then expected result happens`;
       mockConfirm.mockResolvedValueOnce(false);
       
       // Execute archive without --yes flag
-      await archiveCommand.execute(changeName);
+      await completeCommand.execute(changeName);
       
       // Verify user was prompted about specs
       expect(mockConfirm).toHaveBeenCalledWith({
@@ -478,7 +478,7 @@ Some details.`;
 Updated details.`;
       await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaContent);
 
-      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+      await completeCommand.execute(changeName, { yes: true, noValidate: true });
 
       const updated = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
       expect(updated).toContain('### Requirement: Important Rule');
@@ -527,7 +527,7 @@ updated C
 content D`;
       await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaContent);
 
-      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+      await completeCommand.execute(changeName, { yes: true, noValidate: true });
 
       const updated = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
       expect(updated).toContain('### Requirement: C');
@@ -565,7 +565,7 @@ new text
 ### Requirement: Another Missing`;
       await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaContent);
 
-      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+      await completeCommand.execute(changeName, { yes: true, noValidate: true });
 
       // Should not change the main spec and should not archive the change dir
       const still = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
@@ -618,7 +618,7 @@ The system SHALL do B differently.
 - **THEN** qux changes`;
       await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaContent);
 
-      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+      await completeCommand.execute(changeName, { yes: true, noValidate: true });
 
       expect(console.log).toHaveBeenCalledWith(
         expect.stringContaining('delta-target: target spec is structurally invalid and cannot be updated until fixed:')
@@ -668,7 +668,7 @@ old body`;
 new body`;
       await fs.writeFile(path.join(changeSpecDir, 'spec.md'), badDelta);
 
-      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+      await completeCommand.execute(changeName, { yes: true, noValidate: true });
       const unchanged = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
       expect(unchanged).toBe(mainContent);
       // Assert error message format and abort notice
@@ -691,7 +691,7 @@ new body`;
 new body`;
       await fs.writeFile(path.join(changeSpecDir, 'spec.md'), goodDelta);
 
-      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+      await completeCommand.execute(changeName, { yes: true, noValidate: true });
       const updated = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
       expect(updated).toContain('### Requirement: New');
       expect(updated).toContain('new body');
@@ -743,7 +743,7 @@ E1 updated`);
 ## REMOVED Requirements
 ### Requirement: Missing`);
 
-      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+      await completeCommand.execute(changeName, { yes: true, noValidate: true });
 
       const e1 = await fs.readFile(epsilonMain, 'utf-8');
       const z1 = await fs.readFile(zetaMain, 'utf-8');
@@ -775,7 +775,7 @@ E1 updated`);
       await fs.writeFile(path.join(spec1Dir, 'spec.md'), `# Omega - Changes\n\n## ADDED Requirements\n\n### Requirement: O2\nnew`);
       await fs.writeFile(path.join(spec2Dir, 'spec.md'), `# Psi - Changes\n\n## RENAMED Requirements\n- FROM: \`### Requirement: P1\`\n- TO: \`### Requirement: P2\`\n\n## MODIFIED Requirements\n### Requirement: P2\nupdated`);
 
-      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+      await completeCommand.execute(changeName, { yes: true, noValidate: true });
 
       // Verify aggregated totals line was printed
       expect(console.log).toHaveBeenCalledWith(
@@ -790,7 +790,7 @@ E1 updated`);
       await fs.rm(path.join(tempDir, 'pscode'), { recursive: true });
       
       await expect(
-        archiveCommand.execute('any-change', { yes: true })
+        completeCommand.execute('any-change', { yes: true })
       ).rejects.toThrow("No Pscode changes directory found. Run 'pscode init' first.");
     });
   });
@@ -810,11 +810,11 @@ E1 updated`);
       mockSelect.mockResolvedValueOnce(change1);
       
       // Execute without change name
-      await archiveCommand.execute(undefined, { yes: true });
+      await completeCommand.execute(undefined, { yes: true });
       
       // Verify select was called with correct options (values matter, names may include progress)
       expect(mockSelect).toHaveBeenCalledWith(expect.objectContaining({
-        message: 'Select a change to archive',
+        message: 'Select a change to complete',
         choices: expect.arrayContaining([
           expect.objectContaining({ value: change1 }),
           expect.objectContaining({ value: change2 })
@@ -843,7 +843,7 @@ E1 updated`);
       mockConfirm.mockResolvedValueOnce(true);
       
       // Execute without --yes flag
-      await archiveCommand.execute(changeName);
+      await completeCommand.execute(changeName);
       
       // Verify confirm was called
       expect(mockConfirm).toHaveBeenCalledWith({
@@ -870,10 +870,10 @@ E1 updated`);
       mockConfirm.mockResolvedValueOnce(false);
       
       // Execute without --yes flag but skip validation to test task warning
-      await archiveCommand.execute(changeName, { noValidate: true });
+      await completeCommand.execute(changeName, { noValidate: true });
       
       // Verify archive was cancelled
-      expect(console.log).toHaveBeenCalledWith('Archive cancelled.');
+      expect(console.log).toHaveBeenCalledWith('Complete cancelled.');
       
       // Verify change was not archived
       await expect(fs.access(changeDir)).resolves.not.toThrow();
@@ -895,7 +895,7 @@ E1 updated`);
         'schema: spec-driven\njiraIssueKey: PROJ-42\n'
       );
 
-      await archiveCommand.execute(changeName, { yes: true });
+      await completeCommand.execute(changeName, { yes: true });
 
       expect(tryTransitionJiraIssueMock).toHaveBeenCalledWith('PROJ-42', '31');
     });
@@ -910,7 +910,7 @@ E1 updated`);
         'schema: spec-driven\n'
       );
 
-      await archiveCommand.execute(changeName, { yes: true });
+      await completeCommand.execute(changeName, { yes: true });
 
       expect(tryTransitionJiraIssueMock).not.toHaveBeenCalled();
     });

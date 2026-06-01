@@ -49,7 +49,7 @@ async function moveDirectory(src: string, dest: string): Promise<void> {
   }
 }
 
-export class ArchiveCommand {
+export class CompleteCommand {
   async execute(
     changeName?: string,
     options: { yes?: boolean; skipSpecs?: boolean; noValidate?: boolean; validate?: boolean } = {}
@@ -162,7 +162,7 @@ export class ArchiveCommand {
           default: false
         });
         if (!proceed) {
-          console.log('Archive cancelled.');
+          console.log('Complete cancelled.');
           return;
         }
       } else {
@@ -187,7 +187,7 @@ export class ArchiveCommand {
           default: false
         });
         if (!proceed) {
-          console.log('Archive cancelled.');
+          console.log('Complete cancelled.');
           return;
         }
       } else {
@@ -346,7 +346,7 @@ export class ArchiveCommand {
 
     try {
       const answer = await select({
-        message: 'Select a change to archive',
+        message: 'Select a change to complete',
         choices
       });
       return answer;

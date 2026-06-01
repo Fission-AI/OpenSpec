@@ -8,7 +8,7 @@ OPSX replaces the old phase-locked workflow with a fluid, action-based approach.
 
 | Aspect | Legacy | OPSX |
 |--------|--------|------|
-| **Commands** | `/pscode:proposal`, `/pscode:apply`, `/pscode:archive` | Default: `/ps:propose`, `/ps:apply`, `/ps:sync`, `/ps:archive` (expanded workflow commands optional) |
+| **Commands** | `/pscode:proposal`, `/pscode:apply`, `/pscode:archive` | Default: `/ps:propose`, `/ps:apply`, `/ps:sync`, `/ps:complete` (expanded workflow commands optional) |
 | **Workflow** | Create all artifacts at once | Create incrementally or all at once—your choice |
 | **Going back** | Awkward phase gates | Natural—update any artifact anytime |
 | **Customization** | Fixed structure | Schema-driven, fully hackable |
@@ -287,7 +287,7 @@ Command availability is profile-dependent:
 | `/ps:propose` | Create a change and generate planning artifacts in one step |
 | `/ps:explore` | Think through ideas with no structure |
 | `/ps:apply` | Implement tasks from tasks.md |
-| `/ps:archive` | Finalize and archive the change |
+| `/ps:complete` | Finalize and archive the change |
 
 **Expanded workflow (custom selection):**
 
@@ -309,7 +309,7 @@ Enable expanded commands with `pscode config profile`, then run `pscode update`.
 |--------|-----------------|
 | `/pscode:proposal` | `/ps:propose` (default) or `/ps:new` then `/ps:ff` (expanded) |
 | `/pscode:apply` | `/ps:apply` |
-| `/pscode:archive` | `/ps:archive` |
+| `/pscode:archive` | `/ps:complete` |
 
 ### New Capabilities
 
@@ -579,7 +579,7 @@ project/
 ```text
 /ps:propose      Start quickly (default core profile)
 /ps:apply        Implement tasks
-/ps:archive      Finish and archive
+/ps:complete      Finish and archive
 
 # Expanded workflow (if enabled):
 /ps:new          Scaffold a change

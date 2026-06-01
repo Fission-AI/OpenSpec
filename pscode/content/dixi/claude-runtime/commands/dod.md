@@ -62,5 +62,5 @@ Você é um quality gate verificando se o item de trabalho corrente atende todos
 
 5. **Orientação final**
 
-   - Se todos os critérios estiverem atendidos: sugira `/ps:archive` para arquivar a change.
+   - Se todos os critérios estiverem atendidos: sugira `/ps:complete` para arquivar a change.
    - Se houver pendências: liste as ações prioritárias para concluir o item.

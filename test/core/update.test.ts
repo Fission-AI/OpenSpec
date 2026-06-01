@@ -233,8 +233,8 @@ Old instructions content
 
       await updateCommand.execute(testDir);
 
-      // Verify core profile commands were created (propose, explore, apply, sync, archive)
-      const coreCommandIds = ['explore', 'apply', 'sync', 'archive', 'propose'];
+      // Verify core profile commands were created (propose, explore, apply, sync, complete)
+      const coreCommandIds = ['explore', 'apply', 'sync', 'complete', 'propose'];
       const commandsDir = path.join(testDir, '.claude', 'commands', 'ps');
       for (const cmdId of coreCommandIds) {
         const cmdFile = path.join(commandsDir, `${cmdId}.md`);

@@ -59,13 +59,13 @@ describe('skill-generation', () => {
     });
 
     it('should filter by workflow IDs when provided', () => {
-      const filtered = getSkillTemplates(['propose', 'explore', 'apply', 'archive']);
+      const filtered = getSkillTemplates(['propose', 'explore', 'apply', 'complete']);
       expect(filtered).toHaveLength(4);
       const ids = filtered.map(t => t.workflowId);
       expect(ids).toContain('propose');
       expect(ids).toContain('explore');
       expect(ids).toContain('apply');
-      expect(ids).toContain('archive');
+      expect(ids).toContain('complete');
       expect(ids).not.toContain('new');
       expect(ids).not.toContain('ff');
     });
@@ -112,7 +112,7 @@ describe('skill-generation', () => {
       expect(ids).toContain('apply');
       expect(ids).toContain('ff');
       expect(ids).toContain('sync');
-      expect(ids).toContain('archive');
+      expect(ids).toContain('complete');
       expect(ids).toContain('bulk-archive');
       expect(ids).toContain('verify');
       expect(ids).toContain('onboard');
@@ -122,13 +122,13 @@ describe('skill-generation', () => {
     });
 
     it('should filter by workflow IDs when provided', () => {
-      const filtered = getCommandTemplates(['propose', 'explore', 'apply', 'archive']);
+      const filtered = getCommandTemplates(['propose', 'explore', 'apply', 'complete']);
       expect(filtered).toHaveLength(4);
       const ids = filtered.map(t => t.id);
       expect(ids).toContain('propose');
       expect(ids).toContain('explore');
       expect(ids).toContain('apply');
-      expect(ids).toContain('archive');
+      expect(ids).toContain('complete');
       expect(ids).not.toContain('new');
       expect(ids).not.toContain('ff');
     });

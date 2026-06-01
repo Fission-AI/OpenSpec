@@ -11,7 +11,7 @@ The Pscode CLI (`pscode`) provides terminal commands for project setup, validati
 | **Shared context (beta)** | `context-store setup`, `context-store register`, `context-store list`, `context-store doctor`, `initiative create`, `initiative show`, `initiative list` | Manage local context-store registrations and durable initiative context |
 | **Browsing** | `list`, `view`, `show` | Explore changes and specs |
 | **Validation** | `validate` | Check changes and specs for issues |
-| **Lifecycle** | `archive` | Finalize completed changes |
+| **Lifecycle** | `complete` | Finalize completed changes |
 | **Workflow** | `new change`, `set change`, `status`, `instructions`, `templates`, `schemas` | Artifact-driven workflow support |
 | **Schemas** | `schema init`, `schema fork`, `schema validate`, `schema which` | Create and manage custom workflows |
 | **Config** | `config` | View and modify settings |
@@ -81,7 +81,7 @@ These options work with all commands:
 
 Initialize Pscode in your project. Creates the folder structure and configures AI tool integrations.
 
-Default behavior uses global config defaults: profile `core`, delivery `both`, workflows `propose, explore, apply, sync, archive`.
+Default behavior uses global config defaults: profile `core`, delivery `both`, workflows `propose, explore, apply, sync, complete`.
 
 ```
 pscode init [path] [options]
@@ -652,19 +652,19 @@ Validating add-dark-mode...
 
 ## Lifecycle Commands
 
-### `pscode archive`
+### `pscode complete`
 
-Archive a completed change and merge delta specs into main specs.
+Complete a change and merge delta specs into main specs.
 
 ```
-pscode archive [change-name] [options]
+pscode complete [change-name] [options]
 ```
 
 **Arguments:**
 
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `change-name` | No | Change to archive (prompts if omitted) |
+| `change-name` | No | Change to complete (prompts if omitted) |
 
 **Options:**
 
@@ -677,17 +677,17 @@ pscode archive [change-name] [options]
 **Examples:**
 
 ```bash
-# Interactive archive
-pscode archive
+# Interactive complete
+pscode complete
 
-# Archive specific change
-pscode archive add-dark-mode
+# Complete specific change
+pscode complete add-dark-mode
 
-# Archive without prompts (CI/scripts)
-pscode archive add-dark-mode --yes
+# Complete without prompts (CI/scripts)
+pscode complete add-dark-mode --yes
 
-# Archive a tooling change that doesn't affect specs
-pscode archive update-ci-config --skip-specs
+# Complete a tooling change that doesn't affect specs
+pscode complete update-ci-config --skip-specs
 ```
 
 **What it does:**

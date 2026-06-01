@@ -292,14 +292,14 @@ describe('workspace command', () => {
       expect.objectContaining({
         profile: 'standard',
         delivery: 'commands',
-        workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive'],
+        workflow_ids: ['propose', 'explore', 'apply', 'sync', 'complete'],
         selected_agents: ['codex'],
         skills_only: true,
         delivery_notice: expect.stringContaining('skills only'),
         generated: [
           expect.objectContaining({
             tool_id: 'codex',
-            workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive'],
+            workflow_ids: ['propose', 'explore', 'apply', 'sync', 'complete'],
           }),
         ],
         refreshed: [],
@@ -319,7 +319,7 @@ describe('workspace command', () => {
         selected_agents: ['codex'],
         last_applied_profile: 'standard',
         last_applied_delivery: 'commands',
-        last_applied_workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive'],
+        last_applied_workflow_ids: ['propose', 'explore', 'apply', 'sync', 'complete'],
         last_applied_at: expect.any(String),
       })
     );
@@ -345,7 +345,7 @@ describe('workspace command', () => {
     expect(readWorkspaceState(setup.workspace.root).workspace_skills).toEqual(
       expect.objectContaining({
         selected_agents: [],
-        last_applied_workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive'],
+        last_applied_workflow_ids: ['propose', 'explore', 'apply', 'sync', 'complete'],
       })
     );
   });
@@ -394,14 +394,14 @@ describe('workspace command', () => {
       expect.objectContaining({
         profile: 'standard',
         delivery: 'commands',
-        workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive'],
+        workflow_ids: ['propose', 'explore', 'apply', 'sync', 'complete'],
         selected_agents: ['codex'],
         skills_only: true,
         delivery_notice: expect.stringContaining('skills only'),
         refreshed: [
           expect.objectContaining({
             tool_id: 'codex',
-            workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive'],
+            workflow_ids: ['propose', 'explore', 'apply', 'sync', 'complete'],
           }),
         ],
         removed: [],
@@ -422,7 +422,7 @@ describe('workspace command', () => {
         selected_agents: ['codex'],
         last_applied_profile: 'standard',
         last_applied_delivery: 'commands',
-        last_applied_workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive'],
+        last_applied_workflow_ids: ['propose', 'explore', 'apply', 'sync', 'complete'],
       })
     );
 
@@ -597,7 +597,7 @@ describe('workspace command', () => {
       expect.objectContaining({
         selected_agents: ['codex'],
         last_applied_profile: 'standard',
-        last_applied_workflow_ids: ['propose', 'explore', 'apply', 'sync', 'archive'],
+        last_applied_workflow_ids: ['propose', 'explore', 'apply', 'sync', 'complete'],
       })
     );
   });

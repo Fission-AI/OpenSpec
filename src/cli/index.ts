@@ -7,7 +7,7 @@ import { promises as fs } from 'fs';
 import { AI_TOOLS } from '../core/config.js';
 import { UpdateCommand } from '../core/update.js';
 import { ListCommand } from '../core/list.js';
-import { ArchiveCommand } from '../core/archive.js';
+import { CompleteCommand } from '../core/complete.js';
 import { ViewCommand } from '../core/view.js';
 import { registerSpecCommand } from '../commands/spec.js';
 import { ChangeCommand } from '../commands/change.js';
@@ -282,15 +282,15 @@ changeCmd
   });
 
 program
-  .command('archive [change-name]')
-  .description('Archive a completed change and update main specs')
+  .command('complete [change-name]')
+  .description('Complete a change and update main specs')
   .option('-y, --yes', 'Skip confirmation prompts')
   .option('--skip-specs', 'Skip spec update operations (useful for infrastructure, tooling, or doc-only changes)')
   .option('--no-validate', 'Skip validation (not recommended, requires confirmation)')
   .action(async (changeName?: string, options?: { yes?: boolean; skipSpecs?: boolean; noValidate?: boolean; validate?: boolean }) => {
     try {
-      const archiveCommand = new ArchiveCommand();
-      await archiveCommand.execute(changeName, options);
+      const completeCommand = new CompleteCommand();
+      await completeCommand.execute(changeName, options);
     } catch (error) {
       console.log(); // Empty line for spacing
       ora().fail(`Error: ${(error as Error).message}`);

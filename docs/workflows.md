@@ -37,12 +37,12 @@ New installs default to `core`, which provides:
 - `/ps:explore`
 - `/ps:apply`
 - `/ps:sync`
-- `/ps:archive`
+- `/ps:complete`
 
 Typical flow:
 
 ```text
-/ps:propose ──► /ps:apply ──► /ps:sync ──► /ps:archive
+/ps:propose ──► /ps:apply ──► /ps:sync ──► /ps:complete
 ```
 
 ### Expanded/Full Workflow (custom selection)
@@ -61,7 +61,7 @@ pscode update
 When you know what you want to build and just need to execute:
 
 ```text
-/ps:new ──► /ps:ff ──► /ps:apply ──► /ps:verify ──► /ps:archive
+/ps:new ──► /ps:ff ──► /ps:apply ──► /ps:verify ──► /ps:complete
 ```
 
 **Example conversation:**
@@ -89,7 +89,7 @@ AI:  Working through tasks...
      ✓ Added confirmation dialog
      All tasks complete!
 
-You: /ps:archive
+You: /ps:complete
 
 AI:  ✓ Merged specs
      ✓ Archived change
@@ -178,7 +178,7 @@ AI:  Working on fix-login-redirect...
      [Implements the fix]
      All tasks complete!
 
-You: /ps:archive
+You: /ps:complete
 
 AI:  ✓ Archived fix-login-redirect
 
@@ -225,7 +225,7 @@ Bulk archive detects when multiple changes touch the same specs and resolves con
 The recommended completion flow:
 
 ```text
-/ps:apply ──► /ps:verify ──► /ps:archive
+/ps:apply ──► /ps:verify ──► /ps:complete
                     │                 │
               validates          prompts to sync
               implementation     if needed
@@ -278,10 +278,10 @@ Verify won't block archive, but it surfaces issues you might want to address fir
 
 #### Archive: Finalize the Change
 
-`/ps:archive` completes the change and moves it to the archive:
+`/ps:complete` completes the change and moves it to the archive:
 
 ```text
-You: /ps:archive
+You: /ps:complete
 
 AI:  Archiving add-auth...
 
@@ -442,7 +442,7 @@ For full command details and options, see [Commands](commands.md).
 | `/ps:apply` | Implement tasks | Ready to write code |
 | `/ps:verify` | Validate implementation | Expanded mode, before archiving |
 | `/ps:sync` | Merge delta specs | Expanded mode, optional |
-| `/ps:archive` | Complete the change | All work finished |
+| `/ps:complete` | Complete the change | All work finished |
 | `/ps:bulk-archive` | Archive multiple changes | Expanded mode, parallel work |
 
 ## Next Steps

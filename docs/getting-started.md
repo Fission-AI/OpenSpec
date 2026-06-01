@@ -9,13 +9,13 @@ Pscode helps you and your AI coding assistant agree on what to build before any 
 **Default quick path (core profile):**
 
 ```text
-/ps:propose ──► /ps:apply ──► /ps:sync ──► /ps:archive
+/ps:propose ──► /ps:apply ──► /ps:sync ──► /ps:complete
 ```
 
 **Expanded path (custom workflow selection):**
 
 ```text
-/ps:new ──► /ps:ff or /ps:continue ──► /ps:apply ──► /ps:verify ──► /ps:archive
+/ps:new ──► /ps:ff or /ps:continue ──► /ps:apply ──► /ps:verify ──► /ps:complete
 ```
 
 The default global profile is `core`, which includes `propose`, `explore`, `apply`, `sync`, and `archive`. You can enable the expanded workflow commands with `pscode config profile` and then `pscode update`.
@@ -217,7 +217,7 @@ During implementation, if you discover the design needs adjustment, just update 
 ### 4. Archive
 
 ```
-You: /ps:archive
+You: /ps:complete
 
 AI:  Archiving add-dark-mode...
      ✓ Merged specs into pscode/specs/ui/spec.md

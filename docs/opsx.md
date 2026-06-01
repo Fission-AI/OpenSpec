@@ -165,7 +165,7 @@ rules:
 | `/ps:apply` | Implement tasks, updating artifacts as needed |
 | `/ps:verify` | Validate implementation against artifacts (expanded workflow) |
 | `/ps:sync` | Sync delta specs to main (default workflow, optional) |
-| `/ps:archive` | Archive when done |
+| `/ps:complete` | Archive when done |
 | `/ps:bulk-archive` | Archive multiple completed changes (expanded workflow) |
 | `/ps:onboard` | Guided walkthrough of an end-to-end change (expanded workflow) |
 
@@ -210,7 +210,7 @@ Works through tasks, checking them off as you go. If you're juggling multiple ch
 
 ### Finish up
 ```
-/ps:archive   # Move to archive when done (prompts to sync specs if needed)
+/ps:complete   # Move to archive when done (prompts to sync specs if needed)
 ```
 
 ## When to Update vs. Start Fresh
@@ -541,7 +541,7 @@ Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, no
 **OPSX** — natural iteration:
 
 ```
-  /ps:new ───► /ps:continue ───► /ps:apply ───► /ps:archive
+  /ps:new ───► /ps:continue ───► /ps:apply ───► /ps:complete
       │                │                  │
       │                │                  ├── "The design is wrong"
       │                │                  │

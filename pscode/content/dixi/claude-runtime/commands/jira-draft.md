@@ -69,7 +69,7 @@ Você é um assistente de integração JIRA criando uma issue a partir do contex
    **Link:** <url da issue>
 
    O campo `jiraIssueKey` foi gravado em `.pscode.yaml`.
-   Ao executar `pscode archive`, a issue será transitada para "done" automaticamente.
+   Ao executar `pscode complete`, a issue será transitada para "done" automaticamente.
    ```
 
 7. **Tratamento de erros**

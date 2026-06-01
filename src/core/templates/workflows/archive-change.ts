@@ -6,10 +6,10 @@
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 
-export function getArchiveChangeSkillTemplate(): SkillTemplate {
+export function getCompleteChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'pscode-archive-change',
-    description: 'Archive a completed change. Use when the user wants to finalize and archive a change after implementation is complete.',
+    description: 'Complete a completed change. Use when the user wants to finalize and complete a change after implementation is complete.',
     instructions: getArchiveInstructions(),
     license: 'MIT',
     compatibility: 'Requires pscode CLI.',
@@ -17,20 +17,20 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
   };
 }
 
-export function getPsArchiveCommandTemplate(): CommandTemplate {
+export function getPsCompleteCommandTemplate(): CommandTemplate {
   return {
-    name: 'PS: Archive',
-    description: 'Archive a completed change',
+    name: 'PS: Complete',
+    description: 'Complete a change',
     category: 'Workflow',
-    tags: ['workflow', 'archive'],
+    tags: ['workflow', 'complete'],
     content: getArchiveInstructions(),
   };
 }
 
 function getArchiveInstructions(): string {
-  return `Archive a completed change.
+  return `Complete a change.
 
-**Input**: Optionally specify a change name (e.g., \`/ps:archive add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Input**: Optionally specify a change name (e.g., \`/ps:complete add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
@@ -126,7 +126,7 @@ function getArchiveInstructions(): string {
      mcp__claude_ai_Trello_Custom__create_card
        list_id: "<lists.done.id>"
        name: "<human-readable change name in Portuguese>"
-       desc: "Arquivada via /ps:archive"
+       desc: "Concluida via /ps:complete"
      \`\`\`
      Then mark it complete.
 
@@ -150,7 +150,7 @@ function getArchiveInstructions(): string {
    mcp__claude_ai_Trello_Custom__add_comment
      card_id: "<cardId>"
      text: |
-       Change arquivada via /ps:archive
+       Change concluida via /ps:complete
 
        Change: <change-name>
        Schema: <schema-name>

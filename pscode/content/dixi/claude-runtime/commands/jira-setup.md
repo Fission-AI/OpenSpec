@@ -100,6 +100,6 @@ Você é um assistente de configuração JIRA guiando o desenvolvedor na criaç�
    ### Próximos passos
    - Use /pstld:jira-draft para criar uma issue JIRA a partir da change atual
    - Adicione `jiraIssueKey` ao .pscode.yaml de uma change para vinculá-la a uma issue existente
-   - Ao executar `pscode archive`, a issue vinculada será transitada para "done" automaticamente
+   - Ao executar `pscode complete`, a issue vinculada será transitada para "done" automaticamente
    - Use /pstld:jira-sync para verificar a conexão a qualquer momento
    ```

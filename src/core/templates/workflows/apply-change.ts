@@ -192,7 +192,7 @@ function getApplyInstructions(): string {
           Testado por: <usuario / Claude>
           Status: Funcionando
 
-          Proximo passo: /ps:archive <name> para arquivar a change.
+          Proximo passo: /ps:complete <name> para arquivar a change.
       \`\`\`
 
    If any Trello call fails, continue — Trello is auxiliary, never blocking.
@@ -207,7 +207,7 @@ function getApplyInstructions(): string {
    Display:
    - Tasks completed this session
    - Overall progress: "N/M tasks complete"
-   - If all done and approved: mention Trello stage (Em Teste or Ready to Deploy) and suggest \`/ps:archive\`
+   - If all done and approved: mention Trello stage (Em Teste or Ready to Deploy) and suggest \`/ps:complete\`
    - If paused: explain why and wait for guidance
 
 **Output During Implementation**
@@ -250,7 +250,7 @@ All tasks complete! How would you like to validate the implementation?
 **Change:** <change-name>
 **Trello:** Card moved to 🚀 Ready to Deploy  ← only shown if lists.deploy is configured
 
-Ready to archive with \`/ps:archive\`.
+Ready to archive with \`/ps:complete\`.
 \`\`\`
 
 **Output On Pause (Issue Encountered)**

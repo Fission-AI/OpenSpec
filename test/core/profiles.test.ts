@@ -17,7 +17,7 @@ describe('profiles', () => {
     it('should contain expected workflow IDs', () => {
       const expected = [
         'propose', 'explore', 'new', 'continue', 'apply',
-        'ff', 'sync', 'archive', 'bulk-archive', 'verify', 'onboard',
+        'ff', 'sync', 'complete', 'bulk-archive', 'verify', 'onboard',
         'trello-setup', 'draft',
         'rfc', 'design', 'tasks', 'arch-check', 'adr', 'jira-sync', 'dod',
       ];
@@ -46,7 +46,7 @@ describe('profiles', () => {
     });
 
     it('standard profile should contain the 5 base workflows', () => {
-      expect([...PROFILES.standard.workflows]).toEqual(['propose', 'explore', 'apply', 'sync', 'archive']);
+      expect([...PROFILES.standard.workflows]).toEqual(['propose', 'explore', 'apply', 'sync', 'complete']);
     });
 
     it('all profile workflows should be valid workflow IDs', () => {

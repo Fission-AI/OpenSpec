@@ -121,13 +121,13 @@ describe('InitCommand', () => {
 
       await initCommand.execute(testDir);
 
-      // Core profile: propose, explore, apply, sync, archive
+      // Core profile: propose, explore, apply, sync, complete
       const coreCommandNames = [
         'ps/propose.md',
         'ps/explore.md',
         'ps/apply.md',
         'ps/sync.md',
-        'ps/archive.md',
+        'ps/complete.md',
       ];
 
       for (const cmdName of coreCommandNames) {

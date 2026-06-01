@@ -129,8 +129,8 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     ],
   },
   {
-    name: 'archive',
-    description: 'Archive a completed change and update main specs',
+    name: 'complete',
+    description: 'Complete a change and update main specs',
     acceptsPositional: true,
     positionalType: 'change-id',
     positionals: [{ name: 'change-name', type: 'change-id', optional: true }],

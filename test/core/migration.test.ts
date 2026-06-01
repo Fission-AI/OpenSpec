@@ -53,11 +53,11 @@ describe('migration', () => {
 
     it('detects command-only workflows', async () => {
       await writeManagedCommand(projectDir, 'explore');
-      await writeManagedCommand(projectDir, 'archive');
+      await writeManagedCommand(projectDir, 'complete');
 
       const workflows = scanInstalledWorkflows(projectDir, [ensureClaudeTool()]);
       expect(workflows).toContain('explore');
-      expect(workflows).toContain('archive');
+      expect(workflows).toContain('complete');
     });
 
     it('detects workflows from both skills and commands', async () => {

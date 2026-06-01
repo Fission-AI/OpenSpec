@@ -421,25 +421,25 @@ All tasks done:
 - [x] Task 2
 - [x] ...
 
-The change is implemented! One more step—let's archive it.
+The change is implemented! One more step—let's complete it.
 \`\`\`
 
 ---
 
-## Phase 10: Archive
+## Phase 10: Complete
 
 **EXPLAIN:**
 \`\`\`
-## Archiving
+## Completing
 
-When a change is complete, we archive it. The archive path is derived from \`planningHome.changesDir\` and the date.
+When a change is complete, we complete it. The archive path is derived from \`planningHome.changesDir\` and the date.
 
-Archived changes become your project's decision history—you can always find them later to understand why something was built a certain way.
+Completed changes become your project's decision history—you can always find them later to understand why something was built a certain way.
 \`\`\`
 
 **DO:**
 \`\`\`bash
-pscode archive "<name>"
+pscode complete "<name>"
 \`\`\`
 
 **SHOW:**
@@ -472,7 +472,7 @@ automaticamente cards no Trello conforme você avança nas suas changes.
 - /ps:draft  → registra ideias em "Para Explorar"
 - /ps:propose → move card para "Em Refinamento"
 - /ps:apply  → move card para "Em Desenvolvimento" e depois "Em Teste"
-- /ps:archive → move card para "Concluído"
+- /ps:complete → move card para "Concluído"
 
 Deseja configurar agora?
 \`\`\`
@@ -516,7 +516,7 @@ This same rhythm works for any size change—a small fix or a major feature.
  | \`/ps:propose\`     | Create a change and generate all artifacts |
  | \`/ps:explore\`     | Think through problems before/during work  |
  | \`/ps:apply\`       | Implement tasks from a change              |
- | \`/ps:archive\`     | Archive a completed change                 |
+ | \`/ps:complete\`     | Complete a change                          |
 
 **Additional commands:**
 
@@ -576,7 +576,7 @@ If the user says they just want to see the commands or skip the tutorial:
  | \`/ps:propose <name>\` | Create a change and generate all artifacts |
  | \`/ps:explore\`        | Think through problems (no code changes)   |
  | \`/ps:apply <name>\`   | Implement tasks                            |
- | \`/ps:archive <name>\` | Archive when done                          |
+ | \`/ps:complete <name>\` | Complete when done                         |
 
 **Additional commands:**
 
