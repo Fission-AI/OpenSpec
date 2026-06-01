@@ -1,0 +1,30 @@
+# Features
+
+Cada feature é uma unidade autônoma de funcionalidade de negócio.
+
+## Estrutura de uma feature
+
+```
+features/
+└── nome-da-feature/
+    ├── components/    # Componentes React específicos da feature
+    ├── hooks/         # React hooks específicos da feature
+    ├── services/      # Chamadas de API específicas da feature
+    ├── types/         # Tipos TypeScript específicos da feature
+    └── index.ts       # Ponto de entrada — exporta apenas a API pública
+```
+
+## Regras de importação
+
+- Features **não importam umas das outras**
+  - ❌ `import { foo } from '@/features/outra-feature'`
+  - ✅ Mova o código compartilhado para `shared/`
+- Código compartilhado vive em `shared/` (componentes, hooks, serviços, tipos, utils)
+- Páginas (`pages/` ou `app/`) podem importar de `features/` via `index.ts`
+
+## Como criar uma nova feature
+
+1. Crie o diretório `features/nome-da-feature/`
+2. Adicione subdiretórios conforme necessário (`components/`, `hooks/`, etc.)
+3. Exporte a API pública via `index.ts`
+4. Importe nas páginas via `@/features/nome-da-feature`

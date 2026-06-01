@@ -1,0 +1,44 @@
+// eslint-architecture.mjs
+// Regras de isolamento arquitetural para feature-sliced design.
+//
+// Integração: adicione ao seu eslint.config.js:
+//
+//   import architectureRules from './eslint-architecture.mjs';
+//   export default [...existingConfig, ...architectureRules];
+
+export default [
+  {
+    files: ['src/features/**/*.{ts,tsx,js,jsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['../features/*', '../../features/*', '@/features/*/'],
+              message:
+                'Features não devem importar umas das outras. Use shared/ para código compartilhado.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/pages/**/*.{ts,tsx}', 'src/app/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['*/application/*', '*/domain/*', '*/usecases/*'],
+              message:
+                'Páginas não devem importar lógica de negócio diretamente. Use features/ ou shared/ como intermediários.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+];

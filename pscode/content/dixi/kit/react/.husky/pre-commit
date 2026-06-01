@@ -1,0 +1,2 @@
+#!/usr/bin/env sh
+npx --no-install lint-staged

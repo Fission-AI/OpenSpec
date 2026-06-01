@@ -1,0 +1,41 @@
+package {basePackage};
+
+import com.tngtech.archunit.core.domain.JavaClasses;
+import com.tngtech.archunit.core.importer.ClassFileImporter;
+import com.tngtech.archunit.lang.ArchRule;
+import org.junit.jupiter.api.Test;
+
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+
+public class ArchitectureTest {
+
+    private static final JavaClasses classes =
+        new ClassFileImporter().importPackages("{basePackage}");
+
+    @Test
+    void dominio_nao_deve_depender_de_infra() {
+        ArchRule rule = noClasses()
+            .that().resideInAPackage("{basePackage}.domain..")
+            .should().dependOnClassesThat()
+            .resideInAPackage("{basePackage}.infrastructure..");
+        rule.check(classes);
+    }
+
+    @Test
+    void aplicacao_nao_deve_depender_de_infra() {
+        ArchRule rule = noClasses()
+            .that().resideInAPackage("{basePackage}.application..")
+            .should().dependOnClassesThat()
+            .resideInAPackage("{basePackage}.infrastructure..");
+        rule.check(classes);
+    }
+
+    @Test
+    void adapter_in_nao_deve_depender_de_adapter_out() {
+        ArchRule rule = noClasses()
+            .that().resideInAPackage("{basePackage}.infrastructure.adapter.in..")
+            .should().dependOnClassesThat()
+            .resideInAPackage("{basePackage}.infrastructure.adapter.out..");
+        rule.check(classes);
+    }
+}

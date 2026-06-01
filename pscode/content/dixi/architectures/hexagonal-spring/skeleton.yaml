@@ -1,0 +1,11 @@
+dirs:
+  - src/main/java/{basePackageDir}/domain/model
+  - src/main/java/{basePackageDir}/domain/port/in
+  - src/main/java/{basePackageDir}/domain/port/out
+  - src/main/java/{basePackageDir}/application/usecase
+  - src/main/java/{basePackageDir}/infrastructure/adapter/in/rest
+  - src/main/java/{basePackageDir}/infrastructure/adapter/out/persistence
+  - src/main/java/{basePackageDir}/infrastructure/config
+  - src/test/java/{basePackageDir}/domain
+  - src/test/java/{basePackageDir}/application
+  - src/test/java/{basePackageDir}/infrastructure

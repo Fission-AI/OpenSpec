@@ -1,0 +1,8 @@
+dirs:
+  - src/shared/components/ui
+  - src/shared/hooks
+  - src/shared/services
+  - src/shared/types
+  - src/shared/utils
+  - src/entities
+  - src/features

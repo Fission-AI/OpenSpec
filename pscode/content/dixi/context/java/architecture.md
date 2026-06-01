@@ -122,3 +122,22 @@ public class PedidoJpaRepository implements PedidoRepository {
 - **Entidades de domínio são imutáveis por padrão** — use construtores e métodos explícitos, evite setters
 - **Mappers** ficam em `infrastructure` para converter entre entidades de domínio e entidades JPA/DTOs
 - **Anotações Spring** (`@Service`, `@Repository`, `@RestController`) pertencem à infraestrutura, não ao domínio
+
+## Skeleton e guardrails automáticos (profile dixi)
+
+`pscode init --profile dixi` cria automaticamente o skeleton de pastas hexagonal com `.gitkeep` em cada diretório e gera `src/test/java/{basePackage}/ArchitectureTest.java` com três regras ArchUnit pré-configuradas:
+
+1. `domain` não depende de `infrastructure`
+2. `application` não depende de `infrastructure`
+3. `infrastructure.adapter.in` não depende de `infrastructure.adapter.out`
+
+O `basePackage` é detectado automaticamente do `pom.xml` (`groupId` + `artifactId` sem hífens). Adicione a dependência ArchUnit ao `pom.xml` para ativar as verificações:
+
+```xml
+<dependency>
+  <groupId>com.tngtech.archunit</groupId>
+  <artifactId>archunit-junit5</artifactId>
+  <version>1.3.0</version>
+  <scope>test</scope>
+</dependency>
+```

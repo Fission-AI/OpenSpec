@@ -103,3 +103,17 @@ Crie uma nova feature quando:
 - A funcionalidade tem um domínio claramente delimitado
 - Possui componentes, hooks e serviços próprios
 - Não é reutilizável por natureza (se for reutilizável, considere `entities` ou `shared`)
+
+## Skeleton e guardrails automáticos (profile dixi)
+
+`pscode init --profile dixi` cria automaticamente a estrutura feature-sliced com `.gitkeep` nos diretórios folha e `features/README.md` com as convenções documentadas. Também instala `eslint-architecture.mjs` na raiz com regras `no-restricted-imports` para:
+
+- Isolar features entre si (features não importam umas das outras)
+- Impedir que páginas importem lógica de negócio diretamente
+
+Para ativar as regras no ESLint, adicione ao `eslint.config.js`:
+
+```js
+import architectureRules from './eslint-architecture.mjs';
+export default [...existingConfig, ...architectureRules];
+```

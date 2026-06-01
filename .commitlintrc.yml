@@ -1,0 +1,15 @@
+extends:
+  - '@commitlint/config-conventional'
+
+plugins:
+  - commitlint-plugin-jira-rules
+
+rules:
+  subject-case:
+    - 2
+    - always
+    - lower-case
+  jira-task-id-max-length:
+    - 1
+    - always
+    - 120
