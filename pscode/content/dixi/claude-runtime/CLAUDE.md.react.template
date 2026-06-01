@@ -1,0 +1,74 @@
+<!-- dixi-constitutional -->
+# Regras Constitucionais — React/Next.js + TypeScript (Feature-Sliced Design)
+
+> Regras invioláveis. Não negocie sem motivo documentado.
+> Detalhes completos em `pastelsdd/context/`.
+
+## Feature-Sliced Design
+
+### Camadas (da mais compartilhada para a mais específica)
+```
+shared → entities → features → pages/app
+```
+- `shared/` — UI primitivos, utilitários, tipos globais, configuração de API
+- `entities/` — modelos de domínio (User, Order) sem lógica de feature
+- `features/` — funcionalidades de produto isoladas (auth, cart, checkout)
+- `pages/` ou `app/` — composição de features e rotas (Next.js)
+
+### Regra de Isolamento de Features (OBRIGATÓRIO)
+- **Features NÃO importam umas das outras**
+- Se dois features precisam de algo em comum → mover para `entities/` ou `shared/`
+- `pages/app` orquestra features; não contém lógica de negócio
+
+### Imports Proibidos
+- `features/auth` nunca importa `features/cart` (ou qualquer outro feature)
+- `shared/` nunca importa `entities/` ou `features/`
+- `entities/` nunca importa `features/`
+
+## Nomenclatura
+
+| Tipo | Convenção |
+|------|-----------|
+| Componentes React | `PascalCase` — `UserCard`, `OrderList` |
+| Hooks | `use` + `PascalCase` — `useUserSession`, `useCartItems` |
+| Services / API | `camelCase` — `userService`, `orderApi` |
+| Arquivos de componente | `PascalCase.tsx` — `UserCard.tsx` |
+| Arquivos de hook | `camelCase.ts` — `useUserSession.ts` |
+| Arquivos de tipo | `camelCase.types.ts` ou `types.ts` no módulo |
+| Testes | `<nome>.test.tsx` no mesmo diretório |
+
+## Estrutura Interna de um Feature
+
+```
+features/auth/
+  ui/          ← componentes do feature
+  model/       ← store, hooks, lógica de estado
+  api/         ← chamadas de API específicas do feature
+  lib/         ← helpers internos
+  index.ts     ← API pública do feature (barrel export)
+```
+Só o que está em `index.ts` pode ser importado de fora do feature.
+
+## Commits
+
+Formato obrigatório: `<type>(<scope>): <msg> [TICKET-123]`
+
+- `type`: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
+- `scope`: feature ou camada afetada (e.g., `auth`, `cart`, `shared`)
+- Ticket JIRA obrigatório. Se não houver ticket, usar `[NO-TICKET]`
+
+Exemplos:
+```
+feat(auth): add OAuth2 login flow [PROJ-10]
+fix(cart): correct item count on empty cart [PROJ-23]
+```
+
+## Referências
+
+Docs completos em `pastelsdd/context/`:
+- `pastelsdd/context/react/architecture.md` — guia completo de feature-sliced design
+- `pastelsdd/context/react/naming.md` — convenções de nomenclatura
+- `pastelsdd/context/shared/commits.md` — convenção completa de commits
+- `pastelsdd/context/shared/dev-flow.md` — fluxo de desenvolvimento e PR
+
+> Se `pastelsdd/context/` não existe, rode `pscode init --profile dixi` para instalar.

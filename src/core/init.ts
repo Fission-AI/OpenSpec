@@ -52,6 +52,8 @@ import {
 } from './shared/index.js';
 import { getGlobalConfig, type Delivery } from './global-config.js';
 import { getProfileWorkflows, isValidProfile, DEFAULT_PROFILE, type ProfileName, PROFILES, ALL_WORKFLOWS } from './profiles.js';
+import { detectDixiStack, getDixiStackFamily, getDixiStackLabel, installDixiExtras } from './presets/dixi.js';
+import { stringify as stringifyYaml } from 'yaml';
 import { getAvailableTools } from './available-tools.js';
 import { migrateIfNeeded } from './migration.js';
 
@@ -164,6 +166,9 @@ export class InitCommand {
 
     // Generate skills and commands for each tool
     const results = await this.generateSkillsAndCommands(projectPath, validatedTools);
+
+    // Dixi profile extras: stack detection and .pscode-dixi.yaml
+    await this.handleDixiExtras(projectPath);
 
     // Create config.yaml if needed
     const configStatus = await this.createConfig(pscodePath, extendMode);
@@ -830,6 +835,29 @@ export class InitCommand {
     }
 
     console.log();
+  }
+
+  private async handleDixiExtras(projectPath: string): Promise<void> {
+    const globalConfig = getGlobalConfig();
+    const profile: ProfileName = this.resolveProfileOverride() ?? (isValidProfile(globalConfig.profile ?? '') ? globalConfig.profile as ProfileName : DEFAULT_PROFILE);
+
+    if (profile !== 'dixi') return;
+
+    const stack = detectDixiStack(projectPath);
+    const label = getDixiStackLabel(stack);
+
+    if (stack) {
+      console.log(`Dixi: stack detectada — ${label}`);
+    } else {
+      console.log('Dixi: stack não detectada, usando configuração genérica');
+    }
+
+    installDixiExtras(projectPath, stack);
+
+    const family = getDixiStackFamily(stack);
+    const yamlContent = stringifyYaml({ stack, family, detectedAt: new Date().toISOString() });
+    const dixiYamlPath = path.join(projectPath, '.pscode-dixi.yaml');
+    await FileSystemUtils.writeFile(dixiYamlPath, yamlContent);
   }
 
   private startSpinner(text: string) {

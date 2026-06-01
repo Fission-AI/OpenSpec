@@ -1,0 +1,62 @@
+<!-- dixi-constitutional -->
+# Regras Constitucionais — Java/Spring (Arquitetura Hexagonal)
+
+> Regras invioláveis. Não negocie sem motivo documentado.
+> Detalhes completos em `pastelsdd/context/`.
+
+## Arquitetura Hexagonal
+
+### Camadas (da mais interna para a mais externa)
+- `domain/` — entidades, value objects, interfaces de repositório, regras de negócio puras
+- `application/` — use cases, ports (interfaces de entrada e saída)
+- `infrastructure/` — adapters (JPA, REST controllers, messaging, config)
+
+### Regra de Dependência (OBRIGATÓRIO)
+```
+infrastructure → application → domain
+```
+- `domain` não importa NADA de `application` ou `infrastructure`
+- `application` não importa NADA de `infrastructure`
+- Adapters (`infrastructure`) só acessam `application` via interfaces (ports)
+
+### Imports Proibidos
+- `domain.*` nunca importa `application.*` ou `infrastructure.*`
+- `application.*` nunca importa `infrastructure.*`
+- Exceção: testes de integração em `infrastructure/` podem referenciar qualquer camada
+
+## Nomenclatura por Camada
+
+| Camada | Sufixo/Convenção |
+|--------|------------------|
+| `domain/entity/` | `Order`, `Customer` (sem sufixo) |
+| `domain/repository/` | `OrderRepository` (interface) |
+| `domain/service/` | `PricingService` (interface/pura) |
+| `application/usecase/` | `CreateOrderUseCase` |
+| `application/port/in/` | `CreateOrderPort` |
+| `application/port/out/` | `SaveOrderPort` |
+| `infrastructure/adapter/in/` | `OrderController`, `OrderListener` |
+| `infrastructure/adapter/out/` | `OrderJpaAdapter`, `OrderEmailAdapter` |
+
+## Commits
+
+Formato obrigatório: `<type>(<scope>): <msg> [TICKET-123]`
+
+- `type`: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
+- `scope`: módulo ou camada afetada (e.g., `order`, `domain`, `infra`)
+- Ticket JIRA obrigatório. Se não houver ticket, usar `[NO-TICKET]`
+
+Exemplos:
+```
+feat(order): add CreateOrderUseCase [PROJ-42]
+fix(infra): correct JPA mapping for OrderStatus [PROJ-55]
+```
+
+## Referências
+
+Docs completos em `pastelsdd/context/`:
+- `pastelsdd/context/java/architecture.md` — guia completo de arquitetura hexagonal
+- `pastelsdd/context/java/naming.md` — convenções de nomenclatura por camada
+- `pastelsdd/context/shared/commits.md` — convenção completa de commits
+- `pastelsdd/context/shared/dev-flow.md` — fluxo de desenvolvimento e PR
+
+> Se `pastelsdd/context/` não existe, rode `pscode init --profile dixi` para instalar.

@@ -33,6 +33,7 @@
     "dist",
     "bin",
     "schemas",
+    "pscode/content",
     "scripts/postinstall.js",
     "!dist/**/*.test.js",
     "!dist/**/__tests__",
