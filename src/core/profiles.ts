@@ -38,7 +38,7 @@ export interface ProfileDefinition {
 export const PROFILES = {
   standard: {
     description: 'Padrão — propose, explore, apply, complete',
-    workflows: ['propose', 'explore', 'apply', 'complete'],
+    workflows: ['propose', 'explore', 'apply', 'complete', 'trello-setup', 'draft'],
   },
   dixi: {
     description: 'Dixi — RFC→Design→Tasks→Apply com guardrails para Java/Spring e React/Next.js',
