@@ -11,6 +11,7 @@ import {
   VALIDATION_MESSAGES
 } from './constants.js';
 import { parseDeltaSpec, normalizeRequirementName } from '../parsers/requirement-blocks.js';
+import { buildCodeFenceMask } from '../parsers/code-fence.js';
 import { findMainSpecStructureIssues } from '../parsers/spec-structure.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 
@@ -414,15 +415,19 @@ export class Validator {
 
   private extractRequirementText(blockRaw: string): string | undefined {
     const lines = blockRaw.split('\n');
-    // Skip header line (index 0)
-    let i = 1;
+    const fenceMask = buildCodeFenceMask(lines);
 
-    // Find the first substantial text line, skipping metadata and blank lines
-    for (; i < lines.length; i++) {
+    // Find the first substantial text line, skipping metadata and blank lines.
+    // Header line is at index 0, so start at 1.
+    for (let i = 1; i < lines.length; i++) {
       const line = lines[i];
 
-      // Stop at scenario headers
-      if (/^####\s+/.test(line)) break;
+      // Stop at scenario headers (ignoring "####" lines inside fenced code blocks)
+      if (!fenceMask[i] && /^####\s+/.test(line)) break;
+
+      // Skip content inside fenced code blocks; it is illustrative, not the
+      // requirement statement.
+      if (fenceMask[i]) continue;
 
       const trimmed = line.trim();
 
@@ -463,8 +468,13 @@ export class Validator {
   }
 
   private countScenarios(blockRaw: string): number {
-    const matches = blockRaw.match(/^####\s+/gm);
-    return matches ? matches.length : 0;
+    const lines = blockRaw.split('\n');
+    const fenceMask = buildCodeFenceMask(lines);
+    let count = 0;
+    for (let i = 0; i < lines.length; i++) {
+      if (!fenceMask[i] && /^####\s+/.test(lines[i])) count++;
+    }
+    return count;
   }
 
   private formatSectionList(sections: string[]): string {
