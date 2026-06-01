@@ -39,7 +39,7 @@ const OPSX_TO_CODEX_SKILL: Record<string, string> = {
  * users at the supported `$openspec-*` skill surface instead of `/opsx:*`.
  */
 export function transformToCodexSkillReferences(text: string): string {
-  return text.replace(/\/opsx[:\-]([a-z][a-z-]*)/g, (match, commandId: string) => {
+  return text.replace(/\/opsx[:\-]([a-z][a-z-]*)(?![a-z0-9-])/g, (match, commandId: string) => {
     return OPSX_TO_CODEX_SKILL[commandId] ?? match;
   });
 }

@@ -101,4 +101,10 @@ describe('transformToCodexSkillReferences', () => {
       'Use $openspec-new-change, $openspec-continue-change, $openspec-bulk-archive-change, and $openspec-onboard.'
     );
   });
+
+  it('should not transform partial command references', () => {
+    const input = 'Ignore /opsx:apply2, /opsx-apply-extra, and /opsx:bulk-archive2.';
+
+    expect(transformToCodexSkillReferences(input)).toBe(input);
+  });
 });
