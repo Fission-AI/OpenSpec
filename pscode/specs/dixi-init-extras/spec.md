@@ -34,24 +34,28 @@ O sistema SHALL criar o arquivo `.pscode-dixi.yaml` na raiz do projeto cliente c
 - **WHEN** nenhuma stack é detectada
 - **THEN** `.pscode-dixi.yaml` é criado com `stack: null`, `family: null` e `detectedAt` com timestamp atual
 
-### Requirement: installDixiExtras copia slash commands para .claude/commands/pstld/
-A função `installDixiExtras(projectDir, stack)` SHALL criar o diretório `.claude/commands/pstld/` na raiz do projeto cliente e copiar os 5 arquivos de comando (rfc.md, arch-check.md, adr.md, jira-sync.md, dod.md) de `pscode/content/dixi/claude-runtime/commands/` para esse diretório.
+### Requirement: installDixiExtras como ponto de extensão placeholder
+O sistema SHALL fornecer a função `installDixiExtras(projectDir, stack)` que cria `.claude/commands/pstld/` no `projectDir` e copia os 7 arquivos de slash command dixi: `rfc.md`, `arch-check.md`, `adr.md`, `jira-sync.md`, `dod.md`, `jira-draft.md` e `jira-setup.md`.
 
-#### Scenario: Diretório .claude/commands/pstld/ criado após installDixiExtras
-- **WHEN** `installDixiExtras` for chamado em qualquer projectDir
-- **THEN** `.claude/commands/pstld/` SHALL existir na raiz de projectDir após a execução
+#### Scenario: Instalação completa dos 7 slash commands
+- **WHEN** `installDixiExtras(projectDir, 'java-maven')` é chamado
+- **THEN** o diretório `.claude/commands/pstld/` é criado no `projectDir` e os 7 arquivos (`rfc.md`, `arch-check.md`, `adr.md`, `jira-sync.md`, `dod.md`, `jira-draft.md`, `jira-setup.md`) são copiados para ele
 
-#### Scenario: Os 5 arquivos de comando estão presentes após installDixiExtras
-- **WHEN** `installDixiExtras` for chamado em qualquer projectDir
-- **THEN** os arquivos rfc.md, arch-check.md, adr.md, jira-sync.md e dod.md SHALL existir em `.claude/commands/pstld/`
+#### Scenario: Instalação com stack nula instala todos os comandos
+- **WHEN** `installDixiExtras(projectDir, null)` é chamado
+- **THEN** os mesmos 7 arquivos são instalados independentemente da stack, pois os comandos são agnósticos de stack
+
+#### Scenario: Comandos jira-draft e jira-setup presentes após instalação
+- **WHEN** `installDixiExtras` é executado com sucesso
+- **THEN** `jira-draft.md` e `jira-setup.md` existem em `.claude/commands/pstld/` do projeto cliente
 
 #### Scenario: Instalação é idempotente — reexecução não duplica nem corrompe arquivos
 - **WHEN** `installDixiExtras` for chamado mais de uma vez no mesmo projectDir
-- **THEN** `.claude/commands/pstld/` SHALL conter exatamente os 5 arquivos sem duplicatas ou arquivos corrompidos
+- **THEN** `.claude/commands/pstld/` SHALL conter exatamente os 7 arquivos sem duplicatas ou arquivos corrompidos
 
 #### Scenario: Instalação funciona independentemente da stack detectada
 - **WHEN** `installDixiExtras` for chamado com qualquer valor de stack (java-maven, next, react, node, null)
-- **THEN** os 5 arquivos de comando SHALL ser copiados — a instalação dos commands não depende de family
+- **THEN** os 7 arquivos de comando SHALL ser copiados — a instalação dos commands não depende de family
 
 ### Requirement: Instalação dos hooks durante pscode init --profile dixi
 O comando `pscode init --profile dixi` SHALL copiar `arch-guard.mjs` e `jira-context.mjs` para `.claude/hooks/` no repo do cliente.
@@ -95,8 +99,8 @@ O `settings.json` gerado SHALL registrar `arch-guard.mjs` como hook `PreToolUse`
   - `PreToolUse` matcher `Edit|Write` apontando para `.claude/hooks/arch-guard.mjs`
   - `UserPromptSubmit` apontando para `.claude/hooks/jira-context.mjs`
 
-### Requirement: installDixiExtras copies SDLC kit by detected stack
-The `installDixiExtras` function SHALL copy the shared SDLC kit files unconditionally and the stack-specific kit files based on the `family` field in `.pscode-dixi.yaml`. If `family` is absent or unknown, only shared files are installed.
+### Requirement: `installDixiExtras` aplica extras condicionais por stack
+A função `installDixiExtras` SHALL aplicar os extras do profile `dixi` em ordem: (1) kit SDLC por stack (Batch H), (2) skeleton arquitetural por stack (Batch I), (3) integração JIRA se configurada (Batch J). Cada etapa é condicional a `family` e brownfield-safe.
 
 #### Scenario: Java family triggers java kit installation
 - **WHEN** `.pscode-dixi.yaml` contains `family: java`
@@ -110,6 +114,21 @@ The `installDixiExtras` function SHALL copy the shared SDLC kit files unconditio
 - **WHEN** `.pscode-dixi.yaml` does not contain a `family` field or the file is absent
 - **THEN** only `pscode/content/dixi/kit/shared/` files are installed; no error is thrown
 
-#### Scenario: Installation order is respected
-- **WHEN** `pscode init --profile dixi` runs
-- **THEN** SDLC kit installation runs after hook installation (Batch G) in the same `installDixiExtras` call
+#### Scenario: Projeto Java recebe kit SDLC e skeleton hexagonal
+- **WHEN** `installDixiExtras` é chamado com `family === 'java'`
+- **THEN** o kit SDLC Java é instalado (Batch H) E o skeleton hexagonal é criado (Batch I)
+
+#### Scenario: Projeto React recebe kit SDLC e skeleton feature-sliced
+- **WHEN** `installDixiExtras` é chamado com `family === 'react'`
+- **THEN** o kit SDLC React é instalado (Batch H) E o skeleton feature-sliced é criado (Batch I)
+
+#### Scenario: Stack não reconhecida não aplica skeleton
+- **WHEN** `installDixiExtras` é chamado com `family` diferente de `'java'` e `'react'`
+- **THEN** nenhum skeleton é criado e uma mensagem informa que o skeleton não está disponível para a stack detectada
+
+### Requirement: Ordem de instalação é documentada e estável
+A função `installDixiExtras` SHALL executar as etapas de instalação em ordem determinística e logar cada etapa (nome + resultado: criado / ignorado / erro) para permitir diagnóstico.
+
+#### Scenario: Log de instalação exibe resultado por etapa
+- **WHEN** `pscode init --profile dixi` é executado com sucesso
+- **THEN** a saída exibe uma linha por etapa no formato `[dixi] <etapa>: <resultado>` (ex: `[dixi] skeleton hexagonal: 10 diretórios criados, 1 arquivo ignorado`)

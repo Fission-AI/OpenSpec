@@ -9,6 +9,8 @@ import {
   writeUpdatedSpec,
   type SpecUpdate,
 } from './specs-apply.js';
+import { readChangeMetadata } from '../utils/change-metadata.js';
+import { readJiraConfig, tryTransitionJiraIssue } from './jira-transition.js';
 
 /**
  * Recursively copy a directory. Used when fs.rename fails (e.g. EPERM on Windows).
@@ -280,6 +282,28 @@ export class ArchiveCommand {
 
     // Create archive directory if needed
     await fs.mkdir(archiveDir, { recursive: true });
+
+    // Attempt JIRA transition before moving (non-fatal)
+    try {
+      const changeMetadata = readChangeMetadata(changeDir, targetPath);
+      if (changeMetadata?.jiraIssueKey) {
+        const jiraConfig = await readJiraConfig(targetPath);
+        const transitionId = jiraConfig?.transitions?.done;
+        if (transitionId) {
+          const result = await tryTransitionJiraIssue(changeMetadata.jiraIssueKey, transitionId);
+          if (result.warning) {
+            console.log(chalk.yellow(`JIRA: ${result.warning}`));
+          }
+        } else {
+          console.log(chalk.yellow(
+            `JIRA: jiraIssueKey "${changeMetadata.jiraIssueKey}" encontrado, mas transitions.done não está configurado em pastelsdd/jira.yaml. ` +
+            `Execute /pstld:jira-setup para configurar.`
+          ));
+        }
+      }
+    } catch {
+      // JIRA transition is non-fatal — never block the archive
+    }
 
     // Move change to archive (uses copy+remove on EPERM/EXDEV, e.g. Windows)
     await moveDirectory(changeDir, archivePath);

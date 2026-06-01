@@ -86,6 +86,14 @@ const WORKFLOW_TO_SKILL_DIR: Record<string, string> = {
   // Trello-specific workflows
   'trello-setup': 'pscode-trello-setup',
   'draft': 'pscode-trello-draft',
+  // Dixi-specific workflows
+  'rfc': 'pscode-dixi-rfc',
+  'design': 'pscode-dixi-design',
+  'tasks': 'pscode-dixi-tasks',
+  'arch-check': 'pscode-dixi-arch-check',
+  'adr': 'pscode-dixi-adr',
+  'jira-sync': 'pscode-dixi-jira-sync',
+  'dod': 'pscode-dixi-dod',
 };
 
 // -----------------------------------------------------------------------------
@@ -169,6 +177,12 @@ export class InitCommand {
 
     // Dixi profile extras: stack detection and .pscode-dixi.yaml
     await this.handleDixiExtras(projectPath);
+
+    // Dixi profile: generate JIRA integration files
+    const resolvedProfile = this.resolveProfileOverride() ?? (isValidProfile(getGlobalConfig().profile ?? '') ? getGlobalConfig().profile as ProfileName : DEFAULT_PROFILE);
+    if (resolvedProfile === 'dixi') {
+      await this.generateJiraFiles(projectPath);
+    }
 
     // Create config.yaml if needed
     const configStatus = await this.createConfig(pscodePath, extendMode);
@@ -835,6 +849,42 @@ export class InitCommand {
     }
 
     console.log();
+  }
+
+  private async generateJiraFiles(projectPath: string): Promise<void> {
+    const pastelsddPath = path.join(projectPath, 'pastelsdd');
+    await FileSystemUtils.createDirectory(pastelsddPath);
+
+    const jiraYamlPath = path.join(pastelsddPath, 'jira.yaml');
+    if (!fs.existsSync(jiraYamlPath)) {
+      const content = `project_key: ""\nboard_url: ""\nconfigured: false\ntransitions:\n  done: ""\n`;
+      await FileSystemUtils.writeFile(jiraYamlPath, content);
+    }
+
+    const mcpJsonPath = path.join(projectPath, '.mcp.json');
+    let mcpConfig: Record<string, unknown> = {};
+
+    if (fs.existsSync(mcpJsonPath)) {
+      try {
+        const raw = fs.readFileSync(mcpJsonPath, 'utf-8');
+        mcpConfig = JSON.parse(raw) as Record<string, unknown>;
+      } catch {
+        console.log('Aviso: .mcp.json inválido — recriando com entrada Atlassian.');
+        mcpConfig = {};
+      }
+    }
+
+    const mcpServers = (mcpConfig.mcpServers ?? {}) as Record<string, unknown>;
+    if (!mcpServers['atlassian']) {
+      mcpServers['atlassian'] = {
+        command: 'npx',
+        args: ['-y', 'mcp-remote', 'https://mcp.atlassian.com/v1/sse'],
+      };
+      mcpConfig.mcpServers = mcpServers;
+      await FileSystemUtils.writeFile(mcpJsonPath, JSON.stringify(mcpConfig, null, 2) + '\n');
+    }
+
+    console.log('JIRA: edite pastelsdd/jira.yaml com project_key e board_url, depois use /pstld:jira-sync para testar a conexão.');
   }
 
   private async handleDixiExtras(projectPath: string): Promise<void> {

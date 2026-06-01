@@ -26,6 +26,14 @@ export const WORKFLOW_TO_SKILL_DIR: Record<WorkflowId, string> = {
   // Trello-specific workflows
   'trello-setup': 'pscode-trello-setup',
   'draft': 'pscode-trello-draft',
+  // Dixi-specific workflows
+  'rfc': 'pscode-dixi-rfc',
+  'design': 'pscode-dixi-design',
+  'tasks': 'pscode-dixi-tasks',
+  'arch-check': 'pscode-dixi-arch-check',
+  'adr': 'pscode-dixi-adr',
+  'jira-sync': 'pscode-dixi-jira-sync',
+  'dod': 'pscode-dixi-dod',
 };
 
 function toKnownWorkflows(workflows: readonly string[]): WorkflowId[] {

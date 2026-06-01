@@ -350,7 +350,7 @@ describe('installDixiExtras — pstld slash commands', () => {
     expect(fsSync.existsSync(path.join(projectDir, '.claude', 'commands', 'pstld'))).toBe(true);
   });
 
-  it('copia os 5 arquivos de comando para .claude/commands/pstld/', () => {
+  it('copia os 7 arquivos de comando para .claude/commands/pstld/', () => {
     installDixiExtras(projectDir, 'java-maven');
 
     const pstldDir = path.join(projectDir, '.claude', 'commands', 'pstld');
@@ -359,6 +359,8 @@ describe('installDixiExtras — pstld slash commands', () => {
     expect(fsSync.existsSync(path.join(pstldDir, 'adr.md'))).toBe(true);
     expect(fsSync.existsSync(path.join(pstldDir, 'jira-sync.md'))).toBe(true);
     expect(fsSync.existsSync(path.join(pstldDir, 'dod.md'))).toBe(true);
+    expect(fsSync.existsSync(path.join(pstldDir, 'jira-draft.md'))).toBe(true);
+    expect(fsSync.existsSync(path.join(pstldDir, 'jira-setup.md'))).toBe(true);
   });
 
   it('é idempotente — segunda chamada não corrompe nem duplica arquivos', () => {
@@ -368,7 +370,7 @@ describe('installDixiExtras — pstld slash commands', () => {
     const pstldDir = path.join(projectDir, '.claude', 'commands', 'pstld');
     const files = fsSync.readdirSync(pstldDir);
     const mdFiles = files.filter(f => f.endsWith('.md'));
-    expect(mdFiles).toHaveLength(5);
+    expect(mdFiles).toHaveLength(7);
     expect(fsSync.existsSync(path.join(pstldDir, 'rfc.md'))).toBe(true);
   });
 
@@ -382,6 +384,8 @@ describe('installDixiExtras — pstld slash commands', () => {
     expect(fsSync.existsSync(path.join(pstldDir, 'adr.md'))).toBe(true);
     expect(fsSync.existsSync(path.join(pstldDir, 'jira-sync.md'))).toBe(true);
     expect(fsSync.existsSync(path.join(pstldDir, 'dod.md'))).toBe(true);
+    expect(fsSync.existsSync(path.join(pstldDir, 'jira-draft.md'))).toBe(true);
+    expect(fsSync.existsSync(path.join(pstldDir, 'jira-setup.md'))).toBe(true);
   });
 });
 

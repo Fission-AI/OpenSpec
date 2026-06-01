@@ -714,6 +714,40 @@ describe('InitCommand - profile and detection features', () => {
     const skillFile = path.join(testDir, '.claude', 'skills', 'pscode-explore', 'SKILL.md');
     expect(await fileExists(skillFile)).toBe(true);
   });
+
+  it('should generate pastelsdd/jira.yaml and .mcp.json with atlassian entry for dixi profile', async () => {
+    const initCommand = new InitCommand({ tools: 'claude', force: true, profile: 'dixi' });
+    await initCommand.execute(testDir);
+
+    const jiraYamlPath = path.join(testDir, 'pastelsdd', 'jira.yaml');
+    expect(await fileExists(jiraYamlPath)).toBe(true);
+    const jiraContent = await fs.readFile(jiraYamlPath, 'utf-8');
+    expect(jiraContent).toContain('project_key');
+    expect(jiraContent).toContain('configured: false');
+    expect(jiraContent).toContain('transitions');
+    expect(jiraContent).toContain('done');
+
+    const mcpJsonPath = path.join(testDir, '.mcp.json');
+    expect(await fileExists(mcpJsonPath)).toBe(true);
+    const mcpContent = JSON.parse(await fs.readFile(mcpJsonPath, 'utf-8'));
+    expect(mcpContent.mcpServers).toHaveProperty('atlassian');
+    expect(mcpContent.mcpServers.atlassian.command).toBe('npx');
+  });
+
+  it('should not overwrite existing jira.yaml on second dixi init (idempotent)', async () => {
+    const initCommand1 = new InitCommand({ tools: 'claude', force: true, profile: 'dixi' });
+    await initCommand1.execute(testDir);
+
+    const jiraYamlPath = path.join(testDir, 'pastelsdd', 'jira.yaml');
+    await fs.writeFile(jiraYamlPath, 'project_key: "MYPROJ"\nboard_url: "https://example.atlassian.net"\nconfigured: true\n');
+
+    const initCommand2 = new InitCommand({ tools: 'claude', force: true, profile: 'dixi' });
+    await initCommand2.execute(testDir);
+
+    const jiraContent = await fs.readFile(jiraYamlPath, 'utf-8');
+    expect(jiraContent).toContain('MYPROJ');
+    expect(jiraContent).toContain('configured: true');
+  });
 });
 
 async function fileExists(filePath: string): Promise<boolean> {

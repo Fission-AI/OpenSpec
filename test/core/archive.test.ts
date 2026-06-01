@@ -11,6 +11,19 @@ vi.mock('@inquirer/prompts', () => ({
   confirm: vi.fn()
 }));
 
+const { tryTransitionJiraIssueMock } = vi.hoisted(() => ({
+  tryTransitionJiraIssueMock: vi.fn().mockResolvedValue({ attempted: true, success: true }),
+}));
+
+vi.mock('../../src/core/jira-transition.js', () => ({
+  readJiraConfig: vi.fn().mockResolvedValue({
+    project_key: 'PROJ',
+    configured: true,
+    transitions: { done: '31' },
+  }),
+  tryTransitionJiraIssue: tryTransitionJiraIssueMock,
+}));
+
 describe('ArchiveCommand', () => {
   let tempDir: string;
   let archiveCommand: ArchiveCommand;
@@ -864,6 +877,42 @@ E1 updated`);
       
       // Verify change was not archived
       await expect(fs.access(changeDir)).resolves.not.toThrow();
+    });
+  });
+
+  describe('JIRA transition on archive', () => {
+    beforeEach(() => {
+      tryTransitionJiraIssueMock.mockClear();
+    });
+
+    it('chama tryTransitionJiraIssue quando jiraIssueKey está definido no .pscode.yaml', async () => {
+      const changeName = 'jira-linked-change';
+      const changeDir = path.join(tempDir, 'pscode', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1');
+      await fs.writeFile(
+        path.join(changeDir, '.pscode.yaml'),
+        'schema: spec-driven\njiraIssueKey: PROJ-42\n'
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(tryTransitionJiraIssueMock).toHaveBeenCalledWith('PROJ-42', '31');
+    });
+
+    it('não chama tryTransitionJiraIssue quando jiraIssueKey não está definido', async () => {
+      const changeName = 'no-jira-change';
+      const changeDir = path.join(tempDir, 'pscode', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1');
+      await fs.writeFile(
+        path.join(changeDir, '.pscode.yaml'),
+        'schema: spec-driven\n'
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(tryTransitionJiraIssueMock).not.toHaveBeenCalled();
     });
   });
 });

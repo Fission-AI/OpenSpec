@@ -20,6 +20,13 @@ export const ALL_WORKFLOWS = [
   'onboard',
   'trello-setup',
   'draft',
+  'rfc',
+  'design',
+  'tasks',
+  'arch-check',
+  'adr',
+  'jira-sync',
+  'dod',
 ] as const;
 
 export type WorkflowId = (typeof ALL_WORKFLOWS)[number];
@@ -35,8 +42,8 @@ export const PROFILES = {
     workflows: ['propose', 'explore', 'apply', 'sync', 'archive'],
   },
   dixi: {
-    description: 'Dixi — padrões e workflows da consultoria Dixi',
-    workflows: ['propose', 'explore', 'apply', 'sync', 'archive'],
+    description: 'Dixi — RFC→Design→Tasks→Apply com guardrails para Java/Spring e React/Next.js',
+    workflows: ['rfc', 'design', 'tasks', 'apply', 'arch-check', 'adr', 'jira-sync', 'dod'],
   },
 } as const satisfies Record<string, ProfileDefinition>;
 

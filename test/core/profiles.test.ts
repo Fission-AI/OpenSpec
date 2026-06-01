@@ -10,8 +10,8 @@ import {
 
 describe('profiles', () => {
   describe('ALL_WORKFLOWS', () => {
-    it('should contain all 13 workflows', () => {
-      expect(ALL_WORKFLOWS).toHaveLength(13);
+    it('should contain all 20 workflows', () => {
+      expect(ALL_WORKFLOWS).toHaveLength(20);
     });
 
     it('should contain expected workflow IDs', () => {
@@ -19,8 +19,16 @@ describe('profiles', () => {
         'propose', 'explore', 'new', 'continue', 'apply',
         'ff', 'sync', 'archive', 'bulk-archive', 'verify', 'onboard',
         'trello-setup', 'draft',
+        'rfc', 'design', 'tasks', 'arch-check', 'adr', 'jira-sync', 'dod',
       ];
       expect([...ALL_WORKFLOWS]).toEqual(expected);
+    });
+
+    it('should contain the 7 new dixi workflow IDs', () => {
+      const newIds = ['rfc', 'design', 'tasks', 'arch-check', 'adr', 'jira-sync', 'dod'];
+      for (const id of newIds) {
+        expect(ALL_WORKFLOWS).toContain(id);
+      }
     });
   });
 
