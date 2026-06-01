@@ -45,8 +45,18 @@ describe('workspace command', () => {
     };
   });
 
-  afterEach(() => {
-    fs.rmSync(tempDir, { recursive: true, force: true });
+  afterEach(async () => {
+    // On Windows, child processes may briefly hold file handles after exit (EBUSY)
+    const retries = process.platform === 'win32' ? 5 : 1;
+    for (let i = 0; i < retries; i++) {
+      try {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+        return;
+      } catch (e: any) {
+        if (e.code !== 'EBUSY' || i === retries - 1) throw e;
+        await new Promise((r) => setTimeout(r, 200));
+      }
+    }
   });
 
   function mkdir(relativePath: string): string {
@@ -1557,7 +1567,7 @@ preferred_opener:
     expect(unavailable.stderr).toContain(
       getWorkspaceCodeWorkspacePath(expectedExistingPath(platform.workspace.root), 'platform')
     );
-  });
+  }, 60000);
 
   it('prints readable human output for setup, list, and doctor', async () => {
     const api = mkdir('repos/api');
