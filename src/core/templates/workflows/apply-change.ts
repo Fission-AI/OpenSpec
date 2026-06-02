@@ -11,6 +11,11 @@ import type { SkillTemplate, CommandTemplate } from '../types.js';
 // Parameterized by mode so skill-friendly references and command-specific
 // slash commands (/opsx:*) can differ without duplicating the entire body.
 // See: https://github.com/Fission-AI/OpenSpec/issues/1139
+/**
+ * Returns the apply workflow instruction body for the given mode.
+ * Skill mode uses skill-friendly references (e.g. openspec-continue-change skill).
+ * Command mode uses slash command references (e.g. /opsx:continue, /opsx:archive).
+ */
 function getApplyInstructions(mode: 'skill' | 'command'): string {
   const continueRef = mode === 'command'
     ? '`/opsx:continue`'
