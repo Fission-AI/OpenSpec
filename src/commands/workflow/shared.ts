@@ -8,7 +8,7 @@
 import chalk from 'chalk';
 import path from 'path';
 import * as fs from 'fs';
-import { getSchemaDir, listSchemas } from '../../core/artifact-graph/index.js';
+import { getSchemaDir, listSchemas, type ActionContext } from '../../core/artifact-graph/index.js';
 import type { InitiativeLink } from '../../core/change-metadata/index.js';
 import { validateChangeName } from '../../utils/change-utils.js';
 
@@ -44,6 +44,13 @@ export interface ApplyInstructions {
   state: 'blocked' | 'all_done' | 'ready';
   missingArtifacts?: string[];
   instruction: string;
+  /**
+   * Machine-readable action constraints for agents, mirroring the
+   * `actionContext` that `status --json` emits. Surfacing it here lets the
+   * apply flow honor the workspace-planning guard (`mode`, `allowedEditRoots`)
+   * from this single payload instead of issuing a separate `status` call.
+   */
+  actionContext: ActionContext;
   /**
    * First unchecked task that has a `numericId` (in document order). Lets
    * agents drive `openspec mark-task-done` without parsing the tasks list

@@ -14,8 +14,11 @@
  *
  * Exit codes:
  *   0 success (flipped or already-done)
- *   2 bad input — change not found, schema lacks `apply.tracks`, tracking
- *     file missing, or no matching unchecked task line.
+ *   1 change could not be resolved — missing or unknown `--change`. This is
+ *     thrown by `validateChangeExists` and surfaced as exit 1 by the CLI
+ *     wrapper, matching `agent next-artifact`.
+ *   2 bad input — missing task id, schema lacks `apply.tracks`, tracking file
+ *     missing, or no matching unchecked task line.
  */
 
 import * as fs from 'fs';

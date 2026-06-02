@@ -32,6 +32,10 @@
     unchecked task that has a `numericId`, or `null`. Pair with
     `openspec mark-task-done` to drive an apply loop without re-parsing
     `tasks.md`.
+  - The top-level payload now also carries `actionContext` (the same
+    `mode` / `allowedEditRoots` constraints that `status --json` reports), so
+    the apply workflow can enforce its workspace-planning guard from this
+    single call instead of making a separate `status` read.
 - Skill workflow templates for `openspec-propose` and `openspec-apply-change`
   now use the three new commands instead of inlining multi-step CLI
   orchestration. Run `openspec update` against an existing OpenSpec project to

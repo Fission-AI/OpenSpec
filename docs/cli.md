@@ -1023,7 +1023,8 @@ openspec agent mark-task-done --change add-dark-mode "$TASK"
 | Code | Meaning |
 |------|---------|
 | 0 | Success (flipped, or already-done — both are no-op safe) |
-| 2 | Bad input — missing change, schema lacks `apply.tracks`, tracking file missing, or no matching unchecked task line |
+| 1 | Change could not be resolved — missing or unknown `--change` (matches `agent next-artifact`) |
+| 2 | Bad input — schema lacks `apply.tracks`, tracking file missing, or no matching unchecked task line |
 
 ---
 

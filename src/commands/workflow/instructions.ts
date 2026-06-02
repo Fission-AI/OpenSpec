@@ -16,6 +16,7 @@ import {
   type ArtifactInstructions,
 } from '../../core/artifact-graph/index.js';
 import { getChangeDir, resolveCurrentPlanningHomeSync } from '../../core/planning-home.js';
+import { buildActionContext } from '../../core/change-status-policy.js';
 import {
   validateChangeExists,
   validateSchemaExists,
@@ -373,6 +374,14 @@ export async function generateApplyInstructions(
     instruction = schemaInstruction?.trim() ?? 'Read context files, work through pending tasks, mark complete as you go.\nPause if you hit blockers or need clarification.';
   }
 
+  // Surface the same action constraints `status --json` reports so the apply
+  // flow can enforce the workspace-planning guard from this one payload.
+  const actionContext = buildActionContext({
+    planningHome: context.planningHome,
+    projectRoot,
+    artifactIds: context.graph.getAllArtifacts().map((a) => a.id),
+  });
+
   return {
     changeName,
     changeDir,
@@ -384,6 +393,7 @@ export async function generateApplyInstructions(
     state,
     missingArtifacts: missingArtifacts.length > 0 ? missingArtifacts : undefined,
     instruction,
+    actionContext,
     nextPendingId: pickNextPendingId(tasks),
   };
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { promises as fs } from 'fs';
+import { promises as fs, realpathSync } from 'fs';
 import path from 'path';
 import os from 'os';
 import { runCLI } from '../helpers/run-cli.js';
@@ -142,7 +142,11 @@ describe('agent helper CLI commands', () => {
       const json = JSON.parse(result.stdout);
       expect(json.name).toBe('alpha');
       expect(typeof json.path).toBe('string');
-      expect(json.path.endsWith('alpha')).toBe(true);
+      // Canonicalize both sides so the symlinked macOS tmpdir
+      // (/var → /private/var) does not cause a spurious mismatch.
+      const expectedPath = realpathSync.native(path.join(changesDir, 'alpha'));
+      const actualPath = realpathSync.native(json.path);
+      expect(actualPath).toBe(expectedPath);
     });
   });
 
@@ -346,6 +350,20 @@ apply:
       expect(result.exitCode).toBe(2);
       expect(getOutput(result)).toContain("does not configure 'apply.tracks'");
     });
+
+    it('exits 1 when the change cannot be resolved (unknown --change)', async () => {
+      // Change resolution failures are distinct from the exit-2 "bad input"
+      // cases: validateChangeExists throws and the CLI wrapper surfaces it as
+      // exit 1, matching `agent next-artifact`.
+      await makeChange('real-one', ['proposal', 'design', 'specs']);
+
+      const result = await runCLI(
+        ['agent', 'mark-task-done', '--change', 'ghost', '1.1'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).toBe(1);
+      expect(getOutput(result)).toContain("Change 'ghost' not found");
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -418,6 +436,25 @@ apply:
       expect(result.exitCode).toBe(0);
       const json = JSON.parse(result.stdout);
       expect(json.nextPendingId).toBeNull();
+    });
+
+    it('includes actionContext so the apply flow guards without a separate status call', async () => {
+      await makeChange('with-context', ['proposal', 'design', 'specs', 'tasks']);
+
+      const result = await runCLI(
+        ['instructions', 'apply', '--change', 'with-context', '--json'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).toBe(0);
+      const json = JSON.parse(result.stdout);
+
+      // Repo-local fixture (no workspace) → repo-local mode with the project
+      // root editable. The apply-change workspace guard reads these straight
+      // from this payload now, so no extra `status --json` round-trip is needed.
+      expect(json.actionContext).toBeDefined();
+      expect(json.actionContext.mode).toBe('repo-local');
+      expect(Array.isArray(json.actionContext.allowedEditRoots)).toBe(true);
+      expect(json.actionContext.allowedEditRoots.length).toBeGreaterThan(0);
     });
   });
 });

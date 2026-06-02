@@ -27,7 +27,7 @@ When ready to implement, run /opsx:apply
 
 1. **If no clear input provided, ask what they want to build**
 
-   Use the **AskUserQuestion tool** (open-ended, no preset options) to ask:
+   Ask the user (open-ended, no preset options):
    > "What change do you want to work on? Describe what you want to build or fix."
 
    From their description, derive a kebab-case name (e.g., "add user authentication" → \`add-user-auth\`).
@@ -42,7 +42,7 @@ When ready to implement, run /opsx:apply
 
 3. **Drive the artifact loop with \`next-artifact\`**
 
-   Use the **TodoWrite tool** to track progress.
+   Keep a running checklist of the artifacts so progress stays visible.
 
    Repeat until \`{ "done": true }\`:
    \`\`\`bash
@@ -62,7 +62,7 @@ When ready to implement, run /opsx:apply
    3. Show brief progress: "Created <artifact-id>"
    4. Re-invoke \`openspec agent next-artifact --change "<name>"\` and continue
 
-   If an artifact requires user input (context unclear), use the **AskUserQuestion tool** to clarify, then continue.
+   If an artifact requires user input (context unclear), ask the user to clarify, then continue.
 
 4. **Show final status**
    \`\`\`bash
@@ -122,7 +122,7 @@ When ready to implement, run /opsx:apply
 
 1. **If no input provided, ask what they want to build**
 
-   Use the **AskUserQuestion tool** (open-ended, no preset options) to ask:
+   Ask the user (open-ended, no preset options):
    > "What change do you want to work on? Describe what you want to build or fix."
 
    From their description, derive a kebab-case name (e.g., "add user authentication" → \`add-user-auth\`).
@@ -137,7 +137,7 @@ When ready to implement, run /opsx:apply
 
 3. **Drive the artifact loop with \`next-artifact\`**
 
-   Use the **TodoWrite tool** to track progress.
+   Keep a running checklist of the artifacts so progress stays visible.
 
    Repeat until \`{ "done": true }\`:
    \`\`\`bash
@@ -157,7 +157,7 @@ When ready to implement, run /opsx:apply
    3. Show brief progress: "Created <artifact-id>"
    4. Re-invoke \`openspec agent next-artifact --change "<name>"\` and continue
 
-   If an artifact requires user input (context unclear), use the **AskUserQuestion tool** to clarify, then continue.
+   If an artifact requires user input (context unclear), ask the user to clarify, then continue.
 
 4. **Show final status**
    \`\`\`bash

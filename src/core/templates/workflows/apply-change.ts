@@ -23,7 +23,7 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
    openspec agent resolve-change --auto
    \`\`\`
    - Exits 0 with the change name when exactly one active change exists.
-   - Exits 1 (none) or 3 (ambiguous). On ambiguity, run \`openspec agent resolve-change --json\` and use the **AskUserQuestion tool** to let the user select.
+   - Exits 1 (none) or 3 (ambiguous). On ambiguity, run \`openspec agent resolve-change --json\` and ask the user to pick one before continuing.
 
    Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:apply <other>\`).
 
@@ -38,8 +38,9 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
    - \`progress\` (total / complete / remaining), \`tasks\` (with \`numericId\` when the file uses numbered tasks), \`nextPendingId\` (the first unchecked task with a \`numericId\`)
    - \`state\`: \`"blocked"\` (missing artifacts → suggest the \`openspec-continue-change\` skill), \`"all_done"\` (congratulate, suggest archive), or \`"ready"\` (proceed)
    - \`instruction\`: dynamic guidance based on current state
+   - \`actionContext\`: planning scope + edit constraints (\`mode\`, \`allowedEditRoots\`) — drives the workspace guard below, so no separate \`status\` call is needed
 
-   **Workspace guard:** If \`openspec status --change "<name>" --json\` reports \`actionContext.mode: "workspace-planning"\` and \`allowedEditRoots\` is empty, explain that full workspace apply is not supported in this slice. Treat linked repos and folders as read-only context, ask the user to select an affected area through an explicit implementation workflow, and STOP before editing files.
+   **Workspace guard:** If the apply payload reports \`actionContext.mode: "workspace-planning"\` and \`allowedEditRoots\` is empty, explain that full workspace apply is not supported in this slice. Treat linked repos and folders as read-only context, ask the user to select an affected area through an explicit implementation workflow, and STOP before editing files.
 
 3. **Read context files**
 
@@ -167,7 +168,7 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
    openspec agent resolve-change --auto
    \`\`\`
    - Exits 0 with the change name when exactly one active change exists.
-   - Exits 1 (none) or 3 (ambiguous). On ambiguity, run \`openspec agent resolve-change --json\` and use the **AskUserQuestion tool** to let the user select.
+   - Exits 1 (none) or 3 (ambiguous). On ambiguity, run \`openspec agent resolve-change --json\` and ask the user to pick one before continuing.
 
    Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:apply <other>\`).
 
@@ -182,8 +183,9 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
    - \`progress\` (total / complete / remaining), \`tasks\` (with \`numericId\` when the file uses numbered tasks), \`nextPendingId\` (the first unchecked task with a \`numericId\`)
    - \`state\`: \`"blocked"\` (missing artifacts → suggest \`/opsx:continue\`), \`"all_done"\` (congratulate, suggest archive), or \`"ready"\` (proceed)
    - \`instruction\`: dynamic guidance based on current state
+   - \`actionContext\`: planning scope + edit constraints (\`mode\`, \`allowedEditRoots\`) — drives the workspace guard below, so no separate \`status\` call is needed
 
-   **Workspace guard:** If \`openspec status --change "<name>" --json\` reports \`actionContext.mode: "workspace-planning"\` and \`allowedEditRoots\` is empty, explain that full workspace apply is not supported in this slice. Treat linked repos and folders as read-only context, ask the user to select an affected area through an explicit implementation workflow, and STOP before editing files.
+   **Workspace guard:** If the apply payload reports \`actionContext.mode: "workspace-planning"\` and \`allowedEditRoots\` is empty, explain that full workspace apply is not supported in this slice. Treat linked repos and folders as read-only context, ask the user to select an affected area through an explicit implementation workflow, and STOP before editing files.
 
 3. **Read context files**
 
