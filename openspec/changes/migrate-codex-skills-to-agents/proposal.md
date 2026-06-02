@@ -22,6 +22,7 @@ OpenAI's current Codex Skills convention discovers repository skills from `.agen
 - `ai-tool-paths`: Codex uses `.agents` as its current skill root and treats `.codex` as a legacy detection and cleanup path.
 - `cli-init`: Codex setup writes skills to `.agents/skills`, detects legacy `.codex/skills`, and removes managed legacy Codex skill directories after successful regeneration.
 - `cli-update`: Codex refresh migrates existing `.codex/skills` installs to `.agents/skills`, preserves unmanaged legacy content, and reports the migration.
+- `workspace-links`: Codex workspace skills install to `.agents/skills`, migrate managed legacy `.codex/skills/openspec-*` directories, preserve unmanaged legacy content, and report the migration.
 
 ## Impact
 
