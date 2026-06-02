@@ -47,6 +47,7 @@ import {
   scanInstalledWorkflows as scanInstalledWorkflowsShared,
   migrateIfNeeded as migrateIfNeededShared,
 } from './migration.js';
+import { removeManagedLegacyCodexSkills } from './codex-skill-migration.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
@@ -180,6 +181,7 @@ export class UpdateCommand {
     let removedSkillCount = 0;
     let removedDeselectedCommandCount = 0;
     let removedDeselectedSkillCount = 0;
+    let migratedLegacyCodexSkillCount = 0;
 
     for (const toolId of toolsToUpdate) {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
@@ -203,6 +205,10 @@ export class UpdateCommand {
           }
 
           removedDeselectedSkillCount += await this.removeUnselectedSkillDirs(skillsDir, desiredWorkflows);
+
+          if (tool.value === 'codex') {
+            migratedLegacyCodexSkillCount += await removeManagedLegacyCodexSkills(resolvedProjectPath);
+          }
         }
 
         // Delete skill directories if delivery is commands-only
@@ -264,6 +270,9 @@ export class UpdateCommand {
     }
     if (removedDeselectedSkillCount > 0) {
       console.log(chalk.dim(`Removed: ${removedDeselectedSkillCount} skill directories (deselected workflows)`));
+    }
+    if (migratedLegacyCodexSkillCount > 0) {
+      console.log(chalk.dim(`Migrated: removed ${migratedLegacyCodexSkillCount} legacy Codex skill directories from .codex/skills`));
     }
 
     // 12. Show onboarding message for newly configured tools from legacy upgrade
@@ -694,6 +703,10 @@ export class UpdateCommand {
             const transformer = (tool.value === 'opencode' || tool.value === 'pi') ? transformToHyphenCommands : undefined;
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
+          }
+
+          if (tool.value === 'codex') {
+            await removeManagedLegacyCodexSkills(projectPath);
           }
         }
 

@@ -4,7 +4,12 @@ import { AI_TOOLS } from './config.js';
 import type { Delivery } from './global-config.js';
 import { ALL_WORKFLOWS } from './profiles.js';
 import { CommandAdapterRegistry } from './command-generation/index.js';
-import { COMMAND_IDS, getConfiguredTools } from './shared/index.js';
+import {
+  COMMAND_IDS,
+  getConfiguredTools,
+  getToolCurrentSkillDirectory,
+  getToolLegacySkillDirectories,
+} from './shared/index.js';
 
 type WorkflowId = (typeof ALL_WORKFLOWS)[number];
 
@@ -29,6 +34,15 @@ function toKnownWorkflows(workflows: readonly string[]): WorkflowId[] {
   return workflows.filter(
     (workflow): workflow is WorkflowId =>
       (ALL_WORKFLOWS as readonly string[]).includes(workflow)
+  );
+}
+
+function hasManagedLegacySkillDirs(projectPath: string, tool: { legacySkillsDirs?: string[] }): boolean {
+  return getToolLegacySkillDirectories(projectPath, tool).some((skillsDir) =>
+    ALL_WORKFLOWS.some((workflow) => {
+      const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
+      return fs.existsSync(path.join(skillsDir, dirName));
+    })
   );
 }
 
@@ -96,7 +110,8 @@ export function hasToolProfileOrDeliveryDrift(
 
   const knownDesiredWorkflows = toKnownWorkflows(desiredWorkflows);
   const desiredWorkflowSet = new Set<WorkflowId>(knownDesiredWorkflows);
-  const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
+  const skillsDir = getToolCurrentSkillDirectory(projectPath, tool);
+  if (!skillsDir) return false;
   const adapter = CommandAdapterRegistry.get(toolId);
   const shouldGenerateSkills = delivery !== 'commands';
   const shouldGenerateCommands = delivery !== 'skills';
@@ -118,6 +133,10 @@ export function hasToolProfileOrDeliveryDrift(
       if (fs.existsSync(skillDir)) {
         return true;
       }
+    }
+
+    if (hasManagedLegacySkillDirs(projectPath, tool)) {
+      return true;
     }
   } else {
     for (const workflow of ALL_WORKFLOWS) {
@@ -184,14 +203,20 @@ function getInstalledWorkflowsForTool(
   if (!tool?.skillsDir) return [];
 
   const installed = new Set<WorkflowId>();
-  const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
+  const skillDirectories = [getToolCurrentSkillDirectory(projectPath, tool)].filter(
+    (skillsDir): skillsDir is string => skillsDir !== null
+  );
 
   if (options.includeSkills) {
-    for (const workflow of ALL_WORKFLOWS) {
-      const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
-      const skillFile = path.join(skillsDir, dirName, 'SKILL.md');
-      if (fs.existsSync(skillFile)) {
-        installed.add(workflow);
+    skillDirectories.push(...getToolLegacySkillDirectories(projectPath, tool));
+
+    for (const skillsDir of skillDirectories) {
+      for (const workflow of ALL_WORKFLOWS) {
+        const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
+        const skillFile = path.join(skillsDir, dirName, 'SKILL.md');
+        if (fs.existsSync(skillFile)) {
+          installed.add(workflow);
+        }
       }
     }
   }
