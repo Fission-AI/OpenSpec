@@ -683,7 +683,7 @@ The AI tool doesn't recognize OpenSpec commands.
 **Solutions:**
 - Ensure OpenSpec is initialized: `openspec init`
 - Regenerate skills: `openspec update`
-- Check that `.claude/skills/` directory exists (for Claude Code)
+- Check the selected tool's skill directory from [Supported Tools](supported-tools.md), such as `.claude/skills/` for Claude Code or `.agents/skills/` for Codex
 - Restart your AI tool to pick up new skills
 
 ### Artifacts not generating properly

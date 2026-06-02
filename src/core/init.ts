@@ -45,6 +45,7 @@ import { getGlobalConfig, type Delivery, type Profile } from './global-config.js
 import { getProfileWorkflows, CORE_WORKFLOWS, ALL_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
 import { migrateIfNeeded } from './migration.js';
+import { removeManagedLegacyCodexSkills } from './codex-skill-migration.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
@@ -501,6 +502,7 @@ export class InitCommand {
     commandsSkipped: string[];
     removedCommandCount: number;
     removedSkillCount: number;
+    migratedLegacyCodexSkillCount: number;
   }> {
     const createdTools: typeof tools = [];
     const refreshedTools: typeof tools = [];
@@ -508,6 +510,7 @@ export class InitCommand {
     const commandsSkipped: string[] = [];
     let removedCommandCount = 0;
     let removedSkillCount = 0;
+    let migratedLegacyCodexSkillCount = 0;
 
     // Read global config for profile and delivery settings (use --profile override if set)
     const globalConfig = getGlobalConfig();
@@ -543,6 +546,10 @@ export class InitCommand {
 
             // Write the skill file
             await FileSystemUtils.writeFile(skillFile, skillContent);
+          }
+
+          if (tool.value === 'codex') {
+            migratedLegacyCodexSkillCount += await removeManagedLegacyCodexSkills(projectPath);
           }
         }
         if (!shouldGenerateSkills) {
@@ -588,6 +595,7 @@ export class InitCommand {
       commandsSkipped,
       removedCommandCount,
       removedSkillCount,
+      migratedLegacyCodexSkillCount,
     };
   }
 
@@ -633,6 +641,7 @@ export class InitCommand {
       commandsSkipped: string[];
       removedCommandCount: number;
       removedSkillCount: number;
+      migratedLegacyCodexSkillCount: number;
     },
     configStatus: 'created' | 'exists' | 'skipped'
   ): void {
@@ -681,6 +690,9 @@ export class InitCommand {
     }
     if (results.removedSkillCount > 0) {
       console.log(chalk.dim(`Removed: ${results.removedSkillCount} skill directories (delivery: commands)`));
+    }
+    if (results.migratedLegacyCodexSkillCount > 0) {
+      console.log(chalk.dim(`Migrated: removed ${results.migratedLegacyCodexSkillCount} legacy Codex skill directories from .codex/skills`));
     }
 
     // Config status

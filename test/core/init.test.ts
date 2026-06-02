@@ -192,6 +192,48 @@ describe('InitCommand', () => {
       ).toBe(true);
     });
 
+    it('should create Codex skills in .agents and not .codex', async () => {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'skills',
+      });
+
+      const initCommand = new InitCommand({ tools: 'codex', force: true });
+      await initCommand.execute(testDir);
+
+      const currentSkill = path.join(testDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md');
+      const legacySkill = path.join(testDir, '.codex', 'skills', 'openspec-explore', 'SKILL.md');
+
+      expect(await fileExists(currentSkill)).toBe(true);
+      expect(await fileExists(legacySkill)).toBe(false);
+    });
+
+    it('should remove managed legacy Codex skills after .agents generation', async () => {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'skills',
+      });
+
+      const managedLegacySkill = path.join(testDir, '.codex', 'skills', 'openspec-explore', 'SKILL.md');
+      const unmanagedLegacySkill = path.join(testDir, '.codex', 'skills', 'custom-skill', 'SKILL.md');
+      await fs.mkdir(path.dirname(managedLegacySkill), { recursive: true });
+      await fs.writeFile(managedLegacySkill, 'legacy managed');
+      await fs.mkdir(path.dirname(unmanagedLegacySkill), { recursive: true });
+      await fs.writeFile(unmanagedLegacySkill, 'user-owned');
+
+      const initCommand = new InitCommand({ tools: 'codex', force: true });
+      await initCommand.execute(testDir);
+
+      expect(await fileExists(path.join(testDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md'))).toBe(true);
+      expect(await fileExists(managedLegacySkill)).toBe(false);
+      expect(await fileExists(unmanagedLegacySkill)).toBe(true);
+
+      const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+      expect(logCalls.some((entry) => entry.includes('legacy Codex skill directories'))).toBe(true);
+    });
+
     it('should create skills for multiple tools at once', async () => {
       const initCommand = new InitCommand({ tools: 'claude,cursor', force: true });
 

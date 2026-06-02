@@ -190,6 +190,95 @@ Old instructions content
         expect(exists).toBe(false);
       }
     });
+
+    it('should update current Codex skills under .agents', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'skills',
+      });
+
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), { recursive: true });
+      await fs.writeFile(path.join(skillsDir, 'openspec-explore', 'SKILL.md'), 'old');
+
+      await updateCommand.execute(testDir);
+
+      const updatedSkill = await fs.readFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        'utf-8'
+      );
+      expect(updatedSkill).toContain('name: openspec-explore');
+      expect(await FileSystemUtils.fileExists(
+        path.join(testDir, '.codex', 'skills', 'openspec-explore', 'SKILL.md')
+      )).toBe(false);
+    });
+
+    it('should migrate legacy Codex skills to .agents and preserve unmanaged .codex content', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'skills',
+      });
+
+      const managedLegacySkill = path.join(testDir, '.codex', 'skills', 'openspec-explore', 'SKILL.md');
+      const unmanagedLegacySkill = path.join(testDir, '.codex', 'skills', 'custom-skill', 'SKILL.md');
+      await fs.mkdir(path.dirname(managedLegacySkill), { recursive: true });
+      await fs.writeFile(managedLegacySkill, `---
+metadata:
+  generatedBy: "0.1.0"
+---
+legacy
+`);
+      await fs.mkdir(path.dirname(unmanagedLegacySkill), { recursive: true });
+      await fs.writeFile(unmanagedLegacySkill, 'user-owned');
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      expect(await FileSystemUtils.fileExists(
+        path.join(testDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md')
+      )).toBe(true);
+      expect(await FileSystemUtils.fileExists(managedLegacySkill)).toBe(false);
+      expect(await FileSystemUtils.fileExists(unmanagedLegacySkill)).toBe(true);
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('legacy Codex skill directories')
+      );
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should leave legacy Codex skills when .agents generation fails', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'skills',
+      });
+
+      const managedLegacySkill = path.join(testDir, '.codex', 'skills', 'openspec-explore', 'SKILL.md');
+      await fs.mkdir(path.dirname(managedLegacySkill), { recursive: true });
+      await fs.writeFile(managedLegacySkill, 'legacy');
+
+      const originalWriteFile = FileSystemUtils.writeFile.bind(FileSystemUtils);
+      const writeSpy = vi
+        .spyOn(FileSystemUtils, 'writeFile')
+        .mockImplementation(async (filePath, content) => {
+          if (filePath.includes('.agents') && filePath.includes('SKILL.md')) {
+            throw new Error('EACCES: permission denied');
+          }
+          return originalWriteFile(filePath, content);
+        });
+
+      await updateCommand.execute(testDir);
+
+      expect(await FileSystemUtils.fileExists(managedLegacySkill)).toBe(true);
+      expect(await FileSystemUtils.fileExists(
+        path.join(testDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md')
+      )).toBe(false);
+
+      writeSpy.mockRestore();
+    });
   });
 
   describe('command updates', () => {
@@ -1153,6 +1242,39 @@ More user content after markers.
       // Legacy directory should be deleted
       const legacyDirExists = await FileSystemUtils.directoryExists(legacyCommandDir);
       expect(legacyDirExists).toBe(false);
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should report legacy Codex skill cleanup during legacy tool upgrade', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'skills',
+      });
+
+      await fs.mkdir(path.join(testDir, '.codex', 'prompts'), { recursive: true });
+      await fs.writeFile(
+        path.join(testDir, '.codex', 'prompts', 'openspec-proposal.md'),
+        'legacy prompt'
+      );
+
+      const legacySkillDir = path.join(testDir, '.codex', 'skills', 'openspec-explore');
+      await fs.mkdir(legacySkillDir, { recursive: true });
+      await fs.writeFile(path.join(legacySkillDir, 'README.md'), 'legacy managed skill dir');
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      const forceUpdateCommand = new UpdateCommand({ force: true });
+      await forceUpdateCommand.execute(testDir);
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Migrated: removed 1 legacy Codex skill directories')
+      );
+      expect(await FileSystemUtils.fileExists(
+        path.join(testDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md')
+      )).toBe(true);
+      expect(await FileSystemUtils.directoryExists(legacySkillDir)).toBe(false);
 
       consoleSpy.mockRestore();
     });

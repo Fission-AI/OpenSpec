@@ -345,6 +345,12 @@ function printWorkspaceSkillReportHuman(report: WorkspaceSkillInstallationReport
     console.log(`  Removed: ${report.removed.map(formatWorkspaceSkillRemovedResult).join(', ')}`);
   }
 
+  if (report.migrated_legacy_codex_skill_count > 0) {
+    console.log(
+      `  Migrated: removed ${report.migrated_legacy_codex_skill_count} legacy Codex workspace skill directories from .codex/skills`
+    );
+  }
+
   if (report.skipped.length > 0) {
     for (const skipped of report.skipped) {
       const prefix = skipped.name ? `${skipped.name}: ` : '';

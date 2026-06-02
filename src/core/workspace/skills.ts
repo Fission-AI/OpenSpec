@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import { transformToHyphenCommands } from '../../utils/command-references.js';
 import { AI_TOOLS, type AIToolOption } from '../config.js';
+import { removeManagedLegacyCodexSkills } from '../codex-skill-migration.js';
 import { getGlobalConfig, type Delivery, type Profile } from '../global-config.js';
 import { getProfileWorkflows } from '../profiles.js';
 import {
@@ -54,6 +55,7 @@ export interface WorkspaceSkillInstallationReport {
   added: WorkspaceSkillAgentResult[];
   refreshed: WorkspaceSkillAgentResult[];
   removed: WorkspaceSkillRemovedResult[];
+  migrated_legacy_codex_skill_count: number;
   skipped: WorkspaceSkillSkippedResult[];
   failed: WorkspaceSkillFailedResult[];
 }
@@ -147,6 +149,7 @@ function makeBaseWorkspaceSkillReport(
     added: [],
     refreshed: [],
     removed: [],
+    migrated_legacy_codex_skill_count: 0,
     skipped: [],
     failed: [],
   };
@@ -362,6 +365,11 @@ export async function generateWorkspaceAgentSkills(
         await FileSystemUtils.writeFile(skillFile, skillContent);
       }
 
+      if (tool.value === 'codex') {
+        report.migrated_legacy_codex_skill_count +=
+          await removeManagedLegacyCodexSkills(workspaceRoot);
+      }
+
       const result = makeAgentResult(workspaceRoot, tool, profileContext.workflowIds);
       if (wasConfigured) {
         report.refreshed.push(result);
@@ -472,6 +480,11 @@ export async function updateWorkspaceAgentSkills(
         const skillFile = FileSystemUtils.joinPath(skillsDir, dirName, 'SKILL.md');
         const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
         await FileSystemUtils.writeFile(skillFile, skillContent);
+      }
+
+      if (tool.value === 'codex') {
+        report.migrated_legacy_codex_skill_count +=
+          await removeManagedLegacyCodexSkills(workspaceRoot);
       }
 
       const removed = await removeManagedWorkflowSkillDirs(

@@ -4,9 +4,9 @@
  * Shared utilities for detecting tool configurations and version status.
  */
 
-import path from 'path';
 import * as fs from 'fs';
-import { AI_TOOLS } from '../config.js';
+import { FileSystemUtils } from '../../utils/file-system.js';
+import { AI_TOOLS, type AIToolOption } from '../config.js';
 
 /**
  * Names of skill directories created by openspec init.
@@ -45,6 +45,47 @@ export const COMMAND_IDS = [
 ] as const;
 
 export type CommandId = (typeof COMMAND_IDS)[number];
+
+type SkillPathTool = Pick<AIToolOption, 'skillsDir' | 'legacySkillsDirs'>;
+
+/**
+ * Names of OpenSpec-managed skill directories.
+ */
+export function getOpenSpecManagedSkillDirNames(): string[] {
+  return [...SKILL_NAMES];
+}
+
+export function getToolCurrentSkillDirectory(
+  projectRoot: string,
+  tool: SkillPathTool
+): string | null {
+  if (!tool.skillsDir) return null;
+  return FileSystemUtils.joinPath(projectRoot, tool.skillsDir, 'skills');
+}
+
+export function getToolLegacySkillDirectories(
+  projectRoot: string,
+  tool: SkillPathTool
+): string[] {
+  return (tool.legacySkillsDirs ?? []).map((legacySkillsDir) =>
+    FileSystemUtils.joinPath(projectRoot, legacySkillsDir, 'skills')
+  );
+}
+
+export function getToolSkillDirectories(
+  projectRoot: string,
+  tool: SkillPathTool,
+  options: { includeLegacy?: boolean } = {}
+): string[] {
+  const currentSkillDirectory = getToolCurrentSkillDirectory(projectRoot, tool);
+  const directories = currentSkillDirectory ? [currentSkillDirectory] : [];
+
+  if (options.includeLegacy !== false) {
+    directories.push(...getToolLegacySkillDirectories(projectRoot, tool));
+  }
+
+  return directories;
+}
 
 /**
  * Status of skill configuration for a tool.
@@ -90,12 +131,14 @@ export function getToolSkillStatus(projectRoot: string, toolId: string): ToolSki
     return { configured: false, fullyConfigured: false, skillCount: 0 };
   }
 
-  const skillsDir = path.join(projectRoot, tool.skillsDir, 'skills');
+  const skillDirectories = getToolSkillDirectories(projectRoot, tool);
   let skillCount = 0;
 
   for (const skillName of SKILL_NAMES) {
-    const skillFile = path.join(skillsDir, skillName, 'SKILL.md');
-    if (fs.existsSync(skillFile)) {
+    const isConfigured = skillDirectories.some((skillsDir) =>
+      fs.existsSync(FileSystemUtils.joinPath(skillsDir, skillName, 'SKILL.md'))
+    );
+    if (isConfigured) {
       skillCount++;
     }
   }
@@ -173,14 +216,22 @@ export function getToolVersionStatus(
     };
   }
 
-  const skillsDir = path.join(projectRoot, tool.skillsDir, 'skills');
+  const skillDirectories = getToolSkillDirectories(projectRoot, tool);
   let generatedByVersion: string | null = null;
+  let foundSkillFile = false;
 
   // Find the first skill file that exists and read its version
-  for (const skillName of SKILL_NAMES) {
-    const skillFile = path.join(skillsDir, skillName, 'SKILL.md');
-    if (fs.existsSync(skillFile)) {
-      generatedByVersion = extractGeneratedByVersion(skillFile);
+  for (const skillsDir of skillDirectories) {
+    for (const skillName of SKILL_NAMES) {
+      const skillFile = FileSystemUtils.joinPath(skillsDir, skillName, 'SKILL.md');
+      if (fs.existsSync(skillFile)) {
+        generatedByVersion = extractGeneratedByVersion(skillFile);
+        foundSkillFile = true;
+        break;
+      }
+    }
+
+    if (foundSkillFile) {
       break;
     }
   }
