@@ -174,6 +174,10 @@ This skill supports the "actions on a change" model:
 - **Allows artifact updates**: If implementation reveals design issues, suggest updating artifacts - not phase-locked, work fluidly`;
 }
 
+/**
+ * Returns the skill template for the apply-change workflow.
+ * Used by skills-only tools (e.g. Antigravity) via SKILL.md discovery.
+ */
 export function getApplyChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-apply-change',
@@ -185,6 +189,10 @@ export function getApplyChangeSkillTemplate(): SkillTemplate {
   };
 }
 
+/**
+ * Returns the command template for the opsx apply workflow.
+ * Used by Claude Code and other command-enabled tools via /opsx:apply.
+ */
 export function getOpsxApplyCommandTemplate(): CommandTemplate {
   return {
     name: 'OPSX: Apply',
