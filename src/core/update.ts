@@ -683,6 +683,7 @@ export class UpdateCommand {
     const shouldGenerateCommands = delivery !== 'skills';
     const skillTemplates = shouldGenerateSkills ? getSkillTemplates(desiredWorkflows) : [];
     const commandContents = shouldGenerateCommands ? getCommandContents(desiredWorkflows) : [];
+    let migratedLegacyCodexSkillCount = 0;
 
     for (const toolId of selectedTools) {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
@@ -706,7 +707,7 @@ export class UpdateCommand {
           }
 
           if (tool.value === 'codex') {
-            await removeManagedLegacyCodexSkills(projectPath);
+            migratedLegacyCodexSkillCount += await removeManagedLegacyCodexSkills(projectPath);
           }
         }
 
@@ -729,6 +730,10 @@ export class UpdateCommand {
         spinner.fail(`Failed to set up ${tool.name}`);
         console.log(chalk.red(`  ${error instanceof Error ? error.message : String(error)}`));
       }
+    }
+
+    if (migratedLegacyCodexSkillCount > 0) {
+      console.log(chalk.dim(`Migrated: removed ${migratedLegacyCodexSkillCount} legacy Codex skill directories from .codex/skills`));
     }
 
     if (newlyConfigured.length > 0) {

@@ -1246,6 +1246,39 @@ More user content after markers.
       consoleSpy.mockRestore();
     });
 
+    it('should report legacy Codex skill cleanup during legacy tool upgrade', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'skills',
+      });
+
+      await fs.mkdir(path.join(testDir, '.codex', 'prompts'), { recursive: true });
+      await fs.writeFile(
+        path.join(testDir, '.codex', 'prompts', 'openspec-proposal.md'),
+        'legacy prompt'
+      );
+
+      const legacySkillDir = path.join(testDir, '.codex', 'skills', 'openspec-explore');
+      await fs.mkdir(legacySkillDir, { recursive: true });
+      await fs.writeFile(path.join(legacySkillDir, 'README.md'), 'legacy managed skill dir');
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      const forceUpdateCommand = new UpdateCommand({ force: true });
+      await forceUpdateCommand.execute(testDir);
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Migrated: removed 1 legacy Codex skill directories')
+      );
+      expect(await FileSystemUtils.fileExists(
+        path.join(testDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md')
+      )).toBe(true);
+      expect(await FileSystemUtils.directoryExists(legacySkillDir)).toBe(false);
+
+      consoleSpy.mockRestore();
+    });
+
     it('should upgrade multiple legacy tools with --force', async () => {
       // Create legacy command directories for Claude and Cursor
       await fs.mkdir(path.join(testDir, '.claude', 'commands', 'openspec'), { recursive: true });
