@@ -140,6 +140,7 @@ openspec/
 └── config.yaml         # Project configuration
 
 .claude/skills/         # Claude Code skills (if claude selected)
+.agents/skills/         # Codex skills (if codex selected)
 .cursor/skills/         # Cursor skills (if cursor selected)
 .cursor/commands/       # Cursor OPSX commands (if delivery includes commands)
 ... (other tool configs)
