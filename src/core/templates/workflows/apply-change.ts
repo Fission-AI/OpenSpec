@@ -8,10 +8,18 @@ import type { SkillTemplate, CommandTemplate } from '../types.js';
 
 // ── Shared instruction body ───────────────────────────────────────────────────
 // Single source of truth for apply workflow instructions.
-// Both the skill template and command template reference this constant,
-// eliminating content drift between the two generated files.
+// Parameterized by mode so skill-friendly references and command-specific
+// slash commands (/opsx:*) can differ without duplicating the entire body.
 // See: https://github.com/Fission-AI/OpenSpec/issues/1139
-const APPLY_INSTRUCTIONS = `Implement tasks from an OpenSpec change.
+function getApplyInstructions(mode: 'skill' | 'command'): string {
+  const continueRef = mode === 'command'
+    ? '`/opsx:continue`'
+    : 'the openspec-continue-change skill';
+  const archiveRef = mode === 'command'
+    ? 'You can archive this change with `/opsx:archive`.'
+    : 'Ready to archive this change.';
+
+  return `Implement tasks from an OpenSpec change.
 
 **Input**: Optionally specify a change name (e.g., \`/opsx:apply add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
@@ -48,7 +56,7 @@ const APPLY_INSTRUCTIONS = `Implement tasks from an OpenSpec change.
    - Dynamic instruction based on current state
 
    **Handle states:**
-   - If \`state: "blocked"\` (missing artifacts): show message, suggest using \`/opsx:continue\`
+   - If \`state: "blocked"\` (missing artifacts): show message, suggest using ${continueRef}
    - If \`state: "all_done"\`: congratulate, suggest archive
    - Otherwise: proceed to implementation
 
@@ -120,7 +128,7 @@ Working on task 4/7: <task description>
 - [x] Task 2
 ...
 
-All tasks complete! You can archive this change with \`/opsx:archive\`.
+${archiveRef}
 \`\`\`
 
 **Output On Pause (Issue Encountered)**
@@ -159,12 +167,13 @@ This skill supports the "actions on a change" model:
 
 - **Can be invoked anytime**: Before all artifacts are done (if tasks exist), after partial implementation, interleaved with other actions
 - **Allows artifact updates**: If implementation reveals design issues, suggest updating artifacts - not phase-locked, work fluidly`;
+}
 
 export function getApplyChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-apply-change',
     description: 'Implement tasks from an OpenSpec change. Use when the user wants to start implementing, continue implementation, or work through tasks.',
-    instructions: APPLY_INSTRUCTIONS,
+    instructions: getApplyInstructions('skill'),
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
@@ -177,6 +186,6 @@ export function getOpsxApplyCommandTemplate(): CommandTemplate {
     description: 'Implement tasks from an OpenSpec change (Experimental)',
     category: 'Workflow',
     tags: ['workflow', 'artifacts', 'experimental'],
-    content: APPLY_INSTRUCTIONS,
+    content: getApplyInstructions('command'),
   };
 }
