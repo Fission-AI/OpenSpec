@@ -10,6 +10,7 @@ import { saveGlobalConfig, getGlobalConfigPath } from '../../src/core/global-con
 import { migrateIfNeeded, scanInstalledWorkflows } from '../../src/core/migration.js';
 
 const CLAUDE_TOOL = AI_TOOLS.find((tool) => tool.value === 'claude') as AIToolOption | undefined;
+const CODEX_TOOL = AI_TOOLS.find((tool) => tool.value === 'codex') as AIToolOption | undefined;
 
 function ensureClaudeTool(): AIToolOption {
   if (!CLAUDE_TOOL) {
@@ -18,8 +19,21 @@ function ensureClaudeTool(): AIToolOption {
   return CLAUDE_TOOL;
 }
 
+function ensureCodexTool(): AIToolOption {
+  if (!CODEX_TOOL) {
+    throw new Error('Codex tool definition not found');
+  }
+  return CODEX_TOOL;
+}
+
 async function writeSkill(projectPath: string, dirName: string): Promise<void> {
   const skillFile = path.join(projectPath, '.claude', 'skills', dirName, 'SKILL.md');
+  await fsp.mkdir(path.dirname(skillFile), { recursive: true });
+  await fsp.writeFile(skillFile, 'name: test\n', 'utf-8');
+}
+
+async function writeLegacyCodexSkill(projectPath: string, dirName: string): Promise<void> {
+  const skillFile = path.join(projectPath, '.codex', 'skills', dirName, 'SKILL.md');
   await fsp.mkdir(path.dirname(skillFile), { recursive: true });
   await fsp.writeFile(skillFile, 'name: test\n', 'utf-8');
 }
@@ -66,6 +80,19 @@ describe('migration', () => {
     await writeSkill(projectDir, 'openspec-apply-change');
 
     migrateIfNeeded(projectDir, [ensureClaudeTool()]);
+
+    const config = readRawConfig();
+    expect(config.profile).toBe('custom');
+    expect(config.delivery).toBe('skills');
+    expect(config.workflows).toEqual(['explore', 'apply']);
+  });
+
+  it('migrates from legacy Codex skills when no current .agents skills exist', async () => {
+    process.env.CODEX_HOME = path.join(projectDir, 'codex-home');
+    await writeLegacyCodexSkill(projectDir, 'openspec-explore');
+    await writeLegacyCodexSkill(projectDir, 'openspec-apply-change');
+
+    migrateIfNeeded(projectDir, [ensureCodexTool()]);
 
     const config = readRawConfig();
     expect(config.profile).toBe('custom');

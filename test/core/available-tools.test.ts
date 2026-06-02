@@ -4,6 +4,7 @@ import path from 'path';
 import os from 'os';
 import { randomUUID } from 'crypto';
 import { getAvailableTools } from '../../src/core/available-tools.js';
+import { AI_TOOLS } from '../../src/core/config.js';
 
 describe('available-tools', () => {
   let testDir: string;
@@ -55,14 +56,41 @@ describe('available-tools', () => {
     });
 
     it('should only return tools that have a skillsDir property', async () => {
-      // .agents value has no skillsDir in AI_TOOLS config
-      // Create directories for both a valid and the agents case
+      // The AGENTS.md-compatible assistant entry has no skillsDir in AI_TOOLS config.
       await fs.mkdir(path.join(testDir, '.claude'), { recursive: true });
 
       const tools = getAvailableTools(testDir);
       const toolValues = tools.map((t) => t.value);
       expect(toolValues).toContain('claude');
       expect(toolValues).not.toContain('agents');
+    });
+
+    it('should configure Codex with current and legacy skill metadata', () => {
+      const codex = AI_TOOLS.find((tool) => tool.value === 'codex');
+
+      expect(codex).toMatchObject({
+        skillsDir: '.agents',
+        legacySkillsDirs: ['.codex'],
+        detectionPaths: ['.agents/skills', '.codex/skills'],
+      });
+    });
+
+    it('should detect Codex from current .agents skills', async () => {
+      await fs.mkdir(path.join(testDir, '.agents', 'skills'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const codex = tools.find((tool) => tool.value === 'codex');
+
+      expect(codex?.skillsDir).toBe('.agents');
+    });
+
+    it('should detect Codex from legacy .codex skills', async () => {
+      await fs.mkdir(path.join(testDir, '.codex', 'skills'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const codex = tools.find((tool) => tool.value === 'codex');
+
+      expect(codex?.skillsDir).toBe('.agents');
     });
 
     it('should return full AIToolOption objects', async () => {

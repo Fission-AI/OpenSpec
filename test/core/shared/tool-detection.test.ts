@@ -5,6 +5,8 @@ import os from 'os';
 import { randomUUID } from 'crypto';
 import {
   SKILL_NAMES,
+  getToolCurrentSkillDirectory,
+  getToolLegacySkillDirectories,
   getToolsWithSkillsDir,
   getToolSkillStatus,
   getToolStates,
@@ -47,9 +49,34 @@ describe('tool-detection', () => {
     it('should return tools that have skillsDir configured', () => {
       const tools = getToolsWithSkillsDir();
       expect(tools).toContain('claude');
+      expect(tools).toContain('codex');
       expect(tools).toContain('cursor');
       expect(tools).toContain('windsurf');
       expect(tools.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Codex skill paths', () => {
+    it('should build current and legacy Codex skill paths with POSIX path style', () => {
+      const codex = { skillsDir: '.agents', legacySkillsDirs: ['.codex'] };
+
+      expect(getToolCurrentSkillDirectory('/repos/platform', codex)).toBe(
+        '/repos/platform/.agents/skills'
+      );
+      expect(getToolLegacySkillDirectories('/repos/platform', codex)).toEqual([
+        '/repos/platform/.codex/skills',
+      ]);
+    });
+
+    it('should build current and legacy Codex skill paths with Windows path style', () => {
+      const codex = { skillsDir: '.agents', legacySkillsDirs: ['.codex'] };
+
+      expect(getToolCurrentSkillDirectory('D:\\repos\\platform', codex)).toBe(
+        'D:\\repos\\platform\\.agents\\skills'
+      );
+      expect(getToolLegacySkillDirectories('D:\\repos\\platform', codex)).toEqual([
+        'D:\\repos\\platform\\.codex\\skills',
+      ]);
     });
   });
 
@@ -76,6 +103,26 @@ describe('tool-detection', () => {
       const status = getToolSkillStatus(testDir, 'claude');
       expect(status.configured).toBe(true);
       expect(status.fullyConfigured).toBe(false);
+      expect(status.skillCount).toBe(1);
+    });
+
+    it('should detect Codex skills from current .agents path', async () => {
+      const skillDir = path.join(testDir, '.agents', 'skills', 'openspec-explore');
+      await fs.mkdir(skillDir, { recursive: true });
+      await fs.writeFile(path.join(skillDir, 'SKILL.md'), 'test content');
+
+      const status = getToolSkillStatus(testDir, 'codex');
+      expect(status.configured).toBe(true);
+      expect(status.skillCount).toBe(1);
+    });
+
+    it('should detect Codex skills from legacy .codex path', async () => {
+      const skillDir = path.join(testDir, '.codex', 'skills', 'openspec-explore');
+      await fs.mkdir(skillDir, { recursive: true });
+      await fs.writeFile(path.join(skillDir, 'SKILL.md'), 'test content');
+
+      const status = getToolSkillStatus(testDir, 'codex');
+      expect(status.configured).toBe(true);
       expect(status.skillCount).toBe(1);
     });
 
@@ -266,6 +313,21 @@ Content here
       const status = getToolVersionStatus(testDir, 'claude', '0.23.0');
       expect(status.toolId).toBe('claude');
       expect(status.toolName).toBe('Claude Code');
+    });
+
+    it('should read Codex version status from legacy .codex skills', async () => {
+      const skillDir = path.join(testDir, '.codex', 'skills', 'openspec-explore');
+      await fs.mkdir(skillDir, { recursive: true });
+      await fs.writeFile(path.join(skillDir, 'SKILL.md'), `---
+metadata:
+  generatedBy: "0.22.0"
+---
+`);
+
+      const status = getToolVersionStatus(testDir, 'codex', '0.23.0');
+      expect(status.configured).toBe(true);
+      expect(status.generatedByVersion).toBe('0.22.0');
+      expect(status.needsUpdate).toBe(true);
     });
   });
 
