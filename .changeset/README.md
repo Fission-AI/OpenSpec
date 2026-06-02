@@ -12,11 +12,12 @@ Follow the prompts to select version bump type and describe your changes.
 
 ## Workflow
 
-1. **Add a changeset** — Run `pnpm changeset` locally before or after your PR
-2. **Version PR** — CI opens/updates a "Version Packages" PR when changesets merge to main
-3. **Release** — Merging the Version PR triggers npm publish and GitHub Release
+1. **Choose the release path**: Maintainers decide whether a PR follows the normal release cadence or gets dedicated release tracking.
+2. **Add dedicated release tracking**: When a maintainer asks for a changeset, run `pnpm changeset` locally before or after your PR.
+3. **Version PR**: CI opens/updates a "Version Packages" PR when changesets merge to main.
+4. **Release**: Merging the Version PR triggers npm publish and GitHub Release.
 
-> **Note:** Contributors only need to run `pnpm changeset`. Versioning (`changeset version`) and publishing happen automatically in CI.
+> **Note:** The default path is the normal release cadence. Add a changeset when a maintainer or release owner wants dedicated release notes and version tracking for the PR. Versioning (`changeset version`) and publishing happen automatically in CI.
 
 ## Template
 
@@ -54,22 +55,23 @@ Include only the sections relevant to your change.
 
 | Type | When to use | Example |
 |------|-------------|---------|
-| `patch` | Bug fixes, small improvements | Fixed crash when config missing |
+| `patch` | Release-tracked bug fixes, small improvements | Fixed crash when config missing |
 | `minor` | New features, non-breaking additions | Added `--verbose` flag |
 | `major` | Breaking changes, removed features | Renamed `init` to `setup` |
 
 ## When to Create a Changeset
 
-**Create one for:**
-- New features or commands
-- Bug fixes that affect users
+**Use dedicated release tracking for:**
+- New features or commands selected for release
+- Notable bug fixes or hotfixes requested by a maintainer/release owner
 - Breaking changes or deprecations
-- Performance improvements users would notice
+- Performance improvements users would notice and that are planned for release
 
-**Skip for:**
+**Use the normal release cadence for:**
+- Routine bug fixes that fit the normal release cadence
 - Documentation-only changes
 - Test additions/fixes
-- Internal refactoring with no user impact
+- Internal refactoring that preserves user behavior
 - CI/tooling changes
 
 ## Writing Good Descriptions
