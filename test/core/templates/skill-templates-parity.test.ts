@@ -169,4 +169,21 @@ describe('skill templates split parity', () => {
       expect(content, dirName).not.toContain('mv openspec/changes');
     }
   });
+
+  it('apply skill and command share the same normalized body', () => {
+    const skillInstructions = getApplyChangeSkillTemplate().instructions;
+    const commandContent = getOpsxApplyCommandTemplate().content;
+
+    function normalize(text: string): string {
+      return text
+        .trim()
+        .replace(/the openspec-continue-change skill/g, 'CONTINUE_REF')
+        .replace(/`\/opsx:continue`/g, 'CONTINUE_REF')
+        .replace(/Ready to archive this change\./g, 'ARCHIVE_REF')
+        .replace(/You can archive this change with `\/opsx:archive`\./g, 'ARCHIVE_REF')
+        .replace(/\s+/g, ' ');
+    }
+
+    expect(normalize(skillInstructions)).toBe(normalize(commandContent));
+  });
 });
