@@ -58,7 +58,7 @@ describe('workspace foundation', () => {
 
   function createWorkspaceRoot(name = 'platform'): string {
     const workspaceRoot = path.join(tempDir, name);
-    fs.mkdirSync(workspaceRoot, { recursive: true });
+    fs.mkdirSync(getWorkspaceMetadataDir(workspaceRoot), { recursive: true });
     fs.writeFileSync(
       getWorkspaceViewStatePath(workspaceRoot),
       `version: 1
@@ -218,6 +218,57 @@ links: {}
       await expect(findWorkspaceRoot(path.join(repoRoot, 'openspec', 'changes'))).resolves.toBe(
         null
       );
+    });
+
+    it('ignores foreign root workspace.yaml files in repo-local projects', async () => {
+      const repoRoot = path.join(tempDir, 'dagster-repo');
+      const nestedDir = path.join(repoRoot, 'openspec', 'changes', 'add-feature');
+      fs.mkdirSync(nestedDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(repoRoot, 'workspace.yaml'),
+        `load_from:
+  - grpc_server:
+      host: dagster-code
+      port: 4000
+      location_name: example
+`
+      );
+
+      await expect(isWorkspaceRoot(repoRoot)).resolves.toBe(false);
+      await expect(findWorkspaceRoot(nestedDir)).resolves.toBe(null);
+    });
+
+    it('accepts unmarked root view state only for already-known workspace paths', async () => {
+      const workspaceRoot = path.join(tempDir, 'unmarked-beta-workspace');
+      fs.mkdirSync(workspaceRoot, { recursive: true });
+      fs.writeFileSync(
+        getWorkspaceViewStatePath(workspaceRoot),
+        `version: 1
+name: unmarked-beta-workspace
+context: null
+links: {}
+`
+      );
+
+      await expect(isWorkspaceRoot(workspaceRoot)).resolves.toBe(false);
+      await expect(
+        isWorkspaceRoot(workspaceRoot, { allowUnmarkedViewState: true })
+      ).resolves.toBe(true);
+    });
+
+    it('creates the OpenSpec marker directory when writing root view state', async () => {
+      const workspaceRoot = path.join(tempDir, 'written-workspace');
+
+      await writeWorkspaceViewState(workspaceRoot, {
+        version: 1,
+        name: 'written-workspace',
+        context: null,
+        links: {},
+      });
+
+      expect(fs.existsSync(getWorkspaceMetadataDir(workspaceRoot))).toBe(true);
+      await expect(isWorkspaceRoot(workspaceRoot)).resolves.toBe(true);
+      expectSameExistingPath(await findWorkspaceRoot(workspaceRoot), workspaceRoot);
     });
 
     it('detects a workspace even when a linked path has no repo-local openspec state', async () => {

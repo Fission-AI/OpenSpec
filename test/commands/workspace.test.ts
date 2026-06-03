@@ -475,6 +475,32 @@ describe('workspace command', () => {
     expect(fs.existsSync(path.join(api, '.codex'))).toBe(false);
   });
 
+  it('does not redirect openspec update for repo-local projects with foreign workspace.yaml', async () => {
+    const repoRoot = mkdir('repos/dagster');
+    fs.mkdirSync(path.join(repoRoot, 'openspec'), { recursive: true });
+    const foreignWorkspaceYaml = `load_from:
+  - grpc_server:
+      host: dagster-code
+      port: 4000
+      location_name: example
+`;
+    fs.writeFileSync(path.join(repoRoot, 'workspace.yaml'), foreignWorkspaceYaml);
+
+    const update = await runCLI(['update'], {
+      cwd: repoRoot,
+      env,
+    });
+
+    expect(update.exitCode).toBe(0);
+    expect(update.stdout).not.toContain('Workspace update complete');
+    expect(update.stderr).not.toContain('Invalid workspace state');
+    expect(update.stdout).toContain('No configured tools found');
+    expect(fs.readFileSync(path.join(repoRoot, 'workspace.yaml'), 'utf-8')).toBe(
+      foreignWorkspaceYaml
+    );
+    expect(fs.existsSync(path.join(repoRoot, WORKSPACE_METADATA_DIR_NAME))).toBe(false);
+  });
+
   it('updates the workspace passed to openspec update even when another workspace is known', async () => {
     const firstApi = mkdir('repos/first-api');
     const secondApi = mkdir('repos/second-api');

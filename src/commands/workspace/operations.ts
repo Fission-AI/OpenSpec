@@ -330,7 +330,10 @@ export async function loadWorkspaceForList(
 ): Promise<WorkspaceListOutput> {
   const workspaceStatus: WorkspaceStatus[] = [];
 
-  if (!(await directoryExists(entry.workspaceRoot)) || !(await isWorkspaceRoot(entry.workspaceRoot))) {
+  if (
+    !(await directoryExists(entry.workspaceRoot)) ||
+    !(await isWorkspaceRoot(entry.workspaceRoot, { allowUnmarkedViewState: true }))
+  ) {
     return {
       name: entry.name,
       root: entry.workspaceRoot,
@@ -388,7 +391,10 @@ export async function loadWorkspaceForDoctor(
   const workspaceStatus: WorkspaceStatus[] = [];
   const planningPath = getWorkspaceChangesDir(selected.root);
 
-  if (!(await directoryExists(selected.root)) || !(await isWorkspaceRoot(selected.root))) {
+  if (
+    !(await directoryExists(selected.root)) ||
+    !(await isWorkspaceRoot(selected.root, { allowUnmarkedViewState: true }))
+  ) {
     return {
       workspace: {
         name: selected.name,
@@ -504,7 +510,10 @@ export async function loadWorkspaceForDoctor(
 }
 
 async function readWorkspaceViewForMutation(selected: SelectedWorkspace): Promise<WorkspaceViewState> {
-  if (!(await directoryExists(selected.root)) || !(await isWorkspaceRoot(selected.root))) {
+  if (
+    !(await directoryExists(selected.root)) ||
+    !(await isWorkspaceRoot(selected.root, { allowUnmarkedViewState: true }))
+  ) {
     throw new WorkspaceCliError(
       `Workspace location does not exist for '${selected.name}': ${selected.root}`,
       'selected_workspace_root_missing',
@@ -652,7 +661,7 @@ async function readExistingManagedWorkspaceView(
     return null;
   }
 
-  if (!(await isWorkspaceRoot(workspaceRoot))) {
+  if (!(await isWorkspaceRoot(workspaceRoot, { allowUnmarkedViewState: true }))) {
     throw new WorkspaceCliError(
       `Workspace name '${workspaceName}' collides with a non-workspace directory at ${workspaceRoot}.`,
       'workspace_name_collision',

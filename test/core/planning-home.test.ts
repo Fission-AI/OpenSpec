@@ -91,4 +91,30 @@ describe('planning home paths', () => {
       })
     ).toThrow(/Workspace name/u);
   });
+
+  it('resolves repo-local projects with foreign workspace.yaml as repo planning homes', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-planning-home-'));
+    tempDirs.push(tempDir);
+    const repoRoot = path.join(tempDir, 'dagster-repo');
+    const changesDir = path.join(repoRoot, 'openspec', 'changes');
+
+    fs.mkdirSync(changesDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(repoRoot, 'workspace.yaml'),
+      `load_from:
+  - python_file:
+      relative_path: repository.py
+      location_name: dagster_repo
+`,
+      'utf-8'
+    );
+
+    const planningHome = resolveCurrentPlanningHomeSync({
+      startPath: changesDir,
+      allowImplicitRepoRoot: false,
+    });
+
+    expect(planningHome.kind).toBe('repo');
+    expect(planningHome.root).toBe(fs.realpathSync.native(repoRoot));
+  });
 });

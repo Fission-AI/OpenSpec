@@ -183,7 +183,7 @@ export async function listManagedWorkspaceEntries(
     const workspaceRoot = FileSystemUtils.canonicalizeExistingPath(
       joinWorkspacePath(workspacesDir, entry.name)
     );
-    if (!(await isWorkspaceRoot(workspaceRoot))) {
+    if (!(await isWorkspaceRoot(workspaceRoot, { allowUnmarkedViewState: true }))) {
       continue;
     }
 
