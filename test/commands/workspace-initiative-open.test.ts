@@ -231,7 +231,7 @@ describe('workspace open initiative views', () => {
         },
       })
     );
-    expect(fs.existsSync(path.join(workspaceRoot, '.openspec-workspace'))).toBe(false);
+    expect(fs.existsSync(path.join(workspaceRoot, '.openspec-workspace'))).toBe(true);
     expect(fs.existsSync(path.join(globalDataDir, 'workspaces', 'registry.yaml'))).toBe(false);
     expect(fs.readFileSync(path.join(workspaceRoot, 'AGENTS.md'), 'utf-8')).toContain(
       'Initiative title: Billing Launch'

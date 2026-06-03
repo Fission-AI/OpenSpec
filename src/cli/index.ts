@@ -4,7 +4,7 @@ import ora from 'ora';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { promises as fs } from 'fs';
-import { AI_TOOLS } from '../core/config.js';
+import { AI_TOOLS, OPENSPEC_DIR_NAME } from '../core/config.js';
 import { UpdateCommand } from '../core/update.js';
 import { ListCommand } from '../core/list.js';
 import { ArchiveCommand } from '../core/archive.js';
@@ -17,10 +17,7 @@ import { CompletionCommand } from '../commands/completion.js';
 import { FeedbackCommand } from '../commands/feedback.js';
 import { registerConfigCommand } from '../commands/config.js';
 import { registerSchemaCommand } from '../commands/schema.js';
-import {
-  registerWorkspaceCommand,
-  runWorkspaceUpdateForRoot,
-} from '../commands/workspace.js';
+import { registerWorkspaceCommand } from '../commands/workspace.js';
 import { registerContextStoreCommand } from '../commands/context-store.js';
 import { registerInitiativeCommand } from '../commands/initiative.js';
 import { findWorkspaceRoot } from '../core/workspace/index.js';
@@ -100,6 +97,22 @@ program.hook('postAction', async () => {
 const availableToolIds = AI_TOOLS.filter((tool) => tool.skillsDir).map((tool) => tool.value);
 const toolsOptionDescription = `Configure AI tools non-interactively. Use "all", "none", or a comma-separated list of: ${availableToolIds.join(', ')}`;
 
+async function hasRepoLocalOpenSpecProject(projectPath: string): Promise<boolean> {
+  try {
+    const stats = await fs.stat(path.join(projectPath, OPENSPEC_DIR_NAME));
+    return stats.isDirectory();
+  } catch (error) {
+    const code =
+      typeof error === 'object' && error !== null && 'code' in error
+        ? (error as { code?: unknown }).code
+        : undefined;
+    if (code !== 'ENOENT' && code !== 'ENOTDIR') {
+      throw error;
+    }
+    return false;
+  }
+}
+
 program
   .command('init [path]')
   .description('Initialize OpenSpec in your project')
@@ -170,13 +183,19 @@ program
   .action(async (targetPath = '.', options?: { force?: boolean }) => {
     try {
       const resolvedPath = path.resolve(targetPath);
-      const workspaceRoot = await findWorkspaceRoot(resolvedPath);
-      if (workspaceRoot) {
-        await runWorkspaceUpdateForRoot(workspaceRoot, { force: options?.force });
+      const updateCommand = new UpdateCommand({ force: options?.force });
+      if (await hasRepoLocalOpenSpecProject(resolvedPath)) {
+        await updateCommand.execute(resolvedPath);
         return;
       }
 
-      const updateCommand = new UpdateCommand({ force: options?.force });
+      const workspaceRoot = await findWorkspaceRoot(resolvedPath);
+      if (workspaceRoot) {
+        throw new Error(
+          'OpenSpec workspace detected. Run `openspec workspace update` to refresh workspace-local guidance and skills.'
+        );
+      }
+
       await updateCommand.execute(resolvedPath);
     } catch (error) {
       console.log(); // Empty line for spacing

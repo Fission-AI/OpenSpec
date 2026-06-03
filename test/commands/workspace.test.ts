@@ -443,7 +443,7 @@ describe('workspace command', () => {
     );
   });
 
-  it('redirects openspec update from a workspace root to workspace update', async () => {
+  it('does not route openspec update through workspace update from a workspace root', async () => {
     const api = mkdir('repos/api');
     const linkedEntriesBefore = fs.readdirSync(api).sort();
     writeGlobalConfig({
@@ -453,6 +453,7 @@ describe('workspace command', () => {
     });
     const setup = await setupWorkspace('update-redirect', [`api=${api}`], ['--tools', 'codex']);
     const workspaceRoot = setup.workspace.root;
+    const workspaceStateBefore = fs.readFileSync(getWorkspaceViewStatePath(workspaceRoot), 'utf-8');
     expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'openspec-apply-change', 'SKILL.md'))).toBe(true);
     expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(false);
 
@@ -465,17 +466,103 @@ describe('workspace command', () => {
       cwd: workspaceRoot,
       env,
     });
-    expect(update.exitCode).toBe(0);
-    expect(update.stdout).toContain('Workspace update complete');
-    expect(update.stdout).toContain('update-redirect');
+    expect(update.exitCode).toBe(1);
+    expect(`${update.stdout}\n${update.stderr}`).toContain('Run `openspec workspace update`');
+    expect(update.stdout).not.toContain('Workspace update complete');
     expect(update.stdout).not.toContain('not in the managed local workspace views list');
-    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
-    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'openspec-sync-specs', 'SKILL.md'))).toBe(true);
+    expect(fs.readFileSync(getWorkspaceViewStatePath(workspaceRoot), 'utf-8')).toBe(workspaceStateBefore);
+    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(false);
+    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'openspec-sync-specs', 'SKILL.md'))).toBe(false);
     expect(fs.readdirSync(api).sort()).toEqual(linkedEntriesBefore);
     expect(fs.existsSync(path.join(api, '.codex'))).toBe(false);
   });
 
-  it('updates the workspace passed to openspec update even when another workspace is known', async () => {
+  it('updates repo-local project targets nested under a workspace without touching workspace state', async () => {
+    const api = mkdir('repos/api');
+    writeGlobalConfig({
+      profile: 'custom',
+      delivery: 'commands',
+      workflows: ['apply'],
+    });
+    const setup = await setupWorkspace('nested-update-target', [`api=${api}`], ['--tools', 'codex']);
+    const workspaceRoot = setup.workspace.root;
+    const workspaceStateBefore = fs.readFileSync(getWorkspaceViewStatePath(workspaceRoot), 'utf-8');
+    const nestedRepo = path.join(workspaceRoot, 'repos', 'nested-api');
+    fs.mkdirSync(path.join(nestedRepo, 'openspec'), { recursive: true });
+    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'openspec-apply-change', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(false);
+
+    writeGlobalConfig({
+      profile: 'core',
+      delivery: 'commands',
+    });
+
+    const update = await runCLI(['update', nestedRepo], {
+      cwd: tempDir,
+      env,
+    });
+
+    expect(update.exitCode).toBe(0);
+    expect(update.stdout).toContain('No configured tools found');
+    expect(`${update.stdout}\n${update.stderr}`).not.toContain('Run `openspec workspace update`');
+    expect(update.stdout).not.toContain('Workspace update complete');
+    expect(fs.readFileSync(getWorkspaceViewStatePath(workspaceRoot), 'utf-8')).toBe(workspaceStateBefore);
+    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(false);
+  });
+
+  it('does not touch workspace state when updating repo-local projects with foreign workspace.yaml', async () => {
+    const existingApi = mkdir('repos/existing-api');
+    writeGlobalConfig({
+      profile: 'custom',
+      delivery: 'commands',
+      workflows: ['apply'],
+    });
+    const existingWorkspace = await setupWorkspace('known-workspace', [`api=${existingApi}`], ['--tools', 'codex']);
+    const existingWorkspaceRoot = existingWorkspace.workspace.root;
+    const existingWorkspaceStateBefore = fs.readFileSync(
+      getWorkspaceViewStatePath(existingWorkspaceRoot),
+      'utf-8'
+    );
+    expect(fs.existsSync(path.join(existingWorkspaceRoot, '.codex', 'skills', 'openspec-apply-change', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(existingWorkspaceRoot, '.codex', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(false);
+
+    writeGlobalConfig({
+      profile: 'core',
+      delivery: 'commands',
+    });
+
+    const repoRoot = mkdir('repos/foreign-tool');
+    fs.mkdirSync(path.join(repoRoot, 'openspec'), { recursive: true });
+    const foreignWorkspaceYaml = `tool_workspace:
+  projects:
+    - name: example
+      path: ./service
+`;
+    fs.writeFileSync(path.join(repoRoot, 'workspace.yaml'), foreignWorkspaceYaml);
+
+    const update = await runCLI(['update'], {
+      cwd: repoRoot,
+      env,
+    });
+
+    expect(update.exitCode).toBe(0);
+    expect(update.stdout).not.toContain('Workspace update complete');
+    expect(update.stderr).not.toContain('Invalid workspace state');
+    expect(update.stdout).toContain('No configured tools found');
+    expect(fs.readFileSync(getWorkspaceViewStatePath(existingWorkspaceRoot), 'utf-8')).toBe(
+      existingWorkspaceStateBefore
+    );
+    expect(fs.existsSync(path.join(existingWorkspaceRoot, '.codex', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(false);
+    expect(fs.readFileSync(path.join(repoRoot, 'workspace.yaml'), 'utf-8')).toBe(
+      foreignWorkspaceYaml
+    );
+    expect(fs.existsSync(path.join(repoRoot, WORKSPACE_METADATA_DIR_NAME))).toBe(false);
+    expect(fs.existsSync(path.join(repoRoot, WORKSPACE_CHANGES_DIR_NAME))).toBe(false);
+    expect(fs.readdirSync(repoRoot).some((entry) => entry.endsWith('.code-workspace'))).toBe(false);
+    expect(fs.existsSync(getWorkspaceRegistryPath({ globalDataDir: path.join(dataHome, 'openspec') }))).toBe(false);
+  });
+
+  it('does not update a workspace passed to openspec update even when another workspace is known', async () => {
     const firstApi = mkdir('repos/first-api');
     const secondApi = mkdir('repos/second-api');
     writeGlobalConfig({
@@ -485,6 +572,8 @@ describe('workspace command', () => {
     });
     const first = await setupWorkspace('target-first', [`api=${firstApi}`], ['--tools', 'codex']);
     const second = await setupWorkspace('target-second', [`api=${secondApi}`], ['--tools', 'codex']);
+    const firstWorkspaceStateBefore = fs.readFileSync(getWorkspaceViewStatePath(first.workspace.root), 'utf-8');
+    const secondWorkspaceStateBefore = fs.readFileSync(getWorkspaceViewStatePath(second.workspace.root), 'utf-8');
 
     writeGlobalConfig({
       profile: 'core',
@@ -496,11 +585,17 @@ describe('workspace command', () => {
       { cwd: tempDir, env }
     );
 
-    expect(update.exitCode).toBe(0);
-    expect(update.stdout).toContain('Workspace update complete');
-    expect(update.stdout).toContain('target-first');
+    expect(update.exitCode).toBe(1);
+    expect(`${update.stdout}\n${update.stderr}`).toContain('Run `openspec workspace update`');
+    expect(update.stdout).not.toContain('Workspace update complete');
     expect(update.stdout).not.toContain('Multiple OpenSpec workspaces are known');
-    expect(fs.existsSync(path.join(first.workspace.root, '.codex', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
+    expect(fs.readFileSync(getWorkspaceViewStatePath(first.workspace.root), 'utf-8')).toBe(
+      firstWorkspaceStateBefore
+    );
+    expect(fs.readFileSync(getWorkspaceViewStatePath(second.workspace.root), 'utf-8')).toBe(
+      secondWorkspaceStateBefore
+    );
+    expect(fs.existsSync(path.join(first.workspace.root, '.codex', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(false);
     expect(fs.existsSync(path.join(second.workspace.root, '.codex', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(false);
   });
 

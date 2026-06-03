@@ -166,7 +166,7 @@ The archive slash command template SHALL support optional change ID arguments fo
 - **AND** wrap it in a clear structure like `<ChangeId>\n  $ARGUMENTS\n</ChangeId>` to indicate the expected argument
 - **AND** include validation steps in the template body to check if the change ID is valid
 
-### Requirement: Repo update redirects from workspace planning homes
+### Requirement: Repo update stays separate from workspace planning homes
 The repo-local `openspec update` command SHALL not silently treat a workspace planning home as a repo-local OpenSpec project.
 
 #### Scenario: Running update from a workspace root
@@ -185,6 +185,13 @@ The repo-local `openspec update` command SHALL not silently treat a workspace pl
 - **GIVEN** the command runs from inside a repo-local OpenSpec project
 - **WHEN** the user runs `openspec update`
 - **THEN** OpenSpec SHALL preserve existing repo-local update behavior
+
+#### Scenario: Updating a repo-local project nested below a workspace folder
+- **GIVEN** the target path contains repo-local OpenSpec state
+- **AND** an ancestor is an OpenSpec workspace root
+- **WHEN** the user runs `openspec update <path>`
+- **THEN** OpenSpec SHALL preserve repo-local update behavior for the target path
+- **AND** it SHALL not run workspace update behavior
 
 ## Edge Cases
 
