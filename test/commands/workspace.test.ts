@@ -477,6 +477,39 @@ describe('workspace command', () => {
     expect(fs.existsSync(path.join(api, '.codex'))).toBe(false);
   });
 
+  it('updates repo-local project targets nested under a workspace without touching workspace state', async () => {
+    const api = mkdir('repos/api');
+    writeGlobalConfig({
+      profile: 'custom',
+      delivery: 'commands',
+      workflows: ['apply'],
+    });
+    const setup = await setupWorkspace('nested-update-target', [`api=${api}`], ['--tools', 'codex']);
+    const workspaceRoot = setup.workspace.root;
+    const workspaceStateBefore = fs.readFileSync(getWorkspaceViewStatePath(workspaceRoot), 'utf-8');
+    const nestedRepo = path.join(workspaceRoot, 'repos', 'nested-api');
+    fs.mkdirSync(path.join(nestedRepo, 'openspec'), { recursive: true });
+    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'openspec-apply-change', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(false);
+
+    writeGlobalConfig({
+      profile: 'core',
+      delivery: 'commands',
+    });
+
+    const update = await runCLI(['update', nestedRepo], {
+      cwd: tempDir,
+      env,
+    });
+
+    expect(update.exitCode).toBe(0);
+    expect(update.stdout).toContain('No configured tools found');
+    expect(`${update.stdout}\n${update.stderr}`).not.toContain('Run `openspec workspace update`');
+    expect(update.stdout).not.toContain('Workspace update complete');
+    expect(fs.readFileSync(getWorkspaceViewStatePath(workspaceRoot), 'utf-8')).toBe(workspaceStateBefore);
+    expect(fs.existsSync(path.join(workspaceRoot, '.codex', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(false);
+  });
+
   it('does not touch workspace state when updating repo-local projects with foreign workspace.yaml', async () => {
     const existingApi = mkdir('repos/existing-api');
     writeGlobalConfig({

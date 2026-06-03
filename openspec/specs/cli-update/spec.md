@@ -186,6 +186,13 @@ The repo-local `openspec update` command SHALL not silently treat a workspace pl
 - **WHEN** the user runs `openspec update`
 - **THEN** OpenSpec SHALL preserve existing repo-local update behavior
 
+#### Scenario: Updating a repo-local project nested below a workspace folder
+- **GIVEN** the target path contains repo-local OpenSpec state
+- **AND** an ancestor is an OpenSpec workspace root
+- **WHEN** the user runs `openspec update <path>`
+- **THEN** OpenSpec SHALL preserve repo-local update behavior for the target path
+- **AND** it SHALL not run workspace update behavior
+
 ## Edge Cases
 
 ### Error Handling

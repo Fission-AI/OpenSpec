@@ -86,6 +86,8 @@ repo-root/
     └── changes/
 ```
 
+Root-level `workspace.yaml` files are not OpenSpec workspace state. Workspace state is namespaced under `.openspec-workspace/`, so other tools can keep owning root-level files such as Dagster's `workspace.yaml`.
+
 That distinction matters. The workspace folder is a local coordination surface for opening and inspecting linked repos or folders. Each repo's `openspec/` directory remains the home for repo-owned specs, repo-local changes, and implementation planning. Users do not need to run repo-local `openspec init` inside a workspace folder.
 
 Stable link names are how a workspace refers to repos and folders. The private workspace record keeps names such as `api`, `web`, or `checkout` and maps them to this runtime's local paths.

@@ -4,7 +4,7 @@ import ora from 'ora';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { promises as fs } from 'fs';
-import { AI_TOOLS } from '../core/config.js';
+import { AI_TOOLS, OPENSPEC_DIR_NAME } from '../core/config.js';
 import { UpdateCommand } from '../core/update.js';
 import { ListCommand } from '../core/list.js';
 import { ArchiveCommand } from '../core/archive.js';
@@ -97,6 +97,15 @@ program.hook('postAction', async () => {
 const availableToolIds = AI_TOOLS.filter((tool) => tool.skillsDir).map((tool) => tool.value);
 const toolsOptionDescription = `Configure AI tools non-interactively. Use "all", "none", or a comma-separated list of: ${availableToolIds.join(', ')}`;
 
+async function hasRepoLocalOpenSpecProject(projectPath: string): Promise<boolean> {
+  try {
+    const stats = await fs.stat(path.join(projectPath, OPENSPEC_DIR_NAME));
+    return stats.isDirectory();
+  } catch {
+    return false;
+  }
+}
+
 program
   .command('init [path]')
   .description('Initialize OpenSpec in your project')
@@ -167,6 +176,12 @@ program
   .action(async (targetPath = '.', options?: { force?: boolean }) => {
     try {
       const resolvedPath = path.resolve(targetPath);
+      const updateCommand = new UpdateCommand({ force: options?.force });
+      if (await hasRepoLocalOpenSpecProject(resolvedPath)) {
+        await updateCommand.execute(resolvedPath);
+        return;
+      }
+
       const workspaceRoot = await findWorkspaceRoot(resolvedPath);
       if (workspaceRoot) {
         throw new Error(
@@ -174,7 +189,6 @@ program
         );
       }
 
-      const updateCommand = new UpdateCommand({ force: options?.force });
       await updateCommand.execute(resolvedPath);
     } catch (error) {
       console.log(); // Empty line for spacing
