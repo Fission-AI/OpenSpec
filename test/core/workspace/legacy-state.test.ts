@@ -39,7 +39,7 @@ describe('workspace legacy state compatibility', () => {
 
   function createWorkspaceRoot(name = 'platform'): string {
     const workspaceRoot = path.join(tempDir, name);
-    fs.mkdirSync(workspaceRoot, { recursive: true });
+    fs.mkdirSync(path.dirname(getWorkspaceViewStatePath(workspaceRoot)), { recursive: true });
     fs.writeFileSync(
       getWorkspaceViewStatePath(workspaceRoot),
       `version: 1
@@ -63,6 +63,9 @@ links: {}
     );
     expect(getWorkspaceLegacyLocalStatePath(workspaceRoot)).toBe(
       path.join(workspaceRoot, '.openspec-workspace', 'local.yaml')
+    );
+    expect(getWorkspaceViewStatePath(workspaceRoot)).toBe(
+      path.join(workspaceRoot, '.openspec-workspace', 'view.yaml')
     );
     expect(getWorkspaceLegacyLocalStatePath('D:\\repos\\platform-workspace')).toBe(
       'D:\\repos\\platform-workspace\\.openspec-workspace\\local.yaml'

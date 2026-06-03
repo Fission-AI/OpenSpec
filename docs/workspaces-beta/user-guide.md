@@ -30,7 +30,7 @@ which local repos or folders to include.
 
 The opened editor view shows linked repos and folders first, initiative context
 when attached, and a small `OpenSpec workspace` folder last with `AGENTS.md`,
-`workspace.yaml`, and the generated `.code-workspace` file.
+`.openspec-workspace/view.yaml`, and the generated `.code-workspace` file.
 
 Use `openspec workspace open --initiative team-context/billing-launch --editor`
 when you want to skip the picker. Use `--agent codex-cli`, `--agent claude`, or
