@@ -13,6 +13,19 @@ interface ExecuteOptions {
   specs?: boolean;
   type?: string;
   strict?: boolean;
+  /**
+   * Opt-in: allow `MODIFIED` / `REMOVED` / `RENAMED-from` in a delta
+   * spec to reference a Requirement that lives in a sister-pending
+   * change (`openspec/changes/<other>/specs/<cap>/spec.md`) rather
+   * than the canonical spec (`openspec/specs/<cap>/spec.md`).
+   *
+   * Default: false — validate matches archive-time semantics.
+   *
+   * Archive (`openspec archive`) remains strict regardless of this
+   * flag; you must archive the sister change first OR fold this
+   * change into it before this change's own archive succeeds.
+   */
+  acceptCrossChangeBase?: boolean;
   json?: boolean;
   noInteractive?: boolean;
   interactive?: boolean; // Commander sets this to false when --no-interactive is used
@@ -36,14 +49,14 @@ export class ValidateCommand {
       await this.runBulkValidation({
         changes: !!options.all || !!options.changes,
         specs: !!options.all || !!options.specs,
-      }, { strict: !!options.strict, json: !!options.json, concurrency: options.concurrency, noInteractive: resolveNoInteractive(options) });
+      }, { strict: !!options.strict, acceptCrossChangeBase: !!options.acceptCrossChangeBase, json: !!options.json, concurrency: options.concurrency, noInteractive: resolveNoInteractive(options) });
       return;
     }
 
     // No item and no flags
     if (!itemName) {
       if (interactive) {
-        await this.runInteractiveSelector({ strict: !!options.strict, json: !!options.json, concurrency: options.concurrency });
+        await this.runInteractiveSelector({ strict: !!options.strict, acceptCrossChangeBase: !!options.acceptCrossChangeBase, json: !!options.json, concurrency: options.concurrency });
         return;
       }
       this.printNonInteractiveHint();
@@ -53,7 +66,7 @@ export class ValidateCommand {
 
     // Direct item validation with type detection or override
     const typeOverride = this.normalizeType(options.type);
-    await this.validateDirectItem(itemName, { typeOverride, strict: !!options.strict, json: !!options.json });
+    await this.validateDirectItem(itemName, { typeOverride, strict: !!options.strict, acceptCrossChangeBase: !!options.acceptCrossChangeBase, json: !!options.json });
   }
 
   private normalizeType(value?: string): ItemType | undefined {
@@ -63,7 +76,7 @@ export class ValidateCommand {
     return undefined;
   }
 
-  private async runInteractiveSelector(opts: { strict: boolean; json: boolean; concurrency?: string }): Promise<void> {
+  private async runInteractiveSelector(opts: { strict: boolean; acceptCrossChangeBase: boolean; json: boolean; concurrency?: string }): Promise<void> {
     const { select } = await import('@inquirer/prompts');
     const choice = await select({
       message: 'What would you like to validate?',
@@ -102,7 +115,7 @@ export class ValidateCommand {
     console.error('Or run in an interactive terminal.');
   }
 
-  private async validateDirectItem(itemName: string, opts: { typeOverride?: ItemType; strict: boolean; json: boolean }): Promise<void> {
+  private async validateDirectItem(itemName: string, opts: { typeOverride?: ItemType; strict: boolean; acceptCrossChangeBase: boolean; json: boolean }): Promise<void> {
     const [changes, specs] = await Promise.all([getActiveChangeIds(), getSpecIds()]);
     const isChange = changes.includes(itemName);
     const isSpec = specs.includes(itemName);
@@ -127,8 +140,8 @@ export class ValidateCommand {
     await this.validateByType(type, itemName, opts);
   }
 
-  private async validateByType(type: ItemType, id: string, opts: { strict: boolean; json: boolean }): Promise<void> {
-    const validator = new Validator(opts.strict);
+  private async validateByType(type: ItemType, id: string, opts: { strict: boolean; acceptCrossChangeBase?: boolean; json: boolean }): Promise<void> {
+    const validator = new Validator({ strictMode: opts.strict, acceptCrossChangeBase: !!opts.acceptCrossChangeBase });
     if (type === 'change') {
       const changeDir = path.join(process.cwd(), 'openspec', 'changes', id);
       const start = Date.now();
@@ -181,7 +194,7 @@ export class ValidateCommand {
     bullets.forEach(b => console.error(`  ${b}`));
   }
 
-  private async runBulkValidation(scope: { changes: boolean; specs: boolean }, opts: { strict: boolean; json: boolean; concurrency?: string; noInteractive?: boolean }): Promise<void> {
+  private async runBulkValidation(scope: { changes: boolean; specs: boolean }, opts: { strict: boolean; acceptCrossChangeBase?: boolean; json: boolean; concurrency?: string; noInteractive?: boolean }): Promise<void> {
     const spinner = !opts.json && !opts.noInteractive ? ora('Validating...').start() : undefined;
     const [changeIds, specIds] = await Promise.all([
       scope.changes ? getActiveChangeIds() : Promise.resolve<string[]>([]),
@@ -191,7 +204,7 @@ export class ValidateCommand {
     const DEFAULT_CONCURRENCY = 6;
     const maxSuggestions = 5; // used by nearestMatches
     const concurrency = normalizeConcurrency(opts.concurrency) ?? normalizeConcurrency(process.env.OPENSPEC_CONCURRENCY) ?? DEFAULT_CONCURRENCY;
-    const validator = new Validator(opts.strict);
+    const validator = new Validator({ strictMode: opts.strict, acceptCrossChangeBase: !!opts.acceptCrossChangeBase });
     const queue: Array<() => Promise<BulkItemResult>> = [];
 
     for (const id of changeIds) {
