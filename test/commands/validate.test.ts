@@ -35,6 +35,8 @@ describe('top-level validate command', () => {
     const changeContent = `# Test Change\n\n## Why\nBecause reasons that are sufficiently long for validation.\n\n## What Changes\n- **alpha:** Add something`;
     await fs.mkdir(path.join(changesDir, 'c1'), { recursive: true });
     await fs.writeFile(path.join(changesDir, 'c1', 'proposal.md'), changeContent, 'utf-8');
+    const tasksContent = ['# Tasks', '', '- [ ] Initial task'].join('\n');
+    await fs.writeFile(path.join(changesDir, 'c1', 'tasks.md'), tasksContent, 'utf-8');
     const deltaContent = [
       '## ADDED Requirements',
       '### Requirement: Validator SHALL support alpha change deltas',
@@ -52,6 +54,7 @@ describe('top-level validate command', () => {
     // Duplicate name for ambiguity test
     await fs.mkdir(path.join(changesDir, 'dup'), { recursive: true });
     await fs.writeFile(path.join(changesDir, 'dup', 'proposal.md'), changeContent, 'utf-8');
+    await fs.writeFile(path.join(changesDir, 'dup', 'tasks.md'), tasksContent, 'utf-8');
     const dupDeltaDir = path.join(changesDir, 'dup', 'specs', 'dup');
     await fs.mkdir(dupDeltaDir, { recursive: true });
     await fs.writeFile(path.join(dupDeltaDir, 'spec.md'), deltaContent, 'utf-8');
@@ -111,6 +114,7 @@ describe('top-level validate command', () => {
 
     await fs.mkdir(path.join(changesDir, changeId), { recursive: true });
     await fs.writeFile(path.join(changesDir, changeId, 'proposal.md'), crlfContent, 'utf-8');
+    await fs.writeFile(path.join(changesDir, changeId, 'tasks.md'), toCrlf(['# Tasks', '', '- [ ] Verify CRLF']), 'utf-8');
 
     const deltaContent = toCrlf([
       '## ADDED Requirements',
@@ -129,6 +133,31 @@ describe('top-level validate command', () => {
 
     const result = await runCLI(['validate', changeId], { cwd: testDir });
     expect(result.exitCode).toBe(0);
+  });
+
+  it('fails validation when tasks.md is missing', async () => {
+    const changeId = 'missing-tasks';
+    const changeContent = `# Missing Tasks\n\n## Why\nThis change intentionally lacks tasks.md for validation coverage.\n\n## What Changes\n- **alpha:** Add missing tasks case`;
+    await fs.mkdir(path.join(changesDir, changeId), { recursive: true });
+    await fs.writeFile(path.join(changesDir, changeId, 'proposal.md'), changeContent, 'utf-8');
+
+    const deltaContent = [
+      '## ADDED Requirements',
+      '### Requirement: Validator SHALL flag missing tasks',
+      'The validator SHALL error when tasks.md is missing.',
+      '',
+      '#### Scenario: Missing tasks.md',
+      '- **GIVEN** a change without tasks.md',
+      '- **WHEN** validate runs',
+      '- **THEN** an error is reported',
+    ].join('\n');
+    const deltaDir = path.join(changesDir, changeId, 'specs', 'alpha');
+    await fs.mkdir(deltaDir, { recursive: true });
+    await fs.writeFile(path.join(deltaDir, 'spec.md'), deltaContent, 'utf-8');
+
+    const result = await runCLI(['validate', changeId], { cwd: testDir });
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain('tasks.md is required for OpenSpec changes');
   });
 
   it('respects --no-interactive flag passed via CLI', async () => {
