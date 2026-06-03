@@ -17,10 +17,7 @@ import { CompletionCommand } from '../commands/completion.js';
 import { FeedbackCommand } from '../commands/feedback.js';
 import { registerConfigCommand } from '../commands/config.js';
 import { registerSchemaCommand } from '../commands/schema.js';
-import {
-  registerWorkspaceCommand,
-  runWorkspaceUpdateForRoot,
-} from '../commands/workspace.js';
+import { registerWorkspaceCommand } from '../commands/workspace.js';
 import { registerContextStoreCommand } from '../commands/context-store.js';
 import { registerInitiativeCommand } from '../commands/initiative.js';
 import { findWorkspaceRoot } from '../core/workspace/index.js';
@@ -172,8 +169,9 @@ program
       const resolvedPath = path.resolve(targetPath);
       const workspaceRoot = await findWorkspaceRoot(resolvedPath);
       if (workspaceRoot) {
-        await runWorkspaceUpdateForRoot(workspaceRoot, { force: options?.force });
-        return;
+        throw new Error(
+          'OpenSpec workspace detected. Run `openspec workspace update` to refresh workspace-local guidance and skills.'
+        );
       }
 
       const updateCommand = new UpdateCommand({ force: options?.force });
