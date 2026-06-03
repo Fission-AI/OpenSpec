@@ -156,6 +156,7 @@ describe('openspec CLI e2e basics', () => {
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('OpenSpec Setup Complete');
       expect(result.stdout).toContain('Claude Code');
+      expect(result.stdout).toContain('/opsx:propose');
 
       // New init creates skills, not CLAUDE.md
       const claudeSkillPath = path.join(emptyProjectDir, '.claude/skills/openspec-explore/SKILL.md');
@@ -172,6 +173,9 @@ describe('openspec CLI e2e basics', () => {
       const result = await runCLI(['init', '--tools', 'none'], { cwd: emptyProjectDir });
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('OpenSpec Setup Complete');
+      expect(result.stdout).toContain('no agent integrations were installed');
+      expect(result.stdout).toContain('openspec init --tools <tool>');
+      expect(result.stdout).not.toContain('/opsx:propose');
 
       // With --tools none, no tool skills should be created
       const claudeSkillPath = path.join(emptyProjectDir, '.claude/skills/openspec-explore/SKILL.md');
