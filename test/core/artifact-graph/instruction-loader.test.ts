@@ -20,6 +20,22 @@ describe('instruction-loader', () => {
       expect(template).toContain('## What Changes');
     });
 
+    it('should start built-in generated markdown templates with top-level headings', () => {
+      const expectedHeadings = [
+        ['proposal.md', '# Proposal'],
+        ['spec.md', '# Specifications'],
+        ['design.md', '# Design'],
+        ['tasks.md', '# Tasks'],
+      ] as const;
+
+      for (const schemaName of ['spec-driven', 'workspace-planning']) {
+        for (const [templatePath, heading] of expectedHeadings) {
+          const template = loadTemplate(schemaName, templatePath);
+          expect(template.split(/\r?\n/, 1)[0], `${schemaName}/${templatePath}`).toBe(heading);
+        }
+      }
+    });
+
     it('should throw TemplateLoadError for non-existent template', () => {
       expect(() => loadTemplate('spec-driven', 'nonexistent.md')).toThrow(
         TemplateLoadError

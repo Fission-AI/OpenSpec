@@ -1,3 +1,5 @@
+# Tasks
+
 ## 1. Workspace Planning
 
 - [ ] 1.1 Confirm the shared product goal and unresolved scope questions.
