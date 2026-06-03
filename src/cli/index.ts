@@ -101,7 +101,14 @@ async function hasRepoLocalOpenSpecProject(projectPath: string): Promise<boolean
   try {
     const stats = await fs.stat(path.join(projectPath, OPENSPEC_DIR_NAME));
     return stats.isDirectory();
-  } catch {
+  } catch (error) {
+    const code =
+      typeof error === 'object' && error !== null && 'code' in error
+        ? (error as { code?: unknown }).code
+        : undefined;
+    if (code !== 'ENOENT' && code !== 'ENOTDIR') {
+      throw error;
+    }
     return false;
   }
 }
