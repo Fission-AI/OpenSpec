@@ -30,7 +30,7 @@ OpenSpec SHALL use one kebab-case workspace name across workspace identity, mana
 
 #### Scenario: Using one workspace name
 - **WHEN** OpenSpec creates or records a managed workspace
-- **THEN** the workspace name SHALL be stored in `.openspec-workspace/workspace.yaml`
+- **THEN** the workspace name SHALL be stored in `.openspec-workspace/view.yaml`
 - **AND** the same name SHALL be used as the default managed workspace folder name
 - **AND** the same name SHALL be used as the local registry name
 
@@ -78,7 +78,7 @@ OpenSpec SHALL keep shared workspace information separate from local machine pat
 
 #### Scenario: Keeping managed workspace view state local
 - **WHEN** OpenSpec creates a managed workspace
-- **THEN** it SHALL write `workspace.yaml` in the workspace root as private local view state
+- **THEN** it SHALL write `.openspec-workspace/view.yaml` as private local view state
 - **AND** the file SHALL preserve stable link names and local path values for the current machine
 
 ### Requirement: Standard Workspace Location
@@ -130,7 +130,7 @@ OpenSpec SHALL keep a lightweight local registry of known workspaces on the curr
 
 #### Scenario: Keeping workspace folders authoritative
 - **WHEN** OpenSpec reads workspace details
-- **THEN** each workspace folder's `.openspec-workspace/workspace.yaml` SHALL remain the source of truth for that workspace
+- **THEN** each workspace folder's `.openspec-workspace/view.yaml` SHALL remain the source of truth for that workspace
 - **AND** the local registry SHALL act only as an index of known workspace locations
 
 #### Scenario: Finding workspaces from anywhere
@@ -210,7 +210,7 @@ OpenSpec SHALL store a workspace's preferred opener in machine-local workspace s
 
 #### Scenario: Recording an interactive setup opener choice
 - **WHEN** an interactive user chooses a preferred opener during `openspec workspace setup`
-- **THEN** OpenSpec SHALL record the opener in `.openspec-workspace/local.yaml`
+- **THEN** OpenSpec SHALL record the opener in `.openspec-workspace/view.yaml`
 - **AND** the stored value SHALL use a structured `preferred_opener` object with `kind` and `id`
 
 #### Scenario: Recording a non-interactive setup opener choice
