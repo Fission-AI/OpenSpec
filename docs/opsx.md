@@ -95,6 +95,10 @@ rules:
     - Use Given/When/Then format for scenarios
   design:
     - Include sequence diagrams for complex flows
+  apply:
+    - Run tests before marking tasks done
+  archive:
+    - Verify specs are synced before archiving
 ```
 
 ### Config Fields
@@ -103,7 +107,7 @@ rules:
 |-------|------|-------------|
 | `schema` | string | Default schema for new changes (e.g., `spec-driven`) |
 | `context` | string | Project context injected into all artifact instructions |
-| `rules` | object | Per-artifact rules, keyed by artifact ID |
+| `rules` | object | Per-artifact and workflow-phase rules, keyed by artifact ID or workflow phase (`apply`, `archive`) |
 
 ### How It Works
 
@@ -114,14 +118,15 @@ rules:
 4. Default (`spec-driven`)
 
 **Context injection:**
-- Context is prepended to every artifact's instructions
-- Wrapped in `<context>...</context>` tags
+- Context is injected into artifact instructions, apply instructions, and archive instructions
+- Wrapped in `<project_context>...</project_context>` tags
 - Helps AI understand your project's conventions
 
 **Rules injection:**
-- Rules are only injected for matching artifacts
+- Artifact keys (e.g. `proposal`, `tasks`) are injected only into matching artifact instructions
+- Workflow keys (`apply`, `archive`) are injected into the corresponding workflow instruction surface
 - Wrapped in `<rules>...</rules>` tags
-- Appear after context, before the template
+- Appear after the built-in instruction content
 
 ### Artifact IDs by Schema
 
@@ -130,6 +135,22 @@ rules:
 - `specs` — Specifications
 - `design` — Technical design
 - `tasks` — Implementation tasks
+
+### Workflow Phase Keys
+
+In addition to artifact IDs, the `rules` field accepts workflow phase keys that apply during that phase rather than during artifact creation:
+
+- `apply` — Rules applied during `/opsx:apply` (implementation phase)
+- `archive` — Rules applied during `/opsx:archive` and `/opsx:bulk-archive`
+
+These keys do not generate "unknown artifact" warnings. The workflow agent reads them via:
+
+```bash
+openspec instructions apply --change "<name>" --json
+openspec instructions archive --change "<name>" --json
+```
+
+Both commands return a JSON object with optional `context` and `rules` fields. `openspec instructions apply --json` also includes apply-phase state, progress, and context file metadata; `openspec instructions archive --json` intentionally omits the static archive workflow template and returns only injected config fields. When present, the agent applies `context` and `rules` as behavioral constraints without copying them into any output file.
 
 ### Config Validation
 

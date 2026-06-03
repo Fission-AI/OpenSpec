@@ -443,7 +443,7 @@ rules:
         generateInstructions(context, 'proposal', tempDir);
 
         expect(consoleWarnSpy).toHaveBeenCalledWith(
-          expect.stringContaining('Unknown artifact ID in rules: "invalid-artifact"')
+          expect.stringContaining('Unknown key in rules: "invalid-artifact"')
         );
       });
 
@@ -475,7 +475,7 @@ rules:
           // Note: We may have gotten warnings from other tests, so check that
           // the count didn't increase by more than 1 from the first call
           const callCount = consoleWarnSpy.mock.calls.filter(call =>
-            call[0]?.includes('Unknown artifact ID in rules')
+            call[0]?.includes('Unknown key in rules')
           ).length;
 
           expect(callCount).toBeGreaterThanOrEqual(1);
@@ -503,6 +503,86 @@ rules:
         generateInstructions(context, 'proposal', tempDir);
 
         expect(consoleWarnSpy).not.toHaveBeenCalled();
+      });
+
+      it('should not warn for rules.apply (reserved workflow target)', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+rules:
+  apply:
+    - Run tests before marking tasks done
+`
+        );
+
+        const context = loadChangeContext(tempDir, 'my-change');
+        generateInstructions(context, 'proposal', tempDir);
+
+        expect(consoleWarnSpy).not.toHaveBeenCalled();
+      });
+
+      it('should not warn for rules.archive (reserved workflow target)', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+rules:
+  archive:
+    - Verify specs are synced before archiving
+`
+        );
+
+        const context = loadChangeContext(tempDir, 'my-change');
+        generateInstructions(context, 'proposal', tempDir);
+
+        expect(consoleWarnSpy).not.toHaveBeenCalled();
+      });
+
+      it('should not warn for mixed artifact and workflow targets', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+rules:
+  proposal:
+    - Artifact rule
+  apply:
+    - Workflow rule
+  archive:
+    - Another workflow rule
+`
+        );
+
+        const context = loadChangeContext(tempDir, 'my-change');
+        generateInstructions(context, 'proposal', tempDir);
+
+        expect(consoleWarnSpy).not.toHaveBeenCalled();
+      });
+
+      it('should still warn for unknown keys even when workflow targets are present', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+rules:
+  apply:
+    - Valid workflow rule
+  unknownkey:
+    - Bad rule
+`
+        );
+
+        const context = loadChangeContext(tempDir, 'my-change');
+        generateInstructions(context, 'proposal', tempDir);
+
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Unknown key in rules: "unknownkey"')
+        );
       });
     });
   });
