@@ -1,3 +1,5 @@
+# Proposal
+
 ## Why
 
 Describe the shared product goal, problem, or opportunity that makes this workspace-level change worth planning.

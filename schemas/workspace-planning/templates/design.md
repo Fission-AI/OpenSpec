@@ -1,3 +1,5 @@
+# Design
+
 ## Context
 
 Summarize the workspace planning context, relevant linked areas, and constraints.
