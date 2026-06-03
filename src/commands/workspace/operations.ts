@@ -205,7 +205,7 @@ function localStateInvalidStatus(error: unknown): WorkspaceStatus {
     `Machine-local paths could not be read: ${asErrorMessage(error)}`,
     {
       target: 'workspace.local_state',
-      fix: 'Repair workspace.yaml, then run openspec workspace relink <name> <path> for affected links.',
+      fix: 'Repair .openspec-workspace/view.yaml, then run openspec workspace relink <name> <path> for affected links.',
     }
   );
 }
@@ -330,10 +330,7 @@ export async function loadWorkspaceForList(
 ): Promise<WorkspaceListOutput> {
   const workspaceStatus: WorkspaceStatus[] = [];
 
-  if (
-    !(await directoryExists(entry.workspaceRoot)) ||
-    !(await isWorkspaceRoot(entry.workspaceRoot, { allowUnmarkedViewState: true }))
-  ) {
+  if (!(await directoryExists(entry.workspaceRoot)) || !(await isWorkspaceRoot(entry.workspaceRoot))) {
     return {
       name: entry.name,
       root: entry.workspaceRoot,
@@ -391,10 +388,7 @@ export async function loadWorkspaceForDoctor(
   const workspaceStatus: WorkspaceStatus[] = [];
   const planningPath = getWorkspaceChangesDir(selected.root);
 
-  if (
-    !(await directoryExists(selected.root)) ||
-    !(await isWorkspaceRoot(selected.root, { allowUnmarkedViewState: true }))
-  ) {
+  if (!(await directoryExists(selected.root)) || !(await isWorkspaceRoot(selected.root))) {
     return {
       workspace: {
         name: selected.name,
@@ -439,7 +433,7 @@ export async function loadWorkspaceForDoctor(
             `Workspace state could not be read: ${asErrorMessage(error)}`,
             {
               target: 'workspace.root',
-              fix: 'Repair .openspec-workspace/workspace.yaml before using this workspace.',
+              fix: 'Repair .openspec-workspace/view.yaml before using this workspace.',
             }
           ),
         ],
@@ -510,10 +504,7 @@ export async function loadWorkspaceForDoctor(
 }
 
 async function readWorkspaceViewForMutation(selected: SelectedWorkspace): Promise<WorkspaceViewState> {
-  if (
-    !(await directoryExists(selected.root)) ||
-    !(await isWorkspaceRoot(selected.root, { allowUnmarkedViewState: true }))
-  ) {
+  if (!(await directoryExists(selected.root)) || !(await isWorkspaceRoot(selected.root))) {
     throw new WorkspaceCliError(
       `Workspace location does not exist for '${selected.name}': ${selected.root}`,
       'selected_workspace_root_missing',
@@ -532,7 +523,7 @@ async function readWorkspaceViewForMutation(selected: SelectedWorkspace): Promis
       'workspace_state_invalid',
       {
         target: 'workspace.state',
-        fix: 'Repair workspace.yaml before using this workspace.',
+        fix: 'Repair .openspec-workspace/view.yaml before using this workspace.',
       }
     );
   }
@@ -661,7 +652,7 @@ async function readExistingManagedWorkspaceView(
     return null;
   }
 
-  if (!(await isWorkspaceRoot(workspaceRoot, { allowUnmarkedViewState: true }))) {
+  if (!(await isWorkspaceRoot(workspaceRoot))) {
     throw new WorkspaceCliError(
       `Workspace name '${workspaceName}' collides with a non-workspace directory at ${workspaceRoot}.`,
       'workspace_name_collision',

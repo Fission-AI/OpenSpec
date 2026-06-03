@@ -46,7 +46,7 @@ export async function collectWorkspaceContextStatuses(
           target: 'workspace.context.store',
           fix: context.store.selector.kind === 'registry'
             ? 'openspec context-store doctor'
-            : `Check the path in workspace.yaml or run openspec initiative show ${initiativeId} ${selector}`,
+            : `Check the path in .openspec-workspace/view.yaml or run openspec initiative show ${initiativeId} ${selector}`,
         }
       ),
     ];

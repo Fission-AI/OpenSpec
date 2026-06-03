@@ -83,7 +83,7 @@ links: {}
   describe('path helpers', () => {
     it('exposes the workspace constants', () => {
       expect(WORKSPACE_METADATA_DIR_NAME).toBe('.openspec-workspace');
-      expect(WORKSPACE_VIEW_STATE_FILE_NAME).toBe('workspace.yaml');
+      expect(WORKSPACE_VIEW_STATE_FILE_NAME).toBe('view.yaml');
       expect(WORKSPACE_CHANGES_DIR_NAME).toBe('changes');
       expect(MANAGED_WORKSPACES_DIR_NAME).toBe('workspaces');
       expect(WORKSPACE_REGISTRY_FILE_NAME).toBe('registry.yaml');
@@ -96,7 +96,7 @@ links: {}
         path.join(workspaceRoot, '.openspec-workspace')
       );
       expect(getWorkspaceViewStatePath(workspaceRoot)).toBe(
-        path.join(workspaceRoot, 'workspace.yaml')
+        path.join(workspaceRoot, '.openspec-workspace', 'view.yaml')
       );
       expect(getWorkspaceChangesDir(workspaceRoot)).toBe(path.join(workspaceRoot, 'changes'));
       expect(getWorkspaceCodeWorkspaceFileName('platform')).toBe('platform.code-workspace');
@@ -109,7 +109,7 @@ links: {}
       const workspaceRoot = 'D:\\repos\\platform-workspace';
 
       expect(getWorkspaceViewStatePath(workspaceRoot)).toBe(
-        'D:\\repos\\platform-workspace\\workspace.yaml'
+        'D:\\repos\\platform-workspace\\.openspec-workspace\\view.yaml'
       );
     });
 
@@ -238,11 +238,11 @@ links: {}
       await expect(findWorkspaceRoot(nestedDir)).resolves.toBe(null);
     });
 
-    it('accepts unmarked root view state only for already-known workspace paths', async () => {
+    it('ignores unmarked root view state even when it is OpenSpec-shaped', async () => {
       const workspaceRoot = path.join(tempDir, 'unmarked-beta-workspace');
       fs.mkdirSync(workspaceRoot, { recursive: true });
       fs.writeFileSync(
-        getWorkspaceViewStatePath(workspaceRoot),
+        path.join(workspaceRoot, 'workspace.yaml'),
         `version: 1
 name: unmarked-beta-workspace
 context: null
@@ -251,12 +251,10 @@ links: {}
       );
 
       await expect(isWorkspaceRoot(workspaceRoot)).resolves.toBe(false);
-      await expect(
-        isWorkspaceRoot(workspaceRoot, { allowUnmarkedViewState: true })
-      ).resolves.toBe(true);
+      await expect(findWorkspaceRoot(workspaceRoot)).resolves.toBe(null);
     });
 
-    it('creates the OpenSpec marker directory when writing root view state', async () => {
+    it('writes canonical view state inside the OpenSpec metadata directory', async () => {
       const workspaceRoot = path.join(tempDir, 'written-workspace');
 
       await writeWorkspaceViewState(workspaceRoot, {
@@ -267,6 +265,8 @@ links: {}
       });
 
       expect(fs.existsSync(getWorkspaceMetadataDir(workspaceRoot))).toBe(true);
+      expect(fs.existsSync(getWorkspaceViewStatePath(workspaceRoot))).toBe(true);
+      expect(fs.existsSync(path.join(workspaceRoot, 'workspace.yaml'))).toBe(false);
       await expect(isWorkspaceRoot(workspaceRoot)).resolves.toBe(true);
       expectSameExistingPath(await findWorkspaceRoot(workspaceRoot), workspaceRoot);
     });

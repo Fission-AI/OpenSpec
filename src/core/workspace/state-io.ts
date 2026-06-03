@@ -45,14 +45,6 @@ function pathExistsAsFile(filePath: string): boolean {
   }
 }
 
-function pathExistsAsDirectory(dirPath: string): boolean {
-  try {
-    return nodeFs.statSync(dirPath).isDirectory();
-  } catch {
-    return false;
-  }
-}
-
 function isFileNotFoundError(error: unknown): boolean {
   return (
     typeof error === 'object' &&
@@ -74,29 +66,9 @@ async function getSearchStartDirectory(startPath: string): Promise<string> {
   }
 }
 
-export interface WorkspaceRootDetectionOptions {
-  allowUnmarkedViewState?: boolean;
-}
-
-async function hasOpenSpecWorkspaceMarker(workspaceRoot: string): Promise<boolean> {
-  return pathIsDirectory(getWorkspaceMetadataDir(workspaceRoot));
-}
-
-function hasOpenSpecWorkspaceMarkerSync(workspaceRoot: string): boolean {
-  return pathExistsAsDirectory(getWorkspaceMetadataDir(workspaceRoot));
-}
-
-export async function isWorkspaceRoot(
-  candidateRoot: string,
-  options: WorkspaceRootDetectionOptions = {}
-): Promise<boolean> {
-  const hasRootViewState = await pathIsFile(getWorkspaceViewStatePath(candidateRoot));
-  const hasOwnedRootViewState =
-    hasRootViewState &&
-    (options.allowUnmarkedViewState || await hasOpenSpecWorkspaceMarker(candidateRoot));
-
+export async function isWorkspaceRoot(candidateRoot: string): Promise<boolean> {
   return (
-    hasOwnedRootViewState ||
+    (await pathIsFile(getWorkspaceViewStatePath(candidateRoot))) ||
     (await pathIsFile(getWorkspaceLegacySharedStatePath(candidateRoot)))
   );
 }
@@ -118,17 +90,9 @@ export async function findWorkspaceRoot(startPath = process.cwd()): Promise<stri
   }
 }
 
-export function workspaceStateFileExistsSync(
-  workspaceRoot: string,
-  options: WorkspaceRootDetectionOptions = {}
-): boolean {
-  const hasRootViewState = pathExistsAsFile(getWorkspaceViewStatePath(workspaceRoot));
-  const hasOwnedRootViewState =
-    hasRootViewState &&
-    (options.allowUnmarkedViewState || hasOpenSpecWorkspaceMarkerSync(workspaceRoot));
-
+export function workspaceStateFileExistsSync(workspaceRoot: string): boolean {
   return (
-    hasOwnedRootViewState ||
+    pathExistsAsFile(getWorkspaceViewStatePath(workspaceRoot)) ||
     pathExistsAsFile(getWorkspaceLegacySharedStatePath(workspaceRoot))
   );
 }

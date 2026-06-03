@@ -211,7 +211,7 @@ async function resolveStoredWorkspaceInitiative(
         target: 'workspace.context.store',
         fix: context.store.selector.kind === 'registry'
           ? 'openspec context-store doctor'
-          : 'Check the path in workspace.yaml.',
+          : 'Check the path in .openspec-workspace/view.yaml.',
       }
     );
   }
