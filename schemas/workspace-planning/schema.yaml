@@ -36,7 +36,7 @@ artifacts:
       - **REMOVED Requirements**: Deprecated behavior with Reason and Migration.
       - **RENAMED Requirements**: Name changes only; use FROM:/TO: format.
 
-      Each requirement must use SHALL/MUST language and include at least one `#### Scenario:` block.
+      Each requirement must use SHALL/MUST language and include at least one `#### Scenario:` block. Prefer GIVEN/WHEN/THEN steps where preconditions apply.
     requires:
       - proposal
 

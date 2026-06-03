@@ -47,7 +47,7 @@ artifacts:
       Format requirements:
       - Each requirement: `### Requirement: <name>` followed by description
       - Use SHALL/MUST for normative requirements (avoid should/may)
-      - Each scenario: `#### Scenario: <name>` with WHEN/THEN format
+      - Each scenario: `#### Scenario: <name>` with GIVEN/WHEN/THEN steps where preconditions apply
       - **CRITICAL**: Scenarios MUST use exactly 4 hashtags (`####`). Using 3 hashtags or bullets will fail silently.
       - Every requirement MUST have at least one scenario.
 
@@ -68,7 +68,8 @@ artifacts:
       The system SHALL allow users to export their data in CSV format.
 
       #### Scenario: Successful export
-      - **WHEN** user clicks "Export" button
+      - **GIVEN** the user has data available to export
+      - **WHEN** the user clicks "Export" button
       - **THEN** system downloads a CSV file with all user data
 
       ## REMOVED Requirements
