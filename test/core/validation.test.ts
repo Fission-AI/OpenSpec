@@ -685,6 +685,39 @@ The system SHALL render a delta example in its output.
       expect(report.issues.some(i => i.message.includes('Example only'))).toBe(false);
     });
 
+    it('does not count scenario headers inside fenced code blocks toward the required scenario count', async () => {
+      const changeDir = path.join(testDir, 'test-change-fenced-scenario-only');
+      const specsDir = path.join(changeDir, 'specs', 'test-spec');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      const deltaSpec = `# Test Spec
+
+## ADDED Requirements
+
+### Requirement: Documentation Generator
+The system SHALL render a delta example in its output.
+
+\`\`\`markdown
+#### Scenario: Example scenario
+\`\`\`
+`;
+
+      const specPath = path.join(specsDir, 'spec.md');
+      await fs.writeFile(specPath, deltaSpec);
+
+      const validator = new Validator(true);
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      // The only "#### Scenario:" lives inside a fenced code block, so it must
+      // not count toward the scenario requirement; the validator must still
+      // flag the requirement as missing a scenario.
+      expect(report.valid).toBe(false);
+      expect(report.summary.errors).toBeGreaterThan(0);
+      expect(
+        report.issues.some(i => i.message.includes('must include at least one scenario'))
+      ).toBe(true);
+    });
+
     it('should treat delta headers case-insensitively', async () => {
       const changeDir = path.join(testDir, 'test-change-mixed-case');
       const specsDir = path.join(changeDir, 'specs', 'test-spec');
