@@ -531,13 +531,12 @@ describe('workspace command', () => {
       delivery: 'commands',
     });
 
-    const repoRoot = mkdir('repos/dagster');
+    const repoRoot = mkdir('repos/foreign-tool');
     fs.mkdirSync(path.join(repoRoot, 'openspec'), { recursive: true });
-    const foreignWorkspaceYaml = `load_from:
-  - grpc_server:
-      host: dagster-code
-      port: 4000
-      location_name: example
+    const foreignWorkspaceYaml = `tool_workspace:
+  projects:
+    - name: example
+      path: ./service
 `;
     fs.writeFileSync(path.join(repoRoot, 'workspace.yaml'), foreignWorkspaceYaml);
 

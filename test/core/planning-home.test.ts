@@ -95,16 +95,16 @@ describe('planning home paths', () => {
   it('resolves repo-local projects with foreign workspace.yaml as repo planning homes', () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-planning-home-'));
     tempDirs.push(tempDir);
-    const repoRoot = path.join(tempDir, 'dagster-repo');
+    const repoRoot = path.join(tempDir, 'foreign-tool-repo');
     const changesDir = path.join(repoRoot, 'openspec', 'changes');
 
     fs.mkdirSync(changesDir, { recursive: true });
     fs.writeFileSync(
       path.join(repoRoot, 'workspace.yaml'),
-      `load_from:
-  - python_file:
-      relative_path: repository.py
-      location_name: dagster_repo
+      `tool_workspace:
+  projects:
+    - name: example
+      path: ./service
 `,
       'utf-8'
     );

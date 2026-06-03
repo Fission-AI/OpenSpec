@@ -221,16 +221,15 @@ links: {}
     });
 
     it('ignores foreign root workspace.yaml files in repo-local projects', async () => {
-      const repoRoot = path.join(tempDir, 'dagster-repo');
+      const repoRoot = path.join(tempDir, 'foreign-tool-repo');
       const nestedDir = path.join(repoRoot, 'openspec', 'changes', 'add-feature');
       fs.mkdirSync(nestedDir, { recursive: true });
       fs.writeFileSync(
         path.join(repoRoot, 'workspace.yaml'),
-        `load_from:
-  - grpc_server:
-      host: dagster-code
-      port: 4000
-      location_name: example
+        `tool_workspace:
+  projects:
+    - name: example
+      path: ./service
 `
       );
 
