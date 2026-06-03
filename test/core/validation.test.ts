@@ -225,6 +225,34 @@ Then they see an error message`;
       expect(report.summary.errors).toBe(0);
     });
 
+    it('should hint when a main spec requirement only has SHALL/MUST in the header', async () => {
+      const specContent = `# Header Demo Specification
+
+## Purpose
+This specification checks validation guidance for requirements whose keywords only appear in headings.
+
+## Requirements
+
+### Requirement: System SHALL only say the keyword here
+This body line omits the normative keyword.
+
+#### Scenario: Missing body keyword
+- **WHEN** the spec is validated
+- **THEN** it should fail with a targeted hint`;
+
+      const specPath = path.join(testDir, 'spec.md');
+      await fs.writeFile(specPath, specContent);
+
+      const validator = new Validator();
+      const report = await validator.validateSpec(specPath);
+
+      expect(report.valid).toBe(false);
+      const shallMessage = report.issues.find(i => i.path === 'requirements.0.text');
+      expect(shallMessage?.message).toContain('not only in the header');
+      expect(shallMessage?.message).toContain('Move the SHALL/MUST statement');
+      expect(report.issues.some(i => i.message === 'Requirement must contain SHALL or MUST keyword')).toBe(false);
+    });
+
     it('should detect missing overview section', async () => {
       const specContent = `# User Authentication Spec
 
