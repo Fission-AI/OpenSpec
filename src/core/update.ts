@@ -11,7 +11,7 @@ import ora from 'ora';
 import * as fs from 'fs';
 import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { transformToHyphenCommands } from '../utils/command-references.js';
+import { transformToHyphenCommands, transformToSkillReferences } from '../utils/command-references.js';
 import { AI_TOOLS, OPENSPEC_DIR_NAME } from './config.js';
 import {
   generateCommands,
@@ -196,8 +196,13 @@ export class UpdateCommand {
             const skillDir = path.join(skillsDir, dirName);
             const skillFile = path.join(skillDir, 'SKILL.md');
 
-            // Use hyphen-based command references for OpenCode
-            const transformer = (tool.value === 'opencode' || tool.value === 'pi') ? transformToHyphenCommands : undefined;
+            // Use hyphen-based command references for OpenCode/pi
+            // Use skill references for skills-only delivery (no commands exist)
+            const transformer = (tool.value === 'opencode' || tool.value === 'pi')
+              ? transformToHyphenCommands
+              : delivery === 'skills'
+                ? transformToSkillReferences
+                : undefined;
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
@@ -690,8 +695,13 @@ export class UpdateCommand {
             const skillDir = path.join(skillsDir, dirName);
             const skillFile = path.join(skillDir, 'SKILL.md');
 
-            // Use hyphen-based command references for OpenCode
-            const transformer = (tool.value === 'opencode' || tool.value === 'pi') ? transformToHyphenCommands : undefined;
+            // Use hyphen-based command references for OpenCode/pi
+            // Use skill references for skills-only delivery (no commands exist)
+            const transformer = (tool.value === 'opencode' || tool.value === 'pi')
+              ? transformToHyphenCommands
+              : delivery === 'skills'
+                ? transformToSkillReferences
+                : undefined;
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
