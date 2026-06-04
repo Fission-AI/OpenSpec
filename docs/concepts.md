@@ -71,7 +71,8 @@ A workspace has a different shape from a repo-local project:
 
 ```text
 getGlobalDataDir()/workspaces/<workspace-name>/
-├── workspace.yaml                 # Private local view record
+├── .openspec-workspace/
+│   └── view.yaml                  # Private local view record
 ├── AGENTS.md                      # Generated runtime guidance
 └── <workspace-name>.code-workspace # Generated editor workspace file
 ```
@@ -85,12 +86,14 @@ repo-root/
     └── changes/
 ```
 
+Root-level `workspace.yaml` files are not OpenSpec workspace state. Workspace state is namespaced under `.openspec-workspace/`, so other tools can keep owning root-level files with the same name.
+
 That distinction matters. The workspace folder is a local coordination surface for opening and inspecting linked repos or folders. Each repo's `openspec/` directory remains the home for repo-owned specs, repo-local changes, and implementation planning. Users do not need to run repo-local `openspec init` inside a workspace folder.
 
 Stable link names are how a workspace refers to repos and folders. The private workspace record keeps names such as `api`, `web`, or `checkout` and maps them to this runtime's local paths.
 
 ```yaml
-# workspace.yaml
+# .openspec-workspace/view.yaml
 version: 1
 name: platform
 context: null
@@ -99,7 +102,7 @@ links:
   web: /repos/web
 ```
 
-When a workspace opens an initiative, `context` records the selected context-store binding and initiative id. Registry-selected stores stay portable by id; path-selected stores intentionally preserve the runtime-local path because `workspace.yaml` is private local state.
+When a workspace opens an initiative, `context` records the selected context-store binding and initiative id. Registry-selected stores stay portable by id; path-selected stores intentionally preserve the runtime-local path because `.openspec-workspace/view.yaml` is private local state.
 
 ```yaml
 context:
@@ -133,7 +136,7 @@ getGlobalDataDir()/workspaces
 
 That means `$XDG_DATA_HOME/openspec/workspaces` when `XDG_DATA_HOME` is set, `~/.local/share/openspec/workspaces` on Unix-style fallback, and `%LOCALAPPDATA%\openspec\workspaces` on native Windows fallback. Native Windows shells, PowerShell, and WSL2 each keep the path strings for the runtime running OpenSpec. This foundation does not translate between `D:\repo`, `/mnt/d/repo`, and UNC WSL paths.
 
-OpenSpec can still read older beta workspace roots as compatibility inputs, but managed workspaces now use the root `workspace.yaml` record above. The workspace folder remains authoritative for its own private local view.
+Managed workspaces use the namespaced private view record above. The workspace folder remains authoritative for its own private local view.
 
 Workspace visibility is not change commitment. Set up a workspace when OpenSpec should know which repos or folders are relevant; create a change later when you are ready to plan a feature, fix, project, or other piece of work.
 
@@ -145,7 +148,7 @@ openspec workspace setup
 
 # Automation-friendly setup
 openspec workspace setup --no-interactive --name platform --link /repos/api --link web=/repos/web
-openspec workspace setup --no-interactive --name platform --link /repos/api --opener codex
+openspec workspace setup --no-interactive --name platform --link /repos/api --opener codex-cli
 
 # See known workspaces from the local registry
 openspec workspace list
@@ -174,17 +177,17 @@ openspec workspace open --initiative billing-launch --store platform
 openspec workspace open --initiative billing-launch --store-path /repos/platform-context
 ```
 
-`workspace setup` always creates the workspace in the standard workspace location, records it in the local registry, shows the workspace location, and requires at least one linked repo or folder. Interactive setup asks for a preferred opener and can install OpenSpec skills for selected agents. Non-interactive setup stores one only when `--opener codex`, `--opener claude`, `--opener github-copilot`, or `--opener editor` is provided.
+`workspace setup` always creates the workspace in the standard workspace location, records it in the local registry, shows the workspace location, and requires at least one linked repo or folder. Interactive setup asks for a preferred opener and can install OpenSpec skills for selected agents. Non-interactive setup stores one only when `--opener codex-cli`, `--opener claude`, `--opener github-copilot`, or `--opener editor` is provided.
 
 Workspace skills are installed only in the workspace root. The active global profile selects which workflow skills are generated; `--tools` selects which agents receive them. Workspace setup and update do not create slash command files even when global delivery includes commands. Run `openspec workspace update` to refresh workspace-local guidance and add, refresh, or remove managed workspace-local skill directories without editing linked repos or folders.
 
-OpenSpec also maintains root workspace open files: an OpenSpec-managed guidance block in `AGENTS.md`, a machine-local `<workspace-name>.code-workspace` file for VS Code and GitHub Copilot-in-VS-Code opens, and a specific ignore entry for that maintained `.code-workspace` file. User-authored `*.code-workspace` files remain trackable because the ignore rule targets only the maintained file.
+OpenSpec also maintains root workspace open files: an OpenSpec-managed guidance block in `AGENTS.md` and a machine-local `<workspace-name>.code-workspace` file for VS Code and GitHub Copilot-in-VS-Code opens. A managed workspace is not a repo, so OpenSpec does not create a default workspace `.gitignore` or a default workspace-level `changes/` directory.
 
-The maintained VS Code workspace includes the coordination root as `.` plus valid linked repos or folders as additional roots. VS Code displays those entries as a multi-root workspace.
+The maintained VS Code workspace lists valid linked repos or folders first, then initiative context when attached, then the OpenSpec workspace files. VS Code displays those entries as a multi-root workspace.
 
 `workspace open` opens the linked working set with the stored preferred opener unless `--agent <tool>` or `--editor` is passed for that one session. Passing both opener overrides is an error. Root workspace open makes linked repos and folders visible for exploration and context; implementation starts after the user explicitly asks for implementation work.
 
-`workspace link` and `workspace relink` record existing folders only; they do not create, copy, move, initialize, or edit the linked repo or folder. After a successful link or relink, OpenSpec refreshes the managed guidance, VS Code workspace file, and ignore rule.
+`workspace link` and `workspace relink` record existing folders only; they do not create, copy, move, initialize, or edit the linked repo or folder. After a successful link or relink, OpenSpec refreshes the managed guidance and VS Code workspace file.
 
 Workspace commands that need one workspace can run from anywhere with `--workspace <name>`. If you run them inside a workspace folder or subdirectory, OpenSpec uses that current workspace. If several known workspaces are available and you do not pass `--workspace <name>`, human commands show a picker; `--json` and `--no-interactive` fail with a structured status error instead of prompting.
 

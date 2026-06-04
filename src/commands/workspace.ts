@@ -1,7 +1,5 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import * as nodeFs from 'node:fs';
-import * as path from 'node:path';
 
 import {
   WorkspacePreferredOpener,
@@ -22,20 +20,14 @@ import { isInteractive, resolveNoInteractive } from '../utils/interactive.js';
 import {
   addWorkspaceLink,
   createManagedWorkspace,
-  inferLinkName,
   loadWorkspaceForDoctor,
   loadWorkspaceForList,
   parseSetupLinks,
   readWorkspaceForMutation,
-  resolveExistingDirectory,
   updateWorkspaceLink,
-  validateLinkNameForCommand,
   validateWorkspaceNameForSetup,
 } from './workspace/operations.js';
-import {
-  selectWorkspaceForCommand,
-  selectWorkspaceRootForCommand,
-} from './workspace/selection.js';
+import { selectWorkspaceForCommand } from './workspace/selection.js';
 import {
   launchWorkspaceOpenCommand,
 } from './workspace/open.js';
@@ -49,8 +41,9 @@ import {
   parseSetupOpenerOption,
   promptPreferredOpener,
 } from './workspace/opener-selection.js';
-import { workspacePromptTheme, workspaceSelectTheme } from './workspace/prompt-theme.js';
+import { workspacePromptTheme } from './workspace/prompt-theme.js';
 import { registerWorkspaceCommandWith } from './workspace/registration.js';
+import { promptSetupLinks } from './workspace/setup-prompts.js';
 import {
   WorkspaceCliError,
   WorkspaceLinkMutationPayload,
@@ -108,109 +101,6 @@ async function promptWorkspaceName(initialName?: string): Promise<string> {
       }
     },
   });
-}
-
-async function promptExistingPath(message: string, defaultPath?: string): Promise<string> {
-  const { input } = await import('@inquirer/prompts');
-
-  const pathInput = await input({
-    message,
-    default: defaultPath,
-    prefill: defaultPath ? 'editable' : undefined,
-    required: true,
-    theme: workspacePromptTheme,
-    validate(value: string) {
-      const resolvedPath = path.isAbsolute(value)
-        ? path.resolve(value)
-        : path.resolve(process.cwd(), value);
-      return nodeFs.existsSync(resolvedPath) && nodeFs.statSync(resolvedPath).isDirectory()
-        ? true
-        : 'Enter an existing repo or folder path.';
-    },
-  });
-
-  return resolveExistingDirectory(pathInput);
-}
-
-async function promptLinkName(existingLinks: Record<string, string>): Promise<string> {
-  const { input } = await import('@inquirer/prompts');
-
-  return input({
-    message: 'Link name:',
-    required: true,
-    theme: workspacePromptTheme,
-    validate(value: string) {
-      try {
-        validateLinkNameForCommand(value);
-      } catch (error) {
-        return asErrorMessage(error);
-      }
-
-      if (existingLinks[value]) {
-        return `Link name '${value}' is already linked to ${existingLinks[value]}.`;
-      }
-
-      return true;
-    },
-  });
-}
-
-async function promptSetupLinks(): Promise<Record<string, string>> {
-  const { select } = await import('@inquirer/prompts');
-  const links: Record<string, string> = {};
-
-  console.log('');
-  console.log(chalk.bold('[2/5] Link repos or folders'));
-  console.log(chalk.dim('Start with the current directory, or enter another repo path.'));
-  console.log('');
-
-  while (true) {
-    const linkCount = Object.keys(links).length;
-    const resolvedPath = await promptExistingPath(
-      linkCount === 0 ? 'Repo or folder path:' : 'Another repo or folder path:',
-      linkCount === 0 ? '.' : undefined
-    );
-    let linkName = inferLinkName(resolvedPath);
-
-    try {
-      validateLinkNameForCommand(linkName);
-    } catch {
-      linkName = await promptLinkName(links);
-    }
-
-    if (links[linkName]) {
-      console.log(`Link name '${linkName}' is already linked to ${links[linkName]}.`);
-      linkName = await promptLinkName(links);
-    }
-
-    links[linkName] = resolvedPath;
-    console.log(chalk.green(`Added link '${linkName}'`));
-    console.log(chalk.dim(`  ${resolvedPath}`));
-
-    const nextAction = await select({
-      message: 'Continue',
-      default: 'finish',
-      choices: [
-        {
-          name: 'Create workspace files',
-          short: 'Create workspace files',
-          value: 'finish',
-          description: 'Run a workspace check after setup',
-        },
-        {
-          name: 'Add another repo or folder',
-          short: 'Add another',
-          value: 'add',
-          description: 'Include another local directory in this workspace',
-        },
-      ],
-      theme: workspaceSelectTheme,
-    });
-
-    if (nextAction === 'finish') {
-      return links;
-    }
-  }
 }
 
 function parseSetupToolsOption(tools: string): string[] {
@@ -313,7 +203,6 @@ function printDoctorHuman(result: { workspace: WorkspaceOutput; status: Workspac
   } else {
     console.log('Context: (none)');
   }
-  console.log(`Planning path: ${result.workspace.planning_path}`);
   console.log('');
   printStatusLines(result.status);
   if (result.status.length > 0) {
@@ -645,8 +534,6 @@ class WorkspaceCommand {
       console.log('');
       printWorkspaceListHuman([doctorResult.workspace]);
       console.log('');
-      console.log(`Planning path: ${doctorResult.workspace.planning_path}`);
-      console.log('');
       console.log('Workspace check:');
       printWorkspaceCheckSummaryHuman(doctorResult);
       console.log('');
@@ -781,15 +668,6 @@ class WorkspaceCommand {
     }
   }
 
-  async updateRoot(workspaceRoot: string, options: WorkspaceUpdateOptions = {}): Promise<void> {
-    try {
-      const selected = await selectWorkspaceRootForCommand(workspaceRoot);
-      await this.updateSelected(selected, options);
-    } catch (error) {
-      this.handleFailure(options.json, { workspace: null, workspace_skills: null, status: [] }, error);
-    }
-  }
-
   private async updateSelected(
     selected: SelectedWorkspace,
     options: WorkspaceUpdateOptions
@@ -904,14 +782,6 @@ export async function runWorkspaceUpdate(
 ): Promise<void> {
   const workspaceCommand = new WorkspaceCommand();
   await workspaceCommand.update(positionalName, options);
-}
-
-export async function runWorkspaceUpdateForRoot(
-  workspaceRoot: string,
-  options: WorkspaceUpdateOptions = {}
-): Promise<void> {
-  const workspaceCommand = new WorkspaceCommand();
-  await workspaceCommand.updateRoot(workspaceRoot, options);
 }
 
 export function registerWorkspaceCommand(program: Command): void {

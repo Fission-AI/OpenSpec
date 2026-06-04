@@ -13,6 +13,7 @@ import {
   getContextStoreMetadataPath,
   getContextStoreRegistryPath,
   getContextStoresDir,
+  getDefaultContextStoreRoot,
   isContextStoreRoot,
   isValidContextStoreId,
   listContextStoreRegistryEntries,
@@ -67,6 +68,9 @@ describe('context store foundation', () => {
       expect(getContextStoreRegistryPath()).toBe(
         path.join(tempDir, 'openspec', 'context-stores', 'registry.yaml')
       );
+      expect(getDefaultContextStoreRoot('acme-context')).toBe(
+        path.join(tempDir, 'openspec', 'context-stores', 'acme-context')
+      );
       expect(getContextStoreMetadataDir(storeRoot)).toBe(
         path.join(storeRoot, '.openspec-store')
       );
@@ -87,6 +91,9 @@ describe('context store foundation', () => {
       );
       expect(getContextStoreRegistryPath({ globalDataDir: dataDir })).toBe(
         '/home/tabish/.local/share/openspec/context-stores/registry.yaml'
+      );
+      expect(getDefaultContextStoreRoot('team-context', { globalDataDir: dataDir })).toBe(
+        '/home/tabish/.local/share/openspec/context-stores/team-context'
       );
     });
 

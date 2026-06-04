@@ -57,7 +57,7 @@ export function registerWorkspaceCommandWith(
     .description('Set up a workspace and link existing repos or folders')
     .option('--name <name>', 'Workspace name')
     .option('--link <link>', 'Repo or folder link. Use <path> or <name>=<path>.', collectOption, [])
-    .option('--opener <id>', 'Preferred opener: codex, claude, github-copilot, or editor')
+    .option('--opener <id>', 'Preferred opener: codex-cli, claude, github-copilot, or editor')
     .option(
       '--tools <tools>',
       `Install OpenSpec skills for agents. Use "all", "none", or a comma-separated list of: ${getWorkspaceSkillToolIds().join(', ')}`
@@ -137,7 +137,7 @@ export function registerWorkspaceCommandWith(
     .option('--initiative <id>', 'Open an initiative as a local workspace view')
     .option('--store <id>', 'Context store id for --initiative')
     .option('--store-path <path>', 'Existing local context store root for --initiative')
-    .option('--agent <tool>', 'Use an agent for this session: codex, claude, or github-copilot')
+    .option('--agent <tool>', 'Use an agent for this session: codex-cli, claude, or github-copilot')
     .option('--editor', 'Open the workspace in VS Code editor mode')
     .option('--prepare-only', 'Unsupported: preview surfaces belong to a future context/query command')
     .option('--json', 'Output generated workspace view context as JSON after launch')

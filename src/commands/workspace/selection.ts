@@ -53,7 +53,16 @@ function findKnownWorkspaceByName(
   return entries.find((entry) => entry.name === workspaceName);
 }
 
-async function selectedWorkspaceFromRoot(
+export function selectedWorkspaceFromEntry(entry: WorkspaceRegistryEntry): SelectedWorkspace {
+  return {
+    name: entry.name,
+    root: entry.workspaceRoot,
+    status: [],
+    unregisteredCurrentWorkspace: false,
+  };
+}
+
+export async function selectedWorkspaceFromRoot(
   currentWorkspaceRoot: string,
   entries: WorkspaceRegistryEntry[]
 ): Promise<SelectedWorkspace> {
@@ -67,26 +76,6 @@ async function selectedWorkspaceFromRoot(
     status: isKnown ? [] : [workspaceNotInKnownViewsWarning()],
     unregisteredCurrentWorkspace: !isKnown,
   };
-}
-
-export async function selectWorkspaceRootForCommand(
-  workspaceRoot: string
-): Promise<SelectedWorkspace> {
-  const entries = await listKnownWorkspaceEntries();
-  const currentWorkspaceRoot = await findWorkspaceRoot(workspaceRoot);
-
-  if (!currentWorkspaceRoot) {
-    throw new WorkspaceCliError(
-      `No OpenSpec workspace found at '${workspaceRoot}'.`,
-      'workspace_not_found',
-      {
-        target: 'workspace.root',
-        fix: 'Pass a path inside an OpenSpec workspace.',
-      }
-    );
-  }
-
-  return selectedWorkspaceFromRoot(currentWorkspaceRoot, entries);
 }
 
 export async function selectWorkspaceForCommand(
@@ -111,12 +100,7 @@ export async function selectWorkspaceForCommand(
       );
     }
 
-    return {
-      name: workspaceName,
-      root: entry.workspaceRoot,
-      status: [],
-      unregisteredCurrentWorkspace: false,
-    };
+    return selectedWorkspaceFromEntry(entry);
   }
 
   const currentWorkspaceRoot = await findWorkspaceRoot(process.cwd());
@@ -139,12 +123,7 @@ export async function selectWorkspaceForCommand(
   if (entries.length === 1) {
     const [entry] = entries;
 
-    return {
-      name: entry.name,
-      root: entry.workspaceRoot,
-      status: [],
-      unregisteredCurrentWorkspace: false,
-    };
+    return selectedWorkspaceFromEntry(entry);
   }
 
   if (options.json || resolveNoInteractive(options) || !isInteractive(options)) {
@@ -187,10 +166,5 @@ export async function selectWorkspaceForCommand(
     );
   }
 
-  return {
-    name: selectedName,
-    root: selectedEntry.workspaceRoot,
-    status: [],
-    unregisteredCurrentWorkspace: false,
-  };
+  return selectedWorkspaceFromEntry(selectedEntry);
 }

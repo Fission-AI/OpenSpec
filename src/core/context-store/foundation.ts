@@ -64,6 +64,10 @@ export function getContextStoreRegistryPath(options: ContextStorePathOptions = {
   return joinContextStorePath(getContextStoresDir(options), CONTEXT_STORE_REGISTRY_FILE_NAME);
 }
 
+export function getDefaultContextStoreRoot(id: string, options: ContextStorePathOptions = {}): string {
+  return joinContextStorePath(getContextStoresDir(options), id);
+}
+
 export function getContextStoreMetadataDir(storeRoot: string): string {
   return joinContextStorePath(storeRoot, CONTEXT_STORE_METADATA_DIR_NAME);
 }
@@ -397,7 +401,9 @@ async function acquireContextStoreRegistryLock(
 }
 
 export async function updateContextStoreRegistryState(
-  updater: (state: ContextStoreRegistryState | null) => ContextStoreRegistryState,
+  updater: (
+    state: ContextStoreRegistryState | null
+  ) => ContextStoreRegistryState | Promise<ContextStoreRegistryState>,
   options: ContextStorePathOptions = {}
 ): Promise<ContextStoreRegistryState> {
   const registryPath = getContextStoreRegistryPath(options);
@@ -405,7 +411,7 @@ export async function updateContextStoreRegistryState(
   const lock = await acquireContextStoreRegistryLock(options);
 
   try {
-    const next = updater(await readContextStoreRegistryState(options));
+    const next = await updater(await readContextStoreRegistryState(options));
     await writeContextStoreRegistryState(next, options);
     return next;
   } finally {

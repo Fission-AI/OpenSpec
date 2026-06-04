@@ -205,7 +205,7 @@ function localStateInvalidStatus(error: unknown): WorkspaceStatus {
     `Machine-local paths could not be read: ${asErrorMessage(error)}`,
     {
       target: 'workspace.local_state',
-      fix: 'Repair workspace.yaml, then run openspec workspace relink <name> <path> for affected links.',
+      fix: 'Repair .openspec-workspace/view.yaml, then run openspec workspace relink <name> <path> for affected links.',
     }
   );
 }
@@ -260,7 +260,6 @@ export async function createManagedWorkspace(
     await fs.mkdir(targetWorkspaceRoot);
     createdWorkspaceRoot = true;
     workspaceRoot = FileSystemUtils.canonicalizeExistingPath(targetWorkspaceRoot);
-    await FileSystemUtils.createDirectory(getWorkspaceChangesDir(workspaceRoot));
     const viewState: WorkspaceViewState = {
       version: 1,
       name: workspaceName,
@@ -434,7 +433,7 @@ export async function loadWorkspaceForDoctor(
             `Workspace state could not be read: ${asErrorMessage(error)}`,
             {
               target: 'workspace.root',
-              fix: 'Repair .openspec-workspace/workspace.yaml before using this workspace.',
+              fix: 'Repair .openspec-workspace/view.yaml before using this workspace.',
             }
           ),
         ],
@@ -524,7 +523,7 @@ async function readWorkspaceViewForMutation(selected: SelectedWorkspace): Promis
       'workspace_state_invalid',
       {
         target: 'workspace.state',
-        fix: 'Repair workspace.yaml before using this workspace.',
+        fix: 'Repair .openspec-workspace/view.yaml before using this workspace.',
       }
     );
   }
@@ -686,15 +685,17 @@ export async function selectOrCreateWorkspaceForInitiativeOpen(input: {
   workspaceName?: string;
   context: WorkspaceContextState;
   preferredOpener?: WorkspacePreferredOpener;
+  linksForNewWorkspace?: () => Promise<Record<string, string>>;
 }): Promise<{ selected: SelectedWorkspace; created: boolean; state: WorkspaceViewState }> {
   if (input.workspaceName) {
     const workspaceName = validateWorkspaceNameForSetup(input.workspaceName);
     const existing = await readExistingManagedWorkspaceView(workspaceName);
 
     if (!existing) {
+      const links = input.linksForNewWorkspace ? await input.linksForNewWorkspace() : {};
       const workspace = await createManagedWorkspace(
         workspaceName,
-        {},
+        links,
         input.preferredOpener,
         input.context
       );
@@ -798,7 +799,7 @@ export async function selectOrCreateWorkspaceForInitiativeOpen(input: {
 
   const workspace = await createManagedWorkspace(
     derivedName,
-    {},
+    input.linksForNewWorkspace ? await input.linksForNewWorkspace() : {},
     input.preferredOpener,
     input.context
   );

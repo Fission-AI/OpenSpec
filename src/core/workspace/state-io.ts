@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import {
   getWorkspaceChangesDir,
+  getWorkspaceMetadataDir,
   getWorkspaceViewStatePath,
   parseWorkspaceViewState,
   serializeWorkspaceViewState,
@@ -162,10 +163,10 @@ export async function writeWorkspaceViewState(
   workspaceRoot: string,
   state: WorkspaceViewState
 ): Promise<void> {
-  await FileSystemUtils.writeFile(
-    getWorkspaceViewStatePath(workspaceRoot),
-    serializeWorkspaceViewState(state)
-  );
+  const content = serializeWorkspaceViewState(state);
+
+  await FileSystemUtils.createDirectory(getWorkspaceMetadataDir(workspaceRoot));
+  await FileSystemUtils.writeFile(getWorkspaceViewStatePath(workspaceRoot), content);
 }
 
 export async function workspaceChangesDirExists(workspaceRoot: string): Promise<boolean> {

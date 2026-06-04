@@ -165,7 +165,7 @@ export class Validator {
           if (!requirementText) {
             issues.push({ level: 'ERROR', path: entryPath, message: `ADDED "${block.name}" is missing requirement text` });
           } else if (!this.containsShallOrMust(requirementText)) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `ADDED "${block.name}" must contain SHALL or MUST` });
+            issues.push({ level: 'ERROR', path: entryPath, message: this.buildMissingShallOrMustMessage('ADDED', block.name) });
           }
           const scenarioCount = this.countScenarios(block.raw);
           if (scenarioCount < 1) {
@@ -186,7 +186,7 @@ export class Validator {
           if (!requirementText) {
             issues.push({ level: 'ERROR', path: entryPath, message: `MODIFIED "${block.name}" is missing requirement text` });
           } else if (!this.containsShallOrMust(requirementText)) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `MODIFIED "${block.name}" must contain SHALL or MUST` });
+            issues.push({ level: 'ERROR', path: entryPath, message: this.buildMissingShallOrMustMessage('MODIFIED', block.name) });
           }
           const scenarioCount = this.countScenarios(block.raw);
           if (scenarioCount < 1) {
@@ -442,6 +442,24 @@ export class Validator {
 
   private containsShallOrMust(text: string): boolean {
     return /\b(SHALL|MUST)\b/.test(text);
+  }
+
+  /**
+   * Build an error message for a requirement block whose body lacks SHALL/MUST.
+   *
+   * When the SHALL/MUST keyword already appears in the requirement header (e.g.
+   * `### Requirement: The system SHALL ...`) the original generic error
+   * ("must contain SHALL or MUST") is confusing because the keyword is visibly
+   * present in the spec. Per the OpenSpec conventions the keyword has to live
+   * on the requirement body line (the line right after the header), so we point
+   * the author at that exact fix when the keyword is found in the header only.
+   */
+  private buildMissingShallOrMustMessage(action: 'ADDED' | 'MODIFIED', blockName: string): string {
+    const base = `${action} "${blockName}" must contain SHALL or MUST`;
+    if (this.containsShallOrMust(blockName)) {
+      return `${base} in the requirement body, not only in the header. Move the SHALL/MUST statement to the line immediately after the "### Requirement: ..." header.`;
+    }
+    return base;
   }
 
   private countScenarios(blockRaw: string): number {

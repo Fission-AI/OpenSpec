@@ -535,6 +535,92 @@ The system will log all events.
       expect(report.issues.some(i => i.message.includes('must contain SHALL or MUST'))).toBe(true);
     });
 
+    it('should hint the author when ADDED requirement only has SHALL/MUST in the header', async () => {
+      const changeDir = path.join(testDir, 'test-change-shall-in-header-added');
+      const specsDir = path.join(changeDir, 'specs', 'test-spec');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      const deltaSpec = `# Test Spec
+
+## ADDED Requirements
+
+### Requirement: The system SHALL log all errors
+Error handling logic goes here.
+
+#### Scenario: Error occurs
+**Given** an error
+**When** it occurs
+**Then** it is logged`;
+
+      const specPath = path.join(specsDir, 'spec.md');
+      await fs.writeFile(specPath, deltaSpec);
+
+      const validator = new Validator(true);
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(false);
+      const shallMessage = report.issues.find(i => i.message.includes('must contain SHALL or MUST'));
+      expect(shallMessage?.message).toContain('not only in the header');
+      expect(shallMessage?.message).toContain('### Requirement:');
+    });
+
+    it('should hint the author when MODIFIED requirement only has SHALL/MUST in the header', async () => {
+      const changeDir = path.join(testDir, 'test-change-shall-in-header-modified');
+      const specsDir = path.join(changeDir, 'specs', 'test-spec');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      const deltaSpec = `# Test Spec
+
+## MODIFIED Requirements
+
+### Requirement: The system MUST validate user input
+Please describe how validation should work here.
+
+#### Scenario: Invalid input
+**Given** invalid input
+**When** validation runs
+**Then** an error surfaces`;
+
+      const specPath = path.join(specsDir, 'spec.md');
+      await fs.writeFile(specPath, deltaSpec);
+
+      const validator = new Validator(true);
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(false);
+      const shallMessage = report.issues.find(i => i.message.includes('must contain SHALL or MUST'));
+      expect(shallMessage?.message).toContain('not only in the header');
+      expect(shallMessage?.message).toContain('### Requirement:');
+    });
+
+    it('should keep the generic SHALL/MUST error when neither header nor body contain the keyword', async () => {
+      const changeDir = path.join(testDir, 'test-change-shall-nowhere');
+      const specsDir = path.join(changeDir, 'specs', 'test-spec');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      const deltaSpec = `# Test Spec
+
+## ADDED Requirements
+
+### Requirement: Logging Feature
+The system will log all events.
+
+#### Scenario: Event occurs
+**Given** an event
+**When** it occurs
+**Then** it is logged`;
+
+      const specPath = path.join(specsDir, 'spec.md');
+      await fs.writeFile(specPath, deltaSpec);
+
+      const validator = new Validator(true);
+      const report = await validator.validateChangeDeltaSpecs(changeDir);
+
+      expect(report.valid).toBe(false);
+      const shallMessage = report.issues.find(i => i.message.includes('must contain SHALL or MUST'));
+      expect(shallMessage?.message).not.toContain('not only in the header');
+    });
+
     it('should handle requirements without metadata fields', async () => {
       const changeDir = path.join(testDir, 'test-change-4');
       const specsDir = path.join(changeDir, 'specs', 'test-spec');
