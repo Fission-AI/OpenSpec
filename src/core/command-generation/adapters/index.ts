@@ -25,6 +25,7 @@ export { kilocodeAdapter } from './kilocode.js';
 export { kiroAdapter } from './kiro.js';
 export { opencodeAdapter } from './opencode.js';
 export { piAdapter } from './pi.js';
+export { codeassistantAdapter } from './codeassistant.js';
 export { qoderAdapter } from './qoder.js';
 export { lingmaAdapter } from './lingma.js';
 export { qwenAdapter } from './qwen.js';
