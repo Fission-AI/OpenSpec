@@ -10,12 +10,18 @@ import type { CommandContent, ToolCommandAdapter } from '../types.js';
 
 /**
  * Escapes a string value for safe YAML output.
- * Quotes the string if it contains special YAML characters.
+ * Quotes the string if it contains special YAML characters or would be
+ * interpreted as an implicit YAML scalar (boolean, null, number, etc).
  */
 function escapeYamlValue(value: string): string {
-  // Check if value needs quoting (contains special YAML characters or starts/ends with whitespace)
-  const needsQuoting = /[:\n\r#{}[\],&*!|>'"%@`]|^\s|\s$/.test(value);
-  if (needsQuoting) {
+  // Check if value needs quoting due to special YAML characters or whitespace
+  const hasSpecialChars = /[:\n\r#{}[\],&*!|>'"%@`]|^\s|\s$/.test(value);
+  
+  // Check if value would be interpreted as an implicit YAML scalar
+  // Matches: booleans (true/false/yes/no/on/off), null variants, numbers, hex/octal
+  const isImplicitScalar = /^(true|false|yes|no|on|off|null|~|-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?|0x[0-9a-fA-F]+|0o[0-7]+|-|\.?)$/.test(value);
+  
+  if (hasSpecialChars || isImplicitScalar) {
     // Use double quotes and escape internal double quotes and backslashes
     const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
     return `"${escaped}"`;
