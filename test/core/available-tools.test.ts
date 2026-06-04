@@ -148,5 +148,20 @@ describe('available-tools', () => {
       const toolValues = tools.map((t) => t.value);
       expect(toolValues).toContain('claude');
     });
+
+    it('should detect Mistral Vibe when .vibe directory exists', async () => {
+      // Mistral Vibe uses skillsDir: '.vibe' without detectionPaths
+      // This test ensures path semantics do not drift for Vibe skill detection
+      await fs.mkdir(path.join(testDir, '.vibe'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('vibe');
+      
+      const vibeTool = tools.find((t) => t.value === 'vibe');
+      expect(vibeTool).toBeDefined();
+      expect(vibeTool?.name).toBe('Mistral Vibe');
+      expect(vibeTool?.skillsDir).toBe('.vibe');
+    });
   });
 });

@@ -1,5 +1,15 @@
 ## Why
 
+Status: deferred by the context-store-and-initiatives direction. The principle
+that apply means implementation is still useful, but the durable handoff should
+be designed around initiatives linked to repo-local OpenSpec changes, not around
+a workspace-owned cross-repo plan. Do not implement this as a first-class
+workspace lifecycle command until that linkage exists.
+
+The remaining sections preserve the original workspace apply direction for
+later reference. This work is still expected to matter after initiatives and
+initiative-linked repo-local changes exist; it is not the immediate next focus.
+
 After a workspace proposal exists, users need a practical way to implement one repo slice at a time.
 
 In the proper workspace model, apply means implementation:

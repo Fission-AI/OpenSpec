@@ -3,9 +3,21 @@ import * as path from 'node:path';
 import { getSchemaDir, resolveSchema } from './resolver.js';
 import { ArtifactGraph } from './graph.js';
 import { detectCompleted } from './state.js';
-import { resolveSchemaForChange } from '../../utils/change-metadata.js';
+import { resolveArtifactOutputs } from './outputs.js';
+import { readChangeMetadata, resolveSchemaForChange } from '../../utils/change-metadata.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
+import {
+  buildActionContext,
+  buildNextSteps,
+  summarizeAffectedAreas,
+  summarizePlanningHome,
+  type ActionContext,
+  type AffectedAreasSummary,
+  type PlanningHomeSummary,
+} from '../change-status-policy.js';
 import { readProjectConfig, validateConfigRules } from '../project-config.js';
+import type { PlanningHome } from '../planning-home.js';
+import type { ChangeMetadata, InitiativeLink } from '../change-metadata/index.js';
 import type { Artifact, CompletedSet } from './types.js';
 
 // Session-level cache for validation warnings (avoid repeating same warnings)
@@ -40,6 +52,17 @@ export interface ChangeContext {
   changeDir: string;
   /** Project root directory */
   projectRoot: string;
+  /** Resolved planning home for this change */
+  planningHome?: PlanningHome;
+  /** Parsed change metadata, when present */
+  metadata?: ChangeMetadata;
+  /** Stored initiative link, when this change is linked to shared context */
+  initiative?: InitiativeLink;
+}
+
+export interface LoadChangeContextOptions {
+  changeDir?: string;
+  planningHome?: PlanningHome;
 }
 
 /**
@@ -54,8 +77,16 @@ export interface ArtifactInstructions {
   schemaName: string;
   /** Full path to change directory */
   changeDir: string;
+  /** Resolved planning home for this change */
+  planningHome?: PlanningHomeSummary;
+  /** Stored initiative link, when this change is linked to shared context */
+  initiative?: InitiativeLink;
   /** Output path pattern (e.g., "proposal.md") */
   outputPath: string;
+  /** Absolute output path or glob pattern resolved under the change directory */
+  resolvedOutputPath: string;
+  /** Existing concrete output files for this artifact */
+  existingOutputPaths: string[];
   /** Artifact description */
   description: string;
   /** Guidance on how to create this artifact (from schema instruction field) */
@@ -108,12 +139,32 @@ export interface ChangeStatus {
   changeName: string;
   /** Schema name */
   schemaName: string;
+  /** Resolved planning home for this change */
+  planningHome?: PlanningHomeSummary;
+  /** Stored initiative link, when this change is linked to shared context */
+  initiative?: InitiativeLink;
+  /** Full path to the change root */
+  changeRoot: string;
+  /** Absolute artifact path details keyed by artifact ID */
+  artifactPaths: Record<string, ArtifactPathSummary>;
+  /** Workspace affected-area summary, when available */
+  affectedAreas?: AffectedAreasSummary;
+  /** Plain-language next steps for users and agents */
+  nextSteps: string[];
+  /** Machine-readable action constraints for agents */
+  actionContext: ActionContext;
   /** Whether all artifacts are complete */
   isComplete: boolean;
   /** Artifact IDs required before apply phase (from schema's apply.requires) */
   applyRequires: string[];
   /** Status of each artifact */
   artifacts: ArtifactStatus[];
+}
+
+export interface ArtifactPathSummary {
+  outputPath: string;
+  resolvedOutputPath: string;
+  existingOutputPaths: string[];
 }
 
 /**
@@ -176,14 +227,17 @@ export function loadTemplate(
 export function loadChangeContext(
   projectRoot: string,
   changeName: string,
-  schemaName?: string
+  schemaName?: string,
+  options: LoadChangeContextOptions = {}
 ): ChangeContext {
   const changeDir = FileSystemUtils.canonicalizeExistingPath(
-    path.join(projectRoot, 'openspec', 'changes', changeName)
+    options.changeDir ?? path.join(projectRoot, 'openspec', 'changes', changeName)
   );
 
-  // Resolve schema: explicit > metadata > default
-  const resolvedSchemaName = resolveSchemaForChange(changeDir, schemaName);
+  const metadata = readChangeMetadata(changeDir, projectRoot) ?? undefined;
+  const resolvedSchemaName = resolveSchemaForChange(changeDir, schemaName, projectRoot, {
+    metadata: metadata ?? null,
+  });
 
   const schema = resolveSchema(resolvedSchemaName, projectRoot);
   const graph = ArtifactGraph.fromSchema(schema);
@@ -196,6 +250,9 @@ export function loadChangeContext(
     changeName,
     changeDir,
     projectRoot,
+    ...(options.planningHome ? { planningHome: options.planningHome } : {}),
+    ...(metadata ? { metadata } : {}),
+    ...(metadata?.initiative ? { initiative: metadata.initiative } : {}),
   };
 }
 
@@ -268,7 +325,11 @@ export function generateInstructions(
     artifactId: artifact.id,
     schemaName: context.schemaName,
     changeDir: context.changeDir,
+    planningHome: summarizePlanningHome(context.planningHome),
+    ...(context.initiative ? { initiative: context.initiative } : {}),
     outputPath: artifact.generates,
+    resolvedOutputPath: path.join(context.changeDir, artifact.generates),
+    existingOutputPaths: resolveArtifactOutputs(context.changeDir, artifact.generates),
     description: artifact.description,
     instruction: artifact.instruction,
     context: configContext,
@@ -328,7 +389,14 @@ export function formatChangeStatus(context: ChangeContext): ChangeStatus {
   const ready = new Set(context.graph.getNextArtifacts(context.completed));
   const blocked = context.graph.getBlocked(context.completed);
 
+  const artifactPaths: Record<string, ArtifactPathSummary> = {};
   const artifactStatuses: ArtifactStatus[] = artifacts.map(artifact => {
+    artifactPaths[artifact.id] = {
+      outputPath: artifact.generates,
+      resolvedOutputPath: path.join(context.changeDir, artifact.generates),
+      existingOutputPaths: resolveArtifactOutputs(context.changeDir, artifact.generates),
+    };
+
     if (context.completed.has(artifact.id)) {
       return {
         id: artifact.id,
@@ -357,12 +425,35 @@ export function formatChangeStatus(context: ChangeContext): ChangeStatus {
   const buildOrder = context.graph.getBuildOrder();
   const orderMap = new Map(buildOrder.map((id, idx) => [id, idx]));
   artifactStatuses.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
+  const affectedAreas = summarizeAffectedAreas({
+    planningHome: context.planningHome,
+    metadata: context.metadata,
+  });
+  const isComplete = context.graph.isComplete(context.completed);
+  const artifactIds = artifactStatuses.map((artifact) => artifact.id);
 
   return {
     changeName: context.changeName,
     schemaName: context.schemaName,
-    isComplete: context.graph.isComplete(context.completed),
+    planningHome: summarizePlanningHome(context.planningHome),
+    ...(context.initiative ? { initiative: context.initiative } : {}),
+    changeRoot: context.changeDir,
+    artifactPaths,
+    affectedAreas,
+    isComplete,
     applyRequires,
+    nextSteps: buildNextSteps({
+      changeName: context.changeName,
+      planningHome: context.planningHome,
+      artifactStatuses,
+      affectedAreas,
+      allArtifactsComplete: isComplete,
+    }),
+    actionContext: buildActionContext({
+      planningHome: context.planningHome,
+      projectRoot: context.projectRoot,
+      artifactIds,
+    }),
     artifacts: artifactStatuses,
   };
 }
