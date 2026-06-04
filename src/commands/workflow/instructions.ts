@@ -273,7 +273,7 @@ function parseTasksFile(content: string): TaskItem[] {
 /**
  * Picks the first unchecked task with a `numericId` (document order). Returns
  * `null` if no task qualifies. Mirrors what agent skills need to drive
- * `openspec mark-task-done` without re-parsing the list.
+ * `openspec agent mark-task-done` without re-parsing the list.
  */
 function pickNextPendingId(tasks: TaskItem[]): string | null {
   for (const t of tasks) {

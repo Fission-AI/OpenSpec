@@ -16,9 +16,11 @@
  *   0 success (flipped or already-done)
  *   1 change could not be resolved — missing or unknown `--change`. This is
  *     thrown by `validateChangeExists` and surfaced as exit 1 by the CLI
- *     wrapper, matching `agent next-artifact`.
- *   2 bad input — missing task id, schema lacks `apply.tracks`, tracking file
- *     missing, or no matching unchecked task line.
+ *     wrapper, matching `agent next-artifact`. A missing `<task-id>` argument
+ *     is also exit 1: Commander rejects the required positional before this
+ *     handler runs.
+ *   2 bad input after the change resolves — schema lacks `apply.tracks`,
+ *     tracking file missing, or no matching unchecked task line.
  */
 
 import * as fs from 'fs';
@@ -49,8 +51,11 @@ export async function markTaskDoneCommand(
   taskId: string | undefined,
   options: MarkTaskDoneOptions
 ): Promise<void> {
+  // Defensive only: the CLI declares `<task-id>` as a required positional, so
+  // Commander rejects a missing id with exit 1 before this handler runs. This
+  // guard covers direct programmatic callers and mirrors that exit code.
   if (!taskId) {
-    fail('Missing required argument <task-id>.', 2);
+    fail('Missing required argument <task-id>.', 1);
   }
 
   const planningHome = resolveCurrentPlanningHomeSync();

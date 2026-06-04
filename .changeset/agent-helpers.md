@@ -30,7 +30,7 @@
     unchanged.
   - The top-level payload includes a new `nextPendingId` field: the first
     unchecked task that has a `numericId`, or `null`. Pair with
-    `openspec mark-task-done` to drive an apply loop without re-parsing
+    `openspec agent mark-task-done` to drive an apply loop without re-parsing
     `tasks.md`.
   - The top-level payload now also carries `actionContext` (the same
     `mode` / `allowedEditRoots` constraints that `status --json` reports), so

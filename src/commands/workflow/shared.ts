@@ -53,7 +53,7 @@ export interface ApplyInstructions {
   actionContext: ActionContext;
   /**
    * First unchecked task that has a `numericId` (in document order). Lets
-   * agents drive `openspec mark-task-done` without parsing the tasks list
+   * agents drive `openspec agent mark-task-done` without parsing the tasks list
    * themselves. `null` when no such task exists (all done, or no task uses
    * numeric ids).
    */
