@@ -545,7 +545,7 @@ export class Validator {
   private buildMissingShallOrMustMessage(action: 'ADDED' | 'MODIFIED' | 'Requirement', blockName: string): string {
     const base = `${action} "${blockName}" must contain SHALL or MUST`;
     if (this.containsShallOrMust(blockName)) {
-      return `${base} in the requirement body, not only in the header. Move the SHALL/MUST statement to the line immediately after the "### Requirement: ..." header.`;
+      return `${base} in the requirement body, not only in the header. Move the SHALL/MUST statement to the line immediately after the requirement header.`;
     }
     return base;
   }
