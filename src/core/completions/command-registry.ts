@@ -834,6 +834,10 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             description: 'Force value to be stored as string',
           },
           {
+            name: 'json',
+            description: 'Parse value as JSON (use for arrays/objects)',
+          },
+          {
             name: 'allow-unknown',
             description: 'Allow setting unknown keys',
           },
