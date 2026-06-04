@@ -30,7 +30,7 @@ importers:
         specifier: ^8.2.0
         version: 8.2.0
       picomatch:
-        specifier: 2.3.2
+        specifier: ^2.3.2
         version: 2.3.2
       posthog-node:
         specifier: ^5.20.0
