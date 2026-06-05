@@ -77,6 +77,33 @@ Then they are authenticated
       expect(scenario.rawText).toContain('and see a maintenance warning');
     });
 
+    it('should skip requirement metadata before description text', () => {
+      const content = `# File Serving Spec
+
+## Purpose
+This specification defines file serving requirements.
+
+## Requirements
+
+### Requirement: File Serving
+**ID**: REQ-FILE-001
+**Priority**: P1
+
+The system MUST serve static files from the root directory.
+
+#### Scenario: Static file request
+- **WHEN** a client requests a static file
+- **THEN** the file is returned`;
+
+      const parser = new MarkdownParser(content);
+      const spec = parser.parseSpec('file-serving');
+
+      expect(spec.requirements).toHaveLength(1);
+      expect(spec.requirements[0].text).toBe(
+        'The system MUST serve static files from the root directory.'
+      );
+    });
+
     it('should throw error for missing overview', () => {
       const content = `# Test Spec
 

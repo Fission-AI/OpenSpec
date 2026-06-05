@@ -216,10 +216,12 @@ export class MarkdownParser {
           contentBeforeChildren.push(line);
         }
         
-        // Find first non-empty line
+        // Find first non-empty requirement text line, skipping optional metadata.
         const directContent = contentBeforeChildren.join('\n').trim();
         if (directContent) {
-          const firstLine = directContent.split('\n').find(l => l.trim());
+          const firstLine = directContent
+            .split('\n')
+            .find(l => l.trim() && !this.isRequirementMetadataLine(l));
           if (firstLine) {
             text = firstLine.trim();
           }
@@ -235,6 +237,10 @@ export class MarkdownParser {
     }
     
     return requirements;
+  }
+
+  private isRequirementMetadataLine(line: string): boolean {
+    return /^\*\*[^*]+\*\*:/.test(line.trim());
   }
 
   protected parseScenarios(requirementSection: Section): Scenario[] {
