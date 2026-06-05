@@ -217,4 +217,14 @@ describe('searchable-multi-select keybindings', () => {
       expect(renderOutput).not.toMatch(/Tab.*confirm/);
     });
   });
+
+  describe('selection markers', () => {
+    it('should render checkbox-style markers for selected and unselected items', async () => {
+      await setup();
+      expect(renderOutput).toContain('[ ] Tool A');
+
+      pressKey('space');
+      expect(renderOutput).toContain('[x] Tool A');
+    });
+  });
 });
