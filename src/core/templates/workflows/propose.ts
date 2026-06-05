@@ -51,7 +51,7 @@ When ready to implement, run /opsx:apply
 
 4. **Create artifacts in sequence until apply-ready**
 
-   Use the **TodoWrite tool** to track progress through the artifacts.
+   Track progress through the artifacts using the agent's native planning or checklist mechanism if available; otherwise keep a concise visible checklist.
 
    Loop through artifacts in dependency order (artifacts with no pending dependencies first):
 
@@ -163,7 +163,7 @@ When ready to implement, run /opsx:apply
 
 4. **Create artifacts in sequence until apply-ready**
 
-   Use the **TodoWrite tool** to track progress through the artifacts.
+   Track progress through the artifacts using the agent's native planning or checklist mechanism if available; otherwise keep a concise visible checklist.
 
    Loop through artifacts in dependency order (artifacts with no pending dependencies first):
 
