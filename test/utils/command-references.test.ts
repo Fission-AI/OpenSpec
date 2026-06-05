@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { transformToHyphenCommands } from '../../src/utils/command-references.js';
+import {
+  getSkillReferencePrefix,
+  transformToHyphenCommands,
+  transformToSkillReferences,
+  transformToToolSkillReferences,
+} from '../../src/utils/command-references.js';
 
 describe('transformToHyphenCommands', () => {
   describe('basic transformations', () => {
@@ -79,5 +84,37 @@ Finally /opsx-apply to implement`;
         expect(transformToHyphenCommands(`/opsx:${cmd}`)).toBe(`/opsx-${cmd}`);
       });
     }
+  });
+});
+
+describe('transformToSkillReferences', () => {
+  it('should transform command references to skill names', () => {
+    expect(transformToSkillReferences('/opsx:apply')).toBe('openspec-apply-change');
+  });
+
+  it('should apply an optional skill invocation prefix', () => {
+    expect(transformToSkillReferences('Run /opsx:propose', '/skill:')).toBe(
+      'Run /skill:openspec-propose'
+    );
+  });
+
+  it('should transform multiple workflow references', () => {
+    const input = 'Use /opsx:new, then /opsx:continue and /opsx:archive';
+    const expected = 'Use openspec-new-change, then openspec-continue-change and openspec-archive-change';
+    expect(transformToSkillReferences(input)).toBe(expected);
+  });
+
+  it('should leave unknown command references unchanged', () => {
+    expect(transformToSkillReferences('/opsx:unknown')).toBe('/opsx:unknown');
+  });
+
+  it('should use Kimi skill invocation prefix for tool-specific references', () => {
+    expect(getSkillReferencePrefix('kimi')).toBe('/skill:');
+    expect(transformToToolSkillReferences('/opsx:apply', 'kimi')).toBe('/skill:openspec-apply-change');
+  });
+
+  it('should use plain skill names for tools without a specific prefix', () => {
+    expect(getSkillReferencePrefix('vibe')).toBe('');
+    expect(transformToToolSkillReferences('/opsx:apply', 'vibe')).toBe('openspec-apply-change');
   });
 });

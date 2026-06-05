@@ -11,7 +11,10 @@ import ora from 'ora';
 import * as fs from 'fs';
 import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { transformToHyphenCommands } from '../utils/command-references.js';
+import {
+  transformToHyphenCommands,
+  transformToToolSkillReferences,
+} from '../utils/command-references.js';
 import { AI_TOOLS, OPENSPEC_DIR_NAME } from './config.js';
 import {
   generateCommands,
@@ -51,6 +54,19 @@ import {
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
 const OLD_CORE_WORKFLOWS = ['propose', 'explore', 'apply', 'archive'] as const;
+
+function getSkillInstructionTransformer(
+  toolId: string,
+  hasCommandAdapter: boolean
+): ((instructions: string) => string) | undefined {
+  if (toolId === 'opencode' || toolId === 'pi') {
+    return transformToHyphenCommands;
+  }
+  if (!hasCommandAdapter) {
+    return (instructions: string) => transformToToolSkillReferences(instructions, toolId);
+  }
+  return undefined;
+}
 
 /**
  * Options for the update command.
@@ -195,9 +211,9 @@ export class UpdateCommand {
           for (const { template, dirName } of skillTemplates) {
             const skillDir = path.join(skillsDir, dirName);
             const skillFile = path.join(skillDir, 'SKILL.md');
+            const hasCommandAdapter = CommandAdapterRegistry.has(tool.value);
 
-            // Use hyphen-based command references for OpenCode
-            const transformer = (tool.value === 'opencode' || tool.value === 'pi') ? transformToHyphenCommands : undefined;
+            const transformer = getSkillInstructionTransformer(tool.value, hasCommandAdapter);
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
@@ -689,9 +705,9 @@ export class UpdateCommand {
           for (const { template, dirName } of skillTemplates) {
             const skillDir = path.join(skillsDir, dirName);
             const skillFile = path.join(skillDir, 'SKILL.md');
+            const hasCommandAdapter = CommandAdapterRegistry.has(tool.value);
 
-            // Use hyphen-based command references for OpenCode
-            const transformer = (tool.value === 'opencode' || tool.value === 'pi') ? transformToHyphenCommands : undefined;
+            const transformer = getSkillInstructionTransformer(tool.value, hasCommandAdapter);
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }

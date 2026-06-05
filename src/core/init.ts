@@ -11,7 +11,11 @@ import ora from 'ora';
 import * as fs from 'fs';
 import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { transformToHyphenCommands } from '../utils/command-references.js';
+import {
+  getSkillReferencePrefix,
+  transformToHyphenCommands,
+  transformToToolSkillReferences,
+} from '../utils/command-references.js';
 import {
   AI_TOOLS,
   OPENSPEC_DIR_NAME,
@@ -73,6 +77,29 @@ const WORKFLOW_TO_SKILL_DIR: Record<string, string> = {
   'onboard': 'openspec-onboard',
   'propose': 'openspec-propose',
 };
+
+function getSkillInstructionTransformer(
+  toolId: string,
+  hasCommandAdapter: boolean
+): ((instructions: string) => string) | undefined {
+  if (toolId === 'opencode' || toolId === 'pi') {
+    return transformToHyphenCommands;
+  }
+  if (!hasCommandAdapter) {
+    return (instructions: string) => transformToToolSkillReferences(instructions, toolId);
+  }
+  return undefined;
+}
+
+function formatSkillGettingStarted(workflowId: 'propose' | 'new', tools: Array<{ value: string }>): string {
+  const skillName = WORKFLOW_TO_SKILL_DIR[workflowId];
+  const prefixedTool = tools.find((tool) => getSkillReferencePrefix(tool.value));
+  const prefix = prefixedTool ? getSkillReferencePrefix(prefixedTool.value) : '';
+  if (prefix) {
+    return `${prefix}${skillName} "your idea"`;
+  }
+  return `${skillName} skill for "your idea"`;
+}
 
 // -----------------------------------------------------------------------------
 // Types
@@ -535,10 +562,10 @@ export class InitCommand {
           for (const { template, dirName } of skillTemplates) {
             const skillDir = path.join(skillsDir, dirName);
             const skillFile = path.join(skillDir, 'SKILL.md');
+            const hasCommandAdapter = CommandAdapterRegistry.has(tool.value);
 
             // Generate SKILL.md content with YAML frontmatter including generatedBy
-            // Use hyphen-based command references for tools where filename = command name
-            const transformer = (tool.value === 'opencode' || tool.value === 'pi') ? transformToHyphenCommands : undefined;
+            const transformer = getSkillInstructionTransformer(tool.value, hasCommandAdapter);
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
 
             // Write the skill file
@@ -657,7 +684,8 @@ export class InitCommand {
       const workflows = getProfileWorkflows(profile, globalConfig.workflows);
       const toolDirs = [...new Set(successfulTools.map((t) => t.skillsDir))].join(', ');
       const skillCount = delivery !== 'commands' ? getSkillTemplates(workflows).length : 0;
-      const commandCount = delivery !== 'skills' ? getCommandContents(workflows).length : 0;
+      const hasCommandCapableTool = successfulTools.some((tool) => CommandAdapterRegistry.has(tool.value));
+      const commandCount = delivery !== 'skills' && hasCommandCapableTool ? getCommandContents(workflows).length : 0;
       if (skillCount > 0 && commandCount > 0) {
         console.log(`${skillCount} skills and ${commandCount} commands in ${toolDirs}/`);
       } else if (skillCount > 0) {
@@ -700,13 +728,20 @@ export class InitCommand {
     const globalCfg = getGlobalConfig();
     const activeProfile: Profile = (this.profileOverride as Profile) ?? globalCfg.profile ?? 'core';
     const activeWorkflows = [...getProfileWorkflows(activeProfile, globalCfg.workflows)];
+    const hasCommandCapableTool = successfulTools.some((tool) => CommandAdapterRegistry.has(tool.value));
     console.log();
     if (activeWorkflows.includes('propose')) {
       console.log(chalk.bold('Getting started:'));
-      console.log('  Start your first change: /opsx:propose "your idea"');
+      const startCommand = hasCommandCapableTool
+        ? '/opsx:propose "your idea"'
+        : formatSkillGettingStarted('propose', successfulTools);
+      console.log(`  Start your first change: ${startCommand}`);
     } else if (activeWorkflows.includes('new')) {
       console.log(chalk.bold('Getting started:'));
-      console.log('  Start your first change: /opsx:new "your idea"');
+      const startCommand = hasCommandCapableTool
+        ? '/opsx:new "your idea"'
+        : formatSkillGettingStarted('new', successfulTools);
+      console.log(`  Start your first change: ${startCommand}`);
     } else {
       console.log("Done. Run 'openspec config profile' to configure your workflows.");
     }
