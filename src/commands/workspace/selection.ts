@@ -78,26 +78,6 @@ export async function selectedWorkspaceFromRoot(
   };
 }
 
-export async function selectWorkspaceRootForCommand(
-  workspaceRoot: string
-): Promise<SelectedWorkspace> {
-  const entries = await listKnownWorkspaceEntries();
-  const currentWorkspaceRoot = await findWorkspaceRoot(workspaceRoot);
-
-  if (!currentWorkspaceRoot) {
-    throw new WorkspaceCliError(
-      `No OpenSpec workspace found at '${workspaceRoot}'.`,
-      'workspace_not_found',
-      {
-        target: 'workspace.root',
-        fix: 'Pass a path inside an OpenSpec workspace.',
-      }
-    );
-  }
-
-  return selectedWorkspaceFromRoot(currentWorkspaceRoot, entries);
-}
-
 export async function selectWorkspaceForCommand(
   options: WorkspaceSelectionOptions,
   commandName: string,

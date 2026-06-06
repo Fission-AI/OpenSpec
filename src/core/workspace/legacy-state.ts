@@ -3,7 +3,6 @@ import { z } from 'zod';
 
 import {
   WORKSPACE_METADATA_DIR_NAME,
-  WORKSPACE_VIEW_STATE_FILE_NAME,
   getWorkspaceMetadataDir,
   parseWorkspaceViewState,
   validateWorkspaceLinkName,
@@ -16,7 +15,7 @@ import {
 } from './foundation.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 
-export const WORKSPACE_LEGACY_SHARED_STATE_FILE_NAME = WORKSPACE_VIEW_STATE_FILE_NAME;
+export const WORKSPACE_LEGACY_SHARED_STATE_FILE_NAME = 'workspace.yaml';
 export const WORKSPACE_LEGACY_LOCAL_STATE_FILE_NAME = 'local.yaml';
 export const WORKSPACE_LEGACY_LOCAL_STATE_IGNORE_PATTERN =
   `${WORKSPACE_METADATA_DIR_NAME}/${WORKSPACE_LEGACY_LOCAL_STATE_FILE_NAME}`;

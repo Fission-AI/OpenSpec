@@ -205,7 +205,7 @@ function localStateInvalidStatus(error: unknown): WorkspaceStatus {
     `Machine-local paths could not be read: ${asErrorMessage(error)}`,
     {
       target: 'workspace.local_state',
-      fix: 'Repair workspace.yaml, then run openspec workspace relink <name> <path> for affected links.',
+      fix: 'Repair .openspec-workspace/view.yaml, then run openspec workspace relink <name> <path> for affected links.',
     }
   );
 }
@@ -433,7 +433,7 @@ export async function loadWorkspaceForDoctor(
             `Workspace state could not be read: ${asErrorMessage(error)}`,
             {
               target: 'workspace.root',
-              fix: 'Repair .openspec-workspace/workspace.yaml before using this workspace.',
+              fix: 'Repair .openspec-workspace/view.yaml before using this workspace.',
             }
           ),
         ],
@@ -523,7 +523,7 @@ async function readWorkspaceViewForMutation(selected: SelectedWorkspace): Promis
       'workspace_state_invalid',
       {
         target: 'workspace.state',
-        fix: 'Repair workspace.yaml before using this workspace.',
+        fix: 'Repair .openspec-workspace/view.yaml before using this workspace.',
       }
     );
   }

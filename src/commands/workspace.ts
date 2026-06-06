@@ -27,10 +27,7 @@ import {
   updateWorkspaceLink,
   validateWorkspaceNameForSetup,
 } from './workspace/operations.js';
-import {
-  selectWorkspaceForCommand,
-  selectWorkspaceRootForCommand,
-} from './workspace/selection.js';
+import { selectWorkspaceForCommand } from './workspace/selection.js';
 import {
   launchWorkspaceOpenCommand,
 } from './workspace/open.js';
@@ -671,15 +668,6 @@ class WorkspaceCommand {
     }
   }
 
-  async updateRoot(workspaceRoot: string, options: WorkspaceUpdateOptions = {}): Promise<void> {
-    try {
-      const selected = await selectWorkspaceRootForCommand(workspaceRoot);
-      await this.updateSelected(selected, options);
-    } catch (error) {
-      this.handleFailure(options.json, { workspace: null, workspace_skills: null, status: [] }, error);
-    }
-  }
-
   private async updateSelected(
     selected: SelectedWorkspace,
     options: WorkspaceUpdateOptions
@@ -794,14 +782,6 @@ export async function runWorkspaceUpdate(
 ): Promise<void> {
   const workspaceCommand = new WorkspaceCommand();
   await workspaceCommand.update(positionalName, options);
-}
-
-export async function runWorkspaceUpdateForRoot(
-  workspaceRoot: string,
-  options: WorkspaceUpdateOptions = {}
-): Promise<void> {
-  const workspaceCommand = new WorkspaceCommand();
-  await workspaceCommand.updateRoot(workspaceRoot, options);
 }
 
 export function registerWorkspaceCommand(program: Command): void {
