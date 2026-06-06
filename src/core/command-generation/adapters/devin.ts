@@ -6,6 +6,7 @@
  */
 
 import path from 'path';
+import { transformToHyphenCommands } from '../../../utils/command-references.js';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
 
 /**
@@ -41,6 +42,8 @@ function formatTagsArray(tags: string[]): string {
  * Devin Desktop adapter for command generation.
  * File path: .devin/workflows/opsx-<id>.md
  * Frontmatter: name, description, category, tags
+ * 
+ * Devin Desktop uses slash-hyphen syntax (/opsx-apply) instead of colon syntax (/opsx:apply).
  */
 export const devinAdapter: ToolCommandAdapter = {
   toolId: 'devin',
@@ -50,6 +53,9 @@ export const devinAdapter: ToolCommandAdapter = {
   },
 
   formatFile(content: CommandContent): string {
+    // Transform command references from colon to hyphen syntax
+    const transformedBody = transformToHyphenCommands(content.body);
+    
     return `---
 name: ${escapeYamlValue(content.name)}
 description: ${escapeYamlValue(content.description)}
@@ -57,7 +63,7 @@ category: ${escapeYamlValue(content.category)}
 tags: ${formatTagsArray(content.tags)}
 ---
 
-${content.body}
+${transformedBody}
 `;
   },
 };

@@ -46,6 +46,19 @@ describe('available-tools', () => {
       expect(tools).toHaveLength(3);
     });
 
+    it('should detect Devin Desktop when .devin directory exists', async () => {
+      await fs.mkdir(path.join(testDir, '.devin'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('devin');
+      
+      const devinTool = tools.find((t) => t.value === 'devin');
+      expect(devinTool).toBeDefined();
+      expect(devinTool?.name).toBe('Devin Desktop');
+      expect(devinTool?.skillsDir).toBe('.devin');
+    });
+
     it('should ignore files that are not directories', async () => {
       // Create a file named .claude instead of a directory
       await fs.writeFile(path.join(testDir, '.claude'), 'not a directory');

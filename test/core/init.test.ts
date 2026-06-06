@@ -457,6 +457,21 @@ describe('InitCommand', () => {
       expect(await fileExists(cmdFile)).toBe(true);
     });
 
+    it('should generate Devin Desktop workflows', async () => {
+      const initCommand = new InitCommand({ tools: 'devin', force: true });
+      await initCommand.execute(testDir);
+
+      const cmdFile = path.join(testDir, '.devin', 'workflows', 'opsx-explore.md');
+      expect(await fileExists(cmdFile)).toBe(true);
+
+      const content = await fs.readFile(cmdFile, 'utf-8');
+      expect(content).toContain('---');
+      expect(content).toContain('name:');
+      expect(content).toContain('description:');
+      // Verify command references are transformed to hyphen syntax
+      expect(content).not.toContain('/opsx:');
+    });
+
     it('should generate Continue prompt files', async () => {
       const initCommand = new InitCommand({ tools: 'continue', force: true });
       await initCommand.execute(testDir);

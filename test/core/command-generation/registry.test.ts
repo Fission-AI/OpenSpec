@@ -21,6 +21,12 @@ describe('command-generation/registry', () => {
       expect(adapter?.toolId).toBe('windsurf');
     });
 
+    it('should return Devin adapter for "devin"', () => {
+      const adapter = CommandAdapterRegistry.get('devin');
+      expect(adapter).toBeDefined();
+      expect(adapter?.toolId).toBe('devin');
+    });
+
     it('should return Junie adapter for "junie"', () => {
       const adapter = CommandAdapterRegistry.get('junie');
       expect(adapter).toBeDefined();
@@ -45,13 +51,14 @@ describe('command-generation/registry', () => {
       expect(adapters.length).toBeGreaterThanOrEqual(3); // At least Claude, Cursor, Windsurf
     });
 
-    it('should include Claude, Cursor, and Windsurf adapters', () => {
+    it('should include Claude, Cursor, Windsurf, and Devin adapters', () => {
       const adapters = CommandAdapterRegistry.getAll();
       const toolIds = adapters.map((a) => a.toolId);
 
       expect(toolIds).toContain('claude');
       expect(toolIds).toContain('cursor');
       expect(toolIds).toContain('windsurf');
+      expect(toolIds).toContain('devin');
     });
   });
 
@@ -60,6 +67,7 @@ describe('command-generation/registry', () => {
       expect(CommandAdapterRegistry.has('claude')).toBe(true);
       expect(CommandAdapterRegistry.has('cursor')).toBe(true);
       expect(CommandAdapterRegistry.has('windsurf')).toBe(true);
+      expect(CommandAdapterRegistry.has('devin')).toBe(true);
       expect(CommandAdapterRegistry.has('junie')).toBe(true);
     });
 
@@ -74,10 +82,12 @@ describe('command-generation/registry', () => {
       const claudeAdapter = CommandAdapterRegistry.get('claude');
       const cursorAdapter = CommandAdapterRegistry.get('cursor');
       const windsurfAdapter = CommandAdapterRegistry.get('windsurf');
+      const devinAdapter = CommandAdapterRegistry.get('devin');
 
       expect(claudeAdapter?.getFilePath('test')).toContain('.claude');
       expect(cursorAdapter?.getFilePath('test')).toContain('.cursor');
       expect(windsurfAdapter?.getFilePath('test')).toContain('.windsurf');
+      expect(devinAdapter?.getFilePath('test')).toContain('.devin');
     });
 
     it('registered adapters should have working formatFile', () => {
