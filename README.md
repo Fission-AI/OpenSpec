@@ -129,7 +129,7 @@ AI coding assistants are powerful but unpredictable when requirements live only 
 - **Agree before you build** — human and AI align on specs before code gets written
 - **Stay organized** — each change gets its own folder with proposal, specs, design, and tasks
 - **Work fluidly** — update any artifact anytime, no rigid phase gates
-- **Use your tools** — works with 20+ AI assistants via slash commands
+- **Use your tools** — works with 20+ AI assistants via skills and slash commands
 
 ### How we compare
 
@@ -149,11 +149,16 @@ npm install -g @fission-ai/openspec@latest
 
 **Refresh agent instructions**
 
-Run this inside each project to regenerate AI guidance and ensure the latest slash commands are active:
+Run this inside each project to regenerate AI guidance and ensure the latest skills and/or slash commands (tool-dependent) are active:
 
 ```bash
 openspec update
 ```
+
+After refresh, use the invocation style for your tool:
+
+- Codex skills: `$openspec-propose "your idea"`
+- Non-Codex slash-command tools: `/opsx:propose "your idea"`
 
 ## Usage Notes
 

@@ -251,6 +251,45 @@ Old instructions content
       }
     });
 
+    it('should report per-tool command removal without blaming global delivery', async () => {
+      const previousCodexHome = process.env.CODEX_HOME;
+      const codexHome = path.join(testDir, 'codex-home');
+      process.env.CODEX_HOME = codexHome;
+
+      try {
+        const skillsDir = path.join(testDir, '.codex', 'skills');
+        await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
+          recursive: true,
+        });
+        await fs.writeFile(
+          path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+          'old content'
+        );
+
+        const promptFile = path.join(codexHome, 'prompts', 'opsx-explore.md');
+        await fs.mkdir(path.dirname(promptFile), { recursive: true });
+        await fs.writeFile(promptFile, 'old prompt');
+
+        const consoleSpy = vi.spyOn(console, 'log');
+
+        await updateCommand.execute(testDir);
+
+        expect(await FileSystemUtils.fileExists(promptFile)).toBe(false);
+        expect(consoleSpy).toHaveBeenCalledWith(
+          expect.stringContaining('command files (commands disabled for selected tools)')
+        );
+        expect(consoleSpy).not.toHaveBeenCalledWith(
+          expect.stringContaining('command files (delivery: skills)')
+        );
+      } finally {
+        if (previousCodexHome === undefined) {
+          delete process.env.CODEX_HOME;
+        } else {
+          process.env.CODEX_HOME = previousCodexHome;
+        }
+      }
+    });
+
   });
 
   describe('multi-tool support', () => {
@@ -581,7 +620,7 @@ Old instructions content
       await updateCommand.execute(testDir);
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Restart your IDE')
+        expect.stringContaining('Restart your IDE or agent')
       );
 
       consoleSpy.mockRestore();
@@ -1155,6 +1194,46 @@ More user content after markers.
       expect(legacyDirExists).toBe(false);
 
       consoleSpy.mockRestore();
+    });
+
+    it('should show Codex skill invocations when upgrading legacy Codex artifacts', async () => {
+      const previousCodexHome = process.env.CODEX_HOME;
+      const codexHome = path.join(testDir, 'codex-home');
+      process.env.CODEX_HOME = codexHome;
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      try {
+        const legacyPrompt = path.join(codexHome, 'prompts', 'opsx-new.md');
+        await fs.mkdir(path.dirname(legacyPrompt), { recursive: true });
+        await fs.writeFile(legacyPrompt, 'old codex prompt');
+
+        const forceUpdateCommand = new UpdateCommand({ force: true });
+        await forceUpdateCommand.execute(testDir);
+
+        expect(await FileSystemUtils.fileExists(legacyPrompt)).toBe(false);
+        expect(consoleSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Getting started')
+        );
+        expect(consoleSpy).toHaveBeenCalledWith(
+          expect.stringContaining('$openspec-new-change')
+        );
+        expect(consoleSpy).toHaveBeenCalledWith(
+          expect.stringContaining('$openspec-continue-change')
+        );
+        expect(consoleSpy).toHaveBeenCalledWith(
+          expect.stringContaining('$openspec-apply-change')
+        );
+        expect(consoleSpy).not.toHaveBeenCalledWith(
+          expect.stringContaining('/opsx:new')
+        );
+      } finally {
+        consoleSpy.mockRestore();
+        if (previousCodexHome === undefined) {
+          delete process.env.CODEX_HOME;
+        } else {
+          process.env.CODEX_HOME = previousCodexHome;
+        }
+      }
     });
 
     it('should upgrade multiple legacy tools with --force', async () => {

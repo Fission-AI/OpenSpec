@@ -5,6 +5,10 @@ import type { Delivery } from './global-config.js';
 import { ALL_WORKFLOWS } from './profiles.js';
 import { CommandAdapterRegistry } from './command-generation/index.js';
 import { COMMAND_IDS, getConfiguredTools } from './shared/index.js';
+import {
+  shouldGenerateCommandsForTool,
+  shouldGenerateSkillsForTool,
+} from './tool-delivery.js';
 
 type WorkflowId = (typeof ALL_WORKFLOWS)[number];
 
@@ -98,8 +102,8 @@ export function hasToolProfileOrDeliveryDrift(
   const desiredWorkflowSet = new Set<WorkflowId>(knownDesiredWorkflows);
   const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
   const adapter = CommandAdapterRegistry.get(toolId);
-  const shouldGenerateSkills = delivery !== 'commands';
-  const shouldGenerateCommands = delivery !== 'skills';
+  const shouldGenerateSkills = shouldGenerateSkillsForTool(toolId, delivery);
+  const shouldGenerateCommands = shouldGenerateCommandsForTool(toolId, delivery);
 
   if (shouldGenerateSkills) {
     for (const workflow of knownDesiredWorkflows) {
@@ -226,11 +230,12 @@ export function hasProjectConfigDrift(
   }
 
   const desiredSet = new Set(toKnownWorkflows(desiredWorkflows));
-  const includeSkills = delivery !== 'commands';
-  const includeCommands = delivery !== 'skills';
 
   for (const toolId of configuredTools) {
-    const installed = getInstalledWorkflowsForTool(projectPath, toolId, { includeSkills, includeCommands });
+    const installed = getInstalledWorkflowsForTool(projectPath, toolId, {
+      includeSkills: shouldGenerateSkillsForTool(toolId, delivery),
+      includeCommands: shouldGenerateCommandsForTool(toolId, delivery),
+    });
     if (installed.some((workflow) => !desiredSet.has(workflow))) {
       return true;
     }

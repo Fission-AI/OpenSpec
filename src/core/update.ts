@@ -11,8 +11,12 @@ import ora from 'ora';
 import * as fs from 'fs';
 import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { transformToHyphenCommands } from '../utils/command-references.js';
 import { AI_TOOLS, OPENSPEC_DIR_NAME } from './config.js';
+import {
+  getSkillInstructionTransformer,
+  shouldGenerateCommandsForTool,
+  shouldGenerateSkillsForTool,
+} from './tool-delivery.js';
 import {
   generateCommands,
   CommandAdapterRegistry,
@@ -102,8 +106,6 @@ export class UpdateCommand {
     const desiredWorkflows = profileWorkflows.filter((workflow): workflow is (typeof ALL_WORKFLOWS)[number] =>
       (ALL_WORKFLOWS as readonly string[]).includes(workflow)
     );
-    const shouldGenerateSkills = delivery !== 'commands';
-    const shouldGenerateCommands = delivery !== 'skills';
 
     // 4. Detect and handle legacy artifacts + upgrade legacy tools using effective config
     const newlyConfiguredTools = await this.handleLegacyCleanup(
@@ -169,8 +171,8 @@ export class UpdateCommand {
     console.log();
 
     // 9. Determine what to generate based on delivery
-    const skillTemplates = shouldGenerateSkills ? getSkillTemplates(desiredWorkflows) : [];
-    const commandContents = shouldGenerateCommands ? getCommandContents(desiredWorkflows) : [];
+    const skillTemplates = getSkillTemplates(desiredWorkflows);
+    const commandContents = getCommandContents(desiredWorkflows);
 
     // 10. Update tools (all if force, otherwise only those needing update)
     const toolsToUpdate = this.force ? configuredTools : [...toolsToUpdateSet];
@@ -189,15 +191,16 @@ export class UpdateCommand {
 
       try {
         const skillsDir = path.join(resolvedProjectPath, tool.skillsDir, 'skills');
+        const toolShouldGenerateSkills = shouldGenerateSkillsForTool(toolId, delivery);
+        const toolShouldGenerateCommands = shouldGenerateCommandsForTool(toolId, delivery);
 
         // Generate skill files if delivery includes skills
-        if (shouldGenerateSkills) {
+        if (toolShouldGenerateSkills) {
           for (const { template, dirName } of skillTemplates) {
             const skillDir = path.join(skillsDir, dirName);
             const skillFile = path.join(skillDir, 'SKILL.md');
 
-            // Use hyphen-based command references for OpenCode
-            const transformer = (tool.value === 'opencode' || tool.value === 'pi') ? transformToHyphenCommands : undefined;
+            const transformer = getSkillInstructionTransformer(tool.value);
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
@@ -206,12 +209,12 @@ export class UpdateCommand {
         }
 
         // Delete skill directories if delivery is commands-only
-        if (!shouldGenerateSkills) {
+        if (!toolShouldGenerateSkills) {
           removedSkillCount += await this.removeSkillDirs(skillsDir);
         }
 
         // Generate commands if delivery includes commands
-        if (shouldGenerateCommands) {
+        if (toolShouldGenerateCommands) {
           const adapter = CommandAdapterRegistry.get(tool.value);
           if (adapter) {
             const generatedCommands = generateCommands(commandContents, adapter);
@@ -230,7 +233,7 @@ export class UpdateCommand {
         }
 
         // Delete command files if delivery is skills-only
-        if (!shouldGenerateCommands) {
+        if (!toolShouldGenerateCommands) {
           removedCommandCount += await this.removeCommandFiles(resolvedProjectPath, toolId);
         }
 
@@ -254,10 +257,10 @@ export class UpdateCommand {
       console.log(chalk.red(`✗ Failed: ${failedTools.map(f => `${f.name} (${f.error})`).join(', ')}`));
     }
     if (removedCommandCount > 0) {
-      console.log(chalk.dim(`Removed: ${removedCommandCount} command files (delivery: skills)`));
+      console.log(chalk.dim(`Removed: ${removedCommandCount} command files (commands disabled for selected tools)`));
     }
     if (removedSkillCount > 0) {
-      console.log(chalk.dim(`Removed: ${removedSkillCount} skill directories (delivery: commands)`));
+      console.log(chalk.dim(`Removed: ${removedSkillCount} skill directories (skills disabled for selected tools)`));
     }
     if (removedDeselectedCommandCount > 0) {
       console.log(chalk.dim(`Removed: ${removedDeselectedCommandCount} command files (deselected workflows)`));
@@ -268,11 +271,26 @@ export class UpdateCommand {
 
     // 12. Show onboarding message for newly configured tools from legacy upgrade
     if (newlyConfiguredTools.length > 0) {
+      const hasCommandSurface = newlyConfiguredTools.some((toolId) =>
+        shouldGenerateCommandsForTool(toolId, delivery)
+      );
+      const hasSkillOnlySurface = newlyConfiguredTools.some((toolId) =>
+        shouldGenerateSkillsForTool(toolId, delivery) &&
+        !shouldGenerateCommandsForTool(toolId, delivery)
+      );
+
       console.log();
       console.log(chalk.bold('Getting started:'));
-      console.log('  /opsx:new       Start a new change');
-      console.log('  /opsx:continue  Create the next artifact');
-      console.log('  /opsx:apply     Implement tasks');
+      if (hasCommandSurface) {
+        console.log('  /opsx:new       Start a new change');
+        console.log('  /opsx:continue  Create the next artifact');
+        console.log('  /opsx:apply     Implement tasks');
+      }
+      if (hasSkillOnlySurface) {
+        console.log('  $openspec-new-change       Start a new change');
+        console.log('  $openspec-continue-change  Create the next artifact');
+        console.log('  $openspec-apply-change     Implement tasks');
+      }
       console.log();
       console.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
     }
@@ -293,7 +311,7 @@ export class UpdateCommand {
     }
 
     console.log();
-    console.log(chalk.dim('Restart your IDE for changes to take effect.'));
+    console.log(chalk.dim('Restart your IDE or agent for changes to take effect.'));
   }
 
   /**
@@ -670,10 +688,8 @@ export class UpdateCommand {
 
     // Create skills/commands for selected tools using effective profile+delivery.
     const newlyConfigured: string[] = [];
-    const shouldGenerateSkills = delivery !== 'commands';
-    const shouldGenerateCommands = delivery !== 'skills';
-    const skillTemplates = shouldGenerateSkills ? getSkillTemplates(desiredWorkflows) : [];
-    const commandContents = shouldGenerateCommands ? getCommandContents(desiredWorkflows) : [];
+    const skillTemplates = getSkillTemplates(desiredWorkflows);
+    const commandContents = getCommandContents(desiredWorkflows);
 
     for (const toolId of selectedTools) {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
@@ -683,22 +699,23 @@ export class UpdateCommand {
 
       try {
         const skillsDir = path.join(projectPath, tool.skillsDir, 'skills');
+        const toolShouldGenerateSkills = shouldGenerateSkillsForTool(toolId, delivery);
+        const toolShouldGenerateCommands = shouldGenerateCommandsForTool(toolId, delivery);
 
         // Create skill files when delivery includes skills
-        if (shouldGenerateSkills) {
+        if (toolShouldGenerateSkills) {
           for (const { template, dirName } of skillTemplates) {
             const skillDir = path.join(skillsDir, dirName);
             const skillFile = path.join(skillDir, 'SKILL.md');
 
-            // Use hyphen-based command references for OpenCode
-            const transformer = (tool.value === 'opencode' || tool.value === 'pi') ? transformToHyphenCommands : undefined;
+            const transformer = getSkillInstructionTransformer(tool.value);
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
         }
 
         // Create commands when delivery includes commands
-        if (shouldGenerateCommands) {
+        if (toolShouldGenerateCommands) {
           const adapter = CommandAdapterRegistry.get(tool.value);
           if (adapter) {
             const generatedCommands = generateCommands(commandContents, adapter);

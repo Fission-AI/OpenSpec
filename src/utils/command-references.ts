@@ -18,3 +18,28 @@
 export function transformToHyphenCommands(text: string): string {
   return text.replace(/\/opsx:/g, '/opsx-');
 }
+
+const OPSX_TO_CODEX_SKILL: Record<string, string> = {
+  propose: '$openspec-propose',
+  explore: '$openspec-explore',
+  new: '$openspec-new-change',
+  continue: '$openspec-continue-change',
+  apply: '$openspec-apply-change',
+  ff: '$openspec-ff-change',
+  sync: '$openspec-sync-specs',
+  archive: '$openspec-archive-change',
+  'bulk-archive': '$openspec-bulk-archive-change',
+  verify: '$openspec-verify-change',
+  onboard: '$openspec-onboard',
+};
+
+/**
+ * Transforms OpenSpec slash-command references to Codex skill invocations.
+ * Codex custom prompts are deprecated, so generated Codex skills should point
+ * users at the supported `$openspec-*` skill surface instead of `/opsx:*`.
+ */
+export function transformToCodexSkillReferences(text: string): string {
+  return text.replace(/\/opsx[:\-]([a-z][a-z-]*)(?![a-z0-9-])/g, (match, commandId: string) => {
+    return OPSX_TO_CODEX_SKILL[commandId] ?? match;
+  });
+}

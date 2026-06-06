@@ -9,31 +9,31 @@ import {
 import { CORE_WORKFLOWS } from '../../src/core/profiles.js';
 import { CommandAdapterRegistry } from '../../src/core/command-generation/index.js';
 
-function writeSkill(projectDir: string, workflowId: string): void {
+function writeSkill(projectDir: string, workflowId: string, toolDir = '.claude'): void {
   const skillDirName = WORKFLOW_TO_SKILL_DIR[workflowId as keyof typeof WORKFLOW_TO_SKILL_DIR];
-  const skillPath = path.join(projectDir, '.claude', 'skills', skillDirName, 'SKILL.md');
+  const skillPath = path.join(projectDir, toolDir, 'skills', skillDirName, 'SKILL.md');
   fs.mkdirSync(path.dirname(skillPath), { recursive: true });
   fs.writeFileSync(skillPath, `name: ${skillDirName}\n`);
 }
 
-function writeCommand(projectDir: string, workflowId: string): void {
-  const adapter = CommandAdapterRegistry.get('claude');
-  if (!adapter) throw new Error('Claude adapter unavailable in test environment');
+function writeCommand(projectDir: string, workflowId: string, toolId = 'claude'): void {
+  const adapter = CommandAdapterRegistry.get(toolId);
+  if (!adapter) throw new Error(`${toolId} adapter unavailable in test environment`);
   const cmdPath = adapter.getFilePath(workflowId);
   const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectDir, cmdPath);
   fs.mkdirSync(path.dirname(fullPath), { recursive: true });
   fs.writeFileSync(fullPath, `# ${workflowId}\n`);
 }
 
-function setupCoreSkills(projectDir: string): void {
+function setupCoreSkills(projectDir: string, toolDir = '.claude'): void {
   for (const workflow of CORE_WORKFLOWS) {
-    writeSkill(projectDir, workflow);
+    writeSkill(projectDir, workflow, toolDir);
   }
 }
 
-function setupCoreCommands(projectDir: string): void {
+function setupCoreCommands(projectDir: string, toolId = 'claude'): void {
   for (const workflow of CORE_WORKFLOWS) {
-    writeCommand(projectDir, workflow);
+    writeCommand(projectDir, workflow, toolId);
   }
 }
 
@@ -88,5 +88,31 @@ describe('profile sync drift detection', () => {
 
     const hasDrift = hasProjectConfigDrift(tempDir, CORE_WORKFLOWS, 'both');
     expect(hasDrift).toBe(true);
+  });
+
+  it('treats Codex as skills-only even when delivery is commands', () => {
+    setupCoreSkills(tempDir, '.codex');
+
+    const hasDrift = hasProjectConfigDrift(tempDir, CORE_WORKFLOWS, 'commands');
+    expect(hasDrift).toBe(false);
+  });
+
+  it('detects deprecated Codex prompt files as drift', () => {
+    const originalCodexHome = process.env.CODEX_HOME;
+    process.env.CODEX_HOME = path.join(tempDir, 'codex-home');
+
+    try {
+      setupCoreSkills(tempDir, '.codex');
+      writeCommand(tempDir, 'apply', 'codex');
+
+      const hasDrift = hasProjectConfigDrift(tempDir, CORE_WORKFLOWS, 'both');
+      expect(hasDrift).toBe(true);
+    } finally {
+      if (originalCodexHome === undefined) {
+        delete process.env.CODEX_HOME;
+      } else {
+        process.env.CODEX_HOME = originalCodexHome;
+      }
+    }
   });
 });

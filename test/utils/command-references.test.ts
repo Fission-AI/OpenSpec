@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { transformToHyphenCommands } from '../../src/utils/command-references.js';
+import {
+  transformToCodexSkillReferences,
+  transformToHyphenCommands,
+} from '../../src/utils/command-references.js';
 
 describe('transformToHyphenCommands', () => {
   describe('basic transformations', () => {
@@ -79,5 +82,29 @@ Finally /opsx-apply to implement`;
         expect(transformToHyphenCommands(`/opsx:${cmd}`)).toBe(`/opsx-${cmd}`);
       });
     }
+  });
+});
+
+describe('transformToCodexSkillReferences', () => {
+  it('should transform slash command references to Codex skill invocations', () => {
+    const input = 'Run /opsx:propose, then /opsx:apply and /opsx:archive.';
+
+    expect(transformToCodexSkillReferences(input)).toBe(
+      'Run $openspec-propose, then $openspec-apply-change and $openspec-archive-change.'
+    );
+  });
+
+  it('should transform hyphenated opsx references to Codex skill invocations', () => {
+    const input = 'Use /opsx-new, /opsx-continue, /opsx-bulk-archive, and /opsx-onboard.';
+
+    expect(transformToCodexSkillReferences(input)).toBe(
+      'Use $openspec-new-change, $openspec-continue-change, $openspec-bulk-archive-change, and $openspec-onboard.'
+    );
+  });
+
+  it('should not transform partial command references', () => {
+    const input = 'Ignore /opsx:apply2, /opsx-apply-extra, and /opsx:bulk-archive2.';
+
+    expect(transformToCodexSkillReferences(input)).toBe(input);
   });
 });
