@@ -33,14 +33,14 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getExploreSkillTemplate: 'e2765fae6c2e960f4ce07058cfdaa547ff3435d454eacd5e924e38139e97ad52',
   getNewChangeSkillTemplate: 'b0c26f0b65380062e586505c08c72230e59dccea89e6acca7b673f01cba70d5a',
   getContinueChangeSkillTemplate: 'fbc6c379ed3dd39f59f52b10584b8df5b1dc08b5422bcf1c6d6255a944d22a11',
-  getApplyChangeSkillTemplate: 'e746f230c2513a5fd40842bde494bb3cdb3c5f7c1bcece101f92090983d4ff55',
+  getApplyChangeSkillTemplate: 'dfea2100cda95078883d047743edef647de584f1c259b10d778a5a5a59c36810',
   getFfChangeSkillTemplate: '50e68fbb49b76d2690b614bffa9e6210e45539fb74419fc2e4311158b6d38485',
   getSyncSpecsSkillTemplate: '9f02b41227db70875b89eefeb275c769142607dc5b2593f4e606794aed2fdbad',
   getOnboardSkillTemplate: '4f4b60fea6e3fc7d2185815b2808fad51535fdd00cd4401b32d1536f32fa2b6d',
   getOpsxExploreCommandTemplate: '4d5e64e3ede6703113cf2fd23b797371ef2407b702478b4f7240fc81cbf2d3a5',
   getOpsxNewCommandTemplate: '757f72e2d9a1a6794b2188704fd39dd2ab65428899b4b361c76cc15a5e4f2ccc',
   getOpsxContinueCommandTemplate: '62f8863edda2bfe4e210f8bc3095fd4369aaaaf7772a5cba9602d0f0bca1d0c9',
-  getOpsxApplyCommandTemplate: '812feefd32a4d9d468e03e456d06e3d2d08d1118d29cce4911f0be59cdd30bfc',
+  getOpsxApplyCommandTemplate: 'b287fea929855c7d8dad05ddc1663475672f143b0ee92eb2da9321497c504123',
   getOpsxFfCommandTemplate: 'f775b242bcfd56594c431c7f31a0129208a1bacfdb2427074d412543072ef7ca',
   getArchiveChangeSkillTemplate: 'bdf022ae2cdef1feef4d641a068bef3a7fc5d98a323f7ce9f77ac578fe8d20c6',
   getBulkArchiveChangeSkillTemplate: 'fdb1715804e86de85be96222b8efeb9d5b350c6d5c19e343e244655deff8e62b',
@@ -59,7 +59,7 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-explore': '28d900ef82b325beb65e69ee6435949adcfdf14a4314638e7006e6dc359b92d4',
   'openspec-new-change': 'c99989810f982d72eefc74a35f2282b71f1956f23f61b83aaa58fa3dd921716f',
   'openspec-continue-change': 'c00e2a60f79cd60197094cc59762babe5ee6a2dc1e859a0ede3f436a775ccecf',
-  'openspec-apply-change': 'd849442efd925b9247651e254a5cd696945321610cca5a9432ad420430554548',
+  'openspec-apply-change': 'abee399a8a404c5791850ba5807525ad9cd0501d99e9290202c2dae3b5a0d696',
   'openspec-ff-change': '9d9b1995b6f4adb3da570676f7d11fee4cd1cf6c5df8ec83c033e02783a544df',
   'openspec-sync-specs': '2e0f67ec6fadffc6107b4b1a28eef23a99a6649e5fae706897ea1dd9deb852a8',
   'openspec-archive-change': '8d14af2c8b2e4358308ac9fc14f75db42a4b41a07e175825035852a82479793e',
@@ -168,5 +168,28 @@ describe('skill templates split parity', () => {
       expect(content, dirName).not.toContain('openspec/changes/<name>');
       expect(content, dirName).not.toContain('mv openspec/changes');
     }
+  });
+
+  it('apply skill and command share the same normalized body', () => {
+    const skillInstructions = getApplyChangeSkillTemplate().instructions;
+    const commandContent = getOpsxApplyCommandTemplate().content;
+
+  function normalize(text: string): string {
+  return text
+    .trim()
+    .replace(/the openspec-continue-change skill/g, 'CONTINUE_REF')
+    .replace(/`\/opsx:continue`/g, 'CONTINUE_REF')
+    .replace(/Ready to archive this change\./g, 'ARCHIVE_REF')
+    .replace(/You can archive this change with `\/opsx:archive`\./g, 'ARCHIVE_REF')
+    .replace(/ \(e\.g\., `\/opsx:apply add-auth`\)/g, '')
+    .replace(/ \(e\.g\., `\/opsx:apply <other>`\)/g, '')
+    .replace(/\s+/g, ' ');
+}
+
+    expect(normalize(skillInstructions)).toBe(normalize(commandContent));
+  });
+  it('generated apply skill does not contain /opsx: references', () => {
+    const skillInstructions = getApplyChangeSkillTemplate().instructions;
+    expect(skillInstructions).not.toContain('/opsx:');
   });
 });
