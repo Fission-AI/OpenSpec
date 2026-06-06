@@ -762,6 +762,11 @@ describe('command-generation/adapters', () => {
       expect(filePath.split(path.sep)).toEqual(['.windsurf', 'workflows', 'opsx-test.md']);
     });
 
+    it('Devin adapter uses path.join for paths', () => {
+      const filePath = devinAdapter.getFilePath('test');
+      expect(filePath.split(path.sep)).toEqual(['.devin', 'workflows', 'opsx-test.md']);
+    });
+
     it('All adapters use path.join for paths', () => {
       // Verify all adapters produce valid paths
       const adapters = [
