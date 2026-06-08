@@ -59,6 +59,11 @@
   "engines": {
     "node": ">=20.19.0"
   },
+  "pnpm": {
+    "overrides": {
+      "tmp": "^0.2.6"
+    }
+  },
   "devDependencies": {
     "@changesets/changelog-github": "^0.5.2",
     "@changesets/cli": "^2.27.7",
@@ -78,7 +83,6 @@
     "fast-glob": "^3.3.3",
     "ora": "^8.2.0",
     "posthog-node": "^5.20.0",
-    "tmp": "0.2.6",
     "yaml": "^2.8.2",
     "zod": "^4.0.17"
   }
