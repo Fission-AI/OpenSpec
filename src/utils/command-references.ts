@@ -19,7 +19,7 @@ export function transformToHyphenCommands(text: string): string {
   return text.replace(/\/opsx:/g, '/opsx-');
 }
 
-const WORKFLOW_TO_SKILL_REFERENCE: Record<string, string> = {
+export const WORKFLOW_TO_SKILL_REFERENCE: Record<string, string> = {
   explore: 'openspec-explore',
   new: 'openspec-new-change',
   continue: 'openspec-continue-change',
@@ -52,4 +52,17 @@ export function getSkillReferencePrefix(toolId: string): string {
 
 export function transformToToolSkillReferences(text: string, toolId: string): string {
   return transformToSkillReferences(text, getSkillReferencePrefix(toolId));
+}
+
+export function getSkillInstructionTransformer(
+  toolId: string,
+  hasCommandAdapter: boolean
+): ((instructions: string) => string) | undefined {
+  if (toolId === 'opencode' || toolId === 'pi') {
+    return transformToHyphenCommands;
+  }
+  if (!hasCommandAdapter) {
+    return (instructions: string) => transformToToolSkillReferences(instructions, toolId);
+  }
+  return undefined;
 }
