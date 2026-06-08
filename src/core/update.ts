@@ -12,8 +12,7 @@ import * as fs from 'fs';
 import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
 import {
-  transformToHyphenCommands,
-  transformToToolSkillReferences,
+  getSkillInstructionTransformer,
 } from '../utils/command-references.js';
 import { AI_TOOLS, OPENSPEC_DIR_NAME } from './config.js';
 import {
@@ -54,19 +53,6 @@ import {
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
 const OLD_CORE_WORKFLOWS = ['propose', 'explore', 'apply', 'archive'] as const;
-
-function getSkillInstructionTransformer(
-  toolId: string,
-  hasCommandAdapter: boolean
-): ((instructions: string) => string) | undefined {
-  if (toolId === 'opencode' || toolId === 'pi') {
-    return transformToHyphenCommands;
-  }
-  if (!hasCommandAdapter) {
-    return (instructions: string) => transformToToolSkillReferences(instructions, toolId);
-  }
-  return undefined;
-}
 
 /**
  * Options for the update command.
