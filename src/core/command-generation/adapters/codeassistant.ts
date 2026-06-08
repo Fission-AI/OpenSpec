@@ -6,6 +6,7 @@
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
+import { transformToHyphenCommands } from '../../../utils/command-references.js';
 
 /**
  * SourceCraft Code Assistant adapter for command generation.
@@ -20,11 +21,13 @@ export const codeassistantAdapter: ToolCommandAdapter = {
   },
 
   formatFile(content: CommandContent): string {
-    return `# ${content.name}
+    const transformedBody = transformToHyphenCommands(content.body);
 
-${content.description}
+    return `---
+description: ${content.description}
+---
 
-${content.body}
+${transformedBody}
 `;
   },
 };
