@@ -12,9 +12,9 @@ import * as fs from 'fs';
 import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
 import {
+  WORKFLOW_TO_SKILL_REFERENCE,
+  getSkillInstructionTransformer,
   getSkillReferencePrefix,
-  transformToHyphenCommands,
-  transformToToolSkillReferences,
 } from '../utils/command-references.js';
 import {
   AI_TOOLS,
@@ -64,35 +64,8 @@ const PROGRESS_SPINNER = {
   frames: ['░░░', '▒░░', '▒▒░', '▒▒▒', '▓▒▒', '▓▓▒', '▓▓▓', '▒▓▓', '░▒▓'],
 };
 
-const WORKFLOW_TO_SKILL_DIR: Record<string, string> = {
-  'explore': 'openspec-explore',
-  'new': 'openspec-new-change',
-  'continue': 'openspec-continue-change',
-  'apply': 'openspec-apply-change',
-  'ff': 'openspec-ff-change',
-  'sync': 'openspec-sync-specs',
-  'archive': 'openspec-archive-change',
-  'bulk-archive': 'openspec-bulk-archive-change',
-  'verify': 'openspec-verify-change',
-  'onboard': 'openspec-onboard',
-  'propose': 'openspec-propose',
-};
-
-function getSkillInstructionTransformer(
-  toolId: string,
-  hasCommandAdapter: boolean
-): ((instructions: string) => string) | undefined {
-  if (toolId === 'opencode' || toolId === 'pi') {
-    return transformToHyphenCommands;
-  }
-  if (!hasCommandAdapter) {
-    return (instructions: string) => transformToToolSkillReferences(instructions, toolId);
-  }
-  return undefined;
-}
-
 function formatSkillGettingStarted(workflowId: 'propose' | 'new', tools: Array<{ value: string }>): string {
-  const skillName = WORKFLOW_TO_SKILL_DIR[workflowId];
+  const skillName = WORKFLOW_TO_SKILL_REFERENCE[workflowId];
   const prefixedTool = tools.find((tool) => getSkillReferencePrefix(tool.value));
   const prefix = prefixedTool ? getSkillReferencePrefix(prefixedTool.value) : '';
   if (prefix) {
