@@ -1,8 +1,9 @@
 import ora from 'ora';
 import path from 'path';
 import { Validator } from '../core/validation/validator.js';
+import { getChangeDir, resolveCurrentPlanningHomeSync } from '../core/planning-home.js';
 import { isInteractive, resolveNoInteractive } from '../utils/interactive.js';
-import { getActiveChangeIds, getSpecIds } from '../utils/item-discovery.js';
+import { getChangeDirectoryIds, getSpecIds } from '../utils/item-discovery.js';
 import { nearestMatches } from '../utils/match.js';
 
 type ItemType = 'change' | 'spec';
@@ -80,7 +81,11 @@ export class ValidateCommand {
     if (choice === 'specs') return this.runBulkValidation({ changes: false, specs: true }, opts);
 
     // one
-    const [changes, specs] = await Promise.all([getActiveChangeIds(), getSpecIds()]);
+    const planningHome = resolveCurrentPlanningHomeSync();
+    const [changes, specs] = await Promise.all([
+      getChangeDirectoryIds(planningHome.root, planningHome.changesDir),
+      getSpecIds(planningHome.root),
+    ]);
     const items: { name: string; value: { type: ItemType; id: string } }[] = [];
     items.push(...changes.map(id => ({ name: `change/${id}`, value: { type: 'change' as const, id } })));
     items.push(...specs.map(id => ({ name: `spec/${id}`, value: { type: 'spec' as const, id } })));
@@ -103,7 +108,11 @@ export class ValidateCommand {
   }
 
   private async validateDirectItem(itemName: string, opts: { typeOverride?: ItemType; strict: boolean; json: boolean }): Promise<void> {
-    const [changes, specs] = await Promise.all([getActiveChangeIds(), getSpecIds()]);
+    const planningHome = resolveCurrentPlanningHomeSync();
+    const [changes, specs] = await Promise.all([
+      getChangeDirectoryIds(planningHome.root, planningHome.changesDir),
+      getSpecIds(planningHome.root),
+    ]);
     const isChange = changes.includes(itemName);
     const isSpec = specs.includes(itemName);
 
@@ -128,9 +137,10 @@ export class ValidateCommand {
   }
 
   private async validateByType(type: ItemType, id: string, opts: { strict: boolean; json: boolean }): Promise<void> {
+    const planningHome = resolveCurrentPlanningHomeSync();
     const validator = new Validator(opts.strict);
     if (type === 'change') {
-      const changeDir = path.join(process.cwd(), 'openspec', 'changes', id);
+      const changeDir = getChangeDir(planningHome, id);
       const start = Date.now();
       const report = await validator.validateChangeDeltaSpecs(changeDir);
       const durationMs = Date.now() - start;
@@ -139,7 +149,7 @@ export class ValidateCommand {
       process.exitCode = report.valid ? 0 : 1;
       return;
     }
-    const file = path.join(process.cwd(), 'openspec', 'specs', id, 'spec.md');
+    const file = path.join(planningHome.root, 'openspec', 'specs', id, 'spec.md');
     const start = Date.now();
     const report = await validator.validateSpec(file);
     const durationMs = Date.now() - start;
@@ -183,9 +193,10 @@ export class ValidateCommand {
 
   private async runBulkValidation(scope: { changes: boolean; specs: boolean }, opts: { strict: boolean; json: boolean; concurrency?: string; noInteractive?: boolean }): Promise<void> {
     const spinner = !opts.json && !opts.noInteractive ? ora('Validating...').start() : undefined;
+    const planningHome = resolveCurrentPlanningHomeSync();
     const [changeIds, specIds] = await Promise.all([
-      scope.changes ? getActiveChangeIds() : Promise.resolve<string[]>([]),
-      scope.specs ? getSpecIds() : Promise.resolve<string[]>([]),
+      scope.changes ? getChangeDirectoryIds(planningHome.root, planningHome.changesDir) : Promise.resolve<string[]>([]),
+      scope.specs ? getSpecIds(planningHome.root) : Promise.resolve<string[]>([]),
     ]);
 
     const DEFAULT_CONCURRENCY = 6;
@@ -197,7 +208,7 @@ export class ValidateCommand {
     for (const id of changeIds) {
       queue.push(async () => {
         const start = Date.now();
-        const changeDir = path.join(process.cwd(), 'openspec', 'changes', id);
+        const changeDir = getChangeDir(planningHome, id);
         const report = await validator.validateChangeDeltaSpecs(changeDir);
         const durationMs = Date.now() - start;
         return { id, type: 'change' as const, valid: report.valid, issues: report.issues, durationMs };
@@ -206,7 +217,7 @@ export class ValidateCommand {
     for (const id of specIds) {
       queue.push(async () => {
         const start = Date.now();
-        const file = path.join(process.cwd(), 'openspec', 'specs', id, 'spec.md');
+        const file = path.join(planningHome.root, 'openspec', 'specs', id, 'spec.md');
         const report = await validator.validateSpec(file);
         const durationMs = Date.now() - start;
         return { id, type: 'spec' as const, valid: report.valid, issues: report.issues, durationMs };

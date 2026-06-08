@@ -1,25 +1,37 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 
-export async function getActiveChangeIds(root: string = process.cwd()): Promise<string[]> {
-  const changesPath = path.join(root, 'openspec', 'changes');
+export async function getChangeDirectoryIds(
+  root: string = process.cwd(),
+  changesDir: string = path.join(root, 'openspec', 'changes')
+): Promise<string[]> {
   try {
-    const entries = await fs.readdir(changesPath, { withFileTypes: true });
-    const result: string[] = [];
-    for (const entry of entries) {
-      if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === 'archive') continue;
-      const proposalPath = path.join(changesPath, entry.name, 'proposal.md');
-      try {
-        await fs.access(proposalPath);
-        result.push(entry.name);
-      } catch {
-        // skip directories without proposal.md
-      }
-    }
-    return result.sort();
+    const entries = await fs.readdir(changesDir, { withFileTypes: true });
+    return entries
+      .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'archive')
+      .map((entry) => entry.name)
+      .sort();
   } catch {
     return [];
   }
+}
+
+export async function getActiveChangeIds(root: string = process.cwd()): Promise<string[]> {
+  const changesPath = path.join(root, 'openspec', 'changes');
+  const entries = await getChangeDirectoryIds(root, changesPath);
+  const result: string[] = [];
+
+  for (const entry of entries) {
+    const proposalPath = path.join(changesPath, entry, 'proposal.md');
+    try {
+      await fs.access(proposalPath);
+      result.push(entry);
+    } catch {
+      // skip directories without proposal.md
+    }
+  }
+
+  return result.sort();
 }
 
 export async function getSpecIds(root: string = process.cwd()): Promise<string[]> {

@@ -144,4 +144,81 @@ describe('top-level validate command', () => {
     // Should complete without hanging and without prompts
     expect(result.stderr).not.toContain('What would you like to validate?');
   });
+
+  it('resolves workspace-planning changes from the workspace root and validates nested delta specs', async () => {
+    const workspaceEnv = {
+      XDG_DATA_HOME: path.join(testDir, 'data'),
+      XDG_CONFIG_HOME: path.join(testDir, 'config'),
+      OPEN_SPEC_INTERACTIVE: '0',
+      OPENSPEC_TELEMETRY: '0',
+    };
+    const api = path.join(testDir, 'linked-api');
+    await fs.mkdir(api, { recursive: true });
+
+    const setup = await runCLI(
+      [
+        'workspace',
+        'setup',
+        '--no-interactive',
+        '--json',
+        '--name',
+        'platform',
+        '--link',
+        `api=${api}`,
+      ],
+      { cwd: testDir, env: workspaceEnv, timeoutMs: 30000 }
+    );
+    expect(setup.exitCode).toBe(0);
+
+    const workspaceRoot = JSON.parse(setup.stdout).workspace.root;
+    const create = await runCLI(
+      ['new', 'change', 'nested-workspace-spec', '--goal', 'Plan API login', '--areas', 'api'],
+      { cwd: workspaceRoot, env: workspaceEnv, timeoutMs: 30000 }
+    );
+    expect(create.exitCode).toBe(0);
+
+    const changeDir = path.join(workspaceRoot, 'changes', 'nested-workspace-spec');
+    const specPath = path.join(changeDir, 'specs', 'api', 'login', 'spec.md');
+    await fs.mkdir(path.dirname(specPath), { recursive: true });
+    await fs.writeFile(
+      specPath,
+      [
+        '## ADDED Requirements',
+        '### Requirement: API login SHALL succeed with valid credentials',
+        'The workspace plan SHALL capture successful login behavior.',
+        '',
+        '#### Scenario: Valid login',
+        '- **WHEN** credentials are valid',
+        '- **THEN** login succeeds',
+      ].join('\n'),
+      'utf-8'
+    );
+
+    const result = await runCLI(['validate', 'nested-workspace-spec', '--json'], {
+      cwd: workspaceRoot,
+      env: workspaceEnv,
+      timeoutMs: 30000,
+    });
+    expect(result.exitCode).toBe(0);
+    const json = JSON.parse(result.stdout);
+    expect(json.items).toHaveLength(1);
+    expect(json.items[0]).toMatchObject({
+      id: 'nested-workspace-spec',
+      type: 'change',
+      valid: true,
+    });
+
+    const bulk = await runCLI(['validate', '--changes', '--json'], {
+      cwd: workspaceRoot,
+      env: workspaceEnv,
+      timeoutMs: 30000,
+    });
+    expect(bulk.exitCode).toBe(0);
+    const bulkJson = JSON.parse(bulk.stdout);
+    expect(
+      bulkJson.items.some((item: { id: string; type: string; valid: boolean }) =>
+        item.id === 'nested-workspace-spec' && item.type === 'change' && item.valid
+      )
+    ).toBe(true);
+  });
 });
