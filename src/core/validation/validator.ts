@@ -120,11 +120,8 @@ export class Validator {
     const emptySectionSpecs: Array<{ path: string; sections: string[] }> = [];
 
     try {
-      const entries = await fs.readdir(specsDir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (!entry.isDirectory()) continue;
-        const specName = entry.name;
-        const specFile = path.join(specsDir, specName, 'spec.md');
+      const specFiles = await this.findDeltaSpecFiles(specsDir);
+      for (const specFile of specFiles) {
         let content: string | undefined;
         try {
           content = await fs.readFile(specFile, 'utf-8');
@@ -133,7 +130,7 @@ export class Validator {
         }
 
         const plan = parseDeltaSpec(content);
-        const entryPath = `${specName}/spec.md`;
+        const entryPath = FileSystemUtils.toPosixPath(path.relative(specsDir, specFile));
         const sectionNames: string[] = [];
         if (plan.sectionPresence.added) sectionNames.push('## ADDED Requirements');
         if (plan.sectionPresence.modified) sectionNames.push('## MODIFIED Requirements');
@@ -285,6 +282,33 @@ export class Validator {
         message,
       };
     });
+  }
+
+  private async findDeltaSpecFiles(specsDir: string): Promise<string[]> {
+    const files: string[] = [];
+
+    const walk = async (currentDir: string): Promise<void> => {
+      const entries = await fs.readdir(currentDir, { withFileTypes: true });
+
+      for (const entry of entries) {
+        const entryPath = path.join(currentDir, entry.name);
+        if (entry.isDirectory()) {
+          await walk(entryPath);
+          continue;
+        }
+        if (entry.isFile() && entry.name === 'spec.md') {
+          files.push(entryPath);
+        }
+      }
+    };
+
+    try {
+      await walk(specsDir);
+    } catch {
+      return [];
+    }
+
+    return files.sort((a, b) => a.localeCompare(b));
   }
 
   private applySpecRules(spec: Spec, content: string): ValidationIssue[] {
