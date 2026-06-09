@@ -74,39 +74,42 @@ workspace-owned planning, or collection state as the main model.
 
 Use this as the quick "where are we?" view.
 
-- [x] **Phase 0: Make the active direction easy to find.**
+Numbered labels are roadmap work item ids. Smaller `Progress` checkboxes inside
+an item are status steps for that numbered work item.
+
+- [x] **Phase 0. Make the active direction easy to find.**
   Old beta plans were marked as history, and this `/work` roadmap became the
   active direction.
-- [ ] **Phase 1: Make a standalone OpenSpec repo useful.**
+- [ ] **Phase 1. Make a standalone OpenSpec repo useful.**
   One slice is implemented in draft PR #1190, but the full phase still needs
   normal commands to work against a named standalone repo.
-- [ ] **Phase 2: Stop putting new work through initiatives.**
+- [ ] **Phase 2. Stop putting new work through initiatives.**
   Not started.
-- [ ] **Phase 3: Say which project repos the work is about.**
+- [ ] **Phase 3. Say which project repos the work is about.**
   Not started.
-- [ ] **Phase 4: Open the right files together.**
+- [ ] **Phase 4. Open the right files together.**
   Not started.
-- [ ] **Phase 5: Remove old surfaces only when they confuse the simple path.**
+- [ ] **Phase 5. Remove old surfaces only when they confuse the simple path.**
   Later cleanup; not started.
 
 Next incomplete item:
 
-- [ ] **Let normal commands use a named standalone OpenSpec repo.**
+- [ ] **1.2 Let normal commands use a named standalone OpenSpec repo.**
   In plain English: when a user is in an app repo, they can tell OpenSpec to
   create or read work in a registered standalone OpenSpec repo.
 
-## Phase 0: Make The Active Direction Easy To Find
+## Phase 0. Make The Active Direction Easy To Find
 
 This phase is already done. It cleaned up old roadmap sources so agents and
 humans do not follow the wrong plan.
 
 Phase checklist:
 
-- [x] Point people away from the old context-store beta plan.
-- [x] Mark deferred workspace plans as not the current queue.
-- [x] Reframe local agent guidance around OpenSpec roots.
+- [x] **0.1** Point people away from the old context-store beta plan.
+- [x] **0.2** Mark deferred workspace plans as not the current queue.
+- [x] **0.3** Reframe local agent guidance around OpenSpec roots.
 
-### Point People Away From The Old Context-Store Beta Plan
+### 0.1 Point People Away From The Old Context-Store Beta Plan
 
 Progress:
 
@@ -129,7 +132,7 @@ How we know it worked:
 - A new reader can start from this `/work` folder instead of chasing the old
   initiative roadmap.
 
-### Mark Deferred Workspace Plans As Not The Current Queue
+### 0.2 Mark Deferred Workspace Plans As Not The Current Queue
 
 Progress:
 
@@ -150,7 +153,7 @@ How we know it worked:
 
 - The old workspace changes no longer look like the next thing to implement.
 
-### Reframe Local Agent Guidance Around OpenSpec Roots
+### 0.3 Reframe Local Agent Guidance Around OpenSpec Roots
 
 Progress:
 
@@ -173,7 +176,7 @@ How we know it worked:
   promises about clone, sync, branch, worktree, dashboard, or edit-boundary
   behavior.
 
-## Phase 1: Make A Standalone OpenSpec Repo Useful
+## Phase 1. Make A Standalone OpenSpec Repo Useful
 
 The user-facing goal of this phase:
 
@@ -184,14 +187,14 @@ commands.
 
 Phase checklist:
 
-- [x] Create or register a standalone OpenSpec repo.
+- [x] **1.1** Create or register a standalone OpenSpec repo.
   Implemented in draft PR #1190.
-- [ ] Let normal commands use a named standalone OpenSpec repo.
+- [ ] **1.2** Let normal commands use a named standalone OpenSpec repo.
   This is the next slice.
-- [ ] Prove the standalone repo lifecycle end to end.
+- [ ] **1.3** Prove the standalone repo lifecycle end to end.
   Do this after normal commands can use the selected repo.
 
-### Create Or Register A Standalone OpenSpec Repo
+### 1.1 Create Or Register A Standalone OpenSpec Repo
 
 Progress:
 
@@ -243,7 +246,7 @@ How the user or agent knows it worked:
 - Existing config, specs, changes, archived changes, and old beta files are not
   overwritten.
 
-### Let Normal Commands Use A Named Standalone OpenSpec Repo
+### 1.2 Let Normal Commands Use A Named Standalone OpenSpec Repo
 
 Progress:
 
@@ -313,7 +316,7 @@ How the user or agent knows it worked:
 - JSON output shows which OpenSpec root was used.
 - No new initiative link is created.
 
-### Prove The Standalone Repo Lifecycle End To End
+### 1.3 Prove The Standalone Repo Lifecycle End To End
 
 Progress:
 
@@ -357,7 +360,7 @@ How the user or agent knows it worked:
 - The final files are normal `openspec/specs/`, `openspec/changes/`, and
   `openspec/changes/archive/` files in the standalone repo.
 
-## Phase 2: Stop Putting New Work Through Initiatives
+## Phase 2. Stop Putting New Work Through Initiatives
 
 The user-facing goal of this phase:
 
@@ -370,11 +373,11 @@ should stop attaching new work to initiatives.
 
 Phase checklist:
 
-- [ ] Stop creating new initiative links in normal change flows.
-- [ ] Hide or move initiative commands out of the main path.
-- [ ] Make workspace opening stop depending on initiatives.
+- [ ] **2.1** Stop creating new initiative links in normal change flows.
+- [ ] **2.2** Hide or move initiative commands out of the main path.
+- [ ] **2.3** Make workspace opening stop depending on initiatives.
 
-### Stop Creating New Initiative Links In Normal Change Flows
+### 2.1 Stop Creating New Initiative Links In Normal Change Flows
 
 Progress:
 
@@ -408,7 +411,7 @@ How the user or agent knows it worked:
 - New changes do not get initiative metadata by default.
 - Old initiative-linked changes can still be displayed or handled as legacy.
 
-### Hide Or Demote Initiative Commands From The Main Path
+### 2.2 Hide Or Move Initiative Commands Out Of The Main Path
 
 Progress:
 
@@ -441,7 +444,7 @@ How the user or agent knows it worked:
 - Existing initiative data remains untouched unless an explicit cleanup slice
   says otherwise.
 
-### Make Workspace Opening Stop Depending On Initiatives
+### 2.3 Make Workspace Opening Stop Depending On Initiatives
 
 Progress:
 
@@ -472,7 +475,7 @@ How the user or agent knows it worked:
 - Opening a view does not create or require initiative planning state.
 - Errors explain local view problems separately from OpenSpec-root problems.
 
-## Phase 3: Say Which Project Repos The Work Is About
+## Phase 3. Say Which Project Repos The Work Is About
 
 The user-facing goal of this phase:
 
@@ -482,11 +485,11 @@ This OpenSpec work lives here, and it targets these project repos.
 
 Phase checklist:
 
-- [ ] Let work declare its target project repos.
-- [ ] Map target repo names to local checkout paths.
-- [ ] Report whether target repos are available locally.
+- [ ] **3.1** Let work declare its target project repos.
+- [ ] **3.2** Map target repo names to local checkout paths.
+- [ ] **3.3** Report whether target repos are available locally.
 
-### Let Work Declare Its Target Project Repos
+### 3.1 Let Work Declare Its Target Project Repos
 
 Progress:
 
@@ -517,7 +520,7 @@ How the user or agent knows it worked:
 - A change can clearly say which project repo ids it targets.
 - The declaration is visible in normal OpenSpec files or metadata.
 
-### Map Target Repo Names To Local Checkout Paths
+### 3.2 Map Target Repo Names To Local Checkout Paths
 
 Progress:
 
@@ -547,7 +550,7 @@ How the user or agent knows it worked:
 - Given a target repo id, OpenSpec can resolve the local checkout path.
 - If the path is missing or ambiguous, the error tells the user what to fix.
 
-### Report Whether Target Repos Are Available Locally
+### 3.3 Report Whether Target Repos Are Available Locally
 
 Progress:
 
@@ -579,7 +582,7 @@ How the user or agent knows it worked:
 - The output does not attempt clone, pull, push, sync, branch, or worktree
   behavior.
 
-## Phase 4: Open The Right Files Together
+## Phase 4. Open The Right Files Together
 
 The user-facing goal of this phase:
 
@@ -590,9 +593,9 @@ local view.
 
 Phase checklist:
 
-- [ ] Open the OpenSpec repo and target repos together.
+- [ ] **4.1** Open the OpenSpec repo and target repos together.
 
-### Open The OpenSpec Repo And Target Repos Together
+### 4.1 Open The OpenSpec Repo And Target Repos Together
 
 Progress:
 
@@ -627,7 +630,7 @@ How the user or agent knows it worked:
 - The view does not imply clone, pull, push, sync, branch, worktree, dashboard,
   or edit-boundary enforcement.
 
-## Phase 5: Remove Old Surfaces Only When They Confuse The Simple Path
+## Phase 5. Remove Old Surfaces Only When They Confuse The Simple Path
 
 The user-facing goal of this phase:
 
@@ -638,10 +641,10 @@ use or understand.
 
 Phase checklist:
 
-- [ ] Remove or hide old workspace and initiative paths when they block or
+- [ ] **5.1** Remove or hide old workspace and initiative paths when they block or
   confuse the simple path.
 
-### Remove Or Hide Old Workspace And Initiative Paths
+### 5.1 Remove Or Hide Old Workspace And Initiative Paths
 
 Progress:
 
@@ -680,24 +683,24 @@ How the user or agent knows it worked:
 Keep these out of the main queue until the simpler standalone OpenSpec repo path
 is working:
 
-- Rewrite public concept docs after behavior is solid.
-- Decide how accepted workspace-planning specs should change once behavior has
+- **L1** Rewrite public concept docs after behavior is solid.
+- **L2** Decide how accepted workspace-planning specs should change once behavior has
   changed.
-- Add richer cross-repo context and doctoring after target repo mapping works.
-- Consider first-class `work/` only after the baseline and standalone repo flow
+- **L3** Add richer cross-repo context and doctoring after target repo mapping works.
+- **L4** Consider first-class `work/` only after the baseline and standalone repo flow
   are solid.
-- Revisit whether `changes/` should evolve into change-shaped work under
+- **L5** Revisit whether `changes/` should evolve into change-shaped work under
   `work/`.
-- Add machine-readable `/work` metadata only after the manual shape proves
+- **L6** Add machine-readable `/work` metadata only after the manual shape proves
   useful.
-- Decide whether to keep, rename, or replace `context-store` terminology after
+- **L7** Decide whether to keep, rename, or replace `context-store` terminology after
   the bridge behavior proves useful.
-- Review local `use-openspec` skill guidance and decide whether it should be an
+- **L8** Review local `use-openspec` skill guidance and decide whether it should be an
   ignored local skill, generated artifact, checked-in source, or productized
   default.
-- Fix small baseline quirks, such as JSON support for `openspec list --specs`,
+- **L9** Fix small baseline quirks, such as JSON support for `openspec list --specs`,
   only if they matter to the simple standalone repo flow.
-- Reintroduce initiative-like behavior only as a Git-native work type if it
+- **L10** Reintroduce initiative-like behavior only as a Git-native work type if it
   still proves useful later.
 
 ## Roadmap Change Log
@@ -726,3 +729,5 @@ is working:
 - 2026-06-10: Rewrote this roadmap in user-facing language so each slice says
   what the user can do, why it matters, what changes, and how success is
   visible.
+- 2026-06-10: Numbered phases, phase subitems, and later parking-lot ideas so
+  progress can be tracked unambiguously.
