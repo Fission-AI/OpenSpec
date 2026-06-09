@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { transformToHyphenCommands } from '../../src/utils/command-references.js';
+import {
+  transformToHyphenCommands,
+  transformToSkillReferences,
+} from '../../src/utils/command-references.js';
 
 describe('transformToHyphenCommands', () => {
   describe('basic transformations', () => {
@@ -80,5 +83,84 @@ Finally /opsx-apply to implement`;
         expect(transformToHyphenCommands(`/opsx:${cmd}`)).toBe(`/opsx-${cmd}`);
       });
     }
+  });
+});
+
+describe('transformToSkillReferences', () => {
+  describe('all known commands', () => {
+    const mappings: Array<[string, string]> = [
+      ['explore', '/openspec-explore'],
+      ['new', '/openspec-new-change'],
+      ['continue', '/openspec-continue-change'],
+      ['apply', '/openspec-apply-change'],
+      ['ff', '/openspec-ff-change'],
+      ['sync', '/openspec-sync-specs'],
+      ['archive', '/openspec-archive-change'],
+      ['bulk-archive', '/openspec-bulk-archive-change'],
+      ['verify', '/openspec-verify-change'],
+      ['onboard', '/openspec-onboard'],
+      ['propose', '/openspec-propose'],
+    ];
+
+    for (const [cmd, skillRef] of mappings) {
+      it(`should transform /opsx:${cmd} to ${skillRef}`, () => {
+        expect(transformToSkillReferences(`/opsx:${cmd}`)).toBe(skillRef);
+      });
+    }
+  });
+
+  describe('basic transformations', () => {
+    it('should transform command reference in context', () => {
+      const input = 'Use /opsx:apply to implement tasks';
+      const expected = 'Use /openspec-apply-change to implement tasks';
+      expect(transformToSkillReferences(input)).toBe(expected);
+    });
+
+    it('should transform multiple command references', () => {
+      const input = 'Run /opsx:apply then /opsx:archive';
+      const expected = 'Run /openspec-apply-change then /openspec-archive-change';
+      expect(transformToSkillReferences(input)).toBe(expected);
+    });
+
+    it('should handle backtick-quoted commands', () => {
+      const input = 'Run `/opsx:continue` to proceed';
+      const expected = 'Run `/openspec-continue-change` to proceed';
+      expect(transformToSkillReferences(input)).toBe(expected);
+    });
+
+    it('should transform references across multiple lines', () => {
+      const input = `Use /opsx:new to start
+Then /opsx:apply to implement`;
+      const expected = `Use /openspec-new-change to start
+Then /openspec-apply-change to implement`;
+      expect(transformToSkillReferences(input)).toBe(expected);
+    });
+  });
+
+  describe('edge cases', () => {
+    it('should return unchanged text with no command references', () => {
+      const input = 'This is plain text without commands';
+      expect(transformToSkillReferences(input)).toBe(input);
+    });
+
+    it('should return empty string unchanged', () => {
+      expect(transformToSkillReferences('')).toBe('');
+    });
+
+    it('should leave unknown command references unchanged', () => {
+      const input = 'Try /opsx:unknown-command here';
+      expect(transformToSkillReferences(input)).toBe(input);
+    });
+
+    it('should not transform similar but non-matching patterns', () => {
+      const input = '/ops:new opsx: /other:command';
+      expect(transformToSkillReferences(input)).toBe(input);
+    });
+
+    it('should transform longest matching command (bulk-archive vs archive)', () => {
+      const input = '/opsx:bulk-archive and /opsx:archive';
+      const expected = '/openspec-bulk-archive-change and /openspec-archive-change';
+      expect(transformToSkillReferences(input)).toBe(expected);
+    });
   });
 });

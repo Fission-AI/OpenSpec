@@ -742,6 +742,11 @@ describe('InitCommand - profile and detection features', () => {
     // Commands should NOT exist
     const cmdFile = path.join(testDir, '.claude', 'commands', 'opsx', 'explore.md');
     expect(await fileExists(cmdFile)).toBe(false);
+
+    // Skill content should reference skills, not commands that were never generated
+    const skillContent = await fs.readFile(skillFile, 'utf-8');
+    expect(skillContent).not.toContain('/opsx:');
+    expect(skillContent).toContain('/openspec-');
   });
 
   it('should respect delivery=commands setting (no skills)', async () => {

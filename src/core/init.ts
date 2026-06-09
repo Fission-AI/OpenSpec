@@ -13,7 +13,7 @@ import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { classifyOpenSpecDir, storePointerProblem } from './project-config.js';
 import { findRepoPlanningRootSync } from './planning-home.js';
-import { transformToHyphenCommands } from '../utils/command-references.js';
+import { transformToHyphenCommands, transformToSkillReferences } from '../utils/command-references.js';
 import {
   AI_TOOLS,
   OPENSPEC_DIR_NAME,
@@ -567,8 +567,13 @@ export class InitCommand {
             const skillFile = path.join(skillDir, 'SKILL.md');
 
             // Generate SKILL.md content with YAML frontmatter including generatedBy
-            // Use hyphen-based command references for tools where filename === command name (oh-my-pi, opencode, pi)
-            const transformer = (tool.value === 'opencode' || tool.value === 'pi' || tool.value === 'oh-my-pi') ? transformToHyphenCommands : undefined;
+            // Use hyphen-based command references for tools where filename === command name (oh-my-pi, opencode, pi),
+            // and skill references when no commands are generated (skills-only delivery)
+            const transformer = (tool.value === 'opencode' || tool.value === 'pi' || tool.value === 'oh-my-pi')
+              ? transformToHyphenCommands
+              : delivery === 'skills'
+                ? transformToSkillReferences
+                : undefined;
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
 
             // Write the skill file
