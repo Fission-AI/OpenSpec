@@ -1,0 +1,1347 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Context Store Review - User Facing Scenarios</title>
+  <style>
+    :root {
+      --base03: #002b36;
+      --base02: #073642;
+      --base01: #586e75;
+      --base00: #657b83;
+      --base0: #839496;
+      --base1: #93a1a1;
+      --base2: #eee8d5;
+      --base3: #fdf6e3;
+      --orange: #cb4b16;
+      --yellow: #b58900;
+      --cyan: #2aa198;
+      --green: #859900;
+      --red: #dc322f;
+      --violet: #6c71c4;
+      --ink: rgba(253, 246, 227, 0.92);
+      --muted: rgba(147, 161, 161, 0.88);
+      --line: rgba(147, 161, 161, 0.28);
+      --panel: rgba(7, 54, 66, 0.72);
+      --panel-strong: rgba(7, 54, 66, 0.95);
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.25);
+      color-scheme: dark;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      background:
+        linear-gradient(180deg, rgba(0, 43, 54, 0.96), rgba(0, 43, 54, 1) 34rem),
+        radial-gradient(circle at 18% 8%, rgba(203, 75, 22, 0.18), transparent 28rem),
+        radial-gradient(circle at 86% 12%, rgba(42, 161, 152, 0.12), transparent 26rem),
+        var(--base03);
+      color: var(--ink);
+      font-family: "Source Sans Pro", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.55;
+      letter-spacing: 0;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .page {
+      width: min(1120px, calc(100% - 36px));
+      margin: 0 auto;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      backdrop-filter: blur(16px);
+      background: rgba(0, 43, 54, 0.86);
+      border-bottom: 1px solid rgba(147, 161, 161, 0.18);
+    }
+
+    .topbar .page {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      min-height: 64px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+      font-weight: 800;
+      color: var(--base3);
+    }
+
+    .brand-mark {
+      width: 24px;
+      height: 24px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 3px;
+      flex: 0 0 auto;
+    }
+
+    .brand-mark span {
+      display: block;
+      min-width: 0;
+      background: var(--base3);
+    }
+
+    .brand-mark span:nth-child(2),
+    .brand-mark span:nth-child(6) {
+      background: var(--orange);
+    }
+
+    .brand small {
+      display: block;
+      margin-top: -3px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      color: var(--muted);
+      font-size: 0.96rem;
+      white-space: nowrap;
+    }
+
+    .nav a {
+      text-decoration: none;
+    }
+
+    .nav a:hover {
+      color: var(--base3);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(340px, 0.72fr);
+      gap: clamp(28px, 5vw, 64px);
+      align-items: end;
+      padding: clamp(54px, 8vw, 96px) 0 44px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .eyebrow {
+      margin: 0 0 18px;
+      color: var(--orange);
+      font-size: 0.9rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      max-width: 920px;
+      margin-bottom: 24px;
+      color: var(--base3);
+      font-size: clamp(3.2rem, 8.7vw, 7.6rem);
+      line-height: 0.9;
+      letter-spacing: 0;
+    }
+
+    .lead {
+      max-width: 720px;
+      color: var(--base2);
+      font-size: clamp(1.16rem, 2.3vw, 1.55rem);
+      line-height: 1.45;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: center;
+      margin-top: 32px;
+    }
+
+    .text-link {
+      color: var(--orange);
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      color: var(--muted);
+    }
+
+    .pill {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 12px;
+      background: rgba(0, 43, 54, 0.42);
+      font-size: 0.92rem;
+    }
+
+    .verdict {
+      border: 1px solid rgba(203, 75, 22, 0.45);
+      border-radius: 8px;
+      background: rgba(7, 54, 66, 0.74);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .verdict-head {
+      padding: 16px 18px;
+      border-bottom: 1px solid rgba(203, 75, 22, 0.33);
+      background: rgba(203, 75, 22, 0.14);
+      color: var(--base3);
+      font-weight: 800;
+    }
+
+    .verdict-body {
+      padding: 20px 18px 18px;
+    }
+
+    .verdict-kicker {
+      color: var(--muted);
+      font-size: 0.88rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 800;
+    }
+
+    .verdict h2 {
+      margin: 8px 0 12px;
+      font-size: clamp(1.65rem, 3vw, 2.35rem);
+      line-height: 1;
+    }
+
+    .mini-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .mini-item {
+      display: grid;
+      grid-template-columns: 26px 1fr;
+      gap: 10px;
+      align-items: start;
+      color: var(--base2);
+    }
+
+    .mini-icon {
+      display: grid;
+      place-items: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      background: rgba(42, 161, 152, 0.18);
+      color: var(--cyan);
+      font-weight: 900;
+    }
+
+    section {
+      padding: clamp(44px, 7vw, 76px) 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .section-rule {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 28px;
+      color: var(--muted);
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .section-rule::after {
+      content: "";
+      height: 1px;
+      flex: 1 1 auto;
+      background: var(--line);
+    }
+
+    .section-title {
+      max-width: 800px;
+      color: var(--base3);
+      font-size: clamp(2.1rem, 5vw, 4.3rem);
+      line-height: 0.98;
+      margin-bottom: 16px;
+    }
+
+    .section-copy {
+      max-width: 820px;
+      color: var(--muted);
+      font-size: 1.12rem;
+    }
+
+    .contract-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 34px;
+    }
+
+    .contract-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px;
+      background: rgba(7, 54, 66, 0.56);
+      min-height: 188px;
+    }
+
+    .contract-card strong {
+      display: block;
+      margin-bottom: 10px;
+      color: var(--base3);
+      font-size: 1.15rem;
+    }
+
+    .contract-card p {
+      color: var(--muted);
+      margin-bottom: 0;
+    }
+
+    .root-map {
+      margin-top: 28px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 16px;
+    }
+
+    .tree-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      overflow: hidden;
+    }
+
+    .tree-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      color: var(--base3);
+      font-weight: 800;
+    }
+
+    .tree-title span:last-child {
+      color: var(--muted);
+      font-size: 0.86rem;
+      font-weight: 700;
+    }
+
+    .tree {
+      margin: 0;
+      padding: 18px;
+      overflow: auto;
+      color: var(--base2);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 0.96rem;
+      line-height: 1.6;
+      white-space: pre;
+    }
+
+    .tree .new {
+      color: var(--cyan);
+    }
+
+    .tree .warn {
+      color: var(--yellow);
+    }
+
+    .scenario-shell {
+      display: grid;
+      grid-template-columns: 310px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+      margin-top: 36px;
+    }
+
+    .scenario-tabs {
+      position: sticky;
+      top: 84px;
+      display: grid;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: rgba(7, 54, 66, 0.62);
+    }
+
+    .scenario-tab {
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 10px;
+      width: 100%;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--base2);
+      padding: 10px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .scenario-tab:hover,
+    .scenario-tab[aria-selected="true"] {
+      border-color: rgba(203, 75, 22, 0.42);
+      background: rgba(203, 75, 22, 0.12);
+    }
+
+    .scenario-tab[aria-selected="true"] .tab-num {
+      background: var(--orange);
+      color: white;
+    }
+
+    .tab-num {
+      display: grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 4px;
+      background: rgba(147, 161, 161, 0.13);
+      color: var(--muted);
+      font-weight: 900;
+    }
+
+    .tab-title {
+      display: block;
+      color: var(--base3);
+      font-weight: 800;
+      line-height: 1.1;
+    }
+
+    .tab-sub {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.25;
+    }
+
+    .scenario-stage {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(7, 54, 66, 0.5);
+      overflow: hidden;
+    }
+
+    .scenario-main {
+      padding: clamp(18px, 3vw, 28px);
+    }
+
+    .scenario-main h3 {
+      margin-bottom: 8px;
+      color: var(--base3);
+      font-size: clamp(1.8rem, 3.4vw, 3rem);
+      line-height: 1;
+    }
+
+    .scenario-main .plain {
+      max-width: 760px;
+      color: var(--base2);
+      font-size: 1.08rem;
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 22px;
+    }
+
+    .compare-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(0, 43, 54, 0.45);
+      min-width: 0;
+    }
+
+    .compare-card.before {
+      border-color: rgba(220, 50, 47, 0.34);
+    }
+
+    .compare-card.after {
+      border-color: rgba(133, 153, 0, 0.42);
+    }
+
+    .compare-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      color: var(--base3);
+      font-size: 0.84rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .compare-label .state {
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .compare-body {
+      padding: 15px 14px;
+      color: var(--base2);
+    }
+
+    .compare-body p {
+      margin-bottom: 0;
+    }
+
+    .impact-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .impact {
+      border-radius: 6px;
+      padding: 12px;
+      background: rgba(147, 161, 161, 0.09);
+      color: var(--muted);
+    }
+
+    .impact strong {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--base3);
+    }
+
+    .toggle-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 14px;
+      border-top: 1px solid var(--line);
+      background: rgba(0, 43, 54, 0.3);
+    }
+
+    .toggle {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 8px 12px;
+      background: transparent;
+      color: var(--base2);
+      cursor: pointer;
+      font-weight: 800;
+    }
+
+    .toggle[aria-pressed="true"] {
+      border-color: rgba(42, 161, 152, 0.55);
+      background: rgba(42, 161, 152, 0.14);
+      color: var(--base3);
+    }
+
+    .artifact-panel {
+      display: none;
+      padding: 0 28px 28px;
+    }
+
+    .artifact-panel[data-active="true"] {
+      display: block;
+    }
+
+    .artifact-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 14px;
+    }
+
+    .notice {
+      border-left: 4px solid var(--orange);
+      padding: 12px 14px;
+      background: rgba(203, 75, 22, 0.12);
+      color: var(--base2);
+    }
+
+    .doctor-board {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 32px;
+    }
+
+    .doctor-col {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(7, 54, 66, 0.55);
+      overflow: hidden;
+    }
+
+    .doctor-col h3 {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 0;
+      padding: 14px;
+      border-bottom: 1px solid var(--line);
+      color: var(--base3);
+      font-size: 1rem;
+    }
+
+    .doctor-col ul {
+      list-style: none;
+      margin: 0;
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .doctor-col li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--base2);
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--cyan);
+      flex: 0 0 auto;
+    }
+
+    .dot.warn {
+      background: var(--yellow);
+    }
+
+    .dot.stop {
+      background: var(--red);
+    }
+
+    .json-shape {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: rgba(0, 43, 54, 0.62);
+    }
+
+    .json-shape pre {
+      margin: 0;
+      padding: 18px;
+      overflow: auto;
+      color: var(--base2);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 0.92rem;
+      line-height: 1.55;
+    }
+
+    .edit-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 28px;
+    }
+
+    .edit-item {
+      display: grid;
+      grid-template-columns: 40px minmax(0, 1fr) auto;
+      gap: 14px;
+      align-items: start;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: rgba(7, 54, 66, 0.46);
+    }
+
+    .edit-number {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 4px;
+      background: rgba(147, 161, 161, 0.12);
+      color: var(--base3);
+      font-weight: 900;
+    }
+
+    .edit-item strong {
+      color: var(--base3);
+    }
+
+    .edit-item p {
+      margin: 4px 0 0;
+      color: var(--muted);
+    }
+
+    .badge {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 5px 9px;
+      color: var(--base2);
+      font-size: 0.78rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+    }
+
+    .badge.load {
+      border-color: rgba(203, 75, 22, 0.45);
+      color: var(--orange);
+    }
+
+    .badge.oracle {
+      border-color: rgba(42, 161, 152, 0.45);
+      color: var(--cyan);
+    }
+
+    .badge.polish {
+      border-color: rgba(147, 161, 161, 0.35);
+      color: var(--muted);
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 32px;
+    }
+
+    .flow-step {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      background: rgba(7, 54, 66, 0.52);
+      min-height: 156px;
+    }
+
+    .flow-step::after {
+      content: "->";
+      position: absolute;
+      top: 18px;
+      right: -12px;
+      color: var(--orange);
+      font-weight: 900;
+    }
+
+    .flow-step:last-child::after {
+      display: none;
+    }
+
+    .flow-step span {
+      color: var(--orange);
+      font-weight: 900;
+      font-size: 0.86rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .flow-step strong {
+      display: block;
+      margin: 12px 0 8px;
+      color: var(--base3);
+      font-size: 1.1rem;
+    }
+
+    .flow-step p {
+      color: var(--muted);
+      margin-bottom: 0;
+    }
+
+    .footer {
+      padding: 34px 0 52px;
+      color: var(--muted);
+    }
+
+    .footer strong {
+      color: var(--base3);
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 900px) {
+      .nav {
+        display: none;
+      }
+
+      .hero,
+      .scenario-shell,
+      .artifact-grid,
+      .root-map {
+        grid-template-columns: 1fr;
+      }
+
+      .scenario-tabs {
+        position: static;
+      }
+
+      .contract-grid,
+      .doctor-board,
+      .flow {
+        grid-template-columns: 1fr;
+      }
+
+      .flow-step::after {
+        display: none;
+      }
+    }
+
+    @media (max-width: 700px) {
+      .page {
+        width: min(100% - 24px, 1120px);
+      }
+
+      .split,
+      .impact-row {
+        grid-template-columns: 1fr;
+      }
+
+      .edit-item {
+        grid-template-columns: 36px minmax(0, 1fr);
+      }
+
+      .edit-item .badge {
+        grid-column: 2;
+        width: max-content;
+      }
+
+      h1 {
+        font-size: clamp(2.7rem, 15vw, 4.4rem);
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="page">
+      <div class="brand" aria-label="OpenSpec context store review">
+        <div class="brand-mark" aria-hidden="true">
+          <span></span><span></span><span></span>
+          <span></span><span></span><span></span>
+          <span></span><span></span><span></span>
+        </div>
+        <div>
+          Context Store Review
+          <small>User-facing scenario contract</small>
+        </div>
+      </div>
+      <nav class="nav" aria-label="Page sections">
+        <a href="#promise">Promise</a>
+        <a href="#scenarios">Scenarios</a>
+        <a href="#doctor">Doctor</a>
+        <a href="#edits">Edits</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="hero" aria-labelledby="title">
+      <div>
+        <p class="eyebrow">Spec before plan</p>
+        <h1 id="title">Make setup feel boring.</h1>
+        <p class="lead">A user should be able to point OpenSpec at a folder and know exactly what will happen: normal OpenSpec files appear, thin identity metadata is added, and nothing else gets quietly installed or rewritten.</p>
+        <div class="hero-actions">
+          <a class="text-link" href="#scenarios">Explore the scenarios -></a>
+          <div class="pill-row" aria-label="Review status">
+            <span class="pill">Intent clear</span>
+            <span class="pill">Oracles need sharpening</span>
+            <span class="pill">Plan after spec edits</span>
+          </div>
+        </div>
+      </div>
+      <aside class="verdict" aria-labelledby="verdict-title">
+        <div class="verdict-head">Verdict</div>
+        <div class="verdict-body">
+          <div class="verdict-kicker">Product read</div>
+          <h2 id="verdict-title">Ready in spirit, not ready as a test contract.</h2>
+          <p>The spec says the right thing. The edits make it impossible for implementation or tests to guess what users should see.</p>
+          <div class="mini-list">
+            <div class="mini-item">
+              <span class="mini-icon">1</span>
+              <span>Keep context stores as standalone OpenSpec roots.</span>
+            </div>
+            <div class="mini-item">
+              <span class="mini-icon">2</span>
+              <span>Protect user files from surprise writes.</span>
+            </div>
+            <div class="mini-item">
+              <span class="mini-icon">3</span>
+              <span>Make every scenario checkable.</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <section id="promise" aria-labelledby="promise-title">
+      <div class="section-rule">The user promise</div>
+      <h2 class="section-title" id="promise-title">A context store is not a new planning world.</h2>
+      <p class="section-copy">It is a named standalone OpenSpec repo. The real planning state is still the normal OpenSpec shape users already understand: config, specs, changes, and archived changes.</p>
+
+      <div class="contract-grid">
+        <article class="contract-card">
+          <strong>Predictable files</strong>
+          <p>Setup creates the same OpenSpec root shape every time. Register only remembers roots that already exist.</p>
+        </article>
+        <article class="contract-card">
+          <strong>Thin identity</strong>
+          <p>The `.openspec-store/` folder names the store. It does not become a second planning model.</p>
+        </article>
+        <article class="contract-card">
+          <strong>No surprise tooling</strong>
+          <p>Setting up storage does not install agent skills, slash commands, migrations, or editor configuration.</p>
+        </article>
+      </div>
+
+      <div class="root-map" aria-label="Before and after root shape">
+        <article class="tree-card">
+          <div class="tree-title"><span>Before the user runs setup</span><span>safe starting points</span></div>
+          <pre class="tree">missing folder
+
+empty folder/
+
+git-only folder/
+  .git/
+
+already-open-spec/
+  openspec/
+    config.yaml
+    specs/
+    changes/
+      archive/</pre>
+        </article>
+        <article class="tree-card">
+          <div class="tree-title"><span>After setup succeeds</span><span>normal OpenSpec root</span></div>
+          <pre class="tree"><span class="new">context-store-root/</span>
+  <span class="new">.openspec-store/</span>
+    <span class="new">store.yaml</span>
+  <span class="new">openspec/</span>
+    <span class="new">config.yaml</span>
+    <span class="new">specs/</span>
+    <span class="new">changes/</span>
+      <span class="new">archive/</span></pre>
+        </article>
+      </div>
+    </section>
+
+    <section id="scenarios" aria-labelledby="scenarios-title">
+      <div class="section-rule">Scenario explorer</div>
+      <h2 class="section-title" id="scenarios-title">What changes for the user?</h2>
+      <p class="section-copy">Pick a scenario. Each one shows the fuzzy version of the spec beside the clearer user-facing contract.</p>
+
+      <div class="scenario-shell">
+        <div class="scenario-tabs" role="tablist" aria-label="Context store scenarios">
+          <button class="scenario-tab" type="button" role="tab" aria-selected="true" data-scenario="git-only">
+            <span class="tab-num">01</span>
+            <span><span class="tab-title">Git-only folder</span><span class="tab-sub">User initialized Git first</span></span>
+          </button>
+          <button class="scenario-tab" type="button" role="tab" aria-selected="false" data-scenario="existing-root">
+            <span class="tab-num">02</span>
+            <span><span class="tab-title">Existing OpenSpec root</span><span class="tab-sub">User already has specs and changes</span></span>
+          </button>
+          <button class="scenario-tab" type="button" role="tab" aria-selected="false" data-scenario="unsafe-folder">
+            <span class="tab-num">03</span>
+            <span><span class="tab-title">Unsafe folder</span><span class="tab-sub">Avoid accidental writes</span></span>
+          </button>
+          <button class="scenario-tab" type="button" role="tab" aria-selected="false" data-scenario="register-root">
+            <span class="tab-num">04</span>
+            <span><span class="tab-title">Register</span><span class="tab-sub">Remember, do not initialize</span></span>
+          </button>
+          <button class="scenario-tab" type="button" role="tab" aria-selected="false" data-scenario="config">
+            <span class="tab-num">05</span>
+            <span><span class="tab-title">Config in JSON mode</span><span class="tab-sub">No inherited init skip</span></span>
+          </button>
+          <button class="scenario-tab" type="button" role="tab" aria-selected="false" data-scenario="idempotency">
+            <span class="tab-num">06</span>
+            <span><span class="tab-title">Rerun safety</span><span class="tab-sub">User edits must survive</span></span>
+          </button>
+        </div>
+
+        <article class="scenario-stage" aria-live="polite">
+          <div class="scenario-main">
+            <h3 id="scenario-title"></h3>
+            <p class="plain" id="scenario-summary"></p>
+            <div class="split">
+              <div class="compare-card before">
+                <div class="compare-label"><span>Before spec edit</span><span class="state">fuzzy</span></div>
+                <div class="compare-body"><p id="before-copy"></p></div>
+              </div>
+              <div class="compare-card after">
+                <div class="compare-label"><span>After spec edit</span><span class="state">checkable</span></div>
+                <div class="compare-body"><p id="after-copy"></p></div>
+              </div>
+            </div>
+            <div class="impact-row">
+              <div class="impact"><strong>User expectation</strong><span id="expectation-copy"></span></div>
+              <div class="impact"><strong>Surprise avoided</strong><span id="surprise-copy"></span></div>
+              <div class="impact"><strong>Test oracle</strong><span id="oracle-copy"></span></div>
+            </div>
+          </div>
+          <div class="toggle-row" role="group" aria-label="Scenario artifacts">
+            <button class="toggle" type="button" aria-pressed="true" data-panel="files">Files</button>
+            <button class="toggle" type="button" aria-pressed="false" data-panel="message">User message</button>
+            <button class="toggle" type="button" aria-pressed="false" data-panel="guardrail">Guardrail</button>
+          </div>
+          <div class="artifact-panel" data-panel-content="files" data-active="true">
+            <div class="artifact-grid">
+              <article class="tree-card">
+                <div class="tree-title"><span id="files-before-title"></span><span>before</span></div>
+                <pre class="tree" id="files-before"></pre>
+              </article>
+              <article class="tree-card">
+                <div class="tree-title"><span id="files-after-title"></span><span>after</span></div>
+                <pre class="tree" id="files-after"></pre>
+              </article>
+            </div>
+          </div>
+          <div class="artifact-panel" data-panel-content="message" data-active="false">
+            <div class="notice" id="message-panel"></div>
+          </div>
+          <div class="artifact-panel" data-panel-content="guardrail" data-active="false">
+            <div class="notice" id="guardrail-panel"></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="doctor" aria-labelledby="doctor-title">
+      <div class="section-rule">Doctor output</div>
+      <h2 class="section-title" id="doctor-title">Tell users which layer is broken.</h2>
+      <p class="section-copy">`context-store doctor` should not flatten every problem into one status list. The user needs to know whether the identity metadata, Git repo, or OpenSpec root is unhealthy.</p>
+
+      <div class="doctor-board">
+        <article class="doctor-col">
+          <h3>Metadata <span class="badge oracle">identity</span></h3>
+          <ul>
+            <li><span class="dot"></span><span>Store id matches registry</span></li>
+            <li><span class="dot warn"></span><span>Missing store.yaml is metadata trouble</span></li>
+          </ul>
+        </article>
+        <article class="doctor-col">
+          <h3>Git <span class="badge oracle">transport</span></h3>
+          <ul>
+            <li><span class="dot"></span><span>Repository detected</span></li>
+            <li><span class="dot warn"></span><span>No automatic clone or sync promised</span></li>
+          </ul>
+        </article>
+        <article class="doctor-col">
+          <h3>OpenSpec root <span class="badge load">new</span></h3>
+          <ul>
+            <li><span class="dot"></span><span>openspec/ exists</span></li>
+            <li><span class="dot"></span><span>config.yaml or config.yml exists</span></li>
+            <li><span class="dot stop"></span><span>Missing changes/archive is root health</span></li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="json-shape" aria-label="Suggested doctor JSON shape">
+        <pre>{
+  "context_stores": [
+    {
+      "id": "team-context",
+      "metadata": { "status": [] },
+      "git": { "is_repository": true, "status": [] },
+      "openspec_root": {
+        "path": "/stores/team-context/openspec",
+        "config": "config.yaml",
+        "specs": true,
+        "changes": true,
+        "archive": false,
+        "status": [
+          {
+            "code": "openspec_root_archive_missing",
+            "message": "openspec/changes/archive/ is missing."
+          }
+        ]
+      }
+    }
+  ]
+}</pre>
+      </div>
+    </section>
+
+    <section id="edits" aria-labelledby="edits-title">
+      <div class="section-rule">Recommended spec edits</div>
+      <h2 class="section-title" id="edits-title">The short list, translated into product promises.</h2>
+      <p class="section-copy">These edits do not change the product direction. They make the user's expectations and the test author's checks line up.</p>
+
+      <div class="edit-list">
+        <article class="edit-item">
+          <span class="edit-number">1</span>
+          <div><strong>Rename the spec around the user model.</strong><p>Use a title like "Context Store As Standalone OpenSpec Root" so the slice is not mistaken for beta store preservation.</p></div>
+          <span class="badge polish">Polish</span>
+        </article>
+        <article class="edit-item">
+          <span class="edit-number">2</span>
+          <div><strong>Split setup starting points.</strong><p>Missing, empty, Git-only, and already-initialized roots should each have a clear outcome.</p></div>
+          <span class="badge load">Load-bearing</span>
+        </article>
+        <article class="edit-item">
+          <span class="edit-number">3</span>
+          <div><strong>Define a healthy root.</strong><p>Spell out `.openspec-store/store.yaml`, `openspec/config.yaml`, specs, changes, and archive.</p></div>
+          <span class="badge oracle">Oracle</span>
+        </article>
+        <article class="edit-item">
+          <span class="edit-number">4</span>
+          <div><strong>Pin non-interactive config creation.</strong><p>JSON setup with no tool selection must still create `openspec/config.yaml` with the `spec-driven` schema.</p></div>
+          <span class="badge load">Load-bearing</span>
+        </article>
+        <article class="edit-item">
+          <span class="edit-number">5</span>
+          <div><strong>Make register refusal safe.</strong><p>Register should fail on non-root folders before writing metadata or registry state.</p></div>
+          <span class="badge load">Load-bearing</span>
+        </article>
+        <article class="edit-item">
+          <span class="edit-number">6</span>
+          <div><strong>Forbid setup side effects.</strong><p>No full init, tool detection, legacy cleanup, migration, skill generation, slash commands, or editor files.</p></div>
+          <span class="badge load">Load-bearing</span>
+        </article>
+        <article class="edit-item">
+          <span class="edit-number">7</span>
+          <div><strong>Name the doctor output layer.</strong><p>Add an `openspec_root` JSON section and require doctor to report, not repair, root-health issues.</p></div>
+          <span class="badge oracle">Oracle</span>
+        </article>
+        <article class="edit-item">
+          <span class="edit-number">8</span>
+          <div><strong>Make beta metadata deterministic.</strong><p>Either list supported old shapes or move normalization out of acceptance criteria.</p></div>
+          <span class="badge oracle">Oracle</span>
+        </article>
+        <article class="edit-item">
+          <span class="edit-number">9</span>
+          <div><strong>Lock idempotency and rollback.</strong><p>User-edited config survives reruns. Failed setup removes only paths created during that operation.</p></div>
+          <span class="badge load">Load-bearing</span>
+        </article>
+      </div>
+    </section>
+
+    <section aria-labelledby="next-title">
+      <div class="section-rule">Plan readiness</div>
+      <h2 class="section-title" id="next-title">After these edits, plan.md can be boring too.</h2>
+      <div class="flow">
+        <article class="flow-step">
+          <span>Step 1</span>
+          <strong>Sharpen spec oracles</strong>
+          <p>Every scenario says what the user sees and what files are touched.</p>
+        </article>
+        <article class="flow-step">
+          <span>Step 2</span>
+          <strong>Write plan.md</strong>
+          <p>The plan can focus on implementation shape instead of re-deciding product behavior.</p>
+        </article>
+        <article class="flow-step">
+          <span>Step 3</span>
+          <strong>Build tests from scenarios</strong>
+          <p>Each test follows a named product promise.</p>
+        </article>
+        <article class="flow-step">
+          <span>Step 4</span>
+          <strong>Implement safely</strong>
+          <p>Users get normal OpenSpec roots without surprise beta or tooling behavior.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="page">
+      <strong>Bottom line:</strong> the spec already has the right product thesis. These edits make the command behavior boring, predictable, and safe enough for users to trust.
+    </div>
+  </footer>
+
+  <script>
+    const scenarios = {
+      "git-only": {
+        title: "Git-only folder",
+        summary: "The user ran git init first, then asked OpenSpec to turn that empty repo into a context store.",
+        before: "The spec says Git-only folders are safe, but groups them with other setup cases. Tests could still treat .git/ as arbitrary non-empty content.",
+        after: "A Git-only folder containing only .git/ is accepted as a fresh store. A folder inside another app repo remains guarded separately.",
+        expectation: "Their empty Git repo becomes the planning repo.",
+        surprise: "OpenSpec does not reject the folder just because .git/ exists.",
+        oracle: "After setup, .git/ remains and the normal OpenSpec root appears.",
+        filesBeforeTitle: "Git-only repo",
+        filesBefore: "team-context/\n  .git/",
+        filesAfterTitle: "Setup result",
+        filesAfter: "team-context/\n  .git/\n  .openspec-store/\n    store.yaml\n  openspec/\n    config.yaml\n    specs/\n    changes/\n      archive/",
+        message: "User-facing message: Context store created at team-context. OpenSpec files were added; existing Git history was left alone.",
+        guardrail: "Guardrail: Git-only means the target folder itself has .git/. It does not mean a random subfolder inside another project repo."
+      },
+      "existing-root": {
+        title: "Existing OpenSpec root",
+        summary: "The user already has a standalone OpenSpec repo and wants to name/register it as a context store.",
+        before: "The spec says setup creates or preserves a normal root, but preservation is not separated from fresh creation.",
+        after: "Existing config, specs, changes, and archive are preserved. Setup may add only thin identity metadata when needed.",
+        expectation: "Their planning history stays intact.",
+        surprise: "OpenSpec does not reinitialize or overwrite their root.",
+        oracle: "Existing config content is byte-for-byte unchanged after setup.",
+        filesBeforeTitle: "Existing root",
+        filesBefore: "team-context/\n  openspec/\n    config.yaml\n    specs/\n      billing/spec.md\n    changes/\n      archive/",
+        filesAfterTitle: "Preserved root",
+        filesAfter: "team-context/\n  .openspec-store/\n    store.yaml\n  openspec/\n    config.yaml\n    specs/\n      billing/spec.md\n    changes/\n      archive/",
+        message: "User-facing message: Existing OpenSpec root registered. OpenSpec preserved your config, specs, and changes.",
+        guardrail: "Guardrail: preserve means do not re-scaffold over user-authored OpenSpec files."
+      },
+      "unsafe-folder": {
+        title: "Unsafe folder",
+        summary: "The user points setup at a folder with unrelated files, such as notes, source code, or random project content.",
+        before: "The spec says arbitrary non-empty folders are rejected, but the Git-only exception can blur the boundary.",
+        after: "Only safe starting points are accepted. Arbitrary unmarked content is rejected before metadata or OpenSpec files are written.",
+        expectation: "OpenSpec refuses to guess that this folder is planning storage.",
+        surprise: "No hidden metadata appears in the wrong place.",
+        oracle: "Exit with an unsafe-folder diagnostic and leave the directory unchanged.",
+        filesBeforeTitle: "Arbitrary folder",
+        filesBefore: "app-folder/\n  package.json\n  notes.md\n  src/",
+        filesAfterTitle: "Rejected unchanged",
+        filesAfter: "app-folder/\n  package.json\n  notes.md\n  src/",
+        message: "User-facing message: This folder is not empty and is not marked as a context store or OpenSpec root. Choose an empty folder or an existing OpenSpec root.",
+        guardrail: "Guardrail: no .openspec-store/ and no openspec/ files are created on rejection."
+      },
+      "register-root": {
+        title: "Register means remember",
+        summary: "The user asks OpenSpec to register a folder. Product-wise, that should mean the folder is already an OpenSpec root.",
+        before: "Current behavior can register an arbitrary folder and create .openspec-store/store.yaml. That makes register too magical.",
+        after: "Register validates first. Non-root, partial, or missing folders fail before registry or metadata writes.",
+        expectation: "Register does not initialize storage.",
+        surprise: "A random folder does not become a context store just because register touched it.",
+        oracle: "For non-root input, no registry entry and no store.yaml exist after failure.",
+        filesBeforeTitle: "Not an OpenSpec root",
+        filesBefore: "team-context/\n  notes.md",
+        filesAfterTitle: "Register refusal",
+        filesAfter: "team-context/\n  notes.md",
+        message: "User-facing message: Cannot register this folder because it does not contain openspec/config and the expected OpenSpec directories.",
+        guardrail: "Guardrail: add a separate repair command later if users need explicit conversion. Do not hide conversion inside register."
+      },
+      "config": {
+        title: "Config in JSON mode",
+        summary: "The user runs non-interactive setup, likely from automation or an agent, and expects a complete root.",
+        before: "OpenSpec init can skip config creation in non-interactive mode. The context-store spec says config is created but does not name this anti-regression.",
+        after: "Context-store setup always creates config.yaml when neither config.yaml nor config.yml exists, including JSON mode.",
+        expectation: "Automation gets a usable OpenSpec root without prompts.",
+        surprise: "The store is not missing config just because setup ran non-interactively.",
+        oracle: "JSON setup without tool selection leaves openspec/config.yaml with schema: spec-driven.",
+        filesBeforeTitle: "No config",
+        filesBefore: "team-context/\n  .openspec-store/\n    store.yaml\n  openspec/\n    specs/\n    changes/\n      archive/",
+        filesAfterTitle: "Default config",
+        filesAfter: "team-context/\n  .openspec-store/\n    store.yaml\n  openspec/\n    config.yaml\n    specs/\n    changes/\n      archive/",
+        message: "User-facing message: Context store ready. Config: openspec/config.yaml using the spec-driven schema.",
+        guardrail: "Guardrail: do not reuse full init behavior if it brings along non-interactive config skips or tool setup."
+      },
+      "idempotency": {
+        title: "Rerun safety",
+        summary: "The user reruns setup or register after editing config or after a previous successful registration.",
+        before: "The spec says idempotent, but tests need a user-authored edit to prove OpenSpec does not overwrite content.",
+        after: "Reruns do not duplicate registry entries and do not overwrite user-edited config.",
+        expectation: "Running the command again is safe.",
+        surprise: "Their config changes do not disappear.",
+        oracle: "Modify config.yaml between runs; after rerun, content remains and registry has one entry.",
+        filesBeforeTitle: "User-edited config",
+        filesBefore: "team-context/\n  .openspec-store/\n    store.yaml\n  openspec/\n    config.yaml  # user edited\n    specs/\n    changes/\n      archive/",
+        filesAfterTitle: "Rerun result",
+        filesAfter: "team-context/\n  .openspec-store/\n    store.yaml\n  openspec/\n    config.yaml  # same user edit\n    specs/\n    changes/\n      archive/",
+        message: "User-facing message: Context store already registered. Existing OpenSpec files were preserved.",
+        guardrail: "Guardrail: rollback on failure removes only paths created during that operation, never unrelated user content."
+      }
+    };
+
+    const scenarioTabs = Array.from(document.querySelectorAll(".scenario-tab"));
+    const panelButtons = Array.from(document.querySelectorAll(".toggle"));
+    const panels = Array.from(document.querySelectorAll(".artifact-panel"));
+    const fields = {
+      title: document.getElementById("scenario-title"),
+      summary: document.getElementById("scenario-summary"),
+      before: document.getElementById("before-copy"),
+      after: document.getElementById("after-copy"),
+      expectation: document.getElementById("expectation-copy"),
+      surprise: document.getElementById("surprise-copy"),
+      oracle: document.getElementById("oracle-copy"),
+      filesBeforeTitle: document.getElementById("files-before-title"),
+      filesBefore: document.getElementById("files-before"),
+      filesAfterTitle: document.getElementById("files-after-title"),
+      filesAfter: document.getElementById("files-after"),
+      message: document.getElementById("message-panel"),
+      guardrail: document.getElementById("guardrail-panel")
+    };
+
+    function setScenario(id) {
+      const scenario = scenarios[id];
+      if (!scenario) return;
+
+      fields.title.textContent = scenario.title;
+      fields.summary.textContent = scenario.summary;
+      fields.before.textContent = scenario.before;
+      fields.after.textContent = scenario.after;
+      fields.expectation.textContent = scenario.expectation;
+      fields.surprise.textContent = scenario.surprise;
+      fields.oracle.textContent = scenario.oracle;
+      fields.filesBeforeTitle.textContent = scenario.filesBeforeTitle;
+      fields.filesBefore.textContent = scenario.filesBefore;
+      fields.filesAfterTitle.textContent = scenario.filesAfterTitle;
+      fields.filesAfter.textContent = scenario.filesAfter;
+      fields.message.textContent = scenario.message;
+      fields.guardrail.textContent = scenario.guardrail;
+
+      scenarioTabs.forEach((tab) => {
+        tab.setAttribute("aria-selected", String(tab.dataset.scenario === id));
+      });
+    }
+
+    function setPanel(name) {
+      panelButtons.forEach((button) => {
+        button.setAttribute("aria-pressed", String(button.dataset.panel === name));
+      });
+      panels.forEach((panel) => {
+        panel.dataset.active = String(panel.dataset.panelContent === name);
+      });
+    }
+
+    scenarioTabs.forEach((tab) => {
+      tab.addEventListener("click", () => setScenario(tab.dataset.scenario));
+    });
+
+    panelButtons.forEach((button) => {
+      button.addEventListener("click", () => setPanel(button.dataset.panel));
+    });
+
+    setScenario("git-only");
+  </script>
+</body>
+</html>

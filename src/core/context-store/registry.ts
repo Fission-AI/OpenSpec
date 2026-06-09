@@ -55,6 +55,8 @@ export interface ResolvedContextStore {
 
 export interface ContextStoreRegistrationCommit extends ResolvedContextStore {
   metadataCreated: boolean;
+  registryUpdated: boolean;
+  alreadyRegistered: boolean;
 }
 
 export interface CommitContextStoreRegistrationInput extends ContextStorePathOptions {
@@ -260,6 +262,21 @@ export async function commitContextStoreRegistration(
     metadataCreated = await ensureStoreMetadata(storeRoot, id, {
       writeIfMissing: input.writeMetadataIfMissing,
     });
+    const registry = await readContextStoreRegistryState({
+      globalDataDir: input.globalDataDir,
+    });
+    const existing = registry?.stores[id];
+    if (existing && contextStoreBackendsMatch(existing.backend as ContextStoreGitBackendConfig, backend)) {
+      return {
+        id,
+        storeRoot,
+        backend,
+        metadataCreated,
+        registryUpdated: false,
+        alreadyRegistered: true,
+      };
+    }
+
     await updateContextStoreRegistryState(
       (registry) => withRegisteredStore(registry, id, backend),
       { globalDataDir: input.globalDataDir }
@@ -278,6 +295,8 @@ export async function commitContextStoreRegistration(
     storeRoot,
     backend,
     metadataCreated,
+    registryUpdated: true,
+    alreadyRegistered: false,
   };
 }
 

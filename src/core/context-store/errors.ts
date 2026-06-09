@@ -1,4 +1,4 @@
-export type ContextStoreDiagnosticSeverity = 'error' | 'warning';
+export type ContextStoreDiagnosticSeverity = 'error' | 'warning' | 'info';
 
 export interface ContextStoreDiagnostic {
   severity: ContextStoreDiagnosticSeverity;

@@ -18,6 +18,7 @@ import {
   resolveContextStoreBinding,
   resolveRegisteredContextStore,
   listRegisteredContextStores,
+  setupContextStore,
   setupPreparedContextStore,
   unregisterContextStoreRegistration,
   writeContextStoreMetadataState,
@@ -237,6 +238,31 @@ describe('context store registry facade', () => {
       expect(Object.keys(registry?.stores ?? {})).toEqual(['other-context', 'team-context']);
       expectSameExistingPath(registry?.stores['other-context'].backend.local_path ?? '', otherRoot);
       expectSameExistingPath(registry?.stores['team-context'].backend.local_path ?? '', preparedRoot);
+    } finally {
+      process.env = originalEnv;
+    }
+  });
+
+  it('removes only setup-created root files when registry write fails', async () => {
+    const originalEnv = { ...process.env };
+    const dataHome = mkdir('blocked-data-home');
+    fs.writeFileSync(path.join(dataHome, 'openspec'), 'not a directory\n');
+    process.env = {
+      ...process.env,
+      XDG_DATA_HOME: dataHome,
+    };
+    const storeRoot = path.join(tempDir, 'team-context');
+
+    try {
+      await expect(
+        setupContextStore({
+          id: 'team-context',
+          path: storeRoot,
+          initGit: false,
+        })
+      ).rejects.toThrow();
+
+      expect(fs.existsSync(storeRoot)).toBe(false);
     } finally {
       process.env = originalEnv;
     }

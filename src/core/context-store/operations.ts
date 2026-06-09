@@ -6,6 +6,13 @@ import { promisify } from 'node:util';
 
 import { FileSystemUtils } from '../../utils/file-system.js';
 import {
+  ensureOpenSpecRoot,
+  inspectOpenSpecRoot,
+  rollbackCreatedPaths,
+  type CreatedPathLedgerEntry,
+  type OpenSpecRootInspection,
+} from '../openspec-root.js';
+import {
   getDefaultContextStoreRoot,
   getContextStoreMetadataPath,
   getContextStoreRegistryPath,
@@ -43,12 +50,15 @@ export interface ContextStoreMutationResult {
   store: ContextStoreInfo;
   registryCommit: {
     path: string;
+    registered: boolean;
+    alreadyRegistered: boolean;
   };
   git: {
     isRepository: boolean;
     initialized: boolean;
   };
   createdArtifacts: string[];
+  diagnostics: ContextStoreDiagnostic[];
 }
 
 export interface ContextStoreCleanupResult {
@@ -75,6 +85,7 @@ export interface ContextStoreDoctorResult {
 }
 
 export interface ContextStoreInspection extends ContextStoreInfo {
+  openspecRoot: OpenSpecRootInspection;
   metadata: {
     present: boolean | null;
     valid: boolean | null;
@@ -96,6 +107,7 @@ export interface SetupContextStoreInput {
 export interface RegisterExistingContextStoreInput {
   path?: string;
   id?: string;
+  allowCreateIdentity?: boolean;
 }
 
 export interface CleanupContextStoreInput extends ContextStorePathOptions {
@@ -166,6 +178,30 @@ async function isGitRepositoryAtRoot(storeRoot: string): Promise<boolean> {
   return kind === 'directory' || kind === 'file';
 }
 
+async function isGitOnlyDirectory(storeRoot: string): Promise<boolean> {
+  const entries = await fs.readdir(storeRoot);
+  return entries.length === 1 && entries[0] === '.git' && await isGitRepositoryAtRoot(storeRoot);
+}
+
+function alreadyRegisteredDiagnostic(id: string): ContextStoreDiagnostic {
+  return makeContextStoreDiagnostic(
+    'info',
+    'context_store_already_registered',
+    `Context store '${id}' is already registered at this path.`,
+    {
+      target: 'context_store.registry',
+    }
+  );
+}
+
+function createdPath(relativePath: string, absolutePath: string, kind: CreatedPathLedgerEntry['kind']): CreatedPathLedgerEntry {
+  return {
+    relativePath,
+    absolutePath,
+    kind,
+  };
+}
+
 async function nearestExistingDirectory(targetPath: string): Promise<string | null> {
   let current = path.resolve(targetPath);
 
@@ -233,7 +269,7 @@ async function assertSetupPathIsNotNestedInGitRepo(
     'context_store_setup_inside_git_repo',
     {
       target: 'context_store.root',
-      fix: 'Choose the managed OpenSpec location, choose a path outside that Git repository, or rerun setup interactively to confirm this location.',
+      fix: 'Choose the managed OpenSpec location or choose a path outside that Git repository.',
     }
   );
 }
@@ -303,7 +339,9 @@ function mutationPayload(
   id: string,
   storeRoot: string,
   git: { isRepository: boolean; initialized: boolean },
-  createdFiles: string[]
+  createdFiles: string[],
+  registry: { registered: boolean; alreadyRegistered: boolean },
+  diagnostics: ContextStoreDiagnostic[] = []
 ): ContextStoreMutationResult {
   return {
     store: {
@@ -313,12 +351,15 @@ function mutationPayload(
     },
     registryCommit: {
       path: getContextStoreRegistryPath(),
+      registered: registry.registered,
+      alreadyRegistered: registry.alreadyRegistered,
     },
     git: {
       isRepository: git.isRepository,
       initialized: git.initialized,
     },
     createdArtifacts: createdFiles,
+    diagnostics,
   };
 }
 
@@ -363,15 +404,19 @@ async function prepareSetupPlan(
           }
         );
       }
-    } else if (!(await isDirectoryEmpty(storeRoot))) {
-      throw new ContextStoreError(
-        'Context store setup does not support initializing a non-empty folder yet.',
-        'context_store_setup_non_empty_directory',
-        {
-          target: 'context_store.root',
-          fix: 'Create an empty folder or use context-store register for an existing context store.',
-        }
-      );
+    } else {
+      const openspecRoot = await inspectOpenSpecRoot(storeRoot);
+      const safeFreshDirectory = await isDirectoryEmpty(storeRoot) || await isGitOnlyDirectory(storeRoot);
+      if (!openspecRoot.healthy && !safeFreshDirectory) {
+        throw new ContextStoreError(
+          'Context store setup does not support initializing a non-empty folder that is not a healthy OpenSpec root.',
+          'context_store_setup_non_empty_directory',
+          {
+            target: 'context_store.root',
+            fix: 'Choose an empty folder, a Git-only folder, or an existing healthy OpenSpec root.',
+          }
+        );
+      }
     }
 
     backend = await resolveGitContextStoreBackendConfig({ localPath: storeRoot });
@@ -422,18 +467,19 @@ export async function setupPreparedContextStore(
   const { id, storeRoot, kind, registry } = plan;
   let { backend } = plan;
   const createdFiles: string[] = [];
+  let createdPaths: CreatedPathLedgerEntry[] = [];
 
   const initGit = input.initGit ?? false;
 
-  if (kind === 'missing') {
-    await fs.mkdir(storeRoot, { recursive: true });
-  }
-
   try {
+    const root = await ensureOpenSpecRoot(storeRoot);
+    createdFiles.push(...root.createdArtifacts);
+    createdPaths = root.createdPaths;
     backend ??= await resolveGitContextStoreBackendConfig({ localPath: storeRoot });
     assertNoRegisteredStoreConflict(registry, id, backend);
 
     const gitInitialized = initGit ? await initGitRepository(storeRoot) : false;
+    const isRepository = await isGitRepositoryAtRoot(storeRoot);
     const registered = await commitContextStoreRegistration({
       id,
       backend,
@@ -442,14 +488,24 @@ export async function setupPreparedContextStore(
     if (registered.metadataCreated) {
       createdFiles.push('.openspec-store/store.yaml');
     }
-    const isRepository = await isGitRepositoryAtRoot(registered.storeRoot);
+    const diagnostics = registered.alreadyRegistered && createdFiles.length === 0
+      ? [alreadyRegisteredDiagnostic(id)]
+      : [];
 
     return mutationPayload(id, registered.storeRoot, {
       isRepository,
       initialized: gitInitialized,
-    }, createdFiles);
+    }, createdFiles, {
+      registered: registered.registryUpdated,
+      alreadyRegistered: registered.alreadyRegistered,
+    }, diagnostics);
   } catch (error) {
-    if (kind === 'missing') {
+    if (createdPaths.length > 0) {
+      await rollbackCreatedPaths(createdPaths);
+      if (kind === 'missing') {
+        await fs.rmdir(storeRoot).catch(() => undefined);
+      }
+    } else if (kind === 'missing') {
       await fs.rm(storeRoot, { recursive: true, force: true });
     }
 
@@ -493,6 +549,18 @@ export async function registerExistingContextStore(
     );
   }
 
+  const openspecRoot = await inspectOpenSpecRoot(storeRoot);
+  if (!openspecRoot.healthy) {
+    throw new ContextStoreError(
+      'Context store register requires an existing healthy OpenSpec root.',
+      'context_store_register_root_unhealthy',
+      {
+        target: 'openspec.root',
+        fix: 'Register a cloned context store or run setup for a new context store root.',
+      }
+    );
+  }
+
   const metadata = await readStoreMetadataForOperation(storeRoot);
   const explicitId = input.id !== undefined ? validateContextStoreId(input.id) : undefined;
 
@@ -508,10 +576,22 @@ export async function registerExistingContextStore(
   }
 
   const id = metadata?.id ?? explicitId ?? inferStoreIdFromPath(storeRoot);
+  if (!metadata && !input.allowCreateIdentity) {
+    throw new ContextStoreError(
+      `Turn this OpenSpec root into context store '${id}'?`,
+      'context_store_register_identity_confirmation_required',
+      {
+        target: 'context_store.metadata',
+        fix: `Run interactively or pass --yes to create ${getContextStoreMetadataPath(storeRoot)}.`,
+      }
+    );
+  }
+
   const backend = await resolveGitContextStoreBackendConfig({ localPath: storeRoot });
   const registry = await readContextStoreRegistryState();
   assertNoRegisteredStoreConflict(registry, id, backend);
   const createdFiles: string[] = [];
+  const isRepository = await isGitRepositoryAtRoot(storeRoot);
 
   const registered = await commitContextStoreRegistration({
     id,
@@ -521,11 +601,17 @@ export async function registerExistingContextStore(
   if (registered.metadataCreated) {
     createdFiles.push('.openspec-store/store.yaml');
   }
+  const diagnostics = registered.alreadyRegistered && createdFiles.length === 0
+    ? [alreadyRegisteredDiagnostic(id)]
+    : [];
 
   return mutationPayload(id, registered.storeRoot, {
-    isRepository: await isGitRepositoryAtRoot(registered.storeRoot),
+    isRepository,
     initialized: false,
-  }, createdFiles);
+  }, createdFiles, {
+    registered: registered.registryUpdated,
+    alreadyRegistered: registered.alreadyRegistered,
+  }, diagnostics);
 }
 
 function cleanupStoreOutput(id: string, storeRoot: string): ContextStoreInfo {
@@ -713,6 +799,7 @@ async function inspectContextStore(entry: {
   let git: ContextStoreInspection['git'] = {
     isRepository: null,
   };
+  let openspecRoot: OpenSpecRootInspection = await inspectOpenSpecRoot(root);
 
   if (kind === 'missing') {
     diagnostics.push(makeContextStoreDiagnostic(
@@ -735,6 +822,9 @@ async function inspectContextStore(entry: {
       }
     ));
   } else {
+    openspecRoot = await inspectOpenSpecRoot(root);
+    diagnostics.push(...openspecRoot.diagnostics);
+
     try {
       const parsed = await readOptionalContextStoreMetadataState(root);
       if (!parsed) {
@@ -781,6 +871,7 @@ async function inspectContextStore(entry: {
     id: entry.id,
     root,
     metadataPath,
+    openspecRoot,
     metadata,
     git,
     diagnostics,

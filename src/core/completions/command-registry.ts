@@ -494,6 +494,10 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             description: 'Context store id',
             takesValue: true,
           },
+          {
+            name: 'yes',
+            description: 'Confirm creating context-store identity metadata',
+          },
           COMMON_FLAGS.json,
         ],
       },
