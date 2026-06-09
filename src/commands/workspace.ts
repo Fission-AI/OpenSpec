@@ -153,7 +153,7 @@ async function promptWorkspaceSkillAgents(
   }
 
   return searchableMultiSelect({
-    message: 'Which agents should get OpenSpec skills in this workspace?',
+    message: 'Which agents should get ClearSpec skills in this workspace?',
     pageSize: 15,
     choices: sortedChoices,
   });
@@ -242,7 +242,7 @@ function printDoctorHuman(result: { workspace: WorkspaceOutput; status: Workspac
 }
 
 function printWorkspaceListHuman(workspaces: WorkspaceListOutput[]): void {
-  console.log(chalk.bold(`OpenSpec workspaces (${workspaces.length})`));
+  console.log(chalk.bold(`ClearSpec workspaces (${workspaces.length})`));
 
   for (const workspace of workspaces) {
     console.log('');
@@ -428,7 +428,7 @@ function printWorkspaceOpenHuman(prepared: PreparedWorkspaceOpen): void {
     const location = link.path ?? '(no local path recorded)';
     console.log(`  ${link.name} -> ${location}`);
   }
-  console.log('Repair skipped links with openspec workspace doctor.');
+  console.log('Repair skipped links with clearspec workspace doctor.');
 }
 
 class WorkspaceCommand {
@@ -441,7 +441,7 @@ class WorkspaceCommand {
           'workspace setup --json requires --no-interactive.',
           'setup_json_requires_no_interactive',
           {
-            fix: 'openspec workspace setup --no-interactive --json --name <name> --link <path>',
+            fix: 'clearspec workspace setup --no-interactive --json --name <name> --link <path>',
           }
         );
       }
@@ -456,7 +456,7 @@ class WorkspaceCommand {
           'workspace setup --no-interactive requires --name <name> and at least one --link <path>.',
           'missing_setup_inputs',
           {
-            fix: 'openspec workspace setup --no-interactive --name platform --link /path/to/repo',
+            fix: 'clearspec workspace setup --no-interactive --name platform --link /path/to/repo',
           }
         );
       }
@@ -479,7 +479,7 @@ class WorkspaceCommand {
       } else if (interactive) {
         console.log('');
         console.log(chalk.bold('[4/5] Install agent skills'));
-        console.log(chalk.dim('Choose which coding agents should get OpenSpec skills in this workspace.'));
+        console.log(chalk.dim('Choose which coding agents should get ClearSpec skills in this workspace.'));
         console.log(chalk.dim('Press Enter with no agents selected to skip skill installation for now.'));
         console.log('');
         selectedWorkspaceSkillAgents = await promptWorkspaceSkillAgents(preferredOpener);
@@ -490,7 +490,7 @@ class WorkspaceCommand {
           'workspace setup --no-interactive requires --name <name> and at least one --link <path>.',
           'missing_setup_inputs',
           {
-            fix: 'openspec workspace setup --no-interactive --name platform --link /path/to/repo',
+            fix: 'clearspec workspace setup --no-interactive --name platform --link /path/to/repo',
           }
         );
       }
@@ -505,7 +505,7 @@ class WorkspaceCommand {
         selectedWorkspaceSkillAgents === undefined
           ? createWorkspaceSkillSkippedReport(
               'tools_omitted',
-              'No workspace skills were installed. Run openspec workspace update --tools <ids> to install them later.'
+              'No workspace skills were installed. Run clearspec workspace update --tools <ids> to install them later.'
             )
           : await generateWorkspaceAgentSkills(workspace.root, selectedWorkspaceSkillAgents);
 
@@ -540,9 +540,9 @@ class WorkspaceCommand {
       printWorkspaceSkillReportHuman(skillReport);
       console.log('');
       console.log('Next useful commands:');
-      console.log(`  openspec workspace doctor --workspace ${workspace.name}`);
-      console.log(`  openspec workspace update --workspace ${workspace.name} --tools <ids>`);
-      console.log('  openspec workspace list');
+      console.log(`  clearspec workspace doctor --workspace ${workspace.name}`);
+      console.log(`  clearspec workspace update --workspace ${workspace.name} --tools <ids>`);
+      console.log('  clearspec workspace list');
 
       setWorkspaceSkillFailureExitCode(skillReport);
     } catch (error) {
@@ -562,7 +562,7 @@ class WorkspaceCommand {
       }
 
       if (workspaces.length === 0) {
-        console.log("No OpenSpec workspaces found. Run 'openspec workspace setup' first.");
+        console.log("No ClearSpec workspaces found. Run 'clearspec workspace setup' first.");
         return;
       }
 
@@ -583,7 +583,7 @@ class WorkspaceCommand {
           'workspace link requires a repo or folder path.',
           'missing_link_path',
           {
-            fix: 'openspec workspace link /path/to/repo',
+            fix: 'clearspec workspace link /path/to/repo',
           }
         );
       }
@@ -613,7 +613,7 @@ class WorkspaceCommand {
           'workspace relink requires a link name and repo or folder path.',
           'missing_relink_arguments',
           {
-            fix: 'openspec workspace relink <name> /path/to/repo',
+            fix: 'clearspec workspace relink <name> /path/to/repo',
           }
         );
       }
@@ -717,8 +717,8 @@ class WorkspaceCommand {
     printWorkspaceSkillReportHuman(skillReport);
     console.log('');
     console.log('Next useful commands:');
-    console.log(`  openspec workspace doctor --workspace ${doctorResult.workspace.name}`);
-    console.log(`  openspec workspace update --workspace ${doctorResult.workspace.name} --tools <ids>`);
+    console.log(`  clearspec workspace doctor --workspace ${doctorResult.workspace.name}`);
+    console.log(`  clearspec workspace update --workspace ${doctorResult.workspace.name} --tools <ids>`);
 
     setWorkspaceSkillFailureExitCode(skillReport);
   }

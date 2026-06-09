@@ -47,7 +47,7 @@ describe('workspace foundation', () => {
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-workspace-foundation-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'clearspec-workspace-foundation-'));
     originalEnv = { ...process.env };
   });
 
@@ -82,7 +82,7 @@ links: {}
 
   describe('path helpers', () => {
     it('exposes the workspace constants', () => {
-      expect(WORKSPACE_METADATA_DIR_NAME).toBe('.openspec-workspace');
+      expect(WORKSPACE_METADATA_DIR_NAME).toBe('.clearspec-workspace');
       expect(WORKSPACE_VIEW_STATE_FILE_NAME).toBe('view.yaml');
       expect(WORKSPACE_CHANGES_DIR_NAME).toBe('changes');
       expect(MANAGED_WORKSPACES_DIR_NAME).toBe('workspaces');
@@ -93,10 +93,10 @@ links: {}
       const workspaceRoot = path.join(tempDir, 'platform');
 
       expect(getWorkspaceMetadataDir(workspaceRoot)).toBe(
-        path.join(workspaceRoot, '.openspec-workspace')
+        path.join(workspaceRoot, '.clearspec-workspace')
       );
       expect(getWorkspaceViewStatePath(workspaceRoot)).toBe(
-        path.join(workspaceRoot, '.openspec-workspace', 'view.yaml')
+        path.join(workspaceRoot, '.clearspec-workspace', 'view.yaml')
       );
       expect(getWorkspaceChangesDir(workspaceRoot)).toBe(path.join(workspaceRoot, 'changes'));
       expect(getWorkspaceCodeWorkspaceFileName('platform')).toBe('platform.code-workspace');
@@ -109,19 +109,19 @@ links: {}
       const workspaceRoot = 'D:\\repos\\platform-workspace';
 
       expect(getWorkspaceViewStatePath(workspaceRoot)).toBe(
-        'D:\\repos\\platform-workspace\\.openspec-workspace\\view.yaml'
+        'D:\\repos\\platform-workspace\\.clearspec-workspace\\view.yaml'
       );
     });
 
     it('uses getGlobalDataDir for managed workspace and registry locations', () => {
       process.env.XDG_DATA_HOME = tempDir;
 
-      expect(getManagedWorkspacesDir()).toBe(path.join(tempDir, 'openspec', 'workspaces'));
+      expect(getManagedWorkspacesDir()).toBe(path.join(tempDir, 'clearspec', 'workspaces'));
       expect(getManagedWorkspaceRoot('platform')).toBe(
-        path.join(tempDir, 'openspec', 'workspaces', 'platform')
+        path.join(tempDir, 'clearspec', 'workspaces', 'platform')
       );
       expect(getWorkspaceRegistryPath()).toBe(
-        path.join(tempDir, 'openspec', 'workspaces', 'registry.yaml')
+        path.join(tempDir, 'clearspec', 'workspaces', 'registry.yaml')
       );
     });
 
@@ -133,7 +133,7 @@ links: {}
       });
 
       expect(getManagedWorkspacesDir({ globalDataDir: dataDir })).toBe(
-        '/home/tabish/.local/share/openspec/workspaces'
+        '/home/tabish/.local/share/clearspec/workspaces'
       );
     });
 
@@ -145,7 +145,7 @@ links: {}
       });
 
       expect(getManagedWorkspacesDir({ globalDataDir: dataDir })).toBe(
-        'C:\\Users\\Tabish\\AppData\\Local\\openspec\\workspaces'
+        'C:\\Users\\Tabish\\AppData\\Local\\clearspec\\workspaces'
       );
     });
 
@@ -208,21 +208,21 @@ links: {}
       await expect(findWorkspaceRoot(path.join(notWorkspace, 'changes'))).resolves.toBe(null);
     });
 
-    it('does not mistake repo-local openspec projects for coordination workspaces', async () => {
+    it('does not mistake repo-local clearspec projects for coordination workspaces', async () => {
       const repoRoot = path.join(tempDir, 'repo');
-      fs.mkdirSync(path.join(repoRoot, 'openspec', 'changes', 'add-feature'), {
+      fs.mkdirSync(path.join(repoRoot, 'clearspec', 'changes', 'add-feature'), {
         recursive: true,
       });
-      fs.mkdirSync(path.join(repoRoot, 'openspec', 'specs'), { recursive: true });
+      fs.mkdirSync(path.join(repoRoot, 'clearspec', 'specs'), { recursive: true });
 
-      await expect(findWorkspaceRoot(path.join(repoRoot, 'openspec', 'changes'))).resolves.toBe(
+      await expect(findWorkspaceRoot(path.join(repoRoot, 'clearspec', 'changes'))).resolves.toBe(
         null
       );
     });
 
     it('ignores foreign root workspace.yaml files in repo-local projects', async () => {
       const repoRoot = path.join(tempDir, 'foreign-tool-repo');
-      const nestedDir = path.join(repoRoot, 'openspec', 'changes', 'add-feature');
+      const nestedDir = path.join(repoRoot, 'clearspec', 'changes', 'add-feature');
       fs.mkdirSync(nestedDir, { recursive: true });
       fs.writeFileSync(
         path.join(repoRoot, 'workspace.yaml'),
@@ -237,7 +237,7 @@ links: {}
       await expect(findWorkspaceRoot(nestedDir)).resolves.toBe(null);
     });
 
-    it('ignores unmarked root view state even when it is OpenSpec-shaped', async () => {
+    it('ignores unmarked root view state even when it is ClearSpec-shaped', async () => {
       const workspaceRoot = path.join(tempDir, 'unmarked-beta-workspace');
       fs.mkdirSync(workspaceRoot, { recursive: true });
       fs.writeFileSync(
@@ -253,7 +253,7 @@ links: {}
       await expect(findWorkspaceRoot(workspaceRoot)).resolves.toBe(null);
     });
 
-    it('writes canonical view state inside the OpenSpec metadata directory', async () => {
+    it('writes canonical view state inside the ClearSpec metadata directory', async () => {
       const workspaceRoot = path.join(tempDir, 'written-workspace');
 
       await writeWorkspaceViewState(workspaceRoot, {
@@ -270,7 +270,7 @@ links: {}
       expectSameExistingPath(await findWorkspaceRoot(workspaceRoot), workspaceRoot);
     });
 
-    it('detects a workspace even when a linked path has no repo-local openspec state', async () => {
+    it('detects a workspace even when a linked path has no repo-local clearspec state', async () => {
       const workspaceRoot = createWorkspaceRoot();
       const linkedPath = path.join(workspaceRoot, 'external-folder');
       fs.mkdirSync(linkedPath, { recursive: true });
@@ -485,9 +485,9 @@ After block.
       expect(refreshed).toContain('# Team Notes');
       expect(refreshed).toContain('Keep this.');
       expect(refreshed).toContain('After block.');
-      expect(refreshed.match(/OPENSPEC:WORKSPACE-GUIDANCE:START/gu)).toHaveLength(1);
+      expect(refreshed.match(/CLEARSPEC:WORKSPACE-GUIDANCE:START/gu)).toHaveLength(1);
       expect(applyWorkspaceGuidanceBlock('# Team Notes\n')).toContain(
-        '<!-- OPENSPEC:WORKSPACE-GUIDANCE:START -->'
+        '<!-- CLEARSPEC:WORKSPACE-GUIDANCE:START -->'
       );
     });
 
@@ -514,7 +514,7 @@ After block.
           path: 'D:\\repos\\web',
         },
         {
-          name: 'OpenSpec workspace',
+          name: 'ClearSpec workspace',
           path: '.',
         },
       ]);
@@ -556,7 +556,7 @@ After block.
           path: api,
         },
         {
-          name: 'OpenSpec workspace',
+          name: 'ClearSpec workspace',
           path: '.',
         },
       ]);
@@ -654,7 +654,7 @@ workspaces:
     });
 
     it('reads the local registry from the standard registry path', async () => {
-      const globalDataDir = path.join(tempDir, 'data', 'openspec');
+      const globalDataDir = path.join(tempDir, 'data', 'clearspec');
       const registryPath = getWorkspaceRegistryPath({ globalDataDir });
       fs.mkdirSync(path.dirname(registryPath), { recursive: true });
       fs.writeFileSync(
@@ -674,7 +674,7 @@ workspaces:
     });
 
     it('writes the local registry to the standard registry path', async () => {
-      const globalDataDir = path.join(tempDir, 'data', 'openspec');
+      const globalDataDir = path.join(tempDir, 'data', 'clearspec');
       const registry = {
         version: 1 as const,
         workspaces: {

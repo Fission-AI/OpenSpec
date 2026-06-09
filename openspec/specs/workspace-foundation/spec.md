@@ -1,65 +1,65 @@
 # workspace-foundation Specification
 
 ## Purpose
-Define the product and storage foundation for OpenSpec coordination workspaces,
+Define the product and storage foundation for ClearSpec coordination workspaces,
 including workspace identity, shared versus local state, managed storage,
 registry behavior, stable link names, and repo ownership boundaries.
 ## Requirements
 ### Requirement: Recognizable Workspace Home
-OpenSpec SHALL give users and agents a recognizable workspace home for cross-repo planning.
+ClearSpec SHALL give users and agents a recognizable workspace home for cross-repo planning.
 
 #### Scenario: Planning across linked repos or folders
-- **WHEN** a user creates an OpenSpec workspace for repos or folders they plan across
+- **WHEN** a user creates a ClearSpec workspace for repos or folders they plan across
 - **THEN** the workspace SHALL provide a durable planning home
 - **AND** the workspace SHALL be able to hold multiple changes over time
 
 #### Scenario: Working from inside a workspace
-- **GIVEN** a user runs OpenSpec from a workspace folder or one of its subdirectories
-- **WHEN** OpenSpec resolves the current workspace
+- **GIVEN** a user runs ClearSpec from a workspace folder or one of its subdirectories
+- **WHEN** ClearSpec resolves the current workspace
 - **THEN** it SHALL identify the workspace location
 - **AND** it SHALL use the workspace location's `changes/` directory as the workspace planning area
 
 #### Scenario: Avoiding accidental workspace mode
-- **GIVEN** a directory has `changes/` but is not an OpenSpec workspace
-- **WHEN** OpenSpec resolves the current workspace
+- **GIVEN** a directory has `changes/` but is not a ClearSpec workspace
+- **WHEN** ClearSpec resolves the current workspace
 - **THEN** it SHALL avoid treating that directory as a workspace
 - **AND** it SHALL enter workspace mode only when the workspace identity file is present
 
 ### Requirement: Stable Workspace Name
-OpenSpec SHALL use one kebab-case workspace name across workspace identity, managed storage, and the local registry.
+ClearSpec SHALL use one kebab-case workspace name across workspace identity, managed storage, and the local registry.
 
 #### Scenario: Using one workspace name
-- **WHEN** OpenSpec creates or records a managed workspace
+- **WHEN** ClearSpec creates or records a managed workspace
 - **THEN** the workspace name SHALL be stored in `.openspec-workspace/view.yaml`
 - **AND** the same name SHALL be used as the default managed workspace folder name
 - **AND** the same name SHALL be used as the local registry name
 
 #### Scenario: Rejecting invalid workspace names
-- **WHEN** OpenSpec accepts a workspace name
+- **WHEN** ClearSpec accepts a workspace name
 - **THEN** it SHALL require kebab-case names using lowercase letters, numbers, and single hyphen separators
 - **AND** it SHALL reject empty names, dot names, names with leading or trailing hyphens, names with repeated hyphens, uppercase letters, spaces, underscores, dots, and path separators
 - **AND** setup flows SHALL report OS-level folder creation failures clearly
 
 ### Requirement: Dedicated Workspace Identity
-OpenSpec SHALL distinguish a coordination workspace from a repo-local OpenSpec project.
+ClearSpec SHALL distinguish a coordination workspace from a repo-local ClearSpec project.
 
 #### Scenario: Reading workspace identity
-- **WHEN** OpenSpec reads or writes workspace identity and workspace state
+- **WHEN** ClearSpec reads or writes workspace identity and workspace state
 - **THEN** it SHALL use `.openspec-workspace/`
 
-#### Scenario: Preserving repo-local OpenSpec projects
-- **GIVEN** a repo-local OpenSpec project uses `openspec/`
+#### Scenario: Preserving repo-local ClearSpec projects
+- **GIVEN** a repo-local ClearSpec project uses `openspec/`
 - **WHEN** that repo is linked to a workspace
-- **THEN** OpenSpec SHALL continue treating `openspec/` as that repo's local OpenSpec directory
+- **THEN** ClearSpec SHALL continue treating `openspec/` as that repo's local ClearSpec directory
 - **AND** workspace planning SHALL remain anchored in the workspace folder
 
 #### Scenario: Avoiding repo-local initialization in the workspace folder
-- **WHEN** a user is working from an OpenSpec workspace folder
-- **THEN** OpenSpec SHALL treat that folder as a workspace coordination surface
+- **WHEN** a user is working from a ClearSpec workspace folder
+- **THEN** ClearSpec SHALL treat that folder as a workspace coordination surface
 - **AND** users SHALL not need to initialize a repo-local `openspec/` project inside the workspace folder
 
 ### Requirement: Safe Workspace Sharing
-OpenSpec SHALL keep shared workspace information separate from local machine paths.
+ClearSpec SHALL keep shared workspace information separate from local machine paths.
 
 #### Scenario: Sharing workspace planning
 - **WHEN** a workspace is shared with another user or machine
@@ -67,79 +67,79 @@ OpenSpec SHALL keep shared workspace information separate from local machine pat
 - **AND** it SHALL not require another user to reuse the original user's absolute checkout paths
 
 #### Scenario: Keeping checkout paths local
-- **WHEN** OpenSpec stores local paths for a workspace
+- **WHEN** ClearSpec stores local paths for a workspace
 - **THEN** those paths SHALL be treated as local to the current machine and runtime
 - **AND** another machine MAY map the same link names to different local paths
 
 #### Scenario: Preserving runtime-local paths
-- **WHEN** OpenSpec reads or writes machine-local path state
+- **WHEN** ClearSpec reads or writes machine-local path state
 - **THEN** it SHALL preserve path strings valid for the current runtime
 - **AND** it SHALL support native Windows paths and WSL2/Linux paths as local state values
 
 #### Scenario: Keeping managed workspace view state local
-- **WHEN** OpenSpec creates a managed workspace
+- **WHEN** ClearSpec creates a managed workspace
 - **THEN** it SHALL write `.openspec-workspace/view.yaml` as private local view state
 - **AND** the file SHALL preserve stable link names and local path values for the current machine
 
 ### Requirement: Standard Workspace Location
-OpenSpec SHALL use a standard location for OpenSpec-managed workspaces without asking most users to choose one.
+ClearSpec SHALL use a standard location for ClearSpec-managed workspaces without asking most users to choose one.
 
 #### Scenario: Using the standard workspace location
-- **WHEN** OpenSpec needs the location for OpenSpec-managed workspaces
+- **WHEN** ClearSpec needs the location for ClearSpec-managed workspaces
 - **THEN** it SHALL use `<global-data-dir>/workspaces`
-- **AND** `<global-data-dir>` SHALL follow existing OpenSpec XDG and platform data directory behavior
+- **AND** `<global-data-dir>` SHALL follow existing ClearSpec XDG and platform data directory behavior
 
 #### Scenario: Avoiding workspace-specific storage overrides
-- **WHEN** OpenSpec resolves the location for OpenSpec-managed workspaces
+- **WHEN** ClearSpec resolves the location for ClearSpec-managed workspaces
 - **THEN** it SHALL not use a workspace-specific environment variable, command, or configuration setting in this slice
 - **AND** managed workspace storage SHALL remain under `<global-data-dir>/workspaces`
 
 #### Scenario: Running from native Windows
-- **WHEN** OpenSpec runs from native Windows shells such as PowerShell
+- **WHEN** ClearSpec runs from native Windows shells such as PowerShell
 - **AND** `XDG_DATA_HOME` is not set
-- **THEN** OpenSpec SHALL store managed workspaces under the Windows global data location
+- **THEN** ClearSpec SHALL store managed workspaces under the Windows global data location
 - **AND** paths SHALL follow native Windows path behavior
 
 #### Scenario: Running from WSL2
-- **WHEN** OpenSpec runs from WSL2
-- **THEN** OpenSpec SHALL store managed workspaces under the Linux/XDG data location inside WSL
+- **WHEN** ClearSpec runs from WSL2
+- **THEN** ClearSpec SHALL store managed workspaces under the Linux/XDG data location inside WSL
 - **AND** paths SHALL follow Linux path behavior inside WSL
 
 #### Scenario: Using the workspace location automatically
-- **WHEN** OpenSpec creates or resolves OpenSpec-managed workspaces in later workflows
+- **WHEN** ClearSpec creates or resolves ClearSpec-managed workspaces in later workflows
 - **THEN** it SHALL use the resolved workspace location by default
 - **AND** users SHALL be able to follow the normal workspace flow without choosing a storage location
 
 #### Scenario: Showing the workspace location
-- **WHEN** OpenSpec creates a workspace in the standard workspace location
+- **WHEN** ClearSpec creates a workspace in the standard workspace location
 - **THEN** it SHALL report the workspace location to the user
 - **AND** it SHALL not hide where planning files were created
 
 #### Scenario: Staying in the current runtime
-- **WHEN** OpenSpec resolves workspace locations or local repo paths
-- **THEN** it SHALL interpret paths for the runtime running OpenSpec
+- **WHEN** ClearSpec resolves workspace locations or local repo paths
+- **THEN** it SHALL interpret paths for the runtime running ClearSpec
 - **AND** Windows, UNC WSL, and WSL mount paths SHALL remain explicit user-provided paths
 
 ### Requirement: Local Workspace Registry
-OpenSpec SHALL keep a lightweight local registry of known workspaces on the current machine.
+ClearSpec SHALL keep a lightweight local registry of known workspaces on the current machine.
 
 #### Scenario: Recording known workspaces
-- **WHEN** OpenSpec creates or learns about a managed workspace
+- **WHEN** ClearSpec creates or learns about a managed workspace
 - **THEN** it SHALL be able to record the workspace name and location in a local registry
 - **AND** the registry SHALL be machine-local state
 
 #### Scenario: Keeping workspace folders authoritative
-- **WHEN** OpenSpec reads workspace details
+- **WHEN** ClearSpec reads workspace details
 - **THEN** each workspace folder's `.openspec-workspace/view.yaml` SHALL remain the source of truth for that workspace
 - **AND** the local registry SHALL act only as an index of known workspace locations
 
 #### Scenario: Finding workspaces from anywhere
 - **WHEN** a later workspace command runs outside a workspace directory
-- **THEN** OpenSpec MAY use the local registry to find known workspaces
+- **THEN** ClearSpec MAY use the local registry to find known workspaces
 - **AND** commands that need one workspace MAY use the registry to support an interactive picker
 
 ### Requirement: Stable Link Names
-OpenSpec SHALL use stable folder-style link names to refer to repos and folders in workspace planning.
+ClearSpec SHALL use stable folder-style link names to refer to repos and folders in workspace planning.
 
 #### Scenario: Referring to a repo or folder in workspace planning
 - **WHEN** workspace state or later workspace planning artifacts refer to a linked repo or folder
@@ -152,15 +152,15 @@ OpenSpec SHALL use stable folder-style link names to refer to repos and folders 
 - **AND** local checkout paths MAY differ on that machine
 
 #### Scenario: Rejecting invalid link names
-- **WHEN** OpenSpec accepts a workspace link name
+- **WHEN** ClearSpec accepts a workspace link name
 - **THEN** it SHALL reject empty names, `.` or `..`, and names containing path separators
 - **AND** link names SHALL be unique within the workspace
 - **AND** link names SHALL not be required to use workspace-name kebab-case
 
 ### Requirement: Linked Repos And Folders
-OpenSpec SHALL allow workspace planning to include linked repos and folders before they have repo-local OpenSpec state.
+ClearSpec SHALL allow workspace planning to include linked repos and folders before they have repo-local ClearSpec state.
 
-#### Scenario: Planning with a repo that has not adopted OpenSpec
+#### Scenario: Planning with a repo that has not adopted ClearSpec
 - **WHEN** a workspace links a repo path that does not yet contain repo-local `openspec/`
 - **THEN** the repo SHALL still be available for workspace-level planning
 - **AND** implementation readiness MAY be handled by a later workflow
@@ -172,20 +172,20 @@ OpenSpec SHALL allow workspace planning to include linked repos and folders befo
 
 #### Scenario: Treating repos and folders consistently
 - **WHEN** a workspace plan includes both separate repos and folders inside a monorepo
-- **THEN** OpenSpec SHALL use the same planning model for both
+- **THEN** ClearSpec SHALL use the same planning model for both
 - **AND** users SHALL not need to create different kinds of workspace plans for multi-repo and monorepo changes
 
 #### Scenario: Recording links without changing targets
-- **WHEN** OpenSpec records a link between a workspace and a local repo or folder
+- **WHEN** ClearSpec records a link between a workspace and a local repo or folder
 - **THEN** it SHALL store the link in workspace state
 - **AND** it SHALL not create, copy, move, initialize, or edit files inside the linked repo or folder
 
 ### Requirement: Planning Before Implementation
-OpenSpec SHALL treat workspace creation and detection as planning setup, not implementation.
+ClearSpec SHALL treat workspace creation and detection as planning setup, not implementation.
 
 #### Scenario: Creating or detecting a workspace
 - **WHEN** a workspace exists
-- **THEN** OpenSpec SHALL treat it as a place for workspace-level planning
+- **THEN** ClearSpec SHALL treat it as a place for workspace-level planning
 - **AND** repo implementation files SHALL remain unchanged until an explicit implementation workflow runs
 
 #### Scenario: Deferring repo implementation
@@ -193,7 +193,7 @@ OpenSpec SHALL treat workspace creation and detection as planning setup, not imp
 - **THEN** that behavior SHALL require an explicit later workspace workflow
 
 ### Requirement: Repo Ownership Boundaries
-OpenSpec SHALL keep repo ownership legible when planning happens in a workspace.
+ClearSpec SHALL keep repo ownership legible when planning happens in a workspace.
 
 #### Scenario: Planning across owned repos
 - **WHEN** a workspace plan refers to behavior owned by a repo or source area
@@ -206,74 +206,74 @@ OpenSpec SHALL keep repo ownership legible when planning happens in a workspace.
 - **AND** those drafts SHALL remain distinguishable from canonical repo-owned specs
 
 ### Requirement: Workspace Preferred Opener State
-OpenSpec SHALL store a workspace's preferred opener in machine-local workspace state when the user explicitly chooses one.
+ClearSpec SHALL store a workspace's preferred opener in machine-local workspace state when the user explicitly chooses one.
 
 #### Scenario: Recording an interactive setup opener choice
-- **WHEN** an interactive user chooses a preferred opener during `openspec workspace setup`
-- **THEN** OpenSpec SHALL record the opener in `.openspec-workspace/view.yaml`
+- **WHEN** an interactive user chooses a preferred opener during `clearspec workspace setup`
+- **THEN** ClearSpec SHALL record the opener in `.openspec-workspace/view.yaml`
 - **AND** the stored value SHALL use a structured `preferred_opener` object with `kind` and `id`
 
 #### Scenario: Recording a non-interactive setup opener choice
-- **WHEN** a non-interactive user runs `openspec workspace setup --no-interactive --opener codex`
-- **THEN** OpenSpec SHALL record `preferred_opener.kind` as `agent`
+- **WHEN** a non-interactive user runs `clearspec workspace setup --no-interactive --opener codex`
+- **THEN** ClearSpec SHALL record `preferred_opener.kind` as `agent`
 - **AND** it SHALL record `preferred_opener.id` as `codex`
 
 #### Scenario: Leaving opener unset during non-interactive setup
-- **WHEN** a non-interactive user runs `openspec workspace setup --no-interactive` with opener selection omitted
-- **THEN** OpenSpec SHALL leave the workspace preferred opener unset
+- **WHEN** a non-interactive user runs `clearspec workspace setup --no-interactive` with opener selection omitted
+- **THEN** ClearSpec SHALL leave the workspace preferred opener unset
 - **AND** the unset state SHALL allow `workspace open` to prompt later
 
 #### Scenario: Supported preferred opener values
-- **WHEN** OpenSpec accepts a preferred opener value
+- **WHEN** ClearSpec accepts a preferred opener value
 - **THEN** it SHALL accept `codex`, `claude`, `github-copilot`, and `editor`
 - **AND** it SHALL map `editor` to `kind: editor` and `id: vscode`
 - **AND** it SHALL map agent values to `kind: agent` and the matching agent `id`
 
 #### Scenario: Ordering setup opener choices
 - **WHEN** interactive setup displays opener choices
-- **THEN** OpenSpec SHALL show all supported openers
+- **THEN** ClearSpec SHALL show all supported openers
 - **AND** it SHALL order openers with detected executables before unavailable openers
 - **AND** unavailable openers SHALL remain visible with an availability note
 
 ### Requirement: Maintained Workspace Open Surface
-OpenSpec SHALL maintain files that make a workspace directly openable after setup and link changes.
+ClearSpec SHALL maintain files that make a workspace directly openable after setup and link changes.
 
 #### Scenario: Creating the open surface during setup
-- **WHEN** `openspec workspace setup` creates a workspace
-- **THEN** OpenSpec SHALL create or refresh `AGENTS.md`
+- **WHEN** `clearspec workspace setup` creates a workspace
+- **THEN** ClearSpec SHALL create or refresh `AGENTS.md`
 - **AND** it SHALL create or refresh `<workspace-name>.code-workspace`
 - **AND** it SHALL not create workspace ignore rules for machine-local open files by default
 
 #### Scenario: Refreshing the open surface after linking
-- **WHEN** `openspec workspace link` succeeds
-- **THEN** OpenSpec SHALL refresh `AGENTS.md`
+- **WHEN** `clearspec workspace link` succeeds
+- **THEN** ClearSpec SHALL refresh `AGENTS.md`
 - **AND** it SHALL refresh `<workspace-name>.code-workspace`
 
 #### Scenario: Refreshing the open surface after relinking
-- **WHEN** `openspec workspace relink` succeeds
-- **THEN** OpenSpec SHALL refresh `AGENTS.md`
+- **WHEN** `clearspec workspace relink` succeeds
+- **THEN** ClearSpec SHALL refresh `AGENTS.md`
 - **AND** it SHALL refresh `<workspace-name>.code-workspace`
 
 #### Scenario: Building the VS Code workspace file
-- **WHEN** OpenSpec refreshes `<workspace-name>.code-workspace`
+- **WHEN** ClearSpec refreshes `<workspace-name>.code-workspace`
 - **THEN** the file SHALL include every linked repo or folder with a valid local path before workspace-local files
 - **AND** it SHALL include attached initiative context when available
-- **AND** it SHALL include the workspace root as `OpenSpec workspace`
+- **AND** it SHALL include the workspace root as `ClearSpec workspace`
 - **AND** it SHALL omit linked repos or folders whose local paths are missing or invalid
 
 #### Scenario: Cleaning legacy workspace ignore rules
-- **WHEN** OpenSpec refreshes the workspace open surface
+- **WHEN** ClearSpec refreshes the workspace open surface
 - **THEN** it SHALL remove the legacy ignore rule for the maintained `<workspace-name>.code-workspace` file when present
 - **AND** it SHALL preserve unrelated user-authored ignore rules
 
 #### Scenario: Preserving user-authored AGENTS content
-- **GIVEN** `AGENTS.md` contains content outside the OpenSpec workspace guidance markers
-- **WHEN** OpenSpec refreshes workspace guidance
-- **THEN** it SHALL replace only the marked OpenSpec workspace guidance block
+- **GIVEN** `AGENTS.md` contains content outside the ClearSpec workspace guidance markers
+- **WHEN** ClearSpec refreshes workspace guidance
+- **THEN** it SHALL replace only the marked ClearSpec workspace guidance block
 - **AND** it SHALL preserve content outside the markers
 
 #### Scenario: Appending AGENTS guidance when markers are missing
-- **GIVEN** `AGENTS.md` exists and OpenSpec workspace guidance markers are absent
-- **WHEN** OpenSpec refreshes workspace guidance
-- **THEN** it SHALL append the marked OpenSpec workspace guidance block
+- **GIVEN** `AGENTS.md` exists and ClearSpec workspace guidance markers are absent
+- **WHEN** ClearSpec refreshes workspace guidance
+- **THEN** it SHALL append the marked ClearSpec workspace guidance block
 - **AND** it SHALL preserve the existing file content

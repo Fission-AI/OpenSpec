@@ -39,22 +39,22 @@ function escapeYamlValue(value: string): string {
 
 /**
  * Pi adapter for prompt template generation.
- * File path: .pi/prompts/opsx-<id>.md
+ * File path: .pi/prompts/clsx-<id>.md
  * Frontmatter: description
  *
  * Pi uses the filename (minus .md) as the slash command name, so
- * opsx-propose.md → /opsx-propose. Command references in the body
- * are transformed from /opsx: to /opsx- for consistency.
+ * clsx-propose.md → /clsx-propose. Command references in the body
+ * are transformed from /clsx: to /clsx- for consistency.
  */
 export const piAdapter: ToolCommandAdapter = {
   toolId: 'pi',
 
   getFilePath(commandId: string): string {
-    return path.join('.pi', 'prompts', `opsx-${commandId}.md`);
+    return path.join('.pi', 'prompts', `clsx-${commandId}.md`);
   },
 
   formatFile(content: CommandContent): string {
-    // Transform /opsx: references to /opsx- and inject $@ for template args
+    // Transform /clsx: references to /clsx- and inject $@ for template args
     const transformedBody = transformToHyphenCommands(content.body);
 
     return `---

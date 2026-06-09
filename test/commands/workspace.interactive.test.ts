@@ -33,7 +33,7 @@ async function runWorkspaceCommand(args: string[]): Promise<void> {
   const { registerWorkspaceCommand } = await import('../../src/commands/workspace.js');
   const program = new Command();
   registerWorkspaceCommand(program);
-  await program.parseAsync(['node', 'openspec', 'workspace', ...args]);
+  await program.parseAsync(['node', 'clearspec', 'workspace', ...args]);
 }
 
 async function getPromptMocks(): Promise<{
@@ -63,7 +63,7 @@ describe('workspace command interactive flows', () => {
   beforeEach(() => {
     vi.resetModules();
 
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-workspace-interactive-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'clearspec-workspace-interactive-'));
     dataHome = path.join(tempDir, 'data');
     configHome = path.join(tempDir, 'config');
     originalEnv = { ...process.env };
@@ -75,7 +75,7 @@ describe('workspace command interactive flows', () => {
       ...process.env,
       XDG_DATA_HOME: dataHome,
       XDG_CONFIG_HOME: configHome,
-      OPENSPEC_TELEMETRY: '0',
+      CLEARSPEC_TELEMETRY: '0',
     };
     delete process.env.CI;
     delete process.env.OPEN_SPEC_INTERACTIVE;
@@ -248,7 +248,7 @@ describe('workspace command interactive flows', () => {
     });
   });
 
-  it('asks which agents get OpenSpec skills and preselects the preferred opener', async () => {
+  it('asks which agents get ClearSpec skills and preselects the preferred opener', async () => {
     const api = mkdir('repos/api');
     const binDir = mkdir('bin');
     const codexPath = path.join(binDir, process.platform === 'win32' ? 'codex.cmd' : 'codex');
@@ -283,7 +283,7 @@ describe('workspace command interactive flows', () => {
       message: string;
       choices: Array<{ value: string; preSelected?: boolean }>;
     }) => {
-      expect(options.message).toBe('Which agents should get OpenSpec skills in this workspace?');
+      expect(options.message).toBe('Which agents should get ClearSpec skills in this workspace?');
       expect(options.choices.find((choice) => choice.value === 'codex')?.preSelected).toBe(true);
       expect(options.choices.find((choice) => choice.value === 'claude')?.preSelected).toBe(false);
       return ['codex', 'claude'];

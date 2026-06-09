@@ -9,42 +9,42 @@
 ### npm
 
 ```bash
-npm install -g @fission-ai/openspec@latest
+npm install -g clearspec@latest
 ```
 
 ### pnpm
 
 ```bash
-pnpm add -g @fission-ai/openspec@latest
+pnpm add -g clearspec@latest
 ```
 
 ### yarn
 
 ```bash
-yarn global add @fission-ai/openspec@latest
+yarn global add clearspec@latest
 ```
 
 ### bun
 
-Bun can install OpenSpec globally, but OpenSpec currently runs on Node.js.
+Bun can install ClearSpec globally, but ClearSpec currently runs on Node.js.
 You still need Node.js 20.19.0 or higher available on `PATH`.
 
 ```bash
-bun add -g @fission-ai/openspec@latest
+bun add -g clearspec@latest
 ```
 
 ## Nix
 
-Run OpenSpec directly without installation:
+Run ClearSpec directly without installation:
 
 ```bash
-nix run github:Fission-AI/OpenSpec -- init
+nix run github:<you>/clearspec -- init
 ```
 
 Or install to your profile:
 
 ```bash
-nix profile install github:Fission-AI/OpenSpec
+nix profile install github:<you>/clearspec
 ```
 
 Or add to your development environment in `flake.nix`:
@@ -53,12 +53,12 @@ Or add to your development environment in `flake.nix`:
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    openspec.url = "github:Fission-AI/OpenSpec";
+    clearspec.url = "github:<you>/clearspec";
   };
 
-  outputs = { nixpkgs, openspec, ... }: {
+  outputs = { nixpkgs, clearspec, ... }: {
     devShells.x86_64-linux.default = nixpkgs.legacyPackages.x86_64-linux.mkShell {
-      buildInputs = [ openspec.packages.x86_64-linux.default ];
+      buildInputs = [ clearspec.packages.x86_64-linux.default ];
     };
   };
 }
@@ -67,16 +67,16 @@ Or add to your development environment in `flake.nix`:
 ## Verify Installation
 
 ```bash
-openspec --version
+clearspec --version
 ```
 
 ## Next Steps
 
-After installing, initialize OpenSpec in your project:
+After installing, initialize ClearSpec in your project:
 
 ```bash
 cd your-project
-openspec init
+clearspec init
 ```
 
 See [Getting Started](getting-started.md) for a full walkthrough.

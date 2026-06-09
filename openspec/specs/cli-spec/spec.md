@@ -1,7 +1,7 @@
 # cli-spec Specification
 
 ## Purpose
-Define `openspec spec` command behavior for listing, showing, and validating source-of-truth specifications.
+Define `clearspec spec` command behavior for listing, showing, and validating source-of-truth specifications.
 
 ## Requirements
 ### Requirement: Interactive spec show
@@ -10,7 +10,7 @@ The spec show command SHALL support interactive selection when no spec-id is pro
 
 #### Scenario: Interactive spec selection for show
 
-- **WHEN** executing `openspec spec show` without arguments
+- **WHEN** executing `clearspec spec show` without arguments
 - **THEN** display an interactive list of available specs
 - **AND** allow the user to select a spec to show
 - **AND** display the selected spec content
@@ -19,7 +19,7 @@ The spec show command SHALL support interactive selection when no spec-id is pro
 #### Scenario: Non-interactive fallback keeps current behavior
 
 - **GIVEN** stdin is not a TTY or `--no-interactive` is provided or environment variable `OPEN_SPEC_INTERACTIVE=0`
-- **WHEN** executing `openspec spec show` without a spec-id
+- **WHEN** executing `clearspec spec show` without a spec-id
 - **THEN** do not prompt interactively
 - **AND** print the existing error message for missing spec-id
 - **AND** set non-zero exit code
@@ -30,27 +30,27 @@ The system SHALL provide a `spec` command with subcommands for displaying, listi
 
 #### Scenario: Show spec as JSON
 
-- **WHEN** executing `openspec spec show init --json`
+- **WHEN** executing `clearspec spec show init --json`
 - **THEN** parse the markdown spec file
 - **AND** extract headings and content hierarchically
 - **AND** output valid JSON to stdout
 
 #### Scenario: List all specs
 
-- **WHEN** executing `openspec spec list`
+- **WHEN** executing `clearspec spec list`
 - **THEN** scan the openspec/specs directory
 - **AND** return list of all available capabilities
 - **AND** support JSON output with `--json` flag
 
 #### Scenario: Filter spec content
 
-- **WHEN** executing `openspec spec show init --requirements`
+- **WHEN** executing `clearspec spec show init --requirements`
 - **THEN** display only requirement names and SHALL statements
 - **AND** exclude scenario content
 
 #### Scenario: Validate spec structure
 
-- **WHEN** executing `openspec spec validate init`
+- **WHEN** executing `clearspec spec validate init`
 - **THEN** parse the spec file
 - **AND** validate against Zod schema
 - **AND** report any structural issues
@@ -72,7 +72,7 @@ The spec validate command SHALL support interactive selection when no spec-id is
 
 #### Scenario: Interactive spec selection for validation
 
-- **WHEN** executing `openspec spec validate` without arguments
+- **WHEN** executing `clearspec spec validate` without arguments
 - **THEN** display an interactive list of available specs
 - **AND** allow the user to select a spec to validate
 - **AND** validate the selected spec
@@ -81,7 +81,7 @@ The spec validate command SHALL support interactive selection when no spec-id is
 #### Scenario: Non-interactive fallback keeps current behavior
 
 - **GIVEN** stdin is not a TTY or `--no-interactive` is provided or environment variable `OPEN_SPEC_INTERACTIVE=0`
-- **WHEN** executing `openspec spec validate` without a spec-id
+- **WHEN** executing `clearspec spec validate` without a spec-id
 - **THEN** do not prompt interactively
 - **AND** print the existing error message for missing spec-id
 - **AND** set non-zero exit code

@@ -35,7 +35,7 @@ describe('context store foundation', () => {
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-context-store-foundation-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'clearspec-context-store-foundation-'));
     originalEnv = { ...process.env };
   });
 
@@ -54,7 +54,7 @@ describe('context store foundation', () => {
 
   describe('path helpers', () => {
     it('exposes context store constants', () => {
-      expect(CONTEXT_STORE_METADATA_DIR_NAME).toBe('.openspec-store');
+      expect(CONTEXT_STORE_METADATA_DIR_NAME).toBe('.clearspec-store');
       expect(CONTEXT_STORE_METADATA_FILE_NAME).toBe('store.yaml');
       expect(CONTEXT_STORES_DIR_NAME).toBe('context-stores');
       expect(CONTEXT_STORE_REGISTRY_FILE_NAME).toBe('registry.yaml');
@@ -64,18 +64,18 @@ describe('context store foundation', () => {
       process.env.XDG_DATA_HOME = tempDir;
       const storeRoot = path.join(tempDir, 'acme-context');
 
-      expect(getContextStoresDir()).toBe(path.join(tempDir, 'openspec', 'context-stores'));
+      expect(getContextStoresDir()).toBe(path.join(tempDir, 'clearspec', 'context-stores'));
       expect(getContextStoreRegistryPath()).toBe(
-        path.join(tempDir, 'openspec', 'context-stores', 'registry.yaml')
+        path.join(tempDir, 'clearspec', 'context-stores', 'registry.yaml')
       );
       expect(getDefaultContextStoreRoot('acme-context')).toBe(
-        path.join(tempDir, 'openspec', 'context-stores', 'acme-context')
+        path.join(tempDir, 'clearspec', 'context-stores', 'acme-context')
       );
       expect(getContextStoreMetadataDir(storeRoot)).toBe(
-        path.join(storeRoot, '.openspec-store')
+        path.join(storeRoot, '.clearspec-store')
       );
       expect(getContextStoreMetadataPath(storeRoot)).toBe(
-        path.join(storeRoot, '.openspec-store', 'store.yaml')
+        path.join(storeRoot, '.clearspec-store', 'store.yaml')
       );
     });
 
@@ -87,19 +87,19 @@ describe('context store foundation', () => {
       });
 
       expect(getContextStoresDir({ globalDataDir: dataDir })).toBe(
-        '/home/tabish/.local/share/openspec/context-stores'
+        '/home/tabish/.local/share/clearspec/context-stores'
       );
       expect(getContextStoreRegistryPath({ globalDataDir: dataDir })).toBe(
-        '/home/tabish/.local/share/openspec/context-stores/registry.yaml'
+        '/home/tabish/.local/share/clearspec/context-stores/registry.yaml'
       );
       expect(getDefaultContextStoreRoot('team-context', { globalDataDir: dataDir })).toBe(
-        '/home/tabish/.local/share/openspec/context-stores/team-context'
+        '/home/tabish/.local/share/clearspec/context-stores/team-context'
       );
     });
 
     it('preserves Windows-style store root strings when building metadata paths', () => {
       expect(getContextStoreMetadataPath('D:\\repos\\acme-context')).toBe(
-        'D:\\repos\\acme-context\\.openspec-store\\store.yaml'
+        'D:\\repos\\acme-context\\.clearspec-store\\store.yaml'
       );
     });
   });

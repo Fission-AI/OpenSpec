@@ -57,7 +57,7 @@ function outputForSetChange(
     change: {
       id,
       path: changeDir,
-      metadataPath: path.join(changeDir, '.openspec.yaml'),
+      metadataPath: path.join(changeDir, '.clearspec.yaml'),
       schema,
     },
     initiative,

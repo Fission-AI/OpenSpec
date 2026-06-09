@@ -7,7 +7,7 @@ import type { CommandContent, ToolCommandAdapter } from '../../../src/core/comma
 describe('command-generation/generator', () => {
   const sampleContent: CommandContent = {
     id: 'explore',
-    name: 'OpenSpec Explore',
+    name: 'ClearSpec Explore',
     description: 'Enter explore mode',
     category: 'Workflow',
     tags: ['workflow'],
@@ -20,7 +20,7 @@ describe('command-generation/generator', () => {
 
       expect(result.path).toContain('.claude');
       expect(result.path).toContain('explore.md');
-      expect(result.fileContent).toContain('name: OpenSpec Explore');
+      expect(result.fileContent).toContain('name: ClearSpec Explore');
       expect(result.fileContent).toContain('Command body here.');
     });
 
@@ -28,9 +28,9 @@ describe('command-generation/generator', () => {
       const result = generateCommand(sampleContent, cursorAdapter);
 
       expect(result.path).toContain('.cursor');
-      expect(result.path).toContain('opsx-explore.md');
-      expect(result.fileContent).toContain('name: /opsx-explore');
-      expect(result.fileContent).toContain('id: opsx-explore');
+      expect(result.path).toContain('clsx-explore.md');
+      expect(result.fileContent).toContain('name: /clsx-explore');
+      expect(result.fileContent).toContain('id: clsx-explore');
       expect(result.fileContent).toContain('Command body here.');
     });
 
@@ -51,7 +51,7 @@ describe('command-generation/generator', () => {
       const result = generateCommand(sampleContent, customAdapter);
 
       expect(result.path).toBe('.custom/explore.txt');
-      expect(result.fileContent).toBe('# OpenSpec Explore\n\nCommand body here.');
+      expect(result.fileContent).toBe('# ClearSpec Explore\n\nCommand body here.');
     });
   });
 

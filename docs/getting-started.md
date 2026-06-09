@@ -1,31 +1,31 @@
 # Getting Started
 
-This guide explains how OpenSpec works after you've installed and initialized it. For installation instructions, see the [main README](../README.md#quick-start).
+This guide explains how ClearSpec works after you've installed and initialized it. For installation instructions, see the [main README](../README.md#quick-start).
 
 ## How It Works
 
-OpenSpec helps you and your AI coding assistant agree on what to build before any code is written.
+ClearSpec helps you and your AI coding assistant agree on what to build before any code is written.
 
 **Default quick path (core profile):**
 
 ```text
-/opsx:propose ──► /opsx:apply ──► /opsx:sync ──► /opsx:archive
+/clsx:propose ──► /clsx:apply ──► /clsx:sync ──► /clsx:archive
 ```
 
 **Expanded path (custom workflow selection):**
 
 ```text
-/opsx:new ──► /opsx:ff or /opsx:continue ──► /opsx:apply ──► /opsx:verify ──► /opsx:archive
+/clsx:new ──► /clsx:ff or /clsx:continue ──► /clsx:apply ──► /clsx:verify ──► /clsx:archive
 ```
 
-The default global profile is `core`, which includes `propose`, `explore`, `apply`, `sync`, and `archive`. You can enable the expanded workflow commands with `openspec config profile` and then `openspec update`.
+The default global profile is `core`, which includes `propose`, `explore`, `apply`, `sync`, and `archive`. You can enable the expanded workflow commands with `clearspec config profile` and then `clearspec update`.
 
-## What OpenSpec Creates
+## What ClearSpec Creates
 
-After running `openspec init`, your project has this structure:
+After running `clearspec init`, your project has this structure:
 
 ```
-openspec/
+clearspec/
 ├── specs/              # Source of truth (your system's behavior)
 │   └── <domain>/
 │       └── spec.md
@@ -70,7 +70,7 @@ You can always go back and refine earlier artifacts as you learn more during imp
 
 ## How Delta Specs Work
 
-Delta specs are the key concept in OpenSpec. They show what's changing relative to your current specs.
+Delta specs are the key concept in ClearSpec. They show what's changing relative to your current specs.
 
 ### The Format
 
@@ -114,7 +114,7 @@ When you archive a change:
 2. **MODIFIED** requirements replace the existing version
 3. **REMOVED** requirements are deleted from the main spec
 
-The change folder moves to `openspec/changes/archive/` for audit history.
+The change folder moves to `clearspec/changes/archive/` for audit history.
 
 ## Example: Your First Change
 
@@ -123,9 +123,9 @@ Let's walk through adding dark mode to an application.
 ### 1. Start the Change (Default)
 
 ```text
-You: /opsx:propose add-dark-mode
+You: /clsx:propose add-dark-mode
 
-AI:  Created openspec/changes/add-dark-mode/
+AI:  Created clearspec/changes/add-dark-mode/
      ✓ proposal.md — why we're doing this, what's changing
      ✓ specs/       — requirements and scenarios
      ✓ design.md    — technical approach
@@ -133,7 +133,7 @@ AI:  Created openspec/changes/add-dark-mode/
      Ready for implementation!
 ```
 
-If you've enabled the expanded workflow profile, you can also do this as two steps: `/opsx:new` then `/opsx:ff` (or `/opsx:continue` incrementally).
+If you've enabled the expanded workflow profile, you can also do this as two steps: `/clsx:new` then `/clsx:ff` (or `/clsx:continue` incrementally).
 
 ### 2. What Gets Created
 
@@ -201,7 +201,7 @@ The system SHALL allow users to choose between light and dark themes.
 ### 3. Implement
 
 ```
-You: /opsx:apply
+You: /clsx:apply
 
 AI:  Working through tasks...
      ✓ 1.1 Created ThemeContext with light/dark state
@@ -217,11 +217,11 @@ During implementation, if you discover the design needs adjustment, just update 
 ### 4. Archive
 
 ```
-You: /opsx:archive
+You: /clsx:archive
 
 AI:  Archiving add-dark-mode...
-     ✓ Merged specs into openspec/specs/ui/spec.md
-     ✓ Moved to openspec/changes/archive/2025-01-24-add-dark-mode/
+     ✓ Merged specs into clearspec/specs/ui/spec.md
+     ✓ Moved to clearspec/changes/archive/2025-01-24-add-dark-mode/
      Done! Ready for the next feature.
 ```
 
@@ -233,16 +233,16 @@ Use the CLI to check on your changes:
 
 ```bash
 # List active changes
-openspec list
+clearspec list
 
 # View change details
-openspec show add-dark-mode
+clearspec show add-dark-mode
 
 # Validate spec formatting
-openspec validate add-dark-mode
+clearspec validate add-dark-mode
 
 # Interactive dashboard
-openspec view
+clearspec view
 ```
 
 ## Next Steps
@@ -250,4 +250,4 @@ openspec view
 - [Workflows](workflows.md) - Common patterns and when to use each command
 - [Commands](commands.md) - Full reference for all slash commands
 - [Concepts](concepts.md) - Deeper understanding of specs, changes, and schemas
-- [Customization](customization.md) - Make OpenSpec work your way
+- [Customization](customization.md) - Make ClearSpec work your way

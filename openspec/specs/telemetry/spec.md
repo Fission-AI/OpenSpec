@@ -2,26 +2,26 @@
 
 ## Purpose
 
-This spec defines how OpenSpec collects anonymous usage telemetry to help improve the tool. It governs the `src/telemetry/` module, which handles PostHog integration, privacy-preserving event design, user opt-out mechanisms, and first-run notice display. The spec ensures telemetry is minimal, transparent, and respects user privacy.
+This spec defines how ClearSpec collects anonymous usage telemetry to help improve the tool. It governs the `src/telemetry/` module, which handles PostHog integration, privacy-preserving event design, user opt-out mechanisms, and first-run notice display. The spec ensures telemetry is minimal, transparent, and respects user privacy.
 
 ## Requirements
 
 ### Requirement: Command execution tracking
-The system SHALL send a `command_executed` event to PostHog when any CLI command executes, including only the command name and OpenSpec version as properties.
+The system SHALL send a `command_executed` event to PostHog when any CLI command executes, including only the command name and ClearSpec version as properties.
 
 #### Scenario: Standard command execution
-- **WHEN** a user runs any openspec command
+- **WHEN** a user runs any clearspec command
 - **THEN** the system sends a `command_executed` event with `command` and `version` properties
 
 #### Scenario: Subcommand execution
-- **WHEN** a user runs a nested command like `openspec change apply`
+- **WHEN** a user runs a nested command like `clearspec change apply`
 - **THEN** the system sends a `command_executed` event with the full command path (e.g., `change:apply`)
 
 ### Requirement: Privacy-preserving event design
 The system SHALL NOT include command arguments, file paths, project names, spec content, error messages, or IP addresses in telemetry events.
 
 #### Scenario: Command with arguments
-- **WHEN** a user runs `openspec init my-project --force`
+- **WHEN** a user runs `clearspec init my-project --force`
 - **THEN** the telemetry event contains only `command: "init"` and `version: "<version>"` without arguments
 
 #### Scenario: IP address exclusion
@@ -60,9 +60,9 @@ The system SHALL automatically disable telemetry when `CI=true` environment vari
 The system SHALL display a one-line telemetry disclosure notice on the first command execution, before any telemetry is sent.
 
 #### Scenario: First command execution
-- **WHEN** a user runs their first openspec command
+- **WHEN** a user runs their first clearspec command
 - **AND** telemetry is enabled
-- **THEN** the system displays: "Note: OpenSpec collects anonymous usage stats. Opt out: OPENSPEC_TELEMETRY=0"
+- **THEN** the system displays: "Note: ClearSpec collects anonymous usage stats. Opt out: OPENSPEC_TELEMETRY=0"
 
 #### Scenario: Subsequent command execution
 - **WHEN** a user has already seen the notice (noticeSeen: true in config)

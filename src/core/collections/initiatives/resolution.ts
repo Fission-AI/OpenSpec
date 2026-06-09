@@ -165,7 +165,7 @@ function requireInitiativeId(
   if (id === undefined || id.trim().length === 0) {
     throw new InitiativeResolutionError('Pass an initiative id.', 'initiative_id_required', {
       target: 'initiative.id',
-      fix: `openspec initiative ${commandName} <id>`,
+      fix: `clearspec initiative ${commandName} <id>`,
     });
   }
 
@@ -333,7 +333,7 @@ export async function resolveSelectedInitiativeViewReference(
       'initiative_not_found',
       {
         target: 'initiative.id',
-        fix: `openspec initiative list ${formatContextStoreSelector(selected)}`,
+        fix: `clearspec initiative list ${formatContextStoreSelector(selected)}`,
       }
     );
   }
@@ -548,7 +548,7 @@ export async function listInitiativeViewReferences(
       'context_stores_unreadable',
       {
         target: 'context_store',
-        fix: 'openspec context-store doctor',
+        fix: 'clearspec context-store doctor',
       }
     );
   }
@@ -562,7 +562,7 @@ export async function listInitiativeViewReferences(
       'Some registered context stores could not be read.',
       {
         target: 'context_store',
-        fix: 'openspec context-store doctor',
+        fix: 'clearspec context-store doctor',
       }
     ));
   }
@@ -622,7 +622,7 @@ export async function resolveInitiativeViewReference(
       'initiative_lookup_incomplete',
       {
         target: 'context_store',
-        fix: 'openspec context-store doctor',
+        fix: 'clearspec context-store doctor',
         ...(matches.length > 0
           ? { details: { matches: matches.map((match) => match.diagnostic) } }
           : {}),
@@ -636,7 +636,7 @@ export async function resolveInitiativeViewReference(
       'initiative_not_found',
       {
         target: 'initiative.id',
-        fix: 'openspec initiative list',
+        fix: 'clearspec initiative list',
       }
     );
   }
@@ -647,7 +647,7 @@ export async function resolveInitiativeViewReference(
       'initiative_ambiguous',
       {
         target: 'initiative.id',
-        fix: `openspec initiative show ${parsed.initiativeId} --store <store>`,
+        fix: `clearspec initiative show ${parsed.initiativeId} --store <store>`,
         details: { matches: matches.map((match) => match.diagnostic) },
       }
     );

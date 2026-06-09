@@ -1,20 +1,20 @@
-# OpenSpec Conventions Specification
+# ClearSpec Conventions Specification
 
 ## Purpose
 
-OpenSpec conventions SHALL define how system capabilities are documented, how changes are proposed and tracked, and how specifications evolve over time. This meta-specification serves as the source of truth for OpenSpec's own conventions.
+ClearSpec conventions SHALL define how system capabilities are documented, how changes are proposed and tracked, and how specifications evolve over time. This meta-specification serves as the source of truth for ClearSpec's own conventions.
 ## Requirements
 ### Requirement: Structured conventions for specs and changes
 
-OpenSpec conventions SHALL mandate a structured spec format with clear requirement and scenario sections so tooling can parse consistently.
+ClearSpec conventions SHALL mandate a structured spec format with clear requirement and scenario sections so tooling can parse consistently.
 
 #### Scenario: Following the structured spec format
 
-- **WHEN** writing or updating OpenSpec specifications
+- **WHEN** writing or updating ClearSpec specifications
 - **THEN** authors SHALL use `### Requirement: ...` followed by at least one `#### Scenario: ...` section
 
 ### Requirement: Behavior-First Specification Boundary
-OpenSpec specifications SHALL capture verifiable behavior contracts and avoid internal implementation detail.
+ClearSpec specifications SHALL capture verifiable behavior contracts and avoid internal implementation detail.
 
 #### Scenario: Writing behavior requirements
 - **WHEN** documenting a capability in `spec.md`
@@ -26,7 +26,7 @@ OpenSpec specifications SHALL capture verifiable behavior contracts and avoid in
 - **THEN** those details SHALL be documented in `design.md` or `tasks.md` instead of behavioral requirements
 
 ### Requirement: Progressive Rigor
-OpenSpec conventions SHALL keep specs lightweight by default and scale rigor only when risk or coordination complexity demands it.
+ClearSpec conventions SHALL keep specs lightweight by default and scale rigor only when risk or coordination complexity demands it.
 
 #### Scenario: Routine change specification
 - **WHEN** a change is local and low-risk
@@ -37,10 +37,10 @@ OpenSpec conventions SHALL keep specs lightweight by default and scale rigor onl
 - **THEN** authors increase detail and explicit validation expectations proportionally
 
 ### Requirement: Project Structure
-An OpenSpec project SHALL maintain a consistent directory structure for specifications and changes.
+A ClearSpec project SHALL maintain a consistent directory structure for specifications and changes.
 
 #### Scenario: Initializing project structure
-- **WHEN** an OpenSpec project is initialized
+- **WHEN** a ClearSpec project is initialized
 - **THEN** it SHALL have this structure:
 ```
 openspec/
@@ -228,43 +228,43 @@ Behavioral specifications SHALL adopt the structured format with `### Requiremen
 - **AND** use `#### Scenario:` for scenarios with bold WHEN/THEN/AND keywords
 
 ### Requirement: Verb–Noun CLI Command Structure
-OpenSpec CLI design SHALL use verbs as top-level commands with nouns provided as arguments or flags for scoping.
+ClearSpec CLI design SHALL use verbs as top-level commands with nouns provided as arguments or flags for scoping.
 
 #### Scenario: Verb-first command discovery
-- **WHEN** a user runs a command like `openspec list`
+- **WHEN** a user runs a command like `clearspec list`
 - **THEN** the verb communicates the action clearly
 - **AND** nouns refine scope via flags or arguments (e.g., `--changes`, `--specs`)
 
 #### Scenario: Backward compatibility for noun commands
-- **WHEN** users run noun-prefixed commands such as `openspec spec ...` or `openspec change ...`
+- **WHEN** users run noun-prefixed commands such as `clearspec spec ...` or `clearspec change ...`
 - **THEN** the CLI SHALL continue to support them for at least one release
 - **AND** display a deprecation warning that points to verb-first alternatives
 
 #### Scenario: Disambiguation guidance
 - **WHEN** item names are ambiguous between changes and specs
-- **THEN** `openspec show` and `openspec validate` SHALL accept `--type spec|change`
+- **THEN** `clearspec show` and `clearspec validate` SHALL accept `--type spec|change`
 - **AND** the help text SHALL document this clearly
 
 ### Requirement: Workspace Product Language
-OpenSpec conventions SHALL describe coordination workspaces in user-facing product terms.
+ClearSpec conventions SHALL describe coordination workspaces in user-facing product terms.
 
 #### Scenario: Describing workspace structure
-- **WHEN** OpenSpec documentation describes workspace support
+- **WHEN** ClearSpec documentation describes workspace support
 - **THEN** it SHALL present a workspace as the planning home for work across linked repos or folders
 - **AND** it SHALL describe `changes/` as the workspace planning area
 
 #### Scenario: Avoiding internal workspace vocabulary
-- **WHEN** OpenSpec documentation explains what a workspace includes
+- **WHEN** ClearSpec documentation explains what a workspace includes
 - **THEN** it SHALL prefer plain product language such as "repos or folders"
 - **AND** it SHALL avoid user-facing reliance on terms such as "working set", "code area", "entry", "alias", or "local overlay"
 
 #### Scenario: Distinguishing workspaces from changes
-- **WHEN** OpenSpec documentation explains workspace planning
+- **WHEN** ClearSpec documentation explains workspace planning
 - **THEN** it SHALL describe a workspace as a durable planning home
 - **AND** it SHALL describe individual features, fixes, and projects as changes inside the workspace
 
 #### Scenario: Distinguishing workspace and repo-local surfaces
-- **WHEN** OpenSpec documentation compares workspace and repo-local flows
+- **WHEN** ClearSpec documentation compares workspace and repo-local flows
 - **THEN** it SHALL explain that workspace planning lives in the workspace folder
 - **AND** it SHALL explain that repo-local specs and changes continue to live under each repo's `openspec/` directory
 
@@ -274,7 +274,7 @@ OpenSpec conventions SHALL describe coordination workspaces in user-facing produ
 - **AND** dependency order MAY be documented in proposal prose until formal change stacking metadata is available
 
 ### Requirement: Workspace planning vocabulary
-OpenSpec conventions SHALL distinguish workspace planning concepts using user-facing product language.
+ClearSpec conventions SHALL distinguish workspace planning concepts using user-facing product language.
 
 #### Scenario: Naming affected areas
 - **WHEN** documentation or generated guidance refers to repos, folders, packages, services, apps, or docs sites touched by a workspace change
@@ -287,7 +287,7 @@ OpenSpec conventions SHALL distinguish workspace planning concepts using user-fa
 - **AND** it SHALL not use slice as a synonym for repo, folder, or affected area
 
 ### Requirement: Workspace planning and implementation boundary
-OpenSpec conventions SHALL distinguish workspace-level planning from repo-local implementation ownership.
+ClearSpec conventions SHALL distinguish workspace-level planning from repo-local implementation ownership.
 
 #### Scenario: Workspace as shared planning home
 - **WHEN** a change spans linked repos or folders
@@ -300,7 +300,7 @@ OpenSpec conventions SHALL distinguish workspace-level planning from repo-local 
 - **AND** it SHALL avoid making users understand implementation terms such as materialization before they can plan
 
 #### Scenario: Preserving familiar workflow verbs
-- **WHEN** workspace guidance describes OpenSpec workflows
+- **WHEN** workspace guidance describes ClearSpec workflows
 - **THEN** it SHALL keep the familiar verbs explore, propose, apply, verify, and archive
 - **AND** it SHALL explain that workspace context changes paths, scope, and allowed edit roots rather than creating a separate workflow family
 
@@ -316,11 +316,11 @@ The system SHALL follow these principles:
 
 ### Project Structure
 
-An OpenSpec project SHALL maintain a consistent directory structure for specifications and changes.
+A ClearSpec project SHALL maintain a consistent directory structure for specifications and changes.
 
 #### Scenario: Initializing project structure
 
-- **WHEN** an OpenSpec project is initialized
+- **WHEN** a ClearSpec project is initialized
 - **THEN** it SHALL have this structure:
 ```
 openspec/

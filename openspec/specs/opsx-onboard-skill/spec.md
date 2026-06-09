@@ -1,18 +1,18 @@
-# opsx-onboard-skill Specification
+# clsx-onboard-skill Specification
 
 ## Purpose
-Define `/opsx:onboard` behavior for guiding users through an end-to-end OpenSpec workflow on their real codebase.
+Define `/clsx:onboard` behavior for guiding users through an end-to-end ClearSpec workflow on their real codebase.
 
 ## Requirements
 ### Requirement: OPSX Onboard Skill
 
-The system SHALL provide an `/opsx:onboard` skill that guides users through their first complete OpenSpec workflow cycle with narration and real codebase work.
+The system SHALL provide an `/clsx:onboard` skill that guides users through their first complete ClearSpec workflow cycle with narration and real codebase work.
 
 #### Scenario: Skill invocation
 
-- **WHEN** user invokes `/opsx:onboard`
-- **THEN** agent checks if OpenSpec is initialized
-- **AND** if not initialized, prompts user to run `openspec init` first
+- **WHEN** user invokes `/clsx:onboard`
+- **THEN** agent checks if ClearSpec is initialized
+- **AND** if not initialized, prompts user to run `clearspec init` first
 - **AND** if initialized, proceeds with onboarding flow
 
 #### Scenario: Welcome and expectations
@@ -54,7 +54,7 @@ The skill SHALL briefly demonstrate explore mode before creating a change.
 #### Scenario: Brief explore demonstration
 
 - **WHEN** task is selected
-- **THEN** agent briefly demonstrates `/opsx:explore` by investigating relevant code
+- **THEN** agent briefly demonstrates `/clsx:explore` by investigating relevant code
 - **AND** explains explore mode is for thinking before doing
 - **AND** keeps this phase short (not a full exploration session)
 - **AND** transitions to change creation
@@ -66,7 +66,7 @@ The skill SHALL guide users through each artifact with narration explaining the 
 #### Scenario: Change creation with narration
 
 - **WHEN** creating the change directory
-- **THEN** agent runs `openspec new change "<name>"` with derived kebab-case name
+- **THEN** agent runs `clearspec new change "<name>"` with derived kebab-case name
 - **AND** explains what a "change" is (container for thinking and planning)
 - **AND** shows the folder structure that was created
 - **AND** pauses for user acknowledgment before proceeding
@@ -144,8 +144,8 @@ The skill SHALL conclude with a recap and command reference.
 - **WHEN** onboarding is complete
 - **THEN** agent summarizes the workflow phases completed
 - **AND** emphasizes this rhythm works for any size change
-- **AND** provides command reference table (/opsx:explore, /opsx:new, /opsx:ff, /opsx:continue, /opsx:apply, /opsx:verify, /opsx:archive)
-- **AND** suggests next actions (try /opsx:new or /opsx:ff on something)
+- **AND** provides command reference table (/clsx:explore, /clsx:new, /clsx:ff, /clsx:continue, /clsx:apply, /clsx:verify, /clsx:archive)
+- **AND** suggests next actions (try /clsx:new or /clsx:ff on something)
 
 ### Requirement: Graceful Exit Handling
 
@@ -156,12 +156,12 @@ The skill SHALL handle users who want to stop mid-way.
 - **WHEN** user indicates they want to stop during onboarding
 - **THEN** agent acknowledges gracefully
 - **AND** notes that the in-progress change is saved
-- **AND** explains how to continue later with `/opsx:continue <name>`
+- **AND** explains how to continue later with `/clsx:continue <name>`
 - **AND** exits without pressure
 
 #### Scenario: User wants quick reference only
 
 - **WHEN** user says they just want to see the commands
 - **THEN** agent provides command cheat sheet
-- **AND** exits gracefully with encouragement to try `/opsx:new`
+- **AND** exits gracefully with encouragement to try `/clsx:new`
 

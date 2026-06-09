@@ -39,6 +39,7 @@ import {
   makeStatus,
 } from './types.js';
 import { collectWorkspaceContextStatuses } from './context-status.js';
+import { CLEARSPEC_DIR_NAME } from '../../core/config.js';
 
 const fs = nodeFs.promises;
 
@@ -124,10 +125,10 @@ function formatDuplicateLinkMessage(
     `  ${linkName} -> ${existingPath ?? '(no local path recorded)'}`,
     '',
     'Choose a different link name:',
-    `  openspec workspace link archived-${linkName} ${replacementPath}`,
+    `  clearspec workspace link archived-${linkName} ${replacementPath}`,
     '',
     'If you meant to change the existing link path:',
-    `  openspec workspace relink ${linkName} ${replacementPath}`,
+    `  clearspec workspace relink ${linkName} ${replacementPath}`,
   ].join('\n');
 }
 
@@ -141,7 +142,7 @@ function duplicateLinkError(
     'duplicate_link_name',
     {
       target: `links.${linkName}`,
-      fix: `Choose a different link name or run 'openspec workspace relink ${linkName} ${replacementPath}'.`,
+      fix: `Choose a different link name or run 'clearspec workspace relink ${linkName} ${replacementPath}'.`,
     }
   );
 }
@@ -205,7 +206,7 @@ function localStateInvalidStatus(error: unknown): WorkspaceStatus {
     `Machine-local paths could not be read: ${asErrorMessage(error)}`,
     {
       target: 'workspace.local_state',
-      fix: 'Repair .openspec-workspace/view.yaml, then run openspec workspace relink <name> <path> for affected links.',
+      fix: 'Repair .clearspec-workspace/view.yaml, then run clearspec workspace relink <name> <path> for affected links.',
     }
   );
 }
@@ -217,7 +218,7 @@ function workspaceSkillDriftStatus(workspaceName: string): WorkspaceStatus {
     'Workspace-local agent skills are out of sync with the active global profile.',
     {
       target: 'workspace.skills',
-      fix: `openspec workspace update --workspace ${workspaceName}`,
+      fix: `clearspec workspace update --workspace ${workspaceName}`,
     }
   );
 }
@@ -433,7 +434,7 @@ export async function loadWorkspaceForDoctor(
             `Workspace state could not be read: ${asErrorMessage(error)}`,
             {
               target: 'workspace.root',
-              fix: 'Repair .openspec-workspace/view.yaml before using this workspace.',
+              fix: 'Repair .clearspec-workspace/view.yaml before using this workspace.',
             }
           ),
         ],
@@ -461,7 +462,7 @@ export async function loadWorkspaceForDoctor(
           'Shared link does not have a local path on this machine.',
           {
             target: `links.${linkName}.path`,
-            fix: `openspec workspace relink ${linkName} /path/to/${linkName}`,
+            fix: `clearspec workspace relink ${linkName} /path/to/${linkName}`,
           }
         )
       );
@@ -469,13 +470,13 @@ export async function loadWorkspaceForDoctor(
 
     if (localPath) {
       if (await directoryExists(localPath)) {
-        const candidateSpecsPath = path.join(localPath, 'openspec', 'specs');
+        const candidateSpecsPath = path.join(localPath, CLEARSPEC_DIR_NAME, 'specs');
         repoSpecsPath = (await directoryExists(candidateSpecsPath)) ? candidateSpecsPath : null;
       } else {
         linkStatus.push(
           makeStatus('error', 'linked_path_missing', 'Linked path does not exist.', {
             target: `links.${linkName}.path`,
-            fix: `openspec workspace relink ${linkName} /path/to/${linkName}`,
+            fix: `clearspec workspace relink ${linkName} /path/to/${linkName}`,
           })
         );
       }
@@ -510,7 +511,7 @@ async function readWorkspaceViewForMutation(selected: SelectedWorkspace): Promis
       'selected_workspace_root_missing',
       {
         target: 'workspace.root',
-        fix: 'Run openspec workspace list to inspect known workspaces.',
+        fix: 'Run clearspec workspace list to inspect known workspaces.',
       }
     );
   }
@@ -523,7 +524,7 @@ async function readWorkspaceViewForMutation(selected: SelectedWorkspace): Promis
       'workspace_state_invalid',
       {
         target: 'workspace.state',
-        fix: 'Repair .openspec-workspace/view.yaml before using this workspace.',
+        fix: 'Repair .clearspec-workspace/view.yaml before using this workspace.',
       }
     );
   }
@@ -605,7 +606,7 @@ export async function updateWorkspaceLink(
   if (!hasWorkspaceLink(viewState.links, linkName)) {
     throw new WorkspaceCliError(`Unknown workspace link '${linkName}'.`, 'unknown_link_name', {
       target: `links.${linkName}`,
-      fix: 'Run openspec workspace doctor to see linked repos or folders.',
+      fix: 'Run clearspec workspace doctor to see linked repos or folders.',
     });
   }
 
@@ -792,7 +793,7 @@ export async function selectOrCreateWorkspaceForInitiativeOpen(input: {
       'workspace_name_collision',
       {
         target: 'workspace.name',
-        fix: `Retry with an explicit workspace name: openspec workspace open <name> --initiative ${getWorkspaceContextStoreId(input.context)}/${getWorkspaceContextInitiativeId(input.context)}`,
+        fix: `Retry with an explicit workspace name: clearspec workspace open <name> --initiative ${getWorkspaceContextStoreId(input.context)}/${getWorkspaceContextInitiativeId(input.context)}`,
       }
     );
   }

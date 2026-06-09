@@ -41,8 +41,8 @@ describe('profile sync drift detection', () => {
   let tempDir: string;
 
   beforeEach(() => {
-    tempDir = path.join(os.tmpdir(), `openspec-profile-sync-drift-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-    fs.mkdirSync(path.join(tempDir, 'openspec'), { recursive: true });
+    tempDir = path.join(os.tmpdir(), `clearspec-profile-sync-drift-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    fs.mkdirSync(path.join(tempDir, 'clearspec'), { recursive: true });
   });
 
   afterEach(() => {

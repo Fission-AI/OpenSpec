@@ -1,5 +1,5 @@
 {
-  description = "OpenSpec - AI-native system for spec-driven development";
+  description = "ClearSpec - AI-native system for spec-driven development";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -73,7 +73,7 @@
 
             meta = with pkgs.lib; {
               description = "AI-native system for spec-driven development";
-              homepage = "https://github.com/Fission-AI/OpenSpec";
+              homepage = "https://github.com/<you>/clearspec";
               license = licenses.mit;
               maintainers = [ ];
               mainProgram = "openspec";
@@ -85,7 +85,7 @@
       apps = forAllSystems (system: {
         default = {
           type = "app";
-          program = "${self.packages.${system}.default}/bin/openspec";
+          program = "${self.packages.${system}.default}/bin/clearspec";
         };
       });
 
@@ -102,7 +102,7 @@
             ];
 
             shellHook = ''
-              echo "OpenSpec development environment"
+              echo "ClearSpec development environment"
               echo "Node version: $(node --version)"
               echo "pnpm version: $(pnpm --version)"
               echo "Run 'pnpm install' to install dependencies"

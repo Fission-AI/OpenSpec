@@ -16,7 +16,7 @@ describe('collection runtime', () => {
   let tempDir: string;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-context-store-collections-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'clearspec-context-store-collections-'));
   });
 
   afterEach(() => {
@@ -51,7 +51,7 @@ describe('collection runtime', () => {
         expect(() => validateMount(invalidValue)).toThrow();
       }
 
-      expect(() => validateMount('.openspec-store')).toThrow(/reserved/u);
+      expect(() => validateMount('.clearspec-store')).toThrow(/reserved/u);
     });
   });
 

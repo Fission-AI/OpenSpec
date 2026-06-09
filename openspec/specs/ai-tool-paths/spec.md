@@ -1,7 +1,7 @@
 # ai-tool-paths Specification
 
 ## Purpose
-Define AI tool path metadata used to generate OpenSpec skills and commands in tool-specific directories.
+Define AI tool path metadata used to generate ClearSpec skills and commands in tool-specific directories.
 ## Requirements
 ### Requirement: AIToolOption skillsDir field
 

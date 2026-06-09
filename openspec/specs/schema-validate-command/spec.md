@@ -1,26 +1,26 @@
 # schema-validate-command Specification
 
 ## Purpose
-Define `openspec schema validate` behavior for validating schema syntax, structure, templates, and dependency graphs.
+Define `clearspec schema validate` behavior for validating schema syntax, structure, templates, and dependency graphs.
 
 ## Requirements
 ### Requirement: Schema validate checks schema structure
-The CLI SHALL provide an `openspec schema validate [name]` command that validates schema configuration and reports errors.
+The CLI SHALL provide an `clearspec schema validate [name]` command that validates schema configuration and reports errors.
 
 #### Scenario: Validate specific schema
-- **WHEN** user runs `openspec schema validate my-workflow`
+- **WHEN** user runs `clearspec schema validate my-workflow`
 - **THEN** system locates schema using resolution order
 - **AND** validates `schema.yaml` against the schema Zod type
 - **AND** displays validation result (valid or list of errors)
 
 #### Scenario: Validate all project schemas
-- **WHEN** user runs `openspec schema validate` without a name
+- **WHEN** user runs `clearspec schema validate` without a name
 - **THEN** system validates all schemas in `openspec/schemas/`
 - **AND** displays results for each schema
 - **AND** exits with non-zero code if any schema is invalid
 
 #### Scenario: Schema not found
-- **WHEN** user runs `openspec schema validate nonexistent`
+- **WHEN** user runs `clearspec schema validate nonexistent`
 - **THEN** system displays error that schema was not found
 - **AND** exits with non-zero code
 
@@ -28,7 +28,7 @@ The CLI SHALL provide an `openspec schema validate [name]` command that validate
 The CLI SHALL report YAML parsing errors with line numbers when possible.
 
 #### Scenario: Invalid YAML syntax
-- **WHEN** user runs `openspec schema validate my-workflow` and `schema.yaml` has syntax errors
+- **WHEN** user runs `clearspec schema validate my-workflow` and `schema.yaml` has syntax errors
 - **THEN** system displays YAML parse error with line number
 - **AND** exits with non-zero code
 
@@ -72,20 +72,20 @@ The CLI SHALL verify that artifact dependencies form a valid directed acyclic gr
 The CLI SHALL support `--json` flag for machine-readable validation results.
 
 #### Scenario: JSON output for valid schema
-- **WHEN** user runs `openspec schema validate my-workflow --json` and schema is valid
+- **WHEN** user runs `clearspec schema validate my-workflow --json` and schema is valid
 - **THEN** system outputs JSON with `valid: true`, `name`, and `path` fields
 
 #### Scenario: JSON output for invalid schema
-- **WHEN** user runs `openspec schema validate my-workflow --json` and schema has errors
+- **WHEN** user runs `clearspec schema validate my-workflow --json` and schema has errors
 - **THEN** system outputs JSON with `valid: false` and `issues` array
 - **AND** each issue includes `level`, `path`, and `message` fields
-- **AND** format matches existing `openspec validate` output structure
+- **AND** format matches existing `clearspec validate` output structure
 
 ### Requirement: Schema validate supports verbose mode
 The CLI SHALL support `--verbose` flag for detailed validation information.
 
 #### Scenario: Verbose output shows all checks
-- **WHEN** user runs `openspec schema validate my-workflow --verbose`
+- **WHEN** user runs `clearspec schema validate my-workflow --verbose`
 - **THEN** system displays each validation check as it runs
 - **AND** shows pass/fail status for: YAML parsing, Zod validation, template existence, dependency graph
 

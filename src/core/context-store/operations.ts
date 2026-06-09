@@ -233,7 +233,7 @@ async function assertSetupPathIsNotNestedInGitRepo(
     'context_store_setup_inside_git_repo',
     {
       target: 'context_store.root',
-      fix: 'Choose the managed OpenSpec location, choose a path outside that Git repository, or rerun setup interactively to confirm this location.',
+      fix: 'Choose the managed ClearSpec location, choose a path outside that Git repository, or rerun setup interactively to confirm this location.',
     }
   );
 }
@@ -273,7 +273,7 @@ function resolveSetupRoot(id: string, inputPath: string | undefined): string {
   if (inputPath !== undefined && inputPath.trim().length === 0) {
     throw new ContextStoreError('Pass a non-empty --path value.', 'context_store_path_required', {
       target: 'context_store.root',
-      fix: `openspec context-store setup ${id} --path /path/to/context-store`,
+      fix: `clearspec context-store setup ${id} --path /path/to/context-store`,
     });
   }
 
@@ -288,7 +288,7 @@ function resolveRegisterRoot(inputPath: string | undefined): string {
   if (inputPath === undefined || inputPath.trim().length === 0) {
     throw new ContextStoreError('Pass a context store path.', 'context_store_path_required', {
       target: 'context_store.root',
-      fix: 'openspec context-store register /path/to/context-store',
+      fix: 'clearspec context-store register /path/to/context-store',
     });
   }
 
@@ -335,7 +335,7 @@ async function prepareSetupPlan(
       'context_store_setup_path_not_directory',
       {
         target: 'context_store.root',
-        fix: 'Choose an empty directory or omit --path to use the managed OpenSpec context-store location.',
+        fix: 'Choose an empty directory or omit --path to use the managed ClearSpec context-store location.',
       }
     );
   }
@@ -440,7 +440,7 @@ export async function setupPreparedContextStore(
       writeMetadataIfMissing: true,
     });
     if (registered.metadataCreated) {
-      createdFiles.push('.openspec-store/store.yaml');
+      createdFiles.push('.clearspec-store/store.yaml');
     }
     const isRepository = await isGitRepositoryAtRoot(registered.storeRoot);
 
@@ -519,7 +519,7 @@ export async function registerExistingContextStore(
     writeMetadataIfMissing: true,
   });
   if (registered.metadataCreated) {
-    createdFiles.push('.openspec-store/store.yaml');
+    createdFiles.push('.clearspec-store/store.yaml');
   }
 
   return mutationPayload(id, registered.storeRoot, {
@@ -721,7 +721,7 @@ async function inspectContextStore(entry: {
       'Context store location does not exist.',
       {
         target: 'context_store.root',
-        fix: `Run openspec context-store register /path/to/${entry.id} --id ${entry.id}.`,
+        fix: `Run clearspec context-store register /path/to/${entry.id} --id ${entry.id}.`,
       }
     ));
   } else if (kind !== 'directory') {
@@ -795,7 +795,7 @@ export async function doctorContextStores(id?: string): Promise<ContextStoreDoct
     if (selectedId !== undefined) {
       throw new ContextStoreError(`Unknown context store '${selectedId}'.`, 'context_store_not_found', {
         target: 'context_store.id',
-        fix: 'Run openspec context-store list to see registered stores.',
+        fix: 'Run clearspec context-store list to see registered stores.',
       });
     }
 
@@ -810,7 +810,7 @@ export async function doctorContextStores(id?: string): Promise<ContextStoreDoct
   if (selectedId && selected.length === 0) {
     throw new ContextStoreError(`Unknown context store '${selectedId}'.`, 'context_store_not_found', {
       target: 'context_store.id',
-      fix: 'Run openspec context-store list to see registered stores.',
+      fix: 'Run clearspec context-store list to see registered stores.',
     });
   }
 

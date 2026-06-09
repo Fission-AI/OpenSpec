@@ -1,10 +1,10 @@
 # Concepts
 
-This guide explains the core ideas behind OpenSpec and how they fit together. For practical usage, see [Getting Started](getting-started.md) and [Workflows](workflows.md).
+This guide explains the core ideas behind ClearSpec and how they fit together. For practical usage, see [Getting Started](getting-started.md) and [Workflows](workflows.md).
 
 ## Philosophy
 
-OpenSpec is built around four principles:
+ClearSpec is built around four principles:
 
 ```
 fluid not rigid         — no phase gates, work on what makes sense
@@ -15,21 +15,21 @@ brownfield-first        — works with existing codebases, not just greenfield
 
 ### Why These Principles Matter
 
-**Fluid not rigid.** Traditional spec systems lock you into phases: first you plan, then you implement, then you're done. OpenSpec is more flexible — you can create artifacts in any order that makes sense for your work.
+**Fluid not rigid.** Traditional spec systems lock you into phases: first you plan, then you implement, then you're done. ClearSpec is more flexible — you can create artifacts in any order that makes sense for your work.
 
-**Iterative not waterfall.** Requirements change. Understanding deepens. What seemed like a good approach at the start might not hold up after you see the codebase. OpenSpec embraces this reality.
+**Iterative not waterfall.** Requirements change. Understanding deepens. What seemed like a good approach at the start might not hold up after you see the codebase. ClearSpec embraces this reality.
 
-**Easy not complex.** Some spec frameworks require extensive setup, rigid formats, or heavyweight processes. OpenSpec stays out of your way. Initialize in seconds, start working immediately, customize only if you need to.
+**Easy not complex.** Some spec frameworks require extensive setup, rigid formats, or heavyweight processes. ClearSpec stays out of your way. Initialize in seconds, start working immediately, customize only if you need to.
 
-**Brownfield-first.** Most software work isn't building from scratch — it's modifying existing systems. OpenSpec's delta-based approach makes it easy to specify changes to existing behavior, not just describe new systems.
+**Brownfield-first.** Most software work isn't building from scratch — it's modifying existing systems. ClearSpec's delta-based approach makes it easy to specify changes to existing behavior, not just describe new systems.
 
 ## The Big Picture
 
-OpenSpec organizes your work into two main areas:
+ClearSpec organizes your work into two main areas:
 
 ```
 ┌────────────────────────────────────────────────────────────────────┐
-│                        openspec/                                   │
+│                        clearspec/                                   │
 │                                                                    │
 │   ┌─────────────────────┐      ┌───────────────────────────────┐   │
 │   │       specs/        │      │         changes/              │   │
@@ -55,7 +55,7 @@ Workspace support is in beta. The local-view model below is the current directio
 
 The commands below provide the first setup flow for opening local views over linked repos or folders.
 
-Repo-local OpenSpec projects are the right default when one repo owns the planning, implementation, and archive flow. Some work spans several repos or folders. For that case, an OpenSpec coordination workspace is a machine-local view that keeps linked paths, opener state, and agent setup together.
+Repo-local ClearSpec projects are the right default when one repo owns the planning, implementation, and archive flow. Some work spans several repos or folders. For that case, a ClearSpec coordination workspace is a machine-local view that keeps linked paths, opener state, and agent setup together.
 
 The workspace mental model is:
 
@@ -71,29 +71,29 @@ A workspace has a different shape from a repo-local project:
 
 ```text
 getGlobalDataDir()/workspaces/<workspace-name>/
-├── .openspec-workspace/
+├── .clearspec-workspace/
 │   └── view.yaml                  # Private local view record
 ├── AGENTS.md                      # Generated runtime guidance
 └── <workspace-name>.code-workspace # Generated editor workspace file
 ```
 
-Repo-local OpenSpec state keeps the existing shape:
+Repo-local ClearSpec state keeps the existing shape:
 
 ```text
 repo-root/
-└── openspec/
+└── clearspec/
     ├── specs/
     └── changes/
 ```
 
-Root-level `workspace.yaml` files are not OpenSpec workspace state. Workspace state is namespaced under `.openspec-workspace/`, so other tools can keep owning root-level files with the same name.
+Root-level `workspace.yaml` files are not ClearSpec workspace state. Workspace state is namespaced under `.clearspec-workspace/`, so other tools can keep owning root-level files with the same name.
 
-That distinction matters. The workspace folder is a local coordination surface for opening and inspecting linked repos or folders. Each repo's `openspec/` directory remains the home for repo-owned specs, repo-local changes, and implementation planning. Users do not need to run repo-local `openspec init` inside a workspace folder.
+That distinction matters. The workspace folder is a local coordination surface for opening and inspecting linked repos or folders. Each repo's `clearspec/` directory remains the home for repo-owned specs, repo-local changes, and implementation planning. Users do not need to run repo-local `clearspec init` inside a workspace folder.
 
 Stable link names are how a workspace refers to repos and folders. The private workspace record keeps names such as `api`, `web`, or `checkout` and maps them to this runtime's local paths.
 
 ```yaml
-# .openspec-workspace/view.yaml
+# .clearspec-workspace/view.yaml
 version: 1
 name: platform
 context: null
@@ -102,7 +102,7 @@ links:
   web: /repos/web
 ```
 
-When a workspace opens an initiative, `context` records the selected context-store binding and initiative id. Registry-selected stores stay portable by id; path-selected stores intentionally preserve the runtime-local path because `.openspec-workspace/view.yaml` is private local state.
+When a workspace opens an initiative, `context` records the selected context-store binding and initiative id. Registry-selected stores stay portable by id; path-selected stores intentionally preserve the runtime-local path because `.clearspec-workspace/view.yaml` is private local state.
 
 ```yaml
 context:
@@ -116,7 +116,7 @@ context:
     id: billing-launch
 ```
 
-Linked paths can be full repos, folders inside a large monorepo, or other existing folders. They do not need repo-local `openspec/` state before they can participate in workspace planning. Later implementation, verify, or archive workflows may require more repo readiness, but planning visibility starts with the link.
+Linked paths can be full repos, folders inside a large monorepo, or other existing folders. They do not need repo-local `clearspec/` state before they can participate in workspace planning. Later implementation, verify, or archive workflows may require more repo readiness, but planning visibility starts with the link.
 
 ```text
 multi-repo:
@@ -128,68 +128,68 @@ large monorepo:
   checkout -> /repos/platform/apps/checkout
 ```
 
-Managed workspaces live under the standard OpenSpec data directory:
+Managed workspaces live under the standard ClearSpec data directory:
 
 ```text
 getGlobalDataDir()/workspaces
 ```
 
-That means `$XDG_DATA_HOME/openspec/workspaces` when `XDG_DATA_HOME` is set, `~/.local/share/openspec/workspaces` on Unix-style fallback, and `%LOCALAPPDATA%\openspec\workspaces` on native Windows fallback. Native Windows shells, PowerShell, and WSL2 each keep the path strings for the runtime running OpenSpec. This foundation does not translate between `D:\repo`, `/mnt/d/repo`, and UNC WSL paths.
+That means `$XDG_DATA_HOME/clearspec/workspaces` when `XDG_DATA_HOME` is set, `~/.local/share/clearspec/workspaces` on Unix-style fallback, and `%LOCALAPPDATA%\clearspec\workspaces` on native Windows fallback. Native Windows shells, PowerShell, and WSL2 each keep the path strings for the runtime running ClearSpec. This foundation does not translate between `D:\repo`, `/mnt/d/repo`, and UNC WSL paths.
 
 Managed workspaces use the namespaced private view record above. The workspace folder remains authoritative for its own private local view.
 
-Workspace visibility is not change commitment. Set up a workspace when OpenSpec should know which repos or folders are relevant; create a change later when you are ready to plan a feature, fix, project, or other piece of work.
+Workspace visibility is not change commitment. Set up a workspace when ClearSpec should know which repos or folders are relevant; create a change later when you are ready to plan a feature, fix, project, or other piece of work.
 
 Useful commands:
 
 ```bash
 # Guided setup
-openspec workspace setup
+clearspec workspace setup
 
 # Automation-friendly setup
-openspec workspace setup --no-interactive --name platform --link /repos/api --link web=/repos/web
-openspec workspace setup --no-interactive --name platform --link /repos/api --opener codex-cli
+clearspec workspace setup --no-interactive --name platform --link /repos/api --link web=/repos/web
+clearspec workspace setup --no-interactive --name platform --link /repos/api --opener codex-cli
 
 # See known workspaces from the local registry
-openspec workspace list
-openspec workspace ls
+clearspec workspace list
+clearspec workspace ls
 
 # Add or repair links for the selected workspace
-openspec workspace link /repos/api
-openspec workspace link api-service /repos/api
-openspec workspace relink api-service /new/path/to/api
+clearspec workspace link /repos/api
+clearspec workspace link api-service /repos/api
+clearspec workspace relink api-service /new/path/to/api
 
 # Check what this machine can resolve
-openspec workspace doctor
-openspec workspace doctor --workspace platform
+clearspec workspace doctor
+clearspec workspace doctor --workspace platform
 
 # Refresh workspace-local guidance and agent skills
-openspec workspace update
-openspec workspace update --workspace platform --tools codex,claude
+clearspec workspace update
+clearspec workspace update --workspace platform --tools codex,claude
 
 # Open the linked working set
-openspec workspace open
-openspec workspace open platform --agent github-copilot
-openspec workspace open --editor
+clearspec workspace open
+clearspec workspace open platform --agent github-copilot
+clearspec workspace open --editor
 
 # Open an initiative as a local workspace view
-openspec workspace open --initiative billing-launch --store platform
-openspec workspace open --initiative billing-launch --store-path /repos/platform-context
+clearspec workspace open --initiative billing-launch --store platform
+clearspec workspace open --initiative billing-launch --store-path /repos/platform-context
 ```
 
-`workspace setup` always creates the workspace in the standard workspace location, records it in the local registry, shows the workspace location, and requires at least one linked repo or folder. Interactive setup asks for a preferred opener and can install OpenSpec skills for selected agents. Non-interactive setup stores one only when `--opener codex-cli`, `--opener claude`, `--opener github-copilot`, or `--opener editor` is provided.
+`workspace setup` always creates the workspace in the standard workspace location, records it in the local registry, shows the workspace location, and requires at least one linked repo or folder. Interactive setup asks for a preferred opener and can install ClearSpec skills for selected agents. Non-interactive setup stores one only when `--opener codex-cli`, `--opener claude`, `--opener github-copilot`, or `--opener editor` is provided.
 
-Workspace skills are installed only in the workspace root. The active global profile selects which workflow skills are generated; `--tools` selects which agents receive them. Workspace setup and update do not create slash command files even when global delivery includes commands. Run `openspec workspace update` to refresh workspace-local guidance and add, refresh, or remove managed workspace-local skill directories without editing linked repos or folders.
+Workspace skills are installed only in the workspace root. The active global profile selects which workflow skills are generated; `--tools` selects which agents receive them. Workspace setup and update do not create slash command files even when global delivery includes commands. Run `clearspec workspace update` to refresh workspace-local guidance and add, refresh, or remove managed workspace-local skill directories without editing linked repos or folders.
 
-OpenSpec also maintains root workspace open files: an OpenSpec-managed guidance block in `AGENTS.md` and a machine-local `<workspace-name>.code-workspace` file for VS Code and GitHub Copilot-in-VS-Code opens. A managed workspace is not a repo, so OpenSpec does not create a default workspace `.gitignore` or a default workspace-level `changes/` directory.
+ClearSpec also maintains root workspace open files: a ClearSpec-managed guidance block in `AGENTS.md` and a machine-local `<workspace-name>.code-workspace` file for VS Code and GitHub Copilot-in-VS-Code opens. A managed workspace is not a repo, so ClearSpec does not create a default workspace `.gitignore` or a default workspace-level `changes/` directory.
 
-The maintained VS Code workspace lists valid linked repos or folders first, then initiative context when attached, then the OpenSpec workspace files. VS Code displays those entries as a multi-root workspace.
+The maintained VS Code workspace lists valid linked repos or folders first, then initiative context when attached, then the ClearSpec workspace files. VS Code displays those entries as a multi-root workspace.
 
 `workspace open` opens the linked working set with the stored preferred opener unless `--agent <tool>` or `--editor` is passed for that one session. Passing both opener overrides is an error. Root workspace open makes linked repos and folders visible for exploration and context; implementation starts after the user explicitly asks for implementation work.
 
-`workspace link` and `workspace relink` record existing folders only; they do not create, copy, move, initialize, or edit the linked repo or folder. After a successful link or relink, OpenSpec refreshes the managed guidance and VS Code workspace file.
+`workspace link` and `workspace relink` record existing folders only; they do not create, copy, move, initialize, or edit the linked repo or folder. After a successful link or relink, ClearSpec refreshes the managed guidance and VS Code workspace file.
 
-Workspace commands that need one workspace can run from anywhere with `--workspace <name>`. If you run them inside a workspace folder or subdirectory, OpenSpec uses that current workspace. If several known workspaces are available and you do not pass `--workspace <name>`, human commands show a picker; `--json` and `--no-interactive` fail with a structured status error instead of prompting.
+Workspace commands that need one workspace can run from anywhere with `--workspace <name>`. If you run them inside a workspace folder or subdirectory, ClearSpec uses that current workspace. If several known workspaces are available and you do not pass `--workspace <name>`, human commands show a picker; `--json` and `--no-interactive` fail with a structured status error instead of prompting.
 
 Direct workspace commands support JSON output for scripts. JSON responses keep primary data in `workspace`, `workspaces`, or `link` objects and report warnings or errors in `status` arrays. Healthy objects use `status: []`.
 
@@ -200,7 +200,7 @@ Specs describe your system's behavior using structured requirements and scenario
 ### Structure
 
 ```
-openspec/specs/
+clearspec/specs/
 ├── auth/
 │   └── spec.md           # Authentication behavior
 ├── payments/
@@ -298,7 +298,7 @@ Quick test:
 
 ### Keep It Lightweight: Progressive Rigor
 
-OpenSpec aims to avoid bureaucracy. Use the lightest level that still makes the change verifiable.
+ClearSpec aims to avoid bureaucracy. Use the lightest level that still makes the change verifiable.
 
 **Lite spec (default):**
 - Short behavior-first requirements
@@ -330,11 +330,11 @@ A change is a proposed modification to your system, packaged as a folder with ev
 ### Change Structure
 
 ```
-openspec/changes/add-dark-mode/
+clearspec/changes/add-dark-mode/
 ├── proposal.md           # Why and what
 ├── design.md             # How (technical approach)
 ├── tasks.md              # Implementation checklist
-├── .openspec.yaml        # Change metadata (optional)
+├── .clearspec.yaml        # Change metadata (optional)
 └── specs/                # Delta specs
     └── ui/
         └── spec.md       # What's changing in ui/spec.md
@@ -489,7 +489,7 @@ Tasks are the **implementation checklist** — concrete steps with checkboxes.
 
 ## Delta Specs
 
-Delta specs are the key concept that makes OpenSpec work for brownfield development. They describe **what's changing** rather than restating the entire spec.
+Delta specs are the key concept that makes ClearSpec work for brownfield development. They describe **what's changing** rather than restating the entire spec.
 
 ### The Format
 
@@ -555,7 +555,7 @@ Schemas define the artifact types and their dependencies for a workflow.
 ### How Schemas Work
 
 ```yaml
-# openspec/schemas/spec-driven/schema.yaml
+# clearspec/schemas/spec-driven/schema.yaml
 name: spec-driven
 artifacts:
   - id: proposal
@@ -616,16 +616,16 @@ Create custom schemas for your team's workflow:
 
 ```bash
 # Create from scratch
-openspec schema init research-first
+clearspec schema init research-first
 
 # Or fork an existing one
-openspec schema fork spec-driven research-first
+clearspec schema fork spec-driven research-first
 ```
 
 **Example custom schema:**
 
 ```yaml
-# openspec/schemas/research-first/schema.yaml
+# clearspec/schemas/research-first/schema.yaml
 name: research-first
 artifacts:
   - id: research
@@ -652,7 +652,7 @@ Archiving completes a change by merging its delta specs into the main specs and 
 ```
 Before archive:
 
-openspec/
+clearspec/
 ├── specs/
 │   └── auth/
 │       └── spec.md ◄────────────────┐
@@ -668,7 +668,7 @@ openspec/
 
 After archive:
 
-openspec/
+clearspec/
 ├── specs/
 │   └── auth/
 │       └── spec.md        # Now includes 2FA requirements
@@ -703,30 +703,30 @@ openspec/
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                              OPENSPEC FLOW                                   │
+│                              CLEARSPEC FLOW                                  │
 │                                                                              │
 │   ┌────────────────┐                                                         │
-│   │  1. START      │  /opsx:propose (core) or /opsx:new (expanded)           │
+│   │  1. START      │  /clsx:propose (core) or /clsx:new (expanded)           │
 │   │     CHANGE     │                                                         │
 │   └───────┬────────┘                                                         │
 │           │                                                                  │
 │           ▼                                                                  │
 │   ┌────────────────┐                                                         │
-│   │  2. CREATE     │  /opsx:ff or /opsx:continue (expanded workflow)         │
+│   │  2. CREATE     │  /clsx:ff or /clsx:continue (expanded workflow)         │
 │   │     ARTIFACTS  │  Creates proposal → specs → design → tasks              │
 │   │                │  (based on schema dependencies)                         │
 │   └───────┬────────┘                                                         │
 │           │                                                                  │
 │           ▼                                                                  │
 │   ┌────────────────┐                                                         │
-│   │  3. IMPLEMENT  │  /opsx:apply                                            │
+│   │  3. IMPLEMENT  │  /clsx:apply                                            │
 │   │     TASKS      │  Work through tasks, checking them off                  │
 │   │                │◄──── Update artifacts as you learn                      │
 │   └───────┬────────┘                                                         │
 │           │                                                                  │
 │           ▼                                                                  │
 │   ┌────────────────┐                                                         │
-│   │  4. VERIFY     │  /opsx:verify (optional)                                │
+│   │  4. VERIFY     │  /clsx:verify (optional)                                │
 │   │     WORK       │  Check implementation matches specs                     │
 │   └───────┬────────┘                                                         │
 │           │                                                                  │
@@ -762,7 +762,7 @@ openspec/
 | **Scenario** | A concrete example of a requirement, typically in Given/When/Then format |
 | **Schema** | A definition of artifact types and their dependencies |
 | **Spec** | A specification describing system behavior, containing requirements and scenarios |
-| **Source of truth** | The `openspec/specs/` directory, containing the current agreed-upon behavior |
+| **Source of truth** | The `clearspec/specs/` directory, containing the current agreed-upon behavior |
 
 ## Next Steps
 

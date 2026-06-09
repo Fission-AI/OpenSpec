@@ -11,7 +11,7 @@ describe('artifact-graph/outputs', () => {
   const canonical = (targetPath: string): string => FileSystemUtils.canonicalizeExistingPath(targetPath);
 
   beforeEach(() => {
-    tempDir = path.join(os.tmpdir(), `openspec-outputs-test-${Date.now()}`);
+    tempDir = path.join(os.tmpdir(), `clearspec-outputs-test-${Date.now()}`);
     fs.mkdirSync(tempDir, { recursive: true });
   });
 

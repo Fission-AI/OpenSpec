@@ -30,7 +30,7 @@ describe('workspace legacy state compatibility', () => {
   let tempDir: string;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-workspace-legacy-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'clearspec-workspace-legacy-'));
   });
 
   afterEach(() => {
@@ -57,18 +57,18 @@ links: {}
 
     expect(WORKSPACE_LEGACY_SHARED_STATE_FILE_NAME).toBe('workspace.yaml');
     expect(WORKSPACE_LEGACY_LOCAL_STATE_FILE_NAME).toBe('local.yaml');
-    expect(WORKSPACE_LEGACY_LOCAL_STATE_IGNORE_PATTERN).toBe('.openspec-workspace/local.yaml');
+    expect(WORKSPACE_LEGACY_LOCAL_STATE_IGNORE_PATTERN).toBe('.clearspec-workspace/local.yaml');
     expect(getWorkspaceLegacySharedStatePath(workspaceRoot)).toBe(
-      path.join(workspaceRoot, '.openspec-workspace', 'workspace.yaml')
+      path.join(workspaceRoot, '.clearspec-workspace', 'workspace.yaml')
     );
     expect(getWorkspaceLegacyLocalStatePath(workspaceRoot)).toBe(
-      path.join(workspaceRoot, '.openspec-workspace', 'local.yaml')
+      path.join(workspaceRoot, '.clearspec-workspace', 'local.yaml')
     );
     expect(getWorkspaceViewStatePath(workspaceRoot)).toBe(
-      path.join(workspaceRoot, '.openspec-workspace', 'view.yaml')
+      path.join(workspaceRoot, '.clearspec-workspace', 'view.yaml')
     );
     expect(getWorkspaceLegacyLocalStatePath('D:\\repos\\platform-workspace')).toBe(
-      'D:\\repos\\platform-workspace\\.openspec-workspace\\local.yaml'
+      'D:\\repos\\platform-workspace\\.clearspec-workspace\\local.yaml'
     );
   });
 

@@ -9,7 +9,7 @@ import { ContextStoreError } from './errors.js';
 
 const fs = nodeFs.promises;
 
-export const CONTEXT_STORE_METADATA_DIR_NAME = '.openspec-store';
+export const CONTEXT_STORE_METADATA_DIR_NAME = '.clearspec-store';
 export const CONTEXT_STORE_METADATA_FILE_NAME = 'store.yaml';
 export const CONTEXT_STORES_DIR_NAME = 'context-stores';
 export const CONTEXT_STORE_REGISTRY_FILE_NAME = 'registry.yaml';
@@ -208,7 +208,7 @@ function contextStoreStateDiagnostic(label: string): {
     return {
       code: 'invalid_context_store_metadata',
       target: 'context_store.metadata',
-      fix: 'Repair .openspec-store/store.yaml.',
+      fix: 'Repair .clearspec-store/store.yaml.',
     };
   }
 

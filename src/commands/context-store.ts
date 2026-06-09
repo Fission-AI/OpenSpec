@@ -282,7 +282,7 @@ async function resolveSetupInput(
       'context_store_setup_id_required',
       {
         target: 'context_store.id',
-        fix: 'openspec context-store setup <id> --path /path/to/context-store --json',
+        fix: 'clearspec context-store setup <id> --path /path/to/context-store --json',
       }
     );
   }
@@ -340,7 +340,7 @@ async function confirmSetup(
   const { confirm } = await import('@inquirer/prompts');
 
   console.log('');
-  console.log('OpenSpec will create:');
+  console.log('ClearSpec will create:');
   console.log('');
   console.log(`  Context store: ${prepared.id}`);
   console.log(`  Location: ${formatPathForHuman(prepared.root)}`);
@@ -373,7 +373,7 @@ async function confirmRemove(id: string, root: string, options: ContextStoreRemo
       'context_store_remove_confirmation_required',
       {
         target: 'context_store.root',
-        fix: `openspec context-store remove ${id} --yes`,
+        fix: `clearspec context-store remove ${id} --yes`,
       }
     );
   }
@@ -432,12 +432,12 @@ function printListHuman(payload: ContextStoreListOutput): void {
     console.log('No context stores registered.');
     console.log('');
     console.log('Next:');
-    console.log('  openspec context-store setup team-context');
-    console.log('  openspec context-store register /path/to/context-store');
+    console.log('  clearspec context-store setup team-context');
+    console.log('  clearspec context-store register /path/to/context-store');
     return;
   }
 
-  console.log(`OpenSpec context stores (${payload.context_stores.length})`);
+  console.log(`ClearSpec context stores (${payload.context_stores.length})`);
   console.log('');
   console.log(`${'ID'.padEnd(16)}Location`);
   for (const store of payload.context_stores) {
@@ -641,7 +641,7 @@ export function registerContextStoreCommand(program: Command): void {
   contextStore
     .command('setup [id]')
     .description('Create and register a local context store')
-    .option('--path <path>', 'Context store folder path; defaults to OpenSpec managed local data')
+    .option('--path <path>', 'Context store folder path; defaults to ClearSpec managed local data')
     .option('--init-git', 'Initialize a Git repository in the context store')
     .option('--no-init-git', 'Do not initialize a Git repository')
     .option('--json', 'Output as JSON')

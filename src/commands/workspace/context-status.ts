@@ -45,8 +45,8 @@ export async function collectWorkspaceContextStatuses(
         {
           target: 'workspace.context.store',
           fix: context.store.selector.kind === 'registry'
-            ? 'openspec context-store doctor'
-            : `Check the path in .openspec-workspace/view.yaml or run openspec initiative show ${initiativeId} ${selector}`,
+            ? 'clearspec context-store doctor'
+            : `Check the path in .clearspec-workspace/view.yaml or run clearspec initiative show ${initiativeId} ${selector}`,
         }
       ),
     ];
@@ -69,7 +69,7 @@ export async function collectWorkspaceContextStatuses(
           `Workspace initiative '${contextStoreLabel}/${initiativeId}' was not found.`,
           {
             target: 'workspace.context.initiative',
-            fix: `openspec initiative show ${initiativeId} ${selector}`,
+            fix: `clearspec initiative show ${initiativeId} ${selector}`,
           }
         ),
       ];
@@ -85,7 +85,7 @@ export async function collectWorkspaceContextStatuses(
         `Workspace initiative '${contextStoreLabel}/${initiativeId}' could not be read: ${asErrorMessage(error)}`,
         {
           target: 'workspace.context.initiative',
-          fix: `openspec initiative show ${initiativeId} ${selector}`,
+          fix: `clearspec initiative show ${initiativeId} ${selector}`,
         }
       ),
     ];

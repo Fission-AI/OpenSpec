@@ -8,7 +8,7 @@ import {
 } from '../context-store/index.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 
-export const WORKSPACE_METADATA_DIR_NAME = '.openspec-workspace';
+export const WORKSPACE_METADATA_DIR_NAME = '.clearspec-workspace';
 export const WORKSPACE_VIEW_STATE_FILE_NAME = 'view.yaml';
 export const WORKSPACE_CHANGES_DIR_NAME = 'changes';
 export const WORKSPACE_CODE_WORKSPACE_EXTENSION = '.code-workspace';
@@ -96,7 +96,7 @@ export function getWorkspaceCodeWorkspacePath(workspaceRoot: string, workspaceNa
 /**
  * @deprecated Managed workspaces no longer create portable ignore rules.
  * This compatibility shim remains for callers that still ask which ignore
- * patterns OpenSpec owns for workspace-local generated files.
+ * patterns ClearSpec owns for workspace-local generated files.
  */
 export function getWorkspacePortableIgnorePatterns(_workspaceName?: string): string[] {
   return [];

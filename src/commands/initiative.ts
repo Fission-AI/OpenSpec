@@ -130,7 +130,7 @@ function requireNonBlankOption(
   if (value === undefined || value.trim().length === 0) {
     throw new InitiativeCliError(`Pass --${flagName} <value>.`, code, {
       target,
-      fix: `openspec initiative create <id> --${flagName} <value>`,
+      fix: `clearspec initiative create <id> --${flagName} <value>`,
     });
   }
 
@@ -144,7 +144,7 @@ function requireInitiativeId(
   if (id === undefined || id.trim().length === 0) {
     throw new InitiativeCliError('Pass an initiative id.', 'initiative_id_required', {
       target: 'initiative.id',
-      fix: `openspec initiative ${commandName} <id>`,
+      fix: `clearspec initiative ${commandName} <id>`,
     });
   }
 
@@ -224,7 +224,7 @@ function printCreateHuman(payload: InitiativeCreateOutput): void {
   }
   console.log('');
   console.log('Next useful commands:');
-  console.log(`  openspec initiative list ${formatContextStoreSelector(payload.context_store)}`);
+  console.log(`  clearspec initiative list ${formatContextStoreSelector(payload.context_store)}`);
 }
 
 function printTableHeader(includeStore: boolean): void {
@@ -255,7 +255,7 @@ function printListStatuses(statuses: InitiativeDiagnostic[]): void {
 
 function printListHuman(payload: InitiativeListOutput): void {
   if (payload.context_store) {
-    console.log(`OpenSpec initiatives in ${payload.context_store.id} (${payload.initiatives.length})`);
+    console.log(`ClearSpec initiatives in ${payload.context_store.id} (${payload.initiatives.length})`);
 
     if (payload.initiatives.length === 0) {
       console.log('');
@@ -287,7 +287,7 @@ function printListHuman(payload: InitiativeListOutput): void {
   }
 
   console.log(
-    `OpenSpec initiatives (${payload.initiatives.length} across ${payload.context_stores.length} stores)`
+    `ClearSpec initiatives (${payload.initiatives.length} across ${payload.context_stores.length} stores)`
   );
   console.log('');
   printTableHeader(true);
@@ -302,7 +302,7 @@ function printShowHuman(payload: InitiativeShowOutput): void {
     return;
   }
 
-  console.log(`OpenSpec initiative: ${payload.initiative.title}`);
+  console.log(`ClearSpec initiative: ${payload.initiative.title}`);
   console.log('');
   console.log(`ID: ${payload.initiative.id}`);
   console.log(`Summary: ${payload.initiative.summary}`);

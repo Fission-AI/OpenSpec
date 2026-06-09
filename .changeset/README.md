@@ -25,7 +25,7 @@ Use this structure for your changeset content:
 
 ```markdown
 ---
-"@fission-ai/openspec": patch
+"clearspec": patch
 ---
 
 ### New Features

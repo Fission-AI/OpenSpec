@@ -14,7 +14,7 @@ import { CORE_WORKFLOWS } from '../../../src/core/profiles.js';
 
 function withDefaultGlobalConfig<T>(callback: () => T): T {
   const previousConfigHome = process.env.XDG_CONFIG_HOME;
-  const configHome = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-workspace-skills-'));
+  const configHome = fs.mkdtempSync(path.join(os.tmpdir(), 'clearspec-workspace-skills-'));
 
   process.env.XDG_CONFIG_HOME = configHome;
 

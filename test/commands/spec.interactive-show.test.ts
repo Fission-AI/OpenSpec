@@ -6,8 +6,8 @@ import { execSync } from 'child_process';
 describe('spec show (interactive behavior)', () => {
   const projectRoot = process.cwd();
   const testDir = path.join(projectRoot, 'test-spec-show-tmp');
-  const specsDir = path.join(testDir, 'openspec', 'specs');
-  const bin = path.join(projectRoot, 'bin', 'openspec.js');
+  const specsDir = path.join(testDir, 'clearspec', 'specs');
+  const bin = path.join(projectRoot, 'bin', 'clearspec.js');
 
 
   beforeEach(async () => {

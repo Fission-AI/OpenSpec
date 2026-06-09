@@ -93,7 +93,7 @@ export class MarkdownParser {
       requirements,
       metadata: {
         version: '1.0.0',
-        format: 'openspec',
+        format: 'clearspec',
       },
     };
   }
@@ -120,7 +120,7 @@ export class MarkdownParser {
       deltas,
       metadata: {
         version: '1.0.0',
-        format: 'openspec-change',
+        format: 'clearspec-change',
       },
     };
   }

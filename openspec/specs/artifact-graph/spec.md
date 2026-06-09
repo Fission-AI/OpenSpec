@@ -154,7 +154,7 @@ The artifact graph SHALL provide a built-in workspace planning schema for worksp
 
 #### Scenario: Workspace nested spec paths stay workspace-scoped
 - **GIVEN** a workspace change has spec files under `specs/<area-or-repo>/<capability>/spec.md`
-- **WHEN** OpenSpec reports status or artifact instructions for the workspace change
+- **WHEN** ClearSpec reports status or artifact instructions for the workspace change
 - **THEN** it SHALL preserve the concrete nested workspace spec paths
 - **AND** it SHALL not treat those files as repo-local specs to sync or archive without an explicit affected-area implementation context
 

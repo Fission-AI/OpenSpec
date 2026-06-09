@@ -84,10 +84,10 @@ The system SHALL indicate `source: 'project'` for project-local schemas in `list
 
 ### Requirement: Schemas command shows source
 
-The `openspec schemas` command SHALL display the source of each schema.
+The `clearspec schemas` command SHALL display the source of each schema.
 
 #### Scenario: Display format includes source
-- **WHEN** user runs `openspec schemas`
+- **WHEN** user runs `clearspec schemas`
 - **THEN** the output SHALL show each schema with its source label (project, user, or package)
 
 ### Requirement: Use config schema as default for new changes
@@ -95,15 +95,15 @@ The `openspec schemas` command SHALL display the source of each schema.
 The system SHALL use the schema field from `openspec/config.yaml` as the default when creating new changes without explicit `--schema` flag and no planning-home default applies.
 
 #### Scenario: Create change without --schema flag and config exists
-- **WHEN** user runs `openspec new change foo`, no planning-home default applies, and config contains `schema: "tdd"`
+- **WHEN** user runs `clearspec new change foo`, no planning-home default applies, and config contains `schema: "tdd"`
 - **THEN** system creates change with schema "tdd"
 
 #### Scenario: Create change without --schema flag and no config
-- **WHEN** user runs `openspec new change foo`, no planning-home default applies, and no config file exists
+- **WHEN** user runs `clearspec new change foo`, no planning-home default applies, and no config file exists
 - **THEN** system creates change with default schema "spec-driven"
 
 #### Scenario: Create change with explicit --schema flag
-- **WHEN** user runs `openspec new change foo --schema custom` and config contains `schema: "tdd"`
+- **WHEN** user runs `clearspec new change foo --schema custom` and config contains `schema: "tdd"`
 - **THEN** system creates change with schema "custom" (CLI flag overrides config)
 
 ### Requirement: Resolve schema with updated precedence order
@@ -178,7 +178,7 @@ The system SHALL continue to work with existing changes that do not have project
 Schema resolution SHALL support the built-in workspace planning schema.
 
 #### Scenario: Listing workspace planning schema
-- **WHEN** a user runs `openspec schemas`
+- **WHEN** a user runs `clearspec schemas`
 - **THEN** the output SHALL include `workspace-planning`
 - **AND** it SHALL identify it as a package-provided schema unless overridden by a higher-precedence schema
 
@@ -190,12 +190,12 @@ Schema resolution SHALL support the built-in workspace planning schema.
 - **GIVEN** the command creates a change in a workspace planning home
 - **AND** the user did not pass an explicit `--schema`
 - **AND** no change metadata schema applies to the new change
-- **WHEN** OpenSpec resolves the schema for the new change
+- **WHEN** ClearSpec resolves the schema for the new change
 - **THEN** it SHALL use the planning-home default schema `workspace-planning`
 - **AND** it SHALL use that planning-home default before any project or global config schema value
 
 #### Scenario: Explicit schema override for workspace change
 - **GIVEN** the command creates a change in a workspace planning home
 - **WHEN** the user passes an explicit `--schema <name>`
-- **THEN** OpenSpec SHALL use the explicitly requested schema
+- **THEN** ClearSpec SHALL use the explicitly requested schema
 - **AND** it SHALL validate that schema using normal schema resolution

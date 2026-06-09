@@ -28,7 +28,7 @@ describe('context store registry facade', () => {
   let tempDir: string;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-context-store-registry-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'clearspec-context-store-registry-'));
   });
 
   afterEach(() => {

@@ -4,12 +4,12 @@
  * Postinstall script that hints about shell completions
  *
  * Completion installation is opt-in: the user must run
- * `openspec completion install` explicitly. This script only
+ * `clearspec completion install` explicitly. This script only
  * prints a one-line tip after npm install.
  *
  * The tip is suppressed when:
  * - CI=true environment variable is set
- * - OPENSPEC_NO_COMPLETIONS=1 environment variable is set
+ * - CLEARSPEC_NO_COMPLETIONS=1 environment variable is set
  * - dist/ directory doesn't exist (dev setup scenario)
  *
  * The script never fails npm install - all errors are caught and handled gracefully.
@@ -32,8 +32,8 @@ function shouldSkipInstallation() {
   }
 
   // Skip if user opted out
-  if (process.env.OPENSPEC_NO_COMPLETIONS === '1') {
-    return { skip: true, reason: 'OPENSPEC_NO_COMPLETIONS=1 set' };
+  if (process.env.CLEARSPEC_NO_COMPLETIONS === '1') {
+    return { skip: true, reason: 'CLEARSPEC_NO_COMPLETIONS=1 set' };
   }
 
   return { skip: false };
@@ -70,7 +70,7 @@ async function main() {
     }
 
     // Completions are opt-in — just print a hint
-    console.log(`\nTip: Run 'openspec completion install' for shell completions`);
+    console.log(`\nTip: Run 'clearspec completion install' for shell completions`);
   } catch (error) {
     // Fail gracefully - never break npm install
   }

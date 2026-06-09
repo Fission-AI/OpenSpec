@@ -6,7 +6,7 @@ context: |
   CLI framework: Commander.js
 
   Product language:
-  - Write OpenSpec proposals and specs in user-facing product behavior language
+  - Write ClearSpec proposals and specs in user-facing product behavior language
   - Requirements should describe the experience, observable behavior, and product contract
   - Avoid implementation-negative SHALL statements when a positive user outcome can express the same rule
   - Put internal mechanisms in design.md or tasks.md unless the mechanism is itself part of the user-facing contract

@@ -12,17 +12,17 @@ type WorkflowId = (typeof ALL_WORKFLOWS)[number];
  * Maps workflow IDs to their skill directory names.
  */
 export const WORKFLOW_TO_SKILL_DIR: Record<WorkflowId, string> = {
-  'explore': 'openspec-explore',
-  'new': 'openspec-new-change',
-  'continue': 'openspec-continue-change',
-  'apply': 'openspec-apply-change',
-  'ff': 'openspec-ff-change',
-  'sync': 'openspec-sync-specs',
-  'archive': 'openspec-archive-change',
-  'bulk-archive': 'openspec-bulk-archive-change',
-  'verify': 'openspec-verify-change',
-  'onboard': 'openspec-onboard',
-  'propose': 'openspec-propose',
+  'explore': 'clearspec-explore',
+  'new': 'clearspec-new-change',
+  'continue': 'clearspec-continue-change',
+  'apply': 'clearspec-apply-change',
+  'ff': 'clearspec-ff-change',
+  'sync': 'clearspec-sync-specs',
+  'archive': 'clearspec-archive-change',
+  'bulk-archive': 'clearspec-bulk-archive-change',
+  'verify': 'clearspec-verify-change',
+  'onboard': 'clearspec-onboard',
+  'propose': 'clearspec-propose',
 };
 
 function toKnownWorkflows(workflows: readonly string[]): WorkflowId[] {
@@ -33,7 +33,7 @@ function toKnownWorkflows(workflows: readonly string[]): WorkflowId[] {
 }
 
 /**
- * Checks whether a tool has at least one generated OpenSpec command file.
+ * Checks whether a tool has at least one generated ClearSpec command file.
  */
 export function toolHasAnyConfiguredCommand(projectPath: string, toolId: string): boolean {
   const adapter = CommandAdapterRegistry.get(toolId);

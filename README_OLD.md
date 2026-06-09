@@ -1,42 +1,42 @@
 <p align="center">
-  <a href="https://github.com/Fission-AI/OpenSpec">
+  <a href="https://github.com/<you>/clearspec">
     <picture>
-      <source srcset="assets/openspec_pixel_dark.svg" media="(prefers-color-scheme: dark)">
-      <source srcset="assets/openspec_pixel_light.svg" media="(prefers-color-scheme: light)">
-      <img src="assets/openspec_pixel_light.svg" alt="OpenSpec logo" height="64">
+      <source srcset="assets/clearspec_pixel_dark.svg" media="(prefers-color-scheme: dark)">
+      <source srcset="assets/clearspec_pixel_light.svg" media="(prefers-color-scheme: light)">
+      <img src="assets/clearspec_pixel_light.svg" alt="ClearSpec logo" height="64">
     </picture>
   </a>
   
 </p>
 <p align="center">Spec-driven development for AI coding assistants.</p>
 <p align="center">
-  <a href="https://github.com/Fission-AI/OpenSpec/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Fission-AI/OpenSpec/actions/workflows/ci.yml/badge.svg" /></a>
-  <a href="https://www.npmjs.com/package/@fission-ai/openspec"><img alt="npm version" src="https://img.shields.io/npm/v/@fission-ai/openspec?style=flat-square" /></a>
-  <a href="https://nodejs.org/"><img alt="node version" src="https://img.shields.io/node/v/@fission-ai/openspec?style=flat-square" /></a>
+  <a href="https://github.com/<you>/clearspec/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/<you>/clearspec/actions/workflows/ci.yml/badge.svg" /></a>
+  <a href="https://www.npmjs.com/package/clearspec"><img alt="npm version" src="https://img.shields.io/npm/v/clearspec?style=flat-square" /></a>
+  <a href="https://nodejs.org/"><img alt="node version" src="https://img.shields.io/node/v/clearspec?style=flat-square" /></a>
   <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" /></a>
   <a href="https://conventionalcommits.org"><img alt="Conventional Commits" src="https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg?style=flat-square" /></a>
   <a href="https://discord.gg/YctCnvvshC"><img alt="Discord" src="https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?logo=discord&logoColor=white&style=flat-square" /></a>
 </p>
 
 <p align="center">
-  <img src="assets/openspec_dashboard.png" alt="OpenSpec dashboard preview" width="90%">
+  <img src="assets/clearspec_dashboard.png" alt="ClearSpec dashboard preview" width="90%">
 </p>
 
 <p align="center">
-  Follow <a href="https://x.com/0xTab">@0xTab on X</a> for updates · Join the <a href="https://discord.gg/YctCnvvshC">OpenSpec Discord</a> for help and questions.
+  Follow <a href="https://x.com/0xTab">@0xTab on X</a> for updates · Join the <a href="https://discord.gg/YctCnvvshC">ClearSpec Discord</a> for help and questions.
 </p>
 
 <p align="center">
-  <sub>🧪 <strong>New:</strong> <a href="docs/opsx.md">OPSX Workflow</a> — schema-driven, hackable, fluid. Iterate on workflows without code changes.</sub>
+  <sub>🧪 <strong>New:</strong> <a href="docs/clsx.md">OPSX Workflow</a> — schema-driven, hackable, fluid. Iterate on workflows without code changes.</sub>
 </p>
 
-# OpenSpec
+# ClearSpec
 
-OpenSpec aligns humans and AI coding assistants with spec-driven development so you agree on what to build before any code is written. **No API keys required.**
+ClearSpec aligns humans and AI coding assistants with spec-driven development so you agree on what to build before any code is written. **No API keys required.**
 
-## Why OpenSpec?
+## Why ClearSpec?
 
-AI coding assistants are powerful but unpredictable when requirements live in chat history. OpenSpec adds a lightweight specification workflow that locks intent before implementation, giving you deterministic, reviewable outputs.
+AI coding assistants are powerful but unpredictable when requirements live in chat history. ClearSpec adds a lightweight specification workflow that locks intent before implementation, giving you deterministic, reviewable outputs.
 
 Key outcomes:
 - Human and AI stakeholders agree on specs before work begins.
@@ -44,14 +44,14 @@ Key outcomes:
 - Shared visibility into what's proposed, active, or archived.
 - Works with the AI tools you already use: custom slash commands where supported, context rules everywhere else.
 
-## How OpenSpec compares (at a glance)
+## How ClearSpec compares (at a glance)
 
 - **Lightweight**: simple workflow, no API keys, minimal setup.
-- **Brownfield-first**: works great beyond 0→1. OpenSpec separates the source of truth from proposals: `openspec/specs/` (current truth) and `openspec/changes/` (proposed updates). This keeps diffs explicit and manageable across features.
+- **Brownfield-first**: works great beyond 0→1. ClearSpec separates the source of truth from proposals: `openspec/specs/` (current truth) and `openspec/changes/` (proposed updates). This keeps diffs explicit and manageable across features.
 - **Change tracking**: proposals, tasks, and spec deltas live together; archiving merges the approved updates back into specs.
-- **Compared to spec-kit & Kiro**: those shine for brand-new features (0→1). OpenSpec also excels when modifying existing behavior (1→n), especially when updates span multiple specs.
+- **Compared to spec-kit & Kiro**: those shine for brand-new features (0→1). ClearSpec also excels when modifying existing behavior (1→n), especially when updates span multiple specs.
 
-See the full comparison in [How OpenSpec Compares](#how-openspec-compares).
+See the full comparison in [How ClearSpec Compares](#how-clearspec-compares).
 
 ## How It Works
 
@@ -92,40 +92,40 @@ See the full comparison in [How OpenSpec Compares](#how-openspec-compares).
 <details>
 <summary><strong>Native Slash Commands</strong> (click to expand)</summary>
 
-These tools have built-in OpenSpec commands. Select the OpenSpec integration when prompted.
+These tools have built-in ClearSpec commands. Select the ClearSpec integration when prompted.
 
 | Tool | Commands |
 |------|----------|
-| **Amazon Q Developer** | `@openspec-proposal`, `@openspec-apply`, `@openspec-archive` (`.amazonq/prompts/`) |
-| **Antigravity** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.agent/workflows/`) |
-| **Auggie (Augment CLI)** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.augment/commands/`) |
-| **Claude Code** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` |
-| **Cline** | Workflows in `.clinerules/workflows/` directory (`.clinerules/workflows/openspec-*.md`) |
-| **CodeBuddy Code (CLI)** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` (`.codebuddy/commands/`) — see [docs](https://www.codebuddy.ai/cli) |
-| **Codex** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (global: `~/.codex/prompts`, auto-installed) |
-| **Continue** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.continue/prompts/`) |
-| **CoStrict** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.cospec/openspec/commands/`) — see [docs](https://costrict.ai)|
-| **Crush** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.crush/commands/openspec/`) |
-| **Cursor** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` |
-| **Factory Droid** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.factory/commands/`) |
-| **Gemini CLI** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` (`.gemini/commands/openspec/`) |
-| **GitHub Copilot** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.github/prompts/`) |
-| **iFlow (iflow-cli)** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.iflow/commands/`) |
-| **Kilo Code** | `/openspec-proposal.md`, `/openspec-apply.md`, `/openspec-archive.md` (`.kilocode/workflows/`) |
-| **OpenCode** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` |
-| **Qoder** | `/openspec:proposal`, `/openspec:apply`, `/openspec:archive` (`.qoder/commands/openspec/`) — see [docs](https://qoder.com) |
-| **Qwen Code** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.qwen/commands/`) |
-| **RooCode** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.roo/commands/`) |
-| **Windsurf** | `/openspec-proposal`, `/openspec-apply`, `/openspec-archive` (`.windsurf/workflows/`) |
+| **Amazon Q Developer** | `@clearspec-proposal`, `@clearspec-apply`, `@clearspec-archive` (`.amazonq/prompts/`) |
+| **Antigravity** | `/clearspec-proposal`, `/clearspec-apply`, `/clearspec-archive` (`.agent/workflows/`) |
+| **Auggie (Augment CLI)** | `/clearspec-proposal`, `/clearspec-apply`, `/clearspec-archive` (`.augment/commands/`) |
+| **Claude Code** | `/clearspec:proposal`, `/clearspec:apply`, `/clearspec:archive` |
+| **Cline** | Workflows in `.clinerules/workflows/` directory (`.clinerules/workflows/clearspec-*.md`) |
+| **CodeBuddy Code (CLI)** | `/clearspec:proposal`, `/clearspec:apply`, `/clearspec:archive` (`.codebuddy/commands/`) — see [docs](https://www.codebuddy.ai/cli) |
+| **Codex** | `/clearspec-proposal`, `/clearspec-apply`, `/clearspec-archive` (global: `~/.codex/prompts`, auto-installed) |
+| **Continue** | `/clearspec-proposal`, `/clearspec-apply`, `/clearspec-archive` (`.continue/prompts/`) |
+| **CoStrict** | `/clearspec-proposal`, `/clearspec-apply`, `/clearspec-archive` (`.cospec/openspec/commands/`) — see [docs](https://costrict.ai)|
+| **Crush** | `/clearspec-proposal`, `/clearspec-apply`, `/clearspec-archive` (`.crush/commands/openspec/`) |
+| **Cursor** | `/clearspec-proposal`, `/clearspec-apply`, `/clearspec-archive` |
+| **Factory Droid** | `/clearspec-proposal`, `/clearspec-apply`, `/clearspec-archive` (`.factory/commands/`) |
+| **Gemini CLI** | `/clearspec:proposal`, `/clearspec:apply`, `/clearspec:archive` (`.gemini/commands/openspec/`) |
+| **GitHub Copilot** | `/clearspec-proposal`, `/clearspec-apply`, `/clearspec-archive` (`.github/prompts/`) |
+| **iFlow (iflow-cli)** | `/clearspec-proposal`, `/clearspec-apply`, `/clearspec-archive` (`.iflow/commands/`) |
+| **Kilo Code** | `/clearspec-proposal.md`, `/clearspec-apply.md`, `/clearspec-archive.md` (`.kilocode/workflows/`) |
+| **OpenCode** | `/clearspec-proposal`, `/clearspec-apply`, `/clearspec-archive` |
+| **Qoder** | `/clearspec:proposal`, `/clearspec:apply`, `/clearspec:archive` (`.qoder/commands/openspec/`) — see [docs](https://qoder.com) |
+| **Qwen Code** | `/clearspec-proposal`, `/clearspec-apply`, `/clearspec-archive` (`.qwen/commands/`) |
+| **RooCode** | `/clearspec-proposal`, `/clearspec-apply`, `/clearspec-archive` (`.roo/commands/`) |
+| **Windsurf** | `/clearspec-proposal`, `/clearspec-apply`, `/clearspec-archive` (`.windsurf/workflows/`) |
 
-Kilo Code discovers team workflows automatically. Save the generated files under `.kilocode/workflows/` and trigger them from the command palette with `/openspec-proposal.md`, `/openspec-apply.md`, or `/openspec-archive.md`.
+Kilo Code discovers team workflows automatically. Save the generated files under `.kilocode/workflows/` and trigger them from the command palette with `/clearspec-proposal.md`, `/clearspec-apply.md`, or `/clearspec-archive.md`.
 
 </details>
 
 <details>
 <summary><strong>AGENTS.md Compatible</strong> (click to expand)</summary>
 
-These tools automatically read workflow instructions from `openspec/AGENTS.md`. Ask them to follow the OpenSpec workflow if they need a reminder. Learn more about the [AGENTS.md convention](https://agents.md/).
+These tools automatically read workflow instructions from `openspec/AGENTS.md`. Ask them to follow the ClearSpec workflow if they need a reminder. Learn more about the [AGENTS.md convention](https://agents.md/).
 
 | Tools |
 |-------|
@@ -143,24 +143,24 @@ These tools automatically read workflow instructions from `openspec/AGENTS.md`. 
 **Option A: Using npm**
 
 ```bash
-npm install -g @fission-ai/openspec@latest
+npm install -g clearspec@latest
 ```
 
 Verify installation:
 ```bash
-openspec --version
+clearspec --version
 ```
 
 **Option B: Using Nix (NixOS and Nix package manager)**
 
-Run OpenSpec directly without installation:
+Run ClearSpec directly without installation:
 ```bash
-nix run github:Fission-AI/OpenSpec -- init
+nix run github:<you>/clearspec -- init
 ```
 
 Or install to your profile:
 ```bash
-nix profile install github:Fission-AI/OpenSpec
+nix profile install github:<you>/clearspec
 ```
 
 Or add to your development environment in `flake.nix`:
@@ -168,12 +168,12 @@ Or add to your development environment in `flake.nix`:
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    openspec.url = "github:Fission-AI/OpenSpec";
+    clearspec.url = "github:<you>/clearspec";
   };
 
-  outputs = { nixpkgs, openspec, ... }: {
+  outputs = { nixpkgs, clearspec, ... }: {
     devShells.x86_64-linux.default = nixpkgs.legacyPackages.x86_64-linux.mkShell {
-      buildInputs = [ openspec.packages.x86_64-linux.default ];
+      buildInputs = [ clearspec.packages.x86_64-linux.default ];
     };
   };
 }
@@ -181,10 +181,10 @@ Or add to your development environment in `flake.nix`:
 
 Verify installation:
 ```bash
-openspec --version
+clearspec --version
 ```
 
-#### Step 2: Initialize OpenSpec in your project
+#### Step 2: Initialize ClearSpec in your project
 
 Navigate to your project directory:
 ```bash
@@ -193,23 +193,23 @@ cd my-project
 
 Run the initialization:
 ```bash
-openspec init
+clearspec init
 ```
 
 **What happens during initialization:**
 - You'll be prompted to pick any natively supported AI tools (Claude Code, CodeBuddy, Cursor, OpenCode, Qoder,etc.); other assistants always rely on the shared `AGENTS.md` stub
-- OpenSpec automatically configures slash commands for the tools you choose and always writes a managed `AGENTS.md` hand-off at the project root
+- ClearSpec automatically configures slash commands for the tools you choose and always writes a managed `AGENTS.md` hand-off at the project root
 - A new `openspec/` directory structure is created in your project
 
 **After setup:**
-- Primary AI tools can trigger `/openspec` workflows without additional configuration
-- Run `openspec list` to verify the setup and view any active changes
+- Primary AI tools can trigger `/clearspec` workflows without additional configuration
+- Run `clearspec list` to verify the setup and view any active changes
 - If your coding assistant doesn't surface the new slash commands right away, restart it. Slash commands are loaded at startup,
   so a fresh launch ensures they appear
 
 ### Optional: Populate Project Context
 
-After `openspec init` completes, you'll receive a suggested prompt to help populate your project context:
+After `clearspec init` completes, you'll receive a suggested prompt to help populate your project context:
 
 ```text
 Populate your project context:
@@ -220,16 +220,16 @@ Use `openspec/project.md` to define project-level conventions, standards, archit
 
 ### Create Your First Change
 
-Here's a real example showing the complete OpenSpec workflow. This works with any AI tool. Those with native slash commands will recognize the shortcuts automatically.
+Here's a real example showing the complete ClearSpec workflow. This works with any AI tool. Those with native slash commands will recognize the shortcuts automatically.
 
 #### 1. Draft the Proposal
 Start by asking your AI to create a change proposal:
 
 ```text
-You: Create an OpenSpec change proposal for adding profile search filters by role and team
-     (Shortcut for tools with slash commands: /openspec:proposal Add profile search filters)
+You: Create a ClearSpec change proposal for adding profile search filters by role and team
+     (Shortcut for tools with slash commands: /clearspec:proposal Add profile search filters)
 
-AI:  I'll create an OpenSpec change proposal for profile filters.
+AI:  I'll create a ClearSpec change proposal for profile filters.
      *Scaffolds openspec/changes/add-profile-filters/ with proposal.md, tasks.md, spec deltas.*
 ```
 
@@ -237,9 +237,9 @@ AI:  I'll create an OpenSpec change proposal for profile filters.
 Check that the change was created correctly and review the proposal:
 
 ```bash
-$ openspec list                             # Confirm the change folder exists
-$ openspec validate add-profile-filters     # Validate spec formatting
-$ openspec show add-profile-filters         # Review proposal, tasks, and spec delta
+$ clearspec list                             # Confirm the change folder exists
+$ clearspec validate add-profile-filters     # Validate spec formatting
+$ clearspec show add-profile-filters         # Review proposal, tasks, and spec delta
 ```
 
 #### 3. Refine the Specs
@@ -257,7 +257,7 @@ Once specs look good, start implementation:
 
 ```text
 You: The specs look good. Let's implement this change.
-     (Shortcut for tools with slash commands: /openspec:apply add-profile-filters)
+     (Shortcut for tools with slash commands: /clearspec:apply add-profile-filters)
 
 AI:  I'll work through the tasks in the add-profile-filters change.
      *Implements tasks from openspec/changes/add-profile-filters/tasks.md*
@@ -271,31 +271,31 @@ After implementation is complete, archive the change:
 AI:  All tasks are complete. The implementation is ready.
 
 You: Please archive the change
-     (Shortcut for tools with slash commands: /openspec:archive add-profile-filters)
+     (Shortcut for tools with slash commands: /clearspec:archive add-profile-filters)
 
 AI:  I'll archive the add-profile-filters change.
-    *Runs: openspec archive add-profile-filters --yes*
+    *Runs: clearspec archive add-profile-filters --yes*
      ✓ Change archived successfully. Specs updated. Ready for the next feature!
 ```
 
 Or run the command yourself in terminal:
 ```bash
-$ openspec archive add-profile-filters --yes  # Archive the completed change without prompts
+$ clearspec archive add-profile-filters --yes  # Archive the completed change without prompts
 ```
 
-**Note:** Tools with native slash commands (Claude Code, CodeBuddy, Cursor, Codex, Qoder, RooCode) can use the shortcuts shown. All other tools work with natural language requests to "create an OpenSpec proposal", "apply the OpenSpec change", or "archive the change".
+**Note:** Tools with native slash commands (Claude Code, CodeBuddy, Cursor, Codex, Qoder, RooCode) can use the shortcuts shown. All other tools work with natural language requests to "create a ClearSpec proposal", "apply the ClearSpec change", or "archive the change".
 
 ## Command Reference
 
 ```bash
-openspec list               # View active change folders
-openspec view               # Interactive dashboard of specs and changes
-openspec show <change>      # Display change details (proposal, tasks, spec updates)
-openspec validate <change>  # Check spec formatting and structure
-openspec archive <change> [--yes|-y]   # Move a completed change into archive/ (non-interactive with --yes)
+clearspec list               # View active change folders
+clearspec view               # Interactive dashboard of specs and changes
+clearspec show <change>      # Display change details (proposal, tasks, spec updates)
+clearspec validate <change>  # Check spec formatting and structure
+clearspec archive <change> [--yes|-y]   # Move a completed change into archive/ (non-interactive with --yes)
 ```
 
-## Example: How AI Creates OpenSpec Files
+## Example: How AI Creates ClearSpec Files
 
 When you ask your AI assistant to "add two-factor authentication", it creates:
 
@@ -364,7 +364,7 @@ The system MUST require a second factor during login.
 
 **Important:** You don't create these files manually. Your AI assistant generates them based on your requirements and the existing codebase.
 
-## Understanding OpenSpec Files
+## Understanding ClearSpec Files
 
 ### Delta Format
 
@@ -379,34 +379,34 @@ Deltas are "patches" that show how specs change:
 - Every requirement needs at least one `#### Scenario:` block
 - Use SHALL/MUST in requirement text
 
-## How OpenSpec Compares
+## How ClearSpec Compares
 
 ### vs. spec-kit
-OpenSpec’s two-folder model (`openspec/specs/` for the current truth, `openspec/changes/` for proposed updates) keeps state and diffs separate. This scales when you modify existing features or touch multiple specs. spec-kit is strong for greenfield/0→1 but provides less structure for cross-spec updates and evolving features.
+ClearSpec’s two-folder model (`openspec/specs/` for the current truth, `openspec/changes/` for proposed updates) keeps state and diffs separate. This scales when you modify existing features or touch multiple specs. spec-kit is strong for greenfield/0→1 but provides less structure for cross-spec updates and evolving features.
 
 ### vs. Kiro.dev
-OpenSpec groups every change for a feature in one folder (`openspec/changes/feature-name/`), making it easy to track related specs, tasks, and designs together. Kiro spreads updates across multiple spec folders, which can make feature tracking harder.
+ClearSpec groups every change for a feature in one folder (`openspec/changes/feature-name/`), making it easy to track related specs, tasks, and designs together. Kiro spreads updates across multiple spec folders, which can make feature tracking harder.
 
 ### vs. No Specs
-Without specs, AI coding assistants generate code from vague prompts, often missing requirements or adding unwanted features. OpenSpec brings predictability by agreeing on the desired behavior before any code is written.
+Without specs, AI coding assistants generate code from vague prompts, often missing requirements or adding unwanted features. ClearSpec brings predictability by agreeing on the desired behavior before any code is written.
 
 ## Team Adoption
 
-1. **Initialize OpenSpec** – Run `openspec init` in your repo.
+1. **Initialize ClearSpec** – Run `clearspec init` in your repo.
 2. **Start with new features** – Ask your AI to capture upcoming work as change proposals.
 3. **Grow incrementally** – Each change archives into living specs that document your system.
 4. **Stay flexible** – Different teammates can use Claude Code, CodeBuddy, Cursor, or any AGENTS.md-compatible tool while sharing the same specs.
 
-Run `openspec update` whenever someone switches tools so your agents pick up the latest instructions and slash-command bindings.
+Run `clearspec update` whenever someone switches tools so your agents pick up the latest instructions and slash-command bindings.
 
-## Updating OpenSpec
+## Updating ClearSpec
 
 1. **Upgrade the package**
    ```bash
-   npm install -g @fission-ai/openspec@latest
+   npm install -g clearspec@latest
    ```
 2. **Refresh agent instructions**
-   - Run `openspec update` inside each project to regenerate AI guidance and ensure the latest slash commands are active.
+   - Run `clearspec update` inside each project to regenerate AI guidance and ensure the latest slash commands are active.
 
 ## Experimental Features
 
@@ -434,20 +434,20 @@ You can always go back:
 
 | Command | What it does |
 |---------|--------------|
-| `/opsx:new` | Start a new change |
-| `/opsx:continue` | Create the next artifact (based on what's ready) |
-| `/opsx:ff` | Fast-forward (all planning artifacts at once) |
-| `/opsx:apply` | Implement tasks, updating artifacts as needed |
-| `/opsx:archive` | Archive when done |
+| `/clsx:new` | Start a new change |
+| `/clsx:continue` | Create the next artifact (based on what's ready) |
+| `/clsx:ff` | Fast-forward (all planning artifacts at once) |
+| `/clsx:apply` | Implement tasks, updating artifacts as needed |
+| `/clsx:archive` | Archive when done |
 
-**Setup:** `openspec experimental`
+**Setup:** `clearspec experimental`
 
-[Full documentation →](docs/opsx.md)
+[Full documentation →](docs/clsx.md)
 
 </details>
 
 <details>
-<summary><strong>Telemetry</strong> – OpenSpec collects anonymous usage stats (opt-out: <code>OPENSPEC_TELEMETRY=0</code>)</summary>
+<summary><strong>Telemetry</strong> – ClearSpec collects anonymous usage stats (opt-out: <code>OPENSPEC_TELEMETRY=0</code>)</summary>
 
 We collect only command names and version to understand usage patterns. No arguments, paths, content, or PII. Automatically disabled in CI.
 

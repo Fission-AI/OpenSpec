@@ -1,26 +1,26 @@
-# @fission-ai/openspec
+# clearspec
 
 ## 1.4.1
 
 ### Patch Changes
 
-- [#1165](https://github.com/Fission-AI/OpenSpec/pull/1165) [`0a01146`](https://github.com/Fission-AI/OpenSpec/commit/0a01146c181a3af8dbf645547bcbe20c0d48d615) Thanks [@TabishB](https://github.com/TabishB)! - Move beta workspace view state to `.openspec-workspace/view.yaml`, stop top-level `openspec update` from routing into workspace updates, and ignore foreign root `workspace.yaml` files so Dagster projects keep updating normally.
+- [#1165](https://github.com/<you>/clearspec/pull/1165) [`0a01146`](https://github.com/<you>/clearspec/commit/0a01146c181a3af8dbf645547bcbe20c0d48d615) Thanks [@TabishB](https://github.com/TabishB)! - Move beta workspace view state to `.openspec-workspace/view.yaml`, stop top-level `clearspec update` from routing into workspace updates, and ignore foreign root `workspace.yaml` files so Dagster projects keep updating normally.
 
 ## 1.4.0
 
 ### Minor Changes
 
-- [#1003](https://github.com/Fission-AI/OpenSpec/pull/1003) [`342ed43`](https://github.com/Fission-AI/OpenSpec/commit/342ed43e694abba65a3ea275f94ba3b77df85da3) Thanks [@Miss-you](https://github.com/Miss-you)! - ### New Features
+- [#1003](https://github.com/<you>/clearspec/pull/1003) [`342ed43`](https://github.com/<you>/clearspec/commit/342ed43e694abba65a3ea275f94ba3b77df85da3) Thanks [@Miss-you](https://github.com/Miss-you)! - ### New Features
 
-  - **Kimi CLI support** — OpenSpec can now initialize Kimi CLI as a supported skills-only tool using `.kimi/skills/`
+  - **Kimi CLI support** — ClearSpec can now initialize Kimi CLI as a supported skills-only tool using `.kimi/skills/`
 
   ### Other
 
-  - Added Kimi-specific docs and init coverage aligned with skill-based `/skill:openspec-*` usage
+  - Added Kimi-specific docs and init coverage aligned with skill-based `/skill:clearspec-*` usage
 
-- [#1154](https://github.com/Fission-AI/OpenSpec/pull/1154) [`aa16080`](https://github.com/Fission-AI/OpenSpec/commit/aa16080d16b70f7b26cebd465334b2e16c0e7a43) Thanks [@TabishB](https://github.com/TabishB)! - ### New Features
+- [#1154](https://github.com/<you>/clearspec/pull/1154) [`aa16080`](https://github.com/<you>/clearspec/commit/aa16080d16b70f7b26cebd465334b2e16c0e7a43) Thanks [@TabishB](https://github.com/TabishB)! - ### New Features
 
-  - **Mistral Vibe support** — OpenSpec can now initialize Mistral Vibe as a supported skills-only tool using `.vibe/skills/`
+  - **Mistral Vibe support** — ClearSpec can now initialize Mistral Vibe as a supported skills-only tool using `.vibe/skills/`
 
   ### Bug Fixes
 
@@ -29,15 +29,15 @@
 
   ### Other
 
-  - **Clearer validation hints** — When a requirement has SHALL/MUST only in its header, `openspec validate` now points you to move the keyword onto the requirement body line instead of showing the generic error
+  - **Clearer validation hints** — When a requirement has SHALL/MUST only in its header, `clearspec validate` now points you to move the keyword onto the requirement body line instead of showing the generic error
 
-- [#1030](https://github.com/Fission-AI/OpenSpec/pull/1030) [`485c97e`](https://github.com/Fission-AI/OpenSpec/commit/485c97e97d766e35dd16c02370baee2044abc4f4) Thanks [@TabishB](https://github.com/TabishB)! - ### New Features
+- [#1030](https://github.com/<you>/clearspec/pull/1030) [`485c97e`](https://github.com/<you>/clearspec/commit/485c97e97d766e35dd16c02370baee2044abc4f4) Thanks [@TabishB](https://github.com/TabishB)! - ### New Features
 
-  - Include the sync workflow in the default core profile so new installs generate `/opsx:sync` skills and commands by default.
+  - Include the sync workflow in the default core profile so new installs generate `/clsx:sync` skills and commands by default.
 
 ### Patch Changes
 
-- [#1111](https://github.com/Fission-AI/OpenSpec/pull/1111) [`7fdb177`](https://github.com/Fission-AI/OpenSpec/commit/7fdb1771585b1688597d73dde5a8bc906084d0de) Thanks [@TabishB](https://github.com/TabishB)! - ### Fixed
+- [#1111](https://github.com/<you>/clearspec/pull/1111) [`7fdb177`](https://github.com/<you>/clearspec/commit/7fdb1771585b1688597d73dde5a8bc906084d0de) Thanks [@TabishB](https://github.com/TabishB)! - ### Fixed
 
   - Preserve workspace planning detection when Windows short paths or symlink aliases resolve to a canonical workspace root.
 
@@ -45,19 +45,19 @@
 
 ### Patch Changes
 
-- [#995](https://github.com/Fission-AI/OpenSpec/pull/995) [`d1f3861`](https://github.com/Fission-AI/OpenSpec/commit/d1f3861d9ec694cc924b042b5da01963dcf93137) Thanks [@TabishB](https://github.com/TabishB)! - ### Bug Fixes
+- [#995](https://github.com/<you>/clearspec/pull/995) [`d1f3861`](https://github.com/<you>/clearspec/commit/d1f3861d9ec694cc924b042b5da01963dcf93137) Thanks [@TabishB](https://github.com/TabishB)! - ### Bug Fixes
 
   - **Canonical artifact paths** — Workflow artifact paths are now resolved via the native `realpath`, so symlinks and case-insensitive filesystems no longer cause path mismatches during apply and archive.
   - **Glob apply instructions** — Apply instructions with glob artifact outputs now resolve correctly, and literal artifact outputs are enforced to be file paths.
   - **Hidden main spec requirements** — Requirements nested inside fenced code blocks or otherwise hidden in main specs are now detected during validation.
   - **Clean `--json` output** — Spinner progress text no longer leaks into stderr when `--json` is passed, so AI agents that combine stdout and stderr can parse the JSON reliably.
-  - **Silent telemetry in firewalled environments** — PostHog network errors are now swallowed with a 1s timeout and retries/remote config disabled, so OpenSpec no longer surfaces `PostHogFetchNetworkError` in locked-down networks. Telemetry opt-out is documented earlier in the README, installation guide, and CLI reference.
+  - **Silent telemetry in firewalled environments** — PostHog network errors are now swallowed with a 1s timeout and retries/remote config disabled, so ClearSpec no longer surfaces `PostHogFetchNetworkError` in locked-down networks. Telemetry opt-out is documented earlier in the README, installation guide, and CLI reference.
 
 ## 1.3.0
 
 ### Minor Changes
 
-- [#952](https://github.com/Fission-AI/OpenSpec/pull/952) [`cce787e`](https://github.com/Fission-AI/OpenSpec/commit/cce787ec4083da2b27781f6786f5ce0002909a7b) Thanks [@TabishB](https://github.com/TabishB)! - ### New Features
+- [#952](https://github.com/<you>/clearspec/pull/952) [`cce787e`](https://github.com/<you>/clearspec/commit/cce787ec4083da2b27781f6786f5ce0002909a7b) Thanks [@TabishB](https://github.com/TabishB)! - ### New Features
 
   - **Junie support** — Added tool and command generation for JetBrains Junie
   - **Lingma IDE support** — Added configuration support for Lingma IDE
@@ -72,23 +72,23 @@
 
 ### Patch Changes
 
-- [#760](https://github.com/Fission-AI/OpenSpec/pull/760) [`61eb999`](https://github.com/Fission-AI/OpenSpec/commit/61eb999f7c6c0fc98d2e7f3678756fce6a3f4378) Thanks [@fsilvaortiz](https://github.com/fsilvaortiz)! - fix: OpenCode adapter now uses `.opencode/commands/` (plural) to match OpenCode's official directory convention. Fixes #748.
+- [#760](https://github.com/<you>/clearspec/pull/760) [`61eb999`](https://github.com/<you>/clearspec/commit/61eb999f7c6c0fc98d2e7f3678756fce6a3f4378) Thanks [@fsilvaortiz](https://github.com/fsilvaortiz)! - fix: OpenCode adapter now uses `.opencode/commands/` (plural) to match OpenCode's official directory convention. Fixes #748.
 
-- [#759](https://github.com/Fission-AI/OpenSpec/pull/759) [`afdca0d`](https://github.com/Fission-AI/OpenSpec/commit/afdca0d5dab1aa109cfd8848b2512333ccad60c3) Thanks [@fsilvaortiz](https://github.com/fsilvaortiz)! - fix: `openspec status` now exits gracefully when no changes exist instead of throwing a fatal error. Fixes #714.
+- [#759](https://github.com/<you>/clearspec/pull/759) [`afdca0d`](https://github.com/<you>/clearspec/commit/afdca0d5dab1aa109cfd8848b2512333ccad60c3) Thanks [@fsilvaortiz](https://github.com/fsilvaortiz)! - fix: `clearspec status` now exits gracefully when no changes exist instead of throwing a fatal error. Fixes #714.
 
 ## 1.2.0
 
 ### Minor Changes
 
-- [#747](https://github.com/Fission-AI/OpenSpec/pull/747) [`1e94443`](https://github.com/Fission-AI/OpenSpec/commit/1e94443a3551b228eecbc89e95d96d3b9600a192) Thanks [@TabishB](https://github.com/TabishB)! - ### New Features
+- [#747](https://github.com/<you>/clearspec/pull/747) [`1e94443`](https://github.com/<you>/clearspec/commit/1e94443a3551b228eecbc89e95d96d3b9600a192) Thanks [@TabishB](https://github.com/TabishB)! - ### New Features
 
-  - **Profile system** — Choose between `core` (4 essential workflows) and `custom` (pick any subset) profiles to control which skills get installed. Manage profiles with the new `openspec config profile` command
+  - **Profile system** — Choose between `core` (4 essential workflows) and `custom` (pick any subset) profiles to control which skills get installed. Manage profiles with the new `clearspec config profile` command
   - **Propose workflow** — New one-step workflow creates a complete change proposal with design, specs, and tasks from a single request — no need to run `new` then `ff` separately
-  - **AI tool auto-detection** — `openspec init` now scans your project for existing tool directories (`.claude/`, `.cursor/`, etc.) and pre-selects detected tools
+  - **AI tool auto-detection** — `clearspec init` now scans your project for existing tool directories (`.claude/`, `.cursor/`, etc.) and pre-selects detected tools
   - **Pi (pi.dev) support** — Pi coding agent is now a supported tool with prompt and skill generation
   - **Kiro support** — AWS Kiro IDE is now a supported tool with prompt and skill generation
-  - **Sync prunes deselected workflows** — `openspec update` now removes command files and skill directories for workflows you've deselected, keeping your project clean
-  - **Config drift warning** — `openspec config list` warns when global config is out of sync with the current project
+  - **Sync prunes deselected workflows** — `clearspec update` now removes command files and skill directories for workflows you've deselected, keeping your project clean
+  - **Config drift warning** — `clearspec config list` warns when global config is out of sync with the current project
 
   ### Bug Fixes
 
@@ -100,15 +100,15 @@
 
 ### Patch Changes
 
-- [#627](https://github.com/Fission-AI/OpenSpec/pull/627) [`afb73cf`](https://github.com/Fission-AI/OpenSpec/commit/afb73cf9ec59c6f8b26d0c538c0218c203ba3c56) Thanks [@TabishB](https://github.com/TabishB)! - ### Bug Fixes
+- [#627](https://github.com/<you>/clearspec/pull/627) [`afb73cf`](https://github.com/<you>/clearspec/commit/afb73cf9ec59c6f8b26d0c538c0218c203ba3c56) Thanks [@TabishB](https://github.com/TabishB)! - ### Bug Fixes
 
-  - **OpenCode command references** — Command references in generated files now use the correct `/opsx-` hyphen format instead of `/opsx:` colon format, ensuring commands work properly in OpenCode
+  - **OpenCode command references** — Command references in generated files now use the correct `/clsx-` hyphen format instead of `/clsx:` colon format, ensuring commands work properly in OpenCode
 
 ## 1.1.0
 
 ### Minor Changes
 
-- [#625](https://github.com/Fission-AI/OpenSpec/pull/625) [`53081fb`](https://github.com/Fission-AI/OpenSpec/commit/53081fb2a26ec66d2950ae0474b9a56cbc5b5a76) Thanks [@TabishB](https://github.com/TabishB)! - ### Bug Fixes
+- [#625](https://github.com/<you>/clearspec/pull/625) [`53081fb`](https://github.com/<you>/clearspec/commit/53081fb2a26ec66d2950ae0474b9a56cbc5b5a76) Thanks [@TabishB](https://github.com/TabishB)! - ### Bug Fixes
 
   - **Codex global path support** — Codex adapter now resolves global paths correctly, fixing workflow file generation when run outside the project directory (#622)
   - **Archive operations on cross-device or restricted paths** — Archive now falls back to copy+remove when rename fails with EPERM or EXDEV errors, fixing failures on networked/external drives (#605)
@@ -117,7 +117,7 @@
 
 ### Patch Changes
 
-- [#550](https://github.com/Fission-AI/OpenSpec/pull/550) [`86d2e04`](https://github.com/Fission-AI/OpenSpec/commit/86d2e04cae76a999dbd1b4571f52fa720036be0c) Thanks [@jerome-benoit](https://github.com/jerome-benoit)! - ### Improvements
+- [#550](https://github.com/<you>/clearspec/pull/550) [`86d2e04`](https://github.com/<you>/clearspec/commit/86d2e04cae76a999dbd1b4571f52fa720036be0c) Thanks [@jerome-benoit](https://github.com/jerome-benoit)! - ### Improvements
 
   - **Nix flake maintenance** — Version now read dynamically from package.json, reducing manual sync issues
   - **Nix build optimization** — Source filtering excludes node_modules and artifacts, improving build times
@@ -131,7 +131,7 @@
 
 ### Patch Changes
 
-- [#596](https://github.com/Fission-AI/OpenSpec/pull/596) [`e91568d`](https://github.com/Fission-AI/OpenSpec/commit/e91568deb948073f3e9d9bb2d2ab5bf8080d6cf4) Thanks [@TabishB](https://github.com/TabishB)! - ### Bug Fixes
+- [#596](https://github.com/<you>/clearspec/pull/596) [`e91568d`](https://github.com/<you>/clearspec/commit/e91568deb948073f3e9d9bb2d2ab5bf8080d6cf4) Thanks [@TabishB](https://github.com/TabishB)! - ### Bug Fixes
 
   - Clarified spec naming convention — Specs should be named after capabilities (`specs/<capability>/spec.md`), not changes
   - Fixed task checkbox format guidance — Tasks now clearly require `- [ ]` checkbox format for apply phase tracking
@@ -140,7 +140,7 @@
 
 ### Patch Changes
 
-- [#587](https://github.com/Fission-AI/OpenSpec/pull/587) [`943e0d4`](https://github.com/Fission-AI/OpenSpec/commit/943e0d41026d034de66b9442d1276c01b293eb2b) Thanks [@TabishB](https://github.com/TabishB)! - ### Bug Fixes
+- [#587](https://github.com/<you>/clearspec/pull/587) [`943e0d4`](https://github.com/<you>/clearspec/commit/943e0d41026d034de66b9442d1276c01b293eb2b) Thanks [@TabishB](https://github.com/TabishB)! - ### Bug Fixes
 
   - Fixed incorrect archive path in onboarding documentation — the template now shows the correct path `openspec/changes/archive/YYYY-MM-DD-<name>/` instead of the incorrect `openspec/archive/YYYY-MM-DD--<name>/`
 
@@ -148,15 +148,15 @@
 
 ### Major Changes
 
-- [#578](https://github.com/Fission-AI/OpenSpec/pull/578) [`0cc9d90`](https://github.com/Fission-AI/OpenSpec/commit/0cc9d9025af367faa1688a7b2606a2549053cd3f) Thanks [@TabishB](https://github.com/TabishB)! - ## OpenSpec 1.0 — The OPSX Release
+- [#578](https://github.com/<you>/clearspec/pull/578) [`0cc9d90`](https://github.com/<you>/clearspec/commit/0cc9d9025af367faa1688a7b2606a2549053cd3f) Thanks [@TabishB](https://github.com/TabishB)! - ## ClearSpec 1.0 — The OPSX Release
 
-  The workflow has been rebuilt from the ground up. OPSX replaces the old phase-locked `/openspec:*` commands with an action-based system where AI understands what artifacts exist, what's ready to create, and what each action unlocks.
+  The workflow has been rebuilt from the ground up. OPSX replaces the old phase-locked `/clearspec:*` commands with an action-based system where AI understands what artifacts exist, what's ready to create, and what each action unlocks.
 
   ### Breaking Changes
 
-  - **Old commands removed** — `/openspec:proposal`, `/openspec:apply`, and `/openspec:archive` no longer exist
+  - **Old commands removed** — `/clearspec:proposal`, `/clearspec:apply`, and `/clearspec:archive` no longer exist
   - **Config files removed** — Tool-specific instruction files (`CLAUDE.md`, `.cursorrules`, `AGENTS.md`, `project.md`) are no longer generated
-  - **Migration** — Run `openspec init` to upgrade. Legacy artifacts are detected and cleaned up with confirmation.
+  - **Migration** — Run `clearspec init` to upgrade. Legacy artifacts are detected and cleaned up with confirmation.
 
   ### From Static Prompts to Dynamic Instructions
 
@@ -178,16 +178,16 @@
 
   | Command              | What it does                                         |
   | -------------------- | ---------------------------------------------------- |
-  | `/opsx:explore`      | Think through ideas before committing to a change    |
-  | `/opsx:new`          | Start a new change                                   |
-  | `/opsx:continue`     | Create one artifact at a time (step-through)         |
-  | `/opsx:ff`           | Create all planning artifacts at once (fast-forward) |
-  | `/opsx:apply`        | Implement tasks                                      |
-  | `/opsx:verify`       | Validate implementation matches artifacts            |
-  | `/opsx:sync`         | Sync delta specs to main specs                       |
-  | `/opsx:archive`      | Archive completed change                             |
-  | `/opsx:bulk-archive` | Archive multiple changes with conflict detection     |
-  | `/opsx:onboard`      | Guided 15-minute walkthrough of complete workflow    |
+  | `/clsx:explore`      | Think through ideas before committing to a change    |
+  | `/clsx:new`          | Start a new change                                   |
+  | `/clsx:continue`     | Create one artifact at a time (step-through)         |
+  | `/clsx:ff`           | Create all planning artifacts at once (fast-forward) |
+  | `/clsx:apply`        | Implement tasks                                      |
+  | `/clsx:verify`       | Validate implementation matches artifacts            |
+  | `/clsx:sync`         | Sync delta specs to main specs                       |
+  | `/clsx:archive`      | Archive completed change                             |
+  | `/clsx:bulk-archive` | Archive multiple changes with conflict detection     |
+  | `/clsx:onboard`      | Guided 15-minute walkthrough of complete workflow    |
 
   ### From Text Merging to Semantic Spec Syncing
 
@@ -210,11 +210,11 @@
 
   ### New Features
 
-  - **Onboarding skill** — `/opsx:onboard` walks new users through their first complete change with codebase-aware task suggestions and step-by-step narration (11 phases, ~15 minutes)
+  - **Onboarding skill** — `/clsx:onboard` walks new users through their first complete change with codebase-aware task suggestions and step-by-step narration (11 phases, ~15 minutes)
 
   - **21 AI tools supported** — Claude Code, Cursor, Windsurf, Continue, Gemini CLI, GitHub Copilot, Amazon Q, Cline, RooCode, Kilo Code, Auggie, CodeBuddy, Qoder, Qwen, CoStrict, Crush, Factory, OpenCode, Antigravity, iFlow, and Codex
 
-  - **Interactive setup** — `openspec init` shows animated welcome screen and searchable multi-select for choosing tools. Pre-selects already-configured tools for easy refresh.
+  - **Interactive setup** — `clearspec init` shows animated welcome screen and searchable multi-select for choosing tools. Pre-selects already-configured tools for easy refresh.
 
   - **Customizable schemas** — Define custom artifact workflows in `openspec/schemas/` without touching package code. Teams can share workflows via version control.
 
@@ -234,9 +234,9 @@
 
 ### Minor Changes
 
-- [#540](https://github.com/Fission-AI/OpenSpec/pull/540) [`c4cfdc7`](https://github.com/Fission-AI/OpenSpec/commit/c4cfdc7c499daef30d8a218f5f59b8d9e5adb754) Thanks [@TabishB](https://github.com/TabishB)! - ### New Features
+- [#540](https://github.com/<you>/clearspec/pull/540) [`c4cfdc7`](https://github.com/<you>/clearspec/commit/c4cfdc7c499daef30d8a218f5f59b8d9e5adb754) Thanks [@TabishB](https://github.com/TabishB)! - ### New Features
 
-  - **Bulk archive skill** — Archive multiple completed changes in a single operation with `/opsx:bulk-archive`. Includes batch validation, spec conflict detection, and consolidated confirmation
+  - **Bulk archive skill** — Archive multiple completed changes in a single operation with `/clsx:bulk-archive`. Includes batch validation, spec conflict detection, and consolidated confirmation
 
   ### Other
 
@@ -246,13 +246,13 @@
 
 ### Minor Changes
 
-- [#530](https://github.com/Fission-AI/OpenSpec/pull/530) [`33466b1`](https://github.com/Fission-AI/OpenSpec/commit/33466b1e2a6798bdd6d0e19149173585b0612e6f) Thanks [@TabishB](https://github.com/TabishB)! - Add project-level configuration, project-local schemas, and schema management commands
+- [#530](https://github.com/<you>/clearspec/pull/530) [`33466b1`](https://github.com/<you>/clearspec/commit/33466b1e2a6798bdd6d0e19149173585b0612e6f) Thanks [@TabishB](https://github.com/TabishB)! - Add project-level configuration, project-local schemas, and schema management commands
 
   **New Features**
 
-  - **Project-level configuration** — Configure OpenSpec behavior per-project via `openspec/config.yaml`, including custom rules injection, context files, and schema resolution settings
+  - **Project-level configuration** — Configure ClearSpec behavior per-project via `openspec/config.yaml`, including custom rules injection, context files, and schema resolution settings
   - **Project-local schemas** — Define custom artifact schemas within your project's `openspec/schemas/` directory for project-specific workflows
-  - **Schema management commands** — New `openspec schema` commands (`list`, `show`, `export`, `validate`) for inspecting and managing artifact schemas (experimental)
+  - **Schema management commands** — New `clearspec schema` commands (`list`, `show`, `export`, `validate`) for inspecting and managing artifact schemas (experimental)
 
   **Bug Fixes**
 
@@ -262,12 +262,12 @@
 
 ### Minor Changes
 
-- [#516](https://github.com/Fission-AI/OpenSpec/pull/516) [`b5a8847`](https://github.com/Fission-AI/OpenSpec/commit/b5a884748be6156a7bb140b4941cfec4f20a9fc8) Thanks [@TabishB](https://github.com/TabishB)! - Add feedback command and Nix flake support
+- [#516](https://github.com/<you>/clearspec/pull/516) [`b5a8847`](https://github.com/<you>/clearspec/commit/b5a884748be6156a7bb140b4941cfec4f20a9fc8) Thanks [@TabishB](https://github.com/TabishB)! - Add feedback command and Nix flake support
 
   **New Features**
 
-  - **Feedback command** — Submit feedback directly from the CLI with `openspec feedback`, which creates GitHub Issues with automatic metadata inclusion and graceful fallback for manual submission
-  - **Nix flake support** — Install and develop openspec using Nix with the new `flake.nix`, including automated flake maintenance and CI validation
+  - **Feedback command** — Submit feedback directly from the CLI with `clearspec feedback`, which creates GitHub Issues with automatic metadata inclusion and graceful fallback for manual submission
+  - **Nix flake support** — Install and develop clearspec using Nix with the new `flake.nix`, including automated flake maintenance and CI validation
 
   **Bug Fixes**
 
@@ -275,18 +275,18 @@
 
   **Other**
 
-  - Improved change inference in `opsx apply` — automatically detects the target change from conversation context or prompts when ambiguous
+  - Improved change inference in `clsx apply` — automatically detects the target change from conversation context or prompts when ambiguous
   - Streamlined archive sync assessment with clearer delta spec location guidance
 
 ## 0.20.0
 
 ### Minor Changes
 
-- [#502](https://github.com/Fission-AI/OpenSpec/pull/502) [`9db74aa`](https://github.com/Fission-AI/OpenSpec/commit/9db74aa5ac6547efadaed795217cfa17444f2004) Thanks [@TabishB](https://github.com/TabishB)! - Add `/opsx:verify` command and fix vitest process storms
+- [#502](https://github.com/<you>/clearspec/pull/502) [`9db74aa`](https://github.com/<you>/clearspec/commit/9db74aa5ac6547efadaed795217cfa17444f2004) Thanks [@TabishB](https://github.com/TabishB)! - Add `/clsx:verify` command and fix vitest process storms
 
   **New Features**
 
-  - **`/opsx:verify` command** — Validate that change implementations match their specifications
+  - **`/clsx:verify` command** — Validate that change implementations match their specifications
 
   **Bug Fixes**
 
@@ -298,13 +298,13 @@
 
 ### Minor Changes
 
-- eb152eb: Add Continue IDE support, shell completions, and `/opsx:explore` command
+- eb152eb: Add Continue IDE support, shell completions, and `/clsx:explore` command
 
   **New Features**
 
-  - **Continue IDE support** – OpenSpec now generates slash commands for [Continue](https://continue.dev/), expanding editor integration options alongside Cursor, Windsurf, Claude Code, and others
-  - **Shell completions for Bash, Fish, and PowerShell** – Run `openspec completion install` to set up tab completion in your preferred shell
-  - **`/opsx:explore` command** – A new thinking partner mode for exploring ideas and investigating problems before committing to changes
+  - **Continue IDE support** – ClearSpec now generates slash commands for [Continue](https://continue.dev/), expanding editor integration options alongside Cursor, Windsurf, Claude Code, and others
+  - **Shell completions for Bash, Fish, and PowerShell** – Run `clearspec completion install` to set up tab completion in your preferred shell
+  - **`/clsx:explore` command** – A new thinking partner mode for exploring ideas and investigating problems before committing to changes
   - **Codebuddy slash command improvements** – Updated frontmatter format for better compatibility
 
   **Bug Fixes**
@@ -314,7 +314,7 @@
 
   **Other**
 
-  - Added optional anonymous usage statistics to help understand how OpenSpec is used. This is **opt-out** by default – set `OPENSPEC_TELEMETRY=0` or `DO_NOT_TRACK=1` to disable. Only command names and version are collected; no arguments, file paths, or content. Automatically disabled in CI environments.
+  - Added optional anonymous usage statistics to help understand how ClearSpec is used. This is **opt-out** by default – set `OPENSPEC_TELEMETRY=0` or `DO_NOT_TRACK=1` to disable. Only command names and version are collected; no arguments, file paths, or content. Automatically disabled in CI environments.
 
 ## 0.18.0
 
@@ -324,9 +324,9 @@
 
   **New Commands:**
 
-  - `/opsx:ff` - Fast-forward through artifact creation, generating all needed artifacts in one go
-  - `/opsx:sync` - Sync delta specs from a change to main specs
-  - `/opsx:archive` - Archive completed changes with smart sync check
+  - `/clsx:ff` - Fast-forward through artifact creation, generating all needed artifacts in one go
+  - `/clsx:sync` - Sync delta specs from a change to main specs
+  - `/clsx:archive` - Archive completed changes with smart sync check
 
   **Artifact Workflow Enhancements:**
 
@@ -367,11 +367,11 @@
 
 ### Minor Changes
 
-- 2e71835: Add `openspec config` command and Oh-my-zsh completions
+- 2e71835: Add `clearspec config` command and Oh-my-zsh completions
 
   **New Features**
 
-  - Add `openspec config` command for managing global configuration settings
+  - Add `clearspec config` command for managing global configuration settings
   - Implement global config directory with XDG Base Directory specification support
   - Add Oh-my-zsh shell completions support for enhanced CLI experience
 
@@ -404,9 +404,9 @@
 
 ### Minor Changes
 
-- Add Continue slash command support so `openspec init` can generate `.continue/prompts/openspec-*.prompt` files with MARKDOWN frontmatter and `$ARGUMENTS` placeholder, and refresh them on `openspec update`.
+- Add Continue slash command support so `clearspec init` can generate `.continue/prompts/clearspec-*.prompt` files with MARKDOWN frontmatter and `$ARGUMENTS` placeholder, and refresh them on `clearspec update`.
 
-- Add Antigravity slash command support so `openspec init` can generate `.agent/workflows/openspec-*.md` files with description-only frontmatter and `openspec update` refreshes existing workflows alongside Windsurf.
+- Add Antigravity slash command support so `clearspec init` can generate `.agent/workflows/clearspec-*.md` files with description-only frontmatter and `clearspec update` refreshes existing workflows alongside Windsurf.
 
 ## 0.15.0
 
@@ -429,7 +429,7 @@
   - feat: add $ARGUMENTS support to apply slash command for dynamic variable passing
   - feat: add Qoder CLI support to configuration and documentation
   - feat: add CoStrict AI assistant support
-  - fix: recreate missing openspec template files in extend mode
+  - fix: recreate missing clearspec template files in extend mode
   - fix: prevent false 'already configured' detection for tools
   - fix: use change-id as fallback title instead of "Untitled Change"
   - docs: add guidance for populating project-level context
@@ -473,13 +473,13 @@
   This release includes two new features:
 
   - **Factory function support for slash commands**: Slash commands can now be defined as functions that return command objects, enabling dynamic command configuration
-  - **Non-interactive init options**: Added `--tools`, `--all-tools`, and `--skip-tools` CLI flags to `openspec init` for automated initialization in CI/CD pipelines while maintaining backward compatibility with interactive mode
+  - **Non-interactive init options**: Added `--tools`, `--all-tools`, and `--skip-tools` CLI flags to `clearspec init` for automated initialization in CI/CD pipelines while maintaining backward compatibility with interactive mode
 
 ## 0.11.0
 
 ### Minor Changes
 
-- 312e1d6: Add Amazon Q Developer CLI integration. OpenSpec now supports Amazon Q Developer with automatic prompt generation in `.amazonq/prompts/` directory, allowing you to use OpenSpec slash commands with Amazon Q's @-syntax.
+- 312e1d6: Add Amazon Q Developer CLI integration. ClearSpec now supports Amazon Q Developer with automatic prompt generation in `.amazonq/prompts/` directory, allowing you to use ClearSpec slash commands with Amazon Q's @-syntax.
 
 ## 0.10.0
 
@@ -491,13 +491,13 @@
 
 ### Patch Changes
 
-- 2ae0484: Fix cross-platform path handling issues. This release includes fixes for joinPath behavior and slash command path resolution to ensure OpenSpec works correctly across all platforms.
+- 2ae0484: Fix cross-platform path handling issues. This release includes fixes for joinPath behavior and slash command path resolution to ensure ClearSpec works correctly across all platforms.
 
 ## 0.9.1
 
 ### Patch Changes
 
-- 8210970: Fix OpenSpec not working on Windows when Codex integration is selected. This release includes fixes for cross-platform path handling and normalization to ensure OpenSpec works correctly on Windows systems.
+- 8210970: Fix ClearSpec not working on Windows when Codex integration is selected. This release includes fixes for cross-platform path handling and normalization to ensure ClearSpec works correctly on Windows systems.
 
 ## 0.9.0
 
@@ -509,26 +509,26 @@
 
 ### Minor Changes
 
-- Add GitHub Copilot slash command support. OpenSpec now writes prompts to `.github/prompts/openspec-{proposal,apply,archive}.prompt.md` with YAML frontmatter and `$ARGUMENTS` placeholder, and refreshes them on `openspec update`.
+- Add GitHub Copilot slash command support. ClearSpec now writes prompts to `.github/prompts/clearspec-{proposal,apply,archive}.prompt.md` with YAML frontmatter and `$ARGUMENTS` placeholder, and refreshes them on `clearspec update`.
 
 ## 0.8.1
 
 ### Patch Changes
 
-- d070d08: Fix CLI version mismatch and add a release guard that validates the packed tarball prints the same version as package.json via `openspec --version`.
+- d070d08: Fix CLI version mismatch and add a release guard that validates the packed tarball prints the same version as package.json via `clearspec --version`.
 
 ## 0.8.0
 
 ### Minor Changes
 
 - c29b06d: Add Windsurf support.
-- Add Codex slash command support. OpenSpec now writes prompts directly to Codex's global directory (`~/.codex/prompts` or `$CODEX_HOME/prompts`) and refreshes them on `openspec update`.
+- Add Codex slash command support. ClearSpec now writes prompts directly to Codex's global directory (`~/.codex/prompts` or `$CODEX_HOME/prompts`) and refreshes them on `clearspec update`.
 
 ## 0.7.0
 
 ### Minor Changes
 
-- Add native Kilo Code workflow integration so `openspec init` and `openspec update` manage `.kilocode/workflows/openspec-*.md` files.
+- Add native Kilo Code workflow integration so `clearspec init` and `clearspec update` manage `.kilocode/workflows/clearspec-*.md` files.
 - Always scaffold the managed root `AGENTS.md` hand-off stub and regroup the AI tool prompts during init/update to keep instructions consistent.
 
 ## 0.6.0
@@ -565,7 +565,7 @@
 
 ### Minor Changes
 
-- Add OpenSpec change proposals for CLI improvements and enhanced user experience
+- Add ClearSpec change proposals for CLI improvements and enhanced user experience
 - Add Opencode slash commands support for AI-driven development workflows
 
 ### Patch Changes
@@ -577,15 +577,15 @@
 
 ### Minor Changes
 
-- Enhance `openspec init` with extend mode, multi-tool selection, and an interactive `AGENTS.md` configurator.
+- Enhance `clearspec init` with extend mode, multi-tool selection, and an interactive `AGENTS.md` configurator.
 
 ## 0.2.0
 
 ### Minor Changes
 
-- ce5cead: - Add an `openspec view` dashboard that rolls up spec counts and change progress at a glance
+- ce5cead: - Add an `clearspec view` dashboard that rolls up spec counts and change progress at a glance
   - Generate and update AI slash commands alongside the renamed `openspec/AGENTS.md` instructions file
-  - Remove the deprecated `openspec diff` command and direct users to `openspec show`
+  - Remove the deprecated `clearspec diff` command and direct users to `clearspec show`
 
 ## 0.1.0
 

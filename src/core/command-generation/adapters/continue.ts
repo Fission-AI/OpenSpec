@@ -9,19 +9,19 @@ import type { CommandContent, ToolCommandAdapter } from '../types.js';
 
 /**
  * Continue adapter for command generation.
- * File path: .continue/prompts/opsx-<id>.prompt
+ * File path: .continue/prompts/clsx-<id>.prompt
  * Frontmatter: name, description, invokable
  */
 export const continueAdapter: ToolCommandAdapter = {
   toolId: 'continue',
 
   getFilePath(commandId: string): string {
-    return path.join('.continue', 'prompts', `opsx-${commandId}.prompt`);
+    return path.join('.continue', 'prompts', `clsx-${commandId}.prompt`);
   },
 
   formatFile(content: CommandContent): string {
     return `---
-name: opsx-${content.id}
+name: clsx-${content.id}
 description: ${content.description}
 invokable: true
 ---

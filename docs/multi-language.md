@@ -1,10 +1,10 @@
 # Multi-Language Guide
 
-Configure OpenSpec to generate artifacts in languages other than English.
+Configure ClearSpec to generate artifacts in languages other than English.
 
 ## Quick Setup
 
-Add a language instruction to your `openspec/config.yaml`:
+Add a language instruction to your `clearspec/config.yaml`:
 
 ```yaml
 schema: spec-driven
@@ -104,7 +104,7 @@ To verify your language config is working:
 
 ```bash
 # Check the instructions - should show your language context
-openspec instructions proposal --change my-change
+clearspec instructions proposal --change my-change
 
 # Output will include your language context
 ```

@@ -41,14 +41,14 @@ describe('planning home paths', () => {
   });
 
   it('keeps a canonical workspace root comparable with an aliased start path', () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-planning-home-'));
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'clearspec-planning-home-'));
     tempDirs.push(tempDir);
     const realWorkspaceRoot = path.join(tempDir, 'real-workspace');
     const aliasWorkspaceRoot = path.join(tempDir, 'alias-workspace');
 
-    fs.mkdirSync(path.join(realWorkspaceRoot, '.openspec-workspace'), { recursive: true });
+    fs.mkdirSync(path.join(realWorkspaceRoot, '.clearspec-workspace'), { recursive: true });
     fs.writeFileSync(
-      path.join(realWorkspaceRoot, '.openspec-workspace', 'view.yaml'),
+      path.join(realWorkspaceRoot, '.clearspec-workspace', 'view.yaml'),
       'version: 1\nname: platform\ncontext: null\nlinks: {}\n',
       'utf-8'
     );
@@ -68,18 +68,18 @@ describe('planning home paths', () => {
   });
 
   it('surfaces invalid current workspace state instead of falling back to legacy state', () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-planning-home-'));
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'clearspec-planning-home-'));
     tempDirs.push(tempDir);
     const workspaceRoot = path.join(tempDir, 'workspace');
 
-    fs.mkdirSync(path.join(workspaceRoot, '.openspec-workspace'), { recursive: true });
+    fs.mkdirSync(path.join(workspaceRoot, '.clearspec-workspace'), { recursive: true });
     fs.writeFileSync(
-      path.join(workspaceRoot, '.openspec-workspace', 'view.yaml'),
+      path.join(workspaceRoot, '.clearspec-workspace', 'view.yaml'),
       'version: 1\nname: bad/name\ncontext: null\nlinks: {}\n',
       'utf-8'
     );
     fs.writeFileSync(
-      path.join(workspaceRoot, '.openspec-workspace', 'workspace.yaml'),
+      path.join(workspaceRoot, '.clearspec-workspace', 'workspace.yaml'),
       'version: 1\nname: legacy-platform\nlinks: {}\n',
       'utf-8'
     );
@@ -93,10 +93,10 @@ describe('planning home paths', () => {
   });
 
   it('resolves repo-local projects with foreign workspace.yaml as repo planning homes', () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-planning-home-'));
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'clearspec-planning-home-'));
     tempDirs.push(tempDir);
     const repoRoot = path.join(tempDir, 'foreign-tool-repo');
-    const changesDir = path.join(repoRoot, 'openspec', 'changes');
+    const changesDir = path.join(repoRoot, 'clearspec', 'changes');
 
     fs.mkdirSync(changesDir, { recursive: true });
     fs.writeFileSync(

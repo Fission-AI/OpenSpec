@@ -33,14 +33,14 @@ function formatTagsArray(tags: string[]): string {
 
 /**
  * Windsurf adapter for command generation.
- * File path: .windsurf/workflows/opsx-<id>.md
+ * File path: .windsurf/workflows/clsx-<id>.md
  * Frontmatter: name, description, category, tags
  */
 export const windsurfAdapter: ToolCommandAdapter = {
   toolId: 'windsurf',
 
   getFilePath(commandId: string): string {
-    return path.join('.windsurf', 'workflows', `opsx-${commandId}.md`);
+    return path.join('.windsurf', 'workflows', `clsx-${commandId}.md`);
   },
 
   formatFile(content: CommandContent): string {

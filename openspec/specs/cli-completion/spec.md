@@ -1,7 +1,7 @@
 # cli-completion Specification
 
 ## Purpose
-Provide shell completion scripts for the OpenSpec CLI, enabling tab-completion for commands, flags, and dynamic values (change IDs, spec IDs) across multiple shells. Supports Zsh, Bash, Fish, and PowerShell.
+Provide shell completion scripts for the ClearSpec CLI, enabling tab-completion for commands, flags, and dynamic values (change IDs, spec IDs) across multiple shells. Supports Zsh, Bash, Fish, and PowerShell.
 ## Requirements
 ### Requirement: Native Shell Behavior Integration
 
@@ -52,7 +52,7 @@ The completion command SHALL follow a subcommand pattern for generating and mana
 
 #### Scenario: Available subcommands
 
-- **WHEN** user executes `openspec completion --help`
+- **WHEN** user executes `clearspec completion --help`
 - **THEN** display available subcommands:
   - `generate [shell]` - Generate completion script for a shell (outputs to stdout)
   - `install [shell]` - Install completion for Zsh (auto-detects or requires explicit shell)
@@ -99,7 +99,7 @@ The completion command SHALL generate completion scripts for all supported shell
 
 #### Scenario: Generating Zsh completion
 
-- **WHEN** user executes `openspec completion generate zsh`
+- **WHEN** user executes `clearspec completion generate zsh`
 - **THEN** output a complete Zsh completion script to stdout
 - **AND** include completions for all commands: init, list, show, validate, archive, view, update, change, spec, completion
 - **AND** include all command-specific flags and options
@@ -108,29 +108,29 @@ The completion command SHALL generate completion scripts for all supported shell
 
 #### Scenario: Generating Bash completion
 
-- **WHEN** user executes `openspec completion generate bash`
+- **WHEN** user executes `clearspec completion generate bash`
 - **THEN** output a complete Bash completion script to stdout
 - **AND** include completions for all commands and subcommands
 - **AND** use `complete -F` with custom completion function
 - **AND** populate `COMPREPLY` with appropriate suggestions
-- **AND** support dynamic completion for change and spec IDs via `openspec __complete`
+- **AND** support dynamic completion for change and spec IDs via `clearspec __complete`
 
 #### Scenario: Generating Fish completion
 
-- **WHEN** user executes `openspec completion generate fish`
+- **WHEN** user executes `clearspec completion generate fish`
 - **THEN** output a complete Fish completion script to stdout
-- **AND** use `complete -c openspec` with conditions
+- **AND** use `complete -c clearspec` with conditions
 - **AND** include command-specific completions with `--condition` predicates
-- **AND** support dynamic completion for change and spec IDs via `openspec __complete`
+- **AND** support dynamic completion for change and spec IDs via `clearspec __complete`
 - **AND** include descriptions for each completion option
 
 #### Scenario: Generating PowerShell completion
 
-- **WHEN** user executes `openspec completion generate powershell`
+- **WHEN** user executes `clearspec completion generate powershell`
 - **THEN** output a complete PowerShell completion script to stdout
-- **AND** use `Register-ArgumentCompleter -CommandName openspec`
+- **AND** use `Register-ArgumentCompleter -CommandName clearspec`
 - **AND** implement scriptblock that handles command context
-- **AND** support dynamic completion for change and spec IDs via `openspec __complete`
+- **AND** support dynamic completion for change and spec IDs via `clearspec __complete`
 - **AND** return `[System.Management.Automation.CompletionResult]` objects
 
 ### Requirement: Dynamic Completions
@@ -140,30 +140,17 @@ The completion system SHALL provide context-aware dynamic completions for projec
 #### Scenario: Completing change IDs
 
 - **WHEN** completing arguments for commands that accept change names (show, validate, archive)
-- **THEN** discover active changes from `openspec/changes/` directory
-- **AND** exclude archived changes in `openspec/changes/archive/`
+- **THEN** discover active changes from `clearspec/changes/` directory
+- **AND** exclude archived changes in `clearspec/changes/archive/`
 - **AND** return change IDs as completion suggestions
-- **AND** only provide suggestions when inside an OpenSpec-enabled project
+- **AND** only provide suggestions when inside a ClearSpec-enabled project
 
 #### Scenario: Completing spec IDs
 
 - **WHEN** completing arguments for commands that accept spec names (show, validate)
-- **THEN** discover specs from `openspec/specs/` directory
+- **THEN** discover specs from `clearspec/specs/` directory
 - **AND** return spec IDs as completion suggestions
-- **AND** only provide suggestions when inside an OpenSpec-enabled project
-
-#### Scenario: Completion caching
-
-- **WHEN** dynamic completions are requested
-- **THEN** cache discovered change and spec IDs for 2 seconds
-- **AND** reuse cached values for subsequent requests within cache window
-- **AND** automatically refresh cache after expiration
-
-#### Scenario: Project detection
-
-- **WHEN** user requests completions outside an OpenSpec project
-- **THEN** skip dynamic change/spec ID completions
-- **AND** only suggest static commands and flags
+- **AND** only provide suggestions when inside a ClearSpec-enabled project
 
 ### Requirement: Installation Automation
 
@@ -171,42 +158,42 @@ The completion command SHALL automatically install completion scripts into shell
 
 #### Scenario: Installing for Oh My Zsh
 
-- **WHEN** user executes `openspec completion install zsh`
+- **WHEN** user executes `clearspec completion install zsh`
 - **THEN** detect if Oh My Zsh is installed by checking for `$ZSH` environment variable or `~/.oh-my-zsh/` directory
 - **AND** create custom completions directory at `~/.oh-my-zsh/custom/completions/` if it doesn't exist
-- **AND** write completion script to `~/.oh-my-zsh/custom/completions/_openspec`
+- **AND** write completion script to `~/.oh-my-zsh/custom/completions/_clearspec`
 - **AND** ensure `~/.oh-my-zsh/custom/completions` is in `$fpath` by updating `~/.zshrc` if needed
 - **AND** display success message with instruction to run `exec zsh` or restart terminal
 
 #### Scenario: Installing for standard Zsh
 
-- **WHEN** user executes `openspec completion install zsh` and Oh My Zsh is not detected
+- **WHEN** user executes `clearspec completion install zsh` and Oh My Zsh is not detected
 - **THEN** create completions directory at `~/.zsh/completions/` if it doesn't exist
-- **AND** write completion script to `~/.zsh/completions/_openspec`
+- **AND** write completion script to `~/.zsh/completions/_clearspec`
 - **AND** add `fpath=(~/.zsh/completions $fpath)` to `~/.zshrc` if not already present
 - **AND** add `autoload -Uz compinit && compinit` to `~/.zshrc` if not already present
 - **AND** display success message with instruction to run `exec zsh` or restart terminal
 
 #### Scenario: Installing for Bash with bash-completion
 
-- **WHEN** user executes `openspec completion install bash`
+- **WHEN** user executes `clearspec completion install bash`
 - **THEN** detect if bash-completion is installed by checking for `/usr/share/bash-completion` or `/etc/bash_completion.d`
-- **AND** if bash-completion is available, write to `/etc/bash_completion.d/openspec` (with sudo) or `~/.local/share/bash-completion/completions/openspec`
-- **AND** if bash-completion is not available, write to `~/.bash_completion.d/openspec` and source it from `~/.bashrc`
+- **AND** if bash-completion is available, write to `/etc/bash_completion.d/clearspec` (with sudo) or `~/.local/share/bash-completion/completions/clearspec`
+- **AND** if bash-completion is not available, write to `~/.bash_completion.d/clearspec` and source it from `~/.bashrc`
 - **AND** add sourcing line to `~/.bashrc` using marker-based updates if needed
 - **AND** display success message with instruction to run `exec bash` or restart terminal
 
 #### Scenario: Installing for Fish
 
-- **WHEN** user executes `openspec completion install fish`
+- **WHEN** user executes `clearspec completion install fish`
 - **THEN** create Fish completions directory at `~/.config/fish/completions/` if it doesn't exist
-- **AND** write completion script to `~/.config/fish/completions/openspec.fish`
+- **AND** write completion script to `~/.config/fish/completions/clearspec.fish`
 - **AND** Fish automatically loads completions from this directory (no config file modification needed)
 - **AND** display success message indicating completions are immediately available
 
 #### Scenario: Installing for PowerShell
 
-- **WHEN** user executes `openspec completion install powershell`
+- **WHEN** user executes `clearspec completion install powershell`
 - **THEN** detect PowerShell profile location via `$PROFILE` environment variable or default paths
 - **AND** create profile directory if it doesn't exist
 - **AND** add completion script import to profile using marker-based updates
@@ -215,7 +202,7 @@ The completion command SHALL automatically install completion scripts into shell
 
 #### Scenario: Auto-detecting shell for installation
 
-- **WHEN** user executes `openspec completion install` without specifying a shell
+- **WHEN** user executes `clearspec completion install` without specifying a shell
 - **THEN** detect current shell using shell detection logic
 - **AND** install completion for the detected shell (zsh, bash, fish, or powershell)
 - **AND** display which shell was detected
@@ -233,17 +220,17 @@ The completion command SHALL remove installed completion scripts and configurati
 
 #### Scenario: Uninstalling Zsh completion
 
-- **WHEN** user executes `openspec completion uninstall zsh`
+- **WHEN** user executes `clearspec completion uninstall zsh`
 - **THEN** prompt for confirmation before proceeding (unless `--yes` flag provided)
 - **AND** if user declines, cancel uninstall and display "Uninstall cancelled."
-- **AND** if user confirms, remove `~/.oh-my-zsh/custom/completions/_openspec` if Oh My Zsh is detected
-- **AND** remove `~/.zsh/completions/_openspec` if standard Zsh setup is detected
+- **AND** if user confirms, remove `~/.oh-my-zsh/custom/completions/_clearspec` if Oh My Zsh is detected
+- **AND** remove `~/.zsh/completions/_clearspec` if standard Zsh setup is detected
 - **AND** remove fpath modifications from `~/.zshrc` using marker-based removal
 - **AND** display success message
 
 #### Scenario: Uninstalling Bash completion
 
-- **WHEN** user executes `openspec completion uninstall bash`
+- **WHEN** user executes `clearspec completion uninstall bash`
 - **THEN** prompt for confirmation (unless `--yes` flag provided)
 - **AND** if user confirms, remove completion file from bash-completion directory or `~/.bash_completion.d/`
 - **AND** remove sourcing lines from `~/.bashrc` using marker-based removal
@@ -251,14 +238,14 @@ The completion command SHALL remove installed completion scripts and configurati
 
 #### Scenario: Uninstalling Fish completion
 
-- **WHEN** user executes `openspec completion uninstall fish`
+- **WHEN** user executes `clearspec completion uninstall fish`
 - **THEN** prompt for confirmation (unless `--yes` flag provided)
-- **AND** if user confirms, remove `~/.config/fish/completions/openspec.fish`
+- **AND** if user confirms, remove `~/.config/fish/completions/clearspec.fish`
 - **AND** display success message (no config file modification needed)
 
 #### Scenario: Uninstalling PowerShell completion
 
-- **WHEN** user executes `openspec completion uninstall powershell`
+- **WHEN** user executes `clearspec completion uninstall powershell`
 - **THEN** prompt for confirmation (unless `--yes` flag provided)
 - **AND** if user confirms, remove completion import from PowerShell profile using marker-based removal
 - **AND** remove completion script file
@@ -266,7 +253,7 @@ The completion command SHALL remove installed completion scripts and configurati
 
 #### Scenario: Auto-detecting shell for uninstallation
 
-- **WHEN** user executes `openspec completion uninstall` without specifying a shell
+- **WHEN** user executes `clearspec completion uninstall` without specifying a shell
 - **THEN** detect current shell and uninstall completion for that shell
 
 #### Scenario: Not installed
@@ -313,7 +300,7 @@ The completion implementation SHALL follow clean architecture principles with Ty
 - **AND** implement methods:
   - `getChangeIds(): Promise<string[]>` - Discovers active change IDs
   - `getSpecIds(): Promise<string[]>` - Discovers spec IDs
-  - `isOpenSpecProject(): boolean` - Checks if current directory is OpenSpec-enabled
+  - `isClearSpecProject(): boolean` - Checks if current directory is ClearSpec-enabled
 - **AND** implement caching with 2-second TTL using class properties
 
 #### Scenario: Command registry
@@ -361,9 +348,9 @@ The completion command SHALL provide clear error messages for common failure sce
 
 #### Scenario: Shell not detected
 
-- **WHEN** `openspec completion install` cannot detect current shell
+- **WHEN** `clearspec completion install` cannot detect current shell
 - **THEN** display error: "Could not auto-detect shell. Please specify shell explicitly."
-- **AND** display usage hint: "Usage: openspec completion <operation> [shell]"
+- **AND** display usage hint: "Usage: clearspec completion <operation> [shell]"
 - **AND** exit with code 1
 
 ### Requirement: Output Format
@@ -374,7 +361,7 @@ The completion command SHALL provide machine-parseable and human-readable output
 
 - **WHEN** generating completion script to stdout
 - **THEN** output only the completion script content (no extra messages)
-- **AND** allow redirection to files: `openspec completion generate zsh > /path/to/_openspec`
+- **AND** allow redirection to files: `clearspec completion generate zsh > /path/to/_clearspec`
 
 #### Scenario: Installation success output
 
