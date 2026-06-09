@@ -1,445 +1,573 @@
 # Simplify Context And Workspace Model Roadmap
 
-This roadmap is a living internal path toward `goal.md`. It is expected to
-change as slices reveal better sequencing, missing constraints, or simpler
-product shape.
+This roadmap is an internal plan for the work described in `goal.md`.
 
-This is not public product framing yet. Keep it lightweight, avoid promising
-future behavior before it exists, and prefer concrete implementation slices over
-large documentation rewrites.
+The goal is simple:
 
-The core move is simple: take the old clean OpenSpec root model and let that
-root live in a standalone Git repo. Views or workspaces may open that OpenSpec
-repo together with target code repos, but they are not the source of truth.
+```text
+Specs are what is true.
+Work is what is in motion.
+```
 
-## Current Focus
+OpenSpec work should live in normal Git files. Those files can live inside the
+project repo, or they can live in a separate OpenSpec repo that points at one or
+more project repos.
 
-Use this lightweight `/work` experiment as a place to coordinate the
-reorientation captured in `goal.md`. The old
-`openspec/initiatives/context-store-and-initiatives/direction-git-native-work.md`
-note is transition evidence that was distilled into this work's goal. The
-folder shape itself is not a product roadmap item.
+This roadmap should be readable by someone with no beta context. Each item says:
 
-The roadmap order is now:
+- What the user can do.
+- Why it matters.
+- What changes in commands or files.
+- How the user or agent knows it worked.
 
-1. Make context-store setup/register produce a normal standalone OpenSpec root.
-2. Make store selectors route core commands to the selected OpenSpec root.
-3. Remove initiative coupling from the product path.
-4. Add target repo mapping.
-5. Turn workspace/opening behavior into a local view over the OpenSpec root and
-   target repos.
-6. Delete or demote detour residue only when it blocks the simple path.
-7. Revisit public concepts only after the behavior is solid.
+This is not public product copy yet. Keep it practical, small, and honest about
+what exists.
 
-## Working Vocabulary
+## The Story In Plain English
 
-- OpenSpec root: the `openspec/` directory containing config, `specs/`, and
+Today, too much of this area is explained through beta terms: context stores,
+initiatives, workspaces, collections, and repo-local modes.
+
+The simpler product story should become:
+
+1. OpenSpec can live in this project repo or in its own Git repo.
+2. If OpenSpec lives in its own repo, users can register that repo locally.
+3. Normal OpenSpec commands can create, read, validate, and archive work in that
+   selected OpenSpec repo.
+4. Work can say which project repos it targets.
+5. The local machine can map those target repos to local checkout paths.
+6. An optional view can open the OpenSpec repo and target repos together.
+
+The product should not require users or agents to understand initiatives,
+workspace-owned planning, or collection state as the main model.
+
+## Vocabulary For This Roadmap
+
+- **OpenSpec root**: the `openspec/` folder with `config.yaml`, `specs/`, and
   `changes/`.
-- In-project OpenSpec: the OpenSpec root lives inside the code repo.
-- Standalone OpenSpec repo: the same OpenSpec root lives in its own Git repo.
-- Context store: a named/registered standalone OpenSpec repo shell. It may use
-  `.openspec-store` for identity or registry metadata, but `openspec/` is the
-  planning source of truth.
-- Target project repo: a code repo the work applies to.
-- Local repo map: machine-local mapping from target repo ids to checkout paths.
-- View/workspace: optional local way to open the OpenSpec repo plus target repos
-  together. It is not durable planning state.
+- **OpenSpec inside a project repo**: the `openspec/` folder lives inside the
+  code repo.
+- **Standalone OpenSpec repo**: the `openspec/` folder lives in its own Git
+  repo.
+- **Context store**: the current bridge name for a registered standalone
+  OpenSpec repo. It has a thin `.openspec-store/store.yaml` identity file, but
+  the real planning work still lives under `openspec/`.
+- **Target project repo**: a code repo that the OpenSpec work is about.
+- **Local repo map**: local machine settings that say where target project repos
+  are checked out.
+- **View**: a local convenience for opening the OpenSpec repo and project repos
+  together. It is not the source of truth.
 
-## Operating Guardrails
+## Rules We Should Not Forget
 
-- Keep the old simple `openspec/specs/` and `openspec/changes/` lifecycle as
-  the foundation.
-- Treat a context store, when used, as a named/registered standalone OpenSpec
-  repo, not as a separate planning state.
-- Treat planning state as normal OpenSpec artifacts:
-  `openspec/specs/` and `openspec/changes/`.
-- Treat initiative collections and separate workspace planning state as
-  wrong-direction residue, not compatibility requirements for the simplified
-  model.
-- Treat future initiative-like behavior as a possible type of work, not as a
-  separate context-store collection for now.
-- Treat `/work` as internal dogfooding, not a product requirement.
-- Defer broad public docs and vocabulary cleanup until behavior exists; do not
-  spend roadmap time making obsolete beta framing nicer.
-- Do not imply clone, pull, push, sync, branch, worktree, dashboard, workspace
-  apply, workspace verify, or workspace archive behavior.
-- Change accepted specs alongside real behavior, not ahead of it.
+- Keep the normal `openspec/specs/` and `openspec/changes/` lifecycle working.
+- When context stores are used, treat them as standalone OpenSpec repos, not as
+  a separate planning system.
+- Do not create new initiative links in the simpler product path.
+- Do not create workspace-owned planning state in the simpler product path.
+- Do not promise clone, pull, push, sync, branch, worktree, dashboard, apply,
+  verify, or archive orchestration in these slices.
+- Treat old beta files as history unless they block the simpler path.
+- Do not rewrite public docs before the behavior is solid.
 
-## Phase 0: Authority Cleanup
+## Phase 0: Make The Active Direction Easy To Find
 
-### Reorient The Old Context-Store Initiative
+This phase is already done. It cleaned up old roadmap sources so agents and
+humans do not follow the wrong plan.
+
+### Point People Away From The Old Context-Store Beta Plan
 
 Status: done
 
-Outcome: Make it clear that
-`openspec/initiatives/context-store-and-initiatives/` is beta history and
-transition evidence, while this `/work` directory tracks the active
-reorientation work.
+What the user or agent needs:
 
-Done when:
+- A clear place to find the current direction.
+- Confidence that old initiative docs are history, not the active plan.
 
-- The old initiative points readers to this work's `goal.md` and `roadmap.md`
-  as the active direction.
-- `direction-git-native-work.md` is described as the transition note that led
-  to this goal, not as the current authority if the two conflict.
-- The old `README.md`, `roadmap.md`, `tasks.md`, and `direction.md` make it
-  clear that they preserve beta history and transition evidence.
-- The old roadmap and task files are not treated as the next implementation
-  queue.
-- Useful decisions, work item notes, and beta evidence remain discoverable.
+What changed:
 
-### Disposition Deferred Workspace Artifacts
+- The old context-store initiative now points readers to this `goal.md` and
+  `roadmap.md`.
+- Old beta notes remain discoverable as transition evidence.
+- The old initiative roadmap is no longer treated as the implementation queue.
 
-Status: done
+How we know it worked:
 
-Outcome: Make active no-task workspace changes and historical workspace roadmap
-artifacts impossible to mistake for the next implementation queue.
+- A new reader can start from this `/work` folder instead of chasing the old
+  initiative roadmap.
 
-Done when:
-
-- `workspace-reimplementation-roadmap`, `workspace-agent-guidance`,
-  `workspace-apply-repo-slice`, and `workspace-verify-and-archive` are marked
-  obsolete / pending deletion review.
-- Deferred workspace apply, verify, archive, branch/worktree orchestration,
-  strong cross-repo validation, and progress dashboards are not revived by
-  accident.
-- Any useful research remains available temporarily until unique evidence is
-  promoted, linked, or deliberately discarded before deletion.
-
-### Reframe Agent Operating Guidance
+### Mark Deferred Workspace Plans As Not The Current Queue
 
 Status: done
 
-Outcome: Make local agent guidance start from OpenSpec roots, artifact
-placement, target project repos, and local repo mapping instead of a
-context-store/workspace-first model.
+What the user or agent needs:
 
-Done when:
+- No accidental revival of old workspace apply, verify, archive, branch,
+  worktree, or dashboard plans.
 
-- Local `.codex/skills/use-openspec/SKILL.md` guidance routes agents through
-  the current simplified model before beta shared-context flows.
-- Local `artifact-placement.md` distinguishes in-project OpenSpec from
-  standalone OpenSpec repos, then separately asks which target project repo owns
-  implementation.
-- Local `shared-context-beta.md` is framed as non-default beta/detour guidance,
-  not the product model.
-- Agent guidance still tells agents to inspect current CLI state and avoids
-  promising clone, sync, branch, worktree, dashboard, or edit-boundary behavior.
-- The final disposition of this ignored local guidance is reviewed later.
+What changed:
 
-## Phase 1: Context Store As Standalone OpenSpec Repo
+- The old workspace reimplementation artifacts were marked obsolete or pending
+  deletion review.
+- Useful research can still be copied forward later.
 
-### Store Root Parity
+How we know it worked:
 
-Status: next, spec ready; plan pending
+- The old workspace changes no longer look like the next thing to implement.
+
+### Reframe Local Agent Guidance Around OpenSpec Roots
+
+Status: done
+
+What the user or agent needs:
+
+- Agent instructions that start with "where is the OpenSpec root?" instead of
+  "which beta workspace/context-store mode is this?"
+
+What changed:
+
+- Local guidance was reframed around OpenSpec roots, artifact placement, target
+  project repos, and local repo mapping.
+- Beta shared-context guidance was described as old, non-default history.
+
+How we know it worked:
+
+- Agents are guided to inspect current files and commands, while avoiding
+  promises about clone, sync, branch, worktree, dashboard, or edit-boundary
+  behavior.
+
+## Phase 1: Make A Standalone OpenSpec Repo Useful
+
+The user-facing goal of this phase:
+
+```text
+I can keep OpenSpec work in its own Git repo and still use normal OpenSpec
+commands.
+```
+
+### Create Or Register A Standalone OpenSpec Repo
+
+Status: implemented in draft PR #1190
 
 Slice: `slices/store-root-parity/spec.md`
 
-Outcome: Make `context-store setup` and `context-store register` create or
-validate the same OpenSpec root shape a user would get by creating a fresh Git
-repo and running `openspec init`, while keeping context-store metadata as a
-thin identity shell.
+What the user can do:
 
-Research before implementation:
+- Run `context-store setup` and get a normal OpenSpec root in a standalone repo.
+- Clone a teammate's standalone OpenSpec repo and register it locally.
+- Run `context-store doctor` and see whether the OpenSpec root is healthy.
 
-- Decide how to share the root-only `openspec init` behavior without also
-  forcing agent/tool installation into context stores.
-- Confirm the intended config behavior for non-interactive setup, because
-  current `openspec init` has config-generation quirks in non-interactive mode.
-- Decide whether `context-store register` should require an existing OpenSpec
-  root, repair/ensure one, or support both modes explicitly.
-- Decide how setup should treat non-empty folders such as a freshly initialized
-  Git repo that only contains `.git/`.
+Why it matters:
 
-Research decisions captured on 2026-06-09:
+- A context store should not feel like a special beta planning system.
+- It should be a normal OpenSpec root plus a small identity file.
 
-- `context-store setup` should reuse an extracted root-only init helper, not
-  call full `InitCommand.execute()`. The helper should ensure `openspec/`,
-  `openspec/specs/`, `openspec/changes/`, and
-  `openspec/changes/archive/` without running tool detection, prompts, legacy
-  cleanup, migration, skill generation, or command generation.
-- `context-store setup` should always ensure `openspec/config.yaml` with the
-  default schema when no config exists, including non-interactive and JSON
-  flows. Do not inherit the current `openspec init --tools none`
-  non-interactive config skip.
-- `context-store register` should require an existing normal OpenSpec root by
-  default. It may create or repair thin `.openspec-store/store.yaml` identity
-  metadata, but it should not silently initialize arbitrary folders as OpenSpec
-  roots. Add an explicit repair or ensure mode later if that behavior is needed.
-- `context-store setup` should accept missing directories, empty directories,
-  already initialized standalone OpenSpec roots, and fresh Git-only directories
-  that contain only `.git/`. Existing beta context-store metadata may be
-  normalized to the thin identity shape, but previous beta file shapes and
-  command semantics are not a compatibility contract. Setup should keep
-  rejecting arbitrary non-empty unmarked folders.
-- `context-store doctor` should report OpenSpec-root health separately from
-  context-store metadata and Git health. Root health should cover the
-  `openspec/` directory, `openspec/config.yaml` or `openspec/config.yml`,
-  `openspec/specs/`, `openspec/changes/`, and
-  `openspec/changes/archive/`.
-- Store setup/register/help output should point users toward normal OpenSpec
-  specs and changes. Do not create initiative links, mount initiative
-  collections, install generated agent files, or revive workspace-owned
-  planning behavior in this slice.
-- 2026-06-09 review note: Store Root Parity should protect user-authored files
-  and idempotency, not preserve unstable beta context-store behavior.
+What changes in commands or files:
 
-Implementation notes captured on 2026-06-09:
+- Setup creates or preserves this shape:
 
-- Add a shared core helper module for OpenSpec-root behavior, likely
-  `src/core/openspec-root.ts`, instead of putting root creation in
-  context-store code. It should own path helpers, root ensuring, root
-  inspection, and healthy-root checks.
-- Extract the directory/config scaffold from `InitCommand` into that helper.
-  `InitCommand` should delegate root creation to the helper while keeping its
-  existing onboarding responsibilities: prompts, legacy cleanup, migration,
-  tool selection, skills, commands, profile handling, and success output.
-- The helper should create a ledger of paths it created, including
-  `openspec/config.yaml` and any directories needed for the root shape. Callers
-  can use that ledger for `created_files` output and rollback.
-- Use `planning-home.ts` for nearest-root discovery only. It already treats any
-  ancestor with `openspec/` as a repo planning home, but it should not become the
-  scaffolding or doctor module.
-- `context-store setup` should call the helper after the store directory exists
-  and before backend resolution or registry commit. If registration fails in a
-  pre-existing folder, rollback should remove only ledger-created files and empty
-  directories, never arbitrary user content.
-- `context-store register` should validate the existing OpenSpec root with the
-  helper's inspector before writing missing `.openspec-store/store.yaml` or
-  committing registry state. Keep the lower-level `registerContextStore()`
-  facade loose unless this slice intentionally makes root parity a global core
-  invariant.
-- `context-store doctor` should map the helper's inspector result into a
-  separate `openspec_root` JSON/human section rather than calling cwd-oriented
-  command classes such as list, show, or validate.
-- Test the helper directly, then test context-store operations directly, then
-  keep CLI tests focused on command output and JSON shape. Existing config
-  parsing and `cli-init` specs should not change unless their user-facing
-  behavior changes.
+```text
+context-store-root/
+  .openspec-store/
+    store.yaml
+  openspec/
+    config.yaml
+    specs/
+    changes/
+      archive/
+```
 
-Done when:
+- Register requires an existing healthy OpenSpec root.
+- Register can add `.openspec-store/store.yaml` only after confirmation.
+- Doctor reports OpenSpec-root health separately from metadata and Git health.
+- Setup/register do not create initiatives, workspace planning files, generated
+  agent files, slash commands, or tool config.
 
-- Existing context-store setup, register, list, doctor, path/Git, registry, and
-  safe-delete behavior is reused or narrowed intentionally.
-- `context-store setup` can produce `.openspec-store/store.yaml`, optional
-  `.git/`, `openspec/config.yaml`, `openspec/specs/`,
-  `openspec/changes/`, and `openspec/changes/archive/`.
-- `context-store register` can handle an already initialized standalone
-  OpenSpec repo without treating it as an initiative store.
-- `.openspec-store/store.yaml` remains identity or registry metadata only, not
-  the planning model.
-- Context-store help and guidance point users toward normal OpenSpec specs and
-  changes, not initiatives.
-- `context-store doctor` reports OpenSpec root health separately from
-  metadata/Git health.
+How the user or agent knows it worked:
 
-### Store Selectors For Core Commands
+- `created_files` reports the exact files and folders created.
+- Re-running setup/register for the same root reports nothing to change.
+- `context-store doctor --json` includes a separate `openspec_root` section.
+- Existing config, specs, changes, archived changes, and old beta files are not
+  overwritten.
 
-Status: candidate, research first
+### Let Normal Commands Use A Named Standalone OpenSpec Repo
 
-Outcome: Let normal OpenSpec lifecycle commands operate on a selected OpenSpec
-root, so a user in an app repo can create or inspect work in a standalone
-context store without creating initiative links.
+Status: next, research first
 
-Research before implementation:
+Plain-English version of the next slice:
 
-- Decide how to migrate `--store` and `--store-path`, since they currently mean
-  "context store for `--initiative`" rather than "OpenSpec root selector."
-- Decide the first command set for selector support instead of trying to touch
-  every lifecycle command at once.
-- Decide whether `--store-path` should require `.openspec-store/store.yaml` or
-  also accept any normal standalone OpenSpec root.
-- Decide how this interacts with current workspace planning homes before
-  workspace/open is reworked into a view-only surface.
+```text
+When I am in an app repo, I can tell OpenSpec to create or read work in my
+registered standalone OpenSpec repo.
+```
 
-Done when:
+Example user flow:
 
-- The default remains the nearest/current OpenSpec root when no selector is
-  provided.
-- `openspec new change <id> --store <store>` creates
-  `openspec/changes/<id>` in the selected store/root, not in the current app
-  repo and not as an initiative-linked change.
-- Store selectors such as `--store` or `--store-path` reuse existing registry,
-  binding, and path-canonicalization machinery where it is already useful.
-- Multiple registered stores have clear list, doctor, and ambiguity behavior.
-- The implementation still writes normal `openspec/changes/` and
-  `openspec/specs/` artifacts.
-- Existing initiative metadata remains readable as legacy, but this flow does
-  not create new initiative metadata.
+```bash
+openspec new change add-billing --store team-context
+openspec status --store team-context
+openspec instructions apply --store team-context
+```
 
-### Prove Store-Backed Lifecycle Smoke
+What the user can do:
+
+- Stay in the project repo they are working on.
+- Pick a registered standalone OpenSpec repo by name.
+- Create, inspect, validate, and archive normal OpenSpec work in that selected
+  repo.
+
+Why it matters:
+
+- Without this, users can create/register a standalone OpenSpec repo, but normal
+  commands still mostly act on the nearest local `openspec/` folder.
+- The user should not need initiative links or workspace planning state just to
+  put work in a standalone OpenSpec repo.
+
+What changes in commands or files:
+
+- Add a clear way to choose the OpenSpec root for normal commands, likely
+  `--store <id>` and/or `--store-path <path>`.
+- Start with a small command set instead of every command at once.
+- Suggested first commands:
+  `new change`, `status`, `instructions`, `list`, `show`, `validate`, and
+  `archive`.
+- The selected command writes normal `openspec/changes/` and reads normal
+  `openspec/specs/`.
+- The command does not create initiative metadata.
+- The command does not create workspace planning files.
+
+Questions to answer before implementation:
+
+- Should `--store-path` require `.openspec-store/store.yaml`, or can it point at
+  any healthy standalone OpenSpec root?
+- Which commands get support first?
+- How should existing `--store` and `--store-path` meanings from initiative
+  flows be handled?
+- How should this behave when the current directory is already inside a
+  workspace planning home?
+
+How the user or agent knows it worked:
+
+- Without `--store`, commands keep using the nearest/current OpenSpec root.
+- With `--store team-context`, `openspec/changes/<id>` is created in the
+  registered store root.
+- JSON output shows which OpenSpec root was used.
+- No new initiative link is created.
+
+### Prove The Standalone Repo Lifecycle End To End
 
 Status: candidate
 
-Outcome: Prove that a registered standalone store can run the same simple
-OpenSpec lifecycle as an in-project root.
+Plain-English version:
 
-Done when:
+```text
+Show that a registered standalone OpenSpec repo can do the same basic lifecycle
+as an OpenSpec root inside a project repo.
+```
 
-- A clean store-backed standalone fixture or smoke flow exists.
-- The smoke covers init, new change, status, instructions, list, show,
-  validate, archive, and view where applicable.
-- The smoke also covers context-store setup/register, list, doctor, and store
-  selection.
-- Known live-repo detour artifacts are not part of the pass/fail gate.
+What the user can do:
 
-## Phase 2: Remove Initiative Coupling
+- Set up or register a standalone OpenSpec repo.
+- Create a change there.
+- Inspect the change.
+- Get instructions.
+- Validate it.
+- Archive it when done.
 
-### Freeze New Initiative Links
+Why it matters:
+
+- This proves standalone OpenSpec repos are not just setup plumbing.
+- It catches missing command support before more features are built on top.
+
+What changes in commands or files:
+
+- Add a clean fixture or smoke flow for a registered standalone OpenSpec repo.
+- Cover setup/register, list, doctor, root selection, change creation, status,
+  instructions, list/show, validate, archive, and view where relevant.
+
+How the user or agent knows it worked:
+
+- The smoke passes without using old initiative collections or workspace-owned
+  planning state.
+- The final files are normal `openspec/specs/`, `openspec/changes/`, and
+  `openspec/changes/archive/` files in the standalone repo.
+
+## Phase 2: Stop Putting New Work Through Initiatives
+
+The user-facing goal of this phase:
+
+```text
+Normal OpenSpec work should not require an initiative.
+```
+
+Old initiative data can remain readable as legacy history, but the simpler path
+should stop attaching new work to initiatives.
+
+### Stop Creating New Initiative Links In Normal Change Flows
 
 Status: candidate
 
-Outcome: Stop adding new initiative coupling to normal change flows while
-keeping old metadata readable as legacy when needed.
+What the user can do:
 
-Done when:
+- Create normal changes without attaching them to an initiative.
+- Still read old initiative metadata if it already exists.
 
-- `new change` and `set change` no longer create new initiative links as part
-  of the product path.
-- Existing `.openspec.yaml` initiative metadata remains parseable if needed, but
-  is treated as legacy/display-only.
-- Context-store selectors route to OpenSpec roots instead of initiative
+Why it matters:
+
+- Initiative links make the simple model harder to understand.
+- They make users think the initiative system is required when it should not be
+  the normal path.
+
+What changes in commands or files:
+
+- `new change` and `set change` stop creating new initiative links as part of
+  the main product path.
+- Existing `.openspec.yaml` initiative metadata remains parseable if needed.
+- Store/root selection points to normal OpenSpec roots, not initiative
   collections.
 
-### Remove Public Initiative Surfaces
+How the user or agent knows it worked:
+
+- New changes do not get initiative metadata by default.
+- Old initiative-linked changes can still be displayed or handled as legacy.
+
+### Hide Or Demote Initiative Commands From The Main Path
 
 Status: candidate
 
-Outcome: Remove, hide, or clearly demote public initiative command surfaces so
-they no longer look like the model.
+What the user can do:
 
-Done when:
+- Follow normal OpenSpec commands without being pointed toward
+  `openspec initiative`.
 
-- `openspec initiative` is not presented as the product path.
-- Completion metadata, generated guidance, and command docs stop advertising
+Why it matters:
+
+- If generated guidance and completions keep advertising initiatives, users and
+  agents will keep treating them as the product model.
+
+What changes in commands or files:
+
+- Completion metadata, generated guidance, and command docs stop presenting
   initiative flows as normal workflow steps.
-- Existing initiative folders or metadata are not deleted automatically unless
-  they are explicitly part of a cleanup slice.
+- Existing initiative folders are not deleted automatically.
+- Any cleanup is explicit and separate.
 
-### Decouple Workspace Open From Initiatives
+How the user or agent knows it worked:
 
-Status: candidate
+- A fresh user is guided toward specs and changes, not initiatives.
+- Existing initiative data remains untouched unless an explicit cleanup slice
+  says otherwise.
 
-Outcome: Remove initiative attachment from workspace opening so opening becomes
-a local view concern.
-
-Done when:
-
-- `workspace open --initiative` and related initiative picker behavior no longer
-  define the opening model.
-- Old workspace view files can fail gracefully or be read as legacy without
-  resolving active initiative context.
-- Workspace opening is ready to be replaced by opening a selected store/root
-  plus target repos.
-
-## Phase 3: Target Project Repo Resolution
-
-### Define Target Project Repo Contract
+### Make Workspace Opening Stop Depending On Initiatives
 
 Status: candidate
 
-Outcome: Define how work or changes declare which project repos own
-implementation.
+What the user can do:
 
-Done when:
+- Open useful local views without needing to choose an initiative first.
 
-- Target repo ids have a simple, explicit shape.
-- A target repo declaration is separate from the OpenSpec artifact root.
-- The contract does not imply automatic cloning, syncing, branch management, or
-  edit-boundary enforcement.
+Why it matters:
 
-### Map Target Repos To Local Checkouts
+- Opening files is a local convenience. It should not define where planning
+  state lives.
+
+What changes in commands or files:
+
+- `workspace open --initiative` and initiative picker behavior no longer define
+  the main opening model.
+- Old workspace view files can be read as legacy or fail clearly.
+- Opening prepares to use a selected OpenSpec root plus target repos instead.
+
+How the user or agent knows it worked:
+
+- Opening a view does not create or require initiative planning state.
+- Errors explain local view problems separately from OpenSpec-root problems.
+
+## Phase 3: Say Which Project Repos The Work Is About
+
+The user-facing goal of this phase:
+
+```text
+This OpenSpec work lives here, and it targets these project repos.
+```
+
+### Let Work Declare Its Target Project Repos
 
 Status: candidate
 
-Outcome: Let local config map target repo ids to checkout paths.
+What the user can do:
 
-Done when:
+- Mark a change or work item as applying to one or more project repos.
 
-- A local repo map can resolve a declared target repo to a local checkout.
+Why it matters:
+
+- A standalone OpenSpec repo is separate from the code repos.
+- Users and agents need a simple way to know which code repos the work is about.
+
+What changes in commands or files:
+
+- Add a simple target repo declaration shape.
+- Keep target repo declarations separate from the OpenSpec artifact root.
+- Do not imply automatic clone, sync, branch, worktree, or edit-boundary
+  enforcement.
+
+How the user or agent knows it worked:
+
+- A change can clearly say which project repo ids it targets.
+- The declaration is visible in normal OpenSpec files or metadata.
+
+### Map Target Repo Names To Local Checkout Paths
+
+Status: candidate
+
+What the user can do:
+
+- Tell OpenSpec where each target project repo lives on this machine.
+
+Why it matters:
+
+- Shared OpenSpec work can name a target repo, but each developer may have that
+  repo checked out in a different local path.
+
+What changes in commands or files:
+
+- Add local machine settings that map target repo ids to local checkout paths.
+- Keep the map local; it is not shared planning state.
 - Missing, duplicate, or invalid mappings fail clearly.
-- The map is local configuration, not a shared state system.
 
-### Report Target Repo Mapping Health
+How the user or agent knows it worked:
 
-Status: candidate
+- Given a target repo id, OpenSpec can resolve the local checkout path.
+- If the path is missing or ambiguous, the error tells the user what to fix.
 
-Outcome: Surface whether declared target repos are available locally.
-
-Done when:
-
-- Doctor or status output reports missing target mappings clearly.
-- The report distinguishes OpenSpec root health from target project checkout
-  health.
-- The output stays diagnostic and does not attempt clone, pull, push, branch,
-  worktree, or sync behavior.
-
-## Phase 4: Open View
-
-### Open OpenSpec Root With Target Repos
+### Report Whether Target Repos Are Available Locally
 
 Status: candidate
 
-Outcome: Reuse or replace workspace opening machinery so a user can open a
-selected context store or standalone OpenSpec repo together with its mapped
-target code repos.
+What the user can do:
 
-Done when:
+- Ask OpenSpec whether the target project repos for this work are available on
+  the current machine.
 
-- The selected context store/root remains the durable planning source of truth
-  through normal `openspec/` artifacts.
-- Target repos are opened from the local repo map.
-- The view can generate editor/agent opening surfaces without creating a
-  workspace planning home.
+Why it matters:
+
+- Agents need to know whether they can inspect or edit the relevant code repo.
+- This should be diagnostic only; it should not clone or sync anything.
+
+What changes in commands or files:
+
+- Doctor or status output reports target repo mapping health.
+- The report clearly separates OpenSpec root health, context-store metadata
+  health, and target project checkout health.
+
+How the user or agent knows it worked:
+
+- Missing target repo mappings are easy to see.
+- The output does not attempt clone, pull, push, sync, branch, or worktree
+  behavior.
+
+## Phase 4: Open The Right Files Together
+
+The user-facing goal of this phase:
+
+```text
+Open my standalone OpenSpec repo and the project repos it targets in one useful
+local view.
+```
+
+### Open The OpenSpec Repo And Target Repos Together
+
+Status: candidate
+
+What the user can do:
+
+- Open a selected standalone OpenSpec repo plus its mapped project repos in the
+  editor or agent surface they use.
+
+Why it matters:
+
+- Users usually need both the plan and the code.
+- Opening them together should be a local convenience, not a new planning
+  system.
+
+What changes in commands or files:
+
+- Reuse or replace workspace opening machinery.
+- Use the selected OpenSpec root as the durable planning source of truth.
+- Use the local repo map to find project repo checkouts.
+- Do not create workspace-owned planning state.
+
+How the user or agent knows it worked:
+
+- The opened view contains the OpenSpec repo and relevant target repos.
+- The durable files remain normal OpenSpec artifacts.
 - The view does not imply clone, pull, push, sync, branch, worktree, dashboard,
   or edit-boundary enforcement.
 
-## Phase 5: Residue Removal When It Blocks
+## Phase 5: Remove Old Surfaces Only When They Confuse The Simple Path
 
-### Delete Or Demote Detour Surfaces
+The user-facing goal of this phase:
+
+```text
+Remove or hide old beta surfaces only when they make the simple path harder to
+use or understand.
+```
+
+### Remove Or Hide Old Workspace And Initiative Paths
 
 Status: later
 
-Outcome: Remove, hide, or demote workspace-planning and initiative-collection
-surfaces when they confuse the simple path or block store-backed standalone
-OpenSpec repos. This is not a compatibility preservation pass.
+What the user can do:
 
-Done when:
+- Follow the simple OpenSpec root path without being distracted by obsolete beta
+  workflows.
 
-- Obsolete no-delta workspace changes are deleted, archived, or otherwise kept
-  out of the active implementation queue when they are no longer useful.
+Why it matters:
+
+- Cleanup is useful only when it reduces confusion or removes a blocker.
+- It should not become a broad compatibility project or docs rewrite.
+
+What changes in commands or files:
+
+- Obsolete no-delta workspace changes can be deleted, archived, or moved out of
+  the active queue.
 - Workspace-planning and initiative-collection code, docs, specs, and generated
-  guidance are removed or demoted only where they mislead users/agents or
-  constrain the new architecture.
-- The cleanup does not become a broad docs rewrite or a compatibility support
-  project.
+  guidance can be removed or moved out of the main path where they mislead
+  users or agents.
+- Existing user data is not deleted automatically.
 
-## Later Candidates
+How the user or agent knows it worked:
 
-- Revisit public concept docs only after the model and behavior are solid
-  enough for public consumption. Until then, do not rewrite `docs/concepts.md`
-  or expose detailed standalone OpenSpec repo, target repo, local repo map, or
-  `/work` language as public product framing.
-- Decide how and when accepted workspace-planning specs change once behavior
-  changes; do not rewrite specs just to match future framing.
-- Add richer cross-repo context and doctoring after standalone OpenSpec repos
-  can target project repos.
-- Evolve toward first-class `work/` only after the baseline and standalone repo
-  flow are solid.
-- Revisit whether existing `changes/` become change-shaped work under `work/`.
+- The active roadmap and generated guidance point to the simple path.
+- Old surfaces no longer look like required workflow.
+
+## Later Ideas
+
+Keep these out of the main queue until the simpler standalone OpenSpec repo path
+is working:
+
+- Rewrite public concept docs after behavior is solid.
+- Decide how accepted workspace-planning specs should change once behavior has
+  changed.
+- Add richer cross-repo context and doctoring after target repo mapping works.
+- Consider first-class `work/` only after the baseline and standalone repo flow
+  are solid.
+- Revisit whether `changes/` should evolve into change-shaped work under
+  `work/`.
 - Add machine-readable `/work` metadata only after the manual shape proves
   useful.
-- Decide whether to keep, rename, or replace `context-store` terminology only
-  after the bridge behavior proves useful; do not block Phase 1 on naming.
-- Re-review the local `use-openspec` skill changes and decide how this guidance
-  should really work: ignored local skill, generated artifact, checked-in source,
-  or productized default guidance.
+- Decide whether to keep, rename, or replace `context-store` terminology after
+  the bridge behavior proves useful.
+- Review local `use-openspec` skill guidance and decide whether it should be an
+  ignored local skill, generated artifact, checked-in source, or productized
+  default.
 - Fix small baseline quirks, such as JSON support for `openspec list --specs`,
-  only if they matter to the simple smoke path or standalone repo flow.
-- Reintroduce initiative-like behavior only as a Git-native work type, if it
+  only if they matter to the simple standalone repo flow.
+- Reintroduce initiative-like behavior only as a Git-native work type if it
   still proves useful later.
 
-## Roadmap Changes
+## Roadmap Change Log
 
 - 2026-06-07: Started the active reorientation experiment under
   `openspec/work/` instead of continuing the context-store initiative roadmap.
@@ -448,39 +576,20 @@ Done when:
 - 2026-06-08: Removed the experimental `/work` folder shape from the roadmap;
   it is the dogfood structure for this thinking, not a product slice.
 - 2026-06-08: Preserved the old initiative reorientation item and expanded the
-  full framing cleanup into separate roadmap slices for old authority,
-  deferred artifacts, agent guidance, public docs, beta docs, CLI reference,
-  and generated guidance.
+  framing cleanup into separate roadmap slices.
 - 2026-06-08: Completed the old initiative reorientation pass by rewriting the
-  opening sections of the old README, roadmap, tasks, and direction files as
-  transition evidence / beta history.
-- 2026-06-09: Marked the workspace reimplementation roadmap,
-  workspace-agent-guidance, workspace-apply-repo-slice, and
-  workspace-verify-and-archive artifacts obsolete / pending deletion review.
-- 2026-06-09: Reframed checked-in `use-openspec` guidance around OpenSpec
-  roots, artifact placement, and target project repos instead of beta
-  shared-context framing.
-- 2026-06-09: Added a later review item for the `use-openspec` skill framing
-  after noticing the edited `.codex/` skill is ignored local guidance.
-- 2026-06-09: Deferred the public concepts reframe until the simplified model
-  is more solid and implemented enough for public documentation.
-- 2026-06-09: Reordered the roadmap around baseline, placement, standalone
-  OpenSpec repos, and target repo mapping; moved docs and public framing cleanup
-  to later phases.
-- 2026-06-09: Reframed Phase 1 from preserving all current behavior to
-  recovering the simple OpenSpec baseline, and replaced compatibility-docs work
-  with as-needed residue removal.
-- 2026-06-09: Collapsed baseline recovery and standalone placement into the
-  first implementation phase: make a standalone OpenSpec root path work, then
-  remove initiative coupling, add target repo mapping, and build open views as
-  local convenience.
-- 2026-06-09: Reframed Phase 1 around context store as the named/registered
-  standalone OpenSpec repo bridge: reuse setup/register/list/doctor and store
-  selectors, keep planning state in normal `openspec/`, and move initiative
-  removal into its own product-path cleanup.
-- 2026-06-09: Split Phase 1 into two research-gated slices: Store Root Parity
-  for setup/register creating or validating a normal standalone OpenSpec root,
-  and Store Selectors For Core Commands for routing lifecycle commands to a
-  selected store/root without initiative links.
-- 2026-06-09: Added the Store Root Parity slice spec and linked it from the
-  roadmap.
+  opening sections of old initiative files as transition evidence and beta
+  history.
+- 2026-06-09: Marked old workspace reimplementation artifacts obsolete or
+  pending deletion review.
+- 2026-06-09: Reframed checked-in `use-openspec` guidance around OpenSpec roots,
+  artifact placement, and target project repos instead of beta shared-context
+  framing.
+- 2026-06-09: Deferred public concept docs until the simplified model is more
+  solid.
+- 2026-06-09: Reordered the roadmap around standalone OpenSpec repos, target
+  repo mapping, and local views.
+- 2026-06-09: Added the store-root-parity slice spec.
+- 2026-06-10: Rewrote this roadmap in user-facing language so each slice says
+  what the user can do, why it matters, what changes, and how success is
+  visible.
