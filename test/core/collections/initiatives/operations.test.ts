@@ -22,7 +22,7 @@ describe('initiative operations', () => {
   let tempDir: string;
 
   beforeEach(() => {
-    tempDir = nodeFs.mkdtempSync(path.join(os.tmpdir(), 'openspec-initiatives-operations-'));
+    tempDir = nodeFs.mkdtempSync(path.join(os.tmpdir(), 'clearspec-initiatives-operations-'));
   });
 
   afterEach(() => {

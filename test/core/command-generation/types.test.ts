@@ -6,7 +6,7 @@ describe('command-generation/types', () => {
     it('should allow creating valid command content', () => {
       const content: CommandContent = {
         id: 'explore',
-        name: 'OpenSpec Explore',
+        name: 'ClearSpec Explore',
         description: 'Enter explore mode for thinking',
         category: 'Workflow',
         tags: ['workflow', 'explore'],
@@ -14,7 +14,7 @@ describe('command-generation/types', () => {
       };
 
       expect(content.id).toBe('explore');
-      expect(content.name).toBe('OpenSpec Explore');
+      expect(content.name).toBe('ClearSpec Explore');
       expect(content.description).toBe('Enter explore mode for thinking');
       expect(content.category).toBe('Workflow');
       expect(content.tags).toEqual(['workflow', 'explore']);
@@ -68,11 +68,11 @@ describe('command-generation/types', () => {
   describe('GeneratedCommand interface', () => {
     it('should represent generated command output', () => {
       const generated: GeneratedCommand = {
-        path: '.claude/commands/opsx/explore.md',
+        path: '.claude/commands/clsx/explore.md',
         fileContent: '---\nname: Test\n---\n\nBody\n',
       };
 
-      expect(generated.path).toBe('.claude/commands/opsx/explore.md');
+      expect(generated.path).toBe('.claude/commands/clsx/explore.md');
       expect(generated.fileContent).toContain('name: Test');
     });
   });

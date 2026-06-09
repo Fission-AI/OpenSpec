@@ -4,7 +4,7 @@ import ora from 'ora';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { promises as fs } from 'fs';
-import { AI_TOOLS, OPENSPEC_DIR_NAME } from '../core/config.js';
+import { AI_TOOLS, CLEARSPEC_DIR_NAME } from '../core/config.js';
 import { UpdateCommand } from '../core/update.js';
 import { ListCommand } from '../core/list.js';
 import { ArchiveCommand } from '../core/archive.js';
@@ -53,18 +53,18 @@ function getCommandPath(command: Command): string {
 
   while (current) {
     const name = current.name();
-    // Skip the root 'openspec' command
-    if (name && name !== 'openspec') {
+    // Skip the root 'clearspec' command
+    if (name && name !== 'clearspec') {
       names.unshift(name);
     }
     current = current.parent;
   }
 
-  return names.join(':') || 'openspec';
+  return names.join(':') || 'clearspec';
 }
 
 program
-  .name('openspec')
+  .name('clearspec')
   .description('AI-native system for spec-driven development')
   .version(version);
 
@@ -97,9 +97,9 @@ program.hook('postAction', async () => {
 const availableToolIds = AI_TOOLS.filter((tool) => tool.skillsDir).map((tool) => tool.value);
 const toolsOptionDescription = `Configure AI tools non-interactively. Use "all", "none", or a comma-separated list of: ${availableToolIds.join(', ')}`;
 
-async function hasRepoLocalOpenSpecProject(projectPath: string): Promise<boolean> {
+async function hasRepoLocalClearSpecProject(projectPath: string): Promise<boolean> {
   try {
-    const stats = await fs.stat(path.join(projectPath, OPENSPEC_DIR_NAME));
+    const stats = await fs.stat(path.join(projectPath, CLEARSPEC_DIR_NAME));
     return stats.isDirectory();
   } catch (error) {
     const code =
@@ -115,7 +115,7 @@ async function hasRepoLocalOpenSpecProject(projectPath: string): Promise<boolean
 
 program
   .command('init [path]')
-  .description('Initialize OpenSpec in your project')
+  .description('Initialize ClearSpec in your project')
   .option('--tools <tools>', toolsOptionDescription)
   .option('--force', 'Auto-cleanup legacy files without prompting')
   .option('--profile <profile>', 'Override global config profile (core or custom)')
@@ -162,7 +162,7 @@ program
   .option('--no-interactive', 'Disable interactive prompts')
   .action(async (options?: { tool?: string; noInteractive?: boolean }) => {
     try {
-      console.log('Note: "openspec experimental" is deprecated. Use "openspec init" instead.');
+      console.log('Note: "clearspec experimental" is deprecated. Use "clearspec init" instead.');
       const { InitCommand } = await import('../core/init.js');
       const initCommand = new InitCommand({
         tools: options?.tool,
@@ -178,13 +178,13 @@ program
 
 program
   .command('update [path]')
-  .description('Update OpenSpec instruction files')
+  .description('Update ClearSpec instruction files')
   .option('--force', 'Force update even when tools are up to date')
   .action(async (targetPath = '.', options?: { force?: boolean }) => {
     try {
       const resolvedPath = path.resolve(targetPath);
       const updateCommand = new UpdateCommand({ force: options?.force });
-      if (await hasRepoLocalOpenSpecProject(resolvedPath)) {
+      if (await hasRepoLocalClearSpecProject(resolvedPath)) {
         await updateCommand.execute(resolvedPath);
         return;
       }
@@ -192,7 +192,7 @@ program
       const workspaceRoot = await findWorkspaceRoot(resolvedPath);
       if (workspaceRoot) {
         throw new Error(
-          'OpenSpec workspace detected. Run `openspec workspace update` to refresh workspace-local guidance and skills.'
+          'ClearSpec workspace detected. Run `clearspec workspace update` to refresh workspace-local guidance and skills.'
         );
       }
 
@@ -241,11 +241,11 @@ program
 // Change command with subcommands
 const changeCmd = program
   .command('change')
-  .description('Manage OpenSpec change proposals');
+  .description('Manage ClearSpec change proposals');
 
 // Deprecation notice for noun-based commands
 changeCmd.hook('preAction', () => {
-  console.error('Warning: The "openspec change ..." commands are deprecated. Prefer verb-first commands (e.g., "openspec list", "openspec validate --changes").');
+  console.error('Warning: The "clearspec change ..." commands are deprecated. Prefer verb-first commands (e.g., "clearspec list", "clearspec validate --changes").');
 });
 
 changeCmd
@@ -267,12 +267,12 @@ changeCmd
 
 changeCmd
   .command('list')
-  .description('List all active changes (DEPRECATED: use "openspec list" instead)')
+  .description('List all active changes (DEPRECATED: use "clearspec list" instead)')
   .option('--json', 'Output as JSON')
   .option('--long', 'Show id and title with counts')
   .action(async (options?: { json?: boolean; long?: boolean }) => {
     try {
-      console.error('Warning: "openspec change list" is deprecated. Use "openspec list".');
+      console.error('Warning: "clearspec change list" is deprecated. Use "clearspec list".');
       const changeCommand = new ChangeCommand();
       await changeCommand.list(options);
     } catch (error) {
@@ -334,7 +334,7 @@ program
   .option('--type <type>', 'Specify item type when ambiguous: change|spec')
   .option('--strict', 'Enable strict validation mode')
   .option('--json', 'Output validation results as JSON')
-  .option('--concurrency <n>', 'Max concurrent validations (defaults to env OPENSPEC_CONCURRENCY or 6)')
+  .option('--concurrency <n>', 'Max concurrent validations (defaults to env CLEARSPEC_CONCURRENCY or 6)')
   .option('--no-interactive', 'Disable interactive prompts')
   .action(async (itemName?: string, options?: { all?: boolean; changes?: boolean; specs?: boolean; type?: string; strict?: boolean; json?: boolean; noInteractive?: boolean; concurrency?: string }) => {
     try {
@@ -377,7 +377,7 @@ program
 // Feedback command
 program
   .command('feedback <message>')
-  .description('Submit feedback about OpenSpec')
+  .description('Submit feedback about ClearSpec')
   .option('--body <text>', 'Detailed description for the feedback')
   .action(async (message: string, options?: { body?: string }) => {
     try {
@@ -393,7 +393,7 @@ program
 // Completion command with subcommands
 const completionCmd = program
   .command('completion')
-  .description('Manage shell completions for OpenSpec CLI');
+  .description('Manage shell completions for ClearSpec CLI');
 
 completionCmd
   .command('generate [shell]')
@@ -552,7 +552,7 @@ newCmd
   });
 
 // Set command group
-const setCmd = program.command('set').description('Set checked-in OpenSpec metadata');
+const setCmd = program.command('set').description('Set checked-in ClearSpec metadata');
 
 setCmd
   .command('change <name>')

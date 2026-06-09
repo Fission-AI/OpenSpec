@@ -1,4 +1,4 @@
-# OpenSpec Test Guidance
+# ClearSpec Test Guidance
 
 Applies to tests under `test/`.
 

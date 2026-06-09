@@ -11,6 +11,10 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..', '..');
+// NOTE: This validates the repository's own source-of-truth specs, which live in
+// the repo's `openspec/` planning folder (the OpenSpec dev instance used to build
+// ClearSpec). That dev folder is intentionally NOT rebranded — see the
+// complete-clearspec-rebrand design (Decision 7).
 const specsRoot = path.join(projectRoot, 'openspec', 'specs');
 
 const PURPOSE_PLACEHOLDER_PATTERN = /TBD - created by archiving change .*?\. Update Purpose after archive\./;

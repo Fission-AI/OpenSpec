@@ -1,7 +1,7 @@
 # cli-validate Specification
 
 ## Purpose
-Define `openspec validate` behavior for validating changes and specs with actionable remediation guidance and structured output.
+Define `clearspec validate` behavior for validating changes and specs with actionable remediation guidance and structured output.
 
 ## Requirements
 ### Requirement: Validation SHALL provide actionable remediation steps
@@ -13,7 +13,7 @@ Validation output SHALL include specific guidance to fix each error, including e
   - Explain that change specs must include `## ADDED Requirements`, `## MODIFIED Requirements`, `## REMOVED Requirements`, or `## RENAMED Requirements`
   - Remind authors that files must live under `openspec/changes/{id}/specs/<capability>/spec.md`
   - Include an explicit note: "Spec delta files cannot start with titles before the operation headers"
-  - Suggest running `openspec change show {id} --json --deltas-only` for debugging
+  - Suggest running `clearspec change show {id} --json --deltas-only` for debugging
 
 #### Scenario: Missing required sections
 - **WHEN** a required section is missing
@@ -60,7 +60,7 @@ The CLI SHALL append a Next steps footer when the item is invalid and not using 
 
 #### Scenario: Change invalid summary
 - **WHEN** a change validation fails
-- **THEN** print "Next steps" with 2-3 targeted bullets and suggest `openspec change show <id> --json --deltas-only`
+- **THEN** print "Next steps" with 2-3 targeted bullets and suggest `clearspec change show <id> --json --deltas-only`
 
 ### Requirement: Top-level validate command
 
@@ -68,7 +68,7 @@ The CLI SHALL provide a top-level `validate` command for validating changes and 
 
 #### Scenario: Interactive validation selection
 
-- **WHEN** executing `openspec validate` without arguments
+- **WHEN** executing `clearspec validate` without arguments
 - **THEN** prompt user to select what to validate (all, changes, specs, or specific item)
 - **AND** perform validation based on selection
 - **AND** display results with appropriate formatting
@@ -76,13 +76,13 @@ The CLI SHALL provide a top-level `validate` command for validating changes and 
 #### Scenario: Non-interactive environments do not prompt
 
 - **GIVEN** stdin is not a TTY or `--no-interactive` is provided or environment variable `OPEN_SPEC_INTERACTIVE=0`
-- **WHEN** executing `openspec validate` without arguments
+- **WHEN** executing `clearspec validate` without arguments
 - **THEN** do not prompt interactively
 - **AND** print a helpful hint listing available commands/flags and exit with code 1
 
 #### Scenario: Direct item validation
 
-- **WHEN** executing `openspec validate <item-name>`
+- **WHEN** executing `clearspec validate <item-name>`
 - **THEN** automatically detect if item is a change or spec
 - **AND** validate the specified item
 - **AND** display validation results
@@ -93,7 +93,7 @@ The validate command SHALL support flags for bulk validation (--all) and filtere
 
 #### Scenario: Validate everything
 
-- **WHEN** executing `openspec validate --all`
+- **WHEN** executing `clearspec validate --all`
 - **THEN** validate all changes in openspec/changes/ (excluding archive)
 - **AND** validate all specs in openspec/specs/
 - **AND** display a summary showing passed/failed items
@@ -110,14 +110,14 @@ The validate command SHALL support flags for bulk validation (--all) and filtere
 
 #### Scenario: Validate all changes
 
-- **WHEN** executing `openspec validate --changes`
+- **WHEN** executing `clearspec validate --changes`
 - **THEN** validate all changes in openspec/changes/ (excluding archive)
 - **AND** display results for each change
 - **AND** show summary statistics
 
 #### Scenario: Validate all specs
 
-- **WHEN** executing `openspec validate --specs`
+- **WHEN** executing `clearspec validate --specs`
 - **THEN** validate all specs in openspec/specs/
 - **AND** display results for each spec
 - **AND** show summary statistics
@@ -128,21 +128,21 @@ The validate command SHALL support standard validation options (--strict, --json
 
 #### Scenario: Strict validation
 
-- **WHEN** executing `openspec validate --all --strict`
+- **WHEN** executing `clearspec validate --all --strict`
 - **THEN** apply strict validation to all items
 - **AND** treat warnings as errors
 - **AND** fail if any item has warnings or errors
 
 #### Scenario: JSON output
 
-- **WHEN** executing `openspec validate --all --json`
+- **WHEN** executing `clearspec validate --all --json`
 - **THEN** output validation results as JSON
 - **AND** include detailed issues for each item
 - **AND** include summary statistics
 
 #### Scenario: JSON output schema for bulk validation
 
-- **WHEN** executing `openspec validate --all --json` (or `--changes` / `--specs`)
+- **WHEN** executing `clearspec validate --all --json` (or `--changes` / `--specs`)
 - **THEN** output a JSON object with the following shape:
   - `items`: Array of objects with fields `{ id: string, type: "change"|"spec", valid: boolean, issues: Issue[], durationMs: number }`
   - `summary`: Object `{ totals: { items: number, passed: number, failed: number }, byType: { change?: { items: number, passed: number, failed: number }, spec?: { items: number, passed: number, failed: number } } }`
@@ -170,15 +170,15 @@ The validate command SHALL handle ambiguous names and explicit type overrides to
 
 #### Scenario: Direct item validation with automatic type detection
 
-- **WHEN** executing `openspec validate <item-name>`
+- **WHEN** executing `clearspec validate <item-name>`
 - **THEN** if `<item-name>` uniquely matches a change or a spec, validate that item
 
 #### Scenario: Ambiguity between change and spec names
 
 - **GIVEN** `<item-name>` exists both as a change and as a spec
-- **WHEN** executing `openspec validate <item-name>`
+- **WHEN** executing `clearspec validate <item-name>`
 - **THEN** print an ambiguity error explaining both matches
-- **AND** suggest passing `--type change` or `--type spec`, or using `openspec change validate` / `openspec spec validate`
+- **AND** suggest passing `--type change` or `--type spec`, or using `clearspec change validate` / `clearspec spec validate`
 - **AND** exit with code 1 without performing validation
 
 #### Scenario: Unknown item name
@@ -190,10 +190,10 @@ The validate command SHALL handle ambiguous names and explicit type overrides to
 
 #### Scenario: Explicit type override
 
-- **WHEN** executing `openspec validate --type change <item>`
+- **WHEN** executing `clearspec validate --type change <item>`
 - **THEN** treat `<item>` as a change ID and validate it (skipping auto-detection)
 
-- **WHEN** executing `openspec validate --type spec <item>`
+- **WHEN** executing `clearspec validate --type spec <item>`
 - **THEN** treat `<item>` as a spec ID and validate it (skipping auto-detection)
 
 ### Requirement: Interactivity controls
@@ -204,7 +204,7 @@ The validate command SHALL handle ambiguous names and explicit type overrides to
 
 #### Scenario: Disabling prompts via flags or environment
 
-- **WHEN** `openspec validate` is executed with `--no-interactive` or with environment `OPEN_SPEC_INTERACTIVE=0`
+- **WHEN** `clearspec validate` is executed with `--no-interactive` or with environment `OPEN_SPEC_INTERACTIVE=0`
 - **THEN** the CLI SHALL not display interactive prompts
 - **AND** SHALL print non-interactive hints or chosen outputs as appropriate
 
@@ -214,6 +214,6 @@ The markdown parser SHALL correctly identify sections regardless of line ending 
 #### Scenario: Required sections parsed with CRLF line endings
 - **GIVEN** a change proposal markdown saved with CRLF line endings
 - **AND** the document contains `## Why` and `## What Changes`
-- **WHEN** running `openspec validate <change-id>`
+- **WHEN** running `clearspec validate <change-id>`
 - **THEN** validation SHALL recognize the sections and NOT raise parsing errors
 

@@ -93,7 +93,7 @@ function outputForCreatedChange(
     change: {
       id,
       path: changeDir,
-      metadataPath: path.join(changeDir, '.openspec.yaml'),
+      metadataPath: path.join(changeDir, '.clearspec.yaml'),
       schema,
     },
     ...(initiative ? { initiative } : {}),
@@ -191,7 +191,7 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
       } else {
         console.log('Affected areas: unresolved; identify them in change metadata or coordination tasks as planning continues.');
       }
-      console.log('Next: run openspec status --change "' + name + '" to inspect workspace planning artifacts.');
+      console.log('Next: run clearspec status --change "' + name + '" to inspect workspace planning artifacts.');
     }
   } catch (error) {
     spinner?.stop();

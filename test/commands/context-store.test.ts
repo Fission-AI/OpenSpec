@@ -25,7 +25,7 @@ async function runContextStoreCommand(args: string[]): Promise<void> {
   const { registerContextStoreCommand } = await import('../../src/commands/context-store.js');
   const program = new Command();
   registerContextStoreCommand(program);
-  await program.parseAsync(['node', 'openspec', 'context-store', ...args]);
+  await program.parseAsync(['node', 'clearspec', 'context-store', ...args]);
 }
 
 async function getPromptMocks(): Promise<{
@@ -55,14 +55,14 @@ describe('context-store command', () => {
   beforeEach(() => {
     vi.resetModules();
 
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-context-store-command-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'clearspec-context-store-command-'));
     dataHome = path.join(tempDir, 'data');
     configHome = path.join(tempDir, 'config');
     env = {
       XDG_DATA_HOME: dataHome,
       XDG_CONFIG_HOME: configHome,
       OPEN_SPEC_INTERACTIVE: '0',
-      OPENSPEC_TELEMETRY: '0',
+      CLEARSPEC_TELEMETRY: '0',
     };
     globalDataDir = getGlobalDataDir({ env });
 
@@ -124,7 +124,7 @@ describe('context-store command', () => {
       is_repository: false,
       initialized: false,
     });
-    expect(payload.created_files).toEqual(['.openspec-store/store.yaml']);
+    expect(payload.created_files).toEqual(['.clearspec-store/store.yaml']);
     expect(payload.status).toEqual([]);
     await expect(readContextStoreMetadataState(storeRoot)).resolves.toEqual({
       version: 1,
@@ -149,7 +149,7 @@ describe('context-store command', () => {
       ...process.env,
       XDG_DATA_HOME: dataHome,
       XDG_CONFIG_HOME: configHome,
-      OPENSPEC_TELEMETRY: '0',
+      CLEARSPEC_TELEMETRY: '0',
     };
     delete process.env.OPEN_SPEC_INTERACTIVE;
     delete process.env.CI;
@@ -253,7 +253,7 @@ describe('context-store command', () => {
       ...process.env,
       XDG_DATA_HOME: dataHome,
       XDG_CONFIG_HOME: configHome,
-      OPENSPEC_TELEMETRY: '0',
+      CLEARSPEC_TELEMETRY: '0',
     };
     delete process.env.OPEN_SPEC_INTERACTIVE;
     delete process.env.CI;
@@ -308,7 +308,7 @@ describe('context-store command', () => {
       ...process.env,
       XDG_DATA_HOME: dataHome,
       XDG_CONFIG_HOME: configHome,
-      OPENSPEC_TELEMETRY: '0',
+      CLEARSPEC_TELEMETRY: '0',
     };
     delete process.env.OPEN_SPEC_INTERACTIVE;
     delete process.env.CI;
@@ -339,7 +339,7 @@ describe('context-store command', () => {
     expect(result.exitCode).toBe(0);
     const payload = parseJson(result);
     expect(payload.context_store.id).toBe('team-context');
-    expect(payload.created_files).toEqual(['.openspec-store/store.yaml']);
+    expect(payload.created_files).toEqual(['.clearspec-store/store.yaml']);
     await expect(readContextStoreMetadataState(storeRoot)).resolves.toEqual({
       version: 1,
       id: 'team-context',
@@ -377,7 +377,7 @@ describe('context-store command', () => {
       })
     );
 
-    fs.rmSync(path.join(firstRoot, '.openspec-store'), { recursive: true, force: true });
+    fs.rmSync(path.join(firstRoot, '.clearspec-store'), { recursive: true, force: true });
     fs.symlinkSync(firstRoot, aliasRoot, process.platform === 'win32' ? 'junction' : 'dir');
     const samePath = await runCLI(
       ['context-store', 'register', aliasRoot, '--id', 'other-context', '--json'],
@@ -664,7 +664,7 @@ describe('context-store command', () => {
       ...process.env,
       XDG_DATA_HOME: dataHome,
       XDG_CONFIG_HOME: configHome,
-      OPENSPEC_TELEMETRY: '0',
+      CLEARSPEC_TELEMETRY: '0',
     };
     delete process.env.OPEN_SPEC_INTERACTIVE;
     delete process.env.CI;

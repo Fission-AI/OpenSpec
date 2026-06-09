@@ -1,6 +1,6 @@
-# OpenSpec Scripts
+# ClearSpec Scripts
 
-Utility scripts for OpenSpec maintenance and development.
+Utility scripts for ClearSpec maintenance and development.
 
 ## update-flake.sh
 

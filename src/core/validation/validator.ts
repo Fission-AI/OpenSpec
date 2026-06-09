@@ -450,7 +450,7 @@ export class Validator {
    * When the SHALL/MUST keyword already appears in the requirement header (e.g.
    * `### Requirement: The system SHALL ...`) the original generic error
    * ("must contain SHALL or MUST") is confusing because the keyword is visibly
-   * present in the spec. Per the OpenSpec conventions the keyword has to live
+   * present in the spec. Per the ClearSpec conventions the keyword has to live
    * on the requirement body line (the line right after the header), so we point
    * the author at that exact fix when the keyword is found in the header only.
    */

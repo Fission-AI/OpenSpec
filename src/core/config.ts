@@ -1,11 +1,11 @@
-export const OPENSPEC_DIR_NAME = 'openspec';
+export const CLEARSPEC_DIR_NAME = 'clearspec';
 
-export const OPENSPEC_MARKERS = {
-  start: '<!-- OPENSPEC:START -->',
-  end: '<!-- OPENSPEC:END -->'
+export const CLEARSPEC_MARKERS = {
+  start: '<!-- CLEARSPEC:START -->',
+  end: '<!-- CLEARSPEC:END -->'
 };
 
-export interface OpenSpecConfig {
+export interface ClearSpecConfig {
   aiTools: string[];
 }
 

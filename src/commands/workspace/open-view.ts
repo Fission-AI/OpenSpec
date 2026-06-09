@@ -106,7 +106,7 @@ export function assertWorkspaceOpenSupportedOptions(options: WorkspaceOpenOption
       'workspace_open_store_without_initiative',
       {
         target: 'workspace.initiative',
-        fix: 'Use openspec workspace open --initiative <id> --store <store>.',
+        fix: 'Use clearspec workspace open --initiative <id> --store <store>.',
       }
     );
   }
@@ -117,7 +117,7 @@ export function assertWorkspaceOpenSupportedOptions(options: WorkspaceOpenOption
       'workspace_open_prepare_only_unsupported',
       {
         target: 'workspace.open',
-        fix: 'Run openspec workspace open with --agent <tool> or --editor.',
+        fix: 'Run clearspec workspace open with --agent <tool> or --editor.',
       }
     );
   }
@@ -210,8 +210,8 @@ async function resolveStoredWorkspaceInitiative(
       {
         target: 'workspace.context.store',
         fix: context.store.selector.kind === 'registry'
-          ? 'openspec context-store doctor'
-          : 'Check the path in .openspec-workspace/view.yaml.',
+          ? 'clearspec context-store doctor'
+          : 'Check the path in .clearspec-workspace/view.yaml.',
       }
     );
   }
@@ -268,7 +268,7 @@ function buildSkippedRootWarnings(
       code: 'workspace_open_link_skipped',
       message: `Skipped linked repo or folder '${link.name}' because ${location} is not available.`,
       target: `links.${link.name}.path`,
-      fix: `openspec workspace relink ${link.name} /path/to/${link.name}`,
+      fix: `clearspec workspace relink ${link.name} /path/to/${link.name}`,
     };
   });
 }

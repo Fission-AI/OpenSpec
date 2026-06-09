@@ -21,7 +21,7 @@ The AI instructions SHALL begin with a quick-reference section that surfaces req
 - **AND** accompany each template with a brief example showing correct header usage and scenario bullets
 
 ### Requirement: Pre-validation Checklist
-`openspec/AGENTS.md` SHALL offer a concise pre-validation checklist that highlights common formatting mistakes before running `openspec validate`.
+`openspec/AGENTS.md` SHALL offer a concise pre-validation checklist that highlights common formatting mistakes before running `clearspec validate`.
 
 #### Scenario: Highlighting common validation failures
 - **WHEN** a reader reaches the validation guidance

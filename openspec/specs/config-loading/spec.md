@@ -113,7 +113,7 @@ The system SHALL NOT validate artifact IDs in rules during config load time. Val
 The system SHALL continue operation with default values when config loading or parsing fails.
 
 #### Scenario: Config parse failure during command execution
-- **WHEN** config file has syntax errors and user runs `openspec new change`
+- **WHEN** config file has syntax errors and user runs `clearspec new change`
 - **THEN** command executes using default schema "spec-driven"
 
 #### Scenario: Warning is visible to user

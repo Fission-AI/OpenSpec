@@ -1,4 +1,4 @@
-# OpenSpec CLI Playbook For Agents
+# ClearSpec CLI Playbook For Agents
 
 Beta note: workspace and initiative flows are usable, but still small. Prefer
 plain commands, clear paths, and short status reports.
@@ -8,10 +8,10 @@ plain commands, clear paths, and short status reports.
 Use JSON when you need exact paths.
 
 ```bash
-openspec context-store list --json
-openspec initiative list --json
-openspec initiative show <store>/<initiative> --json
-openspec workspace doctor --json
+clearspec context-store list --json
+clearspec initiative list --json
+clearspec initiative show <store>/<initiative> --json
+clearspec workspace doctor --json
 ```
 
 When the user is working from an opened workspace, treat the workspace as the
@@ -21,12 +21,12 @@ own implementation artifacts.
 
 ## Set Up Context Stores Non-Interactively
 
-Humans can run `openspec context-store setup` and answer prompts. Agents should
+Humans can run `clearspec context-store setup` and answer prompts. Agents should
 pass the setup inputs explicitly.
 
 ```bash
-openspec context-store setup team-context --no-init-git --json
-openspec context-store setup team-context --path /path/to/team-context --init-git --json
+clearspec context-store setup team-context --no-init-git --json
+clearspec context-store setup team-context --path /path/to/team-context --init-git --json
 ```
 
 Use `context-store unregister <id> --json` to forget a local registration while
@@ -38,7 +38,7 @@ user explicitly asks to delete the local context-store folder.
 Create shared coordination context in a context store.
 
 ```bash
-openspec initiative create billing-launch --store team-context --title "Billing Launch" --summary "Get billing live without losing the plot."
+clearspec initiative create billing-launch --store team-context --title "Billing Launch" --summary "Get billing live without losing the plot."
 ```
 
 Then edit the initiative files in the context store:
@@ -53,11 +53,11 @@ Then edit the initiative files in the context store:
 
 When the user asks to explore or draft work from a workspace:
 
-1. Resolve the workspace with `openspec workspace doctor --json`.
-2. Resolve the initiative with `openspec initiative show <store>/<initiative> --json`.
+1. Resolve the workspace with `clearspec workspace doctor --json`.
+2. Resolve the initiative with `clearspec initiative show <store>/<initiative> --json`.
 3. Inspect linked repos or folders and identify the likely owning repo.
 4. If ownership is ambiguous, ask the user which linked repo should own the
-   repo-local OpenSpec change.
+   repo-local ClearSpec change.
 5. Run explore/propose workflow commands from the owning repo, not from the
    workspace root.
 
@@ -69,7 +69,7 @@ for implementation plans.
 Repo-local changes belong in the repo that owns the work.
 
 ```bash
-openspec new change add-billing-api --initiative team-context/billing-launch
+clearspec new change add-billing-api --initiative team-context/billing-launch
 ```
 
 Run this command with the owning repo as the current working directory. Do not
@@ -82,8 +82,8 @@ initiative link you used.
 ## Use Doctor Before Guessing
 
 ```bash
-openspec workspace doctor --workspace billing-launch --json
-openspec context-store doctor --json
+clearspec workspace doctor --workspace billing-launch --json
+clearspec context-store doctor --json
 ```
 
 ## Do Not Promise Yet

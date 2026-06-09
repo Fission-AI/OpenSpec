@@ -1,18 +1,18 @@
 # cli-feedback Specification
 
 ## Purpose
-Define `openspec feedback` behavior for creating GitHub issues safely via `gh`, with a manual fallback when automation is unavailable.
+Define `clearspec feedback` behavior for creating GitHub issues safely via `gh`, with a manual fallback when automation is unavailable.
 
 ## Requirements
 ### Requirement: Feedback command
 
-The system SHALL provide an `openspec feedback` command that creates a GitHub Issue in the openspec repository using the `gh` CLI. The system SHALL use `execFileSync` with argument arrays to prevent shell injection vulnerabilities.
+The system SHALL provide an `clearspec feedback` command that creates a GitHub Issue in the clearspec repository using the `gh` CLI. The system SHALL use `execFileSync` with argument arrays to prevent shell injection vulnerabilities.
 
 #### Scenario: Simple feedback submission
 
-- **WHEN** user executes `openspec feedback "Great tool!"`
+- **WHEN** user executes `clearspec feedback "Great tool!"`
 - **THEN** the system executes `gh issue create` with title "Feedback: Great tool!"
-- **AND** the issue is created in the openspec repository
+- **AND** the issue is created in the clearspec repository
 - **AND** the issue has the `feedback` label
 - **AND** the system displays the created issue URL
 
@@ -25,10 +25,10 @@ The system SHALL provide an `openspec feedback` command that creates a GitHub Is
 
 #### Scenario: Feedback with body
 
-- **WHEN** user executes `openspec feedback "Title here" --body "Detailed description..."`
+- **WHEN** user executes `clearspec feedback "Title here" --body "Detailed description..."`
 - **THEN** the system creates a GitHub Issue with the specified title
 - **AND** the issue body contains the detailed description
-- **AND** the issue body includes metadata (OpenSpec version, platform, timestamp)
+- **AND** the issue body includes metadata (ClearSpec version, platform, timestamp)
 
 ### Requirement: GitHub CLI dependency
 
@@ -36,7 +36,7 @@ The system SHALL use `gh` CLI for automatic feedback submission when available, 
 
 #### Scenario: Missing gh CLI with fallback
 
-- **WHEN** user runs `openspec feedback "message"`
+- **WHEN** user runs `clearspec feedback "message"`
 - **AND** `gh` CLI is not installed (not found in PATH)
 - **THEN** the system displays warning: "GitHub CLI not found. Manual submission required."
 - **AND** outputs structured feedback content with delimiters:
@@ -62,7 +62,7 @@ The system SHALL use `gh` CLI for automatic feedback submission when available, 
 
 #### Scenario: Unauthenticated gh CLI with fallback
 
-- **WHEN** user runs `openspec feedback "message"`
+- **WHEN** user runs `clearspec feedback "message"`
 - **AND** `gh` CLI is installed but not authenticated
 - **THEN** the system displays warning: "GitHub authentication required. Manual submission required."
 - **AND** outputs structured feedback content (same format as missing gh CLI scenario)
@@ -72,7 +72,7 @@ The system SHALL use `gh` CLI for automatic feedback submission when available, 
 
 #### Scenario: Authenticated gh CLI
 
-- **WHEN** user runs `openspec feedback "message"`
+- **WHEN** user runs `clearspec feedback "message"`
 - **AND** `gh auth status` returns success (authenticated)
 - **THEN** the system proceeds with feedback submission
 
@@ -84,10 +84,10 @@ The system SHALL include relevant metadata in the GitHub Issue body.
 
 - **WHEN** creating a GitHub Issue for feedback
 - **THEN** the issue body includes:
-  - OpenSpec CLI version
+  - ClearSpec CLI version
   - Platform (darwin, linux, win32)
   - Submission timestamp
-  - Separator line: "---\nSubmitted via OpenSpec CLI"
+  - Separator line: "---\nSubmitted via ClearSpec CLI"
 
 #### Scenario: Windows platform metadata
 
@@ -111,14 +111,14 @@ The system SHALL allow feedback submission regardless of telemetry settings.
 #### Scenario: Feedback with telemetry disabled
 
 - **WHEN** user has disabled telemetry via `OPENSPEC_TELEMETRY=0`
-- **AND** user runs `openspec feedback "message"`
+- **AND** user runs `clearspec feedback "message"`
 - **THEN** the feedback is still submitted via `gh` CLI
 - **AND** telemetry events are not sent
 
 #### Scenario: Feedback in CI environment
 
 - **WHEN** `CI=true` is set in the environment
-- **AND** user runs `openspec feedback "message"`
+- **AND** user runs `clearspec feedback "message"`
 - **THEN** the feedback submission proceeds normally (if `gh` is available and authenticated)
 
 ### Requirement: Error handling
@@ -149,7 +149,7 @@ The system SHALL provide a `/feedback` skill that guides agents through collecti
 - **AND** drafts a feedback issue with enriched content
 - **AND** anonymizes sensitive information
 - **AND** presents the draft to the user for approval
-- **AND** submits via `openspec feedback` command on user confirmation
+- **AND** submits via `clearspec feedback` command on user confirmation
 
 #### Scenario: Context enrichment
 
@@ -183,11 +183,11 @@ The system SHALL provide shell completions for the feedback command.
 
 #### Scenario: Command completion
 
-- **WHEN** user types `openspec fee<TAB>`
-- **THEN** the shell completes to `openspec feedback`
+- **WHEN** user types `clearspec fee<TAB>`
+- **THEN** the shell completes to `clearspec feedback`
 
 #### Scenario: Flag completion
 
-- **WHEN** user types `openspec feedback "msg" --<TAB>`
+- **WHEN** user types `clearspec feedback "msg" --<TAB>`
 - **THEN** the shell suggests available flags (`--body`)
 

@@ -260,7 +260,7 @@ export class FileSystemUtils {
         return await this.ensureWritePermissions(parentDir);
       }
 
-      const testFile = path.join(dirPath, '.openspec-test-' + Date.now() + '-' + Math.random().toString(36).slice(2));
+      const testFile = path.join(dirPath, '.clearspec-test-' + Date.now() + '-' + Math.random().toString(36).slice(2));
       await fs.writeFile(testFile, '');
 
       // On Windows, file may be temporarily locked by antivirus or indexing services.

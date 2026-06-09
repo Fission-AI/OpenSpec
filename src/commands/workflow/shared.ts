@@ -11,6 +11,7 @@ import * as fs from 'fs';
 import { getSchemaDir, listSchemas } from '../../core/artifact-graph/index.js';
 import type { InitiativeLink } from '../../core/change-metadata/index.js';
 import { validateChangeName } from '../../utils/change-utils.js';
+import { CLEARSPEC_DIR_NAME } from '../../core/config.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -89,12 +90,12 @@ export function getStatusIndicator(status: 'done' | 'ready' | 'blocked'): string
 }
 
 /**
- * Returns the list of available change directory names under openspec/changes/.
+ * Returns the list of available change directory names under clearspec/changes/.
  * Excludes the archive directory and hidden directories.
  */
 export async function getAvailableChanges(
   projectRoot: string,
-  changesDir = path.join(projectRoot, 'openspec', 'changes')
+  changesDir = path.join(projectRoot, CLEARSPEC_DIR_NAME, 'changes')
 ): Promise<string[]> {
   const changesPath = changesDir;
   try {
@@ -115,12 +116,12 @@ export async function getAvailableChanges(
 export async function validateChangeExists(
   changeName: string | undefined,
   projectRoot: string,
-  changesDir = path.join(projectRoot, 'openspec', 'changes')
+  changesDir = path.join(projectRoot, CLEARSPEC_DIR_NAME, 'changes')
 ): Promise<string> {
   if (!changeName) {
     const available = await getAvailableChanges(projectRoot, changesDir);
     if (available.length === 0) {
-      throw new Error('No changes found. Create one with: openspec new change <name>');
+      throw new Error('No changes found. Create one with: clearspec new change <name>');
     }
     throw new Error(
       `Missing required option --change. Available changes:\n  ${available.join('\n  ')}`
@@ -141,7 +142,7 @@ export async function validateChangeExists(
     const available = await getAvailableChanges(projectRoot, changesDir);
     if (available.length === 0) {
       throw new Error(
-        `Change '${changeName}' not found. No changes exist. Create one with: openspec new change <name>`
+        `Change '${changeName}' not found. No changes exist. Create one with: clearspec new change <name>`
       );
     }
     throw new Error(

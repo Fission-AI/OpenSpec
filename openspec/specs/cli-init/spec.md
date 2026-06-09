@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The `openspec init` command SHALL create a complete OpenSpec directory structure in any project, enabling immediate adoption of OpenSpec conventions with support for multiple AI coding assistants.
+The `clearspec init` command SHALL create a complete ClearSpec directory structure in any project, enabling immediate adoption of ClearSpec conventions with support for multiple AI coding assistants.
 ## Requirements
 ### Requirement: Progress Indicators
 
@@ -13,21 +13,21 @@ The command SHALL display progress indicators during initialization to provide c
 - **WHEN** executing initialization steps
 - **THEN** validate environment silently in background (no output unless error)
 - **AND** display progress with ora spinners:
-  - Show spinner: "⠋ Creating OpenSpec structure..."
-  - Then success: "✔ OpenSpec structure created"
+  - Show spinner: "⠋ Creating ClearSpec structure..."
+  - Then success: "✔ ClearSpec structure created"
   - Show spinner: "⠋ Configuring AI tools..."
   - Then success: "✔ AI tools configured"
 
 ### Requirement: Directory Creation
 
-The command SHALL create the OpenSpec directory structure with config file.
+The command SHALL create the ClearSpec directory structure with config file.
 
-#### Scenario: Creating OpenSpec structure
+#### Scenario: Creating ClearSpec structure
 
-- **WHEN** `openspec init` is executed
+- **WHEN** `clearspec init` is executed
 - **THEN** create the following directory structure:
 ```
-openspec/
+clearspec/
 ├── config.yaml
 ├── specs/
 └── changes/
@@ -41,7 +41,7 @@ The command SHALL configure AI coding assistants with skills and slash commands 
 #### Scenario: Prompting for AI tool selection
 
 - **WHEN** run interactively
-- **THEN** display animated welcome screen with OpenSpec logo
+- **THEN** display animated welcome screen with ClearSpec logo
 - **AND** present a searchable multi-select that shows all available tools
 - **AND** mark already configured tools with "(configured ✓)" indicator
 - **AND** pre-select configured tools for easy refresh
@@ -52,8 +52,8 @@ The command SHALL configure AI coding assistants with skills and slash commands 
 
 - **WHEN** user selects tools and confirms
 - **THEN** generate skills in `.<tool>/skills/` directory for each selected tool
-- **AND** generate slash commands in `.<tool>/commands/opsx/` directory for each selected tool
-- **AND** create `openspec/config.yaml` with default schema setting
+- **AND** generate slash commands in `.<tool>/commands/clsx/` directory for each selected tool
+- **AND** create `clearspec/config.yaml` with default schema setting
 
 ### Requirement: Interactive Mode
 The command SHALL provide an interactive menu for AI tool selection with clear navigation instructions.
@@ -66,11 +66,12 @@ The command SHALL provide an interactive menu for AI tool selection with clear n
 - **AND** display inline instructions clarifying that Space toggles tools and Enter selects the highlighted tool before reviewing selections
 
 ### Requirement: Safety Checks
+
 The command SHALL perform safety checks to prevent overwriting existing structures and ensure proper permissions.
 
 #### Scenario: Detecting existing initialization
-- **WHEN** the `openspec/` directory already exists
-- **THEN** inform the user that OpenSpec is already initialized, skip recreating the base structure, and enter an extend mode
+- **WHEN** the `clearspec/` directory already exists
+- **THEN** inform the user that ClearSpec is already initialized, skip recreating the base structure, and enter an extend mode
 - **AND** continue to the AI tool selection step so additional tools can be configured
 - **AND** display the existing-initialization error message only when the user declines to add any AI tools
 
@@ -86,9 +87,9 @@ The command SHALL provide clear, actionable next steps upon successful initializ
   - "Refreshed: <tools>" for already-configured tools that were updated
   - Count of skills and commands generated
 - **AND** display getting started section with:
-  - `/opsx:new` - Start a new change
-  - `/opsx:continue` - Create the next artifact
-  - `/opsx:apply` - Implement tasks
+  - `/clsx:new` - Start a new change
+  - `/clsx:continue` - Create the next artifact
+  - `/clsx:apply` - Implement tasks
 - **AND** display links to documentation and feedback
 
 #### Scenario: Displaying restart instruction
@@ -105,22 +106,21 @@ The command SHALL use consistent exit codes to indicate different failure modes.
 - **WHEN** the command completes
 - **THEN** return appropriate exit code:
   - 0: Success
-  - 1: General error (including when OpenSpec directory already exists)
+  - 1: General error (including when ClearSpec directory already exists)
   - 2: Insufficient permissions (reserved for future use)
   - 3: User cancelled operation (reserved for future use)
 
 ### Requirement: Additional AI Tool Initialization
-`openspec init` SHALL allow users to add configuration files for new AI coding assistants after the initial setup.
+`clearspec init` SHALL allow users to add configuration files for new AI coding assistants after the initial setup.
 
 #### Scenario: Configuring an extra tool after initial setup
-- **GIVEN** an `openspec/` directory already exists and at least one AI tool file is present
-- **WHEN** the user runs `openspec init` and selects a different supported AI tool
-- **THEN** generate that tool's configuration files with OpenSpec markers the same way as during first-time initialization
+- **GIVEN** a `clearspec/` directory already exists and at least one AI tool file is present
+- **WHEN** the user runs `clearspec init` and selects a different supported AI tool
+- **THEN** generate that tool's configuration files with ClearSpec markers the same way as during first-time initialization
 - **AND** leave existing tool configuration files unchanged except for managed sections that need refreshing
-- **AND** exit with code 0 and display a success summary highlighting the newly added tool files
 
 ### Requirement: Success Output Enhancements
-`openspec init` SHALL summarize tool actions when initialization or extend mode completes.
+`clearspec init` SHALL summarize tool actions when initialization or extend mode completes.
 
 #### Scenario: Showing tool summary
 - **WHEN** the command completes successfully
@@ -128,12 +128,12 @@ The command SHALL use consistent exit codes to indicate different failure modes.
 - **AND** personalize the "Next steps" header using the names of the selected tools, defaulting to a generic label when none remain
 
 ### Requirement: Exit Code Adjustments
-`openspec init` SHALL treat extend mode without new native tool selections as a successful refresh.
+`clearspec init` SHALL treat extend mode without new native tool selections as a successful refresh.
 
 #### Scenario: Allowing empty extend runs
-- **WHEN** OpenSpec is already initialized and the user selects no additional natively supported tools
+- **WHEN** ClearSpec is already initialized and the user selects no additional natively supported tools
 - **THEN** complete successfully without requiring additional tool setup
-- **AND** preserve the existing OpenSpec structure and config files
+- **AND** preserve the existing ClearSpec structure and config files
 - **AND** exit with code 0
 
 ### Requirement: Non-Interactive Mode
@@ -155,7 +155,7 @@ The command SHALL support non-interactive operation through command-line options
 #### Scenario: Skip tool configuration non-interactively
 
 - **WHEN** run with `--tools none`
-- **THEN** create only the openspec directory structure
+- **THEN** create only the clearspec directory structure
 - **AND** skip skill and command generation
 - **AND** create config only when config creation conditions are met
 
@@ -174,7 +174,7 @@ The command SHALL support non-interactive operation through command-line options
 #### Scenario: Missing --tools in non-interactive mode
 
 - **GIVEN** prompts are unavailable in non-interactive execution
-- **WHEN** user runs `openspec init` without `--tools`
+- **WHEN** user runs `clearspec init` without `--tools`
 - **THEN** fail with exit code 1
 - **AND** instruct to use `--tools all`, `--tools none`, or explicit tool IDs
 
@@ -186,36 +186,36 @@ The command SHALL generate Agent Skills for selected AI tools.
 
 - **WHEN** a tool is selected during initialization
 - **THEN** create 9 skill directories under `.<tool>/skills/`:
-  - `openspec-explore/SKILL.md`
-  - `openspec-new-change/SKILL.md`
-  - `openspec-continue-change/SKILL.md`
-  - `openspec-apply-change/SKILL.md`
-  - `openspec-ff-change/SKILL.md`
-  - `openspec-verify-change/SKILL.md`
-  - `openspec-sync-specs/SKILL.md`
-  - `openspec-archive-change/SKILL.md`
-  - `openspec-bulk-archive-change/SKILL.md`
+  - `clearspec-explore/SKILL.md`
+  - `clearspec-new-change/SKILL.md`
+  - `clearspec-continue-change/SKILL.md`
+  - `clearspec-apply-change/SKILL.md`
+  - `clearspec-ff-change/SKILL.md`
+  - `clearspec-verify-change/SKILL.md`
+  - `clearspec-sync-specs/SKILL.md`
+  - `clearspec-archive-change/SKILL.md`
+  - `clearspec-bulk-archive-change/SKILL.md`
 - **AND** each SKILL.md SHALL contain YAML frontmatter with name and description
 - **AND** each SKILL.md SHALL contain the skill instructions
 
 ### Requirement: Slash Command Generation
 
-The command SHALL generate opsx slash commands only for selected tools that have a registered command adapter, while keeping adapterless tools valid for skill generation.
+The command SHALL generate clsx slash commands only for selected tools that have a registered command adapter, while keeping adapterless tools valid for skill generation.
 
 #### Scenario: Generating slash commands for a tool with a registered adapter
 
 - **WHEN** a tool with a registered command adapter is selected during initialization
 - **THEN** create 9 slash command files using the tool's command adapter:
-  - `/opsx:explore`
-  - `/opsx:new`
-  - `/opsx:continue`
-  - `/opsx:apply`
-  - `/opsx:ff`
-  - `/opsx:verify`
-  - `/opsx:sync`
-  - `/opsx:archive`
-  - `/opsx:bulk-archive`
-- **AND** use tool-specific path conventions (e.g., `.claude/commands/opsx/` for Claude)
+  - `/clsx:explore`
+  - `/clsx:new`
+  - `/clsx:continue`
+  - `/clsx:apply`
+  - `/clsx:ff`
+  - `/clsx:verify`
+  - `/clsx:sync`
+  - `/clsx:archive`
+  - `/clsx:bulk-archive`
+- **AND** use tool-specific path conventions (e.g., `.claude/commands/clsx/` for Claude)
 - **AND** include tool-specific frontmatter format
 
 #### Scenario: Selected tool has no command adapter
@@ -229,24 +229,24 @@ The command SHALL generate opsx slash commands only for selected tools that have
 #### Scenario: Kimi CLI skips command-file generation
 
 - **WHEN** the user selects Kimi CLI during initialization
-- **THEN** OpenSpec SHALL treat it as a supported tool with `skillsDir: '.kimi'`
+- **THEN** ClearSpec SHALL treat it as a supported tool with `skillsDir: '.kimi'`
 - **AND** command-file generation SHALL be skipped because no Kimi adapter is registered
 
 ### Requirement: Config File Generation
 
-The command SHALL create an OpenSpec config file with schema settings.
+The command SHALL create a ClearSpec config file with schema settings.
 
 #### Scenario: Creating config.yaml
 
 - **WHEN** initialization completes
 - **AND** config.yaml does not exist
-- **THEN** create `openspec/config.yaml` with default schema setting
+- **THEN** create `clearspec/config.yaml` with default schema setting
 - **AND** display config location in output
 
 #### Scenario: Preserving existing config.yaml
 
 - **WHEN** initialization runs in extend mode
-- **AND** `openspec/config.yaml` already exists
+- **AND** `clearspec/config.yaml` already exists
 - **THEN** preserve the existing config file
 - **AND** display "(exists)" indicator in output
 
@@ -254,15 +254,15 @@ The command SHALL create an OpenSpec config file with schema settings.
 
 The command SHALL maintain backward compatibility with the experimental command.
 
-#### Scenario: Running openspec experimental
+#### Scenario: Running clearspec experimental
 
-- **WHEN** user runs `openspec experimental`
-- **THEN** delegate to `openspec init`
+- **WHEN** user runs `clearspec experimental`
+- **THEN** delegate to `clearspec init`
 - **AND** the command SHALL be hidden from help output
 
 ## Why
 
-Manual creation of OpenSpec structure is error-prone and creates adoption friction. A standardized init command ensures:
+Manual creation of ClearSpec structure is error-prone and creates adoption friction. A standardized init command ensures:
 - Consistent structure across all projects
 - Proper AI instruction files are always included
 - Quick onboarding for new projects

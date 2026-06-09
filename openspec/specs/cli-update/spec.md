@@ -2,25 +2,25 @@
 
 ## Purpose
 
-As a developer using OpenSpec, I want to update the OpenSpec instructions in my project when new versions are released, so that I can benefit from improvements to AI agent instructions.
+As a developer using ClearSpec, I want to update the ClearSpec instructions in my project when new versions are released, so that I can benefit from improvements to AI agent instructions.
 ## Requirements
 ### Requirement: Update Behavior
-The update command SHALL update OpenSpec instruction files to the latest templates in a team-friendly manner.
+The update command SHALL update ClearSpec instruction files to the latest templates in a team-friendly manner.
 
 #### Scenario: Running update command
-- **WHEN** a user runs `openspec update`
+- **WHEN** a user runs `clearspec update`
 - **THEN** replace `openspec/AGENTS.md` with the latest template
 - **AND** if a root-level stub (`AGENTS.md`/`CLAUDE.md`) exists, refresh it so it points to `@/openspec/AGENTS.md`
 
 ### Requirement: Prerequisites
 
-The command SHALL require an existing OpenSpec structure before allowing updates.
+The command SHALL require an existing ClearSpec structure before allowing updates.
 
 #### Scenario: Checking prerequisites
 
-- **GIVEN** the command requires an existing `openspec` directory (created by `openspec init`)
-- **WHEN** the `openspec` directory does not exist
-- **THEN** display error: "No OpenSpec directory found. Run 'openspec init' first."
+- **GIVEN** the command requires an existing `clearspec` directory (created by `clearspec init`)
+- **WHEN** the `clearspec` directory does not exist
+- **THEN** display error: "No ClearSpec directory found. Run 'clearspec init' first."
 - **AND** exit with code 1
 
 ### Requirement: File Handling
@@ -32,17 +32,17 @@ The update command SHALL handle file updates in a predictable and safe manner.
 - **AND** if a root-level stub exists, update the managed block content so it keeps directing teammates to `@/openspec/AGENTS.md`
 
 ### Requirement: Tool-Agnostic Updates
-The update command SHALL refresh OpenSpec-managed files in a predictable manner while respecting each team's chosen tooling.
+The update command SHALL refresh ClearSpec-managed files in a predictable manner while respecting each team's chosen tooling.
 
 #### Scenario: Updating files
 - **WHEN** updating files
 - **THEN** completely replace `openspec/AGENTS.md` with the latest template
 - **AND** create or refresh the root-level `AGENTS.md` stub using the managed marker block, even if the file was previously absent
-- **AND** update only the OpenSpec-managed sections inside existing AI tool files, leaving user-authored content untouched
+- **AND** update only the ClearSpec-managed sections inside existing AI tool files, leaving user-authored content untouched
 - **AND** avoid creating new native-tool configuration files (slash commands, CLAUDE.md, etc.) unless they already exist
 
 ### Requirement: Core Files Always Updated
-The update command SHALL always update the core OpenSpec files and display an ASCII-safe success message.
+The update command SHALL always update the core ClearSpec files and display an ASCII-safe success message.
 
 #### Scenario: Successful update
 - **WHEN** the update completes successfully
@@ -54,8 +54,8 @@ The update command SHALL always update the core OpenSpec files and display an AS
 The update command SHALL refresh existing slash command files for configured tools without creating new ones, and ensure the OpenCode archive command accepts change ID arguments.
 
 #### Scenario: Updating slash commands for Antigravity
-- **WHEN** `.agent/workflows/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
-- **THEN** refresh the OpenSpec-managed portion of each file so the workflow copy matches other tools while preserving the existing single-field `description` frontmatter
+- **WHEN** `.agent/workflows/` contains `clearspec-proposal.md`, `clearspec-apply.md`, and `clearspec-archive.md`
+- **THEN** refresh the ClearSpec-managed portion of each file so the workflow copy matches other tools while preserving the existing single-field `description` frontmatter
 - **AND** skip creating any missing workflow files during update, mirroring the behavior for Windsurf and other IDEs
 
 #### Scenario: Updating slash commands for Claude Code
@@ -67,66 +67,66 @@ The update command SHALL refresh existing slash command files for configured too
 - **WHEN** `.codebuddy/commands/openspec/` contains `proposal.md`, `apply.md`, and `archive.md`
 - **THEN** refresh each file using the shared CodeBuddy templates that include YAML frontmatter for the `description` and `argument-hint` fields
 - **AND** use square bracket format for `argument-hint` parameters (e.g., `[change-id]`)
-- **AND** preserve any user customizations outside the OpenSpec managed markers
+- **AND** preserve any user customizations outside the ClearSpec managed markers
 
 #### Scenario: Updating slash commands for Cline
-- **WHEN** `.clinerules/workflows/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
+- **WHEN** `.clinerules/workflows/` contains `clearspec-proposal.md`, `clearspec-apply.md`, and `clearspec-archive.md`
 - **THEN** refresh each file using shared templates
 - **AND** include Cline-specific Markdown heading frontmatter
 - **AND** ensure templates include instructions for the relevant workflow stage
 
 #### Scenario: Updating slash commands for Continue
-- **WHEN** `.continue/prompts/` contains `openspec-proposal.prompt`, `openspec-apply.prompt`, and `openspec-archive.prompt`
+- **WHEN** `.continue/prompts/` contains `clearspec-proposal.prompt`, `clearspec-apply.prompt`, and `clearspec-archive.prompt`
 - **THEN** refresh each file using shared templates
 - **AND** ensure templates include instructions for the relevant workflow stage
 
 #### Scenario: Updating slash commands for Crush
 - **WHEN** `.crush/commands/` contains `openspec/proposal.md`, `openspec/apply.md`, and `openspec/archive.md`
 - **THEN** refresh each file using shared templates
-- **AND** include Crush-specific frontmatter with OpenSpec category and tags
+- **AND** include Crush-specific frontmatter with ClearSpec category and tags
 - **AND** ensure templates include instructions for the relevant workflow stage
 
 #### Scenario: Updating slash commands for Cursor
-- **WHEN** `.cursor/commands/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
+- **WHEN** `.cursor/commands/` contains `clearspec-proposal.md`, `clearspec-apply.md`, and `clearspec-archive.md`
 - **THEN** refresh each file using shared templates
 - **AND** ensure templates include instructions for the relevant workflow stage
 
 #### Scenario: Updating slash commands for Factory Droid
-- **WHEN** `.factory/commands/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
+- **WHEN** `.factory/commands/` contains `clearspec-proposal.md`, `clearspec-apply.md`, and `clearspec-archive.md`
 - **THEN** refresh each file using the shared Factory templates that include YAML frontmatter for the `description` and `argument-hint` fields
 - **AND** ensure the template body retains the `$ARGUMENTS` placeholder so user input keeps flowing into droid
-- **AND** update only the content inside the OpenSpec managed markers, leaving any unmanaged notes untouched
+- **AND** update only the content inside the ClearSpec managed markers, leaving any unmanaged notes untouched
 - **AND** skip creating missing files during update
 
 #### Scenario: Updating slash commands for OpenCode
-- **WHEN** `.opencode/command/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
+- **WHEN** `.opencode/command/` contains `clearspec-proposal.md`, `clearspec-apply.md`, and `clearspec-archive.md`
 - **THEN** refresh each file using shared templates
 - **AND** ensure templates include instructions for the relevant workflow stage
 - **AND** ensure the archive command includes `$ARGUMENTS` placeholder in frontmatter for accepting change ID arguments
 
 #### Scenario: Updating slash commands for Windsurf
-- **WHEN** `.windsurf/workflows/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
-- **THEN** refresh each file using shared templates wrapped in OpenSpec markers
+- **WHEN** `.windsurf/workflows/` contains `clearspec-proposal.md`, `clearspec-apply.md`, and `clearspec-archive.md`
+- **THEN** refresh each file using shared templates wrapped in ClearSpec markers
 - **AND** ensure templates include instructions for the relevant workflow stage
 - **AND** skip creating missing files (the update command only refreshes what already exists)
 
 #### Scenario: Updating slash commands for Kilo Code
-- **WHEN** `.kilocode/workflows/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
-- **THEN** refresh each file using shared templates wrapped in OpenSpec markers
+- **WHEN** `.kilocode/workflows/` contains `clearspec-proposal.md`, `clearspec-apply.md`, and `clearspec-archive.md`
+- **THEN** refresh each file using shared templates wrapped in ClearSpec markers
 - **AND** ensure templates include instructions for the relevant workflow stage
 - **AND** skip creating missing files (the update command only refreshes what already exists)
 
 #### Scenario: Updating slash commands for Codex
-- **GIVEN** the global Codex prompt directory contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
-- **WHEN** a user runs `openspec update`
+- **GIVEN** the global Codex prompt directory contains `clearspec-proposal.md`, `clearspec-apply.md`, and `clearspec-archive.md`
+- **WHEN** a user runs `clearspec update`
 - **THEN** refresh each file using the shared slash-command templates (including placeholder guidance)
-- **AND** preserve any unmanaged content outside the OpenSpec marker block
+- **AND** preserve any unmanaged content outside the ClearSpec marker block
 - **AND** skip creation when a Codex prompt file is missing
 
 #### Scenario: Updating slash commands for GitHub Copilot
-- **WHEN** `.github/prompts/` contains `openspec-proposal.prompt.md`, `openspec-apply.prompt.md`, and `openspec-archive.prompt.md`
+- **WHEN** `.github/prompts/` contains `clearspec-proposal.prompt.md`, `clearspec-apply.prompt.md`, and `clearspec-archive.prompt.md`
 - **THEN** refresh each file using shared templates while preserving the YAML frontmatter
-- **AND** update only the OpenSpec-managed block between markers
+- **AND** update only the ClearSpec-managed block between markers
 - **AND** ensure templates include instructions for the relevant workflow stage
 
 #### Scenario: Updating slash commands for Gemini CLI
@@ -136,10 +136,10 @@ The update command SHALL refresh existing slash command files for configured too
 - **AND** skip creating any missing `.toml` files during update; only pre-existing Gemini commands are refreshed
 
 #### Scenario: Updating slash commands for iFlow CLI
-- **WHEN** `.iflow/commands/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
+- **WHEN** `.iflow/commands/` contains `clearspec-proposal.md`, `clearspec-apply.md`, and `clearspec-archive.md`
 - **THEN** refresh each file using shared templates
 - **AND** preserve the YAML frontmatter with `name`, `id`, `category`, and `description` fields
-- **AND** update only the OpenSpec-managed block between markers
+- **AND** update only the ClearSpec-managed block between markers
 - **AND** ensure templates include instructions for the relevant workflow stage
 
 #### Scenario: Missing slash command file
@@ -150,14 +150,14 @@ The update command SHALL refresh existing slash command files for configured too
 The archive slash command template SHALL support optional change ID arguments for tools that support `$ARGUMENTS` placeholder.
 
 #### Scenario: Archive command with change ID argument
-- **WHEN** a user invokes `/openspec:archive <change-id>` with a change ID
-- **THEN** the template SHALL instruct the AI to validate the provided change ID against `openspec list`
+- **WHEN** a user invokes `/clearspec:archive <change-id>` with a change ID
+- **THEN** the template SHALL instruct the AI to validate the provided change ID against `clearspec list`
 - **AND** use the provided change ID for archiving if valid
 - **AND** fail fast if the provided change ID doesn't match an archivable change
 
 #### Scenario: Archive command without argument (backward compatibility)
-- **WHEN** a user invokes `/openspec:archive` without providing a change ID
-- **THEN** the template SHALL instruct the AI to identify the change ID from context or by running `openspec list`
+- **WHEN** a user invokes `/clearspec:archive` without providing a change ID
+- **THEN** the template SHALL instruct the AI to identify the change ID from context or by running `clearspec list`
 - **AND** proceed with the existing behavior (maintaining backward compatibility)
 
 #### Scenario: OpenCode archive template generation
@@ -167,30 +167,30 @@ The archive slash command template SHALL support optional change ID arguments fo
 - **AND** include validation steps in the template body to check if the change ID is valid
 
 ### Requirement: Repo update stays separate from workspace planning homes
-The repo-local `openspec update` command SHALL not silently treat a workspace planning home as a repo-local OpenSpec project.
+The repo-local `clearspec update` command SHALL not silently treat a workspace planning home as a repo-local ClearSpec project.
 
 #### Scenario: Running update from a workspace root
-- **GIVEN** the command runs from an OpenSpec workspace root
-- **WHEN** the user runs `openspec update`
-- **THEN** OpenSpec SHALL not generate repo-local project files in the workspace root
-- **AND** it SHALL tell the user to run `openspec workspace update`
+- **GIVEN** the command runs from a ClearSpec workspace root
+- **WHEN** the user runs `clearspec update`
+- **THEN** ClearSpec SHALL not generate repo-local project files in the workspace root
+- **AND** it SHALL tell the user to run `clearspec workspace update`
 
 #### Scenario: Running update from inside a workspace planning directory
-- **GIVEN** the command runs from a subdirectory of an OpenSpec workspace planning home
-- **WHEN** the user runs `openspec update`
-- **THEN** OpenSpec SHALL not run repo-local update behavior
-- **AND** it SHALL tell the user to run `openspec workspace update`
+- **GIVEN** the command runs from a subdirectory of a ClearSpec workspace planning home
+- **WHEN** the user runs `clearspec update`
+- **THEN** ClearSpec SHALL not run repo-local update behavior
+- **AND** it SHALL tell the user to run `clearspec workspace update`
 
 #### Scenario: Running update from a repo-local project
-- **GIVEN** the command runs from inside a repo-local OpenSpec project
-- **WHEN** the user runs `openspec update`
-- **THEN** OpenSpec SHALL preserve existing repo-local update behavior
+- **GIVEN** the command runs from inside a repo-local ClearSpec project
+- **WHEN** the user runs `clearspec update`
+- **THEN** ClearSpec SHALL preserve existing repo-local update behavior
 
 #### Scenario: Updating a repo-local project nested below a workspace folder
-- **GIVEN** the target path contains repo-local OpenSpec state
-- **AND** an ancestor is an OpenSpec workspace root
-- **WHEN** the user runs `openspec update <path>`
-- **THEN** OpenSpec SHALL preserve repo-local update behavior for the target path
+- **GIVEN** the target path contains repo-local ClearSpec state
+- **AND** an ancestor is a ClearSpec workspace root
+- **WHEN** the user runs `clearspec update <path>`
+- **THEN** ClearSpec SHALL preserve repo-local update behavior for the target path
 - **AND** it SHALL not run workspace update behavior
 
 ## Edge Cases
@@ -214,12 +214,12 @@ The command SHALL handle edge cases gracefully.
 
 - **WHEN** considering custom directory names
 - **THEN** not supported in this change
-- **AND** the default directory name `openspec` SHALL be used
+- **AND** the default directory name `clearspec` SHALL be used
 
 ## Success Criteria
 
 Users SHALL be able to:
-- Update OpenSpec instructions with a single command
+- Update ClearSpec instructions with a single command
 - Get the latest AI agent instructions
 - See clear confirmation of the update
 

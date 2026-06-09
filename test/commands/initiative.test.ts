@@ -22,14 +22,14 @@ describe('initiative command', () => {
   let env: NodeJS.ProcessEnv;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-initiative-command-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'clearspec-initiative-command-'));
     dataHome = path.join(tempDir, 'data');
     configHome = path.join(tempDir, 'config');
     env = {
       XDG_DATA_HOME: dataHome,
       XDG_CONFIG_HOME: configHome,
       OPEN_SPEC_INTERACTIVE: '0',
-      OPENSPEC_TELEMETRY: '0',
+      CLEARSPEC_TELEMETRY: '0',
     };
     globalDataDir = getGlobalDataDir({ env });
   });
@@ -227,7 +227,7 @@ describe('initiative command', () => {
       `Location: ${expectedExistingPath(initiativeRoot(storeRoot, 'launch-billing-flow'))}`
     );
     expect(create.stdout).toContain('Created files (6):');
-    expect(create.stdout).toContain('openspec initiative list --store team-context');
+    expect(create.stdout).toContain('clearspec initiative list --store team-context');
 
     const list = await runCLI(['initiative', 'ls', '--store', 'team-context'], {
       cwd: tempDir,
@@ -235,7 +235,7 @@ describe('initiative command', () => {
     });
 
     expect(list.exitCode).toBe(0);
-    expect(list.stdout).toContain('OpenSpec initiatives in team-context (1)');
+    expect(list.stdout).toContain('ClearSpec initiatives in team-context (1)');
     expect(list.stdout).toContain('launch-billing-flow');
     expect(list.stdout).not.toContain('Status: exploring');
     expect(list.stdout).toContain(`Location: ${expectedExistingPath(storeRoot)}`);
@@ -323,7 +323,7 @@ describe('initiative command', () => {
     const list = await runCLI(['initiative', 'ls'], { cwd: tempDir, env });
 
     expect(list.exitCode).toBe(0);
-    expect(list.stdout).toContain('OpenSpec initiatives (1 across 2 stores)');
+    expect(list.stdout).toContain('ClearSpec initiatives (1 across 2 stores)');
     expect(list.stdout).toContain('ID');
     expect(list.stdout).toContain('Store');
     expect(list.stdout).toContain('Title');
@@ -443,7 +443,7 @@ describe('initiative command', () => {
     const show = await runCLI(['initiative', 'show', 'billing-launch'], { cwd: tempDir, env });
 
     expect(show.exitCode).toBe(0);
-    expect(show.stdout).toContain('OpenSpec initiative: Billing Launch');
+    expect(show.stdout).toContain('ClearSpec initiative: Billing Launch');
     expect(show.stdout).toContain('ID: billing-launch');
     expect(show.stdout).toContain('Summary: Coordinate billing launch work.');
     expect(show.stdout).toContain('Context store: platform');
@@ -694,7 +694,7 @@ describe('initiative command', () => {
       expect.objectContaining({
         severity: 'warning',
         code: 'context_stores_partially_unreadable',
-        fix: 'openspec context-store doctor',
+        fix: 'clearspec context-store doctor',
       })
     );
 
@@ -744,7 +744,7 @@ describe('initiative command', () => {
     expect(parseJson(allUnreadable).status[0]).toEqual(
       expect.objectContaining({
         code: 'context_stores_unreadable',
-        fix: 'openspec context-store doctor',
+        fix: 'clearspec context-store doctor',
       })
     );
   });

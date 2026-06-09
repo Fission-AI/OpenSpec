@@ -1,6 +1,6 @@
 # Workflows
 
-This guide covers common workflow patterns for OpenSpec and when to use each one. For basic setup, see [Getting Started](getting-started.md). For command reference, see [Commands](commands.md).
+This guide covers common workflow patterns for ClearSpec and when to use each one. For basic setup, see [Getting Started](getting-started.md). For command reference, see [Commands](commands.md).
 
 ## Philosophy: Actions, Not Phases
 
@@ -33,25 +33,25 @@ OPSX (fluid actions):
 ### Default Quick Path (`core` profile)
 
 New installs default to `core`, which provides:
-- `/opsx:propose`
-- `/opsx:explore`
-- `/opsx:apply`
-- `/opsx:sync`
-- `/opsx:archive`
+- `/clsx:propose`
+- `/clsx:explore`
+- `/clsx:apply`
+- `/clsx:sync`
+- `/clsx:archive`
 
 Typical flow:
 
 ```text
-/opsx:propose ──► /opsx:apply ──► /opsx:sync ──► /opsx:archive
+/clsx:propose ──► /clsx:apply ──► /clsx:sync ──► /clsx:archive
 ```
 
 ### Expanded/Full Workflow (custom selection)
 
-If you want explicit scaffold-and-build commands (`/opsx:new`, `/opsx:continue`, `/opsx:ff`, `/opsx:verify`, `/opsx:bulk-archive`, `/opsx:onboard`), enable them with:
+If you want explicit scaffold-and-build commands (`/clsx:new`, `/clsx:continue`, `/clsx:ff`, `/clsx:verify`, `/clsx:bulk-archive`, `/clsx:onboard`), enable them with:
 
 ```bash
-openspec config profile
-openspec update
+clearspec config profile
+clearspec update
 ```
 
 ## Workflow Patterns (Expanded Mode)
@@ -61,18 +61,18 @@ openspec update
 When you know what you want to build and just need to execute:
 
 ```text
-/opsx:new ──► /opsx:ff ──► /opsx:apply ──► /opsx:verify ──► /opsx:archive
+/clsx:new ──► /clsx:ff ──► /clsx:apply ──► /clsx:verify ──► /clsx:archive
 ```
 
 **Example conversation:**
 
 ```text
-You: /opsx:new add-logout-button
+You: /clsx:new add-logout-button
 
-AI:  Created openspec/changes/add-logout-button/
+AI:  Created clearspec/changes/add-logout-button/
      Ready to create: proposal
 
-You: /opsx:ff
+You: /clsx:ff
 
 AI:  Creating all planning artifacts...
      ✓ proposal.md
@@ -81,7 +81,7 @@ AI:  Creating all planning artifacts...
      ✓ tasks.md
      Ready for implementation!
 
-You: /opsx:apply
+You: /clsx:apply
 
 AI:  Working through tasks...
      ✓ Added logout button to header
@@ -89,7 +89,7 @@ AI:  Working through tasks...
      ✓ Added confirmation dialog
      All tasks complete!
 
-You: /opsx:archive
+You: /clsx:archive
 
 AI:  ✓ Merged specs
      ✓ Archived change
@@ -102,13 +102,13 @@ AI:  ✓ Merged specs
 When requirements are unclear or you need to investigate first:
 
 ```text
-/opsx:explore ──► /opsx:new ──► /opsx:continue ──► ... ──► /opsx:apply
+/clsx:explore ──► /clsx:new ──► /clsx:continue ──► ... ──► /clsx:apply
 ```
 
 **Example conversation:**
 
 ```text
-You: /opsx:explore
+You: /clsx:explore
 
 AI:  What would you like to explore?
 
@@ -128,11 +128,11 @@ AI:  Let me help investigate...
 
 You: Let's tackle the data fetching issue.
 
-You: /opsx:new optimize-product-list-fetching
+You: /clsx:new optimize-product-list-fetching
 
 AI:  Created change. Ready to create: proposal
 
-You: /opsx:continue
+You: /clsx:continue
 
 AI:  Creating proposal based on our exploration...
      [Writes proposal incorporating investigation insights]
@@ -140,7 +140,7 @@ AI:  Creating proposal based on our exploration...
      Ready to create: specs, design
      Which would you like next?
 
-You: /opsx:continue
+You: /clsx:continue
 
 AI:  Creating specs...
 ```
@@ -152,11 +152,11 @@ AI:  Creating specs...
 Work on multiple changes at once:
 
 ```text
-Change A: /opsx:new ──► /opsx:ff ──► /opsx:apply (in progress)
+Change A: /clsx:new ──► /clsx:ff ──► /clsx:apply (in progress)
                                          │
                                     context switch
                                          │
-Change B: /opsx:new ──► /opsx:ff ──────► /opsx:apply
+Change B: /clsx:new ──► /clsx:ff ──────► /clsx:apply
 ```
 
 **Example conversation:**
@@ -164,27 +164,27 @@ Change B: /opsx:new ──► /opsx:ff ──────► /opsx:apply
 ```text
 You: I'm working on add-dark-mode but got pulled into a bug fix
 
-You: /opsx:new fix-login-redirect
+You: /clsx:new fix-login-redirect
 
-AI:  Created openspec/changes/fix-login-redirect/
+AI:  Created clearspec/changes/fix-login-redirect/
 
-You: /opsx:ff
+You: /clsx:ff
 
 AI:  ✓ Created planning artifacts
 
-You: /opsx:apply
+You: /clsx:apply
 
 AI:  Working on fix-login-redirect...
      [Implements the fix]
      All tasks complete!
 
-You: /opsx:archive
+You: /clsx:archive
 
 AI:  ✓ Archived fix-login-redirect
 
 You: Let's get back to dark mode
 
-You: /opsx:apply add-dark-mode
+You: /clsx:apply add-dark-mode
 
 AI:  Resuming add-dark-mode...
      Picking up at task 2.3: Update Header...
@@ -192,10 +192,10 @@ AI:  Resuming add-dark-mode...
 
 **Best for:** Parallel work streams, urgent interrupts, team collaboration.
 
-When you have multiple completed changes, use `/opsx:bulk-archive`:
+When you have multiple completed changes, use `/clsx:bulk-archive`:
 
 ```text
-You: /opsx:bulk-archive
+You: /clsx:bulk-archive
 
 AI:  Found 3 completed changes:
      - add-dark-mode (all tasks done)
@@ -225,7 +225,7 @@ Bulk archive detects when multiple changes touch the same specs and resolves con
 The recommended completion flow:
 
 ```text
-/opsx:apply ──► /opsx:verify ──► /opsx:archive
+/clsx:apply ──► /clsx:verify ──► /clsx:archive
                     │                 │
               validates          prompts to sync
               implementation     if needed
@@ -233,10 +233,10 @@ The recommended completion flow:
 
 #### Verify: Check Your Work
 
-`/opsx:verify` validates implementation against your artifacts across three dimensions:
+`/clsx:verify` validates implementation against your artifacts across three dimensions:
 
 ```text
-You: /opsx:verify
+You: /clsx:verify
 
 AI:  Verifying add-auth...
 
@@ -278,10 +278,10 @@ Verify won't block archive, but it surfaces issues you might want to address fir
 
 #### Archive: Finalize the Change
 
-`/opsx:archive` completes the change and moves it to the archive:
+`/clsx:archive` completes the change and moves it to the archive:
 
 ```text
-You: /opsx:archive
+You: /clsx:archive
 
 AI:  Archiving add-auth...
 
@@ -296,8 +296,8 @@ AI:  Archiving add-auth...
 
 You: Yes
 
-AI:  ✓ Synced specs to openspec/specs/auth/spec.md
-     ✓ Moved to openspec/changes/archive/2025-01-24-add-auth/
+AI:  ✓ Synced specs to clearspec/specs/auth/spec.md
+     ✓ Moved to clearspec/changes/archive/2025-01-24-add-auth/
 
      Change archived successfully.
 ```
@@ -306,17 +306,17 @@ Archive will prompt if specs aren't synced. It won't block on incomplete tasks, 
 
 ## When to Use What
 
-### `/opsx:ff` vs `/opsx:continue`
+### `/clsx:ff` vs `/clsx:continue`
 
 | Situation | Use |
 |-----------|-----|
-| Clear requirements, ready to build | `/opsx:ff` |
-| Exploring, want to review each step | `/opsx:continue` |
-| Want to iterate on proposal before specs | `/opsx:continue` |
-| Time pressure, need to move fast | `/opsx:ff` |
-| Complex change, want control | `/opsx:continue` |
+| Clear requirements, ready to build | `/clsx:ff` |
+| Exploring, want to review each step | `/clsx:continue` |
+| Want to iterate on proposal before specs | `/clsx:continue` |
+| Time pressure, need to move fast | `/clsx:ff` |
+| Complex change, want control | `/clsx:continue` |
 
-**Rule of thumb:** If you can describe the full scope upfront, use `/opsx:ff`. If you're figuring it out as you go, use `/opsx:continue`.
+**Rule of thumb:** If you can describe the full scope upfront, use `/clsx:ff`. If you're figuring it out as you go, use `/clsx:continue`.
 
 ### When to Update vs Start Fresh
 
@@ -374,12 +374,12 @@ One logical unit of work per change. If you're doing "add feature X and also ref
 - Can ship independently
 - Simpler rollback if needed
 
-### Use `/opsx:explore` for Unclear Requirements
+### Use `/clsx:explore` for Unclear Requirements
 
 Before committing to a change, explore the problem space:
 
 ```text
-You: /opsx:explore
+You: /clsx:explore
 
 AI:  What would you like to explore?
 
@@ -400,10 +400,10 @@ Exploration clarifies thinking before you create artifacts.
 
 ### Verify Before Archiving
 
-Use `/opsx:verify` to check implementation matches artifacts:
+Use `/clsx:verify` to check implementation matches artifacts:
 
 ```text
-You: /opsx:verify
+You: /clsx:verify
 
 AI:  Verifying add-dark-mode...
 
@@ -418,7 +418,7 @@ Catches mismatches before you close out the change.
 
 ### Name Changes Clearly
 
-Good names make `openspec list` useful:
+Good names make `clearspec list` useful:
 
 ```text
 Good:                          Avoid:
@@ -434,16 +434,16 @@ For full command details and options, see [Commands](commands.md).
 
 | Command | Purpose | When to Use |
 |---------|---------|-------------|
-| `/opsx:propose` | Create change + planning artifacts | Fast default path (`core` profile) |
-| `/opsx:explore` | Think through ideas | Unclear requirements, investigation |
-| `/opsx:new` | Start a change scaffold | Expanded mode, explicit artifact control |
-| `/opsx:continue` | Create next artifact | Expanded mode, step-by-step artifact creation |
-| `/opsx:ff` | Create all planning artifacts | Expanded mode, clear scope |
-| `/opsx:apply` | Implement tasks | Ready to write code |
-| `/opsx:verify` | Validate implementation | Expanded mode, before archiving |
-| `/opsx:sync` | Merge delta specs | Expanded mode, optional |
-| `/opsx:archive` | Complete the change | All work finished |
-| `/opsx:bulk-archive` | Archive multiple changes | Expanded mode, parallel work |
+| `/clsx:propose` | Create change + planning artifacts | Fast default path (`core` profile) |
+| `/clsx:explore` | Think through ideas | Unclear requirements, investigation |
+| `/clsx:new` | Start a change scaffold | Expanded mode, explicit artifact control |
+| `/clsx:continue` | Create next artifact | Expanded mode, step-by-step artifact creation |
+| `/clsx:ff` | Create all planning artifacts | Expanded mode, clear scope |
+| `/clsx:apply` | Implement tasks | Ready to write code |
+| `/clsx:verify` | Validate implementation | Expanded mode, before archiving |
+| `/clsx:sync` | Merge delta specs | Expanded mode, optional |
+| `/clsx:archive` | Complete the change | All work finished |
+| `/clsx:bulk-archive` | Archive multiple changes | Expanded mode, parallel work |
 
 ## Next Steps
 

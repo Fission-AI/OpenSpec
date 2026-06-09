@@ -146,7 +146,7 @@ function getRegisteredStoreOrThrow(
   if (!entry) {
     throw new ContextStoreError(`Unknown context store '${id}'`, 'context_store_not_found', {
       target: 'context_store.id',
-      fix: 'Run openspec context-store list to see registered stores.',
+      fix: 'Run clearspec context-store list to see registered stores.',
     });
   }
 
@@ -362,7 +362,7 @@ export async function unregisterContextStoreRegistration(
   if (!removed) {
     throw new ContextStoreError(`Unknown context store '${id}'`, 'context_store_not_found', {
       target: 'context_store.id',
-      fix: 'Run openspec context-store list to see registered stores.',
+      fix: 'Run clearspec context-store list to see registered stores.',
     });
   }
 

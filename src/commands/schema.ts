@@ -12,6 +12,7 @@ import {
 } from '../core/artifact-graph/resolver.js';
 import { parseSchema, SchemaValidationError } from '../core/artifact-graph/schema.js';
 import type { SchemaYaml, Artifact } from '../core/artifact-graph/types.js';
+import { CLEARSPEC_DIR_NAME } from '../core/config.js';
 
 /**
  * Schema source location type
@@ -710,11 +711,11 @@ export function registerSchemaCommand(program: Command): void {
               console.log(JSON.stringify({
                 created: false,
                 error: `Schema '${name}' already exists`,
-                suggestion: 'Use --force to overwrite or "openspec schema fork" to copy',
+                suggestion: 'Use --force to overwrite or "clearspec schema fork" to copy',
               }, null, 2));
             } else {
               console.error(`Error: Schema '${name}' already exists at ${schemaDir}`);
-              console.error('Use --force to overwrite or "openspec schema fork" to copy');
+              console.error('Use --force to overwrite or "clearspec schema fork" to copy');
             }
             process.exitCode = 1;
             return;
@@ -868,7 +869,7 @@ export function registerSchemaCommand(program: Command): void {
 
         // Update config if --default
         if (options?.default) {
-          const configPath = path.join(projectRoot, 'openspec', 'config.yaml');
+          const configPath = path.join(projectRoot, CLEARSPEC_DIR_NAME, 'config.yaml');
 
           if (fs.existsSync(configPath)) {
             const { parse: parseYaml, stringify: stringifyYaml2 } = await import('yaml');
@@ -905,7 +906,7 @@ export function registerSchemaCommand(program: Command): void {
           console.log(`\nNext steps:`);
           console.log(`  1. Edit ${schemaDir}/schema.yaml to customize artifacts`);
           console.log(`  2. Modify templates in the schema directory`);
-          console.log(`  3. Use with: openspec new --schema ${name}`);
+          console.log(`  3. Use with: clearspec new --schema ${name}`);
         }
       } catch (error) {
         if (spinner) spinner.fail(`Creation failed`);

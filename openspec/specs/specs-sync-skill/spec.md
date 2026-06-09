@@ -6,21 +6,21 @@ Defines the agent skill for syncing delta specs from changes to main specs.
 ## Requirements
 
 ### Requirement: Specs Sync Skill
-The system SHALL provide an `/opsx:sync` skill that syncs delta specs from a change to the main specs.
+The system SHALL provide an `/clsx:sync` skill that syncs delta specs from a change to the main specs.
 
 #### Scenario: Sync delta specs to main specs
-- **WHEN** agent executes `/opsx:sync` with a change name
+- **WHEN** agent executes `/clsx:sync` with a change name
 - **THEN** the agent reads delta specs from `openspec/changes/<name>/specs/`
 - **AND** reads corresponding main specs from `openspec/specs/`
 - **AND** reconciles main specs to match what the deltas describe
 
 #### Scenario: Idempotent operation
-- **WHEN** agent executes `/opsx:sync` multiple times on the same change
+- **WHEN** agent executes `/clsx:sync` multiple times on the same change
 - **THEN** the result is the same as running it once
 - **AND** no duplicate requirements are created
 
 #### Scenario: Change selection prompt
-- **WHEN** agent executes `/opsx:sync` without specifying a change
+- **WHEN** agent executes `/clsx:sync` without specifying a change
 - **THEN** the agent prompts user to select from available changes
 - **AND** shows changes that have delta specs
 

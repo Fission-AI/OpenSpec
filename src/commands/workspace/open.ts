@@ -16,7 +16,7 @@ import {
 } from '../../core/workspace/index.js';
 import { SelectedWorkspace, WorkspaceCliError, asErrorMessage } from './types.js';
 
-export const WORKSPACE_OPEN_MINIMAL_PROMPT = 'Open this OpenSpec workspace.';
+export const WORKSPACE_OPEN_MINIMAL_PROMPT = 'Open this ClearSpec workspace.';
 const CODEX_CLI_WRITABLE_ROOT_SANDBOX_ARGS = ['--sandbox', 'workspace-write'] as const;
 const require = createRequire(import.meta.url);
 const spawn = require('cross-spawn') as typeof nodeSpawn;

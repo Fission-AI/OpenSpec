@@ -25,14 +25,14 @@ describe('workspace open initiative views', () => {
   let env: NodeJS.ProcessEnv;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-workspace-initiative-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'clearspec-workspace-initiative-'));
     dataHome = path.join(tempDir, 'data');
     configHome = path.join(tempDir, 'config');
     env = {
       XDG_DATA_HOME: dataHome,
       XDG_CONFIG_HOME: configHome,
       OPEN_SPEC_INTERACTIVE: '0',
-      OPENSPEC_TELEMETRY: '0',
+      CLEARSPEC_TELEMETRY: '0',
     };
     globalDataDir = getGlobalDataDir({ env });
   });
@@ -95,15 +95,15 @@ describe('workspace open initiative views', () => {
     fs.mkdirSync(binDir, { recursive: true });
     fs.writeFileSync(
       recorderPath,
-      "const fs = require('node:fs');\nfs.writeFileSync(process.env.OPENSPEC_FAKE_OPEN_LOG, JSON.stringify({ cwd: process.cwd(), args: process.argv.slice(2) }));\n"
+      "const fs = require('node:fs');\nfs.writeFileSync(process.env.CLEARSPEC_FAKE_OPEN_LOG, JSON.stringify({ cwd: process.cwd(), args: process.argv.slice(2) }));\n"
     );
 
     const posixExecutable = path.join(binDir, name);
-    fs.writeFileSync(posixExecutable, '#!/bin/sh\nnode "$OPENSPEC_FAKE_OPEN_RECORDER" "$@"\n');
+    fs.writeFileSync(posixExecutable, '#!/bin/sh\nnode "$CLEARSPEC_FAKE_OPEN_RECORDER" "$@"\n');
     fs.chmodSync(posixExecutable, 0o755);
     fs.writeFileSync(
       path.join(binDir, `${name}.cmd`),
-      '@echo off\r\nnode "%OPENSPEC_FAKE_OPEN_RECORDER%" %*\r\n'
+      '@echo off\r\nnode "%CLEARSPEC_FAKE_OPEN_RECORDER%" %*\r\n'
     );
 
     return { binDir, logPath };
@@ -112,8 +112,8 @@ describe('workspace open initiative views', () => {
   function envWithFakeExecutable(fake: { binDir: string; logPath: string }): NodeJS.ProcessEnv {
     return {
       ...withPrependedPathEnv(env, fake.binDir),
-      OPENSPEC_FAKE_OPEN_RECORDER: path.join(fake.binDir, 'record-launch.cjs'),
-      OPENSPEC_FAKE_OPEN_LOG: fake.logPath,
+      CLEARSPEC_FAKE_OPEN_RECORDER: path.join(fake.binDir, 'record-launch.cjs'),
+      CLEARSPEC_FAKE_OPEN_LOG: fake.logPath,
     };
   }
 
@@ -231,7 +231,7 @@ describe('workspace open initiative views', () => {
         },
       })
     );
-    expect(fs.existsSync(path.join(workspaceRoot, '.openspec-workspace'))).toBe(true);
+    expect(fs.existsSync(path.join(workspaceRoot, '.clearspec-workspace'))).toBe(true);
     expect(fs.existsSync(path.join(globalDataDir, 'workspaces', 'registry.yaml'))).toBe(false);
     expect(fs.readFileSync(path.join(workspaceRoot, 'AGENTS.md'), 'utf-8')).toContain(
       'Initiative title: Billing Launch'
@@ -242,7 +242,7 @@ describe('workspace open initiative views', () => {
         path: expect.any(String),
       },
       {
-        name: 'OpenSpec workspace',
+        name: 'ClearSpec workspace',
         path: '.',
       },
     ]);

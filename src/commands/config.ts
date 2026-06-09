@@ -20,7 +20,7 @@ import {
   DEFAULT_CONFIG,
 } from '../core/config-schema.js';
 import { CORE_WORKFLOWS, ALL_WORKFLOWS, getProfileWorkflows } from '../core/profiles.js';
-import { OPENSPEC_DIR_NAME } from '../core/config.js';
+import { CLEARSPEC_DIR_NAME } from '../core/config.js';
 import { hasProjectConfigDrift } from '../core/profile-sync-drift.js';
 import {
   findWorkspaceRoot,
@@ -94,7 +94,7 @@ const WORKFLOW_PROMPT_META: Record<string, WorkflowPromptMeta> = {
   },
   onboard: {
     name: 'Onboard',
-    description: 'Guided onboarding flow for OpenSpec',
+    description: 'Guided onboarding flow for ClearSpec',
   },
 };
 
@@ -215,14 +215,14 @@ function maybeWarnProjectConfigDrift(
   state: ProfileState,
   colorize: (message: string) => string
 ): void {
-  const openspecDir = path.join(projectDir, OPENSPEC_DIR_NAME);
-  if (!fs.existsSync(openspecDir)) {
+  const clearspecDir = path.join(projectDir, CLEARSPEC_DIR_NAME);
+  if (!fs.existsSync(clearspecDir)) {
     return;
   }
   if (!hasProjectConfigDrift(projectDir, state.workflows, state.delivery)) {
     return;
   }
-  console.log(colorize('Warning: Global config is not applied to this project. Run `openspec update` to sync.'));
+  console.log(colorize('Warning: Global config is not applied to this project. Run `clearspec update` to sync.'));
 }
 
 async function maybeWarnConfigDrift(
@@ -241,7 +241,7 @@ async function maybeWarnConfigDrift(
     if (hasWorkspaceSkillProfileDrift(viewState)) {
       console.log(
         colorize(
-          'Warning: Workspace-local agent skills are out of sync with the active global profile. Run `openspec workspace update` to sync.'
+          'Warning: Workspace-local agent skills are out of sync with the active global profile. Run `clearspec workspace update` to sync.'
         )
       );
     }
@@ -253,11 +253,11 @@ async function maybeWarnConfigDrift(
 
 function printConfigProfileApplyGuidance(workspaceContext: WorkspaceConfigProfileContext | null): void {
   if (workspaceContext) {
-    console.log('Config updated. Run `openspec workspace update` to apply it to workspace-local skills.');
+    console.log('Config updated. Run `clearspec workspace update` to apply it to workspace-local skills.');
     return;
   }
 
-  console.log('Config updated. Run `openspec update` in your projects to apply.');
+  console.log('Config updated. Run `clearspec update` in your projects to apply.');
 }
 
 /**
@@ -268,7 +268,7 @@ function printConfigProfileApplyGuidance(workspaceContext: WorkspaceConfigProfil
 export function registerConfigCommand(program: Command): void {
   const configCmd = program
     .command('config')
-    .description('View and modify global OpenSpec configuration')
+    .description('View and modify global ClearSpec configuration')
     .option('--scope <scope>', 'Config scope (only "global" supported currently)')
     .hook('preAction', (thisCommand) => {
       const opts = thisCommand.opts();
@@ -358,7 +358,7 @@ export function registerConfigCommand(program: Command): void {
       if (!keyValidation.valid && !allowUnknown) {
         const reason = keyValidation.reason ? ` ${keyValidation.reason}.` : '';
         console.error(`Error: Invalid configuration key "${key}".${reason}`);
-        console.error('Use "openspec config list" to see available keys.');
+        console.error('Use "clearspec config list" to see available keys.');
         console.error('Pass --allow-unknown to bypass this check.');
         process.exitCode = 1;
         return;
@@ -413,7 +413,7 @@ export function registerConfigCommand(program: Command): void {
     .action(async (options: { all?: boolean; yes?: boolean }) => {
       if (!options.all) {
         console.error('Error: --all flag is required for reset');
-        console.error('Usage: openspec config reset --all [-y]');
+        console.error('Usage: clearspec config reset --all [-y]');
         process.exitCode = 1;
         return;
       }
@@ -513,7 +513,7 @@ export function registerConfigCommand(program: Command): void {
     .command('profile [preset]')
     .description('Configure workflow profile (interactive picker or preset shortcut)')
     .action(async (preset?: string) => {
-      // Preset shortcut: `openspec config profile core`
+      // Preset shortcut: `clearspec config profile core`
       if (preset === 'core') {
         const config = getGlobalConfig();
         config.profile = 'core';
@@ -533,7 +533,7 @@ export function registerConfigCommand(program: Command): void {
 
       // Non-interactive check
       if (!process.stdout.isTTY) {
-        console.error('Interactive mode required. Use `openspec config profile core` or set config via environment/flags.');
+        console.error('Interactive mode required. Use `clearspec config profile core` or set config via environment/flags.');
         process.exitCode = 1;
         return;
       }
@@ -680,13 +680,13 @@ export function registerConfigCommand(program: Command): void {
 
           if (applyNow) {
             try {
-              execSync('npx openspec workspace update', {
+              execSync('npx clearspec workspace update', {
                 stdio: 'inherit',
                 cwd: workspaceContext.commandCwd,
               });
-              console.log('Run `openspec workspace update` in your other workspaces to apply.');
+              console.log('Run `clearspec workspace update` in your other workspaces to apply.');
             } catch {
-              console.error('`openspec workspace update` failed. Please run it manually to apply the profile changes.');
+              console.error('`clearspec workspace update` failed. Please run it manually to apply the profile changes.');
               process.exitCode = 1;
             }
             return;
@@ -696,10 +696,10 @@ export function registerConfigCommand(program: Command): void {
           return;
         }
 
-        // Check if inside an OpenSpec project
+        // Check if inside a ClearSpec project
         const projectDir = process.cwd();
-        const openspecDir = path.join(projectDir, OPENSPEC_DIR_NAME);
-        if (fs.existsSync(openspecDir)) {
+        const clearspecDir = path.join(projectDir, CLEARSPEC_DIR_NAME);
+        if (fs.existsSync(clearspecDir)) {
           const applyNow = await confirm({
             message: 'Apply changes to this project now?',
             default: true,
@@ -707,10 +707,10 @@ export function registerConfigCommand(program: Command): void {
 
           if (applyNow) {
             try {
-              execSync('npx openspec update', { stdio: 'inherit', cwd: projectDir });
-              console.log('Run `openspec update` in your other projects to apply.');
+              execSync('npx clearspec update', { stdio: 'inherit', cwd: projectDir });
+              console.log('Run `clearspec update` in your other projects to apply.');
             } catch {
-              console.error('`openspec update` failed. Please run it manually to apply the profile changes.');
+              console.error('`clearspec update` failed. Please run it manually to apply the profile changes.');
               process.exitCode = 1;
             }
             return;

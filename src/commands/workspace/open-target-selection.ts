@@ -139,7 +139,7 @@ async function listOpenableInitiatives(
           code: 'initiative_discovery_failed',
           message: error instanceof Error ? error.message : String(error),
           target: 'initiative',
-          fix: 'openspec context-store doctor',
+          fix: 'clearspec context-store doctor',
         };
 
     return {
