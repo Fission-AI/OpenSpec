@@ -70,14 +70,47 @@ workspace-owned planning, or collection state as the main model.
 - Treat old beta files as history unless they block the simpler path.
 - Do not rewrite public docs before the behavior is solid.
 
+## Progress At A Glance
+
+Use this as the quick "where are we?" view.
+
+- [x] **Phase 0: Make the active direction easy to find.**
+  Old beta plans were marked as history, and this `/work` roadmap became the
+  active direction.
+- [ ] **Phase 1: Make a standalone OpenSpec repo useful.**
+  One slice is implemented in draft PR #1190, but the full phase still needs
+  normal commands to work against a named standalone repo.
+- [ ] **Phase 2: Stop putting new work through initiatives.**
+  Not started.
+- [ ] **Phase 3: Say which project repos the work is about.**
+  Not started.
+- [ ] **Phase 4: Open the right files together.**
+  Not started.
+- [ ] **Phase 5: Remove old surfaces only when they confuse the simple path.**
+  Later cleanup; not started.
+
+Next incomplete item:
+
+- [ ] **Let normal commands use a named standalone OpenSpec repo.**
+  In plain English: when a user is in an app repo, they can tell OpenSpec to
+  create or read work in a registered standalone OpenSpec repo.
+
 ## Phase 0: Make The Active Direction Easy To Find
 
 This phase is already done. It cleaned up old roadmap sources so agents and
 humans do not follow the wrong plan.
 
+Phase checklist:
+
+- [x] Point people away from the old context-store beta plan.
+- [x] Mark deferred workspace plans as not the current queue.
+- [x] Reframe local agent guidance around OpenSpec roots.
+
 ### Point People Away From The Old Context-Store Beta Plan
 
-Status: done
+Progress:
+
+- [x] Done.
 
 What the user or agent needs:
 
@@ -98,7 +131,9 @@ How we know it worked:
 
 ### Mark Deferred Workspace Plans As Not The Current Queue
 
-Status: done
+Progress:
+
+- [x] Done.
 
 What the user or agent needs:
 
@@ -117,7 +152,9 @@ How we know it worked:
 
 ### Reframe Local Agent Guidance Around OpenSpec Roots
 
-Status: done
+Progress:
+
+- [x] Done.
 
 What the user or agent needs:
 
@@ -145,9 +182,24 @@ I can keep OpenSpec work in its own Git repo and still use normal OpenSpec
 commands.
 ```
 
+Phase checklist:
+
+- [x] Create or register a standalone OpenSpec repo.
+  Implemented in draft PR #1190.
+- [ ] Let normal commands use a named standalone OpenSpec repo.
+  This is the next slice.
+- [ ] Prove the standalone repo lifecycle end to end.
+  Do this after normal commands can use the selected repo.
+
 ### Create Or Register A Standalone OpenSpec Repo
 
-Status: implemented in draft PR #1190
+Progress:
+
+- [x] Spec written.
+- [x] Plan written.
+- [x] Implementation done in draft PR #1190.
+- [x] Tests pass in draft PR #1190.
+- [ ] Merged to `main`.
 
 Slice: `slices/store-root-parity/spec.md`
 
@@ -193,7 +245,13 @@ How the user or agent knows it worked:
 
 ### Let Normal Commands Use A Named Standalone OpenSpec Repo
 
-Status: next, research first
+Progress:
+
+- [ ] Spec written.
+- [ ] Plan written.
+- [ ] Implementation done.
+- [ ] Tests pass.
+- [ ] Merged to `main`.
 
 Plain-English version of the next slice:
 
@@ -257,7 +315,13 @@ How the user or agent knows it worked:
 
 ### Prove The Standalone Repo Lifecycle End To End
 
-Status: candidate
+Progress:
+
+- [ ] Spec written.
+- [ ] Plan written.
+- [ ] Smoke flow implemented.
+- [ ] Tests pass.
+- [ ] Merged to `main`.
 
 Plain-English version:
 
@@ -304,9 +368,21 @@ Normal OpenSpec work should not require an initiative.
 Old initiative data can remain readable as legacy history, but the simpler path
 should stop attaching new work to initiatives.
 
+Phase checklist:
+
+- [ ] Stop creating new initiative links in normal change flows.
+- [ ] Hide or move initiative commands out of the main path.
+- [ ] Make workspace opening stop depending on initiatives.
+
 ### Stop Creating New Initiative Links In Normal Change Flows
 
-Status: candidate
+Progress:
+
+- [ ] Spec written.
+- [ ] Plan written.
+- [ ] Implementation done.
+- [ ] Tests pass.
+- [ ] Merged to `main`.
 
 What the user can do:
 
@@ -334,7 +410,13 @@ How the user or agent knows it worked:
 
 ### Hide Or Demote Initiative Commands From The Main Path
 
-Status: candidate
+Progress:
+
+- [ ] Spec written.
+- [ ] Plan written.
+- [ ] Implementation done.
+- [ ] Tests pass.
+- [ ] Merged to `main`.
 
 What the user can do:
 
@@ -361,7 +443,13 @@ How the user or agent knows it worked:
 
 ### Make Workspace Opening Stop Depending On Initiatives
 
-Status: candidate
+Progress:
+
+- [ ] Spec written.
+- [ ] Plan written.
+- [ ] Implementation done.
+- [ ] Tests pass.
+- [ ] Merged to `main`.
 
 What the user can do:
 
@@ -392,9 +480,21 @@ The user-facing goal of this phase:
 This OpenSpec work lives here, and it targets these project repos.
 ```
 
+Phase checklist:
+
+- [ ] Let work declare its target project repos.
+- [ ] Map target repo names to local checkout paths.
+- [ ] Report whether target repos are available locally.
+
 ### Let Work Declare Its Target Project Repos
 
-Status: candidate
+Progress:
+
+- [ ] Spec written.
+- [ ] Plan written.
+- [ ] Implementation done.
+- [ ] Tests pass.
+- [ ] Merged to `main`.
 
 What the user can do:
 
@@ -419,7 +519,13 @@ How the user or agent knows it worked:
 
 ### Map Target Repo Names To Local Checkout Paths
 
-Status: candidate
+Progress:
+
+- [ ] Spec written.
+- [ ] Plan written.
+- [ ] Implementation done.
+- [ ] Tests pass.
+- [ ] Merged to `main`.
 
 What the user can do:
 
@@ -443,7 +549,13 @@ How the user or agent knows it worked:
 
 ### Report Whether Target Repos Are Available Locally
 
-Status: candidate
+Progress:
+
+- [ ] Spec written.
+- [ ] Plan written.
+- [ ] Implementation done.
+- [ ] Tests pass.
+- [ ] Merged to `main`.
 
 What the user can do:
 
@@ -476,9 +588,19 @@ Open my standalone OpenSpec repo and the project repos it targets in one useful
 local view.
 ```
 
+Phase checklist:
+
+- [ ] Open the OpenSpec repo and target repos together.
+
 ### Open The OpenSpec Repo And Target Repos Together
 
-Status: candidate
+Progress:
+
+- [ ] Spec written.
+- [ ] Plan written.
+- [ ] Implementation done.
+- [ ] Tests pass.
+- [ ] Merged to `main`.
 
 What the user can do:
 
@@ -514,9 +636,20 @@ Remove or hide old beta surfaces only when they make the simple path harder to
 use or understand.
 ```
 
+Phase checklist:
+
+- [ ] Remove or hide old workspace and initiative paths when they block or
+  confuse the simple path.
+
 ### Remove Or Hide Old Workspace And Initiative Paths
 
-Status: later
+Progress:
+
+- [ ] Criteria agreed.
+- [ ] Cleanup plan written.
+- [ ] Cleanup done.
+- [ ] Tests or review checks pass.
+- [ ] Merged to `main`.
 
 What the user can do:
 
