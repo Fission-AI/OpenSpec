@@ -87,6 +87,25 @@ generated guidance only, never user data, and git history is the undo.
   (relationships are location, declaration, or citation).
 - One change lives in one root.
 
+## Parallelism policy
+
+- **Cross-slice work stays serial.** Every slice lands on the single branch;
+  the junction files (`src/cli/index.ts`, the completions registry,
+  `project-config.ts`, `foundation.ts`/`registry.ts`, and `roadmap.md`
+  bookkeeping) are shared by nearly every slice; and the queue's two largest
+  commits — the 1.4 mass rename and the Phase 5 mass deletion — are the
+  worst bases to rebase parallel tracks across. The wall-clock saved by the
+  one overlappable window (deletion ∥ 3.1–3.2 ∥ 3.3) does not justify
+  autonomous merge-conflict resolution.
+- **Within-slice fan-outs are encouraged.** Mechanical sweeps over
+  partitioned file sets — the 1.4 rename and guidance surfaces, the Phase 5
+  deletion sweep — run as Workflows, with worktree isolation when agents
+  edit concurrently. One integration point, one full-suite run.
+- **Lookahead research is allowed.** During implementation iterations, a
+  background read-only workflow may pre-build the next slice's code map
+  (file:line anchors for its plan). Never pre-write the next spec against
+  unlanded code or names.
+
 ## Iteration sizing and reporting
 
 - One coherent unit per iteration: a spec with its reviews, a plan with its
