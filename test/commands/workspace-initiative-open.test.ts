@@ -12,8 +12,8 @@ import {
   mountInitiativesCollection,
   parseWorkspaceViewState,
   registerStore,
-  serializeWorkspaceViewState,
   writeStoreMetadataState,
+  writeWorkspaceViewState,
 } from '../../src/core/index.js';
 import { withPrependedPathEnv } from '../helpers/path-env.js';
 import { runCLI, type RunCLIResult } from '../helpers/run-cli.js';
@@ -124,32 +124,28 @@ describe('workspace open initiative views', () => {
 
   // The CLI selectors for creating path-bound views were removed with the
   // legacy second meaning of --store; persisted path-bound views remain
-  // supported, so tests write the view state fixture directly.
-  function writePathBoundViewFixture(
+  // supported, so tests persist the view state through the production
+  // writer instead of creating it via a CLI flag.
+  async function writePathBoundViewFixture(
     name: string,
     storeId: string,
     storeRoot: string,
     initiativeId: string
-  ): string {
+  ): Promise<string> {
     const workspaceRoot = getManagedWorkspaceRoot(name, { globalDataDir });
-    const viewStatePath = getWorkspaceViewStatePath(workspaceRoot);
-    fs.mkdirSync(path.dirname(viewStatePath), { recursive: true });
-    fs.writeFileSync(
-      viewStatePath,
-      serializeWorkspaceViewState({
-        version: 1,
-        name,
-        context: {
-          kind: 'initiative',
-          store: {
-            id: storeId,
-            selector: { kind: 'path', path: storeRoot, observed_id: storeId },
-          },
-          initiative: { id: initiativeId },
+    await writeWorkspaceViewState(workspaceRoot, {
+      version: 1,
+      name,
+      context: {
+        kind: 'initiative',
+        store: {
+          id: storeId,
+          selector: { kind: 'path', path: storeRoot, observed_id: storeId },
         },
-        links: {},
-      })
-    );
+        initiative: { id: initiativeId },
+      },
+      links: {},
+    });
     return workspaceRoot;
   }
 
@@ -304,7 +300,7 @@ describe('workspace open initiative views', () => {
       summary: 'Coordinate local scratch work.',
     });
     const code = createFakeExecutable('code');
-    writePathBoundViewFixture(initiativeId, 'scratch-context', storeRoot, initiativeId);
+    await writePathBoundViewFixture(initiativeId, 'scratch-context', storeRoot, initiativeId);
 
     const reopen = await runCLI(
       ['workspace', 'open', initiativeId, '--editor', '--json', '--no-interactive'],
@@ -371,7 +367,7 @@ describe('workspace open initiative views', () => {
       title: 'Drift Launch',
       summary: 'Coordinate local drift work.',
     });
-    writePathBoundViewFixture(initiativeId, 'drift-context', storeRoot, initiativeId);
+    await writePathBoundViewFixture(initiativeId, 'drift-context', storeRoot, initiativeId);
 
     await writeStoreMetadataState(storeRoot, {
       version: 1,
@@ -407,7 +403,7 @@ describe('workspace open initiative views', () => {
       summary: 'Coordinate a local copy.',
     });
     const code = createFakeExecutable('code');
-    writePathBoundViewFixture(
+    await writePathBoundViewFixture(
       registered.initiativeId,
       'platform',
       pathStoreRoot,

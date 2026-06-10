@@ -1088,11 +1088,17 @@ describe('store command', () => {
     });
 
     it('registers a store repo created before the rename', async () => {
-      // The committed store format predates the rename; a root carrying
-      // the same .openspec-store/store.yaml shape registers untouched.
+      // The committed store format predates the rename. The fixture writes
+      // the exact pre-rename bytes inline (not via the current writer), so
+      // this fails if the on-disk contract ever drifts.
       const storeRoot = mkdir('pre-rename-context');
       createHealthyOpenSpecRoot(storeRoot);
-      await writeStoreMetadataState(storeRoot, { version: 1, id: 'pre-rename-context' });
+      const metadataDir = path.join(storeRoot, '.openspec-store');
+      fs.mkdirSync(metadataDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(metadataDir, 'store.yaml'),
+        'version: 1\nid: pre-rename-context\n'
+      );
 
       const result = await runCLI(['store', 'register', storeRoot, '--json'], {
         cwd: tempDir,
@@ -1141,6 +1147,26 @@ describe('store command', () => {
         'setup, register, unregister, remove, list (ls), doctor'
       );
       expect(result.stderr).toContain('openspec new change billing-rework --store <id>');
+    });
+
+    it('never suggests an invalid command for partial new invocations', async () => {
+      const result = await runCLI(['store', 'new', 'my-change'], { cwd: tempDir, env });
+
+      expect(result.exitCode).toBe(1);
+      // 'new my-change' would be invalid; the hint falls back to the full form.
+      expect(result.stderr).toContain('openspec new change <change-id> --store <id>');
+      expect(result.stderr).not.toContain('openspec new my-change');
+    });
+
+    it('falls back to the generic example when flags interleave operands', async () => {
+      const result = await runCLI(
+        ['store', 'new', '--schema', 'core', 'change', 'billing-rework'],
+        { cwd: tempDir, env }
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain('openspec new change <change-id> --store <id>');
+      expect(result.stderr).not.toContain('core');
     });
 
     it('prints the same hint on stderr for --json invocations', async () => {

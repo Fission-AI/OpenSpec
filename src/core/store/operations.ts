@@ -791,7 +791,7 @@ async function assertSafeToDeleteStoreRoot(storeRoot: string, id: string): Promi
       'store_remove_path_not_directory',
       {
         target: 'store.root',
-        fix: 'Run store unregister if you only want to forget this local registry entry.',
+        fix: 'Run "openspec store unregister <id>" if you only want to forget this local registry entry.',
       }
     );
   }
@@ -803,7 +803,7 @@ async function assertSafeToDeleteStoreRoot(storeRoot: string, id: string): Promi
       'store_remove_metadata_missing',
       {
         target: 'store.metadata',
-        fix: 'Run store unregister if you only want to forget this local registry entry.',
+        fix: 'Run "openspec store unregister <id>" if you only want to forget this local registry entry.',
       }
     );
   }

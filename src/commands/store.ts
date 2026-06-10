@@ -2,6 +2,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { Command } from 'commander';
 
+import { COMMAND_REGISTRY } from '../core/completions/command-registry.js';
+
 import {
   StoreError,
   doctorStores,
@@ -381,7 +383,7 @@ async function confirmRemove(id: string, root: string, options: StoreRemoveOptio
       'store_remove_cancelled',
       {
         target: 'store.root',
-        fix: 'Run store unregister if you only want to forget the local registration.',
+        fix: 'Run "openspec store unregister <id>" if you only want to forget the local registration.',
       }
     );
   }
@@ -458,7 +460,7 @@ function printListHuman(payload: StoreListOutput): void {
     console.log('No stores registered.');
     console.log('');
     console.log('Next:');
-    console.log('  openspec store setup team-context');
+    console.log('  openspec store setup team-context --path ~/openspec/team-context');
     console.log('  openspec store register /path/to/store');
     return;
   }
@@ -754,23 +756,43 @@ export function registerStoreCommand(program: Command): void {
   // Registering a command:* listener suppresses Commander's default
   // unknown-command error, so this handler owns the entire message and
   // the exit path (same text for human and --json invocations).
-  const lifecycleRedirects = new Set([
-    'new',
-    'status',
-    'instructions',
-    'show',
-    'validate',
-    'archive',
-  ]);
-  store.on('command:*', (operands: string[]) => {
+  const lifecycleRedirects = new Set(
+    COMMAND_REGISTRY.filter(
+      (entry) =>
+        entry.flags.some((flag) => flag.name === 'store') ||
+        (entry.subcommands ?? []).some((subcommand) =>
+          subcommand.flags.some((flag) => flag.name === 'store')
+        )
+    ).map((entry) => entry.name)
+  );
+  const storeSubcommandsLine = store.commands
+    .map((subcommand) => {
+      const aliases = subcommand.aliases();
+      return aliases.length > 0 ? `${subcommand.name()} (${aliases.join(', ')})` : subcommand.name();
+    })
+    .join(', ');
+  store.on('command:*', (operands: string[], unknown: string[]) => {
+    // Flag values are indistinguishable from operands without a full
+    // parse, so the verbatim echo only applies to plain-operand input.
+    const hasFlagLikeToken =
+      unknown.length > 0 || operands.some((operand) => operand.startsWith('-'));
     const attempted = operands.filter((operand) => !operand.startsWith('-'));
-    const example =
-      attempted.length > 0 && lifecycleRedirects.has(attempted[0])
-        ? `openspec ${attempted.join(' ')} --store <id>`
-        : 'openspec new change <change-id> --store <id>';
-    console.error(`Error: unknown command '${attempted[0] ?? ''}' for 'openspec store'.`);
+    let example = 'openspec new change <change-id> --store <id>';
+    if (!hasFlagLikeToken && attempted.length > 0 && lifecycleRedirects.has(attempted[0])) {
+      if (attempted[0] === 'new') {
+        const changeId = attempted[1] === 'change' && attempted[2] ? attempted[2] : '<change-id>';
+        example = `openspec new change ${changeId} --store <id>`;
+      } else {
+        example = `openspec ${attempted.join(' ')} --store <id>`;
+      }
+    }
     console.error(
-      'Store subcommands manage store registration: setup, register, unregister, remove, list (ls), doctor.'
+      attempted.length > 0
+        ? `Error: unknown command '${attempted[0]}' for 'openspec store'.`
+        : "Error: missing subcommand for 'openspec store'."
+    );
+    console.error(
+      `Store subcommands manage store registration: ${storeSubcommandsLine}.`
     );
     console.error(
       'To create or work on a change in a store, use the normal command with --store, for example:'

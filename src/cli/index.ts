@@ -37,9 +37,9 @@ import {
   type NewChangeOptions,
 } from '../commands/workflow/index.js';
 import { maybeShowTelemetryNotice, trackCommand, shutdown } from '../telemetry/index.js';
+import { COMMON_FLAGS } from '../core/completions/shared-flags.js';
 
-const STORE_OPTION_DESCRIPTION =
-  "Store id to use as the OpenSpec root (a store is a standalone OpenSpec repo you've registered)";
+const STORE_OPTION_DESCRIPTION = COMMON_FLAGS.store.description;
 
 // Deliberate rejection path: --store-path stays registered (hidden) so the
 // resolver can explain that registering the path is the supported route,

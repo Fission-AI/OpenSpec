@@ -223,7 +223,7 @@ async function ensureStoreMetadata(
         'store_metadata_missing',
         {
           target: 'store.metadata',
-          fix: `Create ${getStoreMetadataPath(storeRoot)} or rerun store register.`,
+          fix: `Create ${getStoreMetadataPath(storeRoot)} or rerun "openspec store register <path>".`,
         }
       );
     }

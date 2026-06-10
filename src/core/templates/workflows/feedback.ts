@@ -5,7 +5,6 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate } from '../types.js';
-import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
 export function getFeedbackSkillTemplate(): SkillTemplate {
   return {
@@ -14,8 +13,6 @@ export function getFeedbackSkillTemplate(): SkillTemplate {
     instructions: `Help the user submit feedback about OpenSpec.
 
 **Goal**: Guide the user through collecting, enriching, and submitting feedback while ensuring privacy through anonymization.
-
-${STORE_SELECTION_GUIDANCE}
 
 **Process**
 

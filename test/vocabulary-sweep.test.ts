@@ -3,11 +3,12 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// The store rename (slice 1.4) retired the "context store" vocabulary.
-// This sweep keeps it retired: no live surface may reintroduce the old
-// tokens. The openspec/ planning-history tree is outside the sweep roots
-// by design; the committed format literals (.openspec-store, store.yaml)
-// do not match these patterns at all.
+// The store rename (slice 1.4) retired the pre-rename vocabulary. This
+// sweep keeps it retired: no live surface may reintroduce the old tokens.
+// The openspec/ planning-history tree is outside the sweep roots by
+// design; the committed format literals (.openspec-store, store.yaml) do
+// not match these patterns at all. The forbidden tokens are built by
+// concatenation so this file stays clean under its own sweep.
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 // .codex/ is git-ignored local skill guidance (roadmap L8); swept when
@@ -35,8 +36,6 @@ const TEXT_EXTENSIONS = new Set([
   '.txt',
 ]);
 
-const SELF = path.resolve(fileURLToPath(import.meta.url));
-
 function* walkFiles(dir: string): Generator<string> {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const fullPath = path.join(dir, entry.name);
@@ -52,7 +51,7 @@ function* walkFiles(dir: string): Generator<string> {
 }
 
 describe('vocabulary sweep', () => {
-  it('keeps the retired context-store vocabulary out of live surfaces', () => {
+  it('keeps the retired store vocabulary out of live surfaces', () => {
     const offenders: string[] = [];
 
     for (const root of SWEEP_ROOTS) {
@@ -62,10 +61,6 @@ describe('vocabulary sweep', () => {
       }
 
       for (const filePath of walkFiles(rootPath)) {
-        if (path.resolve(filePath) === SELF) {
-          continue;
-        }
-
         const lines = fs.readFileSync(filePath, 'utf-8').split('\n');
         lines.forEach((line, index) => {
           const lowered = line.toLowerCase();
