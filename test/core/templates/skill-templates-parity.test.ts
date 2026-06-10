@@ -30,14 +30,14 @@ import {
 import { generateSkillContent } from '../../../src/core/shared/skill-generation.js';
 
 const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
-  getExploreSkillTemplate: 'b94673729f23ddaf3ae5096088ac5563773d847ee110e8b6a6cfd84f1ca441b3',
+  getExploreSkillTemplate: '5580ff5db2be6fdd721ac51def4295e1f7bd3635d3606c7c5cff1e8c3f71f89c',
   getNewChangeSkillTemplate: 'da2add8f373f05b271be8fba4008b96974a4455b9f04d3a0c7317c03687e0b25',
   getContinueChangeSkillTemplate: 'e6c818c5598e019b0767e1662c319142cba3b90bd1200146a8cbb540db87ec8b',
   getApplyChangeSkillTemplate: 'e51d3e347b9d497d4abf30586d81086c5d35239efc6cee89873e5118d783ca2a',
   getFfChangeSkillTemplate: '5ee79ba3cb3a88c99064a41216f1defa1337c778c95d7d7c8616e1a5f30fde79',
   getSyncSpecsSkillTemplate: 'a0b209d22b5f7c8f631f662efce1d6699c01f3884419effdd29b8450414bd0f8',
   getOnboardSkillTemplate: '04f889f2f02f9d8aca4c3d4a9ec61163d0f1630cdd361d162b8f8e0e48737a1d',
-  getOpsxExploreCommandTemplate: 'eaaef5a482d2eb4aee5cbd5cd4335f060842a5d9d29e68687e05b4f6f59c28b0',
+  getOpsxExploreCommandTemplate: '68a44e036984224e5f1c82f1f930b76a71459e3c7f041cf952d0cac9f253d984',
   getOpsxNewCommandTemplate: 'a300d31247f02b206d4042a6c3bb73e823575c299b31a0fc96630cb2353bd79f',
   getOpsxContinueCommandTemplate: '86a1ef4616ca6455598ca7b318fcf5590f8b892437219a16f20b9fb1254cf49c',
   getOpsxApplyCommandTemplate: '970d538808ae9692491b3840382a55b29948820262c490e3afaf9ce2d1e87b58',
@@ -56,7 +56,7 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
 };
 
 const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
-  'enpalspec-explore': '66ee48e00644be4f54af0a2ba903c63675feae803202f6d716f219e382cce341',
+  'enpalspec-explore': '1b973f8a163eb1a53f240b23d89a72b81027eaefe2e71311d1f6ab59b49e1197',
   'enpalspec-new-change': '0334e8f6cd05eebc003c0f667898f23677561cac5e08933f7b89addb064b2ee5',
   'enpalspec-continue-change': '6b4a5a43040559a901bb5f16144ed02ce138621e4c7df38a4ca1eaa7a23bcc21',
   'enpalspec-apply-change': '670704b3bee11acd3eeaf96caadd7e35df43ad546e52ec696b2ff3b705d5d6cf',

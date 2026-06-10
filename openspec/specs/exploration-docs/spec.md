@@ -60,3 +60,15 @@ Each question in a Q&A round SHALL use `### QN.M — {Title}` headings, present 
 - **THEN** they change the `[ ]` on their chosen option to `[x]` (and optionally uncheck the pre-marked recommended if they chose differently)
 - **AND** fill in their freetext answer under `> **Your answer / freetext:**`
 - **AND** signal readiness in chat ("next", "done", etc.)
+
+#### Scenario: Recommended option is pre-selected for accept-default UX
+- **WHEN** the skill appends a Q&A question to the exploration file
+- **THEN** exactly one option is marked `[x]`
+- **AND** that option is the recommended choice with `← recommended: <reason>` on the same line
+- **AND** the user can accept the recommendation by leaving the checkbox unchanged and saying "next"
+
+#### Scenario: Prose-only options are not allowed
+- **WHEN** the skill writes a question under `## Rounds`
+- **THEN** it MUST NOT use prose-only option lists (e.g., "Option A / Option B" without checkbox lines)
+- **AND** it MUST NOT put `← recommended:` on an unchecked `[ ]` line
+- **AND** it MUST NOT pre-select a non-recommended option with `[x]`

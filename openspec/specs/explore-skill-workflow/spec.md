@@ -93,3 +93,17 @@ The explore skill SHALL end the session by writing the `## Insights & Decisions`
 - **WHEN** questions remain unresolved before wrap-up
 - **THEN** the skill asks them as a final Q&A round in the document
 - **AND** does NOT write a `## Open Questions` section to the document
+
+### Requirement: Explore skill enforces checkbox Q&A format
+The explore skill (both `enpalspec-explore` skill and `enpalspec:explore` command) SHALL instruct the agent that every question in `## Rounds` uses markdown checkbox options with exactly one recommended option pre-selected as `[x]`. The skill template SHALL explicitly forbid prose-only option lists and incorrect pre-selection.
+
+#### Scenario: Skill template requires checkbox options for every question
+- **WHEN** the explore skill or command template is rendered
+- **THEN** it includes mandatory checkbox-format rules for every `### QN.M` question
+- **AND** it requires `← recommended: <reason>` on the pre-selected `[x]` line
+- **AND** it states that the user can accept the default by leaving the recommended option checked
+
+#### Scenario: Skill template forbids invalid option formats
+- **WHEN** the explore skill or command template is rendered
+- **THEN** it explicitly forbids prose-only options without checkbox lines
+- **AND** forbids marking a non-recommended option with `[x]` while leaving recommended unchecked

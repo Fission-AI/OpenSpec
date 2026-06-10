@@ -5,6 +5,10 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
+import {
+  EXPLORATION_QA_CHECKBOX_RULES,
+  EXPLORATION_QUESTION_EXAMPLE,
+} from './explore-qa-format.js';
 
 export function getExploreSkillTemplate(): SkillTemplate {
   return {
@@ -98,6 +102,8 @@ This is your thinking — what you found, how the system currently works, what c
 <!-- Written at end of session -->
 \`\`\`
 
+Every question in Round 1 MUST follow the checkbox format above. See **Checkbox options** below.
+
 After writing the document, tell the user in chat:
 
 > "**[3–5 bullet findings digest]**
@@ -118,23 +124,9 @@ Each round covers **one theme** and contains **2–5 focused questions**. Rounds
 
 Append each round to the exploration file under \`## Rounds\` using this format:
 
-\`\`\`markdown
-## Round N — <Theme>
+${EXPLORATION_QUESTION_EXAMPLE}
 
-### QN.M — <Question title>
-
-<1-sentence question or context>
-
-- [x] Recommended option ← recommended: reason
-- [ ] Alternative option
-- [ ] Another alternative
-
-> **Your answer / freetext:**
->
-\`\`\`
-
-Pre-mark the recommended option with \`[x]\`. All other options are \`[ ]\`. The user edits
-the checkboxes and fills in the freetext field directly.
+${EXPLORATION_QA_CHECKBOX_RULES}
 
 ### After writing a round
 
@@ -210,6 +202,7 @@ If a change is relevant:
 
 ## Guardrails
 
+- **Checkbox options always** - Every Round question uses 2–4 checkbox options; recommended is pre-selected with \`[x]\` and \`← recommended: <reason>\`
 - **Don't implement** - Never write code or implement features. Creating EnpalSpec artifacts is fine, writing application code is not.
 - **Document-first** - Observations, questions, and answers go in the file; chat carries summaries only
 - **One clarifying question at a time** - If topic is vague, ask biggest-blast-radius question first, wait for answer, then next
@@ -310,6 +303,8 @@ Write the document with all sections:
 <!-- Written at end of session -->
 \`\`\`
 
+Every question in Round 1 MUST follow the checkbox format above. See **Checkbox options** below.
+
 After writing, tell the user in chat:
 
 > "**[3–5 bullet findings digest]**
@@ -328,20 +323,9 @@ Each round covers **one theme**, 2–5 questions written to the exploration file
 
 Append each round to the file under \`## Rounds\` using this format:
 
-\`\`\`markdown
-## Round N — <Theme>
+${EXPLORATION_QUESTION_EXAMPLE}
 
-### QN.M — <Question title>
-
-<1-sentence question or context>
-
-- [x] Recommended option ← recommended: reason
-- [ ] Alternative option
-- [ ] Another alternative
-
-> **Your answer / freetext:**
->
-\`\`\`
+${EXPLORATION_QA_CHECKBOX_RULES}
 
 After appending the round, tell the user in chat (only): "Round N is in the doc — answer there, then say 'next' when ready." Do NOT repeat questions in chat.
 
@@ -371,6 +355,7 @@ Do NOT write an \`## Open Questions\` section. Ask remaining questions as a roun
 
 ## Guardrails
 
+- **Checkbox options always** - Every Round question uses 2–4 checkbox options; recommended is pre-selected with \`[x]\` and \`← recommended: <reason>\`
 - **Don't implement** - Never write code or implement features. Creating EnpalSpec artifacts is fine, writing application code is not.
 - **Document-first** - Observations, questions, and answers go in the file; chat carries summaries only
 - **One clarifying question at a time** - If topic is vague, biggest blast radius first
