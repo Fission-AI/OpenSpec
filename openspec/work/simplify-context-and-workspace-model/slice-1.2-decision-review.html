@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Slice 1.2 — Decision Review</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel2: #1c2128;
+    --border: #30363d;
+    --text: #e6edf3;
+    --dim: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --amber: #d29922;
+    --red: #f85149;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 14px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  header {
+    padding: 14px 20px 10px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .header-row { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  h1 { font-size: 16px; font-weight: 600; }
+  .progress { color: var(--dim); font-size: 13px; }
+  .progress b { color: var(--green); }
+  .presets { margin-left: auto; display: flex; gap: 8px; }
+  .preset-btn {
+    background: var(--panel2); border: 1px solid var(--border); color: var(--text);
+    padding: 4px 12px; border-radius: 6px; font-size: 12px; cursor: pointer;
+  }
+  .preset-btn:hover { border-color: var(--accent); }
+  .settled {
+    margin-top: 8px; font-size: 12px; color: var(--dim);
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 10px;
+  }
+  .settled b { color: var(--text); font-weight: 600; }
+
+  main { flex: 1; display: flex; min-height: 0; }
+
+  /* Left: decision list */
+  .decisions {
+    width: 380px; flex-shrink: 0; overflow-y: auto;
+    border-right: 1px solid var(--border); padding: 12px;
+  }
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px; margin-bottom: 10px; cursor: pointer;
+  }
+  .card.active { border-color: var(--accent); }
+  .card-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--amber); flex-shrink: 0; }
+  .dot.decided { background: var(--green); }
+  .card-title { font-weight: 600; font-size: 13.5px; }
+  .card-stake { color: var(--dim); font-size: 12.5px; line-height: 1.45; margin-bottom: 9px; }
+  .opts { display: flex; flex-direction: column; gap: 6px; }
+  .opt {
+    display: flex; align-items: center; gap: 8px;
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 9px; font-size: 12.5px; cursor: pointer; background: var(--panel2);
+  }
+  .opt:hover { border-color: var(--dim); }
+  .opt.selected { border-color: var(--green); background: rgba(63,185,80,.08); }
+  .radio {
+    width: 13px; height: 13px; border-radius: 50%;
+    border: 2px solid var(--dim); flex-shrink: 0;
+  }
+  .opt.selected .radio { border-color: var(--green); background: var(--green); }
+  .rec-badge {
+    margin-left: auto; font-size: 10px; color: var(--accent);
+    border: 1px solid var(--accent); border-radius: 10px; padding: 1px 7px; flex-shrink: 0;
+  }
+  .note {
+    margin-top: 8px; width: 100%; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 8px; font-size: 12px; font-family: inherit; resize: vertical; min-height: 28px;
+  }
+  .note::placeholder { color: #555e68; }
+
+  /* Right: preview */
+  .preview { flex: 1; overflow-y: auto; padding: 16px 20px; min-width: 0; }
+  .preview h2 { font-size: 15px; margin-bottom: 4px; }
+  .preview .stake { color: var(--dim); font-size: 13px; margin-bottom: 14px; line-height: 1.5; max-width: 720px; }
+  .panes { display: flex; gap: 14px; align-items: stretch; flex-wrap: wrap; }
+  .pane {
+    flex: 1; min-width: 300px; border: 2px solid var(--border); border-radius: 10px;
+    background: var(--panel); cursor: pointer; display: flex; flex-direction: column;
+  }
+  .pane:hover { border-color: var(--dim); }
+  .pane.selected { border-color: var(--green); }
+  .pane-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 12px; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 600;
+  }
+  .pane.selected .pane-head::after { content: "✓ chosen"; color: var(--green); font-size: 11px; font-weight: 400; margin-left: auto; }
+  .pane:not(.selected) .pane-head::after { content: "click to choose"; color: #555e68; font-size: 11px; font-weight: 400; margin-left: auto; }
+  .term {
+    font-family: var(--mono); font-size: 12px; line-height: 1.7;
+    padding: 12px 14px; white-space: pre-wrap; flex: 1;
+  }
+  .t-cmd { color: var(--text); }
+  .t-cmd::before { content: "$ "; color: var(--dim); }
+  .t-ok { color: var(--green); }
+  .t-warn { color: var(--amber); }
+  .t-err { color: var(--red); }
+  .t-dim { color: var(--dim); }
+  .pane-caption {
+    border-top: 1px solid var(--border); padding: 9px 12px;
+    font-size: 12px; color: var(--dim); line-height: 1.5;
+  }
+
+  /* Bottom: prompt */
+  footer {
+    border-top: 1px solid var(--border); padding: 12px 20px;
+    flex-shrink: 0; background: var(--panel);
+  }
+  .prompt-row { display: flex; gap: 12px; align-items: flex-start; }
+  #prompt {
+    flex: 1; font-family: var(--mono); font-size: 12px; color: var(--dim);
+    white-space: pre-wrap; max-height: 130px; overflow-y: auto; line-height: 1.55;
+  }
+  #prompt.ready { color: var(--text); }
+  #copyBtn {
+    background: #238636; color: #fff; border: none; border-radius: 6px;
+    padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; flex-shrink: 0;
+  }
+  #copyBtn:hover { background: #2ea043; }
+  #copyBtn:disabled { background: var(--panel2); color: var(--dim); cursor: default; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-row">
+    <h1>Slice 1.2 decisions — store root selection</h1>
+    <span class="progress" id="progress"></span>
+    <div class="presets">
+      <button class="preset-btn" onclick="applyPreset('recs')">Accept all recommendations</button>
+      <button class="preset-btn" onclick="applyPreset('minimal')">Minimal churn</button>
+      <button class="preset-btn" onclick="applyPreset('reset')">Reset</button>
+    </div>
+  </div>
+  <div class="settled"><b>Already settled (not up for review):</b> OpenSpec root is the planning home · context store is registration/identity only · workspace "planning home" is legacy beta language.</div>
+</header>
+
+<main>
+  <div class="decisions" id="decisionList"></div>
+  <div class="preview" id="preview"></div>
+</main>
+
+<footer>
+  <div class="prompt-row">
+    <div id="prompt"></div>
+    <button id="copyBtn" onclick="copyPrompt()">Copy decisions</button>
+  </div>
+</footer>
+
+<script>
+const DECISIONS = [
+  {
+    id: 'd1',
+    num: 1,
+    title: 'What does --store mean?',
+    stake: 'The flag name is already taken: today, --store on `new change` / `set change` selects the store hosting an initiative link. 1.2 wants it to mean "which OpenSpec repo should this command use".',
+    rec: 'a',
+    options: {
+      a: {
+        label: 'Repurpose now — pull Phase 2.1 forward',
+        record: 'Repurpose --store as root selection and pull Phase 2.1 forward: new change / set change stop creating initiative links in this same slice. One flag, one meaning.',
+        term: [
+          ['cmd', 'openspec new change add-billing --store team-context'],
+          ['ok',  '✓ Created openspec/changes/add-billing/'],
+          ['dim', '  in team-context (~/src/team-context)'],
+          ['dim', '  no initiative link created — initiative flows retired'],
+        ],
+        caption: 'Clean: one meaning everywhere, forever. Cost: the slice also has to retire initiative-link creation (roadmap reorder — 2.1 lands with 1.2).'
+      },
+      b: {
+        label: 'Keep dual meaning until Phase 2.1',
+        record: 'Keep the existing initiative meaning of --store for now; it gains the root-selection meaning alongside it until Phase 2.1 retires initiative links.',
+        term: [
+          ['cmd', 'openspec new change add-billing --store team-context'],
+          ['ok',  '✓ Created in team-context  (root selection)'],
+          ['cmd', 'openspec new change add-billing --initiative q3 --store team-context'],
+          ['warn','⚠ Same flag, different meaning: selects the store'],
+          ['warn','  hosting the initiative, not the command root'],
+        ],
+        caption: 'No roadmap reorder, but the same flag means two different things on the same command until 2.1 ships. Confusing intermediate state.'
+      }
+    }
+  },
+  {
+    id: 'd2',
+    num: 2,
+    title: 'Ship --store-path in 1.2?',
+    stake: 'Should an unregistered path (a fresh clone, CI checkout) be addressable directly in 1.2, or is the registered id the only selector for now?',
+    rec: 'a',
+    options: {
+      a: {
+        label: 'Defer — ship --store <id> only',
+        record: 'Defer --store-path. Ship --store <id> (registry lookup) as the only selector; registering a clone is the answer for path access. Add the path form later if someone actually hits the wall.',
+        term: [
+          ['cmd', 'openspec status --store team-context'],
+          ['ok',  '✓ Using OpenSpec root: team-context'],
+          ['cmd', 'openspec status --store-path ../team-context-clone'],
+          ['err', '✗ Unknown option --store-path'],
+          ['dim', '  register the clone first:'],
+          ['dim', '  openspec context-store register ../team-context-clone'],
+        ],
+        caption: 'Smallest surface, one selector to spec/test/document. Registration is cheap, so the path form is rarely needed.'
+      },
+      b: {
+        label: 'Ship now — accept any healthy root',
+        record: 'Ship --store-path in 1.2, accepting any healthy OpenSpec root (the .openspec-store/store.yaml marker is NOT required, consistent with "store = registration identity only").',
+        term: [
+          ['cmd', 'openspec status --store-path ../team-context-clone'],
+          ['ok',  '✓ Using OpenSpec root: ../team-context-clone'],
+          ['dim', '  .openspec-store/store.yaml not required —'],
+          ['dim', '  any healthy openspec/ root works'],
+        ],
+        caption: 'Covers unregistered clones and CI immediately. Note: this loosens current behavior (today the marker file is hard-required) and doubles the selector surface to spec and test.'
+      }
+    }
+  },
+  {
+    id: 'd3',
+    num: 3,
+    title: 'When does old workspace state get demoted?',
+    stake: 'A leftover .openspec-workspace-view.yaml in an ancestor directory still actively wins root resolution today — it reroutes normal commands to a workspace-owned changes dir and switches the schema (planning-home.ts:124).',
+    rec: 'a',
+    options: {
+      a: {
+        label: 'Demote during the 1.2 resolver rework',
+        record: 'Demote the workspace branch during the 1.2 resolver rework: leftover workspace state never wins root resolution on the new path. Nearly free since the resolver is being rewritten anyway.',
+        term: [
+          ['dim', '# leftover .openspec-workspace-view.yaml in ancestor'],
+          ['cmd', 'openspec status'],
+          ['ok',  '✓ Using OpenSpec root: ~/src/app/openspec'],
+          ['dim', '  legacy workspace state ignored'],
+        ],
+        caption: 'The resolver is already being rewritten — demoting the workspace branch now is nearly free, and the settled decision says it must never win.'
+      },
+      b: {
+        label: 'Wait for Phase 2.3 / 5.1',
+        record: 'Leave the workspace branch as-is; it gets demoted later in Phase 2.3/5.1. Until then leftover workspace state continues to win root resolution.',
+        term: [
+          ['dim', '# leftover .openspec-workspace-view.yaml in ancestor'],
+          ['cmd', 'openspec status'],
+          ['warn','⚠ Routed to workspace planning home'],
+          ['warn','  changes dir: workspace-owned'],
+          ['warn','  schema: workspace-planning'],
+        ],
+        caption: 'Smaller 1.2 diff, but old beta state keeps hijacking normal commands — contradicting the settled decision until 2.3/5.1 lands.'
+      }
+    }
+  },
+  {
+    id: 'd4',
+    num: 4,
+    title: 'Kill the silent implicit-root scaffold?',
+    stake: 'In an app repo with no openspec/ folder, commands today silently scaffold a brand-new local root — even when the user’s work lives in a registered store. Work lands in the wrong repo with no error.',
+    rec: 'a',
+    options: {
+      a: {
+        label: 'Error + hint when stores are registered',
+        record: 'When cwd has no openspec/ root AND registered stores exist, error with a hint naming the stores (suggest --store <id> or openspec init) instead of silently scaffolding. Keep current behavior when no stores are registered.',
+        term: [
+          ['dim', '# ~/src/app — no openspec/ here; team-context registered'],
+          ['cmd', 'openspec new change add-billing'],
+          ['err', '✗ No openspec/ folder found from here.'],
+          ['dim', '  Registered stores: team-context'],
+          ['dim', '  → openspec new change add-billing --store team-context'],
+          ['dim', '  → or run openspec init to create a local root'],
+        ],
+        caption: 'Kills the silent wrong-repo trap. Behavior changes only when stores are registered; the no-store baseline is untouched.'
+      },
+      b: {
+        label: 'Keep the silent scaffold always',
+        record: 'Keep current behavior: commands implicitly scaffold a local openspec/ root when none exists, even if registered stores exist.',
+        term: [
+          ['dim', '# ~/src/app — no openspec/ here; team-context registered'],
+          ['cmd', 'openspec new change add-billing'],
+          ['ok',  '✓ Created ./openspec/changes/add-billing/'],
+          ['warn','⚠ Scaffolded a new openspec/ in the app repo —'],
+          ['warn','  but the team’s work lives in team-context'],
+        ],
+        caption: 'Zero baseline change, but the human discovers later that their planning repo is empty and a stray openspec/ landed in the app repo.'
+      }
+    }
+  }
+];
+
+const state = {
+  choices: { d1: null, d2: null, d3: null, d4: null },
+  notes: { d1: '', d2: '', d3: '', d4: '' },
+  active: 'd1'
+};
+
+function choose(id, opt) {
+  state.choices[id] = opt;
+  state.active = id;
+  updateAll();
+}
+
+function setActive(id) {
+  if (state.active !== id) { state.active = id; updateAll(); }
+}
+
+function applyPreset(name) {
+  if (name === 'recs')    state.choices = { d1:'a', d2:'a', d3:'a', d4:'a' };
+  if (name === 'minimal') state.choices = { d1:'b', d2:'a', d3:'b', d4:'b' };
+  if (name === 'reset')   state.choices = { d1:null, d2:null, d3:null, d4:null };
+  updateAll();
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderList() {
+  const el = document.getElementById('decisionList');
+  el.innerHTML = DECISIONS.map(d => {
+    const chosen = state.choices[d.id];
+    return `
+    <div class="card ${state.active===d.id?'active':''}" onclick="setActive('${d.id}')">
+      <div class="card-top">
+        <span class="dot ${chosen?'decided':''}"></span>
+        <span class="card-title">${d.num}. ${esc(d.title)}</span>
+      </div>
+      <div class="card-stake">${esc(d.stake)}</div>
+      <div class="opts">
+        ${['a','b'].map(k => `
+          <div class="opt ${chosen===k?'selected':''}" onclick="event.stopPropagation(); choose('${d.id}','${k}')">
+            <span class="radio"></span>
+            <span>${esc(d.options[k].label)}</span>
+            ${d.rec===k?'<span class="rec-badge">rec</span>':''}
+          </div>`).join('')}
+      </div>
+      <textarea class="note" placeholder="optional note…" rows="1"
+        onclick="event.stopPropagation()"
+        oninput="state.notes['${d.id}']=this.value; updatePrompt(); updateProgress();">${esc(state.notes[d.id])}</textarea>
+    </div>`;
+  }).join('');
+}
+
+function renderPreview() {
+  const d = DECISIONS.find(x => x.id === state.active);
+  const chosen = state.choices[d.id];
+  document.getElementById('preview').innerHTML = `
+    <h2>${d.num}. ${esc(d.title)}</h2>
+    <div class="stake">${esc(d.stake)}</div>
+    <div class="panes">
+      ${['a','b'].map(k => {
+        const o = d.options[k];
+        return `
+        <div class="pane ${chosen===k?'selected':''}" onclick="choose('${d.id}','${k}')">
+          <div class="pane-head">${k.toUpperCase()} — ${esc(o.label)}${d.rec===k?' &nbsp;<span class="rec-badge">rec</span>':''}</div>
+          <div class="term">${o.term.map(([cls,t]) => `<div class="t-${cls}">${esc(t)}</div>`).join('')}</div>
+          <div class="pane-caption">${esc(o.caption)}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+function updateProgress() {
+  const n = Object.values(state.choices).filter(Boolean).length;
+  document.getElementById('progress').innerHTML = `<b>${n}</b> of 4 decided`;
+}
+
+function updatePrompt() {
+  const el = document.getElementById('prompt');
+  const btn = document.getElementById('copyBtn');
+  const decided = DECISIONS.filter(d => state.choices[d.id]);
+  const open = DECISIONS.filter(d => !state.choices[d.id]);
+
+  if (decided.length === 0) {
+    el.textContent = 'Pick an option on each decision (or use a preset) — a paste-ready decision record builds here.';
+    el.classList.remove('ready');
+    btn.disabled = true;
+    return;
+  }
+
+  let p = 'Record these decisions for OpenSpec slice 1.2 (store root selection) and carry them into the slice spec:\n\n';
+  decided.forEach(d => {
+    const k = state.choices[d.id];
+    const o = d.options[k];
+    p += `${d.num}. ${d.title} → ${o.record}`;
+    if (k === d.rec) p += ' (matches recommendation)';
+    const note = state.notes[d.id].trim();
+    if (note) p += `\n   Note: ${note}`;
+    p += '\n\n';
+  });
+  if (open.length) {
+    p += 'Still open (no decision yet): ' + open.map(d => `${d.num}. ${d.title}`).join(' · ') + '\n';
+  }
+  el.textContent = p.trim();
+  el.classList.add('ready');
+  btn.disabled = false;
+}
+
+function copyPrompt() {
+  navigator.clipboard.writeText(document.getElementById('prompt').textContent).then(() => {
+    const btn = document.getElementById('copyBtn');
+    const old = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = old; }, 1200);
+  });
+}
+
+function updateAll() {
+  renderList();
+  renderPreview();
+  updateProgress();
+  updatePrompt();
+}
+
+updateAll();
+</script>
+</body>
+</html>

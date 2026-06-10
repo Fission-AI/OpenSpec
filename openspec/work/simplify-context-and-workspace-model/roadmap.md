@@ -81,10 +81,11 @@ an item are status steps for that numbered work item.
   Old beta plans were marked as history, and this `/work` roadmap became the
   active direction.
 - [ ] **Phase 1. Make a standalone OpenSpec repo useful.**
-  One slice is implemented in draft PR #1190, but the full phase still needs
-  normal commands to work against a named standalone repo.
+  Slices 1.1 and 1.2 have branch implementations and passing tests; the phase
+  still needs merge to `main` and the end-to-end lifecycle proof.
 - [ ] **Phase 2. Stop putting new work through initiatives.**
-  Not started.
+  Item 2.1 was pulled forward into slice 1.2 and implemented there; the rest is
+  not started.
 - [ ] **Phase 3. Say which project repos the work is about.**
   Not started.
 - [ ] **Phase 4. Open the right files together.**
@@ -97,6 +98,8 @@ Next incomplete item:
 - [ ] **1.2 Let normal commands use a named standalone OpenSpec repo.**
   In plain English: when a user is in an app repo, they can tell OpenSpec to
   create or read work in a registered standalone OpenSpec repo.
+  Implementation, tests, and review follow-up are done on
+  `codex/store-root-selection`; merge remains.
 
 ## Phase 0. Make The Active Direction Easy To Find
 
@@ -190,9 +193,10 @@ Phase checklist:
 - [x] **1.1** Create or register a standalone OpenSpec repo.
   Implemented in draft PR #1190.
 - [ ] **1.2** Let normal commands use a named standalone OpenSpec repo.
-  This is the next slice.
+  Implemented, tested, and review follow-up fixed on
+  `codex/store-root-selection`; merge remains.
 - [ ] **1.3** Prove the standalone repo lifecycle end to end.
-  Do this after normal commands can use the selected repo.
+  Do this after 1.1 and 1.2 are merged.
 
 ### 1.1 Create Or Register A Standalone OpenSpec Repo
 
@@ -250,11 +254,17 @@ How the user or agent knows it worked:
 
 Progress:
 
-- [ ] Spec written.
-- [ ] Plan written.
-- [ ] Implementation done.
-- [ ] Tests pass.
+- [x] Spec written.
+- [x] Plan written.
+- [x] Plan reviewed with `claude -p`; actionable feedback folded into the
+  slice artifacts.
+- [x] Implementation done on `codex/store-root-selection` (stacked on
+  `codex/store-root-parity`).
+- [x] Tests pass.
+- [x] Review follow-up fixed.
 - [ ] Merged to `main`.
+
+Slice: `slices/store-root-selection/spec.md`
 
 Plain-English version of the next slice:
 
@@ -287,26 +297,31 @@ Why it matters:
 
 What changes in commands or files:
 
-- Add a clear way to choose the OpenSpec root for normal commands, likely
-  `--store <id>` and/or `--store-path <path>`.
-- Start with a small command set instead of every command at once.
-- Suggested first commands:
-  `new change`, `status`, `instructions`, `list`, `show`, `validate`, and
-  `archive`.
+- Add `--store <id>` as the way to choose the OpenSpec root for normal
+  commands.
+- First command set: `new change`, `status`, `instructions`, `list`, `show`,
+  `validate`, and `archive`, behind one shared root resolver.
 - The selected command writes normal `openspec/changes/` and reads normal
   `openspec/specs/`.
 - The command does not create initiative metadata.
 - The command does not create workspace planning files.
 
-Questions to answer before implementation:
+Decisions locked on 2026-06-10 (details in the slice spec):
 
-- Should `--store-path` require `.openspec-store/store.yaml`, or can it point at
-  any healthy standalone OpenSpec root?
-- Which commands get support first?
-- How should existing `--store` and `--store-path` meanings from initiative
-  flows be handled?
-- How should this behave when the current directory is already inside a
-  workspace planning home?
+- `--store` is repurposed as root selection with exactly one meaning. Phase
+  2.1 is pulled forward into this slice: `new change` stops creating
+  initiative links, the old initiative meanings of `--store` and
+  `--store-path` are removed, and `openspec set change` is removed because
+  initiative linking was its only behavior.
+- `--store <id>` (registry lookup) is the only selector. `--store-path` is
+  deferred; registering a clone is the answer for path access.
+- Leftover workspace view state never wins root resolution on this path. The
+  workspace branch is demoted during this slice's resolver rework instead of
+  waiting for Phase 2.3/5.1.
+- When the current directory has no OpenSpec root and registered stores
+  exist, commands error with a hint naming the registered stores instead of
+  silently scaffolding a local root. With no registered stores, current
+  behavior is unchanged.
 
 How the user or agent knows it worked:
 
@@ -374,18 +389,20 @@ should stop attaching new work to initiatives.
 Phase checklist:
 
 - [ ] **2.1** Stop creating new initiative links in normal change flows.
+  Pulled forward into slice 1.2 on 2026-06-10.
 - [ ] **2.2** Hide or move initiative commands out of the main path.
 - [ ] **2.3** Make workspace opening stop depending on initiatives.
 
 ### 2.1 Stop Creating New Initiative Links In Normal Change Flows
 
+This item was pulled forward into slice 1.2 (`slices/store-root-selection/`)
+on 2026-06-10, because repurposing `--store` as root selection only works
+cleanly if initiative-link creation stops in the same slice. Track progress
+under 1.2.
+
 Progress:
 
-- [ ] Spec written.
-- [ ] Plan written.
-- [ ] Implementation done.
-- [ ] Tests pass.
-- [ ] Merged to `main`.
+- [x] Folded into slice 1.2; see the 1.2 progress checklist.
 
 What the user can do:
 
@@ -400,8 +417,10 @@ Why it matters:
 
 What changes in commands or files:
 
-- `new change` and `set change` stop creating new initiative links as part of
-  the main product path.
+- `new change` stops creating new initiative links as part of the main product
+  path.
+- `openspec set change` is removed because initiative linking was its only
+  behavior.
 - Existing `.openspec.yaml` initiative metadata remains parseable if needed.
 - Store/root selection points to normal OpenSpec roots, not initiative
   collections.
@@ -731,3 +750,11 @@ is working:
   visible.
 - 2026-06-10: Numbered phases, phase subitems, and later parking-lot ideas so
   progress can be tracked unambiguously.
+- 2026-06-10: Settled the model question behind 1.2: the OpenSpec root is the
+  planning home, a context store is registration/identity only, and workspace
+  "planning home" is legacy beta language.
+- 2026-06-10: Locked the 1.2 decisions and added the store-root-selection
+  slice spec: repurpose `--store` as root selection and pull 2.1 forward,
+  defer `--store-path`, demote leftover workspace state during the resolver
+  rework, and replace the silent implicit-root scaffold with an error and
+  hint when registered stores exist.
