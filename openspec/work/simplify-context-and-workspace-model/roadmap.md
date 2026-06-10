@@ -34,9 +34,13 @@ The simpler product story should become:
 2. If OpenSpec lives in its own repo, users can register that repo locally.
 3. Normal OpenSpec commands can create, read, validate, and archive work in that
    selected OpenSpec repo.
-4. Work can say which project repos it targets.
-5. The local machine can map those target repos to local checkout paths.
-6. An optional view can open the OpenSpec repo and target repos together.
+4. A project repo with its own OpenSpec root can reference standalone OpenSpec
+   repos its work draws on, such as high-level requirements from PMs and
+   architects, without those repos taking over where commands act.
+5. Work can say which project repos it targets.
+6. The local machine can map those target repos to local checkout paths.
+7. An optional assembled context can bring the OpenSpec repo, referenced
+   repos, and target repos together for an agent session or editor.
 
 The product should not require users or agents to understand initiatives,
 workspace-owned planning, or collection state as the main model.
@@ -53,6 +57,9 @@ workspace-owned planning, or collection state as the main model.
   OpenSpec repo. It has a thin `.openspec-store/store.yaml` identity file, but
   the real planning work still lives under `openspec/`.
 - **Target project repo**: a code repo that the OpenSpec work is about.
+- **Reference store**: a standalone OpenSpec repo that a project repo's work
+  draws on for context (for example PM/architect requirements). A reference
+  never changes where commands act; it is read as context.
 - **Local repo map**: local machine settings that say where target project repos
   are checked out.
 - **View**: a local convenience for opening the OpenSpec repo and project repos
@@ -63,6 +70,11 @@ workspace-owned planning, or collection state as the main model.
 - Keep the normal `openspec/specs/` and `openspec/changes/` lifecycle working.
 - When context stores are used, treat them as standalone OpenSpec repos, not as
   a separate planning system.
+- References are repo-level config, never per-change lifecycle links. The
+  moment each change carries a managed link object with status coupling back
+  to a store, we have reinvented initiatives.
+- One change lives in one root. Cross-root edits are two changes; the second
+  root is reached explicitly with `--store`.
 - Do not create new initiative links in the simpler product path.
 - Do not create workspace-owned planning state in the simpler product path.
 - Do not promise clone, pull, push, sync, branch, worktree, dashboard, apply,
@@ -88,26 +100,31 @@ an item are status steps for that numbered work item.
   active direction.
 - [ ] **Phase 1. Make a standalone OpenSpec repo useful.**
   Slices 1.1, 1.2, and 1.3 are implemented with passing tests on the working
-  branch; merge to `main` remains. Slice 1.4 (agent and help-surface
-  discoverability) is the next unstarted item.
-- [ ] **Phase 2. Stop putting new work through initiatives.**
-  Item 2.1 was pulled forward into slice 1.2 and implemented there; the rest is
-  not started.
-- [ ] **Phase 3. Say which project repos the work is about.**
-  Not started.
-- [ ] **Phase 4. Open the right files together.**
-  Not started.
+  branch; merge to `main` remains. Slice 1.4 (one guidance pass: stores in,
+  initiatives out, absorbing old 2.2, gated on the terminology decision) is
+  the next unstarted item.
+- [x] **Phase 2. Stop putting new work through initiatives.**
+  Fully absorbed: 2.1 shipped inside slice 1.2, 2.2 folded into slice 1.4,
+  and 2.3 folded into item 4.1. No independent work remains here.
+- [ ] **Phase 3. Say how roots relate: references and targets.**
+  Not started. References (a project repo draws on stores; headline
+  PM/architect-to-dev layering use case) come before targets and the local
+  repo map.
+- [ ] **Phase 4. Assemble the working context.**
+  Not started. Rebuilds opening around assembled context; absorbs old 2.3.
 - [ ] **Phase 5. Remove old surfaces only when they confuse the simple path.**
   Later cleanup; not started.
 
 Next incomplete item:
 
-- [ ] **1.4 Teach agents and help surfaces that stores exist.**
+- [ ] **1.4 One guidance pass: stores in, initiatives out.**
   In plain English: an agent prompted in a project repo can discover the
   registered standalone OpenSpec repo and use `--store` without the human
-  spelling out flags. Spec not yet written. (Slices 1.1–1.3 are implemented
-  and tested on the working branch; their "Merged to `main`" boxes stay open
-  by design and do not gate this.)
+  spelling out flags, and guidance stops advertising initiatives and
+  workspaces. First step is the context-store terminology decision. Spec not
+  yet written. (Slices 1.1–1.3 are implemented and tested on the working
+  branch; their "Merged to `main`" boxes stay open by design and do not gate
+  this.)
 
 ## Phase 0. Make The Active Direction Easy To Find
 
@@ -206,8 +223,9 @@ Phase checklist:
 - [ ] **1.3** Prove the standalone repo lifecycle end to end.
   Spec and plan written 2026-06-11; implements on `codex/store-root-parity`
   on top of 1.1 and 1.2.
-- [ ] **1.4** Teach agents and help surfaces that stores exist.
-  Queued behind 1.3; carries the deferred guidance debt from slice 1.2.
+- [ ] **1.4** One guidance pass: stores in, initiatives out.
+  Absorbs old item 2.2; gated on the context-store terminology decision;
+  carries the deferred guidance debt from slice 1.2.
 
 ### 1.1 Create Or Register A Standalone OpenSpec Repo
 
@@ -418,10 +436,18 @@ How the user or agent knows it worked:
 - The final files are normal `openspec/specs/`, `openspec/changes/`, and
   `openspec/changes/archive/` files in both checkouts.
 
-### 1.4 Teach Agents And Help Surfaces That Stores Exist
+### 1.4 One Guidance Pass: Stores In, Initiatives Out
+
+This slice absorbed roadmap item 2.2 on 2026-06-11: teaching guidance that
+stores exist and stopping the same surfaces from advertising initiatives and
+workspaces are one job, and doing them separately would mean regenerating the
+guidance twice.
 
 Progress:
 
+- [ ] Terminology decided: keep or rename "context store" before any guidance
+  prose is written (the decision promoted from L7; executing a rename can
+  still be scoped separately).
 - [ ] Spec written.
 - [ ] Plan written.
 - [ ] Implementation done.
@@ -432,7 +458,8 @@ Plain-English version:
 
 ```text
 An agent prompted in a project repo can discover the registered standalone
-OpenSpec repo and use it without the human spelling out flags.
+OpenSpec repo and use it without the human spelling out flags — and is no
+longer steered toward initiatives or workspaces.
 ```
 
 What the user can do:
@@ -441,32 +468,42 @@ What the user can do:
   agent find the registered store and use `--store` on its own.
 - Read top-level help and recognize the context-store commands as the
   standalone OpenSpec repo feature.
+- Follow generated guidance without being pointed at `openspec initiative` or
+  workspace flows as normal workflow steps.
 
 Why it matters:
 
 - Prompts are the primary interface. Slice 1.2 shipped `--store`, but
   generated agent guidance never mentions it, so the feature is invisible in
   the product's main surface.
-- This is the deferred "update generated agent skills and guidance to mention
-  `--store`" debt explicitly flagged in slice 1.2 ("do not forget it").
+- If guidance and completions keep advertising initiatives and workspaces,
+  users and agents keep treating them as the product model.
 - Phase 1 is not honestly done while agents cannot discover stores.
 
-What changes in commands or files:
+What changes in commands or files (surface inventory from 2026-06-11
+research, about 13 surfaces):
 
-- Generated agent guidance and skills explain store discovery
-  (`context-store list --json`) and `--store <id>` usage when no local root
-  exists.
-- Top-level and subcommand help one-liners describe context-store commands in
-  standalone-OpenSpec-repo language. No command or flag renames (L7 stays
-  parked).
-- No command behavior changes.
+- CLI help one-liners for the `context-store`, `workspace`, and `initiative`
+  command groups (`src/cli/index.ts`, command registration files).
+- Completions metadata (`src/core/completions/command-registry.ts`,
+  `shared-flags.ts`): present `--store` and store discovery; stop presenting
+  initiative/workspace flows as normal steps.
+- The seven generated workflow skill templates in
+  `src/core/templates/workflows/` that still carry workspace-planning guards
+  and initiative references.
+- The checked-in `.codex/skills/use-openspec/` guidance, which still
+  advertises `initiative list` and `workspace list` as inspection commands.
+- Explicitly out of scope: `schemas/workspace-planning/templates/` (content
+  of the legacy schema itself; Phase 5 decides its fate), and any command
+  behavior changes.
 
 How the user or agent knows it worked:
 
 - A fresh agent session in a project repo with a registered store completes a
   store-scoped change from a single prompt, without hand-holding.
 - Generated guidance names `--store`; help text matches the model being
-  shipped.
+  shipped; a fresh user is guided toward specs and changes, not initiatives.
+- Existing initiative data remains untouched.
 
 ## Phase 2. Stop Putting New Work Through Initiatives
 
@@ -479,12 +516,18 @@ Normal OpenSpec work should not require an initiative.
 Old initiative data can remain readable as legacy history, but the simpler path
 should stop attaching new work to initiatives.
 
+As of 2026-06-11 every item in this phase has been absorbed by another slice;
+this phase carries no independent work. The sections below say where each item
+went.
+
 Phase checklist:
 
-- [ ] **2.1** Stop creating new initiative links in normal change flows.
-  Pulled forward into slice 1.2 on 2026-06-10.
-- [ ] **2.2** Hide or move initiative commands out of the main path.
-- [ ] **2.3** Make workspace opening stop depending on initiatives.
+- [x] **2.1** Stop creating new initiative links in normal change flows.
+  Pulled forward into slice 1.2 on 2026-06-10; implemented there.
+- [x] **2.2** Hide or move initiative commands out of the main path.
+  Folded into slice 1.4 on 2026-06-11 (one guidance pass).
+- [x] **2.3** Make workspace opening stop depending on initiatives.
+  Folded into roadmap item 4.1 on 2026-06-11 (opening is rebuilt there).
 
 ### 2.1 Stop Creating New Initiative Links In Normal Change Flows
 
@@ -525,83 +568,116 @@ How the user or agent knows it worked:
 
 ### 2.2 Hide Or Move Initiative Commands Out Of The Main Path
 
+This item was folded into slice 1.4 on 2026-06-11, because teaching guidance
+that stores exist and stopping the same guidance surfaces from advertising
+initiatives are one regeneration pass, not two. Track progress under 1.4.
+
 Progress:
 
-- [ ] Spec written.
-- [ ] Plan written.
-- [ ] Implementation done.
-- [ ] Tests pass.
-- [ ] Merged to `main`.
-
-What the user can do:
-
-- Follow normal OpenSpec commands without being pointed toward
-  `openspec initiative`.
-
-Why it matters:
-
-- If generated guidance and completions keep advertising initiatives, users and
-  agents will keep treating them as the product model.
-
-What changes in commands or files:
-
-- Completion metadata, generated guidance, and command docs stop presenting
-  initiative flows as normal workflow steps.
-- Existing initiative folders are not deleted automatically.
-- Any cleanup is explicit and separate.
-
-How the user or agent knows it worked:
-
-- A fresh user is guided toward specs and changes, not initiatives.
-- Existing initiative data remains untouched unless an explicit cleanup slice
-  says otherwise.
+- [x] Folded into slice 1.4; see the 1.4 progress checklist.
 
 ### 2.3 Make Workspace Opening Stop Depending On Initiatives
 
+This item was folded into roadmap item 4.1 on 2026-06-11. Research showed
+initiative selection is hardcoded into roughly 5,500 lines of workspace
+opening machinery (`WorkspaceContextState` is initiative-shaped at its core),
+and 4.1 will rebuild opening around assembled context anyway — refactoring
+the old path first would be wasted motion. Track progress under 4.1.
+
 Progress:
 
-- [ ] Spec written.
-- [ ] Plan written.
-- [ ] Implementation done.
-- [ ] Tests pass.
-- [ ] Merged to `main`.
+- [x] Folded into roadmap item 4.1; see the 4.1 section.
 
-What the user can do:
-
-- Open useful local views without needing to choose an initiative first.
-
-Why it matters:
-
-- Opening files is a local convenience. It should not define where planning
-  state lives.
-
-What changes in commands or files:
-
-- `workspace open --initiative` and initiative picker behavior no longer define
-  the main opening model.
-- Old workspace view files can be read as legacy or fail clearly.
-- Opening prepares to use a selected OpenSpec root plus target repos instead.
-
-How the user or agent knows it worked:
-
-- Opening a view does not create or require initiative planning state.
-- Errors explain local view problems separately from OpenSpec-root problems.
-
-## Phase 3. Say Which Project Repos The Work Is About
+## Phase 3. Say How Roots Relate: References And Targets
 
 The user-facing goal of this phase:
 
 ```text
-This OpenSpec work lives here, and it targets these project repos.
+This project repo's work draws on these planning repos, and this OpenSpec
+work targets these project repos.
 ```
+
+Two directions, one idea — declared relationships between roots:
+
+- A project repo can **reference** the standalone OpenSpec repos its work
+  draws on (PMs and architects keep high-level requirements and design in a
+  store; devs create lower-level design and tasks in the app repo's own
+  OpenSpec root, with the store as cited context).
+- A store can declare which project repos its work **targets**, and the local
+  machine maps those targets to checkouts.
+
+Root resolution precedence is fixed and stated once: explicit `--store` wins,
+then the nearest local `openspec/` root, then (only when no local root
+exists) a declared default store, then today's error with a hint. A declared
+store never overrides a local root, and references never change where
+commands act.
+
+The reference items come first because they run on machinery that already
+exists (the store registry resolves ids to paths); the target items need the
+new local repo map.
 
 Phase checklist:
 
-- [ ] **3.1** Let work declare its target project repos.
-- [ ] **3.2** Map target repo names to local checkout paths.
-- [ ] **3.3** Report whether target repos are available locally.
+- [ ] **3.1** Let a project repo reference the stores its work draws on.
+- [ ] **3.2** Fall back to a declared store when no local root exists.
+- [ ] **3.3** Record a canonical remote in store identity.
+- [ ] **3.4** Let a store declare its target project repos.
+- [ ] **3.5** Map target repo names to local checkout paths.
+- [ ] **3.6** Report relationship health.
 
-### 3.1 Let Work Declare Its Target Project Repos
+### 3.1 Let A Project Repo Reference The Stores Its Work Draws On
+
+Progress:
+
+- [ ] Spec written.
+- [ ] Plan written.
+- [ ] Implementation done.
+- [ ] Tests pass.
+- [ ] Merged to `main`.
+
+Plain-English version:
+
+```text
+High-level requirements live in the team's planning repo. When I work in my
+app repo, my agent reads them from there and cites them — without me naming
+the store every session, and without my commands being redirected there.
+```
+
+What the user can do:
+
+- Declare in the project repo's `openspec/config.yaml` (for example a
+  `references:` list of store ids) which stores this repo's work draws on.
+- Prompt an agent with "create a low-level design for billing" and have the
+  agent pull the store's billing requirement into context and cite it, while
+  writing the design in the app repo's own root.
+
+Why it matters:
+
+- This is the layered PM/architect-to-dev flow: upstream truth in the store,
+  downstream work in the repo, connected by reference instead of redirection
+  or copy-paste.
+- A fresh agent discovers the relationship from config instead of being told
+  every session.
+
+What changes in commands or files:
+
+- A reference declaration shape in project config (config parsing is already
+  permissive; the existing `context:` injection in artifact instructions is
+  the mechanism to reuse for referenced store specs).
+- Instructions/context assembly includes relevant referenced-store specs.
+- Root resolution is untouched: references are read-only context. Writing to
+  a referenced store remains an explicit `--store` action and a separate
+  change in that store.
+- No per-change link objects (see Rules We Should Not Forget).
+
+How the user or agent knows it worked:
+
+- Artifact instructions generated in the app repo cite referenced store
+  specs.
+- An unresolvable reference (store not registered locally) is reported with a
+  clear next step, not silently ignored.
+
+### 3.2 Fall Back To A Declared Store When No Local Root Exists
 
 Progress:
 
@@ -613,26 +689,102 @@ Progress:
 
 What the user can do:
 
-- Mark a change or work item as applying to one or more project repos.
+- In a repo whose planning is fully externalized (no local `openspec/`),
+  declare the store once and run normal commands without `--store` on every
+  invocation.
 
 Why it matters:
 
-- A standalone OpenSpec repo is separate from the code repos.
-- Users and agents need a simple way to know which code repos the work is about.
+- Slice 1.2 made `--store` the way to reach a root you are not standing in;
+  for people who are never standing in one, repeating it on every command is
+  a tax. The declaration records intent that agents otherwise rediscover each
+  session.
 
 What changes in commands or files:
 
-- Add a simple target repo declaration shape.
-- Keep target repo declarations separate from the OpenSpec artifact root.
+- A default-store declaration honored only when no local root exists
+  (fallback, never override), per the precedence rule above.
+- The no-root error/hint from slice 1.2 remains for repos with no declaration.
+
+How the user or agent knows it worked:
+
+- With a local root present, behavior is byte-identical with or without the
+  declaration.
+- Without a local root, commands resolve to the declared store and report it
+  through the existing root banner and JSON root block.
+
+### 3.3 Record A Canonical Remote In Store Identity
+
+Progress:
+
+- [ ] Spec written.
+- [ ] Plan written.
+- [ ] Implementation done.
+- [ ] Tests pass.
+- [ ] Merged to `main`.
+
+What the user can do:
+
+- Clone an app repo that references a store they do not have yet, and be told
+  where to clone the store from.
+
+Why it matters:
+
+- References and teammate onboarding both dead-end today at "register the
+  store" — nothing records where a store can be cloned from. The registry
+  already supports an optional remote but nothing populates it, and the
+  shared `store.yaml` identity has no remote field at all.
+
+What changes in commands or files:
+
+- Optional canonical remote in `.openspec-store/store.yaml` (the shared,
+  committed home), populated at setup/register when known.
+- Doctor surfaces it; unresolved-reference and register guidance use it
+  ("clone from <remote>, then register").
+- Recording a remote is not sync: no clone, pull, push, or branch behavior.
+
+How the user or agent knows it worked:
+
+- A registered store's remote is visible in doctor output.
+- Guidance for an unregistered referenced store names the clone source.
+
+### 3.4 Let A Store Declare Its Target Project Repos
+
+Progress:
+
+- [ ] Spec written.
+- [ ] Plan written.
+- [ ] Implementation done.
+- [ ] Tests pass.
+- [ ] Merged to `main`.
+
+What the user can do:
+
+- Declare once, at the store level, which project repos this planning repo is
+  about; optionally narrow per change.
+
+Why it matters:
+
+- A standalone OpenSpec repo is separate from the code repos, and users and
+  agents need to know which code repos the work is about.
+- Most stores target a stable set of repos; per-change declaration would be
+  repetitive ceremony, so store-level defaults are the primary shape and
+  per-change narrowing is the exception.
+
+What changes in commands or files:
+
+- A target declaration shape in the store's config, plus optional per-change
+  narrowing as ordinary metadata.
 - Do not imply automatic clone, sync, branch, worktree, or edit-boundary
   enforcement.
 
 How the user or agent knows it worked:
 
-- A change can clearly say which project repo ids it targets.
-- The declaration is visible in normal OpenSpec files or metadata.
+- Given a store, OpenSpec can list the target repo ids its work is about.
+- A change can narrow its targets, and the narrowing is visible in normal
+  OpenSpec files or metadata.
 
-### 3.2 Map Target Repo Names To Local Checkout Paths
+### 3.5 Map Target Repo Names To Local Checkout Paths
 
 Progress:
 
@@ -662,7 +814,7 @@ How the user or agent knows it worked:
 - Given a target repo id, OpenSpec can resolve the local checkout path.
 - If the path is missing or ambiguous, the error tells the user what to fix.
 
-### 3.3 Report Whether Target Repos Are Available Locally
+### 3.6 Report Relationship Health
 
 Progress:
 
@@ -674,40 +826,48 @@ Progress:
 
 What the user can do:
 
-- Ask OpenSpec whether the target project repos for this work are available on
-  the current machine.
+- Ask OpenSpec whether the roots this work relates to — referenced stores and
+  target project repos — are available on the current machine.
 
 Why it matters:
 
-- Agents need to know whether they can inspect or edit the relevant code repo.
+- Agents need to know whether they can read the referenced context and
+  inspect or edit the relevant code repos.
 - This should be diagnostic only; it should not clone or sync anything.
 
 What changes in commands or files:
 
-- Doctor or status output reports target repo mapping health.
-- The report clearly separates OpenSpec root health, context-store metadata
-  health, and target project checkout health.
+- Doctor or status output reports reference resolvability and target repo
+  mapping health.
+- The report clearly separates OpenSpec root health, store metadata health,
+  reference health, and target checkout health.
 
 How the user or agent knows it worked:
 
-- Missing target repo mappings are easy to see.
+- Missing target repo mappings and unresolvable references are easy to see.
 - The output does not attempt clone, pull, push, sync, branch, or worktree
   behavior.
 
-## Phase 4. Open The Right Files Together
+## Phase 4. Assemble The Working Context
 
 The user-facing goal of this phase:
 
 ```text
-Open my standalone OpenSpec repo and the project repos it targets in one useful
-local view.
+Give me — or my agent — everything this work relates to in one working set:
+the OpenSpec root, the stores it references, and the project repos it
+targets.
 ```
 
 Phase checklist:
 
-- [ ] **4.1** Open the OpenSpec repo and target repos together.
+- [ ] **4.1** Assemble the working context from declared relationships.
 
-### 4.1 Open The OpenSpec Repo And Target Repos Together
+### 4.1 Assemble The Working Context From Declared Relationships
+
+This item absorbed roadmap item 2.3 on 2026-06-11: the old workspace opening
+machinery has initiative selection hardcoded into its state model across
+roughly 5,500 lines, and this slice rebuilds opening around assembled
+context, so de-initiative-ing the old path first would be wasted motion.
 
 Progress:
 
@@ -719,28 +879,37 @@ Progress:
 
 What the user can do:
 
-- Open a selected standalone OpenSpec repo plus its mapped project repos in the
-  editor or agent surface they use.
+- From any root, get the full working set its declarations describe: the
+  OpenSpec root itself, its referenced stores, and its mapped target repos.
+- Consume that set as an editor view (for example a code-workspace file) or
+  as an agent session brief — opening in an editor is one consumer of
+  assembly, not the feature itself.
 
 Why it matters:
 
-- Users usually need both the plan and the code.
-- Opening them together should be a local convenience, not a new planning
-  system.
+- Users usually need the plan, its upstream context, and the code together.
+- Assembly is a local convenience computed from Phase 3's declared
+  relationships, not a new planning system; the primary interface is an agent
+  session, so the assembled set must be agent-consumable, not only
+  editor-shaped.
 
 What changes in commands or files:
 
-- Reuse or replace workspace opening machinery.
-- Use the selected OpenSpec root as the durable planning source of truth.
-- Use the local repo map to find project repo checkouts.
+- Replace or rebuild workspace opening around assembled context (this is
+  where old item 2.3's initiative decoupling actually happens).
+- Use the selected OpenSpec root as the durable planning source of truth, the
+  reference declarations for upstream stores, and the local repo map for
+  target checkouts.
 - Do not create workspace-owned planning state.
 
 How the user or agent knows it worked:
 
-- The opened view contains the OpenSpec repo and relevant target repos.
+- The assembled set contains the OpenSpec root, resolvable referenced stores,
+  and mapped target repos, with unresolvable pieces reported, not guessed.
+- Assembly does not create or require initiative planning state.
 - The durable files remain normal OpenSpec artifacts.
-- The view does not imply clone, pull, push, sync, branch, worktree, dashboard,
-  or edit-boundary enforcement.
+- The result does not imply clone, pull, push, sync, branch, worktree,
+  dashboard, or edit-boundary enforcement.
 
 ## Phase 5. Remove Old Surfaces Only When They Confuse The Simple Path
 
@@ -805,8 +974,10 @@ is working:
   `work/`.
 - **L6** Add machine-readable `/work` metadata only after the manual shape proves
   useful.
-- **L7** Decide whether to keep, rename, or replace `context-store` terminology after
-  the bridge behavior proves useful.
+- **L7** The keep-or-rename *decision* for `context-store` terminology moved
+  into slice 1.4 on 2026-06-11 (guidance prose should not bake in a name we
+  have not chosen, and renaming is free while there are no users). Only the
+  execution of a rename, if chosen, may land here as its own slice.
 - **L8** Review local `use-openspec` skill guidance and decide whether it should be an
   ignored local skill, generated artifact, checked-in source, or productized
   default.
@@ -896,6 +1067,27 @@ is working:
   writing; Git mechanics moved to `src/core/context-store/git.ts`; and the
   Git lifecycle tests split into `context-store-git.test.ts` with shared
   fixtures.
+- 2026-06-11: Restructured the roadmap after a fresh-eyes review. The
+  PM/architect-to-dev layering use case (high-level requirements in a store,
+  implementation work in the app repo's own root) replaced the rejected
+  "project-to-store binding" idea with declared relationships between roots:
+  references never change where commands act, and root resolution precedence
+  is fixed (explicit `--store`, then nearest local root, then a declared
+  default only when no local root exists, then error with hint).
+- 2026-06-11: Merged old item 2.2 into slice 1.4 (one guidance pass over the
+  ~13 surfaces inventoried by research) and gated 1.4 on the context-store
+  terminology decision promoted from L7. Folded old item 2.3 into item 4.1
+  (initiative selection is hardcoded into ~5,500 lines of opening machinery
+  that 4.1 rebuilds). Phase 2 now carries no independent work.
+- 2026-06-11: Rewrote Phase 3 around relationships in both directions —
+  references first (3.1 repo references stores, 3.2 declared-store fallback,
+  3.3 canonical remote in store identity), then targets (3.4 store-level
+  target declarations with per-change narrowing, 3.5 local repo map, 3.6
+  relationship health). Reframed Phase 4 as context assembly, with editor
+  opening as one consumer and an agent session brief as another. Added two
+  guardrails: references are repo-level config, never per-change lifecycle
+  links, and one change lives in one root. Updated goal.md with the layered
+  reference experience.
 - 2026-06-11: Folded plan-review findings into the slice after checking
   them against the code: `store.yaml` must be written before setup's
   initial commit (today it is written during registration, after Git

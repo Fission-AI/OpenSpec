@@ -25,6 +25,7 @@ A human should be able to say:
 ```text
 OpenSpec can live in this project repo or in its own Git repo.
 This work targets these repos.
+This project repo's work draws on these planning repos.
 This local machine maps those target repos to these checkouts.
 ```
 
@@ -38,6 +39,10 @@ workspace, collection, and repo-local modes as separate product systems.
   is introduced.
 - Make the placement choice explicit: in-project OpenSpec or standalone
   OpenSpec repo.
+- Support layered planning by reference, not redirection: high-level
+  requirements and design can live in a standalone repo while a project repo
+  keeps its own OpenSpec root for implementation-level work, drawing on the
+  standalone repo as declared context.
 - Treat target repos as declared targets, not as mandatory lifecycle roots.
 - Reduce workspace behavior to local repo mapping and optional focused views.
 - Treat the future `work/` layout as a later evolution, not a prerequisite for
