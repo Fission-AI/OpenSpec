@@ -16,6 +16,7 @@ import {
   writeContextStoreRegistryState,
 } from '../../src/core/index.js';
 import { runCLI, type RunCLIResult } from '../helpers/run-cli.js';
+import { createHealthyOpenSpecRoot } from '../helpers/context-store-git.js';
 
 vi.mock('@inquirer/prompts', () => ({
   input: vi.fn(),
@@ -91,30 +92,8 @@ describe('context-store command', () => {
     return dir;
   }
 
-  // Isolates real git invocations from the host's gitconfig (signing, hooks).
-  function isolatedGitEnv(): NodeJS.ProcessEnv {
-    const emptyConfig = path.join(tempDir, 'gitconfig-empty');
-    if (!fs.existsSync(emptyConfig)) {
-      fs.writeFileSync(emptyConfig, '');
-    }
-    return {
-      GIT_CONFIG_GLOBAL: emptyConfig,
-      GIT_CONFIG_SYSTEM: emptyConfig,
-      GIT_AUTHOR_NAME: 'Context Store Tester',
-      GIT_AUTHOR_EMAIL: 'tester@example.com',
-      GIT_COMMITTER_NAME: 'Context Store Tester',
-      GIT_COMMITTER_EMAIL: 'tester@example.com',
-    };
-  }
-
   function expectedExistingPath(existingPath: string): string {
     return fs.realpathSync.native(existingPath);
-  }
-
-  function createHealthyOpenSpecRoot(root: string, configName = 'config.yaml'): void {
-    fs.mkdirSync(path.join(root, 'openspec', 'specs'), { recursive: true });
-    fs.mkdirSync(path.join(root, 'openspec', 'changes', 'archive'), { recursive: true });
-    fs.writeFileSync(path.join(root, 'openspec', configName), `schema: ${DEFAULT_OPENSPEC_SCHEMA}\n`);
   }
 
   function expectHealthyOpenSpecRoot(root: string): void {
@@ -1030,99 +1009,6 @@ describe('context-store command', () => {
     expect(fs.existsSync(path.join(storeRoot, 'openspec', 'changes', 'archive'))).toBe(false);
   });
 
-  it('defaults to Git without prompting in interactive setup', async () => {
-    process.env = {
-      ...process.env,
-      XDG_DATA_HOME: dataHome,
-      XDG_CONFIG_HOME: configHome,
-      OPENSPEC_TELEMETRY: '0',
-      ...isolatedGitEnv(),
-    };
-    delete process.env.OPEN_SPEC_INTERACTIVE;
-    delete process.env.CI;
-    process.chdir(tempDir);
-    (process.stdin as NodeJS.ReadStream & { isTTY?: boolean }).isTTY = true;
-    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const storeRoot = path.join(tempDir, 'interactive-context');
-    const { input, confirm } = await getPromptMocks();
-    input.mockImplementation(async (options: { message: string }) => {
-      if (options.message === 'Where should this context store live?') return storeRoot;
-      throw new Error(`Unexpected prompt: ${options.message}`);
-    });
-    confirm.mockResolvedValue(true);
-
-    await runContextStoreCommand(['setup', 'interactive-context']);
-
-    // No Git prompt: Git is the default, and the summary reflects it.
-    expect(confirm).toHaveBeenCalledTimes(1);
-    expect(confirm).toHaveBeenNthCalledWith(1, {
-      message: 'Create this context store?',
-      default: true,
-    });
-    expect(consoleLogSpy).toHaveBeenCalledWith('  Git: initialized');
-    expect(consoleLogSpy).toHaveBeenCalledWith(
-      'Share this store by committing and pushing it like any Git repo.'
-    );
-    expect(fs.existsSync(path.join(storeRoot, '.git'))).toBe(true);
-    const committed = execFileSync('git', ['log', '--format=%s'], { cwd: storeRoot })
-      .toString()
-      .trim();
-    expect(committed).toBe('Initialize OpenSpec context store interactive-context');
-    expect(process.exitCode).toBeUndefined();
-  });
-
-  it('keeps pre-staged user files out of the setup commit', async () => {
-    const storeRoot = mkdir('staged-context');
-    const gitEnv = { ...env, ...isolatedGitEnv() };
-    const gitExecEnv = { ...process.env, ...gitEnv };
-    createHealthyOpenSpecRoot(storeRoot);
-    execFileSync('git', ['init'], { cwd: storeRoot, stdio: 'ignore' });
-    execFileSync('git', ['add', '-A'], { cwd: storeRoot, env: gitExecEnv });
-    execFileSync('git', ['commit', '-m', 'user base'], { cwd: storeRoot, env: gitExecEnv, stdio: 'ignore' });
-    fs.writeFileSync(path.join(storeRoot, 'user-staged.txt'), 'user work\n');
-    execFileSync('git', ['add', 'user-staged.txt'], { cwd: storeRoot, env: gitExecEnv });
-
-    const result = await runCLI(
-      ['context-store', 'setup', 'staged-context', '--path', storeRoot, '--json'],
-      { cwd: tempDir, env: gitEnv }
-    );
-
-    expect(result.exitCode).toBe(0);
-    expect(parseJson(result).git.committed).toBe(true);
-
-    const committedFiles = execFileSync('git', ['show', '--name-only', '--format=', 'HEAD'], {
-      cwd: storeRoot,
-    })
-      .toString()
-      .trim()
-      .split('\n')
-      .sort();
-    expect(committedFiles).toEqual([
-      '.openspec-store/store.yaml',
-      'openspec/changes/archive/.gitkeep',
-      'openspec/specs/.gitkeep',
-    ]);
-
-    // The user's staged file stays staged and uncommitted.
-    const staged = execFileSync('git', ['status', '--porcelain'], { cwd: storeRoot }).toString();
-    expect(staged).toContain('A  user-staged.txt');
-
-    // Reruns stay strict no-ops: no new files, no new commit.
-    const rerun = await runCLI(
-      ['context-store', 'setup', 'staged-context', '--path', storeRoot, '--json'],
-      { cwd: tempDir, env: gitEnv }
-    );
-    expect(rerun.exitCode).toBe(0);
-    const rerunPayload = parseJson(rerun);
-    expect(rerunPayload.created_files).toEqual([]);
-    expect(rerunPayload.git.committed).toBe(false);
-    const commitCount = execFileSync('git', ['rev-list', '--count', 'HEAD'], { cwd: storeRoot })
-      .toString()
-      .trim();
-    expect(commitCount).toBe('2');
-  });
-
   it('register errors are terminal: one-checkout rule, no circular fix texts', async () => {
     // Register the original checkout.
     const original = mkdir('team-context');
@@ -1180,52 +1066,4 @@ describe('context-store command', () => {
     expect(mismatchFreeStatus.fix).toContain('Use --id free-context');
   });
 
-  it('flags clone-fragile directories and commitless clones', async () => {
-    const storeRoot = mkdir('fragile-context');
-    const gitExecEnv = { ...process.env, ...isolatedGitEnv() };
-    createHealthyOpenSpecRoot(storeRoot);
-    execFileSync('git', ['init'], { cwd: storeRoot, stdio: 'ignore' });
-    execFileSync('git', ['add', 'openspec/config.yaml'], { cwd: storeRoot, env: gitExecEnv });
-    execFileSync('git', ['commit', '-m', 'partial'], { cwd: storeRoot, env: gitExecEnv, stdio: 'ignore' });
-    await writeContextStoreMetadataState(storeRoot, { version: 1, id: 'fragile-context' });
-    await writeContextStoreRegistryState(
-      {
-        version: 1,
-        stores: {
-          'fragile-context': {
-            backend: { type: 'git', local_path: storeRoot },
-          },
-        },
-      },
-      { globalDataDir }
-    );
-
-    const doctor = await runCLI(['context-store', 'doctor', 'fragile-context', '--json'], {
-      cwd: tempDir,
-      env,
-    });
-    expect(doctor.exitCode).toBe(0);
-    const store = parseJson(doctor).context_stores[0];
-    expect(store.git.has_commits).toBe(true);
-    expect(store.status).toEqual([
-      expect.objectContaining({
-        severity: 'warning',
-        code: 'context_store_clone_fragile_directories',
-        message: expect.stringContaining('openspec/specs/'),
-      }),
-    ]);
-
-    // A commitless clone refuses register with the empty-clone explanation.
-    const emptyClone = mkdir('empty-clone');
-    execFileSync('git', ['init'], { cwd: emptyClone, stdio: 'ignore' });
-    const register = await runCLI(['context-store', 'register', emptyClone, '--json'], {
-      cwd: tempDir,
-      env,
-    });
-    expect(register.exitCode).toBe(1);
-    const registerStatus = parseJson(register).status[0];
-    expect(registerStatus.code).toBe('context_store_register_root_unhealthy');
-    expect(registerStatus.message).toContain('no commits');
-    expect(registerStatus.fix).toContain('Commit and push the origin store');
-  });
 });

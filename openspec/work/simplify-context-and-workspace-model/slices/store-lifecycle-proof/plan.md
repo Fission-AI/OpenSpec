@@ -183,16 +183,16 @@ sequence):
    without committed `store.yaml` would hit the register conversion
    prompt instead of registering without ceremony. All created files,
    including placeholders and metadata, join `created_files`.
-5. `git init` when needed (existing function), then an index-preserving
-   commit of exactly the created files: `git add -- <created paths>`
-   followed by `git commit -m "Initialize OpenSpec context store <id>"
-   -- <created paths>`. The pathspec on commit is what protects the
-   user's index — a bare `git commit` after `add` would sweep the user's
-   pre-staged unrelated files into setup's commit. If pathspec-commit
-   semantics prove fiddly in edge cases, fall back to a temporary-index
-   plumbing commit (`GIT_INDEX_FILE` + `write-tree`/`commit-tree`/
-   `update-ref`); either way, pre-staged user changes must remain staged
-   and uncommitted afterward.
+5. `git init` when needed, then an index-preserving pathspec commit
+   (`git add -- <pathspecs>` followed by `git commit -m "Initialize
+   OpenSpec context store <id>" -- <pathspecs>`). The commit set depends
+   on who owns the repository: when setup initialized it, the pathspecs
+   are the full store shape (`openspec/` plus `.openspec-store/`) so a
+   clone of a converted root is healthy; when the repository pre-existed,
+   the pathspecs are exactly the files setup created, and the pathspec on
+   commit is what keeps the user's pre-staged files out of setup's commit
+   and still staged afterward. Old beta files outside the store shape are
+   never swept in.
 6. Machine-local registry write only, last (with the metadata write now
    decoupled from it). The existing failure-cleanup contract from slice
    1.1 (remove only what this operation created) covers the new files; a

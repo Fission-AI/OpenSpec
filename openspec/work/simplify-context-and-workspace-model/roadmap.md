@@ -887,6 +887,14 @@ is working:
   corrupt repos are no longer reported as commitless, and the machine-B
   journey now covers the full enumerated command set. Full suite green
   (93 files, 1729 tests).
+- 2026-06-11: Folded a code-quality review round: setup's initial commit is
+  now derived from the store shape rather than the rollback ledger, so
+  converting an existing non-Git root produces a clonable repo (the commit
+  carries config and specs, never unrelated beta files); identity-file
+  creation is owned by setup alone, with registration verifying instead of
+  writing; Git mechanics moved to `src/core/context-store/git.ts`; and the
+  Git lifecycle tests split into `context-store-git.test.ts` with shared
+  fixtures.
 - 2026-06-11: Folded plan-review findings into the slice after checking
   them against the code: `store.yaml` must be written before setup's
   initial commit (today it is written during registration, after Git

@@ -8,6 +8,7 @@ import { FileSystemUtils } from '../../utils/file-system.js';
 import {
   ANCHORED_OPENSPEC_DIRS,
   DIRECTORY_ANCHOR_FILE_NAME,
+  OPENSPEC_ROOT_DIR,
   ensureOpenSpecRoot,
   inspectOpenSpecRoot,
   rollbackCreatedPaths,
@@ -15,6 +16,7 @@ import {
   type OpenSpecRootInspection,
 } from '../openspec-root.js';
 import {
+  CONTEXT_STORE_METADATA_DIR_NAME,
   getContextStoreMetadataDir,
   getContextStoreMetadataPath,
   getContextStoreRegistryPath,
@@ -29,6 +31,16 @@ import {
   type ContextStoreRegistryState,
 } from './foundation.js';
 import { ContextStoreError, type ContextStoreDiagnostic, makeContextStoreDiagnostic } from './errors.js';
+import {
+  assertGitCommitIdentity,
+  commitStoreFiles,
+  gitDirectoryHasTrackedFiles,
+  gitHasCommits,
+  gitHasRemote,
+  gitHasUncommittedChanges,
+  initGitRepository,
+  isGitRepositoryAtRoot,
+} from './git.js';
 import {
   getStoreRootForBackend,
   assertNoRegisteredStoreConflict,
@@ -179,12 +191,6 @@ async function readStoreMetadataForOperation(storeRoot: string) {
   }
 }
 
-async function isGitRepositoryAtRoot(storeRoot: string): Promise<boolean> {
-  const gitPath = path.join(storeRoot, '.git');
-  const kind = await pathKind(gitPath);
-  return kind === 'directory' || kind === 'file';
-}
-
 async function isGitOnlyDirectory(storeRoot: string): Promise<boolean> {
   const entries = await fs.readdir(storeRoot);
   return entries.length === 1 && entries[0] === '.git' && await isGitRepositoryAtRoot(storeRoot);
@@ -279,150 +285,6 @@ async function assertSetupPathIsNotNestedInGitRepo(
       fix: 'Choose a path outside that Git repository.',
     }
   );
-}
-
-async function initGitRepository(storeRoot: string): Promise<boolean> {
-  if (await isGitRepositoryAtRoot(storeRoot)) {
-    return false;
-  }
-
-  try {
-    await execFileAsync('git', ['init'], { cwd: storeRoot });
-  } catch (error) {
-    throw new ContextStoreError(
-      `Failed to initialize Git repository: ${error instanceof Error ? error.message : String(error)}`,
-      'context_store_git_init_failed',
-      {
-        target: 'context_store.git',
-        fix: 'Install Git or rerun setup with --no-init-git.',
-      }
-    );
-  }
-
-  return true;
-}
-
-function isSpawnNotFoundError(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as NodeJS.ErrnoException).code === 'ENOENT'
-  );
-}
-
-/**
- * `git var` resolves identity exactly as `git commit` would (config, env vars,
- * auto-detection), so this fails precisely when the initial commit would.
- */
-async function assertGitCommitIdentity(storeRoot: string): Promise<void> {
-  const probeCwd = (await nearestExistingDirectory(storeRoot)) ?? process.cwd();
-
-  for (const identVar of ['GIT_COMMITTER_IDENT', 'GIT_AUTHOR_IDENT']) {
-    try {
-      await execFileAsync('git', ['var', identVar], { cwd: probeCwd });
-    } catch (error) {
-      if (isSpawnNotFoundError(error)) {
-        throw new ContextStoreError(
-          'Git is not available, so setup cannot create the initial context-store commit.',
-          'context_store_git_init_failed',
-          {
-            target: 'context_store.git',
-            fix: 'Install Git or rerun setup with --no-init-git.',
-          }
-        );
-      }
-
-      throw new ContextStoreError(
-        'No usable Git commit identity is configured, so setup cannot create the initial context-store commit.',
-        'context_store_git_identity_missing',
-        {
-          target: 'context_store.git',
-          fix: 'Run git config --global user.name "Your Name" and git config --global user.email "you@example.com", or rerun setup with --no-init-git.',
-        }
-      );
-    }
-  }
-}
-
-/**
- * Index-preserving initial commit: the pathspec on `git commit` keeps files
- * the user had already staged out of setup's commit and leaves them staged.
- */
-async function commitCreatedFiles(
-  storeRoot: string,
-  id: string,
-  files: string[]
-): Promise<boolean> {
-  if (files.length === 0) {
-    return false;
-  }
-
-  try {
-    await execFileAsync('git', ['add', '--', ...files], { cwd: storeRoot });
-    await execFileAsync(
-      'git',
-      ['commit', '-m', `Initialize OpenSpec context store ${id}`, '--', ...files],
-      { cwd: storeRoot }
-    );
-  } catch (error) {
-    // Best-effort unstage so a failed commit (gpg signing, hooks) does not
-    // leave setup's files in the user's index after rollback deletes them.
-    await execFileAsync('git', ['rm', '--cached', '-f', '-q', '--', ...files], {
-      cwd: storeRoot,
-    }).catch(() => undefined);
-
-    throw new ContextStoreError(
-      `Failed to create the initial context-store commit: ${error instanceof Error ? error.message : String(error)}`,
-      'context_store_git_commit_failed',
-      {
-        target: 'context_store.git',
-        fix: 'Commit the created files manually, or rerun setup with --no-init-git.',
-      }
-    );
-  }
-
-  return true;
-}
-
-async function gitProbe(storeRoot: string, args: string[]): Promise<string | null> {
-  try {
-    const { stdout } = await execFileAsync('git', ['-C', storeRoot, ...args]);
-    return stdout;
-  } catch {
-    return null;
-  }
-}
-
-async function gitHasCommits(storeRoot: string): Promise<boolean | null> {
-  try {
-    await execFileAsync('git', ['-C', storeRoot, 'rev-parse', '--verify', '--quiet', 'HEAD']);
-    return true;
-  } catch (error) {
-    if (isSpawnNotFoundError(error)) return null;
-    // Exit 1 = repo exists but HEAD has no commits. Anything else (exit 128:
-    // corrupt or fake .git) is unknown, not "commitless".
-    const exitCode = (error as { code?: number | string }).code;
-    return exitCode === 1 ? false : null;
-  }
-}
-
-async function gitHasUncommittedChanges(storeRoot: string): Promise<boolean | null> {
-  const stdout = await gitProbe(storeRoot, ['status', '--porcelain']);
-  return stdout === null ? null : stdout.trim().length > 0;
-}
-
-async function gitHasRemote(storeRoot: string): Promise<boolean | null> {
-  const stdout = await gitProbe(storeRoot, ['remote']);
-  return stdout === null ? null : stdout.trim().length > 0;
-}
-
-async function gitDirectoryHasTrackedFiles(
-  storeRoot: string,
-  relativeDir: string
-): Promise<boolean | null> {
-  const stdout = await gitProbe(storeRoot, ['ls-files', '--', relativeDir]);
-  return stdout === null ? null : stdout.trim().length > 0;
 }
 
 function expandUserPath(inputPath: string): string {
@@ -650,7 +512,9 @@ export async function setupPreparedContextStore(
   // Identity preflight runs before anything is created so a missing identity
   // never leaves half-made state behind.
   if (gitEnabled) {
-    await assertGitCommitIdentity(storeRoot);
+    await assertGitCommitIdentity(
+      (await nearestExistingDirectory(storeRoot)) ?? process.cwd()
+    );
   }
 
   try {
@@ -682,17 +546,26 @@ export async function setupPreparedContextStore(
 
     gitInitialized = gitEnabled ? await initGitRepository(storeRoot) : false;
     const isRepository = gitInitialized || repoExisted;
-    const filesToCommit = createdPaths
-      .filter((entry) => entry.kind === 'file')
-      .map((entry) => entry.relativePath);
+    // "Files created for rollback" and "files a clone needs" are different
+    // sets: when setup initialized the repository itself, the initial commit
+    // must contain the full store shape or clones of a converted root would
+    // be unhealthy. In a pre-existing repo the user owns the history, so
+    // setup commits only what it created.
+    const commitPathspecs = gitInitialized
+      ? [OPENSPEC_ROOT_DIR, CONTEXT_STORE_METADATA_DIR_NAME]
+      : createdPaths
+          .filter((entry) => entry.kind === 'file')
+          .map((entry) => entry.relativePath);
     committed = gitEnabled && isRepository
-      ? await commitCreatedFiles(storeRoot, id, filesToCommit)
+      ? await commitStoreFiles(storeRoot, id, commitPathspecs)
       : false;
 
+    // Identity creation is setup's job (done above, before the commit);
+    // registration only verifies it and records the machine-local entry.
     const registered = await commitContextStoreRegistration({
       id,
       backend,
-      writeMetadataIfMissing: true,
+      writeMetadataIfMissing: false,
     });
     const diagnostics = registered.alreadyRegistered && createdFiles.length === 0
       ? [alreadyRegisteredDiagnostic(id)]

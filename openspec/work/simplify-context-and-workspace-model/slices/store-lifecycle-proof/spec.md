@@ -181,6 +181,11 @@ Out of scope:
 - **THEN** those empty directories contain a tracked placeholder file
 - **AND** the placeholders appear in `created_files` and in setup's commit
   when Git is in play
+- **AND** when setup initialized the repository itself, the initial commit
+  contains the full store shape (config, specs, changes, identity
+  metadata), so a clone of the converted store is immediately healthy
+- **AND** files outside the store shape (for example old beta files) are
+  not swept into setup's commit
 - **AND** reruns for an already-registered store still change nothing
 - **AND** register (including confirmed conversion) still creates no
   placeholder files and no commits
