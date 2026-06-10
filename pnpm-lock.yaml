@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  picomatch: '>=4.0.4'
+  picomatch: '^2.3.2 || ^3.0.2 || ^4.0.4'
 
 importers:
 
@@ -988,7 +988,7 @@ packages:
   fdir@6.4.6:
     resolution: {integrity: sha512-hiFoqpyZcfNm1yc4u8oWCf9A2c4D3QjCrks3zmoVKVxpQRzmPNar1hUJcBG2RQHvEVGDN+Jm81ZheVLAQMK6+w==}
     peerDependencies:
-      picomatch: '>=4.0.4'
+      picomatch: '^2.3.2 || ^3.0.2 || ^4.0.4'
     peerDependenciesMeta:
       picomatch:
         optional: true
@@ -997,7 +997,7 @@ packages:
     resolution: {integrity: sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg==}
     engines: {node: '>=12.0.0'}
     peerDependencies:
-      picomatch: '>=4.0.4'
+      picomatch: '^2.3.2 || ^3.0.2 || ^4.0.4'
     peerDependenciesMeta:
       picomatch:
         optional: true
