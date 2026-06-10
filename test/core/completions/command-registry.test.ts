@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Command } from 'commander';
 
 import { COMMAND_REGISTRY } from '../../../src/core/completions/command-registry.js';
-import { program } from '../../../src/cli/index.js';
+import { getCommandPath, program } from '../../../src/cli/index.js';
 import type {
   CommandDefinition,
   FlagDefinition,
@@ -143,6 +143,40 @@ describe('command completion registry', () => {
 
   it('matches visible Commander command flags and aliases', () => {
     assertRegistryParity(program, COMMAND_REGISTRY);
+  });
+
+  it('uses one --store description on every lifecycle command', async () => {
+    const { COMMON_FLAGS } = await import('../../../src/core/completions/shared-flags.js');
+    const expected = COMMON_FLAGS.store.description;
+    const seen: string[] = [];
+
+    function walk(command: Command, parentPath: string): void {
+      for (const child of command.commands) {
+        const commandPath = parentPath ? `${parentPath} ${child.name()}` : child.name();
+        // The legacy initiative group keeps its own store-id selector
+        // until the deletion slice removes the group.
+        if (commandPath.startsWith('initiative')) {
+          continue;
+        }
+        const storeOption = child.options.find((option) => option.long === '--store');
+        if (storeOption) {
+          seen.push(commandPath);
+          expect(storeOption.description, `${commandPath} --store description`).toBe(expected);
+        }
+        walk(child, commandPath);
+      }
+    }
+
+    walk(program, '');
+    expect(seen.length).toBeGreaterThanOrEqual(7);
+  });
+
+  it('tracks store subcommands under the store: telemetry path', () => {
+    const storeGroup = program.commands.find((child) => child.name() === 'store');
+    expect(storeGroup).toBeDefined();
+    const setup = storeGroup?.commands.find((child) => child.name() === 'setup');
+    expect(setup).toBeDefined();
+    expect(getCommandPath(setup as Command)).toBe('store:setup');
   });
 
   it('tracks top-level workflow commands', () => {

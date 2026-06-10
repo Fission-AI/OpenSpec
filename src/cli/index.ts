@@ -60,7 +60,7 @@ const { version } = require('../../package.json');
  * Get the full command path for nested commands.
  * For example: 'change show' -> 'change:show'
  */
-function getCommandPath(command: Command): string {
+export function getCommandPath(command: Command): string {
   const names: string[] = [];
   let current: Command | null = command;
 

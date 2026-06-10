@@ -1,0 +1,86 @@
+import { describe, expect, it } from 'vitest';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// The store rename (slice 1.4) retired the "context store" vocabulary.
+// This sweep keeps it retired: no live surface may reintroduce the old
+// tokens. The openspec/ planning-history tree is outside the sweep roots
+// by design; the committed format literals (.openspec-store, store.yaml)
+// do not match these patterns at all.
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+// .codex/ is git-ignored local skill guidance (roadmap L8); swept when
+// present, skipped when a checkout does not carry it.
+const SWEEP_ROOTS = ['src', 'test', 'docs', 'scripts', '.codex'];
+
+// Built by concatenation so this file never matches itself.
+const FORBIDDEN_TOKENS = [
+  'context' + '-store',
+  'context' + '_store',
+  'context' + 'store',
+  'context' + ' store',
+];
+
+const TEXT_EXTENSIONS = new Set([
+  '.ts',
+  '.js',
+  '.mjs',
+  '.cjs',
+  '.json',
+  '.md',
+  '.yaml',
+  '.yml',
+  '.sh',
+  '.txt',
+]);
+
+const SELF = path.resolve(fileURLToPath(import.meta.url));
+
+function* walkFiles(dir: string): Generator<string> {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name === 'node_modules' || entry.name === 'dist') {
+        continue;
+      }
+      yield* walkFiles(fullPath);
+    } else if (entry.isFile() && TEXT_EXTENSIONS.has(path.extname(entry.name))) {
+      yield fullPath;
+    }
+  }
+}
+
+describe('vocabulary sweep', () => {
+  it('keeps the retired context-store vocabulary out of live surfaces', () => {
+    const offenders: string[] = [];
+
+    for (const root of SWEEP_ROOTS) {
+      const rootPath = path.join(REPO_ROOT, root);
+      if (!fs.existsSync(rootPath)) {
+        continue;
+      }
+
+      for (const filePath of walkFiles(rootPath)) {
+        if (path.resolve(filePath) === SELF) {
+          continue;
+        }
+
+        const lines = fs.readFileSync(filePath, 'utf-8').split('\n');
+        lines.forEach((line, index) => {
+          const lowered = line.toLowerCase();
+          for (const token of FORBIDDEN_TOKENS) {
+            if (lowered.includes(token)) {
+              offenders.push(
+                `${path.relative(REPO_ROOT, filePath)}:${index + 1}: ${line.trim()}`
+              );
+              break;
+            }
+          }
+        });
+      }
+    }
+
+    expect(offenders, `retired vocabulary found:\n${offenders.join('\n')}`).toEqual([]);
+  });
+});

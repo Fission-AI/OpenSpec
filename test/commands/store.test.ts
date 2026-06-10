@@ -1068,6 +1068,66 @@ describe('store command', () => {
     expect(mismatchFreeStatus.fix).toContain('Use --id free-context');
   });
 
+  describe('committed format and data dir guards', () => {
+    // Built by concatenation so the vocabulary sweep never matches this file.
+    const OLD_DATA_DIR_NAME = 'context' + '-stores';
+
+    it('pins the committed store metadata literals and the stores data dir', async () => {
+      const storeRoot = mkdir('pin-context');
+      const result = await runCLI(
+        ['store', 'setup', 'pin-context', '--path', storeRoot, '--no-init-git', '--json'],
+        { cwd: tempDir, env }
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(fs.existsSync(path.join(storeRoot, '.openspec-store', 'store.yaml'))).toBe(true);
+      expect(fs.existsSync(path.join(getStoresDir({ globalDataDir }), 'registry.yaml'))).toBe(
+        true
+      );
+      expect(fs.existsSync(path.join(globalDataDir, OLD_DATA_DIR_NAME))).toBe(false);
+    });
+
+    it('registers a store repo created before the rename', async () => {
+      // The committed store format predates the rename; a root carrying
+      // the same .openspec-store/store.yaml shape registers untouched.
+      const storeRoot = mkdir('pre-rename-context');
+      createHealthyOpenSpecRoot(storeRoot);
+      await writeStoreMetadataState(storeRoot, { version: 1, id: 'pre-rename-context' });
+
+      const result = await runCLI(['store', 'register', storeRoot, '--json'], {
+        cwd: tempDir,
+        env,
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(parseJson(result).store).toEqual(
+        expect.objectContaining({ id: 'pre-rename-context' })
+      );
+    });
+
+    it('ignores old data-dir registries instead of reading or migrating them', async () => {
+      const oldDir = path.join(globalDataDir, OLD_DATA_DIR_NAME);
+      fs.mkdirSync(oldDir, { recursive: true });
+      const oldRegistry = path.join(oldDir, 'registry.yaml');
+      fs.writeFileSync(
+        oldRegistry,
+        'version: 1\nstores:\n  ghost-context:\n    path: /tmp/ghost\n'
+      );
+
+      const valid = await runCLI(['store', 'list', '--json'], { cwd: tempDir, env });
+      expect(valid.exitCode).toBe(0);
+      expect(parseJson(valid).stores).toEqual([]);
+
+      fs.writeFileSync(oldRegistry, ':[ not yaml at all');
+      const corrupt = await runCLI(['store', 'list', '--json'], { cwd: tempDir, env });
+      expect(corrupt.exitCode).toBe(0);
+      expect(parseJson(corrupt).stores).toEqual([]);
+
+      // The old dir is neither cleaned up nor migrated.
+      expect(fs.readFileSync(oldRegistry, 'utf-8')).toBe(':[ not yaml at all');
+    });
+  });
+
   describe('store group surface', () => {
     it('hints lifecycle attempts under the store group at --store', async () => {
       const result = await runCLI(['store', 'new', 'change', 'billing-rework'], {
@@ -1092,20 +1152,23 @@ describe('store command', () => {
       expect(result.stdout).toBe('');
     });
 
-    it('keeps no context-store alias', async () => {
-      const result = await runCLI(['context-store', 'list'], { cwd: tempDir, env });
+    it('keeps no alias for the retired group name', async () => {
+      // Built by concatenation so the vocabulary sweep never matches this file.
+      const retiredGroup = 'context' + '-store';
+      const result = await runCLI([retiredGroup, 'list'], { cwd: tempDir, env });
 
       expect(result.exitCode).toBe(1);
-      expect(result.stderr).toContain("unknown command 'context-store'");
+      expect(result.stderr).toContain(`unknown command '${retiredGroup}'`);
     });
 
-    it('lists store in --help with the locked one-liner and no context-store group', async () => {
+    it('lists store in --help with the locked one-liner and no retired group', async () => {
+      const retiredGroup = 'context' + '-store';
       const result = await runCLI(['--help'], { cwd: tempDir, env });
 
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('store');
       expect(result.stdout).toContain('Create and manage stores - standalone');
-      expect(result.stdout).not.toContain('context-store');
+      expect(result.stdout).not.toContain(retiredGroup);
     });
   });
 
