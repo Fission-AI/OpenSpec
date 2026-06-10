@@ -62,9 +62,10 @@ The reviews of the first draft converged on one principle, adopted here:
   deleted in the next slice, because a hint a user pastes must work
   verbatim and an acceptance grep must not need a carve-out list.
   Whitelist (the only survivors): the committed format literals
-  (`.openspec-store/` directory name, `store.yaml` filename), the
-  `openspec/work/` planning-history folder, and archived/changelog files
-  that record history.
+  (`.openspec-store/` directory name, `store.yaml` filename) and the
+  `openspec/` planning-history tree (`work/`, `changes/`,
+  `initiatives/`, `explorations/`), which sits outside the sweep roots
+  entirely.
 - **Surgical prose rewrite.** Structural rewriting — new teaching text,
   removed advertising, legacy labeling — happens only on the guidance
   surfaces enumerated in Scope. Inside the `initiative` and `workspace`
@@ -116,11 +117,14 @@ The reviews of the first draft converged on one principle, adopted here:
    (store section renamed and reworded to the locked vocabulary; the
    `workspace open --store`/`--store-path` rows deleted per rider 1; the
    stale default-XDG-path line corrected — 1.3 already made `--path`
-   required; initiative rows token-renamed and legacy-labeled), and the
-   `docs/workspaces-beta/` files (`agent-cli-playbook.md`,
-   `user-guide.md`) get token renames so they stop instructing dead
-   commands. Deleting the beta docs outright belongs to the Phase 5
-   remainder; the public concept-docs rewrite (L1) stays deferred.
+   required; initiative rows token-renamed and legacy-labeled),
+   `docs/concepts.md` (token renames), and the `docs/workspaces-beta/`
+   files (`agent-cli-playbook.md`, `user-guide.md`), which get token
+   renames plus correctness fixes where a documented invocation already
+   fails against the current CLI (setup examples missing the `--path`
+   that 1.3 made required; pre-1.3 prompt-flow prose). Deleting the beta
+   docs outright belongs to the Phase 5 remainder; the public
+   concept-docs rewrite (L1) stays deferred.
 6. **The checked-in beta guidance is cut, not updated.**
    `.codex/skills/use-openspec/references/shared-context-beta.md`
    advertises initiative/workspace flows that the next slice deletes; per
@@ -277,8 +281,9 @@ In scope:
   inspection command; `--store` as root selection);
   `references/shared-context-beta.md` deleted;
   `references/artifact-placement.md` updated per decision 6.
-- **Docs accuracy pass** per decision 5: `docs/cli.md` and
-  `docs/workspaces-beta/agent-cli-playbook.md`, `user-guide.md`.
+- **Docs accuracy pass** per decision 5: `docs/cli.md`,
+  `docs/concepts.md`, and `docs/workspaces-beta/agent-cli-playbook.md`,
+  `user-guide.md`.
 - **Dogfood acceptance** (runbook): a headless agent session in a scratch
   project repo that carries generated workflow skills (produced by
   `openspec init` in the scratch repo), with isolated XDG state and a

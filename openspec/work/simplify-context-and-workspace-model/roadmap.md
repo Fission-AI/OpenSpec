@@ -102,8 +102,8 @@ an item are status steps for that numbered work item.
 - [ ] **Phase 1. Make a standalone OpenSpec repo useful.**
   Slices 1.1, 1.2, and 1.3 are implemented with passing tests on the working
   branch; merge to `main` remains. Slice 1.4 (one guidance pass: stores in,
-  initiatives out, absorbing old 2.2) is in progress: terminology decided,
-  spec written and reviewed; plan is next.
+  initiatives out, absorbing old 2.2) is in progress: spec and plan written
+  and reviewed; implementation is next.
 - [x] **Phase 2. Stop putting new work through initiatives.**
   Fully absorbed: 2.1 shipped inside slice 1.2, 2.2 folded into slice 1.4,
   and 2.3 folded into item 4.1. No independent work remains here.
@@ -126,8 +126,8 @@ Next incomplete item:
   registered standalone OpenSpec repo and use `--store` without the human
   spelling out flags, and guidance stops advertising initiatives and
   workspaces. Terminology is decided (the noun is "store"); the rename pass
-  lands first. Spec written and reviewed
-  (`slices/store-rename-and-guidance/spec.md`); plan is next. (Slices
+  lands first. Spec and plan written and reviewed
+  (`slices/store-rename-and-guidance/`); implementation is next. (Slices
   1.1–1.3 are implemented and tested on the working branch; their "Merged
   to `main`" boxes stay open by design and do not gate this.)
 
@@ -465,7 +465,7 @@ Slice: `slices/store-rename-and-guidance/spec.md`
   agents' `--repo` prior means the code repo being operated on, which
   collides with target project repos in Phase 3.
 - [x] Spec written.
-- [ ] Plan written.
+- [x] Plan written.
 - [ ] Implementation done.
 - [ ] Tests pass.
 - [ ] Merged to `main`.
@@ -1281,3 +1281,17 @@ is working:
   `commands/context-store.ts`) are not split in this slice because the
   Phase 5 deletions and 4.1 rebuild are about to shrink them (recorded
   module-size reason per the runbook bar).
+- 2026-06-11: Wrote the store-rename-and-guidance plan (four green
+  checkpoints: mechanical rename, riders, guidance regeneration with a
+  three-stream fan-out, sweep/guards/dogfood) and folded two parallel
+  plan reviews (subagent and codex CLI, both approve-with-fixes): the
+  rider-1 deletion list now names the unreachable guard branch and
+  preserves persisted path-bound view state; rider 2 owns the whole
+  Commander `command:*` error path; the docs pass gained
+  `docs/concepts.md` and runtime-correctness fixes for beta-doc examples
+  (`--path` since 1.3) plus a built-binary invocation smoke; the sweep's
+  roots exclude the `openspec/` planning history by design; old-data-dir
+  negative fixtures (valid and corrupt) and exact-equality
+  `--store`-description tests were added; the dogfood pins
+  `openspec init --tools claude --profile core`. Spec updated in the
+  same round for docs scope and sweep-root consistency.
