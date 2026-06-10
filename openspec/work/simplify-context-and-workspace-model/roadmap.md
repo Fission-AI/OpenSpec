@@ -102,8 +102,8 @@ an item are status steps for that numbered work item.
 - [ ] **Phase 1. Make a standalone OpenSpec repo useful.**
   Slices 1.1, 1.2, and 1.3 are implemented with passing tests on the working
   branch; merge to `main` remains. Slice 1.4 (one guidance pass: stores in,
-  initiatives out, absorbing old 2.2, gated on the terminology decision) is
-  the next unstarted item.
+  initiatives out, absorbing old 2.2) is in progress: terminology decided,
+  spec written and reviewed; plan is next.
 - [x] **Phase 2. Stop putting new work through initiatives.**
   Fully absorbed: 2.1 shipped inside slice 1.2, 2.2 folded into slice 1.4,
   and 2.3 folded into item 4.1. No independent work remains here.
@@ -126,9 +126,10 @@ Next incomplete item:
   registered standalone OpenSpec repo and use `--store` without the human
   spelling out flags, and guidance stops advertising initiatives and
   workspaces. Terminology is decided (the noun is "store"); the rename pass
-  lands first. Spec not yet written. (Slices 1.1–1.3 are implemented and
-  tested on the working branch; their "Merged to `main`" boxes stay open by
-  design and do not gate this.)
+  lands first. Spec written and reviewed
+  (`slices/store-rename-and-guidance/spec.md`); plan is next. (Slices
+  1.1–1.3 are implemented and tested on the working branch; their "Merged
+  to `main`" boxes stay open by design and do not gate this.)
 
 ## Phase 0. Make The Active Direction Easy To Find
 
@@ -449,6 +450,8 @@ guidance twice.
 
 Progress:
 
+Slice: `slices/store-rename-and-guidance/spec.md`
+
 - [x] Terminology decided (2026-06-11): the noun is **store**, defined
   everywhere as "a store — a standalone OpenSpec repo you've registered."
   Command group renames `context-store` → `store`; the `--store` flag stays;
@@ -461,7 +464,7 @@ Progress:
   Runner-up considered and rejected: `openspec repo`/`--repo`, because
   agents' `--repo` prior means the code repo being operated on, which
   collides with target project repos in Phase 3.
-- [ ] Spec written.
+- [x] Spec written.
 - [ ] Plan written.
 - [ ] Implementation done.
 - [ ] Tests pass.
@@ -1223,3 +1226,58 @@ is working:
   counts, converted roots get placeholders at first accept while doctor
   warns on clone-fragile empty directories in older stores, and the
   journey's `created_files` assertion runs setup in JSON mode.
+- 2026-06-11: Wrote the store-rename-and-guidance slice spec (1.4) and
+  folded two parallel adversarial review rounds (subagent:
+  approve-with-fixes; codex CLI: reject). Both converged on the same flaw
+  — exempting the legacy initiative/workspace groups from the token
+  rename contradicted the locked machine-token decision, left
+  paste-broken hints, and kept a second live `--store` meaning — so the
+  spec now states one rule: the token rename is total and mechanical
+  everywhere (codes, JSON keys, dotted targets, hints, docs — legacy
+  groups included), the prose rewrite is surgical (enumerated guidance
+  surfaces only), and behavior changes are exactly the two riders. Also
+  folded: the corrected token inventory (45 codes pinned by sweep, plus
+  the dotted `context_store.*` target family), the missed guidance
+  surfaces (`artifact-placement.md`, `docs/workspaces-beta/`), the three
+  out-of-guard workspace-prose mentions in templates, a sweep-as-test
+  acceptance criterion, and a concrete delivery mechanism for the dogfood
+  proof (`openspec init` in the scratch repo).
+- 2026-06-11: Decided autonomously (review me): the `context-store` group
+  gets no back-compat alias and the old `context-stores/` data dir is not
+  migrated — zero users on the unmerged branch, and 5.1 locked
+  delete-don't-hide.
+- 2026-06-11: Decided autonomously (review me): internal identifiers
+  rename with the product noun (`src/core/context-store/` →
+  `src/core/store/`, `ContextStore*` → `Store*`, command/test/helper
+  files follow) — one concept, one token in the codebase; compiler-checked
+  and free with no users.
+- 2026-06-11: Decided autonomously (review me): the legacy `initiative`
+  and `workspace` groups get token substitution and legacy-labeled
+  one-liners only, never restructuring; initiative's `--store`/
+  `--store-path` selectors keep behavior under reworded descriptions as a
+  named, expiring inconsistency that the next slice deletes with the
+  group.
+- 2026-06-11: Decided autonomously (review me): workflow-template
+  workspace guards stay (they quote the live `actionContext.mode:
+  "workspace-planning"` contract, reachable until 4.1, and refuse rather
+  than advertise); the three out-of-guard workspace-prose mentions
+  reword. Ground truth correction: five templates carry guards, zero
+  reference initiatives (roadmap had said seven with initiative refs).
+- 2026-06-11: Decided autonomously (review me): docs get a mechanical
+  accuracy pass in 1.4 (`docs/cli.md` store section, removed
+  `workspace open` selector rows, stale default-XDG-path fix, token
+  renames in `docs/workspaces-beta/`) so no doc instructs a dead command;
+  deleting the beta docs belongs to the Phase 5 remainder and the L1
+  rewrite stays deferred.
+- 2026-06-11: Decided autonomously (review me): checked-in beta guidance
+  is cut, not updated — `shared-context-beta.md` deleted, `SKILL.md`
+  rewritten around store discovery, `artifact-placement.md` loses its
+  beta-flow routing — per the locked 5.1 sequencing that guidance
+  surfaces die in 1.4.
+- 2026-06-11: Decided autonomously (review me): the dead
+  `getDefaultContextStoreRoot` export (orphaned when 1.3 made `--path`
+  required) is deleted in the rename pass, not renamed; and the
+  over-600-line modules the rename touches (`operations.ts`,
+  `commands/context-store.ts`) are not split in this slice because the
+  Phase 5 deletions and 4.1 rebuild are about to shrink them (recorded
+  module-size reason per the runbook bar).
