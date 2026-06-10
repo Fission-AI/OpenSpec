@@ -146,29 +146,36 @@ describe('command completion registry', () => {
   });
 
   it('tracks top-level workflow commands', () => {
-    for (const name of ['status', 'instructions', 'templates', 'schemas', 'new', 'set']) {
+    for (const name of ['status', 'instructions', 'templates', 'schemas', 'new']) {
       expect(command(name), `${name} command`).toBeDefined();
     }
+
+    expect(command('set'), 'set command should be removed').toBeUndefined();
 
     const newChange = command('new')?.subcommands?.find((entry) => entry.name === 'change');
     expect(newChange?.flags.map((flag) => flag.name)).toEqual([
       'description',
       'goal',
-      'areas',
-      'initiative',
-      'store',
-      'store-path',
       'schema',
       'json',
+      'store',
     ]);
 
-    const setChange = command('set')?.subcommands?.find((entry) => entry.name === 'change');
-    expect(setChange?.flags.map((flag) => flag.name)).toEqual([
-      'initiative',
-      'store',
-      'store-path',
-      'json',
-    ]);
+    const storeFlag = newChange?.flags.find((flag) => flag.name === 'store');
+    expect(storeFlag?.description).toContain('OpenSpec root');
+    expect(newChange?.flags.map((flag) => flag.name)).not.toContain('initiative');
+    expect(newChange?.flags.map((flag) => flag.name)).not.toContain('areas');
+    expect(newChange?.flags.map((flag) => flag.name)).not.toContain('store-path');
+  });
+
+  it('advertises --store on the supported root-selection commands', () => {
+    for (const name of ['list', 'show', 'validate', 'archive', 'status', 'instructions']) {
+      const entry = command(name);
+      const store = entry?.flags.find((flag) => flag.name === 'store');
+      expect(store, `${name} --store flag`).toBeDefined();
+      expect(store?.description).toContain('OpenSpec root');
+      expect(entry?.flags.map((flag) => flag.name)).not.toContain('store-path');
+    }
   });
 
   it('tracks context-store commands and aliases', () => {

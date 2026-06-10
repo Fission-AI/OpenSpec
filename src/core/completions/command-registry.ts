@@ -57,6 +57,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         values: ['recent', 'name'],
       },
       COMMON_FLAGS.json,
+      COMMON_FLAGS.store,
     ],
   },
   {
@@ -92,6 +93,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         takesValue: true,
       },
       COMMON_FLAGS.noInteractive,
+      COMMON_FLAGS.store,
     ],
   },
   {
@@ -126,6 +128,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         description: 'Show specific requirement by ID (JSON only, spec-specific)',
         takesValue: true,
       },
+      COMMON_FLAGS.store,
     ],
   },
   {
@@ -148,6 +151,11 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         name: 'no-validate',
         description: 'Skip validation (not recommended)',
       },
+      {
+        name: 'json',
+        description: 'Output as JSON (non-interactive)',
+      },
+      COMMON_FLAGS.store,
     ],
   },
   {
@@ -165,6 +173,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         takesValue: true,
       },
       COMMON_FLAGS.json,
+      COMMON_FLAGS.store,
     ],
   },
   {
@@ -184,6 +193,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         takesValue: true,
       },
       COMMON_FLAGS.json,
+      COMMON_FLAGS.store,
     ],
   },
   {
@@ -223,27 +233,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
           },
           {
             name: 'goal',
-            description: 'Workspace product goal to store with the change',
-            takesValue: true,
-          },
-          {
-            name: 'areas',
-            description: 'Comma-separated affected workspace link names',
-            takesValue: true,
-          },
-          {
-            name: 'initiative',
-            description: 'Link the repo-local change to an initiative',
-            takesValue: true,
-          },
-          {
-            name: 'store',
-            description: 'Context store id for --initiative',
-            takesValue: true,
-          },
-          {
-            name: 'store-path',
-            description: 'Existing local context store root for --initiative',
+            description: 'Optional goal metadata to store with the change',
             takesValue: true,
           },
           {
@@ -252,38 +242,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             takesValue: true,
           },
           COMMON_FLAGS.json,
-        ],
-      },
-    ],
-  },
-  {
-    name: 'set',
-    description: 'Set checked-in OpenSpec metadata',
-    flags: [],
-    subcommands: [
-      {
-        name: 'change',
-        description: 'Set repo-local change metadata',
-        acceptsPositional: true,
-        positionalType: 'change-id',
-        positionals: [{ name: 'name', type: 'change-id' }],
-        flags: [
-          {
-            name: 'initiative',
-            description: 'Link the repo-local change to an initiative',
-            takesValue: true,
-          },
-          {
-            name: 'store',
-            description: 'Context store id for --initiative',
-            takesValue: true,
-          },
-          {
-            name: 'store-path',
-            description: 'Existing local context store root for --initiative',
-            takesValue: true,
-          },
-          COMMON_FLAGS.json,
+          COMMON_FLAGS.store,
         ],
       },
     ],

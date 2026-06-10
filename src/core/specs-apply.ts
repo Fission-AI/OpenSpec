@@ -353,12 +353,15 @@ export async function buildUpdatedSpec(
 export async function writeUpdatedSpec(
   update: SpecUpdate,
   rebuilt: string,
-  counts: { added: number; modified: number; removed: number; renamed: number }
+  counts: { added: number; modified: number; removed: number; renamed: number },
+  options: { silent?: boolean } = {}
 ): Promise<void> {
   // Create target directory if needed
   const targetDir = path.dirname(update.target);
   await fs.mkdir(targetDir, { recursive: true });
   await fs.writeFile(update.target, rebuilt);
+
+  if (options.silent) return;
 
   const specName = path.basename(path.dirname(update.target));
   console.log(`Applying changes to openspec/specs/${specName}/spec.md:`);

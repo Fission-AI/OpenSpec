@@ -10,11 +10,20 @@ import path from 'path';
 import * as fs from 'fs';
 import { getSchemaDir, listSchemas } from '../../core/artifact-graph/index.js';
 import type { InitiativeLink } from '../../core/change-metadata/index.js';
+import { isRootSelectionError } from '../../core/root-selection.js';
 import { validateChangeName } from '../../utils/change-utils.js';
 
 // -----------------------------------------------------------------------------
 // Types
 // -----------------------------------------------------------------------------
+
+export interface ChangeCommandStatus {
+  severity: 'error' | 'warning';
+  code: string;
+  message: string;
+  target?: string;
+  fix?: string;
+}
 
 export interface TaskItem {
   id: string;
@@ -48,6 +57,22 @@ export const DEFAULT_SCHEMA = 'spec-driven';
 // -----------------------------------------------------------------------------
 // Utility Functions
 // -----------------------------------------------------------------------------
+
+export function printJson(payload: unknown): void {
+  console.log(JSON.stringify(payload, null, 2));
+}
+
+export function statusFromError(error: unknown): ChangeCommandStatus {
+  if (isRootSelectionError(error)) {
+    return { ...error.diagnostic };
+  }
+
+  return {
+    severity: 'error',
+    code: 'change_error',
+    message: error instanceof Error ? error.message : String(error),
+  };
+}
 
 /**
  * Checks if color output is disabled via NO_COLOR env or --no-color flag.

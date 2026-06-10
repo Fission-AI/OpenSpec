@@ -1,4 +1,4 @@
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
 import { createRequire } from 'module';
 import ora from 'ora';
 import path from 'path';
@@ -7,8 +7,9 @@ import { promises as fs } from 'fs';
 import { AI_TOOLS, OPENSPEC_DIR_NAME } from '../core/config.js';
 import { UpdateCommand } from '../core/update.js';
 import { ListCommand } from '../core/list.js';
-import { ArchiveCommand } from '../core/archive.js';
+import { ArchiveCommand, type ArchiveOptions } from '../core/archive.js';
 import { ViewCommand } from '../core/view.js';
+import { emitStoreRootBanner, resolveRootForCommand, toRootOutput } from '../core/root-selection.js';
 import { registerSpecCommand } from '../commands/spec.js';
 import { ChangeCommand } from '../commands/change.js';
 import { ValidateCommand } from '../commands/validate.js';
@@ -28,16 +29,27 @@ import {
   templatesCommand,
   schemasCommand,
   newChangeCommand,
-  setChangeCommand,
   DEFAULT_SCHEMA,
   type StatusOptions,
   type InstructionsOptions,
   type TemplatesOptions,
   type SchemasOptions,
   type NewChangeOptions,
-  type SetChangeOptions,
 } from '../commands/workflow/index.js';
 import { maybeShowTelemetryNotice, trackCommand, shutdown } from '../telemetry/index.js';
+
+const STORE_OPTION_DESCRIPTION = 'Registered context store id to use as the OpenSpec root';
+
+// Deliberate rejection path: --store-path stays registered (hidden) so the
+// resolver can explain that registering the path is the supported route,
+// instead of Commander emitting a generic unknown-option error (or, for
+// `show`, silently ignoring it via allowUnknownOption).
+function hiddenStorePathOption(): Option {
+  return new Option(
+    '--store-path <path>',
+    'Not supported; register the path with context-store register and use --store <id>'
+  ).hideHelp();
+}
 
 const program = new Command();
 const require = createRequire(import.meta.url);
@@ -211,12 +223,25 @@ program
   .option('--changes', 'List changes explicitly (default)')
   .option('--sort <order>', 'Sort order: "recent" (default) or "name"', 'recent')
   .option('--json', 'Output as JSON (for programmatic use)')
-  .action(async (options?: { specs?: boolean; changes?: boolean; sort?: string; json?: boolean }) => {
+  .option('--store <id>', STORE_OPTION_DESCRIPTION)
+  .addOption(hiddenStorePathOption())
+  .action(async (options?: { specs?: boolean; changes?: boolean; sort?: string; json?: boolean; store?: string; storePath?: string }) => {
     try {
+      const root = await resolveRootForCommand(options ?? {}, { json: options?.json });
+      if (!root) {
+        return;
+      }
+      if (!options?.json) {
+        emitStoreRootBanner(root);
+      }
       const listCommand = new ListCommand();
       const mode: 'changes' | 'specs' = options?.specs ? 'specs' : 'changes';
       const sort = options?.sort === 'name' ? 'name' : 'recent';
-      await listCommand.execute('.', mode, { sort, json: options?.json });
+      await listCommand.execute(root.path, mode, {
+        sort,
+        json: options?.json,
+        ...(options?.json ? { root: toRootOutput(root) } : {}),
+      });
     } catch (error) {
       console.log(); // Empty line for spacing
       ora().fail(`Error: ${(error as Error).message}`);
@@ -306,7 +331,10 @@ program
   .option('-y, --yes', 'Skip confirmation prompts')
   .option('--skip-specs', 'Skip spec update operations (useful for infrastructure, tooling, or doc-only changes)')
   .option('--no-validate', 'Skip validation (not recommended, requires confirmation)')
-  .action(async (changeName?: string, options?: { yes?: boolean; skipSpecs?: boolean; noValidate?: boolean; validate?: boolean }) => {
+  .option('--json', 'Output as JSON (non-interactive)')
+  .option('--store <id>', STORE_OPTION_DESCRIPTION)
+  .addOption(hiddenStorePathOption())
+  .action(async (changeName?: string, options?: ArchiveOptions) => {
     try {
       const archiveCommand = new ArchiveCommand();
       await archiveCommand.execute(changeName, options);
@@ -336,7 +364,9 @@ program
   .option('--json', 'Output validation results as JSON')
   .option('--concurrency <n>', 'Max concurrent validations (defaults to env OPENSPEC_CONCURRENCY or 6)')
   .option('--no-interactive', 'Disable interactive prompts')
-  .action(async (itemName?: string, options?: { all?: boolean; changes?: boolean; specs?: boolean; type?: string; strict?: boolean; json?: boolean; noInteractive?: boolean; concurrency?: string }) => {
+  .option('--store <id>', STORE_OPTION_DESCRIPTION)
+  .addOption(hiddenStorePathOption())
+  .action(async (itemName?: string, options?: { all?: boolean; changes?: boolean; specs?: boolean; type?: string; strict?: boolean; json?: boolean; noInteractive?: boolean; concurrency?: string; store?: string; storePath?: string }) => {
     try {
       const validateCommand = new ValidateCommand();
       await validateCommand.execute(itemName, options);
@@ -361,6 +391,10 @@ program
   .option('--requirements', 'JSON only: Show only requirements (exclude scenarios)')
   .option('--no-scenarios', 'JSON only: Exclude scenario content')
   .option('-r, --requirement <id>', 'JSON only: Show specific requirement by ID (1-based)')
+  .option('--store <id>', STORE_OPTION_DESCRIPTION)
+  // Explicit registration required: allowUnknownOption would otherwise
+  // silently swallow --store-path instead of rejecting it deliberately.
+  .addOption(hiddenStorePathOption())
   // allow unknown options to pass-through to underlying command implementation
   .allowUnknownOption(true)
   .action(async (itemName?: string, options?: { json?: boolean; type?: string; noInteractive?: boolean; [k: string]: any }) => {
@@ -464,6 +498,8 @@ program
   .option('--change <id>', 'Change name to show status for')
   .option('--schema <name>', 'Schema override (auto-detected from config.yaml)')
   .option('--json', 'Output as JSON')
+  .option('--store <id>', STORE_OPTION_DESCRIPTION)
+  .addOption(hiddenStorePathOption())
   .action(async (options: StatusOptions) => {
     try {
       await statusCommand(options);
@@ -481,6 +517,8 @@ program
   .option('--change <id>', 'Change name')
   .option('--schema <name>', 'Schema override (auto-detected from config.yaml)')
   .option('--json', 'Output as JSON')
+  .option('--store <id>', STORE_OPTION_DESCRIPTION)
+  .addOption(hiddenStorePathOption())
   .action(async (artifactId: string | undefined, options: InstructionsOptions) => {
     try {
       // Special case: "apply" is not an artifact, but a command to get apply instructions
@@ -534,36 +572,18 @@ newCmd
   .command('change <name>')
   .description('Create a new change directory')
   .option('--description <text>', 'Description to add to README.md')
-  .option('--goal <text>', 'Workspace product goal to store with the change')
-  .option('--areas <names>', 'Comma-separated affected workspace link names')
-  .option('--initiative <id>', 'Link the repo-local change to an initiative')
-  .option('--store <id>', 'Context store id for --initiative')
-  .option('--store-path <path>', 'Existing local context store root for --initiative')
+  .option('--goal <text>', 'Optional goal metadata to store with the change')
   .option('--schema <name>', `Workflow schema to use (default: ${DEFAULT_SCHEMA})`)
   .option('--json', 'Output as JSON')
+  .option('--store <id>', STORE_OPTION_DESCRIPTION)
+  .addOption(hiddenStorePathOption())
+  // Removed options kept registered (hidden) so users get a deliberate
+  // explanation instead of a generic unknown-option error.
+  .addOption(new Option('--initiative <id>', 'No longer supported').hideHelp())
+  .addOption(new Option('--areas <names>', 'No longer supported').hideHelp())
   .action(async (name: string, options: NewChangeOptions) => {
     try {
       await newChangeCommand(name, options);
-    } catch (error) {
-      console.log();
-      ora().fail(`Error: ${(error as Error).message}`);
-      process.exit(1);
-    }
-  });
-
-// Set command group
-const setCmd = program.command('set').description('Set checked-in OpenSpec metadata');
-
-setCmd
-  .command('change <name>')
-  .description('Set repo-local change metadata')
-  .option('--initiative <id>', 'Link the repo-local change to an initiative')
-  .option('--store <id>', 'Context store id for --initiative')
-  .option('--store-path <path>', 'Existing local context store root for --initiative')
-  .option('--json', 'Output as JSON')
-  .action(async (name: string, options: SetChangeOptions) => {
-    try {
-      await setChangeCommand(name, options);
     } catch (error) {
       console.log();
       ora().fail(`Error: ${(error as Error).message}`);

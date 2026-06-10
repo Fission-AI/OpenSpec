@@ -1,6 +1,12 @@
-import path from 'path';
 import { isInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds, getSpecIds } from '../utils/item-discovery.js';
+import {
+  emitStoreRootBanner,
+  resolveRootForCommand,
+  toRootOutput,
+  type ResolvedOpenSpecRoot,
+  type RootOutput,
+} from '../core/root-selection.js';
 import { ChangeCommand } from './change.js';
 import { SpecCommand } from './spec.js';
 import { nearestMatches } from '../utils/match.js';
@@ -10,8 +16,26 @@ type ItemType = 'change' | 'spec';
 const CHANGE_FLAG_KEYS = new Set(['deltasOnly', 'requirementsOnly']);
 const SPEC_FLAG_KEYS = new Set(['requirements', 'scenarios', 'requirement']);
 
+interface ShowExecuteOptions {
+  json?: boolean;
+  type?: string;
+  noInteractive?: boolean;
+  store?: string;
+  storePath?: string;
+  [k: string]: any;
+}
+
 export class ShowCommand {
-  async execute(itemName?: string, options: { json?: boolean; type?: string; noInteractive?: boolean; [k: string]: any } = {}): Promise<void> {
+  async execute(itemName?: string, options: ShowExecuteOptions = {}): Promise<void> {
+    const root = await resolveRootForCommand(options, { json: options.json });
+    if (!root) {
+      return;
+    }
+
+    if (!options.json) {
+      emitStoreRootBanner(root);
+    }
+
     const interactive = isInteractive(options);
     const typeOverride = this.normalizeType(options.type);
 
@@ -25,7 +49,7 @@ export class ShowCommand {
             { name: 'Spec', value: 'spec' as const },
           ],
         });
-        await this.runInteractiveByType(type, options);
+        await this.runInteractiveByType(type, options, root);
         return;
       }
       this.printNonInteractiveHint();
@@ -33,7 +57,7 @@ export class ShowCommand {
       return;
     }
 
-    await this.showDirect(itemName, { typeOverride, options });
+    await this.showDirect(itemName, { typeOverride, options, root });
   }
 
   private normalizeType(value?: string): ItemType | undefined {
@@ -43,46 +67,61 @@ export class ShowCommand {
     return undefined;
   }
 
-  private async runInteractiveByType(type: ItemType, options: { json?: boolean; noInteractive?: boolean; [k: string]: any }): Promise<void> {
+  private delegateOptions(root: ResolvedOpenSpecRoot, options: ShowExecuteOptions): ShowExecuteOptions & { rootOutput?: RootOutput } {
+    return {
+      ...options,
+      ...(options.json ? { rootOutput: toRootOutput(root) } : {}),
+    };
+  }
+
+  private async runInteractiveByType(
+    type: ItemType,
+    options: ShowExecuteOptions,
+    root: ResolvedOpenSpecRoot
+  ): Promise<void> {
     const { select } = await import('@inquirer/prompts');
     if (type === 'change') {
-      const changes = await getActiveChangeIds();
+      const changes = await getActiveChangeIds(root.path);
       if (changes.length === 0) {
         console.error('No changes found.');
         process.exitCode = 1;
         return;
       }
       const picked = await select<string>({ message: 'Pick a change', choices: changes.map(id => ({ name: id, value: id })) });
-      const cmd = new ChangeCommand();
-      await cmd.show(picked, options as any);
+      const cmd = new ChangeCommand(root.path);
+      await cmd.show(picked, this.delegateOptions(root, options) as any);
       return;
     }
 
-    const specs = await getSpecIds();
+    const specs = await getSpecIds(root.path);
     if (specs.length === 0) {
       console.error('No specs found.');
       process.exitCode = 1;
       return;
     }
     const picked = await select<string>({ message: 'Pick a spec', choices: specs.map(id => ({ name: id, value: id })) });
-    const cmd = new SpecCommand();
-    await cmd.show(picked, options as any);
+    const cmd = new SpecCommand(root.path);
+    await cmd.show(picked, this.delegateOptions(root, options) as any);
   }
 
-  private async showDirect(itemName: string, params: { typeOverride?: ItemType; options: { json?: boolean; [k: string]: any } }): Promise<void> {
+  private async showDirect(
+    itemName: string,
+    params: { typeOverride?: ItemType; options: ShowExecuteOptions; root: ResolvedOpenSpecRoot }
+  ): Promise<void> {
+    const root = params.root;
     // Optimize lookups when type is pre-specified
     let isChange = false;
     let isSpec = false;
     let changes: string[] = [];
     let specs: string[] = [];
     if (params.typeOverride === 'change') {
-      changes = await getActiveChangeIds();
+      changes = await getActiveChangeIds(root.path);
       isChange = changes.includes(itemName);
     } else if (params.typeOverride === 'spec') {
-      specs = await getSpecIds();
+      specs = await getSpecIds(root.path);
       isSpec = specs.includes(itemName);
     } else {
-      [changes, specs] = await Promise.all([getActiveChangeIds(), getSpecIds()]);
+      [changes, specs] = await Promise.all([getActiveChangeIds(root.path), getSpecIds(root.path)]);
       isChange = changes.includes(itemName);
       isSpec = specs.includes(itemName);
     }
@@ -106,12 +145,12 @@ export class ShowCommand {
 
     this.warnIrrelevantFlags(resolvedType, params.options);
     if (resolvedType === 'change') {
-      const cmd = new ChangeCommand();
-      await cmd.show(itemName, params.options as any);
+      const cmd = new ChangeCommand(root.path);
+      await cmd.show(itemName, this.delegateOptions(root, params.options) as any);
       return;
     }
-    const cmd = new SpecCommand();
-    await cmd.show(itemName, params.options as any);
+    const cmd = new SpecCommand(root.path);
+    await cmd.show(itemName, this.delegateOptions(root, params.options) as any);
   }
 
   private printNonInteractiveHint(): void {

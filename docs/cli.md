@@ -12,7 +12,7 @@ The OpenSpec CLI (`openspec`) provides terminal commands for project setup, vali
 | **Browsing** | `list`, `view`, `show` | Explore changes and specs |
 | **Validation** | `validate` | Check changes and specs for issues |
 | **Lifecycle** | `archive` | Finalize completed changes |
-| **Workflow** | `new change`, `set change`, `status`, `instructions`, `templates`, `schemas` | Artifact-driven workflow support |
+| **Workflow** | `new change`, `status`, `instructions`, `templates`, `schemas` | Artifact-driven workflow support |
 | **Schemas** | `schema init`, `schema fork`, `schema validate`, `schema which` | Create and manage custom workflows |
 | **Config** | `config` | View and modify settings |
 | **Utility** | `feedback`, `completion` | Feedback and shell integration |
@@ -62,8 +62,7 @@ These commands support `--json` output for programmatic use by AI agents and scr
 | `openspec context-store doctor` | Check local store setup | `--json` for structured diagnostics |
 | `openspec initiative list` | Browse shared initiatives | `--json` for structured initiative records |
 | `openspec initiative show <id>` | Resolve an initiative | `--json` for canonical paths and metadata |
-| `openspec new change <id>` | Create repo-local change scaffolding | `--json`, plus `--initiative` for shared coordination links |
-| `openspec set change <id>` | Update checked-in change metadata | `--json`, plus `--initiative` for shared coordination links |
+| `openspec new change <id>` | Create repo-local change scaffolding | `--json`, plus `--store <id>` to target a registered standalone OpenSpec repo |
 
 ---
 
@@ -738,7 +737,7 @@ These commands support the artifact-driven OPSX workflow. They're useful for bot
 
 ### `openspec new change`
 
-Create a repo-local change directory and optional checked-in metadata.
+Create a change directory and optional checked-in metadata in the resolved OpenSpec root.
 
 ```bash
 openspec new change <name> [options]
@@ -749,39 +748,17 @@ openspec new change <name> [options]
 | Option | Description |
 |--------|-------------|
 | `--description <text>` | Description to add to `README.md` |
-| `--goal <text>` | Workspace product goal to store with the change |
-| `--areas <names>` | Comma-separated affected workspace link names |
-| `--initiative <id>` | Link the repo-local change to an initiative |
-| `--store <id>` | Context store id for `--initiative` |
-| `--store-path <path>` | Existing local context store root for `--initiative` |
+| `--goal <text>` | Optional goal metadata to store with the change |
 | `--schema <name>` | Workflow schema to use |
+| `--store <id>` | Registered context store id to use as the OpenSpec root |
 | `--json` | Output JSON |
 
 Examples:
 
 ```bash
-openspec new change add-billing-api --initiative billing-launch --store platform
-openspec new change add-billing-api --initiative platform/billing-launch --json
+openspec new change add-billing-api
+openspec new change add-billing-api --store team-context --json
 ```
-
-### `openspec set change`
-
-Update checked-in repo-local change metadata without recreating the change.
-
-```bash
-openspec set change <name> [options]
-```
-
-**Options:**
-
-| Option | Description |
-|--------|-------------|
-| `--initiative <id>` | Link the repo-local change to an initiative |
-| `--store <id>` | Context store id for `--initiative` |
-| `--store-path <path>` | Existing local context store root for `--initiative` |
-| `--json` | Output JSON |
-
-`set change --initiative` is idempotent when the requested link already exists and refuses to replace a different existing initiative link.
 
 ### `openspec status`
 

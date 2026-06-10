@@ -6,7 +6,13 @@
 
 import ora from 'ora';
 import chalk from 'chalk';
-import { resolveCurrentPlanningHomeSync, getChangeDir } from '../../core/planning-home.js';
+import { getChangeDir } from '../../core/planning-home.js';
+import {
+  emitStoreRootBanner,
+  resolveRootForCommand,
+  toPlanningHome,
+  toRootOutput,
+} from '../../core/root-selection.js';
 import {
   loadChangeContext,
   formatChangeStatus,
@@ -27,6 +33,8 @@ import {
 export interface StatusOptions {
   change?: string;
   schema?: string;
+  store?: string;
+  storePath?: string;
   json?: boolean;
 }
 
@@ -38,19 +46,32 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
   const spinner = options.json ? undefined : ora('Loading change status...').start();
 
   try {
-    const planningHome = resolveCurrentPlanningHomeSync();
-    const projectRoot = planningHome.root;
+    const root = await resolveRootForCommand(options, { json: options.json });
+    if (!root) {
+      return;
+    }
+
+    const planningHome = toPlanningHome(root);
+    const projectRoot = root.path;
+    const rootOutput = toRootOutput(root);
 
     // Handle no-changes case gracefully — status is informational,
     // so "no changes" is a valid state, not an error.
     if (!options.change) {
-      const available = await getAvailableChanges(projectRoot, planningHome.changesDir);
+      const available = await getAvailableChanges(projectRoot, root.changesDir);
       if (available.length === 0) {
         spinner?.stop();
         if (options.json) {
-          console.log(JSON.stringify({ changes: [], message: 'No active changes.' }, null, 2));
+          console.log(
+            JSON.stringify(
+              { changes: [], message: 'No active changes.', root: rootOutput },
+              null,
+              2
+            )
+          );
           return;
         }
+        emitStoreRootBanner(root);
         console.log('No active changes. Create one with: openspec new change <name>');
         return;
       }
@@ -64,7 +85,7 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
     const changeName = await validateChangeExists(
       options.change,
       projectRoot,
-      planningHome.changesDir
+      root.changesDir
     );
 
     // Validate schema if explicitly provided
@@ -82,10 +103,11 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
     spinner?.stop();
 
     if (options.json) {
-      console.log(JSON.stringify(status, null, 2));
+      console.log(JSON.stringify({ ...status, root: rootOutput }, null, 2));
       return;
     }
 
+    emitStoreRootBanner(root);
     printStatusText(status);
   } catch (error) {
     spinner?.stop();

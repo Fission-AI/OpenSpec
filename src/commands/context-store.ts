@@ -421,7 +421,8 @@ function printMutationHuman(title: string, payload: ContextStoreMutationOutput):
     console.log(`${status.severity === 'error' ? 'Issue' : 'Note'}: ${status.message}`);
   }
   console.log('');
-  console.log('Next: use normal OpenSpec specs and changes in this store.');
+  console.log('Next: run normal OpenSpec commands against this store, for example:');
+  console.log(`  openspec new change <change-id> --store ${payload.context_store.id}`);
 }
 
 function printCleanupHuman(title: string, payload: ContextStoreCleanupOutput): void {
