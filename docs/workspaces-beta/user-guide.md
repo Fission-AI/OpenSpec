@@ -6,12 +6,13 @@ manages the OpenSpec work.
 ## 1. Create The Shared Place
 
 ```bash
-openspec context-store setup
+openspec store setup
 ```
 
-OpenSpec asks for the context store name, where to put it, and whether to
-initialize Git. Press Enter for the managed local data directory unless you
-want the store somewhere specific.
+OpenSpec asks for the store name and where to put it, suggesting a visible
+location like `~/openspec/<name>` that you can edit, then confirms before
+creating anything. Git is initialized by default; pass `--no-init-git` to skip
+it. Scripts and agents must pass the name and `--path` explicitly.
 
 ## 2. Ask Your Agent To Create The Initiative
 
@@ -73,4 +74,4 @@ OpenSpec is not cloning, syncing, branching, or tracking progress dashboards in
 this beta flow. It gives you shared initiative context, a local workspace view,
 and repo-local plans tied back to the bigger mission. The workspace is where
 you and the agent work together; durable plan artifacts should live in the
-context store initiative or in the owning repo, not in the workspace root.
+store's initiative or in the owning repo, not in the workspace root.

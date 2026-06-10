@@ -7,8 +7,8 @@ The OpenSpec CLI (`openspec`) provides terminal commands for project setup, vali
 | Category | Commands | Purpose |
 |----------|----------|---------|
 | **Setup** | `init`, `update` | Initialize and update OpenSpec in your project |
-| **Workspaces (beta)** | `workspace setup`, `workspace list`, `workspace ls`, `workspace link`, `workspace relink`, `workspace doctor`, `workspace update`, `workspace open` | Set up local views over linked repos or folders |
-| **Shared context (beta)** | `context-store setup`, `context-store register`, `context-store unregister`, `context-store remove`, `context-store list`, `context-store doctor`, `initiative create`, `initiative show`, `initiative list` | Manage local context-store registrations and durable initiative context |
+| **Workspaces (legacy beta)** | `workspace setup`, `workspace list`, `workspace ls`, `workspace link`, `workspace relink`, `workspace doctor`, `workspace update`, `workspace open` | Legacy beta local views over linked repos or folders, slated for removal |
+| **Stores (standalone OpenSpec repos)** | `store setup`, `store register`, `store unregister`, `store remove`, `store list`, `store doctor`, `initiative create`, `initiative show`, `initiative list` | Manage stores — standalone OpenSpec repos you've registered — plus legacy beta initiative commands |
 | **Browsing** | `list`, `view`, `show` | Explore changes and specs |
 | **Validation** | `validate` | Check changes and specs for issues |
 | **Lifecycle** | `archive` | Finalize completed changes |
@@ -54,15 +54,15 @@ These commands support `--json` output for programmatic use by AI agents and scr
 | `openspec workspace relink` | Repair a linked path | `--json` for structured link output |
 | `openspec workspace doctor` | Check one workspace | `--json` for structured status output |
 | `openspec workspace update` | Refresh workspace-local guidance and agent skills | `--tools` selects agents; profile selects workflows |
-| `openspec context-store setup <id>` | Create a local context store | `--json` with explicit inputs for structured setup output |
-| `openspec context-store register <path>` | Register an existing context store | `--json` for structured registration output |
-| `openspec context-store unregister <id>` | Forget a local context-store registration | `--json` for structured cleanup output |
-| `openspec context-store remove <id>` | Delete a registered local context-store folder | `--yes --json` for non-interactive deletion |
-| `openspec context-store list` | Browse registered context stores | `--json` for structured registrations |
-| `openspec context-store doctor` | Check local store setup | `--json` for structured diagnostics |
+| `openspec store setup <id>` | Create and register a local store | `--json` with explicit inputs for structured setup output |
+| `openspec store register <path>` | Register an existing store | `--json` for structured registration output |
+| `openspec store unregister <id>` | Forget a local store registration | `--json` for structured cleanup output |
+| `openspec store remove <id>` | Delete a registered local store folder | `--yes --json` for non-interactive deletion |
+| `openspec store list` | Browse registered stores | `--json` for structured registrations |
+| `openspec store doctor` | Check local store setup | `--json` for structured diagnostics |
 | `openspec initiative list` | Browse shared initiatives | `--json` for structured initiative records |
 | `openspec initiative show <id>` | Resolve an initiative | `--json` for canonical paths and metadata |
-| `openspec new change <id>` | Create repo-local change scaffolding | `--json`, plus `--store <id>` to target a registered standalone OpenSpec repo |
+| `openspec new change <id>` | Create repo-local change scaffolding | `--json`, plus `--store <id>` to use a registered store as the OpenSpec root |
 
 ---
 
@@ -178,7 +178,7 @@ openspec update
 
 ## Workspace Commands
 
-Workspace commands are in beta. The local-view model below is the current direction, but external automation, integrations, and long-lived workflows should still treat command behavior, state files, and JSON output as evolving.
+Workspace commands are a legacy beta surface, slated for removal; do not build new workflows on them. External automation, integrations, and long-lived workflows should treat command behavior, state files, and JSON output as evolving.
 
 Coordination workspaces are machine-local views over linked repos or folders. Workspace visibility is not change commitment: link the repos or folders OpenSpec should know about, then create changes when you are ready to plan specific work.
 
@@ -321,8 +321,6 @@ openspec workspace open [name] [options]
 |--------|-------------|
 | `--workspace <name>` | Alias for the positional workspace name |
 | `--initiative <id>` | Open an initiative as a local workspace view. Accepts `<id>` or `<store>/<id>` |
-| `--store <id>` | Registered context store id for `--initiative` |
-| `--store-path <path>` | Existing local context store root for `--initiative` |
 | `--agent <tool>` | One-session agent override: `codex-cli`, `claude`, or `github-copilot` |
 | `--editor` | Open the maintained VS Code workspace file as a normal editor workspace |
 | `--no-interactive` | Disable workspace and opener picker prompts |
@@ -335,13 +333,12 @@ openspec workspace open platform
 openspec workspace open platform --agent github-copilot
 openspec workspace open --agent codex-cli
 openspec workspace open --editor
-openspec workspace open --initiative billing-launch --store platform
 openspec workspace open --initiative platform/billing-launch
 ```
 
 `workspace open` uses the current workspace when run inside one, auto-selects the only known workspace when run elsewhere, and asks the user to choose when multiple workspaces are known. `--agent` and `--editor` do not change the stored preferred opener. Passing both opener overrides is an error; choose either `--agent <tool>` or `--editor`.
 
-When `--initiative` is used, OpenSpec prepares or selects a private local workspace view for that initiative. Registry-selected stores are stored by id; `--store-path` stores a runtime-local path selector because workspace views are private local state.
+When `--initiative` is used, OpenSpec prepares or selects a private local workspace view for that initiative. Use the `<store>/<id>` form when the initiative id alone is ambiguous across registered stores.
 
 OpenSpec maintains `<workspace-name>.code-workspace` at the workspace root for VS Code editor and GitHub Copilot-in-VS-Code opens. That file is machine-local workspace view state.
 
@@ -351,101 +348,104 @@ Root workspace open makes linked repos or folders visible for exploration and co
 
 ---
 
-## Shared Context Commands
+## Stores (standalone OpenSpec repos)
 
-Context stores and initiatives are beta coordination surfaces. A context store is a local registration for durable shared context, usually a Git-backed folder or clone. An initiative is shared coordination context inside a context store; repo-local changes can link to it without copying the shared plan into every repo.
+A store is a standalone OpenSpec repo you've registered on this machine — for example a planning repo or a contracts repo. Registering a store lets normal commands (`list`, `show`, `status`, `validate`, `new change`, `archive`, ...) act in it from anywhere by passing `--store <id>`.
 
-### `openspec context-store setup`
+### `openspec store setup`
 
-Create and register a local context store. With no arguments in a terminal,
+Create and register a local store. With no arguments in a terminal,
 OpenSpec guides the user through setup. Agents and scripts should pass explicit
 inputs and use `--json`.
 
 ```bash
-openspec context-store setup [id] [options]
+openspec store setup [id] [options]
 ```
 
 **Options:**
 
 | Option | Description |
 |--------|-------------|
-| `--path <path>` | Context store folder path; defaults to OpenSpec's managed local data directory |
-| `--init-git` | Initialize a Git repository in the context store |
-| `--no-init-git` | Do not initialize a Git repository |
+| `--path <path>` | Folder where the store should live (for example `~/openspec/<id>`) |
+| `--init-git` | Initialize a Git repository with an initial commit (default) |
+| `--no-init-git` | Skip every Git action: no init, no initial commit |
 | `--json` | Output JSON |
 
-When `--path` is omitted, setup creates the store under `getGlobalDataDir()/context-stores/<id>`: `$XDG_DATA_HOME/openspec/context-stores/<id>` when `XDG_DATA_HOME` is set, or `~/.local/share/openspec/context-stores/<id>` on Unix-style fallbacks. Pass `--path` when you want the store in a visible clone or team-specific folder.
+Non-interactive runs (`--json`, scripts, agents) must pass both the store id and `--path`. In an interactive terminal, setup prompts for the location with an editable suggestion in a visible, user-owned place (for example `~/openspec/<id>`); it never defaults to OpenSpec's managed data directory.
 
 Examples:
 
 ```bash
-openspec context-store setup
-openspec context-store setup team-context
-openspec context-store setup team-context --path /repos/team-context --no-init-git
-openspec context-store setup team-context --json --no-init-git
+openspec store setup
+openspec store setup team-context
+openspec store setup team-context --path ~/openspec/team-context --no-init-git
+openspec store setup team-context --path ~/openspec/team-context --no-init-git --json
 ```
 
-### `openspec context-store register`
+### `openspec store register`
 
-Register an existing local context store folder.
+Register an existing local store folder.
 
 ```bash
-openspec context-store register [path] [options]
+openspec store register [path] [options]
 ```
 
 **Options:**
 
 | Option | Description |
 |--------|-------------|
-| `--id <id>` | Context store id; defaults to store metadata or folder name |
+| `--id <id>` | Store id; defaults to store metadata or folder name |
+| `--yes` | Confirm creating store identity metadata for a healthy OpenSpec root |
 | `--json` | Output JSON |
 
-### `openspec context-store unregister`
+### `openspec store unregister`
 
-Forget a local context-store registration without deleting files.
+Forget a local store registration without deleting files.
 
 ```bash
-openspec context-store unregister <id> [--json]
+openspec store unregister <id> [--json]
 ```
 
 Use this when a store was moved, cloned somewhere else, or should no longer be
 shown by OpenSpec on this machine.
 
-### `openspec context-store remove`
+### `openspec store remove`
 
-Forget a local context-store registration and delete its local folder.
+Forget a local store registration and delete its local folder.
 
 ```bash
-openspec context-store remove <id> [--yes] [--json]
+openspec store remove <id> [--yes] [--json]
 ```
 
 `remove` shows the exact folder before deleting in an interactive terminal.
 Agents, scripts, and JSON callers must pass `--yes` to confirm deletion.
 OpenSpec refuses to delete a folder that does not contain matching
-context-store metadata.
+store metadata.
 
-### `openspec context-store list`
+### `openspec store list`
 
-List locally registered context stores.
+List locally registered stores.
 
 ```bash
-openspec context-store list [--json]
-openspec context-store ls [--json]
+openspec store list [--json]
+openspec store ls [--json]
 ```
 
-### `openspec context-store doctor`
+### `openspec store doctor`
 
-Check local context-store registration, metadata, and Git presence.
+Check local store registration, metadata, and Git presence.
 
 ```bash
-openspec context-store doctor [id] [--json]
+openspec store doctor [id] [--json]
 ```
 
 Doctor is diagnostic-only; it reports missing roots, metadata mismatches, and invalid local registry state without modifying the store.
 
 ### `openspec initiative create`
 
-Create an initiative in a context store.
+Initiative commands are a legacy beta surface, slated for removal; do not build new workflows on them.
+
+Create an initiative in a store.
 
 ```bash
 openspec initiative create <id> --title <title> --summary <summary> [options]
@@ -455,15 +455,15 @@ openspec initiative create <id> --title <title> --summary <summary> [options]
 
 | Option | Description |
 |--------|-------------|
-| `--store <id>` | Context store id from the local registry |
-| `--store-path <path>` | Existing local context store root |
+| `--store <id>` | Store id from the local store registry |
+| `--store-path <path>` | Existing local store root |
 | `--title <title>` | Initiative title |
 | `--summary <summary>` | Initiative summary |
 | `--json` | Output JSON |
 
 ### `openspec initiative list`
 
-List initiatives. Without a selector, this searches all registered context stores and reports partial-read warnings in `status`.
+List initiatives. Without a selector, this searches all registered stores and reports partial-read warnings in `status`.
 
 ```bash
 openspec initiative list [options]
@@ -474,8 +474,8 @@ openspec initiative ls [options]
 
 | Option | Description |
 |--------|-------------|
-| `--store <id>` | List one registered context store |
-| `--store-path <path>` | List one existing local context store root |
+| `--store <id>` | List one registered store |
+| `--store-path <path>` | List one existing local store root |
 | `--json` | Output JSON |
 
 ### `openspec initiative show`
@@ -487,7 +487,7 @@ openspec initiative show <id> [options]
 openspec initiative show <store>/<id> [options]
 ```
 
-Without `--store`, OpenSpec searches registered context stores. If the same initiative id exists in multiple stores, pass `--store <id>` or use the `<store>/<id>` form.
+Without `--store`, OpenSpec searches registered stores. If the same initiative id exists in multiple stores, pass `--store <id>` or use the `<store>/<id>` form.
 
 ---
 
@@ -750,7 +750,7 @@ openspec new change <name> [options]
 | `--description <text>` | Description to add to `README.md` |
 | `--goal <text>` | Optional goal metadata to store with the change |
 | `--schema <name>` | Workflow schema to use |
-| `--store <id>` | Registered context store id to use as the OpenSpec root |
+| `--store <id>` | Store id to use as the OpenSpec root (a store is a standalone OpenSpec repo you've registered) |
 | `--json` | Output JSON |
 
 Examples:

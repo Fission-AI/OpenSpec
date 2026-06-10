@@ -249,7 +249,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
   },
   {
     name: 'workspace',
-    description: 'Set up and inspect coordination workspaces',
+    description: 'Legacy beta: coordination workspaces (slated for removal)',
     flags: [],
     subcommands: [
       {
@@ -500,7 +500,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
   },
   {
     name: 'initiative',
-    description: 'Create and list coordinated initiatives',
+    description: 'Legacy beta: initiative collections (slated for removal)',
     flags: [],
     subcommands: [
       {

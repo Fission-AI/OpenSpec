@@ -473,7 +473,7 @@ export function registerInitiativeCommand(program: Command): void {
   const initiativeCommand = new InitiativeCommand();
   const initiative = program
     .command('initiative')
-    .description('Create and list coordinated initiatives');
+    .description('Legacy beta: initiative collections (slated for removal)');
 
   addStoreSelectorOptions(
     initiative

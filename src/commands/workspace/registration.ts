@@ -50,7 +50,7 @@ export function registerWorkspaceCommandWith(
 ): void {
   const workspace = program
     .command('workspace')
-    .description('Set up and inspect coordination workspaces');
+    .description('Legacy beta: coordination workspaces (slated for removal)');
 
   workspace
     .command('setup')

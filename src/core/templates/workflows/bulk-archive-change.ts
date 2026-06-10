@@ -5,6 +5,7 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
+import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
 export function getBulkArchiveChangeSkillTemplate(): SkillTemplate {
   return {
@@ -13,6 +14,8 @@ export function getBulkArchiveChangeSkillTemplate(): SkillTemplate {
     instructions: `Archive multiple completed changes in a single operation.
 
 This skill allows you to batch-archive changes, handling spec conflicts intelligently by checking the codebase to determine what's actually implemented.
+
+${STORE_SELECTION_GUIDANCE}
 
 **Input**: None required (prompts for selection)
 
@@ -262,6 +265,8 @@ export function getOpsxBulkArchiveCommandTemplate(): CommandTemplate {
     content: `Archive multiple completed changes in a single operation.
 
 This skill allows you to batch-archive changes, handling spec conflicts intelligently by checking the codebase to determine what's actually implemented.
+
+${STORE_SELECTION_GUIDANCE}
 
 **Input**: None required (prompts for selection)
 

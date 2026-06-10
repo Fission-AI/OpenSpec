@@ -60,11 +60,11 @@ Repo-local OpenSpec projects are the right default when one repo owns the planni
 The workspace mental model is:
 
 ```text
-workspace     = private local view over context stores, initiatives, repos, and folders
-context store = durable shared context container
-initiative    = durable coordination context inside a context store
-link          = a stable name for a repo or folder the workspace can resolve locally
-change        = one planned piece of work; implementation belongs in the owning repo
+workspace  = private local view over stores, initiatives, repos, and folders
+store      = a standalone OpenSpec repo you've registered
+initiative = durable coordination context inside a store
+link       = a stable name for a repo or folder the workspace can resolve locally
+change     = one planned piece of work; implementation belongs in the owning repo
 ```
 
 A workspace has a different shape from a repo-local project:
@@ -102,7 +102,7 @@ links:
   web: /repos/web
 ```
 
-When a workspace opens an initiative, `context` records the selected context-store binding and initiative id. Registry-selected stores stay portable by id; path-selected stores intentionally preserve the runtime-local path because `.openspec-workspace/view.yaml` is private local state.
+When a workspace opens an initiative, `context` records the selected store binding and initiative id. Registry-selected stores stay portable by id; path-selected stores intentionally preserve the runtime-local path because `.openspec-workspace/view.yaml` is private local state.
 
 ```yaml
 context:
@@ -173,8 +173,7 @@ openspec workspace open platform --agent github-copilot
 openspec workspace open --editor
 
 # Open an initiative as a local workspace view
-openspec workspace open --initiative billing-launch --store platform
-openspec workspace open --initiative billing-launch --store-path /repos/platform-context
+openspec workspace open --initiative platform/billing-launch
 ```
 
 `workspace setup` always creates the workspace in the standard workspace location, records it in the local registry, shows the workspace location, and requires at least one linked repo or folder. Interactive setup asks for a preferred opener and can install OpenSpec skills for selected agents. Non-interactive setup stores one only when `--opener codex-cli`, `--opener claude`, `--opener github-copilot`, or `--opener editor` is provided.
