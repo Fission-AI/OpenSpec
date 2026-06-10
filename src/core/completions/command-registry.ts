@@ -382,12 +382,12 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
           },
           {
             name: 'store',
-            description: 'Context store id for --initiative',
+            description: 'Store id for --initiative',
             takesValue: true,
           },
           {
             name: 'store-path',
-            description: 'Existing local context store root for --initiative',
+            description: 'Existing local store root for --initiative',
             takesValue: true,
           },
           {
@@ -416,24 +416,25 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     ],
   },
   {
-    name: 'context-store',
-    description: 'Set up and inspect context stores',
+    name: 'store',
+    description:
+      'Create and manage stores - standalone OpenSpec repos you register on this machine',
     flags: [],
     subcommands: [
       {
         name: 'setup',
-        description: 'Create or register a local context store',
+        description: 'Create or register a local store',
         acceptsPositional: true,
         positionals: [{ name: 'id', optional: true }],
         flags: [
           {
             name: 'path',
-            description: 'Directory to use for the context store',
+            description: 'Directory to use for the store',
             takesValue: true,
           },
           {
             name: 'init-git',
-            description: 'Initialize a Git repository in the context store',
+            description: 'Initialize a Git repository in the store',
           },
           {
             name: 'no-init-git',
@@ -444,25 +445,25 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
       },
       {
         name: 'register',
-        description: 'Register an existing context store directory',
+        description: 'Register an existing store directory',
         acceptsPositional: true,
         positionals: [{ name: 'path', type: 'path', optional: true }],
         flags: [
           {
             name: 'id',
-            description: 'Context store id',
+            description: 'Store id',
             takesValue: true,
           },
           {
             name: 'yes',
-            description: 'Confirm creating context-store identity metadata',
+            description: 'Confirm creating store identity metadata',
           },
           COMMON_FLAGS.json,
         ],
       },
       {
         name: 'unregister',
-        description: 'Forget a local context-store registration without deleting files',
+        description: 'Forget a local store registration without deleting files',
         acceptsPositional: true,
         positionals: [{ name: 'id' }],
         flags: [
@@ -471,34 +472,34 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
       },
       {
         name: 'remove',
-        description: 'Forget a local context-store registration and delete its local folder',
+        description: 'Forget a local store registration and delete its local folder',
         acceptsPositional: true,
         positionals: [{ name: 'id' }],
         flags: [
           {
             name: 'yes',
-            description: 'Confirm local context-store folder deletion',
+            description: 'Confirm local store folder deletion',
           },
           COMMON_FLAGS.json,
         ],
       },
       {
         name: 'list',
-        description: 'List registered context stores',
+        description: 'List registered stores',
         flags: [
           COMMON_FLAGS.json,
         ],
       },
       {
         name: 'ls',
-        description: 'List registered context stores',
+        description: 'List registered stores',
         flags: [
           COMMON_FLAGS.json,
         ],
       },
       {
         name: 'doctor',
-        description: 'Check local context-store registration and metadata',
+        description: 'Check local store registration and metadata',
         acceptsPositional: true,
         positionals: [{ name: 'id', optional: true }],
         flags: [
@@ -514,18 +515,18 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     subcommands: [
       {
         name: 'create',
-        description: 'Create an initiative in a context store',
+        description: 'Create an initiative in a store',
         acceptsPositional: true,
         positionals: [{ name: 'id', optional: true }],
         flags: [
           {
             name: 'store',
-            description: 'Context store id from the local context-store registry',
+            description: 'Store id from the local store registry',
             takesValue: true,
           },
           {
             name: 'store-path',
-            description: 'Existing local context store root',
+            description: 'Existing local store root',
             takesValue: true,
           },
           {
@@ -549,12 +550,12 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         flags: [
           {
             name: 'store',
-            description: 'Context store id from the local context-store registry',
+            description: 'Store id from the local store registry',
             takesValue: true,
           },
           {
             name: 'store-path',
-            description: 'Existing local context store root',
+            description: 'Existing local store root',
             takesValue: true,
           },
           COMMON_FLAGS.json,
@@ -562,16 +563,16 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
       },
       {
         name: 'list',
-        description: 'List initiatives across registered context stores',
+        description: 'List initiatives across registered stores',
         flags: [
           {
             name: 'store',
-            description: 'Context store id from the local context-store registry',
+            description: 'Store id from the local store registry',
             takesValue: true,
           },
           {
             name: 'store-path',
-            description: 'Existing local context store root',
+            description: 'Existing local store root',
             takesValue: true,
           },
           COMMON_FLAGS.json,
@@ -579,16 +580,16 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
       },
       {
         name: 'ls',
-        description: 'List initiatives across registered context stores',
+        description: 'List initiatives across registered stores',
         flags: [
           {
             name: 'store',
-            description: 'Context store id from the local context-store registry',
+            description: 'Store id from the local store registry',
             takesValue: true,
           },
           {
             name: 'store-path',
-            description: 'Existing local context store root',
+            description: 'Existing local store root',
             takesValue: true,
           },
           COMMON_FLAGS.json,

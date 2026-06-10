@@ -5,77 +5,73 @@ import { z } from 'zod';
 
 import { getGlobalDataDir } from '../global-config.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
-import { ContextStoreError } from './errors.js';
+import { StoreError } from './errors.js';
 
 const fs = nodeFs.promises;
 
-export const CONTEXT_STORE_METADATA_DIR_NAME = '.openspec-store';
-export const CONTEXT_STORE_METADATA_FILE_NAME = 'store.yaml';
-export const CONTEXT_STORES_DIR_NAME = 'context-stores';
-export const CONTEXT_STORE_REGISTRY_FILE_NAME = 'registry.yaml';
+export const STORE_METADATA_DIR_NAME = '.openspec-store';
+export const STORE_METADATA_FILE_NAME = 'store.yaml';
+export const STORES_DIR_NAME = 'stores';
+export const STORE_REGISTRY_FILE_NAME = 'registry.yaml';
 
-export interface ContextStorePathOptions {
+export interface StorePathOptions {
   globalDataDir?: string;
 }
 
-export interface ContextStoreGitBackendConfig {
+export interface StoreGitBackendConfig {
   type: 'git';
   local_path: string;
   remote?: string;
   branch?: string;
 }
 
-export type ContextStoreBackendConfig = ContextStoreGitBackendConfig;
+export type StoreBackendConfig = StoreGitBackendConfig;
 
-export interface ContextStoreRegistryEntryState {
-  backend: ContextStoreBackendConfig;
+export interface StoreRegistryEntryState {
+  backend: StoreBackendConfig;
 }
 
-export interface ContextStoreRegistryState {
+export interface StoreRegistryState {
   version: 1;
-  stores: Record<string, ContextStoreRegistryEntryState>;
+  stores: Record<string, StoreRegistryEntryState>;
 }
 
-export interface ContextStoreRegistryEntry {
+export interface StoreRegistryEntry {
   id: string;
-  backend: ContextStoreBackendConfig;
+  backend: StoreBackendConfig;
 }
 
-export interface ContextStoreMetadataState {
+export interface StoreMetadataState {
   version: 1;
   id: string;
 }
 
-export interface ResolveGitContextStoreBackendInput {
+export interface ResolveGitStoreBackendInput {
   localPath: string;
   remote?: string;
   branch?: string;
 }
 
-function joinContextStorePath(basePath: string, ...segments: string[]): string {
+function joinStorePath(basePath: string, ...segments: string[]): string {
   return FileSystemUtils.joinPath(basePath, ...segments);
 }
 
-export function getContextStoresDir(options: ContextStorePathOptions = {}): string {
-  return joinContextStorePath(options.globalDataDir ?? getGlobalDataDir(), CONTEXT_STORES_DIR_NAME);
+export function getStoresDir(options: StorePathOptions = {}): string {
+  return joinStorePath(options.globalDataDir ?? getGlobalDataDir(), STORES_DIR_NAME);
 }
 
-export function getContextStoreRegistryPath(options: ContextStorePathOptions = {}): string {
-  return joinContextStorePath(getContextStoresDir(options), CONTEXT_STORE_REGISTRY_FILE_NAME);
+export function getStoreRegistryPath(options: StorePathOptions = {}): string {
+  return joinStorePath(getStoresDir(options), STORE_REGISTRY_FILE_NAME);
 }
 
-export function getDefaultContextStoreRoot(id: string, options: ContextStorePathOptions = {}): string {
-  return joinContextStorePath(getContextStoresDir(options), id);
+export function getStoreMetadataDir(storeRoot: string): string {
+  return joinStorePath(storeRoot, STORE_METADATA_DIR_NAME);
 }
 
-export function getContextStoreMetadataDir(storeRoot: string): string {
-  return joinContextStorePath(storeRoot, CONTEXT_STORE_METADATA_DIR_NAME);
-}
-
-export function getContextStoreMetadataPath(storeRoot: string): string {
-  return joinContextStorePath(
-    getContextStoreMetadataDir(storeRoot),
-    CONTEXT_STORE_METADATA_FILE_NAME
+export function getStoreMetadataPath(storeRoot: string): string {
+  return joinStorePath(
+    getStoreMetadataDir(storeRoot),
+    STORE_METADATA_FILE_NAME
   );
 }
 
@@ -95,26 +91,26 @@ function validateFolderStyleName(name: string, label: string): string {
   return name;
 }
 
-export function validateContextStoreId(id: string): string {
+export function validateStoreId(id: string): string {
   try {
-    validateFolderStyleName(id, 'Context store id');
+    validateFolderStyleName(id, 'Store id');
   } catch (error) {
-    throw new ContextStoreError(
+    throw new StoreError(
       error instanceof Error ? error.message : String(error),
-      'invalid_context_store_id',
+      'invalid_store_id',
       {
-        target: 'context_store.id',
+        target: 'store.id',
         fix: 'Use kebab-case with lowercase letters, numbers, and single hyphen separators.',
       }
     );
   }
 
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(id)) {
-    throw new ContextStoreError(
-      'Context store id must be kebab-case with lowercase letters, numbers, and single hyphen separators',
-      'invalid_context_store_id',
+    throw new StoreError(
+      'Store id must be kebab-case with lowercase letters, numbers, and single hyphen separators',
+      'invalid_store_id',
       {
-        target: 'context_store.id',
+        target: 'store.id',
         fix: 'Use kebab-case with lowercase letters, numbers, and single hyphen separators.',
       }
     );
@@ -123,9 +119,9 @@ export function validateContextStoreId(id: string): string {
   return id;
 }
 
-export function isValidContextStoreId(id: string): boolean {
+export function isValidStoreId(id: string): boolean {
   try {
-    validateContextStoreId(id);
+    validateStoreId(id);
     return true;
   } catch {
     return false;
@@ -199,29 +195,29 @@ function formatZodIssues(error: z.ZodError): string {
     .join('; ');
 }
 
-function contextStoreStateDiagnostic(label: string): {
+function storeStateDiagnostic(label: string): {
   code: string;
   target: string;
   fix: string;
 } {
   if (label.includes('metadata')) {
     return {
-      code: 'invalid_context_store_metadata',
-      target: 'context_store.metadata',
+      code: 'invalid_store_metadata',
+      target: 'store.metadata',
       fix: 'Repair .openspec-store/store.yaml.',
     };
   }
 
   return {
-    code: 'invalid_context_store_registry',
-    target: 'context_store.registry',
-    fix: 'Repair or remove the context-store registry file.',
+    code: 'invalid_store_registry',
+    target: 'store.registry',
+    fix: 'Repair or remove the store registry file.',
   };
 }
 
-function invalidContextStoreStateError(label: string, message: string): ContextStoreError {
-  const diagnostic = contextStoreStateDiagnostic(label);
-  return new ContextStoreError(`Invalid ${label}: ${message}`, diagnostic.code, {
+function invalidStoreStateError(label: string, message: string): StoreError {
+  const diagnostic = storeStateDiagnostic(label);
+  return new StoreError(`Invalid ${label}: ${message}`, diagnostic.code, {
     target: diagnostic.target,
     fix: diagnostic.fix,
   });
@@ -232,33 +228,33 @@ function parseYamlObject(content: string, label: string): unknown {
     return parseYaml(content);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    throw invalidContextStoreStateError(label, message);
+    throw invalidStoreStateError(label, message);
   }
 }
 
-function assertValidContextStoreIds(ids: string[], label: string): void {
+function assertValidStoreIds(ids: string[], label: string): void {
   for (const id of ids) {
     try {
-      validateContextStoreId(id);
+      validateStoreId(id);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw invalidContextStoreStateError(label, `'${id}': ${message}`);
+      throw invalidStoreStateError(label, `'${id}': ${message}`);
     }
   }
 }
 
-export function parseContextStoreRegistryState(content: string): ContextStoreRegistryState {
-  const raw = parseYamlObject(content, 'context store registry state');
+export function parseStoreRegistryState(content: string): StoreRegistryState {
+  const raw = parseYamlObject(content, 'store registry state');
   const result = RegistryStateSchema.safeParse(raw);
 
   if (!result.success) {
-    throw invalidContextStoreStateError(
-      'context store registry state',
+    throw invalidStoreStateError(
+      'store registry state',
       formatZodIssues(result.error)
     );
   }
 
-  assertValidContextStoreIds(Object.keys(result.data.stores), 'context store id');
+  assertValidStoreIds(Object.keys(result.data.stores), 'store id');
 
   return {
     version: 1,
@@ -266,18 +262,18 @@ export function parseContextStoreRegistryState(content: string): ContextStoreReg
   };
 }
 
-export function parseContextStoreMetadataState(content: string): ContextStoreMetadataState {
-  const raw = parseYamlObject(content, 'context store metadata state');
+export function parseStoreMetadataState(content: string): StoreMetadataState {
+  const raw = parseYamlObject(content, 'store metadata state');
   const result = MetadataStateSchema.safeParse(raw);
 
   if (!result.success) {
-    throw invalidContextStoreStateError(
-      'context store metadata state',
+    throw invalidStoreStateError(
+      'store metadata state',
       formatZodIssues(result.error)
     );
   }
 
-  validateContextStoreId(result.data.id);
+  validateStoreId(result.data.id);
 
   return {
     version: 1,
@@ -285,17 +281,17 @@ export function parseContextStoreMetadataState(content: string): ContextStoreMet
   };
 }
 
-export function serializeContextStoreRegistryState(state: ContextStoreRegistryState): string {
+export function serializeStoreRegistryState(state: StoreRegistryState): string {
   const result = RegistryStateSchema.safeParse(state);
 
   if (!result.success) {
-    throw invalidContextStoreStateError(
-      'context store registry state',
+    throw invalidStoreStateError(
+      'store registry state',
       formatZodIssues(result.error)
     );
   }
 
-  assertValidContextStoreIds(Object.keys(result.data.stores), 'context store id');
+  assertValidStoreIds(Object.keys(result.data.stores), 'store id');
 
   return stringifyYaml({
     version: 1,
@@ -303,17 +299,17 @@ export function serializeContextStoreRegistryState(state: ContextStoreRegistrySt
   });
 }
 
-export function serializeContextStoreMetadataState(state: ContextStoreMetadataState): string {
+export function serializeStoreMetadataState(state: StoreMetadataState): string {
   const result = MetadataStateSchema.safeParse(state);
 
   if (!result.success) {
-    throw invalidContextStoreStateError(
-      'context store metadata state',
+    throw invalidStoreStateError(
+      'store metadata state',
       formatZodIssues(result.error)
     );
   }
 
-  validateContextStoreId(result.data.id);
+  validateStoreId(result.data.id);
 
   return stringifyYaml({
     version: 1,
@@ -321,37 +317,37 @@ export function serializeContextStoreMetadataState(state: ContextStoreMetadataSt
   });
 }
 
-export function listContextStoreRegistryEntries(
-  registry: ContextStoreRegistryState
-): ContextStoreRegistryEntry[] {
+export function listStoreRegistryEntries(
+  registry: StoreRegistryState
+): StoreRegistryEntry[] {
   return Object.entries(registry.stores)
     .map(([id, store]) => ({ id, backend: store.backend }))
     .sort((a, b) => a.id.localeCompare(b.id));
 }
 
-export async function isContextStoreRoot(candidateRoot: string): Promise<boolean> {
-  return pathIsFile(getContextStoreMetadataPath(candidateRoot));
+export async function isStoreRoot(candidateRoot: string): Promise<boolean> {
+  return pathIsFile(getStoreMetadataPath(candidateRoot));
 }
 
-export async function readContextStoreRegistryState(
-  options: ContextStorePathOptions = {}
-): Promise<ContextStoreRegistryState | null> {
-  const registryPath = getContextStoreRegistryPath(options);
+export async function readStoreRegistryState(
+  options: StorePathOptions = {}
+): Promise<StoreRegistryState | null> {
+  const registryPath = getStoreRegistryPath(options);
 
   if (!(await pathIsFile(registryPath))) {
     return null;
   }
 
-  return parseContextStoreRegistryState(await fs.readFile(registryPath, 'utf-8'));
+  return parseStoreRegistryState(await fs.readFile(registryPath, 'utf-8'));
 }
 
-export async function writeContextStoreRegistryState(
-  state: ContextStoreRegistryState,
-  options: ContextStorePathOptions = {}
+export async function writeStoreRegistryState(
+  state: StoreRegistryState,
+  options: StorePathOptions = {}
 ): Promise<void> {
   await writeFileAtomically(
-    getContextStoreRegistryPath(options),
-    serializeContextStoreRegistryState(state)
+    getStoreRegistryPath(options),
+    serializeStoreRegistryState(state)
   );
 }
 
@@ -376,10 +372,10 @@ async function sleep(milliseconds: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-async function acquireContextStoreRegistryLock(
-  options: ContextStorePathOptions
+async function acquireStoreRegistryLock(
+  options: StorePathOptions
 ): Promise<nodeFs.promises.FileHandle> {
-  const registryPath = getContextStoreRegistryPath(options);
+  const registryPath = getStoreRegistryPath(options);
   const lockPath = `${registryPath}.lock`;
   await FileSystemUtils.createDirectory(path.dirname(registryPath));
   const deadline = Date.now() + 5000;
@@ -389,8 +385,8 @@ async function acquireContextStoreRegistryLock(
       return await fs.open(lockPath, 'wx');
     } catch (error) {
       if (!isNodeErrorCode(error, 'EEXIST') || Date.now() >= deadline) {
-        throw new ContextStoreError('Context store registry is busy.', 'context_store_registry_busy', {
-          target: 'context_store.registry',
+        throw new StoreError('Store registry is busy.', 'store_registry_busy', {
+          target: 'store.registry',
           fix: 'Retry the command after the current registry update finishes.',
         });
       }
@@ -400,19 +396,19 @@ async function acquireContextStoreRegistryLock(
   }
 }
 
-export async function updateContextStoreRegistryState(
+export async function updateStoreRegistryState(
   updater: (
-    state: ContextStoreRegistryState | null
-  ) => ContextStoreRegistryState | Promise<ContextStoreRegistryState>,
-  options: ContextStorePathOptions = {}
-): Promise<ContextStoreRegistryState> {
-  const registryPath = getContextStoreRegistryPath(options);
+    state: StoreRegistryState | null
+  ) => StoreRegistryState | Promise<StoreRegistryState>,
+  options: StorePathOptions = {}
+): Promise<StoreRegistryState> {
+  const registryPath = getStoreRegistryPath(options);
   const lockPath = `${registryPath}.lock`;
-  const lock = await acquireContextStoreRegistryLock(options);
+  const lock = await acquireStoreRegistryLock(options);
 
   try {
-    const next = await updater(await readContextStoreRegistryState(options));
-    await writeContextStoreRegistryState(next, options);
+    const next = await updater(await readStoreRegistryState(options));
+    await writeStoreRegistryState(next, options);
     return next;
   } finally {
     await lock.close().catch(() => undefined);
@@ -420,19 +416,19 @@ export async function updateContextStoreRegistryState(
   }
 }
 
-export async function readContextStoreMetadataState(
+export async function readStoreMetadataState(
   storeRoot: string
-): Promise<ContextStoreMetadataState> {
-  return parseContextStoreMetadataState(
-    await fs.readFile(getContextStoreMetadataPath(storeRoot), 'utf-8')
+): Promise<StoreMetadataState> {
+  return parseStoreMetadataState(
+    await fs.readFile(getStoreMetadataPath(storeRoot), 'utf-8')
   );
 }
 
-export async function readOptionalContextStoreMetadataState(
+export async function readOptionalStoreMetadataState(
   storeRoot: string
-): Promise<ContextStoreMetadataState | null> {
+): Promise<StoreMetadataState | null> {
   try {
-    return await readContextStoreMetadataState(storeRoot);
+    return await readStoreMetadataState(storeRoot);
   } catch (error) {
     if (isFileNotFoundError(error)) {
       return null;
@@ -442,22 +438,22 @@ export async function readOptionalContextStoreMetadataState(
   }
 }
 
-export async function writeContextStoreMetadataState(
+export async function writeStoreMetadataState(
   storeRoot: string,
-  state: ContextStoreMetadataState
+  state: StoreMetadataState
 ): Promise<void> {
   await FileSystemUtils.writeFile(
-    getContextStoreMetadataPath(storeRoot),
-    serializeContextStoreMetadataState(state)
+    getStoreMetadataPath(storeRoot),
+    serializeStoreMetadataState(state)
   );
 }
 
-export async function resolveGitContextStoreBackendConfig(
-  input: ResolveGitContextStoreBackendInput,
+export async function resolveGitStoreBackendConfig(
+  input: ResolveGitStoreBackendInput,
   cwd = process.cwd()
-): Promise<ContextStoreGitBackendConfig> {
+): Promise<StoreGitBackendConfig> {
   if (input.localPath.length === 0) {
-    throw new Error('Context store local path must not be empty.');
+    throw new Error('Store local path must not be empty.');
   }
 
   const resolvedPath = path.isAbsolute(input.localPath)
@@ -465,15 +461,15 @@ export async function resolveGitContextStoreBackendConfig(
     : path.resolve(cwd, input.localPath);
 
   if (!(await pathIsDirectory(resolvedPath))) {
-    throw new Error(`Context store local path does not exist: ${input.localPath}`);
+    throw new Error(`Store local path does not exist: ${input.localPath}`);
   }
 
   if (input.remote !== undefined && input.remote.length === 0) {
-    throw new Error('Context store remote must not be empty when provided.');
+    throw new Error('Store remote must not be empty when provided.');
   }
 
   if (input.branch !== undefined && input.branch.length === 0) {
-    throw new Error('Context store branch must not be empty when provided.');
+    throw new Error('Store branch must not be empty when provided.');
   }
 
   return {

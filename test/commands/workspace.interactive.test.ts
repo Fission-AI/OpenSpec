@@ -7,7 +7,7 @@ import * as path from 'node:path';
 import {
   createInitiative,
   mountInitiativesCollection,
-  registerContextStore,
+  registerStore,
 } from '../../src/core/index.js';
 import {
   getManagedWorkspaceRoot,
@@ -117,7 +117,7 @@ describe('workspace command interactive flows', () => {
 
   async function setupInitiative(storeId = 'team-context', initiativeId = 'agent-trace-hooks') {
     const storeRoot = mkdir(`stores/${storeId}`);
-    await registerContextStore({
+    await registerStore({
       id: storeId,
       localPath: storeRoot,
     });

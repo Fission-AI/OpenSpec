@@ -4,32 +4,32 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 
 import {
-  getContextStoreMetadataPath,
+  getStoreMetadataPath,
   getGlobalDataDir,
-  createPathContextStoreBinding,
-  createRegisteredContextStoreBinding,
+  createPathStoreBinding,
+  createRegisteredStoreBinding,
   mountInitiativesCollection,
-  prepareContextStoreCleanup,
-  prepareContextStoreSetup,
-  readContextStoreMetadataState,
-  readContextStoreRegistryState,
-  registerContextStore,
-  removeContextStore,
-  resolveContextStoreBinding,
-  resolveRegisteredContextStore,
-  listRegisteredContextStores,
-  setupContextStore,
-  setupPreparedContextStore,
-  unregisterContextStoreRegistration,
-  writeContextStoreMetadataState,
-  writeContextStoreRegistryState,
+  prepareStoreCleanup,
+  prepareStoreSetup,
+  readStoreMetadataState,
+  readStoreRegistryState,
+  registerStore,
+  removeStore,
+  resolveStoreBinding,
+  resolveRegisteredStore,
+  listRegisteredStores,
+  setupStore,
+  setupPreparedStore,
+  unregisterStoreRegistration,
+  writeStoreMetadataState,
+  writeStoreRegistryState,
 } from '../../../src/core/index.js';
 
-describe('context store registry facade', () => {
+describe('store registry facade', () => {
   let tempDir: string;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-context-store-registry-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-store-registry-'));
   });
 
   afterEach(() => {
@@ -50,11 +50,11 @@ describe('context store registry facade', () => {
     expect(canonicalPath(actualPath)).toBe(canonicalPath(expectedPath));
   }
 
-  it('registers a local Git context store by writing metadata and registry state', async () => {
+  it('registers a local Git store by writing metadata and registry state', async () => {
     const storesDir = mkdir('stores');
     const storeRoot = mkdir('stores/acme-context');
 
-    const registered = await registerContextStore({
+    const registered = await registerStore({
       id: 'acme-context',
       localPath: 'acme-context',
       remote: 'git@github.com:acme/context.git',
@@ -76,11 +76,11 @@ describe('context store registry facade', () => {
     expectSameExistingPath(registered.storeRoot, storeRoot);
     expectSameExistingPath(registered.backend.local_path, storeRoot);
 
-    await expect(readContextStoreMetadataState(storeRoot)).resolves.toEqual({
+    await expect(readStoreMetadataState(storeRoot)).resolves.toEqual({
       version: 1,
       id: 'acme-context',
     });
-    const registry = await readContextStoreRegistryState({ globalDataDir: tempDir });
+    const registry = await readStoreRegistryState({ globalDataDir: tempDir });
     expect(registry).toEqual({
       version: 1,
       stores: {
@@ -105,8 +105,8 @@ describe('context store registry facade', () => {
     const newRoot = mkdir('new/acme-context');
     const zetaRoot = mkdir('zeta-context');
 
-    await writeContextStoreMetadataState(newRoot, { version: 1, id: 'acme-context' });
-    await writeContextStoreRegistryState(
+    await writeStoreMetadataState(newRoot, { version: 1, id: 'acme-context' });
+    await writeStoreRegistryState(
       {
         version: 1,
         stores: {
@@ -128,14 +128,14 @@ describe('context store registry facade', () => {
     );
 
     await expect(
-      registerContextStore({
+      registerStore({
         id: 'acme-context',
         localPath: newRoot,
         globalDataDir: tempDir,
       })
     ).rejects.toThrow(/already registered/u);
 
-    const stores = await listRegisteredContextStores({ globalDataDir: tempDir });
+    const stores = await listRegisteredStores({ globalDataDir: tempDir });
     expect(stores.map((store) => store.id)).toEqual(['acme-context', 'zeta-context']);
     expectSameExistingPath(stores[0].storeRoot, oldRoot);
     expectSameExistingPath(stores[0].backend.local_path, oldRoot);
@@ -145,24 +145,24 @@ describe('context store registry facade', () => {
 
   it('rejects registration when existing store metadata has a different id', async () => {
     const storeRoot = mkdir('acme-context');
-    await writeContextStoreMetadataState(storeRoot, { version: 1, id: 'other-context' });
+    await writeStoreMetadataState(storeRoot, { version: 1, id: 'other-context' });
 
     await expect(
-      registerContextStore({
+      registerStore({
         id: 'acme-context',
         localPath: storeRoot,
         globalDataDir: tempDir,
       })
     ).rejects.toThrow(/does not match registered id/u);
 
-    await expect(readContextStoreRegistryState({ globalDataDir: tempDir })).resolves.toBeNull();
+    await expect(readStoreRegistryState({ globalDataDir: tempDir })).resolves.toBeNull();
   });
 
   it('rejects invalid registration input before writing registry state', async () => {
     const storeRoot = mkdir('acme-context');
 
     await expect(
-      registerContextStore({
+      registerStore({
         id: 'Acme',
         localPath: storeRoot,
         globalDataDir: tempDir,
@@ -170,7 +170,7 @@ describe('context store registry facade', () => {
     ).rejects.toThrow(/kebab-case/u);
 
     await expect(
-      registerContextStore({
+      registerStore({
         id: 'acme-context',
         localPath: storeRoot,
         remote: '',
@@ -178,7 +178,7 @@ describe('context store registry facade', () => {
       })
     ).rejects.toThrow(/remote must not be empty/u);
 
-    await expect(readContextStoreRegistryState({ globalDataDir: tempDir })).resolves.toBeNull();
+    await expect(readStoreRegistryState({ globalDataDir: tempDir })).resolves.toBeNull();
   });
 
   it('removes newly created store metadata when the registry write fails', async () => {
@@ -187,14 +187,14 @@ describe('context store registry facade', () => {
     fs.writeFileSync(blockedGlobalDataDir, 'not a directory\n');
 
     await expect(
-      registerContextStore({
+      registerStore({
         id: 'acme-context',
         localPath: storeRoot,
         globalDataDir: blockedGlobalDataDir,
       })
     ).rejects.toThrow();
 
-    expect(fs.existsSync(getContextStoreMetadataPath(storeRoot))).toBe(false);
+    expect(fs.existsSync(getStoreMetadataPath(storeRoot))).toBe(false);
   });
 
   it('commits prepared setup against the latest registry state', async () => {
@@ -208,16 +208,16 @@ describe('context store registry facade', () => {
     try {
       const globalDataDir = getGlobalDataDir();
       const preparedRoot = path.join(tempDir, 'team-context');
-      const prepared = await prepareContextStoreSetup({
+      const prepared = await prepareStoreSetup({
         id: 'team-context',
         path: preparedRoot,
       });
       const otherRoot = mkdir('other-context');
-      await writeContextStoreMetadataState(otherRoot, {
+      await writeStoreMetadataState(otherRoot, {
         version: 1,
         id: 'other-context',
       });
-      await writeContextStoreRegistryState(
+      await writeStoreRegistryState(
         {
           version: 1,
           stores: {
@@ -232,9 +232,9 @@ describe('context store registry facade', () => {
         { globalDataDir }
       );
 
-      await setupPreparedContextStore(prepared, { initGit: false });
+      await setupPreparedStore(prepared, { initGit: false });
 
-      const registry = await readContextStoreRegistryState({ globalDataDir });
+      const registry = await readStoreRegistryState({ globalDataDir });
       expect(Object.keys(registry?.stores ?? {})).toEqual(['other-context', 'team-context']);
       expectSameExistingPath(registry?.stores['other-context'].backend.local_path ?? '', otherRoot);
       expectSameExistingPath(registry?.stores['team-context'].backend.local_path ?? '', preparedRoot);
@@ -255,7 +255,7 @@ describe('context store registry facade', () => {
 
     try {
       await expect(
-        setupContextStore({
+        setupStore({
           id: 'team-context',
           path: storeRoot,
           initGit: false,
@@ -268,13 +268,13 @@ describe('context store registry facade', () => {
     }
   });
 
-  it('lists registered context stores from the machine-local registry', async () => {
+  it('lists registered stores from the machine-local registry', async () => {
     const acmeRoot = mkdir('acme-context');
     const zetaRoot = mkdir('zeta-context');
 
-    await expect(listRegisteredContextStores({ globalDataDir: tempDir })).resolves.toEqual([]);
+    await expect(listRegisteredStores({ globalDataDir: tempDir })).resolves.toEqual([]);
 
-    await writeContextStoreRegistryState(
+    await writeStoreRegistryState(
       {
         version: 1,
         stores: {
@@ -295,7 +295,7 @@ describe('context store registry facade', () => {
       { globalDataDir: tempDir }
     );
 
-    const stores = await listRegisteredContextStores({ globalDataDir: tempDir });
+    const stores = await listRegisteredStores({ globalDataDir: tempDir });
     expect(stores).toEqual([
       {
         id: 'acme-context',
@@ -320,10 +320,10 @@ describe('context store registry facade', () => {
     expectSameExistingPath(stores[1].backend.local_path, zetaRoot);
   });
 
-  it('resolves a registered context store and validates portable metadata identity', async () => {
+  it('resolves a registered store and validates portable metadata identity', async () => {
     const storeRoot = mkdir('acme-context');
-    await writeContextStoreMetadataState(storeRoot, { version: 1, id: 'acme-context' });
-    await writeContextStoreRegistryState(
+    await writeStoreMetadataState(storeRoot, { version: 1, id: 'acme-context' });
+    await writeStoreRegistryState(
       {
         version: 1,
         stores: {
@@ -338,7 +338,7 @@ describe('context store registry facade', () => {
       { globalDataDir: tempDir }
     );
 
-    const resolved = await resolveRegisteredContextStore({
+    const resolved = await resolveRegisteredStore({
       id: 'acme-context',
       globalDataDir: tempDir,
     });
@@ -354,18 +354,18 @@ describe('context store registry facade', () => {
     expectSameExistingPath(resolved.backend.local_path, storeRoot);
   });
 
-  it('resolves registry and path context store bindings', async () => {
+  it('resolves registry and path store bindings', async () => {
     const registeredRoot = mkdir('registered-context');
     const pathRoot = mkdir('path-context');
-    await writeContextStoreMetadataState(registeredRoot, {
+    await writeStoreMetadataState(registeredRoot, {
       version: 1,
       id: 'registered-context',
     });
-    await writeContextStoreMetadataState(pathRoot, {
+    await writeStoreMetadataState(pathRoot, {
       version: 1,
       id: 'path-context',
     });
-    await writeContextStoreRegistryState(
+    await writeStoreRegistryState(
       {
         version: 1,
         stores: {
@@ -380,8 +380,8 @@ describe('context store registry facade', () => {
       { globalDataDir: tempDir }
     );
 
-    const registered = await resolveContextStoreBinding(
-      createRegisteredContextStoreBinding('registered-context'),
+    const registered = await resolveStoreBinding(
+      createRegisteredStoreBinding('registered-context'),
       { globalDataDir: tempDir }
     );
     expect(registered).toEqual(
@@ -394,8 +394,8 @@ describe('context store registry facade', () => {
     );
     expectSameExistingPath(registered.root, registeredRoot);
 
-    const pathBound = await resolveContextStoreBinding(
-      createPathContextStoreBinding({
+    const pathBound = await resolveStoreBinding(
+      createPathStoreBinding({
         id: 'path-context',
         path: pathRoot,
       }),
@@ -414,12 +414,12 @@ describe('context store registry facade', () => {
 
   it('warns when a path binding resolves to a different metadata id', async () => {
     const storeRoot = mkdir('renamed-context');
-    await writeContextStoreMetadataState(storeRoot, {
+    await writeStoreMetadataState(storeRoot, {
       version: 1,
       id: 'new-context',
     });
 
-    const resolved = await resolveContextStoreBinding({
+    const resolved = await resolveStoreBinding({
       id: 'old-context',
       selector: {
         kind: 'path',
@@ -431,20 +431,20 @@ describe('context store registry facade', () => {
     expect(resolved.id).toBe('new-context');
     expect(resolved.warnings).toEqual([
       expect.objectContaining({
-        code: 'context_store_binding_id_changed',
+        code: 'store_binding_id_changed',
       }),
     ]);
   });
 
   it('rejects missing registry entries and bad registered metadata', async () => {
     await expect(
-      resolveRegisteredContextStore({ id: 'missing-context', globalDataDir: tempDir })
-    ).rejects.toThrow(/No context store registry found/u);
+      resolveRegisteredStore({ id: 'missing-context', globalDataDir: tempDir })
+    ).rejects.toThrow(/No store registry found/u);
 
     const missingMetadataRoot = mkdir('missing-metadata');
     const mismatchedRoot = mkdir('mismatched');
-    await writeContextStoreMetadataState(mismatchedRoot, { version: 1, id: 'other-context' });
-    await writeContextStoreRegistryState(
+    await writeStoreMetadataState(mismatchedRoot, { version: 1, id: 'other-context' });
+    await writeStoreRegistryState(
       {
         version: 1,
         stores: {
@@ -466,24 +466,24 @@ describe('context store registry facade', () => {
     );
 
     await expect(
-      resolveRegisteredContextStore({ id: 'unknown-context', globalDataDir: tempDir })
-    ).rejects.toThrow(/Unknown context store/u);
+      resolveRegisteredStore({ id: 'unknown-context', globalDataDir: tempDir })
+    ).rejects.toThrow(/Unknown store/u);
 
     await expect(
-      resolveRegisteredContextStore({ id: 'missing-metadata', globalDataDir: tempDir })
-    ).rejects.toThrow(new RegExp(getContextStoreMetadataPath(missingMetadataRoot).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'u'));
+      resolveRegisteredStore({ id: 'missing-metadata', globalDataDir: tempDir })
+    ).rejects.toThrow(new RegExp(getStoreMetadataPath(missingMetadataRoot).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'u'));
 
     await expect(
-      resolveRegisteredContextStore({ id: 'mismatched', globalDataDir: tempDir })
+      resolveRegisteredStore({ id: 'mismatched', globalDataDir: tempDir })
     ).rejects.toThrow(/does not match registered id/u);
   });
 
   it('refuses a prepared remove when the registry entry changes before deletion', async () => {
     const firstRoot = mkdir('first/team-context');
     const secondRoot = mkdir('second/team-context');
-    await writeContextStoreMetadataState(firstRoot, { version: 1, id: 'team-context' });
-    await writeContextStoreMetadataState(secondRoot, { version: 1, id: 'team-context' });
-    await writeContextStoreRegistryState(
+    await writeStoreMetadataState(firstRoot, { version: 1, id: 'team-context' });
+    await writeStoreMetadataState(secondRoot, { version: 1, id: 'team-context' });
+    await writeStoreRegistryState(
       {
         version: 1,
         stores: {
@@ -497,12 +497,12 @@ describe('context store registry facade', () => {
       },
       { globalDataDir: tempDir }
     );
-    const prepared = await prepareContextStoreCleanup({
+    const prepared = await prepareStoreCleanup({
       id: 'team-context',
       globalDataDir: tempDir,
     });
 
-    await writeContextStoreRegistryState(
+    await writeStoreRegistryState(
       {
         version: 1,
         stores: {
@@ -517,18 +517,18 @@ describe('context store registry facade', () => {
       { globalDataDir: tempDir }
     );
 
-    await expect(removeContextStore(prepared)).rejects.toThrow(/changed before cleanup/u);
+    await expect(removeStore(prepared)).rejects.toThrow(/changed before cleanup/u);
     expect(fs.existsSync(firstRoot)).toBe(true);
     expect(fs.existsSync(secondRoot)).toBe(true);
-    const registry = await readContextStoreRegistryState({ globalDataDir: tempDir });
+    const registry = await readStoreRegistryState({ globalDataDir: tempDir });
     expectSameExistingPath(registry?.stores['team-context'].backend.local_path ?? '', secondRoot);
   });
 
   it('matches prepared cleanup backends by canonical local path', async () => {
     const storeRoot = mkdir('team-context');
     const spelledStoreRoot = `${tempDir}${path.sep}.${path.sep}team-context`;
-    await writeContextStoreMetadataState(storeRoot, { version: 1, id: 'team-context' });
-    await writeContextStoreRegistryState(
+    await writeStoreMetadataState(storeRoot, { version: 1, id: 'team-context' });
+    await writeStoreRegistryState(
       {
         version: 1,
         stores: {
@@ -542,12 +542,12 @@ describe('context store registry facade', () => {
       },
       { globalDataDir: tempDir }
     );
-    const prepared = await prepareContextStoreCleanup({
+    const prepared = await prepareStoreCleanup({
       id: 'team-context',
       globalDataDir: tempDir,
     });
 
-    await writeContextStoreRegistryState(
+    await writeStoreRegistryState(
       {
         version: 1,
         stores: {
@@ -562,7 +562,7 @@ describe('context store registry facade', () => {
       { globalDataDir: tempDir }
     );
 
-    const unregistered = await unregisterContextStoreRegistration({
+    const unregistered = await unregisterStoreRegistration({
       id: 'team-context',
       expectedBackend: prepared.backend,
       globalDataDir: tempDir,
@@ -570,7 +570,7 @@ describe('context store registry facade', () => {
 
     expect(unregistered.id).toBe('team-context');
     expectSameExistingPath(unregistered.storeRoot, storeRoot);
-    await expect(readContextStoreRegistryState({ globalDataDir: tempDir })).resolves.toEqual({
+    await expect(readStoreRegistryState({ globalDataDir: tempDir })).resolves.toEqual({
       version: 1,
       stores: {},
     });
@@ -578,8 +578,8 @@ describe('context store registry facade', () => {
 
   it('keeps the registry entry when prepared remove fails to delete files', async () => {
     const storeRoot = mkdir('team-context');
-    await writeContextStoreMetadataState(storeRoot, { version: 1, id: 'team-context' });
-    await writeContextStoreRegistryState(
+    await writeStoreMetadataState(storeRoot, { version: 1, id: 'team-context' });
+    await writeStoreRegistryState(
       {
         version: 1,
         stores: {
@@ -593,7 +593,7 @@ describe('context store registry facade', () => {
       },
       { globalDataDir: tempDir }
     );
-    const prepared = await prepareContextStoreCleanup({
+    const prepared = await prepareStoreCleanup({
       id: 'team-context',
       globalDataDir: tempDir,
     });
@@ -602,14 +602,14 @@ describe('context store registry facade', () => {
       .mockRejectedValueOnce(new Error('simulated delete failure'));
 
     try {
-      await expect(removeContextStore(prepared)).rejects.toThrow(/simulated delete failure/u);
+      await expect(removeStore(prepared)).rejects.toThrow(/simulated delete failure/u);
     } finally {
       rmSpy.mockRestore();
     }
 
-    const registry = await readContextStoreRegistryState({ globalDataDir: tempDir });
+    const registry = await readStoreRegistryState({ globalDataDir: tempDir });
     expectSameExistingPath(registry?.stores['team-context'].backend.local_path ?? '', storeRoot);
-    expect(fs.existsSync(getContextStoreMetadataPath(storeRoot))).toBe(true);
+    expect(fs.existsSync(getStoreMetadataPath(storeRoot))).toBe(true);
   });
 
   it('mounts the initiatives collection for a resolved store root', async () => {

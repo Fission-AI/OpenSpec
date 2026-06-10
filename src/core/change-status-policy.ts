@@ -41,7 +41,7 @@ export interface ChangeNextStepsInput {
   artifactStatuses: ChangeStatusPolicyArtifact[];
   affectedAreas?: AffectedAreasSummary;
   allArtifactsComplete: boolean;
-  /** Selected context-store id; next-step commands must carry it. */
+  /** Selected store id; next-step commands must carry it. */
   storeId?: string;
 }
 

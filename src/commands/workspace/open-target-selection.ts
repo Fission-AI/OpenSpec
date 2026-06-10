@@ -6,9 +6,9 @@ import {
   listInitiativeViewReferences,
 } from '../../core/collections/initiatives/index.js';
 import {
-  createRegisteredContextStoreBinding,
-  sameContextStoreBinding,
-} from '../../core/context-store/index.js';
+  createRegisteredStoreBinding,
+  sameStoreBinding,
+} from '../../core/store/index.js';
 import {
   findWorkspaceRoot,
   getWorkspaceContextInitiativeId,
@@ -85,7 +85,7 @@ function workspaceContextMatchesInitiative(
 ): boolean {
   return (
     context !== null &&
-    sameContextStoreBinding(context.store, createRegisteredContextStoreBinding(initiative.store)) &&
+    sameStoreBinding(context.store, createRegisteredStoreBinding(initiative.store)) &&
     getWorkspaceContextInitiativeId(context) === initiative.id
   );
 }
@@ -139,7 +139,7 @@ async function listOpenableInitiatives(
           code: 'initiative_discovery_failed',
           message: error instanceof Error ? error.message : String(error),
           target: 'initiative',
-          fix: 'openspec context-store doctor',
+          fix: 'openspec store doctor',
         };
 
     return {

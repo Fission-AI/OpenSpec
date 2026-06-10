@@ -16,7 +16,7 @@ describe('collection runtime', () => {
   let tempDir: string;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-context-store-collections-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-store-collections-'));
   });
 
   afterEach(() => {

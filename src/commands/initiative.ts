@@ -6,23 +6,23 @@ import {
   type InitiativeResolutionDetails,
   type InitiativeSelectorOptions,
   type InitiativeViewReference,
-  type ContextStoreSelectorSource,
+  type StoreSelectorSource,
   listInitiativeViewReferences,
   mountInitiativesCollection,
   initiativeDiagnosticFromError as coreInitiativeDiagnosticFromError,
   resolveInitiativeViewReference as resolveCoreInitiativeViewReference,
-  selectContextStoreForInitiative,
+  selectStoreForInitiative,
   type ListedInitiativeReference,
-  type SelectedContextStore,
+  type SelectedStore,
   type InitiativeState,
   type InitiativeDiagnostic,
-  formatContextStoreSelector,
+  formatStoreSelector,
 } from '../core/collections/initiatives/index.js';
 
-interface ContextStoreOutput {
+interface StoreOutput {
   id: string;
   root: string;
-  source: ContextStoreSelectorSource;
+  source: StoreSelectorSource;
 }
 
 interface InitiativeOutput extends InitiativeState {
@@ -31,7 +31,7 @@ interface InitiativeOutput extends InitiativeState {
   store_path: string;
 }
 
-interface InitiativeShowContextStoreOutput {
+interface InitiativeShowStoreOutput {
   id: string;
   root: string;
 }
@@ -48,27 +48,27 @@ interface InitiativeShowOutputItem {
 }
 
 interface InitiativeCreateOutput {
-  context_store: ContextStoreOutput | null;
+  store: StoreOutput | null;
   initiative: InitiativeOutput | null;
   created_files: string[];
   status: InitiativeDiagnostic[];
 }
 
 interface InitiativeListOutput {
-  context_store: ContextStoreOutput | null;
-  context_stores: ContextStoreInitiativeOutput[];
+  store: StoreOutput | null;
+  stores: StoreInitiativeOutput[];
   initiatives: InitiativeOutput[];
   status: InitiativeDiagnostic[];
 }
 
-interface ContextStoreInitiativeOutput {
-  context_store: ContextStoreOutput;
+interface StoreInitiativeOutput {
+  store: StoreOutput;
   initiatives: InitiativeOutput[];
   status: InitiativeDiagnostic[];
 }
 
 interface InitiativeShowOutput {
-  context_store: InitiativeShowContextStoreOutput | null;
+  store: InitiativeShowStoreOutput | null;
   initiative: InitiativeShowOutputItem | null;
   status: InitiativeDiagnostic[];
 }
@@ -151,7 +151,7 @@ function requireInitiativeId(
   return id.trim();
 }
 
-function toContextStoreOutput(selected: SelectedContextStore): ContextStoreOutput {
+function toStoreOutput(selected: SelectedStore): StoreOutput {
   return {
     id: selected.id,
     root: selected.root,
@@ -160,7 +160,7 @@ function toContextStoreOutput(selected: SelectedContextStore): ContextStoreOutpu
 }
 
 function toInitiativeOutput(
-  selected: SelectedContextStore,
+  selected: SelectedStore,
   state: InitiativeState
 ): InitiativeOutput {
   const collection = mountInitiativesCollection(selected.root);
@@ -207,7 +207,7 @@ function initiativeReferenceToShowOutput(
 }
 
 function printCreateHuman(payload: InitiativeCreateOutput): void {
-  if (!payload.context_store || !payload.initiative) {
+  if (!payload.store || !payload.initiative) {
     return;
   }
 
@@ -215,7 +215,7 @@ function printCreateHuman(payload: InitiativeCreateOutput): void {
   console.log(`ID: ${payload.initiative.id}`);
   console.log(`Title: ${payload.initiative.title}`);
   console.log(`Status: ${payload.initiative.status}`);
-  console.log(`Context store: ${payload.context_store.id}`);
+  console.log(`Store: ${payload.store.id}`);
   console.log(`Location: ${payload.initiative.root}`);
   console.log('');
   console.log(`Created files (${payload.created_files.length}):`);
@@ -224,7 +224,7 @@ function printCreateHuman(payload: InitiativeCreateOutput): void {
   }
   console.log('');
   console.log('Next useful commands:');
-  console.log(`  openspec initiative list ${formatContextStoreSelector(payload.context_store)}`);
+  console.log(`  openspec initiative list ${formatStoreSelector(payload.store)}`);
 }
 
 function printTableHeader(includeStore: boolean): void {
@@ -254,14 +254,14 @@ function printListStatuses(statuses: InitiativeDiagnostic[]): void {
 }
 
 function printListHuman(payload: InitiativeListOutput): void {
-  if (payload.context_store) {
-    console.log(`OpenSpec initiatives in ${payload.context_store.id} (${payload.initiatives.length})`);
+  if (payload.store) {
+    console.log(`OpenSpec initiatives in ${payload.store.id} (${payload.initiatives.length})`);
 
     if (payload.initiatives.length === 0) {
       console.log('');
-      console.log(`No initiatives found in ${payload.context_store.id}.`);
+      console.log(`No initiatives found in ${payload.store.id}.`);
       console.log('');
-      console.log(`Location: ${payload.context_store.root}`);
+      console.log(`Location: ${payload.store.root}`);
       return;
     }
 
@@ -271,23 +271,23 @@ function printListHuman(payload: InitiativeListOutput): void {
       printInitiativeRow(initiative, false);
     }
     console.log('');
-    console.log(`Location: ${payload.context_store.root}`);
+    console.log(`Location: ${payload.store.root}`);
     return;
   }
 
-  if (payload.context_stores.length === 0) {
-    console.log('No initiatives found because no context stores are registered.');
+  if (payload.stores.length === 0) {
+    console.log('No initiatives found because no stores are registered.');
     return;
   }
 
   if (payload.initiatives.length === 0) {
-    console.log('No initiatives found across registered context stores.');
+    console.log('No initiatives found across registered stores.');
     printListStatuses(payload.status);
     return;
   }
 
   console.log(
-    `OpenSpec initiatives (${payload.initiatives.length} across ${payload.context_stores.length} stores)`
+    `OpenSpec initiatives (${payload.initiatives.length} across ${payload.stores.length} stores)`
   );
   console.log('');
   printTableHeader(true);
@@ -298,7 +298,7 @@ function printListHuman(payload: InitiativeListOutput): void {
 }
 
 function printShowHuman(payload: InitiativeShowOutput): void {
-  if (!payload.context_store || !payload.initiative) {
+  if (!payload.store || !payload.initiative) {
     return;
   }
 
@@ -306,7 +306,7 @@ function printShowHuman(payload: InitiativeShowOutput): void {
   console.log('');
   console.log(`ID: ${payload.initiative.id}`);
   console.log(`Summary: ${payload.initiative.summary}`);
-  console.log(`Context store: ${payload.context_store.id}`);
+  console.log(`Store: ${payload.store.id}`);
   console.log(`Location: ${payload.initiative.root}`);
   console.log(`Metadata: ${payload.initiative.metadata_path}`);
 }
@@ -320,7 +320,7 @@ function printDiagnosticMatches(diagnostic: InitiativeDiagnostic): void {
   console.error('');
   console.error(diagnostic.code === 'initiative_lookup_incomplete' ? 'Partial matches:' : 'Matches:');
   for (const match of matches) {
-    console.error(`  ${match.context_store.id.padEnd(12)}${match.initiative.root}`);
+    console.error(`  ${match.store.id.padEnd(12)}${match.initiative.root}`);
   }
 }
 
@@ -340,7 +340,7 @@ class InitiativeCommand {
         'initiative.summary',
         'initiative_summary_required'
       );
-      const selected = await selectContextStoreForInitiative(options, 'create');
+      const selected = await selectStoreForInitiative(options, 'create');
       const collection = mountInitiativesCollection(selected.root);
       const state = await createInitiative({
         collection,
@@ -349,7 +349,7 @@ class InitiativeCommand {
         summary,
       });
       const payload: InitiativeCreateOutput = {
-        context_store: toContextStoreOutput(selected),
+        store: toStoreOutput(selected),
         initiative: toInitiativeOutput(selected, state),
         created_files: [...INITIATIVE_FILE_NAMES],
         status: [],
@@ -364,7 +364,7 @@ class InitiativeCommand {
     } catch (error) {
       this.handleFailure(
         options.json,
-        { context_store: null, initiative: null, created_files: [], status: [] },
+        { store: null, initiative: null, created_files: [], status: [] },
         error
       );
     }
@@ -383,7 +383,7 @@ class InitiativeCommand {
     } catch (error) {
       this.handleFailure(
         options.json,
-        { context_store: null, context_stores: [], initiatives: [], status: [] },
+        { store: null, stores: [], initiatives: [], status: [] },
         error
       );
     }
@@ -403,7 +403,7 @@ class InitiativeCommand {
     } catch (error) {
       this.handleFailure(
         options.json,
-        { context_store: null, initiative: null, status: [] },
+        { store: null, initiative: null, status: [] },
         error
       );
     }
@@ -411,15 +411,15 @@ class InitiativeCommand {
 
   private async buildListPayload(options: InitiativeListOptions): Promise<InitiativeListOutput> {
     const listed = await listInitiativeViewReferences(options);
-    const contextStores = listed.contextStores.map((store) => ({
-      context_store: toContextStoreOutput(store.contextStore),
+    const stores = listed.stores.map((store) => ({
+      store: toStoreOutput(store.store),
       initiatives: store.initiatives.map(listedInitiativeToOutput),
       status: store.status,
     }));
 
     return {
-      context_store: listed.contextStore ? toContextStoreOutput(listed.contextStore) : null,
-      context_stores: contextStores,
+      store: listed.store ? toStoreOutput(listed.store) : null,
+      stores: stores,
       initiatives: listed.initiatives.map(listedInitiativeToOutput),
       status: listed.status,
     };
@@ -431,7 +431,7 @@ class InitiativeCommand {
   ): Promise<InitiativeShowOutput> {
     const reference = await resolveCoreInitiativeViewReference(initiativeId, options);
     return {
-      context_store: {
+      store: {
         id: reference.store,
         root: reference.storeRoot,
       },
@@ -462,10 +462,10 @@ class InitiativeCommand {
   }
 }
 
-function addContextStoreSelectorOptions(command: Command): Command {
+function addStoreSelectorOptions(command: Command): Command {
   return command
-    .option('--store <id>', 'Context store id from the local context-store registry')
-    .option('--store-path <path>', 'Existing local context store root')
+    .option('--store <id>', 'Store id from the local store registry')
+    .option('--store-path <path>', 'Existing local store root')
     .option('--json', 'Output as JSON');
 }
 
@@ -475,17 +475,17 @@ export function registerInitiativeCommand(program: Command): void {
     .command('initiative')
     .description('Create and list coordinated initiatives');
 
-  addContextStoreSelectorOptions(
+  addStoreSelectorOptions(
     initiative
       .command('create [id]')
-      .description('Create an initiative in a context store')
+      .description('Create an initiative in a store')
       .option('--title <title>', 'Initiative title')
       .option('--summary <summary>', 'Initiative summary')
   ).action(async (id: string | undefined, options: InitiativeCreateOptions) => {
     await initiativeCommand.create(id, options);
   });
 
-  addContextStoreSelectorOptions(
+  addStoreSelectorOptions(
     initiative
       .command('show <id>')
       .description('Show where an initiative lives and how to read it')
@@ -493,11 +493,11 @@ export function registerInitiativeCommand(program: Command): void {
     await initiativeCommand.show(id, options);
   });
 
-  addContextStoreSelectorOptions(
+  addStoreSelectorOptions(
     initiative
       .command('list')
       .alias('ls')
-      .description('List initiatives across registered context stores')
+      .description('List initiatives across registered stores')
   ).action(async (options: InitiativeListOptions) => {
     await initiativeCommand.list(options);
   });

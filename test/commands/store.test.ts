@@ -7,27 +7,27 @@ import * as path from 'node:path';
 
 import {
   DEFAULT_OPENSPEC_SCHEMA,
-  getDefaultContextStoreRoot,
   getGlobalDataDir,
-  getContextStoreMetadataPath,
-  readContextStoreMetadataState,
-  readContextStoreRegistryState,
-  writeContextStoreMetadataState,
-  writeContextStoreRegistryState,
+  getStoresDir,
+  getStoreMetadataPath,
+  readStoreMetadataState,
+  readStoreRegistryState,
+  writeStoreMetadataState,
+  writeStoreRegistryState,
 } from '../../src/core/index.js';
 import { runCLI, type RunCLIResult } from '../helpers/run-cli.js';
-import { createHealthyOpenSpecRoot } from '../helpers/context-store-git.js';
+import { createHealthyOpenSpecRoot } from '../helpers/store-git.js';
 
 vi.mock('@inquirer/prompts', () => ({
   input: vi.fn(),
   confirm: vi.fn(),
 }));
 
-async function runContextStoreCommand(args: string[]): Promise<void> {
-  const { registerContextStoreCommand } = await import('../../src/commands/context-store.js');
+async function runStoreCommand(args: string[]): Promise<void> {
+  const { registerStoreCommand } = await import('../../src/commands/store.js');
   const program = new Command();
-  registerContextStoreCommand(program);
-  await program.parseAsync(['node', 'openspec', 'context-store', ...args]);
+  registerStoreCommand(program);
+  await program.parseAsync(['node', 'openspec', 'store', ...args]);
 }
 
 async function getPromptMocks(): Promise<{
@@ -41,7 +41,7 @@ async function getPromptMocks(): Promise<{
   };
 }
 
-describe('context-store command', () => {
+describe('store command', () => {
   let tempDir: string;
   let dataHome: string;
   let configHome: string;
@@ -57,7 +57,7 @@ describe('context-store command', () => {
   beforeEach(() => {
     vi.resetModules();
 
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-context-store-command-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-store-command-'));
     dataHome = path.join(tempDir, 'data');
     configHome = path.join(tempDir, 'config');
     env = {
@@ -127,20 +127,20 @@ describe('context-store command', () => {
     }
   }
 
-  it('sets up a context store at an explicit path without Git in non-interactive JSON mode', async () => {
+  it('sets up a store at an explicit path without Git in non-interactive JSON mode', async () => {
     const storeRoot = expectedExistingPath(mkdir('team-context'));
     const result = await runCLI(
-      ['context-store', 'setup', 'team-context', '--path', storeRoot, '--no-init-git', '--json'],
+      ['store', 'setup', 'team-context', '--path', storeRoot, '--no-init-git', '--json'],
       { cwd: tempDir, env }
     );
 
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe('');
     const payload = parseJson(result);
-    expect(payload.context_store).toEqual({
+    expect(payload.store).toEqual({
       id: 'team-context',
       root: storeRoot,
-      metadata_path: getContextStoreMetadataPath(storeRoot),
+      metadata_path: getStoreMetadataPath(storeRoot),
     });
     expect(payload.git).toEqual({
       is_repository: false,
@@ -168,11 +168,11 @@ describe('context-store command', () => {
       `schema: ${DEFAULT_OPENSPEC_SCHEMA}`
     );
     expectNoGeneratedAgentOrBetaArtifacts(storeRoot);
-    await expect(readContextStoreMetadataState(storeRoot)).resolves.toEqual({
+    await expect(readStoreMetadataState(storeRoot)).resolves.toEqual({
       version: 1,
       id: 'team-context',
     });
-    await expect(readContextStoreRegistryState({ globalDataDir })).resolves.toEqual({
+    await expect(readStoreRegistryState({ globalDataDir })).resolves.toEqual({
       version: 1,
       stores: {
         'team-context': {
@@ -202,35 +202,35 @@ describe('context-store command', () => {
     const storeRoot = path.join(tempDir, 'guided-context');
     const { input, confirm } = await getPromptMocks();
     input.mockImplementation(async (options: { message: string; default?: string }) => {
-      if (options.message === 'Context store name') return 'guided-context';
-      if (options.message === 'Where should this context store live?') return storeRoot;
+      if (options.message === 'Store name') return 'guided-context';
+      if (options.message === 'Where should this store live?') return storeRoot;
       return options.default;
     });
     confirm.mockResolvedValueOnce(true);
 
-    await runContextStoreCommand(['setup', '--no-init-git']);
+    await runStoreCommand(['setup', '--no-init-git']);
 
     expect(input).toHaveBeenCalledWith(expect.objectContaining({
-      message: 'Context store name',
+      message: 'Store name',
     }));
     // The suggested location is a visible user path, never the XDG data dir.
     expect(input).toHaveBeenCalledWith(expect.objectContaining({
-      message: 'Where should this context store live?',
+      message: 'Where should this store live?',
       default: '~/openspec/guided-context',
     }));
     expect(confirm).toHaveBeenCalledTimes(1);
     expect(confirm).toHaveBeenNthCalledWith(1, {
-      message: 'Create this context store?',
+      message: 'Create this store?',
       default: true,
     });
-    expect(fs.existsSync(getContextStoreMetadataPath(storeRoot))).toBe(true);
+    expect(fs.existsSync(getStoreMetadataPath(storeRoot))).toBe(true);
     expectHealthyOpenSpecRoot(storeRoot);
     expect(fs.existsSync(path.join(storeRoot, '.git'))).toBe(false);
     expect(process.exitCode).toBeUndefined();
   });
 
   it('requires an explicit path for non-interactive JSON setup', async () => {
-    const result = await runCLI(['context-store', 'setup', 'team-context', '--json'], {
+    const result = await runCLI(['store', 'setup', 'team-context', '--json'], {
       cwd: tempDir,
       env,
     });
@@ -238,19 +238,21 @@ describe('context-store command', () => {
     expect(result.exitCode).toBe(1);
     expect(parseJson(result).status[0]).toEqual(
       expect.objectContaining({
-        code: 'context_store_setup_path_required',
+        code: 'store_setup_path_required',
       })
     );
-    expect(fs.existsSync(getDefaultContextStoreRoot('team-context', { globalDataDir }))).toBe(false);
+    expect(
+      fs.existsSync(path.join(getStoresDir({ globalDataDir }), 'team-context'))
+    ).toBe(false);
   });
 
   it('requires a setup id for non-interactive JSON setup', async () => {
-    const result = await runCLI(['context-store', 'setup', '--json'], { cwd: tempDir, env });
+    const result = await runCLI(['store', 'setup', '--json'], { cwd: tempDir, env });
 
     expect(result.exitCode).toBe(1);
     expect(parseJson(result).status[0]).toEqual(
       expect.objectContaining({
-        code: 'context_store_setup_id_required',
+        code: 'store_setup_id_required',
       })
     );
   });
@@ -259,12 +261,12 @@ describe('context-store command', () => {
     const storeRoot = mkdir('team-context');
 
     const result = await runCLI(
-      ['context-store', 'setup', 'team-context', '--path', '.', '--no-init-git', '--json'],
+      ['store', 'setup', 'team-context', '--path', '.', '--no-init-git', '--json'],
       { cwd: storeRoot, env }
     );
 
     expect(result.exitCode).toBe(0);
-    expect(parseJson(result).context_store.root).toBe(expectedExistingPath(storeRoot));
+    expect(parseJson(result).store.root).toBe(expectedExistingPath(storeRoot));
     expectHealthyOpenSpecRoot(storeRoot);
   });
 
@@ -273,7 +275,7 @@ describe('context-store command', () => {
     execFileSync('git', ['init'], { cwd: storeRoot, stdio: 'ignore' });
 
     const result = await runCLI(
-      ['context-store', 'setup', 'team-context', '--path', storeRoot, '--no-init-git', '--json'],
+      ['store', 'setup', 'team-context', '--path', storeRoot, '--no-init-git', '--json'],
       { cwd: tempDir, env }
     );
 
@@ -304,7 +306,7 @@ describe('context-store command', () => {
     fs.writeFileSync(path.join(storeRoot, 'openspec', 'specs', 'note.md'), 'keep\n');
 
     const result = await runCLI(
-      ['context-store', 'setup', 'team-context', '--path', storeRoot, '--no-init-git', '--json'],
+      ['store', 'setup', 'team-context', '--path', storeRoot, '--no-init-git', '--json'],
       { cwd: tempDir, env }
     );
 
@@ -332,7 +334,7 @@ describe('context-store command', () => {
     fs.writeFileSync(path.join(storeRoot, 'AGENTS.md'), 'old beta guidance\n');
 
     const result = await runCLI(
-      ['context-store', 'setup', 'team-context', '--path', storeRoot, '--no-init-git', '--json'],
+      ['store', 'setup', 'team-context', '--path', storeRoot, '--no-init-git', '--json'],
       { cwd: tempDir, env }
     );
 
@@ -349,23 +351,23 @@ describe('context-store command', () => {
     fs.writeFileSync(path.join(storeRoot, 'workspace.yaml'), 'old: beta\n');
 
     const setup = await runCLI(
-      ['context-store', 'setup', 'team-context', '--path', storeRoot, '--no-init-git', '--json'],
+      ['store', 'setup', 'team-context', '--path', storeRoot, '--no-init-git', '--json'],
       { cwd: tempDir, env }
     );
     const register = await runCLI(
-      ['context-store', 'register', storeRoot, '--yes', '--json'],
+      ['store', 'register', storeRoot, '--yes', '--json'],
       { cwd: tempDir, env }
     );
 
     expect(setup.exitCode).toBe(1);
     expect(parseJson(setup).status[0]).toEqual(expect.objectContaining({
-      code: 'context_store_setup_non_empty_directory',
+      code: 'store_setup_non_empty_directory',
     }));
     expect(register.exitCode).toBe(1);
     expect(parseJson(register).status[0]).toEqual(expect.objectContaining({
-      code: 'context_store_register_root_unhealthy',
+      code: 'store_register_root_unhealthy',
     }));
-    expect(fs.existsSync(getContextStoreMetadataPath(storeRoot))).toBe(false);
+    expect(fs.existsSync(getStoreMetadataPath(storeRoot))).toBe(false);
   });
 
   it('rejects explicit setup paths inside an existing Git repo in non-interactive mode', async () => {
@@ -374,17 +376,17 @@ describe('context-store command', () => {
     const storeRoot = path.join(repoRoot, 'team-context');
 
     const result = await runCLI(
-      ['context-store', 'setup', 'team-context', '--path', storeRoot, '--no-init-git', '--json'],
+      ['store', 'setup', 'team-context', '--path', storeRoot, '--no-init-git', '--json'],
       { cwd: tempDir, env }
     );
 
     expect(result.exitCode).toBe(1);
     expect(parseJson(result).status[0]).toEqual(
       expect.objectContaining({
-        code: 'context_store_setup_inside_git_repo',
+        code: 'store_setup_inside_git_repo',
       })
     );
-    expect(fs.existsSync(getContextStoreMetadataPath(storeRoot))).toBe(false);
+    expect(fs.existsSync(getStoreMetadataPath(storeRoot))).toBe(false);
     expect(fs.existsSync(path.join(storeRoot, 'openspec'))).toBe(false);
   });
 
@@ -394,17 +396,17 @@ describe('context-store command', () => {
     const storeRoot = path.join(repoRoot, 'team-context');
 
     const result = await runCLI(
-      ['context-store', 'setup', 'team-context', '--path', storeRoot, '--no-init-git', '--json'],
+      ['store', 'setup', 'team-context', '--path', storeRoot, '--no-init-git', '--json'],
       { cwd: tempDir, env }
     );
 
     expect(result.exitCode).toBe(1);
     expect(parseJson(result).status[0]).toEqual(
       expect.objectContaining({
-        code: 'context_store_setup_inside_git_repo',
+        code: 'store_setup_inside_git_repo',
       })
     );
-    expect(fs.existsSync(getContextStoreMetadataPath(storeRoot))).toBe(false);
+    expect(fs.existsSync(getStoreMetadataPath(storeRoot))).toBe(false);
   });
 
   it('rejects interactive setup paths inside an existing Git repo without prompting through', async () => {
@@ -426,30 +428,30 @@ describe('context-store command', () => {
     const storeRoot = path.join(repoRoot, 'team-context');
     confirm.mockResolvedValue(true);
 
-    await runContextStoreCommand(['setup', 'team-context', '--path', storeRoot]);
+    await runStoreCommand(['setup', 'team-context', '--path', storeRoot]);
 
     expect(confirm).not.toHaveBeenCalled();
-    expect(fs.existsSync(getContextStoreMetadataPath(storeRoot))).toBe(false);
+    expect(fs.existsSync(getStoreMetadataPath(storeRoot))).toBe(false);
     expect(fs.existsSync(path.join(storeRoot, 'openspec'))).toBe(false);
     expect(process.exitCode).toBe(1);
   });
 
-  it('rejects non-empty setup folders without context-store metadata', async () => {
+  it('rejects non-empty setup folders without store metadata', async () => {
     const storeRoot = mkdir('existing');
     fs.writeFileSync(path.join(storeRoot, 'notes.md'), 'hello\n');
 
     const result = await runCLI(
-      ['context-store', 'setup', 'team-context', '--path', storeRoot, '--no-init-git', '--json'],
+      ['store', 'setup', 'team-context', '--path', storeRoot, '--no-init-git', '--json'],
       { cwd: tempDir, env }
     );
 
     expect(result.exitCode).toBe(1);
     expect(parseJson(result).status[0]).toEqual(
       expect.objectContaining({
-        code: 'context_store_setup_non_empty_directory',
+        code: 'store_setup_non_empty_directory',
       })
     );
-    expect(fs.existsSync(getContextStoreMetadataPath(storeRoot))).toBe(false);
+    expect(fs.existsSync(getStoreMetadataPath(storeRoot))).toBe(false);
   });
 
   it('does not prompt before setup validation fails', async () => {
@@ -470,10 +472,10 @@ describe('context-store command', () => {
     const storeRoot = mkdir('existing');
     fs.writeFileSync(path.join(storeRoot, 'notes.md'), 'hello\n');
 
-    await runContextStoreCommand(['setup', 'team-context', '--path', storeRoot]);
+    await runStoreCommand(['setup', 'team-context', '--path', storeRoot]);
 
     expect(confirm).not.toHaveBeenCalled();
-    expect(fs.existsSync(getContextStoreMetadataPath(storeRoot))).toBe(false);
+    expect(fs.existsSync(getStoreMetadataPath(storeRoot))).toBe(false);
     expect(process.exitCode).toBe(1);
   });
 
@@ -481,33 +483,33 @@ describe('context-store command', () => {
     const storeRoot = mkdir('team-context');
 
     const result = await runCLI(
-      ['context-store', 'register', storeRoot, '--json'],
+      ['store', 'register', storeRoot, '--json'],
       { cwd: tempDir, env }
     );
 
     expect(result.exitCode).toBe(1);
     expect(parseJson(result).status[0]).toEqual(
       expect.objectContaining({
-        code: 'context_store_register_root_unhealthy',
+        code: 'store_register_root_unhealthy',
       })
     );
-    expect(fs.existsSync(getContextStoreMetadataPath(storeRoot))).toBe(false);
+    expect(fs.existsSync(getStoreMetadataPath(storeRoot))).toBe(false);
   });
 
-  it('registers a cloned healthy context store without rewriting planning files', async () => {
+  it('registers a cloned healthy store without rewriting planning files', async () => {
     const storeRoot = mkdir('team-context');
     createHealthyOpenSpecRoot(storeRoot);
     fs.writeFileSync(path.join(storeRoot, 'openspec', 'specs', 'note.md'), 'keep\n');
-    await writeContextStoreMetadataState(storeRoot, { version: 1, id: 'team-context' });
+    await writeStoreMetadataState(storeRoot, { version: 1, id: 'team-context' });
 
     const result = await runCLI(
-      ['context-store', 'register', storeRoot, '--json'],
+      ['store', 'register', storeRoot, '--json'],
       { cwd: tempDir, env }
     );
 
     expect(result.exitCode).toBe(0);
     const payload = parseJson(result);
-    expect(payload.context_store.id).toBe('team-context');
+    expect(payload.store.id).toBe('team-context');
     expect(payload.registry.registered).toBe(true);
     expect(payload.created_files).toEqual([]);
     expect(fs.readFileSync(path.join(storeRoot, 'openspec', 'specs', 'note.md'), 'utf-8')).toBe('keep\n');
@@ -518,26 +520,26 @@ describe('context-store command', () => {
     createHealthyOpenSpecRoot(storeRoot);
 
     const refused = await runCLI(
-      ['context-store', 'register', storeRoot, '--json'],
+      ['store', 'register', storeRoot, '--json'],
       { cwd: tempDir, env }
     );
 
     expect(refused.exitCode).toBe(1);
     expect(parseJson(refused).status[0]).toEqual(
       expect.objectContaining({
-        code: 'context_store_register_identity_confirmation_required',
+        code: 'store_register_identity_confirmation_required',
       })
     );
-    expect(fs.existsSync(getContextStoreMetadataPath(storeRoot))).toBe(false);
+    expect(fs.existsSync(getStoreMetadataPath(storeRoot))).toBe(false);
 
     const confirmed = await runCLI(
-      ['context-store', 'register', storeRoot, '--yes', '--json'],
+      ['store', 'register', storeRoot, '--yes', '--json'],
       { cwd: tempDir, env }
     );
 
     expect(confirmed.exitCode).toBe(0);
     expect(parseJson(confirmed).created_files).toEqual(['.openspec-store/store.yaml']);
-    await expect(readContextStoreMetadataState(storeRoot)).resolves.toEqual({
+    await expect(readStoreMetadataState(storeRoot)).resolves.toEqual({
       version: 1,
       id: 'team-context',
     });
@@ -561,14 +563,14 @@ describe('context-store command', () => {
     const storeRoot = mkdir('team-context');
     createHealthyOpenSpecRoot(storeRoot);
 
-    await runContextStoreCommand(['register', storeRoot]);
+    await runStoreCommand(['register', storeRoot]);
 
     expect(confirm).toHaveBeenCalledWith({
-      message: "Turn this OpenSpec root into context store 'team-context'?",
+      message: "Turn this OpenSpec root into store 'team-context'?",
       default: false,
     });
-    expect(fs.existsSync(getContextStoreMetadataPath(storeRoot))).toBe(false);
-    await expect(readContextStoreRegistryState({ globalDataDir })).resolves.toBeNull();
+    expect(fs.existsSync(getStoreMetadataPath(storeRoot))).toBe(false);
+    await expect(readStoreRegistryState({ globalDataDir })).resolves.toBeNull();
     expect(process.exitCode).toBe(1);
   });
 
@@ -578,13 +580,13 @@ describe('context-store command', () => {
     fs.writeFileSync(path.join(storeRoot, 'openspec', 'config.yaml'), 'schema: spec-driven\n# user edit\n');
 
     const firstSetup = await runCLI(
-      ['context-store', 'setup', 'team-context', '--path', storeRoot, '--no-init-git', '--json'],
+      ['store', 'setup', 'team-context', '--path', storeRoot, '--no-init-git', '--json'],
       { cwd: tempDir, env }
     );
     expect(firstSetup.exitCode).toBe(0);
 
     const secondSetup = await runCLI(
-      ['context-store', 'setup', 'team-context', '--path', storeRoot, '--no-init-git', '--json'],
+      ['store', 'setup', 'team-context', '--path', storeRoot, '--no-init-git', '--json'],
       { cwd: tempDir, env }
     );
     expect(secondSetup.exitCode).toBe(0);
@@ -592,14 +594,14 @@ describe('context-store command', () => {
     expect(setupPayload.created_files).toEqual([]);
     expect(setupPayload.status[0]).toEqual(
       expect.objectContaining({
-        code: 'context_store_already_registered',
+        code: 'store_already_registered',
       })
     );
 
     // A rerun with defaulted Git flags stays a strict no-op: it neither
     // requires a commit identity nor git-inits the registered no-Git store.
     const defaultFlagsRerun = await runCLI(
-      ['context-store', 'setup', 'team-context', '--path', storeRoot, '--json'],
+      ['store', 'setup', 'team-context', '--path', storeRoot, '--json'],
       { cwd: tempDir, env }
     );
     expect(defaultFlagsRerun.exitCode).toBe(0);
@@ -613,7 +615,7 @@ describe('context-store command', () => {
     expect(fs.existsSync(path.join(storeRoot, '.git'))).toBe(false);
 
     const secondRegister = await runCLI(
-      ['context-store', 'register', storeRoot, '--json'],
+      ['store', 'register', storeRoot, '--json'],
       { cwd: tempDir, env }
     );
     expect(secondRegister.exitCode).toBe(0);
@@ -621,13 +623,13 @@ describe('context-store command', () => {
     expect(registerPayload.created_files).toEqual([]);
     expect(registerPayload.status[0]).toEqual(
       expect.objectContaining({
-        code: 'context_store_already_registered',
+        code: 'store_already_registered',
       })
     );
     expect(fs.readFileSync(path.join(storeRoot, 'openspec', 'config.yaml'), 'utf-8')).toBe(
       'schema: spec-driven\n# user edit\n'
     );
-    await expect(readContextStoreRegistryState({ globalDataDir })).resolves.toEqual({
+    await expect(readStoreRegistryState({ globalDataDir })).resolves.toEqual({
       version: 1,
       stores: {
         'team-context': {
@@ -646,9 +648,9 @@ describe('context-store command', () => {
     const aliasRoot = path.join(tempDir, 'alias-team-context');
     createHealthyOpenSpecRoot(firstRoot);
     createHealthyOpenSpecRoot(secondRoot);
-    await writeContextStoreMetadataState(firstRoot, { version: 1, id: 'team-context' });
-    await writeContextStoreMetadataState(secondRoot, { version: 1, id: 'team-context' });
-    await writeContextStoreRegistryState(
+    await writeStoreMetadataState(firstRoot, { version: 1, id: 'team-context' });
+    await writeStoreMetadataState(secondRoot, { version: 1, id: 'team-context' });
+    await writeStoreRegistryState(
       {
         version: 1,
         stores: {
@@ -664,33 +666,33 @@ describe('context-store command', () => {
     );
 
     const sameId = await runCLI(
-      ['context-store', 'register', secondRoot, '--id', 'team-context', '--json'],
+      ['store', 'register', secondRoot, '--id', 'team-context', '--json'],
       { cwd: tempDir, env }
     );
     expect(sameId.exitCode).toBe(1);
     expect(parseJson(sameId).status[0]).toEqual(
       expect.objectContaining({
-        code: 'context_store_id_conflict',
+        code: 'store_id_conflict',
       })
     );
 
     fs.rmSync(path.join(firstRoot, '.openspec-store'), { recursive: true, force: true });
-    await writeContextStoreMetadataState(firstRoot, { version: 1, id: 'other-context' });
+    await writeStoreMetadataState(firstRoot, { version: 1, id: 'other-context' });
     fs.symlinkSync(firstRoot, aliasRoot, process.platform === 'win32' ? 'junction' : 'dir');
     const samePath = await runCLI(
-      ['context-store', 'register', aliasRoot, '--id', 'other-context', '--json'],
+      ['store', 'register', aliasRoot, '--id', 'other-context', '--json'],
       { cwd: tempDir, env }
     );
     expect(samePath.exitCode).toBe(1);
     expect(parseJson(samePath).status[0]).toEqual(
       expect.objectContaining({
-        code: 'context_store_path_conflict',
+        code: 'store_path_conflict',
       })
     );
   });
 
   it('lists the local registry without health checks', async () => {
-    await writeContextStoreRegistryState(
+    await writeStoreRegistryState(
       {
         version: 1,
         stores: {
@@ -711,11 +713,11 @@ describe('context-store command', () => {
       { globalDataDir }
     );
 
-    const result = await runCLI(['context-store', 'list', '--json'], { cwd: tempDir, env });
+    const result = await runCLI(['store', 'list', '--json'], { cwd: tempDir, env });
 
     expect(result.exitCode).toBe(0);
     expect(parseJson(result)).toEqual({
-      context_stores: [
+      stores: [
         {
           id: 'alpha-context',
           root: path.join(tempDir, 'missing-alpha'),
@@ -729,11 +731,11 @@ describe('context-store command', () => {
     });
   });
 
-  it('unregisters a context store without deleting local files', async () => {
+  it('unregisters a store without deleting local files', async () => {
     const storeRoot = mkdir('team-context');
     const canonicalStoreRoot = expectedExistingPath(storeRoot);
-    await writeContextStoreMetadataState(storeRoot, { version: 1, id: 'team-context' });
-    await writeContextStoreRegistryState(
+    await writeStoreMetadataState(storeRoot, { version: 1, id: 'team-context' });
+    await writeStoreRegistryState(
       {
         version: 1,
         stores: {
@@ -749,13 +751,13 @@ describe('context-store command', () => {
     );
 
     const result = await runCLI(
-      ['context-store', 'unregister', 'team-context', '--json'],
+      ['store', 'unregister', 'team-context', '--json'],
       { cwd: tempDir, env }
     );
 
     expect(result.exitCode).toBe(0);
     expect(parseJson(result)).toEqual(expect.objectContaining({
-      context_store: expect.objectContaining({
+      store: expect.objectContaining({
         id: 'team-context',
         root: canonicalStoreRoot,
       }),
@@ -767,17 +769,17 @@ describe('context-store command', () => {
         left_on_disk: canonicalStoreRoot,
       }),
     }));
-    await expect(readContextStoreRegistryState({ globalDataDir })).resolves.toEqual({
+    await expect(readStoreRegistryState({ globalDataDir })).resolves.toEqual({
       version: 1,
       stores: {},
     });
-    expect(fs.existsSync(getContextStoreMetadataPath(storeRoot))).toBe(true);
+    expect(fs.existsSync(getStoreMetadataPath(storeRoot))).toBe(true);
   });
 
   it('requires explicit confirmation before removing files non-interactively', async () => {
     const storeRoot = mkdir('team-context');
-    await writeContextStoreMetadataState(storeRoot, { version: 1, id: 'team-context' });
-    await writeContextStoreRegistryState(
+    await writeStoreMetadataState(storeRoot, { version: 1, id: 'team-context' });
+    await writeStoreRegistryState(
       {
         version: 1,
         stores: {
@@ -793,24 +795,24 @@ describe('context-store command', () => {
     );
 
     const result = await runCLI(
-      ['context-store', 'remove', 'team-context', '--json'],
+      ['store', 'remove', 'team-context', '--json'],
       { cwd: tempDir, env }
     );
 
     expect(result.exitCode).toBe(1);
     expect(parseJson(result).status[0]).toEqual(
       expect.objectContaining({
-        code: 'context_store_remove_confirmation_required',
+        code: 'store_remove_confirmation_required',
       })
     );
-    expect(fs.existsSync(getContextStoreMetadataPath(storeRoot))).toBe(true);
+    expect(fs.existsSync(getStoreMetadataPath(storeRoot))).toBe(true);
   });
 
-  it('removes a context store after explicit non-interactive confirmation', async () => {
+  it('removes a store after explicit non-interactive confirmation', async () => {
     const storeRoot = mkdir('team-context');
     const canonicalStoreRoot = expectedExistingPath(storeRoot);
-    await writeContextStoreMetadataState(storeRoot, { version: 1, id: 'team-context' });
-    await writeContextStoreRegistryState(
+    await writeStoreMetadataState(storeRoot, { version: 1, id: 'team-context' });
+    await writeStoreRegistryState(
       {
         version: 1,
         stores: {
@@ -826,13 +828,13 @@ describe('context-store command', () => {
     );
 
     const result = await runCLI(
-      ['context-store', 'remove', 'team-context', '--yes', '--json'],
+      ['store', 'remove', 'team-context', '--yes', '--json'],
       { cwd: tempDir, env }
     );
 
     expect(result.exitCode).toBe(0);
     expect(parseJson(result)).toEqual(expect.objectContaining({
-      context_store: expect.objectContaining({
+      store: expect.objectContaining({
         id: 'team-context',
         root: canonicalStoreRoot,
       }),
@@ -844,17 +846,17 @@ describe('context-store command', () => {
         deleted_path: canonicalStoreRoot,
       }),
     }));
-    await expect(readContextStoreRegistryState({ globalDataDir })).resolves.toEqual({
+    await expect(readStoreRegistryState({ globalDataDir })).resolves.toEqual({
       version: 1,
       stores: {},
     });
     expect(fs.existsSync(storeRoot)).toBe(false);
   });
 
-  it('refuses to remove files when the folder lacks matching context-store metadata', async () => {
+  it('refuses to remove files when the folder lacks matching store metadata', async () => {
     const storeRoot = mkdir('team-context');
     const canonicalStoreRoot = expectedExistingPath(storeRoot);
-    await writeContextStoreRegistryState(
+    await writeStoreRegistryState(
       {
         version: 1,
         stores: {
@@ -870,18 +872,18 @@ describe('context-store command', () => {
     );
 
     const result = await runCLI(
-      ['context-store', 'remove', 'team-context', '--yes', '--json'],
+      ['store', 'remove', 'team-context', '--yes', '--json'],
       { cwd: tempDir, env }
     );
 
     expect(result.exitCode).toBe(1);
     expect(parseJson(result).status[0]).toEqual(
       expect.objectContaining({
-        code: 'context_store_remove_metadata_missing',
+        code: 'store_remove_metadata_missing',
       })
     );
     expect(fs.existsSync(storeRoot)).toBe(true);
-    await expect(readContextStoreRegistryState({ globalDataDir })).resolves.toEqual({
+    await expect(readStoreRegistryState({ globalDataDir })).resolves.toEqual({
       version: 1,
       stores: {
         'team-context': {
@@ -895,12 +897,12 @@ describe('context-store command', () => {
   });
 
   it('rejects an explicit blank doctor id', async () => {
-    const result = await runCLI(['context-store', 'doctor', '', '--json'], { cwd: tempDir, env });
+    const result = await runCLI(['store', 'doctor', '', '--json'], { cwd: tempDir, env });
 
     expect(result.exitCode).toBe(1);
     expect(parseJson(result).status[0]).toEqual(
       expect.objectContaining({
-        code: 'invalid_context_store_id',
+        code: 'invalid_store_id',
       })
     );
   });
@@ -911,9 +913,9 @@ describe('context-store command', () => {
     execFileSync('git', ['init'], { cwd: healthyRoot, stdio: 'ignore' });
     createHealthyOpenSpecRoot(healthyRoot);
     createHealthyOpenSpecRoot(mismatchRoot);
-    await writeContextStoreMetadataState(healthyRoot, { version: 1, id: 'healthy-context' });
-    await writeContextStoreMetadataState(mismatchRoot, { version: 1, id: 'other-context' });
-    await writeContextStoreRegistryState(
+    await writeStoreMetadataState(healthyRoot, { version: 1, id: 'healthy-context' });
+    await writeStoreMetadataState(mismatchRoot, { version: 1, id: 'other-context' });
+    await writeStoreRegistryState(
       {
         version: 1,
         stores: {
@@ -940,16 +942,16 @@ describe('context-store command', () => {
       { globalDataDir }
     );
 
-    const result = await runCLI(['context-store', 'doctor', '--json'], { cwd: tempDir, env });
+    const result = await runCLI(['store', 'doctor', '--json'], { cwd: tempDir, env });
 
     expect(result.exitCode).toBe(0);
     const payload = parseJson(result);
-    const byId = Object.fromEntries(payload.context_stores.map((store: any) => [store.id, store]));
+    const byId = Object.fromEntries(payload.stores.map((store: any) => [store.id, store]));
     // A healthy root in a commitless repo is the clone trap; doctor warns.
     expect(byId['healthy-context'].status).toEqual([
       expect.objectContaining({
         severity: 'warning',
-        code: 'context_store_git_no_commits',
+        code: 'store_git_no_commits',
       }),
     ]);
     expect(byId['healthy-context'].openspec_root.healthy).toBe(true);
@@ -961,13 +963,13 @@ describe('context-store command', () => {
     });
     expect(byId['missing-context'].status[0]).toEqual(
       expect.objectContaining({
-        code: 'context_store_root_missing',
+        code: 'store_root_missing',
       })
     );
     expect(byId['missing-context'].openspec_root.present).toBeNull();
     expect(byId['mismatch-context'].status[0]).toEqual(
       expect.objectContaining({
-        code: 'context_store_metadata_id_mismatch',
+        code: 'store_metadata_id_mismatch',
       })
     );
   });
@@ -977,8 +979,8 @@ describe('context-store command', () => {
     fs.mkdirSync(path.join(storeRoot, 'openspec', 'specs'), { recursive: true });
     fs.mkdirSync(path.join(storeRoot, 'openspec', 'changes'), { recursive: true });
     fs.writeFileSync(path.join(storeRoot, 'openspec', 'config.yaml'), `schema: ${DEFAULT_OPENSPEC_SCHEMA}\n`);
-    await writeContextStoreMetadataState(storeRoot, { version: 1, id: 'team-context' });
-    await writeContextStoreRegistryState(
+    await writeStoreMetadataState(storeRoot, { version: 1, id: 'team-context' });
+    await writeStoreRegistryState(
       {
         version: 1,
         stores: {
@@ -993,13 +995,13 @@ describe('context-store command', () => {
       { globalDataDir }
     );
 
-    const result = await runCLI(['context-store', 'doctor', 'team-context', '--json'], {
+    const result = await runCLI(['store', 'doctor', 'team-context', '--json'], {
       cwd: tempDir,
       env,
     });
 
     expect(result.exitCode).toBe(0);
-    const store = parseJson(result).context_stores[0];
+    const store = parseJson(result).stores[0];
     expect(store.openspec_root.archive.present).toBe(false);
     expect(store.openspec_root.status[0]).toEqual(
       expect.objectContaining({
@@ -1013,8 +1015,8 @@ describe('context-store command', () => {
     // Register the original checkout.
     const original = mkdir('team-context');
     createHealthyOpenSpecRoot(original);
-    await writeContextStoreMetadataState(original, { version: 1, id: 'team-context' });
-    const first = await runCLI(['context-store', 'register', original, '--json'], {
+    await writeStoreMetadataState(original, { version: 1, id: 'team-context' });
+    const first = await runCLI(['store', 'register', original, '--json'], {
       cwd: tempDir,
       env,
     });
@@ -1025,29 +1027,29 @@ describe('context-store command', () => {
     // different id".
     const secondCheckout = mkdir('elsewhere/team-context');
     createHealthyOpenSpecRoot(secondCheckout);
-    await writeContextStoreMetadataState(secondCheckout, { version: 1, id: 'team-context' });
-    const conflict = await runCLI(['context-store', 'register', secondCheckout, '--json'], {
+    await writeStoreMetadataState(secondCheckout, { version: 1, id: 'team-context' });
+    const conflict = await runCLI(['store', 'register', secondCheckout, '--json'], {
       cwd: tempDir,
       env,
     });
     expect(conflict.exitCode).toBe(1);
     const conflictStatus = parseJson(conflict).status[0];
-    expect(conflictStatus.code).toBe('context_store_id_conflict');
+    expect(conflictStatus.code).toBe('store_id_conflict');
     expect(conflictStatus.message).toContain('One checkout per store id');
     expect(conflictStatus.message).toContain(expectedExistingPath(original));
-    expect(conflictStatus.fix).toContain('openspec context-store unregister team-context');
-    expect(conflictStatus.fix).not.toContain('different context store id');
+    expect(conflictStatus.fix).toContain('openspec store unregister team-context');
+    expect(conflictStatus.fix).not.toContain('different store id');
 
     // Mismatched --id when the metadata id is already registered elsewhere:
     // the fix names the one-checkout rule instead of pointing back at the
     // already-registered error.
     const mismatchRegistered = await runCLI(
-      ['context-store', 'register', secondCheckout, '--id', 'team-context-2', '--json'],
+      ['store', 'register', secondCheckout, '--id', 'team-context-2', '--json'],
       { cwd: tempDir, env }
     );
     expect(mismatchRegistered.exitCode).toBe(1);
     const mismatchRegisteredStatus = parseJson(mismatchRegistered).status[0];
-    expect(mismatchRegisteredStatus.code).toBe('context_store_metadata_id_mismatch');
+    expect(mismatchRegisteredStatus.code).toBe('store_metadata_id_mismatch');
     expect(mismatchRegisteredStatus.fix).toContain('One checkout per store id');
     expect(mismatchRegisteredStatus.fix).toContain('unregister team-context');
     expect(mismatchRegisteredStatus.fix).not.toContain('Use --id team-context or');
@@ -1055,14 +1057,14 @@ describe('context-store command', () => {
     // Mismatched --id when the metadata id is free: the plain fix applies.
     const freeRoot = mkdir('free-context');
     createHealthyOpenSpecRoot(freeRoot);
-    await writeContextStoreMetadataState(freeRoot, { version: 1, id: 'free-context' });
+    await writeStoreMetadataState(freeRoot, { version: 1, id: 'free-context' });
     const mismatchFree = await runCLI(
-      ['context-store', 'register', freeRoot, '--id', 'wrong-id', '--json'],
+      ['store', 'register', freeRoot, '--id', 'wrong-id', '--json'],
       { cwd: tempDir, env }
     );
     expect(mismatchFree.exitCode).toBe(1);
     const mismatchFreeStatus = parseJson(mismatchFree).status[0];
-    expect(mismatchFreeStatus.code).toBe('context_store_metadata_id_mismatch');
+    expect(mismatchFreeStatus.code).toBe('store_metadata_id_mismatch');
     expect(mismatchFreeStatus.fix).toContain('Use --id free-context');
   });
 

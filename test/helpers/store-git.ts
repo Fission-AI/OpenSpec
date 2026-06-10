@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import { DEFAULT_OPENSPEC_SCHEMA } from '../../src/core/index.js';
 
 /**
- * Shared fixtures for context-store tests that touch real Git.
+ * Shared fixtures for store tests that touch real Git.
  */
 
 export function createHealthyOpenSpecRoot(root: string, configName = 'config.yaml'): void {
@@ -25,9 +25,9 @@ export function isolatedGitEnv(tempDir: string): NodeJS.ProcessEnv {
   return {
     GIT_CONFIG_GLOBAL: emptyConfig,
     GIT_CONFIG_SYSTEM: emptyConfig,
-    GIT_AUTHOR_NAME: 'Context Store Tester',
+    GIT_AUTHOR_NAME: 'Store Tester',
     GIT_AUTHOR_EMAIL: 'tester@example.com',
-    GIT_COMMITTER_NAME: 'Context Store Tester',
+    GIT_COMMITTER_NAME: 'Store Tester',
     GIT_COMMITTER_EMAIL: 'tester@example.com',
   };
 }

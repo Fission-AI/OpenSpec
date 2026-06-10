@@ -7,7 +7,7 @@ import {
   WorkspaceContextState,
   WorkspaceViewState,
   getWorkspaceContextInitiativeId,
-  getWorkspaceContextStoreId,
+  getWorkspaceStoreId,
   getManagedWorkspaceRoot,
   hasWorkspaceSkillProfileDrift,
   getWorkspaceChangesDir,
@@ -22,9 +22,9 @@ import {
   writeWorkspaceViewState,
 } from '../../core/workspace/index.js';
 import {
-  formatContextStoreBinding,
-  sameContextStoreBinding,
-} from '../../core/context-store/index.js';
+  formatStoreBinding,
+  sameStoreBinding,
+} from '../../core/store/index.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import {
   SelectedWorkspace,
@@ -107,7 +107,7 @@ function workspaceContextToOutput(
   }
 
   return {
-    store: getWorkspaceContextStoreId(context),
+    store: getWorkspaceStoreId(context),
     initiative: getWorkspaceContextInitiativeId(context),
     store_selector: context.store.selector,
   };
@@ -628,14 +628,14 @@ function sameWorkspaceContext(
 ): boolean {
   return (
     left !== null &&
-    sameContextStoreBinding(left.store, right.store) &&
+    sameStoreBinding(left.store, right.store) &&
     getWorkspaceContextInitiativeId(left) === getWorkspaceContextInitiativeId(right)
   );
 }
 
 function formatWorkspaceContext(context: WorkspaceContextState | null): string {
   return context
-    ? `${formatContextStoreBinding(context.store)}/${getWorkspaceContextInitiativeId(context)}`
+    ? `${formatStoreBinding(context.store)}/${getWorkspaceContextInitiativeId(context)}`
     : 'no initiative context';
 }
 
@@ -792,7 +792,7 @@ export async function selectOrCreateWorkspaceForInitiativeOpen(input: {
       'workspace_name_collision',
       {
         target: 'workspace.name',
-        fix: `Retry with an explicit workspace name: openspec workspace open <name> --initiative ${getWorkspaceContextStoreId(input.context)}/${getWorkspaceContextInitiativeId(input.context)}`,
+        fix: `Retry with an explicit workspace name: openspec workspace open <name> --initiative ${getWorkspaceStoreId(input.context)}/${getWorkspaceContextInitiativeId(input.context)}`,
       }
     );
   }

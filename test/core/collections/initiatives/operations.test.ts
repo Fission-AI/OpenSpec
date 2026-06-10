@@ -29,7 +29,7 @@ describe('initiative operations', () => {
     nodeFs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  function mountInitiatives(storeRoot = path.join(tempDir, 'context-store')) {
+  function mountInitiatives(storeRoot = path.join(tempDir, 'store')) {
     const collections = createCollectionRegistry([{ id: 'initiatives', mount: 'initiatives' }]);
     return mountCollections({ storeRoot, collections }).require('initiatives');
   }
@@ -315,7 +315,7 @@ describe('initiative operations', () => {
   it('requires the mounted initiatives collection', async () => {
     const collections = createCollectionRegistry([{ id: 'decisions', mount: 'decisions' }]);
     const decisions = mountCollections({
-      storeRoot: path.join(tempDir, 'context-store'),
+      storeRoot: path.join(tempDir, 'store'),
       collections,
     }).require('decisions');
 

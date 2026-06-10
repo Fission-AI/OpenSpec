@@ -3,13 +3,13 @@ import * as nodeFs from 'node:fs';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
 
-import { ContextStoreError } from './errors.js';
+import { StoreError } from './errors.js';
 
 const fs = nodeFs.promises;
 const execFileAsync = promisify(execFile);
 
 /**
- * Git mechanics for context stores: repository detection, setup-time init and
+ * Git mechanics for stores: repository detection, setup-time init and
  * commit, and the read-only facts doctor reports. Nothing here clones, pulls,
  * pushes, or syncs — setup-time `git init` plus one initial commit is the
  * entire write surface.
@@ -41,11 +41,11 @@ export async function initGitRepository(storeRoot: string): Promise<boolean> {
   try {
     await execFileAsync('git', ['init'], { cwd: storeRoot });
   } catch (error) {
-    throw new ContextStoreError(
+    throw new StoreError(
       `Failed to initialize Git repository: ${error instanceof Error ? error.message : String(error)}`,
-      'context_store_git_init_failed',
+      'store_git_init_failed',
       {
-        target: 'context_store.git',
+        target: 'store.git',
         fix: 'Install Git or rerun setup with --no-init-git.',
       }
     );
@@ -64,21 +64,21 @@ export async function assertGitCommitIdentity(probeCwd: string): Promise<void> {
       await execFileAsync('git', ['var', identVar], { cwd: probeCwd });
     } catch (error) {
       if (isSpawnNotFoundError(error)) {
-        throw new ContextStoreError(
-          'Git is not available, so setup cannot create the initial context-store commit.',
-          'context_store_git_init_failed',
+        throw new StoreError(
+          'Git is not available, so setup cannot create the initial store commit.',
+          'store_git_init_failed',
           {
-            target: 'context_store.git',
+            target: 'store.git',
             fix: 'Install Git or rerun setup with --no-init-git.',
           }
         );
       }
 
-      throw new ContextStoreError(
-        'No usable Git commit identity is configured, so setup cannot create the initial context-store commit.',
-        'context_store_git_identity_missing',
+      throw new StoreError(
+        'No usable Git commit identity is configured, so setup cannot create the initial store commit.',
+        'store_git_identity_missing',
         {
-          target: 'context_store.git',
+          target: 'store.git',
           fix: 'Run git config --global user.name "Your Name" and git config --global user.email "you@example.com", or rerun setup with --no-init-git.',
         }
       );
@@ -104,7 +104,7 @@ export async function commitStoreFiles(
     await execFileAsync('git', ['add', '--', ...pathspecs], { cwd: storeRoot });
     await execFileAsync(
       'git',
-      ['commit', '-m', `Initialize OpenSpec context store ${id}`, '--', ...pathspecs],
+      ['commit', '-m', `Initialize OpenSpec store ${id}`, '--', ...pathspecs],
       { cwd: storeRoot }
     );
   } catch (error) {
@@ -114,11 +114,11 @@ export async function commitStoreFiles(
       cwd: storeRoot,
     }).catch(() => undefined);
 
-    throw new ContextStoreError(
-      `Failed to create the initial context-store commit: ${error instanceof Error ? error.message : String(error)}`,
-      'context_store_git_commit_failed',
+    throw new StoreError(
+      `Failed to create the initial store commit: ${error instanceof Error ? error.message : String(error)}`,
+      'store_git_commit_failed',
       {
-        target: 'context_store.git',
+        target: 'store.git',
         fix: 'Commit the created files manually, or rerun setup with --no-init-git.',
       }
     );

@@ -7,22 +7,22 @@ import * as path from 'node:path';
 
 import {
   getGlobalDataDir,
-  writeContextStoreMetadataState,
-  writeContextStoreRegistryState,
+  writeStoreMetadataState,
+  writeStoreRegistryState,
 } from '../../src/core/index.js';
 import { runCLI, type RunCLIResult } from '../helpers/run-cli.js';
-import { createHealthyOpenSpecRoot, isolatedGitEnv } from '../helpers/context-store-git.js';
+import { createHealthyOpenSpecRoot, isolatedGitEnv } from '../helpers/store-git.js';
 
 vi.mock('@inquirer/prompts', () => ({
   input: vi.fn(),
   confirm: vi.fn(),
 }));
 
-async function runContextStoreCommand(args: string[]): Promise<void> {
-  const { registerContextStoreCommand } = await import('../../src/commands/context-store.js');
+async function runStoreCommand(args: string[]): Promise<void> {
+  const { registerStoreCommand } = await import('../../src/commands/store.js');
   const program = new Command();
-  registerContextStoreCommand(program);
-  await program.parseAsync(['node', 'openspec', 'context-store', ...args]);
+  registerStoreCommand(program);
+  await program.parseAsync(['node', 'openspec', 'store', ...args]);
 }
 
 async function getPromptMocks(): Promise<{
@@ -37,10 +37,10 @@ async function getPromptMocks(): Promise<{
 }
 
 /**
- * Git lifecycle behavior of context-store setup, register, and doctor: the
+ * Git lifecycle behavior of store setup, register, and doctor: the
  * initial commit, identity handling, and the read-only Git diagnostics.
  */
-describe('context-store git lifecycle', () => {
+describe('store git lifecycle', () => {
   let tempDir: string;
   let dataHome: string;
   let configHome: string;
@@ -56,7 +56,7 @@ describe('context-store git lifecycle', () => {
   beforeEach(() => {
     vi.resetModules();
 
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-context-store-git-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-store-git-'));
     dataHome = path.join(tempDir, 'data');
     configHome = path.join(tempDir, 'config');
     env = {
@@ -118,17 +118,17 @@ describe('context-store git lifecycle', () => {
     const storeRoot = path.join(tempDir, 'interactive-context');
     const { input, confirm } = await getPromptMocks();
     input.mockImplementation(async (options: { message: string }) => {
-      if (options.message === 'Where should this context store live?') return storeRoot;
+      if (options.message === 'Where should this store live?') return storeRoot;
       throw new Error(`Unexpected prompt: ${options.message}`);
     });
     confirm.mockResolvedValue(true);
 
-    await runContextStoreCommand(['setup', 'interactive-context']);
+    await runStoreCommand(['setup', 'interactive-context']);
 
     // No Git prompt: Git is the default, and the summary reflects it.
     expect(confirm).toHaveBeenCalledTimes(1);
     expect(confirm).toHaveBeenNthCalledWith(1, {
-      message: 'Create this context store?',
+      message: 'Create this store?',
       default: true,
     });
     expect(consoleLogSpy).toHaveBeenCalledWith('  Git: initialized');
@@ -139,7 +139,7 @@ describe('context-store git lifecycle', () => {
     const committed = execFileSync('git', ['log', '--format=%s'], { cwd: storeRoot })
       .toString()
       .trim();
-    expect(committed).toBe('Initialize OpenSpec context store interactive-context');
+    expect(committed).toBe('Initialize OpenSpec store interactive-context');
     expect(process.exitCode).toBeUndefined();
   });
 
@@ -152,7 +152,7 @@ describe('context-store git lifecycle', () => {
     fs.writeFileSync(path.join(storeRoot, 'workspace.yaml'), 'old: beta\n');
 
     const result = await runCLI(
-      ['context-store', 'setup', 'convert-context', '--path', storeRoot, '--json'],
+      ['store', 'setup', 'convert-context', '--path', storeRoot, '--json'],
       { cwd: tempDir, env: gitEnv }
     );
 
@@ -207,7 +207,7 @@ describe('context-store git lifecycle', () => {
     execFileSync('git', ['add', 'user-staged.txt'], { cwd: storeRoot, env: gitExecEnv });
 
     const result = await runCLI(
-      ['context-store', 'setup', 'staged-context', '--path', storeRoot, '--json'],
+      ['store', 'setup', 'staged-context', '--path', storeRoot, '--json'],
       { cwd: tempDir, env: gitEnv }
     );
 
@@ -233,7 +233,7 @@ describe('context-store git lifecycle', () => {
 
     // Reruns stay strict no-ops: no new files, no new commit.
     const rerun = await runCLI(
-      ['context-store', 'setup', 'staged-context', '--path', storeRoot, '--json'],
+      ['store', 'setup', 'staged-context', '--path', storeRoot, '--json'],
       { cwd: tempDir, env: gitEnv }
     );
     expect(rerun.exitCode).toBe(0);
@@ -253,8 +253,8 @@ describe('context-store git lifecycle', () => {
     execFileSync('git', ['init'], { cwd: storeRoot, stdio: 'ignore' });
     execFileSync('git', ['add', 'openspec/config.yaml'], { cwd: storeRoot, env: gitExecEnv });
     execFileSync('git', ['commit', '-m', 'partial'], { cwd: storeRoot, env: gitExecEnv, stdio: 'ignore' });
-    await writeContextStoreMetadataState(storeRoot, { version: 1, id: 'fragile-context' });
-    await writeContextStoreRegistryState(
+    await writeStoreMetadataState(storeRoot, { version: 1, id: 'fragile-context' });
+    await writeStoreRegistryState(
       {
         version: 1,
         stores: {
@@ -266,17 +266,17 @@ describe('context-store git lifecycle', () => {
       { globalDataDir }
     );
 
-    const doctor = await runCLI(['context-store', 'doctor', 'fragile-context', '--json'], {
+    const doctor = await runCLI(['store', 'doctor', 'fragile-context', '--json'], {
       cwd: tempDir,
       env,
     });
     expect(doctor.exitCode).toBe(0);
-    const store = parseJson(doctor).context_stores[0];
+    const store = parseJson(doctor).stores[0];
     expect(store.git.has_commits).toBe(true);
     expect(store.status).toEqual([
       expect.objectContaining({
         severity: 'warning',
-        code: 'context_store_clone_fragile_directories',
+        code: 'store_clone_fragile_directories',
         message: expect.stringContaining('openspec/specs/'),
       }),
     ]);
@@ -284,13 +284,13 @@ describe('context-store git lifecycle', () => {
     // A commitless clone refuses register with the empty-clone explanation.
     const emptyClone = mkdir('empty-clone');
     execFileSync('git', ['init'], { cwd: emptyClone, stdio: 'ignore' });
-    const register = await runCLI(['context-store', 'register', emptyClone, '--json'], {
+    const register = await runCLI(['store', 'register', emptyClone, '--json'], {
       cwd: tempDir,
       env,
     });
     expect(register.exitCode).toBe(1);
     const registerStatus = parseJson(register).status[0];
-    expect(registerStatus.code).toBe('context_store_register_root_unhealthy');
+    expect(registerStatus.code).toBe('store_register_root_unhealthy');
     expect(registerStatus.message).toContain('no commits');
     expect(registerStatus.fix).toContain('Commit and push the origin store');
   });

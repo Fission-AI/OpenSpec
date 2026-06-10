@@ -9,9 +9,9 @@ import {
   RootSelectionError,
 } from '../../src/core/root-selection.js';
 import {
-  writeContextStoreMetadataState,
-  writeContextStoreRegistryState,
-} from '../../src/core/context-store/foundation.js';
+  writeStoreMetadataState,
+  writeStoreRegistryState,
+} from '../../src/core/store/foundation.js';
 
 describe('resolveOpenSpecRoot', () => {
   let tempDir: string;
@@ -49,20 +49,20 @@ describe('resolveOpenSpecRoot', () => {
       createOpenSpecRoot(storeRoot);
     }
     if (options.metadataId !== null) {
-      await writeContextStoreMetadataState(storeRoot, {
+      await writeStoreMetadataState(storeRoot, {
         version: 1,
         id: options.metadataId ?? id,
       });
     }
 
-    const existing = fs.existsSync(path.join(globalDataDir, 'context-stores', 'registry.yaml'));
+    const existing = fs.existsSync(path.join(globalDataDir, 'stores', 'registry.yaml'));
     const registryStores = existing
-      ? (await import('../../src/core/context-store/foundation.js').then((m) =>
-          m.readContextStoreRegistryState({ globalDataDir })
+      ? (await import('../../src/core/store/foundation.js').then((m) =>
+          m.readStoreRegistryState({ globalDataDir })
         ))?.stores ?? {}
       : {};
 
-    await writeContextStoreRegistryState(
+    await writeStoreRegistryState(
       {
         version: 1,
         stores: {
@@ -130,9 +130,9 @@ describe('resolveOpenSpecRoot', () => {
     // No registry exists at all; format validation must win.
     const error = await expectRootSelectionError(
       resolveOpenSpecRoot({ store: 'Bad/Id', globalDataDir }),
-      'invalid_context_store_id'
+      'invalid_store_id'
     );
-    expect(error.message).toContain('Context store id');
+    expect(error.message).toContain('Store id');
   });
 
   it('rejects an unhealthy store root without repairing it', async () => {
@@ -142,7 +142,7 @@ describe('resolveOpenSpecRoot', () => {
       resolveOpenSpecRoot({ store: 'team-context', globalDataDir }),
       'unhealthy_store_root'
     );
-    expect(error.diagnostic.fix).toContain('context-store doctor');
+    expect(error.diagnostic.fix).toContain('store doctor');
     // No scaffolding or repair happened.
     expect(fs.existsSync(path.join(storeRoot, 'openspec'))).toBe(false);
   });
@@ -155,7 +155,7 @@ describe('resolveOpenSpecRoot', () => {
       'store_identity_mismatch'
     );
     expect(error.message).toContain('other-context');
-    expect(error.diagnostic.fix).toContain('context-store doctor');
+    expect(error.diagnostic.fix).toContain('store doctor');
   });
 
   it('rejects a store with missing identity metadata before root-health checks', async () => {
@@ -166,7 +166,7 @@ describe('resolveOpenSpecRoot', () => {
       resolveOpenSpecRoot({ store: 'team-context', globalDataDir }),
       'store_identity_mismatch'
     );
-    expect(error.diagnostic.fix).toContain('context-store doctor');
+    expect(error.diagnostic.fix).toContain('store doctor');
   });
 
   it('rejects --store-path deliberately with register guidance', async () => {
@@ -174,7 +174,7 @@ describe('resolveOpenSpecRoot', () => {
       resolveOpenSpecRoot({ storePath: '/somewhere', globalDataDir }),
       'store_path_not_supported'
     );
-    expect(error.message).toContain('context-store register');
+    expect(error.message).toContain('store register');
     expect(error.message).toContain('--store <id>');
   });
 

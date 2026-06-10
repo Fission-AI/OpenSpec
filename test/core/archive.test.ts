@@ -25,7 +25,7 @@ describe('ArchiveCommand', () => {
     // Change to temp directory
     process.chdir(tempDir);
 
-    // Isolate root resolution from any real context-store registry on the
+    // Isolate root resolution from any real store registry on the
     // host machine so no-root behavior stays the implicit-root path.
     process.env.XDG_DATA_HOME = path.join(tempDir, 'xdg-data');
 

@@ -4,9 +4,9 @@ import * as path from 'node:path';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { serializeConfig } from './config-prompts.js';
 import {
-  makeContextStoreDiagnostic,
-  type ContextStoreDiagnostic,
-} from './context-store/errors.js';
+  makeStoreDiagnostic,
+  type StoreDiagnostic,
+} from './store/errors.js';
 
 export const OPENSPEC_ROOT_DIR = 'openspec';
 export const OPENSPEC_CONFIG_YAML = 'openspec/config.yaml';
@@ -45,7 +45,7 @@ export interface OpenSpecRootInspection {
     present: boolean | null;
   };
   healthy: boolean;
-  diagnostics: ContextStoreDiagnostic[];
+  diagnostics: StoreDiagnostic[];
 }
 
 export interface EnsureOpenSpecRootResult {
@@ -95,8 +95,8 @@ function missingDirectoryDiagnostic(
   code: string,
   message: string,
   target: string
-): ContextStoreDiagnostic {
-  return makeContextStoreDiagnostic('error', code, message, { target });
+): StoreDiagnostic {
+  return makeStoreDiagnostic('error', code, message, { target });
 }
 
 export async function inspectOpenSpecRoot(storeRoot: string): Promise<OpenSpecRootInspection> {
@@ -107,7 +107,7 @@ export async function inspectOpenSpecRoot(storeRoot: string): Promise<OpenSpecRo
     inspection.diagnostics.push(missingDirectoryDiagnostic(
       'openspec_store_root_missing',
       'Store root does not exist.',
-      'context_store.root'
+      'store.root'
     ));
     return inspection;
   }
@@ -116,7 +116,7 @@ export async function inspectOpenSpecRoot(storeRoot: string): Promise<OpenSpecRo
     inspection.diagnostics.push(missingDirectoryDiagnostic(
       'openspec_store_root_not_directory',
       'Store root is not a directory.',
-      'context_store.root'
+      'store.root'
     ));
     return inspection;
   }

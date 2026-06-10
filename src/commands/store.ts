@@ -3,61 +3,61 @@ import * as path from 'node:path';
 import { Command } from 'commander';
 
 import {
-  ContextStoreError,
-  doctorContextStores,
-  listContextStores,
-  prepareContextStoreSetup,
-  prepareContextStoreCleanup,
-  registerExistingContextStore,
-  removeContextStore,
+  StoreError,
+  doctorStores,
+  listStores,
+  prepareStoreSetup,
+  prepareStoreCleanup,
+  registerExistingStore,
+  removeStore,
   resolveSetupGitEnabled,
-  setupPreparedContextStore,
-  unregisterContextStore,
-  validateContextStoreId,
-  type ContextStoreCleanupResult,
-  type ContextStoreDiagnostic,
-  type ContextStoreDoctorResult,
-  type ContextStoreInfo,
-  type ContextStoreInspection,
-  type ContextStoreListResult,
-  type ContextStoreMutationResult,
-  type SetupContextStoreInput,
-} from '../core/context-store/index.js';
+  setupPreparedStore,
+  unregisterStore,
+  validateStoreId,
+  type StoreCleanupResult,
+  type StoreDiagnostic,
+  type StoreDoctorResult,
+  type StoreInfo,
+  type StoreInspection,
+  type StoreListResult,
+  type StoreMutationResult,
+  type SetupStoreInput,
+} from '../core/store/index.js';
 import { isInteractive } from '../utils/interactive.js';
 
-interface ContextStoreSetupOptions {
+interface StoreSetupOptions {
   path?: string;
   initGit?: boolean;
   json?: boolean;
 }
 
-interface ContextStoreRegisterOptions {
+interface StoreRegisterOptions {
   id?: string;
   yes?: boolean;
   json?: boolean;
 }
 
-interface ContextStoreRemoveOptions {
+interface StoreRemoveOptions {
   yes?: boolean;
   json?: boolean;
 }
 
-interface ContextStoreJsonOptions {
+interface StoreJsonOptions {
   json?: boolean;
 }
 
-interface ResolvedContextStoreSetupInput extends SetupContextStoreInput {
+interface ResolvedStoreSetupInput extends SetupStoreInput {
   id: string;
 }
 
-interface ContextStoreOutput {
+interface StoreOutput {
   id: string;
   root: string;
   metadata_path?: string;
 }
 
-interface ContextStoreMutationOutput {
-  context_store: ContextStoreOutput | null;
+interface StoreMutationOutput {
+  store: StoreOutput | null;
   registry: {
     path: string;
     registered: boolean;
@@ -69,11 +69,11 @@ interface ContextStoreMutationOutput {
     committed: boolean;
   } | null;
   created_files: string[];
-  status: ContextStoreDiagnostic[];
+  status: StoreDiagnostic[];
 }
 
-interface ContextStoreCleanupOutput {
-  context_store: ContextStoreOutput | null;
+interface StoreCleanupOutput {
+  store: StoreOutput | null;
   registry: {
     path: string;
     removed: boolean;
@@ -83,33 +83,33 @@ interface ContextStoreCleanupOutput {
     deleted_path: string | null;
     left_on_disk: string | null;
   } | null;
-  status: ContextStoreDiagnostic[];
+  status: StoreDiagnostic[];
 }
 
-interface ContextStoreListOutput {
-  context_stores: ContextStoreOutput[];
-  status: ContextStoreDiagnostic[];
+interface StoreListOutput {
+  stores: StoreOutput[];
+  status: StoreDiagnostic[];
 }
 
-type OpenSpecRootOutput = Omit<ContextStoreInspection['openspecRoot'], 'diagnostics'> & {
-  status: ContextStoreDiagnostic[];
+type OpenSpecRootOutput = Omit<StoreInspection['openspecRoot'], 'diagnostics'> & {
+  status: StoreDiagnostic[];
 };
 
-interface ContextStoreDoctorStoreOutput extends ContextStoreOutput {
+interface StoreDoctorStoreOutput extends StoreOutput {
   openspec_root: OpenSpecRootOutput;
-  metadata: ContextStoreInspection['metadata'];
+  metadata: StoreInspection['metadata'];
   git: {
     is_repository: boolean | null;
     has_commits: boolean | null;
     has_uncommitted_changes: boolean | null;
     has_remote: boolean | null;
   };
-  status: ContextStoreDiagnostic[];
+  status: StoreDiagnostic[];
 }
 
-interface ContextStoreDoctorOutput {
-  context_stores: ContextStoreDoctorStoreOutput[];
-  status: ContextStoreDiagnostic[];
+interface StoreDoctorOutput {
+  stores: StoreDoctorStoreOutput[];
+  status: StoreDiagnostic[];
 }
 
 function printJson(payload: unknown): void {
@@ -120,9 +120,9 @@ function asErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function appendStatus<T extends { status: ContextStoreDiagnostic[] }>(
+function appendStatus<T extends { status: StoreDiagnostic[] }>(
   payload: T,
-  status: ContextStoreDiagnostic
+  status: StoreDiagnostic
 ): T {
   return {
     ...payload,
@@ -130,7 +130,7 @@ function appendStatus<T extends { status: ContextStoreDiagnostic[] }>(
   };
 }
 
-function toStoreOutput(store: ContextStoreInfo): ContextStoreOutput {
+function toStoreOutput(store: StoreInfo): StoreOutput {
   return {
     id: store.id,
     root: store.root,
@@ -138,9 +138,9 @@ function toStoreOutput(store: ContextStoreInfo): ContextStoreOutput {
   };
 }
 
-function toMutationOutput(result: ContextStoreMutationResult): ContextStoreMutationOutput {
+function toMutationOutput(result: StoreMutationResult): StoreMutationOutput {
   return {
-    context_store: toStoreOutput(result.store),
+    store: toStoreOutput(result.store),
     registry: {
       path: result.registryCommit.path,
       registered: result.registryCommit.registered,
@@ -156,9 +156,9 @@ function toMutationOutput(result: ContextStoreMutationResult): ContextStoreMutat
   };
 }
 
-function toCleanupOutput(result: ContextStoreCleanupResult): ContextStoreCleanupOutput {
+function toCleanupOutput(result: StoreCleanupResult): StoreCleanupOutput {
   return {
-    context_store: toStoreOutput(result.store),
+    store: toStoreOutput(result.store),
     registry: {
       path: result.registryCommit.path,
       removed: result.registryCommit.removed,
@@ -172,14 +172,14 @@ function toCleanupOutput(result: ContextStoreCleanupResult): ContextStoreCleanup
   };
 }
 
-function toListOutput(result: ContextStoreListResult): ContextStoreListOutput {
+function toListOutput(result: StoreListResult): StoreListOutput {
   return {
-    context_stores: result.stores.map(toStoreOutput),
+    stores: result.stores.map(toStoreOutput),
     status: [],
   };
 }
 
-function toOpenSpecRootOutput(root: ContextStoreInspection['openspecRoot']): OpenSpecRootOutput {
+function toOpenSpecRootOutput(root: StoreInspection['openspecRoot']): OpenSpecRootOutput {
   return {
     present: root.present,
     config: root.config,
@@ -191,7 +191,7 @@ function toOpenSpecRootOutput(root: ContextStoreInspection['openspecRoot']): Ope
   };
 }
 
-function toDoctorStoreOutput(store: ContextStoreInspection): ContextStoreDoctorStoreOutput {
+function toDoctorStoreOutput(store: StoreInspection): StoreDoctorStoreOutput {
   return {
     ...toStoreOutput(store),
     openspec_root: toOpenSpecRootOutput(store.openspecRoot),
@@ -206,15 +206,15 @@ function toDoctorStoreOutput(store: ContextStoreInspection): ContextStoreDoctorS
   };
 }
 
-function toDoctorOutput(result: ContextStoreDoctorResult): ContextStoreDoctorOutput {
+function toDoctorOutput(result: StoreDoctorResult): StoreDoctorOutput {
   return {
-    context_stores: result.stores.map(toDoctorStoreOutput),
+    stores: result.stores.map(toDoctorStoreOutput),
     status: result.diagnostics,
   };
 }
 
-function asStatus(error: unknown): ContextStoreDiagnostic {
-  if (error instanceof ContextStoreError) {
+function asStatus(error: unknown): StoreDiagnostic {
+  if (error instanceof StoreError) {
     return error.diagnostic;
   }
 
@@ -222,7 +222,7 @@ function asStatus(error: unknown): ContextStoreDiagnostic {
 
   return {
     severity: 'error',
-    code: 'context_store_error',
+    code: 'store_error',
     message,
   };
 }
@@ -248,15 +248,15 @@ function formatPathForHuman(targetPath: string): string {
   return targetPath;
 }
 
-async function promptContextStoreId(): Promise<string> {
+async function promptStoreId(): Promise<string> {
   const { input } = await import('@inquirer/prompts');
 
   return input({
-    message: 'Context store name',
+    message: 'Store name',
     required: true,
     validate(value: string) {
       try {
-        validateContextStoreId(value);
+        validateStoreId(value);
         return true;
       } catch (error) {
         return asErrorMessage(error);
@@ -265,13 +265,13 @@ async function promptContextStoreId(): Promise<string> {
   });
 }
 
-async function promptContextStorePath(id: string): Promise<string> {
+async function promptStorePath(id: string): Promise<string> {
   const { input } = await import('@inquirer/prompts');
   // Suggest a visible, user-owned location — never the managed XDG data dir.
   const defaultPath = ['~', 'openspec', id].join('/');
 
   return input({
-    message: 'Where should this context store live?',
+    message: 'Where should this store live?',
     default: defaultPath,
     prefill: 'editable',
     required: true,
@@ -280,35 +280,35 @@ async function promptContextStorePath(id: string): Promise<string> {
 
 async function resolveSetupInput(
   id: string | undefined,
-  options: ContextStoreSetupOptions
-): Promise<ResolvedContextStoreSetupInput> {
+  options: StoreSetupOptions
+): Promise<ResolvedStoreSetupInput> {
   const interactive = !options.json && isInteractive();
 
   if (!id && !interactive) {
-    throw new ContextStoreError(
-      'Pass a context store name.',
-      'context_store_setup_id_required',
+    throw new StoreError(
+      'Pass a store name.',
+      'store_setup_id_required',
       {
-        target: 'context_store.id',
-        fix: 'openspec context-store setup <id> --path ~/openspec/<id> --json',
+        target: 'store.id',
+        fix: 'openspec store setup <id> --path ~/openspec/<id> --json',
       }
     );
   }
 
   if (options.path === undefined && !interactive) {
-    throw new ContextStoreError(
-      'Pass --path with the folder where this context store should live.',
-      'context_store_setup_path_required',
+    throw new StoreError(
+      'Pass --path with the folder where this store should live.',
+      'store_setup_path_required',
       {
-        target: 'context_store.root',
-        fix: `openspec context-store setup ${id ?? '<id>'} --path ~/openspec/${id ?? '<id>'}`,
+        target: 'store.root',
+        fix: `openspec store setup ${id ?? '<id>'} --path ~/openspec/${id ?? '<id>'}`,
       }
     );
   }
 
-  const resolvedId = id ? validateContextStoreId(id) : await promptContextStoreId();
+  const resolvedId = id ? validateStoreId(id) : await promptStoreId();
   const promptedPath = options.path === undefined
-    ? await promptContextStorePath(resolvedId)
+    ? await promptStorePath(resolvedId)
     : undefined;
 
   return {
@@ -318,14 +318,14 @@ async function resolveSetupInput(
 }
 
 async function prepareSetupInput(
-  input: ResolvedContextStoreSetupInput,
-  _options: ContextStoreSetupOptions
+  input: ResolvedStoreSetupInput,
+  _options: StoreSetupOptions
 ) {
-  return prepareContextStoreSetup(input);
+  return prepareStoreSetup(input);
 }
 
 async function confirmSetup(
-  prepared: Awaited<ReturnType<typeof prepareContextStoreSetup>>,
+  prepared: Awaited<ReturnType<typeof prepareStoreSetup>>,
   initGit: boolean
 ): Promise<void> {
   const { confirm } = await import('@inquirer/prompts');
@@ -333,55 +333,55 @@ async function confirmSetup(
   console.log('');
   console.log('OpenSpec will create:');
   console.log('');
-  console.log(`  Context store: ${prepared.id}`);
+  console.log(`  Store: ${prepared.id}`);
   console.log(`  Location: ${formatPathForHuman(prepared.root)}`);
   console.log(`  Git: ${initGit ? 'initialized' : 'not initialized'}`);
   console.log('');
 
   const confirmed = await confirm({
-    message: 'Create this context store?',
+    message: 'Create this store?',
     default: true,
   });
 
   if (!confirmed) {
-    throw new ContextStoreError(
-      'Context store setup cancelled.',
-      'context_store_setup_cancelled',
+    throw new StoreError(
+      'Store setup cancelled.',
+      'store_setup_cancelled',
       {
-        target: 'context_store.root',
+        target: 'store.root',
         fix: 'Rerun setup when you are ready.',
       }
     );
   }
 }
 
-async function confirmRemove(id: string, root: string, options: ContextStoreRemoveOptions): Promise<void> {
+async function confirmRemove(id: string, root: string, options: StoreRemoveOptions): Promise<void> {
   if (options.yes) return;
 
   if (options.json || !isInteractive()) {
-    throw new ContextStoreError(
-      'Pass --yes to delete context-store files non-interactively.',
-      'context_store_remove_confirmation_required',
+    throw new StoreError(
+      'Pass --yes to delete store files non-interactively.',
+      'store_remove_confirmation_required',
       {
-        target: 'context_store.root',
-        fix: `openspec context-store remove ${id} --yes`,
+        target: 'store.root',
+        fix: `openspec store remove ${id} --yes`,
       }
     );
   }
 
   const { confirm } = await import('@inquirer/prompts');
   const confirmed = await confirm({
-    message: `Delete local context-store folder ${formatPathForHuman(root)}?`,
+    message: `Delete local store folder ${formatPathForHuman(root)}?`,
     default: false,
   });
 
   if (!confirmed) {
-    throw new ContextStoreError(
-      'Context store remove cancelled.',
-      'context_store_remove_cancelled',
+    throw new StoreError(
+      'Store remove cancelled.',
+      'store_remove_cancelled',
       {
-        target: 'context_store.root',
-        fix: 'Run context-store unregister if you only want to forget the local registration.',
+        target: 'store.root',
+        fix: 'Run store unregister if you only want to forget the local registration.',
       }
     );
   }
@@ -389,8 +389,8 @@ async function confirmRemove(id: string, root: string, options: ContextStoreRemo
 
 function isRegisterIdentityConfirmationError(error: unknown): boolean {
   return (
-    error instanceof ContextStoreError &&
-    error.diagnostic.code === 'context_store_register_identity_confirmation_required'
+    error instanceof StoreError &&
+    error.diagnostic.code === 'store_register_identity_confirmation_required'
   );
 }
 
@@ -402,24 +402,24 @@ async function confirmRegisterConversion(error: unknown): Promise<void> {
   });
 
   if (!confirmed) {
-    throw new ContextStoreError(
-      'Context store register cancelled.',
-      'context_store_register_cancelled',
+    throw new StoreError(
+      'Store register cancelled.',
+      'store_register_cancelled',
       {
-        target: 'context_store.metadata',
-        fix: 'Rerun register when you are ready to create context-store identity metadata.',
+        target: 'store.metadata',
+        fix: 'Rerun register when you are ready to create store identity metadata.',
       }
     );
   }
 }
 
-function printMutationHuman(title: string, payload: ContextStoreMutationOutput): void {
-  if (!payload.context_store || !payload.registry || !payload.git) {
+function printMutationHuman(title: string, payload: StoreMutationOutput): void {
+  if (!payload.store || !payload.registry || !payload.git) {
     return;
   }
 
-  console.log(`${title}: ${payload.context_store.id}`);
-  console.log(`Location: ${formatPathForHuman(payload.context_store.root)}`);
+  console.log(`${title}: ${payload.store.id}`);
+  console.log(`Location: ${formatPathForHuman(payload.store.root)}`);
   console.log('OpenSpec root: ready');
   console.log(`Registry: ${payload.registry.already_registered ? 'already registered' : 'registered'}`);
   for (const status of payload.status) {
@@ -427,25 +427,25 @@ function printMutationHuman(title: string, payload: ContextStoreMutationOutput):
   }
   console.log('');
   console.log('Next: run normal OpenSpec commands against this store, for example:');
-  console.log(`  openspec new change <change-id> --store ${payload.context_store.id}`);
+  console.log(`  openspec new change <change-id> --store ${payload.store.id}`);
   if (payload.git.is_repository) {
     console.log('Share this store by committing and pushing it like any Git repo.');
   }
 }
 
-function printCleanupHuman(title: string, payload: ContextStoreCleanupOutput): void {
-  if (!payload.context_store || !payload.registry || !payload.files) {
+function printCleanupHuman(title: string, payload: StoreCleanupOutput): void {
+  if (!payload.store || !payload.registry || !payload.files) {
     return;
   }
 
-  console.log(`${title}: ${payload.context_store.id}`);
+  console.log(`${title}: ${payload.store.id}`);
 
   if (payload.files.deleted_path) {
     console.log(`Deleted: ${formatPathForHuman(payload.files.deleted_path)}`);
   } else if (payload.files.left_on_disk) {
     console.log(`Files kept at: ${formatPathForHuman(payload.files.left_on_disk)}`);
   } else if (!payload.files.deleted) {
-    console.log(`Files were already missing: ${formatPathForHuman(payload.context_store.root)}`);
+    console.log(`Files were already missing: ${formatPathForHuman(payload.store.root)}`);
   }
 
   for (const status of payload.status) {
@@ -453,32 +453,32 @@ function printCleanupHuman(title: string, payload: ContextStoreCleanupOutput): v
   }
 }
 
-function printListHuman(payload: ContextStoreListOutput): void {
-  if (payload.context_stores.length === 0) {
-    console.log('No context stores registered.');
+function printListHuman(payload: StoreListOutput): void {
+  if (payload.stores.length === 0) {
+    console.log('No stores registered.');
     console.log('');
     console.log('Next:');
-    console.log('  openspec context-store setup team-context');
-    console.log('  openspec context-store register /path/to/context-store');
+    console.log('  openspec store setup team-context');
+    console.log('  openspec store register /path/to/store');
     return;
   }
 
-  console.log(`OpenSpec context stores (${payload.context_stores.length})`);
+  console.log(`OpenSpec stores (${payload.stores.length})`);
   console.log('');
   console.log(`${'ID'.padEnd(16)}Location`);
-  for (const store of payload.context_stores) {
+  for (const store of payload.stores) {
     console.log(`${store.id.padEnd(16)}${store.root}`);
   }
 }
 
-function formatMetadataHuman(store: ContextStoreDoctorOutput['context_stores'][number]): string {
+function formatMetadataHuman(store: StoreDoctorOutput['stores'][number]): string {
   if (store.metadata.valid) return 'ok';
   if (store.metadata.present === false) return 'missing';
   if (store.metadata.present === null) return 'unknown';
   return 'invalid';
 }
 
-function formatDoctorGitHuman(store: ContextStoreDoctorOutput['context_stores'][number]): string {
+function formatDoctorGitHuman(store: StoreDoctorOutput['stores'][number]): string {
   if (store.git.is_repository === null) return 'unknown';
   if (!store.git.is_repository) return 'not detected';
 
@@ -488,21 +488,21 @@ function formatDoctorGitHuman(store: ContextStoreDoctorOutput['context_stores'][
   return `repository detected (commits: ${fact(store.git.has_commits, 'yes', 'none')}, uncommitted changes: ${fact(store.git.has_uncommitted_changes, 'yes', 'no')}, remote: ${fact(store.git.has_remote, 'yes', 'none')})`;
 }
 
-function formatOpenSpecRootHuman(store: ContextStoreDoctorOutput['context_stores'][number]): string {
+function formatOpenSpecRootHuman(store: StoreDoctorOutput['stores'][number]): string {
   if (store.openspec_root.healthy) return 'ok';
   if (store.openspec_root.present === false) return 'missing';
   if (store.openspec_root.present === null) return 'unknown';
   return 'incomplete';
 }
 
-function printDoctorHuman(payload: ContextStoreDoctorOutput): void {
-  if (payload.context_stores.length === 0) {
-    console.log('No context stores registered.');
+function printDoctorHuman(payload: StoreDoctorOutput): void {
+  if (payload.stores.length === 0) {
+    console.log('No stores registered.');
     return;
   }
 
-  console.log('Context store doctor');
-  for (const store of payload.context_stores) {
+  console.log('Store doctor');
+  for (const store of payload.stores) {
     console.log('');
     console.log(store.id);
     console.log(`  Location: ${store.root}`);
@@ -525,8 +525,8 @@ function printDoctorHuman(payload: ContextStoreDoctorOutput): void {
   }
 }
 
-class ContextStoreCommand {
-  async setup(id: string | undefined, options: ContextStoreSetupOptions = {}): Promise<void> {
+class StoreCommand {
+  async setup(id: string | undefined, options: StoreSetupOptions = {}): Promise<void> {
     try {
       const setupInput = await resolveSetupInput(id, options);
       const prepared = await prepareSetupInput(setupInput, options);
@@ -534,7 +534,7 @@ class ContextStoreCommand {
       if (!options.json && isInteractive()) {
         await confirmSetup(prepared, initGit);
       }
-      const payload = toMutationOutput(await setupPreparedContextStore(prepared, {
+      const payload = toMutationOutput(await setupPreparedStore(prepared, {
         initGit,
       }));
 
@@ -543,21 +543,21 @@ class ContextStoreCommand {
         return;
       }
 
-      printMutationHuman('Context store ready', payload);
+      printMutationHuman('Store ready', payload);
     } catch (error) {
       this.handleFailure(
         options.json,
-        { context_store: null, registry: null, git: null, created_files: [], status: [] },
+        { store: null, registry: null, git: null, created_files: [], status: [] },
         error
       );
     }
   }
 
-  async register(inputPath: string | undefined, options: ContextStoreRegisterOptions = {}): Promise<void> {
+  async register(inputPath: string | undefined, options: StoreRegisterOptions = {}): Promise<void> {
     try {
-      let result: ContextStoreMutationResult;
+      let result: StoreMutationResult;
       try {
-        result = await registerExistingContextStore({
+        result = await registerExistingStore({
           path: inputPath,
           id: options.id,
           allowCreateIdentity: options.yes,
@@ -568,7 +568,7 @@ class ContextStoreCommand {
         }
 
         await confirmRegisterConversion(error);
-        result = await registerExistingContextStore({
+        result = await registerExistingStore({
           path: inputPath,
           id: options.id,
           allowCreateIdentity: true,
@@ -582,59 +582,59 @@ class ContextStoreCommand {
         return;
       }
 
-      printMutationHuman('Context store registered', payload);
+      printMutationHuman('Store registered', payload);
     } catch (error) {
       this.handleFailure(
         options.json,
-        { context_store: null, registry: null, git: null, created_files: [], status: [] },
+        { store: null, registry: null, git: null, created_files: [], status: [] },
         error
       );
     }
   }
 
-  async unregister(id: string, options: ContextStoreJsonOptions = {}): Promise<void> {
+  async unregister(id: string, options: StoreJsonOptions = {}): Promise<void> {
     try {
-      const payload = toCleanupOutput(await unregisterContextStore({ id }));
+      const payload = toCleanupOutput(await unregisterStore({ id }));
 
       if (options.json) {
         printJson(payload);
         return;
       }
 
-      printCleanupHuman('Unregistered context store', payload);
+      printCleanupHuman('Unregistered store', payload);
     } catch (error) {
       this.handleFailure(
         options.json,
-        { context_store: null, registry: null, files: null, status: [] },
+        { store: null, registry: null, files: null, status: [] },
         error
       );
     }
   }
 
-  async remove(id: string, options: ContextStoreRemoveOptions = {}): Promise<void> {
+  async remove(id: string, options: StoreRemoveOptions = {}): Promise<void> {
     try {
-      const target = await prepareContextStoreCleanup({ id });
+      const target = await prepareStoreCleanup({ id });
       await confirmRemove(target.id, target.root, options);
-      const payload = toCleanupOutput(await removeContextStore(target));
+      const payload = toCleanupOutput(await removeStore(target));
 
       if (options.json) {
         printJson(payload);
         return;
       }
 
-      printCleanupHuman('Removed context store', payload);
+      printCleanupHuman('Removed store', payload);
     } catch (error) {
       this.handleFailure(
         options.json,
-        { context_store: null, registry: null, files: null, status: [] },
+        { store: null, registry: null, files: null, status: [] },
         error
       );
     }
   }
 
-  async list(options: ContextStoreJsonOptions = {}): Promise<void> {
+  async list(options: StoreJsonOptions = {}): Promise<void> {
     try {
-      const payload = toListOutput(await listContextStores());
+      const payload = toListOutput(await listStores());
 
       if (options.json) {
         printJson(payload);
@@ -643,13 +643,13 @@ class ContextStoreCommand {
 
       printListHuman(payload);
     } catch (error) {
-      this.handleFailure(options.json, { context_stores: [], status: [] }, error);
+      this.handleFailure(options.json, { stores: [], status: [] }, error);
     }
   }
 
-  async doctor(id: string | undefined, options: ContextStoreJsonOptions = {}): Promise<void> {
+  async doctor(id: string | undefined, options: StoreJsonOptions = {}): Promise<void> {
     try {
-      const payload = toDoctorOutput(await doctorContextStores(id));
+      const payload = toDoctorOutput(await doctorStores(id));
 
       if (options.json) {
         printJson(payload);
@@ -658,11 +658,11 @@ class ContextStoreCommand {
 
       printDoctorHuman(payload);
     } catch (error) {
-      this.handleFailure(options.json, { context_stores: [], status: [] }, error);
+      this.handleFailure(options.json, { stores: [], status: [] }, error);
     }
   }
 
-  private handleFailure<T extends { status: ContextStoreDiagnostic[] }>(
+  private handleFailure<T extends { status: StoreDiagnostic[] }>(
     json: boolean | undefined,
     payload: T,
     error: unknown
@@ -688,64 +688,66 @@ class ContextStoreCommand {
   }
 }
 
-export function registerContextStoreCommand(program: Command): void {
-  const contextStoreCommand = new ContextStoreCommand();
-  const contextStore = program
-    .command('context-store')
-    .description('Set up and inspect local context stores');
+export function registerStoreCommand(program: Command): void {
+  const storeCommand = new StoreCommand();
+  const store = program
+    .command('store')
+    .description(
+      'Create and manage stores - standalone OpenSpec repos you register on this machine'
+    );
 
-  contextStore
+  store
     .command('setup [id]')
-    .description('Create and register a local context store')
-    .option('--path <path>', 'Folder where the context store should live (for example ~/openspec/<id>)')
+    .description('Create and register a local store')
+    .option('--path <path>', 'Folder where the store should live (for example ~/openspec/<id>)')
     .option('--init-git', 'Initialize a Git repository with an initial commit (default)')
     .option('--no-init-git', 'Skip every Git action: no init, no initial commit')
     .option('--json', 'Output as JSON')
-    .action(async (id: string | undefined, options: ContextStoreSetupOptions) => {
-      await contextStoreCommand.setup(id, options);
+    .action(async (id: string | undefined, options: StoreSetupOptions) => {
+      await storeCommand.setup(id, options);
     });
 
-  contextStore
+  store
     .command('register [path]')
-    .description('Register an existing local context store')
-    .option('--id <id>', 'Context store id; defaults to metadata or folder name')
-    .option('--yes', 'Confirm creating context-store identity metadata for a healthy OpenSpec root')
+    .description('Register an existing local store')
+    .option('--id <id>', 'Store id; defaults to metadata or folder name')
+    .option('--yes', 'Confirm creating store identity metadata for a healthy OpenSpec root')
     .option('--json', 'Output as JSON')
-    .action(async (inputPath: string | undefined, options: ContextStoreRegisterOptions) => {
-      await contextStoreCommand.register(inputPath, options);
+    .action(async (inputPath: string | undefined, options: StoreRegisterOptions) => {
+      await storeCommand.register(inputPath, options);
     });
 
-  contextStore
+  store
     .command('unregister <id>')
-    .description('Forget a local context-store registration without deleting files')
+    .description('Forget a local store registration without deleting files')
     .option('--json', 'Output as JSON')
-    .action(async (id: string, options: ContextStoreJsonOptions) => {
-      await contextStoreCommand.unregister(id, options);
+    .action(async (id: string, options: StoreJsonOptions) => {
+      await storeCommand.unregister(id, options);
     });
 
-  contextStore
+  store
     .command('remove <id>')
-    .description('Forget a local context-store registration and delete its local folder')
-    .option('--yes', 'Confirm local context-store folder deletion')
+    .description('Forget a local store registration and delete its local folder')
+    .option('--yes', 'Confirm local store folder deletion')
     .option('--json', 'Output as JSON')
-    .action(async (id: string, options: ContextStoreRemoveOptions) => {
-      await contextStoreCommand.remove(id, options);
+    .action(async (id: string, options: StoreRemoveOptions) => {
+      await storeCommand.remove(id, options);
     });
 
-  contextStore
+  store
     .command('list')
     .alias('ls')
-    .description('List locally registered context stores')
+    .description('List locally registered stores')
     .option('--json', 'Output as JSON')
-    .action(async (options: ContextStoreJsonOptions) => {
-      await contextStoreCommand.list(options);
+    .action(async (options: StoreJsonOptions) => {
+      await storeCommand.list(options);
     });
 
-  contextStore
+  store
     .command('doctor [id]')
-    .description('Check local context-store registration and metadata')
+    .description('Check local store registration and metadata')
     .option('--json', 'Output as JSON')
-    .action(async (id: string | undefined, options: ContextStoreJsonOptions) => {
-      await contextStoreCommand.doctor(id, options);
+    .action(async (id: string | undefined, options: StoreJsonOptions) => {
+      await storeCommand.doctor(id, options);
     });
 }

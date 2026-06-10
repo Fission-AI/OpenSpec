@@ -16,21 +16,21 @@ import {
   type OpenSpecRootInspection,
 } from '../openspec-root.js';
 import {
-  CONTEXT_STORE_METADATA_DIR_NAME,
-  getContextStoreMetadataDir,
-  getContextStoreMetadataPath,
-  getContextStoreRegistryPath,
-  listContextStoreRegistryEntries,
-  readContextStoreRegistryState,
-  readOptionalContextStoreMetadataState,
-  resolveGitContextStoreBackendConfig,
-  validateContextStoreId,
-  writeContextStoreMetadataState,
-  type ContextStoreGitBackendConfig,
-  type ContextStorePathOptions,
-  type ContextStoreRegistryState,
+  STORE_METADATA_DIR_NAME,
+  getStoreMetadataDir,
+  getStoreMetadataPath,
+  getStoreRegistryPath,
+  listStoreRegistryEntries,
+  readStoreRegistryState,
+  readOptionalStoreMetadataState,
+  resolveGitStoreBackendConfig,
+  validateStoreId,
+  writeStoreMetadataState,
+  type StoreGitBackendConfig,
+  type StorePathOptions,
+  type StoreRegistryState,
 } from './foundation.js';
-import { ContextStoreError, type ContextStoreDiagnostic, makeContextStoreDiagnostic } from './errors.js';
+import { StoreError, type StoreDiagnostic, makeStoreDiagnostic } from './errors.js';
 import {
   assertGitCommitIdentity,
   commitStoreFiles,
@@ -44,10 +44,10 @@ import {
 import {
   getStoreRootForBackend,
   assertNoRegisteredStoreConflict,
-  commitContextStoreRegistration,
-  getRegisteredContextStore,
-  listRegisteredContextStores,
-  unregisterContextStoreRegistration,
+  commitStoreRegistration,
+  getRegisteredStore,
+  listRegisteredStores,
+  unregisterStoreRegistration,
 } from './registry.js';
 
 const fs = nodeFs.promises;
@@ -55,14 +55,14 @@ const execFileAsync = promisify(execFile);
 
 type PathKind = 'missing' | 'directory' | 'file' | 'other';
 
-export interface ContextStoreInfo {
+export interface StoreInfo {
   id: string;
   root: string;
   metadataPath?: string;
 }
 
-export interface ContextStoreMutationResult {
-  store: ContextStoreInfo;
+export interface StoreMutationResult {
+  store: StoreInfo;
   registryCommit: {
     path: string;
     registered: boolean;
@@ -74,11 +74,11 @@ export interface ContextStoreMutationResult {
     committed: boolean;
   };
   createdArtifacts: string[];
-  diagnostics: ContextStoreDiagnostic[];
+  diagnostics: StoreDiagnostic[];
 }
 
-export interface ContextStoreCleanupResult {
-  store: ContextStoreInfo;
+export interface StoreCleanupResult {
+  store: StoreInfo;
   registryCommit: {
     path: string;
     removed: boolean;
@@ -88,19 +88,19 @@ export interface ContextStoreCleanupResult {
     deletedPath?: string;
     leftOnDisk?: string;
   };
-  diagnostics: ContextStoreDiagnostic[];
+  diagnostics: StoreDiagnostic[];
 }
 
-export interface ContextStoreListResult {
-  stores: ContextStoreInfo[];
+export interface StoreListResult {
+  stores: StoreInfo[];
 }
 
-export interface ContextStoreDoctorResult {
-  stores: ContextStoreInspection[];
-  diagnostics: ContextStoreDiagnostic[];
+export interface StoreDoctorResult {
+  stores: StoreInspection[];
+  diagnostics: StoreDiagnostic[];
 }
 
-export interface ContextStoreInspection extends ContextStoreInfo {
+export interface StoreInspection extends StoreInfo {
   openspecRoot: OpenSpecRootInspection;
   metadata: {
     present: boolean | null;
@@ -113,44 +113,44 @@ export interface ContextStoreInspection extends ContextStoreInfo {
     hasUncommittedChanges: boolean | null;
     hasRemote: boolean | null;
   };
-  diagnostics: ContextStoreDiagnostic[];
+  diagnostics: StoreDiagnostic[];
 }
 
-export interface SetupContextStoreInput {
+export interface SetupStoreInput {
   id?: string;
   path?: string;
   initGit?: boolean;
   allowInsideGitRepository?: boolean;
 }
 
-export interface RegisterExistingContextStoreInput {
+export interface RegisterExistingStoreInput {
   path?: string;
   id?: string;
   allowCreateIdentity?: boolean;
 }
 
-export interface CleanupContextStoreInput extends ContextStorePathOptions {
+export interface CleanupStoreInput extends StorePathOptions {
   id: string;
 }
 
-export interface PreparedContextStoreCleanup extends ContextStoreInfo, ContextStorePathOptions {
-  backend: ContextStoreGitBackendConfig;
+export interface PreparedStoreCleanup extends StoreInfo, StorePathOptions {
+  backend: StoreGitBackendConfig;
 }
 
-export interface PreparedContextStoreSetup {
+export interface PreparedStoreSetup {
   id: string;
   root: string;
   rootKind: Extract<PathKind, 'missing' | 'directory'>;
-  backend?: ContextStoreGitBackendConfig;
-  registry: ContextStoreRegistryState | null;
+  backend?: StoreGitBackendConfig;
+  registry: StoreRegistryState | null;
 }
 
-interface ContextStoreSetupPlan {
+interface StoreSetupPlan {
   id: string;
   storeRoot: string;
   kind: Extract<PathKind, 'missing' | 'directory'>;
-  backend?: ContextStoreGitBackendConfig;
-  registry: ContextStoreRegistryState | null;
+  backend?: StoreGitBackendConfig;
+  registry: StoreRegistryState | null;
 }
 
 async function pathKind(targetPath: string): Promise<PathKind> {
@@ -178,14 +178,14 @@ async function isDirectoryEmpty(directory: string): Promise<boolean> {
 
 async function readStoreMetadataForOperation(storeRoot: string) {
   try {
-    return await readOptionalContextStoreMetadataState(storeRoot);
+    return await readOptionalStoreMetadataState(storeRoot);
   } catch (error) {
-    throw new ContextStoreError(
+    throw new StoreError(
       error instanceof Error ? error.message : String(error),
-      'invalid_context_store_metadata',
+      'invalid_store_metadata',
       {
-        target: 'context_store.metadata',
-        fix: `Repair ${getContextStoreMetadataPath(storeRoot)}.`,
+        target: 'store.metadata',
+        fix: `Repair ${getStoreMetadataPath(storeRoot)}.`,
       }
     );
   }
@@ -196,13 +196,13 @@ async function isGitOnlyDirectory(storeRoot: string): Promise<boolean> {
   return entries.length === 1 && entries[0] === '.git' && await isGitRepositoryAtRoot(storeRoot);
 }
 
-function alreadyRegisteredDiagnostic(id: string): ContextStoreDiagnostic {
-  return makeContextStoreDiagnostic(
+function alreadyRegisteredDiagnostic(id: string): StoreDiagnostic {
+  return makeStoreDiagnostic(
     'info',
-    'context_store_already_registered',
-    `Context store '${id}' is already registered at this path.`,
+    'store_already_registered',
+    `Store '${id}' is already registered at this path.`,
     {
-      target: 'context_store.registry',
+      target: 'store.registry',
     }
   );
 }
@@ -277,11 +277,11 @@ async function assertSetupPathIsNotNestedInGitRepo(
   const containingGitRoot = await findContainingGitRepositoryRoot(storeRoot);
   if (!containingGitRoot) return;
 
-  throw new ContextStoreError(
-    `Context store setup path is inside another Git repository: ${containingGitRoot}`,
-    'context_store_setup_inside_git_repo',
+  throw new StoreError(
+    `Store setup path is inside another Git repository: ${containingGitRoot}`,
+    'store_setup_inside_git_repo',
     {
-      target: 'context_store.root',
+      target: 'store.root',
       fix: 'Choose a path outside that Git repository.',
     }
   );
@@ -300,12 +300,12 @@ function expandUserPath(inputPath: string): string {
 function resolveSetupRoot(id: string, inputPath: string | undefined): string {
   // A store is a repo the user places; setup never silently picks app data.
   if (inputPath === undefined || inputPath.trim().length === 0) {
-    throw new ContextStoreError(
-      'Pass --path with the folder where this context store should live.',
-      'context_store_setup_path_required',
+    throw new StoreError(
+      'Pass --path with the folder where this store should live.',
+      'store_setup_path_required',
       {
-        target: 'context_store.root',
-        fix: `openspec context-store setup ${id} --path ~/openspec/${id}`,
+        target: 'store.root',
+        fix: `openspec store setup ${id} --path ~/openspec/${id}`,
       }
     );
   }
@@ -315,9 +315,9 @@ function resolveSetupRoot(id: string, inputPath: string | undefined): string {
 
 function resolveRegisterRoot(inputPath: string | undefined): string {
   if (inputPath === undefined || inputPath.trim().length === 0) {
-    throw new ContextStoreError('Pass a context store path.', 'context_store_path_required', {
-      target: 'context_store.root',
-      fix: 'openspec context-store register /path/to/context-store',
+    throw new StoreError('Pass a store path.', 'store_path_required', {
+      target: 'store.root',
+      fix: 'openspec store register /path/to/store',
     });
   }
 
@@ -325,7 +325,7 @@ function resolveRegisterRoot(inputPath: string | undefined): string {
 }
 
 function inferStoreIdFromPath(storeRoot: string): string {
-  return validateContextStoreId(path.basename(storeRoot));
+  return validateStoreId(path.basename(storeRoot));
 }
 
 function normalizeRegistryPathForComparison(targetPath: string): string {
@@ -337,7 +337,7 @@ function normalizeRegistryPathForComparison(targetPath: string): string {
 }
 
 function isRegisteredAtPath(
-  registry: ContextStoreRegistryState | null,
+  registry: StoreRegistryState | null,
   id: string,
   storeRoot: string
 ): boolean {
@@ -356,16 +356,16 @@ function mutationPayload(
   git: { isRepository: boolean; initialized: boolean; committed: boolean },
   createdFiles: string[],
   registry: { registered: boolean; alreadyRegistered: boolean },
-  diagnostics: ContextStoreDiagnostic[] = []
-): ContextStoreMutationResult {
+  diagnostics: StoreDiagnostic[] = []
+): StoreMutationResult {
   return {
     store: {
       id,
       root: storeRoot,
-      metadataPath: getContextStoreMetadataPath(storeRoot),
+      metadataPath: getStoreMetadataPath(storeRoot),
     },
     registryCommit: {
-      path: getContextStoreRegistryPath(),
+      path: getStoreRegistryPath(),
       registered: registry.registered,
       alreadyRegistered: registry.alreadyRegistered,
     },
@@ -380,42 +380,42 @@ function mutationPayload(
 }
 
 async function prepareSetupPlan(
-  input: Pick<SetupContextStoreInput, 'id' | 'path' | 'allowInsideGitRepository'>
-): Promise<ContextStoreSetupPlan> {
-  const id = validateContextStoreId(input.id ?? '');
+  input: Pick<SetupStoreInput, 'id' | 'path' | 'allowInsideGitRepository'>
+): Promise<StoreSetupPlan> {
+  const id = validateStoreId(input.id ?? '');
   const storeRoot = resolveSetupRoot(id, input.path);
   const kind = await pathKind(storeRoot);
 
   if (kind === 'file' || kind === 'other') {
-    throw new ContextStoreError(
-      `Context store setup path is not a directory: ${storeRoot}`,
-      'context_store_setup_path_not_directory',
+    throw new StoreError(
+      `Store setup path is not a directory: ${storeRoot}`,
+      'store_setup_path_not_directory',
       {
-        target: 'context_store.root',
+        target: 'store.root',
         fix: 'Choose an empty directory or an existing healthy OpenSpec root.',
       }
     );
   }
 
-  // Context stores may be Git-backed, but creating one inside an implementation
+  // Stores may be Git-backed, but creating one inside an implementation
   // repo is almost always an accidental nested-repo setup.
   await assertSetupPathIsNotNestedInGitRepo(storeRoot, {
     allowInsideGitRepository: input.allowInsideGitRepository,
   });
 
   let metadata: Awaited<ReturnType<typeof readStoreMetadataForOperation>> = null;
-  let backend: ContextStoreGitBackendConfig | undefined;
+  let backend: StoreGitBackendConfig | undefined;
 
   if (kind === 'directory') {
     metadata = await readStoreMetadataForOperation(storeRoot);
 
     if (metadata) {
       if (metadata.id !== id) {
-        throw new ContextStoreError(
-          `Context store metadata id '${metadata.id}' does not match requested id '${id}'.`,
-          'context_store_metadata_id_mismatch',
+        throw new StoreError(
+          `Store metadata id '${metadata.id}' does not match requested id '${id}'.`,
+          'store_metadata_id_mismatch',
           {
-            target: 'context_store.metadata',
+            target: 'store.metadata',
             fix: `Use id '${metadata.id}' or choose a different setup path.`,
           }
         );
@@ -424,21 +424,21 @@ async function prepareSetupPlan(
       const openspecRoot = await inspectOpenSpecRoot(storeRoot);
       const safeFreshDirectory = await isDirectoryEmpty(storeRoot) || await isGitOnlyDirectory(storeRoot);
       if (!openspecRoot.healthy && !safeFreshDirectory) {
-        throw new ContextStoreError(
-          'Context store setup does not support initializing a non-empty folder that is not a healthy OpenSpec root.',
-          'context_store_setup_non_empty_directory',
+        throw new StoreError(
+          'Store setup does not support initializing a non-empty folder that is not a healthy OpenSpec root.',
+          'store_setup_non_empty_directory',
           {
-            target: 'context_store.root',
+            target: 'store.root',
             fix: 'Choose an empty folder, a Git-only folder, or an existing healthy OpenSpec root.',
           }
         );
       }
     }
 
-    backend = await resolveGitContextStoreBackendConfig({ localPath: storeRoot });
+    backend = await resolveGitStoreBackendConfig({ localPath: storeRoot });
   }
 
-  const registry = await readContextStoreRegistryState();
+  const registry = await readStoreRegistryState();
   const conflictBackend = backend ?? {
     type: 'git' as const,
     local_path: FileSystemUtils.canonicalizeExistingPath(storeRoot),
@@ -461,15 +461,15 @@ async function prepareSetupPlan(
  * no-ops), and always honoring an explicit --init-git/--no-init-git.
  */
 export function resolveSetupGitEnabled(
-  prepared: PreparedContextStoreSetup,
+  prepared: PreparedStoreSetup,
   initGit?: boolean
 ): boolean {
   return initGit ?? !isRegisteredAtPath(prepared.registry, prepared.id, prepared.root);
 }
 
-export async function prepareContextStoreSetup(
-  input: Pick<SetupContextStoreInput, 'id' | 'path' | 'allowInsideGitRepository'>
-): Promise<PreparedContextStoreSetup> {
+export async function prepareStoreSetup(
+  input: Pick<SetupStoreInput, 'id' | 'path' | 'allowInsideGitRepository'>
+): Promise<PreparedStoreSetup> {
   const plan = await prepareSetupPlan(input);
 
   return {
@@ -481,11 +481,11 @@ export async function prepareContextStoreSetup(
   };
 }
 
-export async function setupPreparedContextStore(
-  prepared: PreparedContextStoreSetup,
-  input: Pick<SetupContextStoreInput, 'initGit'> = {}
-): Promise<ContextStoreMutationResult> {
-  const plan: ContextStoreSetupPlan = {
+export async function setupPreparedStore(
+  prepared: PreparedStoreSetup,
+  input: Pick<SetupStoreInput, 'initGit'> = {}
+): Promise<StoreMutationResult> {
+  const plan: StoreSetupPlan = {
     id: prepared.id,
     storeRoot: prepared.root,
     kind: prepared.rootKind,
@@ -523,22 +523,22 @@ export async function setupPreparedContextStore(
     });
     createdFiles.push(...root.createdArtifacts);
     createdPaths = root.createdPaths;
-    backend ??= await resolveGitContextStoreBackendConfig({ localPath: storeRoot });
+    backend ??= await resolveGitStoreBackendConfig({ localPath: storeRoot });
     assertNoRegisteredStoreConflict(registry, id, backend);
 
     // The identity file is written before the initial commit so clones carry
     // it; without it, register falls back to the conversion prompt.
     const existingMetadata = await readStoreMetadataForOperation(storeRoot);
     if (!existingMetadata) {
-      const metadataDir = getContextStoreMetadataDir(storeRoot);
+      const metadataDir = getStoreMetadataDir(storeRoot);
       const metadataDirMissing = (await pathKind(metadataDir)) === 'missing';
-      await writeContextStoreMetadataState(storeRoot, { version: 1, id });
+      await writeStoreMetadataState(storeRoot, { version: 1, id });
       if (metadataDirMissing) {
         createdPaths.push(createdPath('.openspec-store/', metadataDir, 'directory'));
       }
       createdPaths.push(createdPath(
         '.openspec-store/store.yaml',
-        getContextStoreMetadataPath(storeRoot),
+        getStoreMetadataPath(storeRoot),
         'file'
       ));
       createdFiles.push('.openspec-store/store.yaml');
@@ -552,7 +552,7 @@ export async function setupPreparedContextStore(
     // be unhealthy. In a pre-existing repo the user owns the history, so
     // setup commits only what it created.
     const commitPathspecs = gitInitialized
-      ? [OPENSPEC_ROOT_DIR, CONTEXT_STORE_METADATA_DIR_NAME]
+      ? [OPENSPEC_ROOT_DIR, STORE_METADATA_DIR_NAME]
       : createdPaths
           .filter((entry) => entry.kind === 'file')
           .map((entry) => entry.relativePath);
@@ -562,7 +562,7 @@ export async function setupPreparedContextStore(
 
     // Identity creation is setup's job (done above, before the commit);
     // registration only verifies it and records the machine-local entry.
-    const registered = await commitContextStoreRegistration({
+    const registered = await commitStoreRegistration({
       id,
       backend,
       writeMetadataIfMissing: false,
@@ -604,38 +604,38 @@ export async function setupPreparedContextStore(
   }
 }
 
-export async function setupContextStore(
-  input: SetupContextStoreInput
-): Promise<ContextStoreMutationResult> {
-  return setupPreparedContextStore(await prepareContextStoreSetup(input), {
+export async function setupStore(
+  input: SetupStoreInput
+): Promise<StoreMutationResult> {
+  return setupPreparedStore(await prepareStoreSetup(input), {
     initGit: input.initGit,
   });
 }
 
-export async function registerExistingContextStore(
-  input: RegisterExistingContextStoreInput
-): Promise<ContextStoreMutationResult> {
+export async function registerExistingStore(
+  input: RegisterExistingStoreInput
+): Promise<StoreMutationResult> {
   const storeRoot = resolveRegisterRoot(input.path);
   const kind = await pathKind(storeRoot);
 
   if (kind === 'missing') {
-    throw new ContextStoreError(
-      `Context store path does not exist: ${storeRoot}`,
-      'context_store_path_missing',
+    throw new StoreError(
+      `Store path does not exist: ${storeRoot}`,
+      'store_path_missing',
       {
-        target: 'context_store.root',
-        fix: 'Clone or create the context store folder before registering it.',
+        target: 'store.root',
+        fix: 'Clone or create the store folder before registering it.',
       }
     );
   }
 
   if (kind !== 'directory') {
-    throw new ContextStoreError(
-      `Context store path is not a directory: ${storeRoot}`,
-      'context_store_path_not_directory',
+    throw new StoreError(
+      `Store path is not a directory: ${storeRoot}`,
+      'store_path_not_directory',
       {
-        target: 'context_store.root',
-        fix: 'Pass an existing context store directory.',
+        target: 'store.root',
+        fix: 'Pass an existing store directory.',
       }
     );
   }
@@ -652,36 +652,36 @@ export async function registerExistingContextStore(
       ? ' This folder is a Git repository with no commits — if it is a clone, the origin store needs an initial commit before the clone has any files.'
       : '';
 
-    throw new ContextStoreError(
-      `Context store register requires an existing healthy OpenSpec root. ${problems}${emptyCloneHint}`,
-      'context_store_register_root_unhealthy',
+    throw new StoreError(
+      `Store register requires an existing healthy OpenSpec root. ${problems}${emptyCloneHint}`,
+      'store_register_root_unhealthy',
       {
         target: 'openspec.root',
         fix: isEmptyCloneSuspect
           ? 'Commit and push the origin store, pull it into this clone, then rerun register.'
-          : 'Run openspec context-store setup for a new store, or point register at a checkout whose openspec/ files are present.',
+          : 'Run openspec store setup for a new store, or point register at a checkout whose openspec/ files are present.',
       }
     );
   }
 
   const metadata = await readStoreMetadataForOperation(storeRoot);
-  const explicitId = input.id !== undefined ? validateContextStoreId(input.id) : undefined;
+  const explicitId = input.id !== undefined ? validateStoreId(input.id) : undefined;
 
   if (metadata && explicitId !== undefined && metadata.id !== explicitId) {
     // The fix must account for whether the metadata id is already registered,
     // so following it never lands on the already-registered error.
-    const currentRegistry = await readContextStoreRegistryState();
+    const currentRegistry = await readStoreRegistryState();
     const registeredElsewhere =
       currentRegistry?.stores?.[metadata.id] !== undefined &&
       !isRegisteredAtPath(currentRegistry, metadata.id, storeRoot);
 
-    throw new ContextStoreError(
-      `Context store metadata id '${metadata.id}' does not match --id '${explicitId}'. The id comes from the store's committed .openspec-store/store.yaml.`,
-      'context_store_metadata_id_mismatch',
+    throw new StoreError(
+      `Store metadata id '${metadata.id}' does not match --id '${explicitId}'. The id comes from the store's committed .openspec-store/store.yaml.`,
+      'store_metadata_id_mismatch',
       {
-        target: 'context_store.id',
+        target: 'store.id',
         fix: registeredElsewhere
-          ? `One checkout per store id is supported, and '${metadata.id}' is already registered. Run openspec context-store unregister ${metadata.id} first to register this checkout instead.`
+          ? `One checkout per store id is supported, and '${metadata.id}' is already registered. Run openspec store unregister ${metadata.id} first to register this checkout instead.`
           : `Use --id ${metadata.id} or register a different folder.`,
       }
     );
@@ -689,23 +689,23 @@ export async function registerExistingContextStore(
 
   const id = metadata?.id ?? explicitId ?? inferStoreIdFromPath(storeRoot);
   if (!metadata && !input.allowCreateIdentity) {
-    throw new ContextStoreError(
-      `Turn this OpenSpec root into context store '${id}'?`,
-      'context_store_register_identity_confirmation_required',
+    throw new StoreError(
+      `Turn this OpenSpec root into store '${id}'?`,
+      'store_register_identity_confirmation_required',
       {
-        target: 'context_store.metadata',
-        fix: `Run interactively or pass --yes to create ${getContextStoreMetadataPath(storeRoot)}.`,
+        target: 'store.metadata',
+        fix: `Run interactively or pass --yes to create ${getStoreMetadataPath(storeRoot)}.`,
       }
     );
   }
 
-  const backend = await resolveGitContextStoreBackendConfig({ localPath: storeRoot });
-  const registry = await readContextStoreRegistryState();
+  const backend = await resolveGitStoreBackendConfig({ localPath: storeRoot });
+  const registry = await readStoreRegistryState();
   assertNoRegisteredStoreConflict(registry, id, backend);
   const createdFiles: string[] = [];
   const isRepository = await isGitRepositoryAtRoot(storeRoot);
 
-  const registered = await commitContextStoreRegistration({
+  const registered = await commitStoreRegistration({
     id,
     backend,
     writeMetadataIfMissing: true,
@@ -728,19 +728,19 @@ export async function registerExistingContextStore(
   }, diagnostics);
 }
 
-function cleanupStoreOutput(id: string, storeRoot: string): ContextStoreInfo {
+function cleanupStoreOutput(id: string, storeRoot: string): StoreInfo {
   return {
     id,
     root: storeRoot,
-    metadataPath: getContextStoreMetadataPath(storeRoot),
+    metadataPath: getStoreMetadataPath(storeRoot),
   };
 }
 
-export async function prepareContextStoreCleanup(
-  input: CleanupContextStoreInput
-): Promise<PreparedContextStoreCleanup> {
-  const id = validateContextStoreId(input.id);
-  const entry = await getRegisteredContextStore({
+export async function prepareStoreCleanup(
+  input: CleanupStoreInput
+): Promise<PreparedStoreCleanup> {
+  const id = validateStoreId(input.id);
+  const entry = await getRegisteredStore({
     id,
     globalDataDir: input.globalDataDir,
   });
@@ -752,11 +752,11 @@ export async function prepareContextStoreCleanup(
   };
 }
 
-export async function unregisterContextStore(
-  input: CleanupContextStoreInput
-): Promise<ContextStoreCleanupResult> {
-  const target = await prepareContextStoreCleanup(input);
-  const removed = await unregisterContextStoreRegistration({
+export async function unregisterStore(
+  input: CleanupStoreInput
+): Promise<StoreCleanupResult> {
+  const target = await prepareStoreCleanup(input);
+  const removed = await unregisterStoreRegistration({
     id: target.id,
     expectedBackend: target.backend,
     globalDataDir: target.globalDataDir,
@@ -765,7 +765,7 @@ export async function unregisterContextStore(
   return {
     store: cleanupStoreOutput(removed.id, removed.storeRoot),
     registryCommit: {
-      path: getContextStoreRegistryPath({ globalDataDir: target.globalDataDir }),
+      path: getStoreRegistryPath({ globalDataDir: target.globalDataDir }),
       removed: true,
     },
     files: {
@@ -776,7 +776,7 @@ export async function unregisterContextStore(
   };
 }
 
-async function assertSafeToDeleteContextStoreRoot(storeRoot: string, id: string): Promise<{
+async function assertSafeToDeleteStoreRoot(storeRoot: string, id: string): Promise<{
   exists: boolean;
 }> {
   const kind = await pathKind(storeRoot);
@@ -786,35 +786,35 @@ async function assertSafeToDeleteContextStoreRoot(storeRoot: string, id: string)
   }
 
   if (kind !== 'directory') {
-    throw new ContextStoreError(
-      `Context store path is not a directory: ${storeRoot}`,
-      'context_store_remove_path_not_directory',
+    throw new StoreError(
+      `Store path is not a directory: ${storeRoot}`,
+      'store_remove_path_not_directory',
       {
-        target: 'context_store.root',
-        fix: 'Run context-store unregister if you only want to forget this local registry entry.',
+        target: 'store.root',
+        fix: 'Run store unregister if you only want to forget this local registry entry.',
       }
     );
   }
 
   const metadata = await readStoreMetadataForOperation(storeRoot);
   if (!metadata) {
-    throw new ContextStoreError(
-      'Context store remove refuses to delete a folder without context-store metadata.',
-      'context_store_remove_metadata_missing',
+    throw new StoreError(
+      'Store remove refuses to delete a folder without store metadata.',
+      'store_remove_metadata_missing',
       {
-        target: 'context_store.metadata',
-        fix: 'Run context-store unregister if you only want to forget this local registry entry.',
+        target: 'store.metadata',
+        fix: 'Run store unregister if you only want to forget this local registry entry.',
       }
     );
   }
 
   if (metadata.id !== id) {
-    throw new ContextStoreError(
-      `Context store metadata id '${metadata.id}' does not match requested id '${id}'.`,
-      'context_store_metadata_id_mismatch',
+    throw new StoreError(
+      `Store metadata id '${metadata.id}' does not match requested id '${id}'.`,
+      'store_metadata_id_mismatch',
       {
-        target: 'context_store.metadata',
-        fix: 'Repair the registry or run context-store unregister instead of deleting this folder.',
+        target: 'store.metadata',
+        fix: 'Repair the registry or run store unregister instead of deleting this folder.',
       }
     );
   }
@@ -822,26 +822,26 @@ async function assertSafeToDeleteContextStoreRoot(storeRoot: string, id: string)
   return { exists: true };
 }
 
-export async function removeContextStore(
-  target: PreparedContextStoreCleanup
-): Promise<ContextStoreCleanupResult> {
-  const id = validateContextStoreId(target.id);
-  const diagnostics: ContextStoreDiagnostic[] = [];
+export async function removeStore(
+  target: PreparedStoreCleanup
+): Promise<StoreCleanupResult> {
+  const id = validateStoreId(target.id);
+  const diagnostics: StoreDiagnostic[] = [];
   let deleted = false;
 
-  const removed = await unregisterContextStoreRegistration({
+  const removed = await unregisterStoreRegistration({
     id,
     expectedBackend: target.backend,
     globalDataDir: target.globalDataDir,
     beforeCommit: async (entry) => {
-      const safeTarget = await assertSafeToDeleteContextStoreRoot(entry.storeRoot, id);
+      const safeTarget = await assertSafeToDeleteStoreRoot(entry.storeRoot, id);
       if (!safeTarget.exists) {
-        diagnostics.push(makeContextStoreDiagnostic(
+        diagnostics.push(makeStoreDiagnostic(
           'warning',
-          'context_store_root_missing',
-          'Context store files were already missing.',
+          'store_root_missing',
+          'Store files were already missing.',
           {
-            target: 'context_store.root',
+            target: 'store.root',
           }
         ));
         return;
@@ -855,7 +855,7 @@ export async function removeContextStore(
   return {
     store: cleanupStoreOutput(removed.id, removed.storeRoot),
     registryCommit: {
-      path: getContextStoreRegistryPath({ globalDataDir: target.globalDataDir }),
+      path: getStoreRegistryPath({ globalDataDir: target.globalDataDir }),
       removed: true,
     },
     files: {
@@ -866,8 +866,8 @@ export async function removeContextStore(
   };
 }
 
-export async function listContextStores(): Promise<ContextStoreListResult> {
-  const entries = await listRegisteredContextStores();
+export async function listStores(): Promise<StoreListResult> {
+  const entries = await listRegisteredStores();
 
   return {
     stores: entries.map((entry) => ({
@@ -882,12 +882,12 @@ function doctorStatusForError(
   code: string,
   target: string,
   fix?: string
-): ContextStoreDiagnostic {
-  if (error instanceof ContextStoreError) {
+): StoreDiagnostic {
+  if (error instanceof StoreError) {
     return error.diagnostic;
   }
 
-  return makeContextStoreDiagnostic(
+  return makeStoreDiagnostic(
     'error',
     code,
     error instanceof Error ? error.message : String(error),
@@ -898,19 +898,19 @@ function doctorStatusForError(
   );
 }
 
-async function inspectContextStore(entry: {
+async function inspectStore(entry: {
   id: string;
-  backend: ContextStoreGitBackendConfig;
-}): Promise<ContextStoreInspection> {
+  backend: StoreGitBackendConfig;
+}): Promise<StoreInspection> {
   const root = getStoreRootForBackend(entry.backend);
-  const metadataPath = getContextStoreMetadataPath(root);
-  const diagnostics: ContextStoreDiagnostic[] = [];
+  const metadataPath = getStoreMetadataPath(root);
+  const diagnostics: StoreDiagnostic[] = [];
   const kind = await pathKind(root);
-  let metadata: ContextStoreInspection['metadata'] = {
+  let metadata: StoreInspection['metadata'] = {
     present: null,
     valid: null,
   };
-  let git: ContextStoreInspection['git'] = {
+  let git: StoreInspection['git'] = {
     isRepository: null,
     hasCommits: null,
     hasUncommittedChanges: null,
@@ -919,23 +919,23 @@ async function inspectContextStore(entry: {
   let openspecRoot: OpenSpecRootInspection = await inspectOpenSpecRoot(root);
 
   if (kind === 'missing') {
-    diagnostics.push(makeContextStoreDiagnostic(
+    diagnostics.push(makeStoreDiagnostic(
       'error',
-      'context_store_root_missing',
-      'Context store location does not exist.',
+      'store_root_missing',
+      'Store location does not exist.',
       {
-        target: 'context_store.root',
-        fix: `Run openspec context-store register /path/to/${entry.id} --id ${entry.id}.`,
+        target: 'store.root',
+        fix: `Run openspec store register /path/to/${entry.id} --id ${entry.id}.`,
       }
     ));
   } else if (kind !== 'directory') {
-    diagnostics.push(makeContextStoreDiagnostic(
+    diagnostics.push(makeStoreDiagnostic(
       'error',
-      'context_store_root_not_directory',
-      'Context store location is not a directory.',
+      'store_root_not_directory',
+      'Store location is not a directory.',
       {
-        target: 'context_store.root',
-        fix: 'Register a directory path for this context store.',
+        target: 'store.root',
+        fix: 'Register a directory path for this store.',
       }
     ));
   } else {
@@ -943,26 +943,26 @@ async function inspectContextStore(entry: {
     diagnostics.push(...openspecRoot.diagnostics);
 
     try {
-      const parsed = await readOptionalContextStoreMetadataState(root);
+      const parsed = await readOptionalStoreMetadataState(root);
       if (!parsed) {
         metadata = { present: false, valid: false };
-        diagnostics.push(makeContextStoreDiagnostic(
+        diagnostics.push(makeStoreDiagnostic(
           'error',
-          'context_store_metadata_missing',
-          'Context store metadata is missing.',
+          'store_metadata_missing',
+          'Store metadata is missing.',
           {
-            target: 'context_store.metadata',
-            fix: `Create ${metadataPath} or rerun context-store register.`,
+            target: 'store.metadata',
+            fix: `Create ${metadataPath} or rerun store register.`,
           }
         ));
       } else if (parsed.id !== entry.id) {
         metadata = { present: true, valid: false, id: parsed.id };
-        diagnostics.push(makeContextStoreDiagnostic(
+        diagnostics.push(makeStoreDiagnostic(
           'error',
-          'context_store_metadata_id_mismatch',
-          `Context store metadata id '${parsed.id}' does not match registry id '${entry.id}'.`,
+          'store_metadata_id_mismatch',
+          `Store metadata id '${parsed.id}' does not match registry id '${entry.id}'.`,
           {
-            target: 'context_store.metadata',
+            target: 'store.metadata',
             fix: 'Repair the local registry or store metadata so the ids match.',
           }
         ));
@@ -973,8 +973,8 @@ async function inspectContextStore(entry: {
       metadata = { present: true, valid: false };
       diagnostics.push(doctorStatusForError(
         error,
-        'context_store_metadata_invalid',
-        'context_store.metadata',
+        'store_metadata_invalid',
+        'store.metadata',
         `Repair ${metadataPath}.`
       ));
     }
@@ -994,12 +994,12 @@ async function inspectContextStore(entry: {
       git.hasRemote = await gitHasRemote(root);
 
       if (git.hasCommits === false) {
-        diagnostics.push(makeContextStoreDiagnostic(
+        diagnostics.push(makeStoreDiagnostic(
           'warning',
-          'context_store_git_no_commits',
+          'store_git_no_commits',
           'Git repository has no commits yet; clones of this store will be empty until an initial commit exists.',
           {
-            target: 'context_store.git',
+            target: 'store.git',
             fix: 'Commit the store files, then push to share them.',
           }
         ));
@@ -1014,12 +1014,12 @@ async function inspectContextStore(entry: {
         }
 
         if (fragileDirs.length > 0) {
-          diagnostics.push(makeContextStoreDiagnostic(
+          diagnostics.push(makeStoreDiagnostic(
             'warning',
-            'context_store_clone_fragile_directories',
+            'store_clone_fragile_directories',
             `These directories contain no tracked files and will be lost in clones: ${fragileDirs.join(', ')}.`,
             {
-              target: 'context_store.git',
+              target: 'store.git',
               fix: `Track a file in each directory (for example ${DIRECTORY_ANCHOR_FILE_NAME}) and commit it.`,
             }
           ));
@@ -1039,39 +1039,39 @@ async function inspectContextStore(entry: {
   };
 }
 
-export async function doctorContextStores(id?: string): Promise<ContextStoreDoctorResult> {
-  const selectedId = id !== undefined ? validateContextStoreId(id) : undefined;
-  const registry = await readContextStoreRegistryState();
+export async function doctorStores(id?: string): Promise<StoreDoctorResult> {
+  const selectedId = id !== undefined ? validateStoreId(id) : undefined;
+  const registry = await readStoreRegistryState();
 
   if (!registry) {
     if (selectedId !== undefined) {
-      throw new ContextStoreError(`Unknown context store '${selectedId}'.`, 'context_store_not_found', {
-        target: 'context_store.id',
-        fix: 'Run openspec context-store list to see registered stores.',
+      throw new StoreError(`Unknown store '${selectedId}'.`, 'store_not_found', {
+        target: 'store.id',
+        fix: 'Run openspec store list to see registered stores.',
       });
     }
 
     return { stores: [], diagnostics: [] };
   }
 
-  const entries = listContextStoreRegistryEntries(registry);
+  const entries = listStoreRegistryEntries(registry);
   const selected = selectedId
     ? entries.filter((entry) => entry.id === selectedId)
     : entries;
 
   if (selectedId && selected.length === 0) {
-    throw new ContextStoreError(`Unknown context store '${selectedId}'.`, 'context_store_not_found', {
-      target: 'context_store.id',
-      fix: 'Run openspec context-store list to see registered stores.',
+    throw new StoreError(`Unknown store '${selectedId}'.`, 'store_not_found', {
+      target: 'store.id',
+      fix: 'Run openspec store list to see registered stores.',
     });
   }
 
   return {
-    stores: await Promise.all(selected.map(inspectContextStore)),
+    stores: await Promise.all(selected.map(inspectStore)),
     diagnostics: [],
   };
 }
 
-export function normalizeContextStorePathForComparison(targetPath: string): string {
+export function normalizeStorePathForComparison(targetPath: string): string {
   return FileSystemUtils.canonicalizeExistingPath(targetPath);
 }

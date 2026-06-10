@@ -1,15 +1,15 @@
-export type ContextStoreDiagnosticSeverity = 'error' | 'warning' | 'info';
+export type StoreDiagnosticSeverity = 'error' | 'warning' | 'info';
 
-export interface ContextStoreDiagnostic {
-  severity: ContextStoreDiagnosticSeverity;
+export interface StoreDiagnostic {
+  severity: StoreDiagnosticSeverity;
   code: string;
   message: string;
   target?: string;
   fix?: string;
 }
 
-export class ContextStoreError extends Error {
-  readonly diagnostic: ContextStoreDiagnostic;
+export class StoreError extends Error {
+  readonly diagnostic: StoreDiagnostic;
 
   constructor(
     message: string,
@@ -17,7 +17,7 @@ export class ContextStoreError extends Error {
     options: { target?: string; fix?: string } = {}
   ) {
     super(message);
-    this.name = 'ContextStoreError';
+    this.name = 'StoreError';
     this.diagnostic = {
       severity: 'error',
       code,
@@ -27,12 +27,12 @@ export class ContextStoreError extends Error {
   }
 }
 
-export function makeContextStoreDiagnostic(
-  severity: ContextStoreDiagnosticSeverity,
+export function makeStoreDiagnostic(
+  severity: StoreDiagnosticSeverity,
   code: string,
   message: string,
   options: { target?: string; fix?: string } = {}
-): ContextStoreDiagnostic {
+): StoreDiagnostic {
   return {
     severity,
     code,

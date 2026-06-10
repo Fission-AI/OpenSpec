@@ -1,4 +1,4 @@
-import type { ContextStoreSelector } from '../../core/context-store/index.js';
+import type { StoreSelector } from '../../core/store/index.js';
 
 export type StatusSeverity = 'error' | 'warning';
 
@@ -21,7 +21,7 @@ export interface WorkspaceLinkOutput {
 export interface WorkspaceContextOutput {
   store: string;
   initiative: string;
-  store_selector: ContextStoreSelector;
+  store_selector: StoreSelector;
 }
 
 export interface WorkspaceOutput {

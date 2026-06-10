@@ -5,9 +5,9 @@ import * as path from 'node:path';
 
 import {
   getGlobalDataDir,
-  registerContextStore,
+  registerStore,
 } from '../../src/core/index.js';
-import { writeContextStoreMetadataState } from '../../src/core/context-store/foundation.js';
+import { writeStoreMetadataState } from '../../src/core/store/foundation.js';
 import { runCLI, type RunCLIResult } from '../helpers/run-cli.js';
 
 const VALID_DELTA_SPEC = `## ADDED Requirements
@@ -65,7 +65,7 @@ describe('store root selection for normal commands', () => {
     globalDataDir = getGlobalDataDir({ env });
     appRepo = path.join(tempDir, 'app-repo');
     fs.mkdirSync(appRepo, { recursive: true });
-    storeRoot = await registerStore('team-context');
+    storeRoot = await registerStoreFixture('team-context');
   });
 
   afterEach(() => {
@@ -78,10 +78,10 @@ describe('store root selection for normal commands', () => {
     fs.writeFileSync(path.join(rootDir, 'openspec', 'config.yaml'), 'schema: spec-driven\n');
   }
 
-  async function registerStore(id: string): Promise<string> {
+  async function registerStoreFixture(id: string): Promise<string> {
     const root = path.join(tempDir, 'stores', id);
     createOpenSpecRoot(root);
-    await registerContextStore({ id, localPath: root, globalDataDir });
+    await registerStore({ id, localPath: root, globalDataDir });
     return fs.realpathSync.native(root);
   }
 
@@ -337,7 +337,7 @@ describe('store root selection for normal commands', () => {
       });
       expect(result.exitCode).toBe(1);
       const output = result.stdout + result.stderr;
-      expect(output).toContain('context-store register');
+      expect(output).toContain('store register');
       expect(output).toContain('--store <id>');
       expectNoLocalOpenSpec();
       expect(fs.existsSync(path.join(storeRoot, 'openspec', 'changes', 'nope'))).toBe(false);
@@ -347,12 +347,12 @@ describe('store root selection for normal commands', () => {
       const result = await runCLI(['show', '--store-path', '/x'], { cwd: appRepo, env });
       expect(result.exitCode).toBe(1);
       const output = result.stdout + result.stderr;
-      expect(output).toContain('context-store register');
+      expect(output).toContain('store register');
     });
 
     it('reports unknown stores with the same message across commands', async () => {
       const expected =
-        "Unknown context store 'team-contxt'. Registered stores: team-context.";
+        "Unknown store 'team-contxt'. Registered stores: team-context.";
 
       const status = await runCLI(['status', '--store', 'team-contxt'], { cwd: appRepo, env });
       const list = await runCLI(['list', '--store', 'team-contxt'], { cwd: appRepo, env });
@@ -383,7 +383,7 @@ describe('store root selection for normal commands', () => {
 
     it('reports a corrupt registry as machine-readable JSON, not prose', async () => {
       fs.writeFileSync(
-        path.join(globalDataDir, 'context-stores', 'registry.yaml'),
+        path.join(globalDataDir, 'stores', 'registry.yaml'),
         '{not yaml: ['
       );
 
@@ -395,14 +395,14 @@ describe('store root selection for normal commands', () => {
       expect(result.stdout.trim().startsWith('{')).toBe(true);
       const json = parseJson(result);
       expect(json.status[0].severity).toBe('error');
-      expect(json.status[0].code).toBe('invalid_context_store_registry');
+      expect(json.status[0].code).toBe('invalid_store_registry');
     });
 
     it('fails on an unhealthy store root and points to doctor', async () => {
       const brokenRoot = path.join(tempDir, 'stores', 'broken-context');
       fs.mkdirSync(brokenRoot, { recursive: true });
-      await writeContextStoreMetadataState(brokenRoot, { version: 1, id: 'broken-context' });
-      await registerContextStore({
+      await writeStoreMetadataState(brokenRoot, { version: 1, id: 'broken-context' });
+      await registerStore({
         id: 'broken-context',
         localPath: brokenRoot,
         globalDataDir,
@@ -413,7 +413,7 @@ describe('store root selection for normal commands', () => {
         env,
       });
       expect(result.exitCode).toBe(1);
-      expect(result.stdout + result.stderr).toContain('context-store doctor');
+      expect(result.stdout + result.stderr).toContain('store doctor');
       // No scaffolding or repair happened.
       expect(fs.existsSync(path.join(brokenRoot, 'openspec'))).toBe(false);
     });
@@ -657,7 +657,7 @@ describe('store root selection for normal commands', () => {
   describe('setup and register point to --store usage', () => {
     it('shows --store usage after setup', async () => {
       const result = await runCLI(
-        ['context-store', 'setup', 'fresh-context', '--path', path.join(tempDir, 'fresh-context'), '--no-init-git'],
+        ['store', 'setup', 'fresh-context', '--path', path.join(tempDir, 'fresh-context'), '--no-init-git'],
         { cwd: appRepo, env }
       );
       expect(result.exitCode).toBe(0);
@@ -667,12 +667,12 @@ describe('store root selection for normal commands', () => {
     it('shows --store usage after register', async () => {
       const registerRoot = path.join(tempDir, 'register-context');
       createOpenSpecRoot(registerRoot);
-      await writeContextStoreMetadataState(registerRoot, {
+      await writeStoreMetadataState(registerRoot, {
         version: 1,
         id: 'register-context',
       });
 
-      const result = await runCLI(['context-store', 'register', registerRoot], {
+      const result = await runCLI(['store', 'register', registerRoot], {
         cwd: appRepo,
         env,
       });

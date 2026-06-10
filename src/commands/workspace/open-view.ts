@@ -5,13 +5,13 @@ import {
   resolveSelectedInitiativeViewReference,
 } from '../../core/collections/initiatives/index.js';
 import {
-  createPathContextStoreBinding,
-  createRegisteredContextStoreBinding,
-  formatContextStoreBinding,
-  resolveContextStoreBinding,
-  type ContextStoreBinding,
-  type ContextStoreBindingWarning,
-} from '../../core/context-store/index.js';
+  createPathStoreBinding,
+  createRegisteredStoreBinding,
+  formatStoreBinding,
+  resolveStoreBinding,
+  type StoreBinding,
+  type StoreBindingWarning,
+} from '../../core/store/index.js';
 import {
   WorkspaceContextState,
   WorkspacePreferredOpener,
@@ -59,10 +59,10 @@ export interface WorkspaceOpenJsonPayload {
     root: string;
   };
   context: {
-    context_store: {
+    store: {
       id: string;
       root: string;
-      selector?: ContextStoreBinding['selector'];
+      selector?: StoreBinding['selector'];
     };
     initiative: {
       id: string;
@@ -187,7 +187,7 @@ async function resolveStoredWorkspaceInitiative(
   const initiativeId = getWorkspaceContextInitiativeId(context);
 
   try {
-    const resolvedStore = await resolveContextStoreBinding(context.store);
+    const resolvedStore = await resolveStoreBinding(context.store);
     const selected = {
       id: resolvedStore.id,
       root: resolvedStore.root,
@@ -197,7 +197,7 @@ async function resolveStoredWorkspaceInitiative(
 
     return {
       initiative,
-      warnings: resolvedStore.warnings.map(contextStoreBindingWarningToStatus),
+      warnings: resolvedStore.warnings.map(storeBindingWarningToStatus),
     };
   } catch (error) {
     if (error instanceof InitiativeResolutionError) {
@@ -205,20 +205,20 @@ async function resolveStoredWorkspaceInitiative(
     }
 
     throw new WorkspaceCliError(
-      `Workspace context store '${formatContextStoreBinding(context.store)}' could not be read: ${asErrorMessage(error)}`,
-      'workspace_context_store_unavailable',
+      `Workspace store '${formatStoreBinding(context.store)}' could not be read: ${asErrorMessage(error)}`,
+      'workspace_store_unavailable',
       {
         target: 'workspace.context.store',
         fix: context.store.selector.kind === 'registry'
-          ? 'openspec context-store doctor'
+          ? 'openspec store doctor'
           : 'Check the path in .openspec-workspace/view.yaml.',
       }
     );
   }
 }
 
-function contextStoreBindingWarningToStatus(
-  warning: ContextStoreBindingWarning
+function storeBindingWarningToStatus(
+  warning: StoreBindingWarning
 ): WorkspaceStatus {
   return {
     severity: 'warning',
@@ -229,22 +229,22 @@ function contextStoreBindingWarningToStatus(
   };
 }
 
-function contextStoreBindingFromInitiative(
+function storeBindingFromInitiative(
   initiative: InitiativeViewReference
-): ContextStoreBinding {
+): StoreBinding {
   return initiative.storeSource === 'path'
-    ? createPathContextStoreBinding({
+    ? createPathStoreBinding({
         id: initiative.store,
         path: initiative.storeRoot,
       })
-    : createRegisteredContextStoreBinding(initiative.store);
+    : createRegisteredStoreBinding(initiative.store);
 }
 
 function toWorkspaceOpenResolvedContext(
   initiative: InitiativeViewReference
 ): WorkspaceOpenResolvedContext {
   return {
-    contextStore: {
+    store: {
       id: initiative.store,
       root: initiative.storeRoot,
     },
@@ -295,7 +295,7 @@ export async function prepareWorkspaceOpen(
         await selectOrCreateWorkspaceForInitiativeOpen({
           workspaceName,
           context: createWorkspaceInitiativeContext(
-            contextStoreBindingFromInitiative(target.initiative),
+            storeBindingFromInitiative(target.initiative),
             target.initiative.id
           ),
           preferredOpener: openerOverride,
@@ -366,7 +366,7 @@ export function buildWorkspaceOpenJsonPayload(
     },
     context: prepared.initiative
       ? {
-          context_store: {
+          store: {
             id: prepared.initiative.store,
             root: prepared.initiative.storeRoot,
             ...(prepared.workspaceContext

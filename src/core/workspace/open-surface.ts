@@ -18,7 +18,7 @@ export const WORKSPACE_OPEN_INITIATIVE_FOLDER_LABEL = 'Initiative context';
 
 export const WORKSPACE_GUIDANCE_BODY = `# OpenSpec Workspace Guidance
 
-This directory is an OpenSpec workspace: a local working view over context stores, initiatives, repos, and folders.
+This directory is an OpenSpec workspace: a local working view over stores, initiatives, repos, and folders.
 
 - Use this workspace to open the local view of coordinated work.
 - Use initiatives for durable cross-team or cross-repo intent, decisions, requirements, and coordination context.
@@ -29,7 +29,7 @@ This directory is an OpenSpec workspace: a local working view over context store
 - If this workspace contains legacy or beta workspace-level planning files, treat them as compatibility context unless the user explicitly asks to use that beta flow.`;
 
 export interface WorkspaceOpenResolvedContext {
-  contextStore: {
+  store: {
     id: string;
     root: string;
   };
@@ -107,7 +107,7 @@ ${formatGuidancePathList(linkedRoots)}`;
   }
 
   const storedContextSelector = viewState.context.store.selector;
-  const storedContextStore = viewState.context
+  const storedStore = viewState.context
     ? storedContextSelector?.kind === 'path'
       ? `${viewState.context.store.id} via ${storedContextSelector.path}`
       : viewState.context.store.id
@@ -117,14 +117,14 @@ ${formatGuidancePathList(linkedRoots)}`;
     : null;
   const contextLines = resolvedContext
     ? [
-        `- Context store: ${resolvedContext.contextStore.id} (${resolvedContext.contextStore.root})`,
+        `- Store: ${resolvedContext.store.id} (${resolvedContext.store.root})`,
         `- Initiative: ${resolvedContext.initiative.id} (${resolvedContext.initiative.root})`,
         `- Initiative title: ${resolvedContext.initiative.title}`,
         `- Initiative metadata: ${resolvedContext.initiative.metadataPath}`,
-        '- Broader context may exist in the context store, but this workspace opens the selected initiative by default.',
+        '- Broader context may exist in the store, but this workspace opens the selected initiative by default.',
       ].join('\n')
     : [
-        `- Context store: ${storedContextStore}`,
+        `- Store: ${storedStore}`,
         `- Initiative: ${storedInitiativeId}`,
         '- Run `openspec workspace open --json` to refresh resolved local paths for this view.',
       ].join('\n');
@@ -135,7 +135,7 @@ ${contextLines}
 
 ## Advisory Edit Boundaries
 
-- Treat initiative and context-store files as shared coordination context.
+- Treat initiative and store files as shared coordination context.
 - Treat linked repos and folders as local implementation context when the user has selected them.
 - These boundaries are advisory in this OpenSpec version; use judgment and repo ownership when editing.
 

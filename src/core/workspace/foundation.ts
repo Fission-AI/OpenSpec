@@ -2,10 +2,10 @@ import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { z } from 'zod';
 
 import {
-  normalizeContextStoreBinding,
-  type ContextStoreBinding,
-  type ContextStoreSelector,
-} from '../context-store/index.js';
+  normalizeStoreBinding,
+  type StoreBinding,
+  type StoreSelector,
+} from '../store/index.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 
 export const WORKSPACE_METADATA_DIR_NAME = '.openspec-workspace';
@@ -44,7 +44,7 @@ export type WorkspacePreferredOpener =
 
 export interface WorkspaceContextState {
   kind: 'initiative';
-  store: ContextStoreBinding;
+  store: StoreBinding;
   initiative: {
     id: string;
   };
@@ -152,7 +152,7 @@ export function isValidWorkspaceLinkName(name: string): boolean {
   }
 }
 
-const ContextStoreSelectorSchema = z.union([
+const StoreSelectorSchema = z.union([
   z
     .object({
       kind: z.literal('registry'),
@@ -168,17 +168,17 @@ const ContextStoreSelectorSchema = z.union([
     .strict(),
 ]);
 
-const ContextStoreBindingSchema = z
+const StoreBindingSchema = z
   .object({
     id: z.string(),
-    selector: ContextStoreSelectorSchema,
+    selector: StoreSelectorSchema,
   })
   .strict();
 
 const WorkspaceInitiativeContextSchema = z
   .object({
     kind: z.literal('initiative'),
-    store: ContextStoreBindingSchema,
+    store: StoreBindingSchema,
     initiative: z
       .object({
         id: z.string(),
@@ -324,7 +324,7 @@ function normalizeWorkspaceContextState(
   context: z.infer<typeof WorkspaceContextSchema>
 ): WorkspaceContextState {
   return createWorkspaceInitiativeContext(
-    normalizeContextStoreBinding(context.store as ContextStoreBinding),
+    normalizeStoreBinding(context.store as StoreBinding),
     context.initiative.id
   );
 }
@@ -336,7 +336,7 @@ function normalizeOptionalWorkspaceContextState(
 }
 
 export function createWorkspaceInitiativeContext(
-  store: ContextStoreBinding,
+  store: StoreBinding,
   initiativeId: string
 ): WorkspaceContextState {
   if (initiativeId.length === 0) {
@@ -345,20 +345,20 @@ export function createWorkspaceInitiativeContext(
 
   return {
     kind: 'initiative',
-    store: normalizeContextStoreBinding(store),
+    store: normalizeStoreBinding(store),
     initiative: {
       id: initiativeId,
     },
   };
 }
 
-export function getWorkspaceContextStoreId(context: WorkspaceContextState): string {
+export function getWorkspaceStoreId(context: WorkspaceContextState): string {
   return context.store.id;
 }
 
-export function getWorkspaceContextStoreSelector(
+export function getWorkspaceStoreSelector(
   context: WorkspaceContextState
-): ContextStoreSelector {
+): StoreSelector {
   return context.store.selector;
 }
 

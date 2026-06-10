@@ -178,10 +178,10 @@ describe('command completion registry', () => {
     }
   });
 
-  it('tracks context-store commands and aliases', () => {
-    const contextStore = command('context-store');
+  it('tracks store commands and aliases', () => {
+    const store = command('store');
 
-    expect(contextStore?.subcommands?.map((entry) => entry.name)).toEqual([
+    expect(store?.subcommands?.map((entry) => entry.name)).toEqual([
       'setup',
       'register',
       'unregister',
@@ -191,7 +191,7 @@ describe('command completion registry', () => {
       'doctor',
     ]);
 
-    const setup = contextStore?.subcommands?.find((entry) => entry.name === 'setup');
+    const setup = store?.subcommands?.find((entry) => entry.name === 'setup');
     expect(setup?.flags.map((flag) => flag.name)).toEqual([
       'path',
       'init-git',
@@ -199,7 +199,7 @@ describe('command completion registry', () => {
       'json',
     ]);
 
-    const remove = contextStore?.subcommands?.find((entry) => entry.name === 'remove');
+    const remove = store?.subcommands?.find((entry) => entry.name === 'remove');
     expect(remove?.flags.map((flag) => flag.name)).toEqual([
       'yes',
       'json',

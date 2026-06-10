@@ -2,7 +2,7 @@
  * New Change Command
  *
  * Creates a new change directory with optional description and schema in the
- * resolved OpenSpec root. `--store <id>` selects a registered context store's
+ * resolved OpenSpec root. `--store <id>` selects a registered store's
  * root; initiative linking and workspace affected areas are no longer part of
  * this command.
  */

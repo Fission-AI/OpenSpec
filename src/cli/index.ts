@@ -19,7 +19,7 @@ import { FeedbackCommand } from '../commands/feedback.js';
 import { registerConfigCommand } from '../commands/config.js';
 import { registerSchemaCommand } from '../commands/schema.js';
 import { registerWorkspaceCommand } from '../commands/workspace.js';
-import { registerContextStoreCommand } from '../commands/context-store.js';
+import { registerStoreCommand } from '../commands/store.js';
 import { registerInitiativeCommand } from '../commands/initiative.js';
 import { findWorkspaceRoot } from '../core/workspace/index.js';
 import {
@@ -38,7 +38,8 @@ import {
 } from '../commands/workflow/index.js';
 import { maybeShowTelemetryNotice, trackCommand, shutdown } from '../telemetry/index.js';
 
-const STORE_OPTION_DESCRIPTION = 'Registered context store id to use as the OpenSpec root';
+const STORE_OPTION_DESCRIPTION =
+  "Store id to use as the OpenSpec root (a store is a standalone OpenSpec repo you've registered)";
 
 // Deliberate rejection path: --store-path stays registered (hidden) so the
 // resolver can explain that registering the path is the supported route,
@@ -47,7 +48,7 @@ const STORE_OPTION_DESCRIPTION = 'Registered context store id to use as the Open
 function hiddenStorePathOption(): Option {
   return new Option(
     '--store-path <path>',
-    'Not supported; register the path with context-store register and use --store <id>'
+    'Not supported; register the path with "openspec store register <path>" and use --store <id>'
   ).hideHelp();
 }
 
@@ -346,7 +347,7 @@ registerSpecCommand(program);
 registerConfigCommand(program);
 registerSchemaCommand(program);
 registerWorkspaceCommand(program);
-registerContextStoreCommand(program);
+registerStoreCommand(program);
 registerInitiativeCommand(program);
 
 // Top-level validate command

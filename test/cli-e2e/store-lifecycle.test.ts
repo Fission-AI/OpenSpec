@@ -195,7 +195,7 @@ afterAll(async () => {
 describe('standalone store lifecycle journey', () => {
   it('machine A: setup produces a committed, clonable repo', async () => {
     const result = await runCLI(
-      ['context-store', 'setup', STORE_ID, '--path', storeRoot, '--json'],
+      ['store', 'setup', STORE_ID, '--path', storeRoot, '--json'],
       { env: machineA }
     );
 
@@ -217,7 +217,7 @@ describe('standalone store lifecycle journey', () => {
 
     const log = await git(storeRoot, machineA, ['log', '--format=%s']);
     expect(log.trim().split('\n')).toHaveLength(1);
-    expect(log).toContain(`Initialize OpenSpec context store ${STORE_ID}`);
+    expect(log).toContain(`Initialize OpenSpec store ${STORE_ID}`);
 
     const committedFiles = await git(storeRoot, machineA, [
       'show',
@@ -234,15 +234,15 @@ describe('standalone store lifecycle journey', () => {
   });
 
   it('machine A: doctor and list see a healthy store with git facts', async () => {
-    const list = await runCLI(['context-store', 'list', '--json'], { env: machineA });
+    const list = await runCLI(['store', 'list', '--json'], { env: machineA });
     expect(list.exitCode).toBe(0);
-    expect(JSON.parse(list.stdout).context_stores).toHaveLength(1);
+    expect(JSON.parse(list.stdout).stores).toHaveLength(1);
 
-    const doctor = await runCLI(['context-store', 'doctor', STORE_ID, '--json'], {
+    const doctor = await runCLI(['store', 'doctor', STORE_ID, '--json'], {
       env: machineA,
     });
     expect(doctor.exitCode).toBe(0);
-    const store = JSON.parse(doctor.stdout).context_stores[0];
+    const store = JSON.parse(doctor.stdout).stores[0];
     expect(store.openspec_root.healthy).toBe(true);
     expect(store.git).toEqual({
       is_repository: true,
@@ -253,7 +253,7 @@ describe('standalone store lifecycle journey', () => {
     expect(store.status).toEqual([]);
 
     // Human output surfaces the same Git facts.
-    const humanDoctor = await runCLI(['context-store', 'doctor', STORE_ID], { env: machineA });
+    const humanDoctor = await runCLI(['store', 'doctor', STORE_ID], { env: machineA });
     expect(humanDoctor.exitCode).toBe(0);
     expect(humanDoctor.stdout).toContain(
       'Git: repository detected (commits: yes, uncommitted changes: no, remote: none)'
@@ -355,12 +355,12 @@ describe('standalone store lifecycle journey', () => {
     ).trim();
 
     const registered = await runCLI(
-      ['context-store', 'register', cloneRoot, '--json'],
+      ['store', 'register', cloneRoot, '--json'],
       { env: machineB }
     );
     expect(registered.exitCode).toBe(0);
     const payload = JSON.parse(registered.stdout);
-    expect(payload.context_store.id).toBe(STORE_ID);
+    expect(payload.store.id).toBe(STORE_ID);
     expect(payload.created_files).toEqual([]);
 
     // Register never commits.
@@ -369,11 +369,11 @@ describe('standalone store lifecycle journey', () => {
     ).trim();
     expect(commitsAfterRegister).toBe(commitsBeforeRegister);
 
-    const doctor = await runCLI(['context-store', 'doctor', STORE_ID, '--json'], {
+    const doctor = await runCLI(['store', 'doctor', STORE_ID, '--json'], {
       env: machineB,
     });
     expect(doctor.exitCode).toBe(0);
-    expect(JSON.parse(doctor.stdout).context_stores[0].openspec_root.healthy).toBe(true);
+    expect(JSON.parse(doctor.stdout).stores[0].openspec_root.healthy).toBe(true);
 
     const specs = await runCLI(
       ['list', '--specs', '--store', STORE_ID, '--json'],
@@ -470,7 +470,7 @@ describe('standalone store lifecycle journey', () => {
         path.join(env.XDG_DATA_HOME as string, 'openspec'),
         new Set()
       );
-      expect(dataEntries).toEqual(['context-stores/', 'context-stores/registry.yaml']);
+      expect(dataEntries).toEqual(['stores/', 'stores/registry.yaml']);
     }
   });
 
@@ -488,19 +488,19 @@ describe('standalone store lifecycle journey', () => {
     const target = path.join(base, 'machine-c', 'no-identity-store');
 
     const result = await runCLI(
-      ['context-store', 'setup', 'no-identity', '--path', target, '--json'],
+      ['store', 'setup', 'no-identity', '--path', target, '--json'],
       { env: noIdentity }
     );
     expect(result.exitCode).toBe(1);
     const payload = JSON.parse(result.stdout);
-    expect(payload.status[0].code).toBe('context_store_git_identity_missing');
+    expect(payload.status[0].code).toBe('store_git_identity_missing');
     expect(payload.status[0].fix).toContain('git config --global user.name');
 
     await expect(fs.access(target)).rejects.toThrow();
 
     // --no-init-git needs no identity and creates no repo.
     const optOut = await runCLI(
-      ['context-store', 'setup', 'no-identity', '--path', target, '--no-init-git', '--json'],
+      ['store', 'setup', 'no-identity', '--path', target, '--no-init-git', '--json'],
       { env: noIdentity }
     );
     expect(optOut.exitCode).toBe(0);

@@ -4,14 +4,14 @@
  * Normal commands (`new change`, `status`, `instructions`, `list`, `show`,
  * `validate`, `archive`) resolve one OpenSpec root through this module:
  *
- * - `--store <id>` selects a registered context store's root.
+ * - `--store <id>` selects a registered store's root.
  * - Without `--store`, the nearest ancestor containing `openspec/` wins.
  *   Leftover workspace view state is never considered a root here.
  * - With no nearest root, registered stores produce a selection hint error;
  *   otherwise commands may treat the current directory as an implicit root.
  *
- * Diagnostic codes reuse the context-store taxonomy where an error passes
- * through unchanged (`invalid_context_store_id`, metadata parse failures);
+ * Diagnostic codes reuse the store taxonomy where an error passes
+ * through unchanged (`invalid_store_id`, metadata parse failures);
  * resolver-specific failures use the normal-command codes below
  * (`unknown_store`, `no_registered_stores`, `store_identity_mismatch`,
  * `unhealthy_store_root`, `store_path_not_supported`,
@@ -21,15 +21,15 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-import { ContextStoreError } from './context-store/errors.js';
+import { StoreError } from './store/errors.js';
 import {
-  getContextStoreMetadataPath,
-  listContextStoreRegistryEntries,
-  readContextStoreRegistryState,
-  readOptionalContextStoreMetadataState,
-  validateContextStoreId,
-} from './context-store/foundation.js';
-import { getStoreRootForBackend } from './context-store/registry.js';
+  getStoreMetadataPath,
+  listStoreRegistryEntries,
+  readStoreRegistryState,
+  readOptionalStoreMetadataState,
+  validateStoreId,
+} from './store/foundation.js';
+import { getStoreRootForBackend } from './store/registry.js';
 import { inspectOpenSpecRoot } from './openspec-root.js';
 import { findRepoPlanningRootSync, type PlanningHome } from './planning-home.js';
 import { FileSystemUtils } from '../utils/file-system.js';
@@ -88,8 +88,8 @@ export function isRootSelectionError(error: unknown): error is RootSelectionErro
   return error instanceof RootSelectionError;
 }
 
-function fromContextStoreError(error: unknown): never {
-  if (error instanceof ContextStoreError) {
+function fromStoreError(error: unknown): never {
+  if (error instanceof StoreError) {
     throw new RootSelectionError(error.message, error.diagnostic.code, {
       ...(error.diagnostic.target ? { target: error.diagnostic.target } : {}),
       ...(error.diagnostic.fix ? { fix: error.diagnostic.fix } : {}),
@@ -100,7 +100,7 @@ function fromContextStoreError(error: unknown): never {
 }
 
 function doctorFix(id: string): string {
-  return `Run openspec context-store doctor ${id} to inspect it.`;
+  return `Run openspec store doctor ${id} to inspect it.`;
 }
 
 function makeRoot(
@@ -136,40 +136,40 @@ async function resolveStoreRoot(
   globalDataDir?: string
 ): Promise<ResolvedOpenSpecRoot> {
   try {
-    validateContextStoreId(id);
+    validateStoreId(id);
   } catch (error) {
-    fromContextStoreError(error);
+    fromStoreError(error);
   }
 
   let registry;
   try {
-    registry = await readContextStoreRegistryState(globalDataDir ? { globalDataDir } : {});
+    registry = await readStoreRegistryState(globalDataDir ? { globalDataDir } : {});
   } catch (error) {
-    fromContextStoreError(error);
+    fromStoreError(error);
   }
-  const entries = registry ? listContextStoreRegistryEntries(registry) : [];
+  const entries = registry ? listStoreRegistryEntries(registry) : [];
   const entry = entries.find((candidate) => candidate.id === id);
 
   if (!entry) {
     if (entries.length === 0) {
       throw new RootSelectionError(
-        `Unknown context store '${id}'. No context stores are registered.`,
+        `Unknown store '${id}'. No stores are registered.`,
         'no_registered_stores',
         {
-          target: 'context_store.id',
-          fix: `Run openspec context-store setup ${id} or openspec context-store register <path> first.`,
+          target: 'store.id',
+          fix: `Run openspec store setup ${id} or openspec store register <path> first.`,
         }
       );
     }
 
     throw new RootSelectionError(
-      `Unknown context store '${id}'. Registered stores: ${entries
+      `Unknown store '${id}'. Registered stores: ${entries
         .map((candidate) => candidate.id)
         .join(', ')}.`,
       'unknown_store',
       {
-        target: 'context_store.id',
-        fix: 'Pass a registered store id, or run openspec context-store list.',
+        target: 'store.id',
+        fix: 'Pass a registered store id, or run openspec store list.',
       }
     );
   }
@@ -179,26 +179,26 @@ async function resolveStoreRoot(
   // Identity (metadata) failures win before root-health diagnostics.
   let metadata;
   try {
-    metadata = await readOptionalContextStoreMetadataState(storeRoot);
+    metadata = await readOptionalStoreMetadataState(storeRoot);
   } catch (error) {
-    fromContextStoreError(error);
+    fromStoreError(error);
   }
 
   if (!metadata) {
     // The doctor pointer lives in the message because human-mode command
     // wrappers print only the message, not the fix field.
     throw new RootSelectionError(
-      `Context store '${id}' is missing identity metadata at ${getContextStoreMetadataPath(storeRoot)}. ${doctorFix(id)}`,
+      `Store '${id}' is missing identity metadata at ${getStoreMetadataPath(storeRoot)}. ${doctorFix(id)}`,
       'store_identity_mismatch',
-      { target: 'context_store.metadata', fix: doctorFix(id) }
+      { target: 'store.metadata', fix: doctorFix(id) }
     );
   }
 
   if (metadata.id !== id) {
     throw new RootSelectionError(
-      `Context store '${id}' metadata id '${metadata.id}' does not match its registered id. ${doctorFix(id)}`,
+      `Store '${id}' metadata id '${metadata.id}' does not match its registered id. ${doctorFix(id)}`,
       'store_identity_mismatch',
-      { target: 'context_store.metadata', fix: doctorFix(id) }
+      { target: 'store.metadata', fix: doctorFix(id) }
     );
   }
 
@@ -208,7 +208,7 @@ async function resolveStoreRoot(
       inspection.diagnostics.map((diagnostic) => diagnostic.message).join(' ') ||
       'OpenSpec root is missing or incomplete.';
     throw new RootSelectionError(
-      `Context store '${id}' does not have a healthy OpenSpec root at ${storeRoot}: ${problems} ${doctorFix(id)}`,
+      `Store '${id}' does not have a healthy OpenSpec root at ${storeRoot}: ${problems} ${doctorFix(id)}`,
       'unhealthy_store_root',
       { target: 'openspec.root', fix: doctorFix(id) }
     );
@@ -222,11 +222,11 @@ export async function resolveOpenSpecRoot(
 ): Promise<ResolvedOpenSpecRoot> {
   if (options.storePath !== undefined) {
     throw new RootSelectionError(
-      '--store-path is not supported. Register the path with openspec context-store register <path>, then select it with --store <id>.',
+      '--store-path is not supported. Register the path with openspec store register <path>, then select it with --store <id>.',
       'store_path_not_supported',
       {
-        target: 'context_store.id',
-        fix: 'openspec context-store register <path>, then rerun with --store <id>.',
+        target: 'store.id',
+        fix: 'openspec store register <path>, then rerun with --store <id>.',
       }
     );
   }
@@ -243,19 +243,19 @@ export async function resolveOpenSpecRoot(
 
   let registry;
   try {
-    registry = await readContextStoreRegistryState(
+    registry = await readStoreRegistryState(
       options.globalDataDir ? { globalDataDir: options.globalDataDir } : {}
     );
   } catch (error) {
-    fromContextStoreError(error);
+    fromStoreError(error);
   }
   const registeredIds = registry
-    ? listContextStoreRegistryEntries(registry).map((entry) => entry.id)
+    ? listStoreRegistryEntries(registry).map((entry) => entry.id)
     : [];
 
   if (registeredIds.length > 0) {
     throw new RootSelectionError(
-      `No OpenSpec root found in the current directory or its ancestors. Registered context stores: ${registeredIds.join(', ')}. Pass --store <id> to use one, or run openspec init to create a local root.`,
+      `No OpenSpec root found in the current directory or its ancestors. Registered stores: ${registeredIds.join(', ')}. Pass --store <id> to use one, or run openspec init to create a local root.`,
       'no_root_with_registered_stores',
       {
         target: 'openspec.root',

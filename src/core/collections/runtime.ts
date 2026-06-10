@@ -279,7 +279,7 @@ function createMountedCollection<THandle>(
 
 export function mountCollections(input: MountCollectionsInput): MountedCollectionRegistry {
   if (input.storeRoot.length === 0) {
-    throw new Error('Context store root must not be empty');
+    throw new Error('Store root must not be empty');
   }
 
   const byId = new Map<string, MountedCollection>();

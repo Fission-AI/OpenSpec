@@ -216,7 +216,7 @@ function printDoctorHuman(result: { workspace: WorkspaceOutput; status: Workspac
   console.log('');
   console.log('Advisory edit boundaries:');
   if (result.workspace.context) {
-    console.log('  Initiative/context-store files are shared coordination context.');
+    console.log('  Initiative/store files are shared coordination context.');
   } else {
     console.log('  No initiative coordination context is attached.');
   }
