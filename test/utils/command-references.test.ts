@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  getTransformerForTool,
   transformToHyphenCommands,
   transformToSkillReferences,
 } from '../../src/utils/command-references.js';
@@ -161,5 +162,24 @@ Then /openspec-apply-change to implement`;
       const expected = '/openspec-bulk-archive-change and /openspec-archive-change';
       expect(transformToSkillReferences(input)).toBe(expected);
     });
+  });
+});
+
+describe('getTransformerForTool', () => {
+  it('selects hyphen commands for opencode and pi regardless of delivery', () => {
+    expect(getTransformerForTool('opencode', 'both')).toBe(transformToHyphenCommands);
+    expect(getTransformerForTool('opencode', 'skills')).toBe(transformToHyphenCommands);
+    expect(getTransformerForTool('pi', 'both')).toBe(transformToHyphenCommands);
+    expect(getTransformerForTool('pi', 'skills')).toBe(transformToHyphenCommands);
+  });
+
+  it('selects skill references for skills-only delivery', () => {
+    expect(getTransformerForTool('claude', 'skills')).toBe(transformToSkillReferences);
+    expect(getTransformerForTool('codex', 'skills')).toBe(transformToSkillReferences);
+  });
+
+  it('selects no transformer when commands are generated', () => {
+    expect(getTransformerForTool('claude', 'both')).toBeUndefined();
+    expect(getTransformerForTool('claude', 'commands')).toBeUndefined();
   });
 });
