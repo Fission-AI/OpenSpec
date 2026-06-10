@@ -11,7 +11,7 @@ import ora from 'ora';
 import * as fs from 'fs';
 import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { transformToHyphenCommands, transformToSkillReferences } from '../utils/command-references.js';
+import { getTransformerForTool } from '../utils/command-references.js';
 import { AI_TOOLS, OPENSPEC_DIR_NAME } from './config.js';
 import {
   generateCommands,
@@ -196,13 +196,7 @@ export class UpdateCommand {
             const skillDir = path.join(skillsDir, dirName);
             const skillFile = path.join(skillDir, 'SKILL.md');
 
-            // Use hyphen-based command references for tools where filename === command name (oh-my-pi, opencode, pi),
-            // and skill references when no commands are generated (skills-only delivery)
-            const transformer = (tool.value === 'opencode' || tool.value === 'pi' || tool.value === 'oh-my-pi')
-              ? transformToHyphenCommands
-              : delivery === 'skills'
-                ? transformToSkillReferences
-                : undefined;
+            const transformer = getTransformerForTool(tool.value, delivery);
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
@@ -695,13 +689,7 @@ export class UpdateCommand {
             const skillDir = path.join(skillsDir, dirName);
             const skillFile = path.join(skillDir, 'SKILL.md');
 
-            // Use hyphen-based command references for tools where filename === command name (oh-my-pi, opencode, pi),
-            // and skill references when no commands are generated (skills-only delivery)
-            const transformer = (tool.value === 'opencode' || tool.value === 'pi' || tool.value === 'oh-my-pi')
-              ? transformToHyphenCommands
-              : delivery === 'skills'
-                ? transformToSkillReferences
-                : undefined;
+            const transformer = getTransformerForTool(tool.value, delivery);
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
