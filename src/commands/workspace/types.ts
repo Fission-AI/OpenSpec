@@ -72,8 +72,6 @@ export interface WorkspaceOpenOptions extends WorkspaceSelectionOptions {
   prepareOnly?: boolean;
   change?: string;
   initiative?: string;
-  store?: string;
-  storePath?: string;
 }
 
 export interface WorkspaceListOptions {

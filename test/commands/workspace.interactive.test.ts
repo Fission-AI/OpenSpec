@@ -681,9 +681,7 @@ describe('workspace command interactive flows', () => {
     await runWorkspaceCommand([
       'open',
       '--initiative',
-      initiative.initiativeId,
-      '--store',
-      initiative.storeId,
+      `${initiative.storeId}/${initiative.initiativeId}`,
       '--editor',
       '--json',
     ]);

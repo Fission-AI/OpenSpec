@@ -12,6 +12,7 @@ import {
   mountInitiativesCollection,
   parseWorkspaceViewState,
   registerStore,
+  serializeWorkspaceViewState,
   writeStoreMetadataState,
 } from '../../src/core/index.js';
 import { withPrependedPathEnv } from '../helpers/path-env.js';
@@ -121,6 +122,37 @@ describe('workspace open initiative views', () => {
     return JSON.parse(fs.readFileSync(logPath, 'utf-8'));
   }
 
+  // The CLI selectors for creating path-bound views were removed with the
+  // legacy second meaning of --store; persisted path-bound views remain
+  // supported, so tests write the view state fixture directly.
+  function writePathBoundViewFixture(
+    name: string,
+    storeId: string,
+    storeRoot: string,
+    initiativeId: string
+  ): string {
+    const workspaceRoot = getManagedWorkspaceRoot(name, { globalDataDir });
+    const viewStatePath = getWorkspaceViewStatePath(workspaceRoot);
+    fs.mkdirSync(path.dirname(viewStatePath), { recursive: true });
+    fs.writeFileSync(
+      viewStatePath,
+      serializeWorkspaceViewState({
+        version: 1,
+        name,
+        context: {
+          kind: 'initiative',
+          store: {
+            id: storeId,
+            selector: { kind: 'path', path: storeRoot, observed_id: storeId },
+          },
+          initiative: { id: initiativeId },
+        },
+        links: {},
+      })
+    );
+    return workspaceRoot;
+  }
+
   it('creates a default local view for an initiative and returns a JSON receipt', async () => {
     const initiative = await setupInitiative();
     const code = createFakeExecutable('code');
@@ -131,8 +163,6 @@ describe('workspace open initiative views', () => {
         'open',
         '--initiative',
         'billing-launch',
-        '--store',
-        'platform',
         '--editor',
         '--json',
         '--no-interactive',
@@ -260,7 +290,7 @@ describe('workspace open initiative views', () => {
     );
   });
 
-  it('persists a path-bound store and reopens without registry registration', async () => {
+  it('reopens a persisted path-bound view without registry registration', async () => {
     const storeRoot = mkdir('stores/scratch-context');
     const initiativeId = 'scratch-launch';
     await writeStoreMetadataState(storeRoot, {
@@ -274,57 +304,7 @@ describe('workspace open initiative views', () => {
       summary: 'Coordinate local scratch work.',
     });
     const code = createFakeExecutable('code');
-
-    const open = await runCLI(
-      [
-        'workspace',
-        'open',
-        '--initiative',
-        initiativeId,
-        '--store-path',
-        storeRoot,
-        '--editor',
-        '--json',
-        '--no-interactive',
-      ],
-      { cwd: tempDir, env: envWithFakeExecutable(code) }
-    );
-
-    expect(open.exitCode).toBe(0);
-    const payload = parseJson(open);
-    expect(payload.context.store).toEqual({
-      id: 'scratch-context',
-      root: expect.any(String),
-      selector: {
-        kind: 'path',
-        path: expect.any(String),
-        observed_id: 'scratch-context',
-      },
-    });
-    expectSameExistingPath(payload.context.store.root, storeRoot);
-    expectSameExistingPath(payload.context.store.selector.path, storeRoot);
-
-    const workspaceRoot = getManagedWorkspaceRoot(initiativeId, { globalDataDir });
-    const viewState = parseWorkspaceViewState(
-      fs.readFileSync(getWorkspaceViewStatePath(workspaceRoot), 'utf-8')
-    );
-    expect(viewState.context).toEqual({
-      kind: 'initiative',
-      store: {
-        id: 'scratch-context',
-        selector: {
-          kind: 'path',
-          path: expect.any(String),
-          observed_id: 'scratch-context',
-        },
-      },
-      initiative: {
-        id: initiativeId,
-      },
-    });
-    const storedSelector = viewState.context?.store.selector;
-    expect(storedSelector?.kind).toBe('path');
-    expectSameExistingPath(storedSelector?.kind === 'path' ? storedSelector.path : '', storeRoot);
+    writePathBoundViewFixture(initiativeId, 'scratch-context', storeRoot, initiativeId);
 
     const reopen = await runCLI(
       ['workspace', 'open', initiativeId, '--editor', '--json', '--no-interactive'],
@@ -334,8 +314,25 @@ describe('workspace open initiative views', () => {
     expect(reopen.exitCode).toBe(0);
     const reopenedPayload = parseJson(reopen);
     expect(reopenedPayload.status).toEqual([]);
+    expect(reopenedPayload.context.store).toEqual({
+      id: 'scratch-context',
+      root: expect.any(String),
+      selector: {
+        kind: 'path',
+        path: expect.any(String),
+        observed_id: 'scratch-context',
+      },
+    });
     expectSameExistingPath(reopenedPayload.context.store.root, storeRoot);
     expectSameExistingPath(reopenedPayload.context.store.selector.path, storeRoot);
+
+    const workspaceRoot = getManagedWorkspaceRoot(initiativeId, { globalDataDir });
+    const viewState = parseWorkspaceViewState(
+      fs.readFileSync(getWorkspaceViewStatePath(workspaceRoot), 'utf-8')
+    );
+    const storedSelector = viewState.context?.store.selector;
+    expect(storedSelector?.kind).toBe('path');
+    expectSameExistingPath(storedSelector?.kind === 'path' ? storedSelector.path : '', storeRoot);
 
     const doctor = await runCLI(
       ['workspace', 'doctor', '--workspace', initiativeId, '--json'],
@@ -344,6 +341,21 @@ describe('workspace open initiative views', () => {
 
     expect(doctor.exitCode).toBe(0);
     expect(parseJson(doctor).workspace.status).toEqual([]);
+  });
+
+  it('rejects the removed store selectors on workspace open', async () => {
+    for (const args of [
+      ['--store', 'platform'],
+      ['--store-path', tempDir],
+    ]) {
+      const result = await runCLI(
+        ['workspace', 'open', '--initiative', 'billing-launch', ...args, '--no-interactive'],
+        { cwd: tempDir, env }
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain(`unknown option '${args[0]}'`);
+    }
   });
 
   it('reports path-bound store id drift in workspace doctor', async () => {
@@ -359,23 +371,7 @@ describe('workspace open initiative views', () => {
       title: 'Drift Launch',
       summary: 'Coordinate local drift work.',
     });
-    const code = createFakeExecutable('code');
-
-    const open = await runCLI(
-      [
-        'workspace',
-        'open',
-        '--initiative',
-        initiativeId,
-        '--store-path',
-        storeRoot,
-        '--editor',
-        '--json',
-        '--no-interactive',
-      ],
-      { cwd: tempDir, env: envWithFakeExecutable(code) }
-    );
-    expect(open.exitCode).toBe(0);
+    writePathBoundViewFixture(initiativeId, 'drift-context', storeRoot, initiativeId);
 
     await writeStoreMetadataState(storeRoot, {
       version: 1,
@@ -411,6 +407,12 @@ describe('workspace open initiative views', () => {
       summary: 'Coordinate a local copy.',
     });
     const code = createFakeExecutable('code');
+    writePathBoundViewFixture(
+      registered.initiativeId,
+      'platform',
+      pathStoreRoot,
+      registered.initiativeId
+    );
 
     const registryOpen = await runCLI(
       [
@@ -424,25 +426,9 @@ describe('workspace open initiative views', () => {
       ],
       { cwd: tempDir, env: envWithFakeExecutable(code) }
     );
-    expect(registryOpen.exitCode).toBe(0);
 
-    const pathOpen = await runCLI(
-      [
-        'workspace',
-        'open',
-        '--initiative',
-        registered.initiativeId,
-        '--store-path',
-        pathStoreRoot,
-        '--editor',
-        '--json',
-        '--no-interactive',
-      ],
-      { cwd: tempDir, env: envWithFakeExecutable(code) }
-    );
-
-    expect(pathOpen.exitCode).toBe(1);
-    expect(parseJson(pathOpen).status[0]).toEqual(
+    expect(registryOpen.exitCode).toBe(1);
+    expect(parseJson(registryOpen).status[0]).toEqual(
       expect.objectContaining({
         code: 'workspace_name_collision',
       })

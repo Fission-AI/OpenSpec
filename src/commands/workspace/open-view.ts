@@ -100,17 +100,6 @@ export interface WorkspaceOpenJsonPayload {
 }
 
 export function assertWorkspaceOpenSupportedOptions(options: WorkspaceOpenOptions): void {
-  if (!options.initiative && (options.store || options.storePath)) {
-    throw new WorkspaceCliError(
-      'workspace open accepts --store or --store-path only with --initiative.',
-      'workspace_open_store_without_initiative',
-      {
-        target: 'workspace.initiative',
-        fix: 'Use openspec workspace open --initiative <id> --store <store>.',
-      }
-    );
-  }
-
   if (options.prepareOnly) {
     throw new WorkspaceCliError(
       'workspace open supports launching through a selected opener; preview output is reserved for a future context/query surface.',
@@ -172,10 +161,7 @@ async function resolveWorkspaceOpenInitiative(
   }
 
   try {
-    return await resolveInitiativeViewReference(options.initiative, {
-      store: options.store,
-      storePath: options.storePath,
-    });
+    return await resolveInitiativeViewReference(options.initiative);
   } catch (error) {
     throw initiativeErrorAsWorkspaceError(error);
   }

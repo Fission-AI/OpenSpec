@@ -189,18 +189,18 @@ export function parseInitiativeReference(
       'invalid_initiative_reference',
       {
         target: 'initiative.id',
-        fix: 'Use <initiative-id>, <store>/<initiative-id>, or <initiative-id> --store <store>.',
+        fix: 'Use <initiative-id> or <store>/<initiative-id>.',
       }
     );
   }
 
   if (options.store !== undefined || options.storePath !== undefined) {
     throw new InitiativeResolutionError(
-      'Pass either --initiative <store>/<id> or a store selector, not both.',
+      'Pass either a qualified <store>/<id> reference or a store selector, not both.',
       'store_selector_conflict',
       {
         target: 'store',
-        fix: 'Use --initiative <store>/<id> or --initiative <id> --store <store>.',
+        fix: 'Use <store>/<id> or <id> --store <store>.',
       }
     );
   }
@@ -233,7 +233,7 @@ function storeErrorAsInitiativeError(error: unknown): InitiativeResolutionError 
 
   return new InitiativeResolutionError(message, 'invalid_store', {
     target: 'store',
-    fix: 'Fix the store registry or pass --store-path <path>.',
+    fix: 'Fix the store registry (openspec store doctor).',
   });
 }
 

@@ -1799,8 +1799,6 @@ preferred_opener:
     expect(open?.flags?.map((flag) => flag.name)).toEqual([
       'workspace',
       'initiative',
-      'store',
-      'store-path',
       'agent',
       'editor',
       'prepare-only',

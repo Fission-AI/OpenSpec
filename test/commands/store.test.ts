@@ -1068,4 +1068,45 @@ describe('store command', () => {
     expect(mismatchFreeStatus.fix).toContain('Use --id free-context');
   });
 
+  describe('store group surface', () => {
+    it('hints lifecycle attempts under the store group at --store', async () => {
+      const result = await runCLI(['store', 'new', 'change', 'billing-rework'], {
+        cwd: tempDir,
+        env,
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain("unknown command 'new' for 'openspec store'");
+      expect(result.stderr).toContain(
+        'setup, register, unregister, remove, list (ls), doctor'
+      );
+      expect(result.stderr).toContain('openspec new change billing-rework --store <id>');
+    });
+
+    it('prints the same hint on stderr for --json invocations', async () => {
+      const result = await runCLI(['store', 'bogus', '--json'], { cwd: tempDir, env });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain("unknown command 'bogus' for 'openspec store'");
+      expect(result.stderr).toContain('openspec new change <change-id> --store <id>');
+      expect(result.stdout).toBe('');
+    });
+
+    it('keeps no context-store alias', async () => {
+      const result = await runCLI(['context-store', 'list'], { cwd: tempDir, env });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain("unknown command 'context-store'");
+    });
+
+    it('lists store in --help with the locked one-liner and no context-store group', async () => {
+      const result = await runCLI(['--help'], { cwd: tempDir, env });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('store');
+      expect(result.stdout).toContain('Create and manage stores - standalone');
+      expect(result.stdout).not.toContain('context-store');
+    });
+  });
+
 });

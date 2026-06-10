@@ -750,4 +750,32 @@ export function registerStoreCommand(program: Command): void {
     .action(async (id: string | undefined, options: StoreJsonOptions) => {
       await storeCommand.doctor(id, options);
     });
+
+  // Registering a command:* listener suppresses Commander's default
+  // unknown-command error, so this handler owns the entire message and
+  // the exit path (same text for human and --json invocations).
+  const lifecycleRedirects = new Set([
+    'new',
+    'status',
+    'instructions',
+    'show',
+    'validate',
+    'archive',
+  ]);
+  store.on('command:*', (operands: string[]) => {
+    const attempted = operands.filter((operand) => !operand.startsWith('-'));
+    const example =
+      attempted.length > 0 && lifecycleRedirects.has(attempted[0])
+        ? `openspec ${attempted.join(' ')} --store <id>`
+        : 'openspec new change <change-id> --store <id>';
+    console.error(`Error: unknown command '${attempted[0] ?? ''}' for 'openspec store'.`);
+    console.error(
+      'Store subcommands manage store registration: setup, register, unregister, remove, list (ls), doctor.'
+    );
+    console.error(
+      'To create or work on a change in a store, use the normal command with --store, for example:'
+    );
+    console.error(`  ${example}`);
+    process.exitCode = 1;
+  });
 }

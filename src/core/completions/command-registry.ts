@@ -381,16 +381,6 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             takesValue: true,
           },
           {
-            name: 'store',
-            description: 'Store id for --initiative',
-            takesValue: true,
-          },
-          {
-            name: 'store-path',
-            description: 'Existing local store root for --initiative',
-            takesValue: true,
-          },
-          {
             name: 'agent',
             description: 'Use an agent for this session: codex-cli, claude, or github-copilot',
             takesValue: true,
