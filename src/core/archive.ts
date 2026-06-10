@@ -411,11 +411,11 @@ export class ArchiveCommand {
             return null;
           }
 
-          // All validations passed; pre-validate rebuilt full spec and then write files and display counts
-          const writeTotals = { added: 0, modified: 0, removed: 0, renamed: 0 };
-          for (const p of prepared) {
-            const specName = path.basename(path.dirname(p.update.target));
-            if (!skipValidation) {
+          // Validate every rebuilt spec before writing any of them, so a
+          // late validation failure really does leave all targets unchanged.
+          if (!skipValidation) {
+            for (const p of prepared) {
+              const specName = path.basename(path.dirname(p.update.target));
               const report = await new Validator().validateSpecContent(specName, p.rebuilt);
               if (!report.valid) {
                 if (json) {
@@ -434,6 +434,11 @@ export class ArchiveCommand {
                 return null;
               }
             }
+          }
+
+          // All validations passed; write files and display counts
+          const writeTotals = { added: 0, modified: 0, removed: 0, renamed: 0 };
+          for (const p of prepared) {
             await writeUpdatedSpec(p.update, p.rebuilt, p.counts, {
               silent: json,
               // Cross-root paths must be absolute when a store is selected.

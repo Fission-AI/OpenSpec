@@ -538,6 +538,46 @@ describe('store root selection for normal commands', () => {
       expect(json.archive.change).toBe('removed-change');
     });
 
+    it('writes no spec when any rebuilt spec fails validation', async () => {
+      // Two delta specs in one change: 'aaa-good' targets a new spec and
+      // rebuilds cleanly; 'zzz-bad' targets an existing spec whose current
+      // requirement has no scenarios, so its rebuilt content fails the
+      // validator only at the late rebuilt-validation pass (the prepare-time
+      // structure check does not catch missing scenarios).
+      const changeDir = createChange(storeRoot, 'two-spec-change', { deltaSpec: null });
+      for (const capability of ['aaa-good', 'zzz-bad']) {
+        const specDir = path.join(changeDir, 'specs', capability);
+        fs.mkdirSync(specDir, { recursive: true });
+        fs.writeFileSync(path.join(specDir, 'spec.md'), VALID_DELTA_SPEC);
+      }
+      const badTargetDir = path.join(storeRoot, 'openspec', 'specs', 'zzz-bad');
+      fs.mkdirSync(badTargetDir, { recursive: true });
+      const badTargetContent =
+        '# zzz-bad\n\n## Purpose\nLegacy.\n\n## Requirements\n\n### Requirement: Old rule SHALL hold\nThe system SHALL hold.\n';
+      fs.writeFileSync(path.join(badTargetDir, 'spec.md'), badTargetContent);
+
+      const result = await runCLI(
+        ['archive', 'two-spec-change', '--store', 'team-context', '--json', '--yes'],
+        { cwd: appRepo, env }
+      );
+      expect(result.exitCode).toBe(1);
+      const json = parseJson(result);
+      expect(json.archive).toBeNull();
+      expect(json.status[0].code).toBe('archive_spec_validation_failed');
+
+      // "No files were changed" must be true: the good spec was not created
+      // and the bad target is byte-identical.
+      expect(
+        fs.existsSync(path.join(storeRoot, 'openspec', 'specs', 'aaa-good', 'spec.md'))
+      ).toBe(false);
+      expect(fs.readFileSync(path.join(badTargetDir, 'spec.md'), 'utf-8')).toBe(
+        badTargetContent
+      );
+      expect(
+        fs.existsSync(path.join(storeRoot, 'openspec', 'changes', 'two-spec-change'))
+      ).toBe(true);
+    });
+
     it('reports spec-update failures as diagnostics without stdout prose', async () => {
       createChange(storeRoot, 'modified-change', { deltaSpec: MODIFIED_ONLY_DELTA_SPEC });
 
