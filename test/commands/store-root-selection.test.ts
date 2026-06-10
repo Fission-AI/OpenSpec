@@ -26,6 +26,25 @@ const INVALID_DELTA_SPEC = `## ADDED Requirements
 The system SHALL create bills.
 `;
 
+// Targets a spec that does not exist yet: REMOVED deltas are ignored with a
+// human-mode warning, which must never leak into JSON stdout.
+const REMOVED_ONLY_DELTA_SPEC = `## REMOVED Requirements
+
+### Requirement: Old billing SHALL go away
+`;
+
+// MODIFIED deltas against a spec that does not exist make buildUpdatedSpec
+// throw during the prepare pass.
+const MODIFIED_ONLY_DELTA_SPEC = `## MODIFIED Requirements
+
+### Requirement: Billing SHALL work
+The system SHALL create bills differently.
+
+#### Scenario: Creates bills
+- **WHEN** a billing period ends
+- **THEN** a bill is created
+`;
+
 describe('store root selection for normal commands', () => {
   let tempDir: string;
   let appRepo: string;
@@ -362,6 +381,23 @@ describe('store root selection for normal commands', () => {
       expect(json.status[0].message).toContain('team-contxt');
     });
 
+    it('reports a corrupt registry as machine-readable JSON, not prose', async () => {
+      fs.writeFileSync(
+        path.join(globalDataDir, 'context-stores', 'registry.yaml'),
+        '{not yaml: ['
+      );
+
+      const result = await runCLI(['status', '--json', '--store', 'team-context'], {
+        cwd: appRepo,
+        env,
+      });
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout.trim().startsWith('{')).toBe(true);
+      const json = parseJson(result);
+      expect(json.status[0].severity).toBe('error');
+      expect(json.status[0].code).toBe('invalid_context_store_registry');
+    });
+
     it('fails on an unhealthy store root and points to doctor', async () => {
       const brokenRoot = path.join(tempDir, 'stores', 'broken-context');
       fs.mkdirSync(brokenRoot, { recursive: true });
@@ -427,6 +463,19 @@ describe('store root selection for normal commands', () => {
       expect(json.root.store_id).toBeUndefined();
     });
 
+    it('works inside the standalone repo itself without a flag', async () => {
+      createChange(storeRoot, 'store-change');
+
+      const result = await runCLI(['status', '--change', 'store-change', '--json'], {
+        cwd: storeRoot,
+        env,
+      });
+      expect(result.exitCode).toBe(0);
+      const json = parseJson(result);
+      expect(json.changeName).toBe('store-change');
+      expect(json.root).toEqual({ path: storeRoot, source: 'nearest' });
+    });
+
     it('keeps implicit-root behavior when no stores are registered', async () => {
       const isolatedEnv = {
         ...env,
@@ -471,6 +520,38 @@ describe('store root selection for normal commands', () => {
       // The change was not archived.
       expect(
         fs.existsSync(path.join(storeRoot, 'openspec', 'changes', 'bad-change'))
+      ).toBe(true);
+    });
+
+    it('keeps stdout pure when REMOVED deltas target a new spec', async () => {
+      createChange(storeRoot, 'removed-change', { deltaSpec: REMOVED_ONLY_DELTA_SPEC });
+
+      const result = await runCLI(
+        ['archive', 'removed-change', '--store', 'team-context', '--json', '--yes', '--no-validate'],
+        { cwd: appRepo, env }
+      );
+      expect(result.exitCode).toBe(0);
+      // The "REMOVED requirement(s) ignored for new spec" warning must not
+      // precede or pollute the JSON payload.
+      expect(result.stdout.trim().startsWith('{')).toBe(true);
+      const json = parseJson(result);
+      expect(json.archive.change).toBe('removed-change');
+    });
+
+    it('reports spec-update failures as diagnostics without stdout prose', async () => {
+      createChange(storeRoot, 'modified-change', { deltaSpec: MODIFIED_ONLY_DELTA_SPEC });
+
+      const result = await runCLI(
+        ['archive', 'modified-change', '--store', 'team-context', '--json', '--yes', '--no-validate'],
+        { cwd: appRepo, env }
+      );
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout.trim().startsWith('{')).toBe(true);
+      const json = parseJson(result);
+      expect(json.archive).toBeNull();
+      expect(json.status[0].code).toBe('archive_spec_update_failed');
+      expect(
+        fs.existsSync(path.join(storeRoot, 'openspec', 'changes', 'modified-change'))
       ).toBe(true);
     });
 

@@ -94,7 +94,10 @@ export class SpecCommand {
 
     const specPath = join(this.specsDir, specId, 'spec.md');
     if (!existsSync(specPath)) {
-      throw new Error(`Spec '${specId}' not found at ${specPath}`);
+      // Root-aware callers get the absolute path; the cwd-based noun form
+      // keeps its historical forward-slash relative message on all platforms.
+      const displayPath = this.rootPath ? specPath : `openspec/specs/${specId}/spec.md`;
+      throw new Error(`Spec '${specId}' not found at ${displayPath}`);
     }
 
     if (options.json) {

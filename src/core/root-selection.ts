@@ -141,9 +141,12 @@ async function resolveStoreRoot(
     fromContextStoreError(error);
   }
 
-  const registry = await readContextStoreRegistryState(
-    globalDataDir ? { globalDataDir } : {}
-  );
+  let registry;
+  try {
+    registry = await readContextStoreRegistryState(globalDataDir ? { globalDataDir } : {});
+  } catch (error) {
+    fromContextStoreError(error);
+  }
   const entries = registry ? listContextStoreRegistryEntries(registry) : [];
   const entry = entries.find((candidate) => candidate.id === id);
 
@@ -238,9 +241,14 @@ export async function resolveOpenSpecRoot(
     return makeRoot(nearestRoot, 'nearest');
   }
 
-  const registry = await readContextStoreRegistryState(
-    options.globalDataDir ? { globalDataDir: options.globalDataDir } : {}
-  );
+  let registry;
+  try {
+    registry = await readContextStoreRegistryState(
+      options.globalDataDir ? { globalDataDir: options.globalDataDir } : {}
+    );
+  } catch (error) {
+    fromContextStoreError(error);
+  }
   const registeredIds = registry
     ? listContextStoreRegistryEntries(registry).map((entry) => entry.id)
     : [];

@@ -395,7 +395,7 @@ export class ArchiveCommand {
           const prepared: Array<{ update: SpecUpdate; rebuilt: string; counts: { added: number; modified: number; removed: number; renamed: number } }> = [];
           try {
             for (const update of specUpdates) {
-              const built = await buildUpdatedSpec(update, changeName!);
+              const built = await buildUpdatedSpec(update, changeName!, { silent: json });
               prepared.push({ update, rebuilt: built.rebuilt, counts: built.counts });
             }
           } catch (err: any) {
@@ -434,7 +434,11 @@ export class ArchiveCommand {
                 return null;
               }
             }
-            await writeUpdatedSpec(p.update, p.rebuilt, p.counts, { silent: json });
+            await writeUpdatedSpec(p.update, p.rebuilt, p.counts, {
+              silent: json,
+              // Cross-root paths must be absolute when a store is selected.
+              ...(root.source === 'store' ? { displayPath: p.update.target } : {}),
+            });
             writeTotals.added += p.counts.added;
             writeTotals.modified += p.counts.modified;
             writeTotals.removed += p.counts.removed;
