@@ -91,6 +91,22 @@ describe('context-store command', () => {
     return dir;
   }
 
+  // Isolates real git invocations from the host's gitconfig (signing, hooks).
+  function isolatedGitEnv(): NodeJS.ProcessEnv {
+    const emptyConfig = path.join(tempDir, 'gitconfig-empty');
+    if (!fs.existsSync(emptyConfig)) {
+      fs.writeFileSync(emptyConfig, '');
+    }
+    return {
+      GIT_CONFIG_GLOBAL: emptyConfig,
+      GIT_CONFIG_SYSTEM: emptyConfig,
+      GIT_AUTHOR_NAME: 'Context Store Tester',
+      GIT_AUTHOR_EMAIL: 'tester@example.com',
+      GIT_COMMITTER_NAME: 'Context Store Tester',
+      GIT_COMMITTER_EMAIL: 'tester@example.com',
+    };
+  }
+
   function expectedExistingPath(existingPath: string): string {
     return fs.realpathSync.native(existingPath);
   }
@@ -601,6 +617,22 @@ describe('context-store command', () => {
       })
     );
 
+    // A rerun with defaulted Git flags stays a strict no-op: it neither
+    // requires a commit identity nor git-inits the registered no-Git store.
+    const defaultFlagsRerun = await runCLI(
+      ['context-store', 'setup', 'team-context', '--path', storeRoot, '--json'],
+      { cwd: tempDir, env }
+    );
+    expect(defaultFlagsRerun.exitCode).toBe(0);
+    const defaultFlagsPayload = parseJson(defaultFlagsRerun);
+    expect(defaultFlagsPayload.created_files).toEqual([]);
+    expect(defaultFlagsPayload.git).toEqual({
+      is_repository: false,
+      initialized: false,
+      committed: false,
+    });
+    expect(fs.existsSync(path.join(storeRoot, '.git'))).toBe(false);
+
     const secondRegister = await runCLI(
       ['context-store', 'register', storeRoot, '--json'],
       { cwd: tempDir, env }
@@ -1004,10 +1036,7 @@ describe('context-store command', () => {
       XDG_DATA_HOME: dataHome,
       XDG_CONFIG_HOME: configHome,
       OPENSPEC_TELEMETRY: '0',
-      GIT_AUTHOR_NAME: 'Context Store Tester',
-      GIT_AUTHOR_EMAIL: 'tester@example.com',
-      GIT_COMMITTER_NAME: 'Context Store Tester',
-      GIT_COMMITTER_EMAIL: 'tester@example.com',
+      ...isolatedGitEnv(),
     };
     delete process.env.OPEN_SPEC_INTERACTIVE;
     delete process.env.CI;
@@ -1032,6 +1061,9 @@ describe('context-store command', () => {
       default: true,
     });
     expect(consoleLogSpy).toHaveBeenCalledWith('  Git: initialized');
+    expect(consoleLogSpy).toHaveBeenCalledWith(
+      'Share this store by committing and pushing it like any Git repo.'
+    );
     expect(fs.existsSync(path.join(storeRoot, '.git'))).toBe(true);
     const committed = execFileSync('git', ['log', '--format=%s'], { cwd: storeRoot })
       .toString()
@@ -1042,13 +1074,7 @@ describe('context-store command', () => {
 
   it('keeps pre-staged user files out of the setup commit', async () => {
     const storeRoot = mkdir('staged-context');
-    const gitEnv = {
-      ...env,
-      GIT_AUTHOR_NAME: 'Context Store Tester',
-      GIT_AUTHOR_EMAIL: 'tester@example.com',
-      GIT_COMMITTER_NAME: 'Context Store Tester',
-      GIT_COMMITTER_EMAIL: 'tester@example.com',
-    };
+    const gitEnv = { ...env, ...isolatedGitEnv() };
     const gitExecEnv = { ...process.env, ...gitEnv };
     createHealthyOpenSpecRoot(storeRoot);
     execFileSync('git', ['init'], { cwd: storeRoot, stdio: 'ignore' });
@@ -1097,15 +1123,66 @@ describe('context-store command', () => {
     expect(commitCount).toBe('2');
   });
 
+  it('register errors are terminal: one-checkout rule, no circular fix texts', async () => {
+    // Register the original checkout.
+    const original = mkdir('team-context');
+    createHealthyOpenSpecRoot(original);
+    await writeContextStoreMetadataState(original, { version: 1, id: 'team-context' });
+    const first = await runCLI(['context-store', 'register', original, '--json'], {
+      cwd: tempDir,
+      env,
+    });
+    expect(first.exitCode).toBe(0);
+
+    // A second checkout with the same committed id is refused with the
+    // one-checkout rule and the unregister escape — never "choose a
+    // different id".
+    const secondCheckout = mkdir('elsewhere/team-context');
+    createHealthyOpenSpecRoot(secondCheckout);
+    await writeContextStoreMetadataState(secondCheckout, { version: 1, id: 'team-context' });
+    const conflict = await runCLI(['context-store', 'register', secondCheckout, '--json'], {
+      cwd: tempDir,
+      env,
+    });
+    expect(conflict.exitCode).toBe(1);
+    const conflictStatus = parseJson(conflict).status[0];
+    expect(conflictStatus.code).toBe('context_store_id_conflict');
+    expect(conflictStatus.message).toContain('One checkout per store id');
+    expect(conflictStatus.message).toContain(expectedExistingPath(original));
+    expect(conflictStatus.fix).toContain('openspec context-store unregister team-context');
+    expect(conflictStatus.fix).not.toContain('different context store id');
+
+    // Mismatched --id when the metadata id is already registered elsewhere:
+    // the fix names the one-checkout rule instead of pointing back at the
+    // already-registered error.
+    const mismatchRegistered = await runCLI(
+      ['context-store', 'register', secondCheckout, '--id', 'team-context-2', '--json'],
+      { cwd: tempDir, env }
+    );
+    expect(mismatchRegistered.exitCode).toBe(1);
+    const mismatchRegisteredStatus = parseJson(mismatchRegistered).status[0];
+    expect(mismatchRegisteredStatus.code).toBe('context_store_metadata_id_mismatch');
+    expect(mismatchRegisteredStatus.fix).toContain('One checkout per store id');
+    expect(mismatchRegisteredStatus.fix).toContain('unregister team-context');
+    expect(mismatchRegisteredStatus.fix).not.toContain('Use --id team-context or');
+
+    // Mismatched --id when the metadata id is free: the plain fix applies.
+    const freeRoot = mkdir('free-context');
+    createHealthyOpenSpecRoot(freeRoot);
+    await writeContextStoreMetadataState(freeRoot, { version: 1, id: 'free-context' });
+    const mismatchFree = await runCLI(
+      ['context-store', 'register', freeRoot, '--id', 'wrong-id', '--json'],
+      { cwd: tempDir, env }
+    );
+    expect(mismatchFree.exitCode).toBe(1);
+    const mismatchFreeStatus = parseJson(mismatchFree).status[0];
+    expect(mismatchFreeStatus.code).toBe('context_store_metadata_id_mismatch');
+    expect(mismatchFreeStatus.fix).toContain('Use --id free-context');
+  });
+
   it('flags clone-fragile directories and commitless clones', async () => {
     const storeRoot = mkdir('fragile-context');
-    const gitExecEnv = {
-      ...process.env,
-      GIT_AUTHOR_NAME: 'Context Store Tester',
-      GIT_AUTHOR_EMAIL: 'tester@example.com',
-      GIT_COMMITTER_NAME: 'Context Store Tester',
-      GIT_COMMITTER_EMAIL: 'tester@example.com',
-    };
+    const gitExecEnv = { ...process.env, ...isolatedGitEnv() };
     createHealthyOpenSpecRoot(storeRoot);
     execFileSync('git', ['init'], { cwd: storeRoot, stdio: 'ignore' });
     execFileSync('git', ['add', 'openspec/config.yaml'], { cwd: storeRoot, env: gitExecEnv });

@@ -139,8 +139,6 @@ export interface ChangeStatus {
   changeName: string;
   /** Schema name */
   schemaName: string;
-  /** Resolved planning home for this change */
-  planningHome?: PlanningHomeSummary;
   /** Stored initiative link, when this change is linked to shared context */
   initiative?: InitiativeLink;
   /** Full path to the change root */
@@ -380,7 +378,10 @@ function getUnlockedArtifacts(graph: ArtifactGraph, artifactId: string): string[
  * @param context - Change context
  * @returns Formatted change status
  */
-export function formatChangeStatus(context: ChangeContext): ChangeStatus {
+export function formatChangeStatus(
+  context: ChangeContext,
+  options: { storeId?: string } = {}
+): ChangeStatus {
   // Load schema to get apply phase configuration
   const schema = resolveSchema(context.schemaName, context.projectRoot);
   const applyRequires = schema.apply?.requires ?? schema.artifacts.map(a => a.id);
@@ -435,7 +436,6 @@ export function formatChangeStatus(context: ChangeContext): ChangeStatus {
   return {
     changeName: context.changeName,
     schemaName: context.schemaName,
-    planningHome: summarizePlanningHome(context.planningHome),
     ...(context.initiative ? { initiative: context.initiative } : {}),
     changeRoot: context.changeDir,
     artifactPaths,
@@ -448,6 +448,7 @@ export function formatChangeStatus(context: ChangeContext): ChangeStatus {
       artifactStatuses,
       affectedAreas,
       allArtifactsComplete: isComplete,
+      ...(options.storeId ? { storeId: options.storeId } : {}),
     }),
     actionContext: buildActionContext({
       planningHome: context.planningHome,

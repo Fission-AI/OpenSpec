@@ -101,7 +101,10 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
       changeDir: getChangeDir(planningHome, changeName),
       planningHome,
     });
-    const status = formatChangeStatus(context);
+    const status = formatChangeStatus(
+      context,
+      root.source === 'store' && root.storeId ? { storeId: root.storeId } : {}
+    );
 
     spinner?.stop();
 

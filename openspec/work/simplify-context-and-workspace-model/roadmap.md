@@ -87,9 +87,9 @@ an item are status steps for that numbered work item.
   Old beta plans were marked as history, and this `/work` roadmap became the
   active direction.
 - [ ] **Phase 1. Make a standalone OpenSpec repo useful.**
-  Slices 1.1 and 1.2 have branch implementations and passing tests; merge to
-  `main` remains. Slice 1.3 (lifecycle proof) has a spec; slice 1.4 (agent
-  and help-surface discoverability) is queued behind it.
+  Slices 1.1, 1.2, and 1.3 are implemented with passing tests on the working
+  branch; merge to `main` remains. Slice 1.4 (agent and help-surface
+  discoverability) is the next unstarted item.
 - [ ] **Phase 2. Stop putting new work through initiatives.**
   Item 2.1 was pulled forward into slice 1.2 and implemented there; the rest is
   not started.
@@ -347,8 +347,8 @@ Progress:
 
 - [x] Spec written.
 - [x] Plan written.
-- [ ] Smoke flow implemented.
-- [ ] Tests pass.
+- [x] Smoke flow implemented.
+- [x] Tests pass.
 - [ ] Merged to `main`.
 
 Slice: `slices/store-lifecycle-proof/spec.md`
@@ -879,6 +879,14 @@ is working:
 - 2026-06-11: Adopted a single working branch for the whole roadmap: all
   slices implement on `codex/store-root-parity` (PR #1190), stacked in
   order, with merge to `main` deferred until the work lands as a whole.
+- 2026-06-11: Implemented slice 1.3 with the two-checkout journey test, then
+  ran two adversarial subagent reviews and folded all findings: hint
+  continuity extended to validate/show/archive/status-JSON next steps,
+  Windows-safe journey assertions and telemetry isolation, index-preserving
+  commit cleanup on failure, reruns no longer git-init registered stores,
+  corrupt repos are no longer reported as commitless, and the machine-B
+  journey now covers the full enumerated command set. Full suite green
+  (93 files, 1729 tests).
 - 2026-06-11: Folded plan-review findings into the slice after checking
   them against the code: `store.yaml` must be written before setup's
   initial commit (today it is written during registration, after Git

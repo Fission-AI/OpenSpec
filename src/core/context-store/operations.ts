@@ -366,6 +366,12 @@ async function commitCreatedFiles(
       { cwd: storeRoot }
     );
   } catch (error) {
+    // Best-effort unstage so a failed commit (gpg signing, hooks) does not
+    // leave setup's files in the user's index after rollback deletes them.
+    await execFileAsync('git', ['rm', '--cached', '-f', '-q', '--', ...files], {
+      cwd: storeRoot,
+    }).catch(() => undefined);
+
     throw new ContextStoreError(
       `Failed to create the initial context-store commit: ${error instanceof Error ? error.message : String(error)}`,
       'context_store_git_commit_failed',
@@ -393,7 +399,11 @@ async function gitHasCommits(storeRoot: string): Promise<boolean | null> {
     await execFileAsync('git', ['-C', storeRoot, 'rev-parse', '--verify', '--quiet', 'HEAD']);
     return true;
   } catch (error) {
-    return isSpawnNotFoundError(error) ? null : false;
+    if (isSpawnNotFoundError(error)) return null;
+    // Exit 1 = repo exists but HEAD has no commits. Anything else (exit 128:
+    // corrupt or fake .git) is unknown, not "commitless".
+    const exitCode = (error as { code?: number | string }).code;
+    return exitCode === 1 ? false : null;
   }
 }
 
@@ -583,6 +593,18 @@ async function prepareSetupPlan(
   };
 }
 
+/**
+ * Resolves the effective Git mode for a prepared setup: on by default for new
+ * stores, off for reruns of an already-registered store (which must stay
+ * no-ops), and always honoring an explicit --init-git/--no-init-git.
+ */
+export function resolveSetupGitEnabled(
+  prepared: PreparedContextStoreSetup,
+  initGit?: boolean
+): boolean {
+  return initGit ?? !isRegisteredAtPath(prepared.registry, prepared.id, prepared.root);
+}
+
 export async function prepareContextStoreSetup(
   input: Pick<SetupContextStoreInput, 'id' | 'path' | 'allowInsideGitRepository'>
 ): Promise<PreparedContextStoreSetup> {
@@ -613,10 +635,16 @@ export async function setupPreparedContextStore(
   const createdFiles: string[] = [];
   let createdPaths: CreatedPathLedgerEntry[] = [];
   let gitInitialized = false;
+  let committed = false;
+
+  // Reruns for an already-registered store stay strict no-ops: no anchor
+  // retrofit, no git init, no new commit, no identity requirement. Only an
+  // explicit --init-git overrides that for the git side.
+  const alreadyRegisteredHere = isRegisteredAtPath(registry, id, storeRoot);
 
   // --no-init-git opts out of every Git action: no preflight, no init, no
   // commit, even when the target is already a repository.
-  const gitEnabled = input.initGit ?? true;
+  const gitEnabled = input.initGit ?? !alreadyRegisteredHere;
   const repoExisted = await isGitRepositoryAtRoot(storeRoot);
 
   // Identity preflight runs before anything is created so a missing identity
@@ -624,10 +652,6 @@ export async function setupPreparedContextStore(
   if (gitEnabled) {
     await assertGitCommitIdentity(storeRoot);
   }
-
-  // Reruns for an already-registered store stay strict no-ops: no anchor
-  // retrofit, no new commit.
-  const alreadyRegisteredHere = isRegisteredAtPath(registry, id, storeRoot);
 
   try {
     const root = await ensureOpenSpecRoot(storeRoot, {
@@ -661,7 +685,7 @@ export async function setupPreparedContextStore(
     const filesToCommit = createdPaths
       .filter((entry) => entry.kind === 'file')
       .map((entry) => entry.relativePath);
-    const committed = gitEnabled && isRepository
+    committed = gitEnabled && isRepository
       ? await commitCreatedFiles(storeRoot, id, filesToCommit)
       : false;
 
@@ -683,16 +707,24 @@ export async function setupPreparedContextStore(
       alreadyRegistered: registered.alreadyRegistered,
     }, diagnostics);
   } catch (error) {
+    // Once the initial commit landed in a (possibly user-owned) repository,
+    // the files are durable state; deleting them would orphan the commit.
+    // The only remaining failure is the registry write, which is retryable.
+    if (committed) {
+      throw error;
+    }
+
     if (createdPaths.length > 0) {
       await rollbackCreatedPaths(createdPaths);
-      if (gitInitialized && kind === 'directory') {
+      if (gitInitialized) {
         await fs.rm(path.join(storeRoot, '.git'), { recursive: true, force: true }).catch(() => undefined);
       }
       if (kind === 'missing') {
-        await fs.rm(storeRoot, { recursive: true, force: true });
+        // Non-recursive: never delete content this operation did not create.
+        await fs.rmdir(storeRoot).catch(() => undefined);
       }
     } else if (kind === 'missing') {
-      await fs.rm(storeRoot, { recursive: true, force: true });
+      await fs.rm(storeRoot, { recursive: true, force: true }).catch(() => undefined);
     }
 
     throw error;

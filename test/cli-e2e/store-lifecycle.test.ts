@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { execFile } from 'child_process';
-import { promises as fs } from 'fs';
+import { promises as fs, realpathSync } from 'fs';
 import path from 'path';
 import { tmpdir } from 'os';
 import { promisify } from 'util';
@@ -36,6 +36,7 @@ function machineEnv(home: string, gitConfigGlobal: string): NodeJS.ProcessEnv {
     XDG_DATA_HOME: path.join(home, 'data'),
     XDG_STATE_HOME: path.join(home, 'state'),
     XDG_CACHE_HOME: path.join(home, 'cache'),
+    OPENSPEC_TELEMETRY: '0',
     GIT_CONFIG_GLOBAL: gitConfigGlobal,
     GIT_CONFIG_SYSTEM: emptyGitConfig,
     GIT_AUTHOR_NAME: 'Journey Tester',
@@ -43,6 +44,11 @@ function machineEnv(home: string, gitConfigGlobal: string): NodeJS.ProcessEnv {
     GIT_COMMITTER_NAME: 'Journey Tester',
     GIT_COMMITTER_EMAIL: 'journey@example.com',
   };
+}
+
+// Same canonicalization the product uses (expands Windows 8.3 short names).
+function canonical(target: string): string {
+  return realpathSync.native(target);
 }
 
 async function git(cwd: string, env: NodeJS.ProcessEnv, args: string[]): Promise<string> {
@@ -245,6 +251,13 @@ describe('standalone store lifecycle journey', () => {
       has_remote: false,
     });
     expect(store.status).toEqual([]);
+
+    // Human output surfaces the same Git facts.
+    const humanDoctor = await runCLI(['context-store', 'doctor', STORE_ID], { env: machineA });
+    expect(humanDoctor.exitCode).toBe(0);
+    expect(humanDoctor.stdout).toContain(
+      'Git: repository detected (commits: yes, uncommitted changes: no, remote: none)'
+    );
   });
 
   it('machine A: works a change through archive from the project repo', async () => {
@@ -257,11 +270,11 @@ describe('standalone store lifecycle journey', () => {
     expect(created.exitCode).toBe(0);
     const createdPayload = JSON.parse(created.stdout);
     expect(createdPayload.root).toEqual({
-      path: await fs.realpath(storeRoot),
+      path: canonical(storeRoot),
       source: 'store',
       store_id: STORE_ID,
     });
-    expect(createdPayload.change.path.startsWith(path.sep)).toBe(true);
+    expect(path.isAbsolute(createdPayload.change.path)).toBe(true);
 
     const status = await runCLI(
       ['status', '--change', changeId, '--store', STORE_ID],
@@ -277,7 +290,7 @@ describe('standalone store lifecycle journey', () => {
     );
     expect(instructions.exitCode).toBe(0);
     expect(instructions.stdout).toContain(
-      path.join(await fs.realpath(storeRoot), 'openspec', 'changes', changeId, 'proposal.md')
+      path.join(canonical(storeRoot), 'openspec', 'changes', changeId, 'proposal.md')
     );
 
     // The test acts as the agent and writes the artifacts.
@@ -337,6 +350,10 @@ describe('standalone store lifecycle journey', () => {
     await fs.mkdir(path.dirname(cloneRoot), { recursive: true });
     await git(path.dirname(cloneRoot), machineB, ['clone', storeRoot, cloneRoot]);
 
+    const commitsBeforeRegister = (
+      await git(cloneRoot, machineB, ['rev-list', '--count', 'HEAD'])
+    ).trim();
+
     const registered = await runCLI(
       ['context-store', 'register', cloneRoot, '--json'],
       { env: machineB }
@@ -345,6 +362,12 @@ describe('standalone store lifecycle journey', () => {
     const payload = JSON.parse(registered.stdout);
     expect(payload.context_store.id).toBe(STORE_ID);
     expect(payload.created_files).toEqual([]);
+
+    // Register never commits.
+    const commitsAfterRegister = (
+      await git(cloneRoot, machineB, ['rev-list', '--count', 'HEAD'])
+    ).trim();
+    expect(commitsAfterRegister).toBe(commitsBeforeRegister);
 
     const doctor = await runCLI(['context-store', 'doctor', STORE_ID, '--json'], {
       env: machineB,
@@ -380,6 +403,15 @@ describe('standalone store lifecycle journey', () => {
     expect(created.stderr).toContain(`Using OpenSpec root: ${STORE_ID}`);
     expect(created.stdout).toContain(`--store ${STORE_ID}`);
 
+    const instructions = await runCLI(
+      ['instructions', 'proposal', '--change', changeId, '--store', STORE_ID],
+      { env: machineB, cwd: base }
+    );
+    expect(instructions.exitCode).toBe(0);
+    expect(instructions.stdout).toContain(
+      path.join(canonical(cloneRoot), 'openspec', 'changes', changeId, 'proposal.md')
+    );
+
     const changeDir = path.join(cloneRoot, 'openspec', 'changes', changeId);
     await writeCompletedChangeArtifacts(changeDir, 'invoicing');
 
@@ -390,6 +422,13 @@ describe('standalone store lifecycle journey', () => {
     expect(status.exitCode).toBe(0);
     expect(status.stdout).toContain('All artifacts complete!');
 
+    const validated = await runCLI(
+      ['validate', changeId, '--store', STORE_ID],
+      { env: machineB, cwd: base }
+    );
+    expect(validated.exitCode).toBe(0);
+    expect(validated.stdout).toContain('is valid');
+
     const archived = await runCLI(
       ['archive', changeId, '--store', STORE_ID, '--yes', '--json'],
       { env: machineB, cwd: base }
@@ -399,6 +438,17 @@ describe('standalone store lifecycle journey', () => {
 
     const specPath = path.join(cloneRoot, 'openspec', 'specs', 'invoicing', 'spec.md');
     await expect(fs.readFile(specPath, 'utf-8')).resolves.toContain('invoicing SHALL work');
+
+    // Post-resolution failures keep the banner, and the hint keeps the store:
+    // with everything archived, instructions apply fails after the root
+    // resolved successfully.
+    const failedApply = await runCLI(
+      ['instructions', 'apply', '--store', STORE_ID],
+      { env: machineB, cwd: base }
+    );
+    expect(failedApply.exitCode).not.toBe(0);
+    expect(failedApply.stderr).toContain(`Using OpenSpec root: ${STORE_ID}`);
+    expect(failedApply.stderr).toContain(`openspec new change <name> --store ${STORE_ID}`);
   });
 
   it('end state is just normal OpenSpec files in both checkouts', async () => {

@@ -41,6 +41,8 @@ export interface ChangeNextStepsInput {
   artifactStatuses: ChangeStatusPolicyArtifact[];
   affectedAreas?: AffectedAreasSummary;
   allArtifactsComplete: boolean;
+  /** Selected context-store id; next-step commands must carry it. */
+  storeId?: string;
 }
 
 export interface ActionContextInput {
@@ -117,8 +119,9 @@ export function buildNextSteps(input: ChangeNextStepsInput): string[] {
   const steps: string[] = [];
 
   if (readyArtifact) {
+    const storeFlag = input.storeId ? ` --store ${input.storeId}` : '';
     steps.push(
-      `Run openspec instructions ${readyArtifact.id} --change "${input.changeName}" --json before writing that artifact.`
+      `Run openspec instructions ${readyArtifact.id} --change "${input.changeName}"${storeFlag} --json before writing that artifact.`
     );
   } else if (input.allArtifactsComplete) {
     steps.push('All planning artifacts are complete; review tasks before implementation.');

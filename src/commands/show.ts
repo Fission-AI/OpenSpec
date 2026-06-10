@@ -3,6 +3,7 @@ import { getActiveChangeIds, getSpecIds } from '../utils/item-discovery.js';
 import {
   resolveRootForCommand,
   toRootOutput,
+  withStoreFlag,
   type ResolvedOpenSpecRoot,
   type RootOutput,
 } from '../core/root-selection.js';
@@ -47,7 +48,7 @@ export class ShowCommand {
         await this.runInteractiveByType(type, options, root);
         return;
       }
-      this.printNonInteractiveHint();
+      this.printNonInteractiveHint(root);
       process.exitCode = 1;
       return;
     }
@@ -148,9 +149,9 @@ export class ShowCommand {
     await cmd.show(itemName, this.delegateOptions(root, params.options) as any);
   }
 
-  private printNonInteractiveHint(): void {
+  private printNonInteractiveHint(root: ResolvedOpenSpecRoot): void {
     console.error('Nothing to show. Try one of:');
-    console.error('  openspec show <item>');
+    console.error(`  ${withStoreFlag(root, 'openspec show <item>')}`);
     console.error('  openspec change show');
     console.error('  openspec spec show');
     console.error('Or run in an interactive terminal.');

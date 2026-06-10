@@ -10,6 +10,7 @@ import {
   prepareContextStoreCleanup,
   registerExistingContextStore,
   removeContextStore,
+  resolveSetupGitEnabled,
   setupPreparedContextStore,
   unregisterContextStore,
   validateContextStoreId,
@@ -233,10 +234,6 @@ function isPromptCancellationError(error: unknown): boolean {
   );
 }
 
-function shouldInitializeGit(options: ContextStoreSetupOptions): boolean {
-  // Git on by default; --no-init-git is the explicit opt-out.
-  return options.initGit ?? true;
-}
 
 function formatPathForHuman(targetPath: string): string {
   const home = os.homedir();
@@ -431,7 +428,9 @@ function printMutationHuman(title: string, payload: ContextStoreMutationOutput):
   console.log('');
   console.log('Next: run normal OpenSpec commands against this store, for example:');
   console.log(`  openspec new change <change-id> --store ${payload.context_store.id}`);
-  console.log('Share this store by committing and pushing it like any Git repo.');
+  if (payload.git.is_repository) {
+    console.log('Share this store by committing and pushing it like any Git repo.');
+  }
 }
 
 function printCleanupHuman(title: string, payload: ContextStoreCleanupOutput): void {
@@ -531,7 +530,7 @@ class ContextStoreCommand {
     try {
       const setupInput = await resolveSetupInput(id, options);
       const prepared = await prepareSetupInput(setupInput, options);
-      const initGit = shouldInitializeGit(options);
+      const initGit = resolveSetupGitEnabled(prepared, options.initGit);
       if (!options.json && isInteractive()) {
         await confirmSetup(prepared, initGit);
       }

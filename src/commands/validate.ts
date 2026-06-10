@@ -4,6 +4,7 @@ import { Validator } from '../core/validation/validator.js';
 import {
   resolveRootForCommand,
   toRootOutput,
+  withStoreFlag,
   type ResolvedOpenSpecRoot,
   type RootOutput,
 } from '../core/root-selection.js';
@@ -59,7 +60,7 @@ export class ValidateCommand {
         await this.runInteractiveSelector(root, { strict: !!options.strict, json: !!options.json, concurrency: options.concurrency });
         return;
       }
-      this.printNonInteractiveHint();
+      this.printNonInteractiveHint(root);
       process.exitCode = 1;
       return;
     }
@@ -106,12 +107,12 @@ export class ValidateCommand {
     await this.validateByType(root, picked.type, picked.id, opts);
   }
 
-  private printNonInteractiveHint(): void {
+  private printNonInteractiveHint(root: ResolvedOpenSpecRoot): void {
     console.error('Nothing to validate. Try one of:');
-    console.error('  openspec validate --all');
-    console.error('  openspec validate --changes');
-    console.error('  openspec validate --specs');
-    console.error('  openspec validate <item-name>');
+    console.error(`  ${withStoreFlag(root, 'openspec validate --all')}`);
+    console.error(`  ${withStoreFlag(root, 'openspec validate --changes')}`);
+    console.error(`  ${withStoreFlag(root, 'openspec validate --specs')}`);
+    console.error(`  ${withStoreFlag(root, 'openspec validate <item-name>')}`);
     console.error('Or run in an interactive terminal.');
   }
 
