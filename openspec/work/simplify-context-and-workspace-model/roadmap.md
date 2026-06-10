@@ -114,7 +114,10 @@ an item are status steps for that numbered work item.
 - [ ] **Phase 4. Assemble the working context.**
   Not started. Rebuilds opening around assembled context; absorbs old 2.3.
 - [ ] **Phase 5. Remove old surfaces only when they confuse the simple path.**
-  Later cleanup; not started.
+  Criteria agreed (delete, sequenced); not started.
+- [ ] **Phase 6. Prove the whole, ready for first users.**
+  The final acceptance capstone: persona journeys, usability and technical
+  audits, whole-delta review, release-readiness report. Runs last.
 
 Next incomplete item:
 
@@ -1014,6 +1017,54 @@ How the user or agent knows it worked:
 - The active roadmap and generated guidance point to the simple path.
 - Old surfaces no longer look like required workflow.
 
+## Phase 6. Prove The Whole, Ready For First Users
+
+The user-facing goal of this phase:
+
+```text
+A person with zero context can start using this today: every persona
+journey works cold, every error leads somewhere, and the codebase ended
+leaner than it started.
+```
+
+Phase checklist:
+
+- [ ] **6.1** Final acceptance capstone.
+
+### 6.1 Final Acceptance Capstone
+
+The slices prove themselves; this proves the product — the sum of all
+phases, reviewed and exercised as one thing. Full checklist in
+`runbook.md` ("Final acceptance capstone").
+
+Progress:
+
+- [ ] Persona journeys pass (fresh team, layered PM-to-dev, externalized
+  planning, cold-start agent with no insider knowledge).
+- [ ] Usability audits done (error catalog, vocabulary sweep including
+  `docs/cli.md`, time-to-first-success documented).
+- [ ] Technical audits done (single-resolver invariant, dependency
+  direction, dead code, module sizes, agent-contract inventory, net LOC
+  delta reported).
+- [ ] Whole-delta review gauntlet over `origin/main...HEAD` passed with no
+  open P1/P2 findings.
+- [ ] Release-readiness report committed.
+- [ ] Merged to `main`.
+
+Why it matters:
+
+- Each slice was reviewed against its own base; nobody has reviewed or
+  exercised the sum. Cross-slice inconsistencies, vocabulary drift, and
+  cold-start failures live exactly there.
+- "Could start using it straight away with no issues" is a product claim
+  that checkboxes cannot make; only journeys and audits can.
+
+How the user or agent knows it worked:
+
+- All four journeys run green as tests or headless dogfoods.
+- The release-readiness report reads as a credible first-user story, with
+  known gaps mapped to Later Ideas rather than discovered by users.
+
 ## Later Ideas
 
 Keep these out of the main queue until the simpler standalone OpenSpec repo path
@@ -1143,6 +1194,15 @@ is working:
   guardrails: references are repo-level config, never per-change lifecycle
   links, and one change lives in one root. Updated goal.md with the layered
   reference experience.
+- 2026-06-11: Added Phase 6 (final acceptance capstone) and standing
+  quality bars to the runbook: the autonomous run cannot declare completion
+  on ticked boxes alone — four persona journeys (including a cold-start
+  agent with no insider knowledge), usability audits (error catalog,
+  vocabulary sweep, time-to-first-success), technical audits
+  (single-resolver invariant, dependency direction, dead code, module
+  sizes, agent-contract inventory, net LOC delta), a whole-delta review
+  gauntlet over `origin/main...HEAD`, and a committed release-readiness
+  report.
 - 2026-06-11: Locked the open decisions after parallel product-level and
   staff-engineer analyses. Naming: the noun is "store" with the
   `context-store` → `store` group rename and machine-token rename landing

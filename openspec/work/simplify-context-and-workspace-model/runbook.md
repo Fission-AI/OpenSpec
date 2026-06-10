@@ -21,10 +21,11 @@ run from the main loop, never from inside workflow agents.
    if not already in context. Trust the files over conversation memory;
    context may have been compacted.
 2. The work queue, in order: slice 1.4 → the Phase 5 command-group deletion
-   slice → 3.1 → 3.2 → 3.3 → 3.4 → 3.5 → 3.6 → 4.1 → Phase 5 remainder.
-   All product decisions are locked in `roadmap.md` ("Decisions locked"
-   blocks, Rules We Should Not Forget, the 1.4 terminology checkbox, the
-   5.1 criteria); do not re-open them.
+   slice → 3.1 → 3.2 → 3.3 → 3.4 → 3.5 → 3.6 → 4.1 → Phase 5 remainder →
+   **6.1 final acceptance capstone** (see roadmap Phase 6 and the section
+   below). All product decisions are locked in `roadmap.md` ("Decisions
+   locked" blocks, Rules We Should Not Forget, the 1.4 terminology
+   checkbox, the 5.1 criteria); do not re-open them.
 
 ## Per-slice discipline (evolved from slice 1.3's)
 
@@ -55,6 +56,25 @@ run from the main loop, never from inside workflow agents.
    next-item pointer and Progress At A Glance, add changelog entries, keep
    the slice spec/plan consistent with what actually shipped, commit.
 
+## Standing quality bars (checked in every slice's reviews)
+
+- **Vocabulary**: new user-facing strings use only the locked nouns (store,
+  reference, target project repo, OpenSpec root). One concept, one token —
+  no synonym drift.
+- **Error UX**: every new error or hint names the concrete next action,
+  carries `--store <id>` when a store is selected, and uses absolute paths
+  cross-root. A hint a user pastes must work verbatim.
+- **Agent contracts**: new JSON fields and diagnostic codes follow the
+  existing shared shapes (the root block pattern; severity/code/message/fix
+  diagnostics). Additive, consistent, no parallel envelope styles.
+- **Lean modules**: a touched module exceeding ~600 lines triggers a split
+  or a recorded reason. New abstractions need at least two real call sites
+  or a recorded reason — no speculative generality.
+- **Dependency direction**: core never imports from commands; store Git
+  mechanics stay behind the single git module; config parsing and
+  instruction injection stay in their own modules. Root resolution remains
+  exactly one shared code path — no command-local forks of precedence.
+
 Codex review invocation: `codex exec` non-interactively with model 5.5 at
 high reasoning (`-c model=...` and reasoning-effort overrides; confirm the
 exact model id with `codex exec --help`/config on first use and then reuse
@@ -67,6 +87,45 @@ Slice-specific acceptance:
   scratch project with isolated XDG state and a registered store, a fresh
   headless agent session must complete a store-scoped change from a single
   prompt without hand-holding.
+
+## Final acceptance capstone (6.1 — last queue item)
+
+The capstone proves the *product*, not the slices. It only passes when a
+cold user could start using this today. Its checks:
+
+1. **Persona journeys**, each as an e2e test or headless dogfood:
+   - Fresh team: create a store, work a change through archive, commit and
+     push locally; second checkout clones, registers, continues (the 1.3
+     journey must still pass after the rename and deletions, with new
+     names).
+   - Layered flow: requirements in a store; an agent in an app repo that
+     references it discovers the relationship from config, cites the
+     upstream spec, writes a low-level design in the app repo's own root.
+   - Externalized planning: a repo with no local root and a fallback
+     declaration runs the normal lifecycle without `--store` repetition.
+   - Cold start: a fresh headless agent, given only a vague human prompt
+     ("set up planning in a separate repo for this project") and no insider
+     knowledge, succeeds using only `--help` output and generated guidance.
+2. **Usability audits**: an error-catalog walk (every likely wrong turn on
+   the new paths yields an actionable, store-carrying error); a vocabulary
+   sweep (zero "context store"/initiative/workspace residue in any
+   user-facing surface, including `docs/cli.md`); a documented
+   time-to-first-success count (commands and concepts from install to first
+   store-scoped change).
+3. **Technical audits**: single-resolver invariant (one precedence
+   implementation, no command-local forks); dependency-direction check;
+   dead-code sweep over touched areas; module-size report; an agent-contract
+   inventory (all JSON shapes and diagnostic codes documented in one
+   reference file and verified consistent); net LOC delta vs `origin/main`
+   reported (expected net-negative given the Phase 5 deletions — justify if
+   not).
+4. **Whole-delta review gauntlet** over `origin/main...HEAD` (the sum, not
+   the slices): `/code-review` at max effort, a codex CLI review, a
+   fan-out of adversarial Workflow reviewers, and a completeness critic
+   asking what is missing. Fix all P1/P2 findings.
+5. **Release-readiness report** committed to this work folder: the
+   five-minute new-user story, audit results, the full
+   `Decided autonomously` ledger, and known gaps mapped to Later Ideas.
 
 ## Autonomous decision protocol
 
@@ -118,7 +177,8 @@ generated guidance only, never user data, and git history is the undo.
   evaluator only sees what the transcript surfaces — state progress
   plainly, never implicitly.
 - The run is complete when every queue item's roadmap progress boxes are
-  ticked except "Merged to `main`", the full suite is green, and all work
-  is committed. When that is true, say so explicitly in the final status:
-  "ROADMAP QUEUE COMPLETE" plus the closing summary including every
-  `Decided autonomously` entry for review.
+  ticked except "Merged to `main`", the full suite is green, all work is
+  committed, **and the 6.1 capstone passes with its release-readiness
+  report committed and no open P1/P2 findings**. When that is true, say so
+  explicitly in the final status: "ROADMAP QUEUE COMPLETE" plus the closing
+  summary including every `Decided autonomously` entry for review.
