@@ -74,6 +74,12 @@ workspace-owned planning, or collection state as the main model.
 
 Use this as the quick "where are we?" view.
 
+Working branch: all roadmap implementation happens on the single
+`codex/store-root-parity` branch (PR #1190), with each slice stacked on the
+previous ones. Merge to `main` is deferred until the work is ready to land
+as a whole; the "Merged to `main`" checkboxes in each slice stay open until
+then and do not gate the next slice.
+
 Numbered labels are roadmap work item ids. Smaller `Progress` checkboxes inside
 an item are status steps for that numbered work item.
 
@@ -81,8 +87,9 @@ an item are status steps for that numbered work item.
   Old beta plans were marked as history, and this `/work` roadmap became the
   active direction.
 - [ ] **Phase 1. Make a standalone OpenSpec repo useful.**
-  Slices 1.1 and 1.2 have branch implementations and passing tests; the phase
-  still needs merge to `main` and the end-to-end lifecycle proof.
+  Slices 1.1 and 1.2 have branch implementations and passing tests; merge to
+  `main` remains. Slice 1.3 (lifecycle proof) has a spec; slice 1.4 (agent
+  and help-surface discoverability) is queued behind it.
 - [ ] **Phase 2. Stop putting new work through initiatives.**
   Item 2.1 was pulled forward into slice 1.2 and implemented there; the rest is
   not started.
@@ -196,7 +203,10 @@ Phase checklist:
   Implemented, tested, and review follow-up fixed on
   `codex/store-root-selection`; merge remains.
 - [ ] **1.3** Prove the standalone repo lifecycle end to end.
-  Do this after 1.1 and 1.2 are merged.
+  Spec and plan written 2026-06-11; implements on `codex/store-root-parity`
+  on top of 1.1 and 1.2.
+- [ ] **1.4** Teach agents and help surfaces that stores exist.
+  Queued behind 1.3; carries the deferred guidance debt from slice 1.2.
 
 ### 1.1 Create Or Register A Standalone OpenSpec Repo
 
@@ -335,45 +345,127 @@ How the user or agent knows it worked:
 
 Progress:
 
+- [x] Spec written.
+- [x] Plan written.
+- [ ] Smoke flow implemented.
+- [ ] Tests pass.
+- [ ] Merged to `main`.
+
+Slice: `slices/store-lifecycle-proof/spec.md`
+
+Plain-English version:
+
+```text
+Show that a registered standalone OpenSpec repo can do the same basic lifecycle
+as an OpenSpec root inside a project repo — including cloning it and continuing
+the work from a second checkout.
+```
+
+What the user can do:
+
+- Set up a standalone OpenSpec repo that is a real Git repo (initialized, with
+  an initial commit) at a path they chose.
+- Create, inspect, validate, and archive a change there from their project
+  repo.
+- Commit and push the store themselves, clone it on another machine, register
+  the clone, and continue the work.
+- Ask doctor whether the store repo has commits, uncommitted changes, or a
+  remote.
+
+Why it matters:
+
+- This proves standalone OpenSpec repos are not just setup plumbing.
+- The sharing path (clone, register, continue) is the reason standalone repos
+  exist, and it is where the hands-on walk on 2026-06-11 found the real gaps.
+- It catches missing command support before more features are built on top.
+
+Decisions locked on 2026-06-11 (details in the slice spec):
+
+- The proof is a two-checkout journey test in the existing CLI e2e harness,
+  not a solo-machine smoke or a separate script harness.
+- Setup finishes what it starts: Git on by default, an initial commit of
+  exactly the files setup created, and a user-chosen location (`--path`
+  required non-interactively; interactive runs prompt with a visible path
+  suggestion). Tracked placeholder files keep otherwise-empty store
+  directories alive in clones, and setup checks for a usable Git commit
+  identity up front instead of failing mid-operation or inventing one.
+- The Git line is create-time and read-only: setup may init and commit once;
+  doctor reports commits/dirty/remote facts read-only; register never
+  commits; nothing clones, pulls, pushes, branches, or syncs.
+- The loop never drops the thread: selected-store hints carry `--store <id>`,
+  the root banner prints on post-resolution failures, `new change` names the
+  next command, and `status` drops the workspace-era "Planning home" line.
+- Register errors become terminal instead of circular, with the
+  one-checkout-per-id rule and `unregister` as the named escape hatch.
+- `view` is explicitly out of this slice; opening things together is Phase 4.
+
+What changes in commands or files:
+
+- `context-store setup` Git and location defaults, plus sharing next-steps.
+- Read-only Git facts in `context-store doctor` output.
+- Reworked register error messages.
+- Hint/banner continuity across the slice 1.2 command set.
+- One chained two-checkout journey test covering setup/register, list,
+  doctor, root selection, change creation, status, instructions, list/show,
+  validate, and archive.
+
+How the user or agent knows it worked:
+
+- The journey passes against the built CLI with isolated global state,
+  without using old initiative collections or workspace-owned planning state.
+- A clone of a freshly set-up store is immediately a healthy OpenSpec root.
+- The final files are normal `openspec/specs/`, `openspec/changes/`, and
+  `openspec/changes/archive/` files in both checkouts.
+
+### 1.4 Teach Agents And Help Surfaces That Stores Exist
+
+Progress:
+
 - [ ] Spec written.
 - [ ] Plan written.
-- [ ] Smoke flow implemented.
+- [ ] Implementation done.
 - [ ] Tests pass.
 - [ ] Merged to `main`.
 
 Plain-English version:
 
 ```text
-Show that a registered standalone OpenSpec repo can do the same basic lifecycle
-as an OpenSpec root inside a project repo.
+An agent prompted in a project repo can discover the registered standalone
+OpenSpec repo and use it without the human spelling out flags.
 ```
 
 What the user can do:
 
-- Set up or register a standalone OpenSpec repo.
-- Create a change there.
-- Inspect the change.
-- Get instructions.
-- Validate it.
-- Archive it when done.
+- Prompt an agent with "create a change for X in our team store" and have the
+  agent find the registered store and use `--store` on its own.
+- Read top-level help and recognize the context-store commands as the
+  standalone OpenSpec repo feature.
 
 Why it matters:
 
-- This proves standalone OpenSpec repos are not just setup plumbing.
-- It catches missing command support before more features are built on top.
+- Prompts are the primary interface. Slice 1.2 shipped `--store`, but
+  generated agent guidance never mentions it, so the feature is invisible in
+  the product's main surface.
+- This is the deferred "update generated agent skills and guidance to mention
+  `--store`" debt explicitly flagged in slice 1.2 ("do not forget it").
+- Phase 1 is not honestly done while agents cannot discover stores.
 
 What changes in commands or files:
 
-- Add a clean fixture or smoke flow for a registered standalone OpenSpec repo.
-- Cover setup/register, list, doctor, root selection, change creation, status,
-  instructions, list/show, validate, archive, and view where relevant.
+- Generated agent guidance and skills explain store discovery
+  (`context-store list --json`) and `--store <id>` usage when no local root
+  exists.
+- Top-level and subcommand help one-liners describe context-store commands in
+  standalone-OpenSpec-repo language. No command or flag renames (L7 stays
+  parked).
+- No command behavior changes.
 
 How the user or agent knows it worked:
 
-- The smoke passes without using old initiative collections or workspace-owned
-  planning state.
-- The final files are normal `openspec/specs/`, `openspec/changes/`, and
-  `openspec/changes/archive/` files in the standalone repo.
+- A fresh agent session in a project repo with a registered store completes a
+  store-scoped change from a single prompt, without hand-holding.
+- Generated guidance names `--store`; help text matches the model being
+  shipped.
 
 ## Phase 2. Stop Putting New Work Through Initiatives
 
@@ -721,6 +813,10 @@ is working:
   only if they matter to the simple standalone repo flow.
 - **L10** Reintroduce initiative-like behavior only as a Git-native work type if it
   still proves useful later.
+- **L11** Make archived changes browsable through commands (for example
+  `list --archived`) if filesystem and Git history prove insufficient. The
+  archive command's own confirmation line is the lifecycle's verification
+  signal for now.
 
 ## Roadmap Change Log
 
@@ -758,3 +854,36 @@ is working:
   defer `--store-path`, demote leftover workspace state during the resolver
   rework, and replace the silent implicit-root scaffold with an error and
   hint when registered stores exist.
+- 2026-06-11: Walked the standalone-store lifecycle by hand against the
+  built CLI. The 1.1/1.2 command mechanics held up; the gaps were the
+  sharing path (commitless setup repos, empty clones, circular register
+  errors), guidance that drops the selected store, and leftover
+  workspace-era output language.
+- 2026-06-11: Locked the 1.3 decisions and added the store-lifecycle-proof
+  slice spec: the proof is a two-checkout journey test; setup defaults to
+  Git with an initial commit and an explicit path; doctor reports read-only
+  Git facts; register errors become terminal; selected-store hints keep the
+  store; `view` stays out until Phase 4.
+- 2026-06-11: Added slice 1.4 for agent and help-surface store
+  discoverability (the deferred guidance debt from slice 1.2) and parked
+  archive browsability as L11.
+- 2026-06-11: Folded review findings into the store-lifecycle-proof spec
+  after reproducing the empty-clone failure against the built CLI: tracked
+  placeholder files so clones keep empty store directories, an up-front Git
+  identity check for setup, an explicit interactive location prompt, and an
+  enumerated second-checkout journey that reads promoted specs instead of
+  browsing the archive.
+- 2026-06-11: Wrote the store-lifecycle-proof plan, grounded in a code map
+  of the setup/doctor/register internals, the hint and banner sites, and
+  the CLI e2e harness.
+- 2026-06-11: Adopted a single working branch for the whole roadmap: all
+  slices implement on `codex/store-root-parity` (PR #1190), stacked in
+  order, with merge to `main` deferred until the work lands as a whole.
+- 2026-06-11: Folded plan-review findings into the slice after checking
+  them against the code: `store.yaml` must be written before setup's
+  initial commit (today it is written during registration, after Git
+  init), the commit must be pathspec-limited to preserve the user's
+  staged index, the identity preflight uses `git var` so env-var identity
+  counts, converted roots get placeholders at first accept while doctor
+  warns on clone-fragile empty directories in older stores, and the
+  journey's `created_files` assertion runs setup in JSON mode.
