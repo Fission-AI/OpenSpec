@@ -1,5 +1,21 @@
 # Roadmap Runbook
 
+Start the run from a fresh session in this repo on `codex/store-root-parity`
+with exactly this command (interactive, or headless via
+`claude -p '/goal ...'`):
+
+```text
+/goal ROADMAP QUEUE COMPLETE: every item in the work queue defined in
+openspec/work/simplify-context-and-workspace-model/runbook.md (slice 1.4,
+the Phase 5 command-group deletion slice, 3.1-3.6, 4.1, the Phase 5
+remainder, and the 6.1 final acceptance capstone) has all of its roadmap.md
+progress boxes ticked except "Merged to main", the full pnpm test suite
+passes, all work is committed on codex/store-root-parity, and the
+capstone's release-readiness report is committed with no open P1/P2
+findings. Work strictly per the runbook, one coherent unit per turn, never
+waiting for the user; or stop after 300 turns.
+```
+
 This file is the contract for the autonomous run that works through the
 `simplify-context-and-workspace-model` roadmap. The driver is `/goal`
 (condition-based: turns fire back-to-back until the completion condition is
