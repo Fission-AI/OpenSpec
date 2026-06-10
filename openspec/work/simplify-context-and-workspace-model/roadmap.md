@@ -53,9 +53,10 @@ workspace-owned planning, or collection state as the main model.
   code repo.
 - **Standalone OpenSpec repo**: the `openspec/` folder lives in its own Git
   repo.
-- **Context store**: the current bridge name for a registered standalone
-  OpenSpec repo. It has a thin `.openspec-store/store.yaml` identity file, but
-  the real planning work still lives under `openspec/`.
+- **Store**: a standalone OpenSpec repo registered on this machine. It has a
+  thin `.openspec-store/store.yaml` identity file, but the real planning work
+  lives in normal files under `openspec/`. (Renamed from the beta noun
+  "context store" on 2026-06-11; the CLI group rename lands in slice 1.4.)
 - **Target project repo**: a code repo that the OpenSpec work is about.
 - **Reference store**: a standalone OpenSpec repo that a project repo's work
   draws on for context (for example PM/architect requirements). A reference
@@ -121,10 +122,10 @@ Next incomplete item:
   In plain English: an agent prompted in a project repo can discover the
   registered standalone OpenSpec repo and use `--store` without the human
   spelling out flags, and guidance stops advertising initiatives and
-  workspaces. First step is the context-store terminology decision. Spec not
-  yet written. (Slices 1.1–1.3 are implemented and tested on the working
-  branch; their "Merged to `main`" boxes stay open by design and do not gate
-  this.)
+  workspaces. Terminology is decided (the noun is "store"); the rename pass
+  lands first. Spec not yet written. (Slices 1.1–1.3 are implemented and
+  tested on the working branch; their "Merged to `main`" boxes stay open by
+  design and do not gate this.)
 
 ## Phase 0. Make The Active Direction Easy To Find
 
@@ -445,9 +446,18 @@ guidance twice.
 
 Progress:
 
-- [ ] Terminology decided: keep or rename "context store" before any guidance
-  prose is written (the decision promoted from L7; executing a rename can
-  still be scoped separately).
+- [x] Terminology decided (2026-06-11): the noun is **store**, defined
+  everywhere as "a store — a standalone OpenSpec repo you've registered."
+  Command group renames `context-store` → `store`; the `--store` flag stays;
+  machine tokens rename in the same pass (`context_store_*` diagnostic codes
+  → `store_*`, JSON `context_store` keys → `store`, data dir
+  `context-stores/` → `stores/`); committed store-repo formats
+  (`.openspec-store/store.yaml`, registry shape) stay. "Planning repo" and
+  "contracts repo" are prose examples of what a store is for, never product
+  nouns. "Context" is retired from this concept (freed for Phase 4).
+  Runner-up considered and rejected: `openspec repo`/`--repo`, because
+  agents' `--repo` prior means the code repo being operated on, which
+  collides with target project repos in Phase 3.
 - [ ] Spec written.
 - [ ] Plan written.
 - [ ] Implementation done.
@@ -483,7 +493,15 @@ Why it matters:
 What changes in commands or files (surface inventory from 2026-06-11
 research, about 13 surfaces):
 
-- CLI help one-liners for the `context-store`, `workspace`, and `initiative`
+- The `context-store` → `store` rename pass (group, machine tokens, data
+  dir) lands first, before any guidance prose is written.
+- Two renames riders: remove the second live meaning of `--store` (legacy
+  `workspace open --store` still describes it as an initiative selector in
+  the same completions metadata this slice regenerates), and add an
+  unknown-subcommand hint under the `store` group for the inevitable
+  `openspec store new change <id>` (pointing at
+  `openspec new change <id> --store <id>`).
+- CLI help one-liners for the `store`, `workspace`, and `initiative`
   command groups (`src/cli/index.ts`, command registration files).
 - Completions metadata (`src/core/completions/command-registry.ts`,
   `shared-flags.ts`): present `--store` and store discovery; stop presenting
@@ -615,6 +633,36 @@ commands act.
 The reference items come first because they run on machinery that already
 exists (the store registry resolves ids to paths); the target items need the
 new local repo map.
+
+Decisions locked on 2026-06-11:
+
+- **Index, not inline (3.1).** Referenced-store content is never inlined
+  into generated instructions; instructions carry an index (what specs
+  exist, one-line summaries, the fetch recipe via `--store`) built live from
+  the registered checkout at assembly time, and the agent fetches what it
+  needs. Inlining would freeze upstream content at generation time — the
+  copy-paste failure this effort exists to kill.
+- **Declarations live in `openspec/config.yaml` (3.1, 3.2).** Both
+  `references:` and the fallback `store:` pointer share one home. The
+  fallback case is a config-only `openspec/` directory (no `specs/` or
+  `changes/`): root detection keeps today's stat-only walk, two extra stats
+  distinguish a real root from a pointer, and doctor warns when a root has
+  both planning shape and a pointer (pointer ignored per precedence). A
+  top-level marker file was rejected: `.openspec.yaml` is already taken as
+  per-change metadata, and a dot-only filename collision is an agent hazard.
+- **One id namespace, typed sections (3.4, 3.5).** The machine-local
+  registry becomes one file with typed sections (`stores:` and `repos:`),
+  cross-section id uniqueness enforced at write time, and the existing
+  kebab id grammar applies to every id kind before any `targets:` list is
+  committed. `--store` never resolves a target-repo id; it rejects with a
+  typed hint.
+- **Relationships are location, declaration, or citation — never managed
+  artifact links.** Where work lives is a relationship (`--store` is root
+  selection, not a link); roots declare references/targets once at the
+  collection level; artifact-to-artifact derivation ("derives from
+  team-context/billing") is prose citation that agents follow via the
+  reference machinery. No per-change edge objects (see Rules We Should Not
+  Forget).
 
 Phase checklist:
 
@@ -929,7 +977,14 @@ Phase checklist:
 
 Progress:
 
-- [ ] Criteria agreed.
+- [x] Criteria agreed (2026-06-11): **delete, don't hide — sequenced.**
+  With zero users, hiding keeps every cost (rot, grep noise, refactors
+  routing around dead code) and adds a hidden/visible distinction to
+  protect nobody. Sequence: guidance surfaces die in slice 1.4 (planned),
+  the `workspace` and `initiative` command groups become their own small
+  deletion slice soon after 1.4, and the opening machinery dies when 4.1
+  replaces it. The inviolable carve-out stays: never auto-delete user data
+  files. "Hide now, delete later" is rejected because later never comes.
 - [ ] Cleanup plan written.
 - [ ] Cleanup done.
 - [ ] Tests or review checks pass.
@@ -1088,6 +1143,18 @@ is working:
   guardrails: references are repo-level config, never per-change lifecycle
   links, and one change lives in one root. Updated goal.md with the layered
   reference experience.
+- 2026-06-11: Locked the open decisions after parallel product-level and
+  staff-engineer analyses. Naming: the noun is "store" with the
+  `context-store` → `store` group rename and machine-token rename landing
+  first in slice 1.4 (`--store` stays; `openspec repo`/`--repo` rejected for
+  the target-project-repo collision). Phase 3: index-not-inline injection,
+  declarations in `openspec/config.yaml`, one typed id namespace, and the
+  relationship altitude rule (location, declaration, or citation — never
+  managed per-artifact links, which is what initiative links were). Phase 5
+  criteria agreed: delete rather than hide, sequenced across 1.4, a small
+  command-group deletion slice, and 4.1. Loop operating rules approved:
+  full slice discipline with adversarial subagent reviews plus codex CLI
+  reviews, stopping at undecided items, Phase 5 entry, and merges.
 - 2026-06-11: Folded plan-review findings into the slice after checking
   them against the code: `store.yaml` must be written before setup's
   initial commit (today it is written during registration, after Git
