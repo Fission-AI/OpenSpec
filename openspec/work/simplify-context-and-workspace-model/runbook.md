@@ -1,21 +1,25 @@
-# Roadmap Loop Runbook
+# Roadmap Runbook
 
-This file drives the autonomous loop that works through the
-`simplify-context-and-workspace-model` roadmap. Each loop iteration starts
-here. The loop runs on `codex/store-root-parity` only (see the single-branch
-workflow note in `roadmap.md`). The loop does not wait for the user: it
-works the queue to completion under the boundaries below.
+This file is the contract for the autonomous run that works through the
+`simplify-context-and-workspace-model` roadmap. The driver is `/goal`
+(condition-based: turns fire back-to-back until the completion condition is
+met — no schedule, no waiting for the user). Each turn does one coherent
+unit of work and ends with an explicit status the goal evaluator can read.
+All work happens on `codex/store-root-parity` (see the single-branch
+workflow note in `roadmap.md`).
 
-Architecture: the loop is the sequential spine (one judgment-bearing unit
-per iteration, bookkeeping between phases); parallel review phases run as
-multi-agent Workflows; the `/code-review` and `/simplify` skills and the
-codex CLI provide independent review machinery.
+Architecture: the goal-driven main loop is the sequential spine (one
+judgment-bearing unit per turn, bookkeeping between phases); parallel review
+phases run as multi-agent Workflows; the `/code-review` and `/simplify`
+skills and the codex CLI provide independent review machinery — these skills
+run from the main loop, never from inside workflow agents.
 
-## Re-anchor (every iteration)
+## Re-anchor (every turn)
 
 1. Read `roadmap.md` — Progress At A Glance, the next-incomplete-item
    pointer, and the current slice's section. Read `goal.md` and `AGENTS.md`
-   if not already in context.
+   if not already in context. Trust the files over conversation memory;
+   context may have been compacted.
 2. The work queue, in order: slice 1.4 → the Phase 5 command-group deletion
    slice → 3.1 → 3.2 → 3.3 → 3.4 → 3.5 → 3.6 → 4.1 → Phase 5 remainder.
    All product decisions are locked in `roadmap.md` ("Decisions locked"
@@ -64,7 +68,7 @@ Slice-specific acceptance:
   headless agent session must complete a store-scoped change from a single
   prompt without hand-holding.
 
-## Autonomous decision protocol (replaces pause gates)
+## Autonomous decision protocol
 
 When a slice surfaces a decision the roadmap has not locked:
 
@@ -78,7 +82,7 @@ When a slice surfaces a decision the roadmap has not locked:
 Phase 5 deletion slices proceed without confirmation: they delete code and
 generated guidance only, never user data, and git history is the undo.
 
-## Hard boundaries (not gates — prohibitions)
+## Hard boundaries (prohibitions, not gates)
 
 - **Never** merge, rebase onto, or push to `main`; never push at all —
   commits stay local on `codex/store-root-parity`.
@@ -94,24 +98,27 @@ generated guidance only, never user data, and git history is the undo.
   `project-config.ts`, `foundation.ts`/`registry.ts`, and `roadmap.md`
   bookkeeping) are shared by nearly every slice; and the queue's two largest
   commits — the 1.4 mass rename and the Phase 5 mass deletion — are the
-  worst bases to rebase parallel tracks across. The wall-clock saved by the
-  one overlappable window (deletion ∥ 3.1–3.2 ∥ 3.3) does not justify
-  autonomous merge-conflict resolution.
+  worst bases to rebase parallel tracks across.
 - **Within-slice fan-outs are encouraged.** Mechanical sweeps over
   partitioned file sets — the 1.4 rename and guidance surfaces, the Phase 5
   deletion sweep — run as Workflows, with worktree isolation when agents
   edit concurrently. One integration point, one full-suite run.
-- **Lookahead research is allowed.** During implementation iterations, a
+- **Lookahead research is allowed.** During implementation turns, a
   background read-only workflow may pre-build the next slice's code map
   (file:line anchors for its plan). Never pre-write the next spec against
   unlanded code or names.
 
-## Iteration sizing and reporting
+## Turn sizing and status (the evaluator reads this)
 
-- One coherent unit per iteration: a spec with its reviews, a plan with its
+- One coherent unit per turn: a spec with its reviews, a plan with its
   reviews, an implementation checkpoint, or a review-and-fix cycle.
-- End every iteration with a short status: what was produced, review
-  verdicts, suite state, any autonomous decisions made, and what the next
-  iteration does.
-- When the queue is exhausted, stop scheduling and write the final
-  summary, including every `Decided autonomously` entry for review.
+- End every turn with an explicit status block stating: current slice and
+  step, what was produced this turn, review verdicts, test-suite state, any
+  `Decided autonomously` entries, and what the next turn does. The goal
+  evaluator only sees what the transcript surfaces — state progress
+  plainly, never implicitly.
+- The run is complete when every queue item's roadmap progress boxes are
+  ticked except "Merged to `main`", the full suite is green, and all work
+  is committed. When that is true, say so explicitly in the final status:
+  "ROADMAP QUEUE COMPLETE" plus the closing summary including every
+  `Decided autonomously` entry for review.
