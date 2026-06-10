@@ -1485,6 +1485,14 @@ More user content after markers.
       expect(await FileSystemUtils.fileExists(
         path.join(commandsDir, 'explore.md')
       )).toBe(false);
+
+      // Skill content should reference skills, not commands that were never generated
+      const skillContent = await fs.readFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        'utf-8'
+      );
+      expect(skillContent).not.toContain('/opsx:');
+      expect(skillContent).toContain('/openspec-');
     });
 
     it('should respect commands-only delivery setting', async () => {
