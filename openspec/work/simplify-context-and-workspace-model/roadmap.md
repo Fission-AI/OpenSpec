@@ -1281,6 +1281,13 @@ is working:
   `commands/context-store.ts`) are not split in this slice because the
   Phase 5 deletions and 4.1 rebuild are about to shrink them (recorded
   module-size reason per the runbook bar).
+- 2026-06-11: Decided autonomously (review me): discovered during 1.4
+  implementation that `.codex/` is git-ignored (`.gitignore:158`) — the
+  use-openspec guidance the roadmap called "checked-in" is actually the
+  L8 ignored-local-skill. Its store-discovery rewrite (beta reference
+  deleted, SKILL.md and artifact-placement reworked) lands on disk for
+  local agents but cannot appear in commits; L8 keeps ownership of the
+  final disposition (ignored local skill vs generated vs checked-in).
 - 2026-06-11: Wrote the store-rename-and-guidance plan (four green
   checkpoints: mechanical rename, riders, guidance regeneration with a
   three-stream fan-out, sweep/guards/dogfood) and folded two parallel

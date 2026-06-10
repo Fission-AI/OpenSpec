@@ -133,7 +133,11 @@ The reviews of the first draft converged on one principle, adopted here:
    discovery instead of routing to it, and
    `references/artifact-placement.md` loses its beta context-store flow
    section and workspace-inspection routing (placement guidance itself
-   stays).
+   stays). Ground truth discovered during implementation: `.codex/` is
+   git-ignored (`.gitignore:158`) — this guidance is the L8
+   ignored-local-skill, not checked-in source, so its rewrite lands on
+   disk for local agents but cannot appear in a commit; L8 still owns
+   its final disposition.
 7. **Dead store code is deleted, not renamed.**
    `getDefaultContextStoreRoot` (`foundation.ts:67`) lost its last
    production caller when 1.3 made `--path` required; the rename pass
