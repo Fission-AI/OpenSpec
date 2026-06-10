@@ -5,17 +5,22 @@ workspace reimplementation.
 
 ## Current Status
 
-The original workspace lifecycle roadmap has been reframed by the context store
-and initiatives direction. Fresh agents should treat this document and the POC
-materials as reference for preserved local-view infrastructure, not as the next
-implementation queue.
+Status: obsolete / pending deletion review.
+
+The original workspace lifecycle roadmap is no longer active. Fresh agents
+should not use this document, the POC materials, or the flat workspace sibling
+changes as an implementation queue.
 
 Current product authority lives in:
 
-1. `openspec/initiatives/context-store-and-initiatives/direction.md`
-2. `openspec/initiatives/context-store-and-initiatives/roadmap.md`
+1. `openspec/work/simplify-context-and-workspace-model/goal.md`
+2. `openspec/work/simplify-context-and-workspace-model/roadmap.md`
 
-The locked boundary is:
+This folder is kept temporarily only until any unique historical evidence is
+promoted, linked, or deliberately discarded. The old context-store initiative is
+transition evidence / beta history, not current authority.
+
+The old beta boundary was:
 
 ```text
 Context stores sync truth.
@@ -39,10 +44,10 @@ start here
 
 ## Start Here
 
-Read these files in order:
+If you are reviewing this artifact before deletion, read these files in order:
 
-1. `openspec/initiatives/context-store-and-initiatives/direction.md`
-2. `openspec/initiatives/context-store-and-initiatives/roadmap.md`
+1. `openspec/work/simplify-context-and-workspace-model/goal.md`
+2. `openspec/work/simplify-context-and-workspace-model/roadmap.md`
 3. `openspec/changes/workspace-reimplementation-roadmap/HISTORICAL_DIRECTION.md`
 4. `openspec/changes/workspace-reimplementation-roadmap/README.md`
 5. `openspec/changes/workspace-reimplementation-roadmap/POC_REFERENCE_GUIDE.md`
@@ -71,15 +76,13 @@ The original flat OpenSpec order was:
 
 Current disposition:
 
-- Keep setup, link, relink, list, open, update, and doctor as beta local-view
-  infrastructure.
-- Treat workspace planning as legacy or transitional behavior, not the durable
-  cross-repo source of truth.
+- Do not implement this roadmap.
+- Keep only long enough to review whether the POC or historical notes contain
+  unique evidence worth preserving elsewhere.
+- Treat workspace planning as legacy or transitional beta behavior, not the
+  durable cross-repo source of truth.
 - Do not implement `workspace-apply-repo-slice` or
-  `workspace-verify-and-archive` as first-class workspace lifecycle commands
-  until initiative-linked repo-local changes exist.
-- Use `workspace-reimplementation-roadmap` as continuity and reference, not as
-  the active shipping sequence.
+  `workspace-verify-and-archive` as first-class workspace lifecycle commands.
 
 ## Before Editing
 

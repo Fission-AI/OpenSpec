@@ -1,13 +1,18 @@
 ## Why
 
-Workspace support needs to be reimplemented as a user-facing workflow, not carried forward as a direct port of the proof of concept.
+Status: obsolete / pending deletion review.
 
-Status: this roadmap is now historical reference. The active product direction is
-the context-store-and-initiatives initiative, where initiatives coordinate
-durable cross-repo work, workspaces open local views, and repo-local changes own
-implementation. Keep workspace setup/open/update/doctor infrastructure, but do
-not treat workspace apply, verify, or archive as the next shipping sequence
-until initiative-linked repo-local changes exist.
+This roadmap is no longer active and should not be used as an implementation
+queue. Current product authority lives in
+`openspec/work/simplify-context-and-workspace-model/goal.md` and
+`openspec/work/simplify-context-and-workspace-model/roadmap.md`.
+
+Keep this artifact temporarily only to review whether it contains unique POC
+lessons or historical evidence that should be promoted, linked, or deliberately
+discarded before deletion.
+
+The original purpose was to reimplement workspace support as a user-facing
+workflow, not carry forward the proof of concept as-is.
 
 A user should be able to say they have a multi-repo product goal, create a workspace, add the relevant repos, open that workspace with an agent, plan the change, implement one repo slice at a time, verify it, and archive it. The POC branch captured useful behavior and discovery, but its implementation should remain reference material rather than the base architecture.
 

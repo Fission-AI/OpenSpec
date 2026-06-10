@@ -1,13 +1,19 @@
 ## Why
 
-Status: deferred by the context-store-and-initiatives direction. Generated
-workspace guidance remains important, but the durable handoff should be designed
-around initiatives linked to repo-local OpenSpec changes, not around a
-workspace-owned cross-repo planning home.
+Status: obsolete / pending deletion review.
+
+This change is no longer active and should not be used as an implementation
+queue. Current product authority lives in
+`openspec/work/simplify-context-and-workspace-model/goal.md` and
+`openspec/work/simplify-context-and-workspace-model/roadmap.md`.
+
+Keep this artifact temporarily only to review whether it contains unique agent
+guidance evidence worth promoting, linking, or deliberately discarding before
+deletion. Do not revive the workspace-owned cross-repo planning model from this
+proposal.
 
 The remaining sections preserve the original workspace-agent-guidance direction
-for later reference. This work is still expected to matter after initiatives and
-initiative-linked repo-local changes exist; it is not the immediate next focus.
+for historical review.
 
 OpenSpec workspaces let users create a planning home and link repos or folders
 for cross-area exploration. After setup, the next user expectation is simple:

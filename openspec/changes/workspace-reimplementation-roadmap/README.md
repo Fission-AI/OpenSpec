@@ -4,10 +4,17 @@ This change is the continuity layer for reimplementing workspace support across 
 
 ## Current Status
 
-This roadmap is historical and has been reframed by
-`openspec/initiatives/context-store-and-initiatives/`. Fresh agents should use
-the initiative direction as product authority and this roadmap as reference for
-POC lessons and preserved local-view behavior.
+Status: obsolete / pending deletion review.
+
+This roadmap is no longer active and should not be used as an implementation
+queue. Current product authority lives in:
+
+1. `openspec/work/simplify-context-and-workspace-model/goal.md`
+2. `openspec/work/simplify-context-and-workspace-model/roadmap.md`
+
+Keep this folder temporarily only to review whether it contains unique POC
+lessons or historical evidence that should be promoted, linked, or deliberately
+discarded before deletion.
 
 Keep:
 
@@ -28,8 +35,9 @@ Defer:
 - branch/worktree orchestration, strong cross-repo validation, and dependency
   graph enforcement
 
-Do not pick up the next unfinished flat sibling change from this roadmap unless
-a later initiative-linked repo-change design explicitly reactivates it.
+Do not pick up the next unfinished flat sibling change from this roadmap. The
+workspace-owned planning/apply/verify/archive model is obsolete for current
+roadmap purposes.
 
 Root entry point for fresh agents: `START_HERE.md`.
 
@@ -50,7 +58,10 @@ The POC branch is reference material only:
 workspace-poc @ 79a45ac043f414e63d13e08b9da83b135cb20a39
 ```
 
-Use it to understand behavior, tests, and lessons learned. Do not merge it or preserve its architecture by default. The full source direction document from that branch is captured in `HISTORICAL_DIRECTION.md`.
+Use it only while reviewing whether behavior, tests, or lessons learned should
+be preserved elsewhere. Do not merge it or preserve its architecture by
+default. The full source direction document from that branch is captured in
+`HISTORICAL_DIRECTION.md`.
 
 Fresh agents should read `POC_REFERENCE_GUIDE.md` before implementing any slice. That guide explains how to inspect the pinned POC commit, which files to read for each slice, and what findings to bring back into the OpenSpec artifacts.
 
@@ -80,26 +91,27 @@ OpenSpec currently discovers active changes as immediate directories under `open
 
 `workspace-agent-guidance` makes workspace-local workflow skills use the planning model deliberately: inspect linked context, seed workspace changes with goal and known affected areas, and preserve linked repos as read-only planning context until apply selects an edit root.
 
-`workspace-apply-repo-slice` is deferred until initiative-linked repo-local changes define the implementation handoff.
+`workspace-apply-repo-slice` is obsolete for current roadmap purposes. Review
+it only for unique handoff evidence before deletion.
 
-`workspace-verify-and-archive` is deferred until initiative status and linked repo-local change lifecycle exist.
+`workspace-verify-and-archive` is obsolete for current roadmap purposes. Review
+it only for unique progress or archive evidence before deletion.
 
-## Session Handoff Prompt
+## Deletion Review Prompt
 
-Use this prompt at the start of future implementation sessions:
+Use this prompt only when reviewing this artifact before deletion:
 
 ```text
-Continue the context-store-and-initiatives direction. Read
-openspec/initiatives/context-store-and-initiatives/direction.md and
-openspec/initiatives/context-store-and-initiatives/roadmap.md first. Use
+Review obsolete workspace roadmap artifacts before deletion. Read
+openspec/work/simplify-context-and-workspace-model/goal.md and
+openspec/work/simplify-context-and-workspace-model/roadmap.md first. Then use
 openspec/changes/workspace-reimplementation-roadmap/START_HERE.md,
 openspec/changes/workspace-reimplementation-roadmap/README.md,
 openspec/changes/workspace-reimplementation-roadmap/HISTORICAL_DIRECTION.md,
 openspec/changes/workspace-reimplementation-roadmap/POC_REFERENCE_GUIDE.md, and
 workspace-poc at 79a45ac043f414e63d13e08b9da83b135cb20a39 as historical
-reference material only. Preserve useful local-view workspace behavior, but do
-not implement workspace apply, verify, or archive until initiative-linked
-repo-local changes exist.
+reference material only. Promote or link unique evidence worth keeping, then
+delete or deliberately retain the reviewed artifacts.
 ```
 
 ## Branching Guidance

@@ -1,17 +1,20 @@
 # Workspace POC Reference Guide
 
-This guide is for a fresh agent starting a new session with no prior context about the workspace POC.
+Status: obsolete / pending deletion review.
+
+This guide is for reviewing whether the workspace POC contains unique
+historical evidence worth preserving elsewhere before this artifact is deleted.
+It is not an implementation guide for current work.
 
 Root entry point: `START_HERE.md`.
 
-The goal is not to continue the POC. The goal is to use it as research material
-before preserving or replacing specific behavior from the current base.
+The goal is not to continue the POC. The goal is to use it only as research
+material while deciding what, if anything, should be promoted, linked, or
+deliberately discarded before deletion.
 
 Current product authority lives in
-`openspec/initiatives/context-store-and-initiatives/`. Under that direction,
-workspace setup/open/update/doctor behavior remains useful local-view
-infrastructure. Workspace-level apply, verify, and archive research is deferred
-until initiative-linked repo-local changes exist.
+`openspec/work/simplify-context-and-workspace-model/goal.md` and
+`openspec/work/simplify-context-and-workspace-model/roadmap.md`.
 
 ## Reference Point
 

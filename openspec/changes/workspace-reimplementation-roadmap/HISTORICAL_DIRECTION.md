@@ -4,13 +4,19 @@ Date: 2026-04-30
 
 ## Status
 
-This document is historical product direction from the workspace POC follow-up.
-It remains useful for preserved workspace setup, link, open, update, doctor, and
-agent-visibility decisions.
+Status: obsolete / pending deletion review.
 
-It no longer defines the durable coordination model. The current authority is
-`openspec/initiatives/context-store-and-initiatives/direction.md`, which locks
-this boundary:
+This document is historical product direction from the workspace POC follow-up.
+Keep it temporarily only to review whether it contains unique lessons worth
+promoting, linking, or deliberately discarding before deletion.
+
+It no longer defines the durable coordination model. Current product authority
+lives in:
+
+1. `openspec/work/simplify-context-and-workspace-model/goal.md`
+2. `openspec/work/simplify-context-and-workspace-model/roadmap.md`
+
+The old beta boundary was:
 
 ```text
 Context stores sync truth.
@@ -24,9 +30,9 @@ Superseded here: workspace as the durable planning home, workspace-level
 planning artifacts as the canonical shared cross-repo plan, and workspace
 apply/verify/archive as the next first-class lifecycle commands.
 
-Deferred here: apply, verify, archive, branch/worktree orchestration,
-cross-repo validation, dependency graph enforcement, and governance flows until
-initiative-linked repo-local changes exist.
+Obsolete here: workspace apply, verify, archive, branch/worktree orchestration,
+cross-repo validation, dependency graph enforcement, and governance flows as a
+workspace-owned lifecycle.
 
 Fresh-agent entry point: read `openspec/changes/workspace-reimplementation-roadmap/START_HERE.md` first, then return to this document for the full product direction.
 
@@ -476,8 +482,8 @@ Those may matter later, but they should not define the first reimplementation pa
 ## Historical Product Shape
 
 This was the older workspace product shape. It is preserved here so POC lessons
-remain understandable, but it is superseded by the context-store-and-initiatives
-direction for durable coordination.
+remain understandable, but it is superseded by the
+`simplify-context-and-workspace-model` goal and roadmap.
 
 The historical durable product model was:
 
