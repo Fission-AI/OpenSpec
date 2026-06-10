@@ -102,11 +102,12 @@ an item are status steps for that numbered work item.
 
 Next incomplete item:
 
-- [ ] **1.2 Let normal commands use a named standalone OpenSpec repo.**
-  In plain English: when a user is in an app repo, they can tell OpenSpec to
-  create or read work in a registered standalone OpenSpec repo.
-  Implementation, tests, and review follow-up are done on
-  `codex/store-root-selection`; merge remains.
+- [ ] **1.4 Teach agents and help surfaces that stores exist.**
+  In plain English: an agent prompted in a project repo can discover the
+  registered standalone OpenSpec repo and use `--store` without the human
+  spelling out flags. Spec not yet written. (Slices 1.1–1.3 are implemented
+  and tested on the working branch; their "Merged to `main`" boxes stay open
+  by design and do not gate this.)
 
 ## Phase 0. Make The Active Direction Easy To Find
 
