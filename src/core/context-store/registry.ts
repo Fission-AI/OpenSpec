@@ -96,11 +96,11 @@ export function assertNoRegisteredStoreConflict(
 
     if (entry.id === id) {
       throw new ContextStoreError(
-        `Context store '${id}' is already registered at ${getStoreRootForBackend(entry.backend)}.`,
+        `Context store '${id}' is already registered at ${getStoreRootForBackend(entry.backend)}. One checkout per store id is supported on this machine.`,
         'context_store_id_conflict',
         {
           target: 'context_store.id',
-          fix: 'Use the existing registration or choose a different context store id.',
+          fix: `Use the existing registration, or run openspec context-store unregister ${id} first to switch this id to a different checkout.`,
         }
       );
     }

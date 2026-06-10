@@ -304,6 +304,16 @@ export function emitStoreRootBanner(root: ResolvedOpenSpecRoot): void {
 }
 
 /**
+ * Keeps follow-up command hints inside the selected store: a hint a user can
+ * paste verbatim must carry `--store <id>` when a store was selected.
+ */
+export function withStoreFlag(root: ResolvedOpenSpecRoot, command: string): string {
+  return root.source === 'store' && root.storeId
+    ? `${command} --store ${root.storeId}`
+    : command;
+}
+
+/**
  * Compatibility bridge for workflow code that still expects a PlanningHome.
  * Normal commands never produce `kind: 'workspace'`.
  */
@@ -328,10 +338,18 @@ export async function resolveRootForCommand(
   output: { json?: boolean; failurePayload?: Record<string, unknown> } = {}
 ): Promise<ResolvedOpenSpecRoot | null> {
   try {
-    return await resolveOpenSpecRoot({
+    const root = await resolveOpenSpecRoot({
       ...(selector.store !== undefined ? { store: selector.store } : {}),
       ...(selector.storePath !== undefined ? { storePath: selector.storePath } : {}),
     });
+
+    // Emitted at resolution time so the banner survives command failures
+    // that happen after the root was successfully selected.
+    if (!output.json) {
+      emitStoreRootBanner(root);
+    }
+
+    return root;
   } catch (error) {
     if (output.json && isRootSelectionError(error)) {
       console.log(

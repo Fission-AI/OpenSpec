@@ -5,7 +5,6 @@ import { Command } from 'commander';
 import {
   ContextStoreError,
   doctorContextStores,
-  getDefaultContextStoreRoot,
   listContextStores,
   prepareContextStoreSetup,
   prepareContextStoreCleanup,
@@ -66,6 +65,7 @@ interface ContextStoreMutationOutput {
   git: {
     is_repository: boolean;
     initialized: boolean;
+    committed: boolean;
   } | null;
   created_files: string[];
   status: ContextStoreDiagnostic[];
@@ -99,6 +99,9 @@ interface ContextStoreDoctorStoreOutput extends ContextStoreOutput {
   metadata: ContextStoreInspection['metadata'];
   git: {
     is_repository: boolean | null;
+    has_commits: boolean | null;
+    has_uncommitted_changes: boolean | null;
+    has_remote: boolean | null;
   };
   status: ContextStoreDiagnostic[];
 }
@@ -145,6 +148,7 @@ function toMutationOutput(result: ContextStoreMutationResult): ContextStoreMutat
     git: {
       is_repository: result.git.isRepository,
       initialized: result.git.initialized,
+      committed: result.git.committed,
     },
     created_files: result.createdArtifacts,
     status: result.diagnostics,
@@ -193,6 +197,9 @@ function toDoctorStoreOutput(store: ContextStoreInspection): ContextStoreDoctorS
     metadata: store.metadata,
     git: {
       is_repository: store.git.isRepository,
+      has_commits: store.git.hasCommits,
+      has_uncommitted_changes: store.git.hasUncommittedChanges,
+      has_remote: store.git.hasRemote,
     },
     status: store.diagnostics,
   };
@@ -226,20 +233,9 @@ function isPromptCancellationError(error: unknown): boolean {
   );
 }
 
-async function shouldInitializeGit(options: ContextStoreSetupOptions): Promise<boolean> {
-  if (options.initGit !== undefined) {
-    return options.initGit;
-  }
-
-  if (options.json || !isInteractive()) {
-    return false;
-  }
-
-  const { confirm } = await import('@inquirer/prompts');
-  return confirm({
-    message: 'Initialize Git in this context store?',
-    default: true,
-  });
+function shouldInitializeGit(options: ContextStoreSetupOptions): boolean {
+  // Git on by default; --no-init-git is the explicit opt-out.
+  return options.initGit ?? true;
 }
 
 function formatPathForHuman(targetPath: string): string {
@@ -274,7 +270,8 @@ async function promptContextStoreId(): Promise<string> {
 
 async function promptContextStorePath(id: string): Promise<string> {
   const { input } = await import('@inquirer/prompts');
-  const defaultPath = getDefaultContextStoreRoot(id);
+  // Suggest a visible, user-owned location — never the managed XDG data dir.
+  const defaultPath = ['~', 'openspec', id].join('/');
 
   return input({
     message: 'Where should this context store live?',
@@ -296,13 +293,24 @@ async function resolveSetupInput(
       'context_store_setup_id_required',
       {
         target: 'context_store.id',
-        fix: 'openspec context-store setup <id> --path /path/to/context-store --json',
+        fix: 'openspec context-store setup <id> --path ~/openspec/<id> --json',
+      }
+    );
+  }
+
+  if (options.path === undefined && !interactive) {
+    throw new ContextStoreError(
+      'Pass --path with the folder where this context store should live.',
+      'context_store_setup_path_required',
+      {
+        target: 'context_store.root',
+        fix: `openspec context-store setup ${id ?? '<id>'} --path ~/openspec/${id ?? '<id>'}`,
       }
     );
   }
 
   const resolvedId = id ? validateContextStoreId(id) : await promptContextStoreId();
-  const promptedPath = !id && options.path === undefined
+  const promptedPath = options.path === undefined
     ? await promptContextStorePath(resolvedId)
     : undefined;
 
@@ -423,6 +431,7 @@ function printMutationHuman(title: string, payload: ContextStoreMutationOutput):
   console.log('');
   console.log('Next: run normal OpenSpec commands against this store, for example:');
   console.log(`  openspec new change <change-id> --store ${payload.context_store.id}`);
+  console.log('Share this store by committing and pushing it like any Git repo.');
 }
 
 function printCleanupHuman(title: string, payload: ContextStoreCleanupOutput): void {
@@ -472,7 +481,12 @@ function formatMetadataHuman(store: ContextStoreDoctorOutput['context_stores'][n
 
 function formatDoctorGitHuman(store: ContextStoreDoctorOutput['context_stores'][number]): string {
   if (store.git.is_repository === null) return 'unknown';
-  return store.git.is_repository ? 'repository detected' : 'not detected';
+  if (!store.git.is_repository) return 'not detected';
+
+  const fact = (value: boolean | null, yes: string, no: string): string =>
+    value === null ? 'unknown' : value ? yes : no;
+
+  return `repository detected (commits: ${fact(store.git.has_commits, 'yes', 'none')}, uncommitted changes: ${fact(store.git.has_uncommitted_changes, 'yes', 'no')}, remote: ${fact(store.git.has_remote, 'yes', 'none')})`;
 }
 
 function formatOpenSpecRootHuman(store: ContextStoreDoctorOutput['context_stores'][number]): string {
@@ -517,7 +531,7 @@ class ContextStoreCommand {
     try {
       const setupInput = await resolveSetupInput(id, options);
       const prepared = await prepareSetupInput(setupInput, options);
-      const initGit = await shouldInitializeGit(options);
+      const initGit = shouldInitializeGit(options);
       if (!options.json && isInteractive()) {
         await confirmSetup(prepared, initGit);
       }
@@ -684,9 +698,9 @@ export function registerContextStoreCommand(program: Command): void {
   contextStore
     .command('setup [id]')
     .description('Create and register a local context store')
-    .option('--path <path>', 'Context store folder path; defaults to OpenSpec managed local data')
-    .option('--init-git', 'Initialize a Git repository in the context store')
-    .option('--no-init-git', 'Do not initialize a Git repository')
+    .option('--path <path>', 'Folder where the context store should live (for example ~/openspec/<id>)')
+    .option('--init-git', 'Initialize a Git repository with an initial commit (default)')
+    .option('--no-init-git', 'Skip every Git action: no init, no initial commit')
     .option('--json', 'Output as JSON')
     .action(async (id: string | undefined, options: ContextStoreSetupOptions) => {
       await contextStoreCommand.setup(id, options);

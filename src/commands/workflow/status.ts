@@ -8,10 +8,10 @@ import ora from 'ora';
 import chalk from 'chalk';
 import { getChangeDir } from '../../core/planning-home.js';
 import {
-  emitStoreRootBanner,
   resolveRootForCommand,
   toPlanningHome,
   toRootOutput,
+  withStoreFlag,
 } from '../../core/root-selection.js';
 import {
   loadChangeContext,
@@ -43,17 +43,20 @@ export interface StatusOptions {
 // -----------------------------------------------------------------------------
 
 export async function statusCommand(options: StatusOptions): Promise<void> {
+  // The root resolves (and the store banner prints) before the spinner starts
+  // so the two do not fight over stderr.
+  const root = await resolveRootForCommand(options, { json: options.json });
+  if (!root) {
+    return;
+  }
+
   const spinner = options.json ? undefined : ora('Loading change status...').start();
 
   try {
-    const root = await resolveRootForCommand(options, { json: options.json });
-    if (!root) {
-      return;
-    }
-
     const planningHome = toPlanningHome(root);
     const projectRoot = root.path;
     const rootOutput = toRootOutput(root);
+    const newChangeHint = withStoreFlag(root, 'openspec new change <name>');
 
     // Handle no-changes case gracefully — status is informational,
     // so "no changes" is a valid state, not an error.
@@ -71,8 +74,7 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
           );
           return;
         }
-        emitStoreRootBanner(root);
-        console.log('No active changes. Create one with: openspec new change <name>');
+        console.log(`No active changes. Create one with: ${newChangeHint}`);
         return;
       }
       // Changes exist but --change not provided
@@ -85,7 +87,8 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
     const changeName = await validateChangeExists(
       options.change,
       projectRoot,
-      root.changesDir
+      root.changesDir,
+      { newChangeHint }
     );
 
     // Validate schema if explicitly provided
@@ -107,7 +110,6 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
       return;
     }
 
-    emitStoreRootBanner(root);
     printStatusText(status);
   } catch (error) {
     spinner?.stop();
@@ -124,11 +126,7 @@ export function printStatusText(status: ChangeStatus): void {
   if (status.initiative) {
     console.log(`Initiative: ${status.initiative.store}/${status.initiative.id}`);
   }
-  if (status.planningHome) {
-    const label = status.planningHome.kind === 'workspace'
-      ? `workspace${status.planningHome.workspaceName ? ` (${status.planningHome.workspaceName})` : ''}`
-      : 'repo';
-    console.log(`Planning home: ${label}`);
+  if (status.changeRoot) {
     console.log(`Change root: ${status.changeRoot}`);
   }
   console.log(`Progress: ${doneCount}/${total} artifacts complete`);

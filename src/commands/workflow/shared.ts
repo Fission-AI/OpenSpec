@@ -140,12 +140,17 @@ export async function getAvailableChanges(
 export async function validateChangeExists(
   changeName: string | undefined,
   projectRoot: string,
-  changesDir = path.join(projectRoot, 'openspec', 'changes')
+  changesDir = path.join(projectRoot, 'openspec', 'changes'),
+  hints: { newChangeHint?: string } = {}
 ): Promise<string> {
+  // Hints must stay pasteable: callers with a selected store pass a
+  // store-carrying hint so following it lands in the same root.
+  const newChangeHint = hints.newChangeHint ?? 'openspec new change <name>';
+
   if (!changeName) {
     const available = await getAvailableChanges(projectRoot, changesDir);
     if (available.length === 0) {
-      throw new Error('No changes found. Create one with: openspec new change <name>');
+      throw new Error(`No changes found. Create one with: ${newChangeHint}`);
     }
     throw new Error(
       `Missing required option --change. Available changes:\n  ${available.join('\n  ')}`
@@ -166,7 +171,7 @@ export async function validateChangeExists(
     const available = await getAvailableChanges(projectRoot, changesDir);
     if (available.length === 0) {
       throw new Error(
-        `Change '${changeName}' not found. No changes exist. Create one with: openspec new change <name>`
+        `Change '${changeName}' not found. No changes exist. Create one with: ${newChangeHint}`
       );
     }
     throw new Error(

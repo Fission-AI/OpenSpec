@@ -15,6 +15,11 @@ export const OPENSPEC_SPECS_DIR = 'openspec/specs';
 export const OPENSPEC_CHANGES_DIR = 'openspec/changes';
 export const OPENSPEC_ARCHIVE_DIR = 'openspec/changes/archive';
 export const DEFAULT_OPENSPEC_SCHEMA = 'spec-driven';
+export const DIRECTORY_ANCHOR_FILE_NAME = '.gitkeep';
+
+// Git cannot track empty directories, so clones of a fresh store would lose
+// these and fail root-health checks. Anchored at setup time.
+export const ANCHORED_OPENSPEC_DIRS = [OPENSPEC_SPECS_DIR, OPENSPEC_ARCHIVE_DIR] as const;
 
 type PathKind = 'missing' | 'directory' | 'file' | 'other';
 
@@ -233,7 +238,32 @@ async function ensureDefaultConfig(
   });
 }
 
-export async function ensureOpenSpecRoot(storeRoot: string): Promise<EnsureOpenSpecRootResult> {
+async function ensureDirectoryAnchor(
+  storeRoot: string,
+  relativeDir: string,
+  ledger: CreatedPathLedgerEntry[]
+): Promise<void> {
+  const directory = path.join(storeRoot, relativeDir);
+  if ((await fs.readdir(directory)).length > 0) return;
+
+  const relativePath = `${relativeDir}/${DIRECTORY_ANCHOR_FILE_NAME}`;
+  const absolutePath = path.join(directory, DIRECTORY_ANCHOR_FILE_NAME);
+  await fs.writeFile(absolutePath, '', 'utf-8');
+  ledger.push({
+    relativePath: relativeArtifact(relativePath, 'file'),
+    absolutePath,
+    kind: 'file',
+  });
+}
+
+export interface EnsureOpenSpecRootOptions {
+  anchorEmptyDirectories?: boolean;
+}
+
+export async function ensureOpenSpecRoot(
+  storeRoot: string,
+  options: EnsureOpenSpecRootOptions = {}
+): Promise<EnsureOpenSpecRootResult> {
   const ledger: CreatedPathLedgerEntry[] = [];
   const rootKind = await pathKind(storeRoot);
 
@@ -248,6 +278,12 @@ export async function ensureOpenSpecRoot(storeRoot: string): Promise<EnsureOpenS
   await ensureDirectory(storeRoot, OPENSPEC_CHANGES_DIR, ledger);
   await ensureDirectory(storeRoot, OPENSPEC_ARCHIVE_DIR, ledger);
   await ensureDefaultConfig(storeRoot, ledger);
+
+  if (options.anchorEmptyDirectories) {
+    for (const relativeDir of ANCHORED_OPENSPEC_DIRS) {
+      await ensureDirectoryAnchor(storeRoot, relativeDir, ledger);
+    }
+  }
 
   return {
     inspection: await inspectOpenSpecRoot(storeRoot),

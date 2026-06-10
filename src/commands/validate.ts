@@ -2,7 +2,6 @@ import ora from 'ora';
 import path from 'path';
 import { Validator } from '../core/validation/validator.js';
 import {
-  emitStoreRootBanner,
   resolveRootForCommand,
   toRootOutput,
   type ResolvedOpenSpecRoot,
@@ -41,10 +40,6 @@ export class ValidateCommand {
     const root = await resolveRootForCommand(options, { json: options.json });
     if (!root) {
       return;
-    }
-
-    if (!options.json) {
-      emitStoreRootBanner(root);
     }
 
     const interactive = isInteractive(options);

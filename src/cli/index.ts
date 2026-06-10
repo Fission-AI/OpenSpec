@@ -9,7 +9,7 @@ import { UpdateCommand } from '../core/update.js';
 import { ListCommand } from '../core/list.js';
 import { ArchiveCommand, type ArchiveOptions } from '../core/archive.js';
 import { ViewCommand } from '../core/view.js';
-import { emitStoreRootBanner, resolveRootForCommand, toRootOutput } from '../core/root-selection.js';
+import { resolveRootForCommand, toRootOutput } from '../core/root-selection.js';
 import { registerSpecCommand } from '../commands/spec.js';
 import { ChangeCommand } from '../commands/change.js';
 import { ValidateCommand } from '../commands/validate.js';
@@ -230,9 +230,6 @@ program
       const root = await resolveRootForCommand(options ?? {}, { json: options?.json });
       if (!root) {
         return;
-      }
-      if (!options?.json) {
-        emitStoreRootBanner(root);
       }
       const listCommand = new ListCommand();
       const mode: 'changes' | 'specs' = options?.specs ? 'specs' : 'changes';

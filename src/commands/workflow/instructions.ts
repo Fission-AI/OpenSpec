@@ -21,8 +21,8 @@ import {
   type PlanningHome,
 } from '../../core/planning-home.js';
 import {
-  emitStoreRootBanner,
   resolveRootForCommand,
+  withStoreFlag,
   toPlanningHome,
   toRootOutput,
 } from '../../core/root-selection.js';
@@ -61,20 +61,22 @@ export async function instructionsCommand(
   artifactId: string | undefined,
   options: InstructionsOptions
 ): Promise<void> {
+  // Resolve (and banner) before the spinner starts so stderr stays readable.
+  const root = await resolveRootForCommand(options, { json: options.json });
+  if (!root) {
+    return;
+  }
+
   const spinner = options.json ? undefined : ora('Generating instructions...').start();
 
   try {
-    const root = await resolveRootForCommand(options, { json: options.json });
-    if (!root) {
-      return;
-    }
-
     const planningHome = toPlanningHome(root);
     const projectRoot = root.path;
     const changeName = await validateChangeExists(
       options.change,
       projectRoot,
-      root.changesDir
+      root.changesDir,
+      { newChangeHint: withStoreFlag(root, 'openspec new change <name>') }
     );
 
     // Validate schema if explicitly provided
@@ -116,7 +118,6 @@ export async function instructionsCommand(
       return;
     }
 
-    emitStoreRootBanner(root);
     printInstructionsText(instructions, isBlocked);
   } catch (error) {
     spinner?.stop();
@@ -380,20 +381,22 @@ export async function generateApplyInstructions(
 }
 
 export async function applyInstructionsCommand(options: ApplyInstructionsOptions): Promise<void> {
+  // Resolve (and banner) before the spinner starts so stderr stays readable.
+  const root = await resolveRootForCommand(options, { json: options.json });
+  if (!root) {
+    return;
+  }
+
   const spinner = options.json ? undefined : ora('Generating apply instructions...').start();
 
   try {
-    const root = await resolveRootForCommand(options, { json: options.json });
-    if (!root) {
-      return;
-    }
-
     const planningHome = toPlanningHome(root);
     const projectRoot = root.path;
     const changeName = await validateChangeExists(
       options.change,
       projectRoot,
-      root.changesDir
+      root.changesDir,
+      { newChangeHint: withStoreFlag(root, 'openspec new change <name>') }
     );
 
     // Validate schema if explicitly provided
@@ -416,7 +419,6 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
       return;
     }
 
-    emitStoreRootBanner(root);
     printApplyInstructionsText(instructions);
   } catch (error) {
     spinner?.stop();

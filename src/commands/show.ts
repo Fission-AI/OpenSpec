@@ -1,7 +1,6 @@
 import { isInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds, getSpecIds } from '../utils/item-discovery.js';
 import {
-  emitStoreRootBanner,
   resolveRootForCommand,
   toRootOutput,
   type ResolvedOpenSpecRoot,
@@ -30,10 +29,6 @@ export class ShowCommand {
     const root = await resolveRootForCommand(options, { json: options.json });
     if (!root) {
       return;
-    }
-
-    if (!options.json) {
-      emitStoreRootBanner(root);
     }
 
     const interactive = isInteractive(options);

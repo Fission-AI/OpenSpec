@@ -12,11 +12,11 @@ import path from 'path';
 import { createChange, validateChangeName } from '../../utils/change-utils.js';
 import { formatChangeLocation } from '../../core/planning-home.js';
 import {
-  emitStoreRootBanner,
   resolveRootForCommand,
   RootSelectionError,
   toPlanningHome,
   toRootOutput,
+  withStoreFlag,
   type ResolvedOpenSpecRoot,
   type RootOutput,
 } from '../../core/root-selection.js';
@@ -79,6 +79,7 @@ function printCreatedChangeHuman(
       : formatChangeLocation(toPlanningHome(root), payload.change.id);
   console.log(`Created change '${payload.change.id}' at ${location}/`);
   console.log(`Schema: ${payload.change.schema}`);
+  console.log(`Next: ${withStoreFlag(root, `openspec status --change ${payload.change.id}`)}`);
 }
 
 export async function newChangeCommand(name: string | undefined, options: NewChangeOptions): Promise<void> {
@@ -148,7 +149,6 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
     }
 
     spinner?.stop();
-    emitStoreRootBanner(root);
     printCreatedChangeHuman(payload, root);
   } catch (error) {
     spinner?.stop();

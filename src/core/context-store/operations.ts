@@ -6,6 +6,8 @@ import { promisify } from 'node:util';
 
 import { FileSystemUtils } from '../../utils/file-system.js';
 import {
+  ANCHORED_OPENSPEC_DIRS,
+  DIRECTORY_ANCHOR_FILE_NAME,
   ensureOpenSpecRoot,
   inspectOpenSpecRoot,
   rollbackCreatedPaths,
@@ -13,7 +15,7 @@ import {
   type OpenSpecRootInspection,
 } from '../openspec-root.js';
 import {
-  getDefaultContextStoreRoot,
+  getContextStoreMetadataDir,
   getContextStoreMetadataPath,
   getContextStoreRegistryPath,
   listContextStoreRegistryEntries,
@@ -21,6 +23,7 @@ import {
   readOptionalContextStoreMetadataState,
   resolveGitContextStoreBackendConfig,
   validateContextStoreId,
+  writeContextStoreMetadataState,
   type ContextStoreGitBackendConfig,
   type ContextStorePathOptions,
   type ContextStoreRegistryState,
@@ -56,6 +59,7 @@ export interface ContextStoreMutationResult {
   git: {
     isRepository: boolean;
     initialized: boolean;
+    committed: boolean;
   };
   createdArtifacts: string[];
   diagnostics: ContextStoreDiagnostic[];
@@ -93,6 +97,9 @@ export interface ContextStoreInspection extends ContextStoreInfo {
   };
   git: {
     isRepository: boolean | null;
+    hasCommits: boolean | null;
+    hasUncommittedChanges: boolean | null;
+    hasRemote: boolean | null;
   };
   diagnostics: ContextStoreDiagnostic[];
 }
@@ -269,7 +276,7 @@ async function assertSetupPathIsNotNestedInGitRepo(
     'context_store_setup_inside_git_repo',
     {
       target: 'context_store.root',
-      fix: 'Choose the managed OpenSpec location or choose a path outside that Git repository.',
+      fix: 'Choose a path outside that Git repository.',
     }
   );
 }
@@ -295,6 +302,119 @@ async function initGitRepository(storeRoot: string): Promise<boolean> {
   return true;
 }
 
+function isSpawnNotFoundError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as NodeJS.ErrnoException).code === 'ENOENT'
+  );
+}
+
+/**
+ * `git var` resolves identity exactly as `git commit` would (config, env vars,
+ * auto-detection), so this fails precisely when the initial commit would.
+ */
+async function assertGitCommitIdentity(storeRoot: string): Promise<void> {
+  const probeCwd = (await nearestExistingDirectory(storeRoot)) ?? process.cwd();
+
+  for (const identVar of ['GIT_COMMITTER_IDENT', 'GIT_AUTHOR_IDENT']) {
+    try {
+      await execFileAsync('git', ['var', identVar], { cwd: probeCwd });
+    } catch (error) {
+      if (isSpawnNotFoundError(error)) {
+        throw new ContextStoreError(
+          'Git is not available, so setup cannot create the initial context-store commit.',
+          'context_store_git_init_failed',
+          {
+            target: 'context_store.git',
+            fix: 'Install Git or rerun setup with --no-init-git.',
+          }
+        );
+      }
+
+      throw new ContextStoreError(
+        'No usable Git commit identity is configured, so setup cannot create the initial context-store commit.',
+        'context_store_git_identity_missing',
+        {
+          target: 'context_store.git',
+          fix: 'Run git config --global user.name "Your Name" and git config --global user.email "you@example.com", or rerun setup with --no-init-git.',
+        }
+      );
+    }
+  }
+}
+
+/**
+ * Index-preserving initial commit: the pathspec on `git commit` keeps files
+ * the user had already staged out of setup's commit and leaves them staged.
+ */
+async function commitCreatedFiles(
+  storeRoot: string,
+  id: string,
+  files: string[]
+): Promise<boolean> {
+  if (files.length === 0) {
+    return false;
+  }
+
+  try {
+    await execFileAsync('git', ['add', '--', ...files], { cwd: storeRoot });
+    await execFileAsync(
+      'git',
+      ['commit', '-m', `Initialize OpenSpec context store ${id}`, '--', ...files],
+      { cwd: storeRoot }
+    );
+  } catch (error) {
+    throw new ContextStoreError(
+      `Failed to create the initial context-store commit: ${error instanceof Error ? error.message : String(error)}`,
+      'context_store_git_commit_failed',
+      {
+        target: 'context_store.git',
+        fix: 'Commit the created files manually, or rerun setup with --no-init-git.',
+      }
+    );
+  }
+
+  return true;
+}
+
+async function gitProbe(storeRoot: string, args: string[]): Promise<string | null> {
+  try {
+    const { stdout } = await execFileAsync('git', ['-C', storeRoot, ...args]);
+    return stdout;
+  } catch {
+    return null;
+  }
+}
+
+async function gitHasCommits(storeRoot: string): Promise<boolean | null> {
+  try {
+    await execFileAsync('git', ['-C', storeRoot, 'rev-parse', '--verify', '--quiet', 'HEAD']);
+    return true;
+  } catch (error) {
+    return isSpawnNotFoundError(error) ? null : false;
+  }
+}
+
+async function gitHasUncommittedChanges(storeRoot: string): Promise<boolean | null> {
+  const stdout = await gitProbe(storeRoot, ['status', '--porcelain']);
+  return stdout === null ? null : stdout.trim().length > 0;
+}
+
+async function gitHasRemote(storeRoot: string): Promise<boolean | null> {
+  const stdout = await gitProbe(storeRoot, ['remote']);
+  return stdout === null ? null : stdout.trim().length > 0;
+}
+
+async function gitDirectoryHasTrackedFiles(
+  storeRoot: string,
+  relativeDir: string
+): Promise<boolean | null> {
+  const stdout = await gitProbe(storeRoot, ['ls-files', '--', relativeDir]);
+  return stdout === null ? null : stdout.trim().length > 0;
+}
+
 function expandUserPath(inputPath: string): string {
   const trimmed = inputPath.trim();
   if (trimmed === '~') return os.homedir();
@@ -306,18 +426,19 @@ function expandUserPath(inputPath: string): string {
 }
 
 function resolveSetupRoot(id: string, inputPath: string | undefined): string {
-  if (inputPath !== undefined && inputPath.trim().length === 0) {
-    throw new ContextStoreError('Pass a non-empty --path value.', 'context_store_path_required', {
-      target: 'context_store.root',
-      fix: `openspec context-store setup ${id} --path /path/to/context-store`,
-    });
+  // A store is a repo the user places; setup never silently picks app data.
+  if (inputPath === undefined || inputPath.trim().length === 0) {
+    throw new ContextStoreError(
+      'Pass --path with the folder where this context store should live.',
+      'context_store_setup_path_required',
+      {
+        target: 'context_store.root',
+        fix: `openspec context-store setup ${id} --path ~/openspec/${id}`,
+      }
+    );
   }
 
-  if (inputPath !== undefined) {
-    return path.resolve(expandUserPath(inputPath));
-  }
-
-  return getDefaultContextStoreRoot(id);
+  return path.resolve(expandUserPath(inputPath));
 }
 
 function resolveRegisterRoot(inputPath: string | undefined): string {
@@ -335,10 +456,32 @@ function inferStoreIdFromPath(storeRoot: string): string {
   return validateContextStoreId(path.basename(storeRoot));
 }
 
+function normalizeRegistryPathForComparison(targetPath: string): string {
+  try {
+    return FileSystemUtils.canonicalizeExistingPath(targetPath);
+  } catch {
+    return path.resolve(targetPath);
+  }
+}
+
+function isRegisteredAtPath(
+  registry: ContextStoreRegistryState | null,
+  id: string,
+  storeRoot: string
+): boolean {
+  const entry = registry?.stores?.[id];
+  if (!entry) return false;
+
+  return (
+    normalizeRegistryPathForComparison(getStoreRootForBackend(entry.backend)) ===
+    normalizeRegistryPathForComparison(storeRoot)
+  );
+}
+
 function mutationPayload(
   id: string,
   storeRoot: string,
-  git: { isRepository: boolean; initialized: boolean },
+  git: { isRepository: boolean; initialized: boolean; committed: boolean },
   createdFiles: string[],
   registry: { registered: boolean; alreadyRegistered: boolean },
   diagnostics: ContextStoreDiagnostic[] = []
@@ -357,6 +500,7 @@ function mutationPayload(
     git: {
       isRepository: git.isRepository,
       initialized: git.initialized,
+      committed: git.committed,
     },
     createdArtifacts: createdFiles,
     diagnostics,
@@ -376,7 +520,7 @@ async function prepareSetupPlan(
       'context_store_setup_path_not_directory',
       {
         target: 'context_store.root',
-        fix: 'Choose an empty directory or omit --path to use the managed OpenSpec context-store location.',
+        fix: 'Choose an empty directory or an existing healthy OpenSpec root.',
       }
     );
   }
@@ -468,26 +612,64 @@ export async function setupPreparedContextStore(
   let { backend } = plan;
   const createdFiles: string[] = [];
   let createdPaths: CreatedPathLedgerEntry[] = [];
+  let gitInitialized = false;
 
-  const initGit = input.initGit ?? false;
+  // --no-init-git opts out of every Git action: no preflight, no init, no
+  // commit, even when the target is already a repository.
+  const gitEnabled = input.initGit ?? true;
+  const repoExisted = await isGitRepositoryAtRoot(storeRoot);
+
+  // Identity preflight runs before anything is created so a missing identity
+  // never leaves half-made state behind.
+  if (gitEnabled) {
+    await assertGitCommitIdentity(storeRoot);
+  }
+
+  // Reruns for an already-registered store stay strict no-ops: no anchor
+  // retrofit, no new commit.
+  const alreadyRegisteredHere = isRegisteredAtPath(registry, id, storeRoot);
 
   try {
-    const root = await ensureOpenSpecRoot(storeRoot);
+    const root = await ensureOpenSpecRoot(storeRoot, {
+      anchorEmptyDirectories: !alreadyRegisteredHere,
+    });
     createdFiles.push(...root.createdArtifacts);
     createdPaths = root.createdPaths;
     backend ??= await resolveGitContextStoreBackendConfig({ localPath: storeRoot });
     assertNoRegisteredStoreConflict(registry, id, backend);
 
-    const gitInitialized = initGit ? await initGitRepository(storeRoot) : false;
-    const isRepository = await isGitRepositoryAtRoot(storeRoot);
+    // The identity file is written before the initial commit so clones carry
+    // it; without it, register falls back to the conversion prompt.
+    const existingMetadata = await readStoreMetadataForOperation(storeRoot);
+    if (!existingMetadata) {
+      const metadataDir = getContextStoreMetadataDir(storeRoot);
+      const metadataDirMissing = (await pathKind(metadataDir)) === 'missing';
+      await writeContextStoreMetadataState(storeRoot, { version: 1, id });
+      if (metadataDirMissing) {
+        createdPaths.push(createdPath('.openspec-store/', metadataDir, 'directory'));
+      }
+      createdPaths.push(createdPath(
+        '.openspec-store/store.yaml',
+        getContextStoreMetadataPath(storeRoot),
+        'file'
+      ));
+      createdFiles.push('.openspec-store/store.yaml');
+    }
+
+    gitInitialized = gitEnabled ? await initGitRepository(storeRoot) : false;
+    const isRepository = gitInitialized || repoExisted;
+    const filesToCommit = createdPaths
+      .filter((entry) => entry.kind === 'file')
+      .map((entry) => entry.relativePath);
+    const committed = gitEnabled && isRepository
+      ? await commitCreatedFiles(storeRoot, id, filesToCommit)
+      : false;
+
     const registered = await commitContextStoreRegistration({
       id,
       backend,
       writeMetadataIfMissing: true,
     });
-    if (registered.metadataCreated) {
-      createdFiles.push('.openspec-store/store.yaml');
-    }
     const diagnostics = registered.alreadyRegistered && createdFiles.length === 0
       ? [alreadyRegisteredDiagnostic(id)]
       : [];
@@ -495,6 +677,7 @@ export async function setupPreparedContextStore(
     return mutationPayload(id, registered.storeRoot, {
       isRepository,
       initialized: gitInitialized,
+      committed,
     }, createdFiles, {
       registered: registered.registryUpdated,
       alreadyRegistered: registered.alreadyRegistered,
@@ -502,8 +685,11 @@ export async function setupPreparedContextStore(
   } catch (error) {
     if (createdPaths.length > 0) {
       await rollbackCreatedPaths(createdPaths);
+      if (gitInitialized && kind === 'directory') {
+        await fs.rm(path.join(storeRoot, '.git'), { recursive: true, force: true }).catch(() => undefined);
+      }
       if (kind === 'missing') {
-        await fs.rmdir(storeRoot).catch(() => undefined);
+        await fs.rm(storeRoot, { recursive: true, force: true });
       }
     } else if (kind === 'missing') {
       await fs.rm(storeRoot, { recursive: true, force: true });
@@ -551,12 +737,24 @@ export async function registerExistingContextStore(
 
   const openspecRoot = await inspectOpenSpecRoot(storeRoot);
   if (!openspecRoot.healthy) {
+    const problems =
+      openspecRoot.diagnostics.map((diagnostic) => diagnostic.message).join(' ') ||
+      'The OpenSpec root is missing or incomplete.';
+    const isEmptyCloneSuspect =
+      (await isGitRepositoryAtRoot(storeRoot)) &&
+      (await gitHasCommits(storeRoot)) === false;
+    const emptyCloneHint = isEmptyCloneSuspect
+      ? ' This folder is a Git repository with no commits — if it is a clone, the origin store needs an initial commit before the clone has any files.'
+      : '';
+
     throw new ContextStoreError(
-      'Context store register requires an existing healthy OpenSpec root.',
+      `Context store register requires an existing healthy OpenSpec root. ${problems}${emptyCloneHint}`,
       'context_store_register_root_unhealthy',
       {
         target: 'openspec.root',
-        fix: 'Register a cloned context store or run setup for a new context store root.',
+        fix: isEmptyCloneSuspect
+          ? 'Commit and push the origin store, pull it into this clone, then rerun register.'
+          : 'Run openspec context-store setup for a new store, or point register at a checkout whose openspec/ files are present.',
       }
     );
   }
@@ -565,12 +763,21 @@ export async function registerExistingContextStore(
   const explicitId = input.id !== undefined ? validateContextStoreId(input.id) : undefined;
 
   if (metadata && explicitId !== undefined && metadata.id !== explicitId) {
+    // The fix must account for whether the metadata id is already registered,
+    // so following it never lands on the already-registered error.
+    const currentRegistry = await readContextStoreRegistryState();
+    const registeredElsewhere =
+      currentRegistry?.stores?.[metadata.id] !== undefined &&
+      !isRegisteredAtPath(currentRegistry, metadata.id, storeRoot);
+
     throw new ContextStoreError(
-      `Context store metadata id '${metadata.id}' does not match --id '${explicitId}'.`,
+      `Context store metadata id '${metadata.id}' does not match --id '${explicitId}'. The id comes from the store's committed .openspec-store/store.yaml.`,
       'context_store_metadata_id_mismatch',
       {
         target: 'context_store.id',
-        fix: `Use --id ${metadata.id} or register a different folder.`,
+        fix: registeredElsewhere
+          ? `One checkout per store id is supported, and '${metadata.id}' is already registered. Run openspec context-store unregister ${metadata.id} first to register this checkout instead.`
+          : `Use --id ${metadata.id} or register a different folder.`,
       }
     );
   }
@@ -605,9 +812,11 @@ export async function registerExistingContextStore(
     ? [alreadyRegisteredDiagnostic(id)]
     : [];
 
+  // Register never commits; converted roots are the user's repo to commit.
   return mutationPayload(id, registered.storeRoot, {
     isRepository,
     initialized: false,
+    committed: false,
   }, createdFiles, {
     registered: registered.registryUpdated,
     alreadyRegistered: registered.alreadyRegistered,
@@ -798,6 +1007,9 @@ async function inspectContextStore(entry: {
   };
   let git: ContextStoreInspection['git'] = {
     isRepository: null,
+    hasCommits: null,
+    hasUncommittedChanges: null,
+    hasRemote: null,
   };
   let openspecRoot: OpenSpecRootInspection = await inspectOpenSpecRoot(root);
 
@@ -862,9 +1074,53 @@ async function inspectContextStore(entry: {
       ));
     }
 
+    const isRepository = await isGitRepositoryAtRoot(root);
     git = {
-      isRepository: await isGitRepositoryAtRoot(root),
+      isRepository,
+      hasCommits: null,
+      hasUncommittedChanges: null,
+      hasRemote: null,
     };
+
+    // Read-only Git facts; doctor reports and never repairs.
+    if (isRepository) {
+      git.hasCommits = await gitHasCommits(root);
+      git.hasUncommittedChanges = await gitHasUncommittedChanges(root);
+      git.hasRemote = await gitHasRemote(root);
+
+      if (git.hasCommits === false) {
+        diagnostics.push(makeContextStoreDiagnostic(
+          'warning',
+          'context_store_git_no_commits',
+          'Git repository has no commits yet; clones of this store will be empty until an initial commit exists.',
+          {
+            target: 'context_store.git',
+            fix: 'Commit the store files, then push to share them.',
+          }
+        ));
+      } else if (git.hasCommits === true) {
+        const fragileDirs: string[] = [];
+        for (const relativeDir of ANCHORED_OPENSPEC_DIRS) {
+          const dirKind = await pathKind(path.join(root, relativeDir));
+          if (dirKind !== 'directory') continue;
+          if ((await gitDirectoryHasTrackedFiles(root, relativeDir)) === false) {
+            fragileDirs.push(`${relativeDir}/`);
+          }
+        }
+
+        if (fragileDirs.length > 0) {
+          diagnostics.push(makeContextStoreDiagnostic(
+            'warning',
+            'context_store_clone_fragile_directories',
+            `These directories contain no tracked files and will be lost in clones: ${fragileDirs.join(', ')}.`,
+            {
+              target: 'context_store.git',
+              fix: `Track a file in each directory (for example ${DIRECTORY_ANCHOR_FILE_NAME}) and commit it.`,
+            }
+          ));
+        }
+      }
+    }
   }
 
   return {
