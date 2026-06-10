@@ -134,7 +134,12 @@ export class ShowCommand {
 
     if (!params.typeOverride && isChange && isSpec) {
       console.error(`Ambiguous item '${itemName}' matches both a change and a spec.`);
-      console.error('Pass --type change|spec, or use: openspec change show / openspec spec show');
+      // The noun-form commands are cwd-based and cannot reach a selected store.
+      if (root.source === 'store') {
+        console.error('Pass --type change|spec.');
+      } else {
+        console.error('Pass --type change|spec, or use: openspec change show / openspec spec show');
+      }
       process.exitCode = 1;
       return;
     }
@@ -152,8 +157,14 @@ export class ShowCommand {
   private printNonInteractiveHint(root: ResolvedOpenSpecRoot): void {
     console.error('Nothing to show. Try one of:');
     console.error(`  ${withStoreFlag(root, 'openspec show <item>')}`);
-    console.error('  openspec change show');
-    console.error('  openspec spec show');
+    if (root.source === 'store') {
+      // The noun-form commands are cwd-based and cannot reach a selected store.
+      console.error(`  ${withStoreFlag(root, 'openspec show <item> --type change')}`);
+      console.error(`  ${withStoreFlag(root, 'openspec show <item> --type spec')}`);
+    } else {
+      console.error('  openspec change show');
+      console.error('  openspec spec show');
+    }
     console.error('Or run in an interactive terminal.');
   }
 

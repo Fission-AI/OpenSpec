@@ -6,7 +6,6 @@ import {
   toRootOutput,
   withStoreFlag,
   type ResolvedOpenSpecRoot,
-  type RootOutput,
 } from '../core/root-selection.js';
 import { isInteractive, resolveNoInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds, getSpecIds } from '../utils/item-discovery.js';
@@ -133,7 +132,12 @@ export class ValidateCommand {
 
     if (!opts.typeOverride && isChange && isSpec) {
       console.error(`Ambiguous item '${itemName}' matches both a change and a spec.`);
-      console.error('Pass --type change|spec, or use: openspec change validate / openspec spec validate');
+      // The noun-form commands are cwd-based and cannot reach a selected store.
+      if (root.source === 'store') {
+        console.error('Pass --type change|spec.');
+      } else {
+        console.error('Pass --type change|spec, or use: openspec change validate / openspec spec validate');
+      }
       process.exitCode = 1;
       return;
     }
@@ -148,7 +152,7 @@ export class ValidateCommand {
       const start = Date.now();
       const report = await validator.validateChangeDeltaSpecs(changeDir);
       const durationMs = Date.now() - start;
-      this.printReport('change', id, report, durationMs, opts.json, toRootOutput(root));
+      this.printReport('change', id, report, durationMs, opts.json, root);
       // Non-zero exit if invalid (keeps enriched output test semantics)
       process.exitCode = report.valid ? 0 : 1;
       return;
@@ -157,13 +161,13 @@ export class ValidateCommand {
     const start = Date.now();
     const report = await validator.validateSpec(file);
     const durationMs = Date.now() - start;
-    this.printReport('spec', id, report, durationMs, opts.json, toRootOutput(root));
+    this.printReport('spec', id, report, durationMs, opts.json, root);
     process.exitCode = report.valid ? 0 : 1;
   }
 
-  private printReport(type: ItemType, id: string, report: { valid: boolean; issues: any[] }, durationMs: number, json: boolean, root: RootOutput): void {
+  private printReport(type: ItemType, id: string, report: { valid: boolean; issues: any[] }, durationMs: number, json: boolean, root: ResolvedOpenSpecRoot): void {
     if (json) {
-      const out = { items: [{ id, type, valid: report.valid, issues: report.issues, durationMs }], summary: { totals: { items: 1, passed: report.valid ? 1 : 0, failed: report.valid ? 0 : 1 }, byType: { [type]: { items: 1, passed: report.valid ? 1 : 0, failed: report.valid ? 0 : 1 } } }, version: '1.0', root };
+      const out = { items: [{ id, type, valid: report.valid, issues: report.issues, durationMs }], summary: { totals: { items: 1, passed: report.valid ? 1 : 0, failed: report.valid ? 0 : 1 }, byType: { [type]: { items: 1, passed: report.valid ? 1 : 0, failed: report.valid ? 0 : 1 } } }, version: '1.0', root: toRootOutput(root) };
       console.log(JSON.stringify(out, null, 2));
       return;
     }
@@ -176,16 +180,16 @@ export class ValidateCommand {
         const prefix = issue.level === 'ERROR' ? '✗' : issue.level === 'WARNING' ? '⚠' : 'ℹ';
         console.error(`${prefix} [${label}] ${issue.path}: ${issue.message}`);
       }
-      this.printNextSteps(type);
+      this.printNextSteps(type, id, root);
     }
   }
 
-  private printNextSteps(type: ItemType): void {
+  private printNextSteps(type: ItemType, id: string, root: ResolvedOpenSpecRoot): void {
     const bullets: string[] = [];
     if (type === 'change') {
       bullets.push('- Ensure change has deltas in specs/: use headers ## ADDED/MODIFIED/REMOVED/RENAMED Requirements');
       bullets.push('- Each requirement MUST include at least one #### Scenario: block');
-      bullets.push('- Debug parsed deltas: openspec change show <id> --json --deltas-only');
+      bullets.push(`- Debug parsed deltas: ${withStoreFlag(root, `openspec show ${id} --json --deltas-only`)}`);
     } else {
       bullets.push('- Ensure spec includes ## Purpose and ## Requirements sections');
       bullets.push('- Each requirement MUST include at least one #### Scenario: block');
