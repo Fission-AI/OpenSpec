@@ -62,7 +62,73 @@ export interface ReferenceDeclaration {
 
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema> & {
   references?: ReferenceDeclaration[];
+  targets?: ReferenceDeclaration[];
 };
+
+/**
+ * Shared parser for declaration-list config fields (`references:`,
+ * `targets:`): string entries or {id, remote} maps, normalized to
+ * ReferenceDeclaration[]. Dedup keys on id and keeps the first
+ * position; the first entry carrying a remote supplies it (a later
+ * duplicate fills a missing remote, never overrides). Invalid entries
+ * drop with a warning like other resilient fields; returns undefined
+ * when the field is absent or normalizes to empty.
+ */
+function parseDeclarationList(
+  raw: unknown,
+  fieldName: string
+): ReferenceDeclaration[] | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(raw)) {
+    console.warn(`Invalid '${fieldName}' field in config (must be an array of store ids)`);
+    return undefined;
+  }
+
+  const byId = new Map<string, ReferenceDeclaration>();
+  let droppedEntries = false;
+  let droppedRemotes = false;
+
+  for (const entry of raw) {
+    let declaration: ReferenceDeclaration | null = null;
+    if (typeof entry === 'string') {
+      declaration = { id: entry };
+    } else if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+      const candidate = entry as Record<string, unknown>;
+      if (typeof candidate.id === 'string') {
+        declaration = { id: candidate.id };
+        if (typeof candidate.remote === 'string' && candidate.remote.length > 0) {
+          declaration.remote = candidate.remote;
+        } else if (candidate.remote !== undefined) {
+          droppedRemotes = true; // remote dropped, id kept
+        }
+      }
+    }
+
+    if (!declaration) {
+      droppedEntries = true;
+      continue;
+    }
+
+    const existing = byId.get(declaration.id);
+    if (!existing) {
+      byId.set(declaration.id, declaration);
+    } else if (existing.remote === undefined && declaration.remote !== undefined) {
+      existing.remote = declaration.remote;
+    }
+  }
+
+  if (droppedEntries) {
+    console.warn(`Some '${fieldName}' entries are invalid, ignoring them`);
+  }
+  if (droppedRemotes) {
+    console.warn(
+      `Some '${fieldName}' remotes are not non-empty strings; the ids are kept without a clone source`
+    );
+  }
+  return byId.size > 0 ? [...byId.values()] : undefined;
+}
 
 export const MAX_CONTEXT_SIZE = 50 * 1024; // 50KB hard limit, shared with the references index
 
@@ -170,60 +236,16 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
       }
     }
 
-    // Parse references field: string entries or {id, remote} maps,
-    // normalized to ReferenceDeclaration[]. Dedup keys on id and keeps
-    // the first position; the first entry carrying a remote supplies it
-    // (a later duplicate fills a missing remote, never overrides).
-    // Invalid entries drop with a warning like other resilient fields.
-    if (raw.references !== undefined) {
-      if (Array.isArray(raw.references)) {
-        const byId = new Map<string, ReferenceDeclaration>();
-        let droppedEntries = false;
-        let droppedRemotes = false;
-
-        for (const entry of raw.references) {
-          let declaration: ReferenceDeclaration | null = null;
-          if (typeof entry === 'string') {
-            declaration = { id: entry };
-          } else if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
-            const candidate = entry as Record<string, unknown>;
-            if (typeof candidate.id === 'string') {
-              declaration = { id: candidate.id };
-              if (typeof candidate.remote === 'string' && candidate.remote.length > 0) {
-                declaration.remote = candidate.remote;
-              } else if (candidate.remote !== undefined) {
-                droppedRemotes = true; // remote dropped, id kept
-              }
-            }
-          }
-
-          if (!declaration) {
-            droppedEntries = true;
-            continue;
-          }
-
-          const existing = byId.get(declaration.id);
-          if (!existing) {
-            byId.set(declaration.id, declaration);
-          } else if (existing.remote === undefined && declaration.remote !== undefined) {
-            existing.remote = declaration.remote;
-          }
-        }
-
-        if (droppedEntries) {
-          console.warn(`Some 'references' entries are invalid, ignoring them`);
-        }
-        if (droppedRemotes) {
-          console.warn(
-            `Some 'references' remotes are not non-empty strings; the ids are kept without a clone source`
-          );
-        }
-        if (byId.size > 0) {
-          config.references = [...byId.values()];
-        }
-      } else {
-        console.warn(`Invalid 'references' field in config (must be an array of store ids)`);
-      }
+    // Parse the declaration-list fields (references since 3.1/3.3,
+    // targets since 3.4) through one shared parser so both normalize
+    // identically.
+    const references = parseDeclarationList(raw.references, 'references');
+    if (references) {
+      config.references = references;
+    }
+    const targets = parseDeclarationList(raw.targets, 'targets');
+    if (targets) {
+      config.targets = targets;
     }
 
     // Parse store pointer field: a string, or dropped with a warning.

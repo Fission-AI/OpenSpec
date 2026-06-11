@@ -2,6 +2,7 @@ import * as nodeFs from 'node:fs';
 import * as path from 'node:path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { z } from 'zod';
+import { isKebabId } from '../change-metadata/schema.js';
 
 import { getGlobalDataDir } from '../global-config.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
@@ -107,7 +108,7 @@ export function validateStoreId(id: string): string {
     );
   }
 
-  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(id)) {
+  if (!isKebabId(id)) {
     throw new StoreError(
       'Store id must be kebab-case with lowercase letters, numbers, and single hyphen separators',
       'invalid_store_id',

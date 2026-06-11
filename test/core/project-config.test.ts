@@ -312,6 +312,26 @@ rules:
         );
       });
 
+      it('parses targets identically to references through the shared parser (3.4)', () => {
+        writeConfig(
+          'schema: spec-driven\n' +
+            'references:\n  - team-context\n  - { id: team-context, remote: https://192.0.2.1/a.git }\n  - 7\n' +
+            'targets:\n  - api-server\n  - { id: api-server, remote: https://192.0.2.1/b.git }\n  - 7\n'
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config?.references).toEqual([
+          { id: 'team-context', remote: 'https://192.0.2.1/a.git' },
+        ]);
+        expect(config?.targets).toEqual([
+          { id: 'api-server', remote: 'https://192.0.2.1/b.git' },
+        ]);
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Some 'targets' entries are invalid")
+        );
+      });
+
       it('normalizes map entries and fills remotes across duplicates (3.3)', () => {
         writeConfig(
           'schema: spec-driven\nreferences:\n' +
